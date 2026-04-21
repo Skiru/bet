@@ -1,0 +1,125 @@
+---
+applyTo: "betting/**/*"
+---
+
+Write betting artifacts in a strict, reusable format.
+
+General rules:
+- Use the Europe/Warsaw betting-day convention defined in the repo instructions.
+- Use dot decimals for odds and PLN amounts.
+- Use YYYY-MM-DD for dates and YYYY-MM-DD HH:MM for local timestamps.
+- Use | as the separator inside CSV cells that contain multiple source names.
+- On reruns for the same betting day, update or replace same-day artifacts instead of duplicating them.
+
+Daily report path:
+- betting/reports/YYYY-MM-DD.md
+
+Daily report required sections and order:
+1. # Betting Day YYYY-MM-DD
+2. ## Run Metadata
+3. ## Previous Day Settlement
+4. ## Learning Update
+5. ## Source Availability
+6. ## Candidate Board
+7. ## Final Singles
+8. ## Final Coupons
+9. ## Rejected Picks
+10. ## Exposure Summary
+
+Daily report required content:
+- Run Metadata must include betting_day, run_timestamp_local, bookmaker, sports_focus, and bankroll_cap_pln.
+- Previous Day Settlement must include settled picks summary, settled coupons summary, previous day pnl, and rolling 7-day pnl when available.
+- Learning Update must contain at most 3 process-level changes.
+- Source Availability must log each important source with role, availability, and a short note.
+- Candidate Board must show the shortlist with verdict values approved, rejected, or watch.
+- Final Singles must include pick_id, event, market, selection, bookmaker_odds, market_best_odds, price_gap_pct, stake_pln, confidence_1_5, main_reason, main_risk, and sources.
+- Final Coupons must have separate Low-Risk and Higher-Risk subsections. Each coupon must include coupon_id, leg list, combined_odds, stake_pln, correlation check, and main logic.
+- Rejected Picks must state the event or market and the rejection reason.
+- Exposure Summary must include total_planned_exposure_pln, unused_bankroll_pln, and any duplication warning if a pick appears in both singles and coupons.
+- If no bet is made, still write every section and state NO BET TODAY where appropriate.
+
+Daily coupon text path:
+- betting/coupons/YYYY-MM-DD.txt
+
+Coupon text required order:
+BETTING DAY:
+RUN TIME LOCAL:
+BOOKMAKER:
+BANKROLL CAP PLN:
+TOTAL PLANNED EXPOSURE PLN:
+UNUSED BANKROLL PLN:
+
+SINGLES:
+- [pick_id] event | market | selection | odds | stake
+
+LOW-RISK COUPON:
+- coupon_id
+- legs
+- combined_odds
+- stake_pln
+- rationale
+
+HIGHER-RISK COUPON:
+- coupon_id
+- legs
+- combined_odds
+- stake_pln
+- rationale
+
+SKIPPED OR OMITTED:
+- explain why a coupon variant or the full slate was skipped
+
+If a coupon variant is not justified, write OMITTED instead of forcing it.
+
+Use these exact CSV headers.
+
+betting/journal/picks-ledger.csv
+betting_day,pick_id,event,sport,competition,market,selection,bookmaker,bookmaker_odds,market_best_odds,price_gap_pct,odds_checked_at_local,stake_pln,risk_tier,confidence_1_5,status,pnl_pln,stat_sources,market_sources,verification_sources,main_reason,main_risk,notes
+
+betting/journal/coupons-ledger.csv
+betting_day,coupon_id,variant,selections_count,pick_ids,combined_odds,stake_pln,risk_level,status,pnl_pln,odds_checked_at_local,correlation_check,main_logic,notes
+
+betting/journal/source-log.csv
+betting_day,source_name,role,sport_scope,availability,used_in_analysis,used_in_final_picks,notes
+
+Field conventions:
+- risk_tier values are low, medium, high.
+- confidence_1_5 uses integers from 1 to 5.
+- variant values are low-risk or higher-risk.
+- risk_level values are low-risk or higher-risk.
+- correlation_check values are pass or flagged.
+- availability values are available, partial, or unavailable.
+- used_in_analysis and used_in_final_picks values are yes or no.
+
+ID and update rules:
+- Pick IDs use PK-YYYYMMDD-##.
+- Reuse an existing same-day pick ID when event + market + selection are unchanged.
+- Low-risk coupon ID uses CP-YYYYMMDD-LR.
+- Higher-risk coupon ID uses CP-YYYYMMDD-HR.
+- Overwrite same-day report and coupon files on rerun.
+- Update ledger rows in place where IDs already exist. Do not append duplicate rows for the same ID.
+
+Allowed pick statuses:
+- pending
+- win
+- loss
+- push
+- void
+- half_win
+- half_loss
+
+Allowed coupon statuses:
+- pending
+- win
+- loss
+- void
+
+PnL rules:
+- win = stake_pln * (odds - 1)
+- loss = -stake_pln
+- push = 0
+- void = 0
+- half_win = stake_pln * (odds - 1) / 2
+- half_loss = -stake_pln / 2
+- pending uses an empty pnl_pln cell
+- if a coupon leg is void or push, recalculate effective combined odds from the remaining active legs and settle the coupon from the adjusted price
