@@ -10,7 +10,10 @@ import re
 
 
 TIME_RE = re.compile(r"\b(\d{1,2}:\d{2})\b")
-VS_RE = re.compile(r"(.+?)\s*(?:vs|v|–|-|—|:)\s*(.+)", re.I)
+# Require spaces around separators to avoid splitting team names like "Caravel" on "v"
+# or times like "21:30" on ":"
+VS_RE = re.compile(r"(.+?)\s+(?:vs\.?|v\.)\s+(.+)", re.I)
+DASH_RE = re.compile(r"(.{3,}?)\s+[-–—]\s+(.{3,})")
 
 
 def parse(html: str, url: str) -> List[Dict]:
@@ -22,10 +25,15 @@ def parse(html: str, url: str) -> List[Dict]:
         text = (a.get_text(separator=" ") or "").strip()
         if not text or len(text) > 200:
             continue
-        m = VS_RE.search(text)
+        m = VS_RE.search(text) or DASH_RE.search(text)
         if m:
             home = m.group(1).strip()
             away = m.group(2).strip()
+            # Skip if home/away look like times or numbers
+            if re.match(r"^\d{1,2}$", home) or re.match(r"^\d{1,2}$", away):
+                continue
+            if len(home) < 2 or len(away) < 2:
+                continue
             # try to find time nearby (in parent or previous sibling)
             context = " ".join([s.get_text(separator=" ").strip() for s in a.parents][:2])
             time_m = TIME_RE.search(text) or TIME_RE.search(context)

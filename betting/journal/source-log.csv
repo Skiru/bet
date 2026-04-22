@@ -7,3 +7,15 @@ betting_day,source_name,role,sport_scope,availability,used_in_analysis,used_in_f
 2026-04-21,Betclic,bookmaker,all sports,available,yes,yes,bet placement verified via betclic.pl and user screenshot; mobile endpoints partial
 2026-04-21,UserScreenshots,verification,all sports,available,yes,yes,Screenshots provided by user; used to record pre-system placed coupons and reconcile ledgers
 2026-04-21,AutomatedScan,monitor,football|tennis,partial,yes,no,Automated market scan attempted; OddsPortal privacy overlays blocked reliable odds extraction; BetExplorer/Oddspedia/Flashscore queries returned errors — manual follow-up required
+2026-04-22,Flashscore,stats/fixture,football|tennis|basketball|hockey,available,yes,yes,Fixtures confirmed via pipeline and manual; ATP/WTA Madrid schedule verified
+2026-04-22,Betclic,bookmaker,football|tennis,partial,yes,yes,1X2 odds extracted via adapter (5 football matches); match pages 403 for O/U BTTS game-totals; all final odds require user app verification
+2026-04-22,OddsPortal,market/price,football,partial,yes,no,JS pages fail static fetch; used for reference only
+2026-04-22,BetExplorer,market/price,football|tennis,available,yes,yes,1X2 market-best retrieved for football (PL LaLiga DFB Ligue1 Coppa) AND tennis (ATP Madrid + WTA Madrid match odds)
+2026-04-22,Forebet,model/prediction,football,available,yes,yes,Full predictions avg_goals trends previews for football; tennis predictions returned 404
+2026-04-22,Sofascore,stats/fixture,football,available,yes,no,Pipeline HTMLs saved; not manually deep-parsed
+2026-04-22,Oddspedia,market/consensus,multi-sport,partial,no,no,Match pages 404
+2026-04-22,Covers,US sports,basketball|baseball|hockey,not_applicable,no,no,No NBA NHL MLB games today
+2026-04-22,TennisAbstract,tennis stats,tennis,not_checked,no,no,Not parsed; not required for over-games market (BetExplorer match odds sufficient)
+2026-04-22,Sportsgambler,previews,multi-sport,available,yes,no,Pipeline HTMLs saved
+2026-04-22,SportyTrader,previews,football,unavailable,no,no,HTTP 404
+2026-04-22,Orchestrator,automated,all,available,yes,no,Pipeline ran successfully; 1014 matches scanned

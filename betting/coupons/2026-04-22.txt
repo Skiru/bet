@@ -1,0 +1,77 @@
+BETTING DAY: 2026-04-22
+RUN TIME LOCAL: 2026-04-22 16:30
+BOOKMAKER: Betclic
+BANKROLL: 43.00 PLN
+DAILY CAP PLN: 8.00 (updated)
+TOTAL PLANNED EXPOSURE PLN: 7.00
+UNUSED FROM CAP PLN: 1.00
+
+SINGLES:
+- [PK-20260422-01] Barcelona vs Celta Vigo | totals | Over 2.5 | ~1.45 (VERIFY) | 2.00 PLN | accept if >= 1.38
+
+KUPON 1 — LOW-RISK (CP-20260422-LR):
+- coupon_id: CP-20260422-LR
+- legs:
+  1. [PK-20260422-02] Burnley vs Man City | totals | Over 2.5 | ~1.50 | accept if >= 1.40
+  2. [PK-20260422-06] Zhang Z. vs Kopriva V. (ATP Madrid) | game_totals | Over 20.5 games | ~1.45 | accept if >= 1.35
+- combined_odds: ~2.18
+- stake_pln: 1.00
+- rationale: Multi-sport (PL football + ATP tennis). City's 3.23 avg goals + evenly matched tennis pair (1.80/2.01).
+
+KUPON 2 — HIGHER-RISK (CP-20260422-HR):
+- coupon_id: CP-20260422-HR
+- legs:
+  1. [PK-20260422-03] Leverkusen vs Bayern | totals | Over 2.5 | ~1.60 | accept if >= 1.50
+  2. [PK-20260422-07] Udvardy P. vs Birrell K. (WTA Madrid) | game_totals | Over 20.5 games | ~1.45 | accept if >= 1.35
+  3. [PK-20260422-08] Snigur D. vs Kasatkina D. (WTA Madrid) | game_totals | Over 20.5 games | ~1.45 | accept if >= 1.35
+- combined_odds: ~3.36
+- stake_pln: 0.50
+- rationale: DFB Pokal semi (3.38 avg goals) + 2 WTA clay matches. 3 legs = reduced stake.
+
+KUPON 3 — MEDIUM (CP-20260422-C3):
+- coupon_id: CP-20260422-C3
+- legs:
+  1. [PK-20260422-09] Muller A. vs Struff J-L. (ATP Madrid, 14:00) | game_totals | Over 20.5 games | ~1.45 | accept if >= 1.35
+  2. [PK-20260422-10] Galfi D. vs Tomljanovic A. (WTA Madrid, 13:00) | game_totals | Over 20.5 games | ~1.45 | accept if >= 1.35
+- combined_odds: ~2.10
+- stake_pln: 1.00
+- rationale: Muller/Struff odds 1.64/2.26 = competitive ATP clay. Galfi/Tomljanovic odds 2.03/1.75 = very competitive WTA clay. Multi-sport coupon.
+
+KUPON 4 — MEDIUM (CP-20260422-C4):
+- coupon_id: CP-20260422-C4
+- legs:
+  1. [PK-20260422-11] Tjen J. vs Charaeva A. (WTA Madrid, 14:30) | game_totals | Over 20.5 games | ~1.45 | accept if >= 1.35
+  2. [PK-20260422-12] Krueger A. vs Kenin S. (WTA Madrid, 15:30) | game_totals | Over 20.5 games | ~1.45 | accept if >= 1.35
+- combined_odds: ~2.10
+- stake_pln: 1.00
+- rationale: Tjen/Charaeva odds 1.86/1.89 = VIRTUALLY EVEN (najwyższe prawdopodobieństwo 3 setów!). Krueger/Kenin odds 1.78/1.99 = bardzo wyrównane. Dwie najbardziej wyrównane pary WTA dnia.
+
+KUPON 5 — ATP CLAY (CP-20260422-C5):
+- coupon_id: CP-20260422-C5
+- legs:
+  1. [PK-20260422-04] Bergs Z. vs Cilic M. (ATP Madrid, 11:00) | game_totals | Over 20.5 games | ~1.45 | accept if >= 1.35
+  2. [PK-20260422-05] Dzumhur D. vs Bellucci M. (ATP Madrid, 12:30) | game_totals | Over 20.5 games | ~1.45 | accept if >= 1.35
+- combined_odds: ~2.10
+- stake_pln: 1.50
+- rationale: Dwie najlepsze pary ATP dnia. Bergs/Cilic (1.92/1.89) = praktycznie remis, ~60% szans na 3 sety. Dzumhur/Bellucci (2.00/1.79) = doświadczony gracz gliniany vs młody talent. Oba mecze na mączce w Madrycie.
+
+EVENT OVERLAP CHECK: ZERO — 12 unique events, no event appears in multiple selections.
+
+CONDITIONAL NOTE: ALL picks require user to verify exact Betclic odds on app before placing.
+Tennis over-games lines are not available from adapter (match pages 403) — check app directly.
+
+SKIPPED OR OMITTED:
+- PSG/Barcelona/Man City 1X2: odds outside 1.30-3.50 preferred range
+- Atletico: 3 consecutive LaLiga losses, excessive form risk
+- Brooksby/Nava, Buse/Mannarino, Ruse/Ruzic: lopsided tennis odds, low 3-set probability
+- Basketball/hockey/baseball: no major league games today
+- The board has strong fixtures (Bayern vs Leverkusen DFB-Pokal, Barcelona vs Celta Vigo, Burnley vs Man City, Atalanta vs Lazio Coppa Italia) but requires manual odds verification on Betclic app/site.
+
+USER ACTION REQUIRED:
+If checking Betclic manually, the recommended picks to verify:
+1. Leverkusen vs Bayern — BTTS YES (target: ≥1.55, suggested stake 1.50 PLN)
+2. Burnley vs Man City — OVER 2.5 goals (target: ≥1.35, suggested stake 1.50 PLN)
+3. Atalanta vs Lazio — BTTS YES (target: ≥1.55, AKO leg candidate)
+
+If all three pass price gap checks (-3% threshold), consider a 3-leg AKO:
+- Combined odds ~3.25, stake 2.00 PLN, potential payout ~6.50 PLN

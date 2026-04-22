@@ -2,7 +2,7 @@
   "use_smart_allocation": true,
   "daily_exposure_pln": null,
   "max_single_stake_pln": 2.0,
-  "suggested_daily_allocation_range_pln": [4.0, 7.0],
+  "suggested_daily_allocation_range_pln": [4.0, 8.0],
   "low_risk_coupon_max_stake_pln": 2.0,
   "higher_risk_coupon_max_stake_pln": 1.0,
   "low_risk_price_gap_threshold_pct": -3.0,
@@ -11,5 +11,18 @@
   "max_low_risk_coupon_legs": 3,
   "max_higher_risk_coupon_legs": 4,
   "preferred_odds_range": [1.30, 3.50],
-  "timezone": "Europe/Warsaw"
+  "timezone": "Europe/Warsaw",
+  "sports": ["football", "tennis", "basketball", "hockey", "baseball"],
+  "market_types": {
+    "football": ["totals", "btts", "team_totals", "double_chance", "draw_no_bet", "corners", "cards", "fouls", "1x2"],
+    "tennis": ["moneyline", "set_handicap", "game_totals", "set_totals", "games_handicap"],
+    "basketball": ["totals", "spreads", "moneyline", "quarter_totals"],
+    "hockey": ["totals", "moneyline", "period_totals"],
+    "baseball": ["totals", "moneyline", "run_line"]
+  },
+  "diversification": {
+    "prefer_multi_sport": true,
+    "max_same_sport_legs_in_coupon": 2,
+    "min_sports_for_higher_risk_coupon": 2
+  }
 }

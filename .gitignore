@@ -1,0 +1,5 @@
+.venv/
+betting/data/
+scripts/playwright_storage/
+__pycache__/
+*.pyc

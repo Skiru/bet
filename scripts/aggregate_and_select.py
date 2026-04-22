@@ -27,6 +27,13 @@ CONFIG_PATH = BASE.parent / "config" / "betting_config.json"
 SUMMARY = DATA_DIR / "scan_summary.json"
 
 TIER_A_STATS = {"flashscore.com", "sofascore.com"}
+TIER_A_STATS_EXTENDED = {
+    "tennis": {"flashscore.com", "sofascore.com", "tennisabstract.com"},
+    "basketball": {"flashscore.com", "sofascore.com", "covers.com", "teamrankings.com"},
+    "baseball": {"flashscore.com", "sofascore.com", "covers.com", "teamrankings.com"},
+    "hockey": {"flashscore.com", "sofascore.com", "covers.com", "teamrankings.com"},
+    "football": {"flashscore.com", "sofascore.com"},
+}
 TIER_A_MARKETS = {"oddsportal.com", "oddspedia.com", "betexplorer.com"}
 BOOKMAKER_DOMAINS = {"betclic.pl", "betclic.com"}
 
@@ -131,7 +138,7 @@ def extract_odds(item):
 
 def aggregate(summary):
     """Group extracted items by normalized match key across all sources."""
-    matches = defaultdict(lambda: {"sources": [], "odds": {}, "sample_items": [], "times": set()})
+    matches = defaultdict(lambda: {"sources": [], "odds": {}, "sample_items": [], "times": set(), "sports": set()})
     for url, items in summary.items():
         domain = urlparse(url).netloc.replace("www.", "")
         for it in items:
@@ -157,16 +164,20 @@ def aggregate(summary):
                 matches[key]["odds"].setdefault(domain, []).extend(odds_list)
             if it.get("time"):
                 matches[key]["times"].add(it["time"])
+            if it.get("sport"):
+                matches[key]["sports"].add(it["sport"])
             matches[key]["sample_items"].append({
                 "domain": domain,
                 "raw": it.get("raw"),
                 "time": it.get("time"),
                 "odds": odds_list,
+                "sport": it.get("sport"),
             })
 
     # Convert sets to lists for JSON serialization
     for key in matches:
         matches[key]["times"] = sorted(matches[key]["times"])
+        matches[key]["sports"] = sorted(matches[key]["sports"])
 
     return matches
 
@@ -177,8 +188,13 @@ def select_candidates(matches):
     for key, meta in matches.items():
         domains = set(meta["sources"])
 
+        # Determine sport for Tier-A stats mapping
+        sport = meta.get("sports", ["football"])
+        sport = sport[0] if sport else "football"
+        tier_a_stat_set = TIER_A_STATS_EXTENDED.get(sport, TIER_A_STATS)
+
         # Require at least one Tier-A stat source
-        stat_sources = domains & TIER_A_STATS
+        stat_sources = domains & tier_a_stat_set
         if not stat_sources:
             continue
 
@@ -219,6 +235,7 @@ def select_candidates(matches):
 
         candidates.append({
             "match": key,
+            "sport": meta.get("sports", ["football"])[0] if meta.get("sports") else "football",
             "betclic_odds": round(betclic_odds, 2),
             "market_best": round(market_best, 2),
             "price_gap_pct": round(price_gap_pct, 2),

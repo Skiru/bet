@@ -20,15 +20,15 @@ def parse(html: str, url: str) -> List[Dict]:
         text = tr.get_text(" ", strip=True)
         if not text:
             continue
-        # match patterns like "Team A - Team B" inside the row
-        if "-" in text or "vs" in text.lower():
-            odds = ODDS_RE.findall(text)
-            if odds:
-                # very small normalization: split on -/vs to get teams
-                parts = re.split(r"\s+vs\s+|\s+-\s+|\s+–\s+", text, flags=re.I)
-                if len(parts) >= 2:
-                    home = parts[0].strip()
-                    away = parts[1].strip()
+        # match patterns like "Team A - Team B" inside the row (require spaces)
+        odds = ODDS_RE.findall(text)
+        if odds:
+            # Split on " - " or " vs " with spaces required
+            parts = re.split(r"\s+vs\.?\s+|\s+-\s+|\s+–\s+|\s+—\s+", text, flags=re.I)
+            if len(parts) >= 2:
+                home = parts[0].strip()
+                away = parts[1].strip()
+                if len(home) >= 2 and len(away) >= 2:
                     results.append({
                         "home": home,
                         "away": away,

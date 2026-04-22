@@ -27,6 +27,24 @@ except ImportError:
 
 FETCH_DELAY_SECONDS = 3  # delay between fetches to avoid anti-bot triggers
 
+SPORT_URL_PATTERNS = {
+    "tennis": ["/tennis", "/tenis", "tennisabstract"],
+    "basketball": ["/basketball", "/koszykowka", "/nba", "teamrankings.com"],
+    "hockey": ["/hockey", "/hokej", "/nhl"],
+    "baseball": ["/baseball", "/mlb"],
+    "football": ["/football", "/pilka-nozna", "/soccer", "forebet", "predictz"],
+}
+
+
+def detect_sport(url: str) -> str:
+    """Detect sport from URL path patterns."""
+    url_lower = url.lower()
+    for sport, patterns in SPORT_URL_PATTERNS.items():
+        for pat in patterns:
+            if pat in url_lower:
+                return sport
+    return "football"  # default
+
 sys.path.insert(0, str(BASE))
 try:
     from fetch_with_playwright import fetch
@@ -77,14 +95,19 @@ def scan_urls(urls):
         saved = save_html(domain, html)
         print(f"  Saved raw HTML to {saved}")
         adapter = get_adapter(domain)
+        sport = detect_sport(url)
         try:
             extracted = adapter(html, url)
         except Exception as e:
             print(f"  Adapter for {domain} failed, falling back to raw parser: {e}")
             from adapters.raw_adapter import parse as raw_parse
             extracted = raw_parse(html, url)
+        # Tag each item with detected sport
+        for item in extracted:
+            if "sport" not in item:
+                item["sport"] = sport
         all_extracted[url] = extracted
-        print(f"  Extracted {len(extracted)} candidate match lines from {domain}")
+        print(f"  Extracted {len(extracted)} candidate match lines from {domain} [{sport}]")
         # Rate limit between fetches
         if i < len(urls) - 1:
             time.sleep(FETCH_DELAY_SECONDS)

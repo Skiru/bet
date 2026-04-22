@@ -40,21 +40,8 @@ def normalize(n: str) -> str:
 
 
 def extract_from_betclic(html: str):
-    soup = BeautifulSoup(html, "html.parser")
-    candidates = []
-    for el in soup.find_all(["a", "div", "section"], limit=500):
-        text = (el.get_text(" ") or "").strip()
-        if not text or len(text) > 400:
-            continue
-        m = re.search(r"(.+?)\s+(?:vs|v|–|-|—)\s+(.+?)\b", text, re.I)
-        if not m:
-            continue
-        home = m.group(1).strip()
-        away = m.group(2).strip()
-        odds = re.findall(r"\b\d+\.\d{2}\b", text)
-        if odds:
-            candidates.append({"home": home, "away": away, "odds": odds, "raw": text})
-    return candidates
+    from adapters.betclic_adapter import parse as betclic_parse
+    return betclic_parse(html, "https://www.betclic.pl/")
 
 
 def appears_on_site(match_key: str, html: str) -> bool:

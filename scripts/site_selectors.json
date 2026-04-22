@@ -66,5 +66,26 @@
   "betexplorer.com": [
     "#onetrust-accept-btn-handler",
     ".cookie-accept"
+  ],
+  "covers.com": [
+    "#onetrust-accept-btn-handler",
+    "button[aria-label*='Accept']",
+    ".cookie-accept",
+    "button[data-test*='accept']"
+  ],
+  "teamrankings.com": [
+    "#onetrust-accept-btn-handler",
+    "button[aria-label*='Accept']",
+    ".cookie-accept"
+  ],
+  "tennisabstract.com": [
+    "button[aria-label*='Accept']",
+    ".cookie-accept"
+  ],
+  "sportsgambler.com": [
+    "#cookie-accept",
+    ".cookie-accept",
+    "button[aria-label*='Accept']",
+    "button[aria-label*='accept']"
   ]
 }

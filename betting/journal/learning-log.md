@@ -33,6 +33,16 @@ No entries yet.
  - Bankroll update: user provided current balance 43.26 PLN. Workflow change: use available balance or configured bankroll as the working bankroll for the next runs (see config/betting_config.json).
  - Operational rule: place bets only that are recorded in the ledger; accept screenshot/bookmaker confirmation for manual entries and settle when two Tier A sources or bookmaker confirmation exist.
 
+## 2026-04-22 (settlement of 2026-04-21)
+- Settlement summary: Settled 7 picks as WIN (PK-01, 02, 03, 06, 12, 13, 14) + 7 picks already LOSS (PK-16–22). 8 picks remain pending (corners/cards/minor-league/tennis need manual data). 2 coupons WON: CP-HR +12.52, CP-05 +7.92. 3 coupons LOST: CP-06 -2.00, CP-07 -3.00, CP-08 -2.00. 3 coupons still pending (CP-02, 03, 04). Settled PnL: +13.44 PLN.
+- What worked: 3-leg AKO (Brighton + Inter + UNDER 3.5) hit at 7.26x — good combined value from independent top-league picks. Inter single at 4.96x also hit.
+- What failed: 7 tennis legs all lost (poor tennis pick accuracy). Corner/card picks remain unsettleable without detailed stats — auto-settlement script cannot handle these.
+- Rule changes for future runs:
+  - Reduce tennis exposure: tennis legs had 0% hit rate on 2026-04-21. Require stronger Tier-A tennis source evidence before including tennis.
+  - Stop recording corner/card picks unless a reliable settlement source for detailed stats is available.
+  - Pre-system bets should be tagged distinctly to separate from system-generated picks in performance analysis.
+- Source notes: Flashscore results pages successfully parsed for PL, LaLiga, Coppa Italia, Ligue 1, Championship. Rotherham vs Luton not found in Championship (likely League One — competition field was wrong in ledger).
+
 ## 2026-04-22 (codebase audit)
 - Settlement summary: no new settlements — codebase audit day.
 - What worked: identified and fixed critical bugs across all scripts.
@@ -51,3 +61,14 @@ No entries yet.
   - Check `betting/data/scan_errors.json` after every orchestrator run for source availability issues.
   - Config thresholds (price gap, max legs, odds range) are now in config/betting_config.json — change config not code.
 - Source notes: all adapter domains now mapped in adapters/__init__.py (predictz, bettingexpert, zawodtyper, oddspedia, betexplorer added).
+
+## 2026-04-22 (full analysis run — rerun with tennis + multi-coupon)
+- Settlement summary: no new settlements.
+- What worked: expanded analysis to include tennis over-games totals. BetExplorer provides Tier A market odds for ATP/WTA Madrid. Identified 5 competitive tennis matches (match odds 1.50-2.50 range) suitable for over 20.5 games market on clay.
+- What failed: previous run incorrectly blocked all tennis. User correction: over-games direction is viable even though 7 specific ITF picks lost. The concept (evenly matched best-of-3 on clay → 3 sets → over games) is statistically sound.
+- Rule changes for future runs:
+  - Tennis over-games totals are approved when match odds are between 1.50 and 2.50 (indicating competitive match with high 3-set probability). Do NOT blanket-ban tennis based on individual pick losses.
+  - Build multiple coupons with ZERO event overlap — this maximizes diversification and overall win probability vs repeating events.
+  - Use BetExplorer tennis tournament pages for Tier A match odds (1X2 for both players). Combined with Flashscore fixture data, this satisfies the Tier A requirement for tennis picks.
+  - See `.github/instructions/analysis-methodology.instructions.md` for full methodology documentation.
+- Source notes: BetExplorer tennis pages work well for match odds (ATP + WTA Madrid). Forebet tennis predictions return 404 — not available.
