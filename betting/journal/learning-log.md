@@ -67,8 +67,7 @@ No entries yet.
 - What worked: expanded analysis to include tennis over-games totals. BetExplorer provides Tier A market odds for ATP/WTA Madrid. Identified 5 competitive tennis matches (match odds 1.50-2.50 range) suitable for over 20.5 games market on clay.
 - What failed: previous run incorrectly blocked all tennis. User correction: over-games direction is viable even though 7 specific ITF picks lost. The concept (evenly matched best-of-3 on clay → 3 sets → over games) is statistically sound.
 - Rule changes for future runs:
-  - Tennis over-games totals are approved when match odds are between 1.50 and 2.50 (indicating competitive match with high 3-set probability). Do NOT blanket-ban tennis based on individual pick losses.
-  - Build multiple coupons with ZERO event overlap — this maximizes diversification and overall win probability vs repeating events.
+  - Tennis over-games totals are approved when match odds are between 1.50 and 2.50 (indicating competitive match with high 3-set probability). Apply strict ratio grading: STRONG ≤1.15, GOOD 1.16–1.30, BORDERLINE 1.31–1.50, REJECT >1.50. Drop BORDERLINE picks from portfolio.
+  - Build multiple coupons with ZERO event overlap — this maximizes diversification and overall win probability vs repeating events. Tennis-only coupons must be labeled low-risk (cannot meet higher-risk min 2 sports requirement).
   - Use BetExplorer tennis tournament pages for Tier A match odds (1X2 for both players). Combined with Flashscore fixture data, this satisfies the Tier A requirement for tennis picks.
-  - See `.github/instructions/analysis-methodology.instructions.md` for full methodology documentation.
 - Source notes: BetExplorer tennis pages work well for match odds (ATP + WTA Madrid). Forebet tennis predictions return 404 — not available.
