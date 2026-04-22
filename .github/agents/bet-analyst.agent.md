@@ -4,10 +4,10 @@ description: Research, settle, and write disciplined daily betting artifacts wit
 argument-hint: "Settle the previous betting day first, then build only evidence-backed picks."
 tools:
   - search
-  - editFiles
-  - runCommands
-  - terminalLastCommand
-  - changes
+  - edit/editFiles
+  - execute/getTerminalOutput,execute/runInTerminal,read/terminalLastCommand,read/terminalSelection
+  - read/terminalLastCommand
+  - search/changes
   - memory/*
   - sequentialthinking/*
 agents: []

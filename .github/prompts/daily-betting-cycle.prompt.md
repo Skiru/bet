@@ -72,8 +72,9 @@ E3. For each candidate, evaluate:
     - Tier A market source evidence (specific odds)
     - Evidence against / risk factors
     - Bookmaker odds vs market-best → compute price_gap_pct
+    - Community sentiment check: scan Zawod Typer, bettingexpert, or Oddspedia Community for the event. Note consensus direction and percentage if available. If ≥60% diverge from Tier A direction, flag as red flag and investigate.
     - Hard rejection checks (missing Tier A, source conflict, bad price gap, correlated with existing picks)
-    - Confidence score 1–5 with one-sentence justification
+    - Confidence score 1–5 with one-sentence justification (adjust ±1 based on community consensus alignment/divergence per source-registry rules)
     - Verdict: approved, rejected, or watch
 E4. For tennis: calculate odds_gap_ratio, assign STRONG/GOOD/BORDERLINE/REJECT grade per exact boundaries in model-ready instructions.
 E5. For football totals: verify Forebet avg_goals > 2.8, H2H supports, form supports.

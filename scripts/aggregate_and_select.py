@@ -36,6 +36,7 @@ TIER_A_STATS_EXTENDED = {
 }
 TIER_A_MARKETS = {"oddsportal.com", "oddspedia.com", "betexplorer.com"}
 BOOKMAKER_DOMAINS = {"betclic.pl", "betclic.com"}
+COMMUNITY_SOURCES = {"zawodtyper.pl", "bettingexpert.com", "protipster.com", "oddspedia.com"}
 
 # Price gap thresholds
 LOW_RISK_GAP_THRESHOLD = -3.0
@@ -243,6 +244,8 @@ def select_candidates(matches):
             "sources": sorted(set(domains)),
             "stat_sources": sorted(stat_sources),
             "market_sources": sorted(market_sources),
+            "community_sources": sorted(domains & COMMUNITY_SOURCES),
+            "community_covered": bool(domains & COMMUNITY_SOURCES),
             "times": meta.get("times", []),
             "sample": meta.get("sample_items", [])[:3],
         })

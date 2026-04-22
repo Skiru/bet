@@ -62,20 +62,31 @@ Purpose: use sources by role, not by raw count. More sources only help when each
   Use for: secondary confirmation only.
 
 - bettingexpert
-  Role: community tipster support.
-  Use for: sentiment check only.
+  Role: community tipster sentiment.
+  Use for: consensus alignment check and divergence warning.
 
 - ProTipster
   Role: community and tipster aggregation.
-  Use for: sentiment check only.
+  Use for: consensus alignment check and divergence warning.
 
 - Oddspedia Community
   Role: consensus and popularity.
-  Use for: sentiment check only.
+  Use for: consensus alignment check and divergence warning.
 
 - Zawod Typer
-  Role: local market awareness and tip aggregation.
-  Use for: secondary or sentiment support only.
+  Role: local market awareness, tip aggregation, and injury/news early detection.
+  Use for: consensus alignment check, divergence warning, and local knowledge (injuries, lineup rumors, motivation context).
+  Priority: highest among community sources for Polish league and tennis events.
+
+### Community Source Usage Rules
+
+Community sources CANNOT create a bet on their own. They serve three functions:
+
+1. **Consensus alignment (+confidence):** If ≥70% of community tips agree with the Tier A statistical direction, boost confidence by 0.5 (round to nearest integer). Note this in the report.
+2. **Consensus divergence (red flag):** If ≥60% of community tips CONTRADICT the Tier A direction, treat as a warning. Check for information the stats might miss (injuries, lineup changes, motivation). If no explanation is found, reduce confidence by 1 or skip the pick.
+3. **Early news detection:** Forum posts may contain injury/suspension/weather info before it appears in Flashscore. If a community source reports a key absence, verify with a second source before acting on it.
+
+Always record in the report which community sources were checked and whether consensus aligned or diverged.
 
 ## Optional or Fragile Sources
 
@@ -130,7 +141,9 @@ Purpose: use sources by role, not by raw count. More sources only help when each
 
 - A final pick must have at least one Tier A stats or fixture source and one Tier A market or price source.
 - Tier B sources can strengthen or weaken confidence by at most one level, but they cannot create a bet on their own.
+- Community sources (bettingexpert, ProTipster, Oddspedia Community, Zawod Typer) can adjust confidence by ±1 level based on consensus alignment/divergence, but cannot be the primary reason for a pick.
 - If Tier A sources materially disagree on the core read, skip the bet unless the disagreement is clearly explained and the stake is reduced.
 - If the only support comes from consensus or tipster pages, skip the bet.
+- If community consensus strongly diverges from Tier A direction (≥60% opposite), note the divergence in the report and investigate before proceeding.
 - Record source outages and partial availability in the daily source log.
 - Bookmaker bonuses, promos, and affiliate content are irrelevant to pick quality.
