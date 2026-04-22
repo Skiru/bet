@@ -32,3 +32,22 @@ No entries yet.
 - Source notes: User screenshots are an acceptable verification source when bookmaker confirmation is not accessible; record ref id and timestamp.
  - Bankroll update: user provided current balance 43.26 PLN. Workflow change: use available balance or configured bankroll as the working bankroll for the next runs (see config/betting_config.json).
  - Operational rule: place bets only that are recorded in the ledger; accept screenshot/bookmaker confirmation for manual entries and settle when two Tier A sources or bookmaker confirmation exist.
+
+## 2026-04-22 (codebase audit)
+- Settlement summary: no new settlements — codebase audit day.
+- What worked: identified and fixed critical bugs across all scripts.
+- What failed (fixed):
+  - adapters/__init__.py: broken __import__() calls crashed the adapter system — replaced with proper Python imports.
+  - site_selectors.json: invalid JSON (two concatenated objects) — merged into one valid JSON.
+  - settle_on_finish.py: hardcoded to one match, operator precedence bug in match winner logic, hardcoded totals threshold at 3.5 — rewritten as generic settlement with dynamic line parsing, BTTS/DC support, CLI args, and coupon settlement.
+  - aggregate_and_select.py: `or True` in market filter included all sources as market sources (bypassing Tier-A requirement); import inside loop; no config loading; no risk-tier differentiation — rewritten with proper Tier-A filtering, fuzzy match dedup, config-driven allocation, and risk tiers.
+  - scan_events.py: no rate limiting between fetches, deprecated datetime.utcnow() — added 3s delay, error log output, progress counter.
+  - fetch_with_playwright.py: deprecated datetime.utcnow(), no user-agent rotation — fixed timezone, added UA rotation and viewport/locale.
+  - quick_betclic_extract.py: picked lowest-odds favorites instead of value — rewritten to prefer 1.30-3.50 range with source-count weighting.
+  - requirements.txt: pinned playwright breaking upgrades — changed to >=1.45.0.
+  - run_full_scan_and_prepare.sh: no error handling, no timing info — added pipeline steps, timing, error summary, graceful failure handling.
+- Rule changes for future runs:
+  - Use `settle_on_finish.py --betting-day YYYY-MM-DD` for targeted settlement instead of editing the script per match.
+  - Check `betting/data/scan_errors.json` after every orchestrator run for source availability issues.
+  - Config thresholds (price gap, max legs, odds range) are now in config/betting_config.json — change config not code.
+- Source notes: all adapter domains now mapped in adapters/__init__.py (predictz, bettingexpert, zawodtyper, oddspedia, betexplorer added).

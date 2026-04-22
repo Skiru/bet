@@ -11,9 +11,10 @@ Usage: import `fetch(url)` or run as a script: `python scripts/fetch_with_playwr
 import sys
 import json
 import time
+import random
 from pathlib import Path
 from urllib.parse import urlparse
-from datetime import datetime
+from datetime import datetime, timezone
 
 BASE = Path(__file__).resolve().parent
 SELECTORS_PATH = BASE / "site_selectors.json"
@@ -39,8 +40,16 @@ def domain_from_url(url: str) -> str:
     return parsed.netloc.replace("www.", "")
 
 
+USER_AGENTS = [
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15",
+]
+
+
 def _save_html(domain: str, html: str) -> Path:
-    ts = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     d = DATA_DIR / domain
     d.mkdir(parents=True, exist_ok=True)
     p = d / f"{ts}.html"
@@ -72,7 +81,11 @@ def fetch(url: str, headless: bool = True, timeout: int = 30, retries: int = 2, 
                 except Exception:
                     browser = p.chromium.launch(headless=False)
 
-                context_kwargs = {}
+                context_kwargs = {
+                    "user_agent": random.choice(USER_AGENTS),
+                    "viewport": {"width": 1920, "height": 1080},
+                    "locale": "pl-PL",
+                }
                 if storage_file.exists():
                     context_kwargs["storage_state"] = str(storage_file)
 

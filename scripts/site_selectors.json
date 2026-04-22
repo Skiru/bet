@@ -1,12 +1,17 @@
 {
   "default": [
+    "button#onetrust-accept-btn-handler",
     "button[aria-label*='accept']",
+    "button[aria-label*='Accept']",
+    "button[title*='Accept']",
     "button[class*='accept']",
+    "button.cookie-accept",
     ".cookie-consent button",
     ".cc-btn",
-    "#onetrust-accept-btn-handler",
-    "button[title*='Accept']",
-    "button[data-test*='accept']"
+    ".cc-btn.cc-accept",
+    "button[data-test*='accept']",
+    "button[aria-label*='zgadzam']",
+    "button[aria-label*='Akceptuj']"
   ],
   "flashscore.com": [
     "#onetrust-accept-btn-handler",
@@ -27,38 +32,20 @@
     ".fc-cookie__accept"
   ],
   "forebet.com": [
-    ".cookie-banner__accept",
-    ".cookie-accept"
-  ],
-  "protipster.com": [
-    ".cookie-consent__button--accept"
-  ],
-  "bettingexpert.com": [
-    ".cookie-accept",
-    ".cookie-consent button"
-  ]
-}
-{
-  "default": [
-    "button#onetrust-accept-btn-handler",
-    "button[aria-label*='accept']",
-    "button[title*='Accept']",
-    "button.cookie-accept",
-    ".cc-btn.cc-accept",
-    "button[aria-label*='zgadzam']",
-    "button[aria-label*='Akceptuj']"
-  ],
-  "forebet.com": [
     "#cookie-consent-accept",
+    ".cookie-banner__accept",
+    ".cookie-accept",
     "button[aria-label*='Accept']"
   ],
   "protipster.com": [
+    ".cookie-consent__button--accept",
     ".cookie-accept",
     "button[title*='Accept']"
   ],
   "bettingexpert.com": [
     "button[data-qa='consent-accept']",
-    ".cookie-accept"
+    ".cookie-accept",
+    ".cookie-consent button"
   ],
   "predictz.com": [
     ".cc-btn.cc-accept",
@@ -71,5 +58,13 @@
   "zawodtyper.pl": [
     "button[aria-label*='Akceptuj']",
     ".accept-cookies"
+  ],
+  "oddspedia.com": [
+    "#onetrust-accept-btn-handler",
+    "button[aria-label*='accept']"
+  ],
+  "betexplorer.com": [
+    "#onetrust-accept-btn-handler",
+    ".cookie-accept"
   ]
 }

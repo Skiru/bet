@@ -7,7 +7,7 @@ HTML snapshots under `betting/data/<domain>/`.
 """
 import json
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 BASE = Path(__file__).resolve().parent
 DATA_DIR = BASE.parent / "betting" / "data"
@@ -37,7 +37,7 @@ def run():
             results.append({"url": url, "ok": False, "error": str(e)})
 
     out = DATA_DIR / "playwright_smoke.json"
-    meta = {"run_at": datetime.utcnow().isoformat() + "Z", "results": results}
+    meta = {"run_at": datetime.now(timezone.utc).isoformat(), "results": results}
     out.write_text(json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"WROTE {out}")
 

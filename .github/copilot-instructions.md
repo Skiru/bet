@@ -15,6 +15,10 @@ Operating rules:
 Scripted workflow:
 - Always run the repository scanner and aggregator before composing final coupons. Use the orchestrator script `bash scripts/run_full_scan_and_prepare.sh` (or follow the manual commands below) to install dependencies, run a Playwright smoke test, fetch pages, and produce `betting/data/scan_summary.json` and `betting/data/picks_suggested.json`.
 - The agent and prompts assume these structured outputs are present and up-to-date; if they are missing or stale, re-run the orchestrator and retry the run.
+- After the orchestrator finishes, check `betting/data/scan_errors.json` for source failures. Record any failed sources in the daily source log.
+- Use `python3 scripts/settle_on_finish.py --betting-day YYYY-MM-DD` to settle pending picks for a specific day. The script supports `--match "Team vs Team"` for targeted settlement and `--no-poll` for single-attempt mode.
+- The settlement script auto-resolves: match winner/1X2, totals (any line), BTTS, and double chance. Markets like corners, cards, handicaps, and MyCombi require manual settlement.
+- Never auto-push settled results to git. Verify first, then commit manually.
 
 Selection rules:
 - Prefer statistical markets over raw winners: totals, team totals, both teams to score, double chance, draw no bet, spreads, handicaps, tennis set or game lines, basketball and baseball totals, and similar markets with clearer quantitative support.

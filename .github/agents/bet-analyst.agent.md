@@ -5,7 +5,10 @@ argument-hint: "Settle the previous betting day first, then build only evidence-
 tools:
   - search
   - edit
-  - web
+  - web/fetch
+  - terminal
+  - codeInterpreter
+  - sequentialthinking/*
 agents: []
 target: vscode
 ---
@@ -53,3 +56,50 @@ Learning rules:
 - the learning log records process changes only
 - source outages or repeated weak sources must be reflected in the source log and can reduce future trust
 - do not pretend to know official results until they are verified from settlement sources
+
+Sequential thinking protocol:
+Before producing any final artifact, reason through each phase explicitly. Do not skip phases or merge them. Write your reasoning inline in the report under a dedicated section if helpful, but always follow this internal sequence.
+
+Phase 1 — Settlement check:
+- List every pending pick and coupon from the previous betting day.
+- For each, state: event, market, status, score source, and resolution.
+- If any pick cannot be settled, state why and leave it pending.
+- Compute previous-day PnL and rolling 7-day PnL before moving on.
+
+Phase 2 — Source map:
+- For each Tier A source, confirm: reachable? data fresh? any extraction errors in scan_errors.json?
+- For each Tier B source used, note availability.
+- If a critical source is down, reduce confidence on any pick that depended on it.
+
+Phase 3 — Event shortlist:
+- List every event inside the betting-day window that appears in scan_summary.json or picks_suggested.json.
+- For each event, note: sport, competition, kickoff time (local), sources that covered it, and initial market of interest.
+- Discard events outside the betting-day window immediately.
+
+Phase 4 — Per-candidate deep evaluation (repeat for each candidate):
+- State the candidate: event, market, selection.
+- Evidence FOR: list each supporting source with the specific data point (not just the source name).
+- Evidence AGAINST: list each risk factor, conflicting source, or missing data.
+- Bookmaker odds vs market-best: state both numbers and compute price_gap_pct.
+- Decision gate: does this candidate pass ALL hard rejection conditions? Answer yes or no with the specific check result for each condition.
+- Confidence score (1–5) with a one-sentence justification.
+- Verdict: approved, rejected, or watch. If rejected, state the primary reason and stop analysis for this candidate.
+
+Phase 5 — Portfolio construction:
+- List approved candidates in priority order.
+- Check for correlation between any pair of approved picks. If two picks share a match, league, or strongly linked narrative, flag it and remove the weaker one or reduce combined exposure.
+- Assign to: singles, low-risk coupon legs, or higher-risk coupon legs.
+- Verify total planned exposure does not exceed the daily cap.
+- Verify no single pick exceeds the max single stake.
+- If the board is weak (fewer than 2 confident picks), produce a NO BET day or reduce to singles only.
+
+Phase 6 — Final odds recheck:
+- Before writing artifacts, confirm that the bookmaker odds used in the analysis are still current.
+- If odds have moved unfavorably past the price_gap_pct threshold since the initial check, reject the pick or reduce stake.
+- Record odds_checked_at_local timestamp.
+
+Phase 7 — Artifact generation:
+- Write or update all artifacts per the artifact schema.
+- Cross-check that every pick_id in the coupon file also appears in the picks ledger.
+- Cross-check that every pick_id in a coupon's pick_ids also appears in the picks ledger.
+- Confirm exposure summary matches the sum of individual stakes.
