@@ -12,13 +12,14 @@
   "max_higher_risk_coupon_legs": 4,
   "preferred_odds_range": [1.30, 3.50],
   "timezone": "Europe/Warsaw",
-  "sports": ["football", "tennis", "basketball", "hockey", "baseball"],
+  "sports": ["football", "tennis", "basketball", "hockey", "baseball", "volleyball"],
   "market_types": {
     "football": ["totals", "btts", "team_totals", "double_chance", "draw_no_bet", "corners", "cards", "fouls", "1x2"],
     "tennis": ["moneyline", "set_handicap", "game_totals", "set_totals", "games_handicap"],
     "basketball": ["totals", "spreads", "moneyline", "quarter_totals"],
     "hockey": ["totals", "moneyline", "period_totals"],
-    "baseball": ["totals", "moneyline", "run_line"]
+    "baseball": ["totals", "moneyline", "run_line"],
+    "volleyball": ["totals_sets", "totals_points", "set_handicap", "moneyline"]
   },
   "diversification": {
     "prefer_multi_sport": true,

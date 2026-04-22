@@ -98,6 +98,151 @@ Always record in the report which community sources were checked and whether con
   Role: football ratings and match stats.
   Use when accessible, never as the only source.
 
+## Tier A Specialist Statistical Sources (by sport)
+
+### Football — Corners, Cards, Fouls
+
+- Betaminic
+  Role: corners per team, yellow cards per team, goals per team — tables and charts across ALL leagues.
+  URLs: betaminic.com/statistics/corners-team-stats-tables/, yellow-cards-team-stats-tables/
+  Use for: identifying high-corner or high-card teams across obscure leagues, backing O/U corner and card markets.
+  Access: OK (no Cloudflare).
+
+- TotalCorner
+  Role: live corner predictions, corner handicap lines, corner totals, corner averages per match.
+  URL: totalcorner.com/match/today
+  Use for: corner handicap and total lines for today's matches, pre-match corner average context.
+  Access: OK (no Cloudflare).
+
+- SoccerStats
+  Role: league-level corner stats, card stats, fouls, BTTS rates, O2.5 rates, team-by-team averages.
+  URL: soccerstats.com/latest.asp?league={league}
+  Leagues available: austria, england, england2, italy, spain, germany, france, netherlands, and 50+ more.
+  Use for: league-level corner/card context, identifying leagues with extreme corner or card averages.
+  Access: OK (no Cloudflare).
+
+### Tennis
+
+- TennisExplorer
+  Role: player rankings, H2H records, match schedules, results, surface form, and tournament draws.
+  URL: tennisexplorer.com
+  Use for: H2H matchup data, surface-specific records, recent form sequences.
+  Access: OK.
+
+- TennisAbstract
+  Role: Elo ratings, serve-return profiles, surface performance, forecasts, and matchup data.
+  URL: tennisabstract.com
+  Use for: Elo-based forecasts, serve/return quality, break rate analysis.
+  Access: OK.
+
+- UltimateTennisStatistics
+  Role: deep historical stats — Elo, serve %, return %, break rate, surface filters, H2H explorer.
+  URL: ultimatetennisstatistics.com
+  Use for: detailed service game and return game analysis per surface, historical Elo trends.
+  Access: OK.
+
+- TennisPrediction
+  Role: model-based predictions, H2H, and match odds.
+  URL: tennisprediction.com
+  Use for: secondary model confirmation, H2H context.
+  Access: OK.
+
+### Basketball
+
+- Basketball-Reference
+  Role: comprehensive NBA and international stats — team/player stats, advanced metrics, pace, ratings.
+  URL: basketball-reference.com
+  Use for: pace, offensive/defensive ratings, historical totals averages, and matchup context.
+  Access: OK.
+
+- DunksAndThrees
+  Role: NBA analytics — pace, efficiency, shooting trends, lineup data.
+  URL: dunksandthrees.com
+  Use for: pace and efficiency context for NBA totals.
+  Access: OK.
+
+### Hockey
+
+- Hockey-Reference
+  Role: NHL and international stats — team/player stats, advanced metrics, goalie save %.
+  URL: hockey-reference.com
+  Use for: team GF/GA, power play %, penalty kill %, goalie performance, shot quality.
+  Access: OK.
+
+- NaturalStatTrick
+  Role: NHL advanced stats — xGF, Corsi, Fenwick, shot quality, 5v5 data, goalie performance.
+  URL: naturalstattrick.com
+  Use for: shot-quality and expected goals context for NHL totals and moneyline.
+  Access: OK.
+
+- MoneyPuck
+  Role: NHL expected goals models, win probability, game predictions, player cards.
+  URL: moneypuck.com
+  Use for: model-based NHL game predictions and xG totals context.
+  Access: OK.
+
+- HockeyDB
+  Role: historical hockey stats, player careers, team history.
+  URL: hockeydb.com
+  Use for: roster context and historical team performance.
+  Access: OK.
+
+### Baseball
+
+- BaseballSavant (Statcast)
+  Role: MLB Statcast data — exit velocity, launch angle, pitch movement, sprint speed, expected stats.
+  URL: baseballsavant.mlb.com
+  Use for: pitcher quality (xERA, xFIP), hitter quality (xwOBA, barrel%), and totals context.
+  Access: OK.
+
+### Volleyball
+
+- BetExplorer (Volleyball section)
+  Role: volleyball odds comparison — moneyline, set totals O/U (3.5, 4.5), point totals O/U (172.5–180.5), Asian handicap.
+  URL: betexplorer.com/volleyball/
+  Use for: price comparison across bookmakers including Betclic, market depth check.
+  Access: OK.
+
+- Flashscore (Volleyball section)
+  Role: volleyball schedules, live scores, results, H2H.
+  URL: flashscore.com/volleyball/
+  Use for: fixture confirmation, results, and settlement.
+  Access: OK.
+
+- Sofascore (Volleyball section)
+  Role: volleyball team form, player stats, match stats.
+  URL: sofascore.com/volleyball
+  Use for: form context and match analysis.
+  Access: OK.
+
+### Multi-Sport Odds and Analytics
+
+- Covers
+  Role: expert previews, odds, and picks for NBA, NHL, MLB, NFL, and more.
+  URL: covers.com
+  Use for: narrative and preview context for US sports.
+  Access: OK.
+
+- StatMuse
+  Role: natural language sports queries — NBA, NHL, MLB, NFL stats on demand.
+  URL: statmuse.com
+  Use for: quick stat lookups across multiple sports.
+  Access: OK.
+
+### Blocked Sources (Cloudflare / 403)
+
+The following were tested and are NOT accessible via Playwright headless:
+- FootyStats (footystats.org) — 403
+- FBRef (fbref.com) — 403
+- FCTables (fctables.com) — 403
+- WhoScored (whoscored.com) — 403
+- KenPom (kenpom.com) — blocked
+- Baseball-Reference (baseball-reference.com) — blocked
+- FanGraphs (fangraphs.com) — blocked
+- TeamRankings (teamrankings.com) — blocked
+- ActionNetwork (actionnetwork.com) — blocked
+- VolleyBox (volleybox.net) — blocked
+
 - FCTables
   Role: football over, under, BTTS, form, and table patterns.
   Use when accessible, never as the only source.

@@ -1,56 +1,62 @@
 BETTING DAY: 2026-04-22
-RUN TIME LOCAL: 2026-04-22 17:30
+RUN TIME LOCAL: 2026-04-22 15:15
 BOOKMAKER: Betclic
 BANKROLL CAP PLN: 8.00
-TOTAL PLANNED EXPOSURE PLN: 6.50
-UNUSED BANKROLL PLN: 1.50
+TOTAL PLANNED EXPOSURE PLN: 7.00
+UNUSED BANKROLL PLN: 1.00
 
 SINGLES:
-- [PK-20260422-01] Barcelona vs Celta Vigo | totals | Over 2.5 | ~1.45 (VERIFY) | 2.00 PLN | accept if >= 1.38
+OMITTED -- all picks deployed as coupon legs for better combined value.
 
-LOW-RISK COUPON (CP-20260422-LR):
-- coupon_id: CP-20260422-LR
-- legs:
-  1. [PK-20260422-02] Burnley vs Man City | totals | Over 2.5 | ~1.50 | accept if >= 1.40
-  2. [PK-20260422-04] Bergs Z. vs Cilic M. (ATP Madrid) | game_totals | Over 20.5 games | ~1.45 | accept if >= 1.35
-- combined_odds: ~2.18
-- stake_pln: 1.50
-- rationale: Multi-sport (PL football + ATP tennis). City 3.23 avg_goals + Bergs/Cilic virtually even (1.92/1.89, ratio 1.02 STRONG, ~60% 3-set).
+LOW-RISK COUPON:
+- CP-20260422-LR1
+- Legs:
+  [PK-20260422-34] Barcelona vs Celta Vigo | corners | Match Corners Over 9.5 | 1.60 | VERIFIED
+  [PK-20260422-35] Burnley vs Man City | corners | 1H Corners Over 3.5 | 1.38 | VERIFIED
+- Combined odds: 2.21
+- Stake: 2.00 PLN
+- Rationale: Pure corner play. Barca home avg ~11 corners per TotalCorner (match total 3.75 Asian). Betclic Statystyki verified O9.5 at 1.60. Burnley last EPL forces deep block vs dominant City. TotalCorner handicap +2.25 confirms City corner dominance. Both verified from Betclic HTML snapshots.
 
-HIGHER-RISK COUPON 2 (CP-20260422-HR):
-- coupon_id: CP-20260422-HR
-- legs:
-  1. [PK-20260422-03] Leverkusen vs Bayern | totals | Over 2.5 | ~1.60 | accept if >= 1.50
-  2. [PK-20260422-11] Tjen J. vs Charaeva A. (WTA Madrid) | game_totals | Over 20.5 games | ~1.45 | accept if >= 1.35
-- combined_odds: ~2.32
-- stake_pln: 1.00
-- rationale: Multi-sport (DFB Pokal football + WTA tennis). Bayern 3.38 avg_goals, cup semi. Tjen/Charaeva virtually even (1.86/1.89, ratio 1.02 STRONG, ~60% 3-set).
+LOW-RISK COUPON:
+- CP-20260422-LR2
+- Legs:
+  [PK-20260422-36] Leverkusen vs Bayern | corners | Corners Over 9.5 (incl extra time) | 1.58 | VERIFIED
+  [PK-20260422-37] Levski Sofia vs Neftohimic | volleyball totals_points | Points Over 175.5 | 1.76 | VERIFIED
+- Combined odds: 2.78
+- Stake: 1.50 PLN
+- Rationale: Multi-sport. DFB Pokal semi = both teams press. TotalCorner total 3.75 = ~11 expected corners. ET clause adds safety. Volleyball: competitive odds (1.33/2.95) mean 4+ sets likely = ~190-200 total points well above 175.5.
 
-LOW-RISK COUPON 3 (CP-20260422-C3):
-- coupon_id: CP-20260422-C3
-- legs:
-  1. [PK-20260422-06] Zhang Z. vs Kopriva V. (ATP Madrid) | game_totals | Over 20.5 games | ~1.45 | accept if >= 1.35
-  2. [PK-20260422-05] Dzumhur D. vs Bellucci M. (ATP Madrid) | game_totals | Over 20.5 games | ~1.45 | accept if >= 1.35
-- combined_odds: ~2.10
-- stake_pln: 1.00
-- rationale: ATP-only coupon. Zhang/Kopriva (1.80/2.01, ratio 1.12 STRONG) + Dzumhur/Bellucci (2.00/1.79, ratio 1.12 STRONG). Both competitive clay matchups.
+LOW-RISK COUPON:
+- CP-20260422-LR3
+- Legs:
+  [PK-20260422-38] Real Sociedad vs Getafe | totals | Under 2.5 | min 1.50 | CONDITIONAL
+  [PK-20260422-39] Atalanta vs Lazio | totals | Under 2.5 | min 1.72 | CONDITIONAL
+- Combined odds: ~2.58
+- Stake: 1.50 PLN
+- Rationale: Defensive profiles. Getafe 27GF/32GA in 31 LaLiga matches = 1.90 goals involvement, most defensive. Italy only 46 pct O2.5. BetExplorer best U2.5: Sociedad 1.56, Atalanta 1.85. CONDITIONAL: user checks Betclic app.
 
-LOW-RISK COUPON 4 (CP-20260422-C4):
-- coupon_id: CP-20260422-C4
-- legs:
-  1. [PK-20260422-12] Krueger A. vs Kenin S. (WTA Madrid) | game_totals | Over 20.5 games | ~1.45 | accept if >= 1.35
-  2. [PK-20260422-10] Galfi D. vs Tomljanovic A. (WTA Madrid) | game_totals | Over 20.5 games | ~1.45 | accept if >= 1.35
-- combined_odds: ~2.10
-- stake_pln: 1.00
-- rationale: WTA-only coupon. Krueger/Kenin (1.78/1.99, ratio 1.12 STRONG) + Galfi/Tomljanovic (2.03/1.75, ratio 1.16 GOOD). Both competitive WTA clay matchups.
+HIGHER-RISK COUPON:
+- CP-20260422-HR1
+- Legs:
+  [PK-20260422-40] Sheffield Utd vs Blackburn | btts | BTTS Yes | min 1.65 | CONDITIONAL
+  [PK-20260422-41] Rzeszow W vs Budowlani Lodz W | volleyball totals_sets | Over 3.5 sets | min 1.40 | CONDITIONAL
+- Combined odds: ~2.31
+- Stake: 1.00 PLN
+- Rationale: Multi-sport. Championship 56 pct BTTS. Sheffield Utd 61GF/59GA leaky. Volleyball Women semifinal = competitive = likely 4-5 sets.
 
-EVENT OVERLAP CHECK: ZERO — 9 unique events across 5 tickets, no event appears in multiple selections.
+HIGHER-RISK COUPON:
+- CP-20260422-HR2
+- Legs:
+  [PK-20260422-42] Charlton vs Ipswich | double_chance | Ipswich DC (X2) | min 1.12 | CONDITIONAL
+  [PK-20260422-43] Bournemouth vs Leeds | totals | Over 2.5 | min 1.55 | CONDITIONAL
+  [PK-20260422-44] Strasbourg vs Nice | double_chance | Strasbourg DC (1X) | min 1.20 | CONDITIONAL
+- Combined odds: ~2.14
+- Stake: 1.00 PLN
+- Rationale: 3-league diversification. Ipswich 3rd vs Charlton 20th = should not lose. EPL 54 pct O2.5. Strasbourg home cup advantage vs Nice 15th.
 
 SKIPPED OR OMITTED:
-- PK-07 Udvardy/Birrell: DROPPED — BORDERLINE ratio 1.43, ~48% 3-set probability
-- PK-08 Snigur/Kasatkina: DROPPED — BORDERLINE ratio 1.48, ~45% 3-set probability
-- PK-09 Muller/Struff: DROPPED — BORDERLINE ratio 1.38, ~50% 3-set probability
-- PSG/Barcelona/Man City 1X2: odds outside 1.30-3.50 preferred range
-- Atletico: 3 consecutive LaLiga losses, excessive form risk
-- Brooksby/Nava, Buse/Mannarino, Ruse/Ruzic: lopsided tennis odds, low 3-set probability
-- Basketball/hockey/baseball: no major league games today
+- Singles: OMITTED -- value channeled into 5 coupons.
+- Austrian BL: no Statystyki tab = no corner/card markets.
+- NBA/NHL: no games in betting window.
+- Tennis: remaining R64 insufficient form data.
+- Baseball: early-season pitching uncertainty.

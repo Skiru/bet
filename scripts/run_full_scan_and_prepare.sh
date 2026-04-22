@@ -27,16 +27,16 @@ echo "[orchestrator] Python: $(which python3)"
 echo "============================================="
 
 echo ""
-echo "[1/6] Installing Python requirements..."
+echo "[1/7] Installing Python requirements..."
 python3 -m pip install --upgrade pip -q 2>&1 | tail -1
 python3 -m pip install -r "${SCRIPT_DIR}/requirements.txt" -q 2>&1 | tail -5
 
 echo ""
-echo "[2/6] Installing Playwright browser (Chromium)..."
+echo "[2/7] Installing Playwright browser (Chromium)..."
 python3 -m playwright install chromium 2>&1 | tail -3 || echo "[WARNING] Playwright install skipped or failed"
 
 echo ""
-echo "[3/6] Running Playwright smoke test..."
+echo "[3/7] Running Playwright smoke test..."
 if python3 "${SCRIPT_DIR}/smoke_playwright.py"; then
     echo "[OK] Smoke test passed"
 else
@@ -44,7 +44,7 @@ else
 fi
 
 echo ""
-echo "[4/6] Running full multi-sport scan (Tier-A + Tier-B)..."
+echo "[4/7] Running full multi-sport scan (Tier-A + Tier-B)..."
 SCAN_START=$(date +%s)
 python3 "${SCRIPT_DIR}/scan_events.py" --urls \
   https://www.flashscore.com/ \
@@ -80,12 +80,17 @@ SCAN_END=$(date +%s)
 echo "[orchestrator] Scan took $((SCAN_END - SCAN_START)) seconds"
 
 echo ""
-echo "[5/6] Aggregating and selecting candidates..."
+echo "[5/7] Aggregating and selecting candidates..."
 python3 "${SCRIPT_DIR}/aggregate_and_select.py"
 
 echo ""
-echo "[6/6] Extracting Betclic sport-specific markets..."
+echo "[6/7] Extracting Betclic sport-specific markets..."
 python3 "${SCRIPT_DIR}/quick_betclic_extract.py" 2>/dev/null || echo "[INFO] Betclic detail extraction skipped or failed"
+
+echo ""
+echo "[7/7] Verifying Betclic odds for pending picks..."
+BETTING_DAY=$(date '+%Y-%m-%d')
+python3 "${SCRIPT_DIR}/verify_betclic_odds.py" --betting-day "${BETTING_DAY}" 2>/dev/null || echo "[INFO] Betclic odds verification skipped (no pending picks or script error)"
 
 echo ""
 echo "============================================="
@@ -94,7 +99,7 @@ echo "[orchestrator] Time: $(date '+%Y-%m-%d %H:%M:%S %Z')"
 echo "============================================="
 echo ""
 echo "Outputs:"
-for f in "${DATA_DIR}/scan_summary.json" "${DATA_DIR}/picks_suggested.json" "${DATA_DIR}/scan_errors.json"; do
+for f in "${DATA_DIR}/scan_summary.json" "${DATA_DIR}/picks_suggested.json" "${DATA_DIR}/scan_errors.json" "${DATA_DIR}/betclic_verified_odds.json"; do
     if [ -f "$f" ]; then
         echo "  [OK] $(basename "$f") ($(wc -c < "$f") bytes)"
     else

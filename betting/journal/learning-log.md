@@ -28,6 +28,18 @@ No entries yet.
 - Settlement summary (update 2026-04-21 16:50): Settled 3 failed coupons recorded from user screenshots (tennis AKO + two pre-system AKOs). Total realised PnL: -7.00 PLN. Continue manual verification for coupon-level settlements when screenshot evidence is provided.
 - What worked: quick reconciliation from user screenshots; monitor script ready for automated checks where accessible.
 - What failed: some aggregator endpoints blocked; cannot rely solely on automated scanning for every bookmaker.
+
+## 2026-04-22
+- Settlement summary: Apr 21 settled PnL +13.44 PLN (CP-HR +12.52, CP-05 +7.92, CP-06 -2.00, CP-07 -3.00, CP-08 -2.00). 8 picks still pending (corners/cards).
+- What worked: AKO on Brighton+Inter+Real U3.5 was the big winner (+12.52). Combinatorial value in less obvious markets.
+- What failed: All tennis picks (PK-16 to PK-22) lost. ITF/low-level tennis is unreliable. Over-games on one-sided matches failed.
+- Rule changes for future runs:
+  1. Prefer less popular leagues (Austrian BL, Icelandic, etc.) over compressed popular league lines.
+  2. Austrian BL shows consistent avg_goals >3.0 — use as systematic league-level trait.
+  3. Cup semi-finals: default to UNDER unless data strongly contradicts.
+  4. Skip ITF tennis entirely. Only ATP/WTA main draw or strong Challengers.
+  5. Check Betclic LAST to avoid 403 rate limiting.
+- Source notes: Betclic 403 rate limit hit again (~14:25). Space requests or use app for final verification.
 - Rule changes for future runs: accept screenshot-confirmed pre-system bets into ledgers as `placed` and settle only when a confirmed final-status screenshot or two Tier A settlement sources (Flashscore + Sofascore) confirm result.
 - Source notes: User screenshots are an acceptable verification source when bookmaker confirmation is not accessible; record ref id and timestamp.
  - Bankroll update: user provided current balance 43.26 PLN. Workflow change: use available balance or configured bankroll as the working bankroll for the next runs (see config/betting_config.json).
@@ -71,3 +83,23 @@ No entries yet.
   - Build multiple coupons with ZERO event overlap — this maximizes diversification and overall win probability vs repeating events. Tennis-only coupons must be labeled low-risk (cannot meet higher-risk min 2 sports requirement).
   - Use BetExplorer tennis tournament pages for Tier A match odds (1X2 for both players). Combined with Flashscore fixture data, this satisfies the Tier A requirement for tennis picks.
 - Source notes: BetExplorer tennis pages work well for match odds (ATP + WTA Madrid). Forebet tennis predictions return 404 — not available.
+
+## 2026-04-22 (portfolio rebuild — analysis-first approach)
+- Settlement summary: no new settlements this run.
+- What worked: reversed workflow to build picks from Forebet/BetExplorer data FIRST, then plan minimal Betclic verification. Avoided rate limiting entirely.
+- What failed: all 10 original picks and 4 coupons from earlier run were invalid — tennis O20.5 lines do not exist on Betclic (max O17.5 for qualifying), and match O2.5 prices too compressed (1.27-1.32 vs estimated 1.45-1.60). All Madrid tennis matches started by 11:00 before portfolio was ready.
+- Rule changes for future runs:
+  - ALWAYS build portfolio from analytical sources first, then verify on Betclic last with minimal page loads (target 3-5 pages max per verification run).
+  - Team totals (e.g. Barcelona O2.5, Man City O2.5) often offer better value than match totals when one team is a massive favorite. Match O2.5 gets compressed but team O2.5 stays at higher odds.
+  - For Madrid tennis qualifying: morning session starts 11:00 local. If picks depend on qualifying matches, compose and place before 10:30 or skip.
+- Source notes: Betclic 403 rate limit clears after ~15 minutes. HTML snapshots from verification runs are valid for team totals and BTTS market extraction.
+
+## 2026-04-22 (deep statistical analysis — user philosophy update)
+- Settlement summary: no new settlements this run. All 33 earlier Apr 22 picks voided; clean slate.
+- What worked: Deep multi-source statistical workflow. Betclic Statystyki HTML snapshots (corners/cards/fouls/shots) for Barca, City, Leverkusen. SoccerStats league-level corner rankings and defensive profiles across 7 leagues. TotalCorner match-level corner totals/handicaps for 11 matches. BetExplorer market-best odds cross-validation. Multi-sport diversification (football + volleyball).
+- What failed: Betclic Statystyki tab only available for top 3 leagues (EPL, LaLiga, Bundesliga). Championship, Austrian BL, Coppa Italia, Coupe de France have NO statistical markets on Betclic. BetExplorer Playwright scraping intermittent (403s, timeouts). Cannot auto-verify Betclic odds for non-statistical matches.
+- Rule changes for future runs:
+  1. Statistical markets (corners, cards, fouls, shots) are PRIMARY picks. Goals/BTTS/1X2 are SECONDARY, only used when statistical markets unavailable.
+  2. For non-statistical matches, use CONDITIONAL odds with minimum acceptance threshold. User verifies on Betclic app.
+  3. Source stack for corner analysis: TotalCorner (match totals) + SoccerStats (league rankings) + Betclic Statystyki (verified odds). All 3 needed for high-confidence corner pick.
+- Source notes: TotalCorner free tier provides match-level corner totals and handicaps for all leagues — extremely valuable. SoccerStats provides league-level corner team rankings. Betaminic accessible for team-level corner/card stats tables.

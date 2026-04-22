@@ -1,0 +1,28 @@
+2026-04-22T11:24:40.521650 Found 8 pending pick(s) to settle
+2026-04-22T11:24:40.521823 [Poll 1] Looking for result: Brighton vs Chelsea
+2026-04-22T11:24:41.012722   Score not yet available for Brighton vs Chelsea
+2026-04-22T11:24:41.013054 [Poll 1] Looking for result: RC Lens vs Toulouse
+2026-04-22T11:24:41.390427   Score not yet available for RC Lens vs Toulouse
+2026-04-22T11:24:41.390701 [Poll 1] Looking for result: Rotherham vs Luton
+2026-04-22T11:24:41.805532   Score not yet available for Rotherham vs Luton
+2026-04-22T11:24:41.805836 [Poll 1] Looking for result: Real Madrid vs Alaves
+2026-04-22T11:24:42.139545   Score not yet available for Real Madrid vs Alaves
+2026-04-22T11:24:42.139834 [Poll 1] Looking for result: Galions vs Solary
+2026-04-22T11:24:42.498157   Score not yet available for Galions vs Solary
+2026-04-22T11:24:42.499274 Updated picks ledger: /Users/mkoziol/projects/bet/betting/journal/picks-ledger.csv
+2026-04-22T11:24:42.499596 Updated coupons ledger: /Users/mkoziol/projects/bet/betting/journal/coupons-ledger.csv
+2026-04-22T11:24:42.499663 Settlement complete: 0 settled, 8 still pending
+2026-04-22T13:55:43.923027 Found 8 pending pick(s) to settle
+2026-04-22T13:55:43.923536 [Poll 1] Looking for result: Brighton vs Chelsea
+2026-04-22T13:55:44.414868   Score not yet available for Brighton vs Chelsea
+2026-04-22T13:55:44.415217 [Poll 1] Looking for result: RC Lens vs Toulouse
+2026-04-22T13:55:44.749760   Score not yet available for RC Lens vs Toulouse
+2026-04-22T13:55:44.749957 [Poll 1] Looking for result: Rotherham vs Luton
+2026-04-22T13:55:45.088365   Score not yet available for Rotherham vs Luton
+2026-04-22T13:55:45.088562 [Poll 1] Looking for result: Real Madrid vs Alaves
+2026-04-22T13:55:45.392629   Score not yet available for Real Madrid vs Alaves
+2026-04-22T13:55:45.392847 [Poll 1] Looking for result: Galions vs Solary
+2026-04-22T13:55:45.695811   Score not yet available for Galions vs Solary
+2026-04-22T13:55:45.697247 Updated picks ledger: /Users/mkoziol/projects/bet/betting/journal/picks-ledger.csv
+2026-04-22T13:55:45.697960 Updated coupons ledger: /Users/mkoziol/projects/bet/betting/journal/coupons-ledger.csv
+2026-04-22T13:55:45.698110 Settlement complete: 0 settled, 8 still pending

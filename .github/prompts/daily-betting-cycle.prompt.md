@@ -98,9 +98,20 @@ F5. Total exposure must not exceed daily cap from config.
 
 ## PHASE G: ODDS RECHECK
 
-G1. Before writing artifacts, verify that bookmaker odds are still current.
-G2. If odds moved past price_gap_pct threshold, reject or reduce stake.
-G3. Record odds_checked_at_local timestamp.
+G1. Run the Betclic odds verification script to automatically check live odds for all pending picks:
+    ```
+    cd /Users/mkoziol/projects/bet && .venv/bin/python3 scripts/verify_betclic_odds.py --betting-day <run_date>
+    ```
+    This script reads pending picks from picks-ledger.csv, searches Betclic for each match,
+    navigates to match pages, and extracts target market odds (Over/Under, Total Games, etc.).
+    Results are saved to `betting/data/betclic_verified_odds.json`.
+G2. Review the verification output:
+    - PASS: odds meet or exceed the acceptance threshold → keep the pick.
+    - FAIL: odds below threshold → reject the pick or reduce stake.
+    - CHECK: odds could not be extracted automatically → user must verify manually on the Betclic app.
+G3. For any pick where verified odds differ significantly from estimated odds, update bookmaker_odds in picks-ledger.csv and recalculate price_gap_pct.
+G4. If a pick fails the threshold check, remove it from the portfolio and adjust coupon composition.
+G5. Record odds_checked_at_local timestamp.
 
 ## PHASE H: ARTIFACT GENERATION
 
