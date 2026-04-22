@@ -1,1 +1,9 @@
 betting_day,source_name,role,sport_scope,availability,used_in_analysis,used_in_final_picks,notes
+2026-04-21,Flashscore,stats/fixture,football|tennis|basketball,available,yes,yes,homepage reachable; used for schedule, lineup checks, and verification
+2026-04-21,Sofascore,stats/fixture,football|basketball,available,yes,yes,homepage reachable; used for lineup and pre-match confirmation
+2026-04-21,OddsPortal,market/price,all sports,available,yes,yes,used for market-best price checks and comparisons
+2026-04-21,Oddspedia,market/price,all sports,available,yes,no,auxiliary market comparison and consensus checks
+2026-04-21,BetExplorer,market/price,all sports,available,yes,yes,used for odds cross-checks and h2h/context
+2026-04-21,Betclic,bookmaker,all sports,available,yes,yes,bet placement verified via betclic.pl and user screenshot; mobile endpoints partial
+2026-04-21,UserScreenshots,verification,all sports,available,yes,yes,Screenshots provided by user; used to record pre-system placed coupons and reconcile ledgers
+2026-04-21,AutomatedScan,monitor,football|tennis,partial,yes,no,Automated market scan attempted; OddsPortal privacy overlays blocked reliable odds extraction; BetExplorer/Oddspedia/Flashscore queries returned errors — manual follow-up required

@@ -3,7 +3,7 @@
 You are maintaining a disciplined small-bankroll betting workflow, not writing casual tipster content.
 
 Operating rules:
-- Daily bankroll cap is 10 PLN total planned exposure. It is acceptable and preferred to leave part of the bankroll unused.
+- Daily bankroll cap is configurable via config/betting_config.json (default: use smart allocation). It is acceptable and preferred to leave part of the bankroll unused.
 - Default execution bookmaker is Betclic. Use Betclic as the place where the bet would be placed, not as the main analytical source.
 - Default local timezone is Europe/Warsaw.
 - Define a betting day as 06:00 on run_date through 05:59 on the next local day. Use this window consistently for reports, ledgers, and settlement.
@@ -11,6 +11,10 @@ Operating rules:
 - Never invent exact odds, lineups, injuries, suspensions, results, or source conclusions. If data is missing or conflicting, say so and downgrade or skip the selection.
 - Follow the artifact schema in [betting-artifacts.instructions.md](instructions/betting-artifacts.instructions.md).
 - Follow the source hierarchy in [source-registry.md](../betting/sources/source-registry.md).
+
+Scripted workflow:
+- Always run the repository scanner and aggregator before composing final coupons. Use the orchestrator script `bash scripts/run_full_scan_and_prepare.sh` (or follow the manual commands below) to install dependencies, run a Playwright smoke test, fetch pages, and produce `betting/data/scan_summary.json` and `betting/data/picks_suggested.json`.
+- The agent and prompts assume these structured outputs are present and up-to-date; if they are missing or stale, re-run the orchestrator and retry the run.
 
 Selection rules:
 - Prefer statistical markets over raw winners: totals, team totals, both teams to score, double chance, draw no bet, spreads, handicaps, tennis set or game lines, basketball and baseball totals, and similar markets with clearer quantitative support.

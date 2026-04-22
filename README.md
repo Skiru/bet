@@ -14,7 +14,7 @@ Ten zestaw plikow zamienia Copilota w uporzadkowany workflow do malego bankrollu
 
 ## Najwazniejsze Zasady
 
-- limit ekspozycji dziennej to 10 PLN
+- limit ekspozycji dziennej jest konfigurowalny (zobacz config/betting_config.json); domyślnie stosujemy "smart allocation" i nie zawsze wykorzystujemy cały bankroll
 - nie ma obowiazku wykorzystania calego bankrollu
 - Betclic to miejsce wykonania kuponu, nie glowne zrodlo analizy
 - preferowane sa rynki statystyczne: over i under, BTTS, team totals, DNB, double chance, spreads, linie setow i gemow, linie punktowe
@@ -94,8 +94,8 @@ Przyklad tylko dla pilki:
 - Rejected Picks
   Rynki i wydarzenia odrzucone wraz z powodem.
 
-- Exposure Summary
-  Ile z 10 PLN faktycznie zostalo wystawione i ile zostalo niewykorzystane.
+ - Exposure Summary
+  Ile z zaplanowanej ekspozycji faktycznie zostalo wystawione i ile zostalo niewykorzystane (patrz config/betting_config.json).
 
 - price_gap_pct
   To roznica miedzy kursem w Betclic i najlepszym kursem rynkowym.
@@ -119,6 +119,19 @@ Przyklad tylko dla pilki:
 - 30 do 90 minut przed wazniejszymi startami: rerun dla odswiezenia kursow i lineupow
 - rerun tego samego dnia ma aktualizowac pliki, a nie dublowac historii
 
+## Recommended pre-run (install + scan + aggregate)
+
+Before composing final coupons, run the repository orchestrator which installs dependencies, runs a Playwright smoke test, fetches Tier‑A/B pages, and aggregates structured outputs into `betting/data/`.
+
+Quick start (one-liner):
+```bash
+python3 -m pip install --user -r scripts/requirements.txt
+python3 -m playwright install chromium
+bash scripts/run_full_scan_and_prepare.sh
+```
+
+Or run the individual steps shown above if you prefer manual control.
+
 ## Co Robic, Gdy Zrodla Padaja
 
 - jesli wypada jedno zrodlo pomocnicze, system ma przejsc na inne z tej samej roli
@@ -134,4 +147,4 @@ Przyklad tylko dla pilki:
 
 ## Minimalna Zasada Operacyjna
 
-Jesli system nie znajdzie sensownego edge, poprawnym wynikiem jest brak zakladu. Dla bankrollu 10 PLN najwiekszym bledem nie jest ominięcie slabego dnia. Najwiekszym bledem jest wymuszenie akcji.
+Jesli system nie znajdzie sensownego edge, poprawnym wynikiem jest brak zakladu. Dla malego, konfigurowalnego bankrollu najwiekszym bledem nie jest ominięcie slabego dnia. Najwiekszym bledem jest wymuszenie akcji.

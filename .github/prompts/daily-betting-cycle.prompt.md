@@ -13,12 +13,13 @@ Use these inputs:
 - run_date = ${input:run_date:YYYY-MM-DD}
 - sports_focus = ${input:sports_focus:football,basketball,tennis,baseball,hockey}
 - bookmaker = ${input:bookmaker:Betclic}
-- bankroll_pln = 10
+- bankroll_pln = null # use smart allocation from config/betting_config.json
 - local_timezone = Europe/Warsaw
 
 Follow [repo instructions](../copilot-instructions.md), [artifact rules](../instructions/betting-artifacts.instructions.md), and [source registry](../../betting/sources/source-registry.md).
 
 Tasks:
+0. Run the repository orchestrator to fetch live data and produce structured outputs required by the run (recommended): `bash scripts/run_full_scan_and_prepare.sh`. If `betting/data/scan_summary.json` or `betting/data/picks_suggested.json` are missing or stale, abort and request the user to run the script first.
 1. Resolve the current betting day from run_date using the repo betting-day window.
 2. Ensure these paths exist and bootstrap them if missing with the exact headers and templates required by the artifact rules:
 - betting/reports/

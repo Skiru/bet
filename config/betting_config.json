@@ -1,0 +1,8 @@
+{
+  "use_smart_allocation": true,
+  "daily_exposure_pln": null,
+  "max_single_stake_pln": 2.0,
+  "suggested_daily_allocation_range_pln": [4.0, 7.0],
+  "low_risk_coupon_max_stake_pln": 2.0,
+  "higher_risk_coupon_max_stake_pln": 1.0
+}

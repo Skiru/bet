@@ -1,0 +1,78 @@
+BETTING DAY: 2026-04-21
+RUN TIME LOCAL: 2026-04-21 08:00
+BOOKMAKER: Betclic
+BANKROLL CAP PLN: 43.26
+TOTAL PLANNED EXPOSURE PLN: 14.00
+UNUSED BANKROLL PLN: 29.26
+NOTE: Planning uses available balance (43.26 PLN). From now on, only place bets that exist in the ledger for tracking.
+
+SINGLES:
+- NO SINGLES (legs combined into placed AKO)
+
+LOW-RISK COUPON:
+OMITTED
+
+HIGHER-RISK COUPON:
+- coupon_id: CP-20260421-HR
+- legs:
+- - [PK-20260421-01] Brighton vs Chelsea | 1X2 | Brighton | 2.37
+- - [PK-20260421-03] Inter Mediolan vs Como | 1X2 | Inter | 1.78
+- - [PK-20260421-02] Real Madryt - Alaves | Totals | UNDER 3.5 | 1.72
+- combined_odds: 7.26
+- stake_pln: 2.00
+- potential_payout_pln: 14.52 (tax-free)
+- rationale: Live AKO placed per user screenshot combining value and totals; reduced overall exposure and deviation noted in learning log.
+
+ADDITIONAL PRE-SYSTEM COUPONS (user screenshots):
+- coupon_id: CP-20260421-02
+- legs:
+- - [PK-20260421-04] Brighton vs Chelsea | corners >8.5 | 1.48
+- - [PK-20260421-05] RC Lens vs Toulouse | cards <5.5 | 1.26
+- - [PK-20260421-06] Real Madryt | MyCombi (Real win + Over1.5) | 1.31
+- combined_odds: 2.44
+- stake_pln: 3.00
+- potential_payout_pln: 7.32
+- notes: Recorded from user screenshot; pre-system bet
+
+- coupon_id: CP-20260421-03
+- legs:
+- - [PK-20260421-07] Rotherham vs Luton | Double Chance (Remis lub Luton) | 1.15
+- - [PK-20260421-04] Brighton vs Chelsea | corners >8.5 | 1.48
+- - [PK-20260421-08] Real Madryt | corners (Real) >5.5 | 1.35
+- combined_odds: 2.30
+- stake_pln: 5.00
+- potential_payout_pln: 11.50
+- notes: Recorded from user screenshot; pre-system bet
+
+- coupon_id: CP-20260421-04
+- legs: (6-leg AKO as shown)
+- - [PK-20260421-09] Galions | match winner | 1.98
+- - [PK-20260421-10] Peyton Stearns | match winner | 1.33
+- - [PK-20260421-03] Inter Mediolan | match winner | 1.85
+- - [PK-20260421-04] Brighton vs Chelsea | corners >8.5 | 1.48
+- - [PK-20260421-11] RC Lens vs Toulouse | corners >8.5 | 1.45
+- - [PK-20260421-12] Real Madryt | match winner | 1.22
+- combined_odds: 12.75
+- stake_pln: 2.00
+- potential_payout_pln: 25.50
+- notes: Recorded from user screenshot timestamp 21.04.2026 11:30
+
+- coupon_id: CP-20260421-05
+- legs:
+- - [PK-20260421-14] Inter Mediolan | match winner | 1.79
+- combined_odds: 4.96
+- stake_pln: 2.00
+- potential_payout_pln: 9.92
+- notes: Single-coupon recorded from screenshot
+
+- coupon_id: CP-20260421-06
+- legs:
+- - [PK-20260421-15] Moez Echargui (+1.5) | tennis handicap | 1.76
+- - [PK-20260421-10] Peyton Stearns | match winner | 1.33
+- combined_odds: 2.80
+- stake_pln: 2.00
+- potential_payout_pln: 5.60
+- notes: Tennis AKO from screenshot
+
+SKIPPED OR OMITTED:
+- No coupon variants justified due to lack of Tier A market+stats alignment and bookmaker price checks.
