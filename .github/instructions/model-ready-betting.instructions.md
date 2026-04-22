@@ -31,10 +31,17 @@ This is the ONLY file you need. Follow it top to bottom. Do not skip sections.
 
 ## 3. MARKET SELECTION RULES
 
-### Football totals (Over 2.5)
-- Forebet avg_goals must be > 2.8
-- H2H last 3–5 meetings must support Over
-- Both teams must be in scoring form
+### Football statistical markets (PRIMARY — use BEFORE goals markets)
+- **Corners**: Three-source stack required: TotalCorner match total + SoccerStats league ranking + Betclic Statystyki verified odds
+- **Cards**: SoccerStats card data + Betclic Statystyki when available
+- **Fouls/Shots**: Betclic Statystyki tab (top leagues only: EPL, LaLiga, Bundesliga)
+- Betclic Statystyki tab unavailable for Championship, Austrian BL, lower leagues → fall back to BTTS/U2.5/DC
+
+### Football totals/BTTS/DC (SECONDARY — when statistical markets unavailable)
+- BTTS: SoccerStats league BTTS% must be > 55%; both teams must score AND concede regularly
+- Under 2.5: SoccerStats defensive profile (team GF+GA < 2.0/match), league O2.5% < 50%
+- Over 2.5: LAST RESORT. Require strong form, H2H backing, and Forebet avg_goals > 2.8 if available
+- DC/DNB: only when standings gap is clear and odds 1.10-1.40
 
 ### Tennis over-games (Over 20.5)
 - Both match odds must be 1.50–2.50
@@ -145,7 +152,7 @@ betting_day,coupon_id,variant,selections_count,pick_ids,combined_odds,stake_pln,
 ```
 
 Rules:
-- coupon_id format: CP-YYYYMMDD-LR or CP-YYYYMMDD-HR or CP-YYYYMMDD-C3 etc.
+- coupon_id format: CP-YYYYMMDD-LR1, CP-YYYYMMDD-LR2 etc. for low-risk; CP-YYYYMMDD-HR1, CP-YYYYMMDD-HR2 etc. for higher-risk. Legacy CP-YYYYMMDD-LR and CP-YYYYMMDD-HR also valid.
 - variant allowed values: low-risk, higher-risk (NEVER use "medium", "pre-system", "single", "tennis-ako")
 - risk_level allowed values: low-risk, higher-risk (NEVER use "medium", "high")
 - pick_ids separated by | (e.g., PK-20260422-02|PK-20260422-06)
@@ -220,10 +227,21 @@ Go through every check. Write YES or NO for each. If any is NO, fix it before pr
 - [ ] BORDERLINE picks are in coupons only (never singles)
 - [ ] COUNT the STRONG/GOOD/BORDERLINE picks — verify the total matches the number listed
 
-### V4: Football Check (for EACH football totals pick)
-- [ ] Forebet avg_goals > 2.8 (for Over 2.5)
+### V4: Football Check (for EACH football pick)
+- [ ] For corner picks: TotalCorner match total confirms direction
+- [ ] For corner picks: SoccerStats league corner data supports
+- [ ] For corner picks: Betclic Statystyki verified odds (or marked CONDITIONAL if non-top-league)
+- [ ] For BTTS: SoccerStats BTTS% > 55% for the league
+- [ ] For U2.5: SoccerStats league O2.5% < 55% AND team defensive profile confirms
+- [ ] For O2.5 (fallback): Forebet avg_goals > 2.8 OR SoccerStats goals avg > 2.7
 - [ ] H2H supports direction
 - [ ] Team form supports direction
+
+### V4b: Volleyball Check (for EACH volleyball pick)
+- [ ] Set totals: favorite ML between 1.30-2.00 (competitive match)
+- [ ] Point totals: O3.5 sets likely first (competitive odds)
+- [ ] Competition context: semifinal/final = competitive
+- [ ] BetExplorer odds comparison verified
 
 ### V5: Coupon Check (for EACH coupon)
 - [ ] Leg count ≤ limit (see table in section 4)
@@ -243,8 +261,9 @@ Go through every check. Write YES or NO for each. If any is NO, fix it before pr
 
 ### V7: Weakness List
 - [ ] List all BORDERLINE tennis picks (ratio 1.31–1.50) with coupon and stake
-- [ ] List all CONDITIONAL picks with acceptance threshold
-- [ ] For EACH coupon: name the weakest leg and write ONE sentence describing how it fails (e.g., "Kasatkina wins 6-2 6-3 = 17 games, under 20.5")
+- [ ] List all CONDITIONAL picks with acceptance threshold (non-top-league corners, unverified odds)
+- [ ] List all picks where Betclic Statystyki was unavailable (non-top-league football)
+- [ ] For EACH coupon: name the weakest leg and write ONE sentence describing how it fails
 - [ ] If >4 picks from one tournament: state shared risks (weather, schedule)
 - [ ] Every weakness marked ACCEPTED (with reason) or FIXED
 

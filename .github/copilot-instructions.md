@@ -15,7 +15,7 @@ Operating rules:
 Scripted workflow:
 - Always run the repository scanner and aggregator before composing final coupons. Use the orchestrator script `bash scripts/run_full_scan_and_prepare.sh` (or follow the manual commands below) to install dependencies, run a Playwright smoke test, fetch pages, and produce `betting/data/scan_summary.json` and `betting/data/picks_suggested.json`.
 - The orchestrator uses Playwright (headless Chromium) for JS-heavy pages. This is the primary fetching method — use it for all source data, not manual fetch_webpage calls.
-- The orchestrator scans all configured sports (football, tennis, basketball, hockey, baseball) across all Tier A and Tier B sources with sport-specific subpages.
+- The orchestrator scans all configured sports (football, tennis, basketball, hockey, baseball, volleyball) across all Tier A and Tier B sources with sport-specific subpages.
 - The agent and prompts assume these structured outputs are present and up-to-date; if they are missing or stale, re-run the orchestrator and retry the run.
 - After the orchestrator finishes, check `betting/data/scan_errors.json` for source failures. Record any failed sources in the daily source log.
 - Use `python3 scripts/settle_on_finish.py --betting-day YYYY-MM-DD` to settle pending picks for a specific day. The script supports `--match "Team vs Team"` for targeted settlement and `--no-poll` for single-attempt mode.
@@ -23,10 +23,12 @@ Scripted workflow:
 - Never auto-push settled results to git. Verify first, then commit manually.
 
 Selection rules:
-- Analyze all sports configured in config/betting_config.json (football, tennis, basketball, hockey, baseball). Diversify across sports when the board supports it.
-- Prefer statistical markets over raw winners: totals, team totals, both teams to score, double chance, draw no bet, spreads, handicaps, tennis set or game lines, basketball and baseball totals, corners, cards, fouls, and similar markets with clearer quantitative support.
+- Analyze all sports configured in config/betting_config.json (football, tennis, basketball, hockey, baseball, volleyball). Diversify across sports when the board supports it.
+- Prefer deep statistical markets over generic goals markets. Priority order for football: corners, cards, fouls, shots, team totals, BTTS, double chance, draw no bet. Use Over/Under goals only as a fallback when no statistical markets are available.
+- For corner picks, use the three-source stack: TotalCorner (match-level corner totals/handicaps), SoccerStats (league-level corner rankings), and Betclic Statystyki tab (verified odds from HTML snapshots). All three are needed for high-confidence corner picks.
+- Betclic Statystyki tab (corners, cards, fouls, shots) is only available for top leagues (EPL, LaLiga, Bundesliga). For other leagues, use BTTS, U2.5, DC, or ML markets backed by SoccerStats defensive profiles.
 - Use 1X2 or moneyline only when the edge is strong and the price is still acceptable.
-- A final pick requires at least one Tier A stats or fixture source and one Tier A market or price source. Tier B opinion or consensus sources may support a pick but cannot be the main reason for it.
+- A final pick requires at least one Tier A stats source and one Tier A market or price source. Tier B opinion or consensus sources may support a pick but cannot be the main reason for it.
 - If primary sources disagree materially or are unavailable, skip the pick.
 - Prefer 0 to 3 singles over forcing accumulators.
 - Never force both coupon variants. If the board is weak, produce a one-coupon day or a full no-bet day.

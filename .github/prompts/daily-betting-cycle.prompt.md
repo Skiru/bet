@@ -68,16 +68,17 @@ D2. Update source-log.csv for today — one row per source, noting availability 
 E1. Scan the betting-day slate across all sports in config. Use orchestrator outputs (scan_summary.json, picks_suggested.json) as the primary event list.
 E2. Build a candidate board of all events inside the betting window.
 E3. For each candidate, evaluate:
-    - Tier A stats source evidence (specific data, not just source name)
-    - Tier A market source evidence (specific odds)
+    - Tier A stats source evidence — for football corners: TotalCorner match total + SoccerStats league ranking + Betclic Statystyki odds. For BTTS/U2.5: SoccerStats defensive profiles. For volleyball: BetExplorer set/point totals.
+    - Tier A market source evidence (specific odds from BetExplorer)
     - Evidence against / risk factors
     - Bookmaker odds vs market-best → compute price_gap_pct
     - Community sentiment check: scan Zawod Typer, bettingexpert, or Oddspedia Community for the event. Note consensus direction and percentage if available. If ≥60% diverge from Tier A direction, flag as red flag and investigate.
     - Hard rejection checks (missing Tier A, source conflict, bad price gap, correlated with existing picks)
     - Confidence score 1–5 with one-sentence justification (adjust ±1 based on community consensus alignment/divergence per source-registry rules)
     - Verdict: approved, rejected, or watch
-E4. For tennis: calculate odds_gap_ratio, assign STRONG/GOOD/BORDERLINE/REJECT grade per exact boundaries in model-ready instructions.
-E5. For football totals: verify Forebet avg_goals > 2.8, H2H supports, form supports.
+E4. For football: prefer statistical markets (corners, cards, fouls) over goals markets. Use three-source corner stack. Use SoccerStats defensive profiles for BTTS/U2.5. Goals markets are last resort.
+E5. For tennis: calculate odds_gap_ratio, assign STRONG/GOOD/BORDERLINE/REJECT grade per exact boundaries in model-ready instructions.
+E6. For volleyball: check favorite ML (1.30-2.00 for competitive), semifinal/final context, point total feasibility.
 
 ## PHASE F: PORTFOLIO CONSTRUCTION
 

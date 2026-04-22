@@ -94,8 +94,8 @@ Field conventions:
 ID and update rules:
 - Pick IDs use PK-YYYYMMDD-##.
 - Reuse an existing same-day pick ID when event + market + selection are unchanged.
-- Low-risk coupon ID uses CP-YYYYMMDD-LR.
-- Higher-risk coupon ID uses CP-YYYYMMDD-HR.
+- Coupon IDs: CP-YYYYMMDD-LR1, CP-YYYYMMDD-LR2, CP-YYYYMMDD-LR3 for low-risk coupons. CP-YYYYMMDD-HR1, CP-YYYYMMDD-HR2 for higher-risk coupons. Number sequentially when multiple coupons of same type exist.
+- Legacy single-coupon IDs CP-YYYYMMDD-LR and CP-YYYYMMDD-HR are also valid.
 - Overwrite same-day report and coupon files on rerun.
 - Update ledger rows in place where IDs already exist. Do not append duplicate rows for the same ID.
 

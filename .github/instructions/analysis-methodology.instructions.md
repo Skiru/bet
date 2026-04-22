@@ -9,30 +9,41 @@ This document captures the exact reasoning process used for daily pick compositi
 ## Phase 1: Data Collection
 
 1. Run orchestrator (`bash scripts/run_full_scan_and_prepare.sh`) to populate `betting/data/`.
-2. Fetch Tier A market-best odds from BetExplorer for all sports in scope (football today page, tennis tournament pages).
+2. Fetch Tier A market-best odds from BetExplorer for all sports in scope (football, tennis, volleyball, basketball, hockey).
 3. Fetch Tier A fixture data from Flashscore (schedules, results, H2H).
-4. Fetch Tier B model predictions from Forebet (avg_goals for football, match predictions).
-5. Extract Betclic adapter odds where available (1X2 from league pages).
+4. Fetch statistical data from specialist sources:
+   - **Football corners/cards**: TotalCorner (match totals/handicaps), SoccerStats (league stats), Betaminic (team tables).
+   - **Tennis**: TennisExplorer (H2H, surface form), TennisAbstract (Elo, serve/return profiles).
+   - **Volleyball**: BetExplorer volleyball section (set/point totals, moneyline).
+   - **Basketball**: Basketball-Reference (pace, ratings), DunksAndThrees.
+   - **Hockey**: NaturalStatTrick (xGF, shot quality), MoneyPuck (predictions).
+   - **Baseball**: BaseballSavant (Statcast data).
+5. Extract Betclic Statystyki odds from HTML snapshots for top-league matches (EPL, LaLiga, Bundesliga) — corners, cards, fouls, shots.
 6. Check `betting/data/scan_errors.json` for source failures.
 
 ## Phase 2: Event Filtering
 
 1. List all events in the betting-day window (06:00 today through 05:59 tomorrow, Europe/Warsaw).
 2. For each event, note: sport, competition, kickoff, available odds.
-3. **Football**: prioritize events where Forebet avg_goals > 2.5 (for totals) or where competitive odds suggest balanced match.
+3. **Football**: prioritize events where Betclic Statystyki tab is available (EPL, LaLiga, Bundesliga) for corner/card/foul markets. For other leagues, look for defensive profiles (SoccerStats BTTS%, O2.5%, team GF/GA) to back U2.5, BTTS, or DC markets.
 4. **Tennis**: prioritize matches where match odds are close (both players between 1.50 and 2.50) — this indicates high 3-set probability, which favors over-games markets.
-5. Discard events outside the betting-day window immediately.
+5. **Volleyball**: look for competitive matchups (ML odds 1.30-2.00 for favorite) where 4+ sets are likely — supports O3.5 sets and point totals.
+6. Discard events outside the betting-day window immediately.
 
 ## Phase 3: Statistical Market Selection
 
 Prefer statistical markets over raw winners. The priority order by sport:
 
 ### Football
-1. **Totals (Over/Under)**: use Forebet avg_goals as primary signal. Accept Over 2.5 when avg_goals > 3.0 with confirming trends (previous H2H, team scoring rates, defensive records).
-2. **BTTS**: use team scoring/conceding rates. Both teams must score in >55% of recent matches.
-3. **Team totals**: when one team dominates scoring.
-4. **Corners**: only when tempo profile confirmed by multiple sources.
-5. **1X2/DC/DNB**: only when price is in 1.30–3.50 range AND edge is clear.
+1. **Corners** (PRIMARY): Use three-source stack: TotalCorner (match corner total/handicap), SoccerStats (league corner rankings, team corner averages), Betclic Statystyki (verified corner odds from HTML snapshots). Match corners O8.5/O9.5/O10.5, 1H corners, team corners are all valid markets. Betclic Statystyki only available for EPL, LaLiga, Bundesliga.
+2. **Cards**: Yellow card totals and team cards. Use SoccerStats card data + Betclic Statystyki when available.
+3. **Fouls**: Match foul totals and team fouls. Use SoccerStats + Betclic Statystyki.
+4. **Shots**: Match shot totals. Use Betclic Statystyki when available.
+5. **BTTS**: use SoccerStats league BTTS% (accept when league > 55%) and team scoring/conceding profiles.
+6. **Under 2.5**: use SoccerStats defensive profiles. Strong when: team GF+GA < 2.0 per match, league O2.5% < 50%, cup semifinal/final context.
+7. **Team totals**: when one team dominates scoring.
+8. **1X2/DC/DNB**: only when odds are in 1.30-3.50 range AND edge is clear (standings gap, form gap).
+9. **Totals (Over/Under goals)**: LAST RESORT. Only use when no statistical markets available. Require strong form and H2H backing.
 
 ### Tennis — Over X Games (key market)
 1. **Identify evenly matched pairings**: match odds between 1.50 and 2.50 for both players → high 3-set probability.
@@ -44,6 +55,13 @@ Prefer statistical markets over raw winners. The priority order by sport:
 
 ### Basketball, Hockey, Baseball
 Follow standard totals and spreads analysis when US leagues are in session.
+
+### Volleyball
+1. **Set totals (O/U 3.5 sets)**: Favor O3.5 in competitive matchups (favorite ML 1.30-2.00). Semifinal/final context supports competitiveness.
+2. **Point totals (O/U 175.5 etc.)**: 4+ sets typically produce 190-200 total points. If O3.5 sets is likely, point over is strongly supported.
+3. **Set handicap**: Use when clear quality gap but not dominant enough for 3-0.
+4. **Moneyline**: Only in one-sided matchups with strong form evidence.
+5. Sources: BetExplorer volleyball for odds comparison, Flashscore for results/H2H, Sofascore for form.
 
 ## Phase 4: Price Verification
 
@@ -141,15 +159,26 @@ For each tennis Over X games pick, check these conditions. All must pass.
 5. **Player withdrawal/cancellation check:** Check Flashscore for any "Cancelled" or "Walkover" markers on the match. If the match is cancelled, remove the pick immediately.
 6. **Player level assessment:** Are both players established tour-level (ATP/WTA main draw or strong qualifiers)? If one is a complete unknown with no tour results, downgrade confidence.
 
-### V4: Football Totals Specific Validation
+### V4: Football Validation
 
-For each football Over/Under totals pick, check these conditions.
+For each football pick, check these conditions.
 
-1. **Forebet avg_goals:** Is it above the line threshold? For Over 2.5, avg_goals should be > 2.8 (ideally > 3.0). For Over 3.5, avg_goals should be > 3.5.
-2. **H2H recent meetings:** Do the last 3-5 head-to-head meetings support the totals direction? Count how many went Over/Under the line.
-3. **Team form (last 5):** Are both teams in scoring form? For Over 2.5, check team scoring and conceding rates per game.
-4. **Competition context:** League match, cup match, playoff? Cup matches (especially semis/finals) can be more tactical. Adjust confidence accordingly.
-5. **Missing data flags:** If Forebet prediction is unavailable, do NOT proceed with a football totals pick without an alternative statistical source. The pick needs quantitative backing.
+1. **Market type hierarchy respected?** Corners/cards/fouls/shots picks are preferred over goals markets. If a goals market is used, confirm no statistical market was available for this match.
+2. **Corner three-source stack?** For corner picks: TotalCorner match total + SoccerStats league corner ranking + Betclic Statystyki verified odds. If Statystyki unavailable (non-top-league), mark CONDITIONAL.
+3. **BTTS league backing?** SoccerStats BTTS% > 55% for the league AND both teams score/concede regularly.
+4. **U2.5 defensive profile?** SoccerStats league O2.5% < 55% AND team defensive profile (GF+GA < 2.0/match) confirms.
+5. **O2.5 fallback justified?** Forebet avg_goals > 2.8 OR SoccerStats goals avg > 2.7 for the league, plus H2H and form support.
+6. **Competition context:** League, cup, playoff? Cup semis/finals tend to be tactical (favor U2.5). League dead rubbers may be unpredictable.
+7. **Missing data flags:** If no Tier A statistical source backs the market direction, do NOT proceed.
+
+### V4b: Volleyball Validation
+
+For each volleyball pick:
+
+1. **Set totals O3.5:** ML odds for favorite between 1.30-2.00 (indicates competitive match). If favorite < 1.20, 3-0 sweep risk is too high.
+2. **Point totals:** Only if O3.5 sets is likely (competitive matchup). 4+ sets typically = 190-200 total points.
+3. **Competition context:** Semifinal/final = higher competitiveness. Regular season may have blowouts.
+4. **Source backing:** BetExplorer for odds, Flashscore for form/H2H.
 
 ### V5: Coupon Structure Validation
 
@@ -228,10 +257,17 @@ V3: TENNIS OVER-GAMES (per tennis pick)
 □ Match not cancelled on Flashscore
 □ Both players tour-level
 
-V4: FOOTBALL TOTALS (per football pick)
-□ Forebet avg_goals above line threshold
-□ H2H supports direction
-□ Team form supports direction
+V4: FOOTBALL (per football pick)
+□ Market hierarchy respected (corners/cards/fouls > BTTS/U2.5 > O2.5)
+□ Corner picks: three-source stack verified (TotalCorner + SoccerStats + Betclic Statystyki)
+□ BTTS: SoccerStats BTTS% > 55%
+□ U2.5: SoccerStats O2.5% < 55% + defensive profile
+□ O2.5 (fallback): Forebet avg_goals > 2.8 or SoccerStats avg > 2.7
+
+V4b: VOLLEYBALL (per volleyball pick)
+□ Set totals: favorite ML between 1.30-2.00 (not too dominant)
+□ Point totals: O3.5 sets likely first
+□ Competition context (semifinal = competitive)
 
 V5: COUPONS (per coupon)
 □ Leg count within config limit
