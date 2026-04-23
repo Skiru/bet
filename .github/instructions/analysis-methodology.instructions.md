@@ -183,11 +183,136 @@ For every tennis candidate:
 - Recent total goals in last 5-10 games
 - Back-to-back schedule fatigue
 
-### 3.5 Other Sports
-Follow sport-specific source references in source-registry.md. The principle is the same:
-- Get statistical data from specialist sources
-- Get form data from general sources (Flashscore)
-- Get odds data from market sources (BetExplorer)
+### 3.5 Volleyball Statistical Protocol
+For every volleyball candidate:
+
+**A. Set Dynamics**
+- Team set win percentages home/away
+- Average sets per match (O/U 3.5 = frequent 3-2 finishes?)
+- Tiebreak frequency (5th set frequency indicates competitive matchups)
+
+**B. Point Totals**
+- Average total points per match (typical range 150-190)
+- Team scoring averages per set
+- Home/away splits for points
+- O/U lines from BetExplorer volleyball section
+
+**C. Statistical Markets (priority order)**
+1. Total sets O/U 3.5 — most valuable when teams are evenly matched (ML odds 1.50-2.50)
+2. Total points O/U — less efficient market, good for mismatch exploitation
+3. Set handicap -1.5 — when favorite is strong but ML is too short
+4. Individual set score O/U 44.5 pts — very niche, very inefficient
+
+**Sources**: Flashscore volleyball, BetExplorer volleyball, OddsPortal volleyball
+
+### 3.6 Esports Statistical Protocol (CS2/LoL/Dota2/Valorant)
+For every esports candidate:
+
+**A. Map Analysis (CS2/Valorant)**
+- Map pool overlap between teams
+- Win rates per map for each team
+- Average rounds per map (O/U 26.5 standard)
+- Pistol round win rates (early-round advantage indicator)
+
+**B. Match Format**
+- BO1 vs BO3 vs BO5 — upsets more likely in BO1
+- Map veto tendencies
+- Home/away advantage (LAN vs online)
+
+**C. Statistical Markets (priority order)**
+1. Map totals O/U 2.5 (BO3) — main market. Evenly matched teams → O2.5 maps
+2. Map handicap -1.5 — when favorite should dominate but ML too short
+3. Total rounds O/U per map — niche, very inefficient
+4. ML — only when odds ratio supports it AND form data is strong
+
+**D. LoL/Dota2 Specific**
+- Game duration averages (fast meta vs late-game scaling)
+- Tower/dragon/baron objective stats
+- Kill totals O/U
+
+**Sources**: GosuGamers, HLTV stats (NOT tips), Liquipedia, BetExplorer esports
+
+### 3.7 Snooker Statistical Protocol
+For every snooker candidate:
+
+**A. Frame Analysis**
+- Tournament format (best-of-9, best-of-13, best-of-19, best-of-25, best-of-35)
+- Average frames per match at this tournament stage
+- Player break-building stats (century breaks per match)
+- Safety play tendencies (safety-heavy players → more frames)
+
+**B. Statistical Markets (priority order)**
+1. Total frames O/U — most valuable. Close skill levels → more frames
+2. Frame handicap — when favorite clear but ML too short
+3. Century breaks O/U — very niche where available
+4. ML — only with strong form + ranking disparity
+
+**C. Key indicators for O frames**
+- Both players ranked within 15 of each other → likely to go deep
+- Player who plays long frames (avg frame time >20 min) → more frames
+- World Championship sessions: early rounds best-of-19, later best-of-25/33
+
+**Sources**: CueTracker (frame-level stats), Flashscore snooker, BetExplorer snooker, OddsPortal snooker
+
+### 3.8 Darts Statistical Protocol
+For every darts candidate:
+
+**A. Leg/Set Analysis**
+- Average 3-dart score (critical: >95 = elite, 90-95 = good, <90 = inconsistent)
+- Checkout percentage (doubles hit rate)
+- 180s per match average
+
+**B. Statistical Markets (priority order)**
+1. Total legs O/U — main market. Close matches → more legs
+2. 180s O/U — correlates with scoring power, very niche market
+3. Set totals O/U — in set-format events (World Championship)
+4. ML — only when scoring averages diverge significantly
+
+**Sources**: DartsOrakel, Flashscore darts, BetExplorer darts
+
+### 3.9 Handball Statistical Protocol
+For every handball candidate:
+
+**A. Scoring Analysis**
+- Average total goals per match (typically 48-60)
+- Team scoring averages (offense + defense)
+- Home/away scoring splits (home advantage is huge in handball)
+
+**B. Statistical Markets (priority order)**
+1. Total goals O/U — most valuable. High-scoring sport with predictable totals
+2. Handicap — when team quality differs significantly
+3. Half totals — first half O/U, more stable than full match
+4. ML — predictable sport, underdogs rarely win
+
+**Sources**: Flashscore handball, BetExplorer handball
+
+### 3.10 Table Tennis Statistical Protocol
+- Set handicap based on ranking difference
+- Total points O/U based on player style (aggressive vs defensive)
+- ML only with significant ranking gap
+- **Sources**: Flashscore table tennis, BetExplorer table tennis
+
+### 3.11 MMA/UFC Statistical Protocol
+- Method of victory: KO/TKO, submission, decision — each has different value
+- O/U rounds (1.5 for 3-rounders, 2.5 for 5-rounders)
+- Fighter style matchup analysis (striker vs grappler)
+- **Sources**: UFC stats, Sherdog, Tapology, BetExplorer MMA
+
+### 3.12 Baseball (MLB) Statistical Protocol
+- Starting pitcher ERA, WHIP, K/9
+- Bullpen ERA and recent usage
+- Total runs O/U (primary market)
+- Run line (handicap +-1.5)
+- First 5 innings line (removes bullpen variance)
+- **Sources**: Baseball Reference, FanGraphs, ESPN, SBR, BetExplorer baseball
+
+### 3.13 General Principle for ALL Sports
+Follow sport-specific source references in source-registry.md. The universal approach:
+- Get statistical data from specialist sources (sport-specific)
+- Get form data from general sources (Flashscore, Sofascore)
+- Get odds data from market sources (BetExplorer, OddsPortal)
+- **ALWAYS prefer statistical/totals markets over ML/winner markets**
+- The less liquid the market, the more likely it is mispriced — this is our edge
 
 ---
 
@@ -467,16 +592,51 @@ For each tennis O-games pick:
 
 ### V4: Football Validation
 For each football pick:
-1. Market hierarchy respected (corners/cards > BTTS/U2.5 > O2.5)?
+1. Market hierarchy respected (corners/cards/fouls/shots > BTTS/U2.5 > O2.5)?
 2. Corner picks: three-source stack verified?
 3. BTTS: SoccerStats BTTS% > 55%?
 4. U2.5: SoccerStats O2.5% < 55% + defensive profile?
 5. Competition context noted?
 
+### V4a: Tennis Validation
+1. Game totals: odds ratio <=1.50?
+2. Set totals: surface form checked?
+3. No walkover risk (player injury)?
+
 ### V4b: Volleyball Validation
 1. Set totals: favorite ML between 1.30-2.00?
 2. Point totals: O3.5 sets likely?
 3. Competition context?
+
+### V4c: Basketball Validation
+1. Total points: pace + OFF/DEF ratings checked?
+2. Injury report reviewed (star players)?
+3. Playoff context (series dynamics, rest days)?
+
+### V4d: Hockey Validation
+1. Total goals: goalie confirmed + save % checked?
+2. PP/PK percentages noted?
+3. Back-to-back schedule checked?
+
+### V4e: Esports Validation
+1. Map totals: form data from last 5 matches?
+2. Match format (BO1/BO3/BO5) noted?
+3. Map pool analysis done?
+
+### V4f: Snooker Validation
+1. Frame totals: match format (best-of-X) confirmed?
+2. Frame averages per player checked?
+3. Tournament stage context?
+
+### V4g: Darts Validation
+1. Leg totals: average scoring checked (3-dart avg)?
+2. Checkout percentage compared?
+3. Event format noted?
+
+### V4h: Other Sports (handball, table tennis, MMA, baseball)
+1. Appropriate statistical market selected (not defaulting to ML)?
+2. Sport-specific data sources consulted?
+3. Context verified (home/away, form, injuries)?
 
 ### V5: Coupon Structure
 1. Minimum 2 legs per coupon?
@@ -559,12 +719,23 @@ Summarize in conversation:
 5. **Anchor effect check**: Do not let the first odds you see anchor your probability estimate. Calculate independently.
 
 ### Market Hierarchy (why statistical markets > results markets)
-1. **Corners, cards, fouls**: lower liquidity -> less sharp money -> more mispricing -> more value
-2. **BTTS, U2.5**: moderate liquidity, backed by clear defensive/offensive profiles -> reliable
-3. **O2.5, O3.5**: high liquidity -> sharp money compresses value -> harder to find edge
-4. **1X2/ML**: highest liquidity -> most efficient market -> rarely mispriced
+The agent MUST independently identify which statistical markets offer the most value per sport. Do NOT wait for user direction — YOU are the analyst.
+
+**Football**: corners > cards > fouls > shots on target > team totals > BTTS > U2.5 > O2.5 > DC/DNB > 1X2
+**Tennis**: total games O/U > set totals O/U > games handicap > set handicap > ML (1.50-2.50 only)
+**Basketball**: total points O/U > spreads > quarter totals > team totals > ML
+**Hockey**: total goals O/U > period totals > shots on goal > ML (with goalie confirmation)
+**Volleyball**: total sets O/U > total points O/U > set handicap > individual set points > ML
+**Esports**: map totals O/U > map handicap > round totals > ML
+**Snooker**: total frames O/U > frame handicap > century breaks O/U > ML
+**Darts**: total legs O/U > 180s O/U > set totals > ML
+**Handball**: total goals O/U > handicap > half totals > ML
+**Table tennis**: total points > set handicap > ML
+**MMA**: method of victory > rounds O/U > ML
+**Baseball**: total runs O/U > run line > F5 O/U > ML (with pitcher analysis)
 
 The less popular the market, the more likely it is mispriced. This is our edge.
+**Key principle**: statistical/totals markets are ALWAYS preferred over ML/winner markets. ML is a LAST RESORT, not a default.
 
 ---
 
@@ -596,10 +767,17 @@ STEP 2: Filter to shortlist
 
 STEP 3: Deep stats per candidate
   [ ] Football: league context + match data + corner stack + defensive profile + xG
-  [ ] Tennis: ranking + surface form + H2H + Elo + odds ratio
-  [ ] Basketball: pace + ratings + injuries
-  [ ] Hockey: xG + goalie + PP/PK
-  [ ] Other sports: specialist sources
+  [ ] Tennis: ranking + surface form + H2H + Elo + odds ratio + games per set avg
+  [ ] Basketball: pace + OFF/DEF ratings + injuries + home/away splits + quarter trends
+  [ ] Hockey: xG + goalie save% + PP/PK + B2B fatigue + period totals history
+  [ ] Volleyball: set win% + total points avg + tiebreak frequency + set handicap value
+  [ ] Esports: map pool + win rates per map + round averages + form (last 5)
+  [ ] Snooker: frame averages + century break rates + safety tendencies + format (best-of-X)
+  [ ] Darts: 3-dart avg + checkout% + 180s avg + leg totals history
+  [ ] Handball: total goals avg + home/away splits + half totals
+  [ ] Table tennis: point totals + set handicap + ranking gap
+  [ ] MMA: method of victory stats + rounds avg + style matchup
+  [ ] Baseball: starting pitcher ERA/WHIP + bullpen + run totals + F5 line
 
 STEP 4: Tipster deep-dive
   [ ] Check >=2 tipster sources per candidate

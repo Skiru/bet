@@ -69,3 +69,12 @@ betting_day,source_name,role,sport_scope,availability,used_in_analysis,used_in_f
 2026-04-23,forebet.com,BLOCKED,blocked,Cloudflare
 2026-04-23,oddspedia.com,BLOCKED,blocked,Cloudflare
 2026-04-23,protipster.com,BLOCKED,blocked,Cloudflare
+2026-04-23,14:25,BetExplorer,match-odds,available,1X2+OU+BTTS+DC for LEV-SEV RAY-ESP OVI-VIL STU-FRE; NHL 1X2; NBA league pages,football+hockey+basketball
+2026-04-23,14:30,SoccerStats,league-stats,available,LaLiga+Eredivisie+Denmark league profiles GF/GA per team,football
+2026-04-23,14:35,PicksWise,tipster,available,NHL: BOS Bruins ML; NBA: ATL Hawks ML + TOR Raptors ML,hockey+basketball
+2026-04-23,14:35,Typersi,tipster,available,5 tipster picks: Levante ML dalmatino AGF ML djidji1 Freiburg ML special1 Rayo-Espanyol X,football
+2026-04-23,14:35,ZawodTyper,tipster,partial,Match listings visible but limited detailed arguments extracted,football
+2026-04-23,14:35,BetIdeas,tipster,partial,Category headers only (corners + O/U) no specific match tips,football
+2026-04-23,14:35,OLBG,tipster,partial,Generic content only no specific match tips extracted,general
+2026-04-23,14:25,BetExplorer-Eredivisie,match-urls,available,Found GAE-AZ and PSV-ZWO match IDs correctly; no Betclic odds listed,football
+2026-04-23,14:25,BetExplorer-Denmark,match-urls,available,Found NOR-AGF and SON-MID match IDs correctly; no Betclic odds listed,football

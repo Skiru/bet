@@ -243,3 +243,22 @@ No entries yet.
   2. **NEVER give up on source failures.** Follow the Odds Source Map: Primary → Secondary → Tertiary → Fallback → internet search. The internet ALWAYS has data.
   3. **Minimum 2 independent sources per pick for cross-validation.** SBR vs ESPN vs ScoresAndOdds for US sports. BetExplorer vs OddsPortal for EU sports.
 - Source notes: Added SBR, ESPN Odds, ScoresAndOdds as Tier A market sources. Added The-Odds-API as universal fallback. Documented all geoblocked sources. Updated Odds Source Map by Sport table in source-registry.md.
+
+## 2026-04-23 (run 2 — portfolio construction)
+- Settlement summary: Apr 22 fully settled. Day PnL +7.77, Night PnL -7.50, Total +0.27. Bankroll 45.27 PLN.
+- What worked:
+  1. Home/away split analysis caught a false BTTS signal: LEV-SEV BTTS Yes looked +17% EV on aggregate but was -25% EV with proper away splits (Sevilla away 1.00 GF/game). CRITICAL discovery.
+  2. Poisson model with H2H lambda (3.07 for LEV-SEV) provides more reliable O2.5 estimates than league averages.
+  3. BetExplorer match pages NOW rendering correctly with Playwright (match IDs from league pages). Fixed by navigating from league page to find correct match URLs with unique IDs.
+  4. Pewniaki system (all 3-pick combinations: 3 doubles + 1 triple) provides 4 low-risk coupons efficiently.
+  5. Oviedo BTTS No (0.77 GF/game) = strongest statistical signal today. P(BTTS No) = 69.5%, EV +39%.
+- What failed:
+  1. BetExplorer O/U and BTTS tabs for Eredivisie/Denmark matches show no Betclic odds (smaller leagues not covered).
+  2. NHL O/U odds from BetExplorer extracted wrong values (18.00 / 1.05 — picked up wrong bookmaker or misread). SBR remains better for NHL totals.
+  3. NBA/NHL ML odds not found on BetExplorer match pages (possibly US sportsbooks not listed or format issue).
+  4. Fish shell heredoc syntax incompatible — caused multiple script creation failures. Always write scripts via Python or file editor.
+- Rule changes:
+  1. ALWAYS use home/away splits for BTTS analysis. Overall GF/game is misleading. P(BTTS) = P(home team scores) * P(away team scores away).
+  2. For smaller leagues (Eredivisie, Denmark SL), Betclic odds must be verified on app — BetExplorer does not list them.
+  3. Continue using SBR + ESPN + ScoresAndOdds for US sports totals instead of BetExplorer match pages.
+- Source notes: BetExplorer match pages work for LaLiga/DFB Pokal (top leagues). Not reliable for Eredivisie/Denmark. PicksWise provided expert NHL+NBA picks with reasoning.

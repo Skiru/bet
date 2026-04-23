@@ -97,8 +97,11 @@ def load_pending_picks(betting_day):
             event = row["event"]
             parts = event.replace(" vs ", " vs ").split(" vs ")
             if len(parts) == 2:
-                home_short = parts[0].strip().split()[0]
-                away_short = parts[1].strip().split()[0]
+                # Use last meaningful word from each team (skip short tokens like "R.", "NY", "FC")
+                home_words = [w for w in parts[0].strip().split() if len(w) > 2 and not w.endswith('.')]
+                away_words = [w for w in parts[1].strip().split() if len(w) > 2 and not w.endswith('.')]
+                home_short = home_words[-1] if home_words else parts[0].strip().split()[-1]
+                away_short = away_words[-1] if away_words else parts[1].strip().split()[-1]
                 search_term = f"{home_short} {away_short}"
             else:
                 search_term = event.replace(" vs ", " ").replace(" - ", " ")
@@ -145,13 +148,53 @@ def extract_target_odds(html, market, selection):
         if 1.01 <= val <= 50.0:
             result["all_odds"].append(val)
 
+    sel_lower = selection.lower()
+
+    # Handle BTTS markets (no numeric line)
+    if "btts" in sel_lower or "obie" in sel_lower or "both team" in sel_lower:
+        is_yes = "yes" in sel_lower or "tak" in sel_lower
+        is_no = "no" in sel_lower and "both" not in sel_lower.split("no")[0][-5:]
+        # Default to "No" if selection is "BTTS No"
+        if "no" in sel_lower:
+            is_no = True
+            is_yes = False
+        btts_patterns = [
+            # "Nie 1.89" or "No 2.00" or "Tak 1.81" or "Yes 1.73"
+            (r"(?:Nie|No)\s{0,10}?(\d+[.,]\d{2})", is_no),
+            (r"(?:Tak|Yes)\s{0,10}?(\d+[.,]\d{2})", is_yes),
+            (r"(\d+[.,]\d{2})\s{0,10}?(?:Nie|No)", is_no),
+            (r"(\d+[.,]\d{2})\s{0,10}?(?:Tak|Yes)", is_yes),
+        ]
+        for pat, wanted in btts_patterns:
+            if not wanted:
+                continue
+            hit = re.search(pat, text, re.IGNORECASE)
+            if hit:
+                val = float(hit.group(1).replace(",", "."))
+                if 1.01 <= val <= 15.0:
+                    start = max(0, hit.start() - 30)
+                    end = min(len(text), hit.end() + 30)
+                    result["raw_snippet"] = text[start:end]
+                    result["target_odds"] = val
+                    result["market_found"] = True
+                    break
+        return result
+
+    # Handle moneyline markets (no numeric line) — return all_odds for manual inspection
+    if "ml" in sel_lower or "moneyline" in sel_lower or "win" in sel_lower:
+        # Can't reliably auto-extract ML odds without knowing page layout
+        # Return all odds for manual review
+        result["market_found"] = bool(result["all_odds"])
+        return result
+
+    # Handle Over/Under with numeric line
     line_match = re.search(r"(\d+\.\d)", selection)
     line = line_match.group(1) if line_match else None
     if not line:
         return result
 
-    is_over = "over" in selection.lower()
-    is_under = "under" in selection.lower()
+    is_over = "over" in sel_lower
+    is_under = "under" in sel_lower
 
     line_esc = line.replace(".", "[.,]")
 

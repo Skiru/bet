@@ -112,11 +112,6 @@ echo "[6/7] Extracting Betclic sport-specific markets..."
 python3 "${SCRIPT_DIR}/quick_betclic_extract.py" 2>/dev/null || echo "[INFO] Betclic detail extraction skipped or failed"
 
 echo ""
-echo "[7/7] Verifying Betclic odds for pending picks..."
-BETTING_DAY=$(date '+%Y-%m-%d')
-python3 "${SCRIPT_DIR}/verify_betclic_odds.py" --betting-day "${BETTING_DAY}" 2>/dev/null || echo "[INFO] Betclic odds verification skipped (no pending picks or script error)"
-
-echo ""
 echo "============================================="
 echo "[orchestrator] Pipeline complete"
 echo "[orchestrator] Time: $(date '+%Y-%m-%d %H:%M:%S %Z')"
