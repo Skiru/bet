@@ -71,10 +71,11 @@ Core philosophy: find MISPRICED ODDS, not predict winners. Only bet when EV > 0.
 ## STEP 3: EVENT SCAN
 
 3a. Scan ALL 12 sports: football, tennis, basketball, hockey, volleyball, esports, snooker, table tennis, darts, handball, MMA, baseball.
-3b. Use orchestrator outputs + BetExplorer + Flashscore + OddsPortal + specialist sites (HLTV, CueTracker, etc.).
-3c. Filter to session window. Remove events outside time range, without Tier A coverage, or <1h to kickoff.
-3d. Build Master Event List: sport, competition, event, kickoff, initial odds.
-3e. Target 15-40 shortlisted events (fewer for night/morning sessions).
+3b. Use orchestrator outputs + BetExplorer + Flashscore + OddsPortal + specialist sites (CueTracker, GosuGamers, etc.).
+3c. **Source resilience:** if ANY source returns 403/Cloudflare/GDPR, move to next source in the Odds Source Map (source-registry.md). For US sports: use SBR + ESPN Odds + ScoresAndOdds. For EU sports: BetExplorer + OddsPortal. NEVER give up — the internet always has data.
+3d. Filter to session window. Remove events outside time range, without Tier A coverage, or <1h to kickoff.
+3e. Build Master Event List: sport, competition, event, kickoff, initial odds.
+3f. Target 15-40 shortlisted events (fewer for night/morning sessions).
 
 ## STEPS 4-8: DEEP ANALYSIS (one sequentialthinking call PER candidate)
 
@@ -88,12 +89,16 @@ For each shortlisted candidate, execute in sequence:
 - Other sports: specialist sources per methodology appendix.
 
 **STEP 5 — Tipster Deep-Dive:**
-- Check >=2 tipster sources per candidate (ZawodTyper, Protipster, BetIdeas, OLBG, FootySupertips, PicksWise, Windrawwin, bettingexpert, Blogabet, GosuGamers).
+- Check >=2 tipster sources per candidate. Working sources: ZawodTyper, Typersi, BetIdeas, PicksWise, Tipstrr, GosuGamers, Sportsgambler, OLBG.
+- BLOCKED (do NOT attempt): Forebet, FootySupertips, Windrawwin, BettingExpert, Protipster, Oddspedia, SportyTrader, Predictz, Trafiamy, Blogabet, HLTV.
+- If a tipster source is blocked, search Google for "[event] prediction tips" to find alternatives. NEVER declare tipster consensus impossible.
 - Extract: specific pick, reasoning, confidence, consensus %.
 - >=70% agreement → +0.5 confidence. >=60% contradiction → investigate, reduce -1 or skip.
 
 **STEP 6 — Odds + EV:**
-- Get market-best odds from BetExplorer/OddsPortal.
+- Get market-best odds from BetExplorer/OddsPortal. For US sports: SBR Totals tab + ESPN Odds + ScoresAndOdds.
+- Minimum 2 independent sources per pick for cross-validation.
+- American odds conversion: +X → 1 + X/100; -X → 1 + 100/X.
 - Estimate true probability (Pinnacle implied > statistical model > market consensus).
 - Calculate EV = (true_probability × betclic_odds) - 1. Must be > 0.
 - Calculate price_gap_pct. Reject if outside threshold (-3% LR, -5% HR).
@@ -107,7 +112,7 @@ For each shortlisted candidate, execute in sequence:
 - Bull case (1-2 sentences) vs Bear case (1-2 sentences).
 - Streak dependency? If >5-game streak → reduce confidence -1.
 - Regression risk? xG mismatch?
-- 20%-lower-odds test: still bet? If NO → coupon leg only, not single.
+- 20%-lower-odds test: still bet? If NO → lower confidence, coupon leg only.
 - If bear > bull → REJECT.
 
 ## STEP 9: PORTFOLIO CONSTRUCTION
@@ -143,8 +148,8 @@ For each shortlisted candidate, execute in sequence:
 11a. V1: Artifact consistency (pick_ids, coupon_ids, stake sums).
 11b. V2: Per-pick validation (Tier A stats, Tier A market, EV > 0, confidence).
 11c. V3-V4: Sport-specific checks (tennis odds ratio, football corner stack, volleyball ML range).
-11d. V5: Coupon structure (leg count, same-sport limit, correlation, combined odds = product ±10%).
-11e. V6: Portfolio risk (total <= cap, single <= max, exposure < 25% bankroll).
+11d. V5: Coupon structure (min 2 legs, same-sport limit, correlation, combined odds = product ±10%, min 5 coupons).
+11e. V6: Portfolio risk (no coupon > 3.00 PLN LR / 2.00 PLN HR, exposure < 25% bankroll, min 5 coupons).
 11f. V7: Weakness flagging (borderline picks, CONDITIONAL, weakest legs).
 11g. V8: All pass → APPROVED. Any fail → fix and re-check.
 
