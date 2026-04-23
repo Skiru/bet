@@ -147,3 +147,41 @@ No entries yet.
   3. Avoid popular high-profile events for pure match-result bets. Focus on deep statistical markets and analytical perspectives. Never produce shallow analysis.
   4. Goal is MANY coupons with varying risk/stake/sport coverage — not a few conservative ones. Diversify broadly: football, tennis, basketball, volleyball, esports, snooker, table tennis, darts, handball, MMA.
 - Source notes: Added 20+ new sources to source-registry.md. Updated config to include 12 sports. Updated all instruction files.
+
+## 2026-04-23 (deep analysis rerun)
+- Settlement summary: No new settlements. Apr 22 fully settled (+0.27 PLN). Bankroll 46.03 PLN.
+- What worked:
+  1. SoccerStats deep dive: La Liga + Eredivisie O2.5%, BTTS%, home/away splits, FTS rates all available and rich.
+  2. TennisAbstract clay-specific analysis: Atmane's 40% clay win rate is a strong contrarian signal supporting Kecmanovic ML.
+  3. CueTracker snooker H2H: Murphy-Xiao 4-2 record with frame-by-frame data available.
+  4. PSV O2.5 at 83% season rate = highest-confidence pick on the board (conf 5).
+  5. BetExplorer 1X2 odds available across all competitions for price gap checking.
+- What failed:
+  1. Tipster sites massively blocked: FootySupertips (DNS), Windrawwin (redirect), Forebet (Cloudflare), Protipster (Cloudflare), Oddspedia (Cloudflare), BettingExpert (nav issue). 7/7 tipster sites failed. Tipster consensus check impossible.
+  2. NBA/esports/darts data unavailable: Covers empty, HLTV empty, no darts odds on BetExplorer. These sports cannot be analyzed without data.
+  3. Only 4 constructs produced vs target of 5 coupons. Board limited by sport data availability.
+  4. Wilson vs Allen (snooker) dropped from HR2 coupon due to missing H2H stats — CueTracker not checked for that pair.
+- Rule changes for future runs:
+  1. Accept that tipster consensus is currently impossible due to Cloudflare/DNS blocks. Do not force it. Rely on Tier A stats sources which remain accessible.
+  2. When targeting many coupons, prioritize collecting data for multiple sports early in the scan phase.
+  3. CueTracker H2H should be checked for ALL snooker candidates, not just the most obvious one.
+- Source notes: SoccerStats, BetExplorer, TennisAbstract, CueTracker, OddsPortal all reliable Tier A. Flashscore schedule data reliable. All tipster Tier B sites blocked.
+
+## 2026-04-23 (v2 statistical markets rebuild)
+- Settlement summary: no new settlements. PK-01 through PK-06 voided (generic markets replaced). CP-LR1/HR1 voided.
+- What worked:
+  1. TotalCorner match-level corner handicaps: PSV -2.25, GA Eagles +0.25, Oviedo-Villarreal +0.25, Rayo-Espanyol -0.25. Directly actionable for corner O/U lines.
+  2. BetExplorer tennis set-score histories: confirmed 3-set rates for Atmane (47%) and Kecmanovic (56%) supporting O21.5 games.
+  3. Multi-sport diversification: football corners + tennis game totals + snooker frame totals across 3 coupons + 3 singles.
+  4. Corner priority fully implemented: 4/8 picks are corners, 2/8 game totals, 1/8 BTTS, 1/8 frame totals. Zero generic O2.5 goals or raw ML.
+- What failed:
+  1. SoccerStats team pages (team.asp) returned empty for corner/card data — only league-level stats available.
+  2. FBref miscellaneous stats returned empty for La Liga/Eredivisie.
+  3. BetExplorer upcoming match pages have no Corners/Cards tabs — only available for completed matches.
+  4. Forebet corner predictions blocked by Cloudflare.
+- Rule changes (permanent):
+  1. **STATISTICAL MARKETS ARE THE FOUNDATION.** Priority: corners > cards > fouls > shots > team totals > BTTS > DC > goals O/U. For tennis: game_totals > set_totals > games_handicap > ML. For snooker: total_frames > frame_handicap > ML.
+  2. Never produce O2.5 goals or raw ML as primary picks. These are last-resort fallbacks only.
+  3. TotalCorner is the primary source for match-level corner analysis. SoccerStats for league-level rankings. Combined = sufficient for corner picks even without Betclic Statystyki tab.
+  4. Fish shell does NOT support heredocs (`<< 'EOF'`). Always use Python for multi-line file appends.
+- Source notes: TotalCorner confirmed as most reliable corner source (free tier). SoccerStats league-level only. BetExplorer corners only for historical matches.

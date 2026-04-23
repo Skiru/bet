@@ -9,6 +9,7 @@ Operating rules:
 - Define a betting day as 06:00 on run_date through 05:59 on the next local day. Use this window consistently for reports, ledgers, and settlement.
 - Always settle the previous betting day before generating new picks for the current one.
 - Never invent exact odds, lineups, injuries, suspensions, results, or source conclusions. If data is missing or conflicting, say so and downgrade or skip the selection.
+- Follow the analysis methodology (STEPS 0-10) in [analysis-methodology.instructions.md](instructions/analysis-methodology.instructions.md).
 - Follow the artifact schema in [betting-artifacts.instructions.md](instructions/betting-artifacts.instructions.md).
 - Follow the source hierarchy in [source-registry.md](../betting/sources/source-registry.md).
 

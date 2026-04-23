@@ -1,74 +1,139 @@
 BETTING DAY: 2026-04-23
-RUN TIME LOCAL: 2026-04-23 07:30
-BOOKMAKER: Betclic
-BANKROLL CAP PLN: 8.00
-TOTAL PLANNED EXPOSURE PLN: 6.00
-UNUSED BANKROLL PLN: 2.00
+RUN TIME LOCAL: 2026-04-23 10:00 (v6 FULL SCAN MULTI-SPORT + ALL TIPSTER SOURCES)
+BOOKMAKER: Betclic (CONDITIONAL -- user verifies all odds on Betclic app)
+BANKROLL CAP PLN: 8.00-12.00 (aggressive allocation, user authorized)
+TOTAL PLANNED EXPOSURE PLN: 9.00
+UNUSED BANKROLL PLN: 37.03
+METHODOLOGY: STATISTICAL MARKETS ONLY — corners, game totals, BTTS. Only conf 4-5 picks used.
+TIPSTER SOURCES: ZawodTyper, Meczyki.pl, Typersi.com, TotalCorner, BettingExpert, PicksWise, Covers.com, BetIdeas, SoccerVista.
+BLOCKED SOURCES: WindrawWin, FootyStats, Oddspedia, Forebet, Predictz, SportyTrader, Protipster, FootySupertips, Trafiamy.pl, Blogabet.
+MULTI-SPORT SCAN: Football ✅, Tennis ✅, NHL ❌ (no O/U data), NBA ❌ (no stats), Snooker ❌ (no Tier A), CS2 ❌, Darts ❌, Baseball ❌.
+OPTIMIZATION: COUPON-HEAVY — 4 pewniaki (conf 4-5) combined into ALL 11 possible 2/3/4-leg combos. 1 single + 11 kuponów.
+PORTFOLIO DETAILS: See 2026-04-23-portfolio.md for full .md format with deep analysis.
 
-SINGLES:
-SINGLE 1 (PK-20260423-01): GA Eagles vs AZ Alkmaar | Over 2.5 goals | min 1.45
-  - Eredivisie 3.18 g/m, O2.5 62%. GA Eagles 50GF/45GA. AZ 52GF/45GA.
-  - Competitive match (2.93/3.76/2.24). Both teams score and concede freely.
-  - Stake: 1.50 PLN
-  - CONDITIONAL: accept if Betclic >= 1.45
+============================================================
+4 PEWNIAKI (conf 4-5) — building blocks for all coupons:
+============================================================
+  A. [PK-07] PSV vs Zwolle | Corners | Over 9.5 corners | @1.55 | conf 5 ★★★★★
+     TotalCorner -2.25 hcp. PSV 4.13 g/m. H2H: 12,8,13,10,13,9 (5/6 over 9.5).
+  B. [PK-08] Atmane vs Kecmanovic | Game totals | Over 21.5 games | @1.60 | conf 4 ★★★★
+     3-set rates 47%/56%. Close odds (2.02/1.76). Clay Madrid long rallies.
+  C. [PK-09] Oviedo vs Villarreal | Corners | Over 8.5 corners | @1.60 | conf 4 ★★★★
+     TotalCorner +0.25 hcp. Villarreal 3rd 56GF vs Oviedo 20th low-block.
+  D. [PK-15] Nordsjaelland vs AGF | BTTS | Yes | @1.68 | conf 4 ★★★★
+     AGF 51GF/28GA (1st). Nordsjaelland 45GF/42GA. ZawodTyper 9/10+7/10 BTTS.
 
-SINGLE 2 (PK-20260423-02): Carreno-Busta vs Fucsovics | Over 20.5 games | min 1.40
-  - ATP Madrid qualifying, clay. Match odds 1.85/1.92 ratio 1.04 = STRONG parity.
-  - ~60% 3-set probability. Both ATP tour level.
-  - Stake: 1.50 PLN
-  - CONDITIONAL: accept if Betclic >= 1.40. If O20.5 line unavailable, SKIP.
+============================================================
+SINGLE (1 pick, 2.00 PLN):
+============================================================
 
-LOW-RISK COUPON (CP-20260423-LR1) — PEWNY EREDIVISIE + LALIGA
-- Legs:
-  [PK-20260423-03] PSV vs Zwolle | totals | Over 2.5 | min 1.22 | coupon leg
-  [PK-20260423-04] Oviedo vs Villarreal | DC | Villarreal X2 | min 1.25 | coupon leg
-- Combined odds: ~1.66
-- Stake: 2.00 PLN
-- Rationale: PSV home 84GF/30 = 2.80/g, home 47GF/15 = 3.13/g vs Zwolle 60GA.
-  Villarreal 3rd (61pts) vs Oviedo last (27pts) — 34-point gap. Should not lose.
-  Both legs low-volatility, different leagues, zero correlation.
+S1 [PK-07] PSV vs Zwolle | Corners | Over 9.5 corners | @1.55 | 2.00 PLN | ACCEPT >= 1.45 | conf 5
+   Najwyższa pewność. Zabezpieczenie — nawet jeśli inne nogi padną, single zarabia.
 
-HIGHER-RISK COUPON (CP-20260423-HR1) — MULTI-SPORT 3-LEG
-- Legs:
-  [PK-20260423-05] Levante vs Sevilla | btts | BTTS Yes | min 1.60 | coupon leg
-  [PK-20260423-06] Istanbul GSK vs Fenerbahce | sets | Over 3.5 sets | min 1.30 | coupon leg
-  [PK-20260423-07] Atmane vs Kecmanovic | games | Over 20.5 | min 1.40 | coupon leg
-- Combined odds: ~3.61
-- Stake: 1.00 PLN
-- Rationale: 3-sport diversification (football + volleyball + tennis).
-  Sevilla BTTS 61%, relegation battle intensity.
-  Istanbul-Fenerbahce ML 1.81/1.87 = extremely competitive → 4-5 sets likely.
-  Atmane-Kecmanovic ratio 1.20 GOOD on clay Madrid.
+============================================================
+KUPONY (11 coupons, 7.00 PLN) — v6 ALL COMBOS:
+============================================================
 
-SKIPPED OR OMITTED:
-- Rayo vs Espanyol U2.5: Rayo GF+GA 2.16 > 2.0. La Liga O2.5 51%. Fails defensive profile. REJECTED.
-- NBA (Hawks-Knicks, Raptors-Cavaliers, Wolves-Nuggets): No Tier A stats (Covers empty). REJECTED.
-- Czech hockey Trinec vs Pardubice: No shot-quality/goalie data. REJECTED.
-- Minor league basketball (B.League, Turkish BSL): No Tier A sources. REJECTED.
-- WTA Starodubtseva vs Cristian: Ratio 1.40 BORDERLINE. REJECTED.
-- Previous picks (Leipzig, Betis-RM, Napoli, Brest-Lens): Apr 24 matches. VOIDED.
+--- 6x DUBLETY (2-leg) ---
 
-EXPOSURE SUMMARY:
-- Single 1 (GA Eagles O2.5): 1.50 PLN
-- Single 2 (Carreno O20.5): 1.50 PLN
-- CP-LR1 (PSV O2.5 + Villarreal DC): 2.00 PLN
-- CP-HR1 (BTTS + O3.5sets + O20.5): 1.00 PLN
-- Total: 6.00 PLN
-- Unused: 2.00 PLN
-- Note: 10 tickets requested, 4 produced — board too thin for more. Zero event overlap.
+K1: CP-20260423-LR4 (A+B: PSV + ATMANE) ★★★
+  1. [PK-07] PSV vs Zwolle | Corners O9.5 | @1.55 | conf 5
+  2. [PK-08] Atmane vs Kecmanovic | Games O21.5 | @1.60 | conf 4
+  combined_odds: 2.48 | stake: 1.50 PLN | ACCEPT >= 2.20
+  rationale: Football+tennis = zero korelacja. Oba pewniaki.
 
-INSTRUKCJE BETCLIC:
-1. Otworz Betclic Statystyki tab dla:
-   - RB Leipzig vs Union Berlin (Bundesliga) -> Rzuty rozne -> Corners Over 9.5 -> akceptuj >= 1.45
-   - Betis vs Real Madrid (La Liga) -> Rzuty rozne -> Corners Over 9.5 -> akceptuj >= 1.45
-   Postaw Kupon LR1 za 2.00 PLN
+K2: CP-20260423-LR5 (C+D: OVIEDO + NORDSJAELLAND) ★★★
+  1. [PK-09] Oviedo vs Villarreal | Corners O8.5 | @1.60 | conf 4
+  2. [PK-15] Nordsjaelland vs AGF | BTTS Yes | @1.68 | conf 4
+  combined_odds: 2.69 | stake: 1.50 PLN | ACCEPT >= 2.40
+  rationale: LaLiga+Superliga = zero korelacja.
 
-2. Dodaj nowy kupon:
-   - RB Leipzig vs Union Berlin -> Gole -> Over 2.5 -> akceptuj >= 1.45
-   - Napoli vs Cremonese -> Wynik meczu -> Napoli -> akceptuj >= 1.28
-   Postaw Kupon LR2 za 1.50 PLN
+K3: CP-20260423-LR6 (A+D: PSV + NORDSJAELLAND) ★★
+  1. [PK-07] PSV vs Zwolle | Corners O9.5 | @1.55 | conf 5
+  2. [PK-15] Nordsjaelland vs AGF | BTTS Yes | @1.68 | conf 4
+  combined_odds: 2.60 | stake: 1.00 PLN | ACCEPT >= 2.30
 
-3. Dodaj nowy kupon:
-   - Betis vs Real Madrid -> Obie druzyny strzela -> Tak -> akceptuj >= 1.60
-   - Brest vs Lens -> Wynik meczu -> Lens -> akceptuj >= 1.60
-   Postaw Kupon HR1 za 1.00 PLN
+K4: CP-20260423-LR7 (B+C: ATMANE + OVIEDO) ★★
+  1. [PK-08] Atmane vs Kecmanovic | Games O21.5 | @1.60 | conf 4
+  2. [PK-09] Oviedo vs Villarreal | Corners O8.5 | @1.60 | conf 4
+  combined_odds: 2.56 | stake: 0.50 PLN | ACCEPT >= 2.20
+
+K5: CP-20260423-LR8 (A+C: PSV + OVIEDO) ★★ [NEW v6]
+  1. [PK-07] PSV vs Zwolle | Corners O9.5 | @1.55 | conf 5
+  2. [PK-09] Oviedo vs Villarreal | Corners O8.5 | @1.60 | conf 4
+  combined_odds: 2.48 | stake: 0.50 PLN | ACCEPT >= 2.20
+  rationale: Double corners — Eredivisie+LaLiga, zero korelacja.
+
+K6: CP-20260423-LR9 (B+D: ATMANE + NORDSJAELLAND) ★★ [NEW v6]
+  1. [PK-08] Atmane vs Kecmanovic | Games O21.5 | @1.60 | conf 4
+  2. [PK-15] Nordsjaelland vs AGF | BTTS Yes | @1.68 | conf 4
+  combined_odds: 2.69 | stake: 0.50 PLN | ACCEPT >= 2.40
+  rationale: Tenis+piłka DK, zero korelacja.
+
+--- 4x TRIPLETY (3-leg) ---
+
+K7: CP-20260423-HR5 (A+B+C: PSV + ATMANE + OVIEDO)
+  1. [PK-07] PSV vs Zwolle | Corners O9.5 | @1.55 | conf 5
+  2. [PK-08] Atmane vs Kecmanovic | Games O21.5 | @1.60 | conf 4
+  3. [PK-09] Oviedo vs Villarreal | Corners O8.5 | @1.60 | conf 4
+  combined_odds: 3.97 | stake: 0.50 PLN | ACCEPT >= 3.50
+
+K8: CP-20260423-HR8 (A+B+D: PSV + ATMANE + NORDSJAELLAND) [NEW v6]
+  1. [PK-07] PSV vs Zwolle | Corners O9.5 | @1.55 | conf 5
+  2. [PK-08] Atmane vs Kecmanovic | Games O21.5 | @1.60 | conf 4
+  3. [PK-15] Nordsjaelland vs AGF | BTTS Yes | @1.68 | conf 4
+  combined_odds: 4.17 | stake: 0.50 PLN | ACCEPT >= 3.70
+
+K9: CP-20260423-HR9 (A+C+D: PSV + OVIEDO + NORDSJAELLAND) [NEW v6]
+  1. [PK-07] PSV vs Zwolle | Corners O9.5 | @1.55 | conf 5
+  2. [PK-09] Oviedo vs Villarreal | Corners O8.5 | @1.60 | conf 4
+  3. [PK-15] Nordsjaelland vs AGF | BTTS Yes | @1.68 | conf 4
+  combined_odds: 4.17 | stake: 0.50 PLN | ACCEPT >= 3.70
+
+K10: CP-20260423-HR6 (B+C+D: ATMANE + OVIEDO + NORDSJAELLAND)
+  1. [PK-08] Atmane vs Kecmanovic | Games O21.5 | @1.60 | conf 4
+  2. [PK-09] Oviedo vs Villarreal | Corners O8.5 | @1.60 | conf 4
+  3. [PK-15] Nordsjaelland vs AGF | BTTS Yes | @1.68 | conf 4
+  combined_odds: 4.30 | stake: 0.50 PLN | ACCEPT >= 3.80
+
+--- 1x MEGA KUPON (4-leg) ---
+
+K11: CP-20260423-HR7 (A+B+C+D: WSZYSTKIE 4 PEWNIAKI) 🔥
+  1. [PK-07] PSV vs Zwolle | Corners O9.5 | @1.55 | conf 5
+  2. [PK-08] Atmane vs Kecmanovic | Games O21.5 | @1.60 | conf 4
+  3. [PK-09] Oviedo vs Villarreal | Corners O8.5 | @1.60 | conf 4
+  4. [PK-15] Nordsjaelland vs AGF | BTTS Yes | @1.68 | conf 4
+  combined_odds: 6.66 | stake: 0.50 PLN | ACCEPT >= 5.50
+
+============================================================
+EXPOSURE SUMMARY (v6):
+============================================================
+  Single: 1 x 2.00 = 2.00 PLN
+  Kupony: 11 x avg 0.64 = 7.00 PLN
+  TOTAL:  9.00 PLN (19.6% of 46.03 PLN bankroll)
+  -------
+  Ekspozycja per pick:
+    PSV (A):           S1+K1+K3+K5+K7+K8+K9+K11 = 6.00 PLN
+    Atmane (B):        K1+K4+K6+K7+K8+K10+K11   = 4.00 PLN
+    Oviedo (C):        K2+K4+K5+K7+K9+K10+K11   = 4.00 PLN
+    Nordsjaelland (D): K2+K3+K6+K8+K9+K10+K11   = 4.00 PLN
+  -------
+  If all 4 pewniaki WIN (best case):
+    TOTAL RETURN: 28.98 PLN = +19.98 PLN PROFIT (+222% ROI)
+  If 3 of 4 win (1 fails):
+    Worst case (PSV fails): +0.82 profit
+    Best case (Atmane fails): +4.07 profit
+
+WATCH LIST:
+- W1: GA Eagles vs AZ corners O9.5 @1.50 | conf 3 | TotalCorner +0.25
+- W2: Stuttgart vs Freiburg corners O9.5 @1.55 | conf 3 | DFB Pokal semi
+- W3: Xiao vs Murphy, Xiao +3.5 frames @1.60 | conf 3 | ZawodTyper
+- W4: Wilson vs Allen frames O19.5 @1.50 | conf 3 | WC R2
+- W5: Bruins vs Sabres O5.5 @TBD | conf 2 | NHL high-scoring recent
+- W6: Hawks vs Knicks ML @1.90 | conf 2 | PicksWise NBA
+
+VOIDED (previous versions):
+- PK-01 to PK-06: VOIDED (v1 generic markets)
+- PK-10 to PK-14, PK-16 to PK-20: VOIDED (v5 — conf 3 picks removed, user wants only pewniaki)
+- CP-LR1/HR1: VOIDED (v2)
+- CP-LR2/HR2/LR3/HR3/HR4: VOIDED (v4/v5 — replaced by pewniaki combos)

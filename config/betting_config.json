@@ -3,30 +3,109 @@
   "daily_exposure_pln": null,
   "max_single_stake_pln": 2.0,
   "working_bankroll_pln": 46.03,
-  "suggested_daily_allocation_range_pln": [4.0, 8.0],
-  "low_risk_coupon_max_stake_pln": 2.0,
-  "higher_risk_coupon_max_stake_pln": 1.0,
+  "suggested_daily_allocation_range_pln": [
+    8.0,
+    12.0
+  ],
+  "low_risk_coupon_max_stake_pln": 3.0,
+  "higher_risk_coupon_max_stake_pln": 2.0,
   "low_risk_price_gap_threshold_pct": -3.0,
   "higher_risk_price_gap_threshold_pct": -5.0,
   "max_singles_per_day": 3,
   "max_low_risk_coupon_legs": 4,
   "max_higher_risk_coupon_legs": 5,
-  "preferred_odds_range": [1.30, 3.50],
+  "preferred_odds_range": [
+    1.3,
+    3.5
+  ],
   "timezone": "Europe/Warsaw",
-  "sports": ["football", "tennis", "basketball", "hockey", "baseball", "volleyball", "esports", "snooker", "table_tennis", "darts", "handball", "mma"],
+  "sports": [
+    "football",
+    "tennis",
+    "basketball",
+    "hockey",
+    "baseball",
+    "volleyball",
+    "esports",
+    "snooker",
+    "table_tennis",
+    "darts",
+    "handball",
+    "mma"
+  ],
   "market_types": {
-    "football": ["totals", "btts", "team_totals", "double_chance", "draw_no_bet", "corners", "cards", "fouls", "1x2"],
-    "tennis": ["moneyline", "set_handicap", "game_totals", "set_totals", "games_handicap"],
-    "basketball": ["totals", "spreads", "moneyline", "quarter_totals"],
-    "hockey": ["totals", "moneyline", "period_totals"],
-    "baseball": ["totals", "moneyline", "run_line"],
-    "volleyball": ["totals_sets", "totals_points", "set_handicap", "moneyline"],
-    "esports": ["moneyline", "map_handicap", "map_totals", "round_handicap"],
-    "snooker": ["frame_handicap", "total_frames", "moneyline"],
-    "table_tennis": ["moneyline", "set_handicap", "total_points"],
-    "darts": ["leg_totals", "set_totals", "moneyline", "180s_over_under"],
-    "handball": ["totals", "handicap", "moneyline"],
-    "mma": ["moneyline", "method_of_victory", "round_totals"]
+    "football": [
+      "totals",
+      "btts",
+      "team_totals",
+      "double_chance",
+      "draw_no_bet",
+      "corners",
+      "cards",
+      "fouls",
+      "1x2"
+    ],
+    "tennis": [
+      "moneyline",
+      "set_handicap",
+      "game_totals",
+      "set_totals",
+      "games_handicap"
+    ],
+    "basketball": [
+      "totals",
+      "spreads",
+      "moneyline",
+      "quarter_totals"
+    ],
+    "hockey": [
+      "totals",
+      "moneyline",
+      "period_totals"
+    ],
+    "baseball": [
+      "totals",
+      "moneyline",
+      "run_line"
+    ],
+    "volleyball": [
+      "totals_sets",
+      "totals_points",
+      "set_handicap",
+      "moneyline"
+    ],
+    "esports": [
+      "moneyline",
+      "map_handicap",
+      "map_totals",
+      "round_handicap"
+    ],
+    "snooker": [
+      "frame_handicap",
+      "total_frames",
+      "moneyline"
+    ],
+    "table_tennis": [
+      "moneyline",
+      "set_handicap",
+      "total_points"
+    ],
+    "darts": [
+      "leg_totals",
+      "set_totals",
+      "moneyline",
+      "180s_over_under"
+    ],
+    "handball": [
+      "totals",
+      "handicap",
+      "moneyline"
+    ],
+    "mma": [
+      "moneyline",
+      "method_of_victory",
+      "round_totals"
+    ]
   },
   "diversification": {
     "prefer_multi_sport": true,

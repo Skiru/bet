@@ -13,12 +13,30 @@ betting_day,source_name,role,sport_scope,availability,used_in_analysis,used_in_f
 2026-04-22,BetExplorer,market|results,football|volleyball|basketball,available,yes,yes,MLS standings + NBA odds for overnight session; match results for settlement
 2026-04-22,Flashscore,results,football,blocked,no,no,403 blocked consistently; replaced by BetExplorer for results
 2026-04-23,SoccerStats,stats,football,available,yes,yes,La Liga + Eredivisie league stats: goals avg O2.5% BTTS%; confirmed Ere 3.18g/m O2.5 62%
-2026-04-23,BetExplorer,market,football|tennis|volleyball,available,yes,yes,1X2 odds for all candidates; tennis match odds for ratio grading; volleyball ML odds
-2026-04-23,TotalCorner,stats,football,partial,no,no,Tomorrow matches not yet loaded; not used in final picks
-2026-04-23,Betclic,bookmaker,all,partial,no,yes,403 on search; NBA odds from category page; La Liga/Eredivisie not loaded; all picks CONDITIONAL
-2026-04-23,Flashscore,fixture,football|tennis,available,yes,yes,Fixture confirmation; match schedules; tennis draw structure
-2026-04-23,OddsPortal,market,football|basketball,available,yes,no,Match listings confirmed but no detailed odds extracted
-2026-04-23,Forebet,stats,football,unavailable,no,no,Returned empty for today's matches
-2026-04-23,Covers,tips,basketball,unavailable,no,no,NBA matchups page returned empty; critical gap for NBA analysis
-2026-04-23,Sofascore,fixture,basketball,available,yes,no,NBA fixture confirmation only; no deep stats
-2026-04-23,TennisAbstract,stats,tennis,available,no,no,Not scraped this run; ATP Madrid not indexed yet
+2026-04-23,SoccerStats,stats,football,available,yes,yes,La Liga + Eredivisie trends (O2.5% BTTS% goals avg home/away splits); deep analysis rerun
+2026-04-23,BetExplorer,market,football|tennis|volleyball|basketball|snooker,available,yes,yes,1X2 odds all competitions; match odds for tennis ratio grading; deep analysis rerun
+2026-04-23,TennisAbstract,stats,tennis,available,yes,yes,Atmane clay record 4-6 (40%) Elo 95; Carreno-Busta clay 18-11 (62%); H2H data
+2026-04-23,CueTracker,stats,snooker,available,yes,no,Xiao-Murphy H2H: Murphy leads 4-2 in 6 meetings; watch list only
+2026-04-23,OddsPortal,market,snooker|football,available,yes,no,Snooker WC odds (Xiao 2.60 Murphy 1.50 Wilson 1.61 Allen 2.30); match listings
+2026-04-23,Flashscore,fixture,all,available,yes,no,Fixture confirmation multi-sport (snooker WC schedule darts NBA volleyball)
+2026-04-23,Betclic,bookmaker,all,partial,no,yes,No scan (403 blocked); all picks CONDITIONAL with acceptance thresholds
+2026-04-23,Forebet,stats,football,unavailable,no,no,Cloudflare blocked
+2026-04-23,FootySupertips,tipster,football,unavailable,no,no,DNS error ERR_NAME_NOT_RESOLVED -- domain down
+2026-04-23,Windrawwin,tipster,football,unavailable,no,no,Chrome redirect error
+2026-04-23,BettingExpert,tipster,all,unavailable,no,no,Navigation issue from page leak
+2026-04-23,Protipster,tipster,all,unavailable,no,no,Cloudflare blocked
+2026-04-23,Oddspedia,market,all,unavailable,no,no,Cloudflare blocked
+2026-04-23,HLTV,stats,esports,unavailable,no,no,Empty content returned
+2026-04-23,Covers,stats,basketball,unavailable,no,no,Empty NBA page; critical gap for NBA analysis
+2026-04-23,BettingExpert,tipster,all,available,yes,no,v6 rescan: 429 tips accessible; NHL/NBA/football tips found; Tier B only
+2026-04-23,PicksWise,tipster,hockey|basketball,available,yes,no,v6 new: NHL picks (Over 6.5 Ducks-Oilers Under 5.5 Pens-Flyers); NBA picks (Hawks ML Raptors ML); accessible
+2026-04-23,Covers.com,tipster,hockey,available,yes,no,v6 new: NHL prop picks (Doan/Stutzle/Necas goals scored Ullmark saves); accessible
+2026-04-23,BetIdeas,tipster,football,available,yes,no,v6 new: Corner tips methodology page + BTTS tips; no specific daily picks today
+2026-04-23,SoccerVista,tipster,football,available,yes,no,v6 new: Accessible global football tips; Tier B
+2026-04-23,WindrawWin,tipster,football,blocked,no,no,v6 rescan: 403 Forbidden; REMOVED from workflow
+2026-04-23,FootyStats,tipster,football,blocked,no,no,v6 rescan: 403 Forbidden; REMOVED from workflow
+2026-04-23,Predictz,tipster,football,blocked,no,no,v6 rescan: Redirect/block; REMOVED from workflow
+2026-04-23,SportyTrader,tipster,football,blocked,no,no,v6 rescan: Blocked; REMOVED from workflow
+2026-04-23,Trafiamy.pl,tipster,football,dead,no,no,v6 rescan: Domain dead/not resolving; REMOVED from workflow
+2026-04-23,Blogabet,tipster,all,login_required,no,no,v6 rescan: Requires login; REMOVED from workflow
+2026-04-23,TotalCorner,stats,football,available,yes,yes,v6: Corner handicaps used for PSV (-2.25) Oviedo (+0.25) picks

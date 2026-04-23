@@ -2,19 +2,25 @@
 applyTo: "betting/**/*"
 ---
 
-# Betting Analysis — Complete Model Instructions
+# Betting Analysis — Output Formats & Validation Rules
 
-This is the ONLY file you need. Follow it top to bottom. Do not skip sections.
+This file defines the EXACT output formats, file schemas, and validation checks for betting artifacts. For the full daily analysis workflow (STEPS 0-10), see [analysis-methodology.instructions.md](analysis-methodology.instructions.md). This file complements it — methodology = HOW to analyze, this file = HOW to write outputs.
 
-## 1. WORKFLOW ORDER (do steps 1–7 in this exact order)
+## 1. WORKFLOW ORDER (see methodology for detailed STEPS 0-10)
 
-1. Settle previous betting day (check results, update ledgers)
-2. Update learning-log.md (max 3 bullet points)
-3. Update source-log.csv (one row per source used today)
-4. List events in betting-day window (06:00 today → 05:59 tomorrow, Europe/Warsaw)
-5. Evaluate each candidate, reject or approve
-6. Build portfolio (singles first, then coupons)
-7. Write all output files, then run validation checklist
+Follow the 11-step workflow in analysis-methodology.instructions.md:
+0. Run orchestrator
+1. STEP 0: Settle + CLV + bankroll update
+2. STEP 1: Scan ALL events across ALL sports
+3. STEP 2: Filter to shortlist
+4. STEP 3: Deep stats per candidate
+5. STEP 4: Tipster deep-dive
+6. STEP 5: Odds + EV + Kelly
+7. STEP 6: Context verification
+8. STEP 7: Bear case for each pick
+9. STEP 8: Portfolio construction
+10. STEP 9: Validate V1-V8
+11. STEP 10: Write artifacts (formats below)
 
 ## 2. HARD RULES (violating any = automatic reject)
 
