@@ -141,12 +141,13 @@ Use `sequentialthinking` for EACH step (one call per step minimum):
 
 **STEP 8 — Portfolio Construction:**
 - Rank approved candidates by: EV (highest first) → confidence → price_gap.
-- Assign: singles (top 1-3, conf >=4, EV > 0.03), LR coupon legs, HR coupon legs.
+- Build coupons only (NO SINGLES). Minimum 2 legs per coupon. Minimum 5 coupons total.
 - Pewniaki system: identify 3-5 best picks, build ALL non-repeating combinations (doubles, triples, quad).
+- Build themed/higher-risk coupons from remaining approved picks.
 - Correlation check every pair: same match FORBIDDEN, same league FLAG, same narrative REMOVE weaker.
-- Verify total exposure <= daily cap, no single > max stake, exposure < 25% bankroll.
+- Suggest stakes for ALL coupons. Total may exceed daily cap — user decides which to place.
 - Build watchlist with promotion criteria ("Promote if Betclic >= X.XX").
-- If board weak (<2 confident picks) → NO BET day or singles only.
+- If board weak (<2 confident picks) → NO BET day.
 
 **STEP 9 — Validate V1-V8:**
 - V1: Artifact consistency (pick_ids, coupon_ids, stake sums, exposure totals).
@@ -154,8 +155,8 @@ Use `sequentialthinking` for EACH step (one call per step minimum):
 - V3: Tennis checks (odds ratio, surface, cancellation).
 - V4: Football checks (market hierarchy, corner stack, BTTS league %, defensive profile).
 - V4b: Volleyball checks (ML range, set totals, competition context).
-- V5: Coupon structure (leg count, same-sport limit, correlation, combined odds = product ±10%, stake limit).
-- V6: Portfolio risk (total <= cap, single <= max, exposure < 25%, diversification, tournament concentration).
+- V5: Coupon structure (min 2 legs, same-sport limit, correlation, combined odds = product ±10%, stake limit, min 5 coupons).
+- V6: Portfolio risk (exposure < 25%, diversification, tournament concentration).
 - V7: Weakness flagging (borderline picks, CONDITIONAL picks, weakest coupon legs, same-tournament risks).
 - V8: All V1-V7 pass → APPROVED. Any fail → fix and re-check.
 
@@ -163,6 +164,6 @@ Use `sequentialthinking` for EACH step (one call per step minimum):
 - Write/update: report, coupon file, portfolio.md, picks-ledger, coupons-ledger, source-log, learning-log.
 - Record odds_checked_at timestamp for every pick.
 - Cross-check all pick_ids and coupon_ids across files.
-- Present summary: tickets count, total exposure, conditional picks, watchlist.
+- Present summary: coupon count, total exposure, conditional picks, watchlist.
 
 Do not skip steps or merge them. Each step = minimum one `sequentialthinking` call. Per-candidate steps (3, 4, 5, 6, 7) require one call PER candidate.

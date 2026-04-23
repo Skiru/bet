@@ -24,9 +24,12 @@ Follow the 11-step workflow in analysis-methodology.instructions.md:
 
 ## 2. HARD RULES (violating any = automatic reject)
 
-- Max single stake: 2.00 PLN
-- Daily exposure cap: 4.00–8.00 PLN (leave unused if board is weak)
-- Each event appears in EXACTLY ONE ticket (single or coupon leg). Never reuse an event.
+- **No singles.** Every pick goes into a coupon. Minimum 2 legs per coupon.
+- **Minimum 5 coupons per day.** Produce at least 5 diverse coupons. Search wider before accepting fewer.
+- **No maximum legs per coupon.** A coupon can have 2, 3, 4, 5, or more legs.
+- Max coupon stake: 3.00 PLN for low-risk, 2.00 PLN for higher-risk
+- Daily exposure cap: 8.00–12.00 PLN (but suggest stakes for ALL coupons even if total exceeds cap — user decides which to place)
+- Each event may appear in multiple coupons (pewniaki system generates combinations). But never duplicate the same coupon composition.
 - Every pick needs: 1 Tier A stats source (Flashscore, Sofascore) + 1 Tier A market source (BetExplorer, OddsPortal)
 - If sources conflict on a pick, skip it
 - price_gap_pct formula: 100 * ((bookmaker_odds / market_best_odds) - 1)
@@ -53,8 +56,8 @@ Follow the 11-step workflow in analysis-methodology.instructions.md:
 - Both match odds must be 1.50–2.50
 - Calculate odds_gap_ratio = max(odds_A, odds_B) / min(odds_A, odds_B)
 - Ratio grades (USE THESE EXACT BOUNDARIES — do NOT invent grades like "ACCEPTABLE" or "COMPETITIVE"):
-  - ≤ 1.15 → STRONG (confidence 4–5, singles OK). Examples: 1.02, 1.08, 1.12, 1.15 are ALL STRONG.
-  - 1.16–1.30 → GOOD (confidence 3–4, singles or coupon). The boundary starts at 1.16, NOT 1.15.
+  - ≤1.15 → STRONG (confidence 4–5, high-confidence coupon legs). Examples: 1.02, 1.08, 1.12, 1.15 are ALL STRONG.
+  - 1.16–1.30 → GOOD (confidence 3–4, coupon legs). The boundary starts at 1.16, NOT 1.15.
   - 1.31–1.50 → BORDERLINE (confidence 3, coupon legs ONLY, never singles)
   - > 1.50 → REJECT
 - ONLY these four grade words exist: STRONG, GOOD, BORDERLINE, REJECT. Never use other words.
@@ -66,14 +69,18 @@ Follow the 11-step workflow in analysis-methodology.instructions.md:
 
 ## 4. COUPON RULES
 
-| Coupon type | Max legs | Max same-sport legs | Min sports | Max stake PLN |
-|-------------|----------|---------------------|------------|---------------|
-| low-risk | 3 | 2 | 1 | 2.00 |
-| higher-risk | 4 | 2 | 2 | 1.00 |
+| Coupon type | Min legs | Max legs | Max same-sport legs | Min sports | Max stake PLN |
+|-------------|----------|----------|---------------------|------------|---------------|
+| low-risk | 2 | no limit | 2 | 1 | 3.00 |
+| higher-risk | 2 | no limit | 2 | 2 | 2.00 |
 
+- Minimum 5 coupons per day. No maximum coupon count.
+- No singles allowed. Every pick goes into at least one coupon.
+- Picks CAN appear in multiple coupons (e.g., pewniaki combinations). But no two coupons should have identical composition.
 - Combined odds = multiply each leg's odds. Must match stated combined_odds ±10%.
 - No two legs from same match.
 - If >4 picks from one tournament, flag weather/schedule correlation risk.
+- Suggest stakes for ALL coupons. Total suggested stakes may exceed daily budget — user decides which to place.
 
 ## 5. OUTPUT FILES — EXACT FORMATS
 
@@ -89,37 +96,32 @@ TOTAL PLANNED EXPOSURE PLN: 7.00
 UNUSED BANKROLL PLN: 1.00
 ```
 
-Singles format:
-```
-SINGLES:
-- [PK-20260422-01] Event Name | market | Selection | odds | stake PLN | accept if >= threshold
-```
-
 Coupon format — use EXACTLY these label patterns:
 ```
-LOW-RISK COUPON (CP-20260422-LR):
-- coupon_id: CP-20260422-LR
+PEWNIAKI DOUBLE 1 (CP-20260422-PD1):
+- coupon_id: CP-20260422-PD1
 - legs:
-  1. [PK-20260422-02] Event | market | Selection | odds | accept if >= threshold
-  2. [PK-20260422-06] Event | market | Selection | odds | accept if >= threshold
+  1. [PK-20260422-01] Event | market | Selection | odds | accept if >= threshold
+  2. [PK-20260422-02] Event | market | Selection | odds | accept if >= threshold
 - combined_odds: ~2.18
 - stake_pln: 1.00
 - rationale: one sentence
 
-HIGHER-RISK COUPON 2 (CP-20260422-HR):
+PEWNIAKI TRIPLE 1 (CP-20260422-PT1):
 ...same format...
 
-HIGHER-RISK COUPON 3 (CP-20260422-C3):
+HIGHER-RISK COUPON 1 (CP-20260422-HR1):
 ...same format...
 ```
 
 Coupon label rules:
-- Use "LOW-RISK COUPON" when: single sport, all legs confidence 4+, or meets low-risk criteria
+- Use "PEWNIAKI DOUBLE/TRIPLE/QUAD" for pewniaki combinatorial coupons
+- Use "LOW-RISK COUPON" when: all legs confidence 4+, or meets low-risk criteria
 - Use "HIGHER-RISK COUPON" when: multi-sport (≥2), mixed confidence, or higher volatility
-- Append a number for additional coupons: "LOW-RISK COUPON 3", "HIGHER-RISK COUPON 2"
+- Append a number for additional coupons: "LOW-RISK COUPON 2", "HIGHER-RISK COUPON 3"
 - Tennis-only coupons MUST be low-risk (they cannot meet higher-risk min 2 sports requirement)
-- FORBIDDEN labels: "MEDIUM", "ATP CLAY", "WTA", "KUPON", or any sport/tournament name as coupon type
-- The word before "COUPON" must be either LOW-RISK or HIGHER-RISK — no exceptions
+- FORBIDDEN labels: "MEDIUM", "ATP CLAY", "WTA", "KUPON", "SINGLES", or any sport/tournament name as coupon type
+- The word before "COUPON" must be either LOW-RISK or HIGHER-RISK — no exceptions (except PEWNIAKI prefix)
 
 End with:
 ```
@@ -148,7 +150,7 @@ Rules:
 - status allowed values: pending, win, loss, void, placed
 - Multiple sources separated by | (e.g., Flashscore|Forebet)
 - Coupon legs get stake_pln = 0.00 (stake is on the coupon, not the leg)
-- Singles get their actual stake in stake_pln
+- Since there are no singles, all picks will have stake_pln = 0.00 in picks-ledger.csv
 
 ### 5c. coupons-ledger.csv
 
@@ -158,7 +160,7 @@ betting_day,coupon_id,variant,selections_count,pick_ids,combined_odds,stake_pln,
 ```
 
 Rules:
-- coupon_id format: CP-YYYYMMDD-LR1, CP-YYYYMMDD-LR2 etc. for low-risk; CP-YYYYMMDD-HR1, CP-YYYYMMDD-HR2 etc. for higher-risk. Legacy CP-YYYYMMDD-LR and CP-YYYYMMDD-HR also valid.
+- coupon_id format: CP-YYYYMMDD-PD1, CP-YYYYMMDD-PD2 etc. for pewniaki doubles; CP-YYYYMMDD-PT1 for pewniaki triples; CP-YYYYMMDD-PQ1 for pewniaki quads; CP-YYYYMMDD-LR1 for low-risk; CP-YYYYMMDD-HR1 for higher-risk. Legacy CP-YYYYMMDD-LR and CP-YYYYMMDD-HR also valid.
 - variant allowed values: low-risk, higher-risk (NEVER use "medium", "pre-system", "single", "tennis-ako")
 - risk_level allowed values: low-risk, higher-risk (NEVER use "medium", "high")
 - pick_ids separated by | (e.g., PK-20260422-02|PK-20260422-06)
@@ -250,20 +252,22 @@ Go through every check. Write YES or NO for each. If any is NO, fix it before pr
 - [ ] BetExplorer odds comparison verified
 
 ### V5: Coupon Check (for EACH coupon)
-- [ ] Leg count ≤ limit (see table in section 4)
+- [ ] Leg count ≥ 2 (minimum 2 legs per coupon)
 - [ ] Same-sport legs ≤ 2
 - [ ] Higher-risk coupon has ≥ 2 sports
 - [ ] No two legs from same match
 - [ ] Combined odds = product of leg odds ±10%
-- [ ] Stake ≤ max for coupon type
-- [ ] Coupon label in file is either "LOW-RISK COUPON" or "HIGHER-RISK COUPON" (never "MEDIUM", "ATP CLAY", etc.)
+- [ ] Stake ≤ max for coupon type (3.00 LR, 2.00 HR)
+- [ ] Coupon label is "PEWNIAKI", "LOW-RISK COUPON", or "HIGHER-RISK COUPON" (never "MEDIUM", "ATP CLAY", "SINGLES", etc.)
+- [ ] At least 5 total coupons produced
 
 ### V6: Portfolio Check
-- [ ] Total exposure ≤ 8.00 PLN (or config cap)
-- [ ] No single stake > 2.00 PLN
+- [ ] No coupon stake > 3.00 PLN (LR) or 2.00 PLN (HR)
 - [ ] Total exposure < 25% of bankroll
 - [ ] At least 2 sports represented
+- [ ] At least 5 coupons produced
 - [ ] If >4 picks from one tournament: flag it in V7
+- [ ] Note: total suggested exposure may exceed daily budget — this is OK
 
 ### V7: Weakness List
 - [ ] List all BORDERLINE tennis picks (ratio 1.31–1.50) with coupon and stake
@@ -289,8 +293,12 @@ Go through every check. Write YES or NO for each. If any is NO, fix it before pr
 8. Not flagging tournament concentration when >4 picks share one tournament.
 9. Using risk_tier "low" for all picks — assign based on actual market volatility (see picks-ledger rules above for logic).
 10. Leaving stale content from previous iterations in output files.
-11. Labeling coupons as "MEDIUM COUPON" or "ATP CLAY COUPON" in coupon file — only LOW-RISK COUPON and HIGHER-RISK COUPON exist.
+11. Labeling coupons as "MEDIUM COUPON" or "ATP CLAY COUPON" in coupon file — only PEWNIAKI, LOW-RISK COUPON and HIGHER-RISK COUPON exist.
 12. Inventing ratio grade names like "ACCEPTABLE" or "COMPETITIVE" — only STRONG, GOOD, BORDERLINE, REJECT exist.
 13. Adding extra sections ("USER ACTION REQUIRED", "CONDITIONAL NOTE") after SKIPPED OR OMITTED in coupon file.
 14. Writing "5 picks at 4/5" when the list actually contains 6 — COUNT the list, do not guess.
 15. Using "Med" or "Medium" as tier label in V5 validation table — use "Low" or "Higher" only.
+16. Producing singles instead of coupons — NO SINGLES allowed. Minimum 2 legs per coupon.
+17. Producing fewer than 5 coupons without exhausting all sport/market opportunities first.
+18. Self-censoring coupon count because total exposure exceeds daily budget — suggest ALL coupons, user decides.
+19. Giving up on a source after first 403/block instead of trying next source in the Odds Source Map.

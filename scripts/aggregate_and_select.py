@@ -9,7 +9,7 @@ This script applies rules from config/betting_config.json:
 - compute market_best as max odds across Tier-A market sources
 - compute price_gap_pct = 100 * ((bookmaker_odds / market_best) - 1)
 - accept low-risk picks with price_gap_pct >= -3, higher-risk with >= -5
-- respect max_single_stake_pln and daily allocation from config
+- respect max_coupon_stake_pln and daily allocation from config
 
 Outputs: `betting/data/picks_suggested.json`
 """
@@ -28,15 +28,25 @@ SUMMARY = DATA_DIR / "scan_summary.json"
 
 TIER_A_STATS = {"flashscore.com", "sofascore.com"}
 TIER_A_STATS_EXTENDED = {
-    "tennis": {"flashscore.com", "sofascore.com", "tennisabstract.com"},
-    "basketball": {"flashscore.com", "sofascore.com", "covers.com", "teamrankings.com"},
+    "tennis": {"flashscore.com", "sofascore.com", "tennisabstract.com", "tennisexplorer.com"},
+    "basketball": {"flashscore.com", "sofascore.com", "covers.com", "teamrankings.com", "basketball-reference.com"},
     "baseball": {"flashscore.com", "sofascore.com", "covers.com", "teamrankings.com"},
-    "hockey": {"flashscore.com", "sofascore.com", "covers.com", "teamrankings.com"},
-    "football": {"flashscore.com", "sofascore.com"},
+    "hockey": {"flashscore.com", "sofascore.com", "covers.com", "teamrankings.com", "hockey-reference.com"},
+    "football": {"flashscore.com", "sofascore.com", "betideas.com", "soccerstats.com"},
+    "volleyball": {"flashscore.com", "sofascore.com"},
+    "handball": {"flashscore.com", "sofascore.com"},
+    "snooker": {"flashscore.com", "cuetracker.net"},
+    "esports": {"flashscore.com", "gosugamers.net"},
+    "darts": {"flashscore.com", "dartsorakel.com"},
+    "table_tennis": {"flashscore.com", "sofascore.com"},
+    "mma": {"flashscore.com", "sofascore.com"},
 }
-TIER_A_MARKETS = {"oddsportal.com", "oddspedia.com", "betexplorer.com"}
+TIER_A_MARKETS = {"oddsportal.com", "betexplorer.com"}
 BOOKMAKER_DOMAINS = {"betclic.pl", "betclic.com"}
-COMMUNITY_SOURCES = {"zawodtyper.pl", "bettingexpert.com", "protipster.com", "oddspedia.com"}
+COMMUNITY_SOURCES = {
+    "zawodtyper.pl", "typersi.pl", "tipstrr.com",
+    "pickswise.com", "betideas.com", "gosugamers.net",
+}
 
 # Price gap thresholds
 LOW_RISK_GAP_THRESHOLD = -3.0
@@ -49,10 +59,11 @@ def load_config():
             return json.load(f)
     except Exception:
         return {
-            "max_single_stake_pln": 2.0,
-            "suggested_daily_allocation_range_pln": [4.0, 7.0],
-            "low_risk_coupon_max_stake_pln": 2.0,
-            "higher_risk_coupon_max_stake_pln": 1.0,
+            "max_coupon_stake_low_risk_pln": 3.0,
+            "max_coupon_stake_higher_risk_pln": 2.0,
+            "suggested_daily_allocation_range_pln": [8.0, 12.0],
+            "low_risk_coupon_max_stake_pln": 3.0,
+            "higher_risk_coupon_max_stake_pln": 2.0,
         }
 
 
@@ -262,16 +273,16 @@ def select_candidates(matches):
 
 def allocate_stakes(candidates, config):
     """Allocate stakes respecting config limits."""
-    max_single = config.get("max_single_stake_pln", 2.0)
-    alloc_range = config.get("suggested_daily_allocation_range_pln", [4.0, 7.0])
-    max_daily = alloc_range[1] if len(alloc_range) > 1 else 7.0
+    max_stake = config.get("max_coupon_stake_low_risk_pln", config.get("max_single_stake_pln", 3.0))
+    alloc_range = config.get("suggested_daily_allocation_range_pln", [8.0, 12.0])
+    max_daily = alloc_range[1] if len(alloc_range) > 1 else 12.0
 
     picks = []
     used = 0.0
     for c in candidates:
         if len(picks) >= 3:
             break
-        if used + max_single > max_daily:
+        if used + max_stake > max_daily:
             break
 
         # Apply price gap threshold based on risk tier
@@ -282,9 +293,9 @@ def allocate_stakes(candidates, config):
 
         # Reduce stake for higher-risk picks
         if c["risk_tier"] == "high":
-            stake = min(max_single * 0.5, max_daily - used)
+            stake = min(max_stake * 0.5, max_daily - used)
         else:
-            stake = min(max_single, max_daily - used)
+            stake = min(max_stake, max_daily - used)
 
         if stake <= 0:
             break
@@ -311,12 +322,12 @@ def main():
     candidates = select_candidates(matches)
     picks, total_exposure = allocate_stakes(candidates, config)
 
-    alloc_range = config.get("suggested_daily_allocation_range_pln", [4.0, 7.0])
-    max_daily = alloc_range[1] if len(alloc_range) > 1 else 7.0
+    alloc_range = config.get("suggested_daily_allocation_range_pln", [8.0, 12.0])
+    max_daily = alloc_range[1] if len(alloc_range) > 1 else 12.0
 
     output = {
         "config_used": {
-            "max_single_stake_pln": config.get("max_single_stake_pln", 2.0),
+            "max_coupon_stake_pln": config.get("max_coupon_stake_low_risk_pln", 3.0),
             "max_daily_pln": max_daily,
         },
         "total_matches_aggregated": len(matches),

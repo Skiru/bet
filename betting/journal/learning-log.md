@@ -185,3 +185,61 @@ No entries yet.
   3. TotalCorner is the primary source for match-level corner analysis. SoccerStats for league-level rankings. Combined = sufficient for corner picks even without Betclic Statystyki tab.
   4. Fish shell does NOT support heredocs (`<< 'EOF'`). Always use Python for multi-line file appends.
 - Source notes: TotalCorner confirmed as most reliable corner source (free tier). SoccerStats league-level only. BetExplorer corners only for historical matches.
+
+## 2026-04-23 (v7 midday update)
+- Settlement summary: PK-08 (Atmane vs Kecmanovic O21.5 games) VOIDED — match started at 12:10 while portfolio was being finalized. 7 coupons containing PK-08 voided. 1 triple dropped (3 same-sport legs rule).
+- What worked:
+  1. Early detection of live match via BetExplorer scan (showed "1S 0:0" status).
+  2. 3 remaining pewniaki (PSV corners, Oviedo corners, Nordsjaelland BTTS) all conf 4-5 with Tier A backing.
+  3. Streamlined portfolio: 1 single + 3 doubles = 6.00 PLN (13% bankroll). Clean, low-correlation.
+- What failed:
+  1. Tennis match started before portfolio could be placed. Need to compose portfolios EARLIER for morning-session tennis matches.
+  2. Pewniaki system with 4 picks generates too many coupons (11) — operational overhead. With 3 picks, 3 doubles is manageable.
+  3. 3 same-sport rule caught in validation (V5 failure for ACD triple) — good that V1-V8 checks are working.
+- Rule changes:
+  1. For ATP/WTA Madrid: qualifying/R128 matches start 11:00-12:00 local. Portfolio must be finalized by 10:30 if including tennis.
+  2. Max pewniaki for combinatorial system: 4 is practical. 5+ generates too many combos.
+  3. When a key pick is voided mid-workflow, immediately rebuild portfolio with remaining picks rather than continuing full analysis.
+
+## 2026-04-23 (fresh procedure rerun v3)
+- Settlement summary: Apr 22 fully settled (+0.27 PLN). Apr 21 pending 7 picks VOIDED (unsettleable). Apr 23 prior 20 picks + 21 coupons VOIDED for fresh rerun. Bankroll: 46.03 PLN.
+- What worked:
+  1. Full orchestrator (53 URLs, 988 matches, 49 sources OK, 4 failed) gives comprehensive scan in ~5 min.
+  2. SoccerStats BTTS/goals distributions are EXCELLENT for BTTS No thesis (Oviedo 68% BTTS No rate = massive edge).
+  3. BetIdeas provided specific contrarian picks (BTTS No) that aligned with statistical analysis.
+  4. PicksWise NBA expert picks (Hawks ML, Nuggets ML, Raptors ML) with reasoning available.
+  5. basketball-reference ORtg/DRtg data enables EV estimation for NBA.
+  6. Multi-source tipster cross-check (Typersi + BetIdeas + PicksWise) provides consensus/contrarian signals.
+- What failed:
+  1. BetExplorer match-level pages (O/U, BTTS tabs) returned consent/GDPR wall content — could not extract specific market odds.
+  2. OddsPortal specific match pages empty (JS rendering issue).
+  3. Betclic search function broken for match lookup — all 6 picks returned NOT FOUND.
+  4. BetExplorer snooker/esports/darts/table-tennis endpoints return empty 39-char responses.
+  5. Covers.com NBA/NHL matchup pages mostly empty (JS-heavy, not fully rendering).
+  6. Sportsgambler match prediction pages return generic navigation content.
+- Rule changes for future runs:
+  1. BTTS No thesis is strongest when team has <1.0 GF/game AND >60% BTTS No rate. Oviedo fits perfectly.
+  2. For market-level odds (O/U, BTTS), use BetExplorer competition page (not match page) — competition pages render correctly.
+  3. BetIdeas contrarian picks should FLAG a pick (coupon only, not single) rather than reject it — contrarian can be wrong.
+  4. Pewniaki system (all combinations of top 3) is effective portfolio construction — covers partial wins.
+  5. NBA ML picks work as HR coupon diversifiers but not as singles (true probability hard to estimate precisely).
+- Source notes: 19 working, 4 failed, 11 blocked. Key: SoccerStats + TotalCorner + BetExplorer competition pages = reliable football data stack. basketball-reference + hockey-reference = reliable US sports stats.
+
+## 2026-04-23 (source audit + philosophy overhaul)
+- Settlement summary: no new settlements this entry. Prior entries cover Apr 23 settlement.
+- What worked:
+  1. SBR (sportsbookreview.com) Totals tab provides NHL/NBA/MLB/NFL O/U lines + American odds from 6+ books. No GDPR wall, renders in Playwright.
+  2. ESPN Odds (espn.com/nhl/odds, /nba/odds, /mlb/odds) provides totals + moneylines for US sports. Accessible from EU/PL IP.
+  3. ScoresAndOdds (scoresandodds.com) provides totals + line movements for US sports. Accessible from EU/PL IP.
+  4. Multi-source validation caught line discrepancies: SBR showed BOS@BUF O6.0 while ESPN showed O6.5 — confirms need for 2+ sources.
+  5. American odds conversion (positive +X → 1 + X/100; negative -X → 1 + 100/X) enables proper decimal odds comparison.
+- What failed:
+  1. BetExplorer NHL match pages → GDPR consent wall with no odds extracted. Match-level pages are unreliable for US sports.
+  2. OddsChecker, DraftKings, FanDuel, Betfair, Pinnacle all geoblocked from EU/PL IP. These US-only sportsbooks return empty responses.
+  3. Covers.com NBA/NHL pages render mostly empty (JS-heavy, partial access).
+  4. Single-source reliance led to incorrect line (O5.5 from one source when consensus was O6.0).
+- Rule changes (PERMANENT — embedded in all instruction files):
+  1. **NO SINGLES.** All picks go into coupons. Minimum 2 legs per coupon. Minimum 5 coupons per day.
+  2. **NEVER give up on source failures.** Follow the Odds Source Map: Primary → Secondary → Tertiary → Fallback → internet search. The internet ALWAYS has data.
+  3. **Minimum 2 independent sources per pick for cross-validation.** SBR vs ESPN vs ScoresAndOdds for US sports. BetExplorer vs OddsPortal for EU sports.
+- Source notes: Added SBR, ESPN Odds, ScoresAndOdds as Tier A market sources. Added The-Odds-API as universal fallback. Documented all geoblocked sources. Updated Odds Source Map by Sport table in source-registry.md.

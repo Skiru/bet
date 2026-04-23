@@ -113,15 +113,16 @@ For each shortlisted candidate, execute in sequence:
 ## STEP 9: PORTFOLIO CONSTRUCTION
 
 9a. Rank approved candidates by: EV (highest) → confidence → price_gap.
-9b. Assign: singles (top 1-3, conf >=4, EV > 0.03), coupon legs.
+9b. Build coupons only (NO SINGLES). Minimum 2 legs per coupon. Minimum 5 coupons.
 9c. **Pewniaki system**: identify 3-5 best picks, build ALL non-repeating combinations:
     - All doubles, all triples, quad (if 4+ pewniaki).
     - This automatically maximizes coupon count from the board.
-9d. Correlation check: same match FORBIDDEN, same league FLAG, same narrative REMOVE weaker.
-9e. Verify: total exposure <= daily cap, no single > max stake, exposure < 25% bankroll.
-9f. Build Watch List with promotion criteria ("Promote if Betclic >= X.XX").
-9g. If board weak (<2 confident picks) → NO BET day or singles only.
-9h. For `night` session: build 1-2 compact coupons only — user goes to sleep after placing.
+9d. Build themed/higher-risk coupons from remaining approved picks.
+9e. Correlation check: same match FORBIDDEN, same league FLAG, same narrative REMOVE weaker.
+9f. Suggest stakes for ALL coupons. Total may exceed daily cap — user decides which to place.
+9g. Build Watch List with promotion criteria ("Promote if Betclic >= X.XX").
+9h. If board weak (<2 confident picks) → NO BET day.
+9i. For `night` session: build 1-2 compact coupons only — user goes to sleep after placing.
 
 ## STEP 10: ODDS THRESHOLD + ARTIFACTS
 
@@ -157,7 +158,7 @@ After all artifacts are written, respond with:
 2. **Previous day PnL:** ±X.XX PLN (rolling 7d: ±X.XX PLN, bankroll: XX.XX PLN)
 3. **Session:** full/day/night/morning — event window HH:MM → HH:MM
 4. **Board:** N events scanned → M shortlisted → K approved (L rejected, W watchlist)
-5. **Portfolio:** N singles + M coupons (pewniaki system: X doubles + Y triples + Z quad)
+5. **Portfolio:** M coupons (pewniaki system: X doubles + Y triples + Z quad + W themed)
 6. **Exposure:** X.XX PLN / Y.YY cap (Z.ZZ unused, W.WW% of bankroll)
 7. **Source issues:** any outages or stale data
 8. Summary table: all tickets with pick_ids, market, odds, stake, EV, confidence

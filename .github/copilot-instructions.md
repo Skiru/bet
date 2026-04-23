@@ -25,11 +25,20 @@ Scripted workflow:
 - **DO NOT scan/scrape Betclic** for odds verification. Betclic blocks automated access (403). All picks are CONDITIONAL — the user verifies odds on the Betclic app. Set acceptance thresholds for each pick.
 - **Always prepare backup picks** (Watch List) so the user can swap if a primary pick's Betclic odds are unacceptable, without re-running the full analysis.
 
+Source resilience rules:
+- NEVER give up when a source returns 403, Cloudflare block, GDPR wall, or empty response. Immediately try the next source in the Odds Source Map (see source-registry.md). If all mapped sources fail, search the internet for a new source — the internet ALWAYS has data.
+- For every sport and every candidate pick, obtain odds or data from at least 2 independent sources. Two sources give you comparison and cross-validation. One source is never enough.
+- When a primary source is blocked, record the failure in source-log.csv and try the secondary, tertiary, and fallback in order. Only skip a pick if ALL sources in the chain fail AND no alternative can be found after searching.
+- American odds conversion: positive +X → 1 + X/100; negative -X → 1 + 100/X. Use this when reading SBR, ESPN, ScoresAndOdds.
+- For US sports (NHL, NBA, MLB, NFL): always check SBR Totals tab + ESPN Odds + ScoresAndOdds. These three rarely fail simultaneously.
+- For European sports: always check BetExplorer + OddsPortal. Use The-Odds-API as universal fallback.
+
 Selection rules:
 - Analyze ALL sports configured in config/betting_config.json. Never reject a sport for "lack of sources" — the internet has specialist sites for every sport. Search for them.
 - Diversify broadly across sports: football, tennis, basketball, hockey, volleyball, esports (CS2, Dota 2, LoL, Valorant), snooker, table tennis, darts, handball, MMA/UFC, and any other sport available on Betclic.
 - Avoid popular high-profile events and pure match result bets unless there are strong statistical indicators. Focus on deep analysis of statistical markets, tipster consensus, and analytical perspectives.
-- Perform WIDE analysis: check multiple tipster/community sites (Zawod Typer, Trafiamy, Typersi, Protipster, Tipstrr, Blogabet, OLBG, FootySupertips, PicksWise, Windrawwin, BetIdeas, bettingexpert) for every candidate event. These sites offer valuable perspectives and angles.
+- Perform WIDE analysis: check multiple tipster/community sites (Zawod Typer, Typersi, Tipstrr, PicksWise, BetIdeas, GosuGamers, Sportsgambler) for every candidate event. These sites offer valuable perspectives and angles.
+- The following tipster sources are BLOCKED and must NOT be attempted: Forebet, FootySupertips, Windrawwin, BettingExpert, Protipster, Oddspedia, SportyTrader, Predictz, Trafiamy, Blogabet, HLTV. See source-registry.md.
 - Prefer deep statistical markets over generic goals markets. Priority order for football: corners, cards, fouls, shots, team totals, BTTS, double chance, draw no bet. Use Over/Under goals only as a fallback when no statistical markets are available.
 - For corner picks, use the three-source stack: TotalCorner (match-level corner totals/handicaps), SoccerStats (league-level corner rankings), and Betclic Statystyki tab (verified odds from HTML snapshots). All three are needed for high-confidence corner picks.
 - Betclic Statystyki tab (corners, cards, fouls, shots) is only available for top leagues (EPL, LaLiga, Bundesliga). For other leagues, use BTTS, U2.5, DC, or ML markets backed by SoccerStats defensive profiles.
@@ -37,10 +46,16 @@ Selection rules:
 - A final pick requires at least one Tier A stats source and one Tier A market or price source. Tier B opinion or consensus sources may support a pick but cannot be the main reason for it. However, strong consensus from multiple tipster sites IS a valid supporting signal.
 - If primary sources disagree materially or are unavailable, skip the pick.
 - Never produce shallow, surface-level analysis. Every pick must have DEEP statistical backing from specialist sources, not just top-level form data.
-- The goal is to produce MANY coupons (varying risk levels, stakes, and broad sport coverage) rather than a few conservative ones. Aim to fill the requested coupon_count target whenever the board supports it.
-- Never force both coupon variants. If the board is weak, produce fewer — but search wider before declaring the board weak.
 - Reject correlated legs in the same coupon, especially same-game and strongly linked narrative outcomes.
 - Prefer multi-sport coupons over same-sport coupons when possible. Limit same-sport legs to 2 per coupon.
+
+Coupon philosophy:
+- **No singles.** Every pick goes into a coupon with at least 2 legs. Minimum 2 events per coupon.
+- **Minimum 5 coupons per day.** Produce at least 5 diverse coupons so the user has real choice. Search wider before declaring the board weak.
+- **No maximum legs per coupon.** A coupon can have 2, 3, 4, 5, or more legs — whatever the analysis supports.
+- **Diverse coupons.** Vary risk levels, sport combinations, leg counts, and market types across coupons. The user decides which to place.
+- **Suggest stakes for every coupon.** Even if the total suggested exposure exceeds the daily budget, suggest stakes anyway. The user will decide which coupons to actually place. Do NOT self-censor or reduce coupon count to fit the budget.
+- **Pewniaki system remains.** Use the top 3-5 highest-confidence picks to build all non-repeating combinations (doubles, triples, quads). These are separate from themed or higher-risk coupons.
 
 Price and risk rules:
 - Compare Betclic odds against market-best odds from a comparison source.
@@ -48,8 +63,8 @@ Price and risk rules:
 - For low-risk selections, reject prices worse than -3%.
 - For higher-risk selections, reject prices worse than -5% unless the report explicitly states why the price is still playable and stake is reduced.
 - Recheck odds immediately before writing the final artifacts.
-- Never stake more than 2.00 PLN on a single pick.
-- Suggested daily allocation is 4 to 7 PLN across singles, up to 2 PLN on the low-risk coupon, up to 1 PLN on the higher-risk coupon, and the rest left unused if the board is weak.
+- Maximum coupon stake: 3.00 PLN for low-risk, 2.00 PLN for higher-risk.
+- Suggest stakes for all coupons. Total suggested exposure may exceed the daily budget — the user decides which coupons to place.
 
 Learning rules:
 - Update the daily report, coupon file, picks ledger, coupons ledger, source log, and learning log on every run.

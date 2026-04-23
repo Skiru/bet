@@ -21,10 +21,9 @@ Daily report required sections and order:
 4. ## Learning Update
 5. ## Source Availability
 6. ## Candidate Board
-7. ## Final Singles
-8. ## Final Coupons
-9. ## Rejected Picks
-10. ## Exposure Summary
+7. ## Final Coupons
+8. ## Rejected Picks
+9. ## Exposure Summary
 
 Daily report required content:
 - Run Metadata must include betting_day, run_timestamp_local, bookmaker, sports_focus, and bankroll_cap_pln.
@@ -32,10 +31,9 @@ Daily report required content:
 - Learning Update must contain at most 3 process-level changes.
 - Source Availability must log each important source with role, availability, and a short note.
 - Candidate Board must show the shortlist with verdict values approved, rejected, or watch.
-- Final Singles must include pick_id, event, market, selection, bookmaker_odds, market_best_odds, price_gap_pct, stake_pln, confidence_1_5, main_reason, main_risk, and sources.
-- Final Coupons must have separate Low-Risk and Higher-Risk subsections. Each coupon must include coupon_id, leg list, combined_odds, stake_pln, correlation check, and main logic.
+- Final Coupons must have Pewniaki, Low-Risk, and Higher-Risk subsections. Each coupon must include coupon_id, leg list (minimum 2 legs), combined_odds, stake_pln, correlation check, and main logic. Minimum 5 coupons total. No singles allowed.
 - Rejected Picks must state the event or market and the rejection reason.
-- Exposure Summary must include total_planned_exposure_pln, unused_bankroll_pln, and any duplication warning if a pick appears in both singles and coupons.
+- Exposure Summary must include total_planned_exposure_pln, unused_bankroll_pln, and note that total suggested exposure may exceed daily budget (user decides which coupons to place).
 - If no bet is made, still write every section and state NO BET TODAY where appropriate.
 
 Daily coupon text path:
@@ -49,26 +47,35 @@ BANKROLL CAP PLN:
 TOTAL PLANNED EXPOSURE PLN:
 UNUSED BANKROLL PLN:
 
-SINGLES:
-- [pick_id] event | market | selection | odds | stake
-
-LOW-RISK COUPON:
+PEWNIAKI COUPONS:
 - coupon_id
-- legs
+- legs (minimum 2)
 - combined_odds
 - stake_pln
 - rationale
 
-HIGHER-RISK COUPON:
+LOW-RISK COUPONS:
 - coupon_id
-- legs
+- legs (minimum 2)
 - combined_odds
 - stake_pln
 - rationale
+
+HIGHER-RISK COUPONS:
+- coupon_id
+- legs (minimum 2)
+- combined_odds
+- stake_pln
+- rationale
+
+WATCH LIST:
+- backup picks with promotion criteria
 
 SKIPPED OR OMITTED:
 - explain why a coupon variant or the full slate was skipped
 
+Minimum 5 coupons total. No singles. No maximum legs per coupon.
+Total suggested stakes may exceed daily budget — user decides which coupons to place.
 If a coupon variant is not justified, write OMITTED instead of forcing it.
 
 Use these exact CSV headers.

@@ -53,6 +53,13 @@ SPORT_PATHS = {
     "basketball": "koszykowka-s4",
     "hockey": "hokej-na-lodzie-s13",
     "baseball": "baseball-s14",
+    "volleyball": "siatkowka-s18",
+    "snooker": "snooker-s19",
+    "esports": "esport-s46",
+    "darts": "rzutki-s11",
+    "handball": "pilka-reczna-s3",
+    "table_tennis": "tenis-stolowy-s10",
+    "mma": "mma-s38",
 }
 
 DEFAULT_THRESHOLDS = {

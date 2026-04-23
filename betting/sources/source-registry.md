@@ -16,18 +16,52 @@ Every sport has dedicated communities, statistical databases, and prediction sit
   Role: execution price and available markets.
   Use for: the exact bookmaker odds and stake plan.
   Never use for: main analytical justification.
+  Access: 403 blocks automated access. All picks CONDITIONAL — user verifies on app.
 
 - OddsPortal
   Role: market-best price, line shopping, dropping odds, value bets, archived results, standings.
   Use for: best-market comparison, price_gap_pct, movement context, and result backchecks.
-
-- Oddspedia
-  Role: odds comparison, smartbet ideas, consensus, archived odds, and cross-sport coverage.
-  Use for: market comparison, consensus context, and extra market discovery.
+  Access: OK.
 
 - BetExplorer
   Role: odds comparison, results, streaks, popular bets, and odds movements.
   Use for: bookmaker comparison, results history, and market heat checks.
+  Access: OK.
+
+- SportsbookReview (SBR)
+  Role: US-sport odds comparison — NHL, NBA, MLB, NFL. Moneyline, spread, AND totals tabs with lines from 6+ books.
+  URL: sportsbookreview.com/betting-odds/{sport}/
+  Sport slugs: nhl-hockey, nba-basketball, mlb-baseball, nfl-football, college-football, college-basketball.
+  Use for: totals lines + prices for US sports (the "Totals" tab shows O/U line + American odds per book).
+  Access: OK (no GDPR wall, renders in Playwright). Click "Totals" tab for O/U.
+  Coverage: NHL, NBA, MLB, NFL, college sports only.
+  American-to-decimal conversion: positive +X → 1 + X/100; negative -X → 1 + 100/X.
+  Added: 2026-04-23.
+
+- ESPN Odds
+  Role: US-sport odds — NHL, NBA, MLB. Shows moneyline, spread, totals with lines and American odds.
+  URL: espn.com/{sport}/odds (sport = nhl, nba, mlb)
+  Use for: cross-validation of US sport totals and moneylines. Shows team records inline.
+  Access: OK from EU/PL IP. No soccer or tennis odds available.
+  Coverage: NHL, NBA, MLB, NFL only.
+  Added: 2026-04-23.
+
+- ScoresAndOdds
+  Role: US-sport odds comparison with line movements — NHL, NBA, MLB, NFL.
+  URL: scoresandodds.com/{sport} (sport = nhl, nba, mlb, nfl)
+  Use for: totals lines, moneyline, puck/run/point line, line movement tracking. Shows opening vs current odds.
+  Access: OK from EU/PL IP. Renders in Playwright. Has "LINE MOVEMENTS" column.
+  Coverage: NHL, NBA, MLB, NFL only.
+  Added: 2026-04-23.
+
+- The-Odds-API
+  Role: universal odds API — ALL sports globally. Returns JSON with odds from multiple bookmakers.
+  URL: api.the-odds-api.com/v4/sports/{sport}/odds?regions={region}&markets={markets}&apiKey={key}
+  Use for: programmatic odds retrieval for ANY sport when manual scraping fails. Supports h2h, spreads, totals.
+  Access: free tier (500 requests/month). Needs API key (free registration). Covers EU and US bookmakers.
+  Coverage: ALL sports including European football, tennis, volleyball, esports, snooker, etc.
+  Note: universal fallback for any sport where BetExplorer/OddsPortal fail. Register at the-odds-api.com.
+  Added: 2026-04-23 (not yet active — needs API key setup).
 
 ## Tier A Core Stats, Fixture, and Verification Sources
 
@@ -56,30 +90,6 @@ Every sport has dedicated communities, statistical databases, and prediction sit
   Use for: football plus North American sports when a fresh preview is needed.
 
 ## Tier B Support and Consensus Sources
-
-- Forebet
-  Role: football model support and scoreline lean.
-  Use for: secondary confirmation only.
-
-- SportyTrader
-  Role: football previews and broad market suggestions.
-  Use for: secondary confirmation only.
-
-- PredictZ
-  Role: football scoreline and simple market support.
-  Use for: secondary confirmation only.
-
-- bettingexpert
-  Role: community tipster sentiment.
-  Use for: consensus alignment check and divergence warning.
-
-- ProTipster
-  Role: community and tipster aggregation.
-  Use for: consensus alignment check and divergence warning.
-
-- Oddspedia Community
-  Role: consensus and popularity.
-  Use for: consensus alignment check and divergence warning.
 
 - Zawod Typer
   Role: local market awareness, tip aggregation, and injury/news early detection.
@@ -412,90 +422,132 @@ Always record in the report which community sources were checked and whether con
   Use for: quick stat lookups across multiple sports.
   Access: OK.
 
-### Blocked Sources (Cloudflare / 403)
+### Blocked Sources (verified 2026-04-23)
 
-The following were tested and are NOT accessible via Playwright headless:
+Do NOT attempt to fetch these — they waste time and produce no data:
+
+**Tier A (former):**
+- Oddspedia (oddspedia.com) — Cloudflare 403. Removed from Tier A markets.
+
+**Geoblocked from EU/PL IP (US-only sportsbooks):**
+- OddsChecker (oddschecker.com) — empty response from EU. Works from US IP only.
+- DraftKings (sportsbook.draftkings.com) — geoblocked, empty response.
+- FanDuel (sportsbook.fanduel.com) — geoblocked, empty response.
+- Betfair Exchange (betfair.com) — geoblocked, empty response.
+- Pinnacle (pinnacle.com) — timeout/geoblocked.
+
+**Tier B (former):**
+- Forebet (forebet.com) — Cloudflare 403. Was football model support.
+- SportyTrader (sportytrader.com) — blocked. Was football previews.
+- PredictZ (predictz.com) — redirect/block. Was football scoreline support.
+- BettingExpert (bettingexpert.com) — navigation leak/broken. Was tipster sentiment.
+- ProTipster (protipster.com) — Cloudflare 403. Was tipster aggregation.
+- FootySupertips (footysupertips.com) — DNS dead ERR_NAME_NOT_RESOLVED.
+- Windrawwin (windrawwin.com) — 403 Forbidden.
+- Trafiamy (trafiamy.pl) — domain dead/not resolving.
+- Blogabet (blogabet.com) — requires login; not automatable.
+
+**Stats sources:**
 - FootyStats (footystats.org) — 403
 - FBRef (fbref.com) — 403
 - FCTables (fctables.com) — 403
 - WhoScored (whoscored.com) — 403
 - KenPom (kenpom.com) — blocked
-- Baseball-Reference (baseball-reference.com) — blocked
 - FanGraphs (fangraphs.com) — blocked
-- TeamRankings (teamrankings.com) — blocked
 - ActionNetwork (actionnetwork.com) — blocked
 - VolleyBox (volleybox.net) — blocked
+- HLTV (hltv.org) — 403 (CS2 stats blocked)
 
-- FCTables
-  Role: football over, under, BTTS, form, and table patterns.
-  Use when accessible, never as the only source.
-
-- Action Network
-  Status: not a core source in this setup because extraction reliability was poor in testing.
-
-- Any generic 404-prone or blocked tip page
-  Status: optional at best, never core.
+**Partial:**
+- Covers (covers.com) — NBA pages return empty; other sections partial.
+- TeamRankings (teamrankings.com) — inconsistently blocked.
 
 ## Sport Playbooks
 
+### Odds Source Map by Sport (verified 2026-04-23)
+
+Use this table to know WHERE to get odds for each sport. Never give up after one source.
+
+| Sport | Primary Odds | Secondary Odds | Tertiary Odds | Fallback |
+|-------|-------------|----------------|---------------|----------|
+| **Football** (EU) | BetExplorer (1X2/O-U/BTTS/corners) | OddsPortal | — | The-Odds-API |
+| **NHL** | SBR (Totals tab) | ESPN Odds | ScoresAndOdds | The-Odds-API |
+| **NBA** | SBR (Totals tab) | ESPN Odds | ScoresAndOdds | The-Odds-API |
+| **MLB** | SBR (Totals tab) | ESPN Odds | ScoresAndOdds | The-Odds-API |
+| **NFL** | SBR (Totals tab) | ESPN Odds | ScoresAndOdds | The-Odds-API |
+| **Tennis** | BetExplorer (ML) | OddsPortal | — | The-Odds-API |
+| **Volleyball** | BetExplorer (set/point totals) | OddsPortal | — | The-Odds-API |
+| **Esports** | BetExplorer | OddsPortal | GosuGamers | The-Odds-API |
+| **Snooker** | OddsPortal | BetExplorer | — | The-Odds-API |
+| **Darts** | BetExplorer | OddsPortal | — | The-Odds-API |
+| **Table Tennis** | BetExplorer | OddsPortal | — | The-Odds-API |
+| **Handball** | BetExplorer | OddsPortal | — | The-Odds-API |
+| **MMA/UFC** | OddsPortal | BetExplorer | — | The-Odds-API |
+
+**Rule:** If all sources in the row fail for a pick → do NOT skip. Try The-Odds-API or search for a new source. The internet always has odds data somewhere.
+
+### Sport-Specific Playbooks
+
 - Football
-  Minimum stack: Flashscore or Sofascore plus OddsPortal, Oddspedia, or BetExplorer plus one of Forebet, SportyTrader, PredictZ, or Sportsgambler when helpful.
-  Tipster cross-check: Zawod Typer, Trafiamy, Typersi, bettingexpert, FootySupertips, Windrawwin, BetIdeas.
-  Preferred markets: totals, team totals, BTTS, double chance, draw no bet, corners, cards, fouls.
+  Minimum stack: Flashscore or Sofascore + BetExplorer or OddsPortal + SoccerStats (league context) + TotalCorner (match corners).
+  Tipster cross-check: Zawod Typer, Typersi, BetIdeas, PicksWise, Tipstrr.
+  Specialist sources: Betaminic (corners/cards tables), Betclic Statystyki (top leagues only).
+  Preferred markets: corners > cards > fouls > shots > team totals > BTTS > U2.5 > O2.5 > DC/DNB > 1X2.
 
 - Basketball
-  Minimum stack: Covers or TeamRankings plus OddsPortal, Oddspedia, or BetExplorer. Basketball-Reference or DunksAndThrees for pace/efficiency.
-  Tipster cross-check: PicksWise, bettingexpert, Blogabet.
-  Preferred markets: totals, spreads, and selected moneylines.
+  Minimum stack: Basketball-Reference + **SBR or ESPN or ScoresAndOdds** (totals/spreads) + BetExplorer.
+  Tipster cross-check: PicksWise, Tipstrr.
+  Preferred markets: totals, spreads, quarter totals, moneyline.
 
 - Baseball
-  Minimum stack: TeamRankings or Covers plus OddsPortal, Oddspedia, or BetExplorer. BaseballSavant for Statcast.
-  Tipster cross-check: PicksWise, Covers previews.
+  Minimum stack: BaseballSavant (Statcast) + **SBR or ESPN** (totals/run line) + BetExplorer.
+  Tipster cross-check: PicksWise.
   Preferred markets: totals and selective moneylines.
 
 - Hockey
-  Minimum stack: NaturalStatTrick or MoneyPuck plus OddsPortal, Oddspedia, or BetExplorer.
-  Tipster cross-check: PicksWise, Covers previews.
-  Preferred markets: totals and selective moneylines.
+  Minimum stack: Hockey-Reference + **SBR or ESPN or ScoresAndOdds** (totals/puck line) + NaturalStatTrick for xG.
+  Tipster cross-check: PicksWise.
+  Preferred markets: totals, moneyline, period totals.
 
 - Tennis
-  Minimum stack: TennisAbstract or UltimateTennisStatistics plus OddsPortal or BetExplorer. TennisExplorer for H2H.
-  Tipster cross-check: Zawod Typer (Polish events), Tipstrr, bettingexpert.
-  Preferred markets: moneyline, set handicap, game totals, and set totals.
+  Minimum stack: TennisAbstract (Elo) + TennisExplorer (H2H) + BetExplorer or OddsPortal.
+  Tipster cross-check: Zawod Typer, Tipstrr.
+  Preferred markets: moneyline (1.50-2.50), game totals, set handicap, set totals.
 
 - Volleyball
-  Minimum stack: BetExplorer volleyball section plus Flashscore or Sofascore.
-  Tipster cross-check: bettingexpert, Blogabet.
+  Minimum stack: BetExplorer volleyball section + Flashscore or Sofascore.
+  Tipster cross-check: Tipstrr.
   Preferred markets: set totals, point totals, set handicap, moneyline.
 
 - Esports (CS2, Dota 2, LoL, Valorant)
-  Minimum stack: HLTV (CS2) or Liquipedia plus BetExplorer or OddsPortal.
-  Tipster cross-check: GosuGamers, BO3.gg (CS2), Blogabet, Tipstrr.
+  Minimum stack: GosuGamers + Liquipedia + BetExplorer or OddsPortal.
+  Tipster cross-check: GosuGamers community, Tipstrr.
+  Note: HLTV blocked — use GosuGamers and Liquipedia as primary CS2 sources.
   Preferred markets: moneyline, map handicap, map totals, round handicap.
 
 - Snooker
-  Minimum stack: CueTracker or SnookerOrg plus BetExplorer or OddsPortal. WorldSnooker for format.
-  Tipster cross-check: bettingexpert, Blogabet.
+  Minimum stack: CueTracker (H2H, frame stats) + BetExplorer or OddsPortal. SnookerOrg/WST for schedule.
+  Tipster cross-check: Tipstrr.
   Preferred markets: frame handicap, total frames, moneyline, century/50+ break props.
 
 - Table Tennis
-  Minimum stack: ITTF rankings plus Flashscore or Sofascore. tt-series.com for league-level analysis.
-  Tipster cross-check: Blogabet (table tennis specialists).
+  Minimum stack: ITTF rankings + Flashscore or Sofascore. tt-series.com for league-level analysis.
+  Tipster cross-check: Tipstrr.
   Preferred markets: moneyline, set handicap, total points.
 
 - Darts
-  Minimum stack: DartConnect or DartsOrakel plus BetExplorer or OddsPortal.
-  Tipster cross-check: bettingexpert, Blogabet.
+  Minimum stack: DartsOrakel + BetExplorer or OddsPortal.
+  Tipster cross-check: Tipstrr.
   Preferred markets: leg/set totals, 180s over/under, checkout props, moneyline.
 
 - Handball
-  Minimum stack: Handball-World or EHF plus BetExplorer or OddsPortal. Flashscore for results.
-  Tipster cross-check: bettingexpert, Blogabet.
+  Minimum stack: EHF or Handball-World + BetExplorer or OddsPortal. Flashscore for results.
+  Tipster cross-check: Tipstrr.
   Preferred markets: totals, handicap, moneyline.
 
 - MMA / UFC
-  Minimum stack: UFCstats plus OddsPortal or BetExplorer. Tapology for records.
-  Tipster cross-check: PicksWise, Blogabet, Tipstrr.
+  Minimum stack: UFCstats + OddsPortal or BetExplorer. Tapology for records.
+  Tipster cross-check: PicksWise, Tipstrr.
   Preferred markets: moneyline, method of victory, round totals, props.
 
 ## Settlement Sources

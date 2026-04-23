@@ -1,8 +1,9 @@
 {
   "use_smart_allocation": true,
   "daily_exposure_pln": null,
-  "max_single_stake_pln": 2.0,
-  "working_bankroll_pln": 46.03,
+  "max_coupon_stake_low_risk_pln": 3.0,
+  "max_coupon_stake_higher_risk_pln": 2.0,
+  "working_bankroll_pln": 45.00,
   "suggested_daily_allocation_range_pln": [
     8.0,
     12.0
@@ -11,9 +12,9 @@
   "higher_risk_coupon_max_stake_pln": 2.0,
   "low_risk_price_gap_threshold_pct": -3.0,
   "higher_risk_price_gap_threshold_pct": -5.0,
-  "max_singles_per_day": 3,
-  "max_low_risk_coupon_legs": 4,
-  "max_higher_risk_coupon_legs": 5,
+  "min_coupons_per_day": 5,
+  "min_legs_per_coupon": 2,
+  "max_same_sport_legs_in_coupon": 2,
   "preferred_odds_range": [
     1.3,
     3.5

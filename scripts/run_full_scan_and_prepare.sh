@@ -52,30 +52,54 @@ python3 "${SCRIPT_DIR}/scan_events.py" --urls \
   https://www.flashscore.com/basketball/ \
   https://www.flashscore.com/hockey/ \
   https://www.flashscore.com/baseball/ \
+  https://www.flashscore.com/volleyball/ \
+  https://www.flashscore.com/handball/ \
+  https://www.flashscore.com/snooker/ \
+  https://www.flashscore.com/esports/ \
+  https://www.flashscore.com/darts/ \
+  https://www.flashscore.com/table-tennis/ \
+  https://www.flashscore.com/mma/ \
   https://www.sofascore.com/ \
   https://www.betclic.pl/pilka-nozna-s1 \
   https://www.betclic.pl/tenis-s2 \
   https://www.betclic.pl/koszykowka-s4 \
   https://www.betclic.pl/hokej-na-lodzie-s13 \
   https://www.betclic.pl/baseball-s14 \
+  https://www.betclic.pl/siatkowka-s18 \
+  https://www.betclic.pl/snooker-s19 \
+  https://www.betclic.pl/esport-s46 \
+  https://www.betclic.pl/rzutki-s11 \
+  https://www.betclic.pl/pilka-reczna-s3 \
+  https://www.betclic.pl/tenis-stolowy-s10 \
+  https://www.betclic.pl/mma-s38 \
   https://www.oddsportal.com/ \
   https://www.oddsportal.com/tennis/ \
   https://www.oddsportal.com/basketball/ \
   https://www.oddsportal.com/hockey/ \
   https://www.oddsportal.com/baseball/ \
-  https://www.oddspedia.com/ \
   https://www.betexplorer.com/ \
+  https://www.betexplorer.com/volleyball/ \
+  https://www.betexplorer.com/handball/ \
+  https://www.betexplorer.com/snooker/ \
+  https://www.betexplorer.com/esports/ \
+  https://www.betexplorer.com/darts/ \
+  https://www.betexplorer.com/table-tennis/ \
   https://www.covers.com/ \
   https://www.teamrankings.com/ \
   https://www.tennisabstract.com/reports/wta_elo_ratings.html \
   https://www.tennisabstract.com/reports/atp_elo_ratings.html \
+  https://www.tennisexplorer.com/ \
   https://www.sportsgambler.com/predictions/today/ \
-  https://www.forebet.com/ \
-  https://www.sportytrader.com/en/predictions/ \
-  https://www.predictz.com/ \
-  https://www.protipster.com/ \
-  https://www.bettingexpert.com/ \
-  https://www.zawodtyper.pl/ || echo "[WARNING] Scan finished with errors — check scan_errors.json"
+  https://www.betideas.com/ \
+  https://www.pickswise.com/ \
+  https://www.zawodtyper.pl/ \
+  https://typersi.pl/ \
+  https://www.tipstrr.com/tips \
+  https://dartsorakel.com/ \
+  https://cuetracker.net/ \
+  https://www.gosugamers.net/ \
+  https://www.basketball-reference.com/ \
+  https://www.hockey-reference.com/ || echo "[WARNING] Scan finished with errors — check scan_errors.json"
 SCAN_END=$(date +%s)
 echo "[orchestrator] Scan took $((SCAN_END - SCAN_START)) seconds"
 

@@ -38,5 +38,34 @@ betting_day,source_name,role,sport_scope,availability,used_in_analysis,used_in_f
 2026-04-23,Predictz,tipster,football,blocked,no,no,v6 rescan: Redirect/block; REMOVED from workflow
 2026-04-23,SportyTrader,tipster,football,blocked,no,no,v6 rescan: Blocked; REMOVED from workflow
 2026-04-23,Trafiamy.pl,tipster,football,dead,no,no,v6 rescan: Domain dead/not resolving; REMOVED from workflow
+2026-04-23,SportsbookReview,market,hockey|basketball|baseball,available,yes,no,NEW Tier A: NHL O/U lines (BOS-BUF O6 @1.85 OTT-CAR O6 @2.00 LAK-COL O5.5 @1.87); NBA totals (NYK-ATL O216.5 CLE-TOR O219.5); MLB totals visible. Universal US-sport odds source. Added to source-registry.md.
+2026-04-23,ESPN Odds,market,hockey|basketball|baseball,available,yes,no,NEW Tier A: NHL (BUF-BOS O6.5 +114 U6.5 -130); NBA (NYK-ATL O216.5 -110); MLB totals visible. US sports only no soccer/tennis.
+2026-04-23,ScoresAndOdds,market,hockey|basketball|baseball,available,yes,no,NEW Tier A: NHL (BUF-BOS O6.5 visible); NBA (NYK-ATL O216.5 CLE-TOR O219.5); line movements column. US sports only.
+2026-04-23,OddsChecker,market,all,geoblocked,no,no,Empty response from EU/PL IP; US-only.
+2026-04-23,DraftKings,market,all,geoblocked,no,no,Empty response from EU/PL IP; US-only.
+2026-04-23,FanDuel,market,all,geoblocked,no,no,Empty response from EU/PL IP; US-only.
+2026-04-23,Betfair Exchange,market,all,geoblocked,no,no,Empty response from EU/PL IP.
+2026-04-23,Pinnacle,market,all,geoblocked,no,no,Timeout from EU/PL IP.
+2026-04-23,The-Odds-API,market,all,available_needs_key,no,no,Universal JSON API for ALL sports. Free tier 500 req/mo. Needs API key registration. Fallback for any sport.
 2026-04-23,Blogabet,tipster,all,login_required,no,no,v6 rescan: Requires login; REMOVED from workflow
 2026-04-23,TotalCorner,stats,football,available,yes,yes,v6: Corner handicaps used for PSV (-2.25) Oviedo (+0.25) picks
+2026-04-23,flashscore.com,Tier A schedule,ok,All 12 sports confirmed
+2026-04-23,sofascore.com,Tier A stats,ok,Football/tennis fixtures with times
+2026-04-23,betexplorer.com,Tier A market,partial,Football/tennis/handball OK; snooker/esports/darts/table-tennis empty
+2026-04-23,betclic.pl,Bookmaker,partial,NHL odds found; search function broken for match lookup
+2026-04-23,oddsportal.com,Tier A market,partial,Football/snooker fixtures found; NHL/NBA empty
+2026-04-23,soccerstats.com,Tier A stats,ok,LaLiga BTTS/goals/corners + Eredivisie + Germany + Denmark data
+2026-04-23,totalcorner.com,Tier A stats,ok,Corner handicaps for all target matches
+2026-04-23,tennisabstract.com,Tier A stats,ok,ATP Elo ratings (Marozsan 1787 Quinn 1819)
+2026-04-23,basketball-reference.com,Tier A stats,ok,NBA ORtg/DRtg/pace for all playoff teams
+2026-04-23,hockey-reference.com,Tier A stats,ok,NHL team stats GF/GA for all playoff teams
+2026-04-23,covers.com,Tier B analysis,partial,Expert picks text found; matchup pages mostly empty
+2026-04-23,pickswise.com,Tier B tipster,ok,NHL Bruins ML + NBA Hawks/Nuggets/Raptors picks
+2026-04-23,betideas.com,Tier B tipster,ok,BTTS No picks for Oviedo and GA Eagles
+2026-04-23,typersi.pl,Tier B tipster,ok,Levante 1 + AGF 2 + Freiburg 2 + Rayo X picks
+2026-04-23,zawodtyper.pl,Tier B schedule,ok,LaLiga/Eredivisie 1X2 odds listed
+2026-04-23,sportsgambler.com,Tier B tipster,partial,Match links found but prediction content generic/empty
+2026-04-23,tennisexplorer.com,Tier B stats,ok,Marozsan vs Quinn match found
+2026-04-23,forebet.com,BLOCKED,blocked,Cloudflare
+2026-04-23,oddspedia.com,BLOCKED,blocked,Cloudflare
+2026-04-23,protipster.com,BLOCKED,blocked,Cloudflare

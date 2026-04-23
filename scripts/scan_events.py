@@ -28,11 +28,18 @@ except ImportError:
 FETCH_DELAY_SECONDS = 3  # delay between fetches to avoid anti-bot triggers
 
 SPORT_URL_PATTERNS = {
-    "tennis": ["/tennis", "/tenis", "tennisabstract"],
-    "basketball": ["/basketball", "/koszykowka", "/nba", "teamrankings.com"],
-    "hockey": ["/hockey", "/hokej", "/nhl"],
-    "baseball": ["/baseball", "/mlb"],
-    "football": ["/football", "/pilka-nozna", "/soccer", "forebet", "predictz"],
+    "tennis": ["/tennis", "/tenis", "tennisabstract", "tennisexplorer"],
+    "basketball": ["/basketball", "/koszykowka", "/nba", "teamrankings.com", "basketball-reference"],
+    "hockey": ["/hockey", "/hokej", "/nhl", "hockey-reference"],
+    "baseball": ["/baseball", "/mlb", "baseballsavant"],
+    "football": ["/football", "/pilka-nozna", "/soccer", "forebet", "predictz", "betideas", "soccerstats", "totalcorner"],
+    "volleyball": ["/volleyball", "/siatkowka"],
+    "handball": ["/handball", "/pilka-reczna"],
+    "snooker": ["/snooker", "cuetracker"],
+    "esports": ["/esports", "/esport", "gosugamers", "bo3.gg", "hltv"],
+    "darts": ["/darts", "/rzutki", "dartsorakel"],
+    "table_tennis": ["/table-tennis", "/tenis-stolowy"],
+    "mma": ["/mma", "tapology", "ufcstats"],
 }
 
 

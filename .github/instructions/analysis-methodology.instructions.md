@@ -74,6 +74,16 @@ Verify you have scanned ALL of these:
 
 **NEVER say "no sources available" for a sport without searching specialist sites first.**
 
+### 1.4 Source Resilience Protocol
+When ANY source returns 403, Cloudflare block, GDPR wall, or empty response:
+1. Do NOT give up. Move to the next source in the Odds Source Map (source-registry.md).
+2. If all mapped sources fail, search the internet for alternative sources. The internet ALWAYS has data.
+3. Record every source failure in `source-log.csv`.
+4. For every pick, you MUST have odds or data from at least 2 independent sources for cross-validation.
+5. For US sports: SBR + ESPN Odds + ScoresAndOdds = three independent sources. Use all three.
+6. For EU sports: BetExplorer + OddsPortal = two primary sources. Add The-Odds-API as fallback.
+7. Different sources may show DIFFERENT lines for the same game (e.g., SBR: O6.0, ESPN: O6.5). This validates the multi-source approach — always note discrepancies.
+
 ---
 
 ## STEP 2: FILTER — Event Shortlist
@@ -187,11 +197,16 @@ This step is MANDATORY. Not a quick glance — a structured extraction from each
 
 ### 4.1 Source Rotation
 For EACH candidate event, check at least 2 tipster/community sources from this list:
-- **Polish**: Zawod Typer, Trafiamy, Typersi, Meczyki
-- **International**: bettingexpert, Protipster, OLBG, Tipstrr, Blogabet
-- **Football-specific**: FootySupertips, PicksWise, BetIdeas, Windrawwin
-- **US sports**: PicksWise, Covers
-- **Esports**: GosuGamers, HLTV (community predictions)
+- **Polish**: Zawod Typer, Typersi
+- **International**: Tipstrr, PicksWise, BetIdeas
+- **Football-specific**: BetIdeas, PicksWise, Sportsgambler
+- **US sports**: PicksWise
+- **Esports**: GosuGamers
+
+Note: The following sources are BLOCKED and must NOT be attempted:
+Forebet, FootySupertips, Windrawwin, BettingExpert, Protipster, Oddspedia, SportyTrader, Predictz, Trafiamy, Blogabet, HLTV. See source-registry.md blocked list.
+
+**When a tipster source is blocked:** Do NOT skip the tipster step. Search for alternative tipster sites. Use Google to find "[event name] prediction" or "[event name] tips" to discover new tipster pages. If you find a working tipster source not in the registry, use it and add it to the source log. NEVER declare tipster consensus impossible — if 7 sites are blocked, find the 8th and 9th.
 
 ### 4.2 Extraction Template
 For each tipster source x event, extract:
@@ -269,7 +284,7 @@ Apply FRACTIONAL Kelly (1/4 Kelly) for bankroll safety:
 ```
 stake = (bankroll * f) / 4
 ```
-Cap at max_single_stake_pln (2.00 PLN). Floor at 0.50 PLN (minimum bet).
+Cap at max coupon stake (3.00 PLN LR, 2.00 PLN HR). Floor at 0.50 PLN (minimum bet).
 
 Example: true prob 55%, odds 1.80, bankroll 46 PLN:
 - b = 0.80, f = (0.80 x 0.55 - 0.45) / 0.80 = -0.0125 -> NO BET (EV is negative!)
@@ -335,18 +350,21 @@ WOULD I BET AT 20% LOWER ODDS? [Y/N — if N, the edge is thin]
 ### 8.1 Candidate Ranking
 Rank all approved candidates by: EV (highest first), then confidence (highest first), then price_gap_pct (most favorable first).
 
-### 8.2 Singles Assignment
-- Top 1-3 candidates with confidence >=4 and EV > 0.03 -> SINGLES
-- Each single: max 2.00 PLN
-- Diversify: no two singles from the same sport if possible
+### 8.2 Coupon-Only System (NO SINGLES)
+All picks go into coupons. No singles are produced. Every coupon has at least 2 legs.
 
-### 8.3 Coupon Construction — "Pewniaki" System
-The proven system: identify 3-5 highest-confidence picks ("pewniaki"), then build ALL non-repeating combinations:
-- All doubles (C(n,2) coupons)
-- All triples (C(n,3) coupons)
-- One quad if 4+ pewniaki
+### 8.3 Coupon Construction — Minimum 5 Coupons
+The target is MINIMUM 5 diverse coupons per day. If the board supports more, produce more. There is no upper limit on coupon count. Search wider before accepting fewer than 5.
 
-This maximizes diversification: any 2 of 4 winning gives profit. Any 3 of 4 gives strong profit.
+Coupon types to produce:
+1. **Pewniaki system** (primary): identify 3-5 highest-confidence picks, build ALL non-repeating combinations:
+   - All doubles (C(n,2) coupons)
+   - All triples (C(n,3) coupons)
+   - One quad if 4+ pewniaki
+   This maximizes diversification: any 2 of 4 winning gives profit.
+2. **Themed/higher-risk coupons**: combine medium-confidence picks across multiple sports.
+3. **Long-shot coupons**: 4-6 legs with lower individual confidence but positive portfolio EV.
+4. Each coupon must have a DIFFERENT composition. Diversity = different sport mixes, different leg counts, different risk levels.
 
 ### 8.4 Correlation Check
 For EVERY pair of legs in a coupon:
@@ -355,18 +373,19 @@ For EVERY pair of legs in a coupon:
 - Same narrative? (e.g., "Team A wins" and "Team B opponent of A loses") -> **REMOVE weaker leg**
 - Same sport, same country? -> Keep but note shared risk.
 
-### 8.5 Stake Distribution (with Kelly influence)
-- Singles: 1.00-2.00 PLN based on Kelly/confidence
-- Low-risk coupons (2-3 legs, each conf >=4): 0.50-2.00 PLN
-- Higher-risk coupons (3-4 legs, mixed conf): 0.50-1.00 PLN
-- Total exposure: within daily cap from config (8-12 PLN)
-- If board is weak: reduce. It is OK and PREFERRED to leave part of bankroll unused.
+### 8.5 Stake Suggestion (advisory, user decides)
+- Suggest a stake for EVERY coupon based on risk level and Kelly guidance.
+- Low-risk coupons (2-3 legs, each conf >=4): suggest 0.50-3.00 PLN
+- Higher-risk coupons (3-4 legs, mixed conf): suggest 0.50-2.00 PLN
+- Long-shot coupons (5+ legs): suggest 0.50-1.00 PLN
+- **Total suggested exposure may EXCEED the daily budget.** This is intentional. The user decides which coupons to place. Do NOT reduce coupon count or stakes to fit the budget.
+- Example: if you have 7 coupons totaling 12 PLN but the budget is 8 PLN — present all 7 with suggested stakes. The user chooses.
 
 ### 8.6 Watchlist
 Always prepare 2-3 backup picks (Watch List). These are picks that:
 - Barely missed the confidence threshold
 - Have odds that might improve
-- Could replace a primary pick if Betclic odds are unacceptable
+- Could replace a coupon leg if Betclic odds are unacceptable
 
 Specify promotion criteria: "Promote if Betclic odds >= X.XX for [selection]"
 
@@ -417,16 +436,17 @@ For each football pick:
 3. Competition context?
 
 ### V5: Coupon Structure
-1. Leg count within config limits?
+1. Minimum 2 legs per coupon?
 2. Same-sport legs <= max?
 3. HR coupon has min sports?
 4. No same-match correlation?
 5. Combined odds = product of legs (+-10%)?
 6. Stake within coupon limit?
+7. At least 5 coupons produced?
 
 ### V6: Portfolio Risk
-1. Total exposure <= daily cap?
-2. No single > max_single_stake?
+1. No coupon stake > 3.00 PLN (LR) or 2.00 PLN (HR)?
+2. Exposure < 25% of bankroll?
 3. Exposure < 25% of bankroll?
 4. Multi-sport diversification?
 5. No tournament concentration (>4 picks same tournament)?
@@ -462,7 +482,7 @@ For each pick, record in a note or in the picks ledger:
 
 ### 10.3 Present to User
 Summarize in conversation:
-- Number of tickets (singles + coupons)
+- Number of coupons
 - Total exposure
 - Key conditional picks needing Betclic verification
 - Watchlist picks available as replacements
@@ -570,10 +590,10 @@ STEP 7: Bear case for each pick
 
 STEP 8: Portfolio construction
   [ ] Rank by EV -> confidence -> price gap
-  [ ] Assign singles (top 1-3)
-  [ ] Build coupon combos (pewniaki system)
+  [ ] Build coupon combos (pewniaki system + themed coupons)
+  [ ] Minimum 5 coupons, minimum 2 legs each
   [ ] Correlation check all pairs
-  [ ] Verify total <= daily cap
+  [ ] Suggest stakes for all coupons (may exceed daily cap)
   [ ] Build watchlist with promotion criteria
 
 STEP 9: Validate V1-V8
@@ -713,8 +733,8 @@ At 3% weekly (more realistic): ~6 years. At 10% weekly (unrealistic long-term): 
 
 The key: CONSISTENCY over months and years. Not one big win, but hundreds of small +EV bets compounding.
 
-### Why Coupons + Singles Combined
-- Singles provide steady baseline returns
-- Pewniaki coupon system (all combinations) provides exponential upside when 3/4 or 4/4 hit
-- Risk distribution: even if coupons lose, singles can recover the day
+### Why the Pewniaki Coupon System Works
+- Pewniaki coupon system (all combinations of top picks) provides exponential upside when 3/4 or 4/4 hit
+- Risk distribution: diverse coupons across sports ensure not all eggs in one basket
 - Any 2 of 4 pewniaki winning always produces positive day (with proper staking)
+- User picks which coupons to place based on risk appetite and available budget
