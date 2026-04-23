@@ -21,17 +21,23 @@ Scripted workflow:
 - Use `python3 scripts/settle_on_finish.py --betting-day YYYY-MM-DD` to settle pending picks for a specific day. The script supports `--match "Team vs Team"` for targeted settlement and `--no-poll` for single-attempt mode.
 - The settlement script auto-resolves: match winner/1X2, totals (any line), BTTS, and double chance. Markets like corners, cards, handicaps, and MyCombi require manual settlement.
 - Never auto-push settled results to git. Verify first, then commit manually.
+- **DO NOT scan/scrape Betclic** for odds verification. Betclic blocks automated access (403). All picks are CONDITIONAL — the user verifies odds on the Betclic app. Set acceptance thresholds for each pick.
+- **Always prepare backup picks** (Watch List) so the user can swap if a primary pick's Betclic odds are unacceptable, without re-running the full analysis.
 
 Selection rules:
-- Analyze all sports configured in config/betting_config.json (football, tennis, basketball, hockey, baseball, volleyball). Diversify across sports when the board supports it.
+- Analyze ALL sports configured in config/betting_config.json. Never reject a sport for "lack of sources" — the internet has specialist sites for every sport. Search for them.
+- Diversify broadly across sports: football, tennis, basketball, hockey, volleyball, esports (CS2, Dota 2, LoL, Valorant), snooker, table tennis, darts, handball, MMA/UFC, and any other sport available on Betclic.
+- Avoid popular high-profile events and pure match result bets unless there are strong statistical indicators. Focus on deep analysis of statistical markets, tipster consensus, and analytical perspectives.
+- Perform WIDE analysis: check multiple tipster/community sites (Zawod Typer, Trafiamy, Typersi, Protipster, Tipstrr, Blogabet, OLBG, FootySupertips, PicksWise, Windrawwin, BetIdeas, bettingexpert) for every candidate event. These sites offer valuable perspectives and angles.
 - Prefer deep statistical markets over generic goals markets. Priority order for football: corners, cards, fouls, shots, team totals, BTTS, double chance, draw no bet. Use Over/Under goals only as a fallback when no statistical markets are available.
 - For corner picks, use the three-source stack: TotalCorner (match-level corner totals/handicaps), SoccerStats (league-level corner rankings), and Betclic Statystyki tab (verified odds from HTML snapshots). All three are needed for high-confidence corner picks.
 - Betclic Statystyki tab (corners, cards, fouls, shots) is only available for top leagues (EPL, LaLiga, Bundesliga). For other leagues, use BTTS, U2.5, DC, or ML markets backed by SoccerStats defensive profiles.
 - Use 1X2 or moneyline only when the edge is strong and the price is still acceptable.
-- A final pick requires at least one Tier A stats source and one Tier A market or price source. Tier B opinion or consensus sources may support a pick but cannot be the main reason for it.
+- A final pick requires at least one Tier A stats source and one Tier A market or price source. Tier B opinion or consensus sources may support a pick but cannot be the main reason for it. However, strong consensus from multiple tipster sites IS a valid supporting signal.
 - If primary sources disagree materially or are unavailable, skip the pick.
-- Prefer 0 to 3 singles over forcing accumulators.
-- Never force both coupon variants. If the board is weak, produce a one-coupon day or a full no-bet day.
+- Never produce shallow, surface-level analysis. Every pick must have DEEP statistical backing from specialist sources, not just top-level form data.
+- The goal is to produce MANY coupons (varying risk levels, stakes, and broad sport coverage) rather than a few conservative ones. Aim to fill the requested coupon_count target whenever the board supports it.
+- Never force both coupon variants. If the board is weak, produce fewer — but search wider before declaring the board weak.
 - Reject correlated legs in the same coupon, especially same-game and strongly linked narrative outcomes.
 - Prefer multi-sport coupons over same-sport coupons when possible. Limit same-sport legs to 2 per coupon.
 

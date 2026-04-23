@@ -10,3 +10,15 @@ betting_day,source_name,role,sport_scope,availability,used_in_analysis,used_in_f
 2026-04-22,Betaminic,stats,football,available,yes,no,Corner/card team stats tables; methodology reference
 2026-04-22,TennisAbstract,stats,tennis,available,no,no,Elo ratings only; no match data for remaining matches
 2026-04-22,Covers,tips,football|basketball|hockey,available,yes,no,General analysis; not Tier A statistical depth
+2026-04-22,BetExplorer,market|results,football|volleyball|basketball,available,yes,yes,MLS standings + NBA odds for overnight session; match results for settlement
+2026-04-22,Flashscore,results,football,blocked,no,no,403 blocked consistently; replaced by BetExplorer for results
+2026-04-23,SoccerStats,stats,football,available,yes,yes,La Liga + Eredivisie league stats: goals avg O2.5% BTTS%; confirmed Ere 3.18g/m O2.5 62%
+2026-04-23,BetExplorer,market,football|tennis|volleyball,available,yes,yes,1X2 odds for all candidates; tennis match odds for ratio grading; volleyball ML odds
+2026-04-23,TotalCorner,stats,football,partial,no,no,Tomorrow matches not yet loaded; not used in final picks
+2026-04-23,Betclic,bookmaker,all,partial,no,yes,403 on search; NBA odds from category page; La Liga/Eredivisie not loaded; all picks CONDITIONAL
+2026-04-23,Flashscore,fixture,football|tennis,available,yes,yes,Fixture confirmation; match schedules; tennis draw structure
+2026-04-23,OddsPortal,market,football|basketball,available,yes,no,Match listings confirmed but no detailed odds extracted
+2026-04-23,Forebet,stats,football,unavailable,no,no,Returned empty for today's matches
+2026-04-23,Covers,tips,basketball,unavailable,no,no,NBA matchups page returned empty; critical gap for NBA analysis
+2026-04-23,Sofascore,fixture,basketball,available,yes,no,NBA fixture confirmation only; no deep stats
+2026-04-23,TennisAbstract,stats,tennis,available,no,no,Not scraped this run; ATP Madrid not indexed yet

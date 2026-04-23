@@ -65,20 +65,22 @@ D2. Update source-log.csv for today — one row per source, noting availability 
 
 ## PHASE E: ANALYSIS
 
-E1. Scan the betting-day slate across all sports in config. Use orchestrator outputs (scan_summary.json, picks_suggested.json) as the primary event list.
-E2. Build a candidate board of all events inside the betting window.
+E1. Scan the betting-day slate across ALL sports in config (football, tennis, basketball, hockey, volleyball, esports, snooker, table tennis, darts, handball, MMA). Use orchestrator outputs (scan_summary.json, picks_suggested.json) as the starting event list, but also search specialist sites (HLTV, CueTracker, Flashscore multi-sport, BetExplorer all sports) for additional events. Never reject a sport for "lack of sources."
+E2. Build a candidate board of all events inside the betting window. Cast the net WIDE — include niche sports.
 E3. For each candidate, evaluate:
-    - Tier A stats source evidence — for football corners: TotalCorner match total + SoccerStats league ranking + Betclic Statystyki odds. For BTTS/U2.5: SoccerStats defensive profiles. For volleyball: BetExplorer set/point totals.
-    - Tier A market source evidence (specific odds from BetExplorer)
+    - Tier A stats source evidence — for football corners: TotalCorner match total + SoccerStats league ranking + Betclic Statystyki odds. For BTTS/U2.5: SoccerStats defensive profiles. For volleyball: BetExplorer set/point totals. For esports: HLTV/Liquipedia. For snooker: CueTracker. For other sports: see source-registry Sport Playbooks.
+    - Tier A market source evidence (specific odds from BetExplorer or OddsPortal)
     - Evidence against / risk factors
     - Bookmaker odds vs market-best → compute price_gap_pct
-    - Community sentiment check: scan Zawod Typer, bettingexpert, or Oddspedia Community for the event. Note consensus direction and percentage if available. If ≥60% diverge from Tier A direction, flag as red flag and investigate.
+    - **MANDATORY tipster/community cross-check**: check at least 2-3 tipster sites per candidate (Zawod Typer, Trafiamy, Typersi, Protipster, Tipstrr, Blogabet, OLBG, FootySupertips, PicksWise, Windrawwin, BetIdeas, bettingexpert, GosuGamers). Note consensus direction, percentage, and notable tipster reasoning. These sites reveal angles statistics miss.
     - Hard rejection checks (missing Tier A, source conflict, bad price gap, correlated with existing picks)
     - Confidence score 1–5 with one-sentence justification (adjust ±1 based on community consensus alignment/divergence per source-registry rules)
     - Verdict: approved, rejected, or watch
-E4. For football: prefer statistical markets (corners, cards, fouls) over goals markets. Use three-source corner stack. Use SoccerStats defensive profiles for BTTS/U2.5. Goals markets are last resort.
+E4. For football: prefer statistical markets (corners, cards, fouls) over goals markets. Use three-source corner stack. Use SoccerStats defensive profiles for BTTS/U2.5. Goals markets are last resort. Avoid pure match-result bets on popular events unless statistical indicators are strong.
 E5. For tennis: calculate odds_gap_ratio, assign STRONG/GOOD/BORDERLINE/REJECT grade per exact boundaries in model-ready instructions.
 E6. For volleyball: check favorite ML (1.30-2.00 for competitive), semifinal/final context, point total feasibility.
+E7. For esports/snooker/table tennis/darts/handball/MMA: follow sport-specific playbooks in source-registry.md and analysis-methodology.instructions.md.
+E8. **Prepare backup picks**: for each approved pick, identify 1-2 backup candidates at the "watch" level. Record them in the report under a "Watch List" section. If a primary pick is rejected during odds verification, swap in a backup without re-running the full analysis.
 
 ## PHASE F: PORTFOLIO CONSTRUCTION
 
@@ -99,20 +101,12 @@ F5. Total exposure must not exceed daily cap from config.
 
 ## PHASE G: ODDS RECHECK
 
-G1. Run the Betclic odds verification script to automatically check live odds for all pending picks:
-    ```
-    cd /Users/mkoziol/projects/bet && .venv/bin/python3 scripts/verify_betclic_odds.py --betting-day <run_date>
-    ```
-    This script reads pending picks from picks-ledger.csv, searches Betclic for each match,
-    navigates to match pages, and extracts target market odds (Over/Under, Total Games, etc.).
-    Results are saved to `betting/data/betclic_verified_odds.json`.
-G2. Review the verification output:
-    - PASS: odds meet or exceed the acceptance threshold → keep the pick.
-    - FAIL: odds below threshold → reject the pick or reduce stake.
-    - CHECK: odds could not be extracted automatically → user must verify manually on the Betclic app.
-G3. For any pick where verified odds differ significantly from estimated odds, update bookmaker_odds in picks-ledger.csv and recalculate price_gap_pct.
-G4. If a pick fails the threshold check, remove it from the portfolio and adjust coupon composition.
-G5. Record odds_checked_at_local timestamp.
+G1. **DO NOT scan Betclic** — Betclic blocks automated scraping (403 errors). All picks are CONDITIONAL by default.
+G2. For each pick, set an acceptance threshold (minimum odds the user should accept on the Betclic app).
+G3. Mark all picks as CONDITIONAL with the threshold in the notes field.
+G4. The user will verify odds manually on the Betclic app before placing.
+G5. Record odds_checked_at_local as the analysis timestamp.
+G6. **Backup picks**: ensure the Watch List from Phase E is included in the report. If any primary pick has unacceptable odds on Betclic, the user can swap in a backup without re-running the analysis.
 
 ## PHASE H: ARTIFACT GENERATION
 

@@ -9,26 +9,41 @@ This document captures the exact reasoning process used for daily pick compositi
 ## Phase 1: Data Collection
 
 1. Run orchestrator (`bash scripts/run_full_scan_and_prepare.sh`) to populate `betting/data/`.
-2. Fetch Tier A market-best odds from BetExplorer for all sports in scope (football, tennis, volleyball, basketball, hockey).
+2. Fetch Tier A market-best odds from BetExplorer for all sports in scope.
 3. Fetch Tier A fixture data from Flashscore (schedules, results, H2H).
 4. Fetch statistical data from specialist sources:
    - **Football corners/cards**: TotalCorner (match totals/handicaps), SoccerStats (league stats), Betaminic (team tables).
-   - **Tennis**: TennisExplorer (H2H, surface form), TennisAbstract (Elo, serve/return profiles).
+   - **Tennis**: TennisExplorer (H2H, surface form), TennisAbstract (Elo, serve/return profiles), UltimateTennisStatistics.
    - **Volleyball**: BetExplorer volleyball section (set/point totals, moneyline).
    - **Basketball**: Basketball-Reference (pace, ratings), DunksAndThrees.
    - **Hockey**: NaturalStatTrick (xGF, shot quality), MoneyPuck (predictions).
    - **Baseball**: BaseballSavant (Statcast data).
-5. Extract Betclic Statystyki odds from HTML snapshots for top-league matches (EPL, LaLiga, Bundesliga) — corners, cards, fouls, shots.
-6. Check `betting/data/scan_errors.json` for source failures.
+   - **Esports**: HLTV (CS2 stats), Liquipedia (tournament context), VLR.gg (Valorant), BO3.gg (CS2 predictions).
+   - **Snooker**: CueTracker (H2H, frame averages), SnookerOrg (rankings/draws).
+   - **Table Tennis**: ITTF rankings, tt-series.com (league predictions).
+   - **Darts**: DartConnect (averages), DartsOrakel (predictions).
+   - **Handball**: Handball-World, EHF stats.
+   - **MMA/UFC**: UFCstats (fighter stats), Tapology (records, community picks).
+5. **Tipster/community cross-check** (MANDATORY for every candidate):
+   - Check at least 2 tipster/community sources per candidate: Zawod Typer, Trafiamy, Typersi, Protipster, Tipstrr, Blogabet, OLBG, FootySupertips, PicksWise, Windrawwin, BetIdeas, bettingexpert, GosuGamers (esports).
+   - Record consensus direction, percentage, and notable tipster reasoning.
+   - Tipster insights can reveal angles statistics miss (tactical changes, motivation, weather, late news).
+6. Extract Betclic Statystyki odds from HTML snapshots for top-league matches (EPL, LaLiga, Bundesliga) — corners, cards, fouls, shots.
+7. Check `betting/data/scan_errors.json` for source failures.
+8. **Never declare "no sources available" for a sport without first searching specialist sites.** The internet is a goldmine of statistics, analysis, and prediction sites for every sport.
 
 ## Phase 2: Event Filtering
 
 1. List all events in the betting-day window (06:00 today through 05:59 tomorrow, Europe/Warsaw).
 2. For each event, note: sport, competition, kickoff, available odds.
-3. **Football**: prioritize events where Betclic Statystyki tab is available (EPL, LaLiga, Bundesliga) for corner/card/foul markets. For other leagues, look for defensive profiles (SoccerStats BTTS%, O2.5%, team GF/GA) to back U2.5, BTTS, or DC markets.
-4. **Tennis**: prioritize matches where match odds are close (both players between 1.50 and 2.50) — this indicates high 3-set probability, which favors over-games markets.
-5. **Volleyball**: look for competitive matchups (ML odds 1.30-2.00 for favorite) where 4+ sets are likely — supports O3.5 sets and point totals.
-6. Discard events outside the betting-day window immediately.
+3. **Cast the net WIDE**: scan ALL sports — football, tennis, basketball, hockey, volleyball, esports, snooker, table tennis, darts, handball, MMA. Do not limit to "major" events only.
+4. **Football**: prioritize events where Betclic Statystyki tab is available (EPL, LaLiga, Bundesliga) for corner/card/foul markets. For other leagues, look for defensive profiles (SoccerStats BTTS%, O2.5%, team GF/GA) to back U2.5, BTTS, or DC markets.
+5. **Tennis**: prioritize matches where match odds are close (both players between 1.50 and 2.50) — this indicates high 3-set probability, which favors over-games markets.
+6. **Volleyball**: look for competitive matchups (ML odds 1.30-2.00 for favorite) where 4+ sets are likely — supports O3.5 sets and point totals.
+7. **Esports**: check HLTV for CS2 tier-1/2 matches, Liquipedia for Dota 2/LoL events. Map handicap and map totals are strong markets.
+8. **Snooker/Darts/Table Tennis**: check Betclic listings and cross-reference with CueTracker/DartsOrakel/tt-series.com for deep stats.
+9. **Avoid popular high-profile events for pure result bets** — focus on statistical markets and deep analysis. Use 1X2/ML only with strong edge.
+10. Discard events outside the betting-day window immediately.
 
 ## Phase 3: Statistical Market Selection
 
@@ -55,6 +70,39 @@ Prefer statistical markets over raw winners. The priority order by sport:
 
 ### Basketball, Hockey, Baseball
 Follow standard totals and spreads analysis when US leagues are in session.
+
+### Esports (CS2, Dota 2, LoL, Valorant)
+1. **CS2**: Use HLTV rankings + recent form + map pool overlap + BO3.gg predictions. Map handicap and map O/U 2.5 are primary markets for BO3 matches.
+2. **Dota 2 / LoL**: Use Liquipedia for bracket/roster context. Map handicap and kills totals when available.
+3. **Valorant**: Use VLR.gg for map stats and player form.
+4. **Key rule**: Only bet Tier 1 and Tier 2 events. Skip open qualifiers and unsigned team matches.
+
+### Snooker
+1. **Frame handicap**: Use CueTracker H2H and frame averages. Best-of-X format matters.
+2. **Total frames**: Competitive matches (ranking difference < 20) favor over-frames.
+3. **Century/50+ breaks**: High-break players (avg 40+) in long-format matches.
+4. **Sources**: CueTracker for deep stats, SnookerOrg for draws, WorldSnooker for format.
+
+### Table Tennis
+1. **Set handicap / Total points**: Use ITTF rankings + tt-series.com form analysis.
+2. **Key rule**: Stick to named tournaments (WTT, national leagues), avoid unverifiable exhibition matches.
+3. **Sources**: Flashscore for results, ITTF for rankings.
+
+### Darts
+1. **Leg/set totals**: Use DartConnect player averages + DartsOrakel predictions.
+2. **180s O/U**: High-averaging players (95+) produce more 180s.
+3. **Sources**: PDC/WDF official data, DartConnect.
+
+### Handball
+1. **Totals**: Handball is high-scoring (50-60 total typical). Use league averages.
+2. **Handicap**: Strong home-advantage sport.
+3. **Sources**: Handball-World, EHF, Flashscore.
+
+### MMA / UFC
+1. **Moneyline**: Use UFCstats for statistical comparison (strikes/min, takedown accuracy, reach).
+2. **Method of victory**: Analyze finish rate vs decision rate.
+3. **Round totals O/U 1.5/2.5**: Heavy hitters → under, grapplers → could go distance.
+4. **Sources**: UFCstats, Tapology, PicksWise.
 
 ### Volleyball
 1. **Set totals (O/U 3.5 sets)**: Favor O3.5 in competitive matchups (favorite ML 1.30-2.00). Semifinal/final context supports competitiveness.

@@ -1,6 +1,14 @@
 # Betting Source Registry
 
-Purpose: use sources by role, not by raw count. More sources only help when each source has a clear job.
+Purpose: use sources by role, not by raw count. The internet is rich with statistics, analysis, and prediction sites for every sport. Never reject a sport for "lack of sources" — search for specialized sources instead.
+
+## Source Philosophy
+
+Every sport has dedicated communities, statistical databases, and prediction sites. The workflow must:
+1. Use Tier A statistical and market sources as the analytical backbone.
+2. Use Tier B tipster/community sites to validate direction, discover angles, and check consensus.
+3. Use Tier C niche/specialist sites for sport-specific deep dives.
+4. Never reject a sport solely because the orchestrator didn't find data — manually search specialist sources.
 
 ## Tier A Core Market and Price Sources
 
@@ -78,15 +86,70 @@ Purpose: use sources by role, not by raw count. More sources only help when each
   Use for: consensus alignment check, divergence warning, and local knowledge (injuries, lineup rumors, motivation context).
   Priority: highest among community sources for Polish league and tennis events.
 
+- Tipstrr
+  Role: verified tipster platform with tracked ROI, profit/loss history per tipster.
+  URL: tipstrr.com
+  Use for: finding high-ROI tipsters for specific sports/leagues, consensus direction, and pick validation.
+  Access: OK.
+
+- Trafiamy
+  Role: Polish tipster community with predictions, statistics, and coupon sharing.
+  URL: trafiamy.pl
+  Use for: Polish market consensus, popular coupon structures, local tipster insights.
+  Access: OK.
+
+- Typersi
+  Role: Polish betting tips and predictions community.
+  URL: typersi.pl
+  Use for: Polish-language consensus on football, tennis, and other sports. Good for LaLiga, Bundesliga, and Ekstraklasa.
+  Access: OK.
+
+- Blogabet
+  Role: verified tipster tracking platform — tracked ROI, yield, and profit per tipster across all sports.
+  URL: blogabet.com
+  Use for: finding profitable tipsters in niche sports (esports, table tennis, snooker), consensus validation.
+  Access: OK.
+
+- OLBG (Online Betting Guide)
+  Role: UK-based tipster community with user predictions, rankings, and competition results.
+  URL: olbg.com
+  Use for: football and racing consensus, verified tipster records, market trends.
+  Access: OK.
+
+- Windrawwin
+  Role: football predictions, form tables, result predictions, and league-wide patterns.
+  URL: windrawwin.com
+  Use for: Football prediction consensus, BTTS/O2.5 probabilities, home/away form patterns.
+  Access: OK.
+
+- FootySupertips
+  Role: free football and accumulator tips with tracked performance.
+  URL: footysupertips.com
+  Use for: accumulator construction ideas, BTTS/goals market consensus.
+  Access: OK.
+
+- PicksWise
+  Role: US-focused free picks with detailed analysis for NBA, NHL, MLB, NFL, tennis, soccer.
+  URL: pickswise.com
+  Use for: US sport totals/spreads analysis, parlay ideas, and expert reasoning per game.
+  Access: OK.
+
+- BetIdeas
+  Role: data-driven football tips and predictions with statistical backing.
+  URL: betideas.com
+  Use for: football BTTS/O2.5/corners predictions backed by models.
+  Access: OK.
+
 ### Community Source Usage Rules
 
-Community sources CANNOT create a bet on their own. They serve three functions:
+Community sources CANNOT create a bet on their own. They serve four functions:
 
 1. **Consensus alignment (+confidence):** If ≥70% of community tips agree with the Tier A statistical direction, boost confidence by 0.5 (round to nearest integer). Note this in the report.
 2. **Consensus divergence (red flag):** If ≥60% of community tips CONTRADICT the Tier A direction, treat as a warning. Check for information the stats might miss (injuries, lineup changes, motivation). If no explanation is found, reduce confidence by 1 or skip the pick.
 3. **Early news detection:** Forum posts may contain injury/suspension/weather info before it appears in Flashscore. If a community source reports a key absence, verify with a second source before acting on it.
+4. **Angle discovery:** Tipster analysis (especially from sites like Zawod Typer, Trafiamy, Protipster, Tipstrr, Blogabet) often reveals angles that pure statistics miss — tactical changes, managerial styles, weather effects, squad rotation patterns, motivation context. Use these insights to refine market selection and discover non-obvious picks. Strong consensus from multiple tipster sites IS a valid supporting signal.
 
-Always record in the report which community sources were checked and whether consensus aligned or diverged.
+Always record in the report which community sources were checked and whether consensus aligned or diverged. Check at least 2-3 tipster sources per candidate event.
 
 ## Optional or Fragile Sources
 
@@ -215,6 +278,126 @@ Always record in the report which community sources were checked and whether con
   Use for: form context and match analysis.
   Access: OK.
 
+### Esports
+
+- HLTV
+  Role: CS2 statistics, team rankings, match history, player stats, map veto patterns, event schedules.
+  URL: hltv.org
+  Use for: CS2 moneyline, map handicap, map totals. Team rankings, recent form, map pool analysis.
+  Access: OK.
+
+- Liquipedia
+  Role: comprehensive esports wiki — CS2, Dota 2, League of Legends, Valorant, StarCraft, Rocket League. Tournament brackets, team rosters, match history.
+  URL: liquipedia.net
+  Use for: tournament context, roster changes, bracket paths, format context.
+  Access: OK.
+
+- VLR.gg
+  Role: Valorant statistics — team stats, player stats, match history, event coverage.
+  URL: vlr.gg
+  Use for: Valorant map stats, team form, head-to-head.
+  Access: OK.
+
+- GosuGamers
+  Role: esports match schedule, odds comparison, community predictions, and results across CS2, Dota 2, LoL, Valorant.
+  URL: gosugamers.net
+  Use for: esports consensus, odds comparison, and match scheduling.
+  Access: OK.
+
+- Esports Charts
+  Role: esports viewership and popularity data — useful for identifying high-stakes matches.
+  URL: escharts.com
+  Use for: identifying Tier 1 vs Tier 2 events (higher tier = more reliable data).
+  Access: OK.
+
+- BO3.gg
+  Role: CS2 match predictions with model confidence, map stats, head-to-head.
+  URL: bo3.gg
+  Use for: CS2 map predictions, win probabilities, match analysis.
+  Access: OK.
+
+### Snooker
+
+- CueTracker
+  Role: snooker statistics — player rankings, tournament history, head-to-head records, frame averages, century breaks.
+  URL: cuetracker.net
+  Use for: H2H analysis, frame averages, scoring patterns, tournament form.
+  Access: OK.
+
+- SnookerOrg
+  Role: live scores, rankings, draw brackets, season statistics.
+  URL: snooker.org
+  Use for: live fixtures, draw context, ranking points context.
+  Access: OK.
+
+- WorldSnooker (WST)
+  Role: official World Snooker Tour — tournament schedules, results, player profiles.
+  URL: wst.tv
+  Use for: official schedule, tournament format (best-of-X frames), and player news.
+  Access: OK.
+
+### Table Tennis
+
+- ITTF (International Table Tennis Federation)
+  Role: official rankings, tournament schedules, player profiles.
+  URL: ittf.com
+  Use for: official rankings, tournament tier context.
+  Access: OK.
+
+- tt-series.com
+  Role: table tennis statistics and predictions — player form, head-to-head, recent results.
+  URL: tt-series.com
+  Use for: predictions and form analysis for Russian/Ukrainian/Polish table tennis leagues (popular for live betting).
+  Access: OK.
+
+- TableTennisDaily
+  Role: table tennis news, analysis, and community discussion.
+  URL: tabletennisdaily.com
+  Use for: player form context, equipment changes, injury news.
+  Access: OK.
+
+### Darts
+
+- DartConnect
+  Role: darts statistics — player averages, checkout percentages, leg/set data.
+  URL: dartconnect.com
+  Use for: player averages, form trends, tournament-level performance.
+  Access: OK.
+
+- DartsOrakel
+  Role: darts predictions and statistics — modeled probabilities, head-to-head analysis.
+  URL: dartsorakel.com
+  Use for: match predictions, leg/set totals analysis.
+  Access: OK.
+
+### Handball
+
+- Handball-World
+  Role: handball news, statistics, and analysis across European leagues.
+  URL: handball-world.com
+  Use for: team form, league standings, injury context.
+  Access: OK.
+
+- EHF (European Handball Federation)
+  Role: official European handball — Champions League, EHF League results and stats.
+  URL: eurohandball.com
+  Use for: fixture confirmation, team stats, competition context.
+  Access: OK.
+
+### MMA / UFC
+
+- UFCstats
+  Role: official UFC statistics — strikes, takedowns, submission attempts, fight history.
+  URL: ufcstats.com
+  Use for: fighter comparison, statistical matchup analysis, finish rate.
+  Access: OK.
+
+- Tapology
+  Role: MMA rankings, fight cards, fighter records, community predictions.
+  URL: tapology.com
+  Use for: community consensus, fighter records, weight class context.
+  Access: OK.
+
 ### Multi-Sport Odds and Analytics
 
 - Covers
@@ -257,23 +440,63 @@ The following were tested and are NOT accessible via Playwright headless:
 
 - Football
   Minimum stack: Flashscore or Sofascore plus OddsPortal, Oddspedia, or BetExplorer plus one of Forebet, SportyTrader, PredictZ, or Sportsgambler when helpful.
-  Preferred markets: totals, team totals, BTTS, double chance, draw no bet, and selective corners.
+  Tipster cross-check: Zawod Typer, Trafiamy, Typersi, bettingexpert, FootySupertips, Windrawwin, BetIdeas.
+  Preferred markets: totals, team totals, BTTS, double chance, draw no bet, corners, cards, fouls.
 
 - Basketball
-  Minimum stack: Covers or TeamRankings plus OddsPortal, Oddspedia, or BetExplorer.
+  Minimum stack: Covers or TeamRankings plus OddsPortal, Oddspedia, or BetExplorer. Basketball-Reference or DunksAndThrees for pace/efficiency.
+  Tipster cross-check: PicksWise, bettingexpert, Blogabet.
   Preferred markets: totals, spreads, and selected moneylines.
 
 - Baseball
-  Minimum stack: TeamRankings or Covers plus OddsPortal, Oddspedia, or BetExplorer.
+  Minimum stack: TeamRankings or Covers plus OddsPortal, Oddspedia, or BetExplorer. BaseballSavant for Statcast.
+  Tipster cross-check: PicksWise, Covers previews.
   Preferred markets: totals and selective moneylines.
 
 - Hockey
-  Minimum stack: Covers or TeamRankings plus OddsPortal, Oddspedia, or BetExplorer.
+  Minimum stack: NaturalStatTrick or MoneyPuck plus OddsPortal, Oddspedia, or BetExplorer.
+  Tipster cross-check: PicksWise, Covers previews.
   Preferred markets: totals and selective moneylines.
 
 - Tennis
-  Minimum stack: TennisAbstract plus OddsPortal or Oddspedia plus BetExplorer or Sportsgambler when helpful.
+  Minimum stack: TennisAbstract or UltimateTennisStatistics plus OddsPortal or BetExplorer. TennisExplorer for H2H.
+  Tipster cross-check: Zawod Typer (Polish events), Tipstrr, bettingexpert.
   Preferred markets: moneyline, set handicap, game totals, and set totals.
+
+- Volleyball
+  Minimum stack: BetExplorer volleyball section plus Flashscore or Sofascore.
+  Tipster cross-check: bettingexpert, Blogabet.
+  Preferred markets: set totals, point totals, set handicap, moneyline.
+
+- Esports (CS2, Dota 2, LoL, Valorant)
+  Minimum stack: HLTV (CS2) or Liquipedia plus BetExplorer or OddsPortal.
+  Tipster cross-check: GosuGamers, BO3.gg (CS2), Blogabet, Tipstrr.
+  Preferred markets: moneyline, map handicap, map totals, round handicap.
+
+- Snooker
+  Minimum stack: CueTracker or SnookerOrg plus BetExplorer or OddsPortal. WorldSnooker for format.
+  Tipster cross-check: bettingexpert, Blogabet.
+  Preferred markets: frame handicap, total frames, moneyline, century/50+ break props.
+
+- Table Tennis
+  Minimum stack: ITTF rankings plus Flashscore or Sofascore. tt-series.com for league-level analysis.
+  Tipster cross-check: Blogabet (table tennis specialists).
+  Preferred markets: moneyline, set handicap, total points.
+
+- Darts
+  Minimum stack: DartConnect or DartsOrakel plus BetExplorer or OddsPortal.
+  Tipster cross-check: bettingexpert, Blogabet.
+  Preferred markets: leg/set totals, 180s over/under, checkout props, moneyline.
+
+- Handball
+  Minimum stack: Handball-World or EHF plus BetExplorer or OddsPortal. Flashscore for results.
+  Tipster cross-check: bettingexpert, Blogabet.
+  Preferred markets: totals, handicap, moneyline.
+
+- MMA / UFC
+  Minimum stack: UFCstats plus OddsPortal or BetExplorer. Tapology for records.
+  Tipster cross-check: PicksWise, Blogabet, Tipstrr.
+  Preferred markets: moneyline, method of victory, round totals, props.
 
 ## Settlement Sources
 
@@ -286,9 +509,11 @@ The following were tested and are NOT accessible via Playwright headless:
 
 - A final pick must have at least one Tier A stats or fixture source and one Tier A market or price source.
 - Tier B sources can strengthen or weaken confidence by at most one level, but they cannot create a bet on their own.
-- Community sources (bettingexpert, ProTipster, Oddspedia Community, Zawod Typer) can adjust confidence by ±1 level based on consensus alignment/divergence, but cannot be the primary reason for a pick.
+- Community sources (bettingexpert, ProTipster, Oddspedia Community, Zawod Typer, Trafiamy, Typersi, Tipstrr, Blogabet, OLBG, FootySupertips, PicksWise, Windrawwin, BetIdeas) can adjust confidence by ±1 level based on consensus alignment/divergence, but cannot be the primary reason for a pick.
+- However, strong consensus from multiple tipster sites IS a valid supporting signal — it provides angles and perspectives that statistics alone may miss.
 - If Tier A sources materially disagree on the core read, skip the bet unless the disagreement is clearly explained and the stake is reduced.
-- If the only support comes from consensus or tipster pages, skip the bet.
+- If the only support comes from a single consensus or tipster page with no statistical backing, skip the bet.
 - If community consensus strongly diverges from Tier A direction (≥60% opposite), note the divergence in the report and investigate before proceeding.
+- Never reject a sport for "lack of sources" — search specialist sites (see Sport Playbooks above).
 - Record source outages and partial availability in the daily source log.
 - Bookmaker bonuses, promos, and affiliate content are irrelevant to pick quality.

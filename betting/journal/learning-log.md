@@ -103,3 +103,47 @@ No entries yet.
   2. For non-statistical matches, use CONDITIONAL odds with minimum acceptance threshold. User verifies on Betclic app.
   3. Source stack for corner analysis: TotalCorner (match totals) + SoccerStats (league rankings) + Betclic Statystyki (verified odds). All 3 needed for high-confidence corner pick.
 - Source notes: TotalCorner free tier provides match-level corner totals and handicaps for all leagues — extremely valuable. SoccerStats provides league-level corner team rankings. Betaminic accessible for team-level corner/card stats tables.
+
+## 2026-04-22 (settlement + overnight coupons)
+- Settlement summary: 11 picks settled (10W 1L = 90.9%). 5 coupons settled (4W 1L = 80%). Day PnL: +7.77 PLN. Balance: 43.26 → 51.03 PLN.
+- What worked:
+  1. Statistical markets dominated: corners 3/3, U2.5 defensive profiles 2/2, BTTS 1/1, volleyball 2/2, DC 1/1, O2.5 1/1. Total 10/11 = 90.9%.
+  2. Corner three-source stack (TotalCorner + SoccerStats + Betclic Statystyki) delivered 3/3. This is the highest-confidence pick type.
+  3. Multi-sport diversification (football + volleyball) worked perfectly.
+  4. CONDITIONAL odds approach (user verifies on app) is practical and avoids rate limiting.
+  5. Defensive profile plays (U2.5 backed by SoccerStats league data) are high-probability.
+- What failed:
+  1. Only loss was Strasbourg DC (1X) in CP-HR2 — a form-based pick, NOT a statistical market. Nice won 2-0.
+  2. Betclic rate limiting (403) continues to block automated odds verification.
+- Rule changes for future runs:
+  1. Statistical markets (corners, U2.5 defensive, BTTS, volleyball totals) are confirmed PRIMARY picks. Non-statistical picks (DC, ML) are supplementary only.
+  2. The loss pattern is clear: form-based DC/ML picks without statistical backing are the weak link. Downgrade non-statistical picks to HR-only.
+  3. For overnight/MLS sessions: use BetExplorer standings as primary source. MLS table gaps (top-5 vs bottom-5) provide actionable edge.
+  4. DC United (4GF in 8 = 0.5/game) and Orlando City (25GA in 8 = 3.125/game) are extreme statistical outliers — usable for Under and opponent ML plays.
+  5. Betclic correct URLs: football = football-sfootball/usa-mls-c504, NBA = basketball-sbasketball/nba-c13.
+- Source notes: BetExplorer MLS standings reliably available. Betclic MLS and NBA pages confirmed at user-provided URLs. Flashscore still 403.
+
+## 2026-04-23
+- Settlement summary: Apr 22 night MLS session settled: 0W/3L picks, 0W/2L coupons. Night PnL: -2.50 PLN. Apr 22 total: +5.27 PLN. PK-07 Rotherham DC settled WIN. Rolling 7d: +18.71 PLN.
+- What worked: Apr 22 day session (90.9% hit rate) validated statistical markets approach. Bankroll grew to 51.03 PLN.
+- What failed:
+  1. MLS night picks: 0/3. Charlotte lost 4:1 to Orlando (despite Orlando worst-defense narrative). Toronto drew 3:3 (despite Philly worst form). DC United scored 4 goals vs 0.50/game average. MLS variance is extreme.
+  2. Betclic 403 rate limiting continues — cannot verify odds from agent environment.
+  3. Existing Apr 23 picks from previous run (Leipzig, Betis-RM, Napoli, Brest-Lens) all referenced Apr 24 matches — betting-day window was applied incorrectly in that run.
+- Rule changes for future runs:
+  1. MLS is unreliable for ML and U2.5 picks. Require at least 2 Tier A stats sources (not just BetExplorer standings) for MLS.
+  2. Verify NBA game schedules before composing night picks — Detroit ML was pending because game may not have been scheduled.
+  3. Triple-check betting-day window: matches must kick off between 06:00 run_date and 05:59 next day local time. Evening matches in Europe are typically next-day in source listings but are within the window.
+  4. When source data is thin (e.g., midweek with few matches), prefer fewer higher-confidence picks over filling a quota. 4 tickets from 7 picks is acceptable when only 5 football + 2 tennis + 1 volleyball qualify.
+- Source notes: SoccerStats La Liga/Eredivisie league stats available. BetExplorer 1X2 odds available for all sports. Covers NBA pages empty. Forebet returned empty for today. TotalCorner not yet loaded for tomorrow.
+
+## 2026-04-23 (methodology overhaul — user directive)
+- Settlement summary: User-placed night AKO (5.00 PLN, 8.81x, 4-leg) settled LOSS (-5.00 PLN). Detroit ML WON but 3 legs lost. Total night losses: -7.50 PLN. Apr 22 final: +0.27 PLN.
+- What worked: Detroit ML analysis was correct (98:83). Statistical market approach (corners/BTTS) continues 90% day-session hit rate.
+- What failed: Night MLS analysis was shallow and ineffective — 0/3 MLS picks. Analysis relied on surface-level standings without checking tipster consensus or specialist MLS sources. User correctly flagged this as unacceptable.
+- Rule changes (MAJOR USER DIRECTIVE — permanent):
+  1. NEVER reject a sport for "lack of sources." The internet has specialist sites for every sport (esports: HLTV, Liquipedia; snooker: CueTracker; table tennis: tt-series.com; darts: DartsOrakel; etc.). Always search for them.
+  2. MANDATORY wide tipster cross-check: check Zawod Typer, Trafiamy, Typersi, Protipster, Tipstrr, Blogabet, OLBG, FootySupertips, PicksWise, Windrawwin, BetIdeas, bettingexpert for every candidate. These sites provide angles and perspectives statistics miss.
+  3. Avoid popular high-profile events for pure match-result bets. Focus on deep statistical markets and analytical perspectives. Never produce shallow analysis.
+  4. Goal is MANY coupons with varying risk/stake/sport coverage — not a few conservative ones. Diversify broadly: football, tennis, basketball, volleyball, esports, snooker, table tennis, darts, handball, MMA.
+- Source notes: Added 20+ new sources to source-registry.md. Updated config to include 12 sports. Updated all instruction files.

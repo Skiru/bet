@@ -26,3 +26,15 @@
 2026-04-22T13:55:45.697247 Updated picks ledger: /Users/mkoziol/projects/bet/betting/journal/picks-ledger.csv
 2026-04-22T13:55:45.697960 Updated coupons ledger: /Users/mkoziol/projects/bet/betting/journal/coupons-ledger.csv
 2026-04-22T13:55:45.698110 Settlement complete: 0 settled, 8 still pending
+2026-04-23T07:15:35.281523 Found 4 pending pick(s) to settle
+2026-04-23T07:15:35.281943 [Poll 1] Looking for result: Detroit Pistons vs Orlando Magic
+2026-04-23T07:15:35.741266   Score not yet available for Detroit Pistons vs Orlando Magic
+2026-04-23T07:15:35.741518 [Poll 1] Looking for result: Orlando City vs Charlotte
+2026-04-23T07:15:36.122234   Score not yet available for Orlando City vs Charlotte
+2026-04-23T07:15:36.122406 [Poll 1] Looking for result: Toronto FC vs Philadelphia Union
+2026-04-23T07:15:36.489725   Score not yet available for Toronto FC vs Philadelphia Union
+2026-04-23T07:15:36.489874 [Poll 1] Looking for result: NY Red Bulls vs DC United
+2026-04-23T07:15:36.812343   Score not yet available for NY Red Bulls vs DC United
+2026-04-23T07:15:36.815794 Updated picks ledger: /Users/mkoziol/projects/bet/betting/journal/picks-ledger.csv
+2026-04-23T07:15:36.816340 Updated coupons ledger: /Users/mkoziol/projects/bet/betting/journal/coupons-ledger.csv
+2026-04-23T07:15:36.816404 Settlement complete: 0 settled, 4 still pending
