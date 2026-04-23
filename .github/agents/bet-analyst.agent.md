@@ -10,6 +10,8 @@ tools:
   - search/changes
   - memory/*
   - sequentialthinking/*
+  - run_in_terminal
+  - fetch_webpage
 agents: []
 target: vscode
 ---

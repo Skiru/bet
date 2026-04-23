@@ -63,7 +63,12 @@ betting_day,source_name,role,sport_scope,availability,used_in_analysis,used_in_f
 2026-04-23,pickswise.com,Tier B tipster,ok,NHL Bruins ML + NBA Hawks/Nuggets/Raptors picks
 2026-04-23,betideas.com,Tier B tipster,ok,BTTS No picks for Oviedo and GA Eagles
 2026-04-23,typersi.pl,Tier B tipster,ok,Levante 1 + AGF 2 + Freiburg 2 + Rayo X picks
-2026-04-23,zawodtyper.pl,Tier B schedule,ok,LaLiga/Eredivisie 1X2 odds listed
+2026-04-23,TennisExplorer,Tier A stats,tennis,available,yes,yes,v3: ATP Madrid match odds for ratio analysis (Vallejo-Dimitrov 1.92/1.87 ratio 1.03 STRONG)
+2026-04-23,CueTracker,Tier A stats,snooker,available,yes,yes,v3: Wilson avg Crucible match length ~22.3 frames; used for frame totals analysis
+2026-04-23,SBR,Tier A market,hockey|basketball,available,yes,yes,v3: NHL O5.5/O6 lines confirmed; NBA O216.5/O219.5 confirmed; American odds converted
+2026-04-23,ESPN Odds,Tier A market,basketball,available,yes,yes,v3: NBA point totals O216.5 -110 confirmed for Hawks-Knicks
+2026-04-23,BetExplorer,Tier A market,volleyball|handball,available,yes,yes,v3: Istanbul-Fenerbahce ML 1.80/1.88; Fuchse-Gummersbach ML 1.30/4.63; used for set/goal totals
+2026-04-23,zawodtyper.pl,Tier B tipster (deep extraction),football|tennis|basketball,available,yes,yes,75 tipster picks extracted from Typy Dnia 23 kwietnia. KEY DATA: Rayo-Espanyol Fouls O24.5 with ref Cordero Vega avg 26.44 fouls + H2H 7/9 covered. Stuttgart-Freiburg BTTS. Wieczysta-Polonia BB. Sonderjyske-Midtjylland O2.5. Zero tennis coverage (0/75 tips).
 2026-04-23,sportsgambler.com,Tier B tipster,partial,Match links found but prediction content generic/empty
 2026-04-23,tennisexplorer.com,Tier B stats,ok,Marozsan vs Quinn match found
 2026-04-23,forebet.com,BLOCKED,blocked,Cloudflare

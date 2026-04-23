@@ -262,3 +262,39 @@ No entries yet.
   2. For smaller leagues (Eredivisie, Denmark SL), Betclic odds must be verified on app — BetExplorer does not list them.
   3. Continue using SBR + ESPN + ScoresAndOdds for US sports totals instead of BetExplorer match pages.
 - Source notes: BetExplorer match pages work for LaLiga/DFB Pokal (top leagues). Not reliable for Eredivisie/Denmark. PicksWise provided expert NHL+NBA picks with reasoning.
+
+## 2026-04-23 (post-loss correction — tennis lesson)
+- Settlement summary: PK-68 (Vallejo vs Dimitrov O21.5 games) confirmed LOSS by user. PK-69 (Trungelliti vs Merida O21.5) had NEGATIVE EV (-0.038) — hard rule violation, should never have been included. 2 coupons dead: CP-23-MS1 (-1.00 PLN), CP-23-HR1 (-0.50 PLN). Loss: -1.50 PLN. 5 coupons survive.
+- What worked:
+  1. ZawodTyper deep extraction found GOLD data for PK-65 (Rayo-Espanyol cards): referee Cordero Vega avg 26.44 fouls/season, Rayo 13.2 + Espanyol 13.8 = 27 avg fouls, H2H 7/9 covered O24.5 fouls. Confidence boosted 4→5.
+  2. All football picks (PK-60, 63, 64, 65) had some level of tipster validation from ZawodTyper.
+  3. Surviving coupons (P1-P4, MS2) have strong football core confirmed by tipster consensus.
+- What failed:
+  1. PK-68 had thin EV (+0.044) and failed the "20% lower odds" test. No tipster covered tennis on ZawodTyper (0/75 tips). Should have been confidence 3, not 4.
+  2. PK-69 had NEGATIVE EV — this is an automatic skip per hard rules. Including it was a methodology violation.
+  3. STEP 4 (tipster deep-dive) was done superficially in original v3 analysis. Deep ZawodTyper extraction was not performed until post-loss correction.
+- Rule changes (PERMANENT):
+  1. Tennis O21.5 requires EV > +0.08 minimum (not just >0). Thin-edge tennis picks are not worth the variance.
+  2. ZERO tipster coverage on argument-based sites = automatic confidence reduction of -1. If no tipster anywhere discusses the event, it signals low market interest and higher uncertainty.
+  3. STEP 4 must include FULL argument extraction from ZawodTyper (scroll deep, read each tipster's reasoning, extract referee/H2H/tactical data). Superficial "no tips found" is unacceptable.
+- Source notes: ZawodTyper 20260423T135931Z.html contains 75 tips with full analyses. Key data: referee names, foul averages, H2H patterns, tactical context. This source is invaluable when properly mined.
+
+## 2026-04-23 (v4 — placed coupons with real Betclic odds, KILL SWITCH lesson)
+- Settlement summary: PK-78 (Atmane O21.5) WON (live bet, 6-7 4-5). PK-68 LOST (-1.50 PLN from 2 dead coupons). 9 coupons pending across 11 placed coupons total.
+- What worked:
+  1. PK-63 (Sonderjyske corners) Betclic @1.73 was BETTER than est @1.70 (+1.8%). Positive surprise.
+  2. PK-64 (Wieczysta O10.5 corners) Betclic @1.80 exact match with estimate. Reliable.
+  3. Live tennis bet (Atmane O21.5 @1.30 with 22 games already played) was guaranteed — smart opportunistic play.
+- What failed:
+  1. **CRITICAL FAILURE: No KILL SWITCH before placing.** User placed 8 coupons based on estimated odds without verifying Betclic actuals first. Three picks had severely negative EV at real Betclic odds:
+     - Wilson O20.5 frames: est @1.75 → Betclic @1.35 (-23%). EV: -0.16.
+     - Istanbul O3.5 sets: est @1.85 → Betclic @1.28 (-31%). EV: -0.26.
+     - Fuchse O63.5 goals: analyzed O53.5, Betclic offered O63.5 (different line entirely!).
+     - Bruins team O5.5 @6.75: different market (team goals incl OT, not match goals).
+  2. Rayo cards O4.5: est @1.70 → Betclic @1.58 (-7%). Still marginally positive EV but weaker.
+  3. Agent was not running in bet-analyst mode for prior iterations, leading to less rigorous analysis.
+- Rule changes (PERMANENT — KILL SWITCH PROTOCOL):
+  1. **NEVER place coupons until real Betclic odds are verified.** Agent provides estimates. User checks Betclic app. User reports actuals. Agent runs KILL SWITCH (EV recalculation at real odds). Only then place.
+  2. **If Betclic line differs from analyzed line by more than 2 goals/sets/frames/points, it's a DIFFERENT PICK.** Re-analyze from scratch. Fuchse O63.5 ≠ O53.5. Bruins team O5.5 ≠ match O5.5.
+  3. **Bankroll tracking must be real-time.** 45.27 → 30.00 → 29.00 was tracked too slowly. Config must reflect actual balance after each placement.
+- Source notes: Screenshots from Betclic app are the ONLY reliable odds source. All estimates are CONDITIONAL.
