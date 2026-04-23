@@ -82,18 +82,28 @@ Core philosophy: find MISPRICED ODDS, not predict winners. Only bet when EV > 0.
 For each shortlisted candidate, execute in sequence:
 
 **STEP 4 — Deep Stats:**
-- Football: SoccerStats + Forebet + TotalCorner (corner 3-source stack) + xG regression.
+- Football: SoccerStats + Betaminic + TotalCorner (corner 3-source stack) + xG regression.
 - Tennis: TennisAbstract Elo + surface + H2H + odds ratio grading.
 - Basketball: pace + OFF/DEF rating + injury report.
 - Hockey: xG + goalie + PP/PK + B2B fatigue.
 - Other sports: specialist sources per methodology appendix.
 
-**STEP 5 — Tipster Deep-Dive:**
-- Check >=2 tipster sources per candidate. Working sources: ZawodTyper, Typersi, BetIdeas, PicksWise, Tipstrr, GosuGamers, Sportsgambler, OLBG.
+**STEP 5 — Tipster Deep-Dive (argument-based, multi-site):**
+- Check >=2 ARGUMENT-BASED tipster sites per candidate. These sites have tipsters who post WRITTEN REASONING, not just bare picks:
+  - **Polish**: ZawodTyper (zawodtyper.pl), Typersi (typersi.pl), Meczyki (meczyki.pl/typy-bukmacherskie)
+  - **International**: OLBG (olbg.com/tips), PicksWise (pickswise.com), BetIdeas (betideas.com/tips), Sportsgambler
+  - **Esports**: GosuGamers
+- **Deep extraction protocol (MANDATORY — same for ALL argument sites):**
+  1. Navigate to the site's daily tips page for the relevant sport. Scroll deeply (content is often lazy-loaded).
+  2. For each candidate event: find ALL tipsters/analysts who posted picks.
+  3. Read each tipster's FULL WRITTEN ARGUMENT — not just the pick, but WHY (stats cited, injuries, tactical context, motivation, referee, H2H, model outputs).
+  4. Record: site name, tipster name, specific pick, stated odds, argument summary. Count agree vs disagree.
+  5. Arguments citing specific facts ("Villarreal averages 6.2 corners away", "Lakers 2-8 ATS on B2B") are high-value signals.
 - BLOCKED (do NOT attempt): Forebet, FootySupertips, Windrawwin, BettingExpert, Protipster, Oddspedia, SportyTrader, Predictz, Trafiamy, Blogabet, HLTV.
 - If a tipster source is blocked, search Google for "[event] prediction tips" to find alternatives. NEVER declare tipster consensus impossible.
-- Extract: specific pick, reasoning, confidence, consensus %.
+- Extract: specific pick, tipster's reasoning/argument, confidence, consensus %.
 - >=70% agreement → +0.5 confidence. >=60% contradiction → investigate, reduce -1 or skip.
+- Strong fact-based argument from even 1 tipster against your thesis → investigate before finalizing.
 
 **STEP 6 — Odds + EV:**
 - Get market-best odds from BetExplorer/OddsPortal. For US sports: SBR Totals tab + ESPN Odds + ScoresAndOdds.

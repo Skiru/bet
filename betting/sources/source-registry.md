@@ -92,9 +92,12 @@ Every sport has dedicated communities, statistical databases, and prediction sit
 ## Tier B Support and Consensus Sources
 
 - Zawod Typer
-  Role: local market awareness, tip aggregation, and injury/news early detection.
-  Use for: consensus alignment check, divergence warning, and local knowledge (injuries, lineup rumors, motivation context).
-  Priority: highest among community sources for Polish league and tennis events.
+  Role: ARGUMENT-BASED tipster community — individual tipsters post detailed written reasoning for each pick.
+  URL: zawodtyper.pl
+  Navigation: Daily page `/typy-dnia-[DD]-[month]-[weekday]/`. Scroll deeply (lazy-loaded). Search: `/szukaj?q=[team]`.
+  Use for: consensus alignment check, divergence warning, local knowledge (injuries, lineup rumors, motivation context), and DEEP ARGUMENT EXTRACTION.
+  Priority: highest among community sources for Polish league, La Liga, and tennis events.
+  **Deep-dive required**: YES — read each tipster's full argument, not just the pick.
 
 - Tipstrr
   Role: verified tipster platform with tracked ROI, profit/loss history per tipster.
@@ -102,53 +105,45 @@ Every sport has dedicated communities, statistical databases, and prediction sit
   Use for: finding high-ROI tipsters for specific sports/leagues, consensus direction, and pick validation.
   Access: OK.
 
-- Trafiamy
-  Role: Polish tipster community with predictions, statistics, and coupon sharing.
-  URL: trafiamy.pl
-  Use for: Polish market consensus, popular coupon structures, local tipster insights.
-  Access: OK.
-
 - Typersi
-  Role: Polish betting tips and predictions community.
+  Role: ARGUMENT-BASED Polish betting tips and predictions community — tipsters write reasoning for picks.
   URL: typersi.pl
+  Navigation: Daily tips page. Click into individual match pages for tipster arguments.
   Use for: Polish-language consensus on football, tennis, and other sports. Good for LaLiga, Bundesliga, and Ekstraklasa.
   Access: OK.
-
-- Blogabet
-  Role: verified tipster tracking platform — tracked ROI, yield, and profit per tipster across all sports.
-  URL: blogabet.com
-  Use for: finding profitable tipsters in niche sports (esports, table tennis, snooker), consensus validation.
-  Access: OK.
+  **Deep-dive required**: YES — read each tipster's full argument.
 
 - OLBG (Online Betting Guide)
-  Role: UK-based tipster community with user predictions, rankings, and competition results.
-  URL: olbg.com
-  Use for: football and racing consensus, verified tipster records, market trends.
+  Role: ARGUMENT-BASED UK tipster community — tipsters compete for accuracy and post written reasoning with each tip.
+  URL: olbg.com/tips
+  Navigation: Sport → today's tips. Each tip has a written reason. Filter by sport/competition.
+  Use for: football and racing consensus, verified tipster records, market trends, and DEEP ARGUMENT EXTRACTION.
   Access: OK.
-
-- Windrawwin
-  Role: football predictions, form tables, result predictions, and league-wide patterns.
-  URL: windrawwin.com
-  Use for: Football prediction consensus, BTTS/O2.5 probabilities, home/away form patterns.
-  Access: OK.
-
-- FootySupertips
-  Role: free football and accumulator tips with tracked performance.
-  URL: footysupertips.com
-  Use for: accumulator construction ideas, BTTS/goals market consensus.
-  Access: OK.
+  **Deep-dive required**: YES — read each tipster's reasoning.
 
 - PicksWise
-  Role: US-focused free picks with detailed analysis for NBA, NHL, MLB, NFL, tennis, soccer.
+  Role: ARGUMENT-BASED expert analysis — detailed game previews with reasoning for NBA, NHL, MLB, NFL, tennis, soccer.
   URL: pickswise.com
+  Navigation: Sport → game preview pages. Expert analysis with detailed reasoning per game.
   Use for: US sport totals/spreads analysis, parlay ideas, and expert reasoning per game.
   Access: OK.
+  **Deep-dive required**: YES — read expert analysis and reasoning per game.
 
 - BetIdeas
-  Role: data-driven football tips and predictions with statistical backing.
-  URL: betideas.com
+  Role: ARGUMENT-BASED data-driven football tips — model-backed predictions with statistical reasoning.
+  URL: betideas.com/tips
+  Navigation: Tip category pages (corner-betting-tips, btts-tips, over-under-tips). Each tip includes model probability and reasoning.
   Use for: football BTTS/O2.5/corners predictions backed by models.
   Access: OK.
+  **Deep-dive required**: YES — read model reasoning and statistical backing.
+
+- Meczyki
+  Role: ARGUMENT-BASED Polish match analysis — tipsters write detailed previews with betting arguments.
+  URL: meczyki.pl/typy-bukmacherskie
+  Navigation: Daily tips page. Click individual match links for tipster arguments. Good for LaLiga, Bundesliga, Serie A.
+  Use for: Polish-language match analysis with tactical context, injury info, and betting angles.
+  Access: OK.
+  **Deep-dive required**: YES — navigate to individual match pages and read arguments.
 
 ### Community Source Usage Rules
 
@@ -157,7 +152,7 @@ Community sources CANNOT create a bet on their own. They serve four functions:
 1. **Consensus alignment (+confidence):** If ≥70% of community tips agree with the Tier A statistical direction, boost confidence by 0.5 (round to nearest integer). Note this in the report.
 2. **Consensus divergence (red flag):** If ≥60% of community tips CONTRADICT the Tier A direction, treat as a warning. Check for information the stats might miss (injuries, lineup changes, motivation). If no explanation is found, reduce confidence by 1 or skip the pick.
 3. **Early news detection:** Forum posts may contain injury/suspension/weather info before it appears in Flashscore. If a community source reports a key absence, verify with a second source before acting on it.
-4. **Angle discovery:** Tipster analysis (especially from sites like Zawod Typer, Trafiamy, Protipster, Tipstrr, Blogabet) often reveals angles that pure statistics miss — tactical changes, managerial styles, weather effects, squad rotation patterns, motivation context. Use these insights to refine market selection and discover non-obvious picks. Strong consensus from multiple tipster sites IS a valid supporting signal.
+4. **Angle discovery:** Argument-based tipster sites (marked with **Deep-dive required: YES** above — Zawod Typer, Typersi, OLBG, PicksWise, BetIdeas, Meczyki, Sportsgambler) reveal angles that pure statistics miss — tactical changes, managerial styles, weather effects, squad rotation patterns, motivation context, model disagreements. Navigate into match pages, read each tipster's argument, and extract their reasoning. Tipsters with arguments > tipsters with bare picks. Strong consensus from multiple argument-based tipster sites IS a valid supporting signal.
 
 Always record in the report which community sources were checked and whether consensus aligned or diverged. Check at least 2-3 tipster sources per candidate event.
 
@@ -561,7 +556,7 @@ Use this table to know WHERE to get odds for each sport. Never give up after one
 
 - A final pick must have at least one Tier A stats or fixture source and one Tier A market or price source.
 - Tier B sources can strengthen or weaken confidence by at most one level, but they cannot create a bet on their own.
-- Community sources (bettingexpert, ProTipster, Oddspedia Community, Zawod Typer, Trafiamy, Typersi, Tipstrr, Blogabet, OLBG, FootySupertips, PicksWise, Windrawwin, BetIdeas) can adjust confidence by ±1 level based on consensus alignment/divergence, but cannot be the primary reason for a pick.
+- Community sources (Zawod Typer, Typersi, Meczyki, OLBG, PicksWise, BetIdeas, Sportsgambler, Tipstrr, GosuGamers) can adjust confidence by ±1 level based on consensus alignment/divergence, but cannot be the primary reason for a pick.
 - However, strong consensus from multiple tipster sites IS a valid supporting signal — it provides angles and perspectives that statistics alone may miss.
 - If Tier A sources materially disagree on the core read, skip the bet unless the disagreement is clearly explained and the stake is reduced.
 - If the only support comes from a single consensus or tipster page with no statistical backing, skip the bet.

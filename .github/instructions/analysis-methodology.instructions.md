@@ -64,7 +64,7 @@ Verify you have scanned ALL of these:
 - [ ] Basketball: NBA, Euroleague, national leagues
 - [ ] Hockey: NHL, KHL, SHL, Liiga
 - [ ] Volleyball: CEV Champions League, national leagues
-- [ ] Esports: CS2 (HLTV tier 1-2), Dota 2, LoL, Valorant
+- [ ] Esports: CS2 (tier 1-2 events), Dota 2, LoL, Valorant
 - [ ] Snooker: World Championship, Tour events
 - [ ] Darts: Premier League, PDC events
 - [ ] Handball: EHF, Bundesliga
@@ -120,8 +120,8 @@ For every football candidate:
 - League home/away splits
 - Team rankings within league: goals for/against, corners for/against, cards
 
-**B. Match-Level Data (Forebet + BetExplorer)**
-- Forebet avg_goals prediction for this match
+**B. Match-Level Data (BetExplorer + Flashscore)**
+- BetExplorer match odds history and implied probability
 - H2H history (last 5-10 meetings): goals, corners, cards patterns
 - Recent form: last 5-6 matches for each team
 
@@ -193,37 +193,78 @@ Follow sport-specific source references in source-registry.md. The principle is 
 
 ## STEP 4: TIPSTER DEEP-DIVE — Structured Community Cross-Check
 
-This step is MANDATORY. Not a quick glance — a structured extraction from each source.
+This step is MANDATORY. Not a quick glance — a structured, deep extraction from each source. Tipster sites like Zawod Typer provide INDIVIDUAL TIPSTER ARGUMENTS with reasoning — these are invaluable for discovering angles, confirming/refuting statistical theses, and building confidence.
 
 ### 4.1 Source Rotation
-For EACH candidate event, check at least 2 tipster/community sources from this list:
-- **Polish**: Zawod Typer, Typersi
-- **International**: Tipstrr, PicksWise, BetIdeas
-- **Football-specific**: BetIdeas, PicksWise, Sportsgambler
+For EACH candidate event, check at least 2 ARGUMENT-BASED tipster sources from this list:
+- **Polish**: Zawod Typer (PRIORITY — see 4.1a), Typersi, Meczyki
+- **International**: PicksWise, BetIdeas, OLBG, Sportsgambler
 - **US sports**: PicksWise
 - **Esports**: GosuGamers
+- **ROI-tracked (bare picks, no arguments)**: Tipstrr
 
 Note: The following sources are BLOCKED and must NOT be attempted:
 Forebet, FootySupertips, Windrawwin, BettingExpert, Protipster, Oddspedia, SportyTrader, Predictz, Trafiamy, Blogabet, HLTV. See source-registry.md blocked list.
 
 **When a tipster source is blocked:** Do NOT skip the tipster step. Search for alternative tipster sites. Use Google to find "[event name] prediction" or "[event name] tips" to discover new tipster pages. If you find a working tipster source not in the registry, use it and add it to the source log. NEVER declare tipster consensus impossible — if 7 sites are blocked, find the 8th and 9th.
 
+### 4.1a Argument-Based Tipster Deep-Dive Protocol (MANDATORY)
+
+Multiple tipster sites feature INDIVIDUAL TIPSTERS WHO POST DETAILED WRITTEN ARGUMENTS for each pick. These are the highest-value tipster sources because you get reasoning, not just a bare pick. This is NOT a quick headline check — you must navigate into match/event pages and read what each tipster wrote.
+
+**Argument-based tipster sites (use at least 2 per candidate):**
+
+| Site | URL | Sports | Language | How to navigate |
+|------|-----|--------|----------|----------------|
+| **Zawod Typer** | zawodtyper.pl | Football, tennis, basketball | PL | Daily page: `/typy-dnia-[DD]-[month]-[weekday]/`. Scroll deeply (lazy-loaded). Search: `/szukaj?q=[team]`. |
+| **Typersi** | typersi.pl | Football, tennis, other | PL | Daily tips page. Navigate to specific match pages for individual tipster arguments. |
+| **OLBG** | olbg.com/tips | Football, racing, all sports | EN | Navigate to sport → today's tips. Each tip has a written reason. Filter by sport/competition. |
+| **PicksWise** | pickswise.com | NBA, NHL, MLB, NFL, soccer, tennis | EN | Navigate to sport → game preview pages. Expert analysis with detailed reasoning per game. |
+| **BetIdeas** | betideas.com/tips | Football (BTTS, corners, goals) | EN | Navigate to specific tip category (corner-betting-tips, btts-tips). Model-backed reasoning. |
+| **Meczyki** | meczyki.pl/typy-bukmacherskie | Football | PL | Navigate to daily tips. Click individual match for tipster arguments. Good for LaLiga/Bundesliga. |
+| **Sportsgambler** | sportsgambler.com/predictions | Football, US sports | EN | Sport-specific prediction pages with match previews and reasoning. |
+
+**Execution steps (same for ALL sites):**
+1. Navigate to the site's daily tips / predictions page for the relevant sport.
+2. Scroll deeply — many sites lazy-load content. Scroll at least 5-10 times to load all tips.
+3. For EACH candidate event on the page:
+   a. Identify all tipsters/analysts who posted picks for that event.
+   b. Read EACH tipster's full argument — not just the pick, but WHY they picked it.
+   c. Extract: tipster/analyst name, specific pick (market + selection), stated odds, written reasoning/argument.
+   d. Count how many tipsters agree vs disagree on the direction.
+4. If a candidate event is not on the main page, use the site's search function.
+5. Check featured/highlighted sections for higher-confidence tips.
+
+**What to extract from each tipster argument:**
+- Statistical references ("Villarreal averages 6.2 corners away")
+- Tactical/motivational context ("Oviedo needs points to avoid relegation")
+- Injury/lineup info ("Without key striker X")
+- Historical patterns ("Last 5 H2H had BTTS")
+- Market-specific reasoning ("Referee averages 4.5 cards")
+- Model outputs ("Our model gives 68% BTTS probability")
+
+**Why this matters:** Argument-based tipster sites contain LOCAL KNOWLEDGE and EXPERT REASONING that pure statistics miss. Polish tipsters on Zawod Typer and Meczyki follow La Liga, Eredivisie, and Ekstraklasa deeply. PicksWise analysts write detailed NBA/NHL previews with pace, efficiency, and injury context. OLBG tipsters compete for accuracy rankings, so their arguments tend to be well-researched. A tipster saying "Villarreal rotates for Europa League" or "Lakers are 2-8 ATS on back-to-backs" is actionable context you won't find in raw stats.
+
 ### 4.2 Extraction Template
 For each tipster source x event, extract:
 ```
 Source: [name]
+Tipster: [individual tipster name if available, e.g., "marekbet87"]
 Event: [match]
 Pick: [specific selection, e.g., "Over 9.5 corners"]
-Reasoning: [key argument in 1-2 sentences]
+Reasoning: [key argument in 1-2 sentences — MUST include the tipster's actual reasoning, not just the pick]
 Confidence: [tipster stated confidence if available]
 Agreement with my stats thesis: [YES/NO/PARTIAL]
 ```
+
+A pick without extracted reasoning is INCOMPLETE. If the source provides arguments, you MUST read and record them.
 
 ### 4.3 Consensus Analysis
 After checking all sources for a candidate:
 - **>=70% agreement with stats direction**: boost confidence +0.5 (round to nearest integer)
 - **>=60% contradiction of stats direction**: RED FLAG. Investigate why. Check for info the stats miss (injuries, tactical shift, weather). If no explanation -> reduce confidence -1 or skip.
 - **Mixed/split consensus (40-60%)**: neutral — rely on stats alone, no adjustment.
+- **Strong tipster argument against your thesis**: even if only 1 tipster, if the argument is specific and fact-based (not just opinion), investigate before finalizing.
 
 ### 4.4 Angle Discovery
 Tipster analysis often reveals:
@@ -233,8 +274,10 @@ Tipster analysis often reveals:
 - Motivation context (relegation, qualification, nothing to play for)
 - Squad rotation for upcoming bigger games
 - Travel fatigue (midweek European games -> weekend league)
+- Local knowledge (Polish league expertise, lower-division insights)
+- Referee tendencies for statistical markets (cards, corners, fouls)
 
-Record any such angle. If the angle contradicts your stats thesis, take it seriously.
+Record any such angle. If the angle contradicts your stats thesis, take it seriously — tipsters with arguments > tipsters with bare picks.
 
 ---
 
@@ -246,7 +289,7 @@ For each candidate, get the market-best odds from BetExplorer or OddsPortal (whi
 ### 5.2 True Probability Estimation
 Estimate the TRUE probability of the selection winning. Use this hierarchy:
 1. **Pinnacle/sharp book implied probability** (if available): strip the margin. Formula: `1 / pinnacle_odds` then normalize by dividing by the sum of all outcomes.
-2. **Statistical model**: from Forebet, SoccerStats, or sport-specific models.
+2. **Statistical model**: from SoccerStats, Betaminic, or sport-specific models.
 3. **Market consensus**: average of multiple bookmaker implied probabilities (from BetExplorer odds comparison).
 4. **If none available**: use your best judgment from the statistical analysis, but mark as LOWER CONFIDENCE.
 
@@ -694,12 +737,12 @@ STEP 10: Write artifacts
 
 | Sport | Tier A Stats | Tier A Market | Tier B Tipster | Tier C Specialist |
 |-------|-------------|---------------|----------------|-------------------|
-| Football | SoccerStats, Forebet, Flashscore | BetExplorer, OddsPortal | BetIdeas, Windrawwin, ZawodTyper | TotalCorner, Betclic Statystyki |
-| Tennis | TennisAbstract, Flashscore | BetExplorer, OddsPortal | PicksWise, bettingexpert | UltimateTennisStats |
-| Basketball | TeamRankings, Covers | BetExplorer, OddsPortal | PicksWise, Covers | Basketball-Reference |
-| Hockey | Flashscore, Sofascore | BetExplorer, OddsPortal | PicksWise, Covers | NaturalStatTrick, MoneyPuck |
-| Volleyball | Flashscore | BetExplorer | bettingexpert | — |
-| CS2 | HLTV | BetExplorer | GosuGamers | BO3.gg |
+| Football | SoccerStats, Flashscore, Betaminic | BetExplorer, OddsPortal | BetIdeas, ZawodTyper, Meczyki, OLBG | TotalCorner, Betclic Statystyki |
+| Tennis | TennisAbstract, Flashscore | BetExplorer, OddsPortal | PicksWise, OLBG | TennisExplorer |
+| Basketball | TeamRankings, Covers | BetExplorer, SBR, ESPN Odds | PicksWise, Covers | Basketball-Reference |
+| Hockey | Flashscore, Sofascore | BetExplorer, SBR, ESPN Odds | PicksWise, Covers | NaturalStatTrick, MoneyPuck |
+| Volleyball | Flashscore | BetExplorer | OLBG | — |
+| CS2 | GosuGamers | BetExplorer | GosuGamers | BO3.gg |
 | Snooker | CueTracker | BetExplorer | — | SnookerOrg |
 | Darts | PDC stats | BetExplorer | — | DartsOrakel |
 | Handball | EHF stats | BetExplorer | — | Handball-World |

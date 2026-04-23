@@ -49,7 +49,7 @@ Follow the 11-step workflow in analysis-methodology.instructions.md:
 ### Football totals/BTTS/DC (SECONDARY — when statistical markets unavailable)
 - BTTS: SoccerStats league BTTS% must be > 55%; both teams must score AND concede regularly
 - Under 2.5: SoccerStats defensive profile (team GF+GA < 2.0/match), league O2.5% < 50%
-- Over 2.5: LAST RESORT. Require strong form, H2H backing, and Forebet avg_goals > 2.8 if available
+- Over 2.5: LAST RESORT. Require strong form, H2H backing, and SoccerStats league goals avg > 2.8 if available
 - DC/DNB: only when standings gap is clear and odds 1.10-1.40
 
 ### Tennis over-games (Over 20.5)
@@ -142,13 +142,13 @@ Rules:
 - pick_id format: PK-YYYYMMDD-## (e.g., PK-20260422-01)
 - risk_tier allowed values: low, medium, high
 - risk_tier assignment logic (do NOT set all picks to "low"):
-  - low: STRONG tennis ratio (≤1.15), football with Forebet avg_goals >3.0, confidence 4–5
+  - low: STRONG tennis ratio (≤1.15), football with SoccerStats goals avg >3.0, confidence 4–5
   - medium: GOOD tennis ratio (1.16–1.30), football with avg_goals 2.8–3.0, confidence 3–4
   - high: BORDERLINE tennis ratio (1.31–1.50), cup matches, confidence 3
 - confidence_1_5: integer 1–5
 - CROSS-FILE CONSISTENCY: the confidence score for a pick MUST be identical in picks-ledger.csv, the report, and the analysis file. If you change it in one place, change it everywhere.
 - status allowed values: pending, win, loss, void, placed
-- Multiple sources separated by | (e.g., Flashscore|Forebet)
+- Multiple sources separated by | (e.g., Flashscore|SoccerStats)
 - Coupon legs get stake_pln = 0.00 (stake is on the coupon, not the leg)
 - Since there are no singles, all picks will have stake_pln = 0.00 in picks-ledger.csv
 
@@ -241,7 +241,7 @@ Go through every check. Write YES or NO for each. If any is NO, fix it before pr
 - [ ] For corner picks: Betclic Statystyki verified odds (or marked CONDITIONAL if non-top-league)
 - [ ] For BTTS: SoccerStats BTTS% > 55% for the league
 - [ ] For U2.5: SoccerStats league O2.5% < 55% AND team defensive profile confirms
-- [ ] For O2.5 (fallback): Forebet avg_goals > 2.8 OR SoccerStats goals avg > 2.7
+- [ ] For O2.5 (fallback): SoccerStats goals avg > 2.7 OR Betaminic team goals data supports
 - [ ] H2H supports direction
 - [ ] Team form supports direction
 

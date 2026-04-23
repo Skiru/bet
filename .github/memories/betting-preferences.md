@@ -27,10 +27,10 @@ Three sources required for high-confidence corner pick:
 3. Betclic Statystyki — verified odds from HTML snapshots (EPL, LaLiga, Bundesliga only)
 
 ## What User Does NOT Want
-- Generic O2.5 goals from Forebet as the default pick
+- Generic O2.5 goals as the default pick
 - Popular matches everyone bets on without deep analysis
 - Lazy single-source analysis
-- Forebet as primary source (only secondary confirmation)
+- Blocked sources (Forebet, Windrawwin, etc.) — see source-registry.md
 - Same-sport-only coupons when multi-sport is possible
 
 ## Workflow

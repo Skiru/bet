@@ -102,17 +102,28 @@ Use `sequentialthinking` for EACH step (one call per step minimum):
 - Target 15-40 shortlisted events.
 
 **STEP 3 — Deep Statistical Analysis (one call per candidate):**
-- Football: SoccerStats league context + Forebet match data + TotalCorner corners + Betclic Statystyki (top leagues) + xG regression check.
+- Football: SoccerStats league context + Betaminic team stats + TotalCorner corners + Betclic Statystyki (top leagues) + xG regression check.
 - Tennis: TennisAbstract Elo + surface form + H2H + odds ratio grading (STRONG/GOOD/BORDERLINE/REJECT).
 - Basketball: pace + OFF/DEF rating + injury report + home/away splits.
 - Hockey: xG + goalie + PP/PK + B2B fatigue.
 - Other sports: specialist sources per methodology appendix.
 
 **STEP 4 — Tipster Deep-Dive (one call per candidate):**
-- Check >=2 tipster/community sources per candidate.
-- Extract: specific pick, reasoning, confidence, agreement with stats thesis.
+- Check >=2 ARGUMENT-BASED tipster sites per candidate — sites where tipsters post WRITTEN REASONING, not just bare picks.
+- **Argument-based tipster sites:**
+  - Polish: ZawodTyper (zawodtyper.pl), Typersi (typersi.pl), Meczyki (meczyki.pl/typy-bukmacherskie)
+  - International: OLBG (olbg.com/tips), PicksWise (pickswise.com), BetIdeas (betideas.com/tips), Sportsgambler
+  - Esports: GosuGamers
+- **Deep extraction protocol (MANDATORY — same for ALL argument sites):**
+  - Navigate to the site's daily tips page for the relevant sport, scroll deeply to load all content.
+  - Find ALL tipsters/analysts who posted picks for the candidate event.
+  - Read each tipster's FULL WRITTEN ARGUMENT — extract the reasoning, not just the pick.
+  - Record: site name, tipster name, specific pick, stated odds, argument summary.
+  - Arguments citing specific stats, injuries, referee data, tactical context, or model outputs are high-value signals.
+- Extract: specific pick, tipster's reasoning/argument, confidence, agreement with stats thesis.
 - Calculate consensus %: >=70% agreement → +0.5 confidence. >=60% contradiction → investigate, reduce -1 or skip.
-- Record discovered angles (tactics, injuries, weather, motivation).
+- Strong fact-based argument from even 1 tipster against your thesis → investigate before finalizing.
+- Record discovered angles (tactics, injuries, weather, motivation, referee, local knowledge).
 
 **STEP 5 — Odds + EV Analysis (one call per candidate):**
 - Get market-best odds from BetExplorer/OddsPortal.
