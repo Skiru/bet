@@ -38,3 +38,31 @@
 2026-04-23T07:15:36.815794 Updated picks ledger: /Users/mkoziol/projects/bet/betting/journal/picks-ledger.csv
 2026-04-23T07:15:36.816340 Updated coupons ledger: /Users/mkoziol/projects/bet/betting/journal/coupons-ledger.csv
 2026-04-23T07:15:36.816404 Settlement complete: 0 settled, 4 still pending
+2026-04-23T22:54:22.183397 Found 19 pending pick(s) to settle
+2026-04-23T22:54:22.183949 [Poll 1] Looking for result: Rayo Vallecano vs Espanyol
+2026-04-23T22:54:22.576176   Score not yet available for Rayo Vallecano vs Espanyol
+2026-04-23T22:54:22.576500 [Poll 1] Looking for result: R. Oviedo vs Villarreal
+2026-04-23T22:54:22.918551   Score not yet available for R. Oviedo vs Villarreal
+2026-04-23T22:54:22.918893 [Poll 1] Looking for result: Stuttgart vs Freiburg
+2026-04-23T22:54:23.150915   Score not yet available for Stuttgart vs Freiburg
+2026-04-23T22:54:23.151033 [Poll 1] Looking for result: Sonderjyske vs Midtjylland
+2026-04-23T22:54:23.440140   Score not yet available for Sonderjyske vs Midtjylland
+2026-04-23T22:54:23.440369 [Poll 1] Looking for result: Wieczysta Krakow vs Polonia Bytom
+2026-04-23T22:54:23.729270   Score not yet available for Wieczysta Krakow vs Polonia Bytom
+2026-04-23T22:54:23.729560 [Poll 1] Looking for result: Atlanta Hawks vs NY Knicks
+2026-04-23T22:54:24.042222   Score not yet available for Atlanta Hawks vs NY Knicks
+2026-04-23T22:54:24.042565 [Poll 1] Looking for result: Boston Bruins vs Buffalo Sabres
+2026-04-23T22:54:24.337160   Score not yet available for Boston Bruins vs Buffalo Sabres
+2026-04-23T22:54:24.337417 [Poll 1] Looking for result: Kyren Wilson vs Mark Allen
+2026-04-23T22:54:24.676058   Score not yet available for Kyren Wilson vs Mark Allen
+2026-04-23T22:54:24.676317 [Poll 1] Looking for result: Istanbul GSK vs Fenerbahce
+2026-04-23T22:54:25.113395   Score not yet available for Istanbul GSK vs Fenerbahce
+2026-04-23T22:54:25.113505 [Poll 1] Looking for result: Fuchse Berlin vs Gummersbach
+2026-04-23T22:54:25.439904   Score not yet available for Fuchse Berlin vs Gummersbach
+2026-04-23T22:54:25.440180 [Poll 1] Looking for result: Go Ahead Eagles vs AZ
+2026-04-23T22:54:25.750211   Score not yet available for Go Ahead Eagles vs AZ
+2026-04-23T22:54:25.750465 [Poll 1] Looking for result: Malmö vs Sirius
+2026-04-23T22:54:26.082911   Score not yet available for Malmö vs Sirius
+2026-04-23T22:54:26.085924 Updated picks ledger: /Users/mkoziol/projects/bet/betting/journal/picks-ledger.csv
+2026-04-23T22:54:26.086837 Updated coupons ledger: /Users/mkoziol/projects/bet/betting/journal/coupons-ledger.csv
+2026-04-23T22:54:26.086904 Settlement complete: 0 settled, 19 still pending

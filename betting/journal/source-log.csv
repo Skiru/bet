@@ -83,3 +83,22 @@ betting_day,source_name,role,sport_scope,availability,used_in_analysis,used_in_f
 2026-04-23,14:35,OLBG,tipster,partial,Generic content only no specific match tips extracted,general
 2026-04-23,14:25,BetExplorer-Eredivisie,match-urls,available,Found GAE-AZ and PSV-ZWO match IDs correctly; no Betclic odds listed,football
 2026-04-23,14:25,BetExplorer-Denmark,match-urls,available,Found NOR-AGF and SON-MID match IDs correctly; no Betclic odds listed,football
+2026-04-24,21:45,ZawodTyper,tipster,available,RICH: "Typy Dnia 24 kwietnia" — 6+ tipsters with detailed H2H stats (Basaksehir corners + BTTS + Millwall + Lens + Betis + Riestra + Shelton + Hawks),football|tennis|basketball
+2026-04-24,21:45,Meczyki,tipster,available,Fetched but no new Apr 24 tips found beyond Jagiellonia BTTS from earlier,football
+2026-04-24,21:45,Typersi,tipster,available,Fetched; match listings visible but no Apr 24 detailed tips,football
+2026-04-24,21:45,BetIdeas,tipster,available,Category structure (Corners/BTTS/Cards) but no specific match tips for Apr 24,football
+2026-04-24,21:45,OLBG,tipster,available,Fetched but no Apr 24 football tips extracted,football
+2026-04-24,21:45,PicksWise,tipster,blocked,Timeout on NBA + NHL pages; retry morning,basketball|hockey
+2026-04-24,21:50,BetExplorer,market,blocked,0KB returns for all football league pages and match-specific URLs,football
+2026-04-24,21:50,OddsPortal,market,blocked,39 bytes (redirect) for all sport/date pages; 0KB for match-specific URLs,all
+2026-04-24,21:50,Flashscore,fixture,partial,SPA-based; only Betis found in raw HTML; insufficient for odds extraction,football
+2026-04-24,21:45,SoccerStats,stats,available,Italy O2.5=46% France O2.5=51% Poland O2.5=52% Spain2 O2.5=50%,football
+2026-04-24,21:45,ESPN,market,available,NBA 8 playoff games + NHL 3 games with DraftKings odds (from earlier session),basketball|hockey
+2026-04-23,BetExplorer,Tier A market,basketball|hockey|baseball,available,yes,no,Night session: NBA Hawks-Knicks 1.95/1.81; NHL Bruins-Sabres 2.38/3.89/2.45; MLB listings found
+2026-04-23,Sofascore,Tier A results,football,available,yes,no,Night session: FT scores confirmed (Rayo 1-1 Espanyol; Stuttgart 1-1 in ET; Oviedo 0-1 in play)
+2026-04-23,Flashscore,Tier A results,football,available,yes,no,Night session: FT scores confirmed (Sonderjyske 1-2; Wieczysta 4-3; Malmo 2-3)
+2026-04-23,ESPN,Tier A market,basketball|hockey|baseball,blocked,no,no,Night session: Cookie consent overlay blocked content extraction
+2026-04-23,hockey-reference.com,Tier A stats,hockey,available,yes,yes,Night v2: COL GF298/GA197 LAK GF220/GA238 OTT GF275/GA245 CAR GF291/GA236
+2026-04-23,scoresandodds.com,Tier A market,hockey|baseball,available,yes,yes,Night v2: NHL O/U records and totals lines. MLB Red Sox-Yankees U7.5 line.
+2026-04-23,oddsportal.com,Tier A market,hockey,available,yes,yes,Night v2: NHL 1X2 odds BOS 2.40 OTT 2.30 LAK 3.05. Totals tab JS-heavy.
+2026-04-23,pickswise.com,Tier B tipster,hockey,available,yes,yes,Night v2: COL-LAK OVER 5.5 (contradicts under thesis). OTT-CAR UNDER 5.5 (supports).

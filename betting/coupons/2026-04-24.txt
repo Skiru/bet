@@ -1,0 +1,255 @@
+BETTING DAY: 2026-04-24
+RUN TIME LOCAL: 2026-04-23 22:00 (pre-analysis evening session)
+UPDATED: 2026-04-23 22:00 (v1 — FULL MULTI-SPORT ANALYSIS WITH ZT TIPSTER BACKING)
+BOOKMAKER: Betclic
+BANKROLL CAP PLN: 29.00
+TOTAL SUGGESTED EXPOSURE PLN: 20.50
+RECOMMENDED PLACEMENT PLN: 5.00-7.50 (user picks 3-4 coupons)
+UNUSED BANKROLL PLN: TBD (pending Apr 23 settlement)
+
+NOTE: Version 1. Evening pre-analysis. 10 coupons across 5 sports.
+      All picks CONDITIONAL — user verifies odds on Betclic app.
+      Key sources: ZawodTyper "Typy Dnia 24 kwietnia" (6+ tipsters with detailed arguments),
+      Meczyki tipster, BetExplorer ATP/WTA Madrid odds (scraped earlier), ESPN NBA/NHL.
+      BetExplorer/OddsPortal BLOCKED for football match pages tonight — odds from ZT tipster refs.
+      Morning tasks: re-scrape market odds, check TotalCorner, verify injuries.
+
+======================================================================
+PICK ROSTER — 9 PICKS, 8 EVENTS, 5 SPORTS
+======================================================================
+
+--- FOOTBALL: CORNERS ---
+
+[PK-101] Istanbul Basaksehir vs Kasimpasa | corners | Under 10.5 corners | @1.50 est | CONDITIONAL >= 1.45
+  ZawodTyper tipster: "9 z ostatnich 10 meczów Kasimpasy U10.5 CK"
+  H2H: 4/5 last direct matches also under. Only "over" was due to red card (15 CK).
+  Kasimpasa: "jedna z najbardziej underowych drużyn" (most under-oriented team in Super Lig).
+  EV: P(U10.5)~85% x 1.50 - 1 = +0.275. BEST EV PICK OF THE DAY. Conf: 5/5
+  ★ SOURCE: ZawodTyper tipster with specific H2H corner data
+
+--- FOOTBALL: COMBINED MARKETS ---
+
+[PK-103] Istanbul Basaksehir vs Kasimpasa | combo | 1X + BTTS or O2.5 | @1.65 est | CONDITIONAL >= 1.55
+  ZawodTyper tipster (different from PK-101): H2H stats are OVERWHELMING:
+    - 9/9 last H2H matches: O2.5 goals
+    - 4/4 last H2H matches: BTTS
+    - 8W 1D for Basaksehir in 9 last meetings (never lost)
+    - "100%" community approval on ZawodTyper
+  Combined market: Basaksehir win or draw + both teams score or O2.5
+  EV: P(combo)~75% x 1.65 - 1 = +0.238. Conf: 4/5
+  ⚠️ SAME MATCH as PK-101. Cannot be in same coupon.
+
+--- FOOTBALL: MATCH WINNER ---
+
+[PK-102] Leicester City vs Millwall | match_winner | Millwall ML | @1.83 est | CONDITIONAL >= 1.75
+  ZawodTyper tipster (detailed statistical argument):
+    - "Millwall nie przegrało 8 meczów wyjazdowych z rzędu" (8 unbeaten away)
+    - "z 6 z nich wychodziło jako zwycięzca" (won 6 of 8 away)
+    - "Ostatnie 15 meczów Millwall to 9 wygranych"
+    - "Ostatnie 15 meczów Leicester to 7 porażek i tylko jedna wygrana"
+    - Leicester "pewny spadku do League One" (confirmed relegated)
+    - Millwall fighting for direct promotion to Premier League
+  Context: PERFECT asymmetry — relegated vs promotion-chasing
+  EV: P(Millwall)~62% x 1.83 - 1 = +0.135. Conf: 4/5
+  ★ TIPSTER BOOST: Form + table + context all align
+
+[PK-105] Stade Brestois vs RC Lens | match_winner | Lens ML | @1.69 est | CONDITIONAL >= 1.60
+  ZawodTyper tipster: Lens 2nd in Ligue 1, 4pts behind PSG. Title race alive.
+    - "motywacja ogromna" (huge motivation)
+    - Brest 12th, safe from relegation, nothing to play for
+    - Brest last 5: 1W 1D 3L (poor home form)
+  EV: P(Lens)~60% x 1.69 - 1 = +0.014. Borderline but tipster-backed. Conf: 3/5
+
+--- FOOTBALL: GOALS MARKETS ---
+
+[PK-106] Real Betis vs Real Madrid | btts | BTTS Yes | @1.54 est | CONDITIONAL >= 1.50
+  ZawodTyper tipster: H2H January result 5:1. Both teams attack-minded.
+    - Betis has mathematical LM chance → motivated
+    - "marka Real Madryt zobowiązuje" (Real Madrid brand demands performance)
+    - 63% community agreement
+  EV: P(BTTS)~65% x 1.54 - 1 = +0.001. MARGINAL — coupon leg only. Conf: 3/5
+
+[PK-114] RB Leipzig vs Union Berlin | totals | Over 2.5 goals | @1.40 est | CONDITIONAL >= 1.35
+  ZawodTyper: Leipzig home avg 2.33 GF, Union avg 2.86 G/match total.
+    - "9/10 domowych meczów: +1.5 gola" (Leipzig 9/10 home games O1.5)
+    - Leipzig 4-win streak. Union losing after manager change.
+  EV: P(O2.5)~72% x 1.40 - 1 = +0.008. Very short, coupon leg only. Conf: 3/5
+
+[PK-104] Deportivo Riestra vs Independiente | totals | Under 2.5 goals | @1.40 est | CONDITIONAL >= 1.30
+  ZawodTyper tipster: EXTRAORDINARY statistical backing:
+    - "22 mecze z rzędu poniżej 2,5 bramki!" (22 CONSECUTIVE U2.5 games for Riestra!)
+    - "3 bramki w 14 meczach = 0.21 gola/mecz" (Riestra: 3GF in 14 games = 0.21 GF/match)
+    - "0 zwycięstw w sezonie" (0W-7D-7L in current season)
+    - Riestra: "prawdziwy piłkarski żółw" (true football turtle)
+    - Independiente form: 3W-1D in last 4 (decent but not high-scoring)
+  Kickoff: ~01:00 CEST Apr 25 (within betting window 06:00 Apr 24 - 05:59 Apr 25)
+  EV: P(U2.5)~88% x 1.40 - 1 = +0.232. Conf: 4/5 (adjusted from 5 due to streak >5 warning)
+  ⚠️ Streak dependency flag: 22 games. But structural (team can't score), not momentum.
+
+--- TENNIS ---
+
+[PK-111] Ben Shelton vs Dino Prizmic | match_winner | Shelton ML | @1.52 est | CONDITIONAL >= 1.45
+  ZawodTyper detailed analysis:
+    - Shelton #6 ATP, just won Munich ATP 500 (clay). Peak form.
+    - "Europejską część sezonu na kortach ziemnych rozpoczął wygrywając turniej ATP 500 w Monachium"
+    - Prizmic #87, through qualifiers (possible fatigue: beat O'Connell 7:6 6:7 7:6 + Piros + Berrettini)
+    - Madrid conditions similar to Munich (altitude, fast clay) → suits Shelton's power game
+    - Shoulder/cold issues resolved per Munich triumph
+  EV: P(Shelton)~70% x 1.52 - 1 = +0.064. Conf: 3/5
+
+--- BASKETBALL ---
+
+[PK-113] Atlanta Hawks vs NY Knicks | point_totals | Over 202.5 pts | @1.52 est | CONDITIONAL >= 1.45
+  ZawodTyper tipster: NBA Playoffs G3, series 1-1. Atlanta home.
+    - Previous games: 215 and 212 points total
+    - "jeszcze szybsze tempo" (even faster pace at Atlanta home)
+    - "Średnia punktów w bezpośrednich powyżej 213.5" (H2H avg over 213.5)
+    - O202.5 is ~10 pts below H2H average = conservative line
+  Kickoff: ~02:00 CEST Apr 25 (within window)
+  EV: P(O202.5)~70% x 1.52 - 1 = +0.064. Conf: 3/5
+
+======================================================================
+10 COUPONS — ALL CONDITIONAL ON BETCLIC ODDS VERIFICATION
+======================================================================
+
+--- PEWNIAKI SYSTEM (Top 3 picks: PK-101, PK-102, PK-104) ---
+
+COUPON: CP-24-P1 (Pewniaki Double — Corners + Millwall)
+Legs:
+  [PK-101] Basaksehir-Kasimpasa | U10.5 corners | @1.50 est | EV +27.5%
+  [PK-102] Leicester-Millwall | Millwall ML | @1.83 est | EV +13.5%
+Combined odds: 2.75
+Stake: 3.00 PLN
+Risk: LOW — Two highest-EV independent picks. Turkey + England = zero correlation.
+Accept if: PK-101 >= 1.45, PK-102 >= 1.75
+
+COUPON: CP-24-P2 (Pewniaki Double — Corners + Argentina U2.5)
+Legs:
+  [PK-101] Basaksehir-Kasimpasa | U10.5 corners | @1.50 est | EV +27.5%
+  [PK-104] Riestra-Independiente | U2.5 goals | @1.40 est | EV +23.2%
+Combined odds: 2.10
+Stake: 2.50 PLN
+Risk: LOW — Both statistical extremes. Different continents.
+Accept if: PK-101 >= 1.45, PK-104 >= 1.30
+
+COUPON: CP-24-P3 (Pewniaki Double — Millwall + Argentina U2.5)
+Legs:
+  [PK-102] Leicester-Millwall | Millwall ML | @1.83 est | EV +13.5%
+  [PK-104] Riestra-Independiente | U2.5 goals | @1.40 est | EV +23.2%
+Combined odds: 2.56
+Stake: 2.50 PLN
+Risk: LOW — Form + structural edge combined. England + Argentina.
+Accept if: PK-102 >= 1.75, PK-104 >= 1.30
+
+COUPON: CP-24-P4 (Pewniaki Triple — All Top 3)
+Legs:
+  [PK-101] Basaksehir-Kasimpasa | U10.5 corners | @1.50 est
+  [PK-102] Leicester-Millwall | Millwall ML | @1.83 est
+  [PK-104] Riestra-Independiente | U2.5 goals | @1.40 est
+Combined odds: 3.84
+Stake: 2.00 PLN
+Risk: LOW — 3-leg pewniaki triple. All 3 sports/countries independent. Top EV trio.
+Accept if: All legs meet minimums above.
+
+--- ALTERNATE PEWNIAKI (using combo market instead of corners) ---
+
+COUPON: CP-24-P5 (Alternate Double — Combo + Millwall)
+Legs:
+  [PK-103] Basaksehir-Kasimpasa | 1X + BTTS/O2.5 | @1.65 est | EV +23.8%
+  [PK-102] Leicester-Millwall | Millwall ML | @1.83 est | EV +13.5%
+Combined odds: 3.02
+Stake: 2.00 PLN
+Risk: LOW — H2H-dominated combo (9/9 O2.5) + promotion-relegation context.
+Accept if: PK-103 >= 1.55, PK-102 >= 1.75
+
+COUPON: CP-24-P6 (Alternate Double — Combo + Argentina U2.5)
+Legs:
+  [PK-103] Basaksehir-Kasimpasa | 1X + BTTS/O2.5 | @1.65 est | EV +23.8%
+  [PK-104] Riestra-Independiente | U2.5 goals | @1.40 est | EV +23.2%
+Combined odds: 2.31
+Stake: 2.00 PLN
+Risk: LOW — Both picks backed by extreme H2H/streak statistics.
+Accept if: PK-103 >= 1.55, PK-104 >= 1.30
+
+--- THEMED COUPONS ---
+
+COUPON: CP-24-C7 (Tennis + Ligue 1)
+Legs:
+  [PK-111] Shelton ML vs Prizmic | @1.52 est | EV +6.4%
+  [PK-105] Brest-Lens | Lens ML | @1.69 est | EV +1.4%
+Combined odds: 2.57
+Stake: 2.00 PLN
+Risk: MEDIUM — Both picks are favorites with form/context backing. Multi-sport.
+Accept if: PK-111 >= 1.45, PK-105 >= 1.60
+
+COUPON: CP-24-C8 (LaLiga + Bundesliga Goals)
+Legs:
+  [PK-106] Betis-Real Madrid | BTTS Yes | @1.54 est | EV ~0%
+  [PK-114] Leipzig-Union | O2.5 goals | @1.40 est | EV +0.8%
+Combined odds: 2.16
+Stake: 1.50 PLN
+Risk: MEDIUM — Weakest coupon. Both legs marginal EV. Backed by ZT tipsters + H2H data.
+Accept if: PK-106 >= 1.50, PK-114 >= 1.35
+⚠️ WEAKEST COUPON — consider dropping if budget tight.
+
+COUPON: CP-24-C9 (Triple ML — England + France + Tennis)
+Legs:
+  [PK-102] Leicester-Millwall | Millwall ML | @1.83 est
+  [PK-105] Brest-Lens | Lens ML | @1.69 est
+  [PK-111] Shelton ML vs Prizmic | @1.52 est
+Combined odds: 4.70
+Stake: 1.50 PLN
+Risk: HIGHER — 3 ML picks = higher variance. But all backed by strong form/context.
+  Millwall: 8 unbeaten away, promotion push. Lens: title chase. Shelton: won Munich.
+Accept if: All legs meet minimums.
+⚠️ 2 football legs (max allowed). Different leagues, no correlation.
+
+COUPON: CP-24-C10 (Night Owl — Argentina + NBA)
+Legs:
+  [PK-104] Riestra-Independiente | U2.5 goals | @1.40 est
+  [PK-113] Hawks-Knicks | O202.5 pts | @1.52 est
+Combined odds: 2.13
+Stake: 1.50 PLN
+Risk: MEDIUM — Both late-night games (01:00-02:00 CEST). Multi-sport. Statistical backing.
+Accept if: PK-104 >= 1.30, PK-113 >= 1.45
+
+======================================================================
+EXPOSURE SUMMARY
+======================================================================
+Suggested coupons: 10
+Total suggested stake: 20.50 PLN
+Daily budget: 5.00-7.50 PLN
+Bankroll: 29.00 PLN (pending Apr 23 settlement)
+
+RECOMMENDED PLACEMENT PRIORITY (within 7.50 PLN budget):
+  1st: CP-24-P1 (3.00 PLN) — Best EV pair, highest confidence
+  2nd: CP-24-P4 (2.00 PLN) — Triple covering all top picks
+  3rd: CP-24-C7 (2.00 PLN) — Multi-sport, different time slots
+  = 7.00 PLN total
+
+ALTERNATIVE COMBINATION (more conservative):
+  1st: CP-24-P2 (2.50 PLN) — Two statistical extremes
+  2nd: CP-24-P3 (2.50 PLN) — Coverage without overlap with P2
+  3rd: CP-24-C10 (1.50 PLN) — Night session coverage
+  = 6.50 PLN total
+
+======================================================================
+WATCHLIST
+======================================================================
+W1. Zagłębie Lubin ML vs Bruk-Bet @1.90 — Promote if Lubin shows improved form in warmup. ZT 2+ tipsters back but 1W-4L form is RED FLAG.
+W2. Lehecka ML vs Tabilo @1.63 (BetExplorer) — Promote if Betclic >= 1.70 AND clay form confirmed.
+W3. Machac ML vs Norrie @1.67 (BetExplorer) — Promote if Betclic >= 1.72.
+W4. Sakkari ML vs Pliskova @1.65 (BetExplorer) — Promote if Betclic >= 1.70.
+
+======================================================================
+MORNING CHECKLIST
+======================================================================
+- [ ] Settle Apr 23 picks/coupons (all football, NBA, NHL, snooker results)
+- [ ] Update bankroll after settlement
+- [ ] Re-scrape BetExplorer/OddsPortal for market-best football odds
+- [ ] Fetch TotalCorner for Basaksehir-Kasimpasa corner data
+- [ ] Verify Turkish Super Lig BTTS% on SoccerStats
+- [ ] Check injury news for all candidates
+- [ ] Verify all odds on Betclic app
+- [ ] Final decision: place 3-4 coupons within budget
+- [ ] Record odds_checked_at for final placed coupons

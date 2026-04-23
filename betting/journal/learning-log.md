@@ -118,6 +118,21 @@ No entries yet.
 - Rule changes for future runs:
   1. Statistical markets (corners, U2.5 defensive, BTTS, volleyball totals) are confirmed PRIMARY picks. Non-statistical picks (DC, ML) are supplementary only.
   2. The loss pattern is clear: form-based DC/ML picks without statistical backing are the weak link. Downgrade non-statistical picks to HR-only.
+
+## 2026-04-23 (night session — REVISED v2)
+- Settlement summary: no new settlements. Corners/cards picks require manual stats from Flashscore match detail pages.
+- What worked: REVISED — full sport-by-sport scan found 2 additional NHL candidates (Kings-Avalanche U5.5, Senators-Hurricanes U5.5). Hockey-reference GF/GA data enabled proper EV calculation. PicksWise provided tipster validation (supported Senators U5.5, contradicted Kings U5.5).
+- What failed:
+  1. CRITICAL ERROR: Original analysis only scanned 2 events (Hawks-Knicks, Bruins-Sabres) and declared NO BET. Missed 2 actionable NHL games + full MLB slate.
+  2. BetExplorer data-dt field confusion: initially counted 28+ football matches as upcoming, but most were from previous days (data-dt showed April 22, not 23/24). Proper data-dt filtering is essential.
+  3. ESPN scraping blocked by cookie consent overlay.
+- Rule changes for future runs:
+  1. MANDATORY: Night sessions must run FULL sport-by-sport scan — same rigor as day sessions. NEVER limit to just 1-2 games.
+  2. When parsing BetExplorer HTML, always filter by data-dt to distinguish upcoming from finished matches.
+  3. NBA Playoffs: apply playoff adjustment factor (-10 to -15 pts from season average) for totals.
+  4. When tipster (PicksWise) contradicts stats thesis, reduce confidence by 1 point but don't auto-reject if Tier A stats are strong.
+  5. Accept cookie consent overlays on ESPN by clicking accept button in Playwright.
+- Source notes: hockey-reference.com is excellent for NHL GF/GA (Tier A). ScoresAndOdds provides team O/U records. OddsPortal reliable for NHL 1X2 odds.
   3. For overnight/MLS sessions: use BetExplorer standings as primary source. MLS table gaps (top-5 vs bottom-5) provide actionable edge.
   4. DC United (4GF in 8 = 0.5/game) and Orlando City (25GA in 8 = 3.125/game) are extreme statistical outliers — usable for Under and opponent ML plays.
   5. Betclic correct URLs: football = football-sfootball/usa-mls-c504, NBA = basketball-sbasketball/nba-c13.
@@ -298,3 +313,8 @@ No entries yet.
   2. **If Betclic line differs from analyzed line by more than 2 goals/sets/frames/points, it's a DIFFERENT PICK.** Re-analyze from scratch. Fuchse O63.5 ≠ O53.5. Bruins team O5.5 ≠ match O5.5.
   3. **Bankroll tracking must be real-time.** 45.27 → 30.00 → 29.00 was tracked too slowly. Config must reflect actual balance after each placement.
 - Source notes: Screenshots from Betclic app are the ONLY reliable odds source. All estimates are CONDITIONAL.
+
+## 2026-04-23 (night session — superseded by REVISED v2 above)
+- Original NO BET call was wrong — failed to scan all sports. See revised v2 entry above.
+- Retained lessons: SBR (sportsbettingresearch.com) domain is DEAD. Use sportsbookreview.com. Track cumulative daily exposure in real-time.
+- Source notes: SBR scan returned GoDaddy parking page. ESPN and ScoresAndOdds remain viable for US sports odds.
