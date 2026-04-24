@@ -293,289 +293,699 @@ Target: 15-40 events across multiple sports. If fewer than 15, widen the search.
 
 For EACH shortlisted event, gather sport-specific statistical data. This is the CORE of the analysis — do NOT rush it.
 
-### 3.1 Football Statistical Protocol
-For every football candidate:
+### 3.1 Football Statistical Protocol — EXHAUSTIVE CHECKLIST
+For every football candidate, collect ALL of the following. Missing any category = INCOMPLETE analysis.
 
-**A. League-Level Context (SoccerStats)**
+**A. League-Level Context (SoccerStats / FootyStats)**
 - League average goals per match
 - League O2.5%, BTTS%, corner averages
 - League home/away splits
-- Team rankings within league: goals for/against, corners for/against, cards
+- Team rankings within league: goals for/against, corners for/against, cards, fouls
 
 **B. Match-Level Data (BetExplorer + Flashscore)**
 - BetExplorer match odds history and implied probability
-- H2H history (last 5-10 meetings): goals, corners, cards patterns
+- H2H history (last 5-10 meetings): goals, corners, cards, fouls patterns. Include HOME/AWAY splits.
 - Recent form: last 5-6 matches for each team
 
-**C. Corner Analysis (THREE-SOURCE STACK — mandatory for corner picks)**
+**C. FULL STATISTICAL PROFILE — EVERY TEAM (FootyStats / Flashscore / Sofascore)**
+Collect ALL of these per-team stats. Split by Overall / Home / Away:
+
+| Stat Category | Metrics to Collect | Source |
+|--------------|-------------------|--------|
+| **FOULS** | Fouls committed/match, Fouls drawn/match, Total match fouls avg | FootyStats |
+| **CARDS** | Team cards/match, Opponent cards/match, Total match cards avg, O3.5/O4.5 cards hit rate | FootyStats |
+| **CORNERS** | Team corners earned/match, Corners conceded/match, Total match corners avg, O9.5/O10.5 hit rate | TotalCorner + SoccerStats |
+| **SHOTS** | Shots/match, Shots on target/match, Conversion rate %, O/U team shots hit rates | FootyStats |
+| **FREE KICKS** | Team FK/match, Total FK/match, O19.5/O20.5 total FK hit rate | FootyStats |
+| **GOALS** | Scored/match, Conceded/match, O2.5 %, BTTS %, Clean sheets % | FootyStats |
+| **xG** | xG for/match, xG against/match, xG vs actual goals delta | Flashscore/Sofascore |
+| **POSSESSION** | Possession %, Throw-ins/match | FootyStats |
+
+**D. MARKET RANKING — DECIDE THE BEST BET (MANDATORY)**
+After collecting all stats, RANK available markets by SAFETY and VALUE:
+1. Calculate **hit rate** for each O/U line (e.g., Leipzig O16.5 shots hits 87% at home)
+2. Calculate **combined hit rate** when both teams' data is merged (e.g., Leipzig home + Union away)
+3. **Priority:** highest hit rate × best odds = best market. NOT the sexiest market.
+4. **Football market hierarchy** (most inefficient → most efficient):
+   - Fouls O/U → Cards O/U → Corners O/U → Shots O/U → Team totals → BTTS → U2.5 → O2.5 → DC/DNB → 1X2
+5. Present TOP 3 markets per match with hit rates before choosing.
+
+**E. Corner Analysis (THREE-SOURCE STACK — mandatory for corner picks)**
 1. **TotalCorner**: match-level corner total predictions, handicaps
 2. **SoccerStats**: league corner rankings (team corner averages home/away)
 3. **Betclic Statystyki** (top leagues only: EPL, LaLiga, Bundesliga): verified corner odds from HTML snapshots
 
 If any of the three sources is missing, mark corner pick as LOWER CONFIDENCE.
 
-**D. Defensive Profile Analysis (for U2.5/BTTS picks)**
-- Team GF+GA per match: if <2.0 -> U2.5 candidate
-- League O2.5%: if <50% -> U2.5 favorable league context
-- Clean sheet percentages for both teams
-- Competition context: cup semi/final -> typically tactical (U2.5 lean)
+**F. Fouls & Cards Analysis (MANDATORY for ALL football picks)**
+- **Fouls:** Team A fouls committed/match + Team B fouls committed/match = expected total fouls
+- If both teams foul >11/match → O22.5 total fouls candidate
+- If one team fouls >12/match and opponent draws >10 fouls → high-foul match
+- **Cards:** Team cards avg + opponent cards avg = expected total cards
+- Referee card tendency (if available): avg cards/match for this referee
+- Union Berlin 2.3 cards/match + Leipzig 1.47 = ~3.77 → O3.5 cards candidate
+- **Cross-reference:** high fouls + aggressive referee = cards value
 
-**E. xG Analysis (where available)**
+**G. Defensive Profile Analysis (for U2.5/BTTS picks)**
+- Team GF+GA per match: if <2.0 → U2.5 candidate
+- League O2.5%: if <50% → U2.5 favorable league context
+- Clean sheet percentages for both teams
+- Competition context: cup semi/final → typically tactical (U2.5 lean)
+
+**H. xG Analysis (where available)**
 - If Flashscore/Sofascore provide xG data, compare xG to actual goals
-- xG > Goals -> team underperforming, likely to improve (regression UP)
-- Goals > xG -> team overperforming, regression DOWN coming
+- xG > Goals → team underperforming, likely to improve (regression UP)
+- Goals > xG → team overperforming, regression DOWN coming
 - Use xG as truth, not recent results
 
-### 3.2 Tennis Statistical Protocol
-For every tennis candidate:
+**I. Context Factors (MANDATORY)**
+- Coach change: when? New coach bounce (first 5 matches) or settled?
+- Injuries/suspensions: check ESPN, Flashscore, team social media
+- Fixture congestion: <72h since last match?
+- Motivation: relegation, title race, dead rubber, cup final?
+- Weather: rain/wind impact on corners, shots, goals
+- Referee: specific referee stats for cards/fouls if available
 
-**A. Player Comparison**
-- Current ranking and recent ranking trajectory
-- Surface-specific win rate (clay/hard/grass)
-- H2H record on current surface
+### 3.2 Tennis Statistical Protocol — EXHAUSTIVE CHECKLIST
+For every tennis candidate, collect ALL of the following. Missing any category = INCOMPLETE analysis.
+
+**A. Player Comparison (Flashscore + ATP/WTA)**
+- Current ranking and recent ranking trajectory (rising/falling)
+- Surface-specific win rate (clay/hard/grass/indoor hard) — OVERALL + THIS SEASON
+- H2H record on current surface (last 5-10 meetings)
 - Recent form: last 5-10 matches, noting retirements and walkovers
-- **Tournament round context (MANDATORY):** For R2+, check the player's result from the previous round in this same tournament — score, number of games, sets, physical condition, match duration. A 3h R1 match impacts R2 stamina. A dominant 6-1 6-2 R1 signals peak form. Always check Flashscore/ATP site for in-tournament results before analyzing.
+- **Tournament round context (MANDATORY):** For R2+, check the player's result from the previous round in this same tournament — score, number of games, sets, physical condition, match duration. A 3h R1 match impacts R2 stamina. A dominant 6-1 6-2 R1 signals peak form.
 
-**B. Match Dynamics (TennisAbstract)**
-- Elo rating and surface Elo
-- Serve hold % and return break %
-- Average games per set
-- Tiebreak frequency
+**B. FULL STATISTICAL PROFILE — EVERY PLAYER (TennisAbstract + Flashscore + Sofascore)**
+Collect ALL of these per-player stats:
 
-**C. Over-Games Assessment**
-- Match odds ratio: `max(odds) / min(odds)`. Must be <=1.50 for O-games picks.
-  - <=1.15: STRONG (55-65% 3-set probability)
-  - 1.16-1.30: GOOD (48-55%)
-  - 1.31-1.50: BORDERLINE (42-48%) — coupon legs only
-  - >1.50: REJECT
-- Standard line O20.5 in best-of-3. A 3-set match with 6-4/4-6/6-4 = 24 games (covers). A 2-set 6-3/6-4 = 19 (does not cover).
-- Surface effect: clay breaks are easier -> more break opportunities -> longer matches
+| Stat Category | Metrics to Collect | Source |
+|--------------|-------------------|--------|
+| **ELO** | Overall Elo, Surface-specific Elo, Elo trajectory (rising/falling) | TennisAbstract |
+| **SERVE** | 1st serve %, 1st serve points won %, 2nd serve points won %, Aces/match, Double faults/match, Service games held % | TennisAbstract + Flashscore |
+| **RETURN** | Return points won %, Break points converted %, Return games won % | TennisAbstract + Flashscore |
+| **GAMES** | Avg games per set, Avg total games per match, O/U 20.5/21.5/22.5 games hit rate | Flashscore match history |
+| **SETS** | 3-set match %, Tiebreak frequency %, Sets won from behind % | Flashscore match history |
+| **BREAK POINTS** | BP created/match, BP saved %, BP conversion rate | TennisAbstract |
+| **PHYSICAL** | Avg match duration, 5-setter record (Slams), Retirements in last 20 matches | Flashscore + ATP/WTA |
+| **SURFACE FORM** | Win % on this surface THIS YEAR, vs Top 20/50/100 on this surface | TennisAbstract |
 
-### 3.3 Basketball Statistical Protocol
-- Pace (possessions per game) for both teams
-- Offensive/defensive rating
-- Recent total points in last 5-10 games
-- Injury report for key players
-- Home/away splits for totals
-- Playoff context: series dynamics, game number
+**C. MARKET RANKING — DECIDE THE BEST BET (MANDATORY)**
+After collecting all stats, RANK available markets:
+1. Calculate **odds ratio**: `max(odds) / min(odds)`
+   - <=1.15: STRONG for O-games (55-65% 3-set probability)
+   - 1.16-1.30: GOOD for O-games (48-55%)
+   - 1.31-1.50: BORDERLINE — coupon leg only
+   - >1.50: REJECT O-games
+2. For ML bets: check serve/return stats gap. Both hold >80%? → likely tiebreaks → O-games better than ML.
+3. Surface effect: clay breaks easier → longer matches. Hard court → serve-dominant → tiebreaks.
+4. **Tennis market hierarchy** (most inefficient → most efficient):
+   - Total games O/U → Set handicap → Set totals → ML (1.50-2.50 range only) → Correct score
+5. Present TOP 2 markets per match with statistical backing before choosing.
 
-### 3.4 Hockey Statistical Protocol
-- Expected goals (xGF, xGA) from NaturalStatTrick/MoneyPuck
-- Save percentage and goalie form
-- Power play / penalty kill %
-- Recent total goals in last 5-10 games
-- Back-to-back schedule fatigue
+**D. Over-Games Assessment (MANDATORY for O/U games picks)**
+- Standard line O20.5 in best-of-3. A 3-set match 6-4/4-6/6-4 = 24 games (covers). A 2-set 6-3/6-4 = 19 (doesn't).
+- Both players hold serve >75%? → tiebreaks likely → pushes total games UP.
+- Both players break >25%? → shorter sets, but more likely 3 sets → could go either way.
+- Clay: breaks are easier → more break opportunities → longer sets → more games on average.
 
-### 3.5 Volleyball Statistical Protocol
-For every volleyball candidate:
+**E. Context Factors (MANDATORY)**
+- Injury/withdrawal risk: check ATP/WTA withdrawal list, recent retirements
+- Fitness: back-to-back tournament weeks? Travel fatigue?
+- Motivation: defending points? First-time at this level? Ranking implications?
+- Weather: heat (affects stamina), wind (affects serve-dominant players more)
+- Court speed: slow clay vs fast hard → completely different match dynamics
 
-**A. Set Dynamics**
-- Team set win percentages home/away
-- Average sets per match (O/U 3.5 = frequent 3-2 finishes?)
-- Tiebreak frequency (5th set frequency indicates competitive matchups)
+**Sources**: TennisAbstract (Elo, serve/return stats), Flashscore (form, H2H, live scores, match history), Sofascore (detailed match stats), ATP/WTA official sites (draws, Order of Play), BetExplorer/OddsPortal (odds)
 
-**B. Point Totals**
-- Average total points per match (typical range 150-190)
-- Team scoring averages per set
-- Home/away splits for points
-- O/U lines from BetExplorer volleyball section
+### 3.3 Basketball Statistical Protocol — EXHAUSTIVE CHECKLIST
+For every basketball candidate, collect ALL of the following. Missing any category = INCOMPLETE analysis.
 
-**C. Statistical Markets (priority order)**
-1. Total sets O/U 3.5 — most valuable when teams are evenly matched (ML odds 1.50-2.50)
-2. Total points O/U — less efficient market, good for mismatch exploitation
-3. Set handicap -1.5 — when favorite is strong but ML is too short
-4. Individual set score O/U 44.5 pts — very niche, very inefficient
+**A. Team Tempo & Efficiency (ESPN + Basketball-Reference + NBA.com)**
 
-**Sources**: Flashscore volleyball, BetExplorer volleyball, OddsPortal volleyball
+| Stat Category | Metrics to Collect | Source |
+|--------------|-------------------|--------|
+| **PACE** | Possessions/game (both teams), League rank in pace, Pace in last 10 games | ESPN/NBA.com |
+| **OFFENSE** | Offensive rating (pts/100 poss), FG%, 3PT%, Free throw rate, Turnovers/game | Basketball-Reference |
+| **DEFENSE** | Defensive rating, Opponent FG%, Opponent 3PT%, Steals/game, Blocks/game | Basketball-Reference |
+| **TOTALS** | Team total pts/game, Opponent pts/game, Combined avg, O/U line hit rates (O/U 210.5, 215.5, 220.5, etc.) | ESPN + Flashscore |
+| **REBOUNDS** | Off rebounds/game, Def rebounds/game, Total rebounds (2nd chance pts indicator) | Basketball-Reference |
+| **ASSISTS** | Assists/game, Assist/TO ratio (ball movement indicator) | Basketball-Reference |
+| **FREE THROWS** | FTA/game, FT%, Opponent FTA/game (foul-drawing teams = more FTs = higher totals) | Basketball-Reference |
+| **HOME/AWAY** | Pts scored home vs away, Pts allowed home vs away, ATS record home/away | ESPN |
 
-### 3.6 Esports Statistical Protocol (CS2/LoL/Dota2/Valorant)
-For every esports candidate:
+**B. Player Impact Analysis**
+- Top scorer availability (injury report from ESPN/NBA.com — check DAY OF)
+- Star player ON/OFF splits: what's the team's rating with vs without their star?
+- Minutes load: back-to-back? 40+ minutes in previous game?
+- Rest days advantage (3+ days rest vs B2B = huge factor in NBA)
 
-**A. Map Analysis (CS2/Valorant)**
-- Map pool overlap between teams
-- Win rates per map for each team
-- Average rounds per map (O/U 26.5 standard)
-- Pistol round win rates (early-round advantage indicator)
+**C. H2H and Recent Form (MANDATORY)**
+- Last 5 H2H meetings: total points per game, margin, pace
+- Last 10 games form: W-L, average total points, average margin
+- Trends: O/U record in last 10, ATS record in last 10
 
-**B. Match Format**
-- BO1 vs BO3 vs BO5 — upsets more likely in BO1
-- Map veto tendencies
-- Home/away advantage (LAN vs online)
+**D. MARKET RANKING — DECIDE THE BEST BET (MANDATORY)**
+1. Fast pace teams (top 10 league) meeting → O-totals candidate. Both top 10 → STRONG.
+2. Check combined pace: if both >100 possessions → high-scoring game likely.
+3. Check defensive rating: if both bottom 10 defense → inflated totals.
+4. **Basketball market hierarchy** (most inefficient → most efficient):
+   - Team totals O/U → Quarter totals → Game totals O/U → Spreads → ML
+5. Playoff vs regular season: playoff games average 3-5 fewer points (slower pace, more defense).
 
-**C. Statistical Markets (priority order)**
-1. Map totals O/U 2.5 (BO3) — main market. Evenly matched teams → O2.5 maps
-2. Map handicap -1.5 — when favorite should dominate but ML too short
-3. Total rounds O/U per map — niche, very inefficient
-4. ML — only when odds ratio supports it AND form data is strong
+**E. Context Factors (MANDATORY)**
+- Playoff implications: seeding, elimination, rest starters?
+- Back-to-back: B2B teams score 2-4 fewer pts on average
+- Travel: coast-to-coast travel (EST→PST or reverse) = fatigue
+- Altitude: Denver home games → visitors tire faster in 4th quarter
+- Rivalry factor: intense rivals → lower totals (more physical play)
 
-**D. LoL/Dota2 Specific**
-- Game duration averages (fast meta vs late-game scaling)
-- Tower/dragon/baron objective stats
-- Kill totals O/U
+**Sources**: ESPN NBA (odds, injury reports, standings), Basketball-Reference (advanced stats), NBA.com (official stats, pace), SBR (odds comparison, US), Flashscore (form, H2H), BetExplorer (odds)
 
-**Sources**: GosuGamers, HLTV stats (NOT tips), Liquipedia, BetExplorer esports
+### 3.4 Hockey Statistical Protocol — EXHAUSTIVE CHECKLIST
+For every hockey candidate, collect ALL of the following. Missing any category = INCOMPLETE analysis.
 
-### 3.7 Snooker Statistical Protocol
-For every snooker candidate:
+**A. Team Statistics (NaturalStatTrick + MoneyPuck + ESPN)**
 
-**A. Frame Analysis**
-- Tournament format (best-of-9, best-of-13, best-of-19, best-of-25, best-of-35)
-- Average frames per match at this tournament stage
-- Player break-building stats (century breaks per match)
-- Safety play tendencies (safety-heavy players → more frames)
+| Stat Category | Metrics to Collect | Source |
+|--------------|-------------------|--------|
+| **xG (EXPECTED GOALS)** | xGF/game, xGA/game, xG%, xG vs actual goals delta (regression indicator) | NaturalStatTrick/MoneyPuck |
+| **GOALS** | GF/game, GA/game, Combined avg, O/U 5.5/6.5 hit rate, Empty net goals/game | ESPN + Flashscore |
+| **SHOTS** | Shots/game, Shots against/game, Shot %, Shots on goal conversion | NaturalStatTrick |
+| **POWER PLAY** | PP%, PP opportunities/game, PPG/game, League rank | ESPN/NHL.com |
+| **PENALTY KILL** | PK%, Short-handed goals against/game, Penalties taken/game | ESPN/NHL.com |
+| **PENALTIES** | PIM/game (penalty minutes), Minor penalties/game, Major penalties/game | ESPN |
+| **FACEOFFS** | Faceoff win %, Offensive zone faceoff % (possession proxy) | NaturalStatTrick |
+| **CORSI/FENWICK** | CF%, FF% (shot attempt differential — true possession metric) | NaturalStatTrick |
+| **HOME/AWAY** | GF home vs away, GA home vs away, Home/away record, O/U record by venue | ESPN |
 
-**B. Statistical Markets (priority order)**
-1. Total frames O/U — most valuable. Close skill levels → more frames
-2. Frame handicap — when favorite clear but ML too short
-3. Century breaks O/U — very niche where available
-4. ML — only with strong form + ranking disparity
+**B. Goalie Analysis (CRITICAL — most important single factor)**
+- **Starting goalie CONFIRMED?** Check DailyFaceoff.com or team Twitter (~10am game day)
+- Starting goalie: save %, GAA (goals against avg), last 5 starts (W-L, sv%, GAA)
+- Goalie vs this opponent: career record, save % against them
+- Backup risk: if starter rested/injured, backup's stats are often drastically worse
+- Goalie workload: starts in last 7 days (fatigue factor)
 
-**C. Key indicators for O frames**
-- Both players ranked within 15 of each other → likely to go deep
-- Player who plays long frames (avg frame time >20 min) → more frames
-- World Championship sessions: early rounds best-of-19, later best-of-25/33
+**C. H2H and Recent Form (MANDATORY)**
+- Last 5 H2H meetings: total goals per game, margin, OT frequency
+- Last 10 games form: W-L, average total goals, goals for/against trends
+- Division/conference rivals: tighter, lower-scoring games typical
 
-**Sources**: CueTracker (frame-level stats), Flashscore snooker, BetExplorer snooker, OddsPortal snooker
+**D. MARKET RANKING — DECIDE THE BEST BET (MANDATORY)**
+1. Both teams xGF > 3.0? → O-totals candidate (strong both offenses)
+2. Both goalies sv% < .910 in last 10? → O-totals candidate (weak goaltending)
+3. One elite goalie (sv% > .920) vs weak offense (xGF < 2.5)? → U-totals candidate
+4. **Hockey market hierarchy** (most inefficient → most efficient):
+   - Period totals → Game totals O/U → Puck line (handicap ±1.5) → ML → 3-way (regulation)
+5. Playoff: tighter checking, better goaltending → 0.5-1.0 fewer goals than regular season avg.
 
-### 3.8 Darts Statistical Protocol
-For every darts candidate:
+**E. Context Factors (MANDATORY)**
+- **Back-to-back (B2B):** Team on 2nd night of B2B → backup goalie likely, fatigue → +0.3 goals against avg
+- **Travel:** 3-games-in-4-nights? Cross-timezone travel?
+- **Playoff context:** elimination game → tighter defense. Series lead → complacency risk.
+- **Trade deadline impact:** new players not yet integrated
+- **Injury report:** check ESPN NHL injuries, DailyFaceoff
+- **Schedule spot:** last game before All-Star break or bye week → motivation questions
 
-**A. Leg/Set Analysis**
-- Average 3-dart score (critical: >95 = elite, 90-95 = good, <90 = inconsistent)
-- Checkout percentage (doubles hit rate)
-- 180s per match average
+**Sources**: NaturalStatTrick (xG, Corsi, shot metrics), MoneyPuck (expected goals model), ESPN NHL (odds, injuries, standings), DailyFaceoff.com (goalie confirmations), SBR (odds comparison), BetExplorer/OddsPortal (odds), Flashscore (form, H2H)
 
-**B. Statistical Markets (priority order)**
-1. Total legs O/U — main market. Close matches → more legs
-2. 180s O/U — correlates with scoring power, very niche market
-3. Set totals O/U — in set-format events (World Championship)
-4. ML — only when scoring averages diverge significantly
+### 3.5 Volleyball Statistical Protocol — EXHAUSTIVE CHECKLIST
+For every volleyball candidate, collect ALL of the following. Missing any category = INCOMPLETE analysis.
 
-**Sources**: DartsOrakel, Flashscore darts, BetExplorer darts
+**A. Team Statistics (Flashscore + Sofascore + League sites)**
 
-### 3.9 Handball Statistical Protocol
-For every handball candidate:
+| Stat Category | Metrics to Collect | Source |
+|--------------|-------------------|--------|
+| **SETS** | Sets won/lost, Avg sets/match, O/U 3.5 sets hit rate, 3-0/3-1/3-2 frequency | Flashscore |
+| **POINTS** | Avg total points/match (typical 150-190), Avg points/set, O/U total points hit rate | Flashscore + Sofascore |
+| **ATTACK** | Kill %, Attack errors/set, Efficiency % | League sites (CEV, PlusLiga) |
+| **SERVE** | Aces/match, Service errors/match, Ace-to-error ratio | League sites |
+| **BLOCK** | Blocks/match (key defensive stat, correlates with shorter sets) | League sites |
+| **RECEPTION** | Reception %, Perfect reception % (determines attack quality) | League sites |
+| **HOME/AWAY** | Points scored home vs away, Sets won home vs away, ML record | Flashscore |
+| **TIEBREAKS** | 5th set frequency %, 5th set win rate, Tiebreak set avg points (typically 25-35) | Flashscore match history |
 
-**A. Scoring Analysis**
-- Average total goals per match (typically 48-60)
-- Team scoring averages (offense + defense)
-- Home/away scoring splits (home advantage is huge in handball)
+**B. H2H and Recent Form (MANDATORY)**
+- Last 5 H2H meetings: sets score, total points, 5th set frequency
+- Last 10 matches form: W-L, average sets/match, average total points
+- League standing: top 4 teams vs bottom 4 → predictable. Middle-table → competitive.
 
-**B. Statistical Markets (priority order)**
-1. Total goals O/U — most valuable. High-scoring sport with predictable totals
-2. Handicap — when team quality differs significantly
-3. Half totals — first half O/U, more stable than full match
-4. ML — predictable sport, underdogs rarely win
+**C. MARKET RANKING — DECIDE THE BEST BET (MANDATORY)**
+1. Both teams in top 6 with similar quality? → O3.5 sets candidate (competitive = more sets)
+2. Big mismatch (table leader vs bottom)? → U3.5 sets / Set handicap -1.5 candidate
+3. Both teams high attack efficiency? → O total points (more rallies, longer sets)
+4. **Volleyball market hierarchy** (most inefficient → most efficient):
+   - Individual set score O/U → Total points O/U → Set totals O/U 3.5 → Set handicap → ML
+5. ML only viable in 1.50-2.50 range. Below 1.40 = no value. Above 2.80 = too risky.
 
-**Sources**: Flashscore handball, BetExplorer handball
+**D. Context Factors (MANDATORY)**
+- Competition stage: regular season vs playoffs (playoff = tighter, more 5-setters)
+- Roster changes: new setter = entire team attack changes
+- Travel: international club competitions (Champions League) = travel fatigue
+- Venue: some volleyball arenas have notable home advantage (loud crowds affect serve reception)
+- Rotation: coach resting key players for upcoming playoff matches?
 
-### 3.10 Table Tennis Statistical Protocol
-- Set handicap based on ranking difference
-- Total points O/U based on player style (aggressive vs defensive)
-- ML only with significant ranking gap
-- **Sources**: Flashscore table tennis, BetExplorer table tennis
+**Sources**: Flashscore volleyball (form, H2H, live scores), Sofascore (detailed match stats), BetExplorer volleyball (odds), OddsPortal volleyball (odds history), CEV (Champions League stats), PlusLiga.pl (Polish league stats)
 
-### 3.11 MMA/UFC Statistical Protocol
-- Method of victory: KO/TKO, submission, decision — each has different value
-- O/U rounds (1.5 for 3-rounders, 2.5 for 5-rounders)
-- Fighter style matchup analysis (striker vs grappler)
-- **Sources**: UFC stats, Sherdog, Tapology, BetExplorer MMA
+### 3.6 Esports Statistical Protocol (CS2/LoL/Dota2/Valorant) — EXHAUSTIVE CHECKLIST
+For every esports candidate, collect ALL of the following. Missing any category = INCOMPLETE analysis.
 
-### 3.12 Baseball (MLB) Statistical Protocol
-- Starting pitcher ERA, WHIP, K/9
-- Bullpen ERA and recent usage
-- Total runs O/U (primary market)
-- Run line (handicap +-1.5)
-- First 5 innings line (removes bullpen variance)
-- **Sources**: BaseballSavant (Statcast — xERA, xFIP, barrel%), Baseball Reference, ESPN, SBR, BetExplorer baseball. Note: FanGraphs is BLOCKED — use BaseballSavant as primary pitcher/hitter stats source.
+**A. CS2/Valorant — Team Statistics (HLTV stats + Liquipedia + VLR.gg)**
 
-### 3.13 Padel Statistical Protocol
-For every padel candidate:
+| Stat Category | Metrics to Collect | Source |
+|--------------|-------------------|--------|
+| **MAP POOL** | Maps played, Win rate per map, Map pool overlap between teams, Map veto history | HLTV/Liquipedia |
+| **ROUNDS** | Avg rounds/map, O/U 26.5 hit rate, Overtime frequency % | HLTV stats |
+| **PISTOL ROUNDS** | Pistol round win %, Pistol round conversion rate (win pistol → win half?) | HLTV stats |
+| **K/D & RATING** | Team avg HLTV rating 2.0, Top fragger rating, Lowest player rating (weak link) | HLTV stats |
+| **ECONOMY** | Eco round win %, Force buy success rate, Full buy round win % | HLTV stats |
+| **CT/T SIDE** | CT-side win %, T-side win %, Side preference per map | HLTV stats |
+| **CLUTCH** | 1vX clutch win %, Post-plant win % | HLTV stats |
+| **FORM** | Last 3 months win %, Last 10 matches W-L, Recent LAN vs online results | HLTV + Liquipedia |
 
-**A. Pair Rankings and Form**
-- FIP world ranking for both pairs (padelfip.com/ranking-male/ and /ranking-female/)
+**B. LoL/Dota2 — Team Statistics (Liquipedia + GosuGamers + Oracle's Elixir/DotaBuff)**
+
+| Stat Category | Metrics to Collect | Source |
+|--------------|-------------------|--------|
+| **GAME DURATION** | Avg game length (fast meta <28min → early aggression team wins) | Oracle's Elixir/DotaBuff |
+| **OBJECTIVES** | First blood %, First tower %, Dragon/Baron control %, Roshan % | Oracle's Elixir/DotaBuff |
+| **KILLS** | Avg kills/game, Kill differential, O/U kill total hit rates | GosuGamers |
+| **GOLD** | Avg gold lead @15min, Gold diff/min, Comeback rate from deficit | Oracle's Elixir |
+| **DRAFT** | Meta priority picks, Signature champions/heroes, Draft adaptation | Liquipedia |
+
+**C. Match Format & Context**
+- BO1 vs BO3 vs BO5 — upsets FAR more likely in BO1 (map variance is huge)
+- LAN vs Online: LAN = more pressure, less internet advantage, crowd factor
+- Tournament tier: Major/Minor/Regional → top teams try harder at Majors
+- Group stage vs playoffs: different motivation levels
+- Roster changes: new player (IGL, AWPer, support) in last 30 days = volatility
+
+**D. H2H and Recent Form (MANDATORY)**
+- Last 5 H2H meetings: map score, maps played, round differentials
+- Recent form (last 10 matches): W-L, map win %, opponents faced (quality of opposition)
+- Current tournament path: how did they get here? Easy bracket or hard matches?
+
+**E. MARKET RANKING — DECIDE THE BEST BET (MANDATORY)**
+1. Evenly matched teams in BO3? → O2.5 maps (competitive = more maps)
+2. Clear favorite in BO3 with map pool edge? → Map HC -1.5
+3. Close map pool overlap? → total rounds O/U on specific maps
+4. **Esports market hierarchy** (most inefficient → most efficient):
+   - Total rounds O/U per map → Map totals O/U 2.5 (BO3) → Map handicap -1.5 → Kill totals → ML
+5. BO1 markets are volatile — reduce confidence -1 for any BO1 pick.
+
+**Sources**: HLTV (CS2 stats ONLY — tips are BLOCKED), Liquipedia (all esports wikis), GosuGamers (tips + stats), VLR.gg (Valorant), Oracle's Elixir (LoL), DotaBuff/OpenDota (Dota2), BetExplorer esports (odds)
+
+### 3.7 Snooker Statistical Protocol — EXHAUSTIVE CHECKLIST
+For every snooker candidate, collect ALL of the following. Missing any category = INCOMPLETE analysis.
+
+**A. Player Statistics (CueTracker + WorldSnooker + Flashscore)**
+
+| Stat Category | Metrics to Collect | Source |
+|--------------|-------------------|--------|
+| **RANKING** | World ranking, Prize money ranking, Ranking trajectory (rising/falling) | WorldSnooker/WST |
+| **FRAME WIN %** | Overall frame win %, Frame win % this season, Frame win % at this tournament/venue | CueTracker |
+| **CENTURIES** | Century breaks/match, Total centuries this season, Highest break this season | CueTracker |
+| **50+ BREAKS** | 50+ breaks/match, Break-building consistency (key for O frames) | CueTracker |
+| **FRAME DURATION** | Avg frame time (>20min = safety-heavy = more tactical = more frames) | CueTracker |
+| **SAFETY PLAY** | Safety shot %, Long pot success rate (tactical vs aggressive player) | CueTracker |
+| **DECIDER FRAMES** | Decider frame record (clutch factor), % of matches going to final frame | CueTracker |
+| **FORM** | Last 10 matches W-L, Current tournament results, Recent form trends | Flashscore |
+
+**B. Tournament Context**
+- Format: BO9 (ranking events early) / BO13 / BO19 (World Champ R1) / BO25 / BO35 (WC Final)
+- Session structure: single session vs multi-session (fatigue factor in longer formats)
+- Venue: Crucible (World Championship) has unique pressure — upsets more common in R1
+- Defending champion/ranking points: motivation factor
+
+**C. H2H and Recent Form (MANDATORY)**
+- Last 5 H2H meetings: frame scores, decider frequency, century breaks
+- Recent form (last 5-10 matches): frame win %, quality of opposition
+- Current tournament path: easy draws or hard matches? Physical/mental state.
+
+**D. MARKET RANKING — DECIDE THE BEST BET (MANDATORY)**
+1. Both players ranked within 15 of each other? → O frames (competitive = more frames used)
+2. Both players avg frame time >18min? → O frames (tactical match, slow-paced)
+3. One player dominant (top 4) vs outside top 32? → Frame HC / U frames
+4. **Snooker market hierarchy** (most inefficient → most efficient):
+   - Century breaks O/U → Total frames O/U → Frame handicap → Correct score → ML
+5. World Championship: early rounds (BO19/BO25) produce MORE value than finals (heavily analyzed).
+
+**E. Context Factors (MANDATORY)**
+- Schedule: morning vs evening session (some players perform differently)
+- Travel: did player just fly from China/Australia? Jet lag factor
+- Off-table issues: check snooker media for any controversy, personal issues
+- Referee: some referees call fouls more strictly (minor but noted)
+
+**Sources**: CueTracker (frame stats, centuries, deciders — PRIMARY), WorldSnooker/WST.tv (rankings, draws, results), Flashscore snooker (form, H2H, live), BetExplorer snooker (odds), OddsPortal (odds history)
+
+### 3.8 Darts Statistical Protocol — EXHAUSTIVE CHECKLIST
+For every darts candidate, collect ALL of the following. Missing any category = INCOMPLETE analysis.
+
+**A. Player Statistics (DartsOrakel + PDC + Flashscore)**
+
+| Stat Category | Metrics to Collect | Source |
+|--------------|-------------------|--------|
+| **AVERAGE** | 3-dart average (>95 elite, 90-95 good, <90 inconsistent), Avg this tournament, Avg last 10 matches | DartsOrakel/PDC |
+| **CHECKOUT %** | Doubles hit rate %, Checkout % under pressure (deciding legs), Clutch checkout rate | DartsOrakel/PDC |
+| **180s** | 180s per match, 180s per leg, 180s hit rate trends | DartsOrakel |
+| **SCORING** | 100+ scores/match, 140+ scores/match, Ton-80 frequency, First 9-dart avg | DartsOrakel |
+| **LEGS** | Avg legs/match, Deciding leg record, Legs won from behind %, Break of throw % | DartsOrakel |
+| **SETS** | Sets/match (in set-format events), Set win % from behind | PDC |
+| **FORM** | Last 10 matches W-L, Current tournament results, Recent TV event performance | Flashscore + PDC |
+| **BULLSEYE** | Bull finish %, Bull checkout rate (for non-standard finishes) | DartsOrakel |
+
+**B. Match Format & Context**
+- Format: legs format (Premier League, World Series) vs sets format (World Championship)
+- Best-of: BO11 legs, BO13, BO sets of legs — determines total legs possible
+- Stage: group stage (less pressure) vs knockout (elimination pressure)
+- TV event vs floor event: top players perform 3-5% better on TV (big-stage factor)
+- Floor events (Players Championship): upsets more common, lower averages
+
+**C. H2H and Recent Form (MANDATORY)**
+- Last 5 H2H meetings: legs score, averages in those matches, 180s
+- Recent form: last 10 matches W-L, average in last 10, checkout % trend
+- Current tournament performance: is player in rhythm or struggling?
+
+**D. MARKET RANKING — DECIDE THE BEST BET (MANDATORY)**
+1. Both players avg >95? → More breaks of throw = more legs = O legs candidate
+2. Both players checkout >40%? → Efficient leg closing → fewer legs → U legs candidate
+3. One player avg >98, other <90? → Dominant win → U legs + ML combo
+4. **Darts market hierarchy** (most inefficient → most efficient):
+   - 180s O/U → Total legs O/U → Set totals O/U → Correct score → ML
+5. In set-format: focus on total sets. In legs-format: focus on total legs.
+
+**E. Context Factors (MANDATORY)**
+- Venue: hometown crowd advantage (UK events favor UK players)
+- Schedule: afternoon vs evening session, multiple matches in one day (fatigue)
+- Ranking points: defending ranking → higher motivation
+- Order of Merit implications: ProTour rankings, World Championship qualification
+
+**Sources**: DartsOrakel (PRIMARY — averages, checkout, 180s, match history), PDC.tv (official stats, draws, results), Flashscore darts (form, live scores, H2H), BetExplorer darts (odds)
+
+### 3.9 Handball Statistical Protocol — EXHAUSTIVE CHECKLIST
+For every handball candidate, collect ALL of the following. Missing any category = INCOMPLETE analysis.
+
+**A. Team Statistics (Flashscore + EHF + League sites)**
+
+| Stat Category | Metrics to Collect | Source |
+|--------------|-------------------|--------|
+| **GOALS** | Goals scored/match, Goals conceded/match, Combined avg, O/U 48.5/50.5/52.5/54.5 hit rates | Flashscore |
+| **ATTACK** | Attack efficiency %, Fast breaks/match, 7-meter (penalty) goals/match, Turnovers/match | EHF/League stats |
+| **DEFENSE** | Goals conceded/match, Blocks/match, Steals/match, Saves % (goalkeeper) | EHF/League stats |
+| **GOALKEEPER** | Save %, 7-meter saves %, Saves/match, #1 vs #2 goalkeeper stats | EHF/League stats |
+| **SUSPENSIONS** | 2-minute suspensions/match (CRITICAL: team plays 1 short → goals spike), Red cards/match | EHF/League stats |
+| **HALF SPLITS** | 1st half goals avg, 2nd half goals avg (2nd halves typically higher-scoring by 1-2 goals) | Flashscore |
+| **HOME/AWAY** | Goals scored home vs away, Goals conceded home vs away, Home advantage factor (HUGE in handball — 60-65% home win rate) | Flashscore |
+| **PACE** | Attacks/match, Fast breaks/match (fast-break teams inflate totals) | League stats |
+
+**B. H2H and Recent Form (MANDATORY)**
+- Last 5 H2H meetings: total goals per game, margin, half-time scores
+- Last 10 matches form: W-L, average total goals, scoring trends
+- League standing context: top 4 vs bottom 4 = predictable. Mid-table = competitive.
+
+**C. MARKET RANKING — DECIDE THE BEST BET (MANDATORY)**
+1. Both teams avg >28 goals scored/match? → O total goals candidate (combined >56)
+2. Both teams poor defense (>29 conceded)? → O total goals STRONG candidate
+3. Big mismatch + high-scoring favorite? → Handicap candidate
+4. **Handball market hierarchy** (most inefficient → most efficient):
+   - Half totals O/U → Game total goals O/U → Handicap → ML
+5. HOME ADVANTAGE is extreme: home team wins 60-65%. Factor this into ML and handicap.
+6. 2nd half typically has 1-2 MORE goals than 1st half (fatigue + desperation scoring).
+
+**D. Context Factors (MANDATORY)**
+- Competition: Champions League (high intensity) vs domestic league (may rest players)
+- Derby matches: more physical, more suspensions, sometimes lower-scoring
+- Key player injuries: star pivot or goalkeeper absent = huge impact
+- Fixture congestion: midweek European + weekend domestic = rotation risk
+- Suspensions carried over: player accumulated suspensions → weakened lineup
+
+**Sources**: Flashscore handball (form, H2H, live scores), EHF/eurohandball.com (Champions League stats), League-specific sites (PGNiG Superliga, Bundesliga handball, etc.), BetExplorer handball (odds), Sofascore (detailed match stats)
+
+### 3.10 Table Tennis Statistical Protocol — EXHAUSTIVE CHECKLIST
+For every table tennis candidate, collect ALL of the following. Missing any category = INCOMPLETE analysis.
+
+**A. Player Statistics (ITTF + Flashscore + tt-series)**
+
+| Stat Category | Metrics to Collect | Source |
+|--------------|-------------------|--------|
+| **RANKING** | ITTF world ranking, Continental ranking, Ranking trajectory (rising/falling) | ITTF |
+| **SETS** | Avg sets/match, Set win %, Deciding set frequency %, O/U 3.5/4.5 sets hit rate | Flashscore |
+| **POINTS** | Avg points/set, Avg total points/match, Deuce frequency per set | Flashscore |
+| **STYLE** | Playing style: attacking (pen/shake offensive) vs defensive (chopper/blocker) | ITTF player profiles |
+| **SERVE** | Serve ace %, Service game dominance (first 3 balls) | Match video analysis/stats |
+| **FORM** | Last 10 matches W-L, Current tournament results, Recent upset record | Flashscore |
+| **SURFACE/BALL** | Equipment changes (new ball specifications affect different styles differently) | ITTF |
+
+**B. H2H and Recent Form (MANDATORY)**
+- Last 5 H2H meetings: set scores, total points, deciding set frequency
+- Recent form: last 10 matches W-L, quality of opponents beaten/lost to
+- Tournament context: round (R32 = upsets common, QF+ = favorites dominate)
+
+**C. MARKET RANKING — DECIDE THE BEST BET (MANDATORY)**
+1. Close ranking (within 20 spots)? → O sets (competitive = more sets)
+2. Big ranking gap (50+ spots)? → Set HC -1.5 or -2.5
+3. Both aggressive players? → Higher total points per set → O total points
+4. **Table tennis market hierarchy** (most inefficient → most efficient):
+   - Total points O/U → Set totals O/U → Set handicap → ML
+5. Table tennis is HIGH-VARIANCE — rankings less predictive than in tennis. Reduce confidence by -0.5 for any TT pick.
+
+**D. Context Factors (MANDATORY)**
+- League vs tournament: WTT events vs national leagues have different dynamics
+- Fatigue: multiple matches in one day (common in TT tournaments)
+- Asian vs European style: different playstyles affect set lengths
+- Home advantage: minimal in TT, but crowd can affect service rhythm
+
+**Sources**: ITTF (rankings, player profiles), Flashscore table tennis (form, H2H, live scores, set scores), tt-series.com (WTT stats), BetExplorer table tennis (odds), Sofascore (match stats)
+
+### 3.11 MMA/UFC Statistical Protocol — EXHAUSTIVE CHECKLIST
+For every MMA candidate, collect ALL of the following. Missing any category = INCOMPLETE analysis.
+
+**A. Fighter Statistics (UFC.com/stats + Sherdog + Tapology)**
+
+| Stat Category | Metrics to Collect | Source |
+|--------------|-------------------|--------|
+| **STRIKING** | Significant strikes landed/min, Strike accuracy %, Strikes absorbed/min, Strike defense % | UFC.com/stats |
+| **GRAPPLING** | Takedowns attempted/15min, Takedown accuracy %, Takedown defense %, Submission attempts/15min | UFC.com/stats |
+| **CLINCH** | Clinch strikes/fight, Clinch time %, Cage control time | UFC.com/stats |
+| **GROUND** | Control time/fight, Ground strikes/min, Ground & pound effectiveness, Sweeps | UFC.com/stats |
+| **CARDIO** | Pace change R1→R3 (does fighter fade?), Output in championship rounds (R4-R5) | Fight film analysis |
+| **FINISH RATE** | KO/TKO %, Submission %, Decision % (for both wins AND losses) | Sherdog/Tapology |
+| **RECORD** | Overall record, UFC record, Streak (current win/loss), Record vs ranked opponents | Sherdog |
+| **FORM** | Last 5 fights: opponents, method, round, performance bonuses | Tapology |
+
+**B. Matchup Analysis (CRITICAL in MMA)**
+- **Striker vs Striker**: who has reach advantage? Who is more accurate? Chin durability?
+- **Striker vs Grappler**: can the striker stuff takedowns (TDD%)? Does the grappler have a dangerous stand-up?
+- **Grappler vs Grappler**: who controls top position? Submission threat comparison.
+- **Southpaw vs Orthodox**: stance matchup creates different angles and openings
+- **Size advantage**: weigh-in weight, walk-around weight, reach differential
+
+**C. H2H and Recent Form (MANDATORY)**
+- H2H: have they fought before? Result, method, controversial decisions?
+- Recent form: last 5 fights — opponents quality, methods, KO/sub vulnerability trends
+- Layoff: >12 months since last fight = ring rust risk (reduce confidence -0.5)
+
+**D. MARKET RANKING — DECIDE THE BEST BET (MANDATORY)**
+1. Both fighters finish rate >50%? → U rounds candidate (likely finish before the distance)
+2. Both fighters decision rate >50%? → O rounds candidate (going to the scorecards)
+3. High-level grappler vs mediocre TDD? → Method of victory: submission
+4. **MMA market hierarchy** (most inefficient → most efficient):
+   - Method of victory → O/U rounds → Round betting → ITD (inside the distance) → ML
+5. 3-round fights: O/U 1.5 rounds. 5-round fights: O/U 2.5 rounds.
+6. Women's MMA: fewer finishes on average → O rounds default.
+
+**E. Context Factors (MANDATORY)**
+- Weight class: heavyweight (most KO variance) vs flyweight (more decisions)
+- Fight card position: main event 5-rounders vs prelim 3-rounders
+- Weight cut: did fighter miss weight? (affects cardio, chin, power)
+- Camp/training: major camp change? New coach? Training partner issues?
+- Motivation: title shot implications, rivalry, retirement fight
+- Altitude: events at elevation (Mexico City, Denver) affect cardio
+
+**Sources**: UFC.com/stats (official striking/grappling stats), Sherdog (records, fight history), Tapology (rankings, fight finder, MMA math), BetExplorer MMA (odds), ESPN MMA (odds, news), Flashscore (results)
+
+### 3.12 Baseball (MLB) Statistical Protocol — EXHAUSTIVE CHECKLIST
+For every baseball candidate, collect ALL of the following. Missing any category = INCOMPLETE analysis.
+
+**A. Starting Pitcher Analysis (BaseballSavant + Baseball-Reference)**
+
+| Stat Category | Metrics to Collect | Source |
+|--------------|-------------------|--------|
+| **TRADITIONAL** | ERA, WHIP, W-L record, K/9, BB/9, IP/start avg | Baseball-Reference |
+| **ADVANCED (Statcast)** | xERA (expected ERA), xFIP, SIERA, FIP (fielding-independent pitching) | BaseballSavant |
+| **BATTED BALL** | Hard hit %, Barrel %, Ground ball %, Fly ball %, Line drive % | BaseballSavant |
+| **PITCH MIX** | Pitch types %, Velocity trends (declining velocity = red flag), Spin rate | BaseballSavant |
+| **SPLITS** | vs LHB/RHB splits (vulnerable to one side?), Home/away ERA, Day/night splits | Baseball-Reference |
+| **RECENT** | Last 3-5 starts: IP, ER, K, BB (current form, NOT season average) | ESPN/Baseball-Reference |
+| **VS OPPONENT** | Career stats vs this team's current lineup, Batter vs pitcher matchup data | BaseballSavant |
+
+**B. Bullpen Analysis**
+- Bullpen ERA (last 7/14/30 days — NOT season-long, bullpens fluctuate rapidly)
+- Bullpen usage: how many innings pitched in last 3 days? Overworked = blowup risk
+- Closer availability: is the closer available? Back-to-back save situations?
+- High-leverage reliever stats: setup man and closer effectiveness
+
+**C. Team Offense**
+- Runs/game, OPS, wRC+ (weighted runs created)
+- Team BABIP (luck indicator: high BABIP = regression DOWN, low = regression UP)
+- K rate and BB rate (discipline at the plate)
+- vs LHP and vs RHP splits (matchup with today's starter)
+- Home/away splits, Day/night splits
+- Lineup confirmation: any key bats out of lineup? Check ESPN/team social 2-3h before.
+
+**D. H2H and Recent Form (MANDATORY)**
+- Season series: W-L, runs scored in each game
+- Last 10 games form: W-L, runs scored/allowed, O/U record
+- Home/road record this season
+
+**E. MARKET RANKING — DECIDE THE BEST BET (MANDATORY)**
+1. Both starters xERA > 4.50? → O runs candidate (bad pitching = runs)
+2. Elite starter (xERA < 3.00) vs weak lineup (wRC+ < 90)? → U runs candidate + F5 under
+3. Bullpen overworked for both teams? → O runs (especially late-inning totals)
+4. **Baseball market hierarchy** (most inefficient → most efficient):
+   - First 5 innings O/U → Team totals → Game totals O/U → Run line (±1.5) → ML
+5. F5 (first 5 innings) removes bullpen variance — MOST RELIABLE market.
+6. Team totals are less efficient than game totals — good for pitcher mismatch.
+
+**E. Context Factors (MANDATORY)**
+- **Weather (CRITICAL):** Wind direction + speed at ballpark. Wind blowing out at Wrigley = +1.5 runs avg. Rain delay risk.
+- **Park factor:** Coors Field (extreme hitter), Petco Park (extreme pitcher). Use park factor adjustment.
+- **Day game after night game:** teams perform worse (fatigue, shorter prep)
+- **Travel:** cross-country travel, series opener after long flight
+- **Umpire:** home plate umpire's historical K-rate and run-scoring impact
+- **Injury report:** check MLB injury report for key position players (C, SS, star bats)
+
+**Sources**: BaseballSavant (Statcast — xERA, xFIP, barrel%, pitch mix — PRIMARY), Baseball-Reference (traditional stats, splits), ESPN MLB (odds, injury reports, lineups), SBR (odds comparison), ScoresAndOdds (US odds), BetExplorer baseball (odds). **Note: FanGraphs is BLOCKED — use BaseballSavant as primary.**
+
+### 3.13 Padel Statistical Protocol — EXHAUSTIVE CHECKLIST
+For every padel candidate, collect ALL of the following. Missing any category = INCOMPLETE analysis.
+
+**A. Pair Rankings and Form (PadelFIP + PremierPadel + Sofascore)**
+
+| Stat Category | Metrics to Collect | Source |
+|--------------|-------------------|--------|
+| **RANKING** | FIP world ranking (both pairs), Ranking points gap, Ranking trajectory | PadelFIP |
+| **FORM** | Last 3-5 tournament results (round reached, opponents beaten/lost to) | PremierPadel/Sofascore |
+| **TOURNAMENT PATH** | Current tournament: previous round result, score, physical condition | PremierPadel |
+| **SETS** | Avg sets/match, 3-set match %, O/U 2.5 sets hit rate | Sofascore |
+| **GAMES** | Avg total games/match, Games per set avg, O/U game totals hit rate | Sofascore |
+| **SERVE** | Service game hold %, Break point conversion rate | Match-level Sofascore |
+| **PARTNERSHIP** | Partnership duration (>6 months = stable), Partner change history | PadelFIP/PremierPadel |
+
+**B. Pair Comparison**
 - Ranking points gap: >3000 pts = heavy favorite, 1000-3000 = moderate, <1000 = competitive
-- Recent tournament results: last 3-5 tournaments (round reached, opponents beaten/lost to)
-- Current tournament path: previous round result in THIS event, score, physical condition
+- Individual player ranking vs pair ranking (sometimes a weaker individual in a strong pair)
+- Playing style: aggressive smash pair vs defensive lob pair → court surface matters
 
-**B. Head-to-Head and Partnership**
+**C. H2H and Partnership History (MANDATORY)**
 - H2H record between pairs (Sofascore padel → match detail → H2H tab)
 - Partnership duration: established pairs (>6 months) are more stable than new partnerships
-- Individual player ranking vs pair ranking (sometimes a weaker individual in a strong pair)
 - Partner change history: recent partner change = volatility, regression risk
+- Previous meeting scores and set counts
 
-**C. Match Format and Tournament Context**
+**D. MARKET RANKING — DECIDE THE BEST BET (MANDATORY)**
+1. Ranking gap <1000 pts? → O2.5 sets candidate (competitive = 3 sets likely)
+2. Ranking gap >3000 and Major/P1? → Favorite ML (top pairs dominate higher tiers)
+3. New partnership in first 2 tournaments? → Upset potential (underpriced)
+4. **Padel market hierarchy** (most inefficient → most efficient):
+   - Game totals O/U → Set totals O/U 2.5 → Set handicap -1.5 → ML (1.40-2.20 range)
+5. ML only viable in 1.40-2.20 range. Below 1.35 = no value. Above 2.40 = too risky.
+6. VALUE ZONE: pairs ranked 10-25 meeting = real uncertainty, ML 1.60-2.20.
+
+**E. Context Factors (MANDATORY)**
 - Tournament tier: Major/P1/P2/Bronze — higher tiers = more predictable (top pairs perform)
 - Round: R32/R16 = more upsets, QF+ = favorites dominate
-- Best-of-3 sets format: similar to tennis — close matches can swing on service breaks
 - Surface: indoor vs outdoor — wind affects lob-heavy padel significantly
+- Fatigue: 3-set QF yesterday → SF today = fatigue factor, especially older pairs
+- Travel: European vs South American leg → travel fatigue + altitude differences
 
-**D. Statistical Markets (priority order)**
-1. ML (1.40-2.20 range) — most value when ranking gap is moderate but odds don't reflect it
-2. Set totals O/U 2.5 — competitive matchups go to 3 sets frequently (~45% of even matches)
-3. Game totals O/U — less liquid, more mispriced
-4. Set handicap -1.5 — when favorite should dominate but ML too short
+**Sources**: PadelFIP.com (rankings — PRIMARY), PremierPadel.com (draws, match stats), Sofascore padel (H2H, form, livescores, set/game stats), BetExplorer/OddsPortal padel (odds). No major tipster sites cover padel — rely on ranking analysis and H2H.
 
-**E. Key Value Indicators**
-- Top-8 pair vs unranked pair at Major/P1 → favorite should win 85%+, ML often only 1.20-1.35 → no value
-- Pairs ranked 10-25 meeting → real uncertainty, ML 1.60-2.20 range → VALUE ZONE
-- New partnership in first 2 tournaments → underpriced upset potential
-- Fatigue: 3-set QF yesterday → SF today = fatigue factor, especially for older pairs
+### 3.14 Speedway / Żużel Statistical Protocol — EXHAUSTIVE CHECKLIST
+For every speedway candidate, collect ALL of the following. Missing any category = INCOMPLETE analysis.
 
-**Sources**: PadelFIP.com (rankings), PremierPadel.com (draws, match stats), Sofascore padel (H2H, form, livescores), BetExplorer/OddsPortal padel (odds). No major tipster sites cover padel — rely on ranking analysis and H2H.
+**A. Team & Rider Statistics (SpeedwayEkstraliga + SportoweFakty)**
 
-### 3.14 Speedway / Żużel Statistical Protocol
-For every speedway candidate:
+| Stat Category | Metrics to Collect | Source |
+|--------------|-------------------|--------|
+| **ROSTER** | All 7 riders (5 seniors + 2 juniors) in announced lineup, Tactical reserve (R) | SpeedwayEkstraliga |
+| **RIDER AVERAGES** | Rider avg at THIS track (filter by venue — MOST IMPORTANT STAT), Season avg, Home vs away avg | SpeedwayEkstraliga |
+| **TEAM TOTAL** | Team match average (home + away separately), Points projection from rider track avgs | SpeedwayEkstraliga |
+| **JUNIORS** | U24 rider averages (#6, #7, #14, #15 slots), Junior contribution to team total | SpeedwayEkstraliga |
+| **RESERVE** | Tactical reserve usage patterns, Reserve rider average, Manager reserve strategy | SpeedwayEkstraliga |
+| **HEAT LEADERS** | Top 2 riders avg (heat leaders carry 50-60% of team points) | SpeedwayEkstraliga |
+| **HOME RECORD** | Home team home record this season + last 2 seasons, Avg margin at home | SpeedwayEkstraliga |
+| **AWAY RECORD** | Away team away record, "Good travelers" vs "collapse away" pattern | SpeedwayEkstraliga |
 
-**A. Team Strength Analysis**
-- Team roster: identify all 7 riders (5 seniors + 2 juniors) in the announced lineup
-- **Rider averages at THIS track** (SpeedwayEkstraliga.pl → rider stats → filter by venue): the MOST IMPORTANT stat. A rider averaging 2.5 at home vs 1.2 away is a completely different proposition
-- Team overall match average (home and away separately): home teams in PGE Ekstraliga win ~70-75% of matches
-- Junior rider strength: the U24 slots (#6, #7, #14, #15) often decide close matches
-- Reserve rider (tactical reserve — R): when and how the manager uses the reserve can swing 3-6 points
-
-**B. Home Advantage Deep Analysis**
+**B. Home Advantage Deep Analysis (CRITICAL — home wins 70-75%)**
 - HOME ADVANTAGE is EXTREME in speedway — the home team prepares the track to suit their riders
 - Track preparation: hard track favors speed/technique riders, soft track favors gating/power riders
 - Track dimensions: small tracks (e.g., Częstochowa) vs large tracks (e.g., Leszno) favor different riding styles
 - Home team's home record this season and last 2 seasons
 - Away team's away record — some teams are good travelers (e.g., Sparta Wrocław), others collapse away
 
-**C. Lineup Changes and Late News (TIME-SENSITIVE — check 2h before event)**
+**C. H2H and Recent Form (MANDATORY)**
+- Last 5 H2H meetings at this venue: scores, margins, heat-by-heat patterns
+- Season form: last 3-5 matches, scores, trends
+- Rider vs rider: key individual matchups (heat leader vs heat leader)
+
+**D. MARKET RANKING — DECIDE THE BEST BET (MANDATORY)**
+1. Home rider averages sum > away by 10+? → Handicap candidate (home team to cover large spread)
+2. Both teams with strong heat leaders but weak juniors? → Total points O/U candidate
+3. Away team has "good traveler" record? → Away HC / Away ML upset potential
+4. **Speedway market hierarchy** (most inefficient → most efficient):
+   - Total points O/U (e.g., O88.5) → Handicap (e.g., home -8.5) → Match winner
+5. Match winner usually too short for home team (1.20-1.40) — HC is the VALUE market.
+6. Calculate team total from rider track averages: sum all 7 riders' venue-specific averages × heat appearances.
+
+**E. Lineup Changes and Late News (TIME-SENSITIVE — check 2h before event)**
 - **SportoweFakty.wp.pl/zuzel**: publishes confirmed lineups 2-3h before each match — CRITICAL source
 - Injury updates: speedway injuries are frequent and impactful (one rider out = 6-10 points lost)
 - Rider substitutions: tactical reserve (R) or guest rider changes — check official Ekstraliga communications
 - Track conditions: weather (rain delays, wet track = more falls and unpredictable results)
 
-**D. Statistical Markets (priority order)**
-1. Handicap (e.g., home team -8.5) — the primary value market. Home advantage means 10-15 point margins are common, but the handicap line often doesn't fully reflect the home rider averages
-2. Total points O/U (e.g., O88.5) — a speedway match has 15 heats, each worth 2-5 points per rider. Total points = sum of all heat scores
-3. Match winner — straightforward but often too short for home team (1.20-1.40)
-
-**E. Expert Analysis Sources (Deep-Dive)**
-- **SportoweFakty.wp.pl/zuzel**: the PRIMARY source for Polish speedway analysis. Features:
+**F. Expert Analysis Sources (Deep-Dive)**
+- **SportoweFakty.wp.pl/zuzel**: PRIMARY source for Polish speedway analysis:
   - Match previews with expert predictions ("zapowiedź rundy")
   - Individual rider form analysis
   - Track condition reports
   - Post-match analysis and rider ratings
   - Lineup announcements with commentary
   **Navigation**: Main page → find today's match preview article → read expert analysis and check comments
-- **Ekstraliga.pl**: official PGE Ekstraliga site with:
+- **Ekstraliga.pl**: official PGE Ekstraliga site:
   - Full season statistics (rider averages, team totals)
   - League table and standings context
   - Official lineup announcements
   - Historical results at each venue
-- **Żużlowe fora** (Polish speedway forums): speedwayfans.pl, forum.gazeta.pl/zuzel — local knowledge on track conditions, rider form, team morale
+- **Żużlowe fora** (Polish speedway forums): speedwayfans.pl, forum.gazeta.pl/zuzel — local knowledge
 
-**Sources**: SpeedwayEkstraliga.pl (stats, standings, lineups), SportoweFakty.wp.pl/zuzel (expert analysis, match previews, rider form), BetExplorer/OddsPortal speedway (odds), Flashscore (results/settlement)
+**G. Context Factors (MANDATORY)**
+- Weather: rain = wet track = more falls, unpredictable, reduce confidence -1
+- Track watering: heavy watering favors gaters, light watering favors technique riders
+- Season stage: early season (riders finding form) vs late season (championship implications)
+- Guest riders: foreign guest riders may not know the track — check their track history
+- Relegation/promotion implications: bottom teams fight harder
 
-### 3.15 General Principle for ALL Sports
-Follow sport-specific source references in source-registry.md. The universal approach:
-- Get statistical data from specialist sources (sport-specific)
-- Get form data from general sources (Flashscore, Sofascore)
-- Get odds data from market sources (BetExplorer, OddsPortal)
-- **ALWAYS prefer statistical/totals markets over ML/winner markets**
-- The less liquid the market, the more likely it is mispriced — this is our edge
+**Sources**: SpeedwayEkstraliga.pl (stats, standings, lineups — PRIMARY), SportoweFakty.wp.pl/zuzel (expert analysis, match previews, rider form), BetExplorer/OddsPortal speedway (odds), Flashscore (results/settlement)
+
+### 3.15 General Principle for ALL Sports — EXHAUSTIVE ANALYSIS MANDATE
+**EVERY sport protocol above is MANDATORY, not optional.** Missing ANY stat category = INCOMPLETE analysis = pick CANNOT be finalized.
+
+The universal approach for EVERY sport:
+1. **Collect ALL stats** from the sport-specific table above. Not some. ALL.
+2. **Split stats by home/away** where applicable. Aggregate stats hide crucial venue differences.
+3. **Calculate hit rates** for O/U lines: how often does this team/player go O/U on this specific line?
+4. **RANK markets by safety**: hit_rate × consistency × odds_value = best market. Choose the SAFEST bet, not the most interesting.
+5. **Present TOP 2-3 markets** per match with statistical backing BEFORE choosing which to bet.
+6. Get statistical data from specialist sources (sport-specific)
+7. Get form data from general sources (Flashscore, Sofascore)
+8. Get odds data from market sources (BetExplorer, OddsPortal)
+9. **ALWAYS prefer statistical/totals markets over ML/winner markets**
+10. The less liquid the market, the more likely it is mispriced — this is our edge
+11. **H2H is MANDATORY for EVERY sport, EVERY candidate.** No exceptions.
+12. **Context factors are MANDATORY for EVERY sport.** Injuries, weather, motivation, fixture schedule.
+
+**FAILURE MODE TO AVOID:** Picking a market because it "feels right" or because you saw one stat. CORRECT MODE: collect ALL stats → calculate which market has the highest hit rate → verify with odds → THEN pick.
 
 ### 3.16 Sport-Specific Source URLs (Quick Reference)
 When scanning events, use these URLs directly:
