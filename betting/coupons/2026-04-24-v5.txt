@@ -134,7 +134,7 @@ PICK ROSTER — 20 PICKS, 18 EVENTS, 7 SPORTS (v5 DEEP SCAN)
 
 [PK-209] Napoli vs Cremonese | corners | Over 8.5 corners | @1.55 est | CONDITIONAL >= 1.50
   (Powyżej 8.5 rzutów rożnych)
-  ↳ ZT: Napoli dominated corners first leg. Coppa Italia SF. Conf: 3/5.
+  ↳ ZT: Napoli dominated corners+shots+chances. Serie A. Conf: 3/5.
   ↳ EV: +0.008. Weakest pick. Coupon leg only.
 
 [PK-205] Lens ML vs Brest | match_winner | @1.69 est | CONDITIONAL >= 1.60
