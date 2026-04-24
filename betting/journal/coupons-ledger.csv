@@ -112,33 +112,33 @@ betting_day,version,coupon_id,variant,selections_count,pick_ids,combined_odds,st
 2026-04-24,v5,CP-20260424-N1v4,v4,4,PK-20260424-305|PK-20260424-308|PK-20260424-303|PK-20260424-309,11.64,1.00,higher,void,,2026-04-24 10:15,pass,Night Session: Detroit + Cleveland + Utah + MTL-TBL U6,VOIDED v5: replaced by Deep Scan v5
 2026-04-24,v5,CP-20260424-N2v4,v4,2,PK-20260424-305|PK-20260424-304,3.18,1.50,medium,void,,2026-04-24 10:15,pass,Night Safe: Detroit Tigers + Montreal Canadiens,VOIDED v5: replaced by Deep Scan v5
 2026-04-24,v5,CP-20260424-P1v5,v5,2,PK-20260424-101|PK-20260424-401,2.48,2.50,low,void,,2026-04-24 11:30,pass,Pewniaki: Basaksehir U10.5 CK + Jodar-De Minaur O22.5 games,VOIDED v5.1: excluded by concentration cap
-2026-04-24,v5,CP-20260424-P2v5,v5,2,PK-20260424-101|PK-20260424-104,2.10,3.00,low,pending,,2026-04-24 11:30,pass,Pewniaki: Two football structural extremes,Deep Scan v5: safest pair
-2026-04-24,v5,CP-20260424-P3v5,v5,2,PK-20260424-401|PK-20260424-209,2.56,2.50,low,pending,,2026-04-24 11:30,pass,Pewniaki: Tennis O22.5 games + Napoli O8.5 CK (Serie A),Deep Scan v5.2: Palmeiras voided wrong date; replaced with Napoli
+2026-04-24,v5,CP-20260424-P2v5,v5,2,PK-20260424-101|PK-20260424-104,2.10,3.00,low,superseded,,2026-04-24 11:30,pass,Pewniaki: Two football structural extremes,Deep Scan v5: safest pair; superseded by v9
+2026-04-24,v5,CP-20260424-P3v5,v5,2,PK-20260424-401|PK-20260424-209,2.56,2.50,low,superseded,,2026-04-24 11:30,pass,Pewniaki: Tennis O22.5 games + Napoli O8.5 CK (Serie A),Deep Scan v5.2: Palmeiras voided wrong date; replaced with Napoli; superseded by v9
 2026-04-24,v5,CP-20260424-P4v5,v5,2,PK-20260424-207|PK-20260424-401,2.89,2.00,low,void,,2026-04-24 11:30,pass,Pewniaki: Leipzig shots + Jodar tennis,VOIDED v5.1: excluded by concentration cap
 2026-04-24,v5,CP-20260424-P5v5,v5,3,PK-20260424-101|PK-20260424-401|PK-20260424-104,3.47,2.00,low,void,,2026-04-24 11:30,pass,Pewniaki Triple: CK + tennis + under,VOIDED v5.1: excluded by concentration cap
 2026-04-24,v5,CP-20260424-P6v5,v5,4,PK-20260424-101|PK-20260424-401|PK-20260424-104|PK-20260424-212,5.72,1.50,medium,void,,2026-04-24 11:30,pass,Pewniaki Quad: Top EV cross-sport (football x2 tennis volleyball),VOIDED v5.1: excluded by concentration cap
-2026-04-24,v5,CP-20260424-MS1v5,v5,3,PK-20260424-401|PK-20260424-302|PK-20260424-205,4.74,1.50,medium,pending,,2026-04-24 11:30,pass,Tennis + Snooker + Football,Deep Scan v5: 3 sports
+2026-04-24,v5,CP-20260424-MS1v5,v5,3,PK-20260424-401|PK-20260424-302|PK-20260424-205,4.74,1.50,medium,superseded,,2026-04-24 11:30,pass,Tennis + Snooker + Football,Deep Scan v5: 3 sports; superseded by v9
 2026-04-24,v5,CP-20260424-MS2v5,v5,3,PK-20260424-402|PK-20260424-212|PK-20260424-306,4.57,1.50,medium,void,,2026-04-24 11:30,pass,Tennis + Volleyball + Hockey,VOIDED v5.1: excluded by concentration cap
 2026-04-24,v5,CP-20260424-MS3v5,v5,3,PK-20260424-403|PK-20260424-101|PK-20260424-104,3.47,2.00,low,void,,2026-04-24 11:30,pass,Tennis + Football Statistical,VOIDED v5.1: excluded by concentration cap
 2026-04-24,v5,CP-20260424-MS4v5,v5,3,PK-20260424-401|PK-20260424-207|PK-20260424-212,4.76,1.50,medium,void,,2026-04-24 11:30,pass,Tennis + Shots + Volleyball value stack,VOIDED v5.1: excluded by concentration cap
 2026-04-24,v5,CP-20260424-MS5v5,v5,3,PK-20260424-404|PK-20260424-302|PK-20260424-306,4.71,1.50,medium,void,,2026-04-24 11:30,pass,WTA Tennis + Snooker + Hockey,VOIDED v5.1: excluded by concentration cap
-2026-04-24,v5,CP-20260424-HR1v5,v5,5,PK-20260424-401|PK-20260424-402|PK-20260424-207|PK-20260424-205|PK-20260424-302,13.69,1.00,higher,pending,,2026-04-24 11:30,pass,5-leg: tennis x2 + football x2 + snooker,Deep Scan v5: high reward cross-sport (odds corrected)
+2026-04-24,v5,CP-20260424-HR1v5,v5,5,PK-20260424-401|PK-20260424-402|PK-20260424-207|PK-20260424-205|PK-20260424-302,13.69,1.00,higher,superseded,,2026-04-24 11:30,pass,5-leg: tennis x2 + football x2 + snooker,Deep Scan v5: high reward cross-sport (odds corrected); superseded by v9
 2026-04-24,v5,CP-20260424-HR2v5,v5,5,PK-20260424-208|PK-20260424-104|PK-20260424-212|PK-20260424-304|PK-20260424-308,11.22,1.00,higher,void,,2026-04-24 11:30,pass,Night multi-sport: football x2 + volleyball + hockey + baseball,VOIDED v5.1: excluded by concentration cap + PK-208 voided (wrong date)
 2026-04-24,v5,CP-20260424-N1v5,v5,4,PK-20260424-305|PK-20260424-308|PK-20260424-303|PK-20260424-309,11.64,1.00,higher,void,,2026-04-24 11:30,pass,Night US Sports: MLB + NHL,VOIDED v5.1: excluded by concentration cap
-2026-04-24,v5,CP-20260424-N2v5,v5,2,PK-20260424-304|PK-20260424-104,2.56,1.00,low,pending,,2026-04-24 11:30,pass,Night Safe: Montreal ML + Riestra U2.5,Deep Scan v5.1: stake reduced to 1.00 PLN
-2026-04-24,v6,CP-20260424-P1v6,P1v6 Pewniaki,PK-20260424-601|PK-20260424-603,low,2.45,2.00,4.90,pending,,CONDITIONAL
-2026-04-24,v6,CP-20260424-P2v6,P2v6 Pewniaki,PK-20260424-602|PK-20260424-604,low,2.48,2.00,4.95,pending,,CONDITIONAL
-2026-04-24,v6,CP-20260424-P3v6,P3v6 Pewniaki,PK-20260424-601|PK-20260424-602,low,2.89,1.50,4.34,pending,,CONDITIONAL
-2026-04-24,v6,CP-20260424-MS1v6,MS1v6 MultiSport,PK-20260424-605|PK-20260424-606|PK-20260424-607,medium,4.51,1.00,4.51,pending,,CONDITIONAL; Shelton in progress
-2026-04-24,v6,CP-20260424-N1v6,N1v6 Nocne,PK-20260424-608|PK-20260424-609,medium,3.18,0.50,1.59,pending,,CONDITIONAL; night session
-2026-04-24,v6,CP-20260424-HR1v6,HR1v6 HighRisk,PK-20260424-602|PK-20260424-601|PK-20260424-607|PK-20260424-608,high,8.98,0.50,4.49,pending,,CONDITIONAL; 4 sports
-2026-04-24,v8,CP-20260424-P1v8,P1v8 Pewniaki,PK-20260424-801|PK-20260424-806,low,3.33,3.00,9.99,superseded,,Leipzig fouls + Napoli U2.5; superseded by v9
-2026-04-24,v8,CP-20260424-P2v8,P2v8 Pewniaki,PK-20260424-804|PK-20260424-808,low,2.64,3.00,7.92,superseded,,Zhao snooker + Lublin speedway; superseded by v9
-2026-04-24,v8,CP-20260424-P3v8,P3v8 Pewniaki Triple,PK-20260424-801|PK-20260424-803|PK-20260424-804,medium,3.92,2.00,7.84,superseded,,Fouls+Machac+Zhao 3 sports; superseded by v9
-2026-04-24,v8,CP-20260424-MS1v8,MS1v8 MultiSport,PK-20260424-806|PK-20260424-805|PK-20260424-808|PK-20260424-809,medium,7.48,2.00,14.96,superseded,,4 sports: IT+ES+speedway+tennis; superseded by v9
-2026-04-24,v8,CP-20260424-HR1v8,HR1v8 HighRisk,PK-20260424-801|PK-20260424-803|PK-20260424-804|PK-20260424-808|PK-20260424-806,high,13.18,1.50,19.77,superseded,,5 legs 4 sports all top picks; superseded by v9
-2026-04-24,v8,CP-20260424-P4v8,P4v8 Pewniaki,PK-20260424-805|PK-20260424-807,low,2.71,2.00,5.42,superseded,,BTTS Betis-Real + Jaga O2.5; superseded by v9
-2026-04-24,v8,CP-20260424-MS2v8,MS2v8 MultiSport Night,PK-20260424-810|PK-20260424-802|PK-20260424-803,medium,4.41,2.00,8.82,superseded,,Braves+Leipzig cards+Machac 3 sports; superseded by v9
+2026-04-24,v5,CP-20260424-N2v5,v5,2,PK-20260424-304|PK-20260424-104,2.56,1.00,low,superseded,,2026-04-24 11:30,pass,Night Safe: Montreal ML + Riestra U2.5,Deep Scan v5.1: stake reduced to 1.00 PLN; superseded by v9
+2026-04-24,v6,CP-20260424-P1v6,P1v6 Pewniaki,2,PK-20260424-601|PK-20260424-603,2.45,2.00,low,superseded,,,,CONDITIONAL,superseded by v9
+2026-04-24,v6,CP-20260424-P2v6,P2v6 Pewniaki,2,PK-20260424-602|PK-20260424-604,2.48,2.00,low,superseded,,,,CONDITIONAL,superseded by v9
+2026-04-24,v6,CP-20260424-P3v6,P3v6 Pewniaki,2,PK-20260424-601|PK-20260424-602,2.89,1.50,low,superseded,,,,CONDITIONAL,superseded by v9
+2026-04-24,v6,CP-20260424-MS1v6,MS1v6 MultiSport,3,PK-20260424-605|PK-20260424-606|PK-20260424-607,4.51,1.00,medium,superseded,,,,CONDITIONAL; Shelton in progress,superseded by v9
+2026-04-24,v6,CP-20260424-N1v6,N1v6 Nocne,2,PK-20260424-608|PK-20260424-609,3.18,0.50,medium,superseded,,,,CONDITIONAL; night session,superseded by v9
+2026-04-24,v6,CP-20260424-HR1v6,HR1v6 HighRisk,4,PK-20260424-602|PK-20260424-601|PK-20260424-607|PK-20260424-608,8.98,0.50,high,superseded,,,,CONDITIONAL; 4 sports,superseded by v9
+2026-04-24,v8,CP-20260424-P1v8,P1v8 Pewniaki,2,PK-20260424-801|PK-20260424-806,3.33,3.00,low,superseded,,,,Leipzig fouls + Napoli U2.5; superseded by v9,
+2026-04-24,v8,CP-20260424-P2v8,P2v8 Pewniaki,2,PK-20260424-804|PK-20260424-808,2.64,3.00,low,superseded,,,,Zhao snooker + Lublin speedway; superseded by v9,
+2026-04-24,v8,CP-20260424-P3v8,P3v8 Pewniaki Triple,3,PK-20260424-801|PK-20260424-803|PK-20260424-804,3.92,2.00,medium,superseded,,,,Fouls+Machac+Zhao 3 sports; superseded by v9,
+2026-04-24,v8,CP-20260424-MS1v8,MS1v8 MultiSport,4,PK-20260424-806|PK-20260424-805|PK-20260424-808|PK-20260424-809,7.48,2.00,medium,superseded,,,,4 sports: IT+ES+speedway+tennis; superseded by v9,
+2026-04-24,v8,CP-20260424-HR1v8,HR1v8 HighRisk,5,PK-20260424-801|PK-20260424-803|PK-20260424-804|PK-20260424-808|PK-20260424-806,13.18,1.50,high,superseded,,,,5 legs 4 sports all top picks; superseded by v9,
+2026-04-24,v8,CP-20260424-P4v8,P4v8 Pewniaki,2,PK-20260424-805|PK-20260424-807,2.71,2.00,low,superseded,,,,BTTS Betis-Real + Jaga O2.5; superseded by v9,
+2026-04-24,v8,CP-20260424-MS2v8,MS2v8 MultiSport Night,3,PK-20260424-810|PK-20260424-802|PK-20260424-803,4.41,2.00,medium,superseded,,,,Braves+Leipzig cards+Machac 3 sports; superseded by v9,
 2026-04-24,v9,CP-20260424-P1v9,P1v9 Pewniaki,2,PK-20260424-808|PK-20260424-804,3.42,3.00,low,pending,,2026-04-24 16:00,pass,Lublin HC-26.5 + Zhao HC-2.5; dual handicap multi-sport,CONDITIONAL
 2026-04-24,v9,CP-20260424-P2v9,P2v9 Pewniaki,2,PK-20260424-803|PK-20260424-806,2.78,3.00,low,pending,,2026-04-24 16:00,pass,Machac O21.5 games + Napoli U2.5; stable stat markets,CONDITIONAL
 2026-04-24,v9,CP-20260424-P3v9,P3v9 Pewniaki Triple,3,PK-20260424-808|PK-20260424-804|PK-20260424-803,5.13,2.00,medium,pending,,2026-04-24 16:00,pass,Top-3 confidence picks: speedway+snooker+tennis 3 sports,CONDITIONAL
