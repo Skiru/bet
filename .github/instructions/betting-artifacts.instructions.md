@@ -75,6 +75,12 @@ Total suggested stakes may exceed daily budget — user decides which coupons to
 Human-readable Polish descriptions (mandatory for every coupon leg):
 Every selection in the coupon table MUST use a Polish-language market description so the user can match it to Betclic's Polish interface without error.
 
+Full team/player names (MANDATORY):
+- Always use FULL official names: "RB Leipzig" not "Leipzig", "Istanbul Basaksehir" not "Basaksehir", "Montreal Canadiens" not "Montreal".
+- Include competition name in parentheses: "(Bundesliga)", "(ATP Madrid R1)", "(NHL Playoffs)".
+- For tennis: include both player names + tournament + round: "Jiri Lehecka vs Alejandro Tabilo (ATP Madrid R1)".
+- Reason: Betclic often lists multiple teams with similar names (e.g. RB Leipzig, Lokomotive Leipzig, Chemie Leipzig). User must find the EXACT event.
+
 Standard translations:
 - Over X.5 goals → Powyżej X.5 bramek
 - Under X.5 goals → Poniżej X.5 bramek

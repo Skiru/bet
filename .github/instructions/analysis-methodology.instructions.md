@@ -270,6 +270,7 @@ For every tennis candidate:
 - Surface-specific win rate (clay/hard/grass)
 - H2H record on current surface
 - Recent form: last 5-10 matches, noting retirements and walkovers
+- **Tournament round context (MANDATORY):** For R2+, check the player's result from the previous round in this same tournament — score, number of games, sets, physical condition, match duration. A 3h R1 match impacts R2 stamina. A dominant 6-1 6-2 R1 signals peak form. Always check Flashscore/ATP site for in-tournament results before analyzing.
 
 **B. Match Dynamics (TennisAbstract)**
 - Elo rating and surface Elo
