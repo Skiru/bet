@@ -797,6 +797,14 @@ For each football pick:
 4. Identify weakest coupon leg for each coupon
 5. Note same-tournament risks
 
+### V7b: Date & Fixture Verification (MANDATORY)
+Before finalizing ANY coupon, verify EVERY event in every coupon:
+1. **Date check**: Confirm the event falls within the betting-day window (06:00 today to 05:59 tomorrow). Cross-check the date on Betclic/BetExplorer — do NOT trust source data or tipster sites for dates.
+2. **Fixture existence**: Confirm the match is listed on Betclic or BetExplorer for today. If the event is not found on the bookmaker site for today, it does NOT exist today — void the pick immediately.
+3. **Opponent name**: Confirm the exact team/player names match what Betclic shows. Cross-reference with picks-ledger.
+4. **Competition name**: Confirm the league/tournament name is correct.
+Failure on ANY of these → VOID the pick and remove from all coupons. Replace with a valid alternative or drop the coupon.
+
 ### V8: Source Completeness Audit
 For EVERY active pick, verify:
 1. At least 1 Tier A stats source with a SPECIFIC data point cited (not just "checked SoccerStats").
