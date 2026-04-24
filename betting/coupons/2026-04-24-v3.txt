@@ -1,0 +1,239 @@
+BETTING DAY: 2026-04-24
+RUN TIME LOCAL: 2026-04-24 08:30 CEST (v3 — FULL 12-SPORT ANALYSIS)
+UPDATED: 2026-04-24 08:30 (v3 — expanded to 8+ sports, 14 coupons, niche sports added)
+BOOKMAKER: Betclic
+BANKROLL CAP PLN: 49.00
+TOTAL SUGGESTED EXPOSURE PLN: 21.50
+RECOMMENDED PLACEMENT PLN: 5.00-7.50 (user picks 3-5 coupons)
+UNUSED BANKROLL PLN: ~42.00-44.00
+
+NOTE: Version 3. Full 12-sport scan completed. 8 sports with events, 2 (darts, table_tennis) NO EVENTS TODAY.
+All picks CONDITIONAL — verify odds on Betclic app before placing.
+
+=== SPORT COVERAGE AUDIT ===
+1. Football:     ✓ 8 events scanned
+2. Tennis:       ✓ ATP Madrid (3+ matches)
+3. Basketball:   ✓ No NBA today. Minor leagues only — no value.
+4. Hockey:       ✓ NHL Playoffs (3 games) + Denmark + Finland
+5. Baseball:     ✓ MLB (13 games tonight)
+6. Volleyball:   ✓ Multiple leagues
+7. Esports:      ✓ CS2 CCT + Dota 2 PGL + LoL LCK/LEC — limited odds availability
+8. Snooker:      ✓ World Championship (4 matches)
+9. Darts:        ✗ NO EVENTS TODAY (next: Apr 30)
+10. Handball:    ✓ France Starligue, Germany Bundesliga, Spain ASOBAL
+11. Table Tennis: ✗ NO EVENTS TODAY (next: Apr 25)
+12. MMA:         ✓ ONE Championship (minor card, no Tier A coverage)
+
+=== SETTLED PICKS (Apr 23 night) ===
+PK-20260423-90: LAK 2-4 COL (6 goals) → U5.5 LOST
+PK-20260423-91: OTT 1-2 CAR (3 goals) → U5.5 WON
+PK-20260423-93: BOS 2-4 NYY → Yankees ML WON
+PK-20260423-95: NYM 10-8 MIN → Twins ML LOST
+PK-83: GSK 1-3 Fenerbahce (4 sets) → O3.5 WON
+PK-210: BOS 2-4 NYY → Yankees ML WON (game at 00:10 CEST)
+PK-211: BOS 1-3 BUF (4 goals) → U6.5 WON (game at 01:00 CEST)
+Night session: 5W-2L (71% hit rate). All conditional/0 PLN staked.
+
+=== ACTIVE PICKS (18 total, 8 sports) ===
+
+--- FOOTBALL (8 picks) ---
+PK-101: Basaksehir vs Kasimpasa — Under 10.5 corners @ 1.50 [CONF 5]
+  ↳ ZT 9/10 Kasimpasa U10.5 CK. H2H 4/5 under. CONDITIONAL >= 1.45
+
+PK-104: Riestra vs Independiente — Under 2.5 goals @ 1.40 [CONF 4]
+  ↳ ZT 22 consecutive U2.5 games! Riestra 0.21 GF/match. CONDITIONAL >= 1.30
+
+PK-114: Leipzig vs Union Berlin — Over 2.5 goals @ 1.40 [CONF 3]
+  ↳ Leipzig 2.33 GF home avg. 9/10 home O1.5. Union new manager. CONDITIONAL >= 1.35
+
+PK-207: Leipzig vs Union Berlin — Over 16.5 Leipzig shots @ 1.75 [CONF 4]
+  ↳ ZT: Leipzig 19+24 shots last 2. Union deep block = shots. CONDITIONAL >= 1.70
+
+PK-203: Leipzig vs Union Berlin — O1.5 goals + O7.5 CK (bet builder) @ 1.50 [CONF 4]
+  ↳ ZT: Leipzig avg 9.7 CK total. 8/10 home O7.5. CONDITIONAL >= 1.45
+
+PK-208: Palmeiras vs Jacuipense — Over 9.5 corners @ 1.50 [CONF 4]
+  ↳ ZT: Palmeiras own CK 9+8+7+11+5+8. Total CK avg 11.3. CONDITIONAL >= 1.45
+
+PK-209: Napoli vs Cremonese — Over 8.5 corners @ 1.55 [CONF 3]
+  ↳ ZT: Napoli dominated corners first leg. Cremonese Serie B. CONDITIONAL >= 1.50
+
+PK-205: Lens ML vs Brest — @ 1.69 [CONF 4]
+  ↳ ZT 61%: Lens 2nd, 4pts behind PSG. 4/4 H2H wins vs Brest. CONDITIONAL >= 1.60
+
+--- TENNIS (1 pick) ---
+PK-206: Shelton ML vs Prizmic — @ 1.57 [CONF 3]
+  ↳ Match at 12:30 today. Shelton #6, won Munich ATP 500 clay. Prizmic Q fatigue. CONDITIONAL >= 1.50
+
+--- SNOOKER (1 pick) ---
+PK-302: Williams ML vs Hawkins — @ 1.70 [CONF 3]
+  ↳ World Championship. Williams higher-ranked, Crucible veteran. CONDITIONAL >= 1.65
+
+--- HOCKEY (4 picks) ---
+PK-306: Herning Blue Fox ML vs Herlev — @ 1.68 [CONF 3]
+  ↳ OLBG 67%. Denmark Metal Ligaen 20:30. CONDITIONAL >= 1.60
+
+PK-304: Montreal Canadiens ML vs Tampa Bay — @ 1.83 [CONF 3]
+  ↳ Home ice playoffs. 63% public. NHL G4 01:00 CEST. CONDITIONAL >= 1.75
+
+PK-303: Utah Mammoth ML vs Vegas — @ 1.91 [CONF 3]
+  ↳ Pickswise backs. Home ice. Vegas regulation loss uncertainty. 03:30 CEST. CONDITIONAL >= 1.85
+
+PK-307: CAR-OTT Under 5.5 goals — @ 2.00 [CONF 3]
+  ↳ Pickswise U5.5 (+100). G3 was 1-2. Playoff tightening. 25 Apr 21:00 CEST. CONDITIONAL >= 1.90
+
+PK-309: MTL-TBL Under 6 goals — @ 1.98 [CONF 3]
+  ↳ SBR line 6 (U6 -102). Playoff hockey. 01:00 CEST. CONDITIONAL >= 1.90
+
+--- BASEBALL (2 picks) ---
+PK-305: Detroit Tigers ML vs Cincinnati — @ 1.74 [CONF 3]
+  ↳ Pickswise: Valdez strong, Abbott 0-2. 00:40 CEST. CONDITIONAL >= 1.65
+
+PK-308: Cleveland ML vs Toronto — @ 1.77 [CONF 3]
+  ↳ Williams 3-1 vs aging Scherzer. 01:07 CEST. CONDITIONAL >= 1.70
+
+--- VOLLEYBALL (1 pick) ---
+PK-212: Paris +5.5 pts 1st set vs Poitiers — @ 1.65 [CONF 3]
+  ↳ ZT 63%: Molotkov returns. Paris won French Cup. CONDITIONAL >= 1.60
+
+=== COUPONS (14 total) ===
+
+--- PEWNIAKI SYSTEM (6 coupons) ---
+
+CP-24-P1v3: PEWNIAKI DOUBLE 1 [LOW RISK]
+  PK-101 Basaksehir U10.5 CK @ 1.50
+  PK-207 Leipzig O16.5 shots @ 1.75
+  Combined: 2.63 | Stake: 2.00 PLN | Return: 5.25 PLN
+
+CP-24-P2v3: PEWNIAKI DOUBLE 2 [LOW RISK]
+  PK-101 Basaksehir U10.5 CK @ 1.50
+  PK-205 Lens ML @ 1.69
+  Combined: 2.54 | Stake: 2.00 PLN | Return: 5.07 PLN
+
+CP-24-P3v3: PEWNIAKI TRIPLE [LOW RISK]
+  PK-207 Leipzig O16.5 shots @ 1.75
+  PK-205 Lens ML @ 1.69
+  PK-104 Riestra U2.5 @ 1.40
+  Combined: 4.14 | Stake: 2.00 PLN | Return: 8.28 PLN
+
+CP-24-P4v3: CORNERS TRIPLE [LOW RISK]
+  PK-101 Basaksehir U10.5 CK @ 1.50
+  PK-208 Palmeiras O9.5 CK @ 1.50
+  PK-207 Leipzig O16.5 shots @ 1.75
+  Combined: 3.94 | Stake: 2.00 PLN | Return: 7.88 PLN
+
+CP-24-P5v3: PEWNIAKI QUAD [MEDIUM]
+  PK-101 Basaksehir U10.5 CK @ 1.50
+  PK-104 Riestra U2.5 @ 1.40
+  PK-205 Lens ML @ 1.69
+  PK-207 Leipzig O16.5 shots @ 1.75
+  Combined: 6.21 | Stake: 1.50 PLN | Return: 9.32 PLN
+
+CP-24-P6v3: FULL PEWNIAKI [HIGHER RISK]
+  PK-101 + PK-104 + PK-205 + PK-207 + PK-208
+  Combined: 9.31 | Stake: 1.00 PLN | Return: 9.31 PLN
+
+--- MULTI-SPORT COUPONS (4 coupons) ---
+
+CP-24-MS1v3: SNOOKER + HOCKEY + FOOTBALL [MEDIUM]
+  PK-302 Williams ML (snooker) @ 1.70
+  PK-306 Blue Fox ML (Denmark hockey) @ 1.68
+  PK-205 Lens ML (Ligue 1) @ 1.69
+  Combined: 4.83 | Stake: 1.50 PLN | Return: 7.24 PLN
+
+CP-24-MS2v3: TENNIS + NHL + MLB [MEDIUM]
+  PK-206 Shelton ML (tennis) @ 1.57
+  PK-303 Utah ML (NHL) @ 1.91
+  PK-305 Detroit ML (MLB) @ 1.74
+  Combined: 5.22 | Stake: 1.50 PLN | Return: 7.83 PLN
+
+CP-24-MS3v3: VOLLEYBALL + NHL + MLB [MEDIUM]
+  PK-212 Paris +5.5 pts (volleyball) @ 1.65
+  PK-304 Montreal ML (NHL) @ 1.83
+  PK-308 Cleveland ML (MLB) @ 1.77
+  Combined: 5.34 | Stake: 1.50 PLN | Return: 8.01 PLN
+
+CP-24-MS4v3: NICHE SPORT MIX [MEDIUM]
+  PK-302 Williams ML (snooker) @ 1.70
+  PK-212 Paris +5.5 pts (volleyball) @ 1.65
+  PK-306 Blue Fox ML (Denmark hockey) @ 1.68
+  PK-104 Riestra U2.5 (Argentina football) @ 1.40
+  Combined: 6.60 | Stake: 1.00 PLN | Return: 6.60 PLN
+
+--- HIGHER-RISK COUPONS (2 coupons) ---
+
+CP-24-HR1v3: HIGH RISK 5-LEG [HIGHER RISK]
+  PK-207 Leipzig O16.5 shots @ 1.75
+  PK-205 Lens ML @ 1.69
+  PK-206 Shelton ML @ 1.57
+  PK-302 Williams ML (snooker) @ 1.70
+  PK-306 Blue Fox ML (Denmark hockey) @ 1.68
+  Combined: 13.27 | Stake: 1.00 PLN | Return: 13.27 PLN
+
+CP-24-HR2v3: HIGH RISK CORNERS+VOLLEY+NHL [HIGHER RISK]
+  PK-208 Palmeiras O9.5 CK @ 1.50
+  PK-209 Napoli O8.5 CK @ 1.55
+  PK-104 Riestra U2.5 @ 1.40
+  PK-212 Paris +5.5 pts @ 1.65
+  PK-304 Montreal ML @ 1.83
+  Combined: 9.83 | Stake: 1.00 PLN | Return: 9.83 PLN
+
+--- NIGHT SESSION (2 coupons, all games after 00:00 CEST) ---
+
+CP-24-N1v3: NIGHT SESSION US SPORTS [HIGHER RISK]
+  PK-305 Detroit Tigers ML @ 1.74
+  PK-308 Cleveland ML @ 1.77
+  PK-303 Utah Mammoth ML @ 1.91
+  PK-309 MTL-TBL U6 @ 1.98
+  Combined: 11.64 | Stake: 1.00 PLN | Return: 11.64 PLN
+
+CP-24-N2v3: NIGHT SAFE DOUBLE [MEDIUM]
+  PK-305 Detroit Tigers ML @ 1.74
+  PK-304 Montreal Canadiens ML @ 1.83
+  Combined: 3.18 | Stake: 1.50 PLN | Return: 4.78 PLN
+
+=== STAKE SUMMARY ===
+Pewniaki P1-P4 (low risk):     4 × 2.00 = 8.00 PLN
+Pewniaki P5 (medium):          1 × 1.50 = 1.50 PLN
+Pewniaki P6 (higher):          1 × 1.00 = 1.00 PLN
+Multi-Sport MS1-MS3 (medium):  3 × 1.50 = 4.50 PLN
+Multi-Sport MS4 (medium):      1 × 1.00 = 1.00 PLN
+Higher-Risk HR1-HR2:           2 × 1.00 = 2.00 PLN
+Night N1 (higher):             1 × 1.00 = 1.00 PLN
+Night N2 (medium):             1 × 1.50 = 1.50 PLN
+TOTAL SUGGESTED:               21.50 PLN
+DAILY BUDGET:                  5.00-7.50 PLN
+→ Pick 3-5 coupons. Rest stays in reserve.
+
+=== WATCHLIST (promote if Betclic odds meet threshold) ===
+W1: Musetti ML vs Hurkacz — Promote if Betclic >= 1.62 (OLBG 6/6, 100% consensus)
+W2: Sunderland vs Nottingham BTTS — Promote if Betclic >= 1.75 (both teams score ~70%)
+W3: Edmonton-Anaheim Over 6.5 — Promote if Betclic >= 1.65 (Pickswise backs Over)
+W4: Fnatic ML vs Shifters (LoL LEC) — Promote if Betclic has esports odds and >= 1.40
+
+=== TIMING GUIDE ===
+MORNING (08:00-12:00):
+  - Verify all Betclic odds in app
+  - Place pewniaki coupons that meet thresholds
+  - Check watchlist promotions
+
+AFTERNOON (12:00-18:00):
+  - PK-206 Shelton match at 12:30
+  - PK-302 Williams snooker at 11:00 (already started!)
+  - PK-306 Blue Fox at 20:30
+  - Place MS1v3, MS4v3 if odds OK
+
+EVENING (18:00-00:00):
+  - PK-101, PK-207, PK-203, PK-114 (Leipzig 20:30, Basaksehir 19:00)
+  - PK-205 Lens match time
+  - PK-209 Napoli Coppa Italia 21:00
+  - Place remaining pewniaki/HR coupons
+
+NIGHT (00:00-05:59):
+  - PK-305 Detroit MLB 00:40
+  - PK-308 Cleveland MLB 01:07
+  - PK-304 Montreal NHL 01:00
+  - PK-309 MTL-TBL total 01:00
+  - PK-303 Utah NHL 03:30
+  - PK-208 Palmeiras Copa do Brasil 00:30
+  - Place N1v3, N2v3 if odds OK

@@ -19,7 +19,7 @@ Follow the 11-step workflow in analysis-methodology.instructions.md:
 7. STEP 6: Context verification
 8. STEP 7: Bear case for each pick
 9. STEP 8: Portfolio construction
-10. STEP 9: Validate V1-V8
+10. STEP 9: Validate V1-V10 (V8=source completeness, V9=coupon optimization, V10=final sign-off)
 11. STEP 10: Write artifacts (formats below)
 
 ## 2. HARD RULES (violating any = automatic reject)
@@ -31,7 +31,7 @@ Follow the 11-step workflow in analysis-methodology.instructions.md:
 - **Minimum 5-sport diversity in picks.** The final pick roster must include picks from at least 5 different sports. If fewer than 5 sports have picks, search deeper before declaring no value.
 - **Multi-sport coupons mandatory.** At least 3 coupons must be multi-sport (2+ sports). At least 1 coupon must include a niche sport (not football/tennis).
 - Max coupon stake: 3.00 PLN for low-risk, 2.00 PLN for higher-risk
-- Daily exposure cap: 8.00–12.00 PLN (but suggest stakes for ALL coupons even if total exceeds cap — user decides which to place)
+- Daily exposure cap: per config/betting_config.json `suggested_daily_allocation_range_pln` (currently 5.00–7.50 PLN, but suggest stakes for ALL coupons even if total exceeds cap — user decides which to place)
 - Each event may appear in multiple coupons (pewniaki system generates combinations). But never duplicate the same coupon composition.
 - Every pick needs: 1 Tier A stats source (Flashscore, Sofascore) + 1 Tier A market source (BetExplorer, OddsPortal)
 - If sources conflict on a pick, skip it
@@ -189,7 +189,7 @@ Required sections IN THIS ORDER:
 4. `## Learning Update` (max 3 points)
 5. `## Source Availability`
 6. `## Candidate Board`
-7. `## Final Singles`
+7. `## Final Picks` (all picks — no singles exist, every pick is a coupon leg)
 8. `## Final Coupons`
 9. `## Rejected Picks`
 10. `## Exposure Summary`
@@ -280,8 +280,28 @@ Go through every check. Write YES or NO for each. If any is NO, fix it before pr
 - [ ] If >4 picks from one tournament: state shared risks (weather, schedule)
 - [ ] Every weakness marked ACCEPTED (with reason) or FIXED
 
-### V8: Final Answer
-- [ ] All V1–V7 checks pass → write "PORTFOLIO APPROVED"
+### V8: Source Completeness Audit
+- [ ] Every pick has ≥2 independent sources (1 Tier A stats + 1 Tier A market minimum)
+- [ ] Every pick had ≥1 argument-based tipster site checked (ZawodTyper/Typersi/Meczyki/OLBG/PicksWise/BetIdeas/GosuGamers)
+- [ ] Football corners: TotalCorner + SoccerStats + Betclic Statystyki checked. Missing any → flag pick.
+- [ ] Tennis: TennisAbstract checked. Missing → flag.
+- [ ] MLB: BaseballSavant or pitcher stats checked. Missing → flag.
+- [ ] Esports: Liquipedia or GosuGamers checked. Missing → flag.
+- [ ] Snooker: CueTracker checked. Missing → flag.
+- [ ] Every sport with picks had ≥2 tipster sites checked
+- [ ] ALL tipster conflicts recorded and addressed in bear case
+- [ ] If tipster consensus <50% → pick justified or removed
+
+### V9: Coupon Composition Optimization
+- [ ] Picks re-ranked by EV × confidence — highest in most coupons
+- [ ] No coupon has ≥3 legs of same market type
+- [ ] Every active pick in ≥1 coupon (no orphans)
+- [ ] Night coupons = only night games
+- [ ] Weakest-leg swap test done per coupon
+- [ ] Combined odds in sweet spots (pewniaki 2-8, MS 3-10, HR 8-20)
+
+### V10: Final Sign-Off
+- [ ] All V1–V9 checks pass → write "PORTFOLIO APPROVED"
 - [ ] If any check fails → fix it, re-check, do not present until all pass
 
 ## 7. COMMON MISTAKES (read before writing — CHECK EVERY ONE)
@@ -305,3 +325,8 @@ Go through every check. Write YES or NO for each. If any is NO, fix it before pr
 17. Producing fewer than 5 coupons without exhausting all sport/market opportunities first.
 18. Self-censoring coupon count because total exposure exceeds daily budget — suggest ALL coupons, user decides.
 19. Giving up on a source after first 403/block instead of trying next source in the Odds Source Map.
+20. Skipping the V8 source completeness audit — EVERY pick needs ≥2 sources verified, ≥1 tipster site checked, sport-specific sources confirmed.
+21. Skipping V9 coupon optimization — EVERY coupon must be verified for pick ranking, orphan picks, market concentration, weakest-leg swap, timing coherence.
+22. Missing Polish descriptions on coupon legs — EVERY selection MUST have a Polish parenthetical (e.g., "Powyżej 10.5 rzutów rożnych").
+23. Having an active pick not in ANY coupon — under NO SINGLES rule, every pick must be in ≥1 coupon or moved to watchlist.
+24. Accepting a tipster conflict without addressing it in the bear case — if Meczyki/Typersi/OLBG argue against your pick, the bear case MUST respond.

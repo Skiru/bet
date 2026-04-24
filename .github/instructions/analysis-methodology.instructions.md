@@ -319,7 +319,7 @@ For every handball candidate:
 - Total runs O/U (primary market)
 - Run line (handicap +-1.5)
 - First 5 innings line (removes bullpen variance)
-- **Sources**: Baseball Reference, FanGraphs, ESPN, SBR, BetExplorer baseball
+- **Sources**: BaseballSavant (Statcast — xERA, xFIP, barrel%), Baseball Reference, ESPN, SBR, BetExplorer baseball. Note: FanGraphs is BLOCKED — use BaseballSavant as primary pitcher/hitter stats source.
 
 ### 3.13 General Principle for ALL Sports
 Follow sport-specific source references in source-registry.md. The universal approach:
@@ -591,7 +591,7 @@ Specify promotion criteria: "Promote if Betclic odds >= X.XX for [selection]"
 
 ---
 
-## STEP 9: VALIDATE — Full V1-V8 Protocol
+## STEP 9: VALIDATE — Full V1-V10 Protocol
 
 Run EVERY validation check. If any fails, fix it before proceeding.
 
@@ -693,8 +693,46 @@ For each football pick:
 4. Identify weakest coupon leg for each coupon
 5. Note same-tournament risks
 
-### V8: Final Sign-Off
-All V1-V7 pass? -> PORTFOLIO APPROVED.
+### V8: Source Completeness Audit
+For EVERY active pick, verify:
+1. At least 1 Tier A stats source with a SPECIFIC data point cited (not just "checked SoccerStats").
+2. At least 1 Tier A market/price source with SPECIFIC odds cited.
+3. At least 2 INDEPENDENT sources total (same site counted once).
+4. At least 1 ARGUMENT-BASED tipster source checked per candidate — not bare picks, but a site where tipsters post written reasoning (ZawodTyper, Typersi, Meczyki, OLBG, PicksWise, BetIdeas, Sportsgambler, GosuGamers).
+
+Sport-specific source requirements (fail = downgrade confidence -1 or flag):
+- **Football corners**: TotalCorner + SoccerStats + Betclic Statystyki (3-source stack). Missing any → flag pick.
+- **Tennis**: TennisAbstract Elo + surface form. Missing → flag pick.
+- **MLB**: BaseballSavant (Statcast) or Baseball Reference pitcher ERA/WHIP. Missing → flag pick. Note: FanGraphs is BLOCKED.
+- **Esports**: Liquipedia or GosuGamers roster/form data. Missing → flag pick.
+- **Snooker**: CueTracker frame stats. Missing → flag pick.
+
+For EVERY sport with active picks, verify:
+1. At least 2 tipster/analysis sites were checked for events in that sport.
+2. If football picks present → Meczyki + ZawodTyper + (Typersi or OLBG) checked.
+3. If tennis picks present → OLBG or PicksWise checked + TennisAbstract.
+4. If US sport picks present → PicksWise + SBR/ESPN checked.
+
+Conflict resolution:
+1. If any tipster argues AGAINST a pick with specific fact-based reasoning → the bear case (V7) MUST address that argument.
+2. If tipster consensus is <50% for the pick direction → pick needs explicit justification or removal.
+3. Record ALL conflicts found and their resolution in the daily report.
+
+### V9: Coupon Composition Optimization
+Verify coupons are optimally composed — not just valid, but the BEST possible combinations:
+
+1. **Pick ranking**: Re-rank all active picks by `EV × confidence`. Are the highest-ranked picks in the most coupons (especially pewniaki)?
+2. **Pewniaki integrity**: Are the top 3-5 picks genuinely the highest-confidence, highest-EV picks? No lower-ranked pick displaced a higher one?
+3. **Sport diversity per coupon**: Every multi-sport coupon has legs from ≥2 sports? At least 3 coupons are multi-sport?
+4. **Same-match check**: No two legs in the same coupon from the same match.
+5. **Market concentration**: No coupon has ≥3 legs of the same market type (e.g., 3 corner picks, 3 ML picks). Max 2 same-type per coupon.
+6. **Orphan pick check**: Every active pick appears in at least 1 coupon. Under NO SINGLES rule, picks without a coupon must be added to one or moved to watchlist.
+7. **Timing coherence**: Night coupons contain only night games (≥00:00 CEST). Morning/afternoon plays are not mixed into night coupons.
+8. **Weakest-leg swap test**: For each coupon, identify the weakest leg (lowest confidence or highest bear-case risk). Is there a BETTER pick in the pool that could replace it without creating correlation? If yes → swap.
+9. **Combined odds sweet spot**: Pewniaki 2.00-8.00, multi-sport 3.00-10.00, higher-risk 8.00-20.00. Coupons outside these ranges should be reviewed.
+
+### V10: Final Sign-Off
+All V1-V9 pass? -> PORTFOLIO APPROVED.
 Any fail? -> Fix and re-check. Do not present until all pass.
 
 ---
@@ -849,7 +887,7 @@ STEP 8: Portfolio construction
   [ ] Suggest stakes for all coupons (may exceed daily cap)
   [ ] Build watchlist with promotion criteria
 
-STEP 9: Validate V1-V8
+STEP 9: Validate V1-V10
   [ ] V1: artifacts consistent
   [ ] V2: per-pick sources valid
   [ ] V3: tennis checks pass
@@ -857,7 +895,9 @@ STEP 9: Validate V1-V8
   [ ] V5: coupon structure valid
   [ ] V6: portfolio risk OK
   [ ] V7: weaknesses documented
-  [ ] V8: all pass -> APPROVED
+  [ ] V8: source completeness audit pass (all picks have ≥2 sources, sport-specific sources checked, tipster conflicts resolved)
+  [ ] V9: coupon optimization pass (pick ranking, orphan check, market concentration, weakest-leg swap, timing coherence)
+  [ ] V10: all pass -> APPROVED
 
 STEP 10: Write artifacts
   [ ] Report, coupon file, portfolio

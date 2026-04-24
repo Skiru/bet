@@ -152,16 +152,37 @@ For each shortlisted candidate, execute in sequence:
     - `betting/journal/source-log.csv`
     - `betting/journal/learning-log.md`
 10e. If no bets: write NO BET TODAY, still update logs.
+10f. Every coupon leg MUST include a Polish-language description in parentheses (see betting-artifacts.instructions.md for standard translations). Example: `Over 10.5 corners @ 1.50 (Powyżej 10.5 rzutów rożnych)`.
 
-## STEP 11: VALIDATION (V1-V8)
+## STEP 11: VALIDATION (V1-V10) — NEVER SKIP
 
-11a. V1: Artifact consistency (pick_ids, coupon_ids, stake sums).
-11b. V2: Per-pick validation (Tier A stats, Tier A market, EV > 0, confidence).
-11c. V3-V4: Sport-specific checks (tennis odds ratio, football corner stack, volleyball ML range).
-11d. V5: Coupon structure (min 2 legs, same-sport limit, correlation, combined odds = product ±10%, min 5 coupons).
-11e. V6: Portfolio risk (no coupon > 3.00 PLN LR / 2.00 PLN HR, exposure < 25% bankroll, min 5 coupons).
-11f. V7: Weakness flagging (borderline picks, CONDITIONAL, weakest legs).
-11g. V8: All pass → APPROVED. Any fail → fix and re-check.
+Run ALL validation checks. If ANY fails, fix it before presenting. This is the QUALITY GATE — it catches every shortcut, missing source, and coupon gap.
+
+11a. V1: Artifact consistency (pick_ids, coupon_ids, stake sums, exposure totals match across all files).
+11b. V2: Per-pick validation (Tier A stats source with SPECIFIC data, Tier A market source with SPECIFIC odds, EV > 0, confidence 1-5).
+11c. V3-V4: Sport-specific checks (tennis odds ratio, football corner 3-source stack, volleyball ML range, hockey goalie, baseball pitcher, snooker frames, esports maps).
+11d. V5: Coupon structure (min 2 legs, same-sport ≤2, correlation check, combined odds = product ±10%, min 5 coupons).
+11e. V6: Portfolio risk (no coupon > 3.00 PLN LR / 2.00 PLN HR, exposure < 25% bankroll).
+11f. V7: Weakness flagging (borderline picks, CONDITIONAL, weakest leg per coupon, tournament concentration).
+11g. **V8: Source Completeness Audit (CRITICAL — this catches missed sources):**
+     - Every pick has ≥2 independent sources (stats + market minimum).
+     - Every pick had ≥1 argument-based tipster site checked (ZawodTyper/Typersi/Meczyki/OLBG/PicksWise/BetIdeas/GosuGamers).
+     - Football corners: TotalCorner + SoccerStats + Betclic Statystyki (3-source stack). Missing any → flag.
+     - Tennis: TennisAbstract Elo + surface form checked. Missing → flag.
+     - MLB: BaseballSavant or pitcher stats source checked. Missing → flag.
+     - Esports: Liquipedia or GosuGamers form data. Missing → flag.
+     - Snooker: CueTracker frame stats. Missing → flag.
+     - Every sport with picks had ≥2 tipster/analysis sites checked.
+     - ALL tipster conflicts recorded and addressed in bear case.
+     - If tipster consensus <50% for pick direction → explicit justification or removal.
+11h. **V9: Coupon Composition Optimization (CRITICAL — this catches suboptimal coupons):**
+     - Re-rank picks by EV × confidence. Highest-ranked picks in most coupons (especially pewniaki)?
+     - No coupon has ≥3 legs of same market type. Max 2 same-type per coupon.
+     - Every active pick in at least 1 coupon (no orphans under NO SINGLES rule).
+     - Night coupons contain only night games (≥00:00 CEST).
+     - Weakest-leg swap test: for each coupon, can the weakest leg be replaced by a stronger unused pick?
+     - Combined odds in sweet spots: pewniaki 2.00-8.00, multi-sport 3.00-10.00, HR 8.00-20.00.
+11i. **V10: Final Sign-Off** — ALL V1-V9 pass → PORTFOLIO APPROVED. Any fail → fix and re-check.
 
 ---
 
@@ -178,4 +199,6 @@ After all artifacts are written, respond with:
 7. **Source issues:** any outages or stale data
 8. Summary table: all tickets with pick_ids, market, odds, stake, EV, confidence
 9. **Watch List:** backup picks with promotion criteria
+10. **Conditional picks:** list ALL picks requiring manual Betclic odds verification with acceptance thresholds
+11. **Validation summary:** V8 source audit result (gaps found/none), V9 coupon optimization result (changes made/none)
 10. **Conditional picks:** list picks requiring manual Betclic odds verification

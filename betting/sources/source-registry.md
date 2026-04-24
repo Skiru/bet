@@ -289,7 +289,8 @@ Always record in the report which community sources were checked and whether con
   Role: CS2 statistics, team rankings, match history, player stats, map veto patterns, event schedules.
   URL: hltv.org
   Use for: CS2 moneyline, map handicap, map totals. Team rankings, recent form, map pool analysis.
-  Access: OK.
+  Access: PARTIAL — statistics pages work, but tips/predictions pages return 403. Use for STATS ONLY, not tips.
+  Note: HLTV tips are BLOCKED (listed in copilot-instructions blocked tipster list). Use stats pages only (rankings, match history, player data). For esports tips/predictions, use GosuGamers instead.
 
 - Liquipedia
   Role: comprehensive esports wiki — CS2, Dota 2, League of Legends, Valorant, StarCraft, Rocket League. Tournament brackets, team rosters, match history.
@@ -448,10 +449,10 @@ Do NOT attempt to fetch these — they waste time and produce no data:
 - FCTables (fctables.com) — 403
 - WhoScored (whoscored.com) — 403
 - KenPom (kenpom.com) — blocked
-- FanGraphs (fangraphs.com) — blocked
+- FanGraphs (fangraphs.com) — blocked. Use BaseballSavant (Statcast) as replacement for pitcher/hitter stats.
 - ActionNetwork (actionnetwork.com) — blocked
 - VolleyBox (volleybox.net) — blocked
-- HLTV (hltv.org) — 403 (CS2 stats blocked)
+- HLTV (hltv.org) — tips/predictions 403. Stats pages (rankings, match history, player data) partially accessible. Use GosuGamers for esports tips.
 
 **Partial:**
 - Covers (covers.com) — NBA pages return empty; other sections partial.
@@ -496,6 +497,7 @@ Use this table to know WHERE to get odds for each sport. Never give up after one
 
 - Baseball
   Minimum stack: BaseballSavant (Statcast) + **SBR or ESPN** (totals/run line) + BetExplorer.
+  Note: FanGraphs is BLOCKED — use BaseballSavant (xERA, xFIP, barrel%) as the primary pitcher/hitter stats source.
   Tipster cross-check: PicksWise.
   Preferred markets: totals and selective moneylines.
 

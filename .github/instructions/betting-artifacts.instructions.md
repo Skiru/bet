@@ -78,6 +78,32 @@ Minimum 5 coupons total. No singles. No maximum legs per coupon.
 Total suggested stakes may exceed daily budget — user decides which coupons to place.
 If a coupon variant is not justified, write OMITTED instead of forcing it.
 
+Human-readable Polish notes (mandatory for every coupon leg):
+Every selection line in the coupon file MUST include a Polish-language description in parentheses so the user can match it to Betclic's Polish interface without error. Format: `Selection @ odds (Polish description)`.
+
+Standard translations:
+- Over X.5 goals → Powyżej X.5 bramek
+- Under X.5 goals → Poniżej X.5 bramek
+- Over X.5 corners → Powyżej X.5 rzutów rożnych
+- Under X.5 corners → Poniżej X.5 rzutów rożnych
+- Over X.5 cards → Powyżej X.5 kartek
+- BTTS Yes → Obie drużyny strzelą - Tak
+- BTTS No → Obie drużyny strzelą - Nie
+- Team ML / Team wins → Zwycięstwo [Team]
+- Double chance 1X → Podwójna szansa 1X (gospodarze lub remis)
+- Double chance X2 → Podwójna szansa X2 (goście lub remis)
+- Draw No Bet → Remis - Loss refund
+- Over X.5 shots → Powyżej X.5 strzałów
+- Over X.5 total games (tennis) → Powyżej X.5 gemów łącznie
+- Set handicap -1.5 → Handicap setowy -1.5
+- Map handicap -1.5 → Handicap mapowy -1.5
+- Total sets Over 3.5 → Łączna liczba setów powyżej 3.5
+- Team +X.5 pts set 1 → [Team] +X.5 pkt w 1. secie
+- Total frames Over X.5 → Łączna liczba framów powyżej X.5
+- Total goals Under X → Łączna liczba goli poniżej X
+- Run line -1.5 → Handicap -1.5 (runs)
+For any market not listed: provide a clear Polish description that matches Betclic's terminology.
+
 Use these exact CSV headers.
 
 betting/journal/picks-ledger.csv
