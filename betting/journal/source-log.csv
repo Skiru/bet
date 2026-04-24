@@ -106,3 +106,14 @@ betting_day,source_name,role,sport_scope,availability,used_in_analysis,used_in_f
 2026-04-24,00:15,PicksWise match pages,hockey+baseball+basketball,OK,Night v3: Full arguments for all 7 games. NYY ML 5/5 conf. Kings OVER. Senators UNDER.
 2026-04-24,00:15,Sportsgambler,hockey,OK,Night v3: BOS ML + OTT ML predictions. MLB pages redirected.
 2026-04-24,00:15,OLBG,baseball+basketball,404,Night v3: Baseball and basketball tip pages return 404.
+2026-04-24,11:30,BetExplorer,Tier A market,football+tennis+hockey+basketball+baseball+volleyball+handball,available,yes,yes,v5 Deep Scan: Full sport-by-sport scan all 12 sports. ATP/WTA Madrid 32 matches odds extracted.
+2026-04-24,11:30,Flashscore,Tier A stats,all 12 sports,available,yes,yes,v5 Deep Scan: Cross-validated event counts. Confirmed 233 events. Esports + snooker + MMA primary.
+2026-04-24,11:30,OddsPortal,Tier A market,football+tennis+snooker,available,yes,yes,v5: Snooker WC odds + football odds confirmed.
+2026-04-24,11:30,ZawodTyper,Tier B tipster,football+volleyball,available,yes,yes,Carried from v2: 45 tips analyzed. Corners + shots + totals arguments extracted.
+2026-04-24,11:30,Meczyki,Tier B tipster,football,available,yes,no,Carried from v4: Leipzig U2.5 conflict flagged. Sunderland BTTS to watchlist.
+2026-04-24,11:30,Typersi,Tier B tipster,tennis,available,yes,no,Carried from v4: W0lfx Shelton O21.5 games tip.
+2026-04-24,11:30,SBR,Tier A market,hockey+baseball,available,yes,yes,Carried from v4: NHL + MLB lines confirmed.
+2026-04-24,11:30,PicksWise,Tier B tipster,hockey+baseball,available,yes,yes,Carried from v4: Detroit + Cleveland + under picks.
+2026-04-24,11:30,ESPN,Tier A stats,hockey+baseball,available,yes,yes,Carried from v4: NHL + MLB odds + pitcher matchups.
+2026-04-24,11:30,TotalCorner,Tier A stats,football,cookie_wall,no,no,v5: Cookie wall still active. 2/3 corner stack only. ZT + SoccerStats sufficient.
+2026-04-24,11:30,GosuGamers,Tier B tipster,esports,available,yes,no,v5: CS2 CCT + Dota2 PGL checked. No +EV candidates found.

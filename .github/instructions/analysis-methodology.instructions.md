@@ -775,10 +775,10 @@ For each football pick:
 
 ### V5: Coupon Structure
 1. Minimum 2 legs per coupon?
-2. Same-sport legs <= max?
+2. Same-sport legs <= max (2 per sport per coupon)?
 3. HR coupon has min sports?
 4. No same-match correlation?
-5. Combined odds = product of legs (+-10%)?
+5. **Combined odds ARITHMETIC (MANDATORY — never skip):** For EVERY coupon, explicitly multiply each leg's odds and write the product. Compare to the stated combined odds. Tolerance: ±2%. If any coupon differs by >2%, FIX IT before proceeding. Do NOT claim "products match" without showing the multiplication.
 6. Stake within coupon limit?
 7. At least 5 coupons produced?
 

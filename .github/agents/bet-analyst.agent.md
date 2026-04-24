@@ -163,7 +163,7 @@ Use `sequentialthinking` for EACH step (one call per step minimum):
 - V3: Tennis checks (odds ratio, surface, cancellation).
 - V4: Football checks (market hierarchy, corner stack, BTTS league %, defensive profile).
 - V4b: Volleyball checks (ML range, set totals, competition context).
-- V5: Coupon structure (min 2 legs, same-sport limit, correlation, combined odds = product ±10%, stake limit, min 5 coupons).
+- V5: Coupon structure (min 2 legs, same-sport limit ≤2, correlation, **combined odds ARITHMETIC: multiply each coupon's legs explicitly and write the product — never claim verified without showing the math**, stake limit, min 5 coupons).
 - V6: Portfolio risk (exposure < 25%, diversification, tournament concentration).
 - V7: Weakness flagging (borderline picks, CONDITIONAL picks, weakest coupon legs, same-tournament risks).
 - V8: All V1-V7 pass → APPROVED. Any fail → fix and re-check.

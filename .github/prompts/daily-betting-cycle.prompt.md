@@ -169,7 +169,7 @@ Run ALL validation checks. If ANY fails, fix it before presenting. This is the Q
 11a. V1: Artifact consistency (pick_ids, coupon_ids, stake sums, exposure totals match across all files).
 11b. V2: Per-pick validation (Tier A stats source with SPECIFIC data, Tier A market source with SPECIFIC odds, EV > 0, confidence 1-5).
 11c. V3-V4: Sport-specific checks (tennis odds ratio, football corner 3-source stack, volleyball ML range, hockey goalie, baseball pitcher, snooker frames, esports maps).
-11d. V5: Coupon structure (min 2 legs, same-sport ≤2, correlation check, combined odds = product ±10%, min 5 coupons).
+11d. V5: Coupon structure (min 2 legs, same-sport ≤2 per coupon, correlation check, **combined odds ARITHMETIC: multiply each coupon's legs explicitly — never claim verified without showing math**, min 5 coupons).
 11e. V6: Portfolio risk (no coupon > 3.00 PLN LR / 2.00 PLN HR, exposure < 25% bankroll).
 11f. V7: Weakness flagging (borderline picks, CONDITIONAL, weakest leg per coupon, tournament concentration).
 11g. **V8: Source Completeness Audit (CRITICAL — this catches missed sources):**

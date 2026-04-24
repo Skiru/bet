@@ -111,3 +111,18 @@ betting_day,coupon_id,variant,selections_count,pick_ids,combined_odds,stake_pln,
 2026-04-24,CP-24-HR2v4,v4,5,PK-208;PK-104;PK-212;PK-304;PK-308,10.01,1.00,higher,pending,,2026-04-24 10:15,pass,High Risk: Palmeiras CK + Riestra + Paris volley + Montreal + Cleveland,v4 optimized: PK-209 replaced by PK-308 for sport diversity
 2026-04-24,CP-24-N1v4,v4,4,PK-305;PK-308;PK-303;PK-309,11.64,1.00,higher,pending,,2026-04-24 10:15,pass,Night Session: Detroit + Cleveland + Utah + MTL-TBL U6,Source-verified v4
 2026-04-24,CP-24-N2v4,v4,2,PK-305;PK-304,3.18,1.50,medium,pending,,2026-04-24 10:15,pass,Night Safe: Detroit Tigers + Montreal Canadiens,Source-verified v4
+2026-04-24,CP-24-P1v5,v5,2,PK-101;PK-401,2.48,2.50,low,pending,,2026-04-24 11:30,pass,Pewniaki: Basaksehir U10.5 CK + Jodar-De Minaur O22.5 games,Deep Scan v5: top 2 EV picks
+2026-04-24,CP-24-P2v5,v5,2,PK-101;PK-104,2.10,3.00,low,pending,,2026-04-24 11:30,pass,Pewniaki: Two football structural extremes,Deep Scan v5: safest pair
+2026-04-24,CP-24-P3v5,v5,2,PK-401;PK-208,2.48,2.50,low,pending,,2026-04-24 11:30,pass,Pewniaki: Tennis games + Palmeiras CK,Deep Scan v5: multi-continent
+2026-04-24,CP-24-P4v5,v5,2,PK-207;PK-401,2.89,2.00,low,pending,,2026-04-24 11:30,pass,Pewniaki: Leipzig shots + Jodar tennis,Deep Scan v5: best stat + best tennis
+2026-04-24,CP-24-P5v5,v5,3,PK-101;PK-401;PK-104,3.47,2.00,low,pending,,2026-04-24 11:30,pass,Pewniaki Triple: CK + tennis + under,Deep Scan v5: top 3 EV picks
+2026-04-24,CP-24-P6v5,v5,4,PK-101;PK-401;PK-104;PK-212,5.72,1.50,medium,pending,,2026-04-24 11:30,pass,Pewniaki Quad: Top EV cross-sport (football x2 tennis volleyball),Deep Scan v5: fixed same-sport limit PK-208→PK-212
+2026-04-24,CP-24-MS1v5,v5,3,PK-401;PK-302;PK-205,4.74,1.50,medium,pending,,2026-04-24 11:30,pass,Tennis + Snooker + Football,Deep Scan v5: 3 sports
+2026-04-24,CP-24-MS2v5,v5,3,PK-402;PK-212;PK-306,4.57,1.50,medium,pending,,2026-04-24 11:30,pass,Tennis + Volleyball + Hockey,Deep Scan v5: 3 niche sports
+2026-04-24,CP-24-MS3v5,v5,3,PK-403;PK-101;PK-104,3.47,2.00,low,pending,,2026-04-24 11:30,pass,Tennis + Football Statistical,Deep Scan v5: structural extremes
+2026-04-24,CP-24-MS4v5,v5,3,PK-401;PK-207;PK-212,4.76,1.50,medium,pending,,2026-04-24 11:30,pass,Tennis + Shots + Volleyball value stack,Deep Scan v5: statistical trio
+2026-04-24,CP-24-MS5v5,v5,3,PK-404;PK-302;PK-306,4.71,1.50,medium,pending,,2026-04-24 11:30,pass,WTA Tennis + Snooker + Hockey,Deep Scan v5: niche sport diversification
+2026-04-24,CP-24-HR1v5,v5,5,PK-401;PK-402;PK-207;PK-205;PK-302,13.69,1.00,higher,pending,,2026-04-24 11:30,pass,5-leg: tennis x2 + football x2 + snooker,Deep Scan v5: high reward cross-sport (odds corrected)
+2026-04-24,CP-24-HR2v5,v5,5,PK-208;PK-104;PK-212;PK-304;PK-308,11.22,1.00,higher,pending,,2026-04-24 11:30,pass,Night multi-sport: football x2 + volleyball + hockey + baseball,Deep Scan v5: 4-sport night (odds corrected)
+2026-04-24,CP-24-N1v5,v5,4,PK-305;PK-308;PK-303;PK-309,11.64,1.00,higher,pending,,2026-04-24 11:30,pass,Night US Sports: MLB + NHL,Deep Scan v5: carried from v4
+2026-04-24,CP-24-N2v5,v5,2,PK-304;PK-104,2.56,2.00,low,pending,,2026-04-24 11:30,pass,Night Safe: Montreal ML + Riestra U2.5,Deep Scan v5: 2-sport safe night

@@ -263,7 +263,7 @@ Go through every check. Write YES or NO for each. If any is NO, fix it before pr
 - [ ] Same-sport legs ≤ 2
 - [ ] Higher-risk coupon has ≥ 2 sports
 - [ ] No two legs from same match
-- [ ] Combined odds = product of leg odds ±10%
+- [ ] **Combined odds ARITHMETIC (MANDATORY):** Multiply each leg's odds explicitly (e.g., 1.50 × 1.65 = 2.475). Write the calculation. Compare to stated combined odds. Tolerance ±2%. NEVER skip this step or claim "verified" without showing the math.
 - [ ] Stake ≤ max for coupon type (3.00 LR, 2.00 HR)
 - [ ] Coupon label is "PEWNIAKI", "LOW-RISK COUPON", or "HIGHER-RISK COUPON" (never "MEDIUM", "ATP CLAY", "SINGLES", etc.)
 - [ ] At least 5 total coupons produced
@@ -338,3 +338,4 @@ Go through every check. Write YES or NO for each. If any is NO, fix it before pr
 26. **Missing tournament depth** — picking 1 match from a 16-match tournament slate (e.g., only Shelton from 16 ATP Madrid R1 matches). Screen ALL matches, shortlist best 3-8.
 27. **No cross-source event validation** — checking only BetExplorer for tennis and seeing 5 matches, when Flashscore shows 28. Always compare event counts from ≥2 sources per sport.
 28. **Skipping Scan Completeness Metrics (§1.5)** — proceeding to analysis without recording per-sport event counts, total unique events, or scan completeness score. This GATE prevents shallow scanning.
+29. **Claiming combined odds are verified without arithmetic** — writing "Combined odds verified: products match within ±2%" in V5 validation without actually multiplying each coupon's leg odds. This led to HR1v5 being listed at 13.27 instead of 13.69, and HR2v5 at 10.01 instead of 11.22. ALWAYS show the explicit multiplication for EVERY coupon. Also check same-sport leg count per coupon by listing each pick's sport.

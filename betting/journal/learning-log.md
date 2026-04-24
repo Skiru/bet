@@ -318,3 +318,23 @@ No entries yet.
 - Original NO BET call was wrong — failed to scan all sports. See revised v2 entry above.
 - Retained lessons: SBR (sportsbettingresearch.com) domain is DEAD. Use sportsbookreview.com. Track cumulative daily exposure in real-time.
 - Source notes: SBR scan returned GoDaddy parking page. ESPN and ScoresAndOdds remain viable for US sports odds.
+
+## 2026-04-24 v5 — Deep Scan Protocol First Execution
+- **Process change: Deep Scan Protocol (§1.2) implemented and VALIDATED.**
+  - v4 scanned ATP Madrid superficially → only 1 tennis pick (PK-206 Shelton ML, odds uncertain).
+  - v5 applied Deep Scan: calculated odds ratio for ALL 32 Madrid matches → found 4 STRONG/GOOD O-games candidates.
+  - Result: 4 new tennis picks with EV ranging +0.122 to +0.254 (highest new-pick EV in portfolio).
+  - Lesson: **Odds ratio grading is the single most effective tennis screening tool.** Ratio ≤1.25 = GOOD/STRONG. Ratio >1.50 = REJECT. Saves time and finds value mechanically.
+- **Process change: Scan Completeness Metrics (§1.5) enforced.**
+  - 233 total events counted across 12 sports (10 with events, 2 confirmed empty).
+  - Cross-validation between BetExplorer and Flashscore confirmed.
+  - Gate: ≥50 events → 233 ✓. ≥80% sports → 100% ✓.
+  - This gate prevents shallow scanning that plagued v1-v4 analyses.
+- **Non-tennis deep analysis yielded 0 new picks.**
+  - 12 candidates from esports, handball, hockey (non-NHL), basketball, baseball (NPB/KBO), additional football analyzed.
+  - All rejected for negative EV or missing Tier A sources.
+  - This is CORRECT — no forcing action. Madrid tennis is the clear value pocket today.
+- **PK-206 Shelton ML downgraded to watchlist.**
+  - Deep scan revealed Shelton may be priced at ~1.29 (heavy favorite), not 1.57 as estimated in v4.
+  - Lesson: Always verify heavy favorite ML odds before including. If <1.40, reject for no value.
+- Source notes: TotalCorner cookie wall persists across all sessions. De facto non-functional for this workflow. ZawodTyper + SoccerStats sufficient for 2/3 corner stack.
