@@ -844,7 +844,7 @@ Any fail? -> Fix and re-check. Do not present until all pass.
 
 ### 10.1 Write Order
 1. Daily report: `betting/reports/YYYY-MM-DD.md`
-2. Coupon file: `betting/coupons/YYYY-MM-DD.txt`
+2. Coupon file: `betting/coupons/YYYY-MM-DD.md`
 3. Portfolio (readable): `betting/coupons/YYYY-MM-DD-portfolio.md`
 4. Picks ledger: `betting/journal/picks-ledger.csv`
 5. Coupons ledger: `betting/journal/coupons-ledger.csv`

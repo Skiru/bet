@@ -154,7 +154,7 @@ For each shortlisted candidate, execute in sequence:
 10c. Record odds_checked_at_local as analysis timestamp.
 10d. Write/update all artifacts:
     - `betting/reports/YYYY-MM-DD.md` (or `YYYY-MM-DD-night.md` for night session)
-    - `betting/coupons/YYYY-MM-DD.txt` (or `YYYY-MM-DD-night.txt`)
+    - `betting/coupons/YYYY-MM-DD.md` (or `YYYY-MM-DD-night.md`)
     - `betting/journal/picks-ledger.csv` — reuse existing IDs, no duplicates
     - `betting/journal/coupons-ledger.csv` — reuse existing IDs, no duplicates
     - `betting/journal/source-log.csv`

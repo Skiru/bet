@@ -65,8 +65,8 @@ Przyklad tylko dla pilki:
 - betting/reports/YYYY-MM-DD.md
   Pelny raport z rozliczeniem poprzedniego dnia, shortlista, finalnymi pickami i podsumowaniem ekspozycji.
 
-- betting/coupons/YYYY-MM-DD.txt
-  Szybka wersja do zagrania. Ma byc krotka i praktyczna.
+- betting/coupons/YYYY-MM-DD.md
+  Kompaktowe podsumowanie kuponów w Markdown — identyczne z tym co widac na chacie. Szybkie do klikniecia w Betclic.
 
 - betting/journal/picks-ledger.csv
   Historia pojedynczych pickow wraz z rozliczeniem.

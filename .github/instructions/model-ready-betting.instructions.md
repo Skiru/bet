@@ -91,7 +91,7 @@ Follow the 11-step workflow in analysis-methodology.instructions.md:
 
 ## 5. OUTPUT FILES — EXACT FORMATS
 
-### 5a. Coupon file: betting/coupons/YYYY-MM-DD.txt
+### 5a. Coupon file: betting/coupons/YYYY-MM-DD.md
 
 Use these EXACT header field names:
 ```

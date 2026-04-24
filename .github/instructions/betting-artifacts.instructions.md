@@ -36,10 +36,29 @@ Daily report required content:
 - Exposure Summary must include total_planned_exposure_pln, unused_bankroll_pln, and note that total suggested exposure may exceed daily budget (user decides which coupons to place).
 - If no bet is made, still write every section and state NO BET TODAY where appropriate.
 
-Daily coupon text path:
-- betting/coupons/YYYY-MM-DD.txt
+Chat + file output format (PRIMARY deliverable):
+The main deliverable is a compact Markdown summary. It MUST be:
+1. Shown directly in chat, AND
+2. Saved to betting/coupons/YYYY-MM-DD.md with IDENTICAL formatting.
+Required sections:
+1. Per-coupon table with columns: #, Coupon ID, What to bet (Polish, specific market description), Combined odds, Stake, Potential return.
+   - Group by type: PEWNIAKI, MULTI-SPORT, HIGHER RISK, NIGHT.
+   - Market descriptions must be in plain Polish (e.g. "poniżej 2.5 bramek", "powyżej 22.5 gemów").
+   - Include opponent/event name so user can find it in Betclic.
+2. PODSUMOWANIE table:
+   - Wydatek (total spend)
+   - Bankroll po (bankroll after placing)
+   - Łączny pot. zwrot (total potential return)
+   - Stan konta po zwrocie (bankroll after + total potential return)
+   - Najlepszy scenariusz (all win)
+   - Realistyczny (expected hit rate)
+3. Placement order recommendation.
+Keep it SHORT. No long rationales — user knows the picks, just needs to click fast.
 
-Coupon text required order:
+Daily coupon file path:
+- betting/coupons/YYYY-MM-DD.md
+
+Coupon file required order (inside the .md, after the visual tables):
 BETTING DAY:
 RUN TIME LOCAL:
 BOOKMAKER:

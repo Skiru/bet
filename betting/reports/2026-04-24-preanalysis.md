@@ -85,7 +85,7 @@
 
 ## 3. 10 COUPONS (all CONDITIONAL)
 
-See [betting/coupons/2026-04-24.txt](../coupons/2026-04-24.txt) for full details.
+See [betting/coupons/2026-04-24.md](../coupons/2026-04-24.md) for full details.
 
 | Coupon | Legs | Combined | Stake | Type |
 |---|---|---|---|---|
