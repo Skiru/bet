@@ -101,6 +101,18 @@ This applies equally to: football, tennis, basketball, hockey, baseball, volleyb
 - For ALL other sports: check sport-specific hierarchy first. If totals, handicaps, props exist → use those instead
 - Every ML pick must justify WHY no statistical market was used
 
+### UPSET RISK ASSESSMENT — MANDATORY for every candidate
+
+**Run the sport-specific Upset Risk Checklist (§6.5 in analysis-methodology.instructions.md) for EVERY candidate pick BEFORE approving it.**
+
+- Score every candidate on the 8-14 factor checklist for their sport.
+- Record in report: `UPSET: [score]/[max] — [top 3 factors]`.
+- If score ≥ sport threshold → **ML is BANNED**. Only statistical markets allowed.
+- **The Paradox Rule:** High upset risk = competitive match = MORE total play (games, frames, sets, corners). Prefer OVER totals when upset score is high. Low upset risk = blowout risk = OVERS fail. Prefer UNDER or handicaps when upset score is low.
+- **Proven by loss:** Shelton-Prizmic scored 8.5/10 — 36 games played, O22.5 wins by +13.5 margin, ML lost. Struff-Michelsen: low upset risk, blowout (15 games), O22.5 misses by -7.5.
+- Thresholds by sport: tennis ≥4, football ≥4, basketball ≥3, hockey ≥3, baseball ≥3, volleyball ≥3, esports ≥2, snooker ≥2, darts ≥2, MMA ≥3, handball ≥3, table tennis ≥2, padel ≥3, speedway ≥3.
+- **V4k validation check** verifies upset scores are calculated and ML bans enforced.
+
 ## 4. COUPON RULES
 
 | Coupon type | Min legs | Max legs | Max same-sport legs | Min sports | Max stake PLN |
@@ -297,6 +309,7 @@ Go through every check. Write YES or NO for each. If any is NO, fix it before pr
 - [ ] If tipster consensus <50% → pick justified or removed
 - [ ] H2H records checked for every pick (last 5-10 meetings, home/away splits)
 - [ ] Injuries/suspensions verified for every team/player in picks (ESPN, Flashscore, team news)
+- [ ] **Upset Risk Assessment (§6.5) completed for EVERY candidate** — score recorded, ML ban enforced, Paradox Rule applied, confidence adjusted
 
 ### V9: Coupon Composition Optimization
 - [ ] Picks re-ranked by EV × confidence — highest in most coupons
@@ -350,3 +363,6 @@ Go through every check. Write YES or NO for each. If any is NO, fix it before pr
 36. **Defaulting to tennis ML instead of statistical markets** — picking Machac ML 1.73 instead of O21.5 games 1.50 because it "looks like value." Tennis ML is the MOST VOLATILE market. Shelton v6 proved this: match went 3 sets, ML lost, O21.5 games wins easily. ALWAYS use game totals > set totals > handicaps > ML. ML is LAST RESORT requiring STRONG ratio + surface + H2H all aligned. Lower odds on games/sets are compensated by dramatically higher hit rates (~65% vs ~58%).
 37. **Using ML for padel without ranking gap analysis** — padel ML only viable when FIP ranking gap >3000. For gaps <3000, use game totals or set totals. New partnerships add extra volatility — ML even riskier.
 38. **Defaulting to ML/1X2 in ANY sport** — applies universally, not just tennis. For basketball: use totals/spreads before ML. Hockey: period totals/game totals/puck line before ML. Baseball: F5 totals/team totals before ML. Snooker: frame totals/HC before ML. Every sport has statistical markets that hit more often than raw winner picks. ML is ALWAYS the LAST RESORT across ALL 14 sports. If a pick is ML, the analysis MUST explicitly justify why no statistical market was viable.
+39. **Skipping Upset Risk Assessment (§6.5)** — approving a pick without scoring it on the sport-specific upset checklist. The Shelton-Prizmic loss (8.5/10 on checklist, killing 2 coupons) proved this is PREVENTABLE. Every candidate must be scored. Score ≥ threshold = ML BANNED. Score recorded in report. V4k validates this. NEVER skip — this is a HARD REQUIREMENT, not a nice-to-have.
+40. **Ignoring the Paradox Rule** — using OVER totals when upset risk is LOW (blowout territory) or avoiding OVER totals when upset risk is HIGH (competitive territory). High upset risk = more total play = overs WIN. Low upset risk = one-sided match = overs FAIL. Struff-Michelsen (15 games, miss by -7.5) vs Shelton-Prizmic (36 games, win by +13.5) proves this conclusively.
+41. **Not recording upset score in bear case** — STEP 7 bear case template now REQUIRES the upset score and top 3 risk factors. A bear case without upset context is incomplete. If the upset score flags risk and you still proceed, you must explain why in the bear case.

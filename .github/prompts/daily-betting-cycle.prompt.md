@@ -155,6 +155,13 @@ For each shortlisted candidate, execute in sequence:
 - Check line movement (steam, RLM).
 - Apply 1/4 Kelly for stake guidance.
 
+**STEP 6.5 — Upset Risk Assessment (MANDATORY for ALL favorites ≤1.50):**
+- Run sport-specific upset checklist from methodology §6.5.
+- Score each factor (surface mismatch, form gap, H2H, fatigue, home crowd, motivation, tactical matchup, etc.).
+- Total score ≥4 → ELEVATED upset risk. Apply Paradox Rule: avoid ML, prefer statistical markets (totals/handicaps).
+- Tennis: odds ratio grading (STRONG ≤1.15 / GOOD ≤1.30 / BORDERLINE ≤1.50 / REJECT >1.50). If upset score ≥4 → downgrade one tier.
+- Flag ALL elevated-risk picks in bear case with explicit upset_score.
+
 **STEP 7 — Context:**
 - Fixture confirmed? Injuries/suspensions? Competition context? Congestion? Weather? Referee?
 
@@ -201,6 +208,7 @@ Run ALL validation checks. If ANY fails, fix it before presenting. This is the Q
 11a. V1: Artifact consistency (pick_ids, coupon_ids, stake sums, exposure totals match across all files).
 11b. V2: Per-pick validation (Tier A stats source with SPECIFIC data, Tier A market source with SPECIFIC odds, EV > 0, confidence 1-5).
 11c. V3-V4: Sport-specific checks (tennis odds ratio, football corner 3-source stack, volleyball ML range, hockey goalie, baseball pitcher, snooker frames, esports maps).
+11c2. V4k: Upset Risk Validation — every favorite ≤1.50 has upset checklist scored. If upset_score ≥4 and pick is ML → MUST justify or switch to statistical market. See methodology §6.5.
 11d. V5: Coupon structure (min 2 legs, same-sport ≤2 per coupon, correlation check, **combined odds ARITHMETIC: multiply each coupon's legs explicitly — never claim verified without showing math**, min 5 coupons).
 11e. V6: Portfolio risk (no coupon > 3.00 PLN LR / 2.00 PLN HR, exposure < 25% bankroll).
 11f. V7: Weakness flagging (borderline picks, CONDITIONAL, weakest leg per coupon, tournament concentration).

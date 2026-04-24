@@ -1217,6 +1217,304 @@ Before APPROVING any pick, verify these contextual factors:
 - [ ] **Playoff series context**: home/away split, Zig-Zag theory (team coming off road loss)
 - [ ] **Rest days**: back-to-back games penalize totals (teams more tired -> lower scoring, or more sloppy -> higher scoring depending on sport)
 
+### 6.5 UPSET RISK ASSESSMENT — MANDATORY FOR EVERY CANDIDATE (never skip)
+
+**WHY THIS EXISTS:** On 2026-04-24, Shelton ML @1.61 lost to qualifier Prizmic — killing 2 coupons and ~25 PLN in unrealized returns. Post-mortem revealed the upset scored 8.5/10 on a systematic checklist. This step now catches future upsets BEFORE they enter coupons.
+
+**WHEN TO RUN:** For EVERY candidate pick, BEFORE approving it. Score every candidate on the sport-specific checklist below. The score determines which markets are allowed.
+
+**THE PARADOX RULE (CRITICAL INSIGHT):**
+> High upset risk makes STATISTICAL OVER markets MORE profitable — a competitive match produces more total play (games, frames, sets, corners, goals).
+> Low upset risk makes statistical OVERS DANGEROUS — blowouts produce fewer total play units.
+>
+> Shelton-Prizmic: 36 games (O22.5 wins by +13.5). Struff-Michelsen: 15 games (O22.5 misses by -7.5).
+>
+> **USE THIS:** When upset score is HIGH → prefer OVER totals (games, frames, rounds). When upset score is LOW → prefer UNDER, handicaps, or skip.
+
+---
+
+#### 6.5.1 TENNIS Upset Risk Checklist (score 0-12, threshold ≥4)
+
+| # | Factor | Points | How to check |
+|---|--------|--------|--------------|
+| 1 | **Surface mismatch** | 0-2 | Favorite's surface win% 10%+ lower than overall? Hard-court player on clay? Clay specialist on grass? Check TennisAbstract surface splits. |
+| 2 | **Rising underdog** | 0-2 | Career-high ranking in last 4 weeks? Won Challenger/event recently? NextGen finalist? Breakthrough phase? |
+| 3 | **Giant-killer history** | 0-1 | Any top-20 scalps in last 12 months? Competitive sets against top-10? |
+| 4 | **Age/trajectory advantage** | 0-1 | Underdog ≤22yo in breakthrough phase? Favorite ≥30yo showing decline? |
+| 5 | **Favorite's tournament history** | 0-1 | Best result at this tournament worse than QF? Never won on this surface at Masters/Slam level? |
+| 6 | **Qualifier match fitness** | 0-0.5 | Underdog came through qualifying (2-3 extra wins = match-sharp and confident)? |
+| 7 | **First H2H meeting** | 0-0.5 | No prior data = uncertainty premium. Unknown matchup dynamics. |
+| 8 | **Serve dependency on slow surface** | 0-1 | Favorite's game built on big serve? Playing on clay/slow hard? Serve effectiveness drops 25-30% on clay. |
+| 9 | **Altitude factor** | 0-0.5 | Madrid (660m) — thinner air, ball flies faster, partially neutralizes clay effect. Huge servers regain some power. |
+| 10 | **Previous round fatigue** | 0-0.5 | Favorite played grueling 3-setter in previous round? Underdog had easy win or rest? |
+| 11 | **Late-career complacency** | 0-0.5 | Favorite 28+yo in R1/R2, history of slow starts? Underdog has nothing to lose? |
+| 12 | **Return game strength** | 0-0.5 | Underdog has high return points won % on this surface? Can neutralize serve advantage? |
+| 13 | **Sharp money signal** | 0-0.5 | Line moving TOWARD underdog despite public on favorite? Smart money sees value. |
+| 14 | **Draw section look-ahead** | 0-0.5 | Favorite has easy draw ahead — might look past R1/R2 opponent (trap game)? |
+
+**Thresholds:**
+- **≥4:** AVOID ML completely. Use game totals O/U (Paradox Rule: competitive match = more games).
+- **≥6:** Extra caution even on totals. Only STRONG ratio (≤1.15) for O22.5+. Prefer O20.5/O21.5.
+- **≥8:** SKIP entirely OR only with STRONG ratio on conservative line (O20.5). This is near-certain upset territory.
+
+---
+
+#### 6.5.2 FOOTBALL Upset Risk Checklist (score 0-14, threshold ≥4)
+
+| # | Factor | Points | How to check |
+|---|--------|--------|--------------|
+| 1 | **Fixture congestion** | 0-2 | Favorite played <72h ago (CL/EL midweek → weekend)? Key players rotated? |
+| 2 | **Relegation desperation** | 0-1.5 | Underdog fighting relegation? Last 5 matches in relegation zone? Teams in desperation play harder. |
+| 3 | **Cup/league priority split** | 0-1 | Favorite has cup semi/final or CL knockout in <5 days? Manager will rotate. |
+| 4 | **Strong team playing away** | 0-1 | Favorite's away form significantly worse than home? Away win% <40%? |
+| 5 | **New manager bounce** | 0-1.5 | Underdog changed manager in last 3 matches? New manager bounce = unpredictable results. |
+| 6 | **H2H bogey team** | 0-1 | Underdog won 3+ of last 5 H2H at this venue? Historical dominance overrides league position. |
+| 7 | **Key absences (≥2)** | 0-1.5 | Favorite missing 2+ first-choice starters? Check Flashscore/ESPN injury reports. |
+| 8 | **Nothing to play for** | 0-1 | Favorite already qualified/safe/champion-elect? Low motivation = surprise losses. |
+| 9 | **International break return** | 0-1 | First match after international break? Disrupted rhythm, travel, national team injuries. |
+| 10 | **Derby/rivalry factor** | 0-1 | Local derby? These defy form — bottom team CAN beat top team in derbies. |
+| 11 | **Altitude difference** | 0-0.5 | Match at altitude (La Paz, Quito, Mexico City)? Visitors suffer physically. |
+| 12 | **Artificial turf** | 0-0.5 | Home team plays on synthetic pitch? Visitors unfamiliar = disrupted passing. |
+
+**Thresholds:**
+- **≥4:** Avoid ML/1X2 on favorite. Use corners, cards, fouls, BTTS, DC, DNB.
+- **≥6:** Strong upset candidate. Statistical markets only. If corners: home team corner advantage may flip.
+- **≥8:** Near-certain form disruption. Prefer UNDER markets or skip entirely.
+
+---
+
+#### 6.5.3 BASKETBALL Upset Risk Checklist (score 0-10, threshold ≥3)
+
+| # | Factor | Points | How to check |
+|---|--------|--------|--------------|
+| 1 | **B2B 2nd night** | 0-2 | Favorite on 2nd night of back-to-back? -2 to -4 pts from average expected. |
+| 2 | **Star player questionable** | 0-2 | Star (top-2 scorer) listed GTD/questionable? If ruled out → recalculate completely. |
+| 3 | **Schedule fatigue** | 0-1 | 4-in-5 nights or 5-in-7? Extreme fatigue, especially for older rosters. |
+| 4 | **Travel >1500km in 48h** | 0-1 | Cross-country flight (EST→PST)? Jet lag factor, especially for afternoon tip-offs. |
+| 5 | **Playoff series shift** | 0-1 | G3/G4 after team led 2-0? Trailing team adjusts — Zig-Zag theory. |
+| 6 | **Blowout reversal** | 0-1 | Favorite won by 20+ last game? Regression toward mean in next game. |
+| 7 | **Altitude (Denver)** | 0-0.5 | Game in Denver? Visitors gas out in 4th quarter due to elevation. |
+| 8 | **Overtime previous game** | 0-0.5 | Favorite went to OT in previous game? Key players with 40+ minutes. |
+| 9 | **Coach revenge game** | 0-0.5 | Former coach vs old team? Extra motivation for underdog. |
+| 10 | **Post-trade disruption** | 0-1 | Major trade in last 7 days? Chemistry disruption, new rotations. |
+
+**Thresholds:**
+- **≥3:** Avoid ML. Use team totals, game totals, quarter totals, spreads.
+- **≥5:** Strong upset candidate. Statistical markets only. Reduce all exposure to this game.
+
+---
+
+#### 6.5.4 HOCKEY Upset Risk Checklist (score 0-10, threshold ≥3)
+
+| # | Factor | Points | How to check |
+|---|--------|--------|--------------|
+| 1 | **Goalie uncertain/backup** | 0-2 | Starter not confirmed on DailyFaceoff? Backup goalies have 5-8% worse save rate. |
+| 2 | **B2B fatigue** | 0-2 | 2nd night of back-to-back? Backup goalie likely + skater fatigue. |
+| 3 | **PP/PK regression** | 0-1 | Favorite on 30%+ PP over last 10 games? Will regress to ~20%. |
+| 4 | **Road team in playoffs G3+** | 0-1 | Away team in a playoff series after losing at home? Desperate = dangerous. |
+| 5 | **Elimination desperation** | 0-1 | Underdog facing elimination? Goalies stand on their heads in elimination games. |
+| 6 | **3-in-4 nights** | 0-1 | Extreme schedule density → rest management, backup appearances. |
+| 7 | **Empty net adjustment** | 0-0.5 | Trailing teams go empty net → inflates total goals in final minutes. |
+| 8 | **Revenge game** | 0-0.5 | First meeting after a big trade or controversial hit? Extra motivation. |
+
+**Thresholds:**
+- **≥3:** Avoid ML. Use period totals, game totals, puck line.
+- **≥5:** Strong upset candidate. Only totals markets. Confirm goalie before placing.
+
+---
+
+#### 6.5.5 BASEBALL Upset Risk Checklist (score 0-10, threshold ≥3)
+
+| # | Factor | Points | How to check |
+|---|--------|--------|--------------|
+| 1 | **SP ERA >4.50 or rookie** | 0-2 | Favorite's starting pitcher struggling or debuting? Check BaseballSavant xERA. |
+| 2 | **Bullpen fatigue** | 0-1.5 | Bullpen threw 6+ IP in last 2 days? Closer unavailable? |
+| 3 | **Platoon advantage** | 0-1 | Lineup stacked with hitters who mash the SP's handedness? |
+| 4 | **Day after night** | 0-1 | Day game after night game? Teams perform worse (shorter prep, fatigue). |
+| 5 | **Key batter sitting** | 0-1 | Star hitter (top-2 OPS) out of lineup? Rest day? Check ESPN lineups. |
+| 6 | **Umpire factor** | 0-1 | Home plate umpire with historically high run totals? Or low K-rate favoring hitters? |
+| 7 | **Weather at ballpark** | 0-1 | Wind blowing out at Wrigley/Coors = +1.5 runs avg. Extreme cold = dead ball. |
+| 8 | **Cross-country travel** | 0-0.5 | Series opener after coast-to-coast flight? Jet lag affects early innings. |
+
+**Thresholds:**
+- **≥3:** Avoid ML. Use F5 totals, team totals, game totals.
+- **≥5:** Strong upset territory. Only F5 under or totals with confirmed pitching.
+
+---
+
+#### 6.5.6 VOLLEYBALL Upset Risk Checklist (score 0-7, threshold ≥3)
+
+| # | Factor | Points | How to check |
+|---|--------|--------|--------------|
+| 1 | **Playoff context** | 0-1.5 | Semifinal/final? Underdogs raise level in elimination matches. |
+| 2 | **European travel** | 0-1 | Team played EHF/CEV midweek, now domestic? Rotation, fatigue. |
+| 3 | **New setter** | 0-1.5 | Setter is the quarterback — new setter = entire attack disrupted. |
+| 4 | **Home crowd** | 0-1 | Volleyball home advantage is significant (affects serve reception). |
+| 5 | **Rest rotation** | 0-1 | Favorite resting key players for upcoming playoff round? |
+| 6 | **5th set record** | 0-1 | Underdog has winning 5th set record (60%+)? Clutch factor. |
+
+**Thresholds:**
+- **≥3:** Avoid ML. Use set totals O/U, total points, set handicap.
+- **≥5:** Strong upset candidate. Only point totals or set O/U markets.
+
+---
+
+#### 6.5.7 ESPORTS Upset Risk Checklist (score 0-10, threshold ≥2)
+
+| # | Factor | Points | How to check |
+|---|--------|--------|--------------|
+| 1 | **Roster change / stand-in** | 0-2 | Using a substitute player? This is the #1 esports upset factor. |
+| 2 | **Map pool edge** | 0-1.5 | Underdog has 70%+ win rate on 2+ maps that favorite bans? Veto advantage. |
+| 3 | **Online match** | 0-1 | Online has higher variance than LAN. "Online heroes" exist. |
+| 4 | **New patch/meta** | 0-1.5 | Major game patch in last 2 weeks? Some teams adapt faster. Meta favoring underdogs. |
+| 5 | **BO1 format** | 0-1.5 | Best-of-1 = map variance is HUGE. Single map upsets are common. |
+| 6 | **LAN vs online gap** | 0-1 | Favorite dominates online but crumbles on LAN? Or vice versa? |
+| 7 | **Coach ban/absence** | 0-0.5 | Coach banned from communicating during match? |
+| 8 | **Regional style clash** | 0-0.5 | CIS aggressive vs EU tactical? Style clashes produce upsets. |
+
+**Thresholds:**
+- **≥2:** Avoid ML. Use map totals O/U, map handicap, round totals.
+- **≥4:** Strong upset territory. Only map O/U or skip. BO1 + score ≥4 = DO NOT BET.
+
+---
+
+#### 6.5.8 SNOOKER Upset Risk Checklist (score 0-7, threshold ≥2)
+
+| # | Factor | Points | How to check |
+|---|--------|--------|--------------|
+| 1 | **Short format (BO7/BO9)** | 0-1.5 | Shorter formats have higher variance. BO7 is essentially a coin flip between top-32 players. |
+| 2 | **Form discrepancy** | 0-1 | Favorite lost early in last 2 tournaments? Form slump? Underdog on a run? |
+| 3 | **Safety-heavy underdog** | 0-1 | Defensive player who grinds out frames? Disrupts free-scoring favorites. |
+| 4 | **World Championship R1 pressure** | 0-1 | Crucible Theatre R1 is unique — seeded players face extreme pressure from qualifiers. |
+| 5 | **Multi-session structure** | 0-1 | BO19/BO25 allows comebacks. Sessions break momentum. |
+| 6 | **Jet lag / travel** | 0-0.5 | Player arriving from Asian/Australian tour? |
+| 7 | **Table conditions** | 0-0.5 | Morning vs evening session affects table speed and cloth behavior. |
+
+**Thresholds:**
+- **≥2:** Avoid ML. Use frame totals O/U, frame handicap, century O/U.
+- **≥4:** Strong upset territory. Only frame O/U on conservative line.
+
+---
+
+#### 6.5.9 MMA/UFC Upset Risk Checklist (score 0-10, threshold ≥3)
+
+| # | Factor | Points | How to check |
+|---|--------|--------|--------------|
+| 1 | **Stylistic mismatch** | 0-2 | Wrestler vs striker without TDD? Grappler vs striker with TDD? Style determines outcome. |
+| 2 | **Long layoff (>12mo)** | 0-1.5 | Ring rust is real. Fighters coming off long absence have higher upset rate. |
+| 3 | **Weight class move** | 0-1 | Fighter moving UP in weight → may face bigger, stronger opponents. |
+| 4 | **Short notice replacement** | 0-1 | Fighter taking fight on 2-3 weeks notice? Unprepared camp → chaos. |
+| 5 | **Heavyweight division** | 0-1 | HW has highest KO variance. One punch changes everything. |
+| 6 | **Bad weight cut** | 0-1 | Missed weight or looked drained at weigh-in? Affects chin and cardio. |
+| 7 | **Southpaw vs Orthodox** | 0-0.5 | Stance mismatch creates openings. Unorthodox angles produce upsets. |
+| 8 | **Altitude** | 0-0.5 | Event at elevation (Mexico City, Denver)? Affects cardio in later rounds. |
+| 9 | **Camp/corner issues** | 0-0.5 | Major camp change? Trainer split? Affects preparation quality. |
+
+**Thresholds:**
+- **≥3:** Avoid ML. Use method of victory, O/U rounds, ITD.
+- **≥5:** Strong upset territory. Only rounds O/U or skip.
+
+---
+
+#### 6.5.10 DARTS Upset Risk Checklist (score 0-7, threshold ≥2)
+
+| # | Factor | Points | How to check |
+|---|--------|--------|--------------|
+| 1 | **Floor event (not TV)** | 0-1.5 | Floor events (Players Championship) have MUCH higher upset rates. Top players avg 3-5% lower. |
+| 2 | **Short format** | 0-1 | BO7 legs or BO3 sets = high variance. One bad visit can lose the match. |
+| 3 | **Checkout slump** | 0-1 | Favorite's checkout% dropped below 35% in last 3 events? Missed doubles lose matches. |
+| 4 | **Underdog 3-dart avg >95** | 0-1 | If underdog averages 95+, they can beat anyone on any given day. |
+| 5 | **Multiple matches same day** | 0-1 | Playing 3+ matches in one day? Fatigue in later rounds. |
+| 6 | **Home crowd (UK events)** | 0-0.5 | UK crowd can lift UK underdogs and unsettle overseas favorites. |
+
+**Thresholds:**
+- **≥2:** Avoid ML. Use total legs O/U, 180s O/U.
+- **≥4:** Strong upset territory. Only 180s O/U or skip.
+
+---
+
+#### 6.5.11 HANDBALL Upset Risk Checklist (score 0-7, threshold ≥3)
+
+| # | Factor | Points | How to check |
+|---|--------|--------|--------------|
+| 1 | **European midweek match** | 0-1.5 | EHF CL Wednesday → domestic Saturday? Rotation, travel fatigue. |
+| 2 | **Home advantage** | 0-1.5 | Handball home wins 60-65%. If underdog is HOME → upset potential jumps. |
+| 3 | **Goalkeeper form** | 0-1 | Underdog's #1 goalkeeper in form (save% >33%)? One hot keeper changes everything. |
+| 4 | **Derby match** | 0-1 | Local rivalry = more physical, more suspensions, unpredictable. |
+| 5 | **Key pivot/playmaker absence** | 0-1 | Favorite missing top scorer? Check EHF/league injury reports. |
+| 6 | **7v6 play** | 0-0.5 | Teams using 7v6 aggressively = higher scoring but also turnovers = chaos. |
+
+**Thresholds:**
+- **≥3:** Avoid ML. Use half totals, game totals O/U, handicap.
+- **≥5:** Only totals markets. Skip if not confident.
+
+---
+
+#### 6.5.12 TABLE TENNIS Upset Risk Checklist (score 0-6, threshold ≥2)
+
+| # | Factor | Points | How to check |
+|---|--------|--------|--------------|
+| 1 | **Ranking gap <20** | 0-1.5 | Close ranking = coin flip. TT rankings are less predictive than tennis. |
+| 2 | **Multiple matches in one day** | 0-1 | Playing 3+ matches? Later matches have higher fatigue = higher variance. |
+| 3 | **Style mismatch** | 0-1 | Defensive chopper vs aggressive attacker? Choppers frustrate and create upsets. |
+| 4 | **Equipment change** | 0-0.5 | New rubber or blade = inconsistency period. Check ITTF equipment changes. |
+| 5 | **Asian vs European style** | 0-0.5 | Different spin patterns, pacing. Unfamiliar style = more deuce sets. |
+| 6 | **Tournament round** | 0-0.5 | R32 in TT has higher upset rate than QF+. Early rounds = less focused favorites. |
+
+**Thresholds:**
+- **≥2:** Avoid ML. Use total points O/U, set totals, set handicap.
+- **≥3:** Only set totals or point totals. Skip if no stat source.
+
+---
+
+#### 6.5.13 PADEL Upset Risk Checklist (score 0-8, threshold ≥3)
+
+| # | Factor | Points | How to check |
+|---|--------|--------|--------------|
+| 1 | **New partnership** | 0-2 | First 2-3 tournaments with new partner? Volatile results, poor chemistry. |
+| 2 | **Ranking gap <1000 FIP pts** | 0-1.5 | Close ranking = real uncertainty. Both pairs competitive. |
+| 3 | **Surface change** | 0-1 | Indoor fast court vs outdoor slow surface? Ball-wall interaction changes. |
+| 4 | **R32/R16 stage** | 0-1 | Early rounds have higher upset rates in padel. QF+ favors top pairs. |
+| 5 | **Altitude** | 0-0.5 | Padel at altitude = ball bounces differently off glass walls. |
+| 6 | **Wind (outdoor)** | 0-1 | Strong wind disrupts lobs — the key padel shot. Favors aggressive smash pairs. |
+| 7 | **Fatigue from previous round** | 0-0.5 | Favorite played 3 sets in QF yesterday? Older pairs (35+) recover slower. |
+
+**Thresholds:**
+- **≥3:** Avoid ML. Use game totals O/U, set totals O/U 2.5.
+- **≥5:** Only game totals. Skip ML entirely.
+
+---
+
+#### 6.5.14 SPEEDWAY Upset Risk Checklist (score 0-8, threshold ≥3)
+
+| # | Factor | Points | How to check |
+|---|--------|--------|--------------|
+| 1 | **Track preparation bias** | 0-2 | Home team ALWAYS prepares track for their riders. This is the #1 speedway factor. |
+| 2 | **Rider injury / last-minute change** | 0-1.5 | Heat leader out? Check SportoweFakty 2h before. One rider = 6-10 pts lost. |
+| 3 | **Weather / wet track** | 0-1 | Rain = wet track = more falls = chaos. Results become unpredictable. |
+| 4 | **Junior rider weakness** | 0-1 | Team's U24 slots scoring 0-2 pts? That's 4-6 heats with minimal contribution. |
+| 5 | **Away team "good traveler"** | 0-1 | Some teams have strong away records (e.g., Sparta Wrocław). Check last 3 away results. |
+| 6 | **Equipment failure risk** | 0-0.5 | Rider known for bike problems? Engine failure = 3 pts lost per heat. |
+| 7 | **Guest rider unfamiliarity** | 0-0.5 | Foreign guest rider who hasn't raced at this track before? Check venue-specific averages. |
+
+**Thresholds:**
+- **≥3:** Avoid match winner. Use total points O/U, handicap.
+- **≥5:** Only handicap or total points with confirmed lineup.
+
+---
+
+#### 6.5.15 Upset Risk — Decision Matrix (APPLY TO EVERY PICK)
+
+| Upset Score | ML Allowed? | Statistical Markets | Over Totals | Under/HC | Confidence Adjustment |
+|-------------|-------------|---------------------|-------------|----------|-----------------------|
+| 0-1 | Yes (if other criteria met) | Full range | Caution: blowout risk for overs | Preferred | No change |
+| 2-3 | Caution (reduce confidence -1) | Preferred | Moderate | Good | -0.5 |
+| 4-5 | **BANNED** | **ONLY option** | **PREMIUM** (Paradox Rule) | OK | -1 for ML |
+| 6-7 | **BANNED** | Conservative lines only | Only STRONG ratio | Preferred | -1.5 |
+| 8+ | **BANNED + consider SKIP** | Only if STRONG source | **AVOID** (too chaotic) | Skip | -2 |
+
+**Record the upset score in the daily report for EVERY candidate.** Format: `UPSET: [score]/[max] — [top 3 factors]`
+
 ---
 
 ## STEP 7: BEAR CASE — Devil's Advocate (mandatory, never skip)
@@ -1226,6 +1524,7 @@ For EACH candidate pick that passed Steps 3-6, explicitly argue AGAINST it:
 ### 7.1 Template
 ```
 PICK: [selection]
+UPSET SCORE: [X/Y] — [top 3 risk factors from 6.5 checklist]
 BULL CASE: [1-2 sentences why it should win]
 BEAR CASE: [1-2 sentences why it could lose]
 STREAK DEPENDENCY: [Is the thesis based on a continuing streak? Y/N. If Y, note regression risk]
@@ -1390,6 +1689,15 @@ For each football pick:
 3. Home advantage factor accounted for in handicap analysis?
 4. Junior rider slots (#6, #7) assessed?
 5. Weather/track condition verified (rain delay risk)?
+
+### V4k: Upset Risk Assessment Validation (MANDATORY — NEVER SKIP)
+1. **Upset score calculated for EVERY candidate?** Every pick must have a score from the sport-specific checklist (§6.5). No exceptions.
+2. **Score recorded in report?** Format: `UPSET: [score]/[max] — [top 3 factors]`. Missing score = pick NOT validated.
+3. **ML ban enforced?** If upset score ≥ threshold (tennis ≥4, football ≥4, basketball ≥3, hockey ≥3, baseball ≥3, volleyball ≥3, esports ≥2, snooker ≥2, darts ≥2, MMA ≥3, handball ≥3, table tennis ≥2, padel ≥3, speedway ≥3) → ML pick is FORBIDDEN. If ML exists with score above threshold → REJECT immediately.
+4. **Paradox Rule applied?** If upset score is HIGH (≥4) → over-totals should be PREFERRED (more competitive match = more play). If upset score is LOW (0-1) → verify overs aren't blowout-risk.
+5. **Bear case references upset score?** STEP 7 bear case template must include the upset score and top risk factors.
+6. **Confidence adjusted?** Upset score ≥4 → ML confidence reduced by -1. Upset score ≥6 → all market confidence reduced by -0.5. Upset score ≥8 → consider skipping.
+7. **Line/ratio matrix respected for tennis?** O22.5+ requires STRONG ratio (≤1.15). O21.5 requires GOOD (≤1.25). Combined with upset score for double-validation.
 
 ### V5: Coupon Structure
 1. Minimum 2 legs per coupon?
@@ -1607,7 +1915,15 @@ STEP 6: Context verification
   [ ] Weather (if relevant)
   [ ] Referee (if cards/fouls market)
 
+STEP 6.5: Upset Risk Assessment (MANDATORY)
+  [ ] Score every candidate on sport-specific checklist (§6.5)
+  [ ] Record score in report: UPSET: [X/Y] — [top 3 factors]
+  [ ] If score ≥ threshold → BAN ML, use statistical markets only
+  [ ] Apply Paradox Rule: high upset → prefer OVER totals, low upset → caution on overs
+  [ ] Adjust confidence per decision matrix (§6.5.15)
+
 STEP 7: Bear case for each pick
+  [ ] UPSET SCORE included in bear case template
   [ ] Bull vs bear case documented
   [ ] Streak dependency checked
   [ ] Regression risk assessed

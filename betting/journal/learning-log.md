@@ -394,3 +394,96 @@ No entries yet.
 - Direct stake loss: ~5 PLN
 - Opportunity cost (if other legs hit): potentially 20-30 PLN unrealized returns
 - Both losses were preventable with current rules (ML ban + ratio matrix)
+
+## 2026-04-24 — DEEP ANALYSIS: Upset Prediction Framework (all sports)
+
+### Was Shelton's loss predictable? YES — 8.5/10 on upset checklist.
+
+**Red flags that were present but ignored:**
+1. **Surface mismatch (+2):** Shelton is a hard-court power player. Clay titles ONLY at 250-level (Houston, Munich — weak fields). Never deep at Madrid/RG Masters level.
+2. **Rising underdog (+2):** Prizmic at career-high #87, just won Challengers, NextGen finalist 2025, qualified at Indian Wells 2026. Peak trajectory.
+3. **Giant-killer history (+1):** Took Djokovic to 4 sets at AO 2024 (longest Djokovic R1 ever). Beat Lehečka #30 at Stockholm.
+4. **Age advantage (+0.5):** Prizmic 20yo in breakthrough phase — no fear, peak fitness, recovers from qualifying fast.
+5. **Favorite's tournament history (+1):** Shelton has no known deep run at Madrid Masters on clay.
+6. **Qualifier match fitness (+0.5):** Qualifiers are match-sharp and confident after 2-3 wins. Not tired.
+7. **First H2H meeting (+0.5):** No data = uncertainty.
+8. **Serve dependency on clay (+1):** Shelton's 150mph serve is neutralized on slow clay. His biggest weapon loses 30%+ effectiveness.
+- **Prizmic's profile:** Junior Roland Garros champion. ALL 3 Challenger titles on CLAY. Born clay specialist.
+
+### NEW — Tennis Upset Risk Checklist (score 0-10):
+| Factor | Points | Check |
+|--------|--------|-------|
+| Surface mismatch | 0-2 | Favorite's surface win% 10%+ lower than overall? |
+| Rising underdog | 0-2 | Career-high ranking? Won event in last 4 weeks? |
+| Giant-killer history | 0-1 | Any top-20 scalps or competitive top-10 losses? |
+| Age/trajectory advantage | 0-1 | Underdog ≤22yo in breakthrough phase? |
+| Favorite's tournament history | 0-1 | Best result at this event worse than QF? |
+| Qualifier match fitness | 0-0.5 | Underdog came through qualifying? |
+| First H2H meeting | 0-0.5 | No prior data = uncertainty |
+| Serve dependency on clay | 0-1 | Favorite's game based on serve, playing on clay? |
+
+**Thresholds:** ≥4 = AVOID ML, use game totals. ≥6 = Extra caution even on totals. ≥8 = SKIP or only STRONG ratio O-games.
+
+### NEW — The Paradox Rule (CRITICAL INSIGHT):
+**High upset risk makes STATISTICAL MARKETS MORE profitable:**
+- Competitive match = more total play (games, frames, sets, goals, corners)
+- Shelton-Prizmic: 36 games. O22.5 wins by +13.5 margin.
+- Football relegation battles: more fouls = more cards, more corners from desperate play.
+- NBA close games: more possessions, OT risk = higher totals.
+
+**Low upset risk makes statistical OVERS dangerous:**
+- Blowouts = low total play. Struff-Michelsen: 15 games. O22.5 missed by -7.5.
+- Only use overs with STRONG ratio (≤1.15) or high upset risk flags present.
+
+### NEW — Cross-Sport Upset Checklists:
+
+**Football (threshold ≥4 → avoid ML):**
+Fixture congestion (+2), relegation desperation (+1), cup/league priority split (+1), strong team playing away (+1), new manager bounce (+1), H2H bogey team (+1), ≥2 key absences (+1), nothing to play for (+1).
+
+**Basketball (threshold ≥3):**
+B2B 2nd night (+2), travel >1500km in 48h (+1), playoff series shift G3/G4 (+1), star player questionable (+2), blowout reversal adjustment (+1).
+
+**Hockey (threshold ≥3):**
+Goalie uncertain (+2), B2B (+2), road team in playoffs G3+ (+1), elimination desperation (+1), PP/PK regression (+1).
+
+**Baseball (threshold ≥3):**
+SP ERA >4.50 or rookie (+2), bullpen fatigue (+1), platoon advantage (+1), day after night (+1), key batter sitting (+1).
+
+**Snooker (threshold ≥2):**
+Short format (+1), form discrepancy (+1), safety-heavy underdog (+1).
+
+**Esports (threshold ≥2):**
+Roster change (+2), map pool edge (+1), online match (+1), new patch (+1).
+
+### Rule changes for future runs:
+1. Run upset checklist for EVERY candidate pick in EVERY sport.
+2. If upset score ≥ threshold → HARD BAN on ML. Only statistical markets.
+3. If upset score high + STRONG odds ratio → game totals are PREMIUM picks.
+4. If upset score low + only GOOD ratio → risk of blowout → prefer handicap or under, not over.
+5. Add upset risk assessment to STEP 6 (Context Verification) in methodology.
+
+## 2026-04-24 — METHODOLOGY INTEGRATION: Upset Risk Assessment embedded in active prompts
+
+### Changes made:
+1. **analysis-methodology.instructions.md**: Added STEP 6.5 (Upset Risk Assessment) with 14 sport-specific checklists (tennis 14 factors/12pts, football 12 factors/14pts, basketball 10/10, hockey 8/10, baseball 8/10, volleyball 6/7, esports 8/10, snooker 7/7, darts 6/7, MMA 9/10, handball 6/7, table tennis 6/6, padel 7/8, speedway 7/8).
+2. **analysis-methodology.instructions.md**: Added V4k validation check — verifies upset scores calculated, ML bans enforced, Paradox Rule applied, confidence adjusted.
+3. **analysis-methodology.instructions.md**: Updated STEP 7 bear case template to include UPSET SCORE field.
+4. **analysis-methodology.instructions.md**: Updated Quick Reference checklist with STEP 6.5.
+5. **model-ready-betting.instructions.md**: Added Upset Risk Assessment section to market selection rules with Paradox Rule, thresholds, and Shelton case study.
+6. **model-ready-betting.instructions.md**: Added common mistakes #39 (skipping upset assessment), #40 (ignoring Paradox Rule), #41 (no upset score in bear case).
+7. **model-ready-betting.instructions.md**: Added upset assessment to V8 Source Completeness Audit.
+
+### Key new factors added beyond original 8 (tennis expanded to 14):
+- Altitude factor (Madrid 660m), previous round fatigue, late-career complacency, return game strength, sharp money signals, draw section look-ahead.
+- Football: international break, manager sacking bounce, derby factor, altitude, artificial turf.
+- Basketball: altitude (Denver), overtime previous game, coach revenge, post-trade disruption, schedule 4-in-5.
+- Hockey: backup goalie B2B, PP regression, empty net adjustment.
+- Baseball: umpire zone, weather at ballpark, catcher framing.
+- Esports: stand-in player, meta shift, online vs LAN gap.
+- MMA: stylistic mismatch, weight class move, long layoff, short notice, bad weight cut.
+- All sports: Decision Matrix (§6.5.15) maps upset score → allowed markets + confidence adjustment.
+
+### Paradox Rule formalized as market selection principle:
+- High upset risk → OVER totals PREMIUM (competitive match = more play)
+- Low upset risk → OVER totals DANGEROUS (blowout = fewer play units)
+- This is now embedded in both methodology (§6.5) and model-ready (market rules).

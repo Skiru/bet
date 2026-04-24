@@ -189,6 +189,13 @@ Use `sequentialthinking` for EACH step (one call per step minimum):
 - Weather (outdoor sports, corners/goals impact)?
 - Referee (for cards/fouls markets)?
 
+**STEP 6.5 — Upset Risk Assessment (MANDATORY for ALL favorites ≤1.50):**
+- Run sport-specific upset checklist from methodology §6.5 (one call per candidate with odds ≤1.50).
+- Score each factor: surface mismatch, form gap, H2H, fatigue, home crowd, motivation, tactical matchup, etc.
+- Total score ≥4 → ELEVATED upset risk. Apply Paradox Rule: avoid ML, prefer statistical markets (totals/handicaps).
+- Tennis: odds ratio grading — if upset score ≥4, downgrade one tier.
+- Flag ALL elevated-risk picks with explicit upset_score in bear case.
+
 **STEP 7 — Bear Case / Devil's Advocate (one call per candidate):**
 - State bull case (1-2 sentences).
 - State bear case (1-2 sentences).
@@ -216,6 +223,7 @@ Use `sequentialthinking` for EACH step (one call per step minimum):
 - V4b: Volleyball checks (ML range, set totals, competition context).
 - V4i: Padel checks (FIP rankings, tournament tier, indoor/outdoor, partner change risk).
 - V4j: Speedway checks (lineup confirmed, rider track averages, home advantage, weather/track conditions).
+- V4k: Upset Risk Validation — every favorite ≤1.50 has upset checklist scored. If upset_score ≥4 and pick is ML → MUST justify or switch to statistical market.
 - V5: Coupon structure (min 2 legs, same-sport limit ≤2, correlation, **combined odds ARITHMETIC: multiply each coupon's legs explicitly and write the product — never claim verified without showing the math**, stake limit, min 5 coupons).
 - V6: Portfolio risk (exposure < 25%, diversification, tournament concentration).
 - V7: Weakness flagging (borderline picks, CONDITIONAL picks, weakest coupon legs, same-tournament risks).
