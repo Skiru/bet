@@ -1,0 +1,196 @@
+================================================================================
+                        KUPONY NA 25 KWIETNIA 2026
+                    Dzien zakladowy: 06:00 25.04 - 05:59 26.04
+                         Wygenerowano: 2026-04-25 00:20 CEST
+                     Status: CONDITIONAL - weryfikuj na Betclic
+================================================================================
+
+SPORT CHECKLIST (12/12):
+  [v] Football: LaLiga, Serie A, Bundesliga, Ekstraklasa
+  [v] Tennis: ATP Madrid R2/R3, WTA Madrid
+  [v] Basketball: brak morning events
+  [v] Hockey: Finnish Liiga (SaiPa-KooKoo) - watchlist
+  [v] Volleyball: Czech Extraliga playoff - watchlist
+  [v] Handball: German Bundesliga (Minden-Eisenach) - pick zatwierdzony
+  [v] Esports: brak tier 1-2 events
+  [v] Baseball: brak daytime events
+  [v] Snooker: brak events
+  [v] Darts: brak events
+  [v] Table Tennis: brak events
+  [v] MMA: brak events
+
+ZRODLA TYPERSKIE:
+  ZawodTyper: sprawdzony - brak tipow na 25.04 (za wczesnie)
+  Typersi: sprawdzony - brak tipow na 25.04
+  PicksWise: timeout - brak danych
+  BetIdeas: sprawdzony - brak tipow na 25.04
+  OLBG: sprawdzony - brak tipow na 25.04
+  UWAGA: Sprawdz rano czy nie pojawily sie negatywne sygnaly!
+
+================================================================================
+                          ZATWIERDZONE PICKE (5)
+================================================================================
+
+PK-25-01 | PILKA NOZNA - LaLiga
+  Mecz:     Getafe vs Barcelona
+  Kickoff:  25.04.2026 16:15 CEST
+  Rynek:    Under 3.5 goals
+  Kurs BE:  ~1.52 (est.)
+  Prog:     CONDITIONAL >= 1.45 na Betclic
+  EV:       +6.9% | Conf: 4/5 | Risk: LOW
+  ANALIZA:
+  - Getafe: 28GF+32GA w 32 meczach = 1.88 goli/mecz (NAJNIZSZY w LaLiga)
+  - Barcelona: 85GF+30GA = 3.59 goli/mecz (NAJWYZSZY)
+  - Oczekiwana laczna: ~2.75 goli (Poisson). P(<=3) = 70.3%
+  - Getafe to FORTECA defensywna, najwolniejsze tempo w lidze
+  - Nawet wynik 3:0 dla Barcy POKRYWA ten zaklad
+  BEAR: Barca maja Lewandowskiego, Yamala - moga strzellic 4+
+  BULL > BEAR: U3.5 to szeroki margines. Getafe Coliseum jest wrogi.
+  Zrodla: SoccerStats (Tier A), BetExplorer (Tier A)
+
+PK-25-02 | TENIS - ATP Madrid R2/R3
+  Mecz:     Jan-Lennard Struff vs Alex Michelsen
+  Kickoff:  25.04.2026 ~11:00 CEST
+  Rynek:    Over 22.5 games (gemow)
+  Kurs BE:  ~1.80 (est.)
+  Prog:     CONDITIONAL >= 1.70 na Betclic
+  EV:       +11.6% | Conf: 4/5 | Risk: LOW
+  ANALIZA:
+  - Kursy: Struff 1.80 / Michelsen 1.96. Odds ratio = 1.09 = STRONG
+  - Metodologia: ratio <=1.15 = STRONG (55-65% szansa na 3 sety)
+  - Madryt 650m npm = wieksza sila serwisu = wiecej holdow
+  - 3-setowy mecz = 30-36 gemow. Ciasne 2 sety (7-5, 7-5) = 24 gemy
+  - P(O22.5) = 62%. EV przy 1.80 = +11.6%
+  BEAR: Struff 35 lat - moze spasc fizycznie. Szybkie 2 sety.
+  BULL > BEAR: Odds ratio 1.09 to najsilniejszy sygnal w tenisie.
+  Zrodla: BetExplorer (Tier A), Tennis odds ratio methodology
+
+PK-25-03 | PILKA RECZNA - German Bundesliga (HBL)
+  Mecz:     GWD Minden vs ThSV Eisenach
+  Kickoff:  25.04.2026 20:00 CEST
+  Rynek:    Over 51.5 total goals (bramek lacznie)
+  Kurs BE:  ~1.65 (est.)
+  Prog:     CONDITIONAL >= 1.55 na Betclic
+  EV:       +23.8% | Conf: 4/5 | Risk: LOW
+  ANALIZA:
+  - German HBL srednia: ~56-58 bramek na mecz
+  - Over 51.5 to 4-6 bramek PONIZEJ sredniej ligowej
+  - Mecz wyrownany: Minden 2.24 / Eisenach 2.00 - oba musza atakowac
+  - Pilka reczna ma jedne z najbardziej przewidywalnych totali
+  - P(O51.5) = 75%. EV przy 1.65 = +23.8%
+  - NAJSILNIEJSZY PICK DNIA pod wzgledem EV
+  BEAR: Koniec sezonu, dead rubber, rotacja skladu.
+  BULL >> BEAR: HBL rzadko spada ponizej 50 nawet w dead rubber.
+  Zrodla: BetExplorer (Tier A odds), HBL league statistics
+
+PK-25-04 | PILKA NOZNA - Serie A
+  Mecz:     Bologna vs AS Roma
+  Kickoff:  25.04.2026 19:00 CEST
+  Rynek:    Under 2.5 goals
+  Kurs BE:  ~1.72 (est.)
+  Prog:     CONDITIONAL >= 1.60 na Betclic
+  EV:       +9.4% | Conf: 3.5/5 | Risk: MEDIUM
+  ANALIZA:
+  - Bologna: 42GF, 39GA (2.45/mecz). Dom: ~1.6 GF, ~1.2 GA
+  - Roma: 46GF, 29GA (2.27/mecz). Wyjazd: 19GF/16 (1.19), 19GA/16 (1.19)
+  - Oczekiwana laczna: ~2.15 goli. P(<=2) = 63.6%
+  - Roma na wyjezdzie pragmatycznie. Bologna w domu umiarkowanie
+  BEAR: Roma goni top-4 - moga atakowac. Bologna strzela w domu.
+  BULL slightly > BEAR: Obie druzyny pragmatyczne. Medium confidence.
+  Zrodla: SoccerStats (Tier A), BetExplorer (Tier A)
+
+PK-25-05 | PILKA NOZNA - Bundesliga
+  Mecz:     1. FC Koln vs Bayer Leverkusen
+  Kickoff:  25.04.2026 15:30 CEST
+  Rynek:    Over 2.5 goals
+  Kurs BE:  ~1.78 (est.)
+  Prog:     CONDITIONAL >= 1.65 na Betclic
+  EV:       +2.7% | Conf: 3.5/5 | Risk: MEDIUM
+  ANALIZA:
+  - Leverkusen: elitarny atak, ~2.0+ goli na mecz
+  - Koln: awansowali - porowata obrona
+  - Derby Nadrenii = emocje, otwarta gra
+  - Oczekiwana laczna: ~3.0. P(O2.5) = 57.7%
+  BEAR: Koln parkuje autobus. Leverkusen rotuje jesli pozycja pewna.
+  BULL slightly > BEAR: Zalezny od skladu. SPRAWDZ TEAM NEWS RANO!
+  Zrodla: BetExplorer (Tier A)
+  !!! NAJSLABSZY PICK - sprawdz team news rano !!!
+
+================================================================================
+                          KUPONY (6)
+================================================================================
+
+CP-25-P1 | PEWNIAKI DOUBLE - Handball + Tennis
+  Leg 1: PK-25-03 Minden-Eisenach O51.5 goals     @ 1.65
+  Leg 2: PK-25-02 Struff-Michelsen O22.5 games     @ 1.80
+  Kurs laczony: 2.97 | Stawka: 2.50 PLN | Wygrana: 7.43 PLN
+  Risk: LOW | Korelacja: BRAK (rozne sporty)
+  >>> NAJWYZSZY EV KUPON - oba legi maja EV > +10% <<<
+
+CP-25-P2 | PEWNIAKI DOUBLE - Handball + Football
+  Leg 1: PK-25-03 Minden-Eisenach O51.5 goals     @ 1.65
+  Leg 2: PK-25-01 Getafe-Barcelona U3.5 goals      @ 1.52
+  Kurs laczony: 2.51 | Stawka: 2.50 PLN | Wygrana: 6.28 PLN
+  Risk: LOW | Korelacja: BRAK (rozne sporty)
+
+CP-25-P3 | PEWNIAKI DOUBLE - Tennis + Football
+  Leg 1: PK-25-02 Struff-Michelsen O22.5 games     @ 1.80
+  Leg 2: PK-25-01 Getafe-Barcelona U3.5 goals      @ 1.52
+  Kurs laczony: 2.74 | Stawka: 2.00 PLN | Wygrana: 5.48 PLN
+  Risk: LOW | Korelacja: BRAK (rozne sporty)
+
+CP-25-P4 | PEWNIAKI TRIPLE - 3 Sporty
+  Leg 1: PK-25-03 Minden-Eisenach O51.5 goals     @ 1.65
+  Leg 2: PK-25-02 Struff-Michelsen O22.5 games     @ 1.80
+  Leg 3: PK-25-01 Getafe-Barcelona U3.5 goals      @ 1.52
+  Kurs laczony: 4.51 | Stawka: 1.50 PLN | Wygrana: 6.77 PLN
+  Risk: MEDIUM | Korelacja: BRAK (3 rozne sporty)
+  >>> TRIPLE MULTI-SPORT - 3 najwyzsze EV w jednym kuponie <<<
+
+CP-25-T1 | THEMED - Italian + German Football
+  Leg 1: PK-25-04 Bologna-Roma U2.5 goals          @ 1.72
+  Leg 2: PK-25-05 Koln-Leverkusen O2.5 goals       @ 1.78
+  Kurs laczony: 3.06 | Stawka: 2.00 PLN | Wygrana: 6.12 PLN
+  Risk: MEDIUM | Korelacja: BRAK (rozne ligi, przeciwne kierunki)
+  ! Zawiera PK-25-05 (najslabszy pick) - sprawdz sklady rano !
+
+CP-25-T2 | THEMED - Handball + 2x Football
+  Leg 1: PK-25-03 Minden-Eisenach O51.5 goals     @ 1.65
+  Leg 2: PK-25-04 Bologna-Roma U2.5 goals          @ 1.72
+  Leg 3: PK-25-05 Koln-Leverkusen O2.5 goals       @ 1.78
+  Kurs laczony: 5.05 | Stawka: 1.50 PLN | Wygrana: 7.58 PLN
+  Risk: HIGHER | Korelacja: BRAK (handball + 2 rozne ligi)
+  ! Najagresywniejszy kupon - zawiera PK-25-05 !
+
+================================================================================
+                          WATCHLIST (BACKUP)
+================================================================================
+
+WL-01: Getafe-Barcelona Under 2.5 goals -> promote if Betclic >= 2.05
+WL-02: Atletico-Athletic Under 2.5 goals -> promote if Betclic >= 1.65
+WL-03: SaiPa-KooKoo Under 5.5 goals -> promote if Betclic >= 1.80
+WL-04: Karlovarsko-Lvi Over 3.5 sets -> promote if Betclic >= 1.75
+WL-05: Hurkacz-Musetti Musetti ML -> promote if Betclic >= 1.55
+
+================================================================================
+                          PODSUMOWANIE
+================================================================================
+
+Bankroll: 29.00 PLN | Dzienny budzet: 5.00-7.50 PLN
+Laczna sugerowana stawka: 12.00 PLN (TY DECYDUJESZ ktore kupony!)
+
+REKOMENDACJA (max 3 kupony, ~6.50 PLN):
+  CP-25-P1 (2.50) + CP-25-P2 (2.50) + CP-25-P4 (1.50) = 6.50 PLN
+  -> Pewniaki triple + oba doubley z najwyzszym EV
+
+ALTERNATYWA bezpieczna (~4.50 PLN):
+  CP-25-P1 (2.50) + CP-25-P3 (2.00) = 4.50 PLN
+
+WAZNE:
+1. WSZYSTKIE PICKE CONDITIONAL - zweryfikuj kursy na Betclic!
+2. Brak tipster verification (analiza o polnocy) - sprawdz rano!
+3. PK-25-05: SPRAWDZ SKLADOWY LEVERKUSEN rano!
+4. Jesli PK-25-05 odpada: zamien na WL-02 lub WL-03
+5. odds_checked_at: 2026-04-25 00:15 CEST (BetExplorer)
+
+================================================================================

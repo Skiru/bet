@@ -102,3 +102,7 @@ betting_day,source_name,role,sport_scope,availability,used_in_analysis,used_in_f
 2026-04-23,scoresandodds.com,Tier A market,hockey|baseball,available,yes,yes,Night v2: NHL O/U records and totals lines. MLB Red Sox-Yankees U7.5 line.
 2026-04-23,oddsportal.com,Tier A market,hockey,available,yes,yes,Night v2: NHL 1X2 odds BOS 2.40 OTT 2.30 LAK 3.05. Totals tab JS-heavy.
 2026-04-23,pickswise.com,Tier B tipster,hockey,available,yes,yes,Night v2: COL-LAK OVER 5.5 (contradicts under thesis). OTT-CAR UNDER 5.5 (supports).
+2026-04-24,00:15,ESPN Odds,hockey+baseball,OK,Night v3: NHL lines confirmed 5.5/5.5/6.5. MLB pitchers + lines. Cookie accepted.
+2026-04-24,00:15,PicksWise match pages,hockey+baseball+basketball,OK,Night v3: Full arguments for all 7 games. NYY ML 5/5 conf. Kings OVER. Senators UNDER.
+2026-04-24,00:15,Sportsgambler,hockey,OK,Night v3: BOS ML + OTT ML predictions. MLB pages redirected.
+2026-04-24,00:15,OLBG,baseball+basketball,404,Night v3: Baseball and basketball tip pages return 404.

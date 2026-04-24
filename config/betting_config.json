@@ -3,7 +3,7 @@
   "daily_exposure_pln": null,
   "max_coupon_stake_low_risk_pln": 3.0,
   "max_coupon_stake_higher_risk_pln": 2.0,
-  "working_bankroll_pln": 29.00,
+  "working_bankroll_pln": 49.00,
   "suggested_daily_allocation_range_pln": [
     5.0,
     7.50

@@ -16,7 +16,7 @@ Operating rules:
 Scripted workflow:
 - Always run the repository scanner and aggregator before composing final coupons. Use the orchestrator script `bash scripts/run_full_scan_and_prepare.sh` (or follow the manual commands below) to install dependencies, run a Playwright smoke test, fetch pages, and produce `betting/data/scan_summary.json` and `betting/data/picks_suggested.json`.
 - The orchestrator uses Playwright (headless Chromium) for JS-heavy pages. This is the primary fetching method — use it for all source data, not manual fetch_webpage calls.
-- The orchestrator scans all configured sports (football, tennis, basketball, hockey, baseball, volleyball) across all Tier A and Tier B sources with sport-specific subpages.
+- The orchestrator scans all configured sports (football, tennis, basketball, hockey, baseball, volleyball, esports, snooker, darts, table_tennis, handball, mma) across all Tier A and Tier B sources with sport-specific subpages.
 - The agent and prompts assume these structured outputs are present and up-to-date; if they are missing or stale, re-run the orchestrator and retry the run.
 - After the orchestrator finishes, check `betting/data/scan_errors.json` for source failures. Record any failed sources in the daily source log.
 - Use `python3 scripts/settle_on_finish.py --betting-day YYYY-MM-DD` to settle pending picks for a specific day. The script supports `--match "Team vs Team"` for targeted settlement and `--no-poll` for single-attempt mode.
@@ -34,8 +34,10 @@ Source resilience rules:
 - For European sports: always check BetExplorer + OddsPortal. Use The-Odds-API as universal fallback.
 
 Selection rules:
-- Analyze ALL sports configured in config/betting_config.json. Never reject a sport for "lack of sources" — the internet has specialist sites for every sport. Search for them.
-- Diversify broadly across sports: football, tennis, basketball, hockey, volleyball, esports (CS2, Dota 2, LoL, Valorant), snooker, table tennis, darts, handball, MMA/UFC, and any other sport available on Betclic.
+- **MANDATORY: Analyze ALL 12 sports** configured in config/betting_config.json: football, tennis, basketball, hockey, baseball, volleyball, esports, snooker, table_tennis, darts, handball, mma. Never skip a sport. Never reject a sport for "lack of sources" — the internet has specialist sites for every sport. Search for them.
+- **Sport coverage audit**: After analysis, verify ALL 12 sports were scanned. If any sport was not scanned, go back and scan it before proceeding. This is a HARD REQUIREMENT — not optional.
+- **Minimum sport diversity in final picks**: The final pick roster MUST include picks from at least 5 different sports. If fewer than 5 sports have picks, search deeper in the missing sports before declaring no value.
+- Diversify broadly across sports: football, tennis, basketball, hockey, baseball, volleyball, esports (CS2, Dota 2, LoL, Valorant), snooker, table tennis, darts, handball, MMA/UFC, and any other sport available on Betclic.
 - Avoid popular high-profile events and pure match result bets unless there are strong statistical indicators. Focus on deep analysis of statistical markets, tipster consensus, and analytical perspectives.
 - Perform WIDE analysis: for every candidate event, check multiple ARGUMENT-BASED tipster sites where tipsters post detailed written reasoning (not just bare picks). Required sites: Zawod Typer (zawodtyper.pl), Typersi (typersi.pl), Meczyki (meczyki.pl), OLBG (olbg.com), PicksWise (pickswise.com), BetIdeas (betideas.com), Sportsgambler, GosuGamers (esports). Navigate into match pages, scroll deeply, read each tipster's argument, and extract their reasoning.
 - The following tipster sources are BLOCKED and must NOT be attempted: Forebet, FootySupertips, Windrawwin, BettingExpert, Protipster, Oddspedia, SportyTrader, Predictz, Trafiamy, Blogabet, HLTV. See source-registry.md.

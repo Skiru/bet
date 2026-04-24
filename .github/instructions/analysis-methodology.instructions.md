@@ -48,8 +48,8 @@ The goal: find MISPRICED ODDS, not predict winners. A 40% chance event at 3.00 o
 
 ### 1.2 Master Event List
 Build a COMPLETE list of every event happening in the betting-day window (06:00 today through 05:59 tomorrow, Europe/Warsaw). Use:
-- **BetExplorer**: browse sport-by-sport (football, tennis, basketball, hockey, baseball, volleyball, esports, snooker, darts, handball). Click "Tomorrow" or today's date tab.
-- **Flashscore**: cross-reference for fixture times and any events BetExplorer misses.
+- **BetExplorer**: browse sport-by-sport (football, tennis, basketball, hockey, baseball, volleyball, esports, snooker, darts, table_tennis, handball, mma). Click "Tomorrow" or today's date tab.
+- **Flashscore**: cross-reference for fixture times and any events BetExplorer misses. Check ALL 12 sports.
 - **OddsPortal**: check for additional sports/events.
 
 For each event, record:
@@ -57,22 +57,35 @@ For each event, record:
 - Available markets on Betclic (if known)
 - Initial odds range (favorite/underdog)
 
-### 1.3 Sport Coverage Checklist
-Verify you have scanned ALL of these:
-- [ ] Football: top 5 leagues, cups, 2nd divisions, Scandinavian, Dutch, Portuguese, Turkish, Greek, MLS, Brazilian, Argentine
-- [ ] Tennis: ATP, WTA, Challengers (skip ITF)
-- [ ] Basketball: NBA, Euroleague, national leagues
-- [ ] Hockey: NHL, KHL, SHL, Liiga
-- [ ] Volleyball: CEV Champions League, national leagues
-- [ ] Esports: CS2 (tier 1-2 events), Dota 2, LoL, Valorant
-- [ ] Snooker: World Championship, Tour events
-- [ ] Darts: Premier League, PDC events
-- [ ] Handball: EHF, Bundesliga
-- [ ] Table Tennis: WTT, national leagues
-- [ ] MMA/UFC: any scheduled card
-- [ ] Baseball: MLB (if in season)
+### 1.3 Sport Coverage Checklist — MANDATORY (ALL 12 SPORTS)
 
-**NEVER say "no sources available" for a sport without searching specialist sites first.**
+**CRITICAL ENFORCEMENT RULE**: You MUST scan ALL 12 sports below. This is not optional. Every sport must be checked for events in the betting-day window. For each sport, record either: (a) candidate events found, or (b) "NO EVENTS TODAY" with the source you checked. Skipping a sport is a PROTOCOL VIOLATION.
+
+Scan order (follow this exact sequence):
+1. [ ] **Football**: top 5 leagues, cups, 2nd divisions, Scandinavian, Dutch, Portuguese, Turkish, Greek, MLS, Brazilian, Argentine, Asian leagues
+2. [ ] **Tennis**: ATP, WTA, Challengers (skip ITF). Check BetExplorer tennis + Flashscore tennis.
+3. [ ] **Basketball**: NBA, Euroleague, national leagues. Check ESPN + BetExplorer basketball.
+4. [ ] **Hockey**: NHL, KHL, SHL, Liiga. Check ESPN NHL + BetExplorer hockey.
+5. [ ] **Baseball**: MLB (if in season). Check ESPN MLB + SBR.
+6. [ ] **Volleyball**: CEV Champions League, national leagues, international. Check BetExplorer volleyball + Flashscore.
+7. [ ] **Esports**: CS2 (tier 1-2), Dota 2, LoL (LCK/LPL/LEC/LCS), Valorant. Check GosuGamers + BetExplorer esports + Liquipedia.
+8. [ ] **Snooker**: World Championship, Tour events. Check Flashscore snooker + BetExplorer.
+9. [ ] **Darts**: Premier League, PDC events, World Series. Check Flashscore darts + BetExplorer.
+10. [ ] **Handball**: EHF Champions League, Bundesliga, national leagues. Check BetExplorer handball + Flashscore.
+11. [ ] **Table Tennis**: WTT events, national leagues. Check Flashscore table tennis + BetExplorer.
+12. [ ] **MMA/UFC**: any scheduled card. Check UFC.com + Tapology + BetExplorer MMA.
+
+**After scanning**: Count how many sports have events. Record the count. If fewer than 6 sports have events today, note this explicitly — it's unusual and should be verified.
+
+**Source discovery for niche sports**: If BetExplorer/Flashscore don't cover a sport well:
+- Esports: GosuGamers, Liquipedia, HLTV (stats only, NOT tips)
+- Snooker: CueTracker, WorldSnooker.com
+- Darts: DartsOrakel, PDC.tv
+- Table Tennis: tt-liveresults.com
+- Handball: eurohandball.com
+- MMA: Sherdog, Tapology, UFC.com
+
+**NEVER say "no sources available" for a sport without searching specialist sites first. The internet ALWAYS has data for every sport.**
 
 ### 1.4 Source Resilience Protocol
 When ANY source returns 403, Cloudflare block, GDPR wall, or empty response:
@@ -104,6 +117,8 @@ For each remaining event, quickly assess:
 
 ### 2.3 Result: Shortlisted Events
 Target: 15-40 events across multiple sports. If fewer than 15, widen the search. If more than 40, tighten criteria (remove events with weakest source coverage).
+
+**Sport diversity requirement**: The shortlist MUST include events from at least 5 different sports. If fewer than 5 sports are represented, go back to Step 1 and scan the missing sports more aggressively. Football should NOT dominate the shortlist — aim for no more than 50% football events.
 
 ---
 
@@ -314,6 +329,21 @@ Follow sport-specific source references in source-registry.md. The universal app
 - **ALWAYS prefer statistical/totals markets over ML/winner markets**
 - The less liquid the market, the more likely it is mispriced — this is our edge
 
+### 3.14 Sport-Specific Source URLs (Quick Reference)
+When scanning events, use these URLs directly:
+- **Football**: betexplorer.com/football/ | flashscore.com/football/
+- **Tennis**: betexplorer.com/tennis/ | flashscore.com/tennis/
+- **Basketball**: betexplorer.com/basketball/ | flashscore.com/basketball/ | espn.com/nba/
+- **Hockey**: betexplorer.com/hockey/ | flashscore.com/hockey/ | espn.com/nhl/
+- **Baseball**: betexplorer.com/baseball/ | flashscore.com/baseball/ | espn.com/mlb/
+- **Volleyball**: betexplorer.com/volleyball/ | flashscore.com/volleyball/
+- **Esports**: betexplorer.com/esports/ | gosugamers.net | liquipedia.net
+- **Snooker**: betexplorer.com/snooker/ | flashscore.com/snooker/ | cuetracker.net
+- **Darts**: betexplorer.com/darts/ | flashscore.com/darts/ | dartsorakel.com
+- **Handball**: betexplorer.com/handball/ | flashscore.com/handball/
+- **Table Tennis**: betexplorer.com/table-tennis/ | flashscore.com/table-tennis/
+- **MMA**: betexplorer.com/mma/ | sherdog.com | tapology.com | ufc.com/events
+
 ---
 
 ## STEP 4: TIPSTER DEEP-DIVE — Structured Community Cross-Check
@@ -522,7 +552,9 @@ Rank all approved candidates by: EV (highest first), then confidence (highest fi
 All picks go into coupons. No singles are produced. Every coupon has at least 2 legs.
 
 ### 8.3 Coupon Construction — Minimum 5 Coupons
-The target is MINIMUM 5 diverse coupons per day. If the board supports more, produce more. There is no upper limit on coupon count. Search wider before accepting fewer than 5.
+The target is MINIMUM 5 diverse coupons per day. If the board supports more, produce more. There is no upper limit on coupon count — 10, 15, or even 20 coupons are welcome if the analysis supports them. Search wider before accepting fewer than 5.
+
+**Sport diversity in coupons**: At least 3 coupons must be MULTI-SPORT (legs from 2+ different sports). At least 1 coupon must include a non-football, non-tennis sport (e.g., hockey, volleyball, esports, darts, snooker, handball, table tennis, MMA, basketball, baseball). The final portfolio should showcase the FULL breadth of sports analyzed, not just football.
 
 Coupon types to produce:
 1. **Pewniaki system** (primary): identify 3-5 highest-confidence picks, build ALL non-repeating combinations:

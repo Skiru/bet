@@ -27,6 +27,9 @@ Follow the 11-step workflow in analysis-methodology.instructions.md:
 - **No singles.** Every pick goes into a coupon. Minimum 2 legs per coupon.
 - **Minimum 5 coupons per day.** Produce at least 5 diverse coupons. Search wider before accepting fewer.
 - **No maximum legs per coupon.** A coupon can have 2, 3, 4, 5, or more legs.
+- **MANDATORY 12-sport scan.** Every analysis MUST scan ALL 12 configured sports: football, tennis, basketball, hockey, baseball, volleyball, esports, snooker, darts, table_tennis, handball, mma. Never skip a sport. Record "NO EVENTS TODAY" if a sport has no fixtures.
+- **Minimum 5-sport diversity in picks.** The final pick roster must include picks from at least 5 different sports. If fewer than 5 sports have picks, search deeper before declaring no value.
+- **Multi-sport coupons mandatory.** At least 3 coupons must be multi-sport (2+ sports). At least 1 coupon must include a niche sport (not football/tennis).
 - Max coupon stake: 3.00 PLN for low-risk, 2.00 PLN for higher-risk
 - Daily exposure cap: 8.00–12.00 PLN (but suggest stakes for ALL coupons even if total exceeds cap — user decides which to place)
 - Each event may appear in multiple coupons (pewniaki system generates combinations). But never duplicate the same coupon composition.
