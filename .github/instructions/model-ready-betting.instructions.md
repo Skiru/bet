@@ -268,6 +268,8 @@ Go through every check. Write YES or NO for each. If any is NO, fix it before pr
 - [ ] Every sport with picks had ≥2 tipster sites checked
 - [ ] ALL tipster conflicts recorded and addressed in bear case
 - [ ] If tipster consensus <50% → pick justified or removed
+- [ ] H2H records checked for every pick (last 5-10 meetings, home/away splits)
+- [ ] Injuries/suspensions verified for every team/player in picks (ESPN, Flashscore, team news)
 
 ### V9: Coupon Composition Optimization
 - [ ] Picks re-ranked by EV × confidence — highest in most coupons
@@ -316,3 +318,5 @@ Go through every check. Write YES or NO for each. If any is NO, fix it before pr
 31. **Shallow tipster checks** — glancing at ZawodTyper headlines without reading the argument. The VALUE is in the tipster's REASONING ("Villarreal avg 6.2 corners away because of defensive setup"), not the bare pick ("Over 9.5 corners"). Navigate to match pages, read each tipster's full argument, extract stats and tactical reasoning. A tip without extracted reasoning is INCOMPLETE.
 32. **Giving up after first source block** — TotalCorner has cookie wall? Skip corners entirely. BetExplorer esports page empty? Skip esports. This is FORBIDDEN. Source-registry.md has fallback chains for every sport. If primary fails, try secondary, tertiary, then Google search. The internet ALWAYS has data. Never give up.
 33. **Football-only or football+tennis-only portfolio** — producing final picks from only 2-3 sports when 14 are available. Minimum 5 different sports in final picks. If you have <5 sports, go back and scan the missing ones deeper before declaring no value.
+34. **Skipping H2H check** — finalizing a pick without checking head-to-head records. H2H can reveal that an underdog dominates at this venue (e.g., Union Berlin at Leipzig). Always check last 5-10 meetings with home/away context.
+35. **Skipping injury/suspension check** — finalizing picks without verifying key absences. A single missing star player can invalidate an entire thesis. Check ESPN, Flashscore lineups, team social media for EVERY pick.

@@ -60,6 +60,9 @@ Selection rules:
 - A final pick requires at least one Tier A stats source and one Tier A market or price source. Tier B opinion or consensus sources may support a pick but cannot be the main reason for it. However, strong consensus from multiple tipster sites IS a valid supporting signal.
 - If primary sources disagree materially or are unavailable, skip the pick.
 - Never produce shallow, surface-level analysis. Every pick must have DEEP statistical backing from specialist sources, not just top-level form data.
+- **MANDATORY: H2H check for EVERY candidate.** Fetch head-to-head records (last 5-10 meetings) from BetExplorer, Flashscore, or worldfootball.net. Include home/away splits. H2H surprises (e.g., underdog dominates H2H at venue) override league position.
+- **MANDATORY: Injury/suspension check for EVERY pick.** Check ESPN injury reports, Flashscore lineups, team social media. For tennis: ATP/WTA withdrawal list. Never finalize a pick without verifying key absences.
+- **MANDATORY: Bear case with tipster conflicts.** If ANY argument-based tipster argues against your pick with specific facts, the bear case (STEP 7) MUST address their argument. A single fact-based tipster argument can invalidate a pick.
 - Reject correlated legs in the same coupon, especially same-game and strongly linked narrative outcomes.
 - Prefer multi-sport coupons over same-sport coupons when possible. Limit same-sport legs to 2 per coupon.
 

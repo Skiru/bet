@@ -132,6 +132,7 @@ Use `sequentialthinking` for EACH step (one call per step minimum):
 - Target 15-40 shortlisted events.
 
 **STEP 3 — Deep Statistical Analysis (one call per candidate):**
+- **H2H is MANDATORY for EVERY candidate regardless of sport.** Fetch last 5-10 meetings from BetExplorer/Flashscore/worldfootball.net. Include home/away splits. H2H surprises override league position.
 - Football: SoccerStats league context + Betaminic team stats + TotalCorner corners + Betclic Statystyki (top leagues) + xG regression check.
 - Tennis: TennisAbstract Elo + surface form + H2H + odds ratio grading (STRONG/GOOD/BORDERLINE/REJECT).
 - Basketball: pace + OFF/DEF rating + injury report + home/away splits.
