@@ -8,26 +8,27 @@ This file defines the EXACT output formats, file schemas, and validation checks 
 
 ## 1. WORKFLOW ORDER (see methodology for detailed STEPS 0-10)
 
-Follow the 11-step workflow in analysis-methodology.instructions.md:
+Follow the workflow in analysis-methodology.instructions.md (STEPS 0-10 plus STEP 3B):
 0. Run orchestrator
 1. STEP 0: Settle + CLV + bankroll update
 2. STEP 1: Scan ALL events across ALL sports
 3. STEP 2: Filter to shortlist
-4. STEP 3: Deep stats per candidate
-5. STEP 4: Tipster deep-dive
-6. STEP 5: Odds + EV + Kelly
-7. STEP 6: Context verification
-8. STEP 7: Bear case for each pick
-9. STEP 8: Portfolio construction
-10. STEP 9: Validate V1-V10 (V8=source completeness, V9=coupon optimization, V10=final sign-off)
-11. STEP 10: Write artifacts (formats below)
+4. STEP 3: Deep stats per candidate (sport-specific protocols including padel FIP rankings, speedway rider averages)
+5. STEP 3B: Time-sensitive data collection — lineups, late injuries, weather, odds movement (run within 2-3h of earliest event)
+6. STEP 4: Tipster deep-dive
+7. STEP 5: Odds + EV + Kelly
+8. STEP 6: Context verification
+9. STEP 7: Bear case for each pick
+10. STEP 8: Portfolio construction
+11. STEP 9: Validate V1-V10 (V7b date verification, V7c cross-coupon integrity, V8 source completeness, V9 coupon optimization, V10 final sign-off)
+12. STEP 10: Write artifacts (formats below)
 
 ## 2. HARD RULES (violating any = automatic reject)
 
 - **No singles.** Every pick goes into a coupon. Minimum 2 legs per coupon.
 - **Minimum 5 coupons per day.** Produce at least 5 diverse coupons. Search wider before accepting fewer.
 - **No maximum legs per coupon.** A coupon can have 2, 3, 4, 5, or more legs.
-- **MANDATORY 12-sport scan.** Every analysis MUST scan ALL 12 configured sports: football, tennis, basketball, hockey, baseball, volleyball, esports, snooker, darts, table_tennis, handball, mma. Never skip a sport. Record "NO EVENTS TODAY" if a sport has no fixtures.
+- **MANDATORY 14-sport scan.** Every analysis MUST scan ALL 14 configured sports: football, tennis, basketball, hockey, baseball, volleyball, esports, snooker, darts, table_tennis, handball, mma, padel, speedway. Never skip a sport. Record "NO EVENTS TODAY" if a sport has no fixtures.
 - **MANDATORY Deep Scan Protocol (§1.2).** Do NOT just look at a sport's landing page. Click into EVERY active tournament/league to see the FULL fixture list. Count matches per tournament. Cross-validate event counts between BetExplorer and Flashscore — discrepancy >20% means events were missed.
 - **MANDATORY tournament full-slate analysis (§1.3a).** When a MAJOR TOURNAMENT is active (ATP/WTA Masters 1000, Grand Slam, World Championship, Champions League matchday, NBA/NHL Playoffs), analyze ALL matches in the daily slate — not just 1-2. Screen every match for value. Cherry-picking 1 from 32 is a PROTOCOL VIOLATION.
 - **MANDATORY non-major tournament depth (§1.3b).** ANY tournament with ≥4 matches today must have ALL matches screened for value — not just major tournaments. ATP 250s, mid-tier leagues, Challengers, tier-2 esports.

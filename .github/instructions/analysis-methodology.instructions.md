@@ -51,8 +51,8 @@ The goal: find MISPRICED ODDS, not predict winners. A 40% chance event at 3.00 o
 **PURPOSE**: Build a COMPLETE, VERIFIED list of every event in the betting-day window. The previous failure mode was SHALLOW scanning — glancing at a sport's page, picking one obvious match, and moving on. This protocol forces DEPTH.
 
 Build the list using ALL THREE primary sources — not just one:
-- **BetExplorer**: browse sport-by-sport (football, tennis, basketball, hockey, baseball, volleyball, esports, snooker, darts, table_tennis, handball, mma). Click "Tomorrow" or today's date tab.
-- **Flashscore**: cross-reference for fixture times and any events BetExplorer misses. Check ALL 12 sports.
+- **BetExplorer**: browse sport-by-sport (football, tennis, basketball, hockey, baseball, volleyball, esports, snooker, darts, table_tennis, handball, mma, padel, speedway). Click "Tomorrow" or today's date tab.
+- **Flashscore**: cross-reference for fixture times and any events BetExplorer misses. Check ALL 14 sports.
 - **OddsPortal**: check for additional sports/events and odds not on BetExplorer.
 
 **Deep Scan Rules (MANDATORY):**
@@ -70,9 +70,9 @@ For each event, record:
 - Initial odds range (favorite/underdog)
 - Source where found (for cross-validation)
 
-### 1.3 Sport Coverage Checklist — MANDATORY (ALL 12 SPORTS)
+### 1.3 Sport Coverage Checklist — MANDATORY (ALL 14 SPORTS)
 
-**CRITICAL ENFORCEMENT RULE**: You MUST scan ALL 12 sports below. This is not optional. Every sport must be checked for events in the betting-day window. For each sport, record either: (a) candidate events found, or (b) "NO EVENTS TODAY" with the source you checked. Skipping a sport is a PROTOCOL VIOLATION.
+**CRITICAL ENFORCEMENT RULE**: You MUST scan ALL 14 sports below. This is not optional. Every sport must be checked for events in the betting-day window. For each sport, record either: (a) candidate events found, or (b) "NO EVENTS TODAY" with the source you checked. Skipping a sport is a PROTOCOL VIOLATION.
 
 Scan order (follow this exact sequence):
 1. [ ] **Football**: top 5 leagues, cups, 2nd divisions, Scandinavian, Dutch, Portuguese, Turkish, Greek, MLS, Brazilian, Argentine, Asian leagues
@@ -87,6 +87,8 @@ Scan order (follow this exact sequence):
 10. [ ] **Handball**: EHF Champions League, Bundesliga, national leagues. Check BetExplorer handball + Flashscore.
 11. [ ] **Table Tennis**: WTT events, national leagues. Check Flashscore table tennis + BetExplorer.
 12. [ ] **MMA/UFC**: any scheduled card. Check UFC.com + Tapology + BetExplorer MMA.
+13. [ ] **Padel**: Premier Padel, FIP Tour events. Check Sofascore padel + BetExplorer padel + PremierPadel.com.
+14. [ ] **Speedway/Żużel**: PGE Ekstraliga, 2. Ekstraliga, SGP. Check BetExplorer speedway + SportoweFakty.wp.pl/zuzel.
 
 **After scanning**: Count how many sports have events. Record the count. If fewer than 6 sports have events today, note this explicitly — it's unusual and should be verified.
 
@@ -97,6 +99,8 @@ Scan order (follow this exact sequence):
 - Table Tennis: tt-liveresults.com
 - Handball: eurohandball.com
 - MMA: Sherdog, Tapology, UFC.com
+- Padel: PremierPadel.com, Sofascore padel, PadelFIP.com
+- Speedway: SpeedwayEkstraliga.pl, SportoweFakty.wp.pl/zuzel
 
 **NEVER say "no sources available" for a sport without searching specialist sites first. The internet ALWAYS has data for every sport.**
 
@@ -183,6 +187,8 @@ Before proceeding to Step 2, compile and record these metrics. They are the QUAL
 | Table Tennis | ? | ? | ? | — | ? | ? |
 | Handball | ? | ? | ? | — | ? | ? |
 | MMA | ? | ? | ? | Tapology | ? | ? |
+| Padel | ? | ? | ? | PremierPadel | ? | ? |
+| Speedway | ? | ? | ? | SportoweFakty | ? | ? |
 | **TOTAL** | | | | | **?** | **?** |
 
 **Minimum thresholds:**
@@ -425,7 +431,87 @@ For every handball candidate:
 - First 5 innings line (removes bullpen variance)
 - **Sources**: BaseballSavant (Statcast — xERA, xFIP, barrel%), Baseball Reference, ESPN, SBR, BetExplorer baseball. Note: FanGraphs is BLOCKED — use BaseballSavant as primary pitcher/hitter stats source.
 
-### 3.13 General Principle for ALL Sports
+### 3.13 Padel Statistical Protocol
+For every padel candidate:
+
+**A. Pair Rankings and Form**
+- FIP world ranking for both pairs (padelfip.com/ranking-male/ and /ranking-female/)
+- Ranking points gap: >3000 pts = heavy favorite, 1000-3000 = moderate, <1000 = competitive
+- Recent tournament results: last 3-5 tournaments (round reached, opponents beaten/lost to)
+- Current tournament path: previous round result in THIS event, score, physical condition
+
+**B. Head-to-Head and Partnership**
+- H2H record between pairs (Sofascore padel → match detail → H2H tab)
+- Partnership duration: established pairs (>6 months) are more stable than new partnerships
+- Individual player ranking vs pair ranking (sometimes a weaker individual in a strong pair)
+- Partner change history: recent partner change = volatility, regression risk
+
+**C. Match Format and Tournament Context**
+- Tournament tier: Major/P1/P2/Bronze — higher tiers = more predictable (top pairs perform)
+- Round: R32/R16 = more upsets, QF+ = favorites dominate
+- Best-of-3 sets format: similar to tennis — close matches can swing on service breaks
+- Surface: indoor vs outdoor — wind affects lob-heavy padel significantly
+
+**D. Statistical Markets (priority order)**
+1. ML (1.40-2.20 range) — most value when ranking gap is moderate but odds don't reflect it
+2. Set totals O/U 2.5 — competitive matchups go to 3 sets frequently (~45% of even matches)
+3. Game totals O/U — less liquid, more mispriced
+4. Set handicap -1.5 — when favorite should dominate but ML too short
+
+**E. Key Value Indicators**
+- Top-8 pair vs unranked pair at Major/P1 → favorite should win 85%+, ML often only 1.20-1.35 → no value
+- Pairs ranked 10-25 meeting → real uncertainty, ML 1.60-2.20 range → VALUE ZONE
+- New partnership in first 2 tournaments → underpriced upset potential
+- Fatigue: 3-set QF yesterday → SF today = fatigue factor, especially for older pairs
+
+**Sources**: PadelFIP.com (rankings), PremierPadel.com (draws, match stats), Sofascore padel (H2H, form, livescores), BetExplorer/OddsPortal padel (odds). No major tipster sites cover padel — rely on ranking analysis and H2H.
+
+### 3.14 Speedway / Żużel Statistical Protocol
+For every speedway candidate:
+
+**A. Team Strength Analysis**
+- Team roster: identify all 7 riders (5 seniors + 2 juniors) in the announced lineup
+- **Rider averages at THIS track** (SpeedwayEkstraliga.pl → rider stats → filter by venue): the MOST IMPORTANT stat. A rider averaging 2.5 at home vs 1.2 away is a completely different proposition
+- Team overall match average (home and away separately): home teams in PGE Ekstraliga win ~70-75% of matches
+- Junior rider strength: the U24 slots (#6, #7, #14, #15) often decide close matches
+- Reserve rider (tactical reserve — R): when and how the manager uses the reserve can swing 3-6 points
+
+**B. Home Advantage Deep Analysis**
+- HOME ADVANTAGE is EXTREME in speedway — the home team prepares the track to suit their riders
+- Track preparation: hard track favors speed/technique riders, soft track favors gating/power riders
+- Track dimensions: small tracks (e.g., Częstochowa) vs large tracks (e.g., Leszno) favor different riding styles
+- Home team's home record this season and last 2 seasons
+- Away team's away record — some teams are good travelers (e.g., Sparta Wrocław), others collapse away
+
+**C. Lineup Changes and Late News (TIME-SENSITIVE — check 2h before event)**
+- **SportoweFakty.wp.pl/zuzel**: publishes confirmed lineups 2-3h before each match — CRITICAL source
+- Injury updates: speedway injuries are frequent and impactful (one rider out = 6-10 points lost)
+- Rider substitutions: tactical reserve (R) or guest rider changes — check official Ekstraliga communications
+- Track conditions: weather (rain delays, wet track = more falls and unpredictable results)
+
+**D. Statistical Markets (priority order)**
+1. Handicap (e.g., home team -8.5) — the primary value market. Home advantage means 10-15 point margins are common, but the handicap line often doesn't fully reflect the home rider averages
+2. Total points O/U (e.g., O88.5) — a speedway match has 15 heats, each worth 2-5 points per rider. Total points = sum of all heat scores
+3. Match winner — straightforward but often too short for home team (1.20-1.40)
+
+**E. Expert Analysis Sources (Deep-Dive)**
+- **SportoweFakty.wp.pl/zuzel**: the PRIMARY source for Polish speedway analysis. Features:
+  - Match previews with expert predictions ("zapowiedź rundy")
+  - Individual rider form analysis
+  - Track condition reports
+  - Post-match analysis and rider ratings
+  - Lineup announcements with commentary
+  **Navigation**: Main page → find today's match preview article → read expert analysis and check comments
+- **Ekstraliga.pl**: official PGE Ekstraliga site with:
+  - Full season statistics (rider averages, team totals)
+  - League table and standings context
+  - Official lineup announcements
+  - Historical results at each venue
+- **Żużlowe fora** (Polish speedway forums): speedwayfans.pl, forum.gazeta.pl/zuzel — local knowledge on track conditions, rider form, team morale
+
+**Sources**: SpeedwayEkstraliga.pl (stats, standings, lineups), SportoweFakty.wp.pl/zuzel (expert analysis, match previews, rider form), BetExplorer/OddsPortal speedway (odds), Flashscore (results/settlement)
+
+### 3.15 General Principle for ALL Sports
 Follow sport-specific source references in source-registry.md. The universal approach:
 - Get statistical data from specialist sources (sport-specific)
 - Get form data from general sources (Flashscore, Sofascore)
@@ -433,7 +519,7 @@ Follow sport-specific source references in source-registry.md. The universal app
 - **ALWAYS prefer statistical/totals markets over ML/winner markets**
 - The less liquid the market, the more likely it is mispriced — this is our edge
 
-### 3.14 Sport-Specific Source URLs (Quick Reference)
+### 3.16 Sport-Specific Source URLs (Quick Reference)
 When scanning events, use these URLs directly:
 - **Football**: betexplorer.com/football/ | flashscore.com/football/
 - **Tennis**: betexplorer.com/tennis/ | flashscore.com/tennis/
@@ -447,6 +533,44 @@ When scanning events, use these URLs directly:
 - **Handball**: betexplorer.com/handball/ | flashscore.com/handball/
 - **Table Tennis**: betexplorer.com/table-tennis/ | flashscore.com/table-tennis/
 - **MMA**: betexplorer.com/mma/ | sherdog.com | tapology.com | ufc.com/events
+- **Padel**: sofascore.com/padel | betexplorer.com/padel/ | premierpadel.com | padelfip.com/ranking-male/
+- **Speedway**: speedwayekstraliga.pl | sportowefakty.wp.pl/zuzel | betexplorer.com/speedway/
+
+---
+
+## STEP 3B: TIME-SENSITIVE DATA COLLECTION (MANDATORY — run close to event time)
+
+This step bridges Steps 3-4 and Step 8. It MUST be executed **within 2-3 hours of the earliest event kickoff**. Time-sensitive factors change the analysis and can invalidate picks approved earlier.
+
+### 3B.1 Lineup and Injury Verification
+For EVERY approved pick, verify the following close to kickoff:
+- **Football**: Confirmed lineups (Flashscore shows lineups ~1h before kickoff). Check for surprise benchings, tactical changes, rotation.
+- **Tennis**: Player not withdrawn? Check ATP/WTA official Order of Play. Retirement risk for players who went 3 sets in previous round.
+- **Hockey**: Starting goalie confirmed? (DailyFaceoff.com or team social media). Goalie change = thesis invalidated for totals picks.
+- **Basketball**: Injury report updates (ESPN, official NBA injury report). Star player ruled out = recalculate.
+- **Baseball**: Starting pitcher confirmed? (ESPN, BaseballSavant). Pitcher change = void the pick.
+- **Speedway**: Lineup confirmation from SportoweFakty or SpeedwayEkstraliga.pl (published 2-3h before). Rider changes drastically affect team strength.
+- **Padel**: Pair withdrawal? Check PremierPadel.com draw page for walkovers.
+- **All sports**: Check Flashscore/Sofascore for any postponement, cancellation, or venue change.
+
+### 3B.2 Weather Check (Outdoor Sports)
+- Football: Rain → fewer corners, more slippery = fewer cards. Wind → more long balls, more corners.
+- Tennis: Extreme heat → fatigue favors fitter player. Wind → serve quality drops, more breaks.
+- Speedway: Rain delay = track conditions change completely. Wet track = more falls, less predictable.
+- Padel: Outdoor events — wind is a major factor (disrupts lobs, the key padel shot).
+- Source: weather.com or local weather for event city.
+
+### 3B.3 Late News Scan
+- Check Flashscore match detail pages for "info" or "lineups" tabs
+- Check team official social media (Twitter/X) for late team news
+- Check SportoweFakty for żużel late lineup announcements
+- **If any time-sensitive finding contradicts the pick thesis**: re-evaluate immediately. If the bear case strengthens → downgrade or void the pick.
+
+### 3B.4 Odds Movement Check
+- Compare current odds to the odds recorded at analysis time.
+- Steam move (odds shortening rapidly on one side) → follow if consistent with thesis, flag if against
+- Reverse line movement (RLM: line moving against the public side) → strong signal from sharp money
+- If Betclic odds have moved >10% since analysis → recalculate EV. If EV now ≤0 → void the pick.
 
 ---
 
@@ -769,10 +893,24 @@ For each football pick:
 2. Checkout percentage compared?
 3. Event format noted?
 
-### V4h: Other Sports (handball, table tennis, MMA, baseball)
+### V4h: Other Sports (handball, table tennis, baseball, MMA)
 1. Appropriate statistical market selected (not defaulting to ML)?
 2. Sport-specific data sources consulted?
 3. Context verified (home/away, form, injuries)?
+
+### V4i: Padel Validation
+1. FIP ranking for both pairs checked?
+2. Ranking gap correctly reflected in pick confidence?
+3. Tournament tier (Major/P1/P2/Bronze) noted?
+4. Indoor/outdoor + weather checked?
+5. Partner change history verified (new partnership = extra caution)?
+
+### V4j: Speedway Validation
+1. Lineup confirmed from SpeedwayEkstraliga.pl or SportoweFakty?
+2. Home/away rider track-specific averages checked?
+3. Home advantage factor accounted for in handicap analysis?
+4. Junior rider slots (#6, #7) assessed?
+5. Weather/track condition verified (rain delay risk)?
 
 ### V5: Coupon Structure
 1. Minimum 2 legs per coupon?
@@ -786,9 +924,8 @@ For each football pick:
 ### V6: Portfolio Risk
 1. No coupon stake > 3.00 PLN (LR) or 2.00 PLN (HR)?
 2. Exposure < 25% of bankroll?
-3. Exposure < 25% of bankroll?
-4. Multi-sport diversification?
-5. No tournament concentration (>4 picks same tournament)?
+3. Multi-sport diversification?
+4. No tournament concentration (>4 picks same tournament)?
 
 ### V7: Weakness Flagging
 1. List tennis picks with odds ratio > 1.30
@@ -804,6 +941,13 @@ Before finalizing ANY coupon, verify EVERY event in every coupon:
 3. **Opponent name**: Confirm the exact team/player names match what Betclic shows. Cross-reference with picks-ledger.
 4. **Competition name**: Confirm the league/tournament name is correct.
 Failure on ANY of these → VOID the pick and remove from all coupons. Replace with a valid alternative or drop the coupon.
+
+### V7c: Cross-Coupon Integrity Check (MANDATORY)
+1. **No duplicate legs across coupons** (except pewniaki system where overlap is by design): outside of pewniaki, no pick should appear in more than 2 coupons.
+2. **No identical coupons**: every coupon must differ by at least 1 leg.
+3. **No correlated narrative across coupons**: if coupon A has "Leeds win" and coupon B has "Leeds O2.5", both depend on Leeds scoring — flag and replace one.
+4. **Cross-match correlation**: if two legs in different coupons are from the same match, verify they are NOT on the same side of the market (e.g., O2.5 goals + BTTS Yes is correlated). Different-side legs (e.g., Team A corners + O2.5 goals) are acceptable but must be noted.
+5. **Pick spread check**: count how many coupons each pick appears in. Outside pewniaki, no pick should appear in more than 2 coupons. Verify coupon diversity — each coupon should cover a different combination of events.
 
 ### V8: Source Completeness Audit
 For EVERY active pick, verify:
@@ -938,7 +1082,7 @@ STEP 1: Scan all events
   [ ] Browse BetExplorer all sports
   [ ] Cross-ref Flashscore
   [ ] Build Master Event List
-  [ ] Verify all 12 sports checked
+  [ ] Verify all 14 sports checked
 
 STEP 2: Filter to shortlist
   [ ] Remove outside betting window

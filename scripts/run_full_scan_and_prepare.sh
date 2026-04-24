@@ -60,6 +60,7 @@ python3 "${SCRIPT_DIR}/scan_events.py" --urls \
   https://www.flashscore.com/table-tennis/ \
   https://www.flashscore.com/mma/ \
   https://www.sofascore.com/ \
+  https://www.sofascore.com/padel \
   https://www.betclic.pl/pilka-nozna-s1 \
   https://www.betclic.pl/tenis-s2 \
   https://www.betclic.pl/koszykowka-s4 \
@@ -72,6 +73,8 @@ python3 "${SCRIPT_DIR}/scan_events.py" --urls \
   https://www.betclic.pl/pilka-reczna-s3 \
   https://www.betclic.pl/tenis-stolowy-s10 \
   https://www.betclic.pl/mma-s38 \
+  https://www.betclic.pl/padel-s48 \
+  https://www.betclic.pl/zuzel-s36 \
   https://www.oddsportal.com/ \
   https://www.oddsportal.com/tennis/ \
   https://www.oddsportal.com/basketball/ \
@@ -84,6 +87,11 @@ python3 "${SCRIPT_DIR}/scan_events.py" --urls \
   https://www.betexplorer.com/esports/ \
   https://www.betexplorer.com/darts/ \
   https://www.betexplorer.com/table-tennis/ \
+  https://www.betexplorer.com/padel/ \
+  https://www.betexplorer.com/speedway/ \
+  https://www.premierpadel.com/ \
+  https://speedwayekstraliga.pl/ \
+  https://sportowefakty.wp.pl/zuzel \
   https://www.covers.com/ \
   https://www.teamrankings.com/ \
   https://www.tennisabstract.com/reports/wta_elo_ratings.html \

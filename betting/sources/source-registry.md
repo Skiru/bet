@@ -255,6 +255,13 @@ Always record in the report which community sources were checked and whether con
   Use for: roster context and historical team performance.
   Access: OK.
 
+- DailyFaceoff
+  Role: NHL starting goalie confirmations, line combinations, depth charts.
+  URL: dailyfaceoff.com
+  Use for: confirming starting goalies (CRITICAL for totals picks — goalie change invalidates thesis). Also shows line combos and PP units.
+  Access: OK.
+  Note: Goalie confirmations typically posted 2-4h before puck drop. Check as part of STEP 3B time-sensitive data collection.
+
 ### Baseball
 
 - BaseballSavant (Statcast)
@@ -404,6 +411,65 @@ Always record in the report which community sources were checked and whether con
   Use for: community consensus, fighter records, weight class context.
   Access: OK.
 
+### Padel
+
+- Premier Padel (Official)
+  Role: official Premier Padel Tour — live scores, results, draws, match stats, highlights.
+  URL: premierpadel.com
+  Use for: fixture confirmation, draw context, match stats per event, tournament format.
+  Access: OK.
+
+- Sofascore Padel
+  Role: padel livescores, H2H, form, and basic match stats across Premier Padel + FIP Tours.
+  URL: sofascore.com/padel
+  Use for: fixture discovery, H2H records, form context, live scores and settlement.
+  Access: OK.
+
+- PadelFIP (Official Rankings)
+  Role: official FIP world rankings for men and women, tournament calendar.
+  URL: padelfip.com
+  Use for: ranking context, tournament tier (Major/P1/P2/Bronze), seeding verification.
+  Access: OK.
+
+- BetExplorer Padel
+  Role: padel odds comparison — moneyline, set totals.
+  URL: betexplorer.com/padel/
+  Use for: price comparison across bookmakers, market depth check.
+  Access: OK (JS-rendered, may need Playwright).
+
+- OddsPortal Padel
+  Role: padel odds comparison and historical odds data.
+  URL: oddsportal.com/padel/
+  Use for: secondary odds comparison, odds movement tracking.
+  Access: OK (JS-rendered, may need Playwright).
+
+### Speedway / Żużel
+
+- Ekstraliga App / SpeedwayEkstraliga (Official)
+  Role: official PGE Ekstraliga — results, standings, rider stats, heat-by-heat scores.
+  URL: speedwayekstraliga.pl
+  Use for: team lineups, rider averages, home/away stats, heat results, league standings.
+  Access: OK.
+
+- SportoweFakty Żużel
+  Role: comprehensive Polish speedway coverage — news, analysis, expert predictions, lineup announcements, track conditions.
+  URL: sportowefakty.wp.pl/zuzel
+  Use for: pre-match analysis, lineup changes, rider form, expert opinions, track/weather context. CRITICAL for Polish speedway insight.
+  Access: OK (GDPR wall — accept cookies to access content).
+  **Deep-dive required**: YES — expert opinions and match previews contain valuable angles.
+
+- Flashscore Speedway
+  Role: speedway live scores and results.
+  URL: flashscore.com/speedway/ (or within motorsport section)
+  Use for: fixture discovery, results, settlement.
+  Access: OK (may be under motorsport category).
+
+- BetExplorer Speedway
+  Role: speedway odds comparison — match winner, handicap, total points.
+  URL: betexplorer.com/speedway/
+  Use for: price comparison across bookmakers for PGE Ekstraliga and international events.
+  Access: OK (JS-rendered).
+
 ### Multi-Sport Odds and Analytics
 
 - Covers
@@ -437,7 +503,7 @@ These sources help ensure NO tournament or event is missed during the scan phase
 - Sofascore (All Sports)
   Role: universal fixture aggregator — ALL sports in one place with form, H2H, stats.
   URL: sofascore.com
-  Use for: cross-validating event counts from BetExplorer/Flashscore. Covers ALL 12 sports. Good for niche sports missing on BetExplorer.
+  Use for: cross-validating event counts from BetExplorer/Flashscore. Covers ALL 14 sports. Good for niche sports missing on BetExplorer (padel, speedway).
   Access: OK.
 
 - LiveScore
@@ -509,6 +575,8 @@ Use this table to know WHERE to get odds for each sport. Never give up after one
 | **Table Tennis** | BetExplorer | OddsPortal | — | The-Odds-API |
 | **Handball** | BetExplorer | OddsPortal | — | The-Odds-API |
 | **MMA/UFC** | OddsPortal | BetExplorer | — | The-Odds-API |
+| **Padel** | BetExplorer | OddsPortal | — | The-Odds-API |
+| **Speedway** | BetExplorer | OddsPortal | — | The-Odds-API |
 
 **Rule:** If all sources in the row fail for a pick → do NOT skip. Try The-Odds-API or search for a new source. The internet always has odds data somewhere.
 
@@ -576,6 +644,22 @@ Use this table to know WHERE to get odds for each sport. Never give up after one
   Minimum stack: UFCstats + OddsPortal or BetExplorer. Tapology for records.
   Tipster cross-check: PicksWise, Tipstrr.
   Preferred markets: moneyline, method of victory, round totals, props.
+
+- Padel
+  Minimum stack: Sofascore Padel (H2H, form) + BetExplorer or OddsPortal. PremierPadel.com for draws/stats.
+  Tipster cross-check: Limited — no major tipster sites cover padel yet. Use ranking context + H2H as primary edge.
+  Statistical edge: Rankings highly predictive at top level (top-8 pairs dominate). H2H and surface (indoor/outdoor) matter.
+  Market note: ML market similar to tennis — ranking gaps create predictable outcomes. Set totals viable for close matchups.
+  Preferred markets: moneyline (1.40-2.20 range) > set totals > game totals > set handicap.
+  Seasonal note: Premier Padel tour runs Feb-Dec with P1/P2 events most weeks. FIP Bronze events daily but low data quality.
+
+- Speedway / Żużel
+  Minimum stack: SpeedwayEkstraliga.pl (rider stats, home/away averages) + SportoweFakty.wp.pl/zuzel (expert analysis, lineups) + BetExplorer or OddsPortal.
+  Tipster cross-check: SportoweFakty experts, Polish betting forums. Deep-dive SportoweFakty match previews.
+  Statistical edge: HOME ADVANTAGE is extreme in speedway (70-75% home win rate). Rider track-specific averages, lineup changes, track conditions (weather), and gate positions are statistically significant. Reserve rider usage patterns matter.
+  Market note: Match winner (handicap) and total points are the main markets. Home dominance is well-known but still often mispriced in handicap lines.
+  Preferred markets: handicap > total_points > match_winner.
+  Seasonal note: PGE Ekstraliga runs Apr-Sep, 1-2 matches per round (4 teams play per matchday). 2. Ekstraliga and KLŻ also covered. SGP events occasionally.
 
 ## Settlement Sources
 

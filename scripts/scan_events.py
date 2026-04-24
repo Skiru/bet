@@ -40,6 +40,8 @@ SPORT_URL_PATTERNS = {
     "darts": ["/darts", "/rzutki", "dartsorakel"],
     "table_tennis": ["/table-tennis", "/tenis-stolowy"],
     "mma": ["/mma", "tapology", "ufcstats"],
+    "padel": ["/padel", "premierpadel", "padelfip"],
+    "speedway": ["/speedway", "/zuzel", "speedwayekstraliga"],
 }
 
 

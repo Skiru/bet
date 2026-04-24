@@ -70,7 +70,7 @@ Core philosophy: find MISPRICED ODDS, not predict winners. Only bet when EV > 0.
 
 ## STEP 3: EVENT SCAN — DEEP SCAN PROTOCOL
 
-3a. Scan ALL 12 sports: football, tennis, basketball, hockey, volleyball, esports, snooker, table tennis, darts, handball, MMA, baseball.
+3a. Scan ALL 14 sports: football, tennis, basketball, hockey, volleyball, esports, snooker, table tennis, darts, handball, MMA, baseball, padel, speedway.
 3b. Use orchestrator outputs + BetExplorer + Flashscore + OddsPortal + specialist sites (CueTracker, GosuGamers, etc.).
 3c. **Source resilience:** if ANY source returns 403/Cloudflare/GDPR, move to next source in the Odds Source Map (source-registry.md). For US sports: use SBR + ESPN Odds + ScoresAndOdds. For EU sports: BetExplorer + OddsPortal. NEVER give up — the internet always has data.
 3d. **DEEP SCAN (CRITICAL — prevents shallow scanning):**
@@ -94,7 +94,16 @@ For each shortlisted candidate, execute in sequence:
 - Tennis: TennisAbstract Elo + surface + H2H + odds ratio grading.
 - Basketball: pace + OFF/DEF rating + injury report.
 - Hockey: xG + goalie + PP/PK + B2B fatigue.
+- Padel: FIP ranking gap + pair chemistry + tournament tier (Major/P1/P2/Bronze) + indoor/outdoor + H2H (Sofascore).
+- Speedway: rider track-specific averages (SpeedwayEkstraliga.pl) + home/away team record + junior rider assessment + SportoweFakty expert analysis.
 - Other sports: specialist sources per methodology appendix.
+
+**STEP 4.5 — Time-Sensitive Data Collection (run within 2-3h of earliest event — see methodology STEP 3B):**
+- Lineup verification: Flashscore lineups (~1h before), SportoweFakty for speedway (~2-3h before).
+- Late injury/withdrawal check: ESPN injury report, team social media, ATP/WTA Order of Play.
+- Weather check for outdoor sports: football (rain/wind), tennis (heat/wind), speedway (rain → track change), padel (wind disrupts lobs).
+- Odds movement check: compare current odds to analysis-time odds. If Betclic odds moved >10% → recalculate EV.
+- If ANY time-sensitive finding contradicts the pick thesis → re-evaluate. Downgrade or void if bear case strengthens.
 
 **STEP 5 — Tipster Deep-Dive (argument-based, multi-site):**
 - Check >=2 ARGUMENT-BASED tipster sites per candidate. These sites have tipsters who post WRITTEN REASONING, not just bare picks:
@@ -172,6 +181,8 @@ Run ALL validation checks. If ANY fails, fix it before presenting. This is the Q
 11d. V5: Coupon structure (min 2 legs, same-sport ≤2 per coupon, correlation check, **combined odds ARITHMETIC: multiply each coupon's legs explicitly — never claim verified without showing math**, min 5 coupons).
 11e. V6: Portfolio risk (no coupon > 3.00 PLN LR / 2.00 PLN HR, exposure < 25% bankroll).
 11f. V7: Weakness flagging (borderline picks, CONDITIONAL, weakest leg per coupon, tournament concentration).
+11f2. V7b: Date & fixture verification — confirm EVERY event exists on correct date, correct teams, correct competition. Cross-check on BetExplorer/Betclic.
+11f3. V7c: Cross-coupon integrity — no duplicate legs outside pewniaki, no identical coupons, no correlated narratives across coupons.
 11g. **V8: Source Completeness Audit (CRITICAL — this catches missed sources):**
      - Every pick has ≥2 independent sources (stats + market minimum).
      - Every pick had ≥1 argument-based tipster site checked (ZawodTyper/Typersi/Meczyki/OLBG/PicksWise/BetIdeas/GosuGamers).
@@ -209,4 +220,3 @@ After all artifacts are written, respond with:
 9. **Watch List:** backup picks with promotion criteria
 10. **Conditional picks:** list ALL picks requiring manual Betclic odds verification with acceptance thresholds
 11. **Validation summary:** V8 source audit result (gaps found/none), V9 coupon optimization result (changes made/none)
-10. **Conditional picks:** list picks requiring manual Betclic odds verification

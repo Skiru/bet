@@ -19,16 +19,17 @@ Core philosophy: find MISPRICED ODDS, not predict winners. Only bet when Expecte
 Mandatory workflow (summary — see methodology for full details):
 0. Run the repository orchestrator (`bash scripts/run_full_scan_and_prepare.sh`) to populate `betting/data/`. If missing, stop and ask user.
 1. STEP 0: Settle previous day (PnL, CLV tracking, per-market hit rates, post-mortem losses, bankroll update).
-2. STEP 1: Scan ALL events across ALL 12 sports from BetExplorer/Flashscore/OddsPortal.
+2. STEP 1: Scan ALL events across ALL 14 sports from BetExplorer/Flashscore/OddsPortal.
 3. STEP 2: Filter to shortlist (15-40 events, remove outside window, no Tier A, too close to kickoff).
-4. STEP 3: Deep stats per candidate (sport-specific protocols: football corner 3-source stack, tennis odds ratio, xG analysis, etc.).
-5. STEP 4: Tipster deep-dive — structured extraction from >=2 tipster sources per candidate, consensus %, angle discovery.
-6. STEP 5: Odds + EV — estimate true probability, calculate EV (must be >0), price_gap_pct, line movement, Kelly staking.
-7. STEP 6: Context verification — injuries, weather, referee, fixture congestion, motivation.
-8. STEP 7: Bear case — devil's advocate for EACH pick (bull vs bear, streak dependency, regression risk, 20%-lower-odds test).
-9. STEP 8: Portfolio construction — rank by EV, pewniaki coupon system, correlation check, watchlist.
-10. STEP 9: Validate V1-V8 protocol.
-11. STEP 10: Write all artifacts, record odds_checked_at, present to user.
+4. STEP 3: Deep stats per candidate (sport-specific protocols: football corner 3-source stack, tennis odds ratio, xG analysis, padel FIP rankings, speedway rider averages, etc.).
+5. STEP 3B: Time-sensitive data collection — lineups, late injuries, weather, odds movement. Run within 2-3h of earliest event.
+6. STEP 4: Tipster deep-dive — structured extraction from >=2 tipster sources per candidate, consensus %, angle discovery.
+7. STEP 5: Odds + EV — estimate true probability, calculate EV (must be >0), price_gap_pct, line movement, Kelly staking.
+8. STEP 6: Context verification — injuries, weather, referee, fixture congestion, motivation.
+9. STEP 7: Bear case — devil's advocate for EACH pick (bull vs bear, streak dependency, regression risk, 20%-lower-odds test).
+10. STEP 8: Portfolio construction — rank by EV, pewniaki coupon system, correlation check, watchlist.
+11. STEP 9: Validate V1-V10 protocol (enhanced: includes V7b date verification, V7c cross-coupon integrity, V8 source completeness, V9 composition optimization).
+12. STEP 10: Write all artifacts, record odds_checked_at, present to user.
 
 Hard rejection conditions:
 - missing Tier A stats or market evidence
@@ -49,6 +50,8 @@ Selection preferences (market hierarchy — least efficient = most value):
 - hockey: totals > moneyline (only with goalie + form) > period totals
 - volleyball: set totals > point totals > set handicap > moneyline
 - esports: map handicap > map totals > moneyline
+- padel: moneyline (1.40-2.20 range) > set totals > game totals > set handicap
+- speedway: handicap > total_points > match_winner
 - raw winners allowed only when price AND evidence are both strong
 
 Risk rules:
@@ -83,13 +86,13 @@ Use `sequentialthinking` for EACH step (one call per step minimum):
 
 **STEP 1 — Complete Event Scan:**
 - Run orchestrator if not already run.
-- Browse BetExplorer sport-by-sport: football, tennis, basketball, hockey, volleyball, esports, snooker, darts, handball, table tennis, MMA, baseball.
+- Browse BetExplorer sport-by-sport: football, tennis, basketball, hockey, volleyball, esports, snooker, darts, handball, table tennis, MMA, baseball, padel, speedway.
 - **DEEP SCAN (§1.2):** Do NOT just look at landing pages. Click into EVERY active tournament/league. Count matches per tournament. Cross-validate event counts between BetExplorer and Flashscore.
 - Cross-reference with Flashscore and OddsPortal.
 - Build Master Event List with: sport, competition, event, kickoff, initial odds.
 - **Tournament depth (§1.3a + §1.3b):** For EVERY tournament with ≥4 matches today, screen ALL matches (not just headliners). For major tournaments, analyze the FULL daily slate.
 - **Scan Completeness Metrics (§1.5):** Compile per-sport event count table from ≥2 sources. Total unique events ≥50. Scan completeness score ≥80%. If not met, go back and scan deeper.
-- Verify all 12 sports checked (use checklist from methodology).
+- Verify all 14 sports checked (use checklist from methodology).
 
 **STEP 2 — Event Shortlist Filtering:**
 - Remove events outside betting-day window (06:00 today to 05:59 tomorrow).
@@ -103,6 +106,8 @@ Use `sequentialthinking` for EACH step (one call per step minimum):
 - Tennis: TennisAbstract Elo + surface form + H2H + odds ratio grading (STRONG/GOOD/BORDERLINE/REJECT).
 - Basketball: pace + OFF/DEF rating + injury report + home/away splits.
 - Hockey: xG + goalie + PP/PK + B2B fatigue.
+- Padel: FIP ranking gap + pair chemistry + tournament tier + surface (indoor/outdoor).
+- Speedway: rider track-specific averages + home/away team record + junior rider assessment + SportoweFakty expert analysis.
 - Other sports: specialist sources per methodology appendix.
 
 **STEP 4 — Tipster Deep-Dive (one call per candidate):**
@@ -121,6 +126,13 @@ Use `sequentialthinking` for EACH step (one call per step minimum):
 - Calculate consensus %: >=70% agreement → +0.5 confidence. >=60% contradiction → investigate, reduce -1 or skip.
 - Strong fact-based argument from even 1 tipster against your thesis → investigate before finalizing.
 - Record discovered angles (tactics, injuries, weather, motivation, referee, local knowledge).
+
+**STEP 3B — Time-Sensitive Data Collection (run within 2-3h of earliest event):**
+- Lineup verification: Flashscore lineups (~1h before), SportoweFakty for speedway (~2-3h before).
+- Late injury/withdrawal check: ESPN injury report, team social media, ATP/WTA Order of Play.
+- Weather check for outdoor sports: football (rain/wind → corner/card impact), tennis (heat/wind), speedway (rain → track change), padel (wind disrupts lobs).
+- Odds movement check: compare current odds to analysis-time odds. Steam moves, RLM signals. If Betclic odds moved >10% → recalculate EV.
+- If ANY time-sensitive finding contradicts the pick thesis → re-evaluate. Downgrade or void if bear case strengthens.
 
 **STEP 5 — Odds + EV Analysis (one call per candidate):**
 - Get market-best odds from BetExplorer/OddsPortal.
@@ -157,16 +169,22 @@ Use `sequentialthinking` for EACH step (one call per step minimum):
 - Build watchlist with promotion criteria ("Promote if Betclic >= X.XX").
 - If board weak (<2 confident picks) → NO BET day.
 
-**STEP 9 — Validate V1-V8:**
+**STEP 9 — Validate V1-V10:**
 - V1: Artifact consistency (pick_ids, coupon_ids, stake sums, exposure totals).
 - V2: Per-pick source validation (Tier A stats, Tier A market, EV > 0, confidence score).
 - V3: Tennis checks (odds ratio, surface, cancellation).
 - V4: Football checks (market hierarchy, corner stack, BTTS league %, defensive profile).
 - V4b: Volleyball checks (ML range, set totals, competition context).
+- V4i: Padel checks (FIP rankings, tournament tier, indoor/outdoor, partner change risk).
+- V4j: Speedway checks (lineup confirmed, rider track averages, home advantage, weather/track conditions).
 - V5: Coupon structure (min 2 legs, same-sport limit ≤2, correlation, **combined odds ARITHMETIC: multiply each coupon's legs explicitly and write the product — never claim verified without showing the math**, stake limit, min 5 coupons).
 - V6: Portfolio risk (exposure < 25%, diversification, tournament concentration).
 - V7: Weakness flagging (borderline picks, CONDITIONAL picks, weakest coupon legs, same-tournament risks).
-- V8: All V1-V7 pass → APPROVED. Any fail → fix and re-check.
+- V7b: Date & fixture verification — confirm EVERY event exists on correct date, correct teams, correct competition.
+- V7c: Cross-coupon integrity — no duplicate legs outside pewniaki, no identical coupons, no correlated narratives.
+- V8: Source completeness audit — Tier A stats + market source per pick, >=2 independent sources, argument-based tipster checked.
+- V9: Coupon composition optimization — pick ranking by EV×confidence, pewniaki integrity, sport diversity, weakest-leg swap test, combined odds sweet spots.
+- V10: All V1-V9 pass → APPROVED. Any fail → fix and re-check.
 
 **STEP 10 — Artifact Generation:**
 - Write/update: report, coupon file, portfolio.md, picks-ledger, coupons-ledger, source-log, learning-log.

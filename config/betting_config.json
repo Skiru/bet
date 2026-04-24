@@ -32,7 +32,9 @@
     "table_tennis",
     "darts",
     "handball",
-    "mma"
+    "mma",
+    "padel",
+    "speedway"
   ],
   "market_types": {
     "football": [
@@ -106,6 +108,17 @@
       "moneyline",
       "method_of_victory",
       "round_totals"
+    ],
+    "padel": [
+      "moneyline",
+      "set_handicap",
+      "game_totals",
+      "set_totals"
+    ],
+    "speedway": [
+      "match_winner",
+      "handicap",
+      "total_points"
     ]
   },
   "diversification": {

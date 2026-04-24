@@ -150,4 +150,4 @@ Or run the individual steps shown above if you prefer manual control.
 Jesli system nie znajdzie sensownego edge, poprawnym wynikiem jest brak zakladu. Dla malego, konfigurowalnego bankrollu najwiekszym bledem nie jest ominięcie slabego dnia. Najwiekszym bledem jest wymuszenie akcji.
 
 ## Prompt:
-"Przeprowadź pełną analizę na dzień 2026-04-22. Użyj Phase 1-8 z analysis-methodology.instructions.md. Na końcu uruchom pełną walidację V1-V8."
+"Przeprowadź pełną analizę na dzień 2026-04-22. Użyj Phase 1-8 z analysis-methodology.instructions.md. Na końcu uruchom pełną walidację V1-V10."
