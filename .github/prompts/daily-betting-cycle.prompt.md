@@ -68,14 +68,22 @@ Core philosophy: find MISPRICED ODDS, not predict winners. Only bet when EV > 0.
 2a. Append to learning-log.md (max 3 rule changes, tied to settled results).
 2b. Update source-log.csv — one row per source, noting availability and usage.
 
-## STEP 3: EVENT SCAN
+## STEP 3: EVENT SCAN — DEEP SCAN PROTOCOL
 
 3a. Scan ALL 12 sports: football, tennis, basketball, hockey, volleyball, esports, snooker, table tennis, darts, handball, MMA, baseball.
 3b. Use orchestrator outputs + BetExplorer + Flashscore + OddsPortal + specialist sites (CueTracker, GosuGamers, etc.).
 3c. **Source resilience:** if ANY source returns 403/Cloudflare/GDPR, move to next source in the Odds Source Map (source-registry.md). For US sports: use SBR + ESPN Odds + ScoresAndOdds. For EU sports: BetExplorer + OddsPortal. NEVER give up — the internet always has data.
-3d. Filter to session window. Remove events outside time range, without Tier A coverage, or <1h to kickoff.
-3e. Build Master Event List: sport, competition, event, kickoff, initial odds.
-3f. Target 15-40 shortlisted events (fewer for night/morning sessions).
+3d. **DEEP SCAN (CRITICAL — prevents shallow scanning):**
+    - For EVERY sport, do NOT just look at the landing page. Click into EACH active tournament/league to see the FULL fixture list.
+    - **Count matches per tournament.** Record the count. A sport page showing 3 events may hide 40+ when you enter individual tournaments.
+    - **Cross-validate event counts:** Compare BetExplorer vs Flashscore event counts per sport. Discrepancy >20% → investigate.
+    - **Enter every tournament with ≥4 matches.** Screen ALL matches for value (odds, form, H2H).
+    - Example failure: scanning "Tennis" and seeing 3 matches when ATP Madrid (16), WTA Madrid (16), ATP 250 (8), and Challengers (12) exist = 50 matches missed.
+3e. **TOURNAMENT FULL-SLATE (CRITICAL):** When a MAJOR TOURNAMENT is active (ATP/WTA Masters 1000, Grand Slam, World Championship, Champions League matchday, NBA/NHL Playoffs, etc.), analyze the FULL daily slate — ALL matches. Cherry-picking 1 match from 32 is a PROTOCOL VIOLATION.
+3f. **Scan Completeness Metrics:** Before proceeding, compile per-sport event count table (see methodology §1.5). Total unique events must be ≥50 on a normal day. At least 6 sports must have events. Scan completeness score (events from ≥2 sources / total) must be ≥80%.
+3g. Filter to session window. Remove events outside time range, without Tier A coverage, or <1h to kickoff.
+3h. Build Master Event List: sport, competition, event, kickoff, initial odds.
+3i. Target 15-40 shortlisted events (fewer for night/morning sessions).
 
 ## STEPS 4-8: DEEP ANALYSIS (one sequentialthinking call PER candidate)
 
@@ -193,7 +201,7 @@ After all artifacts are written, respond with:
 1. **Settlement:** X picks settled (Y win, Z loss), N coupons settled
 2. **Previous day PnL:** ±X.XX PLN (rolling 7d: ±X.XX PLN, bankroll: XX.XX PLN)
 3. **Session:** full/day/night/morning — event window HH:MM → HH:MM
-4. **Board:** N events scanned → M shortlisted → K approved (L rejected, W watchlist)
+4. **Board:** N events scanned (from scan completeness table: X sports checked, Y total unique events, Z% completeness) → M shortlisted → K approved (L rejected, W watchlist)
 5. **Portfolio:** M coupons (pewniaki system: X doubles + Y triples + Z quad + W themed)
 6. **Exposure:** X.XX PLN / Y.YY cap (Z.ZZ unused, W.WW% of bankroll)
 7. **Source issues:** any outages or stale data

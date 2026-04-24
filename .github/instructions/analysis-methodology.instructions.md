@@ -46,16 +46,29 @@ The goal: find MISPRICED ODDS, not predict winners. A 40% chance event at 3.00 o
 2. Check `betting/data/scan_errors.json` for failed sources. Record in source log.
 3. Verify `scan_summary.json` and `picks_suggested.json` are populated.
 
-### 1.2 Master Event List
-Build a COMPLETE list of every event happening in the betting-day window (06:00 today through 05:59 tomorrow, Europe/Warsaw). Use:
+### 1.2 Master Event List — Deep Scan Protocol
+
+**PURPOSE**: Build a COMPLETE, VERIFIED list of every event in the betting-day window. The previous failure mode was SHALLOW scanning — glancing at a sport's page, picking one obvious match, and moving on. This protocol forces DEPTH.
+
+Build the list using ALL THREE primary sources — not just one:
 - **BetExplorer**: browse sport-by-sport (football, tennis, basketball, hockey, baseball, volleyball, esports, snooker, darts, table_tennis, handball, mma). Click "Tomorrow" or today's date tab.
 - **Flashscore**: cross-reference for fixture times and any events BetExplorer misses. Check ALL 12 sports.
-- **OddsPortal**: check for additional sports/events.
+- **OddsPortal**: check for additional sports/events and odds not on BetExplorer.
+
+**Deep Scan Rules (MANDATORY):**
+
+1. **Enter every active tournament/league**: Do NOT just look at the sport landing page. Click into each active tournament/league to see the FULL fixture list. A single "Tennis" page may show 5 events — clicking into "ATP Madrid" reveals 16. Clicking into "WTA Madrid" reveals 16 more.
+2. **Count matches per tournament**: Record the match count for every tournament. If a tournament has ≥4 matches today, ALL must be screened for value (odds check, form check). This is non-negotiable.
+3. **Cross-validate between sources**: For every sport, compare event counts between BetExplorer and Flashscore. If BetExplorer shows 8 tennis matches but Flashscore shows 24, you missed tournaments. Go back and find them.
+4. **Minimum 3 sources per sport**: Every sport must be checked on at least 2 of the 3 primary sources (BetExplorer, Flashscore, OddsPortal). For sports with specialist sites, use those as a 3rd source (GosuGamers for esports, CueTracker for snooker, etc.).
+5. **Record event count per source**: Create a tally: "Tennis: BetExplorer=24, Flashscore=28, OddsPortal=22". Discrepancies > 20% → investigate which events are missing.
+6. **No drive-by scanning**: Spending <2 minutes on a sport is NOT a scan. For each sport, you must open the fixture page, scroll through ALL events, identify tournaments/leagues, enter them, and count matches.
 
 For each event, record:
-- Sport, competition, event name, kickoff time (local)
+- Sport, competition/tournament, event name, kickoff time (local)
 - Available markets on Betclic (if known)
 - Initial odds range (favorite/underdog)
+- Source where found (for cross-validation)
 
 ### 1.3 Sport Coverage Checklist — MANDATORY (ALL 12 SPORTS)
 
@@ -87,6 +100,59 @@ Scan order (follow this exact sequence):
 
 **NEVER say "no sources available" for a sport without searching specialist sites first. The internet ALWAYS has data for every sport.**
 
+### 1.3a Tournament Awareness Protocol — MANDATORY
+
+**CRITICAL RULE**: When a MAJOR TOURNAMENT is in progress (ATP/WTA Masters 1000, Grand Slam, World Championship, Champions League knockout, NBA/NHL playoffs, etc.), you MUST analyze the FULL daily slate of that tournament — not just 1-2 cherry-picked matches.
+
+**What qualifies as a major tournament requiring full-slate analysis:**
+- Tennis: ATP Masters 1000 (Madrid, Rome, Monte Carlo, Indian Wells, Miami, etc.), Grand Slams, WTA 1000
+- Snooker: World Championship, UK Championship, Masters
+- Football: Champions League/Europa League matchdays, World Cup, Euros
+- Basketball: NBA Playoffs, Euroleague Final Four
+- Hockey: NHL Playoffs, World Championship
+- Baseball: MLB Playoffs, World Series
+- Esports: Major tournaments (CS2 Majors, LoL Worlds, TI)
+- Darts: World Championship, Premier League
+- MMA: UFC numbered events
+
+**Execution steps when a major tournament is active:**
+1. **Count ALL matches** in the tournament scheduled for the betting day. Record the count.
+2. **Extract odds for EVERY match** — not just the obvious ones. R1 of a Masters 1000 can have 16+ matches.
+3. **Calculate odds ratio** for each match (for tennis O-games screening).
+4. **Shortlist the best candidates** — typically 3-8 matches from a 16-match slate will have value.
+5. **Apply deep analysis (Steps 3-8)** to each shortlisted match.
+6. **Record which matches were checked and which were skipped** with reasons.
+
+**Example**: ATP Madrid R1 has 16 matches on Apr 24. You MUST check all 16 for odds ratios/value, shortlist 3-8, and analyze them. Picking only 1 (Shelton) from 16 is a PROTOCOL VIOLATION.
+
+**WTA runs parallel**: When ATP and WTA share a venue (Madrid, Rome, Indian Wells, etc.), BOTH draws must be scanned on the same day. 16 ATP + 16 WTA = 32 matches to screen.
+
+This rule prevents the single biggest source of missed value: ignoring a tournament's depth because only the headline match was noticed.
+
+### 1.3b Non-Major Tournament Depth Protocol
+
+The §1.3a rule covers MAJOR tournaments. But value also hides in mid-tier tournaments. Apply this protocol to ANY tournament/league with ≥4 matches on the betting day:
+
+**Mid-tier tournaments requiring full-match screening:**
+- Tennis: ATP 500, ATP 250, WTA 500, WTA 250, strong Challengers
+- Football: all league matchdays (not just top 5 — include Eredivisie, Ekstraklasa, Turkish Süper Lig, Brazilian Serie A, Argentine Primera, etc.)
+- Basketball: Euroleague, EuroCup, national league full rounds
+- Hockey: KHL, SHL, Liiga matchdays
+- Volleyball: national league full rounds, CEV competition matchdays
+- Esports: tier-2 events (BLAST, ESL, DreamHack), regional leagues (LCK, LPL, LEC, VCT)
+- Snooker: Tour events, Championship League
+- Darts: Players Championship, European Tour
+
+**Execution:**
+1. Count ALL matches in the tournament for the betting day.
+2. Check odds for EVERY match (not just headliners).
+3. For tennis: calculate odds ratio for every match → shortlist STRONG/GOOD ratios.
+4. For team sports: identify totals/statistical markets for every match.
+5. Shortlist the best 25-30% of matches for deep analysis (Steps 3-8).
+6. Record which matches were checked and which were passed with a 1-line reason.
+
+**The failure mode this prevents:** Scanning "tennis" and seeing 3 matches when there are actually 40 across ATP Madrid, WTA Madrid, ATP 250 Barcelona, and two Challenger events. Each tournament must be entered individually.
+
 ### 1.4 Source Resilience Protocol
 When ANY source returns 403, Cloudflare block, GDPR wall, or empty response:
 1. Do NOT give up. Move to the next source in the Odds Source Map (source-registry.md).
@@ -96,6 +162,43 @@ When ANY source returns 403, Cloudflare block, GDPR wall, or empty response:
 5. For US sports: SBR + ESPN Odds + ScoresAndOdds = three independent sources. Use all three.
 6. For EU sports: BetExplorer + OddsPortal = two primary sources. Add The-Odds-API as fallback.
 7. Different sources may show DIFFERENT lines for the same game (e.g., SBR: O6.0, ESPN: O6.5). This validates the multi-source approach — always note discrepancies.
+
+### 1.5 Scan Completeness Metrics — MANDATORY
+
+Before proceeding to Step 2, compile and record these metrics. They are the QUALITY GATE for scanning depth.
+
+**Per-Sport Event Count Table (record in report):**
+
+| Sport | BetExplorer | Flashscore | OddsPortal | Specialist | Total Unique | Tournaments Entered |
+|-------|-------------|------------|------------|------------|-------------|---------------------|
+| Football | ? | ? | ? | — | ? | ? |
+| Tennis | ? | ? | ? | — | ? | ? |
+| Basketball | ? | ? | ? | ESPN | ? | ? |
+| Hockey | ? | ? | ? | ESPN | ? | ? |
+| Baseball | ? | ? | ? | ESPN/SBR | ? | ? |
+| Volleyball | ? | ? | ? | — | ? | ? |
+| Esports | ? | ? | ? | GosuGamers | ? | ? |
+| Snooker | ? | ? | ? | CueTracker | ? | ? |
+| Darts | ? | ? | ? | DartsOrakel | ? | ? |
+| Table Tennis | ? | ? | ? | — | ? | ? |
+| Handball | ? | ? | ? | — | ? | ? |
+| MMA | ? | ? | ? | Tapology | ? | ? |
+| **TOTAL** | | | | | **?** | **?** |
+
+**Minimum thresholds:**
+- Total unique events scanned must be ≥50 (on a normal day with all sports active). If <50, something was missed — go back.
+- At least 6 sports must have events. If <6 on a non-holiday weekday, verify by checking a 3rd source.
+- Every sport with >0 events must have events counted from ≥2 sources.
+- Cross-source discrepancy >30% for any sport → investigate and reconcile before proceeding.
+
+**Tournament depth audit:**
+- List every tournament with ≥4 matches today.
+- For each: confirm ALL matches have been logged with odds.
+- If any tournament has matches NOT in the Master Event List → add them.
+
+**Scan completeness score** = (events found from ≥2 sources) / (total unique events). Target: ≥80%.
+
+If scan completeness score <80% or any sport was not checked → DO NOT proceed to Step 2. Go back and scan.
 
 ---
 

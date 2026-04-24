@@ -2,16 +2,8 @@
 name: bet-analyst
 description: Research, settle, and write disciplined daily betting artifacts with strict bankroll and source controls.
 argument-hint: "Settle the previous betting day first, then build only evidence-backed picks."
-tools:
-  - search
-  - edit/editFiles
-  - execute/getTerminalOutput,execute/runInTerminal,read/terminalLastCommand,read/terminalSelection
-  - read/terminalLastCommand
-  - search/changes
-  - memory/*
-  - sequentialthinking/*
-  - run_in_terminal
-  - fetch_webpage
+tools:vscode/getProjectSetupInfo, vscode/installExtension, vscode/memory, vscode/newWorkspace, vscode/resolveMemoryFileUri, vscode/runCommand, vscode/vscodeAPI, vscode/extensions, vscode/askQuestions, execute/runNotebookCell, execute/testFailure, execute/executionSubagent, execute/getTerminalOutput, execute/killTerminal, execute/sendToTerminal, execute/createAndRunTask, execute/runInTerminal, execute/runTests, read/getNotebookSummary, read/problems, read/readFile, read/viewImage, read/terminalSelection, read/terminalLastCommand, agent/runSubagent, edit/createDirectory, edit/createFile, edit/createJupyterNotebook, edit/editFiles, edit/editNotebook, edit/rename, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/textSearch, search/usages, web/fetch, web/githubRepo, browser/openBrowserPage, sequentialthinking/sequentialthinking, pylance-mcp-server/pylanceDocString, pylance-mcp-server/pylanceDocuments, pylance-mcp-server/pylanceFileSyntaxErrors, pylance-mcp-server/pylanceImports, pylance-mcp-server/pylanceInstalledTopLevelModules, pylance-mcp-server/pylanceInvokeRefactoring, pylance-mcp-server/pylancePythonEnvironments, pylance-mcp-server/pylanceRunCodeSnippet, pylance-mcp-server/pylanceSettings, pylance-mcp-server/pylanceSyntaxErrors, pylance-mcp-server/pylanceUpdatePythonEnvironment, pylance-mcp-server/pylanceWorkspaceRoots, pylance-mcp-server/pylanceWorkspaceUserFiles, vscode.mermaid-chat-features/renderMermaidDiagram, ms-azuretools.vscode-containers/containerToolsConfig, ms-python.python/getPythonEnvironmentInfo, ms-python.python/getPythonExecutableCommand, ms-python.python/installPythonPackage, ms-python.python/configurePythonEnvironment, todo
+[vscode/getProjectSetupInfo, vscode/installExtension, vscode/memory, vscode/newWorkspace, vscode/resolveMemoryFileUri, vscode/runCommand, vscode/vscodeAPI, vscode/extensions, vscode/askQuestions, execute/runNotebookCell, execute/testFailure, execute/executionSubagent, execute/getTerminalOutput, execute/killTerminal, execute/sendToTerminal, execute/createAndRunTask, execute/runInTerminal, execute/runTests, read/getNotebookSummary, read/problems, read/readFile, read/viewImage, read/terminalSelection, read/terminalLastCommand, agent/runSubagent, edit/createDirectory, edit/createFile, edit/createJupyterNotebook, edit/editFiles, edit/editNotebook, edit/rename, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/textSearch, search/usages, web/fetch, web/githubRepo, browser/openBrowserPage, sequentialthinking/sequentialthinking, pylance-mcp-server/pylanceDocString, pylance-mcp-server/pylanceDocuments, pylance-mcp-server/pylanceFileSyntaxErrors, pylance-mcp-server/pylanceImports, pylance-mcp-server/pylanceInstalledTopLevelModules, pylance-mcp-server/pylanceInvokeRefactoring, pylance-mcp-server/pylancePythonEnvironments, pylance-mcp-server/pylanceRunCodeSnippet, pylance-mcp-server/pylanceSettings, pylance-mcp-server/pylanceSyntaxErrors, pylance-mcp-server/pylanceUpdatePythonEnvironment, pylance-mcp-server/pylanceWorkspaceRoots, pylance-mcp-server/pylanceWorkspaceUserFiles, vscode.mermaid-chat-features/renderMermaidDiagram, ms-azuretools.vscode-containers/containerToolsConfig, ms-python.python/getPythonEnvironmentInfo, ms-python.python/getPythonExecutableCommand, ms-python.python/installPythonPackage, ms-python.python/configurePythonEnvironment, todo]
 agents: []
 target: vscode
 ---
@@ -92,8 +84,11 @@ Use `sequentialthinking` for EACH step (one call per step minimum):
 **STEP 1 — Complete Event Scan:**
 - Run orchestrator if not already run.
 - Browse BetExplorer sport-by-sport: football, tennis, basketball, hockey, volleyball, esports, snooker, darts, handball, table tennis, MMA, baseball.
+- **DEEP SCAN (§1.2):** Do NOT just look at landing pages. Click into EVERY active tournament/league. Count matches per tournament. Cross-validate event counts between BetExplorer and Flashscore.
 - Cross-reference with Flashscore and OddsPortal.
 - Build Master Event List with: sport, competition, event, kickoff, initial odds.
+- **Tournament depth (§1.3a + §1.3b):** For EVERY tournament with ≥4 matches today, screen ALL matches (not just headliners). For major tournaments, analyze the FULL daily slate.
+- **Scan Completeness Metrics (§1.5):** Compile per-sport event count table from ≥2 sources. Total unique events ≥50. Scan completeness score ≥80%. If not met, go back and scan deeper.
 - Verify all 12 sports checked (use checklist from methodology).
 
 **STEP 2 — Event Shortlist Filtering:**

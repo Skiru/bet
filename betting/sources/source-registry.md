@@ -418,6 +418,36 @@ Always record in the report which community sources were checked and whether con
   Use for: quick stat lookups across multiple sports.
   Access: OK.
 
+### Cross-Sport Fixture and Draw Sources (for Deep Scan Protocol §1.2)
+
+These sources help ensure NO tournament or event is missed during the scan phase:
+
+- ATP Tour (Official)
+  Role: official tournament draws, order of play, live scores.
+  URL: atptour.com/en/scores/current
+  Use for: confirming full R1/R2 draw for ATP events — ensures no match is missed. Shows exact schedule.
+  Access: OK.
+
+- WTA Tour (Official)
+  Role: official tournament draws, order of play, live scores.
+  URL: wtatennis.com/scores
+  Use for: confirming full WTA tournament draw — same as ATP but for women's tour.
+  Access: OK.
+
+- Sofascore (All Sports)
+  Role: universal fixture aggregator — ALL sports in one place with form, H2H, stats.
+  URL: sofascore.com
+  Use for: cross-validating event counts from BetExplorer/Flashscore. Covers ALL 12 sports. Good for niche sports missing on BetExplorer.
+  Access: OK.
+
+- LiveScore
+  Role: multi-sport live scores and fixtures — football, tennis, basketball, hockey, cricket.
+  URL: livescore.com
+  Use for: secondary fixture cross-check, especially for Asian/South American football.
+  Access: OK.
+
+- Oddspedia — BLOCKED (Cloudflare 403). Do not use.
+
 ### Blocked Sources (verified 2026-04-23)
 
 Do NOT attempt to fetch these — they waste time and produce no data:

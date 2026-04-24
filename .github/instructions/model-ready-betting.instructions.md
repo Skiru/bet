@@ -28,6 +28,10 @@ Follow the 11-step workflow in analysis-methodology.instructions.md:
 - **Minimum 5 coupons per day.** Produce at least 5 diverse coupons. Search wider before accepting fewer.
 - **No maximum legs per coupon.** A coupon can have 2, 3, 4, 5, or more legs.
 - **MANDATORY 12-sport scan.** Every analysis MUST scan ALL 12 configured sports: football, tennis, basketball, hockey, baseball, volleyball, esports, snooker, darts, table_tennis, handball, mma. Never skip a sport. Record "NO EVENTS TODAY" if a sport has no fixtures.
+- **MANDATORY Deep Scan Protocol (§1.2).** Do NOT just look at a sport's landing page. Click into EVERY active tournament/league to see the FULL fixture list. Count matches per tournament. Cross-validate event counts between BetExplorer and Flashscore — discrepancy >20% means events were missed.
+- **MANDATORY tournament full-slate analysis (§1.3a).** When a MAJOR TOURNAMENT is active (ATP/WTA Masters 1000, Grand Slam, World Championship, Champions League matchday, NBA/NHL Playoffs), analyze ALL matches in the daily slate — not just 1-2. Screen every match for value. Cherry-picking 1 from 32 is a PROTOCOL VIOLATION.
+- **MANDATORY non-major tournament depth (§1.3b).** ANY tournament with ≥4 matches today must have ALL matches screened for value — not just major tournaments. ATP 250s, mid-tier leagues, Challengers, tier-2 esports.
+- **MANDATORY Scan Completeness Metrics (§1.5).** Before proceeding to analysis, compile per-sport event count table from ≥2 sources. Total unique events must be ≥50. Scan completeness score ≥80%. If not met, go back and scan deeper.
 - **Minimum 5-sport diversity in picks.** The final pick roster must include picks from at least 5 different sports. If fewer than 5 sports have picks, search deeper before declaring no value.
 - **Multi-sport coupons mandatory.** At least 3 coupons must be multi-sport (2+ sports). At least 1 coupon must include a niche sport (not football/tennis).
 - Max coupon stake: 3.00 PLN for low-risk, 2.00 PLN for higher-risk
@@ -330,3 +334,7 @@ Go through every check. Write YES or NO for each. If any is NO, fix it before pr
 22. Missing Polish descriptions on coupon legs — EVERY selection MUST have a Polish parenthetical (e.g., "Powyżej 10.5 rzutów rożnych").
 23. Having an active pick not in ANY coupon — under NO SINGLES rule, every pick must be in ≥1 coupon or moved to watchlist.
 24. Accepting a tipster conflict without addressing it in the bear case — if Meczyki/Typersi/OLBG argue against your pick, the bear case MUST respond.
+25. **Shallow sport scanning** — glancing at a sport's landing page and seeing 3 events when clicking into tournaments reveals 40+. ALWAYS enter every active tournament/league to see full fixture list.
+26. **Missing tournament depth** — picking 1 match from a 16-match tournament slate (e.g., only Shelton from 16 ATP Madrid R1 matches). Screen ALL matches, shortlist best 3-8.
+27. **No cross-source event validation** — checking only BetExplorer for tennis and seeing 5 matches, when Flashscore shows 28. Always compare event counts from ≥2 sources per sport.
+28. **Skipping Scan Completeness Metrics (§1.5)** — proceeding to analysis without recording per-sport event counts, total unique events, or scan completeness score. This GATE prevents shallow scanning.
