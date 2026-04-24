@@ -187,7 +187,8 @@ Always record in the report which community sources were checked and whether con
   URL: soccerstats.com/latest.asp?league={league}
   Leagues available: austria, england, england2, italy, spain, germany, france, netherlands, and 50+ more.
   Use for: league-level corner/card context, identifying leagues with extreme corner or card averages.
-  Access: OK (no Cloudflare).
+  Access: INTERMITTENT — sometimes returns HTTP 500. When down, use FootyStats.org team pages or Betaminic as fallback.
+  Note: If SoccerStats is down, do NOT skip league-level context. Use FootyStats team-specific pages (footystats.org/teams/{team}) which sometimes work even when the main site is blocked.
 
 ### Tennis
 
@@ -540,7 +541,7 @@ Do NOT attempt to fetch these — they waste time and produce no data:
 - Blogabet (blogabet.com) — requires login; not automatable.
 
 **Stats sources:**
-- FootyStats (footystats.org) — 403
+- FootyStats (footystats.org) — 403 on main pages. HOWEVER: individual team/match pages (e.g., footystats.org/teams/{team-slug}) sometimes work via Playwright. Use as SoccerStats fallback for fouls, cards, and team-level stats when SoccerStats is down (HTTP 500). NOT reliable as primary source.
 - FBRef (fbref.com) — 403
 - FCTables (fctables.com) — 403
 - WhoScored (whoscored.com) — 403
@@ -586,71 +587,72 @@ Use this table to know WHERE to get odds for each sport. Never give up after one
   Minimum stack: Flashscore or Sofascore + BetExplorer or OddsPortal + SoccerStats (league context) + TotalCorner (match corners).
   Tipster cross-check: Zawod Typer, Typersi, BetIdeas, PicksWise, Tipstrr.
   Specialist sources: Betaminic (corners/cards tables), Betclic Statystyki (top leagues only).
-  Preferred markets: corners > cards > fouls > shots > team totals > BTTS > U2.5 > O2.5 > DC/DNB > 1X2.
+  Preferred markets: corners > cards > fouls > shots > team totals > BTTS > U2.5 > O2.5 > DC/DNB > 1X2 (LAST RESORT).
 
 - Basketball
   Minimum stack: Basketball-Reference + **SBR or ESPN or ScoresAndOdds** (totals/spreads) + BetExplorer.
   Tipster cross-check: PicksWise, Tipstrr.
-  Preferred markets: totals, spreads, quarter totals, moneyline.
+  Preferred markets: team totals > quarter totals > game totals > spreads > moneyline (LAST RESORT).
 
 - Baseball
   Minimum stack: BaseballSavant (Statcast) + **SBR or ESPN** (totals/run line) + BetExplorer.
   Note: FanGraphs is BLOCKED — use BaseballSavant (xERA, xFIP, barrel%) as the primary pitcher/hitter stats source.
   Tipster cross-check: PicksWise.
-  Preferred markets: totals and selective moneylines.
+  Preferred markets: F5 totals > team totals > game totals > run line > moneyline (LAST RESORT).
 
 - Hockey
   Minimum stack: Hockey-Reference + **SBR or ESPN or ScoresAndOdds** (totals/puck line) + NaturalStatTrick for xG.
   Tipster cross-check: PicksWise.
-  Preferred markets: totals, moneyline, period totals.
+  Preferred markets: period totals > game totals > puck line > moneyline (LAST RESORT).
 
 - Tennis
   Minimum stack: TennisAbstract (Elo) + TennisExplorer (H2H) + BetExplorer or OddsPortal.
   Tipster cross-check: Zawod Typer, Tipstrr.
-  Preferred markets: moneyline (1.50-2.50), game totals, set handicap, set totals.
+  Preferred markets: game totals O/U (PRIMARY) > set totals O/U > game handicap > set handicap > moneyline (LAST RESORT — only 1.50-2.50 range + STRONG odds ratio + surface + H2H dominance).
+  **ABSOLUTE RULE**: NEVER default to ML in tennis. Statistical markets have ~65% hit rate vs ML ~58%. Always prefer games/sets.
 
 - Volleyball
   Minimum stack: BetExplorer volleyball section + Flashscore or Sofascore.
   Tipster cross-check: Tipstrr.
-  Preferred markets: set totals, point totals, set handicap, moneyline.
+  Preferred markets: set totals > point totals > set handicap > moneyline (LAST RESORT).
 
 - Esports (CS2, Dota 2, LoL, Valorant)
   Minimum stack: GosuGamers + Liquipedia + BetExplorer or OddsPortal.
   Tipster cross-check: GosuGamers community, Tipstrr.
   Note: HLTV blocked — use GosuGamers and Liquipedia as primary CS2 sources.
-  Preferred markets: moneyline, map handicap, map totals, round handicap.
+  Preferred markets: map totals > round totals > map handicap > kill totals > moneyline (LAST RESORT).
 
 - Snooker
   Minimum stack: CueTracker (H2H, frame stats) + BetExplorer or OddsPortal. SnookerOrg/WST for schedule.
   Tipster cross-check: Tipstrr.
-  Preferred markets: frame handicap, total frames, moneyline, century/50+ break props.
+  Preferred markets: frame totals > frame handicap > century/50+ break props > moneyline (LAST RESORT).
 
 - Table Tennis
   Minimum stack: ITTF rankings + Flashscore or Sofascore. tt-series.com for league-level analysis.
   Tipster cross-check: Tipstrr.
-  Preferred markets: moneyline, set handicap, total points.
+  Preferred markets: total points > set totals > set handicap > moneyline (LAST RESORT).
 
 - Darts
   Minimum stack: DartsOrakel + BetExplorer or OddsPortal.
   Tipster cross-check: Tipstrr.
-  Preferred markets: leg/set totals, 180s over/under, checkout props, moneyline.
+  Preferred markets: 180s O/U > leg/set totals > checkout props > moneyline (LAST RESORT).
 
 - Handball
   Minimum stack: EHF or Handball-World + BetExplorer or OddsPortal. Flashscore for results.
   Tipster cross-check: Tipstrr.
-  Preferred markets: totals, handicap, moneyline.
+  Preferred markets: half totals > game totals > handicap > moneyline (LAST RESORT).
 
 - MMA / UFC
   Minimum stack: UFCstats + OddsPortal or BetExplorer. Tapology for records.
   Tipster cross-check: PicksWise, Tipstrr.
-  Preferred markets: moneyline, method of victory, round totals, props.
+  Preferred markets: method of victory > O/U rounds > ITD > round betting > moneyline (LAST RESORT).
 
 - Padel
   Minimum stack: Sofascore Padel (H2H, form) + BetExplorer or OddsPortal. PremierPadel.com for draws/stats.
   Tipster cross-check: Limited — no major tipster sites cover padel yet. Use ranking context + H2H as primary edge.
   Statistical edge: Rankings highly predictive at top level (top-8 pairs dominate). H2H and surface (indoor/outdoor) matter.
   Market note: ML market similar to tennis — ranking gaps create predictable outcomes. Set totals viable for close matchups.
-  Preferred markets: moneyline (1.40-2.20 range) > set totals > game totals > set handicap.
+  Preferred markets: game totals > set totals O/U 2.5 > set handicap > moneyline (LAST RESORT, 1.40-2.20 range, only when ranking gap >3000).
   Seasonal note: Premier Padel tour runs Feb-Dec with P1/P2 events most weeks. FIP Bronze events daily but low data quality.
 
 - Speedway / Żużel
@@ -658,7 +660,7 @@ Use this table to know WHERE to get odds for each sport. Never give up after one
   Tipster cross-check: SportoweFakty experts, Polish betting forums. Deep-dive SportoweFakty match previews.
   Statistical edge: HOME ADVANTAGE is extreme in speedway (70-75% home win rate). Rider track-specific averages, lineup changes, track conditions (weather), and gate positions are statistically significant. Reserve rider usage patterns matter.
   Market note: Match winner (handicap) and total points are the main markets. Home dominance is well-known but still often mispriced in handicap lines.
-  Preferred markets: handicap > total_points > match_winner.
+  Preferred markets: handicap > total_points > match_winner (LAST RESORT).
   Seasonal note: PGE Ekstraliga runs Apr-Sep, 1-2 matches per round (4 teams play per matchday). 2. Ekstraliga and KLŻ also covered. SGP events occasionally.
 
 ## Settlement Sources

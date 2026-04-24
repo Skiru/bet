@@ -282,6 +282,8 @@ For each remaining event, quickly assess:
 - Or only basic 1X2/ML? If only basic markets -> lower priority unless the edge is obvious.
 - Are odds in our preferred range (1.30-3.50)? Events with all odds outside this range -> lower priority.
 
+**UNIVERSAL RULE — ALL SPORTS: NEVER default to ML/1X2/match winner.** Statistical markets (totals, handicaps, cards, corners, fouls, frames, legs, maps, sets, games) are ALWAYS preferred across EVERY discipline. They have higher hit rates (~60-65%) and are less efficiently priced by bookmakers. ML/winner picks are the ABSOLUTE LAST RESORT — only when no statistical market exists on Betclic AND the statistical edge is overwhelming. This applies equally to football, tennis, basketball, hockey, baseball, volleyball, esports, snooker, darts, handball, table tennis, MMA, padel, and speedway.
+
 ### 2.3 Result: Shortlisted Events
 Target: 15-40 events across multiple sports. If fewer than 15, widen the search. If more than 40, tighten criteria (remove events with weakest source coverage).
 
@@ -326,8 +328,8 @@ After collecting all stats, RANK available markets by SAFETY and VALUE:
 1. Calculate **hit rate** for each O/U line (e.g., Leipzig O16.5 shots hits 87% at home)
 2. Calculate **combined hit rate** when both teams' data is merged (e.g., Leipzig home + Union away)
 3. **Priority:** highest hit rate × best odds = best market. NOT the sexiest market.
-4. **Football market hierarchy** (most inefficient → most efficient):
-   - Fouls O/U → Cards O/U → Corners O/U → Shots O/U → Team totals → BTTS → U2.5 → O2.5 → DC/DNB → 1X2
+4. **Football market hierarchy** (most inefficient → most efficient — 1X2 is LAST RESORT):
+   - Fouls O/U → Cards O/U → Corners O/U → Shots O/U → Team totals → BTTS → U2.5 → O2.5 → DC/DNB → 1X2 (LAST RESORT)
 5. Present TOP 3 markets per match with hit rates before choosing.
 
 **E. Corner Analysis (THREE-SOURCE STACK — mandatory for corner picks)**
@@ -399,8 +401,9 @@ After collecting all stats, RANK available markets:
    - >1.50: REJECT O-games
 2. For ML bets: check serve/return stats gap. Both hold >80%? → likely tiebreaks → O-games better than ML.
 3. Surface effect: clay breaks easier → longer matches. Hard court → serve-dominant → tiebreaks.
-4. **Tennis market hierarchy** (most inefficient → most efficient):
-   - Total games O/U → Set handicap → Set totals → ML (1.50-2.50 range only) → Correct score
+4. **Tennis market hierarchy** (most inefficient → most efficient — ML is LAST RESORT):
+   - Total games O/U → Set totals O/U → Game handicap → Set handicap → ML (1.50-2.50 range only, LAST RESORT)
+   **ABSOLUTE RULE: NEVER default to ML in tennis. Statistical markets (games, sets) have dramatically higher hit rates. ML is only acceptable when odds ratio is STRONG (≤1.15) AND surface dominance AND H2H dominance all align. The Shelton v6 loss proved this: match went 3 sets, ML lost, O21.5 games would have won easily.**
 5. Present TOP 2 markets per match with statistical backing before choosing.
 
 **D. Over-Games Assessment (MANDATORY for O/U games picks)**
@@ -449,8 +452,8 @@ For every basketball candidate, collect ALL of the following. Missing any catego
 1. Fast pace teams (top 10 league) meeting → O-totals candidate. Both top 10 → STRONG.
 2. Check combined pace: if both >100 possessions → high-scoring game likely.
 3. Check defensive rating: if both bottom 10 defense → inflated totals.
-4. **Basketball market hierarchy** (most inefficient → most efficient):
-   - Team totals O/U → Quarter totals → Game totals O/U → Spreads → ML
+4. **Basketball market hierarchy** (most inefficient → most efficient — ML is LAST RESORT):
+   - Team totals O/U → Quarter totals → Game totals O/U → Spreads → ML (LAST RESORT)
 5. Playoff vs regular season: playoff games average 3-5 fewer points (slower pace, more defense).
 
 **E. Context Factors (MANDATORY)**
@@ -495,8 +498,8 @@ For every hockey candidate, collect ALL of the following. Missing any category =
 1. Both teams xGF > 3.0? → O-totals candidate (strong both offenses)
 2. Both goalies sv% < .910 in last 10? → O-totals candidate (weak goaltending)
 3. One elite goalie (sv% > .920) vs weak offense (xGF < 2.5)? → U-totals candidate
-4. **Hockey market hierarchy** (most inefficient → most efficient):
-   - Period totals → Game totals O/U → Puck line (handicap ±1.5) → ML → 3-way (regulation)
+4. **Hockey market hierarchy** (most inefficient → most efficient — ML is LAST RESORT):
+   - Period totals → Game totals O/U → Puck line (handicap ±1.5) → ML (LAST RESORT) → 3-way (regulation)
 5. Playoff: tighter checking, better goaltending → 0.5-1.0 fewer goals than regular season avg.
 
 **E. Context Factors (MANDATORY)**
@@ -534,8 +537,8 @@ For every volleyball candidate, collect ALL of the following. Missing any catego
 1. Both teams in top 6 with similar quality? → O3.5 sets candidate (competitive = more sets)
 2. Big mismatch (table leader vs bottom)? → U3.5 sets / Set handicap -1.5 candidate
 3. Both teams high attack efficiency? → O total points (more rallies, longer sets)
-4. **Volleyball market hierarchy** (most inefficient → most efficient):
-   - Individual set score O/U → Total points O/U → Set totals O/U 3.5 → Set handicap → ML
+4. **Volleyball market hierarchy** (most inefficient → most efficient — ML is LAST RESORT):
+   - Individual set score O/U → Total points O/U → Set totals O/U 3.5 → Set handicap → ML (LAST RESORT)
 5. ML only viable in 1.50-2.50 range. Below 1.40 = no value. Above 2.80 = too risky.
 
 **D. Context Factors (MANDATORY)**
@@ -589,8 +592,8 @@ For every esports candidate, collect ALL of the following. Missing any category 
 1. Evenly matched teams in BO3? → O2.5 maps (competitive = more maps)
 2. Clear favorite in BO3 with map pool edge? → Map HC -1.5
 3. Close map pool overlap? → total rounds O/U on specific maps
-4. **Esports market hierarchy** (most inefficient → most efficient):
-   - Total rounds O/U per map → Map totals O/U 2.5 (BO3) → Map handicap -1.5 → Kill totals → ML
+4. **Esports market hierarchy** (most inefficient → most efficient — ML is LAST RESORT):
+   - Total rounds O/U per map → Map totals O/U 2.5 (BO3) → Map handicap -1.5 → Kill totals → ML (LAST RESORT)
 5. BO1 markets are volatile — reduce confidence -1 for any BO1 pick.
 
 **Sources**: HLTV (CS2 stats ONLY — tips are BLOCKED), Liquipedia (all esports wikis), GosuGamers (tips + stats), VLR.gg (Valorant), Oracle's Elixir (LoL), DotaBuff/OpenDota (Dota2), BetExplorer esports (odds)
@@ -626,8 +629,8 @@ For every snooker candidate, collect ALL of the following. Missing any category 
 1. Both players ranked within 15 of each other? → O frames (competitive = more frames used)
 2. Both players avg frame time >18min? → O frames (tactical match, slow-paced)
 3. One player dominant (top 4) vs outside top 32? → Frame HC / U frames
-4. **Snooker market hierarchy** (most inefficient → most efficient):
-   - Century breaks O/U → Total frames O/U → Frame handicap → Correct score → ML
+4. **Snooker market hierarchy** (most inefficient → most efficient — ML is LAST RESORT):
+   - Century breaks O/U → Total frames O/U → Frame handicap → Correct score → ML (LAST RESORT)
 5. World Championship: early rounds (BO19/BO25) produce MORE value than finals (heavily analyzed).
 
 **E. Context Factors (MANDATORY)**
@@ -670,8 +673,8 @@ For every darts candidate, collect ALL of the following. Missing any category = 
 1. Both players avg >95? → More breaks of throw = more legs = O legs candidate
 2. Both players checkout >40%? → Efficient leg closing → fewer legs → U legs candidate
 3. One player avg >98, other <90? → Dominant win → U legs + ML combo
-4. **Darts market hierarchy** (most inefficient → most efficient):
-   - 180s O/U → Total legs O/U → Set totals O/U → Correct score → ML
+4. **Darts market hierarchy** (most inefficient → most efficient — ML is LAST RESORT):
+   - 180s O/U → Total legs O/U → Set totals O/U → Correct score → ML (LAST RESORT)
 5. In set-format: focus on total sets. In legs-format: focus on total legs.
 
 **E. Context Factors (MANDATORY)**
@@ -707,8 +710,8 @@ For every handball candidate, collect ALL of the following. Missing any category
 1. Both teams avg >28 goals scored/match? → O total goals candidate (combined >56)
 2. Both teams poor defense (>29 conceded)? → O total goals STRONG candidate
 3. Big mismatch + high-scoring favorite? → Handicap candidate
-4. **Handball market hierarchy** (most inefficient → most efficient):
-   - Half totals O/U → Game total goals O/U → Handicap → ML
+4. **Handball market hierarchy** (most inefficient → most efficient — ML is LAST RESORT):
+   - Half totals O/U → Game total goals O/U → Handicap → ML (LAST RESORT)
 5. HOME ADVANTAGE is extreme: home team wins 60-65%. Factor this into ML and handicap.
 6. 2nd half typically has 1-2 MORE goals than 1st half (fatigue + desperation scoring).
 
@@ -745,8 +748,8 @@ For every table tennis candidate, collect ALL of the following. Missing any cate
 1. Close ranking (within 20 spots)? → O sets (competitive = more sets)
 2. Big ranking gap (50+ spots)? → Set HC -1.5 or -2.5
 3. Both aggressive players? → Higher total points per set → O total points
-4. **Table tennis market hierarchy** (most inefficient → most efficient):
-   - Total points O/U → Set totals O/U → Set handicap → ML
+4. **Table tennis market hierarchy** (most inefficient → most efficient — ML is LAST RESORT):
+   - Total points O/U → Set totals O/U → Set handicap → ML (LAST RESORT)
 5. Table tennis is HIGH-VARIANCE — rankings less predictive than in tennis. Reduce confidence by -0.5 for any TT pick.
 
 **D. Context Factors (MANDATORY)**
@@ -789,8 +792,8 @@ For every MMA candidate, collect ALL of the following. Missing any category = IN
 1. Both fighters finish rate >50%? → U rounds candidate (likely finish before the distance)
 2. Both fighters decision rate >50%? → O rounds candidate (going to the scorecards)
 3. High-level grappler vs mediocre TDD? → Method of victory: submission
-4. **MMA market hierarchy** (most inefficient → most efficient):
-   - Method of victory → O/U rounds → Round betting → ITD (inside the distance) → ML
+4. **MMA market hierarchy** (most inefficient → most efficient — ML is LAST RESORT):
+   - Method of victory → O/U rounds → Round betting → ITD (inside the distance) → ML (LAST RESORT)
 5. 3-round fights: O/U 1.5 rounds. 5-round fights: O/U 2.5 rounds.
 6. Women's MMA: fewer finishes on average → O rounds default.
 
@@ -842,8 +845,8 @@ For every baseball candidate, collect ALL of the following. Missing any category
 1. Both starters xERA > 4.50? → O runs candidate (bad pitching = runs)
 2. Elite starter (xERA < 3.00) vs weak lineup (wRC+ < 90)? → U runs candidate + F5 under
 3. Bullpen overworked for both teams? → O runs (especially late-inning totals)
-4. **Baseball market hierarchy** (most inefficient → most efficient):
-   - First 5 innings O/U → Team totals → Game totals O/U → Run line (±1.5) → ML
+4. **Baseball market hierarchy** (most inefficient → most efficient — ML is LAST RESORT):
+   - First 5 innings O/U → Team totals → Game totals O/U → Run line (±1.5) → ML (LAST RESORT)
 5. F5 (first 5 innings) removes bullpen variance — MOST RELIABLE market.
 6. Team totals are less efficient than game totals — good for pitcher mismatch.
 
@@ -887,8 +890,8 @@ For every padel candidate, collect ALL of the following. Missing any category = 
 1. Ranking gap <1000 pts? → O2.5 sets candidate (competitive = 3 sets likely)
 2. Ranking gap >3000 and Major/P1? → Favorite ML (top pairs dominate higher tiers)
 3. New partnership in first 2 tournaments? → Upset potential (underpriced)
-4. **Padel market hierarchy** (most inefficient → most efficient):
-   - Game totals O/U → Set totals O/U 2.5 → Set handicap -1.5 → ML (1.40-2.20 range)
+4. **Padel market hierarchy** (most inefficient → most efficient — ML is LAST RESORT):
+   - Game totals O/U → Set totals O/U 2.5 → Set handicap -1.5 → ML (LAST RESORT, 1.40-2.20 range only)
 5. ML only viable in 1.40-2.20 range. Below 1.35 = no value. Above 2.40 = too risky.
 6. VALUE ZONE: pairs ranked 10-25 meeting = real uncertainty, ML 1.60-2.20.
 
@@ -933,8 +936,8 @@ For every speedway candidate, collect ALL of the following. Missing any category
 1. Home rider averages sum > away by 10+? → Handicap candidate (home team to cover large spread)
 2. Both teams with strong heat leaders but weak juniors? → Total points O/U candidate
 3. Away team has "good traveler" record? → Away HC / Away ML upset potential
-4. **Speedway market hierarchy** (most inefficient → most efficient):
-   - Total points O/U (e.g., O88.5) → Handicap (e.g., home -8.5) → Match winner
+4. **Speedway market hierarchy** (most inefficient → most efficient — ML is LAST RESORT):
+   - Total points O/U (e.g., O88.5) → Handicap (e.g., home -8.5) → Match winner (LAST RESORT)
 5. Match winner usually too short for home team (1.20-1.40) — HC is the VALUE market.
 6. Calculate team total from rider track averages: sum all 7 riders' venue-specific averages × heat appearances.
 
@@ -1327,44 +1330,52 @@ For each football pick:
 5. Competition context noted?
 
 ### V4a: Tennis Validation
-1. Game totals: odds ratio <=1.50?
-2. Set totals: surface form checked?
-3. No walkover risk (player injury)?
+1. **Market hierarchy check**: Is the pick a statistical market (games O/U, sets O/U, handicap)? If ML → verify ALL of: STRONG ratio ≤1.15 + surface dominance + H2H dominance. If any missing → REJECT ML, use statistical market instead.
+2. Game totals: odds ratio <=1.50?
+3. Set totals: surface form checked?
+4. No walkover risk (player injury)?
 
 ### V4b: Volleyball Validation
-1. Set totals: favorite ML between 1.30-2.00?
-2. Point totals: O3.5 sets likely?
-3. Competition context?
+1. **ML check**: If ML pick → verify statistical markets (set totals, point totals, set HC) were unavailable or had no edge. ML only in 1.50-2.50 range.
+2. Set totals: favorite ML between 1.30-2.00?
+3. Point totals: O3.5 sets likely?
+4. Competition context?
 
 ### V4c: Basketball Validation
-1. Total points: pace + OFF/DEF ratings checked?
-2. Injury report reviewed (star players)?
-3. Playoff context (series dynamics, rest days)?
+1. **ML check**: If ML pick → verify totals/spreads/quarter markets were unavailable or had no edge.
+2. Total points: pace + OFF/DEF ratings checked?
+3. Injury report reviewed (star players)?
+4. Playoff context (series dynamics, rest days)?
 
 ### V4d: Hockey Validation
-1. Total goals: goalie confirmed + save % checked?
-2. PP/PK percentages noted?
-3. Back-to-back schedule checked?
+1. **ML check**: If ML pick → verify totals/period totals/puck line were unavailable or had no edge.
+2. Total goals: goalie confirmed + save % checked?
+3. PP/PK percentages noted?
+4. Back-to-back schedule checked?
 
 ### V4e: Esports Validation
-1. Map totals: form data from last 5 matches?
-2. Match format (BO1/BO3/BO5) noted?
-3. Map pool analysis done?
+1. **ML check**: If ML pick → verify map totals/round totals/map HC were unavailable or had no edge.
+2. Map totals: form data from last 5 matches?
+3. Match format (BO1/BO3/BO5) noted?
+4. Map pool analysis done?
 
 ### V4f: Snooker Validation
-1. Frame totals: match format (best-of-X) confirmed?
-2. Frame averages per player checked?
-3. Tournament stage context?
+1. **ML check**: If ML pick → verify frame totals/frame HC/century O/U were unavailable or had no edge.
+2. Frame totals: match format (best-of-X) confirmed?
+3. Frame averages per player checked?
+4. Tournament stage context?
 
 ### V4g: Darts Validation
-1. Leg totals: average scoring checked (3-dart avg)?
-2. Checkout percentage compared?
-3. Event format noted?
+1. **ML check**: If ML pick → verify leg totals/180s/set totals were unavailable or had no edge.
+2. Leg totals: average scoring checked (3-dart avg)?
+3. Checkout percentage compared?
+4. Event format noted?
 
 ### V4h: Other Sports (handball, table tennis, baseball, MMA)
-1. Appropriate statistical market selected (not defaulting to ML)?
-2. Sport-specific data sources consulted?
-3. Context verified (home/away, form, injuries)?
+1. **ML check**: If ML pick → verify sport-specific statistical markets were unavailable or had no edge. ML is LAST RESORT in ALL sports.
+2. Appropriate statistical market selected (not defaulting to ML)?
+3. Sport-specific data sources consulted?
+4. Context verified (home/away, form, injuries)?
 
 ### V4i: Padel Validation
 1. FIP ranking for both pairs checked?
@@ -1516,7 +1527,7 @@ Summarize in conversation:
 The agent MUST independently identify which statistical markets offer the most value per sport. Do NOT wait for user direction — YOU are the analyst.
 
 **Football**: corners > cards > fouls > shots on target > team totals > BTTS > U2.5 > O2.5 > DC/DNB > 1X2
-**Tennis**: total games O/U > set totals O/U > games handicap > set handicap > ML (1.50-2.50 only)
+**Tennis**: total games O/U > set totals O/U > game handicap > set handicap > ML (LAST RESORT — only when STRONG ratio + surface + H2H all align)
 **Basketball**: total points O/U > spreads > quarter totals > team totals > ML
 **Hockey**: total goals O/U > period totals > shots on goal > ML (with goalie confirmation)
 **Volleyball**: total sets O/U > total points O/U > set handicap > individual set points > ML

@@ -60,6 +60,29 @@ Follow the workflow in analysis-methodology.instructions.md (STEPS 0-10 plus STE
 - Over 2.5: LAST RESORT. Require strong form, H2H backing, and SoccerStats league goals avg > 2.8 if available
 - DC/DNB: only when standings gap is clear and odds 1.10-1.40
 
+### UNIVERSAL RULE — ALL SPORTS: ML/1X2/match winner is LAST RESORT
+
+**NEVER default to ML/1X2/match winner in ANY sport.** Statistical markets (totals, handicaps, cards, corners, fouls, frames, legs, maps, sets, games, method of victory) are ALWAYS preferred across EVERY discipline. They have higher hit rates (~60-65%) and are less efficiently priced by bookmakers.
+
+ML/winner picks are the ABSOLUTE LAST RESORT — only when:
+1. No statistical market is available on Betclic for the event, AND
+2. The statistical edge is overwhelming (EV > 5%), AND
+3. The price is acceptable (within price gap threshold).
+
+This applies equally to: football, tennis, basketball, hockey, baseball, volleyball, esports, snooker, darts, handball, table tennis, MMA, padel, and speedway.
+
+### Tennis market selection (STATISTICAL FIRST — ML is LAST RESORT)
+**ABSOLUTE RULE: NEVER default to ML in tennis.** Tennis ML is the most volatile market — even 1.50 favorites lose 35-40% of matches. Statistical markets (game totals, set totals) have dramatically higher hit rates.
+
+**Tennis market hierarchy** (use in this order, ML only as last resort):
+1. **Game totals O/U** (e.g., O21.5, O22.5) — PRIMARY. Highest hit rate (~65% for STRONG ratio matches).
+2. **Set totals O/U** (e.g., O2 sets) — good for competitive matches.
+3. **Game handicap** — when one player is clearly better but not dominant.
+4. **Set handicap** — for bigger mismatches.
+5. **ML** — LAST RESORT ONLY. Requires ALL of: STRONG odds ratio (≤1.15) + surface dominance + H2H dominance. If any is missing → use games/sets instead.
+
+**Proven by loss:** Shelton ML v6 coupon — match went 3 sets, ML lost, O21.5 games would have won easily. This is the typical failure mode.
+
 ### Tennis over-games (Over 20.5)
 - Both match odds must be 1.50–2.50
 - Calculate odds_gap_ratio = max(odds_A, odds_B) / min(odds_A, odds_B)
@@ -72,8 +95,11 @@ Follow the workflow in analysis-methodology.instructions.md (STEPS 0-10 plus STE
 - Note surface (clay = more breaks = supports over)
 - Check Flashscore for cancellations
 
-### Raw 1X2/moneyline
-- Only when odds are 1.30–3.50 AND statistical edge is clear
+### Raw 1X2/moneyline — LAST RESORT IN ALL SPORTS
+- ONLY when no statistical market available AND odds 1.30–3.50 AND statistical edge is overwhelming
+- For tennis: ML is LAST RESORT (see tennis hierarchy above)
+- For ALL other sports: check sport-specific hierarchy first. If totals, handicaps, props exist → use those instead
+- Every ML pick must justify WHY no statistical market was used
 
 ## 4. COUPON RULES
 
@@ -203,6 +229,7 @@ Go through every check. Write YES or NO for each. If any is NO, fix it before pr
 - [ ] price_gap_pct within threshold for risk tier
 
 ### V3: Tennis Check (for EACH tennis pick)
+- [ ] **Market hierarchy respected**: game totals > set totals > game HC > set HC > ML. If pick is ML, verify ALL of: STRONG ratio (≤1.15) + surface dominance + H2H dominance. Otherwise → REJECT ML, use statistical market instead.
 - [ ] Both match odds between 1.50 and 2.50
 - [ ] odds_gap_ratio calculated and ≤ 1.50
 - [ ] Ratio grade matches these EXACT ranges (no other grade names allowed):
@@ -320,3 +347,6 @@ Go through every check. Write YES or NO for each. If any is NO, fix it before pr
 33. **Football-only or football+tennis-only portfolio** — producing final picks from only 2-3 sports when 14 are available. Minimum 5 different sports in final picks. If you have <5 sports, go back and scan the missing ones deeper before declaring no value.
 34. **Skipping H2H check** — finalizing a pick without checking head-to-head records. H2H can reveal that an underdog dominates at this venue (e.g., Union Berlin at Leipzig). Always check last 5-10 meetings with home/away context.
 35. **Skipping injury/suspension check** — finalizing picks without verifying key absences. A single missing star player can invalidate an entire thesis. Check ESPN, Flashscore lineups, team social media for EVERY pick.
+36. **Defaulting to tennis ML instead of statistical markets** — picking Machac ML 1.73 instead of O21.5 games 1.50 because it "looks like value." Tennis ML is the MOST VOLATILE market. Shelton v6 proved this: match went 3 sets, ML lost, O21.5 games wins easily. ALWAYS use game totals > set totals > handicaps > ML. ML is LAST RESORT requiring STRONG ratio + surface + H2H all aligned. Lower odds on games/sets are compensated by dramatically higher hit rates (~65% vs ~58%).
+37. **Using ML for padel without ranking gap analysis** — padel ML only viable when FIP ranking gap >3000. For gaps <3000, use game totals or set totals. New partnerships add extra volatility — ML even riskier.
+38. **Defaulting to ML/1X2 in ANY sport** — applies universally, not just tennis. For basketball: use totals/spreads before ML. Hockey: period totals/game totals/puck line before ML. Baseball: F5 totals/team totals before ML. Snooker: frame totals/HC before ML. Every sport has statistical markets that hit more often than raw winner picks. ML is ALWAYS the LAST RESORT across ALL 14 sports. If a pick is ML, the analysis MUST explicitly justify why no statistical market was viable.

@@ -73,16 +73,24 @@ Hard rejection conditions:
 - pick depends mostly on community opinion without statistical backing
 
 Selection preferences (market hierarchy — least efficient = most value):
-- football: corners > cards > fouls > shots > team totals > BTTS > U2.5 > O2.5 > DC/DNB > 1X2
-- basketball: totals > spreads > quarter totals > moneyline
-- baseball: totals > run line > moneyline (only with pitching context)
-- tennis: moneyline (1.50-2.50 range) > game totals > set handicap > set totals
-- hockey: totals > moneyline (only with goalie + form) > period totals
-- volleyball: set totals > point totals > set handicap > moneyline
-- esports: map handicap > map totals > moneyline
-- padel: moneyline (1.40-2.20 range) > set totals > game totals > set handicap
-- speedway: handicap > total_points > match_winner
-- raw winners allowed only when price AND evidence are both strong
+
+**UNIVERSAL RULE: NEVER default to ML/1X2/match winner in ANY sport.** Statistical markets (totals, handicaps, cards, corners, fouls, frames, legs, maps, sets, games) are ALWAYS preferred. They have higher hit rates and are less efficiently priced by bookmakers. ML/winner picks are the ABSOLUTE LAST RESORT across ALL disciplines — only when statistical markets are unavailable AND the edge is overwhelming.
+
+- football: corners > cards > fouls > shots > team totals > BTTS > U2.5 > O2.5 > DC/DNB > 1X2 (LAST RESORT)
+- tennis: game totals (O/U 21.5, 22.5) > set totals (O/U 2) > game handicap > set handicap > moneyline (LAST RESORT)
+- basketball: team totals > quarter totals > game totals > spreads > moneyline (LAST RESORT)
+- baseball: F5 totals > team totals > game totals > run line > moneyline (LAST RESORT, only with elite pitcher)
+- hockey: period totals > game totals > puck line > moneyline (LAST RESORT, only with confirmed goalie)
+- volleyball: set totals > point totals > set handicap > moneyline (LAST RESORT)
+- esports: map totals > round totals > map handicap > moneyline (LAST RESORT)
+- snooker: frame totals > frame handicap > century O/U > moneyline (LAST RESORT)
+- darts: leg totals > 180s O/U > set totals > moneyline (LAST RESORT)
+- handball: half totals > game totals > handicap > moneyline (LAST RESORT)
+- table tennis: set totals > point totals > set handicap > moneyline (LAST RESORT)
+- mma: method of victory > O/U rounds > ITD > moneyline (LAST RESORT)
+- padel: game totals > set totals (O/U 2.5) > set handicap > moneyline (LAST RESORT, only when ranking gap >3000)
+- speedway: handicap > total_points > match_winner (LAST RESORT)
+- ML/winner allowed ONLY when: (1) no statistical market available on Betclic AND (2) statistical evidence is overwhelming AND (3) price is acceptable
 
 Risk rules:
 - never force action — NO BET days are preferred over weak picks
