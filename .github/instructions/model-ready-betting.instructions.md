@@ -93,50 +93,19 @@ Follow the 11-step workflow in analysis-methodology.instructions.md:
 
 ### 5a. Coupon file: betting/coupons/YYYY-MM-DD.md
 
-Use these EXACT header field names:
-```
-BETTING DAY: 2026-04-22
-RUN TIME LOCAL: 2026-04-22 16:30
-BOOKMAKER: Betclic
-BANKROLL CAP PLN: 8.00
-TOTAL PLANNED EXPOSURE PLN: 7.00
-UNUSED BANKROLL PLN: 1.00
-```
+The coupon .md file is a visual Markdown document — identical to what the user sees in chat.
+See betting-artifacts.instructions.md for the full structure spec.
 
-Coupon format — use EXACTLY these label patterns:
-```
-PEWNIAKI DOUBLE 1 (CP-20260422-PD1):
-- coupon_id: CP-20260422-PD1
-- legs:
-  1. [PK-20260422-01] Event | market | Selection | odds | accept if >= threshold
-  2. [PK-20260422-02] Event | market | Selection | odds | accept if >= threshold
-- combined_odds: ~2.18
-- stake_pln: 1.00
-- rationale: one sentence
-
-PEWNIAKI TRIPLE 1 (CP-20260422-PT1):
-...same format...
-
-HIGHER-RISK COUPON 1 (CP-20260422-HR1):
-...same format...
-```
-
-Coupon label rules:
-- Use "PEWNIAKI DOUBLE/TRIPLE/QUAD" for pewniaki combinatorial coupons
-- Use "LOW-RISK COUPON" when: all legs confidence 4+, or meets low-risk criteria
-- Use "HIGHER-RISK COUPON" when: multi-sport (≥2), mixed confidence, or higher volatility
-- Append a number for additional coupons: "LOW-RISK COUPON 2", "HIGHER-RISK COUPON 3"
-- Tennis-only coupons MUST be low-risk (they cannot meet higher-risk min 2 sports requirement)
-- FORBIDDEN labels: "MEDIUM", "ATP CLAY", "WTA", "KUPON", "SINGLES", or any sport/tournament name as coupon type
-- The word before "COUPON" must be either LOW-RISK or HIGHER-RISK — no exceptions (except PEWNIAKI prefix)
-
-End with:
-```
-SKIPPED OR OMITTED:
-- reason for each skipped event or coupon variant
-```
-
-The coupon file ends after SKIPPED OR OMITTED. Do NOT add any additional sections like "USER ACTION REQUIRED", "ALTERNATIVE PICKS", or "CONDITIONAL NOTE" after it.
+Key rules:
+- Visual Markdown tables grouped by type: PEWNIAKI, MULTI-SPORT, HIGHER RISK, NIGHT.
+- Each table has columns: #, Coupon ID, Co obstawić (Polish market description + event), Kurs, Stawka, Zwrot.
+- PODSUMOWANIE table at the end: Wydatek, Bankroll po, Łączny pot. zwrot, Stan konta po zwrocie, scenarios.
+- KOLEJNOŚĆ STAWIANIA — placement priority list.
+- NO old-style plain-text metadata (BETTING DAY:, RUN TIME LOCAL:, etc.). Metadata lives in ledger CSVs.
+- Coupon IDs use these prefixes: P (pewniaki), MS (multi-sport), HR (higher-risk), N (night) + version suffix.
+- FORBIDDEN labels: "MEDIUM", "ATP CLAY", "WTA", "KUPON", "SINGLES", or any sport/tournament name as coupon type.
+- Tennis-only coupons MUST be low-risk.
+- Every market description must be in plain Polish matching Betclic's interface.
 
 ### 5b. picks-ledger.csv
 
@@ -311,8 +280,8 @@ Go through every check. Write YES or NO for each. If any is NO, fix it before pr
 ## 7. COMMON MISTAKES (read before writing — CHECK EVERY ONE)
 
 1. Using "medium" as variant or risk_level in coupons-ledger. ONLY use low-risk or higher-risk.
-2. Using "BANKROLL:" instead of "BANKROLL CAP PLN:" in coupon file header.
-3. Using "UNUSED FROM CAP PLN:" instead of "UNUSED BANKROLL PLN:" in coupon file header.
+2. Adding old-style plain-text metadata (BETTING DAY:, BANKROLL CAP PLN:) to the .md coupon file. Metadata lives in ledger CSVs only.
+3. Writing coupon .md content that differs from what was shown in chat. They MUST be identical.
 4. Classifying odds_gap_ratio 1.12 as "GOOD" — it is ≤1.15, so it is "STRONG". Same for 1.02, 1.08, 1.10, 1.14.
 5. Putting alternative or contradictory pick suggestions at the bottom of the coupon file.
 6. Setting different confidence scores for the same pick in different files. Pick ONE score and use it EVERYWHERE.

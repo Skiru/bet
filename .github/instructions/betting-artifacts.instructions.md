@@ -58,47 +58,22 @@ Keep it SHORT. No long rationales — user knows the picks, just needs to click 
 Daily coupon file path:
 - betting/coupons/YYYY-MM-DD.md
 
-Coupon file required order (inside the .md, after the visual tables):
-BETTING DAY:
-RUN TIME LOCAL:
-BOOKMAKER:
-BANKROLL CAP PLN:
-TOTAL PLANNED EXPOSURE PLN:
-UNUSED BANKROLL PLN:
+The .md file MUST be identical to what is shown in chat — visual Markdown tables with Polish descriptions.
+Structure of the .md file:
+1. H1 header with date, bankroll, budget.
+2. Conditional notice (all picks are CONDITIONAL — verify on Betclic).
+3. Per-type coupon tables (PEWNIAKI, MULTI-SPORT, HIGHER RISK, NIGHT) — each with columns: #, Coupon ID, Co obstawić, Kurs, Stawka, Zwrot.
+4. PODSUMOWANIE table (Wydatek, Bankroll po, Łączny pot. zwrot, Stan konta po zwrocie, Najlepszy scenariusz, Realistyczny).
+5. KOLEJNOŚĆ STAWIANIA — placement priority list.
+6. Pominięte coupons note (which coupons were skipped and why, one line).
+7. Time-sensitive warnings if any matches may have already started.
 
-PEWNIAKI COUPONS:
-- coupon_id
-- legs (minimum 2)
-- combined_odds
-- stake_pln
-- rationale
-
-LOW-RISK COUPONS:
-- coupon_id
-- legs (minimum 2)
-- combined_odds
-- stake_pln
-- rationale
-
-HIGHER-RISK COUPONS:
-- coupon_id
-- legs (minimum 2)
-- combined_odds
-- stake_pln
-- rationale
-
-WATCH LIST:
-- backup picks with promotion criteria
-
-SKIPPED OR OMITTED:
-- explain why a coupon variant or the full slate was skipped
-
+No old-style plain-text metadata blocks (BETTING DAY:, RUN TIME LOCAL:, etc.) — that data lives in the ledger CSVs.
 Minimum 5 coupons total. No singles. No maximum legs per coupon.
 Total suggested stakes may exceed daily budget — user decides which coupons to place.
-If a coupon variant is not justified, write OMITTED instead of forcing it.
 
-Human-readable Polish notes (mandatory for every coupon leg):
-Every selection line in the coupon file MUST include a Polish-language description in parentheses so the user can match it to Betclic's Polish interface without error. Format: `Selection @ odds (Polish description)`.
+Human-readable Polish descriptions (mandatory for every coupon leg):
+Every selection in the coupon table MUST use a Polish-language market description so the user can match it to Betclic's Polish interface without error.
 
 Standard translations:
 - Over X.5 goals → Powyżej X.5 bramek
