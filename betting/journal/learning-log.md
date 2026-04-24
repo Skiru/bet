@@ -338,3 +338,59 @@ No entries yet.
   - Deep scan revealed Shelton may be priced at ~1.29 (heavy favorite), not 1.57 as estimated in v4.
   - Lesson: Always verify heavy favorite ML odds before including. If <1.40, reject for no value.
 - Source notes: TotalCorner cookie wall persists across all sessions. De facto non-functional for this workflow. ZawodTyper + SoccerStats sufficient for 2/3 corner stack.
+
+## 2026-04-24 — POST-MORTEM: Shelton ML & Struff O22.5 losses (user-placed coupons)
+
+### Settled results from user screenshots:
+- **AKO(7)**: 7-leg coupon — LOST. Killed by Ben Shelton ML @ 1.61. Stake: ~2-3 PLN.
+- **AKO(2)**: 2-leg coupon — LOST. Killed by Ben Shelton ML @ 1.41. Stake: 2.00 PLN. Ref: 69eb557c.
+- **AKO(3)**: 3-leg coupon — LOST. Killed by Struff-Michelsen O22.5 games @ 1.71. Stake: 1.00 PLN.
+
+### What failed:
+
+**1. Ben Shelton ML (PK-111/206/606 across versions)**
+- Match: Shelton lost 4-6, 7-6, 6-7 to Prizmic. 3 sets, 36 total games.
+- CRITICAL: If O22.5 games was used instead of ML, it would have WON by 13.5 games margin.
+- The match was EXTREMELY competitive (3 tiebreak-level sets) = perfect for game totals, terrible for ML.
+- Shelton appeared in 2 separate placed coupons → concentration risk violation.
+- AKO(7) had 6 other legs that may have all won. Shelton ML alone killed a potential 15-25 PLN return.
+- Root cause: pick created in v5 era BEFORE the universal ML ban. User placed from old analysis.
+
+**2. Struff vs Michelsen O22.5 games (PK-403/809)**
+- Match: Michelsen won 6-2, 6-1 = only 15 games. Miss by 7.5 games.
+- Odds ratio was 1.22 (GOOD, not STRONG). 30% straight-set probability.
+- Bear case predicted "Michelsen clay inexperience → quick loss" but actual direction was opposite: Michelsen DOMINATED.
+- Pick had "zero tipster backing" and "thin EV (+0.155)" — both should have been REJECTION signals.
+- Struff age (34) vs Michelsen power (21) on Madrid altitude clay = recipe for blowout.
+- Root cause: GOOD ratio used for O22.5 line (too aggressive). Need STRONG ratio (≤1.15) for O22.5+.
+
+### Rule changes (MANDATORY for future runs):
+
+1. **Tennis game totals — line/ratio matrix (NEW):**
+   - O22.5+ games: ONLY with STRONG ratio (≤1.15)
+   - O21.5 games: GOOD ratio (≤1.25) acceptable
+   - O20.5 games: GOOD ratio (≤1.30) acceptable
+   - BORDERLINE ratio (1.31-1.50): WATCHLIST ONLY, never main pick
+
+2. **"Zero tipster backing" = automatic rejection (REINFORCED):**
+   - Any pick with zero tipster arguments → automatic downgrade to watchlist
+   - Thin EV (+0.10 or less) + no tipster support = HARD REJECT
+
+3. **Cross-coupon concentration cap (REINFORCED):**
+   - Same player/team in max 2 coupons (pewniaki system excepted)
+   - Same pick failing in 2+ coupons = correlated loss = portfolio damage
+
+4. **ML ban CANONICAL CASE:**
+   - Shelton ML is now the textbook example. 36 games played, O22.5 wins with massive margin, ML loses.
+   - User quote: "BAZUJEMY NA STATYSTYKACH ZAWSZE!" — confirmed by real money loss.
+   - This case study should be referenced whenever ML temptation arises in any sport.
+
+5. **7-leg coupons: extreme caution (NEW):**
+   - 7 legs × 70% per leg = only 8.2% overall probability
+   - Only acceptable if ALL legs are high-confidence (≥4) statistical markets
+   - Prefer splitting into 2-3 smaller coupons
+
+### Damage estimate:
+- Direct stake loss: ~5 PLN
+- Opportunity cost (if other legs hit): potentially 20-30 PLN unrealized returns
+- Both losses were preventable with current rules (ML ban + ratio matrix)
