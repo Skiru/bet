@@ -65,6 +65,9 @@ Selection rules:
 - **MANDATORY: H2H check for EVERY candidate.** Fetch head-to-head records (last 5-10 meetings) from BetExplorer, Flashscore, or worldfootball.net. Include home/away splits. H2H surprises (e.g., underdog dominates H2H at venue) override league position.
 - **MANDATORY: Injury/suspension check for EVERY pick.** Check ESPN injury reports, Flashscore lineups, team social media. For tennis: ATP/WTA withdrawal list. Never finalize a pick without verifying key absences.
 - **MANDATORY: Bear case with tipster conflicts.** If ANY argument-based tipster argues against your pick with specific facts, the bear case (STEP 7) MUST address their argument. A single fact-based tipster argument can invalidate a pick.
+- **MANDATORY: Instant Red Flags (§7.3).** For EVERY candidate pick, run the sport-specific red flag table (30-second binary checks). Tennis: WC/Q/LL? fatigue? Football: dead rubber? cup rotation? Basketball: B2B? tank mode? Hockey: backup goalie? Baseball: bullpen game? Esports: stand-in? new patch? All 14 sports have 3-6 fast checks. ANY fired red flag → reject, downgrade, or justify.
+- **MANDATORY: Contrarian Thinking (§7.4).** For EVERY pick ask: Am I applying the right model to this SPECIFIC case? What's the #1 way this bet type loses? Would I take it fresh at current odds? What would a sharp disagree-er say?
+- **MANDATORY: Pick Approval Gate (§7.5).** EVERY pick must pass the unified 13-point pre-flight checklist before entering ANY coupon. This single checklist catches ALL past mistakes: identity, WC status, H2H, injuries, sources, tipsters, EV, drift, red flags, contrarian, bear case.
 - Reject correlated legs in the same coupon, especially same-game and strongly linked narrative outcomes.
 - Prefer multi-sport coupons over same-sport coupons when possible. Limit same-sport legs to 2 per coupon.
 

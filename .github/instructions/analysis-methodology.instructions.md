@@ -1581,6 +1581,161 @@ WOULD I BET AT 20% LOWER ODDS? [Y/N — if N, the edge is thin]
 - If the key failure scenario has >40% probability -> **REJECT or move to WATCH LIST**
 - If you would not bet at 20% lower odds -> the edge is thin. **COUPON LEG ONLY, not a single.**
 
+### 7.3 INSTANT RED FLAG CHECKS — ALL 14 SPORTS (MANDATORY per pick, 30 seconds each)
+
+These are FAST, BINARY, FACTUAL checks. Each takes 30 seconds. If ANY red flag fires → the pick is either **HARD REJECTED** or **DOWNGRADED** (confidence -2, line lowered, or moved to watchlist). The Jodar blowout (WC match, O22.5, 16 games) was preventable with a single 30-second check.
+
+**Run these for EVERY candidate pick. No exceptions. No shortcuts.**
+
+#### 🎾 TENNIS
+| # | Red Flag | Check | If YES → |
+|---|----------|-------|----------|
+| T1 | **WC/Q/LL status** | Is either player a wildcard, qualifier, or lucky loser? | O22.5+ HARD REJECT. O20.5 max with STRONG ratio. See §3.2G. |
+| T2 | **Previous round fatigue** | Did either player play 3+ hours or 3+ sets in previous round (same tournament)? | UNDER bias. Retirement risk. Reduce confidence -1. |
+| T3 | **First match on new surface** | Is this the player's FIRST match on this surface THIS season? | Adjustment period. Underdog value rises. Reduce confidence -1 for favorite-based picks. |
+| T4 | **Defending champion R1/R2** | Is the favorite defending their title in R1/R2? | Historical slow starts. Reduce confidence -1. |
+| T5 | **Player identity slash** | Does the pick use ambiguous names, slashes, or abbreviations? | STOP. Verify full name + ranking + country before proceeding. |
+| T6 | **Odds drift >8%** | Did Betclic odds drift >8% from analysis time? | MANDATORY re-evaluation. No explanation → SKIP. See §5.5a. |
+
+#### ⚽ FOOTBALL
+| # | Red Flag | Check | If YES → |
+|---|----------|-------|----------|
+| F1 | **Dead rubber** | Is the team already relegated/champion/qualified/eliminated? | Motivation collapse. SKIP ML. UNDER bias. Confidence -2. |
+| F2 | **Cup rotation** | Does the team have CL/EL/cup semi-final within 5 days? | Manager WILL rotate 5-7 players. Form data invalid. Confidence -2. |
+| F3 | **Derby match** | Is this a local derby? | Form irrelevant — derbies defy standings. BTTS/U2.5 safer than ML. |
+| F4 | **International break return** | Is this the first match after international break? | Disrupted rhythm, hidden injuries. Confidence -1. |
+| F5 | **Promoted team home + synthetic pitch** | Is the home team newly promoted AND playing on artificial turf? | Visitors struggle. Home advantage inflated. Adjust totals expectations. |
+| F6 | **Referee not checked** | For cards/fouls markets — did you verify the referee assignment? | STOP. Cards/fouls picks WITHOUT referee data = incomplete analysis. |
+
+#### 🏀 BASKETBALL (NBA)
+| # | Red Flag | Check | If YES → |
+|---|----------|-------|----------|
+| B1 | **Back-to-back (B2B)** | Is this the team's second game in 2 days? | Team scores 3-5 fewer points on average. UNDER bias. |
+| B2 | **Load management / rest day** | Is a star player listed as "questionable" or likely resting? | Check injury report ≤1h before. If star OUT → thesis may collapse. |
+| B3 | **Tank mode** | Is the team eliminated from playoffs AND in lottery range? | Starters benched, stats meaningless. SKIP or heavily discount. |
+| B4 | **Playoff elimination game** | Is a team facing elimination (down 3-1, 3-2, etc.)? | Desperate play = OVER bias. Underdog covers more often. |
+
+#### 🏒 HOCKEY (NHL)
+| # | Red Flag | Check | If YES → |
+|---|----------|-------|----------|
+| H1 | **Backup goalie** | Is the expected starter confirmed? Is backup starting? | Backup goalie = save% drops 3-5%. Opponent scoring UP. Totals shift. |
+| H2 | **Back-to-back** | Second game in 2 days? | Team allows ~0.5 more goals. OVER bias for opponent. |
+| H3 | **Playoff series 3-0 down** | Is a team down 0-3 in a best-of-7? | 4% historical comeback rate. Almost never worth backing the comeback. |
+| H4 | **Goalie not confirmed** | Is goalie status unknown for a totals pick? | STOP. Goalie is the #1 variable in hockey. Wait for confirmation or SKIP. |
+
+#### ⚾ BASEBALL (MLB)
+| # | Red Flag | Check | If YES → |
+|---|----------|-------|----------|
+| BB1 | **Bullpen game / opener** | Is the listed starter actually an opener (1-2 innings only)? | Bullpen games = totals spike ~1.5 runs. OVER bias. |
+| BB2 | **MLB debut pitcher** | Is either pitcher making their MLB debut? | Unpredictable. Usually OVER. Confidence -1. |
+| BB3 | **Wind blowing out (Wrigley/Coors)** | Check weather — wind direction at hitter-friendly parks? | Wind blowing out = +2 runs expected. OVER strong signal. |
+| BB4 | **Day game after night game** | Is this a day game following a night game? | Lineup changes, fatigue. Performance drops. Confidence -1. |
+
+#### 🏐 VOLLEYBALL
+| # | Red Flag | Check | If YES → |
+|---|----------|-------|----------|
+| VB1 | **Playoff spot clinched** | Has the team already secured playoffs? | Rotation likely. Form data invalid. Confidence -1. |
+| VB2 | **5th set to 15 rule** | Is this a match where 5th set goes to 15? | Handicap/total math changes. Verify line accounts for short set. |
+| VB3 | **Home crowd factor** | Is home win rate >70% in this league? | Volleyball has strongest home advantage. Factor into ML/spread. |
+
+#### 🎮 ESPORTS
+| # | Red Flag | Check | If YES → |
+|---|----------|-------|----------|
+| E1 | **Stand-in player** | Is a regular roster member replaced by a sub/stand-in? | Team chemistry destroyed. Underdog value rises sharply. |
+| E2 | **New patch < 2 weeks** | Was a major game patch released < 2 weeks ago? | Meta not settled. Upset rate spikes 30-40%. SKIP ML favorites. |
+| E3 | **Online vs LAN** | Is this an online match for a team that excels on LAN (or vice versa)? | 20%+ performance gap for some teams. Verify format. |
+| E4 | **BO1 format** | Is this a best-of-1? | Massive upset rate vs BO3/BO5. ML favorites much less reliable. OVER maps not applicable. |
+
+#### 🎱 SNOOKER
+| # | Red Flag | Check | If YES → |
+|---|----------|-------|----------|
+| S1 | **Long-format fatigue** | Did the player play a grueling previous session (e.g., 10+ frames)? | Fatigue accumulates. Frame quality drops. UNDER frames possible. |
+| S2 | **Morning session** | Is this a morning session? | Some players historically poor in morning. Check player patterns. |
+| S3 | **Century break frequency mismatch** | Does one player average 0.5 centuries/match and the other 2.0? | Affects frame totals (more centuries = shorter frames = UNDER). |
+
+#### 🎯 DARTS
+| # | Red Flag | Check | If YES → |
+|---|----------|-------|----------|
+| D1 | **Sets vs Legs format** | Is this sets format or legs format? | Completely different dynamics for totals. Verify which format. |
+| D2 | **Premier League vs ranking** | Is this Premier League (round-robin) vs a ranking event (knockout)? | Motivation, crowd pressure, fatigue differ massively. |
+| D3 | **180s power scorer matchup** | Are both players top-10 in 180s per match? | OVER 180s. Two checkout artists = UNDER 180s. |
+
+#### 🤾 HANDBALL
+| # | Red Flag | Check | If YES → |
+|---|----------|-------|----------|
+| HB1 | **European week rotation** | Does the team have CL/EHF midweek? | Top teams rotate. League form unreliable. Confidence -1. |
+| HB2 | **7m throw specialist absent** | Is the primary penalty taker injured? | Affects total goals. Check lineup. |
+
+#### 🏓 TABLE TENNIS
+| # | Red Flag | Check | If YES → |
+|---|----------|-------|----------|
+| TT1 | **Division gap in cup** | Is one player from a significantly lower division/league? | Blowout sets (11-3, 11-5). UNDER sets. ML at very short odds = no value. |
+| TT2 | **BO5 vs BO7 format** | Which format is being used? | Set totals differ significantly. Verify line matches format. |
+| TT3 | **Recent withdrawal history** | Has either player retired/withdrawn from recent events? | Walkover/retirement risk. Avoid. |
+
+#### 🥊 MMA
+| # | Red Flag | Check | If YES → |
+|---|----------|-------|----------|
+| MMA1 | **Late opponent change (<2 weeks)** | Was the opponent changed on short notice? | Replacement usually less prepared. But unpredictable. Confidence -1. |
+| MMA2 | **Failed weight cut rumors** | Are there reports of difficult weight cut? | Fighter depleted. Grappler advantage. Method of victory shifts. |
+| MMA3 | **Return from layoff >1 year** | Has the fighter been inactive >12 months? | Ring rust is REAL. Confidence -1. Underdog value rises. |
+| MMA4 | **Huge reach advantage (>6 inches)** | Does one fighter have significant reach/height edge? | Decisions more likely. Affects O/U rounds and method. |
+
+#### 🎾 PADEL
+| # | Red Flag | Check | If YES → |
+|---|----------|-------|----------|
+| PD1 | **New pair (<3 tournaments)** | Have the partners been playing together <3 events? | Chemistry needs time. OVER sets bias. ML volatile. |
+| PD2 | **Indoor vs outdoor** | Is this match outdoors with wind? | Wind = more breaks = more games. Adjusts totals UP. |
+| PD3 | **FIP ranking gap <500** | Is the ranking difference <500? | Near-random outcome. SKIP ML entirely. |
+
+#### 🏍️ SPEEDWAY
+| # | Red Flag | Check | If YES → |
+|---|----------|-------|----------|
+| SP1 | **Rain/wet track** | Is rain expected or has the track been watered? | Scores drop 30%+. UNDER everything. Favorites struggle on wet. |
+| SP2 | **Rider-specific track record** | Has the key rider's record at THIS track been checked? | Some riders score 12+ at home, 3-4 away. Individual track form > overall form. |
+| SP3 | **Junior rider rule** | Does the team rely on a U24 rider in a key heat? | U24 riders score significantly lower. Affects team handicap. |
+
+---
+
+### 7.4 CONTRARIAN THINKING (MANDATORY — one call per candidate)
+
+After bear case and red flags, FORCE yourself to think NON-STANDARD. This step exists because the Jodar loss happened from applying a GENERAL model to a SPECIAL case.
+
+For EACH candidate, answer these 4 questions:
+
+1. **"Am I applying the right model?"** — Is this a standard match, or a SPECIAL case (WC/debut/dead rubber/new pair/backup goalie)? If special → does my standard probability model still apply? If NO → what model IS correct?
+
+2. **"What's the #1 way this bet type loses?"** — For O22.5 tennis games, it's blowout (one player outclassed). For BTTS, it's team parking the bus. For NHL totals, it's elite goalie standing on his head. Name the specific failure mode and estimate its probability.
+
+3. **"If I saw this pick for the FIRST TIME right now, at CURRENT odds, would I take it?"** — This defeats anchoring bias. You estimated O22.5 @ 1.65 but now Betclic shows 1.82. Would you INDEPENDENTLY choose this pick at 1.82? If hesitation → SKIP.
+
+4. **"What would a sharp bettor who disagrees say?"** — Construct the BEST possible counter-argument. If you can't refute it with specific data → the pick is weak.
+
+---
+
+### 7.5 PICK APPROVAL GATE (unified pre-flight — EVERY pick, NO exceptions)
+
+Before ANY pick enters portfolio construction (STEP 8), it MUST pass this unified checklist. This is the LAST CHANCE to catch every past mistake in ONE pass.
+
+```
+PICK APPROVAL GATE — [pick_id] [event] [market]
+[ ] 1. Player/team identity verified (full name, no slashes, no ambiguity)
+[ ] 2. WC/Q/LL / debut / stand-in / backup status checked
+[ ] 3. H2H checked (≥5 meetings, surface/venue splits)
+[ ] 4. Injury/suspension/load management checked
+[ ] 5. ≥2 independent sources (1 stats + 1 market minimum)
+[ ] 6. ≥1 tipster argument READ (reasoning extracted, not just headline)
+[ ] 7. Upset risk scored (sport-specific checklist from §6.5)
+[ ] 8. EV > 0 calculated
+[ ] 9. Odds drift < 8% verified (or re-evaluated if drifted)
+[ ] 10. Sport-specific red flags checked (§7.3)
+[ ] 11. Contrarian thinking done (§7.4)
+[ ] 12. Bear case < bull case confirmed
+[ ] 13. Not anchored to stale analysis (would take at current odds?)
+ALL 13 PASS → APPROVED for portfolio
+ANY FAIL → REJECT, DOWNGRADE, or WATCHLIST with specific reason
+```
+
 ---
 
 ## STEP 8: PORTFOLIO — Construct Final Tickets
@@ -1823,7 +1978,44 @@ Verify coupons are optimally composed — not just valid, but the BEST possible 
 9. **Combined odds sweet spot**: Pewniaki 2.00-8.00, multi-sport 3.00-10.00, higher-risk 8.00-20.00. Coupons outside these ranges should be reviewed.
 
 ### V10: Final Sign-Off
-All V1-V9 pass? -> PORTFOLIO APPROVED.
+
+**V10a: FORCED SPORT ENUMERATION (MANDATORY — never skip)**
+Before final approval, ENUMERATE all 14 sports with evidence. This prevents lazy "I scanned everything" claims.
+
+```
+SPORT SCAN AUDIT:
+1. Football:    [X] events found | sources: [list] | candidates: [N] | picks: [N]
+2. Tennis:      [X] events found | sources: [list] | candidates: [N] | picks: [N]
+3. Basketball:  [X] events found | sources: [list] | candidates: [N] | picks: [N]
+4. Hockey:      [X] events found | sources: [list] | candidates: [N] | picks: [N]
+5. Baseball:    [X] events found | sources: [list] | candidates: [N] | picks: [N]
+6. Volleyball:  [X] events found | sources: [list] | candidates: [N] | picks: [N]
+7. Esports:     [X] events found | sources: [list] | candidates: [N] | picks: [N]
+8. Snooker:     [X] events found | sources: [list] | candidates: [N] | picks: [N]
+9. Darts:       [X] events found | sources: [list] | candidates: [N] | picks: [N]
+10. Table Tennis:[X] events found | sources: [list] | candidates: [N] | picks: [N]
+11. Handball:   [X] events found | sources: [list] | candidates: [N] | picks: [N]
+12. MMA:        [X] events found | sources: [list] | candidates: [N] | picks: [N]
+13. Padel:      [X] events found | sources: [list] | candidates: [N] | picks: [N]
+14. Speedway:   [X] events found | sources: [list] | candidates: [N] | picks: [N]
+TOTAL: [X] events | [Y] candidates | [Z] picks from [W] sports
+Scan completeness: [XX]%
+```
+
+If ANY sport shows 0 events and <3 sources tried → GO BACK AND SCAN IT.
+If total events < 50 on a normal day → scan is INCOMPLETE.
+If picks from < 5 sports → search deeper before declaring no value.
+
+**V10b: PICK APPROVAL GATES VERIFIED**
+Every pick passed the 13-point PICK APPROVAL GATE (§7.5)? If any pick lacks a gate check → fix before presenting.
+
+**V10c: RED FLAGS CLEARED**
+Every pick had sport-specific red flags (§7.3) checked? All fired red flags addressed (rejected, downgraded, or justified)?
+
+**V10d: PORTFOLIO DAMAGE ASSESSMENT**
+For the most-concentrated pick (appears in most coupons): "If this pick loses, how many coupons survive?" Must be ≥3. If fewer → add resilience coupon.
+
+All V1-V9 + V10a-V10d pass? -> PORTFOLIO APPROVED.
 Any fail? -> Fix and re-check. Do not present until all pass.
 
 ---

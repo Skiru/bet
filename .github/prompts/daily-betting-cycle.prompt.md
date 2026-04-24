@@ -166,11 +166,14 @@ For each shortlisted candidate, execute in sequence:
 **STEP 7 — Context:**
 - Fixture confirmed? Injuries/suspensions? Competition context? Congestion? Weather? Referee?
 
-**STEP 8 — Bear Case (Devil's Advocate):**
+**STEP 8 — Bear Case + Red Flags + Contrarian + Pick Gate (Devil's Advocate):**
 - Bull case (1-2 sentences) vs Bear case (1-2 sentences).
+- **INSTANT RED FLAGS (§7.3):** Run sport-specific red flag table for EACH candidate. Football: dead rubber? cup rotation? derby? Basketball: B2B? tank mode? Hockey: backup goalie? Tennis: WC/Q/LL? fatigue? All 14 sports covered.
 - Streak dependency? If >5-game streak → reduce confidence -1.
 - Regression risk? xG mismatch?
 - 20%-lower-odds test: still bet? If NO → lower confidence, coupon leg only.
+- **CONTRARIAN THINKING (§7.4):** Am I applying the right model? What's the #1 way this bet type loses? Would I take it fresh at current odds? What would a sharp disagree-er say?
+- **PICK APPROVAL GATE (§7.5):** Run unified 13-point checklist per pick. ALL must pass or pick is REJECTED.
 - If bear > bull → REJECT.
 
 ## STEP 9: PORTFOLIO CONSTRUCTION
@@ -233,7 +236,12 @@ Run ALL validation checks. If ANY fails, fix it before presenting. This is the Q
      - Night coupons contain only night games (≥00:00 CEST).
      - Weakest-leg swap test: for each coupon, can the weakest leg be replaced by a stronger unused pick?
      - Combined odds in sweet spots: pewniaki 2.00-8.00, multi-sport 3.00-10.00, HR 8.00-20.00.
-11i. **V10: Final Sign-Off** — ALL V1-V9 pass → PORTFOLIO APPROVED. Any fail → fix and re-check.
+11i. **V10: Final Sign-Off** — ALL V1-V9 pass. Then:
+     - **V10a: Forced Sport Enumeration** — list all 14 sports with events found, sources used, candidates, picks. If any sport has 0 events and <3 sources tried → go back.
+     - **V10b: Pick Approval Gates verified** — every pick passed 13-point gate (§7.5).
+     - **V10c: Red Flags cleared** — every pick had sport-specific red flags (§7.3) checked.
+     - **V10d: Portfolio damage assessment** — if most-concentrated pick loses, ≥3 coupons survive.
+     - ALL pass → PORTFOLIO APPROVED.
 
 ---
 

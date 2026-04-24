@@ -326,7 +326,12 @@ Go through every check. Write YES or NO for each. If any is NO, fix it before pr
 - [ ] Combined odds in sweet spots (pewniaki 2-8, MS 3-10, HR 8-20)
 
 ### V10: Final Sign-Off
-- [ ] All V1–V9 checks pass → write "PORTFOLIO APPROVED"
+- [ ] All V1–V9 checks pass
+- [ ] **V10a: Forced Sport Enumeration** — all 14 sports listed with events/sources/candidates/picks. Any sport with 0 events and <3 sources → go back.
+- [ ] **V10b: Pick Approval Gates** — every pick passed 13-point gate (§7.5 methodology).
+- [ ] **V10c: Red Flags cleared** — every pick had sport-specific red flags (§7.3) checked and addressed.
+- [ ] **V10d: Portfolio damage** — if most-concentrated pick loses, ≥3 coupons survive.
+- [ ] All pass → write "PORTFOLIO APPROVED"
 - [ ] If any check fails → fix it, re-check, do not present until all pass
 
 ## 7. COMMON MISTAKES (read before writing — CHECK EVERY ONE)
@@ -380,3 +385,6 @@ Go through every check. Write YES or NO for each. If any is NO, fix it before pr
 47. **Ignoring odds movement >8% between analysis and placement** — Jodar O22.5 estimated @ 1.65, Betclic actual 1.82 = +10.3% drift. This massive move signals the market shifting AWAY from Over. Any drift >8% requires MANDATORY re-evaluation: check injuries, lineup changes, sharp money. If no explanation found → SKIP. See §5.5a in methodology.
 48. **Ambiguous player identity in tennis picks** — using slashes ("Pedro Martinez Portero / Jodar") or abbreviations when two different players could match. This led to wrong player data, wrong odds ratio (1.01 instead of actual), wrong probability estimate (76% instead of ~35-45%), and a catastrophic 16-game blowout loss. ALWAYS use full first + last name, country, and ATP/WTA ranking. See §3.2F.
 49. **Equal Odds Blowout Fallacy** — assuming ratio ≤1.10 = close match. Even odds mean UNCERTAINTY about the winner, not guaranteed competitiveness. A coin-flip match can produce 6-3 6-1 just as easily as 7-6 6-7 7-5. Especially dangerous for: WC/Q/LL matches, first H2H meetings, surface mismatches. Do NOT inflate P(O22.5) based solely on ratio closeness. Jodar-De Minaur ratio 1.01 → "coin flip" → 6-3 6-1 = 16 games.
+50. **Skipping sport-specific Instant Red Flags (§7.3)** — not checking backup goalie status before an NHL totals pick, not checking B2B in NBA, not checking bullpen game in MLB, not checking dead rubber in football. These are 30-second checks that prevent the most common, most OBVIOUS failures. Every sport has 3-6 fast binary checks. Run them ALL for EVERY pick. See §7.3 in methodology.
+51. **Skipping Contrarian Thinking (§7.4)** — not questioning whether the model applies to this specific case. The Jodar loss: standard P(3 sets) model applied to a WC match where binary outcomes dominate. ALWAYS ask: "Am I applying the right model?" and "What's the #1 way this specific bet type loses?" before approving.
+52. **Not running the Pick Approval Gate (§7.5)** — presenting picks that haven't passed the unified 13-point pre-flight checklist. This single checklist catches ALL past mistakes in one pass: identity, WC status, H2H, injuries, sources, tipsters, EV, drift, red flags, contrarian, bear case, anchoring. Skip it = repeat past failures.

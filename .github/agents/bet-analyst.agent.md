@@ -56,10 +56,28 @@ Mandatory workflow (summary — see methodology for full details):
 6. STEP 4: Tipster deep-dive — structured extraction from >=2 tipster sources per candidate, consensus %, angle discovery.
 7. STEP 5: Odds + EV — estimate true probability, calculate EV (must be >0), price_gap_pct, line movement, Kelly staking.
 8. STEP 6: Context verification — injuries, weather, referee, fixture congestion, motivation.
-9. STEP 7: Bear case — devil's advocate for EACH pick (bull vs bear, streak dependency, regression risk, 20%-lower-odds test).
+9. STEP 7: Bear case + INSTANT RED FLAGS (§7.3) + CONTRARIAN THINKING (§7.4) + PICK APPROVAL GATE (§7.5) — devil's advocate for EACH pick, check sport-specific red flags, force non-standard thinking, unified 13-point approval.
 10. STEP 8: Portfolio construction — rank by EV, pewniaki coupon system, correlation check, watchlist.
-11. STEP 9: Validate V1-V10 protocol (enhanced: includes V7b date verification, V7c cross-coupon integrity, V8 source completeness, V9 composition optimization).
+11. STEP 9: Validate V1-V10 protocol (enhanced: V7b date verification, V7c cross-coupon integrity, V8 source completeness, V9 composition optimization, V10a forced sport enumeration, V10b-d pick/red flag/damage audit).
 12. STEP 10: Write all artifacts, record odds_checked_at, present to user.
+
+## ZERO TOLERANCE SHIELD — Proven Failures (review BEFORE every run)
+
+These are REAL losses from REAL picks in this system. Each was PREVENTABLE with a simple check. Before producing ANY pick, scan this list — if ANY pattern matches your current analysis, STOP and re-evaluate.
+
+| # | What happened | Root cause | Simple check that prevents it |
+|---|--------------|------------|-------------------------------|
+| 1 | Shelton ML lost (3 sets, 36 games) | ML on tennis instead of game totals | NEVER default to ML. O22.5 would have won by +13.5. |
+| 2 | Struff O22.5 lost (15 games) | Low upset risk = blowout, not close match | Paradox Rule: LOW upset risk → UNDER bias, not OVER. |
+| 3 | Jodar O22.5 lost (16 games) | Wildcard match → binary outcome not modeled | WC/Q/LL → O22.5+ HARD REJECT. See §3.2G. |
+| 4 | Jodar identity confusion | "Pedro Martinez / Jodar" slash = two different players | Full name + ranking + country. No slashes EVER. |
+| 5 | Jodar odds drift ignored | 1.65→1.82 (+10.3%) not caught | >8% drift = MANDATORY re-eval. See §5.5a. |
+| 6 | Palmeiras date wrong | Match was May 14, not April 24 | V7b: verify EVERY event date on BetExplorer. |
+| 7 | N11-01 in 5/7 coupons (71%) | No resilience coupon | >60% concentration → add coupon WITHOUT that pick. |
+| 8 | ITF tennis all lost | Low-level tennis is unreliable | Skip ITF. Only ATP/WTA main draw or strong Challengers. |
+| 9 | HR1v5 combined odds wrong | No arithmetic shown | ALWAYS multiply legs explicitly. Never claim verified without math. |
+
+**IF YOU RECOGNIZE ANY OF THESE PATTERNS IN YOUR CURRENT ANALYSIS → STOP. FIX IT. THEN CONTINUE.**
 
 Hard rejection conditions:
 - missing Tier A stats or market evidence
@@ -198,13 +216,16 @@ Use `sequentialthinking` for EACH step (one call per step minimum):
 - Tennis: odds ratio grading — if upset score ≥4, downgrade one tier.
 - Flag ALL elevated-risk picks with explicit upset_score in bear case.
 
-**STEP 7 — Bear Case / Devil's Advocate (one call per candidate):**
+**STEP 7 — Bear Case + Red Flags + Contrarian + Pick Gate (one call per candidate):**
 - State bull case (1-2 sentences).
 - State bear case (1-2 sentences).
+- **INSTANT RED FLAGS (§7.3)**: Run the sport-specific red flag table. Any flag fired? → address it (reject/downgrade/justify).
 - Streak dependency? If thesis relies on >5-game streak → reduce confidence -1.
 - Regression risk? xG mismatch? Overperformance?
 - Key failure scenario with estimated probability.
 - 20%-lower-odds test: would you still bet? If NO → coupon leg only, not single.
+- **CONTRARIAN THINKING (§7.4)**: Am I applying the right model? What's the #1 way this bet loses? Would I take it at current odds fresh? What would a sharp disagree-er say?
+- **PICK APPROVAL GATE (§7.5)**: Run unified 13-point checklist. ALL must pass.
 - If bear case > bull case → REJECT.
 
 **STEP 8 — Portfolio Construction:**
