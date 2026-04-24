@@ -21,7 +21,7 @@ tools:
   Controls which events to analyze:
   - `full` — entire betting day (06:00 → 05:59 next day). Default.
   - `day` — daytime events only (06:00 → 21:59).
-  - `night` — night events only (22:00 → 05:59 next day). For pre-sleep coupon.
+  - `night` — night events only (22:00 → 05:59 next day). SAME full process as `full` session — all 14 sports scanned, all steps 0-10, min 5 coupons. Only the event time window differs.
   - `morning` — settle overnight results + scan early events (06:00 → 14:59).
 - **rerun** = ${input:rerun:false}
   When `true`, forces a complete fresh analysis for run_date, even if artifacts already exist:
@@ -106,7 +106,7 @@ Core philosophy: find MISPRICED ODDS, not predict winners. Only bet when EV > 0.
 3f. **Scan Completeness Metrics:** Before proceeding, compile per-sport event count table (see methodology §1.5). Total unique events must be ≥50 on a normal day. At least 6 sports must have events. Scan completeness score (events from ≥2 sources / total) must be ≥80%.
 3g. Filter to session window. Remove events outside time range, without Tier A coverage, or <1h to kickoff.
 3h. Build Master Event List: sport, competition, event, kickoff, initial odds.
-3i. Target 15-40 shortlisted events (fewer for night/morning sessions).
+3i. Target 15-40 shortlisted events. Night/morning sessions follow the SAME depth — if fewer events exist in the time window, that's fine, but NEVER reduce analysis rigor or coupon count. Minimum 5 coupons regardless of session type.
 
 ## STEPS 4-8: DEEP ANALYSIS (one sequentialthinking call PER candidate)
 
@@ -146,13 +146,14 @@ For each shortlisted candidate, execute in sequence:
 - Strong fact-based argument from even 1 tipster against your thesis → investigate before finalizing.
 
 **STEP 6 — Odds + EV:**
-- Get market-best odds from BetExplorer/OddsPortal. For US sports: SBR Totals tab + ESPN Odds + ScoresAndOdds.
+- Get market-best odds from BetExplorer/OddsPortal. For US sports: SBR Totals tab + ESPN Odds + ScoresAndOdds. Use The-Odds-API as cross-validation source.
 - Minimum 2 independent sources per pick for cross-validation.
 - American odds conversion: +X → 1 + X/100; -X → 1 + 100/X.
 - Estimate true probability (Pinnacle implied > statistical model > market consensus).
 - Calculate EV = (true_probability × betclic_odds) - 1. Must be > 0.
 - Calculate price_gap_pct. Reject if outside threshold (-3% LR, -5% HR).
 - Check line movement (steam, RLM).
+- **Odds Movement Gate (§5.5a)**: If placement odds differ >8% from analysis odds → MANDATORY re-evaluation. No explanation → SKIP.
 - Apply 1/4 Kelly for stake guidance.
 
 **STEP 6.5 — Upset Risk Assessment (MANDATORY for ALL favorites ≤1.50):**
@@ -184,7 +185,7 @@ For each shortlisted candidate, execute in sequence:
 9f. Suggest stakes for ALL coupons. Total may exceed daily cap — user decides which to place.
 9g. Build Watch List with promotion criteria ("Promote if Betclic >= X.XX").
 9h. If board weak (<2 confident picks) → NO BET day.
-9i. For `night` session: build 1-2 compact coupons only — user goes to sleep after placing.
+9i. **ALL sessions (full/day/night/morning) follow the SAME coupon-building rules.** Minimum 5 coupons, pewniaki system, full V1-V10 validation. Night/morning sessions differ ONLY in the event time window — NEVER in analysis depth, coupon count, or process rigor. A night session with fewer events in the window is still expected to produce ≥5 coupons if ≥3 approved picks exist. If board is genuinely weak (<3 picks), declare NO BET — do NOT produce 1-2 shallow coupons as compromise.
 
 ## STEP 10: ODDS THRESHOLD + ARTIFACTS
 
@@ -207,7 +208,7 @@ Run ALL validation checks. If ANY fails, fix it before presenting. This is the Q
 
 11a. V1: Artifact consistency (pick_ids, coupon_ids, stake sums, exposure totals match across all files).
 11b. V2: Per-pick validation (Tier A stats source with SPECIFIC data, Tier A market source with SPECIFIC odds, EV > 0, confidence 1-5).
-11c. V3-V4: Sport-specific checks (tennis odds ratio, football corner 3-source stack, volleyball ML range, hockey goalie, baseball pitcher, snooker frames, esports maps).
+11c. V3-V4: Sport-specific checks (tennis odds ratio + **WC/Q/LL blowout check** + **player identity** + **odds drift <8%**, football corner 3-source stack, volleyball ML range, hockey goalie, baseball pitcher, snooker frames, esports maps).
 11c2. V4k: Upset Risk Validation — every favorite ≤1.50 has upset checklist scored. If upset_score ≥4 and pick is ML → MUST justify or switch to statistical market. See methodology §6.5.
 11d. V5: Coupon structure (min 2 legs, same-sport ≤2 per coupon, correlation check, **combined odds ARITHMETIC: multiply each coupon's legs explicitly — never claim verified without showing math**, min 5 coupons).
 11e. V6: Portfolio risk (no coupon > 3.00 PLN LR / 2.00 PLN HR, exposure < 25% bankroll).

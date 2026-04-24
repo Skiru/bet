@@ -124,6 +124,7 @@ Use `sequentialthinking` for EACH step (one call per step minimum):
 
 **STEP 1 — Complete Event Scan:**
 - Run orchestrator if not already run.
+- **Run The-Odds-API scan**: `python3 scripts/fetch_odds_api.py` for cross-validation odds data (if API key configured).
 - Browse BetExplorer sport-by-sport: football, tennis, basketball, hockey, volleyball, esports, snooker, darts, handball, table tennis, MMA, baseball, padel, speedway.
 - **DEEP SCAN (§1.2):** Do NOT just look at landing pages. Click into EVERY active tournament/league. Count matches per tournament. Cross-validate event counts between BetExplorer and Flashscore.
 - Cross-reference with Flashscore and OddsPortal.
@@ -142,7 +143,7 @@ Use `sequentialthinking` for EACH step (one call per step minimum):
 **STEP 3 — Deep Statistical Analysis (one call per candidate):**
 - **H2H is MANDATORY for EVERY candidate regardless of sport.** Fetch last 5-10 meetings from BetExplorer/Flashscore/worldfootball.net. Include home/away splits. H2H surprises override league position.
 - Football: SoccerStats league context + Betaminic team stats + TotalCorner corners + Betclic Statystyki (top leagues) + xG regression check.
-- Tennis: TennisAbstract Elo + surface form + H2H + odds ratio grading (STRONG/GOOD/BORDERLINE/REJECT).
+- Tennis: TennisAbstract Elo + surface form + H2H + odds ratio grading (STRONG/GOOD/BORDERLINE/REJECT). **Player identity verification** (full name, ranking, WC/Q/LL flag). **Wildcard Blowout Rule**: if WC/Q/LL → O22.5+ HARD REJECT, O20.5 max with STRONG ratio only. See §3.2F-G.
 - Basketball: pace + OFF/DEF rating + injury report + home/away splits.
 - Hockey: xG + goalie + PP/PK + B2B fatigue.
 - Padel: FIP ranking gap + pair chemistry + tournament tier + surface (indoor/outdoor).
@@ -174,11 +175,12 @@ Use `sequentialthinking` for EACH step (one call per step minimum):
 - If ANY time-sensitive finding contradicts the pick thesis → re-evaluate. Downgrade or void if bear case strengthens.
 
 **STEP 5 — Odds + EV Analysis (one call per candidate):**
-- Get market-best odds from BetExplorer/OddsPortal.
+- Get market-best odds from BetExplorer/OddsPortal. Use The-Odds-API (`python3 scripts/fetch_odds_api.py`) for cross-validation.
 - Estimate true probability: Pinnacle implied prob > statistical model > market consensus.
 - Calculate EV = (true_probability × betclic_odds) - 1. Must be > 0.
 - Calculate price_gap_pct. Reject if outside threshold.
 - Check line movement (steam, RLM). Note direction and implications.
+- **Odds Movement Gate (§5.5a)**: If placement odds differ >8% from analysis odds → MANDATORY re-evaluation. Check for injuries, lineups, sharp money. No explanation found → SKIP.
 - Apply 1/4 Kelly for stake guidance. If Kelly suggests 0 or negative → SKIP.
 
 **STEP 6 — Context Verification (one call per candidate):**
@@ -218,7 +220,7 @@ Use `sequentialthinking` for EACH step (one call per step minimum):
 **STEP 9 — Validate V1-V10:**
 - V1: Artifact consistency (pick_ids, coupon_ids, stake sums, exposure totals).
 - V2: Per-pick source validation (Tier A stats, Tier A market, EV > 0, confidence score).
-- V3: Tennis checks (odds ratio, surface, cancellation).
+- V3: Tennis checks (odds ratio, surface, cancellation, **WC/Q/LL blowout check**, **player identity verified**, **odds drift <8%**).
 - V4: Football checks (market hierarchy, corner stack, BTTS league %, defensive profile).
 - V4b: Volleyball checks (ML range, set totals, competition context).
 - V4i: Padel checks (FIP rankings, tournament tier, indoor/outdoor, partner change risk).

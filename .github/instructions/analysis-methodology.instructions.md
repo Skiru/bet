@@ -33,6 +33,8 @@ This section overrides everything below. If you remember NOTHING else, remember 
 
 **Self-check before presenting:** "Did I scan ALL 14 sports? Did I click into sub-tournaments? Did I read tipster arguments? Did I try alternative sources when one failed?" If ANY answer is NO → go back.
 
+**SESSION PARITY RULE (NEVER VIOLATE):** Session type (full/day/night/morning) controls ONLY the event time window. Everything else — analysis depth, minimum 5 coupons, all 14 sports scanned, all STEPS 0-10, all V1-V10 validation, tipster deep-dive, H2H, injuries, EV calculation — is IDENTICAL regardless of session type. There are NO shortcuts, NO compact modes, NO reduced requirements for any session type. A night session with fewer events still requires exhaustive scanning of all 14 sports and full-depth analysis of every candidate.
+
 ### Source Fallback Chains (when primary source fails → try next)
 
 | Sport | Primary | Secondary | Tertiary | Emergency |
@@ -103,6 +105,7 @@ This section overrides everything below. If you remember NOTHING else, remember 
 1. Execute `bash scripts/run_full_scan_and_prepare.sh`.
 2. Check `betting/data/scan_errors.json` for failed sources. Record in source log.
 3. Verify `scan_summary.json` and `picks_suggested.json` are populated.
+4. **Run The-Odds-API scan**: `python3 scripts/fetch_odds_api.py` — fetches h2h + totals odds for all configured sports from EU bookmakers. Saves structured JSON to `betting/data/odds_api_snapshot.json` and CSV to `betting/data/odds_api_summary.csv`. Use as cross-validation source for event counts and market-best prices. Cost: ~30 credits per scan (free tier = 500/month ≈ 16 scans). For settlement: `python3 scripts/fetch_odds_api.py --scores baseball,hockey`.
 
 ### 1.2 Master Event List — Deep Scan Protocol
 
@@ -418,6 +421,29 @@ After collecting all stats, RANK available markets:
 - Motivation: defending points? First-time at this level? Ranking implications?
 - Weather: heat (affects stamina), wind (affects serve-dominant players more)
 - Court speed: slow clay vs fast hard → completely different match dynamics
+
+**F. PLAYER IDENTITY VERIFICATION (MANDATORY — NEVER SKIP)**
+- Use FULL player name (first name + last name) for EVERY pick. Never use abbreviations, nicknames, or slashes between possible names.
+- Verify current ATP/WTA ranking from official site or Flashscore. Record exact ranking number.
+- If player is a **Wildcard (WC)**, **Qualifier (Q)**, or **Lucky Loser (LL)** → flag EXPLICITLY in analysis. These players follow different statistical patterns than regular tour players.
+- If two players share a similar name (e.g., Pedro Martínez Portero vs Rafael Jodar) → clarify EXACTLY which player with full name, country, and ranking. NEVER use ambiguous identifiers.
+- **Proven failure**: v5/v6 listed "Pedro Martinez Portero / Jodar" — identity confusion led to wrong player data, wrong odds ratio, wrong probability estimate, and a 16-game blowout loss on O22.5.
+
+**G. WILDCARD/QUALIFIER BLOWOUT RULE (MANDATORY for WC/Q/LL matches)**
+When a wildcard (WC), qualifier (Q), or lucky loser (LL) plays a seeded/ranked player (top 30) in R1/R2:
+- **BINARY OUTCOME PATTERN**: WC/Q/LL matches produce EXTREME results, not normal distributions:
+  - Scenario A (55-65%): Blowout — one player wins 6-3 6-2 or similar (≤17 games). Can be EITHER direction.
+  - Scenario B (15-20%): Home crowd heroics — WC plays the match of their life, competitive 3-setter.
+  - Scenario C (15-25%): Standard competitive match.
+- **P(≤16 games) is 40-50%** for WC matches (vs ~20-25% for standard matches)
+- **P(3 sets) is 25-35%** for WC matches (vs ~40-50% for standard matches)
+- **GAME TOTALS RESTRICTIONS**:
+  - O22.5+: **HARD REJECT** for WC/Q/LL matches. Never use this line.
+  - O21.5: REJECT unless BOTH players genuinely ranked within 20 spots of each other AND wildcard has recent tour-level wins.
+  - O20.5: Maximum acceptable line for WC/Q/LL matches, and only with STRONG ratio (≤1.15).
+  - O19.5 or SKIP: Recommended default for most WC/Q/LL matches.
+- **THE EQUAL ODDS BLOWOUT FALLACY**: A near-even odds ratio (≤1.10) does NOT guarantee a close match. Even odds = high UNCERTAINTY about the winner, not high COMPETITIVENESS. A coin-flip match can produce 6-3 6-1 just as easily as 7-6 6-7 7-5. This is especially true for: WC/Q/LL matches, first H2H meetings, surface mismatches.
+- **Proven failure**: Jodar vs De Minaur (v6, 2026-04-24): ratio 1.01 → labeled STRONG → O22.5 recommended → result 6-3 6-1 = 16 games. LOST by 7. The "coin flip" produced a blowout.
 
 **Sources**: TennisAbstract (Elo, serve/return stats), Flashscore (form, H2H, live scores, match history), Sofascore (detailed match stats), ATP/WTA official sites (draws, Order of Play), BetExplorer/OddsPortal (odds)
 
@@ -1170,6 +1196,22 @@ Check OddsPortal line movement graph for each candidate:
 - **Reverse Line Movement (RLM)**: public money on one side, but line moves the other way = sharp money on opposite side. Align with sharp money if possible.
 - **Steam move**: sudden dramatic line movement = institutional/syndicate bet. Follow steam if it aligns with your thesis.
 
+### 5.5a ODDS MOVEMENT GATE (MANDATORY — NEVER SKIP)
+If the line has moved >8% from analysis time to placement time:
+1. **MANDATORY re-evaluation** — do NOT place the bet without investigating.
+2. Check: lineup changes, injury news, weather changes, sharp money signals, late scratches.
+3. If explanation found and thesis still holds → proceed with adjusted EV calculation.
+4. If NO explanation found → market knows something you don't → **SKIP** or downgrade to watchlist.
+5. Record the drift percentage and explanation (or lack thereof) in pick notes.
+6. **Applies to ALL sports**, not just tennis.
+
+**Proven failure**: Jodar O22.5 (v6, 2026-04-24): estimated @ 1.65, Betclic actual 1.82 = **+10.3% drift**. This massive move signaled the market shifting AWAY from Over. The drift was NOT caught, NOT investigated. Result: 16 games, lost by 7.
+
+**Formula**: `drift_pct = 100 × ((placement_odds / analysis_odds) - 1)`
+- For OVER markets: drift > +8% = market thinks LESS likely → investigate
+- For UNDER markets: drift > +8% = market thinks LESS likely → investigate
+- For ML: drift > +8% = market respects opponent more → investigate
+
 ### 5.6 Kelly Criterion Staking (recommended, not mandatory)
 Optimal stake fraction: `f = (b * p - q) / b`
 where:
@@ -1619,6 +1661,10 @@ For each tennis O-games pick:
 3. Surface noted?
 4. Match not cancelled?
 5. Both players tour-level (ATP/WTA or strong Challenger)?
+6. **Player identity verified**: Full name used, ranking confirmed, no ambiguous slashes or nicknames?
+7. **WC/Q/LL check**: Is either player a wildcard, qualifier, or lucky loser? If YES → O22.5+ is **HARD REJECT**, O21.5 requires both ranked within 20 spots, O20.5 max with STRONG ratio only.
+8. **Odds movement gate**: Has the line drifted >8% since analysis? If YES → mandatory re-evaluation before approval.
+9. **Equal Odds Blowout Fallacy check**: If ratio ≤1.10 AND either player is WC/Q/LL or first H2H → do NOT assume close match. Blowout probability is elevated.
 
 ### V4: Football Validation
 For each football pick:
@@ -1633,6 +1679,8 @@ For each football pick:
 2. Game totals: odds ratio <=1.50?
 3. Set totals: surface form checked?
 4. No walkover risk (player injury)?
+5. **Wildcard/Qualifier check**: If WC/Q/LL → game total line capped at O20.5 (O22.5+ is HARD REJECT). See §3.2G.
+6. **Odds drift check**: Placement odds within 8% of analysis odds? If not → re-evaluated and justified?
 
 ### V4b: Volleyball Validation
 1. **ML check**: If ML pick → verify statistical markets (set totals, point totals, set HC) were unavailable or had no edge. ML only in 1.50-2.50 range.

@@ -19,6 +19,7 @@ Scripted workflow:
 - The orchestrator scans all configured sports (football, tennis, basketball, hockey, baseball, volleyball, esports, snooker, darts, table_tennis, handball, mma, padel, speedway) across all Tier A and Tier B sources with sport-specific subpages.
 - The agent and prompts assume these structured outputs are present and up-to-date; if they are missing or stale, re-run the orchestrator and retry the run.
 - After the orchestrator finishes, check `betting/data/scan_errors.json` for source failures. Record any failed sources in the daily source log.
+- **The-Odds-API**: Run `python3 scripts/fetch_odds_api.py` after the orchestrator for cross-validation odds from 70+ bookmakers. Saves to `betting/data/odds_api_snapshot.json`. Use `--scores baseball,hockey` for settlement. Free tier: 500 credits/month (~16 scans). API key in env var `ODDS_API_KEY` or `config/odds_api_key.txt`.
 - Use `python3 scripts/settle_on_finish.py --betting-day YYYY-MM-DD` to settle pending picks for a specific day. The script supports `--match "Team vs Team"` for targeted settlement and `--no-poll` for single-attempt mode.
 - The settlement script auto-resolves: match winner/1X2, totals (any line), BTTS, and double chance. Markets like corners, cards, handicaps, and MyCombi require manual settlement.
 - Never auto-push settled results to git. Verify first, then commit manually.

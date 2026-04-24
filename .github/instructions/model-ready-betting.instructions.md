@@ -253,6 +253,9 @@ Go through every check. Write YES or NO for each. If any is NO, fix it before pr
 - [ ] Match not cancelled on Flashscore
 - [ ] BORDERLINE picks are in coupons only (never singles)
 - [ ] COUNT the STRONG/GOOD/BORDERLINE picks — verify the total matches the number listed
+- [ ] **Player identity verified**: Full name (first + last), country, ranking confirmed. No slashes or ambiguous identifiers.
+- [ ] **WC/Q/LL check**: If either player is wildcard/qualifier/lucky loser → O22.5+ is HARD REJECT, O21.5 requires both within 20 ranking spots, O20.5 max with STRONG ratio only.
+- [ ] **Odds movement gate**: Placement odds within 8% of analysis odds? If drift >8% → re-evaluated and justified in notes?
 
 ### V4: Football Check (for EACH football pick)
 - [ ] For corner picks: TotalCorner match total confirms direction
@@ -276,6 +279,7 @@ Go through every check. Write YES or NO for each. If any is NO, fix it before pr
 - [ ] Higher-risk coupon has ≥ 2 sports
 - [ ] No two legs from same match
 - [ ] **Combined odds ARITHMETIC (MANDATORY):** Multiply each leg's odds explicitly (e.g., 1.50 × 1.65 = 2.475). Write the calculation. Compare to stated combined odds. Tolerance ±2%. NEVER skip this step or claim "verified" without showing the math.
+- [ ] **Home/away direction verified** for every event ("@" = Away @ Home). Cross-check with ESPN/BetExplorer.
 - [ ] Stake ≤ max for coupon type (3.00 LR, 2.00 HR)
 - [ ] Coupon label is "PEWNIAKI", "LOW-RISK COUPON", or "HIGHER-RISK COUPON" (never "MEDIUM", "ATP CLAY", "SINGLES", etc.)
 - [ ] At least 5 total coupons produced
@@ -286,6 +290,7 @@ Go through every check. Write YES or NO for each. If any is NO, fix it before pr
 - [ ] At least 2 sports represented
 - [ ] At least 5 coupons produced
 - [ ] If >4 picks from one tournament: flag it in V7
+- [ ] **Concentration check:** If any pick in >60% of coupons → ADD resilience coupon WITHOUT that pick. Verify ≥3 coupons survive if most-used pick fails.
 - [ ] Note: total suggested exposure may exceed daily budget — this is OK
 
 ### V7: Weakness List
@@ -315,7 +320,8 @@ Go through every check. Write YES or NO for each. If any is NO, fix it before pr
 - [ ] Picks re-ranked by EV × confidence — highest in most coupons
 - [ ] No coupon has ≥3 legs of same market type
 - [ ] Every active pick in ≥1 coupon (no orphans)
-- [ ] Night coupons = only night games
+- [ ] Night coupons contain only events within the night time window (≥22:00 CEST)
+- [ ] **Session parity rule: night/morning sessions follow the EXACT SAME coupon-building process as full sessions (min 5 coupons, full V1-V10, pewniaki system). Only the event time window differs.**
 - [ ] Weakest-leg swap test done per coupon
 - [ ] Combined odds in sweet spots (pewniaki 2-8, MS 3-10, HR 8-20)
 
@@ -366,3 +372,11 @@ Go through every check. Write YES or NO for each. If any is NO, fix it before pr
 39. **Skipping Upset Risk Assessment (§6.5)** — approving a pick without scoring it on the sport-specific upset checklist. The Shelton-Prizmic loss (8.5/10 on checklist, killing 2 coupons) proved this is PREVENTABLE. Every candidate must be scored. Score ≥ threshold = ML BANNED. Score recorded in report. V4k validates this. NEVER skip — this is a HARD REQUIREMENT, not a nice-to-have.
 40. **Ignoring the Paradox Rule** — using OVER totals when upset risk is LOW (blowout territory) or avoiding OVER totals when upset risk is HIGH (competitive territory). High upset risk = more total play = overs WIN. Low upset risk = one-sided match = overs FAIL. Struff-Michelsen (15 games, miss by -7.5) vs Shelton-Prizmic (36 games, win by +13.5) proves this conclusively.
 41. **Not recording upset score in bear case** — STEP 7 bear case template now REQUIRES the upset score and top 3 risk factors. A bear case without upset context is incomplete. If the upset score flags risk and you still proceed, you must explain why in the bear case.
+42. **Treating night/morning sessions as reduced-scope** — producing only 1-2 "compact" coupons for night sessions, skipping deep analysis, scanning only 3 sports instead of all 14. Night/morning sessions are IDENTICAL to full sessions in EVERY aspect except the event time window. Same minimum 5 coupons, same 14-sport scan, same STEPS 0-10, same V1-V10 validation. A night session with 4 picks from 3 sports still requires 5 coupons (pewniaki combos + themed). "Fewer events in window" ≠ "fewer analysis depth." This was the v10 night error — agent produced 2 shallow coupons with zero tipster checks, zero H2H, zero injury verification.
+43. **Home/away direction reversed in US sports** — listing "ATL @ PHI" when game is at Atlanta (Truist Park), so correct is "PHI @ ATL". The "@" symbol means "visiting at": Away @ Home. BetExplorer uses "Home vs Away" — OPPOSITE convention. ALWAYS verify which team is home. Wrong direction = user may bet on wrong game in Betclic app.
+44. **Concentration risk without resilience coupon** — N11-01 appeared in 5/7 coupons (71%). If that one pick lost, only 2/7 survived. RULE: If ANY pick appears in >60% of coupons, ADD a resilience coupon that EXCLUDES that pick. After adding, verify ≥3 coupons survive if the most-used pick fails. This is a V6 (Portfolio Risk) check.
+45. **Skipping post-construction audit** — presenting coupons without final cross-check of: (1) home/away direction, (2) pick concentration across coupons, (3) payout arithmetic (odds × stake), (4) name consistency between coupon file + picks-ledger + coupons-ledger, (5) financial summary matches actual coupon count and total spend. Three bugs in v11 were only caught by this audit.
+46. **Using O22.5+ game total for wildcard/qualifier matches** — WC/Q/LL matches produce BINARY results (blowout OR competitive), not normal distributions. P(≤16 games) is 40-50% for WC matches. O22.5 is HARD REJECT for any WC/Q/LL match. Maximum line: O20.5 with STRONG ratio. Jodar vs De Minaur (v6): WC match, O22.5 @ 1.82, result 6-3 6-1 = 16 games. Lost by 7. See §3.2G in methodology.
+47. **Ignoring odds movement >8% between analysis and placement** — Jodar O22.5 estimated @ 1.65, Betclic actual 1.82 = +10.3% drift. This massive move signals the market shifting AWAY from Over. Any drift >8% requires MANDATORY re-evaluation: check injuries, lineup changes, sharp money. If no explanation found → SKIP. See §5.5a in methodology.
+48. **Ambiguous player identity in tennis picks** — using slashes ("Pedro Martinez Portero / Jodar") or abbreviations when two different players could match. This led to wrong player data, wrong odds ratio (1.01 instead of actual), wrong probability estimate (76% instead of ~35-45%), and a catastrophic 16-game blowout loss. ALWAYS use full first + last name, country, and ATP/WTA ranking. See §3.2F.
+49. **Equal Odds Blowout Fallacy** — assuming ratio ≤1.10 = close match. Even odds mean UNCERTAINTY about the winner, not guaranteed competitiveness. A coin-flip match can produce 6-3 6-1 just as easily as 7-6 6-7 7-5. Especially dangerous for: WC/Q/LL matches, first H2H meetings, surface mismatches. Do NOT inflate P(O22.5) based solely on ratio closeness. Jodar-De Minaur ratio 1.01 → "coin flip" → 6-3 6-1 = 16 games.

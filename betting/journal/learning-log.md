@@ -487,3 +487,44 @@ Roster change (+2), map pool edge (+1), online match (+1), new patch (+1).
 - High upset risk → OVER totals PREMIUM (competitive match = more play)
 - Low upset risk → OVER totals DANGEROUS (blowout = fewer play units)
 - This is now embedded in both methodology (§6.5) and model-ready (market rules).
+
+## 2026-04-24 — POST-MORTEM: Jodar vs De Minaur O22.5 games (wildcard blowout loss)
+
+### Settlement:
+- **Pick**: PK-20260424-602, Jodar vs Alex De Minaur, O22.5 games @ 1.82 (Betclic)
+- **Result**: Jodar won 6-3, 6-1 = **16 total games**. LOST by 7 games. BLOWOUT.
+- **Exposure**: Present in 3 coupons (P2v6, P3v6, HR1v6) = 4.00 PLN at risk.
+
+### Root cause analysis — FIVE compounding failures:
+
+1. **Player identity confusion**: v5 listed "Pedro Martinez Portero / Jodar" — ambiguous slash between two different Spanish players. Pedro Martínez Portero (ATP #42ish) vs Rafael Jodar (wildcard, much lower ranked). Analysis may have used wrong player's data for odds ratio calculation. CRITICAL FAILURE.
+
+2. **Wildcard blowout pattern not recognized**: Rafael Jodar was a Spanish WILDCARD in Madrid Masters 1000 R1. WC/Q/LL matches produce BINARY outcomes (blowout 55-65% vs competitive 25-35%). P(≤16 games) is 40-50% for WC matches. The analysis used standard P(3 sets) ~57% which does NOT apply to wildcard matches.
+
+3. **Odds drift >10% ignored**: Analysis estimated O22.5 @ 1.65 but Betclic offered 1.82 = **+10.3% drift**. This massive move signals the market shifting AWAY from Over. Per §5.5 rules, this should trigger mandatory re-evaluation. It was NOT caught. The market was right — Over was less likely than estimated.
+
+4. **Equal Odds Blowout Fallacy**: Analysis claimed ratio 1.01 → "virtually a coin flip" → high P(3 sets). But even odds mean UNCERTAINTY, not COMPETITIVENESS. A coin-flip match can produce 6-3 6-1 just as easily as 7-6 6-7 7-5. The analysis inflated P(O22.5) to 76% based on ratio closeness alone.
+
+5. **Bear case identified but ignored**: Bear case stated "Madrid altitude = quick sets possible; De Minaur steamroll" — exactly what happened (though Jodar steamrolled instead). This was noted at confidence 4/5 and never acted upon.
+
+### Rule changes implemented:
+
+1. **§3.2F Player Identity Verification Protocol** (NEW): Full name + country + ranking for every tennis pick. No slashes or ambiguous identifiers. WC/Q/LL status flagged explicitly.
+
+2. **§3.2G Wildcard/Qualifier Blowout Rule** (NEW): O22.5+ is HARD REJECT for WC/Q/LL matches. O20.5 max with STRONG ratio only. Binary outcome model replaces standard P(3 sets) model.
+
+3. **§5.5a Odds Movement Gate** (NEW): >8% drift between analysis and placement → MANDATORY re-evaluation. No explanation → SKIP. Applies to ALL sports.
+
+4. **V3 Tennis Validation updated**: Added checks 6-9 (player identity, WC/Q/LL, odds drift, Equal Odds Blowout Fallacy).
+
+5. **V4a Tennis Validation updated**: Added checks 5-6 (WC/Q/LL game total cap, odds drift).
+
+6. **Common mistakes #46-49 added** to model-ready-betting.instructions.md.
+
+### Files modified:
+- analysis-methodology.instructions.md: §3.2F, §3.2G, §5.5a, V3, V4a
+- model-ready-betting.instructions.md: V3, common mistakes #46-49
+- bet-analyst.agent.md: V3, STEP 3 tennis, STEP 5
+- daily-betting-cycle.prompt.md: STEP 6, V3-V4
+- learning-log.md: this entry
+- Memory: common-mistakes.md, betting-workflow-rules.md

@@ -3,3 +3,4 @@ betting/data/
 scripts/playwright_storage/
 __pycache__/
 *.pyc
+config/odds_api_key.txt

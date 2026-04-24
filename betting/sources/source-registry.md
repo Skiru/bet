@@ -58,10 +58,14 @@ Every sport has dedicated communities, statistical databases, and prediction sit
   Role: universal odds API — ALL sports globally. Returns JSON with odds from multiple bookmakers.
   URL: api.the-odds-api.com/v4/sports/{sport}/odds?regions={region}&markets={markets}&apiKey={key}
   Use for: programmatic odds retrieval for ANY sport when manual scraping fails. Supports h2h, spreads, totals.
-  Access: free tier (500 requests/month). Needs API key (free registration). Covers EU and US bookmakers.
-  Coverage: ALL sports including European football, tennis, volleyball, esports, snooker, etc.
-  Note: universal fallback for any sport where BetExplorer/OddsPortal fail. Register at the-odds-api.com.
-  Added: 2026-04-23 (not yet active — needs API key setup).
+  Access: free tier (500 credits/month). API key in config/odds_api_key.txt or ODDS_API_KEY env var.
+  Coverage: MLB, NBA, NHL, NFL, EPL, La Liga, Bundesliga, Serie A, Ligue 1, Eredivisie, Ekstraklasa, MLS, tennis Grand Slams, MMA, and 70+ more.
+  NOT covered: volleyball, esports, snooker, darts, table tennis, handball, padel, speedway (use BetExplorer/OddsPortal for these).
+  Script: `python3 scripts/fetch_odds_api.py` — fetches all sports, saves to betting/data/odds_api_snapshot.json + odds_api_summary.csv.
+  Commands: `--list-sports` (free, 0 credits), `--sports baseball,hockey` (filter), `--scores baseball` (settlement).
+  Quota: 1 credit per sport×market×region. Full scan (14 sport groups × h2h+totals × eu) ≈ 30 credits. ~16 full scans/month on free tier.
+  Integration: Run in STEP 1 (event scan) as cross-validation source. Run in STEP 5 (odds check) for market-best prices. Run with --scores for STEP 0 (settlement).
+  Added: 2026-04-23. Activated: 2026-04-24.
 
 ## Tier A Core Stats, Fixture, and Verification Sources
 
