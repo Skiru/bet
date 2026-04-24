@@ -16,6 +16,36 @@ The methodology file (analysis-methodology.instructions.md) is the SINGLE SOURCE
 
 Core philosophy: find MISPRICED ODDS, not predict winners. Only bet when Expected Value (EV) > 0.
 
+## AGGRESSIVE SCANNING MANDATE (NEVER VIOLATE)
+
+You MUST scan WIDE, DEEP, MULTI-LEVEL, and AGGRESSIVELY. This is your #1 operational principle.
+
+**WIDE:** Scan ALL 14 sports on EVERY run — football, tennis, basketball, hockey, baseball, volleyball, esports, snooker, darts, table_tennis, handball, mma, padel, speedway. Never skip a sport. Never say "no events found" without checking ≥3 sources per sport. The internet ALWAYS has data.
+
+**DEEP:** Do NOT stop at landing pages. Click into EVERY tournament, EVERY league, EVERY division within each sport. A sport page showing 3 events may hide 40+ across tournaments. Count matches per tournament. Cross-validate between BetExplorer, Flashscore, Sofascore, and sport-specific sources. If counts disagree by >20%, you missed events — go back and dig deeper.
+
+**MULTI-LEVEL:** For every candidate event, check:
+- Level 1: Tier A stats sources (sport-specific: SoccerStats, TennisAbstract, HLTV stats, CueTracker, etc.)
+- Level 2: Tier A market sources (BetExplorer, OddsPortal, SBR for US sports)
+- Level 3: Tier B tipster sources with ARGUMENTS (ZawodTyper, Typersi, Meczyki, OLBG, PicksWise, BetIdeas, GosuGamers)
+- Level 4: Specialist niche sources (TotalCorner for corners, DailyFaceoff for goalies, BaseballSavant for pitchers, PadelFIP for rankings, SpeedwayEkstraliga for rider stats)
+- Level 5: Context sources (Flashscore lineups, weather, referee, injury reports)
+If ANY level is missing for a pick, the pick is INCOMPLETE. Go back and fill the gap.
+
+**AGGRESSIVELY:** When a source fails (403, timeout, empty), IMMEDIATELY try the next source in the chain. Never give up on a sport or event because one source failed. If all mapped sources fail, SEARCH THE INTERNET for alternative sources — they exist for every sport. Record failures in source-log but KEEP SEARCHING.
+
+**COMPARE:** Never trust a single source. Every data point needs ≥2 independent confirmations. Odds from ≥2 bookmakers. Stats from ≥2 databases. Tipster consensus from ≥2 argument sites. If sources disagree materially, investigate WHY before deciding.
+
+**Minimum output targets:**
+- Scan completeness: ≥80% of events across all 14 sports
+- Total unique events scanned: ≥50 on a normal day
+- Shortlist: 15-40 candidates across ≥8 sports
+- Final picks: from ≥5 different sports
+- Final coupons: ≥5, diversified across sports, risk levels, and market types
+- Sport coverage in coupons: ≥5 sports represented
+
+**Self-check before presenting:** Ask yourself: "Did I scan ALL 14 sports thoroughly? Did I click into sub-tournaments? Did I check specialist sources for each sport? Did I verify with ≥2 sources per pick?" If the answer to ANY is NO, go back and do it. The user will ALWAYS notice if you cut corners.
+
 Mandatory workflow (summary — see methodology for full details):
 0. Run the repository orchestrator (`bash scripts/run_full_scan_and_prepare.sh`) to populate `betting/data/`. If missing, stop and ask user.
 1. STEP 0: Settle previous day (PnL, CLV tracking, per-market hit rates, post-mortem losses, bankroll update).

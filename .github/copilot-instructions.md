@@ -33,6 +33,14 @@ Source resilience rules:
 - For US sports (NHL, NBA, MLB, NFL): always check SBR Totals tab + ESPN Odds + ScoresAndOdds. These three rarely fail simultaneously.
 - For European sports: always check BetExplorer + OddsPortal. Use The-Odds-API as universal fallback.
 
+Aggressive scanning philosophy:
+- **ALWAYS scan WIDE, DEEP, MULTI-LEVEL, and AGGRESSIVELY.** This is the #1 operational principle. Never take shortcuts. Never settle for "good enough" coverage. The user expects exhaustive analysis across ALL sports, ALL tournaments, ALL viable markets.
+- **WIDE:** ALL 14 sports on EVERY run. Never skip a sport. Never say "no events" without checking ≥3 sources. The internet ALWAYS has data for every sport.
+- **DEEP:** Click into EVERY tournament/league/division within each sport. Landing pages hide 80% of events. Count matches per tournament. Cross-validate counts between ≥2 sources.
+- **MULTI-LEVEL:** For every candidate: Tier A stats → Tier A markets → Tier B tipster arguments → specialist niche sources → context sources. If ANY level is missing, go back and fill the gap.
+- **AGGRESSIVELY:** When a source fails, IMMEDIATELY try the next. Never give up on a sport because one URL returned 403. Search the internet for alternatives — they ALWAYS exist.
+- **COMPARE:** Every data point needs ≥2 independent confirmations. Never trust a single source.
+
 Selection rules:
 - **MANDATORY: Analyze ALL 14 sports** configured in config/betting_config.json: football, tennis, basketball, hockey, baseball, volleyball, esports, snooker, table_tennis, darts, handball, mma, padel, speedway. Never skip a sport. Never reject a sport for "lack of sources" — the internet has specialist sites for every sport. Search for them.
 - **MANDATORY: Deep Scan Protocol (§1.2).** Do NOT just look at a sport's landing page. Click into EVERY active tournament/league to see the FULL fixture list. Count matches per tournament. A sport page showing 3 events may hide 40+ across tournaments. Cross-validate event counts between BetExplorer and Flashscore — discrepancy >20% means you missed events.

@@ -10,6 +10,64 @@ The goal: find MISPRICED ODDS, not predict winners. A 40% chance event at 3.00 o
 
 ---
 
+## AGGRESSIVE SCANNING MANDATE — READ FIRST, NEVER VIOLATE
+
+This section overrides everything below. If you remember NOTHING else, remember this:
+
+**You MUST scan WIDE, DEEP, MULTI-LEVEL, and AGGRESSIVELY. This is the #1 operational principle.**
+
+1. **WIDE:** ALL 14 sports on EVERY run. Never skip a sport. Never say "no events" without checking ≥3 sources per sport. The internet ALWAYS has data.
+2. **DEEP:** Click into EVERY tournament/league/division within each sport. Landing pages hide 80% of events. Count matches per tournament. Cross-validate counts between ≥2 sources. If counts disagree by >20%, you missed events.
+3. **MULTI-LEVEL:** For every candidate: Tier A stats → Tier A markets → Tier B tipster arguments (READ the reasoning, not just the pick) → specialist niche sources → context sources. If ANY level is missing, go back and fill the gap.
+4. **AGGRESSIVELY:** When a source fails (403, timeout, empty), IMMEDIATELY try the next. Never give up on a sport or event. If all mapped sources fail, SEARCH THE INTERNET — alternatives ALWAYS exist. Record failures but KEEP SEARCHING.
+5. **COMPARE:** Never trust a single source. Every data point needs ≥2 independent confirmations.
+6. **TIPSTER ARGUMENTS ARE MANDATORY:** For every candidate, check ≥2 argument-based tipster sites. Navigate to match pages. Read EACH tipster's FULL WRITTEN ARGUMENT. Extract their reasoning — stats cited, injuries mentioned, tactical context, model outputs. A tipster's headline pick is worthless; their REASONING is gold. Sites: ZawodTyper, Typersi, Meczyki, OLBG, PicksWise, BetIdeas, GosuGamers.
+
+**Minimum output targets:**
+- Scan completeness: ≥80% of events across all 14 sports
+- Total unique events scanned: ≥50 on a normal day
+- Shortlist: 15-40 candidates across ≥8 sports
+- Final picks: from ≥5 different sports
+- Final coupons: ≥5, diversified
+- Every pick: ≥2 sources + ≥1 tipster argument checked
+
+**Self-check before presenting:** "Did I scan ALL 14 sports? Did I click into sub-tournaments? Did I read tipster arguments? Did I try alternative sources when one failed?" If ANY answer is NO → go back.
+
+### Source Fallback Chains (when primary source fails → try next)
+
+| Sport | Primary | Secondary | Tertiary | Emergency |
+|-------|---------|-----------|----------|-----------|
+| Football | BetExplorer | Flashscore | OddsPortal | SoccerStats league pages |
+| Tennis | BetExplorer tennis | Flashscore tennis | TennisExplorer | ATP/WTA official draws |
+| Basketball | ESPN NBA | BetExplorer basketball | Flashscore | Basketball-Reference |
+| Hockey | ESPN NHL | BetExplorer hockey | SBR | NaturalStatTrick |
+| Baseball | ESPN MLB | SBR | BetExplorer baseball | BaseballSavant |
+| Volleyball | BetExplorer volleyball | Flashscore volleyball | Sofascore | OddsPortal |
+| Esports | GosuGamers | HLTV (stats only) | Liquipedia | BO3.gg |
+| Snooker | Flashscore snooker | BetExplorer snooker | CueTracker | WorldSnooker/wst.tv |
+| Darts | Flashscore darts | BetExplorer darts | DartsOrakel | PDC.tv |
+| Table Tennis | Flashscore table tennis | BetExplorer table tennis | ITTF | tt-series.com |
+| Handball | BetExplorer handball | Flashscore handball | EHF/eurohandball | Handball-World |
+| MMA | Tapology | UFC.com | BetExplorer MMA | Sherdog |
+| Padel | Sofascore padel | BetExplorer padel | PremierPadel.com | PadelFIP |
+| Speedway | SpeedwayEkstraliga.pl | SportoweFakty żużel | Flashscore motorsport | BetExplorer speedway |
+
+**If ALL sources in a chain fail:** Google "[sport] matches today" or "[sport] schedule April 24" and find a new source. Add it to source-log. The internet ALWAYS has data.
+
+### Tipster Source Fallback Chains
+
+| Sport | Primary tipster | Secondary | Tertiary | Emergency search |
+|-------|----------------|-----------|----------|------------------|
+| Football | ZawodTyper | Typersi | Meczyki | OLBG, BetIdeas |
+| Tennis | ZawodTyper | Typersi | PicksWise | OLBG |
+| Basketball/NHL/MLB | PicksWise | Covers | Sportsgambler | Google "[game] prediction" |
+| Esports | GosuGamers | BO3.gg predictions | — | Google "[match] prediction" |
+| Other sports | OLBG | Sportsgambler | ZawodTyper (if covered) | Google "[event] tips" |
+
+**NEVER declare "no tipster data available" without exhausting all fallbacks + Google search.**
+
+---
+
 ## STEP 0: SETTLE PREVIOUS DAY (mandatory, never skip)
 
 ### 0.1 Settlement Execution

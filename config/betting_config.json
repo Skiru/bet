@@ -3,10 +3,10 @@
   "daily_exposure_pln": null,
   "max_coupon_stake_low_risk_pln": 3.0,
   "max_coupon_stake_higher_risk_pln": 2.0,
-  "working_bankroll_pln": 49.00,
+  "working_bankroll_pln": 49.0,
   "suggested_daily_allocation_range_pln": [
     5.0,
-    7.50
+    7.5
   ],
   "low_risk_coupon_max_stake_pln": 3.0,
   "higher_risk_coupon_max_stake_pln": 2.0,
@@ -125,5 +125,6 @@
     "prefer_multi_sport": true,
     "max_same_sport_legs_in_coupon": 2,
     "min_sports_for_higher_risk_coupon": 2
-  }
+  },
+  "bankroll_pln": 34.0
 }
