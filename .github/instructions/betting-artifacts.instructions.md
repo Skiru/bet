@@ -72,6 +72,13 @@ No old-style plain-text metadata blocks (BETTING DAY:, RUN TIME LOCAL:, etc.) â€
 Minimum 5 coupons total. No singles. No maximum legs per coupon.
 Total suggested stakes may exceed daily budget â€” user decides which coupons to place.
 
+Per-pick concentration limit (MANDATORY when user selects coupons):
+When recommending a subset of coupons for a specific budget, compute per-pick exposure:
+- For each unique pick, sum the stakes of all coupons containing that pick.
+- No single pick may account for more than 50% of the total budget.
+- If exceeded, drop one coupon containing that pick and replace with a coupon using different picks.
+- Include a per-pick exposure table in the PODSUMOWANIE section.
+
 Human-readable Polish descriptions (mandatory for every coupon leg):
 Every selection in the coupon table MUST use a Polish-language market description so the user can match it to Betclic's Polish interface without error.
 
