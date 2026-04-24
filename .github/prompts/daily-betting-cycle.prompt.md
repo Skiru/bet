@@ -2,7 +2,7 @@
 name: daily-betting-cycle
 description: "Full daily cycle: settle previous day, scan events, deep analysis (EV/CLV/Kelly), build pewniaki coupons."
 agent: bet-analyst
-argument-hint: "run_date=2026-04-23 session=full"
+argument-hint: "run_date=2026-04-24 session=full" or "run_date=2026-04-24 session=full rerun=true"
 tools:
   - search
   - editFiles
@@ -23,6 +23,22 @@ tools:
   - `day` — daytime events only (06:00 → 21:59).
   - `night` — night events only (22:00 → 05:59 next day). For pre-sleep coupon.
   - `morning` — settle overnight results + scan early events (06:00 → 14:59).
+- **rerun** = ${input:rerun:false}
+  When `true`, forces a complete fresh analysis for run_date, even if artifacts already exist:
+  - Settlement (STEP 1) is SKIPPED if previous day was already settled.
+  - Orchestrator is re-run to get fresh data (forced, even if scan_summary.json exists).
+  - **Versioning (CRITICAL):** Previous picks and coupons are PRESERVED, not replaced. New analysis creates a new version:
+    - Determine next version: scan `betting/coupons/YYYY-MM-DD*.md` for highest existing version (e.g., v5 → next is v6). If no versioned file, start at v1.
+    - New picks get NEW pick_ids (next available PK-YYYYMMDD-## after the highest existing one for that day).
+    - New coupons get versioned coupon_ids (e.g., CP-YYYYMMDD-PD1v6).
+    - picks-ledger.csv: ADD new rows with `version=vN`. Old version rows stay untouched.
+    - coupons-ledger.csv: ADD new rows with `version=vN`. Old version rows stay untouched.
+    - Coupon file: create `betting/coupons/YYYY-MM-DD-vN.md`. Previous version files are kept.
+    - Report file: create `betting/reports/YYYY-MM-DD-vN.md`. Previous version files are kept.
+    - The user sees ALL versions in the ledger and compares them to decide which to place.
+    - Set old version's pending picks/coupons to `status=superseded` (new status value).
+  - ALL analysis steps (3-8) run from scratch — do NOT reuse previous analysis or picks.
+  - Learning-log gets an entry noting the rerun and reason (methodology change, new sources, etc.).
 - **bookmaker** = Betclic
 - **local_timezone** = Europe/Warsaw
 - Load all other parameters from `config/betting_config.json` (bankroll, stakes, caps, thresholds, sports).
@@ -46,13 +62,20 @@ Core philosophy: find MISPRICED ODDS, not predict winners. Only bet when EV > 0.
     - `night`: 22:00 run_date → 05:59 next day
     - `morning`: 06:00 → 14:59 run_date
 0b. Ensure artifact directories and files exist (bootstrap with exact headers if missing).
-0c. Check `betting/data/scan_summary.json` freshness. If stale or missing:
+0c. **If rerun=true**: ALWAYS re-run the orchestrator for fresh data, regardless of scan_summary.json age.
+    **If rerun=false**: Check `betting/data/scan_summary.json` freshness. If stale or missing, run orchestrator.
     ```
     cd /Users/mkoziol/projects/bet && bash scripts/run_full_scan_and_prepare.sh
     ```
 0d. Check `betting/data/scan_errors.json` for source failures. Note them for source log.
+0e. **If rerun=true**: Determine next version suffix and prepare versioned artifacts.
+    - List existing coupon files for this betting_day: `betting/coupons/YYYY-MM-DD*.md`
+    - Find highest version number (e.g., v5 → next is v6). If no versioned file exists, start at v1.
+    - Find highest existing pick_id for this day in picks-ledger.csv (e.g., PK-20260424-09 → next starts at PK-20260424-10).
+    - Mark all existing `pending` picks and coupons for this betting_day as `status=superseded` in the ledgers.
+    - New rows will be ADDED with the new version — old rows are preserved for history.
 
-## STEP 1: SETTLEMENT (skip if session=night and previous day already settled)
+## STEP 1: SETTLEMENT (skip if rerun=true and previous day already settled, or if session=night and previous day already settled)
 
 1a. Determine previous betting day.
 1b. Run `python3 scripts/settle_on_finish.py --betting-day <prev_date>` for auto-resolvable markets.

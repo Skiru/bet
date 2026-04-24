@@ -74,5 +74,5 @@ Price and risk rules:
 
 Learning rules:
 - Update the daily report, coupon file, picks ledger, coupons ledger, source log, and learning log on every run.
-- On reruns for the same betting day, update existing records instead of duplicating them.
+- On reruns for the same betting day, PRESERVE old versions and ADD new ones. Increment the version suffix (v5 → v6). Mark old pending picks/coupons as `superseded`. Add new picks and coupons with the new version. Create a new versioned coupon file. The previous version files are kept for history. The user compares all versions to decide which to place.
 - Learning means process adjustments backed by settled results. Do not add emotional commentary and do not claim model retraining.

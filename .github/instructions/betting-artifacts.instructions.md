@@ -9,7 +9,7 @@ General rules:
 - Use dot decimals for odds and PLN amounts.
 - Use YYYY-MM-DD for dates and YYYY-MM-DD HH:MM for local timestamps.
 - Use | as the separator inside CSV cells that contain multiple source names.
-- On reruns for the same betting day, update or replace same-day artifacts instead of duplicating them.
+- On reruns for the same betting day, PRESERVE old versions and ADD new ones. Increment the version suffix (v5 → v6). Mark old pending picks/coupons as `superseded`. Add new picks and coupons with the new version. Create a new versioned coupon file. The previous version files are kept for history. The user compares all versions to decide which to place.
 
 Daily report path:
 - betting/reports/YYYY-MM-DD.md

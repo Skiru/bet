@@ -112,11 +112,12 @@ Key rules:
 
 Headers (exact, one line):
 ```
-betting_day,pick_id,event,sport,competition,market,selection,bookmaker,bookmaker_odds,market_best_odds,price_gap_pct,odds_checked_at_local,stake_pln,risk_tier,confidence_1_5,status,pnl_pln,stat_sources,market_sources,verification_sources,main_reason,main_risk,notes
+betting_day,version,pick_id,event,sport,competition,market,selection,bookmaker,bookmaker_odds,market_best_odds,price_gap_pct,odds_checked_at_local,stake_pln,risk_tier,confidence_1_5,status,pnl_pln,stat_sources,market_sources,verification_sources,main_reason,main_risk,notes
 ```
 
 Rules:
-- pick_id format: PK-YYYYMMDD-## (e.g., PK-20260422-01)
+- **version**: the analysis version for this betting day (e.g., v1, v2, v5, v6). On first run = v1. On rerun, increment from the highest existing version for that day. ALL picks from ALL versions are kept — the user compares versions to decide which to place.
+- pick_id format: PK-YYYYMMDD-## (e.g., PK-20260422-01). Pick IDs are UNIQUE PER VERSION — a rerun creates new pick IDs (next available ##) rather than reusing old ones.
 - risk_tier allowed values: low, medium, high
 - risk_tier assignment logic (do NOT set all picks to "low"):
   - low: STRONG tennis ratio (≤1.15), football with SoccerStats goals avg >3.0, confidence 4–5
@@ -124,7 +125,7 @@ Rules:
   - high: BORDERLINE tennis ratio (1.31–1.50), cup matches, confidence 3
 - confidence_1_5: integer 1–5
 - CROSS-FILE CONSISTENCY: the confidence score for a pick MUST be identical in picks-ledger.csv, the report, and the analysis file. If you change it in one place, change it everywhere.
-- status allowed values: pending, win, loss, void, placed
+- status allowed values: pending, win, loss, void, placed, superseded
 - Multiple sources separated by | (e.g., Flashscore|SoccerStats)
 - Coupon legs get stake_pln = 0.00 (stake is on the coupon, not the leg)
 - Since there are no singles, all picks will have stake_pln = 0.00 in picks-ledger.csv
@@ -133,11 +134,13 @@ Rules:
 
 Headers (exact, one line):
 ```
-betting_day,coupon_id,variant,selections_count,pick_ids,combined_odds,stake_pln,risk_level,status,pnl_pln,odds_checked_at_local,correlation_check,main_logic,notes
+betting_day,version,coupon_id,variant,selections_count,pick_ids,combined_odds,stake_pln,risk_level,status,pnl_pln,odds_checked_at_local,correlation_check,main_logic,notes
 ```
 
 Rules:
-- coupon_id format: CP-YYYYMMDD-PD1, CP-YYYYMMDD-PD2 etc. for pewniaki doubles; CP-YYYYMMDD-PT1 for pewniaki triples; CP-YYYYMMDD-PQ1 for pewniaki quads; CP-YYYYMMDD-LR1 for low-risk; CP-YYYYMMDD-HR1 for higher-risk. Legacy CP-YYYYMMDD-LR and CP-YYYYMMDD-HR also valid.
+- **version**: matches the picks-ledger version for the same run (e.g., v6). All coupon versions are kept.
+- coupon_id format: CP-YYYYMMDD-PD1v6, CP-YYYYMMDD-PD2v6 etc. The version suffix is part of the coupon_id to prevent collisions across versions.
+- coupon_id prefixes: PD = pewniaki doubles; PT = pewniaki triples; PQ = pewniaki quads; LR = low-risk; HR = higher-risk; MS = multi-sport; N = night. Legacy CP-YYYYMMDD-LR and CP-YYYYMMDD-HR also valid for pre-versioning data.
 - variant allowed values: low-risk, higher-risk (NEVER use "medium", "pre-system", "single", "tennis-ako")
 - risk_level allowed values: low-risk, higher-risk (NEVER use "medium", "high")
 - pick_ids separated by | (e.g., PK-20260422-02|PK-20260422-06)
