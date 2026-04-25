@@ -10,9 +10,31 @@ Run the full S1→S8 pipeline for a betting day. Executes 3 TEST passes to find 
 
 ## CONFIG
 - **Date**: {{run_date}}
+- **Session**: {{session}} (full/day/night/morning — default: full)
 - **Timezone**: Europe/Warsaw (CEST)
-- **Betting window**: 06:00 {{run_date}} → 05:59 {{run_date}}+1
+- **Betting window**:
+  - `full`: 06:00 {{run_date}} → 05:59 next day
+  - `day`: 06:00 → 21:59 {{run_date}}
+  - `night`: 22:00 {{run_date}} → 05:59 next day
+  - `morning`: 06:00 → 14:59 {{run_date}}
 - **Config**: `config/betting_config.json`
+
+## SESSION PARITY RULE (NEVER VIOLATE)
+
+**ALL sessions (full/day/night/morning) execute the EXACT SAME pipeline:**
+- Same 4-pass protocol (Discovery → Targeted Fixes → Polish → Final)
+- Same S0→S1→S2→S3→S4→S5→S6→S7→S3B→S8 step sequence
+- Same 14-sport scan in S1 (ALL sports, even if most have 0 events in the window)
+- Same deep analysis (S3-S7): H2H, tipsters, injuries, bear case, 13-point gate
+- Same minimum 5 coupons in S8 (if ≥3 approved picks exist)
+- Same V1-V10 validation + §4.10 Mechanical Verification
+- Same §S8.FINAL checks (arithmetic, placement order, exposure)
+
+**The ONLY difference is the event time window filter in S2.** Nothing else changes.
+
+If the time window yields fewer events → the shortlist is smaller → fewer picks → but each pick gets FULL analysis. If <3 picks survive → declare NO BET for that session. NEVER produce 1-2 shallow coupons as a compromise.
+
+**This rule exists because of the v10 night session failure:** agent produced 2 "compact" coupons with 3 sports scanned, zero tipster checks, zero H2H, zero injuries. That is NEVER acceptable.
 
 ---
 
@@ -97,7 +119,13 @@ Read `{date}_pass2_errors.md`. Fix remaining issues. Then:
 4. Check concentration (no pick in >60% coupons)
 5. Verify sport diversity (≥5 sports in final picks)
 6. Run Zero Tolerance Shield against known failure patterns
-7. Log any final issues in `{date}_pass3_errors.md`
+7. **SESSION PARITY CHECK**: If session=night/morning, verify:
+   - ALL 14 sports were scanned (not just US sports for night)
+   - Every candidate got full S3-S7 (H2H, tipsters, injuries, bear case, 13-point gate)
+   - ≥5 coupons built (or NO BET declared with justification)
+   - V1-V10 ran fully (not a "compact" validation)
+   - If ANY of these failed → treat as critical error, fix before Pass 4
+8. Log any final issues in `{date}_pass3_errors.md`
 
 **Pass 3 output**: `{date}_pass3_errors.md` (should be 0-2 minor issues)
 
@@ -114,7 +142,62 @@ Read `{date}_pass2_errors.md`. Fix remaining issues. Then:
 7. Update `betting/journal/learning-log.csv`
 8. Write daily report: `betting/reports/{date}.md`
 9. Run FINAL V1-V10 validation on produced artifacts
-10. Present REQUIRED RESPONSE to user
+10. **Run MECHANICAL VERIFICATION (§4.10) — MANDATORY before presenting to user**
+11. Present REQUIRED RESPONSE to user
+
+---
+
+## §4.10 — MECHANICAL VERIFICATION (MANDATORY — runs AFTER artifacts are written, BEFORE presenting)
+
+This step catches bugs that V1-V10 misses. Use `sequentialthinking` for exact computation.
+
+### A. COUPON ARITHMETIC RE-CALCULATION
+For EVERY coupon, multiply each leg's odds step by step. Compare to the listed combined odds.
+```
+Example: CP-XX has legs 1.50, 1.55, 1.60
+Step: 1.50 × 1.55 = 2.325; 2.325 × 1.60 = 3.720
+Listed: 3.72 → MATCH ✅
+Listed: 3.65 → MISMATCH ❌ → FIX to 3.72
+```
+Also verify: Return = Combined odds × Stake. Fix any rounding errors >0.02.
+
+### B. PLACEMENT ORDER VERIFICATION
+For EVERY coupon, identify which picks it contains, find each pick's kickoff time, and determine the earliest kickoff. The deadline = earliest kickoff minus ~30-60 min.
+```
+Example: CP-XX has PK-01 (18:45) + PK-05 (19:00) → earliest = 18:45 → deadline ~18:00
+If listed deadline says "13:30" → WRONG ❌ → FIX to 18:00
+```
+Common bug: listing deadline based on a pick NOT in that coupon. Always trace pick IDs.
+
+### C. PICK-COUPON CROSS-CHECK
+1. List every pick and which coupons contain it. Verify the per-pick exposure table matches.
+2. Confirm NO orphan picks (every pick in ≥1 coupon).
+3. Confirm concentration: no pick in >60% of coupons.
+4. Confirm sport count per coupon: max 2 same-sport legs.
+
+### D. HOME/AWAY DIRECTION CHECK
+For EVERY US sport pick (NHL, NBA, MLB, NFL): verify "@" = Away @ Home.
+For EVERY BetExplorer-sourced pick: BetExplorer = "Home vs Away" format.
+Cross-check that coupon file uses correct team ordering.
+
+### E. EV CONSISTENCY CHECK
+For every pick, verify the stated EV matches the formula: `EV = (true_prob × odds) - 1`.
+If analysis says "EV +20%" but math shows +12.5% → fix the label.
+
+### F. PRICE GAP FLAGGING
+List any picks with `price_gap_pct` outside the allowed threshold (-3% LR, -5% HR).
+If marginal (within -0.5% of threshold) and CONDITIONAL → acceptable but FLAG in conditional notes.
+
+### G. TOTAL EXPOSURE VERIFICATION
+Sum all coupon stakes. Compare to listed total. Verify total against 25% bankroll limit.
+Budget variants must have correct stake sums.
+
+### H. FIX PROTOCOL
+If ANY check fails:
+1. Fix the coupon file IN PLACE (edit, don't rewrite)
+2. Fix the corresponding ledger entry if affected
+3. Re-run the specific check that failed to confirm fix
+4. Log what was wrong and what was fixed (include in REQUIRED RESPONSE §3)
 
 ---
 
@@ -166,6 +249,7 @@ If top pick fails: what survives? Worst-case portfolio loss.
 - **Step gate FAIL in Pass 1-2**: Expected. Log and fix.
 - **Step gate FAIL in Pass 3**: Concerning. Must fix before Pass 4.
 - **Step gate FAIL in Pass 4**: BLOCKER. Do NOT produce coupons. Fix first.
+- **§4.10 Mechanical Verification FAIL**: BLOCKER. Fix artifacts in place, re-run failed check. Do NOT present to user until all 7 checks (A-G) pass.
 - **S3B gate FAIL**: Time-sensitive data missing → flag affected picks as CONDITIONAL with extra notes.
 - **V1-V10 FAIL in Pass 4**: BLOCKER. Loop back to fix, re-validate.
 - **<5 approved picks after all passes**: Consider NO BET day or promote watchlist.

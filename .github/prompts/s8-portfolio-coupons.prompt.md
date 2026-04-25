@@ -228,6 +228,53 @@ Format per coupon:
 - [ ] **V-S8-04**: No pick in >60% of coupons (or resilience coupon added)
 - [ ] **V-S8-05**: Polish descriptions on every leg
 - [ ] **V-S8-06**: Financial summary present and accurate
+
+---
+
+## §S8.FINAL — MECHANICAL VERIFICATION (MANDATORY — last step before presenting)
+
+**Run this AFTER all artifacts are written.** Use `sequentialthinking` for exact computation. This catches bugs that V1-V10 misses — proven by v18 where 3 bugs were found post-V10.
+
+### A. COUPON ARITHMETIC RE-CALCULATION
+For EVERY coupon, multiply each leg's odds step by step with exact decimal math.
+```
+CP-XX: leg1 × leg2 × leg3
+Step: 1.50 × 1.55 = 2.325; 2.325 × 1.60 = 3.720
+Listed: 3.72 → MATCH ✅ | Listed: 3.65 → MISMATCH ❌ → FIX
+```
+Also verify: Return = Combined odds × Stake. Fix rounding errors >0.02.
+
+### B. PLACEMENT ORDER VERIFICATION
+For EVERY coupon: identify picks → find each pick's kickoff → earliest kickoff → deadline = earliest minus ~30-60 min.
+```
+CP-XX has PK-01 (18:45) + PK-05 (19:00) → earliest 18:45 → deadline 18:00
+```
+**Common bug**: listing deadline based on a pick NOT in that coupon. ALWAYS trace pick IDs to coupon contents.
+
+### C. PICK-COUPON CROSS-CHECK
+1. List every pick + which coupons contain it → verify per-pick exposure table matches.
+2. NO orphan picks (every pick in ≥1 coupon).
+3. Concentration: no pick in >60% of coupons.
+4. Sport count per coupon: max 2 same-sport legs.
+
+### D. HOME/AWAY DIRECTION CHECK
+US sports: "@" = Away @ Home. BetExplorer: "Home vs Away". Cross-check team ordering in coupons.
+
+### E. EV CONSISTENCY CHECK
+For every pick: stated EV must match `EV = (true_prob × odds) - 1`. If label says "+20%" but math gives +12.5% → fix.
+
+### F. PRICE GAP FLAGGING
+Any picks with price_gap_pct beyond threshold (-3% LR, -5% HR)? If marginal and CONDITIONAL → FLAG, don't reject.
+
+### G. TOTAL EXPOSURE VERIFICATION
+Sum all coupon stakes → compare to listed total. Verify against 25% bankroll rule. Budget variants: correct stake sums.
+
+### H. FIX PROTOCOL
+If ANY check fails:
+1. Fix the coupon file IN PLACE
+2. Fix corresponding ledger entry if affected
+3. Re-run the failed check to confirm fix
+4. Log what was wrong + what was fixed
 - [ ] **V-S8-07**: V1-V10 ALL passed (if any fail, loop back and fix)
 - [ ] **V-S8-08**: All pick IDs consistent across coupon file + ledgers
 - [ ] **V-S8-09**: Weakest leg identified per coupon
