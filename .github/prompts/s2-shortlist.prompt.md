@@ -1,0 +1,95 @@
+---
+name: s2-shortlist
+description: "STEP 2: Filter Master Event List to 15-40 candidates with self-verification"
+agent: bet-analyst
+---
+
+# STEP 2 — SHORTLIST FILTERING
+
+## INPUTS
+- `betting/data/{date}_s1_master_events.md` — from STEP 1
+- Betting-day window: 06:00 → 05:59+1 CEST
+
+## TASK
+Filter the Master Event List to a shortlist of 15-40 candidates for deep analysis.
+
+### REMOVAL CRITERIA (apply in order):
+1. **Outside window**: kickoff not in 06:00→05:59+1 CEST
+2. **No Tier A source**: event has no BetExplorer/Flashscore/OddsPortal coverage
+3. **Too close to kickoff**: <1h from analysis time
+4. **Exhibition/friendly**: unless odds available and Tier A coverage exists
+5. **ITF tennis**: skip ALL ITF events (unreliable)
+6. **Random/unverifiable**: unranked esports, regional table tennis without odds
+
+### SCREENING CRITERIA (for remaining events):
+For each event, assess:
+1. **Statistical market available?** (corners, cards, totals, handicaps, frames, etc.)
+   - YES → higher priority
+   - Only 1X2/ML → lower priority (ML is LAST RESORT)
+2. **Odds in preferred range?** (1.30-3.50 for individual legs)
+3. **Major tournament?** → flag for mandatory full-slate analysis
+4. **Tier A data quality**: form, H2H, stats available?
+
+### SPORT DIVERSITY GATE
+- Shortlist MUST include events from ≥5 sports
+- Football ≤50% of shortlist
+- If <5 sports → go back to S1, scan missing sports deeper
+
+### OUTPUT FORMAT
+Save to: `betting/data/{date}_s2_shortlist.md`
+
+```
+# Shortlist — {date}
+
+## Summary
+- Total events scanned: X (from S1)
+- Events removed: Y
+- Shortlisted: Z events from N sports
+- Sport diversity: [list sports with counts]
+
+## Removal Log
+| # | Event | Sport | Removal Reason |
+|---|-------|-------|---------------|
+...
+
+## Shortlisted Candidates
+
+### Tier 1 — Statistical markets available (PRIORITY)
+| # | Sport | Event | Tournament | Kickoff | Market Opportunity | Odds Range |
+|---|-------|-------|-----------|---------|-------------------|------------|
+...
+
+### Tier 2 — ML/basic markets only (LOWER PRIORITY)
+| # | Sport | Event | Tournament | Kickoff | Market Opportunity | Odds Range |
+|---|-------|-------|-----------|---------|-------------------|------------|
+...
+
+## Major Tournaments Requiring Full Screening
+- ATP Madrid R32: X matches shortlisted / Y total
+- WTA Madrid R32: X/Y
+- EPL Round 35: X/Y
+- ...
+```
+
+## SELF-VERIFICATION CHECKLIST
+
+- [ ] **V-S2-01**: Shortlist has 15-40 events
+- [ ] **V-S2-02**: ≥5 sports represented
+- [ ] **V-S2-03**: Football ≤50% of shortlist
+- [ ] **V-S2-04**: All removed events have valid removal reason
+- [ ] **V-S2-05**: No events outside betting-day window remain
+- [ ] **V-S2-06**: Every major tournament (≥4 matches) has ALL matches screened
+- [ ] **V-S2-07**: Tier 1 (statistical markets) candidates > Tier 2 (ML only)
+- [ ] **V-S2-08**: No ITF tennis in shortlist
+- [ ] **V-S2-09**: Every shortlisted event has odds recorded
+- [ ] **V-S2-10**: Sport counts tallied and verified
+
+### ERROR LOG
+```
+| Check | Status | Error | Fix |
+|-------|--------|-------|-----|
+```
+
+### PASS/FAIL GATE
+- ALL 10 checks pass → "S2 PASSED" → proceed to S3
+- ANY fail → fix → re-verify
