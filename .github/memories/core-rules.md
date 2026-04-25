@@ -19,7 +19,7 @@
 - Prawidłowe podejście: szukaj INNYCH meczów w ligach z rynkami statystycznymi (EPL, Bundesliga, Championship, Eredivisie, etc.)
 - Użyj TotalCorner i SoccerStats do znalezienia meczów z ekstremalnym profilem cornerowym
 - Jeśli dzisiejszy board nie ma rynków statystycznych → szukaj dalej w esporcie (map totals), snookerze (frame totals), tenisie (game totals), siatkówce (set totals)
-- NIGDY więcej "BTTS No" jako "pewniaka". Corners Over/Under to pewniaki.
+- NIGDY więcej "BTTS No" jako "pewniaka". Corners Over/Under to główne typy.
 
 ### KLUCZOWA ZASADA — AGENT SAM ROZKMINIWIA STATYSTYKI
 - Agent MUSI sam wiedzieć, jakie rynki statystyczne są wartościowe w danej dyscyplinie.

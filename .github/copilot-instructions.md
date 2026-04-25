@@ -59,6 +59,7 @@ Selection rules:
 - For corner picks, use the three-source stack: TotalCorner (match-level corner totals/handicaps), SoccerStats (league-level corner rankings), and Betclic Statystyki tab (verified odds from HTML snapshots). All three are needed for high-confidence corner picks.
 - Betclic Statystyki tab (corners, cards, fouls, shots) is only available for top leagues (EPL, LaLiga, Bundesliga). For other leagues, use BTTS, U2.5, DC, or ML markets backed by SoccerStats defensive profiles.
 - **Tennis ML is LAST RESORT.** NEVER default to moneyline in tennis. Priority: game totals O/U > set totals O/U > game handicap > set handicap > ML. ML only when STRONG odds ratio (≤1.15) + surface dominance + H2H dominance ALL align. Statistical markets have ~65% hit rate vs ML ~58%.
+- **TENNIS O22.5+ GAMES — HIGH RISK, USE SPARINGLY (learned 2026-04-25).** Our hit rate on O22.5 games is poor (Struff O22.5 lost twice, Jodar O22.5 lost). O22.5 requires a 3-set match with competitive sets — this is RARE. Prefer O21.5 or O20.5 which have much higher hit rates. O22.5+ ONLY with: STRONG ratio (≤1.15) + confirmed 3-set H2H pattern + ≥2 tipster arguments supporting it. Otherwise → O21.5 max.
 - A final pick requires at least one Tier A stats source and one Tier A market or price source. Tier B opinion or consensus sources may support a pick but cannot be the main reason for it. However, strong consensus from multiple tipster sites IS a valid supporting signal.
 - If primary sources disagree materially or are unavailable, skip the pick.
 - Never produce shallow, surface-level analysis. Every pick must have DEEP statistical backing from specialist sources, not just top-level form data.
@@ -73,11 +74,11 @@ Selection rules:
 
 Coupon philosophy:
 - **No singles.** Every pick goes into a coupon with at least 2 legs. Minimum 2 events per coupon.
-- **Minimum 5 coupons per day.** Produce at least 5 diverse coupons so the user has real choice. Search wider before declaring the board weak.
+- **UNIQUE EVENT PER COUPON (ABSOLUTE RULE — NEVER VIOLATE).** Each event/pick can appear in ONLY ONE coupon. Never share events between coupons. If one coupon fails, it does NOT affect any other coupon. This maximizes diversification and eliminates concentration risk.
+- **Minimum 5 coupons per day** (if enough picks exist). You need at least 10 unique picks for 5×2-leg coupons. Search wider before declaring the board weak.
 - **No maximum legs per coupon.** A coupon can have 2, 3, 4, 5, or more legs — whatever the analysis supports.
-- **Diverse coupons.** Vary risk levels, sport combinations, leg counts, and market types across coupons. The user decides which to place.
-- **Suggest stakes for every coupon.** Even if the total suggested exposure exceeds the daily budget, suggest stakes anyway. The user will decide which coupons to actually place. Do NOT self-censor or reduce coupon count to fit the budget.
-- **Pewniaki system remains.** Use the top 3-5 highest-confidence picks to build all non-repeating combinations (doubles, triples, quads). These are separate from themed or higher-risk coupons.
+- **Diverse coupons.** Vary risk levels, sport combinations, leg counts, and market types across coupons. Each coupon is a completely independent bet.
+- **Suggest stakes for every coupon.** Even if the total suggested exposure exceeds the daily budget, suggest stakes anyway. The user will decide which coupons to actually place.
 
 Price and risk rules:
 - Compare Betclic odds against market-best odds from a comparison source.

@@ -1746,20 +1746,21 @@ Rank all approved candidates by: EV (highest first), then confidence (highest fi
 ### 8.2 Coupon-Only System (NO SINGLES)
 All picks go into coupons. No singles are produced. Every coupon has at least 2 legs.
 
-### 8.3 Coupon Construction — Minimum 5 Coupons
-The target is MINIMUM 5 diverse coupons per day. If the board supports more, produce more. There is no upper limit on coupon count — 10, 15, or even 20 coupons are welcome if the analysis supports them. Search wider before accepting fewer than 5.
+### 8.3 Coupon Construction — UNIQUE EVENT PER COUPON
+**ABSOLUTE RULE (NEVER VIOLATE):** Each event/pick appears in ONLY ONE coupon. Zero sharing between coupons. Each coupon is 100% independent — if one fails, it does NOT affect any other.
+
+This replaces the old pewniaki system (which caused concentration risk — 1 event failing killed multiple coupons).
+
+**Consequence:** You need MORE approved picks. 5 coupons × 2 legs = 10 unique picks minimum. If not enough unique picks → reduce coupon count (3-4 OK) or NO BET. Never reuse events.
 
 **Sport diversity in coupons**: At least 3 coupons must be MULTI-SPORT (legs from 2+ different sports). At least 1 coupon must include a non-football, non-tennis sport (e.g., hockey, volleyball, esports, darts, snooker, handball, table tennis, MMA, basketball, baseball). The final portfolio should showcase the FULL breadth of sports analyzed, not just football.
 
 Coupon types to produce:
-1. **Pewniaki system** (primary): identify 3-5 highest-confidence picks, build ALL non-repeating combinations:
-   - All doubles (C(n,2) coupons)
-   - All triples (C(n,3) coupons)
-   - One quad if 4+ pewniaki
-   This maximizes diversification: any 2 of 4 winning gives profit.
-2. **Themed/higher-risk coupons**: combine medium-confidence picks across multiple sports.
-3. **Long-shot coupons**: 4-6 legs with lower individual confidence but positive portfolio EV.
+1. **Low-risk coupons**: 2-3 legs, highest-EV picks, combined odds 2.00-5.00.
+2. **Multi-sport coupons**: 2-4 legs from different sports, combined odds 3.00-10.00.
+3. **Higher-risk coupons**: 3-5 legs, medium-confidence picks, combined odds 8.00-20.00.
 4. Each coupon must have a DIFFERENT composition. Diversity = different sport mixes, different leg counts, different risk levels.
+5. Rank picks by EV × confidence. Assign best picks to coupons first.
 
 ### 8.4 Correlation Check
 For EVERY pair of legs in a coupon:
@@ -1933,11 +1934,11 @@ Before finalizing ANY coupon, verify EVERY event in every coupon:
 Failure on ANY of these → VOID the pick and remove from all coupons. Replace with a valid alternative or drop the coupon.
 
 ### V7c: Cross-Coupon Integrity Check (MANDATORY)
-1. **No duplicate legs across coupons** (except pewniaki system where overlap is by design): outside of pewniaki, no pick should appear in more than 2 coupons.
-2. **No identical coupons**: every coupon must differ by at least 1 leg.
+1. **UNIQUE EVENT PER COUPON (ABSOLUTE):** No event/pick appears in more than 1 coupon. Each coupon is 100% independent.
+2. **No identical coupons**: every coupon must differ by at least 1 leg (inherent if no sharing).
 3. **No correlated narrative across coupons**: if coupon A has "Leeds win" and coupon B has "Leeds O2.5", both depend on Leeds scoring — flag and replace one.
-4. **Cross-match correlation**: if two legs in different coupons are from the same match, verify they are NOT on the same side of the market (e.g., O2.5 goals + BTTS Yes is correlated). Different-side legs (e.g., Team A corners + O2.5 goals) are acceptable but must be noted.
-5. **Pick spread check**: count how many coupons each pick appears in. Outside pewniaki, no pick should appear in more than 2 coupons. Verify coupon diversity — each coupon should cover a different combination of events.
+4. **Cross-match correlation**: if two legs in different coupons are from the same match → this CANNOT happen (each event in only 1 coupon). If same LEAGUE, verify no shared narrative.
+5. **Pick count check**: total unique picks = sum of all coupon legs. Every active pick in exactly 1 coupon. Any orphan picks → add to a coupon or move to watchlist.
 
 ### V8: Source Completeness Audit
 For EVERY active pick, verify:
@@ -1967,15 +1968,15 @@ Conflict resolution:
 ### V9: Coupon Composition Optimization
 Verify coupons are optimally composed — not just valid, but the BEST possible combinations:
 
-1. **Pick ranking**: Re-rank all active picks by `EV × confidence`. Are the highest-ranked picks in the most coupons (especially pewniaki)?
-2. **Pewniaki integrity**: Are the top 3-5 picks genuinely the highest-confidence, highest-EV picks? No lower-ranked pick displaced a higher one?
+1. **Pick ranking**: Re-rank all active picks by `EV × confidence`. Best picks assigned to coupons first.
+2. **Unique-event verification**: Each pick appears in EXACTLY ONE coupon. No sharing. Total unique picks = sum of all coupon legs.
 3. **Sport diversity per coupon**: Every multi-sport coupon has legs from ≥2 sports? At least 3 coupons are multi-sport?
-4. **Same-match check**: No two legs in the same coupon from the same match.
+4. **Same-match check**: inherently impossible under unique-event rule.
 5. **Market concentration**: No coupon has ≥3 legs of the same market type (e.g., 3 corner picks, 3 ML picks). Max 2 same-type per coupon.
-6. **Orphan pick check**: Every active pick appears in at least 1 coupon. Under NO SINGLES rule, picks without a coupon must be added to one or moved to watchlist.
-7. **Timing coherence**: Night coupons contain only night games (≥00:00 CEST). Morning/afternoon plays are not mixed into night coupons.
+6. **Orphan pick check**: Every active pick appears in exactly 1 coupon. Orphans → add to a coupon or move to watchlist.
+7. **Timing coherence**: Night coupons contain only night games (≥22:00 CEST). Morning/afternoon plays are not mixed into night coupons.
 8. **Weakest-leg swap test**: For each coupon, identify the weakest leg (lowest confidence or highest bear-case risk). Is there a BETTER pick in the pool that could replace it without creating correlation? If yes → swap.
-9. **Combined odds sweet spot**: Pewniaki 2.00-8.00, multi-sport 3.00-10.00, higher-risk 8.00-20.00. Coupons outside these ranges should be reviewed.
+9. **Combined odds sweet spot**: 2-leg 2.00-4.00, 3-leg 4.00-10.00, 4-leg 8.00-20.00. Coupons outside these ranges should be reviewed.
 
 ### V10: Final Sign-Off
 
@@ -2172,7 +2173,7 @@ STEP 7: Bear case for each pick
 
 STEP 8: Portfolio construction
   [ ] Rank by EV -> confidence -> price gap
-  [ ] Build coupon combos (pewniaki system + themed coupons)
+  [ ] Build coupon combos (unique-event-per-coupon rule + diverse types)
   [ ] Minimum 5 coupons, minimum 2 legs each
   [ ] Correlation check all pairs
   [ ] Suggest stakes for all coupons (may exceed daily cap)
@@ -2317,8 +2318,10 @@ At 3% weekly (more realistic): ~6 years. At 10% weekly (unrealistic long-term): 
 
 The key: CONSISTENCY over months and years. Not one big win, but hundreds of small +EV bets compounding.
 
-### Why the Pewniaki Coupon System Works
-- Pewniaki coupon system (all combinations of top picks) provides exponential upside when 3/4 or 4/4 hit
-- Risk distribution: diverse coupons across sports ensure not all eggs in one basket
-- Any 2 of 4 pewniaki winning always produces positive day (with proper staking)
+### Why the Unique-Event-Per-Coupon System Works
+- Each event in ONLY ONE coupon → one failure does NOT affect any other coupon
+- Maximum diversification: if pick A fails, only 1 coupon is affected, not 5
+- Forces wider analysis: need 10+ unique picks for 5 coupons, pushes agent to scan deeper across more sports
+- Each coupon is 100% independent — true portfolio diversification
 - User picks which coupons to place based on risk appetite and available budget
+- Replaces old pewniaki system (which created concentration risk — N11-01 in 5/7 coupons meant 1 failure killed 71%)

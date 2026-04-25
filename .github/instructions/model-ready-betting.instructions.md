@@ -37,7 +37,7 @@ Follow the workflow in analysis-methodology.instructions.md (STEPS 0-10 plus STE
 - **Multi-sport coupons mandatory.** At least 3 coupons must be multi-sport (2+ sports). At least 1 coupon must include a niche sport (not football/tennis).
 - Max coupon stake: 3.00 PLN for low-risk, 2.00 PLN for higher-risk
 - Daily exposure cap: per config/betting_config.json `suggested_daily_allocation_range_pln` (currently 5.00–7.50 PLN, but suggest stakes for ALL coupons even if total exceeds cap — user decides which to place)
-- Each event may appear in multiple coupons (pewniaki system generates combinations). But never duplicate the same coupon composition.
+- Each event may appear in ONLY ONE coupon. **UNIQUE EVENT PER COUPON (ABSOLUTE RULE — NEVER VIOLATE).** Never share events between coupons. Each coupon is 100% independent.
 - Every pick needs: 1 Tier A stats source (Flashscore, Sofascore) + 1 Tier A market source (BetExplorer, OddsPortal)
 - If sources conflict on a pick, skip it
 - price_gap_pct formula: 100 * ((bookmaker_odds / market_best_odds) - 1)
@@ -120,9 +120,9 @@ This applies equally to: football, tennis, basketball, hockey, baseball, volleyb
 | low-risk | 2 | no limit | 2 | 1 | 3.00 |
 | higher-risk | 2 | no limit | 2 | 2 | 2.00 |
 
-- Minimum 5 coupons per day. No maximum coupon count.
-- No singles allowed. Every pick goes into at least one coupon.
-- Picks CAN appear in multiple coupons (e.g., pewniaki combinations). But no two coupons should have identical composition.
+- Minimum 5 coupons per day (if enough picks exist). Need 10+ unique picks for 5×2-leg coupons. If not enough → 3-4 coupons OK. If <4 picks → NO BET.
+- No singles allowed. Every pick goes into exactly one coupon.
+- **UNIQUE EVENT PER COUPON (ABSOLUTE — NEVER VIOLATE).** Each pick appears in ONLY ONE coupon. Zero sharing between coupons. Each coupon is 100% independent.
 - Combined odds = multiply each leg's odds. Must match stated combined_odds ±10%.
 - No two legs from same match.
 - If >4 picks from one tournament, flag weather/schedule correlation risk.
@@ -136,13 +136,13 @@ The coupon .md file is a visual Markdown document — identical to what the user
 See betting-artifacts.instructions.md for the full structure spec.
 
 Key rules:
-- Visual Markdown tables grouped by type: PEWNIAKI, MULTI-SPORT, HIGHER RISK, NIGHT.
+- Visual Markdown tables grouped by type: LOW-RISK, MULTI-SPORT, HIGHER RISK, NIGHT.
 - Each table has columns: #, Coupon ID, Co obstawić (Polish market description + event), Kurs, Stawka, Zwrot.
 - PODSUMOWANIE table at the end: Wydatek, Bankroll po, Łączny pot. zwrot, Stan konta po zwrocie, scenarios.
 - KOLEJNOŚĆ STAWIANIA — placement priority list.
 - NO old-style plain-text metadata (BETTING DAY:, RUN TIME LOCAL:, etc.). Metadata lives in ledger CSVs.
-- Coupon IDs use these prefixes: P (pewniaki), MS (multi-sport), HR (higher-risk), N (night) + version suffix.
-- FORBIDDEN labels: "MEDIUM", "ATP CLAY", "WTA", "KUPON", "SINGLES", or any sport/tournament name as coupon type.
+- Coupon IDs use these prefixes: LR (low-risk), MS (multi-sport), HR (higher-risk), N (night) + version suffix.
+- FORBIDDEN labels: "MEDIUM", "ATP CLAY", "WTA", "KUPON", "SINGLES", "PEWNIAKI", or any sport/tournament name as coupon type.
 - Tennis-only coupons MUST be low-risk.
 - Every market description must be in plain Polish matching Betclic's interface.
 
@@ -178,7 +178,7 @@ betting_day,version,coupon_id,variant,selections_count,pick_ids,combined_odds,st
 Rules:
 - **version**: matches the picks-ledger version for the same run (e.g., v6). All coupon versions are kept.
 - coupon_id format: CP-YYYYMMDD-PD1v6, CP-YYYYMMDD-PD2v6 etc. The version suffix is part of the coupon_id to prevent collisions across versions.
-- coupon_id prefixes: PD = pewniaki doubles; PT = pewniaki triples; PQ = pewniaki quads; LR = low-risk; HR = higher-risk; MS = multi-sport; N = night. Legacy CP-YYYYMMDD-LR and CP-YYYYMMDD-HR also valid for pre-versioning data.
+- coupon_id prefixes: LR = low-risk; HR = higher-risk; MS = multi-sport; N = night. Legacy PD/PT/PQ/CP-YYYYMMDD also valid for pre-versioning data.
 - variant allowed values: low-risk, higher-risk (NEVER use "medium", "pre-system", "single", "tennis-ako")
 - risk_level allowed values: low-risk, higher-risk (NEVER use "medium", "high")
 - pick_ids separated by | (e.g., PK-20260422-02|PK-20260422-06)
@@ -281,8 +281,9 @@ Go through every check. Write YES or NO for each. If any is NO, fix it before pr
 - [ ] **Combined odds ARITHMETIC (MANDATORY):** Multiply each leg's odds explicitly (e.g., 1.50 × 1.65 = 2.475). Write the calculation. Compare to stated combined odds. Tolerance ±2%. NEVER skip this step or claim "verified" without showing the math.
 - [ ] **Home/away direction verified** for every event ("@" = Away @ Home). Cross-check with ESPN/BetExplorer.
 - [ ] Stake ≤ max for coupon type (3.00 LR, 2.00 HR)
-- [ ] Coupon label is "PEWNIAKI", "LOW-RISK COUPON", or "HIGHER-RISK COUPON" (never "MEDIUM", "ATP CLAY", "SINGLES", etc.)
-- [ ] At least 5 total coupons produced
+- [ ] Coupon label is "LOW-RISK", "MULTI-SPORT", "HIGHER-RISK", or "NIGHT" (never "MEDIUM", "ATP CLAY", "SINGLES", "PEWNIAKI", etc.)
+- [ ] **UNIQUE EVENT PER COUPON verified:** no event/pick appears in more than 1 coupon
+- [ ] At least 5 total coupons produced (if 10+ picks exist)
 
 ### V6: Portfolio Check
 - [ ] No coupon stake > 3.00 PLN (LR) or 2.00 PLN (HR)
@@ -290,7 +291,7 @@ Go through every check. Write YES or NO for each. If any is NO, fix it before pr
 - [ ] At least 2 sports represented
 - [ ] At least 5 coupons produced
 - [ ] If >4 picks from one tournament: flag it in V7
-- [ ] **Concentration check:** If any pick in >60% of coupons → ADD resilience coupon WITHOUT that pick. Verify ≥3 coupons survive if most-used pick fails.
+- [ ] **Unique-event verification:** No event appears in >1 coupon. Each coupon 100% independent.
 - [ ] Note: total suggested exposure may exceed daily budget — this is OK
 
 ### V7: Weakness List
@@ -317,13 +318,13 @@ Go through every check. Write YES or NO for each. If any is NO, fix it before pr
 - [ ] **Upset Risk Assessment (§6.5) completed for EVERY candidate** — score recorded, ML ban enforced, Paradox Rule applied, confidence adjusted
 
 ### V9: Coupon Composition Optimization
-- [ ] Picks re-ranked by EV × confidence — highest in most coupons
+- [ ] Picks re-ranked by EV × confidence — best picks in coupons first
 - [ ] No coupon has ≥3 legs of same market type
-- [ ] Every active pick in ≥1 coupon (no orphans)
+- [ ] Every active pick in exactly 1 coupon (no orphans, no sharing)
 - [ ] Night coupons contain only events within the night time window (≥22:00 CEST)
-- [ ] **Session parity rule: night/morning sessions follow the EXACT SAME coupon-building process as full sessions (min 5 coupons, full V1-V10, pewniaki system). Only the event time window differs.**
+- [ ] **Session parity rule: night/morning sessions follow the EXACT SAME coupon-building process as full sessions (full V1-V10). Only the event time window differs.**
 - [ ] Weakest-leg swap test done per coupon
-- [ ] Combined odds in sweet spots (pewniaki 2-8, MS 3-10, HR 8-20)
+- [ ] Combined odds in sweet spots (2-leg 2-4, 3-leg 4-10, 4-leg 8-20)
 
 ### V10: Final Sign-Off
 - [ ] All V1–V9 checks pass
@@ -346,7 +347,7 @@ Go through every check. Write YES or NO for each. If any is NO, fix it before pr
 8. Not flagging tournament concentration when >4 picks share one tournament.
 9. Using risk_tier "low" for all picks — assign based on actual market volatility (see picks-ledger rules above for logic).
 10. Leaving stale content from previous iterations in output files.
-11. Labeling coupons as "MEDIUM COUPON" or "ATP CLAY COUPON" in coupon file — only PEWNIAKI, LOW-RISK COUPON and HIGHER-RISK COUPON exist.
+11. Labeling coupons as "MEDIUM COUPON" or "ATP CLAY COUPON" in coupon file — only LOW-RISK, MULTI-SPORT, HIGHER-RISK, and NIGHT exist. PEWNIAKI label is RETIRED.
 12. Inventing ratio grade names like "ACCEPTABLE" or "COMPETITIVE" — only STRONG, GOOD, BORDERLINE, REJECT exist.
 13. Adding extra sections ("USER ACTION REQUIRED", "CONDITIONAL NOTE") after SKIPPED OR OMITTED in coupon file.
 14. Writing "5 picks at 4/5" when the list actually contains 6 — COUNT the list, do not guess.
@@ -377,7 +378,7 @@ Go through every check. Write YES or NO for each. If any is NO, fix it before pr
 39. **Skipping Upset Risk Assessment (§6.5)** — approving a pick without scoring it on the sport-specific upset checklist. The Shelton-Prizmic loss (8.5/10 on checklist, killing 2 coupons) proved this is PREVENTABLE. Every candidate must be scored. Score ≥ threshold = ML BANNED. Score recorded in report. V4k validates this. NEVER skip — this is a HARD REQUIREMENT, not a nice-to-have.
 40. **Ignoring the Paradox Rule** — using OVER totals when upset risk is LOW (blowout territory) or avoiding OVER totals when upset risk is HIGH (competitive territory). High upset risk = more total play = overs WIN. Low upset risk = one-sided match = overs FAIL. Struff-Michelsen (15 games, miss by -7.5) vs Shelton-Prizmic (36 games, win by +13.5) proves this conclusively.
 41. **Not recording upset score in bear case** — STEP 7 bear case template now REQUIRES the upset score and top 3 risk factors. A bear case without upset context is incomplete. If the upset score flags risk and you still proceed, you must explain why in the bear case.
-42. **Treating night/morning sessions as reduced-scope** — producing only 1-2 "compact" coupons for night sessions, skipping deep analysis, scanning only 3 sports instead of all 14. Night/morning sessions are IDENTICAL to full sessions in EVERY aspect except the event time window. Same minimum 5 coupons, same 14-sport scan, same STEPS 0-10, same V1-V10 validation. A night session with 4 picks from 3 sports still requires 5 coupons (pewniaki combos + themed). "Fewer events in window" ≠ "fewer analysis depth." This was the v10 night error — agent produced 2 shallow coupons with zero tipster checks, zero H2H, zero injury verification.
+42. **Treating night/morning sessions as reduced-scope** — producing only 1-2 "compact" coupons for night sessions, skipping deep analysis, scanning only 3 sports instead of all 14. Night/morning sessions are IDENTICAL to full sessions in EVERY aspect except the event time window. Same 14-sport scan, same STEPS 0-10, same V1-V10 validation. "Fewer events in window" ≠ "fewer analysis depth." This was the v10 night error — agent produced 2 shallow coupons with zero tipster checks, zero H2H, zero injury verification.
 43. **Home/away direction reversed in US sports** — listing "ATL @ PHI" when game is at Atlanta (Truist Park), so correct is "PHI @ ATL". The "@" symbol means "visiting at": Away @ Home. BetExplorer uses "Home vs Away" — OPPOSITE convention. ALWAYS verify which team is home. Wrong direction = user may bet on wrong game in Betclic app.
 44. **Concentration risk without resilience coupon** — N11-01 appeared in 5/7 coupons (71%). If that one pick lost, only 2/7 survived. RULE: If ANY pick appears in >60% of coupons, ADD a resilience coupon that EXCLUDES that pick. After adding, verify ≥3 coupons survive if the most-used pick fails. This is a V6 (Portfolio Risk) check.
 45. **Skipping post-construction audit** — presenting coupons without final cross-check of: (1) home/away direction, (2) pick concentration across coupons, (3) payout arithmetic (odds × stake), (4) name consistency between coupon file + picks-ledger + coupons-ledger, (5) financial summary matches actual coupon count and total spend. Three bugs in v11 were only caught by this audit.

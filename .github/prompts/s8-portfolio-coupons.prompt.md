@@ -19,31 +19,33 @@ Build coupons, validate V1-V10, write all artifacts.
 ## 8A — RANK APPROVED PICKS
 1. List ALL approved picks from S7 (✅ only, not ❌ or ⚠️)
 2. Rank by: EV (highest first) → confidence → price_gap favorability
-3. Identify TOP 3-5 as "pewniaki" (highest confidence + EV)
-4. Minimum requirement: ≥5 approved picks from ≥5 sports. If not → try promoting watchlist picks or declare NO BET day.
+3. Minimum requirement: ≥5 approved picks from ≥5 sports. If not → try promoting watchlist picks or declare NO BET day.
+4. Need 10+ unique picks for 5 coupons × 2 legs. If not enough → 3-4 coupons OK.
 
-## 8B — PEWNIAKI COUPON SYSTEM
-From top 3-5 picks, build ALL non-repeating combinations:
-- All doubles (C(n,2))
-- All triples (C(n,3))
-- All quads (C(n,4)) if ≥4 pewniaki
-- One "full pewniaki" with all top picks
+## 8B — UNIQUE EVENT PER COUPON (ABSOLUTE — NEVER VIOLATE)
+**Each pick appears in ONLY ONE coupon. Zero sharing. Each coupon is 100% independent.**
 
-Label: CP-{date}-PD01, PD02, ... (doubles), PT01, ... (triples), PQ01, ... (quads)
+Assign picks to coupons by EV × confidence ranking (best picks get assigned first):
+- 10 picks → 5 × 2-leg coupons
+- 12 picks → 4 × 3-leg coupons, or mix of 2-leg and 3-leg
+- 15 picks → 5 × 3-leg coupons, or 3 × 3-leg + 3 × 2-leg
+- If <8 picks → 3-4 coupons. If <4 picks → NO BET.
 
-## 8C — THEMED COUPONS
-From remaining approved picks + pewniaki:
-- **Multi-sport (MS)**: ≥3 sports, 3-5 legs, moderate risk
-- **Low-risk (LR)**: 2-3 legs, all confidence ≥4, combined odds 2.0-4.0
+Label: CP-{date}-LR01, LR02, ... (low-risk), MS01, ... (multi-sport), HR01, ... (higher-risk), N01, ... (night)
+
+## 8C — DIVERSE COUPON TYPES
+Build varied coupons from approved picks (each pick used ONCE):
+- **Low-risk (LR)**: 2-3 legs, all confidence ≥4, combined odds 2.0-5.0
+- **Multi-sport (MS)**: ≥2 sports, 2-4 legs, combined odds 3.0-10.0
 - **Higher-risk (HR)**: 3-5 legs, combined odds 8.0-20.0, reduced stake
-- **Night (N)**: only events after 20:00 local (if applicable)
+- **Night (N)**: only events after 22:00 CEST (if applicable)
 
-## 8D — CORRELATION + CONCENTRATION CHECK
+## 8D — CORRELATION CHECK
 For every coupon:
-- [ ] No two legs from same match (FORBIDDEN)
+- [ ] No two legs from same match (inherent from unique-event rule)
 - [ ] Max 2 legs from same sport per coupon
 - [ ] No correlated narratives (e.g., Team A ML + Team A O2.5 in DIFFERENT coupons)
-- [ ] No pick in >60% of coupons (concentration) — if violated, add resilience coupon WITHOUT it
+- [ ] **UNIQUE EVENT PER COUPON verified**: each pick in exactly 1 coupon
 - [ ] Combined odds arithmetic: **MULTIPLY EACH LEG EXPLICITLY, SHOW THE MATH**
 - [ ] **Home/away direction verified for EVERY event**: "@" = Away @ Home. BetExplorer = "Home vs Away". ALWAYS cross-check.
 
@@ -132,7 +134,7 @@ Picks not in any coupon but close to approval:
 - [ ] Correct competition name
 
 ### V7c — Cross-Coupon Integrity
-- [ ] No accidental duplicate legs (outside pewniaki system)
+- [ ] UNIQUE EVENT PER COUPON verified (no pick in >1 coupon)
 - [ ] No identical coupons
 - [ ] No correlated narratives across coupons
 
@@ -143,11 +145,11 @@ Picks not in any coupon but close to approval:
 - [ ] Failed sources documented in source-log
 
 ### V9 — Coupon Composition Optimization
-- [ ] Picks ranked by EV × confidence — highest in most coupons
+- [ ] Picks ranked by EV × confidence — best picks assigned first
 - [ ] No coupon has ≥3 same-market-type legs
-- [ ] Every active pick in ≥1 coupon (no orphans)
+- [ ] Every active pick in exactly 1 coupon (no orphans, no sharing)
 - [ ] Weakest-leg swap test: could any leg improve?
-- [ ] Combined odds in sweet spots: pewniaki 2-8, MS 3-10, HR 8-20
+- [ ] Combined odds in sweet spots: 2-leg 2-4, 3-leg 4-10, 4-leg 8-20
 
 ### V10 — Final Sign-Off
 - [ ] V10a: ALL 14 sports enumerated with scan evidence
@@ -167,12 +169,12 @@ Picks not in any coupon but close to approval:
 1. **Header**: date, bankroll, budget, version, odds_checked_at
 2. **Conditional notice**: all picks CONDITIONAL — verify on Betclic
 3. **AKTYWNE TYPKI (Active Picks) table**: all picks with ID, event, market, odds, conf, sport, kickoff
-4. **KUPONY (Coupons)**: grouped by type (PEWNIAKI 2-ki, 3-ki, MULTI-SPORT, HIGHER RISK, NIGHT)
+4. **KUPONY (Coupons)**: grouped by type (LOW-RISK, MULTI-SPORT, HIGHER RISK, NIGHT)
    - Per coupon: legs table, combined odds arithmetic shown, stake, return, weakest leg, sports list
 5. **ARYTMETYKA KUPONÓW**: explicit multiplication for every coupon
 6. **PODSUMOWANIE**: financial summary table + coupon table + budget variants (A/B/C)
-7. **Per-pick ekspozycja**: which coupons each pick appears in, total stake, % of exposure
-8. **Koncentracja per kupon**: max 60% check table
+7. **Per-pick ekspozycja**: which coupon each pick is in, stake
+8. **UNIQUE-EVENT VERIFICATION**: confirm each pick in exactly 1 coupon
 9. **KOLEJNOŚĆ STAWIANIA (Placement Order)**: when to place each coupon, time-sensitive first
 10. **POMINIĘTE / USUNIĘTE (Removed Picks)**: every rejected pick with reason
 11. **WATCHLIST**: picks not approved but close, with promotion criteria
@@ -189,7 +191,7 @@ Picks not in any coupon but close to approval:
 
 Format per coupon:
 ```markdown
-#### PD01 — Pewniaki 2-ka #1 | CP-{date}-LR1
+#### LR01 — Low-Risk #1 | CP-{date}-LR1
 
 | # | Wydarzenie | Co obstawić | Kurs |
 |---|-----------|------------|------|

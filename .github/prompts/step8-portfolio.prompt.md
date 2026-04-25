@@ -24,26 +24,25 @@ Build the final coupon portfolio from approved picks. Validate with V1-V10 proto
 ### STEP 8: Portfolio Construction
 
 1. **Rank approved picks** by: EV (highest first) → confidence → price_gap
-2. **Identify Pewniaki** (top 3-5 by EV×confidence) — build ALL non-repeating combinations:
-   - 3 pewniaki → 3 doubles + 1 triple = 4 coupons
-   - 4 pewniaki → 6 doubles + 4 triples + 1 quad = 11 coupons
-   - 5 pewniaki → 10 doubles + 10 triples + 5 quads + 1 quint = 26 coupons (pick best 4-6)
-3. **Build themed coupons** from remaining picks:
-   - Multi-sport (≥3 sports per coupon)
-   - Evening/night (events after 20:00)
-   - US sports (NHL/NBA/MLB)
-   - Higher risk (5+ legs, higher combined odds)
+2. **UNIQUE EVENT PER COUPON (ABSOLUTE — NEVER VIOLATE):** Each pick appears in ONLY ONE coupon. Zero sharing.
+   - 10 picks → 5 × 2-leg coupons
+   - 12 picks → 4 × 3-leg coupons, or mix of 2-leg and 3-leg
+   - If not enough picks for 5 coupons → reduce to 3-4 coupons. If <4 picks → NO BET.
+3. **Build diverse coupons** from approved picks:
+   - Low-risk (2-3 legs, best EV picks)
+   - Multi-sport (≥2 sports per coupon)
+   - Higher risk (3-5 legs, combined odds 8-20)
+   - Night (events ≥22:00 CEST only)
 4. **Correlation check** every leg pair in every coupon:
-   - Same match → FORBIDDEN
+   - Same match → inherently impossible (unique event rule)
    - Same league → FLAG (max 2 per coupon)
    - Same narrative → REMOVE weaker
-5. **Concentration check**: If any pick in >60% of coupons → add resilience coupon WITHOUT it
-6. **Stake assignment**:
-   - Low risk (2-leg pewniaki): max 3.00 PLN
+5. **Stake assignment**:
+   - Low risk (2-leg): max 3.00 PLN
    - Medium risk (3-4 legs): 1.50-2.00 PLN
    - High risk (5+ legs): 1.00-1.50 PLN
-7. **Minimum 5 coupons total**. No singles. No maximum legs.
-8. **Watchlist**: picks that didn't pass approval gate but are close. Include promotion criteria.
+6. No singles. No maximum legs.
+7. **Watchlist**: picks that didn't pass approval gate but are close. Include promotion criteria.
 
 ### STEP 9: V1-V10 Validation
 
@@ -58,12 +57,12 @@ Run EVERY check. Fail = fix and re-check.
 | V4b-j | Sport-specific | Volleyball ML range, padel FIP, speedway lineup, etc. |
 | V4k | Upset risk | Every fav ≤1.50 has upset score. If ≥threshold and ML → MUST justify |
 | V5 | Coupon structure | Min 2 legs, same-sport ≤2, **ARITHMETIC: multiply legs explicitly**, stake limits, min 5 coupons |
-| V6 | Portfolio risk | Exposure <25% bankroll, diversification, no >60% concentration |
+| V6 | Portfolio risk | Exposure <25% bankroll, diversification, unique-event verified |
 | V7 | Weaknesses | Borderline picks flagged, CONDITIONAL noted, weakest leg per coupon named |
 | V7b | Date verification | Every event confirmed on correct date with correct teams |
-| V7c | Cross-coupon | No duplicate legs outside pewniaki, no identical coupons |
+| V7c | Cross-coupon | UNIQUE EVENT PER COUPON verified, no correlated narratives |
 | V8 | Source audit | Tier A per pick, ≥2 independent sources, tipster checked |
-| V9 | Composition | EV ranking applied, sport diversity, combined odds ranges (pewniaki 2-8, MS 3-10, HR 8-20) |
+| V9 | Composition | EV ranking applied, sport diversity, combined odds ranges (2-leg 2-4, 3-leg 4-10, 4-leg 8-20) |
 | V10 | Sign-off | All V1-V9 pass → APPROVED |
 
 ### STEP 10: Artifact Generation
@@ -83,7 +82,7 @@ Write/update ALL of these files:
 ## Bankroll: X PLN | Budżet: X-X PLN
 ## Wszystkie typy WARUNKOWE — zweryfikuj kursy w aplikacji Betclic
 
-### PEWNIAKI
+### LOW-RISK
 | # | Kupon | Co obstawić | Kurs | Stawka | Zwrot |
 |---|-------|-------------|------|--------|-------|
 

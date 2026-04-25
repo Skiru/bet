@@ -57,7 +57,7 @@ Mandatory workflow (summary — see methodology for full details):
 7. STEP 5: Odds + EV — estimate true probability, calculate EV (must be >0), price_gap_pct, line movement, Kelly staking.
 8. STEP 6: Context verification — injuries, weather, referee, fixture congestion, motivation.
 9. STEP 7: Bear case + INSTANT RED FLAGS (§7.3) + CONTRARIAN THINKING (§7.4) + PICK APPROVAL GATE (§7.5) — devil's advocate for EACH pick, check sport-specific red flags, force non-standard thinking, unified 13-point approval.
-10. STEP 8: Portfolio construction — rank by EV, pewniaki coupon system, correlation check, watchlist.
+10. STEP 8: Portfolio construction — rank by EV, UNIQUE EVENT PER COUPON (no sharing), correlation check, watchlist.
 11. STEP 9: Validate V1-V10 protocol (enhanced: V7b date verification, V7c cross-coupon integrity, V8 source completeness, V9 composition optimization, V10a forced sport enumeration, V10b-d pick/red flag/damage audit).
 12. STEP 10: Write all artifacts, record odds_checked_at, present to user.
 
@@ -225,18 +225,21 @@ Use `sequentialthinking` for EACH step (one call per step minimum):
 - Key failure scenario with estimated probability.
 - 20%-lower-odds test: would you still bet? If NO → coupon leg only, not single.
 - **CONTRARIAN THINKING (§7.4)**: Am I applying the right model? What's the #1 way this bet loses? Would I take it at current odds fresh? What would a sharp disagree-er say?
-- **PICK APPROVAL GATE (§7.5)**: Run unified 13-point checklist. ALL must pass.
+- **PICK APPROVAL GATE (§7.5)**: Run unified 14-point checklist. ALL must pass. Includes 48h repeat check (point #14).
 - If bear case > bull case → REJECT.
+- If EV < +3% → WATCHLIST only.
+- If tipster arguments = 0 → search harder or REJECT.
 
 **STEP 8 — Portfolio Construction:**
 - Rank approved candidates by: EV (highest first) → confidence → price_gap.
-- Build coupons only (NO SINGLES). Minimum 2 legs per coupon. Minimum 5 coupons total.
-- Pewniaki system: identify 3-5 best picks, build ALL non-repeating combinations (doubles, triples, quad).
-- Build themed/higher-risk coupons from remaining approved picks.
-- Correlation check every pair: same match FORBIDDEN, same league FLAG, same narrative REMOVE weaker.
+- Build coupons only (NO SINGLES). Minimum 2 legs per coupon.
+- **UNIQUE EVENT PER COUPON (ABSOLUTE — NEVER VIOLATE):** Each pick appears in ONLY ONE coupon. Zero sharing. This maximizes diversification.
+- Consequence: need MORE picks. 5 coupons × 2 legs = 10 unique picks. If not enough → reduce coupons (3-4 OK) or NO BET.
+- Build diverse coupons: vary sports, markets, risk levels.
+- Correlation check every pair: same match FORBIDDEN (inherent), same league FLAG, same narrative REMOVE weaker.
 - Suggest stakes for ALL coupons. Total may exceed daily cap — user decides which to place.
 - Build watchlist with promotion criteria ("Promote if Betclic >= X.XX").
-- If board weak (<2 confident picks) → NO BET day.
+- If board weak (<5 confident picks) → reduce coupons. <4 picks → NO BET day.
 
 **STEP 9 — Validate V1-V10:**
 - V1: Artifact consistency (pick_ids, coupon_ids, stake sums, exposure totals).
@@ -251,9 +254,9 @@ Use `sequentialthinking` for EACH step (one call per step minimum):
 - V6: Portfolio risk (exposure < 25%, diversification, tournament concentration).
 - V7: Weakness flagging (borderline picks, CONDITIONAL picks, weakest coupon legs, same-tournament risks).
 - V7b: Date & fixture verification — confirm EVERY event exists on correct date, correct teams, correct competition.
-- V7c: Cross-coupon integrity — no duplicate legs outside pewniaki, no identical coupons, no correlated narratives.
+- V7c: Cross-coupon integrity — UNIQUE EVENT PER COUPON verified (no event in >1 coupon), no identical coupons, no correlated narratives.
 - V8: Source completeness audit — Tier A stats + market source per pick, >=2 independent sources, argument-based tipster checked.
-- V9: Coupon composition optimization — pick ranking by EV×confidence, pewniaki integrity, sport diversity, weakest-leg swap test, combined odds sweet spots.
+- V9: Coupon composition optimization — pick ranking by EV×confidence, unique-event verification, sport diversity, weakest-leg swap test, combined odds sweet spots.
 - V10: All V1-V9 pass → APPROVED. Any fail → fix and re-check.
 
 **STEP 10 — Artifact Generation:**

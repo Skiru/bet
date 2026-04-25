@@ -31,7 +31,7 @@ Daily report required content:
 - Learning Update must contain at most 3 process-level changes.
 - Source Availability must log each important source with role, availability, and a short note.
 - Candidate Board must show the shortlist with verdict values approved, rejected, or watch.
-- Final Coupons must have Pewniaki, Low-Risk, and Higher-Risk subsections. Each coupon must include coupon_id, leg list (minimum 2 legs), combined_odds, stake_pln, correlation check, and main logic. Minimum 5 coupons total. No singles allowed.
+- Final Coupons must have Low-Risk, Multi-Sport, Higher-Risk, and/or Night subsections. Each coupon must include coupon_id, leg list (minimum 2 legs), combined_odds, stake_pln, correlation check, and main logic. **UNIQUE EVENT PER COUPON** — each event in exactly ONE coupon. No singles allowed.
 - Rejected Picks must state the event or market and the rejection reason.
 - Exposure Summary must include total_planned_exposure_pln, unused_bankroll_pln, and note that total suggested exposure may exceed daily budget (user decides which coupons to place).
 - If no bet is made, still write every section and state NO BET TODAY where appropriate.
@@ -42,7 +42,7 @@ The main deliverable is a compact Markdown summary. It MUST be:
 2. Saved to betting/coupons/YYYY-MM-DD.md with IDENTICAL formatting.
 Required sections:
 1. Per-coupon table with columns: #, Coupon ID, What to bet (Polish, specific market description), Combined odds, Stake, Potential return.
-   - Group by type: PEWNIAKI, MULTI-SPORT, HIGHER RISK, NIGHT.
+   - Group by type: LOW-RISK, MULTI-SPORT, HIGHER RISK, NIGHT.
    - Market descriptions must be in plain Polish (e.g. "poniżej 2.5 bramek", "powyżej 22.5 gemów").
    - Include opponent/event name so user can find it in Betclic.
 2. PODSUMOWANIE table:
@@ -62,7 +62,7 @@ The .md file MUST be identical to what is shown in chat — visual Markdown tabl
 Structure of the .md file:
 1. H1 header with date, bankroll, budget.
 2. Conditional notice (all picks are CONDITIONAL — verify on Betclic).
-3. Per-type coupon tables (PEWNIAKI, MULTI-SPORT, HIGHER RISK, NIGHT) — each with columns: #, Coupon ID, Co obstawić, Kurs, Stawka, Zwrot.
+3. Per-type coupon tables (LOW-RISK, MULTI-SPORT, HIGHER RISK, NIGHT) — each with columns: #, Coupon ID, Co obstawić, Kurs, Stawka, Zwrot.
 4. PODSUMOWANIE table (Wydatek, Bankroll po, Łączny pot. zwrot, Stan konta po zwrocie, Najlepszy scenariusz, Realistyczny).
 5. KOLEJNOŚĆ STAWIANIA — placement priority list.
 6. Pominięte coupons note (which coupons were skipped and why, one line).
