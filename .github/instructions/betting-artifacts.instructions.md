@@ -69,8 +69,8 @@ Structure of the .md file:
 7. Time-sensitive warnings if any matches may have already started.
 
 No old-style plain-text metadata blocks (BETTING DAY:, RUN TIME LOCAL:, etc.) — that data lives in the ledger CSVs.
-Minimum 5 coupons total. No singles. No maximum legs per coupon.
-Total suggested stakes may exceed daily budget — user decides which coupons to place.
+Coupon count = f(quality events, deep statistics), NOT f(bankroll). No singles. No maximum legs per coupon.
+Total suggested stakes may exceed daily budget — user decides which coupons to place. NEVER reduce coupon count because of money constraints.
 
 Per-pick concentration limit (MANDATORY when user selects coupons):
 When recommending a subset of coupons for a specific budget, compute per-pick exposure:

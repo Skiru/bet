@@ -66,3 +66,37 @@
 2026-04-23T22:54:26.085924 Updated picks ledger: /Users/mkoziol/projects/bet/betting/journal/picks-ledger.csv
 2026-04-23T22:54:26.086837 Updated coupons ledger: /Users/mkoziol/projects/bet/betting/journal/coupons-ledger.csv
 2026-04-23T22:54:26.086904 Settlement complete: 0 settled, 19 still pending
+2026-04-26T07:55:11.383936 Found 20 pending pick(s) to settle
+2026-04-26T07:55:11.384176 [Poll 1] Looking for result: Heerenveen vs Fortuna Sittard
+2026-04-26T07:55:11.809647   Score not yet available for Heerenveen vs Fortuna Sittard
+2026-04-26T07:55:11.809860 [Poll 1] Looking for result: FC Koln vs Bayer Leverkusen
+2026-04-26T07:55:12.184696   Score not yet available for FC Koln vs Bayer Leverkusen
+2026-04-26T07:55:12.184990 [Poll 1] Looking for result: Wolves vs Tottenham
+2026-04-26T07:55:12.494609   Score not yet available for Wolves vs Tottenham
+2026-04-26T07:55:12.494717 [Poll 1] Looking for result: Arsenal vs Newcastle
+2026-04-26T07:55:12.800582   Score not yet available for Arsenal vs Newcastle
+2026-04-26T07:55:12.800849 [Poll 1] Looking for result: Medvedev vs Marozsan
+2026-04-26T07:55:13.150512   Score not yet available for Medvedev vs Marozsan
+2026-04-26T07:55:13.150777 [Poll 1] Looking for result: Humbert vs Atmane
+2026-04-26T07:55:13.521351   Score not yet available for Humbert vs Atmane
+2026-04-26T07:55:13.521604 [Poll 1] Looking for result: Higgins vs O'Sullivan
+2026-04-26T07:55:13.835677   Score not yet available for Higgins vs O'Sullivan
+2026-04-26T07:55:13.836119 [Poll 1] Looking for result: Zhao Xintong vs Ding Junhui
+2026-04-26T07:55:14.164445   Score not yet available for Zhao Xintong vs Ding Junhui
+2026-04-26T07:55:14.164717 [Poll 1] Looking for result: Estudiantes LP vs Talleres Cordoba
+2026-04-26T07:55:14.496710   Score not yet available for Estudiantes LP vs Talleres Cordoba
+2026-04-26T07:55:14.496837 [Poll 1] Looking for result: Pachuca vs UNAM Pumas
+2026-04-26T07:55:14.836418   Score not yet available for Pachuca vs UNAM Pumas
+2026-04-26T07:55:14.836825 [Poll 1] Looking for result: FC Cincinnati vs NY Red Bulls
+2026-04-26T07:55:15.143486   Score not yet available for FC Cincinnati vs NY Red Bulls
+2026-04-26T07:55:15.143770 [Poll 1] Looking for result: Inter Miami vs NE Revolution
+2026-04-26T07:55:15.457590   Score not yet available for Inter Miami vs NE Revolution
+2026-04-26T07:55:15.457722 [Poll 1] Looking for result: Austin FC vs Houston Dynamo
+2026-04-26T07:55:15.767676   Score not yet available for Austin FC vs Houston Dynamo
+2026-04-26T07:55:15.767964 [Poll 1] Looking for result: Milwaukee Brewers vs Pittsburgh Pirates
+2026-04-26T07:55:16.071780   Score not yet available for Milwaukee Brewers vs Pittsburgh Pirates
+2026-04-26T07:55:16.072030 [Poll 1] Looking for result: UFC Sterling vs Zalal
+2026-04-26T07:55:16.375755   Score not yet available for UFC Sterling vs Zalal
+2026-04-26T07:55:16.378890 Updated picks ledger: /Users/mkoziol/projects/bet/betting/journal/picks-ledger.csv
+2026-04-26T07:55:16.379766 Updated coupons ledger: /Users/mkoziol/projects/bet/betting/journal/coupons-ledger.csv
+2026-04-26T07:55:16.379812 Settlement complete: 0 settled, 20 still pending

@@ -142,7 +142,7 @@ If ANY item is missing → STOP and load it. Do NOT proceed with partial context
 3f. **Scan Completeness Metrics:** Before proceeding, compile per-sport event count table (see methodology §1.5). Total unique events must be ≥50 on a normal day. At least 6 sports must have events. Scan completeness score (events from ≥2 sources / total) must be ≥80%.
 3g. Filter to session window. Remove events outside time range, without Tier A coverage, or <1h to kickoff.
 3h. Build Master Event List: sport, competition, event, kickoff, initial odds.
-3i. Target 15-40 shortlisted events. Night/morning sessions follow the SAME depth — if fewer events exist in the time window, that's fine, but NEVER reduce analysis rigor or coupon count. Minimum 5 coupons regardless of session type.
+3i. Target 15-40 shortlisted events. Night/morning sessions follow the SAME depth — if fewer events exist in the time window, that's fine, but NEVER reduce analysis rigor. Coupon count = f(quality events, deep statistics), NOT f(bankroll). Produce as many coupons as quality picks justify.
 
 ## STEPS 4-8: DEEP ANALYSIS (one sequentialthinking call PER candidate)
 
@@ -233,14 +233,14 @@ For each shortlisted candidate, execute in sequence:
 ## STEP 9: PORTFOLIO CONSTRUCTION
 
 9a. Rank approved candidates by: EV (highest) → confidence → price_gap.
-9b. Build coupons only (NO SINGLES). Minimum 2 legs per coupon. Minimum 5 coupons.
+9b. Build coupons only (NO SINGLES). Minimum 2 legs per coupon. Coupon count = f(quality events, deep statistics), NOT f(bankroll).
 9c. **UNIQUE EVENT PER COUPON RULE (ABSOLUTE — NEVER VIOLATE):**
     - **Each event/pick can appear in ONLY ONE coupon. NEVER share events between coupons.**
     - This means: if you have 10 picks and want 5 coupons × 2 legs = you need all 10 picks. Each coupon is 100% independent.
     - If one coupon fails, it does NOT affect any other coupon. Maximum diversification.
     - This replaces the old pewniaki system.
-    - Consequence: you need MORE approved picks. 5 coupons × 2 legs = minimum 10 picks. 5 coupons × 3 legs = 15 picks.
-    - If you don't have enough picks for 5 unique coupons → reduce coupon count (3-4 is OK) or add watchlist alternatives.
+    - Consequence: you need MORE approved picks. Coupon count is driven ENTIRELY by quality. If 20 picks survive → 10 coupons. If 6 → 3. NEVER reduce coupon count because of money.
+    - If <4 picks → NO BET day. Otherwise, produce as many coupons as quality justifies.
     - **NO EXCEPTIONS. No event appears in more than 1 coupon. Period.**
 9d. Build diverse coupons: vary sports, markets, risk levels. Each coupon should feel like a completely independent bet.
 9e. Correlation check: same match FORBIDDEN (inherent from 9c), same league in one coupon FLAG, same narrative REMOVE weaker.
@@ -300,6 +300,7 @@ Run ALL validation checks. If ANY fails, fix it before presenting. This is the Q
      - **V10b: Pick Approval Gates verified** — every pick passed 13-point gate (§7.5).
      - **V10c: Red Flags cleared** — every pick had sport-specific red flags (§7.3) checked.
      - **V10d: Portfolio damage assessment** — if most-concentrated pick loses, ≥3 coupons survive.
+     - **V10e: Per-Pick Completeness Matrix (MANDATORY)** — print matrix for EVERY pick: Tipster≥1 | H2H≥5 | Injuries | Sources≥2 | Red Flags | EV>0 | Gate14. ANY ❌ on ANY pick = STOP, fix, re-check. ALL 7 columns must be ✅ for EVERY pick. Coupon file without this matrix = PROTOCOL VIOLATION.
      - ALL pass → PORTFOLIO APPROVED.
 
 ---

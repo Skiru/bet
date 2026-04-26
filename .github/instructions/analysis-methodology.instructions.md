@@ -33,7 +33,7 @@ This section overrides everything below. If you remember NOTHING else, remember 
 
 **Self-check before presenting:** "Did I scan ALL 14 sports? Did I click into sub-tournaments? Did I read tipster arguments? Did I try alternative sources when one failed?" If ANY answer is NO → go back.
 
-**SESSION PARITY RULE (NEVER VIOLATE):** Session type (full/day/night/morning) controls ONLY the event time window. Everything else — analysis depth, minimum 5 coupons, all 14 sports scanned, all STEPS 0-10, all V1-V10 validation, tipster deep-dive, H2H, injuries, EV calculation — is IDENTICAL regardless of session type. There are NO shortcuts, NO compact modes, NO reduced requirements for any session type. A night session with fewer events still requires exhaustive scanning of all 14 sports and full-depth analysis of every candidate.
+**SESSION PARITY RULE (NEVER VIOLATE):** Session type (full/day/night/morning) controls ONLY the event time window. Everything else — analysis depth, coupon count driven by quality, all 14 sports scanned, all STEPS 0-10, all V1-V10 validation, tipster deep-dive, H2H, injuries, EV calculation — is IDENTICAL regardless of session type. There are NO shortcuts, NO compact modes, NO reduced requirements for any session type. A night session with fewer events still requires exhaustive scanning of all 14 sports and full-depth analysis of every candidate.
 
 ### Source Fallback Chains (when primary source fails → try next)
 
@@ -1751,7 +1751,7 @@ All picks go into coupons. No singles are produced. Every coupon has at least 2 
 
 This replaces the old pewniaki system (which caused concentration risk — 1 event failing killed multiple coupons).
 
-**Consequence:** You need MORE approved picks. 5 coupons × 2 legs = 10 unique picks minimum. If not enough unique picks → reduce coupon count (3-4 OK) or NO BET. Never reuse events.
+**Consequence:** You need MORE approved picks. Coupon count = f(quality events, deep statistics), NOT f(bankroll). If 20 quality picks survive → make 10 coupons. If 6 → make 3. NEVER reduce coupon count because of money constraints. Target minimum 5 if quality justifies, but produce MORE if analysis supports it. If not enough unique picks (<4) → NO BET. Never reuse events.
 
 **Sport diversity in coupons**: At least 3 coupons must be MULTI-SPORT (legs from 2+ different sports). At least 1 coupon must include a non-football, non-tennis sport (e.g., hockey, volleyball, esports, darts, snooker, handball, table tennis, MMA, basketball, baseball). The final portfolio should showcase the FULL breadth of sports analyzed, not just football.
 
@@ -2016,7 +2016,32 @@ Every pick had sport-specific red flags (§7.3) checked? All fired red flags add
 **V10d: PORTFOLIO DAMAGE ASSESSMENT**
 For the most-concentrated pick (appears in most coupons): "If this pick loses, how many coupons survive?" Must be ≥3. If fewer → add resilience coupon.
 
-All V1-V9 + V10a-V10d pass? -> PORTFOLIO APPROVED.
+**V10e: PER-PICK COMPLETENESS MATRIX (MANDATORY — NEVER PRESENT WITHOUT THIS)**
+
+Before presenting ANY coupon file to the user, print a completeness matrix for EVERY active pick. This is the FINAL safety net — it catches the exact failure mode from v19-night where 8/10 picks had no tipster, 9/10 had no H2H, and 8/10 had no injury check.
+
+```
+PICK COMPLETENESS MATRIX:
+| Pick ID | Tipster ≥1 | H2H ≥5 | Injuries | Sources ≥2 | Red Flags | EV>0 | Gate14 | PASS |
+|---------|-----------|--------|----------|------------|-----------|------|--------|------|
+| PK-N11  | ✅ SBR    | ✅ 10m | ✅ Zucc  | ✅ BE+SBR  | ✅        | ✅   | ✅     | ✅   |
+| PK-N12  | ❌        | ❌     | ❌       | ✅ BE      | ✅        | ✅   | ❌     | ❌   |
+```
+
+**Column definitions:**
+- **Tipster ≥1**: At least 1 argument-based tipster checked (site name + tipster name). "No tipster data" = ❌.
+- **H2H ≥5**: Head-to-head last 5-10 meetings fetched. Source name noted. "Not checked" = ❌.
+- **Injuries**: Injury/suspension check done for ALL teams/players. Source noted. "Not checked" = ❌.
+- **Sources ≥2**: At least 2 independent sources (1 stats + 1 market minimum). Names listed.
+- **Red Flags**: Sport-specific §7.3 red flags checked. "Not checked" = ❌.
+- **EV>0**: Positive expected value confirmed with calculation.
+- **Gate14**: 14-point Pick Approval Gate (§7.5) passed. "Not run" = ❌.
+
+**HARD RULE: ANY pick with ❌ on ANY column → STOP. Go back and fix it BEFORE presenting.**
+**ALL picks must show ✅ on ALL 7 columns to be APPROVED.**
+**A coupon file presented without this matrix is a PROTOCOL VIOLATION.**
+
+All V1-V9 + V10a-V10e pass? -> PORTFOLIO APPROVED.
 Any fail? -> Fix and re-check. Do not present until all pass.
 
 ---
@@ -2174,7 +2199,7 @@ STEP 7: Bear case for each pick
 STEP 8: Portfolio construction
   [ ] Rank by EV -> confidence -> price gap
   [ ] Build coupon combos (unique-event-per-coupon rule + diverse types)
-  [ ] Minimum 5 coupons, minimum 2 legs each
+  [ ] Coupon count driven by quality (not money), minimum 2 legs each
   [ ] Correlation check all pairs
   [ ] Suggest stakes for all coupons (may exceed daily cap)
   [ ] Build watchlist with promotion criteria

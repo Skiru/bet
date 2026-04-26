@@ -528,3 +528,51 @@ Roster change (+2), map pool edge (+1), online match (+1), new patch (+1).
 - daily-betting-cycle.prompt.md: STEP 6, V3-V4
 - learning-log.md: this entry
 - Memory: common-mistakes.md, betting-workflow-rules.md
+
+## 2026-04-26 — LEARNING-BASED PORTFOLIO REBUILD (v20 → v21)
+
+### Settlement summary:
+- Apr 25 settled: 1W-9L = -13.51 PLN. Only CP-PD02 (Higgins+Medvedev) won @2.33.
+- NBA Playoff totals: 0/2. MLS O2.5: 1/4. BTTS: 0/3. Tennis game totals: 2/2 (best market!).
+- Bankroll: 35.00 → 21.49 PLN.
+
+### Per-market hit rate analysis (FULL LEDGER — ALL historical picks):
+| Market | W | L | Hit Rate | Action |
+|--------|---|---|----------|--------|
+| Football corners | 7 | 3 | **70%** | BEST market, PRIORITIZE |
+| Football U2.5 | 3 | 1 | **75%** | Strong, KEEP |
+| Volleyball O3.5 sets | 2 | 0 | **100%** | Small sample but ADD MORE |
+| Football O2.5 | 2 | 3 | 40% | Weak overall, match-specific only |
+| Tennis game totals | 3 | 4 | 43% | Ratio-dependent (STRONG only) |
+| Football BTTS | 2 | 3 | 40% | AVOID |
+| MLB totals | 1 | 5 | **17%** | TERRIBLE, auto -1 conf |
+| NBA totals | 2 | 3 | 40% | AVOID |
+| MLS all | 1 | 4 | **20%** | TERRIBLE |
+| Hockey totals | 2 | 3 | 40% | Mixed |
+| Speedway handicap | 0 | 2 | **0%** | WORST, NEVER USE |
+
+### v20 failures caught in v21:
+1. **PK-03 Mainz-Bayern O2.5 — WRONG DATE!** Bayern plays 02.05 not 26.04. V7b date verification caught this. If placed, would have been voided but shows sloppy analysis.
+2. **PK-06 Unia speedway -7.5 — 0% HIT RATE MARKET.** Speedway handicap is 0W-2L. Should never have been included. Hit rate data now MANDATORY before adding any market type.
+3. **PK-04 Gala U2.5 — EV +2% BORDERLINE.** Minimum EV threshold not enforced. Below +3% = watchlist only.
+
+### Rule changes for future runs:
+1. **MANDATORY: Check per-market hit rate before adding any pick.** If market type has <40% hit rate in ledger → auto -1 confidence, reduced stake. If <25% → REJECT unless exceptional circumstances.
+2. **MANDATORY: Stake weighting by completeness.** V10e matrix score determines stake tier: all ✅ → max stake; ≥2 ⚠️ → reduced; ≥3 ⚠️ → minimum stake.
+3. **Speedway handicap PERMANENTLY banned** until 3+ wins established.
+4. **MLS, MLB totals auto -1 confidence** (confirmed by historical data).
+5. **Volleyball O3.5 sets is a premium market** — actively seek it out every run.
+6. **Football corners remain #1 priority** — when corner data sources (TotalCorner, SoccerStats) are blocked, note gap but still prefer corners over goals markets.
+
+### What worked in v21 rebuild:
+- Caught wrong date (Mainz-Bayern) through BetExplorer fixture verification
+- Added W0lfx tipster (77% accuracy, #2 ranked on Typersi) backing Rinderknech O20.5
+- Graduated stake system: strongest picks 2.00 PLN, weakest 0.50 PLN
+- Added volleyball (100% hit rate market)
+- Removed all picks from 0% hit rate markets
+
+### Files modified:
+- betting/coupons/2026-04-26-v21.md (new file)
+- picks-ledger.csv (PK-03/04/06 superseded, 5 new v21 picks added)
+- coupons-ledger.csv (v20 MS01/MS02 superseded, 4 new v21 coupons added)
+- learning-log.md (this entry)

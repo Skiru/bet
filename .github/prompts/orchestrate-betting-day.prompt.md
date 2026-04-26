@@ -26,7 +26,7 @@ Run the full S1→S8 pipeline for a betting day. Executes 3 TEST passes to find 
 - Same S0→S1→S2→S3→S4→S5→S6→S7→S3B→S8 step sequence
 - Same 14-sport scan in S1 (ALL sports, even if most have 0 events in the window)
 - Same deep analysis (S3-S7): H2H, tipsters, injuries, bear case, 13-point gate
-- Same minimum 5 coupons in S8 (if ≥3 approved picks exist)
+- Coupon count = f(quality events, deep statistics), NOT f(bankroll). Produce as many as quality justifies.
 - Same V1-V10 validation + §4.10 Mechanical Verification
 - Same §S8.FINAL checks (arithmetic, placement order, exposure)
 

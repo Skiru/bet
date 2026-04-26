@@ -3,7 +3,7 @@
   "daily_exposure_pln": null,
   "max_coupon_stake_low_risk_pln": 3.0,
   "max_coupon_stake_higher_risk_pln": 2.0,
-  "working_bankroll_pln": 35.0,
+  "working_bankroll_pln": 21.49,
   "suggested_daily_allocation_range_pln": [
     5.0,
     7.5
@@ -13,6 +13,8 @@
   "low_risk_price_gap_threshold_pct": -3.0,
   "higher_risk_price_gap_threshold_pct": -5.0,
   "min_coupons_per_day": 5,
+  "coupon_count_rule": "driven_by_quality_not_money",
+  "coupon_count_note": "min_coupons_per_day is a soft target. Actual count = f(quality events, deep statistics). Stakes are SUGGESTIONS — user decides which to place. NEVER reduce coupon count because of money constraints.",
   "min_legs_per_coupon": 2,
   "max_same_sport_legs_in_coupon": 2,
   "preferred_odds_range": [

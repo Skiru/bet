@@ -58,7 +58,7 @@ Mandatory workflow (summary — see methodology for full details):
 8. STEP 6: Context verification — injuries, weather, referee, fixture congestion, motivation.
 9. STEP 7: Bear case + INSTANT RED FLAGS (§7.3) + CONTRARIAN THINKING (§7.4) + PICK APPROVAL GATE (§7.5) — devil's advocate for EACH pick, check sport-specific red flags, force non-standard thinking, unified 13-point approval.
 10. STEP 8: Portfolio construction — rank by EV, UNIQUE EVENT PER COUPON (no sharing), correlation check, watchlist.
-11. STEP 9: Validate V1-V10 protocol (enhanced: V7b date verification, V7c cross-coupon integrity, V8 source completeness, V9 composition optimization, V10a forced sport enumeration, V10b-d pick/red flag/damage audit).
+11. STEP 9: Validate V1-V10 protocol (enhanced: V7b date verification, V7c cross-coupon integrity, V8 source completeness, V9 composition optimization, V10a forced sport enumeration, V10b-d pick/red flag/damage audit, V10e per-pick completeness matrix).
 12. STEP 10: Write all artifacts, record odds_checked_at, present to user.
 
 ## ZERO TOLERANCE SHIELD — Proven Failures (review BEFORE every run)
@@ -257,7 +257,13 @@ Use `sequentialthinking` for EACH step (one call per step minimum):
 - V7c: Cross-coupon integrity — UNIQUE EVENT PER COUPON verified (no event in >1 coupon), no identical coupons, no correlated narratives.
 - V8: Source completeness audit — Tier A stats + market source per pick, >=2 independent sources, argument-based tipster checked.
 - V9: Coupon composition optimization — pick ranking by EV×confidence, unique-event verification, sport diversity, weakest-leg swap test, combined odds sweet spots.
-- V10: All V1-V9 pass → APPROVED. Any fail → fix and re-check.
+- V10: All V1-V9 pass → then V10a-V10e:
+  - V10a: Forced Sport Enumeration — all 14 sports listed with events/sources/candidates/picks.
+  - V10b: Pick Approval Gates verified — every pick passed 14-point gate (§7.5).
+  - V10c: Red Flags cleared — every pick had sport-specific red flags checked.
+  - V10d: Portfolio damage — if most-concentrated pick loses, ≥3 coupons survive.
+  - V10e: **Per-Pick Completeness Matrix (MANDATORY)** — print matrix for EVERY pick: Tipster≥1 | H2H≥5 | Injuries | Sources≥2 | Red Flags | EV>0 | Gate14. ANY ❌ on ANY pick → STOP, fix, re-check. ALL 7 columns ✅ for EVERY pick. Coupon file without this matrix = PROTOCOL VIOLATION.
+  - ALL pass → APPROVED. Any fail → fix and re-check.
 
 **STEP 10 — Artifact Generation:**
 - Write/update: report, coupon file, portfolio.md, picks-ledger, coupons-ledger, source-log, learning-log.

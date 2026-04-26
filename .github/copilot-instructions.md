@@ -75,10 +75,10 @@ Selection rules:
 Coupon philosophy:
 - **No singles.** Every pick goes into a coupon with at least 2 legs. Minimum 2 events per coupon.
 - **UNIQUE EVENT PER COUPON (ABSOLUTE RULE — NEVER VIOLATE).** Each event/pick can appear in ONLY ONE coupon. Never share events between coupons. If one coupon fails, it does NOT affect any other coupon. This maximizes diversification and eliminates concentration risk.
-- **Minimum 5 coupons per day** (if enough picks exist). You need at least 10 unique picks for 5×2-leg coupons. Search wider before declaring the board weak.
+- **Coupon count = f(quality events, deep statistics), NOT f(bankroll).** If there are 20 excellent statistically-backed picks → make 10 coupons. If only 6 → make 3. The number of coupons is driven ENTIRELY by how many quality picks survive analysis. NEVER reduce coupon count because of money constraints. Target minimum 5 coupons if enough quality picks exist, but produce MORE if quality justifies it.
 - **No maximum legs per coupon.** A coupon can have 2, 3, 4, 5, or more legs — whatever the analysis supports.
 - **Diverse coupons.** Vary risk levels, sport combinations, leg counts, and market types across coupons. Each coupon is a completely independent bet.
-- **Suggest stakes for every coupon.** Even if the total suggested exposure exceeds the daily budget, suggest stakes anyway. The user will decide which coupons to actually place.
+- **Suggest stakes for every coupon.** Stakes are ADVISORY — user decides which coupons to actually place based on available budget. Total suggested exposure MAY exceed the daily budget. This is intentional and correct.
 
 Price and risk rules:
 - Compare Betclic odds against market-best odds from a comparison source.

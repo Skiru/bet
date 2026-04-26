@@ -26,7 +26,7 @@ Follow the workflow in analysis-methodology.instructions.md (STEPS 0-10 plus STE
 ## 2. HARD RULES (violating any = automatic reject)
 
 - **No singles.** Every pick goes into a coupon. Minimum 2 legs per coupon.
-- **Minimum 5 coupons per day.** Produce at least 5 diverse coupons. Search wider before accepting fewer.
+- **Coupon count = f(quality events, deep statistics), NOT f(bankroll).** If 20 excellent picks survive analysis → make 10 coupons. If only 6 → make 3. NEVER reduce coupon count because of money constraints. Target minimum 5 if enough quality picks exist, but produce MORE if quality justifies it. Stakes are ADVISORY — user decides which to place.
 - **No maximum legs per coupon.** A coupon can have 2, 3, 4, 5, or more legs.
 - **MANDATORY 14-sport scan.** Every analysis MUST scan ALL 14 configured sports: football, tennis, basketball, hockey, baseball, volleyball, esports, snooker, darts, table_tennis, handball, mma, padel, speedway. Never skip a sport. Record "NO EVENTS TODAY" if a sport has no fixtures.
 - **MANDATORY Deep Scan Protocol (§1.2).** Do NOT just look at a sport's landing page. Click into EVERY active tournament/league to see the FULL fixture list. Count matches per tournament. Cross-validate event counts between BetExplorer and Flashscore — discrepancy >20% means events were missed.
@@ -120,7 +120,7 @@ This applies equally to: football, tennis, basketball, hockey, baseball, volleyb
 | low-risk | 2 | no limit | 2 | 1 | 3.00 |
 | higher-risk | 2 | no limit | 2 | 2 | 2.00 |
 
-- Minimum 5 coupons per day (if enough picks exist). Need 10+ unique picks for 5×2-leg coupons. If not enough → 3-4 coupons OK. If <4 picks → NO BET.
+- Coupon count = f(quality events, deep statistics), NOT f(bankroll). Target minimum 5 if quality justifies. Produce MORE if 10+ unique picks exist. NEVER reduce coupon count because of money. If <4 picks → NO BET.
 - No singles allowed. Every pick goes into exactly one coupon.
 - **UNIQUE EVENT PER COUPON (ABSOLUTE — NEVER VIOLATE).** Each pick appears in ONLY ONE coupon. Zero sharing between coupons. Each coupon is 100% independent.
 - Combined odds = multiply each leg's odds. Must match stated combined_odds ±10%.
@@ -332,6 +332,7 @@ Go through every check. Write YES or NO for each. If any is NO, fix it before pr
 - [ ] **V10b: Pick Approval Gates** — every pick passed 13-point gate (§7.5 methodology).
 - [ ] **V10c: Red Flags cleared** — every pick had sport-specific red flags (§7.3) checked and addressed.
 - [ ] **V10d: Portfolio damage** — if most-concentrated pick loses, ≥3 coupons survive.
+- [ ] **V10e: Per-Pick Completeness Matrix** — print matrix for EVERY pick: Tipster≥1 | H2H≥5 | Injuries | Sources≥2 | Red Flags | EV>0 | Gate14. ANY ❌ on ANY pick → STOP, fix, re-check. ALL picks must be ✅ on ALL 7 columns. A coupon file without this matrix is a PROTOCOL VIOLATION.
 - [ ] All pass → write "PORTFOLIO APPROVED"
 - [ ] If any check fails → fix it, re-check, do not present until all pass
 
@@ -353,7 +354,7 @@ Go through every check. Write YES or NO for each. If any is NO, fix it before pr
 14. Writing "5 picks at 4/5" when the list actually contains 6 — COUNT the list, do not guess.
 15. Using "Med" or "Medium" as tier label in V5 validation table — use "Low" or "Higher" only.
 16. Producing singles instead of coupons — NO SINGLES allowed. Minimum 2 legs per coupon.
-17. Producing fewer than 5 coupons without exhausting all sport/market opportunities first.
+17. Reducing coupon count because total suggested exposure exceeds daily budget — coupon count = f(quality), money is a SUGGESTION. Produce ALL quality-justified coupons.
 18. Self-censoring coupon count because total exposure exceeds daily budget — suggest ALL coupons, user decides.
 19. Giving up on a source after first 403/block instead of trying next source in the Odds Source Map.
 20. Skipping the V8 source completeness audit — EVERY pick needs ≥2 sources verified, ≥1 tipster site checked, sport-specific sources confirmed.
@@ -389,3 +390,4 @@ Go through every check. Write YES or NO for each. If any is NO, fix it before pr
 50. **Skipping sport-specific Instant Red Flags (§7.3)** — not checking backup goalie status before an NHL totals pick, not checking B2B in NBA, not checking bullpen game in MLB, not checking dead rubber in football. These are 30-second checks that prevent the most common, most OBVIOUS failures. Every sport has 3-6 fast binary checks. Run them ALL for EVERY pick. See §7.3 in methodology.
 51. **Skipping Contrarian Thinking (§7.4)** — not questioning whether the model applies to this specific case. The Jodar loss: standard P(3 sets) model applied to a WC match where binary outcomes dominate. ALWAYS ask: "Am I applying the right model?" and "What's the #1 way this specific bet type loses?" before approving.
 52. **Not running the Pick Approval Gate (§7.5)** — presenting picks that haven't passed the unified 13-point pre-flight checklist. This single checklist catches ALL past mistakes in one pass: identity, WC status, H2H, injuries, sources, tipsters, EV, drift, red flags, contrarian, bear case, anchoring. Skip it = repeat past failures.
+53. **Presenting coupons without Per-Pick Completeness Matrix (V10e)** — v19-night had 10 picks but only 2/10 had tipster arguments, 1/10 had H2H, 2/10 had injury checks. The agent claimed analysis was "deep" but the matrix would have instantly revealed 8/10 picks were INCOMPLETE. RULE: Before presenting ANY coupon, print the V10e matrix (Tipster/H2H/Injuries/Sources/RedFlags/EV/Gate14) for EVERY pick. ANY ❌ = STOP and fix. This is the FINAL safety net — never skip it.
