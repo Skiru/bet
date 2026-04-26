@@ -25,7 +25,7 @@ Run the full S1→S8 pipeline for a betting day. Executes 3 TEST passes to find 
 - Same 4-pass protocol (Discovery → Targeted Fixes → Polish → Final)
 - Same S0→S1→S2→S3→S4→S5→S6→S7→S3B→S8 step sequence
 - Same 14-sport scan in S1 (ALL sports, even if most have 0 events in the window)
-- Same deep analysis (S3-S7): H2H, tipsters, injuries, bear case, 13-point gate
+- Same deep analysis (S3-S7): H2H, tipsters, injuries, bear case, 14-point gate
 - Coupon count = f(quality events, deep statistics), NOT f(bankroll). Produce as many as quality justifies.
 - Same V1-V10 validation + §4.10 Mechanical Verification
 - Same §S8.FINAL checks (arithmetic, placement order, exposure)
@@ -66,7 +66,7 @@ Each pass executes these steps IN ORDER. Each step:
 | S4 | `s4-tipsters` | S3 output | `{date}_s4_tipsters.md` | ≥2 tipster sites per candidate |
 | S5 | `s5-odds-ev` | S3+S4 output | `{date}_s5_odds_ev.md` | EV > 0 for all approved |
 | S6 | `s6-context-upset` | S5 output | `{date}_s6_context.md` | Upset risk scored, context verified |
-| S7 | `s7-bear-case-gate` | S6 output | `{date}_s7_gate.md` | 13-point gate passed per pick |
+| S7 | `s7-bear-case-gate` | S6 output | `{date}_s7_gate.md` | 14-point gate passed per pick |
 | S3B | `s3b-time-sensitive` | S7 output | `{date}_s3b_time_sensitive.md` | Lineups, weather, odds drift checked |
 | S8 | `s8-portfolio-coupons` | S7+S3B output | Coupon file + ledgers | V1-V10 all pass |
 
@@ -104,7 +104,7 @@ Read `{date}_pass1_errors.md`. For each error:
 - S4: Missing tipster sites, no arguments extracted → check specific URLs, use fallbacks
 - S5: Missing odds source, no EV calculated → try alternative source
 - S6: Missing injury check, upset risk not scored → verify on ESPN/Flashscore
-- S7: Incomplete 13-point gate, Zero Tolerance pattern matched → fix or reject pick
+- S7: Incomplete 14-point gate, Zero Tolerance pattern matched → fix or reject pick
 - S3B: Lineups not checked, odds drift not calculated → re-run close to kickoff
 - S8: Arithmetic error, orphan picks, missing sections → fix and re-validate
 
@@ -121,7 +121,7 @@ Read `{date}_pass2_errors.md`. Fix remaining issues. Then:
 6. Run Zero Tolerance Shield against known failure patterns
 7. **SESSION PARITY CHECK**: If session=night/morning, verify:
    - ALL 14 sports were scanned (not just US sports for night)
-   - Every candidate got full S3-S7 (H2H, tipsters, injuries, bear case, 13-point gate)
+   - Every candidate got full S3-S7 (H2H, tipsters, injuries, bear case, 14-point gate)
    - ≥5 coupons built (or NO BET declared with justification)
    - V1-V10 ran fully (not a "compact" validation)
    - If ANY of these failed → treat as critical error, fix before Pass 4

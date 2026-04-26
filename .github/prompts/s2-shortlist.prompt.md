@@ -8,13 +8,14 @@ agent: bet-analyst
 
 ## INPUTS
 - `betting/data/{date}_s1_master_events.md` — from STEP 1
-- Betting-day window: 06:00 → 05:59+1 CEST
+- **Session**: {{session}} — controls event time window filter
+- **Event window**: resolved from session (full/day/night/morning) + betting_window_days in config
 
 ## TASK
 Filter the Master Event List to a shortlist of 15-40 candidates for deep analysis.
 
 ### REMOVAL CRITERIA (apply in order):
-1. **Outside window**: kickoff not in 06:00→05:59+1 CEST
+1. **Outside window**: kickoff not in the resolved session event window
 2. **No Tier A source**: event has no BetExplorer/Flashscore/OddsPortal coverage
 3. **Too close to kickoff**: <1h from analysis time
 4. **Exhibition/friendly**: unless odds available and Tier A coverage exists

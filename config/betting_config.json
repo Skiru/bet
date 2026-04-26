@@ -1,5 +1,7 @@
 {
   "use_smart_allocation": true,
+  "betting_window_days": 1,
+  "betting_window_note": "Number of days to scan for events. Default 1 = single betting day (06:00-05:59). Set to 2 or 3 for multi-day analysis windows. Settlement covers all days before the window start.",
   "daily_exposure_pln": null,
   "max_coupon_stake_low_risk_pln": 3.0,
   "max_coupon_stake_higher_risk_pln": 2.0,

@@ -1,6 +1,6 @@
 ---
 name: s7-bear-case-gate
-description: "STEP 7: Bear case + Red Flags + Contrarian + 13-point Pick Approval Gate"
+description: "STEP 7: Bear case + Red Flags + Contrarian + 14-point Pick Approval Gate"
 agent: bet-analyst
 ---
 
@@ -11,7 +11,7 @@ agent: bet-analyst
 - All prior S3-S6 data per candidate
 
 ## TASK
-For EACH surviving candidate: build bear case, check red flags, think contrarian, run 13-point gate. This is the KILL STEP — weak picks die here.
+For EACH surviving candidate: build bear case, check red flags, think contrarian, run 14-point gate. This is the KILL STEP — weak picks die here.
 
 ### PER-CANDIDATE PROTOCOL:
 
@@ -69,6 +69,7 @@ Every pick MUST pass ALL 13:
 | 11 | Contrarian questions answered | |
 | 12 | Bear case < Bull case (bear doesn't overwhelm) | |
 | 13 | Not anchored to stale analysis (data is from TODAY) | |
+| 14 | 48h repeat check: same team+market lost in last 48h → HARD REJECT (unless materially different) | |
 
 **ANY check FAIL → pick is REJECTED or DOWNGRADED to watchlist.**
 
@@ -119,10 +120,10 @@ Save to: `betting/data/{date}_s7_gate.md`
 3. Fresh at current odds? [answer]
 4. Sharp counter? [answer + refutation]
 
-### 13-Point Gate
+### 14-Point Gate
 | # | Check | PASS/FAIL |
 |---|-------|-----------|
-| 1-13 | ... | ... |
+| 1-14 | ... | ... |
 
 **FINAL VERDICT**: ✅ APPROVED (confidence X/5) / ❌ REJECTED (reason) / ⚠️ WATCHLIST (promote if...)
 ```
@@ -135,8 +136,8 @@ Save to: `betting/data/{date}_s7_gate.md`
 - [ ] **V-S7-04**: Red flag table completed for every candidate (sport-specific)
 - [ ] **V-S7-05**: Every fired red flag has resolution (reject/downgrade/justify)
 - [ ] **V-S7-06**: All 4 contrarian questions answered per candidate
-- [ ] **V-S7-07**: 13-point gate completed (all 13 rows, not abbreviated)
-- [ ] **V-S7-08**: No APPROVED pick has any FAIL in 13-point gate
+- [ ] **V-S7-07**: 14-point gate completed (all 14 rows, not abbreviated)
+- [ ] **V-S7-08**: No APPROVED pick has any FAIL in 14-point gate
 - [ ] **V-S7-09**: Zero Tolerance patterns checked (ML default, WC, drift, date)
 - [ ] **V-S7-10**: Rejected picks have clear reason documented
 

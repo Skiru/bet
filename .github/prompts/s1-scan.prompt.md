@@ -7,7 +7,14 @@ agent: bet-analyst
 # STEP 1 — COMPLETE EVENT SCAN
 
 ## CONFIG
-- **Date**: {{run_date}} (betting day 06:00 → 05:59+1 CEST)
+- **Date**: {{run_date}}
+- **Session**: {{session}} (full/day/night/morning — controls event time window)
+- **Event window**:
+  - `full`: 06:00 run_date → 05:59 next day
+  - `day`: 06:00 → 21:59 run_date
+  - `night`: 22:00 run_date → 05:59 next day
+  - `morning`: 06:00 → 14:59 run_date
+  - If `betting_window_days` > 1 in config → extend window to cover N days
 - **Bankroll**: see config/betting_config.json
 - **14 sports**: football, tennis, basketball, hockey, baseball, volleyball, esports, snooker, darts, table_tennis, handball, mma, padel, speedway
 
