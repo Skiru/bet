@@ -51,8 +51,8 @@ Four mandatory questions:
 
 If you can't refute #4 with data → pick is WEAK.
 
-#### 7D — PICK APPROVAL GATE (§7.5) — 13 POINTS
-Every pick MUST pass ALL 13:
+#### 7D — PICK APPROVAL GATE (§7.5) — 14 POINTS
+Every pick MUST pass ALL 14:
 
 | # | Check | Pass? |
 |---|-------|-------|
