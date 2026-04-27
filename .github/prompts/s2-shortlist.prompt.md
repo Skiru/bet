@@ -1,7 +1,7 @@
 ---
 name: s2-shortlist
 description: "STEP 2: Filter Master Event List to 15-40 candidates with self-verification"
-agent: bet-analyst
+agent: bet-scanner
 ---
 
 # STEP 2 — SHORTLIST FILTERING

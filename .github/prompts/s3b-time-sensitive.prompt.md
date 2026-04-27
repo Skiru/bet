@@ -1,7 +1,7 @@
 ---
 name: s3b-time-sensitive
 description: "STEP 3B: Lineup, weather, late injuries, odds movement — run 2-3h before earliest event"
-agent: bet-analyst
+agent: bet-statistician
 ---
 
 # STEP 3B — TIME-SENSITIVE DATA COLLECTION

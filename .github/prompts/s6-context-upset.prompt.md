@@ -1,7 +1,7 @@
 ---
 name: s6-context-upset
 description: "STEP 6: Context verification + Upset Risk Assessment per candidate"
-agent: bet-analyst
+agent: bet-challenger
 ---
 
 # STEP 6 — CONTEXT + UPSET RISK

@@ -1,7 +1,7 @@
 ---
 name: s1-scan
 description: "STEP 1: Exhaustive 14-sport event scan with self-verification"
-agent: bet-analyst
+agent: bet-scanner
 ---
 
 # STEP 1 — COMPLETE EVENT SCAN

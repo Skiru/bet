@@ -1,7 +1,7 @@
 ---
 name: s3-deep-stats
 description: "STEP 3: Sport-specific deep statistical analysis per candidate"
-agent: bet-analyst
+agent: bet-statistician
 ---
 
 # STEP 3 — DEEP STATISTICAL ANALYSIS

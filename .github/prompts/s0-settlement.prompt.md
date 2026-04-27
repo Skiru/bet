@@ -1,7 +1,7 @@
 ---
 name: s0-settlement
 description: "STEP 0: Settle previous day, PnL, CLV, bankroll update, learning review"
-agent: bet-analyst
+agent: bet-settler
 ---
 
 # STEP 0 — SETTLE PREVIOUS DAY

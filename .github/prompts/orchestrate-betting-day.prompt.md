@@ -1,7 +1,7 @@
 ---
 name: orchestrate-betting-day
 description: "Full daily cycle: 4-pass pipeline (Discovery → Fixes → Polish → Final) with settlement, scan, deep analysis, coupons."
-agent: bet-analyst
+agent: bet-orchestrator
 argument-hint: "run_date=2026-04-27 session=full" or "run_date=2026-04-27 session=night rerun=true"
 ---
 
@@ -109,18 +109,18 @@ Each pass executes these steps IN ORDER. Each step:
 4. Runs self-verification checklist
 5. Logs errors in `betting/data/{date}_pass{P}_errors.md`
 
-| Step | Prompt | Input | Output | Gate |
-|------|--------|-------|--------|------|
-| S0 | `s0-settlement` | picks-ledger, coupons-ledger, Flashscore | `{date}_s0_settlement.md` | All pending resolved, bankroll updated |
-| S1 | `s1-scan` | BetExplorer, Flashscore, scan_summary | `{date}_s1_master_events.md` + `{date}_s1_tipster_prefetch.md` | ≥50 events, ALL 14 sports scanned (≥6 with events), completeness ≥80%, **tipster HTML fetched** |
-| S2 | `s2-shortlist` | S1 output | `{date}_s2_shortlist.md` | 15-40 candidates, ≥8 sports in shortlist |
-| S3 | `s3-deep-stats` | S2 output | `{date}_s3_deep_stats.md` | Stats from ≥2 sources per candidate |
-| S4 | `s4-tipsters` | S3 output + **§1.5 pre-fetched HTML** | `{date}_s4_tipsters.md` | ≥2 tipster sites per candidate, **§4.3 watchlist promotion done** |
-| S5 | `s5-odds-ev` | S3+S4 output | `{date}_s5_odds_ev.md` | EV > 0 for all approved |
-| S6 | `s6-context-upset` | S5 output | `{date}_s6_context.md` | Upset risk scored, context verified |
-| S7 | `s7-bear-case-gate` | S6 output | `{date}_s7_gate.md` | 17-point gate passed per pick |
-| S3B | `s3b-time-sensitive` | S7 output | `{date}_s3b_time_sensitive.md` | Lineups, weather, odds drift checked |
-| S8 | `s8-portfolio-coupons` | S7+S3B output | Coupon file + ledgers | V1-V10 all pass |
+| Step | Prompt | Agent | Input | Output | Gate |
+|------|--------|-------|-------|--------|------|
+| S0 | `s0-settlement` | bet-settler | picks-ledger, coupons-ledger, Flashscore | `{date}_s0_settlement.md` | All pending resolved, bankroll updated |
+| S1 | `s1-scan` | bet-scanner | BetExplorer, Flashscore, scan_summary | `{date}_s1_master_events.md` + `{date}_s1_tipster_prefetch.md` | ≥50 events, ALL 14 sports scanned (≥6 with events), completeness ≥80%, **tipster HTML fetched** |
+| S2 | `s2-shortlist` | bet-scanner | S1 output | `{date}_s2_shortlist.md` | 15-40 candidates, ≥8 sports in shortlist |
+| S3 | `s3-deep-stats` | bet-statistician | S2 output | `{date}_s3_deep_stats.md` | Stats from ≥2 sources per candidate |
+| S4 | `s4-tipsters` | bet-scout | S3 output + **§1.5 pre-fetched HTML** | `{date}_s4_tipsters.md` | ≥2 tipster sites per candidate, **§4.3 watchlist promotion done** |
+| S5 | `s5-odds-ev` | bet-valuator | S3+S4 output | `{date}_s5_odds_ev.md` | EV > 0 for all approved |
+| S6 | `s6-context-upset` | bet-challenger | S5 output | `{date}_s6_context.md` | Upset risk scored, context verified |
+| S7 | `s7-bear-case-gate` | bet-challenger | S6 output | `{date}_s7_gate.md` | 17-point gate passed per pick |
+| S3B | `s3b-time-sensitive` | bet-statistician | S7 output | `{date}_s3b_time_sensitive.md` | Lineups, weather, odds drift checked |
+| S8 | `s8-portfolio-coupons` | bet-builder | S7+S3B output | Coupon file + ledgers | V1-V10 all pass |
 
 **NOTE:** S3B runs AFTER S7 (bear case) but BEFORE S8 (coupons) so that lineup/weather findings can still void picks before coupon construction. S3B should run within 2-3h of earliest event kickoff. If analysis is done well before kickoff, S3B can be a separate later run — the orchestrator supports both modes.
 

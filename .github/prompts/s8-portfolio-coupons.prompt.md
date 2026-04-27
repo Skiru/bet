@@ -1,7 +1,7 @@
 ---
 name: s8-portfolio-coupons
 description: "STEP 8: Portfolio construction, coupon building, V1-V10, artifact generation"
-agent: bet-analyst
+agent: bet-builder
 ---
 
 # STEP 8 — PORTFOLIO + COUPONS + VALIDATION + ARTIFACTS

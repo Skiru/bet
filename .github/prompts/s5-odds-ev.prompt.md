@@ -1,7 +1,7 @@
 ---
 name: s5-odds-ev
 description: "STEP 5: Multi-source odds comparison, EV calculation, Kelly staking"
-agent: bet-analyst
+agent: bet-valuator
 ---
 
 # STEP 5 — ODDS + EV ANALYSIS

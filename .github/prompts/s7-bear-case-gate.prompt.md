@@ -1,7 +1,7 @@
 ---
 name: s7-bear-case-gate
 description: "STEP 7: Bear case + Red Flags + Contrarian + 17-point Pick Approval Gate"
-agent: bet-analyst
+agent: bet-challenger
 ---
 
 # STEP 7 — BEAR CASE + RED FLAGS + PICK GATE

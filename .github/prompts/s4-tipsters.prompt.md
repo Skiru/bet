@@ -1,7 +1,7 @@
 ---
 name: s4-tipsters
 description: "STEP 4: Argument-based tipster deep-dive per candidate"
-agent: bet-analyst
+agent: bet-scout
 ---
 
 # STEP 4 — TIPSTER DEEP-DIVE
