@@ -124,12 +124,10 @@ For each candidate, fill this EXACT template (all 9 numbered sections):
 **Why this beat alternatives**: [1 sentence — e.g., "Fouls had 80% safety vs corners 60% — both teams physical style"]
 
 ### 4. THREE-WAY CROSS-CHECK
-```
-L10 AVERAGE → [value] → hit rate vs line: [X/10]
-H2H AVERAGE → [value] → hit rate vs line: [X/5]
-L5 RECENT  → [value] → trend: [UP/DOWN/STABLE]
-ALIGNMENT: ✅ ALL THREE support [OVER/UNDER] / ⚠️ 2/3 conflict → DOWNGRADE / ❌ 3/3 conflict → REJECT
-```
+- L10 AVERAGE → [value] → hit rate vs line: [X/10]
+- H2H AVERAGE → [value] → hit rate vs line: [X/5]
+- L5 RECENT  → [value] → trend: [UP/DOWN/STABLE]
+- ALIGNMENT: ✅ ALL THREE support [OVER/UNDER] / ⚠️ 2/3 conflict → DOWNGRADE / ❌ 3/3 conflict → REJECT
 
 ### 5. Coach/Roster Stability Check
 - **Coach change (last 5 matches)?**: [YES — details / NO] (source: TransferMarkt / Flashscore)

@@ -17,13 +17,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="${SCRIPT_DIR}/.."
 DATA_DIR="${ROOT_DIR}/betting/data"
 VENV_DIR="${ROOT_DIR}/.venv"
-CONFIG="${ROOT_DIR}/config/betting_config.json"
 
 # Defaults
 RUN_DATE=$(date '+%Y-%m-%d')
 SESSION="full"
 SKIP_SETTLE=false
-DATE_COMPACT=""
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -35,7 +33,6 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-DATE_COMPACT="${RUN_DATE//-/}"
 YESTERDAY=$(date -j -v-1d -f "%Y-%m-%d" "$RUN_DATE" '+%Y-%m-%d' 2>/dev/null || date -d "$RUN_DATE -1 day" '+%Y-%m-%d')
 
 echo "╔════════════════════════════════════════════════════╗"
@@ -165,6 +162,30 @@ done
 
 echo "[A5.3] Fetching DailyFaceoff (NHL goalies)..."
 python3 "${SCRIPT_DIR}/fetch_with_playwright.py" "https://www.dailyfaceoff.com/starting-goalies/" 2>&1 | tail -2 || true
+
+echo ""
+echo "═══════════════════════════════════════════════════"
+echo "STEP A6: Pre-Fetch Validation"
+echo "═══════════════════════════════════════════════════"
+
+# Count fetched HTML files to verify tipster pre-fetch success
+TIPSTER_DIRS=(zawodtyper.pl typersi.pl sportsgambler.com pickswise.com betideas.com)
+TIPSTER_OK=0
+TIPSTER_FAIL=0
+for DIR in "${TIPSTER_DIRS[@]}"; do
+    if [ -d "${DATA_DIR}/${DIR}" ] && [ -n "$(find "${DATA_DIR}/${DIR}" -name '*.html' -maxdepth 1 2>/dev/null | head -1)" ]; then
+        echo "  ✅ ${DIR}: HTML found"
+        TIPSTER_OK=$((TIPSTER_OK + 1))
+    else
+        echo "  ❌ ${DIR}: NO HTML — tipster coverage will be degraded"
+        TIPSTER_FAIL=$((TIPSTER_FAIL + 1))
+    fi
+done
+echo "  Tipster pre-fetch: ${TIPSTER_OK}/5 OK, ${TIPSTER_FAIL}/5 missing"
+
+# Count BetExplorer sport pages
+BE_COUNT=$(find "${DATA_DIR}" -path "*/betexplorer.com/*.html" 2>/dev/null | wc -l | tr -d ' ')
+echo "  BetExplorer pages: ${BE_COUNT}"
 
 echo ""
 echo "═══════════════════════════════════════════════════"

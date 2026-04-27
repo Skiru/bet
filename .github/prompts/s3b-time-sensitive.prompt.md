@@ -10,8 +10,9 @@ agent: bet-statistician
 **MUST run within 2-3 hours of the earliest event kickoff.** Data from this step overrides earlier analysis. If findings contradict pick thesis → re-evaluate, downgrade, or void.
 
 ## INPUTS
-- `betting/data/{date}_s5_odds_ev.md` — approved candidates with EV
-- All prior S3-S5 data
+- `betting/data/{date}_s7_gate.md` — APPROVED picks (✅ only) from the 17-point gate
+- `betting/data/{date}_s5_odds_ev.md` — odds at analysis time (needed for drift calculation)
+- All prior S3-S6 data as needed
 
 ## TASK
 For EVERY approved candidate: verify lineups, check late injuries, check weather, check odds movement.

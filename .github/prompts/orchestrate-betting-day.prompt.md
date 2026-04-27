@@ -119,7 +119,7 @@ Each pass executes these steps IN ORDER. Each step:
 | S5 | `s5-odds-ev` | bet-valuator | S3+S4 output | `{date}_s5_odds_ev.md` | EV formula shown per pick, ≥2 odds sources per pick |
 | S6 | `s6-context-upset` | bet-challenger | S5 output | `{date}_s6_context.md` | Upset risk scored with full checklist per candidate, Paradox Rule applied |
 | S7 | `s7-bear-case-gate` | bet-challenger | S6 output | `{date}_s7_gate.md` | **STRUCTURAL: full 17-point gate table + bear case + red flags + contrarian per pick** |
-| S3B | `s3b-time-sensitive` | bet-statistician | S7 output | `{date}_s3b_time_sensitive.md` | Lineups, weather, odds drift formula per pick |
+| S3B | `s3b-time-sensitive` | bet-statistician | S7 + S5 output | `{date}_s3b_time_sensitive.md` | Lineups, weather, odds drift formula per pick |
 | S8 | `s8-portfolio-coupons` | bet-builder | S7+S3B output | Coupon file + ledgers | V1-V10 all pass, V10e matrix complete, §S8.FINAL pass |
 
 **NOTE:** S3B runs AFTER S7 (bear case) but BEFORE S8 (coupons) so that lineup/weather findings can still void picks before coupon construction. S3B should run within 2-3h of earliest event kickoff. If analysis is done well before kickoff, S3B can be a separate later run — the orchestrator supports both modes.
@@ -160,16 +160,12 @@ METRIC: candidates_with_2+_tipster_args / total_candidates × 100 = TIPSTER_%
 GATE: TIPSTER_% ≥ 80%. If <80% → list candidates with <2 args → return to bet-scout with fallback chain instructions.
 ```
 
-#### §S4-COVERAGE — Required Summary Table Format
-```
-## Tipster Coverage Summary
-| # | Event | Sport | Sites Checked | Sites With Args | Consensus % | Status |
-|---|-------|-------|---------------|-----------------|-------------|--------|
-| 1 | [event] | [sport] | ZT, Typersi, OLBG | ZT(3), OLBG(2) | 80% | ✅ |
-| 2 | [event] | [sport] | PicksWise, SG | PW(1), SG(0) | 100% | ⚠️ 1-src |
-...
-| TOTAL | | | avg X.X sites/cand | avg X.X with args | | X% full |
-```
+#### §S4-COVERAGE — Required Summary Table
+The S4 output file must contain the Tipster Coverage Summary table as defined in the `s4-tipsters` prompt. The orchestrator verifies:
+- Table exists at the top of the file (before per-candidate sections)
+- A TOTAL row is present with aggregate metrics (avg sites/candidate, avg with args, % full)
+- Status column uses: ✅ OK (≥2 sites with args) / ⚠️ 1-source / ❌ TIPSTER-BLIND (0 args) / 🔄 RETRY
+- Candidate count in TOTAL row matches total candidates from S3
 
 ### After S7 — Read `{date}_s7_gate.md` and verify:
 ```
