@@ -31,14 +31,14 @@ Follow methodology exactly. Use `sequentialthinking` for EACH step. Per-candidat
 0. **Settle** previous day → PnL, CLV, bankroll update + **§0.2 HISTORICAL LEARNING QUERY** (per-market hit rates, per-sport hit rates, coupon killer analysis — BEFORE scanning)
 1. **Scan** all 14 sports → Master Event List (deep scan, tournament depth, completeness gate, retry failed sources) + **§1.5 TIPSTER PRE-FETCH** (Playwright-fetch zawodtyper/typersi/sportsgambler/pickswise/betideas → parse ALL tipster arguments → statistical-market picks enter shortlist)
 2. **Filter** → 15-40 shortlist (include tipster-sourced statistical picks from §1.5)
-3. **Stats** per candidate (load sport-protocols, H2H mandatory, statistical markets > ML always, **SECOND-ANGLE CHECK** on every candidate, **COACH/ROSTER STABILITY CHECK**)
+3. **Stats** per candidate (load sport-protocols, H2H mandatory, statistical markets > ML always, **§3.0 STATISTICAL MARKET RANKING** on every candidate, **COACH/ROSTER STABILITY CHECK**)
 4. **Tipsters** ≥2 argument-based sites per candidate (use §1.5 pre-fetched HTML, read reasoning, not bare picks) + **§4.3 TIPSTER-SOURCED WATCHLIST** (any tipster statistical-market pick with argued stats → Watchlist with full argument)
 5. **Odds+EV** per candidate (EV>0, price gap, drift gate <8%, Kelly 1/4, market performance tracker from §0.2)
 6. **Context** per candidate (injuries, weather, referee, motivation, **coach change**, **roster changes**) + **Upset Risk** (§6.5 checklist, Paradox Rule)
-7. **Bear case** + Red Flags (§7.3) + Contrarian (§7.4) + 14-point Gate (§7.5)
+7. **Bear case** + Red Flags (§7.3) + Contrarian (§7.4) + 17-point Gate (§7.5)
 3B. **Time-sensitive** (lineups, late injuries, odds movement — run 2-3h before events)
 8. **Coupons** → core portfolio (UNIQUE EVENT PER COUPON, scale with picks: 2-5+ core across LR/MS/HR/NIGHT) + **COMBO MENU** (4-8 extra combos remixing approved picks, prefixed COMBO-). User picks from both. + **§8.2 COUPON STRESS TEST** (P(coupon), weakest-leg swap, Betclic market existence)
-9. **Validate** V1-V10 (including V10e completeness matrix — ALL picks ✅ all 7 columns)
+9. **Validate** V1-V10 (including V10e completeness matrix — ALL picks ✅ all 10 columns: Tipster≥1, H2H≥5, H2H-Stat, StatRank, 3WayChk, Injuries, Sources≥2, RedFlags, EV>0, Gate17)
 10. **Artifacts** → report, coupon (with per-coupon reasoning + watchlist + 10 declined picks), ledgers, source-log, learning-log
 
 ## ZERO TOLERANCE SHIELD — Proven Failures
@@ -56,6 +56,8 @@ Follow methodology exactly. Use `sequentialthinking` for EACH step. Per-candidat
 | 10 | Liverpool O1.5 TG vs Palace (H2H not checked) | ALWAYS check H2H. Palace won ALL 3 recent. |
 | 11 | PHI @ ATL direction wrong | Verify home/away for EVERY event. \"@\" = Away @ Home. |
 | 12 | Basketball blanket-rejected on 0/2 | NEVER blanket-reject sport on <5 picks. FLAG ≠ BAN. Analyze each candidate individually. |
+| 13 | Football defaulted to corners without checking fouls/cards/shots | ALWAYS run §3.0 RANKING for ALL available stat markets. Pick highest safety score. |
+| 14 | Corner pick missing H2H corner data (only match H2H) | ALWAYS get H2H for the EXACT stat being bet (§3.0c). H2H match results alone ≠ stat H2H. |
 
 ## HARD REJECTIONS
 Missing Tier A evidence, source conflict, stale odds, EV≤0, price gap outside threshold, bear>bull, streak>5 without regression, opinion-only picks.

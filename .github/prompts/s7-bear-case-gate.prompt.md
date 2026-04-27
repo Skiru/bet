@@ -1,6 +1,6 @@
 ---
 name: s7-bear-case-gate
-description: "STEP 7: Bear case + Red Flags + Contrarian + 14-point Pick Approval Gate"
+description: "STEP 7: Bear case + Red Flags + Contrarian + 17-point Pick Approval Gate"
 agent: bet-analyst
 ---
 
@@ -11,7 +11,7 @@ agent: bet-analyst
 - All prior S3-S6 data per candidate
 
 ## TASK
-For EACH surviving candidate: build bear case, check red flags, think contrarian, run 14-point gate. This is the KILL STEP — weak picks die here.
+For EACH surviving candidate: build bear case, check red flags, think contrarian, run 17-point gate. This is the KILL STEP — weak picks die here.
 
 ### PER-CANDIDATE PROTOCOL:
 
@@ -51,8 +51,8 @@ Four mandatory questions:
 
 If you can't refute #4 with data → pick is WEAK.
 
-#### 7D — PICK APPROVAL GATE (§7.5) — 14 POINTS
-Every pick MUST pass ALL 14:
+#### 7D — PICK APPROVAL GATE (§7.5) — 17 POINTS
+Every pick MUST pass ALL 17:
 
 | # | Check | Pass? |
 |---|-------|-------|
@@ -70,6 +70,9 @@ Every pick MUST pass ALL 14:
 | 12 | Bear case < Bull case (bear doesn't overwhelm) | |
 | 13 | Not anchored to stale analysis (data is from TODAY) | |
 | 14 | 48h repeat check: same team+market lost in last 48h → HARD REJECT (unless materially different) | |
+| 15 | MULTI-MARKET COMPARISON: ≥3 stat markets calculated (§3.0). Best safety score selected. | |
+| 16 | H2H STAT-SPECIFIC: H2H for EXACT stat exists (§3.0c). If missing → H2H-STAT-BLIND, −0.5 conf, no LR. | |
+| 17 | THREE-WAY ALIGNMENT: L10 + H2H + L5 all support direction. 2/3 conflict → DOWNGRADE. | |
 
 **ANY check FAIL → pick is REJECTED or DOWNGRADED to watchlist.**
 
@@ -88,6 +91,9 @@ Every pick MUST pass ALL 14:
 | 9 | HR1v5 combined odds wrong | No arithmetic shown | ALWAYS multiply legs explicitly. Show the math. |
 | 10 | Liverpool O1.5 TG vs Palace | H2H not checked — Palace dominated | ALWAYS check H2H. Crystal Palace won ALL 3 recent. |
 | 11 | PHI @ ATL direction wrong | "@" = Away @ Home confused | Verify home/away for EVERY event. |
+| 12 | Basketball blanket-rejected on 0/2 | Small sample panic | NEVER blanket-reject sport on <5 picks. FLAG ≠ BAN. |
+| 13 | Football defaulted to corners (fouls/cards/shots not checked) | Tunnel vision on one stat | ALWAYS run §3.0 RANKING for ALL available stats. |
+| 14 | Corner pick missing H2H corner data | H2H was match-level only | ALWAYS get H2H for the EXACT stat being bet (§3.0c). |
 
 **IF ANY PATTERN MATCHES → STOP. FIX. THEN CONTINUE.**
 
@@ -120,7 +126,7 @@ Save to: `betting/data/{date}_s7_gate.md`
 3. Fresh at current odds? [answer]
 4. Sharp counter? [answer + refutation]
 
-### 14-Point Gate
+### 17-Point Gate
 | # | Check | PASS/FAIL |
 |---|-------|-----------|
 | 1-14 | ... | ... |
@@ -136,8 +142,8 @@ Save to: `betting/data/{date}_s7_gate.md`
 - [ ] **V-S7-04**: Red flag table completed for every candidate (sport-specific)
 - [ ] **V-S7-05**: Every fired red flag has resolution (reject/downgrade/justify)
 - [ ] **V-S7-06**: All 4 contrarian questions answered per candidate
-- [ ] **V-S7-07**: 14-point gate completed (all 14 rows, not abbreviated)
-- [ ] **V-S7-08**: No APPROVED pick has any FAIL in 14-point gate
+- [ ] **V-S7-07**: 17-point gate completed (all 17 rows, not abbreviated)
+- [ ] **V-S7-08**: No APPROVED pick has any FAIL in 17-point gate
 - [ ] **V-S7-09**: Zero Tolerance patterns checked (ML default, WC, drift, date)
 - [ ] **V-S7-10**: Rejected picks have clear reason documented
 

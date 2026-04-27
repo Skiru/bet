@@ -125,12 +125,66 @@ Preferred odds range: 1.30-3.50.
 1. **H2H MANDATORY:** Last 5-10 meetings, home/away splits. H2H surprises override league position.
 2. **Collect ALL stats** from sport-specific table (not some — ALL). Split by home/away.
 3. **Calculate hit rates** for O/U lines.
-4. **Rank markets by safety:** hit_rate × odds_value = best market. Choose SAFEST, not most interesting.
-5. **Present TOP 2-3 markets** per match with statistical backing BEFORE choosing.
+4. **Run §3.0 STATISTICAL MARKET RANKING** (below). Rank ALL available stat markets by safety score. Choose SAFEST, not most interesting.
+5. **Present TOP 2-3 markets** per match from §3.0 ranking table BEFORE choosing.
 6. **NEVER default to ML/1X2.** Statistical markets ALWAYS preferred across ALL 14 sports.
 7. ML only when: (1) no statistical market on Betclic AND (2) statistical edge overwhelming AND (3) price acceptable.
-8. **SECOND-ANGLE CHECK (mandatory):** After identifying your top market, ask: "What's a completely different angle on this match?" Check at least ONE alternative market (different stat category). If the alternative has a higher hit rate or better EV, SWITCH. This prevents tunnel vision.
-9. **COACH/ROSTER STABILITY CHECK (mandatory):** For EVERY candidate: Did the coach change in the last 5 matches? Any major transfers, loan returns, or squad changes in the last 14 days? New coach bounce = volatile form (first 5 games unreliable). Major roster change = stats from previous games may not apply.
+8. **COACH/ROSTER STABILITY CHECK (mandatory):** For EVERY candidate: Did the coach change in the last 5 matches? Any major transfers, loan returns, or squad changes in the last 14 days? New coach bounce = volatile form (first 5 games unreliable). Major roster change = stats from previous games may not apply.
+
+### §3.0 STATISTICAL MARKET RANKING PROTOCOL (MANDATORY — NEVER SKIP)
+
+**For EVERY candidate, BEFORE selecting a market:**
+
+1. **List ALL bettable statistical markets** for that sport (see §3.0b table below).
+2. **For EACH available market**, collect: (a) team/player L10 average, (b) H2H average for that SPECIFIC stat (last 5 meetings minimum), (c) recent form L5 average, (d) bookmaker line, (e) hit rate (how often L10 + H2H covered that line).
+3. **Calculate SAFETY SCORE** per market: `safety = min(hit_rate_L10, hit_rate_H2H)`. Higher = safer. Use avg margin vs line as tiebreaker (Over: avg/line, Under: line/avg — bigger = more margin).
+4. **Rank all markets** by safety score. Pick the TOP market — not your default/favorite.
+5. **CONFLICT CHECK:** If H2H avg and L10 avg disagree by >20% on the same stat → FLAG. Weight recent form (L5) as tiebreaker. If L5 also conflicts with H2H → DOWNGRADE or SKIP.
+6. **PRESENT the ranking table** in the analysis. Show WHY the chosen market beat alternatives.
+
+**This means:** Football picks are NOT always corners. They could be fouls, cards, shots, throw-ins — whichever stat has the best safety score for THAT specific match. Tennis is NOT always O22.5 games — it could be U21.5, O/U sets, or game handicap. Basketball is NOT always total points — it could be team totals, quarter totals, or rebounds.
+
+### §3.0b BETTABLE STATISTICAL MARKETS BY SPORT
+
+| Sport | Statistical Markets (ranked by typical reliability) |
+|-------|-----------------------------------------------------|
+| **Football** | Fouls O/U, Cards O/U, Corners team O/U, Corners total O/U, Shots O/U, Shots on target O/U, Throw-ins O/U, Goal kicks O/U, Offsides O/U, Team goals O/U, Total goals O/U, BTTS |
+| **Tennis** | Total games O/U, Sets O/U, Game handicap, Set handicap, Tiebreaks O/U, Aces O/U, Double faults O/U |
+| **Basketball** | Team points O/U, Quarter totals, Half totals, Total points O/U, Rebounds O/U, Assists O/U, 3-pointers O/U, Spread |
+| **Volleyball** | Total sets O/U, Total points O/U, Set handicap, Points per set O/U |
+| **Hockey** | Period totals O/U, Total goals O/U, Shots O/U, Power play goals O/U, Puck line |
+| **Baseball** | F5 innings total O/U, Team totals, Total runs O/U, Hits O/U, Strikeouts O/U, Run line |
+| **Snooker** | Frame totals O/U, Century breaks O/U, 50+ breaks O/U, Frame handicap |
+| **Darts** | 180s O/U, Total legs O/U, Set totals, Checkout % props |
+| **Handball** | Half totals O/U, Total goals O/U, Team goals O/U, Suspensions O/U |
+| **Esports** | Round totals O/U, Map totals O/U, Kill totals, Map handicap |
+| **Table Tennis** | Set totals O/U, Total points O/U, Set handicap |
+| **MMA** | Total rounds O/U, Method of victory, ITD Y/N |
+| **Padel** | Game totals O/U, Set totals O/U, Set handicap |
+| **Speedway** | Total points O/U, Team handicap |
+
+### §3.0c H2H MARKET-SPECIFIC VALIDATION (MANDATORY — NEVER SKIP)
+
+**For EVERY selected market, you MUST have H2H data for THAT SPECIFIC STAT:**
+
+- Picking corners? → Get H2H corner totals between these exact teams (last 3-5 meetings).
+- Picking total games in tennis? → Get H2H game totals between these exact players (last 3-5 meetings, surface-filtered).
+- Picking total points in basketball? → Get H2H combined scoring (last 3-5 meetings at this venue).
+- Picking frame totals in snooker? → Get H2H frame counts (last 3-5 meetings).
+
+**If H2H data for the SPECIFIC stat is unavailable:**
+1. Mark pick as `H2H-STAT-BLIND` in the analysis.
+2. Apply −0.5 confidence penalty.
+3. The pick CANNOT be in a LR coupon.
+4. Increase weight on L5 recent form as substitute.
+
+**THREE-WAY CROSS-CHECK (mandatory for every pick):**
+```
+L10 AVERAGE → [value] → hit rate vs line: [X/10]
+H2H AVERAGE → [value] → hit rate vs line: [X/5]
+L5 RECENT  → [value] → trend: [UP/DOWN/STABLE]
+ALL THREE must support the pick direction. 2/3 conflict → DOWNGRADE. 3/3 conflict → REJECT.
+```
 
 ---
 
@@ -267,7 +321,7 @@ KEY FAILURE SCENARIO: [most likely way this fails]
 3. Would I take it FRESH at CURRENT odds? (defeat anchoring)
 4. What would a sharp disagree-er say?
 
-### §7.5 PICK APPROVAL GATE (14 points, EVERY pick)
+### §7.5 PICK APPROVAL GATE (17 points, EVERY pick)
 ```
 [ ] 1. Identity verified (full name, no slashes)
 [ ] 2. WC/Q/LL / debut / stand-in / backup checked
@@ -283,7 +337,10 @@ KEY FAILURE SCENARIO: [most likely way this fails]
 [ ] 12. Bear case < bull case
 [ ] 13. Not anchored (would take at current odds)
 [ ] 14. 48h repeat check (same team+market lost → HARD REJECT)
-ALL 14 PASS → APPROVED | ANY FAIL → REJECT/DOWNGRADE/WATCHLIST
+[ ] 15. MULTI-MARKET COMPARISON: ≥3 alternative stat markets calculated for this match (§3.0). Best safety score selected.
+[ ] 16. H2H STAT-SPECIFIC: H2H data for the EXACT stat being bet exists (§3.0c). If missing → H2H-STAT-BLIND, −0.5 confidence, no LR coupon.
+[ ] 17. THREE-WAY ALIGNMENT: L10 avg + H2H avg + L5 recent all support pick direction. 2/3 conflict → DOWNGRADE. 3/3 conflict → REJECT.
+ALL 17 PASS → APPROVED | ANY FAIL → REJECT/DOWNGRADE/WATCHLIST
 ```
 
 ---
@@ -377,6 +434,8 @@ For EACH coupon, before finalizing:
 - Every pick: ≥2 independent sources + ≥1 argument-based tipster.
 - Sport-specific sources checked (football corners: TotalCorner+SoccerStats, tennis: TennisAbstract, MLB: BaseballSavant, esports: Liquipedia/GosuGamers, snooker: CueTracker).
 - H2H, injuries verified for EVERY pick.
+- **V8b: H2H STAT-SPECIFIC CHECK:** For EVERY pick, H2H data for the SPECIFIC stat market exists (not just match results). If H2H-STAT-BLIND → pick is flagged, −0.5 confidence, excluded from LR coupons.
+- **V8c: STATISTICAL MARKET RANKING AUDIT:** For EVERY pick, §3.0 ranking table was produced showing ≥3 alternative markets considered. If no ranking table → FAIL.
 
 ### V9: Coupon Optimization
 - Picks ranked by EV×confidence. No orphan picks. No ≥3 same-market-type in coupon.
@@ -387,7 +446,7 @@ For EACH coupon, before finalizing:
 
 **V10a: Forced Sport Enumeration** — ALL 14 sports listed with events/sources/candidates/picks. KEY sports (Football, Volleyball, Basketball, Tennis): 0 events + <3 sources → go back. SUPPORT sports: 0 events + <2 sources → go back.
 
-**V10b: Pick Approval Gates** — every pick passed 14-point gate (§7.5).
+**V10b: Pick Approval Gates** — every pick passed 17-point gate (§7.5).
 
 **V10c: Red Flags** — every pick had §7.3 checked. All fired flags addressed.
 
@@ -395,10 +454,13 @@ For EACH coupon, before finalizing:
 
 **V10e: PER-PICK COMPLETENESS MATRIX (MANDATORY)**
 ```
-| Pick ID | Tipster≥1 | H2H≥5 | Injuries | Sources≥2 | RedFlags | EV>0 | Gate14 | PASS |
-|---------|-----------|--------|----------|-----------|----------|------|--------|------|
+| Pick ID | Tipster≥1 | H2H≥5 | H2H-Stat | StatRank | 3WayChk | Injuries | Sources≥2 | RedFlags | EV>0 | Gate17 | PASS |
+|---------|-----------|--------|----------|----------|---------|----------|-----------|----------|------|--------|------|
 ```
-ALL 7 columns ✅ for EVERY pick. ANY ❌ → STOP, fix, re-check. **No coupon file without this matrix.**
+- **H2H-Stat:** H2H data exists for the SPECIFIC stat being bet (§3.0c). ❌ = H2H-STAT-BLIND, −0.5 confidence, no LR coupon.
+- **StatRank:** §3.0 statistical market ranking was done — ≥3 alternative markets evaluated, best safety score chosen.
+- **3WayChk:** THREE-WAY CROSS-CHECK passed — L10 avg + H2H avg + L5 trend all support pick direction.
+ALL 10 columns ✅ for EVERY pick. ANY ❌ → STOP, fix, re-check. **No coupon file without this matrix.**
 
 ALL V1-V10 pass → **PORTFOLIO APPROVED.**
 
@@ -428,6 +490,9 @@ On reruns: increment version (v5→v6). Mark old pending as `superseded`. Keep a
 | 9 | HR1v5 odds wrong | No arithmetic | ALWAYS multiply legs explicitly. |
 | 10 | Liverpool O1.5 TG vs Palace | H2H not checked | ALWAYS check H2H. Palace won ALL 3 recent. |
 | 11 | PHI @ ATL direction wrong | "@" = Away @ Home confused | Verify home/away for EVERY event. |
+| 12 | Basketball blanket-rejected on 0/2 | Small sample panic | NEVER blanket-reject sport on <5 picks. FLAG ≠ BAN. |
+| 13 | Football defaulted to corners (fouls/cards/shots not checked) | Tunnel vision on one stat | ALWAYS run §3.0 RANKING for ALL available stats. Pick highest safety score. |
+| 14 | Corner pick missing H2H corner data | H2H was match-level only | ALWAYS get H2H for the EXACT stat being bet (§3.0c). Match H2H alone ≠ stat H2H. |
 
 ---
 
@@ -452,7 +517,7 @@ On reruns: increment version (v5→v6). Mark old pending as `superseded`. Keep a
 17. O22.5+ for WC/Q/LL — HARD REJECT. O20.5 max.
 18. Ignoring drift >8% — MANDATORY re-eval.
 19. Home/away reversed in US sports — "@" = Away @ Home.
-20. V10e matrix missing — PROTOCOL VIOLATION. Every pick must have ✅ on all 7 columns.
+20. V10e matrix missing — PROTOCOL VIOLATION. Every pick must have ✅ on all 10 columns.
 
 ---
 

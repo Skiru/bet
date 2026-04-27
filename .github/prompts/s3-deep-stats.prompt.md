@@ -34,7 +34,7 @@ For EACH shortlisted candidate, gather sport-specific statistics. One candidate 
 6. **Corner picks**: 3-source stack = TotalCorner + SoccerStats + Betclic Statystyki (top leagues only)
 7. **Injury/suspension check** (ESPN, Flashscore, team social media)
 8. **Context**: dead rubber? cup rotation? derby? referee for cards/fouls?
-9. **SECOND-ANGLE CHECK (mandatory):** After identifying your top market, ask: "What's a completely different angle on this match?" Check at least ONE alternative market (different stat category). If the alternative has a higher hit rate or better EV, SWITCH.
+9. **§3.0 STATISTICAL MARKET RANKING (mandatory):** Run the full §3.0 protocol — list ALL bettable stat markets for this sport, calculate safety score for each (`min(hit_rate_L10, hit_rate_H2H)`), rank them, pick the TOP market. Present ranking table in analysis.
 10. **COACH/ROSTER STABILITY CHECK (mandatory):** Did the coach change in last 5 matches (TransferMarkt)? Any major transfers, loan returns, or squad changes in last 14 days? New coach = volatile form. Major roster change = stats may not apply.
 
 #### TENNIS (§3.2) — STATISTICAL FIRST, ML LAST RESORT:

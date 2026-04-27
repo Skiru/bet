@@ -41,6 +41,20 @@ applyTo: ""
 5. Present TOP 3 markets per match with hit rates before choosing
 6. **WHY corners/fouls/shots > goals:** These markets accumulate throughout the match (5-8 corners per half regardless of score), are driven by team STYLE (pressing = corners, physical = fouls), and survive in-match chaos (red card barely affects total corners). Goals depend on finishing luck. EVERY match MUST have ≥1 corner/foul/shot market evaluated.
 
+**§3.1M MANDATORY MULTI-MARKET CALCULATION (FOOTBALL):**
+Before selecting ANY football market, calculate ALL of these for the specific match:
+```
+| Market           | TeamA avg | TeamB avg | H2H avg | Line | Hit L10 | Hit H2H | Safety |
+|------------------|-----------|-----------|---------|------|---------|---------|--------|
+| Fouls O/U X.5    |           |           |         |      |         |         |        |
+| Cards O/U X.5    |           |           |         |      |         |         |        |
+| Corners O/U X.5  |           |           |         |      |         |         |        |
+| Shots O/U X.5    |           |           |         |      |         |         |        |
+| Team CK O/U X.5  |           |           |         |      |         |         |        |
+| Goals O/U X.5    |           |           |         |      |         |         |        |
+```
+Pick the market with HIGHEST safety score. If corners and fouls are both high → pick whichever has better H2H support. **NEVER default to corners without checking fouls/cards/shots first.**
+
 **Context (MANDATORY):** Coach change (TransferMarkt), injuries/suspensions (ESPN, Flashscore), fixture congestion (<72h), motivation (relegation/title/dead rubber), weather (rain/wind→corners), referee stats (cards/fouls).
 
 ### §3.2 Tennis
@@ -65,6 +79,19 @@ applyTo: ""
 5. Clay = more breaks = supports over. Hard = serve-dominant = tiebreaks.
 6. **WHY games/sets > ML:** Games accumulate every set (driven by serve% and return%), making them style-predictable. ML depends on a few break points — high variance. A player losing a match still produces 18-25 games.
 
+**§3.2M MANDATORY MULTI-MARKET CALCULATION (TENNIS):**
+Before selecting ANY tennis market, calculate ALL of these:
+```
+| Market              | PlayerA avg | PlayerB avg | H2H avg | Line  | Hit L10 | Hit H2H | Safety |
+|---------------------|-------------|-------------|---------|-------|---------|---------|--------|
+| Total games O/U X.5 |             |             |         |       |         |         |        |
+| Sets O/U 2.5        |             |             |         |       |         |         |        |
+| Game HC -X.5        |             |             |         |       |         |         |        |
+| Tiebreaks O/U 0.5   |             |             |         |       |         |         |        |
+| Aces O/U X.5        |             |             |         |       |         |         |        |
+```
+Pick the market with HIGHEST safety score. **Surface-filter H2H is mandatory** (only same-surface meetings count).
+
 **§3.2F PLAYER IDENTITY (MANDATORY):** Full first+last name, country, exact ranking. No slashes/abbreviations. Verify WC/Q/LL status.
 
 **§3.2G WILDCARD BLOWOUT RULE:** WC/Q/LL vs seeded (top 30) in R1/R2:
@@ -87,6 +114,19 @@ applyTo: ""
 
 **Market decision:** Team totals → Quarter totals → Game totals O/U → Spreads → ML (LAST RESORT). Both top-10 pace → O-totals. Playoff = 3-5 fewer points avg.
 **WHY points/totals > ML:** Points accumulate every possession (80-100 per team per game), driven by PACE (structural team trait). A team losing by 20 still scores 85+ points. ML depends on who has the better 4th quarter run — high variance.
+
+**§3.3M MANDATORY MULTI-MARKET CALCULATION (BASKETBALL):**
+Before selecting ANY basketball market, calculate ALL of these:
+```
+| Market               | TeamA avg | TeamB avg | H2H avg | Line  | Hit L10 | Hit H2H | Safety |
+|----------------------|-----------|-----------|---------|-------|---------|---------|--------|
+| Team pts O/U X.5     |           |           |         |       |         |         |        |
+| Total pts O/U X.5    |           |           |         |       |         |         |        |
+| Q1 total O/U X.5     |           |           |         |       |         |         |        |
+| 1H total O/U X.5     |           |           |         |       |         |         |        |
+| Spread X.5           |           |           |         |       |         |         |        |
+```
+Pick the market with HIGHEST safety score. **For EU leagues**: use BetExplorer PF/PA + Flashscore H2H scoring, NOT Basketball-Reference.
 
 **Context:** Star player availability (DAY OF check), B2B (−3-5 pts), travel, altitude (Denver), playoff implications.
 
@@ -114,6 +154,18 @@ applyTo: ""
 
 **Market decision:** Set score O/U → Total pts O/U → Set totals O/U 3.5 → Set HC → ML (LAST RESORT, 1.50-2.50 range). Both top-6 = O3.5 sets. Big mismatch = U3.5/HC -1.5.
 **WHY sets/points > ML:** Sets and points accumulate through rallies (driven by reception% and attack efficiency — structural). A losing team still wins 1-2 sets and scores 80+ points per set. ML depends on clutch 5th-set performance — high variance.
+
+**§3.5M MANDATORY MULTI-MARKET CALCULATION (VOLLEYBALL):**
+Before selecting ANY volleyball market, calculate ALL of these:
+```
+| Market              | TeamA avg | TeamB avg | H2H avg | Line | Hit L10 | Hit H2H | Safety |
+|---------------------|-----------|-----------|---------|------|---------|---------|--------|
+| Total sets O/U 3.5  |           |           |         |      |         |         |        |
+| Total pts O/U X.5   |           |           |         |      |         |         |        |
+| Set HC -1.5/+1.5    |           |           |         |      |         |         |        |
+| Pts/set O/U X.5     |           |           |         |      |         |         |        |
+```
+Pick the market with HIGHEST safety score.
 
 ### §3.6 Esports (CS2/LoL/Dota2/Valorant)
 

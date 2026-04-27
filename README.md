@@ -90,7 +90,7 @@ Ustaw `betting_window_days` > 1 w `config/betting_config.json`, potem:
 
 Kazda sesja — full, day, night, morning — wykonuje:
 - Skanowanie wszystkich 14 sportow
-- Pelna analiza STEP 3-7 kazdego kandydata (H2H, tipsterzy, kontuzje, bear case, 14-point gate)
+- Pelna analiza STEP 3-7 kazdego kandydata (H2H, tipsterzy, kontuzje, bear case, 17-point gate)
 - Pelna walidacja V1-V10
 - Weryfikacja mechaniczna §S8.FINAL
 - Minimum 4 kupony lub deklaracja NO BET
@@ -121,7 +121,7 @@ python3 scripts/fetch_odds_api.py
 | S4 | Tipsters | ≥2 strony tipsterskie na kandydata, §4.3 watchlist done |
 | S5 | Odds/EV | EV > 0 dla kazdego approved |
 | S6 | Context | Upset risk scored, kontuzje zweryfikowane |
-| S7 | Gate | 14-point gate przeszedl dla kazdego picka |
+| S7 | Gate | 17-point gate przeszedl dla kazdego picka |
 | S3B | Time-sensitive | Sklady, pogoda, drift kursow sprawdzone |
 | S8 | Coupons | V1-V10 all pass, §S8.FINAL weryfikacja mechaniczna |
 

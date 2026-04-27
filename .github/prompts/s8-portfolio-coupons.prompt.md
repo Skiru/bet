@@ -165,7 +165,7 @@ For EACH coupon, before finalizing:
 - [ ] V10b: All pick approval gates verified
 - [ ] V10c: All red flags cleared
 - [ ] V10d: Portfolio damage assessment (if top pick loses, what survives?)
-- [ ] V10e: PER-PICK COMPLETENESS MATRIX produced (all picks ✅ all 7 columns: Tipster≥1, H2H≥5, Injuries, Sources≥2, RedFlags, EV>0, Gate14)
+- [ ] V10e: PER-PICK COMPLETENESS MATRIX produced (all picks ✅ all 10 columns: Tipster≥1, H2H≥5, H2H-Stat, StatRank, 3WayChk, Injuries, Sources≥2, RedFlags, EV>0, Gate17)
 - [ ] ALL V1-V9 pass → **APPROVED**
 
 ---
@@ -192,10 +192,10 @@ For EACH coupon, before finalizing:
 13. **CONDITIONAL NOTES**: time-sensitive checks user must do before placing
 14. **V10e PER-PICK COMPLETENESS MATRIX**:
     ```
-    | Pick ID | Tipster≥1 | H2H≥5 | Injuries | Sources≥2 | RedFlags | EV>0 | Gate14 | PASS |
-    |---------|-----------|--------|----------|-----------|----------|------|--------|------|
+    | Pick ID | Tipster≥1 | H2H≥5 | H2H-Stat | StatRank | 3WayChk | Injuries | Sources≥2 | RedFlags | EV>0 | Gate17 | PASS |
+    |---------|-----------|--------|----------|----------|---------|----------|-----------|----------|------|--------|------|
     ```
-    ALL 7 columns ✅ for EVERY pick. ANY ❌ → STOP, fix, re-check.
+    ALL 10 columns ✅ for EVERY pick. ANY ❌ → STOP, fix, re-check.
 15. **V1-V10 STATUS**: full validation status table
 16. **USUNIĘTE WERSJE**: which old versions this supersedes
 
