@@ -4,7 +4,11 @@ applyTo: "betting/**/*"
 
 # Analysis Methodology — Daily Protocol (Compact)
 
-Goal: find MISPRICED ODDS, not predict winners. EV > 0 is the only valid reason to bet.
+## ULTIMATE RULE: BET STATISTICS, NOT OUTCOMES
+
+We bet on **statistical markets** (corners, fouls, shots, games, sets, points, frames, rounds) — NOT on who wins. Statistical markets accumulate throughout the match, are driven by team/player STYLE (structural), survive in-match chaos, and are systematically mispriced by bookmakers. Outcome markets (ML, winner, goals) depend on finishing luck and single moments. **Every pick must be a statistical market unless no statistical market exists for that event.**
+
+Goal: find MISPRICED ODDS in statistical markets. EV > 0 is the only valid reason to bet.
 
 > **Sport-specific protocols** (stats tables, upset checklists, red flags) are in [sport-analysis-protocols.instructions.md](sport-analysis-protocols.instructions.md). Load that file when performing STEP 3+ analysis.
 
@@ -124,9 +128,34 @@ Check ≥2 ARGUMENT-BASED tipster sites per candidate. Read WRITTEN REASONING, n
 
 **Sites:** ZawodTyper (PL), Typersi (PL), Meczyki (PL), OLBG (EN), PicksWise (EN), BetIdeas (EN), Sportsgambler (EN), Tipstrr (EN, verified ROI), GosuGamers (esports).
 
+**Sport-specific tipster fallback chains (try in order until ≥2 sources found):**
+
+| Sport | Primary | Secondary | Tertiary |
+|-------|---------|-----------|----------|
+| Football (EU) | ZawodTyper → Meczyki | OLBG → BetIdeas | Typersi → Sportsgambler |
+| Football (US/MX) | PicksWise | Sportsgambler | OLBG |
+| Tennis | ZawodTyper → OLBG | Sportsgambler → PicksWise | Typersi |
+| Basketball (EU) | Sportsgambler | ZawodTyper | Typersi |
+| Basketball (US) | PicksWise | Sportsgambler | OLBG |
+| Volleyball | ZawodTyper → Typersi | Sportsgambler | Meczyki |
+| Hockey | PicksWise | Sportsgambler | OLBG |
+| Baseball | PicksWise | Sportsgambler | OLBG |
+| Snooker/Darts | Sportsgambler → OLBG | Tipstrr | — |
+| Esports | GosuGamers | Tipstrr | — |
+| Other | Sportsgambler | OLBG | PicksWise |
+
 **Extract per tipster:** site, tipster name, specific pick, odds, reasoning summary (1-2 sentences with stats/facts cited).
 
 **Consensus:** ≥70% agreement → +0.5 confidence. ≥60% contradiction → investigate, −1 or skip. Strong fact-based argument from 1 tipster against your thesis → investigate before finalizing.
+
+### §4.2 STEP 4 COMPLETENESS GATE (MANDATORY)
+Before proceeding to STEP 5, verify:
+- [ ] Every shortlisted candidate has ≥1 tipster source with extracted reasoning.
+- [ ] ≥80% of candidates have ≥2 tipster sources.
+- [ ] If a candidate has 0 tipster sources after exhausting the fallback chain → mark as `TIPSTER-BLIND` in report. Still allowed but gets −0.5 confidence and CANNOT be in LR coupons.
+- [ ] Record per-candidate tipster coverage in a summary table: `| Event | Sources checked | Sources with reasoning | Consensus |`
+
+**If <60% of candidates have ≥1 tipster source → STOP and fetch more before STEP 5.**
 
 **Blocked tipster sites:** Forebet, FootySupertips, Windrawwin, BettingExpert, Protipster, Oddspedia, SportyTrader, Predictz, Trafiamy, Blogabet, HLTV tips.
 
@@ -198,7 +227,7 @@ KEY FAILURE SCENARIO: [most likely way this fails]
 [ ] 3. H2H ≥5 meetings checked (surface/venue splits)
 [ ] 4. Injuries/suspensions/load management checked
 [ ] 5. ≥2 independent sources (1 stats + 1 market)
-[ ] 6. ≥1 tipster argument READ (reasoning extracted)
+[ ] 6. ≥1 tipster argument READ (reasoning extracted, site+name+pick logged). If 0 → TIPSTER-BLIND, −0.5 confidence, NO LR coupon.
 [ ] 7. Upset risk scored (§6.5 checklist)
 [ ] 8. EV > 0 calculated
 [ ] 9. Odds drift <8% verified (or re-evaluated)
@@ -370,23 +399,34 @@ On reruns: increment version (v5→v6). Mark old pending as `superseded`. Keep a
 
 ---
 
-## MARKET HIERARCHY (ALL SPORTS — ML IS LAST RESORT)
+## MARKET HIERARCHY (ALL SPORTS — STATISTICAL MARKETS FIRST, ML IS LAST RESORT)
 
-| Sport | Priority order (→ least preferred) |
-|-------|-----------------------------------|
-| Football | Fouls → Cards → Corners → Shots → Team totals → BTTS → U2.5 → O2.5 → DC/DNB → 1X2 |
-| Tennis | Game totals O/U → Set totals → Game HC → Set HC → ML |
-| Basketball | Team totals → Quarter totals → Game totals → Spreads → ML |
-| Hockey | Period totals → Game totals → Puck line → ML |
-| Baseball | F5 totals → Team totals → Game totals → Run line → ML |
-| Volleyball | Set score O/U → Point totals → Set totals → Set HC → ML |
-| Esports | Round totals → Map totals → Map HC → Kill totals → ML |
-| Snooker | Century O/U → Frame totals → Frame HC → ML |
-| Darts | 180s O/U → Leg totals → Set totals → ML |
-| Handball | Half totals → Game totals → HC → ML |
-| Table Tennis | Point totals → Set totals → Set HC → ML |
-| MMA | Method → O/U rounds → ITD → ML |
-| Padel | Game totals → Set totals → Set HC → ML |
-| Speedway | Total pts → HC → Match winner |
+### WHY statistical markets beat outcome markets (CORE DOCTRINE)
 
-**Key:** The less popular the market, the more likely mispriced. This is our edge.
+Statistical/peripheral markets (corners, fouls, shots, points, games, sets, frames) are **fundamentally more predictable** than outcome markets (goals, ML, winner). This is not a preference — it's structural:
+
+1. **Accumulation:** They pile up throughout the match (a team wins 5-8 corners per half regardless of score). High in-match sample = lower variance.
+2. **Style-driven:** A pressing team always forces corners; a physical team always commits fouls. These are structural traits that persist even in upsets. Goals depend on finishing luck.
+3. **Shock-resistant:** A red card or freak goal destroys ML but barely moves total corners/fouls/shots. Statistical markets survive in-match chaos.
+4. **Mispriced:** Bookmakers focus liquidity on ML/goals. Peripheral markets get less attention = more edge for us.
+
+**EVERY football match in shortlist MUST have ≥1 corners/fouls/shots market evaluated.** Never default to goals-only.
+
+| Sport | Priority order (→ least preferred) | Primary statistical markets |
+|-------|-----------------------------------|-----------------------------|
+| Football | Fouls → Cards → Corners → Shots → Team totals → BTTS → U2.5 → O2.5 → DC/DNB → 1X2 | Corners, fouls, cards, shots (accumulate, style-driven) |
+| Tennis | Game totals O/U → Set totals → Game HC → Set HC → ML | Games, sets (accumulate per match, serve/return driven) |
+| Basketball | Team totals → Quarter totals → Game totals → Spreads → ML | Points, team totals (pace-driven, accumulate in quarters) |
+| Hockey | Period totals → Game totals → Puck line → ML | Period totals, shots on goal |
+| Baseball | F5 totals → Team totals → Game totals → Run line → ML | F5 innings, team totals (pitcher-driven) |
+| Volleyball | Set score O/U → Point totals → Set totals → Set HC → ML | Sets, total points (accumulate, reception/attack driven) |
+| Esports | Round totals → Map totals → Map HC → Kill totals → ML | Rounds, maps (map pool driven, accumulate) |
+| Snooker | Century O/U → Frame totals → Frame HC → ML | Frames, centuries (session-driven, accumulate) |
+| Darts | 180s O/U → Leg totals → Set totals → ML | 180s, legs (average-driven, accumulate) |
+| Handball | Half totals → Game totals → HC → ML | Half totals, game totals (pace-driven) |
+| Table Tennis | Point totals → Set totals → Set HC → ML | Points, sets (rally style driven) |
+| MMA | Method → O/U rounds → ITD → ML | Rounds (style-driven: wrestler vs striker) |
+| Padel | Game totals → Set totals → Set HC → ML | Games, sets (rally-driven, accumulate) |
+| Speedway | Total pts → HC → Match winner | Total points (rider form driven) |
+
+**Key:** Statistical markets accumulate, are style-driven, survive in-match chaos, and are mispriced. This is our edge. The less popular the market, the more likely mispriced.

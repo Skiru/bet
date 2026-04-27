@@ -39,6 +39,7 @@ applyTo: ""
 3. Priority: highest hit rate × best odds = best market
 4. Football hierarchy: Fouls → Cards → Corners → Shots → Team totals → BTTS → U2.5 → O2.5 → DC/DNB → 1X2 (LAST RESORT)
 5. Present TOP 3 markets per match with hit rates before choosing
+6. **WHY corners/fouls/shots > goals:** These markets accumulate throughout the match (5-8 corners per half regardless of score), are driven by team STYLE (pressing = corners, physical = fouls), and survive in-match chaos (red card barely affects total corners). Goals depend on finishing luck. EVERY match MUST have ≥1 corner/foul/shot market evaluated.
 
 **Context (MANDATORY):** Coach change (TransferMarkt), injuries/suspensions (ESPN, Flashscore), fixture congestion (<72h), motivation (relegation/title/dead rubber), weather (rain/wind→corners), referee stats (cards/fouls).
 
@@ -62,6 +63,7 @@ applyTo: ""
 3. Tennis hierarchy: Game totals O/U → Set totals O/U → Game HC → Set HC → ML (LAST RESORT)
 4. Both match odds must be 1.50-2.50 for O-games
 5. Clay = more breaks = supports over. Hard = serve-dominant = tiebreaks.
+6. **WHY games/sets > ML:** Games accumulate every set (driven by serve% and return%), making them style-predictable. ML depends on a few break points — high variance. A player losing a match still produces 18-25 games.
 
 **§3.2F PLAYER IDENTITY (MANDATORY):** Full first+last name, country, exact ranking. No slashes/abbreviations. Verify WC/Q/LL status.
 
@@ -84,6 +86,7 @@ applyTo: ""
 | Home/Away | Pts scored H/A, Pts allowed H/A, ATS record | ESPN (NBA); BetExplorer, Flashscore (EU) |
 
 **Market decision:** Team totals → Quarter totals → Game totals O/U → Spreads → ML (LAST RESORT). Both top-10 pace → O-totals. Playoff = 3-5 fewer points avg.
+**WHY points/totals > ML:** Points accumulate every possession (80-100 per team per game), driven by PACE (structural team trait). A team losing by 20 still scores 85+ points. ML depends on who has the better 4th quarter run — high variance.
 
 **Context:** Star player availability (DAY OF check), B2B (−3-5 pts), travel, altitude (Denver), playoff implications.
 
@@ -110,6 +113,7 @@ applyTo: ""
 **Required stats:** Sets won/lost, Avg sets/match, O/U 3.5 hit rate, Avg total pts/match, Attack efficiency%, Reception%, Tiebreak (5th set) frequency. Sources: Flashscore, Sofascore, CEV/PlusLiga.
 
 **Market decision:** Set score O/U → Total pts O/U → Set totals O/U 3.5 → Set HC → ML (LAST RESORT, 1.50-2.50 range). Both top-6 = O3.5 sets. Big mismatch = U3.5/HC -1.5.
+**WHY sets/points > ML:** Sets and points accumulate through rallies (driven by reception% and attack efficiency — structural). A losing team still wins 1-2 sets and scores 80+ points per set. ML depends on clutch 5th-set performance — high variance.
 
 ### §3.6 Esports (CS2/LoL/Dota2/Valorant)
 
