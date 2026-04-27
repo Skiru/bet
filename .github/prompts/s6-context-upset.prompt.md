@@ -15,11 +15,13 @@ For EACH approved candidate: verify context factors, score upset risk, apply Par
 ### PER-CANDIDATE CONTEXT CHECK:
 1. **Fixture confirmed?** Not postponed/cancelled? (Flashscore live)
 2. **Key absences**: injuries, suspensions, rest — VERIFY on day of analysis
-3. **Competition context**: relegation, dead rubber, cup rotation, playoff elimination
-4. **Fixture congestion**: <72h since last match?
-5. **Weather**: outdoor sports — rain/wind impact on corners/goals/play style
-6. **Referee**: for cards/fouls markets — referee stats if available
-7. **Motivation**: what's at stake for each team/player?
+3. **Coach change in last 5 matches?** New coach = form data unreliable. Check Flashscore coach section + TransferMarkt.
+4. **Roster changes in last 14 days?** Transfers, loans, returns. Major signings disrupt chemistry. Check TransferMarkt.
+5. **Competition context**: relegation, dead rubber, cup rotation, playoff elimination
+6. **Fixture congestion**: <72h since last match?
+7. **Weather**: outdoor sports — rain/wind impact on corners/goals/play style
+8. **Referee**: for cards/fouls markets — specific referee stats, not just "checked"
+9. **Motivation**: what's at stake for each team/player?
 
 ### UPSET RISK ASSESSMENT (MANDATORY for EVERY candidate):
 

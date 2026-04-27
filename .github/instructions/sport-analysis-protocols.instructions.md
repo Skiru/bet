@@ -16,13 +16,15 @@ applyTo: ""
 
 | Category | Metrics | Source |
 |----------|---------|--------|
-| Goals | Scored/match, Conceded/match, O2.5%, BTTS%, Clean sheets% | SoccerStats, FootyStats |
+| Goals | Scored/match, Conceded/match, O2.5%, BTTS%, Clean sheets% | SoccerStats, Sofascore |
 | xG | xGF/match, xGA/match, xG vs actual delta (regression indicator) | Flashscore, Sofascore |
 | Corners | Team earned/match, Conceded/match, Total match avg, O9.5/O10.5 hit rate | TotalCorner + SoccerStats |
-| Cards | Team cards/match, Opponent cards/match, O3.5/O4.5 hit rate | SoccerStats, FootyStats |
-| Fouls | Committed/match, Drawn/match, Total match avg | FootyStats |
-| Shots | Shots/match, SOT/match, Conversion%, O/U team shots hit rates | FootyStats |
-| Possession | Possession%, Throw-ins/match | FootyStats |
+| Cards | Team cards/match, Opponent cards/match, O3.5/O4.5 hit rate | SoccerStats, Betaminic |
+| Fouls | Committed/match, Drawn/match, Total match avg | SoccerStats, Sofascore |
+| Shots | Shots/match, SOT/match, Conversion%, O/U team shots hit rates | Sofascore, Flashscore |
+| Possession | Possession%, Throw-ins/match | Sofascore |
+
+> **Note:** FootyStats (footystats.org) is 403 blocked on main pages. Use SoccerStats + Betaminic + Sofascore as replacements. Individual FootyStats team pages sometimes work as last-resort fallback.
 
 **Corner picks — THREE-SOURCE STACK (mandatory):**
 1. TotalCorner: match-level corner total predictions + handicaps
@@ -36,7 +38,7 @@ applyTo: ""
 4. Football hierarchy: Fouls → Cards → Corners → Shots → Team totals → BTTS → U2.5 → O2.5 → DC/DNB → 1X2 (LAST RESORT)
 5. Present TOP 3 markets per match with hit rates before choosing
 
-**Context (MANDATORY):** Coach change, injuries/suspensions (ESPN, Flashscore), fixture congestion (<72h), motivation (relegation/title/dead rubber), weather (rain/wind→corners), referee stats (cards/fouls).
+**Context (MANDATORY):** Coach change (TransferMarkt), injuries/suspensions (ESPN, Flashscore), fixture congestion (<72h), motivation (relegation/title/dead rubber), weather (rain/wind→corners), referee stats (cards/fouls).
 
 ### §3.2 Tennis
 

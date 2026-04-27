@@ -12,11 +12,12 @@ Goal: find MISPRICED ODDS, not predict winners. EV > 0 is the only valid reason 
 
 ## SCANNING MANDATE (NEVER VIOLATE)
 
-1. **WIDE:** ALL 14 sports every run. Never say "no events" without ≥3 sources.
+1. **WIDE:** ALL 14 sports every run. Never say "no events" without exhausting the FULL fallback chain (see source-registry.md) + a Google search.
 2. **DEEP:** Enter EVERY tournament/league — landing pages hide 80%. Count matches. Cross-validate counts between ≥2 sources (>20% discrepancy = missed events).
 3. **MULTI-LEVEL:** Per candidate: Tier A stats → Tier A markets → Tier B tipsters (read REASONING) → specialist sources → context.
-4. **AGGRESSIVELY:** Source fails? Next in chain. All fail? Search internet. Record failures but KEEP SEARCHING.
+4. **AGGRESSIVELY:** Source fails? Log the error, try next in chain immediately. All chain sources fail? Google `"[sport] matches today site:flashscore.com OR site:sofascore.com"` or `"[tournament] schedule [date]"`. After finishing other sports, RETRY failed sources (rate limits often clear in 15-30 min). **Never declare a sport empty without trying ≥3 independent sources + 1 Google search.**
 5. **COMPARE:** Every data point needs ≥2 independent confirmations.
+6. **RETRY LOOP:** After the first scan pass, review `scan_errors.json` and ALL failed sources. Retry each failed source ONCE. If it works now, add its events. Log final status.
 
 **Minimums:** ≥50 events scanned, ≥80% scan completeness, 15-40 shortlist across ≥8 sports, final picks from ≥5 sports, ≥5 coupons.
 
@@ -24,7 +25,7 @@ Goal: find MISPRICED ODDS, not predict winners. EV > 0 is the only valid reason 
 
 ---
 
-## STEP 0: SETTLE PREVIOUS DAY
+## STEP 0: SETTLE PREVIOUS DAY + LEARN FROM HISTORY
 
 1. Run `python3 scripts/settle_on_finish.py --betting-day YYYY-MM-DD`.
 2. Auto-resolves: winner/1X2, totals, BTTS, DC. Manual: corners, cards, HC, MyCombi.
@@ -33,6 +34,15 @@ Goal: find MISPRICED ODDS, not predict winners. EV > 0 is the only valid reason 
 5. **Post-mortem each LOSS:** bad thesis or variance? Record in learning log.
 6. **CLV:** Record closing odds. `CLV = (closing_implied / placement_implied) - 1`. Track weekly avg.
 7. Update `working_bankroll_pln` in config. If −20% from peak → reduce daily cap 25%.
+
+### §0.2 HISTORICAL LEARNING QUERY (MANDATORY before scanning)
+Before STEP 1, query the picks-ledger to extract actionable patterns. This takes 2 minutes and prevents repeating proven failures.
+
+1. **Per-market hit rate:** Group settled picks by `market` column. Calculate win% per market type (e.g., corners: 75%, ML: 40%, BTTS: 55%). Any market <40% on 10+ picks → AUTO-DOWNGRADE (STEP 5 rule). Any market <30% → WATCHLIST ONLY.
+2. **Per-sport hit rate:** Group by `sport`. Any sport with <30% hit rate on 5+ picks → FLAG. Scan that sport but apply −1 confidence to all picks from it.
+3. **Coupon failure analysis:** For each LOST coupon, identify the leg that failed. Track which pick types are the "coupon killers." If a specific market/sport kills coupons >50% of the time → exclude from LR coupons.
+4. **Streak check:** Any team/player appearing 3+ times in recent picks? Check if the thesis is stale or if the edge has been priced in.
+5. **Write a 3-line summary** of what the data says today. Example: "Corners 6/8 (75%). Tennis ML 1/5 (20%) — avoid. Hockey totals killing coupons — HR only."
 
 ---
 
@@ -57,10 +67,11 @@ Football, Tennis, Basketball, Hockey, Baseball, Volleyball, Esports, Snooker, Da
 
 ## STEP 2: FILTER — Shortlist
 
-Remove: outside betting window, no Tier A coverage, <1h to kickoff, exhibitions.
+Remove: outside betting window, no Tier A coverage, <2h to kickoff, already started, exhibitions.
 Prioritize: events WITH statistical markets (corners, totals, HC) over basic ML-only.
+**Early Betclic market hint:** For niche sports (volleyball, table tennis, padel, speedway), check Betclic market availability BEFORE deep analysis. If market doesn't exist on Betclic → don't waste analysis time.
 Preferred odds range: 1.30-3.50.
-**Target: 15-40 events across ≥5 sports.** Football ≤50% of shortlist.
+**Target: 15-40 events across ≥8 sports in shortlist (≥5 sports minimum in final picks).** Football ≤50% of shortlist.
 
 ---
 
@@ -76,6 +87,8 @@ Preferred odds range: 1.30-3.50.
 5. **Present TOP 2-3 markets** per match with statistical backing BEFORE choosing.
 6. **NEVER default to ML/1X2.** Statistical markets ALWAYS preferred across ALL 14 sports.
 7. ML only when: (1) no statistical market on Betclic AND (2) statistical edge overwhelming AND (3) price acceptable.
+8. **SECOND-ANGLE CHECK (mandatory):** After identifying your top market, ask: "What's a completely different angle on this match?" Check at least ONE alternative market (different stat category). If the alternative has a higher hit rate or better EV, SWITCH. This prevents tunnel vision.
+9. **COACH/ROSTER STABILITY CHECK (mandatory):** For EVERY candidate: Did the coach change in the last 5 matches? Any major transfers, loan returns, or squad changes in the last 14 days? New coach bounce = volatile form (first 5 games unreliable). Major roster change = stats from previous games may not apply.
 
 ---
 
@@ -93,7 +106,7 @@ Preferred odds range: 1.30-3.50.
 
 Check ≥2 ARGUMENT-BASED tipster sites per candidate. Read WRITTEN REASONING, not bare picks.
 
-**Sites:** ZawodTyper (PL), Typersi (PL), Meczyki (PL), OLBG (EN), PicksWise (EN), BetIdeas (EN), Sportsgambler (EN), GosuGamers (esports).
+**Sites:** ZawodTyper (PL), Typersi (PL), Meczyki (PL), OLBG (EN), PicksWise (EN), BetIdeas (EN), Sportsgambler (EN), Tipstrr (EN, verified ROI), GosuGamers (esports).
 
 **Extract per tipster:** site, tipster name, specific pick, odds, reasoning summary (1-2 sentences with stats/facts cited).
 
@@ -121,11 +134,13 @@ Check ≥2 ARGUMENT-BASED tipster sites per candidate. Read WRITTEN REASONING, n
 ## STEP 6: CONTEXT (per candidate)
 
 - [ ] Fixture confirmed (not postponed)?
-- [ ] Key absences (injuries, suspensions, rest)?
+- [ ] Key absences (injuries, suspensions, rest)? — check ESPN, Flashscore, team social media.
+- [ ] **Coach change in last 5 matches?** New coach = form data unreliable. Check Flashscore coach section.
+- [ ] **Roster changes in last 14 days?** Transfers, loans, returns. Major signings disrupt chemistry.
 - [ ] Competition context (relegation, dead rubber, cup final)?
 - [ ] Fixture congestion (<72h between games)?
 - [ ] Weather (outdoor sports)?
-- [ ] Referee (cards/fouls markets)?
+- [ ] Referee (cards/fouls markets)? — specific referee stats, not just "checked."
 
 ### §6.5 UPSET RISK ASSESSMENT (MANDATORY)
 
@@ -191,6 +206,13 @@ ALL 14 PASS → APPROVED | ANY FAIL → REJECT/DOWNGRADE/WATCHLIST
 6. **Correlation check:** Same match = FORBIDDEN. Same league = FLAG. Same narrative = REMOVE weaker.
 7. Suggest stakes for ALL coupons. Total may exceed daily cap — user decides.
 8. **Watchlist:** 2-3 backup picks with promotion criteria ("Promote if Betclic ≥ X.XX").
+
+### §8.2 COUPON STRESS TEST (MANDATORY per coupon)
+For EACH coupon, before finalizing:
+1. **Probability estimate:** Multiply estimated true probabilities of all legs. P(coupon) = P(leg1) × P(leg2) × ... Example: 0.60 × 0.55 × 0.58 = 19.1%. If P(coupon) < 10% → HR only. If < 5% → consider dropping a leg or splitting.
+2. **Weakest-leg identification:** Which leg has the lowest P(win)? Can it be swapped for a better pick from the approved pool WITHOUT creating correlation? If yes → SWAP.
+3. **Catastrophe scenario:** Write ONE sentence: "This coupon fails if [specific scenario]." Example: "Fails if Madrid rains and corners drop below 8."
+4. **Betclic market existence check:** Before building a coupon around a pick, verify the market EXISTS on Betclic. If the market doesn't exist (e.g., O20.5 games not offered, only O17.5) → drop or adjust the line.
 
 **Coupon limits:** LR max 3.00 PLN, HR max 2.00 PLN. Max same-sport legs: 2 per coupon.
 
@@ -319,7 +341,7 @@ On reruns: increment version (v5→v6). Mark old pending as `superseded`. Keep a
 
 | Sport | Priority order (→ least preferred) |
 |-------|-----------------------------------|
-| Football | Fouls → Cards → Corners → Shots → Team totals → BTTS → U2.5 → O2.5 → DC → 1X2 |
+| Football | Fouls → Cards → Corners → Shots → Team totals → BTTS → U2.5 → O2.5 → DC/DNB → 1X2 |
 | Tennis | Game totals O/U → Set totals → Game HC → Set HC → ML |
 | Basketball | Team totals → Quarter totals → Game totals → Spreads → ML |
 | Hockey | Period totals → Game totals → Puck line → ML |

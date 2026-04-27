@@ -30,15 +30,18 @@ Settle ALL pending picks/coupons from the previous betting day. Update PnL, CLV,
    - Update `coupons-ledger.csv` → status, pnl_pln
 4. **For US sports settlement**: use `python3 scripts/fetch_odds_api.py --scores baseball,hockey`
 
-### 0.2 — PERFORMANCE TRACKING
+### §0.2 — HISTORICAL LEARNING QUERY (MANDATORY before scanning)
 
-1. **Previous-day PnL**: sum(returns) - sum(stakes)
-2. **Rolling 7-day PnL**: sum of last 7 days
-3. **Per-market-type hit rates** (update running totals):
-   - corners_hit_rate, btts_hit_rate, ml_hit_rate
-   - tennis_games_hit_rate, hockey_totals_hit_rate
-   - football_o25_hit_rate, basketball_totals_hit_rate
-4. **Per-league ROI**: which leagues/sports produced profit vs loss
+Before STEP 1, query the picks-ledger to extract actionable patterns. This takes 2 minutes and prevents repeating proven failures.
+
+1. **Per-market hit rate:** Group settled picks by `market` column. Calculate win% per market type (e.g., corners: 75%, ML: 40%, BTTS: 55%). Any market <40% on 10+ picks → AUTO-DOWNGRADE (STEP 5 rule). Any market <30% → WATCHLIST ONLY.
+2. **Per-sport hit rate:** Group by `sport`. Any sport with <30% hit rate on 5+ picks → FLAG. Scan that sport but apply −1 confidence to all picks from it.
+3. **Coupon failure analysis:** For each LOST coupon, identify the leg that failed. Track which pick types are the "coupon killers." If a specific market/sport kills coupons >50% of the time → exclude from LR coupons.
+4. **Streak check:** Any team/player appearing 3+ times in recent picks? Check if the thesis is stale or if the edge has been priced in.
+5. **Write a 3-line summary** of what the data says today. Example: "Corners 6/8 (75%). Tennis ML 1/5 (20%) — avoid. Hockey totals killing coupons — HR only."
+6. **Previous-day PnL**: sum(returns) - sum(stakes)
+7. **Rolling 7-day PnL**: sum of last 7 days
+8. **Per-league ROI**: which leagues/sports produced profit vs loss
 5. **Post-mortem EACH LOSS**:
    - Was the thesis WRONG (bad analysis) or did VARIANCE hit (correct thesis, unlucky)?
    - What would you change in hindsight?

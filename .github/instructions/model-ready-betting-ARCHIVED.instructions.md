@@ -1,8 +1,10 @@
 ---
-applyTo: "betting/**/*"
+applyTo: ""
 ---
 
-# Betting Analysis — Output Formats & Validation Rules
+# Betting Analysis — Output Formats & Validation Rules (ARCHIVED)
+
+> **ARCHIVED: This file is NOT auto-loaded.** Its content has been consolidated into [betting-artifacts.instructions.md](betting-artifacts.instructions.md) (output formats) and [analysis-methodology.instructions.md](analysis-methodology.instructions.md) (validation). Consult this file only for historical reference on common mistakes #21-53.
 
 This file defines the EXACT output formats, file schemas, and validation checks for betting artifacts. For the full daily analysis workflow (STEPS 0-10), see [analysis-methodology.instructions.md](analysis-methodology.instructions.md). This file complements it — methodology = HOW to analyze, this file = HOW to write outputs.
 
@@ -329,7 +331,7 @@ Go through every check. Write YES or NO for each. If any is NO, fix it before pr
 ### V10: Final Sign-Off
 - [ ] All V1–V9 checks pass
 - [ ] **V10a: Forced Sport Enumeration** — all 14 sports listed with events/sources/candidates/picks. Any sport with 0 events and <3 sources → go back.
-- [ ] **V10b: Pick Approval Gates** — every pick passed 13-point gate (§7.5 methodology).
+- [ ] **V10b: Pick Approval Gates** — every pick passed 14-point gate (§7.5 methodology).
 - [ ] **V10c: Red Flags cleared** — every pick had sport-specific red flags (§7.3) checked and addressed.
 - [ ] **V10d: Portfolio damage** — if most-concentrated pick loses, ≥3 coupons survive.
 - [ ] **V10e: Per-Pick Completeness Matrix** — print matrix for EVERY pick: Tipster≥1 | H2H≥5 | Injuries | Sources≥2 | Red Flags | EV>0 | Gate14. ANY ❌ on ANY pick → STOP, fix, re-check. ALL picks must be ✅ on ALL 7 columns. A coupon file without this matrix is a PROTOCOL VIOLATION.
@@ -389,5 +391,5 @@ Go through every check. Write YES or NO for each. If any is NO, fix it before pr
 49. **Equal Odds Blowout Fallacy** — assuming ratio ≤1.10 = close match. Even odds mean UNCERTAINTY about the winner, not guaranteed competitiveness. A coin-flip match can produce 6-3 6-1 just as easily as 7-6 6-7 7-5. Especially dangerous for: WC/Q/LL matches, first H2H meetings, surface mismatches. Do NOT inflate P(O22.5) based solely on ratio closeness. Jodar-De Minaur ratio 1.01 → "coin flip" → 6-3 6-1 = 16 games.
 50. **Skipping sport-specific Instant Red Flags (§7.3)** — not checking backup goalie status before an NHL totals pick, not checking B2B in NBA, not checking bullpen game in MLB, not checking dead rubber in football. These are 30-second checks that prevent the most common, most OBVIOUS failures. Every sport has 3-6 fast binary checks. Run them ALL for EVERY pick. See §7.3 in methodology.
 51. **Skipping Contrarian Thinking (§7.4)** — not questioning whether the model applies to this specific case. The Jodar loss: standard P(3 sets) model applied to a WC match where binary outcomes dominate. ALWAYS ask: "Am I applying the right model?" and "What's the #1 way this specific bet type loses?" before approving.
-52. **Not running the Pick Approval Gate (§7.5)** — presenting picks that haven't passed the unified 13-point pre-flight checklist. This single checklist catches ALL past mistakes in one pass: identity, WC status, H2H, injuries, sources, tipsters, EV, drift, red flags, contrarian, bear case, anchoring. Skip it = repeat past failures.
+52. **Not running the Pick Approval Gate (§7.5)** — presenting picks that haven't passed the unified 14-point pre-flight checklist. This single checklist catches ALL past mistakes in one pass: identity, WC status, H2H, injuries, sources, tipsters, EV, drift, red flags, contrarian, bear case, anchoring, 48h repeat check. Skip it = repeat past failures.
 53. **Presenting coupons without Per-Pick Completeness Matrix (V10e)** — v19-night had 10 picks but only 2/10 had tipster arguments, 1/10 had H2H, 2/10 had injury checks. The agent claimed analysis was "deep" but the matrix would have instantly revealed 8/10 picks were INCOMPLETE. RULE: Before presenting ANY coupon, print the V10e matrix (Tipster/H2H/Injuries/Sources/RedFlags/EV/Gate14) for EVERY pick. ANY ❌ = STOP and fix. This is the FINAL safety net — never skip it.

@@ -79,11 +79,13 @@ Every sport has dedicated communities, statistical databases, and prediction sit
 
 - Covers
   Role: expert-written previews for US sports and big markets.
-  Use for: NBA, NHL, MLB, NFL, UFC, and golf support and narrative checks.
+  Use for: NHL, MLB, NFL, and UFC support and narrative checks.
+  Access: PARTIAL — NBA pages return empty; other sections intermittent. Do not rely as sole source.
 
 - TeamRankings
   Role: algorithmic picks, rankings, trends, injuries, matchup pages, and efficiency stats.
   Use for: NBA, MLB, NFL, and college sports, especially totals and spread context.
+  Access: INTERMITTENT — sometimes blocked. Do not rely as sole source. When available, useful for totals context.
 
 - TennisAbstract
   Role: tennis Elo, matchup data, serve-return profiles, forecasts, and surface context.
@@ -172,6 +174,15 @@ Always record in the report which community sources were checked and whether con
 
 ## Tier A Specialist Statistical Sources (by sport)
 
+### All Sports — Roster, Coaching, Transfers
+
+- TransferMarkt
+  Role: player transfers, coaching changes, contract details, squad values, injury histories, and player market values across ALL football leagues + some other sports.
+  URL: transfermarkt.com
+  Use for: COACH/ROSTER STABILITY CHECK (STEP 3 item 9). Verify coaching changes in last 5 matches, major transfers in last 14 days, loan returns, squad depth. Also useful for injury history and player availability.
+  Access: OK (may require cookie consent).
+  Note: CRITICAL source for the mandatory Coach/Roster Stability Check. Check before relying on form-based stats that may not reflect current squad.
+
 ### Football — Corners, Cards, Fouls
 
 - Betaminic
@@ -234,6 +245,12 @@ Always record in the report which community sources were checked and whether con
   Use for: pace and efficiency context for NBA totals.
   Access: OK.
 
+- NBA.com
+  Role: official NBA stats — player/team stats, matchup pages, pace, advanced stats, game logs.
+  URL: nba.com/stats
+  Use for: official pace data, team stats, player game logs. Referenced in basketball protocol.
+  Access: OK (JS-heavy, may need Playwright).
+
 ### Hockey
 
 - Hockey-Reference
@@ -246,6 +263,12 @@ Always record in the report which community sources were checked and whether con
   Role: NHL advanced stats — xGF, Corsi, Fenwick, shot quality, 5v5 data, goalie performance.
   URL: naturalstattrick.com
   Use for: shot-quality and expected goals context for NHL totals and moneyline.
+  Access: OK.
+
+- NHL.com
+  Role: official NHL stats — team/player stats, standings, game previews, power play/penalty kill data.
+  URL: nhl.com/stats
+  Use for: official team stats, PP%/PK%, referenced in hockey protocol.
   Access: OK.
 
 - MoneyPuck
@@ -293,6 +316,18 @@ Always record in the report which community sources were checked and whether con
   Role: volleyball team form, player stats, match stats.
   URL: sofascore.com/volleyball
   Use for: form context and match analysis.
+  Access: OK.
+
+- CEV (Confédération Européenne de Volleyball)
+  Role: official European volleyball — Champions League, CEV Cup results, team stats, standings.
+  URL: cev.eu
+  Use for: European club competition context, standings, team stats. Referenced in volleyball protocol.
+  Access: OK.
+
+- PlusLiga
+  Role: official Polish volleyball league — standings, stats, team rosters, match reports.
+  URL: plusliga.pl
+  Use for: Polish volleyball context — team form, player stats, standings. Relevant for Betclic PL market.
   Access: OK.
 
 ### Esports
@@ -388,6 +423,12 @@ Always record in the report which community sources were checked and whether con
   Use for: match predictions, leg/set totals analysis.
   Access: OK.
 
+- PDC.tv
+  Role: official PDC — tournament schedules, results, player profiles, averages, order of merit.
+  URL: pdc.tv
+  Use for: official schedule, format (best-of-X legs/sets), player form. Referenced in darts protocol.
+  Access: OK.
+
 ### Handball
 
 - Handball-World
@@ -414,6 +455,12 @@ Always record in the report which community sources were checked and whether con
   Role: MMA rankings, fight cards, fighter records, community predictions.
   URL: tapology.com
   Use for: community consensus, fighter records, weight class context.
+  Access: OK.
+
+- Sherdog
+  Role: MMA fighter records, fight history, news, rankings across all promotions (UFC, Bellator, ONE, PFL).
+  URL: sherdog.com
+  Use for: fighter records, fight history, win/loss streaks. Referenced in MMA protocol.
   Access: OK.
 
 ### Padel
@@ -555,9 +602,9 @@ Do NOT attempt to fetch these — they waste time and produce no data:
 - VolleyBox (volleybox.net) — blocked
 - HLTV (hltv.org) — tips/predictions 403. Stats pages (rankings, match history, player data) partially accessible. Use GosuGamers for esports tips.
 
-**Partial:**
-- Covers (covers.com) — NBA pages return empty; other sections partial.
-- TeamRankings (teamrankings.com) — inconsistently blocked.
+**Partial (availability noted in main entries above):**
+- Covers (covers.com) — NBA pages return empty; other sections partial. See Tier A entry.
+- TeamRankings (teamrankings.com) — inconsistently blocked. See Tier A entry.
 
 ## Sport Playbooks
 
@@ -590,8 +637,8 @@ Use this table to know WHERE to get odds for each sport. Never give up after one
 - Football
   Minimum stack: Flashscore or Sofascore + BetExplorer or OddsPortal + SoccerStats (league context) + TotalCorner (match corners).
   Tipster cross-check: Zawod Typer, Typersi, BetIdeas, PicksWise, Tipstrr.
-  Specialist sources: Betaminic (corners/cards tables), Betclic Statystyki (top leagues only).
-  Preferred markets: corners > cards > fouls > shots > team totals > BTTS > U2.5 > O2.5 > DC/DNB > 1X2 (LAST RESORT).
+  Specialist sources: Betaminic (corners/cards tables), Betclic Statystyki (top leagues only), TransferMarkt (coaching changes, transfers).
+  Preferred markets: fouls > cards > corners > shots > team totals > BTTS > U2.5 > O2.5 > DC/DNB > 1X2 (LAST RESORT).
 
 - Basketball
   Minimum stack: Basketball-Reference + **SBR or ESPN or ScoresAndOdds** (totals/spreads) + BetExplorer.

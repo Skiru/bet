@@ -61,7 +61,7 @@ Each pass executes these steps IN ORDER. Each step:
 |------|--------|-------|--------|------|
 | S0 | `s0-settlement` | picks-ledger, coupons-ledger, Flashscore | `{date}_s0_settlement.md` | All pending resolved, bankroll updated |
 | S1 | `s1-scan` | BetExplorer, Flashscore, scan_summary | `{date}_s1_master_events.md` | ≥50 events, 14 sports |
-| S2 | `s2-shortlist` | S1 output | `{date}_s2_shortlist.md` | 15-40 candidates, ≥5 sports |
+| S2 | `s2-shortlist` | S1 output | `{date}_s2_shortlist.md` | 15-40 candidates, ≥8 sports in shortlist |
 | S3 | `s3-deep-stats` | S2 output | `{date}_s3_deep_stats.md` | Stats from ≥2 sources per candidate |
 | S4 | `s4-tipsters` | S3 output | `{date}_s4_tipsters.md` | ≥2 tipster sites per candidate |
 | S5 | `s5-odds-ev` | S3+S4 output | `{date}_s5_odds_ev.md` | EV > 0 for all approved |

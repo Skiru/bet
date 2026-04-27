@@ -63,6 +63,13 @@ Picks not in any coupon but close to approval:
 | [event] | [market] | Betclic odds ≥ X.XX |
 ```
 
+## §8.2 — COUPON STRESS TEST (MANDATORY per coupon)
+For EACH coupon, before finalizing:
+1. **Probability estimate:** Multiply estimated true probabilities of all legs. P(coupon) = P(leg1) × P(leg2) × ... If P(coupon) < 10% → HR only. If < 5% → consider dropping a leg or splitting.
+2. **Weakest-leg identification:** Which leg has the lowest P(win)? Can it be swapped for a better pick from the approved pool WITHOUT creating correlation? If yes → SWAP.
+3. **Catastrophe scenario:** Write ONE sentence: "This coupon fails if [specific scenario]."
+4. **Betclic market existence check:** Verify the market EXISTS on Betclic. If not (e.g., O20.5 games not offered, only O17.5) → drop or adjust line.
+
 ---
 
 ## V1-V10 VALIDATION (MANDATORY — EVERY CHECK)
@@ -87,7 +94,7 @@ Picks not in any coupon but close to approval:
 - [ ] Odds drift < 8%
 
 ### V4 — Football Checks
-- [ ] Market hierarchy respected (corners > cards > fouls > team totals > BTTS > DC > ML)
+- [ ] Market hierarchy respected (fouls > cards > corners > shots > team totals > BTTS > DC/DNB > ML)
 - [ ] Corner picks have 3-source stack (or gap documented)
 - [ ] BTTS picks have league BTTS% from SoccerStats
 - [ ] xG regression check for goals markets

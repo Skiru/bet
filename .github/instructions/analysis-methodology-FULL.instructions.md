@@ -1,8 +1,10 @@
 ---
-applyTo: "betting/**/*"
+applyTo: ""
 ---
 
-# Analysis Methodology — Complete Daily Protocol
+# Analysis Methodology — Complete Daily Protocol (REFERENCE ONLY)
+
+> **This file is the FULL unabridged reference. It is NOT auto-loaded.** For daily use, follow [analysis-methodology.instructions.md](analysis-methodology.instructions.md) (compact version). Consult this file only when you need exhaustive detail on a specific step or protocol.
 
 This is the DEFINITIVE, REPEATABLE methodology for daily betting analysis. Follow every step in order. Do not skip steps. Do not take shortcuts. This protocol produces professional-grade analysis every single day.
 
@@ -1732,7 +1734,8 @@ PICK APPROVAL GATE — [pick_id] [event] [market]
 [ ] 11. Contrarian thinking done (§7.4)
 [ ] 12. Bear case < bull case confirmed
 [ ] 13. Not anchored to stale analysis (would take at current odds?)
-ALL 13 PASS → APPROVED for portfolio
+[ ] 14. 48h repeat check (same team+market lost recently → HARD REJECT)
+ALL 14 PASS → APPROVED for portfolio
 ANY FAIL → REJECT, DOWNGRADE, or WATCHLIST with specific reason
 ```
 
@@ -2008,7 +2011,7 @@ If total events < 50 on a normal day → scan is INCOMPLETE.
 If picks from < 5 sports → search deeper before declaring no value.
 
 **V10b: PICK APPROVAL GATES VERIFIED**
-Every pick passed the 13-point PICK APPROVAL GATE (§7.5)? If any pick lacks a gate check → fix before presenting.
+Every pick passed the 14-point PICK APPROVAL GATE (§7.5)? If any pick lacks a gate check → fix before presenting.
 
 **V10c: RED FLAGS CLEARED**
 Every pick had sport-specific red flags (§7.3) checked? All fired red flags addressed (rejected, downgraded, or justified)?
@@ -2226,77 +2229,102 @@ STEP 10: Write artifacts
 
 ---
 
-## APPENDIX A: Sport-Specific Market Selection Priority
+## APPENDIX A: Sport-Specific Market Selection Priority (ML = LAST RESORT in ALL sports)
 
 ### Football
-1. Corners (O/U match total, team corners, 1H corners)
-2. Cards (yellow card totals, team cards)
-3. Fouls (match fouls, team fouls)
-4. Shots (shots on target, total shots)
+1. Fouls O/U (most inefficient)
+2. Cards O/U
+3. Corners O/U (3-source stack required)
+4. Shots O/U
 5. Team totals (Team O1.5/O2.5 goals)
 6. BTTS
-7. Under 2.5 / Over 2.5 goals (fallback)
+7. Under 2.5 / Over 2.5 goals
 8. Double Chance / Draw No Bet
-9. 1X2 (only with strong edge)
+9. 1X2 (LAST RESORT)
 
 ### Tennis
-1. Match moneyline (when odds 1.50-2.50 range)
-2. Over/Under total games
-3. Set handicap
-4. Set totals (O/U 2.5 sets)
+1. Total games O/U (PRIMARY — highest hit rate ~65%)
+2. Set totals O/U
+3. Game handicap
+4. Set handicap
+5. ML (LAST RESORT — only with STRONG ratio ≤1.15 + surface + H2H dominance)
 
 ### Basketball
-1. Totals (match points O/U)
-2. Spreads
-3. Quarter/half totals
-4. Moneyline (only with strong edge)
+1. Team totals O/U
+2. Quarter totals
+3. Game totals O/U
+4. Spreads
+5. ML (LAST RESORT)
 
 ### Hockey
-1. Totals (match goals O/U)
-2. Moneyline (only with goalie + form context)
-3. Period totals
+1. Period totals
+2. Game totals O/U
+3. Puck line (±1.5)
+4. ML (LAST RESORT)
 
 ### Volleyball
-1. Set totals (O/U 3.5 sets)
-2. Point totals
-3. Set handicap
-4. Moneyline
+1. Individual set score O/U
+2. Total points O/U
+3. Set totals O/U 3.5
+4. Set handicap
+5. ML (LAST RESORT, 1.50-2.50 range only)
 
 ### Esports (CS2, Dota 2, LoL, Valorant)
-1. Map handicap
-2. Map totals (O/U 2.5 maps)
-3. Moneyline
-4. Round handicap (for individual maps)
+1. Round totals O/U per map
+2. Map totals O/U 2.5 (BO3)
+3. Map handicap -1.5
+4. Kill totals
+5. ML (LAST RESORT)
 
 ### Snooker
-1. Frame handicap
-2. Total frames
-3. Moneyline
+1. Century breaks O/U
+2. Total frames O/U
+3. Frame handicap
+4. Correct score
+5. ML (LAST RESORT)
 
 ### Darts
-1. Leg/set totals
-2. 180s O/U
-3. Moneyline
+1. 180s O/U
+2. Total legs O/U
+3. Set totals
+4. Correct score
+5. ML (LAST RESORT)
 
 ### Handball
-1. Totals (match goals)
-2. Handicap
-3. Moneyline
+1. Half totals O/U
+2. Game total goals O/U
+3. Handicap
+4. ML (LAST RESORT)
 
 ### Table Tennis
-1. Set handicap
-2. Total points
-3. Moneyline
+1. Total points O/U
+2. Set totals O/U
+3. Set handicap
+4. ML (LAST RESORT)
 
 ### MMA/UFC
-1. Moneyline
-2. Method of victory
-3. Round totals O/U
+1. Method of victory
+2. O/U rounds
+3. ITD (inside the distance)
+4. ML (LAST RESORT)
 
 ### Baseball (MLB)
-1. Totals (runs O/U)
-2. Run line (spread)
-3. Moneyline (only with pitching + form)
+1. F5 innings O/U (removes bullpen variance — most reliable)
+2. Team totals
+3. Game totals (runs O/U)
+4. Run line (spread)
+5. ML (LAST RESORT — only with pitching + form)
+
+### Padel
+1. Game totals O/U
+2. Set totals O/U 2.5
+3. Set handicap
+4. ML (LAST RESORT, ranking gap >3000 only)
+
+### Speedway
+1. Total points O/U
+2. Handicap
+3. Match winner (LAST RESORT — usually too short at 1.20-1.40)
 
 ---
 

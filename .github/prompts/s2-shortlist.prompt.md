@@ -17,10 +17,14 @@ Filter the Master Event List to a shortlist of 15-40 candidates for deep analysi
 ### REMOVAL CRITERIA (apply in order):
 1. **Outside window**: kickoff not in the resolved session event window
 2. **No Tier A source**: event has no BetExplorer/Flashscore/OddsPortal coverage
-3. **Too close to kickoff**: <1h from analysis time
-4. **Exhibition/friendly**: unless odds available and Tier A coverage exists
-5. **ITF tennis**: skip ALL ITF events (unreliable)
-6. **Random/unverifiable**: unranked esports, regional table tennis without odds
+3. **Too close to kickoff**: <2h from analysis time
+4. **Already started**: any event already in-play → REMOVE
+5. **Exhibition/friendly**: unless odds available and Tier A coverage exists
+6. **ITF tennis**: skip ALL ITF events (unreliable)
+7. **Random/unverifiable**: unranked esports, regional table tennis without odds
+
+### EARLY BETCLIC MARKET CHECK
+For niche sports (volleyball, table tennis, padel, speedway): check Betclic market availability BEFORE deep analysis. If market doesn't exist on Betclic → don't waste analysis time.
 
 ### SCREENING CRITERIA (for remaining events):
 For each event, assess:
@@ -32,9 +36,9 @@ For each event, assess:
 4. **Tier A data quality**: form, H2H, stats available?
 
 ### SPORT DIVERSITY GATE
-- Shortlist MUST include events from ≥5 sports
+- Shortlist MUST include events from ≥8 sports (≥5 sports minimum in final picks)
 - Football ≤50% of shortlist
-- If <5 sports → go back to S1, scan missing sports deeper
+- If <8 sports → go back to S1, scan missing sports deeper
 
 ### OUTPUT FORMAT
 Save to: `betting/data/{date}_s2_shortlist.md`
@@ -75,7 +79,7 @@ Save to: `betting/data/{date}_s2_shortlist.md`
 ## SELF-VERIFICATION CHECKLIST
 
 - [ ] **V-S2-01**: Shortlist has 15-40 events
-- [ ] **V-S2-02**: ≥5 sports represented
+- [ ] **V-S2-02**: ≥8 sports represented in shortlist (≥5 sports minimum in final picks)
 - [ ] **V-S2-03**: Football ≤50% of shortlist
 - [ ] **V-S2-04**: All removed events have valid removal reason
 - [ ] **V-S2-05**: No events outside betting-day window remain

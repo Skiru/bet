@@ -18,10 +18,12 @@ For EACH candidate, check ≥2 argument-based tipster sites. Read FULL WRITTEN A
 |-------|---------|-----------|----------|-----------|
 | Football (PL) | ZawodTyper | Typersi | Meczyki | OLBG |
 | Football (INT) | PicksWise | BetIdeas | OLBG | Sportsgambler |
-| Tennis | ZawodTyper | Typersi | PicksWise | OLBG |
-| NBA/NHL/MLB | PicksWise | Covers | Sportsgambler | Google "[game] picks" |
-| Esports | GosuGamers | BO3.gg | — | Google "[match] prediction" |
-| Other | OLBG | Sportsgambler | ZawodTyper | Google "[event] tips" |
+| Tennis | ZawodTyper | Typersi | PicksWise | Tipstrr |
+| NBA/NHL/MLB | PicksWise | Covers | Sportsgambler | Tipstrr |
+| Esports | GosuGamers | BO3.gg | Tipstrr | Google "[match] prediction" |
+| Other | OLBG | Sportsgambler | Tipstrr | Google "[event] tips" |
+
+**Tipstrr** (tipstrr.com): verified tipster platform with tracked ROI. Use as secondary/tertiary for ANY sport — search for tipsters covering the specific sport or league.
 
 ### BLOCKED SOURCES (NEVER attempt):
 Forebet, FootySupertips, Windrawwin, BettingExpert, Protipster, Oddspedia, SportyTrader, Predictz, Trafiamy, Blogabet, HLTV tips

@@ -19,7 +19,7 @@ For EACH shortlisted candidate, gather sport-specific statistics. One candidate 
 1. **H2H** last 5-10 meetings (home/away splits, goals, corners, cards per meeting)
 2. **League context** (SoccerStats): goals avg, O2.5%, BTTS%, corner avg, card avg, fouls avg
 3. **Team form** last 6 matches (W/D/L, goals for/against, corners for/against)
-4. **Full per-team stats** (FootyStats/Flashscore/Sofascore) — collect ALL:
+4. **Full per-team stats** (SoccerStats/Flashscore/Sofascore — FootyStats is 403 BLOCKED) — collect ALL:
    - FOULS: fouls committed/match, fouls drawn/match, total match fouls avg
    - CARDS: team cards/match, opponent cards/match, total match cards avg
    - CORNERS: corners earned/match, conceded/match, total avg (SoccerStats + TotalCorner)
@@ -30,10 +30,12 @@ For EACH shortlisted candidate, gather sport-specific statistics. One candidate 
    - For each candidate, calculate hit rate for ≥3 O/U lines
    - Example: "Leipzig O16.5 shots: hits 87% at home" + "Union away O14.5 shots: 73%"
    - Rank: highest (hit_rate × odds value) = best market
-   - Hierarchy: fouls > cards > corners > shots > team totals > BTTS > U2.5 > O2.5 > DC > 1X2
+   - Hierarchy: fouls > cards > corners > shots > team totals > BTTS > U2.5 > O2.5 > DC/DNB > 1X2
 6. **Corner picks**: 3-source stack = TotalCorner + SoccerStats + Betclic Statystyki (top leagues only)
 7. **Injury/suspension check** (ESPN, Flashscore, team social media)
 8. **Context**: dead rubber? cup rotation? derby? referee for cards/fouls?
+9. **SECOND-ANGLE CHECK (mandatory):** After identifying your top market, ask: "What's a completely different angle on this match?" Check at least ONE alternative market (different stat category). If the alternative has a higher hit rate or better EV, SWITCH.
+10. **COACH/ROSTER STABILITY CHECK (mandatory):** Did the coach change in last 5 matches (TransferMarkt)? Any major transfers, loan returns, or squad changes in last 14 days? New coach = volatile form. Major roster change = stats may not apply.
 
 #### TENNIS (§3.2) — STATISTICAL FIRST, ML LAST RESORT:
 1. **Player identity**: FULL name, country, ranking, WC/Q/LL status — NO slashes, NO abbreviations

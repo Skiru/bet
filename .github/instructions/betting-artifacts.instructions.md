@@ -32,7 +32,7 @@ Daily report required content:
 - Source Availability must log each important source with role, availability, and a short note.
 - Candidate Board must show the shortlist with verdict values approved, rejected, or watch.
 - Final Coupons must have Low-Risk, Multi-Sport, Higher-Risk, and/or Night subsections. Each coupon must include coupon_id, leg list (minimum 2 legs), combined_odds, stake_pln, correlation check, and main logic. **UNIQUE EVENT PER COUPON** — each event in exactly ONE coupon. No singles allowed.
-- Rejected Picks must state the event or market and the rejection reason.
+- Rejected Picks must state the event or market, the rejection reason, and which gate/check failed. Show at least 10 near-misses. Group by rejection category: EV≤0, source gap, bear>bull, market unavailable, stale odds.
 - Exposure Summary must include total_planned_exposure_pln, unused_bankroll_pln, and note that total suggested exposure may exceed daily budget (user decides which coupons to place).
 - If no bet is made, still write every section and state NO BET TODAY where appropriate.
 
@@ -45,15 +45,25 @@ Required sections:
    - Group by type: LOW-RISK, MULTI-SPORT, HIGHER RISK, NIGHT.
    - Market descriptions must be in plain Polish (e.g. "poniżej 2.5 bramek", "powyżej 22.5 gemów").
    - Include opponent/event name so user can find it in Betclic.
-2. PODSUMOWANIE table:
+2. **PER-COUPON REASONING (mandatory under each coupon table):**
+   - 1-2 sentences explaining WHY these specific legs were combined.
+   - State P(coupon) estimate: "Szacowane prawdopodobieństwo: ~XX%".
+   - State the biggest risk: "Największe ryzyko: [specific scenario]".
+3. PODSUMOWANIE table:
    - Wydatek (total spend)
    - Bankroll po (bankroll after placing)
    - Łączny pot. zwrot (total potential return)
    - Stan konta po zwrocie (bankroll after + total potential return)
    - Najlepszy scenariusz (all win)
    - Realistyczny (expected hit rate)
-3. Placement order recommendation.
-Keep it SHORT. No long rationales — user knows the picks, just needs to click fast.
+4. **LISTA OBSERWACYJNA (WATCHLIST) — 2-3 backup picks:**
+   - For each: event, market, odds, and promotion criteria ("Wstaw jeśli Betclic ≥ X.XX").
+   - Why it didn't make final: "Odrzucone bo: [reason]".
+5. **ODRZUCONE (DECLINED) — Top 10 near-misses:**
+   - For each: event, market considered, and specific rejection reason (1 sentence).
+   - Grouped: "Brak wartości" (EV≤0), "Słabe źródła" (source gap), "Zbyt ryzykowne" (bear>bull), "Rynek niedostępny" (no Betclic market).
+6. Placement order recommendation.
+Keep coupon tables SHORT for fast clicking. Reasoning and watchlist/declined sections follow AFTER all coupon tables.
 
 Daily coupon file path:
 - betting/coupons/YYYY-MM-DD.md
@@ -63,10 +73,13 @@ Structure of the .md file:
 1. H1 header with date, bankroll, budget.
 2. Conditional notice (all picks are CONDITIONAL — verify on Betclic).
 3. Per-type coupon tables (LOW-RISK, MULTI-SPORT, HIGHER RISK, NIGHT) — each with columns: #, Coupon ID, Co obstawić, Kurs, Stawka, Zwrot.
-4. PODSUMOWANIE table (Wydatek, Bankroll po, Łączny pot. zwrot, Stan konta po zwrocie, Najlepszy scenariusz, Realistyczny).
-5. KOLEJNOŚĆ STAWIANIA — placement priority list.
-6. Pominięte coupons note (which coupons were skipped and why, one line).
-7. Time-sensitive warnings if any matches may have already started.
+4. **Per-coupon reasoning block** (under each table): logic, P(coupon), biggest risk.
+5. PODSUMOWANIE table (Wydatek, Bankroll po, Łączny pot. zwrot, Stan konta po zwrocie, Najlepszy scenariusz, Realistyczny).
+6. KOLEJNOŚĆ STAWIANIA — placement priority list.
+7. **LISTA OBSERWACYJNA** — 2-3 backup picks with promotion criteria.
+8. **ODRZUCONE** — Top 10 near-misses with specific rejection reasons, grouped by rejection category.
+9. Pominięte coupons note (which coupons were skipped and why, one line).
+10. Time-sensitive warnings if any matches may have already started.
 
 No old-style plain-text metadata blocks (BETTING DAY:, RUN TIME LOCAL:, etc.) — that data lives in the ledger CSVs.
 Coupon count = f(quality events, deep statistics), NOT f(bankroll). No singles. No maximum legs per coupon.
@@ -114,45 +127,49 @@ For any market not listed: provide a clear Polish description that matches Betcl
 Use these exact CSV headers.
 
 betting/journal/picks-ledger.csv
-betting_day,pick_id,event,sport,competition,market,selection,bookmaker,bookmaker_odds,market_best_odds,price_gap_pct,odds_checked_at_local,stake_pln,risk_tier,confidence_1_5,status,pnl_pln,stat_sources,market_sources,verification_sources,main_reason,main_risk,notes
+betting_day,version,pick_id,event,sport,competition,market,selection,bookmaker,bookmaker_odds,market_best_odds,price_gap_pct,odds_checked_at_local,stake_pln,risk_tier,confidence_1_5,status,pnl_pln,stat_sources,market_sources,verification_sources,main_reason,main_risk,notes
 
 betting/journal/coupons-ledger.csv
-betting_day,coupon_id,variant,selections_count,pick_ids,combined_odds,stake_pln,risk_level,status,pnl_pln,odds_checked_at_local,correlation_check,main_logic,notes
+betting_day,version,coupon_id,variant,selections_count,pick_ids,combined_odds,stake_pln,risk_level,status,pnl_pln,odds_checked_at_local,correlation_check,main_logic,notes
 
 betting/journal/source-log.csv
 betting_day,source_name,role,sport_scope,availability,used_in_analysis,used_in_final_picks,notes
 
 Field conventions:
+- version values are v1, v2, v3, etc. On first run = v1. On rerun, increment from the highest existing version for that day.
 - risk_tier values are low, medium, high.
 - confidence_1_5 uses integers from 1 to 5.
-- variant values are low-risk or higher-risk.
+- variant is a short coupon label/name (e.g., "LR01 Pewniaki v23", "MS01 Multi-Sport v23", "HR01 Ryzykanci v23", "N01 Night v23"). Use descriptive names.
 - risk_level values are low-risk or higher-risk.
 - correlation_check values are pass or flagged.
 - availability values are available, partial, or unavailable.
 - used_in_analysis and used_in_final_picks values are yes or no.
 
 ID and update rules:
-- Pick IDs use PK-YYYYMMDD-##.
-- Reuse an existing same-day pick ID when event + market + selection are unchanged.
-- Coupon IDs: CP-YYYYMMDD-LR1, CP-YYYYMMDD-LR2, CP-YYYYMMDD-LR3 for low-risk coupons. CP-YYYYMMDD-HR1, CP-YYYYMMDD-HR2 for higher-risk coupons. Number sequentially when multiple coupons of same type exist.
+- Pick IDs use PK-YYYYMMDD-## (e.g., PK-20260422-01).
+- Pick IDs are UNIQUE PER VERSION — a rerun creates new pick IDs (next available ##) rather than reusing old ones. All picks from all versions are kept.
+- Coupon IDs: CP-YYYYMMDD-LR1v#, CP-YYYYMMDD-LR2v#, CP-YYYYMMDD-HR1v#, CP-YYYYMMDD-MS1v# for each type. Prefixes: LR = low-risk, HR = higher-risk, MS = multi-sport, N = night. The version suffix (e.g., v6) prevents collisions across versions.
 - Legacy single-coupon IDs CP-YYYYMMDD-LR and CP-YYYYMMDD-HR are also valid.
 - Overwrite same-day report and coupon files on rerun.
 - Update ledger rows in place where IDs already exist. Do not append duplicate rows for the same ID.
 
 Allowed pick statuses:
 - pending
+- placed
 - win
 - loss
 - push
 - void
 - half_win
 - half_loss
+- superseded
 
 Allowed coupon statuses:
 - pending
 - win
 - loss
 - void
+- superseded
 
 PnL rules:
 - win = stake_pln * (odds - 1)

@@ -81,7 +81,7 @@ Scan ALL 14 sports. For each sport, browse the sources below. **DEEP:** enter EV
 
 ### STEP 2: FILTER — Shortlist
 
-Remove: outside session window, no Tier A coverage, <1h to kickoff, exhibitions, ITF tennis.
+Remove: outside session window, no Tier A coverage, <2h to kickoff, already started, exhibitions, ITF tennis.
 Prioritize: events WITH statistical markets (corners, totals, HC) over ML-only.
 **Target: 15-40 events across ≥5 sports.** Football ≤50% of shortlist.
 
@@ -277,7 +277,7 @@ Over = Powyżej, Under = Poniżej, Goals = bramek, Corners = rzutów rożnych, C
 
 | Sport | Priority order (→ least preferred) |
 |-------|-----------------------------------|
-| Football | Fouls → Cards → Corners → Shots → Team totals → BTTS → U2.5 → O2.5 → DC → 1X2 |
+| Football | Fouls → Cards → Corners → Shots → Team totals → BTTS → U2.5 → O2.5 → DC/DNB → 1X2 |
 | Tennis | Game totals → Set totals → Game HC → Set HC → ML |
 | Basketball | Team totals → Quarter totals → Game totals → Spreads → ML |
 | Hockey | Period totals → Game totals → Puck line → ML |
