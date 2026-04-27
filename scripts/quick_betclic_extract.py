@@ -32,7 +32,7 @@ def load_config():
         with open(CONFIG_PATH, "r", encoding="utf-8") as f:
             return json.load(f)
     except Exception:
-        return {"max_coupon_stake_low_risk_pln": 3.0}
+        return {"low_risk_coupon_max_stake_pln": 3.0}
 
 
 def normalize(n: str) -> str:
@@ -50,7 +50,7 @@ def appears_on_site(match_key: str, html: str) -> bool:
 
 def main():
     config = load_config()
-    max_stake = config.get("max_coupon_stake_low_risk_pln", config.get("max_single_stake_pln", 3.0))
+    max_stake = config.get("low_risk_coupon_max_stake_pln", 3.0)
 
     betclic_url = "https://www.betclic.pl/"
     flash_url = "https://www.flashscore.com/"

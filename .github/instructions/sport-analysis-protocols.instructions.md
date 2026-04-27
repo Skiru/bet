@@ -5,6 +5,8 @@ applyTo: ""
 # Sport-Specific Analysis Protocols — Reference Document
 
 > **This file is loaded ON DEMAND, not auto-loaded.** It contains detailed per-sport statistical protocols, upset risk checklists, and instant red flag tables. The agent loads it when performing deep analysis (STEP 3+).
+>
+> **Sport Tiers:** KEY (Tier 1) = Football, Volleyball, Basketball, Tennis — scan ALL leagues/divisions deeply. SUPPORT (Tier 2) = all others — scan main leagues/tournaments. Analysis depth is identical for all candidates regardless of tier.
 
 ---
 

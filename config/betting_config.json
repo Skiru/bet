@@ -3,9 +3,7 @@
   "betting_window_days": 1,
   "betting_window_note": "Number of days to scan for events. Default 1 = single betting day (06:00-05:59). Set to 2 or 3 for multi-day analysis windows. Settlement covers all days before the window start.",
   "daily_exposure_pln": null,
-  "max_coupon_stake_low_risk_pln": 3.0,
-  "max_coupon_stake_higher_risk_pln": 2.0,
-  "working_bankroll_pln": 21.49,
+  "working_bankroll_pln": 35.99,
   "suggested_daily_allocation_range_pln": [
     5.0,
     7.5
@@ -15,8 +13,9 @@
   "low_risk_price_gap_threshold_pct": -3.0,
   "higher_risk_price_gap_threshold_pct": -5.0,
   "min_coupons_per_day": 5,
-  "coupon_count_rule": "driven_by_quality_not_money",
-  "coupon_count_note": "min_coupons_per_day is a soft target. Actual count = f(quality events, deep statistics). Stakes are SUGGESTIONS — user decides which to place. NEVER reduce coupon count because of money constraints.",
+  "min_coupons_per_day_note": "Minimum CORE coupons. Combo menu (4-8 extra) is on top of this.",
+  "coupon_count_rule": "core_plus_combo_menu",
+  "coupon_count_note": "Core portfolio (unique event per coupon, ≥5) + Combo Menu (4-8 extra combos remixing picks, prefixed COMBO-). User picks from both. Stakes are SUGGESTIONS. Total WILL exceed daily budget.",
   "min_legs_per_coupon": 2,
   "max_same_sport_legs_in_coupon": 2,
   "preferred_odds_range": [
@@ -24,13 +23,33 @@
     3.5
   ],
   "timezone": "Europe/Warsaw",
+  "sports_key": [
+    "football",
+    "volleyball",
+    "basketball",
+    "tennis"
+  ],
+  "sports_key_note": "Tier 1 KEY sports. Scan ALL leagues/divisions/cups deeply.",
+  "sports_support": [
+    "hockey",
+    "baseball",
+    "esports",
+    "snooker",
+    "table_tennis",
+    "darts",
+    "handball",
+    "mma",
+    "padel",
+    "speedway"
+  ],
+  "sports_support_note": "Tier 2 SUPPORT sports. Scan main leagues/tournaments. Still fully analyzed per candidate.",
   "sports": [
     "football",
     "tennis",
     "basketball",
+    "volleyball",
     "hockey",
     "baseball",
-    "volleyball",
     "esports",
     "snooker",
     "table_tennis",
@@ -129,6 +148,5 @@
     "prefer_multi_sport": true,
     "max_same_sport_legs_in_coupon": 2,
     "min_sports_for_higher_risk_coupon": 2
-  },
-  "bankroll_pln": 34.0
+  }
 }

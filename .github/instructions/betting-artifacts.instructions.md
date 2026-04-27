@@ -31,9 +31,11 @@ Daily report required content:
 - Learning Update must contain at most 3 process-level changes.
 - Source Availability must log each important source with role, availability, and a short note.
 - Candidate Board must show the shortlist with verdict values approved, rejected, or watch.
-- Final Coupons must have Low-Risk, Multi-Sport, Higher-Risk, and/or Night subsections. Each coupon must include coupon_id, leg list (minimum 2 legs), combined_odds, stake_pln, correlation check, and main logic. **UNIQUE EVENT PER COUPON** — each event in exactly ONE coupon. No singles allowed.
+- Final Coupons has TWO parts:
+  1. **Core Portfolio:** Coupons where each event appears in exactly ONE coupon. Subsections by risk tier: Low-Risk, Multi-Sport, Higher-Risk, and/or Night. Target: ≥2 LR, ≥1 MS, ≥1 HR (scale up with picks). Each coupon must include coupon_id, leg list (minimum 2 legs), combined_odds, stake_pln, correlation check, and main logic. **UNIQUE EVENT PER COUPON.** No singles allowed.
+  2. **Combination Menu (COMBO):** Additional coupons that remix approved picks into new groupings. 4-8 extra combos. Picks MAY be reused from core. Each combo prefixed "COMBO-" and has a distinct thesis. This gives the user more choice on top of the core list.
 - Rejected Picks must state the event or market, the rejection reason, and which gate/check failed. Show at least 10 near-misses. Group by rejection category: EV≤0, source gap, bear>bull, market unavailable, stale odds.
-- Exposure Summary must include total_planned_exposure_pln, unused_bankroll_pln, and note that total suggested exposure may exceed daily budget (user decides which coupons to place).
+- Exposure Summary must include total_core_exposure_pln (core portfolio sum), total_menu_exposure_pln (core + combos sum), suggested_budget_pln (daily cap), and a note: "Core portfolio = primary bets. Combo menu = extra options. Pick your favorites from both."
 - If no bet is made, still write every section and state NO BET TODAY where appropriate.
 
 Chat + file output format (PRIMARY deliverable):
@@ -72,7 +74,8 @@ The .md file MUST be identical to what is shown in chat — visual Markdown tabl
 Structure of the .md file:
 1. H1 header with date, bankroll, budget.
 2. Conditional notice (all picks are CONDITIONAL — verify on Betclic).
-3. Per-type coupon tables (LOW-RISK, MULTI-SPORT, HIGHER RISK, NIGHT) — each with columns: #, Coupon ID, Co obstawić, Kurs, Stawka, Zwrot.
+3. Per-type coupon tables (LOW-RISK, MULTI-SPORT, HIGHER RISK, NIGHT) — each with columns: #, Coupon ID, Co obstawić, Kurs, Stawka, Zwrot. UNIQUE EVENT PER COUPON.
+3b. **COMBINATION MENU** — additional combos (COMBO-LR1, COMBO-MS1, etc.) that remix approved picks. Same table format. Prefixed "COMBO-" for clarity.
 4. **Per-coupon reasoning block** (under each table): logic, P(coupon), biggest risk.
 5. PODSUMOWANIE table (Wydatek, Bankroll po, Łączny pot. zwrot, Stan konta po zwrocie, Najlepszy scenariusz, Realistyczny).
 6. KOLEJNOŚĆ STAWIANIA — placement priority list.
@@ -83,13 +86,14 @@ Structure of the .md file:
 
 No old-style plain-text metadata blocks (BETTING DAY:, RUN TIME LOCAL:, etc.) — that data lives in the ledger CSVs.
 Coupon count = f(quality events, deep statistics), NOT f(bankroll). No singles. No maximum legs per coupon.
-Total suggested stakes may exceed daily budget — user decides which coupons to place. NEVER reduce coupon count because of money constraints.
+Core portfolio: unique event per coupon. Combo menu: reuse allowed. Together they give the user real choice.
+Total suggested stakes (core + combos) WILL exceed daily budget — user picks favorites. NEVER reduce coupon count because of money constraints.
 
 Per-pick concentration limit (MANDATORY when user selects coupons):
-When recommending a subset of coupons for a specific budget, compute per-pick exposure:
-- For each unique pick, sum the stakes of all coupons containing that pick.
-- No single pick may account for more than 50% of the total budget.
-- If exceeded, drop one coupon containing that pick and replace with a coupon using different picks.
+When the user selects a subset of coupons (core + combos), compute per-pick exposure:
+- For each unique pick, sum the stakes of all SELECTED coupons containing that pick.
+- No single pick may account for more than 50% of the total selected budget.
+- If exceeded, suggest swapping one coupon for a different one.
 - Include a per-pick exposure table in the PODSUMOWANIE section.
 
 Human-readable Polish descriptions (mandatory for every coupon leg):

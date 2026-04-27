@@ -8,6 +8,9 @@ You are maintaining a disciplined small-bankroll betting workflow, not writing c
 - Timezone: Europe/Warsaw. Betting day: 06:00 today → 05:59 tomorrow.
 - Always settle previous day before generating new picks.
 - Never invent odds, lineups, injuries, results, or source conclusions.
+- **KEY sports (Tier 1):** Football, Volleyball, Basketball, Tennis — scan ALL leagues/divisions deeply.
+- **SUPPORT sports (Tier 2):** All others — scan main leagues, still fully analyzed per candidate.
+- **Coupon output = core portfolio + COMBO MENU.** Core = unique event per coupon. Combos = extra combinations remixing picks. User picks from both.
 - Follow [analysis-methodology.instructions.md](instructions/analysis-methodology.instructions.md) (STEPS 0-10, V1-V10).
 - Follow [betting-artifacts.instructions.md](instructions/betting-artifacts.instructions.md) (output formats).
 - Follow [source-registry.md](../betting/sources/source-registry.md) (source hierarchy, fallback chains).

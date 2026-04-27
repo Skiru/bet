@@ -10,16 +10,31 @@ Goal: find MISPRICED ODDS, not predict winners. EV > 0 is the only valid reason 
 
 ---
 
+## SPORT TIERS
+
+| Tier | Sports | Scanning | Analysis |
+|------|--------|----------|----------|
+| **KEY (Tier 1)** | Football, Volleyball, Basketball, Tennis | ALL leagues/divisions/tournaments — not just top leagues. Go deep: 2nd/3rd divisions, cups, youth internationals, women's leagues, regional tournaments. Every sub-page. | Full STEPS 3-7 per candidate. |
+| **SUPPORT (Tier 2)** | Hockey, Baseball, Esports, Snooker, Darts, Table Tennis, Handball, MMA, Padel, Speedway | Top leagues + major tournaments. Don't drill into every sub-division but cover main events. | Full STEPS 3-7 per candidate. Same quality, fewer leagues scanned. |
+
+**KEY sport league depth (CRITICAL):** For Football, Volleyball, Basketball, Tennis — scan beyond the obvious. Examples:
+- Football: not just EPL/LaLiga/Bundesliga but also Ekstraklasa, 2. Bundesliga, Serie B, Ligue 2, Eredivisie, Belgian Pro League, Turkish Super Lig, MLS, Liga MX, K-League, J-League, women's leagues, youth tournaments.
+- Volleyball: PlusLiga, SuperLega, Ligue A, women's leagues, CEV Champions League, national cups.
+- Basketball: not just NBA/Euroleague but also NBP (Poland), ACB, BSL, LNB, BCL, women's leagues.
+- Tennis: all ATP/WTA draws at every level (250/500/1000/GS), Challengers (but NOT ITF).
+
+---
+
 ## SCANNING MANDATE (NEVER VIOLATE)
 
-1. **WIDE:** ALL 14 sports every run. Never say "no events" without exhausting the FULL fallback chain (see source-registry.md) + a Google search.
-2. **DEEP:** Enter EVERY tournament/league — landing pages hide 80%. Count matches. Cross-validate counts between ≥2 sources (>20% discrepancy = missed events).
+1. **WIDE:** ALL 14 sports every run. KEY sports get league-depth priority. Never say "no events" without exhausting the FULL fallback chain (see source-registry.md) + a Google search.
+2. **DEEP:** Enter EVERY tournament/league for KEY sports. For SUPPORT sports, cover main tournaments. Landing pages hide 80%. Count matches. Cross-validate counts between ≥2 sources (>20% discrepancy = missed events).
 3. **MULTI-LEVEL:** Per candidate: Tier A stats → Tier A markets → Tier B tipsters (read REASONING) → specialist sources → context.
 4. **AGGRESSIVELY:** Source fails? Log the error, try next in chain immediately. All chain sources fail? Google `"[sport] matches today site:flashscore.com OR site:sofascore.com"` or `"[tournament] schedule [date]"`. After finishing other sports, RETRY failed sources (rate limits often clear in 15-30 min). **Never declare a sport empty without trying ≥3 independent sources + 1 Google search.**
 5. **COMPARE:** Every data point needs ≥2 independent confirmations.
 6. **RETRY LOOP:** After the first scan pass, review `scan_errors.json` and ALL failed sources. Retry each failed source ONCE. If it works now, add its events. Log final status.
 
-**Minimums:** ≥50 events scanned, ≥80% scan completeness, 15-40 shortlist across ≥8 sports, final picks from ≥5 sports, ≥5 coupons.
+**Minimums:** ≥50 events scanned, ≥80% scan completeness, 15-40 shortlist across ≥8 sports, final picks from ≥5 sports, ≥5 core coupons + ≥4 combo coupons. KEY sports ≥60% of shortlist.
 
 **SESSION PARITY:** Session type (full/day/night) controls ONLY the event time window. Analysis depth, coupon count, all steps, all validation = IDENTICAL regardless of session.
 
@@ -57,7 +72,8 @@ Before STEP 1, query the picks-ledger to extract actionable patterns. This takes
 7. Record per event: sport, competition, event, kickoff, initial odds, source.
 
 **14-SPORT CHECKLIST (mandatory — check each):**
-Football, Tennis, Basketball, Hockey, Baseball, Volleyball, Esports, Snooker, Darts, Table Tennis, Handball, MMA, Padel, Speedway.
+- **KEY (deep league scan):** Football, Tennis, Basketball, Volleyball.
+- **SUPPORT (main leagues):** Hockey, Baseball, Esports, Snooker, Darts, Table Tennis, Handball, MMA, Padel, Speedway.
 
 **Source fallback chains per sport:** See [source-registry.md](../../betting/sources/source-registry.md).
 
@@ -71,7 +87,7 @@ Remove: outside betting window, no Tier A coverage, <2h to kickoff, already star
 Prioritize: events WITH statistical markets (corners, totals, HC) over basic ML-only.
 **Early Betclic market hint:** For niche sports (volleyball, table tennis, padel, speedway), check Betclic market availability BEFORE deep analysis. If market doesn't exist on Betclic → don't waste analysis time.
 Preferred odds range: 1.30-3.50.
-**Target: 15-40 events across ≥8 sports in shortlist (≥5 sports minimum in final picks).** Football ≤50% of shortlist.
+**Target: 15-40 events across ≥8 sports in shortlist (≥5 sports minimum in final picks).** KEY sports (Football+Volleyball+Basketball+Tennis) should be ≥60% of shortlist but no single sport >40%.
 
 ---
 
@@ -196,16 +212,30 @@ ALL 14 PASS → APPROVED | ANY FAIL → REJECT/DOWNGRADE/WATCHLIST
 
 ---
 
-## STEP 8: PORTFOLIO — Coupons
+## STEP 8: COUPONS + COMBINATION MENU
+
+### §8.1 CORE PORTFOLIO (primary deliverable)
 
 1. Rank approved picks: EV (highest) → confidence → price_gap.
 2. **NO SINGLES.** Every pick in a coupon. Min 2 legs per coupon.
-3. **UNIQUE EVENT PER COUPON (ABSOLUTE).** Each pick in ONLY ONE coupon. Zero sharing.
-4. **Coupon count = f(quality, NOT money).** 20 picks → 10 coupons. 6 picks → 3. <4 picks → NO BET.
-5. Build diverse coupons: vary sports, markets, risk levels. At least 3 multi-sport.
-6. **Correlation check:** Same match = FORBIDDEN. Same league = FLAG. Same narrative = REMOVE weaker.
-7. Suggest stakes for ALL coupons. Total may exceed daily cap — user decides.
-8. **Watchlist:** 2-3 backup picks with promotion criteria ("Promote if Betclic ≥ X.XX").
+3. **UNIQUE EVENT PER COUPON (ABSOLUTE).** Each pick in ONLY ONE core coupon. Zero sharing.
+4. **Coupon count = f(quality, NOT money).** Minimum 5 core coupons. <4 approved picks → NO BET.
+5. Build diverse coupons: vary sports, markets, risk levels.
+6. **Risk tier labels:** LOW-RISK, MULTI-SPORT, HIGHER-RISK, NIGHT. Target distribution: ≥2 LR, ≥1 MS, ≥1 HR (scale up with approved picks).
+7. **Correlation check:** Same match = FORBIDDEN. Same league ≥2 = FLAG. Same narrative = REMOVE weaker.
+8. Suggest stakes for ALL coupons. Total may exceed daily cap — user decides.
+9. **Watchlist:** 2-3 backup picks with promotion criteria ("Promote if Betclic ≥ X.XX").
+
+### §8.1b COMBINATION MENU (additional — user picks favorites)
+
+After building the core portfolio, generate **additional combination coupons** that remix approved picks into new groupings. These are EXTRA options on top of the core list.
+
+1. **Reuse allowed:** Picks from the core portfolio MAY be recombined into new coupons here. Same pick can appear in multiple menu combos.
+2. **Target: 4-8 extra combos** across risk tiers (at least 2 LR, 1 MS, 1 HR).
+3. **Each combo must have a distinct thesis** — don't just shuffle the same legs. Vary the angle: "all-corners combo", "safe-totals combo", "high-EV longshot", "3-sport diversifier", etc.
+4. **Label clearly:** Prefix with "COMBO-" (e.g., COMBO-LR1, COMBO-MS1, COMBO-HR1) so user can distinguish core vs. menu coupons.
+5. **Same rules apply:** min 2 legs, max same-sport 2, correlation check, combined odds arithmetic.
+6. **User picks from the full list** (core + combos). Total suggested stakes WILL exceed daily cap — that's the point.
 
 ### §8.2 COUPON STRESS TEST (MANDATORY per coupon)
 For EACH coupon, before finalizing:
@@ -223,7 +253,7 @@ For EACH coupon, before finalizing:
 ### V1: Artifact Consistency
 - pick_ids in coupon file exist in picks-ledger
 - coupon_ids exist in coupons-ledger
-- Stakes sum = total exposure. No duplicate IDs. No event in 2+ coupons.
+- Stakes sum = total exposure. No duplicate IDs. UNIQUE EVENT PER COUPON in core portfolio. Combo coupons may reuse picks.
 
 ### V2: Per-Pick Sources
 - Tier A stats source with specific data point?
@@ -245,16 +275,19 @@ For EACH coupon, before finalizing:
 ### V5: Coupon Structure
 - Min 2 legs. Same-sport ≤2. No same-match.
 - **Combined odds ARITHMETIC:** Multiply legs explicitly. Write product. Tolerance ±2%.
-- UNIQUE EVENT PER COUPON verified. At least 5 coupons (if 10+ picks).
+- Core portfolio: UNIQUE EVENT PER COUPON. Combo menu: reuse allowed.
+- ≥5 core coupons + ≥4 combo coupons. Distribute across risk tiers.
 
-### V6: Portfolio Risk
-- No coupon > 3.00 PLN (LR) / 2.00 PLN (HR).
-- Exposure < 25% of bankroll. Multi-sport diversification. No tournament concentration.
+### V6: Portfolio + Menu Completeness
+- Core portfolio covers all approved picks (no orphans).
+- Combo menu has ≥4 extra coupons with distinct theses (not reshuffled core legs).
+- Multi-sport diversification within coupons. No tournament concentration.
+- Total suggested stakes (core + combos) exceed daily cap — user picks.
 
 ### V7: Weaknesses
 - List BORDERLINE picks, CONDITIONAL picks, weakest leg per coupon.
 - V7b: Date & fixture verified for EVERY event.
-- V7c: Cross-coupon integrity — no event in >1 coupon, no correlated narratives.
+- V7c: Cross-coupon integrity — core portfolio: no event in >1 coupon. Combo menu: reuse OK but no correlated narratives within single combo.
 
 ### V8: Source Completeness
 - Every pick: ≥2 independent sources + ≥1 argument-based tipster.
@@ -268,7 +301,7 @@ For EACH coupon, before finalizing:
 
 ### V10: Final Sign-Off
 
-**V10a: Forced Sport Enumeration** — ALL 14 sports listed with events/sources/candidates/picks. 0 events + <3 sources → go back.
+**V10a: Forced Sport Enumeration** — ALL 14 sports listed with events/sources/candidates/picks. KEY sports (Football, Volleyball, Basketball, Tennis): 0 events + <3 sources → go back. SUPPORT sports: 0 events + <2 sources → go back.
 
 **V10b: Pick Approval Gates** — every pick passed 14-point gate (§7.5).
 
@@ -322,7 +355,7 @@ On reruns: increment version (v5→v6). Mark old pending as `superseded`. Keep a
 6. Labeling coupons "MEDIUM" or "ATP CLAY" — only LOW-RISK, MULTI-SPORT, HIGHER-RISK, NIGHT.
 7. Inventing ratio grades — only STRONG, GOOD, BORDERLINE, REJECT exist.
 8. Singles instead of coupons — NO SINGLES. Min 2 legs.
-9. Reducing coupon count for money — count = f(quality). Stakes are suggestions.
+9. Producing too few coupons — ≥5 core + ≥4 combos = genuine choice for the user.
 10. Giving up after first 403 — use fallback chain, then search internet.
 11. Shallow scanning — enter every tournament, count matches.
 12. Missing Polish descriptions — every leg needs Polish parenthetical.

@@ -5,6 +5,8 @@ applyTo: ""
 # Analysis Methodology — Complete Daily Protocol (REFERENCE ONLY)
 
 > **This file is the FULL unabridged reference. It is NOT auto-loaded.** For daily use, follow [analysis-methodology.instructions.md](analysis-methodology.instructions.md) (compact version). Consult this file only when you need exhaustive detail on a specific step or protocol.
+>
+> **NOTE:** The compact version is the source of truth for: Sport Tiers (KEY vs SUPPORT), Coupon structure (core portfolio + COMBO MENU), and minimum coupon counts. If this file conflicts with the compact version, the compact version wins.
 
 This is the DEFINITIVE, REPEATABLE methodology for daily betting analysis. Follow every step in order. Do not skip steps. Do not take shortcuts. This protocol produces professional-grade analysis every single day.
 

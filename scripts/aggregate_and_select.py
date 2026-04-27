@@ -59,11 +59,9 @@ def load_config():
             return json.load(f)
     except Exception:
         return {
-            "max_coupon_stake_low_risk_pln": 3.0,
-            "max_coupon_stake_higher_risk_pln": 2.0,
-            "suggested_daily_allocation_range_pln": [8.0, 12.0],
             "low_risk_coupon_max_stake_pln": 3.0,
             "higher_risk_coupon_max_stake_pln": 2.0,
+            "suggested_daily_allocation_range_pln": [8.0, 12.0],
         }
 
 
@@ -273,7 +271,7 @@ def select_candidates(matches):
 
 def allocate_stakes(candidates, config):
     """Allocate stakes respecting config limits."""
-    max_stake = config.get("max_coupon_stake_low_risk_pln", config.get("max_single_stake_pln", 3.0))
+    max_stake = config.get("low_risk_coupon_max_stake_pln", 3.0)
     alloc_range = config.get("suggested_daily_allocation_range_pln", [8.0, 12.0])
     max_daily = alloc_range[1] if len(alloc_range) > 1 else 12.0
 
@@ -327,7 +325,7 @@ def main():
 
     output = {
         "config_used": {
-            "max_coupon_stake_pln": config.get("max_coupon_stake_low_risk_pln", 3.0),
+            "max_coupon_stake_pln": config.get("low_risk_coupon_max_stake_pln", 3.0),
             "max_daily_pln": max_daily,
         },
         "total_matches_aggregated": len(matches),
