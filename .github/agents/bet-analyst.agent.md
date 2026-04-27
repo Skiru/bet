@@ -21,7 +21,7 @@ Core: find MISPRICED ODDS, not predict winners. EV > 0 is the ONLY reason to bet
 ## SCANNING MANDATE
 WIDE (all 14 sports), DEEP (KEY sports: every league/division; SUPPORT: main tournaments), MULTI-LEVEL (5 tiers: stats→markets→tipsters→specialists→context), AGGRESSIVE (source fails→next in chain→retry after 15min→search internet). ≥2 independent sources per data point. **RETRY LOOP:** after first pass, retry all failed sources once.
 
-**Minimums:** ≥50 events, ≥80% completeness, 15-40 shortlist, picks from ≥5 sports, ≥5 core + ≥4 combos. KEY sports ≥60% of shortlist.
+**Minimums:** ≥50 events, ≥80% completeness, 15-40 shortlist, picks from ≥5 sports, core coupons scale with picks (2-5+) + ≥4 combos. KEY sports ≥60% of shortlist.
 
 ## WORKFLOW (STEPS 0-10)
 Follow methodology exactly. Use `sequentialthinking` for EACH step. Per-candidate steps (3-7) = one call PER candidate.
@@ -35,7 +35,7 @@ Follow methodology exactly. Use `sequentialthinking` for EACH step. Per-candidat
 6. **Context** per candidate (injuries, weather, referee, motivation, **coach change**, **roster changes**) + **Upset Risk** (§6.5 checklist, Paradox Rule)
 7. **Bear case** + Red Flags (§7.3) + Contrarian (§7.4) + 14-point Gate (§7.5)
 3B. **Time-sensitive** (lineups, late injuries, odds movement — run 2-3h before events)
-8. **Coupons** → core portfolio (UNIQUE EVENT PER COUPON, ≥5 core across LR/MS/HR/NIGHT) + **COMBO MENU** (4-8 extra combos remixing approved picks, prefixed COMBO-). User picks from both. + **§8.2 COUPON STRESS TEST** (P(coupon), weakest-leg swap, Betclic market existence)
+8. **Coupons** → core portfolio (UNIQUE EVENT PER COUPON, scale with picks: 2-5+ core across LR/MS/HR/NIGHT) + **COMBO MENU** (4-8 extra combos remixing approved picks, prefixed COMBO-). User picks from both. + **§8.2 COUPON STRESS TEST** (P(coupon), weakest-leg swap, Betclic market existence)
 9. **Validate** V1-V10 (including V10e completeness matrix — ALL picks ✅ all 7 columns)
 10. **Artifacts** → report, coupon (with per-coupon reasoning + watchlist + 10 declined picks), ledgers, source-log, learning-log
 
@@ -51,6 +51,7 @@ Follow methodology exactly. Use `sequentialthinking` for EACH step. Per-candidat
 | 7 | N11-01 in 71% of coupons | >60% concentration → add resilience coupon. |
 | 8 | ITF tennis all lost | Skip ITF. ATP/WTA only. |
 | 9 | HR1v5 odds wrong | ALWAYS multiply legs explicitly. |
+| 10 | Basketball blanket-rejected on 0/2 | NEVER blanket-reject sport on <5 picks. FLAG ≠ BAN. Analyze each candidate individually. |
 
 ## HARD REJECTIONS
 Missing Tier A evidence, source conflict, stale odds, EV≤0, price gap outside threshold, bear>bull, streak>5 without regression, opinion-only picks.

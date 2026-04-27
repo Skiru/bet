@@ -77,15 +77,17 @@ applyTo: ""
 
 | Category | Metrics | Source |
 |----------|---------|--------|
-| Pace | Possessions/game, League rank, Last 10 pace | ESPN, NBA.com |
-| Offense | OFF rating, FG%, 3PT%, FT rate, TO/game | Basketball-Reference |
-| Defense | DEF rating, Opp FG%, Opp 3PT%, Steals, Blocks | Basketball-Reference |
-| Totals | Team pts/game, Opp pts/game, Combined avg, O/U hit rates | ESPN, Flashscore |
-| Home/Away | Pts scored H/A, Pts allowed H/A, ATS record | ESPN |
+| Pace | Possessions/game, League rank, Last 10 pace | ESPN, NBA.com (NBA); BetExplorer, Flashscore (EU) |
+| Offense | OFF rating, FG%, 3PT%, FT rate, TO/game | Basketball-Reference (NBA); Flashscore, Sofascore (EU) |
+| Defense | DEF rating, Opp FG%, Opp 3PT%, Steals, Blocks | Basketball-Reference (NBA); Flashscore, Sofascore (EU) |
+| Totals | Team pts/game, Opp pts/game, Combined avg, O/U hit rates | ESPN, Flashscore (NBA); BetExplorer standings, SportsGambler (EU) |
+| Home/Away | Pts scored H/A, Pts allowed H/A, ATS record | ESPN (NBA); BetExplorer, Flashscore (EU) |
 
 **Market decision:** Team totals → Quarter totals → Game totals O/U → Spreads → ML (LAST RESORT). Both top-10 pace → O-totals. Playoff = 3-5 fewer points avg.
 
 **Context:** Star player availability (DAY OF check), B2B (−3-5 pts), travel, altitude (Denver), playoff implications.
+
+**EU leagues (BBL, ACB, BSL, VTB, ABA, etc.):** Use BetExplorer standings for PF/PA totals + H/A splits. Use Flashscore/Sofascore for H2H, form, and last 5/10 game scores. Use SportsGambler for written previews where available. Basketball-Reference and NBA.com are NBA-only — do NOT cite them for EU basketball.
 
 ### §3.4 Hockey
 

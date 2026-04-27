@@ -34,7 +34,7 @@ Goal: find MISPRICED ODDS, not predict winners. EV > 0 is the only valid reason 
 5. **COMPARE:** Every data point needs ≥2 independent confirmations.
 6. **RETRY LOOP:** After the first scan pass, review `scan_errors.json` and ALL failed sources. Retry each failed source ONCE. If it works now, add its events. Log final status.
 
-**Minimums:** ≥50 events scanned, ≥80% scan completeness, 15-40 shortlist across ≥8 sports, final picks from ≥5 sports, ≥5 core coupons + ≥4 combo coupons. KEY sports ≥60% of shortlist.
+**Minimums:** ≥50 events scanned, ≥80% scan completeness, 15-40 shortlist across ≥8 sports, final picks from ≥5 sports, core coupons scale with picks (target ≥5 when 10+ approved) + ≥4 combo coupons. KEY sports ≥60% of shortlist.
 
 **SESSION PARITY:** Session type (full/day/night) controls ONLY the event time window. Analysis depth, coupon count, all steps, all validation = IDENTICAL regardless of session.
 
@@ -54,7 +54,7 @@ Goal: find MISPRICED ODDS, not predict winners. EV > 0 is the only valid reason 
 Before STEP 1, query the picks-ledger to extract actionable patterns. This takes 2 minutes and prevents repeating proven failures.
 
 1. **Per-market hit rate:** Group settled picks by `market` column. Calculate win% per market type (e.g., corners: 75%, ML: 40%, BTTS: 55%). Any market <40% on 10+ picks → AUTO-DOWNGRADE (STEP 5 rule). Any market <30% → WATCHLIST ONLY.
-2. **Per-sport hit rate:** Group by `sport`. Any sport with <30% hit rate on 5+ picks → FLAG. Scan that sport but apply −1 confidence to all picks from it.
+2. **Per-sport hit rate:** Group by `sport`. Any sport with <30% hit rate on 5+ picks → FLAG. Scan that sport but apply −1 confidence to all picks from it. **NEVER blanket-reject an entire sport.** <5 settled picks = insufficient sample for any sport-level action. Each candidate is analyzed individually through STEP 3-7 regardless of sport-level hit rate.
 3. **Coupon failure analysis:** For each LOST coupon, identify the leg that failed. Track which pick types are the "coupon killers." If a specific market/sport kills coupons >50% of the time → exclude from LR coupons.
 4. **Streak check:** Any team/player appearing 3+ times in recent picks? Check if the thesis is stale or if the edge has been priced in.
 5. **Write a 3-line summary** of what the data says today. Example: "Corners 6/8 (75%). Tennis ML 1/5 (20%) — avoid. Hockey totals killing coupons — HR only."
@@ -219,7 +219,7 @@ ALL 14 PASS → APPROVED | ANY FAIL → REJECT/DOWNGRADE/WATCHLIST
 1. Rank approved picks: EV (highest) → confidence → price_gap.
 2. **NO SINGLES.** Every pick in a coupon. Min 2 legs per coupon.
 3. **UNIQUE EVENT PER COUPON (ABSOLUTE).** Each pick in ONLY ONE core coupon. Zero sharing.
-4. **Coupon count = f(quality, NOT money).** Minimum 5 core coupons. <4 approved picks → NO BET.
+4. **Coupon count = f(quality, NOT money).** Target ≥5 core coupons (requires ≥10 approved picks). Scale: 4-5 picks → 2 core, 6-7 → 3 core, 8-9 → 4 core, 10+ → 5+ core. <4 approved picks → NO BET.
 5. Build diverse coupons: vary sports, markets, risk levels.
 6. **Risk tier labels:** LOW-RISK, MULTI-SPORT, HIGHER-RISK, NIGHT. Target distribution: ≥2 LR, ≥1 MS, ≥1 HR (scale up with approved picks).
 7. **Correlation check:** Same match = FORBIDDEN. Same league ≥2 = FLAG. Same narrative = REMOVE weaker.
@@ -276,7 +276,7 @@ For EACH coupon, before finalizing:
 - Min 2 legs. Same-sport ≤2. No same-match.
 - **Combined odds ARITHMETIC:** Multiply legs explicitly. Write product. Tolerance ±2%.
 - Core portfolio: UNIQUE EVENT PER COUPON. Combo menu: reuse allowed.
-- ≥5 core coupons + ≥4 combo coupons. Distribute across risk tiers.
+- Core coupons scale with approved picks (2-5+). ≥4 combo coupons. Distribute across risk tiers.
 
 ### V6: Portfolio + Menu Completeness
 - Core portfolio covers all approved picks (no orphans).
@@ -355,7 +355,7 @@ On reruns: increment version (v5→v6). Mark old pending as `superseded`. Keep a
 6. Labeling coupons "MEDIUM" or "ATP CLAY" — only LOW-RISK, MULTI-SPORT, HIGHER-RISK, NIGHT.
 7. Inventing ratio grades — only STRONG, GOOD, BORDERLINE, REJECT exist.
 8. Singles instead of coupons — NO SINGLES. Min 2 legs.
-9. Producing too few coupons — ≥5 core + ≥4 combos = genuine choice for the user.
+9. Producing too few coupons — scale core with picks (2-5+), ≥4 combos = genuine choice for the user.
 10. Giving up after first 403 — use fallback chain, then search internet.
 11. Shallow scanning — enter every tournament, count matches.
 12. Missing Polish descriptions — every leg needs Polish parenthetical.

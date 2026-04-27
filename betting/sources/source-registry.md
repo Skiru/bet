@@ -251,6 +251,18 @@ Always record in the report which community sources were checked and whether con
   Use for: official pace data, team stats, player game logs. Referenced in basketball protocol.
   Access: OK (JS-heavy, may need Playwright).
 
+- Eurobasket.com
+  Role: European basketball stats — standings, team stats (PF/PA), player stats, schedules across 50+ European leagues (BBL, ACB, BSL, VTB, ABA, LNB, LBA, PLK, etc.).
+  URL: eurobasket.com
+  Use for: European league standings, team scoring averages, H2H context for non-NBA basketball.
+  Access: OK.
+
+- RealGM Basketball
+  Role: international basketball stats — rosters, transactions, schedules, standings for NBA + European leagues.
+  URL: basketball.realgm.com
+  Use for: roster changes, league standings, and scheduling context for European basketball.
+  Access: OK.
+
 ### Hockey
 
 - Hockey-Reference
