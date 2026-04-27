@@ -58,9 +58,14 @@ Required sections:
    - Stan konta po zwrocie (bankroll after + total potential return)
    - Najlepszy scenariusz (all win)
    - Realistyczny (expected hit rate)
-4. **LISTA OBSERWACYJNA (WATCHLIST) — 2-3 backup picks:**
+4. **LISTA OBSERWACYJNA (WATCHLIST) — 2-5 backup picks:**
    - For each: event, market, odds, and promotion criteria ("Wstaw jeśli Betclic ≥ X.XX").
    - Why it didn't make final: "Odrzucone bo: [reason]".
+   - **TIPSTER-SOURCED PICKS (§4.3):** If a tipster with >55% accuracy argues for a statistical market (corners, cards, games, frames) with specific data backing, it MUST appear here with:
+     - Tipster name and accuracy % from site
+     - Full tipster argument (translated to Polish if from Polish site)
+     - The specific stats cited (e.g., "Liège: śr. 6.2 rzutów rożnych/mecz w domu, 6/10 meczów >4.5 CK")
+     - Promotion criteria: "Wstaw jeśli: kurs Betclic ≥X.XX + potwierdzone przez ≥1 źródło statystyczne"
 5. **ODRZUCONE (DECLINED) — Top 10 near-misses:**
    - For each: event, market considered, and specific rejection reason (1 sentence).
    - Grouped: "Brak wartości" (EV≤0), "Słabe źródła" (source gap), "Zbyt ryzykowne" (bear>bull), "Rynek niedostępny" (no Betclic market).

@@ -1,23 +1,60 @@
 ---
 name: orchestrate-betting-day
-description: "Run S1-S8 pipeline: 3 test passes + 1 final coupon pass"
+description: "Full daily cycle: 4-pass pipeline (Discovery → Fixes → Polish → Final) with settlement, scan, deep analysis, coupons."
 agent: bet-analyst
+argument-hint: "run_date=2026-04-27 session=full" or "run_date=2026-04-27 session=night rerun=true"
 ---
 
 # BETTING DAY ORCHESTRATOR
 
-Run the full S1→S8 pipeline for a betting day. Executes 3 TEST passes to find and fix errors, then 1 FINAL pass to produce coupons.
+Run the full S0→S8 pipeline for a betting day. Executes 3 TEST passes to find and fix errors, then 1 FINAL pass to produce coupons.
 
-## CONFIG
-- **Date**: {{run_date}}
-- **Session**: {{session}} (full/day/night/morning — default: full)
+## INPUTS
+
+- **run_date** = {{run_date}}
+  If empty, use the current calendar date.
+- **session** = {{session}} (default: `full`)
+  Controls which events to analyze:
+  - `full` — entire betting day (06:00 → 05:59 next day). Default.
+  - `day` — daytime events only (06:00 → 21:59).
+  - `night` — night events only (22:00 → 05:59 next day).
+  - `morning` — settle overnight results + scan early events (06:00 → 14:59).
+- **rerun** = {{rerun}} (default: `false`)
+  When `true`, forces complete fresh analysis even if artifacts exist. See §RERUN below.
+- **version** = {{version}} (default: `v1`)
+- **Bookmaker**: Betclic
 - **Timezone**: Europe/Warsaw (CEST)
-- **Betting window**:
-  - `full`: 06:00 {{run_date}} → 05:59 next day
-  - `day`: 06:00 → 21:59 {{run_date}}
-  - `night`: 22:00 {{run_date}} → 05:59 next day
-  - `morning`: 06:00 → 14:59 {{run_date}}
-- **Config**: `config/betting_config.json`
+- Load all other parameters from `config/betting_config.json`.
+
+---
+
+## STEP -1: INSTRUCTION LOADING (ALWAYS FIRST — NEVER SKIP)
+
+Load ALL files below. Do NOT proceed to any analysis until all are loaded and confirmed.
+
+```
+REQUIRED READS:
+1. config/betting_config.json — bankroll, caps, sports list, betting_window_days
+2. .github/instructions/analysis-methodology.instructions.md — STEPS 0-10, V1-V10
+3. .github/instructions/betting-artifacts.instructions.md — output formats
+4. .github/instructions/sport-analysis-protocols.instructions.md — sport stats, upset checklists, red flags
+5. betting/sources/source-registry.md — source tiers + blocked list
+6. /memories/ — all memory files (common-mistakes, workflow-rules, analysis-principles)
+```
+
+**PRE-FLIGHT CHECKLIST (print before proceeding):**
+```
+[ ] Bankroll: ___ PLN | Daily budget: ___-___ PLN
+[ ] Session: {{session}} → window: HH:MM → HH:MM
+[ ] Sports: 14 confirmed | betting_window_days: ___
+[ ] Previous day settled: yes/no
+[ ] Files loaded: 6/6 | Memory files loaded: yes/no
+[ ] Blocked sources reviewed | Common mistakes reviewed (count: ___)
+[ ] Market hit rates checked in picks-ledger | 48h repeat check ready
+[ ] Rerun: {{rerun}} | Version: {{version}}
+```
+
+**MANDATORY: Use `sequentialthinking` for EVERY STEP (0-10). Per-candidate steps (3-7) = one call PER candidate.**
 
 ## SESSION PARITY RULE (NEVER VIOLATE)
 
@@ -27,8 +64,7 @@ Run the full S1→S8 pipeline for a betting day. Executes 3 TEST passes to find 
 - Same 14-sport scan in S1 (ALL sports, even if most have 0 events in the window)
 - Same deep analysis (S3-S7): H2H, tipsters, injuries, bear case, 14-point gate
 - Coupon count = f(quality events, deep statistics), NOT f(bankroll). Produce as many as quality justifies.
-- Same V1-V10 validation + §4.10 Mechanical Verification
-- Same §S8.FINAL checks (arithmetic, placement order, exposure)
+- Same V1-V10 validation + §S8.FINAL Mechanical Verification
 
 **The ONLY difference is the event time window filter in S2.** Nothing else changes.
 
@@ -38,13 +74,29 @@ If the time window yields fewer events → the shortlist is smaller → fewer pi
 
 ---
 
-## PRE-FLIGHT
+## PRE-FLIGHT (runs once before Pass 1)
 
 Before any pass, ensure:
-1. Orchestrator ran: `bash scripts/run_full_scan_and_prepare.sh` → check `betting/data/scan_summary.json`
-2. The-Odds-API ran: `python3 scripts/fetch_odds_api.py` (if API key configured)
-3. Config read: bankroll, daily cap, sports list
-4. Previous day's learning-log.csv and error patterns reviewed
+1. Run scan pipeline: `bash scripts/run_full_scan_and_prepare.sh` → check `betting/data/scan_summary.json`
+2. Run The-Odds-API: `python3 scripts/fetch_odds_api.py` (if API key configured)
+3. Config loaded: bankroll, daily cap, sports list, betting_window_days
+4. Previous day's learning-log and error patterns reviewed
+5. If `betting_window_days` > 1 → extend scan window to cover N days
+6. If `rerun=true` → execute §RERUN versioning protocol (see above)
+
+### §RERUN — VERSIONING PROTOCOL (when rerun=true)
+
+When `rerun=true`, previous artifacts are PRESERVED, not replaced:
+
+1. **Determine next version:** scan `betting/coupons/YYYY-MM-DD*.md` for highest existing version (e.g., v5 → next is v6). If no versioned file, start at v1.
+2. **New IDs:** New picks get NEW pick_ids (next available PK-YYYYMMDD-## after highest existing). New coupons get versioned IDs (e.g., CP-YYYYMMDD-LR1v6).
+3. **Ledger rows:** ADD new rows with `version=vN`. Old version rows stay untouched.
+4. **Supersede old:** Set old version's `pending` picks/coupons to `status=superseded`.
+5. **New files:** Create `betting/coupons/YYYY-MM-DD-vN.md` and `betting/reports/YYYY-MM-DD-vN.md`. Previous version files are kept.
+6. **Settlement:** SKIP if previous day was already settled (check picks-ledger).
+7. **Fresh analysis:** ALL steps S1-S8 run from scratch — do NOT reuse previous analysis.
+8. **Learning-log:** Gets an entry noting the rerun and reason.
+9. Re-run scan pipeline regardless of data freshness.
 
 ---
 
@@ -60,10 +112,10 @@ Each pass executes these steps IN ORDER. Each step:
 | Step | Prompt | Input | Output | Gate |
 |------|--------|-------|--------|------|
 | S0 | `s0-settlement` | picks-ledger, coupons-ledger, Flashscore | `{date}_s0_settlement.md` | All pending resolved, bankroll updated |
-| S1 | `s1-scan` | BetExplorer, Flashscore, scan_summary | `{date}_s1_master_events.md` | ≥50 events, 14 sports |
+| S1 | `s1-scan` | BetExplorer, Flashscore, scan_summary | `{date}_s1_master_events.md` + `{date}_s1_tipster_prefetch.md` | ≥50 events, ALL 14 sports scanned (≥6 with events), completeness ≥80%, **tipster HTML fetched** |
 | S2 | `s2-shortlist` | S1 output | `{date}_s2_shortlist.md` | 15-40 candidates, ≥8 sports in shortlist |
 | S3 | `s3-deep-stats` | S2 output | `{date}_s3_deep_stats.md` | Stats from ≥2 sources per candidate |
-| S4 | `s4-tipsters` | S3 output | `{date}_s4_tipsters.md` | ≥2 tipster sites per candidate |
+| S4 | `s4-tipsters` | S3 output + **§1.5 pre-fetched HTML** | `{date}_s4_tipsters.md` | ≥2 tipster sites per candidate, **§4.3 watchlist promotion done** |
 | S5 | `s5-odds-ev` | S3+S4 output | `{date}_s5_odds_ev.md` | EV > 0 for all approved |
 | S6 | `s6-context-upset` | S5 output | `{date}_s6_context.md` | Upset risk scored, context verified |
 | S7 | `s7-bear-case-gate` | S6 output | `{date}_s7_gate.md` | 14-point gate passed per pick |
@@ -101,7 +153,7 @@ Read `{date}_pass1_errors.md`. For each error:
 - S1: Missing sports, low event count → re-scan specific sports deeper
 - S2: Too few candidates or missing sports → relax filters slightly
 - S3: Missing H2H, missing stats, no TOP 3 markets → fetch specific data
-- S4: Missing tipster sites, no arguments extracted → check specific URLs, use fallbacks
+- S4: Missing tipster sites, no arguments extracted → check specific URLs, use fallbacks. **If §1.5 pre-fetch was skipped → RUN IT NOW (Playwright fetch all 5 tipster sites) before re-doing S4.** Verify §4.3 watchlist promotion was done.
 - S5: Missing odds source, no EV calculated → try alternative source
 - S6: Missing injury check, upset risk not scored → verify on ESPN/Flashscore
 - S7: Incomplete 14-point gate, Zero Tolerance pattern matched → fix or reject pick
@@ -142,12 +194,12 @@ Read `{date}_pass2_errors.md`. Fix remaining issues. Then:
 7. Update `betting/journal/learning-log.csv`
 8. Write daily report: `betting/reports/{date}.md`
 9. Run FINAL V1-V10 validation on produced artifacts
-10. **Run MECHANICAL VERIFICATION (§4.10) — MANDATORY before presenting to user**
+10. **Run MECHANICAL VERIFICATION (§S8.FINAL) — MANDATORY before presenting to user**
 11. Present REQUIRED RESPONSE to user
 
 ---
 
-## §4.10 — MECHANICAL VERIFICATION (MANDATORY — runs AFTER artifacts are written, BEFORE presenting)
+## §S8.FINAL — MECHANICAL VERIFICATION (MANDATORY — runs AFTER artifacts are written, BEFORE presenting)
 
 This step catches bugs that V1-V10 misses. Use `sequentialthinking` for exact computation.
 
@@ -208,8 +260,8 @@ Present to user:
 ### 1. Settlement Summary
 Previous day PnL, rolling 7-day, bankroll update
 
-### 2. Scan Summary
-Events per sport, total scanned, scan completeness %
+### 2. Session & Scan Summary
+Session type, event window, events per sport, total scanned, scan completeness %
 
 ### 3. Error Resolution Summary
 | Pass | Errors Found | Errors Fixed | Remaining |
@@ -220,23 +272,23 @@ Events per sport, total scanned, scan completeness %
 | 4 | 0 | - | 0 |
 
 ### 4. Final Picks Table
-| ID | Event | Market | Odds | EV | Conf | Sport |
-|----|-------|--------|------|----|------|-------|
+| ID | Event | Market | Odds | EV | Conf | Sport | Stake |
+|----|-------|--------|------|----|------|-------|-------|
 
 ### 5. Final Coupons (SHOW ALL)
 For each coupon: legs, combined odds (arithmetic shown), stake, type
 
 ### 6. Watchlist
-Picks that almost made it + promotion criteria
+Picks that almost made it + promotion criteria (including §4.3 tipster-sourced picks)
 
 ### 7. Financial Summary
 Total exposure, bankroll %, max single stake
 
-### 8. V1-V10 Status
+### 8. V1-V10 + §S8.FINAL Status
 ALL PASS or list any exceptions
 
 ### 9. Conditional Notes
-Picks that need Betclic odds verification, acceptance thresholds
+ALL picks with Betclic acceptance thresholds + any source issues/outages
 
 ### 10. Risk Assessment
 If top pick fails: what survives? Worst-case portfolio loss.
@@ -249,10 +301,10 @@ If top pick fails: what survives? Worst-case portfolio loss.
 - **Step gate FAIL in Pass 1-2**: Expected. Log and fix.
 - **Step gate FAIL in Pass 3**: Concerning. Must fix before Pass 4.
 - **Step gate FAIL in Pass 4**: BLOCKER. Do NOT produce coupons. Fix first.
-- **§4.10 Mechanical Verification FAIL**: BLOCKER. Fix artifacts in place, re-run failed check. Do NOT present to user until all 7 checks (A-G) pass.
+- **§S8.FINAL Mechanical Verification FAIL**: BLOCKER. Fix artifacts in place, re-run failed check. Do NOT present to user until all 7 checks (A-G) pass.
 - **S3B gate FAIL**: Time-sensitive data missing → flag affected picks as CONDITIONAL with extra notes.
 - **V1-V10 FAIL in Pass 4**: BLOCKER. Loop back to fix, re-validate.
-- **<5 approved picks after all passes**: Consider NO BET day or promote watchlist.
+- **<4 approved picks after all passes**: Declare NO BET day (do not produce coupons with <4 picks).
 - **<5 sports in final picks**: Go back to S1, scan missing sports deeper.
 
 ---
@@ -279,10 +331,13 @@ betting/data/{date}_pass3_errors.md
 
 Final artifacts (Pass 4 only):
 ```
-betting/coupons/{date}-v{version}.md
-betting/reports/{date}.md
+betting/coupons/{date}-v{version}.md (or {date}-night.md, {date}-morning.md for non-full sessions)
+betting/reports/{date}.md (or {date}-v{version}.md for reruns)
 betting/journal/picks-ledger.csv (append)
 betting/journal/coupons-ledger.csv (append)
 betting/journal/source-log.csv (append)
 betting/journal/learning-log.csv (append)
 ```
+
+**Session suffix:** night → `-night`, morning → `-morning`, day → `-day`, full → no suffix.
+**Rerun suffix:** append `-v{N}` (e.g., `2026-04-27-v3.md`). Never overwrite previous versions.

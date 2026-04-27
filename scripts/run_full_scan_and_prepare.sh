@@ -100,8 +100,17 @@ python3 "${SCRIPT_DIR}/scan_events.py" --urls \
   https://www.sportsgambler.com/predictions/today/ \
   https://www.betideas.com/ \
   https://www.pickswise.com/ \
-  https://www.zawodtyper.pl/ \
-  https://typersi.pl/ \
+  https://www.zawodtyper.pl/ \  https://www.zawodtyper.pl/typy-dnia-$(python3 -c "
+import locale, datetime
+try:
+    locale.setlocale(locale.LC_TIME, 'pl_PL.UTF-8')
+except:
+    pass
+d = datetime.date.today()
+months_pl = {1:'stycznia',2:'lutego',3:'marca',4:'kwietnia',5:'maja',6:'czerwca',7:'lipca',8:'sierpnia',9:'wrzesnia',10:'pazdziernika',11:'listopada',12:'grudnia'}
+days_pl = {0:'poniedzialek',1:'wtorek',2:'sroda',3:'czwartek',4:'piatek',5:'sobota',6:'niedziela'}
+print(f'{d.day}-{months_pl[d.month]}-{days_pl[d.weekday()]}')
+")/ \\  https://typersi.pl/ \
   https://www.tipstrr.com/tips \
   https://dartsorakel.com/ \
   https://cuetracker.net/ \

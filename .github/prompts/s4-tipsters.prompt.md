@@ -12,6 +12,29 @@ agent: bet-analyst
 ## TASK
 For EACH candidate, check ≥2 argument-based tipster sites. Read FULL WRITTEN ARGUMENTS — not just bare picks.
 
+### §1.5 PRE-FETCHED HTML (MANDATORY — use these FIRST)
+
+Before web-fetching any tipster sites, check if Playwright pre-fetched HTML exists from STEP 1:
+- `betting/data/zawodtyper.pl/` — latest `.html` file for today
+- `betting/data/typersi.pl/` — latest `.html` file
+- `betting/data/sportsgambler.com/` — latest `.html` file
+- `betting/data/pickswise.com/` — latest `.html` file
+- `betting/data/betideas.com/` — latest `.html` file
+
+**Parse the pre-fetched HTML** with BeautifulSoup to extract tipster entries matching each candidate. This gives you FULL tipster arguments (not the truncated web-fetch summaries). If pre-fetched HTML is missing or stale (>12h old), fetch now:
+```bash
+python3 scripts/fetch_with_playwright.py "https://zawodtyper.pl/typy-dnia-[DD]-[month]-[weekday]/"
+```
+
+### §4.3 TIPSTER-SOURCED WATCHLIST PROMOTION (MANDATORY)
+
+After processing all candidates, scan the pre-fetched tipster HTML for picks NOT in your shortlist. Any tipster pick that:
+1. Targets a **statistical market** (corners, cards, fouls, totals, games, frames — NOT ML)
+2. Has **argument-backed reasoning** citing stats (H2H data, historical line coverage, etc.)
+3. Falls within today's betting window
+
+→ **Add to LISTA OBSERWACYJNA (Watchlist)** with FULL tipster argument, tipster accuracy %, cited data, and promotion criteria.
+
 ### TIPSTER SOURCES BY SPORT
 
 | Sport | Primary | Secondary | Tertiary | Emergency |
@@ -84,6 +107,8 @@ For each candidate:
 - [ ] **V-S4-08**: Esports: GosuGamers checked
 - [ ] **V-S4-09**: No blocked sources attempted
 - [ ] **V-S4-10**: New angles/insights recorded (injuries, tactical, weather, motivation)
+- [ ] **V-S4-11**: §1.5 pre-fetched HTML was used for tipster analysis (not just web-fetch summaries)
+- [ ] **V-S4-12**: §4.3 watchlist promotion completed — all tipster statistical-market picks reviewed, qualifying ones added to LISTA OBSERWACYJNA
 
 ### ERROR LOG
 ```

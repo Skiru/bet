@@ -61,7 +61,7 @@ Every pick MUST pass ALL 14:
 | 3 | H2H fetched (≥5 meetings or "no H2H" noted) | |
 | 4 | Injuries/suspensions checked (source named) | |
 | 5 | ≥2 independent sources confirm thesis | |
-| 6 | ≥1 argument-based tipster checked | |
+| 6 | ≥1 argument-based tipster checked. If 0 after fallback chain → TIPSTER-BLIND: −0.5 confidence, NO LR coupon | |
 | 7 | Upset risk scored (and ML ban enforced if applicable) | |
 | 8 | EV > 0 calculated | |
 | 9 | Odds drift < 8% (or re-evaluation done) | |

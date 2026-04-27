@@ -95,6 +95,7 @@ Run after completing the scan. Mark each ✅ or ❌:
 - [ ] **V-S1-08**: Source failures logged with fallback used
 - [ ] **V-S1-09**: ALL major tournament full slates listed (ATP/WTA Masters, Grand Slam, World Championship, NBA/NHL Playoffs — every match, not just 2-3)
 - [ ] **V-S1-10**: NBA/NHL/MLB full slate listed (not just featured games)
+- [ ] **V-S1-11**: **§1.5 TIPSTER PRE-FETCH completed** — HTML snapshots exist in `betting/data/` for zawodtyper, typersi, sportsgambler, pickswise, betideas (run Playwright if missing). Tipster-sourced statistical-market candidates noted for shortlist inclusion.
 
 ### ERROR LOG
 If any check fails, log here:
@@ -104,5 +105,5 @@ If any check fails, log here:
 ```
 
 ### PASS/FAIL GATE
-- ALL 10 checks pass → output "S1 PASSED" → proceed to S2
+- ALL 11 checks pass → output "S1 PASSED" → proceed to S2
 - ANY check fails → fix and re-verify → do NOT proceed until all pass

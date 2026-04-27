@@ -88,6 +88,7 @@ Save to: `betting/data/{date}_s2_shortlist.md`
 - [ ] **V-S2-08**: No ITF tennis in shortlist
 - [ ] **V-S2-09**: Every shortlisted event has odds recorded
 - [ ] **V-S2-10**: Sport counts tallied and verified
+- [ ] **V-S2-11**: Tipster-sourced statistical-market candidates from §1.5 pre-fetch included in shortlist (if any qualify)
 
 ### ERROR LOG
 ```
@@ -96,5 +97,5 @@ Save to: `betting/data/{date}_s2_shortlist.md`
 ```
 
 ### PASS/FAIL GATE
-- ALL 10 checks pass → "S2 PASSED" → proceed to S3
+- ALL 11 checks pass → "S2 PASSED" → proceed to S3
 - ANY fail → fix → re-verify

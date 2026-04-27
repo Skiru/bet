@@ -29,10 +29,10 @@ WIDE (all 14 sports), DEEP (KEY sports: every league/division; SUPPORT: main tou
 Follow methodology exactly. Use `sequentialthinking` for EACH step. Per-candidate steps (3-7) = one call PER candidate.
 
 0. **Settle** previous day → PnL, CLV, bankroll update + **§0.2 HISTORICAL LEARNING QUERY** (per-market hit rates, per-sport hit rates, coupon killer analysis — BEFORE scanning)
-1. **Scan** all 14 sports → Master Event List (deep scan, tournament depth, completeness gate, retry failed sources)
-2. **Filter** → 15-40 shortlist
+1. **Scan** all 14 sports → Master Event List (deep scan, tournament depth, completeness gate, retry failed sources) + **§1.5 TIPSTER PRE-FETCH** (Playwright-fetch zawodtyper/typersi/sportsgambler/pickswise/betideas → parse ALL tipster arguments → statistical-market picks enter shortlist)
+2. **Filter** → 15-40 shortlist (include tipster-sourced statistical picks from §1.5)
 3. **Stats** per candidate (load sport-protocols, H2H mandatory, statistical markets > ML always, **SECOND-ANGLE CHECK** on every candidate, **COACH/ROSTER STABILITY CHECK**)
-4. **Tipsters** ≥2 argument-based sites per candidate (read reasoning, not bare picks)
+4. **Tipsters** ≥2 argument-based sites per candidate (use §1.5 pre-fetched HTML, read reasoning, not bare picks) + **§4.3 TIPSTER-SOURCED WATCHLIST** (any tipster statistical-market pick with argued stats → Watchlist with full argument)
 5. **Odds+EV** per candidate (EV>0, price gap, drift gate <8%, Kelly 1/4, market performance tracker from §0.2)
 6. **Context** per candidate (injuries, weather, referee, motivation, **coach change**, **roster changes**) + **Upset Risk** (§6.5 checklist, Paradox Rule)
 7. **Bear case** + Red Flags (§7.3) + Contrarian (§7.4) + 14-point Gate (§7.5)
@@ -53,7 +53,9 @@ Follow methodology exactly. Use `sequentialthinking` for EACH step. Per-candidat
 | 7 | N11-01 in 71% of coupons | >60% concentration → add resilience coupon. |
 | 8 | ITF tennis all lost | Skip ITF. ATP/WTA only. |
 | 9 | HR1v5 odds wrong | ALWAYS multiply legs explicitly. |
-| 10 | Basketball blanket-rejected on 0/2 | NEVER blanket-reject sport on <5 picks. FLAG ≠ BAN. Analyze each candidate individually. |
+| 10 | Liverpool O1.5 TG vs Palace (H2H not checked) | ALWAYS check H2H. Palace won ALL 3 recent. |
+| 11 | PHI @ ATL direction wrong | Verify home/away for EVERY event. \"@\" = Away @ Home. |
+| 12 | Basketball blanket-rejected on 0/2 | NEVER blanket-reject sport on <5 picks. FLAG ≠ BAN. Analyze each candidate individually. |
 
 ## HARD REJECTIONS
 Missing Tier A evidence, source conflict, stale odds, EV≤0, price gap outside threshold, bear>bull, streak>5 without regression, opinion-only picks.

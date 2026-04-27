@@ -19,7 +19,7 @@ Build coupons, validate V1-V10, write all artifacts.
 ## 8A — RANK APPROVED PICKS
 1. List ALL approved picks from S7 (✅ only, not ❌ or ⚠️)
 2. Rank by: EV (highest first) → confidence → price_gap favorability
-3. Minimum requirement: ≥5 approved picks from ≥5 sports. If not → try promoting watchlist picks or declare NO BET day.
+3. Minimum requirement: ≥4 approved picks from ≥4 sports for betting. ≥5 picks from ≥5 sports = ideal. If <4 approved → declare NO BET day.
 4. Need 10+ unique picks for 5 coupons × 2 legs. If not enough → 3-4 coupons OK.
 
 ## 8B — UNIQUE EVENT PER COUPON (ABSOLUTE — NEVER VIOLATE)
@@ -77,6 +77,8 @@ For EACH coupon, before finalizing:
 ### V1 — Artifact Consistency
 - [ ] All pick_ids match across coupon file, picks-ledger, report
 - [ ] All coupon_ids match across coupon file, coupons-ledger
+- [ ] No duplicate IDs in ledgers
+- [ ] UNIQUE EVENT PER COUPON in core portfolio (combo coupons may reuse picks)
 - [ ] Stake sums ≤ daily budget per coupon tier
 - [ ] Exposure total calculated
 
@@ -163,6 +165,7 @@ For EACH coupon, before finalizing:
 - [ ] V10b: All pick approval gates verified
 - [ ] V10c: All red flags cleared
 - [ ] V10d: Portfolio damage assessment (if top pick loses, what survives?)
+- [ ] V10e: PER-PICK COMPLETENESS MATRIX produced (all picks ✅ all 7 columns: Tipster≥1, H2H≥5, Injuries, Sources≥2, RedFlags, EV>0, Gate14)
 - [ ] ALL V1-V9 pass → **APPROVED**
 
 ---
@@ -187,8 +190,14 @@ For EACH coupon, before finalizing:
 11. **WATCHLIST**: picks not approved but close, with promotion criteria
 12. **PORTFOLIO DAMAGE ASSESSMENT**: if top 2 picks fail → what coupons survive?
 13. **CONDITIONAL NOTES**: time-sensitive checks user must do before placing
-14. **V1-V10 STATUS**: full validation status table
-15. **USUNIĘTE WERSJE**: which old versions this supersedes
+14. **V10e PER-PICK COMPLETENESS MATRIX**:
+    ```
+    | Pick ID | Tipster≥1 | H2H≥5 | Injuries | Sources≥2 | RedFlags | EV>0 | Gate14 | PASS |
+    |---------|-----------|--------|----------|-----------|----------|------|--------|------|
+    ```
+    ALL 7 columns ✅ for EVERY pick. ANY ❌ → STOP, fix, re-check.
+15. **V1-V10 STATUS**: full validation status table
+16. **USUNIĘTE WERSJE**: which old versions this supersedes
 
 **Polish descriptions (MANDATORY on every leg):**
 - Over = Powyżej, Under = Poniżej, Goals = bramek, Corners = rzutów rożnych

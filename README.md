@@ -32,7 +32,7 @@ Pliki instrukcyjne, prompty, agent i pola w CSV sa po angielsku celowo. Copilot 
 - .github/copilot-instructions.md
 - .github/instructions/betting-artifacts.instructions.md
 - .github/agents/bet-analyst.agent.md
-- .github/prompts/daily-betting-cycle.prompt.md
+- .github/prompts/orchestrate-betting-day.prompt.md
 - betting/sources/source-registry.md
 - betting/journal/learning-log.md
 - betting/journal/picks-ledger.csv
@@ -46,19 +46,84 @@ Pliki instrukcyjne, prompty, agent i pola w CSV sa po angielsku celowo. Copilot 
 1. Wklej wszystkie pliki do docelowego repo.
 2. Upewnij sie, ze VS Code widzi prompty i custom agents z katalogu .github.
 3. Otworz Copilot Chat.
-4. Sprawdz, czy po wpisaniu / widzisz prompt daily-betting-cycle.
+4. Sprawdz, czy po wpisaniu / widzisz prompt orchestrate-betting-day.
 5. Sprawdz, czy na liscie agentow widzisz bet-analyst.
 
 ## Jak Uruchamiac
 
-Przyklad pelnego uruchomienia:
- /daily-betting-cycle run_date=2026-04-21 sports_focus=football,basketball,tennis bookmaker=Betclic
+### Rekomendowany sposob: Orchestrator (4-pass pipeline)
 
-Przyklad lzejszego uruchomienia:
- /daily-betting-cycle run_date=2026-04-21 sports_focus=football,basketball bookmaker=Betclic
+Orchestrator uruchamia pelny pipeline S0→S1→S2→S3→S4→S5→S6→S7→S3B→S8 w 4 przejsciach (Discovery → Fixes → Polish → Final). **Kazda sesja przechodzi IDENTYCZNY proces — rozni sie TYLKO okno czasowe wydarzen.**
 
-Przyklad tylko dla pilki:
- /daily-betting-cycle run_date=2026-04-21 sports_focus=football bookmaker=Betclic
+**Pelna sesja (06:00 → 05:59 nastepnego dnia):**
+```
+@workspace /prompt orchestrate-betting-day run_date=2026-04-27 session=full version=v1
+```
+
+**Sesja dzienna (06:00 → 21:59):**
+```
+@workspace /prompt orchestrate-betting-day run_date=2026-04-27 session=day version=v1
+```
+
+**Sesja nocna (22:00 → 05:59 nastepnego dnia):**
+```
+@workspace /prompt orchestrate-betting-day run_date=2026-04-27 session=night version=v1
+```
+
+**Sesja poranna (06:00 → 14:59):**
+```
+@workspace /prompt orchestrate-betting-day run_date=2026-04-27 session=morning version=v1
+```
+
+**Na kilka dni (rozszerzony horyzont):**
+Ustaw `betting_window_days` > 1 w `config/betting_config.json`, potem:
+```
+@workspace /prompt orchestrate-betting-day run_date=2026-04-27 session=full version=v1
+```
+
+**Rerun tego samego dnia (poprawiona wersja):**
+```
+@workspace /prompt orchestrate-betting-day run_date=2026-04-27 session=full version=v2
+```
+
+### Wazne: Sesja NIE wplywa na glebokosc analizy
+
+Kazda sesja — full, day, night, morning — wykonuje:
+- Skanowanie wszystkich 14 sportow
+- Pelna analiza STEP 3-7 kazdego kandydata (H2H, tipsterzy, kontuzje, bear case, 14-point gate)
+- Pelna walidacja V1-V10
+- Weryfikacja mechaniczna §S8.FINAL
+- Minimum 4 kupony lub deklaracja NO BET
+
+Jedyna roznica to filtr czasowy w STEP 2 (ktore mecze wchodza do shortlisty).
+
+### Opcjonalnie: Pipeline skanowania przed orchestratorem
+
+```bash
+# 1. Uruchom pipeline skanowania (pobiera dane ze zrodel + tipsterow)
+bash scripts/run_full_scan_and_prepare.sh
+
+# 2. Pobierz kursy z The-Odds-API (jesli klucz skonfigurowany)
+python3 scripts/fetch_odds_api.py
+
+# 3. Uruchom orchestrator
+@workspace /prompt orchestrate-betting-day run_date=2026-04-27 session=full version=v1
+```
+
+### Checkpointy (kazdy MUSI przejsc zanim pipeline rusza dalej)
+
+| Krok | Gate | Minimum |
+|------|------|---------|
+| S0 | Settlement | Wszystkie pending rozliczone, bankroll zaktualizowany |
+| S1 | Scan | ≥50 wydarzen, 14 sportow skanowanych, tipster HTML pobrany |
+| S2 | Shortlist | 15-40 kandydatow, ≥8 sportow |
+| S3 | Stats | ≥2 zrodla na kandydata, H2H obowiazkowe |
+| S4 | Tipsters | ≥2 strony tipsterskie na kandydata, §4.3 watchlist done |
+| S5 | Odds/EV | EV > 0 dla kazdego approved |
+| S6 | Context | Upset risk scored, kontuzje zweryfikowane |
+| S7 | Gate | 14-point gate przeszedl dla kazdego picka |
+| S3B | Time-sensitive | Sklady, pogoda, drift kursow sprawdzone |
+| S8 | Coupons | V1-V10 all pass, §S8.FINAL weryfikacja mechaniczna |
 
 ## Co Powstaje Po Uruchomieniu
 

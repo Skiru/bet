@@ -79,9 +79,31 @@ Before STEP 1, query the picks-ledger to extract actionable patterns. This takes
 - **KEY (deep league scan):** Football, Tennis, Basketball, Volleyball.
 - **SUPPORT (main leagues):** Hockey, Baseball, Esports, Snooker, Darts, Table Tennis, Handball, MMA, Padel, Speedway.
 
+### §1.5 TIPSTER PRE-FETCH (MANDATORY — runs as part of STEP 1)
+
+Before STEP 2 filtering, fetch TODAY's pages from ALL argument-based tipster sites using Playwright. This ensures tipster arguments are available for STEP 4 analysis.
+
+**Execution:**
+```bash
+# Fetch today's tipster pages (zawodtyper uses daily URL pattern)
+python3 scripts/fetch_with_playwright.py "https://zawodtyper.pl/typy-dnia-[DD]-[month-polish]-[weekday-polish]/"
+python3 scripts/fetch_with_playwright.py "https://typersi.pl/"
+python3 scripts/fetch_with_playwright.py "https://www.sportsgambler.com/predictions/today/"
+python3 scripts/fetch_with_playwright.py "https://www.pickswise.com/tennis/"
+python3 scripts/fetch_with_playwright.py "https://www.betideas.com/tips/football"
+```
+
+**Zawodtyper daily URL pattern:** `/typy-dnia-[DD]-[month]-[weekday]/` where month and weekday are in Polish lowercase (e.g., `kwietnia`, `poniedzialek`). The page is lazy-loaded — Playwright handles this.
+
+**Parse the fetched HTML** to extract ALL tipster entries: sport, event, tipster name, pick, odds, and FULL WRITTEN ARGUMENT. Save structured output to `betting/data/{date}_s1_tipster_prefetch.md`.
+
+**Tipster-sourced candidates:** Any tipster pick that targets a **statistical market** (corners, cards, fouls, totals, games, frames) with argument-backed data (H2H stats, corner counts, historical lines) → add to shortlist even if not found in Tier A stats scan. These picks enter STEP 3+ analysis like any other candidate.
+
+**GATE:** If zawodtyper fetch fails → retry once after 5 min. If still fails → proceed but mark S4 as `TIPSTER-DEGRADED`. Never skip the fetch attempt.
+
 **Source fallback chains per sport:** See [source-registry.md](../../betting/sources/source-registry.md).
 
-**Scan Completeness Gate (§1.5):** Before STEP 2, compile per-sport event count table from ≥2 sources. Total ≥50 events, ≥6 sports with events, completeness ≥80%. If not met → go back.
+**Scan Completeness Gate (§1.6):** Before STEP 2, compile per-sport event count table from ≥2 sources. Total ≥50 events, ≥6 sports with events, completeness ≥80%. If not met → go back.
 
 ---
 
@@ -132,7 +154,8 @@ Check ≥2 ARGUMENT-BASED tipster sites per candidate. Read WRITTEN REASONING, n
 
 | Sport | Primary | Secondary | Tertiary |
 |-------|---------|-----------|----------|
-| Football (EU) | ZawodTyper → Meczyki | OLBG → BetIdeas | Typersi → Sportsgambler |
+| Football (PL) | ZawodTyper → Meczyki | Typersi → OLBG | Sportsgambler |
+| Football (INT) | PicksWise → BetIdeas | OLBG → Sportsgambler | Typersi |
 | Football (US/MX) | PicksWise | Sportsgambler | OLBG |
 | Tennis | ZawodTyper → OLBG | Sportsgambler → PicksWise | Typersi |
 | Basketball (EU) | Sportsgambler | ZawodTyper | Typersi |
@@ -140,9 +163,14 @@ Check ≥2 ARGUMENT-BASED tipster sites per candidate. Read WRITTEN REASONING, n
 | Volleyball | ZawodTyper → Typersi | Sportsgambler | Meczyki |
 | Hockey | PicksWise | Sportsgambler | OLBG |
 | Baseball | PicksWise | Sportsgambler | OLBG |
-| Snooker/Darts | Sportsgambler → OLBG | Tipstrr | — |
-| Esports | GosuGamers | Tipstrr | — |
-| Other | Sportsgambler | OLBG | PicksWise |
+| Handball | Sportsgambler | ZawodTyper | OLBG |
+| Snooker | Sportsgambler → OLBG | Tipstrr | — |
+| Darts | Sportsgambler → OLBG | Tipstrr | — |
+| Esports | GosuGamers | Tipstrr | BO3.gg |
+| Table Tennis | Sportsgambler | OLBG | Tipstrr |
+| MMA | Sportsgambler | PicksWise | Tipstrr |
+| Padel | Google "[event] prediction" | Sportsgambler | — |
+| Speedway | ZawodTyper | Typersi | Google "[event] tips" |
 
 **Extract per tipster:** site, tipster name, specific pick, odds, reasoning summary (1-2 sentences with stats/facts cited).
 
@@ -154,8 +182,27 @@ Before proceeding to STEP 5, verify:
 - [ ] ≥80% of candidates have ≥2 tipster sources.
 - [ ] If a candidate has 0 tipster sources after exhausting the fallback chain → mark as `TIPSTER-BLIND` in report. Still allowed but gets −0.5 confidence and CANNOT be in LR coupons.
 - [ ] Record per-candidate tipster coverage in a summary table: `| Event | Sources checked | Sources with reasoning | Consensus |`
+- [ ] §1.5 tipster pre-fetch HTML was used (not just web-fetch summaries).
+- [ ] ALL tipster picks on statistical markets (corners, cards, games, frames, etc.) with argument-backed reasoning have been cross-referenced with shortlist.
 
 **If <60% of candidates have ≥1 tipster source → STOP and fetch more before STEP 5.**
+
+### §4.3 TIPSTER-SOURCED WATCHLIST PROMOTION (MANDATORY)
+
+After STEP 4 analysis, review ALL tipster picks from the §1.5 pre-fetch that were NOT in the original shortlist. For each tipster pick that meets ALL of:
+1. Targets a **statistical market** (corners, cards, fouls, totals, games, sets, frames — NOT ML/winner)
+2. Has **argument-backed reasoning** with cited stats (H2H corner counts, historical line coverage, motivation context)
+3. Tipster has **>55% tracked accuracy** on the site (or is a verified tipster on Tipstrr)
+4. The event is within today's betting window
+5. The event is available on Betclic (or likely to be)
+
+→ **Add to LISTA OBSERWACYJNA (Watchlist)** with:
+- Full tipster argument (translated to Polish if needed)
+- Tipster name and accuracy % from the site
+- The specific statistical data they cited
+- Promotion criteria: "Wstaw jeśli: kurs Betclic ≥X.XX + potwierdzone przez ≥1 dodatkowe źródło statystyczne"
+
+These are NOT auto-approved picks — they enter the watchlist with rich context so the user can evaluate and promote them manually.
 
 **Blocked tipster sites:** Forebet, FootySupertips, Windrawwin, BettingExpert, Protipster, Oddspedia, SportyTrader, Predictz, Trafiamy, Blogabet, HLTV tips.
 
@@ -297,8 +344,16 @@ For EACH coupon, before finalizing:
 ### V4: Football
 - Market hierarchy respected? Corner 3-source stack? BTTS >55%?
 
-### V4a-V4j: Sport-specific checks
-- Each sport: ML justified? Statistical market preferred? H2H checked? Context verified?
+### V4b-V4k: Sport-specific checks
+- V4b Volleyball: set totals checked, ML range 1.30-2.00, set handicap considered.
+- V4c Esports: map pool checked, BO format noted, roster/stand-in confirmed.
+- V4d Snooker: frame stats from CueTracker, format (BO) noted.
+- V4e Darts: 3-dart avg, format (sets vs legs) noted.
+- V4f Handball: home advantage factored (60-65%), half totals checked.
+- V4g Table Tennis: ranking gap assessed, high variance noted.
+- V4h MMA: finish rates checked, method of victory considered.
+- V4i Padel: FIP ranking gap checked, partnership duration noted, indoor/outdoor surface.
+- V4j Speedway: rider TRACK-SPECIFIC averages used (not season avg), lineup confirmed.
 - V4k: Upset risk scored for EVERY candidate. ML bans enforced. Paradox Rule applied.
 
 ### V5: Coupon Structure
@@ -371,6 +426,8 @@ On reruns: increment version (v5→v6). Mark old pending as `superseded`. Keep a
 | 7 | N11-01 in 5/7 coupons | Concentration | >60% → add resilience coupon. |
 | 8 | ITF tennis all lost | Low-level unreliable | Skip ITF. ATP/WTA only. |
 | 9 | HR1v5 odds wrong | No arithmetic | ALWAYS multiply legs explicitly. |
+| 10 | Liverpool O1.5 TG vs Palace | H2H not checked | ALWAYS check H2H. Palace won ALL 3 recent. |
+| 11 | PHI @ ATL direction wrong | "@" = Away @ Home confused | Verify home/away for EVERY event. |
 
 ---
 
