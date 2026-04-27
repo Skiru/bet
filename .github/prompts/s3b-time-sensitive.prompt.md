@@ -70,18 +70,33 @@ Check these sources for EVERY approved pick:
 
 For EVERY approved pick:
 1. Compare CURRENT odds to odds at S5 analysis time
-2. Calculate drift: `drift_pct = 100 × ((current_odds / analysis_odds) - 1)`
+2. Calculate drift with EXPLICIT FORMULA (show the math, not just the result):
+   ```
+   drift_pct = 100 × ((current_odds / analysis_odds) - 1)
+   Example: analysis 1.65, current 1.80 → 100 × (1.80/1.65 - 1) = +9.1%
+   ```
 
 **Action triggers:**
-| Drift | Action |
-|-------|--------|
-| ≤3% | Normal — no action |
-| 3-8% | Note direction, check for news |
-| **>8%** | **MANDATORY RE-EVALUATION** — check injuries, lineups, sharp money. No explanation → SKIP. |
-| >15% | Likely material news — investigate urgently or VOID |
+| Drift | Action | Required Evidence |
+|-------|--------|-------------------|
+| ≤3% | Normal — no action | Just note drift % |
+| 3-8% | Note direction, check for news | Name 1 source checked for news |
+| **>8%** | **MANDATORY RE-EVALUATION** | **Must check ≥3 things: (1) injury update, (2) lineup change, (3) sharp money signal. Write findings. No explanation found → SKIP the pick.** |
+| >15% | Likely material news — VOID unless clear explanation found | Same as >8% plus Google search for breaking news |
 
-3. Check for **Reverse Line Movement (RLM)**: line moving against public side = sharp money
-4. Check for **steam moves**: sudden dramatic movement = institutional bet
+3. Check for **Reverse Line Movement (RLM)**: line moving against public side = sharp money. Source: OddsPortal line history.
+4. Check for **steam moves**: sudden dramatic movement = institutional bet. Source: OddsPortal.
+
+**DRIFT TABLE (mandatory in output):**
+```
+## Odds Drift Summary
+| Pick | Market | S5 Odds | Current Odds | Drift % | Source Checked | Action |
+|------|--------|---------|-------------|---------|---------------|--------|
+| PK-01 | O10.5 CK | 1.65 | 1.68 | +1.8% | — | ✅ OK |
+| PK-02 | O22.5g | 1.55 | 1.72 | +11.0% | ESPN/FS/OP | 🔄 RE-EVAL: [finding] |
+...
+```
+**The orchestrator will verify this table exists and that ALL >8% drifts have investigation notes.**
 
 ### 3B.5 — DECISION MATRIX
 
@@ -99,9 +114,18 @@ For each pick after 3B checks:
 ### OUTPUT FORMAT
 Save to: `betting/data/{date}_s3b_time_sensitive.md`
 
+**CRITICAL: The orchestrator will verify that (1) every pick has a status entry, (2) the Drift Summary Table exists, and (3) all >8% drifts have investigation notes.**
+
 ```
 # Time-Sensitive Update — {date}
 **Checked at**: HH:MM CEST (X hours before earliest event)
+
+## Odds Drift Summary (orchestrator verifies this table)
+| Pick | Market | S5 Odds | Current Odds | Drift % | Sources Checked | Finding | Action |
+|------|--------|---------|-------------|---------|-----------------|---------|--------|
+| PK-01 | O10.5 CK | 1.65 | 1.68 | +1.8% | — | — | ✅ OK |
+| PK-02 | O22.5g | 1.55 | 1.72 | +11.0% | ESPN, FS, OP | No injury found | 🔄 SKIP (unexplained) |
+...
 
 ## Pick Status Updates
 

@@ -73,11 +73,31 @@ Forebet, FootySupertips, Windrawwin, BettingExpert, Protipster, Oddspedia, Sport
 ### OUTPUT FORMAT
 Save to: `betting/data/{date}_s4_tipsters.md`
 
+**CRITICAL: The orchestrator will structurally verify this output. Missing sections = step sent back for fix.**
+
+**The file MUST start with the TIPSTER COVERAGE SUMMARY TABLE (before per-candidate sections):**
+```
+# Tipster Analysis — {date}
+
+## Tipster Coverage Summary (orchestrator reads this table to verify depth)
+| # | Event | Sport | Sites Checked | Sites With Arguments | Best Consensus % | Tipster-Sourced Stat Pick? | Status |
+|---|-------|-------|---------------|---------------------|-----------------|---------------------------|--------|
+| 1 | [event] | [sport] | ZT, Typersi, OLBG | ZT(3 tipsters), OLBG(2) | 80% agree | No | ✅ OK |
+| 2 | [event] | [sport] | PicksWise, SG | PicksWise(1 expert) | 100% agree | Yes: O9.5 CK @1.75 | ⚠️ 1-source |
+| 3 | [event] | [sport] | ZT, PW, SG | ZT(2), PW(1), SG(1) | 50% split | No | ✅ OK |
+...
+| **TOTAL** | **X candidates** | | **avg X.X sites/cand** | **avg X.X with args** | | **X stat picks found** | **X% ≥2-source** |
+```
+
+**Status codes:** ✅ OK (≥2 sites with args) / ⚠️ 1-source (only 1 site found args) / ❌ TIPSTER-BLIND (0 sites, −0.5 conf, no LR) / 🔄 RETRY (fallback chain not exhausted)
+
+Then per-candidate sections:
+
 For each candidate:
 ```
 ## [Event Name] — Tipster Analysis
 
-### Source 1: [Site Name]
+### Source 1: [Site Name] (via §1.5 pre-fetch / fresh fetch)
 | Tipster | Pick | Odds | Argument Summary |
 |---------|------|------|-----------------|
 | user123 | O2.5 goals | 1.85 | "Both teams scored in 4/5 recent H2H..." |
@@ -87,12 +107,31 @@ For each candidate:
 | Tipster | Pick | Odds | Argument Summary |
 ...
 
+### Source 3 (if available): [Site Name]
+...
+
 ### Consensus
-- Direction alignment: X/Y tipsters agree with our analysis (Z%)
-- Key supporting arguments: [bullets]
-- Key OPPOSING arguments: [bullets — CRITICAL if any tipster argues against us]
-- Consensus impact: +0.5 confidence / -1 confidence / investigate further
-- New angles discovered: [any insight we missed in S3]
+- Direction alignment: X/Y tipsters agree with our S3 analysis (Z%)
+- Key supporting arguments: [bullets — specific facts/stats cited by tipsters]
+- Key OPPOSING arguments: [bullets — CRITICAL: any tipster who argues AGAINST our pick with data]
+- Consensus impact: +0.5 confidence / −1 confidence / neutral / investigate further
+- New angles discovered: [any insight not in S3 — injuries, tactics, weather, motivation]
+- **Statistical market picks from tipsters**: [list any tipster picks on stat markets we didn't consider]
+```
+
+### §4.3 WATCHLIST PROMOTION SECTION (MANDATORY — at end of file)
+```
+## §4.3 Tipster-Sourced Watchlist Candidates
+
+### Reviewed Tipster Stat-Market Picks Not in Shortlist
+| # | Tipster | Site | Event | Market | Odds | Argument | Accuracy % | In Window? | On Betclic? | Promoted? |
+|---|---------|------|-------|--------|------|----------|-----------|-----------|------------|-----------|
+| 1 | user456 | ZT | [event] | O4.5 CK | 1.65 | "Team X avg 6.2 CK/match..." | 62% | Yes | Likely | ✅ → Watchlist |
+| 2 | tipstrr_X | Tipstrr | [event] | O180s 4.5 | 1.80 | "Both avg >3 180s..." | 58% | Yes | Unknown | ❌ — no stat backup |
+...
+
+### Promoted to LISTA OBSERWACYJNA
+[List events promoted with full tipster argument, accuracy, cited data, and promotion criteria]
 ```
 
 ## SELF-VERIFICATION CHECKLIST

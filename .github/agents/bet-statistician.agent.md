@@ -96,4 +96,9 @@ Before starting any task, you check all available skills and decide which one is
 - Never use Basketball-Reference for EU basketball
 - Never skip the coach/roster stability check
 - Never ignore drift >8% — mandatory re-evaluation
+- **NEVER produce output without ALL 9 mandatory template sections per candidate** — the orchestrator will count sections and send back if any are missing. Sections: (1) H2H with H2H-STAT, (2) Form, (3) §3.0 Ranking Table ≥3 rows, (4) Three-Way Cross-Check, (5) Coach/Roster Check, (6) Injury Check with source, (7) Top 3 Markets, (8) Recommended Market with reasoning, (9) Sources Used table.
+- **NEVER write "checked" without naming the source** — every injury check, coach check, and stat must include the actual source name (e.g., "ESPN injury report", "TransferMarkt", "SoccerStats")
+- **NEVER fill the §3.0 table with fewer than 3 markets** — if the sport has 6 bettable stat markets, evaluate at minimum 3. For football, evaluate at minimum Fouls + Cards + Corners + Shots.
+- **NEVER skip H2H for the specific stat** — if picking corners, get corner totals from H2H meetings. If corners H2H unavailable, mark H2H-STAT-BLIND and explain where you looked.
+- **NEVER write a 1-paragraph analysis** — every candidate must have the full 9-section template filled. A shallow analysis is worse than skipping the candidate entirely.
 </constraints>

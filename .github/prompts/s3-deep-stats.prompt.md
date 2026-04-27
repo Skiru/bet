@@ -92,37 +92,103 @@ Follow sport-specific protocols in methodology §3.5-3.14. Minimum per candidate
 ### OUTPUT FORMAT
 Save to: `betting/data/{date}_s3_deep_stats.md`
 
-For each candidate:
+**CRITICAL: Every section below is MANDATORY. The orchestrator will structurally verify that ALL 9 sections exist for EVERY candidate. Missing sections = step sent back for fix. Do NOT abbreviate, skip, or merge sections.**
+
+For each candidate, fill this EXACT template (all 9 numbered sections):
 ```
 ## [PICK_ID_PLACEHOLDER] — [Event Name] ([Sport], [Tournament])
 - **Kickoff**: HH:MM CEST
 - **Odds**: Team A X.XX / Draw X.XX / Team B X.XX (source: BE)
-- **H2H**: [last 5 meetings summary]
-- **Form**: Team A [WWDLW], Team B [LDWWL]
-- **Key Stats**: [sport-specific data points]
-- **Injuries**: [confirmed absences or "none found"]
-- **Statistical Market Ranking**:
-  1. [best market] — hit rate X%, data: [source]
-  2. [2nd best] — hit rate X%, data: [source]
-  3. [3rd option] — hit rate X%, data: [source]
-- **Recommended Market**: [specific market + line + reasoning]
-- **Sources Used**: [list all sources checked]
+
+### 1. H2H (last 5-10 meetings)
+| Date | Score | Stat1 [specific stat] | Stat2 | Surface/Venue |
+|------|-------|----------------------|-------|---------------|
+...
+- **H2H summary**: [who dominated, key pattern, home/away split]
+- **H2H for SPECIFIC STAT**: [the exact stat being evaluated — e.g., "H2H corner totals: 8, 11, 9, 12, 7 → avg 9.4"]
+- **H2H-STAT STATUS**: ✅ Available (X meetings) / ❌ H2H-STAT-BLIND (−0.5 confidence, no LR coupon)
+
+### 2. Form (last 6 matches)
+- Team A: [WWDLWL] — scored X.X/match, conceded X.X/match
+- Team B: [LDWWLW] — scored X.X/match, conceded X.X/match
+
+### 3. §3.0 STATISTICAL MARKET RANKING TABLE (MANDATORY — ≥3 markets)
+| Market           | TeamA avg | TeamB avg | H2H avg | Line  | Hit L10 | Hit H2H | Safety | Margin |
+|------------------|-----------|-----------|---------|-------|---------|---------|--------|--------|
+| [market 1]       |           |           |         |       |   /10   |   /5    |        |        |
+| [market 2]       |           |           |         |       |   /10   |   /5    |        |        |
+| [market 3]       |           |           |         |       |   /10   |   /5    |        |        |
+| [market 4+]      |           |           |         |       |   /10   |   /5    |        |        |
+
+**Selected market**: [market with HIGHEST safety score] — Safety: X.X
+**Why this beat alternatives**: [1 sentence — e.g., "Fouls had 80% safety vs corners 60% — both teams physical style"]
+
+### 4. THREE-WAY CROSS-CHECK
 ```
+L10 AVERAGE → [value] → hit rate vs line: [X/10]
+H2H AVERAGE → [value] → hit rate vs line: [X/5]
+L5 RECENT  → [value] → trend: [UP/DOWN/STABLE]
+ALIGNMENT: ✅ ALL THREE support [OVER/UNDER] / ⚠️ 2/3 conflict → DOWNGRADE / ❌ 3/3 conflict → REJECT
+```
+
+### 5. Coach/Roster Stability Check
+- **Coach change (last 5 matches)?**: [YES — details / NO] (source: TransferMarkt / Flashscore)
+- **Major roster changes (last 14 days)?**: [YES — details / NO] (source: TransferMarkt)
+- **Impact**: [none / form data unreliable / stats may not apply]
+
+### 6. Injury/Suspension Check
+- **Team A**: [name — injury type — status (OUT/DOUBTFUL)] or "None confirmed"
+- **Team B**: [name — injury type — status] or "None confirmed"
+- **Source**: [ESPN / Flashscore / team social media — name the actual source]
+- **Impact on thesis**: [none / weakens thesis / strengthens thesis — explain]
+
+### 7. TOP 3 Market Recommendations
+1. **[BEST]**: [Market + Line] — Hit rate: X% (L10) / X% (H2H) — WHY: [1 sentence]
+2. **[2ND]**: [Market + Line] — Hit rate: X% / X% — WHY: [1 sentence]
+3. **[3RD]**: [Market + Line] — Hit rate: X% / X% — WHY: [1 sentence]
+
+### 8. Recommended Market + Reasoning
+- **Market**: [specific market + line, e.g., "O10.5 corners" or "O22.5 games"]
+- **Reasoning**: [2-3 sentences with specific data — e.g., "Leipzig average 6.8 corners at home (L10), Union concede 5.2 away. H2H average 12.0 corners (5 meetings). Line 10.5 hit in 8/10 L10 + 4/5 H2H."]
+- **Risk**: [1 sentence — what makes this fail]
+
+### 9. Sources Used
+| Source | Data Retrieved | Status |
+|--------|---------------|--------|
+| [source1] | [what data] | ✅ OK / ⚠️ Partial / ❌ Failed |
+| [source2] | [what data] | |
+| [source3+] | [what data] | |
+```
+
+**PER-SPORT MANDATORY CALCULATIONS (in addition to the template above):**
+- **Football**: Must fill §3.1M multi-market table (Fouls, Cards, Corners, Shots, Team CK, Goals)
+- **Tennis**: Must fill §3.2M multi-market table (Games, Sets, Game HC, Tiebreaks, Aces) + odds ratio grade
+- **Basketball**: Must fill §3.3M multi-market table (Team pts, Total pts, Q1, 1H, Spread)
+- **Volleyball**: Must fill §3.5M multi-market table (Sets, Points, Set HC, Pts/set)
+- **Other sports**: Must fill the sport-specific §XM table from sport-analysis-protocols.instructions.md
 
 ## SELF-VERIFICATION CHECKLIST
 
-- [ ] **V-S3-01**: Every shortlisted candidate has an analysis block
-- [ ] **V-S3-02**: Every candidate has H2H data (or explicit "no H2H found" with source checked)
-- [ ] **V-S3-03**: Every candidate has injury check (or explicit "no injuries found" with source)
-- [ ] **V-S3-04**: Every candidate has ≥2 stat sources listed
-- [ ] **V-S3-05**: Statistical market ranked for every candidate (NOT defaulting to ML)
-- [ ] **V-S3-06**: Tennis: odds ratio calculated + graded (STRONG/GOOD/BORDERLINE/REJECT)
-- [ ] **V-S3-07**: Tennis: WC/Q/LL status checked for EVERY player
-- [ ] **V-S3-08**: Hockey: goalie confirmation attempted
-- [ ] **V-S3-09**: Baseball: starting pitcher identified
-- [ ] **V-S3-10**: No candidate has ONLY a 1-sentence analysis (minimum 5 data points each)
-- [ ] **V-S3-11**: Form data (last 5-6 matches) for every team/player
-- [ ] **V-S3-12**: Football: SoccerStats league context checked
+**Count-based verification — the orchestrator will independently re-count these:**
+
+- [ ] **V-S3-01**: Every shortlisted candidate has an analysis block with ALL 9 numbered sections
+- [ ] **V-S3-02**: Every candidate has §3.0 RANKING TABLE with ≥3 markets (count rows)
+- [ ] **V-S3-03**: Every candidate has H2H-STAT data for the SPECIFIC selected stat (or explicit H2H-STAT-BLIND flag)
+- [ ] **V-S3-04**: Every candidate has THREE-WAY CROSS-CHECK with alignment verdict
+- [ ] **V-S3-05**: Every candidate has COACH/ROSTER CHECK with source named
+- [ ] **V-S3-06**: Every candidate has ≥2 stat sources in Sources table (count rows)
+- [ ] **V-S3-07**: Every candidate has INJURY CHECK with source named (not just "none")
+- [ ] **V-S3-08**: Every candidate has TOP 3 MARKETS listed with hit rates
+- [ ] **V-S3-09**: Tennis: odds ratio calculated + graded (STRONG/GOOD/BORDERLINE/REJECT)
+- [ ] **V-S3-10**: Tennis: WC/Q/LL status checked for EVERY player
+- [ ] **V-S3-11**: Hockey: goalie confirmation attempted (DailyFaceoff)
+- [ ] **V-S3-12**: Baseball: starting pitcher identified (BaseballSavant)
+- [ ] **V-S3-13**: Football: §3.1M multi-market table filled (Fouls, Cards, Corners, Shots minimum)
+- [ ] **V-S3-14**: No candidate has fewer than 5 data points in analysis
+- [ ] **V-S3-15**: Form data (last 5-6 matches) for every team/player
+
+**DEPTH METRIC**: Count candidates with ALL of {§3.0 table, H2H-stat, three-way check, coach check, top 3 markets, ≥2 sources, injury check} = DEPTH_%
+**GATE**: DEPTH_% must be ≥95%. If <95% → list which candidates are missing which sections → FIX before proceeding.
 
 ### ERROR LOG
 ```

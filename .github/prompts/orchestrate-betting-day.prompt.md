@@ -114,15 +114,74 @@ Each pass executes these steps IN ORDER. Each step:
 | S0 | `s0-settlement` | bet-settler | picks-ledger, coupons-ledger, Flashscore | `{date}_s0_settlement.md` | All pending resolved, bankroll updated |
 | S1 | `s1-scan` | bet-scanner | BetExplorer, Flashscore, scan_summary | `{date}_s1_master_events.md` + `{date}_s1_tipster_prefetch.md` | ≥50 events, ALL 14 sports scanned (≥6 with events), completeness ≥80%, **tipster HTML fetched** |
 | S2 | `s2-shortlist` | bet-scanner | S1 output | `{date}_s2_shortlist.md` | 15-40 candidates, ≥8 sports in shortlist |
-| S3 | `s3-deep-stats` | bet-statistician | S2 output | `{date}_s3_deep_stats.md` | Stats from ≥2 sources per candidate |
-| S4 | `s4-tipsters` | bet-scout | S3 output + **§1.5 pre-fetched HTML** | `{date}_s4_tipsters.md` | ≥2 tipster sites per candidate, **§4.3 watchlist promotion done** |
-| S5 | `s5-odds-ev` | bet-valuator | S3+S4 output | `{date}_s5_odds_ev.md` | EV > 0 for all approved |
-| S6 | `s6-context-upset` | bet-challenger | S5 output | `{date}_s6_context.md` | Upset risk scored, context verified |
-| S7 | `s7-bear-case-gate` | bet-challenger | S6 output | `{date}_s7_gate.md` | 17-point gate passed per pick |
-| S3B | `s3b-time-sensitive` | bet-statistician | S7 output | `{date}_s3b_time_sensitive.md` | Lineups, weather, odds drift checked |
-| S8 | `s8-portfolio-coupons` | bet-builder | S7+S3B output | Coupon file + ledgers | V1-V10 all pass |
+| S3 | `s3-deep-stats` | bet-statistician | S2 output | `{date}_s3_deep_stats.md` | **STRUCTURAL: §3.0 ranking table + H2H-stat + three-way cross-check per candidate** |
+| S4 | `s4-tipsters` | bet-scout | S3 output + **§1.5 pre-fetched HTML** | `{date}_s4_tipsters.md` | **STRUCTURAL: ≥2 tipster sites with arguments per candidate + coverage summary table + §4.3 done** |
+| S5 | `s5-odds-ev` | bet-valuator | S3+S4 output | `{date}_s5_odds_ev.md` | EV formula shown per pick, ≥2 odds sources per pick |
+| S6 | `s6-context-upset` | bet-challenger | S5 output | `{date}_s6_context.md` | Upset risk scored with full checklist per candidate, Paradox Rule applied |
+| S7 | `s7-bear-case-gate` | bet-challenger | S6 output | `{date}_s7_gate.md` | **STRUCTURAL: full 17-point gate table + bear case + red flags + contrarian per pick** |
+| S3B | `s3b-time-sensitive` | bet-statistician | S7 output | `{date}_s3b_time_sensitive.md` | Lineups, weather, odds drift formula per pick |
+| S8 | `s8-portfolio-coupons` | bet-builder | S7+S3B output | Coupon file + ledgers | V1-V10 all pass, V10e matrix complete, §S8.FINAL pass |
 
 **NOTE:** S3B runs AFTER S7 (bear case) but BEFORE S8 (coupons) so that lineup/weather findings can still void picks before coupon construction. S3B should run within 2-3h of earliest event kickoff. If analysis is done well before kickoff, S3B can be a separate later run — the orchestrator supports both modes.
+
+---
+
+## STRUCTURAL OUTPUT VERIFICATION (MANDATORY — NEVER SKIP)
+
+**After EACH step completes, the orchestrator MUST read the output file and count structural elements. If counts fall below thresholds → send step BACK to the agent with specific fix instructions. NEVER proceed to the next step with structural failures.**
+
+This is the single most important enforcement mechanism. It prevents shallow analysis.
+
+### After S3 — Read `{date}_s3_deep_stats.md` and verify:
+```
+For EACH candidate in the file:
+1. [ ] §3.0 RANKING TABLE exists — ≥3 rows with columns: Market | avg | H2H avg | Line | Hit L10 | Hit H2H | Safety
+2. [ ] H2H-STAT data present — H2H for the SPECIFIC stat chosen (not just match results). Or explicit "H2H-STAT-BLIND" flag.
+3. [ ] THREE-WAY CROSS-CHECK present — L10 value, H2H value, L5 trend, alignment verdict.
+4. [ ] COACH/ROSTER CHECK present — source named (TransferMarkt or other).
+5. [ ] TOP 3 MARKETS listed with hit rates (not just the chosen market).
+6. [ ] ≥2 STAT SOURCES named with actual data (not just "checked").
+7. [ ] INJURY CHECK with source (not just "none" — where was it verified?).
+
+METRIC: candidates_with_all_7 / total_candidates × 100 = DEPTH_%
+GATE: DEPTH_% ≥ 95%. If <95% → list WHICH candidates are missing WHICH sections → return to bet-statistician.
+```
+
+### After S4 — Read `{date}_s4_tipsters.md` and verify:
+```
+1. [ ] TIPSTER COVERAGE SUMMARY TABLE present (§S4-COVERAGE format — see below).
+2. [ ] For each candidate: ≥2 site names listed, ≥1 tipster argument text extracted.
+3. [ ] CONSENSUS % calculated per candidate.
+4. [ ] OPPOSING ARGUMENTS recorded (or explicit "none found").
+5. [ ] §4.3 WATCHLIST PROMOTION section present.
+6. [ ] §1.5 pre-fetched HTML referenced (not fresh web-fetch only).
+
+METRIC: candidates_with_2+_tipster_args / total_candidates × 100 = TIPSTER_%
+GATE: TIPSTER_% ≥ 80%. If <80% → list candidates with <2 args → return to bet-scout with fallback chain instructions.
+```
+
+#### §S4-COVERAGE — Required Summary Table Format
+```
+## Tipster Coverage Summary
+| # | Event | Sport | Sites Checked | Sites With Args | Consensus % | Status |
+|---|-------|-------|---------------|-----------------|-------------|--------|
+| 1 | [event] | [sport] | ZT, Typersi, OLBG | ZT(3), OLBG(2) | 80% | ✅ |
+| 2 | [event] | [sport] | PicksWise, SG | PW(1), SG(0) | 100% | ⚠️ 1-src |
+...
+| TOTAL | | | avg X.X sites/cand | avg X.X with args | | X% full |
+```
+
+### After S7 — Read `{date}_s7_gate.md` and verify:
+```
+For EACH approved pick (✅):
+1. [ ] 17-POINT GATE TABLE — all 17 rows present with PASS/FAIL per row (NOT abbreviated to "15-17: PASS").
+2. [ ] BEAR CASE references specific data, stats, or a named scenario (NOT "it could go wrong").
+3. [ ] RED FLAG TABLE — sport-specific flags listed and resolved.
+4. [ ] CONTRARIAN — all 4 questions answered with substance.
+5. [ ] ZERO TOLERANCE — explicitly scanned against all 14 patterns.
+
+GATE: 100% of approved picks must have all 5 structural elements. ANY missing → return to bet-challenger.
+```
 
 ---
 
