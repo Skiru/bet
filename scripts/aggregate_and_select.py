@@ -274,19 +274,22 @@ def allocate_stakes(candidates, config):
     max_stake = config.get("low_risk_coupon_max_stake_pln", 3.0)
     alloc_range = config.get("suggested_daily_allocation_range_pln", [8.0, 12.0])
     max_daily = alloc_range[1] if len(alloc_range) > 1 else 12.0
+    max_picks = config.get("min_coupons_per_day", 5)
+    low_gap = config.get("low_risk_price_gap_threshold_pct", LOW_RISK_GAP_THRESHOLD)
+    high_gap = config.get("higher_risk_price_gap_threshold_pct", HIGH_RISK_GAP_THRESHOLD)
 
     picks = []
     used = 0.0
     for c in candidates:
-        if len(picks) >= 3:
+        if len(picks) >= max_picks:
             break
         if used + max_stake > max_daily:
             break
 
         # Apply price gap threshold based on risk tier
-        if c["risk_tier"] == "low" and c["price_gap_pct"] < LOW_RISK_GAP_THRESHOLD:
+        if c["risk_tier"] == "low" and c["price_gap_pct"] < low_gap:
             continue
-        elif c["risk_tier"] in ("medium", "high") and c["price_gap_pct"] < HIGH_RISK_GAP_THRESHOLD:
+        elif c["risk_tier"] in ("medium", "high") and c["price_gap_pct"] < high_gap:
             continue
 
         # Reduce stake for higher-risk picks

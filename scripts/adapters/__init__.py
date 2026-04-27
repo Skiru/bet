@@ -9,6 +9,24 @@ from .sofascore_adapter import parse as sofascore_parse
 from .oddsportal_adapter import parse as oddsportal_parse
 from .betclic_adapter import parse as betclic_parse
 
+
+def dedup_results(results, key_fn=None):
+    """Deduplicate adapter results by a key function.
+
+    Default key: (home, away, time). Pass a custom key_fn for different dedup logic.
+    """
+    if key_fn is None:
+        key_fn = lambda r: (r.get("home"), r.get("away"), r.get("time"))
+    seen = set()
+    dedup = []
+    for r in results:
+        k = key_fn(r)
+        if k in seen:
+            continue
+        seen.add(k)
+        dedup.append(r)
+    return dedup
+
 # Domain-specific adapters (optional). If an adapter for a domain is not
 # present, `raw_parse` will be used as a fallback.
 ADAPTERS = {

@@ -33,15 +33,7 @@ def parse(html: str, url: str) -> List[Dict]:
             results.append({"home": home, "away": away, "time": time, "source_url": url, "raw": text})
 
     if results:
-        # dedupe
-        seen = set()
-        dedup = []
-        for r in results:
-            key = (r.get("home"), r.get("away"), r.get("time"))
-            if key in seen:
-                continue
-            seen.add(key)
-            dedup.append(r)
-        return dedup
+        from adapters import dedup_results
+        return dedup_results(results)
 
     return raw_parse(html, url)

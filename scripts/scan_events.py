@@ -12,18 +12,11 @@ import argparse
 from pathlib import Path
 import json
 import time
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
+from urllib.parse import urlparse
 
 BASE = Path(__file__).resolve().parent
 DATA_DIR = BASE.parent / "betting" / "data"
-
-# Europe/Warsaw is UTC+1 (CET) or UTC+2 (CEST)
-try:
-    from zoneinfo import ZoneInfo
-    WARSAW_TZ = ZoneInfo("Europe/Warsaw")
-except ImportError:
-    # Python < 3.9 fallback
-    WARSAW_TZ = timezone(timedelta(hours=2))
 
 FETCH_DELAY_SECONDS = 3  # delay between fetches to avoid anti-bot triggers
 
@@ -79,7 +72,6 @@ def save_html(domain: str, html: str) -> Path:
 
 
 def domain_from_url(url: str) -> str:
-    from urllib.parse import urlparse
     return urlparse(url).netloc.replace("www.", "")
 
 

@@ -14,6 +14,7 @@ Notes:
 - Does NOT auto-push to git. Run git commands manually after verification.
 """
 import csv
+import json
 import sys
 import time
 import re
@@ -32,6 +33,7 @@ BASE = Path(__file__).resolve().parent
 LEDGER = BASE.parent / "betting" / "journal" / "picks-ledger.csv"
 COUPONS_LEDGER = BASE.parent / "betting" / "journal" / "coupons-ledger.csv"
 LOG_FILE = BASE.parent / "settle_log.txt"
+ODDS_API_SNAPSHOT = BASE.parent / "betting" / "data" / "odds_api_snapshot.json"
 POLL_INTERVAL = 120  # seconds
 MAX_POLLS = 60  # max number of poll attempts
 REQUEST_HEADERS = {"User-Agent": "settle-bot/2.0 (educational project)"}
@@ -57,8 +59,14 @@ def read_csv(path):
 def write_csv(path, rows):
     if not rows:
         return
+    # Collect all fieldnames across all rows to avoid dropping keys
+    all_fields = dict.fromkeys(rows[0].keys())  # preserve first row order
+    for row in rows[1:]:
+        for k in row:
+            if k not in all_fields:
+                all_fields[k] = None
     with open(path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=rows[0].keys())
+        writer = csv.DictWriter(f, fieldnames=list(all_fields.keys()), extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows)
 
@@ -72,6 +80,40 @@ def fetch_result_from_source(home, away, source_fn):
         return None
 
 
+def search_odds_api_snapshot(home, away):
+    """Search the Odds API snapshot for completed scores (free, no network call)."""
+    if not ODDS_API_SNAPSHOT.exists():
+        return None
+    try:
+        snapshot = json.loads(ODDS_API_SNAPSHOT.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return None
+
+    home_lower = home.lower()
+    away_lower = away.lower()
+    for event in snapshot.get("events", []):
+        eh = (event.get("home_team") or "").lower()
+        ea = (event.get("away_team") or "").lower()
+        if not ((home_lower in eh or eh in home_lower) and (away_lower in ea or ea in away_lower)):
+            # Try reversed order
+            if not ((home_lower in ea or ea in home_lower) and (away_lower in eh or eh in away_lower)):
+                continue
+        if not event.get("completed"):
+            continue
+        scores = event.get("scores")
+        if not scores or len(scores) < 2:
+            continue
+        # scores is [{"name": "Team", "score": "3"}, ...]
+        score_map = {s["name"].lower(): int(s["score"]) for s in scores if s.get("score") and s["score"].isdigit()}
+        if eh in score_map and ea in score_map:
+            # Return in home/away order as requested
+            if home_lower in eh or eh in home_lower:
+                return score_map[eh], score_map[ea]
+            else:
+                return score_map[ea], score_map[eh]
+    return None
+
+
 def search_sofascore(home, away):
     q = f"{home} {away}".replace(" ", "%20")
     url = f"https://www.sofascore.com/search?q={q}"
@@ -79,14 +121,20 @@ def search_sofascore(home, away):
     if r.status_code != 200:
         return None
     text = BeautifulSoup(r.text, "html.parser").get_text(separator=" ")
-    # Look for score patterns near team names
-    for pattern in [
+    # Pattern 1: Home ... score ... Away (correct order)
+    m = re.search(
         rf"{re.escape(home)}.*?(\d+)\s*[:\-]\s*(\d+).*?{re.escape(away)}",
+        text, re.IGNORECASE | re.DOTALL,
+    )
+    if m:
+        return int(m.group(1)), int(m.group(2))
+    # Pattern 2: Away ... score ... Home (reversed — swap scores)
+    m = re.search(
         rf"{re.escape(away)}.*?(\d+)\s*[:\-]\s*(\d+).*?{re.escape(home)}",
-    ]:
-        m = re.search(pattern, text, re.IGNORECASE | re.DOTALL)
-        if m:
-            return int(m.group(1)), int(m.group(2))
+        text, re.IGNORECASE | re.DOTALL,
+    )
+    if m:
+        return int(m.group(2)), int(m.group(1))  # swap: away_score, home_score
     return None
 
 
@@ -97,13 +145,20 @@ def search_flashscore(home, away):
     if r.status_code != 200:
         return None
     text = BeautifulSoup(r.text, "html.parser").get_text(separator=" ")
-    for pattern in [
+    # Pattern 1: Home ... score ... Away (correct order)
+    m = re.search(
         rf"{re.escape(home)}.*?(\d+)\s*[:\-]\s*(\d+).*?{re.escape(away)}",
+        text, re.IGNORECASE | re.DOTALL,
+    )
+    if m:
+        return int(m.group(1)), int(m.group(2))
+    # Pattern 2: Away ... score ... Home (reversed — swap scores)
+    m = re.search(
         rf"{re.escape(away)}.*?(\d+)\s*[:\-]\s*(\d+).*?{re.escape(home)}",
-    ]:
-        m = re.search(pattern, text, re.IGNORECASE | re.DOTALL)
-        if m:
-            return int(m.group(1)), int(m.group(2))
+        text, re.IGNORECASE | re.DOTALL,
+    )
+    if m:
+        return int(m.group(2)), int(m.group(1))  # swap: away_score, home_score
     return None
 
 
@@ -345,7 +400,10 @@ def main():
                 continue
 
             log(f"[Poll {polls}] Looking for result: {home} vs {away}")
-            result = fetch_result_from_source(home, away, search_sofascore)
+            # Try Odds API snapshot first (free, offline)
+            result = fetch_result_from_source(home, away, search_odds_api_snapshot)
+            if not result:
+                result = fetch_result_from_source(home, away, search_sofascore)
             if not result:
                 result = fetch_result_from_source(home, away, search_flashscore)
 

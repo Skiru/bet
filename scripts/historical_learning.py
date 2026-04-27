@@ -8,16 +8,30 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PICKS = os.path.join(ROOT, "betting", "journal", "picks-ledger.csv")
 COUPONS = os.path.join(ROOT, "betting", "journal", "coupons-ledger.csv")
 
+def normalize_status(status):
+    """Normalize status values: win→won, loss→lost."""
+    status = status.strip().lower()
+    if status == "win":
+        return "won"
+    if status == "loss":
+        return "lost"
+    return status
+
+
 def analyze_picks():
+    if not os.path.exists(PICKS):
+        print(f"Picks ledger not found: {PICKS}")
+        return
+
     sport_stats = defaultdict(lambda: {"won": 0, "lost": 0, "void": 0, "push": 0, "pending": 0, "superseded": 0})
     market_stats = defaultdict(lambda: {"won": 0, "lost": 0, "void": 0, "push": 0, "pending": 0})
     day_stats = defaultdict(lambda: {"won": 0, "lost": 0, "void": 0, "push": 0, "pending": 0})
     total = {"won": 0, "lost": 0, "void": 0, "push": 0, "pending": 0, "superseded": 0}
     
-    with open(PICKS) as f:
+    with open(PICKS, encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            status = row.get("status", "").strip()
+            status = normalize_status(row.get("status", ""))
             sport = row.get("sport", "").strip()
             market = row.get("market", "").strip()
             day = row.get("betting_day", "").strip()
@@ -72,28 +86,29 @@ def analyze_picks():
         print(f"{day:<12} {s['won']:>3} {s['lost']:>3} {s['void']:>3} {s['push']:>3} {s['pending']:>4}  {rate:>5.1f}%")
 
 def analyze_coupons():
+    if not os.path.exists(COUPONS):
+        print(f"Coupons ledger not found: {COUPONS}")
+        return
+
     day_stats = defaultdict(lambda: {"won": 0, "lost": 0, "void": 0, "pending": 0, "superseded": 0, "pnl": 0.0, "staked": 0.0})
     total = {"won": 0, "lost": 0, "void": 0, "pending": 0, "superseded": 0, "pnl": 0.0, "staked": 0.0}
-    killer_legs = defaultdict(int)
     
-    with open(COUPONS) as f:
+    with open(COUPONS, encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            status = row.get("status", "").strip()
+            status = normalize_status(row.get("status", ""))
             day = row.get("betting_day", "").strip()
             pnl_str = row.get("pnl_pln", "").strip()
             stake_str = row.get("stake_pln", "").strip()
-            notes = row.get("notes", "")
             
             if status in ("void", "superseded"):
                 day_stats[day][status] += 1
                 total[status] += 1
                 continue
             
-            if status in ("won", "lost", "loss", "win", "pending"):
-                norm_status = "won" if status in ("won", "win") else "lost" if status in ("lost", "loss") else status
-                day_stats[day][norm_status] += 1
-                total[norm_status] += 1
+            if status in ("won", "lost", "pending"):
+                day_stats[day][status] += 1
+                total[status] += 1
                 
                 try:
                     pnl = float(pnl_str) if pnl_str else 0.0

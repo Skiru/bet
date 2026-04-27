@@ -75,11 +75,7 @@ def fetch(url: str, headless: bool = True, timeout: int = 30, retries: int = 2, 
     for attempt in range(1, retries + 1):
         try:
             with sync_playwright() as p:
-                # try headless first, fall back to headful if necessary
-                try:
-                    browser = p.chromium.launch(headless=headless)
-                except Exception:
-                    browser = p.chromium.launch(headless=False)
+                browser = p.chromium.launch(headless=headless)
 
                 context_kwargs = {
                     "user_agent": random.choice(USER_AGENTS),

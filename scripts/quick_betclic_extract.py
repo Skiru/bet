@@ -7,7 +7,6 @@ the best source confirmation and reasonable odds range (1.30-3.50).
 """
 import sys
 from pathlib import Path
-import re
 import json
 
 BASE = Path(__file__).resolve().parent
@@ -21,8 +20,6 @@ except Exception:
         resp = requests.get(url, timeout=20, headers={"User-Agent": "Mozilla/5.0"})
         resp.raise_for_status()
         return resp.text
-
-from bs4 import BeautifulSoup
 
 CONFIG_PATH = BASE.parent / "config" / "betting_config.json"
 
@@ -44,8 +41,9 @@ def extract_from_betclic(html: str):
     return betclic_parse(html, "https://www.betclic.pl/")
 
 
-def appears_on_site(match_key: str, html: str) -> bool:
-    return normalize(match_key) in normalize(html)
+def appears_on_site(team_name: str, html: str) -> bool:
+    """Check if team name appears in HTML text (case-insensitive, without normalizing entire HTML)."""
+    return normalize(team_name) in html.lower()
 
 
 def main():
