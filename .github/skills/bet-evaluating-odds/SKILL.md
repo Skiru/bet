@@ -86,11 +86,11 @@ Before picking any market type, check historical hit rate in `picks-ledger.csv`:
 | Hit Rate | Action |
 |----------|--------|
 | ≥50% on 10+ picks | Normal — proceed |
-| 40-49% on 10+ picks | AUTO-DOWNGRADE confidence −1 |
-| <40% on 10+ picks | AUTO-DOWNGRADE confidence −1 |
-| <30% on 10+ picks | WATCHLIST ONLY — cannot be in core coupons |
+| 40-49% on 10+ picks | ⚠️ FLAG for user — show rate in report |
+| <40% on 10+ picks | ⚠️ FLAG for user — show rate in report |
+| <30% on 10+ picks | ⚠️ FLAG for user — show rate prominently in report |
 
-**Learned caution zones:** MLB totals 33% hit rate → all MLB totals get −1 confidence until >50%. MLB overs ≥8.5 → HARD REJECT.
+**ADVISORY RULE:** All historical hit rate data is shown to the user for their decision-making. NEVER auto-reject, auto-downgrade confidence, or auto-exclude any market based on hit rates. Full analysis (S3-S7) is mandatory for every candidate regardless of historical performance.
 
 ## Multi-Source Odds Protocol
 

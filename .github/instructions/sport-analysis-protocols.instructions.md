@@ -310,7 +310,7 @@ Before selecting ANY baseball market, calculate ALL of these:
 | Strikeouts O/U X.5   |           |           |         |      |         |         |        |
 | Run line ±1.5        |           |           |         |      |         |         |        |
 ```
-Pick the market with HIGHEST safety score. **F5 innings are most reliable** (removes bullpen variance). Use BaseballSavant for pitcher stats + Baseball-Reference for team offense. **LEARNED CAUTION:** MLB totals have 33% historical hit rate — apply −0.10 safety penalty to all game totals. MLB overs ≥8.5 → HARD REJECT per Zero Tolerance.
+Pick the market with HIGHEST safety score. **F5 innings are most reliable** (removes bullpen variance). Use BaseballSavant for pitcher stats + Baseball-Reference for team offense. **⚠️ ADVISORY:** MLB totals have 33% historical hit rate — flag for user awareness in report. Analyze fully regardless; user decides.
 
 ### §3.13 Padel
 

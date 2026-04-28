@@ -557,7 +557,7 @@ Roster change (+2), map pool edge (+1), online match (+1), new patch (+1).
 3. **PK-04 Gala U2.5 — EV +2% BORDERLINE.** Minimum EV threshold not enforced. Below +3% = watchlist only.
 
 ### Rule changes for future runs:
-1. **MANDATORY: Check per-market hit rate before adding any pick.** If market type has <40% hit rate in ledger → auto -1 confidence, reduced stake. If <25% → REJECT unless exceptional circumstances.
+1. **MANDATORY: Check per-market hit rate before adding any pick — ADVISORY ONLY.** Show hit rate in report for user awareness. **NEVER auto-reject or auto-downgrade any market based on historical hit rates.** Full S3-S7 analysis is mandatory for every candidate. The user decides what to act on.
 2. **MANDATORY: Stake weighting by completeness.** V10e matrix score determines stake tier: all ✅ → max stake; ≥2 ⚠️ → reduced; ≥3 ⚠️ → minimum stake.
 3. **Speedway handicap PERMANENTLY banned** until 3+ wins established.
 4. **MLS, MLB totals auto -1 confidence** (confirmed by historical data).

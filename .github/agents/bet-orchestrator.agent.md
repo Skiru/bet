@@ -1,15 +1,7 @@
 ---
 description: "Single entry point for all betting interactions — orchestrates the S0-S8 daily pipeline AND routes ad-hoc questions, actions, and status queries to the correct specialist agent."
 tools:
-  [
-    "read",
-    "edit",
-    "search",
-    "todo",
-    "agent",
-    "vscode/askQuestions",
-    "sequential-thinking/*",
-  ]
+  [vscode/getProjectSetupInfo, vscode/installExtension, vscode/memory, vscode/newWorkspace, vscode/resolveMemoryFileUri, vscode/runCommand, vscode/vscodeAPI, vscode/extensions, vscode/toolSearch, vscode/askQuestions, execute/runNotebookCell, execute/getTerminalOutput, execute/killTerminal, execute/sendToTerminal, execute/createAndRunTask, execute/runInTerminal, execute/runTests, read/getNotebookSummary, read/problems, read/readFile, read/viewImage, read/terminalSelection, read/terminalLastCommand, agent/runSubagent, edit/createDirectory, edit/createFile, edit/createJupyterNotebook, edit/editFiles, edit/editNotebook, edit/rename, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/textSearch, search/usages, web/fetch, web/githubRepo, browser/openBrowserPage, browser/readPage, browser/screenshotPage, browser/navigatePage, browser/clickElement, browser/dragElement, browser/hoverElement, browser/typeInPage, browser/runPlaywrightCode, browser/handleDialog, sequentialthinking/sequentialthinking, sequential-thinking/sequentialthinking, todo]
 agents: ["bet-settler", "bet-scanner", "bet-statistician", "bet-scout", "bet-valuator", "bet-challenger", "bet-builder"]
 model: "Claude Opus 4.6 (Copilot)"
 argument-hint: '"run full session" or "why did pick X fail the gate?"'

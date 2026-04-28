@@ -73,12 +73,12 @@ This file contains **ALL actually placed bets** from the Betclic account (ground
 
 If the file is missing, run: `python3 scripts/parse_betclic_bets.py` (requires HTML export from betclic.pl/my-bets).
 
-1. **Per-market hit rate:** Group settled picks by `market` column. Calculate win% per market type (e.g., corners: 75%, ML: 40%, BTTS: 55%). Cross-reference with Betclic history market rates. Any market <40% on 10+ picks → AUTO-DOWNGRADE (STEP 5 rule). Any market <30% → WATCHLIST ONLY.
-2. **Per-sport hit rate:** Group by `sport`. Cross-reference with Betclic history sport rates. Any sport with <30% hit rate on 5+ picks → FLAG. Scan that sport but apply −1 confidence to all picks from it. **NEVER blanket-reject an entire sport.** <5 settled picks = insufficient sample for any sport-level action. Each candidate is analyzed individually through STEP 3-7 regardless of sport-level hit rate.
-3. **Coupon failure analysis:** For each LOST coupon, identify the leg that failed. Cross-reference with Betclic §7 coupon killer analysis. Track which pick types are the "coupon killers." If a specific market/sport kills coupons >50% of the time → exclude from LR coupons.
+1. **Per-market hit rate:** Group settled picks by `market` column. Calculate win% per market type (e.g., corners: 75%, ML: 40%, BTTS: 55%). Cross-reference with Betclic history market rates. **ADVISORY ONLY** — show rates prominently in report for user awareness. NEVER auto-reject or auto-exclude any market based on hit rate alone.
+2. **Per-sport hit rate:** Group by `sport`. Cross-reference with Betclic history sport rates. Any sport with <30% hit rate on 5+ picks → **FLAG for user attention** (show in report). **NEVER blanket-reject an entire sport. NEVER apply automatic confidence penalties.** <5 settled picks = insufficient sample for any sport-level action. Each candidate is analyzed individually through STEP 3-7 regardless of sport-level hit rate.
+3. **Coupon failure analysis:** For each LOST coupon, identify the leg that failed. Cross-reference with Betclic §7 coupon killer analysis. Track which pick types are the "coupon killers." Show coupon killer data in report for user awareness — do NOT auto-exclude from any coupon tier.
 4. **Streak check:** Any team/player appearing 3+ times in recent picks? Check if the thesis is stale or if the edge has been priced in.
-5. **Betclic history cross-check:** Verify that NO pick uses a market/sport combination with <30% hit rate in the Betclic history (§8 cross-analysis). Football×match_winner (35%), baseball×runs_totals (20%), volleyball×totals (14%), cs2×match_winner (0%) → AUTO-REJECT.
-6. **Write a 3-line summary** of what the data says today. Example: "Corners 6/8 (75%). Tennis ML 1/5 (20%) — avoid. Hockey totals killing coupons — HR only."
+5. **Betclic history cross-check (ADVISORY ONLY):** Show all market/sport hit rates from Betclic history in the report. **NEVER AUTO-REJECT any market/sport combination based on historical hit rates.** All markets must receive full STEP 3-7 analysis regardless of past performance. The user decides whether to act on low hit rate warnings.
+6. **Write a 3-line summary** of what the data says today. Example: "Corners 6/8 (75%). Tennis ML 1/5 (20%) — ⚠️ low rate. Hockey totals killing coupons — ⚠️ flagged."
 
 ---
 

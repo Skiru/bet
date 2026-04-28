@@ -100,7 +100,7 @@ Total suggested stakes (core + combos + extended) WILL exceed daily budget — u
 
 The extended pool captures ALL picks with **EV > 0** that were NOT included in core/combo coupons. These are picks that failed some 17-point gate checks, had bear≥bull concerns, or lacked data — but still have positive expected value. The user sees them with full context and decides whether to risk them.
 
-**Inclusion threshold:** EV > 0 (calculated in S5). Exclude only: phantom fixtures (ZT#6), wrong dates, sport auto-rejected (CS2 0%), or negative EV.
+**Inclusion threshold:** EV > 0 (calculated in S5). Exclude only: phantom fixtures (ZT#6), wrong dates, or negative EV. **NEVER exclude based on sport/market historical hit rates** — Betclic learning data is advisory for the user only.
 
 **Required format per extended pick:**
 
