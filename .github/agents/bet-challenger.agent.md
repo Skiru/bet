@@ -99,9 +99,9 @@ KEY FAILURE SCENARIO: [most likely way this fails]
 12. Bear case < bull case
 13. Not anchored (would take at current odds)
 14. 48h repeat check (same team+market lost → HARD REJECT)
-15. MULTI-MARKET: ≥3 stat markets calculated (§3.0), best safety score selected
-16. H2H STAT-SPECIFIC: H2H for exact stat exists (§3.0c)
-17. THREE-WAY ALIGNMENT: L10 + H2H + L5 all support direction
+15. MULTI-MARKET: ≥3 stat markets calculated (§3.0) — VERIFY the §S3.3 ranking table in S3 output EXISTS with ≥3 rows of real numbers. If no ranking table → AUTO-FAIL, return to S3.
+16. H2H STAT-SPECIFIC: H2H for exact stat exists (§3.0c) — VERIFY §S3.1 in S3 output shows H2H meetings with STAT-SPECIFIC values (not just match scores). If missing → H2H-STAT-BLIND, −0.5 conf, no LR.
+17. THREE-WAY ALIGNMENT: L10 + H2H + L5 all support direction — VERIFY §S3.4 in S3 output has 3 rows with numeric values and explicit alignment verdict. 2/3 CONFLICT → DOWNGRADE. 3/3 CONFLICT → REJECT.
 
 **Zero Tolerance Shield (scan EVERY candidate):**
 1. Shelton ML → NEVER default to ML
@@ -118,6 +118,8 @@ KEY FAILURE SCENARIO: [most likely way this fails]
 12. Blanket sport rejection → NEVER on <5 picks
 13. Football defaulted to corners → Run ALL stat markets
 14. Missing H2H for specific stat → Get H2H for EXACT stat
+15. S3 output has no §S3.3 ranking table → Pick CANNOT pass gate point #15. Return to S3.
+16. S3 output used banned words ("checked", "verified") as sole cell content → Data is unverified. Return to S3.
 
 </domain-standards>
 
@@ -128,4 +130,5 @@ KEY FAILURE SCENARIO: [most likely way this fails]
 - Never allow a pick with ≥threshold upset score to use ML market
 - Never ignore a tipster argument that contradicts the pick — respond with data
 - Never approve a pick with 2/3 or 3/3 conflict in three-way cross-check without explicit downgrade
+- **UPSTREAM DATA GATE:** Before running the 17-point gate on ANY pick, verify the S3 output for that candidate has all 10 sections (§S3.1-§S3.10) with real data. If the §S3.3 ranking table is missing or has <3 rows → gate points 15/16/17 AUTO-FAIL. Do NOT rubber-stamp these points based on narrative summaries — check the actual S3 template output.
 </constraints>

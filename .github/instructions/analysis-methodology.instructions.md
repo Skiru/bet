@@ -203,6 +203,114 @@ L5 RECENT  → [value] → trend: [UP/DOWN/STABLE]
 ALL THREE must support the pick direction. 2/3 conflict → DOWNGRADE. 3/3 conflict → REJECT.
 ```
 
+### §3.0d DATA PROVENANCE (MANDATORY — NEVER SKIP)
+
+**Every stat cited in S3 output MUST include ALL THREE:**
+1. **Source name** — the exact website or tool (e.g., "SoccerStats", "TennisAbstract", "Flashscore H2H tab")
+2. **Exact data point** — the specific number with context (e.g., "Liverpool avg 11.2 corners/match at home, L10 games")
+3. **Fetch reference** — how the data was obtained (e.g., "web-fetch", "Playwright scan", "Odds-API snapshot")
+
+**BANNED WORDS in S3 table cells** — if ANY of these appear as the SOLE content of a table cell, it is a STRUCTURAL VIOLATION and the candidate is REJECTED:
+- "checked", "verified", "confirmed", "good", "fine", "OK", "done", "yes", "—", "N/A", "n/a", "see above"
+
+**Examples:**
+- ❌ `| Injury check | checked |` → VIOLATION
+- ✅ `| Injury check | No injuries — ESPN injury report, 2026-04-28 08:30 |` → VALID
+- ❌ `| H2H avg | good |` → VIOLATION
+- ✅ `| H2H avg | 5.8 cards (5 meetings, Flashscore H2H) |` → VALID
+- ❌ `| Safety | — |` → VIOLATION
+- ✅ `| Safety | 0.70 |` → VALID
+
+**Enforcement:** The orchestrator scans every cell in the S3 output. Banned word as sole content → auto-reject that candidate, return to bet-statistician.
+
+### §3.0e MANDATORY PER-CANDIDATE OUTPUT TEMPLATE
+
+**EVERY candidate in the `{date}_s3_deep_stats.md` file MUST use this exact template.** The section markers (§S3.1-§S3.10) are PARSEABLE — the orchestrator counts them. Missing or empty sections = STRUCTURAL VIOLATION = candidate REJECTED.
+
+````
+### ══ CANDIDATE: [Sport] — [TeamA/PlayerA] vs [TeamB/PlayerB] | [Competition] | [Kickoff HH:MM] ══
+
+#### §S3.1 H2H ANALYSIS (MARKET-SPECIFIC)
+- Meetings found: [N] (source: [source name], period: [date range])
+- H2H results: [list each meeting with date, score, and STAT VALUE for selected market]
+  - YYYY-MM-DD: [TeamA] [score] [TeamB] — [stat]: [value]
+  - YYYY-MM-DD: [TeamA] [score] [TeamB] — [stat]: [value]
+  - (minimum 3 meetings, target 5)
+- H2H avg for selected stat: [number]
+- H2H-STAT status: ✅ CONFIRMED / ⚠️ H2H-STAT-BLIND (reason: [where looked, why unavailable])
+
+#### §S3.2 FORM & STATS TABLE
+[Sport-specific stats table from §3.1-§3.14 — ALL columns filled, split Home/Away]
+[Every cell must contain a number or specific text — no "checked" or "—"]
+
+#### §S3.3 STATISTICAL MARKET RANKING (§3.0)
+| # | Market           | TeamA avg | TeamB avg | H2H avg | Line  | Hit L10 | Hit H2H | Safety | Source           |
+|---|------------------|-----------|-----------|---------|-------|---------|---------|--------|------------------|
+| 1 | [market name]    | [number]  | [number]  | [number]| [X.5] | [X/10]  | [X/5]   | [0.XX] | [source name]    |
+| 2 | [market name]    | [number]  | [number]  | [number]| [X.5] | [X/10]  | [X/5]   | [0.XX] | [source name]    |
+| 3 | [market name]    | [number]  | [number]  | [number]| [X.5] | [X/10]  | [X/5]   | [0.XX] | [source name]    |
+MINIMUM 3 ROWS. For Football, MINIMUM 4 (Fouls + Cards + Corners + Shots).
+Safety = min(hit_rate_L10, hit_rate_H2H) as decimal. Higher = better.
+SELECTED MARKET: Row [#] — [market name] (highest safety score: [value])
+
+#### §S3.4 THREE-WAY CROSS-CHECK
+| Check    | Value    | vs Line [X.5] | Hit Rate  | Direction              |
+|----------|----------|----------------|-----------|------------------------|
+| L10 avg  | [number] | [over/under]   | [X/10]    | [SUPPORTS / CONFLICTS] |
+| H2H avg  | [number] | [over/under]   | [X/5]     | [SUPPORTS / CONFLICTS] |
+| L5 trend | [number] | [trend]        | [X/5]     | [UP / DOWN / STABLE]   |
+ALIGNMENT: [3/3 SUPPORT ✅ / 2/3 CONFLICT → DOWNGRADE / 3/3 CONFLICT → REJECT]
+
+#### §S3.5 COACH/ROSTER STABILITY
+- Coach change in last 5 matches: [YES — name, date, source] / [NO — source: TransferMarkt/Flashscore, checked: YYYY-MM-DD]
+- Major roster changes in 14 days: [YES — details, source] / [NO — source: [name], checked: YYYY-MM-DD]
+- Stability verdict: [STABLE / VOLATILE — impact on analysis: [1 sentence]]
+
+#### §S3.6 INJURY/SUSPENSION CHECK
+| Player         | Status          | Impact on Pick | Source               | Checked At          |
+|----------------|-----------------|----------------|----------------------|---------------------|
+| [full name]    | [OUT/GTD/PROB]  | [HIGH/MED/LOW] | [source + page]      | [YYYY-MM-DD HH:MM] |
+If NO injuries: "No injuries reported — [source name], checked [YYYY-MM-DD HH:MM]"
+
+#### §S3.7 TOP 3 MARKETS (from §S3.3 ranking)
+1. **[Market]** — Safety: [0.XX] | L10 hit: [X/10] | H2H hit: [X/5] | Margin: [avg vs line]
+2. **[Market]** — Safety: [0.XX] | L10 hit: [X/10] | H2H hit: [X/5] | Margin: [avg vs line]
+3. **[Market]** — Safety: [0.XX] | L10 hit: [X/10] | H2H hit: [X/5] | Margin: [avg vs line]
+
+#### §S3.8 RECOMMENDED MARKET
+- **Market:** [specific market + line, e.g., "Corners Over 9.5"]
+- **Safety score:** [0.XX] (rank [#] of [N] evaluated)
+- **Reason:** [2-3 sentences citing specific numbers from §S3.3 and §S3.4 — WHY this market beat alternatives]
+- **Key stat:** [The single most important data point supporting this pick]
+
+#### §S3.9 SOURCES USED
+| # | Source Name       | Data Collected                    | URL / Access Method          |
+|---|-------------------|-----------------------------------|------------------------------|
+| 1 | [source name]     | [what was fetched]                | [URL or "Playwright scan"]   |
+| 2 | [source name]     | [what was fetched]                | [URL or "Odds-API"]         |
+MINIMUM 2 ROWS. Every source that contributed data must be listed.
+
+#### §S3.10 ANALYSIS DEPTH PROOF
+| Metric                    | Value                                         |
+|---------------------------|-----------------------------------------------|
+| Markets evaluated         | [N] markets in §S3.3 ranking table            |
+| Sources consulted         | [N] sources ([list names])                    |
+| Data points collected     | [N] unique stat values across form + H2H      |
+| H2H meetings analyzed     | [N] meetings for [stat], source: [name]       |
+| Ranking table completeness| [N] cells filled / [N] total cells = [X]%     |
+
+### ══ END CANDIDATE ══
+````
+
+**VALIDATION RULES (for orchestrator):**
+1. Every candidate MUST have exactly 10 section markers (§S3.1-§S3.10)
+2. §S3.3 MUST have ≥3 data rows (≥4 for football)
+3. §S3.4 MUST have 3 data rows (L10, H2H, L5) with numeric values
+4. §S3.9 MUST have ≥2 data rows
+5. NO cell in ANY table may contain ONLY a banned word (§3.0d)
+6. §S3.3 Safety column MUST contain decimal numbers (0.00-1.00)
+7. §S3.10 Metrics column MUST contain numbers, not text descriptions
+
 ---
 
 ## STEP 3B: TIME-SENSITIVE DATA (run 2-3h before earliest event)
@@ -511,6 +619,8 @@ On reruns: increment version (v5→v6). Mark old pending as `superseded`. Keep a
 | 13 | Football defaulted to corners (fouls/cards/shots not checked) | Tunnel vision on one stat | ALWAYS run §3.0 RANKING for ALL available stats. Pick highest safety score. |
 | 14 | Corner pick missing H2H corner data | H2H was match-level only | ALWAYS get H2H for the EXACT stat being bet (§3.0c). Match H2H alone ≠ stat H2H. |
 | 15 | Betclic history skipped → repeated known failures | §0.2a not executed | ALWAYS read `betclic_bets_history.json` + run `analyze_betclic_learning.py` before ANY analysis. This is ground truth. |
+| 16 | PSG vs Bayern cards approved without §3.0 ranking table | S3 output was narrative ("H2H avg 5.8 cards") without structured ranking table comparing cards vs corners vs fouls vs shots | §3.0e template is MANDATORY. §S3.3 ranking table must have ≥3 rows with real numbers. Orchestrator mechanically verifies section markers. |
+| 17 | Narrative analysis substituted for structured template | Agent wrote paragraphs instead of filling §S3.1-§S3.10 sections with tables and numbers | Every candidate MUST have all 10 sections (§S3.1-§S3.10). Missing markers = STRUCTURAL VIOLATION = auto-reject. |
 
 ---
 

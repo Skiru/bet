@@ -114,7 +114,7 @@ Each pass executes these steps IN ORDER. Each step:
 | S0 | `s0-settlement` | bet-settler | picks-ledger, coupons-ledger, Flashscore | `{date}_s0_settlement.md` | All pending resolved, bankroll updated |
 | S1 | `s1-scan` | bet-scanner | BetExplorer, Flashscore, scan_summary | `{date}_s1_master_events.md` + `{date}_s1_tipster_prefetch.md` | ≥50 events, ALL 14 sports scanned (≥6 with events), completeness ≥80%, **tipster HTML fetched** |
 | S2 | `s2-shortlist` | bet-scanner | S1 output | `{date}_s2_shortlist.md` | 15-40 candidates, ≥8 sports in shortlist |
-| S3 | `s3-deep-stats` | bet-statistician | S2 output | `{date}_s3_deep_stats.md` | **STRUCTURAL: §3.0 ranking table + H2H-stat + three-way cross-check per candidate** |
+| S3 | `s3-deep-stats` | bet-statistician | S2 output | `{date}_s3_deep_stats.md` | **MECHANICAL: §3.0e template (§S3.1-§S3.10 markers), ≥3 ranking rows, banned word scan, numeric safety scores, 100% DEPTH gate** |
 | S4 | `s4-tipsters` | bet-scout | S3 output + **§1.5 pre-fetched HTML** | `{date}_s4_tipsters.md` | **STRUCTURAL: ≥2 tipster sites with arguments per candidate + coverage summary table + §4.3 done** |
 | S5 | `s5-odds-ev` | bet-valuator | S3+S4 output | `{date}_s5_odds_ev.md` | EV formula shown per pick, ≥2 odds sources per pick |
 | S6 | `s6-context-upset` | bet-challenger | S5 output | `{date}_s6_context.md` | Upset risk scored with full checklist per candidate, Paradox Rule applied |
@@ -132,19 +132,61 @@ Each pass executes these steps IN ORDER. Each step:
 
 This is the single most important enforcement mechanism. It prevents shallow analysis.
 
-### After S3 — Read `{date}_s3_deep_stats.md` and verify:
-```
-For EACH candidate in the file:
-1. [ ] §3.0 RANKING TABLE exists — ≥3 rows with columns: Market | avg | H2H avg | Line | Hit L10 | Hit H2H | Safety
-2. [ ] H2H-STAT data present — H2H for the SPECIFIC stat chosen (not just match results). Or explicit "H2H-STAT-BLIND" flag.
-3. [ ] THREE-WAY CROSS-CHECK present — L10 value, H2H value, L5 trend, alignment verdict.
-4. [ ] COACH/ROSTER CHECK present — source named (TransferMarkt or other).
-5. [ ] TOP 3 MARKETS listed with hit rates (not just the chosen market).
-6. [ ] ≥2 STAT SOURCES named with actual data (not just "checked").
-7. [ ] INJURY CHECK with source (not just "none" — where was it verified?).
+### After S3 — MECHANICAL VERIFICATION of `{date}_s3_deep_stats.md`:
 
-METRIC: candidates_with_all_7 / total_candidates × 100 = DEPTH_%
-GATE: DEPTH_% ≥ 95%. If <95% → list WHICH candidates are missing WHICH sections → return to bet-statistician.
+**This is the PRIMARY enforcement mechanism. Use `sequentialthinking` to execute all 7 checks PER candidate.**
+
+```
+For EACH candidate block (delimited by ══ CANDIDATE ... ══ and ══ END CANDIDATE ══):
+
+CHECK 1: SECTION MARKER COUNT
+  - Count markers §S3.1 through §S3.10 within this candidate block
+  - REQUIRED: exactly 10 markers
+  - FAIL if <10 → "MISSING SECTIONS: [list missing §S3.N markers]"
+
+CHECK 2: RANKING TABLE ROW COUNT (§S3.3)
+  - Count data rows in the §S3.3 table (exclude header row and separator)
+  - REQUIRED: ≥3 rows (≥4 for Football)
+  - FAIL if <3 → "RANKING TABLE TOO SHORT: [N] rows, need ≥3"
+  - Each row MUST have a numeric Safety value (0.00-1.00)
+
+CHECK 3: BANNED WORD SCAN (ALL TABLES)
+  - Scan every table cell in §S3.1-§S3.10 for banned words:
+    "checked", "verified", "confirmed", "good", "fine", "OK", "done", "yes", "—", "N/A", "n/a", "see above"
+  - ONLY flag if the banned word is the SOLE content of the cell (not part of a sentence)
+  - FAIL if any found → "BANNED WORD: '[word]' in §S3.[N], row [R], column [C]"
+
+CHECK 4: SAFETY SCORE NUMERIC (§S3.3)
+  - Verify every cell in the "Safety" column is a decimal number between 0.00 and 1.00
+  - FAIL if any non-numeric → "NON-NUMERIC SAFETY: '[value]' in row [R]"
+
+CHECK 5: THREE-WAY NUMERIC (§S3.4)
+  - Verify L10, H2H, L5 rows each have a numeric "Value" cell
+  - Verify "Direction" cells contain only: SUPPORTS, CONFLICTS, UP, DOWN, STABLE
+  - Verify ALIGNMENT verdict is present (3/3 SUPPORT / 2/3 CONFLICT / REJECT)
+  - FAIL if non-numeric value → "NON-NUMERIC THREE-WAY: '[cell]' in row [R]"
+
+CHECK 6: SOURCE TABLE ROW COUNT (§S3.9)
+  - Count data rows in the §S3.9 table
+  - REQUIRED: ≥2 rows
+  - FAIL if <2 → "INSUFFICIENT SOURCES: [N] rows, need ≥2"
+
+CHECK 7: INJURY SOURCE PRESENT (§S3.6)
+  - If injury table has rows: verify "Source" column is filled for every row
+  - If "No injuries" line: verify it names a source AND timestamp (not just "No injuries")
+  - FAIL if source missing → "INJURY CHECK UNSOURCED"
+
+SCORING:
+  candidates_passing_all_7 / total_candidates × 100 = DEPTH_%
+
+GATE: DEPTH_% must be 100%.
+  If <100%: compile ALL failures into a single message and RETURN to bet-statistician:
+  "S3 STRUCTURAL VIOLATIONS — [N] candidates have [M] total failures:
+   - [Candidate 1]: CHECK [N] FAIL — [details]
+   - [Candidate 2]: CHECK [N] FAIL — [details]
+   FIX ALL violations. Do NOT skip any section. Resubmit complete S3 output."
+
+  NEVER proceed to S4 with structural violations. NEVER "accept with warnings."
 ```
 
 ### After S4 — Read `{date}_s4_tipsters.md` and verify:
@@ -333,8 +375,11 @@ Session type, event window, events per sport, total scanned, scan completeness %
 ### 5. Final Coupons (SHOW ALL)
 For each coupon: legs, combined odds (arithmetic shown), stake, type
 
+### 5b. Extended Pool (ROZSZERZONY WYBÓR)
+EV > 0 picks that didn't fully pass the 17-point gate. For each: event, market, odds, EV, gate score, bull case, bear case, missing data, when to bet, suggested combos with approved picks. See §EXTENDED-POOL in betting-artifacts.instructions.md.
+
 ### 6. Watchlist
-Picks that almost made it + promotion criteria (including §4.3 tipster-sourced picks)
+Picks awaiting a trigger (e.g., lineup confirm) without calculated EV. For EV > 0 picks, use Extended Pool (§5b) instead.
 
 ### 7. Financial Summary
 Total exposure, bankroll %, max single stake

@@ -148,6 +148,19 @@ Pick the market with HIGHEST safety score. **For EU leagues**: use BetExplorer P
 
 **Context:** GOALIE CONFIRMED? (DailyFaceoff — #1 variable), B2B (+0.3 GA), playoff context, trade deadline.
 
+**§3.4M MANDATORY MULTI-MARKET CALCULATION (HOCKEY):**
+Before selecting ANY hockey market, calculate ALL of these:
+```
+| Market               | TeamA avg | TeamB avg | H2H avg | Line | Hit L10 | Hit H2H | Safety |
+|----------------------|-----------|-----------|---------|------|---------|---------|--------|
+| Period 1 total O/U   |           |           |         |      |         |         |        |
+| Game total O/U X.5   |           |           |         |      |         |         |        |
+| Shots O/U X.5        |           |           |         |      |         |         |        |
+| PP goals O/U 0.5     |           |           |         |      |         |         |        |
+| Puck line ±1.5       |           |           |         |      |         |         |        |
+```
+Pick the market with HIGHEST safety score. **For NHL**: use NaturalStatTrick xG + MoneyPuck. **For other leagues** (DEL, SHL, KHL, Liiga): use Flashscore + BetExplorer. GOALIE IDENTITY is critical — re-evaluate ALL markets if goalie changes after analysis.
+
 ### §3.5 Volleyball
 
 **Required stats:** Sets won/lost, Avg sets/match, O/U 3.5 hit rate, Avg total pts/match, Attack efficiency%, Reception%, Tiebreak (5th set) frequency. Sources: Flashscore, Sofascore, CEV/PlusLiga.
@@ -175,11 +188,35 @@ Pick the market with HIGHEST safety score.
 
 **Context:** Stand-in player? New patch <2 weeks? Online vs LAN? BO1 format?
 
+**§3.6M MANDATORY MULTI-MARKET CALCULATION (ESPORTS):**
+Before selecting ANY esports market, calculate ALL of these:
+```
+| Market               | TeamA avg | TeamB avg | H2H avg | Line | Hit L10 | Hit H2H | Safety |
+|----------------------|-----------|-----------|---------|------|---------|---------|--------|
+| Round total O/U X.5  |           |           |         |      |         |         |        |
+| Map total O/U 2.5    |           |           |         |      |         |         |        |
+| Map HC -1.5/+1.5     |           |           |         |      |         |         |        |
+| Kill total O/U X.5   |           |           |         |      |         |         |        |
+```
+Pick the market with HIGHEST safety score. **Game-specific:** CS2 round totals from HLTV stats. LoL/Dota2 use Liquipedia + GosuGamers for game duration and objective stats. **BO1 = massive variance** — reduce safety score by 0.15 for all markets in BO1 format.
+
 ### §3.7 Snooker
 
 **Required stats:** Frame win%, Century breaks/match, 50+ breaks/match, Frame duration, Decider frame record, Form (last 10). Sources: CueTracker (PRIMARY), WorldSnooker, Flashscore.
 
 **Market decision:** Century O/U → Frame totals O/U → Frame HC → Correct score → ML (LAST RESORT). Both within 15 spots → O frames. Both >18min/frame → O frames (tactical).
+
+**§3.7M MANDATORY MULTI-MARKET CALCULATION (SNOOKER):**
+Before selecting ANY snooker market, calculate ALL of these:
+```
+| Market                 | P1 avg | P2 avg | H2H avg | Line | Hit L10 | Hit H2H | Safety |
+|------------------------|--------|--------|---------|------|---------|---------|--------|
+| Frame total O/U X.5    |        |        |         |      |         |         |        |
+| Century breaks O/U 0.5 |        |        |         |      |         |         |        |
+| 50+ breaks O/U X.5     |        |        |         |      |         |         |        |
+| Frame HC -X.5/+X.5     |        |        |         |      |         |         |        |
+```
+Pick the market with HIGHEST safety score. **CueTracker is PRIMARY** for frame stats and break frequency. Format (BO7/BO9/BO11/BO19/BO25) dramatically affects frame totals — use format-specific averages, not overall season averages.
 
 ### §3.8 Darts
 
@@ -187,17 +224,52 @@ Pick the market with HIGHEST safety score.
 
 **Market decision:** 180s O/U → Leg totals O/U → Set totals → Correct score → ML (LAST RESORT). Both avg >95 → more breaks → O legs. Floor events = higher upset rate.
 
+**§3.8M MANDATORY MULTI-MARKET CALCULATION (DARTS):**
+Before selecting ANY darts market, calculate ALL of these:
+```
+| Market              | P1 avg | P2 avg | H2H avg | Line | Hit L10 | Hit H2H | Safety |
+|---------------------|--------|--------|---------|------|---------|---------|--------|
+| 180s O/U X.5        |        |        |         |      |         |         |        |
+| Total legs O/U X.5  |        |        |         |      |         |         |        |
+| Set total O/U X.5   |        |        |         |      |         |         |        |
+| Checkout % props    |        |        |         |      |         |         |        |
+```
+Pick the market with HIGHEST safety score. **DartsOrakel is PRIMARY** for 180s per match and checkout%. Sets vs legs format matters — verify tournament format before calculating. Floor events have higher upset variance — reduce safety by 0.10.
+
 ### §3.9 Handball
 
 **Required stats:** Goals scored/match, Conceded/match, Combined avg, Goalkeeper save%, Suspensions/match, Half splits (2nd half +1-2 goals), Home/Away (60-65% home win). Sources: Flashscore, EHF/eurohandball.
 
 **Market decision:** Half totals O/U → Game total goals O/U → HC → ML (LAST RESORT). Both >28 scored → O totals. HOME ADVANTAGE is extreme.
 
+**§3.9M MANDATORY MULTI-MARKET CALCULATION (HANDBALL):**
+Before selecting ANY handball market, calculate ALL of these:
+```
+| Market               | TeamA avg | TeamB avg | H2H avg | Line | Hit L10 | Hit H2H | Safety |
+|----------------------|-----------|-----------|---------|------|---------|---------|--------|
+| 1H total O/U X.5    |           |           |         |      |         |         |        |
+| Game total O/U X.5   |           |           |         |      |         |         |        |
+| Team goals O/U X.5   |           |           |         |      |         |         |        |
+| Suspensions O/U X.5  |           |           |         |      |         |         |        |
+```
+Pick the market with HIGHEST safety score. HOME ADVANTAGE is extreme in handball (60-65% home win rate) — factor into team goal calculations. Use Flashscore + EHF/eurohandball for stats. 2nd half typically produces 1-2 more goals than 1st half.
+
 ### §3.10 Table Tennis
 
 **Required stats:** Ranking, Avg sets/match, Set win%, Points/set, Style (attacking/defensive), Form. Sources: ITTF, Flashscore, tt-series.com.
 
 **Market decision:** Total pts O/U → Set totals O/U → Set HC → ML (LAST RESORT). Close ranking (<20 spots) → O sets. HIGH-VARIANCE — reduce confidence -0.5.
+
+**§3.10M MANDATORY MULTI-MARKET CALCULATION (TABLE TENNIS):**
+Before selecting ANY table tennis market, calculate ALL of these:
+```
+| Market               | P1 avg | P2 avg | H2H avg | Line | Hit L10 | Hit H2H | Safety |
+|----------------------|--------|--------|---------|------|---------|---------|--------|
+| Total pts O/U X.5   |        |        |         |      |         |         |        |
+| Set total O/U X.5    |        |        |         |      |         |         |        |
+| Set HC -X.5/+X.5     |        |        |         |      |         |         |        |
+```
+Pick the market with HIGHEST safety score. **HIGH-VARIANCE SPORT** — reduce all safety scores by 0.10. Use ITTF rankings + Flashscore for form. Close ranking (<20 spots) → Over sets is default tendency. BO5 vs BO7 format affects set totals significantly — use format-filtered averages.
 
 ### §3.11 MMA/UFC
 
@@ -207,6 +279,17 @@ Pick the market with HIGHEST safety score.
 
 **Context:** Weight cut issues, layoff >12mo, camp change, reach advantage.
 
+**§3.11M MANDATORY MULTI-MARKET CALCULATION (MMA):**
+Before selecting ANY MMA market, calculate ALL of these:
+```
+| Market                | FighterA | FighterB | H2H avg | Line | Hit L10 | Hit H2H | Safety |
+|-----------------------|----------|----------|---------|------|---------|---------|--------|
+| Total rounds O/U X.5  |          |          |         |      |         |         |        |
+| Method of victory     |          |          |         |      |         |         |        |
+| ITD Y/N               |          |          |         |      |         |         |        |
+```
+Pick the market with HIGHEST safety score. **Finish rate is the key stat:** Both >50% finish rate → Under rounds. Both >50% decision rate → Over rounds. HW = highest KO variance — reduce safety by 0.15. Use UFC.com/stats + Sherdog + Tapology. H2H is rarely available (most fighters meet once) — use style-matchup analysis as substitute, flag as H2H-STAT-BLIND.
+
 ### §3.12 Baseball (MLB)
 
 **Required stats:** SP: ERA, WHIP, xERA, K/9, BB/9, Hard hit%, Barrel%, vs LHB/RHB splits, last 3-5 starts. Bullpen: ERA last 7/14/30 days, innings last 3 days, closer availability. Offense: R/game, OPS, wRC+, BABIP, K rate, vs LHP/RHP. Sources: BaseballSavant (PRIMARY — FanGraphs BLOCKED), Baseball-Reference, ESPN.
@@ -214,6 +297,20 @@ Pick the market with HIGHEST safety score.
 **Market decision:** F5 totals O/U → Team totals → Game totals O/U → Run line → ML (LAST RESORT). F5 removes bullpen variance = most reliable. Both SP xERA >4.50 → O runs.
 
 **Context:** WEATHER CRITICAL (wind at Wrigley/Coors = +1.5 runs), park factor, day-after-night, umpire K-rate.
+
+**§3.12M MANDATORY MULTI-MARKET CALCULATION (BASEBALL):**
+Before selecting ANY baseball market, calculate ALL of these:
+```
+| Market               | TeamA avg | TeamB avg | H2H avg | Line | Hit L10 | Hit H2H | Safety |
+|----------------------|-----------|-----------|---------|------|---------|---------|--------|
+| F5 innings total O/U |           |           |         |      |         |         |        |
+| Team total O/U X.5   |           |           |         |      |         |         |        |
+| Game total O/U X.5   |           |           |         |      |         |         |        |
+| Hits O/U X.5         |           |           |         |      |         |         |        |
+| Strikeouts O/U X.5   |           |           |         |      |         |         |        |
+| Run line ±1.5        |           |           |         |      |         |         |        |
+```
+Pick the market with HIGHEST safety score. **F5 innings are most reliable** (removes bullpen variance). Use BaseballSavant for pitcher stats + Baseball-Reference for team offense. **LEARNED CAUTION:** MLB totals have 33% historical hit rate — apply −0.10 safety penalty to all game totals. MLB overs ≥8.5 → HARD REJECT per Zero Tolerance.
 
 ### §3.13 Padel
 
@@ -223,6 +320,17 @@ Pick the market with HIGHEST safety score.
 
 **Context:** Tournament tier (Major/P1/P2/Bronze), indoor vs outdoor (wind disrupts lobs), fatigue from 3-set previous match.
 
+**§3.13M MANDATORY MULTI-MARKET CALCULATION (PADEL):**
+Before selecting ANY padel market, calculate ALL of these:
+```
+| Market               | PairA avg | PairB avg | H2H avg | Line | Hit L10 | Hit H2H | Safety |
+|----------------------|-----------|-----------|---------|------|---------|---------|--------|
+| Game total O/U X.5   |           |           |         |      |         |         |        |
+| Set total O/U 2.5    |           |           |         |      |         |         |        |
+| Set HC -1.5/+1.5     |           |           |         |      |         |         |        |
+```
+Pick the market with HIGHEST safety score. Use PadelFIP + PremierPadel + Sofascore padel. **Partnership duration is critical** — new pair (<6 months) = volatile, reduce safety by 0.15. Ranking gap <1000 → default tendency toward Over 2.5 sets.
+
 ### §3.14 Speedway
 
 **Required stats:** Rider avg at THIS TRACK (most important), Season avg, Team match avg (home/away), Junior (U24) slot contribution, Heat leader performance. Sources: SpeedwayEkstraliga (PRIMARY), SportoweFakty.
@@ -230,6 +338,16 @@ Pick the market with HIGHEST safety score.
 **Market decision:** Total pts O/U → HC → Match winner (LAST RESORT, usually too short at 1.20-1.40). HOME ADVANTAGE = 70-75%. Calculate team total from rider track-specific averages.
 
 **Context:** LINEUP CONFIRMATION (SportoweFakty, 2-3h before — rider out = 6-10 pts lost), weather (rain = chaos), track preparation bias, junior rider rule.
+
+**§3.14M MANDATORY MULTI-MARKET CALCULATION (SPEEDWAY):**
+Before selecting ANY speedway market, calculate ALL of these:
+```
+| Market               | TeamA avg | TeamB avg | H2H avg | Line | Hit L10 | Hit H2H | Safety |
+|----------------------|-----------|-----------|---------|------|---------|---------|--------|
+| Total pts O/U X.5    |           |           |         |      |         |         |        |
+| Team HC ±X.5         |           |           |         |      |         |         |        |
+```
+Pick the market with HIGHEST safety score. **TRACK-SPECIFIC rider averages are most important** — use rider avg AT THIS TRACK, not season avg. Use SpeedwayEkstraliga + SportoweFakty. HOME ADVANTAGE = 70-75%. Calculate team total from rider track-specific averages, not team-level stats.
 
 ---
 

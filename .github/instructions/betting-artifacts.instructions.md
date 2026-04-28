@@ -66,6 +66,7 @@ Required sections:
      - Full tipster argument (translated to Polish if from Polish site)
      - The specific stats cited (e.g., "Liège: śr. 6.2 rzutów rożnych/mecz w domu, 6/10 meczów >4.5 CK")
      - Promotion criteria: "Wstaw jeśli: kurs Betclic ≥X.XX + potwierdzone przez ≥1 źródło statystyczne"
+   - **NOTE:** With the Extended Pool section now capturing EV>0 watchlist picks directly, LISTA OBSERWACYJNA is reserved for picks WITHOUT calculated EV or awaiting a specific trigger (e.g., lineup confirmation). EV>0 picks move to Extended Pool.
 5. **ODRZUCONE (DECLINED) — Top 10 near-misses:**
    - For each: event, market considered, and specific rejection reason (1 sentence).
    - Grouped: "Brak wartości" (EV≤0), "Słabe źródła" (source gap), "Zbyt ryzykowne" (bear>bull), "Rynek niedostępny" (no Betclic market).
@@ -81,6 +82,7 @@ Structure of the .md file:
 2. Conditional notice (all picks are CONDITIONAL — verify on Betclic).
 3. Per-type coupon tables (LOW-RISK, MULTI-SPORT, HIGHER RISK, NIGHT) — each with columns: #, Coupon ID, Co obstawić, Kurs, Stawka, Zwrot. UNIQUE EVENT PER COUPON.
 3b. **COMBINATION MENU** — additional combos (COMBO-LR1, COMBO-MS1, etc.) that remix approved picks. Same table format. Prefixed "COMBO-" for clarity.
+3c. **ROZSZERZONY WYBÓR (EXTENDED POOL)** — EV > 0 picks that did NOT fully pass the 17-point gate but have positive expected value. These are optional higher-risk plays the user may choose to add. See §EXTENDED-POOL below for structure.
 4. **Per-coupon reasoning block** (under each table): logic, P(coupon), biggest risk.
 5. PODSUMOWANIE table (Wydatek, Bankroll po, Łączny pot. zwrot, Stan konta po zwrocie, Najlepszy scenariusz, Realistyczny).
 6. KOLEJNOŚĆ STAWIANIA — placement priority list.
@@ -91,8 +93,35 @@ Structure of the .md file:
 
 No old-style plain-text metadata blocks (BETTING DAY:, RUN TIME LOCAL:, etc.) — that data lives in the ledger CSVs.
 Coupon count = f(quality events, deep statistics), NOT f(bankroll). No singles. No maximum legs per coupon.
-Core portfolio: unique event per coupon. Combo menu: reuse allowed. Together they give the user real choice.
-Total suggested stakes (core + combos) WILL exceed daily budget — user picks favorites. NEVER reduce coupon count because of money constraints.
+Core portfolio: unique event per coupon. Combo menu: reuse allowed. Extended pool: optional extras. Together they give the user maximum choice.
+Total suggested stakes (core + combos + extended) WILL exceed daily budget — user picks favorites. NEVER reduce coupon count because of money constraints.
+
+### §EXTENDED-POOL — Extended Pool (ROZSZERZONY WYBÓR)
+
+The extended pool captures ALL picks with **EV > 0** that were NOT included in core/combo coupons. These are picks that failed some 17-point gate checks, had bear≥bull concerns, or lacked data — but still have positive expected value. The user sees them with full context and decides whether to risk them.
+
+**Inclusion threshold:** EV > 0 (calculated in S5). Exclude only: phantom fixtures (ZT#6), wrong dates, sport auto-rejected (CS2 0%), or negative EV.
+
+**Required format per extended pick:**
+
+| Field | Content |
+|-------|---------|
+| Event | Full names, competition, time |
+| Market | Polish description (same as coupon legs) |
+| Odds | Estimated Betclic odds |
+| EV | Calculated EV % |
+| Gate score | X/17 passed (e.g., "11/17") |
+| ✅ Co przemawia ZA (Bull case) | 2-3 bullet points with specific data |
+| ❌ Co przemawia PRZECIW (Bear case) | 2-3 bullet points with specific failure scenarios |
+| ⚠️ Brakujące dane (Missing data) | Which gate checks failed and why |
+| 🎯 Kiedy wstawiać (When to bet) | Specific conditions: "Wstaw jeśli kurs ≥X.XX + [condition]" |
+| 🏷️ Sugerowane combo | Which approved picks it pairs well with, with combined odds |
+
+**Extended pool picks also get COMBO suggestions** — pairings with approved picks, prefixed "EXT-" (e.g., EXT-HR1). These combos have their own table with the same columns as regular combos. Extended combos use `risk_level=higher-risk` always.
+
+**Ledger handling:** Extended picks are added to picks-ledger.csv with `risk_tier=high` and `notes` starting with "EXTENDED POOL:". Extended combos are added to coupons-ledger.csv with coupon_id prefix "CP-YYYYMMDD-EXT".
+
+**Extended pool picks are NEVER in core or combo coupons** — they live in their own section. This preserves the quality separation: Core = fully vetted, Combo = remixed vetted picks, Extended = EV>0 but user's choice.
 
 Per-pick concentration limit (MANDATORY when user selects coupons):
 When the user selects a subset of coupons (core + combos), compute per-pick exposure:

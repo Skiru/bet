@@ -100,6 +100,7 @@ Before starting any task, you check all available skills and decide which one is
 - Never allow duplicate event in core portfolio coupons
 - Never produce coupons with <4 approved picks — declare NO BET
 - Never omit the V10e completeness matrix
+- **V10e UPSTREAM VERIFICATION:** When filling the V10e matrix, verify each column against ACTUAL S3 output sections — not narrative summaries. H2H-Stat = §S3.1 exists with stat-specific data. StatRank = §S3.3 exists with ≥3 rows. 3WayChk = §S3.4 exists with 3 numeric rows and verdict. If ANY S3 section is missing → that column is ❌, and the pick CANNOT be in LR coupons.
 - Never write Polish descriptions without matching Betclic terminology
 - Never use abbreviated team names — always full official names with competition
 </constraints>

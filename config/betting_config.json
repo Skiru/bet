@@ -3,7 +3,7 @@
   "betting_window_days": 1,
   "betting_window_note": "Number of days to scan for events. Default 1 = single betting day (06:00-05:59). Set to 2 or 3 for multi-day analysis windows. Settlement covers all days before the window start.",
   "daily_exposure_pln": null,
-  "working_bankroll_pln": 35.99,
+  "working_bankroll_pln": 38.40,
   "suggested_daily_allocation_range_pln": [
     5.0,
     7.5
