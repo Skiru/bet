@@ -48,6 +48,15 @@ fi
 echo ""
 echo "[4/7] Running full multi-sport scan (Tier-A + Tier-B)..."
 SCAN_START=$(date +%s)
+
+# Build ZawodTyper daily URL using bash (avoids quoting issues with inline Python dicts)
+_ZT_DAY=$(date '+%-d')
+_ZT_MONTH=$(date '+%-m')
+_ZT_DOW=$(date '+%u')  # 1=Mon .. 7=Sun
+declare -a _PL_M=("" "stycznia" "lutego" "marca" "kwietnia" "maja" "czerwca" "lipca" "sierpnia" "wrzesnia" "pazdziernika" "listopada" "grudnia")
+declare -a _PL_D=("" "poniedzialek" "wtorek" "sroda" "czwartek" "piatek" "sobota" "niedziela")
+_ZT_URL="https://www.zawodtyper.pl/typy-dnia-${_ZT_DAY}-${_PL_M[$_ZT_MONTH]}-${_PL_D[$_ZT_DOW]}/"
+
 python3 "${SCRIPT_DIR}/scan_events.py" --urls \
   https://www.flashscore.com/ \
   https://www.flashscore.com/tennis/ \
@@ -103,7 +112,7 @@ python3 "${SCRIPT_DIR}/scan_events.py" --urls \
   https://www.betideas.com/ \
   https://www.pickswise.com/ \
   https://www.zawodtyper.pl/ \
-  "https://www.zawodtyper.pl/typy-dnia-$(python3 -c "import datetime; d=datetime.date.today(); ml={1:'stycznia',2:'lutego',3:'marca',4:'kwietnia',5:'maja',6:'czerwca',7:'lipca',8:'sierpnia',9:'wrzesnia',10:'pazdziernika',11:'listopada',12:'grudnia'}; dl={0:'poniedzialek',1:'wtorek',2:'sroda',3:'czwartek',4:'piatek',5:'sobota',6:'niedziela'}; print(f'{d.day}-{ml[d.month]}-{dl[d.weekday()]}')")/" \
+  "${_ZT_URL}" \
   https://typersi.pl/ \
   https://www.tipstrr.com/tips \
   https://dartsorakel.com/ \
