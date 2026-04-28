@@ -148,3 +148,12 @@ def analyze_coupons():
 if __name__ == "__main__":
     analyze_picks()
     analyze_coupons()
+
+    # Also run Betclic history analysis if available
+    betclic_json = os.path.join(ROOT, "betting", "data", "betclic_bets_history.json")
+    if os.path.exists(betclic_json):
+        print(f"\n{'='*70}")
+        print("BETCLIC FULL HISTORY AVAILABLE — run for detailed analysis:")
+        print(f"  python3 scripts/analyze_betclic_learning.py")
+        print(f"  ({betclic_json})")
+        print(f"{'='*70}")

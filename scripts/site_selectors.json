@@ -59,6 +59,17 @@
     "button[aria-label*='Akceptuj']",
     ".accept-cookies"
   ],
+  "typersi.pl": [
+    "button[aria-label*='Akceptuj']",
+    "button[aria-label*='zgadzam']",
+    ".cookie-accept",
+    "#onetrust-accept-btn-handler"
+  ],
+  "gosugamers.net": [
+    "#onetrust-accept-btn-handler",
+    ".cookie-accept",
+    "button[aria-label*='Accept']"
+  ],
   "oddspedia.com": [
     "#onetrust-accept-btn-handler",
     "button[aria-label*='accept']"
@@ -87,5 +98,183 @@
     ".cookie-accept",
     "button[aria-label*='Accept']",
     "button[aria-label*='accept']"
+  ],
+  "meczyki.pl": [
+    "button[aria-label*='Akceptuj']",
+    "button[aria-label*='zgadzam']",
+    ".cookie-accept",
+    "#onetrust-accept-btn-handler"
+  ],
+  "tipstrr.com": [
+    ".cookie-accept",
+    "button[aria-label*='Accept']",
+    "#onetrust-accept-btn-handler"
+  ],
+  "olbg.com": [
+    "#onetrust-accept-btn-handler",
+    ".cookie-accept",
+    "button[aria-label*='Accept']"
+  ],
+  "totalcorner.com": [
+    ".cookie-accept",
+    "button[aria-label*='Accept']",
+    "#onetrust-accept-btn-handler"
+  ],
+  "betaminic.com": [
+    ".cookie-accept",
+    "button[aria-label*='Accept']",
+    "#onetrust-accept-btn-handler"
+  ],
+  "soccerstats.com": [
+    ".cookie-accept",
+    "button[aria-label*='Accept']"
+  ],
+  "transfermarkt.com": [
+    "#onetrust-accept-btn-handler",
+    "button[title*='Accept']",
+    ".cookie-accept"
+  ],
+  "tennisexplorer.com": [
+    "#onetrust-accept-btn-handler",
+    ".cookie-accept",
+    "button[aria-label*='Accept']"
+  ],
+  "ultimatetennisstatistics.com": [
+    ".cookie-accept",
+    "button[aria-label*='Accept']"
+  ],
+  "basketball-reference.com": [
+    "#onetrust-accept-btn-handler",
+    ".cookie-accept",
+    "button[aria-label*='Accept']"
+  ],
+  "dunksandthrees.com": [
+    ".cookie-accept",
+    "button[aria-label*='Accept']"
+  ],
+  "eurobasket.com": [
+    ".cookie-accept",
+    "button[aria-label*='Accept']"
+  ],
+  "hockey-reference.com": [
+    "#onetrust-accept-btn-handler",
+    ".cookie-accept",
+    "button[aria-label*='Accept']"
+  ],
+  "naturalstattrick.com": [
+    ".cookie-accept",
+    "button[aria-label*='Accept']"
+  ],
+  "moneypuck.com": [
+    ".cookie-accept",
+    "button[aria-label*='Accept']"
+  ],
+  "dailyfaceoff.com": [
+    "#onetrust-accept-btn-handler",
+    ".cookie-accept",
+    "button[aria-label*='Accept']"
+  ],
+  "baseballsavant.mlb.com": [
+    "#onetrust-accept-btn-handler",
+    ".cookie-accept",
+    "button[aria-label*='Accept']"
+  ],
+  "sportsbookreview.com": [
+    "#onetrust-accept-btn-handler",
+    ".cookie-accept",
+    "button[aria-label*='Accept']"
+  ],
+  "espn.com": [
+    "#onetrust-accept-btn-handler",
+    ".cookie-accept",
+    "button[aria-label*='Accept']"
+  ],
+  "scoresandodds.com": [
+    ".cookie-accept",
+    "button[aria-label*='Accept']"
+  ],
+  "hltv.org": [
+    "#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll",
+    "button[aria-label*='Accept']",
+    ".cookie-accept"
+  ],
+  "liquipedia.net": [
+    ".cookie-accept",
+    "button[aria-label*='Accept']"
+  ],
+  "bo3.gg": [
+    ".cookie-accept",
+    "button[aria-label*='Accept']"
+  ],
+  "cuetracker.net": [
+    ".cookie-accept",
+    "button[aria-label*='Accept']"
+  ],
+  "snooker.org": [
+    ".cookie-accept",
+    "button[aria-label*='Accept']"
+  ],
+  "dartsorakel.com": [
+    ".cookie-accept",
+    "button[aria-label*='Accept']"
+  ],
+  "ufcstats.com": [
+    ".cookie-accept",
+    "button[aria-label*='Accept']"
+  ],
+  "tapology.com": [
+    ".cookie-accept",
+    "button[aria-label*='Accept']",
+    "#onetrust-accept-btn-handler"
+  ],
+  "sherdog.com": [
+    "#onetrust-accept-btn-handler",
+    ".cookie-accept",
+    "button[aria-label*='Accept']"
+  ],
+  "eurohandball.com": [
+    ".cookie-accept",
+    "button[aria-label*='Accept']",
+    "#onetrust-accept-btn-handler"
+  ],
+  "plusliga.pl": [
+    "button[aria-label*='Akceptuj']",
+    "button[aria-label*='zgadzam']",
+    ".cookie-accept"
+  ],
+  "cev.eu": [
+    ".cookie-accept",
+    "button[aria-label*='Accept']",
+    "#onetrust-accept-btn-handler"
+  ],
+  "premierpadel.com": [
+    ".cookie-accept",
+    "button[aria-label*='Accept']",
+    "#onetrust-accept-btn-handler"
+  ],
+  "padelfip.com": [
+    ".cookie-accept",
+    "button[aria-label*='Accept']"
+  ],
+  "speedwayekstraliga.pl": [
+    "button[aria-label*='Akceptuj']",
+    "button[aria-label*='zgadzam']",
+    ".cookie-accept"
+  ],
+  "sportowefakty.wp.pl": [
+    "button[aria-label*='Akceptuj']",
+    "button[aria-label*='zgadzam']",
+    "#onetrust-accept-btn-handler",
+    ".cookie-accept"
+  ],
+  "pickswise.com": [
+    "#onetrust-accept-btn-handler",
+    ".cookie-accept",
+    "button[aria-label*='Accept']"
+  ],
+  "betideas.com": [
+    "#onetrust-accept-btn-handler",
+    ".cookie-accept",
+    "button[aria-label*='Accept']"
   ]
 }

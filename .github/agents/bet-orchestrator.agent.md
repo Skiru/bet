@@ -83,7 +83,7 @@ This agent does not load skills directly — it delegates to specialized agents 
 
 | Step | Agent | Gate Condition |
 |------|-------|---------------|
-| S0 | bet-settler | All pending resolved, bankroll updated, learning summary written |
+| S0 | bet-settler | All pending resolved, bankroll updated, learning summary written, **`betclic_bets_history.json` read and analyzed** |
 | S1 | bet-scanner | ≥50 events, ALL 14 sports scanned, completeness ≥80%, tipster HTML fetched |
 | S2 | bet-scanner | 15-40 candidates, ≥8 sports in shortlist |
 | S3 | bet-statistician | Stats from ≥2 sources per candidate, §3.0 ranking done |
@@ -96,6 +96,7 @@ This agent does not load skills directly — it delegates to specialized agents 
 
 **Error escalation:**
 - S0 gate FAIL: Settlement incomplete → must resolve before proceeding
+- S0 gate FAIL (Betclic): `betclic_bets_history.json` NOT read → BLOCKER. Must read and run `python3 scripts/analyze_betclic_learning.py` before S1.
 - Step gate FAIL in Pass 1-2: Expected. Log and fix.
 - Step gate FAIL in Pass 3: Concerning. Must fix before Pass 4.
 - Step gate FAIL in Pass 4: BLOCKER. Fix first.

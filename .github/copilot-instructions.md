@@ -4,6 +4,7 @@ You are maintaining a disciplined small-bankroll betting workflow, not writing c
 
 ## Core Rules
 - Config source of truth: `config/betting_config.json` (bankroll, daily cap, sports, thresholds).
+- **Betclic history source of truth: `betting/data/betclic_bets_history.json`** — MUST be read during §0.2 before ANY analysis. Contains all real placed bets. Run `python3 scripts/analyze_betclic_learning.py` for full analysis. NEVER skip this file.
 - Execution bookmaker: Betclic. All picks CONDITIONAL — user verifies on app. DO NOT scrape Betclic (403).
 - Timezone: Europe/Warsaw. Betting day: 06:00 today → 05:59 tomorrow.
 - Always settle previous day before generating new picks.
@@ -18,6 +19,12 @@ You are maintaining a disciplined small-bankroll betting workflow, not writing c
 
 ## Scripted Workflow
 ```
+# 0. Betclic History Analysis (MANDATORY — run BEFORE any analysis)
+python3 scripts/analyze_betclic_learning.py
+# → reads: betting/data/betclic_bets_history.json (ground truth of ALL placed bets)
+# → outputs: 10-section analysis with market/sport hit rates, coupon killer data, actionable rules
+# GATE: If this file is not read, §0.2 is INCOMPLETE. Do NOT start scanning.
+
 # 1. Scan sources (Playwright + adapters)
 bash scripts/run_full_scan_and_prepare.sh
 # → produces: betting/data/scan_summary.json, picks_suggested.json, scan_errors.json

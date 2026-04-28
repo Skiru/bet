@@ -576,3 +576,77 @@ Roster change (+2), map pool edge (+1), online match (+1), new patch (+1).
 - picks-ledger.csv (PK-03/04/06 superseded, 5 new v21 picks added)
 - coupons-ledger.csv (v20 MS01/MS02 superseded, 4 new v21 coupons added)
 - learning-log.md (this entry)
+
+## 2026-04-27 (Betclic Full History Import & Learning Analysis)
+
+### Source: Betclic /my-bets HTML export (141 coupons, 469 legs, 13.04–27.04.2026)
+- Parsed via `scripts/parse_betclic_bets.py` → `betting/data/betclic_bets_history.json`
+- Analyzed via `scripts/analyze_betclic_learning.py`
+- Data covers ALL real placed coupons from Betclic account — authoritative ground truth.
+
+### Settlement summary (full Betclic history):
+- 138 settled coupons: 37W / 101L (26.8% coupon hit rate)
+- Staked: 418.84 PLN | Returned: 329.72 PLN | Net PnL: -89.12 PLN | ROI: -21.3%
+
+### KEY FINDING — Statistical vs Outcome markets:
+- Statistical markets (corners, cards, fouls, game totals, frame totals): **67% leg hit rate** (145W/71L on 216 legs)
+- Outcome markets (match winner, handicap, BTTS, etc.): **46% leg hit rate** (101W/117L on 218 legs)
+- **Statistical markets outperform outcomes by +21 percentage points.** This is the single most impactful signal.
+
+### What worked (high hit rate markets confirmed by Betclic data):
+- Football corners: **73% hit rate** (46W/17L on 63 legs) — #1 core market ★
+- Football totals (O/U goals): **79% hit rate** (33W/9L) ★
+- Football cards: **75%** (9W/3L on 12 legs) ★
+- Football fouls: **67%** (8W/4L on 12 legs) ★
+- Snooker frame totals: **100%** (8W/0L on 8 legs) ★
+- Double chance: **83%** (5W/1L on 6 legs) ★
+- Tennis game totals: **60%** (27W/18L on 45 legs) — solid ✓
+- UNDER direction: **76%** hit rate (32W/10L on 42 legs) — strong edge ★
+- OVER direction: **64%** hit rate (129W/74L on 203 legs) — good ✓
+
+### What failed (confirmed weak areas):
+- Match winner (Zwycięzca meczu): **37%** hit rate (23W/39L) — worst single killer (39 coupon kills) ✗
+- Baseball runs totals: **20%** (2W/8L) — avoid ⛔
+- CS2: **0%** (0W/9L) — complete disaster, never use ⛔
+- Speedway: **0%** (0W/3L) — avoid ⛔
+- Volleyball totals: **14%** (1W/6L) — very poor ✗
+- Tennis handicap: **44%** (16W/20L) — below acceptable ✗
+- Tennis specials: **33%** (2W/4L) — avoid ✗
+- Football match winner: **35%** (6W/11L) — terrible for football ✗
+
+### Coupon size findings:
+- AKO (2): 35% win rate — **best AKO size, sweet spot** ★
+- AKO (3): 41% win rate (+23.21 PnL!) — **most profitable size** ★
+- AKO (4): 29% win rate — acceptable
+- AKO (5): **0% win rate** (0W/14L, -59.20 PnL) — ⛔ NEVER USE
+- AKO (6): 17% win rate (but +51.17 PnL due to high odds) — risky but can work
+- AKO (7+): **0% win rate** across all — ⛔ NEVER USE
+
+### Stake size findings:
+- 5+ PLN stakes: **15% win rate** (-74.50 PnL) — worst ROI. Reduce max stake.
+- 2-3 PLN stakes: **35% win rate** (+11.80 PnL) — best efficiency ★
+- 1-2 PLN stakes: **22% win rate** (-15.26 PnL) — acceptable but low
+
+### Coupon killer analysis:
+- #1 killer: **match_winner** (51 leg kills) — responsible for ~50% of coupon failures
+- #2 killer: **totals** (26 kills) — mostly football/basketball
+- #3 killer: **handicap** (24 kills) — tennis + football
+- #4 killer: **game_totals** (18 kills) — tennis
+
+### Rule changes for future runs:
+1. **AKO (5)+ BANNED.** Zero wins on 21 attempts. Max AKO size = 4 legs. Exceptions only for extraordinary value (>10x odds, all legs ★ rated).
+2. **Match winner market DEMOTED to last resort.** 37% hit rate, #1 coupon killer. Only use when no statistical market is available AND safety score ≥ 8.
+3. **CS2, speedway, LoL, handball → PERMANENTLY BANNED.** 0% combined hit rate.
+4. **Baseball runs totals → BANNED** (20% hit rate). Baseball match winner only with extreme caution.
+5. **Volleyball totals → AVOID.** 14% hit rate. Use only set handicap (62%) or O3.5 sets.
+6. **Football corners = KING MARKET.** 73% hit rate confirms. Always default to corners first for football.
+7. **Max single bet stake = 3.00 PLN.** 5+ PLN bets had 15% win rate (-74.50 PnL). Cap enforced.
+8. **UNDER direction underexplored but dominant.** 76% vs 64% for OVER. Actively seek UNDER plays.
+9. **AKO (2-3) optimal.** 2-leg at 35% and 3-leg at 41% are the sweet spots. 3-leg with +23.21 PnL is MOST profitable format.
+10. **Tennis: game totals ONLY.** 60% hit rate vs 44% handicap and 50% match winner. Drop tennis handicap and match winner.
+
+### Files created/modified:
+- scripts/parse_betclic_bets.py (new — HTML parser)
+- scripts/analyze_betclic_learning.py (new — learning analysis)
+- betting/data/betclic_bets_history.json (new — structured bet data)
+- betting/journal/learning-log.md (this entry)

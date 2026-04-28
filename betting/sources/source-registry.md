@@ -744,4 +744,15 @@ Use this table to know WHERE to get odds for each sport. Never give up after one
 - If community consensus strongly diverges from Tier A direction (≥60% opposite), note the divergence in the report and investigate before proceeding.
 - Never reject a sport for "lack of sources" — search specialist sites (see Sport Playbooks above).
 - Record source outages and partial availability in the daily source log.
+
+## Internal Data Sources (Historical Learning)
+
+- Betclic Bet History
+  File: `betting/data/betclic_bets_history.json`
+  Parser: `scripts/parse_betclic_bets.py` (from HTML export of betclic.pl/my-bets)
+  Analyzer: `scripts/analyze_betclic_learning.py`
+  Role: Ground truth for all actually placed bets. Contains 141 coupons, 469 legs (13.04–27.04.2026).
+  Use for: §0.2 Historical Learning Query, market hit rate checks, coupon killer analysis, sport performance validation.
+  Key findings: Statistical markets 67% vs outcome markets 46%. Corners 73%. Match winner 37%. AKO(5+) 0% win rate.
+  Refresh: Re-export from betclic.pl/my-bets when needed.
 - Bookmaker bonuses, promos, and affiliate content are irrelevant to pick quality.

@@ -55,13 +55,30 @@ Goal: find MISPRICED ODDS in statistical markets. EV > 0 is the only valid reaso
 7. Update `working_bankroll_pln` in config. If −20% from peak → reduce daily cap 25%.
 
 ### §0.2 HISTORICAL LEARNING QUERY (MANDATORY before scanning)
-Before STEP 1, query the picks-ledger to extract actionable patterns. This takes 2 minutes and prevents repeating proven failures.
+Before STEP 1, query the picks-ledger AND the Betclic bet history to extract actionable patterns. This takes 2 minutes and prevents repeating proven failures.
 
-1. **Per-market hit rate:** Group settled picks by `market` column. Calculate win% per market type (e.g., corners: 75%, ML: 40%, BTTS: 55%). Any market <40% on 10+ picks → AUTO-DOWNGRADE (STEP 5 rule). Any market <30% → WATCHLIST ONLY.
-2. **Per-sport hit rate:** Group by `sport`. Any sport with <30% hit rate on 5+ picks → FLAG. Scan that sport but apply −1 confidence to all picks from it. **NEVER blanket-reject an entire sport.** <5 settled picks = insufficient sample for any sport-level action. Each candidate is analyzed individually through STEP 3-7 regardless of sport-level hit rate.
-3. **Coupon failure analysis:** For each LOST coupon, identify the leg that failed. Track which pick types are the "coupon killers." If a specific market/sport kills coupons >50% of the time → exclude from LR coupons.
+**§0.2a BETCLIC HISTORY FILE (MANDATORY — NEVER SKIP)**
+```
+read_file: betting/data/betclic_bets_history.json
+run: python3 scripts/analyze_betclic_learning.py
+```
+This file contains **ALL actually placed bets** from the Betclic account (ground truth). It MUST be read and its analyzer output applied BEFORE any analysis begins. The analyzer produces current stats — always use its live output, not memorized numbers. Core patterns (verified by data):
+- Statistical markets consistently outperform outcome markets. ALWAYS prefer statistical.
+- Football corners = top core market. Match winner = #1 coupon killer. DEMOTE ML to last resort.
+- AKO (5+) has near-zero win rate. MAX coupon size = 4 legs. Sweet spot: AKO (2-3).
+- UNDER direction outperforms OVER. Actively seek UNDER plays.
+- High-stakes coupons (5+ PLN) have significantly worse win rate. Keep stakes small.
+
+**GATE: If `betclic_bets_history.json` is not read, the §0.2 step is INCOMPLETE. Do NOT proceed to STEP 1.**
+
+If the file is missing, run: `python3 scripts/parse_betclic_bets.py` (requires HTML export from betclic.pl/my-bets).
+
+1. **Per-market hit rate:** Group settled picks by `market` column. Calculate win% per market type (e.g., corners: 75%, ML: 40%, BTTS: 55%). Cross-reference with Betclic history market rates. Any market <40% on 10+ picks → AUTO-DOWNGRADE (STEP 5 rule). Any market <30% → WATCHLIST ONLY.
+2. **Per-sport hit rate:** Group by `sport`. Cross-reference with Betclic history sport rates. Any sport with <30% hit rate on 5+ picks → FLAG. Scan that sport but apply −1 confidence to all picks from it. **NEVER blanket-reject an entire sport.** <5 settled picks = insufficient sample for any sport-level action. Each candidate is analyzed individually through STEP 3-7 regardless of sport-level hit rate.
+3. **Coupon failure analysis:** For each LOST coupon, identify the leg that failed. Cross-reference with Betclic §7 coupon killer analysis. Track which pick types are the "coupon killers." If a specific market/sport kills coupons >50% of the time → exclude from LR coupons.
 4. **Streak check:** Any team/player appearing 3+ times in recent picks? Check if the thesis is stale or if the edge has been priced in.
-5. **Write a 3-line summary** of what the data says today. Example: "Corners 6/8 (75%). Tennis ML 1/5 (20%) — avoid. Hockey totals killing coupons — HR only."
+5. **Betclic history cross-check:** Verify that NO pick uses a market/sport combination with <30% hit rate in the Betclic history (§8 cross-analysis). Football×match_winner (35%), baseball×runs_totals (20%), volleyball×totals (14%), cs2×match_winner (0%) → AUTO-REJECT.
+6. **Write a 3-line summary** of what the data says today. Example: "Corners 6/8 (75%). Tennis ML 1/5 (20%) — avoid. Hockey totals killing coupons — HR only."
 
 ---
 
@@ -271,7 +288,7 @@ These are NOT auto-approved picks — they enter the watchlist with rich context
 5. **Line movement:** Steam moves (follow if aligned), RLM (follow sharp money).
 6. **§5.5a DRIFT GATE:** If odds moved >8% from analysis → MANDATORY re-eval. No explanation → SKIP.
 7. **Kelly (1/4):** `stake = (bankroll × f) / 4` where `f = (b×p − q) / b`. If f ≤ 0 → NO BET.
-8. **MARKET PERFORMANCE TRACKER:** Before picking any market, check hit rate in picks-ledger. If <40% on 10+ picks → AUTO-DOWNGRADE confidence −1. If <30% → WATCHLIST ONLY.
+8. **MARKET PERFORMANCE TRACKER:** Before picking any market, check hit rate in picks-ledger AND `betclic_bets_history.json`. If <40% on 10+ picks in EITHER source → AUTO-DOWNGRADE confidence −1. If <30% → WATCHLIST ONLY. Betclic history overrides picks-ledger when they conflict (larger sample).
 
 **Learned caution zones:** MLB totals 33% hit rate → all MLB totals get −1 confidence until >50%. MLB overs ≥8.5 → HARD REJECT.
 
@@ -493,6 +510,7 @@ On reruns: increment version (v5→v6). Mark old pending as `superseded`. Keep a
 | 12 | Basketball blanket-rejected on 0/2 | Small sample panic | NEVER blanket-reject sport on <5 picks. FLAG ≠ BAN. |
 | 13 | Football defaulted to corners (fouls/cards/shots not checked) | Tunnel vision on one stat | ALWAYS run §3.0 RANKING for ALL available stats. Pick highest safety score. |
 | 14 | Corner pick missing H2H corner data | H2H was match-level only | ALWAYS get H2H for the EXACT stat being bet (§3.0c). Match H2H alone ≠ stat H2H. |
+| 15 | Betclic history skipped → repeated known failures | §0.2a not executed | ALWAYS read `betclic_bets_history.json` + run `analyze_betclic_learning.py` before ANY analysis. This is ground truth. |
 
 ---
 

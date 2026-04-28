@@ -8,6 +8,10 @@ user-invokable: false
 
 Core statistical methodology for evaluating betting candidates. Every pick must pass through the statistical market ranking protocol before selection.
 
+## PREREQUISITE: Betclic History Data (MANDATORY)
+
+Before ANY statistical analysis, verify that `betting/data/betclic_bets_history.json` was read during §0.2 and `python3 scripts/analyze_betclic_learning.py` was run. Always use the analyzer's live output for current hit rates — never rely on memorized numbers. The analyzer output provides per-market and per-sport hit rates that inform market selection and safety score calculations. Cross-reference §3.0 safety scores with Betclic history rates for the same market type.
+
 ## ULTIMATE RULE: BET STATISTICS, NOT OUTCOMES
 
 Statistical markets (corners, fouls, shots, games, sets, points, frames, rounds) are **fundamentally more predictable** than outcome markets (ML, winner, goals):

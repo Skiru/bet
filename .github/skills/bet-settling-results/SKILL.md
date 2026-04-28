@@ -68,13 +68,28 @@ For each settled pick:
 
 ## §0.2 Historical Learning Query (MANDATORY before scanning)
 
-Query `picks-ledger.csv` to extract actionable patterns. Takes 2 minutes, prevents repeating proven failures.
+Query `picks-ledger.csv` AND `betting/data/betclic_bets_history.json` to extract actionable patterns. Takes 2 minutes, prevents repeating proven failures.
 
-1. **Per-market hit rate:** Group settled picks by `market`. Win% per market type. <40% on 10+ picks → AUTO-DOWNGRADE. <30% → WATCHLIST ONLY.
-2. **Per-sport hit rate:** Group by `sport`. <30% on 5+ picks → FLAG (−1 confidence to all picks from that sport). NEVER blanket-reject on <5 picks.
-3. **Coupon failure analysis:** Each LOST coupon → identify the failed leg. Track "coupon killers." If market/sport kills coupons >50% → exclude from LR coupons.
+**§0.2a BETCLIC HISTORY (MANDATORY — NEVER SKIP)**
+```
+read_file: betting/data/betclic_bets_history.json
+run: python3 scripts/analyze_betclic_learning.py
+```
+This file contains ALL actually placed bets from the Betclic account. It is the GROUND TRUTH. Always use the analyzer's live output for current stats — never rely on memorized numbers. Core patterns:
+- Statistical markets consistently outperform outcome markets. Corners = top market.
+- Match winner is the #1 coupon killer. DEMOTE ML.
+- AKO(5+) near-zero win rate → MAX 4 legs. Sweet spot: AKO(2-3).
+- UNDER direction outperforms OVER. Actively seek UNDER plays.
+- High stakes (5+ PLN) have poor win rate. Keep stakes small.
+
+**GATE: If `betclic_bets_history.json` is not read, §0.2 is INCOMPLETE. Do NOT proceed to STEP 1.**
+
+1. **Per-market hit rate:** Group settled picks by `market`. Win% per market type. <40% on 10+ picks → AUTO-DOWNGRADE. <30% → WATCHLIST ONLY. Cross-reference with Betclic history market rates.
+2. **Per-sport hit rate:** Group by `sport`. <30% on 5+ picks → FLAG (−1 confidence to all picks from that sport). NEVER blanket-reject on <5 picks. Cross-reference with Betclic history sport rates.
+3. **Coupon failure analysis:** Each LOST coupon → identify the failed leg. Track "coupon killers." Cross-reference with Betclic §7 coupon killer analysis. If market/sport kills coupons >50% → exclude from LR coupons.
 4. **Streak check:** Team/player appearing 3+ times → check if thesis is stale or edge priced in.
-5. **Write 3-line summary** of actionable findings.
+5. **Betclic cross-check:** Verify NO pick uses a market/sport combo with <30% hit rate in Betclic history (§8 cross-analysis).
+6. **Write 3-line summary** of actionable findings.
 
 ## Post-Mortem Protocol
 
