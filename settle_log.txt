@@ -100,3 +100,638 @@
 2026-04-26T07:55:16.378890 Updated picks ledger: /Users/mkoziol/projects/bet/betting/journal/picks-ledger.csv
 2026-04-26T07:55:16.379766 Updated coupons ledger: /Users/mkoziol/projects/bet/betting/journal/coupons-ledger.csv
 2026-04-26T07:55:16.379812 Settlement complete: 0 settled, 20 still pending
+2026-04-28T07:33:14.075786 Found 15 pending pick(s) to settle
+2026-04-28T07:33:14.076189 [Poll 1] Looking for result: Linda Noskova vs Coco Gauff
+2026-04-28T07:33:14.491835   Score not yet available for Linda Noskova vs Coco Gauff
+2026-04-28T07:33:14.492099 [Poll 1] Looking for result: Elena Rybakina vs Anastasia Potapova
+2026-04-28T07:33:14.911983   Score not yet available for Elena Rybakina vs Anastasia Potapova
+2026-04-28T07:33:14.912313 [Poll 1] Looking for result: Aryna Sabalenka vs Naomi Osaka
+2026-04-28T07:33:15.248501   Score not yet available for Aryna Sabalenka vs Naomi Osaka
+2026-04-28T07:33:15.248824 [Poll 1] Looking for result: Alejandro Davidovich Fokina vs Casper Ruud
+2026-04-28T07:33:15.588241   Score not yet available for Alejandro Davidovich Fokina vs Casper Ruud
+2026-04-28T07:33:15.588510 [Poll 1] Looking for result: Cagliari vs Atalanta
+2026-04-28T07:33:15.927339   Score not yet available for Cagliari vs Atalanta
+2026-04-28T07:33:15.927562 [Poll 1] Looking for result: Judd Trump vs Hossein Vafaei
+2026-04-28T07:33:16.250158   Score not yet available for Judd Trump vs Hossein Vafaei
+2026-04-28T07:33:16.250477 [Poll 1] Looking for result: Francisco Cerundolo vs Luciano Darderi
+2026-04-28T07:33:16.565832   Score not yet available for Francisco Cerundolo vs Luciano Darderi
+2026-04-28T07:33:16.566089 [Poll 1] Looking for result: Manchester United vs Brentford FC
+2026-04-28T07:33:16.899103   Score not yet available for Manchester United vs Brentford FC
+2026-04-28T07:33:16.899369 [Poll 1] Looking for result: SS Lazio vs Udinese
+2026-04-28T07:33:17.215538   Score not yet available for SS Lazio vs Udinese
+2026-04-28T07:33:17.215767 [Poll 1] Looking for result: Philadelphia Flyers vs Pittsburgh Penguins
+2026-04-28T07:33:17.545800   Score not yet available for Philadelphia Flyers vs Pittsburgh Penguins
+2026-04-28T07:33:17.546150 [Poll 1] Looking for result: LA Angels vs Chicago White Sox
+2026-04-28T07:33:17.841920   Score not yet available for LA Angels vs Chicago White Sox
+2026-04-28T07:33:17.842164 [Poll 1] Looking for result: FC Copenhagen vs Vejle BK
+2026-04-28T07:33:18.167020   Score not yet available for FC Copenhagen vs Vejle BK
+2026-04-28T07:33:18.167241 [Poll 1] Looking for result: Cadiz CF vs UD Las Palmas
+2026-04-28T07:33:18.537091   Score not yet available for Cadiz CF vs UD Las Palmas
+2026-04-28T07:33:18.537353 [Poll 1] Looking for result: BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:33:18.853031   Score not yet available for BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:33:18.853202   15 pick(s) still pending. Sleeping 120s...
+2026-04-28T07:35:18.859742 [Poll 2] Looking for result: Linda Noskova vs Coco Gauff
+2026-04-28T07:35:19.181173   Score not yet available for Linda Noskova vs Coco Gauff
+2026-04-28T07:35:19.181428 [Poll 2] Looking for result: Elena Rybakina vs Anastasia Potapova
+2026-04-28T07:35:19.418669   Score not yet available for Elena Rybakina vs Anastasia Potapova
+2026-04-28T07:35:19.419091 [Poll 2] Looking for result: Aryna Sabalenka vs Naomi Osaka
+2026-04-28T07:35:19.663071   Score not yet available for Aryna Sabalenka vs Naomi Osaka
+2026-04-28T07:35:19.663467 [Poll 2] Looking for result: Alejandro Davidovich Fokina vs Casper Ruud
+2026-04-28T07:35:19.913015   Score not yet available for Alejandro Davidovich Fokina vs Casper Ruud
+2026-04-28T07:35:19.913236 [Poll 2] Looking for result: Cagliari vs Atalanta
+2026-04-28T07:35:20.138922   Score not yet available for Cagliari vs Atalanta
+2026-04-28T07:35:20.139303 [Poll 2] Looking for result: Judd Trump vs Hossein Vafaei
+2026-04-28T07:35:20.380430   Score not yet available for Judd Trump vs Hossein Vafaei
+2026-04-28T07:35:20.380671 [Poll 2] Looking for result: Francisco Cerundolo vs Luciano Darderi
+2026-04-28T07:35:20.616666   Score not yet available for Francisco Cerundolo vs Luciano Darderi
+2026-04-28T07:35:20.617037 [Poll 2] Looking for result: Manchester United vs Brentford FC
+2026-04-28T07:35:20.852249   Score not yet available for Manchester United vs Brentford FC
+2026-04-28T07:35:20.852575 [Poll 2] Looking for result: SS Lazio vs Udinese
+2026-04-28T07:35:21.086444   Score not yet available for SS Lazio vs Udinese
+2026-04-28T07:35:21.086714 [Poll 2] Looking for result: Philadelphia Flyers vs Pittsburgh Penguins
+2026-04-28T07:35:21.319599   Score not yet available for Philadelphia Flyers vs Pittsburgh Penguins
+2026-04-28T07:35:21.319852 [Poll 2] Looking for result: LA Angels vs Chicago White Sox
+2026-04-28T07:35:21.557639   Score not yet available for LA Angels vs Chicago White Sox
+2026-04-28T07:35:21.557961 [Poll 2] Looking for result: FC Copenhagen vs Vejle BK
+2026-04-28T07:35:21.785423   Score not yet available for FC Copenhagen vs Vejle BK
+2026-04-28T07:35:21.785858 [Poll 2] Looking for result: Cadiz CF vs UD Las Palmas
+2026-04-28T07:35:22.086181   Score not yet available for Cadiz CF vs UD Las Palmas
+2026-04-28T07:35:22.086490 [Poll 2] Looking for result: BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:35:22.309764   Score not yet available for BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:35:22.310097   15 pick(s) still pending. Sleeping 120s...
+2026-04-28T07:36:00.127106 Found 15 pending pick(s) to settle
+2026-04-28T07:36:00.127232 [Poll 1] Looking for result: Linda Noskova vs Coco Gauff
+2026-04-28T07:36:00.393789   Score not yet available for Linda Noskova vs Coco Gauff
+2026-04-28T07:36:00.394047 [Poll 1] Looking for result: Elena Rybakina vs Anastasia Potapova
+2026-04-28T07:36:00.591053   Score not yet available for Elena Rybakina vs Anastasia Potapova
+2026-04-28T07:36:00.591176 [Poll 1] Looking for result: Aryna Sabalenka vs Naomi Osaka
+2026-04-28T07:36:00.800724   Score not yet available for Aryna Sabalenka vs Naomi Osaka
+2026-04-28T07:36:00.800863 [Poll 1] Looking for result: Alejandro Davidovich Fokina vs Casper Ruud
+2026-04-28T07:36:01.038424   Score not yet available for Alejandro Davidovich Fokina vs Casper Ruud
+2026-04-28T07:36:01.038656 [Poll 1] Looking for result: Cagliari vs Atalanta
+2026-04-28T07:36:01.236964   Score not yet available for Cagliari vs Atalanta
+2026-04-28T07:36:01.237073 [Poll 1] Looking for result: Judd Trump vs Hossein Vafaei
+2026-04-28T07:36:01.430979   Score not yet available for Judd Trump vs Hossein Vafaei
+2026-04-28T07:36:01.431088 [Poll 1] Looking for result: Francisco Cerundolo vs Luciano Darderi
+2026-04-28T07:36:01.631002   Score not yet available for Francisco Cerundolo vs Luciano Darderi
+2026-04-28T07:36:01.631171 [Poll 1] Looking for result: Manchester United vs Brentford FC
+2026-04-28T07:36:01.827080   Score not yet available for Manchester United vs Brentford FC
+2026-04-28T07:36:01.827203 [Poll 1] Looking for result: SS Lazio vs Udinese
+2026-04-28T07:36:02.027682   Score not yet available for SS Lazio vs Udinese
+2026-04-28T07:36:02.027912 [Poll 1] Looking for result: Philadelphia Flyers vs Pittsburgh Penguins
+2026-04-28T07:36:02.250476   Score not yet available for Philadelphia Flyers vs Pittsburgh Penguins
+2026-04-28T07:36:02.250757 [Poll 1] Looking for result: LA Angels vs Chicago White Sox
+2026-04-28T07:36:02.453159   Score not yet available for LA Angels vs Chicago White Sox
+2026-04-28T07:36:02.453296 [Poll 1] Looking for result: FC Copenhagen vs Vejle BK
+2026-04-28T07:36:02.648714   Score not yet available for FC Copenhagen vs Vejle BK
+2026-04-28T07:36:02.648836 [Poll 1] Looking for result: Cadiz CF vs UD Las Palmas
+2026-04-28T07:36:02.845157   Score not yet available for Cadiz CF vs UD Las Palmas
+2026-04-28T07:36:02.845272 [Poll 1] Looking for result: BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:36:03.043459   Score not yet available for BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:36:03.045878 Updated picks ledger: /Users/mkoziol/projects/bet/betting/journal/picks-ledger.csv
+2026-04-28T07:36:03.047826 Updated coupons ledger: /Users/mkoziol/projects/bet/betting/journal/coupons-ledger.csv
+2026-04-28T07:36:03.048061 Settlement complete: 0 settled, 15 still pending
+2026-04-28T07:37:22.312240 [Poll 3] Looking for result: Linda Noskova vs Coco Gauff
+2026-04-28T07:37:22.614677   Score not yet available for Linda Noskova vs Coco Gauff
+2026-04-28T07:37:22.614980 [Poll 3] Looking for result: Elena Rybakina vs Anastasia Potapova
+2026-04-28T07:37:22.854859   Score not yet available for Elena Rybakina vs Anastasia Potapova
+2026-04-28T07:37:22.855104 [Poll 3] Looking for result: Aryna Sabalenka vs Naomi Osaka
+2026-04-28T07:37:23.073965   Score not yet available for Aryna Sabalenka vs Naomi Osaka
+2026-04-28T07:37:23.074265 [Poll 3] Looking for result: Alejandro Davidovich Fokina vs Casper Ruud
+2026-04-28T07:37:23.291453   Score not yet available for Alejandro Davidovich Fokina vs Casper Ruud
+2026-04-28T07:37:23.291681 [Poll 3] Looking for result: Cagliari vs Atalanta
+2026-04-28T07:37:23.562350   Score not yet available for Cagliari vs Atalanta
+2026-04-28T07:37:23.562594 [Poll 3] Looking for result: Judd Trump vs Hossein Vafaei
+2026-04-28T07:37:23.778559   Score not yet available for Judd Trump vs Hossein Vafaei
+2026-04-28T07:37:23.778917 [Poll 3] Looking for result: Francisco Cerundolo vs Luciano Darderi
+2026-04-28T07:37:24.006743   Score not yet available for Francisco Cerundolo vs Luciano Darderi
+2026-04-28T07:37:24.006996 [Poll 3] Looking for result: Manchester United vs Brentford FC
+2026-04-28T07:37:24.236036   Score not yet available for Manchester United vs Brentford FC
+2026-04-28T07:37:24.236284 [Poll 3] Looking for result: SS Lazio vs Udinese
+2026-04-28T07:37:24.455559   Score not yet available for SS Lazio vs Udinese
+2026-04-28T07:37:24.455913 [Poll 3] Looking for result: Philadelphia Flyers vs Pittsburgh Penguins
+2026-04-28T07:37:24.695341   Score not yet available for Philadelphia Flyers vs Pittsburgh Penguins
+2026-04-28T07:37:24.695653 [Poll 3] Looking for result: LA Angels vs Chicago White Sox
+2026-04-28T07:37:24.922414   Score not yet available for LA Angels vs Chicago White Sox
+2026-04-28T07:37:24.922665 [Poll 3] Looking for result: FC Copenhagen vs Vejle BK
+2026-04-28T07:37:25.150028   Score not yet available for FC Copenhagen vs Vejle BK
+2026-04-28T07:37:25.150264 [Poll 3] Looking for result: Cadiz CF vs UD Las Palmas
+2026-04-28T07:37:25.379116   Score not yet available for Cadiz CF vs UD Las Palmas
+2026-04-28T07:37:25.379426 [Poll 3] Looking for result: BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:37:25.597837   Score not yet available for BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:37:25.598051   15 pick(s) still pending. Sleeping 120s...
+2026-04-28T07:39:25.601892 [Poll 4] Looking for result: Linda Noskova vs Coco Gauff
+2026-04-28T07:39:25.875050   Score not yet available for Linda Noskova vs Coco Gauff
+2026-04-28T07:39:25.875327 [Poll 4] Looking for result: Elena Rybakina vs Anastasia Potapova
+2026-04-28T07:39:26.111668   Score not yet available for Elena Rybakina vs Anastasia Potapova
+2026-04-28T07:39:26.111876 [Poll 4] Looking for result: Aryna Sabalenka vs Naomi Osaka
+2026-04-28T07:39:26.361313   Score not yet available for Aryna Sabalenka vs Naomi Osaka
+2026-04-28T07:39:26.361566 [Poll 4] Looking for result: Alejandro Davidovich Fokina vs Casper Ruud
+2026-04-28T07:39:26.592449   Score not yet available for Alejandro Davidovich Fokina vs Casper Ruud
+2026-04-28T07:39:26.593004 [Poll 4] Looking for result: Cagliari vs Atalanta
+2026-04-28T07:39:26.822262   Score not yet available for Cagliari vs Atalanta
+2026-04-28T07:39:26.822517 [Poll 4] Looking for result: Judd Trump vs Hossein Vafaei
+2026-04-28T07:39:27.041860   Score not yet available for Judd Trump vs Hossein Vafaei
+2026-04-28T07:39:27.042133 [Poll 4] Looking for result: Francisco Cerundolo vs Luciano Darderi
+2026-04-28T07:39:27.269596   Score not yet available for Francisco Cerundolo vs Luciano Darderi
+2026-04-28T07:39:27.269884 [Poll 4] Looking for result: Manchester United vs Brentford FC
+2026-04-28T07:39:27.499625   Score not yet available for Manchester United vs Brentford FC
+2026-04-28T07:39:27.499966 [Poll 4] Looking for result: SS Lazio vs Udinese
+2026-04-28T07:39:27.745539   Score not yet available for SS Lazio vs Udinese
+2026-04-28T07:39:27.745795 [Poll 4] Looking for result: Philadelphia Flyers vs Pittsburgh Penguins
+2026-04-28T07:39:27.987918   Score not yet available for Philadelphia Flyers vs Pittsburgh Penguins
+2026-04-28T07:39:27.988238 [Poll 4] Looking for result: LA Angels vs Chicago White Sox
+2026-04-28T07:39:28.218011   Score not yet available for LA Angels vs Chicago White Sox
+2026-04-28T07:39:28.218400 [Poll 4] Looking for result: FC Copenhagen vs Vejle BK
+2026-04-28T07:39:28.439820   Score not yet available for FC Copenhagen vs Vejle BK
+2026-04-28T07:39:28.440141 [Poll 4] Looking for result: Cadiz CF vs UD Las Palmas
+2026-04-28T07:39:28.665053   Score not yet available for Cadiz CF vs UD Las Palmas
+2026-04-28T07:39:28.665258 [Poll 4] Looking for result: BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:39:28.910886   Score not yet available for BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:39:28.911238   15 pick(s) still pending. Sleeping 120s...
+2026-04-28T07:39:29.574898 Found 15 pending pick(s) to settle
+2026-04-28T07:39:29.575261 [Poll 1] Looking for result: Linda Noskova vs Coco Gauff
+2026-04-28T07:39:35.234362   Score not yet available for Linda Noskova vs Coco Gauff
+2026-04-28T07:39:35.234512 [Poll 1] Looking for result: Elena Rybakina vs Anastasia Potapova
+2026-04-28T07:39:40.054398   Score not yet available for Elena Rybakina vs Anastasia Potapova
+2026-04-28T07:39:40.054544 [Poll 1] Looking for result: Aryna Sabalenka vs Naomi Osaka
+2026-04-28T07:39:44.865340   Score not yet available for Aryna Sabalenka vs Naomi Osaka
+2026-04-28T07:39:44.865634 [Poll 1] Looking for result: Alejandro Davidovich Fokina vs Casper Ruud
+2026-04-28T07:39:49.578353   Score not yet available for Alejandro Davidovich Fokina vs Casper Ruud
+2026-04-28T07:39:49.578514 [Poll 1] Looking for result: Cagliari vs Atalanta
+2026-04-28T07:39:50.734676   Found score: Cagliari 0 - 18 Atalanta
+2026-04-28T07:39:50.734938   Settled PK-20260427-05: win (PnL: 0.0)
+2026-04-28T07:39:50.734987 [Poll 1] Looking for result: Judd Trump vs Hossein Vafaei
+2026-04-28T07:39:55.652724   Score not yet available for Judd Trump vs Hossein Vafaei
+2026-04-28T07:39:55.653105 [Poll 1] Looking for result: Francisco Cerundolo vs Luciano Darderi
+2026-04-28T07:40:00.420122   Score not yet available for Francisco Cerundolo vs Luciano Darderi
+2026-04-28T07:40:00.420295 [Poll 1] Looking for result: Manchester United vs Brentford FC
+2026-04-28T07:40:05.501189   Score not yet available for Manchester United vs Brentford FC
+2026-04-28T07:40:05.501515 [Poll 1] Looking for result: SS Lazio vs Udinese
+2026-04-28T07:40:10.328666   Score not yet available for SS Lazio vs Udinese
+2026-04-28T07:40:10.328841 [Poll 1] Looking for result: Philadelphia Flyers vs Pittsburgh Penguins
+2026-04-28T07:40:10.380322   Found score: Philadelphia Flyers 14 - 0 Pittsburgh Penguins
+2026-04-28T07:40:10.380485   Settled PK-20260427-11: win (PnL: 0.0)
+2026-04-28T07:40:10.380528 [Poll 1] Looking for result: LA Angels vs Chicago White Sox
+2026-04-28T07:40:15.200165   Score not yet available for LA Angels vs Chicago White Sox
+2026-04-28T07:40:15.200405 [Poll 1] Looking for result: FC Copenhagen vs Vejle BK
+2026-04-28T07:40:20.036818   Score not yet available for FC Copenhagen vs Vejle BK
+2026-04-28T07:40:20.036943 [Poll 1] Looking for result: Cadiz CF vs UD Las Palmas
+2026-04-28T07:40:24.855151   Score not yet available for Cadiz CF vs UD Las Palmas
+2026-04-28T07:40:24.855345 [Poll 1] Looking for result: BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:40:29.565082   Score not yet available for BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:40:29.566901 Updated picks ledger: /Users/mkoziol/projects/bet/betting/journal/picks-ledger.csv
+2026-04-28T07:40:29.567860 Updated coupons ledger: /Users/mkoziol/projects/bet/betting/journal/coupons-ledger.csv
+2026-04-28T07:40:29.567906 Settlement complete: 2 settled, 13 still pending
+2026-04-28T07:41:28.922596 [Poll 5] Looking for result: Linda Noskova vs Coco Gauff
+2026-04-28T07:41:29.206514   Score not yet available for Linda Noskova vs Coco Gauff
+2026-04-28T07:41:29.206895 [Poll 5] Looking for result: Elena Rybakina vs Anastasia Potapova
+2026-04-28T07:41:29.427823   Score not yet available for Elena Rybakina vs Anastasia Potapova
+2026-04-28T07:41:29.428056 [Poll 5] Looking for result: Aryna Sabalenka vs Naomi Osaka
+2026-04-28T07:41:29.673003   Score not yet available for Aryna Sabalenka vs Naomi Osaka
+2026-04-28T07:41:29.673255 [Poll 5] Looking for result: Alejandro Davidovich Fokina vs Casper Ruud
+2026-04-28T07:41:29.925721   Score not yet available for Alejandro Davidovich Fokina vs Casper Ruud
+2026-04-28T07:41:29.925994 [Poll 5] Looking for result: Cagliari vs Atalanta
+2026-04-28T07:41:30.150710   Score not yet available for Cagliari vs Atalanta
+2026-04-28T07:41:30.150925 [Poll 5] Looking for result: Judd Trump vs Hossein Vafaei
+2026-04-28T07:41:30.389854   Score not yet available for Judd Trump vs Hossein Vafaei
+2026-04-28T07:41:30.390175 [Poll 5] Looking for result: Francisco Cerundolo vs Luciano Darderi
+2026-04-28T07:41:30.604414   Score not yet available for Francisco Cerundolo vs Luciano Darderi
+2026-04-28T07:41:30.604729 [Poll 5] Looking for result: Manchester United vs Brentford FC
+2026-04-28T07:41:30.831666   Score not yet available for Manchester United vs Brentford FC
+2026-04-28T07:41:30.831904 [Poll 5] Looking for result: SS Lazio vs Udinese
+2026-04-28T07:41:31.074608   Score not yet available for SS Lazio vs Udinese
+2026-04-28T07:41:31.074828 [Poll 5] Looking for result: Philadelphia Flyers vs Pittsburgh Penguins
+2026-04-28T07:41:31.305990   Score not yet available for Philadelphia Flyers vs Pittsburgh Penguins
+2026-04-28T07:41:31.306206 [Poll 5] Looking for result: LA Angels vs Chicago White Sox
+2026-04-28T07:41:31.536400   Score not yet available for LA Angels vs Chicago White Sox
+2026-04-28T07:41:31.536706 [Poll 5] Looking for result: FC Copenhagen vs Vejle BK
+2026-04-28T07:41:31.764355   Score not yet available for FC Copenhagen vs Vejle BK
+2026-04-28T07:41:31.764660 [Poll 5] Looking for result: Cadiz CF vs UD Las Palmas
+2026-04-28T07:41:31.985746   Score not yet available for Cadiz CF vs UD Las Palmas
+2026-04-28T07:41:31.985993 [Poll 5] Looking for result: BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:41:32.228620   Score not yet available for BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:41:32.228975   15 pick(s) still pending. Sleeping 120s...
+2026-04-28T07:42:10.190501 Found 15 pending pick(s) to settle
+2026-04-28T07:42:10.190605 [Poll 1] Looking for result: Linda Noskova vs Coco Gauff
+2026-04-28T07:42:15.816769   Score not yet available for Linda Noskova vs Coco Gauff
+2026-04-28T07:42:15.816945 [Poll 1] Looking for result: Elena Rybakina vs Anastasia Potapova
+2026-04-28T07:42:20.736120   Score not yet available for Elena Rybakina vs Anastasia Potapova
+2026-04-28T07:42:20.736345 [Poll 1] Looking for result: Aryna Sabalenka vs Naomi Osaka
+2026-04-28T07:42:25.629562   Score not yet available for Aryna Sabalenka vs Naomi Osaka
+2026-04-28T07:42:25.629743 [Poll 1] Looking for result: Alejandro Davidovich Fokina vs Casper Ruud
+2026-04-28T07:42:30.652735   Score not yet available for Alejandro Davidovich Fokina vs Casper Ruud
+2026-04-28T07:42:30.652955 [Poll 1] Looking for result: Cagliari vs Atalanta
+2026-04-28T07:42:33.129539   Found score: Cagliari 3 - 2 Atalanta
+2026-04-28T07:42:33.129965   Settled PK-20260427-05: win (PnL: 0.0)
+2026-04-28T07:42:33.130056 [Poll 1] Looking for result: Judd Trump vs Hossein Vafaei
+2026-04-28T07:42:38.173289   Score not yet available for Judd Trump vs Hossein Vafaei
+2026-04-28T07:42:38.173454 [Poll 1] Looking for result: Francisco Cerundolo vs Luciano Darderi
+2026-04-28T07:42:43.114576   Score not yet available for Francisco Cerundolo vs Luciano Darderi
+2026-04-28T07:42:43.114760 [Poll 1] Looking for result: Manchester United vs Brentford FC
+2026-04-28T07:42:48.016581   Score not yet available for Manchester United vs Brentford FC
+2026-04-28T07:42:48.016770 [Poll 1] Looking for result: SS Lazio vs Udinese
+2026-04-28T07:42:53.203282   Score not yet available for SS Lazio vs Udinese
+2026-04-28T07:42:53.203462 [Poll 1] Looking for result: Philadelphia Flyers vs Pittsburgh Penguins
+2026-04-28T07:42:58.255120   Score not yet available for Philadelphia Flyers vs Pittsburgh Penguins
+2026-04-28T07:42:58.255287 [Poll 1] Looking for result: LA Angels vs Chicago White Sox
+2026-04-28T07:43:03.133676   Score not yet available for LA Angels vs Chicago White Sox
+2026-04-28T07:43:03.134042 [Poll 1] Looking for result: FC Copenhagen vs Vejle BK
+2026-04-28T07:43:08.115302   Score not yet available for FC Copenhagen vs Vejle BK
+2026-04-28T07:43:08.115454 [Poll 1] Looking for result: Cadiz CF vs UD Las Palmas
+2026-04-28T07:43:13.092668   Score not yet available for Cadiz CF vs UD Las Palmas
+2026-04-28T07:43:13.092997 [Poll 1] Looking for result: BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:43:18.071959   Score not yet available for BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:43:18.073708 Updated picks ledger: /Users/mkoziol/projects/bet/betting/journal/picks-ledger.csv
+2026-04-28T07:43:18.074959 Updated coupons ledger: /Users/mkoziol/projects/bet/betting/journal/coupons-ledger.csv
+2026-04-28T07:43:18.075065 Settlement complete: 1 settled, 14 still pending
+2026-04-28T07:43:32.240824 [Poll 6] Looking for result: Linda Noskova vs Coco Gauff
+2026-04-28T07:43:32.529163   Score not yet available for Linda Noskova vs Coco Gauff
+2026-04-28T07:43:32.532540 [Poll 6] Looking for result: Elena Rybakina vs Anastasia Potapova
+2026-04-28T07:43:32.802323   Score not yet available for Elena Rybakina vs Anastasia Potapova
+2026-04-28T07:43:32.802601 [Poll 6] Looking for result: Aryna Sabalenka vs Naomi Osaka
+2026-04-28T07:43:33.078467   Score not yet available for Aryna Sabalenka vs Naomi Osaka
+2026-04-28T07:43:33.078729 [Poll 6] Looking for result: Alejandro Davidovich Fokina vs Casper Ruud
+2026-04-28T07:43:33.311324   Score not yet available for Alejandro Davidovich Fokina vs Casper Ruud
+2026-04-28T07:43:33.311616 [Poll 6] Looking for result: Cagliari vs Atalanta
+2026-04-28T07:43:33.570307   Score not yet available for Cagliari vs Atalanta
+2026-04-28T07:43:33.570548 [Poll 6] Looking for result: Judd Trump vs Hossein Vafaei
+2026-04-28T07:43:33.814989   Score not yet available for Judd Trump vs Hossein Vafaei
+2026-04-28T07:43:33.815333 [Poll 6] Looking for result: Francisco Cerundolo vs Luciano Darderi
+2026-04-28T07:43:34.048136   Score not yet available for Francisco Cerundolo vs Luciano Darderi
+2026-04-28T07:43:34.048347 [Poll 6] Looking for result: Manchester United vs Brentford FC
+2026-04-28T07:43:34.286561   Score not yet available for Manchester United vs Brentford FC
+2026-04-28T07:43:34.286990 [Poll 6] Looking for result: SS Lazio vs Udinese
+2026-04-28T07:43:34.522480   Score not yet available for SS Lazio vs Udinese
+2026-04-28T07:43:34.522979 [Poll 6] Looking for result: Philadelphia Flyers vs Pittsburgh Penguins
+2026-04-28T07:43:34.760684   Score not yet available for Philadelphia Flyers vs Pittsburgh Penguins
+2026-04-28T07:43:34.760968 [Poll 6] Looking for result: LA Angels vs Chicago White Sox
+2026-04-28T07:43:35.014678   Score not yet available for LA Angels vs Chicago White Sox
+2026-04-28T07:43:35.015048 [Poll 6] Looking for result: FC Copenhagen vs Vejle BK
+2026-04-28T07:43:35.245752   Score not yet available for FC Copenhagen vs Vejle BK
+2026-04-28T07:43:35.245989 [Poll 6] Looking for result: Cadiz CF vs UD Las Palmas
+2026-04-28T07:43:35.503163   Score not yet available for Cadiz CF vs UD Las Palmas
+2026-04-28T07:43:35.503431 [Poll 6] Looking for result: BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:43:35.756836   Score not yet available for BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:43:35.757112   15 pick(s) still pending. Sleeping 120s...
+2026-04-28T07:45:05.181561 Found 15 pending pick(s) to settle
+2026-04-28T07:45:05.181933 [Poll 1] Looking for result: Linda Noskova vs Coco Gauff
+2026-04-28T07:45:32.018662   Flashscore batch: cached 0 match results
+2026-04-28T07:45:32.018835   Score not yet available for Linda Noskova vs Coco Gauff
+2026-04-28T07:45:32.018891 [Poll 1] Looking for result: Elena Rybakina vs Anastasia Potapova
+2026-04-28T07:45:32.454392   Score not yet available for Elena Rybakina vs Anastasia Potapova
+2026-04-28T07:45:32.454493 [Poll 1] Looking for result: Aryna Sabalenka vs Naomi Osaka
+2026-04-28T07:45:32.889979   Score not yet available for Aryna Sabalenka vs Naomi Osaka
+2026-04-28T07:45:32.890086 [Poll 1] Looking for result: Alejandro Davidovich Fokina vs Casper Ruud
+2026-04-28T07:45:33.294284   Score not yet available for Alejandro Davidovich Fokina vs Casper Ruud
+2026-04-28T07:45:33.294386 [Poll 1] Looking for result: Cagliari vs Atalanta
+2026-04-28T07:45:35.456232   Found score: Cagliari 3 - 2 Atalanta
+2026-04-28T07:45:35.456464   Cannot auto-settle market 'corners' for pick PK-20260427-05
+2026-04-28T07:45:35.456510 [Poll 1] Looking for result: Judd Trump vs Hossein Vafaei
+2026-04-28T07:45:35.768591 [Poll 7] Looking for result: Linda Noskova vs Coco Gauff
+2026-04-28T07:45:35.883785   Score not yet available for Judd Trump vs Hossein Vafaei
+2026-04-28T07:45:35.883963 [Poll 1] Looking for result: Francisco Cerundolo vs Luciano Darderi
+2026-04-28T07:45:36.004262   Score not yet available for Linda Noskova vs Coco Gauff
+2026-04-28T07:45:36.004534 [Poll 7] Looking for result: Elena Rybakina vs Anastasia Potapova
+2026-04-28T07:45:36.250151   Score not yet available for Elena Rybakina vs Anastasia Potapova
+2026-04-28T07:45:36.250403 [Poll 7] Looking for result: Aryna Sabalenka vs Naomi Osaka
+2026-04-28T07:45:36.283147   Score not yet available for Francisco Cerundolo vs Luciano Darderi
+2026-04-28T07:45:36.283263 [Poll 1] Looking for result: Manchester United vs Brentford FC
+2026-04-28T07:45:36.477709   Score not yet available for Aryna Sabalenka vs Naomi Osaka
+2026-04-28T07:45:36.478002 [Poll 7] Looking for result: Alejandro Davidovich Fokina vs Casper Ruud
+2026-04-28T07:45:36.698789   Score not yet available for Manchester United vs Brentford FC
+2026-04-28T07:45:36.698946 [Poll 1] Looking for result: SS Lazio vs Udinese
+2026-04-28T07:45:36.702247   Score not yet available for Alejandro Davidovich Fokina vs Casper Ruud
+2026-04-28T07:45:36.702482 [Poll 7] Looking for result: Cagliari vs Atalanta
+2026-04-28T07:45:36.924533   Score not yet available for Cagliari vs Atalanta
+2026-04-28T07:45:36.924802 [Poll 7] Looking for result: Judd Trump vs Hossein Vafaei
+2026-04-28T07:45:37.163006   Score not yet available for Judd Trump vs Hossein Vafaei
+2026-04-28T07:45:37.163292 [Poll 7] Looking for result: Francisco Cerundolo vs Luciano Darderi
+2026-04-28T07:45:37.320161   Score not yet available for SS Lazio vs Udinese
+2026-04-28T07:45:37.320271 [Poll 1] Looking for result: Philadelphia Flyers vs Pittsburgh Penguins
+2026-04-28T07:45:37.401928   Score not yet available for Francisco Cerundolo vs Luciano Darderi
+2026-04-28T07:45:37.402252 [Poll 7] Looking for result: Manchester United vs Brentford FC
+2026-04-28T07:45:37.665574   Score not yet available for Manchester United vs Brentford FC
+2026-04-28T07:45:37.665808 [Poll 7] Looking for result: SS Lazio vs Udinese
+2026-04-28T07:45:37.903502   Score not yet available for SS Lazio vs Udinese
+2026-04-28T07:45:37.903718 [Poll 7] Looking for result: Philadelphia Flyers vs Pittsburgh Penguins
+2026-04-28T07:45:37.930142   Score not yet available for Philadelphia Flyers vs Pittsburgh Penguins
+2026-04-28T07:45:37.930252 [Poll 1] Looking for result: LA Angels vs Chicago White Sox
+2026-04-28T07:45:38.134935   Score not yet available for Philadelphia Flyers vs Pittsburgh Penguins
+2026-04-28T07:45:38.135154 [Poll 7] Looking for result: LA Angels vs Chicago White Sox
+2026-04-28T07:45:38.357217   Score not yet available for LA Angels vs Chicago White Sox
+2026-04-28T07:45:38.357408 [Poll 1] Looking for result: FC Copenhagen vs Vejle BK
+2026-04-28T07:45:38.359286   Score not yet available for LA Angels vs Chicago White Sox
+2026-04-28T07:45:38.359513 [Poll 7] Looking for result: FC Copenhagen vs Vejle BK
+2026-04-28T07:45:38.588650   Score not yet available for FC Copenhagen vs Vejle BK
+2026-04-28T07:45:38.589164 [Poll 7] Looking for result: Cadiz CF vs UD Las Palmas
+2026-04-28T07:45:38.774306   Score not yet available for FC Copenhagen vs Vejle BK
+2026-04-28T07:45:38.774479 [Poll 1] Looking for result: Cadiz CF vs UD Las Palmas
+2026-04-28T07:45:38.812672   Score not yet available for Cadiz CF vs UD Las Palmas
+2026-04-28T07:45:38.812896 [Poll 7] Looking for result: BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:45:39.033884   Score not yet available for BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:45:39.034321   15 pick(s) still pending. Sleeping 120s...
+2026-04-28T07:45:39.210349   Score not yet available for Cadiz CF vs UD Las Palmas
+2026-04-28T07:45:39.210514 [Poll 1] Looking for result: BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:45:39.607813   Score not yet available for BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:45:39.609822 Updated picks ledger: /Users/mkoziol/projects/bet/betting/journal/picks-ledger.csv
+2026-04-28T07:45:39.611562 Updated coupons ledger: /Users/mkoziol/projects/bet/betting/journal/coupons-ledger.csv
+2026-04-28T07:45:39.611658 Settlement complete: 0 settled, 15 still pending
+2026-04-28T07:47:31.000399 Found 15 pending pick(s) to settle
+2026-04-28T07:47:31.000924 [Poll 1] Looking for result: Linda Noskova vs Coco Gauff
+2026-04-28T07:47:37.766938   Flashscore football/today: +17 results
+2026-04-28T07:47:39.039810 [Poll 8] Looking for result: Linda Noskova vs Coco Gauff
+2026-04-28T07:47:39.329267   Score not yet available for Linda Noskova vs Coco Gauff
+2026-04-28T07:47:39.329636 [Poll 8] Looking for result: Elena Rybakina vs Anastasia Potapova
+2026-04-28T07:47:39.595546   Score not yet available for Elena Rybakina vs Anastasia Potapova
+2026-04-28T07:47:39.595795 [Poll 8] Looking for result: Aryna Sabalenka vs Naomi Osaka
+2026-04-28T07:47:39.827748   Score not yet available for Aryna Sabalenka vs Naomi Osaka
+2026-04-28T07:47:39.828007 [Poll 8] Looking for result: Alejandro Davidovich Fokina vs Casper Ruud
+2026-04-28T07:47:40.053453   Score not yet available for Alejandro Davidovich Fokina vs Casper Ruud
+2026-04-28T07:47:40.053751 [Poll 8] Looking for result: Cagliari vs Atalanta
+2026-04-28T07:47:40.293889   Score not yet available for Cagliari vs Atalanta
+2026-04-28T07:47:40.294181 [Poll 8] Looking for result: Judd Trump vs Hossein Vafaei
+2026-04-28T07:47:40.540411   Score not yet available for Judd Trump vs Hossein Vafaei
+2026-04-28T07:47:40.540883 [Poll 8] Looking for result: Francisco Cerundolo vs Luciano Darderi
+2026-04-28T07:47:40.800784   Score not yet available for Francisco Cerundolo vs Luciano Darderi
+2026-04-28T07:47:40.801085 [Poll 8] Looking for result: Manchester United vs Brentford FC
+2026-04-28T07:47:41.042191   Score not yet available for Manchester United vs Brentford FC
+2026-04-28T07:47:41.042498 [Poll 8] Looking for result: SS Lazio vs Udinese
+2026-04-28T07:47:41.293053   Score not yet available for SS Lazio vs Udinese
+2026-04-28T07:47:41.293368 [Poll 8] Looking for result: Philadelphia Flyers vs Pittsburgh Penguins
+2026-04-28T07:47:41.541917   Score not yet available for Philadelphia Flyers vs Pittsburgh Penguins
+2026-04-28T07:47:41.542259 [Poll 8] Looking for result: LA Angels vs Chicago White Sox
+2026-04-28T07:47:41.780475   Score not yet available for LA Angels vs Chicago White Sox
+2026-04-28T07:47:41.780888 [Poll 8] Looking for result: FC Copenhagen vs Vejle BK
+2026-04-28T07:47:42.021056   Score not yet available for FC Copenhagen vs Vejle BK
+2026-04-28T07:47:42.021345 [Poll 8] Looking for result: Cadiz CF vs UD Las Palmas
+2026-04-28T07:47:42.250790   Score not yet available for Cadiz CF vs UD Las Palmas
+2026-04-28T07:47:42.251198 [Poll 8] Looking for result: BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:47:42.493663   Score not yet available for BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:47:42.493938   15 pick(s) still pending. Sleeping 120s...
+2026-04-28T07:47:56.149745   Flashscore tennis/today: +18 results
+2026-04-28T07:48:32.802292   Flashscore hockey/today: +7 results
+2026-04-28T07:48:51.080630   Flashscore baseball/today: +9 results
+2026-04-28T07:49:09.387863   Flashscore volleyball/today: +1 results
+2026-04-28T07:49:42.498050 [Poll 9] Looking for result: Linda Noskova vs Coco Gauff
+2026-04-28T07:49:42.790118   Score not yet available for Linda Noskova vs Coco Gauff
+2026-04-28T07:49:42.790487 [Poll 9] Looking for result: Elena Rybakina vs Anastasia Potapova
+2026-04-28T07:49:43.065038   Score not yet available for Elena Rybakina vs Anastasia Potapova
+2026-04-28T07:49:43.065396 [Poll 9] Looking for result: Aryna Sabalenka vs Naomi Osaka
+2026-04-28T07:49:43.306317   Score not yet available for Aryna Sabalenka vs Naomi Osaka
+2026-04-28T07:49:43.306754 [Poll 9] Looking for result: Alejandro Davidovich Fokina vs Casper Ruud
+2026-04-28T07:49:43.559467   Score not yet available for Alejandro Davidovich Fokina vs Casper Ruud
+2026-04-28T07:49:43.559899 [Poll 9] Looking for result: Cagliari vs Atalanta
+2026-04-28T07:49:43.793501   Score not yet available for Cagliari vs Atalanta
+2026-04-28T07:49:43.793815 [Poll 9] Looking for result: Judd Trump vs Hossein Vafaei
+2026-04-28T07:49:44.055742   Score not yet available for Judd Trump vs Hossein Vafaei
+2026-04-28T07:49:44.056190 [Poll 9] Looking for result: Francisco Cerundolo vs Luciano Darderi
+2026-04-28T07:49:44.296948   Score not yet available for Francisco Cerundolo vs Luciano Darderi
+2026-04-28T07:49:44.297303 [Poll 9] Looking for result: Manchester United vs Brentford FC
+2026-04-28T07:49:44.539701   Score not yet available for Manchester United vs Brentford FC
+2026-04-28T07:49:44.539977 [Poll 9] Looking for result: SS Lazio vs Udinese
+2026-04-28T07:49:44.786600   Score not yet available for SS Lazio vs Udinese
+2026-04-28T07:49:44.786987 [Poll 9] Looking for result: Philadelphia Flyers vs Pittsburgh Penguins
+2026-04-28T07:49:45.034923   Score not yet available for Philadelphia Flyers vs Pittsburgh Penguins
+2026-04-28T07:49:45.035265 [Poll 9] Looking for result: LA Angels vs Chicago White Sox
+2026-04-28T07:49:45.281724   Score not yet available for LA Angels vs Chicago White Sox
+2026-04-28T07:49:45.282146 [Poll 9] Looking for result: FC Copenhagen vs Vejle BK
+2026-04-28T07:49:45.513348   Score not yet available for FC Copenhagen vs Vejle BK
+2026-04-28T07:49:45.513723 [Poll 9] Looking for result: Cadiz CF vs UD Las Palmas
+2026-04-28T07:49:45.759395   Score not yet available for Cadiz CF vs UD Las Palmas
+2026-04-28T07:49:45.759697 [Poll 9] Looking for result: BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:49:45.994977   Score not yet available for BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:49:45.995406   15 pick(s) still pending. Sleeping 120s...
+2026-04-28T07:49:59.207679   Flashscore batch: cached 52 match results total
+2026-04-28T07:49:59.207854   Score not yet available for Linda Noskova vs Coco Gauff
+2026-04-28T07:49:59.207919 [Poll 1] Looking for result: Elena Rybakina vs Anastasia Potapova
+2026-04-28T07:49:59.660949   Score not yet available for Elena Rybakina vs Anastasia Potapova
+2026-04-28T07:49:59.661114 [Poll 1] Looking for result: Aryna Sabalenka vs Naomi Osaka
+2026-04-28T07:50:00.091661   Score not yet available for Aryna Sabalenka vs Naomi Osaka
+2026-04-28T07:50:00.091770 [Poll 1] Looking for result: Alejandro Davidovich Fokina vs Casper Ruud
+2026-04-28T07:50:00.468924   Score not yet available for Alejandro Davidovich Fokina vs Casper Ruud
+2026-04-28T07:50:00.469066 [Poll 1] Looking for result: Cagliari vs Atalanta
+2026-04-28T07:50:02.503375   Found score: Cagliari 3 - 2 Atalanta
+2026-04-28T07:50:02.503625   Cannot auto-settle market 'corners' for pick PK-20260427-05
+2026-04-28T07:50:02.503687 [Poll 1] Looking for result: Judd Trump vs Hossein Vafaei
+2026-04-28T07:50:03.115011   Score not yet available for Judd Trump vs Hossein Vafaei
+2026-04-28T07:50:03.115274 [Poll 1] Looking for result: Francisco Cerundolo vs Luciano Darderi
+2026-04-28T07:50:03.504709   Score not yet available for Francisco Cerundolo vs Luciano Darderi
+2026-04-28T07:50:03.504905 [Poll 1] Looking for result: Manchester United vs Brentford FC
+2026-04-28T07:50:03.932731   Score not yet available for Manchester United vs Brentford FC
+2026-04-28T07:50:03.932859 [Poll 1] Looking for result: SS Lazio vs Udinese
+2026-04-28T07:50:04.342043   Score not yet available for SS Lazio vs Udinese
+2026-04-28T07:50:04.342191 [Poll 1] Looking for result: Philadelphia Flyers vs Pittsburgh Penguins
+2026-04-28T07:50:04.838145   Found score: Philadelphia Flyers 2 - 3 Pittsburgh Penguins
+2026-04-28T07:50:04.838273   Settled PK-20260427-11: loss (PnL: -0.0)
+2026-04-28T07:50:04.838317 [Poll 1] Looking for result: LA Angels vs Chicago White Sox
+2026-04-28T07:50:05.258642   Score not yet available for LA Angels vs Chicago White Sox
+2026-04-28T07:50:05.258821 [Poll 1] Looking for result: FC Copenhagen vs Vejle BK
+2026-04-28T07:50:05.654099   Score not yet available for FC Copenhagen vs Vejle BK
+2026-04-28T07:50:05.654301 [Poll 1] Looking for result: Cadiz CF vs UD Las Palmas
+2026-04-28T07:50:06.065688   Score not yet available for Cadiz CF vs UD Las Palmas
+2026-04-28T07:50:06.065870 [Poll 1] Looking for result: BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:50:06.454531   Score not yet available for BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:50:06.456232 Updated picks ledger: /Users/mkoziol/projects/bet/betting/journal/picks-ledger.csv
+2026-04-28T07:50:06.457256 Updated coupons ledger: /Users/mkoziol/projects/bet/betting/journal/coupons-ledger.csv
+2026-04-28T07:50:06.457306 Settlement complete: 1 settled, 14 still pending
+2026-04-28T07:51:15.608991 Found 14 pending pick(s) to settle
+2026-04-28T07:51:15.609284 [Poll 1] Looking for result: Linda Noskova vs Coco Gauff
+2026-04-28T07:51:21.960460   Flashscore football/today: +17 results
+2026-04-28T07:51:27.989101   Flashscore football/yesterday: +173 results
+2026-04-28T07:51:33.216413   Flashscore tennis/today: +19 results
+2026-04-28T07:51:39.244074   Flashscore tennis/yesterday: +120 results
+2026-04-28T07:51:46.005252 [Poll 10] Looking for result: Linda Noskova vs Coco Gauff
+2026-04-28T07:51:46.286558   Score not yet available for Linda Noskova vs Coco Gauff
+2026-04-28T07:51:46.286851 [Poll 10] Looking for result: Elena Rybakina vs Anastasia Potapova
+2026-04-28T07:51:46.532730   Score not yet available for Elena Rybakina vs Anastasia Potapova
+2026-04-28T07:51:46.533018 [Poll 10] Looking for result: Aryna Sabalenka vs Naomi Osaka
+2026-04-28T07:51:46.761744   Score not yet available for Aryna Sabalenka vs Naomi Osaka
+2026-04-28T07:51:46.762017 [Poll 10] Looking for result: Alejandro Davidovich Fokina vs Casper Ruud
+2026-04-28T07:51:47.014693   Score not yet available for Alejandro Davidovich Fokina vs Casper Ruud
+2026-04-28T07:51:47.014994 [Poll 10] Looking for result: Cagliari vs Atalanta
+2026-04-28T07:51:47.279521   Score not yet available for Cagliari vs Atalanta
+2026-04-28T07:51:47.279921 [Poll 10] Looking for result: Judd Trump vs Hossein Vafaei
+2026-04-28T07:51:47.533983   Score not yet available for Judd Trump vs Hossein Vafaei
+2026-04-28T07:51:47.534308 [Poll 10] Looking for result: Francisco Cerundolo vs Luciano Darderi
+2026-04-28T07:51:47.761920   Score not yet available for Francisco Cerundolo vs Luciano Darderi
+2026-04-28T07:51:47.762409 [Poll 10] Looking for result: Manchester United vs Brentford FC
+2026-04-28T07:51:48.005344   Score not yet available for Manchester United vs Brentford FC
+2026-04-28T07:51:48.006574 [Poll 10] Looking for result: SS Lazio vs Udinese
+2026-04-28T07:51:48.242180   Score not yet available for SS Lazio vs Udinese
+2026-04-28T07:51:48.242845 [Poll 10] Looking for result: Philadelphia Flyers vs Pittsburgh Penguins
+2026-04-28T07:51:48.474362   Score not yet available for Philadelphia Flyers vs Pittsburgh Penguins
+2026-04-28T07:51:48.474583 [Poll 10] Looking for result: LA Angels vs Chicago White Sox
+2026-04-28T07:51:48.720842   Score not yet available for LA Angels vs Chicago White Sox
+2026-04-28T07:51:48.721173 [Poll 10] Looking for result: FC Copenhagen vs Vejle BK
+2026-04-28T07:51:48.955752   Score not yet available for FC Copenhagen vs Vejle BK
+2026-04-28T07:51:48.956028 [Poll 10] Looking for result: Cadiz CF vs UD Las Palmas
+2026-04-28T07:51:49.194512   Score not yet available for Cadiz CF vs UD Las Palmas
+2026-04-28T07:51:49.194756 [Poll 10] Looking for result: BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:51:49.455331   Score not yet available for BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:51:49.455586   15 pick(s) still pending. Sleeping 120s...
+2026-04-28T07:51:55.650472   Flashscore hockey/today: +7 results
+2026-04-28T07:52:01.675981   Flashscore hockey/yesterday: +12 results
+2026-04-28T07:52:06.841534   Flashscore baseball/today: +9 results
+2026-04-28T07:52:12.871475   Flashscore baseball/yesterday: +11 results
+2026-04-28T07:52:18.023041   Flashscore volleyball/today: +1 results
+2026-04-28T07:52:24.053663   Flashscore volleyball/yesterday: +28 results
+2026-04-28T07:52:35.225053   Flashscore snooker/yesterday: +4 results
+2026-04-28T07:52:46.611113   Flashscore batch: cached 401 match results total
+2026-04-28T07:52:46.611529   Score not yet available for Linda Noskova vs Coco Gauff
+2026-04-28T07:52:46.611658 [Poll 1] Looking for result: Elena Rybakina vs Anastasia Potapova
+2026-04-28T07:52:47.088037   Score not yet available for Elena Rybakina vs Anastasia Potapova
+2026-04-28T07:52:47.088159 [Poll 1] Looking for result: Aryna Sabalenka vs Naomi Osaka
+2026-04-28T07:52:47.550061   Score not yet available for Aryna Sabalenka vs Naomi Osaka
+2026-04-28T07:52:47.550482 [Poll 1] Looking for result: Alejandro Davidovich Fokina vs Casper Ruud
+2026-04-28T07:52:47.960845   Score not yet available for Alejandro Davidovich Fokina vs Casper Ruud
+2026-04-28T07:52:47.960982 [Poll 1] Looking for result: Cagliari vs Atalanta
+2026-04-28T07:52:50.075285   Found score: Cagliari 3 - 2 Atalanta
+2026-04-28T07:52:50.075526   Cannot auto-settle market 'corners' for pick PK-20260427-05
+2026-04-28T07:52:50.075578 [Poll 1] Looking for result: Judd Trump vs Hossein Vafaei
+2026-04-28T07:52:50.495370   Score not yet available for Judd Trump vs Hossein Vafaei
+2026-04-28T07:52:50.495670 [Poll 1] Looking for result: Francisco Cerundolo vs Luciano Darderi
+2026-04-28T07:52:50.906009   Score not yet available for Francisco Cerundolo vs Luciano Darderi
+2026-04-28T07:52:50.906127 [Poll 1] Looking for result: Manchester United vs Brentford FC
+2026-04-28T07:52:51.324752   Score not yet available for Manchester United vs Brentford FC
+2026-04-28T07:52:51.324899 [Poll 1] Looking for result: SS Lazio vs Udinese
+2026-04-28T07:52:51.952921   Found score: SS Lazio 3 - 3 Udinese
+2026-04-28T07:52:51.953063   Cannot auto-settle market 'corners' for pick PK-20260427-10
+2026-04-28T07:52:51.953111 [Poll 1] Looking for result: LA Angels vs Chicago White Sox
+2026-04-28T07:52:52.369151   Score not yet available for LA Angels vs Chicago White Sox
+2026-04-28T07:52:52.369268 [Poll 1] Looking for result: FC Copenhagen vs Vejle BK
+2026-04-28T07:52:52.765761   Found score: FC Copenhagen 3 - 0 Vejle BK
+2026-04-28T07:52:52.766095   Cannot auto-settle market 'corners' for pick PK-20260427-13
+2026-04-28T07:52:52.766229 [Poll 1] Looking for result: Cadiz CF vs UD Las Palmas
+2026-04-28T07:52:53.189791   Found score: Cadiz CF 1 - 2 UD Las Palmas
+2026-04-28T07:52:53.189948   Cannot auto-settle market 'corners' for pick PK-20260427-14
+2026-04-28T07:52:53.189994 [Poll 1] Looking for result: BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:52:53.601741   Score not yet available for BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:52:53.603835 Updated picks ledger: /Users/mkoziol/projects/bet/betting/journal/picks-ledger.csv
+2026-04-28T07:52:53.604976 Updated coupons ledger: /Users/mkoziol/projects/bet/betting/journal/coupons-ledger.csv
+2026-04-28T07:52:53.605032 Settlement complete: 0 settled, 14 still pending
+2026-04-28T07:53:12.128476   Flashscore football/today: +17 results
+2026-04-28T07:53:18.157318   Flashscore football/yesterday: +173 results
+2026-04-28T07:53:23.383136   Flashscore tennis/today: +20 results
+2026-04-28T07:53:29.412182   Flashscore tennis/yesterday: +120 results
+2026-04-28T07:53:45.791253   Flashscore hockey/today: +7 results
+2026-04-28T07:53:49.461650 [Poll 11] Looking for result: Linda Noskova vs Coco Gauff
+2026-04-28T07:53:49.733705   Score not yet available for Linda Noskova vs Coco Gauff
+2026-04-28T07:53:49.734152 [Poll 11] Looking for result: Elena Rybakina vs Anastasia Potapova
+2026-04-28T07:53:50.019200   Score not yet available for Elena Rybakina vs Anastasia Potapova
+2026-04-28T07:53:50.019459 [Poll 11] Looking for result: Aryna Sabalenka vs Naomi Osaka
+2026-04-28T07:53:50.264100   Score not yet available for Aryna Sabalenka vs Naomi Osaka
+2026-04-28T07:53:50.264827 [Poll 11] Looking for result: Alejandro Davidovich Fokina vs Casper Ruud
+2026-04-28T07:53:50.487003   Score not yet available for Alejandro Davidovich Fokina vs Casper Ruud
+2026-04-28T07:53:50.487338 [Poll 11] Looking for result: Cagliari vs Atalanta
+2026-04-28T07:53:50.741227   Score not yet available for Cagliari vs Atalanta
+2026-04-28T07:53:50.741529 [Poll 11] Looking for result: Judd Trump vs Hossein Vafaei
+2026-04-28T07:53:50.971771   Score not yet available for Judd Trump vs Hossein Vafaei
+2026-04-28T07:53:50.972100 [Poll 11] Looking for result: Francisco Cerundolo vs Luciano Darderi
+2026-04-28T07:53:51.205139   Score not yet available for Francisco Cerundolo vs Luciano Darderi
+2026-04-28T07:53:51.205454 [Poll 11] Looking for result: Manchester United vs Brentford FC
+2026-04-28T07:53:51.433541   Score not yet available for Manchester United vs Brentford FC
+2026-04-28T07:53:51.433869 [Poll 11] Looking for result: SS Lazio vs Udinese
+2026-04-28T07:53:51.682147   Score not yet available for SS Lazio vs Udinese
+2026-04-28T07:53:51.682429 [Poll 11] Looking for result: Philadelphia Flyers vs Pittsburgh Penguins
+2026-04-28T07:53:51.819460   Flashscore hockey/yesterday: +12 results
+2026-04-28T07:53:51.913920   Score not yet available for Philadelphia Flyers vs Pittsburgh Penguins
+2026-04-28T07:53:51.914171 [Poll 11] Looking for result: LA Angels vs Chicago White Sox
+2026-04-28T07:53:52.161779   Score not yet available for LA Angels vs Chicago White Sox
+2026-04-28T07:53:52.162140 [Poll 11] Looking for result: FC Copenhagen vs Vejle BK
+2026-04-28T07:53:52.389960   Score not yet available for FC Copenhagen vs Vejle BK
+2026-04-28T07:53:52.390273 [Poll 11] Looking for result: Cadiz CF vs UD Las Palmas
+2026-04-28T07:53:52.639609   Score not yet available for Cadiz CF vs UD Las Palmas
+2026-04-28T07:53:52.639934 [Poll 11] Looking for result: BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:53:52.885359   Score not yet available for BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:53:52.885642   15 pick(s) still pending. Sleeping 120s...
+2026-04-28T07:53:56.982886   Flashscore baseball/today: +9 results
+2026-04-28T07:54:03.008220   Flashscore baseball/yesterday: +11 results
+2026-04-28T07:54:08.166002   Flashscore volleyball/today: +1 results
+2026-04-28T07:54:14.191628   Flashscore volleyball/yesterday: +28 results
+2026-04-28T07:54:25.389264   Flashscore snooker/yesterday: +4 results
+2026-04-28T07:54:36.730736   Flashscore batch: cached 402 match results total
+2026-04-28T07:55:02.964718 Found 14 pending pick(s) to settle
+2026-04-28T07:55:02.964822 [Poll 1] Looking for result: Linda Noskova vs Coco Gauff
+2026-04-28T07:55:09.334540   Flashscore football/today: +17 results
+2026-04-28T07:55:15.362207   Flashscore football/yesterday: +173 results
+2026-04-28T07:55:20.575348   Flashscore tennis/today: +20 results
+2026-04-28T07:55:26.609287   Flashscore tennis/yesterday: +120 results
+2026-04-28T07:55:42.999088   Flashscore hockey/today: +7 results
+2026-04-28T07:55:49.031696   Flashscore hockey/yesterday: +12 results
+2026-04-28T07:55:52.891119 [Poll 12] Looking for result: Linda Noskova vs Coco Gauff
+2026-04-28T07:55:53.149137   Score not yet available for Linda Noskova vs Coco Gauff
+2026-04-28T07:55:53.149413 [Poll 12] Looking for result: Elena Rybakina vs Anastasia Potapova
+2026-04-28T07:55:53.420744   Score not yet available for Elena Rybakina vs Anastasia Potapova
+2026-04-28T07:55:53.421034 [Poll 12] Looking for result: Aryna Sabalenka vs Naomi Osaka
+2026-04-28T07:55:53.647416   Score not yet available for Aryna Sabalenka vs Naomi Osaka
+2026-04-28T07:55:53.647955 [Poll 12] Looking for result: Alejandro Davidovich Fokina vs Casper Ruud
+2026-04-28T07:55:53.879961   Score not yet available for Alejandro Davidovich Fokina vs Casper Ruud
+2026-04-28T07:55:53.880320 [Poll 12] Looking for result: Cagliari vs Atalanta
+2026-04-28T07:55:54.109887   Score not yet available for Cagliari vs Atalanta
+2026-04-28T07:55:54.110683 [Poll 12] Looking for result: Judd Trump vs Hossein Vafaei
+2026-04-28T07:55:54.195288   Flashscore baseball/today: +9 results
+2026-04-28T07:55:54.362058   Score not yet available for Judd Trump vs Hossein Vafaei
+2026-04-28T07:55:54.362870 [Poll 12] Looking for result: Francisco Cerundolo vs Luciano Darderi
+2026-04-28T07:55:54.597270   Score not yet available for Francisco Cerundolo vs Luciano Darderi
+2026-04-28T07:55:54.597625 [Poll 12] Looking for result: Manchester United vs Brentford FC
+2026-04-28T07:55:54.835715   Score not yet available for Manchester United vs Brentford FC
+2026-04-28T07:55:54.836530 [Poll 12] Looking for result: SS Lazio vs Udinese
+2026-04-28T07:55:55.075207   Score not yet available for SS Lazio vs Udinese
+2026-04-28T07:55:55.075689 [Poll 12] Looking for result: Philadelphia Flyers vs Pittsburgh Penguins
+2026-04-28T07:55:55.306742   Score not yet available for Philadelphia Flyers vs Pittsburgh Penguins
+2026-04-28T07:55:55.307192 [Poll 12] Looking for result: LA Angels vs Chicago White Sox
+2026-04-28T07:55:55.548162   Score not yet available for LA Angels vs Chicago White Sox
+2026-04-28T07:55:55.548389 [Poll 12] Looking for result: FC Copenhagen vs Vejle BK
+2026-04-28T07:55:55.809277   Score not yet available for FC Copenhagen vs Vejle BK
+2026-04-28T07:55:55.809656 [Poll 12] Looking for result: Cadiz CF vs UD Las Palmas
+2026-04-28T07:55:56.070246   Score not yet available for Cadiz CF vs UD Las Palmas
+2026-04-28T07:55:56.073047 [Poll 12] Looking for result: BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:55:56.323139   Score not yet available for BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:55:56.323459   15 pick(s) still pending. Sleeping 120s...
+2026-04-28T07:56:00.221260   Flashscore baseball/yesterday: +11 results
+2026-04-28T07:56:05.378995   Flashscore volleyball/today: +1 results
+2026-04-28T07:56:11.405170   Flashscore volleyball/yesterday: +28 results
+2026-04-28T07:56:22.577322   Flashscore snooker/yesterday: +4 results
+2026-04-28T07:56:33.909472   Flashscore batch: cached 402 match results total
+2026-04-28T07:56:33.910679   Found score: Linda Noskova 2 - 1 Coco Gauff
+2026-04-28T07:56:33.910883   Settled PK-20260427-01: loss (PnL: -0.0)
+2026-04-28T07:56:33.911151 [Poll 1] Looking for result: Elena Rybakina vs Anastasia Potapova
+2026-04-28T07:56:34.422363   Found score: Elena Rybakina 0 - 2 Anastasia Potapova
+2026-04-28T07:56:34.422498   Settled PK-20260427-02: loss (PnL: -0.0)
+2026-04-28T07:56:34.422551 [Poll 1] Looking for result: Aryna Sabalenka vs Naomi Osaka
+2026-04-28T07:56:34.858238   Found score: Aryna Sabalenka 2 - 1 Naomi Osaka
+2026-04-28T07:56:34.858383   Settled PK-20260427-03: win (PnL: 0.0)
+2026-04-28T07:56:34.858429 [Poll 1] Looking for result: Alejandro Davidovich Fokina vs Casper Ruud
+2026-04-28T07:56:35.238102   Found score: Alejandro Davidovich Fokina 0 - 2 Casper Ruud
+2026-04-28T07:56:35.238225   Settled PK-20260427-04: loss (PnL: -0.0)
+2026-04-28T07:56:35.238299 [Poll 1] Looking for result: Cagliari vs Atalanta
+2026-04-28T07:56:37.346046   Found score: Cagliari 3 - 2 Atalanta
+2026-04-28T07:56:37.346198   Cannot auto-settle market 'corners' for pick PK-20260427-05
+2026-04-28T07:56:37.346248 [Poll 1] Looking for result: Judd Trump vs Hossein Vafaei
+2026-04-28T07:56:37.763483   Found score: Judd Trump 12 - 13 Hossein Vafaei
+2026-04-28T07:56:37.763613   Settled PK-20260427-06: win (PnL: 0.0)
+2026-04-28T07:56:37.763669 [Poll 1] Looking for result: Francisco Cerundolo vs Luciano Darderi
+2026-04-28T07:56:38.195270   Found score: Francisco Cerundolo 2 - 0 Luciano Darderi
+2026-04-28T07:56:38.195511   Settled PK-20260427-07: loss (PnL: -0.0)
+2026-04-28T07:56:38.195674 [Poll 1] Looking for result: Manchester United vs Brentford FC
+2026-04-28T07:56:38.637509   Found score: Manchester United 2 - 1 Brentford FC
+2026-04-28T07:56:38.637654   Cannot auto-settle market 'corners' for pick PK-20260427-09
+2026-04-28T07:56:38.637736   Cannot auto-settle market 'corners' for pick PK-20260427-16
+2026-04-28T07:56:38.637780 [Poll 1] Looking for result: SS Lazio vs Udinese
+2026-04-28T07:56:39.291571   Found score: SS Lazio 3 - 3 Udinese
+2026-04-28T07:56:39.291725   Cannot auto-settle market 'corners' for pick PK-20260427-10
+2026-04-28T07:56:39.291772 [Poll 1] Looking for result: LA Angels vs Chicago White Sox
+2026-04-28T07:56:39.818909   Found score: LA Angels 7 - 8 Chicago White Sox
+2026-04-28T07:56:39.819072   Settled PK-20260427-12: win (PnL: 0.0)
+2026-04-28T07:56:39.819125 [Poll 1] Looking for result: FC Copenhagen vs Vejle BK
+2026-04-28T07:56:40.310438   Found score: FC Copenhagen 3 - 0 Vejle BK
+2026-04-28T07:56:40.311425   Cannot auto-settle market 'corners' for pick PK-20260427-13
+2026-04-28T07:56:40.311644 [Poll 1] Looking for result: Cadiz CF vs UD Las Palmas
+2026-04-28T07:56:40.743297   Found score: Cadiz CF 1 - 2 UD Las Palmas
+2026-04-28T07:56:40.743449   Cannot auto-settle market 'corners' for pick PK-20260427-14
+2026-04-28T07:56:40.743499 [Poll 1] Looking for result: BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:56:41.176807   Score not yet available for BV Chemnitz 99 vs Bamberg Baskets
+2026-04-28T07:56:41.178618 Updated picks ledger: /Users/mkoziol/projects/bet/betting/journal/picks-ledger.csv
+2026-04-28T07:56:41.179655 Updated coupons ledger: /Users/mkoziol/projects/bet/betting/journal/coupons-ledger.csv
+2026-04-28T07:56:41.179705 Settlement complete: 7 settled, 7 still pending

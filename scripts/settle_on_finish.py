@@ -34,6 +34,8 @@ LEDGER = BASE.parent / "betting" / "journal" / "picks-ledger.csv"
 COUPONS_LEDGER = BASE.parent / "betting" / "journal" / "coupons-ledger.csv"
 LOG_FILE = BASE.parent / "settle_log.txt"
 ODDS_API_SNAPSHOT = BASE.parent / "betting" / "data" / "odds_api_snapshot.json"
+ODDS_API_SCORES = BASE.parent / "betting" / "data" / "odds_api_scores.json"
+DATA_DIR = BASE.parent / "betting" / "data"
 POLL_INTERVAL = 120  # seconds
 MAX_POLLS = 60  # max number of poll attempts
 REQUEST_HEADERS = {"User-Agent": "settle-bot/2.0 (educational project)"}
@@ -82,36 +84,246 @@ def fetch_result_from_source(home, away, source_fn):
 
 def search_odds_api_snapshot(home, away):
     """Search the Odds API snapshot for completed scores (free, no network call)."""
-    if not ODDS_API_SNAPSHOT.exists():
-        return None
-    try:
-        snapshot = json.loads(ODDS_API_SNAPSHOT.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return None
+    for snapshot_path in [ODDS_API_SCORES, ODDS_API_SNAPSHOT]:
+        if not snapshot_path.exists():
+            continue
+        try:
+            snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            continue
+
+        home_lower = home.lower()
+        away_lower = away.lower()
+        events = snapshot.get("events", [])
+        if isinstance(snapshot, list):
+            events = snapshot
+        for event in events:
+            eh = (event.get("home_team") or "").lower()
+            ea = (event.get("away_team") or "").lower()
+            if not ((home_lower in eh or eh in home_lower) and (away_lower in ea or ea in away_lower)):
+                # Try reversed order
+                if not ((home_lower in ea or ea in home_lower) and (away_lower in eh or eh in away_lower)):
+                    continue
+            if not event.get("completed"):
+                continue
+            scores = event.get("scores")
+            if not scores or len(scores) < 2:
+                continue
+            # scores is [{"name": "Team", "score": "3"}, ...]
+            score_map = {s["name"].lower(): int(s["score"]) for s in scores if s.get("score") and s["score"].isdigit()}
+            if eh in score_map and ea in score_map:
+                # Return in home/away order as requested
+                if home_lower in eh or eh in home_lower:
+                    return score_map[eh], score_map[ea]
+                else:
+                    return score_map[ea], score_map[eh]
+    return None
+
+
+def search_cached_html(home, away):
+    """Search locally cached HTML files from Playwright scans for final scores.
+
+    Only checks files from the last 48h and applies strict proximity + score
+    validation to avoid matching random numbers from fixture lists.
+    """
+    import time as _time
 
     home_lower = home.lower()
     away_lower = away.lower()
-    for event in snapshot.get("events", []):
-        eh = (event.get("home_team") or "").lower()
-        ea = (event.get("away_team") or "").lower()
-        if not ((home_lower in eh or eh in home_lower) and (away_lower in ea or ea in away_lower)):
-            # Try reversed order
-            if not ((home_lower in ea or ea in home_lower) and (away_lower in eh or eh in away_lower)):
+    now_ts = _time.time()
+    cutoff_ts = now_ts - 48 * 3600  # only files from last 48h
+
+    for site_dir_name in ["flashscore.com", "sofascore.com"]:
+        site_dir = DATA_DIR / site_dir_name
+        if not site_dir.is_dir():
+            continue
+        for html_file in sorted(site_dir.glob("*.html"), reverse=True):
+            # Skip old files
+            if html_file.stat().st_mtime < cutoff_ts:
                 continue
-        if not event.get("completed"):
-            continue
-        scores = event.get("scores")
-        if not scores or len(scores) < 2:
-            continue
-        # scores is [{"name": "Team", "score": "3"}, ...]
-        score_map = {s["name"].lower(): int(s["score"]) for s in scores if s.get("score") and s["score"].isdigit()}
-        if eh in score_map and ea in score_map:
-            # Return in home/away order as requested
-            if home_lower in eh or eh in home_lower:
-                return score_map[eh], score_map[ea]
-            else:
-                return score_map[ea], score_map[eh]
+            try:
+                text = html_file.read_text(encoding="utf-8", errors="ignore")
+                text_lower = text.lower()
+                if home_lower not in text_lower or away_lower not in text_lower:
+                    continue
+                soup = BeautifulSoup(text, "html.parser")
+                page_text = soup.get_text(separator=" ")
+                # Strict proximity: teams + score must be within 80 chars
+                for h, a, swap in [(home, away, False), (away, home, True)]:
+                    m = re.search(
+                        rf"{re.escape(h)}\s+(\d{{1,3}})\s*[:\-–—]\s*(\d{{1,3}})\s+{re.escape(a)}",
+                        page_text, re.IGNORECASE,
+                    )
+                    if m:
+                        s1, s2 = int(m.group(1)), int(m.group(2))
+                        if _validate_score(s1, s2):
+                            return (s2, s1) if swap else (s1, s2)
+            except Exception:
+                continue
     return None
+
+
+def _validate_score(s1, s2, max_total=30):
+    """Reject clearly impossible scores (e.g., 0-18 for football)."""
+    if s1 + s2 > max_total:
+        return False
+    if s1 > 20 or s2 > 20:
+        return False
+    return True
+
+
+def search_flashscore_playwright(home, away):
+    """Use Playwright to fetch live results from Flashscore search."""
+    # Delegate to the batch fetcher — results are cached after first call
+    return _flashscore_batch_cache.get(home, away)
+
+
+class _FlashscoreBatchFetcher:
+    """Fetches all recent results from Flashscore in one Playwright session,
+    then serves individual lookups from the cache."""
+
+    def __init__(self):
+        self._cache = {}  # normalized team pair → (home_score, away_score)
+        self._fetched = False
+
+    def get(self, home, away):
+        if not self._fetched:
+            self._fetch_all()
+        home_lower = home.lower().strip()
+        away_lower = away.lower().strip()
+
+        # Extract key words for fuzzy matching (handles abbreviations, suffixes)
+        home_words = set(self._normalize(home_lower))
+        away_words = set(self._normalize(away_lower))
+
+        for (h, a), score in self._cache.items():
+            h_words = set(self._normalize(h))
+            a_words = set(self._normalize(a))
+
+            # Try both orderings: (home→h, away→a) and (home→a, away→h)
+            if self._fuzzy_match(home_words, h_words) and self._fuzzy_match(away_words, a_words):
+                return score
+            if self._fuzzy_match(home_words, a_words) and self._fuzzy_match(away_words, h_words):
+                return score[1], score[0]  # swap scores
+        return None
+
+    @staticmethod
+    def _normalize(name):
+        """Extract significant words from a team/player name for fuzzy matching."""
+        # Remove common suffixes and abbreviations
+        name = re.sub(r'\b(fc|sc|cf|utd|united|city|w\.|l\.|j\.|a\.|c\.|e\.|f\.|h\.|n\.|r\.|m\.|s\.|k\.)\b', '', name)
+        # Split into words, filter short ones
+        words = [w for w in re.split(r'[\s\.\-]+', name) if len(w) >= 2]
+        return words
+
+    @staticmethod
+    def _fuzzy_match(query_words, cached_words):
+        """Check if query words match cached words (partial matching)."""
+        if not query_words or not cached_words:
+            return False
+        # At least one significant query word must appear (substring) in cached words
+        matched = 0
+        for qw in query_words:
+            for cw in cached_words:
+                if qw in cw or cw in qw:
+                    matched += 1
+                    break
+        # Require at least half of query words to match, and at least 1
+        return matched >= max(1, len(query_words) * 0.4)
+
+    def _fetch_all(self):
+        self._fetched = True
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError:
+            return
+
+        from datetime import datetime, timedelta
+
+        # Build yesterday's date for Flashscore URL date parameter
+        yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+
+        # Fetch results pages — both today (for overnight games) and yesterday
+        sport_slugs = ["football", "tennis", "basketball", "hockey",
+                       "baseball", "volleyball", "snooker", "handball"]
+
+        try:
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True)
+                page = browser.new_page(
+                    user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                               "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+                )
+
+                for sport in sport_slugs:
+                    for date_label, url in [
+                        ("today", f"https://www.flashscore.com/{sport}/"),
+                        ("yesterday", f"https://www.flashscore.com/{sport}/"),
+                    ]:
+                        try:
+                            if date_label == "today":
+                                page.goto(url, timeout=15000, wait_until="domcontentloaded")
+                                page.wait_for_timeout(3000)
+
+                            # Click FINISHED tab to filter results
+                            try:
+                                page.click("text=FINISHED", timeout=3000)
+                                page.wait_for_timeout(2000)
+                            except Exception:
+                                pass
+
+                            # For yesterday, click the left arrow button
+                            if date_label == "yesterday":
+                                try:
+                                    page.click(".action-navigation-arrow-left", timeout=3000)
+                                    page.wait_for_timeout(3000)
+                                except Exception:
+                                    continue  # skip if can't navigate
+
+                            text = page.inner_text("body")
+                            before = len(self._cache)
+                            self._parse_scores(text)
+                            added = len(self._cache) - before
+                            if added > 0:
+                                log(f"  Flashscore {sport}/{date_label}: +{added} results")
+                        except Exception as e:
+                            log(f"  Flashscore batch error {sport}/{date_label}: {e}")
+                            continue
+
+                browser.close()
+        except Exception as e:
+            log(f"  Flashscore batch fetcher error: {e}")
+
+        log(f"  Flashscore batch: cached {len(self._cache)} match results total")
+
+    def _parse_scores(self, text):
+        """Parse finished match scores from Flashscore page text.
+
+        Flashscore format (each on separate line):
+            Finished
+            HomeTeam
+            AwayTeam
+            home_score
+            away_score
+        """
+        lines = [l.strip() for l in text.split("\n") if l.strip()]
+        i = 0
+        while i < len(lines) - 4:
+            if lines[i] == "Finished":
+                home_team = lines[i + 1]
+                away_team = lines[i + 2]
+                s1_str = lines[i + 3]
+                s2_str = lines[i + 4]
+                if s1_str.isdigit() and s2_str.isdigit() and len(home_team) > 1 and len(away_team) > 1:
+                    s1, s2 = int(s1_str), int(s2_str)
+                    if _validate_score(s1, s2):
+                        self._cache[(home_team.lower(), away_team.lower())] = (s1, s2)
+                i += 5  # skip past this match block
+            else:
+                i += 1
+
+
+_flashscore_batch_cache = _FlashscoreBatchFetcher()
 
 
 def search_sofascore(home, away):
@@ -121,20 +333,15 @@ def search_sofascore(home, away):
     if r.status_code != 200:
         return None
     text = BeautifulSoup(r.text, "html.parser").get_text(separator=" ")
-    # Pattern 1: Home ... score ... Away (correct order)
-    m = re.search(
-        rf"{re.escape(home)}.*?(\d+)\s*[:\-]\s*(\d+).*?{re.escape(away)}",
-        text, re.IGNORECASE | re.DOTALL,
-    )
-    if m:
-        return int(m.group(1)), int(m.group(2))
-    # Pattern 2: Away ... score ... Home (reversed — swap scores)
-    m = re.search(
-        rf"{re.escape(away)}.*?(\d+)\s*[:\-]\s*(\d+).*?{re.escape(home)}",
-        text, re.IGNORECASE | re.DOTALL,
-    )
-    if m:
-        return int(m.group(2)), int(m.group(1))  # swap: away_score, home_score
+    for h, a, swap in [(home, away, False), (away, home, True)]:
+        m = re.search(
+            rf"{re.escape(h)}\s+(\d{{1,3}})\s*[:\-–—]\s*(\d{{1,3}})\s+{re.escape(a)}",
+            text, re.IGNORECASE,
+        )
+        if m:
+            s1, s2 = int(m.group(1)), int(m.group(2))
+            if _validate_score(s1, s2):
+                return (s2, s1) if swap else (s1, s2)
     return None
 
 
@@ -145,20 +352,15 @@ def search_flashscore(home, away):
     if r.status_code != 200:
         return None
     text = BeautifulSoup(r.text, "html.parser").get_text(separator=" ")
-    # Pattern 1: Home ... score ... Away (correct order)
-    m = re.search(
-        rf"{re.escape(home)}.*?(\d+)\s*[:\-]\s*(\d+).*?{re.escape(away)}",
-        text, re.IGNORECASE | re.DOTALL,
-    )
-    if m:
-        return int(m.group(1)), int(m.group(2))
-    # Pattern 2: Away ... score ... Home (reversed — swap scores)
-    m = re.search(
-        rf"{re.escape(away)}.*?(\d+)\s*[:\-]\s*(\d+).*?{re.escape(home)}",
-        text, re.IGNORECASE | re.DOTALL,
-    )
-    if m:
-        return int(m.group(2)), int(m.group(1))  # swap: away_score, home_score
+    for h, a, swap in [(home, away, False), (away, home, True)]:
+        m = re.search(
+            rf"{re.escape(h)}\s+(\d{{1,3}})\s*[:\-–—]\s*(\d{{1,3}})\s+{re.escape(a)}",
+            text, re.IGNORECASE,
+        )
+        if m:
+            s1, s2 = int(m.group(1)), int(m.group(2))
+            if _validate_score(s1, s2):
+                return (s2, s1) if swap else (s1, s2)
     return None
 
 
@@ -220,9 +422,13 @@ def settle_pick(pick, score_home, score_away, home_name, away_name):
         pick["pnl_pln"] = compute_pnl(pick["status"], pick.get("bookmaker_odds"), pick.get("stake_pln"))
         return True
 
-    # Totals (any line)
+    # Totals (goals/points/game totals only — NOT corners, cards, fouls, shots)
+    # Markets like corners, cards, fouls need special stat data and must be settled manually.
+    MANUAL_STAT_MARKETS = ("corner", "card", "foul", "shot", "booking", "yellow", "red",
+                           "throw-in", "offside", "free kick")
+    is_stat_market = any(kw in market for kw in MANUAL_STAT_MARKETS)
     direction, line = parse_totals_line(market, sel)
-    if direction and line is not None:
+    if direction and line is not None and not is_stat_market:
         total_goals = score_home + score_away
         if direction == "under":
             if total_goals < line:
@@ -400,12 +606,18 @@ def main():
                 continue
 
             log(f"[Poll {polls}] Looking for result: {home} vs {away}")
-            # Try Odds API snapshot first (free, offline)
+            # Try local sources first (free, no network)
             result = fetch_result_from_source(home, away, search_odds_api_snapshot)
+            if not result:
+                result = fetch_result_from_source(home, away, search_cached_html)
+            # Network fallbacks (Sofascore/Flashscore use JS — requests often fails)
             if not result:
                 result = fetch_result_from_source(home, away, search_sofascore)
             if not result:
                 result = fetch_result_from_source(home, away, search_flashscore)
+            # Playwright-based live search (slow but reliable)
+            if not result:
+                result = fetch_result_from_source(home, away, search_flashscore_playwright)
 
             if result:
                 score_home, score_away = result

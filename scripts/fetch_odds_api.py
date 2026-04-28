@@ -329,17 +329,21 @@ def run_full_scan(api_key, sport_filter=None, betting_day_window=True):
     return all_events
 
 
-def run_scores(api_key, sport_filter):
-    """Fetch scores for settlement."""
-    print(f"\nFetching scores for: {sport_filter}")
+def run_scores(api_key, sport_filter, days_from=2):
+    """Fetch scores for settlement and save to odds_api_scores.json."""
+    print(f"\nFetching scores for: {sport_filter} (daysFrom={days_from})")
+    all_scores = []
+    now = datetime.now(timezone.utc)
     for sport_name in sport_filter:
         api_keys = SPORT_KEY_MAP.get(sport_name, [])
         for sport_key in api_keys:
             try:
-                scores, headers = fetch_scores(api_key, sport_key, days_from=1)
+                scores, headers = fetch_scores(api_key, sport_key, days_from=days_from)
                 remaining = headers.get("x-requests-remaining", "?")
                 print(f"\n--- {sport_key} ({len(scores)} games) | Credits remaining: {remaining} ---")
                 for game in scores:
+                    game["_sport_key"] = sport_key
+                    game["_our_sport"] = sport_name
                     status = "FINAL" if game.get("completed") else "LIVE" if game.get("scores") else "UPCOMING"
                     scores_str = ""
                     if game.get("scores"):
@@ -347,8 +351,22 @@ def run_scores(api_key, sport_filter):
                             f"{s['name']}: {s['score']}" for s in game["scores"]
                         )
                     print(f"  {game['away_team']} @ {game['home_team']} [{status}] {scores_str}")
+                all_scores.extend(scores)
             except Exception as exc:
                 print(f"  {sport_key}: ERROR {exc}")
+
+    # Save to JSON for settle_on_finish.py
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    scores_file = DATA_DIR / "odds_api_scores.json"
+    scores_data = {
+        "timestamp": now.isoformat(),
+        "days_from": days_from,
+        "total_games": len(all_scores),
+        "events": all_scores,
+    }
+    scores_file.write_text(json.dumps(scores_data, indent=2, ensure_ascii=False))
+    completed = sum(1 for g in all_scores if g.get("completed"))
+    print(f"\nScores saved: {scores_file} ({len(all_scores)} games, {completed} completed)")
 
 
 def main():

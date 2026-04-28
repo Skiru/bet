@@ -146,7 +146,7 @@ step_start "STEP A1: Settlement + Score Fetch"
 
 if [ "$SKIP_SETTLE" = false ]; then
     echo "[A1.1] Fetching scores for settlement via The-Odds-API..."
-    python3 "${SCRIPT_DIR}/fetch_odds_api.py" --scores baseball,hockey 2>&1 || echo "[WARN] Score fetch failed — manual settlement needed"
+    python3 "${SCRIPT_DIR}/fetch_odds_api.py" --scores football,tennis,basketball,hockey,baseball,mma 2>&1 || echo "[WARN] Score fetch failed — manual settlement needed"
 
     echo "[A1.2] Running settlement script for ${YESTERDAY}..."
     python3 "${SCRIPT_DIR}/settle_on_finish.py" --betting-day "${YESTERDAY}" 2>&1 || echo "[WARN] Settlement script returned errors — check manually"
