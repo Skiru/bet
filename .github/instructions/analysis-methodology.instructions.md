@@ -122,6 +122,69 @@ python3 scripts/fetch_with_playwright.py "https://www.betideas.com/tips/football
 
 **Scan Completeness Gate (§1.6):** Before STEP 2, compile per-sport event count table from ≥2 sources. Total ≥50 events, ≥6 sports with events, completeness ≥80%. If not met → go back.
 
+### §1.7 EXOTIC LEAGUE PROTOCOL
+
+**Definition:** An "exotic league" is any football competition OUTSIDE:
+- Top 5 European leagues (EPL, LaLiga, Bundesliga, Serie A, Ligue 1) and their 2nd divisions
+- Top established European leagues (Eredivisie, Belgian Pro League, Portuguese Primeira, Turkish Super Lig, Russian Premier, Swiss Super League, Austrian Bundesliga, Scottish Premiership, Greek Super League, Czech First League, Polish Ekstraklasa, Danish Superliga, Swedish Allsvenskan, Norwegian Eliteserien, Croatian HNL, Serbian SuperLiga, Ukrainian Premier, Romanian Liga 1)
+- Primary US/MX/BR/AR/JP/KR leagues (MLS, Liga MX, Brasileirão, Argentine Primera, J-League, K-League)
+- Continental club competitions (UCL, UEL, UECL, Copa Libertadores, Copa Sudamericana, AFC Champions League)
+
+**Everything else is EXOTIC:** Peru Liga 1, Egyptian Premier League, Kings League, Uzbekistan Super League, Algerian Ligue 1, Saudi Pro League, Indian ISL, Vietnamese V-League, Faroe Islands, Gibraltar, Kosovo, all Central American leagues, all Central Asian leagues, etc.
+
+**§1.7a BETCLIC MARKET GATE (MANDATORY — check BEFORE deep analysis):**
+Before investing analysis time on an exotic league candidate:
+1. Check if the league/event exists on Betclic (betclic.pl football section).
+2. If NO markets on Betclic → SKIP (no execution path).
+3. If ONLY ML/1X2 on Betclic → proceed only if strong statistical edge exists AND ML is acceptable per §6.5 upset risk.
+4. If statistical markets (corners, cards, totals) exist on Betclic → proceed normally.
+
+**§1.7b DATA THRESHOLDS (relaxed for exotic leagues):**
+
+| Requirement | Mainstream | Exotic |
+|-------------|-----------|--------|
+| H2H meetings minimum | 5 | 3 (flag as EXOTIC-THIN if <5) |
+| Stat sources minimum | 3 | 2 (Flashscore/Sofascore + 1 specialist) |
+| Tipster sources | ≥2 with reasoning | ≥1 (exotic leagues rarely covered by tipsters) |
+| Corner/card stat source | TotalCorner + SoccerStats + Betclic | Soccerway + Flashscore match stats (fallback) |
+| §3.0 market ranking | ≥3 alternative markets | ≥2 alternative markets (if data allows 3, do 3) |
+
+Picks with EXOTIC-THIN data flags:
+- CANNOT be in LR coupons
+- Get −0.5 confidence adjustment
+- Maximum 2 exotic picks per coupon
+- Maximum 1 exotic pick per LR coupon (only if NOT EXOTIC-THIN)
+
+**§1.7c SOURCE FALLBACK CHAIN (exotic football):**
+```
+Primary: Flashscore (fixture, H2H, match stats) + Sofascore (form, stats)
+├── H2H thin? → Soccerway H2H + AiScore H2H
+├── Corner/card stats missing? → Flashscore match-level stats (last 10 games, manual count)
+├── League standings missing? → Soccerway standings + BetExplorer results
+├── No SoccerStats/TotalCorner? → Betaminic (covers some exotic leagues) → Flashscore per-match corner counts (manual)
+└── All fail? → Google "[league name] statistics [season]" for specialist sites
+```
+
+**§1.7d RED FLAGS SPECIFIC TO EXOTIC LEAGUES:**
+
+| Red Flag | Description | Action |
+|----------|-------------|--------|
+| Match-fixing risk | League/country on known match-fixing watchlists (spotfixing.eu, IBIA alerts) | HARD REJECT for exotic leagues with active alerts. For flagged countries: skip low-division matches, only top-flight with high attendance. |
+| Scheduling irregularities | Mid-week matches with no clear reason, frequent postponements, irregular kickoff times | FLAG — investigate before proceeding. Unusual schedule = potential integrity issue. |
+| Extreme weather/altitude | High-altitude venues (Bolivia, Peru highlands, Central Asian cities), extreme heat (Middle East summer), monsoon season (SEA) | Adjust totals expectations. High altitude = more goals/corners. Extreme heat = fewer goals, lower pace. Monsoon = match postponement risk. |
+| Kings League special rules | Shorter halves (20 min), special gameplay mechanics (shootouts, power-ups), entertainment format | SEPARATE ANALYSIS PROTOCOL. Do NOT apply standard football stats. Kings League H2H/form from previous Kings League seasons ONLY. Standard football metrics DO NOT TRANSFER. |
+| Low attendance / closed doors | Matches with <1000 attendance or behind closed doors | FLAG — home advantage reduced. Adjust H/A split expectations. |
+| Roster instability | Frequent mid-season transfers, loan army turnover, player migration between exotic leagues | INCREASE weight on L5 recent form (post-transfer window) over L10. Coach/roster stability check is CRITICAL. |
+| Time zone mismatch | Kickoff at unusual local time (e.g., 3 AM local = potential integrity concern) | FLAG — investigate reason. Official schedule adjustments for TV are OK; unexplained off-hour matches = caution. |
+
+**§1.7e EXOTIC LEAGUE CLASSIFICATION:**
+- **Tier E1 (established exotic):** Saudi Pro League, Egyptian Premier League, Moroccan Botola, Algerian Ligue 1, UAE Pro League, Indian ISL, Colombian Liga BetPlay, Chilean Primera, Paraguayan Primera, Ecuadorian LigaPro, Peruvian Liga 1, Uzbekistan Super League, Kazakhstan Premier League, Georgian Erovnuli Liga, Kosovo Superliga, North Macedonian First League — reasonable data coverage, Flashscore/Sofascore available, BetExplorer usually has odds.
+- **Tier E2 (thin data):** Bolivian Primera, Costa Rican Primera, Central American leagues, Iranian PGPL, Iraqi Stars League, Jordanian Pro League, Armenian/Azerbaijani leagues, Faroe Islands, Gibraltar, Andorra, San Marino — sparse data, limited H2H, Soccerway may be only reliable source.
+- **Tier E3 (ultra-thin):** Bangladesh, Myanmar, Cambodia, Laos, Mongolia, Turkmenistan, Tajikistan, Kyrgyzstan — minimal data coverage, avoid unless strong reason and Betclic offers markets.
+- **Entertainment:** Kings League — separate protocol, non-standard football rules.
+
+Tier E3 picks require ALL of: Betclic market confirmed, ≥2 sources with data, EV > 0, and user explicit approval before placement.
+
 ---
 
 ## STEP 2: FILTER — Shortlist
@@ -163,22 +226,9 @@ Preferred odds range: 1.30-3.50.
 
 ### §3.0b BETTABLE STATISTICAL MARKETS BY SPORT
 
-| Sport | Statistical Markets (ranked by typical reliability) |
-|-------|-----------------------------------------------------|
-| **Football** | Fouls O/U, Cards O/U, Corners team O/U, Corners total O/U, Shots O/U, Shots on target O/U, Throw-ins O/U, Goal kicks O/U, Offsides O/U, Team goals O/U, Total goals O/U, BTTS |
-| **Tennis** | Total games O/U, Sets O/U, Game handicap, Set handicap, Tiebreaks O/U, Aces O/U, Double faults O/U |
-| **Basketball** | Team points O/U, Quarter totals, Half totals, Total points O/U, Rebounds O/U, Assists O/U, 3-pointers O/U, Spread |
-| **Volleyball** | Total sets O/U, Total points O/U, Set handicap, Points per set O/U |
-| **Hockey** | Period totals O/U, Total goals O/U, Shots O/U, Power play goals O/U, Puck line |
-| **Baseball** | F5 innings total O/U, Team totals, Total runs O/U, Hits O/U, Strikeouts O/U, Run line |
-| **Snooker** | Frame totals O/U, Century breaks O/U, 50+ breaks O/U, Frame handicap |
-| **Darts** | 180s O/U, Total legs O/U, Set totals, Checkout % props |
-| **Handball** | Half totals O/U, Total goals O/U, Team goals O/U, Suspensions O/U |
-| **Esports** | Round totals O/U, Map totals O/U, Kill totals, Map handicap |
-| **Table Tennis** | Set totals O/U, Total points O/U, Set handicap |
-| **MMA** | Total rounds O/U, Method of victory, ITD Y/N |
-| **Padel** | Game totals O/U, Set totals O/U, Set handicap |
-| **Speedway** | Total points O/U, Team handicap |
+> **Full table** in `bet-analyzing-statistics` SKILL.md §3.0b. Per-sport mandatory multi-market calculation tables in sport-analysis-protocols.instructions.md (§3.1M-§3.14M).
+>
+> **Quick reference:** Football (Fouls, Cards, Corners, Shots, Throw-ins, Goal kicks, Offsides, Goals, BTTS) | Tennis (Games, Sets, HC, Tiebreaks, Aces) | Basketball (Team pts, Quarter, Half, Total, Rebounds, 3PT) | Volleyball (Sets, Points, Set HC) | Hockey (Period, Goals, Shots, PP) | Baseball (F5, Team, Total, Hits, K's) | Snooker (Frames, Centuries, 50+) | Darts (180s, Legs, Sets) | Handball (Half, Total, Team, Suspensions) | Esports (Rounds, Maps, Kills) | Table Tennis (Sets, Points) | MMA (Rounds, Method, ITD) | Padel (Games, Sets) | Speedway (Points, HC)
 
 ### §3.0c H2H MARKET-SPECIFIC VALIDATION (MANDATORY — NEVER SKIP)
 
@@ -225,91 +275,29 @@ ALL THREE must support the pick direction. 2/3 conflict → DOWNGRADE. 3/3 confl
 
 ### §3.0e MANDATORY PER-CANDIDATE OUTPUT TEMPLATE
 
-**EVERY candidate in the `{date}_s3_deep_stats.md` file MUST use this exact template.** The section markers (§S3.1-§S3.10) are PARSEABLE — the orchestrator counts them. Missing or empty sections = STRUCTURAL VIOLATION = candidate REJECTED.
+> **Full template code block** in `bet-analyzing-statistics` SKILL.md. The template below is a COMPACT reference — the full version with all table formats lives in the skill.
 
-````
-### ══ CANDIDATE: [Sport] — [TeamA/PlayerA] vs [TeamB/PlayerB] | [Competition] | [Kickoff HH:MM] ══
+**EVERY candidate in `{date}_s3_deep_stats.md` MUST have these 10 sections** (delimited by `══ CANDIDATE ... ══` and `══ END CANDIDATE ══`):
 
-#### §S3.1 H2H ANALYSIS (MARKET-SPECIFIC)
-- Meetings found: [N] (source: [source name], period: [date range])
-- H2H results: [list each meeting with date, score, and STAT VALUE for selected market]
-  - YYYY-MM-DD: [TeamA] [score] [TeamB] — [stat]: [value]
-  - YYYY-MM-DD: [TeamA] [score] [TeamB] — [stat]: [value]
-  - (minimum 3 meetings, target 5)
-- H2H avg for selected stat: [number]
-- H2H-STAT status: ✅ CONFIRMED / ⚠️ H2H-STAT-BLIND (reason: [where looked, why unavailable])
+1. **§S3.1** H2H Analysis (market-specific) — ≥3 meetings, H2H avg, BLIND status
+2. **§S3.2** Form & Stats Table — sport-specific, all columns, home/away split
+3. **§S3.3** Market Ranking (§3.0) — ≥3 rows (≥4 football), Safety 0.00-1.00
+4. **§S3.4** Three-Way Cross-Check — L10, H2H, L5 rows with alignment verdict
+5. **§S3.5** Coach/Roster Stability — source named, date checked
+6. **§S3.6** Injury/Suspension Check — source + timestamp per entry
+7. **§S3.7** Top 3 Markets — from ranking with safety scores
+8. **§S3.8** Recommended Market — cites §S3.3, explains WHY
+9. **§S3.9** Sources Used — ≥2 rows with actual source names
+10. **§S3.10** Depth Proof — 5 metrics with numbers
 
-#### §S3.2 FORM & STATS TABLE
-[Sport-specific stats table from §3.1-§3.14 — ALL columns filled, split Home/Away]
-[Every cell must contain a number or specific text — no "checked" or "—"]
-
-#### §S3.3 STATISTICAL MARKET RANKING (§3.0)
-| # | Market           | TeamA avg | TeamB avg | H2H avg | Line  | Hit L10 | Hit H2H | Safety | Source           |
-|---|------------------|-----------|-----------|---------|-------|---------|---------|--------|------------------|
-| 1 | [market name]    | [number]  | [number]  | [number]| [X.5] | [X/10]  | [X/5]   | [0.XX] | [source name]    |
-| 2 | [market name]    | [number]  | [number]  | [number]| [X.5] | [X/10]  | [X/5]   | [0.XX] | [source name]    |
-| 3 | [market name]    | [number]  | [number]  | [number]| [X.5] | [X/10]  | [X/5]   | [0.XX] | [source name]    |
-MINIMUM 3 ROWS. For Football, MINIMUM 4 (Fouls + Cards + Corners + Shots).
-Safety = min(hit_rate_L10, hit_rate_H2H) as decimal. Higher = better.
-SELECTED MARKET: Row [#] — [market name] (highest safety score: [value])
-
-#### §S3.4 THREE-WAY CROSS-CHECK
-| Check    | Value    | vs Line [X.5] | Hit Rate  | Direction              |
-|----------|----------|----------------|-----------|------------------------|
-| L10 avg  | [number] | [over/under]   | [X/10]    | [SUPPORTS / CONFLICTS] |
-| H2H avg  | [number] | [over/under]   | [X/5]     | [SUPPORTS / CONFLICTS] |
-| L5 trend | [number] | [trend]        | [X/5]     | [UP / DOWN / STABLE]   |
-ALIGNMENT: [3/3 SUPPORT ✅ / 2/3 CONFLICT → DOWNGRADE / 3/3 CONFLICT → REJECT]
-
-#### §S3.5 COACH/ROSTER STABILITY
-- Coach change in last 5 matches: [YES — name, date, source] / [NO — source: TransferMarkt/Flashscore, checked: YYYY-MM-DD]
-- Major roster changes in 14 days: [YES — details, source] / [NO — source: [name], checked: YYYY-MM-DD]
-- Stability verdict: [STABLE / VOLATILE — impact on analysis: [1 sentence]]
-
-#### §S3.6 INJURY/SUSPENSION CHECK
-| Player         | Status          | Impact on Pick | Source               | Checked At          |
-|----------------|-----------------|----------------|----------------------|---------------------|
-| [full name]    | [OUT/GTD/PROB]  | [HIGH/MED/LOW] | [source + page]      | [YYYY-MM-DD HH:MM] |
-If NO injuries: "No injuries reported — [source name], checked [YYYY-MM-DD HH:MM]"
-
-#### §S3.7 TOP 3 MARKETS (from §S3.3 ranking)
-1. **[Market]** — Safety: [0.XX] | L10 hit: [X/10] | H2H hit: [X/5] | Margin: [avg vs line]
-2. **[Market]** — Safety: [0.XX] | L10 hit: [X/10] | H2H hit: [X/5] | Margin: [avg vs line]
-3. **[Market]** — Safety: [0.XX] | L10 hit: [X/10] | H2H hit: [X/5] | Margin: [avg vs line]
-
-#### §S3.8 RECOMMENDED MARKET
-- **Market:** [specific market + line, e.g., "Corners Over 9.5"]
-- **Safety score:** [0.XX] (rank [#] of [N] evaluated)
-- **Reason:** [2-3 sentences citing specific numbers from §S3.3 and §S3.4 — WHY this market beat alternatives]
-- **Key stat:** [The single most important data point supporting this pick]
-
-#### §S3.9 SOURCES USED
-| # | Source Name       | Data Collected                    | URL / Access Method          |
-|---|-------------------|-----------------------------------|------------------------------|
-| 1 | [source name]     | [what was fetched]                | [URL or "Playwright scan"]   |
-| 2 | [source name]     | [what was fetched]                | [URL or "Odds-API"]         |
-MINIMUM 2 ROWS. Every source that contributed data must be listed.
-
-#### §S3.10 ANALYSIS DEPTH PROOF
-| Metric                    | Value                                         |
-|---------------------------|-----------------------------------------------|
-| Markets evaluated         | [N] markets in §S3.3 ranking table            |
-| Sources consulted         | [N] sources ([list names])                    |
-| Data points collected     | [N] unique stat values across form + H2H      |
-| H2H meetings analyzed     | [N] meetings for [stat], source: [name]       |
-| Ranking table completeness| [N] cells filled / [N] total cells = [X]%     |
-
-### ══ END CANDIDATE ══
-````
-
-**VALIDATION RULES (for orchestrator):**
-1. Every candidate MUST have exactly 10 section markers (§S3.1-§S3.10)
-2. §S3.3 MUST have ≥3 data rows (≥4 for football)
-3. §S3.4 MUST have 3 data rows (L10, H2H, L5) with numeric values
-4. §S3.9 MUST have ≥2 data rows
-5. NO cell in ANY table may contain ONLY a banned word (§3.0d)
-6. §S3.3 Safety column MUST contain decimal numbers (0.00-1.00)
-7. §S3.10 Metrics column MUST contain numbers, not text descriptions
+**VALIDATION (automated via `validate_s3_output.py`):**
+1. All 10 section markers present
+2. §S3.3 ≥3 data rows (≥4 football), Safety values are decimal 0.00-1.00
+3. §S3.4 has 3 rows with numeric values + alignment verdict
+4. §S3.9 has ≥2 rows
+5. No BANNED WORD (§3.0d) as sole cell content
+6. §S3.6 injury check has source + timestamp
+7. §S3.10 has 5 metrics with numbers
 
 ---
 
@@ -350,6 +338,10 @@ Check ≥2 ARGUMENT-BASED tipster sites per candidate. Read WRITTEN REASONING, n
 | MMA | Sportsgambler | PicksWise | Tipstrr |
 | Padel | Google "[event] prediction" | Sportsgambler | — |
 | Speedway | ZawodTyper | Typersi | Google "[event] tips" |
+| Football (Exotic SA) | Feedinco → Bettingclosed | Forebet | Sportsgambler → Google "[league] tips [date]" |
+| Football (Exotic Africa/ME) | Tips180 → Feedinco | Bettingclosed → Forebet | Sportsgambler → Google "[league] tips [date]" |
+| Football (Exotic Asia) | AsiaBet → Feedinco | Bettingclosed → Forebet | Sportsgambler → Google "[league] tips [date]" |
+| Football (Exotic Europe minor) | ZawodTyper → Typersi | Feedinco → Bettingclosed | OLBG → Sportsgambler |
 
 **Extract per tipster:** site, tipster name, specific pick, odds, reasoning summary (1-2 sentences with stats/facts cited).
 
@@ -621,10 +613,11 @@ On reruns: increment version (v5→v6). Mark old pending as `superseded`. Keep a
 | 15 | Betclic history skipped → repeated known failures | §0.2a not executed | ALWAYS read `betclic_bets_history.json` + run `analyze_betclic_learning.py` before ANY analysis. This is ground truth. |
 | 16 | PSG vs Bayern cards approved without §3.0 ranking table | S3 output was narrative ("H2H avg 5.8 cards") without structured ranking table comparing cards vs corners vs fouls vs shots | §3.0e template is MANDATORY. §S3.3 ranking table must have ≥3 rows with real numbers. Orchestrator mechanically verifies section markers. |
 | 17 | Narrative analysis substituted for structured template | Agent wrote paragraphs instead of filling §S3.1-§S3.10 sections with tables and numbers | Every candidate MUST have all 10 sections (§S3.1-§S3.10). Missing markers = STRUCTURAL VIOLATION = auto-reject. |
+| 18 | Exotic league analyzed without Betclic market check | Full S3-S7 done on a league where Betclic has no markets | §1.7a BETCLIC MARKET GATE: Check Betclic market existence BEFORE starting deep analysis. No markets → SKIP. |
 
 ---
 
-## COMMON MISTAKES (read before writing)
+## COMMON MISTAKES (read before writing — entries unique to this section, not covered by Zero Tolerance Shield above)
 
 1. Using "medium" as variant — only low-risk or higher-risk.
 2. Old-style metadata in .md coupon file — metadata in ledger CSVs only.
@@ -633,19 +626,10 @@ On reruns: increment version (v5→v6). Mark old pending as `superseded`. Keep a
 5. Not flagging tournament concentration (>4 picks same tournament).
 6. Labeling coupons "MEDIUM" or "ATP CLAY" — only LOW-RISK, MULTI-SPORT, HIGHER-RISK, NIGHT.
 7. Inventing ratio grades — only STRONG, GOOD, BORDERLINE, REJECT exist.
-8. Singles instead of coupons — NO SINGLES. Min 2 legs.
-9. Producing too few coupons — scale core with picks (2-5+), ≥4 combos = genuine choice for the user.
-10. Giving up after first 403 — use fallback chain, then search internet.
-11. Shallow scanning — enter every tournament, count matches.
-12. Missing Polish descriptions — every leg needs Polish parenthetical.
-13. Claiming combined odds "verified" without showing arithmetic.
-14. Skipping H2H — MANDATORY for every candidate, every sport.
-15. Skipping injury check — one absent star invalidates entire thesis.
-16. Defaulting to ML in any sport — statistical markets always preferred.
-17. O22.5+ for WC/Q/LL — HARD REJECT. O20.5 max.
-18. Ignoring drift >8% — MANDATORY re-eval.
-19. Home/away reversed in US sports — "@" = Away @ Home.
-20. V10e matrix missing — PROTOCOL VIOLATION. Every pick must have ✅ on all 10 columns.
+8. Producing too few coupons — scale core with picks (2-5+), ≥4 combos = genuine choice for the user.
+9. Missing Polish descriptions — every leg needs Polish parenthetical.
+10. Claiming combined odds "verified" without showing arithmetic.
+11. V10e matrix missing — PROTOCOL VIOLATION. Every pick must have ✅ on all 10 columns.
 
 ---
 
@@ -662,21 +646,4 @@ Statistical/peripheral markets (corners, fouls, shots, points, games, sets, fram
 
 **EVERY football match in shortlist MUST have ≥1 corners/fouls/shots market evaluated.** Never default to goals-only.
 
-| Sport | Priority order (→ least preferred) | Primary statistical markets |
-|-------|-----------------------------------|-----------------------------|
-| Football | Fouls → Cards → Corners → Shots → Team totals → BTTS → U2.5 → O2.5 → DC/DNB → 1X2 | Corners, fouls, cards, shots (accumulate, style-driven) |
-| Tennis | Game totals O/U → Set totals → Game HC → Set HC → ML | Games, sets (accumulate per match, serve/return driven) |
-| Basketball | Team totals → Quarter totals → Game totals → Spreads → ML | Points, team totals (pace-driven, accumulate in quarters) |
-| Hockey | Period totals → Game totals → Puck line → ML | Period totals, shots on goal |
-| Baseball | F5 totals → Team totals → Game totals → Run line → ML | F5 innings, team totals (pitcher-driven) |
-| Volleyball | Set score O/U → Point totals → Set totals → Set HC → ML | Sets, total points (accumulate, reception/attack driven) |
-| Esports | Round totals → Map totals → Map HC → Kill totals → ML | Rounds, maps (map pool driven, accumulate) |
-| Snooker | Century O/U → Frame totals → Frame HC → ML | Frames, centuries (session-driven, accumulate) |
-| Darts | 180s O/U → Leg totals → Set totals → ML | 180s, legs (average-driven, accumulate) |
-| Handball | Half totals → Game totals → HC → ML | Half totals, game totals (pace-driven) |
-| Table Tennis | Point totals → Set totals → Set HC → ML | Points, sets (rally style driven) |
-| MMA | Method → O/U rounds → ITD → ML | Rounds (style-driven: wrestler vs striker) |
-| Padel | Game totals → Set totals → Set HC → ML | Games, sets (rally-driven, accumulate) |
-| Speedway | Total pts → HC → Match winner | Total points (rider form driven) |
-
-**Key:** Statistical markets accumulate, are style-driven, survive in-match chaos, and are mispriced. This is our edge. The less popular the market, the more likely mispriced.
+> **Full per-sport priority order table** in `bet-analyzing-statistics` SKILL.md and sport-analysis-protocols.instructions.md (§3.XM tables). Quick reference: Football (Fouls→Cards→Corners→Shots→…→1X2) | Tennis (Games→Sets→HC→ML) | Basketball (Team totals→Quarter→Game→Spreads→ML) | All sports: statistical markets FIRST, ML is LAST RESORT.

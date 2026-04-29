@@ -78,11 +78,13 @@ If the time window yields fewer events → the shortlist is smaller → fewer pi
 
 Before any pass, ensure:
 1. Run scan pipeline: `bash scripts/run_full_scan_and_prepare.sh` → check `betting/data/scan_summary.json`
-2. Run The-Odds-API: `python3 scripts/fetch_odds_api.py` (if API key configured)
-3. Config loaded: bankroll, daily cap, sports list, betting_window_days
-4. Previous day's learning-log and error patterns reviewed
-5. If `betting_window_days` > 1 → extend scan window to cover N days
-6. If `rerun=true` → execute §RERUN versioning protocol (see above)
+2. Log source health: `python3 scripts/source_health.py --log` → check for degraded sources
+3. Run The-Odds-API: `python3 scripts/fetch_odds_api.py` (if API key configured)
+4. Config loaded: bankroll, daily cap, sports list, betting_window_days
+5. Previous day's learning-log and error patterns reviewed
+6. If `betting_window_days` > 1 → extend scan window to cover N days
+7. If `rerun=true` → execute §RERUN versioning protocol (see above)
+8. Check 48h repeat losses: `python3 scripts/check_48h_repeats.py` → flag for S7 gate
 
 ### §RERUN — VERSIONING PROTOCOL (when rerun=true)
 
@@ -114,13 +116,17 @@ Each pass executes these steps IN ORDER. Each step:
 | S0 | `s0-settlement` | bet-settler | picks-ledger, coupons-ledger, Flashscore | `{date}_s0_settlement.md` | All pending resolved, bankroll updated |
 | S1 | `s1-scan` | bet-scanner | BetExplorer, Flashscore, scan_summary | `{date}_s1_master_events.md` + `{date}_s1_tipster_prefetch.md` | ≥50 events, ALL 14 sports scanned (≥6 with events), completeness ≥80%, **tipster HTML fetched** |
 | S2 | `s2-shortlist` | bet-scanner | S1 output | `{date}_s2_shortlist.md` | 15-40 candidates, ≥8 sports in shortlist |
-| S3 | `s3-deep-stats` | bet-statistician | S2 output | `{date}_s3_deep_stats.md` | **MECHANICAL: §3.0e template (§S3.1-§S3.10 markers), ≥3 ranking rows, banned word scan, numeric safety scores, 100% DEPTH gate** |
-| S4 | `s4-tipsters` | bet-scout | S3 output + **§1.5 pre-fetched HTML** | `{date}_s4_tipsters.md` | **STRUCTURAL: ≥2 tipster sites with arguments per candidate + coverage summary table + §4.3 done** |
+| **S3+S4** | **PARALLEL** | | S2 output → both | | |
+| S3 | `s3-deep-stats` | bet-statistician | S2 output | `{date}_s3_deep_stats.md` | **AUTOMATED: `validate_s3_output.py` — ALL candidates PASS** |
+| S4 | `s4-tipsters` | bet-scout | S2 output + **§1.5 pre-fetched HTML** | `{date}_s4_tipsters.md` | **STRUCTURAL: ≥2 tipster sites with arguments per candidate + coverage table + §4.3 done** |
+| **S5+S6** | **PARALLEL** | | S3+S4 merged → both | | |
 | S5 | `s5-odds-ev` | bet-valuator | S3+S4 output | `{date}_s5_odds_ev.md` | EV formula shown per pick, ≥2 odds sources per pick |
-| S6 | `s6-context-upset` | bet-challenger | S5 output | `{date}_s6_context.md` | Upset risk scored with full checklist per candidate, Paradox Rule applied |
-| S7 | `s7-bear-case-gate` | bet-challenger | S6 output | `{date}_s7_gate.md` | **STRUCTURAL: full 17-point gate table + bear case + red flags + contrarian per pick** |
+| S6 | `s6-context-upset` | bet-challenger | S3+S4 output | `{date}_s6_context.md` | Upset risk scored with full checklist per candidate, Paradox Rule applied |
+| S7 | `s7-bear-case-gate` | bet-challenger | S5+S6 output | `{date}_s7_gate.md` | **STRUCTURAL: full 17-point gate + `check_48h_repeats.py` for gate #14** |
 | S3B | `s3b-time-sensitive` | bet-statistician | S7 + S5 output | `{date}_s3b_time_sensitive.md` | Lineups, weather, odds drift formula per pick |
-| S8 | `s8-portfolio-coupons` | bet-builder | S7+S3B output | Coupon file + ledgers | V1-V10 all pass, V10e matrix complete, §S8.FINAL pass |
+| S8 | `s8-portfolio-coupons` | bet-builder | S7+S3B output | Coupon file + ledgers | **AUTOMATED: `validate_coupons.py` — ALL coupons PASS** + V10e matrix |
+
+**PARALLEL EXECUTION:** S3 and S4 both receive S2 shortlist as input. Neither depends on the other. Delegate simultaneously via `runSubagent`. Wait for BOTH to complete. Similarly, S5 and S6 both receive merged S3+S4 output — delegate simultaneously.
 
 **NOTE:** S3B runs AFTER S7 (bear case) but BEFORE S8 (coupons) so that lineup/weather findings can still void picks before coupon construction. S3B should run within 2-3h of earliest event kickoff. If analysis is done well before kickoff, S3B can be a separate later run — the orchestrator supports both modes.
 
@@ -128,66 +134,29 @@ Each pass executes these steps IN ORDER. Each step:
 
 ## STRUCTURAL OUTPUT VERIFICATION (MANDATORY — NEVER SKIP)
 
-**After EACH step completes, the orchestrator MUST read the output file and count structural elements. If counts fall below thresholds → send step BACK to the agent with specific fix instructions. NEVER proceed to the next step with structural failures.**
+**After EACH step completes, the orchestrator validates output quality. Script-based validation replaces manual counting.**
 
-This is the single most important enforcement mechanism. It prevents shallow analysis.
+### After S3 — AUTOMATED VALIDATION of `{date}_s3_deep_stats.md`:
 
-### After S3 — MECHANICAL VERIFICATION of `{date}_s3_deep_stats.md`:
+**Run the validation script — this replaces manual section counting:**
 
-**This is the PRIMARY enforcement mechanism. Use `sequentialthinking` to execute all 7 checks PER candidate.**
-
+```bash
+python3 scripts/validate_s3_output.py betting/data/{date}_s3_deep_stats.md --format json
 ```
-For EACH candidate block (delimited by ══ CANDIDATE ... ══ and ══ END CANDIDATE ══):
 
-CHECK 1: SECTION MARKER COUNT
-  - Count markers §S3.1 through §S3.10 within this candidate block
-  - REQUIRED: exactly 10 markers
-  - FAIL if <10 → "MISSING SECTIONS: [list missing §S3.N markers]"
+The script checks ALL 7 structural requirements per candidate:
+1. Section markers §S3.1-§S3.10 (all 10 present)
+2. Ranking table row count (≥3, ≥4 for football)
+3. Banned word scan (all tables)
+4. Safety score numeric validation (0.00-1.00)
+5. Three-way check numeric validation
+6. Source table row count (≥2)
+7. Injury source presence
 
-CHECK 2: RANKING TABLE ROW COUNT (§S3.3)
-  - Count data rows in the §S3.3 table (exclude header row and separator)
-  - REQUIRED: ≥3 rows (≥4 for Football)
-  - FAIL if <3 → "RANKING TABLE TOO SHORT: [N] rows, need ≥3"
-  - Each row MUST have a numeric Safety value (0.00-1.00)
-
-CHECK 3: BANNED WORD SCAN (ALL TABLES)
-  - Scan every table cell in §S3.1-§S3.10 for banned words:
-    "checked", "verified", "confirmed", "good", "fine", "OK", "done", "yes", "—", "N/A", "n/a", "see above"
-  - ONLY flag if the banned word is the SOLE content of the cell (not part of a sentence)
-  - FAIL if any found → "BANNED WORD: '[word]' in §S3.[N], row [R], column [C]"
-
-CHECK 4: SAFETY SCORE NUMERIC (§S3.3)
-  - Verify every cell in the "Safety" column is a decimal number between 0.00 and 1.00
-  - FAIL if any non-numeric → "NON-NUMERIC SAFETY: '[value]' in row [R]"
-
-CHECK 5: THREE-WAY NUMERIC (§S3.4)
-  - Verify L10, H2H, L5 rows each have a numeric "Value" cell
-  - Verify "Direction" cells contain only: SUPPORTS, CONFLICTS, UP, DOWN, STABLE
-  - Verify ALIGNMENT verdict is present (3/3 SUPPORT / 2/3 CONFLICT / REJECT)
-  - FAIL if non-numeric value → "NON-NUMERIC THREE-WAY: '[cell]' in row [R]"
-
-CHECK 6: SOURCE TABLE ROW COUNT (§S3.9)
-  - Count data rows in the §S3.9 table
-  - REQUIRED: ≥2 rows
-  - FAIL if <2 → "INSUFFICIENT SOURCES: [N] rows, need ≥2"
-
-CHECK 7: INJURY SOURCE PRESENT (§S3.6)
-  - If injury table has rows: verify "Source" column is filled for every row
-  - If "No injuries" line: verify it names a source AND timestamp (not just "No injuries")
-  - FAIL if source missing → "INJURY CHECK UNSOURCED"
-
-SCORING:
-  candidates_passing_all_7 / total_candidates × 100 = DEPTH_%
-
-GATE: DEPTH_% must be 100%.
-  If <100%: compile ALL failures into a single message and RETURN to bet-statistician:
-  "S3 STRUCTURAL VIOLATIONS — [N] candidates have [M] total failures:
-   - [Candidate 1]: CHECK [N] FAIL — [details]
-   - [Candidate 2]: CHECK [N] FAIL — [details]
-   FIX ALL violations. Do NOT skip any section. Resubmit complete S3 output."
-
-  NEVER proceed to S4 with structural violations. NEVER "accept with warnings."
-```
+**GATE:** ALL candidates must have status `PASS`. If ANY candidate has `FAIL`:
+- Read the JSON errors array for specific violations
+- Return ONLY failing candidates to bet-statistician with exact error list
+- Do NOT proceed to S4 with any FAIL candidates
 
 ### After S4 — Read `{date}_s4_tipsters.md` and verify:
 ```
@@ -224,6 +193,21 @@ GATE: 100% of approved picks must have all 5 structural elements. ANY missing �
 ---
 
 ## PASS PROTOCOL
+
+### ADAPTIVE PASS PROTOCOL
+
+After Pass 1, run automated validation:
+```bash
+python3 scripts/validate_s3_output.py betting/data/{date}_s3_deep_stats.md --format json
+python3 scripts/validate_coupons.py betting/coupons/{date}*.md --format json
+```
+
+**Decision tree:**
+- **ZERO critical errors** (all candidates PASS, all coupons PASS, V10e complete) → **SKIP to Pass 4** (Final)
+- **ONLY non-critical errors** (warnings, minor formatting) → **Pass 2 (Targeted Fixes) → Pass 4**
+- **Critical errors** (FAIL candidates, arithmetic errors, missing sections) → **Pass 2 → Pass 3 → Pass 4**
+
+This eliminates 2 unnecessary passes when the pipeline produces clean output on the first run.
 
 ### PASS 1 — DISCOVERY (find all errors)
 
@@ -298,7 +282,13 @@ Read `{date}_pass2_errors.md`. Fix remaining issues. Then:
 
 ## §S8.FINAL — MECHANICAL VERIFICATION (MANDATORY — runs AFTER artifacts are written, BEFORE presenting)
 
-This step catches bugs that V1-V10 misses. Use `sequentialthinking` for exact computation.
+This step catches bugs that V1-V10 misses. Run automated validation first, then manual checks.
+
+### AUTOMATED VALIDATION (run first)
+```bash
+python3 scripts/validate_coupons.py betting/coupons/{date}*.md --format json
+```
+This script checks coupon arithmetic (±2% tolerance), unique events in core portfolio, and Polish descriptions. Fix any FAIL results before proceeding to manual checks below.
 
 ### A. COUPON ARITHMETIC RE-CALCULATION
 For EVERY coupon, multiply each leg's odds step by step. Compare to the listed combined odds.

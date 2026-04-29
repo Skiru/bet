@@ -4,3 +4,4 @@ scripts/playwright_storage/
 __pycache__/
 *.pyc
 config/odds_api_key.txt
+config/api_keys.json

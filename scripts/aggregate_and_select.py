@@ -32,7 +32,7 @@ TIER_A_STATS_EXTENDED = {
     "basketball": {"flashscore.com", "sofascore.com", "covers.com", "teamrankings.com", "basketball-reference.com"},
     "baseball": {"flashscore.com", "sofascore.com", "covers.com", "teamrankings.com"},
     "hockey": {"flashscore.com", "sofascore.com", "covers.com", "teamrankings.com", "hockey-reference.com"},
-    "football": {"flashscore.com", "sofascore.com", "betideas.com", "soccerstats.com"},
+    "football": {"flashscore.com", "sofascore.com", "betideas.com", "soccerstats.com", "soccerway.com", "aiscore.com", "xscores.com"},
     "volleyball": {"flashscore.com", "sofascore.com"},
     "handball": {"flashscore.com", "sofascore.com"},
     "snooker": {"flashscore.com", "cuetracker.net"},
@@ -46,6 +46,7 @@ BOOKMAKER_DOMAINS = {"betclic.pl", "betclic.com"}
 COMMUNITY_SOURCES = {
     "zawodtyper.pl", "typersi.pl", "tipstrr.com",
     "pickswise.com", "betideas.com", "gosugamers.net",
+    "feedinco.com", "bettingclosed.com", "tips180.com", "asiabet.org",
 }
 
 # Price gap thresholds

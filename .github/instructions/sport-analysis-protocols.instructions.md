@@ -57,6 +57,43 @@ Pick the market with HIGHEST safety score. If corners and fouls are both high �
 
 **Context (MANDATORY):** Coach change (TransferMarkt), injuries/suspensions (ESPN, Flashscore), fixture congestion (<72h), motivation (relegation/title/dead rubber), weather (rain/wind→corners), referee stats (cards/fouls).
 
+**§3.1E EXOTIC LEAGUE FOOTBALL (adjusted for thin data):**
+
+When analyzing a football match from an exotic league (see §1.7 definition in analysis-methodology.instructions.md):
+
+**Adjusted stat table (use when SoccerStats/TotalCorner don't cover the league):**
+
+| Category | Metrics | Primary Source | Fallback Source |
+|----------|---------|---------------|-----------------|
+| Goals | Scored/match, Conceded/match, O2.5%, BTTS% | Flashscore match history (manual count from last 10) | Soccerway standings + results |
+| Corners | Team earned/match, Total match avg | Flashscore per-match stats (if available) | Soccerway match reports (corner counts in match details) |
+| Cards | Team cards/match | Flashscore per-match stats | Soccerway match reports |
+| Fouls | Committed/match, Drawn/match | Sofascore match stats | Flashscore per-match stats |
+| Shots | Shots/match, SOT/match | Sofascore match stats | Flashscore per-match stats |
+| H2H | Last 3-5 meetings with stat breakdowns | Flashscore H2H tab | Soccerway H2H |
+
+**CRITICAL:** When manually counting stats from Flashscore/Sofascore match pages, note this in §S3.10 Analysis Depth Proof as "Manual count from [N] match pages on [source]."
+
+**Minimum stat thresholds to approve an exotic league pick:**
+
+| Criterion | Threshold | Action if not met |
+|-----------|-----------|-------------------|
+| Match stats available (corners, shots, fouls) for ≥5 of last 10 home games | YES | Can proceed |
+| Match stats available for 3-4 of last 10 games | PARTIAL | Proceed with EXOTIC-THIN flag |
+| Match stats available for <3 of last 10 games | NO | SKIP — insufficient data |
+| H2H meetings with stat breakdowns | ≥3 | Can proceed (flag if <5) |
+| H2H meetings with stat breakdowns | 1-2 | Proceed only with EXOTIC-THIN flag + strong L10 convergence |
+| H2H meetings with stat breakdowns | 0 | H2H-STAT-BLIND applies per §3.0c |
+
+**Exotic league corner analysis (when TotalCorner has no data):**
+1. Open Flashscore → league → click into each of the last 10 home matches for both teams
+2. Record corner count per match from match stats tab
+3. Calculate team average corners earned (home) and conceded (away)
+4. If Flashscore has no match stats → try Sofascore match detail page
+5. If neither has match stats → corner market is UNAVAILABLE for this pick. Move to next §3.0 ranked market.
+
+**Kings League exception:** Do NOT use standard football stats for Kings League matches. Kings League uses modified rules (20-minute halves, special mechanics). Use ONLY Kings League-specific historical data from previous Kings League seasons. Standard §3.1 stat requirements do not apply. Treat as EXOTIC-THIN by default.
+
 ### §3.2 Tennis
 
 **Required stats per player:**

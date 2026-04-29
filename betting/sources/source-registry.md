@@ -95,6 +95,97 @@ Every sport has dedicated communities, statistical databases, and prediction sit
   Role: multi-sport written previews with lineups, injuries, and advanced metrics.
   Use for: football plus North American sports when a fresh preview is needed.
 
+## Tier A Core Stats — API Sources (Programmatic)
+
+These API sources provide structured statistical data via REST APIs. They are the primary data pipeline for the deep analysis pool engine. All use free tiers with daily rate limits.
+
+- API-Football v3 (api-sports.io)
+  Role: comprehensive football statistics API — per-match corners, fouls, cards, shots, possession across 1000+ leagues globally.
+  Use for: L10/L5/H2H statistical data for ALL football markets. Primary source for safety score computation.
+  Access: free tier (100 req/day). API key in config/api_keys.json or API_FOOTBALL_KEY env var.
+  Coverage: 1000+ leagues, 120+ countries. All exotic leagues (E1-E3) covered.
+  Stats per match: corners, shots, SOT, fouls, cards, possession, passes, saves, offsides.
+  Script: `python3 scripts/fetch_api_stats.py --sports football`
+  Fallback: Football-Data.org → Understat → Playwright scraping.
+  Added: 2026-04-28.
+
+- API-Basketball v1 (api-sports.io)
+  Role: basketball statistics API — per-game points, rebounds, assists, steals, blocks across NBA, Euroleague, and 50+ leagues.
+  Use for: L10/L5/H2H statistical data for basketball totals, spreads, and team prop markets.
+  Access: free tier (100 req/day). API key in config/api_keys.json or API_BASKETBALL_KEY env var.
+  Coverage: NBA, Euroleague, ACB, NBL, BSL, LNB, and all major+minor leagues.
+  Script: `python3 scripts/fetch_api_stats.py --sports basketball`
+  Fallback: BallDontLie → nba_api (NBA only).
+  Added: 2026-04-28.
+
+- API-Hockey v1 (api-sports.io)
+  Role: hockey statistics API — per-game goals, shots, PP, PIM, hits, blocks, faceoffs across NHL, KHL, and European leagues.
+  Use for: L10/L5/H2H statistical data for hockey totals and period markets.
+  Access: free tier (100 req/day). API key in config/api_keys.json or API_HOCKEY_KEY env var.
+  Coverage: NHL, KHL, SHL, DEL, Liiga, Czech Extraliga, Swiss NL.
+  Script: `python3 scripts/fetch_api_stats.py --sports hockey`
+  Added: 2026-04-28.
+
+- Football-Data.org
+  Role: EU football fixtures, results, standings — fallback when API-Football quota exhausted.
+  Use for: fixture discovery and form validation for 12 major EU leagues. Does NOT provide per-match corner/foul stats.
+  Access: free tier (10 req/min). API key in config/api_keys.json or FOOTBALL_DATA_ORG_KEY env var.
+  Coverage: EPL, Bundesliga, Serie A, La Liga, Ligue 1, Eredivisie, Primeira, Championship, Brasileirão.
+  Added: 2026-04-28.
+
+- BallDontLie API
+  Role: free NBA stats API — game results, player box scores, season averages.
+  Use for: NBA statistical analysis as fallback when API-Basketball quota exhausted.
+  Access: free tier (requires key). API key in config/api_keys.json or BALLDONTLIE_KEY env var.
+  Coverage: NBA only.
+  Added: 2026-04-28.
+
+- nba_api (Python package)
+  Role: unofficial NBA stats from stats.nba.com — most detailed free NBA data source.
+  Use for: advanced NBA stats (pace, ORtg, DRtg), team game logs, detailed box scores.
+  Access: free (no key, rate ~30 req/min). Rate-sensitive — add delays between calls.
+  Coverage: NBA only (current + historical seasons).
+  Added: 2026-04-28.
+
+- Understat (Python package)
+  Role: expected goals (xG) data for top 6 European football leagues.
+  Use for: xG, xGA, npxG, PPDA per match — enriches football analysis depth.
+  Access: free Python package (scrapes understat.com). No API key needed.
+  Coverage: EPL, La Liga, Bundesliga, Serie A, Ligue 1, RFPL.
+  Added: 2026-04-28.
+
+- TheSportsDB
+  Role: universal sports fixture database — covers ALL sports with basic fixture/result data.
+  Use for: fixture discovery for sports without API-Sports.io coverage (volleyball, tennis, handball, etc.). No per-match stats.
+  Access: free tier (~100 req/day). Key "3" for free tier.
+  Coverage: All sports globally — but basic data only (fixtures, results, team info).
+  Added: 2026-04-28.
+
+### API Fallback Chains
+
+```
+Football:   API-Football → Football-Data.org → Understat (xG only) → Playwright
+Basketball: API-Basketball → BallDontLie → nba_api (NBA only) → Playwright
+Hockey:     API-Hockey → Playwright
+Tennis:     TheSportsDB (fixtures only) → Playwright
+Volleyball: TheSportsDB (fixtures only) → Playwright
+Other:      TheSportsDB (fixtures only) → Playwright
+```
+
+### Daily API Budget (~776 requests)
+
+| API | Daily Limit | Typical Use | Reserve |
+|-----|-------------|-------------|---------|
+| API-Football | 100 | 70 | 30 |
+| API-Basketball | 100 | 60 | 40 |
+| API-Hockey | 100 | 50 | 50 |
+| Football-Data.org | ~1000 | 200 | 800 |
+| BallDontLie | ~1000 | 100 | 900 |
+| nba_api | ~1800/hr | 200 | 1600 |
+| TheSportsDB | ~100 | 30 | 70 |
+| Understat | unlimited | 50 | — |
+| The Odds API | ~16/day | 16 | 0 |
+
 ## Tier B Support and Consensus Sources
 
 - Zawod Typer
@@ -162,6 +253,92 @@ Community sources CANNOT create a bet on their own. They serve four functions:
 
 Always record in the report which community sources were checked and whether consensus aligned or diverged. Check at least 2-3 tipster sources per candidate event.
 
+### Exotic League Tipster & Prediction Sources
+
+These sources provide tips, predictions, and community analysis for exotic football leagues. They follow the same Community Source Usage Rules above — they CANNOT create a bet alone but serve as consensus/divergence/angle signals.
+
+- Bettingclosed
+  Role: free football predictions with statistical backing — covers 100+ leagues including exotic leagues (South American, African, Asian, Middle Eastern).
+  URL: bettingclosed.com
+  Use for: pre-match predictions with probability estimates for exotic leagues. Covers Peru Liga 1, Egyptian Premier League, Saudi Pro League, Colombian Liga BetPlay, Indian ISL, Uzbekistan Super League, and many more.
+  Access: OK. No login required.
+  Coverage: 100+ football leagues globally. Strong in South America, Africa, and Middle East.
+  **Deep-dive required**: NO — automated model predictions, not written arguments. Use for consensus direction only.
+
+- Forebet
+  Role: algorithmic football predictions — mathematical model covering 500+ leagues with probability, predicted score, odds value.
+  URL: forebet.com
+  Use for: model-based predictions for exotic leagues. Shows predicted score, probability %, and whether odds represent value.
+  Access: OK (previously blocked but now accessible via direct league pages).
+  Coverage: 500+ leagues globally including most exotic leagues.
+  **Deep-dive required**: NO — model output, not human analysis. Use for direction confirmation.
+  Note: If main page is blocked, try direct league pages: forebet.com/en/football-predictions/predictions-[country]/
+
+- WhoScored Predictions
+  Role: data-driven match previews and predictions with statistical context.
+  URL: whoscored.com/Previews
+  Use for: match previews for larger exotic leagues (Egyptian Premier, Saudi Pro, Indian ISL).
+  Access: PARTIAL — may be blocked on some pages. Try direct match URLs.
+  Coverage: Major exotic leagues (Saudi, Egypt, India, Colombia, Chile). Not available for ultra-thin leagues.
+  **Deep-dive required**: YES — previews contain tactical analysis and statistical context.
+
+- BetGenuine
+  Role: free football predictions with H2H analysis, form analysis, and statistical breakdowns for global leagues.
+  URL: betgenuine.com
+  Use for: exotic league predictions backed by recent form, H2H data, and league standing context.
+  Access: OK.
+  Coverage: Global coverage including South American, African, and Asian leagues.
+  **Deep-dive required**: NO — automated analysis. Use for consensus check.
+
+- SoccerVista
+  Role: football predictions and tips community — covers a wide range of global leagues with community picks.
+  URL: soccervista.com
+  Use for: community consensus on exotic league matches. Shows pick distribution and odds.
+  Access: OK.
+  Coverage: Wide global coverage including exotic leagues.
+  **Deep-dive required**: NO — community picks aggregation. Use for consensus alignment.
+
+- Predictz
+  Role: free football predictions with probability calculations for global leagues.
+  URL: predictz.com
+  Use for: probability-based predictions for exotic leagues.
+  Access: PARTIAL — may redirect. Try direct league/country pages.
+  Coverage: Decent exotic coverage (South America, Africa).
+  **Deep-dive required**: NO — automated probabilities.
+  Note: Listed as blocked in source-registry but some direct pages may work. Test before relying.
+
+- Feedinco
+  Role: football predictions, tips, and statistical analysis covering 700+ leagues globally.
+  URL: feedinco.com
+  Use for: exotic league predictions with form analysis, H2H, and head-to-head statistics. One of the broadest coverage sites for exotic leagues.
+  Access: OK.
+  Coverage: 700+ leagues. Excellent for exotic: covers Peru, Egypt, Uzbekistan, Kings League, Saudi Arabia, India, Vietnam, Thailand, Kazakhstan, Georgia, Kosovo, and more.
+  **Deep-dive required**: YES — provides written analysis and statistical context per match.
+
+- Tips180
+  Role: African football predictions and tips specialist — dedicated coverage of African leagues and cups.
+  URL: tips180.com
+  Use for: Egyptian Premier League, Algerian Ligue 1, Moroccan Botola, Nigerian NPFL, South African PSL, and other African leagues.
+  Access: OK.
+  Coverage: Africa-specialist. Best source for African exotic football tips.
+  **Deep-dive required**: YES — match previews with local knowledge.
+
+- AsiaBet
+  Role: Asian football betting tips and predictions — specializes in Asian leagues.
+  URL: asiabet.org
+  Use for: J-League, K-League, Thai League, Vietnamese V-League, Indian ISL, Chinese Super League, and other Asian leagues.
+  Access: OK.
+  Coverage: Asia-specialist. Covers Southeast Asian and East Asian leagues comprehensively.
+  **Deep-dive required**: YES — match previews with Asian market context and local knowledge.
+
+- FootyAmigo
+  Role: AI-powered football predictions with statistical edge detection — covers global leagues.
+  URL: footyamigo.com
+  Use for: value bet detection for exotic leagues. Shows probability vs odds comparison (EV indicator).
+  Access: OK (free tier available).
+  Coverage: Global including exotic leagues.
+  **Deep-dive required**: NO — automated model. Use for value direction confirmation.
+
 ## Optional or Fragile Sources
 
 - Understat
@@ -204,6 +381,51 @@ Always record in the report which community sources were checked and whether con
   Use for: league-level corner/card context, identifying leagues with extreme corner or card averages.
   Access: INTERMITTENT — sometimes returns HTTP 500. When down, use FootyStats.org team pages or Betaminic as fallback.
   Note: If SoccerStats is down, do NOT skip league-level context. Use FootyStats team-specific pages (footystats.org/teams/{team}) which sometimes work even when the main site is blocked.
+
+### Exotic League Specialist Sources
+
+- Soccerway
+  Role: massive global football coverage — fixtures, results, standings, H2H, squad lists, referee assignments for 200+ countries and 1000+ leagues.
+  URL: soccerway.com
+  Use for: exotic league fixtures, results, standings, H2H (primary H2H source for exotic leagues where Flashscore H2H is thin). Squad and referee data for context.
+  Access: OK (no Cloudflare). Direct page URLs by country: `/football/[country]/[league]/`.
+  Coverage: Peru Liga 1, Egyptian Premier League, Uzbekistan Super League, Kings League, Algerian Ligue 1, Moroccan Botola, Saudi Pro League, UAE Pro League, Indian ISL, Vietnamese V-League, Thai League, Colombian Liga BetPlay, Chilean Primera, Paraguayan Primera, Bolivian Primera, Ecuadorian LigaPro, Costa Rican Primera, Iranian Persian Gulf Pro League, Jordanian Pro League, Kazakhstan Premier League, Georgian Erovnuli Liga, Armenian Premier League, Azerbaijani Premier League, Faroe Islands Premier League, Gibraltar National League, Kosovo Superliga, North Macedonian First League, and 150+ more.
+  Note: PRIMARY source for exotic league H2H and standings when Flashscore coverage is thin.
+
+- AiScore
+  Role: live scores and statistics for obscure leagues — covers Asian, African, and South American football with match stats.
+  URL: aiscore.com
+  Use for: fixture discovery and basic match stats (possession, shots, corners) for leagues not covered by SoccerStats/TotalCorner. Secondary H2H source.
+  Access: OK.
+  Coverage: Strong in Southeast Asia (Vietnam, Thailand, Myanmar, Cambodia, Laos), Middle East (Iran, Iraq, Jordan), Central Asia (Uzbekistan, Kazakhstan, Kyrgyzstan), and Africa (Egypt, Algeria, Morocco, Nigeria).
+
+- Xscores
+  Role: Asian and African football league coverage — live scores, results, standings, and basic stats.
+  URL: xscores.com
+  Use for: fixture cross-validation and results for Asian/African exotic leagues. Good for H2H lookups in leagues not on Flashscore.
+  Access: OK.
+  Coverage: Specializes in Asian and African football. Good for Iran, Iraq, Saudi Arabia, Egypt, Algeria, Morocco, India, Bangladesh, Myanmar.
+
+- Goaloo
+  Role: Asian football coverage — live scores, odds, stats, and standings for Asian leagues.
+  URL: goaloo.com
+  Use for: Asian exotic league fixtures and basic stats. Odds comparison for Asian bookmakers (useful for line cross-validation).
+  Access: OK.
+  Coverage: J-League, K-League, Chinese Super League, Thai League, Vietnamese V-League, Indian ISL, A-League, and other Asian leagues.
+
+- NowGoal
+  Role: Asian market focused football data — live scores, odds, stats, Asian handicap lines.
+  URL: nowgoal.com
+  Use for: Asian exotic league coverage with Asian handicap lines. Good for Southeast Asian and East Asian football.
+  Access: OK.
+  Coverage: J-League, K-League, Thai League, Vietnamese V-League, Indonesian Liga 1, Malaysian Super League, Singapore Premier League, and other SEA/East Asian leagues.
+
+- BetsAPI
+  Role: API for live and upcoming events across 100+ football leagues globally — covers fixtures, results, and basic odds.
+  URL: betsapi.com
+  Use for: programmatic fixture discovery for exotic leagues. Useful when Flashscore/Sofascore don't list a specific league's fixtures.
+  Access: Free tier available. API-based (JSON).
+  Coverage: 100+ leagues including many exotic ones. Good for verifying fixture existence.
 
 ### Tennis
 
@@ -627,6 +849,7 @@ Use this table to know WHERE to get odds for each sport. Never give up after one
 | Sport | Primary Odds | Secondary Odds | Tertiary Odds | Fallback |
 |-------|-------------|----------------|---------------|----------|
 | **Football** (EU) | BetExplorer (1X2/O-U/BTTS/corners) | OddsPortal | — | The-Odds-API |
+| **Football** (Exotic) | BetExplorer | OddsPortal | Soccerway | The-Odds-API |
 | **NHL** | SBR (Totals tab) | ESPN Odds | ScoresAndOdds | The-Odds-API |
 | **NBA** | SBR (Totals tab) | ESPN Odds | ScoresAndOdds | The-Odds-API |
 | **MLB** | SBR (Totals tab) | ESPN Odds | ScoresAndOdds | The-Odds-API |
@@ -651,6 +874,7 @@ Use this table to know WHERE to get odds for each sport. Never give up after one
   Tipster cross-check: Zawod Typer, Typersi, BetIdeas, PicksWise, Tipstrr.
   Specialist sources: Betaminic (corners/cards tables), Betclic Statystyki (top leagues only), TransferMarkt (coaching changes, transfers).
   Preferred markets: fouls > cards > corners > shots > team totals > BTTS > U2.5 > O2.5 > DC/DNB > 1X2 (LAST RESORT).
+  Exotic fallback: Soccerway (H2H, standings) + AiScore/Xscores (Asian/African stats) + Goaloo/NowGoal (Asian coverage). Use when SoccerStats/TotalCorner have no data for the league.
 
 - Basketball
   Minimum stack: Basketball-Reference + **SBR or ESPN or ScoresAndOdds** (totals/spreads) + BetExplorer.
@@ -725,6 +949,77 @@ Use this table to know WHERE to get odds for each sport. Never give up after one
   Market note: Match winner (handicap) and total points are the main markets. Home dominance is well-known but still often mispriced in handicap lines.
   Preferred markets: handicap > total_points > match_winner (LAST RESORT).
   Seasonal note: PGE Ekstraliga runs Apr-Sep, 1-2 matches per round (4 teams play per matchday). 2. Ekstraliga and KLŻ also covered. SGP events occasionally.
+
+### Exotic League Coverage Map
+
+Use this table to know WHERE to get data for exotic football leagues. "Betclic" column indicates known market availability (✅ = markets exist, ❓ = check manually, ❌ = no markets).
+
+#### South America
+| League | Country | Flashscore | Sofascore | BetExplorer | Soccerway | Betclic |
+|--------|---------|------------|-----------|-------------|-----------|---------|
+| Liga 1 | Peru | ✅ | ✅ | ✅ | ✅ | ❓ |
+| Liga BetPlay | Colombia | ✅ | ✅ | ✅ | ✅ | ❓ |
+| Primera División | Chile | ✅ | ✅ | ✅ | ✅ | ❓ |
+| División Profesional | Paraguay | ✅ | ✅ | ✅ | ✅ | ❓ |
+| Primera División | Bolivia | ✅ | ✅ | ❓ | ✅ | ❓ |
+| LigaPro | Ecuador | ✅ | ✅ | ✅ | ✅ | ❓ |
+| Primera División | Costa Rica | ✅ | ✅ | ❓ | ✅ | ❓ |
+| Liga Nacional | Guatemala | ✅ | ❓ | ❓ | ✅ | ❓ |
+| Liga Nacional | Honduras | ✅ | ❓ | ❓ | ✅ | ❓ |
+| Primera División | El Salvador | ✅ | ❓ | ❓ | ✅ | ❓ |
+
+#### Africa & Middle East
+| League | Country | Flashscore | Sofascore | BetExplorer | Soccerway | AiScore | Betclic |
+|--------|---------|------------|-----------|-------------|-----------|---------|---------|
+| Egyptian Premier League | Egypt | ✅ | ✅ | ✅ | ✅ | ✅ | ❓ |
+| Ligue 1 | Algeria | ✅ | ✅ | ✅ | ✅ | ✅ | ❓ |
+| Botola Pro | Morocco | ✅ | ✅ | ✅ | ✅ | ✅ | ❓ |
+| Saudi Pro League | Saudi Arabia | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| UAE Pro League | UAE | ✅ | ✅ | ✅ | ✅ | ✅ | ❓ |
+| Persian Gulf Pro League | Iran | ✅ | ✅ | ✅ | ✅ | ✅ | ❓ |
+| Stars League | Iraq | ✅ | ❓ | ❓ | ✅ | ✅ | ❓ |
+| Pro League | Jordan | ✅ | ❓ | ❓ | ✅ | ✅ | ❓ |
+
+#### Asia & Oceania
+| League | Country | Flashscore | Sofascore | BetExplorer | Goaloo | NowGoal | Betclic |
+|--------|---------|------------|-----------|-------------|--------|---------|---------|
+| ISL / I-League | India | ✅ | ✅ | ✅ | ✅ | ✅ | ❓ |
+| V-League | Vietnam | ✅ | ✅ | ❓ | ✅ | ✅ | ❓ |
+| Thai League | Thailand | ✅ | ✅ | ❓ | ✅ | ✅ | ❓ |
+| Super League | Uzbekistan | ✅ | ✅ | ❓ | ❓ | ❓ | ❓ |
+| Premier League | Kazakhstan | ✅ | ✅ | ✅ | ❓ | ❓ | ❓ |
+| Premier League | Bangladesh | ✅ | ❓ | ❓ | ❓ | ❓ | ❓ |
+| National League | Myanmar | ✅ | ❓ | ❓ | ❓ | ✅ | ❓ |
+| C-League | Cambodia | ❓ | ❓ | ❓ | ❓ | ✅ | ❓ |
+| Premier League | Laos | ❓ | ❓ | ❓ | ❓ | ❓ | ❓ |
+
+#### Central Asia & Caucasus
+| League | Country | Flashscore | Sofascore | BetExplorer | Soccerway | Betclic |
+|--------|---------|------------|-----------|-------------|-----------|---------|
+| Premier League | Kazakhstan | ✅ | ✅ | ✅ | ✅ | ❓ |
+| Premier League | Kyrgyzstan | ✅ | ❓ | ❓ | ✅ | ❓ |
+| Vysshaya Liga | Tajikistan | ✅ | ❓ | ❓ | ✅ | ❓ |
+| Ýokary Liga | Turkmenistan | ❓ | ❓ | ❓ | ✅ | ❓ |
+| Erovnuli Liga | Georgia | ✅ | ✅ | ✅ | ✅ | ❓ |
+| Premier League | Armenia | ✅ | ✅ | ✅ | ✅ | ❓ |
+| Premier League | Azerbaijan | ✅ | ✅ | ✅ | ✅ | ❓ |
+
+#### European Micro/Minor Leagues
+| League | Country | Flashscore | Sofascore | BetExplorer | Soccerway | Betclic |
+|--------|---------|------------|-----------|-------------|-----------|---------|
+| Betrideildin | Faroe Islands | ✅ | ✅ | ✅ | ✅ | ❓ |
+| National League | Gibraltar | ✅ | ✅ | ❓ | ✅ | ❓ |
+| Primera Divisió | Andorra | ✅ | ❓ | ❓ | ✅ | ❓ |
+| Campionato | San Marino | ✅ | ❓ | ❓ | ✅ | ❓ |
+| Superliga | Kosovo | ✅ | ✅ | ✅ | ✅ | ❓ |
+| First League | North Macedonia | ✅ | ✅ | ✅ | ✅ | ❓ |
+
+#### Entertainment Leagues
+| League | Country | Flashscore | Sofascore | BetExplorer | Soccerway | Betclic |
+|--------|---------|------------|-----------|-------------|-----------|---------|
+| Kings League | Spain | ✅ | ✅ | ❓ | ❓ | ❓ |
+
+**Note:** ❓ = verify manually on the source website or Betclic app before analysis. Kings League uses modified rules (shorter halves, special gameplay mechanics) — see §1.7 for protocol.
 
 ## Settlement Sources
 

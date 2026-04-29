@@ -1,0 +1,9 @@
+{
+    "_comment": "Copy this file to api_keys.json and fill in your API keys. Do NOT commit api_keys.json.",
+    "api-football": "YOUR_API_SPORTS_KEY (register at https://dashboard.api-football.com/register)",
+    "api-basketball": "SAME_API_SPORTS_KEY (same account as api-football)",
+    "api-hockey": "SAME_API_SPORTS_KEY (same account as api-football)",
+    "football-data-org": "YOUR_KEY (register at https://www.football-data.org/client/register)",
+    "thesportsdb": "YOUR_KEY (register at https://www.thesportsdb.com/patreon — or use '3' for free tier)",
+    "odds-api": "YOUR_KEY (existing — also in config/odds_api_key.txt)"
+}

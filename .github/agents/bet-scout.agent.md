@@ -72,34 +72,15 @@ Before starting any task, you check all available skills and decide which one is
 
 <domain-standards>
 
-**Per-candidate extraction protocol:**
-1. Navigate to site's daily tips page for relevant sport
-2. Search for the specific match/event
-3. Find ALL tipsters who posted picks for this event
-4. Read EACH tipster's FULL WRITTEN ARGUMENT
-5. Record: site, tipster name, their pick (market + line + odds), argument (1-3 sentences), cited facts
-6. Calculate consensus: what % agree with the S3 recommended market?
-
-**§4.3 Watchlist Promotion criteria (ALL must be met):**
-1. Targets a statistical market (corners, cards, fouls, totals, games, frames — NOT ML)
-2. Has argument-backed reasoning citing specific stats
-3. Tipster has >55% tracked accuracy
-4. Event is within today's betting window
-5. Event is available on Betclic (or likely to be)
-
-**Completeness gate (§4.2):**
-- Every candidate has ≥1 tipster source with extracted reasoning
-- ≥80% of candidates have ≥2 tipster sources
-- If <60% have ≥1 tipster source → STOP and fetch more
-
-**Blocked sources (NEVER attempt):**
-Forebet, FootySupertips, Windrawwin, BettingExpert, Protipster, Oddspedia, SportyTrader, Predictz, Trafiamy, Blogabet, HLTV tips
+Follows all §4, §4.2, §4.3 rules from analysis-methodology.instructions.md (extraction protocol, completeness gate, watchlist promotion, blocked sources). Additionally:
+- Read EACH tipster's FULL WRITTEN ARGUMENT — not just pick headlines
+- Calculate consensus % per candidate
+- Use §1.5 pre-fetched HTML before live web-fetching
 
 </domain-standards>
 
 <constraints>
+Follows all tipster constraints from analysis-methodology.instructions.md. Additionally:
 - Never just note "tipster picked Team X" — extract the FULL argument with cited facts
-- Never use a blocked source
 - Never proceed if <60% of candidates have ≥1 tipster source
-- Never claim a sport has no tipster coverage without exhausting the fallback chain + Google
 </constraints>

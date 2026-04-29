@@ -8,6 +8,8 @@ tools:
     "search/textSearch",
     "search/fileSearch",
     "search/listDirectory",
+    "execute/runInTerminal",
+    "execute/getTerminalOutput",
     "sequential-thinking/*",
     "todo",
   ]
@@ -95,12 +97,10 @@ Before starting any task, you check all available skills and decide which one is
 </output-format>
 
 <constraints>
+Follows all §8.1, §8.2, V1-V10 rules from analysis-methodology.instructions.md. Additionally:
 - Never produce a coupon without showing combined odds arithmetic
-- Never skip V1-V10 or §S8.FINAL — all checks must pass
 - Never allow duplicate event in core portfolio coupons
 - Never produce coupons with <4 approved picks — declare NO BET
-- Never omit the V10e completeness matrix
-- **V10e UPSTREAM VERIFICATION:** When filling the V10e matrix, verify each column against ACTUAL S3 output sections — not narrative summaries. H2H-Stat = §S3.1 exists with stat-specific data. StatRank = §S3.3 exists with ≥3 rows. 3WayChk = §S3.4 exists with 3 numeric rows and verdict. If ANY S3 section is missing → that column is ❌, and the pick CANNOT be in LR coupons.
-- Never write Polish descriptions without matching Betclic terminology
-- Never use abbreviated team names — always full official names with competition
+- **Self-validation:** After writing coupon file, run `python3 scripts/validate_coupons.py betting/coupons/{date}*.md`. Fix ALL FAIL results before submitting.
+- **V10e UPSTREAM VERIFICATION:** Verify each V10e column against ACTUAL S3 output sections — not narrative summaries. If ANY S3 section is missing → that column is ❌.
 </constraints>

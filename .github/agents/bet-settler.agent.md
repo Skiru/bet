@@ -75,9 +75,9 @@ Before starting any task, you check all available skills and decide which one is
 </tool-usage>
 
 <constraints>
+Follows all §0, §0.2 rules from analysis-methodology.instructions.md. Additionally:
 - Never guess or invent results — verify on Flashscore + Sofascore
 - Never round PnL calculations — use exact decimal arithmetic
-- Never skip the §0.2 Historical Learning Query — it runs before scanning
-- **NEVER skip reading `betting/data/betclic_bets_history.json` — this file contains ground truth of ALL placed bets. Run `python3 scripts/analyze_betclic_learning.py` for current stats. If this file is not read, the §0.2 step is INCOMPLETE and STEP 1 MUST NOT start.**
+- **NEVER skip reading `betting/data/betclic_bets_history.json`** — run `python3 scripts/analyze_betclic_learning.py` for current stats. If not read, §0.2 is INCOMPLETE.
 - Never auto-push settled results — user verifies first
 </constraints>

@@ -148,5 +148,69 @@
     "prefer_multi_sport": true,
     "max_same_sport_legs_in_coupon": 2,
     "min_sports_for_higher_risk_coupon": 2
+  },
+  "exotic_leagues": {
+    "note": "Exotic league tiers per §1.7e. E1=established, E2=thin data, E3=ultra-thin, ENT=entertainment. Betclic availability must be verified per session.",
+    "E1": [
+      "peru_liga1", "egypt_premier", "morocco_botola", "saudi_pro_league",
+      "india_isl", "colombia_betplay", "chile_primera", "paraguay_primera",
+      "ecuador_ligapro", "uzbekistan_super", "kazakhstan_premier",
+      "georgia_erovnuli", "kosovo_superliga", "north_macedonia_first",
+      "algeria_ligue1", "uae_pro_league"
+    ],
+    "E2": [
+      "iran_pgpl", "jordan_pro", "iraq_stars",
+      "bolivia_primera", "costa_rica_primera", "armenia_premier",
+      "azerbaijan_premier", "faroe_islands_premier", "gibraltar_national"
+    ],
+    "E3": [
+      "bangladesh_premier", "myanmar_national",
+      "cambodia_cleague", "laos_premier", "turkmenistan_yokary",
+      "tajikistan_vysshaya", "kyrgyzstan_premier"
+    ],
+    "ENT": ["kings_league"]
+  },
+  "api_config": {
+    "enabled": true,
+    "daily_limits": {
+      "api-football": 100,
+      "api-basketball": 100,
+      "api-hockey": 100,
+      "football-data-org": 1000,
+      "balldontlie": 1000,
+      "thesportsdb": 100,
+      "odds-api": 16
+    },
+    "budget_allocation": {
+      "api-football": {"discovery": 5, "team_stats": 25, "fixture_stats": 20, "h2h": 15, "reserve": 35},
+      "api-basketball": {"discovery": 5, "team_stats": 20, "fixture_stats": 20, "h2h": 10, "reserve": 45},
+      "api-hockey": {"discovery": 5, "team_stats": 15, "fixture_stats": 15, "h2h": 10, "reserve": 55}
+    },
+    "sport_api_mapping": {
+      "football": ["api-football", "football-data-org", "understat"],
+      "basketball": ["api-basketball", "balldontlie"],
+      "hockey": ["api-hockey"],
+      "tennis": ["thesportsdb"],
+      "volleyball": ["thesportsdb"],
+      "handball": ["thesportsdb"],
+      "baseball": [],
+      "esports": [],
+      "snooker": [],
+      "table_tennis": [],
+      "darts": [],
+      "mma": [],
+      "padel": [],
+      "speedway": []
+    },
+    "enrichment_priority": {
+      "note": "Order in which fixtures are enriched when quota is limited. KEY sports first.",
+      "order": ["football", "basketball", "hockey", "tennis", "volleyball", "handball", "baseball"]
+    },
+    "analysis_pool": {
+      "min_events": 20,
+      "min_safety_score": 0.50,
+      "min_matches_per_team": 5,
+      "include_thin_data": true
+    }
   }
 }

@@ -72,10 +72,9 @@ Before starting any task, you check all available skills and decide which one is
 </tool-usage>
 
 <constraints>
+Follows all §5, §5.5a rules from analysis-methodology.instructions.md. Additionally:
 - Never approve a pick with EV ≤ 0
 - Never skip the price gap check
-- Never ignore drift >8% — mandatory re-evaluation with injury/lineup/sharp money check
+- Never ignore drift >8% — mandatory re-evaluation
 - Never round EV calculations — use exact arithmetic
-- Never forget to check market performance tracker (hit rates from picks-ledger)
-- Never state Kelly suggests a bet when Kelly fraction ≤ 0
 </constraints>

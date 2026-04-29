@@ -1,0 +1,132 @@
+"""File-based daily request counter for API rate limiting.
+
+Usage files stored at: betting/data/.api_usage/{api_name}_{YYYY-MM-DD}.json
+Auto-resets daily (new file per day). Atomic writes via temp file + rename.
+"""
+
+import json
+import os
+import re
+import tempfile
+from datetime import datetime, timezone
+from pathlib import Path
+
+# Daily request limits per API
+API_DAILY_LIMITS = {
+    "api-football": 100,
+    "api-basketball": 100,
+    "api-hockey": 100,
+    "football-data-org": 1000,
+    "balldontlie": 1000,
+    "thesportsdb": 100,
+    "odds-api": 16,
+}
+
+USAGE_DIR = Path(__file__).parent.parent.parent / "betting" / "data" / ".api_usage"
+
+# Validation pattern: alphanumeric + hyphens only
+_VALID_API_NAME = re.compile(r"^[a-zA-Z0-9-]+$")
+
+
+def _validate_api_name(api_name: str) -> None:
+    """Validate api_name to prevent path traversal."""
+    if not api_name or not _VALID_API_NAME.match(api_name):
+        raise ValueError(
+            f"Invalid api_name '{api_name}': must be alphanumeric with hyphens only"
+        )
+
+
+def _today_str() -> str:
+    """Current date as YYYY-MM-DD in UTC."""
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+
+class RateLimiter:
+    """File-based daily API request counter."""
+
+    def __init__(self, usage_dir: Path | None = None, limits: dict | None = None):
+        self.usage_dir = usage_dir or USAGE_DIR
+        self.limits = limits or API_DAILY_LIMITS
+
+    def _usage_file(self, api_name: str, date: str | None = None) -> Path:
+        """Get path to usage file for an API on a given date."""
+        _validate_api_name(api_name)
+        date = date or _today_str()
+        return self.usage_dir / f"{api_name}_{date}.json"
+
+    def _read_usage(self, api_name: str, date: str | None = None) -> dict:
+        """Read current usage data for an API."""
+        path = self._usage_file(api_name, date)
+        if not path.exists():
+            return {"api_name": api_name, "date": date or _today_str(), "count": 0, "requests": []}
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            return {"api_name": api_name, "date": date or _today_str(), "count": 0, "requests": []}
+
+    def _write_usage(self, api_name: str, data: dict) -> None:
+        """Atomically write usage data."""
+        self.usage_dir.mkdir(parents=True, exist_ok=True)
+        path = self._usage_file(api_name, data.get("date"))
+
+        # Atomic write: write to temp file, then rename
+        fd, tmp_path = tempfile.mkstemp(
+            dir=str(self.usage_dir), suffix=".tmp", prefix=f"{api_name}_"
+        )
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+            os.replace(tmp_path, str(path))
+        except Exception:
+            # Clean up temp file on failure
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+            raise
+
+    def can_request(self, api_name: str, cost: int = 1) -> bool:
+        """Check if we have remaining quota for this API today."""
+        _validate_api_name(api_name)
+        limit = self.limits.get(api_name)
+        if limit is None:
+            # Unknown API — allow but warn
+            print(f"[rate_limiter] WARNING: No limit configured for '{api_name}', allowing request")
+            return True
+        usage = self._read_usage(api_name)
+        return usage["count"] + cost <= limit
+
+    def record_request(self, api_name: str, endpoint: str, cost: int = 1) -> None:
+        """Record a completed API request."""
+        _validate_api_name(api_name)
+        today = _today_str()
+        usage = self._read_usage(api_name, today)
+        usage["count"] = usage.get("count", 0) + cost
+        usage["date"] = today
+        usage["api_name"] = api_name
+        usage.setdefault("requests", []).append({
+            "endpoint": endpoint,
+            "cost": cost,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+        self._write_usage(api_name, usage)
+
+    def get_remaining(self, api_name: str) -> int:
+        """Get remaining requests for this API today."""
+        _validate_api_name(api_name)
+        limit = self.limits.get(api_name, 0)
+        usage = self._read_usage(api_name)
+        return max(0, limit - usage["count"])
+
+    def get_usage_summary(self) -> dict:
+        """Get summary of today's usage across all configured APIs."""
+        today = _today_str()
+        summary = {}
+        for api_name, limit in self.limits.items():
+            usage = self._read_usage(api_name, today)
+            summary[api_name] = {
+                "used": usage["count"],
+                "limit": limit,
+                "remaining": max(0, limit - usage["count"]),
+            }
+        return summary

@@ -80,29 +80,16 @@ Before starting any task, you check all available skills and decide which one is
 
 <domain-standards>
 
-**14-Sport Checklist (mandatory — check each):**
-- KEY (deep league scan): Football, Tennis, Basketball, Volleyball
-- SUPPORT (main leagues): Hockey, Baseball, Esports, Snooker, Darts, Table Tennis, Handball, MMA, Padel, Speedway
-
-**Filtering criteria (removal order):**
-1. Outside betting window
-2. No Tier A coverage
-3. <2h to kickoff
-4. Already started
-5. Exhibition/friendly (unless odds + Tier A exists)
-6. ALL ITF tennis
-7. Random/unverifiable events
-
-**Shortlist prioritization:**
-- Events WITH statistical markets (corners, totals, HC) > basic ML-only
-- Odds in 1.30-3.50 range preferred
-- Major tournaments (≥4 matches) → flag for full-slate analysis
+Follows scanning mandate, 14-sport checklist, and filtering criteria from analysis-methodology.instructions.md STEP 1 + STEP 2. Additionally:
+- After scan completes, log source health: `python3 scripts/source_health.py --log`
+- Before scanning, check source reliability: `python3 scripts/source_health.py --report` — deprioritize sources with <50% success rate
+- After shortlist produced, trigger cache build: `python3 scripts/build_stats_cache.py shortlist betting/data/{date}_s2_shortlist.md`
 
 </domain-standards>
 
 <constraints>
+Follows all scanning constraints from analysis-methodology.instructions.md. Additionally:
 - Never declare a sport empty without trying ≥3 independent sources + 1 Google search
 - Never skip the tipster pre-fetch (§1.5) — it feeds S4
-- Never stop at landing pages — enter every tournament for KEY sports
-- Never accept event counts without cross-validation between ≥2 sources
+- Always log source health after scan completes
 </constraints>

@@ -1,0 +1,269 @@
+"""Multi-API fixture discovery — finds ALL matches on a date across all sports.
+
+Usage:
+    python3 scripts/discover_fixtures.py --date 2026-04-28
+    python3 scripts/discover_fixtures.py --date 2026-04-28 --sports football,basketball
+"""
+
+import argparse
+import json
+import re
+from dataclasses import asdict
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).parent.parent
+
+# Add scripts to path for imports
+import sys
+sys.path.insert(0, str(Path(__file__).parent))
+
+try:
+    from scripts.normalize_stats import NormalizedFixture
+    from scripts.api_clients import get_client, CLIENT_REGISTRY
+    from scripts.api_clients.rate_limiter import RateLimiter
+except ImportError:
+    from normalize_stats import NormalizedFixture
+    from api_clients import get_client, CLIENT_REGISTRY
+    from api_clients.rate_limiter import RateLimiter
+
+
+# Prefixes/suffixes to strip during normalization
+_TEAM_PREFIXES = re.compile(
+    r"^(fc|cf|sc|ac|as|ss|rc|cd|ca|rcd|sd|ud|us|afc|ssc|ogc|bsc|tsg|vfb|vfl|rb)\s+",
+    re.IGNORECASE,
+)
+_TEAM_SUFFIXES = re.compile(
+    r"\s+(fc|cf|sc|ac|united|utd|city|town|rovers|wanderers|athletic|albion)$",
+    re.IGNORECASE,
+)
+
+
+def normalize_team_name(name: str) -> str:
+    """Simple normalization: lowercase, strip FC/CF/SC prefixes, etc."""
+    if not name:
+        return ""
+    normalized = name.lower().strip()
+    normalized = _TEAM_PREFIXES.sub("", normalized)
+    normalized = _TEAM_SUFFIXES.sub("", normalized)
+    # Remove extra whitespace
+    normalized = re.sub(r"\s+", " ", normalized).strip()
+    return normalized
+
+
+def deduplicate_fixtures(fixtures: list) -> list:
+    """Deduplicate by normalized team names + date."""
+    seen = set()
+    unique = []
+    for f in fixtures:
+        if isinstance(f, NormalizedFixture):
+            home = normalize_team_name(f.home_team)
+            away = normalize_team_name(f.away_team)
+            date_part = f.kickoff[:10] if f.kickoff else ""
+        elif isinstance(f, dict):
+            home = normalize_team_name(f.get("home_team", ""))
+            away = normalize_team_name(f.get("away_team", ""))
+            date_part = f.get("kickoff", "")[:10]
+        else:
+            unique.append(f)
+            continue
+
+        key = f"{home}|{away}|{date_part}"
+        if key not in seen:
+            seen.add(key)
+            unique.append(f)
+
+    return unique
+
+
+def merge_fixtures(api_fixtures: list, scan_fixtures: list) -> list:
+    """Merge API-discovered fixtures with Playwright scan results.
+
+    API fixtures take priority. Scan fixtures are added only if
+    no matching API fixture exists.
+    """
+    merged = list(api_fixtures)
+    merged.extend(scan_fixtures)
+    return deduplicate_fixtures(merged)
+
+
+def _load_scan_summary(date: str) -> list:
+    """Load fixtures from Playwright scan_summary.json if it exists."""
+    scan_file = PROJECT_ROOT / "betting" / "data" / "scan_summary.json"
+    if not scan_file.exists():
+        return []
+
+    try:
+        data = json.loads(scan_file.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return []
+
+    fixtures = []
+    for event in data if isinstance(data, list) else data.get("events", []):
+        if not isinstance(event, dict):
+            continue
+
+        # Filter by date if present
+        event_date = event.get("date", "")
+        if date and event_date and not event_date.startswith(date):
+            continue
+
+        sport = event.get("sport", "football").lower()
+        fixture = NormalizedFixture(
+            fixture_id=event.get("id", event.get("event_id", "")),
+            source="playwright-scan",
+            sport=sport,
+            competition=event.get("league", event.get("competition", "")),
+            home_team=event.get("home", event.get("home_team", "")),
+            away_team=event.get("away", event.get("away_team", "")),
+            kickoff=event.get("date", event.get("kickoff", "")),
+            status="scheduled",
+        )
+        fixtures.append(fixture)
+
+    return fixtures
+
+
+def discover_all_fixtures(
+    date: str,
+    sports: list[str] | None = None,
+    include_playwright: bool = True,
+) -> list:
+    """Query all available APIs for fixtures on the date.
+
+    Args:
+        date: Date in YYYY-MM-DD format
+        sports: Filter to specific sports (e.g., ["football", "basketball"])
+        include_playwright: Whether to merge with scan_summary.json
+
+    Returns:
+        List of NormalizedFixture objects
+    """
+    rate_limiter = RateLimiter()
+    all_fixtures = []
+
+    # Football sources
+    if not sports or "football" in sports:
+        # Primary: API-Football
+        if "api-football" in CLIENT_REGISTRY:
+            try:
+                client = get_client("api-football", rate_limiter)
+                fixtures = client.get_fixtures(date)
+                all_fixtures.extend(fixtures)
+                print(f"[discover] api-football: {len(fixtures)} fixtures")
+            except Exception as e:
+                print(f"[discover] api-football error: {e}")
+
+        # Fallback: Football-Data.org
+        if "football-data-org" in CLIENT_REGISTRY:
+            try:
+                client = get_client("football-data-org", rate_limiter)
+                fixtures = client.get_fixtures(date)
+                all_fixtures.extend(fixtures)
+                print(f"[discover] football-data-org: {len(fixtures)} fixtures")
+            except Exception as e:
+                print(f"[discover] football-data-org error: {e}")
+
+    # Basketball sources
+    if not sports or "basketball" in sports:
+        # Primary: API-Basketball
+        if "api-basketball" in CLIENT_REGISTRY:
+            try:
+                client = get_client("api-basketball", rate_limiter)
+                fixtures = client.get_fixtures(date)
+                all_fixtures.extend(fixtures)
+                print(f"[discover] api-basketball: {len(fixtures)} fixtures")
+            except Exception as e:
+                print(f"[discover] api-basketball error: {e}")
+
+        # Supplementary: BallDontLie (NBA only)
+        if "balldontlie" in CLIENT_REGISTRY:
+            try:
+                client = get_client("balldontlie", rate_limiter)
+                fixtures = client.get_fixtures(date)
+                all_fixtures.extend(fixtures)
+                print(f"[discover] balldontlie: {len(fixtures)} fixtures")
+            except Exception as e:
+                print(f"[discover] balldontlie error: {e}")
+
+    # Hockey sources
+    if not sports or "hockey" in sports:
+        if "api-hockey" in CLIENT_REGISTRY:
+            try:
+                client = get_client("api-hockey", rate_limiter)
+                fixtures = client.get_fixtures(date)
+                all_fixtures.extend(fixtures)
+                print(f"[discover] api-hockey: {len(fixtures)} fixtures")
+            except Exception as e:
+                print(f"[discover] api-hockey error: {e}")
+
+    # TheSportsDB fallback — covers sports without a dedicated API
+    covered_sports = set()
+    if not sports or "football" in sports:
+        covered_sports.add("football")
+    if not sports or "basketball" in sports:
+        covered_sports.add("basketball")
+    if not sports or "hockey" in sports:
+        covered_sports.add("hockey")
+
+    uncovered_sports = set(sports or []) - covered_sports if sports else set()
+    if uncovered_sports or not sports:
+        if "thesportsdb" in CLIENT_REGISTRY:
+            try:
+                client = get_client("thesportsdb", rate_limiter)
+                fixtures = client.get_fixtures(date)
+                if sports:
+                    fixtures = [f for f in fixtures if f.sport in sports]
+                all_fixtures.extend(fixtures)
+                print(f"[discover] thesportsdb: {len(fixtures)} fixtures")
+            except Exception as e:
+                print(f"[discover] thesportsdb error: {e}")
+
+    # Merge with Playwright scan results
+    scan_fixtures = []
+    if include_playwright:
+        scan_fixtures = _load_scan_summary(date)
+        if scan_fixtures:
+            print(f"[discover] playwright-scan: {len(scan_fixtures)} events")
+
+    merged = merge_fixtures(all_fixtures, scan_fixtures)
+    print(f"[discover] Total after dedup: {len(merged)} fixtures")
+
+    return merged
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Discover fixtures across APIs")
+    parser.add_argument("--date", required=True, help="Date YYYY-MM-DD")
+    parser.add_argument("--sports", help="Comma-separated sports filter")
+    parser.add_argument(
+        "--no-playwright",
+        action="store_true",
+        help="Skip Playwright scan_summary.json merge",
+    )
+    args = parser.parse_args()
+
+    sports = args.sports.split(",") if args.sports else None
+    fixtures = discover_all_fixtures(
+        args.date, sports, include_playwright=not args.no_playwright
+    )
+
+    # Save output
+    output_dir = PROJECT_ROOT / "betting" / "data"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / f"fixtures_{args.date}.json"
+
+    output_data = {
+        "date": args.date,
+        "fixtures": [
+            asdict(f) if hasattr(f, "__dataclass_fields__") else f for f in fixtures
+        ],
+        "count": len(fixtures),
+    }
+    output_path.write_text(
+        json.dumps(output_data, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+    print(f"[discover] Saved {len(fixtures)} fixtures to {output_path}")
+
+
+if __name__ == "__main__":
+    main()

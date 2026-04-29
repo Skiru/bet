@@ -25,7 +25,7 @@ SPORT_URL_PATTERNS = {
     "basketball": ["/basketball", "/koszykowka", "/nba", "teamrankings.com", "basketball-reference"],
     "hockey": ["/hockey", "/hokej", "/nhl", "hockey-reference"],
     "baseball": ["/baseball", "/mlb", "baseballsavant"],
-    "football": ["/football", "/pilka-nozna", "/soccer", "forebet", "predictz", "betideas", "soccerstats", "totalcorner"],
+    "football": ["/football", "/pilka-nozna", "/soccer", "forebet", "predictz", "betideas", "soccerstats", "totalcorner", "soccerway", "aiscore", "xscores", "goaloo", "nowgoal", "feedinco", "bettingclosed", "tips180", "asiabet"],
     "volleyball": ["/volleyball", "/siatkowka"],
     "handball": ["/handball", "/pilka-reczna"],
     "snooker": ["/snooker", "cuetracker"],

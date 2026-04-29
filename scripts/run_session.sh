@@ -200,6 +200,16 @@ fi
 
 step_end "A2-EventScan"
 
+step_start "STEP A2b: Source Health Logging"
+
+echo "[A2b.1] Logging source health from scan results..."
+python3 "${SCRIPT_DIR}/source_health.py" --log --summary "${DATA_DIR}/scan_summary.json" --errors "${DATA_DIR}/scan_errors.json" 2>&1 || echo "[WARN] Source health logging failed"
+
+echo "[A2b.2] Source reliability report (last 7 days):"
+python3 "${SCRIPT_DIR}/source_health.py" --report 2>&1 || echo "  (no historical data yet)"
+
+step_end "A2b-SourceHealth"
+
 step_start "STEP A3: The-Odds-API Cross-Validation"
 
 if [ -f "${ROOT_DIR}/config/odds_api_key.txt" ] || [ -n "${ODDS_API_KEY:-}" ]; then
@@ -474,6 +484,16 @@ else:
 " 2>/dev/null || echo "  (could not run quality check)"
 
 step_end "A6-Validation"
+
+step_start "STEP A7: 48h Repeat Check + Stats Cache"
+
+echo "[A7.1] Checking 48h repeat losses from picks-ledger..."
+python3 "${SCRIPT_DIR}/check_48h_repeats.py" 2>&1 || echo "  (no recent losses or ledger empty)"
+
+echo "[A7.2] Stats cache status:"
+python3 "${SCRIPT_DIR}/build_stats_cache.py" status 2>&1 || echo "  (cache empty)"
+
+step_end "A7-RepeatCheck+Cache"
 
 echo ""
 echo "╔════════════════════════════════════════════════════════════════╗"
