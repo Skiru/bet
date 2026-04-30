@@ -104,7 +104,7 @@ class TestAnalyzeFixture(unittest.TestCase):
         result = analyze_fixture({"sport": "football"}, {})
         self.assertIsNone(result)
 
-    def test_returns_none_for_cache_miss(self):
+    def test_returns_minimal_dict_for_cache_miss(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_dir = Path(tmpdir) / "stats_cache"
             cache_dir.mkdir()
@@ -113,7 +113,9 @@ class TestAnalyzeFixture(unittest.TestCase):
                     {"home_team": "NoTeam", "away_team": "NoTeam2", "sport": "football"},
                     {},
                 )
-            self.assertIsNone(result)
+            self.assertIsNotNone(result)
+            self.assertEqual(result["data_quality"], "NO_CACHE")
+            self.assertTrue(result["cache_miss"])
 
     def test_successful_analysis(self):
         with tempfile.TemporaryDirectory() as tmpdir:

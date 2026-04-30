@@ -67,10 +67,22 @@ SPORT_KEY_MAP = {
 
 
 def get_api_key():
-    """Get API key from env var or config file."""
+    """Get API key from env var, api_keys.json, or config file."""
     key = os.environ.get("ODDS_API_KEY")
     if key and key.strip():
         return key.strip()
+
+    # Check api_keys.json (shared key store)
+    keys_json = CONFIG_DIR / "api_keys.json"
+    if keys_json.exists():
+        try:
+            import json
+            keys = json.loads(keys_json.read_text())
+            key = keys.get("odds-api", "").strip()
+            if key:
+                return key
+        except (json.JSONDecodeError, AttributeError):
+            pass
 
     key_file = CONFIG_DIR / "odds_api_key.txt"
     if key_file.exists():

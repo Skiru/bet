@@ -13,88 +13,44 @@ agent: bet-statistician
 ## TASK
 For EACH shortlisted candidate, gather sport-specific statistics. One candidate = one analysis block.
 
+### PRE-CHECK: API ANALYSIS POOL
+Before web-fetching stats for any candidate, check if the analysis pool already has data:
+1. Read `betting/data/analysis_pool_{date}.json`
+2. For each shortlisted candidate, search the pool by team names
+3. If found with `data_quality: FULL` or `PARTIAL`:
+   - Use the pre-computed `all_markets` table as the §3.0 ranking starting point
+   - Use `best_market.safety_score`, `l10_avg`, `h2h_avg`, `l5_avg` as pre-validated data
+   - Still verify with web sources and supplement missing stats (injuries, context, coach stability)
+   - Run `compute_safety_scores.py` to validate/extend the ranking with additional markets
+4. If NOT in pool or `data_quality: THIN`:
+   - Full web-fetch required per sport protocol below
+5. For football/basketball/hockey: additional API stats available via `python3 scripts/fetch_api_stats.py --date YYYY-MM-DD --sports football,basketball,hockey`
+
 ### PER-CANDIDATE PROTOCOL
 
-#### FOOTBALL (§3.1) — FULL STAT COLLECTION:
-1. **H2H** last 5-10 meetings (home/away splits, goals, corners, cards per meeting)
-2. **League context** (SoccerStats): goals avg, O2.5%, BTTS%, corner avg, card avg, fouls avg
-3. **Team form** last 6 matches (W/D/L, goals for/against, corners for/against)
-4. **Full per-team stats** (SoccerStats/Flashscore/Sofascore — FootyStats is 403 BLOCKED) — collect ALL:
-   - FOULS: fouls committed/match, fouls drawn/match, total match fouls avg
-   - CARDS: team cards/match, opponent cards/match, total match cards avg
-   - CORNERS: corners earned/match, conceded/match, total avg (SoccerStats + TotalCorner)
-   - SHOTS: shots/match, shots on target/match, conversion rate %
-   - GOALS: scored/match, conceded/match, clean sheet %
-   - xG: xG for/against (Flashscore/Sofascore) — xG > goals = regression UP, goals > xG = regression DOWN
-5. **Market ranking — present TOP 3 markets with HIT RATES**:
-   - For each candidate, calculate hit rate for ≥3 O/U lines
-   - Example: "Leipzig O16.5 shots: hits 87% at home" + "Union away O14.5 shots: 73%"
-   - Rank: highest (hit_rate × odds value) = best market
-   - Hierarchy: fouls > cards > corners > shots > team totals > BTTS > U2.5 > O2.5 > DC/DNB > 1X2
-6. **Corner picks**: 3-source stack = TotalCorner + SoccerStats + Betclic Statystyki (top leagues only)
-7. **Injury/suspension check** (ESPN, Flashscore, team social media)
-8. **Context**: dead rubber? cup rotation? derby? referee for cards/fouls?
-9. **§3.0 STATISTICAL MARKET RANKING (mandatory):** Run the full §3.0 protocol — list ALL bettable stat markets for this sport, calculate safety score for each (`min(hit_rate_L10, hit_rate_H2H)`), rank them, pick the TOP market. Present ranking table in analysis.
-10. **COACH/ROSTER STABILITY CHECK (mandatory):** Did the coach change in last 5 matches (TransferMarkt)? Any major transfers, loan returns, or squad changes in last 14 days? New coach = volatile form. Major roster change = stats may not apply.
+#### Per-Sport Protocols
+Follow the sport-specific protocol from `bet-applying-sport-protocols` skill:
+- **Football §3.1**: corners, fouls, cards, shots hierarchy + SoccerStats/Flashscore/Sofascore sources. 3-source corner stack. xG regression. Referee for cards/fouls markets.
+- **Tennis §3.2**: games/sets O/U priority. Odds ratio grading. Surface-specific H2H. WC/Q/LL blowout rule. TennisAbstract serve/return stats.
+- **Basketball §3.3**: team totals > quarter totals > game totals. Pace/ratings. B2B check. ESPN injury DAY-OF.
+- **Hockey §3.4**: period totals priority. Goalie confirmation (DailyFaceoff CRITICAL). xG, PP/PK.
+- **Baseball §3.5**: starting pitcher (BaseballSavant). Bullpen load. Park factor. Wind/weather.
+- **Volleyball §3.6**, **Esports §3.7**, **Snooker §3.8**, **Darts §3.9**
+- **Table Tennis §3.10**, **Handball §3.11**, **MMA §3.12**, **Padel §3.13**, **Speedway §3.14**
 
-#### TENNIS (§3.2) — STATISTICAL FIRST, ML LAST RESORT:
-1. **Player identity**: FULL name, country, ranking, WC/Q/LL status — NO slashes, NO abbreviations
-2. **Odds ratio**: max(odds)/min(odds) → grade STRONG(≤1.15)/GOOD(1.16-1.30)/BORDERLINE(1.31-1.50)/REJECT(>1.50)
-3. **Surface-specific win rate** (clay for Madrid, hard for US, grass for Wimbledon) — THIS SEASON + overall
-4. **H2H** on current surface (last 5-10 meetings, including set scores)
-5. **Previous round result** in this tournament (score, duration, physical condition — 3h+ = fatigue risk)
-6. **Serve/return stats** from TennisAbstract: 1st serve %, SPW, RPW, break points, hold %, Elo
-7. **WC/Q/LL Blowout Rule**: O22.5+ HARD REJECT. O21.5 only within 20 ranking spots. O20.5 max with STRONG ratio.
-8. **Over-games assessment**: both hold >75%? → tiebreaks → higher games. Both break >25%? → shorter sets but 3 sets likely.
-9. **Market hierarchy**: game totals O/U > set totals O/U > game HC > set HC > ML (LAST RESORT — needs STRONG + surface + H2H ALL aligned)
+Each protocol defines: required stat tables, mandatory multi-market calculation (§XM), bettable market lists, data sources, and market hierarchy.
 
-#### BASKETBALL (§3.3):
-1. Pace + offensive/defensive rating
-2. Team totals avg, O/U line hit rates
-3. Injury report (ESPN — check DAY OF)
-4. B2B check, rest days
-5. H2H last 5 meetings
-6. Market: team totals > quarter totals > game totals > spreads > ML
-
-#### HOCKEY (§3.4):
-1. xG for/against
-2. GOALIE CONFIRMATION (DailyFaceoff — CRITICAL)
-3. PP/PK percentages
-4. B2B check
-5. H2H last 5
-6. Market: period totals > game totals > puck line > ML
-
-#### BASEBALL (§3.5):
-1. Starting pitcher stats (ERA, WHIP, K/9, last 3 starts) — BaseballSavant
-2. Bullpen status (innings pitched last 3 days)
-3. Team batting vs RHP/LHP splits
-4. Park factor
-5. Wind/weather (outdoor stadiums)
-6. Market: F5 totals > team totals > game totals > run line > ML
-
-#### VOLLEYBALL/ESPORTS/SNOOKER/DARTS/HANDBALL/TABLE_TENNIS/MMA/PADEL/SPEEDWAY:
-Follow sport-specific protocols in methodology §3.5-3.14. Minimum per candidate:
-
-| Sport | Key stat requirement | Market hierarchy |
-|-------|---------------------|-----------------|
-| Volleyball | Sets avg, O/U 3.5 hit rate, attack eff | set score > points > sets > HC > ML |
-| Esports | Map pool, rounds avg, BO format, roster | rounds > maps > map HC > ML |
-| Snooker | Frame win %, centuries, decider record | centuries > frames > frame HC > ML |
-| Darts | 3-dart avg, checkout %, 180s/match | 180s > legs > sets > ML |
-| Handball | Goals scored/conceded, 2min suspensions, GK save % | half totals > game totals > HC > ML |
-| Table Tennis | Set win %, ranking gap, set avg | points > sets > set HC > ML |
-| MMA | Sig strikes/min, TD accuracy, finish rate | method > O/U rounds > ITD > ML |
-| Padel | FIP ranking gap, partnership duration, surface | game totals > set totals > set HC > ML |
-| Speedway | Rider TRACK averages (venue-specific!), junior assessment | total pts > HC > match winner |
-
-**For EVERY sport**: identify the STATISTICAL MARKET first, not the winner. Present TOP 2 markets with data.
+**Universal requirements for EVERY sport:**
+- §3.0 STATISTICAL MARKET RANKING: list ALL bettable stat markets, calculate safety score (`min(hit_rate_L10, hit_rate_H2H)`), rank, pick TOP market
+- COACH/ROSTER STABILITY CHECK: coach change in last 5 matches (TransferMarkt)? Major roster changes in last 14 days?
+- Identify the STATISTICAL MARKET first, not the winner. Present TOP 2 markets with data.
 
 ### OUTPUT FORMAT
 Save to: `betting/data/{date}_s3_deep_stats.md`
 
-**CRITICAL: Every section below is MANDATORY. The orchestrator will structurally verify that ALL 9 sections exist for EVERY candidate. Missing sections = step sent back for fix. Do NOT abbreviate, skip, or merge sections.**
+**CRITICAL: Every section below is MANDATORY. The orchestrator will structurally verify that ALL 10 sections exist for EVERY candidate. Missing sections = step sent back for fix. Do NOT abbreviate, skip, or merge sections.**
 
-For each candidate, fill this EXACT template (all 9 numbered sections):
+For each candidate, fill this EXACT template (all 10 numbered sections):
 ```
 ## [PICK_ID_PLACEHOLDER] — [Event Name] ([Sport], [Tournament])
 - **Kickoff**: HH:MM CEST
@@ -156,6 +112,15 @@ For each candidate, fill this EXACT template (all 9 numbered sections):
 | [source1] | [what data] | ✅ OK / ⚠️ Partial / ❌ Failed |
 | [source2] | [what data] | |
 | [source3+] | [what data] | |
+
+### 10. §S3.10 — ANALYSIS DEPTH PROOF
+| Metric | Value |
+|--------|-------|
+| Sources queried | [count] |
+| Data points collected | [count] |
+| Markets evaluated | [count] |
+| Time spent (est.) | [minutes] |
+| Confidence in data completeness | [HIGH/MEDIUM/LOW] |
 ```
 
 **PER-SPORT MANDATORY CALCULATIONS (in addition to the template above):**
@@ -169,7 +134,7 @@ For each candidate, fill this EXACT template (all 9 numbered sections):
 
 **Count-based verification — the orchestrator will independently re-count these:**
 
-- [ ] **V-S3-01**: Every shortlisted candidate has an analysis block with ALL 9 numbered sections
+- [ ] **V-S3-01**: Every shortlisted candidate has an analysis block with ALL 10 numbered sections
 - [ ] **V-S3-02**: Every candidate has §3.0 RANKING TABLE with ≥3 markets (count rows)
 - [ ] **V-S3-03**: Every candidate has H2H-STAT data for the SPECIFIC selected stat (or explicit H2H-STAT-BLIND flag)
 - [ ] **V-S3-04**: Every candidate has THREE-WAY CROSS-CHECK with alignment verdict
@@ -185,7 +150,7 @@ For each candidate, fill this EXACT template (all 9 numbered sections):
 - [ ] **V-S3-14**: No candidate has fewer than 5 data points in analysis
 - [ ] **V-S3-15**: Form data (last 5-6 matches) for every team/player
 
-**DEPTH METRIC**: Count candidates with ALL of {§3.0 table, H2H-stat, three-way check, coach check, top 3 markets, ≥2 sources, injury check} = DEPTH_%
+**DEPTH METRIC**: Count candidates with ALL of {§3.0 table, H2H-stat, three-way check, coach check, top 3 markets, ≥2 sources, injury check, depth proof} = DEPTH_%
 **GATE**: DEPTH_% must be ≥95%. If <95% → list which candidates are missing which sections → FIX before proceeding.
 
 ### ERROR LOG

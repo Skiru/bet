@@ -3,7 +3,10 @@ name: daily-betting-cycle
 description: "DEPRECATED — use orchestrate-betting-day instead"
 agent: bet-orchestrator
 argument-hint: "Use: @workspace /prompt orchestrate-betting-day run_date=2026-04-27 session=full"
+deprecated: true
 ---
+
+**⚠️ DEPRECATED — Use `orchestrate-betting-day` prompt instead.**
 
 # ⚠️ DEPRECATED — Use `orchestrate-betting-day` instead
 

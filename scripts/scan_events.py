@@ -9,6 +9,7 @@ heuristic to produce a quick list of candidate matches.
 """
 import sys
 import argparse
+import re
 from pathlib import Path
 import json
 import time
@@ -75,9 +76,59 @@ def domain_from_url(url: str) -> str:
     return urlparse(url).netloc.replace("www.", "")
 
 
-def scan_urls(urls):
+def validate_fetched_date(html: str, url: str, domain: str) -> list[str]:
+    """Validate that fetched HTML content is from the current year/date.
+
+    Returns list of warning strings (empty if all OK).
+    """
+    warnings = []
+    try:
+        from zoneinfo import ZoneInfo
+        now = datetime.now(ZoneInfo("Europe/Warsaw"))
+    except ImportError:
+        now = datetime.now()
+    current_year = str(now.year)
+
+    # Check datePublished meta tag
+    date_match = re.search(r'"datePublished"\s*:\s*"(\d{4})-', html[:5000])
+    if date_match:
+        pub_year = date_match.group(1)
+        if pub_year != current_year:
+            warnings.append(
+                f"STALE_CONTENT: {domain} datePublished year={pub_year}, expected={current_year}"
+            )
+
+    # ZawodTyper-specific: verify day-of-week in URL matches today
+    if "zawodtyper" in domain:
+        PL_DAYS = {
+            0: "poniedzialek", 1: "wtorek", 2: "sroda",
+            3: "czwartek", 4: "piatek", 5: "sobota", 6: "niedziela"
+        }
+        expected_day = PL_DAYS[now.weekday()]
+        url_lower = url.lower()
+        for day_name in PL_DAYS.values():
+            if day_name in url_lower and day_name != expected_day:
+                warnings.append(
+                    f"ZT_DAY_MISMATCH: URL contains '{day_name}' but today is '{expected_day}'"
+                )
+                break
+
+    return warnings
+
+
+def scan_urls(urls, deep=False, max_deep_links=50):
     all_extracted = {}
     errors = []
+    deep_links_found = 0
+
+    # Import deep-link discovery if deep mode is enabled
+    if deep:
+        try:
+            from deep_link_discovery import discover_deep_links
+        except ImportError:
+            print("[WARNING] deep_link_discovery module not found — deep mode disabled")
+            deep = False
+
     for i, url in enumerate(urls):
         domain = domain_from_url(url)
         print(f"[{i+1}/{len(urls)}] Fetching {url}")
@@ -95,6 +146,11 @@ def scan_urls(urls):
             continue
         saved = save_html(domain, html)
         print(f"  Saved raw HTML to {saved}")
+        # Validate fetched content date
+        date_warnings = validate_fetched_date(html, url, domain)
+        for w in date_warnings:
+            print(f"  ⚠️  {w}")
+            errors.append({"url": url, "warning": w})
         adapter = get_adapter(domain)
         sport = detect_sport(url)
         try:
@@ -109,6 +165,41 @@ def scan_urls(urls):
                 item["sport"] = sport
         all_extracted[url] = extracted
         print(f"  Extracted {len(extracted)} candidate match lines from {domain} [{sport}]")
+
+        # Deep-link discovery: follow tournament sub-links
+        if deep and domain in ("flashscore.com", "betexplorer.com", "sofascore.com", "soccerway.com"):
+            try:
+                sub_links = discover_deep_links(html, url, domain, max_links=max_deep_links)
+                new_links = [sl for sl in sub_links if sl not in urls and sl not in all_extracted]
+                if new_links:
+                    deep_links_found += len(new_links)
+                    print(f"  [deep] Discovered {len(new_links)} sub-links from {domain}")
+                    for j, sub_url in enumerate(new_links[:max_deep_links]):
+                        print(f"    [deep {j+1}/{len(new_links)}] Fetching {sub_url}")
+                        try:
+                            sub_html = fetch(sub_url)
+                        except Exception as e:
+                            errors.append({"url": sub_url, "error": str(e), "source_type": "deep-link"})
+                            continue
+                        if not sub_html or len(sub_html) < 100:
+                            continue
+                        save_html(domain, sub_html)
+                        sub_sport = detect_sport(sub_url)
+                        try:
+                            sub_extracted = adapter(sub_html, sub_url)
+                        except Exception:
+                            from adapters.raw_adapter import parse as raw_parse
+                            sub_extracted = raw_parse(sub_html, sub_url)
+                        for item in sub_extracted:
+                            if "sport" not in item:
+                                item["sport"] = sub_sport
+                            item["source_type"] = "deep-link"
+                        all_extracted[sub_url] = sub_extracted
+                        print(f"    [deep] Extracted {len(sub_extracted)} from {sub_url}")
+                        time.sleep(FETCH_DELAY_SECONDS)
+            except Exception as e:
+                print(f"  [deep] Deep-link discovery error for {domain}: {e}")
+
         # Rate limit between fetches
         if i < len(urls) - 1:
             time.sleep(FETCH_DELAY_SECONDS)
@@ -130,14 +221,18 @@ def scan_urls(urls):
         err_path.write_text(json.dumps(errors, indent=2, ensure_ascii=False), encoding="utf-8")
         print(f"[WARNING] {len(errors)} source(s) failed. See {err_path}")
     print(f"Wrote summary to {out} ({len(all_extracted)} sources OK, {len(errors)} failed)")
+    if deep:
+        print(f"[deep] Total deep-links discovered and scanned: {deep_links_found}")
     return all_extracted
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--urls", nargs="+", help="List of URLs to scan", required=True)
+    parser.add_argument("--deep", action="store_true", help="Enable deep-link discovery for tournament sub-pages")
+    parser.add_argument("--max-deep-links", type=int, default=50, help="Max sub-links per domain (default: 50)")
     args = parser.parse_args()
-    scan_urls(args.urls)
+    scan_urls(args.urls, deep=args.deep, max_deep_links=args.max_deep_links)
 
 
 if __name__ == "__main__":

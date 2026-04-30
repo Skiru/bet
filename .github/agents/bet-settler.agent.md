@@ -3,7 +3,7 @@ description: "Settles previous day's betting results — PnL calculation, CLV tr
 tools:
   [
     "execute/runInTerminal",
-    "execute/executionSubagent",
+    "agent/runSubagent",
     "execute/getTerminalOutput",
     "execute/sendToTerminal",
     "read/readFile",

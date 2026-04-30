@@ -11,6 +11,8 @@ Usage:
 import argparse
 import json
 import sys
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -34,6 +36,10 @@ FALLBACK_CHAINS = {
     "football": ["api-football", "football-data-org", "understat"],
     "basketball": ["api-basketball", "balldontlie"],
     "hockey": ["api-hockey"],
+    "tennis": ["api-tennis"],
+    "volleyball": ["api-volleyball"],
+    "handball": ["api-handball"],
+    "baseball": ["api-baseball"],
 }
 
 # Tier 1 sports get enriched first
@@ -321,17 +327,69 @@ def fetch_stats_for_date(
 
     fixtures.sort(key=sort_key)
 
-    print(f"[fetch_stats] Enriching {len(fixtures)} fixtures for {date}")
+    # Group fixtures by sport for parallel enrichment
+    sport_groups: dict[str, list[dict]] = {}
+    for fixture in fixtures:
+        sport = fixture.get("sport", "").lower()
+        sport_groups.setdefault(sport, []).append(fixture)
 
-    # Enrich each fixture
+    print(f"[fetch_stats] Enriching {len(fixtures)} fixtures across {len(sport_groups)} sports in parallel")
+
     results = []
     counts = {"enriched": 0, "partial": 0, "failed": 0, "skipped": 0}
+    counts_lock = threading.Lock()
 
-    for fixture in fixtures:
-        result = enrich_fixture(fixture, rate_limiter)
-        results.append(result)
-        status = result.get("status", "skipped")
-        counts[status] = counts.get(status, 0) + 1
+    if not sport_groups:
+        print("[fetch_stats] No fixtures to enrich")
+        return {
+            "date": date,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "total_fixtures": 0,
+            "counts": counts,
+            "results": [],
+        }
+
+    def _enrich_sport_group(sport: str, sport_fixtures: list[dict]) -> list[dict]:
+        """Enrich all fixtures for a single sport."""
+        sport_results = []
+        for fixture in sport_fixtures:
+            try:
+                result = enrich_fixture(fixture, rate_limiter)
+                sport_results.append(result)
+            except Exception as e:
+                home = fixture.get('home_team', '?')
+                away = fixture.get('away_team', '?')
+                print(f"[fetch_stats] Error enriching {home} vs {away}: {e}")
+                sport_results.append({
+                    "fixture_id": fixture.get("fixture_id", ""),
+                    "sport": sport,
+                    "home_team": home,
+                    "away_team": away,
+                    "status": "failed",
+                    "error": str(e),
+                })
+        return sport_results
+
+    max_workers = min(len(sport_groups), 4)
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_sport = {
+            executor.submit(_enrich_sport_group, sport, sport_fixtures): sport
+            for sport, sport_fixtures in sport_groups.items()
+        }
+        for future in as_completed(future_to_sport):
+            sport = future_to_sport[future]
+            try:
+                sport_results = future.result()
+                results.extend(sport_results)
+                for r in sport_results:
+                    status = r.get("status", "skipped")
+                    with counts_lock:
+                        counts[status] = counts.get(status, 0) + 1
+                print(f"[fetch_stats] {sport}: {len(sport_results)} fixtures processed")
+            except Exception as e:
+                print(f"[fetch_stats] ERROR enriching {sport}: {e}")
+                with counts_lock:
+                    counts["failed"] = counts.get("failed", 0) + len(sport_groups.get(sport, []))
 
     # Build summary
     summary = {

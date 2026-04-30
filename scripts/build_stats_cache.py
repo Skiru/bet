@@ -61,18 +61,50 @@ def is_cache_valid(cache_file: Path, ttl_hours: int) -> bool:
 
 
 def read_cache(sport: str, team: str) -> dict | None:
-    """Read cached data if valid, return None if expired or missing."""
+    """Read cached data if valid, return None if expired or missing.
+
+    When form TTL has expired but H2H data is still valid, returns the cache
+    entry with form set to None so callers know form needs refresh but can
+    still use H2H data.
+    """
     sport = validate_sport(sport)
     slug = slugify(team)
     cache_file = CACHE_DIR / sport / f"{slug}.json"
 
-    if not is_cache_valid(cache_file, FORM_TTL_HOURS):
+    if not cache_file.exists():
         return None
 
     try:
-        return json.loads(cache_file.read_text(encoding="utf-8"))
+        data = json.loads(cache_file.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, FileNotFoundError):
         return None
+
+    form_valid = is_cache_valid(cache_file, FORM_TTL_HOURS)
+
+    if form_valid:
+        return data
+
+    # Form expired — check if any H2H data is still valid
+    h2h = data.get("h2h", {})
+    valid_h2h = {}
+    for opponent, h2h_data in h2h.items():
+        h2h_updated = h2h_data.get("last_updated", "")
+        if h2h_updated:
+            try:
+                h2h_dt = datetime.fromisoformat(h2h_updated)
+                age = (datetime.now(timezone.utc) - h2h_dt).total_seconds() / 3600
+                if age < H2H_TTL_HOURS:
+                    valid_h2h[opponent] = h2h_data
+            except ValueError:
+                pass
+
+    if valid_h2h:
+        # Return with form cleared but H2H preserved
+        data["form"] = {}
+        data["h2h"] = valid_h2h
+        return data
+
+    return None
 
 
 def update_cache(sport: str, team: str, data: dict) -> Path:

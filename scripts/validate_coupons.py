@@ -98,7 +98,7 @@ def parse_coupon_tables(md_text: str) -> list[dict]:
                     events.append(normalize_event(parts[0].strip()))
 
         # Determine if core or combo
-        is_combo = bool(re.match(r"(?:COMBO|CK-COMBO|EXT)", coupon_id, re.IGNORECASE))
+        is_combo = bool(re.search(r"(?:COMBO|CK-COMBO|EXT)", coupon_id, re.IGNORECASE))
 
         coupons.append({
             "row_num": row_num,

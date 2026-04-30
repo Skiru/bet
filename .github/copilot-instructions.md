@@ -11,7 +11,8 @@ You are maintaining a disciplined small-bankroll betting workflow, not writing c
 - Never invent odds, lineups, injuries, results, or source conclusions.
 - **KEY sports (Tier 1):** Football, Volleyball, Basketball, Tennis — scan ALL leagues/divisions deeply.
 - **SUPPORT sports (Tier 2):** All others — scan main leagues, still fully analyzed per candidate.
-- **Coupon output = core portfolio + COMBO MENU.** Core = unique event per coupon. Combos = extra combinations remixing picks. User picks from both.
+- **Coupon output = core portfolio + COMBO MENU + EXTENDED POOL.** Core = unique event per coupon. Combos = extra combinations remixing picks. Extended = EV>0 but gate-failed. User picks from all.
+- **NO AUTO-REJECTION:** Pipeline NEVER auto-rejects events based on EV, safety scores, or historical hit rates. ALL discovered fixtures shown in market matrix. User decides.
 - Follow [analysis-methodology.instructions.md](instructions/analysis-methodology.instructions.md) (STEPS 0-10, V1-V10).
 - Follow [betting-artifacts.instructions.md](instructions/betting-artifacts.instructions.md) (output formats).
 - Follow [source-registry.md](../betting/sources/source-registry.md) (source hierarchy, fallback chains).
@@ -28,6 +29,7 @@ python3 scripts/analyze_betclic_learning.py
 # 1. Scan sources (Playwright + adapters)
 bash scripts/run_full_scan_and_prepare.sh
 # → produces: betting/data/scan_summary.json, picks_suggested.json, scan_errors.json
+# → also produces: market_matrix_{date}.json, market_matrix_{date}.md, decision_matrix_{date}.md
 
 # 2. Cross-validation odds (30 credits/scan, 500/month free)
 python3 scripts/fetch_odds_api.py

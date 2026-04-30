@@ -41,10 +41,22 @@ You are methodical and evidence-driven. You never skip a stat table column. You 
 - Surface-filter H2H for tennis (only same-surface meetings count)
 - EU basketball: use BetExplorer PF/PA + Flashscore H2H (NOT Basketball-Reference)
 
-**Stats cache workflow (ALWAYS check cache first):**
-1. Before web-fetching any team's stats, check `betting/data/stats_cache/{sport}/{team_slug}.json` via `python3 scripts/build_stats_cache.py read --team "TeamName" --sport sport`
-2. If cache is valid (within 24h TTL for form, 7d for H2H) → use cached data, skip web-fetch
-3. After collecting NEW stats via web-fetch, update cache: `python3 scripts/build_stats_cache.py cache --team "TeamName" --sport sport --data stats.json`
+**API-first stats workflow (ALWAYS check API data before web-fetching):**
+1. Check if the analysis pool already has this candidate: read `betting/data/analysis_pool_{date}.json` — events with `data_quality: FULL` or `PARTIAL` already have L10 form, H2H, safety scores, and market rankings computed from API data (API-Football, API-Basketball, API-Hockey, API-Tennis, API-Volleyball, API-Handball, API-Baseball)
+2. If the analysis pool has the candidate with sufficient data → use its pre-computed `all_markets` table as the §3.0 ranking input. Verify and supplement with web sources, but don't re-fetch what the API already provided.
+3. If not in the analysis pool, check stats cache: `betting/data/stats_cache/{sport}/{team_slug}.json` via `python3 scripts/build_stats_cache.py read --team "TeamName" --sport sport`
+4. If cache is valid (within 24h TTL for form, 7d for H2H) → use cached data
+5. Only web-fetch stats when neither API data nor cache is available
+6. After collecting NEW stats via web-fetch, update cache: `python3 scripts/build_stats_cache.py cache --team "TeamName" --sport sport --data stats.json`
+7. For all 14 sports: `python3 scripts/fetch_api_stats.py --date YYYY-MM-DD` fetches L10 form + H2H for ALL shortlisted teams using API clients with extended fallback chains:
+   - Football: api-football → football-data-org → understat → Playwright
+   - Basketball: api-basketball → balldontlie → nba_api (NBA only) → Playwright
+   - Hockey: api-hockey → Playwright
+   - Tennis: api-tennis (`api_clients/api_tennis.py`) → TheSportsDB → Playwright
+   - Volleyball: api-volleyball (`api_clients/api_volleyball.py`) → TheSportsDB → Playwright
+   - Handball: api-handball (`api_clients/api_handball.py`) → TheSportsDB → Playwright
+   - Baseball: api-baseball (`api_clients/api_baseball.py`) → TheSportsDB → Playwright
+   - Other sports: TheSportsDB → Playwright
 
 **Deterministic safety scores (ALWAYS use script):**
 After collecting raw stats for a candidate, structure them into the JSON input format and run:
@@ -71,6 +83,11 @@ Before starting any task, you check all available skills and decide which one is
 - `bet-applying-sport-protocols` — sport-specific stat tables, mandatory multi-market calculation templates, per-sport required stats and sources
 - `bet-navigating-sources` — source chains for gathering statistical data, specialist sources per sport
 
+**Structured adapters for automated data extraction:**
+- `scripts/adapters/soccerway_adapter.py` — normalized football fixtures/standings
+- `scripts/adapters/tennisexplorer_adapter.py` — normalized tennis results/rankings
+- `scripts/adapters/soccerstats_adapter.py` — normalized football statistics
+
 </skills-usage>
 
 <tool-usage>
@@ -86,8 +103,8 @@ Before starting any task, you check all available skills and decide which one is
 </tool>
 
 <tool name="execute/runInTerminal">
-- **MUST use when**: Running `python3 scripts/compute_safety_scores.py` for deterministic §3.0 ranking, `python3 scripts/validate_s3_output.py` for self-validation, `python3 scripts/build_stats_cache.py` for cache reads/writes
-- **IMPORTANT**: Always use compute_safety_scores.py instead of manual safety score calculation. Always validate S3 output before submitting.
+- **MUST use when**: Running `python3 scripts/compute_safety_scores.py` for deterministic §3.0 ranking, `python3 scripts/validate_s3_output.py` for self-validation, `python3 scripts/build_stats_cache.py` for cache reads/writes, `python3 scripts/fetch_api_stats.py --date YYYY-MM-DD` for API-based stats collection, `python3 scripts/deep_analysis_pool.py --date YYYY-MM-DD` for generating the analysis pool
+- **IMPORTANT**: Always use compute_safety_scores.py instead of manual safety score calculation. Always validate S3 output before submitting. Check `betting/data/analysis_pool_{date}.json` first — it may already contain pre-computed safety scores and market rankings from API data for football, basketball, and hockey candidates.
 </tool>
 
 <tool name="edit/createFile">
@@ -105,7 +122,7 @@ Before starting any task, you check all available skills and decide which one is
 **S3B time-sensitive output must include:**
 1. Confirmed lineups (or "not yet available" with expected availability time)
 2. Late injury/suspension updates with source
-3. Weather impact assessment (outdoor sports)
+3. Weather impact assessment (outdoor sports) — use `python3 scripts/fetch_weather.py --date YYYY-MM-DD` (Open-Meteo API, free, no key required) for automated weather data per venue. Covers temperature, precipitation, wind speed, and weather conditions.
 4. Odds drift calculation: `drift_pct = 100 × ((current/analysis) − 1)`
 
 </domain-standards>

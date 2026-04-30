@@ -8,6 +8,8 @@ agent: bet-scanner
 
 ## INPUTS
 - `betting/data/{date}_s1_master_events.md` — from STEP 1
+- **Market matrix** (PRIMARY): `betting/data/market_matrix_{date}.json` + `betting/data/decision_matrix_{date}.md` — consolidated view of ALL events with odds from all sources and safety scores, sorted by quality. If available, use this as the primary shortlist input instead of raw S1 output.
+- **Analysis pool**: `betting/data/analysis_pool_{date}.json` — events pre-analyzed via API stats with safety scores and market rankings. Events with `data_quality: FULL` or `PARTIAL` should be PRIORITIZED in shortlist (they already have L10 form, H2H, and safety scores computed).
 - **Session**: {{session}} — controls event time window filter
 - **Event window**: resolved from session (full/day/night/morning) + betting_window_days in config
 

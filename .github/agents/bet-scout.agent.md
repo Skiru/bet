@@ -11,7 +11,7 @@ tools:
     "web/fetch",
     "browser/*",
     "execute/runInTerminal",
-    "execute/executionSubagent",
+    "agent/runSubagent",
     "sequential-thinking/*",
     "todo",
   ]

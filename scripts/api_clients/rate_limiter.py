@@ -8,6 +8,7 @@ import json
 import os
 import re
 import tempfile
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -20,6 +21,9 @@ API_DAILY_LIMITS = {
     "balldontlie": 1000,
     "thesportsdb": 100,
     "odds-api": 16,
+    "oddsportal-scraper": 50,
+    "betexplorer-scraper": 50,
+    "betclic-scraper": 50,
 }
 
 USAGE_DIR = Path(__file__).parent.parent.parent / "betting" / "data" / ".api_usage"
@@ -42,11 +46,24 @@ def _today_str() -> str:
 
 
 class RateLimiter:
-    """File-based daily API request counter."""
+    """File-based daily API request counter.
+
+    Thread-safe: uses per-API locks to prevent TOCTOU races on
+    read-increment-write cycles in can_request() and record_request().
+    """
 
     def __init__(self, usage_dir: Path | None = None, limits: dict | None = None):
         self.usage_dir = usage_dir or USAGE_DIR
         self.limits = limits or API_DAILY_LIMITS
+        self._locks: dict[str, threading.Lock] = {}
+        self._global_lock = threading.Lock()
+
+    def _get_lock(self, api_name: str) -> threading.Lock:
+        """Get or create a per-API lock."""
+        with self._global_lock:
+            if api_name not in self._locks:
+                self._locks[api_name] = threading.Lock()
+            return self._locks[api_name]
 
     def _usage_file(self, api_name: str, date: str | None = None) -> Path:
         """Get path to usage file for an API on a given date."""
@@ -93,23 +110,25 @@ class RateLimiter:
             # Unknown API — allow but warn
             print(f"[rate_limiter] WARNING: No limit configured for '{api_name}', allowing request")
             return True
-        usage = self._read_usage(api_name)
-        return usage["count"] + cost <= limit
+        with self._get_lock(api_name):
+            usage = self._read_usage(api_name)
+            return usage["count"] + cost <= limit
 
     def record_request(self, api_name: str, endpoint: str, cost: int = 1) -> None:
         """Record a completed API request."""
         _validate_api_name(api_name)
         today = _today_str()
-        usage = self._read_usage(api_name, today)
-        usage["count"] = usage.get("count", 0) + cost
-        usage["date"] = today
-        usage["api_name"] = api_name
-        usage.setdefault("requests", []).append({
-            "endpoint": endpoint,
-            "cost": cost,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-        })
-        self._write_usage(api_name, usage)
+        with self._get_lock(api_name):
+            usage = self._read_usage(api_name, today)
+            usage["count"] = usage.get("count", 0) + cost
+            usage["date"] = today
+            usage["api_name"] = api_name
+            usage.setdefault("requests", []).append({
+                "endpoint": endpoint,
+                "cost": cost,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+            self._write_usage(api_name, usage)
 
     def get_remaining(self, api_name: str) -> int:
         """Get remaining requests for this API today."""

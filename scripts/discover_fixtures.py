@@ -196,6 +196,50 @@ def discover_all_fixtures(
             except Exception as e:
                 print(f"[discover] api-hockey error: {e}")
 
+    # Tennis sources
+    if not sports or "tennis" in sports:
+        if "api-tennis" in CLIENT_REGISTRY:
+            try:
+                client = get_client("api-tennis", rate_limiter)
+                fixtures = client.get_fixtures(date)
+                all_fixtures.extend(fixtures)
+                print(f"[discover] api-tennis: {len(fixtures)} fixtures")
+            except Exception as e:
+                print(f"[discover] api-tennis error: {e}")
+
+    # Volleyball sources
+    if not sports or "volleyball" in sports:
+        if "api-volleyball" in CLIENT_REGISTRY:
+            try:
+                client = get_client("api-volleyball", rate_limiter)
+                fixtures = client.get_fixtures(date)
+                all_fixtures.extend(fixtures)
+                print(f"[discover] api-volleyball: {len(fixtures)} fixtures")
+            except Exception as e:
+                print(f"[discover] api-volleyball error: {e}")
+
+    # Handball sources
+    if not sports or "handball" in sports:
+        if "api-handball" in CLIENT_REGISTRY:
+            try:
+                client = get_client("api-handball", rate_limiter)
+                fixtures = client.get_fixtures(date)
+                all_fixtures.extend(fixtures)
+                print(f"[discover] api-handball: {len(fixtures)} fixtures")
+            except Exception as e:
+                print(f"[discover] api-handball error: {e}")
+
+    # Baseball sources
+    if not sports or "baseball" in sports:
+        if "api-baseball" in CLIENT_REGISTRY:
+            try:
+                client = get_client("api-baseball", rate_limiter)
+                fixtures = client.get_fixtures(date)
+                all_fixtures.extend(fixtures)
+                print(f"[discover] api-baseball: {len(fixtures)} fixtures")
+            except Exception as e:
+                print(f"[discover] api-baseball error: {e}")
+
     # TheSportsDB fallback — covers sports without a dedicated API
     covered_sports = set()
     if not sports or "football" in sports:
@@ -204,6 +248,14 @@ def discover_all_fixtures(
         covered_sports.add("basketball")
     if not sports or "hockey" in sports:
         covered_sports.add("hockey")
+    if not sports or "tennis" in sports:
+        covered_sports.add("tennis")
+    if not sports or "volleyball" in sports:
+        covered_sports.add("volleyball")
+    if not sports or "handball" in sports:
+        covered_sports.add("handball")
+    if not sports or "baseball" in sports:
+        covered_sports.add("baseball")
 
     uncovered_sports = set(sports or []) - covered_sports if sports else set()
     if uncovered_sports or not sports:

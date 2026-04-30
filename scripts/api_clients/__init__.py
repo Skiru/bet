@@ -37,3 +37,16 @@ CLIENT_REGISTRY["balldontlie"] = NBAStatsClient
 
 from .thesportsdb import TheSportsDBClient
 CLIENT_REGISTRY["thesportsdb"] = TheSportsDBClient
+
+# New sport-specific API clients
+from .api_tennis import APITennisClient
+CLIENT_REGISTRY["api-tennis"] = APITennisClient
+
+from .api_volleyball import APIVolleyballClient
+CLIENT_REGISTRY["api-volleyball"] = APIVolleyballClient
+
+from .api_handball import APIHandballClient
+CLIENT_REGISTRY["api-handball"] = APIHandballClient
+
+from .api_baseball import APIBaseballClient
+CLIENT_REGISTRY["api-baseball"] = APIBaseballClient

@@ -29,7 +29,17 @@ You are methodical and structured. You never skip steps or shortcuts. You read c
 
 **Session Parity Rule:** ALL session types execute the EXACT SAME pipeline. The ONLY difference is the event time window filter. Analysis depth, coupon count, validation = identical regardless of session.
 
-**Pipeline sequence:** S0 → S1 → S2 → S3 → S4 → S5 → S6 → S7 → S3B → S8
+**Entry point:** `python3 scripts/pipeline_orchestrator.py --date YYYY-MM-DD [--session full|day|night|morning]` — orchestrates all steps with state tracking and resume capability. Falls back to manual step-by-step if needed.
+
+**Pipeline sequence:** S0 → S1 → S1b (odds) → S1c (weather) → S1d (market matrix) → S2 → S3 → S4 → S5 → S6 → S7 → S3B → S8
+
+**New infrastructure (integrated in PRE-FLIGHT):**
+- `fetch_odds_multi.py` — aggregates 5 odds sources (The-Odds-API + API-Football + OddsPortal + BetExplorer + Betclic) per SPORT_SOURCE_PRIORITY
+- `generate_market_matrix.py` — combines all data into `market_matrix_{date}.json/md` + `decision_matrix_{date}.md` (primary S2 input)
+- `fetch_weather.py` — Open-Meteo weather flags (RAIN_HEAVY, WIND_STRONG, etc.) for outdoor venues
+- `deep_link_discovery.py` — tournament sub-link extraction (200+ URLs with `--deep --max-deep-links 50`)
+- 7 sport API clients: api_football, api_basketball, api_hockey, api_tennis, api_volleyball, api_handball, api_baseball
+- 3 structured adapters: soccerway, tennisexplorer, soccerstats
 
 **4-Pass Protocol:**
 - Pass 1 (Discovery): Execute full pipeline, log ALL errors
@@ -79,9 +89,9 @@ Use this map to route QUESTION and ACTION intents to the correct specialist agen
 |----------------------|--------------------------------------------------------------------------------------------|-------------------|-----------------------------------------------------------------------------|
 | Statistics & Markets | stats, H2H, form, market ranking, corners, fouls, cards, shots, safety score, three-way, §3.0, L10, L5 | bet-statistician   | `betting/data/{date}_s3_deep_stats.md`, `betting/data/{date}_s2_shortlist.md` |
 | Tipsters & Consensus | tipster, consensus, argument, prediction, ZawodTyper, Meczyki, scout, expert opinion       | bet-scout          | `betting/data/{date}_s4_tipsters.md`, `betting/data/{date}_s1_tipster_prefetch.md` |
-| Odds & Pricing       | EV, odds, Kelly, stake, price gap, drift, value, line movement, expected value, Betclic price | bet-valuator       | `betting/data/{date}_s5_odds_ev.md`, `betting/data/odds_api_snapshot.json`   |
+| Odds & Pricing       | EV, odds, Kelly, stake, price gap, drift, value, line movement, expected value, Betclic price, multi-source | bet-valuator       | `betting/data/{date}_s5_odds_ev.md`, `betting/data/odds_api_snapshot.json`, `betting/data/odds_multi_sources.json` |
 | Settlement & History | settle, PnL, bankroll, won, lost, history, hit rate, coupon killer, CLV, drawdown          | bet-settler        | `betting/journal/picks-ledger.csv`, `betting/journal/coupons-ledger.csv`, `betting/data/betclic_bets_history.json` |
-| Events & Sources     | scan, events, matches, sources, BetExplorer, shortlist, excluded, league, fixture, today   | bet-scanner        | `betting/data/{date}_s1_master_events.md`, `betting/data/scan_summary.json`, `betting/data/{date}_s2_shortlist.md` |
+| Events & Sources     | scan, events, matches, sources, BetExplorer, shortlist, excluded, league, fixture, today, market matrix   | bet-scanner        | `betting/data/{date}_s1_master_events.md`, `betting/data/scan_summary.json`, `betting/data/{date}_s2_shortlist.md`, `betting/data/market_matrix_{date}.json` |
 | Risk & Challenge     | upset, risk, bear case, red flag, gate, Zero Tolerance, contrarian, 17-point, blocker      | bet-challenger     | `betting/data/{date}_s6_context.md`, `betting/data/{date}_s7_gate.md`       |
 | Coupons & Portfolio  | coupon, portfolio, validation, V1-V10, combo, artifact, placement, exposure, concentration  | bet-builder        | `betting/coupons/{date}*.md`, `betting/journal/picks-ledger.csv`               |
 
@@ -225,14 +235,17 @@ This agent does not load skills directly — it delegates to specialized agents 
 | Step | Agent | Gate Condition |
 |------|-------|---------------|
 | S0 | bet-settler | All pending resolved, bankroll updated, learning summary written, **`betclic_bets_history.json` read and analyzed** |
-| S1 | bet-scanner | ≥50 events, ALL 14 sports scanned, completeness ≥80%, tipster HTML fetched |
-| S2 | bet-scanner | 15-40 candidates, ≥8 sports in shortlist |
+| S1 | bet-scanner | ≥50 events, ALL 14 sports scanned (200+ URLs with `--deep` flag), completeness ≥80%, tipster HTML fetched |
+| S1b | _(script)_ | `fetch_odds_multi.py` or `fetch_odds_api.py` executed — `odds_api_snapshot.json` produced |
+| S1c | _(script)_ | `fetch_weather.py --date {date}` executed — `weather_{date}.json` produced |
+| S1d | _(script)_ | `generate_market_matrix.py --date {date}` executed — `market_matrix_{date}.json/md` + `decision_matrix_{date}.md` produced |
+| S2 | bet-scanner | 15-40 candidates, ≥8 sports in shortlist, **market_matrix used as primary input** |
 | S3 | bet-statistician | **MECHANICAL GATE: §3.0e template verified — all 10 section markers (§S3.1-§S3.10) present per candidate, ≥3 ranking rows (≥4 football), no banned words, numeric safety scores, 100% DEPTH gate.** Stats from ≥2 sources per candidate. |
 | S4 | bet-scout | ≥2 tipster sites per candidate, §4.3 watchlist promotion done |
 | S5 | bet-valuator | EV > 0 for all approved candidates |
 | S6 | bet-challenger | Upset risk scored, context verified for all candidates |
 | S7 | bet-challenger | 17-point gate passed per pick |
-| S3B | bet-statistician | Lineups, weather, odds drift checked |
+| S3B | bet-statistician | Lineups, weather (via `fetch_weather.py` / `weather_{date}.json` — Open-Meteo flags), odds drift checked |
 | S8 | bet-builder | V1-V10 all pass, §S8.FINAL mechanical verification pass |
 
 **Error escalation:**

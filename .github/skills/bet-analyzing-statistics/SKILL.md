@@ -36,9 +36,13 @@ For EVERY candidate, BEFORE selecting a market:
    - Hit rate (how often L10 + H2H covered that line)
 3. **Calculate SAFETY SCORE** per market: `safety = min(hit_rate_L10, hit_rate_H2H)`
    - Higher = safer. Tiebreaker: avg margin vs line (Over: avg/line, Under: line/avg — bigger = more margin)
+   - H2H-BLIND penalty: if no H2H data exists, safety = `hit_rate_L10 × 0.7` (30% penalty)
 4. **Rank all markets** by safety score. Pick the TOP market — not default/favorite.
 5. **CONFLICT CHECK**: H2H avg and L10 avg disagree by >20% → FLAG. L5 as tiebreaker. L5 also conflicts → DOWNGRADE or SKIP.
 6. **PRESENT the ranking table** in analysis. Show WHY chosen market beat alternatives.
+7. **THREE-WAY CHECK per market**: Every ranked market now carries its own three-way cross-check (L10 + H2H + L5 alignment). When the user selects a non-top market, the three-way data is immediately available.
+8. **Deterministic calculation**: Always use `python3 scripts/compute_safety_scores.py stats_input.json` — never manually compute safety scores. The script handles the 0.7 H2H-blind penalty, margin calculation, ranking, and per-market three-way checks.
+9. **API-first data**: Check `betting/data/analysis_pool_{date}.json` for pre-computed rankings from API data before web-fetching. Events with `data_quality: FULL` already have safety scores computed from API-Football/API-Basketball/API-Hockey stats.
 
 ### Ranking Table Template
 
@@ -129,3 +133,11 @@ For EVERY candidate:
 - `bet-navigating-sources` — provides the source chains for gathering statistical data
 - `bet-applying-sport-protocols` — sport-specific stat tables, mandatory multi-market calculations, red flags
 - `bet-evaluating-odds` — takes the selected market and calculates EV
+
+## Structured Adapters for Automated Data Extraction
+
+- `scripts/adapters/soccerway_adapter.py` — normalized football fixtures/standings
+- `scripts/adapters/tennisexplorer_adapter.py` — normalized tennis results/rankings
+- `scripts/adapters/soccerstats_adapter.py` — normalized football statistics
+
+These adapters parse sport-specific web pages into structured JSON data, reducing reliance on manual web-fetch for common stats.

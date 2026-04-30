@@ -25,6 +25,7 @@ BASE = Path(__file__).resolve().parent
 DATA_DIR = BASE.parent / "betting" / "data"
 CONFIG_PATH = BASE.parent / "config" / "betting_config.json"
 SUMMARY = DATA_DIR / "scan_summary.json"
+ODDS_SNAPSHOT = DATA_DIR / "odds_api_snapshot.json"
 
 TIER_A_STATS = {"flashscore.com", "sofascore.com"}
 TIER_A_STATS_EXTENDED = {
@@ -41,7 +42,7 @@ TIER_A_STATS_EXTENDED = {
     "table_tennis": {"flashscore.com", "sofascore.com"},
     "mma": {"flashscore.com", "sofascore.com"},
 }
-TIER_A_MARKETS = {"oddsportal.com", "betexplorer.com"}
+TIER_A_MARKETS = {"oddsportal.com", "betexplorer.com", "odds-api"}
 BOOKMAKER_DOMAINS = {"betclic.pl", "betclic.com"}
 COMMUNITY_SOURCES = {
     "zawodtyper.pl", "typersi.pl", "tipstrr.com",
@@ -77,6 +78,27 @@ def normalize(name: str) -> str:
         if name.endswith(suffix):
             name = name[: -len(suffix)].strip()
     return name
+
+
+def load_odds_snapshot() -> dict:
+    """Load odds from odds_api_snapshot.json and return keyed by normalized match.
+
+    Returns dict mapping 'normalized_home | normalized_away' → event data.
+    """
+    if not ODDS_SNAPSHOT.exists():
+        return {}
+    try:
+        data = json.loads(ODDS_SNAPSHOT.read_text(encoding="utf-8"))
+        events = data.get("events", []) if isinstance(data, dict) else data
+        lookup = {}
+        for ev in events:
+            home = normalize(ev.get("home_team", ""))
+            away = normalize(ev.get("away_team", ""))
+            if home and away:
+                lookup[f"{home} | {away}"] = ev
+        return lookup
+    except (json.JSONDecodeError, OSError):
+        return {}
 
 
 def fuzzy_match(name1: str, name2: str, threshold: float = 0.75) -> bool:
@@ -194,7 +216,7 @@ def aggregate(summary):
 
 
 def select_candidates(matches):
-    """Select candidates that meet Tier-A requirements and price checks."""
+    """Select ALL candidates — no auto-rejection. Advisory flags only."""
     candidates = []
     for key, meta in matches.items():
         domains = set(meta["sources"])
@@ -204,36 +226,66 @@ def select_candidates(matches):
         sport = sport[0] if sport else "football"
         tier_a_stat_set = TIER_A_STATS_EXTENDED.get(sport, TIER_A_STATS)
 
-        # Require at least one Tier-A stat source
+        # Track Tier-A stat sources (advisory, not filtering)
         stat_sources = domains & tier_a_stat_set
+        advisory_flags = []
         if not stat_sources:
-            continue
+            advisory_flags.append("no_tier_a_stats")
 
-        # Require at least one Tier-A market source OR bookmaker odds
+        # Track Tier-A market sources (advisory, not filtering)
         market_sources = domains & TIER_A_MARKETS
         odds_map = meta.get("odds", {})
 
-        # Get bookmaker odds
+        # Get bookmaker odds — prefer Betclic, fall back to ANY source with odds
         betclic_odds = None
         for d in BOOKMAKER_DOMAINS:
             if d in odds_map and odds_map[d]:
                 betclic_odds = max(odds_map[d])
                 break
-        if not betclic_odds:
-            continue
+
+        # Fallback: use odds from ANY source (Tier-A market, API snapshot, etc.)
+        any_odds = betclic_odds
+        if not any_odds:
+            # Try Tier-A market sources
+            for d in TIER_A_MARKETS:
+                if d in odds_map and odds_map[d]:
+                    any_odds = max(odds_map[d])
+                    break
+        if not any_odds:
+            # Try ANY source that has odds
+            for d, d_odds in odds_map.items():
+                if d_odds:
+                    any_odds = max(d_odds)
+                    break
+        if not any_odds:
+            # Try API snapshot odds
+            api_odds = meta.get("api_odds")
+            if api_odds:
+                any_odds = api_odds
+        if not any_odds:
+            advisory_flags.append("no_odds_found")
+
+        # Use Betclic odds for gap calculation; fall back to any available odds
+        reference_odds = betclic_odds or any_odds
 
         # Compute market_best from Tier-A market sources only
         market_odds = []
         for d in TIER_A_MARKETS:
             if d in odds_map:
                 market_odds.extend(odds_map[d])
-        # If no Tier-A market data, use bookmaker odds as fallback (gap = 0)
+        # If no Tier-A market data, use reference odds as fallback (gap = 0)
         if not market_odds:
-            market_best = betclic_odds
+            market_best = reference_odds
         else:
             market_best = max(market_odds)
 
-        price_gap_pct = 100.0 * ((betclic_odds / market_best) - 1.0) if market_best > 0 else 0.0
+        price_gap_pct = 100.0 * ((reference_odds / market_best) - 1.0) if reference_odds and market_best and market_best > 0 else 0.0
+
+        # Advisory price gap flags (NEVER filter — user decides)
+        if price_gap_pct < HIGH_RISK_GAP_THRESHOLD:
+            advisory_flags.append("below_hr_threshold")
+        elif price_gap_pct < LOW_RISK_GAP_THRESHOLD:
+            advisory_flags.append("below_lr_threshold")
 
         # Determine risk tier based on source coverage
         tier_a_count = len(stat_sources) + len(market_sources)
@@ -247,10 +299,12 @@ def select_candidates(matches):
         candidates.append({
             "match": key,
             "sport": meta.get("sports", ["football"])[0] if meta.get("sports") else "football",
-            "betclic_odds": round(betclic_odds, 2),
-            "market_best": round(market_best, 2),
-            "price_gap_pct": round(price_gap_pct, 2),
+            "betclic_odds": round(reference_odds, 2) if reference_odds else None,
+            "odds_source": "betclic" if betclic_odds else ("market" if any_odds else "none"),
+            "market_best": round(market_best, 2) if market_best else None,
+            "price_gap_pct": round(price_gap_pct, 2) if reference_odds and market_best else None,
             "risk_tier": risk_tier,
+            "advisory_flags": advisory_flags,
             "sources": sorted(set(domains)),
             "stat_sources": sorted(stat_sources),
             "market_sources": sorted(market_sources),
@@ -265,7 +319,7 @@ def select_candidates(matches):
     candidates.sort(key=lambda x: (
         tier_order.get(x["risk_tier"], 3),
         -len(x["stat_sources"]) - len(x["market_sources"]),
-        -x["price_gap_pct"],
+        -(x["price_gap_pct"] or 0),
     ))
     return candidates
 
@@ -287,11 +341,8 @@ def allocate_stakes(candidates, config):
         if used + max_stake > max_daily:
             break
 
-        # Apply price gap threshold based on risk tier
-        if c["risk_tier"] == "low" and c["price_gap_pct"] < low_gap:
-            continue
-        elif c["risk_tier"] in ("medium", "high") and c["price_gap_pct"] < high_gap:
-            continue
+        # Advisory-only: tag events below threshold but NEVER filter them
+        # User decides what to bet on
 
         # Reduce stake for higher-risk picks
         if c["risk_tier"] == "high":
@@ -317,10 +368,72 @@ def allocate_stakes(candidates, config):
     return picks, round(used, 2)
 
 
+def enrich_with_api_odds(matches: dict) -> dict:
+    """Merge odds from odds_api_snapshot.json into aggregated matches.
+
+    For each API odds event, find matching aggregated match and add odds.
+    For events not yet in matches, add them with API odds data.
+    """
+    odds_data = load_odds_snapshot()
+    if not odds_data:
+        return matches
+
+    enriched_count = 0
+    added_count = 0
+
+    for odds_key, event in odds_data.items():
+        home = event.get("home_team", "")
+        away = event.get("away_team", "")
+        if not home or not away:
+            continue
+
+        # Extract best odds from API event bookmakers
+        best_price = 0.0
+        for bm in event.get("bookmakers", []):
+            for market in bm.get("markets", []):
+                for outcome in market.get("outcomes", []):
+                    price = outcome.get("price", 0)
+                    if isinstance(price, (int, float)) and price > best_price:
+                        best_price = price
+
+        if best_price < 1.01:
+            continue
+
+        # Find matching aggregated match
+        matched_key = find_existing_key(home, away, matches)
+        if matched_key:
+            matches[matched_key]["api_odds"] = round(best_price, 2)
+            matches[matched_key].setdefault("sources", []).append("odds-api")
+            sport = event.get("_our_sport", "football")
+            sports_val = matches[matched_key].get("sports", [])
+            if isinstance(sports_val, set):
+                sports_val.add(sport)
+            elif isinstance(sports_val, list) and sport not in sports_val:
+                sports_val.append(sport)
+            enriched_count += 1
+        else:
+            # Add as new match entry — event found in API but not in scan
+            key = match_key(home, away)
+            sport = event.get("_our_sport", "football")
+            matches[key] = {
+                "sources": ["odds-api"],
+                "odds": {},
+                "sample_items": [],
+                "times": [],
+                "sports": [sport] if sport else [],
+                "api_odds": round(best_price, 2),
+            }
+            added_count += 1
+
+    print(f"API odds: enriched {enriched_count} existing matches, added {added_count} new")
+    return matches
+
+
 def main():
     config = load_config()
     summary = load_summary()
     matches = aggregate(summary)
+    matches = enrich_with_api_odds(matches)
     candidates = select_candidates(matches)
     picks, total_exposure = allocate_stakes(candidates, config)
 

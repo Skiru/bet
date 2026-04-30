@@ -80,6 +80,10 @@ The .md file MUST be identical to what is shown in chat — visual Markdown tabl
 Structure of the .md file:
 1. H1 header with date, bankroll, budget.
 2. Conditional notice (all picks are CONDITIONAL — verify on Betclic).
+2b. **PEŁNA MATRYCA RYNKÓW (FULL MARKET MATRIX)** — Placed BEFORE coupons for quick scanning. Reference link to `betting/data/market_matrix_{date}.md` and `decision_matrix_{date}.md` (see §1.9 in analysis-methodology). Inline in the coupon file, include a COMPACT matrix of the top 30-50 bettable opportunities:
+   - Table: | # | Sport | Event | Market | Odds | Tier | Uwagi | — sorted by safety score desc, then by sport.
+   - This is the PRIMARY decision tool for the user.
+   - NO events are filtered out based on EV — show everything with available data.
 3. Per-type coupon tables (LOW-RISK, MULTI-SPORT, HIGHER RISK, NIGHT) — each with columns: #, Coupon ID, Co obstawić, Kurs, Stawka, Zwrot. UNIQUE EVENT PER COUPON.
 3b. **COMBINATION MENU** — additional combos (COMBO-LR1, COMBO-MS1, etc.) that remix approved picks. Same table format. Prefixed "COMBO-" for clarity.
 3c. **ROZSZERZONY WYBÓR (EXTENDED POOL)** — EV > 0 picks that did NOT fully pass the 17-point gate but have positive expected value. These are optional higher-risk plays the user may choose to add. See §EXTENDED-POOL below for structure.
@@ -101,6 +105,13 @@ Total suggested stakes (core + combos + extended) WILL exceed daily budget — u
 The extended pool captures ALL picks with **EV > 0** that were NOT included in core/combo coupons. These are picks that failed some 17-point gate checks, had bear≥bull concerns, or lacked data — but still have positive expected value. The user sees them with full context and decides whether to risk them.
 
 **Inclusion threshold:** EV > 0 (calculated in S5). Exclude only: phantom fixtures (ZT#6), wrong dates, or negative EV. **NEVER exclude based on sport/market historical hit rates** — Betclic learning data is advisory for the user only.
+
+**COMPLETENESS RULE (§3.0f enforcement):** Per §3.0f in analysis-methodology, ALL shortlisted candidates that are not PHANTOM/VOID receive full §3.0 analysis. After analysis, every candidate lands in exactly one of three buckets:
+1. **Core portfolio** — passed 17-point gate fully
+2. **Extended pool** — EV > 0 but failed some gate checks
+3. **Rejected list (ODRZUCONE)** — EV ≤ 0 or critical red flag
+
+No candidate with completed §3.0 analysis and EV > 0 may be silently omitted. The user must see all three groups to make informed decisions.
 
 **Required format per extended pick:**
 

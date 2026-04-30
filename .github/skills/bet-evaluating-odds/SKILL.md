@@ -110,6 +110,14 @@ Cross-validate: if odds differ >5% between sources → investigate which is stal
 - Quota: 30 credits/full scan, 500/month free (~16 scans/month)
 - Use in S1 (cross-validation) and S5 (market-best prices)
 
+## Multi-Source Odds Aggregation (RECOMMENDED)
+
+- Script: `python3 scripts/fetch_odds_multi.py --date YYYY-MM-DD`
+- Output: `betting/data/odds_multi_sources.json` (provenance log with source attribution)
+- Sources: The-Odds-API + API-Football + OddsPortal + BetExplorer + Betclic (5 sources)
+- Uses `SPORT_SOURCE_PRIORITY` chains to select best odds per sport
+- RECOMMENDED over single-source `fetch_odds_api.py` for comprehensive price comparison
+
 ## Connected Skills
 
 - `bet-navigating-sources` — provides the source chains for odds retrieval

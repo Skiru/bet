@@ -34,15 +34,15 @@ Settle ALL pending picks/coupons from the previous betting day. Update PnL, CLV,
 
 Before STEP 1, query the picks-ledger to extract actionable patterns. This takes 2 minutes and prevents repeating proven failures.
 
-1. **Per-market hit rate:** Group settled picks by `market` column. Calculate win% per market type (e.g., corners: 75%, ML: 40%, BTTS: 55%). Any market <40% on 10+ picks → AUTO-DOWNGRADE (STEP 5 rule). Any market <30% → WATCHLIST ONLY.
-2. **Per-sport hit rate:** Group by `sport`. Any sport with <30% hit rate on 5+ picks → FLAG. Scan that sport but apply −1 confidence to all picks from it.
-3. **Coupon failure analysis:** For each LOST coupon, identify the leg that failed. Track which pick types are the "coupon killers." If a specific market/sport kills coupons >50% of the time → exclude from LR coupons.
+1. **Per-market hit rate:** Group settled picks by `market` column. Calculate win% per market type (e.g., corners: 75%, ML: 40%, BTTS: 55%). Any market <40% on 10+ picks → **FLAG prominently in report** (ADVISORY — user decides). Any market <30% → **HIGHLIGHT with ⚠️ WARNING** in report.
+2. **Per-sport hit rate:** Group by `sport`. Any sport with <30% hit rate on 5+ picks → **FLAG prominently in report** with full rate data. NEVER auto-downgrade confidence.
+3. **Coupon failure analysis:** For each LOST coupon, identify the leg that failed. Track which pick types are the "coupon killers." If a specific market/sport kills coupons >50% of the time → **FLAG as coupon killer pattern** in report (ADVISORY — user decides whether to exclude from LR coupons).
 4. **Streak check:** Any team/player appearing 3+ times in recent picks? Check if the thesis is stale or if the edge has been priced in.
-5. **Write a 3-line summary** of what the data says today. Example: "Corners 6/8 (75%). Tennis ML 1/5 (20%) — avoid. Hockey totals killing coupons — HR only."
+5. **Write a 3-line summary** of what the data says today. Example: "Corners 6/8 (75%). Tennis ML 1/5 (20%) — ⚠️ flagged. Hockey totals killing coupons — ⚠️ flagged."
 6. **Previous-day PnL**: sum(returns) - sum(stakes)
 7. **Rolling 7-day PnL**: sum of last 7 days
 8. **Per-league ROI**: which leagues/sports produced profit vs loss
-5. **Post-mortem EACH LOSS**:
+9. **Post-mortem EACH LOSS**:
    - Was the thesis WRONG (bad analysis) or did VARIANCE hit (correct thesis, unlucky)?
    - What would you change in hindsight?
    - Record in learning log

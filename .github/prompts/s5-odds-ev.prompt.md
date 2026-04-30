@@ -9,10 +9,21 @@ agent: bet-valuator
 ## INPUTS
 - `betting/data/{date}_s3_deep_stats.md` — stats + recommended markets
 - `betting/data/{date}_s4_tipsters.md` — tipster consensus
-- The-Odds-API snapshot if available: `betting/data/odds_api_snapshot.json`
+- Multi-source odds (choose best available):
+  - **Preferred**: `betting/data/odds_multi_sources.json` (from `fetch_odds_multi.py` — aggregates 5 sources: The-Odds-API + API-Football + OddsPortal + BetExplorer + Betclic per SPORT_SOURCE_PRIORITY)
+  - **Fallback**: `betting/data/odds_api_snapshot.json` (from `fetch_odds_api.py` — The-Odds-API only)
+  - Both produce backward-compatible `odds_api_snapshot.json` + `odds_api_summary.csv`
+- **Analysis pool**: `betting/data/analysis_pool_{date}.json` — may contain pre-computed EV for candidates with API odds data (`ev` field, calculated as `safety_score × market_best_odds − 1`). Use as starting point but always verify with fresh Betclic odds.
+- **Market matrix** (if available): `betting/data/market_matrix_{date}.json` — contains consolidated odds from all sources per event/market, sorted by safety score
 
 ## TASK
 For EACH candidate: get multi-source odds, estimate true probability, calculate EV. Reject if EV ≤ 0.
+
+### PRE-CHECK: ANALYSIS POOL EV
+Before web-fetching odds for each candidate:
+1. Check `betting/data/analysis_pool_{date}.json` for pre-computed `ev` and `odds.market_best`
+2. If present: use as cross-validation baseline. Still get fresh Betclic odds (user verifies on app).
+3. The pool EV uses `safety_score` as probability proxy — refine with sharp bookmaker implied probabilities in the full EV calculation below.
 
 ### PER-CANDIDATE PROTOCOL:
 

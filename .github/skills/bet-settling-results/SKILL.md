@@ -77,10 +77,10 @@ run: python3 scripts/analyze_betclic_learning.py
 ```
 This file contains ALL actually placed bets from the Betclic account. It is the GROUND TRUTH. Always use the analyzer's live output for current stats — never rely on memorized numbers. Core patterns:
 - Statistical markets consistently outperform outcome markets. Corners = top market.
-- Match winner is the #1 coupon killer. DEMOTE ML.
+- Historical observation (ADVISORY): Match winner has been the #1 coupon killer historically. Flag ML picks prominently for user.
 - AKO(5+) near-zero win rate → MAX 4 legs. Sweet spot: AKO(2-3).
-- UNDER direction outperforms OVER. Actively seek UNDER plays.
-- High stakes (5+ PLN) have poor win rate. Keep stakes small.
+- Historical observation (ADVISORY): UNDER direction has historically outperformed OVER. Show this trend to user.
+- Historical observation (ADVISORY): High stakes (5+ PLN) have historically had poor win rate. Show this trend to user.
 
 **GATE: If `betclic_bets_history.json` is not read, §0.2 is INCOMPLETE. Do NOT proceed to STEP 1.**
 

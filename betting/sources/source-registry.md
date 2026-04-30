@@ -60,12 +60,21 @@ Every sport has dedicated communities, statistical databases, and prediction sit
   Use for: programmatic odds retrieval for ANY sport when manual scraping fails. Supports h2h, spreads, totals.
   Access: free tier (500 credits/month). API key in config/odds_api_key.txt or ODDS_API_KEY env var.
   Coverage: MLB, NBA, NHL, NFL, EPL, La Liga, Bundesliga, Serie A, Ligue 1, Eredivisie, Ekstraklasa, MLS, tennis Grand Slams, MMA, and 70+ more.
-  NOT covered: volleyball, esports, snooker, darts, table tennis, handball, padel, speedway (use BetExplorer/OddsPortal for these).
+  NOT covered: volleyball, esports, snooker, darts, table tennis, handball, padel, speedway (fallback sources — OddsPortal, BetExplorer, Betclic — now handle these via the multi-source system).
   Script: `python3 scripts/fetch_odds_api.py` — fetches all sports, saves to betting/data/odds_api_snapshot.json + odds_api_summary.csv.
   Commands: `--list-sports` (free, 0 credits), `--sports baseball,hockey` (filter), `--scores baseball` (settlement).
   Quota: 1 credit per sport×market×region. Full scan (14 sport groups × h2h+totals × eu) ≈ 30 credits. ~16 full scans/month on free tier.
   Integration: Run in STEP 1 (event scan) as cross-validation source. Run in STEP 5 (odds check) for market-best prices. Run with --scores for STEP 0 (settlement).
   Added: 2026-04-23. Activated: 2026-04-24.
+
+- API-Football /odds
+  Role: deep football odds — 20+ bookmakers, 60+ bet types including corners O/U, cards O/U, BTTS.
+  URL: v3.football.api-sports.io/odds
+  Use for: football odds cross-validation with far richer market depth than The Odds API.
+  Access: free tier (100 req/day shared with stats). Same API key as API-Football.
+  Coverage: 1000+ football leagues globally. Odds may lag 15-30 min behind live prices.
+  Script: Integrated into `python3 scripts/fetch_odds_multi.py`.
+  Added: 2026-04-29.
 
 ## Tier A Core Stats, Fixture, and Verification Sources
 
@@ -154,6 +163,34 @@ These API sources provide structured statistical data via REST APIs. They are th
   Coverage: EPL, La Liga, Bundesliga, Serie A, Ligue 1, RFPL.
   Added: 2026-04-28.
 
+- API-Tennis (custom client)
+  Role: tennis statistics API client — player rankings, match results, H2H, surface-specific form.
+  Use for: L10/L5/H2H statistical data for tennis game totals, set totals, and serve/return markets.
+  Script: `python3 scripts/fetch_api_stats.py --sports tennis` (uses `api_clients/api_tennis.py`)
+  Fallback: TheSportsDB → Playwright (TennisExplorer, TennisAbstract).
+  Added: 2026-04-30.
+
+- API-Volleyball (custom client)
+  Role: volleyball statistics API client — team stats, match results, set scores, point totals.
+  Use for: L10/L5/H2H statistical data for volleyball set totals, point totals, and set handicap markets.
+  Script: `python3 scripts/fetch_api_stats.py --sports volleyball` (uses `api_clients/api_volleyball.py`)
+  Fallback: TheSportsDB → Playwright (Flashscore, Sofascore).
+  Added: 2026-04-30.
+
+- API-Handball (custom client)
+  Role: handball statistics API client — team stats, match results, half-time scores, goal totals.
+  Use for: L10/L5/H2H statistical data for handball half totals, game totals, and team total markets.
+  Script: `python3 scripts/fetch_api_stats.py --sports handball` (uses `api_clients/api_handball.py`)
+  Fallback: TheSportsDB → Playwright (EHF, Handball-World).
+  Added: 2026-04-30.
+
+- API-Baseball (custom client)
+  Role: baseball statistics API client — team stats, pitcher data, game results, run totals.
+  Use for: L10/L5/H2H statistical data for baseball F5 totals, team totals, and run line markets.
+  Script: `python3 scripts/fetch_api_stats.py --sports baseball` (uses `api_clients/api_baseball.py`)
+  Fallback: TheSportsDB → Playwright (BaseballSavant, ESPN).
+  Added: 2026-04-30.
+
 - TheSportsDB
   Role: universal sports fixture database — covers ALL sports with basic fixture/result data.
   Use for: fixture discovery for sports without API-Sports.io coverage (volleyball, tennis, handball, etc.). No per-match stats.
@@ -167,8 +204,10 @@ These API sources provide structured statistical data via REST APIs. They are th
 Football:   API-Football → Football-Data.org → Understat (xG only) → Playwright
 Basketball: API-Basketball → BallDontLie → nba_api (NBA only) → Playwright
 Hockey:     API-Hockey → Playwright
-Tennis:     TheSportsDB (fixtures only) → Playwright
-Volleyball: TheSportsDB (fixtures only) → Playwright
+Tennis:     API-Tennis (api_clients/api_tennis.py) → TheSportsDB → Playwright
+Volleyball: API-Volleyball (api_clients/api_volleyball.py) → TheSportsDB → Playwright
+Handball:   API-Handball (api_clients/api_handball.py) → TheSportsDB → Playwright
+Baseball:   API-Baseball (api_clients/api_baseball.py) → TheSportsDB → Playwright
 Other:      TheSportsDB (fixtures only) → Playwright
 ```
 
@@ -185,6 +224,69 @@ Other:      TheSportsDB (fixtures only) → Playwright
 | TheSportsDB | ~100 | 30 | 70 |
 | Understat | unlimited | 50 | — |
 | The Odds API | ~16/day | 16 | 0 |
+
+## Weather Data Source
+
+- Open-Meteo
+  Role: free weather API — temperature, precipitation, wind speed, weather conditions by geographic coordinates.
+  URL: api.open-meteo.com/v1/forecast
+  Use for: STEP 3B weather impact assessment for outdoor sports (football, tennis, baseball, speedway). No API key required.
+  Script: `python3 scripts/fetch_weather.py --date YYYY-MM-DD` — fetches weather data for all outdoor event venues.
+  Access: free (no key, no registration). Rate limit ~10,000 req/day.
+  Coverage: Global. Hourly forecast data for any latitude/longitude.
+  Integration: Run as part of STEP 3B (time-sensitive data). Output used to assess wind/rain impact on statistical markets (e.g., rain → fewer corners, wind → fewer goals in football).
+  Added: 2026-04-30.
+
+## Scan Adapters (Structured Parsing)
+
+These adapters provide structured data extraction from web sources, normalizing raw HTML into fixture/stats JSON format used by the pipeline. They are invoked by `run_full_scan_and_prepare.sh` and `deep_link_discovery.py`.
+
+- soccerway_adapter.py (`scripts/adapters/soccerway_adapter.py`)
+  Role: structured parser for Soccerway pages — extracts fixtures, results, standings, H2H, and squad data.
+  Use for: exotic league fixture discovery and H2H extraction. Covers 200+ countries and 1000+ leagues.
+  Input: Soccerway URLs (e.g., `/football/[country]/[league]/`)
+  Output: normalized fixture/stats JSON for the analysis pool.
+  Added: 2026-04-30.
+
+- tennisexplorer_adapter.py (`scripts/adapters/tennisexplorer_adapter.py`)
+  Role: structured parser for TennisExplorer pages — extracts player H2H, surface form, rankings, and match schedules.
+  Use for: tennis H2H extraction with surface filtering, player ranking verification.
+  Input: TennisExplorer URLs (player pages, H2H pages, tournament draws)
+  Output: normalized player stats and H2H data for tennis analysis.
+  Added: 2026-04-30.
+
+- soccerstats_adapter.py (`scripts/adapters/soccerstats_adapter.py`)
+  Role: structured parser for SoccerStats pages — extracts league-level corner, card, foul, and BTTS statistics.
+  Use for: league-level statistical context for football corner/card/foul markets.
+  Input: SoccerStats league URLs (e.g., `/latest.asp?league={league}`)
+  Output: normalized league statistics (team averages for corners, cards, fouls, goals).
+  Added: 2026-04-30.
+
+### Odds Cross-Validation Sources (Multi-Source System)
+
+The multi-source odds aggregator (`fetch_odds_multi.py`) tries sources in priority order per sport, merging events and deduplicating bookmakers:
+
+| Sport | Source 1 | Source 2 | Source 3 | Source 4 | Source 5 |
+|-------|----------|----------|----------|----------|----------|
+| football | The Odds API | API-Football /odds | OddsPortal | BetExplorer | Betclic |
+| tennis | The Odds API | OddsPortal | BetExplorer | Betclic | — |
+| basketball | The Odds API | OddsPortal | BetExplorer | Betclic | — |
+| hockey | The Odds API | OddsPortal | BetExplorer | Betclic | — |
+| baseball | The Odds API | OddsPortal | BetExplorer | Betclic | — |
+| mma | The Odds API | OddsPortal | BetExplorer | Betclic | — |
+| volleyball | OddsPortal | BetExplorer | Betclic | — | — |
+| handball | OddsPortal | BetExplorer | Betclic | — | — |
+| esports | OddsPortal | BetExplorer | Betclic | — | — |
+| snooker | OddsPortal | BetExplorer | Betclic | — | — |
+| darts | OddsPortal | BetExplorer | Betclic | — | — |
+| table_tennis | OddsPortal | BetExplorer | Betclic | — | — |
+| padel | BetExplorer | Betclic | — | — | — |
+| speedway | BetExplorer | Betclic | — | — | — |
+
+Script: `python3 scripts/fetch_odds_multi.py`
+Commands: `--sports volleyball` (filter sport), `--sources the-odds-api,oddsportal` (filter sources), `--dry-run` (show plan only), `--no-window` (all events).
+Outputs: `betting/data/odds_api_snapshot.json` (backward compatible), `betting/data/odds_api_summary.csv`, `betting/data/odds_multi_sources.json` (provenance log).
+Added: 2026-04-29.
 
 ## Tier B Support and Consensus Sources
 

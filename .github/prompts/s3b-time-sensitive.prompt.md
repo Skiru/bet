@@ -12,6 +12,7 @@ agent: bet-statistician
 ## INPUTS
 - `betting/data/{date}_s7_gate.md` — APPROVED picks (✅ only) from the 17-point gate
 - `betting/data/{date}_s5_odds_ev.md` — odds at analysis time (needed for drift calculation)
+- `betting/data/analysis_pool_{date}.json` — pre-computed safety scores and market rankings from API data
 - All prior S3-S6 data as needed
 
 ## TASK
@@ -43,13 +44,22 @@ For EVERY approved candidate: verify lineups, check late injuries, check weather
 
 ### 3B.2 — WEATHER CHECK (outdoor sports)
 
-| Sport | Weather impact | What to look for |
+**PRE-CHECK: Automated weather data**
+If `fetch_weather.py` was run during PRE-FLIGHT, read `betting/data/weather_{date}.json` first. It contains Open-Meteo forecasts with automatic flags:
+- `RAIN_HEAVY` — >2.5mm/hr
+- `WIND_STRONG` — >30km/h gusts
+- `EXTREME_HEAT` — >35°C
+- `FREEZING` — <0°C
+
+Use these flags as the primary weather source. Fall back to manual web checks only if the automated data is missing or the venue wasn't resolved.
+
+| Sport | Weather impact | Source priority |
 |-------|--------------|------------------|
-| **Football** | Rain → fewer corners, slippery = fewer cards. Wind → more long balls, more corners | weather.com for match city |
-| **Tennis** | Extreme heat → fatigue favors fitter player. Wind → serve quality drops, more breaks | event city forecast |
-| **Speedway** | Rain → wet track → more falls, unpredictable | event city + speedway forums |
-| **Padel** | Wind disrupts lobs (key padel shot) | outdoor venue weather |
-| **Baseball** | Wind blowing out = +1.5 runs avg. Rain delay risk | ballpark weather |
+| **Football** | Rain → fewer corners, slippery = fewer cards. Wind → more long balls, more corners | `weather_{date}.json` → weather.com |
+| **Tennis** | Extreme heat → fatigue favors fitter player. Wind → serve quality drops, more breaks | `weather_{date}.json` → event city forecast |
+| **Speedway** | Rain → wet track → more falls, unpredictable | `weather_{date}.json` → speedway forums |
+| **Padel** | Wind disrupts lobs (key padel shot) | `weather_{date}.json` → outdoor venue weather |
+| **Baseball** | Wind blowing out = +1.5 runs avg. Rain delay risk | `weather_{date}.json` → ballpark weather |
 
 **KEY ACTIONS:**
 - If weather materially changes expected scoring → adjust pick line or confidence.

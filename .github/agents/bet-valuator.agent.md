@@ -10,7 +10,7 @@ tools:
     "search/listDirectory",
     "web/fetch",
     "execute/runInTerminal",
-    "execute/executionSubagent",
+    "agent/runSubagent",
     "sequential-thinking/*",
     "todo",
   ]
@@ -47,6 +47,11 @@ Before starting any task, you check all available skills and decide which one is
 - `bet-evaluating-odds` — EV formula, Kelly criterion, price gap thresholds, drift detection rules, American odds conversion, line movement interpretation, market performance tracker
 - `bet-navigating-sources` — market source chains (BetExplorer, OddsPortal, SBR, ESPN, ScoresAndOdds, The-Odds-API)
 
+**Key data files:**
+- `betting/data/odds_multi_sources.json` — multi-source provenance log from `fetch_odds_multi.py` (5 sources)
+- `betting/data/odds_api_snapshot.json` — single-source snapshot from `fetch_odds_api.py`
+- `betting/data/analysis_pool_{date}.json` — pre-computed EV values from pipeline
+
 </skills-usage>
 
 <tool-usage>
@@ -57,7 +62,9 @@ Before starting any task, you check all available skills and decide which one is
 </tool>
 
 <tool name="execute/runInTerminal">
-- **MUST use when**: Running `python3 scripts/fetch_odds_api.py` for programmatic odds retrieval
+- **MUST use when**: Running `python3 scripts/fetch_odds_multi.py --date YYYY-MM-DD` for multi-source odds aggregation, or `python3 scripts/fetch_odds_api.py` for single-source retrieval
+- `fetch_odds_multi.py` — multi-source odds aggregation (5 sources: The-Odds-API + API-Football + OddsPortal + BetExplorer + Betclic). Produces `odds_multi_sources.json` provenance log. RECOMMENDED over single-source `fetch_odds_api.py`.
+- **IMPORTANT**: After running, check `betting/data/odds_multi_sources.json` (multi-source provenance log) and `betting/data/odds_api_snapshot.json` for cross-validation data. Also check `betting/data/analysis_pool_{date}.json` — it may already contain pre-computed EV values for candidates where API odds data was available (EV = safety_score × market_best_odds − 1). Use these as a starting point but always verify with fresh Betclic odds.
 </tool>
 
 <tool name="sequential-thinking">

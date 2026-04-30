@@ -117,3 +117,20 @@ betting_day,source_name,role,sport_scope,availability,used_in_analysis,used_in_f
 2026-04-24,11:30,ESPN,Tier A stats,hockey+baseball,available,yes,yes,Carried from v4: NHL + MLB odds + pitcher matchups.
 2026-04-24,11:30,TotalCorner,Tier A stats,football,cookie_wall,no,no,v5: Cookie wall still active. 2/3 corner stack only. ZT + SoccerStats sufficient.
 2026-04-24,11:30,GosuGamers,Tier B tipster,esports,available,yes,no,v5: CS2 CCT + Dota2 PGL checked. No +EV candidates found.
+
+2026-04-29,Basketball-Reference,Tier A stats,basketball,available,yes,yes,v7: Detroit-Orlando full playoff stats + H2H (8 meetings)
+2026-04-29,HLTV,Tier A stats,esports,available,yes,yes,v7: NaVi-FaZe CS2 match stats + map data + rosters confirmed
+2026-04-29,WorldSnooker,Tier A stats,snooker,available,yes,yes,v7: Higgins-Robertson WC QF draw + live scores + career H2H
+2026-04-29,CueTracker,Tier A stats,snooker,available,yes,yes,v7: Career frame stats for both players
+2026-04-29,Flashscore,Tier A stats,all,available,yes,yes,v7: PlusLiga Final G1 result + fixtures + form data
+2026-04-29,PlusLiga.pl,Tier A stats,volleyball,available,yes,yes,v7: PlusLiga Final standings + G1 box score
+2026-04-29,Odds-API,Tier A market,football|basketball|hockey,available,yes,yes,v7: 24 events h2h+totals; 23 bookmakers for NBA
+2026-04-29,BetExplorer,Tier A market,football|snooker|volleyball,available,yes,yes,v7: ML + some market odds from scan
+2026-04-29,OddsPortal,Tier A market,football,available,yes,yes,v7: Football ML odds (Atl-Ars confirmed)
+2026-04-29,GosuGamers,Tier B tipster,esports,available,yes,yes,v7: CS2 match info + map pool context
+2026-04-29,Sportsgambler,Tier A market,football,available,yes,yes,v7: Corner market odds (Arsenal CK O4.5 @1.67)
+2026-04-29,ZawodTyper,Tier B tipster,football|volleyball,available,yes,yes,v7: Tipster picks for corners + volleyball; 80% hit tipster for PlusLiga
+2026-04-29,SportsGambler,Tier B tipster,basketball,available,yes,yes,v7: Detroit-Orlando coverage generic
+2026-04-29,PicksWise,Tier B tipster,basketball,available,yes,yes,v7: NBA playoff picks
+2026-04-29,Betclic,bookmaker,football|basketball,partial,yes,yes,v7: 403 on esports|volleyball|snooker|handball; football+basketball ML visible
+2026-04-29,Feedinco,Tier A stats,football,available,yes,yes,v7: Brazil Serie B fixture listing

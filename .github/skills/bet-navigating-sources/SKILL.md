@@ -138,6 +138,14 @@ For SBR, ESPN, ScoresAndOdds:
 - List sports (free): `--list-sports`
 - NOT covered: volleyball, esports, snooker, darts, table tennis, handball, padel, speedway
 
+## Multi-Source Odds Aggregation (RECOMMENDED)
+
+- Script: `python3 scripts/fetch_odds_multi.py --date YYYY-MM-DD`
+- Aggregates 5 sources: The-Odds-API + API-Football + OddsPortal + BetExplorer + Betclic
+- Output: `betting/data/odds_multi_sources.json` (provenance log with per-event source attribution)
+- Uses `SPORT_SOURCE_PRIORITY` chains to select best odds per sport
+- RECOMMENDED over single-source `fetch_odds_api.py` for comprehensive multi-bookmaker comparison
+
 ## Connected Skills
 
 - `bet-analyzing-statistics` — uses sources to gather the statistical data for analysis

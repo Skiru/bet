@@ -21,6 +21,16 @@ agent: bet-scanner
 ## TASK
 Build the Master Event List. SCAN ONLY — no analysis, no picks.
 
+### PRE-SCAN: API FIXTURE DISCOVERY + MARKET MATRIX
+Before web-scanning, check if `run_full_scan_and_prepare.sh` has already run (it includes API fixture discovery). If so:
+1. Read `betting/data/fixtures_{date}.json` — contains API-discovered fixtures from API-Football, API-Basketball, API-Hockey, API-Tennis, API-Volleyball, API-Handball, API-Baseball, TheSportsDB
+2. Read `betting/data/analysis_pool_{date}.json` — contains pre-analyzed events with safety scores
+3. Read `betting/data/market_matrix_{date}.json` (if generated) — consolidated view of ALL events with odds from all sources, sorted by safety score. This is the richest starting point for the master event list.
+4. Use these as the FOUNDATION — merge with web-scanned events, don't duplicate
+5. API-discovered fixtures get automatic `data_quality: API` tag in the master list
+
+If the pipeline hasn't run yet: `bash scripts/run_full_scan_and_prepare.sh` runs it (steps 5-7 handle API discovery).
+
 ### EXECUTION (for each sport):
 1. Open BetExplorer page for the sport
 2. Click into EVERY active tournament/league — NOT just landing page
@@ -35,7 +45,7 @@ Build the Master Event List. SCAN ONLY — no analysis, no picks.
 |---|-------|---------|-----------|------------|
 | 1 | Football | BetExplorer /soccer/ | Flashscore | SoccerStats |
 | 2 | Tennis | BetExplorer /tennis/ | Flashscore /tennis/ | ATP/WTA draws |
-| 3 | Basketball | BetExplorer /basketball/ | ESPN NBA | Basketball-Ref |
+| 3 | Basketball | BetExplorer /basketball/ | ESPN NBA | Basketball-Ref (NBA-only — do NOT use for EU basketball) |
 | 4 | Hockey | BetExplorer /hockey/ | ESPN NHL | DailyFaceoff |
 | 5 | Baseball | BetExplorer /baseball/ | ESPN MLB | BaseballSavant |
 | 6 | Volleyball | BetExplorer /volleyball/ | Flashscore | — |

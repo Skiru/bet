@@ -167,8 +167,11 @@ def compute_margin(avg: float, line: float, direction: str) -> float:
     OVER: avg/line (>1 = margin exists)
     UNDER: line/avg (>1 = margin exists)
     """
-    if line == 0 or avg == 0:
+    if line == 0:
         return 0.0
+    if avg == 0:
+        # avg=0 with line>0: infinite UNDER margin, cap at 2.0
+        return 2.0 if direction == "UNDER" else 0.0
     if direction == "OVER":
         return round(avg / line, 3)
     else:
@@ -262,6 +265,11 @@ def rank_markets(data: dict) -> dict:
         team_a_avg = statistics.mean(market.get("team_a_l10", [])) if market.get("team_a_l10") else 0.0
         team_b_avg = statistics.mean(market.get("team_b_l10", [])) if market.get("team_b_l10") else 0.0
 
+        # Swap display labels for Team B-only markets
+        team_swapped = market.get("team_swapped", False)
+        display_a_avg = team_b_avg if team_swapped else team_a_avg
+        display_b_avg = team_a_avg if team_swapped else team_b_avg
+
         # H2H values
         h2h_values = market.get("h2h_values", [])
         h2h_avg = statistics.mean(h2h_values) if h2h_values else 0.0
@@ -292,10 +300,16 @@ def rank_markets(data: dict) -> dict:
         # Margin
         margin = compute_margin(l10_avg, line, direction)
 
+        # Compute three-way check per market
+        tw_l10_a = statistics.mean(l10_values) if l10_values else 0.0
+        tw_h2h_a = statistics.mean(h2h_values) if h2h_values else 0.0
+        tw_l5_a = statistics.mean(l5_values) if l5_values else 0.0
+        per_market_three_way = compute_three_way_check(tw_l10_a, tw_h2h_a, tw_l5_a, line)
+
         results.append({
             "name": name,
-            "team_a_avg": round(team_a_avg, 2),
-            "team_b_avg": round(team_b_avg, 2),
+            "team_a_avg": round(display_a_avg, 2),
+            "team_b_avg": round(display_b_avg, 2),
             "combined_avg": round(l10_avg, 2),
             "h2h_avg": round(h2h_avg, 2) if h2h_values else None,
             "line": line,
@@ -307,6 +321,7 @@ def rank_markets(data: dict) -> dict:
             "margin": margin,
             "source": source,
             "h2h_blind": total_h2h == 0,
+            "three_way_check": per_market_three_way,
         })
 
     # Sort by safety score (desc), margin as tiebreaker (desc)

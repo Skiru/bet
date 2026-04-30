@@ -74,99 +74,20 @@ For EACH coupon, before finalizing:
 
 ## V1-V10 VALIDATION (MANDATORY — EVERY CHECK)
 
-### V1 — Artifact Consistency
-- [ ] All pick_ids match across coupon file, picks-ledger, report
-- [ ] All coupon_ids match across coupon file, coupons-ledger
-- [ ] No duplicate IDs in ledgers
-- [ ] UNIQUE EVENT PER COUPON in core portfolio (combo coupons may reuse picks)
-- [ ] Stake sums ≤ daily budget per coupon tier
-- [ ] Exposure total calculated
+Execute the full V1-V10 validation suite as defined in the `bet-building-coupons` skill. Key checks:
+- **V1**: Artifact consistency — pick/coupon IDs match across files, unique event per coupon, stakes correct
+- **V2**: Per-pick sources — Tier A stats + market source, EV > 0, confidence 1-5
+- **V3**: Tennis — odds ratio graded, surface form, WC/Q/LL → O22.5+ rejected, drift <8%
+- **V4**: Football — market hierarchy respected, corner 3-source stack, BTTS%, xG regression
+- **V4b-V4k**: Other sports — per-sport validations (volleyball, esports, snooker, darts, handball, table tennis, MMA, padel, speedway) + upset risk for favorites ≤1.50
+- **V5**: Coupon structure — min 2 legs, same-sport ≤2, combined odds arithmetic shown, home/away verified
+- **V6**: Portfolio risk — exposure <25% bankroll, sport diversification ≥5
+- **V7**: Weakness flagging — borderline/conditional picks, date verification (V7b), cross-coupon integrity (V7c)
+- **V8**: Source completeness — ≥2 sources + tipster per pick, failed sources in source-log
+- **V9**: Coupon optimization — ranked by EV×confidence, no orphans, weakest-leg swap test
+- **V10**: Final sign-off — 14-sport enumeration (V10a), gate verification (V10b), red flags (V10c), portfolio damage (V10d), PER-PICK COMPLETENESS MATRIX 10-column (V10e)
 
-### V2 — Per-Pick Source Validation
-- [ ] Every pick has Tier A stats source named
-- [ ] Every pick has Tier A market/price source
-- [ ] Every pick has EV > 0
-- [ ] Every pick has confidence score 1-5
-
-### V3 — Tennis Checks
-- [ ] Odds ratio graded (STRONG/GOOD/BORDERLINE/REJECT)
-- [ ] Surface form checked
-- [ ] WC/Q/LL → O22.5+ HARD REJECTED
-- [ ] Player identity verified (full name, ranking, no slashes)
-- [ ] Odds drift < 8%
-
-### V4 — Football Checks
-- [ ] Market hierarchy respected (fouls > cards > corners > shots > team totals > BTTS > DC/DNB > ML)
-- [ ] Corner picks have 3-source stack (or gap documented)
-- [ ] BTTS picks have league BTTS% from SoccerStats
-- [ ] xG regression check for goals markets
-
-### V4b-V4k — Other Sports (per methodology)
-- [ ] V4b Volleyball: set totals checked, ML range 1.30-2.00
-- [ ] V4c Esports: map pool checked, BO format noted, roster confirmed
-- [ ] V4d Snooker: frame stats from CueTracker, format (BO) noted
-- [ ] V4e Darts: 3-dart avg, format (sets vs legs) noted
-- [ ] V4f Handball: home advantage factored (60-65%), half totals checked
-- [ ] V4g Table Tennis: ranking gap assessed, high variance noted
-- [ ] V4h MMA: finish rates checked, method of victory considered
-- [ ] V4i Padel: FIP ranking gap checked, partnership duration noted, indoor/outdoor surface
-- [ ] V4j Speedway: rider TRACK-SPECIFIC averages used (not season avg), lineup confirmed
-- [ ] V4k: **Upset risk scored for EVERY favorite ≤1.50** — ML banned if score ≥ threshold
-
-### V5 — Coupon Structure
-- [ ] Min 2 legs per coupon
-- [ ] Same-sport ≤ 2 per coupon
-- [ ] No same-match legs
-- [ ] **Combined odds ARITHMETIC shown for EVERY coupon**:
-  ```
-  CP-XX: leg1 × leg2 × leg3 = X.XX × X.XX × X.XX = X.XX
-  ```
-- [ ] **Home/away direction verified** for every event ("@" = Away @ Home, BetExplorer = Home vs Away)
-- [ ] Stake within limits (3.00 LR, 2.00 HR)
-- [ ] Min 5 coupons total
-- [ ] Coupon-level sport listed per leg
-
-### V6 — Portfolio Risk
-- [ ] Total exposure < 25% of bankroll
-- [ ] Sport diversification (≥5 sports in all coupons combined)
-- [ ] No tournament over-concentration
-
-### V7 — Weakness Flagging
-- [ ] Borderline picks flagged
-- [ ] CONDITIONAL picks noted (all Betclic picks)
-- [ ] Weakest leg per coupon identified
-- [ ] Same-tournament risks flagged
-
-### V7b — Date & Fixture Verification
-- [ ] EVERY event exists on correct date (verify on BetExplorer)
-- [ ] Correct teams/players (no identity confusion)
-- [ ] Correct competition name
-
-### V7c — Cross-Coupon Integrity
-- [ ] UNIQUE EVENT PER COUPON verified (no pick in >1 coupon)
-- [ ] No identical coupons
-- [ ] No correlated narratives across coupons
-
-### V8 — Source Completeness
-- [ ] Tier A stats + market per pick (both present)
-- [ ] ≥2 independent sources per pick
-- [ ] Argument-based tipster checked per pick
-- [ ] Failed sources documented in source-log
-
-### V9 — Coupon Composition Optimization
-- [ ] Picks ranked by EV × confidence — best picks assigned first
-- [ ] No coupon has ≥3 same-market-type legs
-- [ ] Every active pick in exactly 1 coupon (no orphans, no sharing)
-- [ ] Weakest-leg swap test: could any leg improve?
-- [ ] Combined odds in sweet spots: 2-leg 2-4, 3-leg 4-10, 4-leg 8-20
-
-### V10 — Final Sign-Off
-- [ ] V10a: ALL 14 sports enumerated with scan evidence
-- [ ] V10b: All pick approval gates verified
-- [ ] V10c: All red flags cleared
-- [ ] V10d: Portfolio damage assessment (if top pick loses, what survives?)
-- [ ] V10e: PER-PICK COMPLETENESS MATRIX produced (all picks ✅ all 10 columns: Tipster≥1, H2H≥5, H2H-Stat, StatRank, 3WayChk, Injuries, Sources≥2, RedFlags, EV>0, Gate17)
-- [ ] ALL V1-V9 pass → **APPROVED**
+Run ALL 10 checks. Report pass/fail per check with specific failing items. ANY ❌ → fix → re-verify.
 
 ---
 

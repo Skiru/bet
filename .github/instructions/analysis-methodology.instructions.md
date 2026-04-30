@@ -38,9 +38,11 @@ Goal: find MISPRICED ODDS in statistical markets. EV > 0 is the only valid reaso
 5. **COMPARE:** Every data point needs ≥2 independent confirmations.
 6. **RETRY LOOP:** After the first scan pass, review `scan_errors.json` and ALL failed sources. Retry each failed source ONCE. If it works now, add its events. Log final status.
 
-**Minimums:** ≥50 events scanned, ≥80% scan completeness, 15-40 shortlist across ≥8 sports, final picks from ≥5 sports, core coupons scale with picks (target ≥5 when 10+ approved) + ≥4 combo coupons. KEY sports ≥60% of shortlist.
+**Minimums:** ≥50 events scanned, ≥80% scan completeness, 15-40 shortlist across ≥8 sports, final picks from ≥5 sports, core coupons scale with picks (target ≥5 when 10+ approved) + ≥4 combo coupons. KEY sports ≥60% of shortlist. **Target ≥30 picks in final market matrix for user to choose from.**
 
 **SESSION PARITY:** Session type (full/day/night) controls ONLY the event time window. Analysis depth, coupon count, all steps, all validation = IDENTICAL regardless of session.
+
+**NO AUTO-REJECTION RULE:** The pipeline NEVER auto-rejects events based on EV, safety scores, or historical hit rates. ALL discovered fixtures with available markets are shown in the market matrix. The USER decides which to bet on. The pipeline's job is to provide maximum information — odds, safety scores, H2H data, market alternatives — not to filter down to a tiny list. **This policy is enforced at script level:** `aggregate_and_select.py` uses advisory flags instead of auto-rejection, ensuring all events flow through to the market matrix regardless of calculated scores.
 
 ---
 
@@ -84,7 +86,7 @@ If the file is missing, run: `python3 scripts/parse_betclic_bets.py` (requires H
 
 ## STEP 1: SCAN — Complete Event Discovery
 
-1. Run `bash scripts/run_full_scan_and_prepare.sh`. Check `scan_errors.json`.
+1. Run `python3 scripts/pipeline_orchestrator.py --date YYYY-MM-DD` (preferred — orchestrates all steps with state tracking and resume capability) or `bash scripts/run_full_scan_and_prepare.sh` (manual fallback). Check `scan_errors.json`.
 2. Run `python3 scripts/fetch_odds_api.py` for cross-validation (30 credits/scan, 500/month free).
 3. Browse BetExplorer + Flashscore + OddsPortal for ALL 14 sports.
 4. **Deep Scan (§1.2):** Click into EVERY active tournament/league. Count matches per tournament.
@@ -122,6 +124,78 @@ python3 scripts/fetch_with_playwright.py "https://www.betideas.com/tips/football
 
 **Scan Completeness Gate (§1.6):** Before STEP 2, compile per-sport event count table from ≥2 sources. Total ≥50 events, ≥6 sports with events, completeness ≥80%. If not met → go back.
 
+### §1.9 MARKET MATRIX GENERATION (MANDATORY — after scan completeness gate)
+
+**After scan + fixture discovery, generate the comprehensive market matrix:**
+```bash
+python3 scripts/generate_market_matrix.py --date YYYY-MM-DD
+```
+
+This produces THREE files:
+1. `betting/data/market_matrix_{date}.json` — full structured matrix
+2. `betting/data/market_matrix_{date}.md` — human-readable market matrix with ALL events
+3. `betting/data/decision_matrix_{date}.md` — compact bettable opportunities list
+
+**Purpose:** Bridge the gap between fixture discovery (hundreds of events) and analysis (which requires cached stats). The market matrix shows ALL discovered events with whatever data is available — odds, safety scores, scan data. Nothing is auto-rejected.
+
+**Data tiers in the matrix:**
+- **FULL:** Odds + safety stats + H2H data (best quality)
+- **ODDS_RICH:** Odds from multiple sources (no deep stats yet)
+- **ODDS_BASIC:** Odds from single source
+- **STATS_ONLY:** Safety stats but no odds found (user checks Betclic)
+- **FIXTURE_ONLY:** Fixture exists but no odds/stats attached yet
+
+**The matrix is the PRIMARY input for STEP 2 shortlisting.** Events at ANY data tier can be shortlisted — FIXTURE_ONLY events just need manual odds lookup on Betclic. The user sees the full landscape of what's available.
+
+### §1.8 FIXTURE VERIFICATION GATE (MANDATORY — before shortlisting)
+
+**Problem:** Tipster sites (especially ZawodTyper) frequently reference wrong opponents, wrong dates, matches already played, or events from other rounds. On 2026-04-29, 58% of the shortlist (19/33) turned out to be phantom fixtures. This wastes pipeline capacity and distorts shortlist quality metrics.
+
+**Rule: EVERY candidate entering the S2 shortlist MUST be fixture-verified against ≥2 independent non-tipster sources.**
+
+Verification sources (use ≥2 per candidate):
+- **Odds-API snapshot** (`odds_api_snapshot.json`) — if event has live odds from ≥3 bookmakers, it exists
+- **Flashscore** — check sport-specific daily schedule page
+- **BetExplorer** — check competition page for today's matches
+- **Official tournament site** (ATP/WTA draws, EHF schedule, ekstraliga.pl, etc.)
+- **Sofascore** — alternative fixture verification
+
+**Tipster-only candidates (no independent fixture confirmation):**
+- If tipster references an event that appears in ZERO non-tipster sources → **DO NOT SHORTLIST**. Log as `UNVERIFIED-SKIP` in S1 notes.
+- If tipster references a specific round/opponent but independent sources show a different opponent → **use the independently verified opponent**. Log the tipster confusion.
+
+**Tennis-specific (critical — highest phantom rate):**
+- ATP/WTA draws change daily. Before shortlisting ANY tennis match, verify the EXACT draw pairing on the tournament's official order of play or Flashscore.
+- R16 results from yesterday may make today's R4/QF pairings different from what tipsters predicted. Always check CURRENT draw state.
+
+**Quick verification protocol (per candidate, ~15 seconds each):**
+```
+1. Search event in odds_api_snapshot.json → found? ✅ verified
+2. Not found? → Check Flashscore daily page for that sport → found? ✅ verified
+3. Not found? → Check BetExplorer competition page → found? ✅ verified
+4. Not found in ANY of the above? → DO NOT SHORTLIST. Log as UNVERIFIED-SKIP.
+```
+
+**§1.8a OVERNIGHT GAME TRAP (MANDATORY — prevents phantom inclusions):**
+
+Tipster sites (especially ZawodTyper) list tips for overnight games (01:00-06:00 CEST) that were ALREADY PLAYED the previous night. This is the #1 source of phantom fixtures.
+
+**Detection protocol:**
+1. For ANY event with kickoff time 00:00-06:00 on the ZT daily page: check if the tip was posted >12 hours ago AND the game time has already passed.
+2. Look for post-game comments on the ZT page (e.g., "W plecy 97:113", results, score references) — these confirm the game is OVER.
+3. Cross-check: search Flashscore for the event. If result is already posted → PHANTOM. Do NOT shortlist.
+4. NBA/NHL playoff games at 01:00-04:00 CEST on a Wednesday ZT page typically played TUESDAY NIGHT (already over by Wednesday morning).
+
+**Rule:** Events with kickoff < current_time → automatically PHANTOM unless confirmed as future event via live odds (odds_api_snapshot or BetExplorer showing active markets).
+
+**Lesson (v5, 2026-04-29):** BOS-76ers (01:00), EDM-ANA (04:00), NYK-ATL (02:00), SAS-POR (03:30) were all on the ZT środa page but had ALREADY PLAYED Tuesday night. ZT comments confirmed results. These wasted analysis capacity in earlier versions.
+
+**S2 shortlist MUST include a verification column:**
+```
+| # | Event | Fixture Verified | Verification Sources |
+```
+Any row with `Fixture Verified = ❌` → cannot enter shortlist.
+
 ### §1.7 EXOTIC LEAGUE PROTOCOL
 
 **Definition:** An "exotic league" is any football competition OUTSIDE:
@@ -133,11 +207,16 @@ python3 scripts/fetch_with_playwright.py "https://www.betideas.com/tips/football
 **Everything else is EXOTIC:** Peru Liga 1, Egyptian Premier League, Kings League, Uzbekistan Super League, Algerian Ligue 1, Saudi Pro League, Indian ISL, Vietnamese V-League, Faroe Islands, Gibraltar, Kosovo, all Central American leagues, all Central Asian leagues, etc.
 
 **§1.7a BETCLIC MARKET GATE (MANDATORY — check BEFORE deep analysis):**
-Before investing analysis time on an exotic league candidate:
-1. Check if the league/event exists on Betclic (betclic.pl football section).
-2. If NO markets on Betclic → SKIP (no execution path).
+Before investing analysis time on ANY candidate (not just exotic — ALL candidates):
+1. Check if the league/event exists on Betclic (betclic.pl relevant sport section).
+2. If NO markets on Betclic → SKIP (no execution path). Log as `BETCLIC-UNAVAILABLE`.
 3. If ONLY ML/1X2 on Betclic → proceed only if strong statistical edge exists AND ML is acceptable per §6.5 upset risk.
-4. If statistical markets (corners, cards, totals) exist on Betclic → proceed normally.
+4. If statistical markets (corners, cards, totals, frames, games) exist on Betclic → proceed normally.
+5. **For non-exotic leagues:** Check SPECIFIC STATISTICAL MARKET availability (e.g., fouls, team corners). Some leagues have corners but not fouls on Betclic. If the §3.0 top-ranked market doesn't exist on Betclic, use the next-ranked market that DOES exist.
+
+**Lesson (v4, 2026-04-29):** Inter Turku vs HJK (Veikkausliiga) — fouls O22.5 was top-ranked market (safety 0.80) but Betclic does NOT offer fouls for Finnish football. This forced a last-minute market change to goals O2.5 (safety 0.60), significantly weakening the pick. CHECK BETCLIC MARKET AVAILABILITY BEFORE completing §3.0 analysis to avoid wasted effort.
+
+**Lesson (v3, 2026-04-29):** Higgins vs Robertson — analysis assumed Betclic line 20.5 frames, but actual Betclic line was 22.5. When L10 avg = line (22.5 = 22.5), there is ZERO margin = no edge. ALWAYS verify the actual Betclic line before calculating safety scores.
 
 **§1.7b DATA THRESHOLDS (relaxed for exotic leagues):**
 
@@ -194,6 +273,19 @@ Prioritize: events WITH statistical markets (corners, totals, HC) over basic ML-
 **Early Betclic market hint:** For niche sports (volleyball, table tennis, padel, speedway), check Betclic market availability BEFORE deep analysis. If market doesn't exist on Betclic → don't waste analysis time.
 Preferred odds range: 1.30-3.50.
 **Target: 15-40 events across ≥8 sports in shortlist (≥5 sports minimum in final picks).** KEY sports (Football+Volleyball+Basketball+Tennis) should be ≥60% of shortlist but no single sport >40%.
+
+**§2.1 MINIMUM PICK EXPANSION TRIGGER:**
+If after S7 gate fewer than 4 picks survive → DO NOT proceed to S8 with <4 picks. Instead:
+1. Go back to S2 and expand the shortlist by 5-10 candidates from ZT tipster-backed statistical markets.
+2. Specifically target sports NOT yet represented (volleyball, tennis, basketball, snooker) to improve diversity.
+3. Re-run S3-S7 for the new candidates ONLY.
+4. If STILL <4 picks after expansion → declare NO BET day.
+
+**Lesson (v4, 2026-04-29):** v4 had only 3 picks (below minimum 4) because PK-02 (Higgins frames) was dropped for Betclic line mismatch. The pipeline should have triggered expansion rather than producing coupons with only 3 picks.
+
+**CRITICAL: The S2 shortlist is a COMMITMENT.** Every candidate that enters the shortlist WILL receive full §3.0 analysis in S3 (see §3.0f). The only removals between S2 and S3 are PHANTOM/VOID/WRONG DATE/ALREADY STARTED — verified against ≥2 sources. Do NOT shortlist candidates you plan to skip later. If data looks thin at S2, either investigate further NOW or don't shortlist.
+
+**§1.8 ENFORCEMENT:** Every S2 candidate MUST have passed §1.8 fixture verification (≥2 non-tipster sources). If a candidate was shortlisted without verification → REJECT at S2 gate. This prevents phantom fixtures from contaminating the shortlist and wasting S3 analysis capacity.
 
 ---
 
@@ -299,13 +391,48 @@ ALL THREE must support the pick direction. 2/3 conflict → DOWNGRADE. 3/3 confl
 6. §S3.6 injury check has source + timestamp
 7. §S3.10 has 5 metrics with numbers
 
+### §3.0f S3 COMPLETENESS GATE (MANDATORY — NEVER SKIP)
+
+**EVERY candidate that survives the S2 shortlist MUST receive full §3.0 analysis. No exceptions.**
+
+The ONLY valid reasons to remove a candidate BEFORE S3 analysis are:
+1. **PHANTOM (ZT#6):** Fixture does not exist — wrong date, wrong opponent pairing, event already played. Verified against ≥2 independent sources (Odds-API, Flashscore, BetExplorer).
+2. **VOID:** Fixture cannot be independently verified by ANY source outside the tipster that suggested it.
+3. **WRONG DATE:** Event is not within today's betting window.
+4. **ALREADY STARTED:** Event has already begun.
+
+These pre-S3 removals are logged in a `PRE-S3 REMOVALS` table with the exact reason and verification sources.
+
+**ALL remaining candidates after pre-S3 filtering MUST receive:**
+- Full §3.0e template (all 10 sections §S3.1-§S3.10)
+- §3.0 statistical market ranking with ≥3 markets
+- §3.0c H2H market-specific validation
+- Three-way cross-check
+
+**S3 COVERAGE CHECK (gate before proceeding to S4):**
+```
+S2 shortlist count:           [N]
+Pre-S3 removals (PHANTOM/VOID): [X]
+Candidates requiring S3:       [N - X]
+Candidates WITH completed S3:  [Y]
+S3 COVERAGE:                   [Y / (N - X)] = must be 100%
+```
+**If S3 COVERAGE < 100% → STOP. Complete missing analyses before proceeding.**
+
+**After S3, ALL candidates with completed analysis are classified:**
+- **CORE:** Passed 17-point gate fully → enters core portfolio
+- **EXTENDED POOL:** Has EV > 0 but failed some gate checks → enters extended pool with bull/bear case
+- **REJECTED:** EV ≤ 0, or bear > bull, or critical red flag → enters ODRZUCONE section with specific reason
+
+**The user sees ALL three groups.** No candidate with completed §3.0 analysis and EV > 0 is silently dropped. Every analyzed candidate appears in either core, extended pool, or rejected list.
+
 ---
 
 ## STEP 3B: TIME-SENSITIVE DATA (run 2-3h before earliest event)
 
 1. **Lineups:** Flashscore (~1h), SportoweFakty for speedway (~2-3h), DailyFaceoff for NHL goalies.
 2. **Late injuries:** ESPN, team social media, ATP/WTA Order of Play.
-3. **Weather:** Outdoor sports — rain/wind impacts.
+3. **Weather:** Outdoor sports — run `python3 scripts/fetch_weather.py --date YYYY-MM-DD` (Open-Meteo API, free, no key) for automated weather data per venue. Covers temperature, precipitation, wind speed, conditions. Impact: rain → fewer corners/shots; wind → fewer goals; extreme heat → lower pace. If weather changed significantly since S3 → re-evaluate stat market direction.
 4. **Odds movement:** Compare current vs analysis-time. If Betclic moved >10% → recalculate EV.
 5. **If ANY finding contradicts thesis → re-evaluate. Downgrade or void if bear case strengthens.**
 
@@ -338,9 +465,9 @@ Check ≥2 ARGUMENT-BASED tipster sites per candidate. Read WRITTEN REASONING, n
 | MMA | Sportsgambler | PicksWise | Tipstrr |
 | Padel | Google "[event] prediction" | Sportsgambler | — |
 | Speedway | ZawodTyper | Typersi | Google "[event] tips" |
-| Football (Exotic SA) | Feedinco → Bettingclosed | Forebet | Sportsgambler → Google "[league] tips [date]" |
-| Football (Exotic Africa/ME) | Tips180 → Feedinco | Bettingclosed → Forebet | Sportsgambler → Google "[league] tips [date]" |
-| Football (Exotic Asia) | AsiaBet → Feedinco | Bettingclosed → Forebet | Sportsgambler → Google "[league] tips [date]" |
+| Football (Exotic SA) | Feedinco → Bettingclosed | Sportsgambler | OLBG → Google "[league] tips [date]" |
+| Football (Exotic Africa/ME) | Tips180 → Feedinco | Bettingclosed → Tips180 | Sportsgambler → Google "[league] tips [date]" |
+| Football (Exotic Asia) | AsiaBet → Feedinco | Bettingclosed → Tips180 | Sportsgambler → Google "[league] tips [date]" |
 | Football (Exotic Europe minor) | ZawodTyper → Typersi | Feedinco → Bettingclosed | OLBG → Sportsgambler |
 
 **Extract per tipster:** site, tipster name, specific pick, odds, reasoning summary (1-2 sentences with stats/facts cited).
@@ -388,9 +515,9 @@ These are NOT auto-approved picks — they enter the watchlist with rich context
 5. **Line movement:** Steam moves (follow if aligned), RLM (follow sharp money).
 6. **§5.5a DRIFT GATE:** If odds moved >8% from analysis → MANDATORY re-eval. No explanation → SKIP.
 7. **Kelly (1/4):** `stake = (bankroll × f) / 4` where `f = (b×p − q) / b`. If f ≤ 0 → NO BET.
-8. **MARKET PERFORMANCE TRACKER:** Before picking any market, check hit rate in picks-ledger AND `betclic_bets_history.json`. If <40% on 10+ picks in EITHER source → AUTO-DOWNGRADE confidence −1. If <30% → WATCHLIST ONLY. Betclic history overrides picks-ledger when they conflict (larger sample).
+8. **MARKET PERFORMANCE TRACKER:** Before picking any market, check hit rate in picks-ledger AND `betclic_bets_history.json`. Show rates prominently in the report. **ADVISORY ONLY** — NEVER auto-downgrade confidence or auto-exclude based on hit rates. The USER decides. Betclic history complements picks-ledger (larger sample).
 
-**Learned caution zones:** MLB totals 33% hit rate → all MLB totals get −1 confidence until >50%. MLB overs ≥8.5 → HARD REJECT.
+**Learned caution zones (ADVISORY):** MLB totals 33% historical hit rate — ⚠️ flag for user. MLB overs ≥8.5 — ⚠️ flag for user. Show these observations prominently but NEVER auto-reject or auto-downgrade.
 
 ---
 
@@ -614,6 +741,8 @@ On reruns: increment version (v5→v6). Mark old pending as `superseded`. Keep a
 | 16 | PSG vs Bayern cards approved without §3.0 ranking table | S3 output was narrative ("H2H avg 5.8 cards") without structured ranking table comparing cards vs corners vs fouls vs shots | §3.0e template is MANDATORY. §S3.3 ranking table must have ≥3 rows with real numbers. Orchestrator mechanically verifies section markers. |
 | 17 | Narrative analysis substituted for structured template | Agent wrote paragraphs instead of filling §S3.1-§S3.10 sections with tables and numbers | Every candidate MUST have all 10 sections (§S3.1-§S3.10). Missing markers = STRUCTURAL VIOLATION = auto-reject. |
 | 18 | Exotic league analyzed without Betclic market check | Full S3-S7 done on a league where Betclic has no markets | §1.7a BETCLIC MARKET GATE: Check Betclic market existence BEFORE starting deep analysis. No markets → SKIP. |
+| 19 | 16/33 shortlisted candidates skipped S3 entirely | S3 only run for "top" candidates; rest silently dropped without analysis or user visibility | §3.0f S3 COMPLETENESS GATE: 100% of non-PHANTOM shortlisted candidates MUST receive full §3.0 analysis. ALL analyzed candidates appear in core, extended pool, or rejected list. User sees everything. |
+| 20 | 58% shortlist was phantom fixtures (19/33) | Tipster-sourced events not verified against independent sources before shortlisting. Wrong opponents, wrong dates, matches already played | §1.8 FIXTURE VERIFICATION GATE: Every candidate must be verified against ≥2 non-tipster sources BEFORE entering S2 shortlist. Tipster-only = UNVERIFIED-SKIP. Tennis draws must be checked against current tournament state. |
 
 ---
 

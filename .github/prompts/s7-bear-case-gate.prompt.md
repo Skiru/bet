@@ -94,6 +94,12 @@ Every pick MUST pass ALL 17:
 | 12 | Basketball blanket-rejected on 0/2 | Small sample panic | NEVER blanket-reject sport on <5 picks. FLAG ≠ BAN. |
 | 13 | Football defaulted to corners (fouls/cards/shots not checked) | Tunnel vision on one stat | ALWAYS run §3.0 RANKING for ALL available stats. |
 | 14 | Corner pick missing H2H corner data | H2H was match-level only | ALWAYS get H2H for the EXACT stat being bet (§3.0c). |
+| 15 | Betclic history skipped → repeated failures | §0.2a not executed | ALWAYS read `betclic_bets_history.json` + run `analyze_betclic_learning.py`. |
+| 16 | S3 output approved without §3.0 ranking table | Narrative instead of structured table | §3.0e template MANDATORY. §S3.3 must have ≥3 rows with real numbers. |
+| 17 | Narrative analysis substituted for structured template | Paragraphs instead of §S3.1-§S3.10 sections | Every candidate MUST have all 10 sections. Missing markers = auto-reject. |
+| 18 | Exotic league without Betclic market check | Full S3-S7 on no-market league | §1.7a: Check Betclic market existence BEFORE deep analysis. |
+| 19 | 16/33 candidates skipped S3 entirely | S3 only for "top" candidates | 100% of non-PHANTOM candidates MUST receive full §3.0 analysis. |
+| 20 | 58% shortlist was phantom fixtures (19/33) | Tipster-only events not cross-verified | §1.8: Verify every candidate against ≥2 non-tipster sources. |
 
 **IF ANY PATTERN MATCHES → STOP. FIX. THEN CONTINUE.**
 

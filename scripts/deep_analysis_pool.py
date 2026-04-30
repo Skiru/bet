@@ -15,6 +15,7 @@ Usage:
 import argparse
 import json
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -44,6 +45,7 @@ def load_odds_snapshot() -> dict:
     """Load odds from odds_api_snapshot.json if available.
 
     Returns dict keyed by normalized "home|away" for matching.
+    Uses fuzzy normalization to handle name variations across sources.
     """
     odds_path = DATA_DIR / "odds_api_snapshot.json"
     if not odds_path.exists():
@@ -53,19 +55,59 @@ def load_odds_snapshot() -> dict:
         odds_lookup: dict = {}
         items: list = []
         if isinstance(data, dict):
-            for sport_data in data.values():
-                if isinstance(sport_data, list):
-                    items.extend(sport_data)
+            # New format: {"events": [...]} — extract events list
+            if "events" in data and isinstance(data["events"], list):
+                items = data["events"]
+            else:
+                for sport_data in data.values():
+                    if isinstance(sport_data, list):
+                        items.extend(sport_data)
         elif isinstance(data, list):
             items = data
         for event in items:
-            home = event.get("home_team", "").lower()
-            away = event.get("away_team", "").lower()
+            home = _normalize_team(event.get("home_team", ""))
+            away = _normalize_team(event.get("away_team", ""))
             if home and away:
                 odds_lookup[f"{home}|{away}"] = event
         return odds_lookup
     except (json.JSONDecodeError, KeyError):
         return {}
+
+
+try:
+    from utils import normalize_team_name as _normalize_team
+except ImportError:
+    from scripts.utils import normalize_team_name as _normalize_team
+
+
+def _fuzzy_odds_lookup(home: str, away: str, odds_lookup: dict) -> dict:
+    """Find odds for a fixture using fuzzy matching.
+
+    Tries exact match first, then normalized match, then substring containment.
+    """
+    # Exact case-insensitive
+    key_exact = f"{home.lower()}|{away.lower()}"
+    if key_exact in odds_lookup:
+        return odds_lookup[key_exact]
+
+    # Normalized match
+    key_norm = f"{_normalize_team(home)}|{_normalize_team(away)}"
+    if key_norm in odds_lookup:
+        return odds_lookup[key_norm]
+
+    # Substring containment — find best match
+    home_norm = _normalize_team(home)
+    away_norm = _normalize_team(away)
+    for key, event in odds_lookup.items():
+        parts = key.split("|", 1)
+        if len(parts) != 2:
+            continue
+        k_home, k_away = parts
+        if ((home_norm in k_home or k_home in home_norm) and len(home_norm) >= 3 and
+                (away_norm in k_away or k_away in away_norm) and len(away_norm) >= 3):
+            return event
+
+    return {}
 
 
 def load_api_stats_summary(date: str) -> dict:
@@ -105,18 +147,51 @@ def analyze_fixture(fixture: dict, odds_lookup: dict) -> dict | None:
     # Build safety score input from cache
     safety_input = build_safety_input_from_cache(sport, home_team, away_team, competition)
 
+    # If no cached stats, still include the fixture with minimal data
+    # so it appears in the analysis pool (user decides, not auto-rejection)
     if safety_input is None:
-        return None
+        # Return a minimal event so fixtures aren't silently dropped
+        return {
+            "fixture_id": str(fixture_id),
+            "sport": sport,
+            "competition": competition,
+            "home_team": home_team,
+            "away_team": away_team,
+            "kickoff": kickoff,
+            "data_quality": "NO_CACHE",
+            "sources": [source] if source else [],
+            "best_market": None,
+            "all_markets": [],
+            "odds": {},
+            "ev": None,
+            "markdown_table": "",
+            "cache_miss": True,
+        }
 
     # Run safety score calculator
     result = rank_markets(safety_input)
 
     if not result or not result.get("ranking"):
-        return None
+        # Still return fixture even without ranking — it exists
+        return {
+            "fixture_id": str(fixture_id),
+            "sport": sport,
+            "competition": competition,
+            "home_team": home_team,
+            "away_team": away_team,
+            "kickoff": kickoff,
+            "data_quality": "NO_RANKING",
+            "sources": [source] if source else [],
+            "best_market": None,
+            "all_markets": [],
+            "odds": {},
+            "ev": None,
+            "markdown_table": "",
+            "cache_miss": False,
+        }
 
-    # Find odds
-    odds_key = f"{home_team.lower()}|{away_team.lower()}"
-    odds_data = odds_lookup.get(odds_key, {})
+    # Find odds — use fuzzy matching to handle name variations
+    odds_data = _fuzzy_odds_lookup(home_team, away_team, odds_lookup)
 
     best_market = result["ranking"][0] if result["ranking"] else None
 
@@ -144,6 +219,7 @@ def analyze_fixture(fixture: dict, odds_lookup: dict) -> dict | None:
         "all_markets": [],
         "odds": {},
         "ev": None,
+        "cache_miss": False,
     }
 
     if best_market:
@@ -180,23 +256,33 @@ def analyze_fixture(fixture: dict, odds_lookup: dict) -> dict | None:
 
     event["markdown_table"] = result.get("markdown_ranking_table", "")
 
-    # Bug 3 fix: Compute EV from odds data
+    # Compute EV from odds data — only when odds can be meaningfully matched
+    # The odds API provides h2h (match winner) and totals (goals O/U) markets
+    # These only map to our best_market when it's a goals/points total or match winner
     if best_market and odds_data:
+        best_name_lower = (best_market.get("name", "") or "").lower()
         bookmakers = odds_data.get("bookmakers", [])
-        for bm in bookmakers:
-            for market in bm.get("markets", []):
-                if market.get("key") in ("h2h", "totals"):
-                    for outcome in market.get("outcomes", []):
-                        price = outcome.get("price")
-                        if price and isinstance(price, (int, float)):
-                            event["odds"]["market_best"] = max(
-                                event["odds"].get("market_best", 0), price
-                            )
 
-        market_best = event["odds"].get("market_best")
-        if market_best and best_market.get("safety_score"):
-            safety = best_market["safety_score"]
-            event["ev"] = round(safety * market_best - 1, 4)
+        # Determine which odds market key matches our best market
+        matching_key = None
+        if "total" in best_name_lower and ("goal" in best_name_lower or "point" in best_name_lower):
+            matching_key = "totals"
+
+        if matching_key:
+            for bm in bookmakers:
+                for market in bm.get("markets", []):
+                    if market.get("key") == matching_key:
+                        for outcome in market.get("outcomes", []):
+                            price = outcome.get("price")
+                            if price and isinstance(price, (int, float)):
+                                event["odds"]["market_best"] = max(
+                                    event["odds"].get("market_best", 0), price
+                                )
+
+            market_best = event["odds"].get("market_best")
+            if market_best and best_market.get("safety_score"):
+                safety = best_market["safety_score"]
+                event["ev"] = round(safety * market_best - 1, 4)
 
     return event
 
@@ -233,14 +319,59 @@ def generate_analysis_pool(
 
     odds_lookup = load_odds_snapshot()
 
+    # Group fixtures by sport for parallel processing
+    sport_groups: dict[str, list[dict]] = {}
+    for fixture in fixtures:
+        sport = fixture.get("sport", "football")
+        sport_groups.setdefault(sport, []).append(fixture)
+
+    print(f"[pool] Processing {len(fixtures)} fixtures across {len(sport_groups)} sports in parallel")
+
     events: list[dict] = []
     skipped = 0
-    for fixture in fixtures:
-        event = analyze_fixture(fixture, odds_lookup)
-        if event:
-            events.append(event)
-        else:
-            skipped += 1
+
+    if not sport_groups:
+        print("[pool] No fixtures to analyze")
+        return {
+            "date": date,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "api_usage": {},
+            "total_fixtures_discovered": 0,
+            "total_fixtures_with_data": 0,
+            "total_events_in_pool": 0,
+            "events": [],
+        }
+
+    def _analyze_sport_group(sport_fixtures: list[dict]) -> list[dict]:
+        """Analyze all fixtures for a single sport."""
+        results = []
+        for fixture in sport_fixtures:
+            try:
+                event = analyze_fixture(fixture, odds_lookup)
+                if event:
+                    results.append(event)
+            except Exception as e:
+                home = fixture.get('home_team', fixture.get('home', '?'))
+                away = fixture.get('away_team', fixture.get('away', '?'))
+                print(f"[pool] Error analyzing {home} vs {away}: {e}")
+        return results
+
+    max_workers = min(len(sport_groups), 4)
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_sport = {
+            executor.submit(_analyze_sport_group, sport_fixtures): sport
+            for sport, sport_fixtures in sport_groups.items()
+        }
+        for future in as_completed(future_to_sport):
+            sport = future_to_sport[future]
+            try:
+                sport_events = future.result()
+                events.extend(sport_events)
+                sport_count = len(sport_groups[sport])
+                print(f"[pool] {sport}: {len(sport_events)}/{sport_count} fixtures analyzed")
+            except Exception as e:
+                print(f"[pool] ERROR analyzing {sport}: {e}")
+                skipped += len(sport_groups.get(sport, []))
 
     # Sort by best market safety score (desc)
     events.sort(
@@ -270,7 +401,7 @@ def generate_analysis_pool(
         "date": date,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "api_usage": api_usage,
-        "total_fixtures_discovered": len(fixtures) + skipped,
+        "total_fixtures_discovered": len(fixtures),
         "total_fixtures_with_data": len(events),
         "total_events_in_pool": len(events),
         "events": events,
