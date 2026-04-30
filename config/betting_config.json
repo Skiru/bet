@@ -6,7 +6,7 @@
   "working_bankroll_pln": 35.90,
   "suggested_daily_allocation_range_pln": [
     5.0,
-    7.5
+    15.0
   ],
   "low_risk_coupon_max_stake_pln": 3.0,
   "higher_risk_coupon_max_stake_pln": 2.0,

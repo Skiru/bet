@@ -12,6 +12,7 @@ Free tier: unlimited requests, no API key needed.
 
 import argparse
 import json
+import re
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -233,6 +234,11 @@ def main():
     parser.add_argument("--city", help="City name to resolve coordinates")
     parser.add_argument("--fixtures", help="Path to fixtures JSON file")
     args = parser.parse_args()
+
+    # Validate date format
+    if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', args.date):
+        print(f"[weather] Invalid date format: {args.date} (expected YYYY-MM-DD)")
+        sys.exit(1)
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 

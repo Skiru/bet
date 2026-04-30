@@ -71,9 +71,21 @@ echo "[orchestrator] ZawodTyper URL: ${_ZT_URL}"
 # URLs include: Flashscore (all sports + exotic football regions),
 # Sofascore, Betclic, OddsPortal, BetExplorer, specialist sources,
 # tipster sites, and Soccerway (exotic league coverage).
+#
+# Section breakdown:
+# - Flashscore main sport hubs (13 sports)
+# - Flashscore Football — European 2nd tier (30)
+# - Flashscore Football — Americas, Asia, Africa (40)
+# - Flashscore Women's football (5)
+# - Flashscore Tennis/Basketball/Volleyball/Handball/Esports deep pages
+# - Soccerway, Sofascore
+# - Betclic (14 sport categories)
+# - OddsPortal (5 sport hubs)
+# - BetExplorer (8 sport categories + speedway)
+# - Specialist sources (sport-specific)
+# - Statistical / corners / advanced stats
+# - Tipster / prediction sites
 python3 "${SCRIPT_DIR}/scan_events.py" --deep --max-deep-links 50 --urls \
-  \
-  # ── Flashscore: main sport hubs (13 sports) ──────────────────── \
   https://www.flashscore.com/ \
   https://www.flashscore.com/tennis/ \
   https://www.flashscore.com/basketball/ \
@@ -86,8 +98,6 @@ python3 "${SCRIPT_DIR}/scan_events.py" --deep --max-deep-links 50 --urls \
   https://www.flashscore.com/darts/ \
   https://www.flashscore.com/table-tennis/ \
   https://www.flashscore.com/mma/ \
-  \
-  # ── Flashscore: Football — European 2nd tier (30) ────────────── \
   https://www.flashscore.com/football/poland/ \
   https://www.flashscore.com/football/poland/2-liga/ \
   https://www.flashscore.com/football/romania/ \
@@ -118,8 +128,6 @@ python3 "${SCRIPT_DIR}/scan_events.py" --deep --max-deep-links 50 --urls \
   https://www.flashscore.com/football/france/ligue-2/ \
   https://www.flashscore.com/football/spain/laliga2/ \
   https://www.flashscore.com/football/portugal/ \
-  \
-  # ── Flashscore: Football — Americas, Asia, Africa (40) ──────── \
   https://www.flashscore.com/football/brazil/ \
   https://www.flashscore.com/football/argentina/ \
   https://www.flashscore.com/football/uruguay/ \
@@ -160,49 +168,33 @@ python3 "${SCRIPT_DIR}/scan_events.py" --deep --max-deep-links 50 --urls \
   https://www.flashscore.com/football/costa-rica/ \
   https://www.flashscore.com/football/jordan/ \
   https://www.flashscore.com/football/uae/ \
-  \
-  # ── Flashscore: Women's football (5) ─────────────────────────── \
   https://www.flashscore.com/football/europe/champions-league-women/ \
   https://www.flashscore.com/football/england/wsl-women/ \
   https://www.flashscore.com/football/spain/liga-f-women/ \
   https://www.flashscore.com/football/usa/nwsl-women/ \
   https://www.flashscore.com/football/france/division-1-women/ \
-  \
-  # ── Flashscore: Tennis deep pages (3) ────────────────────────── \
   https://www.flashscore.com/tennis/atp-singles/ \
   https://www.flashscore.com/tennis/wta-singles/ \
   https://www.flashscore.com/tennis/atp-doubles/ \
-  \
-  # ── Flashscore: Basketball deep pages (5) ────────────────────── \
   https://www.flashscore.com/basketball/europe/euroleague/ \
   https://www.flashscore.com/basketball/europe/eurocup/ \
   https://www.flashscore.com/basketball/spain/acb/ \
   https://www.flashscore.com/basketball/poland/plk/ \
   https://www.flashscore.com/basketball/turkey/bsl/ \
-  \
-  # ── Flashscore: Volleyball deep pages (5) ────────────────────── \
   https://www.flashscore.com/volleyball/poland/plusliga/ \
   https://www.flashscore.com/volleyball/italy/superlega/ \
   https://www.flashscore.com/volleyball/france/ligue-a/ \
   https://www.flashscore.com/volleyball/europe/champions-league/ \
   https://www.flashscore.com/volleyball/brazil/superliga/ \
-  \
-  # ── Flashscore: Handball deep pages (3) ──────────────────────── \
   https://www.flashscore.com/handball/europe/champions-league/ \
   https://www.flashscore.com/handball/germany/bundesliga/ \
   https://www.flashscore.com/handball/france/starligue/ \
-  \
-  # ── Flashscore: Esports + niche sports deep pages (3) ───────── \
   https://www.flashscore.com/esports/counter-strike/ \
   https://www.flashscore.com/darts/pdc/ \
   https://www.flashscore.com/mma/ufc/ \
-  \
-  # ── Soccerway, Sofascore ─────────────────────────────────────── \
   https://www.soccerway.com/ \
   https://www.sofascore.com/ \
   https://www.sofascore.com/padel \
-  \
-  # ── Betclic (14 sport categories) ────────────────────────────── \
   https://www.betclic.pl/pilka-nozna-s1 \
   https://www.betclic.pl/tenis-s2 \
   https://www.betclic.pl/koszykowka-s4 \
@@ -217,15 +209,11 @@ python3 "${SCRIPT_DIR}/scan_events.py" --deep --max-deep-links 50 --urls \
   https://www.betclic.pl/mma-s38 \
   https://www.betclic.pl/padel-s48 \
   https://www.betclic.pl/zuzel-s36 \
-  \
-  # ── OddsPortal (5 sport hubs) ────────────────────────────────── \
   https://www.oddsportal.com/ \
   https://www.oddsportal.com/tennis/ \
   https://www.oddsportal.com/basketball/ \
   https://www.oddsportal.com/hockey/ \
   https://www.oddsportal.com/baseball/ \
-  \
-  # ── BetExplorer (8 sport categories) ─────────────────────────── \
   https://www.betexplorer.com/ \
   https://www.betexplorer.com/volleyball/ \
   https://www.betexplorer.com/handball/ \
@@ -235,8 +223,6 @@ python3 "${SCRIPT_DIR}/scan_events.py" --deep --max-deep-links 50 --urls \
   https://www.betexplorer.com/table-tennis/ \
   https://www.betexplorer.com/padel/ \
   https://www.betexplorer.com/speedway/ \
-  \
-  # ── Specialist sources (sport-specific) ──────────────────────── \
   https://www.premierpadel.com/ \
   https://speedwayekstraliga.pl/ \
   https://sportowefakty.wp.pl/zuzel \
@@ -251,12 +237,8 @@ python3 "${SCRIPT_DIR}/scan_events.py" --deep --max-deep-links 50 --urls \
   https://www.gosugamers.net/ \
   https://www.basketball-reference.com/ \
   https://www.hockey-reference.com/ \
-  \
-  # ── Statistical / corners / advanced stats ───────────────────── \
   https://www.soccerstats.com/ \
   https://totalcorner.com/ \
-  \
-  # ── Tipster / prediction sites ───────────────────────────────── \
   https://www.covers.com/ \
   https://www.teamrankings.com/ \
   https://www.sportsgambler.com/predictions/today/ \

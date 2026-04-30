@@ -14,9 +14,12 @@ Usage:
 
 import argparse
 import json
+import os
 import re
+import shlex
 import subprocess
 import sys
+import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
@@ -192,10 +195,20 @@ def load_state(date: str) -> dict:
 
 
 def save_state(date: str, state: dict):
-    """Save pipeline state."""
+    """Save pipeline state atomically."""
     STATE_DIR.mkdir(parents=True, exist_ok=True)
     state_file = STATE_DIR / f"pipeline_{date}.json"
-    state_file.write_text(json.dumps(state, indent=2, ensure_ascii=False), encoding="utf-8")
+    content = json.dumps(state, indent=2, ensure_ascii=False)
+    fd, tmp_path = tempfile.mkstemp(dir=str(STATE_DIR), suffix=".tmp")
+    try:
+        os.write(fd, content.encode("utf-8"))
+        os.close(fd)
+        os.replace(tmp_path, str(state_file))
+    except Exception:
+        os.close(fd)
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        raise
 
 
 def run_command(cmd: str, date: str) -> tuple[bool, str]:
@@ -203,7 +216,7 @@ def run_command(cmd: str, date: str) -> tuple[bool, str]:
     # Validate date format to prevent command injection
     if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', date):
         return False, f"Invalid date format: {date} (expected YYYY-MM-DD)"
-    cmd = cmd.replace("{date}", date)
+    cmd = cmd.replace("{date}", shlex.quote(date))
     print(f"  → Running: {cmd}")
     try:
         result = subprocess.run(
@@ -268,6 +281,11 @@ def print_status(state: dict):
 def run_pipeline(date: str, session: str = "full", resume: bool = False,
                  single_step: str = None, version: str = None):
     """Run the full pipeline or a single step."""
+    # Validate date format early to prevent path traversal in state files
+    if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', date):
+        print(f"[FATAL] Invalid date format: {date} (expected YYYY-MM-DD)")
+        sys.exit(1)
+
     state = load_state(date)
 
     if not resume:

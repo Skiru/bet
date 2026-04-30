@@ -90,10 +90,12 @@ def extract_best_odds(event: dict) -> dict:
                 if market["key"] != market_type:
                     continue
                 for outcome in market.get("outcomes", []):
-                    key = outcome["name"]
+                    key = outcome.get("name", "unknown")
                     if "point" in outcome:
                         key = f"{outcome['name']}_{outcome['point']}"
-                    price = outcome["price"]
+                    price = outcome.get("price", 0)
+                    if not price:
+                        continue
                     if key not in best or price > best[key]["price"]:
                         best[key] = {
                             "price": price,

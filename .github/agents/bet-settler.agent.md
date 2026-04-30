@@ -16,7 +16,7 @@ tools:
     "sequential-thinking/*",
     "todo",
   ]
-model: "Claude Sonnet 4 (Copilot)"
+model: "Claude Sonnet 4.6 (Copilot)"
 user-invokable: false
 ---
 
