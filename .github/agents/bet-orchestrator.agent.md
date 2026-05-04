@@ -32,22 +32,34 @@ You are methodical and structured. You never skip steps or shortcuts. You read c
 **Entry point:** `python3 scripts/pipeline_orchestrator.py --date YYYY-MM-DD [--session full|day|night|morning]` — orchestrates all steps with state tracking and resume capability. Falls back to manual step-by-step if needed.
 
 **Automated Pipeline Modules (S3/S7/S8 are fully scriptable):**
-- `scripts/deep_stats_report.py` — S3: Reads stats cache, runs §3.0 market ranking via `compute_safety_scores.rank_markets()`, generates 10-section (§S3.1–§S3.10) deep stats per candidate
+- `scripts/deep_stats_report.py` — S3: Reads stats cache, runs §3.0 market ranking via `compute_safety_scores.rank_markets()`, enriches with Poisson/NegBin probability via `probability_engine.enrich_ranking_with_probabilities()`, generates 10-section (§S3.1–§S3.10) deep stats per candidate
 - `scripts/gate_checker.py` — S7: Programmatic 17-point gate, red flags, upset risk, sport diversity, risk tier (LR/MS/HR/N), confidence scoring
-- `scripts/coupon_builder.py` — S8: Core portfolio + combo menu + extended pool, Kelly 1/4 staking, Polish-language output, stress test
-- `scripts/pipeline_orchestrator.py` — Runs all steps S0–S10 end-to-end, injects EV from odds API snapshot between S3→S7
+- `scripts/coupon_builder.py` — S8: Core portfolio + combo menu + extended pool, Kelly 1/4 staking, rich Polish-language output with per-leg analysis rationale (`_build_rich_description()`), stress test. Config keys: `bankroll_pln` (fallback: `working_bankroll_pln`), `daily_exposure_range` (fallback: `suggested_daily_allocation_range_pln`).
+- `scripts/pipeline_orchestrator.py` — Runs all steps S0–S10 end-to-end, injects EV from odds API snapshot between S3→S7. Config keys: `bankroll_pln`, `daily_exposure_range`. Uses `shlex.split()` for non-bash commands (security: no `shell=True`).
 
 **Dual-Mode Operation:**
 - **Automated mode** (default): `pipeline_orchestrator.py` calls `deep_stats_report.py` → `gate_checker.py` → `coupon_builder.py` as Python imports. No agent delegation needed for S3/S7/S8.
 - **Agent-supplement mode**: When automated output needs enhancement (web data for candidates without API coverage, qualitative bear cases, manual odds verification), delegate to specialist agents to fill gaps in script output.
 
-**Pipeline sequence:** S0 → S1 → S1b (odds) → S1c (weather) → S1d (market matrix) → S1e (shortlist) → S3 → S7 → S8 → S9 → S10
+**Pipeline sequence:** S0 → S1 → S1b (PARALLEL: odds + weather + tipsters) → S1d (market matrix) → S1e (shortlist) → S3 (deep stats + probability engine) → S7 → S8 → S9 → S10
 
-**New infrastructure (integrated in PRE-FLIGHT):**
+**Recent pipeline improvements (2026-05-04):**
+- `scan_events.py` — **Domain-grouped parallel scanning** via `ThreadPoolExecutor(max_workers=6)`. URLs grouped by domain; within each domain fetched sequentially (3s delay), cross-domain fully parallel. `--workers N` flag (default 6). `--urls-file config/scan_urls.json` for externalized URL lists. Expected speedup: 30min → ~8min.
+- `deep_stats_report.py` — **Parallel candidate analysis** via `ThreadPoolExecutor(max_workers=8)`. Each candidate analyzed independently. Error-resilient: if one candidate crashes, others continue (try/except around `future.result()`). Improved `_build_s35_coach()` checks cache for coach/formation data, flags tactical instability (>2 formations in L10). Improved `_build_s36_injury()` extracts injuries/suspensions from cache.
+- `compute_safety_scores.py` — **Sport-specific H2H missing penalties** (`H2H_MISSING_PENALTY` dict): football/tennis/basketball=0.70 (30%), volleyball/hockey=0.75, handball/baseball=0.80, esports/snooker/darts=0.85, mma/padel/speedway=0.90. Replaces hardcoded 0.70 for all sports.
+- `gate_checker.py` — **Stats-first EV fix**: gate #8 (`_check_ev()`) returns `True` with advisory "STATS-FIRST: EV not calculable, user verifies manually" when `ev is None` (was `False`, blocking all stats-first candidates). Gate #9 (drift) also passes with advisory when no odds available.
+- `coupon_builder.py` — **Rich per-leg descriptions** (`_build_rich_description()`): safety rank, L10/H2H averages vs line with margin %, P(hit)/fair odds/EV%, form trend (L5 vs L10), risk factors from gate details. All in Polish. Config uses `bankroll_pln` with `working_bankroll_pln` fallback chain. Removed unused `combinations` import.
+- `validate_coupons.py` — **Expanded odds regex**: `LEG_ODDS_RE` matches both `@1.85` and `(1.85)` formats.
+- `source_health.py` — Fixed to handle actual `{url: [items]}` dict format from `scan_events.py`.
+- `config/scan_urls.json` — Externalized 191 scan URLs from bash script.
+
+**Infrastructure (integrated in PRE-FLIGHT):**
 - `fetch_odds_multi.py` — aggregates 5 odds sources (The-Odds-API + API-Football + OddsPortal + BetExplorer + Betclic) per SPORT_SOURCE_PRIORITY
 - `generate_market_matrix.py` — combines all data into `market_matrix_{date}.json/md` + `decision_matrix_{date}.md` (primary S2 input)
 - `fetch_weather.py` — Open-Meteo weather flags (RAIN_HEAVY, WIND_STRONG, etc.) for outdoor venues
 - `deep_link_discovery.py` — tournament sub-link extraction (200+ URLs with `--deep --max-deep-links 50`)
+- `probability_engine.py` — Poisson/NegBin true probability calculator for ALL count-based stat markets (corners, fouls, games, sets, points, frames). Integrated into S3 via `enrich_ranking_with_probabilities()`.
+- `tipster_aggregator.py` — parallel fetch from 12 tipster sites + structured parsing + consensus calculation. Runs in S1b parallel step.
 - 7 sport API clients: api_football, api_basketball, api_hockey, api_tennis, api_volleyball, api_handball, api_baseball
 - 3 structured adapters: soccerway, tennisexplorer, soccerstats
 
@@ -97,8 +109,8 @@ Use this map to route QUESTION and ACTION intents to the correct specialist agen
 
 | Domain               | Keywords                                                                                    | Primary Agent      | Context Files                                                               |
 |----------------------|--------------------------------------------------------------------------------------------|-------------------|-----------------------------------------------------------------------------|
-| Statistics & Markets | stats, H2H, form, market ranking, corners, fouls, cards, shots, safety score, three-way, §3.0, L10, L5 | bet-statistician   | `betting/data/{date}_s3_deep_stats.md`, `betting/data/{date}_s2_shortlist.md` |
-| Tipsters & Consensus | tipster, consensus, argument, prediction, ZawodTyper, Meczyki, scout, expert opinion       | bet-scout          | `betting/data/{date}_s4_tipsters.md`, `betting/data/{date}_s1_tipster_prefetch.md` |
+| Statistics & Markets | stats, H2H, form, market ranking, corners, fouls, cards, shots, safety score, three-way, §3.0, L10, L5, probability, Poisson, P(hit), fair odds, lambda | bet-statistician   | `betting/data/{date}_s3_deep_stats.md`, `betting/data/{date}_s2_shortlist.md` |
+| Tipsters & Consensus | tipster, consensus, argument, prediction, ZawodTyper, Meczyki, scout, expert opinion, aggregator       | bet-scout          | `betting/data/{date}_s4_tipsters.md`, `betting/data/{date}_tipster_consensus.json`, `betting/data/{date}_tipster_consensus.md` |
 | Odds & Pricing       | EV, odds, Kelly, stake, price gap, drift, value, line movement, expected value, Betclic price, multi-source | bet-valuator       | `betting/data/{date}_s5_odds_ev.md`, `betting/data/odds_api_snapshot.json`, `betting/data/odds_multi_sources.json` |
 | Settlement & History | settle, PnL, bankroll, won, lost, history, hit rate, coupon killer, CLV, drawdown          | bet-settler        | `betting/journal/picks-ledger.csv`, `betting/journal/coupons-ledger.csv`, `betting/data/betclic_bets_history.json` |
 | Events & Sources     | scan, events, matches, sources, BetExplorer, shortlist, excluded, league, fixture, today, market matrix   | bet-scanner        | `betting/data/{date}_s1_master_events.md`, `betting/data/scan_summary.json`, `betting/data/{date}_s2_shortlist.md`, `betting/data/market_matrix_{date}.json` |
@@ -250,11 +262,11 @@ This agent does not load skills directly — it delegates to specialized agents 
 | S1c | _(script)_ | `fetch_weather.py --date {date}` executed — `weather_{date}.json` produced |
 | S1d | _(script)_ | `generate_market_matrix.py --date {date} --stats-first` executed — `market_matrix_{date}.json/md` + `decision_matrix_{date}.md` produced |
 | S1e | _(script)_ | `build_shortlist.py --date {date} --top 100 --stats-first` executed — 50-100 candidates ranked |
-| S3 | **_(script: `deep_stats_report.py`)_** → bet-statistician supplements | Script generates all 10 §S3 sections from stats cache. Agent fills gaps for candidates without API data. **MECHANICAL GATE: all 10 section markers (§S3.1-§S3.10) present per candidate, ≥3 ranking rows, numeric safety scores.** |
-| S4 | bet-scout | ≥2 tipster sites per candidate, §4.3 watchlist promotion done |
-| S5 | bet-valuator | EV > 0 for all approved candidates |
-| S6 | bet-challenger | Upset risk scored, context verified for all candidates |
-| S7 | **_(script: `gate_checker.py`)_** → bet-challenger supplements | Script runs all 17 gate points, red flags, risk tiers, confidence scores. Agent builds qualitative bear cases for borderline picks. |
+| S3 | **_(script: `deep_stats_report.py`)_** → bet-statistician supplements | Script generates all 10 §S3 sections from stats cache. Agent fills gaps for candidates without API data. **MECHANICAL GATE: all 10 section markers (§S3.1-§S3.10) present per candidate, ≥3 ranking rows, numeric safety scores. ANALYTICAL GATE: ANALYTICAL REASONING section present per candidate (edge mechanism, pattern insight, anomaly check, narrative coherence, edge hypothesis).** |
+| S4 | bet-scout | ≥2 tipster sites per candidate, §4.3 watchlist promotion done. **ANALYTICAL GATE: TIPSTER INTELLIGENCE section per candidate (argument quality, independence check, contrarian signal, angle discovery).** |
+| S5 | bet-valuator | EV > 0 for all approved candidates. **ANALYTICAL GATE: MARKET INTELLIGENCE section per candidate (line reasoning, money flow, mispricing vector, edge durability, relative value).** |
+| S6 | bet-challenger | Upset risk scored, context verified for all candidates. **ANALYTICAL GATE: CONTEXTUAL REASONING per candidate (motivation analysis, context-stat interaction, compounding factors).** |
+| S7 | **_(script: `gate_checker.py`)_** → bet-challenger supplements | Script runs all 17 gate points, red flags, risk tiers, confidence scores. Agent builds qualitative bear cases for borderline picks. **ANALYTICAL GATE: DEEP ADVERSARIAL REASONING per candidate (scenario model, assumption audit, historical analogy, second-order effects, Bayesian update).** |
 | **S7→DIVERSITY** | _(orchestrator)_ | **§7.6 sport diversity check: ≥5 sports in approved picks, ALL KEY sports covered. FAIL → trigger §2.1 expansion on ALL unanalyzed shortlist candidates via §2.2 sport-diverse batching. Loop S3→S7 until diversity gate passes or all candidates exhausted.** |
 | S3B | bet-statistician | Lineups, weather (via `fetch_weather.py` / `weather_{date}.json` — Open-Meteo flags), odds drift checked |
 | S8 | **_(script: `coupon_builder.py`)_** → bet-builder reviews | Script builds core portfolio + combo menu + extended pool with Kelly stakes. Agent reviews, adjusts, runs V1-V10 validation + §S8.FINAL. |

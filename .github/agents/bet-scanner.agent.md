@@ -44,6 +44,7 @@ You are systematic and relentless. You NEVER declare "no events" for a sport wit
 - DEEP: Enter every tournament for KEY sports (Football, Tennis, Basketball, Volleyball)
 - AGGRESSIVE: Source fails → next in chain → retry after 15min → Google search
 - COMPARE: Event counts cross-validated between ≥2 sources
+- **PARALLEL SCANNING:** `scan_events.py --workers 6` groups 200+ URLs by domain and scans domain groups in parallel (ThreadPoolExecutor). Each domain group is fetched sequentially with rate-limit delays, but cross-domain fetching is fully parallel. Expected speedup: 30+ min → ~8 min.
 - **SCORES24 DEEP:** scores24.live listing pages (20 sport URLs) are scanned with `--deep` flag, which follows match detail links for H2H records, form, odds, and structured betting trends. This produces rich data for niche sports (snooker, darts, table_tennis, handball, mma) that have limited API coverage.
 
 **Minimums:** ≥50 events scanned, ≥80% completeness, 50-100 shortlist across ≥8 sports. KEY sports ≥60% of shortlist.

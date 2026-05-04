@@ -740,8 +740,9 @@ class TestPipelineIntegration(unittest.TestCase):
             self.assertEqual(gi.get("odds"), {})
 
             result = gc.check_17_point_gate(gi, [])
-            # Gate #8 (EV) should fail, but pipeline should not crash
-            self.assertIn("8", result["gate_failed"])
+            # Gate #8 (EV) should PASS in stats-first mode (user verifies manually)
+            # It no longer fails when ev is None — this was fixed to support stats-first workflow
+            self.assertNotIn("8", result["gate_failed"])
 
 
 # ===========================================================================

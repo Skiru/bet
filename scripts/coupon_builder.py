@@ -14,7 +14,6 @@ import json
 import re
 import sys
 from datetime import datetime
-from itertools import combinations
 from pathlib import Path
 
 import zoneinfo
@@ -133,6 +132,78 @@ def _pick_description_pl(pick: dict) -> str:
 
     pl = format_market_polish(market_name, direction, line)
     return f"{home} vs {away}: {pl} ({odds:.2f})"
+
+
+def _build_rich_description(pick: dict) -> str:
+    """Build rich Polish-language description with analysis rationale for a single pick."""
+    home = pick.get("home_team", "?")
+    away = pick.get("away_team", "?")
+    sport = pick.get("sport", "")
+    best = pick.get("best_market") or {}
+    market_name = best.get("name", "?")
+    direction = best.get("direction", "")
+    line = best.get("line")
+    odds = (pick.get("odds") or {}).get("market_best", 0) or 0
+
+    pl = format_market_polish(market_name, direction, line)
+    emoji = SPORT_EMOJI.get(sport, "")
+
+    lines = [f"{emoji} {home} vs {away} — {pl} @{odds:.2f}"]
+
+    # Analysis rationale
+    safety = best.get("safety_score")
+    hit_rate_l10 = best.get("hit_rate_l10")
+    h2h_avg = best.get("h2h_avg")
+    l10_avg = best.get("l10_avg")
+    l5_avg = best.get("l5_avg")
+    probability = best.get("probability")
+    fair_odds = best.get("fair_odds")
+    rank = best.get("rank", "?")
+    total_markets = best.get("total_markets_evaluated")
+
+    analysis_parts = []
+
+    if safety is not None:
+        rank_text = f"Rynek #{rank}" if rank else "Rynek"
+        markets_text = f" z {total_markets}" if total_markets else ""
+        analysis_parts.append(f"\U0001f4ca {rank_text} wg safety score ({safety:.2f}){markets_text}")
+
+    if l10_avg is not None and line is not None:
+        margin_pct = round((l10_avg / line - 1) * 100) if line > 0 else 0
+        sign = "+" if margin_pct > 0 else ""
+        analysis_parts.append(f"\u2022 L10 \u015brednia: {l10_avg:.1f} vs linia {line} ({sign}{margin_pct}% margines)")
+
+    if h2h_avg is not None:
+        analysis_parts.append(f"\u2022 H2H \u015brednia: {h2h_avg:.1f}")
+
+    if probability is not None and fair_odds is not None:
+        ev_pct = round((probability * odds - 1) * 100) if odds > 0 else 0
+        analysis_parts.append(f"\u2022 P(hit): {probability*100:.0f}% | Fair odds: \u2265{fair_odds:.2f} | EV: {'+' if ev_pct > 0 else ''}{ev_pct}%")
+
+    if l5_avg is not None and l10_avg is not None and l10_avg > 0:
+        pct_change = (l5_avg - l10_avg) / l10_avg * 100
+        if pct_change > 5:
+            analysis_parts.append(f"\u2022 Forma \u2197: L5={l5_avg:.1f} vs L10={l10_avg:.1f} (trend rosn\u0105cy)")
+        elif pct_change < -5:
+            analysis_parts.append(f"\u2022 Forma \u2198: L5={l5_avg:.1f} vs L10={l10_avg:.1f} (trend spadkowy)")
+        else:
+            analysis_parts.append(f"\u2022 Forma \u2192: L5={l5_avg:.1f} vs L10={l10_avg:.1f} (stabilna)")
+
+    # Risk factors from gate details
+    gate = pick.get("gate_details") or {}
+    risk_notes = []
+    for g_id, g_data in gate.items():
+        if isinstance(g_data, dict) and not g_data.get("passed", True) and g_data.get("note"):
+            risk_notes.append(g_data["note"])
+
+    if risk_notes:
+        analysis_parts.append(f"\u26a0 Ryzyka: {'; '.join(risk_notes[:2])}")
+
+    if analysis_parts:
+        lines.append("")
+        lines.extend(analysis_parts)
+
+    return "\n".join(lines)
 
 
 def _event_key(pick: dict) -> str:
@@ -265,7 +336,9 @@ def assign_picks_to_core(approved: list, config: dict) -> list[dict]:
 
     tz_name = config.get("timezone", "Europe/Warsaw")
     min_legs = config.get("min_legs_per_coupon", 2)
+    max_legs = config.get("max_legs_per_coupon", 4)
     max_same_sport = config.get("max_same_sport_legs_in_coupon", 2)
+    bankroll = config.get("bankroll_pln", config.get("working_bankroll_pln", 50.0))
 
     # Sort: EV desc → confidence desc → safety desc
     sorted_picks = sorted(
@@ -346,7 +419,7 @@ def assign_picks_to_core(approved: list, config: dict) -> list[dict]:
             all_assigned.add(ek)
 
             # Check if coupon is full enough to flush
-            if len(current_legs) >= max(min_legs, len(picks_in_tier) // max(tier_coupons, 1)):
+            if len(current_legs) >= max_legs or len(current_legs) >= max(min_legs, len(picks_in_tier) // max(tier_coupons, 1)):
                 if tier_num < tier_coupons:
                     tier_num += 1
                     cid = f"CP-{date_str}-{tier_label}{tier_num}"
@@ -363,19 +436,19 @@ def assign_picks_to_core(approved: list, config: dict) -> list[dict]:
         elif current_legs:
             # Not enough legs for own coupon — merge into last coupon of same tier
             # or into the next tier's coupon
-            _merge_orphan_legs(current_legs, coupons, max_same_sport)
+            _merge_orphan_legs(current_legs, coupons, max_same_sport, bankroll, max_legs)
 
     # Handle unassigned picks — try to put them into existing coupons
     unassigned = [p for p in sorted_picks if _event_key(p) not in all_assigned]
     for p in unassigned:
-        _try_insert_into_coupon(p, coupons, max_same_sport)
+        _try_insert_into_coupon(p, coupons, max_same_sport, bankroll, max_legs)
 
     return coupons
 
 
 def _make_coupon(coupon_id: str, tier: str, legs: list, config: dict) -> dict:
     """Build a coupon dict from legs."""
-    bankroll = config.get("working_bankroll_pln", 50.0)
+    bankroll = config.get("bankroll_pln", config.get("working_bankroll_pln", 50.0))
 
     combined_odds = 1.0
     for leg in legs:
@@ -415,18 +488,23 @@ def _make_coupon(coupon_id: str, tier: str, legs: list, config: dict) -> dict:
     return coupon
 
 
-def _merge_orphan_legs(orphans: list, coupons: list, max_same_sport: int):
+def _merge_orphan_legs(orphans: list, coupons: list, max_same_sport: int, bankroll: float = 50.0,
+                       max_legs: int = 4):
     """Merge orphan legs into existing coupons where constraints allow."""
     for leg in orphans:
-        _try_insert_into_coupon(leg, coupons, max_same_sport)
+        _try_insert_into_coupon(leg, coupons, max_same_sport, bankroll, max_legs)
 
 
-def _try_insert_into_coupon(pick: dict, coupons: list, max_same_sport: int):
+def _try_insert_into_coupon(pick: dict, coupons: list, max_same_sport: int, bankroll: float = 50.0,
+                            max_legs: int = 4):
     """Try to insert a pick into an existing coupon respecting constraints."""
     ek = _event_key(pick)
     sport = pick.get("sport", "other")
 
     for coupon in coupons:
+        if len(coupon["legs"]) >= max_legs:
+            continue
+
         existing_events = {_event_key(l) for l in coupon["legs"]}
         if ek in existing_events:
             continue
@@ -447,7 +525,6 @@ def _try_insert_into_coupon(pick: dict, coupons: list, max_same_sport: int):
             (l.get("best_market", {}).get("safety_score", 0.5) for l in coupon["legs"]),
             default=0.5,
         )
-        bankroll = 50.0  # Will be recalculated at summary level
         coupon["stake"] = compute_stake(combined, min_safety, bankroll, coupon.get("tier", "MS"))
         coupon["potential_return"] = round(coupon["stake"] * combined, 2)
         return True
@@ -533,6 +610,7 @@ def generate_combos(approved: list, config: dict) -> list[dict]:
 
     date_str = _extract_date(approved)
     min_legs = config.get("min_legs_per_coupon", 2)
+    max_legs = config.get("max_legs_per_coupon", 4)
     max_same_sport = config.get("max_same_sport_legs_in_coupon", 2)
     combos: list[dict] = []
     combo_num: dict[str, int] = {}
@@ -622,8 +700,8 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
     extended_pool = gr.get("extended_pool", [])
     rejected = gr.get("rejected", [])
 
-    bankroll = config.get("working_bankroll_pln", 50.0)
-    alloc_range = config.get("suggested_daily_allocation_range_pln", [5.0, 15.0])
+    bankroll = config.get("bankroll_pln", config.get("working_bankroll_pln", 50.0))
+    alloc_range = config.get("daily_exposure_range", config.get("suggested_daily_allocation_range_pln", [5.0, 15.0]))
 
     result = {
         "date": date,
@@ -768,6 +846,13 @@ def _coupon_section(title: str, coupons: list[dict]) -> list[str]:
         if c.get("correlation_flags"):
             for flag in c["correlation_flags"]:
                 lines.append(f"⚠️ {flag}")
+
+        # Rich analysis per leg
+        lines.append("")
+        lines.append("### Analiza szczegółowa")
+        for leg in c.get("legs", []):
+            lines.append("")
+            lines.append(_build_rich_description(leg))
 
         lines.append("")
 

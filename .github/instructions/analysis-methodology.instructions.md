@@ -605,20 +605,95 @@ When odds APIs don't cover an event (common for: table tennis, snooker, darts, e
    - Safety score (e.g., "0.80")
    - Suggested line range (e.g., "check Betclic for O9.5 / O10.5")
    - **Minimum acceptable odds** = `1 / hit_rate` (e.g., 80% hit rate → min odds 1.25)
+   - **Poisson probability** = `P(hit)` from probability engine (e.g., "P(Over 9.5) = 87.6%")
+   - **Fair odds** = `1 / P(hit)` (e.g., "Fair odds = 1.14")
 4. **User workflow:**
    - Open Betclic app → find the event → check if the suggested market exists
-   - Note the Betclic odds → if `odds ≥ min_acceptable_odds` → bet
-   - Quick mental EV: `hit_rate × odds > 1.0?` → YES = positive EV
+   - Note the Betclic odds → if `odds ≥ fair_odds` → positive EV → bet
+   - Quick mental EV: `P(hit) × odds > 1.0?` → YES = positive EV
 5. **Skip:** price gap analysis, line movement, drift gate (no reference odds exist).
-6. **Kelly staking uses estimated probability** from hit rate: `p = hit_rate, q = 1-p, b = betclic_odds - 1`. Stake = Kelly/4 as normal. Calculate AFTER user provides odds.
+6. **Kelly staking uses Poisson probability** from probability engine: `p = P(hit), q = 1-p, b = betclic_odds - 1`. Stake = Kelly/4 as normal. Calculate AFTER user provides odds.
 
 **STATS-FIRST picks enter the coupon output with:**
 - `odds: CHECK_BETCLIC`
 - `EV: MANUAL (min odds X.XX for EV>0)`
+- `probability: X.XX% (Poisson/NegBin model)`
 - `stake: PENDING (calculate after odds confirmed)`
-- All other fields (safety, direction, hit rate) filled normally.
+- All other fields (safety, direction, hit rate, probability) filled normally.
 
 **Generate the market matrix with:** `python3 scripts/generate_market_matrix.py --date YYYY-MM-DD --stats-first`
+
+### §5.PROB PROBABILITY ENGINE (automated — runs in S3)
+
+**The probability engine converts raw statistics into precise probability estimates using the Poisson distribution model.**
+
+**Academic basis:**
+- Maher (1982): Poisson model for football scoring — count-based events follow Poisson distribution
+- Dixon & Coles (1997): Improved model accounting for correlation in low-scoring matches
+- Generalized to ALL count-based sports markets: corners, fouls, cards, games, frames, points, etc.
+
+**How it works:**
+1. **λ estimation** (expected value) with recency weighting:
+   - λ = 40% × L5_avg + 35% × L10_avg + 25% × H2H_avg
+   - When H2H missing: λ = 55% × L5_avg + 45% × L10_avg
+   - WHY these weights: L5 captures current form (most predictive for tactical changes), L10 captures season trend, H2H captures specific matchup dynamics (pressing team = more corners vs low block)
+2. **Probability calculation:**
+   - P(Over X.5) = 1 - CDF(X, λ) = 1 - Σ(k=0..X) [e^(-λ) × λ^k / k!]
+   - For overdispersed data (variance/mean > 1.5): switches to negative binomial distribution
+3. **Fair odds:** fair_odds = 1 / P(hit) — the true breakeven odds
+4. **True EV:** EV = P(hit) × bookmaker_odds - 1
+5. **Confidence interval:** 90% bootstrap CI from 1000 resamples of match-level data
+6. **Kelly 1/4 stake:** f = (b×p - q) / b, stake = bankroll × f / 4
+
+**Script:** `python3 scripts/probability_engine.py --test` (self-test with sample data)
+**Integration:** Runs automatically in S3 via `pipeline_orchestrator.py`. Enriches every ranked market with probability, fair_odds, lambda, model_used, CI.
+
+**Example output (football corners):**
+```
+Liverpool vs Arsenal — Corners Total:
+Combined L10 avg: 14.9, L5: 13.6, H2H: 12.2
+λ = 0.40×13.6 + 0.35×14.9 + 0.25×12.2 = 13.71
+
+Over 9.5:  P=87.6%, fair_odds=1.14, CI=[80.4%–92.3%]
+Over 10.5: P=80.4%, fair_odds=1.24, CI=[71.3%–87.2%]
+Over 11.5: P=71.4%, fair_odds=1.40, CI=[59.6%–80.4%]
+Over 12.5: P=61.2%, fair_odds=1.63, CI=[48.3%–71.4%]
+
+→ If Betclic offers Over 9.5 @1.50: EV = 87.6% × 1.50 - 1 = +31.4% ✅
+→ If Betclic offers Over 12.5 @1.45: EV = 61.2% × 1.45 - 1 = -11.3% ❌
+```
+
+**WHY Poisson over simple hit rate:**
+- Hit rate = 8/10 = 80%. But was game #4 at 9 or 14 corners? Hit rate loses this information.
+- Poisson uses the ACTUAL values (9, 14, 11, 8, etc.) and models the full distribution.
+- This gives DIFFERENT probabilities for different lines from the same data.
+- Hit rate says "80% over 9.5" — Poisson says "87.6% over 9.5 but only 61.2% over 12.5."
+
+### §5.TIP TIPSTER AGGREGATION ENGINE (automated — runs in S1b)
+
+**Parallel tipster fetching and consensus scoring from 12+ sites.**
+
+**Script:** `python3 scripts/tipster_aggregator.py --date YYYY-MM-DD --workers 5`
+**Integration:** Runs automatically in S1b (parallel enrichment step) alongside odds and weather.
+
+**What it does:**
+1. Fetches ALL tipster sites in parallel (5 concurrent workers)
+2. Parses structured picks: sport, event, market, odds, reasoning, accuracy%
+3. Classifies picks as "statistical" (corners, cards, games) or "outcome" (winner, ML)
+4. Computes consensus: groups by event, measures agreement across tipsters
+5. Generates confidence adjustments: ≥70% agreement → +0.5, ≤30% → −1.0
+6. Outputs `{date}_tipster_consensus.json` and `{date}_tipster_consensus.md`
+
+**Sites covered (12):**
+- Polish: ZawodTyper, Typersi
+- English: Sportsgambler, PicksWise, BetIdeas, OLBG, Tipstrr
+- Exotic football: Feedinco, BettingClosed, Tips180
+- Esports: GosuGamers
+
+**Integration with S3 analysis:**
+- Tipster picks targeting statistical markets with reasoning → boost shortlist priority
+- Consensus data used in S7 gate check (gate #6: ≥1 tipster argument)
+- §4.3 promotion: tipster picks with >55% accuracy + statistical market + cited stats → watchlist
 
 ---
 

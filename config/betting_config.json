@@ -14,7 +14,14 @@
     "tennis",
     "hockey",
     "snooker",
-    "speedway"
+    "speedway",
+    "baseball",
+    "esports",
+    "darts",
+    "table_tennis",
+    "handball",
+    "mma",
+    "padel"
   ],
   "db_path": "betting/data/betting.db"
 }

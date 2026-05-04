@@ -146,6 +146,21 @@ For SBR, ESPN, ScoresAndOdds:
 - Uses `SPORT_SOURCE_PRIORITY` chains to select best odds per sport
 - RECOMMENDED over single-source `fetch_odds_api.py` for comprehensive multi-bookmaker comparison
 
+## Automated Tipster Aggregation
+
+- Script: `python3 scripts/tipster_aggregator.py --date YYYY-MM-DD --workers 5`
+- Fetches 12 tipster sites in parallel (5 concurrent workers):
+  - ZawodTyper, Typersi, Sportsgambler, PicksWise, BetIdeas, OLBG
+  - Tipstrr, Feedinco, BettingClosed, Tips180, GosuGamers
+- Output: `betting/data/{date}_tipster_consensus.json` + `{date}_tipster_consensus.md`
+- Runs automatically in S1b parallel enrichment step (alongside odds API + weather)
+- Computes per-event consensus: agreement %, confidence adjustment, market classification
+- Classifies tips as "statistical" (corners, totals, cards) vs "outcome" (ML, winner)
+- Statistical market tips with data-backed arguments → §4.3 watchlist promotion candidates
+
+**Integration with manual deep-dive (S4):**
+The aggregator provides the FIRST PASS — structured picks + consensus. The `bet-scout` agent then performs the DEEP DIVE — reading full written arguments, extracting cited facts, investigating contradictions, and promoting statistical market picks to the watchlist.
+
 ## Connected Skills
 
 - `bet-analyzing-statistics` — uses sources to gather the statistical data for analysis

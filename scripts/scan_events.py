@@ -10,6 +10,8 @@ heuristic to produce a quick list of candidate matches.
 import sys
 import argparse
 import re
+from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 import json
 import time
@@ -116,22 +118,24 @@ def validate_fetched_date(html: str, url: str, domain: str) -> list[str]:
     return warnings
 
 
-def scan_urls(urls, deep=False, max_deep_links=50):
-    all_extracted = {}
+def _scan_domain_group(domain: str, urls: list[str], deep: bool, max_deep_links: int) -> tuple[dict, list]:
+    """Scan all URLs for a single domain group. Returns (extracted_dict, errors_list)."""
+    extracted = {}
     errors = []
     deep_links_found = 0
 
-    # Import deep-link discovery if deep mode is enabled
+    discover_deep_links = None
     if deep:
         try:
-            from deep_link_discovery import discover_deep_links
+            from deep_link_discovery import discover_deep_links as _ddl
+            discover_deep_links = _ddl
         except ImportError:
-            print("[WARNING] deep_link_discovery module not found — deep mode disabled")
-            deep = False
+            pass
+
+    adapter = get_adapter(domain)
 
     for i, url in enumerate(urls):
-        domain = domain_from_url(url)
-        print(f"[{i+1}/{len(urls)}] Fetching {url}")
+        print(f"  [{domain}] [{i+1}/{len(urls)}] Fetching {url}")
         try:
             html = fetch(url)
         except Exception as e:
@@ -145,37 +149,36 @@ def scan_urls(urls, deep=False, max_deep_links=50):
             errors.append({"url": url, "error": msg})
             continue
         saved = save_html(domain, html)
-        print(f"  Saved raw HTML to {saved}")
+        print(f"  [{domain}] Saved raw HTML to {saved}")
         # Validate fetched content date
         date_warnings = validate_fetched_date(html, url, domain)
         for w in date_warnings:
-            print(f"  ⚠️  {w}")
+            print(f"  [{domain}] ⚠️  {w}")
             errors.append({"url": url, "warning": w})
-        adapter = get_adapter(domain)
         sport = detect_sport(url)
         try:
-            extracted = adapter(html, url)
+            items = adapter(html, url)
         except Exception as e:
-            print(f"  Adapter for {domain} failed, falling back to raw parser: {e}")
+            print(f"  [{domain}] Adapter failed, falling back to raw parser: {e}")
             from adapters.raw_adapter import parse as raw_parse
-            extracted = raw_parse(html, url)
+            items = raw_parse(html, url)
         # Tag each item with detected sport
-        for item in extracted:
+        for item in items:
             if "sport" not in item:
                 item["sport"] = sport
-        all_extracted[url] = extracted
-        print(f"  Extracted {len(extracted)} candidate match lines from {domain} [{sport}]")
+        extracted[url] = items
+        print(f"  [{domain}] Extracted {len(items)} candidate match lines [{sport}]")
 
         # Deep-link discovery: follow tournament sub-links
-        if deep and domain in ("flashscore.com", "betexplorer.com", "sofascore.com", "soccerway.com", "forebet.com", "scores24.live"):
+        if discover_deep_links and domain in ("flashscore.com", "betexplorer.com", "sofascore.com", "soccerway.com", "forebet.com", "scores24.live"):
             try:
                 sub_links = discover_deep_links(html, url, domain, max_links=max_deep_links)
-                new_links = [sl for sl in sub_links if sl not in urls and sl not in all_extracted]
+                new_links = [sl for sl in sub_links if sl not in urls and sl not in extracted]
                 if new_links:
                     deep_links_found += len(new_links)
-                    print(f"  [deep] Discovered {len(new_links)} sub-links from {domain}")
+                    print(f"  [{domain}] [deep] Discovered {len(new_links)} sub-links")
                     for j, sub_url in enumerate(new_links[:max_deep_links]):
-                        print(f"    [deep {j+1}/{len(new_links)}] Fetching {sub_url}")
+                        print(f"    [{domain}] [deep {j+1}/{len(new_links)}] Fetching {sub_url}")
                         try:
                             sub_html = fetch(sub_url)
                         except Exception as e:
@@ -194,15 +197,48 @@ def scan_urls(urls, deep=False, max_deep_links=50):
                             if "sport" not in item:
                                 item["sport"] = sub_sport
                             item["source_type"] = "deep-link"
-                        all_extracted[sub_url] = sub_extracted
-                        print(f"    [deep] Extracted {len(sub_extracted)} from {sub_url}")
+                        extracted[sub_url] = sub_extracted
+                        print(f"    [{domain}] [deep] Extracted {len(sub_extracted)} from {sub_url}")
                         time.sleep(FETCH_DELAY_SECONDS)
             except Exception as e:
-                print(f"  [deep] Deep-link discovery error for {domain}: {e}")
+                print(f"  [{domain}] [deep] Deep-link discovery error: {e}")
 
-        # Rate limit between fetches
+        # Rate limit between fetches within this domain
         if i < len(urls) - 1:
             time.sleep(FETCH_DELAY_SECONDS)
+
+    if deep_links_found:
+        print(f"  [{domain}] [deep] Total deep-links scanned: {deep_links_found}")
+
+    return extracted, errors
+
+
+def scan_urls(urls, deep=False, max_deep_links=50, workers=6):
+    # Group URLs by domain
+    domain_groups = defaultdict(list)
+    for url in urls:
+        domain_groups[domain_from_url(url)].append(url)
+
+    print(f"Scanning {len(urls)} URLs across {len(domain_groups)} domains with {min(workers, len(domain_groups))} workers")
+
+    all_extracted = {}
+    errors = []
+
+    # Run domain groups in parallel
+    with ThreadPoolExecutor(max_workers=min(workers, len(domain_groups))) as executor:
+        futures = {
+            executor.submit(_scan_domain_group, domain, group_urls, deep, max_deep_links): domain
+            for domain, group_urls in domain_groups.items()
+        }
+        for future in as_completed(futures):
+            domain = futures[future]
+            try:
+                domain_extracted, domain_errors = future.result()
+                all_extracted.update(domain_extracted)
+                errors.extend(domain_errors)
+            except Exception as e:
+                print(f"[ERROR] Domain {domain} worker failed: {e}")
+                errors.append({"domain": domain, "error": str(e)})
 
     # write a small JSON summary
     DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -221,18 +257,27 @@ def scan_urls(urls, deep=False, max_deep_links=50):
         err_path.write_text(json.dumps(errors, indent=2, ensure_ascii=False), encoding="utf-8")
         print(f"[WARNING] {len(errors)} source(s) failed. See {err_path}")
     print(f"Wrote summary to {out} ({len(all_extracted)} sources OK, {len(errors)} failed)")
-    if deep:
-        print(f"[deep] Total deep-links discovered and scanned: {deep_links_found}")
     return all_extracted
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--urls", nargs="+", help="List of URLs to scan", required=True)
+    parser.add_argument("--urls", nargs="+", help="List of URLs to scan")
+    parser.add_argument("--urls-file", help="JSON file with URL list (alternative to --urls)")
     parser.add_argument("--deep", action="store_true", help="Enable deep-link discovery for tournament sub-pages")
     parser.add_argument("--max-deep-links", type=int, default=50, help="Max sub-links per domain (default: 50)")
+    parser.add_argument("--workers", type=int, default=6, help="Number of parallel domain workers (default: 6)")
     args = parser.parse_args()
-    scan_urls(args.urls, deep=args.deep, max_deep_links=args.max_deep_links)
+
+    if args.urls_file:
+        urls_data = json.loads(Path(args.urls_file).read_text(encoding="utf-8"))
+        urls = urls_data.get("urls", urls_data) if isinstance(urls_data, dict) else urls_data
+    elif args.urls:
+        urls = args.urls
+    else:
+        parser.error("Either --urls or --urls-file is required")
+
+    scan_urls(urls, deep=args.deep, max_deep_links=args.max_deep_links, workers=args.workers)
 
 
 if __name__ == "__main__":

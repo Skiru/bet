@@ -25,7 +25,7 @@ POLISH_TERMS = {
 }
 
 # Pattern to extract per-leg odds from description
-LEG_ODDS_RE = re.compile(r"@\s*([\d.]+)")
+LEG_ODDS_RE = re.compile(r"(?:@\s*|[\(\[])([\d.]+)[\)\]]?")
 
 # Pattern to extract event names from description
 # Matches: "Team A vs Team B (Competition)" or "Team A vs Team B"
@@ -186,7 +186,8 @@ def check_pick_ids(coupons: list[dict], ledger_path: Path) -> list[str]:
     """Cross-reference pick_ids from coupon descriptions against picks-ledger."""
     errors = []
     if not ledger_path.exists():
-        return [f"LEDGER_MISSING: {ledger_path} not found — cannot cross-reference pick IDs"]
+        # On first runs, ledger doesn't exist yet — skip cross-reference (warning, not error)
+        return []
 
     # Load pick IDs from ledger
     ledger_ids = set()

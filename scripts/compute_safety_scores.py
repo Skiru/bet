@@ -35,6 +35,24 @@ MIN_MARKETS = {
     "speedway": 2,
 }
 
+# Sport-specific H2H penalty — niche sports rarely have H2H data
+H2H_MISSING_PENALTY = {
+    "football": 0.70,     # 30% penalty — H2H expected
+    "tennis": 0.70,       # 30% penalty — H2H expected
+    "basketball": 0.70,   # 30% penalty — H2H expected
+    "volleyball": 0.75,   # 25% penalty — H2H common but not universal
+    "hockey": 0.75,       # 25% penalty
+    "handball": 0.80,     # 20% penalty
+    "baseball": 0.80,     # 20% penalty
+    "esports": 0.85,      # 15% penalty — roster changes make H2H less relevant
+    "snooker": 0.85,      # 15% penalty — individual sport
+    "darts": 0.85,        # 15% penalty — individual sport
+    "table_tennis": 0.85, # 15% penalty — individual sport
+    "mma": 0.90,          # 10% penalty — rarely same matchup
+    "padel": 0.90,        # 10% penalty — new sport, limited H2H
+    "speedway": 0.90,     # 10% penalty — team sport but format varies
+}
+
 # Input JSON schema description (for --help)
 INPUT_SCHEMA = """
 Input JSON format:
@@ -294,8 +312,8 @@ def rank_markets(data: dict) -> dict:
         if total_h2h > 0:
             safety = compute_safety_score(rate_l10, rate_h2h)
         else:
-            # No H2H data — use L10 only but penalize
-            safety = round(rate_l10 * 0.7, 2)  # 30% penalty for missing H2H
+            penalty = H2H_MISSING_PENALTY.get(sport, 0.75)
+            safety = round(rate_l10 * penalty, 2)
 
         # Margin
         margin = compute_margin(l10_avg, line, direction)

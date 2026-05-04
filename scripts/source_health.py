@@ -116,16 +116,25 @@ def parse_scan_results(
     if summary_path.exists():
         try:
             summary = json.loads(summary_path.read_text(encoding="utf-8"))
-            # Group events by source domain
             source_events = defaultdict(lambda: defaultdict(int))
 
-            events = summary if isinstance(summary, list) else summary.get("events", [])
-            for event in events:
-                url = event.get("source_url", "")
-                sport = event.get("sport", detect_sport_from_url(url))
-                domain = extract_domain(url)
-                source_name = DOMAIN_TO_SOURCE.get(domain, domain)
-                source_events[source_name][sport] += 1
+            # scan_summary.json format: {url: [items]}
+            if isinstance(summary, dict):
+                for url, items in summary.items():
+                    if not isinstance(items, list):
+                        continue
+                    domain = extract_domain(url)
+                    source_name = DOMAIN_TO_SOURCE.get(domain, domain)
+                    sport = detect_sport_from_url(url)
+                    source_events[source_name][sport] += len(items)
+            elif isinstance(summary, list):
+                # Legacy format: [{event}, ...]
+                for event in summary:
+                    url = event.get("source_url", "")
+                    sport = event.get("sport", detect_sport_from_url(url))
+                    domain = extract_domain(url)
+                    source_name = DOMAIN_TO_SOURCE.get(domain, domain)
+                    source_events[source_name][sport] += 1
 
             for source_name, sports in source_events.items():
                 for sport, count in sports.items():

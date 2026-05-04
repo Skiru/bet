@@ -113,9 +113,20 @@ def extract_line(selection: str) -> float:
 
 def analyze():
     if not HISTORY_JSON.exists():
-        print(f"Not found: {HISTORY_JSON}")
+        print(f"WARNING: Not found: {HISTORY_JSON}")
         print("Run: python3 scripts/parse_betclic_bets.py first")
-        sys.exit(1)
+        print("Continuing with empty history — no learning data available.")
+        summary_path = DATA_DIR / "betclic_learning_summary.json"
+        summary = {
+            "analyzed_at": __import__("datetime").datetime.now().isoformat(),
+            "total_coupons": 0, "total_legs": 0, "won": 0, "lost": 0,
+            "hit_rate": 0.0, "total_pnl": 0.0, "roi": 0.0,
+            "rules_count": 0, "rules": [],
+            "warning": "No betclic_bets_history.json found — empty analysis",
+        }
+        with open(summary_path, "w", encoding="utf-8") as f:
+            json.dump(summary, f, ensure_ascii=False, indent=2)
+        return [], []
 
     bets = json.loads(HISTORY_JSON.read_text(encoding="utf-8"))
     if not isinstance(bets, list):

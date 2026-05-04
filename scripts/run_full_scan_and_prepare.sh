@@ -72,6 +72,9 @@ echo "[orchestrator] ZawodTyper URL: ${_ZT_URL}"
 # Sofascore, Betclic, OddsPortal, BetExplorer, specialist sources,
 # tipster sites, and Soccerway (exotic league coverage).
 #
+# URLs are also loadable from config/scan_urls.json via:
+#   python3 scripts/scan_events.py --urls-file config/scan_urls.json --deep --workers 6
+#
 # Section breakdown:
 # - Flashscore main sport hubs (13 sports)
 # - Flashscore Football — European 2nd tier (30)

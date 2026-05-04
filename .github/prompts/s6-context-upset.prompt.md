@@ -90,7 +90,32 @@ Save to: `betting/data/{date}_s6_context.md`
 - **ML status**: ALLOWED / BANNED
 - **Paradox Rule**: HIGH → over bias / LOW → under caution / MODERATE → standard
 - **Impact on pick**: [how this changes/confirms the S5 recommendation]
+
+### CONTEXTUAL REASONING (MANDATORY — the thinking layer)
+- **Motivation analysis**: What's REALLY at stake for each side? Not just "league position" — think about player contracts, coach pressure, fan expectations, sponsorship clauses, historical rivalry intensity. Teams "playing for nothing" might field youth → different statistical profile.
+- **Context-stat interaction**: How does the context SPECIFICALLY affect the statistical market we're betting? (e.g., "relegation battle → defensive → fewer goals" is obvious. But "relegation battle → more fouls from desperation" is the USEFUL second-order insight for a fouls market.)
+- **Information asymmetry**: What do LOCAL fans/media know that betting markets haven't priced? Check team social media, local press (SportoweFakty for Polish sports, L'Equipe for French, Kicker for German, AS/Marca for Spanish).
+- **Compounding factors**: When multiple context factors align (congestion + injuries + away game + dead rubber), the combined effect is LARGER than the sum of individual effects. Flag when ≥3 negative factors compound.
+
+**CONTEXTUAL REASONING output (write after upset checklist):**
 ```
+### CONTEXTUAL REASONING
+- **Motivation analysis**: [{what's really at stake} — {impact on team behavior/stats}]
+- **Context-stat interaction**: [{how context specifically affects the bet market}]
+- **Information asymmetry**: [LOCAL INTEL: {source + insight} / NONE FOUND]
+- **Compounding factors**: [{N} factors aligned — combined impact: {AMPLIFIED/NEUTRAL/DAMPENED}]
+- **Context verdict**: [STRENGTHENS / NEUTRAL / WEAKENS thesis] — [{1-sentence justification}]
+```
+
+## CONTEXTUAL INTELLIGENCE THINKING LAYER (MANDATORY)
+
+Context checking is not just a checklist — it's about understanding HOW context changes the statistical thesis:
+
+### For EVERY candidate, think through:
+1. **Does the context STRENGTHEN or WEAKEN the statistical thesis?** A team averaging 12 corners might average 15 in a derby (motivation → aggressive play → more corners) or 8 in a dead rubber (nothing to play for → conservative approach).
+2. **What's the MOST IMPACTFUL context factor?** Not all factors are equal. A key set-piece taker being injured matters MORE for corners than a backup midfielder being out. Focus on factors that DIRECTLY affect the stat being bet.
+3. **Is the context already priced in?** If a key injury was announced 3 days ago, the line already moved. If it was announced 2 hours ago, there may be a window. Timing matters.
+4. **Paradox Rule application**: Don't just note "high upset → over bias." THINK about whether THIS specific match follows the pattern. High upset in a cup match (teams going all-in) ≠ high upset in a league dead rubber (neither team cares).
 
 ## SELF-VERIFICATION CHECKLIST
 
@@ -104,6 +129,7 @@ Save to: `betting/data/{date}_s6_context.md`
 - [ ] **V-S6-08**: Competition context stated (what's at stake)
 - [ ] **V-S6-09**: No candidate has only "N/A" for all context fields
 - [ ] **V-S6-10**: Candidates with POSTPONED status removed from approved list
+- [ ] **V-S6-11**: Every candidate has CONTEXTUAL REASONING section with all 5 fields (motivation analysis, context-stat interaction, information asymmetry, compounding factors, context verdict)
 
 ### PASS/FAIL GATE
 - ALL checks pass → "S6 PASSED" → proceed to S7

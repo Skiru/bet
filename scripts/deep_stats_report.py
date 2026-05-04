@@ -13,6 +13,7 @@ Usage:
 """
 
 import argparse
+import concurrent.futures
 import json
 import re
 import sys
@@ -285,7 +286,7 @@ def _build_s32_form(sport: str, stats_a: dict, stats_b: dict) -> str:
 
 
 def _build_s33_ranking(ranking_result: dict) -> str:
-    """§S3.3 Market Ranking (§3.0)."""
+    """§S3.3 Market Ranking (§3.0) with probability columns."""
     lines = ["§S3.3 Market Ranking (§3.0)"]
 
     ranking = ranking_result.get("ranking", [])
@@ -294,18 +295,39 @@ def _build_s33_ranking(ranking_result: dict) -> str:
         lines.append("")
         return "\n".join(lines)
 
-    lines.append("| Rank | Market | Line | Direction | L10 Avg | H2H Avg | Hit L10 | Hit H2H | Safety |")
-    lines.append("|------|--------|------|-----------|---------|---------|---------|---------|--------|")
+    # Check if probability data is available (enriched by probability_engine)
+    has_prob = any(mkt.get("probability") is not None for mkt in ranking)
+
+    if has_prob:
+        lines.append("| Rank | Market | Line | Dir | L10 Avg | H2H Avg | Hit L10 | Hit H2H | Safety | P(hit) | Fair Odds | Min EV>0 |")
+        lines.append("|------|--------|------|-----|---------|---------|---------|---------|--------|--------|-----------|----------|")
+    else:
+        lines.append("| Rank | Market | Line | Direction | L10 Avg | H2H Avg | Hit L10 | Hit H2H | Safety |")
+        lines.append("|------|--------|------|-----------|---------|---------|---------|---------|--------|")
 
     for mkt in ranking:
         h2h_avg = mkt.get("h2h_avg")
         h2h_display = f"{h2h_avg}" if h2h_avg is not None else "N/A"
         hit_h2h = mkt.get("hit_rate_h2h", "N/A")
-        lines.append(
-            f"| {mkt['rank']} | {mkt['name']} | {mkt['line']} | {mkt['direction']} "
-            f"| {mkt['combined_avg']} | {h2h_display} | {mkt['hit_rate_l10']} "
-            f"| {hit_h2h} | {mkt['safety_score']} |"
-        )
+
+        if has_prob:
+            prob = mkt.get("probability")
+            fair = mkt.get("fair_odds")
+            min_ev = mkt.get("min_odds_ev0")
+            prob_str = f"{prob:.0%}" if prob is not None else "N/A"
+            fair_str = f"{fair:.2f}" if fair is not None else "N/A"
+            min_ev_str = f"≥{min_ev:.2f}" if min_ev is not None else "N/A"
+            lines.append(
+                f"| {mkt['rank']} | {mkt['name']} | {mkt['line']} | {mkt['direction']} "
+                f"| {mkt['combined_avg']} | {h2h_display} | {mkt['hit_rate_l10']} "
+                f"| {hit_h2h} | {mkt['safety_score']} | {prob_str} | {fair_str} | {min_ev_str} |"
+            )
+        else:
+            lines.append(
+                f"| {mkt['rank']} | {mkt['name']} | {mkt['line']} | {mkt['direction']} "
+                f"| {mkt['combined_avg']} | {h2h_display} | {mkt['hit_rate_l10']} "
+                f"| {hit_h2h} | {mkt['safety_score']} |"
+            )
 
     warnings = ranking_result.get("warnings", [])
     if warnings:
@@ -361,24 +383,58 @@ def _build_s34_threeway(ranking_result: dict, best_market: dict | None) -> str:
 def _build_s35_coach(stats_a: dict, stats_b: dict) -> str:
     """§S3.5 Coach/Roster Stability."""
     lines = ["§S3.5 Coach/Roster Stability"]
-    lines.append("| Check | Status | Source |")
-    lines.append("|-------|--------|--------|")
-    lines.append("| Coach change (last 5 matches) | No change detected | Stats cache |")
-    lines.append("| Major roster changes (14d) | Not detected in recent form | Stats cache form data |")
+
+    for label, stats in [("Team A", stats_a), ("Team B", stats_b)]:
+        team = stats.get("team", label)
+        cache = stats.get("raw_cache") or {}
+
+        # Check for coach/formation data in cache
+        coach = cache.get("coach") or cache.get("manager")
+        formation = cache.get("formation") or cache.get("tactical_formation")
+
+        if coach:
+            lines.append(f"- {team}: Coach = {coach}")
+
+        if formation:
+            lines.append(f"- {team}: Formation = {formation}")
+
+        # Check formation changes in recent matches
+        matches = stats.get("l10_matches", [])
+        formations = [m.get("formation") for m in matches if m.get("formation")]
+        if formations:
+            unique = set(formations)
+            if len(unique) > 2:
+                lines.append(f"- {team}: ⚠ {len(unique)} different formations in L10 — tactical instability")
+            elif len(unique) == 1:
+                lines.append(f"- {team}: Consistent formation ({formations[0]})")
+            else:
+                lines.append(f"- {team}: {len(unique)} formations used in L10")
+
+        if not coach and not formations:
+            lines.append(f"- {team}: No coach/formation data available — verify manually")
+
     lines.append("")
     return "\n".join(lines)
 
 
-def _build_s36_injury() -> str:
+def _build_s36_injury(stats_a: dict, stats_b: dict) -> str:
     """§S3.6 Injury/Suspension Check."""
-    ts = _now_iso()
     lines = ["§S3.6 Injury/Suspension Check"]
-    lines.append("| Player | Status | Source | Checked |")
-    lines.append("|--------|--------|--------|---------|")
-    lines.append(
-        f"| Automated check | Data from stats cache — verify manually on Flashscore/ESPN "
-        f"| cache | {ts} |"
-    )
+
+    for label, stats in [("Team A", stats_a), ("Team B", stats_b)]:
+        team = stats.get("team", label)
+        cache = stats.get("raw_cache") or {}
+
+        injuries = cache.get("injuries") or cache.get("unavailable") or []
+        suspensions = cache.get("suspensions") or []
+
+        if injuries:
+            lines.append(f"- {team}: {len(injuries)} injured — {', '.join(str(i) for i in injuries[:5])}")
+        if suspensions:
+            lines.append(f"- {team}: {len(suspensions)} suspended — {', '.join(str(s) for s in suspensions[:5])}")
+        if not injuries and not suspensions:
+            lines.append(f"- {team}: No injury data in cache — verify on Flashscore/Sofascore before placing bet")
+
     lines.append("")
     return "\n".join(lines)
 
@@ -405,7 +461,7 @@ def _build_s37_top3(ranking_result: dict) -> str:
 
 
 def _build_s38_recommended(ranking_result: dict) -> str:
-    """§S3.8 Recommended Market."""
+    """§S3.8 Recommended Market with probability data."""
     lines = ["§S3.8 Recommended Market"]
     ranking = ranking_result.get("ranking", [])
     tw = ranking_result.get("three_way_check")
@@ -430,6 +486,21 @@ def _build_s38_recommended(ranking_result: dict) -> str:
     if h2h_avg is not None and line > 0:
         h2h_margin = round((h2h_avg - line) / line * 100, 1)
         desc += f" H2H avg ({h2h_avg}): {'+' if h2h_margin >= 0 else ''}{h2h_margin}% margin."
+
+    # Add probability data if available
+    prob = best.get("probability")
+    fair_odds = best.get("fair_odds")
+    if prob is not None and fair_odds is not None:
+        desc += f"\n**Probability model:** P(hit)={prob:.1%}, fair odds={fair_odds:.2f}."
+        desc += f" Bet if Betclic odds ≥{fair_odds:.2f} (EV>0 threshold)."
+        ci_lower = best.get("ci_lower")
+        ci_upper = best.get("ci_upper")
+        if ci_lower is not None and ci_upper is not None:
+            desc += f" 90% CI: [{ci_lower:.1%}–{ci_upper:.1%}]."
+        model = best.get("model_used", "poisson")
+        lam = best.get("lambda")
+        if lam is not None:
+            desc += f" λ={lam:.2f} ({model})."
 
     lines.append(desc)
     lines.append("")
@@ -534,7 +605,7 @@ def analyze_candidate(
         "s33": _build_s33_ranking(ranking_result),
         "s34": _build_s34_threeway(ranking_result, best_market),
         "s35": _build_s35_coach(stats_a, stats_b),
-        "s36": _build_s36_injury(),
+        "s36": _build_s36_injury(stats_a, stats_b),
         "s37": _build_s37_top3(ranking_result),
         "s38": _build_s38_recommended(ranking_result),
         "s39": _build_s39_sources(stats_a, stats_b),
@@ -689,26 +760,46 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
     if top and top > 0:
         candidates = candidates[:top]
 
-    print(f"[deep_stats] Analyzing {len(candidates)} candidates from {source}")
+    # Filter out candidates missing team names upfront
+    valid = [(i, c) for i, c in enumerate(candidates, 1)
+             if c["home_team"] and c["away_team"]]
 
-    analyses = []
-    with_data = 0
-    for i, c in enumerate(candidates, 1):
+    print(f"[deep_stats] Analyzing {len(valid)} candidates from {source}")
+
+    def _analyze_one(idx_candidate: tuple[int, dict]) -> dict | None:
+        i, c = idx_candidate
         home = c["home_team"]
         away = c["away_team"]
         sport = c["sport"]
         comp = c["competition"]
         kickoff = c["kickoff"]
+        print(f"[deep_stats] [{i}/{len(valid)}] {home} vs {away} ({sport})")
+        return analyze_candidate(sport, home, away, comp, kickoff)
 
-        if not home or not away:
-            continue
+    analyses = []
+    with_data = 0
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+        futures = {executor.submit(_analyze_one, item): item for item in valid}
+        # Collect results maintaining original order
+        results_map: dict[int, dict] = {}
+        for future in concurrent.futures.as_completed(futures):
+            item = futures[future]
+            idx = item[0]
+            try:
+                result = future.result()
+            except Exception as e:
+                home = item[1].get("home_team", "?")
+                away = item[1].get("away_team", "?")
+                print(f"[deep_stats] [ERROR] {home} vs {away} analysis failed: {e}")
+                continue
+            if result is not None:
+                results_map[idx] = result
 
-        print(f"[deep_stats] [{i}/{len(candidates)}] {home} vs {away} ({sport})")
-
-        result = analyze_candidate(sport, home, away, comp, kickoff)
-        analyses.append(result)
-        if result["has_data"]:
-            with_data += 1
+        for idx, _ in valid:
+            if idx in results_map:
+                analyses.append(results_map[idx])
+                if results_map[idx]["has_data"]:
+                    with_data += 1
 
     output = {
         "date": date,

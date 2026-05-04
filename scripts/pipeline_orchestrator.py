@@ -30,7 +30,8 @@ import shlex
 import subprocess
 import sys
 import tempfile
-from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timedelta
 from pathlib import Path
 
 try:
@@ -95,8 +96,11 @@ PIPELINE_STEPS = [
     {
         "id": "s0_settle",
         "name": "S0: Settle + Learn from History",
-        "description": "Run Betclic history analysis (§0.2 MANDATORY)",
-        "commands": ["python3 scripts/analyze_betclic_learning.py"],
+        "description": "Settle previous day (if applicable) + Run Betclic history analysis (§0.2 MANDATORY)",
+        "commands": [
+            "python3 scripts/settle_on_finish.py --betting-day {prev_date} --no-poll",
+            "python3 scripts/analyze_betclic_learning.py",
+        ],
         "outputs": ["betting/data/betclic_learning_summary.json"],
         "critical": True,
     },
@@ -109,25 +113,16 @@ PIPELINE_STEPS = [
         "critical": True,
     },
     {
-        "id": "s1b_odds",
-        "name": "S1b: Cross-Validation Odds",
-        "description": "Fetch odds from The-Odds-API",
-        "commands": ["python3 scripts/fetch_odds_api.py"],
-        "outputs": ["betting/data/odds_api_snapshot.json"],
-        "critical": False,
-    },
-    {
-        "id": "s1c_weather",
-        "name": "S1c: Weather Data",
-        "description": "Fetch weather for outdoor venues",
-        "commands": ["python3 scripts/fetch_weather.py --date {date}"],
-        "outputs": [],
+        "id": "s1b_parallel",
+        "name": "S1b: Odds + Weather + Tipsters (PARALLEL)",
+        "description": "Fetch odds, weather, and tipster data concurrently",
+        "python_step": "parallel_enrichment",
         "critical": False,
     },
     {
         "id": "s1d_matrix",
         "name": "S1d: Market Matrix",
-        "description": "Generate consolidated market matrix",
+        "description": "Generate consolidated market matrix with tipster data",
         "commands": ["python3 scripts/generate_market_matrix.py --date {date} --stats-first"],
         "outputs": [],
         "critical": False,
@@ -173,7 +168,7 @@ PIPELINE_STEPS = [
 ]
 
 # IDs of scan-phase steps (skippable with --skip-scan)
-SCAN_STEP_IDS = {"s1_scan", "s1b_odds", "s1c_weather", "s1d_matrix", "s1e_shortlist"}
+SCAN_STEP_IDS = {"s1_scan", "s1b_parallel", "s1d_matrix", "s1e_shortlist"}
 
 
 # ---------------------------------------------------------------------------
@@ -234,12 +229,20 @@ def run_command(cmd: str, date: str) -> tuple[bool, str]:
     """Run a shell command and return (success, output)."""
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
         return False, f"Invalid date format: {date} (expected YYYY-MM-DD)"
-    cmd = cmd.replace("{date}", shlex.quote(date))
+    cmd = cmd.replace("{date}", date)
+    # Compute previous date for settlement commands
+    prev_date = (datetime.strptime(date, "%Y-%m-%d") - timedelta(days=1)).strftime("%Y-%m-%d")
+    cmd = cmd.replace("{prev_date}", prev_date)
     print(f"  → Running: {cmd}")
     try:
+        use_shell = cmd.strip().startswith("bash ")
+        if use_shell:
+            run_args = cmd
+        else:
+            run_args = shlex.split(cmd)
         result = subprocess.run(
-            cmd,
-            shell=True,
+            run_args,
+            shell=use_shell,
             cwd=str(ROOT_DIR),
             capture_output=True,
             text=True,
@@ -305,8 +308,9 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
         if not odds:
             continue
         safety = (c.get("best_market") or {}).get("safety_score", 0)
-        if safety and odds:
-            ev = round(safety * odds - 1, 4)
+        prob = (c.get("best_market") or {}).get("probability") or safety
+        if prob and odds:
+            ev = round(prob * odds - 1, 4)
             c["ev"] = ev
             c.setdefault("odds", {})["market_best"] = odds
             injected += 1
@@ -318,14 +322,100 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
 # ---------------------------------------------------------------------------
 # Python-driven step implementations
 # ---------------------------------------------------------------------------
+
+def _run_parallel_enrichment(date: str, state: dict) -> tuple[bool, str]:
+    """S1b: Run odds, weather, and tipster aggregation in parallel.
+
+    These three tasks are independent and can run concurrently:
+    1. Odds API fetch (~2 min)
+    2. Weather data fetch (~1 min)
+    3. Tipster aggregation (~3-5 min with parallel site fetching)
+    """
+    results = {}
+    errors = []
+
+    def run_odds():
+        ok, out = run_command("python3 scripts/fetch_odds_api.py", date)
+        return "odds", ok, out
+
+    def run_weather():
+        ok, out = run_command("python3 scripts/fetch_weather.py --date {date}", date)
+        return "weather", ok, out
+
+    def run_tipsters():
+        ok, out = run_command("python3 scripts/tipster_aggregator.py --date {date} --workers 5", date)
+        return "tipsters", ok, out
+
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        futures = [
+            executor.submit(run_odds),
+            executor.submit(run_weather),
+            executor.submit(run_tipsters),
+        ]
+
+        for future in as_completed(futures):
+            try:
+                name, ok, out = future.result()
+                results[name] = {"ok": ok, "output": out[:200]}
+                if not ok:
+                    errors.append(f"{name}: {out[:100]}")
+                else:
+                    print(f"  ✓ {name} completed")
+            except Exception as e:
+                errors.append(f"parallel task error: {str(e)[:100]}")
+
+    parts = []
+    for name in ["odds", "weather", "tipsters"]:
+        r = results.get(name, {})
+        status = "✓" if r.get("ok") else "✗"
+        parts.append(f"{name}:{status}")
+
+    msg = f"Parallel enrichment: {', '.join(parts)}"
+    if errors:
+        msg += f" (errors: {len(errors)})"
+
+    state.setdefault("step_data", {})["parallel_results"] = {
+        k: v.get("ok", False) for k, v in results.items()
+    }
+
+    # Non-critical — always return True (individual failures logged)
+    return True, msg
+
+
 def _run_s3(date: str, state: dict) -> tuple[bool, str]:
-    """S3: Deep Statistical Analysis."""
-    shortlist_path = str(DATA_DIR / f"{date}_s2_shortlist.json")
+    """S3: Deep Statistical Analysis with probability engine integration."""
+    # build_shortlist.py writes date as compact format (no dashes)
+    date_compact = date.replace("-", "")
+    shortlist_path = str(DATA_DIR / f"{date_compact}_s2_shortlist.json")
     if not Path(shortlist_path).exists():
-        shortlist_path = None
+        # Fallback: try dashed format just in case
+        shortlist_path_alt = str(DATA_DIR / f"{date}_s2_shortlist.json")
+        shortlist_path = shortlist_path_alt if Path(shortlist_path_alt).exists() else None
 
     top = state.get("cli_args", {}).get("top")
     result = generate_deep_stats(date, shortlist_path=shortlist_path, top=top)
+
+    # Enrich with probability engine
+    try:
+        from probability_engine import enrich_ranking_with_probabilities
+        s3_path = DATA_DIR / f"{date}_s3_deep_stats.json"
+        if s3_path.exists():
+            s3_data = json.loads(s3_path.read_text(encoding="utf-8"))
+            enriched_count = 0
+            for analysis in s3_data.get("analyses", []):
+                ranking = analysis.get("ranking_result")
+                if ranking and ranking.get("ranking"):
+                    enrich_ranking_with_probabilities(ranking)
+                    enriched_count += 1
+            s3_path.write_text(
+                json.dumps(s3_data, indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            print(f"  → Enriched {enriched_count} candidates with probability data")
+    except ImportError:
+        print("  ⚠ probability_engine not available — using safety scores only")
+    except Exception as e:
+        print(f"  ⚠ Probability enrichment error: {e}")
 
     count = result.get("candidates_with_data", 0)
     total = result.get("total_candidates", 0)
@@ -475,7 +565,9 @@ def _run_s10(date: str, state: dict) -> tuple[bool, str]:
 def run_python_step(step_id: str, date: str, state: dict) -> tuple[bool, str]:
     """Dispatch to the correct Python-driven pipeline step."""
     try:
-        if step_id == "s3_deep_stats":
+        if step_id == "s1b_parallel":
+            return _run_parallel_enrichment(date, state)
+        elif step_id == "s3_deep_stats":
             return _run_s3(date, state)
         elif step_id == "s7_gate":
             return _run_s7(date, state)
@@ -576,8 +668,10 @@ def run_pipeline(
     print(f"Date: {date}")
     print(f"Session: {session}")
     print(f"Version: {state.get('version', 'v1')}")
-    print(f"Bankroll: {config.get('working_bankroll_pln', 'N/A')} PLN")
-    print(f"Daily budget: {config.get('suggested_daily_allocation_range_pln', 'N/A')} PLN")
+    bankroll = config.get('bankroll_pln', config.get('working_bankroll_pln', 'N/A'))
+    daily_budget = config.get('daily_exposure_range', config.get('suggested_daily_allocation_range_pln', 'N/A'))
+    print(f"Bankroll: {bankroll} PLN")
+    print(f"Daily budget: {daily_budget} PLN")
     print(f"Resume: {resume}")
     print(f"Skip scan: {skip_scan}")
     if top:

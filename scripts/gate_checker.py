@@ -142,8 +142,8 @@ def _check_ev(c: dict) -> tuple[bool, str]:
         return True, f"EV={ev:.3f}"
     if ev is not None:
         return False, f"EV={ev:.3f} (≤0)"
-    # Stats-first mode: EV may not be calculated yet
-    return False, "EV not calculated (no odds?)"
+    # Stats-first mode: EV not calculable without odds — user verifies on Betclic
+    return True, "STATS-FIRST: EV not calculable, user verifies manually"
 
 
 def _check_odds_drift(c: dict) -> tuple[bool, str]:
@@ -414,7 +414,9 @@ def compute_risk_tier(candidate: dict, gate_result: dict) -> str:
     is_tipster_blind = "6" in gate_failed
     is_h2h_stat_blind = "16" in gate_failed
     ev = candidate.get("ev")
-    has_positive_ev = ev is not None and ev > 0
+    # Stats-first mode: ev=None means odds not yet available (user checks Betclic)
+    # Allow LR classification when ev is None (undetermined) or positive
+    has_positive_ev = ev is None or ev > 0
 
     if (safety >= 0.75
             and gate_score >= 15

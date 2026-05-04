@@ -6,6 +6,17 @@ agent: bet-statistician
 
 # STEP 3 — DEEP STATISTICAL ANALYSIS
 
+## AUTOMATED FIRST
+
+The pipeline runs `deep_stats_report.py` automatically with 8-worker parallel candidate analysis:
+- Reads stats cache, runs §3.0 market ranking via `compute_safety_scores.rank_markets()`
+- Sport-specific H2H missing penalties (football/tennis/basketball=0.70, volleyball/hockey=0.75, etc.)
+- Enriches with Poisson/NegBin probability via `probability_engine.enrich_ranking_with_probabilities()`
+- Error-resilient: if one candidate analysis crashes, others continue
+- Produces `{date}_s3_deep_stats.md` and `{date}_s3_deep_stats.json`
+
+**Agent role:** Supplement script output for candidates without API data — web-fetch stats, verify coach/injury data, fill in H2H for niche sports. Validate script output sections.
+
 ## INPUTS
 - `betting/data/{date}_s2_shortlist.md` — shortlisted candidates
 - Sport-specific protocols from analysis-methodology.instructions.md §3.1-3.14
@@ -42,7 +53,9 @@ Each protocol defines: required stat tables, mandatory multi-market calculation 
 
 **Universal requirements for EVERY sport:**
 - §3.0 STATISTICAL MARKET RANKING: list ALL bettable stat markets, calculate safety score (`min(hit_rate_L10, hit_rate_H2H)`), rank, pick TOP market
+- §3.0-PROB PROBABILITY ENGINE: after safety scores, run Poisson/NegBin probability for EACH ranked market → P(hit), fair odds, confidence interval. Script: `probability_engine.py` (auto-run by `deep_stats_report.py`)
 - COACH/ROSTER STABILITY CHECK: coach change in last 5 matches (TransferMarkt)? Major roster changes in last 14 days?
+- TIPSTER CONSENSUS CHECK: read `{date}_tipster_consensus.json` for tipster signals on this event
 - Identify the STATISTICAL MARKET first, not the winner. Present TOP 2 markets with data.
 
 ### OUTPUT FORMAT
@@ -69,15 +82,16 @@ For each candidate, fill this EXACT template (all 10 numbered sections):
 - Team B: [LDWWLW] — scored X.X/match, conceded X.X/match
 
 ### 3. §3.0 STATISTICAL MARKET RANKING TABLE (MANDATORY — ≥3 markets)
-| Market           | TeamA avg | TeamB avg | H2H avg | Line  | Hit L10 | Hit H2H | Safety | Margin |
-|------------------|-----------|-----------|---------|-------|---------|---------|--------|--------|
-| [market 1]       |           |           |         |       |   /10   |   /5    |        |        |
-| [market 2]       |           |           |         |       |   /10   |   /5    |        |        |
-| [market 3]       |           |           |         |       |   /10   |   /5    |        |        |
-| [market 4+]      |           |           |         |       |   /10   |   /5    |        |        |
+| Market           | TeamA avg | TeamB avg | H2H avg | Line  | Hit L10 | Hit H2H | Safety | P(hit) | Fair Odds | λ | Model | CI 90% |
+|------------------|-----------|-----------|---------|-------|---------|---------|--------|--------|-----------|---|-------|--------|
+| [market 1]       |           |           |         |       |   /10   |   /5    |        |        |           |   |       |        |
+| [market 2]       |           |           |         |       |   /10   |   /5    |        |        |           |   |       |        |
+| [market 3]       |           |           |         |       |   /10   |   /5    |        |        |           |   |       |        |
+| [market 4+]      |           |           |         |       |   /10   |   /5    |        |        |           |   |       |        |
 
-**Selected market**: [market with HIGHEST safety score] — Safety: X.X
-**Why this beat alternatives**: [1 sentence — e.g., "Fouls had 80% safety vs corners 60% — both teams physical style"]
+**Selected market**: [market with HIGHEST safety score] — Safety: X.X, P(hit): XX.X%, Fair odds: X.XX
+**Why this beat alternatives**: [1 sentence — e.g., "Fouls had 80% safety + 73% P(hit) vs corners 60% safety + 87% P(hit) — fouls safer, corners more probable"]
+**Min Betclic odds for EV>0**: X.XX (= 1/P(hit))
 
 ### 4. THREE-WAY CROSS-CHECK
 - L10 AVERAGE → [value] → hit rate vs line: [X/10]
@@ -130,6 +144,61 @@ For each candidate, fill this EXACT template (all 10 numbered sections):
 - **Volleyball**: Must fill §3.5M multi-market table (Sets, Points, Set HC, Pts/set)
 - **Other sports**: Must fill the sport-specific §XM table from sport-analysis-protocols.instructions.md
 
+## ANALYTICAL THINKING LAYER (MANDATORY — after template, before submission)
+
+Scripts fill templates. YOU add the thinking that makes picks POWERFUL. For EVERY candidate, after completing sections 1-10, write an ANALYTICAL REASONING block:
+
+### WHY does this statistical edge exist? (Edge Mechanism)
+Don't just report "safety 0.80." EXPLAIN the tactical/structural reason:
+- How do the two teams' STYLES interact to produce this specific stat? (e.g., "high press vs. counter-attack → transitions create corner opportunities from both sides")
+- Is this a permanent structural trait (team identity, tactical system) or temporary (fixture congestion, motivation)?
+- What role does the venue/referee/weather play in amplifying or dampening this stat?
+
+### What do the numbers REALLY tell us? (Pattern Intelligence)
+Look BEYOND averages for patterns the scripts miss:
+- **Distribution**: Is the stat consistent (10, 11, 10, 12) or volatile (4, 18, 7, 16)? Volatile = safety score is misleading.
+- **Opposition quality**: Were recent stats against strong or weak opponents? Adjust mentally.
+- **Trend trajectory**: L5 moving up or down from L10? WHY? (new tactics? returning player? schedule softening?)
+- **Home/away split significance**: Does the venue dramatically change the team's profile for THIS stat?
+
+### Are there statistical anomalies? (Anomaly Check)
+Flag even if safety score looks good:
+- **Outlier dependency**: 2 extreme games inflating the average → misleading safety score
+- **Sample size warning**: H2H with only 3 meetings → low confidence
+- **Correlation trap**: High corners + high fouls in same match from aggressive style → hidden coupon correlation
+- **Regression signal**: Team outperforming xG/xCorners → will regress
+
+### Does the story hold together? (Narrative Coherence)
+All data should tell a CONSISTENT story:
+- L10 says OVER but H2H says UNDER → INVESTIGATE
+- High safety but low P(hit) → distribution may be bimodal → check model
+- Tipsters vs stats disagree → who has better info?
+- Recommended market should logically follow from tactical analysis
+
+### Why would the market misprice this? (Inefficiency Hypothesis)
+State clearly why you think there IS value:
+- Betclic uses simpler models for statistical markets than for match winner
+- Recent tactical change not yet reflected in market pricing
+- Niche market with low liquidity → less efficient pricing
+- If you CANNOT articulate why the market is wrong → flag: "EDGE HYPOTHESIS UNCLEAR — proceed with caution"
+
+### Confidence Modifier
+Based on reasoning quality, adjust pick confidence:
+- **+0.5**: Strong edge mechanism + consistent patterns + clear inefficiency hypothesis
+- **0**: Adequate reasoning but some uncertainty
+- **−0.5**: Weak hypothesis, volatile distribution, or unclear edge mechanism
+
+**Output format (write after section 10):**
+```
+### ANALYTICAL REASONING
+- **Edge mechanism**: [1-2 sentences — tactical/structural explanation]
+- **Pattern insight**: [1-2 sentences — what data reveals beyond averages]
+- **Anomaly check**: [CLEAN / WARNING: {concern}]
+- **Narrative coherence**: [CONSISTENT / CONFLICT: {explain}]
+- **Edge hypothesis**: [why the market misprices this]
+- **Confidence modifier**: [+0.5 / 0 / −0.5]
+```
+
 ## SELF-VERIFICATION CHECKLIST
 
 **Count-based verification — the orchestrator will independently re-count these:**
@@ -143,6 +212,7 @@ For each candidate, fill this EXACT template (all 10 numbered sections):
 - [ ] **V-S3-07**: Every candidate has INJURY CHECK with source named (not just "none")
 - [ ] **V-S3-08**: Every candidate has TOP 3 MARKETS listed with hit rates
 - [ ] **V-S3-09**: Tennis: odds ratio calculated + graded (STRONG/GOOD/BORDERLINE/REJECT)
+- [ ] **V-S3-11**: Every candidate has ANALYTICAL REASONING section with all 6 fields (edge mechanism, pattern insight, anomaly check, narrative coherence, edge hypothesis, confidence modifier)
 - [ ] **V-S3-10**: Tennis: WC/Q/LL status checked for EVERY player
 - [ ] **V-S3-11**: Hockey: goalie confirmation attempted (DailyFaceoff)
 - [ ] **V-S3-12**: Baseball: starting pitcher identified (BaseballSavant)

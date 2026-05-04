@@ -10,6 +10,18 @@ agent: bet-scout
 - `betting/data/{date}_s3_deep_stats.md` — candidates with stats
 
 ## TASK
+
+### PRE-CHECK: TIPSTER AGGREGATOR OUTPUT
+Before manually checking tipster sites, check if the automated aggregator already ran (S1b parallel step):
+1. Read `betting/data/{date}_tipster_consensus.json` — contains structured picks from 12 tipster sites
+2. Read `betting/data/{date}_tipster_consensus.md` — human-readable consensus summary
+3. If these files exist: use them as your STARTING POINT. Focus manual deep-dive on:
+   - High-consensus events (>70%) → read FULL arguments for the WHY
+   - Contradictions (tipsters vs stats) → investigate deeply
+   - Statistical market picks → §4.3 watchlist promotion
+   - Gaps (events with NO tipster coverage) → try emergency sources
+4. If files don't exist: run `python3 scripts/tipster_aggregator.py --date {date} --workers 5`
+
 For EACH candidate, check ≥2 argument-based tipster sites. Read FULL WRITTEN ARGUMENTS — not just bare picks.
 
 ### §1.5 PRE-FETCHED HTML (MANDATORY — use these FIRST)
@@ -134,6 +146,41 @@ For each candidate:
 [List events promoted with full tipster argument, accuracy, cited data, and promotion criteria]
 ```
 
+## TIPSTER INTELLIGENCE THINKING LAYER (MANDATORY — after data collection, before submission)
+
+Collecting tipster picks is mechanics. The REAL value is ANALYZING what the tipster landscape tells you. For EVERY candidate, add a TIPSTER INTELLIGENCE ANALYSIS block:
+
+### Argument Quality Assessment
+Rate each tipster's reasoning: **DATA-BACKED** (cites H2H, stats, line coverage) / **CONTEXTUAL** (cites injuries, motivation, form) / **OPINION-ONLY** (bare pick, no reasoning). Only DATA-BACKED arguments modify your thesis.
+
+### Independent vs. Echo Check
+Are multiple tipsters TRULY independent? Check for:
+- Identical phrasing or stats → likely copied from same source
+- Same platform → lower independence (2 ZawodTyper tipsters ≠ ZT + OLBG)
+- Posted within minutes of each other → reactive, not independent
+- **True consensus = ≥2 INDEPENDENTLY DERIVED arguments.** 5 copycats = 1 source.
+
+### Contrarian Signal Detection (MOST VALUABLE)
+When ONE tipster disagrees with everyone AND cites data → this is the strongest signal:
+- What data do they cite that others miss? Investigate it.
+- Is their framework different (recent form vs season stats, surface-specific vs general)?
+- **A data-backed contrarian MUST be addressed — refuted with better data or incorporated into bear case.**
+
+### Angle Discovery
+What NEW information did tipsters surface that pure S3 stats missed?
+- Tactical changes, specific injuries to set-piece specialists, referee assignments, motivational factors
+- If a tipster discovers a genuinely new angle → ADD IT to the S3 reasoning for that candidate
+
+**Output format per candidate (write after consensus section):**
+```
+### TIPSTER INTELLIGENCE
+- **Argument quality**: Best: [summary] (DATA/CONTEXTUAL/OPINION)
+- **Independence**: [HIGH/LOW/MIXED] — [evidence]
+- **Contrarian signal**: [NONE / {tipster}: {argument} → {refuted/incorporated}]
+- **New angle**: [NONE / {angle} → impact: {assessment}]
+- **Intelligence confidence modifier**: [+0.5 / 0 / −0.5 / −1.0]
+```
+
 ## SELF-VERIFICATION CHECKLIST
 
 - [ ] **V-S4-01**: Every candidate has ≥2 tipster sites checked
@@ -148,6 +195,7 @@ For each candidate:
 - [ ] **V-S4-10**: New angles/insights recorded (injuries, tactical, weather, motivation)
 - [ ] **V-S4-11**: §1.5 pre-fetched HTML was used for tipster analysis (not just web-fetch summaries)
 - [ ] **V-S4-12**: §4.3 watchlist promotion completed — all tipster statistical-market picks reviewed, qualifying ones added to LISTA OBSERWACYJNA
+- [ ] **V-S4-13**: Every candidate has TIPSTER INTELLIGENCE ANALYSIS section with all 6 fields (argument quality, independence check, contrarian signal, local knowledge, angle discovery, intelligence verdict)
 
 ### ERROR LOG
 ```

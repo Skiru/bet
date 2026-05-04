@@ -60,7 +60,7 @@ REQUIRED READS:
 
 **ALL sessions (full/day/night/morning) execute the EXACT SAME pipeline:**
 - Same 4-pass protocol (Discovery → Targeted Fixes → Polish → Final)
-- Same S0 → S1 → S1b → S1c → S1d → S2 → S3 → S4 → S5 → S6 → S7 → S3B → S8 step sequence
+- Same S0 → S1 → S1b (PARALLEL: odds+weather+tipsters) → S1d → S1e → S3 → S7 → S8 → S9 → S10 automated step sequence
 - Same 14-sport scan in S1 (ALL sports, even if most have 0 events in the window)
 - Same deep analysis (S3-S7): H2H, tipsters, injuries, bear case, 17-point gate
 - Coupon count = f(quality events, deep statistics), NOT f(bankroll). Produce as many as quality justifies.
@@ -94,7 +94,21 @@ If the time window yields fewer events → the shortlist is smaller → fewer pi
 python3 scripts/pipeline_orchestrator.py --date YYYY-MM-DD [--session full|day|night|morning] [--resume]
 ```
 
-This runs S0 (Betclic history analysis) → S1 (full scan) → S1b (odds API) → S1c (weather) automatically with state tracking. Agent-driven steps (S2-S8) are marked as ready. Use `--resume` to continue after failures. Use `--status` to check progress anytime.
+This runs the ENTIRE pipeline S0→S10 automatically:
+- **S0**: Betclic history analysis (`analyze_betclic_learning.py`)
+- **S1**: Full 14-sport scan (`run_full_scan_and_prepare.sh`) — **domain-grouped parallel scanning** (6 workers, ~8 min vs 30+ min sequential)
+- **S1b**: Odds + weather + tipsters in PARALLEL (ThreadPoolExecutor, 3 workers)
+- **S1d**: Market matrix generation (`generate_market_matrix.py --stats-first`)
+- **S1e**: Ranked shortlist (`build_shortlist.py --top 100 --stats-first`)
+- **S3**: Deep stats analysis — **8-worker parallel candidate analysis**, Poisson/NegBin probability enrichment, error-resilient (one crash doesn't kill batch)
+- **S7**: 17-point gate — **stats-first EV fix** (passes candidates without odds with advisory), sport-specific H2H penalties
+- **S8**: Coupon construction — **rich per-leg analysis rationale** in Polish (safety rank, L10/H2H margins, P(hit), form trends, risk factors), Kelly 1/4 staking
+- **S9**: V1-V10 validation (expanded odds regex matches `@1.85` and `(1.85)`)
+- **S10**: Final summary
+
+State tracking with `--resume` support. Use `--status` to check progress. Use `--skip-scan` to re-run analysis only.
+
+**Config keys used:** `bankroll_pln` (fallback: `working_bankroll_pln`), `daily_exposure_range` (fallback: `suggested_daily_allocation_range_pln`).
 
 ### OPTION B: Manual step-by-step (fallback)
 
@@ -159,19 +173,18 @@ Each pass executes these steps IN ORDER. Each step:
 |------|--------|-------|-------|--------|------|
 | S0 | `s0-settlement` | bet-settler | picks-ledger, coupons-ledger, Flashscore | `{date}_s0_settlement.md` | All pending resolved, bankroll updated |
 | S1 | `s1-scan` | bet-scanner | BetExplorer, Flashscore, scan_summary, **analysis_pool_{date}.json**, **market_matrix_{date}.json** | `{date}_s1_master_events.md` + `{date}_s1_tipster_prefetch.md` | ≥50 events, ALL 14 sports scanned (≥6 with events), completeness ≥80%, **tipster HTML fetched** |
-| S1b | _(auto)_ | _(script)_ | `fetch_odds_multi.py` or `fetch_odds_api.py` | `odds_api_snapshot.json`, `odds_multi_sources.json` | Odds cross-validated |
-| S1c | _(auto)_ | _(script)_ | `fetch_weather.py --date {date}` | `weather_{date}.json` | Weather flags for outdoor sports |
+| S1b | _(auto)_ | _(script)_ | **PARALLEL**: `fetch_odds_api.py` + `fetch_weather.py` + `tipster_aggregator.py` | `odds_api_snapshot.json`, `weather_{date}.json`, `{date}_tipster_consensus.json` | Odds + weather + tipster consensus |
 | S1d | _(auto)_ | _(script)_ | `generate_market_matrix.py --date {date} --stats-first` | `market_matrix_{date}.json/md`, `decision_matrix_{date}.md` | Full event universe with all odds + safety data |
 | S2 | _(auto + agent)_ | bet-scanner | `build_shortlist.py --date {date} --top 100 --stats-first` → agent refines | `{date}_s2_shortlist.md` + `{date}_s2_shortlist.json` | 50-100 candidates, ≥8 sports in shortlist |
 | **S3+S4** | **PARALLEL** | | S2 output → both | | |
-| S3 | `s3-deep-stats` | bet-statistician | S2 output, **analysis_pool** (pre-computed safety scores) | `{date}_s3_deep_stats.md` | **AUTOMATED: `validate_s3_output.py` — ALL candidates PASS** |
-| S4 | `s4-tipsters` | bet-scout | S2 output + **§1.5 pre-fetched HTML** | `{date}_s4_tipsters.md` | **STRUCTURAL: ≥2 tipster sites with arguments per candidate + coverage table + §4.3 done** |
+| S3 | **AUTOMATED** (`deep_stats_report.py`, 8-worker parallel) + `s3-deep-stats` supplement | bet-statistician | S2 shortlist, **analysis_pool** (pre-computed safety), stats cache | `{date}_s3_deep_stats.md/json` | **Script runs §3.0 market ranking + Poisson/NegBin probability. Sport-specific H2H penalties (0.70-0.90). Agent supplements for candidates without API data. ANALYTICAL GATE: ANALYTICAL REASONING section per candidate (edge mechanism, pattern insight, anomaly check, edge hypothesis).** |
+| S4 | `s4-tipsters` | bet-scout | S2 output + **§1.5 pre-fetched HTML** | `{date}_s4_tipsters.md` | **STRUCTURAL: ≥2 tipster sites with arguments per candidate + coverage table + §4.3 done. ANALYTICAL GATE: TIPSTER INTELLIGENCE section per candidate (argument quality, independence, contrarian signals, angle discovery).** |
 | **S5+S6** | **PARALLEL** | | S3+S4 merged → both | | |
-| S5 | `s5-odds-ev` | bet-valuator | S3+S4 output, **analysis_pool** (pre-computed EV) | `{date}_s5_odds_ev.md` | EV formula shown per pick, ≥2 odds sources per pick |
-| S6 | `s6-context-upset` | bet-challenger | S3+S4 output | `{date}_s6_context.md` | Upset risk scored with full checklist per candidate, Paradox Rule applied |
-| S7 | `s7-bear-case-gate` | bet-challenger | S5+S6 output | `{date}_s7_gate.md` | **STRUCTURAL: full 17-point gate + `check_48h_repeats.py` for gate #14** |
+| S5 | `s5-odds-ev` | bet-valuator | S3+S4 output, **analysis_pool** (pre-computed EV) | `{date}_s5_odds_ev.md` | EV formula shown per pick, ≥2 odds sources per pick. **ANALYTICAL GATE: MARKET INTELLIGENCE section per candidate (line reasoning, money flow, mispricing vector, edge durability).** |
+| S6 | `s6-context-upset` | bet-challenger | S3+S4 output | `{date}_s6_context.md` | Upset risk scored with full checklist per candidate, Paradox Rule applied. **ANALYTICAL GATE: CONTEXTUAL REASONING per candidate (motivation analysis, context-stat interaction, compounding factors).** |
+| S7 | **AUTOMATED** (`gate_checker.py`) + `s7-bear-case-gate` supplement | bet-challenger | S5+S6 output | `{date}_s7_gate.md/json` | **Script runs 17-point gate, stats-first EV pass (no odds → advisory, not rejection), red flags, risk tiers. Agent builds qualitative bear cases for borderline picks. ANALYTICAL GATE: DEEP ADVERSARIAL REASONING per candidate (scenario model, assumption audit, historical analogy, Bayesian update).** |
 | S3B | `s3b-time-sensitive` | bet-statistician | S7 + S5 output + `weather_{date}.json` | `{date}_s3b_time_sensitive.md` | Lineups, weather (from `fetch_weather.py`), odds drift formula per pick |
-| S8 | `s8-portfolio-coupons` | bet-builder | S7+S3B output | Coupon file + ledgers | **AUTOMATED: `validate_coupons.py` — ALL coupons PASS** + V10e matrix |
+| S8 | **AUTOMATED** (`coupon_builder.py`) + `s8-portfolio-coupons` review | bet-builder | S7+S3B output | Coupon file + ledgers | **Script builds core portfolio + combo menu + extended pool with Kelly 1/4 stakes + rich per-leg Polish analysis (safety rank, L10/H2H margins, P(hit), form trends). Agent reviews and runs V1-V10 + §S8.FINAL.** |
 
 **PARALLEL EXECUTION:** S3 and S4 both receive S2 shortlist as input. Neither depends on the other. Delegate simultaneously via `runSubagent`. Wait for BOTH to complete. Similarly, S5 and S6 both receive merged S3+S4 output — delegate simultaneously.
 
@@ -258,7 +271,7 @@ This eliminates 2 unnecessary passes when the pipeline produces clean output on 
 
 ### PASS 1 — DISCOVERY (find all errors)
 
-Execute S0 → S1 → S1b → S1c → S1d → S2 → S3 → S4 → S5 → S6 → S7 → S3B → S8 fully. At each step:
+Execute S0 → S1 → S1b(parallel) → S1d → S1e → S3 → S7 → S8 → S9 → S10 fully. At each step:
 - Run the step's self-verification checklist
 - Log EVERY failure to: `betting/data/{date}_pass1_errors.md`
 - Format: `| Step | Check | Status | Error Description | Fix Required |`

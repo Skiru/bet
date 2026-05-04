@@ -128,6 +128,65 @@ For EVERY candidate:
 | Padel | Game totals → Set totals → Set HC → ML |
 | Speedway | Total pts → HC → Match winner |
 
+## §3.0-PROB Probability Engine (MANDATORY after safety scores)
+
+After ranking markets by safety score, run the probability engine on each ranked market to get TRUE MATHEMATICAL PROBABILITY:
+
+### Methodology
+
+**Poisson Distribution** (default for count data):
+- ALL sports count markets are Poisson-distributed: corners, fouls, cards, shots, games, sets, points, frames, rounds, legs, 180s, aces
+- λ (expected count) = weighted average: **40% × L5_avg + 35% × L10_avg + 25% × H2H_avg**
+- Recency weighting rationale: L5 captures current tactical setup and squad fitness, L10 provides stable baseline, H2H captures matchup-specific tendencies
+- P(Over X.5) = 1 - CDF(X, λ) where CDF is cumulative Poisson distribution
+- P(Under X.5) = CDF(X, λ)
+
+**Negative Binomial** (auto-selected when overdispersed):
+- When variance/mean > 1.5 across the sample → data is overdispersed (clustered events)
+- Common for: goals, runs, power play goals — events that come in bursts
+- Uses moment-matching to estimate r (failures) and p (success probability)
+- P(Over X) = 1 - NegBin_CDF(X, r, p)
+
+**Confidence Intervals** (90% bootstrap):
+- 1000 resamples from L10+L5+H2H combined values
+- For each resample: compute λ → compute P(hit)
+- Report 5th and 95th percentile → 90% CI
+
+### Output per market:
+```
+| Market | Safety | P(hit) | Fair Odds | Min EV>0 | λ | Model | CI 90% |
+```
+
+- **P(hit)**: True mathematical probability of the market hitting
+- **Fair odds**: 1 / P(hit) — minimum odds needed for break-even
+- **Min EV>0**: Fair odds + margin — minimum Betclic odds for positive EV
+- **λ**: Expected count (weighted average)
+- **Model**: POISSON or NEGBIN
+- **CI 90%**: [lower%, upper%] confidence interval
+
+### Usage
+```bash
+# Standalone calculation:
+python3 scripts/probability_engine.py --line 9.5 --direction OVER --values "11,8,13,9,10,12,7,11,9,5"
+
+# Integrated in pipeline (automatic):
+python3 scripts/deep_stats_report.py --date YYYY-MM-DD
+# → calls enrich_ranking_with_probabilities() after safety scores
+
+# Python import:
+from probability_engine import compute_probability, compute_ev
+result = compute_probability(9.5, "OVER", l10, l5, h2h)
+prob, fair_odds = result["probability"], result["fair_odds"]
+ev = compute_ev(prob, betclic_odds)
+```
+
+### Decision Rules
+- **P(hit) > 75% AND safety ≥ 0.70** → Strong candidate for LR coupon
+- **P(hit) 60-75% AND safety ≥ 0.60** → Candidate for MS coupon
+- **P(hit) < 50%** → Needs exceptionally high odds for positive EV (fair odds > 2.00)
+- **CI width > 30%** → Low confidence — insufficient data, flag for user
+- **NEGBIN model selected** → Data is overdispersed, expect higher variance
+
 ## Connected Skills
 
 - `bet-navigating-sources` — provides the source chains for gathering statistical data

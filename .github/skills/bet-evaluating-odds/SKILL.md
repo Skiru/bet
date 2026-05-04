@@ -16,10 +16,11 @@ EV = (true_probability × betclic_odds) - 1
 
 - Must be > 0 for approval. EV ≤ 0 → REJECT.
 - true_probability sources (in priority order):
-  1. Pinnacle implied probability (strip margin) — most sharp
-  2. Average of sharp bookmakers (Pinnacle, Betfair, bet365)
-  3. Statistical model estimate from deep analysis data
-  4. Tipster consensus
+  1. **Poisson/NegBin probability engine** (`scripts/probability_engine.py`) — for ALL count-based stat markets (corners, fouls, cards, shots, games, sets, points, frames, rounds, legs, 180s). Returns mathematically rigorous P(hit) with 90% confidence interval. PRIMARY source.
+  2. Pinnacle implied probability (strip margin) — cross-validation for stat markets, PRIMARY for outcome markets (ML, DC, DNB)
+  3. Average of sharp bookmakers (Pinnacle, Betfair, bet365)
+  4. Statistical model estimate from deep analysis data
+  5. Tipster consensus
 
 ## Price Gap Analysis
 
@@ -64,6 +65,33 @@ If Kelly ≤ 0 → NO BET (no edge exists).
 | Higher-risk (HR) | 2.00 PLN |
 
 Total suggested exposure may exceed daily budget — user decides which coupons to place.
+
+## Probability Engine Integration
+
+For count-based statistical markets, the probability engine provides the most accurate true probability:
+
+```bash
+# Read from S3 output (already computed):
+# Look for P(hit), Fair Odds, λ columns in the ranking table
+
+# Or compute directly:
+python3 scripts/probability_engine.py --line 9.5 --direction OVER --values "11,8,13,9,10"
+
+# Python:
+from probability_engine import compute_probability, compute_ev, compute_kelly_quarter
+result = compute_probability(line=9.5, direction="OVER", l10_values=[...], l5_values=[...], h2h_values=[...])
+prob, fair_odds = result["probability"], result["fair_odds"]
+ev = compute_ev(prob, betclic_odds)
+stake = compute_kelly_quarter(prob, betclic_odds, bankroll)
+```
+
+**Cross-validation with Pinnacle:**
+- If |Poisson_prob - Pinnacle_prob| < 5% → high confidence, use Poisson
+- If |Poisson_prob - Pinnacle_prob| 5-10% → moderate confidence, average the two
+- If |Poisson_prob - Pinnacle_prob| > 10% → investigate: check for news, injuries, sharp money
+- CI width > 25% → low data confidence, weight Pinnacle higher
+
+**Min Betclic Odds = 1 / P(hit)** — the fair odds. Betclic must offer ABOVE this for EV > 0.
 
 ## American Odds Conversion
 

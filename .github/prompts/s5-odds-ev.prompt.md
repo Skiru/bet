@@ -33,11 +33,12 @@ Before web-fetching odds for each candidate:
    - The-Odds-API (cross-validation)
    - Sport-specific: SBR for US sports, SoccerStats for football
 
-2. **Estimate true probability**:
-   - Pinnacle implied probability (if available) — most sharp
-   - Average of sharp bookmakers (Pinnacle, Betfair, bet365)
-   - Statistical model estimate from S3 data
-   - Tipster consensus from S4
+2. **Estimate true probability** (hierarchy — use highest available):
+   1. **Poisson/NegBin probability engine** — for count-based stat markets (from S3 P(hit), fair odds, CI)
+   2. Pinnacle implied probability (strip margin) — cross-validation for stat markets, PRIMARY for ML
+   3. Average of sharp bookmakers (Pinnacle, Betfair, bet365)
+   4. Statistical model estimate from S3 data
+   5. Tipster consensus from S4
 
 3. **Calculate EV**:
    ```
@@ -84,7 +85,10 @@ For each candidate:
 | Betclic (est.) | X.XX | CONDITIONAL |
 | Pinnacle | X.XX | [market] |
 
-- **True probability estimate**: XX% (method: [Pinnacle implied / model / consensus])
+- **True probability (Poisson)**: XX.X% (λ=X.X, model: POISSON/NEGBIN, CI: [XX%-XX%])
+- **True probability (Pinnacle)**: XX.X% (cross-validation)
+- **Final true_prob used**: XX.X% (method: [Poisson / Pinnacle / averaged])
+- **Min Betclic odds for EV>0**: X.XX (= 1/true_prob)
 - **Betclic odds (est.)**: X.XX (CONDITIONAL — verify on app)
 - **EV**: +X.X% ✅ or -X.X% ❌
 - **price_gap_pct**: X.X%
@@ -92,7 +96,24 @@ For each candidate:
 - **Drift check**: analysis odds X.XX → current X.XX = X.X% change [OK/RE-EVAL]
 - **1/4 Kelly**: X.XX PLN
 - **VERDICT**: APPROVED / REJECTED (reason)
+
+### MARKET INTELLIGENCE (MANDATORY — adds reasoning to calculations)
+- **Line reasoning**: [who set the line, what's priced in, where public money likely sits]
+- **Money flow**: [SHARP AGREES/DISAGREES/UNCLEAR — {evidence from Pinnacle movement}]
+- **Mispricing vector**: [WHY Betclic misprices this — stat market inefficiency? timing? liquidity?]
+- **Edge durability**: [ROBUST/MODERATE/FRAGILE — main risk to edge surviving until placement]
+- **Relative value**: EV rank {N}/{total}, Kelly fraction {value}
 ```
+
+## MARKET INTELLIGENCE THINKING LAYER (MANDATORY — after calculations, before submission)
+
+EV > 0 is the mathematical floor. YOUR value-add is REASONING about WHETHER the edge is real:
+
+### For EVERY approved candidate, think through:
+1. **WHY is the line where it is?** What information did the bookmaker use? Is their model simpler than yours for this specific market type? (Statistical markets like corners/fouls use cruder models → more mispricing.)
+2. **Who's on which side?** Check Pinnacle movement direction. Sharp money moving WITH your pick = confirmation. Moving AGAINST = investigate deeply.
+3. **Will the edge survive?** Time to kickoff matters. 12h out → edge might narrow 50%. News risk (lineup, injury) could eliminate it. How FRAGILE is this edge?
+4. **Is this the BEST use of bankroll?** Compare EV × confidence across ALL approved picks. The pick with highest EV isn't always the best choice if its confidence is low.
 
 ## SELF-VERIFICATION CHECKLIST
 
@@ -106,6 +127,7 @@ For each candidate:
 - [ ] **V-S5-08**: Drift > 8% flagged for re-evaluation
 - [ ] **V-S5-09**: Kelly fraction calculated (positive for all approved picks)
 - [ ] **V-S5-10**: No approved pick has only 1 odds source
+- [ ] **V-S5-11**: Every candidate has MARKET INTELLIGENCE section with all 5 fields (line reasoning, money flow, mispricing vector, edge durability, relative value)
 
 ### ERROR LOG
 ```

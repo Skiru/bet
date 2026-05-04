@@ -559,8 +559,8 @@ def main():
     args = parser.parse_args()
 
     if not LEDGER.exists():
-        log(f"Ledger not found: {LEDGER}")
-        sys.exit(1)
+        log(f"Ledger not found: {LEDGER} — nothing to settle (first run?)")
+        return
 
     picks = read_csv(LEDGER)
     coupons = read_csv(COUPONS_LEDGER) if COUPONS_LEDGER.exists() else []

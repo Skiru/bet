@@ -6,6 +6,20 @@ agent: bet-challenger
 
 # STEP 7 — BEAR CASE + RED FLAGS + PICK GATE
 
+## AUTOMATED FIRST
+
+The pipeline runs `gate_checker.py` automatically:
+- All 17 gate points evaluated programmatically
+- Stats-first EV fix: candidates without odds pass gate #8 with advisory "user verifies manually"
+- Gate #9 (drift) also passes with advisory when no odds available
+- Red flags checked per sport-specific checklists
+- Risk tier (LR/MS/HR/N) and confidence scoring
+- 48h repeat check via picks-ledger
+- Sport diversity check (§7.6)
+- Produces `{date}_s7_gate_results.json` and `{date}_s7_gate_results.md`
+
+**Agent role:** Build qualitative bear cases for borderline picks, construct adversarial arguments, verify Zero Tolerance Shield manually, check context that scripts can't access (injuries, weather, lineup changes).
+
 ## INPUTS
 - `betting/data/{date}_s6_context.md` — context + upset risk
 - All prior S3-S6 data per candidate
@@ -138,7 +152,26 @@ Save to: `betting/data/{date}_s7_gate.md`
 | 1-14 | ... | ... |
 
 **FINAL VERDICT**: ✅ APPROVED (confidence X/5) / ❌ REJECTED (reason) / ⚠️ WATCHLIST (promote if...)
+
+### DEEP ADVERSARIAL REASONING (MANDATORY — the thinking that makes picks battle-tested)
+- **Scenario model**: BULL {P}% / BASE {P}% / BEAR {P}% — pick survives in [scenarios] — probabilities must sum to 100%
+- **Assumptions challenged**: List top 5 assumptions in the thesis, challenge each with data. {N}/5 survived — weakest: [{assumption}]
+- **Historical analogy**: [NONE / {similar past situation} → {outcome} → {relevance to this pick}]
+- **Second-order effects**: [beyond obvious — e.g., "rain → fewer corners" is first-order; "rain → fewer goals → closer game → MORE corners from desperation" is second-order]
+- **Bayesian update**: Prior P(hit)={X}% → Adjusted P(hit)={Y}% after context/tipster/analogy evidence
+- **Adversarial verdict**: [ROBUST / FRAGILE / REJECT] — {1-sentence justification}
 ```
+
+## DEEP ADVERSARIAL THINKING LAYER (MANDATORY — after gate, before submission)
+
+The 17-point gate is mechanical. `gate_checker.py` handles that. YOUR unique value is ADVERSARIAL THINKING that scripts can't do:
+
+### For EVERY candidate, think deeply:
+1. **Model THREE scenarios** (Bull/Base/Bear) with explicit probabilities summing to 100%. The pick wins fully in BULL, partially in BASE, loses in BEAR. If BEAR > 30% → pick should be HR, not LR.
+2. **Audit TOP 5 assumptions** in the thesis. Challenge each with contrary evidence. If ANY assumption fails → confidence drops.
+3. **Search for historical analogies** — have you seen this exact situation before? Check Betclic history and picks-ledger for this team/player.
+4. **Think second-order** — the obvious conclusion is already priced in. What happens NEXT? (e.g., key player injury → fewer set pieces is obvious → but also changes formation → might create MORE open play corners)
+5. **Bayesian update**: Start with Poisson P(hit), then adjust for every piece of context evidence. State final adjusted probability explicitly. If >10% divergence from model, explain why.
 
 ## SELF-VERIFICATION CHECKLIST
 
@@ -152,6 +185,7 @@ Save to: `betting/data/{date}_s7_gate.md`
 - [ ] **V-S7-08**: No APPROVED pick has any FAIL in 17-point gate
 - [ ] **V-S7-09**: Zero Tolerance patterns checked (ML default, WC, drift, date)
 - [ ] **V-S7-10**: Rejected picks have clear reason documented
+- [ ] **V-S7-11**: Every APPROVED candidate has DEEP ADVERSARIAL REASONING section with all 6 fields (scenario model, assumptions challenged, historical analogy, second-order effects, Bayesian update, adversarial verdict)
 
 ### PASS/FAIL GATE
 - ALL checks pass → "S7 PASSED" → proceed to S8

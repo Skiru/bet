@@ -29,18 +29,17 @@ python3 scripts/pipeline_orchestrator.py --list-steps
 | Step | Name | Type | Duration | Description |
 |------|------|------|----------|-------------|
 | S0 | Settle + History | Shell | ~1 min | Betclic history analysis (§0.2 MANDATORY) |
-| S1 | Complete Scan | Shell | 20-40 min | 14-sport Playwright scan + API fixtures |
-| S1b | Odds API | Shell | ~2 min | Cross-validation odds from The-Odds-API |
-| S1c | Weather | Shell | ~1 min | Weather data for outdoor venues |
+| S1 | Complete Scan | Shell | 5-10 min | 14-sport Playwright scan + API fixtures (PARALLEL: 6 domain workers) |
+| S1b | Odds+Weather+Tipsters | Python | ~5 min | **PARALLEL**: odds API + weather + tipster aggregation (3 threads) |
 | S1d | Market Matrix | Shell | ~2 min | Consolidated market matrix from all sources |
 | S1e | Shortlist | Shell | ~1 min | Ranked shortlist of top 100 events |
-| S3 | Deep Stats | Python | ~1 min | Per-candidate L10/H2H/L5 analysis, §3.0 ranking |
+| S3 | Deep Stats + Probability | Python | ~1 min | Per-candidate L10/H2H/L5 analysis + Poisson probability engine (PARALLEL: 8 workers) |
 | S7 | Gate Check | Python | ~1 min | 17-point approval gate, risk classification |
 | S8 | Coupons | Python | ~1 min | Core portfolio + combo menu + extended pool |
 | S9 | Validation | Python | ~1 min | Coupon arithmetic and structure validation |
 | S10 | Summary | Python | instant | Final summary and artifact listing |
 
-**Total estimated runtime: 30-50 minutes** (dominated by S1 scan)
+**Total estimated runtime: 12-20 minutes** (3-4x faster with parallel scanning and analysis)
 
 ## Output Files
 
@@ -60,14 +59,22 @@ After a successful run, find your coupons at:
 ```
                      S0: Betclic History
                             │
-                     S1: Full 14-Sport Scan
-                     ┌──────┼──────┐
-                  S1b:Odds S1c:Wx S1d:Matrix
-                     └──────┼──────┘
+                     S1: Full 14-Sport Scan (PARALLEL: 6 domain workers)
+              ┌──────┬──────┼──────┬──────┬──────┐
+           Flash  Sofa   Bet    Odds   Bet   Other
+           score  score  clic   portal Expl  domains
+              └──────┴──────┼──────┴──────┴──────┘
+                            │
+                  S1b: PARALLEL ENRICHMENT
+                  ┌─────────┼─────────┐
+              S1b-Odds  S1b-Weather S1b-Tipsters
+                  └─────────┼─────────┘
+                     S1d: Market Matrix
+                            │
                      S1e: Shortlist (100 events)
                             │
-                     S3: Deep Stats Analysis
-                     (L10/H2H/L5 per candidate)
+                     S3: Deep Stats + Probability Engine (PARALLEL: 8 workers)
+                     (L10/H2H/L5 + Poisson/NegBin → P(hit))
                             │
                      S7: 17-Point Gate Check
                      (approved/extended/rejected)
@@ -86,9 +93,15 @@ For **every** candidate event, the pipeline:
 
 1. **Reads stats cache** — L10 match-by-match stats (corners, fouls, shots, cards, goals for football; games, aces, sets for tennis; points, rebounds for basketball; etc.)
 2. **Computes per-market safety scores** — For ALL available statistical markets, calculates hit rates and ranks by `safety = min(hit_rate_L10, hit_rate_H2H)`
-3. **Runs three-way cross-check** — L10 avg + H2H avg + L5 trend must ALL support pick direction
-4. **Selects best market** — Highest safety score, NOT default (corners can lose to fouls)
-5. **Generates 10-section report** — §S3.1 H2H, §S3.2 Form, §S3.3 Ranking, §S3.4 Three-Way, §S3.5 Coach, §S3.6 Injuries, §S3.7 Top 3, §S3.8 Recommended, §S3.9 Sources, §S3.10 Depth
+3. **Runs probability engine** — Poisson distribution model converts raw stats → true probability → fair odds:
+   - λ = 40% × L5_avg + 35% × L10_avg + 25% × H2H_avg (recency-weighted)
+   - P(Over X.5) = 1 - CDF(X, λ) using Poisson (or negative binomial for overdispersed data)
+   - Fair odds = 1 / P(hit), True EV = P(hit) × bookmaker_odds - 1
+   - 90% confidence interval via 1000-sample bootstrap
+4. **Runs three-way cross-check** — L10 avg + H2H avg + L5 trend must ALL support pick direction
+5. **Selects best market** — Highest safety score, NOT default (corners can lose to fouls)
+6. **Integrates tipster consensus** — Checks tipster agreement and cited stats for the event
+7. **Generates 10-section report** — §S3.1 H2H, §S3.2 Form, §S3.3 Ranking (with probability), §S3.4 Three-Way, §S3.5 Coach, §S3.6 Injuries, §S3.7 Top 3, §S3.8 Recommended, §S3.9 Sources, §S3.10 Depth
 
 ### Example output for a football match:
 ```
@@ -97,11 +110,12 @@ Arsenal L10:   corners 5.0/game, fouls 13.5, shots 14.5, cards 2.5
 H2H (5 meetings): corners avg 12.0, fouls avg 24.0
 
 Market Ranking:
-1. Fouls Total O22.5  — Safety 0.80, L10 avg 28.0, H2H 24.0
-2. Corners Total O9.5 — Safety 0.80, L10 avg 14.5, H2H 12.0  
-3. Cards Total O3.5   — Safety 0.60, L10 avg 4.5,  H2H 4.5
-4. Shots Total O22.5  — Safety 0.56, L10 avg 31.0, H2H N/A
+1. Fouls Total O22.5  — Safety 0.80, P(hit)=73.2%, fair=1.37, λ=24.8
+2. Corners Total O9.5 — Safety 0.80, P(hit)=87.6%, fair=1.14, λ=13.7
+3. Cards Total O3.5   — Safety 0.60, P(hit)=65.1%, fair=1.54, λ=4.2
+4. Shots Total O22.5  — Safety 0.56, P(hit)=81.4%, fair=1.23, λ=27.5
 → Recommended: Fouls Total O22.5 (highest safety)
+→ Best probability: Corners O9.5 (87.6% → Betclic ≥1.14 for EV>0)
 ```
 
 ## Gate Check (17 Points)

@@ -6,6 +6,26 @@ agent: bet-builder
 
 # STEP 8 — PORTFOLIO + COUPONS + VALIDATION + ARTIFACTS
 
+## AUTOMATED FIRST
+
+Run the automated coupon builder FIRST — it handles core portfolio assignment, combo menu, Kelly 1/4 staking, stress tests, correlation checks, and rich Polish per-leg analysis:
+
+```bash
+python3 scripts/coupon_builder.py --date {date} --input betting/data/{date}_s7_gate_results.json
+```
+
+This produces `betting/coupons/{date}.md` and `betting/coupons/{date}.json` with:
+- Core coupons (LR/MS/HR/NIGHT tiers) with unique event per coupon
+- Combo menu (extra combinations remixing approved picks)
+- Extended pool (EV>0 but gate-failed)
+- Rich per-leg descriptions in Polish (safety rank, L10/H2H margins, P(hit), form trends, risk factors)
+- Stress test per coupon (P(coupon), weakest leg, catastrophe scenario)
+- Correlation flags
+
+Then validate: `python3 scripts/validate_coupons.py betting/coupons/{date}*.md --format json`
+
+**Agent role:** Review script output, verify arithmetic, adjust stakes if needed, run full V1-V10 validation, perform §S8.FINAL mechanical verification, and write ledger entries.
+
 ## INPUTS
 - `betting/data/{date}_s7_gate.md` — approved picks with confidence scores
 - All prior S1-S7 data
@@ -170,9 +190,36 @@ Format per coupon:
 
 ---
 
+## PORTFOLIO INTELLIGENCE THINKING LAYER (MANDATORY — before mechanical verification)
+
+---
+
 ## §S8.FINAL — MECHANICAL VERIFICATION (MANDATORY — last step before presenting)
 
 **Run this AFTER all artifacts are written.** Use `sequentialthinking` for exact computation. This catches bugs that V1-V10 misses — proven by v18 where 3 bugs were found post-V10.
+
+`coupon_builder.py` handles the mechanics. YOUR value-add is STRATEGIC PORTFOLIO THINKING:
+
+### 1. Hidden Correlation Analysis
+Beyond "no same match" — think about correlations scripts miss:
+- **Weather correlation**: Multiple outdoor picks in same region affected by same weather system? Don't cluster in one coupon.
+- **League momentum**: Multiple picks from same league round share momentum effects. Diversify.
+- **Narrative correlation**: Two picks based on same motivation narrative → if narrative wrong, both fail.
+- **Temporal clustering**: All legs at same kickoff time → no cancellation opportunity. Spread times.
+- **Model correlation**: Multiple picks using similar Poisson inputs → model error hits all. Mix market types.
+
+### 2. Worst-Case Day Analysis
+Before finalizing, model the realistic worst case:
+- If ALL coupons lose → total exposure must be ≤ daily cap
+- If the 2 lowest-confidence picks lose → how many coupons survive?
+- If ALL picks from one sport lose → does ≥1 coupon survive intact?
+
+### 3. User Decision Support
+Present trade-offs clearly:
+- **Tight budget** (bottom of range): "Top 3 coupons by EV × confidence: [list]"
+- **Full budget**: "Recommended placement order: [list with reasoning]"
+- **Single best bet**: "If placing just one coupon: [pick] because [reason]"
+- **Watchlist value**: "If Betclic offers [event] @[odds]+, promote WL-X by replacing [weakest leg]"
 
 ### A. COUPON ARITHMETIC RE-CALCULATION
 For EVERY coupon, multiply each leg's odds step by step with exact decimal math.
