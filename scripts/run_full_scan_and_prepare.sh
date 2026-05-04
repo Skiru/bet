@@ -29,7 +29,7 @@ echo "[orchestrator] Python: $(which python3)"
 echo "============================================="
 
 echo ""
-echo "[1/13] Installing Python requirements..."
+echo "[1/14] Installing Python requirements..."
 python3 -m pip install --upgrade pip -q 2>&1 | tail -1
 if ! python3 -m pip install -r "${SCRIPT_DIR}/requirements.txt" -q 2>&1 | tail -5; then
     echo "[WARNING] pip install had errors — verifying core packages..."
@@ -39,11 +39,11 @@ if ! python3 -m pip install -r "${SCRIPT_DIR}/requirements.txt" -q 2>&1 | tail -
 fi
 
 echo ""
-echo "[2/13] Installing Playwright browser (Chromium)..."
+echo "[2/14] Installing Playwright browser (Chromium)..."
 python3 -m playwright install chromium 2>&1 | tail -3 || echo "[WARNING] Playwright install skipped or failed"
 
 echo ""
-echo "[3/13] Running Playwright smoke test..."
+echo "[3/14] Running Playwright smoke test..."
 if python3 "${SCRIPT_DIR}/smoke_playwright.py"; then
     echo "[OK] Smoke test passed"
 else
@@ -51,12 +51,12 @@ else
 fi
 
 echo ""
-echo "[4/13] Cleaning stale HTML files (>7 days old)..."
+echo "[4/14] Cleaning stale HTML files (>7 days old)..."
 find "${DATA_DIR}" -name "*.html" -path "*/betting/data/*.*/*" -mtime +7 -delete 2>/dev/null
 echo "[orchestrator] Cleaned stale HTML files"
 
 echo ""
-echo "[5/13] Running full multi-sport scan (Tier-A + Tier-B)..."
+echo "[5/14] Running full multi-sport scan (Tier-A + Tier-B)..."
 SCAN_START=$(date +%s)
 
 # Build ZawodTyper daily URL using bash (avoids quoting issues with inline Python dicts)
@@ -239,6 +239,31 @@ python3 "${SCRIPT_DIR}/scan_events.py" --deep --max-deep-links 50 --urls \
   https://www.hockey-reference.com/ \
   https://www.soccerstats.com/ \
   https://totalcorner.com/ \
+  https://totalcorner.com/match/today \
+  https://www.forebet.com/en/football-tips-and-predictions-for-today \
+  https://www.forebet.com/en/tennis/predictions-today \
+  https://www.forebet.com/en/basketball/predictions-today \
+  https://www.forebet.com/en/hockey/predictions-today \
+  https://www.forebet.com/en/handball/predictions-today \
+  https://www.forebet.com/en/volleyball/predictions-today \
+  https://scores24.live/en/soccer \
+  https://scores24.live/en/tennis \
+  https://scores24.live/en/basketball \
+  https://scores24.live/en/ice-hockey \
+  https://scores24.live/en/handball \
+  https://scores24.live/en/volleyball \
+  https://scores24.live/en/baseball \
+  https://scores24.live/en/snooker \
+  https://scores24.live/en/darts \
+  https://scores24.live/en/table-tennis \
+  https://scores24.live/en/mma \
+  https://scores24.live/en/csgo \
+  https://scores24.live/en/american-football \
+  https://scores24.live/en/cricket \
+  https://scores24.live/en/rugby \
+  https://scores24.live/en/badminton \
+  https://scores24.live/en/boxing \
+  https://scores24.live/en/futsal \
   https://www.covers.com/ \
   https://www.teamrankings.com/ \
   https://www.sportsgambler.com/predictions/today/ \
@@ -252,47 +277,52 @@ python3 "${SCRIPT_DIR}/scan_events.py" --deep --max-deep-links 50 --urls \
   https://www.bettingclosed.com/ \
   https://tips180.com/ \
   https://www.tipstrr.com/tips \
+  https://www.whoscored.com/Previews \
   || echo "[WARNING] Scan finished with errors — check scan_errors.json"
 SCAN_END=$(date +%s)
 echo "[orchestrator] Scan took $((SCAN_END - SCAN_START)) seconds"
 
 echo ""
-echo "[6/13] Discovering fixtures via APIs..."
+echo "[6/14] Discovering fixtures via APIs..."
 python3 "${SCRIPT_DIR}/discover_fixtures.py" --date "$(date '+%Y-%m-%d')" || echo "[WARNING] API fixture discovery failed — continuing with scan results only"
 
 echo ""
-echo "[7/13] Fetching statistics from APIs..."
+echo "[7/14] Fetching statistics from APIs..."
 python3 "${SCRIPT_DIR}/fetch_api_stats.py" --date "$(date '+%Y-%m-%d')" || echo "[WARNING] API stats fetch failed — continuing with existing data"
 
 echo ""
-echo "[8/13] Fetching multi-source odds..."
+echo "[8/14] Fetching multi-source odds..."
 python3 "${SCRIPT_DIR}/fetch_odds_multi.py" || echo "[WARNING] Multi-source odds fetch failed — run fetch_odds_api.py manually"
 
 echo ""
-echo "[9/13] Generating deep analysis pool..."
+echo "[9/14] Generating deep analysis pool..."
 python3 "${SCRIPT_DIR}/deep_analysis_pool.py" --date "$(date '+%Y-%m-%d')" || echo "[WARNING] Analysis pool generation failed — continuing"
 
 echo ""
-echo "[10/13] Aggregating and selecting candidates..."
+echo "[10/14] Aggregating and selecting candidates..."
 python3 "${SCRIPT_DIR}/aggregate_and_select.py"
 
 echo ""
-echo "[11/13] Extracting Betclic sport-specific markets..."
-python3 "${SCRIPT_DIR}/quick_betclic_extract.py" 2>/dev/null || echo "[INFO] Betclic detail extraction skipped or failed"
+echo "[11/14] Generating comprehensive market matrix (STATS-FIRST mode)..."
+python3 "${SCRIPT_DIR}/generate_market_matrix.py" --date "$(date '+%Y-%m-%d')" --stats-first || echo "[WARNING] Market matrix generation failed — continuing"
 
 echo ""
-echo "[12/13] Generating comprehensive market matrix..."
-python3 "${SCRIPT_DIR}/generate_market_matrix.py" --date "$(date '+%Y-%m-%d')" || echo "[WARNING] Market matrix generation failed — continuing"
+echo "[12b/14] Building ranked S2 shortlist from market matrix..."
+python3 "${SCRIPT_DIR}/build_shortlist.py" --date "$(date '+%Y-%m-%d')" --top 100 --stats-first || echo "[WARNING] Shortlist generation failed — continuing"
 
 echo ""
-echo "[13/13] Summary..."
+echo "[13/14] Fetching weather data for outdoor fixtures..."
+python3 "${SCRIPT_DIR}/fetch_weather.py" --date "$(date '+%Y-%m-%d')" || echo "[WARNING] Weather fetch failed — continuing"
+
+echo ""
+echo "[14/14] Summary..."
 echo "============================================="
 echo "[orchestrator] Pipeline complete"
 echo "[orchestrator] Time: $(date '+%Y-%m-%d %H:%M:%S %Z')"
 echo "============================================="
 echo ""
 echo "Outputs:"
-for f in "${DATA_DIR}/scan_summary.json" "${DATA_DIR}/picks_suggested.json" "${DATA_DIR}/scan_errors.json" "${DATA_DIR}/betclic_verified_odds.json" "${DATA_DIR}/odds_api_snapshot.json" "${DATA_DIR}/odds_api_summary.csv" "${DATA_DIR}/odds_multi_sources.json" "${DATA_DIR}/analysis_pool_$(date '+%Y-%m-%d').json" "${DATA_DIR}/analysis_pool_$(date '+%Y-%m-%d').md" "${DATA_DIR}/market_matrix_$(date '+%Y-%m-%d').json" "${DATA_DIR}/market_matrix_$(date '+%Y-%m-%d').md" "${DATA_DIR}/decision_matrix_$(date '+%Y-%m-%d').md"; do
+for f in "${DATA_DIR}/scan_summary.json" "${DATA_DIR}/picks_suggested.json" "${DATA_DIR}/scan_errors.json" "${DATA_DIR}/betclic_verified_odds.json" "${DATA_DIR}/odds_api_snapshot.json" "${DATA_DIR}/odds_api_summary.csv" "${DATA_DIR}/odds_multi_sources.json" "${DATA_DIR}/analysis_pool_$(date '+%Y-%m-%d').json" "${DATA_DIR}/analysis_pool_$(date '+%Y-%m-%d').md" "${DATA_DIR}/market_matrix_$(date '+%Y-%m-%d').json" "${DATA_DIR}/market_matrix_$(date '+%Y-%m-%d').md" "${DATA_DIR}/decision_matrix_$(date '+%Y-%m-%d').md" "${DATA_DIR}/weather_$(date '+%Y-%m-%d').json"; do
     if [ -f "$f" ]; then
         echo "  [OK] $(basename "$f") ($(wc -c < "$f") bytes)"
     else

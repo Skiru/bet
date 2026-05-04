@@ -1,6 +1,6 @@
 ---
 name: s2-shortlist
-description: "STEP 2: Filter Master Event List to 15-40 candidates with self-verification"
+description: "STEP 2: Build ranked shortlist of 50-100 candidates using build_shortlist.py + agent refinement"
 agent: bet-scanner
 ---
 
@@ -14,7 +14,16 @@ agent: bet-scanner
 - **Event window**: resolved from session (full/day/night/morning) + betting_window_days in config
 
 ## TASK
-Filter the Master Event List to a shortlist of 15-40 candidates for deep analysis.
+
+**Automated shortlist generation (run first):**
+```bash
+python3 scripts/build_shortlist.py --date {date} --top 100 --stats-first
+```
+This produces `{date}_s2_shortlist.md` + `{date}_s2_shortlist.json` with 100 ranked candidates.
+
+Then review and refine the auto-generated shortlist:
+
+Filter the Master Event List to a shortlist of 50-100 candidates for deep analysis.
 
 ### REMOVAL CRITERIA (apply in order):
 1. **Outside window**: kickoff not in the resolved session event window
@@ -80,7 +89,7 @@ Save to: `betting/data/{date}_s2_shortlist.md`
 
 ## SELF-VERIFICATION CHECKLIST
 
-- [ ] **V-S2-01**: Shortlist has 15-40 events
+- [ ] **V-S2-01**: Shortlist has 50-100 events
 - [ ] **V-S2-02**: ≥8 sports represented in shortlist (≥5 sports minimum in final picks)
 - [ ] **V-S2-03**: Football ≤50% of shortlist
 - [ ] **V-S2-04**: All removed events have valid removal reason

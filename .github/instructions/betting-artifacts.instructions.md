@@ -81,9 +81,15 @@ Structure of the .md file:
 1. H1 header with date, bankroll, budget.
 2. Conditional notice (all picks are CONDITIONAL — verify on Betclic).
 2b. **PEŁNA MATRYCA RYNKÓW (FULL MARKET MATRIX)** — Placed BEFORE coupons for quick scanning. Reference link to `betting/data/market_matrix_{date}.md` and `decision_matrix_{date}.md` (see §1.9 in analysis-methodology). Inline in the coupon file, include a COMPACT matrix of the top 30-50 bettable opportunities:
-   - Table: | # | Sport | Event | Market | Odds | Tier | Uwagi | — sorted by safety score desc, then by sport.
+   - Table: | # | Sport | Event | Market | Odds | Safety | Hit% | Direction | Uwagi | — sorted by safety score desc, then by sport.
+   - **Multiple rows per event**: When an event has multiple statistical markets analyzed (e.g., corners, cards, fouls, totals), show ALL markets as separate rows. This lets the user compare markets and pick the strongest one per event. Group by event visually (indent or blank row between events).
+   - **Safety**: safety score from §3.0 ranking (0.00-1.00). Shows how statistically reliable the market is.
+   - **Hit%**: Combined L10 + H2H hit rate (e.g., "8/10 L10, 4/5 H2H = 80%"). Shows probability of the pick landing.
+   - **Direction**: OVER/UNDER + margin (e.g., "OVER +17.9%") — how far the average is from the line.
+   - **WHY this is shown**: The matrix is a decision tool. Probability data lets the user do quick mental EV: `hit% × odds > 1.0 → bet`. Without it, the user must open market_matrix.md separately.
    - This is the PRIMARY decision tool for the user.
    - NO events are filtered out based on EV — show everything with available data.
+   - For events with API odds: show odds + safety + hit%. For STATS-FIRST events (no API odds): show "SPRAWDŹ" + safety + hit% + min odds for EV>0.
 3. Per-type coupon tables (LOW-RISK, MULTI-SPORT, HIGHER RISK, NIGHT) — each with columns: #, Coupon ID, Co obstawić, Kurs, Stawka, Zwrot. UNIQUE EVENT PER COUPON.
 3b. **COMBINATION MENU** — additional combos (COMBO-LR1, COMBO-MS1, etc.) that remix approved picks. Same table format. Prefixed "COMBO-" for clarity.
 3c. **ROZSZERZONY WYBÓR (EXTENDED POOL)** — EV > 0 picks that did NOT fully pass the 17-point gate but have positive expected value. These are optional higher-risk plays the user may choose to add. See §EXTENDED-POOL below for structure.
@@ -133,6 +139,43 @@ No candidate with completed §3.0 analysis and EV > 0 may be silently omitted. T
 **Ledger handling:** Extended picks are added to picks-ledger.csv with `risk_tier=high` and `notes` starting with "EXTENDED POOL:". Extended combos are added to coupons-ledger.csv with coupon_id prefix "CP-YYYYMMDD-EXT".
 
 **Extended pool picks are NEVER in core or combo coupons** — they live in their own section. This preserves the quality separation: Core = fully vetted, Combo = remixed vetted picks, Extended = EV>0 but user's choice.
+
+### §STATS-FIRST — Probability Portfolio Output (when odds unavailable)
+
+When using STATS-FIRST mode (§5.ALT in analysis-methodology), events without API odds get a **probability portfolio** format instead of standard coupon entries.
+
+**Required format per STATS-FIRST pick:**
+
+| Field | Content |
+|-------|---------|
+| Event | Full names, competition, time |
+| Market | Polish description (e.g., "powyżej 9.5 rzutów rożnych") |
+| Odds | `SPRAWDŹ NA BETCLIC` |
+| Hit Rate | e.g., "8/10 L10, 4/5 H2H = 80%" |
+| Safety Score | e.g., "0.80" |
+| Direction | OVER / UNDER + margin (e.g., "OVER +17.9%") |
+| Min Odds | Minimum Betclic odds for EV>0: `1/hit_rate` (e.g., "≥1.25") |
+| L10 Avg | Average from last 10 matches (e.g., "11.2") |
+| H2H Avg | Average from H2H meetings (e.g., "10.8") |
+| Suggested Lines | Lines to check on Betclic (e.g., "O9.5 / O10.5 / O11.5") |
+| ✅ Argument | 2-3 bullets with specific data why this market is strong |
+| ⚠️ Red Flags | Any concerns (H2H blind, small sample, trend divergence) |
+| 🏷️ Sugerowane combo | Which other picks it pairs well with |
+
+**User workflow after receiving probability portfolio:**
+1. Open Betclic app → search for the event
+2. Navigate to the specific market (e.g., "Rzuty rożne" → "Powyżej 9.5")
+3. Note the Betclic odds
+4. Quick mental check: `hit_rate × odds > 1.0?` → YES = positive EV → BET
+5. If multiple lines available, pick the one where `hit_rate × odds` is highest
+
+**Coupon file format:** STATS-FIRST picks appear in a separate section **"PORTFOLIO PRAWDOPODOBIEŃSTW"** AFTER the core/combo/extended sections. They are NOT included in coupon arithmetic (no combined odds) until the user confirms Betclic odds.
+
+**Ledger handling:** STATS-FIRST picks are added to picks-ledger.csv with:
+- `odds` = blank (filled by user after Betclic check)
+- `ev` = blank (filled by user after Betclic check)
+- `notes` starting with "STATS-FIRST: min odds X.XX for EV>0, safety=X.XX"
+- `status` = "conditional"
 
 Per-pick concentration limit (MANDATORY when user selects coupons):
 When the user selects a subset of coupons (core + combos), compute per-pick exposure:

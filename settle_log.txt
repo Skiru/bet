@@ -1228,3 +1228,15 @@
 2026-04-28T08:30:55.045977 [Poll 29] Looking for result: BV Chemnitz 99 vs Bamberg Baskets
 2026-04-28T08:30:55.280525   Score not yet available for BV Chemnitz 99 vs Bamberg Baskets
 2026-04-28T08:30:55.280870   15 pick(s) still pending. Sleeping 120s...
+2026-04-30T08:33:57.610223 Found 20 pending pick(s) to settle
+2026-04-30T08:33:57.610551 [Poll 1] Looking for result: Cleveland Cavaliers vs Toronto Raptors
+2026-04-30T08:34:05.532240   Flashscore football/today: +54 results
+2026-04-30T08:34:11.560472   Flashscore football/yesterday: +199 results
+2026-04-30T08:34:16.814614   Flashscore tennis/today: +38 results
+2026-04-30T08:34:22.849739   Flashscore tennis/yesterday: +369 results
+2026-04-30T08:34:39.266436   Flashscore hockey/today: +12 results
+2026-04-30T08:34:45.290008   Flashscore hockey/yesterday: +20 results
+2026-04-30T08:34:50.476730   Flashscore baseball/today: +29 results
+2026-04-30T08:34:56.504893   Flashscore baseball/yesterday: +29 results
+2026-04-30T08:35:07.685989   Flashscore volleyball/yesterday: +36 results
+2026-04-30T08:35:18.872583   Flashscore snooker/yesterday: +4 results

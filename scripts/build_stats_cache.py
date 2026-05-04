@@ -192,13 +192,51 @@ def update_from_api(
     from dataclasses import asdict
 
     # Build l10_matches from normalized data
+    # Normalize stats so our team's values are always in the "home" key,
+    # regardless of whether the team played home or away in the actual match.
+    # This is critical because _cache_to_normalized_matches() always sets
+    # home_team=team_name, so downstream _extract_stat_values() reads "home".
+    team_lower = team.lower() if team else ""
     l10_matches = []
     for match in normalized_matches[:10]:
+        raw_stats = getattr(match, "stats", {})
+        home_team_match = getattr(match, "home_team", "")
+        away_team_match = getattr(match, "away_team", "")
+
+        # Detect if our team was the away side in this match
+        is_away = (
+            team_lower
+            and away_team_match
+            and team_lower == away_team_match.lower()
+            and (not home_team_match or team_lower != home_team_match.lower())
+        )
+
+        # Normalize stats: swap home/away if our team was away
+        normalized_stats = {}
+        for key, value in raw_stats.items():
+            if isinstance(value, dict) and "home" in value and "away" in value:
+                if is_away:
+                    normalized_stats[key] = {
+                        "home": value.get("away", 0),
+                        "away": value.get("home", 0),
+                    }
+                else:
+                    normalized_stats[key] = value
+            else:
+                normalized_stats[key] = value
+
+        # Set opponent name
+        if is_away:
+            opponent_name = home_team_match
+        else:
+            opponent_name = away_team_match or home_team_match
+
         match_entry = {
             "date": getattr(match, "date", ""),
-            "opponent": getattr(match, "away_team", "") or getattr(match, "home_team", ""),
+            "opponent": opponent_name,
             "fixture_id": getattr(match, "fixture_id", ""),
-            "stats": getattr(match, "stats", {}),
+            "stats": normalized_stats,
+            "was_away": is_away,
         }
         l10_matches.append(match_entry)
 

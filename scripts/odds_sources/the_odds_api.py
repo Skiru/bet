@@ -9,19 +9,31 @@ if _SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _SCRIPTS_DIR)
 
 from odds_sources import OddsSource
-from fetch_odds_api import SPORT_KEY_MAP, get_api_key, fetch_odds as _fetch_odds
+from fetch_odds_api import SPORT_KEY_MAP, get_api_key, fetch_odds as _fetch_odds, discover_active_sport_keys
 
 
 class TheOddsAPISource(OddsSource):
     """Wrapper around the existing fetch_odds_api.py module."""
 
     name = "the-odds-api"
+    _active_map: dict | None = None
+
+    def _get_active_map(self) -> dict:
+        """Get sport key map with auto-discovered seasonal keys (cached)."""
+        if self._active_map is None:
+            try:
+                api_key = get_api_key()
+                self._active_map = discover_active_sport_keys(api_key)
+            except (SystemExit, Exception):
+                self._active_map = dict(SPORT_KEY_MAP)
+        return self._active_map
 
     def supported_sports(self) -> list[str]:
-        return [sport for sport, keys in SPORT_KEY_MAP.items() if keys]
+        return [sport for sport, keys in self._get_active_map().items() if keys]
 
     def fetch_odds(self, sport: str, date_from: str, date_to: str) -> list[dict]:
-        sport_keys = SPORT_KEY_MAP.get(sport, [])
+        active_map = self._get_active_map()
+        sport_keys = active_map.get(sport, [])
         if not sport_keys:
             return []
 

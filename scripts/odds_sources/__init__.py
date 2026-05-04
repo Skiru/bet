@@ -6,7 +6,16 @@ event matching, and odds merging.
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 import re
+import sys
 import unicodedata
+from pathlib import Path
+
+# Use the canonical normalize_team_name from utils.py
+sys.path.insert(0, str(Path(__file__).parent.parent))
+try:
+    from scripts.utils import normalize_team_name
+except ImportError:
+    from utils import normalize_team_name
 
 
 class OddsSource(ABC):
@@ -32,36 +41,6 @@ class OddsSource(ABC):
     def supported_sports(self) -> list[str]:
         """Return list of sport keys this source can provide odds for."""
         ...
-
-
-# Common suffixes/prefixes to strip for team name matching
-_TEAM_SUFFIXES = re.compile(
-    r"\b(FC|SC|CF|CD|SK|FK|AS|AC|US|SS|SV|TSV|VfB|VfL|BSC|"
-    r"IF|BK|IFK|AIK|FF|GIF|AFC|RFC|SFC|CFC|United|Utd|City|"
-    r"Town|Rovers|Wanderers|Athletic|Athletico|Sporting)\b",
-    re.IGNORECASE,
-)
-_PARENS = re.compile(r"\s*\([^)]*\)\s*")
-_MULTI_SPACE = re.compile(r"\s+")
-
-
-def normalize_team_name(name: str) -> str:
-    """Normalize team name for matching across sources.
-
-    Strips common suffixes (FC, SC, CF, etc.), removes parenthetical notation
-    (e.g., "(W)" for women), normalizes unicode to ASCII, collapses whitespace,
-    and lowercases for comparison.
-    """
-    # Normalize unicode to ASCII
-    s = unicodedata.normalize("NFKD", name)
-    s = s.encode("ascii", "ignore").decode("ascii")
-    # Remove parenthetical notation
-    s = _PARENS.sub(" ", s)
-    # Remove common suffixes
-    s = _TEAM_SUFFIXES.sub("", s)
-    # Collapse whitespace and strip
-    s = _MULTI_SPACE.sub(" ", s).strip()
-    return s.lower()
 
 
 def _names_match(a: str, b: str) -> bool:

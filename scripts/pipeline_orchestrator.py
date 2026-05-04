@@ -1,14 +1,24 @@
 #!/usr/bin/env python3
-"""Pipeline Orchestrator — single entry point for the entire betting pipeline.
+"""Pipeline Orchestrator — fully automated end-to-end betting pipeline.
 
-Wraps the bash orchestrator with Python state tracking, error recovery,
-and step-by-step execution. Can resume from any step after failure.
+Runs ALL methodology steps (S0–S10) without human intervention:
+S0: Settle + learn from Betclic history
+S1: Full 14-sport Playwright scan + API fixture discovery
+S1b: Cross-validation odds
+S1c: Weather data
+S1d: Market matrix generation
+S1e: Ranked shortlist building
+S3: Deep statistical analysis (L10/H2H/L5 per candidate)
+S7: 17-point gate checks
+S8: Core portfolio + combo menu coupon construction
+S9: Coupon validation
+S10: Final summary + artifacts
 
 Usage:
-    python3 scripts/pipeline_orchestrator.py --date 2026-04-30
-    python3 scripts/pipeline_orchestrator.py --date 2026-04-30 --session night
-    python3 scripts/pipeline_orchestrator.py --date 2026-04-30 --resume
-    python3 scripts/pipeline_orchestrator.py --date 2026-04-30 --step scan
+    python3 scripts/pipeline_orchestrator.py --date 2026-05-01
+    python3 scripts/pipeline_orchestrator.py --date 2026-05-01 --resume
+    python3 scripts/pipeline_orchestrator.py --date 2026-05-01 --skip-scan
+    python3 scripts/pipeline_orchestrator.py --date 2026-05-01 --top 50
     python3 scripts/pipeline_orchestrator.py --status
 """
 
@@ -20,7 +30,6 @@ import shlex
 import subprocess
 import sys
 import tempfile
-import time
 from datetime import datetime
 from pathlib import Path
 
@@ -29,144 +38,147 @@ try:
 except ImportError:
     from backports.zoneinfo import ZoneInfo
 
+# ---------------------------------------------------------------------------
+# Paths
+# ---------------------------------------------------------------------------
 SCRIPTS_DIR = Path(__file__).parent
 ROOT_DIR = SCRIPTS_DIR.parent
 DATA_DIR = ROOT_DIR / "betting" / "data"
+COUPON_DIR = ROOT_DIR / "betting" / "coupons"
 STATE_DIR = DATA_DIR / "pipeline_state"
 CONFIG_PATH = ROOT_DIR / "config" / "betting_config.json"
 
-# Pipeline steps in order
+# ---------------------------------------------------------------------------
+# Module imports (dual-path for direct and package execution)
+# ---------------------------------------------------------------------------
+sys.path.insert(0, str(SCRIPTS_DIR))
+
+try:
+    from scripts.deep_stats_report import generate_deep_stats
+except ImportError:
+    from deep_stats_report import generate_deep_stats
+
+try:
+    from scripts.gate_checker import (
+        run_gate,
+        _normalise_s3_to_gate_input,
+        _write_json as write_gate_json,
+        _write_markdown as write_gate_md,
+    )
+except ImportError:
+    from gate_checker import (
+        run_gate,
+        _normalise_s3_to_gate_input,
+        _write_json as write_gate_json,
+        _write_markdown as write_gate_md,
+    )
+
+try:
+    from scripts.coupon_builder import (
+        build_coupons,
+        write_coupon_markdown,
+        write_coupon_json,
+        load_config as load_coupon_config,
+    )
+except ImportError:
+    from coupon_builder import (
+        build_coupons,
+        write_coupon_markdown,
+        write_coupon_json,
+        load_config as load_coupon_config,
+    )
+
+# ---------------------------------------------------------------------------
+# Pipeline steps
+# ---------------------------------------------------------------------------
 PIPELINE_STEPS = [
     {
         "id": "s0_settle",
-        "name": "S0: Settle Previous Day + Learn from History",
-        "description": "Settle previous day's bets, run Betclic history analysis",
-        "commands": [
-            "python3 scripts/analyze_betclic_learning.py",
-        ],
-        "outputs": [],
+        "name": "S0: Settle + Learn from History",
+        "description": "Run Betclic history analysis (§0.2 MANDATORY)",
+        "commands": ["python3 scripts/analyze_betclic_learning.py"],
+        "outputs": ["betting/data/betclic_learning_summary.json"],
         "critical": True,
     },
     {
         "id": "s1_scan",
         "name": "S1: Complete Event Scan",
-        "description": "Run full multi-sport scan with deep-link discovery",
-        "commands": [
-            "bash scripts/run_full_scan_and_prepare.sh",
-        ],
-        "outputs": [
-            "betting/data/scan_summary.json",
-            "betting/data/scan_errors.json",
-        ],
+        "description": "Full 14-sport scan with Playwright + API fixture discovery",
+        "commands": ["bash scripts/run_full_scan_and_prepare.sh"],
+        "outputs": ["betting/data/scan_summary.json"],
         "critical": True,
     },
     {
-        "id": "s1_odds",
+        "id": "s1b_odds",
         "name": "S1b: Cross-Validation Odds",
-        "description": "Fetch odds from The-Odds-API for cross-validation",
-        "commands": [
-            "python3 scripts/fetch_odds_api.py",
-        ],
-        "outputs": [
-            "betting/data/odds_api_snapshot.json",
-        ],
+        "description": "Fetch odds from The-Odds-API",
+        "commands": ["python3 scripts/fetch_odds_api.py"],
+        "outputs": ["betting/data/odds_api_snapshot.json"],
         "critical": False,
     },
     {
-        "id": "s1_weather",
+        "id": "s1c_weather",
         "name": "S1c: Weather Data",
-        "description": "Fetch weather for outdoor sport venues",
-        "commands": [
-            "python3 scripts/fetch_weather.py --date {date}",
-        ],
+        "description": "Fetch weather for outdoor venues",
+        "commands": ["python3 scripts/fetch_weather.py --date {date}"],
         "outputs": [],
         "critical": False,
     },
     {
-        "id": "s1_market_matrix",
+        "id": "s1d_matrix",
         "name": "S1d: Market Matrix",
-        "description": "Generate consolidated market matrix from all data sources",
-        "commands": [
-            "python3 scripts/generate_market_matrix.py --date {date}",
-        ],
+        "description": "Generate consolidated market matrix",
+        "commands": ["python3 scripts/generate_market_matrix.py --date {date} --stats-first"],
         "outputs": [],
         "critical": False,
     },
     {
-        "id": "s2_shortlist",
-        "name": "S2: Shortlist Filtering",
-        "description": "Filter events to shortlist (agent-driven step)",
-        "commands": [],  # Agent-driven
+        "id": "s1e_shortlist",
+        "name": "S1e: Build Ranked Shortlist",
+        "description": "Auto-rank events by data quality and competition importance",
+        "commands": ["python3 scripts/build_shortlist.py --date {date} --top 100 --stats-first"],
         "outputs": [],
-        "critical": True,
-        "agent_step": True,
+        "critical": False,
     },
     {
-        "id": "s3_stats",
+        "id": "s3_deep_stats",
         "name": "S3: Deep Statistical Analysis",
-        "description": "Sport-specific deep analysis per candidate (agent-driven)",
-        "commands": [],  # Agent-driven
-        "outputs": [],
-        "critical": True,
-        "agent_step": True,
-    },
-    {
-        "id": "s4_tipsters",
-        "name": "S4: Tipster Deep-Dive",
-        "description": "Fetch and analyze tipster arguments per candidate (agent-driven)",
-        "commands": [],  # Agent-driven
-        "outputs": [],
-        "critical": True,
-        "agent_step": True,
-    },
-    {
-        "id": "s5_odds_ev",
-        "name": "S5: Odds + EV Calculation",
-        "description": "Calculate EV, Kelly stakes, price gaps (agent-driven)",
-        "commands": [],  # Agent-driven
-        "outputs": [],
-        "critical": True,
-        "agent_step": True,
-    },
-    {
-        "id": "s6_context",
-        "name": "S6: Context + Upset Risk",
-        "description": "Verify context, score upset risk (agent-driven)",
-        "commands": [],  # Agent-driven
-        "outputs": [],
-        "critical": True,
-        "agent_step": True,
+        "description": "Per-candidate §3.0 analysis with L10/H2H/L5 stats",
+        "python_step": "deep_stats",
     },
     {
         "id": "s7_gate",
-        "name": "S7: Bear Case + 17-Point Gate",
-        "description": "Run gate checks, approve/reject picks (agent-driven)",
-        "commands": [],  # Agent-driven
-        "outputs": [],
-        "critical": True,
-        "agent_step": True,
-    },
-    {
-        "id": "s3b_time",
-        "name": "S3B: Time-Sensitive Data",
-        "description": "Lineups, late injuries, weather, odds movement (agent-driven)",
-        "commands": [],  # Agent-driven
-        "outputs": [],
-        "critical": False,
-        "agent_step": True,
+        "name": "S7: 17-Point Gate Check",
+        "description": "Run gate checks, classify approved/extended/rejected",
+        "python_step": "gate_check",
     },
     {
         "id": "s8_coupons",
-        "name": "S8: Portfolio + Coupons",
-        "description": "Build coupons, run V1-V10, produce artifacts (agent-driven)",
-        "commands": [],  # Agent-driven
-        "outputs": [],
-        "critical": True,
-        "agent_step": True,
+        "name": "S8: Build Coupons",
+        "description": "Core portfolio + combo menu + extended pool",
+        "python_step": "build_coupons",
+    },
+    {
+        "id": "s9_validate",
+        "name": "S9: Validate Coupons",
+        "description": "V1-V10 validation suite",
+        "python_step": "validate",
+    },
+    {
+        "id": "s10_summary",
+        "name": "S10: Final Summary",
+        "description": "Generate artifacts and summary report",
+        "python_step": "summary",
     },
 ]
 
+# IDs of scan-phase steps (skippable with --skip-scan)
+SCAN_STEP_IDS = {"s1_scan", "s1b_odds", "s1c_weather", "s1d_matrix", "s1e_shortlist"}
 
+
+# ---------------------------------------------------------------------------
+# Config & state helpers
+# ---------------------------------------------------------------------------
 def load_config() -> dict:
     """Load betting configuration."""
     try:
@@ -190,6 +202,7 @@ def load_state(date: str) -> dict:
         "current_step": None,
         "steps": {},
         "errors": [],
+        "step_data": {},
         "pass_number": 1,
     }
 
@@ -200,21 +213,26 @@ def save_state(date: str, state: dict):
     state_file = STATE_DIR / f"pipeline_{date}.json"
     content = json.dumps(state, indent=2, ensure_ascii=False)
     fd, tmp_path = tempfile.mkstemp(dir=str(STATE_DIR), suffix=".tmp")
+    closed = False
     try:
         os.write(fd, content.encode("utf-8"))
         os.close(fd)
+        closed = True
         os.replace(tmp_path, str(state_file))
     except Exception:
-        os.close(fd)
+        if not closed:
+            os.close(fd)
         if os.path.exists(tmp_path):
             os.unlink(tmp_path)
         raise
 
 
+# ---------------------------------------------------------------------------
+# Shell command runner
+# ---------------------------------------------------------------------------
 def run_command(cmd: str, date: str) -> tuple[bool, str]:
     """Run a shell command and return (success, output)."""
-    # Validate date format to prevent command injection
-    if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', date):
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
         return False, f"Invalid date format: {date} (expected YYYY-MM-DD)"
     cmd = cmd.replace("{date}", shlex.quote(date))
     print(f"  → Running: {cmd}")
@@ -225,7 +243,7 @@ def run_command(cmd: str, date: str) -> tuple[bool, str]:
             cwd=str(ROOT_DIR),
             capture_output=True,
             text=True,
-            timeout=600,  # 10 minute timeout per command
+            timeout=2400,
         )
         output = result.stdout + result.stderr
         if result.returncode != 0:
@@ -234,7 +252,7 @@ def run_command(cmd: str, date: str) -> tuple[bool, str]:
         print(f"  ✓ Command succeeded")
         return True, output
     except subprocess.TimeoutExpired:
-        return False, "Command timed out after 600 seconds"
+        return False, "Command timed out after 2400 seconds"
     except Exception as e:
         return False, str(e)
 
@@ -249,6 +267,235 @@ def check_outputs(step: dict) -> list[str]:
     return missing
 
 
+# ---------------------------------------------------------------------------
+# EV injection from odds API
+# ---------------------------------------------------------------------------
+def _inject_ev_from_odds(candidates: list[dict], date: str):
+    """Compute and inject EV into candidates using odds API snapshot.
+
+    EV = (safety × odds) - 1. If no odds snapshot exists, candidates
+    keep ev=None and the gate handles it gracefully (stats-first mode).
+    """
+    odds_path = DATA_DIR / "odds_api_snapshot.json"
+    if not odds_path.exists():
+        return
+
+    try:
+        odds_data = json.loads(odds_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return
+
+    # Build lookup: "home|away" → best odds
+    odds_lookup: dict[str, float] = {}
+    for event in odds_data if isinstance(odds_data, list) else odds_data.get("events", []):
+        home = (event.get("home_team") or "").strip().lower()
+        away = (event.get("away_team") or "").strip().lower()
+        best_odds = event.get("best_odds") or event.get("odds", {}).get("market_best")
+        if home and away and best_odds:
+            odds_lookup[f"{home}|{away}"] = float(best_odds)
+
+    injected = 0
+    for c in candidates:
+        if c.get("ev") is not None:
+            continue  # Already has EV
+        home = (c.get("home_team") or "").strip().lower()
+        away = (c.get("away_team") or "").strip().lower()
+        key = f"{home}|{away}"
+        odds = odds_lookup.get(key)
+        if not odds:
+            continue
+        safety = (c.get("best_market") or {}).get("safety_score", 0)
+        if safety and odds:
+            ev = round(safety * odds - 1, 4)
+            c["ev"] = ev
+            c.setdefault("odds", {})["market_best"] = odds
+            injected += 1
+
+    if injected:
+        print(f"  → Injected EV for {injected}/{len(candidates)} candidates from odds API")
+
+
+# ---------------------------------------------------------------------------
+# Python-driven step implementations
+# ---------------------------------------------------------------------------
+def _run_s3(date: str, state: dict) -> tuple[bool, str]:
+    """S3: Deep Statistical Analysis."""
+    shortlist_path = str(DATA_DIR / f"{date}_s2_shortlist.json")
+    if not Path(shortlist_path).exists():
+        shortlist_path = None
+
+    top = state.get("cli_args", {}).get("top")
+    result = generate_deep_stats(date, shortlist_path=shortlist_path, top=top)
+
+    count = result.get("candidates_with_data", 0)
+    total = result.get("total_candidates", 0)
+    msg = f"S3 completed: {count}/{total} candidates with stats data"
+
+    state.setdefault("step_data", {})["s3_count"] = total
+    state["step_data"]["s3_with_data"] = count
+
+    return True, msg
+
+
+def _run_s7(date: str, state: dict) -> tuple[bool, str]:
+    """S7: Gate Check."""
+    s3_path = DATA_DIR / f"{date}_s3_deep_stats.json"
+    if not s3_path.exists():
+        return False, f"S3 output not found: {s3_path}"
+
+    s3_data = json.loads(s3_path.read_text(encoding="utf-8"))
+    analyses = s3_data.get("analyses", [])
+
+    candidates = [_normalise_s3_to_gate_input(a) for a in analyses if a.get("has_data")]
+
+    if not candidates:
+        return False, "No candidates with data for gate check"
+
+    # Inject EV from odds API snapshot if available
+    _inject_ev_from_odds(candidates, date)
+
+    results = run_gate(candidates, date)
+
+    write_gate_json(results, date)
+    write_gate_md(results, date)
+
+    s = results["summary"]
+    msg = (
+        f"S7 completed: {s['approved_count']} approved, "
+        f"{s['extended_count']} extended, {s['rejected_count']} rejected"
+    )
+
+    if results["gate_results"].get("expansion_needed"):
+        msg += " ⚠️ EXPANSION NEEDED (sport diversity)"
+
+    state.setdefault("step_data", {})["s7_approved"] = s["approved_count"]
+    state["step_data"]["s7_extended"] = s["extended_count"]
+
+    return True, msg
+
+
+def _run_s8(date: str, state: dict) -> tuple[bool, str]:
+    """S8: Build Coupons."""
+    gate_path = DATA_DIR / f"{date}_s7_gate_results.json"
+    if not gate_path.exists():
+        return False, f"S7 gate results not found: {gate_path}"
+
+    gate_data = json.loads(gate_path.read_text(encoding="utf-8"))
+    config = load_coupon_config()
+
+    result = build_coupons(gate_data, config)
+
+    write_coupon_markdown(result, date)
+    write_coupon_json(result, date)
+
+    if result.get("no_bet"):
+        msg = f"S8: NO BET — {result.get('no_bet_reason', 'insufficient picks')}"
+    else:
+        core_count = len(result.get("core_coupons", []))
+        combo_count = len(result.get("combos", []))
+        msg = f"S8 completed: {core_count} core coupons, {combo_count} combos"
+
+    state.setdefault("step_data", {})["s8_core"] = len(result.get("core_coupons", []))
+    state["step_data"]["s8_combos"] = len(result.get("combos", []))
+    state["step_data"]["s8_no_bet"] = result.get("no_bet", False)
+
+    return True, msg
+
+
+def _run_s9(date: str, state: dict) -> tuple[bool, str]:
+    """S9: Validate coupons."""
+    coupon_file = COUPON_DIR / f"{date}.md"
+    if not coupon_file.exists():
+        return True, "S9: No coupon file to validate (NO BET day?)"
+
+    try:
+        from scripts.validate_coupons import validate_file
+    except ImportError:
+        from validate_coupons import validate_file
+
+    ledger_path = ROOT_DIR / "betting" / "journal" / "picks-ledger.csv"
+    result = validate_file(coupon_file, ledger_path)
+
+    errors = result.get("global_errors", [])
+    for check in result.get("checks", []):
+        errors.extend(check.get("errors", []))
+    warnings = []
+    for check in result.get("checks", []):
+        warnings.extend(check.get("warnings", []))
+
+    if errors:
+        msg = f"S9: {len(errors)} validation errors, {len(warnings)} warnings"
+        for e in errors[:5]:
+            msg += f"\n  ✗ {e}"
+        return False, msg
+
+    msg = f"S9 passed: {result.get('coupons_found', 0)} coupons validated, {len(warnings)} warnings"
+    return True, msg
+
+
+def _run_s10(date: str, state: dict) -> tuple[bool, str]:
+    """S10: Final summary."""
+    step_data = state.get("step_data", {})
+
+    summary_lines = [
+        "═══════════════════════════════════",
+        f"  PIPELINE COMPLETE — {date}",
+        "═══════════════════════════════════",
+        "",
+        f"S3 Deep Stats: {step_data.get('s3_with_data', '?')}/{step_data.get('s3_count', '?')} candidates analyzed",
+        f"S7 Gate: {step_data.get('s7_approved', '?')} approved, {step_data.get('s7_extended', '?')} extended",
+    ]
+
+    if step_data.get("s8_no_bet"):
+        summary_lines.append("S8 Coupons: NO BET DAY")
+    else:
+        summary_lines.append(
+            f"S8 Coupons: {step_data.get('s8_core', '?')} core, {step_data.get('s8_combos', '?')} combos"
+        )
+
+    summary_lines.extend(
+        [
+            "",
+            "Output files:",
+            f"  📊 betting/data/{date}_s3_deep_stats.md",
+            f"  ✅ betting/data/{date}_s7_gate_results.md",
+            f"  🎫 betting/coupons/{date}.md",
+            f"  📦 betting/coupons/{date}.json",
+        ]
+    )
+
+    msg = "\n".join(summary_lines)
+    print(msg)
+
+    state["completed_at"] = datetime.now(ZoneInfo("Europe/Warsaw")).isoformat()
+
+    return True, msg
+
+
+def run_python_step(step_id: str, date: str, state: dict) -> tuple[bool, str]:
+    """Dispatch to the correct Python-driven pipeline step."""
+    try:
+        if step_id == "s3_deep_stats":
+            return _run_s3(date, state)
+        elif step_id == "s7_gate":
+            return _run_s7(date, state)
+        elif step_id == "s8_coupons":
+            return _run_s8(date, state)
+        elif step_id == "s9_validate":
+            return _run_s9(date, state)
+        elif step_id == "s10_summary":
+            return _run_s10(date, state)
+        else:
+            return False, f"Unknown python step: {step_id}"
+    except Exception as e:
+        import traceback
+
+        return False, f"{e}\n{traceback.format_exc()}"
+
+
+# ---------------------------------------------------------------------------
+# Status display
+# ---------------------------------------------------------------------------
 def print_status(state: dict):
     """Print current pipeline status."""
     print(f"\n{'='*60}")
@@ -258,31 +505,53 @@ def print_status(state: dict):
     print(f"Version: {state.get('version', 'v1')}")
     print(f"Pass: {state.get('pass_number', 1)}")
     print(f"Started: {state.get('started_at', 'N/A')}")
+    print(f"Completed: {state.get('completed_at', 'N/A')}")
     print(f"Current step: {state.get('current_step', 'N/A')}")
     print()
 
     for step in PIPELINE_STEPS:
         step_state = state.get("steps", {}).get(step["id"], {})
         status = step_state.get("status", "pending")
-        marker = {"pending": "○", "running": "►", "completed": "✓", "failed": "✗", "skipped": "–"}.get(status, "?")
-        agent_tag = " [AGENT]" if step.get("agent_step") else ""
-        print(f"  {marker} {step['name']}{agent_tag} — {status}")
+        marker = {
+            "pending": "○",
+            "running": "►",
+            "completed": "✓",
+            "failed": "✗",
+            "skipped": "–",
+            "completed_with_warnings": "⚠",
+        }.get(status, "?")
+        print(f"  {marker} {step['name']} — {status}")
         if step_state.get("error"):
             print(f"    Error: {step_state['error'][:100]}")
 
     errors = state.get("errors", [])
     if errors:
         print(f"\nErrors ({len(errors)}):")
-        for err in errors[-5:]:  # Show last 5
+        for err in errors[-5:]:
             print(f"  - {err}")
+
+    step_data = state.get("step_data", {})
+    if step_data:
+        print("\nStep data:")
+        for k, v in step_data.items():
+            print(f"  {k}: {v}")
     print()
 
 
-def run_pipeline(date: str, session: str = "full", resume: bool = False,
-                 single_step: str = None, version: str = None):
+# ---------------------------------------------------------------------------
+# Main pipeline loop
+# ---------------------------------------------------------------------------
+def run_pipeline(
+    date: str,
+    session: str = "full",
+    resume: bool = False,
+    single_step: str | None = None,
+    version: str | None = None,
+    skip_scan: bool = False,
+    top: int | None = None,
+):
     """Run the full pipeline or a single step."""
-    # Validate date format early to prevent path traversal in state files
-    if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', date):
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
         print(f"[FATAL] Invalid date format: {date} (expected YYYY-MM-DD)")
         sys.exit(1)
 
@@ -294,10 +563,15 @@ def run_pipeline(date: str, session: str = "full", resume: bool = False,
         if version:
             state["version"] = version
 
+    # Store CLI args for use by python steps
+    state.setdefault("cli_args", {})
+    if top:
+        state["cli_args"]["top"] = top
+
     config = load_config()
 
     print(f"\n{'='*60}")
-    print(f"BETTING PIPELINE ORCHESTRATOR")
+    print("BETTING PIPELINE ORCHESTRATOR")
     print(f"{'='*60}")
     print(f"Date: {date}")
     print(f"Session: {session}")
@@ -305,6 +579,9 @@ def run_pipeline(date: str, session: str = "full", resume: bool = False,
     print(f"Bankroll: {config.get('working_bankroll_pln', 'N/A')} PLN")
     print(f"Daily budget: {config.get('suggested_daily_allocation_range_pln', 'N/A')} PLN")
     print(f"Resume: {resume}")
+    print(f"Skip scan: {skip_scan}")
+    if top:
+        print(f"Top candidates: {top}")
     print(f"{'='*60}\n")
 
     steps_to_run = PIPELINE_STEPS
@@ -324,64 +601,79 @@ def run_pipeline(date: str, session: str = "full", resume: bool = False,
             print(f"[skip] {step['name']} — already completed")
             continue
 
-        # Agent-driven steps — mark as ready and continue
-        if step.get("agent_step"):
-            step_state["status"] = "pending"
-            step_state["message"] = "Agent-driven step — delegate to appropriate agent"
-            state["current_step"] = step_id
+        # Skip scan-phase steps when --skip-scan is set
+        if skip_scan and step_id in SCAN_STEP_IDS:
+            step_state["status"] = "skipped"
+            print(f"[skip] {step['name']} — --skip-scan")
             save_state(date, state)
-            print(f"[agent] {step['name']} — agent-driven, marking ready")
             continue
 
-        # Script-driven steps
-        print(f"\n{'─'*40}")
+        print(f"\n{'─'*60}")
         print(f"[{step_id}] {step['name']}")
-        print(f"{'─'*40}")
+        print(f"  {step.get('description', '')}")
+        print(f"{'─'*60}")
 
         step_state["status"] = "running"
         step_state["started_at"] = datetime.now(ZoneInfo("Europe/Warsaw")).isoformat()
         state["current_step"] = step_id
         save_state(date, state)
 
-        all_success = True
-        outputs = []
-        for cmd in step["commands"]:
-            success, output = run_command(cmd, date)
-            outputs.append(output)
-            if not success:
-                all_success = False
-                if step["critical"]:
-                    step_state["status"] = "failed"
-                    step_state["error"] = output[-500:]  # Last 500 chars
-                    state["errors"].append(f"{step_id}: {output[-200:]}")
-                    save_state(date, state)
-                    print(f"\n[CRITICAL] {step['name']} failed — pipeline stopped")
-                    print_status(state)
-                    return
-                else:
-                    print(f"  [WARNING] Non-critical step failed, continuing")
+        if "python_step" in step:
+            success, output = run_python_step(step_id, date, state)
+        elif "commands" in step and step["commands"]:
+            all_success = True
+            outputs = []
+            for cmd in step["commands"]:
+                cmd_ok, cmd_out = run_command(cmd, date)
+                outputs.append(cmd_out)
+                if not cmd_ok:
+                    all_success = False
+                    break
+            success = all_success
+            output = "\n".join(outputs)
+        else:
+            success = True
+            output = "No-op step"
 
-        # Check outputs
-        missing = check_outputs(step)
-        if missing:
-            print(f"  [WARNING] Missing output files: {missing}")
+        if success:
+            step_state["status"] = "completed"
+            step_state["completed_at"] = datetime.now(ZoneInfo("Europe/Warsaw")).isoformat()
+            step_state["output_summary"] = output[:500] if output else ""
+            print(f"  ✓ {output[:200] if output else 'Done'}")
 
-        step_state["status"] = "completed" if all_success else "completed_with_warnings"
-        step_state["completed_at"] = datetime.now(ZoneInfo("Europe/Warsaw")).isoformat()
+            # Check expected output files for command steps
+            missing = check_outputs(step)
+            if missing:
+                print(f"  ⚠ Missing expected outputs: {missing}")
+        else:
+            step_state["status"] = "failed"
+            step_state["error"] = output[-500:] if output else "Unknown error"
+            state["errors"].append(f"{step_id}: {output[-200:] if output else 'Error'}")
+
+            is_critical = step.get("critical", "python_step" in step)
+            if is_critical:
+                print(f"\n  ✗ CRITICAL FAILURE — pipeline stopped")
+                save_state(date, state)
+                print_status(state)
+                return
+            else:
+                print(f"  ⚠ Non-critical failure, continuing")
+
         save_state(date, state)
 
-    # Summary
     print_status(state)
 
-    # Check if all script steps completed
-    script_steps = [s for s in PIPELINE_STEPS if not s.get("agent_step")]
-    completed = sum(1 for s in script_steps
-                    if state.get("steps", {}).get(s["id"], {}).get("status", "").startswith("completed"))
-    print(f"\nScript steps completed: {completed}/{len(script_steps)}")
-    print(f"Agent steps remaining: {sum(1 for s in PIPELINE_STEPS if s.get('agent_step'))}")
-    print(f"\nUse @bet-orchestrator to run agent-driven steps (S2-S8)")
+    completed = sum(
+        1
+        for s in PIPELINE_STEPS
+        if state.get("steps", {}).get(s["id"], {}).get("status", "").startswith("completed")
+    )
+    print(f"Steps completed: {completed}/{len(PIPELINE_STEPS)}")
 
 
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
 def main():
     parser = argparse.ArgumentParser(description="Betting Pipeline Orchestrator")
     parser.add_argument("--date", help="Betting date (YYYY-MM-DD)")
@@ -391,19 +683,20 @@ def main():
     parser.add_argument("--version", help="Pipeline version (v1, v2, etc.)")
     parser.add_argument("--status", action="store_true", help="Show current pipeline status")
     parser.add_argument("--list-steps", action="store_true", help="List all pipeline steps")
+    parser.add_argument("--skip-scan", action="store_true", help="Skip S0/S1 scan steps (re-run analysis only)")
+    parser.add_argument("--top", type=int, help="Limit S3 candidates (default: all)")
     args = parser.parse_args()
 
     if args.list_steps:
         print("Pipeline Steps:")
         for step in PIPELINE_STEPS:
-            agent_tag = " [AGENT]" if step.get("agent_step") else " [SCRIPT]"
-            critical_tag = " ★" if step["critical"] else ""
-            print(f"  {step['id']:15s} {step['name']}{agent_tag}{critical_tag}")
+            kind = " [PY]" if "python_step" in step else " [SH]"
+            critical_tag = " ★" if step.get("critical", "python_step" in step) else ""
+            print(f"  {step['id']:18s} {step['name']}{kind}{critical_tag}")
         return
 
     if args.status:
         if not args.date:
-            # Try today's date
             now = datetime.now(ZoneInfo("Europe/Warsaw"))
             args.date = now.strftime("%Y-%m-%d")
         state = load_state(args.date)
@@ -420,6 +713,8 @@ def main():
         resume=args.resume,
         single_step=args.step,
         version=args.version,
+        skip_scan=args.skip_scan,
+        top=args.top,
     )
 
 

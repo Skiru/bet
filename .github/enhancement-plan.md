@@ -895,11 +895,10 @@ class StepStatus:
 8. odds_multi        (fetch_odds_multi.py)
 9. deep_analysis     (deep_analysis_pool.py)
 10. aggregate        (aggregate_and_select.py)
-11. betclic_extract  (quick_betclic_extract.py)
-12. market_matrix    (generate_market_matrix.py)
-13. correlation      (cross_sport_correlation.py)
-14. tactical_enrich  (fetch_tactical_profile.py — batch)
-15. weather_enrich   (fetch_weather.py — batch)
+11. market_matrix    (generate_market_matrix.py)
+12. correlation      (cross_sport_correlation.py)
+13. tactical_enrich  (fetch_tactical_profile.py — batch)
+14. weather_enrich   (fetch_weather.py — batch)
 ```
 
 **CLI interface**:

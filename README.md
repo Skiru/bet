@@ -2,6 +2,65 @@
 
 Ten zestaw plikow zamienia Copilota w uporzadkowany workflow do malego bankrollu. Celem nie jest znalezienie jak najwiekszej liczby typow, tylko wybranie malej liczby zakladow, ktore maja sens statystyczny i kursowy.
 
+## Instalacja
+
+```bash
+pip install -e .
+# Opcjonalnie: narzędzia deweloperskie
+pip install -e ".[dev]"
+```
+
+## CLI — Nowy interfejs (`bet`)
+
+Po instalacji dostępne są następujące komendy:
+
+```bash
+# Uruchom pełny pipeline (5 kroków: discover → enrich → analyze → build → settle)
+bet run [--date YYYY-MM-DD] [--resume]
+
+# Rozlicz zakłady z danego dnia
+bet settle [--date YYYY-MM-DD]
+
+# Pokaż status pipeline'u
+bet status [--date YYYY-MM-DD]
+
+# Historia kuponów i PnL
+bet history
+
+# Status zdrowia źródeł danych
+bet health
+
+# Migracja danych z JSON/CSV do SQLite (jednorazowo)
+bet migrate
+```
+
+### Migracja danych
+
+Przy pierwszym uruchomieniu nowego systemu, zmigruj istniejące dane:
+
+```bash
+bet migrate
+```
+
+To jednorazowe polecenie importuje dane z `betting/data/` i `betting/journal/` do bazy SQLite (`betting/data/betting.db`).
+
+## Architektura
+
+Nowy system (`src/bet/`) używa SQLite z trybem WAL jako bazy danych. Stare skrypty w `scripts/` są zachowane jako referencja, ale **oznaczone jako przestarzałe** (deprecated).
+
+### Kluczowe moduły
+
+- `src/bet/db/` — schemat, połączenie, modele, repozytoria
+- `src/bet/scanner/` — odkrywanie meczów, pobieranie kursów
+- `src/bet/stats/` — wzbogacanie danych, safety scores, ranking rynków
+- `src/bet/coupon/` — budowanie kuponów (max 3 nogi), lista zakupów
+- `src/bet/pipeline/` — orkiestrator 5-krokowy z resume
+- `src/bet/settlement/` — rozliczanie, analiza historyczna
+
+## `scripts/` — Przestarzałe (deprecated)
+
+Katalog `scripts/` zawiera oryginalny workflow oparty na JSON/CSV. Jest zachowany jako referencja, ale **nowe funkcjonalności powinny używać CLI `bet`**. Skrypty mogą przestać działać w przyszłych wersjach.
+
 ## Co System Robi Przy Kazdym Uruchomieniu
 
 - rozlicza poprzedni betting day
@@ -116,7 +175,7 @@ python3 scripts/fetch_odds_api.py
 |------|------|---------|
 | S0 | Settlement | Wszystkie pending rozliczone, bankroll zaktualizowany |
 | S1 | Scan | ≥50 wydarzen, 14 sportow skanowanych, tipster HTML pobrany |
-| S2 | Shortlist | 15-40 kandydatow, ≥8 sportow |
+| S2 | Shortlist | 50-100 kandydatow (via build_shortlist.py), ≥8 sportow |
 | S3 | Stats | ≥2 zrodla na kandydata, H2H obowiazkowe |
 | S4 | Tipsters | ≥2 strony tipsterskie na kandydata, §4.3 watchlist done |
 | S5 | Odds/EV | EV > 0 dla kazdego approved |

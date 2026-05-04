@@ -29,6 +29,21 @@ Goal: find MISPRICED ODDS in statistical markets. EV > 0 is the only valid reaso
 
 ---
 
+## AUTOMATED PIPELINE MODULES
+
+The pipeline has fully automated scripts for S3 (deep stats), S7 (gate checks), and S8 (coupon building). These run as Python imports inside `pipeline_orchestrator.py`:
+
+| Step | Script | What it does |
+|------|--------|-------------|
+| S3 | `scripts/deep_stats_report.py` | Reads stats cache, runs §3.0 `rank_markets()`, generates all 10 §S3 sections per candidate. Output: `{date}_s3_deep_stats.json/.md` |
+| S7 | `scripts/gate_checker.py` | Programmatic 17-point gate, §7.3 red flags, §6.5 upset risk, §7.6 sport diversity, risk tier (LR/MS/HR/N), confidence scoring. Output: `{date}_s7_gate_results.json/.md` |
+| S8 | `scripts/coupon_builder.py` | Core portfolio + combo menu + extended pool, Kelly 1/4 staking, Polish-language output, §8.2 stress test. Output: `betting/coupons/{date}.json/.md` |
+| Orchestrator | `scripts/pipeline_orchestrator.py` | Runs S0→S10 end-to-end. Injects EV from `odds_api_snapshot.json` between S3→S7. State tracking + resume. |
+
+**Agent role with automated modules:** Agents (bet-statistician, bet-challenger, bet-builder) supplement script output — they fill web-data gaps, provide qualitative analysis, and handle edge cases the scripts can't cover.
+
+---
+
 ## SCANNING MANDATE (NEVER VIOLATE)
 
 1. **WIDE:** ALL 14 sports every run. KEY sports get league-depth priority. Never say "no events" without exhausting the FULL fallback chain (see source-registry.md) + a Google search.
@@ -38,7 +53,7 @@ Goal: find MISPRICED ODDS in statistical markets. EV > 0 is the only valid reaso
 5. **COMPARE:** Every data point needs ≥2 independent confirmations.
 6. **RETRY LOOP:** After the first scan pass, review `scan_errors.json` and ALL failed sources. Retry each failed source ONCE. If it works now, add its events. Log final status.
 
-**Minimums:** ≥50 events scanned, ≥80% scan completeness, 15-40 shortlist across ≥8 sports, final picks from ≥5 sports, core coupons scale with picks (target ≥5 when 10+ approved) + ≥4 combo coupons. KEY sports ≥60% of shortlist. **Target ≥30 picks in final market matrix for user to choose from.**
+**Minimums:** ≥50 events scanned, ≥80% scan completeness, 50-100 shortlist across ≥8 sports (via `build_shortlist.py --top 100 --stats-first`), final picks from ≥5 sports, core coupons scale with picks (target ≥5 when 10+ approved) + ≥4 combo coupons. KEY sports ≥60% of shortlist. **Target ≥30 picks in final market matrix for user to choose from.**
 
 **SESSION PARITY:** Session type (full/day/night) controls ONLY the event time window. Analysis depth, coupon count, all steps, all validation = IDENTICAL regardless of session.
 
@@ -98,6 +113,9 @@ If the file is missing, run: `python3 scripts/parse_betclic_bets.py` (requires H
 - **KEY (deep league scan):** Football, Tennis, Basketball, Volleyball.
 - **SUPPORT (main leagues):** Hockey, Baseball, Esports, Snooker, Darts, Table Tennis, Handball, MMA, Padel, Speedway.
 
+**Niche sport source fallback (BetExplorer returns empty for snooker, esports, darts, table tennis, padel, speedway):**
+Primary: Flashscore (fixtures + odds) → scores24.live (odds + trends) → OddsPortal. BetExplorer is EXPECTED to fail for these — use the other sources.
+
 ### §1.5 TIPSTER PRE-FETCH (MANDATORY — runs as part of STEP 1)
 
 Before STEP 2 filtering, fetch TODAY's pages from ALL argument-based tipster sites using Playwright. This ensures tipster arguments are available for STEP 4 analysis.
@@ -128,13 +146,22 @@ python3 scripts/fetch_with_playwright.py "https://www.betideas.com/tips/football
 
 **After scan + fixture discovery, generate the comprehensive market matrix:**
 ```bash
-python3 scripts/generate_market_matrix.py --date YYYY-MM-DD
+python3 scripts/generate_market_matrix.py --date YYYY-MM-DD --stats-first
 ```
 
 This produces THREE files:
 1. `betting/data/market_matrix_{date}.json` — full structured matrix
 2. `betting/data/market_matrix_{date}.md` — human-readable market matrix with ALL events
 3. `betting/data/decision_matrix_{date}.md` — compact bettable opportunities list
+
+**Then build the ranked shortlist:**
+```bash
+python3 scripts/build_shortlist.py --date YYYY-MM-DD --top 100 --stats-first
+```
+
+This produces:
+4. `betting/data/{date}_s2_shortlist.md` — 100 ranked candidates with sport diversity
+5. `betting/data/{date}_s2_shortlist.json` — structured shortlist for downstream steps
 
 **Purpose:** Bridge the gap between fixture discovery (hundreds of events) and analysis (which requires cached stats). The market matrix shows ALL discovered events with whatever data is available — odds, safety scores, scan data. Nothing is auto-rejected.
 
@@ -146,6 +173,8 @@ This produces THREE files:
 - **FIXTURE_ONLY:** Fixture exists but no odds/stats attached yet
 
 **The matrix is the PRIMARY input for STEP 2 shortlisting.** Events at ANY data tier can be shortlisted — FIXTURE_ONLY events just need manual odds lookup on Betclic. The user sees the full landscape of what's available.
+
+**Deduplication:** The matrix generator automatically deduplicates events where the same teams appear in the same sport from multiple sources (e.g., fixtures API + scan). The entry with the best data tier is kept, and odds/safety markets from duplicates are merged in.
 
 ### §1.8 FIXTURE VERIFICATION GATE (MANDATORY — before shortlisting)
 
@@ -268,20 +297,55 @@ Tier E3 picks require ALL of: Betclic market confirmed, ≥2 sources with data, 
 
 ## STEP 2: FILTER — Shortlist
 
+**Automated shortlist generation:** `python3 scripts/build_shortlist.py --date YYYY-MM-DD --top 100 --stats-first`
+- Reads `market_matrix_{date}.json` and scores all events by: data tier, competition importance, sport tier, odds quality, tipster coverage
+- Enforces sport diversity (≥8 sports guaranteed, per-sport caps)
+- Deduplicates same-team events across sources
+- Produces `{date}_s2_shortlist.md` + `{date}_s2_shortlist.json` (100 ranked candidates)
+- **§1.8 Fixture verification:** Each candidate is cross-referenced against odds_api_snapshot.json and fixtures file. Verified candidates get ✅, unverified get ⚠️. Unverified events should be manually confirmed before S3 analysis to avoid phantom fixtures.
+- In STATS-FIRST mode, includes major competition FIXTURE_ONLY events for manual Betclic check
+
+After automated generation, agent reviews and may adjust:
+
 Remove: outside betting window, no Tier A coverage, <2h to kickoff, already started, exhibitions.
 Prioritize: events WITH statistical markets (corners, totals, HC) over basic ML-only.
 **Early Betclic market hint:** For niche sports (volleyball, table tennis, padel, speedway), check Betclic market availability BEFORE deep analysis. If market doesn't exist on Betclic → don't waste analysis time.
 Preferred odds range: 1.30-3.50.
-**Target: 15-40 events across ≥8 sports in shortlist (≥5 sports minimum in final picks).** KEY sports (Football+Volleyball+Basketball+Tennis) should be ≥60% of shortlist but no single sport >40%.
+**Target: 50-100 events across ≥8 sports in shortlist. S3 deep analysis narrows to ~35 best picks for coupon building.** KEY sports (Football+Volleyball+Basketball+Tennis) should be ≥60% of shortlist but no single sport >40%.
 
 **§2.1 MINIMUM PICK EXPANSION TRIGGER:**
-If after S7 gate fewer than 4 picks survive → DO NOT proceed to S8 with <4 picks. Instead:
-1. Go back to S2 and expand the shortlist by 5-10 candidates from ZT tipster-backed statistical markets.
-2. Specifically target sports NOT yet represented (volleyball, tennis, basketball, snooker) to improve diversity.
-3. Re-run S3-S7 for the new candidates ONLY.
-4. If STILL <4 picks after expansion → declare NO BET day.
+If after S7 gate fewer than 4 picks survive OR fewer than 5 sports are represented in approved picks → DO NOT proceed to S8. Instead:
+1. Identify ALL remaining S2 shortlist candidates that have NOT received S3 analysis — grouped by sport.
+2. Process ALL of them through S3→S7 in sport-diverse batches (see §2.2). Priority: KEY sports (football, volleyball, basketball, tennis) first, then SUPPORT sports with highest shortlist scores.
+3. Do NOT cherry-pick only "API-verified" or "easy" events. The shortlist was built from verified fixtures — they ALL deserve analysis.
+4. After expansion: re-check pick count AND sport diversity. If STILL <4 picks AND <5 sports after analyzing ALL shortlisted candidates → declare NO BET day.
+5. NEVER narrow expansion to a single sport or data source. If the shortlist has 25 football + 5 volleyball + 8 handball + 14 tennis candidates, the expansion MUST cover all four — not just the sport with easiest API data.
 
 **Lesson (v4, 2026-04-29):** v4 had only 3 picks (below minimum 4) because PK-02 (Higgins frames) was dropped for Betclic line mismatch. The pipeline should have triggered expansion rather than producing coupons with only 3 picks.
+
+**Lesson (v4, 2026-04-30):** After S7 gate rejected all 3 initial core picks (2 phantom fixtures + 1 fabricated data), the emergency expansion only analyzed NBA playoffs + snooker + NHL — completely ignoring 25 football (UEL/UECL semifinals!), 5 volleyball (PlusLiga!), 8 handball (Bundesliga!), and 14 tennis candidates from the shortlist. 51K events were scraped but only ~8 got emergency analysis. The scan infrastructure was wasted.
+
+### §2.2 S3 SPORT-DIVERSE BATCHING (MANDATORY — NEVER SKIP)
+
+**Problem solved:** Without this rule, S3 analysis tends to cluster around one sport (usually basketball or the sport with easiest API data), leaving entire KEY sports unanalyzed. This wastes the extensive scan infrastructure.
+
+**Rule: S3 MUST process candidates in SPORT-ROUND-ROBIN order, not sport-cluster order.**
+
+Batching protocol:
+1. Sort shortlist candidates by sport tier (KEY first) then by shortlist score (highest first).
+2. Build S3 batches using round-robin across sports: pick the top candidate from each sport before picking the 2nd candidate from any sport.
+3. Example for 100-candidate shortlist across 15 sports: Batch 1 = top football + top volleyball + top basketball + top tennis + top hockey + top handball + ... (one per sport). Batch 2 = 2nd football + 2nd volleyball + ... Continue until all candidates are batched.
+4. Process batches IN ORDER. This ensures that if S3 is interrupted or context runs out, ALL sports have at least some representation.
+5. **NEVER process all candidates from one sport before starting another sport.**
+
+**S3 Sport Coverage Gate (checked after EACH batch):**
+```
+Sports with ≥1 completed S3 analysis:  [X] / [Y total sports in shortlist]
+KEY sports with ≥1 completed S3:       [A] / 4
+Target: ALL KEY sports covered after Batch 1. ALL sports after Batch 2.
+```
+
+**If a context window or time constraint forces partial S3:** The round-robin ensures maximum sport diversity in whatever candidates ARE analyzed. Partial S3 with 15 sports × 2 candidates each = 30 diverse picks >> 30 candidates all from basketball.
 
 **CRITICAL: The S2 shortlist is a COMMITMENT.** Every candidate that enters the shortlist WILL receive full §3.0 analysis in S3 (see §3.0f). The only removals between S2 and S3 are PHANTOM/VOID/WRONG DATE/ALREADY STARTED — verified against ≥2 sources. Do NOT shortlist candidates you plan to skip later. If data looks thin at S2, either investigate further NOW or don't shortlist.
 
@@ -419,6 +483,16 @@ S3 COVERAGE:                   [Y / (N - X)] = must be 100%
 ```
 **If S3 COVERAGE < 100% → STOP. Complete missing analyses before proceeding.**
 
+**PRACTICAL S3 BATCHING PROTOCOL (when context window constrains full coverage):**
+If the S2 shortlist has 100 candidates but S3 analysis is context-constrained, apply this priority protocol:
+1. **Batch 1 (MANDATORY):** Use §2.2 round-robin — top 1 candidate per sport × all sports in shortlist (~15 candidates). This ensures every sport is represented.
+2. **Batch 2:** Next top candidates per sport using round-robin. Focus on KEY sports (football, volleyball, basketball, tennis).
+3. **Batch 3+:** Continue round-robin until all candidates analyzed OR all available context consumed.
+4. **If context runs out before 100% coverage:** Document exactly which candidates were skipped and why. The skipped candidates MUST appear in the report as `S3-PENDING — not yet analyzed` (NOT silently dropped). On next rerun or continuation, start with the skipped candidates.
+5. **NEVER silently drop candidates.** Every shortlisted candidate appears in one of: S3 analyzed → core/extended/rejected, S3-PENDING, or PRE-S3 REMOVAL (phantom/void).
+
+**Tooling enforcement:** `build_shortlist.py` produces `{date}_s2_shortlist.json` with `fixture_verified` flags per candidate. The shortlist JSON serves as a CHECKLIST — every `fixture_verified: true` candidate must have a matching entry in S3 output or PRE-S3 REMOVALS.
+
 **After S3, ALL candidates with completed analysis are classified:**
 - **CORE:** Passed 17-point gate fully → enters core portfolio
 - **EXTENDED POOL:** Has EV > 0 but failed some gate checks → enters extended pool with bull/bear case
@@ -519,6 +593,33 @@ These are NOT auto-approved picks — they enter the watchlist with rich context
 
 **Learned caution zones (ADVISORY):** MLB totals 33% historical hit rate — ⚠️ flag for user. MLB overs ≥8.5 — ⚠️ flag for user. Show these observations prominently but NEVER auto-reject or auto-downgrade.
 
+### §5.ALT STATS-FIRST MODE (when API odds are unavailable)
+
+When odds APIs don't cover an event (common for: table tennis, snooker, darts, esports, padel, speedway, minor leagues), use the STATS-FIRST workflow:
+
+1. **Complete S3 analysis normally** — safety scores, hit rates, three-way check all work WITHOUT odds.
+2. **Mark the pick as `MANUAL_ODDS_CHECK`** instead of calculating EV.
+3. **Output the probability portfolio** — for each market:
+   - Hit rate (e.g., "O9.5 corners: 8/10 L10, 4/5 H2H = 80%")
+   - Direction + margin (e.g., "avg 11.2 vs line 9.5 = +17.9% margin OVER")
+   - Safety score (e.g., "0.80")
+   - Suggested line range (e.g., "check Betclic for O9.5 / O10.5")
+   - **Minimum acceptable odds** = `1 / hit_rate` (e.g., 80% hit rate → min odds 1.25)
+4. **User workflow:**
+   - Open Betclic app → find the event → check if the suggested market exists
+   - Note the Betclic odds → if `odds ≥ min_acceptable_odds` → bet
+   - Quick mental EV: `hit_rate × odds > 1.0?` → YES = positive EV
+5. **Skip:** price gap analysis, line movement, drift gate (no reference odds exist).
+6. **Kelly staking uses estimated probability** from hit rate: `p = hit_rate, q = 1-p, b = betclic_odds - 1`. Stake = Kelly/4 as normal. Calculate AFTER user provides odds.
+
+**STATS-FIRST picks enter the coupon output with:**
+- `odds: CHECK_BETCLIC`
+- `EV: MANUAL (min odds X.XX for EV>0)`
+- `stake: PENDING (calculate after odds confirmed)`
+- All other fields (safety, direction, hit rate) filled normally.
+
+**Generate the market matrix with:** `python3 scripts/generate_market_matrix.py --date YYYY-MM-DD --stats-first`
+
 ---
 
 ## STEP 6: CONTEXT (per candidate)
@@ -586,6 +687,33 @@ KEY FAILURE SCENARIO: [most likely way this fails]
 [ ] 17. THREE-WAY ALIGNMENT: L10 avg + H2H avg + L5 recent all support pick direction. 2/3 conflict → DOWNGRADE. 3/3 conflict → REJECT.
 ALL 17 PASS → APPROVED | ANY FAIL → REJECT/DOWNGRADE/WATCHLIST
 ```
+
+### §7.6 POST-GATE SPORT DIVERSITY CHECK (MANDATORY — before S8)
+
+**After S7 gate completes for ALL candidates, check sport diversity BEFORE proceeding to S8:**
+
+```
+S2 shortlist sports:               [list all sports]
+S3 analyzed sports:                 [list all sports with completed S3]
+S7 approved picks — sport breakdown: [sport: count]
+Sports in approved picks:           [X]
+KEY sports in approved picks:       [Y] / 4
+```
+
+**DIVERSITY GATE CONDITIONS:**
+1. **≥5 sports in approved picks** → PASS. Proceed to S8.
+2. **<5 sports in approved picks** → FAIL. Trigger §2.1 expansion on ALL unanalyzed shortlist candidates from missing sports.
+3. **0 KEY sports (football/volleyball/basketball/tennis) in approved picks** → CRITICAL FAIL. KEY sports had the most shortlist candidates — they MUST be analyzed.
+4. **S3 analyzed fewer sports than S2 shortlisted** → FAIL. Every sport in the shortlist must have ≥1 candidate with completed S3.
+
+**EXPANSION LOOP (if diversity gate fails):**
+1. List all sports present in S2 shortlist but MISSING from S7 approved picks.
+2. For each missing sport: take ALL unanalyzed candidates from S2 shortlist.
+3. Run S3→S7 on them using §2.2 sport-diverse batching.
+4. Re-check diversity gate. Repeat until PASS or all shortlist candidates exhausted.
+5. **This loop has NO sport-preference bias** — football, volleyball, handball, tennis all get equal treatment.
+
+**NEVER proceed to S8 with <5 sports if the shortlist had ≥8 sports.** The shortlist was built from a 51K-event scan — honor that work.
 
 ---
 
@@ -743,6 +871,7 @@ On reruns: increment version (v5→v6). Mark old pending as `superseded`. Keep a
 | 18 | Exotic league analyzed without Betclic market check | Full S3-S7 done on a league where Betclic has no markets | §1.7a BETCLIC MARKET GATE: Check Betclic market existence BEFORE starting deep analysis. No markets → SKIP. |
 | 19 | 16/33 shortlisted candidates skipped S3 entirely | S3 only run for "top" candidates; rest silently dropped without analysis or user visibility | §3.0f S3 COMPLETENESS GATE: 100% of non-PHANTOM shortlisted candidates MUST receive full §3.0 analysis. ALL analyzed candidates appear in core, extended pool, or rejected list. User sees everything. |
 | 20 | 58% shortlist was phantom fixtures (19/33) | Tipster-sourced events not verified against independent sources before shortlisting. Wrong opponents, wrong dates, matches already played | §1.8 FIXTURE VERIFICATION GATE: Every candidate must be verified against ≥2 non-tipster sources BEFORE entering S2 shortlist. Tipster-only = UNVERIFIED-SKIP. Tennis draws must be checked against current tournament state. |
+| 21 | Emergency expansion narrowed to 1-2 sports (NBA+snooker), ignoring 25 football + 5 volleyball + 8 handball + 14 tennis shortlisted candidates | After S7 gate rejected initial picks, emergency re-analysis only targeted "API-verified" events from one sport instead of processing ALL remaining shortlist candidates across ALL sports | §2.1 expansion MUST cover ALL unanalyzed shortlist candidates using §2.2 sport-diverse batching. §7.6 POST-GATE SPORT DIVERSITY CHECK blocks S8 if <5 sports in approved picks. NEVER narrow to just the sport with easiest API data. The 51K-event scan exists to provide BREADTH — use it. |
 
 ---
 

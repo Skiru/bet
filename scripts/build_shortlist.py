@@ -1,0 +1,760 @@
+#!/usr/bin/env python3
+"""Build a ranked S2 shortlist from the market matrix.
+
+Scores every event by data quality, competition importance, odds attractiveness,
+and sport diversity, then selects the top N candidates.
+
+Usage:
+    python3 scripts/build_shortlist.py --date 2026-04-30 --top 100
+    python3 scripts/build_shortlist.py --date 2026-04-30 --top 100 --stats-first
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import sys
+import unicodedata
+from collections import Counter, defaultdict
+from datetime import datetime, timezone
+from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_DIR = SCRIPT_DIR.parent
+DATA_DIR = PROJECT_DIR / "betting" / "data"
+
+# Add scripts dir for sibling imports
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+from generate_market_matrix import STANDARD_MARKET_LINES, MAJOR_COMPETITIONS, _is_major_competition
+
+try:
+    from utils import normalize_team_name as _normalize_team
+except ImportError:
+    from scripts.utils import normalize_team_name as _normalize_team
+
+
+# ---------------------------------------------------------------------------
+# Fixture verification (§1.8)
+# ---------------------------------------------------------------------------
+
+def _load_verification_sources(date: str) -> tuple[set[str], set[str]]:
+    """Load fixture keys from odds_api_snapshot and fixtures file for §1.8 verification.
+
+    Returns (odds_api_keys, fixtures_keys) — sets of normalized 'home|away' keys.
+    """
+    odds_keys: set[str] = set()
+    fixtures_keys: set[str] = set()
+
+    # Odds API snapshot
+    odds_path = DATA_DIR / "odds_api_snapshot.json"
+    if odds_path.exists():
+        try:
+            data = json.loads(odds_path.read_text(encoding="utf-8"))
+            items = data.get("events", []) if isinstance(data, dict) else (data if isinstance(data, list) else [])
+            for ev in items:
+                h = _normalize_team(ev.get("home_team", ""))
+                a = _normalize_team(ev.get("away_team", ""))
+                if h and a:
+                    odds_keys.add(f"{h}|{a}")
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    # Fixtures file
+    fix_path = DATA_DIR / f"fixtures_{date}.json"
+    if fix_path.exists():
+        try:
+            data = json.loads(fix_path.read_text(encoding="utf-8"))
+            for fix in data.get("fixtures", []):
+                h = _normalize_team(fix.get("home_team", ""))
+                a = _normalize_team(fix.get("away_team", ""))
+                if h and a:
+                    fixtures_keys.add(f"{h}|{a}")
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    return odds_keys, fixtures_keys
+
+
+def _verify_fixture(
+    home: str, away: str, odds_keys: set[str], fixtures_keys: set[str]
+) -> tuple[bool, list[str]]:
+    """Check if an event appears in ≥1 independent source.
+
+    Returns (verified, sources_list).
+    """
+    h = _normalize_team(home)
+    a = _normalize_team(away)
+    key = f"{h}|{a}"
+    key_rev = f"{a}|{h}"
+
+    sources = []
+    if key in odds_keys or key_rev in odds_keys:
+        sources.append("odds-api")
+    if key in fixtures_keys or key_rev in fixtures_keys:
+        sources.append("fixtures-api")
+
+    # Also check fuzzy (substring match for when names differ slightly)
+    if not sources:
+        for ok in odds_keys:
+            parts = ok.split("|", 1)
+            if len(parts) == 2:
+                if (h in parts[0] or parts[0] in h) and (a in parts[1] or parts[1] in a):
+                    sources.append("odds-api-fuzzy")
+                    break
+                if (h in parts[1] or parts[1] in h) and (a in parts[0] or parts[0] in a):
+                    sources.append("odds-api-fuzzy")
+                    break
+
+    return bool(sources), sources
+
+
+# ---------------------------------------------------------------------------
+# Competition tiers (higher = more important)
+# ---------------------------------------------------------------------------
+COMP_TIER_KEYWORDS: dict[str, list[tuple[int, list[str]]]] = {
+    "football": [
+        (10, ["champions league", "europa league", "conference league", "world cup"]),
+        (9, ["english premier league", "la liga", "laliga", "bundesliga", "serie a", "ligue 1"]),
+        (8, ["eredivisie", "primeira liga", "ekstraklasa", "super lig", "championship"]),
+        (7, ["copa libertadores", "copa sudamericana", "mls", "brasileirao"]),
+        (6, ["2. bundesliga", "serie b", "ligue 2", "segunda", "liga mx"]),
+        (5, ["k-league", "j-league", "a-league", "nations league", "qualification"]),
+        (2, []),  # default for any unknown football league
+    ],
+    "tennis": [
+        (10, ["grand slam", "australian open", "french open", "wimbledon", "us open", "roland garros"]),
+        (9, ["masters 1000", "atp 1000", "wta 1000"]),
+        (8, ["atp 500", "wta 500"]),
+        (7, ["atp 250", "wta 250"]),
+        (5, ["challenger", "itf"]),
+    ],
+    "basketball": [
+        (10, ["nba playoff", "nba finals"]),
+        (9, ["nba", "euroleague"]),
+        (8, ["eurocup", "ncaa", "acb"]),
+        (7, ["plk", "bbl", "bcl", "fiba"]),
+    ],
+    "volleyball": [
+        (9, ["plusliga", "cev champions", "superlega"]),
+        (8, ["serie a", "ligue a", "bundesliga"]),
+        (7, ["efeler", "superliga"]),
+    ],
+    "hockey": [
+        (10, ["nhl playoff"]),
+        (9, ["nhl", "khl"]),
+        (8, ["shl", "liiga", "del"]),
+    ],
+    "handball": [
+        (9, ["ehf champions league"]),
+        (8, ["ehf", "bundesliga", "starligue"]),
+        (7, ["liga asobal", "superliga"]),
+    ],
+    "baseball": [
+        (9, ["mlb"]),
+        (7, ["npb", "kbo"]),
+    ],
+    "snooker": [
+        (9, ["world championship", "masters", "champion of champions"]),
+        (7, ["grand prix", "open", "trophy", "classic"]),
+    ],
+    "darts": [
+        (9, ["pdc", "premier league"]),
+        (7, ["world", "grand prix"]),
+    ],
+    "esports": [
+        (8, ["major", "worlds", "champions"]),
+        (6, ["esl", "blast", "iem", "pgl"]),
+    ],
+    "mma": [
+        (9, ["ufc"]),
+        (7, ["bellator", "pfl", "one"]),
+    ],
+    "table_tennis": [
+        (8, ["wtt grand smash", "wtt champions"]),
+        (6, ["wtt star contender", "wtt"]),
+    ],
+    "padel": [
+        (8, ["premier padel major"]),
+        (6, ["premier padel", "world padel tour"]),
+    ],
+    "speedway": [
+        (8, ["ekstraliga", "speedway gp"]),
+        (6, ["sec"]),
+    ],
+}
+
+# Tier 1 = KEY sports (always prioritize); Tier 2 = support
+TIER1_SPORTS = {"football", "volleyball", "basketball", "tennis"}
+
+
+def _score_competition(sport: str, competition: str) -> int:
+    """Score a competition within its sport (higher = more important)."""
+    if not competition:
+        return 1
+    comp_lower = competition.lower()
+
+    # Penalize clearly obscure/minor leagues
+    obscure_markers = [
+        "amateur", "reserve", "youth", "u19", "u21", "u23", "women",
+        "regional", "county", "division 3", "division 4",
+        "sikkim", "mizoram", "manipur",  # Indian state leagues
+        "etiopia", "ethiopia", "tanzania", "uganda", "kenya",
+        "bangladesh", "cambodia", "laos", "myanmar",
+    ]
+    if any(m in comp_lower for m in obscure_markers):
+        return 1
+
+    tiers = COMP_TIER_KEYWORDS.get(sport, [])
+    for score, keywords in tiers:
+        if keywords and any(kw in comp_lower for kw in keywords):
+            return score
+    # Default per-sport base
+    for score, keywords in tiers:
+        if not keywords:
+            return score
+    return 2
+
+
+def _score_event(event: dict, tipster_events: set[str]) -> float:
+    """Score an event for shortlist ranking. Higher = better candidate."""
+    sport = event["sport"]
+    comp = event.get("competition", "")
+    tier = event.get("data_tier", "FIXTURE_ONLY")
+    has_odds = bool(event.get("odds_markets"))
+    n_odds = len(event.get("odds_markets", []))
+    has_safety = bool(event.get("safety_markets"))
+    n_safety = len(event.get("safety_markets", []))
+
+    score = 0.0
+
+    # 1. Data tier (odds availability matters but shouldn't dominate)
+    tier_scores = {"FULL": 30, "ODDS_RICH": 25, "ODDS_BASIC": 18, "STATS_ONLY": 12, "FIXTURE_ONLY": 5}
+    score += tier_scores.get(tier, 0)
+
+    # 2. Competition importance (HIGHEST weight — premier league > obscure league)
+    comp_score = _score_competition(sport, comp)
+    score += comp_score * 5  # max 50
+
+    # 3. Sport tier bonus
+    if sport in TIER1_SPORTS:
+        score += 10
+
+    # 4. Number of odds markets (more = better analysis potential)
+    score += min(n_odds * 2, 12)  # cap at 12
+
+    # 5. Safety data availability
+    score += min(n_safety * 3, 15)  # cap at 15
+
+    # 6. Tipster coverage bonus
+    home_lower = event.get("home_team", "").lower()
+    away_lower = event.get("away_team", "").lower()
+    event_key = f"{home_lower} vs {away_lower}"
+    has_tipster = (
+        event_key in tipster_events
+        or home_lower in tipster_events
+        or away_lower in tipster_events
+    )
+    if has_tipster:
+        score += 15
+
+    # 7. Odds attractiveness (sweet spot: 1.40-3.00)
+    if has_odds:
+        best_odds = max(
+            (m.get("best_odds", 0) for m in event["odds_markets"]), default=0
+        )
+        if 1.40 <= best_odds <= 3.00:
+            score += 8
+        elif 1.20 <= best_odds <= 4.00:
+            score += 4
+
+    return score
+
+
+def _load_tipster_events(date: str) -> set[str]:
+    """Load tipster prefetch to identify events with tipster coverage.
+    
+    Returns a set of normalized team name pairs like 'braga vs freiburg'.
+    Parses both markdown headers AND pipe-delimited table entries (ZT format).
+    """
+    events = set()
+    date_compact = date.replace("-", "")
+    prefetch_path = DATA_DIR / f"{date_compact}_s1_tipster_prefetch.md"
+    if not prefetch_path.exists():
+        for p in DATA_DIR.glob(f"{date_compact}*tipster*"):
+            prefetch_path = p
+            break
+
+    if prefetch_path.exists():
+        text = prefetch_path.read_text(encoding="utf-8")
+        for line in text.split("\n"):
+            # Extract from markdown headers like "### #1 — SC Braga vs SC Freiburg"
+            m = re.search(r"—\s*(.+?)\s+vs\s+(.+?)$", line, re.IGNORECASE)
+            if m:
+                home = m.group(1).strip().lower()
+                away = m.group(2).strip().lower()
+                events.add(f"{home} vs {away}")
+                # Also add individual team names for fuzzy matching
+                events.add(home)
+                events.add(away)
+                continue
+            # Extract from ZT-style pipe-delimited table rows:
+            # | 1 | Football | Mirassol vs Always Ready | Over 20.5 fauli @1.72 | 1.56 | FOULS ⭐ |
+            # | 6 | Football | al Kholood vs al Fayha | Over 1.5 bramki ... | 1.60 | CORNERS ⭐ |
+            if "|" in line and (" vs " in line or " - " in line.split("|")[2] if len(line.split("|")) > 3 else False):
+                cells = [c.strip() for c in line.split("|") if c.strip()]
+                # Skip header/separator rows
+                if len(cells) >= 4 and not cells[0].startswith("#") and not cells[0].startswith("-"):
+                    # Event is typically in cells[2] (after #, Sport)
+                    match_cell = None
+                    for cell_idx in range(min(len(cells), 5)):
+                        if " vs " in cells[cell_idx] or " - " in cells[cell_idx]:
+                            match_cell = cells[cell_idx]
+                            break
+                    if match_cell:
+                        for sep in [" vs ", " - "]:
+                            if sep in match_cell:
+                                parts = match_cell.split(sep, 1)
+                                if len(parts) == 2:
+                                    home = re.sub(r"[#*\[\]()]", "", parts[0]).strip().lower()
+                                    away = re.sub(r"[#*\[\]()]", "", parts[1]).strip().lower()
+                                    if home and away and len(home) > 2 and len(away) > 2:
+                                        events.add(f"{home} vs {away}")
+                                        events.add(home)
+                                        events.add(away)
+                                break
+                    continue
+            # Extract from lines with " vs " or " - "
+            for sep in [" vs ", " - "]:
+                if sep in line.lower():
+                    parts = line.lower().split(sep, 1)
+                    if len(parts) == 2:
+                        # Clean markdown formatting
+                        home = re.sub(r"[#*\-\[\]()]", "", parts[0]).strip()
+                        away = re.sub(r"[#*\-\[\]()]", "", parts[1]).strip()
+                        if home and away and len(home) > 2 and len(away) > 2:
+                            events.add(f"{home} vs {away}")
+                            events.add(home)
+                            events.add(away)
+                    break
+    return events
+
+
+def build_shortlist(
+    date: str,
+    top_n: int = 100,
+    stats_first: bool = False,
+    min_sports: int = 8,
+) -> list[dict]:
+    """Build a ranked shortlist of top_n events from the market matrix."""
+    matrix_path = DATA_DIR / f"market_matrix_{date}.json"
+    if not matrix_path.exists():
+        print(f"[shortlist] ERROR: {matrix_path} not found. Run generate_market_matrix.py first.")
+        sys.exit(1)
+
+    matrix = json.loads(matrix_path.read_text(encoding="utf-8"))
+    events = matrix["events"]
+    print(f"[shortlist] Loaded {len(events)} events from market matrix")
+
+    # Load tipster data for bonus scoring
+    tipster_events = _load_tipster_events(date)
+    print(f"[shortlist] Tipster events found: {len(tipster_events)}")
+
+    # Score all events
+    scored = []
+    for event in events:
+        sport = event.get("sport", "")
+        comp = event.get("competition", "")
+        tier = event.get("data_tier", "FIXTURE_ONLY")
+
+        # Filter FIXTURE_ONLY events
+        if tier == "FIXTURE_ONLY":
+            home_lower = event.get("home_team", "").lower()
+            away_lower = event.get("away_team", "").lower()
+            has_tipster = (
+                home_lower in tipster_events
+                or away_lower in tipster_events
+            )
+            if stats_first:
+                # In stats-first: include if major competition OR tipster coverage
+                if not has_tipster and not _is_major_competition(sport, comp):
+                    continue
+            else:
+                # Without stats-first: only include if tipster coverage
+                if not has_tipster:
+                    continue
+
+        score = _score_event(event, tipster_events)
+        scored.append((score, event))
+
+    scored.sort(key=lambda x: -x[0])
+    print(f"[shortlist] Scored {len(scored)} eligible events")
+
+    # Garbage filter: reject entries where team names are page chrome
+    _garbage_re = re.compile(
+        r"today's matches|pinned leagues|my teams|advertisement|"
+        r"advancing to next round|winner:|latest scores|previous match day|"
+        r"there are no .* matches|sets legs points|"
+        r"atp\b.*\bsingles|wta\b.*\bsingles|atp\b.*\bdoubles|wta\b.*\bdoubles|"
+        r"\bdraw\s+\d{1,2}:\d{2}\b|overview|preview|head-to-head|line-ups|"
+        r"completed|match stats|\bcourt\b.*\bcompleted\b|\bpuchar\b|\bpremiership league\b|"
+        r"pregame report|postgame",
+        re.I,
+    )
+    filtered = []
+    garbage_count = 0
+    for score, event in scored:
+        home = event.get("home_team", "")
+        away = event.get("away_team", "")
+        if len(home) > 60 or len(away) > 60:
+            garbage_count += 1
+            continue
+        if _garbage_re.search(home) or _garbage_re.search(away):
+            garbage_count += 1
+            continue
+        if " / " in home or " / " in away:
+            garbage_count += 1
+            continue
+        if re.search(r" : .+\d{1,2}:\d{2}", home) or re.search(r" : .+\d{1,2}:\d{2}", away):
+            garbage_count += 1
+            continue
+        # Date-prefixed team names (e.g., "CZW 30.04.2026 20:30 Northampton")
+        if re.match(r"^[A-Z]{2,4}\s+\d{2}\.\d{2}\.\d{4}", home) or re.match(r"^[A-Z]{2,4}\s+\d{2}\.\d{2}\.\d{4}", away):
+            garbage_count += 1
+            continue
+        filtered.append((score, event))
+    if garbage_count:
+        print(f"[shortlist] Filtered {garbage_count} garbage entries")
+    scored = filtered
+
+    # Dedup: same teams in same sport = likely same event from different sources
+    deduped = []
+    seen_matchups: set[str] = set()
+    for score, event in scored:
+        home = event.get("home_team", "").lower().strip()
+        away = event.get("away_team", "").lower().strip()
+        sport = event.get("sport", "")
+        # Normalize: remove accents, common suffixes/prefixes
+        home = unicodedata.normalize("NFKD", home).encode("ascii", "ignore").decode()
+        away = unicodedata.normalize("NFKD", away).encode("ascii", "ignore").decode()
+        for remove in ["fc ", "sc ", "bc ", "ac ", " fc", " sc", " bc", " cf",
+                       " basket", " basketball", " sk", " sk.",
+                       " s.k.", " fk", " fk."]:
+            home = home.replace(remove, "")
+            away = away.replace(remove, "")
+        # Remove city qualifiers often appended (e.g., "Zalgiris Kaunas" -> "Zalgiris")
+        # and common short suffixes
+        for suffix in [" kaunas", " vilnius", " moscow", " kiev",
+                       " london", " paris", " madrid", " berlin"]:
+            home = home.replace(suffix, "")
+            away = away.replace(suffix, "")
+        home = re.sub(r"\s+", " ", home).strip()
+        away = re.sub(r"\s+", " ", away).strip()
+        dedup_key = f"{sport}|{home}|{away}"
+        # Also check reversed order (same matchup, swapped home/away from different sources)
+        dedup_key_rev = f"{sport}|{away}|{home}"
+        if dedup_key in seen_matchups or dedup_key_rev in seen_matchups:
+            continue
+        # Fuzzy substring dedup: check if either team name is a substring of an existing entry
+        is_dup = False
+        for existing_key in seen_matchups:
+            ex_parts = existing_key.split("|", 2)
+            if len(ex_parts) != 3 or ex_parts[0] != sport:
+                continue
+            ex_home, ex_away = ex_parts[1], ex_parts[2]
+            home_match = (home in ex_home or ex_home in home) and len(home) >= 3 and len(ex_home) >= 3
+            away_match = (away in ex_away or ex_away in away) and len(away) >= 3 and len(ex_away) >= 3
+            if home_match and away_match:
+                is_dup = True
+                break
+            # Also check crossed: home↔away
+            home_match_rev = (home in ex_away or ex_away in home) and len(home) >= 3
+            away_match_rev = (away in ex_home or ex_home in away) and len(away) >= 3
+            if home_match_rev and away_match_rev:
+                is_dup = True
+                break
+        if is_dup:
+            continue
+        seen_matchups.add(dedup_key)
+        deduped.append((score, event))
+
+    print(f"[shortlist] After dedup: {len(deduped)} unique events (removed {len(scored) - len(deduped)} dupes)")
+    scored = deduped
+
+    # Select top_n with sport diversity enforcement
+    # Strategy: 2-phase selection
+    #   Phase 1: guarantee minimum slots per sport (ensures ≥min_sports)
+    #   Phase 2: fill remaining slots by global score with per-sport caps
+    selected = []
+    sport_counts: Counter = Counter()
+    selected_keys: set[str] = set()
+
+    total_by_sport = Counter(s[1]["sport"] for s in scored)
+    available_sports = sorted(total_by_sport.keys())
+
+    # Per-sport minimum guaranteed slots
+    sport_min = {}
+    for sport in available_sports:
+        avail = total_by_sport[sport]
+        if sport in TIER1_SPORTS:
+            sport_min[sport] = min(3, avail)
+        else:
+            sport_min[sport] = min(2, avail)
+
+    # Phase 1: guarantee minimums for each sport (pick top-scored per sport)
+    by_sport = defaultdict(list)
+    for score, event in scored:
+        by_sport[event["sport"]].append((score, event))
+
+    for sport in available_sports:
+        needed = sport_min[sport]
+        for score, event in by_sport[sport][:needed]:
+            key = f"{event.get('home_team','')}|{event.get('away_team','')}|{event.get('kickoff','')}"
+            if key not in selected_keys:
+                selected.append((score, event))
+                selected_keys.add(key)
+                sport_counts[sport] += 1
+
+    # Phase 2: fill remaining slots by global score, cap per sport
+    remaining = top_n - len(selected)
+    max_per_sport_key = max(top_n // 4, 8)  # KEY sports: max 25%
+    max_per_sport_sup = max(top_n // 8, 4)  # SUPPORT sports: max ~12%
+
+    if remaining > 0:
+        for score, event in scored:
+            key = f"{event.get('home_team','')}|{event.get('away_team','')}|{event.get('kickoff','')}"
+            if key in selected_keys:
+                continue
+            sport = event["sport"]
+            cap = max_per_sport_key if sport in TIER1_SPORTS else max_per_sport_sup
+            if sport_counts[sport] >= cap:
+                continue
+            selected.append((score, event))
+            selected_keys.add(key)
+            sport_counts[sport] += 1
+            if len(selected) >= top_n:
+                break
+
+    # Re-sort by score
+    selected.sort(key=lambda x: -x[0])
+
+    n_sports_selected = len(set(e["sport"] for _, e in selected))
+    print(f"[shortlist] Selected {len(selected)} events across {n_sports_selected} sports")
+    if n_sports_selected < min_sports:
+        print(f"[shortlist] WARNING: Only {n_sports_selected} sports (need ≥{min_sports}). "
+              f"Available sports with events: {len(total_by_sport)}")
+
+    return selected
+
+
+def write_shortlist_md(
+    selected: list[tuple[float, dict]],
+    date: str,
+    stats_first: bool = False,
+) -> Path:
+    """Write the shortlist markdown artifact."""
+    date_compact = date.replace("-", "")
+    n_events = len(selected)
+    sports = sorted(set(e["sport"] for _, e in selected))
+    n_sports = len(sports)
+
+    # §1.8 fixture verification
+    odds_keys, fixtures_keys = _load_verification_sources(date)
+
+    lines = []
+    lines.append(f"# S2 Shortlist — {date} v1")
+    lines.append(f"**Session:** Full (06:00 CEST → 05:59 CEST next day)")
+    lines.append(f"**Generated by:** `build_shortlist.py` from market matrix ({n_events} events)")
+    lines.append(f"**Candidates:** {n_events} | **Sports:** {n_sports} | "
+                 f"**Gate:** {'PASS' if n_sports >= 8 else 'FAIL'} (need ≥8 sports)")
+    if stats_first:
+        lines.append(f"**Mode:** STATS-FIRST (CHECK_BETCLIC events included)")
+    lines.append("")
+    lines.append("---")
+    lines.append("")
+
+    # Summary by sport
+    sport_events = defaultdict(list)
+    for score, event in selected:
+        sport_events[event["sport"]].append((score, event))
+
+    lines.append("## Sport Distribution")
+    lines.append("")
+    lines.append("| Sport | Count | Tier | Avg Score |")
+    lines.append("|-------|-------|------|-----------|")
+    for sport in sports:
+        evts = sport_events[sport]
+        tier = "KEY" if sport in TIER1_SPORTS else "SUPPORT"
+        avg_score = sum(s for s, _ in evts) / len(evts)
+        lines.append(f"| {sport} | {len(evts)} | {tier} | {avg_score:.1f} |")
+    lines.append("")
+    lines.append("---")
+    lines.append("")
+
+    # Events grouped by sport
+    candidate_num = 0
+    for sport in sports:
+        evts = sport_events[sport]
+        sport_upper = sport.upper().replace("_", " ")
+        lines.append(f"## {sport_upper} — {len(evts)} candidates")
+        lines.append("")
+
+        for score, event in evts:
+            candidate_num += 1
+            home = event.get("home_team", "?")
+            away = event.get("away_team", "?")
+            comp = event.get("competition", "Unknown")
+            kickoff = event.get("kickoff", "?")
+            tier = event.get("data_tier", "FIXTURE_ONLY")
+            odds_mkts = event.get("odds_markets", [])
+            safety_mkts = event.get("safety_markets", [])
+            is_verified, ver_sources = _verify_fixture(home, away, odds_keys, fixtures_keys)
+
+            ver_icon = "✅" if is_verified else "⚠️"
+            lines.append(f"### #{candidate_num} — {home} vs {away} {ver_icon}")
+            lines.append(f"- **Competition:** {comp}")
+            lines.append(f"- **Kickoff:** {kickoff}")
+
+            # Available markets
+            if odds_mkts:
+                mkt_names = sorted(set(m.get("market", "?") for m in odds_mkts))
+                odds_range = [m.get("best_odds", 0) for m in odds_mkts if m.get("best_odds")]
+                odds_str = ""
+                if odds_range:
+                    odds_str = f" (odds: {min(odds_range):.2f}—{max(odds_range):.2f})"
+                lines.append(f"- **Available markets:** {', '.join(mkt_names[:8])}{odds_str}")
+            else:
+                lines.append(f"- **Available markets:** CHECK_BETCLIC (no API odds)")
+
+            lines.append(f"- **Data tier:** {tier} | **Score:** {score:.1f}")
+            if not is_verified:
+                lines.append(f"- **⚠️ UNVERIFIED** — not found in odds-api or fixtures-api. Verify before S3.")
+
+            # Safety data
+            if safety_mkts:
+                safety_strs = []
+                for sm in safety_mkts[:4]:
+                    s = f"{sm.get('market', '?')} (safety: {sm.get('safety_score', '?')})"
+                    safety_strs.append(s)
+                lines.append(f"- **Safety markets:** {'; '.join(safety_strs)}")
+
+            # Statistical markets to evaluate
+            std = STANDARD_MARKET_LINES.get(sport, [])
+            if std:
+                stat_names = [m["market"] for m in std]
+                lines.append(f"- **Statistical markets to evaluate:** {', '.join(stat_names)}")
+
+            lines.append("")
+
+    md_text = "\n".join(lines)
+    output_path = DATA_DIR / f"{date_compact}_s2_shortlist.md"
+    output_path.write_text(md_text, encoding="utf-8")
+    print(f"[shortlist] Written: {output_path} ({candidate_num} candidates)")
+    return output_path
+
+
+def write_shortlist_json(selected: list[tuple[float, dict]], date: str) -> Path:
+    """Write shortlist as JSON for downstream consumption."""
+    date_compact = date.replace("-", "")
+
+    # §1.8 fixture verification
+    odds_keys, fixtures_keys = _load_verification_sources(date)
+    verified_count = 0
+    unverified_count = 0
+
+    output = {
+        "date": date,
+        "total_candidates": len(selected),
+        "sports": sorted(set(e["sport"] for _, e in selected)),
+        "candidates": [],
+    }
+    for i, (score, event) in enumerate(selected, 1):
+        home = event.get("home_team", "")
+        away = event.get("away_team", "")
+        is_verified, ver_sources = _verify_fixture(home, away, odds_keys, fixtures_keys)
+        if is_verified:
+            verified_count += 1
+        else:
+            unverified_count += 1
+
+        output["candidates"].append({
+            "rank": i,
+            "score": round(score, 1),
+            "sport": event["sport"],
+            "home_team": home,
+            "away_team": away,
+            "competition": event.get("competition", ""),
+            "kickoff": event.get("kickoff", ""),
+            "data_tier": event.get("data_tier", ""),
+            "n_odds_markets": len(event.get("odds_markets", [])),
+            "n_safety_markets": len(event.get("safety_markets", [])),
+            "odds_markets": event.get("odds_markets", []),
+            "safety_markets": event.get("safety_markets", []),
+            "fixture_verified": is_verified,
+            "verification_sources": ver_sources,
+        })
+
+    output["fixture_verification"] = {
+        "verified": verified_count,
+        "unverified": unverified_count,
+        "pct": round(100 * verified_count / max(len(selected), 1), 1),
+    }
+    if unverified_count:
+        print(f"[shortlist] §1.8 Fixture verification: {verified_count} verified, "
+              f"{unverified_count} UNVERIFIED ({output['fixture_verification']['pct']}% verified)")
+
+    output_path = DATA_DIR / f"{date_compact}_s2_shortlist.json"
+    output_path.write_text(
+        json.dumps(output, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+    print(f"[shortlist] JSON: {output_path}")
+    return output_path
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Build ranked S2 shortlist from market matrix")
+    parser.add_argument("--date", help="Date YYYY-MM-DD (default: today)")
+    parser.add_argument("--top", type=int, default=100, help="Number of candidates to select (default: 100)")
+    parser.add_argument("--stats-first", action="store_true",
+                        help="Include FIXTURE_ONLY events from major competitions")
+    parser.add_argument("--min-sports", type=int, default=8, help="Minimum sport diversity (default: 8)")
+    args = parser.parse_args()
+
+    date = args.date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    if not re.match(r"^\d{4}-\d{2}-\d{2}$", date):
+        print(f"[shortlist] ERROR: Invalid date format '{date}'. Use YYYY-MM-DD.")
+        sys.exit(1)
+
+    selected = build_shortlist(
+        date=date,
+        top_n=args.top,
+        stats_first=args.stats_first,
+        min_sports=args.min_sports,
+    )
+
+    write_shortlist_md(selected, date, stats_first=args.stats_first)
+    write_shortlist_json(selected, date)
+
+    # Summary
+    sport_counts = Counter(e["sport"] for _, e in selected)
+    tier_counts = Counter(e["data_tier"] for _, e in selected)
+
+    print(f"\n{'='*60}")
+    print(f"SHORTLIST SUMMARY — {date}")
+    print(f"{'='*60}")
+    print(f"Candidates: {len(selected)} | Sports: {len(sport_counts)}")
+    print(f"\nBy sport:")
+    for sport, count in sport_counts.most_common():
+        tier = "KEY" if sport in TIER1_SPORTS else "SUP"
+        print(f"  [{tier}] {sport}: {count}")
+    print(f"\nBy data tier:")
+    for tier, count in tier_counts.most_common():
+        print(f"  {tier}: {count}")
+    print(f"\nTop 10 by score:")
+    for i, (score, event) in enumerate(selected[:10], 1):
+        print(f"  {i}. [{event['sport']}] {event.get('home_team','?')} vs {event.get('away_team','?')} "
+              f"({event.get('competition','?')}) — score {score:.1f}, tier {event['data_tier']}")
+
+
+if __name__ == "__main__":
+    main()

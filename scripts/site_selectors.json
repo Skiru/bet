@@ -276,5 +276,18 @@
     "#onetrust-accept-btn-handler",
     ".cookie-accept",
     "button[aria-label*='Accept']"
+  ],
+  "whoscored.com": [
+    "#onetrust-accept-btn-handler",
+    ".cookie-accept",
+    "button[aria-label*='Accept']",
+    "button[aria-label*='accept']"
+  ],
+  "scores24.live": [
+    "button[aria-label*='Accept']",
+    "button[aria-label*='accept']",
+    "button[aria-label*='Akceptuj']",
+    ".cookie-accept",
+    "#onetrust-accept-btn-handler"
   ]
 }

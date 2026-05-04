@@ -59,7 +59,12 @@ Before starting any task, you check all available skills and decide which one is
 
 <tool name="sequential-thinking">
 - **MUST use when**: Scoring upset risk (sport-specific checklist), constructing bear cases, running contrarian thinking, evaluating the 17-point gate, analyzing Zero Tolerance Shield matches
-- **IMPORTANT**: One sequential thinking call PER candidate for thorough adversarial analysis
+- **IMPORTANT**: One sequential thinking call PER candidate for thorough adversarial analysis. When `gate_checker.py` output exists, review its automated gate results and focus on qualitative analysis (bear cases, contrarian arguments) that the script cannot provide.
+</tool>
+
+<tool name="execute/runInTerminal">
+- **MUST use when**: Running `python3 scripts/gate_checker.py --date YYYY-MM-DD` for programmatic 17-point gate evaluation with automated risk tier and confidence scoring, `python3 scripts/check_48h_repeats.py` for 48h repeat loss checks
+- **IMPORTANT**: Run `gate_checker.py` FIRST for structural gate checks — it handles all 17 points, red flags (§7.3), sport diversity (§7.6), risk tier (LR/MS/HR/N), and confidence scoring programmatically. Then focus agent effort on qualitative bear case construction and adversarial reasoning for borderline candidates that the script classified as APPROVED or EXTENDED.
 </tool>
 
 </tool-usage>

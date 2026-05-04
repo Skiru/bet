@@ -10,6 +10,8 @@ from .raw_adapter import parse as raw_parse
 
 ODDS_RE = re.compile(r"^\d+\.\d{2}$")
 TIME_RE = re.compile(r"\b(\d{1,2}:\d{2})\b")
+# Leading time prefix like "16:55Team Name" or "16:55 Team Name"
+LEADING_TIME_RE = re.compile(r"^(\d{1,2}:\d{2})\s*(.+)")
 # "Home - Away" or "Home vs Away" with required whitespace around separator
 TEAM_SPLIT_RE = re.compile(r"\s+[-–—]\s+|\s+vs\.?\s+", re.I)
 
@@ -36,7 +38,22 @@ def parse(html: str, url: str) -> List[Dict]:
             link = td.find("a")
             name_text = link.get_text(separator=" ", strip=True) if link else td_text
 
+            # Extract time from a span with class "table-main__time" in the same cell
+            if match_time is None:
+                time_span = td.find("span", class_=re.compile(r"time", re.I))
+                if time_span:
+                    tm = TIME_RE.search(time_span.get_text(strip=True))
+                    if tm:
+                        match_time = tm.group(1)
+
             if home is None and TEAM_SPLIT_RE.search(name_text):
+                # Strip leading time prefix (e.g., "16:55Arsenal - Chelsea")
+                time_prefix = LEADING_TIME_RE.match(name_text)
+                if time_prefix:
+                    if match_time is None:
+                        match_time = time_prefix.group(1)
+                    name_text = time_prefix.group(2)
+
                 parts = TEAM_SPLIT_RE.split(name_text, maxsplit=1)
                 if len(parts) >= 2:
                     h = parts[0].strip()

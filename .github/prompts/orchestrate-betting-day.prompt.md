@@ -111,11 +111,15 @@ Before any pass, ensure:
 4. Run odds cross-validation (choose one):
    - **Single-source**: `python3 scripts/fetch_odds_api.py` — The-Odds-API only (30 credits/scan)
    - **Multi-source (RECOMMENDED)**: `python3 scripts/fetch_odds_multi.py` — aggregates 5 sources (The-Odds-API + API-Football + OddsPortal + BetExplorer + Betclic) per sport priority chain. Produces backward-compatible `odds_api_snapshot.json` + `odds_api_summary.csv` + `odds_multi_sources.json` provenance log.
-5. **Generate market matrix**: `python3 scripts/generate_market_matrix.py --date YYYY-MM-DD`
+5. **Generate market matrix**: `python3 scripts/generate_market_matrix.py --date YYYY-MM-DD --stats-first`
    - Combines ALL data sources (fixtures, odds, scan, stats cache, analysis pool)
    - Produces `betting/data/market_matrix_{date}.json` + `.md` (full event universe with ALL odds/safety data)
    - Produces `betting/data/decision_matrix_{date}.md` (compact bettable opportunities sorted by safety score)
-   - This is the PRIMARY input for S2 shortlisting — shows every event with all available markets
+6. **Build ranked shortlist**: `python3 scripts/build_shortlist.py --date YYYY-MM-DD --top 100 --stats-first`
+   - Reads market matrix and scores all events by data quality, competition importance, odds, tipster coverage
+   - Enforces sport diversity (≥8 sports, per-sport caps)
+   - Produces `betting/data/{date}_s2_shortlist.md` + `.json` (100 ranked candidates)
+   - This is the PRIMARY input for S2 → S3 deep analysis
 6. **Fetch weather for outdoor venues**: `python3 scripts/fetch_weather.py --date YYYY-MM-DD`
    - Open-Meteo API (free, unlimited, no API key) → produces `betting/data/weather_{date}.json`
    - Flags: RAIN_HEAVY, WIND_STRONG, EXTREME_HEAT, FREEZING for football/baseball/speedway/MMA/padel
@@ -157,8 +161,8 @@ Each pass executes these steps IN ORDER. Each step:
 | S1 | `s1-scan` | bet-scanner | BetExplorer, Flashscore, scan_summary, **analysis_pool_{date}.json**, **market_matrix_{date}.json** | `{date}_s1_master_events.md` + `{date}_s1_tipster_prefetch.md` | ≥50 events, ALL 14 sports scanned (≥6 with events), completeness ≥80%, **tipster HTML fetched** |
 | S1b | _(auto)_ | _(script)_ | `fetch_odds_multi.py` or `fetch_odds_api.py` | `odds_api_snapshot.json`, `odds_multi_sources.json` | Odds cross-validated |
 | S1c | _(auto)_ | _(script)_ | `fetch_weather.py --date {date}` | `weather_{date}.json` | Weather flags for outdoor sports |
-| S1d | _(auto)_ | _(script)_ | `generate_market_matrix.py --date {date}` | `market_matrix_{date}.json/md`, `decision_matrix_{date}.md` | Full event universe with all odds + safety data |
-| S2 | `s2-shortlist` | bet-scanner | S1 output, **market_matrix** + **analysis_pool** (prioritize FULL/ODDS_RICH tier events) | `{date}_s2_shortlist.md` | 15-40 candidates, ≥8 sports in shortlist |
+| S1d | _(auto)_ | _(script)_ | `generate_market_matrix.py --date {date} --stats-first` | `market_matrix_{date}.json/md`, `decision_matrix_{date}.md` | Full event universe with all odds + safety data |
+| S2 | _(auto + agent)_ | bet-scanner | `build_shortlist.py --date {date} --top 100 --stats-first` → agent refines | `{date}_s2_shortlist.md` + `{date}_s2_shortlist.json` | 50-100 candidates, ≥8 sports in shortlist |
 | **S3+S4** | **PARALLEL** | | S2 output → both | | |
 | S3 | `s3-deep-stats` | bet-statistician | S2 output, **analysis_pool** (pre-computed safety scores) | `{date}_s3_deep_stats.md` | **AUTOMATED: `validate_s3_output.py` — ALL candidates PASS** |
 | S4 | `s4-tipsters` | bet-scout | S2 output + **§1.5 pre-fetched HTML** | `{date}_s4_tipsters.md` | **STRUCTURAL: ≥2 tipster sites with arguments per candidate + coverage table + §4.3 done** |
@@ -381,6 +385,19 @@ If ANY check fails:
 3. Re-run the specific check that failed to confirm fix
 4. Log what was wrong and what was fixed (include in REQUIRED RESPONSE §3)
 
+### I. STATISTICAL MATRIX COMPLETENESS (NO AUTO-REJECTION ENFORCEMENT)
+This check enforces the CORE RULE: Pipeline NEVER auto-rejects events. ALL analyzed events MUST appear in the coupon file. User decides what to bet.
+1. Count events with deep analysis in S3 output → N_analyzed
+2. Subtract phantoms + already_played + out_of_window → N_valid
+3. Count unique events in coupon's STATISTICAL MATRIX → N_matrix
+4. **GATE: N_matrix ≥ N_valid.** Missing events = BLOCKER.
+5. Count total market rows in matrix (across all events) → R_markets
+6. **GATE: R_markets ≥ 3 × N_football + 2 × N_other** (football events must show ≥3 stat markets, others ≥2).
+7. Verify EVERY market row shows: P(hit), Min odds (= 1/P), Safety score, L10 hit rate, H2H hit rate, 3-way alignment
+8. Verify NO auto-rejection message appears ("rejected due to", "excluded based on", "filtered to", "only X picks survived")
+9. **FORBIDDEN patterns:** Any language implying the pipeline pre-selected picks for the user. The matrix shows EVERYTHING. User picks.
+10. Non-analyzed shortlist events must appear in a separate section with available markets noted (user may request deep analysis for any of them)
+
 ---
 
 ## REQUIRED RESPONSE (end of Pass 4)
@@ -401,9 +418,12 @@ Session type, event window, events per sport, total scanned, scan completeness %
 | 3 | X | X | X |
 | 4 | 0 | - | 0 |
 
-### 4. Final Picks Table
-| ID | Event | Market | Odds | EV | Conf | Sport | Stake |
-|----|-------|--------|------|----|------|-------|-------|
+### 4. FULL STATISTICAL MATRIX (PRIMARY OUTPUT — MANDATORY)
+The coupon file's main section. Show ALL S3-analyzed candidates with ALL evaluated statistical markets.
+Format: One row per market per event, organized by sport.
+Columns: Event | Market | Direction | Combined avg | Line | L10 hit% | H2H hit% | Safety | P(hit) | Min kurs (1/P) | 3-Way | Data Quality
+**The user selects from this matrix. The pipeline does NOT pre-select, pre-filter, or pre-reject.**
+Also include: per-event backing data (L10 form, H2H summary, injuries, referee), non-analyzed shortlist summary, excluded/phantom list.
 
 ### 5. Final Coupons (SHOW ALL)
 For each coupon: legs, combined odds (arithmetic shown), stake, type
@@ -434,7 +454,7 @@ If top pick fails: what survives? Worst-case portfolio loss.
 - **Step gate FAIL in Pass 1-2**: Expected. Log and fix.
 - **Step gate FAIL in Pass 3**: Concerning. Must fix before Pass 4.
 - **Step gate FAIL in Pass 4**: BLOCKER. Do NOT produce coupons. Fix first.
-- **§S8.FINAL Mechanical Verification FAIL**: BLOCKER. Fix artifacts in place, re-run failed check. Do NOT present to user until all 7 checks (A-G) pass.
+- **§S8.FINAL Mechanical Verification FAIL**: BLOCKER. Fix artifacts in place, re-run failed check. Do NOT present to user until all 9 checks (A-I) pass.
 - **S3B gate FAIL**: Time-sensitive data missing → flag affected picks as CONDITIONAL with extra notes.
 - **V1-V10 FAIL in Pass 4**: BLOCKER. Loop back to fix, re-validate.
 - **<4 approved picks after all passes**: Declare NO BET day (do not produce coupons with <4 picks).

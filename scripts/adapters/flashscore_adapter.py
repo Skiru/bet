@@ -25,6 +25,46 @@ def _text_short(t: str) -> bool:
     return 3 < len(t) < 120
 
 
+# Patterns indicating a parsed "team name" is actually page chrome / garbage
+_GARBAGE_RE = re.compile(
+    r"today's matches|pinned leagues|my teams|add the team|advertisement|"
+    r"advancing to next round|winner:|latest scores|previous match day|"
+    r"there are no .* matches|sets legs points|"
+    r"overview|preview|head-to-head|line-ups|"
+    r"atp\b.*\bsingles|wta\b.*\bsingles|atp\b.*\bdoubles|wta\b.*\bdoubles|"
+    r"quali\w*\s*-\s*singles|quali\w*\s*-\s*doubles|"
+    r"\bdraw\s+\d{1,2}:\d{2}\b|"
+    r"completed|match stats|\bcourt\b.*\bcompleted\b|\bpuchar\b|\bpremiership league\b|"
+    r"pregame report|postgame",
+    re.I,
+)
+
+
+def _is_garbage_entry(home: str, away: str) -> bool:
+    """Return True if the parsed home/away looks like page chrome, not a real match."""
+    if not home or not away:
+        return True
+    # Too long — real team/player names are short
+    if len(home) > 60 or len(away) > 60:
+        return True
+    # Home == Away
+    if home.strip().lower() == away.strip().lower():
+        return True
+    # Contains known garbage patterns
+    if _GARBAGE_RE.search(home) or _GARBAGE_RE.search(away):
+        return True
+    # Home/away starts with a date pattern (e.g., "CZW 30.04.2026 20:30 Northampton")
+    if re.match(r"^[A-Z]{2,4}\s+\d{2}\.\d{2}\.\d{4}", home) or re.match(r"^[A-Z]{2,4}\s+\d{2}\.\d{2}\.\d{4}", away):
+        return True
+    # Contains path separators (league navigation like "Football / Europe / ...")
+    if " / " in home or " / " in away:
+        return True
+    # Contains " : " followed by time — section header blob
+    if re.search(r" : .+\d{1,2}:\d{2}", home) or re.search(r" : .+\d{1,2}:\d{2}", away):
+        return True
+    return False
+
+
 def _has_class_match(el, pattern: re.Pattern) -> bool:
     """Check if any class on the element matches the given pattern."""
     classes = el.get("class")
@@ -37,120 +77,91 @@ def _has_class_match(el, pattern: re.Pattern) -> bool:
 def _heuristic0_event_classes(soup: BeautifulSoup, url: str) -> List[Dict]:
     """Heuristic 0: Flashscore event__ class structure.
 
-    Targets Flashscore's actual DOM pattern where match rows use ``event__match``
-    classes and participants use ``event__participant``. League/section headers
-    use ``event__header`` or ``event__title`` and are tracked separately so
-    their text does not leak into team names.
+    Targets Flashscore's actual DOM:
+      div.event__match (container per match)
+        div.event__time "21:00"
+        div.event__homeParticipant  (home team name)
+        div.event__awayParticipant  (away team name)
 
-    Works for volleyball and improves all other sports too.
+    League headers use event__header / event__title and are tracked for context.
     """
     results = []
     current_league = ""
 
-    # Collect header elements to know which text to skip
-    header_texts = set()
-    for el in soup.find_all(True, class_=lambda c: c and _HEADER_CLASS_RE.search(
-            " ".join(c) if isinstance(c, (list, tuple)) else c)):
-        t = (el.get_text(separator=" ") or "").strip()
-        if t:
-            header_texts.add(t)
+    # Regex for home/away participant elements — handles two known class patterns:
+    # Real Flashscore (2026): "event__homeParticipant", "event__awayParticipant"
+    # Older/test format: "event__participant--home", "event__participant--away"
+    _HOME_RE = re.compile(r"homeParticipant|participant--home", re.I)
+    _AWAY_RE = re.compile(r"awayParticipant|participant--away", re.I)
 
-    # Walk all elements with event__match or event__participant classes
-    match_rows = soup.find_all(
-        True,
-        class_=lambda c: c and _MATCH_CLASS_RE.search(
-            " ".join(c) if isinstance(c, (list, tuple)) else c,
-        ),
-    )
-
-    if not match_rows:
-        return []
-
-    # Also find all header elements in document order so we can track
-    # the current league context.
+    # Build ordered list of headers and match containers
     all_elements = soup.find_all(
         True,
         class_=lambda c: c and re.search(
-            r"event__header|event__title|event__match|event__participant|"
-            r"league-header|tournament-header",
+            r"event__header|event__title|event__match|league-header|tournament-header",
             " ".join(c) if isinstance(c, (list, tuple)) else c,
             re.I,
         ),
     )
 
-    participants_buf: List[str] = []
-    row_time = None
-    row_league = current_league
+    if not all_elements:
+        return []
 
     for el in all_elements:
-        # Detect header — update league context and skip
-        if _has_class_match(el, _HEADER_CLASS_RE):
+        classes_str = " ".join(el.get("class", []))
+
+        # Detect header — update league context
+        if _HEADER_CLASS_RE.search(classes_str) and "event__match" not in classes_str:
             current_league = (el.get_text(separator=" ") or "").strip()
-            # flush any incomplete participant buffer
-            participants_buf = []
-            row_time = None
-            row_league = current_league
             continue
 
-        # Participant element
-        if _has_class_match(el, _MATCH_CLASS_RE):
-            # Try to extract time from siblings/children with time class
-            time_el = el.find(True, class_=lambda c: c and _TIME_CLASS_RE.search(
-                " ".join(c) if isinstance(c, (list, tuple)) else c))
-            if time_el:
-                tm = re.search(r"\b(\d{1,2}:\d{2})\b", time_el.get_text(strip=True))
-                if tm:
-                    row_time = tm.group(1)
+        # Match container
+        if "event__match" not in classes_str:
+            continue
 
-            # Collect participant names from child participant elements
-            child_parts = el.find_all(
-                True,
-                class_=lambda c: c and re.search(
-                    r"participant|team|name",
-                    " ".join(c) if isinstance(c, (list, tuple)) else c,
-                    re.I,
-                ),
-            )
-            if child_parts:
-                for cp in child_parts:
-                    t = (cp.get_text(strip=True) or "").strip()
-                    if t and _text_short(t) and t not in header_texts:
-                        participants_buf.append(t)
-            else:
-                # The element itself contains the text
-                t = (el.get_text(separator=" ") or "").strip()
-                # Strip any leading header text that may have been merged
-                for ht in header_texts:
-                    if t.startswith(ht):
-                        t = t[len(ht):].strip(" -–—:")
-                if t and _text_short(t):
-                    participants_buf.append(t)
+        # Extract home team
+        home_el = el.find(True, class_=lambda c: c and _HOME_RE.search(
+            " ".join(c) if isinstance(c, (list, tuple)) else c))
+        away_el = el.find(True, class_=lambda c: c and _AWAY_RE.search(
+            " ".join(c) if isinstance(c, (list, tuple)) else c))
 
-            # Also check for time in the broader row context
-            if row_time is None:
-                row_text = (el.get_text(separator=" ") or "")
-                tm = re.search(r"\b(\d{1,2}:\d{2})\b", row_text)
-                if tm:
-                    row_time = tm.group(1)
+        if not home_el or not away_el:
+            continue
 
-            # When we have a pair, emit a result
-            if len(participants_buf) >= 2:
-                home = participants_buf[0]
-                away = participants_buf[1]
-                if home and away and home != away and len(home) >= 2 and len(away) >= 2:
-                    entry = {
-                        "home": home,
-                        "away": away,
-                        "time": row_time,
-                        "source_url": url,
-                        "raw": f"{home} - {away}",
-                    }
-                    if row_league:
-                        entry["league"] = row_league
-                    results.append(entry)
-                participants_buf = []
-                row_time = None
-                row_league = current_league
+        home = (home_el.get_text(strip=True) or "").strip()
+        away = (away_el.get_text(strip=True) or "").strip()
+
+        if not home or not away or len(home) < 2 or len(away) < 2:
+            continue
+
+        # Clean suffixes
+        home = re.sub(r"Advancing to next round:?\s*.*", "", home, flags=re.I).strip()
+        away = re.sub(r"Advancing to next round:?\s*.*", "", away, flags=re.I).strip()
+        home = re.sub(r"Winner:?\s*.*", "", home, flags=re.I).strip()
+        away = re.sub(r"Winner:?\s*.*", "", away, flags=re.I).strip()
+
+        if _is_garbage_entry(home, away):
+            continue
+
+        # Extract time
+        row_time = None
+        time_el = el.find(True, class_=lambda c: c and _TIME_CLASS_RE.search(
+            " ".join(c) if isinstance(c, (list, tuple)) else c))
+        if time_el:
+            tm = re.search(r"\b(\d{1,2}:\d{2})\b", time_el.get_text(strip=True))
+            if tm:
+                row_time = tm.group(1)
+
+        entry = {
+            "home": home,
+            "away": away,
+            "time": row_time,
+            "source_url": url,
+            "raw": f"{home} - {away}",
+        }
+        if current_league:
+            entry["league"] = current_league
+        results.append(entry)
 
     return results
 
@@ -182,6 +193,8 @@ def parse(html: str, url: str) -> List[Dict]:
             away = m.group(2).strip()
             if len(home) < 2 or len(away) < 2:
                 continue
+            if _is_garbage_entry(home, away):
+                continue
             # try find time in the row
             time_m = re.search(r"\b(\d{1,2}:\d{2})\b", text)
             time = time_m.group(1) if time_m else None
@@ -197,6 +210,9 @@ def parse(html: str, url: str) -> List[Dict]:
         # pair adjacent participants
         for i in range(0, len(participants) - 1, 2):
             home = participants[i][1]
+            away = participants[i + 1][1]
+            if _is_garbage_entry(home, away):
+                continue
             away = participants[i + 1][1]
             if home and away and home != away:
                 results.append({"home": home, "away": away, "time": None, "source_url": url, "raw": f"{home} - {away}"})

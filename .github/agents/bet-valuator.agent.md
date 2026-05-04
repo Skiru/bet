@@ -62,8 +62,9 @@ Before starting any task, you check all available skills and decide which one is
 </tool>
 
 <tool name="execute/runInTerminal">
-- **MUST use when**: Running `python3 scripts/fetch_odds_multi.py --date YYYY-MM-DD` for multi-source odds aggregation, or `python3 scripts/fetch_odds_api.py` for single-source retrieval
+- **MUST use when**: Running `python3 scripts/fetch_odds_multi.py --date YYYY-MM-DD` for multi-source odds aggregation, `python3 scripts/fetch_odds_api.py` for single-source retrieval, or `python3 scripts/verify_betclic_odds.py` for Playwright-based Betclic odds verification
 - `fetch_odds_multi.py` — multi-source odds aggregation (5 sources: The-Odds-API + API-Football + OddsPortal + BetExplorer + Betclic). Produces `odds_multi_sources.json` provenance log. RECOMMENDED over single-source `fetch_odds_api.py`.
+- `verify_betclic_odds.py` — Playwright-based Betclic market availability and odds check. Use for final verification before placement.
 - **IMPORTANT**: After running, check `betting/data/odds_multi_sources.json` (multi-source provenance log) and `betting/data/odds_api_snapshot.json` for cross-validation data. Also check `betting/data/analysis_pool_{date}.json` — it may already contain pre-computed EV values for candidates where API odds data was available (EV = safety_score × market_best_odds − 1). Use these as a starting point but always verify with fresh Betclic odds.
 </tool>
 

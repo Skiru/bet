@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate a comprehensive MARKET MATRIX for ALL discovered fixtures.
 
-This script bridges the gap between fixture discovery (444+ events) and the
+This script bridges the gap between fixture discovery (10,000+ events) and the
 analysis pool (which requires cached stats and often produces 0 events).
 
 It produces a FULL DECISION MATRIX showing:
@@ -10,14 +10,17 @@ It produces a FULL DECISION MATRIX showing:
 - Stats data when available (from cache)
 - Safety scores when calculable
 - NO auto-rejection — everything is shown, user decides
+- In STATS-FIRST mode: suggested statistical markets for events without odds
 
 Output:
   betting/data/market_matrix_{date}.json
   betting/data/market_matrix_{date}.md  (human-readable matrix)
+  betting/data/decision_matrix_{date}.md  (compact bettable opportunities)
 
 Usage:
-    python3 scripts/generate_market_matrix.py --date 2026-04-29
-    python3 scripts/generate_market_matrix.py --date 2026-04-29 --min-odds 1.20 --max-odds 5.00
+    python3 scripts/generate_market_matrix.py --date 2026-04-30
+    python3 scripts/generate_market_matrix.py --date 2026-04-30 --stats-first
+    python3 scripts/generate_market_matrix.py --date 2026-04-30 --min-odds 1.20 --max-odds 5.00
 """
 
 import argparse
@@ -77,6 +80,8 @@ def _sport_from_odds_key(sport_key: str) -> str:
         return "snooker"
     if "darts" in sk:
         return "darts"
+    if "aussierules" in sk or "australian" in sk or "afl" in sk:
+        return "australian_football"
     return "football"
 
 
@@ -141,7 +146,7 @@ def load_scan_summary() -> dict:
                 away = item.get("away", item.get("away_team", ""))
                 if home and away:
                     key = f"{_normalize(home)}|{_normalize(away)}"
-                    match_data[key].append({
+                    entry = {
                         "source_url": url,
                         "raw": item.get("raw", ""),
                         "odds": item.get("odds", []),
@@ -150,7 +155,13 @@ def load_scan_summary() -> dict:
                         "home": home,
                         "away": away,
                         "time": item.get("time"),
-                    })
+                    }
+                    # Preserve scores24 deep data fields when present
+                    if "scores24.live" in url:
+                        for deep_key in ("h2h", "form_home", "form_away", "trends", "match_info"):
+                            if deep_key in item:
+                                entry[deep_key] = item[deep_key]
+                    match_data[key].append(entry)
         return dict(match_data)
     except (json.JSONDecodeError, OSError):
         return {}
@@ -310,6 +321,134 @@ def extract_markets_from_scan(scan_items: list[dict]) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
+# Scores24 deep data extraction (H2H, form, odds, trends)
+# ---------------------------------------------------------------------------
+
+def _extract_scores24_deep_data(match_key: str, scan_lookup: dict) -> dict | None:
+    """Extract rich data from scores24 detail pages found in scan_summary.
+
+    Scores24 detail page entries have fields: h2h, form_home, form_away,
+    odds (w1/x/w2 + handicap_lines + total_lines), trends.
+    Returns dict with odds_markets and trend_markets lists.
+    """
+    # Look through ALL scan items for this match key to find scores24 detail data
+    items = scan_lookup.get(match_key)
+    if not items or not isinstance(items, list):
+        return None
+
+    result = {"odds_markets": [], "trend_markets": [], "h2h": None, "form": None}
+    for item in items:
+        source_url = item.get("source_url", "")
+        if "scores24.live" not in source_url:
+            continue
+
+        raw = item.get("raw", item)
+
+        # Always extract H2H and form — they live on `item` even when raw is a string
+        h2h = item.get("h2h") if isinstance(raw, str) else raw.get("h2h", item.get("h2h"))
+        if isinstance(h2h, dict) and (h2h.get("matches") or h2h.get("home_wins") or h2h.get("away_wins")):
+            result["h2h"] = h2h
+        form_home = item.get("form_home") if isinstance(raw, str) else raw.get("form_home", item.get("form_home"))
+        form_away = item.get("form_away") if isinstance(raw, str) else raw.get("form_away", item.get("form_away"))
+        if form_home or form_away:
+            result["form"] = {"home": form_home, "away": form_away}
+
+        # Also extract trends from item when raw is a string
+        trends_src = item.get("trends", []) if isinstance(raw, str) else raw.get("trends", item.get("trends", []))
+        if isinstance(trends_src, list):
+            for trend in trends_src:
+                if not isinstance(trend, dict):
+                    continue
+                hit_rate = trend.get("hit_rate")
+                hit_count = trend.get("hit_count")
+                sample_size = trend.get("sample_size")
+                bet_name = trend.get("bet_name", "")
+                trend_odds = trend.get("odds")
+                if hit_rate and hit_count and sample_size and bet_name:
+                    result["trend_markets"].append({
+                        "market": bet_name,
+                        "market_type": "scores24_trend",
+                        "direction": trend.get("category", ""),
+                        "safety_score": round(hit_rate, 2) if hit_rate else 0,
+                        "hit_count": hit_count,
+                        "sample_size": sample_size,
+                        "description": trend.get("description", ""),
+                        "trend_odds": round(float(trend_odds), 2) if isinstance(trend_odds, (int, float)) else None,
+                        "source": "scores24_trends",
+                    })
+
+        if isinstance(raw, str):
+            continue
+
+        # Extract odds from detail page data
+        odds = raw.get("odds", item.get("odds", {}))
+        if isinstance(odds, dict):
+            # W1/X/W2 moneyline odds
+            for label, key in [("ML:Home", "w1"), ("1X2:Draw", "x"), ("ML:Away", "w2")]:
+                val = odds.get(key)
+                if val and isinstance(val, (int, float)) and 1.01 < val < 50.0:
+                    result["odds_markets"].append({
+                        "market": label,
+                        "market_type": "h2h",
+                        "outcome": label.split(":")[-1],
+                        "point": None,
+                        "best_odds": round(float(val), 2),
+                        "best_bookmaker": "scores24.live",
+                        "source": "scores24",
+                    })
+            # Totals lines (over/under)
+            for tl in odds.get("total_lines", []):
+                direction = tl.get("direction", "")
+                line = tl.get("line")
+                tl_odds = tl.get("odds")
+                if direction and line is not None and tl_odds and isinstance(tl_odds, (int, float)) and 1.01 < tl_odds < 50.0:
+                    label = f"{'Over' if direction == 'over' else 'Under'} {line}"
+                    result["odds_markets"].append({
+                        "market": label,
+                        "market_type": "totals",
+                        "outcome": label,
+                        "point": float(line) if isinstance(line, (int, float)) else None,
+                        "best_odds": round(float(tl_odds), 2),
+                        "best_bookmaker": "scores24.live",
+                        "source": "scores24",
+                    })
+            # Handicap lines
+            for hl in odds.get("handicap_lines", []):
+                hline = hl.get("line", "")
+                hl_odds = hl.get("odds")
+                if hline and hl_odds and isinstance(hl_odds, (int, float)) and 1.01 < hl_odds < 50.0:
+                    result["odds_markets"].append({
+                        "market": f"HC {hline}",
+                        "market_type": "spreads",
+                        "outcome": f"HC {hline}",
+                        "point": None,
+                        "best_odds": round(float(hl_odds), 2),
+                        "best_bookmaker": "scores24.live",
+                        "source": "scores24",
+                    })
+
+        # Store H2H and form for downstream use (from non-string raw)
+        h2h = raw.get("h2h", item.get("h2h"))
+        if isinstance(h2h, dict) and (h2h.get("matches") or h2h.get("home_wins") or h2h.get("away_wins")):
+            result["h2h"] = h2h
+        form_home = raw.get("form_home", item.get("form_home"))
+        form_away = raw.get("form_away", item.get("form_away"))
+        if form_home or form_away:
+            result["form"] = {"home": form_home, "away": form_away}
+
+    has_any_data = (
+        result["odds_markets"]
+        or result["trend_markets"]
+        or (result["h2h"] and (result["h2h"].get("matches") or result["h2h"].get("home_wins") or result["h2h"].get("away_wins")))
+        or result["form"]
+    )
+    if not has_any_data:
+        return None
+
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Safety score integration (when cache is available)
 # ---------------------------------------------------------------------------
 
@@ -396,6 +535,12 @@ def generate_market_matrix(
             # A valid match needs: real team names (>2 chars each), not promo text
             if len(home) < 3 or len(away) < 3:
                 continue
+            # Reject entries where team names are too long (page chrome blobs)
+            if len(home) > 60 or len(away) > 60:
+                continue
+            # Reject home == away
+            if _normalize(home) == _normalize(away):
+                continue
             skip_patterns = [
                 "bonus", "free", "bet $", "get $", "sign up", "promo", "code ",
                 "wyniki", "mecze", "typy dnia", "tips", "picks", "odds &",
@@ -404,9 +549,23 @@ def generate_market_matrix(
                 "head-to-head", "expert", "win tips", "correct score",
                 "handicap tips", "shots tips", "behind tips",
                 "#", "pln za", "transmisja", "gdzie oglądać", "stream",
+                # Flashscore page chrome
+                "today's matches", "pinned leagues", "my teams", "add the team",
+                "advertisement", "latest scores", "previous match day",
+                "advancing to next round", "winner:",
+                # Sport navigation labels
+                "atp - singles", "wta - singles", "atp - doubles", "wta - doubles",
+                "sets legs points", "sets legs",
+                # Section header blobs
+                "there are no ", " / ",
+                # Completed match results / match stats
+                "completed", "match stats", "pregame report", "postgame",
             ]
             combined = f"{home} {away}".lower()
             if any(pat in combined for pat in skip_patterns):
+                continue
+            # Reject section header blobs: " : " followed by time pattern
+            if re.search(r" : .+\d{1,2}:\d{2}", home) or re.search(r" : .+\d{1,2}:\d{2}", away):
                 continue
             # Skip items where "home" is actually a league/tip label
             if home.startswith(("HOLANDIA:", "FINLANDIA:", "IZRAEL:", "Liga ")):
@@ -550,9 +709,26 @@ def generate_market_matrix(
                     "source": "analysis_pool",
                 })
 
+        # 7. Scores24 deep data (H2H, form, odds, trends from detail pages)
+        scores24_data = _extract_scores24_deep_data(match_key, scan_lookup)
+        if scores24_data:
+            # Add scores24 odds as additional market entries
+            for s24_mkt in scores24_data.get("odds_markets", []):
+                all_markets.append(s24_mkt)
+            # Add scores24 trend-based market hints
+            for s24_trend in scores24_data.get("trend_markets", []):
+                safety_markets.append(s24_trend)
+
         # Determine data richness
         has_odds = bool(all_markets)
         has_safety = bool(safety_markets or pool_markets)
+        # scores24 H2H/form data counts as partial safety context
+        has_scores24_context = bool(
+            scores24_data
+            and (scores24_data.get("h2h") or scores24_data.get("form"))
+        )
+        if has_scores24_context and not has_safety:
+            has_safety = True
         has_multiple_sources = len(set(m.get("source", "") for m in all_markets)) > 1
 
         if has_safety and has_odds:
@@ -585,7 +761,58 @@ def generate_market_matrix(
             "suggested": suggested_info,
             "total_markets_available": len(all_markets) + len(safety_markets) + len(pool_markets),
         }
+        # Attach scores24 deep context when available (H2H, form, trends)
+        if scores24_data:
+            if scores24_data.get("h2h"):
+                event["scores24_h2h"] = scores24_data["h2h"]
+            if scores24_data.get("form"):
+                event["scores24_form"] = scores24_data["form"]
         events.append(event)
+
+    # Deduplicate events: same teams in same sport = likely same event
+    deduped_events = []
+    seen_matchups: set[str] = set()
+    for event in events:
+        h = _normalize(event.get("home_team", "")).lower()
+        a = _normalize(event.get("away_team", "")).lower()
+        sport = event.get("sport", "")
+        dedup_key = f"{sport}|{h}|{a}"
+        dedup_key_rev = f"{sport}|{a}|{h}"
+        if dedup_key in seen_matchups or dedup_key_rev in seen_matchups:
+            # Merge odds/safety from duplicate into the kept event
+            for kept in deduped_events:
+                kh = _normalize(kept.get("home_team", "")).lower()
+                ka = _normalize(kept.get("away_team", "")).lower()
+                if kept["sport"] == sport and ((kh == h and ka == a) or (kh == a and ka == h)):
+                    # Merge odds markets (avoid duplicates by source)
+                    existing_keys = {(m.get("market", ""), m.get("source", "")) for m in kept.get("odds_markets", [])}
+                    for m in event.get("odds_markets", []):
+                        mk = (m.get("market", ""), m.get("source", ""))
+                        if mk not in existing_keys:
+                            kept["odds_markets"].append(m)
+                            existing_keys.add(mk)
+                    # Merge safety markets
+                    for m in event.get("safety_markets", []):
+                        kept["safety_markets"].append(m)
+                    # Use the better competition name
+                    if not kept.get("competition") and event.get("competition"):
+                        kept["competition"] = event["competition"]
+                    # Upgrade data tier if the duplicate has better data
+                    tier_priority = {"FULL": 0, "ODDS_RICH": 1, "ODDS_BASIC": 2, "STATS_ONLY": 3, "FIXTURE_ONLY": 4}
+                    if tier_priority.get(event["data_tier"], 5) < tier_priority.get(kept["data_tier"], 5):
+                        kept["data_tier"] = event["data_tier"]
+                    kept["total_markets_available"] = (
+                        len(kept.get("odds_markets", [])) + len(kept.get("safety_markets", []))
+                    )
+                    break
+            continue
+        seen_matchups.add(dedup_key)
+        deduped_events.append(event)
+
+    n_deduped = len(events) - len(deduped_events)
+    if n_deduped:
+        print(f"[matrix] Deduplicated {n_deduped} events ({len(events)} → {len(deduped_events)})")
+    events = deduped_events
 
     # Sort: FULL first, then ODDS_RICH, then by sport
     tier_order = {"FULL": 0, "ODDS_RICH": 1, "ODDS_BASIC": 2, "STATS_ONLY": 3, "FIXTURE_ONLY": 4}
@@ -597,7 +824,10 @@ def generate_market_matrix(
         "total_fixtures": len(fixtures),
         "total_events_in_matrix": len(events),
         "events_with_odds": sum(1 for e in events if e["odds_markets"]),
-        "events_with_safety_data": sum(1 for e in events if e["safety_markets"]),
+        "events_with_safety_data": sum(
+            1 for e in events
+            if e["safety_markets"] or e.get("scores24_h2h") or e.get("scores24_form")
+        ),
         "sport_breakdown": dict(sport_counts),
         "market_type_counts": dict(market_type_counts),
         "data_tier_breakdown": {
@@ -769,11 +999,146 @@ def write_matrix_json(matrix: dict, date: str) -> Path:
 # Compact decision matrix for coupon building
 # ---------------------------------------------------------------------------
 
-def generate_decision_matrix(matrix: dict, min_odds: float = 1.20, max_odds: float = 5.0) -> list[dict]:
+# ---------------------------------------------------------------------------
+# Standard market lines per sport (for STATS_FIRST mode)
+# Used to suggest bettable markets when no odds are available
+# ---------------------------------------------------------------------------
+
+STANDARD_MARKET_LINES: dict[str, list[dict]] = {
+    "football": [
+        {"market": "Corners Total", "lines": [8.5, 9.5, 10.5, 11.5], "stat": "corners"},
+        {"market": "Team Corners", "lines": [3.5, 4.5, 5.5], "stat": "corners"},
+        {"market": "Cards Total", "lines": [3.5, 4.5, 5.5], "stat": "yellow_cards"},
+        {"market": "Fouls Total", "lines": [20.5, 22.5, 24.5], "stat": "fouls"},
+        {"market": "Shots on Target", "lines": [4.5, 5.5, 6.5, 7.5], "stat": "shots_on_target"},
+        {"market": "Goals Total", "lines": [1.5, 2.5, 3.5], "stat": "goals"},
+    ],
+    "basketball": [
+        {"market": "Total Points", "lines": [195.5, 205.5, 215.5, 225.5], "stat": "points"},
+        {"market": "Team Points", "lines": [95.5, 100.5, 105.5, 110.5], "stat": "points"},
+        {"market": "Total Rebounds", "lines": [40.5, 42.5, 44.5], "stat": "rebounds"},
+        {"market": "Total Assists", "lines": [22.5, 24.5, 26.5], "stat": "assists"},
+    ],
+    "tennis": [
+        {"market": "Total Games", "lines": [19.5, 21.5, 22.5, 23.5], "stat": "total_games"},
+        {"market": "Total Aces", "lines": [8.5, 10.5, 12.5], "stat": "aces"},
+        {"market": "Total Sets", "lines": [2.5], "stat": "sets_won"},
+    ],
+    "volleyball": [
+        {"market": "Total Sets", "lines": [3.5, 4.5], "stat": "sets_won"},
+        {"market": "Total Points", "lines": [150.5, 160.5, 170.5, 180.5], "stat": "total_points"},
+    ],
+    "hockey": [
+        {"market": "Total Goals", "lines": [4.5, 5.5, 6.5], "stat": "goals"},
+        {"market": "Total Shots", "lines": [55.5, 60.5, 65.5], "stat": "shots"},
+    ],
+    "handball": [
+        {"market": "Total Goals", "lines": [48.5, 50.5, 52.5, 54.5], "stat": "goals"},
+        {"market": "Team Goals", "lines": [24.5, 26.5, 28.5], "stat": "goals"},
+    ],
+    "snooker": [
+        {"market": "Total Frames", "lines": [8.5, 9.5, 10.5, 12.5], "stat": "total_frames"},
+    ],
+    "darts": [
+        {"market": "Total 180s", "lines": [5.5, 7.5, 9.5], "stat": "one_eighties"},
+        {"market": "Total Legs", "lines": [6.5, 8.5, 10.5], "stat": "total_legs"},
+    ],
+    "table_tennis": [
+        {"market": "Total Sets", "lines": [3.5, 4.5], "stat": "total_sets"},
+        {"market": "Total Points", "lines": [75.5, 80.5, 85.5], "stat": "total_points"},
+    ],
+    "baseball": [
+        {"market": "Total Runs", "lines": [6.5, 7.5, 8.5, 9.5], "stat": "total_runs"},
+        {"market": "Total Hits", "lines": [14.5, 16.5, 18.5], "stat": "hits"},
+        {"market": "Total Strikeouts", "lines": [12.5, 14.5, 16.5], "stat": "strikeouts"},
+    ],
+    "esports": [
+        {"market": "Total Maps", "lines": [2.5, 3.5], "stat": "total_maps"},
+        {"market": "Total Rounds", "lines": [24.5, 26.5], "stat": "total_rounds"},
+    ],
+    "mma": [
+        {"market": "Total Rounds", "lines": [1.5, 2.5], "stat": "rounds"},
+    ],
+    "padel": [
+        {"market": "Total Games", "lines": [20.5, 22.5, 24.5], "stat": "total_games"},
+        {"market": "Total Sets", "lines": [2.5], "stat": "sets_won"},
+    ],
+    "speedway": [
+        {"market": "Total Points", "lines": [80.5, 85.5, 90.5], "stat": "total_points"},
+    ],
+    "australian_football": [
+        {"market": "Total Points", "lines": [150.5, 160.5, 170.5, 180.5], "stat": "total_points"},
+    ],
+}
+
+# Major competitions where Betclic is likely to offer statistical markets
+MAJOR_COMPETITIONS = {
+    "football": [
+        "uefa", "champions", "europa", "conference", "premier", "la liga", "laliga",
+        "bundesliga", "serie a", "ligue 1", "eredivisie", "ekstraklasa",
+        "primeira", "super lig", "mls", "copa libertadores", "copa sudamericana",
+        "championship", "2. bundesliga", "serie b", "ligue 2", "segunda",
+        "liga mx", "k-league", "j-league", "a-league", "brasileirao",
+        "world cup", "nations league", "qualification", "friendly",
+    ],
+    "tennis": [
+        "atp", "wta", "grand slam", "masters", "open", "500", "250", "1000",
+        "australian", "french", "wimbledon", "us open", "roland garros",
+    ],
+    "basketball": [
+        "nba", "euroleague", "eurocup", "acb", "bbl", "nbl", "bsl", "lnb",
+        "serie a", "plk", "bcl", "fiba", "ncaa",
+    ],
+    "volleyball": [
+        "plusliga", "superlega", "ligue a", "bundesliga", "cev", "champions",
+        "serie a", "efeler", "superliga",
+    ],
+    "hockey": ["nhl", "khl", "shl", "liiga", "del", "nla", "extraliga", "iihf"],
+    "handball": ["ehf", "champions", "bundesliga", "liga asobal", "starligue", "superliga"],
+    "baseball": ["mlb", "npb", "kbo", "cpbl"],
+    "snooker": ["world", "masters", "champion", "open", "trophy", "grand prix", "classic"],
+    "darts": ["pdc", "premier", "world", "grand prix", "championship"],
+    "esports": ["major", "esl", "blast", "iem", "pgl", "worlds", "champions"],
+    "table_tennis": ["wtt", "world", "champions", "star contender", "grand smash"],
+    "mma": ["ufc", "bellator", "pfl", "one championship"],
+    "padel": ["premier padel", "world padel tour", "fip"],
+    "speedway": ["ekstraliga", "speedway gp", "sec"],
+}
+
+
+def _is_major_competition(sport: str, competition: str) -> bool:
+    """Check if a competition is considered major for Betclic availability.
+
+    For sports with zero API odds coverage (snooker, darts, table_tennis,
+    esports, mma, padel, speedway), include ALL events since these sports
+    are completely dark without manual Betclic checks.
+    """
+    # Sports with zero API odds coverage — include all events
+    ZERO_ODDS_SPORTS = {
+        "snooker", "darts", "table_tennis", "esports", "mma", "padel", "speedway",
+        "australian_football",
+    }
+    if sport in ZERO_ODDS_SPORTS:
+        return True
+
+    if not competition:
+        return False
+    comp_lower = competition.lower()
+    keywords = MAJOR_COMPETITIONS.get(sport, [])
+    return any(kw in comp_lower for kw in keywords)
+
+
+def generate_decision_matrix(
+    matrix: dict, min_odds: float = 1.20, max_odds: float = 5.0,
+    stats_first: bool = False,
+) -> list[dict]:
     """Generate a compact decision matrix from the full market matrix.
 
     Returns a list of bettable opportunities (event + market combinations)
     sorted by data quality and odds attractiveness.
+
+    When stats_first=True, includes ALL events from major competitions with
+    suggested statistical markets, even without odds. User checks Betclic manually.
     """
     opportunities = []
 
@@ -816,10 +1181,11 @@ def generate_decision_matrix(matrix: dict, min_odds: float = 1.20, max_odds: flo
                 "l10_avg": safety_data.get("l10_avg") if safety_data else None,
                 "h2h_avg": safety_data.get("h2h_avg") if safety_data else None,
                 "direction": safety_data.get("direction") if safety_data else None,
+                "odds_source": "api",
             }
             opportunities.append(opp)
 
-        # Also add safety-only markets (no odds yet — user can check Betclic)
+        # Safety-only markets (no odds yet — user checks Betclic)
         for sm in event.get("safety_markets", []):
             if sm.get("safety_score", 0) >= 0.50:
                 opp = {
@@ -831,15 +1197,58 @@ def generate_decision_matrix(matrix: dict, min_odds: float = 1.20, max_odds: flo
                     "kickoff": kickoff,
                     "market": sm["market"],
                     "market_type": "safety_ranked",
-                    "odds": None,  # User needs to check Betclic
-                    "bookmaker": "check_betclic",
+                    "odds": None,
+                    "bookmaker": "CHECK_BETCLIC",
                     "data_tier": tier,
                     "safety_score": sm.get("safety_score"),
                     "l10_avg": sm.get("l10_avg"),
                     "h2h_avg": sm.get("h2h_avg"),
                     "direction": sm.get("direction"),
+                    "odds_source": "none",
                 }
                 opportunities.append(opp)
+
+        # STATS_FIRST MODE: add suggested markets for events without odds
+        # in major competitions — user will check Betclic manually.
+        # Also add for events that HAVE h2h/ML odds but are MISSING
+        # statistical market odds (e.g., football with 1X2 but no corners).
+        if stats_first and _is_major_competition(sport, comp):
+            has_stat_odds = any(
+                m.get("market_type") not in ("h2h", "multi", "scan")
+                and m.get("market", "").lower() not in (
+                    "1x2:home", "1x2:draw", "1x2:away",
+                    "ml:home", "ml:away",
+                    "h2h:home", "h2h:away",
+                )
+                for m in event.get("odds_markets", [])
+            )
+            if not has_stat_odds:
+                std_markets = STANDARD_MARKET_LINES.get(sport, [])
+                for std_mkt in std_markets:
+                    # Pick the middle line as the default suggestion
+                    lines = std_mkt["lines"]
+                    mid_line = lines[len(lines) // 2]
+                    opp = {
+                        "sport": sport,
+                        "competition": comp,
+                        "event": f"{home} vs {away}",
+                        "home_team": home,
+                        "away_team": away,
+                        "kickoff": kickoff,
+                        "market": f"{std_mkt['market']} O/U {mid_line}",
+                        "market_type": "stats_first_suggestion",
+                        "odds": None,
+                        "bookmaker": "CHECK_BETCLIC",
+                        "data_tier": tier,
+                        "safety_score": None,
+                        "l10_avg": None,
+                        "h2h_avg": None,
+                        "direction": None,
+                        "suggested_lines": lines,
+                        "stat_key": std_mkt["stat"],
+                        "odds_source": "none",
+                    }
+                    opportunities.append(opp)
 
     # Sort by: safety_score (desc, Nones last), then odds
     opportunities.sort(
@@ -852,42 +1261,142 @@ def generate_decision_matrix(matrix: dict, min_odds: float = 1.20, max_odds: flo
     return opportunities
 
 
-def write_decision_matrix_md(opportunities: list[dict], date: str) -> Path:
+def write_decision_matrix_md(opportunities: list[dict], date: str, stats_first: bool = False) -> Path:
     """Write compact decision matrix markdown."""
     lines = []
     lines.append(f"# 🎯 Decision Matrix — {date}")
     lines.append(f"Total bettable opportunities: **{len(opportunities)}**")
     lines.append("")
-    lines.append("> ⚠️ ALL picks shown — no auto-rejection. User decides. EV not pre-filtered.")
+
+    # Split into odds-available and check-betclic
+    with_odds = [o for o in opportunities if o.get("odds")]
+    check_betclic = [o for o in opportunities if not o.get("odds")]
+
+    lines.append(f"- With API odds: **{len(with_odds)}**")
+    lines.append(f"- CHECK_BETCLIC (manual odds check): **{len(check_betclic)}**")
     lines.append("")
 
-    # Group by sport
-    by_sport = defaultdict(list)
-    for opp in opportunities:
-        by_sport[opp["sport"]].append(opp)
+    if stats_first:
+        lines.append("> 🔬 **STATS-FIRST MODE**: Events without API odds are included with suggested")
+        lines.append("> statistical markets. Check Betclic app for odds, then calculate:")
+        lines.append("> `EV = (hit_rate × odds) - 1`. If EV > 0 → bet.")
+        lines.append("")
 
-    for sport in sorted(by_sport.keys()):
-        sport_opps = by_sport[sport]
-        lines.append(f"## {sport.upper()} ({len(sport_opps)} opportunities)")
+    lines.append("> ⚠️ ALL picks shown — no auto-rejection. User decides.")
+    lines.append("")
+
+    # --- Section 1: Events WITH odds ---
+    if with_odds:
+        lines.append("---")
+        lines.append("## 📊 SECTION A: Events WITH Odds")
         lines.append("")
-        lines.append(
-            "| # | Event | Competition | Market | Odds | Safety | L10 | H2H | Dir | Tier |"
-        )
-        lines.append(
-            "|---|-------|-------------|--------|------|--------|-----|-----|-----|------|"
-        )
-        for i, opp in enumerate(sport_opps, 1):
-            odds_str = f"{opp['odds']:.2f}" if opp["odds"] else "CHECK"
-            safety_str = f"{opp['safety_score']:.2f}" if opp["safety_score"] else "—"
-            l10_str = f"{opp['l10_avg']}" if opp["l10_avg"] is not None else "—"
-            h2h_str = f"{opp['h2h_avg']}" if opp["h2h_avg"] is not None else "—"
-            dir_str = opp["direction"] or "—"
+        by_sport = defaultdict(list)
+        for opp in with_odds:
+            by_sport[opp["sport"]].append(opp)
+
+        for sport in sorted(by_sport.keys()):
+            sport_opps = by_sport[sport]
+            lines.append(f"### {sport.upper()} ({len(sport_opps)} opportunities)")
+            lines.append("")
             lines.append(
-                f"| {i} | {opp['event']} | {opp['competition']} | "
-                f"{opp['market']} | {odds_str} | {safety_str} | "
-                f"{l10_str} | {h2h_str} | {dir_str} | {opp['data_tier']} |"
+                "| # | Event | Competition | Market | Odds | Safety | L10 | H2H | Dir | Tier |"
             )
+            lines.append(
+                "|---|-------|-------------|--------|------|--------|-----|-----|-----|------|"
+            )
+            for i, opp in enumerate(sport_opps, 1):
+                odds_str = f"{opp['odds']:.2f}" if opp["odds"] else "CHECK"
+                safety_str = f"{opp['safety_score']:.2f}" if opp["safety_score"] else "—"
+                l10_str = f"{opp['l10_avg']}" if opp["l10_avg"] is not None else "—"
+                h2h_str = f"{opp['h2h_avg']}" if opp["h2h_avg"] is not None else "—"
+                dir_str = opp["direction"] or "—"
+                lines.append(
+                    f"| {i} | {opp['event']} | {opp['competition']} | "
+                    f"{opp['market']} | {odds_str} | {safety_str} | "
+                    f"{l10_str} | {h2h_str} | {dir_str} | {opp['data_tier']} |"
+                )
+            lines.append("")
+
+    # --- Section 2: CHECK_BETCLIC events (probability portfolio) ---
+    if check_betclic:
+        lines.append("---")
+        lines.append("## 🎲 SECTION B: PROBABILITY PORTFOLIO — Check Betclic for Odds")
         lines.append("")
+        lines.append("> These events have statistical potential but no API odds.")
+        lines.append("> **Workflow:** Find the event on Betclic → check if the suggested market exists")
+        lines.append("> → note the odds → calculate `EV = (hit_rate × odds) - 1` → if EV > 0, bet.")
+        lines.append("")
+
+        # Separate: safety-scored vs suggestions-only
+        # Note: safety_score=0.0 is falsy in Python, use explicit None check
+        scored = [o for o in check_betclic if o.get("safety_score") is not None and o["safety_score"] > 0]
+        suggested = [o for o in check_betclic if o.get("market_type") == "stats_first_suggestion" and o.get("safety_score") is None]
+
+        if scored:
+            lines.append("### B1: SAFETY-SCORED (statistical data available)")
+            lines.append("")
+            lines.append(
+                "| # | Event | Competition | Market | Safety | L10 | H2H | Dir | Tier |"
+            )
+            lines.append(
+                "|---|-------|-------------|--------|--------|-----|-----|-----|------|"
+            )
+            for i, opp in enumerate(scored, 1):
+                safety_str = f"{opp['safety_score']:.2f}" if opp["safety_score"] else "—"
+                l10_str = f"{opp['l10_avg']}" if opp["l10_avg"] is not None else "—"
+                h2h_str = f"{opp['h2h_avg']}" if opp["h2h_avg"] is not None else "—"
+                dir_str = opp["direction"] or "—"
+                lines.append(
+                    f"| {i} | {opp['event']} | {opp['competition']} | "
+                    f"{opp['market']} | {safety_str} | "
+                    f"{l10_str} | {h2h_str} | {dir_str} | {opp['data_tier']} |"
+                )
+            lines.append("")
+
+        if suggested:
+            # Group by sport, show top events per sport
+            by_sport = defaultdict(list)
+            for opp in suggested:
+                by_sport[opp["sport"]].append(opp)
+
+            lines.append("### B2: MAJOR COMPETITION MARKETS — Needs S3 Deep Analysis")
+            lines.append("")
+            lines.append("> These events are in major competitions likely available on Betclic.")
+            lines.append("> Run S3 deep stats analysis to get safety scores, then check odds.")
+            lines.append("")
+
+            for sport in sorted(by_sport.keys()):
+                sport_opps = by_sport[sport]
+                # Deduplicate by event (show each event once with all markets)
+                seen_events = {}
+                for opp in sport_opps:
+                    ev_key = opp["event"]
+                    if ev_key not in seen_events:
+                        seen_events[ev_key] = {
+                            "event": ev_key,
+                            "competition": opp["competition"],
+                            "kickoff": opp["kickoff"],
+                            "markets": [],
+                        }
+                    seen_events[ev_key]["markets"].append(opp["market"])
+
+                lines.append(f"#### {sport.upper()} ({len(seen_events)} events)")
+                lines.append("")
+                lines.append(
+                    "| # | Event | Competition | Kickoff | Suggested Markets |"
+                )
+                lines.append(
+                    "|---|-------|-------------|---------|-------------------|"
+                )
+                for i, (ev_key, ev_data) in enumerate(seen_events.items(), 1):
+                    mkts_str = ", ".join(ev_data["markets"][:4])  # show top 4
+                    if len(ev_data["markets"]) > 4:
+                        mkts_str += f" (+{len(ev_data['markets']) - 4} more)"
+                    lines.append(
+                        f"| {i} | {ev_data['event']} | {ev_data['competition']} | "
+                        f"{ev_data['kickoff']} | {mkts_str} |"
+                    )
+                lines.append("")
 
     md_text = "\n".join(lines)
     output_path = DATA_DIR / f"decision_matrix_{date}.md"
@@ -907,6 +1416,12 @@ def main():
     parser.add_argument("--min-odds", type=float, default=1.20, help="Min odds filter")
     parser.add_argument("--max-odds", type=float, default=5.00, help="Max odds filter")
     parser.add_argument("--evening-only", action="store_true", help="Only events after 17:00")
+    parser.add_argument(
+        "--stats-first", action="store_true",
+        help="STATS-FIRST mode: include all major competition events with "
+             "suggested statistical markets even without odds. User checks "
+             "Betclic for odds manually.",
+    )
     args = parser.parse_args()
 
     date = args.date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -914,6 +1429,10 @@ def main():
     if not re.match(r"^\d{4}-\d{2}-\d{2}$", date):
         print(f"[matrix] ERROR: Invalid date format '{date}'. Use YYYY-MM-DD.")
         sys.exit(1)
+
+    stats_first = args.stats_first
+    if stats_first:
+        print(f"[matrix] 🔬 STATS-FIRST MODE — including events without odds")
 
     print(f"[matrix] Generating market matrix for {date}...")
 
@@ -927,18 +1446,28 @@ def main():
     write_matrix_json(matrix, date)
     write_matrix_markdown(matrix, date)
 
-    opportunities = generate_decision_matrix(matrix, args.min_odds, args.max_odds)
-    write_decision_matrix_md(opportunities, date)
+    opportunities = generate_decision_matrix(
+        matrix, args.min_odds, args.max_odds, stats_first=stats_first,
+    )
+    write_decision_matrix_md(opportunities, date, stats_first=stats_first)
 
     # Print summary
+    with_odds = sum(1 for o in opportunities if o.get("odds"))
+    check_betclic = sum(1 for o in opportunities if not o.get("odds"))
+
     print(f"\n{'='*60}")
     print(f"MARKET MATRIX SUMMARY — {date}")
+    if stats_first:
+        print("🔬 STATS-FIRST MODE ACTIVE")
     print(f"{'='*60}")
     print(f"Total fixtures:          {matrix['total_fixtures']}")
     print(f"Events in matrix:        {matrix['total_events_in_matrix']}")
     print(f"Events with odds:        {matrix['events_with_odds']}")
     print(f"Events with safety data: {matrix['events_with_safety_data']}")
     print(f"Bettable opportunities:  {len(opportunities)}")
+    if stats_first:
+        print(f"  → With API odds:       {with_odds}")
+        print(f"  → CHECK_BETCLIC:       {check_betclic}")
     print(f"\nSport breakdown:")
     for sport, count in sorted(matrix["sport_breakdown"].items(), key=lambda x: -x[1]):
         print(f"  {sport}: {count}")

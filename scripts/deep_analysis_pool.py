@@ -258,15 +258,25 @@ def analyze_fixture(fixture: dict, odds_lookup: dict) -> dict | None:
 
     # Compute EV from odds data — only when odds can be meaningfully matched
     # The odds API provides h2h (match winner) and totals (goals O/U) markets
-    # These only map to our best_market when it's a goals/points total or match winner
+    # Match our best_market to the appropriate odds market key
     if best_market and odds_data:
         best_name_lower = (best_market.get("name", "") or "").lower()
         bookmakers = odds_data.get("bookmakers", [])
 
         # Determine which odds market key matches our best market
         matching_key = None
-        if "total" in best_name_lower and ("goal" in best_name_lower or "point" in best_name_lower):
+        # Totals markets: goals, points, runs, sets, games, corners, cards,
+        # fouls, shots — any statistical total can use the "totals" odds line
+        # as a proxy for EV direction (Over/Under pricing)
+        totals_keywords = (
+            "total", "over", "under", "corner", "card", "foul",
+            "shot", "goal", "point", "run", "set", "game",
+            "ace", "rebound", "assist",
+        )
+        if any(kw in best_name_lower for kw in totals_keywords):
             matching_key = "totals"
+        elif any(kw in best_name_lower for kw in ("winner", "1x2", "match_winner", "moneyline", "ml")):
+            matching_key = "h2h"
 
         if matching_key:
             for bm in bookmakers:

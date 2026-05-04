@@ -1,11 +1,14 @@
 # Bet Project — Key Facts
 
 ## Architecture
-- Orchestrator: `scripts/run_full_scan_and_prepare.sh` → smoke_playwright → scan_events → aggregate_and_select
+- Pipeline: `scripts/pipeline_orchestrator.py` — fully automated S0–S10 (see PIPELINE.md)
+- Scan: `scripts/run_full_scan_and_prepare.sh` → smoke_playwright → scan_events → aggregate_and_select
 - Config: `config/betting_config.json` — all thresholds and limits
 - Adapters: `scripts/adapters/` — domain-specific HTML parsers, fallback to raw_adapter
 - Settlement: `scripts/settle_on_finish.py --betting-day YYYY-MM-DD [--match "..."] [--no-poll]`
-- Quick picks: `scripts/quick_betclic_extract.py` — standalone Betclic + Flashscore/Sofascore check
+- Deep stats: `scripts/deep_stats_report.py` — per-candidate S3 analysis
+- Gate checker: `scripts/gate_checker.py` — 17-point S7 approval gate
+- Coupon builder: `scripts/coupon_builder.py` — S8 portfolio + combo construction
 
 ## Outputs
 - `betting/data/scan_summary.json` — all extracted matches per source URL

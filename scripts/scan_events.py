@@ -24,13 +24,13 @@ FETCH_DELAY_SECONDS = 3  # delay between fetches to avoid anti-bot triggers
 SPORT_URL_PATTERNS = {
     "tennis": ["/tennis", "/tenis", "tennisabstract", "tennisexplorer"],
     "basketball": ["/basketball", "/koszykowka", "/nba", "teamrankings.com", "basketball-reference"],
-    "hockey": ["/hockey", "/hokej", "/nhl", "hockey-reference"],
+    "hockey": ["/hockey", "/hokej", "/nhl", "hockey-reference", "/ice-hockey"],
     "baseball": ["/baseball", "/mlb", "baseballsavant"],
     "football": ["/football", "/pilka-nozna", "/soccer", "forebet", "predictz", "betideas", "soccerstats", "totalcorner", "soccerway", "aiscore", "xscores", "goaloo", "nowgoal", "feedinco", "bettingclosed", "tips180", "asiabet"],
     "volleyball": ["/volleyball", "/siatkowka"],
     "handball": ["/handball", "/pilka-reczna"],
     "snooker": ["/snooker", "cuetracker"],
-    "esports": ["/esports", "/esport", "gosugamers", "bo3.gg", "hltv"],
+    "esports": ["/esports", "/esport", "gosugamers", "bo3.gg", "hltv", "/csgo", "/lol"],
     "darts": ["/darts", "/rzutki", "dartsorakel"],
     "table_tennis": ["/table-tennis", "/tenis-stolowy"],
     "mma": ["/mma", "tapology", "ufcstats"],
@@ -167,7 +167,7 @@ def scan_urls(urls, deep=False, max_deep_links=50):
         print(f"  Extracted {len(extracted)} candidate match lines from {domain} [{sport}]")
 
         # Deep-link discovery: follow tournament sub-links
-        if deep and domain in ("flashscore.com", "betexplorer.com", "sofascore.com", "soccerway.com"):
+        if deep and domain in ("flashscore.com", "betexplorer.com", "sofascore.com", "soccerway.com", "forebet.com", "scores24.live"):
             try:
                 sub_links = discover_deep_links(html, url, domain, max_links=max_deep_links)
                 new_links = [sl for sl in sub_links if sl not in urls and sl not in all_extracted]

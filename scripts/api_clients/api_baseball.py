@@ -108,7 +108,16 @@ class APIBaseballClient(APISportsClient):
             return None
 
         stats = {}
+        teams = {}
         for entry in data.get("response", []):
+            # Extract team info from response entries
+            team_info = entry.get("team", {})
+            if team_info:
+                side = "home" if not teams else "away"
+                teams[side] = {
+                    "name": team_info.get("name", ""),
+                    "id": str(team_info.get("id", "")),
+                }
             for stat in entry.get("statistics", []):
                 stat_type = stat.get("type", "").lower().replace(" ", "_")
                 mapped = STAT_TYPE_MAP.get(stat_type)
@@ -121,13 +130,20 @@ class APIBaseballClient(APISportsClient):
         if not stats:
             return None
 
+        # Get date from fixture cache if available
+        fixture_date = ""
+        fixture_cache_key = f"baseball/fixtures_detail/{fixture_id}"
+        fixture_cached = self._check_cache(fixture_cache_key, ttl_hours=24)
+        if fixture_cached:
+            fixture_date = fixture_cached.get("date", "")
+
         match_stats = NormalizedMatchStats(
             fixture_id=str(fixture_id),
             source=self.api_name,
             sport="baseball",
-            home_team="",
-            away_team="",
-            date="",
+            home_team=teams.get("home", {}).get("name", ""),
+            away_team=teams.get("away", {}).get("name", ""),
+            date=fixture_date,
             stats=stats,
         )
 

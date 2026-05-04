@@ -490,6 +490,137 @@ def _cache_to_normalized_matches(
     return matches
 
 
+def _load_team_id_lookup(cache_dir: Path, sport: str) -> dict[str, int]:
+    """Load team-name → API-team-id mapping from _team_ids/*.json.
+
+    Returns dict mapping lowercased team name to integer team ID.
+    """
+    ids_dir = cache_dir / "_team_ids"
+    if not ids_dir.is_dir():
+        return {}
+    lookup: dict[str, int] = {}
+    for id_file in ids_dir.glob("*.json"):
+        # Only load files matching the sport (api-football.json → football)
+        stem = id_file.stem  # e.g. "api-football"
+        file_sport = stem.replace("api-", "") if stem.startswith("api-") else stem
+        if file_sport != sport:
+            continue
+        try:
+            data = json.loads(id_file.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                for name, tid in data.items():
+                    lookup[name.lower()] = int(tid)
+        except (json.JSONDecodeError, OSError, ValueError):
+            pass
+    return lookup
+
+
+def build_safety_from_api_cache(
+    sport: str,
+    team_a: str,
+    team_b: str,
+    competition: str,
+    cache_dir: Path | None = None,
+) -> dict | None:
+    """Fallback: build safety score input from raw API cache files.
+
+    Reads team IDs from _team_ids/, fixture lists from team_fixtures/,
+    per-fixture stats from stats/, and H2H from h2h/.
+
+    Returns:
+        Safety score input dict, or None if insufficient data.
+    """
+    cache_dir = cache_dir or CACHE_DIR
+    id_lookup = _load_team_id_lookup(cache_dir, sport)
+    if not id_lookup:
+        return None
+
+    # Resolve team IDs (try exact, then slug match)
+    team_a_id = id_lookup.get(team_a.lower()) or id_lookup.get(_slugify(team_a))
+    team_b_id = id_lookup.get(team_b.lower()) or id_lookup.get(_slugify(team_b))
+    if not team_a_id and not team_b_id:
+        return None  # Need at least one team ID
+
+    def _read_fixture_stats(sport_name: str, fixture_ids: list[str]) -> list[NormalizedMatchStats]:
+        """Read per-fixture NormalizedMatchStats from stats cache."""
+        matches = []
+        stats_dir = cache_dir / sport_name / "stats"
+        if not stats_dir.is_dir():
+            return matches
+        for fid in fixture_ids:
+            stats_file = stats_dir / f"{fid}.json"
+            if not stats_file.exists():
+                continue
+            try:
+                data = json.loads(stats_file.read_text(encoding="utf-8"))
+                ms = data.get("match_stats")
+                if ms and isinstance(ms, dict):
+                    matches.append(NormalizedMatchStats(**ms))
+            except (json.JSONDecodeError, OSError, TypeError):
+                pass
+        return matches
+
+    def _read_team_fixtures(sport_name: str, team_id: int) -> list[str]:
+        """Read fixture IDs from team_fixtures cache."""
+        tf_file = cache_dir / sport_name / "team_fixtures" / f"{team_id}_last10.json"
+        if not tf_file.exists():
+            return []
+        try:
+            data = json.loads(tf_file.read_text(encoding="utf-8"))
+            return [
+                f.get("fixture_id", "")
+                for f in data.get("fixtures", [])
+                if f.get("fixture_id")
+            ]
+        except (json.JSONDecodeError, OSError):
+            return []
+
+    # Collect fixture stats for each team
+    team_a_matches: list[NormalizedMatchStats] = []
+    team_b_matches: list[NormalizedMatchStats] = []
+
+    if team_a_id:
+        fids = _read_team_fixtures(sport, team_a_id)
+        team_a_matches = _read_fixture_stats(sport, fids)
+    if team_b_id:
+        fids = _read_team_fixtures(sport, team_b_id)
+        team_b_matches = _read_fixture_stats(sport, fids)
+
+    # H2H data
+    h2h_matches: list[NormalizedMatchStats] = []
+    if team_a_id and team_b_id:
+        # Try both orderings of ID pair
+        for id_pair in [f"{team_a_id}-{team_b_id}", f"{team_b_id}-{team_a_id}"]:
+            h2h_file = cache_dir / sport / "h2h" / f"{id_pair}.json"
+            if h2h_file.exists():
+                try:
+                    data = json.loads(h2h_file.read_text(encoding="utf-8"))
+                    h2h_fids = [
+                        f.get("fixture_id", "")
+                        for f in data.get("fixtures", [])
+                        if f.get("fixture_id")
+                    ]
+                    h2h_matches = _read_fixture_stats(sport, h2h_fids)
+                except (json.JSONDecodeError, OSError):
+                    pass
+                break
+
+    # Only proceed if we have enough data
+    if len(team_a_matches) < 5 and len(team_b_matches) < 5:
+        return None
+
+    return build_safety_score_input(
+        sport=sport,
+        team_a=team_a,
+        team_b=team_b,
+        competition=competition,
+        team_a_matches=team_a_matches,
+        team_b_matches=team_b_matches,
+        h2h_matches=h2h_matches,
+        source="api_cache",
+    )
+
+
 def build_safety_input_from_cache(
     sport: str,
     team_a: str,
@@ -500,6 +631,7 @@ def build_safety_input_from_cache(
     """Build safety score input from cached team data.
 
     Reads from betting/data/stats_cache/{sport}/{team_slug}.json.
+    Falls back to raw API cache files if slug-based cache is missing.
 
     Returns:
         Safety score input dict, or None if cache miss or insufficient data.
@@ -511,12 +643,9 @@ def build_safety_input_from_cache(
     cache_file_a = cache_dir / sport / f"{slug_a}.json"
     cache_file_b = cache_dir / sport / f"{slug_b}.json"
 
-    if not cache_file_a.exists():
-        print(f"[normalize] Cache miss for {team_a} ({cache_file_a})")
-        return None
-    if not cache_file_b.exists():
-        print(f"[normalize] Cache miss for {team_b} ({cache_file_b})")
-        return None
+    if not cache_file_a.exists() or not cache_file_b.exists():
+        # Fallback: try raw API cache files
+        return build_safety_from_api_cache(sport, team_a, team_b, competition, cache_dir)
 
     try:
         cache_a = json.loads(cache_file_a.read_text(encoding="utf-8"))

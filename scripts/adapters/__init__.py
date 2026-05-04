@@ -12,6 +12,10 @@ from .betexplorer_adapter import parse as betexplorer_parse
 from .soccerway_adapter import parse as soccerway_parse
 from .tennisexplorer_adapter import parse as tennisexplorer_parse
 from .soccerstats_adapter import parse as soccerstats_parse
+from .forebet_adapter import parse as forebet_parse
+from .totalcorner_adapter import parse as totalcorner_parse
+from .tennisabstract_adapter import parse as tennisabstract_parse
+from .scores24_adapter import parse as scores24_parse
 
 
 def dedup_results(results, key_fn=None):
@@ -34,7 +38,7 @@ def dedup_results(results, key_fn=None):
 # Domain-specific adapters (optional). If an adapter for a domain is not
 # present, `raw_parse` will be used as a fallback.
 ADAPTERS = {
-    "forebet.com": raw_parse,
+    "forebet.com": forebet_parse,
     "protipster.com": raw_parse,
     "predictz.com": raw_parse,
     "bettingexpert.com": raw_parse,
@@ -43,7 +47,7 @@ ADAPTERS = {
     "betexplorer.com": betexplorer_parse,
     "covers.com": raw_parse,
     "teamrankings.com": raw_parse,
-    "tennisabstract.com": raw_parse,
+    "tennisabstract.com": tennisabstract_parse,
     "sportsgambler.com": raw_parse,
     "sportytrader.com": raw_parse,
     "flashscore.com": flashscore_parse,
@@ -54,7 +58,8 @@ ADAPTERS = {
     "soccerway.com": soccerway_parse,
     "tennisexplorer.com": tennisexplorer_parse,
     "soccerstats.com": soccerstats_parse,
-    "totalcorner.com": raw_parse,
+    "totalcorner.com": totalcorner_parse,
+    "scores24.live": scores24_parse,
     "hltv.org": raw_parse,
     "atptour.com": raw_parse,
     "betaminic.com": raw_parse,

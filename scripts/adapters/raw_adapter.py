@@ -15,6 +15,38 @@ TIME_RE = re.compile(r"\b(\d{1,2}:\d{2})\b")
 VS_RE = re.compile(r"(.+?)\s+(?:vs\.?|v\.)\s+(.+)", re.I)
 DASH_RE = re.compile(r"(.{3,}?)\s+[-–—]\s+(.{3,})")
 
+# Patterns indicating parsed text is page chrome, not a real match
+_GARBAGE_RE = re.compile(
+    r"today's matches|pinned leagues|my teams|add the team|advertisement|"
+    r"advancing to next round|winner:|latest scores|previous match day|"
+    r"there are no .* matches|sets legs points|"
+    r"overview|preview|head-to-head|line-ups|"
+    r"atp\b.*\bsingles|wta\b.*\bsingles|atp\b.*\bdoubles|wta\b.*\bdoubles|"
+    r"\bdraw\s+\d{1,2}:\d{2}\b|"
+    r"completed|match stats|\bcourt\b.*\bcompleted\b|\bpuchar\b|\bpremiership league\b|"
+    r"pregame report|postgame",
+    re.I,
+)
+
+
+def _is_garbage_entry(home: str, away: str) -> bool:
+    """Return True if the parsed home/away looks like page chrome, not a real match."""
+    if not home or not away:
+        return True
+    if len(home) > 60 or len(away) > 60:
+        return True
+    if home.strip().lower() == away.strip().lower():
+        return True
+    if _GARBAGE_RE.search(home) or _GARBAGE_RE.search(away):
+        return True
+    if re.match(r"^[A-Z]{2,4}\s+\d{2}\.\d{2}\.\d{4}", home) or re.match(r"^[A-Z]{2,4}\s+\d{2}\.\d{2}\.\d{4}", away):
+        return True
+    if " / " in home or " / " in away:
+        return True
+    if re.search(r" : .+\d{1,2}:\d{2}", home) or re.search(r" : .+\d{1,2}:\d{2}", away):
+        return True
+    return False
+
 
 def parse(html: str, url: str) -> List[Dict]:
     soup = BeautifulSoup(html, "html.parser")
@@ -33,6 +65,8 @@ def parse(html: str, url: str) -> List[Dict]:
             if re.match(r"^\d{1,2}$", home) or re.match(r"^\d{1,2}$", away):
                 continue
             if len(home) < 2 or len(away) < 2:
+                continue
+            if _is_garbage_entry(home, away):
                 continue
             # try to find time nearby (in parent or previous sibling)
             context = " ".join([s.get_text(separator=" ").strip() for s in a.parents][:2])

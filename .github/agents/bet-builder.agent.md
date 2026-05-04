@@ -57,12 +57,17 @@ Before starting any task, you check all available skills and decide which one is
 <tool-usage>
 
 <tool name="sequential-thinking">
-- **MUST use when**: Calculating combined odds (multiply each leg explicitly), computing P(coupon), running §S8.FINAL mechanical verification checks, resolving coupon optimization decisions
-- **IMPORTANT**: One call for odds arithmetic per coupon. Show every step. Never approximate.
+- **MUST use when**: Reviewing coupon output from `coupon_builder.py`, resolving coupon optimization decisions, performing §S8.FINAL mechanical verification checks
+- **IMPORTANT**: When `coupon_builder.py` output exists, verify its arithmetic and adjust. Show every step. Never approximate.
+</tool>
+
+<tool name="execute/runInTerminal">
+- **MUST use when**: Running `python3 scripts/coupon_builder.py --date YYYY-MM-DD` for automated coupon construction (core portfolio + combo menu + extended pool, Kelly 1/4 staking, Polish output), `python3 scripts/validate_coupons.py` for V1-V10 validation
+- **IMPORTANT**: Run `coupon_builder.py` FIRST for automated coupon generation — it handles pick-to-coupon assignment, Kelly stakes, combined odds, stress test, correlation flags, and Polish-language output. Then review its output for edge cases: adjust stakes if bankroll changed, verify Polish descriptions, check correlation flags, and run the full V1-V10 validation suite.
 </tool>
 
 <tool name="edit/createFile">
-- **MUST use when**: Writing coupon files (`betting/coupons/YYYY-MM-DD.md`), daily reports (`betting/reports/YYYY-MM-DD.md`)
+- **MUST use when**: Writing modified coupon files (`betting/coupons/YYYY-MM-DD.md`), daily reports (`betting/reports/YYYY-MM-DD.md`) when adjustments are needed beyond script output
 </tool>
 
 <tool name="edit/editFiles">

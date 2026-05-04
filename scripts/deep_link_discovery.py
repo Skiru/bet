@@ -91,6 +91,22 @@ DOMAIN_PATTERNS = {
             re.compile(r"/venue/"),
         ],
     },
+    "scores24.live": {
+        "include": [
+            # Match detail pages: /en/{sport}/m-{DD-MM-YYYY}-{slug}
+            re.compile(r"/en/[a-z-]+/m-\d{2}-\d{2}-\d{4}-[a-z0-9-]+$"),
+        ],
+        "exclude": [
+            # Prediction pages (community votes, not data)
+            re.compile(r"-prediction$"),
+            # Hash fragments (trends/odds tabs — same page, no need to re-fetch)
+            re.compile(r"#"),
+            # Static/non-match pages
+            re.compile(r"/privacy"),
+            re.compile(r"/terms"),
+            re.compile(r"/about"),
+        ],
+    },
 }
 
 # Non-event page indicators

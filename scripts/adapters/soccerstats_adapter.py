@@ -135,7 +135,7 @@ def _parse_stat_tables(soup: BeautifulSoup, url: str) -> List[Dict]:
             if team and _is_team_name(team):
                 result = {
                     "home": team,
-                    "away": "",
+                    "away": "(league stats)",
                     "time": "",
                     "odds": "",
                     "league": "",

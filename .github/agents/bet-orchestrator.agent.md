@@ -31,7 +31,17 @@ You are methodical and structured. You never skip steps or shortcuts. You read c
 
 **Entry point:** `python3 scripts/pipeline_orchestrator.py --date YYYY-MM-DD [--session full|day|night|morning]` — orchestrates all steps with state tracking and resume capability. Falls back to manual step-by-step if needed.
 
-**Pipeline sequence:** S0 → S1 → S1b (odds) → S1c (weather) → S1d (market matrix) → S2 → S3 → S4 → S5 → S6 → S7 → S3B → S8
+**Automated Pipeline Modules (S3/S7/S8 are fully scriptable):**
+- `scripts/deep_stats_report.py` — S3: Reads stats cache, runs §3.0 market ranking via `compute_safety_scores.rank_markets()`, generates 10-section (§S3.1–§S3.10) deep stats per candidate
+- `scripts/gate_checker.py` — S7: Programmatic 17-point gate, red flags, upset risk, sport diversity, risk tier (LR/MS/HR/N), confidence scoring
+- `scripts/coupon_builder.py` — S8: Core portfolio + combo menu + extended pool, Kelly 1/4 staking, Polish-language output, stress test
+- `scripts/pipeline_orchestrator.py` — Runs all steps S0–S10 end-to-end, injects EV from odds API snapshot between S3→S7
+
+**Dual-Mode Operation:**
+- **Automated mode** (default): `pipeline_orchestrator.py` calls `deep_stats_report.py` → `gate_checker.py` → `coupon_builder.py` as Python imports. No agent delegation needed for S3/S7/S8.
+- **Agent-supplement mode**: When automated output needs enhancement (web data for candidates without API coverage, qualitative bear cases, manual odds verification), delegate to specialist agents to fill gaps in script output.
+
+**Pipeline sequence:** S0 → S1 → S1b (odds) → S1c (weather) → S1d (market matrix) → S1e (shortlist) → S3 → S7 → S8 → S9 → S10
 
 **New infrastructure (integrated in PRE-FLIGHT):**
 - `fetch_odds_multi.py` — aggregates 5 odds sources (The-Odds-API + API-Football + OddsPortal + BetExplorer + Betclic) per SPORT_SOURCE_PRIORITY
@@ -238,15 +248,18 @@ This agent does not load skills directly — it delegates to specialized agents 
 | S1 | bet-scanner | ≥50 events, ALL 14 sports scanned (200+ URLs with `--deep` flag), completeness ≥80%, tipster HTML fetched |
 | S1b | _(script)_ | `fetch_odds_multi.py` or `fetch_odds_api.py` executed — `odds_api_snapshot.json` produced |
 | S1c | _(script)_ | `fetch_weather.py --date {date}` executed — `weather_{date}.json` produced |
-| S1d | _(script)_ | `generate_market_matrix.py --date {date}` executed — `market_matrix_{date}.json/md` + `decision_matrix_{date}.md` produced |
-| S2 | bet-scanner | 15-40 candidates, ≥8 sports in shortlist, **market_matrix used as primary input** |
-| S3 | bet-statistician | **MECHANICAL GATE: §3.0e template verified — all 10 section markers (§S3.1-§S3.10) present per candidate, ≥3 ranking rows (≥4 football), no banned words, numeric safety scores, 100% DEPTH gate.** Stats from ≥2 sources per candidate. |
+| S1d | _(script)_ | `generate_market_matrix.py --date {date} --stats-first` executed — `market_matrix_{date}.json/md` + `decision_matrix_{date}.md` produced |
+| S1e | _(script)_ | `build_shortlist.py --date {date} --top 100 --stats-first` executed — 50-100 candidates ranked |
+| S3 | **_(script: `deep_stats_report.py`)_** → bet-statistician supplements | Script generates all 10 §S3 sections from stats cache. Agent fills gaps for candidates without API data. **MECHANICAL GATE: all 10 section markers (§S3.1-§S3.10) present per candidate, ≥3 ranking rows, numeric safety scores.** |
 | S4 | bet-scout | ≥2 tipster sites per candidate, §4.3 watchlist promotion done |
 | S5 | bet-valuator | EV > 0 for all approved candidates |
 | S6 | bet-challenger | Upset risk scored, context verified for all candidates |
-| S7 | bet-challenger | 17-point gate passed per pick |
+| S7 | **_(script: `gate_checker.py`)_** → bet-challenger supplements | Script runs all 17 gate points, red flags, risk tiers, confidence scores. Agent builds qualitative bear cases for borderline picks. |
+| **S7→DIVERSITY** | _(orchestrator)_ | **§7.6 sport diversity check: ≥5 sports in approved picks, ALL KEY sports covered. FAIL → trigger §2.1 expansion on ALL unanalyzed shortlist candidates via §2.2 sport-diverse batching. Loop S3→S7 until diversity gate passes or all candidates exhausted.** |
 | S3B | bet-statistician | Lineups, weather (via `fetch_weather.py` / `weather_{date}.json` — Open-Meteo flags), odds drift checked |
-| S8 | bet-builder | V1-V10 all pass, §S8.FINAL mechanical verification pass |
+| S8 | **_(script: `coupon_builder.py`)_** → bet-builder reviews | Script builds core portfolio + combo menu + extended pool with Kelly stakes. Agent reviews, adjusts, runs V1-V10 validation + §S8.FINAL. |
+| S9 | _(script: `validate_coupons.py`)_ | V1-V10 all pass |
+| S10 | _(summary)_ | Final artifacts produced, pipeline state saved |
 
 **Error escalation:**
 - S0 gate FAIL: Settlement incomplete → must resolve before proceeding
@@ -254,8 +267,17 @@ This agent does not load skills directly — it delegates to specialized agents 
 - Step gate FAIL in Pass 1-2: Expected. Log and fix.
 - Step gate FAIL in Pass 3: Concerning. Must fix before Pass 4.
 - Step gate FAIL in Pass 4: BLOCKER. Fix first.
-- <4 approved picks: Declare NO BET day.
-- <5 sports in final picks: Go back to S1.
+- <4 approved picks: Trigger §2.1 expansion on ALL remaining shortlisted candidates (sport-diverse batches per §2.2). If STILL <4 after analyzing ALL → declare NO BET day.
+- <5 sports in final picks: Trigger §7.6 sport diversity expansion loop — analyze ALL unanalyzed candidates from missing sports. NEVER skip to S8 with <5 sports if shortlist had ≥8.
+- S7 gate rejects ALL initial picks: This is NOT a signal to narrow — it's a signal to BROADEN. Process ALL remaining shortlist candidates through S3→S7 using §2.2 sport-diverse batching. The scan infrastructure (50K+ events, 1400+ URLs) was built for BREADTH — use it.
+
+**ANTI-NARROWING RULE (ABSOLUTE — ZT#21):**
+When S7 gate fails and emergency expansion is needed, the orchestrator MUST:
+1. List ALL S2 shortlist candidates that have NOT received S3 analysis, grouped by sport.
+2. Process them in sport-round-robin order (§2.2): top football, top volleyball, top basketball, top tennis, top handball, top hockey... THEN 2nd football, 2nd volleyball, etc.
+3. NEVER select only "API-verified" or "easy data" events. The shortlist was built from verified fixtures.
+4. NEVER focus expansion on a single sport (e.g., "only NBA because we have API data").
+5. Continue until ALL shortlist candidates are analyzed OR §7.6 diversity gate passes.
 
 **Ad-hoc delegation map:**
 

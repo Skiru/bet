@@ -13,6 +13,7 @@ You are maintaining a disciplined small-bankroll betting workflow, not writing c
 - **SUPPORT sports (Tier 2):** All others — scan main leagues, still fully analyzed per candidate.
 - **Coupon output = core portfolio + COMBO MENU + EXTENDED POOL.** Core = unique event per coupon. Combos = extra combinations remixing picks. Extended = EV>0 but gate-failed. User picks from all.
 - **NO AUTO-REJECTION:** Pipeline NEVER auto-rejects events based on EV, safety scores, or historical hit rates. ALL discovered fixtures shown in market matrix. User decides.
+- **NO AGGRESSIVE NARROWING:** When S7 gate rejects picks, emergency expansion MUST analyze ALL remaining shortlist candidates across ALL sports (§2.2 sport-diverse batching). NEVER narrow to 1-2 sports. The scan infrastructure exists for BREADTH — honor it. §7.6 blocks S8 if <5 sports in approved picks.
 - Follow [analysis-methodology.instructions.md](instructions/analysis-methodology.instructions.md) (STEPS 0-10, V1-V10).
 - Follow [betting-artifacts.instructions.md](instructions/betting-artifacts.instructions.md) (output formats).
 - Follow [source-registry.md](../betting/sources/source-registry.md) (source hierarchy, fallback chains).

@@ -1,0 +1,130 @@
+"""TotalCorner adapter — parses football match corner/goal data from totalcorner.com.
+
+Extracts: teams, league, time, corner counts, goal handicaps, total goals lines,
+and dangerous attack stats. This is a key source for football corner markets.
+
+TotalCorner table structure:
+  tr > td.td_league (league name)
+       td (time)
+       td.match_status (match minute or status)
+       td.match_home (home team)
+       td.match_goal (score)
+       td.match_away (away team)
+       td.match_handicap (corner handicap line)
+       td with corner data (corner counts)
+       td with total goals (goal total line)
+       td with dangerous attacks
+"""
+from typing import List, Dict
+from bs4 import BeautifulSoup
+import re
+
+
+def parse(html: str, url: str) -> List[Dict]:
+    """Parse TotalCorner match listing page."""
+    soup = BeautifulSoup(html, "html.parser")
+    results = []
+
+    trs = soup.find_all("tr")
+    for tr in trs:
+        tds = tr.find_all("td")
+        if len(tds) < 7:
+            continue
+
+        # Find cells by class
+        league_td = tr.find("td", class_="td_league")
+        home_td = tr.find("td", class_="match_home")
+        away_td = tr.find("td", class_="match_away")
+        goal_td = tr.find("td", class_="match_goal")
+        handicap_td = tr.find("td", class_="match_handicap")
+
+        if not home_td or not away_td:
+            continue
+
+        # Extract team name from the <a> link inside the cell, not the full cell
+        # (cell contains yellow/red card counts and league position spans)
+        home_link = home_td.find("a")
+        away_link = away_td.find("a")
+        home = home_link.get_text(strip=True) if home_link else home_td.get_text(strip=True)
+        away = away_link.get_text(strip=True) if away_link else away_td.get_text(strip=True)
+
+        if not home or not away:
+            continue
+
+        # Clean team names: remove ranking brackets like [3] or [12]
+        # Only strip when square brackets are present to avoid removing
+        # legitimate trailing digits (e.g., "Dynamo2", "1860 Munich")
+        home = re.sub(r"\[\d+\]$", "", home).strip()
+        home = re.sub(r"^\[\d+\]", "", home).strip()
+        away = re.sub(r"^\[\d+\]", "", away).strip()
+        away = re.sub(r"\[\d+\]$", "", away).strip()
+
+        if not home or not away or len(home) < 2 or len(away) < 2:
+            continue
+
+        league = league_td.get_text(strip=True) if league_td else ""
+        score = goal_td.get_text(strip=True) if goal_td else ""
+
+        # Get time from the cell after league
+        time_str = None
+        time_td = tds[2] if len(tds) > 2 else None
+        if time_td:
+            txt = time_td.get_text(strip=True)
+            if re.match(r"\d{1,2}:\d{2}", txt):
+                time_str = txt
+
+        # Corner handicap
+        corner_handicap = None
+        if handicap_td:
+            hc_text = handicap_td.get_text(strip=True)
+            if hc_text:
+                corner_handicap = hc_text
+
+        # Find corner counts (in the td after handicap)
+        corner_count = None
+        if handicap_td:
+            next_td = handicap_td.find_next_sibling("td")
+            if next_td:
+                cc = next_td.get_text(strip=True)
+                # Pattern: "5 - 3(4-2)" or "1 - 4(0-2)"
+                m = re.match(r"(\d+)\s*-\s*(\d+)", cc)
+                if m:
+                    corner_count = f"{m.group(1)}-{m.group(2)}"
+
+        # Find total goals line
+        total_goals = None
+        for td in tds:
+            txt = td.get_text(strip=True)
+            # Pattern: "2.25 ( 0.5)" or "3.25 (3.75)"
+            m = re.match(r"(\d+\.?\d*)\s*\(", txt)
+            classes = td.get("class", [])
+            if m and "match_handicap" not in classes and "match_status" not in classes:
+                total_goals = txt
+                break
+
+        result = {
+            "home": home,
+            "away": away,
+            "time": time_str,
+            "source_url": url,
+            "raw": f"{home} vs {away}",
+            "sport": "football",
+            "source_type": "totalcorner",
+        }
+
+        if league:
+            result["league"] = league
+        if score and re.match(r"\d+\s*-\s*\d+", score):
+            result["score"] = score
+        if corner_handicap:
+            result["corner_handicap"] = corner_handicap
+        if corner_count:
+            result["corner_count"] = corner_count
+        if total_goals:
+            result["total_goals_line"] = total_goals
+
+        results.append(result)
+
+    # Deduplicate
+    from adapters import dedup_results
+    return dedup_results(results)

@@ -27,27 +27,10 @@ except ImportError:
     from api_clients.rate_limiter import RateLimiter
 
 
-# Prefixes/suffixes to strip during normalization
-_TEAM_PREFIXES = re.compile(
-    r"^(fc|cf|sc|ac|as|ss|rc|cd|ca|rcd|sd|ud|us|afc|ssc|ogc|bsc|tsg|vfb|vfl|rb)\s+",
-    re.IGNORECASE,
-)
-_TEAM_SUFFIXES = re.compile(
-    r"\s+(fc|cf|sc|ac|united|utd|city|town|rovers|wanderers|athletic|albion)$",
-    re.IGNORECASE,
-)
-
-
-def normalize_team_name(name: str) -> str:
-    """Simple normalization: lowercase, strip FC/CF/SC prefixes, etc."""
-    if not name:
-        return ""
-    normalized = name.lower().strip()
-    normalized = _TEAM_PREFIXES.sub("", normalized)
-    normalized = _TEAM_SUFFIXES.sub("", normalized)
-    # Remove extra whitespace
-    normalized = re.sub(r"\s+", " ", normalized).strip()
-    return normalized
+try:
+    from scripts.utils import normalize_team_name
+except ImportError:
+    from utils import normalize_team_name
 
 
 def deduplicate_fixtures(fixtures: list) -> list:
@@ -97,8 +80,22 @@ def _load_scan_summary(date: str) -> list:
     except (json.JSONDecodeError, OSError):
         return []
 
+    # scan_summary.json format is {url: [items]} — flatten all URL arrays
+    raw_events = []
+    if isinstance(data, list):
+        raw_events = data
+    elif isinstance(data, dict):
+        # Actual format from scan_events.py: {url_string: [event_dicts]}
+        if data.get("events"):
+            raw_events = data["events"]
+        else:
+            # Flatten all URL-keyed arrays
+            for key, value in data.items():
+                if isinstance(value, list):
+                    raw_events.extend(value)
+
     fixtures = []
-    for event in data if isinstance(data, list) else data.get("events", []):
+    for event in raw_events:
         if not isinstance(event, dict):
             continue
 

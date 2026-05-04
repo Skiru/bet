@@ -38,32 +38,91 @@ SPORT_KEY_MAP = {
         "soccer_italy_serie_a", "soccer_france_ligue_one",
         "soccer_netherlands_eredivisie", "soccer_portugal_primeira_liga",
         "soccer_turkey_super_league", "soccer_poland_ekstraklasa",
-        "soccer_usa_mls", "soccer_brazil_campeonato",
+        "soccer_usa_mls", "soccer_brazil_campeonato", "soccer_brazil_serie_b",
         "soccer_uefa_champs_league", "soccer_uefa_europa_league",
+        "soccer_uefa_europa_conference_league",
         "soccer_efl_champ", "soccer_spain_segunda_division",
+        "soccer_argentina_primera_division", "soccer_australia_aleague",
+        "soccer_austria_bundesliga", "soccer_belgium_first_div",
+        "soccer_chile_campeonato", "soccer_china_superleague",
+        "soccer_conmebol_copa_libertadores", "soccer_conmebol_copa_sudamericana",
+        "soccer_denmark_superliga", "soccer_england_league1", "soccer_england_league2",
+        "soccer_fa_cup", "soccer_finland_veikkausliiga",
+        "soccer_france_ligue_two", "soccer_germany_bundesliga2",
+        "soccer_germany_liga3", "soccer_greece_super_league",
+        "soccer_italy_serie_b", "soccer_italy_coppa_italia",
+        "soccer_japan_j_league", "soccer_korea_kleague1",
+        "soccer_league_of_ireland", "soccer_mexico_ligamx",
+        "soccer_norway_eliteserien", "soccer_russia_premier_league",
+        "soccer_saudi_arabia_pro_league", "soccer_spl",
+        "soccer_sweden_allsvenskan", "soccer_sweden_superettan",
+        "soccer_switzerland_superleague",
     ],
     "tennis": [
+        # Tennis keys change seasonally — populated via auto-discovery.
+        # These Grand Slam keys are static fallbacks:
         "tennis_atp_french_open", "tennis_wta_french_open",
         "tennis_atp_aus_open", "tennis_wta_aus_open",
         "tennis_atp_us_open", "tennis_wta_us_open",
         "tennis_atp_wimbledon", "tennis_wta_wimbledon",
-        # API auto-discovers in-season ATP/WTA events;
-        # Grand Slam keys are fallbacks. Use --list-sports to see active keys.
     ],
-    "basketball": ["basketball_nba", "basketball_euroleague", "basketball_ncaab"],
-    "hockey": ["icehockey_nhl", "icehockey_shl"],
-    "baseball": ["baseball_mlb"],
+    "basketball": ["basketball_nba", "basketball_euroleague", "basketball_ncaab", "basketball_wnba"],
+    "hockey": ["icehockey_nhl", "icehockey_shl", "icehockey_liiga"],
+    "baseball": ["baseball_mlb", "baseball_ncaa"],
     "mma": ["mma_mixed_martial_arts"],
+    "handball": ["handball_germany_bundesliga"],
     # These sports are NOT covered by the API — skip silently
     "volleyball": [],
     "esports": [],
     "snooker": [],
     "table_tennis": [],
     "darts": [],
-    "handball": [],
     "padel": [],
     "speedway": [],
 }
+
+
+def discover_active_sport_keys(api_key: str) -> dict:
+    """Fetch live sport keys from the API and merge with SPORT_KEY_MAP.
+
+    Tennis and other seasonal keys appear/disappear throughout the year.
+    This function fetches the active list (FREE, 0 credits) and adds any
+    tennis_*, soccer_*, etc. keys that aren't already in the map.
+    Returns the merged map without modifying the global.
+    """
+    try:
+        resp = requests.get(f"{BASE_URL}/sports", params={"apiKey": api_key}, timeout=15)
+        resp.raise_for_status()
+        live_sports = resp.json()
+    except Exception:
+        return dict(SPORT_KEY_MAP)
+
+    merged = {k: list(v) for k, v in SPORT_KEY_MAP.items()}
+
+    # Mapping from API group prefixes to our internal sport keys
+    prefix_map = {
+        "soccer_": "football",
+        "tennis_": "tennis",
+        "basketball_": "basketball",
+        "icehockey_": "hockey",
+        "baseball_": "baseball",
+        "mma_": "mma",
+        "handball_": "handball",
+    }
+
+    for s in live_sports:
+        if not s.get("active", False):
+            continue
+        key = s["key"]
+        # Skip winner/outright markets
+        if "winner" in key:
+            continue
+        for prefix, sport in prefix_map.items():
+            if key.startswith(prefix) and key not in merged.get(sport, []):
+                merged.setdefault(sport, []).append(key)
+                break
+
+    return merged
 
 
 def get_api_key():
@@ -131,8 +190,8 @@ def fetch_odds(api_key, sport_key, markets="h2h,totals", regions="eu",
 
     resp = requests.get(f"{BASE_URL}/sports/{sport_key}/odds", params=params, timeout=15)
 
-    if resp.status_code == 422:
-        # Sport not in season or invalid key
+    if resp.status_code in (404, 422):
+        # Sport not in season, invalid key, or removed — skip silently
         return [], resp.headers
     resp.raise_for_status()
 
@@ -229,9 +288,10 @@ def run_full_scan(api_key, sport_filter=None, betting_day_window=True):
     total_credits_used = 0
     credits_remaining = "?"
 
-    # Determine which sports to scan
+    # Determine which sports to scan — use auto-discovery to find seasonal keys
+    active_map = discover_active_sport_keys(api_key)
     sports_to_scan = {}
-    for our_sport, api_keys in SPORT_KEY_MAP.items():
+    for our_sport, api_keys in active_map.items():
         if not api_keys:
             continue
         if sport_filter and our_sport not in sport_filter:

@@ -104,6 +104,28 @@ Every sport has dedicated communities, statistical databases, and prediction sit
   Role: multi-sport written previews with lineups, injuries, and advanced metrics.
   Use for: football plus North American sports when a fresh preview is needed.
 
+- Scores24.live
+  Role: universal multi-sport deep data source — match detail pages with H2H, recent form (last 5-10 matches with scores), live odds (W1/X/W2, handicaps, totals), and structured betting trends with statistical hit rates.
+  URL: scores24.live/en/{sport} (sport = soccer, tennis, basketball, ice-hockey, handball, volleyball, baseball, snooker, darts, table-tennis, mma, csgo, lol, american-football, cricket, rugby, badminton, boxing, futsal, aussie-rules)
+  Detail URL: scores24.live/en/{sport}/m-{DD-MM-YYYY}-{slug}
+  Trends URL: scores24.live/en/{sport}/m-{DD-MM-YYYY}-{slug}#trends
+  Use for:
+    - Fixture discovery across ALL sports (listing pages provide match links with dates).
+    - Deep pre-match context: H2H records with actual match scores, last 5+ form for both sides.
+    - Odds cross-validation: W1/X/W2 + handicap lines + totals from multiple bookmakers.
+    - Trend-based analysis: structured betting tips with "X of last Y" hit rates (e.g., "Team has won in 6 of last 7 matches" → 86%).
+    - Surface, venue, tournament, and round info for tennis and other sports.
+  Data depth per match:
+    - match_info: home, away, tournament, venue, surface, round, date, time
+    - odds: W1/X/W2, handicap lines (e.g., +1.5, -3), total lines (O/U with lines)
+    - h2h: win count per side + last N H2H matches with full scores
+    - form_home / form_away: last 5-10 matches with opponent, result (W/L), scores
+    - trends: categorized tips (Match Result, Double Chance, Over/Under, Handicap, BTTS) with hit_count/sample_size/hit_rate and associated odds
+  Access: OK. Renders via Playwright (JS-heavy SPA). No GDPR wall. Cookie selectors configured.
+  Coverage: 20+ sports globally. Best coverage for tennis, basketball, football, handball, darts, ice hockey.
+  Adapter: `scripts/adapters/scores24_adapter.py` — handles both listing pages and detail pages.
+  Added: 2026-04-30.
+
 ## Tier A Core Stats — API Sources (Programmatic)
 
 These API sources provide structured statistical data via REST APIs. They are the primary data pipeline for the deep analysis pool engine. All use free tiers with daily rate limits.
@@ -262,6 +284,14 @@ These adapters provide structured data extraction from web sources, normalizing 
   Output: normalized league statistics (team averages for corners, cards, fouls, goals).
   Added: 2026-04-30.
 
+- scores24_adapter.py (`scripts/adapters/scores24_adapter.py`)
+  Role: structured deep parser for scores24.live — listing pages (fixture discovery) and detail pages (H2H, form, odds, trends).
+  Use for: multi-sport fixture discovery + deep pre-match data. Provides structured betting trends with hit rates, H2H with match scores, form per team, and multi-market odds.
+  Input: scores24.live listing URLs (`/en/{sport}`) or detail URLs (`/en/{sport}/m-{date}-{slug}`).
+  Output: listing → match links with dates and detail URLs; detail → full match data dict with match_info, odds, h2h, form_home, form_away, and trends.
+  Sports covered: soccer, tennis, basketball, ice-hockey, handball, volleyball, baseball, snooker, darts, table-tennis, mma, csgo, lol, american-football, cricket, rugby, badminton, boxing, futsal, aussie-rules.
+  Added: 2026-04-30.
+
 ### Odds Cross-Validation Sources (Multi-Source System)
 
 The multi-source odds aggregator (`fetch_odds_multi.py`) tries sources in priority order per sport, merging events and deduplicating bookmakers:
@@ -368,19 +398,19 @@ These sources provide tips, predictions, and community analysis for exotic footb
   **Deep-dive required**: NO — automated model predictions, not written arguments. Use for consensus direction only.
 
 - Forebet
-  Role: algorithmic football predictions — mathematical model covering 500+ leagues with probability, predicted score, odds value.
+  Role: algorithmic predictions — mathematical model covering 500+ leagues with probability, predicted score, odds value. Covers football, tennis, basketball, hockey, handball, volleyball.
   URL: forebet.com
-  Use for: model-based predictions for exotic leagues. Shows predicted score, probability %, and whether odds represent value.
-  Access: OK (previously blocked but now accessible via direct league pages).
-  Coverage: 500+ leagues globally including most exotic leagues.
-  **Deep-dive required**: NO — model output, not human analysis. Use for direction confirmation.
-  Note: If main page is blocked, try direct league pages: forebet.com/en/football-predictions/predictions-[country]/
+  Use for: model-based predictions for all sports. Shows predicted score, probability %, average stats (goals, corners, etc.), and whether odds represent value.
+  Access: OK via Playwright (custom forebet_adapter.py). Direct pages work: football-tips-and-predictions-for-today, tennis/predictions-today, etc.
+  Coverage: 500+ leagues globally including most exotic leagues. Multi-sport.
+  **Deep-dive required**: NO — model output, not human analysis. Use for direction confirmation and probability cross-check.
+  Note: Parses 60+ tennis matches and 40+ football matches per page. Includes 2-way/3-way probabilities and predicted scores.
 
 - WhoScored Predictions
   Role: data-driven match previews and predictions with statistical context.
   URL: whoscored.com/Previews
   Use for: match previews for larger exotic leagues (Egyptian Premier, Saudi Pro, Indian ISL).
-  Access: PARTIAL — may be blocked on some pages. Try direct match URLs.
+  Access: OK via Playwright (425k chars fetched successfully). Added to scan URLs.
   Coverage: Major exotic leagues (Saudi, Egypt, India, Colombia, Chile). Not available for ultra-thin leagues.
   **Deep-dive required**: YES — previews contain tactical analysis and statistical context.
 
@@ -473,8 +503,8 @@ These sources provide tips, predictions, and community analysis for exotic footb
 - TotalCorner
   Role: live corner predictions, corner handicap lines, corner totals, corner averages per match.
   URL: totalcorner.com/match/today
-  Use for: corner handicap and total lines for today's matches, pre-match corner average context.
-  Access: OK (no Cloudflare).
+  Use for: corner handicap and total lines for today's matches, pre-match corner average context. Extracts 200+ matches with corner counts, goal handicaps, dangerous attacks.
+  Access: OK via Playwright + totalcorner_adapter.py. Previously only 3-4 items with raw adapter, now 200+ with custom parser.
 
 - SoccerStats
   Role: league-level corner stats, card stats, fouls, BTTS rates, O2.5 rates, team-by-team averages.
@@ -540,8 +570,9 @@ These sources provide tips, predictions, and community analysis for exotic footb
 - TennisAbstract
   Role: Elo ratings, serve-return profiles, surface performance, forecasts, and matchup data.
   URL: tennisabstract.com
-  Use for: Elo-based forecasts, serve/return quality, break rate analysis.
-  Access: OK.
+  Use for: Elo-based forecasts, serve/return quality, break rate analysis. Provides overall Elo + surface-specific Elo (hard=hElo, clay=cElo, grass=gElo) for 518 ATP + 519 WTA players.
+  Access: OK via Playwright + tennisabstract_adapter.py. Elo table format parsed. Returns player ratings (not match fixtures).
+  Note: Custom adapter needed because raw adapter cannot parse Elo table format. Output is player-level data with `source_type: tennisabstract_elo`.
 
 - UltimateTennisStatistics
   Role: deep historical stats — Elo, serve %, return %, break rate, surface filters, H2H explorer.
@@ -672,8 +703,9 @@ These sources provide tips, predictions, and community analysis for exotic footb
   Role: CS2 statistics, team rankings, match history, player stats, map veto patterns, event schedules.
   URL: hltv.org
   Use for: CS2 moneyline, map handicap, map totals. Team rankings, recent form, map pool analysis.
-  Access: PARTIAL — statistics pages work, but tips/predictions pages return 403. Use for STATS ONLY, not tips.
-  Note: HLTV tips are BLOCKED (listed in copilot-instructions blocked tipster list). Use stats pages only (rankings, match history, player data). For esports tips/predictions, use GosuGamers instead.
+  Access: BLOCKED — Cloudflare 403 on all pages including /matches. Confirmed via Playwright test 2026-04-30.
+  Alternatives: GosuGamers (gosugamers.net), bo3.gg for CS2 match fixtures and stats.
+  Note: HLTV tips are BLOCKED. Stats pages also blocked. Use GosuGamers and Liquipedia as primary CS2 sources.
 
 - Liquipedia
   Role: comprehensive esports wiki — CS2, Dota 2, League of Legends, Valorant, StarCraft, Rocket League. Tournament brackets, team rosters, match history.
@@ -757,7 +789,8 @@ These sources provide tips, predictions, and community analysis for exotic footb
   Role: darts predictions and statistics — modeled probabilities, head-to-head analysis.
   URL: dartsorakel.com
   Use for: match predictions, leg/set totals analysis.
-  Access: OK.
+  Access: BLOCKED — Cloudflare 403. Confirmed via Playwright test 2026-04-30.
+  Alternatives: Use BetExplorer for darts odds, Flashscore for darts fixtures.
 
 - PDC.tv
   Role: official PDC — tournament schedules, results, player profiles, averages, order of merit.
@@ -917,7 +950,7 @@ Do NOT attempt to fetch these — they waste time and produce no data:
 - Pinnacle (pinnacle.com) — timeout/geoblocked.
 
 **Tier B (former):**
-- Forebet (forebet.com) — Cloudflare 403. Was football model support.
+- ~~Forebet (forebet.com)~~ — **FIXED**: accessible via Playwright + forebet_adapter.py. Moved to active sources.
 - SportyTrader (sportytrader.com) — blocked. Was football previews.
 - PredictZ (predictz.com) — redirect/block. Was football scoreline support.
 - BettingExpert (bettingexpert.com) — navigation leak/broken. Was tipster sentiment.
@@ -931,7 +964,7 @@ Do NOT attempt to fetch these — they waste time and produce no data:
 - FootyStats (footystats.org) — 403 on main pages. HOWEVER: individual team/match pages (e.g., footystats.org/teams/{team-slug}) sometimes work via Playwright. Use as SoccerStats fallback for fouls, cards, and team-level stats when SoccerStats is down (HTTP 500). NOT reliable as primary source.
 - FBRef (fbref.com) — 403
 - FCTables (fctables.com) — 403
-- WhoScored (whoscored.com) — 403
+- ~~WhoScored (whoscored.com)~~ — **FIXED**: accessible via Playwright (425k chars). Added to scan URLs.
 - KenPom (kenpom.com) — blocked
 - FanGraphs (fangraphs.com) — blocked. Use BaseballSavant (Statcast) as replacement for pitcher/hitter stats.
 - ActionNetwork (actionnetwork.com) — blocked
