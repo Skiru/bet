@@ -64,6 +64,22 @@ DIRECTION_PL = {
     "UNDER": "poniżej",
 }
 
+
+def _bm(pick: dict) -> dict:
+    """Safely get best_market from a pick, handling None values."""
+    return pick.get("best_market") or {}
+
+
+def _safe_float(val, default=0.0):
+    """Safely convert a value to float."""
+    if val is None:
+        return default
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        return default
+
+
 SPORT_EMOJI = {
     "football": "⚽",
     "basketball": "🏀",
@@ -264,9 +280,9 @@ def stress_test_coupon(coupon: dict) -> dict:
     weakest_p = 1.0
 
     for leg in legs:
-        bm = leg.get("best_market", {})
+        bm = _bm(leg)
         # Prefer true probability from probability_engine; fall back to safety_score
-        p = bm.get("probability") or bm.get("safety_score", 0.5)
+        p = _safe_float(bm.get("probability") or bm.get("safety_score", 0.5), 0.5)
         probabilities.append(p)
         if p < weakest_p:
             weakest_p = p
@@ -278,7 +294,7 @@ def stress_test_coupon(coupon: dict) -> dict:
 
     catastrophe = "Brak danych"
     if weakest:
-        wm = weakest.get("best_market", {})
+        wm = _bm(weakest)
         event = f"{weakest.get('home_team', '?')} vs {weakest.get('away_team', '?')}"
         market = wm.get("name", "?")
         catastrophe = f"Przegrywa jeśli {event} — {market} nie trafi (p={weakest_p:.0%})"
@@ -287,7 +303,7 @@ def stress_test_coupon(coupon: dict) -> dict:
         "p_coupon": round(p_coupon, 4),
         "weakest_leg": {
             "event": f"{weakest.get('home_team', '?')} vs {weakest.get('away_team', '?')}" if weakest else None,
-            "market": weakest.get("best_market", {}).get("name") if weakest else None,
+            "market": _bm(weakest).get("name") if weakest else None,
             "probability": weakest_p,
         },
         "catastrophe": catastrophe,
@@ -362,7 +378,7 @@ def assign_picks_to_core(approved: list, config: dict) -> list[dict]:
         key=lambda p: (
             -(p.get("ev") or 0),
             -(p.get("final_confidence") or 0),
-            -(p.get("best_market", {}).get("safety_score") or 0),
+            -(_bm(p).get("safety_score") or 0),
         ),
     )
 
@@ -478,11 +494,11 @@ def _make_coupon(coupon_id: str, tier: str, legs: list, config: dict) -> dict:
 
     # Stake: use worst probability/safety among legs for Kelly
     min_safety = min(
-        (leg.get("best_market", {}).get("safety_score", 0.5) for leg in legs),
+        (_bm(leg).get("safety_score", 0.5) for leg in legs),
         default=0.5,
     )
     min_prob = min(
-        (leg.get("best_market", {}).get("probability") or leg.get("best_market", {}).get("safety_score", 0.5)
+        (_bm(leg).get("probability") or _bm(leg).get("safety_score", 0.5)
          for leg in legs),
         default=None,
     )
@@ -547,11 +563,11 @@ def _try_insert_into_coupon(pick: dict, coupons: list, max_same_sport: int, bank
         coupon["stress_test"] = stress_test_coupon({"legs": coupon["legs"]})
         # Recalculate stake with worst probability/safety among legs
         min_safety = min(
-            (l.get("best_market", {}).get("safety_score", 0.5) for l in coupon["legs"]),
+            (_bm(l).get("safety_score", 0.5) for l in coupon["legs"]),
             default=0.5,
         )
         min_prob = min(
-            (l.get("best_market", {}).get("probability") or l.get("best_market", {}).get("safety_score", 0.5)
+            (_bm(l).get("probability") or _bm(l).get("safety_score", 0.5)
              for l in coupon["legs"]),
             default=None,
         )
@@ -580,7 +596,7 @@ COMBO_THEMES = [
         "name": "all-corners",
         "thesis_pl": "Wszystkie rzuty rożne/faule — rynki statystyczne się kumulują",
         "filter": lambda p: any(
-            kw in (p.get("best_market", {}).get("name", "") or "").lower()
+            kw in (_bm(p).get("name", "") or "").lower()
             for kw in ("corner", "foul", "card", "rzut", "faul", "kartk")
         ),
         "tier": "LR",
@@ -588,7 +604,7 @@ COMBO_THEMES = [
     {
         "name": "safe-totals",
         "thesis_pl": "Najwyższe safety score — minimalne ryzyko",
-        "sort_key": lambda p: -(p.get("best_market", {}).get("safety_score", 0)),
+        "sort_key": lambda p: -(_bm(p).get("safety_score", 0)),
         "top_n": 3,
         "tier": "LR",
     },
@@ -608,20 +624,20 @@ COMBO_THEMES = [
     {
         "name": "under-specialist",
         "thesis_pl": "Wszystkie UNDER — korelacja z niskim tempem gry",
-        "filter": lambda p: (p.get("best_market", {}).get("direction", "") or "").upper() == "UNDER",
+        "filter": lambda p: (_bm(p).get("direction", "") or "").upper() == "UNDER",
         "tier": "MS",
     },
     {
         "name": "statistical-powerhouse",
         "thesis_pl": "Najwyższe safety score — potwierdzone statystycznie",
-        "sort_key": lambda p: -(p.get("best_market", {}).get("safety_score", 0)),
+        "sort_key": lambda p: -(_bm(p).get("safety_score", 0)),
         "top_n": 4,
         "tier": "LR",
     },
     {
         "name": "over-specialist",
         "thesis_pl": "Wszystkie OVER — korelacja z wysokim tempem gry",
-        "filter": lambda p: (p.get("best_market", {}).get("direction", "") or "").upper() == "OVER",
+        "filter": lambda p: (_bm(p).get("direction", "") or "").upper() == "OVER",
         "tier": "MS",
     },
     {
@@ -760,10 +776,10 @@ def generate_combos(approved: list, config: dict) -> list[dict]:
     # Enrich all combos with richer descriptions
     for coupon in combos:
         legs = coupon["legs"]
-        avg_safety = sum(l.get("best_market", {}).get("safety_score", 0) for l in legs) / max(len(legs), 1)
+        avg_safety = sum(_bm(l).get("safety_score", 0) for l in legs) / max(len(legs), 1)
         sports_in_combo = sorted(set(l.get("sport", "?") for l in legs))
-        over_count = sum(1 for l in legs if (l.get("best_market", {}).get("direction", "") or "").upper() == "OVER")
-        under_count = sum(1 for l in legs if (l.get("best_market", {}).get("direction", "") or "").upper() == "UNDER")
+        over_count = sum(1 for l in legs if (_bm(l).get("direction", "") or "").upper() == "OVER")
+        under_count = sum(1 for l in legs if (_bm(l).get("direction", "") or "").upper() == "UNDER")
         coupon["combo_description"] = {
             "avg_safety": round(avg_safety, 3),
             "sports": sports_in_combo,
@@ -834,7 +850,7 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
 
     # BANKER: highest safety score pick
     if singles:
-        banker = max(singles, key=lambda s: s["legs"][0].get("best_market", {}).get("safety_score", 0))
+        banker = max(singles, key=lambda s: (_bm(s["legs"][0])).get("safety_score", 0))
         banker["is_banker"] = True
         result["banker"] = banker
 
@@ -902,21 +918,21 @@ def _market_matrix_rows(approved: list, extended: list) -> list[str]:
         emoji = SPORT_EMOJI.get(sport, "❓")
         home = pick.get("home_team", "?")
         away = pick.get("away_team", "?")
-        best = pick.get("best_market", {})
+        best = _bm(pick)
         market = best.get("name", "-")
         odds = (pick.get("odds") or {}).get("market_best")
-        odds_str = f"{odds:.2f}" if odds else "-"
+        odds_str = f"{_safe_float(odds):.2f}" if odds else "-"
         safety = best.get("safety_score")
-        safety_str = f"{safety:.2f}" if safety else "-"
+        safety_str = f"{_safe_float(safety):.2f}" if safety else "-"
         hit_l10 = best.get("hit_rate_l10")
-        hit_str = f"{hit_l10:.0%}" if hit_l10 else "-"
+        hit_str = f"{_safe_float(hit_l10):.0%}" if hit_l10 else "-"
         direction = best.get("direction", "")
         l10_avg = best.get("l10_avg")
         direction_info = direction
         if l10_avg is not None:
-            direction_info = f"{direction} +{l10_avg:.0f}" if direction else "-"
+            direction_info = f"{direction} +{_safe_float(l10_avg):.0f}" if direction else "-"
         ev = pick.get("ev")
-        ev_str = f"EV {ev:+.0%}" if ev else "-"
+        ev_str = f"EV {_safe_float(ev):+.0%}" if ev else "-"
 
         status = "✅" if pick in approved else "📋"
         rows.append(
@@ -965,7 +981,7 @@ def _coupon_section(title: str, coupons: list[dict]) -> list[str]:
             logic = f"Kupon {c['tier']} z {len(c['legs'])} nogami ({', '.join(sports)})"
             lines.append(f"**Logika:** {logic}")
 
-        lines.append(f"**P(kupon):** ~{st.get('p_coupon', 0):.0%}")
+        lines.append(f"**P(kupon):** ~{_safe_float(st.get('p_coupon', 0)):.0%}")
         lines.append(f"**Największe ryzyko:** {st.get('catastrophe', '-')}")
 
         if c.get("correlation_flags"):
@@ -1084,11 +1100,11 @@ def write_coupon_markdown(coupons_data: dict, date: str) -> Path:
             desc = c.get("combo_description", {})
             if desc:
                 lines.append(
-                    f"  Avg safety: {desc.get('avg_safety', 0):.3f} | "
+                    f"  Avg safety: {_safe_float(desc.get('avg_safety', 0)):.3f} | "
                     f"Sports: {', '.join(desc.get('sports', []))} | "
                     f"{desc.get('direction_balance', '')}"
                 )
-            lines.append(f"**P(kupon):** ~{st.get('p_coupon', 0):.0%}")
+            lines.append(f"**P(kupon):** ~{_safe_float(st.get('p_coupon', 0)):.0%}")
             lines.append(f"**Największe ryzyko:** {st.get('catastrophe', '-')}")
             lines.append("")
 
@@ -1101,12 +1117,12 @@ def write_coupon_markdown(coupons_data: dict, date: str) -> Path:
         for i, pick in enumerate(extended, 1):
             home = pick.get("home_team", "?")
             away = pick.get("away_team", "?")
-            best = pick.get("best_market", {})
+            best = _bm(pick)
             market = best.get("name", "-")
             odds = (pick.get("odds") or {}).get("market_best")
-            odds_str = f"{odds:.2f}" if odds else "-"
+            odds_str = f"{_safe_float(odds):.2f}" if odds else "-"
             ev = pick.get("ev")
-            ev_str = f"{ev:+.0%}" if ev else "-"
+            ev_str = f"{_safe_float(ev):+.0%}" if ev else "-"
             gate = pick.get("gate_score", "-")
             # Pros/cons from gate details
             pros = []
@@ -1161,9 +1177,9 @@ def write_coupon_markdown(coupons_data: dict, date: str) -> Path:
         for pick in extended[:10]:
             home = pick.get("home_team", "?")
             away = pick.get("away_team", "?")
-            best = pick.get("best_market", {})
+            best = _bm(pick)
             market = best.get("name", "-")
-            safety = best.get("safety_score", 0.5)
+            safety = _safe_float(best.get("safety_score", 0.5), 0.5)
             min_odds = round(1.0 / safety, 2) if safety > 0 else "-"
             lines.append(
                 f"| {home} vs {away} | {market} | {min_odds} | "
@@ -1181,7 +1197,7 @@ def write_coupon_markdown(coupons_data: dict, date: str) -> Path:
         for pick in rejected[:10]:
             home = pick.get("home_team", "?")
             away = pick.get("away_team", "?")
-            best = pick.get("best_market", {})
+            best = _bm(pick)
             market = best.get("name", "-")
             # Extract rejection reason
             failed_gates = []

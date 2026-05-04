@@ -70,15 +70,32 @@ SPORT_URL_PATTERNS = {
     "speedway": ["/speedway", "/zuzel", "speedwayekstraliga"],
 }
 
+# Multi-sport tipster sites that cover ALL sports — URL-based sport detection
+# is unreliable for these. Items from these sites should keep whatever sport
+# the adapter/content sets, or remain untagged for fixture-level matching.
+MULTI_SPORT_DOMAINS = {
+    "zawodtyper.pl", "typersi.pl", "sportowefakty.wp.pl",
+    "sportsgambler.com", "pickswise.com", "betaminic.com",
+    "tipstrr.com",
+}
+
 
 def detect_sport(url: str) -> str:
-    """Detect sport from URL path patterns."""
+    """Detect sport from URL path patterns.
+
+    Returns empty string for multi-sport tipster sites where URL alone
+    cannot determine the sport.
+    """
     url_lower = url.lower()
+    # Multi-sport tipster sites — cannot determine sport from URL
+    for domain in MULTI_SPORT_DOMAINS:
+        if domain in url_lower:
+            return ""  # unknown — must be resolved downstream
     for sport, patterns in SPORT_URL_PATTERNS.items():
         for pat in patterns:
             if pat in url_lower:
                 return sport
-    return "football"  # default
+    return "football"  # default for football-specific sites
 
 sys.path.insert(0, str(BASE))
 try:
@@ -208,8 +225,11 @@ def _scan_domain_group(domain: str, urls: list[str], deep: bool, max_deep_links:
             items = raw_parse(html, url)
         for item in items:
             if "sport" not in item:
-                item["sport"] = sport
-        print(f"  [{domain}] Extracted {len(items)} candidate match lines [{sport}]")
+                if sport:  # only set if URL-based detection returned a result
+                    item["sport"] = sport
+                # else: leave untagged — will be resolved by fixture matching
+        sport_label = sport or "multi-sport"
+        print(f"  [{domain}] Extracted {len(items)} candidate match lines [{sport_label}]")
 
         # Deep-link discovery
         deep_items = {}

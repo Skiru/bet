@@ -73,8 +73,8 @@ def parse_coupon_tables(md_text: str) -> list[dict]:
         # Parse numeric columns (combined odds, stake, return)
         try:
             combined_odds = float(parts[3])
-            stake = float(parts[4])
-            potential_return = float(parts[5])
+            stake = float(re.sub(r"[^\d.]", "", parts[4]))
+            potential_return = float(re.sub(r"[^\d.]", "", parts[5]))
         except (ValueError, IndexError):
             continue
 
