@@ -338,13 +338,15 @@ def build_safety_score_input(
     Returns:
         Dict matching compute_safety_scores.py input format, or None if insufficient data.
     """
-    # Minimum match count validation
-    if len(team_a_matches) < 5:
-        print(f"[normalize] Insufficient data for {team_a}: {len(team_a_matches)} matches (need ≥5)")
+    # Minimum match count validation — need ≥5 for at least ONE team
+    # (allows team-specific markets like team corners when only one team has data)
+    if len(team_a_matches) < 5 and len(team_b_matches) < 5:
+        print(f"[normalize] Insufficient data for both teams: {team_a}={len(team_a_matches)}, {team_b}={len(team_b_matches)} (need ≥5 for at least one)")
         return None
-    if len(team_b_matches) < 5:
-        print(f"[normalize] Insufficient data for {team_b}: {len(team_b_matches)} matches (need ≥5)")
-        return None
+    if len(team_a_matches) < 3:
+        print(f"[normalize] Very thin data for {team_a}: {len(team_a_matches)} matches — using available data")
+    if len(team_b_matches) < 3:
+        print(f"[normalize] Very thin data for {team_b}: {len(team_b_matches)} matches — using available data")
 
     markets = market_definitions or SPORT_MARKETS.get(sport, [])
     if not markets:
@@ -621,6 +623,43 @@ def build_safety_from_api_cache(
     )
 
 
+def _find_cache_file(sport_dir: Path, slug: str) -> Path | None:
+    """Find cache file for a team slug, with fuzzy matching fallback.
+
+    Tries exact match first, then checks if slug is a substring of any
+    cache filename (or vice versa) to handle naming differences
+    (e.g., 'sk-rapid-wien' → 'rapid-vienna.json').
+    """
+    exact = sport_dir / f"{slug}.json"
+    if exact.exists():
+        return exact
+
+    if not sport_dir.is_dir():
+        return None
+
+    # Extract core name tokens (skip common prefixes like fc, sc, sk, etc.)
+    skip_prefixes = {"fc", "sc", "sk", "fk", "ac", "as", "us", "ss", "cd", "cf", "rc", "rb"}
+    slug_parts = [p for p in slug.split("-") if p not in skip_prefixes and len(p) > 1]
+
+    best_match = None
+    best_score = 0
+    for f in sport_dir.glob("*.json"):
+        stem = f.stem
+        # Skip date-prefixed files (e.g. may-04-2030-lask-linz.json)
+        # Pattern: 3-letter month + dash + 2-digit day (jan-01, feb-14, etc.)
+        if re.match(r'^[a-z]{3}-\d{2}', stem):
+            continue
+        stem_parts = [p for p in stem.split("-") if p not in skip_prefixes and len(p) > 1]
+        # Score = number of matching parts
+        common = sum(1 for p in slug_parts if p in stem_parts)
+        min_required = max(2, (len(slug_parts) * 2 + 2) // 3)  # ≥2/3 of tokens, minimum 2
+        if common > best_score and common >= min_required:
+            best_score = common
+            best_match = f
+
+    return best_match
+
+
 def build_safety_input_from_cache(
     sport: str,
     team_a: str,
@@ -640,10 +679,10 @@ def build_safety_input_from_cache(
     slug_a = _slugify(team_a)
     slug_b = _slugify(team_b)
 
-    cache_file_a = cache_dir / sport / f"{slug_a}.json"
-    cache_file_b = cache_dir / sport / f"{slug_b}.json"
+    cache_file_a = _find_cache_file(cache_dir / sport, slug_a)
+    cache_file_b = _find_cache_file(cache_dir / sport, slug_b)
 
-    if not cache_file_a.exists() or not cache_file_b.exists():
+    if not cache_file_a or not cache_file_b:
         # Fallback: try raw API cache files
         return build_safety_from_api_cache(sport, team_a, team_b, competition, cache_dir)
 

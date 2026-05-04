@@ -71,12 +71,19 @@ def _bm(pick: dict) -> dict:
 
 
 def _safe_float(val, default=0.0):
-    """Safely convert a value to float."""
+    """Safely convert a value to float. Handles fractions like '5/7'."""
     if val is None:
         return default
-    try:
+    if isinstance(val, (int, float)):
         return float(val)
-    except (ValueError, TypeError):
+    try:
+        s = str(val).strip()
+        if "/" in s:
+            num, den = s.split("/", 1)
+            den_f = float(den)
+            return float(num) / den_f if den_f else default
+        return float(s)
+    except (ValueError, TypeError, ZeroDivisionError):
         return default
 
 
@@ -170,33 +177,63 @@ def _build_rich_description(pick: dict) -> str:
     # Analysis rationale
     safety = best.get("safety_score")
     hit_rate_l10 = best.get("hit_rate_l10")
+    hit_rate_h2h = best.get("hit_rate_h2h")
+    hit_rate_l5 = best.get("hit_rate_l5")
     h2h_avg = best.get("h2h_avg")
-    l10_avg = best.get("l10_avg")
+    combined_avg = best.get("combined_avg")
+    l10_avg = best.get("l10_avg") or combined_avg
     l5_avg = best.get("l5_avg")
-    probability = best.get("probability")
-    fair_odds = best.get("fair_odds")
-    rank = best.get("rank", "?")
-    total_markets = best.get("total_markets_evaluated")
+    team_a_avg = best.get("team_a_avg")
+    team_b_avg = best.get("team_b_avg")
+    margin = best.get("margin")
+    rank = best.get("rank")
+    total_markets = best.get("total_markets_evaluated") or pick.get("market_count")
+    three_way = pick.get("three_way_alignment")
+    gate_score = pick.get("gate_score")
+    risk_tier = pick.get("risk_tier")
+    h2h_count = pick.get("h2h_count", 0)
+    data_quality = pick.get("data_quality")
 
     analysis_parts = []
 
+    # Market ranking
     if safety is not None:
-        rank_text = f"Rynek #{rank}" if rank else "Rynek"
+        rank_text = f"Rynek #{rank}" if rank else "Najlepszy rynek"
         markets_text = f" z {total_markets}" if total_markets else ""
         analysis_parts.append(f"\U0001f4ca {rank_text} wg safety score ({safety:.2f}){markets_text}")
 
-    if l10_avg is not None and line is not None:
-        margin_pct = round((l10_avg / line - 1) * 100) if line > 0 else 0
+    # L10 average vs line
+    if l10_avg is not None and line is not None and line > 0:
+        margin_pct = round((l10_avg / line - 1) * 100)
         sign = "+" if margin_pct > 0 else ""
         analysis_parts.append(f"\u2022 L10 \u015brednia: {l10_avg:.1f} vs linia {line} ({sign}{margin_pct}% margines)")
 
+    # H2H average
     if h2h_avg is not None:
-        analysis_parts.append(f"\u2022 H2H \u015brednia: {h2h_avg:.1f}")
+        h2h_meetings = f" ({h2h_count} spotkań)" if h2h_count else ""
+        analysis_parts.append(f"\u2022 H2H \u015brednia: {h2h_avg:.1f}{h2h_meetings}")
 
-    if probability is not None and fair_odds is not None:
-        ev_pct = round((probability * odds - 1) * 100) if odds > 0 else 0
-        analysis_parts.append(f"\u2022 P(hit): {probability*100:.0f}% | Fair odds: \u2265{fair_odds:.2f} | EV: {'+' if ev_pct > 0 else ''}{ev_pct}%")
+    # Team-level averages
+    if team_a_avg is not None and team_b_avg is not None and team_a_avg > 0 and team_b_avg > 0:
+        analysis_parts.append(f"\u2022 {home}: {team_a_avg:.1f} | {away}: {team_b_avg:.1f}")
 
+    # Hit rates
+    hit_parts = []
+    if hit_rate_l10:
+        hit_parts.append(f"L10: {hit_rate_l10}")
+    if hit_rate_h2h and hit_rate_h2h != "N/A":
+        hit_parts.append(f"H2H: {hit_rate_h2h}")
+    if hit_rate_l5:
+        hit_parts.append(f"L5: {hit_rate_l5}")
+    if hit_parts:
+        analysis_parts.append(f"\u2022 Trafienia: {' | '.join(hit_parts)}")
+
+    # Three-way alignment
+    if three_way:
+        alignment_emoji = "\u2705" if "3/3" in str(three_way) else "\u26a0\ufe0f"
+        analysis_parts.append(f"\u2022 3-Way Check: {three_way} {alignment_emoji}")
+
+    # L5 trend
     if l5_avg is not None and l10_avg is not None and l10_avg > 0:
         pct_change = (l5_avg - l10_avg) / l10_avg * 100
         if pct_change > 5:
@@ -204,17 +241,34 @@ def _build_rich_description(pick: dict) -> str:
         elif pct_change < -5:
             analysis_parts.append(f"\u2022 Forma \u2198: L5={l5_avg:.1f} vs L10={l10_avg:.1f} (trend spadkowy)")
         else:
-            analysis_parts.append(f"\u2022 Forma \u2192: L5={l5_avg:.1f} vs L10={l10_avg:.1f} (stabilna)")
+            analysis_parts.append(f"\u2022 Forma \u2192: L5={l5_avg:.1f} \u2248 L10={l10_avg:.1f} (stabilna)")
 
-    # Risk factors from gate details
-    gate = pick.get("gate_details") or {}
-    risk_notes = []
-    for g_id, g_data in gate.items():
-        if isinstance(g_data, dict) and not g_data.get("passed", True) and g_data.get("note"):
-            risk_notes.append(g_data["note"])
+    # Gate score and tier
+    gate_parts = []
+    if gate_score:
+        gate_parts.append(f"Gate: {gate_score}")
+    if risk_tier:
+        gate_parts.append(f"Tier: {risk_tier}")
+    if data_quality:
+        gate_parts.append(f"Dane: {data_quality}")
+    if gate_parts:
+        analysis_parts.append(f"\u2022 {' | '.join(gate_parts)}")
 
-    if risk_notes:
-        analysis_parts.append(f"\u26a0 Ryzyka: {'; '.join(risk_notes[:2])}")
+    # Margin (distance from line)
+    if margin is not None and margin != 1.0:
+        margin_pct = round((margin - 1) * 100, 1)
+        analysis_parts.append(f"\u2022 Margines bezpieczeństwa: {margin_pct:+.1f}%")
+
+    # EV if available
+    ev = pick.get("ev")
+    if ev is not None:
+        analysis_parts.append(f"\u2022 EV: {ev:+.0%}")
+
+    # Gate warnings (top 2 most relevant)
+    warnings = pick.get("gate_warnings", [])
+    relevant_warnings = [w for w in warnings if not w.startswith("STATS-FIRST") and "markets evaluated" not in w]
+    if relevant_warnings:
+        analysis_parts.append(f"\u26a0 {'; '.join(relevant_warnings[:2])}")
 
     if analysis_parts:
         lines.append("")
@@ -360,8 +414,11 @@ def assign_picks_to_core(approved: list, config: dict) -> list[dict]:
     Sorting: EV desc → confidence desc → safety desc.
     Grouping: LR → LR coupons, MS → MS, HR → HR, night → NIGHT.
     Constraints: min 2 legs, max 2 same sport, no same-match legs.
+    Only picks with real odds (>1.0) are eligible for multi-bet coupons.
     """
-    if len(approved) < 2:
+    # Filter to picks with real odds for multi-bet coupons
+    odds_approved = [p for p in approved if ((p.get("odds") or {}).get("market_best") or 0) > 1.0]
+    if len(odds_approved) < 2:
         return []
 
     tz_name = config.get("timezone", "Europe/Warsaw")
@@ -374,7 +431,7 @@ def assign_picks_to_core(approved: list, config: dict) -> list[dict]:
 
     # Sort: EV desc → confidence desc → safety desc
     sorted_picks = sorted(
-        approved,
+        odds_approved,
         key=lambda p: (
             -(p.get("ev") or 0),
             -(p.get("final_confidence") or 0),
@@ -397,8 +454,8 @@ def assign_picks_to_core(approved: list, config: dict) -> list[dict]:
                 tier = "MS"
             buckets[tier].append(p)
 
-    n_core = _determine_coupon_count(len(approved), config)
-    date_str = _extract_date(approved)
+    n_core = _determine_coupon_count(len(odds_approved), config)
+    date_str = _extract_date(odds_approved)
 
     coupons: list[dict] = []
     all_assigned: set[str] = set()
@@ -410,7 +467,7 @@ def assign_picks_to_core(approved: list, config: dict) -> list[dict]:
             continue
 
         # How many coupons for this tier? Proportional to picks
-        tier_proportion = len(picks_in_tier) / len(approved)
+        tier_proportion = len(picks_in_tier) / len(odds_approved)
         tier_coupons = max(1, round(n_core * tier_proportion))
 
         tier_num = 0
@@ -651,7 +708,9 @@ COMBO_THEMES = [
 
 def generate_combos(approved: list, config: dict) -> list[dict]:
     """Generate combo coupons by remixing approved picks (theme-based + combinatorial)."""
-    if len(approved) < 2:
+    # Only use picks with real odds for combo coupons
+    odds_approved = [p for p in approved if ((p.get("odds") or {}).get("market_best") or 0) > 1.0]
+    if len(odds_approved) < 2:
         return []
 
     date_str = _extract_date(approved)
@@ -666,7 +725,7 @@ def generate_combos(approved: list, config: dict) -> list[dict]:
         if len(combos) >= max_combos:
             break
 
-        selected = list(approved)
+        selected = list(odds_approved)
 
         # Apply filter
         if "filter" in theme:
@@ -682,7 +741,7 @@ def generate_combos(approved: list, config: dict) -> list[dict]:
         if theme.get("unique_sport"):
             seen_sports: set[str] = set()
             diversified = []
-            for p in sorted(approved, key=lambda x: -(x.get("ev") or 0)):
+            for p in sorted(odds_approved, key=lambda x: -(x.get("ev") or 0)):
                 sport = p.get("sport", "other")
                 if sport not in seen_sports:
                     diversified.append(p)
@@ -738,7 +797,7 @@ def generate_combos(approved: list, config: dict) -> list[dict]:
     for k in range(min_legs, min(max_legs + 1, 4)):  # 2-leg and 3-leg combos
         if len(combos) >= max_combos:
             break
-        for combo_picks in itertools.combinations(approved, k):
+        for combo_picks in itertools.combinations(odds_approved, k):
             if len(combos) >= max_combos:
                 break
             # Check unique events
@@ -909,6 +968,73 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
 # Markdown writer
 # ---------------------------------------------------------------------------
 
+def _compact_description(pick: dict, is_approved: bool) -> str:
+    """Build a compact description for the Uwagi column of the market matrix."""
+    best = _bm(pick)
+    parts = []
+
+    status = "✅" if is_approved else "📋"
+
+    # No best_market → minimal info
+    if not best.get("name"):
+        odds = (pick.get("odds") or {}).get("market_best")
+        if odds:
+            parts.append(f"Kurs {odds:.2f}")
+        parts.append("brak analizy")
+        return f"{' · '.join(parts)} {status}"
+
+    # L10 avg vs line
+    l10 = best.get("l10_avg") or best.get("combined_avg")
+    line = best.get("line")
+    if l10 is not None and line and line > 0:
+        margin = round((l10 / line - 1) * 100)
+        parts.append(f"L10:{l10:.1f} ({margin:+d}%)")
+
+    # H2H
+    h2h = best.get("h2h_avg")
+    if h2h is not None:
+        h2h_count = pick.get("h2h_count", 0)
+        parts.append(f"H2H:{h2h:.1f}({h2h_count}m)")
+
+    # Three-way alignment
+    twa = pick.get("three_way_alignment", "")
+    if twa:
+        if "3/3" in str(twa):
+            parts.append("3W✅")
+        elif "2/3" in str(twa):
+            parts.append("3W⚠️")
+        else:
+            parts.append("3W❌")
+
+    # L5 trend arrow
+    l5 = best.get("l5_avg")
+    if l5 is not None and l10 is not None and l10 > 0:
+        pct = (l5 - l10) / l10 * 100
+        if pct > 5:
+            parts.append("↗")
+        elif pct < -5:
+            parts.append("↘")
+        else:
+            parts.append("→")
+
+    # Gate score
+    gate = pick.get("gate_score")
+    if gate:
+        parts.append(f"G:{gate}")
+
+    # EV
+    ev = pick.get("ev")
+    if ev is not None:
+        parts.append(f"EV{ev:+.0%}")
+
+    # Risk tier
+    tier = pick.get("risk_tier")
+    if tier:
+        parts.append(tier)
+
+    return f"{' · '.join(parts)} {status}" if parts else status
+
+
 def _market_matrix_rows(approved: list, extended: list) -> list[str]:
     """Build full market matrix rows."""
     rows = []
@@ -923,21 +1049,17 @@ def _market_matrix_rows(approved: list, extended: list) -> list[str]:
         odds = (pick.get("odds") or {}).get("market_best")
         odds_str = f"{_safe_float(odds):.2f}" if odds else "-"
         safety = best.get("safety_score")
-        safety_str = f"{_safe_float(safety):.2f}" if safety else "-"
+        safety_str = f"{_safe_float(safety):.2f}" if safety is not None else "-"
         hit_l10 = best.get("hit_rate_l10")
         hit_str = f"{_safe_float(hit_l10):.0%}" if hit_l10 else "-"
         direction = best.get("direction", "")
-        l10_avg = best.get("l10_avg")
-        direction_info = direction
-        if l10_avg is not None:
-            direction_info = f"{direction} +{_safe_float(l10_avg):.0f}" if direction else "-"
-        ev = pick.get("ev")
-        ev_str = f"EV {_safe_float(ev):+.0%}" if ev else "-"
 
-        status = "✅" if pick in approved else "📋"
+        is_approved = pick in approved
+        uwagi = _compact_description(pick, is_approved)
+
         rows.append(
             f"| {i} | {emoji} | {home} vs {away} | {market} | {odds_str} "
-            f"| {safety_str} | {hit_str} | {direction_info} | {ev_str} {status} |"
+            f"| {safety_str} | {hit_str} | {direction} | {uwagi} |"
         )
     return rows
 

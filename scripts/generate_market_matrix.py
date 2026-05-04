@@ -87,7 +87,12 @@ def _sport_from_odds_key(sport_key: str) -> str:
         return "darts"
     if "aussierules" in sk or "australian" in sk or "afl" in sk:
         return "australian_football"
-    return "football"
+    if "rugby" in sk:
+        return "rugby"
+    if "cricket" in sk:
+        return "cricket"
+    # Unknown sport — return as-is instead of defaulting to football
+    return sk or "other"
 
 
 # ---------------------------------------------------------------------------
@@ -568,9 +573,21 @@ def generate_market_matrix(
                 "there are no ", " / ",
                 # Completed match results / match stats
                 "completed", "match stats", "pregame report", "postgame",
+                # Tipster page artifacts (v5 — garbage names in coupons)
+                "picks & odds", "epl picks", "odds for saturday",
+                "odds for friday", "odds for monday", "odds for sunday",
+                "odds for tuesday", "odds for wednesday", "odds for thursday",
+                "typy bukmacherów", "kolejka", "wydarzenie",
+                "bukmacherów", "✅", "❌",
             ]
             combined = f"{home} {away}".lower()
             if any(pat in combined for pat in skip_patterns):
+                continue
+            # Reject entries with embedded odds/scores (e.g. "37 ' Chelsea 1.68 3.75")
+            if re.search(r"\d+\.\d{2}\s+\d+\.\d{2}", combined):
+                continue
+            # Reject entries with match minute markers (e.g. "37  '")
+            if re.search(r"\d+\s*'", combined):
                 continue
             # Reject section header blobs: " : " followed by time pattern
             if re.search(r" : .+\d{1,2}:\d{2}", home) or re.search(r" : .+\d{1,2}:\d{2}", away):

@@ -28,10 +28,10 @@ POLISH_TERMS = {
 LEG_ODDS_RE = re.compile(r"(?:@\s*|[\(\[])([\d.]+)[\)\]]?")
 
 # Pattern to extract event names from description
-# Matches: "Team A vs Team B (Competition)" or "Team A vs Team B"
+# Matches: "Team A vs Team B: ..." or "Team A vs Team B (Competition) —"
 EVENT_RE = re.compile(
     r"([A-ZÀ-Ža-zà-ž0-9\s.'&\-]+?)\s+vs\s+([A-ZÀ-Ža-zà-ž0-9\s.'&\-]+?)"
-    r"\s*(?:\([^)]+\))?\s*(?:—|–|-)"
+    r"\s*(?:\([^)]+\))?\s*(?:—|–|-|:)"
 )
 
 
@@ -82,8 +82,9 @@ def parse_coupon_tables(md_text: str) -> list[dict]:
         legs_odds = [float(o) for o in LEG_ODDS_RE.findall(description)]
 
         # Extract event names from description
-        # Split by <br> to get individual legs
-        legs_text = re.split(r"<br\s*/?>", description)
+        # Split by <br> or " + " to get individual legs
+        legs_text = re.split(r"<br\s*/?>|\s\+\s", description)
+        legs_text = [lt.strip() for lt in legs_text if lt.strip()]
         events = []
         for leg_text in legs_text:
             # Try to extract "X vs Y" pattern
@@ -92,13 +93,14 @@ def parse_coupon_tables(md_text: str) -> list[dict]:
                 event_name = f"{ev_match.group(1).strip()} vs {ev_match.group(2).strip()}"
                 events.append(normalize_event(event_name))
             else:
-                # Fallback: use first part before "—" as event identifier
-                parts = re.split(r"\s*(?:—|–)\s*", leg_text, maxsplit=1)
-                if parts:
-                    events.append(normalize_event(parts[0].strip()))
+                # Fallback: use first part before "—", "–", or ":" as event identifier
+                parts_split = re.split(r"\s*(?:—|–|:)\s*", leg_text, maxsplit=1)
+                if parts_split:
+                    events.append(normalize_event(parts_split[0].strip()))
 
-        # Determine if core or combo
-        is_combo = bool(re.search(r"(?:COMBO|CK-COMBO|EXT)", coupon_id, re.IGNORECASE))
+        # Determine if core or combo or single
+        is_combo = bool(re.search(r"(?:COMBO|CK-COMBO|COMB\d|EXT)", coupon_id, re.IGNORECASE))
+        is_single = bool(re.search(r"SINGLE", coupon_id, re.IGNORECASE))
 
         coupons.append({
             "row_num": row_num,
@@ -111,6 +113,7 @@ def parse_coupon_tables(md_text: str) -> list[dict]:
             "potential_return": potential_return,
             "events": events,
             "is_combo": is_combo,
+            "is_single": is_single,
         })
 
     return coupons
@@ -152,7 +155,7 @@ def verify_arithmetic(
 def check_unique_events(coupons: list[dict]) -> list[str]:
     """Check that core coupons don't share events."""
     errors = []
-    core_coupons = [c for c in coupons if not c["is_combo"]]
+    core_coupons = [c for c in coupons if not c["is_combo"] and not c.get("is_single")]
 
     event_to_coupons: dict[str, list[str]] = {}
     for coupon in core_coupons:
@@ -296,8 +299,8 @@ def validate_file(file_path: Path, ledger_path: Path) -> dict:
         polish_warnings = check_polish_descriptions(coupon["legs_text"])
         check["warnings"].extend(polish_warnings)
 
-        # 4. Minimum legs check
-        if len(coupon["legs_text"]) < 2:
+        # 4. Minimum legs check (skip for singles — 1-leg is valid)
+        if len(coupon["legs_text"]) < 2 and not coupon.get("is_single"):
             check["errors"].append(
                 f"MIN_LEGS: Coupon has {len(coupon['legs_text'])} leg(s), minimum is 2"
             )

@@ -9,12 +9,16 @@ PICKS = os.path.join(ROOT, "betting", "journal", "picks-ledger.csv")
 COUPONS = os.path.join(ROOT, "betting", "journal", "coupons-ledger.csv")
 
 def normalize_status(status):
-    """Normalize status values: win→won, loss→lost."""
+    """Normalize status values: win→won, loss→lost, half_win→half_won, etc."""
     status = status.strip().lower()
     if status == "win":
         return "won"
     if status == "loss":
         return "lost"
+    if status == "half_win":
+        return "half_won"
+    if status == "half_loss":
+        return "half_lost"
     return status
 
 
@@ -40,12 +44,19 @@ def analyze_picks():
                 sport_stats[sport][status] += 1
                 total[status] += 1
                 continue
-            
-            if status in ("won", "lost", "push", "pending"):
-                sport_stats[sport][status] += 1
-                market_stats[market][status] += 1
-                day_stats[day][status] += 1
-                total[status] += 1
+
+            # Count half_won as won and half_lost as lost for statistics
+            count_status = status
+            if status == "half_won":
+                count_status = "won"
+            elif status == "half_lost":
+                count_status = "lost"
+
+            if count_status in ("won", "lost", "push", "pending"):
+                sport_stats[sport][count_status] += 1
+                market_stats[market][count_status] += 1
+                day_stats[day][count_status] += 1
+                total[count_status] += 1
     
     print("=" * 70)
     print("§0.2 HISTORICAL LEARNING QUERY — Full Portfolio Analysis")

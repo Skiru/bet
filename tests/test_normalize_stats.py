@@ -175,7 +175,7 @@ class TestBuildSafetyScoreInput(unittest.TestCase):
         self.assertIsInstance(market["is_combined"], bool)
 
     def test_insufficient_team_a(self):
-        """Should return None if team A has < 5 matches."""
+        """Should still return team-specific markets when only team B has ≥5 matches."""
         team_a_matches = _make_football_matches("Liverpool", n=3)
         team_b_matches = _make_football_matches("Arsenal", n=10)
 
@@ -188,12 +188,30 @@ class TestBuildSafetyScoreInput(unittest.TestCase):
             team_b_matches=team_b_matches,
             h2h_matches=[],
         )
-        self.assertIsNone(result)
+        # With the relaxed rule, one team with ≥5 is enough for team-specific markets
+        self.assertIsNotNone(result)
 
     def test_insufficient_team_b(self):
-        """Should return None if team B has < 5 matches."""
+        """Should still return team-specific markets when only team A has ≥5 matches."""
         team_a_matches = _make_football_matches("Liverpool", n=10)
         team_b_matches = _make_football_matches("Arsenal", n=4)
+
+        result = build_safety_score_input(
+            sport="football",
+            team_a="Liverpool",
+            team_b="Arsenal",
+            competition="PL",
+            team_a_matches=team_a_matches,
+            team_b_matches=team_b_matches,
+            h2h_matches=[],
+        )
+        # With the relaxed rule, one team with ≥5 is enough for team-specific markets
+        self.assertIsNotNone(result)
+
+    def test_insufficient_both_teams(self):
+        """Should return None if BOTH teams have < 5 matches."""
+        team_a_matches = _make_football_matches("Liverpool", n=2)
+        team_b_matches = _make_football_matches("Arsenal", n=3)
 
         result = build_safety_score_input(
             sport="football",

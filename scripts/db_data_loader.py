@@ -4,6 +4,7 @@ Each function tries the SQLite DB first, falls back to JSON files if DB
 is empty or unavailable. Used by all pipeline analysis scripts.
 """
 import json
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -155,7 +156,7 @@ def load_team_form_from_db(team_name: str, sport: str) -> dict | None:
         print(f"[db_loader] DB read failed for team form {team_name}/{sport}: {e}")
 
     # JSON fallback - stats cache
-    slug = team_name.lower().replace(" ", "-")
+    slug = re.sub(r"-+", "-", re.sub(r"[\s_]+", "-", re.sub(r"[^a-z0-9\s-]", "", team_name.lower()))).strip("-")
     cache_path = DATA_DIR / "stats_cache" / sport / f"{slug}.json"
     if cache_path.exists():
         return json.loads(cache_path.read_text(encoding="utf-8"))

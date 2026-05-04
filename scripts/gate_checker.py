@@ -235,7 +235,9 @@ def _check_three_way(c: dict) -> tuple[bool, str]:
         ranking = c.get("ranking", [])
         three_way = c.get("three_way_check")
         if three_way:
-            alignment = three_way.get("status")
+            alignment = three_way.get("alignment") or three_way.get("status")
+    if alignment and "SUPPORT" in alignment.upper():
+        return True, f"THREE-WAY {alignment}"
     if alignment and alignment.upper() == "ALIGNED":
         return True, "THREE-WAY ALIGNED"
     if alignment:
@@ -588,7 +590,7 @@ def _normalise_s3_to_gate_input(analysis: dict) -> dict:
     # Three-way alignment
     alignment = None
     if three_way:
-        alignment = three_way.get("status")
+        alignment = three_way.get("alignment") or three_way.get("status")
 
     # Collect sources from stats summaries
     sources = []
@@ -641,6 +643,66 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
 
     Returns gate_results dict.
     """
+    # Filter garbage event names before processing
+    _garbage_re = re.compile(
+        r"picks\s*&\s*odds|epl\s+picks|odds\s+for\s+(saturday|friday|monday|sunday|tuesday|wednesday|thursday)|"
+        r"\btypy\b|bukmacherów|kolejka|wydarzenie|"
+        r"premiership:|bundesliga:|uefa\s+\w+\s+champions|la\s+liga:|"
+        r"\d+\.\d{2}\s+\d+\.\d{2}|"  # embedded odds
+        r"\d+\s*'|"  # match minutes
+        r"1x\s*✅|"  # result markers
+        r"\binfo\b$|"  # placeholder "info" as team name
+        r",\s*\w.+vs\b|"  # multi-match (", RB Leipzig vs Borussia")
+        r"żużel|fame\s+mma|pfl\s+\w+\s+wyniki|wiek,\s*waga|"
+        r"\bview\s+prediction\b|\bgaleria\b|\bsprawdź\b|\brekord,\s*walka\b",
+        re.I,
+    )
+    clean_candidates = []
+    garbage_count = 0
+    for c in candidates:
+        home = c.get("home_team", "")
+        away = c.get("away_team", "")
+        if _garbage_re.search(home) or _garbage_re.search(away):
+            garbage_count += 1
+            continue
+        # Skip very long team names (usually garbage)
+        if len(home) > 50 or len(away) > 50:
+            garbage_count += 1
+            continue
+        clean_candidates.append(c)
+    if garbage_count:
+        print(f"[gate_checker] Filtered {garbage_count} garbage events")
+
+    # Deduplicate events (keep highest safety_score version)
+    def _dedup_key(c: dict) -> str:
+        """Normalize team names for dedup: lowercase, strip common prefixes."""
+        h = re.sub(r"^(fc|sc|sk|ac|as|fk|cd|cf)\s+", "", (c.get("home_team") or "").strip().lower())
+        a = re.sub(r"^(fc|sc|sk|ac|as|fk|cd|cf)\s+", "", (c.get("away_team") or "").strip().lower())
+        # Normalize common abbreviations (order matters — expand shorter forms first)
+        for short, full in [("man utd", "manchester united"), ("man city", "manchester city"),
+                            ("nottm", "nottingham"), ("sheff", "sheffield"),
+                            ("wolves", "wolverhampton"), ("newcastle utd", "newcastle united")]:
+            h = h.replace(short, full)
+            a = a.replace(short, full)
+        return f"{h}|{a}"
+
+    seen: dict[str, dict] = {}
+    dedup_count = 0
+    for c in clean_candidates:
+        key = _dedup_key(c)
+        if key in seen:
+            # Keep the one with higher safety score
+            existing_safety = (seen[key].get("best_market") or {}).get("safety_score", 0)
+            new_safety = (c.get("best_market") or {}).get("safety_score", 0)
+            if new_safety > existing_safety:
+                seen[key] = c
+            dedup_count += 1
+        else:
+            seen[key] = c
+    if dedup_count:
+        print(f"[gate_checker] Deduped {dedup_count} duplicate events")
+    candidates = list(seen.values())
+
     repeat_losses = load_48h_repeats(date)
     approved = []
     extended_pool = []
@@ -723,15 +785,73 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
 # Output writers
 # ---------------------------------------------------------------------------
 
+def _enrich_best_market(entry: dict) -> None:
+    """Enrich best_market with ranking/three_way data for richer coupon descriptions.
+
+    Copies l10_avg, l5_avg, rank, margin, team averages, hit_rate_l5
+    from the ranking array into best_market so the coupon builder
+    can generate rich descriptions without needing the full ranking.
+    """
+    best = entry.get("best_market")
+    if not best:
+        return
+
+    ranking = entry.get("ranking") or entry.get("all_markets") or []
+    three_way = entry.get("three_way_check")
+    market_name = best.get("name", "")
+
+    # Find matching ranking entry
+    matched_rank = None
+    for r in ranking:
+        if isinstance(r, dict) and r.get("name") == market_name:
+            matched_rank = r
+            break
+
+    if matched_rank:
+        # Copy enrichment fields not already present
+        for field in ("rank", "margin", "team_a_avg", "team_b_avg",
+                      "hit_rate_l5", "source", "h2h_blind"):
+            if field not in best or best[field] is None:
+                val = matched_rank.get(field)
+                if val is not None:
+                    best[field] = val
+        # Total markets evaluated
+        best["total_markets_evaluated"] = len(ranking)
+
+        # Extract l10_avg, l5_avg from three_way_check in ranking entry
+        rank_twc = matched_rank.get("three_way_check", {})
+        if rank_twc:
+            if "l10_avg" not in best or best.get("l10_avg") is None:
+                best["l10_avg"] = rank_twc.get("l10_avg")
+            if "l5_avg" not in best or best.get("l5_avg") is None:
+                best["l5_avg"] = rank_twc.get("l5_avg")
+
+    # Fallback: top-level three_way_check
+    if three_way:
+        if "l10_avg" not in best or best.get("l10_avg") is None:
+            best["l10_avg"] = three_way.get("l10_avg")
+        if "l5_avg" not in best or best.get("l5_avg") is None:
+            best["l5_avg"] = three_way.get("l5_avg")
+
+    # Use combined_avg as l10_avg fallback
+    if ("l10_avg" not in best or best.get("l10_avg") is None) and best.get("combined_avg") is not None:
+        best["l10_avg"] = best["combined_avg"]
+
+    # Market count from entry level
+    if "total_markets_evaluated" not in best:
+        best["total_markets_evaluated"] = entry.get("market_count", 0)
+
+
 def _write_json(results: dict, date: str) -> Path:
     """Write gate results to JSON."""
     out_path = DATA_DIR / f"{date}_s7_gate_results.json"
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Remove gate_details from JSON to keep it manageable
+    # Enrich best_market with ranking/three_way data before stripping bulk fields
     clean = json.loads(json.dumps(results, default=str))
     for bucket in ("approved", "extended_pool", "rejected"):
         for entry in clean.get("gate_results", {}).get(bucket, []):
+            _enrich_best_market(entry)
             entry.pop("gate_details", None)
             entry.pop("all_markets", None)
             entry.pop("ranking", None)

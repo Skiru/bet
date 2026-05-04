@@ -29,17 +29,8 @@ except ImportError:
     from normalize_stats import build_safety_input_from_cache, SPORT_STAT_KEYS
     from compute_safety_scores import rank_markets
 
-try:
-    from db_data_loader import load_team_form_from_db
-except ImportError:
-    from scripts.db_data_loader import load_team_form_from_db
-
 DATA_DIR = Path(__file__).parent.parent / "betting" / "data"
 CACHE_DIR = Path(__file__).parent.parent / "betting" / "data" / "stats_cache"
-
-# Stats where home+away should NOT be summed (percentages, not counts)
-_PERCENTAGE_STATS = {"possession", "shot_accuracy", "pass_accuracy", "cross_accuracy",
-                     "long_ball_accuracy", "tackle_accuracy"}
 
 
 # ---------------------------------------------------------------------------
@@ -71,12 +62,13 @@ def _safe_avg(values: list) -> float | None:
 # ---------------------------------------------------------------------------
 
 def extract_team_stats(sport: str, team_name: str) -> dict:
-    """Read stats for a single team (DB-first, cache fallback).
+    """Read stats cache for a single team.
 
     Returns dict with keys: team, sport, l10_avg, l5_avg, l10_matches,
-    sources, raw_cache. Returns empty markers if no data found.
+    sources, raw_cache. Returns empty markers if cache is missing.
     """
     slug = slugify(team_name)
+    cache_file = CACHE_DIR / sport / f"{slug}.json"
 
     result = {
         "team": team_name,
@@ -90,49 +82,12 @@ def extract_team_stats(sport: str, team_name: str) -> dict:
         "raw_cache": None,
     }
 
-    # Try cache file first (respects CACHE_DIR override in tests and
-    # is the primary source for enriched API data)
-    cache = None
-    cache_file = CACHE_DIR / sport / f"{slug}.json"
-    if cache_file.exists():
-        try:
-            cache = json.loads(cache_file.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            pass
+    if not cache_file.exists():
+        return result
 
-    # DB fallback — only if no cache file found
-    if cache is None:
-        try:
-            db_data = load_team_form_from_db(team_name, sport)
-            if db_data and isinstance(db_data, dict):
-                form_section = db_data.get("form", {})
-                # DB-format: form[stat_key] = {l10_avg: float, l5_avg: float, ...}
-                # Cache-format: form = {l10_avg: {stat_key: float}, l5_avg: {stat_key: float}}
-                # Convert DB-format to cache-format if needed.
-                first_val = next(iter(form_section.values()), None) if form_section else None
-                if isinstance(first_val, dict) and "l10_avg" in first_val:
-                    # DB format detected — convert to cache format
-                    converted = {"l10_avg": {}, "l5_avg": {}, "l10_matches": [], "sources": []}
-                    for stat_key, stat_data in form_section.items():
-                        if isinstance(stat_data, dict):
-                            if stat_data.get("l10_avg") is not None:
-                                converted["l10_avg"][stat_key] = stat_data["l10_avg"]
-                            if stat_data.get("l5_avg") is not None:
-                                converted["l5_avg"][stat_key] = stat_data["l5_avg"]
-                            if stat_data.get("l10_values"):
-                                for i, val in enumerate(stat_data["l10_values"]):
-                                    if i >= len(converted["l10_matches"]):
-                                        converted["l10_matches"].append({})
-                                    converted["l10_matches"][i][stat_key] = val
-                    cache = {"team": team_name, "sport": sport, "form": converted, "sources": db_data.get("sources", ["db"])}
-                    print(f"  [db] Converted DB-format stats for {team_name} ({sport}): {len(converted['l10_avg'])} stat keys")
-                elif isinstance(form_section.get("l10_avg"), dict) or "l10_matches" in form_section:
-                    # Already in cache format
-                    cache = db_data
-        except Exception:
-            pass
-
-    if cache is None:
+    try:
+        cache = json.loads(cache_file.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
         return result
 
     result["raw_cache"] = cache
@@ -142,35 +97,38 @@ def extract_team_stats(sport: str, team_name: str) -> dict:
     form = cache.get("form", {})
     stat_keys = SPORT_STAT_KEYS.get(sport, [])
 
-    # Extract L10 averages
-    # Cache may store keys as "corners" (bare) or "corners_home"/"corners_away" (split)
-    # For split keys: sum home+away for additive stats (corners, fouls, cards, shots, goals),
-    # but keep home-only for percentage stats (possession) where sum is meaningless.
-    l10_avg = form.get("l10_avg", {})
-    l5_avg = form.get("l5_avg", {})
-    for key in stat_keys:
-        if key in l10_avg:
-            result["l10_avg"][key] = l10_avg[key]
-        elif f"{key}_home" in l10_avg:
-            home_val = l10_avg.get(f"{key}_home", 0)
-            away_val = l10_avg.get(f"{key}_away", 0)
-            if key in _PERCENTAGE_STATS:
-                result["l10_avg"][key] = home_val
+    # Percentage stats should NOT sum home+away (would yield ~100%)
+    PERCENTAGE_STATS = {"possession", "fg_pct", "three_pct", "ft_pct",
+                        "first_serve_pct", "faceoff_pct", "attack_pct",
+                        "checkout_pct"}
+
+    # Extract L10 and L5 averages, merging _home/_away split keys
+    for period_key, target in [("l10_avg", "l10_avg"), ("l5_avg", "l5_avg")]:
+        avg_data = form.get(period_key, {})
+        for key in stat_keys:
+            if key in avg_data:
+                # Bare key exists — use directly
+                result[target][key] = avg_data[key]
             else:
-                result["l10_avg"][key] = round(home_val + away_val, 2) if isinstance(home_val, (int, float)) else home_val
-            result["l10_avg"][f"{key}_home"] = home_val
-            result["l10_avg"][f"{key}_away"] = away_val
-        if key in l5_avg:
-            result["l5_avg"][key] = l5_avg[key]
-        elif f"{key}_home" in l5_avg:
-            home_val = l5_avg.get(f"{key}_home", 0)
-            away_val = l5_avg.get(f"{key}_away", 0)
-            if key in _PERCENTAGE_STATS:
-                result["l5_avg"][key] = home_val
-            else:
-                result["l5_avg"][key] = round(home_val + away_val, 2) if isinstance(home_val, (int, float)) else home_val
-            result["l5_avg"][f"{key}_home"] = home_val
-            result["l5_avg"][f"{key}_away"] = away_val
+                # Check for _home/_away split keys (from ESPN/API enrichment)
+                home_key = f"{key}_home"
+                away_key = f"{key}_away"
+                has_home = home_key in avg_data
+                has_away = away_key in avg_data
+                if has_home or has_away:
+                    home_val = avg_data.get(home_key, 0)
+                    away_val = avg_data.get(away_key, 0)
+                    if key in PERCENTAGE_STATS:
+                        # Percentage stats: keep home-only (not summed)
+                        result[target][key] = home_val
+                    else:
+                        # Counting stats: sum home + away
+                        result[target][key] = round(home_val + away_val, 2)
+                    # Also preserve the split values
+                    if has_home:
+                        result[target][home_key] = home_val
+                    if has_away:
+                        result[target][away_key] = away_val
 
     # Extract L10 match-by-match data
     l10 = form.get("l10_matches", form.get("recent_matches", []))
@@ -691,9 +649,7 @@ def analyze_candidate(
     markdown = "\n".join(md_parts)
 
     has_data = stats_a["has_data"] or stats_b["has_data"]
-
-    # If slug-based cache missed but safety_input succeeded (from raw API cache fallback),
-    # mark as having data so this candidate isn't counted as "no stats"
+    # Also mark has_data if safety_input produced markets (API cache fallback)
     if not has_data and safety_input and safety_input.get("markets"):
         has_data = True
 

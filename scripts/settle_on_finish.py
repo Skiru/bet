@@ -120,7 +120,7 @@ def search_odds_api_snapshot(home, away):
     return None
 
 
-def search_cached_html(home, away):
+def search_cached_html(home, away, sport=None):
     """Search locally cached HTML files from Playwright scans for final scores.
 
     Only checks files from the last 48h and applies strict proximity + score
@@ -156,15 +156,29 @@ def search_cached_html(home, away):
                     )
                     if m:
                         s1, s2 = int(m.group(1)), int(m.group(2))
-                        if _validate_score(s1, s2):
+                        if _validate_score(s1, s2, sport=sport):
                             return (s2, s1) if swap else (s1, s2)
             except Exception:
                 continue
     return None
 
 
-def _validate_score(s1, s2, max_total=30):
-    """Reject clearly impossible scores (e.g., 0-18 for football)."""
+def _validate_score(s1, s2, max_total=30, sport=None):
+    """Reject clearly impossible scores. Sport-aware thresholds."""
+    sport_limits = {
+        "basketball": (300, 200),  # max_total, max_single
+        "handball": (80, 50),
+        "volleyball": (25, 15),   # set-based score
+        "tennis": (15, 8),        # set-based score
+        "baseball": (50, 30),
+        "hockey": (30, 20),
+        "snooker": (50, 30),      # frame-based
+        "darts": (20, 12),        # set-based
+        "table_tennis": (15, 8),  # set-based
+    }
+    if sport and sport.lower() in sport_limits:
+        mt, ms = sport_limits[sport.lower()]
+        return s1 + s2 <= mt and s1 <= ms and s2 <= ms
     if s1 + s2 > max_total:
         return False
     if s1 > 20 or s2 > 20:
@@ -282,7 +296,7 @@ class _FlashscoreBatchFetcher:
 
                             text = page.inner_text("body")
                             before = len(self._cache)
-                            self._parse_scores(text)
+                            self._parse_scores(text, sport=sport)
                             added = len(self._cache) - before
                             if added > 0:
                                 log(f"  Flashscore {sport}/{date_label}: +{added} results")
@@ -296,7 +310,7 @@ class _FlashscoreBatchFetcher:
 
         log(f"  Flashscore batch: cached {len(self._cache)} match results total")
 
-    def _parse_scores(self, text):
+    def _parse_scores(self, text, sport=None):
         """Parse finished match scores from Flashscore page text.
 
         Flashscore format (each on separate line):
@@ -316,7 +330,7 @@ class _FlashscoreBatchFetcher:
                 s2_str = lines[i + 4]
                 if s1_str.isdigit() and s2_str.isdigit() and len(home_team) > 1 and len(away_team) > 1:
                     s1, s2 = int(s1_str), int(s2_str)
-                    if _validate_score(s1, s2):
+                    if _validate_score(s1, s2, sport=sport):
                         self._cache[(home_team.lower(), away_team.lower())] = (s1, s2)
                 i += 5  # skip past this match block
             else:
@@ -326,7 +340,7 @@ class _FlashscoreBatchFetcher:
 _flashscore_batch_cache = _FlashscoreBatchFetcher()
 
 
-def search_sofascore(home, away):
+def search_sofascore(home, away, sport=None):
     q = f"{home} {away}".replace(" ", "%20")
     url = f"https://www.sofascore.com/search?q={q}"
     r = requests.get(url, timeout=15, headers=REQUEST_HEADERS)
@@ -340,12 +354,12 @@ def search_sofascore(home, away):
         )
         if m:
             s1, s2 = int(m.group(1)), int(m.group(2))
-            if _validate_score(s1, s2):
+            if _validate_score(s1, s2, sport=sport):
                 return (s2, s1) if swap else (s1, s2)
     return None
 
 
-def search_flashscore(home, away):
+def search_flashscore(home, away, sport=None):
     q = f"{home} {away}".replace(" ", "%20")
     url = f"https://www.flashscore.com/search/?q={q}"
     r = requests.get(url, timeout=15, headers=REQUEST_HEADERS)
@@ -359,7 +373,7 @@ def search_flashscore(home, away):
         )
         if m:
             s1, s2 = int(m.group(1)), int(m.group(2))
-            if _validate_score(s1, s2):
+            if _validate_score(s1, s2, sport=sport):
                 return (s2, s1) if swap else (s1, s2)
     return None
 
@@ -516,7 +530,14 @@ def settle_coupons(picks, coupons):
             coupon["status"] = "loss"
             coupon["pnl_pln"] = str(round(-float(coupon.get("stake_pln") or 0), 2))
             updated = True
-        elif all(s in ("win", "push", "void") for s in statuses):
+        elif all(s in ("win", "push", "void", "half_win", "half_loss") for s in statuses):
+            # If any leg is half_loss, treat coupon as loss
+            if "half_loss" in statuses:
+                stake = float(coupon.get("stake_pln") or 0)
+                coupon["status"] = "loss"
+                coupon["pnl_pln"] = str(round(-stake / 2, 2))
+                updated = True
+                continue
             # Recalculate effective odds from non-void/push legs
             effective_odds = 1.0
             active_legs = 0
@@ -524,9 +545,13 @@ def settle_coupons(picks, coupons):
                 pid = pid.strip()
                 if pid in pick_map:
                     p = pick_map[pid]
-                    if p.get("status") == "win":
+                    if p.get("status") in ("win", "half_win"):
                         try:
-                            effective_odds *= float(p.get("bookmaker_odds", 1))
+                            leg_odds = float(p.get("bookmaker_odds", 1))
+                            if p.get("status") == "half_win":
+                                # Half win: half stake returned + half at full odds
+                                leg_odds = (1 + leg_odds) / 2
+                            effective_odds *= leg_odds
                             active_legs += 1
                         except (ValueError, TypeError):
                             pass
@@ -587,7 +612,9 @@ def main():
     for p in pending:
         event = p.get("event", "")
         if event not in events:
-            events[event] = extract_teams(event)
+            home, away = extract_teams(event)
+            sport = p.get("sport")
+            events[event] = (home, away, sport)
 
     polls = 0
     max_polls = 1 if args.no_poll else MAX_POLLS
@@ -596,7 +623,7 @@ def main():
         polls += 1
         any_settled = False
 
-        for event, (home, away) in list(events.items()):
+        for event, (home, away, sport) in list(events.items()):
             if not home or not away:
                 continue
 
@@ -609,12 +636,12 @@ def main():
             # Try local sources first (free, no network)
             result = fetch_result_from_source(home, away, search_odds_api_snapshot)
             if not result:
-                result = fetch_result_from_source(home, away, search_cached_html)
+                result = fetch_result_from_source(home, away, lambda h, a: search_cached_html(h, a, sport=sport))
             # Network fallbacks (Sofascore/Flashscore use JS — requests often fails)
             if not result:
-                result = fetch_result_from_source(home, away, search_sofascore)
+                result = fetch_result_from_source(home, away, lambda h, a: search_sofascore(h, a, sport=sport))
             if not result:
-                result = fetch_result_from_source(home, away, search_flashscore)
+                result = fetch_result_from_source(home, away, lambda h, a: search_flashscore(h, a, sport=sport))
             # Playwright-based live search (slow but reliable)
             if not result:
                 result = fetch_result_from_source(home, away, search_flashscore_playwright)
