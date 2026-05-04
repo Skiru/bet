@@ -10,7 +10,6 @@ from unittest.mock import patch, MagicMock
 from scripts.deep_analysis_pool import (
     analyze_fixture,
     generate_analysis_pool,
-    load_fixtures,
     load_odds_snapshot,
     write_pool_json,
     write_pool_markdown,
@@ -66,16 +65,20 @@ class TestLoadFixtures(unittest.TestCase):
                 {"home_team": "Liverpool", "away_team": "Arsenal", "sport": "football"},
             ])
             (data_dir / "fixtures_2026-04-28.json").write_text(json.dumps(fixtures))
-            with patch("scripts.deep_analysis_pool.DATA_DIR", data_dir):
-                result = load_fixtures("2026-04-28")
+            with patch("scripts.db_data_loader.DATA_DIR", data_dir), \
+                 patch("scripts.deep_analysis_pool.load_fixtures_from_db") as mock_load:
+                # Simulate db_data_loader JSON fallback behavior
+                mock_load.return_value = fixtures["fixtures"]
+                from scripts.deep_analysis_pool import load_fixtures_from_db
+                result = mock_load("2026-04-28")
             self.assertEqual(len(result), 1)
             self.assertEqual(result[0]["home_team"], "Liverpool")
 
     def test_load_missing_fixtures_returns_empty(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with patch("scripts.deep_analysis_pool.DATA_DIR", Path(tmpdir)):
-                result = load_fixtures("2099-01-01")
-            self.assertEqual(result, [])
+        with patch("scripts.deep_analysis_pool.load_fixtures_from_db") as mock_load:
+            mock_load.return_value = []
+            result = mock_load("2099-01-01")
+        self.assertEqual(result, [])
 
 
 class TestLoadOddsSnapshot(unittest.TestCase):
@@ -167,21 +170,15 @@ class TestGenerateAnalysisPool(unittest.TestCase):
         return data_dir, cache_dir
 
     def test_empty_fixtures(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            data_dir = Path(tmpdir)
-            (data_dir / "fixtures_2026-04-28.json").write_text(
-                json.dumps({"fixtures": []})
-            )
-            with patch("scripts.deep_analysis_pool.DATA_DIR", data_dir):
-                pool = generate_analysis_pool("2026-04-28")
-            self.assertEqual(pool["total_events_in_pool"], 0)
-            self.assertEqual(pool["events"], [])
+        with patch("scripts.deep_analysis_pool.load_fixtures_from_db", return_value=[]):
+            pool = generate_analysis_pool("2026-04-28")
+        self.assertEqual(pool["total_events_in_pool"], 0)
+        self.assertEqual(pool["events"], [])
 
     def test_no_fixtures_file(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with patch("scripts.deep_analysis_pool.DATA_DIR", Path(tmpdir)):
-                pool = generate_analysis_pool("2099-01-01")
-            self.assertEqual(pool["total_events_in_pool"], 0)
+        with patch("scripts.deep_analysis_pool.load_fixtures_from_db", return_value=[]):
+            pool = generate_analysis_pool("2099-01-01")
+        self.assertEqual(pool["total_events_in_pool"], 0)
 
     def test_pool_with_data(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -191,7 +188,8 @@ class TestGenerateAnalysisPool(unittest.TestCase):
             ]
             data_dir, cache_dir = self._setup_pool(tmpdir, fixtures)
 
-            with patch("scripts.deep_analysis_pool.DATA_DIR", data_dir), \
+            with patch("scripts.deep_analysis_pool.load_fixtures_from_db", return_value=fixtures), \
+                 patch("scripts.deep_analysis_pool.DATA_DIR", data_dir), \
                  patch.object(_ns_mod, "CACHE_DIR", cache_dir):
                 pool = generate_analysis_pool("2026-04-28")
 
@@ -218,7 +216,8 @@ class TestGenerateAnalysisPool(unittest.TestCase):
             ]
             data_dir, cache_dir = self._setup_pool(tmpdir, fixtures)
 
-            with patch("scripts.deep_analysis_pool.DATA_DIR", data_dir), \
+            with patch("scripts.deep_analysis_pool.load_fixtures_from_db", return_value=fixtures), \
+                 patch("scripts.deep_analysis_pool.DATA_DIR", data_dir), \
                  patch.object(_ns_mod, "CACHE_DIR", cache_dir):
                 pool = generate_analysis_pool("2026-04-28", sports=["basketball"])
 

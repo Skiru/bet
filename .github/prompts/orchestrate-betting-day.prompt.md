@@ -88,13 +88,14 @@ If the time window yields fewer events → the shortlist is smaller → fewer pi
 
 ## PRE-FLIGHT (runs once before Pass 1)
 
-### OPTION A: Pipeline Orchestrator (RECOMMENDED — single command)
+### OPTION A: Pipeline Orchestrator (RECOMMENDED — two-phase approach)
 
+**Phase 1: Data Collection (automated script)**
 ```bash
 python3 scripts/pipeline_orchestrator.py --date YYYY-MM-DD [--session full|day|night|morning] [--resume]
 ```
 
-This runs the ENTIRE pipeline S0→S10 automatically:
+This runs the ENTIRE data pipeline S0→S10 automatically, producing raw data artifacts. It executes:
 - **S0**: Betclic history analysis (`analyze_betclic_learning.py`)
 - **S1**: Full 14-sport scan (`run_full_scan_and_prepare.sh`) — **domain-grouped parallel scanning** (8 workers, timeout: 30 min incl. enrichment + aggregation)
 - **S1a**: API fixture discovery + stats enrichment (`discover_fixtures.py` + `fetch_api_stats.py`, timeout: 5 min)
@@ -175,14 +176,16 @@ When `rerun=true`, previous artifacts are PRESERVED, not replaced:
 
 **For steps S3, S4, S5, S6, S7, S8 — ALWAYS delegate to the specialist agent** (bet-statistician, bet-scout, bet-valuator, bet-challenger, bet-builder). Scripts generate raw data; agents analyze and decide.
 
-| Step | Script (DATA TOOL) | Agent (THINKER) |
-|------|-------------------|-----------------|
-| S3 | `deep_stats_report.py` → raw safety scores, market rankings, probabilities | **bet-statistician** → interprets numbers, finds edges, spots anomalies |
-| S4 | `fetch_odds_multi.py` → odds snapshots from 5 sources | **bet-valuator** → cross-validates pricing, calculates EV, detects drift |
-| S5 | `fetch_weather.py` → weather flags, venue data | **bet-scout** → assesses real impact on markets (not just flags) |
-| S6 | sport-specific upset checklists | **bet-challenger** → scores upset risk with contextual reasoning |
-| S7 | `gate_checker.py` → 17-point mechanical gate | **bet-challenger** → builds qualitative bear cases, challenges assumptions |
-| S8 | `coupon_builder.py` → portfolio math, Kelly staking | **bet-builder** → reviews construction, validates V1-V10, runs §S8.FINAL |
+| Step | Script (DATA TOOL) | Agent (THINKER) | Prompt File |
+|------|-------------------|-----------------|-------------|
+| S3 | `deep_stats_report.py` → raw safety scores, market rankings, probabilities | **bet-statistician** → interprets numbers, finds edges, spots anomalies | `s3-deep-stats` |
+| S4 | `_run_odds_eval()` → EV injection from odds API snapshots | **bet-valuator** → cross-validates pricing, calculates EV, detects drift | `s5-odds-ev` |
+| S5 | `_run_context_checks()` → weather flags, injury enrichment | **bet-scout** → assesses real impact on markets (not just flags) | `s6-context-upset` |
+| S6 | `_run_upset_risk()` → sport-specific upset scoring | **bet-challenger** → scores upset risk with contextual reasoning | `s6-context-upset` |
+| S7 | `gate_checker.py` → 17-point mechanical gate | **bet-challenger** → builds qualitative bear cases, challenges assumptions | `s7-bear-case-gate` |
+| S8 | `coupon_builder.py` → portfolio math, Kelly staking | **bet-builder** → reviews construction, validates V1-V10, runs §S8.FINAL | `s8-portfolio-coupons` |
+
+> **Note:** Pipeline script uses S4/S5/S6 for odds→context→upset_risk. Prompt files use different numbering (s4-tipsters, s5-odds-ev, s6-context-upset). The Prompt File column shows which prompt to invoke for manual agent delegation.
 
 **The flow for each step:**
 1. Run the script to produce raw data

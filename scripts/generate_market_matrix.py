@@ -50,6 +50,11 @@ try:
 except ImportError:
     from scripts.utils import normalize_team_name as _normalize
 
+try:
+    from db_data_loader import load_fixtures_from_db, load_odds_from_db, load_scan_summary_from_db
+except ImportError:
+    from scripts.db_data_loader import load_fixtures_from_db, load_odds_from_db, load_scan_summary_from_db
+
 
 # ---------------------------------------------------------------------------
 # Sport key mapping
@@ -90,81 +95,84 @@ def _sport_from_odds_key(sport_key: str) -> str:
 # ---------------------------------------------------------------------------
 
 def load_fixtures(date: str) -> list[dict]:
-    """Load discovered fixtures."""
-    path = DATA_DIR / f"fixtures_{date}.json"
-    if not path.exists():
-        return []
-    data = json.loads(path.read_text(encoding="utf-8"))
-    return data.get("fixtures", [])
+    """Load discovered fixtures (DB-first via db_data_loader)."""
+    return load_fixtures_from_db(date)
 
 
-def load_odds_api_snapshot() -> dict:
-    """Load odds API snapshot, return lookup by normalized key."""
-    path = DATA_DIR / "odds_api_snapshot.json"
-    if not path.exists():
-        return {}
+def load_odds_api_snapshot(date: str | None = None) -> dict:
+    """Load odds API snapshot, return lookup by normalized key.
+
+    Uses DB-first loading via load_odds_from_db when date is provided.
+    """
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-        items = []
-        if isinstance(data, dict):
-            if "events" in data:
-                items = data["events"]
-            else:
-                for v in data.values():
-                    if isinstance(v, list):
-                        items.extend(v)
-        elif isinstance(data, list):
-            items = data
-        lookup = {}
-        for ev in items:
-            home = _normalize(ev.get("home_team", ""))
-            away = _normalize(ev.get("away_team", ""))
-            if home and away:
-                lookup[f"{home}|{away}"] = ev
-        return lookup
-    except (json.JSONDecodeError, OSError):
+        if date is not None:
+            data = load_odds_from_db(date)
+        else:
+            path = DATA_DIR / "odds_api_snapshot.json"
+            if not path.exists():
+                return {}
+            data = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError, Exception):
         return {}
+
+    items = []
+    if isinstance(data, dict):
+        if "events" in data:
+            items = data["events"]
+        else:
+            for v in data.values():
+                if isinstance(v, list):
+                    items.extend(v)
+    elif isinstance(data, list):
+        items = data
+    lookup = {}
+    for ev in items:
+        home = _normalize(ev.get("home_team", ""))
+        away = _normalize(ev.get("away_team", ""))
+        if home and away:
+            lookup[f"{home}|{away}"] = ev
+    return lookup
 
 
 def load_scan_summary() -> dict:
     """Load scan summary items grouped by normalized match key.
 
-    Also returns a flat list of ALL scan items for standalone event creation.
+    Uses DB-first loading via load_scan_summary_from_db for raw data,
+    then applies local grouping/normalization.
     """
-    path = DATA_DIR / "scan_summary.json"
-    if not path.exists():
-        return {}
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-        match_data = defaultdict(list)
-        for url, items in data.items():
-            if not isinstance(items, list):
-                continue
-            for item in items:
-                # Extract match identifiers from scan item
-                home = item.get("home", item.get("home_team", ""))
-                away = item.get("away", item.get("away_team", ""))
-                if home and away:
-                    key = f"{_normalize(home)}|{_normalize(away)}"
-                    entry = {
-                        "source_url": url,
-                        "raw": item.get("raw", ""),
-                        "odds": item.get("odds", []),
-                        "sport": item.get("sport", ""),
-                        "league": item.get("league", item.get("competition", "")),
-                        "home": home,
-                        "away": away,
-                        "time": item.get("time"),
-                    }
-                    # Preserve scores24 deep data fields when present
-                    if "scores24.live" in url:
-                        for deep_key in ("h2h", "form_home", "form_away", "trends", "match_info"):
-                            if deep_key in item:
-                                entry[deep_key] = item[deep_key]
-                    match_data[key].append(entry)
-        return dict(match_data)
-    except (json.JSONDecodeError, OSError):
+        data = load_scan_summary_from_db()
+    except Exception:
+        data = {}
+
+    if not data:
         return {}
+
+    match_data = defaultdict(list)
+    for url, items in data.items():
+        if not isinstance(items, list):
+            continue
+        for item in items:
+            home = item.get("home", item.get("home_team", ""))
+            away = item.get("away", item.get("away_team", ""))
+            if home and away:
+                key = f"{_normalize(home)}|{_normalize(away)}"
+                entry = {
+                    "source_url": url,
+                    "raw": item.get("raw", ""),
+                    "odds": item.get("odds", []),
+                    "sport": item.get("sport", ""),
+                    "league": item.get("league", item.get("competition", "")),
+                    "home": home,
+                    "away": away,
+                    "time": item.get("time"),
+                }
+                if "scores24.live" in url:
+                    for deep_key in ("h2h", "form_home", "form_away", "trends", "match_info"):
+                        if deep_key in item:
+                            entry[deep_key] = item[deep_key]
+                match_data[key].append(entry)
+    return dict(match_data)
 
 
 def load_multi_source_odds() -> dict:
@@ -487,7 +495,7 @@ def generate_market_matrix(
     print(f"[matrix] Loading data for {date}...")
 
     fixtures = load_fixtures(date)
-    odds_lookup = load_odds_api_snapshot()
+    odds_lookup = load_odds_api_snapshot(date)
     scan_lookup = load_scan_summary()
     multi_odds = load_multi_source_odds()
     picks_suggested = load_picks_suggested()

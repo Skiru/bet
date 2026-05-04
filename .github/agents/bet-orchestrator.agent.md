@@ -51,7 +51,7 @@ Scripts are DATA TOOLS that agents USE — they are NOT a replacement for agent 
 - Verifying fixtures against multiple sources (§1.8 phantom prevention)
 - Building qualitative context (injuries, motivation, referee tendencies)
 
-**NEVER run `pipeline_orchestrator.py` end-to-end as a black box.** Always delegate step-by-step to specialist agents with full visibility.
+**NEVER run `pipeline_orchestrator.py` end-to-end as a black box without post-processing.** The orchestrator script produces raw data. After it completes, ALWAYS delegate S3→S8 outputs to specialist agents for analytical review:
 
 **Pipeline sequence:** S0 → S1 → S1a (discover fixtures) → S1b (PARALLEL: odds + weather + tipsters + ESPN) → S1c (aggregate) → S1d (market matrix) → S1e (shortlist) → S2 (tipster cross-ref) → S3 (deep stats + probability engine) → S4 (odds evaluation + EV) → S5 (context: weather/injuries) → S6 (upset risk) → S7 → S8 → S9 → S10
 

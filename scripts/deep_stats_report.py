@@ -29,6 +29,11 @@ except ImportError:
     from normalize_stats import build_safety_input_from_cache, SPORT_STAT_KEYS
     from compute_safety_scores import rank_markets
 
+try:
+    from db_data_loader import load_team_form_from_db
+except ImportError:
+    from scripts.db_data_loader import load_team_form_from_db
+
 DATA_DIR = Path(__file__).parent.parent / "betting" / "data"
 CACHE_DIR = Path(__file__).parent.parent / "betting" / "data" / "stats_cache"
 
@@ -66,13 +71,12 @@ def _safe_avg(values: list) -> float | None:
 # ---------------------------------------------------------------------------
 
 def extract_team_stats(sport: str, team_name: str) -> dict:
-    """Read stats cache for a single team.
+    """Read stats for a single team (DB-first, cache fallback).
 
     Returns dict with keys: team, sport, l10_avg, l5_avg, l10_matches,
-    sources, raw_cache. Returns empty markers if cache is missing.
+    sources, raw_cache. Returns empty markers if no data found.
     """
     slug = slugify(team_name)
-    cache_file = CACHE_DIR / sport / f"{slug}.json"
 
     result = {
         "team": team_name,
@@ -86,12 +90,49 @@ def extract_team_stats(sport: str, team_name: str) -> dict:
         "raw_cache": None,
     }
 
-    if not cache_file.exists():
-        return result
+    # Try cache file first (respects CACHE_DIR override in tests and
+    # is the primary source for enriched API data)
+    cache = None
+    cache_file = CACHE_DIR / sport / f"{slug}.json"
+    if cache_file.exists():
+        try:
+            cache = json.loads(cache_file.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            pass
 
-    try:
-        cache = json.loads(cache_file.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
+    # DB fallback — only if no cache file found
+    if cache is None:
+        try:
+            db_data = load_team_form_from_db(team_name, sport)
+            if db_data and isinstance(db_data, dict):
+                form_section = db_data.get("form", {})
+                # DB-format: form[stat_key] = {l10_avg: float, l5_avg: float, ...}
+                # Cache-format: form = {l10_avg: {stat_key: float}, l5_avg: {stat_key: float}}
+                # Convert DB-format to cache-format if needed.
+                first_val = next(iter(form_section.values()), None) if form_section else None
+                if isinstance(first_val, dict) and "l10_avg" in first_val:
+                    # DB format detected — convert to cache format
+                    converted = {"l10_avg": {}, "l5_avg": {}, "l10_matches": [], "sources": []}
+                    for stat_key, stat_data in form_section.items():
+                        if isinstance(stat_data, dict):
+                            if stat_data.get("l10_avg") is not None:
+                                converted["l10_avg"][stat_key] = stat_data["l10_avg"]
+                            if stat_data.get("l5_avg") is not None:
+                                converted["l5_avg"][stat_key] = stat_data["l5_avg"]
+                            if stat_data.get("l10_values"):
+                                for i, val in enumerate(stat_data["l10_values"]):
+                                    if i >= len(converted["l10_matches"]):
+                                        converted["l10_matches"].append({})
+                                    converted["l10_matches"][i][stat_key] = val
+                    cache = {"team": team_name, "sport": sport, "form": converted, "sources": db_data.get("sources", ["db"])}
+                    print(f"  [db] Converted DB-format stats for {team_name} ({sport}): {len(converted['l10_avg'])} stat keys")
+                elif isinstance(form_section.get("l10_avg"), dict) or "l10_matches" in form_section:
+                    # Already in cache format
+                    cache = db_data
+        except Exception:
+            pass
+
+    if cache is None:
         return result
 
     result["raw_cache"] = cache

@@ -617,7 +617,22 @@ class TestCouponBuilder(unittest.TestCase):
                 self.assertLessEqual(count, 2, f"Too many {sport} legs: {count}")
 
     def test_build_coupons_no_bet(self):
-        """NO BET when < 4 approved picks."""
+        """NO BET when 0 approved picks."""
+        from scripts.coupon_builder import build_coupons
+        gate_results = {
+            "date": "2026-05-01",
+            "gate_results": {
+                "approved": [],
+                "extended_pool": [],
+                "rejected": [],
+            }
+        }
+        config = {"working_bankroll_pln": 47, "suggested_daily_allocation_range_pln": [5, 15]}
+        result = build_coupons(gate_results, config)
+        self.assertTrue(result["no_bet"])
+
+    def test_build_coupons_singles_only(self):
+        """1 approved pick produces singles but no core coupons."""
         from scripts.coupon_builder import build_coupons
         gate_results = {
             "date": "2026-05-01",
@@ -632,7 +647,9 @@ class TestCouponBuilder(unittest.TestCase):
         }
         config = {"working_bankroll_pln": 47, "suggested_daily_allocation_range_pln": [5, 15]}
         result = build_coupons(gate_results, config)
-        self.assertTrue(result["no_bet"])
+        self.assertFalse(result["no_bet"])
+        self.assertEqual(len(result["core_coupons"]), 0)
+        self.assertGreaterEqual(len(result["singles"]), 1)
 
     def test_build_coupons_full(self):
         """Full coupon building with enough picks."""
@@ -666,7 +683,7 @@ class TestCouponBuilder(unittest.TestCase):
         combos = generate_combos(approved, config)
         self.assertGreaterEqual(len(combos), 1)
         for combo in combos:
-            self.assertIn("COMBO", combo["id"])
+            self.assertIn("COMB", combo["id"])
 
     def test_night_detection(self):
         """Late kickoff games are classified as night."""
@@ -898,11 +915,21 @@ class TestCouponEdgeCases(unittest.TestCase):
         config = {"min_legs_per_coupon": 2, "max_same_sport_legs_in_coupon": 2, "working_bankroll_pln": 47}
         self.assertEqual(assign_picks_to_core([], config), [])
 
-    def test_assign_picks_3_picks_no_coupon(self):
-        """3 picks = below min 4, no coupons built."""
+    def test_assign_picks_3_picks_builds_coupon(self):
+        """3 picks with min_legs=2 builds a coupon."""
         from scripts.coupon_builder import assign_picks_to_core
         config = {"min_legs_per_coupon": 2, "max_same_sport_legs_in_coupon": 2, "working_bankroll_pln": 47}
         picks = _make_approved_picks(3)
+        result = assign_picks_to_core(picks, config)
+        self.assertGreaterEqual(len(result), 1)
+        for coupon in result:
+            self.assertGreaterEqual(len(coupon["legs"]), 2)
+
+    def test_assign_picks_1_pick_no_coupon(self):
+        """1 pick = below min 2, no coupons built."""
+        from scripts.coupon_builder import assign_picks_to_core
+        config = {"min_legs_per_coupon": 2, "max_same_sport_legs_in_coupon": 2, "working_bankroll_pln": 47}
+        picks = _make_approved_picks(1)
         self.assertEqual(assign_picks_to_core(picks, config), [])
 
     def test_compute_stake_negative_kelly(self):
@@ -1044,9 +1071,9 @@ class TestEVInjection(unittest.TestCase):
 
             candidates = [
                 {"home_team": "Liverpool", "away_team": "Arsenal",
-                 "best_market": {"safety_score": 0.80}, "ev": None, "odds": {}},
+                 "best_market": {"safety_score": 0.80, "probability": 0.80}, "ev": None, "odds": {}},
                 {"home_team": "Unknown", "away_team": "Team",
-                 "best_market": {"safety_score": 0.70}, "ev": None, "odds": {}},
+                 "best_market": {"safety_score": 0.70, "probability": 0.70}, "ev": None, "odds": {}},
             ]
             with patch("scripts.pipeline_orchestrator.DATA_DIR", data_dir):
                 _inject_ev_from_odds(candidates, "2026-05-01")

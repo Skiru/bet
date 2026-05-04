@@ -97,7 +97,11 @@ def load_odds_from_db(date: str) -> dict:
 
 
 def load_team_form_from_db(team_name: str, sport: str) -> dict | None:
-    """Load team form (L10/L5/H2H) from DB, fallback to stats cache JSON."""
+    """Load team form (L10/L5/H2H) from DB, fallback to stats cache JSON.
+
+    Returns data in cache-compatible format:
+    {team, sport, form: {l10_avg: {stat_key: float}, l5_avg: {stat_key: float}, ...}, sources: [...]}
+    """
     try:
         from bet.db.connection import get_db
         from bet.db.repositories import SportRepo, StatsRepo, TeamRepo
@@ -116,19 +120,36 @@ def load_team_form_from_db(team_name: str, sport: str) -> dict | None:
             stats_repo = StatsRepo(conn)
             forms = stats_repo.get_all_form_for_team(team.id, s.id)
             if forms:
+                # Convert DB format to cache-compatible format
+                # DB: list of TeamForm rows, each with stat_key, l10_avg (float), l5_avg (float)
+                # Cache: {form: {l10_avg: {stat_key: val}, l5_avg: {stat_key: val}, l10_matches: []}}
                 result = {
                     "team": team_name,
                     "sport": sport,
-                    "form": {},
+                    "form": {
+                        "l10_avg": {},
+                        "l5_avg": {},
+                        "l10_matches": [],
+                    },
+                    "sources": ["db"],
                 }
                 for f in forms:
-                    result["form"][f.stat_key] = {
-                        "l10_values": f.l10_values,
-                        "l5_values": f.l5_values,
-                        "l10_avg": f.l10_avg,
-                        "l5_avg": f.l5_avg,
-                        "trend": f.trend,
-                    }
+                    if f.l10_avg is not None:
+                        result["form"]["l10_avg"][f.stat_key] = f.l10_avg
+                    if f.l5_avg is not None:
+                        result["form"]["l5_avg"][f.stat_key] = f.l5_avg
+                    # Reconstruct l10_matches from l10_values
+                    if f.l10_values:
+                        import json as _json
+                        try:
+                            vals = _json.loads(f.l10_values) if isinstance(f.l10_values, str) else f.l10_values
+                            if isinstance(vals, list):
+                                for i, val in enumerate(vals):
+                                    while i >= len(result["form"]["l10_matches"]):
+                                        result["form"]["l10_matches"].append({})
+                                    result["form"]["l10_matches"][i][f.stat_key] = val
+                        except Exception:
+                            pass
                 return result
     except Exception as e:
         print(f"[db_loader] DB read failed for team form {team_name}/{sport}: {e}")

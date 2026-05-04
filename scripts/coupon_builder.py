@@ -1216,6 +1216,73 @@ def write_coupon_json(coupons_data: dict, date: str) -> Path:
     return out_path
 
 
+def persist_coupons_to_db(coupons_data: dict, date: str) -> int:
+    """Persist coupons and bets to SQLite DB (dual-write alongside JSON).
+
+    Returns count of coupons persisted. Fails gracefully with 0 on error.
+    """
+    try:
+        import sys as _sys
+        _sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+        from bet.db.connection import get_db
+        from bet.db.models import Bet, Coupon
+        from bet.db.repositories import CouponRepo
+
+        all_coupons = (
+            coupons_data.get("core_coupons", [])
+            + coupons_data.get("combos", [])
+            + coupons_data.get("singles", [])
+        )
+        if not all_coupons:
+            return 0
+
+        with get_db() as conn:
+            repo = CouponRepo(conn)
+            persisted = 0
+            for coup in all_coupons:
+                try:
+                    coupon_id_str = coup.get("id", f"CP-{date}-{persisted}")
+                    legs = coup.get("legs", [])
+                    coupon_type = "SINGLE" if coup.get("is_single") else "AKO"
+                    coupon = Coupon(
+                        id=None,
+                        coupon_id=coupon_id_str,
+                        coupon_type=coupon_type,
+                        total_odds=coup.get("combined_odds", 0),
+                        stake_pln=coup.get("stake", 0),
+                        status="pending",
+                        version=1,
+                    )
+                    db_coupon_id = repo.create_coupon(coupon)
+
+                    # Persist individual bets/legs
+                    for leg in legs:
+                        bet = Bet(
+                            id=None,
+                            coupon_id=db_coupon_id,
+                            fixture_id=None,
+                            sport=leg.get("sport", ""),
+                            event_name=f"{leg.get('home_team', '?')} vs {leg.get('away_team', '?')}",
+                            market=(leg.get("best_market") or {}).get("market", ""),
+                            selection=(leg.get("best_market") or {}).get("direction", ""),
+                            odds=(leg.get("odds") or {}).get("market_best", 0) or 0,
+                            safety_score=(leg.get("best_market") or {}).get("safety_score"),
+                            hit_rate=(leg.get("best_market") or {}).get("hit_rate_l10"),
+                            status="pending",
+                            market_pl=(leg.get("best_market") or {}).get("market_pl", ""),
+                        )
+                        repo.add_bet(bet)
+                    persisted += 1
+                except Exception as e:
+                    print(f"[coupon_builder] DB: skip coupon {coup.get('id', '?')}: {e}")
+            conn.commit()
+            print(f"[coupon_builder] DB: persisted {persisted}/{len(all_coupons)} coupons + bets to betting.db")
+            return persisted
+    except Exception as e:
+        print(f"[coupon_builder] DB persistence failed (non-critical): {e}")
+        return 0
+
+
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------

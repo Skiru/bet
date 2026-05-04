@@ -33,6 +33,11 @@ try:
 except ImportError:
     from scripts.utils import normalize_team_name as _normalize_team
 
+try:
+    from db_data_loader import load_fixtures_from_db, load_odds_from_db
+except ImportError:
+    from scripts.db_data_loader import load_fixtures_from_db, load_odds_from_db
+
 
 # ---------------------------------------------------------------------------
 # Fixture verification (§1.8)
@@ -42,36 +47,33 @@ def _load_verification_sources(date: str) -> tuple[set[str], set[str]]:
     """Load fixture keys from odds_api_snapshot and fixtures file for §1.8 verification.
 
     Returns (odds_api_keys, fixtures_keys) — sets of normalized 'home|away' keys.
+    Uses DB-first loading via db_data_loader.
     """
     odds_keys: set[str] = set()
     fixtures_keys: set[str] = set()
 
-    # Odds API snapshot
-    odds_path = DATA_DIR / "odds_api_snapshot.json"
-    if odds_path.exists():
-        try:
-            data = json.loads(odds_path.read_text(encoding="utf-8"))
-            items = data.get("events", []) if isinstance(data, dict) else (data if isinstance(data, list) else [])
-            for ev in items:
-                h = _normalize_team(ev.get("home_team", ""))
-                a = _normalize_team(ev.get("away_team", ""))
-                if h and a:
-                    odds_keys.add(f"{h}|{a}")
-        except (json.JSONDecodeError, OSError):
-            pass
+    # Odds API snapshot (DB-first)
+    try:
+        odds_data = load_odds_from_db(date)
+        items = odds_data.get("events", []) if isinstance(odds_data, dict) else (odds_data if isinstance(odds_data, list) else [])
+        for ev in items:
+            h = _normalize_team(ev.get("home_team", ""))
+            a = _normalize_team(ev.get("away_team", ""))
+            if h and a:
+                odds_keys.add(f"{h}|{a}")
+    except Exception:
+        pass
 
-    # Fixtures file
-    fix_path = DATA_DIR / f"fixtures_{date}.json"
-    if fix_path.exists():
-        try:
-            data = json.loads(fix_path.read_text(encoding="utf-8"))
-            for fix in data.get("fixtures", []):
-                h = _normalize_team(fix.get("home_team", ""))
-                a = _normalize_team(fix.get("away_team", ""))
-                if h and a:
-                    fixtures_keys.add(f"{h}|{a}")
-        except (json.JSONDecodeError, OSError):
-            pass
+    # Fixtures (DB-first)
+    try:
+        fixtures = load_fixtures_from_db(date)
+        for fix in fixtures:
+            h = _normalize_team(fix.get("home_team", ""))
+            a = _normalize_team(fix.get("away_team", ""))
+            if h and a:
+                fixtures_keys.add(f"{h}|{a}")
+    except Exception:
+        pass
 
     return odds_keys, fixtures_keys
 

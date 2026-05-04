@@ -28,50 +28,48 @@ except ImportError:
     from normalize_stats import build_safety_input_from_cache
     from compute_safety_scores import rank_markets
 
+try:
+    from db_data_loader import load_fixtures_from_db, load_odds_from_db
+except ImportError:
+    from scripts.db_data_loader import load_fixtures_from_db, load_odds_from_db
+
 DATA_DIR = Path(__file__).parent.parent / "betting" / "data"
 
 
-def load_fixtures(date: str) -> list[dict]:
-    """Load fixtures from fixtures_{date}.json."""
-    fixtures_path = DATA_DIR / f"fixtures_{date}.json"
-    if not fixtures_path.exists():
-        print(f"[pool] No fixtures file found: {fixtures_path}")
-        return []
-    data = json.loads(fixtures_path.read_text(encoding="utf-8"))
-    return data.get("fixtures", [])
+def load_odds_snapshot(date: str | None = None) -> dict:
+    """Load odds and return lookup dict keyed by normalized "home|away".
 
-
-def load_odds_snapshot() -> dict:
-    """Load odds from odds_api_snapshot.json if available.
-
-    Returns dict keyed by normalized "home|away" for matching.
-    Uses fuzzy normalization to handle name variations across sources.
+    Uses DB-first loading via load_odds_from_db when date is provided,
+    falls back to direct JSON read when date is None (backward compat).
     """
-    odds_path = DATA_DIR / "odds_api_snapshot.json"
-    if not odds_path.exists():
-        return {}
     try:
-        data = json.loads(odds_path.read_text(encoding="utf-8"))
-        odds_lookup: dict = {}
-        items: list = []
-        if isinstance(data, dict):
-            # New format: {"events": [...]} — extract events list
-            if "events" in data and isinstance(data["events"], list):
-                items = data["events"]
-            else:
-                for sport_data in data.values():
-                    if isinstance(sport_data, list):
-                        items.extend(sport_data)
-        elif isinstance(data, list):
-            items = data
-        for event in items:
-            home = _normalize_team(event.get("home_team", ""))
-            away = _normalize_team(event.get("away_team", ""))
-            if home and away:
-                odds_lookup[f"{home}|{away}"] = event
-        return odds_lookup
-    except (json.JSONDecodeError, KeyError):
+        if date is not None:
+            data = load_odds_from_db(date)
+        else:
+            odds_path = DATA_DIR / "odds_api_snapshot.json"
+            if not odds_path.exists():
+                return {}
+            data = json.loads(odds_path.read_text(encoding="utf-8"))
+    except Exception:
         return {}
+
+    odds_lookup: dict = {}
+    items: list = []
+    if isinstance(data, dict):
+        if "events" in data and isinstance(data["events"], list):
+            items = data["events"]
+        else:
+            for sport_data in data.values():
+                if isinstance(sport_data, list):
+                    items.extend(sport_data)
+    elif isinstance(data, list):
+        items = data
+    for event in items:
+        home = _normalize_team(event.get("home_team", ""))
+        away = _normalize_team(event.get("away_team", ""))
+        if home and away:
+            odds_lookup[f"{home}|{away}"] = event
+    return odds_lookup
 
 
 try:
@@ -311,7 +309,7 @@ def generate_analysis_pool(
     4. Rank all events by best market safety score
     5. Return pool dict
     """
-    fixtures = load_fixtures(date)
+    fixtures = load_fixtures_from_db(date)
     if not fixtures:
         print(f"[pool] No fixtures for {date}")
         return {
@@ -327,7 +325,7 @@ def generate_analysis_pool(
     if sports:
         fixtures = [f for f in fixtures if f.get("sport", "football") in sports]
 
-    odds_lookup = load_odds_snapshot()
+    odds_lookup = load_odds_snapshot(date)
 
     # Group fixtures by sport for parallel processing
     sport_groups: dict[str, list[dict]] = {}

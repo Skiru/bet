@@ -269,6 +269,18 @@ def load_state(date: str) -> dict:
             repo = PipelineRepo(conn)
             db_steps = repo.get_run_status(date)
             if db_steps:
+                # Build nested step dicts matching JSON format expected by
+                # print_status() and the main pipeline loop.
+                steps_nested = {}
+                for s in db_steps:
+                    step_dict = {"status": s["status"]}
+                    if s.get("error_message"):
+                        step_dict["error"] = s["error_message"]
+                    if s.get("started_at"):
+                        step_dict["started_at"] = s["started_at"]
+                    if s.get("completed_at"):
+                        step_dict["completed_at"] = s["completed_at"]
+                    steps_nested[s["step"]] = step_dict
                 state = {
                     "date": date,
                     "session": "full",
@@ -276,9 +288,9 @@ def load_state(date: str) -> dict:
                     "started_at": db_steps[0]["started_at"] if db_steps else None,
                     "completed_at": None,
                     "current_step": None,
-                    "steps": {s["step"]: s["status"] for s in db_steps},
-                    "errors": [s["error_message"] for s in db_steps if s["error_message"]],
-                    "step_data": {s["step"]: s["stats"] for s in db_steps if s["stats"]},
+                    "steps": steps_nested,
+                    "errors": [s["error_message"] for s in db_steps if s.get("error_message")],
+                    "step_data": {s["step"]: s["stats"] for s in db_steps if s.get("stats")},
                     "pass_number": 1,
                 }
                 print(f"[pipeline] Loaded state from DB ({len(db_steps)} steps)")
@@ -598,17 +610,78 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
 # ---------------------------------------------------------------------------
 
 def _run_tipster_xref(date: str, state: dict) -> tuple[bool, str]:
-    """S2: Cross-reference shortlist with tipster consensus."""
+    """S2: Cross-reference shortlist with tipster consensus data.
+
+    Enriches shortlist candidates with tipster support, consensus %, and arguments.
+    """
     tipster_path = DATA_DIR / f"tipster_aggregation_{date}.json"
-    if not tipster_path.exists():
+    consensus_path = DATA_DIR / f"{date}_tipster_consensus.json"
+
+    # Try both possible tipster data files
+    tipster_data = None
+    for tpath in [tipster_path, consensus_path]:
+        if tpath.exists():
+            try:
+                tipster_data = json.loads(tpath.read_text(encoding="utf-8"))
+                print(f"  → Loaded tipster data from {tpath.name}")
+                break
+            except (json.JSONDecodeError, OSError):
+                continue
+
+    if tipster_data is None:
         return True, "No tipster data available — skipping cross-reference"
 
-    try:
-        tipster_data = json.loads(tipster_path.read_text(encoding="utf-8"))
-        n_tips = len(tipster_data) if isinstance(tipster_data, list) else len(tipster_data.get("tips", []))
-        return True, f"Tipster cross-reference: {n_tips} tips loaded for downstream analysis"
-    except Exception as e:
-        return True, f"Tipster data load failed: {e} — continuing without"
+    # Parse tips into a lookup
+    tips = tipster_data if isinstance(tipster_data, list) else tipster_data.get("tips", [])
+    tip_lookup: dict[str, list[dict]] = {}
+    for tip in tips:
+        home = (tip.get("home") or tip.get("home_team") or "").strip().lower()
+        away = (tip.get("away") or tip.get("away_team") or "").strip().lower()
+        if home and away:
+            key = f"{home}|{away}"
+            tip_lookup.setdefault(key, []).append(tip)
+
+    # Load shortlist and cross-reference
+    date_compact = date.replace("-", "")
+    shortlist_path = DATA_DIR / f"{date_compact}_s2_shortlist.json"
+    if not shortlist_path.exists():
+        shortlist_path = DATA_DIR / f"{date}_s2_shortlist.json"
+
+    matched = 0
+    total = 0
+    if shortlist_path.exists():
+        try:
+            shortlist = json.loads(shortlist_path.read_text(encoding="utf-8"))
+            candidates = shortlist.get("candidates", shortlist.get("shortlist", []))
+            total = len(candidates)
+
+            for c in candidates:
+                home = (c.get("home_team") or c.get("home") or "").strip().lower()
+                away = (c.get("away_team") or c.get("away") or "").strip().lower()
+                key = f"{home}|{away}"
+                matching_tips = tip_lookup.get(key, [])
+                if matching_tips:
+                    matched += 1
+                    tipster_names = list({t.get("tipster", t.get("source", "unknown")) for t in matching_tips})
+                    consensus = len(matching_tips)
+                    c["tipster_support"] = {
+                        "count": consensus,
+                        "tipsters": tipster_names,
+                        "tips": matching_tips,
+                    }
+                    home_disp = c.get("home_team", c.get("home", "?"))
+                    away_disp = c.get("away_team", c.get("away", "?"))
+                    print(f"    ✓ {home_disp} vs {away_disp}: {consensus} tips from {', '.join(tipster_names[:3])}")
+
+            # Save enriched shortlist
+            shortlist_path.write_text(
+                json.dumps(shortlist, indent=2, ensure_ascii=False), encoding="utf-8"
+            )
+        except (json.JSONDecodeError, OSError) as e:
+            print(f"  ⚠ Shortlist enrichment error: {e}")
+
+    n_tips = len(tips)
+    return True, f"Tipster cross-reference: {n_tips} tips loaded, {matched}/{total} shortlist candidates matched"
 
 
 def _run_odds_eval(date: str, state: dict) -> tuple[bool, str]:
@@ -623,75 +696,233 @@ def _run_odds_eval(date: str, state: dict) -> tuple[bool, str]:
         candidates = s3_data.get("analyses", [])
         _inject_ev_from_odds(candidates, date)
 
-        # Count how many have EV
-        with_ev = sum(1 for c in candidates if c.get("ev") is not None)
+        # Count how many have EV and log details
+        with_ev = 0
+        positive_ev = 0
+        for c in candidates:
+            ev = c.get("ev")
+            if ev is not None:
+                with_ev += 1
+                if ev > 0:
+                    positive_ev += 1
+                home = c.get("home_team", "?")
+                away = c.get("away_team", "?")
+                odds = (c.get("odds") or {}).get("market_best", 0)
+                source = c.get("ev_source", "calculated")
+                marker = "💰" if ev > 0 else "📉"
+                print(f"    {marker} {home} vs {away}: EV={ev:+.1%} @{odds:.2f} ({source})")
         total = len(candidates)
 
         # Save back enriched data
         s3_path.write_text(
             json.dumps(s3_data, indent=2, ensure_ascii=False), encoding="utf-8"
         )
-        return True, f"S4 completed: {with_ev}/{total} candidates with EV data"
+        return True, f"S4 completed: {with_ev}/{total} with EV data ({positive_ev} positive EV)"
     except Exception as e:
         return True, f"S4 odds evaluation error: {e} — continuing without"
 
 
 def _run_context_checks(date: str, state: dict) -> tuple[bool, str]:
-    """S5: Contextual checks — weather, venue, referee, roster changes."""
-    checks_done = []
+    """S5: Contextual checks — weather, venue, referee, roster changes.
 
-    # Weather data
+    Enriches S3 candidates with contextual flags for downstream gate checks.
+    """
+    checks_done = []
+    context_flags = {}
+
+    # Load S3 candidates for enrichment
+    s3_path = DATA_DIR / f"{date}_s3_deep_stats.json"
+    candidates = []
+    if s3_path.exists():
+        try:
+            s3_data = json.loads(s3_path.read_text(encoding="utf-8"))
+            candidates = s3_data.get("analyses", [])
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    # Weather data — flag candidates with weather impact
     weather_path = DATA_DIR / f"weather_{date}.json"
+    weather_impacts = []
     if weather_path.exists():
         try:
             weather = json.loads(weather_path.read_text(encoding="utf-8"))
-            n_venues = len(weather) if isinstance(weather, list) else len(weather.get("venues", weather.get("forecasts", {})))
-            checks_done.append(f"weather:{n_venues} venues")
+            venues = weather if isinstance(weather, list) else weather.get("venues", weather.get("forecasts", {}))
+            if isinstance(venues, dict):
+                for venue, forecast in venues.items():
+                    flags = forecast.get("flags", [])
+                    if flags:
+                        weather_impacts.append(f"{venue}: {', '.join(flags)}")
+                        context_flags[venue] = flags
+            elif isinstance(venues, list):
+                for v in venues:
+                    venue_name = v.get("venue", v.get("city", "unknown"))
+                    flags = v.get("flags", [])
+                    if flags:
+                        weather_impacts.append(f"{venue_name}: {', '.join(flags)}")
+                        context_flags[venue_name] = flags
+            n_venues = len(venues) if isinstance(venues, (list, dict)) else 0
+            n_impacted = len(weather_impacts)
+            checks_done.append(f"weather: {n_venues} venues checked, {n_impacted} with impact flags")
+            if weather_impacts:
+                for wi in weather_impacts[:5]:
+                    print(f"    🌧 {wi}")
         except (json.JSONDecodeError, OSError):
-            checks_done.append("weather:load_error")
+            checks_done.append("weather: load_error")
     else:
-        checks_done.append("weather:unavailable")
+        checks_done.append("weather: unavailable")
 
-    # ESPN injuries/roster data
+    # ESPN injuries/roster data — flag candidates with key injuries
     espn_path = DATA_DIR / f"espn_enrichment_{date}.json"
+    injury_summary = []
     if espn_path.exists():
         try:
             espn = json.loads(espn_path.read_text(encoding="utf-8"))
-            n_injuries = sum(len(v) if isinstance(v, list) else 0 for v in espn.get("injuries", {}).values())
-            checks_done.append(f"injuries:{n_injuries} entries")
+            injuries = espn.get("injuries", {})
+            for sport, sport_injuries in injuries.items():
+                if isinstance(sport_injuries, list):
+                    for inj in sport_injuries:
+                        team = inj.get("team", "unknown")
+                        player = inj.get("player", inj.get("name", "unknown"))
+                        status = inj.get("status", inj.get("type", "unknown"))
+                        injury_summary.append(f"{sport}/{team}: {player} ({status})")
+            n_injuries = len(injury_summary)
+            checks_done.append(f"injuries: {n_injuries} entries across {len(injuries)} sports")
+            if injury_summary:
+                for inj in injury_summary[:8]:
+                    print(f"    🏥 {inj}")
         except (json.JSONDecodeError, OSError):
-            checks_done.append("injuries:load_error")
+            checks_done.append("injuries: load_error")
     else:
-        checks_done.append("injuries:unavailable")
+        checks_done.append("injuries: unavailable")
+
+    # Enrich S3 candidates with context flags
+    if candidates and s3_path.exists():
+        enriched = 0
+        for c in candidates:
+            c_flags = []
+            home = c.get("home_team", "")
+            away = c.get("away_team", "")
+            sport = c.get("sport", "")
+            # Check weather
+            for venue, flags in context_flags.items():
+                if venue.lower() in (home.lower(), away.lower(), c.get("venue", "").lower()):
+                    c_flags.extend([f"WEATHER:{f}" for f in flags])
+            # Check injuries
+            for inj_entry in injury_summary:
+                if home.lower() in inj_entry.lower() or away.lower() in inj_entry.lower():
+                    c_flags.append(f"INJURY:{inj_entry.split(':')[-1].strip()}")
+            if c_flags:
+                c.setdefault("context_flags", []).extend(c_flags)
+                enriched += 1
+                print(f"    📋 {home} vs {away}: {', '.join(c_flags[:3])}")
+        if enriched:
+            s3_path.write_text(
+                json.dumps(s3_data, indent=2, ensure_ascii=False), encoding="utf-8"
+            )
+            checks_done.append(f"enriched: {enriched}/{len(candidates)} candidates with context flags")
 
     return True, f"S5 contextual checks: {', '.join(checks_done)}"
 
 
 def _run_upset_risk(date: str, state: dict) -> tuple[bool, str]:
-    """S6: Upset risk scoring per candidate."""
+    """S6: Upset risk scoring per candidate with sport-specific heuristics."""
     s3_path = DATA_DIR / f"{date}_s3_deep_stats.json"
     if not s3_path.exists():
         return True, "S6: No S3 data — skipping upset risk scoring"
+
+    # Sport-specific upset risk thresholds
+    UPSET_THRESHOLDS = {
+        "football": {"safety_low": 55, "h2h_min": 3, "form_diverge": 0.15},
+        "tennis": {"safety_low": 50, "h2h_min": 2, "form_diverge": 0.20},
+        "basketball": {"safety_low": 50, "h2h_min": 3, "form_diverge": 0.10},
+        "volleyball": {"safety_low": 50, "h2h_min": 3, "form_diverge": 0.15},
+        "hockey": {"safety_low": 50, "h2h_min": 3, "form_diverge": 0.15},
+        "handball": {"safety_low": 50, "h2h_min": 2, "form_diverge": 0.15},
+        "baseball": {"safety_low": 45, "h2h_min": 3, "form_diverge": 0.10},
+        "esports": {"safety_low": 45, "h2h_min": 2, "form_diverge": 0.20},
+    }
+    DEFAULT_THRESHOLDS = {"safety_low": 50, "h2h_min": 2, "form_diverge": 0.15}
 
     try:
         s3_data = json.loads(s3_path.read_text(encoding="utf-8"))
         analyses = s3_data.get("analyses", [])
         scored = 0
+        elevated = 0
+        high_risk = 0
+
         for analysis in analyses:
-            # Basic upset risk heuristic: if underdog odds < 2.5 and form is strong
+            sport = analysis.get("sport", "").lower()
+            thresholds = UPSET_THRESHOLDS.get(sport, DEFAULT_THRESHOLDS)
+            risk_factors = []
+
             ranking = analysis.get("ranking_result", {}).get("ranking", [])
-            if ranking:
-                top_market = ranking[0] if ranking else {}
-                safety = top_market.get("safety_score", 0)
-                # Flag potential upsets (low safety = higher risk)
-                if safety < 50:
-                    analysis.setdefault("flags", []).append("upset_risk_elevated")
-                scored += 1
+            top_market = ranking[0] if ranking else {}
+            safety = top_market.get("safety_score", 0)
+
+            # Factor 1: Low safety score (sport-specific threshold)
+            if safety < thresholds["safety_low"]:
+                risk_factors.append(f"safety_below_{thresholds['safety_low']} ({safety})")
+
+            # Factor 2: L5 trend diverging from L10 (form instability)
+            l5_avg = top_market.get("l5_avg")
+            l10_avg = top_market.get("l10_avg")
+            if l5_avg and l10_avg and l10_avg != 0:
+                divergence = abs(l5_avg - l10_avg) / abs(l10_avg)
+                if divergence > thresholds["form_diverge"]:
+                    direction = "declining" if l5_avg < l10_avg else "surging"
+                    risk_factors.append(f"form_{direction} ({divergence:.0%} L5 vs L10)")
+
+            # Factor 3: Missing H2H data
+            h2h = analysis.get("h2h", {})
+            h2h_meetings = len(h2h.get("meetings", []))
+            if h2h_meetings < thresholds["h2h_min"]:
+                risk_factors.append(f"h2h_insufficient ({h2h_meetings}/{thresholds['h2h_min']} meetings)")
+
+            # Factor 4: Context flags (weather, injuries)
+            context_flags = analysis.get("context_flags", [])
+            if any("INJURY" in f for f in context_flags):
+                risk_factors.append("key_injury_flagged")
+            if any("WEATHER" in f for f in context_flags):
+                risk_factors.append("adverse_weather")
+
+            # Factor 5: No EV data (stats-first mode = higher uncertainty)
+            if analysis.get("ev") is None:
+                risk_factors.append("no_ev_data_statsFirst")
+
+            # Score upset risk
+            risk_count = len(risk_factors)
+            if risk_count >= 3:
+                risk_level = "HIGH"
+                high_risk += 1
+            elif risk_count >= 1:
+                risk_level = "ELEVATED"
+                elevated += 1
+            else:
+                risk_level = "LOW"
+
+            analysis["upset_risk"] = {
+                "level": risk_level,
+                "factors": risk_factors,
+                "factor_count": risk_count,
+            }
+            analysis.setdefault("flags", [])
+            if risk_level != "LOW":
+                analysis["flags"].append(f"upset_risk_{risk_level.lower()}")
+            scored += 1
+
+            # Verbose per-candidate output
+            home = analysis.get("home_team", "?")
+            away = analysis.get("away_team", "?")
+            marker = {"LOW": "🟢", "ELEVATED": "🟡", "HIGH": "🔴"}[risk_level]
+            print(f"    {marker} {home} vs {away} [{sport}]: {risk_level} ({risk_count} factors)")
+            if risk_factors:
+                for rf in risk_factors[:3]:
+                    print(f"       → {rf}")
 
         s3_path.write_text(
             json.dumps(s3_data, indent=2, ensure_ascii=False), encoding="utf-8"
         )
-        return True, f"S6 completed: {scored} candidates scored for upset risk"
+        return True, f"S6 completed: {scored} candidates scored — {elevated} elevated, {high_risk} high risk"
     except Exception as e:
         return True, f"S6 upset risk error: {e} — continuing without"
 
@@ -877,6 +1108,32 @@ def _run_s3(date: str, state: dict) -> tuple[bool, str]:
 
     count = result.get("candidates_with_data", 0)
     total = result.get("total_candidates", 0)
+
+    # Verbose per-candidate summary
+    s3_path = DATA_DIR / f"{date}_s3_deep_stats.json"
+    if s3_path.exists():
+        try:
+            s3_out = json.loads(s3_path.read_text(encoding="utf-8"))
+            analyses = s3_out.get("analyses", [])
+            sport_counts: dict[str, int] = {}
+            for a in analyses:
+                sport = a.get("sport", "unknown")
+                sport_counts[sport] = sport_counts.get(sport, 0) + 1
+                has_data = a.get("has_data", False)
+                home = a.get("home_team", "?")
+                away = a.get("away_team", "?")
+                ranking = a.get("ranking_result", {}).get("ranking", [])
+                top_market = ranking[0] if ranking else {}
+                safety = top_market.get("safety_score", 0)
+                market_name = top_market.get("market", "?")
+                marker = "📊" if has_data else "⚠️"
+                print(f"    {marker} {home} vs {away} [{sport}]: top market={market_name} safety={safety:.2f}" if has_data else f"    {marker} {home} vs {away} [{sport}]: NO DATA (cache miss)")
+            if sport_counts:
+                sport_summary = ", ".join(f"{s}:{c}" for s, c in sorted(sport_counts.items(), key=lambda x: -x[1]))
+                print(f"  → Sport distribution: {sport_summary}")
+        except Exception:
+            pass
+
     msg = f"S3 completed: {count}/{total} candidates with stats data"
 
     # Stats quality gate: if 0 candidates enriched, warn loudly
@@ -943,6 +1200,25 @@ def _run_s7(date: str, state: dict) -> tuple[bool, str]:
         f"{s['extended_count']} extended, {s['rejected_count']} rejected"
     )
 
+    # Verbose per-candidate gate results
+    gate = results.get("gate_results", {})
+    for pick in gate.get("approved", []):
+        home = pick.get("home_team", "?")
+        away = pick.get("away_team", "?")
+        sport = pick.get("sport", "?")
+        tier = pick.get("risk_tier", "?")
+        market = (pick.get("best_market") or {}).get("market", "?")
+        safety = (pick.get("best_market") or {}).get("safety_score", 0)
+        print(f"    ✅ {home} vs {away} [{sport}] — {market} (safety={safety:.2f}, tier={tier})")
+    for pick in gate.get("extended_pool", []):
+        home = pick.get("home_team", "?")
+        away = pick.get("away_team", "?")
+        reason = pick.get("gate_fail_reason", "threshold")
+        print(f"    📋 {home} vs {away} — EXTENDED ({reason})")
+    rejected_count = len(gate.get("rejected", []))
+    if rejected_count:
+        print(f"    ❌ {rejected_count} candidates rejected")
+
     if results["gate_results"].get("expansion_needed"):
         msg += " ⚠️ EXPANSION NEEDED (sport diversity)"
 
@@ -966,12 +1242,31 @@ def _run_s8(date: str, state: dict) -> tuple[bool, str]:
     write_coupon_markdown(result, date)
     write_coupon_json(result, date)
 
+    # Persist to DB (dual-write)
+    try:
+        from scripts.coupon_builder import persist_coupons_to_db
+    except ImportError:
+        from coupon_builder import persist_coupons_to_db
+    persist_coupons_to_db(result, date)
+
     if result.get("no_bet"):
         msg = f"S8: NO BET — {result.get('no_bet_reason', 'insufficient picks')}"
     else:
         core_count = len(result.get("core_coupons", []))
         combo_count = len(result.get("combos", []))
-        msg = f"S8 completed: {core_count} core coupons, {combo_count} combos"
+        singles_count = len(result.get("singles", []))
+        summary = result.get("summary", {})
+        msg = f"S8 completed: {core_count} core coupons, {combo_count} combos, {singles_count} singles"
+
+        # Verbose coupon details
+        for coup in result.get("core_coupons", []):
+            legs = len(coup.get("legs", []))
+            odds = coup.get("combined_odds", 0)
+            stake = coup.get("stake", 0)
+            tier = coup.get("tier", "?")
+            print(f"    🎫 {coup.get('id', '?')}: {legs} legs @{odds:.2f} — stake {stake:.2f} PLN [{tier}]")
+        if summary:
+            print(f"    💰 Total spend: {summary.get('total_spend', 0):.2f} PLN | Potential return: {summary.get('total_potential_return', 0):.2f} PLN")
 
     state.setdefault("step_data", {})["s8_core"] = len(result.get("core_coupons", []))
     state["step_data"]["s8_combos"] = len(result.get("combos", []))
@@ -1012,40 +1307,83 @@ def _run_s9(date: str, state: dict) -> tuple[bool, str]:
 
 
 def _run_s10(date: str, state: dict) -> tuple[bool, str]:
-    """S10: Final summary."""
+    """S10: Final summary with full pipeline metrics."""
     step_data = state.get("step_data", {})
 
+    # Calculate pipeline duration
+    started = state.get("started_at", "")
+    now_str = datetime.now(ZoneInfo("Europe/Warsaw")).isoformat()
+    duration = "?"
+    if started:
+        try:
+            start_dt = datetime.fromisoformat(started)
+            end_dt = datetime.now(ZoneInfo("Europe/Warsaw"))
+            elapsed = end_dt - start_dt
+            minutes = int(elapsed.total_seconds() // 60)
+            seconds = int(elapsed.total_seconds() % 60)
+            duration = f"{minutes}m {seconds}s"
+        except Exception:
+            pass
+
     summary_lines = [
-        "═══════════════════════════════════",
-        f"  PIPELINE COMPLETE — {date}",
-        "═══════════════════════════════════",
         "",
-        f"S3 Deep Stats: {step_data.get('s3_with_data', '?')}/{step_data.get('s3_count', '?')} candidates analyzed",
-        f"S7 Gate: {step_data.get('s7_approved', '?')} approved, {step_data.get('s7_extended', '?')} extended",
+        "═══════════════════════════════════════════════════════════",
+        f"  PIPELINE COMPLETE — {date}",
+        f"  Duration: {duration}",
+        "═══════════════════════════════════════════════════════════",
+        "",
+        "📊 ANALYSIS SUMMARY:",
+        f"  S3 Deep Stats: {step_data.get('s3_with_data', '?')}/{step_data.get('s3_count', '?')} candidates analyzed",
+        f"  S7 Gate: {step_data.get('s7_approved', '?')} approved, {step_data.get('s7_extended', '?')} extended",
     ]
 
     if step_data.get("s8_no_bet"):
-        summary_lines.append("S8 Coupons: NO BET DAY")
+        summary_lines.append("  S8 Coupons: NO BET DAY")
     else:
         summary_lines.append(
-            f"S8 Coupons: {step_data.get('s8_core', '?')} core, {step_data.get('s8_combos', '?')} combos"
+            f"  S8 Coupons: {step_data.get('s8_core', '?')} core, {step_data.get('s8_combos', '?')} combos"
         )
 
-    summary_lines.extend(
-        [
-            "",
-            "Output files:",
-            f"  📊 betting/data/{date}_s3_deep_stats.md",
-            f"  ✅ betting/data/{date}_s7_gate_results.md",
-            f"  🎫 betting/coupons/{date}.md",
-            f"  📦 betting/coupons/{date}.json",
-        ]
-    )
+    # Parallel enrichment results
+    parallel = step_data.get("parallel_results", {})
+    if parallel:
+        enrichment_parts = []
+        for name, ok in parallel.items():
+            enrichment_parts.append(f"{name}: {'✓' if ok else '✗'}")
+        summary_lines.append(f"  Enrichment: {', '.join(enrichment_parts)}")
+
+    # Step completion status
+    steps_status = state.get("steps", {})
+    completed = sum(1 for v in steps_status.values() if isinstance(v, dict) and v.get("status") == "completed")
+    failed = sum(1 for v in steps_status.values() if isinstance(v, dict) and v.get("status") == "failed")
+    skipped = sum(1 for v in steps_status.values() if isinstance(v, dict) and v.get("status") == "skipped")
+    summary_lines.extend([
+        "",
+        f"📋 STEPS: {completed} completed, {failed} failed, {skipped} skipped",
+    ])
+
+    # Errors summary
+    errors = state.get("errors", [])
+    if errors:
+        summary_lines.append(f"  ⚠ {len(errors)} errors logged:")
+        for err in errors[-3:]:
+            summary_lines.append(f"    - {err[:120]}")
+
+    summary_lines.extend([
+        "",
+        "📁 OUTPUT FILES:",
+        f"  📊 betting/data/{date}_s3_deep_stats.md",
+        f"  ✅ betting/data/{date}_s7_gate_results.md",
+        f"  🎫 betting/coupons/{date}.md",
+        f"  📦 betting/coupons/{date}.json",
+        "",
+        "═══════════════════════════════════════════════════════════",
+    ])
 
     msg = "\n".join(summary_lines)
     print(msg)
 
-    state["completed_at"] = datetime.now(ZoneInfo("Europe/Warsaw")).isoformat()
+    state["completed_at"] = now_str
 
     return True, msg
 
