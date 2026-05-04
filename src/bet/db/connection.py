@@ -4,7 +4,10 @@ import sqlite3
 from contextlib import asynccontextmanager, contextmanager
 from pathlib import Path
 
-import aiosqlite
+try:
+    import aiosqlite
+except ImportError:
+    aiosqlite = None  # type: ignore[assignment]
 
 from bet.db.schema import init_db
 
@@ -43,6 +46,8 @@ def get_db(db_path: Path | str = DEFAULT_DB_PATH):
 @asynccontextmanager
 async def get_async_db(db_path: Path | str = DEFAULT_DB_PATH):
     """Async context manager using aiosqlite. Same pragmas as get_db."""
+    if aiosqlite is None:
+        raise ImportError("aiosqlite is required for async database access. Install with: pip install aiosqlite")
     conn = await aiosqlite.connect(str(db_path))
     await conn.execute("PRAGMA journal_mode = WAL")
     await conn.execute("PRAGMA foreign_keys = ON")

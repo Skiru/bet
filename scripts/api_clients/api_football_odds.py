@@ -15,7 +15,9 @@ from .rate_limiter import RateLimiter
 BET_TYPE_MAP = {
     1: "h2h",             # Match Winner (Home / Draw / Away)
     5: "totals",          # Goals Over/Under
-    6: "totals_corners",  # Corners Over/Under (if available)
+    6: "totals_corners",  # Corners Over/Under
+    40: "totals_cards",   # Cards Over/Under (yellow)
+    67: "totals_fouls",   # Fouls Over/Under
 }
 
 # Slugify pattern: lowercase, replace non-alphanum with hyphens

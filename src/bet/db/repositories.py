@@ -13,6 +13,7 @@ from bet.db.models import (
     Competition,
     Coupon,
     Fixture,
+    LeagueProfile,
     MatchStat,
     OddsRecord,
     PipelineRun,
@@ -34,8 +35,29 @@ class SportRepo:
         self.conn = conn
 
     def seed_defaults(self) -> None:
-        """Insert the 7 sports with stat_keys."""
-        from bet.stats.market_ranking import SPORT_STAT_KEYS
+        """Insert all 14 sports with stat_keys."""
+        _FALLBACK_STAT_KEYS = {
+            "football": ["corners", "fouls", "yellow_cards", "red_cards", "shots", "shots_on_target", "possession", "goals", "offsides", "saves"],
+            "basketball": ["points", "rebounds", "assists", "steals", "blocks", "turnovers", "fg_pct", "three_pct", "ft_pct"],
+            "hockey": ["goals", "shots", "powerplay_goals", "pim", "hits", "blocks", "faceoff_pct"],
+            "tennis": ["aces", "double_faults", "first_serve_pct", "break_points_won", "games_won", "sets_won", "total_games"],
+            "volleyball": ["points", "aces", "blocks", "attack_pct", "sets_won", "total_points", "errors"],
+            "handball": ["goals", "saves", "turnovers", "penalties", "suspensions", "total_goals"],
+            "snooker": ["frames_won", "centuries", "highest_break", "total_frames", "fifty_plus_breaks"],
+            "darts": ["legs_won", "checkout_pct", "one_eighties", "avg_score", "total_legs"],
+            "table_tennis": ["sets_won", "points_per_set", "total_sets", "total_points"],
+            "esports": ["maps_won", "rounds_won", "kills", "total_maps", "total_rounds"],
+            "baseball": ["runs", "hits", "errors", "strikeouts", "walks", "total_runs", "home_runs"],
+            "mma": ["takedowns", "sig_strikes", "submission_attempts", "rounds", "control_time"],
+            "padel": ["games_won", "break_points", "sets_won", "total_games"],
+            "speedway": ["heat_points", "total_points", "heat_wins"],
+        }
+        try:
+            from bet.stats.market_ranking import SPORT_STAT_KEYS
+            # Merge: imported keys override fallback where present
+            stat_keys_dict = {**_FALLBACK_STAT_KEYS, **SPORT_STAT_KEYS}
+        except (ImportError, ModuleNotFoundError):
+            stat_keys_dict = _FALLBACK_STAT_KEYS
 
         defaults = [
             ("football", 1),
@@ -43,11 +65,18 @@ class SportRepo:
             ("basketball", 1),
             ("tennis", 1),
             ("hockey", 2),
+            ("handball", 2),
+            ("baseball", 2),
+            ("esports", 2),
             ("snooker", 2),
+            ("darts", 2),
+            ("table_tennis", 2),
+            ("mma", 2),
+            ("padel", 2),
             ("speedway", 2),
         ]
         for name, tier in defaults:
-            stat_keys = json.dumps(SPORT_STAT_KEYS.get(name, []))
+            stat_keys = json.dumps(stat_keys_dict.get(name, []))
             self.conn.execute(
                 "INSERT OR IGNORE INTO sports (name, tier, stat_keys) VALUES (?, ?, ?)",
                 (name, tier, stat_keys),
@@ -707,3 +736,52 @@ class SourceHealthRepo:
             }
             for r in rows
         ]
+
+
+# ---------------------------------------------------------------------------
+# LeagueProfileRepo
+# ---------------------------------------------------------------------------
+
+class LeagueProfileRepo:
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+
+    def upsert(self, profile: LeagueProfile) -> None:
+        self.conn.execute(
+            "INSERT INTO league_profiles "
+            "(competition_id, stat_key, season, avg_value, median_value, std_dev, sample_size, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(competition_id, stat_key, season) DO UPDATE SET "
+            "avg_value = excluded.avg_value, "
+            "median_value = excluded.median_value, "
+            "std_dev = excluded.std_dev, "
+            "sample_size = excluded.sample_size, "
+            "updated_at = excluded.updated_at",
+            (profile.competition_id, profile.stat_key, profile.season,
+             profile.avg_value, profile.median_value, profile.std_dev,
+             profile.sample_size, profile.updated_at or _NOW()),
+        )
+
+    def get_for_competition(self, competition_id: int, season: str = "") -> list[LeagueProfile]:
+        rows = self.conn.execute(
+            "SELECT * FROM league_profiles WHERE competition_id = ? AND season = ?",
+            (competition_id, season),
+        ).fetchall()
+        return [
+            LeagueProfile(
+                id=r["id"], competition_id=r["competition_id"],
+                stat_key=r["stat_key"], season=r["season"],
+                avg_value=r["avg_value"], median_value=r["median_value"],
+                std_dev=r["std_dev"], sample_size=r["sample_size"],
+                updated_at=r["updated_at"],
+            )
+            for r in rows
+        ]
+
+    def get_stat_avg(self, competition_id: int, stat_key: str, season: str = "") -> float | None:
+        row = self.conn.execute(
+            "SELECT avg_value FROM league_profiles "
+            "WHERE competition_id = ? AND stat_key = ? AND season = ?",
+            (competition_id, stat_key, season),
+        ).fetchone()
+        return row["avg_value"] if row else None

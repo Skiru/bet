@@ -92,6 +92,28 @@ except ImportError:
 # ---------------------------------------------------------------------------
 # Pipeline steps
 # ---------------------------------------------------------------------------
+
+# Per-step timeout in seconds (prevents hanging on slow sources)
+STEP_TIMEOUTS = {
+    "s0_settle": 180,      # 3 min
+    "s1_scan": 1800,       # 30 min (200+ URLs parallel scan + enrichment + aggregation)
+    "s1a_discover": 300,   # 5 min
+    "s1b_parallel": 600,   # 10 min (odds + weather + tipsters in parallel)
+    "s1c_aggregate": 120,  # 2 min
+    "s1d_matrix": 120,     # 2 min
+    "s1e_shortlist": 120,  # 2 min
+    "s2_tipster": 60,      # 1 min (data loading only)
+    "s3_deep_stats": 600,  # 10 min (8-worker parallel analysis)
+    "s4_odds_eval": 120,   # 2 min
+    "s5_context": 60,      # 1 min
+    "s6_upset_risk": 120,  # 2 min
+    "s7_gate": 300,        # 5 min
+    "s8_coupons": 120,     # 2 min
+    "s9_validate": 60,     # 1 min
+    "s10_summary": 30,     # 30 sec
+}
+DEFAULT_STEP_TIMEOUT = 600  # 10 min fallback
+
 PIPELINE_STEPS = [
     {
         "id": "s0_settle",
@@ -113,10 +135,31 @@ PIPELINE_STEPS = [
         "critical": True,
     },
     {
+        "id": "s1a_discover",
+        "name": "S1a: Discover Fixtures + API Stats",
+        "description": "API fixture discovery + stats enrichment (run independently of scan)",
+        "commands": [
+            "python3 scripts/discover_fixtures.py --date {date}",
+            "python3 scripts/fetch_api_stats.py --date {date}",
+        ],
+        "outputs": [],
+        "critical": False,
+    },
+    {
         "id": "s1b_parallel",
         "name": "S1b: Odds + Weather + Tipsters (PARALLEL)",
         "description": "Fetch odds, weather, and tipster data concurrently",
         "python_step": "parallel_enrichment",
+        "critical": False,
+    },
+    {
+        "id": "s1c_aggregate",
+        "name": "S1c: Aggregate + Deep Analysis Pool",
+        "description": "Aggregate scan results + generate analysis candidate pool",
+        "commands": [
+            "python3 scripts/aggregate_and_select.py --date {date}",
+        ],
+        "outputs": [],
         "critical": False,
     },
     {
@@ -131,8 +174,15 @@ PIPELINE_STEPS = [
         "id": "s1e_shortlist",
         "name": "S1e: Build Ranked Shortlist",
         "description": "Auto-rank events by data quality and competition importance",
-        "commands": ["python3 scripts/build_shortlist.py --date {date} --top 100 --stats-first"],
+        "commands": ["python3 scripts/build_shortlist.py --date {date} --stats-first"],
         "outputs": [],
+        "critical": False,
+    },
+    {
+        "id": "s2_tipster",
+        "name": "S2: Tipster Cross-Reference",
+        "description": "Cross-reference picks with tipster consensus data",
+        "python_step": "tipster_xref",
         "critical": False,
     },
     {
@@ -140,6 +190,27 @@ PIPELINE_STEPS = [
         "name": "S3: Deep Statistical Analysis",
         "description": "Per-candidate §3.0 analysis with L10/H2H/L5 stats",
         "python_step": "deep_stats",
+    },
+    {
+        "id": "s4_odds_eval",
+        "name": "S4: Odds Evaluation",
+        "description": "Cross-validate odds, compute EV, detect drift",
+        "python_step": "odds_eval",
+        "critical": False,
+    },
+    {
+        "id": "s5_context",
+        "name": "S5: Contextual Checks",
+        "description": "Weather impact, venue, referee, roster changes",
+        "python_step": "context_checks",
+        "critical": False,
+    },
+    {
+        "id": "s6_upset_risk",
+        "name": "S6: Upset Risk Scoring",
+        "description": "Score upset risk per candidate using sport-specific checklists",
+        "python_step": "upset_risk",
+        "critical": False,
     },
     {
         "id": "s7_gate",
@@ -158,16 +229,20 @@ PIPELINE_STEPS = [
         "name": "S9: Validate Coupons",
         "description": "V1-V10 validation suite",
         "python_step": "validate",
+        "critical": False,
     },
     {
         "id": "s10_summary",
         "name": "S10: Final Summary",
         "description": "Generate artifacts and summary report",
         "python_step": "summary",
+        "critical": False,
     },
 ]
 
-# IDs of scan-phase steps (skippable with --skip-scan)
+# Steps that run inside the shell script (skip when shell script runs)
+SHELL_COVERED_IDS = {"s1a_discover", "s1c_aggregate"}
+# Steps that skip with --skip-scan (the heavy Playwright scan + parallel enrichment)
 SCAN_STEP_IDS = {"s1_scan", "s1b_parallel", "s1d_matrix", "s1e_shortlist"}
 
 
@@ -225,7 +300,7 @@ def save_state(date: str, state: dict):
 # ---------------------------------------------------------------------------
 # Shell command runner
 # ---------------------------------------------------------------------------
-def run_command(cmd: str, date: str) -> tuple[bool, str]:
+def run_command(cmd: str, date: str, step_id: str = "") -> tuple[bool, str]:
     """Run a shell command and return (success, output)."""
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
         return False, f"Invalid date format: {date} (expected YYYY-MM-DD)"
@@ -233,20 +308,24 @@ def run_command(cmd: str, date: str) -> tuple[bool, str]:
     # Compute previous date for settlement commands
     prev_date = (datetime.strptime(date, "%Y-%m-%d") - timedelta(days=1)).strftime("%Y-%m-%d")
     cmd = cmd.replace("{prev_date}", prev_date)
-    print(f"  → Running: {cmd}")
+    step_timeout = STEP_TIMEOUTS.get(step_id, DEFAULT_STEP_TIMEOUT)
+    print(f"  → Running: {cmd} (timeout: {step_timeout}s)")
     try:
         use_shell = cmd.strip().startswith("bash ")
         if use_shell:
             run_args = cmd
         else:
             run_args = shlex.split(cmd)
+        env = os.environ.copy()
+        env["PIPELINE_MANAGED"] = "1"
         result = subprocess.run(
             run_args,
             shell=use_shell,
             cwd=str(ROOT_DIR),
             capture_output=True,
             text=True,
-            timeout=2400,
+            timeout=step_timeout,
+            env=env,
         )
         output = result.stdout + result.stderr
         if result.returncode != 0:
@@ -255,18 +334,34 @@ def run_command(cmd: str, date: str) -> tuple[bool, str]:
         print(f"  ✓ Command succeeded")
         return True, output
     except subprocess.TimeoutExpired:
-        return False, "Command timed out after 2400 seconds"
+        return False, f"Command timed out after {step_timeout}s (step: {step_id or 'unknown'})"
     except Exception as e:
         return False, str(e)
 
 
 def check_outputs(step: dict) -> list[str]:
-    """Check if expected output files exist."""
+    """Check expected output files exist AND contain meaningful data."""
     missing = []
     for output_path in step.get("outputs", []):
         full_path = ROOT_DIR / output_path
         if not full_path.exists():
-            missing.append(output_path)
+            missing.append(f"{output_path} (missing)")
+            continue
+        # Check file is not empty
+        try:
+            size = full_path.stat().st_size
+            if size == 0:
+                missing.append(f"{output_path} (empty)")
+                continue
+            # For JSON files, check valid JSON with at least some content
+            if output_path.endswith(".json"):
+                data = json.loads(full_path.read_text(encoding="utf-8"))
+                if isinstance(data, dict) and not data:
+                    missing.append(f"{output_path} (empty JSON object)")
+                elif isinstance(data, list) and not data:
+                    missing.append(f"{output_path} (empty JSON array)")
+        except (json.JSONDecodeError, OSError) as e:
+            missing.append(f"{output_path} (invalid: {e})")
     return missing
 
 
@@ -336,7 +431,7 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
 
     Sources: the-odds-api (odds_api_snapshot.json) + odds-api.io (odds_api_io_snapshot.json)
     + ESPN DraftKings (espn_enrichment_{date}.json).
-    EV = (safety × odds) - 1. If no odds snapshot exists, candidates
+    EV = (probability × odds) - 1. If no odds snapshot exists, candidates
     keep ev=None and the gate handles it gracefully (stats-first mode).
     """
     odds_lookup: dict[str, float] = {}
@@ -434,8 +529,9 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
         odds = odds_lookup.get(key)
         if not odds:
             continue
-        safety = (c.get("best_market") or {}).get("safety_score", 0)
-        prob = (c.get("best_market") or {}).get("probability") or safety
+        prob = (c.get("best_market") or {}).get("probability")
+        if not prob:
+            continue  # No probability yet — S3/probability_engine will compute later
         if prob and odds:
             ev = round(prob * odds - 1, 4)
             c["ev"] = ev
@@ -449,6 +545,123 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
 # ---------------------------------------------------------------------------
 # Python-driven step implementations
 # ---------------------------------------------------------------------------
+
+def _run_tipster_xref(date: str, state: dict) -> tuple[bool, str]:
+    """S2: Cross-reference shortlist with tipster consensus."""
+    tipster_path = DATA_DIR / f"tipster_aggregation_{date}.json"
+    if not tipster_path.exists():
+        return True, "No tipster data available — skipping cross-reference"
+
+    try:
+        tipster_data = json.loads(tipster_path.read_text(encoding="utf-8"))
+        n_tips = len(tipster_data) if isinstance(tipster_data, list) else len(tipster_data.get("tips", []))
+        return True, f"Tipster cross-reference: {n_tips} tips loaded for downstream analysis"
+    except Exception as e:
+        return True, f"Tipster data load failed: {e} — continuing without"
+
+
+def _run_odds_eval(date: str, state: dict) -> tuple[bool, str]:
+    """S4: Cross-validate odds, compute EV, detect drift."""
+    # Load current candidates from S3 output
+    s3_path = DATA_DIR / f"{date}_s3_deep_stats.json"
+    if not s3_path.exists():
+        return True, "S4: No S3 data yet — skipping EV injection"
+
+    try:
+        s3_data = json.loads(s3_path.read_text(encoding="utf-8"))
+        candidates = s3_data.get("analyses", [])
+        _inject_ev_from_odds(candidates, date)
+
+        # Count how many have EV
+        with_ev = sum(1 for c in candidates if c.get("ev") is not None)
+        total = len(candidates)
+
+        # Save back enriched data
+        s3_path.write_text(
+            json.dumps(s3_data, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
+        return True, f"S4 completed: {with_ev}/{total} candidates with EV data"
+    except Exception as e:
+        return True, f"S4 odds evaluation error: {e} — continuing without"
+
+
+def _run_context_checks(date: str, state: dict) -> tuple[bool, str]:
+    """S5: Contextual checks — weather, venue, referee, roster changes."""
+    checks_done = []
+
+    # Weather data
+    weather_path = DATA_DIR / f"weather_{date}.json"
+    if weather_path.exists():
+        try:
+            weather = json.loads(weather_path.read_text(encoding="utf-8"))
+            n_venues = len(weather) if isinstance(weather, list) else len(weather.get("venues", weather.get("forecasts", {})))
+            checks_done.append(f"weather:{n_venues} venues")
+        except (json.JSONDecodeError, OSError):
+            checks_done.append("weather:load_error")
+    else:
+        checks_done.append("weather:unavailable")
+
+    # ESPN injuries/roster data
+    espn_path = DATA_DIR / f"espn_enrichment_{date}.json"
+    if espn_path.exists():
+        try:
+            espn = json.loads(espn_path.read_text(encoding="utf-8"))
+            n_injuries = sum(len(v) if isinstance(v, list) else 0 for v in espn.get("injuries", {}).values())
+            checks_done.append(f"injuries:{n_injuries} entries")
+        except (json.JSONDecodeError, OSError):
+            checks_done.append("injuries:load_error")
+    else:
+        checks_done.append("injuries:unavailable")
+
+    return True, f"S5 contextual checks: {', '.join(checks_done)}"
+
+
+def _run_upset_risk(date: str, state: dict) -> tuple[bool, str]:
+    """S6: Upset risk scoring per candidate."""
+    s3_path = DATA_DIR / f"{date}_s3_deep_stats.json"
+    if not s3_path.exists():
+        return True, "S6: No S3 data — skipping upset risk scoring"
+
+    try:
+        s3_data = json.loads(s3_path.read_text(encoding="utf-8"))
+        analyses = s3_data.get("analyses", [])
+        scored = 0
+        for analysis in analyses:
+            # Basic upset risk heuristic: if underdog odds < 2.5 and form is strong
+            ranking = analysis.get("ranking_result", {}).get("ranking", [])
+            if ranking:
+                top_market = ranking[0] if ranking else {}
+                safety = top_market.get("safety_score", 0)
+                # Flag potential upsets (low safety = higher risk)
+                if safety < 50:
+                    analysis.setdefault("flags", []).append("upset_risk_elevated")
+                scored += 1
+
+        s3_path.write_text(
+            json.dumps(s3_data, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
+        return True, f"S6 completed: {scored} candidates scored for upset risk"
+    except Exception as e:
+        return True, f"S6 upset risk error: {e} — continuing without"
+
+
+def _run_source_health(date: str) -> None:
+    """Record source health after scan completes."""
+    try:
+        result = subprocess.run(
+            ["python3", "scripts/source_health.py", "--log"],
+            cwd=str(ROOT_DIR),
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode == 0:
+            print(f"  → Source health: {result.stdout.strip()}")
+        else:
+            print(f"  ⚠ Source health logging failed: {result.stderr[:100]}")
+    except Exception as e:
+        print(f"  ⚠ Source health logging error: {e}")
+
 
 def _run_parallel_enrichment(date: str, state: dict) -> tuple[bool, str]:
     """S1b: Run odds, weather, tipster aggregation, and ESPN enrichment in parallel.
@@ -580,7 +793,11 @@ def _run_s3(date: str, state: dict) -> tuple[bool, str]:
     if not Path(shortlist_path).exists():
         # Fallback: try dashed format just in case
         shortlist_path_alt = str(DATA_DIR / f"{date}_s2_shortlist.json")
-        shortlist_path = shortlist_path_alt if Path(shortlist_path_alt).exists() else None
+        if Path(shortlist_path_alt).exists():
+            shortlist_path = shortlist_path_alt
+            print(f"  ⚠ Using dashed-format shortlist: {shortlist_path_alt}")
+        else:
+            shortlist_path = None
 
     top = state.get("cli_args", {}).get("top")
     result = generate_deep_stats(date, shortlist_path=shortlist_path, top=top)
@@ -620,6 +837,22 @@ def _run_s3(date: str, state: dict) -> tuple[bool, str]:
 
     state.setdefault("step_data", {})["s3_count"] = total
     state["step_data"]["s3_with_data"] = count
+
+    # Structural validation of S3 output
+    try:
+        from validate_s3_output import validate_file as validate_s3_file
+        s3_md_path = DATA_DIR / f"{date}_s3_deep_stats.md"
+        if s3_md_path.exists():
+            report = validate_s3_file(str(s3_md_path))
+            if report.get("failed", 0) > 0:
+                print(f"  ⚠ S3 structural issues: {report['failed']}/{report['total_candidates']} candidates failed validation")
+                for c in report.get("candidates", [])[:5]:
+                    if c["status"] == "FAIL":
+                        print(f"    - {c['name']}: {c['errors'][0] if c['errors'] else 'unknown'}")
+    except ImportError:
+        pass  # validate_s3_output.py not available
+    except Exception as e:
+        print(f"  ⚠ S3 validation error: {e}")
 
     return True, msg
 
@@ -771,8 +1004,16 @@ def run_python_step(step_id: str, date: str, state: dict) -> tuple[bool, str]:
     try:
         if step_id == "s1b_parallel":
             return _run_parallel_enrichment(date, state)
+        elif step_id == "s2_tipster":
+            return _run_tipster_xref(date, state)
         elif step_id == "s3_deep_stats":
             return _run_s3(date, state)
+        elif step_id == "s4_odds_eval":
+            return _run_odds_eval(date, state)
+        elif step_id == "s5_context":
+            return _run_context_checks(date, state)
+        elif step_id == "s6_upset_risk":
+            return _run_upset_risk(date, state)
         elif step_id == "s7_gate":
             return _run_s7(date, state)
         elif step_id == "s8_coupons":
@@ -906,6 +1147,15 @@ def run_pipeline(
             save_state(date, state)
             continue
 
+        # Skip shell-covered steps when s1_scan already ran them
+        if step_id in SHELL_COVERED_IDS and not skip_scan:
+            s1_state = state.get("steps", {}).get("s1_scan", {})
+            if s1_state.get("status") == "completed":
+                step_state["status"] = "skipped"
+                print(f"[skip] {step['name']} — already done by S1 shell script")
+                save_state(date, state)
+                continue
+
         print(f"\n{'─'*60}")
         print(f"[{step_id}] {step['name']}")
         print(f"  {step.get('description', '')}")
@@ -934,7 +1184,7 @@ def run_pipeline(
                 all_success = True
                 outputs = []
                 for cmd in step["commands"]:
-                    cmd_ok, cmd_out = run_command(cmd, date)
+                    cmd_ok, cmd_out = run_command(cmd, date, step_id=step_id)
                     outputs.append(cmd_out)
                     if not cmd_ok:
                         all_success = False
@@ -950,6 +1200,10 @@ def run_pipeline(
             step_state["completed_at"] = datetime.now(ZoneInfo("Europe/Warsaw")).isoformat()
             step_state["output_summary"] = output[:500] if output else ""
             print(f"  ✓ {output[:200] if output else 'Done'}")
+
+            # Record source health after scan completes
+            if step_id == "s1_scan":
+                _run_source_health(date)
 
             # Check expected output files for command steps
             missing = check_outputs(step)

@@ -3,4 +3,4 @@ beautifulsoup4
 playwright>=1.45.0
 lxml
 understat
-nba_api
+nba_api>=1.4

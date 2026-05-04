@@ -10,6 +10,7 @@ Usage:
 """
 
 import argparse
+import itertools
 import json
 import re
 import sys
@@ -217,17 +218,19 @@ def _event_key(pick: dict) -> str:
 # Stakes — Kelly 1/4
 # ---------------------------------------------------------------------------
 
-def compute_stake(odds: float, safety: float, bankroll: float, tier: str) -> float:
+def compute_stake(odds: float, safety: float, bankroll: float, tier: str,
+                  probability: float | None = None) -> float:
     """Kelly 1/4 stake calculation with tier caps.
 
-    f = (b*p - q) / b  where b = odds - 1, p = safety_score, q = 1-p
+    f = (b*p - q) / b  where b = odds - 1, p = probability (or safety_score), q = 1-p
     stake = bankroll * f / 4
     """
-    if odds <= 1.0 or safety <= 0:
+    # Prefer true probability from probability_engine over safety_score hit rate
+    p = probability if probability is not None and 0 < probability < 1 else safety
+    if odds <= 1.0 or p <= 0:
         return 1.0
 
     b = odds - 1.0
-    p = safety
     q = 1.0 - p
     f = (b * p - q) / b
 
@@ -261,10 +264,12 @@ def stress_test_coupon(coupon: dict) -> dict:
     weakest_p = 1.0
 
     for leg in legs:
-        safety = leg.get("best_market", {}).get("safety_score", 0.5)
-        probabilities.append(safety)
-        if safety < weakest_p:
-            weakest_p = safety
+        bm = leg.get("best_market", {})
+        # Prefer true probability from probability_engine; fall back to safety_score
+        p = bm.get("probability") or bm.get("safety_score", 0.5)
+        probabilities.append(p)
+        if p < weakest_p:
+            weakest_p = p
             weakest = leg
 
     p_coupon = 1.0
@@ -311,17 +316,26 @@ def _classify_night(pick: dict, tz_name: str) -> bool:
     return False
 
 
-def _determine_coupon_count(n_picks: int) -> int:
+def _determine_coupon_count(n_picks: int, config: dict | None = None) -> int:
     """Determine how many core coupons to build from N approved picks."""
-    if n_picks < 4:
-        return 0  # NO BET
-    if n_picks <= 5:
-        return 2
-    if n_picks <= 7:
-        return 3
-    if n_picks <= 9:
-        return 4
-    return 5
+    if n_picks < 2:
+        return 0
+    if n_picks <= 3:
+        cap = 1
+    elif n_picks <= 5:
+        cap = 2
+    elif n_picks <= 7:
+        cap = 3
+    elif n_picks <= 9:
+        cap = 4
+    elif n_picks <= 12:
+        cap = 5
+    elif n_picks <= 16:
+        cap = 7
+    else:
+        cap = min(n_picks // 2, 15)  # Scale with picks, cap at 15
+    max_core = (config or {}).get("max_core_coupons", 15)
+    return min(cap, max_core)
 
 
 def assign_picks_to_core(approved: list, config: dict) -> list[dict]:
@@ -331,12 +345,14 @@ def assign_picks_to_core(approved: list, config: dict) -> list[dict]:
     Grouping: LR → LR coupons, MS → MS, HR → HR, night → NIGHT.
     Constraints: min 2 legs, max 2 same sport, no same-match legs.
     """
-    if len(approved) < 4:
+    if len(approved) < 2:
         return []
 
     tz_name = config.get("timezone", "Europe/Warsaw")
     min_legs = config.get("min_legs_per_coupon", 2)
     max_legs = config.get("max_legs_per_coupon", 4)
+    # Dynamic max legs: LR-only coupons can have more legs
+    base_max_legs = max_legs
     max_same_sport = config.get("max_same_sport_legs_in_coupon", 2)
     bankroll = config.get("bankroll_pln", config.get("working_bankroll_pln", 50.0))
 
@@ -365,7 +381,7 @@ def assign_picks_to_core(approved: list, config: dict) -> list[dict]:
                 tier = "MS"
             buckets[tier].append(p)
 
-    n_core = _determine_coupon_count(len(approved))
+    n_core = _determine_coupon_count(len(approved), config)
     date_str = _extract_date(approved)
 
     coupons: list[dict] = []
@@ -418,8 +434,12 @@ def assign_picks_to_core(approved: list, config: dict) -> list[dict]:
             event_keys.add(ek)
             all_assigned.add(ek)
 
+            # Allow +1 leg for all-LR coupons, +2 for all-safety>0.75
+            all_lr = all(l.get("risk_tier") == "LR" for l in current_legs)
+            effective_max = base_max_legs + (1 if all_lr else 0)
+
             # Check if coupon is full enough to flush
-            if len(current_legs) >= max_legs or len(current_legs) >= max(min_legs, len(picks_in_tier) // max(tier_coupons, 1)):
+            if len(current_legs) >= effective_max or len(current_legs) >= max(min_legs, len(picks_in_tier) // max(tier_coupons, 1)):
                 if tier_num < tier_coupons:
                     tier_num += 1
                     cid = f"CP-{date_str}-{tier_label}{tier_num}"
@@ -456,12 +476,17 @@ def _make_coupon(coupon_id: str, tier: str, legs: list, config: dict) -> dict:
         combined_odds *= odds
     combined_odds = round(combined_odds, 2)
 
-    # Stake: use worst safety among legs for Kelly
+    # Stake: use worst probability/safety among legs for Kelly
     min_safety = min(
         (leg.get("best_market", {}).get("safety_score", 0.5) for leg in legs),
         default=0.5,
     )
-    stake = compute_stake(combined_odds, min_safety, bankroll, tier)
+    min_prob = min(
+        (leg.get("best_market", {}).get("probability") or leg.get("best_market", {}).get("safety_score", 0.5)
+         for leg in legs),
+        default=None,
+    )
+    stake = compute_stake(combined_odds, min_safety, bankroll, tier, probability=min_prob)
 
     potential_return = round(stake * combined_odds, 2)
 
@@ -520,12 +545,17 @@ def _try_insert_into_coupon(pick: dict, coupons: list, max_same_sport: int, bank
             combined *= (l.get("odds") or {}).get("market_best", 1.0) or 1.0
         coupon["combined_odds"] = round(combined, 2)
         coupon["stress_test"] = stress_test_coupon({"legs": coupon["legs"]})
-        # Recalculate stake with worst safety among legs
+        # Recalculate stake with worst probability/safety among legs
         min_safety = min(
             (l.get("best_market", {}).get("safety_score", 0.5) for l in coupon["legs"]),
             default=0.5,
         )
-        coupon["stake"] = compute_stake(combined, min_safety, bankroll, coupon.get("tier", "MS"))
+        min_prob = min(
+            (l.get("best_market", {}).get("probability") or l.get("best_market", {}).get("safety_score", 0.5)
+             for l in coupon["legs"]),
+            default=None,
+        )
+        coupon["stake"] = compute_stake(combined, min_safety, bankroll, coupon.get("tier", "MS"), probability=min_prob)
         coupon["potential_return"] = round(coupon["stake"] * combined, 2)
         return True
 
@@ -604,7 +634,7 @@ COMBO_THEMES = [
 
 
 def generate_combos(approved: list, config: dict) -> list[dict]:
-    """Generate 4-8 combo coupons by remixing approved picks."""
+    """Generate combo coupons by remixing approved picks (theme-based + combinatorial)."""
     if len(approved) < 2:
         return []
 
@@ -612,11 +642,12 @@ def generate_combos(approved: list, config: dict) -> list[dict]:
     min_legs = config.get("min_legs_per_coupon", 2)
     max_legs = config.get("max_legs_per_coupon", 4)
     max_same_sport = config.get("max_same_sport_legs_in_coupon", 2)
+    max_combos = config.get("max_combo_coupons", 20)
     combos: list[dict] = []
     combo_num: dict[str, int] = {}
 
     for theme in COMBO_THEMES:
-        if len(combos) >= 8:
+        if len(combos) >= max_combos:
             break
 
         selected = list(approved)
@@ -682,6 +713,64 @@ def generate_combos(approved: list, config: dict) -> list[dict]:
         coupon["combo_thesis_pl"] = theme["thesis_pl"]
         combos.append(coupon)
 
+    # Combinatorial combos — all C(n, k) combinations for k = min_legs..max_legs
+    existing_signatures = {
+        frozenset(_event_key(l) for l in c["legs"])
+        for c in combos
+    }
+
+    for k in range(min_legs, min(max_legs + 1, 4)):  # 2-leg and 3-leg combos
+        if len(combos) >= max_combos:
+            break
+        for combo_picks in itertools.combinations(approved, k):
+            if len(combos) >= max_combos:
+                break
+            # Check unique events
+            event_keys = set()
+            valid = True
+            for p in combo_picks:
+                ek = _event_key(p)
+                if ek in event_keys:
+                    valid = False
+                    break
+                event_keys.add(ek)
+            if not valid:
+                continue
+
+            sig = frozenset(event_keys)
+            if sig in existing_signatures:
+                continue
+            existing_signatures.add(sig)
+
+            # Check sport diversity constraint
+            sport_counts_c: dict[str, int] = {}
+            for p in combo_picks:
+                s = p.get("sport", "other")
+                sport_counts_c[s] = sport_counts_c.get(s, 0) + 1
+            if any(c > max_same_sport for c in sport_counts_c.values()):
+                continue
+
+            combo_num_total = len(combos) + 1
+            cid = f"CP-{date_str}-COMB{k}x{combo_num_total}"
+            coupon = _make_coupon(cid, "MS", list(combo_picks), config)
+            coupon["combo_theme"] = f"combinatorial-{k}-fold"
+            coupon["combo_thesis_pl"] = f"Kombinacja {k}-krotna — automatycznie wygenerowana"
+            combos.append(coupon)
+
+    # Enrich all combos with richer descriptions
+    for coupon in combos:
+        legs = coupon["legs"]
+        avg_safety = sum(l.get("best_market", {}).get("safety_score", 0) for l in legs) / max(len(legs), 1)
+        sports_in_combo = sorted(set(l.get("sport", "?") for l in legs))
+        over_count = sum(1 for l in legs if (l.get("best_market", {}).get("direction", "") or "").upper() == "OVER")
+        under_count = sum(1 for l in legs if (l.get("best_market", {}).get("direction", "") or "").upper() == "UNDER")
+        coupon["combo_description"] = {
+            "avg_safety": round(avg_safety, 3),
+            "sports": sports_in_combo,
+            "direction_balance": f"OVER: {over_count}, UNDER: {under_count}",
+            "legs_count": len(legs),
+        }
+
     return combos
 
 
@@ -710,47 +799,83 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
         "approved_count": len(approved),
         "core_coupons": [],
         "combos": [],
+        "singles": [],
+        "banker": None,
         "extended_pool": extended_pool,
         "rejected": rejected,
         "no_bet": False,
         "no_bet_reason": None,
     }
 
-    if len(approved) < 4:
+    # SINGLES — always generate for every approved pick
+    date_str = _extract_date(approved) if approved else datetime.now().strftime("%Y%m%d")
+    max_singles = config.get("max_singles", 50)
+    singles = []
+    for i, pick in enumerate(approved[:max_singles], 1):
+        odds_val = (pick.get("odds") or {}).get("market_best", 0) or 0
+        if odds_val <= 1.0:
+            continue
+        safety = (pick.get("best_market") or {}).get("safety_score", 0.5)
+        prob = (pick.get("best_market") or {}).get("probability")
+        stake = compute_stake(odds_val, safety, bankroll, pick.get("risk_tier", "MS"), probability=prob)
+        single = {
+            "id": f"CP-{date_str}-SINGLE{i}",
+            "tier": pick.get("risk_tier", "MS"),
+            "legs": [pick],
+            "combined_odds": round(odds_val, 2),
+            "stake": stake,
+            "potential_return": round(stake * odds_val, 2),
+            "stress_test": stress_test_coupon({"legs": [pick]}),
+            "correlation_flags": [],
+            "is_single": True,
+        }
+        singles.append(single)
+    result["singles"] = singles
+
+    # BANKER: highest safety score pick
+    if singles:
+        banker = max(singles, key=lambda s: s["legs"][0].get("best_market", {}).get("safety_score", 0))
+        banker["is_banker"] = True
+        result["banker"] = banker
+
+    if len(approved) < 1:
         result["no_bet"] = True
-        result["no_bet_reason"] = (
-            f"Tylko {len(approved)} zatwierdzonych typów (min. 4 dla kuponów). "
-            "Rozważ poszerzenie skanowania lub obniżenie progów."
-        )
-        if len(approved) == 0:
-            result["no_bet_reason"] = "Brak zatwierdzonych typów. Brak kuponów na dziś."
+        result["no_bet_reason"] = "Brak zatwierdzonych typów."
         return result
 
     # Store approved for markdown writer (market matrix)
     result["_approved"] = approved
 
-    # Build core portfolio
+    # Build core portfolio (requires ≥2 picks)
     core = assign_picks_to_core(approved, config)
     result["core_coupons"] = core
 
-    # Build combo menu
+    # Build combo menu (requires ≥2 picks)
     combos = generate_combos(approved, config)
     result["combos"] = combos
 
     # Compute summary metrics
     core_spend = sum(c.get("stake", 0) for c in core)
     combo_spend = sum(c.get("stake", 0) for c in combos)
-    total_return = sum(c.get("potential_return", 0) for c in core) + sum(
-        c.get("potential_return", 0) for c in combos
+    singles_spend = sum(c.get("stake", 0) for c in singles)
+    total_return = (
+        sum(c.get("potential_return", 0) for c in core)
+        + sum(c.get("potential_return", 0) for c in combos)
+        + sum(c.get("potential_return", 0) for c in singles)
     )
     best_case = total_return
-    # Realistic: assume ~30% hit rate on coupons
-    realistic = round(total_return * 0.3, 2)
+    # Realistic: assume ~30% hit rate on coupons, ~45% on singles
+    realistic = round(
+        sum(c.get("potential_return", 0) for c in core + combos) * 0.3
+        + sum(c.get("potential_return", 0) for c in singles) * 0.45,
+        2,
+    )
 
     result["summary"] = {
         "core_spend": round(core_spend, 2),
-        "total_spend": round(core_spend + combo_spend, 2),
-        "bankroll_after": round(bankroll - core_spend, 2),
+        "singles_spend": round(singles_spend, 2),
+        "total_spend": round(core_spend + combo_spend + singles_spend, 2),
+        "bankroll_after": round(bankroll - core_spend - singles_spend, 2),
         "total_potential_return": round(total_return, 2),
         "best_case": round(best_case, 2),
         "realistic": realistic,
@@ -894,6 +1019,35 @@ def write_coupon_markdown(coupons_data: dict, date: str) -> Path:
         lines.extend(_market_matrix_rows(approved, extended))
         lines.append("")
 
+    # BANKER section
+    banker = coupons_data.get("banker")
+    if banker:
+        lines.append("## 🏆 BANKER (Główny typ dnia)")
+        lines.append("")
+        leg = banker["legs"][0]
+        lines.append(_build_rich_description(leg))
+        lines.append("")
+        lines.append(f"**Stawka:** {banker['stake']:.2f} PLN | **Kurs:** {banker['combined_odds']:.2f} | **Zwrot:** {banker['potential_return']:.2f} PLN")
+        lines.append("")
+
+    # SINGLES section
+    singles = coupons_data.get("singles", [])
+    if singles:
+        lines.append("## SINGLE BETS")
+        lines.append("")
+        lines.append("| # | ID | Co obstawić | Kurs | Stawka | Zwrot | Tier |")
+        lines.append("|---|-----|-------------|------|--------|-------|------|")
+        for i, s in enumerate(singles, 1):
+            leg = s["legs"][0]
+            desc = _pick_description_pl(leg)
+            banker_mark = " 🏆" if s.get("is_banker") else ""
+            lines.append(
+                f"| {i} | {s['id']}{banker_mark} | {desc} "
+                f"| {s['combined_odds']:.2f} | {s['stake']:.2f} PLN "
+                f"| {s['potential_return']:.2f} PLN | {s['tier']} |"
+            )
+        lines.append("")
+
     # Core coupons by tier
     core = coupons_data.get("core_coupons", [])
     tier_groups = {"LR": [], "MS": [], "HR": [], "NIGHT": []}
@@ -927,6 +1081,13 @@ def write_coupon_markdown(coupons_data: dict, date: str) -> Path:
             st = c.get("stress_test", {})
             thesis = c.get("combo_thesis_pl", "")
             lines.append(f"**{c['id']}** — _{thesis}_")
+            desc = c.get("combo_description", {})
+            if desc:
+                lines.append(
+                    f"  Avg safety: {desc.get('avg_safety', 0):.3f} | "
+                    f"Sports: {', '.join(desc.get('sports', []))} | "
+                    f"{desc.get('direction_balance', '')}"
+                )
             lines.append(f"**P(kupon):** ~{st.get('p_coupon', 0):.0%}")
             lines.append(f"**Największe ryzyko:** {st.get('catastrophe', '-')}")
             lines.append("")
@@ -971,8 +1132,9 @@ def write_coupon_markdown(coupons_data: dict, date: str) -> Path:
         "",
         "| Metryka | Wartość |",
         "|---------|--------|",
+        f"| Singles | {len(singles)} typów, {summary.get('singles_spend', 0):.2f} PLN |",
         f"| Wydatek (core) | {summary.get('core_spend', 0):.2f} PLN |",
-        f"| Wydatek (core + combo) | {summary.get('total_spend', 0):.2f} PLN |",
+        f"| Wydatek (łącznie) | {summary.get('total_spend', 0):.2f} PLN |",
         f"| Bankroll po | {summary.get('bankroll_after', 0):.2f} PLN |",
         f"| Łączny pot. zwrot | {summary.get('total_potential_return', 0):.2f} PLN |",
         f"| Najlepszy scenariusz | {summary.get('best_case', 0):.2f} PLN |",
@@ -1109,9 +1271,13 @@ def main():
         s = coupons_data["summary"]
         print(
             f"\n[coupon_builder] Done: "
+            f"{len(coupons_data.get('singles', []))} singles, "
             f"{len(coupons_data['core_coupons'])} core coupons, "
             f"{len(coupons_data['combos'])} combos"
         )
+        if coupons_data.get("banker"):
+            bleg = coupons_data["banker"]["legs"][0]
+            print(f"  Banker: {bleg.get('home_team', '?')} vs {bleg.get('away_team', '?')}")
         print(f"  Core spend: {s['core_spend']:.2f} PLN")
         print(f"  Total spend: {s['total_spend']:.2f} PLN")
         print(f"  Potential return: {s['total_potential_return']:.2f} PLN")

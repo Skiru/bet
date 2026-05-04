@@ -17,7 +17,7 @@ agent: bet-scanner
 
 **Automated shortlist generation (run first):**
 ```bash
-python3 scripts/build_shortlist.py --date {date} --top 100 --stats-first
+python3 scripts/build_shortlist.py --date {date} --stats-first
 ```
 This produces `{date}_s2_shortlist.md` + `{date}_s2_shortlist.json` with 100 ranked candidates.
 

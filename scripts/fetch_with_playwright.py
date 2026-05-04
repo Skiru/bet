@@ -20,6 +20,50 @@ BASE = Path(__file__).resolve().parent
 SELECTORS_PATH = BASE / "site_selectors.json"
 STORAGE_DIR = BASE / "playwright_storage"
 DATA_DIR = BASE.parent / "betting" / "data"
+ROOT_DIR = BASE.parent
+PROXY_FILE = ROOT_DIR / "config" / "proxies.txt"
+
+
+def _load_proxies() -> list[str]:
+    if not PROXY_FILE.exists():
+        return []
+    return [line.strip() for line in PROXY_FILE.read_text().splitlines() if line.strip() and not line.startswith("#")]
+
+
+_proxies = _load_proxies()
+_proxy_idx = 0
+
+
+def _get_next_proxy() -> str | None:
+    global _proxy_idx
+    if not _proxies:
+        return None
+    proxy = _proxies[_proxy_idx % len(_proxies)]
+    _proxy_idx += 1
+    return proxy
+
+
+CAPTCHA_INDICATORS = [
+    "cf-challenge",
+    "captcha",
+    "recaptcha",
+    "hcaptcha",
+    "ray id",
+    "access denied",
+    "please verify",
+    "checking your browser",
+    "just a moment",
+]
+
+
+def _is_captcha_page(html: str) -> bool:
+    """Detect if a page is a CAPTCHA/challenge page."""
+    lower = html.lower()
+    if len(html) < 5000:
+        for indicator in CAPTCHA_INDICATORS:
+            if indicator in lower:
+                return True
+    return False
 
 try:
     from playwright.sync_api import sync_playwright
@@ -75,7 +119,11 @@ def fetch(url: str, headless: bool = True, timeout: int = 30, retries: int = 2, 
     for attempt in range(1, retries + 1):
         try:
             with sync_playwright() as p:
-                browser = p.chromium.launch(headless=headless)
+                proxy = _get_next_proxy()
+                launch_kwargs = {"headless": headless}
+                if proxy:
+                    launch_kwargs["proxy"] = {"server": proxy}
+                browser = p.chromium.launch(**launch_kwargs)
 
                 context_kwargs = {
                     "user_agent": random.choice(USER_AGENTS),
@@ -120,6 +168,16 @@ def fetch(url: str, headless: bool = True, timeout: int = 30, retries: int = 2, 
                     pass
 
                 content = page.content()
+
+                # CAPTCHA / challenge detection
+                if _is_captcha_page(content):
+                    print(f"  ⚠ CAPTCHA detected on {url} (attempt {attempt})", file=sys.stderr)
+                    browser.close()
+                    if _proxies and attempt < retries:
+                        time.sleep(1)
+                        continue
+                    return None
+
                 if save_snapshot:
                     _save_html(domain, content)
 

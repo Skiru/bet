@@ -151,6 +151,19 @@ class SourceHealth:
 
 
 @dataclass
+class LeagueProfile:
+    id: int | None
+    competition_id: int
+    stat_key: str
+    season: str = ""
+    avg_value: float = 0.0
+    median_value: float | None = None
+    std_dev: float | None = None
+    sample_size: int = 0
+    updated_at: str = ""
+
+
+@dataclass
 class MarketCandidate:
     """A scored market candidate for coupon building. Not persisted — computed."""
 

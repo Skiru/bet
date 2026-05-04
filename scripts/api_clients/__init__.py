@@ -62,3 +62,7 @@ CLIENT_REGISTRY["serpapi"] = SerpAPIClient
 # Odds-API.io — 265 bookmakers, 34 sports, value bets (5K req/hour)
 from .odds_api_io import OddsAPIioClient
 CLIENT_REGISTRY["odds-api-io"] = OddsAPIioClient
+
+# nba_api — deep NBA stats (pace, ratings, game logs). Free, no key.
+from .nba_api_client import NBAAPIClient
+CLIENT_REGISTRY["nba-api"] = NBAAPIClient

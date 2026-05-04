@@ -31,6 +31,15 @@ import statistics
 import sys
 from pathlib import Path
 
+ROOT_DIR = Path(__file__).resolve().parent.parent
+
+# Optional scipy — used for normal-distribution line optimization
+try:
+    from scipy.stats import poisson as scipy_poisson, norm as scipy_norm
+    HAS_SCIPY = True
+except ImportError:
+    HAS_SCIPY = False
+
 # ---------------------------------------------------------------------------
 # Recency weights for λ estimation
 # ---------------------------------------------------------------------------
@@ -335,6 +344,294 @@ def compute_kelly_quarter(probability: float, odds: float, bankroll: float) -> f
     """1/4 Kelly stake in currency units."""
     f = compute_kelly_fraction(probability, odds)
     return round(bankroll * f / 4.0, 2)
+
+
+# ---------------------------------------------------------------------------
+# Market enrichment — integrates with compute_safety_scores.py output
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Weather impact quantification (Task 7.3)
+# ---------------------------------------------------------------------------
+
+WEATHER_MODIFIERS = {
+    # (stat, condition) → multiplier
+    ("corners", "rain"): 1.08,          # More corners in rain (slippery, more errors)
+    ("corners", "heavy_rain"): 1.12,
+    ("corners", "wind"): 1.05,           # Wind causes more wayward shots → corners
+    ("goals", "rain"): 0.92,             # Fewer goals in rain
+    ("goals", "heavy_rain"): 0.85,
+    ("cards", "rain"): 1.10,             # More fouls on slippery pitch
+    ("aces", "wind"): 0.88,              # Fewer aces in wind (tennis)
+    ("aces", "indoor"): 1.05,            # Indoor = more aces (consistent bounce)
+    ("totals_points", "altitude"): 1.03, # High altitude = faster ball (tennis)
+}
+
+
+def apply_weather_modifier(stat: str, base_value: float, weather: dict | None) -> float:
+    """Apply weather-based modifier to a statistical average.
+
+    Args:
+        stat: stat key (e.g. "corners", "goals", "cards", "aces")
+        base_value: the unmodified λ or average
+        weather: dict from fetch_weather.py with 'conditions', 'wind_max_kmh', 'flags' etc.
+
+    Returns:
+        Modified base_value (unchanged if no weather data or no applicable modifier).
+    """
+    if not weather:
+        return base_value
+
+    condition = weather.get("conditions", "").lower()
+    key = None
+
+    # Map condition to our categories
+    if "heavy rain" in condition or "thunderstorm" in condition:
+        key = (stat, "heavy_rain")
+    elif "rain" in condition or "drizzle" in condition:
+        key = (stat, "rain")
+    elif "wind" in condition:
+        wind_speed = weather.get("wind_max_kmh", 0) or 0
+        if wind_speed > 30:
+            key = (stat, "wind")
+    else:
+        # Check flags for wind even if conditions text doesn't mention it
+        flags = weather.get("flags", [])
+        wind_speed = weather.get("wind_max_kmh", 0) or 0
+        if wind_speed > 30 or "WIND_STRONG" in flags:
+            key = (stat, "wind")
+
+    if key and key in WEATHER_MODIFIERS:
+        return base_value * WEATHER_MODIFIERS[key]
+
+    return base_value
+
+
+# ---------------------------------------------------------------------------
+# Bayesian adjusted average (Task 7.2)
+# ---------------------------------------------------------------------------
+
+def bayesian_adjusted_average(
+    team_avg: float,
+    team_games: int,
+    league_avg: float,
+    league_std: float,
+    prior_weight: int = 5,
+) -> float:
+    """Bayesian shrinkage: pull team average toward league average.
+
+    With 0 team games: returns league_avg.
+    With many team games: returns ~team_avg.
+    Weight formula: adjusted = (team_games * team_avg + prior_weight * league_avg)
+                               / (team_games + prior_weight)
+    """
+    return (team_games * team_avg + prior_weight * league_avg) / (team_games + prior_weight)
+
+
+def load_league_profiles(competition: str = "", stat_key: str = "") -> dict | None:
+    """Load league profile data from DB (preferred) or JSON fallback.
+
+    Returns dict with 'avg_value', 'std_dev', 'sample_size' or None if unavailable.
+    """
+    # Try DB first
+    db_path = ROOT_DIR / "betting" / "data" / "betting.db"
+    if db_path.exists():
+        try:
+            import sqlite3
+            conn = sqlite3.connect(str(db_path))
+            conn.row_factory = sqlite3.Row
+            row = conn.execute(
+                "SELECT avg_value, std_dev, sample_size FROM league_profiles "
+                "WHERE stat_key = ? LIMIT 1",
+                (stat_key,),
+            ).fetchone()
+            conn.close()
+            if row:
+                return {
+                    "avg_value": row["avg_value"],
+                    "std_dev": row["std_dev"],
+                    "sample_size": row["sample_size"],
+                }
+        except Exception:
+            pass
+
+    # Fallback to JSON
+    json_path = ROOT_DIR / "betting" / "data" / "league_profiles.json"
+    if json_path.exists():
+        try:
+            data = json.loads(json_path.read_text(encoding="utf-8"))
+            # JSON keyed by competition→stat or flat by stat
+            if competition and competition in data:
+                entry = data[competition].get(stat_key)
+            elif stat_key in data:
+                entry = data[stat_key]
+            else:
+                entry = None
+            if isinstance(entry, dict):
+                return entry
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Multi-line optimization (Task 7.1)
+# ---------------------------------------------------------------------------
+
+def _normal_sf(x: float, loc: float, scale: float) -> float:
+    """Survival function P(X > x) for normal distribution. Uses scipy if available."""
+    if HAS_SCIPY:
+        return float(scipy_norm.sf(x, loc=loc, scale=scale))
+    # Fallback: use error function approximation
+    if scale <= 0:
+        return 0.0 if x >= loc else 1.0
+    z = (x - loc) / scale
+    return 0.5 * math.erfc(z / math.sqrt(2))
+
+
+def _poisson_sf(k: int, mu: float) -> float:
+    """Survival function P(X > k) for Poisson distribution. Uses scipy if available."""
+    if HAS_SCIPY:
+        return float(scipy_poisson.sf(k, mu))
+    # Fallback: use our existing functions
+    return 1.0 - poisson_cdf(k, mu)
+
+
+def optimize_line(
+    base_stat: str,
+    avg_value: float,
+    std_dev: float,
+    available_lines: list[dict],
+    model: str = "poisson",
+) -> dict:
+    """Find the line with best safety×EV for a statistical market.
+
+    Args:
+        base_stat: stat key e.g. "corners", "goals", "points"
+        avg_value: L10 average (e.g. 10.8)
+        std_dev: standard deviation of the sample
+        available_lines: list of dicts with keys 'line', 'odds_over', 'odds_under'
+        model: "poisson" (goals, corners, cards) or "normal" (points, totals)
+
+    Returns:
+        dict with best_line, direction, prob, ev, safety_score, all_lines
+    """
+    all_results = []
+
+    for entry in available_lines:
+        line = entry.get("line")
+        odds_over = entry.get("odds_over")
+        odds_under = entry.get("odds_under")
+
+        if line is None:
+            continue
+
+        for direction, odds in [("over", odds_over), ("under", odds_under)]:
+            if not odds or odds <= 1.0:
+                continue
+
+            # Compute probability
+            if model == "poisson":
+                threshold = int(line)
+                if direction == "over":
+                    prob = _poisson_sf(threshold, avg_value)
+                else:
+                    prob = poisson_cdf(threshold, avg_value)
+            else:  # normal
+                if std_dev <= 0:
+                    continue
+                if direction == "over":
+                    prob = _normal_sf(line, avg_value, std_dev)
+                else:
+                    prob = 1.0 - _normal_sf(line, avg_value, std_dev)
+
+            prob = max(0.01, min(0.99, prob))
+            ev = prob * odds - 1.0
+            safety_contribution = min(prob * 10, 10.0)
+
+            all_results.append({
+                "line": line,
+                "direction": direction,
+                "odds": odds,
+                "prob": round(prob, 4),
+                "ev": round(ev, 4),
+                "safety_score": round(safety_contribution, 2),
+            })
+
+    if not all_results:
+        return {
+            "best_line": None,
+            "direction": None,
+            "prob": None,
+            "ev": None,
+            "safety_score": None,
+            "all_lines": [],
+        }
+
+    # Filter to EV > 0, then pick highest safety_contribution
+    positive_ev = [r for r in all_results if r["ev"] > 0]
+
+    if positive_ev:
+        best = max(positive_ev, key=lambda r: r["safety_score"])
+    else:
+        # No +EV line — return the one closest to 0 EV with highest safety
+        best = max(all_results, key=lambda r: (r["safety_score"], r["ev"]))
+
+    return {
+        "best_line": best["line"],
+        "direction": best["direction"],
+        "prob": best["prob"],
+        "ev": best["ev"],
+        "safety_score": best["safety_score"],
+        "all_lines": all_results,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Tennis Elo integration (Task 7.4)
+# ---------------------------------------------------------------------------
+
+def elo_win_probability(elo_home: float, elo_away: float) -> float:
+    """Expected win probability from Elo ratings.
+
+    Standard Elo formula: E(A) = 1 / (1 + 10^((Rb - Ra) / 400))
+    """
+    return 1.0 / (1.0 + 10 ** ((elo_away - elo_home) / 400.0))
+
+
+def elo_adjusted_lambda(
+    base_lambda: float,
+    player_elo: float,
+    opponent_elo: float,
+    stat: str = "games",
+) -> float:
+    """Adjust λ for a statistical market based on Elo difference.
+
+    Higher Elo → more likely to win games/sets → adjust λ upward.
+    ±100 Elo ≈ ±5% on λ. Clamped to ±15%.
+    """
+    elo_diff = player_elo - opponent_elo
+    adjustment_factor = 1.0 + (elo_diff / 2000.0)
+    adjustment_factor = max(0.85, min(1.15, adjustment_factor))
+    return base_lambda * adjustment_factor
+
+
+def load_tennis_elo(date: str) -> dict:
+    """Load tennis Elo ratings from cache if available.
+
+    Checks for date-specific file first, falls back to latest.
+    Returns dict keyed by player name → Elo rating, or empty dict.
+    """
+    elo_path = ROOT_DIR / "betting" / "data" / f"tennis_elo_{date}.json"
+    if not elo_path.exists():
+        elo_path = ROOT_DIR / "betting" / "data" / "tennis_elo_latest.json"
+    if elo_path.exists():
+        try:
+            return json.loads(elo_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            pass
+    return {}
 
 
 # ---------------------------------------------------------------------------

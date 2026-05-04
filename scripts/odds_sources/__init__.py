@@ -114,20 +114,25 @@ def make_event_id(source_name: str, sport: str, home: str, away: str, time_str: 
     return "_".join(parts)
 
 
+# Preferred bookmakers for downstream prioritization
+PREFERRED_BOOKMAKERS = ["betclic", "bet365", "pinnacle", "unibet", "betfair"]
+
 # Sport → ordered list of source names to try
 SPORT_SOURCE_PRIORITY = {
-    "football": ["the-odds-api", "api-football-odds", "oddsportal", "betexplorer", "betclic"],
-    "tennis": ["the-odds-api", "oddsportal", "betexplorer", "betclic"],
-    "basketball": ["the-odds-api", "oddsportal", "betexplorer", "betclic"],
-    "hockey": ["the-odds-api", "oddsportal", "betexplorer", "betclic"],
-    "baseball": ["the-odds-api", "oddsportal", "betexplorer", "betclic"],
-    "mma": ["the-odds-api", "oddsportal", "betexplorer", "betclic"],
-    "volleyball": ["oddsportal", "betexplorer", "betclic"],
-    "handball": ["oddsportal", "betexplorer", "betclic"],
-    "esports": ["oddsportal", "betexplorer", "betclic"],
-    "snooker": ["oddsportal", "betexplorer", "betclic"],
-    "darts": ["oddsportal", "betexplorer", "betclic"],
-    "table_tennis": ["oddsportal", "betexplorer", "betclic"],
-    "padel": ["betexplorer", "betclic"],
+    "football": ["the-odds-api", "odds-api-io", "api-football-odds", "oddsportal", "betexplorer", "betclic"],
+    "tennis": ["the-odds-api", "odds-api-io", "oddsportal", "betexplorer", "betclic"],
+    "basketball": ["the-odds-api", "odds-api-io", "oddsportal", "betexplorer", "betclic"],
+    "hockey": ["the-odds-api", "odds-api-io", "oddsportal", "betexplorer", "betclic"],
+    "baseball": ["the-odds-api", "odds-api-io", "oddsportal", "betexplorer", "betclic"],
+    "mma": ["the-odds-api", "odds-api-io", "oddsportal", "betexplorer", "betclic"],
+    "volleyball": ["odds-api-io", "oddsportal", "betexplorer", "betclic"],
+    "handball": ["odds-api-io", "oddsportal", "betexplorer", "betclic"],
+    "esports": ["odds-api-io", "oddsportal", "betexplorer", "betclic"],
+    "snooker": ["odds-api-io", "oddsportal", "betexplorer", "betclic"],
+    "darts": ["odds-api-io", "oddsportal", "betexplorer", "betclic"],
+    "table_tennis": ["odds-api-io", "oddsportal", "betexplorer", "betclic"],
+    "padel": ["odds-api-io", "betexplorer", "betclic"],
     "speedway": ["betexplorer", "betclic"],
+    "rugby": ["odds-api-io", "oddsportal", "betexplorer"],
+    "cricket": ["odds-api-io", "oddsportal", "betexplorer"],
 }

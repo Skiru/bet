@@ -143,5 +143,40 @@ class OddsPortalSource(OddsSource):
             return f"{date_from}T{clean}:00Z"
         return f"{date_from}T00:00:00Z"
 
+    def fetch_match_totals(self, match_url: str) -> dict:
+        """Fetch Over/Under totals odds from a match detail page.
+
+        Args:
+            match_url: Full URL to an OddsPortal match page.
+
+        Returns:
+            Dict with totals data, e.g.:
+            {"line": 2.5, "over": 1.85, "under": 1.95, "bookmaker": "oddsportal-avg"}
+            Returns {} if totals tab not found or page too complex to parse.
+        """
+        # TODO: Implement full totals parsing once OddsPortal page structure
+        # is reverse-engineered. The "Over/Under" tab uses dynamic JS rendering
+        # that requires clicking the tab and waiting for content to load.
+        # Current limitation: OddsPortal uses heavy React-based rendering
+        # that makes reliable automated extraction very fragile.
+        return {}
+
+    def fetch_top_match_totals(self, sport: str, date_from: str,
+                               max_matches: int = 20) -> list[dict]:
+        """Fetch totals for top N matches in a sport (stub).
+
+        Args:
+            sport: Internal sport key.
+            date_from: Date string YYYY-MM-DD.
+            max_matches: Maximum number of matches to fetch totals for.
+
+        Returns:
+            List of dicts with match info and totals odds.
+        """
+        # TODO: Implement once fetch_match_totals works.
+        # Plan: 1) Fetch listing page, 2) Extract match detail URLs,
+        # 3) Call fetch_match_totals for top N matches.
+        return []
+
 
 SOURCE = OddsPortalSource()

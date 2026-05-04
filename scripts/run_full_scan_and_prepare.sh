@@ -12,6 +12,9 @@ VENV_DIR="${ROOT_DIR}/.venv"
 # Ensure data directory exists
 mkdir -p "${DATA_DIR}"
 
+# Error counter for critical steps
+ERRORS=0
+
 # Create or reuse virtual environment
 if [ ! -d "${VENV_DIR}" ]; then
     echo "[orchestrator] Creating virtual environment at ${VENV_DIR}..."
@@ -281,21 +284,56 @@ python3 "${SCRIPT_DIR}/scan_events.py" --deep --max-deep-links 30 --workers 8 --
   https://tips180.com/ \
   https://www.tipstrr.com/tips \
   https://www.whoscored.com/Previews \
-  || echo "[WARNING] Scan finished with errors — check scan_errors.json"
+  || { echo "[ERROR] Scan finished with errors — check scan_errors.json"; ERRORS=$((ERRORS + 1)); }
 SCAN_END=$(date +%s)
 echo "[orchestrator] Scan took $((SCAN_END - SCAN_START)) seconds"
 
 echo ""
-echo "[6/14] Discovering fixtures via APIs..."
-python3 "${SCRIPT_DIR}/discover_fixtures.py" --date "$(date '+%Y-%m-%d')" || echo "[WARNING] API fixture discovery failed — continuing with scan results only"
+echo "[6-8/14] Steps 6-8: Parallel enrichment (discover + stats + odds)..."
 
-echo ""
-echo "[7/14] Fetching statistics from APIs..."
-python3 "${SCRIPT_DIR}/fetch_api_stats.py" --date "$(date '+%Y-%m-%d')" || echo "[WARNING] API stats fetch failed — continuing with existing data"
+python3 "${SCRIPT_DIR}/discover_fixtures.py" --date "$(date '+%Y-%m-%d')" > /tmp/discover_$$.log 2>&1 &
+PID_DISCOVER=$!
 
-echo ""
-echo "[8/14] Fetching multi-source odds..."
-python3 "${SCRIPT_DIR}/fetch_odds_multi.py" || echo "[WARNING] Multi-source odds fetch failed — run fetch_odds_api.py manually"
+python3 "${SCRIPT_DIR}/fetch_api_stats.py" --date "$(date '+%Y-%m-%d')" > /tmp/stats_$$.log 2>&1 &
+PID_STATS=$!
+
+python3 "${SCRIPT_DIR}/fetch_odds_multi.py" > /tmp/odds_$$.log 2>&1 &
+PID_ODDS=$!
+
+# Wait for all and collect results
+ENRICH_ERRORS=0
+
+wait $PID_DISCOVER
+if [ $? -ne 0 ]; then
+    echo "[WARNING] discover_fixtures failed"
+    cat /tmp/discover_$$.log
+    ENRICH_ERRORS=$((ENRICH_ERRORS + 1))
+else
+    echo "[OK] discover_fixtures completed"
+fi
+
+wait $PID_STATS
+if [ $? -ne 0 ]; then
+    echo "[WARNING] fetch_api_stats failed"
+    cat /tmp/stats_$$.log
+    ENRICH_ERRORS=$((ENRICH_ERRORS + 1))
+else
+    echo "[OK] fetch_api_stats completed"
+fi
+
+wait $PID_ODDS
+if [ $? -ne 0 ]; then
+    echo "[WARNING] fetch_odds_multi failed"
+    cat /tmp/odds_$$.log
+    ENRICH_ERRORS=$((ENRICH_ERRORS + 1))
+else
+    echo "[OK] fetch_odds_multi completed"
+fi
+
+echo "Parallel enrichment: ${ENRICH_ERRORS} failures"
+
+# Cleanup temp logs
+rm -f /tmp/discover_$$.log /tmp/stats_$$.log /tmp/odds_$$.log
 
 echo ""
 echo "[9/14] Generating deep analysis pool..."
@@ -303,19 +341,31 @@ python3 "${SCRIPT_DIR}/deep_analysis_pool.py" --date "$(date '+%Y-%m-%d')" || ec
 
 echo ""
 echo "[10/14] Aggregating and selecting candidates..."
-python3 "${SCRIPT_DIR}/aggregate_and_select.py"
+python3 "${SCRIPT_DIR}/aggregate_and_select.py" || { echo "[ERROR] Aggregation failed"; ERRORS=$((ERRORS + 1)); }
 
 echo ""
 echo "[11/14] Generating comprehensive market matrix (STATS-FIRST mode)..."
-python3 "${SCRIPT_DIR}/generate_market_matrix.py" --date "$(date '+%Y-%m-%d')" --stats-first || echo "[WARNING] Market matrix generation failed — continuing"
+if [ -z "${PIPELINE_MANAGED:-}" ]; then
+    python3 "${SCRIPT_DIR}/generate_market_matrix.py" --date "$(date '+%Y-%m-%d')" --stats-first || echo "[WARNING] Market matrix generation failed — continuing"
+else
+    echo "[SKIP] Managed by pipeline orchestrator (S1d)"
+fi
 
 echo ""
 echo "[12b/14] Building ranked S2 shortlist from market matrix..."
-python3 "${SCRIPT_DIR}/build_shortlist.py" --date "$(date '+%Y-%m-%d')" --top 100 --stats-first || echo "[WARNING] Shortlist generation failed — continuing"
+if [ -z "${PIPELINE_MANAGED:-}" ]; then
+    python3 "${SCRIPT_DIR}/build_shortlist.py" --date "$(date '+%Y-%m-%d')" --stats-first || echo "[WARNING] Shortlist generation failed — continuing"
+else
+    echo "[SKIP] Managed by pipeline orchestrator (S1e)"
+fi
 
 echo ""
 echo "[13/14] Fetching weather data for outdoor fixtures..."
-python3 "${SCRIPT_DIR}/fetch_weather.py" --date "$(date '+%Y-%m-%d')" || echo "[WARNING] Weather fetch failed — continuing"
+if [ -z "${PIPELINE_MANAGED:-}" ]; then
+    python3 "${SCRIPT_DIR}/fetch_weather.py" --date "$(date '+%Y-%m-%d')" || echo "[WARNING] Weather fetch failed — continuing"
+else
+    echo "[SKIP] Managed by pipeline orchestrator (S1b)"
+fi
 
 echo ""
 echo "[14/14] Summary..."
@@ -332,3 +382,8 @@ for f in "${DATA_DIR}/scan_summary.json" "${DATA_DIR}/picks_suggested.json" "${D
         echo "  [--] $(basename "$f") not created"
     fi
 done
+
+if [ $ERRORS -gt 0 ]; then
+    echo "[FATAL] $ERRORS critical step(s) failed"
+    exit 1
+fi

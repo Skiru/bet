@@ -23,5 +23,8 @@
     "mma",
     "padel"
   ],
-  "db_path": "betting/data/betting.db"
+  "db_path": "betting/data/betting.db",
+  "max_core_coupons": 15,
+  "max_combo_coupons": 20,
+  "max_singles": 50
 }

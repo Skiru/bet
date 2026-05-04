@@ -53,7 +53,7 @@ The pipeline has fully automated scripts for S3 (deep stats), S7 (gate checks), 
 5. **COMPARE:** Every data point needs ≥2 independent confirmations.
 6. **RETRY LOOP:** After the first scan pass, review `scan_errors.json` and ALL failed sources. Retry each failed source ONCE. If it works now, add its events. Log final status.
 
-**Minimums:** ≥50 events scanned, ≥80% scan completeness, 50-100 shortlist across ≥8 sports (via `build_shortlist.py --top 100 --stats-first`), final picks from ≥5 sports, core coupons scale with picks (target ≥5 when 10+ approved) + ≥4 combo coupons. KEY sports ≥60% of shortlist. **Target ≥30 picks in final market matrix for user to choose from.**
+**Minimums:** ≥50 events scanned, ≥80% scan completeness, shortlist across ≥8 sports (via `build_shortlist.py --stats-first`), final picks from ≥5 sports, core coupons scale with picks (target ≥5 when 10+ approved) + ≥4 combo coupons. KEY sports ≥60% of shortlist. **Target ≥30 picks in final market matrix for user to choose from.**
 
 **SESSION PARITY:** Session type (full/day/night) controls ONLY the event time window. Analysis depth, coupon count, all steps, all validation = IDENTICAL regardless of session.
 
@@ -156,11 +156,11 @@ This produces THREE files:
 
 **Then build the ranked shortlist:**
 ```bash
-python3 scripts/build_shortlist.py --date YYYY-MM-DD --top 100 --stats-first
+python3 scripts/build_shortlist.py --date YYYY-MM-DD --stats-first
 ```
 
 This produces:
-4. `betting/data/{date}_s2_shortlist.md` — 100 ranked candidates with sport diversity
+4. `betting/data/{date}_s2_shortlist.md` — all ranked candidates with sport diversity
 5. `betting/data/{date}_s2_shortlist.json` — structured shortlist for downstream steps
 
 **Purpose:** Bridge the gap between fixture discovery (hundreds of events) and analysis (which requires cached stats). The market matrix shows ALL discovered events with whatever data is available — odds, safety scores, scan data. Nothing is auto-rejected.
@@ -297,11 +297,11 @@ Tier E3 picks require ALL of: Betclic market confirmed, ≥2 sources with data, 
 
 ## STEP 2: FILTER — Shortlist
 
-**Automated shortlist generation:** `python3 scripts/build_shortlist.py --date YYYY-MM-DD --top 100 --stats-first`
+**Automated shortlist generation:** `python3 scripts/build_shortlist.py --date YYYY-MM-DD --stats-first`
 - Reads `market_matrix_{date}.json` and scores all events by: data tier, competition importance, sport tier, odds quality, tipster coverage
 - Enforces sport diversity (≥8 sports guaranteed, per-sport caps)
 - Deduplicates same-team events across sources
-- Produces `{date}_s2_shortlist.md` + `{date}_s2_shortlist.json` (100 ranked candidates)
+- Produces `{date}_s2_shortlist.md` + `{date}_s2_shortlist.json` (all ranked candidates, use `--top N` to cap)
 - **§1.8 Fixture verification:** Each candidate is cross-referenced against odds_api_snapshot.json and fixtures file. Verified candidates get ✅, unverified get ⚠️. Unverified events should be manually confirmed before S3 analysis to avoid phantom fixtures.
 - In STATS-FIRST mode, includes major competition FIXTURE_ONLY events for manual Betclic check
 

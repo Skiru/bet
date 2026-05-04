@@ -148,6 +148,21 @@ CREATE TABLE IF NOT EXISTS source_health (
 -- Indexes for common queries
 CREATE INDEX IF NOT EXISTS idx_fixtures_kickoff ON fixtures(kickoff);
 CREATE INDEX IF NOT EXISTS idx_fixtures_sport_status ON fixtures(sport_id, status);
+
+CREATE TABLE IF NOT EXISTS league_profiles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    competition_id INTEGER NOT NULL REFERENCES competitions(id),
+    stat_key TEXT NOT NULL,
+    season TEXT NOT NULL DEFAULT '',
+    avg_value REAL NOT NULL,
+    median_value REAL,
+    std_dev REAL,
+    sample_size INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL,
+    UNIQUE(competition_id, stat_key, season)
+);
+
+CREATE INDEX IF NOT EXISTS idx_league_profiles_comp ON league_profiles(competition_id);
 CREATE INDEX IF NOT EXISTS idx_match_stats_team_key ON match_stats(team_id, stat_key);
 CREATE INDEX IF NOT EXISTS idx_match_stats_fixture ON match_stats(fixture_id);
 CREATE INDEX IF NOT EXISTS idx_team_form_team_stat ON team_form(team_id, stat_key);

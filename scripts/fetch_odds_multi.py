@@ -26,6 +26,16 @@ DATA_DIR = ROOT_DIR / "betting" / "data"
 CONFIG_DIR = ROOT_DIR / "config"
 SCRIPTS_DIR = Path(__file__).resolve().parent
 
+# --- DB dual-write support (optional — falls back gracefully) ---
+try:
+    sys.path.insert(0, str(ROOT_DIR / "src"))
+    from bet.db.connection import get_db
+    from bet.db.repositories import SportRepo, TeamRepo, FixtureRepo, OddsRepo
+    from bet.db.models import Fixture, OddsRecord
+    _HAS_DB = True
+except ImportError:
+    _HAS_DB = False
+
 # Ensure scripts/ is importable
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
@@ -42,6 +52,7 @@ from odds_sources import (
 
 _SOURCE_MODULES = {
     "the-odds-api": ("odds_sources.the_odds_api", "SOURCE"),
+    "odds-api-io": ("odds_sources.odds_api_io_source", "SOURCE"),
     "api-football-odds": ("odds_sources.api_football_odds", "SOURCE"),
     "oddsportal": ("odds_sources.oddsportal_scraper", "SOURCE"),
     "betexplorer": ("odds_sources.betexplorer_scraper", "SOURCE"),
@@ -105,6 +116,84 @@ def extract_best_odds(event: dict) -> dict:
         if best:
             result["markets"][market_type] = best
     return result
+
+
+def _persist_odds_to_db(events: list[dict]) -> None:
+    """Dual-write odds data to SQLite knowledge base.
+
+    For each event with bookmaker odds, resolves teams and fixture,
+    then saves individual OddsRecord entries.
+    """
+    if not _HAS_DB:
+        return
+
+    now_ts = datetime.now(timezone.utc).isoformat()
+
+    with get_db() as conn:
+        sport_repo = SportRepo(conn)
+        team_repo = TeamRepo(conn)
+        fixture_repo = FixtureRepo(conn)
+        odds_repo = OddsRepo(conn)
+
+        saved = 0
+        for ev in events:
+            sport_name = ev.get("_our_sport", "")
+            home_name = ev.get("home_team", "")
+            away_name = ev.get("away_team", "")
+            kickoff = ev.get("commence_time", "")
+
+            if not sport_name or not home_name or not away_name or not kickoff:
+                continue
+
+            sport_obj = sport_repo.get_by_name(sport_name)
+            if not sport_obj:
+                continue
+
+            home_team = team_repo.find_or_create(home_name, sport_obj.id)
+            away_team = team_repo.find_or_create(away_name, sport_obj.id)
+
+            fixture = Fixture(
+                id=None,
+                sport_id=sport_obj.id,
+                competition_id=None,
+                home_team_id=home_team.id,
+                away_team_id=away_team.id,
+                kickoff=kickoff,
+                status="scheduled",
+                external_id=ev.get("id", ""),
+                source=ev.get("_source", "odds_multi"),
+                fetched_at=now_ts,
+            )
+            fixture_id = fixture_repo.upsert(fixture)
+
+            # Save odds from each bookmaker
+            for bm in ev.get("bookmakers", []):
+                bm_name = bm.get("title", bm.get("key", "unknown"))
+                for market in bm.get("markets", []):
+                    market_key = market.get("key", "")
+                    for outcome in market.get("outcomes", []):
+                        price = outcome.get("price", 0)
+                        if not price:
+                            continue
+                        selection = outcome.get("name", "")
+                        line = outcome.get("point")
+
+                        record = OddsRecord(
+                            id=None,
+                            fixture_id=fixture_id,
+                            bookmaker=bm_name,
+                            market=market_key,
+                            selection=selection,
+                            odds=price,
+                            line=line,
+                            fetched_at=now_ts,
+                            is_closing=False,
+                        )
+                        odds_repo.save_odds(record)
+                        saved += 1
+
+        if saved:
+            print(f"  [DB] Persisted {saved} odds records to knowledge base")
 
 
 def run_multi_scan(
@@ -288,6 +377,12 @@ def run_multi_scan(
         provenance_data["errors"] = errors
     provenance_file = DATA_DIR / "odds_multi_sources.json"
     provenance_file.write_text(json.dumps(provenance_data, indent=2, ensure_ascii=False))
+
+    # Dual-write to DB (non-blocking)
+    try:
+        _persist_odds_to_db(all_events)
+    except Exception as db_exc:
+        print(f"  [DB WARNING] Odds DB write failed: {db_exc}")
 
     # Print summary
     print(f"\n{'=' * 80}")

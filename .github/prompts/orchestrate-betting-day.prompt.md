@@ -60,7 +60,7 @@ REQUIRED READS:
 
 **ALL sessions (full/day/night/morning) execute the EXACT SAME pipeline:**
 - Same 4-pass protocol (Discovery → Targeted Fixes → Polish → Final)
-- Same S0 → S1 → S1b (PARALLEL: odds+weather+tipsters) → S1d → S1e → S3 → S7 → S8 → S9 → S10 automated step sequence
+- Same S0 → S1 → S1a(discover) → S1b(PARALLEL: odds+weather+tipsters) → S1c(aggregate) → S1d → S1e → S2(tipster xref) → S3 → S4(odds eval) → S5(context) → S6(upset risk) → S7 → S8 → S9 → S10 automated step sequence
 - Same 14-sport scan in S1 (ALL sports, even if most have 0 events in the window)
 - Same deep analysis (S3-S7): H2H, tipsters, injuries, bear case, 17-point gate
 - Coupon count = f(quality events, deep statistics), NOT f(bankroll). Produce as many as quality justifies.
@@ -96,19 +96,29 @@ python3 scripts/pipeline_orchestrator.py --date YYYY-MM-DD [--session full|day|n
 
 This runs the ENTIRE pipeline S0→S10 automatically:
 - **S0**: Betclic history analysis (`analyze_betclic_learning.py`)
-- **S1**: Full 14-sport scan (`run_full_scan_and_prepare.sh`) — **domain-grouped parallel scanning** (6 workers, ~8 min vs 30+ min sequential)
-- **S1b**: Odds + weather + tipsters in PARALLEL (ThreadPoolExecutor, 3 workers)
-- **S1d**: Market matrix generation (`generate_market_matrix.py --stats-first`)
-- **S1e**: Ranked shortlist (`build_shortlist.py --top 100 --stats-first`)
-- **S3**: Deep stats analysis — **8-worker parallel candidate analysis**, Poisson/NegBin probability enrichment, error-resilient (one crash doesn't kill batch)
-- **S7**: 17-point gate — **stats-first EV fix** (passes candidates without odds with advisory), sport-specific H2H penalties
-- **S8**: Coupon construction — **rich per-leg analysis rationale** in Polish (safety rank, L10/H2H margins, P(hit), form trends, risk factors), Kelly 1/4 staking
+- **S1**: Full 14-sport scan (`run_full_scan_and_prepare.sh`) — **domain-grouped parallel scanning** (8 workers, timeout: 30 min incl. enrichment + aggregation)
+- **S1a**: API fixture discovery + stats enrichment (`discover_fixtures.py` + `fetch_api_stats.py`, timeout: 5 min)
+- **S1b**: Odds + weather + tipsters in PARALLEL (ThreadPoolExecutor, 5 workers, timeout: 10 min)
+- **S1c**: Aggregate scan + analysis pool (`aggregate_and_select.py` + `deep_analysis_pool.py`, timeout: 2 min)
+- **S1d**: Market matrix generation (`generate_market_matrix.py --stats-first`, timeout: 2 min)
+- **S1e**: Ranked shortlist (`build_shortlist.py --stats-first`, all candidates — no cap, timeout: 2 min)
+- **S2**: Tipster cross-reference (timeout: 1 min)
+- **S3**: Deep stats analysis — **8-worker parallel candidate analysis**, Poisson/NegBin probability enrichment, error-resilient (timeout: 10 min)
+- **S4**: Odds evaluation — cross-validate odds, compute EV, detect drift >8% (timeout: 2 min)
+- **S5**: Context checks — weather impact, venue, referee, roster changes (timeout: 1 min)
+- **S6**: Upset risk scoring — sport-specific checklists (timeout: 2 min)
+- **S7**: 17-point gate — **stats-first EV fix** (passes candidates without odds with advisory), sport-specific H2H penalties (timeout: 5 min)
+- **S8**: Coupon construction — Kelly 1/4 staking with true probability, rich per-leg Polish analysis (timeout: 2 min)
 - **S9**: V1-V10 validation (expanded odds regex matches `@1.85` and `(1.85)`)
 - **S10**: Final summary
 
 State tracking with `--resume` support. Use `--status` to check progress. Use `--skip-scan` to re-run analysis only.
 
-**Config keys used:** `bankroll_pln` (fallback: `working_bankroll_pln`), `daily_exposure_range` (fallback: `suggested_daily_allocation_range_pln`).
+**Per-step timeouts** — each step has its own timeout (scan: 15 min, S3: 10 min, gate: 5 min, etc.) instead of a single 40-minute global timeout. A slow scan won't block the entire pipeline.
+
+**SQLite DB** — all pipeline outputs are dual-written to `betting/data/betting.db` (14-table schema: events, picks, coupons, odds_snapshots, gate_results, etc.) alongside flat files.
+
+**Config keys used:** `bankroll_pln` (fallback: `working_bankroll_pln`), `daily_exposure_range` (fallback: `suggested_daily_allocation_range_pln`), `db_path`.
 
 ### OPTION B: Manual step-by-step (fallback)
 
@@ -129,10 +139,11 @@ Before any pass, ensure:
    - Combines ALL data sources (fixtures, odds, scan, stats cache, analysis pool)
    - Produces `betting/data/market_matrix_{date}.json` + `.md` (full event universe with ALL odds/safety data)
    - Produces `betting/data/decision_matrix_{date}.md` (compact bettable opportunities sorted by safety score)
-6. **Build ranked shortlist**: `python3 scripts/build_shortlist.py --date YYYY-MM-DD --top 100 --stats-first`
+6. **Build ranked shortlist**: `python3 scripts/build_shortlist.py --date YYYY-MM-DD --stats-first`
    - Reads market matrix and scores all events by data quality, competition importance, odds, tipster coverage
    - Enforces sport diversity (≥8 sports, per-sport caps)
-   - Produces `betting/data/{date}_s2_shortlist.md` + `.json` (100 ranked candidates)
+   - Produces `betting/data/{date}_s2_shortlist.md` + `.json` (ALL candidates ranked — no hardcoded cap)
+   - Use `--top N` only if you want to explicitly limit (default: process all)
    - This is the PRIMARY input for S2 → S3 deep analysis
 6. **Fetch weather for outdoor venues**: `python3 scripts/fetch_weather.py --date YYYY-MM-DD`
    - Open-Meteo API (free, unlimited, no API key) → produces `betting/data/weather_{date}.json`
@@ -173,22 +184,23 @@ Each pass executes these steps IN ORDER. Each step:
 |------|--------|-------|-------|--------|------|
 | S0 | `s0-settlement` | bet-settler | picks-ledger, coupons-ledger, Flashscore | `{date}_s0_settlement.md` | All pending resolved, bankroll updated |
 | S1 | `s1-scan` | bet-scanner | BetExplorer, Flashscore, scan_summary, **analysis_pool_{date}.json**, **market_matrix_{date}.json** | `{date}_s1_master_events.md` + `{date}_s1_tipster_prefetch.md` | ≥50 events, ALL 14 sports scanned (≥6 with events), completeness ≥80%, **tipster HTML fetched** |
-| S1b | _(auto)_ | _(script)_ | **PARALLEL**: `fetch_odds_api.py` + `fetch_weather.py` + `tipster_aggregator.py` | `odds_api_snapshot.json`, `weather_{date}.json`, `{date}_tipster_consensus.json` | Odds + weather + tipster consensus |
-| S1d | _(auto)_ | _(script)_ | `generate_market_matrix.py --date {date} --stats-first` | `market_matrix_{date}.json/md`, `decision_matrix_{date}.md` | Full event universe with all odds + safety data |
-| S2 | _(auto + agent)_ | bet-scanner | `build_shortlist.py --date {date} --top 100 --stats-first` → agent refines | `{date}_s2_shortlist.md` + `{date}_s2_shortlist.json` | 50-100 candidates, ≥8 sports in shortlist |
-| **S3+S4** | **PARALLEL** | | S2 output → both | | |
-| S3 | **AUTOMATED** (`deep_stats_report.py`, 8-worker parallel) + `s3-deep-stats` supplement | bet-statistician | S2 shortlist, **analysis_pool** (pre-computed safety), stats cache | `{date}_s3_deep_stats.md/json` | **Script runs §3.0 market ranking + Poisson/NegBin probability. Sport-specific H2H penalties (0.70-0.90). Agent supplements for candidates without API data. ANALYTICAL GATE: ANALYTICAL REASONING section per candidate (edge mechanism, pattern insight, anomaly check, edge hypothesis).** |
-| S4 | `s4-tipsters` | bet-scout | S2 output + **§1.5 pre-fetched HTML** | `{date}_s4_tipsters.md` | **STRUCTURAL: ≥2 tipster sites with arguments per candidate + coverage table + §4.3 done. ANALYTICAL GATE: TIPSTER INTELLIGENCE section per candidate (argument quality, independence, contrarian signals, angle discovery).** |
-| **S5+S6** | **PARALLEL** | | S3+S4 merged → both | | |
-| S5 | `s5-odds-ev` | bet-valuator | S3+S4 output, **analysis_pool** (pre-computed EV) | `{date}_s5_odds_ev.md` | EV formula shown per pick, ≥2 odds sources per pick. **ANALYTICAL GATE: MARKET INTELLIGENCE section per candidate (line reasoning, money flow, mispricing vector, edge durability).** |
-| S6 | `s6-context-upset` | bet-challenger | S3+S4 output | `{date}_s6_context.md` | Upset risk scored with full checklist per candidate, Paradox Rule applied. **ANALYTICAL GATE: CONTEXTUAL REASONING per candidate (motivation analysis, context-stat interaction, compounding factors).** |
-| S7 | **AUTOMATED** (`gate_checker.py`) + `s7-bear-case-gate` supplement | bet-challenger | S5+S6 output | `{date}_s7_gate.md/json` | **Script runs 17-point gate, stats-first EV pass (no odds → advisory, not rejection), red flags, risk tiers. Agent builds qualitative bear cases for borderline picks. ANALYTICAL GATE: DEEP ADVERSARIAL REASONING per candidate (scenario model, assumption audit, historical analogy, Bayesian update).** |
-| S3B | `s3b-time-sensitive` | bet-statistician | S7 + S5 output + `weather_{date}.json` | `{date}_s3b_time_sensitive.md` | Lineups, weather (from `fetch_weather.py`), odds drift formula per pick |
-| S8 | **AUTOMATED** (`coupon_builder.py`) + `s8-portfolio-coupons` review | bet-builder | S7+S3B output | Coupon file + ledgers | **Script builds core portfolio + combo menu + extended pool with Kelly 1/4 stakes + rich per-leg Polish analysis (safety rank, L10/H2H margins, P(hit), form trends). Agent reviews and runs V1-V10 + §S8.FINAL.** |
+| S1a | _(auto)_ | _(script)_ | API-Football/Basketball/Hockey/Tennis/Volleyball/Handball/Baseball, TheSportsDB | `analysis_pool_{date}.json` | API fixture discovery + L10 form + H2H stats enrichment (timeout: 5 min) |
+| S1b | _(auto)_ | _(script)_ | **PARALLEL**: `fetch_odds_api.py` + `fetch_weather.py` + `tipster_aggregator.py` | `odds_api_snapshot.json`, `weather_{date}.json`, `{date}_tipster_consensus.json` | Odds + weather + tipster consensus (timeout: 10 min) |
+| S1c | _(auto)_ | _(script)_ | `aggregate_and_select.py` + `deep_analysis_pool.py` | `analysis_pool_{date}.json/md` | Aggregate scan results + pre-computed safety scores + market rankings (timeout: 2 min) |
+| S1d | _(auto)_ | _(script)_ | `generate_market_matrix.py --date {date} --stats-first` | `market_matrix_{date}.json/md`, `decision_matrix_{date}.md` | Full event universe with all odds + safety data (timeout: 2 min) |
+| S1e | _(auto)_ | _(script)_ | `build_shortlist.py --date {date} --stats-first` | `{date}_s2_shortlist.md/json` | All candidates ranked, ≥8 sports (timeout: 2 min) |
+| S2 | _(auto)_ | _(script)_ | tipster consensus + shortlist | tipster cross-reference data | Cross-reference picks with tipster consensus (timeout: 1 min) |
+| S3 | **AUTOMATED** (`deep_stats_report.py`, 8-worker parallel) + `s3-deep-stats` supplement | bet-statistician | S2 shortlist, **analysis_pool** (pre-computed safety), stats cache | `{date}_s3_deep_stats.md/json` | **Script runs §3.0 market ranking + Poisson/NegBin probability. Sport-specific H2H penalties (0.70-0.90). Agent supplements for candidates without API data. ANALYTICAL GATE: ANALYTICAL REASONING section per candidate. (timeout: 10 min)** |
+| S4 | _(auto)_ | _(script)_ | S3 output + odds snapshots + analysis_pool EV | `{date}_s4_odds_eval.json` | **Cross-validate odds, compute EV, detect drift >8%. (timeout: 2 min)** |
+| S5 | _(auto)_ | _(script)_ | S3 output + weather + venue data | `{date}_s5_context.json` | **Weather impact, venue, referee, roster changes. (timeout: 1 min)** |
+| S6 | _(auto)_ | _(script)_ | S3 output + upset risk checklists | `{date}_s6_upset_risk.json` | **Score upset risk per candidate using sport-specific checklists. (timeout: 2 min)** |
+| S7 | **AUTOMATED** (`gate_checker.py`) + `s7-bear-case-gate` supplement | bet-challenger | S4+S5+S6 output | `{date}_s7_gate.md/json` | **Script runs 17-point gate, stats-first EV pass (no odds → advisory, not rejection), red flags, risk tiers. Agent builds qualitative bear cases for borderline picks. ANALYTICAL GATE: DEEP ADVERSARIAL REASONING per candidate. (timeout: 5 min)** |
+| S3B | `s3b-time-sensitive` | bet-statistician | S7 output + `weather_{date}.json` | `{date}_s3b_time_sensitive.md` | Lineups, weather (from `fetch_weather.py`), odds drift formula per pick |
+| S8 | **AUTOMATED** (`coupon_builder.py`) + `s8-portfolio-coupons` review | bet-builder | S7+S3B output | Coupon file + ledgers | **Script builds core portfolio + combo menu + extended pool with Kelly 1/4 stakes + rich per-leg Polish analysis (safety rank, L10/H2H margins, P(hit), form trends). Agent reviews and runs V1-V10 + §S8.FINAL. (timeout: 2 min)** |
 
-**PARALLEL EXECUTION:** S3 and S4 both receive S2 shortlist as input. Neither depends on the other. Delegate simultaneously via `runSubagent`. Wait for BOTH to complete. Similarly, S5 and S6 both receive merged S3+S4 output — delegate simultaneously.
+**PARALLEL EXECUTION:** S4 (odds eval), S5 (context), and S6 (upset risk) all receive S3 output as input. None depends on the others. They run in parallel within the pipeline orchestrator. S7 waits for ALL three to complete before running the 17-point gate.
 
-**NOTE:** S3B runs AFTER S7 (bear case) but BEFORE S8 (coupons) so that lineup/weather findings can still void picks before coupon construction. S3B should run within 2-3h of earliest event kickoff. If analysis is done well before kickoff, S3B can be a separate later run — the orchestrator supports both modes.
+**PER-STEP TIMEOUTS:** Each step has its own timeout (shown above). A single slow source in S1 (30 min max) won't block S3 (10 min max). If any step times out, the pipeline logs the failure and continues with available data rather than aborting after 40 minutes.
 
 ---
 
@@ -271,7 +283,7 @@ This eliminates 2 unnecessary passes when the pipeline produces clean output on 
 
 ### PASS 1 — DISCOVERY (find all errors)
 
-Execute S0 → S1 → S1b(parallel) → S1d → S1e → S3 → S7 → S8 → S9 → S10 fully. At each step:
+Execute S0 → S1 → S1a → S1b(parallel) → S1c → S1d → S1e → S2 → S3 → S4+S5+S6(parallel) → S7 → S8 → S9 → S10 fully. At each step:
 - Run the step's self-verification checklist
 - Log EVERY failure to: `betting/data/{date}_pass1_errors.md`
 - Format: `| Step | Check | Status | Error Description | Fix Required |`

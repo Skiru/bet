@@ -22,3 +22,16 @@ Route this user message to the appropriate specialist agent.
 5. For QUESTION/ACTION: delegate to the matched specialist agent with context files and session state.
 6. For multi-domain messages: follow the multi-domain triage protocol (max 2 agent calls).
 7. Return the specialist's answer to the user.
+
+## DATA SOURCES AVAILABLE
+
+When answering questions, check these sources in order of freshness:
+- **SQLite DB**: `betting/data/betting.db` — 14-table schema (events, picks, coupons, odds_snapshots, gate_results, etc.). Query for structured data.
+- **Flat files**: `betting/data/` — scan summaries, market matrices, deep stats, analysis pools, weather data
+- **Ledgers**: `betting/journal/picks-ledger.csv`, `coupons-ledger.csv`, `source-log.csv`, `learning-log.csv`
+- **Config**: `config/betting_config.json` — bankroll, daily cap, sports, thresholds, db_path
+- **Betclic history**: `betting/data/betclic_bets_history.json` — real placed bets (run `python3 scripts/analyze_betclic_learning.py` for analysis)
+- **Coupons**: `betting/coupons/` — versioned coupon files per day
+- **Reports**: `betting/reports/` — daily reports
+- **Pipeline state**: `betting/data/pipeline_state_{date}.json` — step-by-step progress with timestamps
+- **Probability engine**: `scripts/probability_engine.py` — Poisson/NegBin with bootstrap CI, multi-line optimization, Bayesian league priors, weather modifiers, tennis Elo

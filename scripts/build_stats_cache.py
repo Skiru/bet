@@ -16,9 +16,103 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+# --- DB dual-write support (optional — falls back gracefully) ---
+try:
+    import sys as _sys
+    _sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+    from bet.db.connection import get_db
+    from bet.db.repositories import SportRepo, TeamRepo, StatsRepo
+    from bet.db.models import TeamForm
+    _HAS_DB = True
+except ImportError:
+    _HAS_DB = False
+
 CACHE_DIR = Path(__file__).parent.parent / "betting" / "data" / "stats_cache"
 FORM_TTL_HOURS = 24
 H2H_TTL_HOURS = 168  # 7 days
+
+
+def _persist_to_db(sport: str, team_name: str, stats_data: dict) -> None:
+    """Dual-write team form data to SQLite knowledge base.
+
+    Resolves sport/team, then saves TeamForm records for each stat key found
+    in the cache entry's form averages.
+    """
+    if not _HAS_DB:
+        return
+
+    form = stats_data.get("form", {})
+    l10_avg = form.get("l10_avg", {})
+    l5_avg = form.get("l5_avg", {})
+    l10_matches = form.get("l10_matches", [])
+
+    if not l10_avg:
+        return
+
+    with get_db() as conn:
+        sport_repo = SportRepo(conn)
+        team_repo = TeamRepo(conn)
+        stats_repo = StatsRepo(conn)
+
+        sport_obj = sport_repo.get_by_name(sport)
+        if not sport_obj:
+            return
+
+        team_obj = team_repo.find_or_create(team_name, sport_obj.id)
+
+        now_ts = datetime.now(timezone.utc).isoformat()
+        source = stats_data.get("api_source", "stats_cache")
+
+        for stat_key, avg_val in l10_avg.items():
+            # Extract per-match values for this stat from l10_matches
+            l10_values = _extract_stat_series(l10_matches, stat_key, 10)
+            l5_values = l10_values[:5]
+
+            l10_computed = avg_val
+            l5_computed = l5_avg.get(stat_key)
+
+            trend = ""
+            if l5_computed is not None and l10_computed:
+                if l5_computed > l10_computed:
+                    trend = "↑"
+                elif l5_computed < l10_computed:
+                    trend = "↓"
+                else:
+                    trend = "→"
+
+            tf = TeamForm(
+                id=None,
+                team_id=team_obj.id,
+                sport_id=sport_obj.id,
+                stat_key=stat_key,
+                l10_values=l10_values,
+                l5_values=l5_values,
+                l10_avg=l10_computed,
+                l5_avg=l5_computed,
+                h2h_values=[],
+                h2h_opponent_id=None,
+                trend=trend,
+                updated_at=now_ts,
+                source=source,
+            )
+            stats_repo.save_team_form(tf)
+
+
+def _extract_stat_series(matches: list[dict], stat_key: str, n: int) -> list[float]:
+    """Extract numeric values for a stat key from match entries."""
+    values: list[float] = []
+    for match in matches[:n]:
+        stats = match.get("stats", {})
+        val = stats.get(stat_key)
+        if val is not None:
+            if isinstance(val, (int, float)):
+                values.append(float(val))
+            elif isinstance(val, dict):
+                # Use home side (normalized to team's own stats)
+                home_val = val.get("home")
+                if isinstance(home_val, (int, float)):
+                    values.append(float(home_val))
+    return values
 
 
 def slugify(name: str) -> str:
@@ -298,7 +392,15 @@ def update_from_api(
         api_source=api_source,
     )
 
-    return update_cache(sport, team, entry)
+    path = update_cache(sport, team, entry)
+
+    # Dual-write to DB (non-blocking)
+    try:
+        _persist_to_db(sport, team, entry)
+    except Exception:
+        pass  # DB failure must not break JSON workflow
+
+    return path
 
 
 def _compute_stat_averages(matches: list[dict]) -> dict:
@@ -514,6 +616,12 @@ def main():
         )
         path = update_cache(args.sport, args.team, entry)
         print(f"Cached: {path}")
+
+        # Dual-write to DB (non-blocking)
+        try:
+            _persist_to_db(args.sport, args.team, entry)
+        except Exception:
+            pass
 
     elif args.command == "shortlist":
         teams = parse_shortlist_teams(args.file)

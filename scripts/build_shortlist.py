@@ -2,11 +2,11 @@
 """Build a ranked S2 shortlist from the market matrix.
 
 Scores every event by data quality, competition importance, odds attractiveness,
-and sport diversity, then selects the top N candidates.
+and sport diversity, then selects candidates (all by default, or --top N to cap).
 
 Usage:
-    python3 scripts/build_shortlist.py --date 2026-04-30 --top 100
-    python3 scripts/build_shortlist.py --date 2026-04-30 --top 100 --stats-first
+    python3 scripts/build_shortlist.py --date 2026-04-30 --stats-first
+    python3 scripts/build_shortlist.py --date 2026-04-30 --top 50 --stats-first
 """
 from __future__ import annotations
 
@@ -342,11 +342,12 @@ def _load_tipster_events(date: str) -> set[str]:
 
 def build_shortlist(
     date: str,
-    top_n: int = 100,
+    top_n: int = 0,
     stats_first: bool = False,
     min_sports: int = 8,
 ) -> list[dict]:
-    """Build a ranked shortlist of top_n events from the market matrix."""
+    """Build a ranked shortlist of top_n events from the market matrix.
+    top_n=0 means no cap (return all eligible candidates)."""
     matrix_path = DATA_DIR / f"market_matrix_{date}.json"
     if not matrix_path.exists():
         print(f"[shortlist] ERROR: {matrix_path} not found. Run generate_market_matrix.py first.")
@@ -516,9 +517,15 @@ def build_shortlist(
                 sport_counts[sport] += 1
 
     # Phase 2: fill remaining slots by global score, cap per sport
-    remaining = top_n - len(selected)
-    max_per_sport_key = max(top_n // 4, 8)  # KEY sports: max 25%
-    max_per_sport_sup = max(top_n // 8, 4)  # SUPPORT sports: max ~12%
+    if top_n > 0:
+        remaining = top_n - len(selected)
+        max_per_sport_key = max(top_n // 4, 8)  # KEY sports: max 25%
+        max_per_sport_sup = max(top_n // 8, 4)  # SUPPORT sports: max ~12%
+    else:
+        remaining = len(scored)  # no cap
+        total_scored = len(scored)
+        max_per_sport_key = max(total_scored // 4, 8)
+        max_per_sport_sup = max(total_scored // 8, 4)
 
     if remaining > 0:
         for score, event in scored:
@@ -532,7 +539,7 @@ def build_shortlist(
             selected.append((score, event))
             selected_keys.add(key)
             sport_counts[sport] += 1
-            if len(selected) >= top_n:
+            if top_n > 0 and len(selected) >= top_n:
                 break
 
     # Re-sort by score
@@ -714,7 +721,7 @@ def write_shortlist_json(selected: list[tuple[float, dict]], date: str) -> Path:
 def main():
     parser = argparse.ArgumentParser(description="Build ranked S2 shortlist from market matrix")
     parser.add_argument("--date", help="Date YYYY-MM-DD (default: today)")
-    parser.add_argument("--top", type=int, default=100, help="Number of candidates to select (default: 100)")
+    parser.add_argument("--top", type=int, default=0, help="Max candidates to select (default: 0 = all)")
     parser.add_argument("--stats-first", action="store_true",
                         help="Include FIXTURE_ONLY events from major competitions")
     parser.add_argument("--min-sports", type=int, default=8, help="Minimum sport diversity (default: 8)")

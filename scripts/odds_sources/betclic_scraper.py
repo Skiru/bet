@@ -1,9 +1,10 @@
 """Betclic scraper source — uses Playwright + betclic_adapter.
 
-NOTE: Betclic blocks automated access (403). This source handles failures
-gracefully and returns [] on any error.
+NOTE: Betclic blocks automated access (403). This source attempts to use
+saved session cookies from betclic_login.py. Falls back gracefully.
 """
 
+import asyncio
 import sys
 import time as _time
 from pathlib import Path
@@ -14,6 +15,9 @@ if _SCRIPTS_DIR not in sys.path:
 
 from odds_sources import OddsSource, make_event_id
 from api_clients.rate_limiter import RateLimiter
+
+# Session storage saved by betclic_login.py
+_STORAGE_PATH = Path(__file__).resolve().parent.parent / "playwright_storage" / "betclic.pl.json"
 
 SPORT_URLS = {
     "football": "https://www.betclic.pl/pilka-nozna-s1",
@@ -61,17 +65,22 @@ class BetclicSource(OddsSource):
             return []
 
         try:
-            from fetch_with_playwright import fetch as pw_fetch
             from adapters.betclic_adapter import parse as bc_parse
         except ImportError as e:
             print(f"[betclic] Import error: {e}")
             return []
 
-        try:
-            html = pw_fetch(url)
-        except Exception as e:
-            print(f"[betclic] Playwright error for {sport}: {e} (likely 403)")
-            return []
+        # Try session-based fetch first (using saved cookies from betclic_login.py)
+        html = self._fetch_with_session_sync(url)
+
+        if not html:
+            # Fallback to standard Playwright fetch (likely 403)
+            try:
+                from fetch_with_playwright import fetch as pw_fetch
+                html = pw_fetch(url)
+            except Exception as e:
+                print(f"[betclic] Playwright error for {sport}: {e} (likely 403)")
+                return []
 
         self._limiter.record_request("betclic-scraper", url)
         _time.sleep(3)
@@ -116,6 +125,46 @@ class BetclicSource(OddsSource):
             })
 
         return events
+
+    def _fetch_with_session_sync(self, url: str) -> str | None:
+        """Fetch page using saved Betclic session cookies (sync wrapper)."""
+        try:
+            return asyncio.run(self._fetch_with_session(url))
+        except Exception as e:
+            print(f"[betclic] Session fetch failed: {e}")
+            return None
+
+    async def _fetch_with_session(self, url: str) -> str | None:
+        """Fetch page using saved Playwright session state from betclic_login.py."""
+        try:
+            from playwright.async_api import async_playwright
+        except ImportError:
+            return None
+
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            context_kwargs = {
+                "locale": "pl-PL",
+                "viewport": {"width": 1920, "height": 1080},
+            }
+            if _STORAGE_PATH.exists():
+                context_kwargs["storage_state"] = str(_STORAGE_PATH)
+            else:
+                print("[betclic] No saved session found — trying without cookies")
+
+            context = await browser.new_context(**context_kwargs)
+            page = await context.new_page()
+            try:
+                response = await page.goto(url, wait_until="domcontentloaded", timeout=15000)
+                if response and response.status == 200:
+                    return await page.content()
+                elif response:
+                    print(f"[betclic] Session fetch got HTTP {response.status}")
+            except Exception as e:
+                print(f"[betclic] Session navigation error: {e}")
+            finally:
+                await browser.close()
+        return None
 
     @staticmethod
     def _build_outcomes(home: str, away: str, odds_raw: list, is_two_way: bool) -> list[dict]:

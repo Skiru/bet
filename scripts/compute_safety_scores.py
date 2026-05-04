@@ -17,6 +17,14 @@ import statistics
 import sys
 from pathlib import Path
 
+try:
+    from probability_engine import optimize_line
+except ImportError:
+    try:
+        from scripts.probability_engine import optimize_line
+    except ImportError:
+        optimize_line = None
+
 # Minimum markets required per sport
 MIN_MARKETS = {
     "football": 4,  # fouls + cards + corners + shots
@@ -341,6 +349,40 @@ def rank_markets(data: dict) -> dict:
             "h2h_blind": total_h2h == 0,
             "three_way_check": per_market_three_way,
         })
+
+    # --- Multi-line optimization (Task 7.1) ---
+    # If a market has available_lines data, optimize to find best line
+    for r in results:
+        mkt = next((m for m in markets if m["name"] == r["name"]), None)
+        available_lines = mkt.get("available_lines") if mkt else None
+        if available_lines and optimize_line is not None:
+            combined_vals = compute_combined_values(mkt) if mkt else []
+            avg_val = statistics.mean(combined_vals) if combined_vals else r["combined_avg"]
+            std_val = statistics.stdev(combined_vals) if len(combined_vals) >= 2 else 0.0
+            # Infer model: goals/corners/cards → poisson; points/totals → normal
+            name_lower = r["name"].lower()
+            if any(kw in name_lower for kw in ("point", "total", "score")):
+                mdl = "normal"
+            else:
+                mdl = "poisson"
+            opt = optimize_line(
+                base_stat=name_lower,
+                avg_value=avg_val,
+                std_dev=std_val,
+                available_lines=available_lines,
+                model=mdl,
+            )
+            if opt.get("best_line") is not None:
+                r["optimized_line"] = opt["best_line"]
+                r["optimized_direction"] = opt["direction"]
+                r["optimized_prob"] = opt["prob"]
+                r["optimized_ev"] = opt["ev"]
+                r["optimized_safety"] = opt["safety_score"]
+                # Use optimized safety if it's better than the hit-rate safety
+                if opt["ev"] is not None and opt["ev"] > 0 and opt["safety_score"] > r["safety_score"]:
+                    r["safety_score"] = opt["safety_score"]
+                    r["line"] = opt["best_line"]
+                    r["direction"] = opt["direction"].upper()
 
     # Sort by safety score (desc), margin as tiebreaker (desc)
     results.sort(key=lambda x: (x["safety_score"], x["margin"]), reverse=True)
