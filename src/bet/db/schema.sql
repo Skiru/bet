@@ -1,4 +1,4 @@
--- Betting system schema v1
+-- Betting system schema v2
 
 PRAGMA journal_mode = WAL;
 PRAGMA foreign_keys = ON;
@@ -75,6 +75,12 @@ CREATE TABLE IF NOT EXISTS team_form (
     UNIQUE(team_id, stat_key, h2h_opponent_id)
 );
 
+-- Expression-based unique index to handle NULL h2h_opponent_id correctly.
+-- SQLite treats NULLs as distinct in plain UNIQUE constraints, so ON CONFLICT
+-- would never fire for non-H2H rows. This index uses COALESCE to treat NULL as 0.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_team_form_upsert
+    ON team_form(team_id, stat_key, COALESCE(h2h_opponent_id, 0));
+
 CREATE TABLE IF NOT EXISTS odds_history (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     fixture_id INTEGER NOT NULL REFERENCES fixtures(id),
@@ -118,7 +124,8 @@ CREATE TABLE IF NOT EXISTS bets (
     pnl_pln REAL,
     settled_at TEXT,
     market_pl TEXT,
-    navigation_hint TEXT
+    navigation_hint TEXT,
+    stats_detail TEXT
 );
 
 CREATE TABLE IF NOT EXISTS pipeline_runs (

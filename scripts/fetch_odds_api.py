@@ -20,6 +20,16 @@ import sys
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
+# --- DB support (optional — falls back gracefully) ---
+try:
+    sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+    from bet.db.connection import get_db
+    from bet.db.repositories import SportRepo, TeamRepo, FixtureRepo, OddsRepo
+    from bet.db.models import OddsRecord
+    _HAS_DB = True
+except ImportError:
+    _HAS_DB = False
+
 try:
     import requests
 except ImportError:
@@ -398,7 +408,99 @@ def run_full_scan(api_key, sport_filter=None, betting_day_window=True):
     print(f"CSV saved:  {summary_file}")
     print(f"{'='*80}\n")
 
+    # --- DB persistence ---
+    _persist_odds_to_db(all_events)
+
     return all_events
+
+
+def _persist_odds_to_db(events: list[dict]) -> None:
+    """Write odds from API snapshot to odds_history table in DB."""
+    if not _HAS_DB or not events:
+        return
+
+    try:
+        with get_db() as conn:
+            sport_repo = SportRepo(conn)
+            team_repo = TeamRepo(conn)
+            fixture_repo = FixtureRepo(conn)
+            odds_repo = OddsRepo(conn)
+
+            now_ts = datetime.now(timezone.utc).isoformat()
+            saved_count = 0
+
+            for event in events:
+                home_team = event.get("home_team", "")
+                away_team = event.get("away_team", "")
+                our_sport = event.get("_our_sport", "")
+                commence = event.get("commence_time", "")
+
+                if not home_team or not away_team or not our_sport:
+                    continue
+
+                # Resolve sport
+                sport_obj = sport_repo.get_by_name(our_sport.lower())
+                if not sport_obj:
+                    continue
+
+                # Resolve fixture by team names + date
+                date_part = commence[:10] if commence else ""
+                if not date_part:
+                    continue
+
+                fixture = fixture_repo.get_by_teams_and_date(
+                    home_team, away_team, date_part, sport_obj.id
+                )
+                if not fixture:
+                    # Teams may not be in DB — create them and the fixture
+                    home = team_repo.find_or_create(home_team, sport_obj.id)
+                    away = team_repo.find_or_create(away_team, sport_obj.id)
+                    from bet.db.models import Fixture as DBFixture
+                    fixture_model = DBFixture(
+                        id=None,
+                        sport_id=sport_obj.id,
+                        competition_id=None,
+                        home_team_id=home.id,
+                        away_team_id=away.id,
+                        kickoff=commence,
+                        status="scheduled",
+                        external_id=event.get("id", ""),
+                        source="odds-api",
+                        fetched_at=now_ts,
+                    )
+                    fixture_id = fixture_repo.upsert(fixture_model)
+                else:
+                    fixture_id = fixture.id
+
+                # Save each bookmaker's odds
+                for bm in event.get("bookmakers", []):
+                    bookmaker_name = bm.get("title", bm.get("key", ""))
+                    for market in bm.get("markets", []):
+                        market_key = market.get("key", "")
+                        for outcome in market.get("outcomes", []):
+                            selection = outcome.get("name", "")
+                            price = outcome.get("price")
+                            line = outcome.get("point")
+                            if not selection or price is None:
+                                continue
+                            odds_rec = OddsRecord(
+                                id=None,
+                                fixture_id=fixture_id,
+                                bookmaker=bookmaker_name,
+                                market=market_key,
+                                selection=selection,
+                                odds=float(price),
+                                line=float(line) if line is not None else None,
+                                fetched_at=now_ts,
+                                is_closing=False,
+                            )
+                            odds_repo.save_odds(odds_rec)
+                            saved_count += 1
+
+            if saved_count:
+                print(f"[odds] DB: saved {saved_count} odds records")
+    except Exception as e:
+        print(f"[odds] DB persistence error (non-fatal): {e}")
 
 
 def run_scores(api_key, sport_filter, days_from=2):

@@ -171,6 +171,29 @@ When `rerun=true`, previous artifacts are PRESERVED, not replaced:
 
 ---
 
+## AGENT DELEGATION RULE (MANDATORY — NEVER BYPASS)
+
+**For steps S3, S4, S5, S6, S7, S8 — ALWAYS delegate to the specialist agent** (bet-statistician, bet-scout, bet-valuator, bet-challenger, bet-builder). Scripts generate raw data; agents analyze and decide.
+
+| Step | Script (DATA TOOL) | Agent (THINKER) |
+|------|-------------------|-----------------|
+| S3 | `deep_stats_report.py` → raw safety scores, market rankings, probabilities | **bet-statistician** → interprets numbers, finds edges, spots anomalies |
+| S4 | `fetch_odds_multi.py` → odds snapshots from 5 sources | **bet-valuator** → cross-validates pricing, calculates EV, detects drift |
+| S5 | `fetch_weather.py` → weather flags, venue data | **bet-scout** → assesses real impact on markets (not just flags) |
+| S6 | sport-specific upset checklists | **bet-challenger** → scores upset risk with contextual reasoning |
+| S7 | `gate_checker.py` → 17-point mechanical gate | **bet-challenger** → builds qualitative bear cases, challenges assumptions |
+| S8 | `coupon_builder.py` → portfolio math, Kelly staking | **bet-builder** → reviews construction, validates V1-V10, runs §S8.FINAL |
+
+**The flow for each step:**
+1. Run the script to produce raw data
+2. Delegate to the specialist agent via `runSubagent` with the script output as context
+3. The agent READS the data, THINKS about it, CROSS-REFERENCES with other sources, and produces REASONED output
+4. The orchestrator validates the agent's output against structural requirements before proceeding
+
+**NEVER treat script output as final analysis.** Scripts are calculators — agents are analysts.
+
+---
+
 ## STEP SEQUENCE
 
 Each pass executes these steps IN ORDER. Each step:

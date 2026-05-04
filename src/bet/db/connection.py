@@ -9,8 +9,6 @@ try:
 except ImportError:
     aiosqlite = None  # type: ignore[assignment]
 
-from bet.db.schema import init_db
-
 DEFAULT_DB_PATH = (
     Path(__file__).parent.parent.parent.parent / "betting" / "data" / "betting.db"
 )

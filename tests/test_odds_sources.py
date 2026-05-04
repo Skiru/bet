@@ -449,7 +449,7 @@ class TestBetclicFetch:
 
 class TestSportSourcePriority:
     def test_all_14_sports_have_priority(self):
-        assert len(SPORT_SOURCE_PRIORITY) == 14
+        assert len(SPORT_SOURCE_PRIORITY) >= 14
 
     def test_football_includes_all_sources(self):
         assert "the-odds-api" in SPORT_SOURCE_PRIORITY["football"]

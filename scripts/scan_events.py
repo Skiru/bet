@@ -21,6 +21,15 @@ from urllib.parse import urlparse
 BASE = Path(__file__).resolve().parent
 DATA_DIR = BASE.parent / "betting" / "data"
 
+# --- DB support (optional — falls back gracefully) ---
+try:
+    sys.path.insert(0, str(BASE.parent / "src"))
+    from bet.db.connection import get_db
+    from bet.db.repositories import SourceHealthRepo
+    _HAS_DB = True
+except ImportError:
+    _HAS_DB = False
+
 FETCH_DELAY_SECONDS = 0.5  # default delay between fetches
 PER_PAGE_TIMEOUT = 45  # max seconds per page fetch
 
@@ -316,7 +325,46 @@ def scan_urls(urls, deep=False, max_deep_links=30, workers=8):
         err_path.write_text(json.dumps(errors, indent=2, ensure_ascii=False), encoding="utf-8")
         print(f"[WARNING] {len(errors)} source(s) failed. See {err_path}")
     print(f"Wrote summary to {out} ({len(all_extracted)} sources OK, {len(errors)} failed)")
+
+    # --- Record source health in DB ---
+    _record_source_health(domain_groups, all_extracted, errors)
+
     return all_extracted
+
+
+def _record_source_health(
+    domain_groups: dict, all_extracted: dict, errors: list
+) -> None:
+    """Record per-domain scan success/failure in source_health table."""
+    if not _HAS_DB:
+        return
+
+    try:
+        # Collect successful and failed domains
+        successful_domains: set[str] = set()
+        for url in all_extracted:
+            successful_domains.add(domain_from_url(url))
+
+        failed_domains: set[str] = set()
+        for err in errors:
+            domain = err.get("domain", "")
+            if not domain and err.get("url"):
+                domain = domain_from_url(err["url"])
+            if domain:
+                failed_domains.add(domain)
+
+        with get_db() as conn:
+            health_repo = SourceHealthRepo(conn)
+            for domain in successful_domains:
+                health_repo.record_success(domain, response_ms=0.0)
+            for domain in failed_domains - successful_domains:
+                health_repo.record_failure(domain)
+
+        total = len(successful_domains) + len(failed_domains - successful_domains)
+        if total:
+            print(f"[scan] DB: recorded source health for {total} domains")
+    except Exception as e:
+        print(f"[scan] DB source health error (non-fatal): {e}")
 
 
 def main():

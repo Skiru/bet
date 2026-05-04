@@ -298,6 +298,90 @@ class FixtureRepo:
         ).fetchall()
         return [self._row_to_fixture(r) for r in rows]
 
+    def get_by_date_with_teams(self, date: str, sport_id: int | None = None) -> list[dict]:
+        """JOIN fixtures + teams + competitions to return dicts with team names.
+
+        Returns: [{fixture_id, sport_id, competition, home_team, away_team,
+                   home_team_id, away_team_id, kickoff, status, ...}]
+        """
+        sql = (
+            "SELECT f.id AS fixture_id, f.sport_id, f.kickoff, f.status, "
+            "f.score_home, f.score_away, f.external_id, f.source, "
+            "ht.name AS home_team, at.name AS away_team, "
+            "ht.id AS home_team_id, at.id AS away_team_id, "
+            "COALESCE(c.name, '') AS competition, "
+            "COALESCE(s.name, '') AS sport_name "
+            "FROM fixtures f "
+            "JOIN teams ht ON f.home_team_id = ht.id "
+            "JOIN teams at ON f.away_team_id = at.id "
+            "LEFT JOIN competitions c ON f.competition_id = c.id "
+            "LEFT JOIN sports s ON f.sport_id = s.id "
+            "WHERE f.kickoff LIKE ?"
+        )
+        params: list = [f"{date}%"]
+        if sport_id is not None:
+            sql += " AND f.sport_id = ?"
+            params.append(sport_id)
+        sql += " ORDER BY f.kickoff"
+        rows = self.conn.execute(sql, params).fetchall()
+        return [
+            {
+                "fixture_id": r["fixture_id"],
+                "sport_id": r["sport_id"],
+                "sport_name": r["sport_name"],
+                "competition": r["competition"],
+                "home_team": r["home_team"],
+                "away_team": r["away_team"],
+                "home_team_id": r["home_team_id"],
+                "away_team_id": r["away_team_id"],
+                "kickoff": r["kickoff"],
+                "status": r["status"],
+                "score_home": r["score_home"],
+                "score_away": r["score_away"],
+                "external_id": r["external_id"] or "",
+                "source": r["source"] or "",
+            }
+            for r in rows
+        ]
+
+    def get_by_teams_and_date(
+        self, home_name: str, away_name: str, date: str, sport_id: int
+    ) -> Fixture | None:
+        """Resolve fixture by team names + date. Checks canonical name and aliases."""
+        # First try canonical names
+        row = self.conn.execute(
+            "SELECT f.* FROM fixtures f "
+            "JOIN teams ht ON f.home_team_id = ht.id "
+            "JOIN teams at ON f.away_team_id = at.id "
+            "WHERE ht.name = ? AND at.name = ? AND f.kickoff LIKE ? AND f.sport_id = ?",
+            (home_name, away_name, f"{date}%", sport_id),
+        ).fetchone()
+        if row:
+            return self._row_to_fixture(row)
+
+        # Try aliases via json_each
+        row = self.conn.execute(
+            "SELECT f.* FROM fixtures f "
+            "JOIN teams ht ON f.home_team_id = ht.id "
+            "JOIN teams at ON f.away_team_id = at.id "
+            "WHERE f.kickoff LIKE ? AND f.sport_id = ? "
+            "AND (ht.name = ? OR EXISTS (SELECT 1 FROM json_each(ht.aliases) WHERE value = ?)) "
+            "AND (at.name = ? OR EXISTS (SELECT 1 FROM json_each(at.aliases) WHERE value = ?))",
+            (f"{date}%", sport_id, home_name, home_name, away_name, away_name),
+        ).fetchone()
+        if row:
+            return self._row_to_fixture(row)
+
+        return None
+
+    def bulk_upsert(self, fixtures: list[Fixture]) -> list[int]:
+        """Batch upsert multiple fixtures in one transaction. Returns row IDs."""
+        ids = []
+        for fixture in fixtures:
+            fid = self.upsert(fixture)
+            ids.append(fid)
+        return ids
+
     def update_result(
         self,
         fixture_id: int,
@@ -396,21 +480,29 @@ class StatsRepo:
             return True
 
     def save_team_form(self, form: TeamForm) -> None:
-        """Upsert team_form row (denormalized cache)."""
+        """Upsert team_form row (denormalized cache).
+
+        Uses DELETE+INSERT because SQLite ON CONFLICT doesn't work with
+        expression-based unique indexes (NULL h2h_opponent_id).
+        """
+        # Delete existing row (if any) matching the same logical key
+        if form.h2h_opponent_id is None:
+            self.conn.execute(
+                "DELETE FROM team_form "
+                "WHERE team_id = ? AND stat_key = ? AND h2h_opponent_id IS NULL",
+                (form.team_id, form.stat_key),
+            )
+        else:
+            self.conn.execute(
+                "DELETE FROM team_form "
+                "WHERE team_id = ? AND stat_key = ? AND h2h_opponent_id = ?",
+                (form.team_id, form.stat_key, form.h2h_opponent_id),
+            )
         self.conn.execute(
             "INSERT INTO team_form "
             "(team_id, sport_id, stat_key, l10_values, l5_values, l10_avg, l5_avg, "
             "h2h_values, h2h_opponent_id, trend, updated_at, source) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
-            "ON CONFLICT(team_id, stat_key, h2h_opponent_id) DO UPDATE SET "
-            "l10_values = excluded.l10_values, "
-            "l5_values = excluded.l5_values, "
-            "l10_avg = excluded.l10_avg, "
-            "l5_avg = excluded.l5_avg, "
-            "h2h_values = excluded.h2h_values, "
-            "trend = excluded.trend, "
-            "updated_at = excluded.updated_at, "
-            "source = excluded.source",
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 form.team_id,
                 form.sport_id,
@@ -425,6 +517,66 @@ class StatsRepo:
                 form.updated_at or _NOW(),
                 form.source,
             ),
+        )
+
+    def get_all_form_for_team(self, team_id: int, sport_id: int) -> list[TeamForm]:
+        """All TeamForm rows for a team (all stat_keys, no H2H filter)."""
+        rows = self.conn.execute(
+            "SELECT * FROM team_form "
+            "WHERE team_id = ? AND sport_id = ? AND h2h_opponent_id IS NULL",
+            (team_id, sport_id),
+        ).fetchall()
+        return [self._row_to_team_form(r) for r in rows]
+
+    def get_team_form_record(
+        self, team_id: int, stat_key: str, h2h_opponent_id: int | None = None
+    ) -> TeamForm | None:
+        """Single TeamForm row by team_id + stat_key + optional H2H opponent."""
+        if h2h_opponent_id is None:
+            row = self.conn.execute(
+                "SELECT * FROM team_form "
+                "WHERE team_id = ? AND stat_key = ? AND h2h_opponent_id IS NULL",
+                (team_id, stat_key),
+            ).fetchone()
+        else:
+            row = self.conn.execute(
+                "SELECT * FROM team_form "
+                "WHERE team_id = ? AND stat_key = ? AND h2h_opponent_id = ?",
+                (team_id, stat_key, h2h_opponent_id),
+            ).fetchone()
+        return self._row_to_team_form(row) if row else None
+
+    def bulk_save_match_stats(
+        self, rows: list[tuple[int, int, str, float, str]]
+    ) -> None:
+        """Batch insert/replace match_stats rows.
+
+        Each tuple: (fixture_id, team_id, stat_key, stat_value, source).
+        """
+        now = _NOW()
+        self.conn.executemany(
+            "INSERT OR REPLACE INTO match_stats "
+            "(fixture_id, team_id, stat_key, stat_value, source, fetched_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            [(fid, tid, sk, sv, src, now) for fid, tid, sk, sv, src in rows],
+        )
+
+    @staticmethod
+    def _row_to_team_form(row: sqlite3.Row) -> TeamForm:
+        return TeamForm(
+            id=row["id"],
+            team_id=row["team_id"],
+            sport_id=row["sport_id"],
+            stat_key=row["stat_key"],
+            l10_values=json.loads(row["l10_values"]),
+            l5_values=json.loads(row["l5_values"]),
+            l10_avg=row["l10_avg"],
+            l5_avg=row["l5_avg"],
+            h2h_values=json.loads(row["h2h_values"]),
+            h2h_opponent_id=row["h2h_opponent_id"],
+            trend=row["trend"] or "",
+            updated_at=row["updated_at"] or "",
+            source=row["source"] or "",
         )
 
 
@@ -484,6 +636,51 @@ class OddsRepo:
             for r in rows
         ]
 
+    def get_all_for_date(self, date: str) -> dict[int, list[OddsRecord]]:
+        """All odds for fixtures on a date, keyed by fixture_id."""
+        rows = self.conn.execute(
+            "SELECT oh.* FROM odds_history oh "
+            "JOIN fixtures f ON oh.fixture_id = f.id "
+            "WHERE f.kickoff LIKE ? "
+            "ORDER BY oh.fixture_id, oh.fetched_at",
+            (f"{date}%",),
+        ).fetchall()
+        result: dict[int, list[OddsRecord]] = {}
+        for r in rows:
+            rec = self._row_to_odds_record(r)
+            result.setdefault(rec.fixture_id, []).append(rec)
+        return result
+
+    def get_all_for_fixtures(self, fixture_ids: list[int]) -> dict[int, list[OddsRecord]]:
+        """Batch odds lookup for a set of fixture IDs."""
+        if not fixture_ids:
+            return {}
+        placeholders = ",".join("?" for _ in fixture_ids)
+        rows = self.conn.execute(
+            f"SELECT * FROM odds_history WHERE fixture_id IN ({placeholders}) "
+            "ORDER BY fixture_id, fetched_at",
+            fixture_ids,
+        ).fetchall()
+        result: dict[int, list[OddsRecord]] = {}
+        for r in rows:
+            rec = self._row_to_odds_record(r)
+            result.setdefault(rec.fixture_id, []).append(rec)
+        return result
+
+    @staticmethod
+    def _row_to_odds_record(r: sqlite3.Row) -> OddsRecord:
+        return OddsRecord(
+            id=r["id"],
+            fixture_id=r["fixture_id"],
+            bookmaker=r["bookmaker"],
+            market=r["market"],
+            selection=r["selection"],
+            odds=r["odds"],
+            line=r["line"],
+            fetched_at=r["fetched_at"],
+            is_closing=bool(r["is_closing"]),
+        )
+
 
 # ---------------------------------------------------------------------------
 # CouponRepo
@@ -520,8 +717,8 @@ class CouponRepo:
             "INSERT INTO bets "
             "(coupon_id, fixture_id, sport, event_name, market, selection, odds, "
             "min_odds, safety_score, hit_rate, status, pnl_pln, settled_at, "
-            "market_pl, navigation_hint) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "market_pl, navigation_hint, stats_detail) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 bet.coupon_id,
                 bet.fixture_id,
@@ -538,6 +735,7 @@ class CouponRepo:
                 bet.settled_at or None,
                 bet.market_pl,
                 bet.navigation_hint,
+                json.dumps(bet.stats_detail) if bet.stats_detail else None,
             ),
         )
         return cur.lastrowid
@@ -609,7 +807,49 @@ class CouponRepo:
             settled_at=row["settled_at"] or "",
             market_pl=row["market_pl"] or "",
             navigation_hint=row["navigation_hint"] or "",
+            stats_detail=json.loads(row["stats_detail"]) if row["stats_detail"] else None,
         )
+
+    def create_with_bets(self, coupon: Coupon, bets: list[Bet]) -> tuple[int, list[int]]:
+        """Atomic coupon + legs creation. Returns (coupon_db_id, [bet_db_ids])."""
+        coupon_id = self.create_coupon(coupon)
+        bet_ids = []
+        for bet in bets:
+            bet.coupon_id = coupon_id
+            bet_ids.append(self.add_bet(bet))
+        return coupon_id, bet_ids
+
+    def get_pending_bets_with_details(self, date: str | None = None) -> list[dict]:
+        """Pending bets with fixture + team info via JOINs."""
+        query = (
+            "SELECT b.*, c.coupon_id AS coupon_ref, c.stake_pln, c.total_odds, "
+            "f.kickoff, f.score_home, f.score_away, "
+            "ht.name AS home_team, at.name AS away_team, s.name AS sport_name "
+            "FROM bets b "
+            "JOIN coupons c ON b.coupon_id = c.id "
+            "LEFT JOIN fixtures f ON b.fixture_id = f.id "
+            "LEFT JOIN teams ht ON f.home_team_id = ht.id "
+            "LEFT JOIN teams at ON f.away_team_id = at.id "
+            "LEFT JOIN sports s ON f.sport_id = s.id "
+            "WHERE b.status = 'pending'"
+        )
+        params: list = []
+        if date:
+            query += " AND f.kickoff LIKE ?"
+            params.append(f"{date}%")
+        rows = self.conn.execute(query, params).fetchall()
+        return [dict(r) for r in rows]
+
+    def get_recent_losses(self, hours: int = 48) -> list[dict]:
+        """Bets with status='lost' settled within last N hours."""
+        rows = self.conn.execute(
+            "SELECT b.event_name, b.market, b.selection, b.sport, b.settled_at "
+            "FROM bets b "
+            "WHERE b.status = 'lost' "
+            "AND b.settled_at >= datetime('now', ?)",
+            (f"-{hours} hours",),
+        ).fetchall()
+        return [dict(r) for r in rows]
 
 
 # ---------------------------------------------------------------------------

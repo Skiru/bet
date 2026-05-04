@@ -258,7 +258,34 @@ def load_config() -> dict:
 
 
 def load_state(date: str) -> dict:
-    """Load pipeline state for a date."""
+    """Load pipeline state for a date. DB first, JSON fallback."""
+    # Try DB first
+    try:
+        import sys as _sys
+        _sys.path.insert(0, str(ROOT_DIR / "src"))
+        from bet.db.connection import get_db
+        from bet.db.repositories import PipelineRepo
+        with get_db() as conn:
+            repo = PipelineRepo(conn)
+            db_steps = repo.get_run_status(date)
+            if db_steps:
+                state = {
+                    "date": date,
+                    "session": "full",
+                    "version": "v1",
+                    "started_at": db_steps[0]["started_at"] if db_steps else None,
+                    "completed_at": None,
+                    "current_step": None,
+                    "steps": {s["step"]: s["status"] for s in db_steps},
+                    "errors": [s["error_message"] for s in db_steps if s["error_message"]],
+                    "step_data": {s["step"]: s["stats"] for s in db_steps if s["stats"]},
+                    "pass_number": 1,
+                }
+                print(f"[pipeline] Loaded state from DB ({len(db_steps)} steps)")
+                return state
+    except Exception as e:
+        print(f"[pipeline] DB state load failed: {e}")
+
     STATE_DIR.mkdir(parents=True, exist_ok=True)
     state_file = STATE_DIR / f"pipeline_{date}.json"
     if state_file.exists():
@@ -278,7 +305,31 @@ def load_state(date: str) -> dict:
 
 
 def save_state(date: str, state: dict):
-    """Save pipeline state atomically."""
+    """Save pipeline state atomically — DB + JSON dual write."""
+    # DB write
+    try:
+        import sys as _sys
+        _sys.path.insert(0, str(ROOT_DIR / "src"))
+        from bet.db.connection import get_db
+        from bet.db.repositories import PipelineRepo
+        with get_db() as conn:
+            repo = PipelineRepo(conn)
+            current = state.get("current_step")
+            if current:
+                step_status = state.get("steps", {}).get(current, "running")
+                if step_status == "running":
+                    repo.start_step(date, current)
+                elif step_status == "completed":
+                    stats = state.get("step_data", {}).get(current)
+                    repo.complete_step(date, current, stats)
+                elif step_status == "failed":
+                    errors = state.get("errors", [])
+                    repo.fail_step(date, current, errors[-1] if errors else "unknown")
+            conn.commit()
+    except Exception as e:
+        print(f"[pipeline] DB state save failed: {e}")
+
+    # JSON fallback write
     STATE_DIR.mkdir(parents=True, exist_ok=True)
     state_file = STATE_DIR / f"pipeline_{date}.json"
     content = json.dumps(state, indent=2, ensure_ascii=False)

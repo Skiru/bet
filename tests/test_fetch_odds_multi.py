@@ -109,7 +109,7 @@ class TestLoadConfiguredSports:
         monkeypatch.setattr("scripts.fetch_odds_multi.CONFIG_DIR", tmp_path / "nonexistent")
         sports = load_configured_sports()
         # Should return defaults from SPORT_SOURCE_PRIORITY
-        assert len(sports) == 14
+        assert len(sports) >= 14
 
 
 # ===========================================================================

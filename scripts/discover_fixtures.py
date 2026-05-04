@@ -9,6 +9,7 @@ import argparse
 import json
 import re
 from dataclasses import asdict
+from datetime import datetime, timezone
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -16,6 +17,16 @@ PROJECT_ROOT = Path(__file__).parent.parent
 # Add scripts to path for imports
 import sys
 sys.path.insert(0, str(Path(__file__).parent))
+
+# --- DB support (optional — falls back gracefully) ---
+try:
+    sys.path.insert(0, str(PROJECT_ROOT / "src"))
+    from bet.db.connection import get_db
+    from bet.db.repositories import SportRepo, TeamRepo, CompetitionRepo, FixtureRepo
+    from bet.db.models import Fixture as DBFixture
+    _HAS_DB = True
+except ImportError:
+    _HAS_DB = False
 
 try:
     from scripts.normalize_stats import NormalizedFixture
@@ -312,6 +323,83 @@ def main():
         json.dumps(output_data, indent=2, ensure_ascii=False), encoding="utf-8"
     )
     print(f"[discover] Saved {len(fixtures)} fixtures to {output_path}")
+
+    # --- DB persistence (dual-write) ---
+    _persist_fixtures_to_db(fixtures, args.date)
+
+
+def _persist_fixtures_to_db(fixtures: list, date: str) -> None:
+    """Write discovered fixtures to SQLite DB alongside JSON."""
+    if not _HAS_DB:
+        return
+
+    try:
+        with get_db() as conn:
+            sport_repo = SportRepo(conn)
+            team_repo = TeamRepo(conn)
+            comp_repo = CompetitionRepo(conn)
+            fixture_repo = FixtureRepo(conn)
+
+            now_ts = datetime.now(timezone.utc).isoformat()
+            db_fixtures = []
+            for f in fixtures:
+                # Extract fields from NormalizedFixture or dict
+                if hasattr(f, "__dataclass_fields__"):
+                    sport_name = f.sport.lower()
+                    home_team = f.home_team
+                    away_team = f.away_team
+                    competition = f.competition
+                    kickoff = f.kickoff
+                    external_id = f.fixture_id
+                    source = f.source
+                    status = f.status
+                else:
+                    sport_name = f.get("sport", "football").lower()
+                    home_team = f.get("home_team", "")
+                    away_team = f.get("away_team", "")
+                    competition = f.get("competition", "")
+                    kickoff = f.get("kickoff", "")
+                    external_id = f.get("fixture_id", "")
+                    source = f.get("source", "")
+                    status = f.get("status", "scheduled")
+
+                if not home_team or not away_team:
+                    continue
+
+                # Resolve sport
+                sport_obj = sport_repo.get_by_name(sport_name)
+                if not sport_obj:
+                    continue
+
+                # Resolve teams
+                home = team_repo.find_or_create(home_team, sport_obj.id)
+                away = team_repo.find_or_create(away_team, sport_obj.id)
+
+                # Resolve competition
+                comp_id = None
+                if competition:
+                    comp_id = comp_repo.find_or_create(
+                        competition, sport_obj.id
+                    )
+
+                db_fixtures.append(DBFixture(
+                    id=None,
+                    sport_id=sport_obj.id,
+                    competition_id=comp_id,
+                    home_team_id=home.id,
+                    away_team_id=away.id,
+                    kickoff=kickoff or f"{date}T00:00:00",
+                    status=status or "scheduled",
+                    external_id=str(external_id) if external_id else "",
+                    source=source or "discover_fixtures",
+                    fetched_at=now_ts,
+                ))
+
+            if db_fixtures:
+                ids = fixture_repo.bulk_upsert(db_fixtures)
+                print(f"[discover] DB: persisted {len(ids)} fixtures")
+    except Exception as e:
+        print(f"[discover] DB persistence error (non-fatal): {e}")
 
 
 if __name__ == "__main__":

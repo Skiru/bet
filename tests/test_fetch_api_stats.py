@@ -451,7 +451,8 @@ class TestFetchStatsForDate:
 
         # Only football fixture should be enriched
         assert result["total_fixtures"] == 1
-        assert mock_enrich.call_count == 1
+        # Two-phase enrichment: Phase 1 (ESPN) + Phase 2 (rate-limited) for missed
+        assert mock_enrich.call_count == 2
 
 
 # ---------------------------------------------------------------------------

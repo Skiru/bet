@@ -31,6 +31,16 @@ from build_stats_cache import (
 
 DATA_DIR = Path(__file__).parent.parent / "betting" / "data"
 
+# --- DB support (optional — falls back gracefully) ---
+try:
+    sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+    from bet.db.connection import get_db
+    from bet.db.repositories import SportRepo, TeamRepo, StatsRepo
+    from bet.db.models import TeamForm
+    _HAS_DB = True
+except ImportError:
+    _HAS_DB = False
+
 # Fallback chains per sport — ESPN first (free, unlimited, no API key)
 # SerpAPI last (250/month limit, supplementary Google search data)
 FALLBACK_CHAINS = {
@@ -160,25 +170,117 @@ def _store_in_cache(
     """Store fetched stats in the stats cache using the extended format."""
     from build_stats_cache import update_from_api
 
-    update_from_api(
-        sport=sport,
-        team=team_name,
-        normalized_matches=team_matches,
-        api_source=api_source,
-        opponent=opponent,
-        h2h_matches=h2h_matches,
-    )
+    # Debug: log match stats availability
+    stat_counts = []
+    for m in team_matches:
+        s = getattr(m, "stats", {})
+        stat_counts.append(len(s) if isinstance(s, dict) else 0)
+    total_stats = sum(stat_counts)
+    if not team_matches:
+        print(f"[cache] SKIP {sport}/{team_name}: 0 matches from {api_source}")
+        return
+    if total_stats == 0:
+        print(f"[cache] WARNING {sport}/{team_name}: {len(team_matches)} matches but 0 stat keys from {api_source}")
+
+    try:
+        path = update_from_api(
+            sport=sport,
+            team=team_name,
+            normalized_matches=team_matches,
+            api_source=api_source,
+            opponent=opponent,
+            h2h_matches=h2h_matches,
+        )
+        print(f"[cache] OK {sport}/{team_name}: {len(team_matches)} matches, {total_stats} total stat keys → {path}")
+    except Exception as e:
+        print(f"[cache] ERROR {sport}/{team_name}: {e}")
+
+    # --- DB: persist match_stats rows for each match ---
+    _persist_match_stats_to_db(sport, team_name, team_matches, api_source)
 
 
-def enrich_fixture(fixture: dict, rate_limiter: RateLimiter) -> dict:
+def _persist_match_stats_to_db(
+    sport: str,
+    team_name: str,
+    matches: list[NormalizedMatchStats],
+    api_source: str,
+) -> None:
+    """Write per-match stat rows to match_stats table in DB."""
+    if not _HAS_DB or not matches:
+        return
+
+    try:
+        with get_db() as conn:
+            sport_repo = SportRepo(conn)
+            team_repo = TeamRepo(conn)
+            stats_repo = StatsRepo(conn)
+
+            sport_obj = sport_repo.get_by_name(sport.lower())
+            if not sport_obj:
+                return
+
+            team_obj = team_repo.find_or_create(team_name, sport_obj.id)
+
+            rows: list[tuple[int, int, str, float, str]] = []
+            for match in matches:
+                raw_stats = getattr(match, "stats", {})
+                if not raw_stats:
+                    continue
+
+                # We need a fixture_id — try to resolve from the match metadata
+                home = getattr(match, "home_team", "")
+                away = getattr(match, "away_team", "")
+                match_date = getattr(match, "date", "")
+
+                if not home or not away or not match_date:
+                    continue
+
+                # Resolve opponent team to find fixture
+                from bet.db.repositories import FixtureRepo
+                fixture_repo = FixtureRepo(conn)
+
+                fixture = fixture_repo.get_by_teams_and_date(
+                    home, away, match_date[:10], sport_obj.id
+                )
+                if not fixture:
+                    # Fixture not in DB yet — skip match_stats (team_form is
+                    # still saved by build_stats_cache._persist_to_db)
+                    continue
+
+                for stat_key, value in raw_stats.items():
+                    if isinstance(value, dict):
+                        # home/away sub-keys
+                        home_val = value.get("home")
+                        away_val = value.get("away")
+                        if isinstance(home_val, (int, float)):
+                            home_team_obj = team_repo.find_or_create(home, sport_obj.id)
+                            rows.append((fixture.id, home_team_obj.id, stat_key, float(home_val), api_source))
+                        if isinstance(away_val, (int, float)):
+                            away_team_obj = team_repo.find_or_create(away, sport_obj.id)
+                            rows.append((fixture.id, away_team_obj.id, stat_key, float(away_val), api_source))
+                    elif isinstance(value, (int, float)):
+                        rows.append((fixture.id, team_obj.id, stat_key, float(value), api_source))
+
+            if rows:
+                stats_repo.bulk_save_match_stats(rows)
+                print(f"[cache] DB: saved {len(rows)} match_stats rows for {sport}/{team_name}")
+    except Exception as e:
+        print(f"[cache] DB match_stats error (non-fatal): {e}")
+
+
+def enrich_fixture(fixture: dict, rate_limiter: RateLimiter, chain_filter: set | None = None) -> dict:
     """Enrich a single fixture with stats from the best available API.
 
     1. Determine sport
-    2. Get fallback chain
+    2. Get fallback chain (optionally filtered by chain_filter)
     3. Try each API in chain
     4. Build safety score input
     5. Store in cache
     6. Return enriched data with status
+
+    Args:
+        chain_filter: If set, only try API names in this set. Use to restrict
+                      to ESPN-only (Phase 1) or non-ESPN (Phase 2) enrichment.
     """
     sport = fixture.get("sport", "football").lower()
     home_team = fixture.get("home_team", "")
@@ -206,6 +308,8 @@ def enrich_fixture(fixture: dict, rate_limiter: RateLimiter) -> dict:
         return result
 
     chain = FALLBACK_CHAINS.get(sport, [])
+    if chain_filter:
+        chain = [api for api in chain if api in chain_filter]
     if not chain:
         result["status"] = "skipped"
         result["error"] = f"No API coverage for sport: {sport}"
@@ -343,69 +447,157 @@ def fetch_stats_for_date(
 
     fixtures.sort(key=sort_key)
 
-    # Group fixtures by sport for parallel enrichment
-    sport_groups: dict[str, list[dict]] = {}
-    for fixture in fixtures:
-        sport = fixture.get("sport", "").lower()
-        sport_groups.setdefault(sport, []).append(fixture)
-
-    print(f"[fetch_stats] Enriching {len(fixtures)} fixtures across {len(sport_groups)} sports in parallel")
-
-    results = []
-    counts = {"enriched": 0, "partial": 0, "failed": 0, "skipped": 0}
-    counts_lock = threading.Lock()
-
-    if not sport_groups:
+    if not fixtures:
         print("[fetch_stats] No fixtures to enrich")
         return {
             "date": date,
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "total_fixtures": 0,
-            "counts": counts,
+            "counts": {"enriched": 0, "partial": 0, "failed": 0, "skipped": 0},
             "results": [],
         }
 
-    def _enrich_sport_group(sport: str, sport_fixtures: list[dict]) -> list[dict]:
-        """Enrich all fixtures for a single sport."""
-        sport_results = []
-        for fixture in sport_fixtures:
-            try:
-                result = enrich_fixture(fixture, rate_limiter)
-                sport_results.append(result)
-            except Exception as e:
-                home = fixture.get('home_team', '?')
-                away = fixture.get('away_team', '?')
-                print(f"[fetch_stats] Error enriching {home} vs {away}: {e}")
-                sport_results.append({
-                    "fixture_id": fixture.get("fixture_id", ""),
-                    "sport": sport,
-                    "home_team": home,
-                    "away_team": away,
-                    "status": "failed",
-                    "error": str(e),
-                })
-        return sport_results
+    results = []
+    counts = {"enriched": 0, "partial": 0, "failed": 0, "skipped": 0}
+    counts_lock = threading.Lock()
 
-    max_workers = min(len(sport_groups), 4)
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_to_sport = {
-            executor.submit(_enrich_sport_group, sport, sport_fixtures): sport
-            for sport, sport_fixtures in sport_groups.items()
-        }
-        for future in as_completed(future_to_sport):
-            sport = future_to_sport[future]
-            try:
-                sport_results = future.result()
-                results.extend(sport_results)
-                for r in sport_results:
-                    status = r.get("status", "skipped")
-                    with counts_lock:
-                        counts[status] = counts.get(status, 0) + 1
-                print(f"[fetch_stats] {sport}: {len(sport_results)} fixtures processed")
-            except Exception as e:
-                print(f"[fetch_stats] ERROR enriching {sport}: {e}")
-                with counts_lock:
-                    counts["failed"] = counts.get("failed", 0) + len(sport_groups.get(sport, []))
+    # --- Identify ESPN APIs (free, unlimited) vs rate-limited APIs ---
+    espn_apis = {api for apis in FALLBACK_CHAINS.values() for api in apis if api.startswith("espn-")}
+    non_espn_apis = {api for apis in FALLBACK_CHAINS.values() for api in apis if not api.startswith("espn-")}
+
+    # Split fixtures: those with ESPN coverage vs those without
+    espn_eligible = []
+    no_espn_fixtures = []
+    for f in fixtures:
+        sport = f.get("sport", "").lower()
+        chain = FALLBACK_CHAINS.get(sport, [])
+        if any(api in espn_apis for api in chain):
+            espn_eligible.append(f)
+        else:
+            no_espn_fixtures.append(f)
+
+    print(f"[fetch_stats] {len(fixtures)} total fixtures: {len(espn_eligible)} ESPN-eligible, {len(no_espn_fixtures)} non-ESPN")
+
+    # --- Phase 1: ESPN enrichment (free, unlimited, 8 workers) ---
+    espn_enriched_ids: set[str] = set()
+    phase1_results: list[dict] = []
+
+    def _enrich_one_espn(fixture: dict) -> dict:
+        """Try ESPN-only enrichment for a single fixture."""
+        try:
+            return enrich_fixture(fixture, rate_limiter, chain_filter=espn_apis)
+        except Exception as e:
+            home = fixture.get("home_team", "?")
+            away = fixture.get("away_team", "?")
+            return {
+                "fixture_id": fixture.get("fixture_id", ""),
+                "sport": fixture.get("sport", ""),
+                "home_team": home,
+                "away_team": away,
+                "status": "failed",
+                "error": str(e),
+            }
+
+    if espn_eligible:
+        print(f"[Phase 1] ESPN enrichment: {len(espn_eligible)} fixtures with 8 workers")
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            future_to_fix = {
+                executor.submit(_enrich_one_espn, f): f for f in espn_eligible
+            }
+            processed = 0
+            for future in as_completed(future_to_fix):
+                input_fixture = future_to_fix[future]
+                result = future.result()
+                phase1_results.append(result)
+                processed += 1
+                status = result.get("status", "skipped")
+                if status in ("enriched", "partial"):
+                    # Track by INPUT fixture_id (not output — mocks may return wrong id)
+                    espn_enriched_ids.add(input_fixture.get("fixture_id", ""))
+                if processed % 100 == 0:
+                    enriched_so_far = len(espn_enriched_ids)
+                    print(f"[Phase 1] Progress: {processed}/{len(espn_eligible)} processed, {enriched_so_far} enriched")
+
+        p1_enriched = sum(1 for r in phase1_results if r.get("status") in ("enriched", "partial"))
+        print(f"[Phase 1] ESPN done: {p1_enriched}/{len(espn_eligible)} enriched")
+
+    # --- Phase 2: Rate-limited APIs for ESPN misses + non-ESPN sports ---
+    espn_missed = [
+        f for f in espn_eligible
+        if f.get("fixture_id", "") not in espn_enriched_ids
+    ]
+    phase2_fixtures = espn_missed + no_espn_fixtures
+
+    phase2_results: list[dict] = []
+    if phase2_fixtures:
+        # Group by sport for rate-limited parallel enrichment
+        sport_groups: dict[str, list[dict]] = {}
+        for fixture in phase2_fixtures:
+            sport = fixture.get("sport", "").lower()
+            sport_groups.setdefault(sport, []).append(fixture)
+
+        print(f"[Phase 2] Rate-limited APIs: {len(phase2_fixtures)} fixtures across {len(sport_groups)} sports")
+
+        def _enrich_sport_group(sport: str, sport_fixtures: list[dict]) -> list[dict]:
+            """Enrich all fixtures for a single sport using non-ESPN APIs."""
+            sport_results = []
+            for fixture in sport_fixtures:
+                try:
+                    result = enrich_fixture(fixture, rate_limiter, chain_filter=non_espn_apis)
+                    sport_results.append(result)
+                except Exception as e:
+                    home = fixture.get("home_team", "?")
+                    away = fixture.get("away_team", "?")
+                    print(f"[Phase 2] Error enriching {home} vs {away}: {e}")
+                    sport_results.append({
+                        "fixture_id": fixture.get("fixture_id", ""),
+                        "sport": sport,
+                        "home_team": home,
+                        "away_team": away,
+                        "status": "failed",
+                        "error": str(e),
+                    })
+            return sport_results
+
+        max_workers = min(len(sport_groups), 4)
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_sport = {
+                executor.submit(_enrich_sport_group, sport, sport_fixtures): sport
+                for sport, sport_fixtures in sport_groups.items()
+            }
+            for future in as_completed(future_to_sport):
+                sport = future_to_sport[future]
+                try:
+                    sport_results = future.result()
+                    phase2_results.extend(sport_results)
+                    p2_enriched = sum(1 for r in sport_results if r.get("status") in ("enriched", "partial"))
+                    print(f"[Phase 2] {sport}: {p2_enriched}/{len(sport_results)} enriched")
+                except Exception as e:
+                    print(f"[Phase 2] ERROR enriching {sport}: {e}")
+
+    # --- Merge results ---
+    # Phase 1 results for successfully enriched fixtures
+    for r in phase1_results:
+        fid = r.get("fixture_id", "")
+        if fid in espn_enriched_ids:
+            results.append(r)
+            with counts_lock:
+                counts[r.get("status", "skipped")] = counts.get(r.get("status", "skipped"), 0) + 1
+
+    # Phase 2 results (ESPN misses now enriched by rate-limited APIs, or still failed)
+    for r in phase2_results:
+        results.append(r)
+        with counts_lock:
+            counts[r.get("status", "skipped")] = counts.get(r.get("status", "skipped"), 0) + 1
+
+    # ESPN misses that Phase 2 didn't pick up (no rate-limited API either)
+    phase2_fids = {r.get("fixture_id", "") for r in phase2_results}
+    for r in phase1_results:
+        fid = r.get("fixture_id", "")
+        if fid not in espn_enriched_ids and fid not in phase2_fids:
+            results.append(r)
+            with counts_lock:
+                counts[r.get("status", "skipped")] = counts.get(r.get("status", "skipped"), 0) + 1
 
     # Build summary
     summary = {

@@ -4,15 +4,26 @@ import sqlite3
 from pathlib import Path
 
 SCHEMA_SQL = Path(__file__).parent / "schema.sql"
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 def init_db(conn: sqlite3.Connection) -> None:
-    """Execute schema.sql against the connection. Idempotent (IF NOT EXISTS)."""
+    """Execute schema.sql against the connection. Idempotent (IF NOT EXISTS).
+
+    For existing databases, runs migrations BEFORE applying schema.sql
+    to clean up data that would violate new constraints.
+    """
     conn.execute("PRAGMA journal_mode = WAL")
     conn.execute("PRAGMA foreign_keys = ON")
+
+    # Run migrations BEFORE schema to fix data that would violate new constraints
+    current_version = get_schema_version(conn)
+    if current_version < SCHEMA_VERSION:
+        migrate(conn, current_version, SCHEMA_VERSION)
+
     sql = SCHEMA_SQL.read_text(encoding="utf-8")
     conn.executescript(sql)
+
     # Store schema version
     conn.execute(
         "CREATE TABLE IF NOT EXISTS schema_meta "
@@ -37,7 +48,29 @@ def get_schema_version(conn: sqlite3.Connection) -> int:
 
 
 def migrate(conn: sqlite3.Connection, from_version: int, to_version: int) -> None:
-    """Run incremental migrations. For v1, this is a no-op."""
+    """Run incremental migrations."""
     if from_version >= to_version:
         return
-    # Future migrations go here as elif blocks
+
+    if from_version < 3 and from_version > 0:
+        # v3: Add stats_detail column to bets table
+        try:
+            conn.execute("ALTER TABLE bets ADD COLUMN stats_detail TEXT")
+        except sqlite3.OperationalError:
+            pass  # Column already exists (IF NOT EXISTS not supported for ALTER)
+
+        # v2: Expression-based unique index for team_form NULL h2h_opponent_id
+        conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_team_form_upsert "
+            "ON team_form(team_id, stat_key, COALESCE(h2h_opponent_id, 0))"
+        )
+
+        # v2: Clean up duplicate team_form rows with NULL h2h_opponent_id
+        conn.execute(
+            "DELETE FROM team_form WHERE id NOT IN ("
+            "  SELECT MIN(id) FROM team_form "
+            "  GROUP BY team_id, stat_key, COALESCE(h2h_opponent_id, 0)"
+            ")"
+        )
+
+    conn.commit()

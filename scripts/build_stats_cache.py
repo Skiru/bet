@@ -292,8 +292,11 @@ def update_from_api(
     # home_team=team_name, so downstream _extract_stat_values() reads "home".
     team_lower = team.lower() if team else ""
     l10_matches = []
+    empty_stats_count = 0
     for match in normalized_matches[:10]:
         raw_stats = getattr(match, "stats", {})
+        if not raw_stats:
+            empty_stats_count += 1
         home_team_match = getattr(match, "home_team", "")
         away_team_match = getattr(match, "away_team", "")
 
@@ -340,6 +343,19 @@ def update_from_api(
     # Compute L10 and L5 averages
     l10_avg = _compute_stat_averages(l10_matches)
     l5_avg = _compute_stat_averages(l10_matches[:5])
+
+    # Log diagnostics for debugging empty cache issues
+    if empty_stats_count > 0:
+        print(
+            f"[stats_cache] WARNING {sport}/{team}: "
+            f"{empty_stats_count}/{len(normalized_matches[:10])} matches had empty stats "
+            f"from {api_source} (L10 avg keys: {len(l10_avg)})"
+        )
+    if not l10_avg and l10_matches:
+        print(
+            f"[stats_cache] WARNING {sport}/{team}: "
+            f"{len(l10_matches)} matches produced 0 L10 averages from {api_source}"
+        )
 
     form_data = {
         "l10_matches": l10_matches,
