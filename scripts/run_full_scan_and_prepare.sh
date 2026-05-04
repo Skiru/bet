@@ -88,7 +88,7 @@ echo "[orchestrator] ZawodTyper URL: ${_ZT_URL}"
 # - Specialist sources (sport-specific)
 # - Statistical / corners / advanced stats
 # - Tipster / prediction sites
-python3 "${SCRIPT_DIR}/scan_events.py" --deep --max-deep-links 50 --urls \
+python3 "${SCRIPT_DIR}/scan_events.py" --deep --max-deep-links 30 --workers 8 --urls \
   https://www.flashscore.com/ \
   https://www.flashscore.com/tennis/ \
   https://www.flashscore.com/basketball/ \

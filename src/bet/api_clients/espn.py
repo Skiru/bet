@@ -24,6 +24,8 @@ ESPN_SPORT_MAP = {
     "basketball": "basketball",
     "hockey": "hockey",
     "baseball": "baseball",
+    "tennis": "tennis",
+    "mma": "mma",
 }
 
 ESPN_LEAGUES = {
@@ -39,6 +41,8 @@ ESPN_LEAGUES = {
     "basketball": ["nba", "wnba"],
     "hockey": ["nhl"],
     "baseball": ["mlb"],
+    "tennis": ["atp", "wta"],
+    "mma": ["ufc"],
 }
 
 # Competition name → ESPN league code (for football enrichment)
@@ -81,6 +85,24 @@ COMPETITION_TO_ESPN_LEAGUE = {
     "super league greece": "gre.1",
     "thai league 1": "tha.1",
     "indonesian super league": "idn.1", "liga 1 indonesia": "idn.1",
+    # Tennis tournaments
+    "australian open": "atp",
+    "roland garros": "atp", "french open": "atp",
+    "wimbledon": "atp",
+    "us open tennis": "atp",
+    "internazionali bnl d'italia": "atp", "rome": "atp", "italian open": "atp",
+    "madrid open": "atp",
+    "indian wells": "atp", "bnp paribas open": "atp",
+    "miami open": "atp",
+    "monte carlo": "atp", "monte-carlo masters": "atp",
+    "canadian open": "atp", "rogers cup": "atp",
+    "cincinnati masters": "atp", "western & southern open": "atp",
+    "shanghai masters": "atp",
+    "paris masters": "atp",
+    "atp finals": "atp",
+    "wta finals": "wta",
+    # MMA
+    "ufc": "ufc",
 }
 
 # --- Stat Mappings: ESPN name → normalized key ---
@@ -326,6 +348,15 @@ class ESPNClient(BaseAPIClient):
             print(f"[{self.api_name}] Error fetching fixtures for {date}: {e}")
             return []
 
+        # Individual sports (tennis, MMA) have different structure
+        if self.sport in ("tennis", "mma"):
+            fixtures = self._get_individual_sport_fixtures(data, date)
+            self._save_cache(cache_key, {
+                "fixtures": [asdict(f) for f in fixtures],
+                "count": len(fixtures),
+            })
+            return fixtures
+
         fixtures = []
         for event in data.get("events", []):
             competitions = event.get("competitions", [])
@@ -368,6 +399,76 @@ class ESPNClient(BaseAPIClient):
 
         return fixtures
 
+    def _get_individual_sport_fixtures(self, data: dict, date: str) -> list[APIFixture]:
+        """Parse fixtures for individual sports (tennis, MMA).
+
+        Tennis: events are tournaments, groupings contain singles/doubles,
+                competitions are individual matches.
+        MMA: events are fight cards, competitions are individual fights.
+        """
+        fixtures = []
+        for event in data.get("events", []):
+            event_name = event.get("name", "")
+
+            # MMA: fights are directly in competitions
+            if self.sport == "mma":
+                for comp in event.get("competitions", []):
+                    fixture = self._parse_individual_competition(comp, event_name)
+                    if fixture:
+                        fixtures.append(fixture)
+            else:
+                # Tennis: matches are in groupings→competitions
+                for grouping in event.get("groupings", []):
+                    group_name = grouping.get("grouping", {}).get("displayName", "")
+                    # Only singles matches (skip doubles for betting)
+                    if "double" in group_name.lower():
+                        continue
+                    for comp in grouping.get("competitions", []):
+                        fixture = self._parse_individual_competition(
+                            comp, f"{event_name} - {group_name}"
+                        )
+                        if fixture:
+                            fixtures.append(fixture)
+        return fixtures
+
+    def _parse_individual_competition(
+        self, comp: dict, competition_name: str
+    ) -> APIFixture | None:
+        """Parse a single competition (match/fight) for individual sports."""
+        competitors = comp.get("competitors", [])
+        if len(competitors) < 2:
+            return None
+
+        # Individual sports use athlete, not team
+        names = []
+        for c in competitors:
+            athlete = c.get("athlete", {})
+            name = athlete.get("displayName", "")
+            if not name:
+                name = c.get("team", {}).get("displayName", "")
+            names.append(name)
+
+        if len(names) < 2 or not names[0] or not names[1]:
+            return None
+
+        status = comp.get("status", {})
+        status_name = "scheduled"
+        if isinstance(status, dict):
+            type_info = status.get("type", {})
+            if isinstance(type_info, dict):
+                status_name = type_info.get("name", "scheduled")
+
+        return APIFixture(
+            external_id=str(comp.get("id", "")),
+            source=self.api_name,
+            sport=self.sport,
+            competition_name=competition_name,
+            home_team_name=names[0],
+            away_team_name=names[1],
+            kickoff=comp.get("date", comp.get("startDate", "")),
+            status=status_name,
+        )
+
     def get_fixture_stats(self, fixture_id: str) -> list[APIMatchStats]:
         """Get match statistics via /summary endpoint.
 
@@ -378,6 +479,10 @@ class ESPNClient(BaseAPIClient):
         cached = self._check_cache(cache_key, ttl_hours=168)
         if cached:
             return [APIMatchStats(**ms) for ms in cached.get("stats", [])]
+
+        # For tennis, we get stats from scoreboard linescores
+        if self.sport == "tennis":
+            return self._get_tennis_match_stats(fixture_id)
 
         try:
             data = self._request("/summary", params={"event": fixture_id})
@@ -506,6 +611,77 @@ class ESPNClient(BaseAPIClient):
                     stats[normalized_key] = {}
                 stats[normalized_key][side] = value
 
+    def _get_tennis_match_stats(self, fixture_id: str) -> list[APIMatchStats]:
+        """Get tennis match stats from scoreboard linescores.
+
+        Derives: sets_won, games_won, total_sets from set-by-set scores.
+        """
+        cache_key = f"espn/{self.sport}/{self.league}/fixture_stats/{fixture_id}"
+        cached = self._check_cache(cache_key, ttl_hours=168)
+        if cached:
+            return [APIMatchStats(**ms) for ms in cached.get("stats", [])]
+
+        # Search scoreboard for this match
+        try:
+            data = self._request("/scoreboard")
+        except Exception:
+            return []
+
+        for event in data.get("events", []):
+            for grouping in event.get("groupings", []):
+                for comp in grouping.get("competitions", []):
+                    if str(comp.get("id", "")) == str(fixture_id):
+                        return self._extract_tennis_stats(comp, fixture_id, cache_key)
+        return []
+
+    def _extract_tennis_stats(
+        self, comp: dict, fixture_id: str, cache_key: str
+    ) -> list[APIMatchStats]:
+        """Extract tennis statistics from a competition's linescores."""
+        competitors = comp.get("competitors", [])
+        if len(competitors) < 2:
+            return []
+
+        stats: dict[str, dict[str, float]] = {}
+        names = {"home": "", "away": ""}
+
+        for i, c in enumerate(competitors):
+            side = "home" if i == 0 else "away"
+            athlete = c.get("athlete", {})
+            names[side] = athlete.get("displayName", "")
+
+            linescores = c.get("linescores", [])
+            sets_won = sum(1 for ls in linescores if ls.get("winner", False))
+            games_won = sum(int(ls.get("value", 0)) for ls in linescores)
+            total_sets = len(linescores)
+
+            # Seeding/ranking
+            rank = c.get("curatedRank", {}).get("current", 0)
+
+            stats.setdefault("sets_won", {})[side] = float(sets_won)
+            stats.setdefault("games_won", {})[side] = float(games_won)
+            stats.setdefault("total_sets", {})[side] = float(total_sets)
+            if rank and rank != "NR":
+                try:
+                    stats.setdefault("ranking", {})[side] = float(rank)
+                except (ValueError, TypeError):
+                    pass
+
+        if not names["home"] or not names["away"]:
+            return []
+
+        result = [APIMatchStats(
+            external_id=fixture_id,
+            source=self.api_name,
+            sport=self.sport,
+            home_team_name=names["home"],
+            away_team_name=names["away"],
+            stats=stats,
+        )]
+
+        self._save_cache(cache_key, {"stats": [asdict(ms) for ms in result]})
+        return result
+
     def get_h2h(self, team1_id: str, team2_id: str, last_n: int = 10) -> list[dict]:
         """Get H2H data — uses team schedule filtered by opponent."""
         cache_key = f"espn/{self.sport}/{self.league}/h2h/{team1_id}_{team2_id}"
@@ -550,11 +726,16 @@ class ESPNClient(BaseAPIClient):
         """Resolve team name to ESPN team ID via /teams endpoint.
 
         Uses case-insensitive fuzzy matching. Results cached for 7 days.
+        For individual sports (tennis/MMA), searches scoreboard for athlete IDs.
         """
         cache_key = f"espn/{self.sport}/{self.league}/team_search/{team_name.lower().replace(' ', '_')}"
         cached = self._check_cache(cache_key, ttl_hours=168)
         if cached:
             return cached.get("team_id")
+
+        # For individual sports, search scoreboard for athlete IDs
+        if self.sport in ("tennis", "mma"):
+            return self._resolve_athlete_id(team_name)
 
         try:
             data = self._request("/teams")
@@ -604,12 +785,72 @@ class ESPNClient(BaseAPIClient):
 
         return None
 
+    def _resolve_athlete_id(self, athlete_name: str) -> str | None:
+        """Resolve athlete name to ESPN ID by scanning scoreboard."""
+        cache_key = f"espn/{self.sport}/{self.league}/athlete_search/{athlete_name.lower().replace(' ', '_')}"
+        cached = self._check_cache(cache_key, ttl_hours=168)
+        if cached:
+            return cached.get("team_id")
+
+        try:
+            data = self._request("/scoreboard")
+        except Exception:
+            return None
+
+        name_lower = athlete_name.lower().strip()
+
+        # Build athlete list from scoreboard
+        athletes = []
+        for event in data.get("events", []):
+            # MMA: direct competitions
+            for comp in event.get("competitions", []):
+                for c in comp.get("competitors", []):
+                    ath = c.get("athlete", {})
+                    if ath:
+                        athletes.append({"id": str(c.get("id", "")), **ath})
+            # Tennis: groupings→competitions
+            for grouping in event.get("groupings", []):
+                for comp in grouping.get("competitions", []):
+                    for c in comp.get("competitors", []):
+                        ath = c.get("athlete", {})
+                        if ath:
+                            athletes.append({"id": str(c.get("id", "")), **ath})
+
+        # Fuzzy match
+        best_match = None
+        for a in athletes:
+            display = a.get("displayName", "").lower()
+            short = a.get("shortName", "").lower()
+            full = a.get("fullName", "").lower()
+
+            if display == name_lower or full == name_lower:
+                best_match = a
+                break
+            if name_lower in display or display in name_lower:
+                best_match = a
+                break
+            # Handle "Sinner" matching "Jannik Sinner"
+            if name_lower in full or name_lower.split()[-1] in display:
+                if not best_match:
+                    best_match = a
+
+        if best_match:
+            aid = best_match.get("id", "")
+            self._save_cache(cache_key, {"team_id": aid})
+            return aid
+
+        return None
+
     def get_team_last_fixtures(self, team_id: str, last_n: int = 10) -> list[dict]:
         """Get last N completed fixtures for a team via /teams/{id}/schedule."""
         cache_key = f"espn/{self.sport}/{self.league}/team_fixtures/{team_id}"
         cached = self._check_cache(cache_key, ttl_hours=12)
         if cached:
             return cached.get("fixtures", [])
+
+        # Individual sports: scan scoreboard for athlete matches
+        if self.sport in ("tennis", "mma"):
+            return self._get_athlete_recent_matches(team_id, last_n)
 
         try:
             data = self._request(f"/teams/{team_id}/schedule")
@@ -684,6 +925,255 @@ class ESPNClient(BaseAPIClient):
 
         self._save_cache(cache_key, {"injuries": injuries})
         return injuries
+
+    def _get_athlete_recent_matches(self, athlete_id: str, last_n: int = 10) -> list[dict]:
+        """Get recent matches for an athlete from scoreboard data."""
+        cache_key = f"espn/{self.sport}/{self.league}/athlete_fixtures/{athlete_id}"
+        cached = self._check_cache(cache_key, ttl_hours=12)
+        if cached:
+            return cached.get("fixtures", [])
+
+        try:
+            data = self._request("/scoreboard")
+        except Exception:
+            return []
+
+        matches = []
+        for event in data.get("events", []):
+            comps_to_check = []
+            # MMA
+            comps_to_check.extend(event.get("competitions", []))
+            # Tennis
+            for g in event.get("groupings", []):
+                comps_to_check.extend(g.get("competitions", []))
+
+            for comp in comps_to_check:
+                competitors = comp.get("competitors", [])
+                athlete_in_match = any(
+                    str(c.get("id", "")) == str(athlete_id)
+                    for c in competitors
+                )
+                if not athlete_in_match:
+                    continue
+
+                status = comp.get("status", {}).get("type", {})
+                if status.get("state") != "post":
+                    continue
+
+                names = []
+                for c in competitors:
+                    ath = c.get("athlete", {})
+                    names.append(ath.get("displayName", ""))
+
+                matches.append({
+                    "id": comp.get("id"),
+                    "date": comp.get("date", comp.get("startDate", "")),
+                    "home_team": names[0] if names else "",
+                    "away_team": names[1] if len(names) > 1 else "",
+                })
+
+        matches.sort(key=lambda m: m.get("date", ""), reverse=True)
+        result = matches[:last_n]
+        self._save_cache(cache_key, {"fixtures": result})
+        return result
+
+    def get_standings(self) -> list[dict]:
+        """Get league standings/table."""
+        cache_key = f"espn/{self.sport}/{self.league}/standings"
+        cached = self._check_cache(cache_key, ttl_hours=12)
+        if cached:
+            return cached.get("standings", [])
+
+        try:
+            if self.sport == "football":
+                url = f"http://site.api.espn.com/apis/v2/sports/soccer/{self.league}/standings"
+                response = requests.get(url, headers=self._build_headers(), timeout=self.TIMEOUT)
+                data = response.json()
+            else:
+                data = self._request("/standings")
+        except Exception:
+            return []
+
+        standings = []
+        for child in data.get("children", data.get("standings", [])):
+            if isinstance(child, dict):
+                entries = child.get("standings", {}).get("entries", [])
+                if not entries:
+                    entries = child.get("entries", [])
+                for entry in entries:
+                    team = entry.get("team", {})
+                    stats_list = entry.get("stats", [])
+                    stat_dict = {}
+                    for s in stats_list:
+                        stat_dict[s.get("name", "")] = s.get("value", s.get("displayValue", ""))
+                    standings.append({
+                        "team_id": str(team.get("id", "")),
+                        "team_name": team.get("displayName", ""),
+                        "rank": stat_dict.get("rank", ""),
+                        "wins": stat_dict.get("wins", ""),
+                        "losses": stat_dict.get("losses", ""),
+                        "draws": stat_dict.get("ties", stat_dict.get("draws", "")),
+                        "points": stat_dict.get("points", ""),
+                        "gamesPlayed": stat_dict.get("gamesPlayed", ""),
+                    })
+
+        self._save_cache(cache_key, {"standings": standings})
+        return standings
+
+    @staticmethod
+    def extract_odds_from_event(event: dict) -> dict | None:
+        """Extract DraftKings odds from an ESPN scoreboard event.
+
+        Returns dict with moneyline, total, spread in American odds format.
+        Returns None if no odds available.
+        """
+        competitions = event.get("competitions", [])
+        if not competitions:
+            return None
+
+        odds_list = competitions[0].get("odds", [])
+        if not odds_list:
+            return None
+
+        # Find DraftKings odds (usually first/only)
+        odds_data = None
+        for o in odds_list:
+            if o is not None:
+                odds_data = o
+                break
+
+        if not odds_data:
+            return None
+
+        result = {"provider": "DraftKings", "source": "espn"}
+
+        # Moneyline
+        ml = odds_data.get("moneyline", {})
+        if ml:
+            result["moneyline"] = {
+                "home": ml.get("home", {}).get("close", {}).get("odds", ""),
+                "away": ml.get("away", {}).get("close", {}).get("odds", ""),
+                "draw": ml.get("draw", {}).get("close", {}).get("odds", ""),
+            }
+            result["moneyline_open"] = {
+                "home": ml.get("home", {}).get("open", {}).get("odds", ""),
+                "away": ml.get("away", {}).get("open", {}).get("odds", ""),
+                "draw": ml.get("draw", {}).get("open", {}).get("odds", ""),
+            }
+
+        # Totals (over/under)
+        total = odds_data.get("total", {})
+        if total:
+            result["total"] = {
+                "line": odds_data.get("overUnder", ""),
+                "over_odds": total.get("over", {}).get("close", {}).get("odds", ""),
+                "under_odds": total.get("under", {}).get("close", {}).get("odds", ""),
+            }
+
+        # Spread / Point Spread
+        spread = odds_data.get("pointSpread", {})
+        if spread:
+            result["spread"] = {
+                "home_line": spread.get("home", {}).get("close", {}).get("line", ""),
+                "home_odds": spread.get("home", {}).get("close", {}).get("odds", ""),
+                "away_line": spread.get("away", {}).get("close", {}).get("line", ""),
+                "away_odds": spread.get("away", {}).get("close", {}).get("odds", ""),
+            }
+
+        return result
+
+    @staticmethod
+    def extract_form_and_records(event: dict) -> dict:
+        """Extract team form strings and records from scoreboard event."""
+        result = {}
+        competitions = event.get("competitions", [])
+        if not competitions:
+            return result
+
+        for comp in competitions[0].get("competitors", []):
+            side = comp.get("homeAway", "")
+            team = comp.get("team", {})
+            team_name = team.get("displayName", "")
+            form = comp.get("form", "")
+            records = comp.get("records", [])
+
+            record_summary = ""
+            for r in records:
+                if r.get("type") == "total":
+                    record_summary = r.get("summary", "")
+                    break
+
+            if team_name:
+                result[side] = {
+                    "team": team_name,
+                    "form": form,
+                    "record": record_summary,
+                }
+
+        return result
+
+    def get_cross_competition_schedule(
+        self, team_id: str, future_only: bool = False
+    ) -> list[dict]:
+        """Get all-competition schedule for a team (soccer only).
+
+        Uses soccer/all/teams/{id}/schedule endpoint.
+        Returns matches across ALL competitions (league + cups + continental).
+        """
+        if self.sport != "football":
+            return []
+
+        cache_key = f"espn/{self.sport}/all/cross_schedule/{team_id}"
+        cached = self._check_cache(cache_key, ttl_hours=12)
+        if cached:
+            return cached.get("events", [])
+
+        params = {}
+        if future_only:
+            params["fixture"] = "true"
+
+        try:
+            url = f"{self.ESPN_BASE}/soccer/all/teams/{team_id}/schedule"
+            response = requests.get(
+                url, params=params, headers=self._build_headers(), timeout=self.TIMEOUT
+            )
+            if response.status_code >= 400:
+                return []
+            data = response.json()
+        except Exception:
+            return []
+
+        events = []
+        for event in data.get("events", []):
+            competitions = event.get("competitions", [])
+            if not competitions:
+                continue
+            comp = competitions[0]
+            competitors = comp.get("competitors", [])
+            home_name = ""
+            away_name = ""
+            score = ""
+            for c in competitors:
+                t = c.get("team", {})
+                if c.get("homeAway") == "home":
+                    home_name = t.get("displayName", "")
+                    score = str(c.get("score", ""))
+                else:
+                    away_name = t.get("displayName", "")
+                    score = f"{score}-{c.get('score', '')}"
+
+            events.append({
+                "id": event.get("id"),
+                "date": event.get("date", ""),
+                "name": event.get("name", ""),
+                "home_team": home_name,
+                "away_team": away_name,
+                "score": score,
+                "league": event.get("league", {}).get("abbreviation", ""),
+            })
+
+        self._save_cache(cache_key, {"events": events})
+        return events
 
 
 def get_espn_league_for_competition(competition_name: str) -> str | None:

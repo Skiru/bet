@@ -31,15 +31,17 @@ from build_stats_cache import (
 
 DATA_DIR = Path(__file__).parent.parent / "betting" / "data"
 
-# Fallback chains per sport
+# Fallback chains per sport — ESPN first (free, unlimited, no API key)
+# SerpAPI last (250/month limit, supplementary Google search data)
 FALLBACK_CHAINS = {
-    "football": ["api-football", "football-data-org", "understat"],
-    "basketball": ["api-basketball", "balldontlie"],
-    "hockey": ["api-hockey"],
-    "tennis": ["api-tennis"],
-    "volleyball": ["api-volleyball"],
-    "handball": ["api-handball"],
-    "baseball": ["api-baseball"],
+    "football": ["espn-football", "api-football", "football-data-org", "understat", "serpapi"],
+    "basketball": ["espn-basketball", "api-basketball", "balldontlie", "serpapi"],
+    "hockey": ["espn-hockey", "api-hockey", "serpapi"],
+    "tennis": ["espn-tennis", "api-tennis", "serpapi"],
+    "volleyball": ["api-volleyball", "serpapi"],
+    "handball": ["api-handball", "serpapi"],
+    "baseball": ["espn-baseball", "api-baseball", "serpapi"],
+    "mma": ["espn-mma", "serpapi"],
 }
 
 # Tier 1 sports get enriched first
@@ -47,7 +49,7 @@ TIER_1_SPORTS = {"football", "volleyball", "basketball", "tennis"}
 
 
 def fetch_team_stats(
-    client, team_name: str, sport: str, last_n: int = 10
+    client, team_name: str, sport: str, last_n: int = 10, competition: str = ""
 ) -> list[NormalizedMatchStats]:
     """Fetch last N matches with stats for a team.
 
@@ -56,8 +58,12 @@ def fetch_team_stats(
     3. For each fixture, get detailed stats (budget-aware)
     4. Return list of NormalizedMatchStats
     """
-    # Resolve team ID
-    team_id = client.resolve_team_id(team_name)
+    # Resolve team ID (pass competition for ESPN league hint)
+    try:
+        team_id = client.resolve_team_id(team_name, competition=competition)
+    except TypeError:
+        # Clients that don't accept competition kwarg
+        team_id = client.resolve_team_id(team_name)
     if not team_id:
         print(f"[fetch] Could not resolve team ID for '{team_name}'")
         return []
@@ -95,11 +101,15 @@ def fetch_team_stats(
 
 
 def fetch_h2h_stats(
-    client, team1_name: str, team2_name: str, sport: str, last_n: int = 10
+    client, team1_name: str, team2_name: str, sport: str, last_n: int = 10, competition: str = ""
 ) -> list[NormalizedMatchStats]:
     """Fetch H2H meetings with stats."""
-    team1_id = client.resolve_team_id(team1_name)
-    team2_id = client.resolve_team_id(team2_name)
+    try:
+        team1_id = client.resolve_team_id(team1_name, competition=competition)
+        team2_id = client.resolve_team_id(team2_name, competition=competition)
+    except TypeError:
+        team1_id = client.resolve_team_id(team1_name)
+        team2_id = client.resolve_team_id(team2_name)
 
     if not team1_id or not team2_id:
         print(f"[fetch] Could not resolve team IDs for H2H: '{team1_name}' vs '{team2_name}'")
@@ -213,13 +223,13 @@ def enrich_fixture(fixture: dict, rate_limiter: RateLimiter) -> dict:
             continue
 
         # Fetch team A stats
-        team_a_stats = fetch_team_stats(client, home_team, sport)
+        team_a_stats = fetch_team_stats(client, home_team, sport, competition=competition)
 
         # Fetch team B stats
-        team_b_stats = fetch_team_stats(client, away_team, sport)
+        team_b_stats = fetch_team_stats(client, away_team, sport, competition=competition)
 
         # Fetch H2H
-        h2h_stats = fetch_h2h_stats(client, home_team, away_team, sport)
+        h2h_stats = fetch_h2h_stats(client, home_team, away_team, sport, competition=competition)
 
         # Check if we got anything useful
         if not team_a_stats and not team_b_stats:

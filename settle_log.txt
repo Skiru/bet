@@ -1240,3 +1240,6 @@
 2026-04-30T08:34:56.504893   Flashscore baseball/yesterday: +29 results
 2026-04-30T08:35:07.685989   Flashscore volleyball/yesterday: +36 results
 2026-04-30T08:35:18.872583   Flashscore snooker/yesterday: +4 results
+2026-05-04T10:01:12.506533 No pending picks to settle.
+2026-05-04T10:01:29.951434 No pending picks to settle.
+2026-05-04T10:01:58.753117 No pending picks to settle.

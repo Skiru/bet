@@ -21,7 +21,8 @@ from urllib.parse import urlparse
 BASE = Path(__file__).resolve().parent
 DATA_DIR = BASE.parent / "betting" / "data"
 
-FETCH_DELAY_SECONDS = 3  # delay between fetches to avoid anti-bot triggers
+FETCH_DELAY_SECONDS = 1.5  # delay between fetches to avoid anti-bot triggers
+PER_PAGE_TIMEOUT = 30  # max seconds per page fetch
 
 SPORT_URL_PATTERNS = {
     "tennis": ["/tennis", "/tenis", "tennisabstract", "tennisexplorer"],
@@ -63,6 +64,17 @@ except Exception:
         return resp.text
 
 from adapters import get_adapter
+
+
+def _fetch_with_timeout(url: str, timeout_sec: int = PER_PAGE_TIMEOUT) -> str:
+    """Fetch a URL with a hard timeout to prevent stalled pages."""
+    import concurrent.futures
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+        future = ex.submit(fetch, url)
+        try:
+            return future.result(timeout=timeout_sec)
+        except concurrent.futures.TimeoutError:
+            raise TimeoutError(f"Page fetch timed out after {timeout_sec}s: {url}")
 
 
 def save_html(domain: str, html: str) -> Path:
@@ -137,7 +149,7 @@ def _scan_domain_group(domain: str, urls: list[str], deep: bool, max_deep_links:
     for i, url in enumerate(urls):
         print(f"  [{domain}] [{i+1}/{len(urls)}] Fetching {url}")
         try:
-            html = fetch(url)
+            html = _fetch_with_timeout(url)
         except Exception as e:
             msg = f"Failed to fetch {url}: {e}"
             print(msg)
@@ -180,7 +192,7 @@ def _scan_domain_group(domain: str, urls: list[str], deep: bool, max_deep_links:
                     for j, sub_url in enumerate(new_links[:max_deep_links]):
                         print(f"    [{domain}] [deep {j+1}/{len(new_links)}] Fetching {sub_url}")
                         try:
-                            sub_html = fetch(sub_url)
+                            sub_html = _fetch_with_timeout(sub_url)
                         except Exception as e:
                             errors.append({"url": sub_url, "error": str(e), "source_type": "deep-link"})
                             continue
@@ -213,7 +225,7 @@ def _scan_domain_group(domain: str, urls: list[str], deep: bool, max_deep_links:
     return extracted, errors
 
 
-def scan_urls(urls, deep=False, max_deep_links=50, workers=6):
+def scan_urls(urls, deep=False, max_deep_links=30, workers=8):
     # Group URLs by domain
     domain_groups = defaultdict(list)
     for url in urls:

@@ -50,3 +50,15 @@ CLIENT_REGISTRY["api-handball"] = APIHandballClient
 
 from .api_baseball import APIBaseballClient
 CLIENT_REGISTRY["api-baseball"] = APIBaseballClient
+
+# ESPN — FREE, unlimited, no API key (football, basketball, hockey, baseball)
+from .espn_adapter import ESPN_FACTORIES
+CLIENT_REGISTRY.update(ESPN_FACTORIES)
+
+# SerpAPI — Google search with sports data (250 searches/month free)
+from .serpapi_client import SerpAPIClient
+CLIENT_REGISTRY["serpapi"] = SerpAPIClient
+
+# Odds-API.io — 265 bookmakers, 34 sports, value bets (5K req/hour)
+from .odds_api_io import OddsAPIioClient
+CLIENT_REGISTRY["odds-api-io"] = OddsAPIioClient

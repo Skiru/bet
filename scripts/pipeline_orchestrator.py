@@ -271,31 +271,158 @@ def check_outputs(step: dict) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
+# ESPN American odds → decimal conversion
+# ---------------------------------------------------------------------------
+def _convert_espn_odds_to_decimal(odds_data: dict) -> dict:
+    """Convert ESPN American odds to decimal format.
+
+    American odds: +X → 1 + X/100; −X → 1 + 100/X
+    """
+    def _american_to_decimal(american) -> float | None:
+        try:
+            val = float(american)
+        except (ValueError, TypeError):
+            return None
+        if val > 0:
+            return round(1 + val / 100, 3)
+        elif val < 0:
+            return round(1 + 100 / abs(val), 3)
+        return None
+
+    result = {}
+
+    # Moneyline
+    ml = odds_data.get("moneyline", {})
+    if ml:
+        result["moneyline"] = {}
+        for side in ("home", "away", "draw"):
+            dec = _american_to_decimal(ml.get(side))
+            if dec:
+                result["moneyline"][side] = dec
+
+    # Total
+    total = odds_data.get("total", {})
+    if total:
+        result["total"] = {"line": total.get("line", "")}
+        over_dec = _american_to_decimal(total.get("over_odds"))
+        under_dec = _american_to_decimal(total.get("under_odds"))
+        if over_dec:
+            result["total"]["over"] = over_dec
+        if under_dec:
+            result["total"]["under"] = under_dec
+
+    # Spread
+    spread = odds_data.get("spread", {})
+    if spread:
+        result["spread"] = {
+            "home_line": spread.get("home_line", ""),
+            "away_line": spread.get("away_line", ""),
+        }
+        home_dec = _american_to_decimal(spread.get("home_odds"))
+        away_dec = _american_to_decimal(spread.get("away_odds"))
+        if home_dec:
+            result["spread"]["home"] = home_dec
+        if away_dec:
+            result["spread"]["away"] = away_dec
+
+    return result
+
+
+# ---------------------------------------------------------------------------
 # EV injection from odds API
 # ---------------------------------------------------------------------------
 def _inject_ev_from_odds(candidates: list[dict], date: str):
-    """Compute and inject EV into candidates using odds API snapshot.
+    """Compute and inject EV into candidates using odds API snapshots.
 
+    Sources: the-odds-api (odds_api_snapshot.json) + odds-api.io (odds_api_io_snapshot.json)
+    + ESPN DraftKings (espn_enrichment_{date}.json).
     EV = (safety × odds) - 1. If no odds snapshot exists, candidates
     keep ev=None and the gate handles it gracefully (stats-first mode).
     """
-    odds_path = DATA_DIR / "odds_api_snapshot.json"
-    if not odds_path.exists():
-        return
-
-    try:
-        odds_data = json.loads(odds_path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return
-
-    # Build lookup: "home|away" → best odds
     odds_lookup: dict[str, float] = {}
-    for event in odds_data if isinstance(odds_data, list) else odds_data.get("events", []):
-        home = (event.get("home_team") or "").strip().lower()
-        away = (event.get("away_team") or "").strip().lower()
-        best_odds = event.get("best_odds") or event.get("odds", {}).get("market_best")
-        if home and away and best_odds:
-            odds_lookup[f"{home}|{away}"] = float(best_odds)
+
+    # Source 1: the-odds-api snapshot
+    odds_path = DATA_DIR / "odds_api_snapshot.json"
+    if odds_path.exists():
+        try:
+            odds_data = json.loads(odds_path.read_text(encoding="utf-8"))
+            for event in odds_data if isinstance(odds_data, list) else odds_data.get("events", []):
+                home = (event.get("home_team") or "").strip().lower()
+                away = (event.get("away_team") or "").strip().lower()
+                best_odds = event.get("best_odds") or event.get("odds", {}).get("market_best")
+                if home and away and best_odds:
+                    odds_lookup[f"{home}|{away}"] = float(best_odds)
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    # Source 2: odds-api.io snapshot (265 bookmakers, more coverage)
+    io_path = DATA_DIR / "odds_api_io_snapshot.json"
+    if io_path.exists():
+        try:
+            io_data = json.loads(io_path.read_text(encoding="utf-8"))
+            # Extract odds from events
+            for event in io_data.get("events", []):
+                home = (event.get("home") or "").strip().lower()
+                away = (event.get("away") or "").strip().lower()
+                if not home or not away:
+                    continue
+                key = f"{home}|{away}"
+                # Find best ML odds across bookmakers
+                for bookie_name, markets in (event.get("bookmakers") or {}).items():
+                    if not isinstance(markets, list):
+                        continue
+                    for market in markets:
+                        if market.get("name") == "ML":
+                            for odds_entry in market.get("odds", []):
+                                for side in ["home", "away"]:
+                                    try:
+                                        val = float(odds_entry.get(side, 0))
+                                        if val > odds_lookup.get(key, 0):
+                                            odds_lookup[key] = val
+                                    except (ValueError, TypeError):
+                                        pass
+            # Inject from value bets (pre-calculated EV!)
+            for vb in io_data.get("value_bets", []):
+                ev_data = vb.get("event", {})
+                home = (ev_data.get("home") or "").strip().lower()
+                away = (ev_data.get("away") or "").strip().lower()
+                if home and away:
+                    key = f"{home}|{away}"
+                    # Value bets have pre-calculated EV
+                    pre_ev = vb.get("expectedValue")
+                    if pre_ev is not None:
+                        # Find matching candidate and inject directly
+                        for c in candidates:
+                            ch = (c.get("home_team") or "").strip().lower()
+                            ca = (c.get("away_team") or "").strip().lower()
+                            if ch == home and ca == away and c.get("ev") is None:
+                                c["ev"] = round(float(pre_ev), 4)
+                                c["ev_source"] = "odds-api-io-value-bet"
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    # Source 3: ESPN DraftKings odds (free, unlimited)
+    espn_path = DATA_DIR / f"espn_enrichment_{date}.json"
+    if espn_path.exists():
+        try:
+            espn_data = json.loads(espn_path.read_text(encoding="utf-8"))
+            for event in espn_data.get("odds", []):
+                home = (event.get("home") or "").strip().lower()
+                away = (event.get("away") or "").strip().lower()
+                if not home or not away:
+                    continue
+                key = f"{home}|{away}"
+                # Use decimal moneyline (best odds for the favorite/underdog)
+                dec_odds = event.get("odds_decimal", {}).get("moneyline", {})
+                for side in ("home", "away"):
+                    val = dec_odds.get(side)
+                    if val and val > odds_lookup.get(key, 0):
+                        odds_lookup[key] = val
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    if not odds_lookup:
+        return
 
     injected = 0
     for c in candidates:
@@ -316,7 +443,7 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
             injected += 1
 
     if injected:
-        print(f"  → Injected EV for {injected}/{len(candidates)} candidates from odds API")
+        print(f"  → Injected EV for {injected}/{len(candidates)} candidates from odds APIs")
 
 
 # ---------------------------------------------------------------------------
@@ -324,12 +451,13 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
 # ---------------------------------------------------------------------------
 
 def _run_parallel_enrichment(date: str, state: dict) -> tuple[bool, str]:
-    """S1b: Run odds, weather, and tipster aggregation in parallel.
+    """S1b: Run odds, weather, tipster aggregation, and ESPN enrichment in parallel.
 
-    These three tasks are independent and can run concurrently:
+    These tasks are independent and can run concurrently:
     1. Odds API fetch (~2 min)
     2. Weather data fetch (~1 min)
     3. Tipster aggregation (~3-5 min with parallel site fetching)
+    4. ESPN DraftKings odds + injuries + form (~1 min, free/unlimited)
     """
     results = {}
     errors = []
@@ -337,6 +465,10 @@ def _run_parallel_enrichment(date: str, state: dict) -> tuple[bool, str]:
     def run_odds():
         ok, out = run_command("python3 scripts/fetch_odds_api.py", date)
         return "odds", ok, out
+
+    def run_odds_io():
+        ok, out = run_command("python3 scripts/fetch_odds_api_io.py --date {date}", date)
+        return "odds-io", ok, out
 
     def run_weather():
         ok, out = run_command("python3 scripts/fetch_weather.py --date {date}", date)
@@ -346,11 +478,52 @@ def _run_parallel_enrichment(date: str, state: dict) -> tuple[bool, str]:
         ok, out = run_command("python3 scripts/tipster_aggregator.py --date {date} --workers 5", date)
         return "tipsters", ok, out
 
-    with ThreadPoolExecutor(max_workers=3) as executor:
+    def run_espn_enrichment():
+        """Fetch DraftKings odds, injuries, form from ESPN (free, unlimited)."""
+        try:
+            from api_clients.espn_adapter import ESPNMultiLeagueClient
+            from api_clients.rate_limiter import RateLimiter
+
+            rl = RateLimiter()
+            enrichment = {"date": date, "odds": [], "injuries": {}, "form": {}}
+
+            # Fetch odds for all ESPN-covered sports
+            for sport in ["football", "basketball", "hockey", "baseball"]:
+                client = ESPNMultiLeagueClient(sport=sport, rate_limiter=rl)
+                try:
+                    odds_data = client.get_scoreboard_odds(date)
+                    for item in odds_data:
+                        # Convert American odds to decimal for pipeline
+                        converted = _convert_espn_odds_to_decimal(item.get("odds", {}))
+                        item["odds_decimal"] = converted
+                    enrichment["odds"].extend(odds_data)
+                except Exception as e:
+                    print(f"  ⚠ ESPN odds for {sport}: {e}")
+
+                # Injuries (team sports only)
+                try:
+                    injuries = client.get_injuries()
+                    if injuries:
+                        enrichment["injuries"][sport] = injuries
+                except Exception:
+                    pass
+
+            # Save enrichment data
+            out_path = DATA_DIR / f"espn_enrichment_{date}.json"
+            out_path.write_text(
+                json.dumps(enrichment, indent=2, ensure_ascii=False), encoding="utf-8"
+            )
+            return "espn", True, f"ESPN: {len(enrichment['odds'])} events with odds"
+        except Exception as e:
+            return "espn", False, str(e)[:200]
+
+    with ThreadPoolExecutor(max_workers=5) as executor:
         futures = [
             executor.submit(run_odds),
+            executor.submit(run_odds_io),
             executor.submit(run_weather),
             executor.submit(run_tipsters),
+            executor.submit(run_espn_enrichment),
         ]
 
         for future in as_completed(futures):
@@ -365,7 +538,7 @@ def _run_parallel_enrichment(date: str, state: dict) -> tuple[bool, str]:
                 errors.append(f"parallel task error: {str(e)[:100]}")
 
     parts = []
-    for name in ["odds", "weather", "tipsters"]:
+    for name in ["odds", "odds-io", "weather", "tipsters", "espn"]:
         r = results.get(name, {})
         status = "✓" if r.get("ok") else "✗"
         parts.append(f"{name}:{status}")
@@ -421,6 +594,13 @@ def _run_s3(date: str, state: dict) -> tuple[bool, str]:
     total = result.get("total_candidates", 0)
     msg = f"S3 completed: {count}/{total} candidates with stats data"
 
+    # Stats quality gate: if 0 candidates enriched, warn loudly
+    if count == 0 and total > 0:
+        msg += " ⚠ ZERO candidates enriched — check API connectivity (ESPN should be unlimited)"
+        print(f"  ⚠ STATS QUALITY GATE: 0/{total} candidates have stats.")
+        print(f"    ESPN is free/unlimited — if this fails, check network connectivity.")
+        print(f"    Pipeline continues in stats-first mode (user verifies on Betclic app).")
+
     state.setdefault("step_data", {})["s3_count"] = total
     state["step_data"]["s3_with_data"] = count
 
@@ -436,10 +616,17 @@ def _run_s7(date: str, state: dict) -> tuple[bool, str]:
     s3_data = json.loads(s3_path.read_text(encoding="utf-8"))
     analyses = s3_data.get("analyses", [])
 
-    candidates = [_normalise_s3_to_gate_input(a) for a in analyses if a.get("has_data")]
+    # In stats-first mode, process ALL candidates (even without enriched stats cache)
+    # since the user verifies odds on Betclic app manually.
+    candidates_with_data = [_normalise_s3_to_gate_input(a) for a in analyses if a.get("has_data")]
+    if candidates_with_data:
+        candidates = candidates_with_data
+    else:
+        # Stats-first fallback: gate-check all candidates with THIN data quality
+        candidates = [_normalise_s3_to_gate_input(a) for a in analyses]
 
     if not candidates:
-        return False, "No candidates with data for gate check"
+        return False, "No candidates for gate check"
 
     # Inject EV from odds API snapshot if available
     _inject_ev_from_odds(candidates, date)

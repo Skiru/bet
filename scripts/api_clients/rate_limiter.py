@@ -24,6 +24,8 @@ API_DAILY_LIMITS = {
     "oddsportal-scraper": 50,
     "betexplorer-scraper": 50,
     "betclic-scraper": 50,
+    "serpapi": 8,  # ~250/month ≈ 8/day
+    "odds-api-io": 200,  # 5000/hour, cap at 200/day to be safe
 }
 
 USAGE_DIR = Path(__file__).parent.parent.parent / "betting" / "data" / ".api_usage"
