@@ -32,6 +32,10 @@ except ImportError:
 DATA_DIR = Path(__file__).parent.parent / "betting" / "data"
 CACHE_DIR = Path(__file__).parent.parent / "betting" / "data" / "stats_cache"
 
+# Stats where home+away should NOT be summed (percentages, not counts)
+_PERCENTAGE_STATS = {"possession", "shot_accuracy", "pass_accuracy", "cross_accuracy",
+                     "long_ball_accuracy", "tackle_accuracy"}
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -98,13 +102,34 @@ def extract_team_stats(sport: str, team_name: str) -> dict:
     stat_keys = SPORT_STAT_KEYS.get(sport, [])
 
     # Extract L10 averages
+    # Cache may store keys as "corners" (bare) or "corners_home"/"corners_away" (split)
+    # For split keys: sum home+away for additive stats (corners, fouls, cards, shots, goals),
+    # but keep home-only for percentage stats (possession) where sum is meaningless.
     l10_avg = form.get("l10_avg", {})
     l5_avg = form.get("l5_avg", {})
     for key in stat_keys:
         if key in l10_avg:
             result["l10_avg"][key] = l10_avg[key]
+        elif f"{key}_home" in l10_avg:
+            home_val = l10_avg.get(f"{key}_home", 0)
+            away_val = l10_avg.get(f"{key}_away", 0)
+            if key in _PERCENTAGE_STATS:
+                result["l10_avg"][key] = home_val
+            else:
+                result["l10_avg"][key] = round(home_val + away_val, 2) if isinstance(home_val, (int, float)) else home_val
+            result["l10_avg"][f"{key}_home"] = home_val
+            result["l10_avg"][f"{key}_away"] = away_val
         if key in l5_avg:
             result["l5_avg"][key] = l5_avg[key]
+        elif f"{key}_home" in l5_avg:
+            home_val = l5_avg.get(f"{key}_home", 0)
+            away_val = l5_avg.get(f"{key}_away", 0)
+            if key in _PERCENTAGE_STATS:
+                result["l5_avg"][key] = home_val
+            else:
+                result["l5_avg"][key] = round(home_val + away_val, 2) if isinstance(home_val, (int, float)) else home_val
+            result["l5_avg"][f"{key}_home"] = home_val
+            result["l5_avg"][f"{key}_away"] = away_val
 
     # Extract L10 match-by-match data
     l10 = form.get("l10_matches", form.get("recent_matches", []))
@@ -625,6 +650,11 @@ def analyze_candidate(
     markdown = "\n".join(md_parts)
 
     has_data = stats_a["has_data"] or stats_b["has_data"]
+
+    # If slug-based cache missed but safety_input succeeded (from raw API cache fallback),
+    # mark as having data so this candidate isn't counted as "no stats"
+    if not has_data and safety_input and safety_input.get("markets"):
+        has_data = True
 
     return {
         "sport": sport,

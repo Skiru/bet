@@ -235,6 +235,81 @@ class TestDeepStatsReport(unittest.TestCase):
         # Diacritics stripped (non a-z0-9)
         self.assertEqual(slugify("Atlético Madrid"), "atltico-madrid")
 
+    def test_extract_team_stats_split_keys(self):
+        """Verify corners_home + corners_away are summed correctly into total."""
+        import scripts.deep_stats_report as dsr
+        split_cache = {
+            "team": "TestTeam", "sport": "football", "slug": "testteam",
+            "form": {
+                "l10_avg": {"corners_home": 6.8, "corners_away": 3.2,
+                            "fouls_home": 12.0, "fouls_away": 9.0},
+                "l5_avg": {"corners_home": 7.0, "corners_away": 3.5},
+                "l10_matches": [],
+            },
+            "sources": ["espn-football"],
+        }
+        split_dir = self.cache_dir / "football"
+        split_dir.mkdir(parents=True, exist_ok=True)
+        (split_dir / "testteam.json").write_text(json.dumps(split_cache))
+        with patch.object(dsr, "CACHE_DIR", self.cache_dir):
+            result = dsr.extract_team_stats("football", "TestTeam")
+        self.assertTrue(result["has_data"])
+        self.assertEqual(result["l10_avg"]["corners"], 10.0)
+        self.assertEqual(result["l10_avg"]["corners_home"], 6.8)
+        self.assertEqual(result["l10_avg"]["corners_away"], 3.2)
+        self.assertEqual(result["l10_avg"]["fouls"], 21.0)
+        self.assertEqual(result["l5_avg"]["corners"], 10.5)
+
+    def test_extract_team_stats_percentage_keeps_home_only(self):
+        """Possession should NOT sum home+away (would yield 100%)."""
+        import scripts.deep_stats_report as dsr
+        pct_cache = {
+            "team": "PctTeam", "sport": "football", "slug": "pctteam",
+            "form": {
+                "l10_avg": {"possession_home": 58.0, "possession_away": 42.0,
+                            "corners_home": 5.0, "corners_away": 4.0},
+                "l5_avg": {"possession_home": 60.0, "possession_away": 40.0},
+                "l10_matches": [],
+            },
+            "sources": ["espn-football"],
+        }
+        pct_dir = self.cache_dir / "football"
+        pct_dir.mkdir(parents=True, exist_ok=True)
+        (pct_dir / "pctteam.json").write_text(json.dumps(pct_cache))
+        with patch.object(dsr, "CACHE_DIR", self.cache_dir):
+            result = dsr.extract_team_stats("football", "PctTeam")
+        self.assertTrue(result["has_data"])
+        # Possession keeps home-only (not 100.0)
+        self.assertEqual(result["l10_avg"]["possession"], 58.0)
+        self.assertEqual(result["l5_avg"]["possession"], 60.0)
+        # But corners are summed
+        self.assertEqual(result["l10_avg"]["corners"], 9.0)
+
+    def test_analyze_candidate_has_data_from_safety_input(self):
+        """has_data=True when safety_input provides markets despite empty slug cache."""
+        import scripts.deep_stats_report as dsr
+        import scripts.normalize_stats as norm_mod
+        mock_safety = {"sport": "football", "team_a": "GhostTeam", "team_b": "PhantomFC",
+                       "markets": [{"name": "corners", "safety": 0.6}]}
+        mock_ranking = {"ranking": [], "three_way_check": None,
+                        "recommended_market": None, "recommended_safety": None,
+                        "warnings": [], "markdown_ranking_table": "",
+                        "markdown_three_way_table": "", "markets_evaluated": 1}
+        with patch.object(dsr, "CACHE_DIR", self.cache_dir), \
+             patch.object(dsr, "DATA_DIR", self.data_dir), \
+             patch.object(norm_mod, "CACHE_DIR", self.cache_dir), \
+             patch.object(dsr, "build_safety_input_from_cache", return_value=mock_safety), \
+             patch.object(dsr, "rank_markets", return_value=mock_ranking):
+            result = dsr.analyze_candidate(
+                sport="football",
+                home="GhostTeam",
+                away="PhantomFC",
+                kickoff="2026-05-01T15:00:00",
+                competition="Test League",
+            )
+        # Despite missing slug cache, safety_input with markets should mark has_data
+        self.assertTrue(result["has_data"])
+
 
 # ===========================================================================
 # TestGateChecker

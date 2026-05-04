@@ -197,7 +197,7 @@ class TestEnrichFixture:
             result = enrich_fixture(fixture, rate_limiter)
 
         assert result["status"] == "enriched"
-        assert result["api_source"] == "api-football"
+        assert result["api_source"] == "espn-football"
         assert result["team_a_matches"] == 10
         assert result["team_b_matches"] == 10
         assert result["h2h_matches"] == 5
@@ -252,15 +252,15 @@ class TestFallbackChain:
             "competition": "Premier League",
         }
 
-        # First client has no API key, second works
-        mock_client_1 = MagicMock()
-        mock_client_1.api_key = None  # No key → skip
-        mock_client_1.is_available.return_value = False
+        # First two clients have no API key, third works
+        mock_client_unavail = MagicMock()
+        mock_client_unavail.api_key = None  # No key → skip
+        mock_client_unavail.is_available.return_value = False
 
-        mock_client_2 = MagicMock()
-        mock_client_2.api_key = "test-key"
-        mock_client_2.api_name = "football-data-org"
-        mock_client_2.is_available.return_value = True
+        mock_client_ok = MagicMock()
+        mock_client_ok.api_key = "test-key"
+        mock_client_ok.api_name = "football-data-org"
+        mock_client_ok.is_available.return_value = True
 
         team_stats = _make_n_match_stats(6, "Liverpool")
         h2h_stats = []
@@ -269,9 +269,9 @@ class TestFallbackChain:
 
         def factory(api_name, rl):
             call_count[0] += 1
-            if api_name == "api-football":
-                return mock_client_1
-            return mock_client_2
+            if api_name in ("espn-football", "api-football"):
+                return mock_client_unavail
+            return mock_client_ok
 
         with patch("fetch_api_stats.get_client", side_effect=factory), \
              patch("fetch_api_stats.fetch_team_stats") as mock_fetch_team, \
@@ -282,7 +282,7 @@ class TestFallbackChain:
 
             result = enrich_fixture(fixture, rate_limiter)
 
-        # Should have tried api-football (skipped due to no key) and used football-data-org
+        # Should have tried espn-football + api-football (both unavailable) and used football-data-org
         assert result["api_source"] == "football-data-org"
 
 

@@ -21,8 +21,28 @@ from urllib.parse import urlparse
 BASE = Path(__file__).resolve().parent
 DATA_DIR = BASE.parent / "betting" / "data"
 
-FETCH_DELAY_SECONDS = 1.5  # delay between fetches to avoid anti-bot triggers
-PER_PAGE_TIMEOUT = 30  # max seconds per page fetch
+FETCH_DELAY_SECONDS = 0.5  # default delay between fetches
+PER_PAGE_TIMEOUT = 45  # max seconds per page fetch
+
+# Per-domain delays: rate-sensitive sites get higher delays
+DOMAIN_DELAY_OVERRIDES = {
+    "betclic.pl": 2.0,
+    "soccerstats.com": 1.5,
+    "totalcorner.com": 1.0,
+    "hltv.org": 2.0,
+    "dartsorakel.com": 2.0,
+}
+
+# Domains safe for intra-domain parallel fetching (value = max concurrent fetches)
+PARALLEL_SAFE_DOMAINS = {
+    "flashscore.com": 3,
+    "sofascore.com": 2,
+    "betexplorer.com": 2,
+    "oddsportal.com": 2,
+    "forebet.com": 2,
+    "scores24.live": 2,
+    "soccerway.com": 2,
+}
 
 SPORT_URL_PATTERNS = {
     "tennis": ["/tennis", "/tenis", "tennisabstract", "tennisexplorer"],
@@ -135,6 +155,8 @@ def _scan_domain_group(domain: str, urls: list[str], deep: bool, max_deep_links:
     extracted = {}
     errors = []
     deep_links_found = 0
+    delay = DOMAIN_DELAY_OVERRIDES.get(domain, FETCH_DELAY_SECONDS)
+    intra_workers = PARALLEL_SAFE_DOMAINS.get(domain, 1)
 
     discover_deep_links = None
     if deep:
@@ -146,27 +168,28 @@ def _scan_domain_group(domain: str, urls: list[str], deep: bool, max_deep_links:
 
     adapter = get_adapter(domain)
 
-    for i, url in enumerate(urls):
+    def _fetch_single_url(i: int, url: str) -> tuple:
+        """Fetch and parse a single URL. Returns (url, items, local_errors, deep_items)."""
         print(f"  [{domain}] [{i+1}/{len(urls)}] Fetching {url}")
+        local_errors = []
         try:
             html = _fetch_with_timeout(url)
         except Exception as e:
             msg = f"Failed to fetch {url}: {e}"
             print(msg)
-            errors.append({"url": url, "error": str(e)})
-            continue
+            return url, None, [{"url": url, "error": str(e)}], {}
         if not html or len(html) < 100:
             msg = f"Empty or too-short response from {url} ({len(html or '')} chars)"
             print(msg)
-            errors.append({"url": url, "error": msg})
-            continue
+            return url, None, [{"url": url, "error": msg}], {}
+
         saved = save_html(domain, html)
         print(f"  [{domain}] Saved raw HTML to {saved}")
-        # Validate fetched content date
         date_warnings = validate_fetched_date(html, url, domain)
         for w in date_warnings:
             print(f"  [{domain}] ⚠️  {w}")
-            errors.append({"url": url, "warning": w})
+            local_errors.append({"url": url, "warning": w})
+
         sport = detect_sport(url)
         try:
             items = adapter(html, url)
@@ -174,27 +197,25 @@ def _scan_domain_group(domain: str, urls: list[str], deep: bool, max_deep_links:
             print(f"  [{domain}] Adapter failed, falling back to raw parser: {e}")
             from adapters.raw_adapter import parse as raw_parse
             items = raw_parse(html, url)
-        # Tag each item with detected sport
         for item in items:
             if "sport" not in item:
                 item["sport"] = sport
-        extracted[url] = items
         print(f"  [{domain}] Extracted {len(items)} candidate match lines [{sport}]")
 
-        # Deep-link discovery: follow tournament sub-links
+        # Deep-link discovery
+        deep_items = {}
         if discover_deep_links and domain in ("flashscore.com", "betexplorer.com", "sofascore.com", "soccerway.com", "forebet.com", "scores24.live"):
             try:
                 sub_links = discover_deep_links(html, url, domain, max_links=max_deep_links)
                 new_links = [sl for sl in sub_links if sl not in urls and sl not in extracted]
                 if new_links:
-                    deep_links_found += len(new_links)
                     print(f"  [{domain}] [deep] Discovered {len(new_links)} sub-links")
                     for j, sub_url in enumerate(new_links[:max_deep_links]):
                         print(f"    [{domain}] [deep {j+1}/{len(new_links)}] Fetching {sub_url}")
                         try:
                             sub_html = _fetch_with_timeout(sub_url)
                         except Exception as e:
-                            errors.append({"url": sub_url, "error": str(e), "source_type": "deep-link"})
+                            local_errors.append({"url": sub_url, "error": str(e), "source_type": "deep-link"})
                             continue
                         if not sub_html or len(sub_html) < 100:
                             continue
@@ -209,15 +230,41 @@ def _scan_domain_group(domain: str, urls: list[str], deep: bool, max_deep_links:
                             if "sport" not in item:
                                 item["sport"] = sub_sport
                             item["source_type"] = "deep-link"
-                        extracted[sub_url] = sub_extracted
+                        deep_items[sub_url] = sub_extracted
                         print(f"    [{domain}] [deep] Extracted {len(sub_extracted)} from {sub_url}")
-                        time.sleep(FETCH_DELAY_SECONDS)
+                        time.sleep(delay)
             except Exception as e:
                 print(f"  [{domain}] [deep] Deep-link discovery error: {e}")
 
-        # Rate limit between fetches within this domain
-        if i < len(urls) - 1:
-            time.sleep(FETCH_DELAY_SECONDS)
+        return url, items, local_errors, deep_items
+
+    # Use intra-domain parallelism for supported domains
+    if intra_workers > 1 and len(urls) > 1:
+        with ThreadPoolExecutor(max_workers=intra_workers) as executor:
+            futures = {executor.submit(_fetch_single_url, i, url): url for i, url in enumerate(urls)}
+            for future in as_completed(futures):
+                try:
+                    url, items, local_errors, deep_items = future.result()
+                    errors.extend(local_errors)
+                    if items is not None:
+                        extracted[url] = items
+                    if deep_items:
+                        extracted.update(deep_items)
+                        deep_links_found += len(deep_items)
+                except Exception as e:
+                    errors.append({"domain": domain, "error": str(e)})
+    else:
+        # Serial processing for rate-sensitive domains
+        for i, url in enumerate(urls):
+            url, items, local_errors, deep_items = _fetch_single_url(i, url)
+            errors.extend(local_errors)
+            if items is not None:
+                extracted[url] = items
+            if deep_items:
+                extracted.update(deep_items)
+                deep_links_found += len(deep_items)
+            if i < len(urls) - 1:
+                time.sleep(delay)
 
     if deep_links_found:
         print(f"  [{domain}] [deep] Total deep-links scanned: {deep_links_found}")

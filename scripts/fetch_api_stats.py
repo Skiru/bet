@@ -34,14 +34,20 @@ DATA_DIR = Path(__file__).parent.parent / "betting" / "data"
 # Fallback chains per sport — ESPN first (free, unlimited, no API key)
 # SerpAPI last (250/month limit, supplementary Google search data)
 FALLBACK_CHAINS = {
-    "football": ["espn-football", "api-football", "football-data-org", "understat", "serpapi"],
-    "basketball": ["espn-basketball", "api-basketball", "balldontlie", "serpapi"],
-    "hockey": ["espn-hockey", "api-hockey", "serpapi"],
-    "tennis": ["espn-tennis", "api-tennis", "serpapi"],
-    "volleyball": ["api-volleyball", "serpapi"],
-    "handball": ["api-handball", "serpapi"],
-    "baseball": ["espn-baseball", "api-baseball", "serpapi"],
-    "mma": ["espn-mma", "serpapi"],
+    "football": ["espn-football", "api-football", "football-data-org", "understat", "thesportsdb", "serpapi"],
+    "basketball": ["espn-basketball", "api-basketball", "balldontlie", "thesportsdb", "serpapi"],
+    "hockey": ["espn-hockey", "api-hockey", "thesportsdb", "serpapi"],
+    "tennis": ["espn-tennis", "api-tennis", "thesportsdb", "serpapi"],
+    "volleyball": ["api-volleyball", "thesportsdb", "serpapi"],
+    "handball": ["api-handball", "thesportsdb", "serpapi"],
+    "baseball": ["espn-baseball", "api-baseball", "thesportsdb", "serpapi"],
+    "mma": ["espn-mma", "thesportsdb", "serpapi"],
+    "snooker": ["thesportsdb", "serpapi"],
+    "darts": ["thesportsdb", "serpapi"],
+    "table_tennis": ["thesportsdb", "serpapi"],
+    "esports": ["thesportsdb", "serpapi"],
+    "padel": ["thesportsdb", "serpapi"],
+    "speedway": ["thesportsdb", "serpapi"],
 }
 
 # Tier 1 sports get enriched first

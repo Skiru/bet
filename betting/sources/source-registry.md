@@ -220,23 +220,62 @@ These API sources provide structured statistical data via REST APIs. They are th
   Coverage: All sports globally — but basic data only (fixtures, results, team info).
   Added: 2026-04-28.
 
+- ESPN API (espn_adapter.py)
+  Role: FREE, UNLIMITED, NO API KEY — multi-sport statistics via ESPN's public endpoints. Per-match stats: corners, fouls, cards, shots, shots on target, possession, saves, offsides, passes, tackles, interceptions, clearances. 36+ football leagues, NBA, NHL, MLB, ATP/WTA, UFC.
+  Use for: PRIMARY L10/L5/H2H stats source (first in every applicable fallback chain). Produces ~64KB slug-based cache per team. Feeds safety score computation and market ranking.
+  Access: free (no API key, no rate limit). Endpoint: site.api.espn.com/apis/site/v2/sports/{sport}/{league}/.
+  Coverage: Football (36 leagues: eng.1-4, ger.1, esp.1, ita.1, fra.1, ned.1, por.1, usa.1, mex.1, bra.1, arg.1, tur.1, gre.1, rus.1, bel.1, sco.1, chn.1, jpn.1, kor.1, aus.1 + 16 more). Basketball (NBA). Hockey (NHL). Baseball (MLB). Tennis (ATP, WTA). MMA (UFC).
+  Stats per match (football): fouls, yellow_cards, red_cards, offsides, corners, saves, possession, shots, shots_on_target, shot_accuracy, penalty_goals, accurate_passes, total_passes, pass_accuracy, accurate_crosses, long_balls, blocked_shots, tackles_won, interceptions, clearances, goals.
+  Client registry: `espn-football`, `espn-basketball`, `espn-hockey`, `espn-baseball`, `espn-tennis`, `espn-mma` (6 registered factories).
+  Script: Integrated into `python3 scripts/fetch_api_stats.py` via fallback chains.
+  Added: 2026-04-30. Promoted to first in chains: 2026-05-04.
+
+- SerpAPI
+  Role: Google search API with structured sports data — fixtures, results, standings, odds snippets from Google Knowledge Graph.
+  Use for: last-resort supplementary data when all sport-specific APIs fail. Returns structured Google search results including live scores, standings snippets, and injury news.
+  Access: free tier (100 searches/month). API key in config/api_keys.json or SERPAPI_KEY env var.
+  Coverage: ALL sports (Google indexes everything). Quality depends on Google's knowledge graph coverage for the specific event.
+  Client registry: `serpapi` — last in every fallback chain.
+  Script: Integrated into `python3 scripts/fetch_api_stats.py` as final fallback.
+  Added: 2026-05-04.
+
+- Odds-API.io
+  Role: real-time odds comparison from 265 bookmakers across 34 sports — value bets, pre-calculated EV opportunities, participant search.
+  URL: api.odds-api.io/v3
+  Use for: odds cross-validation with Betclic PL and Bet365 focus. Value bet detection (/value-bets endpoint). Fixture discovery for niche sports. 34 sports including volleyball, handball, padel, snooker, darts, table tennis, esports.
+  Access: free tier (5,000 req/hour). API key in config/api_keys.json or ODDS_API_IO_KEY env var.
+  Coverage: 34 sports (football, basketball, tennis, hockey, baseball, volleyball, handball, esports, darts, mma, snooker, table_tennis, padel, rugby, cricket + more). 265 bookmakers.
+  Key endpoints: /events (fixtures by sport), /odds (bookmaker odds per event), /odds/multi (batch), /value-bets (pre-calculated EV), /participants (team/player search).
+  Client registry: `odds-api-io` — used separately by `fetch_odds_multi.py`, NOT in stats fallback chains.
+  Script: `python3 scripts/fetch_odds_multi.py` (integrated as odds source), also callable via `api_clients/odds_api_io.py` directly.
+  Added: 2026-05-04.
+
 ### API Fallback Chains
 
+ESPN is first for all sports it covers (FREE, unlimited). SerpAPI is last resort for all sports.
+
 ```
-Football:   API-Football → Football-Data.org → Understat (xG only) → Playwright
-Basketball: API-Basketball → BallDontLie → nba_api (NBA only) → Playwright
-Hockey:     API-Hockey → Playwright
-Tennis:     API-Tennis (api_clients/api_tennis.py) → TheSportsDB → Playwright
-Volleyball: API-Volleyball (api_clients/api_volleyball.py) → TheSportsDB → Playwright
-Handball:   API-Handball (api_clients/api_handball.py) → TheSportsDB → Playwright
-Baseball:   API-Baseball (api_clients/api_baseball.py) → TheSportsDB → Playwright
-Other:      TheSportsDB (fixtures only) → Playwright
+Football:     ESPN → API-Football → Football-Data.org → Understat (xG only) → TheSportsDB → SerpAPI
+Basketball:   ESPN → API-Basketball → BallDontLie → TheSportsDB → SerpAPI
+Hockey:       ESPN → API-Hockey → TheSportsDB → SerpAPI
+Tennis:       ESPN → API-Tennis → TheSportsDB → SerpAPI
+Baseball:     ESPN → API-Baseball → TheSportsDB → SerpAPI
+MMA:          ESPN → TheSportsDB → SerpAPI
+Volleyball:   API-Volleyball → TheSportsDB → SerpAPI
+Handball:     API-Handball → TheSportsDB → SerpAPI
+Snooker:      TheSportsDB → SerpAPI
+Darts:        TheSportsDB → SerpAPI
+Table Tennis: TheSportsDB → SerpAPI
+Esports:      TheSportsDB → SerpAPI
+Padel:        TheSportsDB → SerpAPI
+Speedway:     TheSportsDB → SerpAPI
 ```
 
 ### Daily API Budget (~776 requests)
 
 | API | Daily Limit | Typical Use | Reserve |
 |-----|-------------|-------------|---------|
+| ESPN (all sports) | unlimited | 500+ | — |
 | API-Football | 100 | 70 | 30 |
 | API-Basketball | 100 | 60 | 40 |
 | API-Hockey | 100 | 50 | 50 |
@@ -246,6 +285,8 @@ Other:      TheSportsDB (fixtures only) → Playwright
 | TheSportsDB | ~100 | 30 | 70 |
 | Understat | unlimited | 50 | — |
 | The Odds API | ~16/day | 16 | 0 |
+| Odds-API.io | 5000/hr | 200 | 4800 |
+| SerpAPI | 100/mo | 20 | 80 |
 
 ## Weather Data Source
 
@@ -290,6 +331,70 @@ These adapters provide structured data extraction from web sources, normalizing 
   Input: scores24.live listing URLs (`/en/{sport}`) or detail URLs (`/en/{sport}/m-{date}-{slug}`).
   Output: listing → match links with dates and detail URLs; detail → full match data dict with match_info, odds, h2h, form_home, form_away, and trends.
   Sports covered: soccer, tennis, basketball, ice-hockey, handball, volleyball, baseball, snooker, darts, table-tennis, mma, csgo, lol, american-football, cricket, rugby, badminton, boxing, futsal, aussie-rules.
+  Added: 2026-04-30.
+
+- flashscore_adapter.py (`scripts/adapters/flashscore_adapter.py`)
+  Role: structured parser for Flashscore pages — extracts fixtures, live scores, results across ALL 14 sports using 3 heuristic methods (table rows, event blocks, regex patterns).
+  Use for: primary fixture discovery. Handles football, tennis, basketball, hockey, volleyball, handball, esports, snooker, darts, table tennis, MMA, baseball, padel, speedway.
+  Input: Flashscore URLs (e.g., `/football/`, `/tennis/`, `/volleyball/`)
+  Output: normalized fixture list with home/away teams, competition, sport, kickoff time.
+  Includes: garbage entry filtering, team name cleanup, deep-link discovery support.
+  Added: 2026-04-30.
+
+- betexplorer_adapter.py (`scripts/adapters/betexplorer_adapter.py`)
+  Role: structured parser for BetExplorer pages — extracts fixtures with odds, results, and competition context across all sports.
+  Use for: fixture discovery with embedded odds data. Covers all 14 sports including niche (padel, speedway, esports).
+  Input: BetExplorer sport URLs (e.g., `/football/`, `/volleyball/`, `/snooker/`)
+  Output: normalized fixture list with odds context (1X2 or ML prices where available).
+  Added: 2026-04-30.
+
+- forebet_adapter.py (`scripts/adapters/forebet_adapter.py`)
+  Role: structured parser for Forebet prediction pages — extracts model predictions, probabilities, and predicted scores.
+  Use for: model-backed direction confirmation for football and tennis. Parses 60+ tennis matches and 40+ football matches per page with 2-way/3-way probabilities.
+  Input: Forebet tip pages (e.g., `/football-tips-and-predictions-for-today`, `/tennis/predictions-today`)
+  Output: normalized predictions with probability %, predicted score, and value indicators.
+  Added: 2026-04-30.
+
+- oddsportal_adapter.py (`scripts/adapters/oddsportal_adapter.py`)
+  Role: structured parser for OddsPortal pages — extracts odds comparison data, line movements, and dropping odds.
+  Use for: odds cross-validation, price gap detection, and line movement tracking.
+  Input: OddsPortal sport/league URLs
+  Output: normalized odds data with bookmaker prices and movement indicators.
+  Added: 2026-04-30.
+
+- sofascore_adapter.py (`scripts/adapters/sofascore_adapter.py`)
+  Role: structured parser for Sofascore pages — extracts fixtures, team form, player ratings, and match statistics.
+  Use for: fixture cross-validation, form context, and pre-match statistics across all sports.
+  Input: Sofascore sport URLs
+  Output: normalized fixture list with form and statistical context.
+  Added: 2026-04-30.
+
+- totalcorner_adapter.py (`scripts/adapters/totalcorner_adapter.py`)
+  Role: structured parser for TotalCorner pages — extracts 200+ matches per day with corner counts, dangerous attacks, goal handicaps.
+  Use for: football corner market analysis. Extracts pre-match corner predictions, averages, and handicap lines.
+  Input: TotalCorner match list (e.g., `/match/today`)
+  Output: normalized corner prediction data per match (corner avg, corner handicap, dangerous attacks).
+  Added: 2026-04-30.
+
+- tennisabstract_adapter.py (`scripts/adapters/tennisabstract_adapter.py`)
+  Role: structured parser for TennisAbstract Elo table — extracts player Elo ratings (overall + surface-specific: hElo, cElo, gElo) for 518 ATP + 519 WTA players.
+  Use for: Elo-based tennis analysis. Player-level data with source_type: tennisabstract_elo.
+  Input: TennisAbstract ranking pages
+  Output: player Elo ratings (overall, hard, clay, grass) for ATP and WTA.
+  Added: 2026-04-30.
+
+- betclic_adapter.py (`scripts/adapters/betclic_adapter.py`)
+  Role: structured parser for Betclic pages — extracts available markets and odds from the execution bookmaker.
+  Use for: Betclic market verification. Note: Betclic blocks automated access (403), so this adapter has limited utility. All picks CONDITIONAL — user verifies on app.
+  Input: Betclic sport/match URLs
+  Output: normalized market/odds data (when accessible).
+  Added: 2026-04-30.
+
+- raw_adapter.py (`scripts/adapters/raw_adapter.py`)
+  Role: fallback parser for any unrecognized domain — uses regex heuristics to extract "Team A vs Team B" patterns from raw HTML.
+  Use for: catch-all adapter when no domain-specific adapter exists. Applies garbage entry filtering.
+  Input: any HTML page
+  Output: normalized fixture list (lower confidence than domain-specific adapters).
   Added: 2026-04-30.
 
 ### Odds Cross-Validation Sources (Multi-Source System)

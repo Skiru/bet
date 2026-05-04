@@ -462,6 +462,10 @@ def _run_parallel_enrichment(date: str, state: dict) -> tuple[bool, str]:
     results = {}
     errors = []
 
+    # Check which tasks need running (skip if already done by shell script)
+    odds_needed = not (DATA_DIR / "odds_api_snapshot.json").exists()
+    weather_needed = not (DATA_DIR / f"weather_{date}.json").exists()
+
     def run_odds():
         ok, out = run_command("python3 scripts/fetch_odds_api.py", date)
         return "odds", ok, out
@@ -517,14 +521,27 @@ def _run_parallel_enrichment(date: str, state: dict) -> tuple[bool, str]:
         except Exception as e:
             return "espn", False, str(e)[:200]
 
+    tasks = []
+    # Always run tipsters and ESPN (they add unique data)
+    tasks.append(run_tipsters)
+    tasks.append(run_espn_enrichment)
+    # Always try odds-io (different source from odds_api)
+    tasks.append(run_odds_io)
+
+    if odds_needed:
+        tasks.append(run_odds)
+    else:
+        results["odds"] = {"ok": True, "output": "Skipped (file exists from S1)"}
+        print("  ⏭ odds: skipped (odds_api_snapshot.json already exists)")
+
+    if weather_needed:
+        tasks.append(run_weather)
+    else:
+        results["weather"] = {"ok": True, "output": "Skipped (file exists from S1)"}
+        print(f"  ⏭ weather: skipped (weather_{date}.json already exists)")
+
     with ThreadPoolExecutor(max_workers=5) as executor:
-        futures = [
-            executor.submit(run_odds),
-            executor.submit(run_odds_io),
-            executor.submit(run_weather),
-            executor.submit(run_tipsters),
-            executor.submit(run_espn_enrichment),
-        ]
+        futures = [executor.submit(t) for t in tasks]
 
         for future in as_completed(futures):
             try:
@@ -902,16 +919,28 @@ def run_pipeline(
         if "python_step" in step:
             success, output = run_python_step(step_id, date, state)
         elif "commands" in step and step["commands"]:
-            all_success = True
-            outputs = []
-            for cmd in step["commands"]:
-                cmd_ok, cmd_out = run_command(cmd, date)
-                outputs.append(cmd_out)
-                if not cmd_ok:
-                    all_success = False
-                    break
-            success = all_success
-            output = "\n".join(outputs)
+            # Skip s1d/s1e if outputs already exist from shell script
+            date_compact = date.replace("-", "")
+            skip_reason = None
+            if step_id == "s1d_matrix" and (DATA_DIR / f"market_matrix_{date}.json").exists():
+                skip_reason = "market_matrix already exists from S1"
+            elif step_id == "s1e_shortlist" and (DATA_DIR / f"{date_compact}_s2_shortlist.json").exists():
+                skip_reason = "shortlist already exists from S1"
+            if skip_reason:
+                success = True
+                output = f"Skipped ({skip_reason})"
+                print(f"  ⏭ {output}")
+            else:
+                all_success = True
+                outputs = []
+                for cmd in step["commands"]:
+                    cmd_ok, cmd_out = run_command(cmd, date)
+                    outputs.append(cmd_out)
+                    if not cmd_ok:
+                        all_success = False
+                        break
+                success = all_success
+                output = "\n".join(outputs)
         else:
             success = True
             output = "No-op step"

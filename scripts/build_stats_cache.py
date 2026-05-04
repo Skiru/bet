@@ -16,7 +16,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-CACHE_DIR = Path("betting/data/stats_cache")
+CACHE_DIR = Path(__file__).parent.parent / "betting" / "data" / "stats_cache"
 FORM_TTL_HOURS = 24
 H2H_TTL_HOURS = 168  # 7 days
 

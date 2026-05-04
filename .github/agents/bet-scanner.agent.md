@@ -99,4 +99,6 @@ Follows all scanning constraints from analysis-methodology.instructions.md. Addi
 - Never declare a sport empty without trying ≥3 independent sources + 1 Google search
 - Never skip the tipster pre-fetch (§1.5) — it feeds S4
 - Always log source health after scan completes
+- §1.8 FIXTURE VERIFICATION GATE: Every candidate entering S2 shortlist MUST be verified against ≥2 non-tipster sources. Tipster-only = UNVERIFIED-SKIP. This prevents phantom fixtures (ZT#20: 58% shortlist was phantoms on 2026-04-29).
+- §1.8a OVERNIGHT GAME TRAP: Events with kickoff < current_time → PHANTOM unless confirmed via live odds. Check for post-game comments on tipster pages.
 </constraints>
