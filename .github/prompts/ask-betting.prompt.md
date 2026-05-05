@@ -23,7 +23,8 @@ Route this user message to the appropriate specialist agent.
    - **Statistics/safety scores/H2H** → bet-statistician (use `.github/internal-prompts/bet-deep-stats.prompt.md`)
    - **Tipsters/consensus** → bet-scout (use `.github/internal-prompts/bet-tipsters.prompt.md`)
    - **Odds/EV/pricing** → bet-valuator (use `.github/internal-prompts/bet-odds-ev.prompt.md`)
-   - **Context/upset risk/gate** → bet-challenger (use `.github/internal-prompts/bet-gate.prompt.md`)
+   - **Context/upset risk** → bet-challenger (use `.github/internal-prompts/bet-context-upset.prompt.md`)
+   - **Gate/bear cases/17-point check** → bet-challenger (use `.github/internal-prompts/bet-gate.prompt.md`)
    - **Coupons/portfolio/validation** → bet-builder (use `.github/internal-prompts/bet-portfolio.prompt.md`)
 4. For STATUS: answer directly from artifacts.
 5. For QUESTION/ACTION: delegate to the matched specialist agent with context files and session state.

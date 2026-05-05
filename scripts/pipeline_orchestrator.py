@@ -96,7 +96,7 @@ except ImportError:
 # Per-step timeout in seconds (prevents hanging on slow sources)
 STEP_TIMEOUTS = {
     "s0_settle": 180,      # 3 min
-    "s1_scan": 1800,       # 30 min (200+ URLs parallel scan + enrichment + aggregation)
+    "s1_scan": 3600,       # 60 min (232 URLs → 1000+ via deep-link, parallel enrichment + aggregation)
     "s1a_discover": 300,   # 5 min
     "s1b_parallel": 600,   # 10 min (odds + weather + tipsters in parallel)
     "s1c_aggregate": 120,  # 2 min
@@ -133,6 +133,8 @@ PIPELINE_STEPS = [
         "commands": ["bash scripts/run_full_scan_and_prepare.sh"],
         "outputs": ["betting/data/scan_summary.json"],
         "critical": True,
+        "agent_review_required": "bet-scanner",
+        "agent_task": "Verify 14-sport coverage, cross-validate fixtures ≥2 sources, check deep-link discovery yield, flag source failures, ensure ≥50 unique events",
     },
     {
         "id": "s1a_discover",
@@ -177,6 +179,8 @@ PIPELINE_STEPS = [
         "commands": ["python3 scripts/build_shortlist.py --date {date} --stats-first"],
         "outputs": [],
         "critical": False,
+        "agent_review_required": "bet-scanner",
+        "agent_task": "Review shortlist for sport diversity (≥8 sports), KEY sport coverage (≥60% Football/Tennis/Basketball/Volleyball), verify 50-100 candidates, flag missing major leagues",
     },
     {
         "id": "s2_tipster",

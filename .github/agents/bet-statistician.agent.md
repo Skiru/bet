@@ -70,3 +70,5 @@ The DB is the richest data source — check BEFORE JSON/web:
 - Never use Basketball-Reference for EU basketball
 - BANNED WORDS as sole cell content: "checked", "verified", "confirmed", "good", "fine", "OK", "done", "yes", "—", "N/A", "see above"
 - All 10 mandatory template sections per candidate (§S3.1-§S3.10) required
+
+<!-- BET:agent:bet-statistician:v1 -->

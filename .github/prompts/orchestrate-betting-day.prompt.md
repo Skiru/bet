@@ -16,8 +16,8 @@ This prompt defines WHAT to do. Agent delegation uses internal-prompts that defi
 | Pipeline Step | Internal Prompt | Agent |
 |---------------|----------------|-------|
 | S0 Settlement | `.github/internal-prompts/bet-settle.prompt.md` | bet-settler |
-| S1 Scan | `.github/internal-prompts/bet-scan.prompt.md` | bet-scanner |
-| S2 Shortlist | `.github/internal-prompts/bet-shortlist.prompt.md` | bet-scanner |
+| S1+S2 Scan+Enrich+Shortlist | `.github/internal-prompts/bet-scan.prompt.md` | bet-scanner |
+| S2 Shortlist (refinement) | `.github/internal-prompts/bet-shortlist.prompt.md` | bet-scanner |
 | S3 Deep Stats | `.github/internal-prompts/bet-deep-stats.prompt.md` | bet-statistician |
 | S3B Time-Sensitive | `.github/internal-prompts/bet-time-sensitive.prompt.md` | bet-statistician |
 | S4 Tipsters | `.github/internal-prompts/bet-tipsters.prompt.md` | bet-scout |
@@ -80,7 +80,7 @@ REQUIRED READS:
 
 **ALL sessions (full/day/night/morning) execute the EXACT SAME pipeline:**
 - Same 4-pass protocol (Discovery → Targeted Fixes → Polish → Final)
-- Same S0 → S1 → S1a(discover) → S1b(PARALLEL: odds+weather+tipsters) → S1c(aggregate) → S1d → S1e → S2(tipster xref) → S3 → S4(odds eval) → S5(context) → S6(upset risk) → S7 → S8 → S9 → S10 automated step sequence
+- Same S0 → S1 → S1a(discover) → S1b(PARALLEL: odds+weather+tipsters) → S1c(aggregate) → S1d → S1e → S2(tipster xref) → S3 → S4(tipsters) → S5(odds eval) → S6(context+upset) → S7(gate) → S8(coupons) → S9(validate) automated step sequence
 - Same 14-sport scan in S1 (ALL sports, even if most have 0 events in the window)
 - Same deep analysis (S3-S7): H2H, tipsters, injuries, bear case, 17-point gate
 - Coupon count = f(quality events, deep statistics), NOT f(bankroll). Produce as many as quality justifies.

@@ -131,7 +131,12 @@ def fetch(url: str, headless: bool = True, timeout: int = 30, retries: int = 2, 
                     "locale": "pl-PL",
                 }
                 if storage_file.exists():
-                    context_kwargs["storage_state"] = str(storage_file)
+                    try:
+                        json.load(open(storage_file))
+                        context_kwargs["storage_state"] = str(storage_file)
+                    except (json.JSONDecodeError, Exception) as e:
+                        print(f"[fetch_with_playwright] corrupt storage state {storage_file}, removing: {e}", file=sys.stderr)
+                        storage_file.unlink(missing_ok=True)
 
                 ctx = browser.new_context(**context_kwargs)
                 page = ctx.new_page()

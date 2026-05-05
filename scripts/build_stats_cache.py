@@ -41,12 +41,19 @@ def _persist_to_db(sport: str, team_name: str, stats_data: dict) -> None:
     if not _HAS_DB:
         return
 
+    # Map slugified cache sport names to canonical DB sport names
+    _SPORT_ALIASES = {
+        "tabletennis": "table_tennis",
+        "table-tennis": "table_tennis",
+    }
+    db_sport = _SPORT_ALIASES.get(sport, sport)
+
     form = stats_data.get("form", {})
     l10_avg = form.get("l10_avg", {})
     l5_avg = form.get("l5_avg", {})
     l10_matches = form.get("l10_matches", [])
 
-    if not l10_avg:
+    if not l10_avg and not stats_data.get("h2h"):
         return
 
     with get_db() as conn:
@@ -54,7 +61,7 @@ def _persist_to_db(sport: str, team_name: str, stats_data: dict) -> None:
         team_repo = TeamRepo(conn)
         stats_repo = StatsRepo(conn)
 
-        sport_obj = sport_repo.get_by_name(sport)
+        sport_obj = sport_repo.get_by_name(db_sport)
         if not sport_obj:
             return
 
@@ -97,21 +104,101 @@ def _persist_to_db(sport: str, team_name: str, stats_data: dict) -> None:
             )
             stats_repo.save_team_form(tf)
 
+        # --- Persist H2H data to DB ---
+        h2h_data = stats_data.get("h2h", {})
+        for opp_slug, opp_h2h in h2h_data.items():
+            if not isinstance(opp_h2h, dict):
+                continue
+            h2h_matches = opp_h2h.get("matches", [])
+            h2h_avg = opp_h2h.get("avg", {})
+            if not h2h_matches and not h2h_avg:
+                continue
+
+            # Resolve opponent team
+            # Try to find the opponent by slug — iterate team names
+            # The opp_slug is a slugified team name; find_or_create needs the display name
+            # Use slug as name fallback (will be created if needed)
+            opp_display = opp_slug.replace("-", " ").title()
+            opp_obj = team_repo.find_or_create(opp_display, sport_obj.id)
+
+            for stat_key, avg_val in h2h_avg.items():
+                h2h_values = _extract_h2h_stat_series(h2h_matches, stat_key)
+                tf = TeamForm(
+                    id=None,
+                    team_id=team_obj.id,
+                    sport_id=sport_obj.id,
+                    stat_key=stat_key,
+                    l10_values=[],
+                    l5_values=[],
+                    l10_avg=None,
+                    l5_avg=None,
+                    h2h_values=h2h_values,
+                    h2h_opponent_id=opp_obj.id,
+                    trend="",
+                    updated_at=now_ts,
+                    source=source,
+                )
+                stats_repo.save_team_form(tf)
+
 
 def _extract_stat_series(matches: list[dict], stat_key: str, n: int) -> list[float]:
-    """Extract numeric values for a stat key from match entries."""
+    """Extract numeric values for a stat key from match entries.
+
+    Handles both base keys ('sets_won') and compound keys ('sets_won_home',
+    'sets_won_away') that come from _compute_stat_averages().
+    """
     values: list[float] = []
+    # Detect compound key pattern: "base_home" or "base_away"
+    base_key = stat_key
+    target_side = None
+    if stat_key.endswith("_home"):
+        base_key = stat_key[:-5]
+        target_side = "home"
+    elif stat_key.endswith("_away"):
+        base_key = stat_key[:-5]
+        target_side = "away"
+
     for match in matches[:n]:
         stats = match.get("stats", {})
+        # Try exact key first
         val = stats.get(stat_key)
+        if val is None and base_key != stat_key:
+            # Fallback to base key with side extraction
+            val = stats.get(base_key)
         if val is not None:
             if isinstance(val, (int, float)):
                 values.append(float(val))
             elif isinstance(val, dict):
-                # Use home side (normalized to team's own stats)
-                home_val = val.get("home")
-                if isinstance(home_val, (int, float)):
-                    values.append(float(home_val))
+                side = target_side or "home"
+                side_val = val.get(side)
+                if isinstance(side_val, (int, float)):
+                    values.append(float(side_val))
+    return values
+
+
+def _extract_h2h_stat_series(h2h_matches: list[dict], stat_key: str) -> list[float]:
+    """Extract combined (home+away) values from H2H match entries.
+
+    Handles compound keys like 'sets_won_total' from _compute_combined_stat_averages().
+    """
+    values: list[float] = []
+    base_key = stat_key
+    if stat_key.endswith("_total"):
+        base_key = stat_key[:-6]
+
+    for match in h2h_matches:
+        stats = match.get("stats", {})
+        val = stats.get(stat_key)
+        if val is None and base_key != stat_key:
+            val = stats.get(base_key)
+        if val is not None:
+            if isinstance(val, (int, float)):
+                values.append(float(val))
+            elif isinstance(val, dict):
+                home_val = val.get("home", 0)
+                away_val = val.get("away", 0)
+                if isinstance(home_val, (int, float)) and isinstance(away_val, (int, float)):
+                    values.append(float(home_val) + float(away_val))
     return values
 
 

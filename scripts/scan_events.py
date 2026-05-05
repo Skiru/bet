@@ -233,7 +233,7 @@ def _scan_domain_group(domain: str, urls: list[str], deep: bool, max_deep_links:
 
         # Deep-link discovery
         deep_items = {}
-        if discover_deep_links and domain in ("flashscore.com", "betexplorer.com", "sofascore.com", "soccerway.com", "forebet.com", "scores24.live"):
+        if discover_deep_links and domain in ("flashscore.com", "betexplorer.com", "sofascore.com", "soccerway.com", "forebet.com", "scores24.live", "oddsportal.com"):
             try:
                 sub_links = discover_deep_links(html, url, domain, max_links=max_deep_links)
                 new_links = [sl for sl in sub_links if sl not in urls and sl not in extracted]
@@ -396,12 +396,14 @@ def main():
     parser.add_argument("--workers", type=int, default=6, help="Number of parallel domain workers (default: 6)")
     args = parser.parse_args()
 
+    urls = []
     if args.urls_file:
         urls_data = json.loads(Path(args.urls_file).read_text(encoding="utf-8"))
-        urls = urls_data.get("urls", urls_data) if isinstance(urls_data, dict) else urls_data
-    elif args.urls:
-        urls = args.urls
-    else:
+        file_urls = urls_data.get("urls", urls_data) if isinstance(urls_data, dict) else urls_data
+        urls.extend(file_urls)
+    if args.urls:
+        urls.extend(args.urls)
+    if not urls:
         parser.error("Either --urls or --urls-file is required")
 
     scan_urls(urls, deep=args.deep, max_deep_links=args.max_deep_links, workers=args.workers)

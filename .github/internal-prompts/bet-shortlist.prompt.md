@@ -30,6 +30,16 @@ Produces `{date}_s2_shortlist.md` + `{date}_s2_shortlist.json`.
 Apply removal criteria in order:
 1. Outside window, 2. No Tier A source, 3. <2h to kickoff, 4. Already started, 5. Exhibition, 6. ITF tennis, 7. Unverifiable
 
+### 2b. Enrichment Data Check
+
+For each shortlisted event, verify data completeness:
+- **L10 stats**: Check `betting/data/stats_cache/{sport}/{team}.json` exists for both teams
+- **H2H data**: Check `h2h` key in stats cache files
+- **Odds**: Check event appears in `odds_multi_sources.json` or acknowledge STATS-FIRST mode
+- **Weather** (outdoor only): Check `weather_{date}.json` has entry
+
+Flag events with <50% enrichment data as "DATA-SPARSE" — they still proceed but S3 analysis will rely more on web-scraped stats.
+
 ### 3. Early Betclic Market Check
 
 For niche sports (volleyball, table tennis, padel, speedway): verify Betclic market existence BEFORE deep analysis.
@@ -58,4 +68,4 @@ Key gates: 50-100 events, ≥8 sports, football ≤50%, no ITF tennis.
 
 ALL 11 checks pass → "S2 PASSED" → orchestrator proceeds to S3.
 
-<!-- BET:internal-prompt:bet-shortlist:v1 -->
+<!-- BET:internal-prompt:bet-shortlist:v2 -->

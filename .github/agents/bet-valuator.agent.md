@@ -64,3 +64,5 @@ You add a 5-part Market Intelligence Reasoning Layer via sequential-thinking: ma
 - Never skip the price gap check
 - Never ignore drift >8% — mandatory re-evaluation
 - Never round EV calculations — use exact arithmetic
+
+<!-- BET:agent:bet-valuator:v1 -->

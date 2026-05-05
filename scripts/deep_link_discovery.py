@@ -78,6 +78,22 @@ DOMAIN_PATTERNS = {
             re.compile(r"/news/"),
         ],
     },
+    "oddsportal.com": {
+        "include": [
+            re.compile(r"/football/[a-z-]+/[a-z0-9-]+/?$"),
+            re.compile(r"/tennis/[a-z-]+/[a-z0-9-]+/?$"),
+            re.compile(r"/basketball/[a-z-]+/[a-z0-9-]+/?$"),
+            re.compile(r"/volleyball/[a-z-]+/[a-z0-9-]+/?$"),
+            re.compile(r"/hockey/[a-z-]+/[a-z0-9-]+/?$"),
+            re.compile(r"/handball/[a-z-]+/[a-z0-9-]+/?$"),
+            re.compile(r"/baseball/[a-z-]+/[a-z0-9-]+/?$"),
+        ],
+        "exclude": [
+            re.compile(r"/results/"),
+            re.compile(r"/news/"),
+            re.compile(r"/history/"),
+        ],
+    },
     "soccerway.com": {
         "include": [
             re.compile(r"/national/[a-z-]+/[a-z0-9-]+/"),
@@ -227,7 +243,7 @@ def discover_flashscore_tournament_links(html: str, base_url: str) -> list[str]:
         if re.match(r"^/(football|tennis|basketball|volleyball|hockey|handball|baseball|esports|snooker|darts|table-tennis|mma)/[a-z-]+/[a-z0-9-]+/?$", path):
             results.append(link)
         # Also match country-level pages (lists all leagues in that country)
-        elif re.match(r"^/(football|tennis|basketball|volleyball|hockey)/[a-z-]+/?$", path):
+        elif re.match(r"^/(football|tennis|basketball|volleyball|hockey|handball|baseball)/[a-z-]+/?$", path):
             results.append(link)
 
     return sorted(set(results))

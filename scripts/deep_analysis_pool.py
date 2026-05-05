@@ -191,11 +191,23 @@ def analyze_fixture(fixture: dict, odds_lookup: dict) -> dict | None:
     # Find odds — use fuzzy matching to handle name variations
     odds_data = _fuzzy_odds_lookup(home_team, away_team, odds_lookup)
 
+    # Fallback: scan odds from stats_cache when API odds unavailable
+    scan_odds = {}
+    if not odds_data:
+        try:
+            from build_stats_cache import read_cache, slugify
+            cache_a = read_cache(sport, home_team)
+            if cache_a and cache_a.get("scan_odds"):
+                scan_odds = cache_a["scan_odds"]
+        except Exception:
+            pass
+
     best_market = result["ranking"][0] if result["ranking"] else None
 
     # Determine data quality
     has_h2h = best_market and not best_market.get("h2h_blind", True)
     has_odds = bool(odds_data)
+    has_odds = bool(odds_data) or bool(scan_odds)
     if has_h2h and has_odds:
         data_quality = "FULL"
     elif has_h2h or (len(result.get("ranking", [])) >= 3):
@@ -216,6 +228,7 @@ def analyze_fixture(fixture: dict, odds_lookup: dict) -> dict | None:
         "best_market": None,
         "all_markets": [],
         "odds": {},
+        "scan_odds": scan_odds if scan_odds else {},
         "ev": None,
         "cache_miss": False,
     }
@@ -291,6 +304,15 @@ def analyze_fixture(fixture: dict, odds_lookup: dict) -> dict | None:
             if market_best and best_market.get("safety_score"):
                 safety = best_market["safety_score"]
                 event["ev"] = round(safety * market_best - 1, 4)
+
+    # Fallback: compute EV from scan odds when API odds unavailable
+    if event.get("ev") is None and scan_odds and best_market and best_market.get("safety_score"):
+        # Use W1 odds as proxy for match-level pricing
+        scan_price = scan_odds.get("w1") or scan_odds.get("w2")
+        if scan_price and isinstance(scan_price, (int, float)) and scan_price > 1.0:
+            safety = best_market["safety_score"]
+            event["ev"] = round(safety * scan_price - 1, 4)
+            event["odds"]["scan_best"] = scan_price
 
     return event
 

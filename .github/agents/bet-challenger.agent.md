@@ -57,3 +57,5 @@ You add a 5-part Deep Adversarial Reasoning Layer via sequential-thinking: scena
 - Never ignore a tipster argument that contradicts the pick — respond with data
 - 2/3 conflict in three-way cross-check → DOWNGRADE; 3/3 conflict → REJECT
 - 48h repeat (same team+market lost recently) → HARD REJECT
+
+<!-- BET:agent:bet-challenger:v1 -->

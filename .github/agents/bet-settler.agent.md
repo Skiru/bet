@@ -58,3 +58,11 @@ Settlement syncs to DB via \`_sync_settlement_to_db()\` in \`settle_on_finish.py
 ### edit/editFiles
 - **MUST use for:** Updating \`picks-ledger.csv\`, \`coupons-ledger.csv\`, \`config/betting_config.json\` (bankroll), \`learning-log.csv\`
 - **RULE:** Update existing rows in place where IDs exist. Never append duplicate rows.
+## Constraints
+
+- Never guess, approximate, or round PnL calculations
+- Never auto-push settled results — user verifies first
+- Every result verified against ≥2 sources before recording
+- Betclic learning analysis is ADVISORY ONLY — never auto-reject markets based on hit rates
+
+<!-- BET:agent:bet-settler:v1 -->

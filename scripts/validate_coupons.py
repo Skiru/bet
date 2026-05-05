@@ -35,73 +35,183 @@ EVENT_RE = re.compile(
 )
 
 
-def parse_coupon_tables(md_text: str) -> list[dict]:
-    """Extract all coupon entries from markdown tables."""
-    coupons = []
+def _split_table_cells(line: str) -> list[str] | None:
+    """Split a markdown table row into cells, preserving positional info."""
+    line = line.strip()
+    if not line.startswith("|"):
+        return None
+    cells = line.split("|")
+    if cells and cells[0].strip() == "":
+        cells = cells[1:]
+    if cells and cells[-1].strip() == "":
+        cells = cells[:-1]
+    return [c.strip() for c in cells]
 
-    for line in md_text.split("\n"):
+
+def _is_separator_row(cells: list[str]) -> bool:
+    """Check if cells form a markdown table separator row (|---|---|)."""
+    return all(re.match(r"^-+$", c.strip()) for c in cells if c.strip())
+
+
+def _is_header_row(cells: list[str]) -> bool:
+    """Detect header rows by absence of data indicators."""
+    joined = " ".join(cells).lower()
+    if any(ind in joined for ind in [" vs ", "≥", "@", "razem", " pln"]):
+        return False
+    if re.search(r"noga\s+\d", joined):
+        return False
+    if any(re.match(r"(?:CP|COMBO|CK-COMBO|EXT)-", c.strip(), re.I) for c in cells):
+        return False
+    return True
+
+
+def _extract_odds_value(text: str) -> float | None:
+    """Extract odds from text like '≥1.68' or '@2.50'."""
+    m = re.match(r"^[≥@]\s*([\d.]+)$", text.strip())
+    return float(m.group(1)) if m else None
+
+
+def _new_coupon(idx: int, coupon_id: str, is_combo: bool = False) -> dict:
+    """Create a fresh coupon dict."""
+    return {
+        "row_num": idx,
+        "coupon_id": coupon_id,
+        "description": "",
+        "legs_text": [],
+        "legs_odds": [],
+        "combined_odds_stated": 0.0,
+        "stake": 0.0,
+        "potential_return": 0.0,
+        "events": [],
+        "is_combo": is_combo,
+        "is_single": False,
+    }
+
+
+def _extract_leg(coupon: dict, cells: list[str]):
+    """Extract leg data from table cells by content detection."""
+    event = ""
+    market = ""
+    odds = None
+
+    for cell in cells:
+        c = cell.replace("**", "").strip()
+        if not c:
+            continue
+        if re.match(r"^\d+$", c):
+            continue
+        if re.match(r"^Noga\s+\d+$", c, re.I):
+            continue
+        if re.match(r"^(?:CP|EXT|COMBO|CK-COMBO)-", c, re.I):
+            continue
+        if c.startswith("\u2705") or c.upper().startswith("SPRAWDŹ"):
+            continue
+
+        odds_val = _extract_odds_value(c)
+        if odds_val is not None:
+            odds = odds_val
+            continue
+
+        if re.search(r"\svs\.?\s", c, re.I) and not event:
+            event = c
+            continue
+
+        if not market and any(t in c.lower() for t in POLISH_TERMS):
+            market = c
+            continue
+
+        if not event and " " in c and len(c) > 5:
+            event = c
+        elif not market:
+            market = c
+
+    if not event and not market:
+        return
+
+    leg = f"{event} — {market}" if event and market else (event or market)
+    coupon["legs_text"].append(leg)
+
+    if odds:
+        coupon["legs_odds"].append(odds)
+
+    ev = EVENT_RE.search(event or leg)
+    if ev:
+        coupon["events"].append(
+            normalize_event(f"{ev.group(1).strip()} vs {ev.group(2).strip()}")
+        )
+
+    if coupon["description"]:
+        coupon["description"] += " + "
+    coupon["description"] += leg
+
+
+def _extract_summary(coupon: dict, cells: list[str]):
+    """Extract combined odds, stake, return from RAZEM / summary row."""
+    full = " ".join(c.replace("**", "") for c in cells)
+
+    eq_matches = re.findall(r"=\s*([\d.]+)", full)
+    if eq_matches:
+        coupon["combined_odds_stated"] = float(eq_matches[-1])
+
+    pln_matches = re.findall(r"([\d.]+)\s*PLN", full)
+    if len(pln_matches) >= 2:
+        coupon["stake"] = float(pln_matches[0])
+        coupon["potential_return"] = float(pln_matches[1])
+    elif len(pln_matches) == 1:
+        if "stawka" in full.lower():
+            coupon["stake"] = float(pln_matches[0])
+        else:
+            coupon["potential_return"] = float(pln_matches[0])
+
+
+def _parse_legacy_coupons(lines: list[str]) -> list[dict]:
+    """Parse legacy single-row coupon format (one row per coupon)."""
+    coupons = []
+    for line in lines:
         line = line.strip()
         if not line.startswith("|"):
             continue
-
-        # Split by pipe and strip
         parts = [p.strip() for p in line.split("|")]
-        # Remove empty first/last from leading/trailing pipes
         parts = [p for p in parts if p != ""]
-
-        # We need at least 6 columns: #, Kupon, Co, Kurs, Stawka, Zwrot
         if len(parts) < 6:
             continue
-
-        # Column 1 must be a number
         try:
             row_num = int(parts[0])
         except ValueError:
             continue
-
         coupon_id = parts[1].strip()
         description = parts[2].strip()
-
-        # Skip separator/header rows
         if coupon_id.startswith("-") or coupon_id.lower() in ("kupon", "#"):
             continue
-
-        # Must contain a coupon-like ID (CP-, COMBO-, CK-COMBO-, EXT-)
-        if not re.match(r"(?:CP|COMBO|CK-COMBO|EXT)", coupon_id, re.IGNORECASE):
+        if not re.match(r"(?:CP|COMBO|CK-COMBO|EXT)", coupon_id, re.I):
             continue
-
-        # Parse numeric columns (combined odds, stake, return)
         try:
             combined_odds = float(parts[3])
             stake = float(re.sub(r"[^\d.]", "", parts[4]))
             potential_return = float(re.sub(r"[^\d.]", "", parts[5]))
         except (ValueError, IndexError):
             continue
-
-        # Extract per-leg odds
         legs_odds = [float(o) for o in LEG_ODDS_RE.findall(description)]
-
-        # Extract event names from description
-        # Split by <br> or " + " to get individual legs
         legs_text = re.split(r"<br\s*/?>|\s\+\s", description)
         legs_text = [lt.strip() for lt in legs_text if lt.strip()]
         events = []
         for leg_text in legs_text:
-            # Try to extract "X vs Y" pattern
             ev_match = EVENT_RE.search(leg_text)
             if ev_match:
-                event_name = f"{ev_match.group(1).strip()} vs {ev_match.group(2).strip()}"
+                event_name = (
+                    f"{ev_match.group(1).strip()} vs {ev_match.group(2).strip()}"
+                )
                 events.append(normalize_event(event_name))
             else:
-                # Fallback: use first part before "—", "–", or ":" as event identifier
-                parts_split = re.split(r"\s*(?:—|–|:)\s*", leg_text, maxsplit=1)
+                parts_split = re.split(
+                    r"\s*(?:—|–|:)\s*", leg_text, maxsplit=1
+                )
                 if parts_split:
                     events.append(normalize_event(parts_split[0].strip()))
-
-        # Determine if core or combo or single
-        is_combo = bool(re.search(r"(?:COMBO|CK-COMBO|COMB\d|EXT)", coupon_id, re.IGNORECASE))
-        is_single = bool(re.search(r"SINGLE", coupon_id, re.IGNORECASE))
-
+        is_combo = bool(
+            re.search(r"(?:COMBO|CK-COMBO|COMB\d|EXT)", coupon_id, re.I)
+        )
+        is_single = bool(re.search(r"SINGLE", coupon_id, re.I))
         coupons.append({
             "row_num": row_num,
             "coupon_id": coupon_id,
@@ -115,6 +225,96 @@ def parse_coupon_tables(md_text: str) -> list[dict]:
             "is_combo": is_combo,
             "is_single": is_single,
         })
+    return coupons
+
+
+def parse_coupon_tables(md_text: str) -> list[dict]:
+    """Extract coupon entries from markdown tables.
+
+    Supports:
+    - Multi-row format: CP-/EXT- ID in first column, legs as rows, RAZEM summary
+    - Heading format: ### CP-xxx / ### COMBO-xxx heading followed by table
+    - Legacy single-row format: row number + coupon ID + description in one row
+    """
+    coupons = []
+    lines = md_text.split("\n")
+
+    pending_id = None   # coupon ID from ### heading
+    current = None      # coupon dict being built
+    idx = 0
+
+    for line_raw in lines:
+        line = line_raw.strip()
+
+        # --- Detect coupon heading (### CP-xxx, ### COMBO-xxx) ---
+        hm = re.match(
+            r"^#{2,4}\s+((?:CP|COMBO|CK-COMBO|EXT)-[^\s\u2014\u2013\-]+)", line
+        )
+        if hm:
+            if current and current["legs_text"]:
+                coupons.append(current)
+                current = None
+            pending_id = hm.group(1).strip()
+            continue
+
+        # --- Non-table row ---
+        if not line.startswith("|"):
+            if line and current and current["legs_text"]:
+                coupons.append(current)
+                current = None
+            continue
+
+        # --- Table row ---
+        cells = _split_table_cells(line)
+        if not cells or _is_separator_row(cells):
+            continue
+        if _is_header_row(cells):
+            continue
+
+        joined = " ".join(c.replace("**", "") for c in cells).lower()
+
+        # --- RAZEM / summary row ---
+        is_summary = "razem" in joined or (
+            "kurs" in joined and "=" in joined
+            and ("pln" in joined or "stawka" in joined)
+        )
+        if is_summary:
+            if current:
+                _extract_summary(current, cells)
+                coupons.append(current)
+                current = None
+                pending_id = None
+            continue
+
+        # --- Coupon start from first column (v3: CP-xxx in cells[0]) ---
+        # Require date segment (YYYYMMDD) to avoid matching verification tables
+        id_match = re.match(r"((?:CP|EXT)-\d{8}-\S+)", cells[0])
+        if id_match:
+            if current and current["legs_text"]:
+                coupons.append(current)
+            idx += 1
+            current = _new_coupon(idx, id_match.group(1))
+            _extract_leg(current, cells)
+            pending_id = None
+            continue
+
+        # --- Create coupon from heading if needed ---
+        if pending_id and not current:
+            idx += 1
+            is_combo = bool(re.search(r"COMBO|CK-COMBO", pending_id, re.I))
+            current = _new_coupon(idx, pending_id, is_combo=is_combo)
+
+        # --- Add leg to current coupon ---
+        if current:
+            _extract_leg(current, cells)
+
+    # Finalize pending coupon
+    if current and current["legs_text"]:
+        coupons.append(current)
+
+    # Legacy fallback
+    if not coupons:
+        coupons = _parse_legacy_coupons(lines)
 
     return coupons
 

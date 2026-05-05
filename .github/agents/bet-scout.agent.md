@@ -57,3 +57,5 @@ You apply a 5-part Tipster Intelligence Analysis Layer via sequential-thinking: 
 - Consensus: ≥70% agreement = +0.5 confidence, ≥60% contradiction = investigate
 - True consensus requires ≥2 INDEPENDENTLY DERIVED arguments (5 tipsters copying same analysis = 1 source)
 - A data-backed contrarian argument MUST be investigated — never dismiss as "outlier opinion"
+
+<!-- BET:agent:bet-scout:v1 -->

@@ -18,7 +18,7 @@ user-invokable: false
 handoffs:
   - label: "Coupons + artifacts complete → continue pipeline"
     agent: bet-orchestrator
-    prompt: /orchestrate-betting-day Continue pipeline from S10
+    prompt: /orchestrate-betting-day Pipeline complete — present results to user
     send: false
 ---
 
@@ -70,3 +70,5 @@ Coupons persisted via `persist_coupons_to_db()` in `coupon_builder.py`:
 - <4 approved picks → NO BET declaration
 - Self-validate: run `validate_coupons.py` and fix ALL FAIL results before submitting
 - V10e UPSTREAM VERIFICATION: verify each column against ACTUAL S3 output — not narrative summaries
+
+<!-- BET:agent:bet-builder:v1 -->
