@@ -50,8 +50,8 @@ class OddsAPIioSource(OddsSource):
                     # Fallback: fetch individually
                     for eid in batch:
                         odds_data = self._client.get_odds(eid)
-                        if odds_data:
-                            odds_batch.append(odds_data) if isinstance(odds_data, dict) else None
+                        if isinstance(odds_data, dict):
+                            odds_batch.append(odds_data)
 
                 if not isinstance(odds_batch, list):
                     odds_batch = [odds_batch] if odds_batch else []

@@ -84,5 +84,6 @@ Detailed protocols for each sport are in the reference file. Load when analyzing
 
 ## Connected Skills
 
-- `bet-analyzing-statistics` — provides the §3.0 ranking protocol that this skill's per-sport tables feed into
-- `bet-navigating-sources` — sport-specific source requirements (e.g., TotalCorner for corners, CueTracker for snooker)
+- `bet-analyzing-statistics` — §3.0 Statistical Market Ranking Protocol that uses the per-sport stat tables defined here
+- `bet-building-coupons` — Sport-specific validations (V3-V4k) that verify compliance with protocols defined here
+- `bet-navigating-sources` — Sport-specific source chains for collecting the data required by each protocol

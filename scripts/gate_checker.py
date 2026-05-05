@@ -308,11 +308,15 @@ def check_red_flags(candidate: dict) -> list[str]:
                 if "22.5" in market_name or "games" in market_name:
                     flags.append(f"HARD REJECT ZT#3: {candidate.get(field)} qualifier + {market_name}")
 
-        # Tennis: odds ratio > 1.50 → REJECT for game totals
+        # Tennis: odds ratio check for game totals (needs both fav and dog odds)
         odds = candidate.get("odds", {})
-        market_best = odds.get("market_best", 0) if odds else 0
-        if market_best and market_best > 1.50 and "game" in market_name:
-            flags.append(f"FLAG: Tennis odds ratio {market_best} > 1.50 for game totals")
+        if odds and "game" in market_name:
+            fav_odds = odds.get("fav_odds")
+            dog_odds = odds.get("dog_odds")
+            if fav_odds and dog_odds and dog_odds > 0:
+                ratio = fav_odds / dog_odds
+                if ratio > 1.50:
+                    flags.append(f"FLAG: Tennis odds ratio {ratio:.2f} > 1.50 for game totals")
 
     # Any sport: safety score < 0.40
     if safety < 0.40:

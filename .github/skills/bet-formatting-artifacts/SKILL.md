@@ -155,5 +155,5 @@ betting_day,source_name,role,sport_scope,availability,used_in_analysis,used_in_f
 
 ## Connected Skills
 
-- `bet-building-coupons` — uses these formatting standards when constructing coupon files
-- `bet-settling-results` — uses ledger formats when recording settlement data
+- `bet-building-coupons` — Coupon construction rules that produce the artifacts formatted by this skill
+- `bet-settling-results` — Settlement outputs (ledger entries, PnL reports) formatted using conventions defined here

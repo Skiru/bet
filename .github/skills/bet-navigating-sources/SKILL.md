@@ -163,6 +163,7 @@ The aggregator provides the FIRST PASS — structured picks + consensus. The `be
 
 ## Connected Skills
 
-- `bet-analyzing-statistics` — uses sources to gather the statistical data for analysis
-- `bet-evaluating-odds` — uses market sources for odds comparison
-- `bet-applying-sport-protocols` — sport-specific source requirements (e.g., TotalCorner for football corners)
+- `bet-analyzing-statistics` — Consumes the statistical data collected via sources defined here
+- `bet-applying-sport-protocols` — Sport-specific protocols that define which data points to collect from each source
+- `bet-evaluating-odds` — Odds comparison requires the market source chains defined here
+- `bet-settling-results` — Result verification sources (Flashscore, Sofascore, ESPN scores) for settlement

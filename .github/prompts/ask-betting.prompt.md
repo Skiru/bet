@@ -17,7 +17,14 @@ Route this user message to the appropriate specialist agent.
 1. Classify the intent of the user message (QUESTION / ACTION / STATUS).
    - This is NOT a pipeline invocation — do NOT enter S0→S8 mode.
 2. Discover current session state (date, version, pipeline progress, last settlement).
-3. Match the message against the knowledge domain map.
+3. Match the message against the knowledge domain map and delegate to the appropriate specialist agent:
+   - **Settlement/PnL/bankroll** → bet-settler (use `.github/internal-prompts/bet-settle.prompt.md`)
+   - **Scanning/fixtures/events** → bet-scanner (use `.github/internal-prompts/bet-scan.prompt.md`)
+   - **Statistics/safety scores/H2H** → bet-statistician (use `.github/internal-prompts/bet-deep-stats.prompt.md`)
+   - **Tipsters/consensus** → bet-scout (use `.github/internal-prompts/bet-tipsters.prompt.md`)
+   - **Odds/EV/pricing** → bet-valuator (use `.github/internal-prompts/bet-odds-ev.prompt.md`)
+   - **Context/upset risk/gate** → bet-challenger (use `.github/internal-prompts/bet-gate.prompt.md`)
+   - **Coupons/portfolio/validation** → bet-builder (use `.github/internal-prompts/bet-portfolio.prompt.md`)
 4. For STATUS: answer directly from artifacts.
 5. For QUESTION/ACTION: delegate to the matched specialist agent with context files and session state.
 6. For multi-domain messages: follow the multi-domain triage protocol (max 2 agent calls).

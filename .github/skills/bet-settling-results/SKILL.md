@@ -107,5 +107,6 @@ For EACH LOSS:
 
 ## Connected Skills
 
-- `bet-formatting-artifacts` — ledger CSV formats and field conventions for recording settlement data
-- `bet-navigating-sources` — sources for verifying results (Flashscore, Sofascore, The-Odds-API --scores)
+- `bet-formatting-artifacts` — Ledger CSV formats and pick/coupon ID conventions used during settlement
+- `bet-analyzing-statistics` — Historical hit rates from settlement feed back into §3.0 market ranking confidence
+- `bet-navigating-sources` — Result verification sources (Flashscore, Sofascore, ESPN scores)

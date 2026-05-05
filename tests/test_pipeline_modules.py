@@ -1046,7 +1046,7 @@ class TestCouponEdgeCases(unittest.TestCase):
         }
         result = _pick_description_pl(pick)
         self.assertIn("A vs B", result)
-        self.assertIn("0.00", result)  # Default 0
+        self.assertIn("kurs TBD", result)  # Shows TBD instead of 0.00 for missing odds
 
 
 # ===========================================================================

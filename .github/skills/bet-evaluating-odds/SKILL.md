@@ -148,6 +148,6 @@ Cross-validate: if odds differ >5% between sources → investigate which is stal
 
 ## Connected Skills
 
-- `bet-navigating-sources` — provides the source chains for odds retrieval
-- `bet-analyzing-statistics` — provides the statistical analysis that feeds into EV calculation
-- `bet-building-coupons` — uses EV ranking to prioritize picks in coupon construction
+- `bet-analyzing-statistics` — Safety scores and probability engine outputs used as true probability input for EV calculation
+- `bet-navigating-sources` — Odds source chains (BetExplorer, OddsPortal, The-Odds-API) for multi-source comparison
+- `bet-building-coupons` — Kelly 1/4 staking outputs feed directly into coupon stake sizing

@@ -62,13 +62,12 @@ def _safe_avg(values: list) -> float | None:
 # ---------------------------------------------------------------------------
 
 def extract_team_stats(sport: str, team_name: str) -> dict:
-    """Read stats cache for a single team.
+    """Read stats cache for a single team. DB-first with JSON cache fallback.
 
     Returns dict with keys: team, sport, l10_avg, l5_avg, l10_matches,
     sources, raw_cache. Returns empty markers if cache is missing.
     """
     slug = slugify(team_name)
-    cache_file = CACHE_DIR / sport / f"{slug}.json"
 
     result = {
         "team": team_name,
@@ -82,6 +81,28 @@ def extract_team_stats(sport: str, team_name: str) -> dict:
         "raw_cache": None,
     }
 
+    # Try DB first (team_form table)
+    try:
+        from db_data_loader import load_team_form_from_db
+        db_form = load_team_form_from_db(team_name, sport)
+        if db_form and db_form.get("form"):
+            form = db_form["form"]
+            stat_keys = SPORT_STAT_KEYS.get(sport, [])
+            for key in stat_keys:
+                if key in form.get("l10_avg", {}):
+                    result["l10_avg"][key] = form["l10_avg"][key]
+                if key in form.get("l5_avg", {}):
+                    result["l5_avg"][key] = form["l5_avg"][key]
+            result["l10_matches"] = form.get("l10_matches", [])[:10]
+            result["sources"] = db_form.get("sources", ["db"])
+            if result["l10_avg"]:
+                result["has_data"] = True
+                return result
+    except Exception:
+        pass
+
+    # JSON cache fallback
+    cache_file = CACHE_DIR / sport / f"{slug}.json"
     if not cache_file.exists():
         return result
 

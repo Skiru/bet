@@ -32,6 +32,10 @@ def load_fixtures_from_db(date: str, sport: str | None = None) -> list[dict]:
             repo = FixtureRepo(conn)
             rows = repo.get_by_date_with_teams(date, sport_id)
             if rows:
+                # Add 'sport' alias for 'sport_name' (JSON compat)
+                for row in rows:
+                    if "sport" not in row and "sport_name" in row:
+                        row["sport"] = row["sport_name"]
                 print(f"[db_loader] Loaded {len(rows)} fixtures from DB for {date}")
                 return rows
     except Exception as e:

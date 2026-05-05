@@ -605,6 +605,24 @@ class OddsRepo:
             ),
         )
 
+    def upsert(self, record: OddsRecord) -> None:
+        """Insert or ignore odds record (prevents duplicate inserts)."""
+        self.conn.execute(
+            "INSERT OR IGNORE INTO odds_history "
+            "(fixture_id, bookmaker, market, selection, odds, line, fetched_at, is_closing) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                record.fixture_id,
+                record.bookmaker,
+                record.market,
+                record.selection,
+                record.odds,
+                record.line,
+                record.fetched_at or _NOW(),
+                1 if record.is_closing else 0,
+            ),
+        )
+
     def get_best_odds(
         self, fixture_id: int, market: str, selection: str
     ) -> float | None:
@@ -930,7 +948,7 @@ class SourceHealthRepo:
             "  (COALESCE(source_health.avg_response_ms, 0) * source_health.total_requests + ?) "
             "  / (source_health.total_requests + 1)"
             ")",
-            (_NOW(), response_ms, response_ms),
+            (source, _NOW(), response_ms, response_ms),
         )
 
     def record_failure(self, source: str) -> None:

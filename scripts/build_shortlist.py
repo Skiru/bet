@@ -344,7 +344,7 @@ def _load_tipster_events(date: str) -> set[str]:
 
 def build_shortlist(
     date: str,
-    top_n: int = 100,
+    top_n: int = 0,
     stats_first: bool = False,
     min_sports: int = 8,
 ) -> list[dict]:
@@ -523,23 +523,27 @@ def build_shortlist(
                 sport_counts[sport] += 1
 
     # Phase 2: fill remaining slots by global score, cap per sport
-    remaining = top_n - len(selected)
-    max_per_sport_key = max(top_n // 4, 8)  # KEY sports: max 25%
-    max_per_sport_sup = max(top_n // 8, 4)  # SUPPORT sports: max ~12%
+    uncapped = top_n <= 0
+    remaining = len(scored) if uncapped else (top_n - len(selected))
 
     if remaining > 0:
+        if not uncapped:
+            max_per_sport_key = max(top_n // 4, 8)  # KEY sports: max 25%
+            max_per_sport_sup = max(top_n // 8, 4)  # SUPPORT sports: max ~12%
+
         for score, event in scored:
             key = f"{event.get('home_team','')}|{event.get('away_team','')}|{event.get('kickoff','')}"
             if key in selected_keys:
                 continue
             sport = event["sport"]
-            cap = max_per_sport_key if sport in TIER1_SPORTS else max_per_sport_sup
-            if sport_counts[sport] >= cap:
-                continue
+            if not uncapped:
+                cap = max_per_sport_key if sport in TIER1_SPORTS else max_per_sport_sup
+                if sport_counts[sport] >= cap:
+                    continue
             selected.append((score, event))
             selected_keys.add(key)
             sport_counts[sport] += 1
-            if len(selected) >= top_n:
+            if not uncapped and len(selected) >= top_n:
                 break
 
     # Re-sort by score
@@ -721,7 +725,7 @@ def write_shortlist_json(selected: list[tuple[float, dict]], date: str) -> Path:
 def main():
     parser = argparse.ArgumentParser(description="Build ranked S2 shortlist from market matrix")
     parser.add_argument("--date", help="Date YYYY-MM-DD (default: today)")
-    parser.add_argument("--top", type=int, default=100, help="Number of candidates to select (default: 100)")
+    parser.add_argument("--top", type=int, default=0, help="Number of candidates to select (0 = all, default: 0)")
     parser.add_argument("--stats-first", action="store_true",
                         help="Include FIXTURE_ONLY events from major competitions")
     parser.add_argument("--min-sports", type=int, default=8, help="Minimum sport diversity (default: 8)")

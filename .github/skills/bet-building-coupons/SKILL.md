@@ -150,7 +150,6 @@ Include §4.3 tipster-sourced picks with full argument, accuracy %, and promotio
 
 ## Connected Skills
 
-- `bet-formatting-artifacts` — output format standards for coupon files, Polish descriptions, ledger CSVs
-- `bet-analyzing-statistics` — market hierarchy and statistical ranking that informs pick selection
-- `bet-applying-sport-protocols` — sport-specific validations (V3, V4, V4b-V4k)
-- `bet-evaluating-odds` — EV calculations and staking rules used in coupon construction
+- `bet-formatting-artifacts` — Output format standards for coupon files, ledger entries, Polish descriptions
+- `bet-applying-sport-protocols` — Sport-specific validations (V3 Tennis, V4 Football, V4b-V4k) used in V1-V10 suite
+- `bet-evaluating-odds` — EV and Kelly calculations that feed into portfolio construction and staking

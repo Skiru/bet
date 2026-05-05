@@ -48,14 +48,63 @@ class TheSportsDBClient(BaseAPIClient):
         return f"https://www.thesportsdb.com/api/v1/json/{key}"
 
     def _request(self, endpoint: str, params: dict | None = None, cost: int = 1) -> dict:
-        """Override _request to use key-in-URL pattern instead of base_url."""
-        # TheSportsDB puts the key in the URL path, not in headers
-        original_base = self.base_url
-        self.base_url = self._get_base_url()
-        try:
-            return super()._request(endpoint, params=params, cost=cost)
-        finally:
-            self.base_url = original_base
+        """Override _request to use key-in-URL pattern.
+
+        Builds a thread-safe URL without mutating self.base_url, so
+        concurrent threads sharing this client instance won't race.
+        """
+        import requests as _requests
+        from .base_client import (
+            APIRateLimitError, APINotFoundError, APIError, _record_source_health,
+        )
+
+        if not self.rate_limiter.can_request(self.api_name, cost):
+            remaining = self.rate_limiter.get_remaining(self.api_name)
+            raise APIRateLimitError(
+                f"[{self.api_name}] Daily quota exhausted. Remaining: {remaining}"
+            )
+
+        url = f"{self._get_base_url()}{endpoint}"
+        last_error = None
+
+        for attempt in range(1, self.MAX_RETRIES + 1):
+            try:
+                response = _requests.get(
+                    url, params=params, headers=self._build_headers(),
+                    timeout=self.TIMEOUT,
+                )
+                if response.status_code == 429:
+                    raise APIRateLimitError(
+                        f"[{self.api_name}] HTTP 429", status_code=429)
+                if response.status_code == 404:
+                    raise APINotFoundError(
+                        f"[{self.api_name}] Not found: {endpoint}", status_code=404)
+                if response.status_code >= 400:
+                    raise APIError(
+                        f"[{self.api_name}] HTTP {response.status_code}: {response.text[:200]}",
+                        status_code=response.status_code)
+
+                self.rate_limiter.record_request(self.api_name, endpoint, cost)
+                _record_source_health(self.api_name, success=True)
+                return response.json()
+
+            except APIRateLimitError:
+                _record_source_health(self.api_name, success=False)
+                raise
+            except APINotFoundError:
+                raise
+            except APIError:
+                _record_source_health(self.api_name, success=False)
+                raise
+            except _requests.exceptions.RequestException as e:
+                last_error = e
+                if attempt < self.MAX_RETRIES:
+                    import time
+                    backoff = self.BACKOFF_BASE * (2 ** (attempt - 1))
+                    time.sleep(backoff)
+
+        _record_source_health(self.api_name, success=False)
+        raise APIError(f"[{self.api_name}] Failed after {self.MAX_RETRIES} attempts: {last_error}")
 
     def get_fixtures(self, date: str) -> list:
         """GET /{key}/eventsday.php?d={YYYY-MM-DD} → events on a date.

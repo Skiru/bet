@@ -25,7 +25,7 @@ import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -368,7 +368,7 @@ def parse_generic_tipster_html(html: str, site_name: str, url: str) -> list[Tips
     Works as a fallback when no site-specific parser is available.
     """
     picks = []
-    now_iso = datetime.utcnow().isoformat()
+    now_iso = datetime.now(timezone.utc).isoformat()
 
     # Pattern 1: Look for match/event blocks
     # Common structures: <div class="prediction">, <article>, <div class="tip">, etc.
@@ -453,7 +453,7 @@ def parse_zawodtyper_html(html: str) -> list[TipsterPick]:
     Each prediction has: event, tipster name, pick, odds, reasoning, accuracy%.
     """
     picks = []
-    now_iso = datetime.utcnow().isoformat()
+    now_iso = datetime.now(timezone.utc).isoformat()
 
     # ZawodTyper structure: <div class="tip-block"> or similar
     # Look for Polish prediction patterns
@@ -805,7 +805,7 @@ def run_tipster_aggregation(
 
     summary = {
         "date": date,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "sites_total": len(TIPSTER_SITES),
         "sites_success": sites_ok,
         "sites_empty": sites_empty,

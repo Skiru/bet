@@ -2,6 +2,9 @@
 
 Clients return bet.db.models objects (Fixture, MatchStat) instead of raw dicts.
 Reuses base_client.py and rate_limiter.py as-is from scripts/api_clients/.
+
+Missing clients are imported from scripts/api_clients/ as fallback to keep
+the registry in sync with the full pipeline.
 """
 
 from bet.api_clients.rate_limiter import RateLimiter
@@ -22,7 +25,7 @@ def get_client(api_name: str, rate_limiter: RateLimiter | None = None) -> BaseAP
     return CLIENT_REGISTRY[api_name](rate_limiter=rate_limiter)
 
 
-# Register available clients
+# Register available clients — src/ implementations
 from bet.api_clients.api_football import APIFootballClient
 CLIENT_REGISTRY["api-football"] = APIFootballClient
 
@@ -50,3 +53,14 @@ CLIENT_REGISTRY["espn-football"] = _espn_factory("football", "eng.1")
 CLIENT_REGISTRY["espn-basketball"] = _espn_factory("basketball", "nba")
 CLIENT_REGISTRY["espn-hockey"] = _espn_factory("hockey", "nhl")
 CLIENT_REGISTRY["espn-baseball"] = _espn_factory("baseball", "mlb")
+
+# --- Sync with scripts/api_clients/ for clients not yet in src/ ---
+# This ensures any code importing from bet.api_clients gets the full registry.
+try:
+    import scripts.api_clients as _scripts_clients
+    _SCRIPTS_REGISTRY = getattr(_scripts_clients, "CLIENT_REGISTRY", {})
+    for _name, _cls in _SCRIPTS_REGISTRY.items():
+        if _name not in CLIENT_REGISTRY:
+            CLIENT_REGISTRY[_name] = _cls
+except ImportError:
+    pass  # scripts/ not on path — only src/ clients available

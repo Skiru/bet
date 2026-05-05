@@ -168,8 +168,8 @@ def _validate_score(s1, s2, max_total=30, sport=None):
     sport_limits = {
         "basketball": (300, 200),  # max_total, max_single
         "handball": (80, 50),
-        "volleyball": (25, 15),   # set-based score
-        "tennis": (15, 8),        # set-based score
+        "volleyball": (5, 3),     # set-based score (max 3-2)
+        "tennis": (7, 5),          # set-based score (max 3-2 or 7-6 tiebreak sets)
         "baseball": (50, 30),
         "hockey": (30, 20),
         "snooker": (50, 30),      # frame-based
@@ -531,34 +531,33 @@ def settle_coupons(picks, coupons):
             coupon["pnl_pln"] = str(round(-float(coupon.get("stake_pln") or 0), 2))
             updated = True
         elif all(s in ("win", "push", "void", "half_win", "half_loss") for s in statuses):
-            # If any leg is half_loss, treat coupon as loss
-            if "half_loss" in statuses:
-                stake = float(coupon.get("stake_pln") or 0)
-                coupon["status"] = "loss"
-                coupon["pnl_pln"] = str(round(-stake / 2, 2))
-                updated = True
-                continue
             # Recalculate effective odds from non-void/push legs
+            # half_loss leg: multiplier = 0.5 (half stake returned)
+            # half_win leg: multiplier = (1 + odds) / 2
             effective_odds = 1.0
             active_legs = 0
             for pid in pick_ids:
                 pid = pid.strip()
                 if pid in pick_map:
                     p = pick_map[pid]
-                    if p.get("status") in ("win", "half_win"):
+                    if p.get("status") in ("win", "half_win", "half_loss"):
                         try:
                             leg_odds = float(p.get("bookmaker_odds", 1))
                             if p.get("status") == "half_win":
                                 # Half win: half stake returned + half at full odds
                                 leg_odds = (1 + leg_odds) / 2
+                            elif p.get("status") == "half_loss":
+                                # Half loss: half stake returned, half lost
+                                leg_odds = 0.5
                             effective_odds *= leg_odds
                             active_legs += 1
                         except (ValueError, TypeError):
                             pass
             stake = float(coupon.get("stake_pln") or 0)
             if active_legs > 0:
-                coupon["status"] = "win"
-                coupon["pnl_pln"] = str(round(stake * (effective_odds - 1), 2))
+                pnl = round(stake * (effective_odds - 1), 2)
+                coupon["status"] = "win" if pnl >= 0 else "loss"
+                coupon["pnl_pln"] = str(pnl)
             else:
                 coupon["status"] = "void"
                 coupon["pnl_pln"] = "0.00"
@@ -678,10 +677,101 @@ def main():
         write_csv(COUPONS_LEDGER, coupons)
         log(f"Updated coupons ledger: {COUPONS_LEDGER}")
 
+    # DB settlement: sync settled picks/coupons to DB (dual-write)
+    _sync_settlement_to_db(picks, coupons)
+
     # Summary
     settled = [p for p in pending if p.get("status") not in ("pending", "placed")]
     still_pending = [p for p in pending if p.get("status") in ("pending", "placed")]
     log(f"Settlement complete: {len(settled)} settled, {len(still_pending)} still pending")
+
+
+def _sync_settlement_to_db(picks: list[dict], coupons: list[dict]):
+    """Sync CSV settlement results to the DB (dual-write).
+
+    Matches DB bets by event_name and updates their status + PnL.
+    Also updates coupon-level status/PnL in the coupons table.
+    """
+    try:
+        sys.path.insert(0, str(BASE.parent / "src"))
+        from bet.db.connection import get_db
+        from bet.db.repositories import CouponRepo
+
+        settled_picks = [
+            p for p in picks
+            if p.get("status") not in ("pending", "placed", "")
+        ]
+        if not settled_picks:
+            return
+
+        with get_db() as conn:
+            repo = CouponRepo(conn)
+            db_updated_bets = 0
+            db_updated_coupons = 0
+
+            # Update individual bets by matching event_name
+            for p in settled_picks:
+                event = p.get("event", "")
+                market = p.get("market", "")
+                status = p.get("status", "")
+                pnl_str = p.get("pnl_pln", "0")
+                try:
+                    pnl = float(pnl_str) if pnl_str else 0.0
+                except (ValueError, TypeError):
+                    pnl = 0.0
+
+                # Find matching bets in DB (event_name + market)
+                rows = conn.execute(
+                    "SELECT b.id FROM bets b "
+                    "LEFT JOIN fixtures f ON b.fixture_id = f.id "
+                    "WHERE b.event_name = ? AND b.market = ? AND b.status = 'pending'",
+                    (event, market),
+                ).fetchall()
+                for row in rows:
+                    repo.settle_bet(row["id"], status, pnl)
+                    db_updated_bets += 1
+
+                # Fallback: match by event_name only if market didn't match
+                # Only settle the first match to avoid incorrectly settling
+                # multiple markets with the same PnL
+                if not rows:
+                    row = conn.execute(
+                        "SELECT b.id FROM bets b "
+                        "WHERE b.event_name = ? AND b.status = 'pending' "
+                        "LIMIT 1",
+                        (event,),
+                    ).fetchone()
+                    if row:
+                        repo.settle_bet(row["id"], status, pnl)
+                        db_updated_bets += 1
+
+            # Update coupon status based on settled bets
+            settled_coupon_ids = set()
+            for c in coupons:
+                if c.get("status") in ("pending", "placed", ""):
+                    continue
+                coupon_id_str = c.get("coupon_id", "")
+                status = c.get("status", "")
+                pnl_str = c.get("pnl_pln", "0")
+                try:
+                    pnl = float(pnl_str) if pnl_str else 0.0
+                except (ValueError, TypeError):
+                    pnl = 0.0
+
+                rows = conn.execute(
+                    "SELECT id FROM coupons WHERE coupon_id = ? AND status = 'pending'",
+                    (coupon_id_str,),
+                ).fetchall()
+                for row in rows:
+                    repo.settle_coupon(row["id"], status, pnl)
+                    db_updated_coupons += 1
+                    settled_coupon_ids.add(row["id"])
+
+            conn.commit()
+            if db_updated_bets or db_updated_coupons:
+                log(f"DB settlement sync: {db_updated_bets} bets, {db_updated_coupons} coupons updated")
+    except Exception as e:
+        log(f"DB settlement sync failed (non-critical): {e}")
 
 
 if __name__ == "__main__":

@@ -98,10 +98,104 @@ def main():
 
     snapshot = fetch_odds_snapshot(date, sports=sports, bookmakers=args.bookmakers)
 
+    # Persist odds to DB (dual-write alongside JSON)
+    _persist_io_odds_to_db(snapshot, date)
+
     print(f"\n{'='*80}")
     print(f"DONE: {snapshot.get('total_events_with_odds', 0)} events with odds")
     print(f"      {snapshot.get('total_value_bets', 0)} value bets found")
     print(f"{'='*80}\n")
+
+
+def _persist_io_odds_to_db(snapshot: dict, date: str):
+    """Persist odds-api.io odds to the DB odds_history table."""
+    try:
+        ROOT_DIR = Path(__file__).parent.parent
+        sys.path.insert(0, str(ROOT_DIR / "src"))
+        from bet.db.connection import get_db
+        from bet.db.models import OddsRecord
+        from bet.db.repositories import FixtureRepo, OddsRepo, SportRepo, TeamRepo
+
+        events = snapshot.get("events", [])
+        if not events:
+            return
+
+        with get_db() as conn:
+            odds_repo = OddsRepo(conn)
+            fixture_repo = FixtureRepo(conn)
+            sport_repo = SportRepo(conn)
+            team_repo = TeamRepo(conn)
+            persisted = 0
+
+            for event in events:
+                home = (event.get("home") or "").strip()
+                away = (event.get("away") or "").strip()
+                sport_name = (event.get("sport") or "").lower()
+                if not home or not away:
+                    continue
+
+                # Resolve sport and fixture
+                sport = sport_repo.get_by_name(sport_name)
+                if not sport:
+                    continue
+
+                fixture = fixture_repo.get_by_teams_and_date(
+                    home, away, date, sport.id
+                )
+                if not fixture:
+                    # Try to create teams + fixture
+                    try:
+                        home_team = team_repo.find_or_create(home, sport.id)
+                        away_team = team_repo.find_or_create(away, sport.id)
+                        from bet.db.models import Fixture
+                        kickoff = event.get("kickoff", f"{date}T00:00:00")
+                        f = Fixture(
+                            id=None,
+                            sport_id=sport.id,
+                            competition_id=None,
+                            home_team_id=home_team.id,
+                            away_team_id=away_team.id,
+                            kickoff=kickoff,
+                            status="scheduled",
+                            source="odds-api-io",
+                            fetched_at=datetime.now(timezone.utc).isoformat(),
+                        )
+                        fixture_id = fixture_repo.upsert(f)
+                    except Exception:
+                        continue
+                else:
+                    fixture_id = fixture.id
+
+                # Persist odds per bookmaker
+                for bookie_name, markets in (event.get("bookmakers") or {}).items():
+                    if not isinstance(markets, list):
+                        continue
+                    for market_data in markets:
+                        market_name = market_data.get("name", "")
+                        for odds_entry in market_data.get("odds", []):
+                            for side in ("home", "away", "draw"):
+                                val = odds_entry.get(side)
+                                if val is not None:
+                                    try:
+                                        record = OddsRecord(
+                                            id=None,
+                                            fixture_id=fixture_id,
+                                            bookmaker=bookie_name,
+                                            market=market_name.lower().replace("match winner", "h2h").replace("ml", "h2h"),
+                                            selection=side,
+                                            odds=float(val),
+                                            fetched_at=datetime.now(timezone.utc).isoformat(),
+                                        )
+                                        odds_repo.upsert(record)
+                                        persisted += 1
+                                    except Exception:
+                                        pass
+
+            conn.commit()
+            if persisted:
+                print(f"[odds-api-io] DB: persisted {persisted} odds records to betting.db")
+    except Exception as e:
+        print(f"[odds-api-io] DB persistence failed (non-critical): {e}")
 
 
 if __name__ == "__main__":

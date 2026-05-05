@@ -109,11 +109,11 @@ class APITennisClient(APISportsClient):
 
         stats = {}
         teams = {}
-        for entry in data.get("response", []):
+        for idx, entry in enumerate(data.get("response", [])):
             # Extract player/team info from response entries
             team_info = entry.get("team", {}) or entry.get("player", {})
             if team_info:
-                side = "home" if not teams else "away"
+                side = "home" if idx == 0 else "away"
                 teams[side] = {
                     "name": team_info.get("name", ""),
                     "id": str(team_info.get("id", "")),
@@ -215,7 +215,7 @@ class APITennisClient(APISportsClient):
         return None
 
     def get_team_last_fixtures(self, team_id: str, last_n: int = 10) -> list:
-        """Get last N fixtures for a player."""
+        """Get last N fixtures for a player. Returns NormalizedFixture list."""
         if not self._check_api_key():
             return []
         try:
@@ -226,4 +226,20 @@ class APITennisClient(APISportsClient):
         except Exception as e:
             print(f"[{self.api_name}] Error fetching last fixtures for {team_id}: {e}")
             return []
-        return data.get("response", [])
+        fixtures = []
+        for game in data.get("response", []):
+            home = game.get("players", {}).get("home", {})
+            away = game.get("players", {}).get("away", {})
+            fixtures.append(NormalizedFixture(
+                fixture_id=str(game.get("id", "")),
+                source=self.api_name,
+                sport="tennis",
+                competition=game.get("league", {}).get("name", ""),
+                home_team=home.get("name", ""),
+                away_team=away.get("name", ""),
+                home_team_id=str(home.get("id", "")),
+                away_team_id=str(away.get("id", "")),
+                kickoff=game.get("date", ""),
+                status="FT",
+            ))
+        return fixtures

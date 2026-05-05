@@ -155,7 +155,8 @@ def _pick_description_pl(pick: dict) -> str:
     line = best.get("line")  # Use structured data instead of regex
 
     pl = format_market_polish(market_name, direction, line)
-    return f"{home} vs {away}: {pl} ({odds:.2f})"
+    odds_str = f"{odds:.2f}" if odds > 1.0 else "kurs TBD"
+    return f"{home} vs {away}: {pl} ({odds_str})"
 
 
 def _build_rich_description(pick: dict) -> str:
@@ -950,7 +951,7 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
         "core_spend": round(core_spend, 2),
         "singles_spend": round(singles_spend, 2),
         "total_spend": round(core_spend + combo_spend + singles_spend, 2),
-        "bankroll_after": round(bankroll - core_spend - singles_spend, 2),
+        "bankroll_after": round(bankroll - core_spend - combo_spend - singles_spend, 2),
         "total_potential_return": round(total_return, 2),
         "best_case": round(best_case, 2),
         "realistic": realistic,
@@ -1376,6 +1377,31 @@ def persist_coupons_to_db(coupons_data: dict, date: str) -> int:
 
         with get_db() as conn:
             repo = CouponRepo(conn)
+            from bet.db.repositories import FixtureRepo, SportRepo, TeamRepo
+            fixture_repo = FixtureRepo(conn)
+            sport_repo = SportRepo(conn)
+            team_repo = TeamRepo(conn)
+
+            # Build sport name→id cache
+            _sport_cache: dict[str, int] = {}
+            for s in sport_repo.get_all():
+                _sport_cache[s.name] = s.id
+
+            def _resolve_fixture_id(
+                home: str, away: str, sport: str, date_str: str
+            ) -> int | None:
+                """Resolve fixture_id by team names + sport + date."""
+                sid = _sport_cache.get(sport)
+                if not sid:
+                    return None
+                try:
+                    f = fixture_repo.get_by_teams_and_date(
+                        home, away, date_str, sid
+                    )
+                    return f.id if f else None
+                except Exception:
+                    return None
+
             persisted = 0
             for coup in all_coupons:
                 try:
@@ -1395,13 +1421,19 @@ def persist_coupons_to_db(coupons_data: dict, date: str) -> int:
 
                     # Persist individual bets/legs
                     for leg in legs:
+                        home_team = leg.get("home_team", "?")
+                        away_team = leg.get("away_team", "?")
+                        sport = leg.get("sport", "")
+                        fixture_id = _resolve_fixture_id(
+                            home_team, away_team, sport, date
+                        )
                         bet = Bet(
                             id=None,
                             coupon_id=db_coupon_id,
-                            fixture_id=None,
-                            sport=leg.get("sport", ""),
-                            event_name=f"{leg.get('home_team', '?')} vs {leg.get('away_team', '?')}",
-                            market=(leg.get("best_market") or {}).get("market", ""),
+                            fixture_id=fixture_id,
+                            sport=sport,
+                            event_name=f"{home_team} vs {away_team}",
+                            market=(leg.get("best_market") or {}).get("name", ""),
                             selection=(leg.get("best_market") or {}).get("direction", ""),
                             odds=(leg.get("odds") or {}).get("market_best", 0) or 0,
                             safety_score=(leg.get("best_market") or {}).get("safety_score"),

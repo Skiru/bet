@@ -184,12 +184,16 @@ PIPELINE_STEPS = [
         "description": "Cross-reference picks with tipster consensus data",
         "python_step": "tipster_xref",
         "critical": False,
+        "agent_review_required": "bet-scout",
+        "agent_task": "Read FULL tipster arguments, assess quality, check independence, discover angles stats missed, promote watchlist picks",
     },
     {
         "id": "s3_deep_stats",
         "name": "S3: Deep Statistical Analysis",
         "description": "Per-candidate §3.0 analysis with L10/H2H/L5 stats",
         "python_step": "deep_stats",
+        "agent_review_required": "bet-statistician",
+        "agent_task": "Interpret safety scores, find edge mechanisms, fetch missing stats, write ANALYTICAL REASONING per candidate",
     },
     {
         "id": "s4_odds_eval",
@@ -197,6 +201,8 @@ PIPELINE_STEPS = [
         "description": "Cross-validate odds, compute EV, detect drift",
         "python_step": "odds_eval",
         "critical": False,
+        "agent_review_required": "bet-valuator",
+        "agent_task": "Cross-validate pricing across sources, reason about mispricing, assess edge durability, calculate relative value",
     },
     {
         "id": "s5_context",
@@ -204,6 +210,8 @@ PIPELINE_STEPS = [
         "description": "Weather impact, venue, referee, roster changes",
         "python_step": "context_checks",
         "critical": False,
+        "agent_review_required": "bet-challenger",
+        "agent_task": "Assess REAL market impact of context flags, model motivation effects, identify compounding risk factors",
     },
     {
         "id": "s6_upset_risk",
@@ -211,18 +219,24 @@ PIPELINE_STEPS = [
         "description": "Score upset risk per candidate using sport-specific checklists",
         "python_step": "upset_risk",
         "critical": False,
+        "agent_review_required": "bet-challenger",
+        "agent_task": "Score upset risk with sport-specific contextual reasoning, apply Paradox Rule",
     },
     {
         "id": "s7_gate",
         "name": "S7: 17-Point Gate Check",
         "description": "Run gate checks, classify approved/extended/rejected",
         "python_step": "gate_check",
+        "agent_review_required": "bet-challenger",
+        "agent_task": "Build qualitative bear cases, audit assumptions, find historical analogies, Bayesian-update confidence",
     },
     {
         "id": "s8_coupons",
         "name": "S8: Build Coupons",
         "description": "Core portfolio + combo menu + extended pool",
         "python_step": "build_coupons",
+        "agent_review_required": "bet-builder",
+        "agent_task": "Review portfolio strategically, check hidden correlations, adjust stakes by conviction, V1-V10 + §S8.FINAL",
     },
     {
         "id": "s9_validate",
@@ -243,7 +257,7 @@ PIPELINE_STEPS = [
 # Steps that run inside the shell script (skip when shell script runs)
 SHELL_COVERED_IDS = {"s1a_discover", "s1c_aggregate"}
 # Steps that skip with --skip-scan (the heavy Playwright scan + parallel enrichment)
-SCAN_STEP_IDS = {"s0_settle", "s1_scan", "s1a_discover", "s1b_parallel", "s1c_aggregate", "s1d_matrix", "s1e_shortlist"}
+SCAN_STEP_IDS = {"s1_scan", "s1a_discover", "s1b_parallel", "s1c_aggregate", "s1d_matrix", "s1e_shortlist"}
 
 
 # ---------------------------------------------------------------------------
@@ -328,7 +342,8 @@ def save_state(date: str, state: dict):
             repo = PipelineRepo(conn)
             current = state.get("current_step")
             if current:
-                step_status = state.get("steps", {}).get(current, "running")
+                step_data = state.get("steps", {}).get(current, {})
+                step_status = step_data.get("status", "running") if isinstance(step_data, dict) else step_data
                 if step_status == "running":
                     repo.start_step(date, current)
                 elif step_status == "completed":
@@ -516,19 +531,20 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
     db_path = DATA_DIR / "betting.db"
     if db_path.exists():
         try:
-            import sqlite3
-            conn = sqlite3.connect(str(db_path))
-            cur = conn.cursor()
-            cur.execute('''
-                SELECT t1.name, t2.name, o.bookmaker, o.market, o.selection, o.odds, o.line
-                FROM odds_history o
-                JOIN fixtures f ON o.fixture_id = f.id
-                JOIN teams t1 ON f.home_team_id = t1.id
-                JOIN teams t2 ON f.away_team_id = t2.id
-                WHERE date(o.fetched_at) = ?
-            ''', (date,))
-            db_rows = cur.fetchall()
-            conn.close()
+            sys.path.insert(0, str(ROOT_DIR / "src"))
+            from bet.db.connection import get_db
+
+            with get_db() as conn:
+                cur = conn.cursor()
+                cur.execute('''
+                    SELECT t1.name, t2.name, o.bookmaker, o.market, o.selection, o.odds, o.line
+                    FROM odds_history o
+                    JOIN fixtures f ON o.fixture_id = f.id
+                    JOIN teams t1 ON f.home_team_id = t1.id
+                    JOIN teams t2 ON f.away_team_id = t2.id
+                    WHERE date(o.fetched_at) = ?
+                ''', (date,))
+                db_rows = cur.fetchall()
 
             # Parse DB odds: group totals lines with their over/under prices
             # DB stores totals as interleaved rows: hdp (line), over (price), under (price)
@@ -632,19 +648,61 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
             for event in odds_data if isinstance(odds_data, list) else odds_data.get("events", []):
                 home = (event.get("home_team") or "").strip().lower()
                 away = (event.get("away_team") or "").strip().lower()
+                if not home or not away:
+                    continue
+                key = f"{home}|{away}"
+                entry = _ensure_entry(key)
+
+                # Try pre-computed best_odds first
                 best_odds = event.get("best_odds") or event.get("odds", {}).get("market_best")
-                if home and away and best_odds:
-                    key = f"{home}|{away}"
-                    entry = _ensure_entry(key)
+                if best_odds:
                     val = float(best_odds)
                     if val > entry["market_best"]:
                         entry["market_best"] = val
-                    # Load totals from API snapshot
-                    api_totals = event.get("totals")
-                    if api_totals and isinstance(api_totals, list):
-                        for tl in api_totals:
-                            if tl.get("line") is not None:
-                                entry["totals"].append(tl)
+
+                # Parse bookmakers array (raw the-odds-api format)
+                for bm in event.get("bookmakers") or []:
+                    bk_title = (bm.get("title") or bm.get("key") or "").lower()
+                    is_betclic = "betclic" in bk_title
+                    is_bet365 = "bet365" in bk_title
+                    for mkt in bm.get("markets") or []:
+                        mkt_key = (mkt.get("key") or "").lower()
+                        if mkt_key in ("ml", "h2h", "moneyline"):
+                            for outcome in mkt.get("outcomes") or []:
+                                price = outcome.get("price")
+                                if not price or price <= 1.0:
+                                    continue
+                                if price > entry["market_best"]:
+                                    entry["market_best"] = float(price)
+                                side = (outcome.get("name") or "").lower()
+                                if side in ("draw", "x"):
+                                    continue
+                                if is_betclic:
+                                    prev = entry.get("betclic") or 0
+                                    if price > prev:
+                                        entry["betclic"] = float(price)
+                                elif is_bet365:
+                                    prev = entry.get("bet365") or 0
+                                    if price > prev:
+                                        entry["bet365"] = float(price)
+                        elif mkt_key in ("totals", "over_under"):
+                            for outcome in mkt.get("outcomes") or []:
+                                price = outcome.get("price")
+                                point = outcome.get("point")
+                                side = (outcome.get("name") or "").lower()
+                                if price and point is not None and side in ("over", "under"):
+                                    entry["totals"].append({
+                                        "line": float(point),
+                                        side: float(price),
+                                        "bookmaker": bm.get("title") or bm.get("key"),
+                                    })
+
+                # Load pre-computed totals from API snapshot
+                api_totals = event.get("totals")
+                if api_totals and isinstance(api_totals, list):
+                    for tl in api_totals:
+                        if tl.get("line") is not None:
+                            entry["totals"].append(tl)
         except (json.JSONDecodeError, OSError):
             pass
 
@@ -1369,8 +1427,7 @@ def _run_s7(date: str, state: dict) -> tuple[bool, str]:
     if not candidates:
         return False, "No candidates for gate check"
 
-    # Inject EV from odds API snapshot if available
-    _inject_ev_from_odds(candidates, date)
+    # EV already injected by S4 (_run_odds_eval) — no need to re-inject here
 
     results = run_gate(candidates, date)
 
@@ -1552,6 +1609,15 @@ def _run_s10(date: str, state: dict) -> tuple[bool, str]:
         for err in errors[-3:]:
             summary_lines.append(f"    - {err[:120]}")
 
+    # Build list of agent checkpoints that completed
+    agent_checkpoints = []
+    for step in PIPELINE_STEPS:
+        agent = step.get("agent_review_required")
+        if agent:
+            step_status = state.get("steps", {}).get(step["id"], {}).get("status", "")
+            if step_status == "completed":
+                agent_checkpoints.append((step["id"], agent, step.get("agent_task", "")))
+
     summary_lines.extend([
         "",
         "📁 OUTPUT FILES:",
@@ -1559,9 +1625,31 @@ def _run_s10(date: str, state: dict) -> tuple[bool, str]:
         f"  ✅ betting/data/{date}_s7_gate_results.md",
         f"  🎫 betting/coupons/{date}.md",
         f"  📦 betting/coupons/{date}.json",
-        "",
-        "═══════════════════════════════════════════════════════════",
     ])
+
+    if agent_checkpoints:
+        summary_lines.extend([
+            "",
+            "═══════════════════════════════════════════════════════════",
+            "🤖 AGENT REVIEW CHECKPOINTS (MANDATORY — DO NOT SKIP)",
+            "═══════════════════════════════════════════════════════════",
+            "",
+            "The pipeline produced RAW DATA. The orchestrator MUST now",
+            "spawn specialist agents for deep analysis at each checkpoint:",
+            "",
+        ])
+        for step_id, agent, task in agent_checkpoints:
+            summary_lines.append(f"  [{step_id}] → {agent}: {task}")
+        summary_lines.extend([
+            "",
+            "Script output is NOT final analysis. Agents add: edge",
+            "discovery, cross-source verification, bear cases, strategic",
+            "reasoning, and Polish-language coupon descriptions.",
+            "═══════════════════════════════════════════════════════════",
+        ])
+    else:
+        summary_lines.append("")
+        summary_lines.append("═══════════════════════════════════════════════════════════")
 
     msg = "\n".join(summary_lines)
     print(msg)
@@ -1772,6 +1860,18 @@ def run_pipeline(
             step_state["completed_at"] = datetime.now(ZoneInfo("Europe/Warsaw")).isoformat()
             step_state["output_summary"] = output[:500] if output else ""
             print(f"  ✓ {output[:200] if output else 'Done'}")
+
+            # Print agent review banner for steps that require specialist agent analysis
+            agent_required = step.get("agent_review_required")
+            if agent_required:
+                agent_task = step.get("agent_task", "Deep analysis required")
+                print(f"\n  {'='*60}")
+                print(f"  [AGENT-REVIEW-REQUIRED] Agent: {agent_required}")
+                print(f"  Task: {agent_task}")
+                print(f"  Step {step_id} produced RAW DATA. Orchestrator MUST now spawn")
+                print(f"  the {agent_required} agent via runSubagent to perform deep analysis.")
+                print(f"  Script output is NOT final — agent analysis is MANDATORY.")
+                print(f"  {'='*60}\n")
 
             # Record source health after scan completes
             if step_id == "s1_scan":

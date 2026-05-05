@@ -24,6 +24,24 @@ CONFIG_DIR = PROJECT_ROOT / "config"
 CACHE_DIR = PROJECT_ROOT / "betting" / "data" / "stats_cache"
 
 
+def _record_source_health(source_name: str, success: bool) -> None:
+    """Record API source health to DB (best-effort, non-blocking)."""
+    try:
+        import sys as _sys
+        _sys.path.insert(0, str(PROJECT_ROOT / "src"))
+        from bet.db.connection import get_db
+        from bet.db.repositories import SourceHealthRepo
+        with get_db() as conn:
+            repo = SourceHealthRepo(conn)
+            if success:
+                repo.record_success(source_name, response_ms=0.0)
+            else:
+                repo.record_failure(source_name)
+            conn.commit()
+    except Exception:
+        pass  # Non-critical — don't break API calls
+
+
 class APIError(Exception):
     """General API error."""
 
@@ -167,14 +185,17 @@ class BaseAPIClient(ABC):
 
                 # Record successful request
                 self.rate_limiter.record_request(self.api_name, endpoint, cost)
+                _record_source_health(self.api_name, success=True)
 
                 return response.json()
 
             except APIRateLimitError:
+                _record_source_health(self.api_name, success=False)
                 raise  # Don't retry rate limit errors
             except APINotFoundError:
                 raise  # Don't retry 404s
             except APIError:
+                _record_source_health(self.api_name, success=False)
                 raise  # Don't retry other API errors
             except requests.exceptions.RequestException as e:
                 last_error = e
@@ -184,6 +205,7 @@ class BaseAPIClient(ABC):
                           f"retrying in {backoff}s: {e}")
                     time.sleep(backoff)
 
+        _record_source_health(self.api_name, success=False)
         raise APIError(f"[{self.api_name}] Failed after {self.MAX_RETRIES} attempts: {last_error}")
 
     def _build_headers(self) -> dict:

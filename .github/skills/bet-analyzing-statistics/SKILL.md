@@ -189,9 +189,10 @@ ev = compute_ev(prob, betclic_odds)
 
 ## Connected Skills
 
-- `bet-navigating-sources` — provides the source chains for gathering statistical data
-- `bet-applying-sport-protocols` — sport-specific stat tables, mandatory multi-market calculations, red flags
-- `bet-evaluating-odds` — takes the selected market and calculates EV
+- `bet-applying-sport-protocols` — Sport-specific stat tables, mandatory multi-market calculation templates, bettable market lists per sport
+- `bet-navigating-sources` — Stats source chains and specialist sources for statistical data collection
+- `bet-evaluating-odds` — Probability engine integration for converting safety scores into EV calculations
+- `bet-settling-results` — Historical hit rates from settlement feed back into §3.0 market ranking confidence
 
 ## Structured Adapters for Automated Data Extraction
 

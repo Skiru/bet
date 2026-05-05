@@ -35,7 +35,7 @@ DATA_DIR = Path(__file__).parent.parent / "betting" / "data"
 try:
     sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
     from bet.db.connection import get_db
-    from bet.db.repositories import SportRepo, TeamRepo, StatsRepo
+    from bet.db.repositories import SportRepo, TeamRepo, StatsRepo, FixtureRepo
     from bet.db.models import TeamForm
     _HAS_DB = True
 except ImportError:
@@ -236,7 +236,6 @@ def _persist_match_stats_to_db(
                     continue
 
                 # Resolve opponent team to find fixture
-                from bet.db.repositories import FixtureRepo
                 fixture_repo = FixtureRepo(conn)
 
                 fixture = fixture_repo.get_by_teams_and_date(
