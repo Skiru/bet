@@ -41,12 +41,15 @@ You add a 5-part Market Intelligence Reasoning Layer via sequential-thinking: ma
 `odds_history` table (97K+ rows) — Betclic PL, Bet365, 10+ bookmakers:
 - `OddsRepo.get_best_odds(fixture_id, market, selection)` — best price for a specific pick
 - `OddsRepo.get_odds_history(fixture_id, market)` — full price history for CLV tracking
+- `load_odds_from_db()` — loads all odds for a date (replaces `odds_api_snapshot.json` / `odds_multi_sources.json` reads)
+- `analysis_results` table — pre-computed EV, probability, safety scores from S3 (replaces `analysis_pool_{date}.json`)
+- Gateway: `from db_data_loader import load_odds_from_db, load_analysis_results_from_db`
 
 ## Tool Usage Guidelines
 
 ### execute/runInTerminal
 - **MUST use for:** `python3 scripts/fetch_odds_multi.py --date YYYY-MM-DD` (5-source aggregation — RECOMMENDED), `python3 scripts/fetch_odds_api.py` (single-source fallback), `python3 scripts/probability_engine.py --line X.5 --direction OVER --values "v1,v2,..."` (direct probability checks)
-- **NOTE:** Check `analysis_pool_{date}.json` for pre-computed EV values. Read S3 deep stats for P(hit), fair odds, λ, CI columns.
+- **NOTE:** Check DB via `load_analysis_results_from_db()` for pre-computed EV values (fallback: `analysis_pool_{date}.json`). Read S3 deep stats for P(hit), fair odds, λ, CI columns.
 
 ### web/fetch + browser/*
 - **MUST use for:** Fetching odds from BetExplorer, OddsPortal, SBR, ESPN Odds, ScoresAndOdds

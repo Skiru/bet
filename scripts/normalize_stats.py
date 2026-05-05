@@ -13,6 +13,11 @@ from pathlib import Path
 
 CACHE_DIR = Path(__file__).parent.parent / "betting" / "data" / "stats_cache"
 
+PERCENTAGE_STATS = {
+    "possession", "fg_pct", "three_pct", "ft_pct",
+    "first_serve_pct", "faceoff_pct", "attack_pct", "checkout_pct",
+}
+
 
 # ---------------------------------------------------------------------------
 # Normalized data structures
@@ -452,6 +457,276 @@ def _slugify(name: str) -> str:
     slug = re.sub(r"[\s_]+", "-", slug)
     slug = re.sub(r"-+", "-", slug)
     return slug.strip("-")
+
+
+# ---------------------------------------------------------------------------
+# DB-first safety input helpers
+# ---------------------------------------------------------------------------
+
+def _strip_ha_suffix(stat_key: str) -> tuple[str, str | None]:
+    """Strip _home/_away suffix from a DB stat_key.
+
+    Returns (bare_key, side) where side is "home", "away", or None.
+    """
+    if stat_key.endswith("_home"):
+        return stat_key[:-5], "home"
+    if stat_key.endswith("_away"):
+        return stat_key[:-5], "away"
+    return stat_key, None
+
+
+def _synthesize_l10(l10_avg: float, l5_avg: float | None, count: int = 10) -> list[float]:
+    """Generate synthetic per-match values from aggregates.
+
+    Creates `count` values centered on l10_avg with deterministic spread
+    derived from the L10/L5 delta. Avoids degenerate 100%/0% hit rates.
+    """
+    if l10_avg == 0:
+        return [0.0] * count
+
+    if l5_avg is not None and l10_avg > 0:
+        delta = abs(l5_avg - l10_avg)
+        spread = max(delta, l10_avg * 0.1)
+    else:
+        spread = max(l10_avg * 0.15, 0.5)
+
+    values = []
+    for i in range(count):
+        offset = spread * (1 - 2 * (i % 2)) * ((i // 2 + 1) / (count // 2))
+        values.append(round(l10_avg + offset, 1))
+
+    if l5_avg is not None:
+        l5_subset = values[:5]
+        current_avg = sum(l5_subset) / 5
+        if current_avg > 0:
+            adjustment = l5_avg - current_avg
+            values[:5] = [round(v + adjustment / 5, 1) for v in l5_subset]
+
+    return values
+
+
+def _build_markets_from_db_form(
+    sport: str,
+    team_a: str,
+    team_b: str,
+    team_a_form: list,
+    team_b_form: list,
+    h2h_form: list,
+    market_definitions: list[dict],
+) -> tuple[list[dict], int]:
+    """Convert DB TeamForm rows into market dicts matching build_safety_score_input() output."""
+    # Group form rows by bare stat_key and side
+    def _group_form(form_rows):
+        grouped = {}
+        for row in form_rows:
+            bare, side = _strip_ha_suffix(row.stat_key)
+            grouped.setdefault(bare, {})[side] = row
+        return grouped
+
+    a_grouped = _group_form(team_a_form)
+    b_grouped = _group_form(team_b_form)
+
+    # Group H2H rows by bare stat_key (H2H rows typically don't have _home/_away)
+    h2h_by_stat = {}
+    for row in h2h_form:
+        bare, _ = _strip_ha_suffix(row.stat_key)
+        h2h_by_stat.setdefault(bare, []).append(row)
+
+    built_markets = []
+    synthetic_count = 0
+
+    for market_def in market_definitions:
+        stat_a_key = market_def.get("stat_a")
+        stat_b_key = market_def.get("stat_b")
+        is_combined = market_def.get("is_combined", True)
+
+        team_a_l10 = []
+        team_b_l10 = []
+        source = "db"
+
+        # Extract team_a values (home side)
+        if stat_a_key:
+            a_forms = a_grouped.get(stat_a_key, {})
+            # Prefer _home row; fall back to bare key
+            row_a = a_forms.get("home") or a_forms.get(None)
+            if row_a:
+                if row_a.l10_values and len(row_a.l10_values) >= 3:
+                    team_a_l10 = row_a.l10_values[:10]
+                elif row_a.l10_avg is not None:
+                    team_a_l10 = _synthesize_l10(row_a.l10_avg, row_a.l5_avg)
+                    source = "db-synthetic"
+                    synthetic_count += 1
+
+        # Extract team_b values (away side)
+        if stat_b_key:
+            b_forms = b_grouped.get(stat_b_key, {})
+            # Prefer _away row; fall back to bare key
+            row_b = b_forms.get("away") or b_forms.get(None)
+            if row_b:
+                if row_b.l10_values and len(row_b.l10_values) >= 3:
+                    team_b_l10 = row_b.l10_values[:10]
+                elif row_b.l10_avg is not None:
+                    team_b_l10 = _synthesize_l10(row_b.l10_avg, row_b.l5_avg)
+                    source = "db-synthetic"
+                    synthetic_count += 1
+
+        # For non-combined Team B-only markets, swap into team_a_l10
+        team_swapped = False
+        if not is_combined and stat_b_key and not stat_a_key:
+            team_a_l10 = team_b_l10
+            team_b_l10 = []
+            team_swapped = True
+
+        # Skip market if insufficient stat data
+        if stat_a_key and len(team_a_l10) < 5:
+            continue
+        if stat_b_key and not stat_a_key and len(team_a_l10) < 5:
+            continue
+        if stat_b_key and stat_a_key and len(team_b_l10) < 5:
+            continue
+
+        # H2H values
+        h2h_values = []
+        h2h_stat = stat_a_key or stat_b_key
+        if h2h_stat and h2h_stat in h2h_by_stat:
+            for h_row in h2h_by_stat[h2h_stat]:
+                if h_row.h2h_values:
+                    h2h_values.extend(h_row.h2h_values)
+                elif h_row.l10_avg is not None:
+                    h2h_values.append(h_row.l10_avg)
+
+        # L5 subsets
+        team_a_l5 = team_a_l10[:5] if team_a_l10 else []
+        team_b_l5 = team_b_l10[:5] if team_b_l10 else []
+
+        # Auto-determine line
+        if is_combined and team_a_l10 and team_b_l10:
+            min_len = min(len(team_a_l10), len(team_b_l10))
+            combined_avg = sum(
+                team_a_l10[i] + team_b_l10[i] for i in range(min_len)
+            ) / min_len
+            line = _round_to_half(combined_avg)
+        elif team_a_l10:
+            line = _round_to_half(sum(team_a_l10) / len(team_a_l10))
+        elif team_b_l10:
+            line = _round_to_half(sum(team_b_l10) / len(team_b_l10))
+        else:
+            continue
+
+        # Replace placeholders in market name
+        market_name = market_def["name"]
+        market_name = market_name.replace("Team A", team_a).replace("Team B", team_b)
+        market_name = market_name.replace("Player A", team_a).replace("Player B", team_b)
+        market_name = market_name.replace("Fighter A", team_a).replace("Fighter B", team_b)
+        market_name = market_name.replace("Pair A", team_a).replace("Pair B", team_b)
+
+        built_markets.append({
+            "name": market_name,
+            "line": line,
+            "team_a_l10": team_a_l10,
+            "team_b_l10": team_b_l10,
+            "h2h_values": h2h_values,
+            "team_a_l5": team_a_l5,
+            "team_b_l5": team_b_l5,
+            "is_combined": is_combined,
+            "source": source,
+            "team_swapped": team_swapped,
+        })
+
+    return built_markets, synthetic_count
+
+
+def build_safety_input_from_db(
+    sport: str,
+    team_a: str,
+    team_b: str,
+    competition: str,
+) -> dict | None:
+    """Build safety score input from the SQLite DB (team_form rows).
+
+    Returns dict matching build_safety_score_input() output format, or None
+    on any DB error or missing data.
+    """
+    try:
+        from bet.db.connection import get_db
+        from bet.db.repositories import SportRepo, TeamRepo, StatsRepo
+    except ImportError:
+        return None
+
+    try:
+        with get_db() as conn:
+            sport_repo = SportRepo(conn)
+            team_repo = TeamRepo(conn)
+            stats_repo = StatsRepo(conn)
+
+            # Resolve sport
+            sport_obj = sport_repo.get_by_name(sport)
+            if not sport_obj or sport_obj.id is None:
+                return None
+
+            # Resolve teams
+            team_a_obj = team_repo.resolve(team_a, sport_obj.id)
+            team_b_obj = team_repo.resolve(team_b, sport_obj.id)
+            if not team_a_obj or not team_b_obj:
+                return None
+
+            # Fetch team_form rows (non-H2H)
+            team_a_form = stats_repo.get_all_form_for_team(team_a_obj.id, sport_obj.id)
+            team_b_form = stats_repo.get_all_form_for_team(team_b_obj.id, sport_obj.id)
+
+            if not team_a_form and not team_b_form:
+                return None
+
+            # Fetch H2H form rows
+            h2h_form = []
+            h2h_rows = conn.execute(
+                "SELECT * FROM team_form "
+                "WHERE team_id = ? AND sport_id = ? AND h2h_opponent_id = ?",
+                (team_a_obj.id, sport_obj.id, team_b_obj.id),
+            ).fetchall()
+            for row in h2h_rows:
+                h2h_form.append(StatsRepo._row_to_team_form(row))
+
+            # Build markets
+            market_definitions = SPORT_MARKETS.get(sport, [])
+            if not market_definitions:
+                return None
+
+            built_markets, synthetic_count = _build_markets_from_db_form(
+                sport, team_a, team_b,
+                team_a_form, team_b_form, h2h_form,
+                market_definitions,
+            )
+
+            if not built_markets:
+                return None
+
+            print(f"[normalize] DB-first: {len(built_markets)} markets for {team_a} vs {team_b} ({synthetic_count} synthetic)")
+
+            return {
+                "sport": sport,
+                "team_a": team_a,
+                "team_b": team_b,
+                "competition": competition,
+                "markets": built_markets,
+            }
+    except Exception as e:
+        print(f"[normalize] DB-first error for {team_a} vs {team_b}: {e}")
+        return None
+
+
+def build_safety_input(
+    sport: str,
+    team_a: str,
+    team_b: str,
+    competition: str,
+    cache_dir: Path | None = None,
+) -> dict | None:
+    """DB-first wrapper with JSON cache fallback."""
+    result = build_safety_input_from_db(sport, team_a, team_b, competition)
+    if result and result.get("markets"):
+        return result
+    return build_safety_input_from_cache(sport, team_a, team_b, competition, cache_dir)
 
 
 def _cache_to_normalized_matches(

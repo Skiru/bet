@@ -152,6 +152,44 @@ CREATE TABLE IF NOT EXISTS source_health (
     UNIQUE(source_name)
 );
 
+CREATE TABLE IF NOT EXISTS analysis_results (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    fixture_id INTEGER NOT NULL REFERENCES fixtures(id),
+    betting_date TEXT NOT NULL,
+    has_data INTEGER NOT NULL DEFAULT 0,
+    best_market_name TEXT,
+    best_market_line REAL,
+    best_market_direction TEXT,
+    best_safety_score REAL,
+    markets_evaluated INTEGER NOT NULL DEFAULT 0,
+    ranking_json TEXT NOT NULL DEFAULT '[]',
+    three_way_check_json TEXT,
+    warnings_json TEXT NOT NULL DEFAULT '[]',
+    stats_summary_json TEXT,
+    source TEXT,
+    created_at TEXT NOT NULL,
+    UNIQUE(fixture_id, betting_date)
+);
+
+CREATE TABLE IF NOT EXISTS gate_results (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    fixture_id INTEGER NOT NULL REFERENCES fixtures(id),
+    betting_date TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    gate_score INTEGER NOT NULL DEFAULT 0,
+    gate_details_json TEXT NOT NULL DEFAULT '{}',
+    best_market_name TEXT,
+    best_market_line REAL,
+    best_market_direction TEXT,
+    best_safety_score REAL,
+    ev REAL,
+    risk_tier TEXT,
+    rejection_reasons_json TEXT NOT NULL DEFAULT '[]',
+    source TEXT,
+    created_at TEXT NOT NULL,
+    UNIQUE(fixture_id, betting_date)
+);
+
 -- Indexes for common queries
 CREATE INDEX IF NOT EXISTS idx_fixtures_kickoff ON fixtures(kickoff);
 CREATE INDEX IF NOT EXISTS idx_fixtures_sport_status ON fixtures(sport_id, status);
@@ -179,3 +217,7 @@ CREATE INDEX IF NOT EXISTS idx_bets_coupon ON bets(coupon_id);
 CREATE INDEX IF NOT EXISTS idx_bets_status ON bets(status);
 CREATE INDEX IF NOT EXISTS idx_teams_sport ON teams(sport_id);
 CREATE INDEX IF NOT EXISTS idx_teams_aliases ON teams(aliases);
+CREATE INDEX IF NOT EXISTS idx_analysis_results_date ON analysis_results(betting_date);
+CREATE INDEX IF NOT EXISTS idx_analysis_results_fixture ON analysis_results(fixture_id);
+CREATE INDEX IF NOT EXISTS idx_gate_results_date ON gate_results(betting_date);
+CREATE INDEX IF NOT EXISTS idx_gate_results_status ON gate_results(betting_date, status);

@@ -36,21 +36,21 @@ You follow a structured pipeline: S0 → S1 → S2 → S3 → S4 → S5 → S6 �
 - **MUST delegate to when**: S0 settlement — settling previous day, PnL, CLV, bankroll, learning review
 - **Internal prompt**: [bet-settle.prompt.md](../internal-prompts/bet-settle.prompt.md)
 - **Ad-hoc domains**: settlement, PnL, bankroll, won, lost, history, hit rate, coupon killer, CLV, drawdown
-- **Context files**: `picks-ledger.csv`, `coupons-ledger.csv`, `betclic_bets_history.json`
+- **Context files**: `picks-ledger.csv`, `coupons-ledger.csv` | DB: `bets` + `coupons` tables (primary, via `load_betclic_history_from_db()`; JSON fallback: `betclic_bets_history.json`)
 - **SHOULD NOT delegate to**: Any analysis work
 
 ### bet-scanner
 - **MUST delegate to when**: S1 event scanning, S2 shortlist building
 - **Internal prompts**: [bet-scan.prompt.md](../internal-prompts/bet-scan.prompt.md) (S1), [bet-shortlist.prompt.md](../internal-prompts/bet-shortlist.prompt.md) (S2)
 - **Ad-hoc domains**: scan, events, matches, sources, shortlist, fixtures, market matrix
-- **Context files**: `{date}_s1_master_events.md`, `scan_summary.json`, `market_matrix_{date}.json`
+- **Context files**: `{date}_s1_master_events.md` | DB: `fixtures` table (primary, via `load_fixtures_from_db()`; JSON fallback: `scan_summary.json`), `market_matrix_{date}.json`
 - **SHOULD NOT delegate to**: Statistical analysis, odds evaluation
 
 ### bet-statistician
 - **MUST delegate to when**: S3 deep stats, S3B time-sensitive checks
 - **Internal prompts**: [bet-deep-stats.prompt.md](../internal-prompts/bet-deep-stats.prompt.md) (S3), [bet-time-sensitive.prompt.md](../internal-prompts/bet-time-sensitive.prompt.md) (S3B)
 - **Ad-hoc domains**: stats, H2H, form, market ranking, corners, fouls, safety score, probability, Poisson
-- **Context files**: `{date}_s3_deep_stats.md`, `{date}_s2_shortlist.md`
+- **Context files**: `{date}_s3_deep_stats.md` | DB: `analysis_results` table (primary), `team_form` table; JSON fallback: `{date}_s2_shortlist.md`
 - **IMPORTANT**: Agent MUST think about data — find edges, spot anomalies, write ANALYTICAL REASONING per candidate. Script output is raw calculator data.
 - **SHOULD NOT delegate to**: Odds evaluation, tipster intelligence
 
@@ -58,7 +58,7 @@ You follow a structured pipeline: S0 → S1 → S2 → S3 → S4 → S5 → S6 �
 - **MUST delegate to when**: S4 tipster intelligence
 - **Internal prompt**: [bet-tipsters.prompt.md](../internal-prompts/bet-tipsters.prompt.md)
 - **Ad-hoc domains**: tipster, consensus, argument, prediction, scout
-- **Context files**: `{date}_s4_tipsters.md`, `{date}_tipster_consensus.json`
+- **Context files**: `{date}_s4_tipsters.md` | DB: `analysis_results` table for consensus data; JSON fallback: `{date}_tipster_consensus.json`
 - **IMPORTANT**: Agent MUST read FULL tipster arguments, assess quality, check independence, discover new angles.
 - **SHOULD NOT delegate to**: Statistical analysis, gate checking
 
@@ -66,7 +66,7 @@ You follow a structured pipeline: S0 → S1 → S2 → S3 → S4 → S5 → S6 �
 - **MUST delegate to when**: S5 odds evaluation and pricing
 - **Internal prompt**: [bet-odds-ev.prompt.md](../internal-prompts/bet-odds-ev.prompt.md)
 - **Ad-hoc domains**: EV, odds, Kelly, stake, price gap, drift, value, line movement
-- **Context files**: `{date}_s5_odds_ev.md`, `odds_api_snapshot.json`, `odds_multi_sources.json`
+- **Context files**: `{date}_s5_odds_ev.md` | DB: `odds_history` table (primary, via `load_odds_from_db()`; JSON fallback: `odds_api_snapshot.json`, `odds_multi_sources.json`)
 - **IMPORTANT**: Agent MUST reason about pricing — not just compute EV. Line reasoning, mispricing vectors, edge durability.
 - **SHOULD NOT delegate to**: Statistical analysis, context checking
 
@@ -74,7 +74,7 @@ You follow a structured pipeline: S0 → S1 → S2 → S3 → S4 → S5 → S6 �
 - **MUST delegate to when**: S6 context/upset risk, S7 bear case + gate
 - **Internal prompts**: [bet-context-upset.prompt.md](../internal-prompts/bet-context-upset.prompt.md) (S6), [bet-gate.prompt.md](../internal-prompts/bet-gate.prompt.md) (S7)
 - **Ad-hoc domains**: upset, risk, bear case, red flag, gate, Zero Tolerance, contrarian
-- **Context files**: `{date}_s6_context.md`, `{date}_s7_gate.md`
+- **Context files**: `{date}_s6_context.md` | DB: `analysis_results` + `gate_results` tables; `{date}_s7_gate.md`
 - **IMPORTANT**: S7 is the KILL STEP. Agent MUST build specific bear cases, audit assumptions, find analogies, model second-order effects. Mechanical gate is just the starting point.
 - **SHOULD NOT delegate to**: Portfolio construction
 
@@ -90,7 +90,7 @@ You follow a structured pipeline: S0 → S1 → S2 → S3 → S4 → S5 → S6 �
 
 ### Phase 1: Data Collection (scripts)
 
-Run `pipeline_orchestrator.py` for S0→S2 raw data artifacts. This produces JSON/MD files.
+Run `pipeline_orchestrator.py` for S0→S2 raw data artifacts. This produces DB records (primary) and JSON/MD files (debug output).
 
 ### Phase 2: Agent Analysis (S3-S8 — MANDATORY delegation)
 

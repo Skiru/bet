@@ -406,29 +406,42 @@ def fetch_stats_for_date(
     if rate_limiter is None:
         rate_limiter = RateLimiter()
 
-    fixtures_file = DATA_DIR / f"fixtures_{date}.json"
+    # DB-first: try loading fixtures from DB
+    fixtures = None
+    try:
+        from db_data_loader import load_fixtures_from_db
+        db_fixtures = load_fixtures_from_db(date)
+        if db_fixtures:
+            print(f"[fetch_stats] DB: loaded {len(db_fixtures)} fixtures")
+            fixtures = db_fixtures
+    except Exception as e:
+        print(f"[fetch_stats] DB read failed, falling back to JSON: {e}")
 
-    if fixtures_file.exists():
-        try:
-            fixtures_data = json.loads(fixtures_file.read_text(encoding="utf-8"))
-            fixtures = fixtures_data.get("fixtures", [])
-            print(f"[fetch_stats] Loaded {len(fixtures)} fixtures from {fixtures_file}")
-        except (json.JSONDecodeError, OSError) as e:
-            print(f"[fetch_stats] Error reading {fixtures_file}: {e}")
-            fixtures = []
-    else:
-        # Try to discover fixtures
-        print(f"[fetch_stats] No fixtures file found, running discovery for {date}")
-        try:
-            from discover_fixtures import discover_all_fixtures
-            discovered = discover_all_fixtures(date, sports)
-            fixtures = [
-                asdict(f) if hasattr(f, "__dataclass_fields__") else f
-                for f in discovered
-            ]
-        except Exception as e:
-            print(f"[fetch_stats] Discovery failed: {e}")
-            fixtures = []
+    # JSON fallback
+    if not fixtures:
+        fixtures_file = DATA_DIR / f"fixtures_{date}.json"
+
+        if fixtures_file.exists():
+            try:
+                fixtures_data = json.loads(fixtures_file.read_text(encoding="utf-8"))
+                fixtures = fixtures_data.get("fixtures", [])
+                print(f"[fetch_stats] Loaded {len(fixtures)} fixtures from {fixtures_file}")
+            except (json.JSONDecodeError, OSError) as e:
+                print(f"[fetch_stats] Error reading {fixtures_file}: {e}")
+                fixtures = []
+        else:
+            # Try to discover fixtures
+            print(f"[fetch_stats] No fixtures file found, running discovery for {date}")
+            try:
+                from discover_fixtures import discover_all_fixtures
+                discovered = discover_all_fixtures(date, sports)
+                fixtures = [
+                    asdict(f) if hasattr(f, "__dataclass_fields__") else f
+                    for f in discovered
+                ]
+            except Exception as e:
+                print(f"[fetch_stats] Discovery failed: {e}")
+                fixtures = []
 
     # Filter by sports
     if sports:

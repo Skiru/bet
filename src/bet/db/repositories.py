@@ -9,10 +9,12 @@ import sqlite3
 from datetime import datetime, timezone
 
 from bet.db.models import (
+    AnalysisResult,
     Bet,
     Competition,
     Coupon,
     Fixture,
+    GateResult,
     LeagueProfile,
     MatchStat,
     OddsRecord,
@@ -1043,3 +1045,188 @@ class LeagueProfileRepo:
             (competition_id, stat_key, season),
         ).fetchone()
         return row["avg_value"] if row else None
+
+
+# ---------------------------------------------------------------------------
+# AnalysisResultRepo
+# ---------------------------------------------------------------------------
+
+class AnalysisResultRepo:
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+
+    def save(self, result: AnalysisResult) -> None:
+        """Insert or replace an analysis result."""
+        self.conn.execute(
+            "INSERT OR REPLACE INTO analysis_results "
+            "(fixture_id, betting_date, has_data, best_market_name, best_market_line, "
+            "best_market_direction, best_safety_score, markets_evaluated, ranking_json, "
+            "three_way_check_json, warnings_json, stats_summary_json, source, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                result.fixture_id,
+                result.betting_date,
+                int(result.has_data),
+                result.best_market_name,
+                result.best_market_line,
+                result.best_market_direction,
+                result.best_safety_score,
+                result.markets_evaluated,
+                json.dumps(result.ranking_json),
+                json.dumps(result.three_way_check_json) if result.three_way_check_json else None,
+                json.dumps(result.warnings_json),
+                json.dumps(result.stats_summary_json) if result.stats_summary_json else None,
+                result.source,
+                result.created_at or _NOW(),
+            ),
+        )
+
+    def bulk_save(self, results: list[AnalysisResult]) -> None:
+        """Bulk insert/replace analysis results."""
+        for r in results:
+            self.save(r)
+
+    def get_by_date(self, betting_date: str) -> list[AnalysisResult]:
+        """Get all analysis results for a betting date."""
+        rows = self.conn.execute(
+            "SELECT * FROM analysis_results WHERE betting_date = ? ORDER BY best_safety_score DESC",
+            (betting_date,),
+        ).fetchall()
+        return [self._row_to_model(r) for r in rows]
+
+    def get_by_fixture(self, fixture_id: int, betting_date: str) -> AnalysisResult | None:
+        """Get analysis result for a specific fixture on a date."""
+        row = self.conn.execute(
+            "SELECT * FROM analysis_results WHERE fixture_id = ? AND betting_date = ?",
+            (fixture_id, betting_date),
+        ).fetchone()
+        return self._row_to_model(row) if row else None
+
+    def get_with_data(self, betting_date: str) -> list[AnalysisResult]:
+        """Get only analysis results that have data."""
+        rows = self.conn.execute(
+            "SELECT * FROM analysis_results WHERE betting_date = ? AND has_data = 1 "
+            "ORDER BY best_safety_score DESC",
+            (betting_date,),
+        ).fetchall()
+        return [self._row_to_model(r) for r in rows]
+
+    def delete_by_date(self, betting_date: str) -> int:
+        """Delete all analysis results for a date. Returns count deleted."""
+        cursor = self.conn.execute(
+            "DELETE FROM analysis_results WHERE betting_date = ?", (betting_date,)
+        )
+        return cursor.rowcount
+
+    @staticmethod
+    def _row_to_model(row: sqlite3.Row) -> AnalysisResult:
+        return AnalysisResult(
+            id=row["id"],
+            fixture_id=row["fixture_id"],
+            betting_date=row["betting_date"],
+            has_data=bool(row["has_data"]),
+            best_market_name=row["best_market_name"] or "",
+            best_market_line=row["best_market_line"],
+            best_market_direction=row["best_market_direction"] or "",
+            best_safety_score=row["best_safety_score"],
+            markets_evaluated=row["markets_evaluated"],
+            ranking_json=json.loads(row["ranking_json"]) if row["ranking_json"] else [],
+            three_way_check_json=json.loads(row["three_way_check_json"]) if row["three_way_check_json"] else None,
+            warnings_json=json.loads(row["warnings_json"]) if row["warnings_json"] else [],
+            stats_summary_json=json.loads(row["stats_summary_json"]) if row["stats_summary_json"] else None,
+            source=row["source"] or "",
+            created_at=row["created_at"] or "",
+        )
+
+
+# ---------------------------------------------------------------------------
+# GateResultRepo
+# ---------------------------------------------------------------------------
+
+class GateResultRepo:
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+
+    def save(self, result: GateResult) -> None:
+        """Insert or replace a gate result."""
+        self.conn.execute(
+            "INSERT OR REPLACE INTO gate_results "
+            "(fixture_id, betting_date, status, gate_score, gate_details_json, "
+            "best_market_name, best_market_line, best_market_direction, best_safety_score, "
+            "ev, risk_tier, rejection_reasons_json, source, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                result.fixture_id,
+                result.betting_date,
+                result.status,
+                result.gate_score,
+                json.dumps(result.gate_details_json),
+                result.best_market_name,
+                result.best_market_line,
+                result.best_market_direction,
+                result.best_safety_score,
+                result.ev,
+                result.risk_tier,
+                json.dumps(result.rejection_reasons_json),
+                result.source,
+                result.created_at or _NOW(),
+            ),
+        )
+
+    def bulk_save(self, results: list[GateResult]) -> None:
+        """Bulk insert/replace gate results."""
+        for r in results:
+            self.save(r)
+
+    def get_by_date(self, betting_date: str) -> list[GateResult]:
+        """Get all gate results for a betting date."""
+        rows = self.conn.execute(
+            "SELECT * FROM gate_results WHERE betting_date = ? ORDER BY best_safety_score DESC",
+            (betting_date,),
+        ).fetchall()
+        return [self._row_to_model(r) for r in rows]
+
+    def get_approved(self, betting_date: str) -> list[GateResult]:
+        """Get approved gate results for coupon building."""
+        rows = self.conn.execute(
+            "SELECT * FROM gate_results WHERE betting_date = ? AND status = 'approved' "
+            "ORDER BY best_safety_score DESC",
+            (betting_date,),
+        ).fetchall()
+        return [self._row_to_model(r) for r in rows]
+
+    def get_extended(self, betting_date: str) -> list[GateResult]:
+        """Get extended pool gate results."""
+        rows = self.conn.execute(
+            "SELECT * FROM gate_results WHERE betting_date = ? AND status = 'extended' "
+            "ORDER BY best_safety_score DESC",
+            (betting_date,),
+        ).fetchall()
+        return [self._row_to_model(r) for r in rows]
+
+    def delete_by_date(self, betting_date: str) -> int:
+        """Delete all gate results for a date. Returns count deleted."""
+        cursor = self.conn.execute(
+            "DELETE FROM gate_results WHERE betting_date = ?", (betting_date,)
+        )
+        return cursor.rowcount
+
+    @staticmethod
+    def _row_to_model(row: sqlite3.Row) -> GateResult:
+        return GateResult(
+            id=row["id"],
+            fixture_id=row["fixture_id"],
+            betting_date=row["betting_date"],
+            status=row["status"],
+            gate_score=row["gate_score"],
+            gate_details_json=json.loads(row["gate_details_json"]) if row["gate_details_json"] else {},
+            best_market_name=row["best_market_name"] or "",
+            best_market_line=row["best_market_line"],
+            best_market_direction=row["best_market_direction"] or "",
+            best_safety_score=row["best_safety_score"],
+            ev=row["ev"],
+            risk_tier=row["risk_tier"] or "",
+            rejection_reasons_json=json.loads(row["rejection_reasons_json"]) if row["rejection_reasons_json"] else [],
+            source=row["source"] or "",
+            created_at=row["created_at"] or "",
+        )

@@ -187,3 +187,41 @@ class MarketCandidate:
     l10_values: list[float] = field(default_factory=list)
     l5_values: list[float] = field(default_factory=list)
     trend: str = ""
+
+
+@dataclass
+class AnalysisResult:
+    id: int | None
+    fixture_id: int
+    betting_date: str
+    has_data: bool = False
+    best_market_name: str = ""
+    best_market_line: float | None = None
+    best_market_direction: str = ""
+    best_safety_score: float | None = None
+    markets_evaluated: int = 0
+    ranking_json: list = field(default_factory=list)
+    three_way_check_json: dict | None = None
+    warnings_json: list = field(default_factory=list)
+    stats_summary_json: dict | None = None
+    source: str = ""
+    created_at: str = ""
+
+
+@dataclass
+class GateResult:
+    id: int | None
+    fixture_id: int
+    betting_date: str
+    status: str = "pending"
+    gate_score: int = 0
+    gate_details_json: dict = field(default_factory=dict)
+    best_market_name: str = ""
+    best_market_line: float | None = None
+    best_market_direction: str = ""
+    best_safety_score: float | None = None
+    ev: float | None = None
+    risk_tier: str = ""
+    rejection_reasons_json: list = field(default_factory=list)
+    source: str = ""
+    created_at: str = ""

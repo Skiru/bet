@@ -44,6 +44,22 @@ Load before starting:
 
 ---
 
+## DATA ACCESS: DB-First Architecture
+
+All pipeline data is stored in SQLite DB (`betting/data/betting.db`) as the primary source. JSON files are maintained as human-readable fallbacks and debug output. Scripts use `db_data_loader.py` functions which try DB first, then JSON fallback.
+
+- `fixtures` table — all discovered events for the betting day (replaces `scan_summary.json` reads)
+- `odds_history` table — odds from all sources (replaces `odds_api_snapshot.json` / `odds_multi_sources.json` reads)
+- `team_form` table — L10/L5/H2H statistics per team (replaces `stats_cache/*.json` reads)
+- `match_stats` table — per-match raw statistics
+- `analysis_results` table — S3 deep stats output
+- `gate_results` table — S7 gate check output
+- Access: `from bet.db.connection import get_db; from bet.db.repositories import FixtureRepo, OddsRepo, StatsRepo`
+
+JSON files (`scan_summary.json`, `odds_api_snapshot.json`, etc.) are still produced as dual-write debug output. When validating data, prefer DB queries over JSON reads.
+
+---
+
 ## KNOWLEDGE BASE: What "Rich Data" Means Per Sport
 
 ### Tier 1 — KEY Sports (must have DEEP data)
@@ -53,7 +69,8 @@ Load before starting:
 MUST HAVE: corners, fouls, yellow_cards, shots, shots_on_target, possession
 SHOULD HAVE: accurate_passes, crosses, long_balls, tackles, interceptions, clearances, blocked_shots
 BONUS: xG (Understat, 6 EU leagues only)
-CACHE FILE: betting/data/stats_cache/football/{team-slug}.json
+CACHE FILE: betting/data/stats_cache/football/{team-slug}.json (JSON fallback)
+DB TABLE: team_form (primary) — L10/L5/H2H per team per stat_key
 EXPECTED: 400+ team files from ESPN enrichment
 ```
 
@@ -66,7 +83,8 @@ ELO DATA: TennisAbstract Elo ratings at betting/data/tennisabstract.com/ (518 AT
   ⚠ Elo ratings are COLLECTED but NOT yet integrated into safety scores or probability engine
 H2H: Currently EMPTY for all tennis players — ESPN tennis doesn't provide H2H
   → Scores24 detail pages have tennis H2H (already parsed by scores24_adapter.py)
-CACHE FILE: betting/data/stats_cache/tennis/{player-slug}.json
+CACHE FILE: betting/data/stats_cache/tennis/{player-slug}.json (JSON fallback)
+DB TABLE: team_form (primary) — L10/L5/H2H per player per stat_key
 EXPECTED: 500+ player files, but only 3 stat keys populated
 ```
 
@@ -74,7 +92,8 @@ EXPECTED: 500+ player files, but only 3 stat keys populated
 ```
 MUST HAVE: rebounds, assists, steals, blocks, turnovers, fg_pct, three_pct, ft_pct
 SHOULD HAVE: offensive_rebounds, defensive_rebounds, fast_break_points, points_in_paint
-CACHE FILE: betting/data/stats_cache/basketball/{team-slug}.json
+CACHE FILE: betting/data/stats_cache/basketball/{team-slug}.json (JSON fallback)
+DB TABLE: team_form (primary)
 EXPECTED: 25+ team files (NBA-focused)
 ```
 

@@ -1001,12 +1001,33 @@ def _load_s3_output(date: str, input_path: str | None = None) -> list[dict]:
 
     Tries:
       1. Explicit --input path
-      2. {date}_s3_deep_stats.json
+      2. DB (analysis_results table)
+      3. {date}_s3_deep_stats.json
     """
     if input_path:
         path = Path(input_path)
-    else:
-        path = DATA_DIR / f"{date}_s3_deep_stats.json"
+        if not path.exists():
+            print(f"[gate_checker] ERROR: S3 output not found: {path}")
+            sys.exit(1)
+        data = json.loads(path.read_text(encoding="utf-8"))
+        analyses = data.get("analyses", data.get("candidates", []))
+        candidates = [_normalise_s3_to_gate_input(a) for a in analyses]
+        print(f"[gate_checker] Loaded {len(candidates)} candidates from {path}")
+        return candidates
+
+    # Try DB first
+    try:
+        from db_data_loader import load_analysis_results_from_db
+        db_analyses = load_analysis_results_from_db(date)
+        if db_analyses:
+            candidates = [_normalise_s3_to_gate_input(a) for a in db_analyses]
+            print(f"[gate_checker] DB: loaded {len(candidates)} candidates")
+            return candidates
+    except Exception as e:
+        print(f"[gate_checker] DB read failed, using JSON fallback: {e}")
+
+    # JSON fallback
+    path = DATA_DIR / f"{date}_s3_deep_stats.json"
 
     if not path.exists():
         print(f"[gate_checker] ERROR: S3 output not found: {path}")
@@ -1058,6 +1079,17 @@ def main():
 
     _write_json(results, args.date)
     _write_markdown(results, args.date)
+
+    # Dual-write: save gate results to DB
+    try:
+        from db_data_loader import save_gate_results_to_db
+        all_results = []
+        for bucket in ("approved", "extended_pool", "rejected"):
+            all_results.extend(results.get("gate_results", {}).get(bucket, []))
+        saved = save_gate_results_to_db(args.date, all_results)
+        print(f"[gate_checker] DB: saved {saved} gate results")
+    except Exception as e:
+        print(f"[gate_checker] DB write failed (non-fatal): {e}")
 
     s = results["summary"]
     print(

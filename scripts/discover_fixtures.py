@@ -110,9 +110,12 @@ def _load_scan_summary(date: str) -> list:
         if not isinstance(event, dict):
             continue
 
-        # Filter by date if present
+        # Filter by date if present — reject dateless items entirely
         event_date = event.get("date", "")
-        if date and event_date and not event_date.startswith(date):
+        if not event_date:
+            # No date = scanner default, likely garbage or future fixture
+            continue
+        if date and not event_date.startswith(date):
             continue
 
         sport = event.get("sport", "football").lower()

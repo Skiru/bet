@@ -262,24 +262,40 @@ def main():
         if fixtures_path.exists():
             data = json.loads(fixtures_path.read_text(encoding="utf-8"))
             fixtures = data.get("fixtures", data) if isinstance(data, dict) else data
-            results = fetch_weather_for_fixtures(fixtures, args.date)
-            out_path = DATA_DIR / f"weather_{args.date}.json"
-            out_path.write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
-            print(f"[weather] Fetched weather for {len(results)} venues → {out_path}")
         else:
             print(f"[weather] Fixtures file not found: {fixtures_path}")
-    else:
-        # Default: fetch for all fixtures on the date
-        fixtures_path = DATA_DIR / f"fixtures_{args.date}.json"
-        if fixtures_path.exists():
-            data = json.loads(fixtures_path.read_text(encoding="utf-8"))
-            fixtures = data.get("fixtures", [])
+            fixtures = []
+        if fixtures:
             results = fetch_weather_for_fixtures(fixtures, args.date)
             out_path = DATA_DIR / f"weather_{args.date}.json"
             out_path.write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
             print(f"[weather] Fetched weather for {len(results)} venues → {out_path}")
-        else:
-            print(f"[weather] No fixtures file found for {args.date}")
+    else:
+        # Default: DB-first, then JSON fallback
+        fixtures = None
+        try:
+            from db_data_loader import load_fixtures_from_db
+            db_fixtures = load_fixtures_from_db(args.date)
+            if db_fixtures:
+                print(f"[weather] DB: loaded {len(db_fixtures)} fixtures")
+                fixtures = db_fixtures
+        except Exception as e:
+            print(f"[weather] DB read failed, falling back to JSON: {e}")
+
+        if not fixtures:
+            fixtures_path = DATA_DIR / f"fixtures_{args.date}.json"
+            if fixtures_path.exists():
+                data = json.loads(fixtures_path.read_text(encoding="utf-8"))
+                fixtures = data.get("fixtures", [])
+            else:
+                print(f"[weather] No fixtures file found for {args.date}")
+                fixtures = []
+
+        if fixtures:
+            results = fetch_weather_for_fixtures(fixtures, args.date)
+            out_path = DATA_DIR / f"weather_{args.date}.json"
+            out_path.write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
+            print(f"[weather] Fetched weather for {len(results)} venues → {out_path}")
 
 
 if __name__ == "__main__":

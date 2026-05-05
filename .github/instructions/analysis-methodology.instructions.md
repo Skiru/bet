@@ -14,6 +14,31 @@ Goal: find MISPRICED ODDS in statistical markets. EV > 0 is the only valid reaso
 
 ---
 
+## DATA ARCHITECTURE
+
+All pipeline data is stored in SQLite DB (`betting/data/betting.db`) as the primary source. JSON files are maintained as human-readable fallbacks and debug output. Scripts use `db_data_loader.py` functions which try DB first, then JSON fallback.
+
+**Key DB tables:**
+- `fixtures` — all events for the betting day (replaces `scan_summary.json` reads)
+- `odds_history` — odds from all sources (replaces `odds_api_snapshot.json` reads)
+- `team_form` — L10/L5/H2H statistics per team (replaces `stats_cache/*.json` reads)
+- `match_stats` — per-match raw statistics
+- `analysis_results` — S3 deep stats output: market rankings, safety scores (replaces `{date}_s3_deep_stats.json`)
+- `gate_results` — S7 gate check output: approved/extended/rejected (replaces `{date}_s7_gate_results.json`)
+- `coupons` + `bets` — placed bets and coupon history (replaces `betclic_bets_history.json` reads)
+- `league_profiles` — Bayesian priors per competition
+
+**Gateway module:** `scripts/db_data_loader.py` — all DB read/write functions:
+- `load_fixtures_from_db()`, `load_odds_from_db()`, `load_team_form_from_db()`
+- `load_analysis_results_from_db()`, `save_analysis_results_to_db()`
+- `load_gate_results_from_db()`, `save_gate_results_to_db()`
+- `load_shortlist_from_db()`, `load_betclic_history_from_db()`
+- `build_safety_input()` — assembles safety score input from DB tables
+
+**Dual-write policy:** Scripts write to BOTH DB and JSON on output. JSON = human-readable debug. DB = queryable primary store.
+
+---
+
 ## SPORT TIERS
 
 | Tier | Sports | Scanning | Analysis |
@@ -35,10 +60,10 @@ The pipeline has fully automated scripts for S3 (deep stats), S7 (gate checks), 
 
 | Step | Script | What it does |
 |------|--------|-------------|
-| S3 | `scripts/deep_stats_report.py` | Reads stats cache, runs §3.0 `rank_markets()`, generates all 10 §S3 sections per candidate. Output: `{date}_s3_deep_stats.json/.md` |
-| S7 | `scripts/gate_checker.py` | Programmatic 17-point gate, §7.3 red flags, §6.5 upset risk, §7.6 sport diversity, risk tier (LR/MS/HR/N), confidence scoring. Output: `{date}_s7_gate_results.json/.md` |
+| S3 | `scripts/deep_stats_report.py` | Reads from DB (`team_form`, `match_stats` tables; JSON fallback: stats cache), runs §3.0 `rank_markets()`, generates all 10 §S3 sections per candidate. Output: DB `analysis_results` table + `{date}_s3_deep_stats.json/.md` |
+| S7 | `scripts/gate_checker.py` | Programmatic 17-point gate, §7.3 red flags, §6.5 upset risk, §7.6 sport diversity, risk tier (LR/MS/HR/N), confidence scoring. Output: DB `gate_results` table + `{date}_s7_gate_results.json/.md` |
 | S8 | `scripts/coupon_builder.py` | Core portfolio + combo menu + extended pool, Kelly 1/4 staking, Polish-language output, §8.2 stress test. Output: `betting/coupons/{date}.json/.md` |
-| Orchestrator | `scripts/pipeline_orchestrator.py` | Runs S0→S10 end-to-end. Injects EV from `odds_api_snapshot.json` between S3→S7. State tracking + resume. |
+| Orchestrator | `scripts/pipeline_orchestrator.py` | Runs S0→S10 end-to-end. Injects EV from DB `odds_history` table (fallback: `odds_api_snapshot.json`) between S3→S7. State tracking + resume. |
 
 **Agent role with automated modules:** Agents (bet-statistician, bet-challenger, bet-builder) supplement script output — they fill web-data gaps, provide qualitative analysis, and handle edge cases the scripts can't cover.
 
@@ -76,17 +101,18 @@ Before STEP 1, query the picks-ledger AND the Betclic bet history to extract act
 
 **§0.2a BETCLIC HISTORY FILE (MANDATORY — NEVER SKIP)**
 ```
-read_file: betting/data/betclic_bets_history.json
+DB: load_betclic_history_from_db() → bets + coupons tables (primary)
+JSON fallback: betting/data/betclic_bets_history.json
 run: python3 scripts/analyze_betclic_learning.py
 ```
-This file contains **ALL actually placed bets** from the Betclic account (ground truth). It MUST be read and its analyzer output applied BEFORE any analysis begins. The analyzer produces current stats — always use its live output, not memorized numbers. Core patterns (verified by data):
+This data contains **ALL actually placed bets** from the Betclic account (ground truth). It MUST be read (from DB first, JSON fallback) and its analyzer output applied BEFORE any analysis begins. The analyzer produces current stats — always use its live output, not memorized numbers. Core patterns (verified by data):
 - Statistical markets consistently outperform outcome markets. ALWAYS prefer statistical.
 - Football corners = top core market. Match winner = #1 coupon killer. DEMOTE ML to last resort.
 - AKO (5+) has near-zero win rate. MAX coupon size = 4 legs. Sweet spot: AKO (2-3).
 - UNDER direction outperforms OVER. Actively seek UNDER plays.
 - High-stakes coupons (5+ PLN) have significantly worse win rate. Keep stakes small.
 
-**GATE: If `betclic_bets_history.json` is not read, the §0.2 step is INCOMPLETE. Do NOT proceed to STEP 1.**
+**GATE: If Betclic bet history is not read (from DB or `betclic_bets_history.json`), the §0.2 step is INCOMPLETE. Do NOT proceed to STEP 1.**
 
 If the file is missing, run: `python3 scripts/parse_betclic_bets.py` (requires HTML export from betclic.pl/my-bets).
 
@@ -149,8 +175,8 @@ python3 scripts/fetch_with_playwright.py "https://www.betideas.com/tips/football
 python3 scripts/generate_market_matrix.py --date YYYY-MM-DD --stats-first
 ```
 
-This produces THREE files:
-1. `betting/data/market_matrix_{date}.json` — full structured matrix
+This produces THREE files (+ DB records):
+1. `betting/data/market_matrix_{date}.json` — full structured matrix (also stored in DB `fixtures` + `odds_history` tables)
 2. `betting/data/market_matrix_{date}.md` — human-readable market matrix with ALL events
 3. `betting/data/decision_matrix_{date}.md` — compact bettable opportunities list
 
@@ -161,7 +187,7 @@ python3 scripts/build_shortlist.py --date YYYY-MM-DD --stats-first
 
 This produces:
 4. `betting/data/{date}_s2_shortlist.md` — all ranked candidates with sport diversity
-5. `betting/data/{date}_s2_shortlist.json` — structured shortlist for downstream steps
+5. `betting/data/{date}_s2_shortlist.json` — structured shortlist for downstream steps (also loadable via `load_shortlist_from_db()`)
 
 **Purpose:** Bridge the gap between fixture discovery (hundreds of events) and analysis (which requires cached stats). The market matrix shows ALL discovered events with whatever data is available — odds, safety scores, scan data. Nothing is auto-rejected.
 
@@ -183,7 +209,7 @@ This produces:
 **Rule: EVERY candidate entering the S2 shortlist MUST be fixture-verified against ≥2 independent non-tipster sources.**
 
 Verification sources (use ≥2 per candidate):
-- **Odds-API snapshot** (`odds_api_snapshot.json`) — if event has live odds from ≥3 bookmakers, it exists
+- **Odds-API snapshot** (DB `odds_history` table; JSON fallback: `odds_api_snapshot.json`) — if event has live odds from ≥3 bookmakers, it exists
 - **Flashscore** — check sport-specific daily schedule page
 - **BetExplorer** — check competition page for today's matches
 - **Official tournament site** (ATP/WTA draws, EHF schedule, ekstraliga.pl, etc.)
@@ -199,7 +225,7 @@ Verification sources (use ≥2 per candidate):
 
 **Quick verification protocol (per candidate, ~15 seconds each):**
 ```
-1. Search event in odds_api_snapshot.json → found? ✅ verified
+1. Search event in DB `odds_history` table (or fallback: odds_api_snapshot.json) → found? ✅ verified
 2. Not found? → Check Flashscore daily page for that sport → found? ✅ verified
 3. Not found? → Check BetExplorer competition page → found? ✅ verified
 4. Not found in ANY of the above? → DO NOT SHORTLIST. Log as UNVERIFIED-SKIP.
@@ -298,11 +324,11 @@ Tier E3 picks require ALL of: Betclic market confirmed, ≥2 sources with data, 
 ## STEP 2: FILTER — Shortlist
 
 **Automated shortlist generation:** `python3 scripts/build_shortlist.py --date YYYY-MM-DD --stats-first`
-- Reads `market_matrix_{date}.json` and scores all events by: data tier, competition importance, sport tier, odds quality, tipster coverage
+- Reads from DB `fixtures` + `odds_history` + `team_form` tables (fallback: `market_matrix_{date}.json`) and scores all events by: data tier, competition importance, sport tier, odds quality, tipster coverage
 - Enforces sport diversity (≥8 sports guaranteed, per-sport caps)
 - Deduplicates same-team events across sources
-- Produces `{date}_s2_shortlist.md` + `{date}_s2_shortlist.json` (all ranked candidates, use `--top N` to cap)
-- **§1.8 Fixture verification:** Each candidate is cross-referenced against odds_api_snapshot.json and fixtures file. Verified candidates get ✅, unverified get ⚠️. Unverified events should be manually confirmed before S3 analysis to avoid phantom fixtures.
+- Produces `{date}_s2_shortlist.md` + `{date}_s2_shortlist.json` (also stored in DB; use `--top N` to cap)
+- **§1.8 Fixture verification:** Each candidate is cross-referenced against DB `odds_history` table (fallback: odds_api_snapshot.json) and fixtures. Verified candidates get ✅, unverified get ⚠️. Unverified events should be manually confirmed before S3 analysis to avoid phantom fixtures.
 - In STATS-FIRST mode, includes major competition FIXTURE_ONLY events for manual Betclic check
 
 After automated generation, agent reviews and may adjust:
@@ -491,7 +517,7 @@ If the S2 shortlist has 100 candidates but S3 analysis is context-constrained, a
 4. **If context runs out before 100% coverage:** Document exactly which candidates were skipped and why. The skipped candidates MUST appear in the report as `S3-PENDING — not yet analyzed` (NOT silently dropped). On next rerun or continuation, start with the skipped candidates.
 5. **NEVER silently drop candidates.** Every shortlisted candidate appears in one of: S3 analyzed → core/extended/rejected, S3-PENDING, or PRE-S3 REMOVAL (phantom/void).
 
-**Tooling enforcement:** `build_shortlist.py` produces `{date}_s2_shortlist.json` with `fixture_verified` flags per candidate. The shortlist JSON serves as a CHECKLIST — every `fixture_verified: true` candidate must have a matching entry in S3 output or PRE-S3 REMOVALS.
+**Tooling enforcement:** `build_shortlist.py` produces `{date}_s2_shortlist.json` (and stores in DB) with `fixture_verified` flags per candidate. The shortlist JSON/DB serves as a CHECKLIST — every `fixture_verified: true` candidate must have a matching entry in S3 output or PRE-S3 REMOVALS.
 
 **After S3, ALL candidates with completed analysis are classified:**
 - **CORE:** Passed 17-point gate fully → enters core portfolio
@@ -589,7 +615,7 @@ These are NOT auto-approved picks — they enter the watchlist with rich context
 5. **Line movement:** Steam moves (follow if aligned), RLM (follow sharp money).
 6. **§5.5a DRIFT GATE:** If odds moved >8% from analysis → MANDATORY re-eval. No explanation → SKIP.
 7. **Kelly (1/4):** `stake = (bankroll × f) / 4` where `f = (b×p − q) / b`. If f ≤ 0 → NO BET.
-8. **MARKET PERFORMANCE TRACKER:** Before picking any market, check hit rate in picks-ledger AND `betclic_bets_history.json`. Show rates prominently in the report. **ADVISORY ONLY** — NEVER auto-downgrade confidence or auto-exclude based on hit rates. The USER decides. Betclic history complements picks-ledger (larger sample).
+8. **MARKET PERFORMANCE TRACKER:** Before picking any market, check hit rate in picks-ledger AND Betclic bet history (DB `bets` + `coupons` tables; fallback: `betclic_bets_history.json`). Show rates prominently in the report. **ADVISORY ONLY** — NEVER auto-downgrade confidence or auto-exclude based on hit rates. The USER decides. Betclic history complements picks-ledger (larger sample).
 
 **Learned caution zones (ADVISORY):** MLB totals 33% historical hit rate — ⚠️ flag for user. MLB overs ≥8.5 — ⚠️ flag for user. Show these observations prominently but NEVER auto-reject or auto-downgrade.
 
@@ -682,7 +708,7 @@ Over 12.5: P=61.2%, fair_odds=1.63, CI=[48.3%–71.4%]
 3. Classifies picks as "statistical" (corners, cards, games) or "outcome" (winner, ML)
 4. Computes consensus: groups by event, measures agreement across tipsters
 5. Generates confidence adjustments: ≥70% agreement → +0.5, ≤30% → −1.0
-6. Outputs `{date}_tipster_consensus.json` and `{date}_tipster_consensus.md`
+6. Outputs `{date}_tipster_consensus.json` and `{date}_tipster_consensus.md` (also stored in DB `analysis_results` table)
 
 **Sites covered (12):**
 - Polish: ZawodTyper, Typersi
@@ -940,7 +966,7 @@ On reruns: increment version (v5→v6). Mark old pending as `superseded`. Keep a
 | 12 | Basketball blanket-rejected on 0/2 | Small sample panic | NEVER blanket-reject sport on <5 picks. FLAG ≠ BAN. |
 | 13 | Football defaulted to corners (fouls/cards/shots not checked) | Tunnel vision on one stat | ALWAYS run §3.0 RANKING for ALL available stats. Pick highest safety score. |
 | 14 | Corner pick missing H2H corner data | H2H was match-level only | ALWAYS get H2H for the EXACT stat being bet (§3.0c). Match H2H alone ≠ stat H2H. |
-| 15 | Betclic history skipped → repeated known failures | §0.2a not executed | ALWAYS read `betclic_bets_history.json` + run `analyze_betclic_learning.py` before ANY analysis. This is ground truth. |
+| 15 | Betclic history skipped → repeated known failures | §0.2a not executed | ALWAYS read Betclic bet history (DB `bets`+`coupons` tables; fallback: `betclic_bets_history.json`) + run `analyze_betclic_learning.py` before ANY analysis. This is ground truth. |
 | 16 | PSG vs Bayern cards approved without §3.0 ranking table | S3 output was narrative ("H2H avg 5.8 cards") without structured ranking table comparing cards vs corners vs fouls vs shots | §3.0e template is MANDATORY. §S3.3 ranking table must have ≥3 rows with real numbers. Orchestrator mechanically verifies section markers. |
 | 17 | Narrative analysis substituted for structured template | Agent wrote paragraphs instead of filling §S3.1-§S3.10 sections with tables and numbers | Every candidate MUST have all 10 sections (§S3.1-§S3.10). Missing markers = STRUCTURAL VIOLATION = auto-reject. |
 | 18 | Exotic league analyzed without Betclic market check | Full S3-S7 done on a league where Betclic has no markets | §1.7a BETCLIC MARKET GATE: Check Betclic market existence BEFORE starting deep analysis. No markets → SKIP. |

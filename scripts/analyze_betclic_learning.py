@@ -112,23 +112,36 @@ def extract_line(selection: str) -> float:
 
 
 def analyze():
-    if not HISTORY_JSON.exists():
-        print(f"WARNING: Not found: {HISTORY_JSON}")
-        print("Run: python3 scripts/parse_betclic_bets.py first")
-        print("Continuing with empty history — no learning data available.")
-        summary_path = DATA_DIR / "betclic_learning_summary.json"
-        summary = {
-            "analyzed_at": __import__("datetime").datetime.now().isoformat(),
-            "total_coupons": 0, "total_legs": 0, "won": 0, "lost": 0,
-            "hit_rate": 0.0, "total_pnl": 0.0, "roi": 0.0,
-            "rules_count": 0, "rules": [],
-            "warning": "No betclic_bets_history.json found — empty analysis",
-        }
-        with open(summary_path, "w", encoding="utf-8") as f:
-            json.dump(summary, f, ensure_ascii=False, indent=2)
-        return [], []
+    # DB-first: try loading betclic history from DB
+    bets = None
+    try:
+        from db_data_loader import load_betclic_history_from_db
+        db_history = load_betclic_history_from_db()
+        if db_history:
+            print(f"[betclic_learning] DB: loaded {len(db_history)} coupons")
+            bets = db_history
+    except Exception as e:
+        print(f"[betclic_learning] DB read failed, falling back to JSON: {e}")
 
-    bets = json.loads(HISTORY_JSON.read_text(encoding="utf-8"))
+    # JSON fallback
+    if not bets:
+        if not HISTORY_JSON.exists():
+            print(f"WARNING: Not found: {HISTORY_JSON}")
+            print("Run: python3 scripts/parse_betclic_bets.py first")
+            print("Continuing with empty history — no learning data available.")
+            summary_path = DATA_DIR / "betclic_learning_summary.json"
+            summary = {
+                "analyzed_at": __import__("datetime").datetime.now().isoformat(),
+                "total_coupons": 0, "total_legs": 0, "won": 0, "lost": 0,
+                "hit_rate": 0.0, "total_pnl": 0.0, "roi": 0.0,
+                "rules_count": 0, "rules": [],
+                "warning": "No betclic_bets_history.json found — empty analysis",
+            }
+            with open(summary_path, "w", encoding="utf-8") as f:
+                json.dump(summary, f, ensure_ascii=False, indent=2)
+            return [], []
+
+        bets = json.loads(HISTORY_JSON.read_text(encoding="utf-8"))
     if not isinstance(bets, list):
         print(f"ERROR: Expected a JSON array, got {type(bets).__name__}")
         sys.exit(1)

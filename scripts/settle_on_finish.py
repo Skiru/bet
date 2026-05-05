@@ -84,6 +84,37 @@ def fetch_result_from_source(home, away, source_fn):
 
 def search_odds_api_snapshot(home, away):
     """Search the Odds API snapshot for completed scores (free, no network call)."""
+    # DB-first: try loading odds from DB
+    try:
+        from db_data_loader import load_odds_from_db
+        from datetime import date as _date_cls
+        _today = _date_cls.today().isoformat()
+        odds_data = load_odds_from_db(_today)
+        if odds_data and odds_data.get("events"):
+            print(f"[settle] DB: loaded {len(odds_data['events'])} odds events")
+            home_lower = home.lower()
+            away_lower = away.lower()
+            for event in odds_data["events"]:
+                eh = (event.get("home_team") or "").lower()
+                ea = (event.get("away_team") or "").lower()
+                if not ((home_lower in eh or eh in home_lower) and (away_lower in ea or ea in away_lower)):
+                    if not ((home_lower in ea or ea in home_lower) and (away_lower in eh or eh in home_lower)):
+                        continue
+                if not event.get("completed"):
+                    continue
+                scores = event.get("scores")
+                if not scores or len(scores) < 2:
+                    continue
+                score_map = {s["name"].lower(): int(s["score"]) for s in scores if s.get("score") and s["score"].isdigit()}
+                if eh in score_map and ea in score_map:
+                    if home_lower in eh or eh in home_lower:
+                        return score_map[eh], score_map[ea]
+                    else:
+                        return score_map[ea], score_map[eh]
+    except Exception as e:
+        print(f"[settle] DB odds lookup failed, falling back to JSON: {e}")
+
+    # JSON fallback
     for snapshot_path in [ODDS_API_SCORES, ODDS_API_SNAPSHOT]:
         if not snapshot_path.exists():
             continue

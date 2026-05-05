@@ -1474,19 +1474,50 @@ def main():
 
     args = parser.parse_args()
 
-    # Load gate results
+    # Load gate results — DB first, JSON fallback
+    gate_results = None
+
     if args.input:
         input_path = Path(args.input)
+        if not input_path.exists():
+            print(f"[coupon_builder] ERROR: Gate results not found: {input_path}")
+            sys.exit(1)
+        with open(input_path, encoding="utf-8") as f:
+            gate_results = json.load(f)
     else:
-        input_path = DATA_DIR / f"{args.date}_s7_gate_results.json"
+        # Try DB first
+        try:
+            from db_data_loader import load_gate_results_from_db
+            approved = load_gate_results_from_db(args.date, status="approved")
+            extended = load_gate_results_from_db(args.date, status="extended")
+            rejected = load_gate_results_from_db(args.date, status="rejected")
+            if approved or extended:
+                gate_results = {
+                    "date": args.date,
+                    "gate_results": {
+                        "approved": approved or [],
+                        "extended_pool": extended or [],
+                        "rejected": rejected or [],
+                    },
+                    "summary": {
+                        "approved_count": len(approved or []),
+                        "extended_count": len(extended or []),
+                        "rejected_count": len(rejected or []),
+                    },
+                }
+                print(f"[coupon_builder] DB: loaded {len(approved or [])} approved, {len(extended or [])} extended")
+        except Exception as e:
+            print(f"[coupon_builder] DB read failed, using JSON fallback: {e}")
 
-    if not input_path.exists():
-        print(f"[coupon_builder] ERROR: Gate results not found: {input_path}")
-        print(f"[coupon_builder] Run gate_checker.py first: python3 scripts/gate_checker.py --date {args.date}")
-        sys.exit(1)
-
-    with open(input_path, encoding="utf-8") as f:
-        gate_results = json.load(f)
+        # JSON fallback
+        if gate_results is None:
+            input_path = DATA_DIR / f"{args.date}_s7_gate_results.json"
+            if not input_path.exists():
+                print(f"[coupon_builder] ERROR: Gate results not found: {input_path}")
+                print(f"[coupon_builder] Run gate_checker.py first: python3 scripts/gate_checker.py --date {args.date}")
+                sys.exit(1)
+            with open(input_path, encoding="utf-8") as f:
+                gate_results = json.load(f)
 
     # Load config
     config = load_config()

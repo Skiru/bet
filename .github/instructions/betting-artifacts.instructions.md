@@ -11,6 +11,14 @@ General rules:
 - Use | as the separator inside CSV cells that contain multiple source names.
 - On reruns for the same betting day, PRESERVE old versions and ADD new ones. Increment the version suffix (v5 → v6). Mark old pending picks/coupons as `superseded`. Add new picks and coupons with the new version. Create a new versioned coupon file. The previous version files are kept for history. The user compares all versions to decide which to place.
 
+DB-first data storage:
+- All pipeline data is stored in SQLite DB (`betting/data/betting.db`) as the primary source.
+- JSON/MD files are maintained as human-readable fallbacks and debug output (dual-write).
+- Scripts use `db_data_loader.py` functions which try DB first, then JSON fallback.
+- Key DB tables for artifacts: `analysis_results` (S3 output), `gate_results` (S7 output), `coupons` + `bets` (placed bets), `fixtures`, `odds_history`, `team_form`.
+- Gateway functions: `save_analysis_results_to_db()`, `save_gate_results_to_db()`, `load_betclic_history_from_db()`.
+- When producing output, always write to BOTH DB and JSON/MD. The DB record is the authoritative source; JSON/MD files are for human review.
+
 Daily report path:
 - betting/reports/YYYY-MM-DD.md
 
@@ -176,6 +184,13 @@ When using STATS-FIRST mode (§5.ALT in analysis-methodology), events without AP
 - `ev` = blank (filled by user after Betclic check)
 - `notes` starting with "STATS-FIRST: min odds X.XX for EV>0, safety=X.XX"
 - `status` = "conditional"
+
+DB artifact storage:
+- Picks are stored in DB `bets` table (via `CouponRepo`) in addition to `picks-ledger.csv`.
+- Coupons are stored in DB `coupons` table (via `CouponRepo`) in addition to `coupons-ledger.csv`.
+- S3 deep stats output is stored in DB `analysis_results` table alongside `{date}_s3_deep_stats.json/.md`.
+- S7 gate results are stored in DB `gate_results` table alongside `{date}_s7_gate_results.json/.md`.
+- The DB is the queryable primary store; CSV/JSON/MD files remain for human readability.
 
 Per-pick concentration limit (MANDATORY when user selects coupons):
 When the user selects a subset of coupons (core + combos), compute per-pick exposure:

@@ -39,9 +39,10 @@ CACHE_DIR = DATA_DIR / "stats_cache"
 sys.path.insert(0, str(Path(__file__).parent))
 
 try:
-    from normalize_stats import build_safety_input_from_cache, SPORT_MARKETS
+    from normalize_stats import build_safety_input, build_safety_input_from_cache, SPORT_MARKETS
     from compute_safety_scores import rank_markets
 except ImportError:
+    build_safety_input = None
     build_safety_input_from_cache = None
     rank_markets = None
 
@@ -181,7 +182,26 @@ def load_scan_summary() -> dict:
 
 
 def load_multi_source_odds() -> dict:
-    """Load multi-source odds if available."""
+    """Load multi-source odds if available. DB-first, JSON fallback."""
+    # Try DB first (odds from multiple sources are stored in odds_history)
+    try:
+        db_odds = load_odds_from_db(None)
+        if db_odds and isinstance(db_odds, dict):
+            items = db_odds.get("events", []) if "events" in db_odds else []
+            if items:
+                lookup = {}
+                for ev in items:
+                    home = _normalize(ev.get("home_team", ""))
+                    away = _normalize(ev.get("away_team", ""))
+                    if home and away:
+                        lookup[f"{home}|{away}"] = ev
+                if lookup:
+                    print(f"[market_matrix] DB: loaded {len(lookup)} multi-source odds entries")
+                    return lookup
+    except Exception:
+        pass
+
+    # JSON fallback
     path = DATA_DIR / "odds_multi_sources.json"
     if not path.exists():
         return {}
@@ -467,10 +487,10 @@ def _extract_scores24_deep_data(match_key: str, scan_lookup: dict) -> dict | Non
 
 def try_safety_analysis(sport: str, home: str, away: str, competition: str) -> dict | None:
     """Try to build safety analysis from cache. Return None on cache miss."""
-    if not build_safety_input_from_cache or not rank_markets:
+    if not build_safety_input or not rank_markets:
         return None
     try:
-        safety_input = build_safety_input_from_cache(sport, home, away, competition)
+        safety_input = build_safety_input(sport, home, away, competition)
         if safety_input is None:
             return None
         result = rank_markets(safety_input)
@@ -520,9 +540,9 @@ def generate_market_matrix(
         if home and away:
             fixture_keys.add(f"{_normalize(home)}|{_normalize(away)}")
 
-    # AGGRESSIVE EXPANSION: Add scan summary events that have home/away + odds
-    # but are NOT already in fixtures (these are events from Betclic, Flashscore,
-    # BetExplorer etc. that the API fixture discovery didn't find)
+    # SCAN EXPANSION: Add scan events that have verifiable data (odds + valid names)
+    # but are NOT already in fixtures. Only accept items with a time or date that
+    # falls within the betting window.
     scan_only_events = 0
     for match_key, scan_items in scan_lookup.items():
         # Skip if already a fixture
@@ -595,13 +615,25 @@ def generate_market_matrix(
             # Skip items where "home" is actually a league/tip label
             if home.startswith(("HOLANDIA:", "FINLANDIA:", "IZRAEL:", "Liga ")):
                 continue
+            # Reject items with future dates embedded in name (e.g. "10/05/2026")
+            if re.search(r"\d{2}/\d{2}/\d{4}", combined):
+                continue
+            # Reject items where away field is a date (OddsPortal parsing bug)
+            if re.match(r"^\d{2}/\d{2}/\d{4}$", away.strip()):
+                continue
+
+            # REQUIRE scan item to have a kickoff time — dateless items are unverified
+            item_time = best_item.get("time", "")
+            if not item_time and not best_odds_count:
+                # No time AND no odds = almost certainly garbage
+                continue
 
             fixture = {
                 "sport": best_item.get("sport", "football"),
                 "home_team": home,
                 "away_team": away,
                 "competition": best_item.get("league", ""),
-                "kickoff": best_item.get("time", ""),
+                "kickoff": item_time,
                 "source": "scan-expansion",
             }
             fixtures.append(fixture)

@@ -931,14 +931,32 @@ def _run_tipster_xref(date: str, state: dict) -> tuple[bool, str]:
 
 def _run_odds_eval(date: str, state: dict) -> tuple[bool, str]:
     """S4: Cross-validate odds, compute EV, detect drift."""
-    # Load current candidates from S3 output
-    s3_path = DATA_DIR / f"{date}_s3_deep_stats.json"
-    if not s3_path.exists():
+    # Load current candidates from S3 output — DB first, JSON fallback
+    candidates = None
+
+    try:
+        from db_data_loader import load_analysis_results_from_db
+        db_analyses = load_analysis_results_from_db(date)
+        if db_analyses:
+            candidates = db_analyses
+            print(f"  → DB: loaded {len(candidates)} S3 analysis results")
+    except Exception as e:
+        print(f"  ⚠️ DB read failed for S3 results: {e}")
+
+    if candidates is None:
+        s3_path = DATA_DIR / f"{date}_s3_deep_stats.json"
+        if not s3_path.exists():
+            return True, "S4: No S3 data yet — skipping EV injection"
+        try:
+            s3_data = json.loads(s3_path.read_text(encoding="utf-8"))
+            candidates = s3_data.get("analyses", [])
+        except (json.JSONDecodeError, OSError):
+            return True, "S4: No S3 data yet — skipping EV injection"
+
+    if not candidates:
         return True, "S4: No S3 data yet — skipping EV injection"
 
     try:
-        s3_data = json.loads(s3_path.read_text(encoding="utf-8"))
-        candidates = s3_data.get("analyses", [])
         _inject_ev_from_odds(candidates, date)
 
         # Count how many have EV and log details
@@ -958,10 +976,18 @@ def _run_odds_eval(date: str, state: dict) -> tuple[bool, str]:
                 print(f"    {marker} {home} vs {away}: EV={ev:+.1%} @{odds:.2f} ({source})")
         total = len(candidates)
 
-        # Save back enriched data
-        s3_path.write_text(
-            json.dumps(s3_data, indent=2, ensure_ascii=False), encoding="utf-8"
-        )
+        # Save back enriched data to JSON (for downstream consumers)
+        s3_path = DATA_DIR / f"{date}_s3_deep_stats.json"
+        if s3_path.exists():
+            try:
+                s3_data = json.loads(s3_path.read_text(encoding="utf-8"))
+                s3_data["analyses"] = candidates
+                s3_path.write_text(
+                    json.dumps(s3_data, indent=2, ensure_ascii=False), encoding="utf-8"
+                )
+            except (json.JSONDecodeError, OSError):
+                pass
+
         return True, f"S4 completed: {with_ev}/{total} with EV data ({positive_ev} positive EV)"
     except Exception as e:
         return True, f"S4 odds evaluation error: {e} — continuing without"
@@ -1412,12 +1438,25 @@ def _run_s3(date: str, state: dict) -> tuple[bool, str]:
 
 def _run_s7(date: str, state: dict) -> tuple[bool, str]:
     """S7: Gate Check."""
-    s3_path = DATA_DIR / f"{date}_s3_deep_stats.json"
-    if not s3_path.exists():
-        return False, f"S3 output not found: {s3_path}"
+    analyses = None
 
-    s3_data = json.loads(s3_path.read_text(encoding="utf-8"))
-    analyses = s3_data.get("analyses", [])
+    # Try DB first
+    try:
+        from db_data_loader import load_analysis_results_from_db
+        db_analyses = load_analysis_results_from_db(date)
+        if db_analyses:
+            analyses = db_analyses
+            print(f"  → DB: loaded {len(analyses)} S3 analysis results for gate check")
+    except Exception as e:
+        print(f"  ⚠️ DB read failed for S3 results: {e}")
+
+    # JSON fallback
+    if analyses is None:
+        s3_path = DATA_DIR / f"{date}_s3_deep_stats.json"
+        if not s3_path.exists():
+            return False, f"S3 output not found: {s3_path}"
+        s3_data = json.loads(s3_path.read_text(encoding="utf-8"))
+        analyses = s3_data.get("analyses", [])
 
     # In stats-first mode, process ALL candidates (even without enriched stats cache)
     # since the user verifies odds on Betclic app manually.
@@ -1437,6 +1476,17 @@ def _run_s7(date: str, state: dict) -> tuple[bool, str]:
 
     write_gate_json(results, date)
     write_gate_md(results, date)
+
+    # Dual-write: save gate results to DB
+    try:
+        from db_data_loader import save_gate_results_to_db
+        all_gate = []
+        for bucket in ("approved", "extended_pool", "rejected"):
+            all_gate.extend(results.get("gate_results", {}).get(bucket, []))
+        saved = save_gate_results_to_db(date, all_gate)
+        print(f"  → DB: saved {saved} gate results")
+    except Exception as e:
+        print(f"  ⚠️ DB write failed for gate results (non-fatal): {e}")
 
     s = results["summary"]
     msg = (
@@ -1474,11 +1524,38 @@ def _run_s7(date: str, state: dict) -> tuple[bool, str]:
 
 def _run_s8(date: str, state: dict) -> tuple[bool, str]:
     """S8: Build Coupons."""
-    gate_path = DATA_DIR / f"{date}_s7_gate_results.json"
-    if not gate_path.exists():
-        return False, f"S7 gate results not found: {gate_path}"
+    gate_data = None
 
-    gate_data = json.loads(gate_path.read_text(encoding="utf-8"))
+    # Try DB first
+    try:
+        from db_data_loader import load_gate_results_from_db
+        approved = load_gate_results_from_db(date, status="approved")
+        extended = load_gate_results_from_db(date, status="extended")
+        rejected = load_gate_results_from_db(date, status="rejected")
+        if approved or extended:
+            gate_data = {
+                "date": date,
+                "gate_results": {
+                    "approved": approved or [],
+                    "extended_pool": extended or [],
+                    "rejected": rejected or [],
+                },
+                "summary": {
+                    "approved_count": len(approved or []),
+                    "extended_count": len(extended or []),
+                    "rejected_count": len(rejected or []),
+                },
+            }
+            print(f"  → DB: loaded {len(approved or [])} approved, {len(extended or [])} extended gate results")
+    except Exception as e:
+        print(f"  ⚠️ DB read failed for gate results: {e}")
+
+    # JSON fallback
+    if gate_data is None:
+        gate_path = DATA_DIR / f"{date}_s7_gate_results.json"
+        if not gate_path.exists():
+            return False, f"S7 gate results not found: {gate_path}"
+        gate_data = json.loads(gate_path.read_text(encoding="utf-8"))
     config = load_coupon_config()
 
     result = build_coupons(gate_data, config)

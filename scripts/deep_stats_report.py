@@ -23,10 +23,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 try:
-    from scripts.normalize_stats import build_safety_input_from_cache, SPORT_STAT_KEYS
+    from scripts.normalize_stats import build_safety_input, build_safety_input_from_cache, SPORT_STAT_KEYS
     from scripts.compute_safety_scores import rank_markets
 except ImportError:
-    from normalize_stats import build_safety_input_from_cache, SPORT_STAT_KEYS
+    from normalize_stats import build_safety_input, build_safety_input_from_cache, SPORT_STAT_KEYS
     from compute_safety_scores import rank_markets
 
 DATA_DIR = Path(__file__).parent.parent / "betting" / "data"
@@ -625,7 +625,7 @@ def analyze_candidate(
 
     # Build safety input and rank markets
     ranking_result = {}
-    safety_input = build_safety_input_from_cache(sport, home, away, competition)
+    safety_input = build_safety_input(sport, home, away, competition)
     if safety_input and safety_input.get("markets"):
         ranking_result = rank_markets(safety_input)
     else:
@@ -861,6 +861,14 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
     # Write outputs
     _write_markdown(output, date)
     _write_json(output, date)
+
+    # Dual-write: save analysis results to DB
+    try:
+        from db_data_loader import save_analysis_results_to_db
+        saved = save_analysis_results_to_db(date, output["analyses"])
+        print(f"[deep_stats] DB: saved {saved} analysis results")
+    except Exception as e:
+        print(f"[deep_stats] DB write failed (non-fatal): {e}")
 
     return output
 

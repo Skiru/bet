@@ -22,10 +22,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 try:
-    from scripts.normalize_stats import build_safety_input_from_cache
+    from scripts.normalize_stats import build_safety_input
     from scripts.compute_safety_scores import rank_markets
 except ImportError:
-    from normalize_stats import build_safety_input_from_cache
+    from normalize_stats import build_safety_input
     from compute_safety_scores import rank_markets
 
 try:
@@ -46,10 +46,19 @@ def load_odds_snapshot(date: str | None = None) -> dict:
         if date is not None:
             data = load_odds_from_db(date)
         else:
-            odds_path = DATA_DIR / "odds_api_snapshot.json"
-            if not odds_path.exists():
-                return {}
-            data = json.loads(odds_path.read_text(encoding="utf-8"))
+            # Try DB with today's date as best-effort
+            try:
+                from datetime import date as _date_cls
+                data = load_odds_from_db(_date_cls.today().isoformat())
+                if data and data.get("events"):
+                    print(f"[pool] DB: loaded odds for {len(data['events'])} events (no date specified, using today)")
+            except Exception:
+                data = None
+            if not data or not data.get("events"):
+                odds_path = DATA_DIR / "odds_api_snapshot.json"
+                if not odds_path.exists():
+                    return {}
+                data = json.loads(odds_path.read_text(encoding="utf-8"))
     except Exception:
         return {}
 
@@ -143,7 +152,7 @@ def analyze_fixture(fixture: dict, odds_lookup: dict) -> dict | None:
         return None
 
     # Build safety score input from cache
-    safety_input = build_safety_input_from_cache(sport, home_team, away_team, competition)
+    safety_input = build_safety_input(sport, home_team, away_team, competition)
 
     # If no cached stats, still include the fixture with minimal data
     # so it appears in the analysis pool (user decides, not auto-rejection)
