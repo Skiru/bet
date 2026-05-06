@@ -476,6 +476,28 @@ def save_analysis_results_to_db(betting_date: str, analyses: list[dict]) -> int:
                 repo.save(result)
                 saved += 1
 
+                # Also save raw data for decision learning
+                raw_data_dict = a.get("raw_data")
+                if raw_data_dict:
+                    try:
+                        from bet.db.models import AnalysisRawData
+                        from bet.db.repositories import AnalysisRawDataRepo
+                        raw_repo = AnalysisRawDataRepo(conn)
+                        raw_model = AnalysisRawData(
+                            id=None,
+                            fixture_id=fixture_id,
+                            betting_date=betting_date,
+                            team_a_l10_json=raw_data_dict.get("team_a_l10", {}),
+                            team_b_l10_json=raw_data_dict.get("team_b_l10", {}),
+                            h2h_meetings_json=raw_data_dict.get("h2h_meetings", {}),
+                            per_market_details_json=raw_data_dict.get("per_market_details", []),
+                            safety_input_json=raw_data_dict.get("safety_input"),
+                            created_at=_NOW(),
+                        )
+                        raw_repo.save(raw_model)
+                    except Exception as e:
+                        print(f"[db_loader] Raw data save failed for fixture {fixture_id}: {e}")
+
         print(f"[db_loader] Saved {saved} analysis results to DB")
         return saved
     except Exception as e:
@@ -638,9 +660,9 @@ def load_betclic_history_from_db() -> list[dict]:
         from bet.db.connection import get_db
 
         with get_db() as conn:
-            # Query all coupons with their bets
+            # Query only settled coupons (skip pending pipeline-generated ones)
             coupon_rows = conn.execute(
-                "SELECT * FROM coupons ORDER BY placed_at DESC"
+                "SELECT * FROM coupons WHERE status IN ('won', 'lost') ORDER BY placed_at DESC"
             ).fetchall()
             if coupon_rows:
                 history = []
@@ -659,17 +681,31 @@ def load_betclic_history_from_db() -> list[dict]:
                             "selection": b["selection"] or "",
                             "odds": b["odds"],
                             "status": b["status"] or "",
+                            "leg_status": b["status"] or "",  # compat alias
                         }
                         for b in bet_rows
                     ]
+                    status_val = c["status"] or ""
+                    stake_val = c["stake_pln"] or 0
+                    pnl_val = c["pnl_pln"] or 0
+                    winnings = (stake_val + pnl_val) if status_val == "won" else 0
                     history.append({
                         "coupon_id": c["coupon_id"],
                         "placed_at": c["placed_at"] or "",
+                        "placed_date": c["placed_at"] or "",  # compat alias
                         "total_odds": c["total_odds"],
-                        "stake": c["stake_pln"],
-                        "status": c["status"],
-                        "pnl": c["pnl_pln"],
+                        "stake": stake_val,
+                        "stake_pln": stake_val,  # compat alias
+                        "status": status_val,
+                        "coupon_status": status_val,  # compat alias
+                        "pnl": pnl_val,
+                        "pnl_pln": pnl_val,  # compat alias
+                        "winnings_pln": winnings,  # compat
+                        "tax_free_payout_pln": winnings,  # compat
+                        "is_ended": True,  # all DB records are ended
+                        "expected_legs": len(picks),  # compat
                         "picks": picks,
+                        "legs": picks,  # compat alias
                     })
                 print(f"[db_loader] Loaded {len(history)} coupons from DB")
                 return history
@@ -685,4 +721,276 @@ def load_betclic_history_from_db() -> list[dict]:
         return history
 
     print("[db_loader] No betclic history found (DB empty, no JSON)")
+    return []
+
+
+def load_analysis_raw_data(fixture_id: int, betting_date: str) -> dict | None:
+    """Load full raw analysis data for a fixture."""
+    try:
+        from bet.db.connection import get_db
+        from bet.db.repositories import AnalysisRawDataRepo
+
+        with get_db() as conn:
+            repo = AnalysisRawDataRepo(conn)
+            raw = repo.get_by_fixture(fixture_id, betting_date)
+            if raw:
+                return {
+                    "fixture_id": raw.fixture_id,
+                    "betting_date": raw.betting_date,
+                    "team_a_l10": raw.team_a_l10_json,
+                    "team_b_l10": raw.team_b_l10_json,
+                    "h2h_meetings": raw.h2h_meetings_json,
+                    "per_market_details": raw.per_market_details_json,
+                    "safety_input": raw.safety_input_json,
+                }
+    except Exception as e:
+        print(f"[db_loader] Failed to load raw data for fixture {fixture_id}: {e}")
+    return None
+
+
+def load_decision_snapshot(bet_id: int) -> dict | None:
+    """Load decision snapshot for a specific bet."""
+    try:
+        from bet.db.connection import get_db
+        from bet.db.repositories import DecisionSnapshotRepo
+
+        with get_db() as conn:
+            repo = DecisionSnapshotRepo(conn)
+            snap = repo.get_by_bet(bet_id)
+            if snap:
+                return {
+                    "bet_id": snap.bet_id,
+                    "fixture_id": snap.fixture_id,
+                    "betting_date": snap.betting_date,
+                    "chosen_market": snap.chosen_market,
+                    "chosen_line": snap.chosen_line,
+                    "chosen_direction": snap.chosen_direction,
+                    "safety_score": snap.safety_score,
+                    "all_markets_considered": snap.all_markets_considered_json,
+                    "reasoning": snap.reasoning_json,
+                    "thresholds": snap.thresholds_json,
+                    "flip_conditions": snap.flip_conditions_json,
+                    "team_a_snapshot": snap.team_a_snapshot_json,
+                    "team_b_snapshot": snap.team_b_snapshot_json,
+                    "h2h_snapshot": snap.h2h_snapshot_json,
+                    "three_way_check": snap.three_way_check_json,
+                }
+    except Exception as e:
+        print(f"[db_loader] Failed to load decision snapshot for bet {bet_id}: {e}")
+    return None
+
+
+def save_decision_outcome(outcome_data: dict) -> bool:
+    """Save a decision outcome after settlement."""
+    try:
+        from bet.db.connection import get_db
+        from bet.db.models import DecisionOutcome
+        from bet.db.repositories import DecisionOutcomeRepo
+
+        with get_db() as conn:
+            repo = DecisionOutcomeRepo(conn)
+            outcome = DecisionOutcome(
+                id=None,
+                bet_id=outcome_data["bet_id"],
+                fixture_id=outcome_data["fixture_id"],
+                betting_date=outcome_data["betting_date"],
+                sport=outcome_data.get("sport", ""),
+                competition=outcome_data.get("competition", ""),
+                market=outcome_data.get("market", ""),
+                line=outcome_data.get("line"),
+                direction=outcome_data.get("direction", ""),
+                predicted_value=outcome_data.get("predicted_value"),
+                actual_value=outcome_data.get("actual_value"),
+                deviation=outcome_data.get("deviation"),
+                deviation_pct=outcome_data.get("deviation_pct"),
+                result=outcome_data.get("result", ""),
+                prediction_accuracy_json=outcome_data.get("prediction_accuracy", {}),
+                pattern_tags_json=outcome_data.get("pattern_tags", []),
+                notes=outcome_data.get("notes", ""),
+                created_at=_NOW(),
+            )
+            repo.save(outcome)
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"[db_loader] Failed to save decision outcome: {e}")
+    return False
+
+
+def load_decision_outcomes(sport: str | None = None, market: str | None = None, limit: int = 100) -> list[dict]:
+    """Load decision outcomes for learning queries."""
+    try:
+        from bet.db.connection import get_db
+        from bet.db.repositories import DecisionOutcomeRepo
+
+        with get_db() as conn:
+            repo = DecisionOutcomeRepo(conn)
+            if sport and market:
+                outcomes = repo.get_by_sport_and_market(sport, market, limit)
+            elif sport:
+                outcomes = repo.get_by_sport(sport, limit)
+            elif market:
+                outcomes = repo.get_by_market(market, limit)
+            else:
+                outcomes = repo.get_all_settled(limit)
+            return [
+                {
+                    "bet_id": o.bet_id,
+                    "fixture_id": o.fixture_id,
+                    "betting_date": o.betting_date,
+                    "sport": o.sport,
+                    "competition": o.competition,
+                    "market": o.market,
+                    "line": o.line,
+                    "direction": o.direction,
+                    "predicted_value": o.predicted_value,
+                    "actual_value": o.actual_value,
+                    "deviation": o.deviation,
+                    "deviation_pct": o.deviation_pct,
+                    "result": o.result,
+                    "prediction_accuracy": o.prediction_accuracy_json,
+                    "pattern_tags": o.pattern_tags_json,
+                    "notes": o.notes,
+                }
+                for o in outcomes
+            ]
+    except Exception as e:
+        print(f"[db_loader] Failed to load decision outcomes: {e}")
+    return []
+
+
+def get_deviation_stats(sport: str | None = None, market: str | None = None) -> dict:
+    """Get aggregate deviation statistics for learning."""
+    try:
+        from bet.db.connection import get_db
+        from bet.db.repositories import DecisionOutcomeRepo
+
+        with get_db() as conn:
+            repo = DecisionOutcomeRepo(conn)
+            return repo.get_deviation_stats(sport, market)
+    except Exception as e:
+        print(f"[db_loader] Failed to get deviation stats: {e}")
+    return {"count": 0, "avg_deviation": 0.0, "avg_deviation_pct": 0.0,
+            "overestimate_count": 0, "underestimate_count": 0,
+            "won_count": 0, "lost_count": 0}
+
+
+def get_market_bias(sport: str, market: str) -> dict | None:
+    """Get the average prediction bias for a sport×market combination.
+
+    Returns dict with bias info or None if insufficient data (n<5).
+    Advisory only — NEVER used for auto-rejection.
+    """
+    try:
+        from bet.db.connection import get_db
+        from bet.db.repositories import DecisionOutcomeRepo
+
+        with get_db() as conn:
+            repo = DecisionOutcomeRepo(conn)
+            outcomes = repo.get_by_sport_and_market(sport, market, limit=200)
+            with_values = [o for o in outcomes if o.actual_value is not None and o.predicted_value is not None]
+
+            if len(with_values) < 5:
+                return None
+
+            avg_dev = sum((o.actual_value - o.predicted_value) for o in with_values) / len(with_values)
+            non_zero = [o for o in with_values if o.predicted_value != 0]
+            avg_dev_pct = (
+                sum(((o.actual_value - o.predicted_value) / o.predicted_value * 100) for o in non_zero)
+                / len(non_zero)
+            ) if non_zero else 0.0
+
+            if avg_dev_pct < -5:
+                direction = "overestimate"
+            elif avg_dev_pct > 5:
+                direction = "underestimate"
+            else:
+                direction = "accurate"
+
+            n = len(with_values)
+            confidence = "high" if n >= 20 else "medium" if n >= 10 else "low"
+
+            return {
+                "sport": sport,
+                "market": market,
+                "count": n,
+                "avg_deviation": round(avg_dev, 2),
+                "avg_deviation_pct": round(avg_dev_pct, 1),
+                "direction": direction,
+                "confidence": confidence,
+            }
+    except Exception as e:
+        print(f"[db_loader] Failed to get market bias for {sport}×{market}: {e}")
+    return None
+
+
+def get_league_adjustment(competition: str, market: str) -> float | None:
+    """Get suggested adjustment factor for a league.
+
+    Returns the average deviation_pct as a correction factor.
+    E.g., if La Liga corners are overestimated by 12%, returns -0.12
+    Only returns if n≥5 outcomes exist.
+    Advisory only — for display to user.
+    """
+    try:
+        from bet.db.connection import get_db
+
+        with get_db() as conn:
+            rows = conn.execute(
+                "SELECT deviation_pct FROM decision_outcomes "
+                "WHERE competition = ? AND market = ? "
+                "AND actual_value IS NOT NULL AND predicted_value IS NOT NULL",
+                (competition, market),
+            ).fetchall()
+
+            if len(rows) < 5:
+                return None
+
+            avg_pct = sum(r["deviation_pct"] for r in rows) / len(rows)
+            # Return as correction factor (negative if overestimate)
+            return round(-avg_pct / 100, 3)
+    except Exception as e:
+        print(f"[db_loader] Failed to get league adjustment for {competition}×{market}: {e}")
+    return None
+
+
+def get_team_pair_history(home_team: str, away_team: str) -> list[dict]:
+    """Get all decision outcomes for a specific team pairing.
+
+    Returns list of past outcomes showing prediction vs actual for this matchup.
+    Advisory only — for display to user.
+    """
+    try:
+        from bet.db.connection import get_db
+
+        with get_db() as conn:
+            # Find fixtures involving these teams (in either order)
+            rows = conn.execute(
+                "SELECT do.* FROM decision_outcomes do "
+                "JOIN fixtures f ON do.fixture_id = f.id "
+                "JOIN teams ht ON f.home_team_id = ht.id "
+                "JOIN teams at ON f.away_team_id = at.id "
+                "WHERE (ht.name = ? AND at.name = ?) OR (ht.name = ? AND at.name = ?) "
+                "ORDER BY do.betting_date DESC",
+                (home_team, away_team, away_team, home_team),
+            ).fetchall()
+
+            return [
+                {
+                    "bet_id": r["bet_id"],
+                    "betting_date": r["betting_date"],
+                    "sport": r["sport"],
+                    "market": r["market"],
+                    "line": r["line"],
+                    "direction": r["direction"],
+                    "predicted_value": r["predicted_value"],
+                    "actual_value": r["actual_value"],
+                    "deviation": r["deviation"],
+                    "deviation_pct": r["deviation_pct"],
+                    "result": r["result"],
+                }
+                for r in rows
+            ]
+    except Exception as e:
+        print(f"[db_loader] Failed to get team pair history for {home_team} vs {away_team}: {e}")
     return []

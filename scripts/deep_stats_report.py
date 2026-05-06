@@ -57,6 +57,52 @@ def _safe_avg(values: list) -> float | None:
     return round(sum(nums) / len(nums), 2)
 
 
+def _ranking_from_shortlist_markets(safety_markets: list) -> dict:
+    """Build a ranking_result dict from precomputed shortlist safety_markets.
+
+    This is used as fallback when build_safety_input returns None (no DB form,
+    no JSON cache) but the shortlist builder already computed safety data.
+    """
+    ranking = []
+    for m in safety_markets:
+        ranking.append({
+            "name": m.get("market", ""),
+            "team_a_avg": 0.0,
+            "team_b_avg": 0.0,
+            "combined_avg": m.get("l10_avg", 0.0),
+            "h2h_avg": m.get("h2h_avg"),
+            "line": m.get("l10_avg", 0.0),  # Will use standard lines downstream
+            "direction": m.get("direction", "OVER"),
+            "hit_rate_l10": m.get("hit_rate_l10", "N/A"),
+            "hit_rate_h2h": m.get("hit_rate_h2h", "N/A"),
+            "hit_rate_l5": "N/A",
+            "safety_score": m.get("safety_score", 0.0),
+            "margin": m.get("margin", 0.0),
+            "source": m.get("source", "shortlist"),
+            "h2h_blind": m.get("h2h_blind", True),
+            "one_sided": False,
+            "three_way_check": {"status": "N/A"},
+            "rank": 0,
+        })
+    # Sort by safety score descending
+    ranking.sort(key=lambda x: (x["safety_score"], x["margin"]), reverse=True)
+    for i, r in enumerate(ranking, 1):
+        r["rank"] = i
+
+    best = ranking[0] if ranking else None
+    return {
+        "ranking": ranking,
+        "three_way_check": None,
+        "recommended_market": best["name"] if best else None,
+        "recommended_safety": best["safety_score"] if best else None,
+        "warnings": ["SHORTLIST_FALLBACK: using precomputed safety from shortlist builder"],
+        "markdown_ranking_table": "",
+        "markdown_three_way_table": "",
+        "markets_evaluated": len(ranking),
+        "min_required": 3,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Data extraction
 # ---------------------------------------------------------------------------
@@ -607,6 +653,7 @@ def analyze_candidate(
     away: str,
     competition: str,
     kickoff: str,
+    shortlist_safety_markets: list | None = None,
 ) -> dict:
     """Perform full S3 deep statistical analysis for one candidate.
 
@@ -628,6 +675,9 @@ def analyze_candidate(
     safety_input = build_safety_input(sport, home, away, competition)
     if safety_input and safety_input.get("markets"):
         ranking_result = rank_markets(safety_input)
+    elif shortlist_safety_markets:
+        # FALLBACK: use precomputed safety data from shortlist builder
+        ranking_result = _ranking_from_shortlist_markets(shortlist_safety_markets)
     else:
         ranking_result = {
             "ranking": [],
@@ -673,6 +723,50 @@ def analyze_candidate(
     # Also mark has_data if safety_input produced markets (API cache fallback)
     if not has_data and safety_input and safety_input.get("markets"):
         has_data = True
+    # Also mark has_data if shortlist fallback produced ranking
+    if not has_data and ranking_result.get("ranking"):
+        has_data = True
+
+    # Build raw data for decision learning
+    raw_data = {
+        "team_a_l10": {
+            "team": stats_a["team"],
+            "l10_avg": stats_a["l10_avg"],
+            "l5_avg": stats_a["l5_avg"],
+            "l10_matches": stats_a["l10_matches"],
+            "sources": stats_a["sources"],
+        },
+        "team_b_l10": {
+            "team": stats_b["team"],
+            "l10_avg": stats_b["l10_avg"],
+            "l5_avg": stats_b["l5_avg"],
+            "l10_matches": stats_b["l10_matches"],
+            "sources": stats_b["sources"],
+        },
+        "h2h_meetings": {
+            "has_data": h2h["has_data"],
+            "meetings": h2h["meetings"],
+            "averages": h2h["averages"],
+        },
+        "per_market_details": [
+            {
+                "name": mkt["name"],
+                "line": mkt["line"],
+                "direction": mkt["direction"],
+                "safety_score": mkt["safety_score"],
+                "combined_avg": mkt["combined_avg"],
+                "h2h_avg": mkt.get("h2h_avg"),
+                "hit_rate_l10": mkt["hit_rate_l10"],
+                "hit_rate_h2h": mkt.get("hit_rate_h2h"),
+                "margin": mkt.get("margin"),
+                "three_way_check": mkt.get("three_way_check"),
+                "one_sided": mkt.get("one_sided", False),
+                "h2h_blind": mkt.get("h2h_blind", False),
+            }
+            for mkt in ranking_result.get("ranking", [])
+        ],
+        "safety_input": safety_input,
+    }
 
     return {
         "sport": sport,
@@ -713,6 +807,9 @@ def analyze_candidate(
                 "h2h_avg": best_market.get("h2h_avg"),
                 "hit_rate_l10": best_market["hit_rate_l10"],
                 "hit_rate_h2h": best_market["hit_rate_h2h"],
+                "source": best_market.get("source", ""),
+                "one_sided": best_market.get("one_sided", False),
+                "h2h_blind": best_market.get("h2h_blind", False),
             }
             if best_market
             else None
@@ -720,6 +817,7 @@ def analyze_candidate(
         "markets_evaluated": len(ranking_result.get("ranking", [])),
         "sections": sections,
         "markdown": markdown,
+        "raw_data": raw_data,
     }
 
 
@@ -768,6 +866,7 @@ def _load_candidates_from_shortlist(path: str) -> list[dict]:
             "away_team": e.get("away_team", ""),
             "competition": e.get("competition", ""),
             "kickoff": e.get("kickoff", ""),
+            "safety_markets": e.get("safety_markets", []),
         })
     return candidates
 
@@ -821,8 +920,9 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
         sport = c["sport"]
         comp = c["competition"]
         kickoff = c["kickoff"]
+        sm = c.get("safety_markets", [])
         print(f"[deep_stats] [{i}/{len(valid)}] {home} vs {away} ({sport})")
-        return analyze_candidate(sport, home, away, comp, kickoff)
+        return analyze_candidate(sport, home, away, comp, kickoff, shortlist_safety_markets=sm or None)
 
     analyses = []
     with_data = 0

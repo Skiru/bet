@@ -18,6 +18,43 @@ PERCENTAGE_STATS = {
     "first_serve_pct", "faceoff_pct", "attack_pct", "checkout_pct",
 }
 
+# Standard market lines per sport/stat — used instead of auto-computed lines
+# to avoid circular reasoning (computing line from same data used for hit rate)
+try:
+    from scripts.generate_market_matrix import STANDARD_MARKET_LINES as _SML
+except ImportError:
+    try:
+        from generate_market_matrix import STANDARD_MARKET_LINES as _SML
+    except ImportError:
+        _SML = {}
+
+# Build a quick lookup: (sport, stat_key) → list of standard lines
+_STANDARD_LINES_LOOKUP: dict[tuple[str, str], list[float]] = {}
+for _sport_key, _markets_list in _SML.items():
+    for _mkt in _markets_list:
+        _stat = _mkt.get("stat", "")
+        _lines = _mkt.get("lines", [])
+        if _stat and _lines:
+            _STANDARD_LINES_LOOKUP[(_sport_key, _stat)] = _lines
+
+
+def _find_closest_standard_line(sport: str, stat_key: str, avg: float) -> float | None:
+    """Find the closest standard line for a given sport/stat/average.
+
+    Returns the standard line closest to the data average, or None if no
+    standard lines exist for this sport/stat combination or if the closest
+    line is too far from the average (>40% away — likely per-team line for combined market).
+    """
+    lines = _STANDARD_LINES_LOOKUP.get((sport, stat_key))
+    if not lines:
+        return None
+    closest = min(lines, key=lambda x: abs(x - avg))
+    # Sanity check: don't use a standard line that's wildly different from the average
+    # (e.g., per-team line 5.5 for combined corners avg 10.2)
+    if avg > 0 and abs(closest - avg) / avg > 0.40:
+        return None
+    return closest
+
 
 # ---------------------------------------------------------------------------
 # Normalized data structures
@@ -402,17 +439,24 @@ def build_safety_score_input(
         team_a_l5 = team_a_l10[:5] if team_a_l10 else []
         team_b_l5 = team_b_l10[:5] if team_b_l10 else []
 
-        # Auto-determine line from L10 average
+        # Auto-determine line from L10 average — use standard lines when available
+        # to avoid circular reasoning (line = avg → ~50% hit rate by construction)
+        stat_key_for_line = stat_a_key or stat_b_key or ""
         if is_combined and team_a_l10 and team_b_l10:
             min_len = min(len(team_a_l10), len(team_b_l10))
             combined_avg = sum(
                 team_a_l10[i] + team_b_l10[i] for i in range(min_len)
             ) / min_len
-            line = _round_to_half(combined_avg)
+            std_line = _find_closest_standard_line(sport, stat_key_for_line, combined_avg)
+            line = std_line if std_line is not None else _round_to_half(combined_avg)
         elif team_a_l10:
-            line = _round_to_half(sum(team_a_l10) / len(team_a_l10))
+            avg = sum(team_a_l10) / len(team_a_l10)
+            std_line = _find_closest_standard_line(sport, stat_key_for_line, avg)
+            line = std_line if std_line is not None else _round_to_half(avg)
         elif team_b_l10:
-            line = _round_to_half(sum(team_b_l10) / len(team_b_l10))
+            avg = sum(team_b_l10) / len(team_b_l10)
+            std_line = _find_closest_standard_line(sport, stat_key_for_line, avg)
+            line = std_line if std_line is not None else _round_to_half(avg)
         else:
             continue
 
@@ -475,11 +519,15 @@ def _strip_ha_suffix(stat_key: str) -> tuple[str, str | None]:
     return stat_key, None
 
 
-def _synthesize_l10(l10_avg: float, l5_avg: float | None, count: int = 10) -> list[float]:
+def _synthesize_l10(
+    l10_avg: float, l5_avg: float | None, count: int = 10,
+    seed_key: str = "",
+) -> list[float]:
     """Generate synthetic per-match values from aggregates.
 
     Creates `count` values centered on l10_avg with deterministic spread
-    derived from the L10/L5 delta. Avoids degenerate 100%/0% hit rates.
+    derived from the L10/L5 delta. Uses seed_key (team name) to produce
+    team-specific noise so different teams don't get identical values.
     """
     if l10_avg == 0:
         return [0.0] * count
@@ -490,17 +538,25 @@ def _synthesize_l10(l10_avg: float, l5_avg: float | None, count: int = 10) -> li
     else:
         spread = max(l10_avg * 0.15, 0.5)
 
+    # Team-specific noise from hash of seed_key
+    import hashlib
+    seed = int(hashlib.md5(seed_key.encode()).hexdigest()[:8], 16) if seed_key else 0
+    noise_bits = [(seed >> i) & 1 for i in range(count)]
+
     values = []
     for i in range(count):
-        offset = spread * (1 - 2 * (i % 2)) * ((i // 2 + 1) / (count // 2))
-        values.append(round(l10_avg + offset, 1))
+        base_offset = spread * (1 - 2 * (i % 2)) * ((i // 2 + 1) / (count // 2))
+        # Add small team-specific perturbation (±5% of spread)
+        team_nudge = spread * 0.05 * (1 if noise_bits[i] else -1)
+        values.append(round(l10_avg + base_offset + team_nudge, 1))
 
     if l5_avg is not None:
         l5_subset = values[:5]
         current_avg = sum(l5_subset) / 5
         if current_avg > 0:
             adjustment = l5_avg - current_avg
-            values[:5] = [round(v + adjustment / 5, 1) for v in l5_subset]
+            # Shift each L5 value by the full adjustment to achieve target L5 average
+            values[:5] = [round(v + adjustment, 1) for v in l5_subset]
 
     return values
 
@@ -553,7 +609,7 @@ def _build_markets_from_db_form(
                 if row_a.l10_values and len(row_a.l10_values) >= 3:
                     team_a_l10 = row_a.l10_values[:10]
                 elif row_a.l10_avg is not None:
-                    team_a_l10 = _synthesize_l10(row_a.l10_avg, row_a.l5_avg)
+                    team_a_l10 = _synthesize_l10(row_a.l10_avg, row_a.l5_avg, seed_key=team_a)
                     source = "db-synthetic"
                     synthetic_count += 1
 
@@ -566,7 +622,7 @@ def _build_markets_from_db_form(
                 if row_b.l10_values and len(row_b.l10_values) >= 3:
                     team_b_l10 = row_b.l10_values[:10]
                 elif row_b.l10_avg is not None:
-                    team_b_l10 = _synthesize_l10(row_b.l10_avg, row_b.l5_avg)
+                    team_b_l10 = _synthesize_l10(row_b.l10_avg, row_b.l5_avg, seed_key=team_b)
                     source = "db-synthetic"
                     synthetic_count += 1
 
@@ -599,17 +655,24 @@ def _build_markets_from_db_form(
         team_a_l5 = team_a_l10[:5] if team_a_l10 else []
         team_b_l5 = team_b_l10[:5] if team_b_l10 else []
 
-        # Auto-determine line
+        # Auto-determine line — prefer standard market lines to avoid circular reasoning
+        stat_key_for_line = stat_a_key or stat_b_key
         if is_combined and team_a_l10 and team_b_l10:
             min_len = min(len(team_a_l10), len(team_b_l10))
             combined_avg = sum(
                 team_a_l10[i] + team_b_l10[i] for i in range(min_len)
             ) / min_len
-            line = _round_to_half(combined_avg)
+            # Use standard line if available (prevents circular reasoning)
+            std_line = _find_closest_standard_line(sport, stat_key_for_line, combined_avg)
+            line = std_line if std_line is not None else _round_to_half(combined_avg)
         elif team_a_l10:
-            line = _round_to_half(sum(team_a_l10) / len(team_a_l10))
+            avg = sum(team_a_l10) / len(team_a_l10)
+            std_line = _find_closest_standard_line(sport, stat_key_for_line, avg)
+            line = std_line if std_line is not None else _round_to_half(avg)
         elif team_b_l10:
-            line = _round_to_half(sum(team_b_l10) / len(team_b_l10))
+            avg = sum(team_b_l10) / len(team_b_l10)
+            std_line = _find_closest_standard_line(sport, stat_key_for_line, avg)
+            line = std_line if std_line is not None else _round_to_half(avg)
         else:
             continue
 
@@ -619,6 +682,14 @@ def _build_markets_from_db_form(
         market_name = market_name.replace("Player A", team_a).replace("Player B", team_b)
         market_name = market_name.replace("Fighter A", team_a).replace("Fighter B", team_b)
         market_name = market_name.replace("Pair A", team_a).replace("Pair B", team_b)
+
+        # Detect one-sided data: combined market where one team has no data
+        one_sided = False
+        if is_combined and stat_a_key and stat_b_key:
+            if not team_b_l10 or all(v == 0.0 for v in team_b_l10):
+                one_sided = True
+            elif not team_a_l10 or all(v == 0.0 for v in team_a_l10):
+                one_sided = True
 
         built_markets.append({
             "name": market_name,
@@ -631,6 +702,7 @@ def _build_markets_from_db_form(
             "is_combined": is_combined,
             "source": source,
             "team_swapped": team_swapped,
+            "one_sided": one_sided,
         })
 
     return built_markets, synthetic_count

@@ -14,6 +14,9 @@ tools:
     "sequential-thinking/*",
   ]
 model: "Claude Sonnet 4.6 (Copilot)"
+instructions:
+  - ../instructions/analysis-methodology.instructions.md
+  - ../instructions/betting-artifacts.instructions.md
 user-invokable: false
 handoffs:
   - label: "Settlement complete → continue pipeline"
@@ -66,5 +69,39 @@ Settlement syncs to DB via `_sync_settlement_to_db()` in `settle_on_finish.py`:
 - Never auto-push settled results — user verifies first
 - Every result verified against ≥2 sources before recording
 - Betclic learning analysis is ADVISORY ONLY — never auto-reject markets based on hit rates
+
+## Situational Awareness & Reactive Monitoring
+
+Before starting ANY work, you MUST assess the current pipeline state and adapt accordingly:
+
+### 1. State Check (MANDATORY first action)
+```
+Read: betting/data/pipeline_{date}.json
+Read: betting/data/betclic_bets_history.json (check freshness)
+Read: picks-ledger.csv, coupons-ledger.csv (pending entries)
+```
+- If pipeline state shows s0_settle already completed → report "already settled" and stop
+- If no pending picks exist → report "nothing to settle" and stop
+
+### 2. Upstream Data Quality
+- Check if results sources (FlashScore, SofaScore) are responding
+- Verify Betclic history file was updated today (not stale)
+- If bankroll in config differs from calculated bankroll → FLAG immediately
+
+### 3. Anomaly Detection & Reaction
+| Signal | Reaction |
+|--------|----------|
+| Picks older than 48h unsettled | Prioritize these — check if events already finished |
+| Multiple void/push results | Investigate — possible data quality issue |
+| Bankroll discrepancy >2% | STOP and escalate to user before updating |
+| Betclic history has new entries not in ledger | Sync gap — report missing picks |
+| Settlement script returns partial results | Flag which picks need manual resolution |
+
+### 4. Self-Healing
+- If a result source is down → try fallback chain (FlashScore → SofaScore → ESPN → Google)
+- If Betclic history is stale → run `python3 scripts/fetch_betclic_bets.py` before analysis
+- If learning script fails → still proceed with settlement using ledger data alone
+
+<!-- BET:agent:bet-settler:v2 -->
 
 <!-- BET:agent:bet-settler:v1 -->

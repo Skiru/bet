@@ -291,14 +291,18 @@ class TestDeepStatsReport(unittest.TestCase):
         import scripts.normalize_stats as norm_mod
         mock_safety = {"sport": "football", "team_a": "GhostTeam", "team_b": "PhantomFC",
                        "markets": [{"name": "corners", "safety": 0.6}]}
-        mock_ranking = {"ranking": [], "three_way_check": None,
-                        "recommended_market": None, "recommended_safety": None,
+        mock_ranking = {"ranking": [{"rank": 1, "name": "corners", "line": 9.5,
+                                     "direction": "OVER", "combined_avg": 10.2,
+                                     "h2h_avg": None, "hit_rate_l10": "7/10",
+                                     "hit_rate_h2h": "N/A", "safety_score": 0.6}],
+                        "three_way_check": None,
+                        "recommended_market": "corners", "recommended_safety": 0.6,
                         "warnings": [], "markdown_ranking_table": "",
                         "markdown_three_way_table": "", "markets_evaluated": 1}
         with patch.object(dsr, "CACHE_DIR", self.cache_dir), \
              patch.object(dsr, "DATA_DIR", self.data_dir), \
              patch.object(norm_mod, "CACHE_DIR", self.cache_dir), \
-             patch.object(dsr, "build_safety_input_from_cache", return_value=mock_safety), \
+             patch.object(dsr, "build_safety_input", return_value=mock_safety), \
              patch.object(dsr, "rank_markets", return_value=mock_ranking):
             result = dsr.analyze_candidate(
                 sport="football",
@@ -362,12 +366,12 @@ class TestGateChecker(unittest.TestCase):
         return patch.object(gc, "LEDGER_PATH", self._journal_dir / "picks-ledger.csv")
 
     def test_17_point_gate_all_pass(self):
-        """Gate with a well-formed candidate that should pass all 17 checks."""
+        """Gate with a well-formed candidate that should pass all 18 checks."""
         from scripts.gate_checker import check_17_point_gate
         candidate = _base_candidate()
         with self._patch_ledger():
             result = check_17_point_gate(candidate, [])
-        self.assertEqual(result["gate_score"], "17/17")
+        self.assertEqual(result["gate_score"], "18/18")
         self.assertEqual(len(result["gate_failed"]), 0)
 
     def test_gate_identity_slash_rejects(self):

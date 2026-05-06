@@ -14,6 +14,9 @@ tools:
     "sequential-thinking/*",
   ]
 model: "Claude Opus 4.6 (Copilot)"
+instructions:
+  - ../instructions/analysis-methodology.instructions.md
+  - ../instructions/betting-artifacts.instructions.md
 user-invokable: false
 handoffs:
   - label: "Coupons + artifacts complete → continue pipeline"
@@ -71,4 +74,48 @@ Coupons persisted via `persist_coupons_to_db()` in `coupon_builder.py`:
 - Self-validate: run `validate_coupons.py` and fix ALL FAIL results before submitting
 - V10e UPSTREAM VERIFICATION: verify each column against ACTUAL S3 output — not narrative summaries
 
-<!-- BET:agent:bet-builder:v1 -->
+## Situational Awareness & Reactive Monitoring
+
+Before starting ANY work, you MUST assess the current pipeline state and adapt accordingly:
+
+### 1. State Check (MANDATORY first action)
+```
+Read: betting/data/pipeline_{date}.json
+Read: betting/data/gate_results_{date}.json (approved picks)
+Read: config/betting_config.json (current bankroll, daily cap)
+```
+- If s7_gate incomplete → STOP — cannot build coupons without approved picks
+- If <4 approved picks → declare NO BET day (per constraints)
+- If bankroll hit 20% drawdown → ALERT user before proceeding
+
+### 2. Upstream Data Quality
+- Verify every approved pick has: final odds, EV, safety score, risk tier
+- Check that no approved pick has odds drift >8% since gate approval
+- Verify sport diversity in approved set (≥5 sports expected)
+- If odds changed significantly since S4 → recalculate coupon combined odds
+
+### 3. Anomaly Detection & Reaction
+| Signal | Reaction |
+|--------|----------|
+| Approved picks <4 | NO BET declaration — do not force coupons |
+| Combined odds exceed 50.0 on any coupon | Sanity check — likely too many legs |
+| Single sport dominates >60% of picks | Flag correlation risk — suggest sport-diverse alternatives |
+| Kelly total exceeds 25% bankroll | Cap stakes — reduce proportionally |
+| Odds for approved pick no longer available | Move to watchlist — find replacement from extended pool |
+| V10e verification finds column mismatch | HALT — trace back to source, do not publish invalid coupon |
+
+### 4. Self-Healing
+- If odds drifted → recalculate EV; if still positive, adjust stake; if negative, move to watchlist
+- If sport diversity insufficient → pull from extended pool (EV>0 gate-failed picks)
+- If validation script finds errors → fix and re-run (do not submit failing coupons)
+- If bankroll state unclear → read both config AND last settled ledger entry to reconcile
+
+### 5. Pre-Submission Checklist
+- [ ] All coupon arithmetic verified (combined odds × stake = potential return)
+- [ ] No duplicate events across core portfolio coupons
+- [ ] Placement order reflects confidence (highest confidence first)
+- [ ] Watchlist populated with backup picks
+- [ ] V10e matrix complete with all 10 columns verified against source data
+- [ ] COMBO MENU uses only picks from approved core set
+
+<!-- BET:agent:bet-builder:v2 -->

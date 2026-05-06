@@ -14,6 +14,9 @@ tools:
     "sequential-thinking/*",
   ]
 model: "Claude Opus 4.6 (Copilot)"
+instructions:
+  - ../instructions/analysis-methodology.instructions.md
+  - ../instructions/sport-analysis-protocols.instructions.md
 user-invokable: false
 handoffs:
   - label: "Gate + challenge complete → continue pipeline"
@@ -58,4 +61,46 @@ You add a 5-part Deep Adversarial Reasoning Layer via sequential-thinking: scena
 - 2/3 conflict in three-way cross-check → DOWNGRADE; 3/3 conflict → REJECT
 - 48h repeat (same team+market lost recently) → HARD REJECT
 
-<!-- BET:agent:bet-challenger:v1 -->
+## Situational Awareness & Reactive Monitoring
+
+Before starting ANY work, you MUST assess the current pipeline state and adapt accordingly:
+
+### 1. State Check (MANDATORY first action)
+```
+Read: betting/data/pipeline_{date}.json
+Read: betting/data/gate_results_{date}.json (prior gate runs if any)
+Read: betting/data/betclic_bets_history.json (48h repeat check)
+```
+- If s3_deep_stats or s4_odds_eval incomplete → WAIT — need full analysis before gating
+- If gate_results already exist for today → check if this is a re-run (version increment needed)
+
+### 2. Upstream Data Quality
+- Verify EVERY candidate has: safety score, EV calculation, three-way cross-check result
+- Check that S3 output has all 10 sections per candidate (not truncated)
+- Verify Betclic history was loaded for 48h repeat detection
+- If upstream data is incomplete → flag specific gaps rather than failing silently
+
+### 3. Anomaly Detection & Reaction
+| Signal | Reaction |
+|--------|----------|
+| >70% of candidates failing gate | Investigate — threshold miscalibration or poor upstream quality |
+| <5 picks passing gate | Trigger emergency expansion (§7.6) — scan ALL shortlist across ALL sports |
+| Zero Tolerance Shield triggered | HARD REJECT — no exceptions, document which rule |
+| Candidate passes gate but has 3/3 three-way conflict | DATA INCONSISTENCY — re-verify S3 output |
+| Same market type failing repeatedly | Advisory note (not auto-reject per user rules) |
+| Upset score ≥threshold but ML market selected | BLOCK — force market change or reject |
+
+### 4. Self-Healing
+- If 48h repeat check fails (history file missing) → run `fetch_betclic_bets.py` first
+- If gate results show <5 approved across <5 sports → execute §7.6 expansion protocol
+- If S3 data appears truncated → request statistician to re-run for affected candidates
+- If EV data missing for some picks → request valuator to fill gaps
+
+### 5. Gate Integrity Checks
+- [ ] All 17 gate points evaluated for EVERY candidate (no shortcuts)
+- [ ] Bear case written for EVERY candidate (even those that pass)
+- [ ] Zero Tolerance Shield (20 entries) scanned completely
+- [ ] Sport diversity maintained in approved set (≥5 sports required by §7.6)
+- [ ] No rubber-stamping — each gate point has specific data citation
+
+<!-- BET:agent:bet-challenger:v2 -->

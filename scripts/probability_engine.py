@@ -67,10 +67,15 @@ CONFIDENCE_LEVEL = 0.90  # 90% CI
 # ---------------------------------------------------------------------------
 
 def poisson_pmf(k: int, lam: float) -> float:
-    """Poisson probability mass function: P(X = k) = e^(-λ) × λ^k / k!"""
+    """Poisson probability mass function: P(X = k) = e^(-λ) × λ^k / k!
+
+    Uses log-space computation to avoid overflow for large λ (e.g., basketball totals).
+    """
     if lam <= 0:
         return 1.0 if k == 0 else 0.0
-    return math.exp(-lam) * (lam ** k) / math.factorial(k)
+    # log(P) = k*log(λ) - λ - log(k!)
+    log_p = k * math.log(lam) - lam - math.lgamma(k + 1)
+    return math.exp(log_p)
 
 
 def poisson_cdf(x: int, lam: float) -> float:
@@ -196,6 +201,8 @@ def compute_probability(
     l5_values: list[float] | None = None,
     h2h_values: list[float] | None = None,
     use_negbin: bool | None = None,
+    competition: str = "",
+    stat_key: str = "",
 ) -> dict:
     """Compute probability for Over/Under a line.
 
@@ -206,6 +213,8 @@ def compute_probability(
         l5_values: last 5 match values (optional, derived from l10 if missing)
         h2h_values: H2H match values (optional)
         use_negbin: force negative binomial (None = auto-detect)
+        competition: league/competition name for league profile lookup
+        stat_key: stat identifier (e.g. 'corners', 'goals') for league profile
 
     Returns:
         dict with probability, fair_odds, lambda, model_used, confidence_interval
@@ -222,6 +231,21 @@ def compute_probability(
 
     lam = estimate_lambda(l10_values, l5_values, h2h_values)
 
+    # Apply Bayesian shrinkage toward league average when sample is small
+    if competition or stat_key:
+        profile = load_league_profiles(competition=competition, stat_key=stat_key)
+        if profile:
+            league_avg = profile.get("avg_value", 0)
+            league_std = profile.get("std_dev", 1)
+            if league_avg > 0:
+                team_games = len(l10_values)
+                lam = bayesian_adjusted_average(
+                    team_avg=lam,
+                    team_games=team_games,
+                    league_avg=league_avg,
+                    league_std=league_std,
+                )
+
     # Determine model
     all_values = list(l10_values)
     if h2h_values:
@@ -231,7 +255,9 @@ def compute_probability(
         use_negbin = check_overdispersion(all_values)
 
     if use_negbin and len(all_values) >= 3:
-        mean_val = statistics.mean(all_values)
+        # Use the recency-weighted λ as mean (consistent with Poisson path)
+        # but variance from raw data (captures true dispersion)
+        mean_val = lam
         var_val = statistics.variance(all_values)
         r, p = _fit_negbin_params(mean_val, var_val)
         if direction.upper() == "OVER":

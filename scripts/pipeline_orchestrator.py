@@ -96,7 +96,8 @@ except ImportError:
 # Per-step timeout in seconds (prevents hanging on slow sources)
 STEP_TIMEOUTS = {
     "s0_settle": 180,      # 3 min
-    "s1_scan": 3600,       # 60 min (232 URLs → 1000+ via deep-link, parallel enrichment + aggregation)
+    "s1_scan": 1800,       # 30 min (Playwright scan ONLY — no enrichment)
+    "s1_ingest": 180,      # 3 min (ingest scan data into stats cache)
     "s1a_discover": 300,   # 5 min
     "s1b_parallel": 600,   # 10 min (odds + weather + tipsters in parallel)
     "s1c_aggregate": 120,  # 2 min
@@ -128,13 +129,24 @@ PIPELINE_STEPS = [
     },
     {
         "id": "s1_scan",
-        "name": "S1: Complete Event Scan",
-        "description": "Full 14-sport scan with Playwright + API fixture discovery",
-        "commands": ["bash scripts/run_full_scan_and_prepare.sh"],
+        "name": "S1: Playwright Event Scan",
+        "description": "Playwright scan of 232+ seed URLs with deep-link discovery (scan ONLY — enrichment is separate)",
+        "python_step": "scan_events",
         "outputs": ["betting/data/scan_summary.json"],
         "critical": True,
         "agent_review_required": "bet-scanner",
         "agent_task": "Verify 14-sport coverage, cross-validate fixtures ≥2 sources, check deep-link discovery yield, flag source failures, ensure ≥50 unique events",
+    },
+    {
+        "id": "s1_ingest",
+        "name": "S1-ingest: Ingest Scan Stats + Analysis Pool",
+        "description": "Ingest Playwright HTML data into stats cache + generate analysis pool",
+        "commands": [
+            "python3 scripts/ingest_scan_stats.py",
+            "python3 scripts/deep_analysis_pool.py --date {date}",
+        ],
+        "outputs": [],
+        "critical": False,
     },
     {
         "id": "s1a_discover",
@@ -257,11 +269,8 @@ PIPELINE_STEPS = [
         "critical": False,
     },
 ]
-
-# Steps that run inside the shell script (skip when shell script runs)
-SHELL_COVERED_IDS = {"s1a_discover", "s1c_aggregate"}
 # Steps that skip with --skip-scan (the heavy Playwright scan + parallel enrichment)
-SCAN_STEP_IDS = {"s1_scan", "s1a_discover", "s1b_parallel", "s1c_aggregate", "s1d_matrix", "s1e_shortlist"}
+SCAN_STEP_IDS = {"s1_scan", "s1_ingest", "s1a_discover", "s1b_parallel", "s1c_aggregate", "s1d_matrix", "s1e_shortlist"}
 
 
 # ---------------------------------------------------------------------------
@@ -914,6 +923,8 @@ def _run_tipster_xref(date: str, state: dict) -> tuple[bool, str]:
                         "tipsters": tipster_names,
                         "tips": matching_tips,
                     }
+                    # Also set tipster_count directly for gate_checker compatibility
+                    c["tipster_count"] = consensus
                     home_disp = c.get("home_team", c.get("home", "?"))
                     away_disp = c.get("away_team", c.get("away", "?"))
                     print(f"    ✓ {home_disp} vs {away_disp}: {consensus} tips from {', '.join(tipster_names[:3])}")
@@ -931,27 +942,34 @@ def _run_tipster_xref(date: str, state: dict) -> tuple[bool, str]:
 
 def _run_odds_eval(date: str, state: dict) -> tuple[bool, str]:
     """S4: Cross-validate odds, compute EV, detect drift."""
-    # Load current candidates from S3 output — DB first, JSON fallback
+    # Load current candidates from S3 JSON output (primary — has ALL candidates)
+    # IMPORTANT: Do NOT read from DB here — DB only has entries with resolved
+    # fixture_ids (~166), while JSON has the full set (~1440) including
+    # shortlist-fallback candidates.
     candidates = None
 
-    try:
-        from db_data_loader import load_analysis_results_from_db
-        db_analyses = load_analysis_results_from_db(date)
-        if db_analyses:
-            candidates = db_analyses
-            print(f"  → DB: loaded {len(candidates)} S3 analysis results")
-    except Exception as e:
-        print(f"  ⚠️ DB read failed for S3 results: {e}")
-
-    if candidates is None:
-        s3_path = DATA_DIR / f"{date}_s3_deep_stats.json"
-        if not s3_path.exists():
-            return True, "S4: No S3 data yet — skipping EV injection"
+    s3_path = DATA_DIR / f"{date}_s3_deep_stats.json"
+    if s3_path.exists():
         try:
             s3_data = json.loads(s3_path.read_text(encoding="utf-8"))
             candidates = s3_data.get("analyses", [])
+            if candidates:
+                print(f"  → JSON: loaded {len(candidates)} S3 analyses")
         except (json.JSONDecodeError, OSError):
-            return True, "S4: No S3 data yet — skipping EV injection"
+            pass
+
+    if not candidates:
+        try:
+            from db_data_loader import load_analysis_results_from_db
+            db_analyses = load_analysis_results_from_db(date)
+            if db_analyses:
+                candidates = db_analyses
+                print(f"  → DB fallback: loaded {len(candidates)} S3 analysis results")
+        except Exception as e:
+            print(f"  ⚠️ DB read also failed: {e}")
+
+    if not candidates:
+        return True, "S4: No S3 data yet — skipping EV injection"
 
     if not candidates:
         return True, "S4: No S3 data yet — skipping EV injection"
@@ -1126,7 +1144,7 @@ def _run_upset_risk(date: str, state: dict) -> tuple[bool, str]:
             thresholds = UPSET_THRESHOLDS.get(sport, DEFAULT_THRESHOLDS)
             risk_factors = []
 
-            ranking = analysis.get("ranking_result", {}).get("ranking", [])
+            ranking = analysis.get("ranking", analysis.get("ranking_result", {}).get("ranking", []))
             top_market = ranking[0] if ranking else {}
             safety = top_market.get("safety_score", 0)
 
@@ -1214,6 +1232,76 @@ def _run_source_health(date: str) -> None:
             print(f"  ⚠ Source health logging failed: {result.stderr[:100]}")
     except Exception as e:
         print(f"  ⚠ Source health logging error: {e}")
+
+
+def _run_scan_events(date: str, state: dict) -> tuple[bool, str]:
+    """S1: Run Playwright event scan ONLY (no enrichment/aggregation).
+
+    This is the decomposed version of the monolithic bash script.
+    Runs scan_events.py directly with proper timeout and resume capability.
+    Enrichment, aggregation, matrix, shortlist are handled by subsequent steps.
+    """
+    from datetime import datetime as dt
+
+    # Build ZawodTyper daily URL (use Warsaw timezone — project canonical TZ)
+    now = dt.now(ZoneInfo("Europe/Warsaw"))
+    pl_months = ["", "stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca",
+                 "lipca", "sierpnia", "wrzesnia", "pazdziernika", "listopada", "grudnia"]
+    pl_days = ["", "poniedzialek", "wtorek", "sroda", "czwartek", "piatek", "sobota", "niedziela"]
+    zt_day = now.day
+    zt_month = now.month
+    zt_dow = now.isoweekday()  # 1=Mon, 7=Sun
+    zt_url = f"https://www.zawodtyper.pl/typy-dnia-{zt_day}-{pl_months[zt_month]}-{pl_days[zt_dow]}/"
+    print(f"  → ZawodTyper URL: {zt_url}")
+
+    # Run scan_events.py with deep-link discovery
+    scan_cmd = (
+        f'python3 scripts/scan_events.py --deep --max-deep-links 30 --workers 8'
+        f' --urls-file config/scan_urls.json'
+        f' --urls "{zt_url}"'
+    )
+    success, output = run_command(scan_cmd, date, step_id="s1_scan")
+
+    if not success:
+        # Check if scan_summary.json was still partially produced (and is fresh — today's date)
+        summary_path = DATA_DIR / "scan_summary.json"
+        if summary_path.exists() and summary_path.stat().st_size > 100:
+            # Staleness check: file must be from today (within last 2 hours)
+            import time as _time
+            file_age_hours = (_time.time() - summary_path.stat().st_mtime) / 3600
+            if file_age_hours > 2:
+                return False, f"Scan failed and scan_summary.json is stale ({file_age_hours:.1f}h old): {output[:200]}"
+            print("  ⚠ Scan had errors but produced partial results — continuing")
+            state.setdefault("step_data", {})["s1_partial"] = True
+            # Record source health
+            _run_source_health(date)
+            return True, f"Scan completed with errors (partial results saved): {output[:200]}"
+        return False, output
+
+    # Record source health after successful scan
+    _run_source_health(date)
+
+    # Count scan results
+    summary_path = DATA_DIR / "scan_summary.json"
+    event_count = 0
+    url_count = 0
+    if summary_path.exists():
+        try:
+            summary = json.loads(summary_path.read_text(encoding="utf-8"))
+            if isinstance(summary, dict):
+                url_count = len(summary)
+                for url_data in summary.values():
+                    if isinstance(url_data, list):
+                        event_count += len(url_data)
+                    elif isinstance(url_data, dict):
+                        event_count += len(url_data.get("events", []))
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    state.setdefault("step_data", {})["s1_events"] = event_count
+    state["step_data"]["s1_urls"] = url_count
+
+    return True, f"Scan complete: {event_count} events from {url_count} URLs"
 
 
 def _run_parallel_enrichment(date: str, state: dict) -> tuple[bool, str]:
@@ -1440,23 +1528,63 @@ def _run_s7(date: str, state: dict) -> tuple[bool, str]:
     """S7: Gate Check."""
     analyses = None
 
-    # Try DB first
-    try:
-        from db_data_loader import load_analysis_results_from_db
-        db_analyses = load_analysis_results_from_db(date)
-        if db_analyses:
-            analyses = db_analyses
-            print(f"  → DB: loaded {len(analyses)} S3 analysis results for gate check")
-    except Exception as e:
-        print(f"  ⚠️ DB read failed for S3 results: {e}")
+    # Read from JSON first (has ALL candidates including shortlist-fallback)
+    s3_path = DATA_DIR / f"{date}_s3_deep_stats.json"
+    if s3_path.exists():
+        try:
+            s3_data = json.loads(s3_path.read_text(encoding="utf-8"))
+            analyses = s3_data.get("analyses", [])
+            if analyses:
+                print(f"  → JSON: loaded {len(analyses)} S3 analyses for gate check")
+        except (json.JSONDecodeError, OSError):
+            pass
 
-    # JSON fallback
-    if analyses is None:
-        s3_path = DATA_DIR / f"{date}_s3_deep_stats.json"
-        if not s3_path.exists():
-            return False, f"S3 output not found: {s3_path}"
-        s3_data = json.loads(s3_path.read_text(encoding="utf-8"))
-        analyses = s3_data.get("analyses", [])
+    # DB fallback
+    if not analyses:
+        try:
+            from db_data_loader import load_analysis_results_from_db
+            db_analyses = load_analysis_results_from_db(date)
+            if db_analyses:
+                analyses = db_analyses
+                print(f"  → DB fallback: loaded {len(analyses)} S3 analysis results")
+        except Exception as e:
+            print(f"  ⚠️ DB read failed for S3 results: {e}")
+
+    if not analyses:
+        return False, f"S3 output not found: {s3_path}"
+
+    # Inject tipster_count from enriched shortlist into S3 analyses
+    # The tipster xref enriches the shortlist JSON but S3 doesn't propagate it
+    date_compact = date.replace("-", "")
+    shortlist_path = DATA_DIR / f"{date_compact}_s2_shortlist.json"
+    if not shortlist_path.exists():
+        shortlist_path = DATA_DIR / f"{date}_s2_shortlist.json"
+    if shortlist_path.exists():
+        try:
+            sl_data = json.loads(shortlist_path.read_text(encoding="utf-8"))
+            sl_candidates = sl_data.get("candidates", sl_data.get("shortlist", []))
+            # Build tipster lookup by normalized team names
+            tipster_lookup: dict[str, int] = {}
+            for sc in sl_candidates:
+                h = (sc.get("home_team") or sc.get("home") or "").strip().lower()
+                a = (sc.get("away_team") or sc.get("away") or "").strip().lower()
+                tc = sc.get("tipster_count") or (sc.get("tipster_support") or {}).get("count") or 0
+                if h and a and tc:
+                    tipster_lookup[f"{h}|{a}"] = tc
+            # Inject into analyses
+            injected = 0
+            for a in analyses:
+                h = (a.get("home_team") or "").strip().lower()
+                aw = (a.get("away_team") or "").strip().lower()
+                key = f"{h}|{aw}"
+                tc = tipster_lookup.get(key, 0)
+                if tc and not a.get("tipster_count"):
+                    a["tipster_count"] = tc
+                    injected += 1
+            if injected:
+                print(f"  → Injected tipster_count into {injected} S3 analyses from shortlist")
+        except (json.JSONDecodeError, OSError):
+            pass
 
     # In stats-first mode, process ALL candidates (even without enriched stats cache)
     # since the user verifies odds on Betclic app manually.
@@ -1743,7 +1871,9 @@ def _run_s10(date: str, state: dict) -> tuple[bool, str]:
 def run_python_step(step_id: str, date: str, state: dict) -> tuple[bool, str]:
     """Dispatch to the correct Python-driven pipeline step."""
     try:
-        if step_id == "s1b_parallel":
+        if step_id == "s1_scan":
+            return _run_scan_events(date, state)
+        elif step_id == "s1b_parallel":
             return _run_parallel_enrichment(date, state)
         elif step_id == "s2_tipster":
             return _run_tipster_xref(date, state)
@@ -1824,11 +1954,12 @@ def run_pipeline(
     session: str = "full",
     resume: bool = False,
     single_step: str | None = None,
+    phase: str | None = None,
     version: str | None = None,
     skip_scan: bool = False,
     top: int | None = None,
 ):
-    """Run the full pipeline or a single step."""
+    """Run the full pipeline or a single step/phase."""
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
         print(f"[FATAL] Invalid date format: {date} (expected YYYY-MM-DD)")
         sys.exit(1)
@@ -1871,6 +2002,13 @@ def run_pipeline(
             print(f"Unknown step: {single_step}")
             print(f"Available steps: {', '.join(s['id'] for s in PIPELINE_STEPS)}")
             return
+    elif phase:
+        phase_ids = PHASE_STEPS.get(phase, set())
+        steps_to_run = [s for s in PIPELINE_STEPS if s["id"] in phase_ids]
+        if not steps_to_run:
+            print(f"No steps found for phase: {phase}")
+            return
+        print(f"[phase] Running {phase} phase: {', '.join(s['id'] for s in steps_to_run)}")
 
     for step in steps_to_run:
         step_id = step["id"]
@@ -1888,15 +2026,6 @@ def run_pipeline(
             save_state(date, state)
             continue
 
-        # Skip shell-covered steps when s1_scan already ran them
-        if step_id in SHELL_COVERED_IDS and not skip_scan:
-            s1_state = state.get("steps", {}).get("s1_scan", {})
-            if s1_state.get("status") == "completed":
-                step_state["status"] = "skipped"
-                print(f"[skip] {step['name']} — already done by S1 shell script")
-                save_state(date, state)
-                continue
-
         print(f"\n{'─'*60}")
         print(f"[{step_id}] {step['name']}")
         print(f"  {step.get('description', '')}")
@@ -1910,13 +2039,13 @@ def run_pipeline(
         if "python_step" in step:
             success, output = run_python_step(step_id, date, state)
         elif "commands" in step and step["commands"]:
-            # Skip s1d/s1e if outputs already exist from shell script
+            # Skip s1d/s1e if outputs already exist AND we're in resume mode
             date_compact = date.replace("-", "")
             skip_reason = None
-            if step_id == "s1d_matrix" and (DATA_DIR / f"market_matrix_{date}.json").exists():
-                skip_reason = "market_matrix already exists from S1"
-            elif step_id == "s1e_shortlist" and (DATA_DIR / f"{date_compact}_s2_shortlist.json").exists():
-                skip_reason = "shortlist already exists from S1"
+            if resume and step_id == "s1d_matrix" and (DATA_DIR / f"market_matrix_{date}.json").exists():
+                skip_reason = "market_matrix already exists (resume mode)"
+            elif resume and step_id == "s1e_shortlist" and (DATA_DIR / f"{date_compact}_s2_shortlist.json").exists():
+                skip_reason = "shortlist already exists (resume mode)"
             if skip_reason:
                 success = True
                 output = f"Skipped ({skip_reason})"
@@ -1954,9 +2083,7 @@ def run_pipeline(
                 print(f"  Script output is NOT final — agent analysis is MANDATORY.")
                 print(f"  {'='*60}\n")
 
-            # Record source health after scan completes
-            if step_id == "s1_scan":
-                _run_source_health(date)
+            # Note: source health for s1_scan is recorded inside _run_scan_events()
 
             # Check expected output files for command steps
             missing = check_outputs(step)
@@ -1989,6 +2116,16 @@ def run_pipeline(
 
 
 # ---------------------------------------------------------------------------
+# Phase definitions: which steps belong to which phase
+# ---------------------------------------------------------------------------
+PHASE_STEPS = {
+    "data": {"s0_settle", "s1_scan", "s1_ingest", "s1a_discover", "s1b_parallel", "s1c_aggregate", "s1d_matrix", "s1e_shortlist", "s2_tipster"},
+    "analysis": {"s3_deep_stats", "s4_odds_eval", "s5_context", "s6_upset_risk", "s7_gate"},
+    "build": {"s8_coupons", "s9_validate", "s10_summary"},
+}
+
+
+# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 def main():
@@ -1997,6 +2134,8 @@ def main():
     parser.add_argument("--session", default="full", choices=["full", "day", "night", "morning"])
     parser.add_argument("--resume", action="store_true", help="Resume from last completed step")
     parser.add_argument("--step", help="Run a single step by ID")
+    parser.add_argument("--phase", choices=["data", "analysis", "build"],
+                        help="Run only steps in this phase (data=S0-S2, analysis=S3-S7, build=S8-S10)")
     parser.add_argument("--version", help="Pipeline version (v1, v2, etc.)")
     parser.add_argument("--status", action="store_true", help="Show current pipeline status")
     parser.add_argument("--list-steps", action="store_true", help="List all pipeline steps")
@@ -2009,7 +2148,12 @@ def main():
         for step in PIPELINE_STEPS:
             kind = " [PY]" if "python_step" in step else " [SH]"
             critical_tag = " ★" if step.get("critical", "python_step" in step) else ""
-            print(f"  {step['id']:18s} {step['name']}{kind}{critical_tag}")
+            phase_tag = ""
+            for phase_name, phase_ids in PHASE_STEPS.items():
+                if step["id"] in phase_ids:
+                    phase_tag = f" [{phase_name}]"
+                    break
+            print(f"  {step['id']:18s} {step['name']}{kind}{critical_tag}{phase_tag}")
         return
 
     if args.status:
@@ -2029,6 +2173,7 @@ def main():
         session=args.session,
         resume=args.resume,
         single_step=args.step,
+        phase=args.phase,
         version=args.version,
         skip_scan=args.skip_scan,
         top=args.top,

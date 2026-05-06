@@ -711,6 +711,16 @@ def main():
     # DB settlement: sync settled picks/coupons to DB (dual-write)
     _sync_settlement_to_db(picks, coupons)
 
+    # Post-settlement: evaluate decisions for learning
+    betting_day = args.betting_day or datetime.now().strftime("%Y-%m-%d")
+    try:
+        from evaluate_decisions import evaluate_settled_bets as _evaluate
+        outcomes = _evaluate(betting_day)
+        if outcomes:
+            log(f"[evaluate] Created {len(outcomes)} decision outcomes for learning")
+    except Exception as e:
+        log(f"[evaluate] Decision evaluation failed (non-blocking): {e}")
+
     # Summary
     settled = [p for p in pending if p.get("status") not in ("pending", "placed")]
     still_pending = [p for p in pending if p.get("status") in ("pending", "placed")]

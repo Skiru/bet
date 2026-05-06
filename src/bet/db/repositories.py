@@ -9,10 +9,13 @@ import sqlite3
 from datetime import datetime, timezone
 
 from bet.db.models import (
+    AnalysisRawData,
     AnalysisResult,
     Bet,
     Competition,
     Coupon,
+    DecisionOutcome,
+    DecisionSnapshot,
     Fixture,
     GateResult,
     LeagueProfile,
@@ -1228,5 +1231,291 @@ class GateResultRepo:
             risk_tier=row["risk_tier"] or "",
             rejection_reasons_json=json.loads(row["rejection_reasons_json"]) if row["rejection_reasons_json"] else [],
             source=row["source"] or "",
+            created_at=row["created_at"] or "",
+        )
+
+
+# ---------------------------------------------------------------------------
+# AnalysisRawDataRepo
+# ---------------------------------------------------------------------------
+
+class AnalysisRawDataRepo:
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+
+    def save(self, raw: AnalysisRawData) -> None:
+        """Insert or replace raw analysis data."""
+        self.conn.execute(
+            "INSERT OR REPLACE INTO analysis_raw_data "
+            "(fixture_id, betting_date, team_a_l10_json, team_b_l10_json, "
+            "h2h_meetings_json, per_market_details_json, safety_input_json, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                raw.fixture_id,
+                raw.betting_date,
+                json.dumps(raw.team_a_l10_json, ensure_ascii=False),
+                json.dumps(raw.team_b_l10_json, ensure_ascii=False),
+                json.dumps(raw.h2h_meetings_json, ensure_ascii=False),
+                json.dumps(raw.per_market_details_json, ensure_ascii=False),
+                json.dumps(raw.safety_input_json, ensure_ascii=False) if raw.safety_input_json else None,
+                raw.created_at or _NOW(),
+            ),
+        )
+
+    def get_by_fixture(self, fixture_id: int, betting_date: str) -> AnalysisRawData | None:
+        """Get raw data for a specific fixture and date."""
+        row = self.conn.execute(
+            "SELECT * FROM analysis_raw_data WHERE fixture_id = ? AND betting_date = ?",
+            (fixture_id, betting_date),
+        ).fetchone()
+        if not row:
+            return None
+        return self._row_to_model(row)
+
+    def get_by_date(self, betting_date: str) -> list[AnalysisRawData]:
+        """Get all raw data for a betting date."""
+        rows = self.conn.execute(
+            "SELECT * FROM analysis_raw_data WHERE betting_date = ?",
+            (betting_date,),
+        ).fetchall()
+        return [self._row_to_model(r) for r in rows]
+
+    @staticmethod
+    def _row_to_model(row: sqlite3.Row) -> AnalysisRawData:
+        return AnalysisRawData(
+            id=row["id"],
+            fixture_id=row["fixture_id"],
+            betting_date=row["betting_date"],
+            team_a_l10_json=json.loads(row["team_a_l10_json"]) if row["team_a_l10_json"] else {},
+            team_b_l10_json=json.loads(row["team_b_l10_json"]) if row["team_b_l10_json"] else {},
+            h2h_meetings_json=json.loads(row["h2h_meetings_json"]) if row["h2h_meetings_json"] else {},
+            per_market_details_json=json.loads(row["per_market_details_json"]) if row["per_market_details_json"] else [],
+            safety_input_json=json.loads(row["safety_input_json"]) if row["safety_input_json"] else None,
+            created_at=row["created_at"] or "",
+        )
+
+
+# ---------------------------------------------------------------------------
+# DecisionSnapshotRepo
+# ---------------------------------------------------------------------------
+
+class DecisionSnapshotRepo:
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+
+    def save(self, snapshot: DecisionSnapshot) -> None:
+        """Insert or replace decision snapshot."""
+        self.conn.execute(
+            "INSERT OR REPLACE INTO decision_snapshots "
+            "(bet_id, fixture_id, betting_date, chosen_market, chosen_line, "
+            "chosen_direction, safety_score, all_markets_considered_json, "
+            "reasoning_json, thresholds_json, flip_conditions_json, "
+            "team_a_snapshot_json, team_b_snapshot_json, h2h_snapshot_json, "
+            "three_way_check_json, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                snapshot.bet_id,
+                snapshot.fixture_id,
+                snapshot.betting_date,
+                snapshot.chosen_market,
+                snapshot.chosen_line,
+                snapshot.chosen_direction,
+                snapshot.safety_score,
+                json.dumps(snapshot.all_markets_considered_json, ensure_ascii=False),
+                json.dumps(snapshot.reasoning_json, ensure_ascii=False),
+                json.dumps(snapshot.thresholds_json, ensure_ascii=False),
+                json.dumps(snapshot.flip_conditions_json, ensure_ascii=False),
+                json.dumps(snapshot.team_a_snapshot_json, ensure_ascii=False),
+                json.dumps(snapshot.team_b_snapshot_json, ensure_ascii=False),
+                json.dumps(snapshot.h2h_snapshot_json, ensure_ascii=False),
+                json.dumps(snapshot.three_way_check_json, ensure_ascii=False) if snapshot.three_way_check_json else None,
+                snapshot.created_at or _NOW(),
+            ),
+        )
+
+    def get_by_bet(self, bet_id: int) -> DecisionSnapshot | None:
+        """Get snapshot for a specific bet."""
+        row = self.conn.execute(
+            "SELECT * FROM decision_snapshots WHERE bet_id = ?", (bet_id,)
+        ).fetchone()
+        if not row:
+            return None
+        return self._row_to_model(row)
+
+    def get_by_fixture(self, fixture_id: int) -> list[DecisionSnapshot]:
+        """Get all snapshots for a fixture."""
+        rows = self.conn.execute(
+            "SELECT * FROM decision_snapshots WHERE fixture_id = ?", (fixture_id,)
+        ).fetchall()
+        return [self._row_to_model(r) for r in rows]
+
+    def get_by_date(self, betting_date: str) -> list[DecisionSnapshot]:
+        """Get all snapshots for a betting date."""
+        rows = self.conn.execute(
+            "SELECT * FROM decision_snapshots WHERE betting_date = ?", (betting_date,)
+        ).fetchall()
+        return [self._row_to_model(r) for r in rows]
+
+    @staticmethod
+    def _row_to_model(row: sqlite3.Row) -> DecisionSnapshot:
+        return DecisionSnapshot(
+            id=row["id"],
+            bet_id=row["bet_id"],
+            fixture_id=row["fixture_id"],
+            betting_date=row["betting_date"],
+            chosen_market=row["chosen_market"],
+            chosen_line=row["chosen_line"],
+            chosen_direction=row["chosen_direction"],
+            safety_score=row["safety_score"],
+            all_markets_considered_json=json.loads(row["all_markets_considered_json"]) if row["all_markets_considered_json"] else [],
+            reasoning_json=json.loads(row["reasoning_json"]) if row["reasoning_json"] else {},
+            thresholds_json=json.loads(row["thresholds_json"]) if row["thresholds_json"] else {},
+            flip_conditions_json=json.loads(row["flip_conditions_json"]) if row["flip_conditions_json"] else {},
+            team_a_snapshot_json=json.loads(row["team_a_snapshot_json"]) if row["team_a_snapshot_json"] else {},
+            team_b_snapshot_json=json.loads(row["team_b_snapshot_json"]) if row["team_b_snapshot_json"] else {},
+            h2h_snapshot_json=json.loads(row["h2h_snapshot_json"]) if row["h2h_snapshot_json"] else {},
+            three_way_check_json=json.loads(row["three_way_check_json"]) if row["three_way_check_json"] else None,
+            created_at=row["created_at"] or "",
+        )
+
+
+# ---------------------------------------------------------------------------
+# DecisionOutcomeRepo
+# ---------------------------------------------------------------------------
+
+class DecisionOutcomeRepo:
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+
+    def save(self, outcome: DecisionOutcome) -> None:
+        """Insert or replace decision outcome."""
+        self.conn.execute(
+            "INSERT OR REPLACE INTO decision_outcomes "
+            "(bet_id, fixture_id, betting_date, sport, competition, market, "
+            "line, direction, predicted_value, actual_value, deviation, "
+            "deviation_pct, result, prediction_accuracy_json, pattern_tags_json, "
+            "notes, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                outcome.bet_id,
+                outcome.fixture_id,
+                outcome.betting_date,
+                outcome.sport,
+                outcome.competition,
+                outcome.market,
+                outcome.line,
+                outcome.direction,
+                outcome.predicted_value,
+                outcome.actual_value,
+                outcome.deviation,
+                outcome.deviation_pct,
+                outcome.result,
+                json.dumps(outcome.prediction_accuracy_json, ensure_ascii=False),
+                json.dumps(outcome.pattern_tags_json, ensure_ascii=False),
+                outcome.notes or "",
+                outcome.created_at or _NOW(),
+            ),
+        )
+
+    def get_by_bet(self, bet_id: int) -> DecisionOutcome | None:
+        """Get outcome for a specific bet."""
+        row = self.conn.execute(
+            "SELECT * FROM decision_outcomes WHERE bet_id = ?", (bet_id,)
+        ).fetchone()
+        if not row:
+            return None
+        return self._row_to_model(row)
+
+    def get_by_sport(self, sport: str, limit: int = 100) -> list[DecisionOutcome]:
+        rows = self.conn.execute(
+            "SELECT * FROM decision_outcomes WHERE sport = ? ORDER BY created_at DESC LIMIT ?",
+            (sport, limit),
+        ).fetchall()
+        return [self._row_to_model(r) for r in rows]
+
+    def get_by_market(self, market: str, limit: int = 100) -> list[DecisionOutcome]:
+        rows = self.conn.execute(
+            "SELECT * FROM decision_outcomes WHERE market = ? ORDER BY created_at DESC LIMIT ?",
+            (market, limit),
+        ).fetchall()
+        return [self._row_to_model(r) for r in rows]
+
+    def get_by_sport_and_market(self, sport: str, market: str, limit: int = 100) -> list[DecisionOutcome]:
+        rows = self.conn.execute(
+            "SELECT * FROM decision_outcomes WHERE sport = ? AND market = ? ORDER BY created_at DESC LIMIT ?",
+            (sport, market, limit),
+        ).fetchall()
+        return [self._row_to_model(r) for r in rows]
+
+    def get_by_competition(self, competition: str, limit: int = 100) -> list[DecisionOutcome]:
+        rows = self.conn.execute(
+            "SELECT * FROM decision_outcomes WHERE competition = ? ORDER BY created_at DESC LIMIT ?",
+            (competition, limit),
+        ).fetchall()
+        return [self._row_to_model(r) for r in rows]
+
+    def get_all_settled(self, limit: int = 500) -> list[DecisionOutcome]:
+        rows = self.conn.execute(
+            "SELECT * FROM decision_outcomes ORDER BY created_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        return [self._row_to_model(r) for r in rows]
+
+    def get_deviation_stats(self, sport: str | None = None, market: str | None = None) -> dict:
+        """Get aggregate deviation statistics."""
+        conditions: list[str] = []
+        params: list = []
+        if sport:
+            conditions.append("sport = ?")
+            params.append(sport)
+        if market:
+            conditions.append("market = ?")
+            params.append(market)
+
+        where = "WHERE " + " AND ".join(conditions) if conditions else ""
+        where_with_values = where + (" AND " if conditions else "WHERE ") + "actual_value IS NOT NULL AND predicted_value IS NOT NULL"
+
+        row = self.conn.execute(
+            f"SELECT COUNT(*) as count, "
+            f"AVG(deviation) as avg_deviation, "
+            f"AVG(deviation_pct) as avg_deviation_pct, "
+            f"SUM(CASE WHEN deviation > 0 THEN 1 ELSE 0 END) as overestimate_count, "
+            f"SUM(CASE WHEN deviation < 0 THEN 1 ELSE 0 END) as underestimate_count, "
+            f"SUM(CASE WHEN result = 'won' THEN 1 ELSE 0 END) as won_count, "
+            f"SUM(CASE WHEN result = 'lost' THEN 1 ELSE 0 END) as lost_count "
+            f"FROM decision_outcomes {where_with_values}",
+            params,
+        ).fetchone()
+
+        return {
+            "count": row["count"] or 0,
+            "avg_deviation": round(row["avg_deviation"], 3) if row["avg_deviation"] else 0.0,
+            "avg_deviation_pct": round(row["avg_deviation_pct"], 1) if row["avg_deviation_pct"] else 0.0,
+            "overestimate_count": row["overestimate_count"] or 0,
+            "underestimate_count": row["underestimate_count"] or 0,
+            "won_count": row["won_count"] or 0,
+            "lost_count": row["lost_count"] or 0,
+        }
+
+    @staticmethod
+    def _row_to_model(row: sqlite3.Row) -> DecisionOutcome:
+        return DecisionOutcome(
+            id=row["id"],
+            bet_id=row["bet_id"],
+            fixture_id=row["fixture_id"],
+            betting_date=row["betting_date"],
+            sport=row["sport"],
+            competition=row["competition"] or "",
+            market=row["market"],
+            line=row["line"],
+            direction=row["direction"],
+            predicted_value=row["predicted_value"],
+            actual_value=row["actual_value"],
+            deviation=row["deviation"],
+            deviation_pct=row["deviation_pct"],
+            result=row["result"],
+            prediction_accuracy_json=json.loads(row["prediction_accuracy_json"]) if row["prediction_accuracy_json"] else {},
+            pattern_tags_json=json.loads(row["pattern_tags_json"]) if row["pattern_tags_json"] else [],
+            notes=row["notes"] or "",
             created_at=row["created_at"] or "",
         )

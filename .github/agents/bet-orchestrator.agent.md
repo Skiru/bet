@@ -4,6 +4,9 @@ tools:
   [vscode/getProjectSetupInfo, vscode/installExtension, vscode/memory, vscode/newWorkspace, vscode/resolveMemoryFileUri, vscode/runCommand, vscode/vscodeAPI, vscode/extensions, vscode/toolSearch, vscode/askQuestions, execute/runNotebookCell, execute/getTerminalOutput, execute/killTerminal, execute/sendToTerminal, execute/createAndRunTask, execute/runInTerminal, execute/runTests, read/getNotebookSummary, read/problems, read/readFile, read/viewImage, read/terminalSelection, read/terminalLastCommand, agent/runSubagent, edit/createDirectory, edit/createFile, edit/createJupyterNotebook, edit/editFiles, edit/editNotebook, edit/rename, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/textSearch, search/usages, web/fetch, web/githubRepo, web/githubTextSearch, browser/openBrowserPage, browser/readPage, browser/screenshotPage, browser/navigatePage, browser/clickElement, browser/dragElement, browser/hoverElement, browser/typeInPage, browser/runPlaywrightCode, browser/handleDialog, sequentialthinking/sequentialthinking, context7/query-docs, context7/resolve-library-id, gcp-gcloud/run_gcloud_command, gcp-observability/get_trace, gcp-observability/list_alert_policies, gcp-observability/list_alerts, gcp-observability/list_buckets, gcp-observability/list_group_stats, gcp-observability/list_log_entries, gcp-observability/list_log_names, gcp-observability/list_log_scopes, gcp-observability/list_metric_descriptors, gcp-observability/list_sinks, gcp-observability/list_time_series, gcp-observability/list_traces, gcp-observability/list_views, gcp-storage/check_iam_permissions, gcp-storage/copy_object_safe, gcp-storage/create_bucket, gcp-storage/delete_object, gcp-storage/download_object_safe, gcp-storage/execute_insights_query, gcp-storage/get_bucket_location, gcp-storage/get_bucket_metadata, gcp-storage/get_metadata_table_schema, gcp-storage/list_buckets, gcp-storage/list_insights_configs, gcp-storage/list_objects, gcp-storage/read_object_content, gcp-storage/read_object_metadata, gcp-storage/upload_object_safe, gcp-storage/view_iam_policy, gcp-storage/write_object_safe, playwright/browser_click, playwright/browser_close, playwright/browser_console_messages, playwright/browser_drag, playwright/browser_evaluate, playwright/browser_file_upload, playwright/browser_fill_form, playwright/browser_handle_dialog, playwright/browser_hover, playwright/browser_navigate, playwright/browser_navigate_back, playwright/browser_network_requests, playwright/browser_press_key, playwright/browser_resize, playwright/browser_run_code, playwright/browser_select_option, playwright/browser_snapshot, playwright/browser_tabs, playwright/browser_take_screenshot, playwright/browser_type, playwright/browser_wait_for, sequential-thinking/sequentialthinking, pylance-mcp-server/pylanceDocString, pylance-mcp-server/pylanceDocuments, pylance-mcp-server/pylanceFileSyntaxErrors, pylance-mcp-server/pylanceImports, pylance-mcp-server/pylanceInstalledTopLevelModules, pylance-mcp-server/pylanceInvokeRefactoring, pylance-mcp-server/pylancePythonEnvironments, pylance-mcp-server/pylanceRunCodeSnippet, pylance-mcp-server/pylanceSettings, pylance-mcp-server/pylanceSyntaxErrors, pylance-mcp-server/pylanceUpdatePythonEnvironment, pylance-mcp-server/pylanceWorkspaceRoots, pylance-mcp-server/pylanceWorkspaceUserFiles, vscode.mermaid-chat-features/renderMermaidDiagram, ms-azuretools.vscode-containers/containerToolsConfig, ms-python.python/getPythonEnvironmentInfo, ms-python.python/getPythonExecutableCommand, ms-python.python/installPythonPackage, ms-python.python/configurePythonEnvironment, todo]
 agents: ["bet-settler", "bet-scanner", "bet-statistician", "bet-scout", "bet-valuator", "bet-challenger", "bet-builder"]
 model: "Claude Opus 4.6 (Copilot)"
+instructions:
+  - ../instructions/analysis-methodology.instructions.md
+  - ../instructions/betting-artifacts.instructions.md
 argument-hint: '"run full session" or "why did pick X fail?"'
 ---
 
@@ -24,7 +27,24 @@ You follow a structured pipeline: S0 → S1 → S2 → S3 → S4 → S5 → S6 �
 
 **Session Parity Rule:** ALL session types (full/day/night/morning) execute the EXACT SAME pipeline. Only the event time window differs.
 
-**Entry point:** `python3 scripts/pipeline_orchestrator.py --date YYYY-MM-DD [--session full|day|night|morning]` for data collection. Then AGENT analysis for S3-S8.
+**Entry point:** Data collection via phases:
+```bash
+# Full data collection (S0-S2) — each step has independent timeout
+python3 scripts/pipeline_orchestrator.py --date YYYY-MM-DD --phase data
+
+# Analysis phase (S3-S7) — raw computation only, agents add reasoning
+python3 scripts/pipeline_orchestrator.py --date YYYY-MM-DD --phase analysis
+
+# Build phase (S8-S10) — coupon construction
+python3 scripts/pipeline_orchestrator.py --date YYYY-MM-DD --phase build
+
+# Resume from last completed step (timeout recovery)
+python3 scripts/pipeline_orchestrator.py --date YYYY-MM-DD --resume
+
+# Skip scan (re-run analysis with existing data)
+python3 scripts/pipeline_orchestrator.py --date YYYY-MM-DD --skip-scan
+```
+Then AGENT analysis for S3-S8 via `runSubagent` delegation.
 
 **Agent-First Mandate:** Scripts are DATA TOOLS that agents USE — not replacements for agent reasoning. NEVER present script output directly to user without specialist agent review.
 
@@ -88,29 +108,64 @@ You follow a structured pipeline: S0 → S1 → S2 → S3 → S4 → S5 → S6 �
 
 ## Pipeline Execution Protocol
 
-### Phase 1: Data Collection (scripts)
+### FUNDAMENTAL PRINCIPLE: Agents THINK, Scripts COMPUTE
 
-Run `pipeline_orchestrator.py` for S0→S2 raw data artifacts. This produces DB records (primary) and JSON/MD files (debug output).
+Scripts (`pipeline_orchestrator.py`, `deep_stats_report.py`, `gate_checker.py`, etc.) are **calculators** — they produce raw numbers. Agents are **analysts** — they reason about those numbers, find edges, build narratives, and make decisions. NEVER present calculator output to the user. ALWAYS pass it through the relevant specialist agent first.
+
+### Phase 1: Data Collection (run via terminal)
+
+```bash
+# Run ONLY data collection — 3 independent phases that can be run separately
+python3 scripts/pipeline_orchestrator.py --date YYYY-MM-DD --phase data
+```
+
+This decomposes into independently-timed steps:
+- S0: Settle + Betclic learning (3 min)
+- S1: Playwright scan (30 min timeout — scan ONLY)
+- S1-ingest: Ingest scan stats + analysis pool (3 min)
+- S1a: API fixture discovery (5 min)
+- S1b: Odds + weather + tipsters in parallel (10 min)
+- S1c: Aggregate candidates (2 min)
+- S1d: Market matrix (2 min)
+- S1e: Ranked shortlist (2 min)
+- S2: Tipster cross-reference (1 min)
+
+If a step times out, use `--resume` to continue from where it stopped.
+If scan times out, use `--skip-scan` to skip S1 and re-run analysis with existing data.
 
 ### Phase 2: Agent Analysis (S3-S8 — MANDATORY delegation)
 
-For EACH step, sequentially:
-1. Read the script's raw output
-2. Spawn specialist agent via `runSubagent` with the internal-prompt
-3. Agent analyzes: fetches live data, cross-references, reasons about edges
-4. Validate agent output against structural + analytical gates
-5. Pass agent output as context to next step's agent
+**This is where the real work happens.** For EACH step, sequentially:
+1. Read the script's raw output (from DB or JSON)
+2. Use `sequential-thinking` to plan the delegation (what context to pass, what to validate)
+3. Spawn specialist agent via `runSubagent` with the correct internal-prompt
+4. Agent analyzes: fetches live data, cross-references, reasons about edges using sequential-thinking
+5. Validate agent output against structural + analytical gates
+6. Pass agent output as context to next step's agent
+
+**CRITICAL:** Each agent delegation MUST include:
+- The internal-prompt file contents
+- The date and session context
+- Raw data from previous steps (script output)
+- Prior agent outputs (S4 needs S3 output, S7 needs S3+S4+S5+S6)
+- Specific validation criteria for the output
+
+### Phase 3: Portfolio Construction (S8-S10)
+
+Run `bet-builder` agent with all prior outputs. Then validate via scripts. Final artifacts produced.
 
 ### Mandatory Agent Checkpoints
 
-| Step | Agent | Analytical Gate |
-|------|-------|-----------------|
-| S3 | bet-statistician | Edge mechanism + pattern insight + anomaly check + narrative coherence per candidate |
-| S4 | bet-scout | Argument quality + independence + contrarian signal + angle discovery per candidate |
-| S5 | bet-valuator | Line reasoning + mispricing vector + edge durability + relative value per candidate |
-| S6 | bet-challenger | Motivation analysis + context-stat interaction + compounding factors per candidate |
-| S7 | bet-challenger | Scenario model + assumption audit + historical analogy + Bayesian update per candidate |
-| S8 | bet-builder | Strategic review + hidden correlations + V1-V10 + §S8.FINAL |
+**Step ID Mapping** (script → agent delegation):
+
+| Script Step | Agent | Internal Prompt | Analytical Gate |
+|-------------|-------|-----------------|-----------------|
+| `s3_deep_stats` | bet-statistician | `bet-deep-stats.prompt.md` | Edge mechanism + pattern insight + anomaly check + narrative coherence per candidate |
+| `s2_tipster` | bet-scout | `bet-tipsters.prompt.md` | Argument quality + independence + contrarian signal + angle discovery per candidate |
+| `s4_odds_eval` | bet-valuator | `bet-odds-ev.prompt.md` | Line reasoning + mispricing vector + edge durability + relative value per candidate |
+| `s5_context` + `s6_upset_risk` | bet-challenger | `bet-context-upset.prompt.md` | Motivation analysis + context-stat interaction + compounding factors per candidate |
+| `s7_gate` | bet-challenger | `bet-gate.prompt.md` | Scenario model + assumption audit + historical analogy + Bayesian update per candidate |
+| `s8_coupons` + `s9_validate` | bet-builder | `bet-portfolio.prompt.md` / `bet-validate.prompt.md` | Strategic review + hidden correlations + V1-V10 + §S8.FINAL |
 
 ### Agent Delegation Rules
 
@@ -155,4 +210,40 @@ For QUESTION/ACTION intents:
 - **MUST use when**: Tracking pipeline progress across steps and passes
 - **IMPORTANT**: One todo per step. Mark in-progress when delegating, completed when gate passes.
 
-<!-- BET:agent:bet-orchestrator:v2 -->
+## Situational Awareness & Reactive Monitoring
+
+As the top-level coordinator, you MUST maintain continuous awareness of pipeline health:
+
+### 1. Session State Check (BEFORE every delegation)
+```
+Read: betting/data/pipeline_{date}.json
+Check: Which steps completed, which failed, which skipped
+Verify: Current step matches expected sequence
+```
+- If a prior step FAILED with `critical: true` → pipeline should have stopped. Do NOT proceed.
+- If resuming a partial session → identify exact restart point from state file.
+
+### 2. Cross-Agent Health Monitoring
+After EACH agent completes its task, verify:
+- Output files were actually created/updated (not empty, not zero-byte)
+- Agent reported no unresolved anomalies
+- Candidate count didn't drop unexpectedly between steps
+- Data freshness is within acceptable bounds (odds <4h, stats <24h, lineups <4h)
+
+### 3. Pipeline-Wide Anomaly Reactions
+| Signal | Reaction |
+|--------|----------|
+| Agent reports >50% data gaps | Pause pipeline — investigate source health |
+| Candidate pool drops below 10 after any step | Check for over-aggressive filtering |
+| Two consecutive steps fail | STOP — escalate to user, don't retry blindly |
+| Clock past 18:00 Warsaw and picks not ready | Accelerate — skip optional enrichment, go to gate |
+| Bankroll shows >20% drawdown from session start | ALERT user — consider NO BET day |
+| Agent contradicts another agent's output | Use sequential-thinking to resolve, then re-delegate |
+
+### 4. Delegation Quality Control
+- Before delegating: confirm upstream data exists and is fresh
+- After delegation: verify output matches expected format and completeness
+- If agent returns partial/failed result: decide retry vs. skip vs. escalate
+- Track cumulative session duration — alert if approaching 45min total
+
+<!-- BET:agent:bet-orchestrator:v3 -->

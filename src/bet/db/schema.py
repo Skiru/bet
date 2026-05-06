@@ -4,7 +4,7 @@ import sqlite3
 from pathlib import Path
 
 SCHEMA_SQL = Path(__file__).parent / "schema.sql"
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 def init_db(conn: sqlite3.Connection) -> None:
@@ -72,5 +72,11 @@ def migrate(conn: sqlite3.Connection, from_version: int, to_version: int) -> Non
             "  GROUP BY team_id, stat_key, COALESCE(h2h_opponent_id, 0)"
             ")"
         )
+
+    if from_version < 4:
+        # v4: Decision learning tables
+        migration_path = Path(__file__).parent / "migrations" / "003_decision_learning.sql"
+        if migration_path.exists():
+            conn.executescript(migration_path.read_text(encoding="utf-8"))
 
     conn.commit()

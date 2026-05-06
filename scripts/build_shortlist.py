@@ -463,20 +463,23 @@ def build_shortlist(
         if dedup_key in seen_matchups or dedup_key_rev in seen_matchups:
             continue
         # Fuzzy substring dedup: check if either team name is a substring of an existing entry
+        # Minimum length threshold of 5 to avoid false positives with short names
+        # (e.g., "PSG" matching "APSG", "Bar" matching "Barca")
+        MIN_FUZZY_LEN = 5
         is_dup = False
         for existing_key in seen_matchups:
             ex_parts = existing_key.split("|", 2)
             if len(ex_parts) != 3 or ex_parts[0] != sport:
                 continue
             ex_home, ex_away = ex_parts[1], ex_parts[2]
-            home_match = (home in ex_home or ex_home in home) and len(home) >= 3 and len(ex_home) >= 3
-            away_match = (away in ex_away or ex_away in away) and len(away) >= 3 and len(ex_away) >= 3
+            home_match = (home in ex_home or ex_home in home) and len(home) >= MIN_FUZZY_LEN and len(ex_home) >= MIN_FUZZY_LEN
+            away_match = (away in ex_away or ex_away in away) and len(away) >= MIN_FUZZY_LEN and len(ex_away) >= MIN_FUZZY_LEN
             if home_match and away_match:
                 is_dup = True
                 break
             # Also check crossed: home↔away
-            home_match_rev = (home in ex_away or ex_away in home) and len(home) >= 3
-            away_match_rev = (away in ex_home or ex_home in away) and len(away) >= 3
+            home_match_rev = (home in ex_away or ex_away in home) and len(home) >= MIN_FUZZY_LEN and len(ex_home) >= MIN_FUZZY_LEN
+            away_match_rev = (away in ex_home or ex_home in away) and len(away) >= MIN_FUZZY_LEN and len(ex_away) >= MIN_FUZZY_LEN
             if home_match_rev and away_match_rev:
                 is_dup = True
                 break

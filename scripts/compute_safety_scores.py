@@ -149,8 +149,8 @@ def compute_combined_values(market: dict) -> list[float]:
 def compute_combined_l5(market: dict) -> list[float]:
     """Compute combined L5 values from team A + team B."""
     is_combined = market.get("is_combined", True)
-    a_vals = market.get("team_a_l5", market.get("team_a_l10", [])[-5:])
-    b_vals = market.get("team_b_l5", market.get("team_b_l10", [])[-5:])
+    a_vals = market.get("team_a_l5") or market.get("team_a_l10", [])[-5:]
+    b_vals = market.get("team_b_l5") or market.get("team_b_l10", [])[-5:]
 
     if is_combined:
         min_len = min(len(a_vals), len(b_vals))
@@ -232,6 +232,7 @@ def compute_three_way_check(
     # Count support
     primary_dir = l10_dir
     support_count = 1  # L10 always supports itself
+    h2h_missing = h2h_dir == "N/A"
 
     directions = [l10_dir]
     if h2h_dir != "N/A":
@@ -255,6 +256,10 @@ def compute_three_way_check(
             alignment = f"{total}/{total} CONFLICT → REJECT"
         else:
             alignment = f"{support_count}/{total} CONFLICT → DOWNGRADE"
+
+    # Mark when H2H is missing so alignment doesn't mask incomplete data
+    if h2h_missing:
+        alignment += " (H2H N/A)"
 
     return {
         "l10_avg": round(l10_avg, 2),
@@ -323,6 +328,12 @@ def rank_markets(data: dict) -> dict:
             penalty = H2H_MISSING_PENALTY.get(sport, 0.75)
             safety = round(rate_l10 * penalty, 2)
 
+        # ONE-SIDED penalty: when one team has zero data in a combined market,
+        # the safety score is less reliable — apply 0.70 penalty (same as H2H-missing)
+        one_sided = market.get("one_sided", False)
+        if one_sided:
+            safety = round(safety * 0.70, 2)
+
         # Margin
         margin = compute_margin(l10_avg, line, direction)
 
@@ -347,6 +358,7 @@ def rank_markets(data: dict) -> dict:
             "margin": margin,
             "source": source,
             "h2h_blind": total_h2h == 0,
+            "one_sided": one_sided,
             "three_way_check": per_market_three_way,
         })
 

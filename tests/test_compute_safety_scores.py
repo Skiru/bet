@@ -201,6 +201,9 @@ class TestComputeThreeWayCheck(unittest.TestCase):
         result = compute_three_way_check(12.0, 0.0, 13.0, 9.5)
         self.assertEqual(result["h2h_direction"], "N/A")
         self.assertIsNone(result["h2h_avg"])
+        # Must indicate H2H is missing in alignment string
+        self.assertIn("H2H N/A", result["alignment"])
+        self.assertIn("SUPPORT", result["alignment"])
 
     def test_trend_up(self):
         # L5 > L10 by >5%

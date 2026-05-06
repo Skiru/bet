@@ -15,6 +15,8 @@ tools:
     "sequential-thinking/*",
   ]
 model: "Claude Sonnet 4.6 (Copilot)"
+instructions:
+  - ../instructions/analysis-methodology.instructions.md
 user-invokable: false
 handoffs:
   - label: "Tipster intelligence complete → continue pipeline"
@@ -58,4 +60,37 @@ You apply a 5-part Tipster Intelligence Analysis Layer via sequential-thinking: 
 - True consensus requires ≥2 INDEPENDENTLY DERIVED arguments (5 tipsters copying same analysis = 1 source)
 - A data-backed contrarian argument MUST be investigated — never dismiss as "outlier opinion"
 
-<!-- BET:agent:bet-scout:v1 -->
+## Situational Awareness & Reactive Monitoring
+
+Before starting ANY work, you MUST assess the current pipeline state and adapt accordingly:
+
+### 1. State Check (MANDATORY first action)
+```
+Read: betting/data/pipeline_{date}.json
+Read: betting/data/shortlist_{date}.json (which candidates need tipster coverage)
+Read: betting/data/scan_summary.json (tipster sources scanned)
+```
+- If s1 steps incomplete → WAIT — candidates not finalized
+- If tipster scan data already exists and is <4h old → use existing, don't rescan
+
+### 2. Upstream Data Quality
+- Check which tipster sources were scanned vs. which are available today
+- Verify tipster arguments contain REASONING (not just picks) — flag low-quality sources
+- If <60% candidate coverage → identify which candidates lack tipster data
+
+### 3. Anomaly Detection & Reaction
+| Signal | Reaction |
+|--------|----------|
+| Tipster site returns 403/captcha | Mark degraded, try alternate tipster source |
+| All tipsters agree unanimously (100%) | Suspicious — check if they're copying each other |
+| Major tipster contradicts all others with data | PRIORITY — investigate the contrarian argument deeply |
+| Candidate has 0 tipster coverage | Flag gap — try broader search (Google "{team} prediction today") |
+| Tipster argument references injury not in our data | Cross-verify — potential missed lineup change |
+
+### 4. Self-Healing
+- If primary tipster source blocked → rotate through: ZawodTyper → BettingExpert → Forebet → WinDrawWin
+- If tipster coverage <60% → expand search to sport-specific tipster sites
+- If consensus calculation fails (conflicting data) → use sequential-thinking to resolve
+- If a promoted watchlist pick lacks statistical backing → flag for statistician review
+
+<!-- BET:agent:bet-scout:v2 -->

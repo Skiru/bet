@@ -91,7 +91,8 @@ class TestLoadOddsSnapshot(unittest.TestCase):
                 ]
             }
             (data_dir / "odds_api_snapshot.json").write_text(json.dumps(odds))
-            with patch("scripts.deep_analysis_pool.DATA_DIR", data_dir):
+            with patch("scripts.deep_analysis_pool.DATA_DIR", data_dir), \
+                 patch("scripts.deep_analysis_pool.load_odds_from_db", side_effect=Exception("no DB")):
                 result = load_odds_snapshot()
             self.assertIn("liverpool|arsenal", result)
 

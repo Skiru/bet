@@ -667,6 +667,12 @@ def generate_market_matrix(
     sport_counts = defaultdict(int)
     market_type_counts = defaultdict(int)
 
+    # Pre-gate phantom check: filter already-played events
+    # Only filter events whose kickoff date doesn't match the target date
+    # AND the kickoff is >2h in the past (defense against phantom fixtures)
+    now_utc = datetime.now(timezone.utc)
+    already_played_count = 0
+
     for fixture in fixtures:
         sport = fixture.get("sport", "football")
         home = fixture.get("home_team", fixture.get("home", ""))
@@ -677,6 +683,27 @@ def generate_market_matrix(
 
         if not home or not away:
             continue
+
+        # PHANTOM/ALREADY-PLAYED FILTER: skip events that have already started
+        # An event is considered "already played" if its kickoff is >2h in the past
+        # AND its date doesn't match the target betting date (to avoid filtering
+        # same-day events when running analysis ahead of time)
+        if kickoff and "T" in kickoff:
+            try:
+                ko_str = kickoff.replace("Z", "+00:00")
+                ko_dt = datetime.fromisoformat(ko_str)
+                if ko_dt.tzinfo is None:
+                    from datetime import timedelta
+                    ko_dt = ko_dt.replace(tzinfo=timezone(timedelta(hours=2)))
+                ko_date_str = ko_dt.strftime("%Y-%m-%d")
+                # Only filter if kickoff date doesn't match target date
+                if ko_date_str != date:
+                    elapsed_hours = (now_utc - ko_dt.astimezone(timezone.utc)).total_seconds() / 3600
+                    if elapsed_hours > 2:
+                        already_played_count += 1
+                        continue
+            except (ValueError, TypeError, IndexError):
+                pass
 
         # Evening filter
         if evening_only and kickoff:
@@ -826,7 +853,11 @@ def generate_market_matrix(
                 event["scores24_form"] = scores24_data["form"]
         events.append(event)
 
+    if already_played_count:
+        print(f"[matrix] Filtered {already_played_count} already-played events (kickoff >2h ago)")
+
     # Deduplicate events: same teams in same sport = likely same event
+    # Pass 1: exact normalized matching with merge
     deduped_events = []
     seen_matchups: set[str] = set()
     for event in events:
@@ -866,10 +897,43 @@ def generate_market_matrix(
         seen_matchups.add(dedup_key)
         deduped_events.append(event)
 
-    n_deduped = len(events) - len(deduped_events)
-    if n_deduped:
-        print(f"[matrix] Deduplicated {n_deduped} events ({len(events)} → {len(deduped_events)})")
-    events = deduped_events
+    n_exact_deduped = len(events) - len(deduped_events)
+
+    # Pass 2: fuzzy substring dedup (catches "Dnipro" vs "Dnipro-1", "FK Ventspils" vs "Ventspils")
+    fuzzy_deduped = []
+    fuzzy_keys: list[tuple[str, str, str]] = []  # (sport, home, away)
+    fuzzy_removed = 0
+    for event in deduped_events:
+        h = _normalize(event.get("home_team", "")).lower().strip()
+        a = _normalize(event.get("away_team", "")).lower().strip()
+        sport = event.get("sport", "")
+        is_fuzzy_dup = False
+        for (ex_sport, ex_h, ex_a) in fuzzy_keys:
+            if ex_sport != sport:
+                continue
+            # Substring match: both home and away are substrings of existing (or vice versa)
+            home_match = (h in ex_h or ex_h in h) and len(h) >= 4 and len(ex_h) >= 4
+            away_match = (a in ex_a or ex_a in a) and len(a) >= 4 and len(ex_a) >= 4
+            if home_match and away_match:
+                is_fuzzy_dup = True
+                break
+            # Crossed order check
+            home_cross = (h in ex_a or ex_a in h) and len(h) >= 4 and len(ex_a) >= 4
+            away_cross = (a in ex_h or ex_h in a) and len(a) >= 4 and len(ex_h) >= 4
+            if home_cross and away_cross:
+                is_fuzzy_dup = True
+                break
+        if is_fuzzy_dup:
+            fuzzy_removed += 1
+            continue
+        fuzzy_keys.append((sport, h, a))
+        fuzzy_deduped.append(event)
+
+    total_deduped = n_exact_deduped + fuzzy_removed
+    if total_deduped:
+        print(f"[matrix] Deduplicated {total_deduped} events ({len(events)} → {len(fuzzy_deduped)}) "
+              f"[exact: {n_exact_deduped}, fuzzy: {fuzzy_removed}]")
+    events = fuzzy_deduped
 
     # Sort: FULL first, then ODDS_RICH, then by sport
     tier_order = {"FULL": 0, "ODDS_RICH": 1, "ODDS_BASIC": 2, "STATS_ONLY": 3, "FIXTURE_ONLY": 4}
@@ -1063,68 +1127,68 @@ def write_matrix_json(matrix: dict, date: str) -> Path:
 
 STANDARD_MARKET_LINES: dict[str, list[dict]] = {
     "football": [
-        {"market": "Corners Total", "lines": [8.5, 9.5, 10.5, 11.5], "stat": "corners"},
-        {"market": "Team Corners", "lines": [3.5, 4.5, 5.5], "stat": "corners"},
-        {"market": "Cards Total", "lines": [3.5, 4.5, 5.5], "stat": "yellow_cards"},
-        {"market": "Fouls Total", "lines": [20.5, 22.5, 24.5], "stat": "fouls"},
-        {"market": "Shots on Target", "lines": [4.5, 5.5, 6.5, 7.5], "stat": "shots_on_target"},
-        {"market": "Goals Total", "lines": [1.5, 2.5, 3.5], "stat": "goals"},
+        {"market": "Corners Total", "lines": [8.5, 9.5, 10.5, 11.5], "stat": "corners", "is_combined": True},
+        {"market": "Team Corners", "lines": [3.5, 4.5, 5.5], "stat": "corners", "is_combined": False},
+        {"market": "Cards Total", "lines": [3.5, 4.5, 5.5], "stat": "yellow_cards", "is_combined": True},
+        {"market": "Fouls Total", "lines": [20.5, 22.5, 24.5], "stat": "fouls", "is_combined": True},
+        {"market": "Shots on Target", "lines": [4.5, 5.5, 6.5, 7.5], "stat": "shots_on_target", "is_combined": True},
+        {"market": "Goals Total", "lines": [1.5, 2.5, 3.5], "stat": "goals", "is_combined": True},
     ],
     "basketball": [
-        {"market": "Total Points", "lines": [195.5, 205.5, 215.5, 225.5], "stat": "points"},
-        {"market": "Team Points", "lines": [95.5, 100.5, 105.5, 110.5], "stat": "points"},
-        {"market": "Total Rebounds", "lines": [40.5, 42.5, 44.5], "stat": "rebounds"},
-        {"market": "Total Assists", "lines": [22.5, 24.5, 26.5], "stat": "assists"},
+        {"market": "Total Points", "lines": [195.5, 205.5, 215.5, 225.5], "stat": "points", "is_combined": True},
+        {"market": "Team Points", "lines": [95.5, 100.5, 105.5, 110.5], "stat": "points", "is_combined": False},
+        {"market": "Total Rebounds", "lines": [40.5, 42.5, 44.5], "stat": "rebounds", "is_combined": True},
+        {"market": "Total Assists", "lines": [22.5, 24.5, 26.5], "stat": "assists", "is_combined": True},
     ],
     "tennis": [
-        {"market": "Total Games", "lines": [19.5, 21.5, 22.5, 23.5], "stat": "total_games"},
-        {"market": "Total Aces", "lines": [8.5, 10.5, 12.5], "stat": "aces"},
-        {"market": "Total Sets", "lines": [2.5], "stat": "sets_won"},
+        {"market": "Total Games", "lines": [19.5, 21.5, 22.5, 23.5], "stat": "total_games", "is_combined": True},
+        {"market": "Total Aces", "lines": [8.5, 10.5, 12.5], "stat": "aces", "is_combined": True},
+        {"market": "Total Sets", "lines": [2.5], "stat": "sets_won", "is_combined": True},
     ],
     "volleyball": [
-        {"market": "Total Sets", "lines": [3.5, 4.5], "stat": "sets_won"},
-        {"market": "Total Points", "lines": [150.5, 160.5, 170.5, 180.5], "stat": "total_points"},
+        {"market": "Total Sets", "lines": [3.5, 4.5], "stat": "sets_won", "is_combined": True},
+        {"market": "Total Points", "lines": [150.5, 160.5, 170.5, 180.5], "stat": "total_points", "is_combined": True},
     ],
     "hockey": [
-        {"market": "Total Goals", "lines": [4.5, 5.5, 6.5], "stat": "goals"},
-        {"market": "Total Shots", "lines": [55.5, 60.5, 65.5], "stat": "shots"},
+        {"market": "Total Goals", "lines": [4.5, 5.5, 6.5], "stat": "goals", "is_combined": True},
+        {"market": "Total Shots", "lines": [55.5, 60.5, 65.5], "stat": "shots", "is_combined": True},
     ],
     "handball": [
-        {"market": "Total Goals", "lines": [48.5, 50.5, 52.5, 54.5], "stat": "goals"},
-        {"market": "Team Goals", "lines": [24.5, 26.5, 28.5], "stat": "goals"},
+        {"market": "Total Goals", "lines": [48.5, 50.5, 52.5, 54.5], "stat": "goals", "is_combined": True},
+        {"market": "Team Goals", "lines": [24.5, 26.5, 28.5], "stat": "goals", "is_combined": False},
     ],
     "snooker": [
-        {"market": "Total Frames", "lines": [8.5, 9.5, 10.5, 12.5], "stat": "total_frames"},
+        {"market": "Total Frames", "lines": [8.5, 9.5, 10.5, 12.5], "stat": "total_frames", "is_combined": True},
     ],
     "darts": [
-        {"market": "Total 180s", "lines": [5.5, 7.5, 9.5], "stat": "one_eighties"},
-        {"market": "Total Legs", "lines": [6.5, 8.5, 10.5], "stat": "total_legs"},
+        {"market": "Total 180s", "lines": [5.5, 7.5, 9.5], "stat": "one_eighties", "is_combined": True},
+        {"market": "Total Legs", "lines": [6.5, 8.5, 10.5], "stat": "total_legs", "is_combined": True},
     ],
     "table_tennis": [
-        {"market": "Total Sets", "lines": [3.5, 4.5], "stat": "total_sets"},
-        {"market": "Total Points", "lines": [75.5, 80.5, 85.5], "stat": "total_points"},
+        {"market": "Total Sets", "lines": [3.5, 4.5], "stat": "total_sets", "is_combined": True},
+        {"market": "Total Points", "lines": [75.5, 80.5, 85.5], "stat": "total_points", "is_combined": True},
     ],
     "baseball": [
-        {"market": "Total Runs", "lines": [6.5, 7.5, 8.5, 9.5], "stat": "total_runs"},
-        {"market": "Total Hits", "lines": [14.5, 16.5, 18.5], "stat": "hits"},
-        {"market": "Total Strikeouts", "lines": [12.5, 14.5, 16.5], "stat": "strikeouts"},
+        {"market": "Total Runs", "lines": [6.5, 7.5, 8.5, 9.5], "stat": "total_runs", "is_combined": True},
+        {"market": "Total Hits", "lines": [14.5, 16.5, 18.5], "stat": "hits", "is_combined": True},
+        {"market": "Total Strikeouts", "lines": [12.5, 14.5, 16.5], "stat": "strikeouts", "is_combined": True},
     ],
     "esports": [
-        {"market": "Total Maps", "lines": [2.5, 3.5], "stat": "total_maps"},
-        {"market": "Total Rounds", "lines": [24.5, 26.5], "stat": "total_rounds"},
+        {"market": "Total Maps", "lines": [2.5, 3.5], "stat": "total_maps", "is_combined": True},
+        {"market": "Total Rounds", "lines": [24.5, 26.5], "stat": "total_rounds", "is_combined": True},
     ],
     "mma": [
-        {"market": "Total Rounds", "lines": [1.5, 2.5], "stat": "rounds"},
+        {"market": "Total Rounds", "lines": [1.5, 2.5], "stat": "rounds", "is_combined": True},
     ],
     "padel": [
-        {"market": "Total Games", "lines": [20.5, 22.5, 24.5], "stat": "total_games"},
-        {"market": "Total Sets", "lines": [2.5], "stat": "sets_won"},
+        {"market": "Total Games", "lines": [20.5, 22.5, 24.5], "stat": "total_games", "is_combined": True},
+        {"market": "Total Sets", "lines": [2.5], "stat": "sets_won", "is_combined": True},
     ],
     "speedway": [
-        {"market": "Total Points", "lines": [80.5, 85.5, 90.5], "stat": "total_points"},
+        {"market": "Total Points", "lines": [80.5, 85.5, 90.5], "stat": "total_points", "is_combined": True},
     ],
     "australian_football": [
-        {"market": "Total Points", "lines": [150.5, 160.5, 170.5, 180.5], "stat": "total_points"},
+        {"market": "Total Points", "lines": [150.5, 160.5, 170.5, 180.5], "stat": "total_points", "is_combined": True},
     ],
 }
 
@@ -1282,9 +1346,32 @@ def generate_decision_matrix(
             if not has_stat_odds:
                 std_markets = STANDARD_MARKET_LINES.get(sport, [])
                 for std_mkt in std_markets:
-                    # Pick the middle line as the default suggestion
                     lines = std_mkt["lines"]
-                    mid_line = lines[len(lines) // 2]
+                    is_combined = std_mkt.get("is_combined", True)
+                    stat_key = std_mkt["stat"]
+
+                    # Dynamic line selection: use team averages from safety_markets
+                    # or event-level stats to pick the closest standard line
+                    calibrated_line = None
+                    team_avg = None
+                    for sm in event.get("safety_markets", []):
+                        sm_stat = sm.get("stat_key", "")
+                        if sm_stat == stat_key or stat_key in sm.get("market", "").lower():
+                            l10_avg = sm.get("l10_avg")
+                            if l10_avg is not None:
+                                team_avg = l10_avg
+                                break
+
+                    if team_avg is not None:
+                        # For combined markets, team_avg is already the match total
+                        # For team-level markets (is_combined=False), team_avg is
+                        # per-team so use it directly against team-level lines
+                        # Pick the standard line closest to the average
+                        calibrated_line = min(lines, key=lambda l: abs(l - team_avg))
+                    else:
+                        # Fallback: static middle line
+                        calibrated_line = lines[len(lines) // 2]
+
                     opp = {
                         "sport": sport,
                         "competition": comp,
@@ -1292,17 +1379,19 @@ def generate_decision_matrix(
                         "home_team": home,
                         "away_team": away,
                         "kickoff": kickoff,
-                        "market": f"{std_mkt['market']} O/U {mid_line}",
+                        "market": f"{std_mkt['market']} O/U {calibrated_line}",
                         "market_type": "stats_first_suggestion",
                         "odds": None,
                         "bookmaker": "CHECK_BETCLIC",
                         "data_tier": tier,
                         "safety_score": None,
-                        "l10_avg": None,
+                        "l10_avg": team_avg,
                         "h2h_avg": None,
                         "direction": None,
                         "suggested_lines": lines,
-                        "stat_key": std_mkt["stat"],
+                        "stat_key": stat_key,
+                        "is_combined": is_combined,
+                        "calibrated_from_avg": team_avg is not None,
                         "odds_source": "none",
                     }
                     opportunities.append(opp)

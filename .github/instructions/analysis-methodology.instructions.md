@@ -433,6 +433,8 @@ L10 AVERAGE → [value] → hit rate vs line: [X/10]
 H2H AVERAGE → [value] → hit rate vs line: [X/5]
 L5 RECENT  → [value] → trend: [UP/DOWN/STABLE]
 ALL THREE must support the pick direction. 2/3 conflict → DOWNGRADE. 3/3 conflict → REJECT.
+When H2H is unavailable, alignment shows "(H2H N/A)" — e.g. "2/2 SUPPORT (H2H N/A)".
+This passes the gate but signals incomplete validation to the user.
 ```
 
 ### §3.0d DATA PROVENANCE (MANDATORY — NEVER SKIP)
@@ -662,10 +664,12 @@ When odds APIs don't cover an event (common for: table tennis, snooker, darts, e
 1. **λ estimation** (expected value) with recency weighting:
    - λ = 40% × L5_avg + 35% × L10_avg + 25% × H2H_avg
    - When H2H missing: λ = 55% × L5_avg + 45% × L10_avg
+   - **Bayesian shrinkage:** When `league_profiles` data exists for the competition/stat, λ is shrunk toward the league average (stronger effect with fewer team games). Formula: `adjusted_λ = (team_games × λ + 5 × league_avg) / (team_games + 5)`
    - WHY these weights: L5 captures current form (most predictive for tactical changes), L10 captures season trend, H2H captures specific matchup dynamics (pressing team = more corners vs low block)
 2. **Probability calculation:**
    - P(Over X.5) = 1 - CDF(X, λ) = 1 - Σ(k=0..X) [e^(-λ) × λ^k / k!]
    - For overdispersed data (variance/mean > 1.5): switches to negative binomial distribution
+   - **NegBin uses the same weighted λ** as Poisson (not an unweighted mean of all values) — ensures consistency between models
 3. **Fair odds:** fair_odds = 1 / P(hit) — the true breakeven odds
 4. **True EV:** EV = P(hit) × bookmaker_odds - 1
 5. **Confidence interval:** 90% bootstrap CI from 1000 resamples of match-level data

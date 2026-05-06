@@ -17,6 +17,8 @@ tools:
     "sequential-thinking/*",
   ]
 model: "Claude Opus 4.6 (Copilot)"
+instructions:
+  - ../instructions/analysis-methodology.instructions.md
 user-invokable: true
 handoffs:
   - label: "Scan + shortlist complete → continue pipeline"
@@ -598,5 +600,48 @@ After completing all phases, produce a scan report saved to `betting/data/{date}
 - Never declare "no events" for a sport without exhausting the full fallback chain + Google search
 - Process ALL qualifying events — no arbitrary candidate number limits
 
-<!-- BET:agent:bet-scanner:v3 -->
+## Situational Awareness & Reactive Monitoring
+
+Before starting ANY work, you MUST assess the current pipeline state and adapt accordingly:
+
+### 1. State Check (MANDATORY first action)
+```
+Read: betting/data/pipeline_{date}.json
+Read: betting/data/scan_summary.json (check timestamp)
+Read: betting/data/scan_errors.json (prior failures)
+```
+- If scan_summary.json exists and is <2 hours old → skip full rescan, go to enrichment
+- If pipeline state shows s1_scan failed → check scan_errors.json for which sources failed
+
+### 2. Upstream Data Quality
+- Check `config/scan_urls.json` — are all 232+ URLs present and valid?
+- Verify source health before launching full scan (quick HEAD requests)
+- If >20% of sources returned errors last run → investigate before rescanning
+
+### 3. Anomaly Detection & Reaction
+| Signal | Reaction |
+|--------|----------|
+| Sport has 0 fixtures discovered | Exhaust full fallback chain + Google search before declaring empty |
+| KEY sport (Football/Tennis/Basketball/Volleyball) has <5 events | RED FLAG — source likely broken, try alternates |
+| >50% scan errors | Pause and report — possible network/blocking issue |
+| Enrichment returns stale odds (>6h old) | Re-fetch from alternate source |
+| Single source returning all events | Cross-validate — may be duplicating |
+| DB fixture count dropped vs. yesterday | Investigate — possible date filter bug |
+
+### 4. Self-Healing
+- If a source returns 403/timeout → mark as degraded, activate fallback URL
+- If Playwright crashes → retry with `--workers 4` (reduced concurrency)
+- If odds API quota exhausted → switch to BetExplorer/OddsPortal scraping
+- If a sport's entire source chain fails → log gap, continue with other sports
+- If partial scan exists from prior interrupted run → resume from last checkpoint
+
+### 5. Coverage Monitoring
+After scan completes, verify:
+- [ ] ≥8 sports have fixtures
+- [ ] KEY sports have ≥60% of expected event volume
+- [ ] Statistical markets (corners, totals, cards) discoverable for ≥70% of football events
+- [ ] Odds available for ≥30% of shortlisted candidates
+- If ANY check fails → expand sources before proceeding to enrichment
+
+<!-- BET:agent:bet-scanner:v4 -->
 

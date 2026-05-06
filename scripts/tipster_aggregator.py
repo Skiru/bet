@@ -37,12 +37,19 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 
 try:
     from fetch_with_playwright import fetch
+    _PLAYWRIGHT_AVAILABLE = True
 except Exception:
+    _PLAYWRIGHT_AVAILABLE = False
     import requests
     def fetch(url: str) -> str:
-        resp = requests.get(url, timeout=30, headers={"User-Agent": "Mozilla/5.0"})
+        resp = requests.get(url, timeout=30, headers={
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                          "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        })
         resp.raise_for_status()
         return resp.text
+    print("[tipster_aggregator] WARNING: Playwright not available — using requests fallback. "
+          "JS-rendered sites (ZawodTyper, OLBG, etc.) may return 0 picks.")
 
 
 # ---------------------------------------------------------------------------

@@ -225,3 +225,59 @@ class GateResult:
     rejection_reasons_json: list = field(default_factory=list)
     source: str = ""
     created_at: str = ""
+
+
+@dataclass
+class AnalysisRawData:
+    id: int | None
+    fixture_id: int
+    betting_date: str
+    team_a_l10_json: dict = field(default_factory=dict)
+    team_b_l10_json: dict = field(default_factory=dict)
+    h2h_meetings_json: dict = field(default_factory=dict)
+    per_market_details_json: list = field(default_factory=list)
+    safety_input_json: dict | None = None
+    created_at: str = ""
+
+
+@dataclass
+class DecisionSnapshot:
+    id: int | None
+    bet_id: int
+    fixture_id: int
+    betting_date: str
+    chosen_market: str
+    chosen_line: float | None = None
+    chosen_direction: str = ""
+    safety_score: float | None = None
+    all_markets_considered_json: list = field(default_factory=list)
+    reasoning_json: dict = field(default_factory=dict)
+    thresholds_json: dict = field(default_factory=dict)
+    flip_conditions_json: dict = field(default_factory=dict)
+    team_a_snapshot_json: dict = field(default_factory=dict)
+    team_b_snapshot_json: dict = field(default_factory=dict)
+    h2h_snapshot_json: dict = field(default_factory=dict)
+    three_way_check_json: dict | None = None
+    created_at: str = ""
+
+
+@dataclass
+class DecisionOutcome:
+    id: int | None
+    bet_id: int
+    fixture_id: int
+    betting_date: str
+    sport: str
+    competition: str = ""
+    market: str = ""
+    line: float | None = None
+    direction: str = ""
+    predicted_value: float | None = None
+    actual_value: float | None = None
+    deviation: float | None = None
+    deviation_pct: float | None = None
+    result: str = ""
+    prediction_accuracy_json: dict = field(default_factory=dict)
+    pattern_tags_json: list = field(default_factory=list)
+    notes: str = ""
+    created_at: str = ""

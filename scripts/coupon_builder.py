@@ -14,7 +14,7 @@ import itertools
 import json
 import re
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import zoneinfo
@@ -23,6 +23,8 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT_DIR / "betting" / "data"
 COUPON_DIR = ROOT_DIR / "betting" / "coupons"
 CONFIG_PATH = ROOT_DIR / "config" / "betting_config.json"
+
+_NOW = lambda: datetime.now(timezone.utc).isoformat()
 
 # ---------------------------------------------------------------------------
 # Polish market descriptions
@@ -337,7 +339,8 @@ def stress_test_coupon(coupon: dict) -> dict:
     for leg in legs:
         bm = _bm(leg)
         # Prefer true probability from probability_engine; fall back to safety_score
-        p = _safe_float(bm.get("probability") or bm.get("safety_score", 0.5), 0.5)
+        prob_val = bm.get("probability")
+        p = _safe_float(prob_val if prob_val is not None else bm.get("safety_score", 0.5), 0.5)
         probabilities.append(p)
         if p < weakest_p:
             weakest_p = p
@@ -556,7 +559,8 @@ def _make_coupon(coupon_id: str, tier: str, legs: list, config: dict) -> dict:
         default=0.5,
     )
     min_prob = min(
-        (_bm(leg).get("probability") or _bm(leg).get("safety_score", 0.5)
+        (_bm(leg).get("probability") if _bm(leg).get("probability") is not None
+         else _bm(leg).get("safety_score", 0.5)
          for leg in legs),
         default=None,
     )
@@ -625,7 +629,8 @@ def _try_insert_into_coupon(pick: dict, coupons: list, max_same_sport: int, bank
             default=0.5,
         )
         min_prob = min(
-            (_bm(l).get("probability") or _bm(l).get("safety_score", 0.5)
+            (_bm(l).get("probability") if _bm(l).get("probability") is not None
+             else _bm(l).get("safety_score", 0.5)
              for l in coupon["legs"]),
             default=None,
         )
@@ -889,10 +894,24 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
     singles = []
     for i, pick in enumerate(approved[:max_singles], 1):
         odds_val = (pick.get("odds") or {}).get("market_best", 0) or 0
-        if odds_val <= 1.0:
-            continue
         safety = (pick.get("best_market") or {}).get("safety_score", 0.5)
         prob = (pick.get("best_market") or {}).get("probability")
+        if odds_val <= 1.0:
+            # Stats-first mode: no odds available — include with placeholder
+            single = {
+                "id": f"CP-{date_str}-SINGLE{i}",
+                "tier": pick.get("risk_tier", "MS"),
+                "legs": [pick],
+                "combined_odds": 0.0,
+                "stake": 0.0,
+                "potential_return": 0.0,
+                "stress_test": stress_test_coupon({"legs": [pick]}),
+                "correlation_flags": [],
+                "is_single": True,
+                "stats_first": True,
+            }
+            singles.append(single)
+            continue
         stake = compute_stake(odds_val, safety, bankroll, pick.get("risk_tier", "MS"), probability=prob)
         single = {
             "id": f"CP-{date_str}-SINGLE{i}",
@@ -908,9 +927,11 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
         singles.append(single)
     result["singles"] = singles
 
-    # BANKER: highest safety score pick
+    # BANKER: highest safety score pick (from picks with odds, or any if all stats-first)
     if singles:
-        banker = max(singles, key=lambda s: (_bm(s["legs"][0])).get("safety_score", 0))
+        with_odds = [s for s in singles if not s.get("stats_first")]
+        banker_pool = with_odds if with_odds else singles
+        banker = max(banker_pool, key=lambda s: (_bm(s["legs"][0])).get("safety_score", 0))
         banker["is_banker"] = True
         result["banker"] = banker
 
@@ -929,6 +950,43 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
     # Build combo menu (requires ≥2 picks)
     combos = generate_combos(approved, config)
     result["combos"] = combos
+
+    # ENFORCE DAILY CAP: trim coupons to stay within daily_exposure_range
+    max_daily = alloc_range[1] if isinstance(alloc_range, list) and len(alloc_range) > 1 else 15.0
+    core_spend = sum(c.get("stake", 0) for c in core)
+    combo_spend = sum(c.get("stake", 0) for c in combos)
+    singles_spend = sum(c.get("stake", 0) for c in singles)
+    total_spend = core_spend + combo_spend + singles_spend
+
+    if total_spend > max_daily:
+        # Priority: keep core → trim combos → trim singles
+        budget_remaining = max_daily
+        # Keep core coupons (highest priority)
+        kept_core = []
+        for c in core:
+            if budget_remaining >= c.get("stake", 0):
+                kept_core.append(c)
+                budget_remaining -= c.get("stake", 0)
+        core = kept_core
+        result["core_coupons"] = core
+        # Keep combos that fit
+        kept_combos = []
+        for c in combos:
+            if budget_remaining >= c.get("stake", 0):
+                kept_combos.append(c)
+                budget_remaining -= c.get("stake", 0)
+        combos = kept_combos
+        result["combos"] = combos
+        # Singles: keep those with real stakes that fit
+        kept_singles = []
+        for s in singles:
+            if s.get("stats_first") or s.get("stake", 0) == 0:
+                kept_singles.append(s)  # stats-first singles cost nothing
+            elif budget_remaining >= s.get("stake", 0):
+                kept_singles.append(s)
+                budget_remaining -= s.get("stake", 0)
+        singles = kept_singles
+        result["singles"] = singles
 
     # Compute summary metrics
     core_spend = sum(c.get("stake", 0) for c in core)
@@ -1166,7 +1224,10 @@ def write_coupon_markdown(coupons_data: dict, date: str) -> Path:
         leg = banker["legs"][0]
         lines.append(_build_rich_description(leg))
         lines.append("")
-        lines.append(f"**Stawka:** {banker['stake']:.2f} PLN | **Kurs:** {banker['combined_odds']:.2f} | **Zwrot:** {banker['potential_return']:.2f} PLN")
+        if banker.get("stats_first"):
+            lines.append(f"**Stawka:** ➜Betclic | **Kurs:** ➜Betclic | **Zwrot:** ➜Betclic")
+        else:
+            lines.append(f"**Stawka:** {banker['stake']:.2f} PLN | **Kurs:** {banker['combined_odds']:.2f} | **Zwrot:** {banker['potential_return']:.2f} PLN")
         lines.append("")
 
     # SINGLES section
@@ -1180,11 +1241,18 @@ def write_coupon_markdown(coupons_data: dict, date: str) -> Path:
             leg = s["legs"][0]
             desc = _pick_description_pl(leg)
             banker_mark = " 🏆" if s.get("is_banker") else ""
-            lines.append(
-                f"| {i} | {s['id']}{banker_mark} | {desc} "
-                f"| {s['combined_odds']:.2f} | {s['stake']:.2f} PLN "
-                f"| {s['potential_return']:.2f} PLN | {s['tier']} |"
-            )
+            if s.get("stats_first"):
+                lines.append(
+                    f"| {i} | {s['id']}{banker_mark} | {desc} "
+                    f"| ➜Betclic | ➜Betclic "
+                    f"| ➜Betclic | {s['tier']} |"
+                )
+            else:
+                lines.append(
+                    f"| {i} | {s['id']}{banker_mark} | {desc} "
+                    f"| {s['combined_odds']:.2f} | {s['stake']:.2f} PLN "
+                    f"| {s['potential_return']:.2f} PLN | {s['tier']} |"
+                )
         lines.append("")
 
     # Core coupons by tier
@@ -1427,21 +1495,111 @@ def persist_coupons_to_db(coupons_data: dict, date: str) -> int:
                         fixture_id = _resolve_fixture_id(
                             home_team, away_team, sport, date
                         )
+                        best_mkt = leg.get("best_market") or {}
+                        # Populate stats_detail for learning
+                        stats_detail = {
+                            "safety_score": best_mkt.get("safety_score"),
+                            "l10_avg": best_mkt.get("combined_avg"),
+                            "h2h_avg": best_mkt.get("h2h_avg"),
+                            "hit_rate_l10": best_mkt.get("hit_rate_l10"),
+                            "hit_rate_h2h": best_mkt.get("hit_rate_h2h"),
+                            "three_way": leg.get("three_way_alignment"),
+                            "margin": best_mkt.get("margin"),
+                            "markets_evaluated": leg.get("markets_evaluated", 0),
+                            "rank": best_mkt.get("rank", 1),
+                            "line": best_mkt.get("line"),
+                            "direction": best_mkt.get("direction"),
+                        }
                         bet = Bet(
                             id=None,
                             coupon_id=db_coupon_id,
                             fixture_id=fixture_id,
                             sport=sport,
                             event_name=f"{home_team} vs {away_team}",
-                            market=(leg.get("best_market") or {}).get("name", ""),
-                            selection=(leg.get("best_market") or {}).get("direction", ""),
+                            market=best_mkt.get("name", ""),
+                            selection=best_mkt.get("direction", ""),
                             odds=(leg.get("odds") or {}).get("market_best", 0) or 0,
-                            safety_score=(leg.get("best_market") or {}).get("safety_score"),
-                            hit_rate=(leg.get("best_market") or {}).get("hit_rate_l10"),
+                            safety_score=best_mkt.get("safety_score"),
+                            hit_rate=best_mkt.get("hit_rate_l10"),
                             status="pending",
-                            market_pl=(leg.get("best_market") or {}).get("market_pl", ""),
+                            market_pl=best_mkt.get("market_pl", ""),
+                            stats_detail=stats_detail,
                         )
-                        repo.add_bet(bet)
+                        bet_id = repo.add_bet(bet)
+
+                        # Create decision snapshot for learning
+                        if fixture_id and bet_id:
+                            try:
+                                from bet.db.models import DecisionSnapshot
+                                from bet.db.repositories import DecisionSnapshotRepo, AnalysisRawDataRepo
+
+                                snap_repo = DecisionSnapshotRepo(conn)
+                                # Load raw analysis data for this fixture
+                                raw_repo = AnalysisRawDataRepo(conn)
+                                raw = raw_repo.get_by_fixture(fixture_id, date)
+
+                                # Build all markets considered
+                                all_markets = leg.get("ranking", [])
+                                if not all_markets and raw:
+                                    all_markets = raw.per_market_details_json
+
+                                # Build reasoning
+                                reasoning = {
+                                    "chosen_because": f"Highest safety score ({best_mkt.get('safety_score')}) among {leg.get('markets_evaluated', '?')} evaluated markets",
+                                    "gate_score": leg.get("gate_score"),
+                                    "gate_details": leg.get("gate_details"),
+                                    "three_way_alignment": leg.get("three_way_alignment"),
+                                    "ev": leg.get("ev"),
+                                    "risk_tier": leg.get("risk_tier"),
+                                }
+                                if all_markets and len(all_markets) > 1:
+                                    reasoning["runner_up"] = {
+                                        "name": all_markets[1].get("name"),
+                                        "safety_score": all_markets[1].get("safety_score"),
+                                        "line": all_markets[1].get("line"),
+                                    }
+
+                                # Build flip conditions
+                                flip_conditions = {}
+                                if all_markets and len(all_markets) >= 2:
+                                    gap = (best_mkt.get("safety_score") or 0) - (all_markets[1].get("safety_score") or 0)
+                                    flip_conditions["safety_gap_to_runner_up"] = round(gap, 3)
+                                    flip_conditions["runner_up_market"] = all_markets[1].get("name", "")
+                                line = best_mkt.get("line")
+                                combined_avg = best_mkt.get("combined_avg")
+                                if line and combined_avg and best_mkt.get("direction") == "OVER":
+                                    flip_conditions["l10_avg_flip_threshold"] = line
+                                    flip_conditions["current_margin_over_line"] = round(combined_avg - line, 2)
+
+                                # Build thresholds
+                                thresholds = {
+                                    "min_safety_score": 0.55,
+                                    "min_gate_score": 10,
+                                    "min_margin": 0.05,
+                                }
+
+                                snapshot = DecisionSnapshot(
+                                    id=None,
+                                    bet_id=bet_id,
+                                    fixture_id=fixture_id,
+                                    betting_date=date,
+                                    chosen_market=best_mkt.get("name", ""),
+                                    chosen_line=best_mkt.get("line"),
+                                    chosen_direction=best_mkt.get("direction", ""),
+                                    safety_score=best_mkt.get("safety_score"),
+                                    all_markets_considered_json=all_markets or [],
+                                    reasoning_json=reasoning,
+                                    thresholds_json=thresholds,
+                                    flip_conditions_json=flip_conditions,
+                                    team_a_snapshot_json=raw.team_a_l10_json if raw else {},
+                                    team_b_snapshot_json=raw.team_b_l10_json if raw else {},
+                                    h2h_snapshot_json=raw.h2h_meetings_json if raw else {},
+                                    three_way_check_json=leg.get("three_way_check"),
+                                    created_at=_NOW(),
+                                )
+                                snap_repo.save(snapshot)
+                            except Exception as e:
+                                print(f"[coupon_builder] Decision snapshot failed for bet {bet_id}: {e}")
                     persisted += 1
                 except Exception as e:
                     print(f"[coupon_builder] DB: skip coupon {coup.get('id', '?')}: {e}")

@@ -15,6 +15,9 @@ tools:
     "sequential-thinking/*",
   ]
 model: "Claude Sonnet 4.6 (Copilot)"
+instructions:
+  - ../instructions/analysis-methodology.instructions.md
+  - ../instructions/betting-artifacts.instructions.md
 user-invokable: false
 handoffs:
   - label: "Odds evaluation complete → continue pipeline"
@@ -68,4 +71,45 @@ You add a 5-part Market Intelligence Reasoning Layer via sequential-thinking: ma
 - Never ignore drift >8% — mandatory re-evaluation
 - Never round EV calculations — use exact arithmetic
 
-<!-- BET:agent:bet-valuator:v1 -->
+## Situational Awareness & Reactive Monitoring
+
+Before starting ANY work, you MUST assess the current pipeline state and adapt accordingly:
+
+### 1. State Check (MANDATORY first action)
+```
+Read: betting/data/pipeline_{date}.json
+Read: betting/data/odds_api_snapshot.json (check timestamp + quota)
+Read: betting/data/shortlist_{date}.json (candidates needing pricing)
+```
+- If s3_deep_stats incomplete → WAIT — need probability data before EV calc
+- If odds snapshot is >4h old → re-fetch before calculating EV
+
+### 2. Upstream Data Quality
+- Check odds API quota remaining (500/month free, 30 credits/scan)
+- Verify probability engine outputs exist for each candidate
+- Check if key markets have ≥2 bookmaker odds for comparison
+- If stats-first mode active → prepare minimum acceptable odds table for user
+
+### 3. Anomaly Detection & Reaction
+| Signal | Reaction |
+|--------|----------|
+| Odds drifted >8% since last check | MANDATORY re-evaluation — flag to orchestrator |
+| EV calculation returns >30% | Sanity check — likely probability overestimate or odds error |
+| No odds available for candidate | Stats-first mode: compute min acceptable odds, user checks Betclic |
+| Multiple markets show negative EV | Check if probability inputs are stale or sources disagree |
+| Betclic odds significantly worse than market average | Flag price gap — user may want to skip this pick |
+| Kelly suggests >5% bankroll on single pick | Cap at concentration limit — verify inputs |
+
+### 4. Self-Healing
+- If odds API quota exhausted → switch to BetExplorer/OddsPortal scraping
+- If probability data missing → request statistician to fill gap before proceeding
+- If a single odds source is an outlier → exclude from average, note in report
+- If drift detected mid-session → recalculate ALL affected picks, update coupon
+
+### 5. Output Verification
+- [ ] Every pick shows explicit arithmetic (probability × odds − 1 = EV)
+- [ ] Kelly fractions sum to <25% of bankroll across all picks
+- [ ] Price gap column populated for every candidate with odds
+- [ ] Drift column shows current vs. opening odds
+
+<!-- BET:agent:bet-valuator:v2 -->

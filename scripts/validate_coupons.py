@@ -71,6 +71,33 @@ def _extract_odds_value(text: str) -> float | None:
     return float(m.group(1)) if m else None
 
 
+def _extract_single_row_meta(coupon: dict, cells: list[str]):
+    """Extract combined odds, stake, return from single-row coupon format.
+
+    Expected format: | # | CP-ID | description | combined_odds | stake PLN | return PLN |
+    """
+    # Find cells that look like plain numbers (combined odds) or PLN amounts
+    for cell in cells:
+        c = cell.replace("**", "").strip()
+        if not c:
+            continue
+        # Plain float (not in description cell) = combined odds
+        if re.match(r"^\d+\.\d+$", c) and not re.search(r"\svs\.?\s", c, re.I):
+            val = float(c)
+            # Combined odds are typically > 1.5 and not already set
+            if coupon["combined_odds_stated"] == 0.0 and val > 1.0:
+                coupon["combined_odds_stated"] = val
+                continue
+        # PLN amount
+        pln_match = re.match(r"^([\d.]+)\s*PLN$", c)
+        if pln_match:
+            val = float(pln_match.group(1))
+            if coupon["stake"] == 0.0:
+                coupon["stake"] = val
+            elif coupon["potential_return"] == 0.0:
+                coupon["potential_return"] = val
+
+
 def _new_coupon(idx: int, coupon_id: str, is_combo: bool = False) -> dict:
     """Create a fresh coupon dict."""
     return {
@@ -105,6 +132,28 @@ def _extract_leg(coupon: dict, cells: list[str]):
         if re.match(r"^(?:CP|EXT|COMBO|CK-COMBO)-", c, re.I):
             continue
         if c.startswith("\u2705") or c.upper().startswith("SPRAWDŹ"):
+            continue
+
+        # Multi-leg cell: split on " + " when surrounded by event-like content
+        if " + " in c and re.search(r"\svs\.?\s", c, re.I):
+            sub_legs = re.split(r"\s\+\s", c)
+            for sub_leg in sub_legs:
+                sub_leg = sub_leg.strip()
+                if not sub_leg:
+                    continue
+                sub_odds = LEG_ODDS_RE.findall(sub_leg)
+                if sub_odds:
+                    coupon["legs_odds"].append(float(sub_odds[-1]))
+                coupon["legs_text"].append(sub_leg)
+                ev = EVENT_RE.search(sub_leg)
+                if ev:
+                    coupon["events"].append(
+                        normalize_event(f"{ev.group(1).strip()} vs {ev.group(2).strip()}")
+                    )
+                if not coupon.get("description"):
+                    coupon["description"] = sub_leg
+                else:
+                    coupon["description"] += " + " + sub_leg
             continue
 
         odds_val = _extract_odds_value(c)
@@ -286,15 +335,23 @@ def parse_coupon_tables(md_text: str) -> list[dict]:
                 pending_id = None
             continue
 
-        # --- Coupon start from first column (v3: CP-xxx in cells[0]) ---
+        # --- Coupon start from first or second column (CP-xxx in cells[0] or cells[1]) ---
         # Require date segment (YYYYMMDD) to avoid matching verification tables
         id_match = re.match(r"((?:CP|EXT)-\d{8}-\S+)", cells[0])
+        if not id_match and len(cells) > 1:
+            # Also check cells[1] — SINGLE BETS table has row# in cells[0]
+            cleaned = cells[1].replace("🏆", "").strip()
+            id_match = re.match(r"((?:CP|EXT)-\d{8}-\S+)", cleaned)
         if id_match:
             if current and current["legs_text"]:
                 coupons.append(current)
             idx += 1
-            current = _new_coupon(idx, id_match.group(1))
+            coupon_id = id_match.group(1)
+            current = _new_coupon(idx, coupon_id)
+            current["is_single"] = bool(re.search(r"SINGLE", coupon_id, re.I))
             _extract_leg(current, cells)
+            # For single-row format: extract combined odds, stake, return from remaining cells
+            _extract_single_row_meta(current, cells)
             pending_id = None
             continue
 

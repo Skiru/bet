@@ -16,6 +16,9 @@ tools:
     "sequential-thinking/*",
   ]
 model: "Claude Opus 4.6 (Copilot)"
+instructions:
+  - ../instructions/analysis-methodology.instructions.md
+  - ../instructions/sport-analysis-protocols.instructions.md
 user-invokable: false
 handoffs:
   - label: "Deep stats + time-sensitive complete → continue pipeline"
@@ -76,4 +79,46 @@ Safety scores are now computed via `build_safety_input()` from `db_data_loader.p
 - BANNED WORDS as sole cell content: "checked", "verified", "confirmed", "good", "fine", "OK", "done", "yes", "—", "N/A", "see above"
 - All 10 mandatory template sections per candidate (§S3.1-§S3.10) required
 
-<!-- BET:agent:bet-statistician:v1 -->
+## Situational Awareness & Reactive Monitoring
+
+Before starting ANY work, you MUST assess the current pipeline state and adapt accordingly:
+
+### 1. State Check (MANDATORY first action)
+```
+Read: betting/data/pipeline_{date}.json
+Read: betting/data/shortlist_{date}.json (candidate pool)
+Read: betting/data/scan_summary.json (data completeness)
+```
+- If s1 steps incomplete → STOP — upstream data not ready
+- If shortlist has <10 candidates → flag potential scan/discovery failure
+
+### 2. Upstream Data Quality
+- For each candidate: verify H2H data exists for the SPECIFIC market being analyzed
+- Check stats cache freshness (>24h = stale for live sports)
+- Verify L10 form data is complete (not partial 3-4 game samples)
+- If API-Sports/ESPN returned errors → note which candidates lack deep stats
+
+### 3. Anomaly Detection & Reaction
+| Signal | Reaction |
+|--------|----------|
+| Candidate has <3 L10 data points | Flag as LOW-DATA — use wider sample or downgrade confidence |
+| H2H shows <2 meetings in 3 years | Note H2H unreliability — weight L10/L5 more |
+| Safety score calculation returns >9.0 | Sanity check — likely data error, verify inputs |
+| Three-way cross-check has 3/3 conflict | IMMEDIATE REJECT — do not waste time on deep analysis |
+| Sport has no candidates in shortlist | Check if scanner missed it — flag to orchestrator |
+| Probability engine returns >85% for non-trivial market | Verify — likely calculation error |
+
+### 4. Self-Healing
+- If stats source is down → try fallback: ESPN → FBref → API-Football → SofaScore
+- If H2H data missing → attempt Google search for head-to-head records
+- If L10 form incomplete → expand to L15 from available sources
+- If safety score script fails → compute manually using the formula and flag script bug
+
+### 5. Quality Gates Before Output
+- [ ] Every candidate has all 10 template sections filled with REAL data (no placeholders)
+- [ ] No BANNED WORDS used as sole cell content
+- [ ] Three-way cross-check ran for EVERY candidate
+- [ ] Statistical market ranking (§3.0) completed — highest-safety market identified
+- [ ] Time-sensitive data (lineups, injuries) fetched within last 4 hours
+
+<!-- BET:agent:bet-statistician:v2 -->

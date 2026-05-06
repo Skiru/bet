@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""S7 Pick Approval Gate — 17-point programmatic gate checker.
+"""S7 Pick Approval Gate — 18-point programmatic gate checker.
 
 Implements the full §7.5 pick approval gate, §7.3 red flag checks,
 §7.6 sport diversity check, and §6.5 upset risk assessment.
@@ -53,6 +53,7 @@ GATE_LABELS = {
     "15": "MULTI-MARKET: ≥3 alternative markets",
     "16": "H2H STAT-SPECIFIC: H2H for exact stat exists",
     "17": "THREE-WAY ALIGNMENT: L10+H2H+L5 all support",
+    "18": "DATA QUALITY: both teams have stat data",
 }
 
 
@@ -245,6 +246,18 @@ def _check_three_way(c: dict) -> tuple[bool, str]:
     return False, "THREE-WAY not checked"
 
 
+def _check_data_quality(c: dict) -> tuple[bool, str]:
+    """Gate #18: DATA QUALITY — both teams have stat data, not one-sided."""
+    best = c.get("best_market") or {}
+    one_sided = best.get("one_sided", False)
+    source = best.get("source", "")
+    if one_sided:
+        return False, "ONE-SIDED: opponent has zero stat data"
+    if source == "db-synthetic":
+        return True, f"SYNTHETIC data (penalized in safety), source={source}"
+    return True, ""
+
+
 # Ordered gate check functions
 GATE_CHECKS = {
     "1": _check_identity,
@@ -264,6 +277,7 @@ GATE_CHECKS = {
     "15": _check_multi_market,
     "16": _check_h2h_stat_specific,
     "17": _check_three_way,
+    "18": _check_data_quality,
 }
 
 # Checks that require repeat_losses parameter
@@ -374,7 +388,7 @@ def compute_upset_risk(candidate: dict) -> dict:
 
     # Three-way misalignment
     alignment = candidate.get("three_way_alignment", "")
-    if alignment and alignment.upper() != "ALIGNED":
+    if alignment and "SUPPORT" not in alignment.upper():
         risk_score += 0.2
         factors.append(f"THREE-WAY {alignment}")
 
@@ -397,8 +411,8 @@ def compute_risk_tier(candidate: dict, gate_result: dict) -> str:
     """Assign LR/MS/HR/N based on safety, gate score, sport, kickoff.
 
     - N (Night): kickoff after 20:00 local time
-    - LR (Low-Risk): safety ≥ 0.75, gate ≥ 15/17, not blind, EV > 0
-    - MS (Multi-Sport): safety ≥ 0.60, gate ≥ 12/17
+    - LR (Low-Risk): safety ≥ 0.75, gate ≥ 16/18, not blind, EV > 0
+    - MS (Multi-Sport): safety ≥ 0.60, gate ≥ 13/18
     - HR (Higher-Risk): everything else with EV > 0
     """
     # Check night first
@@ -425,13 +439,13 @@ def compute_risk_tier(candidate: dict, gate_result: dict) -> str:
     has_positive_ev = ev is None or ev > 0
 
     if (safety >= 0.75
-            and gate_score >= 15
+            and gate_score >= 16
             and not is_tipster_blind
             and not is_h2h_stat_blind
             and has_positive_ev):
         return "LR"
 
-    if safety >= 0.60 and gate_score >= 12:
+    if safety >= 0.60 and gate_score >= 13:
         return "MS"
 
     return "HR"
@@ -457,7 +471,7 @@ def compute_confidence(candidate: dict, gate_result: dict) -> tuple[float, list[
         adjustments.append("+0.5 safety≥0.80")
 
     alignment = candidate.get("three_way_alignment", "")
-    if alignment and alignment.upper() == "ALIGNED":
+    if alignment and "SUPPORT" in alignment.upper():
         conf += 0.5
         adjustments.append("+0.5 THREE-WAY ALIGNED")
 
@@ -480,6 +494,10 @@ def compute_confidence(candidate: dict, gate_result: dict) -> tuple[float, list[
         conf -= 0.5
         adjustments.append("-0.5 THIN data")
 
+    if "18" in gate_failed:
+        conf -= 1.0
+        adjustments.append("-1.0 ONE-SIDED data (opponent missing)")
+
     red_flags = check_red_flags(candidate)
     if red_flags:
         conf -= 1.0
@@ -490,17 +508,17 @@ def compute_confidence(candidate: dict, gate_result: dict) -> tuple[float, list[
 
 
 # ---------------------------------------------------------------------------
-# 17-point gate runner
+# 18-point gate runner
 # ---------------------------------------------------------------------------
 
 def check_17_point_gate(candidate: dict, repeat_losses: list) -> dict:
-    """Run all 17 gate checks on one candidate.
+    """Run all 18 gate checks on one candidate.
 
     Returns dict with:
       gate_passed: list of check IDs that passed
       gate_failed: list of check IDs that failed
       gate_warnings: list of warning strings
-      gate_score: str like "15/17"
+      gate_score: str like "15/18"
       gate_details: dict mapping check ID → {passed, message}
     """
     passed = []
@@ -528,7 +546,7 @@ def check_17_point_gate(candidate: dict, repeat_losses: list) -> dict:
         "gate_passed": passed,
         "gate_failed": failed,
         "gate_warnings": [w for w in warnings if w],
-        "gate_score": f"{len(passed)}/17",
+        "gate_score": f"{len(passed)}/18",
         "gate_details": details,
     }
 
@@ -624,7 +642,11 @@ def _normalise_s3_to_gate_input(analysis: dict) -> dict:
         "ev": analysis.get("ev"),
         "odds": analysis.get("odds", {}),
         "sources": sources,
-        "tipster_count": analysis.get("tipster_count", 0),
+        "tipster_count": (
+            analysis.get("tipster_count")
+            or (analysis.get("tipster_support") or {}).get("count")
+            or 0
+        ),
         "ranking": ranking,
         "three_way_check": three_way,
         "warnings": analysis.get("warnings", []),
@@ -676,6 +698,34 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
         clean_candidates.append(c)
     if garbage_count:
         print(f"[gate_checker] Filtered {garbage_count} garbage events")
+
+    # PHANTOM/ALREADY-PLAYED FILTER — ZT#6 enforcement (defense layer 2)
+    # Events with kickoff >2h in the past AND not on the betting date are phantoms
+    now_utc = datetime.now(timezone.utc)
+    phantom_count = 0
+    live_candidates = []
+    for c in clean_candidates:
+        kickoff = c.get("kickoff", "")
+        if kickoff and "T" in kickoff:
+            try:
+                ko_str = kickoff.replace("Z", "+00:00")
+                ko_dt = datetime.fromisoformat(ko_str)
+                if ko_dt.tzinfo is None:
+                    from datetime import timedelta
+                    ko_dt = ko_dt.replace(tzinfo=timezone(timedelta(hours=2)))
+                ko_date_str = ko_dt.strftime("%Y-%m-%d")
+                # Only filter if kickoff date doesn't match the betting date
+                if ko_date_str != date:
+                    elapsed_hours = (now_utc - ko_dt.astimezone(timezone.utc)).total_seconds() / 3600
+                    if elapsed_hours > 2:
+                        phantom_count += 1
+                        continue
+            except (ValueError, TypeError):
+                pass
+        live_candidates.append(c)
+    if phantom_count:
+        print(f"[gate_checker] Filtered {phantom_count} already-played events (kickoff >2h ago)")
+    clean_candidates = live_candidates
 
     # Deduplicate events (keep highest safety_score version)
     def _dedup_key(c: dict) -> str:
