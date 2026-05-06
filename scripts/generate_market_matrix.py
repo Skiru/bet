@@ -28,7 +28,7 @@ import json
 import re
 import sys
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -261,7 +261,7 @@ def load_analysis_pool(date: str) -> dict:
 def extract_markets_from_odds_api(odds_event: dict) -> list[dict]:
     """Extract all markets from an Odds API event with best prices."""
     markets = []
-    market_best = defaultdict(lambda: {"price": 0, "bookmaker": "", "outcomes": []})
+    market_best: dict = {}
 
     for bm in odds_event.get("bookmakers", []):
         bm_name = bm.get("title", bm.get("key", "?"))
@@ -277,7 +277,7 @@ def extract_markets_from_odds_api(odds_event: dict) -> list[dict]:
                 else:
                     outcome_key = f"{mkey}|{oname}"
 
-                if price > market_best[outcome_key]["price"]:
+                if outcome_key not in market_best or price > market_best[outcome_key]["price"]:
                     market_best[outcome_key] = {
                         "price": price,
                         "bookmaker": bm_name,
@@ -685,25 +685,39 @@ def generate_market_matrix(
             continue
 
         # PHANTOM/ALREADY-PLAYED FILTER: skip events that have already started
-        # An event is considered "already played" if its kickoff is >2h in the past
-        # AND its date doesn't match the target betting date (to avoid filtering
-        # same-day events when running analysis ahead of time)
-        if kickoff and "T" in kickoff:
+        # An event is considered "phantom" if its kickoff date doesn't match the target
+        # betting date (prevents future matchdays leaking in from league schedule pages)
+        # OR if its kickoff is >2h in the past on the target date
+        if kickoff:
+            ko_date_str = None
+            ko_dt = None
             try:
-                ko_str = kickoff.replace("Z", "+00:00")
-                ko_dt = datetime.fromisoformat(ko_str)
-                if ko_dt.tzinfo is None:
-                    from datetime import timedelta
-                    ko_dt = ko_dt.replace(tzinfo=timezone(timedelta(hours=2)))
-                ko_date_str = ko_dt.strftime("%Y-%m-%d")
-                # Only filter if kickoff date doesn't match target date
+                # Normalize kickoff to parseable format
+                ko_raw = kickoff.replace("Z", "+00:00")
+                if "T" not in ko_raw and " " in ko_raw:
+                    ko_raw = ko_raw.replace(" ", "T", 1)
+                if "T" in ko_raw:
+                    ko_dt = datetime.fromisoformat(ko_raw)
+                    if ko_dt.tzinfo is None:
+                        ko_dt = ko_dt.replace(tzinfo=timezone(timedelta(hours=2)))
+                    ko_date_str = ko_dt.strftime("%Y-%m-%d")
+                elif len(ko_raw) >= 10:
+                    # Date-only format like "2026-05-06"
+                    ko_date_str = ko_raw[:10]
+            except (ValueError, TypeError, IndexError):
+                pass
+
+            if ko_date_str:
+                # Strict date filter: only include events ON the target date
                 if ko_date_str != date:
+                    already_played_count += 1
+                    continue
+                # Also reject events >2h in the past on the same date
+                if ko_dt:
                     elapsed_hours = (now_utc - ko_dt.astimezone(timezone.utc)).total_seconds() / 3600
                     if elapsed_hours > 2:
                         already_played_count += 1
                         continue
-            except (ValueError, TypeError, IndexError):
-                pass
 
         # Evening filter
         if evening_only and kickoff:

@@ -28,29 +28,39 @@ except ImportError:
     except ImportError:
         _SML = {}
 
-# Build a quick lookup: (sport, stat_key) → list of standard lines
-_STANDARD_LINES_LOOKUP: dict[tuple[str, str], list[float]] = {}
+# Build SEPARATE lookups for combined and team lines to prevent collision.
+# Sports like basketball have "Total Points" (combined, lines=[195.5-225.5]) and
+# "Team Points" (per-team, lines=[95.5-110.5]) sharing the same stat key "points".
+# A single dict would overwrite one with the other.
+_STANDARD_LINES_COMBINED: dict[tuple[str, str], list[float]] = {}
+_STANDARD_LINES_TEAM: dict[tuple[str, str], list[float]] = {}
 for _sport_key, _markets_list in _SML.items():
     for _mkt in _markets_list:
         _stat = _mkt.get("stat", "")
         _lines = _mkt.get("lines", [])
         if _stat and _lines:
-            _STANDARD_LINES_LOOKUP[(_sport_key, _stat)] = _lines
+            if _mkt.get("is_combined", True):
+                _STANDARD_LINES_COMBINED[(_sport_key, _stat)] = _lines
+            else:
+                _STANDARD_LINES_TEAM[(_sport_key, _stat)] = _lines
 
 
-def _find_closest_standard_line(sport: str, stat_key: str, avg: float) -> float | None:
+def _find_closest_standard_line(sport: str, stat_key: str, avg: float, is_combined: bool = True) -> float | None:
     """Find the closest standard line for a given sport/stat/average.
 
     Returns the standard line closest to the data average, or None if no
     standard lines exist for this sport/stat combination or if the closest
-    line is too far from the average (>40% away — likely per-team line for combined market).
+    line is too far from the average (>40% away).
+
+    Uses separate lookups for combined (total) vs per-team markets to avoid
+    the collision where team lines [95.5-110.5] overwrite total lines [195.5-225.5].
     """
-    lines = _STANDARD_LINES_LOOKUP.get((sport, stat_key))
+    lookup = _STANDARD_LINES_COMBINED if is_combined else _STANDARD_LINES_TEAM
+    lines = lookup.get((sport, stat_key))
     if not lines:
         return None
     closest = min(lines, key=lambda x: abs(x - avg))
     # Sanity check: don't use a standard line that's wildly different from the average
-    # (e.g., per-team line 5.5 for combined corners avg 10.2)
     if avg > 0 and abs(closest - avg) / avg > 0.40:
         return None
     return closest
@@ -447,15 +457,15 @@ def build_safety_score_input(
             combined_avg = sum(
                 team_a_l10[i] + team_b_l10[i] for i in range(min_len)
             ) / min_len
-            std_line = _find_closest_standard_line(sport, stat_key_for_line, combined_avg)
+            std_line = _find_closest_standard_line(sport, stat_key_for_line, combined_avg, is_combined=True)
             line = std_line if std_line is not None else _round_to_half(combined_avg)
         elif team_a_l10:
             avg = sum(team_a_l10) / len(team_a_l10)
-            std_line = _find_closest_standard_line(sport, stat_key_for_line, avg)
+            std_line = _find_closest_standard_line(sport, stat_key_for_line, avg, is_combined=False)
             line = std_line if std_line is not None else _round_to_half(avg)
         elif team_b_l10:
             avg = sum(team_b_l10) / len(team_b_l10)
-            std_line = _find_closest_standard_line(sport, stat_key_for_line, avg)
+            std_line = _find_closest_standard_line(sport, stat_key_for_line, avg, is_combined=False)
             line = std_line if std_line is not None else _round_to_half(avg)
         else:
             continue
@@ -663,15 +673,15 @@ def _build_markets_from_db_form(
                 team_a_l10[i] + team_b_l10[i] for i in range(min_len)
             ) / min_len
             # Use standard line if available (prevents circular reasoning)
-            std_line = _find_closest_standard_line(sport, stat_key_for_line, combined_avg)
+            std_line = _find_closest_standard_line(sport, stat_key_for_line, combined_avg, is_combined=True)
             line = std_line if std_line is not None else _round_to_half(combined_avg)
         elif team_a_l10:
             avg = sum(team_a_l10) / len(team_a_l10)
-            std_line = _find_closest_standard_line(sport, stat_key_for_line, avg)
+            std_line = _find_closest_standard_line(sport, stat_key_for_line, avg, is_combined=False)
             line = std_line if std_line is not None else _round_to_half(avg)
         elif team_b_l10:
             avg = sum(team_b_l10) / len(team_b_l10)
-            std_line = _find_closest_standard_line(sport, stat_key_for_line, avg)
+            std_line = _find_closest_standard_line(sport, stat_key_for_line, avg, is_combined=False)
             line = std_line if std_line is not None else _round_to_half(avg)
         else:
             continue

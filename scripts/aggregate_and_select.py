@@ -101,6 +101,51 @@ def load_odds_snapshot() -> dict:
         return {}
 
 
+# --- Garbage filters (Bug #8, #9, #10, #11) ---
+# Bookmaker names that get parsed as team names from comparison sites
+BOOKMAKER_NAME_BLOCKLIST = {
+    "1xbet", "unibet", "betway", "bet365", "pinnacle", "betfair", "bwin",
+    "betclic", "williamhill", "william hill", "paddy power", "paddypower",
+    "ladbrokes", "coral", "888sport", "betfred", "marathon", "marathonbet",
+    "22bet", "sts", "fortuna", "lvbet", "superbet", "betsson", "coolbet",
+    "novibet", "betano", "sportingbet", "stake", "cloudbet", "bovada",
+    "fanduel", "draftkings", "caesars", "pointsbet", "betmgm", "betrivers",
+    "sportsbet", "tab", "neds", "betr", "tipsport", "chance", "toto",
+    "fonbet", "leon", "melbet", "mostbet", "1win", "parimatch", "vbet",
+}
+
+# Short strings that are noise (sidebar labels, nav items)
+GARBAGE_TEAM_PATTERNS = re.compile(
+    r"^(live|today|tomorrow|yesterday|popular|featured|top|trending|"
+    r"all sports|my bets|results|schedule|standings|statistics|"
+    r"pinned leagues|my teams|add the team|promoted|"
+    r"multimedia|news|article|photo|video|gallery|"
+    r"\d{1,2}:\d{2}|odds|bet now|place bet|"
+    r"today\'s matches|upcoming|finished)$",
+    re.IGNORECASE,
+)
+
+
+def is_garbage_team(name: str) -> bool:
+    """Return True if name is a known bookmaker, UI element, or garbage."""
+    if not name or len(name) < 2:
+        return True
+    n = name.strip().lower()
+    # Bookmaker names
+    if n in BOOKMAKER_NAME_BLOCKLIST:
+        return True
+    # UI/nav garbage
+    if GARBAGE_TEAM_PATTERNS.match(n):
+        return True
+    # All digits or all special chars
+    if re.match(r"^[\d\s\-\.]+$", n):
+        return True
+    # Too short to be a real team (single char)
+    if len(n) <= 1:
+        return True
+    return False
+
+
 def fuzzy_match(name1: str, name2: str, threshold: float = 0.75) -> bool:
     """Check if two team names are likely the same team."""
     n1 = normalize(name1)
@@ -120,13 +165,45 @@ def match_key(home: str, away: str) -> str:
 
 
 def find_existing_key(new_home: str, new_away: str, matches: dict) -> Optional[str]:
-    """Find an existing match key that fuzzy-matches the new home/away pair."""
+    """Find an existing match key that fuzzy-matches the new home/away pair.
+
+    Uses a two-pass strategy for performance:
+    1. Direct normalized key lookup (O(1))
+    2. Containment check on home team only (O(n) but rarely needed)
+    Avoids full O(n) SequenceMatcher on every insert.
+    """
+    # Fast path: exact normalized match
+    direct_key = match_key(new_home, new_away)
+    if direct_key in matches:
+        return direct_key
+
+    # Medium path: check if normalized home is contained in existing keys
+    n_home = normalize(new_home)
+    n_away = normalize(new_away)
+    if not n_home or not n_away:
+        return None
+
     for key in matches:
         parts = key.split(" | ", 1)
         if len(parts) != 2:
             continue
-        if fuzzy_match(new_home, parts[0]) and fuzzy_match(new_away, parts[1]):
+        # Only do cheap containment check, skip expensive SequenceMatcher
+        eh, ea = parts
+        if not eh or not ea:
+            continue
+        # Containment: "man city" in "manchester city" or vice versa
+        # Require minimum 5 chars to avoid false matches on short names like "inter"
+        home_match = (n_home == eh)
+        if not home_match and len(n_home) >= 5 and len(eh) >= 5:
+            home_match = (n_home in eh) or (eh in n_home)
+        if not home_match:
+            continue
+        away_match = (n_away == ea)
+        if not away_match and len(n_away) >= 5 and len(ea) >= 5:
+            away_match = (n_away in ea) or (ea in n_away)
+        if away_match:
             return key
+
     return None
 
 
@@ -172,6 +249,8 @@ def extract_odds(item):
 def aggregate(summary):
     """Group extracted items by normalized match key across all sources."""
     matches = defaultdict(lambda: {"sources": [], "odds": {}, "sample_items": [], "times": set(), "sports": set()})
+    # Track (normalized_home, normalized_away, domain) to avoid counting same event twice from same URL
+    _seen_source_events: set[tuple[str, str, str]] = set()
     for url, items in summary.items():
         domain = urlparse(url).netloc.replace("www.", "")
         for it in items:
@@ -186,6 +265,16 @@ def aggregate(summary):
             if not home or not away:
                 continue
 
+            # Garbage filter: reject bookmaker names, UI elements, garbage text
+            if is_garbage_team(home) or is_garbage_team(away):
+                continue
+
+            # Source-level dedup: same event from same domain counted only once
+            dedup_key = (normalize(home), normalize(away), domain)
+            if dedup_key in _seen_source_events:
+                continue
+            _seen_source_events.add(dedup_key)
+
             # Try to find an existing fuzzy match
             key = find_existing_key(home, away, matches)
             if key is None:
@@ -198,7 +287,10 @@ def aggregate(summary):
             if it.get("time"):
                 matches[key]["times"].add(it["time"])
             if it.get("sport"):
-                matches[key]["sports"].add(it["sport"])
+                # Normalize sport: strip source suffixes like "_odds_api_io", "_betclic"
+                raw_sport = it["sport"].lower().strip()
+                raw_sport = re.sub(r"_(odds_api(_io)?|betclic|flashscore|sofascore|betexplorer|api)$", "", raw_sport)
+                matches[key]["sports"].add(raw_sport)
             matches[key]["sample_items"].append({
                 "domain": domain,
                 "raw": it.get("raw"),

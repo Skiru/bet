@@ -345,6 +345,12 @@ def _persist_fixtures_to_db(fixtures: list, date: str) -> None:
 
             now_ts = datetime.now(timezone.utc).isoformat()
             db_fixtures = []
+
+            # In-memory caches to avoid repeated DB lookups for same team/comp
+            _sport_cache: dict[str, object] = {}
+            _team_cache: dict[tuple[str, int], object] = {}
+            _comp_cache: dict[tuple[str, int], int] = {}
+
             for f in fixtures:
                 # Extract fields from NormalizedFixture or dict
                 if hasattr(f, "__dataclass_fields__"):
@@ -369,21 +375,33 @@ def _persist_fixtures_to_db(fixtures: list, date: str) -> None:
                 if not home_team or not away_team:
                     continue
 
-                # Resolve sport
-                sport_obj = sport_repo.get_by_name(sport_name)
+                # Resolve sport (cached)
+                if sport_name not in _sport_cache:
+                    _sport_cache[sport_name] = sport_repo.get_by_name(sport_name)
+                sport_obj = _sport_cache[sport_name]
                 if not sport_obj:
                     continue
 
-                # Resolve teams
-                home = team_repo.find_or_create(home_team, sport_obj.id)
-                away = team_repo.find_or_create(away_team, sport_obj.id)
+                # Resolve teams (cached)
+                home_key = (home_team, sport_obj.id)
+                if home_key not in _team_cache:
+                    _team_cache[home_key] = team_repo.find_or_create(home_team, sport_obj.id)
+                home = _team_cache[home_key]
 
-                # Resolve competition
+                away_key = (away_team, sport_obj.id)
+                if away_key not in _team_cache:
+                    _team_cache[away_key] = team_repo.find_or_create(away_team, sport_obj.id)
+                away = _team_cache[away_key]
+
+                # Resolve competition (cached)
                 comp_id = None
                 if competition:
-                    comp_id = comp_repo.find_or_create(
-                        competition, sport_obj.id
-                    )
+                    comp_key = (competition, sport_obj.id)
+                    if comp_key not in _comp_cache:
+                        _comp_cache[comp_key] = comp_repo.find_or_create(
+                            competition, sport_obj.id
+                        )
+                    comp_id = _comp_cache[comp_key]
 
                 db_fixtures.append(DBFixture(
                     id=None,

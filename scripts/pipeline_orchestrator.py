@@ -98,9 +98,9 @@ STEP_TIMEOUTS = {
     "s0_settle": 180,      # 3 min
     "s1_scan": 1800,       # 30 min (Playwright scan ONLY — no enrichment)
     "s1_ingest": 180,      # 3 min (ingest scan data into stats cache)
-    "s1a_discover": 300,   # 5 min
+    "s1a_discover": 600,   # 10 min (DB persistence with caching)
     "s1b_parallel": 600,   # 10 min (odds + weather + tipsters in parallel)
-    "s1c_aggregate": 120,  # 2 min
+    "s1c_aggregate": 300,  # 5 min (45K events with dedup)
     "s1d_matrix": 120,     # 2 min
     "s1e_shortlist": 120,  # 2 min
     "s2_tipster": 60,      # 1 min (data loading only)
@@ -139,11 +139,10 @@ PIPELINE_STEPS = [
     },
     {
         "id": "s1_ingest",
-        "name": "S1-ingest: Ingest Scan Stats + Analysis Pool",
-        "description": "Ingest Playwright HTML data into stats cache + generate analysis pool",
+        "name": "S1-ingest: Ingest Scan Stats",
+        "description": "Ingest Playwright HTML data into stats cache",
         "commands": [
             "python3 scripts/ingest_scan_stats.py",
-            "python3 scripts/deep_analysis_pool.py --date {date}",
         ],
         "outputs": [],
         "critical": False,
@@ -172,6 +171,7 @@ PIPELINE_STEPS = [
         "description": "Aggregate scan results + generate analysis candidate pool",
         "commands": [
             "python3 scripts/aggregate_and_select.py --date {date}",
+            "python3 scripts/deep_analysis_pool.py --date {date}",
         ],
         "outputs": [],
         "critical": False,

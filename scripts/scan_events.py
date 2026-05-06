@@ -207,7 +207,14 @@ def _scan_domain_group(domain: str, urls: list[str], deep: bool, max_deep_links:
         if not html or len(html) < 100:
             msg = f"Empty or too-short response from {url} ({len(html or '')} chars)"
             print(msg)
-            return url, None, [{"url": url, "error": msg}], {}
+            # Retry once with longer timeout for JS-heavy sites (e.g., BetExplorer)
+            try:
+                html = _fetch_with_timeout(url, timeout_sec=PER_PAGE_TIMEOUT * 2)
+                if not html or len(html) < 100:
+                    return url, None, [{"url": url, "error": msg}], {}
+                print(f"  [{domain}] Retry succeeded ({len(html)} chars)")
+            except Exception:
+                return url, None, [{"url": url, "error": msg}], {}
 
         saved = save_html(domain, html)
         print(f"  [{domain}] Saved raw HTML to {saved}")
