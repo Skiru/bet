@@ -116,72 +116,89 @@ def _verify_fixture(
 # ---------------------------------------------------------------------------
 COMP_TIER_KEYWORDS: dict[str, list[tuple[int, list[str]]]] = {
     "football": [
-        (10, ["champions league", "europa league", "conference league", "world cup"]),
+        (10, ["champions league", "europa league", "conference league", "world cup",
+              "euro 202", "copa america", "club world cup"]),
         (9, ["english premier league", "la liga", "laliga", "bundesliga", "serie a", "ligue 1"]),
-        (8, ["eredivisie", "primeira liga", "ekstraklasa", "super lig", "championship"]),
-        (7, ["copa libertadores", "copa sudamericana", "mls", "brasileirao"]),
+        (8, ["eredivisie", "primeira liga", "ekstraklasa", "super lig", "championship",
+             "copa libertadores", "copa sudamericana", "fa cup", "coppa italia",
+             "dfb pokal", "copa del rey", "coupe de france"]),
+        (7, ["mls", "brasileirao", "allsvenskan", "eliteserien", "superliga",
+             "belgian", "jupiler", "scottish", "swiss super league"]),
         (6, ["2. bundesliga", "serie b", "ligue 2", "segunda", "liga mx"]),
-        (5, ["k-league", "j-league", "a-league", "nations league", "qualification"]),
-        (2, []),  # default for any unknown football league
+        (5, ["k-league", "j-league", "a-league", "nations league", "qualification",
+             "1. liga", "first division b", "eerste divisie"]),
+        (3, []),  # default for any unknown football league (raised from 2)
     ],
     "tennis": [
-        (10, ["grand slam", "australian open", "french open", "wimbledon", "us open", "roland garros"]),
-        (9, ["masters 1000", "atp 1000", "wta 1000"]),
+        (10, ["grand slam", "australian open", "french open", "wimbledon", "us open",
+              "roland garros"]),
+        (9, ["masters 1000", "atp 1000", "wta 1000", "indian wells", "miami",
+             "monte carlo", "madrid", "rome", "canada", "cincinnati", "shanghai", "paris"]),
         (8, ["atp 500", "wta 500"]),
         (7, ["atp 250", "wta 250"]),
         (5, ["challenger", "itf"]),
     ],
     "basketball": [
-        (10, ["nba playoff", "nba finals"]),
+        (10, ["nba playoff", "nba finals", "fiba world cup", "olympic"]),
         (9, ["nba", "euroleague"]),
-        (8, ["eurocup", "ncaa", "acb"]),
-        (7, ["plk", "bbl", "bcl", "fiba"]),
+        (8, ["eurocup", "ncaa", "acb", "final four"]),
+        (7, ["plk", "bbl", "bcl", "fiba", "lnb", "nbl"]),
     ],
     "volleyball": [
-        (9, ["plusliga", "cev champions", "superlega"]),
-        (8, ["serie a", "ligue a", "bundesliga"]),
-        (7, ["efeler", "superliga"]),
+        (10, ["cev champions league", "world championship", "nations league finals", "olympic"]),
+        (9, ["plusliga", "superlega"]),
+        (8, ["serie a", "ligue a", "bundesliga", "cev"]),
+        (7, ["efeler", "superliga", "plusliga playoff", "superlega playoff"]),
     ],
     "hockey": [
-        (10, ["nhl playoff"]),
+        (10, ["nhl playoff", "stanley cup", "iihf world"]),
         (9, ["nhl", "khl"]),
         (8, ["shl", "liiga", "del"]),
     ],
     "handball": [
+        (10, ["ehf champions league final four", "world championship"]),
         (9, ["ehf champions league"]),
         (8, ["ehf", "bundesliga", "starligue"]),
         (7, ["liga asobal", "superliga"]),
     ],
     "baseball": [
+        (10, ["world series", "mlb playoff"]),
         (9, ["mlb"]),
         (7, ["npb", "kbo"]),
     ],
     "snooker": [
-        (9, ["world championship", "masters", "champion of champions"]),
+        (10, ["world championship"]),
+        (9, ["masters", "champion of champions", "uk championship"]),
         (7, ["grand prix", "open", "trophy", "classic"]),
     ],
     "darts": [
+        (10, ["world championship", "grand slam"]),
         (9, ["pdc", "premier league"]),
-        (7, ["world", "grand prix"]),
+        (7, ["world grand prix", "players championship"]),
     ],
     "esports": [
-        (8, ["major", "worlds", "champions"]),
+        (10, ["major", "worlds", "the international"]),
+        (8, ["champions", "blast premier"]),
         (6, ["esl", "blast", "iem", "pgl"]),
     ],
     "mma": [
+        (10, ["ufc numbered", "ufc ppv"]),
         (9, ["ufc"]),
         (7, ["bellator", "pfl", "one"]),
     ],
     "table_tennis": [
-        (8, ["wtt grand smash", "wtt champions"]),
+        (10, ["world championship", "wtt grand smash", "olympic"]),
+        (8, ["wtt champions"]),
         (6, ["wtt star contender", "wtt"]),
     ],
     "padel": [
-        (8, ["premier padel major"]),
-        (6, ["premier padel", "world padel tour"]),
+        (10, ["premier padel major"]),
+        (8, ["premier padel"]),
+        (6, ["world padel tour"]),
     ],
     "speedway": [
-        (8, ["ekstraliga", "speedway gp"]),
+        (10, ["speedway gp"]),
+        (8, ["ekstraliga"]),
         (6, ["sec"]),
     ],
 }
@@ -198,11 +215,9 @@ def _score_competition(sport: str, competition: str) -> int:
 
     # Penalize clearly obscure/minor leagues
     obscure_markers = [
-        "amateur", "reserve", "youth", "u19", "u21", "u23", "women",
-        "regional", "county", "division 3", "division 4",
-        "sikkim", "mizoram", "manipur",  # Indian state leagues
-        "etiopia", "ethiopia", "tanzania", "uganda", "kenya",
-        "bangladesh", "cambodia", "laos", "myanmar",
+        "amateur", "reserve",
+        "regional", "county", "division 4",
+        "sikkim", "mizoram", "manipur",  # Indian state leagues with zero data
     ]
     if any(m in comp_lower for m in obscure_markers):
         return 1
@@ -269,6 +284,16 @@ def _score_event(event: dict, tipster_events: set[str]) -> float:
             score += 8
         elif 1.20 <= best_odds <= 4.00:
             score += 4
+
+    # 8. Minor league value edge (§SCAN.8) — less popular leagues have more mispricing
+    if comp_score <= 7 and comp_score >= 3 and (has_safety or n_odds > 0):
+        # Non-top-tier league WITH data coverage = value edge
+        score += 6
+
+    # 9. Major tournament protection (§SCAN.7) — tournaments always get priority
+    if comp_score >= 9:
+        # Major tournament event — ensure it never gets dropped
+        score += 15
 
     return score
 
@@ -369,7 +394,7 @@ def build_shortlist(
         comp = event.get("competition", "")
         tier = event.get("data_tier", "FIXTURE_ONLY")
 
-        # Filter FIXTURE_ONLY events
+        # Filter FIXTURE_ONLY events (BUT never filter major tournaments — §SCAN.7)
         if tier == "FIXTURE_ONLY":
             home_lower = event.get("home_team", "").lower()
             away_lower = event.get("away_team", "").lower()
@@ -377,13 +402,14 @@ def build_shortlist(
                 home_lower in tipster_events
                 or away_lower in tipster_events
             )
+            is_major = _is_major_competition(sport, comp) or _score_competition(sport, comp) >= 9
             if stats_first:
                 # In stats-first: include if major competition OR tipster coverage
-                if not has_tipster and not _is_major_competition(sport, comp):
+                if not has_tipster and not is_major:
                     continue
             else:
-                # Without stats-first: only include if tipster coverage
-                if not has_tipster:
+                # Without stats-first: include if tipster coverage OR major tournament
+                if not has_tipster and not is_major:
                     continue
 
         score = _score_event(event, tipster_events)

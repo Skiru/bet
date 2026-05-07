@@ -1,6 +1,373 @@
 {
-  "description": "Scan URLs grouped by domain/sport for the betting pipeline. Loadable via: python3 scripts/scan_events.py --urls-file config/scan_urls.json --deep --workers 6",
-  "urls": [
+  "description": "Scan URLs grouped by sport for per-sport scanners",
+  "sports": {
+    "football": {
+      "urls": [
+        "https://www.flashscore.com/",
+        "https://www.flashscore.com/football/poland/",
+        "https://www.flashscore.com/football/poland/ekstraklasa/",
+        "https://www.flashscore.com/football/poland/division-1/",
+        "https://www.flashscore.com/football/poland/division-2/",
+        "https://www.flashscore.com/football/poland/polish-cup/",
+        "https://www.flashscore.com/football/england/premier-league/",
+        "https://www.flashscore.com/football/spain/laliga/",
+        "https://www.flashscore.com/football/germany/bundesliga/",
+        "https://www.flashscore.com/football/italy/serie-a/",
+        "https://www.flashscore.com/football/france/ligue-1/",
+        "https://www.flashscore.com/football/romania/",
+        "https://www.flashscore.com/football/serbia/",
+        "https://www.flashscore.com/football/croatia/",
+        "https://www.flashscore.com/football/hungary/",
+        "https://www.flashscore.com/football/czech-republic/",
+        "https://www.flashscore.com/football/slovakia/",
+        "https://www.flashscore.com/football/ukraine/",
+        "https://www.flashscore.com/football/bulgaria/",
+        "https://www.flashscore.com/football/cyprus/",
+        "https://www.flashscore.com/football/iceland/",
+        "https://www.flashscore.com/football/finland/",
+        "https://www.flashscore.com/football/norway/",
+        "https://www.flashscore.com/football/sweden/",
+        "https://www.flashscore.com/football/denmark/",
+        "https://www.flashscore.com/football/switzerland/",
+        "https://www.flashscore.com/football/austria/",
+        "https://www.flashscore.com/football/greece/",
+        "https://www.flashscore.com/football/scotland/",
+        "https://www.flashscore.com/football/belgium/",
+        "https://www.flashscore.com/football/netherlands/",
+        "https://www.flashscore.com/football/turkey/",
+        "https://www.flashscore.com/football/england/championship/",
+        "https://www.flashscore.com/football/england/league-one/",
+        "https://www.flashscore.com/football/germany/2-bundesliga/",
+        "https://www.flashscore.com/football/italy/serie-b/",
+        "https://www.flashscore.com/football/france/ligue-2/",
+        "https://www.flashscore.com/football/spain/laliga2/",
+        "https://www.flashscore.com/football/portugal/",
+        "https://www.flashscore.com/football/brazil/",
+        "https://www.flashscore.com/football/brazil/serie-a/",
+        "https://www.flashscore.com/football/argentina/",
+        "https://www.flashscore.com/football/argentina/liga-profesional/",
+        "https://www.flashscore.com/football/uruguay/",
+        "https://www.flashscore.com/football/mexico/",
+        "https://www.flashscore.com/football/usa/",
+        "https://www.flashscore.com/football/usa/mls/",
+        "https://www.flashscore.com/football/japan/",
+        "https://www.flashscore.com/football/south-korea/",
+        "https://www.flashscore.com/football/china/",
+        "https://www.flashscore.com/football/indonesia/",
+        "https://www.flashscore.com/football/australia/",
+        "https://www.flashscore.com/football/south-africa/",
+        "https://www.flashscore.com/football/nigeria/",
+        "https://www.flashscore.com/football/ghana/",
+        "https://www.flashscore.com/football/kenya/",
+        "https://www.flashscore.com/football/tunisia/",
+        "https://www.flashscore.com/football/cameroon/",
+        "https://www.flashscore.com/football/senegal/",
+        "https://www.flashscore.com/football/bolivia/",
+        "https://www.flashscore.com/football/venezuela/",
+        "https://www.flashscore.com/football/honduras/",
+        "https://www.flashscore.com/football/peru/",
+        "https://www.flashscore.com/football/egypt/",
+        "https://www.flashscore.com/football/uzbekistan/",
+        "https://www.flashscore.com/football/saudi-arabia/",
+        "https://www.flashscore.com/football/colombia/",
+        "https://www.flashscore.com/football/chile/",
+        "https://www.flashscore.com/football/algeria/",
+        "https://www.flashscore.com/football/morocco/",
+        "https://www.flashscore.com/football/india/",
+        "https://www.flashscore.com/football/vietnam/",
+        "https://www.flashscore.com/football/thailand/",
+        "https://www.flashscore.com/football/iran/",
+        "https://www.flashscore.com/football/kazakhstan/",
+        "https://www.flashscore.com/football/georgia/",
+        "https://www.flashscore.com/football/kosovo/",
+        "https://www.flashscore.com/football/paraguay/",
+        "https://www.flashscore.com/football/ecuador/",
+        "https://www.flashscore.com/football/costa-rica/",
+        "https://www.flashscore.com/football/jordan/",
+        "https://www.flashscore.com/football/uae/",
+        "https://www.flashscore.com/football/europe/champions-league-women/",
+        "https://www.flashscore.com/football/england/wsl-women/",
+        "https://www.flashscore.com/football/spain/liga-f-women/",
+        "https://www.flashscore.com/football/usa/nwsl-women/",
+        "https://www.flashscore.com/football/france/division-1-women/",
+        "https://www.soccerway.com/",
+        "https://www.betclic.pl/pilka-nozna-s1",
+        "https://www.oddsportal.com/football/",
+        "https://www.betexplorer.com/soccer/",
+        "https://www.soccerstats.com/",
+        "https://totalcorner.com/",
+        "https://totalcorner.com/match/today",
+        "https://www.forebet.com/en/football-tips-and-predictions-for-today",
+        "https://scores24.live/en/soccer",
+        "https://www.covers.com/",
+        "https://www.whoscored.com/Previews",
+        "https://scores24.live/en/american-football",
+        "https://scores24.live/en/cricket",
+        "https://scores24.live/en/rugby",
+        "https://scores24.live/en/badminton",
+        "https://scores24.live/en/boxing",
+        "https://scores24.live/en/futsal",
+        "https://www.sofascore.com/",
+        "https://www.oddsportal.com/",
+        "https://www.betexplorer.com/"
+      ],
+      "timeout_minutes": 15,
+      "max_deep_links": 50,
+      "dedicated_sources": [
+        "soccerstats.com",
+        "totalcorner.com",
+        "soccerway.com",
+        "whoscored.com"
+      ]
+    },
+    "tennis": {
+      "urls": [
+        "https://www.flashscore.com/tennis/",
+        "https://www.flashscore.com/tennis/atp-singles/",
+        "https://www.flashscore.com/tennis/wta-singles/",
+        "https://www.flashscore.com/tennis/atp-doubles/",
+        "https://www.betclic.pl/tenis-s2",
+        "https://www.oddsportal.com/tennis/",
+        "https://www.tennisexplorer.com/",
+        "https://www.tennisexplorer.com/matches/",
+        "https://www.tennisabstract.com/reports/wta_elo_ratings.html",
+        "https://www.tennisabstract.com/reports/atp_elo_ratings.html",
+        "https://www.atptour.com/en/scores/current",
+        "https://www.forebet.com/en/tennis/predictions-today",
+        "https://scores24.live/en/tennis"
+      ],
+      "timeout_minutes": 5,
+      "max_deep_links": 20,
+      "dedicated_sources": [
+        "tennisexplorer.com",
+        "tennisabstract.com",
+        "atptour.com"
+      ]
+    },
+    "basketball": {
+      "urls": [
+        "https://www.flashscore.com/basketball/",
+        "https://www.flashscore.com/basketball/usa/nba/",
+        "https://www.flashscore.com/basketball/europe/euroleague/",
+        "https://www.flashscore.com/basketball/europe/eurocup/",
+        "https://www.flashscore.com/basketball/europe/champions-league/",
+        "https://www.flashscore.com/basketball/spain/acb/",
+        "https://www.flashscore.com/basketball/germany/bundesliga/",
+        "https://www.flashscore.com/basketball/france/lnb/",
+        "https://www.flashscore.com/basketball/italy/lega-a/",
+        "https://www.flashscore.com/basketball/greece/basket-league/",
+        "https://www.flashscore.com/basketball/poland/",
+        "https://www.flashscore.com/basketball/poland/basket-liga/",
+        "https://www.flashscore.com/basketball/poland/plk/",
+        "https://www.flashscore.com/basketball/poland/1-liga/",
+        "https://www.flashscore.com/basketball/poland/basket-liga-women/",
+        "https://www.flashscore.com/basketball/turkey/bsl/",
+        "https://www.betclic.pl/koszykowka-s4",
+        "https://www.oddsportal.com/basketball/",
+        "https://www.betexplorer.com/basketball/",
+        "https://www.forebet.com/en/basketball/predictions-today",
+        "https://scores24.live/en/basketball",
+        "https://www.basketball-reference.com/",
+        "https://www.teamrankings.com/"
+      ],
+      "timeout_minutes": 5,
+      "max_deep_links": 20,
+      "dedicated_sources": [
+        "basketball-reference.com",
+        "teamrankings.com"
+      ]
+    },
+    "volleyball": {
+      "urls": [
+        "https://www.flashscore.com/volleyball/",
+        "https://www.flashscore.com/volleyball/poland/",
+        "https://www.flashscore.com/volleyball/poland/plusliga/",
+        "https://www.flashscore.com/volleyball/poland/i-liga/",
+        "https://www.flashscore.com/volleyball/poland/tauron-liga-women/",
+        "https://www.flashscore.com/volleyball/poland/i-liga-women/",
+        "https://www.flashscore.com/volleyball/italy/superlega/",
+        "https://www.flashscore.com/volleyball/france/ligue-a/",
+        "https://www.flashscore.com/volleyball/turkey/efeler-ligi/",
+        "https://www.flashscore.com/volleyball/germany/bundesliga/",
+        "https://www.flashscore.com/volleyball/europe/champions-league/",
+        "https://www.flashscore.com/volleyball/brazil/superliga/",
+        "https://www.betclic.pl/siatkowka-s18",
+        "https://www.oddsportal.com/volleyball/",
+        "https://www.betexplorer.com/volleyball/",
+        "https://www.forebet.com/en/volleyball/predictions-today",
+        "https://scores24.live/en/volleyball"
+      ],
+      "timeout_minutes": 5,
+      "max_deep_links": 20,
+      "dedicated_sources": []
+    },
+    "hockey": {
+      "urls": [
+        "https://www.flashscore.com/hockey/",
+        "https://www.flashscore.com/hockey/usa/nhl/",
+        "https://www.flashscore.com/hockey/sweden/shl/",
+        "https://www.flashscore.com/hockey/finland/liiga/",
+        "https://www.flashscore.com/hockey/czech-republic/extraliga/",
+        "https://www.betclic.pl/hokej-na-lodzie-s13",
+        "https://www.oddsportal.com/hockey/",
+        "https://www.hockey-reference.com/",
+        "https://www.forebet.com/en/hockey/predictions-today",
+        "https://scores24.live/en/ice-hockey"
+      ],
+      "timeout_minutes": 3,
+      "max_deep_links": 15,
+      "dedicated_sources": [
+        "hockey-reference.com"
+      ]
+    },
+    "handball": {
+      "urls": [
+        "https://www.flashscore.com/handball/",
+        "https://www.flashscore.com/handball/poland/",
+        "https://www.flashscore.com/handball/poland/superliga/",
+        "https://www.flashscore.com/handball/poland/superliga-women/",
+        "https://www.flashscore.com/handball/europe/champions-league/",
+        "https://www.flashscore.com/handball/germany/bundesliga/",
+        "https://www.flashscore.com/handball/france/starligue/",
+        "https://www.flashscore.com/handball/spain/liga-asobal/",
+        "https://www.flashscore.com/handball/denmark/handboldligaen/",
+        "https://www.betclic.pl/pilka-reczna-s3",
+        "https://www.oddsportal.com/handball/",
+        "https://www.betexplorer.com/handball/",
+        "https://www.forebet.com/en/handball/predictions-today",
+        "https://scores24.live/en/handball"
+      ],
+      "timeout_minutes": 3,
+      "max_deep_links": 15,
+      "dedicated_sources": []
+    },
+    "baseball": {
+      "urls": [
+        "https://www.flashscore.com/baseball/",
+        "https://www.betclic.pl/baseball-s14",
+        "https://www.oddsportal.com/baseball/",
+        "https://scores24.live/en/baseball"
+      ],
+      "timeout_minutes": 3,
+      "max_deep_links": 10,
+      "dedicated_sources": []
+    },
+    "esports": {
+      "urls": [
+        "https://www.flashscore.com/esports/",
+        "https://www.flashscore.com/esports/counter-strike/",
+        "https://www.betclic.pl/esport-s46",
+        "https://www.betexplorer.com/esports/",
+        "https://www.hltv.org/matches",
+        "https://www.gosugamers.net/",
+        "https://scores24.live/en/csgo"
+      ],
+      "timeout_minutes": 5,
+      "max_deep_links": 15,
+      "dedicated_sources": [
+        "hltv.org",
+        "gosugamers.net"
+      ]
+    },
+    "combat": {
+      "urls": [
+        "https://www.flashscore.com/mma/",
+        "https://www.flashscore.com/mma/ufc/",
+        "https://www.betclic.pl/mma-s38",
+        "https://scores24.live/en/mma"
+      ],
+      "timeout_minutes": 2,
+      "max_deep_links": 5,
+      "dedicated_sources": []
+    },
+    "racket": {
+      "urls": [
+        "https://www.flashscore.com/table-tennis/",
+        "https://www.betclic.pl/tenis-stolowy-s10",
+        "https://www.betexplorer.com/table-tennis/",
+        "https://scores24.live/en/table-tennis",
+        "https://www.sofascore.com/padel",
+        "https://www.betclic.pl/padel-s48",
+        "https://www.betexplorer.com/padel/",
+        "https://www.premierpadel.com/"
+      ],
+      "timeout_minutes": 3,
+      "max_deep_links": 10,
+      "dedicated_sources": [
+        "premierpadel.com"
+      ]
+    },
+    "niche": {
+      "urls": [
+        "https://www.flashscore.com/snooker/",
+        "https://www.betclic.pl/snooker-s19",
+        "https://www.betexplorer.com/snooker/",
+        "https://scores24.live/en/snooker",
+        "https://cuetracker.net/",
+        "https://www.flashscore.com/darts/",
+        "https://www.flashscore.com/darts/pdc/",
+        "https://www.betclic.pl/rzutki-s11",
+        "https://www.betexplorer.com/darts/",
+        "https://scores24.live/en/darts",
+        "https://dartsorakel.com/",
+        "https://www.betclic.pl/zuzel-s36",
+        "https://www.betexplorer.com/speedway/",
+        "https://speedwayekstraliga.pl/"
+      ],
+      "timeout_minutes": 5,
+      "max_deep_links": 10,
+      "dedicated_sources": [
+        "cuetracker.net",
+        "dartsorakel.com",
+        "speedwayekstraliga.pl"
+      ]
+    },
+    "tipsters": {
+      "urls": [
+        "https://www.zawodtyper.pl/",
+        "https://typersi.pl/",
+        "https://sportowefakty.wp.pl/zuzel",
+        "https://www.sportsgambler.com/predictions/today/",
+        "https://www.betideas.com/",
+        "https://www.pickswise.com/",
+        "https://www.betaminic.com/",
+        "https://www.feedinco.com/",
+        "https://www.bettingclosed.com/",
+        "https://tips180.com/",
+        "https://www.tipstrr.com/tips"
+      ],
+      "timeout_minutes": 5,
+      "max_deep_links": 10,
+      "dedicated_sources": []
+    }
+  },
+  "shared_sources": {
+    "betclic.pl": {
+      "delay": 2.0
+    },
+    "flashscore.com": {
+      "parallel": 3
+    },
+    "sofascore.com": {
+      "parallel": 2
+    },
+    "betexplorer.com": {
+      "parallel": 2
+    },
+    "oddsportal.com": {
+      "parallel": 2
+    },
+    "scores24.live": {
+      "parallel": 2
+    },
+    "forebet.com": {
+      "parallel": 2
+    },
+    "soccerway.com": {
+      "parallel": 2
+    }
+  },
+  "_legacy_urls": [
     "https://www.flashscore.com/",
     "https://www.flashscore.com/tennis/",
     "https://www.flashscore.com/basketball/",

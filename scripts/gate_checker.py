@@ -344,6 +344,187 @@ def check_red_flags(candidate: dict) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
+# Directional Conflict Detection (Pattern A — May 2026 post-mortem)
+# ---------------------------------------------------------------------------
+
+# Attack-related stats: if one pick says UNDER on an attack stat and another
+# says OVER on a different attack stat for the same team in the same game,
+# those are logically contradictory theses.
+ATTACK_RELATED_KEYWORDS = frozenset([
+    "shot", "sot", "shots on target", "corner", "corners",
+    "chances", "xg", "attacks", "dangerous attacks",
+])
+
+
+def _is_attack_related(market_name: str) -> bool:
+    """Check if a market is attack-related (shots, corners, SoT, etc.)."""
+    lower = market_name.lower()
+    return any(kw in lower for kw in ATTACK_RELATED_KEYWORDS)
+
+
+def _extract_team_direction(pick: dict) -> list[tuple[str, str, str]]:
+    """Extract (team, market_category, direction) tuples from a pick.
+
+    Returns list of (team_name, stat_category, OVER/UNDER) for conflict checking.
+    """
+    results = []
+    best = pick.get("best_market") or {}
+    market_name = (best.get("name") or "").lower()
+    direction = (best.get("direction") or "").upper()
+    if not direction:
+        return results
+
+    home = (pick.get("home_team") or "").lower()
+    away = (pick.get("away_team") or "").lower()
+
+    # Determine which team the stat relates to
+    # Team-specific markets: "Team A Corners", "PSG Shots", etc.
+    if "team a" in market_name or "team_a" in market_name:
+        team = home
+    elif "team b" in market_name or "team_b" in market_name:
+        team = away
+    else:
+        # Combined market — relates to both teams
+        team = f"{home}+{away}"
+
+    stat_category = "attack" if _is_attack_related(market_name) else "general"
+    results.append((team, stat_category, direction))
+    return results
+
+
+def check_directional_conflicts(candidates: list[dict]) -> dict[str, list[str]]:
+    """Detect contradictions: same team, same game, opposite directions on attack stats.
+
+    Returns dict mapping event_key → list of conflict descriptions.
+    """
+    # Group picks by game (home+away)
+    game_picks: dict[str, list[dict]] = {}
+    for c in candidates:
+        home = (c.get("home_team") or "").strip().lower()
+        away = (c.get("away_team") or "").strip().lower()
+        if home and away:
+            key = f"{home}|{away}"
+            game_picks.setdefault(key, []).append(c)
+
+    conflicts: dict[str, list[str]] = {}
+
+    for game_key, picks in game_picks.items():
+        if len(picks) < 2:
+            continue
+
+        # Collect all (team, category, direction) for this game
+        team_directions: dict[str, list[tuple[str, str, dict]]] = {}
+        for pick in picks:
+            for team, category, direction in _extract_team_direction(pick):
+                team_directions.setdefault(team, []).append((category, direction, pick))
+
+        # Check for contradictions: same team, attack stats, opposite directions
+        for team, entries in team_directions.items():
+            attack_entries = [(d, p) for cat, d, p in entries if cat == "attack"]
+            if len(attack_entries) < 2:
+                continue
+
+            overs = [(d, p) for d, p in attack_entries if d == "OVER"]
+            unders = [(d, p) for d, p in attack_entries if d == "UNDER"]
+
+            if overs and unders:
+                over_markets = [(_bm(p).get("name", "?")) for _, p in overs]
+                under_markets = [(_bm(p).get("name", "?")) for _, p in unders]
+                msg = (
+                    f"DIRECTIONAL CONFLICT: {team} has OVER ({', '.join(over_markets)}) "
+                    f"AND UNDER ({', '.join(under_markets)}) on attack stats in same game"
+                )
+                conflicts.setdefault(game_key, []).append(msg)
+
+    return conflicts
+
+
+def _bm(pick: dict) -> dict:
+    """Safely get best_market from a pick."""
+    return pick.get("best_market") or {}
+
+
+# ---------------------------------------------------------------------------
+# Competition Context Caps (Pattern B — May 2026 post-mortem)
+# ---------------------------------------------------------------------------
+
+# Knockout/playoff competitions trigger safety caps — L10 from domestic league
+# doesn't reflect high-stakes knockout behavior.
+KNOCKOUT_PATTERNS = re.compile(
+    r"(semi[- ]?final|quarter[- ]?final|playoff|play-off|"
+    r"knockout|elimination|round of 16|round of 8|"
+    r"sf|qf|r16|final\b)",
+    re.IGNORECASE,
+)
+
+CONTINENTAL_COMPETITIONS = re.compile(
+    r"(champions league|europa league|conference league|"
+    r"copa libertadores|copa sudamericana|"
+    r"afc champions|ehf champions|cel champions|"
+    r"khl playoff|nhl playoff|nba playoff)",
+    re.IGNORECASE,
+)
+
+# Top-tier clubs where playing AWAY in knockout is extremely difficult
+TOP_CLUBS = frozenset([
+    "barcelona", "real madrid", "bayern", "manchester city",
+    "liverpool", "psg", "inter", "juventus", "arsenal",
+    "atletico madrid", "borussia dortmund", "napoli",
+    # Add handball/basketball powerhouses
+    "fc barcelona", "thw kiel", "sc magdeburg",
+    "real madrid baloncesto", "olympiacos",
+])
+
+
+def compute_context_safety_cap(candidate: dict) -> tuple[float, list[str]]:
+    """Compute maximum allowed safety score based on competition context.
+
+    Returns (cap_value, list_of_reasons). Cap of 1.0 means no restriction.
+    """
+    competition = (candidate.get("competition") or "").lower()
+    home = (candidate.get("home_team") or "").lower()
+    away = (candidate.get("away_team") or "").lower()
+    reasons = []
+    cap = 1.0
+
+    is_knockout = bool(KNOCKOUT_PATTERNS.search(competition))
+    is_continental = bool(CONTINENTAL_COMPETITIONS.search(competition))
+
+    if not is_knockout and not is_continental:
+        return cap, reasons
+
+    # Continental knockout (SF/Final) → cap 0.65
+    if is_continental and is_knockout:
+        if any(kw in competition for kw in ("semi", "final", "sf")):
+            cap = min(cap, 0.65)
+            reasons.append(f"Continental SF/Final: {competition} → cap 0.65")
+        else:
+            cap = min(cap, 0.70)
+            reasons.append(f"Continental knockout: {competition} → cap 0.70")
+    elif is_knockout:
+        cap = min(cap, 0.70)
+        reasons.append(f"Knockout stage: {competition} → cap 0.70")
+
+    # Away at a top club in knockout → additional penalty
+    is_away_pick = False
+    for team_key in ("home_team",):
+        team_name = (candidate.get(team_key) or "").lower()
+        if any(top in team_name for top in TOP_CLUBS):
+            # The home team is a top club — candidate is about a game AT that venue
+            is_away_pick = True
+            break
+
+    if is_away_pick and is_knockout:
+        cap = min(cap, cap - 0.15)
+        reasons.append(f"Away at top club ({home}) in knockout → additional -0.15")
+
+    # Ensure cap never goes below 0.40
+    cap = max(cap, 0.40)
+
+    return cap, reasons
+
+
+# ---------------------------------------------------------------------------
 # Upset risk (§6.5)
 # ---------------------------------------------------------------------------
 
@@ -757,6 +938,33 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
         print(f"[gate_checker] Deduped {dedup_count} duplicate events")
     candidates = list(seen.values())
 
+    # --- Pattern A: Detect directional conflicts across same-game picks ---
+    directional_conflicts = check_directional_conflicts(candidates)
+    if directional_conflicts:
+        print(f"[gate_checker] ⚠️ Directional conflicts in {len(directional_conflicts)} games")
+        for game_key, msgs in directional_conflicts.items():
+            for msg in msgs:
+                print(f"    {msg}")
+
+    # --- Pattern B: Apply competition context safety caps ---
+    context_capped = 0
+    for c in candidates:
+        cap, cap_reasons = compute_context_safety_cap(c)
+        if cap < 1.0:
+            best = c.get("best_market") or {}
+            original_safety = best.get("safety_score", 0)
+            if original_safety and original_safety > cap:
+                best["safety_score"] = round(cap, 2)
+                best["safety_capped"] = True
+                best["original_safety"] = original_safety
+                best["cap_reasons"] = cap_reasons
+                c["context_cap_applied"] = True
+                context_capped += 1
+                print(f"    🔒 {c.get('home_team', '?')} vs {c.get('away_team', '?')}: "
+                      f"safety {original_safety:.2f} → {cap:.2f} ({'; '.join(cap_reasons)})")
+    if context_capped:
+        print(f"[gate_checker] Context caps applied: {context_capped} candidates")
+
     repeat_losses = load_48h_repeats(date)
     approved = []
     extended_pool = []
@@ -764,6 +972,16 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
 
     for c in candidates:
         gate_result = check_17_point_gate(c, repeat_losses)
+
+        # --- Pattern A: Flag directional conflicts ---
+        home = (c.get("home_team") or "").strip().lower()
+        away = (c.get("away_team") or "").strip().lower()
+        game_key = f"{home}|{away}"
+        conflict_msgs = directional_conflicts.get(game_key, [])
+        if conflict_msgs:
+            gate_result["gate_warnings"].extend(conflict_msgs)
+            c["directional_conflict"] = True
+
         risk_tier = compute_risk_tier(c, gate_result)
         conf, conf_adj = compute_confidence(c, gate_result)
 

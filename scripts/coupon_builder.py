@@ -856,6 +856,178 @@ def generate_combos(approved: list, config: dict) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
+# Pattern D: Concentration warnings (May 2026 post-mortem)
+# ---------------------------------------------------------------------------
+
+def compute_concentration_warnings(
+    all_coupons: list[dict], bankroll: float, daily_cap: float
+) -> list[dict]:
+    """Detect picks appearing in multiple coupons and compute max exposure.
+
+    Returns list of warnings with pick details and exposure calculations.
+    If same pick is in >2 coupons, or exposure >25% of daily budget, flag it.
+    """
+    # Map event_key → list of (coupon_id, stake)
+    pick_coupons: dict[str, list[tuple[str, float]]] = {}
+    pick_display: dict[str, str] = {}  # event_key → display name
+
+    for coupon in all_coupons:
+        cid = coupon.get("id", "?")
+        stake = coupon.get("stake", 0)
+        for leg in coupon.get("legs", []):
+            ek = _event_key(leg)
+            pick_coupons.setdefault(ek, []).append((cid, stake))
+            if ek not in pick_display:
+                home = leg.get("home_team", "?")
+                away = leg.get("away_team", "?")
+                pick_display[ek] = f"{home} vs {away}"
+
+    warnings = []
+    max_exposure_pct = 0.25  # 25% of daily cap
+
+    for ek, appearances in pick_coupons.items():
+        if len(appearances) <= 1:
+            continue
+
+        total_exposure = sum(stake for _, stake in appearances)
+        coupon_ids = [cid for cid, _ in appearances]
+        exposure_pct = total_exposure / daily_cap if daily_cap > 0 else 0
+
+        warning = {
+            "event": pick_display.get(ek, ek),
+            "event_key": ek,
+            "coupon_ids": coupon_ids,
+            "appearances": len(appearances),
+            "total_exposure_pln": round(total_exposure, 2),
+            "exposure_pct_of_daily": round(exposure_pct * 100, 1),
+            "flagged": len(appearances) > 2 or exposure_pct > max_exposure_pct,
+        }
+
+        if warning["flagged"]:
+            warning["recommendation"] = (
+                f"⚠️ KONCENTRACJA: {pick_display.get(ek, ek)} w {len(appearances)} kuponach "
+                f"({total_exposure:.2f} PLN = {exposure_pct:.0%} budżetu). "
+                f"Wybierz TYLKO JEDEN z: {', '.join(coupon_ids)}"
+            )
+
+        warnings.append(warning)
+
+    # Sort: most concentrated first
+    warnings.sort(key=lambda w: -w["total_exposure_pln"])
+    return warnings
+
+
+# ---------------------------------------------------------------------------
+# Pattern F: Line sensitivity tables (May 2026 post-mortem)
+# ---------------------------------------------------------------------------
+
+# Sports where Betclic commonly offers different lines than pipeline suggests
+LINE_SENSITIVE_SPORTS = frozenset([
+    "handball", "basketball", "baseball", "tennis", "volleyball",
+])
+
+
+def compute_line_sensitivity_tables(approved: list[dict]) -> list[dict]:
+    """For picks in line-sensitive sports, generate P(hit) tables for alternative lines.
+
+    Shows how probability changes ±1, ±2, ±3 from the pipeline line so the user
+    can make informed decisions when Betclic offers a different line.
+    """
+    tables = []
+
+    for pick in approved:
+        sport = (pick.get("sport") or "").lower()
+        if sport not in LINE_SENSITIVE_SPORTS:
+            continue
+
+        best = pick.get("best_market") or {}
+        line = best.get("line")
+        safety = best.get("safety_score", 0)
+        l10_avg = best.get("l10_avg") or best.get("combined_avg")
+        direction = (best.get("direction") or "").upper()
+        probability = best.get("probability")
+
+        if not line or not l10_avg:
+            continue
+
+        # Generate alternative lines: ±0.5, ±1, ±1.5, ±2
+        steps = [0, 0.5, 1.0, 1.5, 2.0]
+        alt_lines = []
+
+        for step in steps:
+            for sign in (1, -1):
+                if step == 0 and sign == -1:
+                    continue  # Don't duplicate the base line
+                alt_line = line + (step * sign)
+                if alt_line <= 0:
+                    continue
+
+                # Estimate P(hit) using Poisson approximation
+                # P(Over X) ≈ based on distance from mean
+                if l10_avg > 0:
+                    if direction == "OVER":
+                        # As line goes up, probability decreases
+                        # Simple logistic approximation from normal distribution
+                        z = (alt_line - l10_avg) / max(l10_avg * 0.25, 1.0)
+                        p_hit = max(0.05, min(0.95, 0.5 * (1.0 - _erf_approx(z / 1.414))))
+                    else:
+                        # UNDER: as line goes up, probability increases
+                        z = (l10_avg - alt_line) / max(l10_avg * 0.25, 1.0)
+                        p_hit = max(0.05, min(0.95, 0.5 * (1.0 - _erf_approx(z / 1.414))))
+                else:
+                    p_hit = safety  # fallback
+
+                min_odds = round(1.0 / p_hit, 2) if p_hit > 0 else 99.0
+
+                # Recommendation
+                if p_hit >= 0.75:
+                    rec = "✅ PEWNY"
+                elif p_hit >= 0.60:
+                    rec = "✅ DOBRY"
+                elif p_hit >= 0.50:
+                    rec = "⚠️ MARGINALNY"
+                else:
+                    rec = "❌ NIE STAWIAJ"
+
+                alt_lines.append({
+                    "line": alt_line,
+                    "p_hit": round(p_hit, 3),
+                    "min_odds": min_odds,
+                    "recommendation": rec,
+                    "is_pipeline_line": (step == 0),
+                })
+
+        # Sort by line value
+        alt_lines.sort(key=lambda x: x["line"])
+
+        tables.append({
+            "event": f"{pick.get('home_team', '?')} vs {pick.get('away_team', '?')}",
+            "sport": sport,
+            "market": best.get("name", "?"),
+            "direction": direction,
+            "pipeline_line": line,
+            "l10_avg": round(l10_avg, 1),
+            "alternatives": alt_lines,
+        })
+
+    return tables
+
+
+def _erf_approx(x: float) -> float:
+    """Approximate error function for P(hit) estimation.
+
+    Abramowitz and Stegun approximation (max error 1.5×10⁻⁷).
+    """
+    sign = 1 if x >= 0 else -1
+    x = abs(x)
+    t = 1.0 / (1.0 + 0.3275911 * x)
+    y = 1.0 - (
+        (((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592
+    ) * t * (2.718281828 ** (-x * x))
+    return sign * y
+
+
+# ---------------------------------------------------------------------------
 # Main builder
 # ---------------------------------------------------------------------------
 
@@ -1019,6 +1191,14 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
     all_coupons = core + combos
     all_coupons.sort(key=lambda c: (TIER_ORDER.get(c.get("tier", "MS"), 1), -c.get("stress_test", {}).get("p_coupon", 0)))
     result["placement_order"] = [c["id"] for c in all_coupons]
+
+    # --- Pattern D: Concentration warnings ---
+    result["concentration_warnings"] = compute_concentration_warnings(
+        core + combos, bankroll, max_daily
+    )
+
+    # --- Pattern F: Line sensitivity tables ---
+    result["line_sensitivity"] = compute_line_sensitivity_tables(approved)
 
     return result
 
@@ -1331,6 +1511,47 @@ def write_coupon_markdown(coupons_data: dict, date: str) -> Path:
                 f"| {gate} | {pros_str} | {cons_str} |"
             )
         lines.append("")
+
+    # --- Pattern D: Concentration warnings in output ---
+    concentration = coupons_data.get("concentration_warnings", [])
+    flagged_concentration = [w for w in concentration if w.get("flagged")]
+    if flagged_concentration:
+        lines.append("## ⚠️ OSTRZEŻENIE KONCENTRACJI")
+        lines.append("")
+        lines.append("| Pick | Pojawia się w kuponach | Max ekspozycja | % budżetu |")
+        lines.append("|------|----------------------|----------------|-----------|")
+        for w in flagged_concentration:
+            lines.append(
+                f"| {w['event']} | {', '.join(w['coupon_ids'])} "
+                f"| {w['total_exposure_pln']:.2f} PLN "
+                f"| {w['exposure_pct_of_daily']:.0f}% |"
+            )
+        lines.append("")
+        lines.append("> **Zalecenie:** Jeśli stawiasz wszystkie kupony powyżej, "
+                     "wybierz TYLKO JEDEN z nakładających się kuponów aby ograniczyć ryzyko.")
+        lines.append("")
+
+    # --- Pattern F: Line sensitivity tables in output ---
+    line_sens = coupons_data.get("line_sensitivity", [])
+    if line_sens:
+        lines.append("## TABELA WRAŻLIWOŚCI NA LINIĘ")
+        lines.append("")
+        lines.append("> Jeśli Betclic oferuje inną linię niż pipeline, "
+                     "sprawdź P(hit) poniżej przed postawieniem.")
+        lines.append("")
+        for table in line_sens:
+            lines.append(f"### {table['event']} — {table['market']} ({table['direction']})")
+            lines.append(f"L10 średnia: {table['l10_avg']} | Linia pipeline: {table['pipeline_line']}")
+            lines.append("")
+            lines.append("| Linia | P(hit) | Min kurs | Rekomendacja |")
+            lines.append("|-------|--------|----------|--------------|")
+            for alt in table["alternatives"]:
+                mark = " ← pipeline" if alt.get("is_pipeline_line") else ""
+                lines.append(
+                    f"| {alt['line']:.1f} | {alt['p_hit']:.0%} "
+                    f"| {alt['min_odds']:.2f} | {alt['recommendation']}{mark} |"
+                )
+            lines.append("")
 
     # PODSUMOWANIE
     summary = coupons_data.get("summary", {})

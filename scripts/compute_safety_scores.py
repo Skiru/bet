@@ -61,6 +61,113 @@ H2H_MISSING_PENALTY = {
     "speedway": 0.90,     # 10% penalty — team sport but format varies
 }
 
+# ---------------------------------------------------------------------------
+# Pattern C: Sport-specific volatility caps (May 2026 post-mortem)
+# ---------------------------------------------------------------------------
+# Single-game variance differs enormously across sports. Baseball CV ~70-80%,
+# basketball ~15%, handball ~20%. These caps prevent inflated safety scores
+# on inherently volatile per-game stats.
+
+SPORT_VOLATILITY_CAPS: dict[str, dict[str, float]] = {
+    "baseball": {
+        "team_runs": 0.55,
+        "team_hits": 0.55,
+        "total_runs": 0.55,
+        "total_hits": 0.55,
+        "strikeouts": 0.60,
+    },
+    "hockey": {
+        "team_goals": 0.60,
+        "total_goals": 0.60,
+    },
+    "basketball": {
+        "team_points": 0.70,
+    },
+    "handball": {
+        "team_goals": 0.70,
+        "total_goals": 0.70,
+    },
+    "football": {
+        "team_goals": 0.65,
+        "total_goals": 0.65,
+        # Corners, cards, fouls are MORE predictable — no cap (standard)
+    },
+}
+
+
+def _market_category(market_name: str) -> str:
+    """Map a market name to its volatility category."""
+    lower = market_name.lower()
+
+    # Baseball
+    if any(kw in lower for kw in ("runs", "run")):
+        if "team" in lower:
+            return "team_runs"
+        return "total_runs"
+    if "hit" in lower:
+        if "team" in lower:
+            return "team_hits"
+        return "total_hits"
+    if "strikeout" in lower or "k's" in lower:
+        return "strikeouts"
+
+    # Hockey/Handball/Football goals
+    if "goal" in lower:
+        if "team" in lower:
+            return "team_goals"
+        return "total_goals"
+
+    # Basketball
+    if "point" in lower:
+        if "team" in lower:
+            return "team_points"
+        return "total_points"
+
+    return ""
+
+
+# ---------------------------------------------------------------------------
+# Pattern E: Data tier caps (youth, state leagues, women's)
+# ---------------------------------------------------------------------------
+
+def _compute_data_tier_cap(competition: str) -> float:
+    """Return maximum safety score based on competition tier.
+
+    Lower-quality data sources → lower safety cap.
+    """
+    comp_lower = competition.lower()
+
+    # Youth leagues (U17, U19, U20, U21)
+    if any(kw in comp_lower for kw in ("u17", "u19", "u20", "u21", "youth", "junior", "sub-20", "sub-17")):
+        return 0.60
+
+    # State/regional leagues (Brazil Campeonato Estadual, etc.)
+    if any(kw in comp_lower for kw in (
+        "capixaba", "paulista", "carioca", "gaúcho", "gaucho",
+        "mineiro", "paranaense", "catarinense", "baiano",
+        "sergipano", "alagoano", "potiguar", "paraibano",
+    )):
+        return 0.55
+
+    # Women's leagues (except top — NWSL, WSL, D1F, Liga F, Serie A Femminile)
+    top_womens = ("nwsl", "wsl", "d1 arkema", "liga f", "serie a femm")
+    if ("women" in comp_lower or "feminin" in comp_lower or "kobiet" in comp_lower or
+            "w." in comp_lower or "ladies" in comp_lower):
+        if not any(top in comp_lower for top in top_womens):
+            return 0.60
+
+    # Second/third division (smaller penalty)
+    if any(kw in comp_lower for kw in (
+        "2. liga", "segunda", "serie b", "ligue 2", "2. bundesliga",
+        "championship", "league one", "league two",
+        "primera b", "serie c", "3. liga",
+    )):
+        return 0.70  # Small discount — decent data usually available
+
+    # No cap for standard competitions
+    return 1.0
+
+
 # Input JSON schema description (for --help)
 INPUT_SCHEMA = """
 Input JSON format:
@@ -395,6 +502,51 @@ def rank_markets(data: dict) -> dict:
                     r["safety_score"] = opt["safety_score"]
                     r["line"] = opt["best_line"]
                     r["direction"] = opt["direction"].upper()
+
+    # --- Pattern C: Sport-specific volatility caps ---
+    # Baseball, hockey, etc. have high single-game variance that inflates safety
+    for r in results:
+        cap = SPORT_VOLATILITY_CAPS.get(sport, {}).get(_market_category(r["name"]))
+        if cap is not None and r["safety_score"] > cap:
+            r["original_safety"] = r["safety_score"]
+            r["safety_score"] = cap
+            r["volatility_capped"] = True
+
+    # --- Pattern E: Data tier caps (youth, state leagues, women's) ---
+    competition_lower = competition.lower()
+    tier_cap = _compute_data_tier_cap(competition_lower)
+    if tier_cap < 1.0:
+        for r in results:
+            if r["safety_score"] > tier_cap:
+                r.setdefault("original_safety", r["safety_score"])
+                r["safety_score"] = round(tier_cap, 2)
+                r["data_tier_capped"] = True
+                r["data_tier_cap_reason"] = f"competition tier cap: {tier_cap}"
+
+    # --- Pattern G: Evidence requirements ---
+    # Safety ≥0.80 requires ≥10 L10 values AND H2H data AND 0 one-sided flags
+    for r in results:
+        if r["safety_score"] >= 0.80:
+            l10_str = r.get("hit_rate_l10", "0/0")
+            try:
+                total_l10 = int(l10_str.split("/")[1]) if "/" in str(l10_str) else 0
+            except (ValueError, IndexError):
+                total_l10 = 0
+            has_h2h = not r.get("h2h_blind", True)
+            is_one_sided = r.get("one_sided", False)
+
+            if total_l10 < 10 or not has_h2h or is_one_sided:
+                r.setdefault("original_safety", r["safety_score"])
+                r["safety_score"] = min(r["safety_score"], 0.70)
+                r["evidence_capped"] = True
+                reasons = []
+                if total_l10 < 10:
+                    reasons.append(f"only {total_l10} L10 games (need 10)")
+                if not has_h2h:
+                    reasons.append("no H2H data")
+                if is_one_sided:
+                    reasons.append("one-sided data")
+                r["evidence_cap_reason"] = "; ".join(reasons)
 
     # Sort by safety score (desc), margin as tiebreaker (desc)
     results.sort(key=lambda x: (x["safety_score"], x["margin"]), reverse=True)

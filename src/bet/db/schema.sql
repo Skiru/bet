@@ -287,3 +287,41 @@ CREATE INDEX IF NOT EXISTS idx_decision_outcomes_sport ON decision_outcomes(spor
 CREATE INDEX IF NOT EXISTS idx_decision_outcomes_market ON decision_outcomes(market);
 CREATE INDEX IF NOT EXISTS idx_decision_outcomes_date ON decision_outcomes(betting_date);
 CREATE INDEX IF NOT EXISTS idx_decision_outcomes_result ON decision_outcomes(result);
+
+-- Scan results (per-event data from sport scanners)
+CREATE TABLE IF NOT EXISTS scan_results (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    betting_date TEXT NOT NULL,
+    sport TEXT NOT NULL,
+    source_domain TEXT NOT NULL,
+    event_key TEXT NOT NULL,
+    home_team TEXT,
+    away_team TEXT,
+    competition TEXT,
+    kickoff TEXT,
+    raw_data TEXT,
+    scan_timestamp TEXT NOT NULL,
+    UNIQUE(betting_date, sport, source_domain, event_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_scan_results_date_sport ON scan_results(betting_date, sport);
+CREATE INDEX IF NOT EXISTS idx_scan_results_event_key ON scan_results(event_key);
+
+-- Scan run statistics (per-sport scan metadata)
+CREATE TABLE IF NOT EXISTS scan_run_stats (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    betting_date TEXT NOT NULL,
+    sport TEXT NOT NULL,
+    scanner_group TEXT NOT NULL,
+    events_found INTEGER DEFAULT 0,
+    sources_ok INTEGER DEFAULT 0,
+    sources_failed INTEGER DEFAULT 0,
+    deep_links_found INTEGER DEFAULT 0,
+    duration_seconds REAL,
+    validation_passed INTEGER DEFAULT 1,
+    gaps_description TEXT,
+    scan_timestamp TEXT NOT NULL,
+    UNIQUE(betting_date, sport)
+);
+
+CREATE INDEX IF NOT EXISTS idx_scan_run_stats_date ON scan_run_stats(betting_date);

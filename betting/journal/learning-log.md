@@ -650,3 +650,35 @@ Roster change (+2), map pool edge (+1), online match (+1), new patch (+1).
 - scripts/analyze_betclic_learning.py (new — learning analysis)
 - betting/data/betclic_bets_history.json (new — structured bet data)
 - betting/journal/learning-log.md (this entry)
+
+---
+
+## Entry #12 — 2026-05-07: May 6 Total Wipeout (0/4, -8.00 PLN, -13% bankroll)
+
+**Trigger:** All 4 placed coupons lost on May 6 (handball CL, basketball UCL SF + PLK, MLB + NBA night). Bankroll 61.91 → 53.91.
+
+### Root Causes Identified:
+
+1. **CONTEXT BLINDNESS (Critical):** Pipeline treated CL Semi-Final (Bayern vs PSG) same as regular Ligue 1 games. PSG SoT Under 5.5 had "10/10 L10 hit rate" — but those 10 games were NOT elimination matches at elite opponents. In a CL SF, teams shoot 2-3× more because stakes demand attacking play.
+
+2. **HANDBALL CL KNOCKOUT MISPRICING:** Nantes scored only 21 goals away at Barcelona (vs O28.5/O29.5 line). The "safety 0.80" assumed group-stage offensive output. In knockout away legs at powerhouses, underdog scoring drops 30-40%. Should have been safety ≤0.55.
+
+3. **LINE MISMATCH UNMANAGED:** Pipeline suggested handball at O28.5 but user placed Veszprém O30.5 and Nantes O29.5 — each +1/+2 goal higher. No mechanism to warn that P(hit) drops dramatically per goal in handball (from 80% → 55% for O30.5).
+
+4. **BASEBALL VOLATILITY IGNORED:** Nationals "avg 3.4 runs L10" → scored 15 (4.5σ). Baseball CV ~70-80% per game. Pipeline treated baseball like basketball (CV ~15%). Single baseball run markets are inherently unpredictable.
+
+5. **CONCENTRATION RISK (DUPLICATE PICKS):** Nationals U4.5 appeared in BOTH coupon 3 AND coupon 4. Knicks O110.5 also in both. One failure killed 4.00 PLN of exposure simultaneously.
+
+### Rules (max 3):
+
+1. **CL KNOCKOUT/SF/FINAL CONTEXT DISCOUNT:** If event is CL/EL knockout (QF/SF/Final) AND involves top-4 European team → cap safety at 0.65, discard L10 from different competition tiers. Only same-tier reference games valid.
+
+2. **NO DUPLICATE PICKS ACROSS PLACED COUPONS:** Same event×market can appear in max 1 placed coupon per day. Correlated exposure = correlated wipeout.
+
+3. **BASEBALL SINGLE-GAME MARKETS CAP:** Any team-level baseball stat (runs, hits) in a single game → safety capped at 0.55, never in 2+ coupons. Baseball CV too high for confident single-game picks.
+
+### Data:
+- Settled: 4 coupons LOST, 9 picks (3W 6L = 33% pick win rate)
+- Individual leg analysis: 3/9 won = variance was NOT catastrophic at pick level
+- But ALL 4 coupons lost = concentration + bad leg selection killed portfolio
+- Bankroll: 61.91 → 53.91 PLN (-13% single day = worst day since tracking began)

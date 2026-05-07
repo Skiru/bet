@@ -84,6 +84,53 @@ The pipeline has fully automated scripts for S3 (deep stats), S7 (gate checks), 
 
 **NO AUTO-REJECTION RULE:** The pipeline NEVER auto-rejects events based on EV, safety scores, or historical hit rates. ALL discovered fixtures with available markets are shown in the market matrix. The USER decides which to bet on. The pipeline's job is to provide maximum information — odds, safety scores, H2H data, market alternatives — not to filter down to a tiny list. **This policy is enforced at script level:** `aggregate_and_select.py` uses advisory flags instead of auto-rejection, ensuring all events flow through to the market matrix regardless of calculated scores.
 
+### §SCAN.7 MAJOR TOURNAMENT PROTECTION (NEVER SKIP)
+
+**RULE: MAJOR TOURNAMENTS WORLDWIDE ARE NEVER SKIPPED, DEPRIORITIZED, OR FILTERED.**
+
+Active major tournaments get PRIORITY treatment across the entire pipeline:
+
+1. **During scanning:** ALL matches from active major tournaments must be discovered. If a tournament has 8 matches today, all 8 appear in the scan — not "top 2 by odds." Use tournament-specific sub-pages, brackets, and schedule pages. Cross-check match counts.
+2. **During shortlisting:** Events from major tournaments are NEVER filtered out by FIXTURE_ONLY tier, low odds coverage, or sport caps. They always make the shortlist.
+3. **During analysis:** Full STEPS 3-7 for every tournament match. Tournament context matters — pressure, fatigue, elimination dynamics, bracket position.
+4. **During coupon building:** Tournament matches are premium candidates. They have high public visibility on Betclic (better liquidity, more markets available).
+
+**What counts as "major tournament":**
+- Football: Champions League, Europa League, Conference League, World Cup, Euro, Copa América, Copa Libertadores, Nations League (finals), FA Cup (later rounds), Club World Cup
+- Tennis: Grand Slams (Australian Open, Roland Garros, Wimbledon, US Open), Masters 1000 (Indian Wells, Miami, Monte Carlo, Madrid, Rome, Canada, Cincinnati, Shanghai, Paris)
+- Basketball: NBA Playoffs, EuroLeague Final Four, FIBA World Cup, NCAA March Madness
+- Volleyball: CEV Champions League, World Championship, Nations League Finals, PlusLiga Playoffs, SuperLega Playoffs
+- Hockey: NHL Playoffs, Stanley Cup, IIHF World Championship
+- Handball: EHF Champions League Final Four, World Championship
+- Esports: CS2 Majors, LoL Worlds, Dota TI, BLAST Premier
+- Snooker: World Championship, Masters, Champion of Champions, UK Championship
+- Darts: World Championship, Premier League, World Grand Prix, Grand Slam
+- Baseball: MLB Playoffs, World Series, World Baseball Classic
+- MMA: UFC numbered events (PPVs), UFC Fight Night with ranked fighters
+- Table Tennis: WTT Grand Smash, World Championships
+- Padel: Premier Padel Majors
+- Speedway: Speedway GP rounds
+
+**GATE:** If a major tournament is active today AND has matches, they MUST appear in the final market matrix. If missing → scan failed → re-scan that sport specifically for the tournament.
+
+### §SCAN.8 MINOR LEAGUE VALUE EDGE (POSITIVE SIGNAL)
+
+**RULE: LESS POPULAR LEAGUES CARRY A VALUE EDGE — THEY ARE NOT "WORSE" CANDIDATES.**
+
+Bookmaker markets are LESS efficient for minor/lower leagues because:
+- Less betting volume → less market correction → more mispricing
+- Fewer sharp bettors monitoring these markets → slower line movement  
+- Betclic often offers static lines (not adjusted) for smaller leagues
+- Statistical patterns (corners, fouls, totals) are MORE stable in lower leagues (same teams play each other regularly, coaches don't rotate)
+
+**Pipeline behavior:**
+1. **NEVER penalize** events for being from an "obscure" league. 2. Bundesliga, Polish 1. Liga, Serie B, Ligue 2, Belgian First Division B, Swedish Allsvenskan, Norwegian Eliteserien, Danish Superliga, etc. are ALL valid and often PROFITABLE targets.
+2. **Apply a VALUE BOOST** in shortlist scoring for events from non-top-5 leagues that have good statistical data coverage. These are often underpriced by bookmakers.
+3. **Statistical markets in minor leagues** (corners, fouls, cards, totals) are especially strong because team styles are consistent and well-documented — fewer lineup changes, same coaches, predictable patterns.
+4. **Flag to user:** In the market matrix, mark events from minor leagues with a `[VALUE]` tag so the user knows these have theoretical edge from market inefficiency.
+
+**This does NOT mean:** randomly betting on leagues with zero data. Good data coverage + minor league = high edge. No data + minor league = skip (as normal).
+
 ---
 
 ## STEP 0: SETTLE PREVIOUS DAY + LEARN FROM HISTORY

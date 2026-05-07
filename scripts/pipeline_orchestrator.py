@@ -96,7 +96,7 @@ except ImportError:
 # Per-step timeout in seconds (prevents hanging on slow sources)
 STEP_TIMEOUTS = {
     "s0_settle": 180,      # 3 min
-    "s1_scan": 1800,       # 30 min (Playwright scan ONLY — no enrichment)
+    "s1_scan": 1200,       # 20 min (parallel per-sport scan — each sport has independent timeout)
     "s1_ingest": 180,      # 3 min (ingest scan data into stats cache)
     "s1a_discover": 600,   # 10 min (DB persistence with caching)
     "s1b_parallel": 600,   # 10 min (odds + weather + tipsters in parallel)
@@ -1234,16 +1234,123 @@ def _run_source_health(date: str) -> None:
         print(f"  ⚠ Source health logging error: {e}")
 
 
-def _run_scan_events(date: str, state: dict) -> tuple[bool, str]:
-    """S1: Run Playwright event scan ONLY (no enrichment/aggregation).
+def _run_parallel_scan(date: str) -> dict:
+    """Run all sport scanners in parallel with independent timeouts."""
+    sys.path.insert(0, str(SCRIPTS_DIR))
+    from scanners import get_all_scanners
+    from scanners.domain_semaphore import DomainSemaphoreMap
+    from scanners.merge_results import merge_scan_results
 
-    This is the decomposed version of the monolithic bash script.
-    Runs scan_events.py directly with proper timeout and resume capability.
-    Enrichment, aggregation, matrix, shortlist are handled by subsequent steps.
+    semaphore_map = DomainSemaphoreMap()
+    scanners = get_all_scanners()
+
+    # Inject ZawodTyper daily URL into football scanner
+    from datetime import datetime as dt
+    now = dt.now(ZoneInfo("Europe/Warsaw"))
+    pl_months = ["", "stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca",
+                 "lipca", "sierpnia", "wrzesnia", "pazdziernika", "listopada", "grudnia"]
+    pl_days_list = ["", "poniedzialek", "wtorek", "sroda", "czwartek", "piatek", "sobota", "niedziela"]
+    zt_url = f"https://www.zawodtyper.pl/typy-dnia-{now.day}-{pl_months[now.month]}-{pl_days_list[now.isoweekday()]}/"
+    for scanner in scanners:
+        if scanner.scanner_group == "football" and hasattr(scanner, "_extra_urls"):
+            scanner._extra_urls.append(zt_url)
+            break
+    else:
+        # If no _extra_urls attribute, log it
+        print(f"  → ZawodTyper URL: {zt_url} (will be used in legacy fallback)")
+
+    results = {}
+
+    # Record per-sport sub-steps in DB
+    try:
+        sys.path.insert(0, str(ROOT_DIR / "src"))
+        from bet.db.connection import get_db
+        from bet.db.repositories import PipelineRepo
+        _has_db = True
+    except ImportError:
+        _has_db = False
+
+    with ThreadPoolExecutor(max_workers=len(scanners)) as executor:
+        futures = {
+            executor.submit(scanner.scan, date, semaphore_map): scanner.scanner_group
+            for scanner in scanners
+        }
+        for future in as_completed(futures):
+            group = futures[future]
+            try:
+                stats = future.result(timeout=900)  # 15 min max per scanner
+                results[group] = {
+                    "status": "completed",
+                    "events_found": getattr(stats, "events_found", 0),
+                    "urls_scanned": getattr(stats, "urls_scanned", 0),
+                    "duration_sec": getattr(stats, "duration_sec", 0),
+                }
+                print(f"    ✓ {group}: {results[group]['events_found']} events ({results[group]['duration_sec']:.1f}s)")
+                # Record per-sport sub-step
+                if _has_db:
+                    try:
+                        with get_db() as conn:
+                            repo = PipelineRepo(conn)
+                            repo.start_step(date, f"s1_scan.{group}")
+                            repo.complete_step(date, f"s1_scan.{group}", results[group])
+                            conn.commit()
+                    except Exception:
+                        pass
+            except Exception as e:
+                results[group] = {"status": "failed", "error": str(e)}
+                print(f"    ✗ {group}: {e}")
+                if _has_db:
+                    try:
+                        with get_db() as conn:
+                            repo = PipelineRepo(conn)
+                            repo.start_step(date, f"s1_scan.{group}")
+                            repo.fail_step(date, f"s1_scan.{group}", str(e))
+                            conn.commit()
+                    except Exception:
+                        pass
+
+    # Merge all results into scan_summary.json
+    merge_scan_results(date)
+    return results
+
+
+def _run_scan_events(date: str, state: dict) -> tuple[bool, str]:
+    """S1: Run Playwright event scan using parallel per-sport scanners.
+
+    Each sport scanner runs independently with its own timeout.
+    Falls back to monolithic scan if per-sport scanners fail to import.
     """
     from datetime import datetime as dt
 
-    # Build ZawodTyper daily URL (use Warsaw timezone — project canonical TZ)
+    # Try parallel sport dispatch first
+    try:
+        results = _run_parallel_scan(date)
+        total_events = sum(r.get("events_found", 0) for r in results.values() if r.get("status") == "completed")
+        completed = [g for g, r in results.items() if r.get("status") == "completed"]
+        failed = [g for g, r in results.items() if r.get("status") == "failed"]
+
+        state.setdefault("step_data", {})["s1_events"] = total_events
+        state["step_data"]["s1_sport_results"] = results
+        state["step_data"]["s1_completed_groups"] = completed
+        state["step_data"]["s1_failed_groups"] = failed
+
+        # Log per-sport summary
+        print(f"  [parallel-sport] {len(completed)}/{len(results)} groups completed, {total_events} total events")
+        if failed:
+            print(f"  [parallel-sport] Failed groups: {', '.join(failed)}")
+
+        # Record source health after scan
+        _run_source_health(date)
+
+        if not completed:
+            return False, "All sport scanners failed"
+        return True, f"Parallel scan: {total_events} events from {len(completed)} sport groups ({', '.join(failed)} failed)" if failed else f"Parallel scan: {total_events} events from {len(completed)} sport groups"
+    except ImportError as e:
+        print(f"  ⚠ Parallel scanners not available ({e}), falling back to monolithic scan")
+    except Exception as e:
+        print(f"  ⚠ Parallel scan failed ({e}), falling back to monolithic scan")
+
+    # Fallback: monolithic scan (legacy behavior)
     now = dt.now(ZoneInfo("Europe/Warsaw"))
     pl_months = ["", "stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca",
                  "lipca", "sierpnia", "wrzesnia", "pazdziernika", "listopada", "grudnia"]

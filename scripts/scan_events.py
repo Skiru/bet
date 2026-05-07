@@ -394,6 +394,51 @@ def _record_source_health(
         print(f"[scan] DB source health error (non-fatal): {e}")
 
 
+def _run_parallel_sport_scan(betting_date: str) -> dict:
+    """Run all per-sport scanners in parallel with independent timeouts.
+
+    This is the new parallel dispatch mode that replaces monolithic scanning.
+    Each sport scanner runs independently with its own URL list and timeout.
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    sys.path.insert(0, str(BASE))
+    from scanners import get_all_scanners
+    from scanners.domain_semaphore import DomainSemaphoreMap
+    from scanners.merge_results import merge_scan_results
+
+    semaphore_map = DomainSemaphoreMap()
+    scanners = get_all_scanners()
+
+    print(f"[parallel-sport] Launching {len(scanners)} sport scanners for {betting_date}")
+    results = {}
+
+    with ThreadPoolExecutor(max_workers=len(scanners)) as executor:
+        futures = {
+            executor.submit(scanner.scan, betting_date, semaphore_map): scanner.scanner_group
+            for scanner in scanners
+        }
+        for future in as_completed(futures):
+            group = futures[future]
+            try:
+                stats = future.result(timeout=900)  # 15 min max per scanner
+                results[group] = {
+                    "status": "completed",
+                    "events_found": getattr(stats, "events_found", 0),
+                    "urls_scanned": getattr(stats, "urls_scanned", 0),
+                    "duration_sec": getattr(stats, "duration_sec", 0),
+                }
+                print(f"  ✓ {group}: {results[group]['events_found']} events")
+            except Exception as e:
+                results[group] = {"status": "failed", "error": str(e)}
+                print(f"  ✗ {group}: {e}")
+
+    # Merge all results into scan_summary.json
+    merge_scan_results(betting_date)
+    print(f"[parallel-sport] All scanners complete. Results merged to scan_summary.json")
+    return results
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--urls", nargs="+", help="List of URLs to scan")
@@ -401,17 +446,56 @@ def main():
     parser.add_argument("--deep", action="store_true", help="Enable deep-link discovery for tournament sub-pages")
     parser.add_argument("--max-deep-links", type=int, default=50, help="Max sub-links per domain (default: 50)")
     parser.add_argument("--workers", type=int, default=6, help="Number of parallel domain workers (default: 6)")
+    parser.add_argument("--parallel-sport", action="store_true",
+                        help="Use per-sport parallel scanner dispatch instead of monolithic scan")
+    parser.add_argument("--date", help="Betting date (YYYY-MM-DD) for parallel-sport mode")
     args = parser.parse_args()
 
+    # Parallel sport dispatch mode
+    if args.parallel_sport:
+        from datetime import date as date_cls
+        betting_date = args.date or date_cls.today().isoformat()
+        results = _run_parallel_sport_scan(betting_date)
+        total_events = sum(r.get("events_found", 0) for r in results.values() if r.get("status") == "completed")
+        failed = [g for g, r in results.items() if r.get("status") == "failed"]
+        print(f"\n[parallel-sport] Summary: {total_events} events, {len(failed)} failed groups")
+        if failed:
+            print(f"  Failed: {', '.join(failed)}")
+
+        # Phase 2: Generate health report for agent-driven monitoring
+        print(f"\n[parallel-sport] Generating health report...")
+        try:
+            from scan_health_report import generate_health_report, print_health_dashboard, write_health_json
+            report = generate_health_report(betting_date)
+            write_health_json(report, betting_date)
+            print_health_dashboard(report)
+        except Exception as e:
+            print(f"[parallel-sport] WARNING: Health report generation failed: {e}")
+
+        return
+
+    # Legacy monolithic scan mode
     urls = []
     if args.urls_file:
         urls_data = json.loads(Path(args.urls_file).read_text(encoding="utf-8"))
-        file_urls = urls_data.get("urls", urls_data) if isinstance(urls_data, dict) else urls_data
+        # Support new grouped format: extract flat URL list from _legacy_urls or all sport URLs
+        if isinstance(urls_data, dict):
+            if "_legacy_urls" in urls_data:
+                file_urls = urls_data["_legacy_urls"]
+            elif "urls" in urls_data:
+                file_urls = urls_data["urls"]
+            else:
+                # New format without explicit legacy list — flatten all sport URLs
+                file_urls = []
+                for sport_data in urls_data.get("sports", {}).values():
+                    file_urls.extend(sport_data.get("urls", []))
+        else:
+            file_urls = urls_data
         urls.extend(file_urls)
     if args.urls:
         urls.extend(args.urls)
     if not urls:
-        parser.error("Either --urls or --urls-file is required")
+        parser.error("Either --urls, --urls-file, or --parallel-sport is required")
 
     scan_urls(urls, deep=args.deep, max_deep_links=args.max_deep_links, workers=args.workers)
 

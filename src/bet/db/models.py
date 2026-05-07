@@ -281,3 +281,34 @@ class DecisionOutcome:
     pattern_tags_json: list = field(default_factory=list)
     notes: str = ""
     created_at: str = ""
+
+
+@dataclass
+class ScanResult:
+    id: int | None
+    betting_date: str
+    sport: str
+    source_domain: str
+    event_key: str
+    home_team: str = ""
+    away_team: str = ""
+    competition: str = ""
+    kickoff: str = ""
+    raw_data: dict = field(default_factory=dict)
+    scan_timestamp: str = ""
+
+
+@dataclass
+class ScanRunStats:
+    id: int | None
+    betting_date: str
+    sport: str
+    scanner_group: str
+    events_found: int = 0
+    sources_ok: int = 0
+    sources_failed: int = 0
+    deep_links_found: int = 0
+    duration_seconds: float = 0.0
+    validation_passed: bool = True
+    gaps_description: list[str] = field(default_factory=list)
+    scan_timestamp: str = ""

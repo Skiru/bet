@@ -22,6 +22,8 @@ from bet.db.models import (
     MatchStat,
     OddsRecord,
     PipelineRun,
+    ScanResult,
+    ScanRunStats,
     SourceHealth,
     Sport,
     Team,
@@ -1192,7 +1194,7 @@ class GateResultRepo:
     def get_approved(self, betting_date: str) -> list[GateResult]:
         """Get approved gate results for coupon building."""
         rows = self.conn.execute(
-            "SELECT * FROM gate_results WHERE betting_date = ? AND status = 'approved' "
+            "SELECT * FROM gate_results WHERE betting_date = ? AND UPPER(status) = 'APPROVED' "
             "ORDER BY best_safety_score DESC",
             (betting_date,),
         ).fetchall()
@@ -1201,7 +1203,7 @@ class GateResultRepo:
     def get_extended(self, betting_date: str) -> list[GateResult]:
         """Get extended pool gate results."""
         rows = self.conn.execute(
-            "SELECT * FROM gate_results WHERE betting_date = ? AND status = 'extended' "
+            "SELECT * FROM gate_results WHERE betting_date = ? AND UPPER(status) = 'EXTENDED' "
             "ORDER BY best_safety_score DESC",
             (betting_date,),
         ).fetchall()
@@ -1518,4 +1520,152 @@ class DecisionOutcomeRepo:
             pattern_tags_json=json.loads(row["pattern_tags_json"]) if row["pattern_tags_json"] else [],
             notes=row["notes"] or "",
             created_at=row["created_at"] or "",
+        )
+
+
+# ---------------------------------------------------------------------------
+# ScanResultRepo
+# ---------------------------------------------------------------------------
+
+class ScanResultRepo:
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+
+    def bulk_insert(self, results: list[ScanResult]) -> int:
+        """Insert multiple scan results using INSERT OR IGNORE. Returns count inserted."""
+        if not results:
+            return 0
+        before = self.conn.execute("SELECT COUNT(*) FROM scan_results").fetchone()[0]
+        self.conn.executemany(
+            "INSERT OR IGNORE INTO scan_results "
+            "(betting_date, sport, source_domain, event_key, home_team, away_team, "
+            "competition, kickoff, raw_data, scan_timestamp) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+                (
+                    r.betting_date,
+                    r.sport,
+                    r.source_domain,
+                    r.event_key,
+                    r.home_team,
+                    r.away_team,
+                    r.competition,
+                    r.kickoff,
+                    json.dumps(r.raw_data),
+                    r.scan_timestamp or _NOW(),
+                )
+                for r in results
+            ],
+        )
+        after = self.conn.execute("SELECT COUNT(*) FROM scan_results").fetchone()[0]
+        return after - before
+
+    def upsert(self, result: ScanResult) -> int:
+        """Insert or replace a single scan result. Returns row ID."""
+        cursor = self.conn.execute(
+            "INSERT OR REPLACE INTO scan_results "
+            "(betting_date, sport, source_domain, event_key, home_team, away_team, "
+            "competition, kickoff, raw_data, scan_timestamp) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                result.betting_date,
+                result.sport,
+                result.source_domain,
+                result.event_key,
+                result.home_team,
+                result.away_team,
+                result.competition,
+                result.kickoff,
+                json.dumps(result.raw_data),
+                result.scan_timestamp or _NOW(),
+            ),
+        )
+        return cursor.lastrowid
+
+    def get_by_date_and_sport(self, date: str, sport: str) -> list[ScanResult]:
+        """Get all scan results for a betting date and sport."""
+        rows = self.conn.execute(
+            "SELECT * FROM scan_results WHERE betting_date = ? AND sport = ? "
+            "ORDER BY event_key",
+            (date, sport),
+        ).fetchall()
+        return [self._row_to_model(r) for r in rows]
+
+    def get_all_by_date(self, date: str) -> list[ScanResult]:
+        """Get all scan results for a betting date."""
+        rows = self.conn.execute(
+            "SELECT * FROM scan_results WHERE betting_date = ? ORDER BY sport, event_key",
+            (date,),
+        ).fetchall()
+        return [self._row_to_model(r) for r in rows]
+
+    def delete_by_date(self, date: str) -> int:
+        """Delete all scan results for a date. Returns count deleted."""
+        cursor = self.conn.execute(
+            "DELETE FROM scan_results WHERE betting_date = ?", (date,)
+        )
+        return cursor.rowcount
+
+    def record_run_stats(self, stats: ScanRunStats) -> None:
+        """Upsert scan run statistics for a sport on a date."""
+        self.conn.execute(
+            "INSERT OR REPLACE INTO scan_run_stats "
+            "(betting_date, sport, scanner_group, events_found, sources_ok, "
+            "sources_failed, deep_links_found, duration_seconds, validation_passed, "
+            "gaps_description, scan_timestamp) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                stats.betting_date,
+                stats.sport,
+                stats.scanner_group,
+                stats.events_found,
+                stats.sources_ok,
+                stats.sources_failed,
+                stats.deep_links_found,
+                stats.duration_seconds,
+                int(stats.validation_passed),
+                json.dumps(stats.gaps_description),
+                stats.scan_timestamp or _NOW(),
+            ),
+        )
+
+    def get_run_stats(self, date: str) -> list[ScanRunStats]:
+        """Get all scan run stats for a date."""
+        rows = self.conn.execute(
+            "SELECT * FROM scan_run_stats WHERE betting_date = ? ORDER BY sport",
+            (date,),
+        ).fetchall()
+        return [self._run_stats_to_model(r) for r in rows]
+
+    @staticmethod
+    def _row_to_model(row: sqlite3.Row) -> ScanResult:
+        return ScanResult(
+            id=row["id"],
+            betting_date=row["betting_date"],
+            sport=row["sport"],
+            source_domain=row["source_domain"],
+            event_key=row["event_key"],
+            home_team=row["home_team"] or "",
+            away_team=row["away_team"] or "",
+            competition=row["competition"] or "",
+            kickoff=row["kickoff"] or "",
+            raw_data=json.loads(row["raw_data"]) if row["raw_data"] else {},
+            scan_timestamp=row["scan_timestamp"] or "",
+        )
+
+    @staticmethod
+    def _run_stats_to_model(row: sqlite3.Row) -> ScanRunStats:
+        return ScanRunStats(
+            id=row["id"],
+            betting_date=row["betting_date"],
+            sport=row["sport"],
+            scanner_group=row["scanner_group"],
+            events_found=row["events_found"],
+            sources_ok=row["sources_ok"],
+            sources_failed=row["sources_failed"],
+            deep_links_found=row["deep_links_found"],
+            duration_seconds=row["duration_seconds"] or 0.0,
+            validation_passed=bool(row["validation_passed"]),
+            gaps_description=json.loads(row["gaps_description"]) if row["gaps_description"] else [],
+            scan_timestamp=row["scan_timestamp"] or "",
         )

@@ -98,7 +98,8 @@ class TestLoadOddsSnapshot(unittest.TestCase):
 
     def test_load_missing_returns_empty(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            with patch("scripts.deep_analysis_pool.DATA_DIR", Path(tmpdir)):
+            with patch("scripts.deep_analysis_pool.DATA_DIR", Path(tmpdir)), \
+                 patch("scripts.deep_analysis_pool.load_odds_from_db", side_effect=Exception("no DB")):
                 result = load_odds_snapshot()
             self.assertEqual(result, {})
 
