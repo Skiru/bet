@@ -857,15 +857,15 @@ def _load_candidates_from_shortlist(path: str) -> list[dict]:
         data = json.loads(shortlist_path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return []
-    entries = data.get("candidates", [])
+    entries = data.get("candidates", data.get("events", []))
     candidates = []
     for e in entries:
         candidates.append({
             "sport": e.get("sport", "football"),
-            "home_team": e.get("home_team", ""),
-            "away_team": e.get("away_team", ""),
+            "home_team": e.get("home_team", e.get("home", "")),
+            "away_team": e.get("away_team", e.get("away", "")),
             "competition": e.get("competition", ""),
-            "kickoff": e.get("kickoff", ""),
+            "kickoff": e.get("kickoff", e.get("kickoff_cest", "")),
             "safety_markets": e.get("safety_markets", []),
         })
     return candidates

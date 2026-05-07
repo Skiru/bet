@@ -394,23 +394,10 @@ def build_shortlist(
         comp = event.get("competition", "")
         tier = event.get("data_tier", "FIXTURE_ONLY")
 
-        # Filter FIXTURE_ONLY events (BUT never filter major tournaments — §SCAN.7)
-        if tier == "FIXTURE_ONLY":
-            home_lower = event.get("home_team", "").lower()
-            away_lower = event.get("away_team", "").lower()
-            has_tipster = (
-                home_lower in tipster_events
-                or away_lower in tipster_events
-            )
-            is_major = _is_major_competition(sport, comp) or _score_competition(sport, comp) >= 9
-            if stats_first:
-                # In stats-first: include if major competition OR tipster coverage
-                if not has_tipster and not is_major:
-                    continue
-            else:
-                # Without stats-first: include if tipster coverage OR major tournament
-                if not has_tipster and not is_major:
-                    continue
+        # §NO AUTO-REJECTION: ALL events are scored and included.
+        # FIXTURE_ONLY events get lower scores (less data = lower confidence)
+        # but are NEVER filtered out. The user decides what to bet.
+        # The scoring function already penalizes low-data events.
 
         score = _score_event(event, tipster_events)
         scored.append((score, event))

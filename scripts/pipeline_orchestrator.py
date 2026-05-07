@@ -192,7 +192,7 @@ PIPELINE_STEPS = [
         "outputs": [],
         "critical": False,
         "agent_review_required": "bet-scanner",
-        "agent_task": "Review shortlist for sport diversity (≥8 sports), KEY sport coverage (≥60% Football/Tennis/Basketball/Volleyball), verify 50-100 candidates, flag missing major leagues",
+        "agent_task": "Review shortlist for sport diversity (≥8 sports), KEY sport coverage (≥60% Football/Tennis/Basketball/Volleyball), verify ALL candidates are included (NO artificial caps), flag missing major leagues",
     },
     {
         "id": "s2_tipster",

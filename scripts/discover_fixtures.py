@@ -81,7 +81,12 @@ def merge_fixtures(api_fixtures: list, scan_fixtures: list) -> list:
 
 
 def _load_scan_summary(date: str) -> list:
-    """Load fixtures from Playwright scan_summary.json if it exists."""
+    """Load fixtures from Playwright scan_summary.json if it exists.
+
+    Includes items WITH matching date AND items WITHOUT a date field
+    (since the scan runs daily, dateless items are from today's scrape).
+    Only includes items with a valid time field as a proxy for being a fixture.
+    """
     scan_file = PROJECT_ROOT / "betting" / "data" / "scan_summary.json"
     if not scan_file.exists():
         return []
@@ -110,12 +115,26 @@ def _load_scan_summary(date: str) -> list:
         if not isinstance(event, dict):
             continue
 
-        # Filter by date if present — reject dateless items entirely
         event_date = event.get("date", "")
-        if not event_date:
-            # No date = scanner default, likely garbage or future fixture
+        event_time = event.get("time", "")
+
+        # Include items that either:
+        # 1. Match the target date explicitly
+        # 2. Have no date but DO have a time field (likely today's fixture from daily scan)
+        if event_date:
+            if date and not event_date.startswith(date):
+                continue
+        else:
+            # No date field — only include if there's a time (indicates fixture, not stats)
+            if not event_time:
+                continue
+
+        home = event.get("home", event.get("home_team", ""))
+        away = event.get("away", event.get("away_team", ""))
+        # Basic validity checks
+        if not home or not away or len(home) < 3 or len(away) < 3:
             continue
-        if date and not event_date.startswith(date):
+        if len(home) > 60 or len(away) > 60:
             continue
 
         sport = event.get("sport", "football").lower()
@@ -124,9 +143,9 @@ def _load_scan_summary(date: str) -> list:
             source="playwright-scan",
             sport=sport,
             competition=event.get("league", event.get("competition", "")),
-            home_team=event.get("home", event.get("home_team", "")),
-            away_team=event.get("away", event.get("away_team", "")),
-            kickoff=event.get("date", event.get("kickoff", "")),
+            home_team=home,
+            away_team=away,
+            kickoff=event_date or event_time,
             status="scheduled",
         )
         fixtures.append(fixture)
