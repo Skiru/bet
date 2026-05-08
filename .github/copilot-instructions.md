@@ -27,10 +27,14 @@ python3 scripts/analyze_betclic_learning.py
 # → outputs: 10-section analysis with market/sport hit rates, coupon killer data, actionable rules
 # GATE: If this file is not read, §0.2 is INCOMPLETE. Do NOT start scanning.
 
-# 1. Run pipeline (scan + analysis)
-python3 scripts/pipeline_orchestrator.py --date YYYY-MM-DD
-# → produces: betting/data/scan_summary.json, picks_suggested.json, scan_errors.json
-# → also produces: market_matrix_{date}.json, market_matrix_{date}.md, decision_matrix_{date}.md
+# 1. Run pipeline (AGENT-DRIVEN — individual scripts, NOT pipeline_orchestrator.py)
+# ⛔ NEVER run: python3 scripts/pipeline_orchestrator.py
+# Instead: the orchestrator agent calls individual scripts one at a time:
+#   python3 scripts/build_shortlist.py --date YYYY-MM-DD --stats-first
+#   python3 scripts/deep_stats_report.py --date YYYY-MM-DD --shortlist ...
+#   python3 scripts/gate_checker.py --date YYYY-MM-DD
+#   python3 scripts/coupon_builder.py --date YYYY-MM-DD
+# See orchestrate-betting-day.prompt.md for the full step-by-step protocol.
 
 # 2. Cross-validation odds (30 credits/scan, 500/month free)
 python3 scripts/fetch_odds_api.py

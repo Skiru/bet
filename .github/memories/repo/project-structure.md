@@ -1,7 +1,7 @@
 # Bet Project — Key Facts
 
 ## Architecture
-- **DB-first pipeline**: `scripts/pipeline_orchestrator.py` — fully automated S0–S10 with state tracking, resume, per-step timeouts (see PIPELINE.md)
+- **Agent-driven pipeline**: Orchestrator agent calls individual scripts one at a time (S0→S10). ⛔ NEVER use `pipeline_orchestrator.py`. See `orchestrate-betting-day.prompt.md`
 - **Database**: `betting/data/betting.db` (SQLite, WAL mode). Connection: `from bet.db.connection import get_db`. 28-table schema across 6 domains (Core, Stats, Analysis, Betting, Pipeline, ESPN)
 - **Scanning**: `scripts/scan_events.py --parallel-sport` — 11 per-sport scanner groups in `scripts/scanners/`. DB: `scan_results` + `scan_run_stats` tables
 - Config: `config/betting_config.json` — all thresholds and limits

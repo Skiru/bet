@@ -3,8 +3,8 @@
 ## Agent-Driven Pipeline (NOT script runner)
 - Copilot IS the orchestrator — delegates to specialist agents via `runSubagent`
 - Scripts are DATA PRODUCERS, agents are ANALYSTS
-- Pipeline: `python3 scripts/pipeline_orchestrator.py --date YYYY-MM-DD` (data collection)
-- Agent analysis: S2-S8 via `runSubagent` with internal-prompts as templates
+- ⛔ NEVER run `pipeline_orchestrator.py` — call individual scripts one at a time
+- Between EVERY script: `sequentialthinking` + `runSubagent` to specialist agent
 - Agent reviews: `betting/data/agent_reviews/{date}/{step}_input.json`
 
 ## Scanning Architecture

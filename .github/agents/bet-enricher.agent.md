@@ -158,4 +158,26 @@ You are a DATA QUALITY GUARDIAN, not a script runner. Every enrichment batch mus
 5. **DB Sync**: All enriched stats written to `team_form` table. Verify with count query.
 6. **Write Learning**: Source health changes → `/memories/session/`.
 
+## Agent Review Protocol
+
+When delegated by the orchestrator, write `s2_5_enrichment_review.json` to `betting/data/agent_reviews/{date}/`:
+```json
+{
+  "agent": "bet-enricher",
+  "step_id": "s2_5_enrichment",
+  "status": "approved|flagged|rejected",
+  "quality_score": 7,
+  "enrichment_yield": 0.72,
+  "flags": ["tennis H2H source down", "3 football teams missing L10"],
+  "per_sport_coverage": {"football": 0.85, "tennis": 0.60, "basketball": 0.90},
+  "methodology_violations": [],
+  "timestamp": "ISO-8601"
+}
+```
+
+**Status decision:**
+- APPROVED: yield ≥60%, all KEY sports have >50% coverage
+- FLAGGED: yield 40-60% OR 1+ KEY sport has <50% coverage
+- REJECTED: yield <40% AND fallback layers exhausted
+
 <!-- BET:agent:bet-enricher:v2 -->

@@ -75,16 +75,15 @@ All pipeline data is stored in SQLite DB (`betting/data/betting.db`) as the prim
 
 ## AUTOMATED PIPELINE MODULES
 
-The pipeline has fully automated scripts for S3 (deep stats), S7 (gate checks), and S8 (coupon building). These run as Python imports inside `pipeline_orchestrator.py`:
+The pipeline has individual scripts for each step. The ORCHESTRATOR AGENT calls them one at a time (⛔ NEVER via `pipeline_orchestrator.py` — that is BANNED):
 
 | Step | Script | What it does |
 |------|--------|-------------|
 | S3 | `scripts/deep_stats_report.py` | Reads from DB (`team_form`, `match_stats` tables; JSON fallback: stats cache), runs §3.0 `rank_markets()`, generates all 10 §S3 sections per candidate. Output: DB `analysis_results` table + `{date}_s3_deep_stats.json/.md` |
 | S7 | `scripts/gate_checker.py` | Programmatic 18-point gate, §7.3 red flags, §6.5 upset risk, §7.6 sport diversity, risk tier (LR/MS/HR/N), confidence scoring. Output: DB `gate_results` table + `{date}_s7_gate_results.json/.md` |
 | S8 | `scripts/coupon_builder.py` | Core portfolio + combo menu + extended pool, Kelly 1/4 staking, Polish-language output, §8.2 stress test. Output: `betting/coupons/{date}.json/.md` |
-| Orchestrator | `scripts/pipeline_orchestrator.py` | Runs S0→S10 end-to-end. Injects EV from DB `odds_history` table (fallback: `odds_api_snapshot.json`) between S3→S7. State tracking + resume. |
 
-**Agent role with automated modules:** Agents (bet-statistician, bet-challenger, bet-builder) supplement script output — they fill web-data gaps, provide qualitative analysis, and handle edge cases the scripts can't cover.
+**Agent role:** After each script runs, the specialist agent (bet-statistician, bet-challenger, bet-builder) REVIEWS the output using `sequentialthinking`, fills data gaps, provides qualitative analysis, and catches methodology violations. Scripts = data. Agents = analysis.
 
 ---
 
@@ -193,7 +192,7 @@ If the file is missing, run: `python3 scripts/parse_betclic_bets.py` (requires H
 
 ## STEP 1: SCAN — Complete Event Discovery
 
-1. Run `python3 scripts/pipeline_orchestrator.py --date YYYY-MM-DD` (preferred — orchestrates all steps with state tracking and resume capability) or `python3 scripts/scan_events.py --parallel-sport --date YYYY-MM-DD` (manual scan only). Check `scan_errors.json`.
+1. Run `python3 scripts/scan_events.py --deep --max-deep-links 30 --workers 8 --date YYYY-MM-DD` (agent-driven — NEVER use `pipeline_orchestrator.py`). Check `scan_errors.json`.
 2. Run `python3 scripts/fetch_odds_api.py` for cross-validation (30 credits/scan, 500/month free).
 3. Browse BetExplorer + Flashscore + OddsPortal for ALL 14 sports.
 4. **Deep Scan (§1.2):** Click into EVERY active tournament/league. Count matches per tournament.
@@ -766,7 +765,7 @@ When odds APIs don't cover an event (common for: table tennis, snooker, darts, e
 6. **Kelly 1/4 stake:** f = (b×p - q) / b, stake = bankroll × f / 4
 
 **Script:** `python3 scripts/probability_engine.py --test` (self-test with sample data)
-**Integration:** Runs automatically in S3 via `pipeline_orchestrator.py`. Enriches every ranked market with probability, fair_odds, lambda, model_used, CI.
+**Integration:** Called by the orchestrator agent during S3. Enriches every ranked market with probability, fair_odds, lambda, model_used, CI.
 
 **Example output (football corners):**
 ```
