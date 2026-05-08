@@ -10,6 +10,7 @@ Output: betting/data/stats_cache/espn/{sport}/{league}/standings.json
 
 import argparse
 import json
+import sqlite3
 import sys
 import time
 from datetime import datetime, timezone
@@ -211,92 +212,72 @@ def save_standings(sport: str, league: str, teams: list[dict], date: str) -> Pat
     return out_path
 
 
-def _persist_standings_to_db(sport: str, league: str, teams: list[dict]) -> int:
+def _persist_standings_to_db(sport: str, league: str, teams: list[dict], conn: sqlite3.Connection) -> int:
     """Persist standings data to SQLite database."""
     try:
-        from bet.db.connection import get_db
-        from bet.db.schema import init_db
         from bet.db.models import Standing
-        from bet.db.repositories import StandingRepo
+        from bet.db.repositories import CompetitionRepo, SportRepo, StandingRepo, TeamRepo
     except ImportError:
         return 0
 
-    db_path = Path(__file__).parent.parent / "betting" / "data" / "betting.db"
     now = datetime.now(timezone.utc).isoformat()
     count = 0
 
     try:
-        with get_db(db_path) as conn:
-            init_db(conn)
-            standing_repo = StandingRepo(conn)
+        standing_repo = StandingRepo(conn)
+        sport_repo = SportRepo(conn)
+        team_repo = TeamRepo(conn)
+        comp_repo = CompetitionRepo(conn)
 
-            # Get sport_id
-            sport_row = conn.execute("SELECT id FROM sports WHERE name = ?", (sport,)).fetchone()
-            if not sport_row:
-                return 0
-            sport_id = sport_row["id"]
+        # Get sport_id via repo
+        sport_obj = sport_repo.get_by_name(sport)
+        if not sport_obj:
+            return 0
+        sport_id = sport_obj.id
 
-            # Get or create competition
-            comp_row = conn.execute(
-                "SELECT id FROM competitions WHERE name = ? AND sport_id = ?",
-                (league, sport_id),
-            ).fetchone()
-            if not comp_row:
-                conn.execute(
-                    "INSERT INTO competitions (name, sport_id, country) VALUES (?, ?, ?)",
-                    (league, sport_id, ""),
-                )
-                comp_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-            else:
-                comp_id = comp_row["id"]
+        # Get or create competition via repo
+        comp_id = comp_repo.find_or_create(league, sport_id)
 
-            for team_data in teams:
-                team_name = team_data.get("name", "")
-                if not team_name:
-                    continue
+        for team_data in teams:
+            team_name = team_data.get("name", "")
+            if not team_name:
+                continue
 
-                # Get or create team
-                team_row = conn.execute(
-                    "SELECT id FROM teams WHERE name = ? AND sport_id = ?",
-                    (team_name, sport_id),
-                ).fetchone()
-                if not team_row:
-                    conn.execute(
-                        "INSERT INTO teams (name, sport_id, competition_id) VALUES (?, ?, ?)",
-                        (team_name, sport_id, comp_id),
-                    )
-                    team_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-                else:
-                    team_id = team_row["id"]
+            # Get or create team via repo (handles aliases)
+            team_obj = team_repo.find_or_create(team_name, sport_id)
+            team_id = team_obj.id
 
-                standing = Standing(
-                    id=None,
-                    competition_id=comp_id,
-                    team_id=team_id,
-                    season=team_data.get("season", ""),
-                    rank=team_data.get("rank"),
-                    wins=team_data.get("wins", 0),
-                    draws=team_data.get("draws", 0),
-                    losses=team_data.get("losses", 0),
-                    goals_for=team_data.get("gf", team_data.get("points_for", 0)),
-                    goals_against=team_data.get("ga", team_data.get("points_against", 0)),
-                    goal_diff=team_data.get("gd", team_data.get("goal_diff", 0)),
-                    points=team_data.get("points", 0),
-                    form=team_data.get("form", ""),
-                    home_wins=team_data.get("home_wins", 0),
-                    home_draws=team_data.get("home_draws", 0),
-                    home_losses=team_data.get("home_losses", 0),
-                    away_wins=team_data.get("away_wins", 0),
-                    away_draws=team_data.get("away_draws", 0),
-                    away_losses=team_data.get("away_losses", 0),
-                    streak=team_data.get("streak", ""),
-                    source="espn",
-                    updated_at=now,
-                )
-                standing_repo.upsert(standing)
-                count += 1
+            home_data = team_data.get("home", {})
+            away_data = team_data.get("away", {})
 
-            conn.commit()
+            standing = Standing(
+                id=None,
+                competition_id=comp_id,
+                team_id=team_id,
+                season=team_data.get("season", ""),
+                rank=team_data.get("rank"),
+                wins=team_data.get("wins", 0),
+                draws=team_data.get("draws", 0),
+                losses=team_data.get("losses", 0),
+                goals_for=team_data.get("goals_for", team_data.get("gf", 0)),
+                goals_against=team_data.get("goals_against", team_data.get("ga", 0)),
+                goal_diff=team_data.get("goal_diff", team_data.get("gd", 0)),
+                points=team_data.get("points", 0),
+                form=team_data.get("form", ""),
+                home_wins=home_data.get("wins", team_data.get("home_wins", 0)),
+                home_draws=home_data.get("draws", team_data.get("home_draws", 0)),
+                home_losses=home_data.get("losses", team_data.get("home_losses", 0)),
+                away_wins=away_data.get("wins", team_data.get("away_wins", 0)),
+                away_draws=away_data.get("draws", team_data.get("away_draws", 0)),
+                away_losses=away_data.get("losses", team_data.get("away_losses", 0)),
+                streak=team_data.get("streak", ""),
+                source="espn",
+                updated_at=now,
+            )
+            standing_repo.upsert(standing)
+            count += 1
+
+        conn.commit()
     except Exception as e:
         print(f"  [DB] Error: {e}")
     return count
@@ -337,18 +318,33 @@ def main():
     total_teams = 0
     errors = []
 
+    # Initialize DB connection once for all leagues
+    db_conn = None
+    try:
+        from bet.db.connection import get_db
+        from bet.db.schema import init_db
+        db_path = Path(__file__).parent.parent / "betting" / "data" / "betting.db"
+        db_conn = get_db(db_path)
+        init_db(db_conn)
+    except ImportError:
+        pass
+
     for sport, league in combos:
         teams = fetch_standings(sport, league)
         if teams:
             out_path = save_standings(sport, league, teams, args.date)
             print(f"  ✓ {sport}/{league}: {len(teams)} teams → {out_path.relative_to(Path.cwd())}")
-            db_count = _persist_standings_to_db(sport, league, teams)
-            if db_count:
-                print(f"      [DB] {db_count} standings persisted")
+            if db_conn:
+                db_count = _persist_standings_to_db(sport, league, teams, db_conn)
+                if db_count:
+                    print(f"      [DB] {db_count} standings persisted")
             total_teams += len(teams)
         else:
             errors.append(f"{sport}/{league}")
             print(f"  ✗ {sport}/{league}: no data")
+
+    if db_conn:
+        db_conn.close()
 
     print(f"\nDone: {total_teams} teams from {len(combos) - len(errors)}/{len(combos)} leagues")
     if errors:

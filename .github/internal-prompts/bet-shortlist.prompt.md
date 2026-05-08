@@ -3,6 +3,9 @@ agent: "bet-scanner"
 description: "S1e: Build ranked shortlist of 50-100 candidates with sport diversity"
 ---
 
+> **PERMANENT RULES (from copilot-instructions.md §NON-NEGOTIABLE):**
+> R3 NO AUTO-REJECTION: ALL candidates ranked — no hardcoded cap. R7 TOURNAMENT PROTECTION: +15 score boost. R8 MINOR LEAGUE VALUE: +6 boost for non-top-5. R10 STATS-FIRST: Include events without odds.
+
 # S1e — SHORTLIST FILTERING
 
 ## Required Skills

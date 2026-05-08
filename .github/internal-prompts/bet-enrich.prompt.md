@@ -3,6 +3,9 @@ agent: "bet-enricher"
 description: "S2.5: Self-healing data enrichment — fetch missing team stats from internet sources for shortlisted candidates"
 ---
 
+> **PERMANENT RULES (from copilot-instructions.md §NON-NEGOTIABLE):**
+> R2 DB-FIRST: Write to `team_form` via `get_db()`. R9 SELF-HEALING: 6 fallback layers — exhaust ALL before returning empty.
+
 # S2.5 — DATA ENRICHMENT
 
 ## Required Skills

@@ -3,6 +3,9 @@ agent: "bet-settler"
 description: "S0: Settle previous day's picks/coupons, PnL, CLV, bankroll update, learning review"
 ---
 
+> **PERMANENT RULES (from copilot-instructions.md §NON-NEGOTIABLE):**
+> R2 DB-FIRST: Read/write via `get_db()`. R6 BETCLIC ADVISORY: Settlement analysis is INFORMATIONAL — show hit rates, NEVER auto-reject markets/sports.
+
 # S0 — SETTLE PREVIOUS DAY
 
 ## Required Skills

@@ -463,21 +463,20 @@ def load_league_profiles(competition: str = "", stat_key: str = "") -> dict | No
     db_path = ROOT_DIR / "betting" / "data" / "betting.db"
     if db_path.exists():
         try:
-            import sqlite3
-            conn = sqlite3.connect(str(db_path))
-            conn.row_factory = sqlite3.Row
-            row = conn.execute(
-                "SELECT avg_value, std_dev, sample_size FROM league_profiles "
-                "WHERE stat_key = ? LIMIT 1",
-                (stat_key,),
-            ).fetchone()
-            conn.close()
-            if row:
-                return {
-                    "avg_value": row["avg_value"],
-                    "std_dev": row["std_dev"],
-                    "sample_size": row["sample_size"],
-                }
+            from bet.db.connection import get_db
+
+            with get_db(db_path) as conn:
+                row = conn.execute(
+                    "SELECT avg_value, std_dev, sample_size FROM league_profiles "
+                    "WHERE stat_key = ? LIMIT 1",
+                    (stat_key,),
+                ).fetchone()
+                if row:
+                    return {
+                        "avg_value": row["avg_value"],
+                        "std_dev": row["std_dev"],
+                        "sample_size": row["sample_size"],
+                    }
         except Exception:
             pass
 

@@ -4,6 +4,9 @@ mode: agent
 agent: bet-scanner-tennis
 ---
 
+> **PERMANENT RULES (from copilot-instructions.md §NON-NEGOTIABLE):**
+> R5 STATS > OUTCOMES: Scan for aces, double faults, games, sets — not just match winner. R7 TOURNAMENT PROTECTION: Grand Slams, Masters NEVER skipped. R8 MINOR LEAGUE VALUE: Challenger/ITF = value edge.
+
 # TENNIS SCAN — Fully Autonomous
 
 You are the tennis scanning specialist. Execute this entire workflow without human intervention.
@@ -33,7 +36,7 @@ from datetime import date
 import json, os
 today = str(date.today())
 with get_db() as conn:
-    c = conn.execute('SELECT COUNT(*) FROM scan_results WHERE sport=\"tennis\" AND date=?', (today,))
+    c = conn.execute('SELECT COUNT(*) FROM scan_results WHERE sport="tennis" AND betting_date=?', (today,))
     count = c.fetchone()[0]
     print(f'Tennis events in DB: {count}')
 
@@ -47,7 +50,7 @@ else:
 
 # Check surface detection
 with get_db() as conn:
-    c = conn.execute('''SELECT data FROM scan_results WHERE sport=\"tennis\" AND date=? LIMIT 10''', (today,))
+    c = conn.execute('''SELECT raw_data FROM scan_results WHERE sport="tennis" AND betting_date=? LIMIT 10''', (today,))
     surfaces = set()
     for row in c:
         data = json.loads(row[0]) if row[0] else {}

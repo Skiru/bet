@@ -730,7 +730,7 @@ def compute_confidence(candidate: dict, gate_result: dict) -> tuple[float, list[
 # 18-point gate runner
 # ---------------------------------------------------------------------------
 
-def check_17_point_gate(candidate: dict, repeat_losses: list) -> dict:
+def check_18_point_gate(candidate: dict, repeat_losses: list) -> dict:
     """Run all 18 gate checks on one candidate.
 
     Returns dict with:
@@ -1016,7 +1016,7 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
     rejected = []
 
     for c in candidates:
-        gate_result = check_17_point_gate(c, repeat_losses)
+        gate_result = check_18_point_gate(c, repeat_losses)
 
         # --- Pattern A: Flag directional conflicts ---
         home = (c.get("home_team") or "").strip().lower()

@@ -32,6 +32,27 @@ This prompt defines WHAT to do. Agent delegation uses internal-prompts that defi
 
 When delegating via `runSubagent`, read the internal-prompt file and pass its content as the task prompt.
 
+## NON-NEGOTIABLE RULES (R1-R12) — ENFORCED AT EVERY STEP
+
+These rules are defined in `copilot-instructions.md` and apply to EVERY agent, EVERY session, EVERY step. The orchestrator MUST verify compliance at each checkpoint.
+
+| Rule | Enforcement Point | What Orchestrator Checks |
+|------|------------------|-------------------------|
+| **R1 AGENT-DRIVEN** | Every step | Script ran → agent analyzed → reasoned output produced |
+| **R2 DB-FIRST** | S1-S8 | All data reads use `get_db()`, not raw JSON |
+| **R3 NO AUTO-REJECTION** | S7, S8 output | ALL candidates in matrix. No "rejected due to" language. Extended Pool has gate-failed picks. |
+| **R4 NO AGGRESSIVE NARROWING** | S7→S8 gate | ≥5 sports in approved picks. If <5 → emergency expansion before S8. |
+| **R5 STATS > OUTCOMES** | S3, S8 | Every football match has ≥1 corners/fouls/shots market. Statistical markets dominate portfolio. |
+| **R6 BETCLIC ADVISORY** | S0, S3, S7 | Hit rates shown prominently. Zero auto-penalties based on history. |
+| **R7 TOURNAMENT PROTECTION** | S1, S1e | All major tournament matches present. +15 boost applied. |
+| **R8 MINOR LEAGUE VALUE** | S1e, S3 | No "obscure league" penalties. +6 value boost for non-top-5. |
+| **R9 SELF-HEALING** | S2.5, S3 | Missing data → enrichment sub-agent triggered. Yield ≥60%. |
+| **R10 STATS-FIRST** | S4, S7, S8 | Events without odds NOT excluded. Shown with min acceptable odds. |
+| **R11 SEQUENTIAL THINKING** | S0-S10 | `sequentialthinking` used per step AND per candidate (S3-S7). |
+| **R12 CONDITIONAL** | S8 output | Coupon file carries conditional disclaimer. Betclic verification noted. |
+
+**VIOLATION OF ANY RULE = PIPELINE FAILURE.** The orchestrator re-runs the affected step until compliance is achieved.
+
 ## INPUTS
 
 - **run_date** = {{run_date}}
@@ -77,8 +98,6 @@ REQUIRED READS:
 [ ] Rerun: {{rerun}} | Version: {{version}}
 ```
 
-**MANDATORY: Use `sequentialthinking` for EVERY STEP (0-10). Per-candidate steps (3-7) = one call PER candidate.**
-
 ## SESSION PARITY RULE (NEVER VIOLATE)
 
 **ALL sessions (full/day/night/morning) execute the EXACT SAME pipeline:**
@@ -120,7 +139,7 @@ python3 scripts/pipeline_orchestrator.py --date YYYY-MM-DD [--session full|day|n
 
 This runs the ENTIRE data pipeline S0→S10 automatically, producing raw data artifacts. It executes:
 - **S0**: Betclic history analysis (`analyze_betclic_learning.py`)
-- **S1**: Full 14-sport scan (`run_full_scan_and_prepare.sh`) — **domain-grouped parallel scanning** (8 workers, timeout: 20 min incl. enrichment + aggregation)
+- **S1**: Full 14-sport scan (`scan_events.py --parallel-sport`) — **per-sport parallel scanning** (11 groups, independent timeouts: football 15min, others 2-5min)
 - **S1a**: API fixture discovery + stats enrichment (`discover_fixtures.py` + `fetch_api_stats.py`, timeout: 10 min)
 - **S1b**: Odds + weather + tipsters in PARALLEL (ThreadPoolExecutor, 5 workers, timeout: 10 min)
 - **S1c**: Aggregate scan + analysis pool (`aggregate_and_select.py` + `deep_analysis_pool.py`, timeout: 2 min)
@@ -149,14 +168,14 @@ State tracking with `--resume` support. Use `--status` to check progress. Use `-
 
 Before any pass, ensure:
 1. Run Betclic history analysis: `python3 scripts/analyze_betclic_learning.py` → reads `betting/data/betclic_bets_history.json` (MANDATORY — ground truth of all placed bets)
-2. Run scan pipeline: `bash scripts/run_full_scan_and_prepare.sh` → this executes 10 steps:
-   - Steps 1-4: Install deps, Playwright, smoke test, multi-sport web scan (200+ URLs with `--deep --max-deep-links 50`)
-   - **Step 5**: API fixture discovery (`discover_fixtures.py`) — queries API-Football (1000+ football leagues), API-Basketball (50+ leagues), API-Hockey (NHL/KHL/EU), API-Tennis, API-Volleyball, API-Handball, API-Baseball, TheSportsDB
-   - **Step 6**: API stats fetch (`fetch_api_stats.py`) — L10 form + H2H for all discovered teams with fallback chains across 7 sport APIs
-   - **Step 7**: Analysis pool generation (`deep_analysis_pool.py`) → outputs `betting/data/analysis_pool_{date}.json` + `.md` with pre-computed safety scores, market rankings, and EV
-   - Steps 8-10: Aggregate, Betclic extraction, summary
-   - Check outputs: `betting/data/scan_summary.json`, `betting/data/analysis_pool_{date}.json`
-3. Log source health: `python3 scripts/source_health.py --log` → check for degraded sources. **Note:** Source health is also auto-tracked in DB `source_health` table by every API client call (success/failure recorded via `SourceHealthRepo`)
+2. Run parallel scan: `python3 scripts/scan_events.py --parallel-sport --urls-file config/scan_urls.json --deep --date YYYY-MM-DD` → runs per-sport scanners with independent timeouts, stores results in DB `scan_results` + `scan_run_stats` tables
+3. Run enrichment + aggregation steps individually:
+   - **API fixtures**: `python3 scripts/discover_fixtures.py --date YYYY-MM-DD` — queries API-Football (1000+ leagues), API-Basketball (50+ leagues), API-Hockey, API-Tennis, API-Volleyball, API-Handball, API-Baseball, TheSportsDB
+   - **API stats**: `python3 scripts/fetch_api_stats.py --date YYYY-MM-DD` — L10 form + H2H for all discovered teams with fallback chains across 7 sport APIs
+   - **Analysis pool**: `python3 scripts/deep_analysis_pool.py --date YYYY-MM-DD` → outputs `betting/data/analysis_pool_{date}.json` + `.md`
+   - **Aggregate**: `python3 scripts/aggregate_and_select.py --date YYYY-MM-DD`
+   - Check DB: `scan_results`, `fixtures`, `team_form` tables populated
+4. Log source health: `python3 scripts/source_health.py --log` → check for degraded sources. **Note:** Source health is also auto-tracked in DB `source_health` table by every API client call (success/failure recorded via `SourceHealthRepo`)
 4. Run odds cross-validation (choose one):
    - **Single-source**: `python3 scripts/fetch_odds_api.py` — The-Odds-API only (30 credits/scan)
    - **Multi-source (RECOMMENDED)**: `python3 scripts/fetch_odds_multi.py` — aggregates 5 sources (The-Odds-API + API-Football + OddsPortal + BetExplorer + Betclic) per sport priority chain. Produces backward-compatible `odds_api_snapshot.json` + `odds_api_summary.csv` + `odds_multi_sources.json` provenance log.

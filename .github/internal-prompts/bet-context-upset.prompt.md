@@ -3,6 +3,9 @@ agent: "bet-challenger"
 description: "S5+S6: Context verification + Upset Risk Assessment — YOU ARE THE CONTEXT ANALYST"
 ---
 
+> **PERMANENT RULES (from copilot-instructions.md §NON-NEGOTIABLE):**
+> R3 NO AUTO-REJECTION: Context flags and upset risk = advisory. ALL candidates remain in matrix. R5 STATS > OUTCOMES: Assess context impact on statistical markets first. R11 SEQUENTIAL THINKING: One `sequentialthinking` call PER CANDIDATE.
+
 # S5+S6 — CONTEXT + UPSET RISK
 
 ## Required Skills

@@ -68,12 +68,12 @@ from datetime import date
 import json, datetime
 today = str(date.today())
 with get_db() as conn:
-    c = conn.execute('SELECT COUNT(*) FROM scan_results WHERE sport=\"basketball\" AND date=?', (today,))
+    c = conn.execute('SELECT COUNT(*) FROM scan_results WHERE sport="basketball" AND betting_date=?', (today,))
     count = c.fetchone()[0]
     print(f'Basketball events in DB: {count}')
     
     # League diversity check
-    c = conn.execute('SELECT data FROM scan_results WHERE sport=\"basketball\" AND date=?', (today,))
+    c = conn.execute('SELECT raw_data FROM scan_results WHERE sport="basketball" AND betting_date=?', (today,))
     leagues = set()
     for row in c:
         data = json.loads(row[0]) if row[0] else {}

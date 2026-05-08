@@ -70,12 +70,12 @@ from datetime import date
 import json, os
 today = str(date.today())
 with get_db() as conn:
-    c = conn.execute('SELECT COUNT(*) FROM scan_results WHERE sport=\"tennis\" AND date=?', (today,))
+    c = conn.execute('SELECT COUNT(*) FROM scan_results WHERE sport="tennis" AND betting_date=?', (today,))
     count = c.fetchone()[0]
     print(f'Tennis events in DB: {count}')
     
     # Surface detection
-    c = conn.execute('SELECT data FROM scan_results WHERE sport=\"tennis\" AND date=? LIMIT 30', (today,))
+    c = conn.execute('SELECT raw_data FROM scan_results WHERE sport="tennis" AND betting_date=? LIMIT 30', (today,))
     surfaces = set()
     tournaments = set()
     for row in c:

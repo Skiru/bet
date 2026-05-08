@@ -642,11 +642,11 @@ class ESPNSeeder:
         if row:
             return row["id"]
         # Create new
-        conn.execute(
+        cur = conn.execute(
             "INSERT INTO competitions (name, sport_id, country, importance) VALUES (?, ?, ?, ?)",
             (league, sport_id, "", 3),
         )
-        return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        return cur.lastrowid
 
     def _ensure_team(self, conn, team_repo, name: str, sport_id: int, espn_team_id: str = "") -> int:
         """Ensure a team exists in DB, returning its ID. Tracks ESPN ID mapping."""

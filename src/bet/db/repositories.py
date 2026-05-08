@@ -596,6 +596,9 @@ class StatsRepo:
             source=row["source"] or "",
         )
 
+    # Public alias for external callers
+    row_to_team_form = _row_to_team_form
+
 
 # ---------------------------------------------------------------------------
 # OddsRepo
@@ -605,25 +608,12 @@ class OddsRepo:
     def __init__(self, conn: sqlite3.Connection):
         self.conn = conn
 
-    def save_odds(self, record: OddsRecord) -> None:
-        self.conn.execute(
-            "INSERT INTO odds_history "
-            "(fixture_id, bookmaker, market, selection, odds, line, fetched_at, is_closing) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (
-                record.fixture_id,
-                record.bookmaker,
-                record.market,
-                record.selection,
-                record.odds,
-                record.line,
-                record.fetched_at or _NOW(),
-                1 if record.is_closing else 0,
-            ),
-        )
+    def save(self, record: OddsRecord) -> None:
+        """Insert or ignore odds record (prevents duplicate inserts).
 
-    def upsert(self, record: OddsRecord) -> None:
-        """Insert or ignore odds record (prevents duplicate inserts)."""
+        Uses INSERT OR IGNORE against the unique index
+        (fixture_id, bookmaker, market, selection, fetched_at).
+        """
         self.conn.execute(
             "INSERT OR IGNORE INTO odds_history "
             "(fixture_id, bookmaker, market, selection, odds, line, fetched_at, is_closing) "
@@ -639,6 +629,10 @@ class OddsRepo:
                 1 if record.is_closing else 0,
             ),
         )
+
+    # Backwards-compatible aliases
+    save_odds = save
+    upsert = save
 
     def get_best_odds(
         self, fixture_id: int, market: str, selection: str
@@ -687,19 +681,25 @@ class OddsRepo:
         return result
 
     def get_all_for_fixtures(self, fixture_ids: list[int]) -> dict[int, list[OddsRecord]]:
-        """Batch odds lookup for a set of fixture IDs."""
+        """Batch odds lookup for a set of fixture IDs.
+
+        Batches queries to stay under SQLite's variable limit (999).
+        """
         if not fixture_ids:
             return {}
-        placeholders = ",".join("?" for _ in fixture_ids)
-        rows = self.conn.execute(
-            f"SELECT * FROM odds_history WHERE fixture_id IN ({placeholders}) "
-            "ORDER BY fixture_id, fetched_at",
-            fixture_ids,
-        ).fetchall()
         result: dict[int, list[OddsRecord]] = {}
-        for r in rows:
-            rec = self._row_to_odds_record(r)
-            result.setdefault(rec.fixture_id, []).append(rec)
+        BATCH = 900
+        for i in range(0, len(fixture_ids), BATCH):
+            batch = fixture_ids[i:i + BATCH]
+            placeholders = ",".join("?" for _ in batch)
+            rows = self.conn.execute(
+                f"SELECT * FROM odds_history WHERE fixture_id IN ({placeholders}) "
+                "ORDER BY fixture_id, fetched_at",
+                batch,
+            ).fetchall()
+            for r in rows:
+                rec = self._row_to_odds_record(r)
+                result.setdefault(rec.fixture_id, []).append(rec)
         return result
 
     @staticmethod
@@ -1097,9 +1097,36 @@ class AnalysisResultRepo:
         )
 
     def bulk_save(self, results: list[AnalysisResult]) -> None:
-        """Bulk insert/replace analysis results."""
-        for r in results:
-            self.save(r)
+        """Bulk insert/replace analysis results using executemany."""
+        if not results:
+            return
+        now = _NOW()
+        self.conn.executemany(
+            "INSERT OR REPLACE INTO analysis_results "
+            "(fixture_id, betting_date, has_data, best_market_name, best_market_line, "
+            "best_market_direction, best_safety_score, markets_evaluated, ranking_json, "
+            "three_way_check_json, warnings_json, stats_summary_json, source, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+                (
+                    r.fixture_id,
+                    r.betting_date,
+                    int(r.has_data),
+                    r.best_market_name,
+                    r.best_market_line,
+                    r.best_market_direction,
+                    r.best_safety_score,
+                    r.markets_evaluated,
+                    json.dumps(r.ranking_json),
+                    json.dumps(r.three_way_check_json) if r.three_way_check_json else None,
+                    json.dumps(r.warnings_json),
+                    json.dumps(r.stats_summary_json) if r.stats_summary_json else None,
+                    r.source,
+                    r.created_at or now,
+                )
+                for r in results
+            ],
+        )
 
     def get_by_date(self, betting_date: str) -> list[AnalysisResult]:
         """Get all analysis results for a betting date."""
@@ -1202,9 +1229,36 @@ class GateResultRepo:
         )
 
     def bulk_save(self, results: list[GateResult]) -> None:
-        """Bulk insert/replace gate results."""
-        for r in results:
-            self.save(r)
+        """Bulk insert/replace gate results using executemany."""
+        if not results:
+            return
+        now = _NOW()
+        self.conn.executemany(
+            "INSERT OR REPLACE INTO gate_results "
+            "(fixture_id, betting_date, status, gate_score, gate_details_json, "
+            "best_market_name, best_market_line, best_market_direction, best_safety_score, "
+            "ev, risk_tier, rejection_reasons_json, source, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+                (
+                    r.fixture_id,
+                    r.betting_date,
+                    r.status,
+                    r.gate_score,
+                    json.dumps(r.gate_details_json),
+                    r.best_market_name,
+                    r.best_market_line,
+                    r.best_market_direction,
+                    r.best_safety_score,
+                    r.ev,
+                    r.risk_tier,
+                    json.dumps(r.rejection_reasons_json),
+                    r.source,
+                    r.created_at or now,
+                )
+                for r in results
+            ],
+        )
 
     def get_by_date(self, betting_date: str) -> list[GateResult]:
         """Get all gate results for a betting date."""

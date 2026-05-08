@@ -4,7 +4,7 @@ import sqlite3
 from pathlib import Path
 
 SCHEMA_SQL = Path(__file__).parent / "schema.sql"
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 
 def init_db(conn: sqlite3.Connection) -> None:
@@ -84,5 +84,28 @@ def migrate(conn: sqlite3.Connection, from_version: int, to_version: int) -> Non
         migration_path = Path(__file__).parent / "migrations" / "005_espn_deep_tables.sql"
         if migration_path.exists():
             conn.executescript(migration_path.read_text(encoding="utf-8"))
+
+    if from_version < 6:
+        # v6: Composite indexes for common query patterns + schema_meta table
+        # These indexes are also in schema.sql, so for fresh DBs they'll be created there.
+        # For existing DBs, the tables exist but the indexes don't.
+        try:
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_decision_outcomes_sport_market "
+                "ON decision_outcomes(sport, market)"
+            )
+        except sqlite3.OperationalError:
+            pass  # Table doesn't exist yet (fresh DB — schema.sql will create it)
+        try:
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_odds_history_lookup "
+                "ON odds_history(fixture_id, market, selection)"
+            )
+        except sqlite3.OperationalError:
+            pass  # Table doesn't exist yet (fresh DB — schema.sql will create it)
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS schema_meta "
+            "(key TEXT PRIMARY KEY, value TEXT)"
+        )
 
     conn.commit()

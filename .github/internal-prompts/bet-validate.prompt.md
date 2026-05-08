@@ -3,6 +3,9 @@ agent: "bet-builder"
 description: "S9: Final coupon validation — mechanical verification of all artifacts"
 ---
 
+> **PERMANENT RULES (from copilot-instructions.md §NON-NEGOTIABLE):**
+> R3 NO AUTO-REJECTION: Verify ALL candidates appear in matrix (§S8.FINAL.I). R5 STATS > OUTCOMES: Verify statistical markets dominate. R12 CONDITIONAL: Verify conditional disclaimer present.
+
 # S9 — FINAL VALIDATION
 
 ## Required Skills

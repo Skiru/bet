@@ -68,7 +68,7 @@ from datetime import date
 import json, datetime
 today = str(date.today())
 with get_db() as conn:
-    c = conn.execute('SELECT COUNT(*) FROM scan_results WHERE sport=\"volleyball\" AND date=?', (today,))
+    c = conn.execute('SELECT COUNT(*) FROM scan_results WHERE sport="volleyball" AND betting_date=?', (today,))
     count = c.fetchone()[0]
     print(f'Volleyball events in DB: {count}')
 

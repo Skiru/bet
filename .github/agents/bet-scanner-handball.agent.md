@@ -68,7 +68,7 @@ from datetime import date
 import datetime
 today = str(date.today())
 with get_db() as conn:
-    c = conn.execute('SELECT COUNT(*) FROM scan_results WHERE sport=\"handball\" AND date=?', (today,))
+    c = conn.execute('SELECT COUNT(*) FROM scan_results WHERE sport="handball" AND betting_date=?', (today,))
     count = c.fetchone()[0]
     print(f'Handball events in DB: {count}')
 

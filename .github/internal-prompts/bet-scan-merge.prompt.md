@@ -4,6 +4,9 @@ mode: agent
 agent: bet-scanner
 ---
 
+> **PERMANENT RULES (from copilot-instructions.md §NON-NEGOTIABLE):**
+> R3 NO AUTO-REJECTION: ALL events from all scanners merge into shortlist. R7 TOURNAMENT PROTECTION: Verify tournament matches present. R10 STATS-FIRST: Events without odds included.
+
 # SCAN MERGE + ENRICHMENT — Final Assembly
 
 Run after all sport scanners complete. Merges results, enriches with APIs, validates coverage, produces shortlist.

@@ -9,12 +9,12 @@ Usage:
 import argparse
 import re
 import shutil
-import sqlite3
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT_DIR / "src"))
 DATA_DIR = ROOT_DIR / "betting" / "data"
 DB_PATH = DATA_DIR / "betting.db"
 
@@ -137,7 +137,8 @@ def find_old_files(days: int) -> list[Path]:
 
 def count_old_db_rows(days_scan: int = 60, days_odds: int = 90) -> dict[str, int]:
     """Count DB rows older than retention periods."""
-    counts = {"scan_results": 0, "match_stats": 0, "odds_history": 0}
+    import sqlite3
+    counts = {"scan_results": 0, "match_stats": 0, "odds_history": 0, "fixtures": 0}
     if not DB_PATH.exists():
         return counts
 
@@ -145,41 +146,53 @@ def count_old_db_rows(days_scan: int = 60, days_odds: int = 90) -> dict[str, int
     cutoff_odds = (datetime.now() - timedelta(days=days_odds)).strftime("%Y-%m-%d")
 
     try:
-        conn = sqlite3.connect(str(DB_PATH))
-        cur = conn.cursor()
+        from bet.db.connection import get_db
 
-        # scan_results: has betting_date column
-        try:
-            cur.execute("SELECT COUNT(*) FROM scan_results WHERE betting_date < ?", (cutoff_scan,))
-            counts["scan_results"] = cur.fetchone()[0]
-        except sqlite3.OperationalError:
-            pass
+        with get_db(DB_PATH) as conn:
+            # scan_results: has betting_date column
+            try:
+                row = conn.execute("SELECT COUNT(*) FROM scan_results WHERE betting_date < ?", (cutoff_scan,)).fetchone()
+                counts["scan_results"] = row[0]
+            except sqlite3.OperationalError:
+                pass
 
-        # match_stats: join through fixtures to get date
-        try:
-            cur.execute(
-                "SELECT COUNT(*) FROM match_stats ms "
-                "JOIN fixtures f ON ms.fixture_id = f.id "
-                "WHERE f.kickoff < ?",
-                (cutoff_scan,),
-            )
-            counts["match_stats"] = cur.fetchone()[0]
-        except sqlite3.OperationalError:
-            pass
+            # match_stats: join through fixtures to get date
+            try:
+                row = conn.execute(
+                    "SELECT COUNT(*) FROM match_stats ms "
+                    "JOIN fixtures f ON ms.fixture_id = f.id "
+                    "WHERE f.kickoff < ?",
+                    (cutoff_scan,),
+                ).fetchone()
+                counts["match_stats"] = row[0]
+            except sqlite3.OperationalError:
+                pass
 
-        # odds_history: join through fixtures
-        try:
-            cur.execute(
-                "SELECT COUNT(*) FROM odds_history oh "
-                "JOIN fixtures f ON oh.fixture_id = f.id "
-                "WHERE f.kickoff < ?",
-                (cutoff_odds,),
-            )
-            counts["odds_history"] = cur.fetchone()[0]
-        except sqlite3.OperationalError:
-            pass
+            # odds_history: join through fixtures
+            try:
+                row = conn.execute(
+                    "SELECT COUNT(*) FROM odds_history oh "
+                    "JOIN fixtures f ON oh.fixture_id = f.id "
+                    "WHERE f.kickoff < ?",
+                    (cutoff_odds,),
+                ).fetchone()
+                counts["odds_history"] = row[0]
+            except sqlite3.OperationalError:
+                pass
 
-        conn.close()
+            # orphaned fixtures (older than scan cutoff with no children)
+            try:
+                row = conn.execute(
+                    "SELECT COUNT(*) FROM fixtures f "
+                    "WHERE f.kickoff < ? "
+                    "AND NOT EXISTS (SELECT 1 FROM match_stats ms WHERE ms.fixture_id = f.id) "
+                    "AND NOT EXISTS (SELECT 1 FROM odds_history oh WHERE oh.fixture_id = f.id) "
+                    "AND NOT EXISTS (SELECT 1 FROM bets b WHERE b.fixture_id = f.id)",
+                    (cutoff_scan,),
+                ).fetchone()
+                counts["fixtures"] = row[0]
+            except sqlite3.OperationalError:
+                pass
     except Exception as e:
         print(f"  [warn] DB access error: {e}")
 
@@ -188,7 +201,8 @@ def count_old_db_rows(days_scan: int = 60, days_odds: int = 90) -> dict[str, int
 
 def delete_old_db_rows(days_scan: int = 60, days_odds: int = 90) -> dict[str, int]:
     """Delete old DB rows. Returns counts of deleted rows."""
-    deleted = {"scan_results": 0, "match_stats": 0, "odds_history": 0}
+    import sqlite3
+    deleted = {"scan_results": 0, "match_stats": 0, "odds_history": 0, "fixtures": 0}
     if not DB_PATH.exists():
         return deleted
 
@@ -196,37 +210,47 @@ def delete_old_db_rows(days_scan: int = 60, days_odds: int = 90) -> dict[str, in
     cutoff_odds = (datetime.now() - timedelta(days=days_odds)).strftime("%Y-%m-%d")
 
     try:
-        conn = sqlite3.connect(str(DB_PATH))
-        cur = conn.cursor()
+        from bet.db.connection import get_db
 
-        try:
-            cur.execute("DELETE FROM scan_results WHERE betting_date < ?", (cutoff_scan,))
-            deleted["scan_results"] = cur.rowcount
-        except sqlite3.OperationalError:
-            pass
+        with get_db(DB_PATH) as conn:
+            try:
+                cur = conn.execute("DELETE FROM scan_results WHERE betting_date < ?", (cutoff_scan,))
+                deleted["scan_results"] = cur.rowcount
+            except sqlite3.OperationalError:
+                pass
 
-        try:
-            cur.execute(
-                "DELETE FROM match_stats WHERE fixture_id IN "
-                "(SELECT id FROM fixtures WHERE kickoff < ?)",
-                (cutoff_scan,),
-            )
-            deleted["match_stats"] = cur.rowcount
-        except sqlite3.OperationalError:
-            pass
+            try:
+                cur = conn.execute(
+                    "DELETE FROM match_stats WHERE fixture_id IN "
+                    "(SELECT id FROM fixtures WHERE kickoff < ?)",
+                    (cutoff_scan,),
+                )
+                deleted["match_stats"] = cur.rowcount
+            except sqlite3.OperationalError:
+                pass
 
-        try:
-            cur.execute(
-                "DELETE FROM odds_history WHERE fixture_id IN "
-                "(SELECT id FROM fixtures WHERE kickoff < ?)",
-                (cutoff_odds,),
-            )
-            deleted["odds_history"] = cur.rowcount
-        except sqlite3.OperationalError:
-            pass
+            try:
+                cur = conn.execute(
+                    "DELETE FROM odds_history WHERE fixture_id IN "
+                    "(SELECT id FROM fixtures WHERE kickoff < ?)",
+                    (cutoff_odds,),
+                )
+                deleted["odds_history"] = cur.rowcount
+            except sqlite3.OperationalError:
+                pass
 
-        conn.commit()
-        conn.close()
+            # Clean orphaned fixtures (no children, no bets referencing them)
+            try:
+                cur = conn.execute(
+                    "DELETE FROM fixtures WHERE kickoff < ? "
+                    "AND id NOT IN (SELECT DISTINCT fixture_id FROM match_stats WHERE fixture_id IS NOT NULL) "
+                    "AND id NOT IN (SELECT DISTINCT fixture_id FROM odds_history WHERE fixture_id IS NOT NULL) "
+                    "AND id NOT IN (SELECT DISTINCT fixture_id FROM bets WHERE fixture_id IS NOT NULL)",
+                    (cutoff_scan,),
+                )
+                deleted["fixtures"] = cur.rowcount
+            except sqlite3.OperationalError:
+                pass
     except Exception as e:
         print(f"  [warn] DB cleanup error: {e}")
 
@@ -306,7 +330,8 @@ def main():
 
     print(f"\n[DONE] Deleted {deleted_files} files, {deleted_dirs} directories")
     print(f"[DONE] Deleted DB rows: {sum(db_deleted.values())} "
-          f"(scan: {db_deleted['scan_results']}, stats: {db_deleted['match_stats']}, odds: {db_deleted['odds_history']})")
+          f"(scan: {db_deleted['scan_results']}, stats: {db_deleted['match_stats']}, "
+          f"odds: {db_deleted['odds_history']}, fixtures: {db_deleted['fixtures']})")
     print(f"[DONE] Freed {total_size / 1024 / 1024:.2f} MB")
 
 

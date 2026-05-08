@@ -3,6 +3,9 @@ agent: "bet-valuator"
 description: "S4: Multi-source odds comparison, EV calculation, Kelly staking — YOU ARE THE PRICING ANALYST"
 ---
 
+> **PERMANENT RULES (from copilot-instructions.md §NON-NEGOTIABLE):**
+> R3 NO AUTO-REJECTION: Negative EV = flag, not exclusion (user may have different Betclic odds). R10 STATS-FIRST: Events without odds shown with min acceptable odds = `1/hit_rate`. R12 CONDITIONAL: All odds are reference. User verifies on Betclic.
+
 # S4 — ODDS + EV ANALYSIS
 
 ## Required Skills

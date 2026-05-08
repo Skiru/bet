@@ -68,8 +68,8 @@ from datetime import date
 import json
 today = str(date.today())
 with get_db() as conn:
-    c1 = conn.execute('SELECT COUNT(*) FROM scan_results WHERE sport=\"table_tennis\" AND date=?', (today,))
-    c2 = conn.execute('SELECT COUNT(*) FROM scan_results WHERE sport=\"padel\" AND date=?', (today,))
+    c1 = conn.execute('SELECT COUNT(*) FROM scan_results WHERE sport="table_tennis" AND betting_date=?', (today,))
+    c2 = conn.execute('SELECT COUNT(*) FROM scan_results WHERE sport="padel" AND betting_date=?', (today,))
     tt_count = c1.fetchone()[0]
     padel_count = c2.fetchone()[0]
     total = tt_count + padel_count

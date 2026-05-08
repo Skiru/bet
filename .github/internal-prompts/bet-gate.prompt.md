@@ -3,6 +3,9 @@ agent: "bet-challenger"
 description: "S7: Bear case + Red Flags + Contrarian + 18-point Pick Approval Gate — YOU ARE THE DEVIL'S ADVOCATE"
 ---
 
+> **PERMANENT RULES (from copilot-instructions.md §NON-NEGOTIABLE):**
+> R3 NO AUTO-REJECTION: Gate assigns ADVISORY TIERS (STRONG/MODERATE/WEAK/FLAGGED). ALL candidates in matrix. Gate-failed → Extended Pool. R4 NO AGGRESSIVE NARROWING: §7.6 blocks S8 if <5 sports. R6 BETCLIC ADVISORY: Hit rates = informational. R7 TOURNAMENT PROTECTION: Tournament picks never penalized. R8 MINOR LEAGUE VALUE: Minor league picks never penalized. R11 SEQUENTIAL THINKING: One `sequentialthinking` PER CANDIDATE.
+
 # S7 — BEAR CASE + RED FLAGS + PICK GATE
 
 ## Required Skills
@@ -47,6 +50,31 @@ Run 30-second sport-specific checklist (Tennis: WC/fatigue/surface; Football: de
 ### 4. 18-Point Pick Approval Gate (§7D)
 
 All 18 checks must PASS: identity, WC/Q/LL, H2H (≥5 matches), injuries, ≥2 sources, ≥1 tipster, upset risk, EV>0, drift<8%, red flags cleared, contrarian answered, bear<bull, fresh data, 48h repeat, multi-market (≥3), H2H-stat-specific, three-way alignment, data quality.
+
+### 18-POINT GATE — PASS/FAIL CRITERIA (from `gate_checker.py`)
+
+| # | Name | PASS | FAIL |
+|---|------|------|------|
+| 1 | Identity verified | Full team names, no "/" slashes, length ≥2 | Slash in name or missing/too short |
+| 2 | WC/Q/LL checked | No (Q), (LL), (WC), debut, stand-in flags unchecked | Qualifier/wildcard flags present without verification |
+| 3 | H2H ≥5 meetings | `h2h_count ≥ 5` | Less than 5 H2H meetings |
+| 4 | Injuries checked | `injuries` data exists OR `data_quality == "FULL"` | No injury data available |
+| 5 | ≥2 sources | `len(sources) ≥ 2` | Only 0-1 data sources |
+| 6 | ≥1 tipster argument | `tipster_count ≥ 1` | TIPSTER-BLIND: zero tipster coverage |
+| 7 | Upset risk scored | Always passes (scoring = check) | N/A |
+| 8 | EV > 0 | `ev > 0` OR stats-first mode (no odds → auto-pass) | `ev ≤ 0` with odds available |
+| 9 | Odds drift <8% | `abs(current-opening)/opening < 0.08` OR no odds (stats-first) | Drift exceeds 8% |
+| 10 | Red flags clear | No red flags from `check_red_flags()` | Active red flags |
+| 11 | Contrarian done | Auto-pass (systematic analysis) | N/A |
+| 12 | Bear < Bull | `safety_score ≥ 0.50` | `safety_score < 0.50` |
+| 13 | Not anchored | Auto-pass (systematic analysis) | N/A |
+| 14 | 48h repeat | No same team+market loss in last 48h | HARD REJECT: team×market lost recently |
+| 15 | Multi-market ≥3 | `markets_evaluated ≥ 3` | Fewer than 3 markets evaluated |
+| 16 | H2H stat-specific | `h2h_blind == False` (H2H exists for exact stat) | H2H-STAT-BLIND for the bet market |
+| 17 | Three-way aligned | L10+H2H+L5 alignment contains "SUPPORT" or "ALIGNED" | Misaligned or not checked |
+| 18 | Data quality | Not one-sided, not synthetic | One team has zero data OR source is "db-synthetic" |
+
+**Advisory tiers:** STRONG (≤2 fail) → full stake | MODERATE (3-5 fail) → standard | WEAK (6-9 fail) → reduced | FLAGGED (10+ fail) → user review
 
 ### 5. Zero Tolerance Shield (20+ patterns)
 

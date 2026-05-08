@@ -3,6 +3,9 @@ agent: "bet-builder"
 description: "S8: Portfolio construction, coupon building, V1-V10, artifact generation — YOU ARE THE PORTFOLIO STRATEGIST"
 ---
 
+> **PERMANENT RULES (from copilot-instructions.md §NON-NEGOTIABLE):**
+> R3 NO AUTO-REJECTION: ALL S3-analyzed candidates in STATISTICAL MATRIX. Extended Pool for gate-failed. R4 NO AGGRESSIVE NARROWING: Portfolio ≥5 sports. R5 STATS > OUTCOMES: Statistical markets dominate portfolio. R10 STATS-FIRST: Include events without odds. R12 CONDITIONAL: Coupon MUST carry "⚠️ Wszystkie typy są WARUNKOWE" disclaimer.
+
 # S8 — PORTFOLIO + COUPONS + VALIDATION
 
 ## Required Skills

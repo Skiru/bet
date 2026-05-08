@@ -3,6 +3,9 @@ agent: "bet-statistician"
 description: "S3B: Time-sensitive data — lineups, weather, late injuries, odds drift (run 2-3h before events)"
 ---
 
+> **PERMANENT RULES (from copilot-instructions.md §NON-NEGOTIABLE):**
+> R5 STATS > OUTCOMES: Check lineup impact on statistical markets first. R12 CONDITIONAL: All picks remain conditional until Betclic verification.
+
 # S3B — TIME-SENSITIVE DATA COLLECTION
 
 ## Required Skills

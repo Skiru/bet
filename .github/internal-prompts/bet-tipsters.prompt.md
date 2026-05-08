@@ -3,6 +3,9 @@ agent: "bet-scout"
 description: "S2: Argument-based tipster intelligence — YOU ARE THE INTELLIGENCE ANALYST, NOT A SCRIPT RUNNER"
 ---
 
+> **PERMANENT RULES (from copilot-instructions.md §NON-NEGOTIABLE):**
+> R3 NO AUTO-REJECTION: ALL candidates get tipster cross-reference. R5 STATS > OUTCOMES: Prioritize tips for statistical markets. R6 BETCLIC ADVISORY: Tipster hit rates = informational only.
+
 # S2 — TIPSTER DEEP-DIVE
 
 ## Required Skills
@@ -51,6 +54,26 @@ Scan ALL tipster HTML for statistical-market picks NOT in shortlist. If: stat ma
 - **Contrarian signal**: refuted or incorporated
 - **New angle**: impact assessment
 - **Intelligence confidence modifier**: +0.5 / 0 / −0.5 / −1.0
+
+### Consensus Calculation Formula
+
+```
+consensus_pct = (tipsters_agreeing_on_direction / tipsters_covering_event) × 100
+
+# Direction = the pick direction (OVER/UNDER or HOME/DRAW/AWAY)
+# A tipster "agrees" if they pick the SAME direction for the SAME market type
+
+# Confidence modifier decision tree:
+if consensus_pct >= 80% AND ≥3 tipsters: modifier = +0.5 (strong agreement)
+elif consensus_pct >= 60%: modifier = 0 (moderate, no adjustment)
+elif consensus_pct >= 40%: modifier = -0.5 (divided opinion)
+else (< 40%): modifier = -1.0 (contrarian signal — investigate why)
+
+# Quality levels:
+DATA-BACKED: tipster provides stats/numbers in argument (e.g., "last 5 matches averaged 12.4 corners")
+OPINION: tipster states direction without data
+VAGUE: tipster gives generic advice ("I like the over")
+```
 
 ## Output
 

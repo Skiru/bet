@@ -3,6 +3,9 @@ agent: "bet-scanner"
 description: "S1-S1e: Full data engine — scan 14 sports, enrich with stats/odds/weather, live-validate quality, self-heal gaps, build analysis-ready shortlist"
 ---
 
+> **PERMANENT RULES (from copilot-instructions.md §NON-NEGOTIABLE):**
+> R3 NO AUTO-REJECTION: ALL fixtures in shortlist. R7 TOURNAMENT PROTECTION: Major tournaments NEVER skipped (+15 boost). R8 MINOR LEAGUE VALUE: Non-top-5 = +6 boost, never penalize "obscure". R10 STATS-FIRST: Events without odds included.
+
 # S1+S2 — SCAN + ENRICH + VALIDATE + SHORTLIST
 
 ## Required Skills
@@ -22,19 +25,19 @@ You follow a strict 3-phase workflow with INLINE VALIDATION after each phase. Do
 
 ### PHASE 1: Event Discovery
 
-Run the full scan pipeline:
+Run the parallel sport scanner:
 ```bash
-bash scripts/run_full_scan_and_prepare.sh
+python3 scripts/scan_events.py --parallel-sport --urls-file config/scan_urls.json --deep --date {date}
 ```
 
-This takes 25-45 minutes (232 seed URLs → 1000+ via deep-link discovery). If it times out, run sub-steps manually as documented in the agent definition.
+This runs per-sport parallel scanning (11 sport groups, independent timeouts). If it times out, use `--resume` or run individual sport scanners manually.
 
 **VALIDATE Phase 1** — Run these checks immediately after scan completes:
 
-1. **Event count**: Read `scan_summary.json`, sum all event lists. Gate: ≥ 40,000 events.
-2. **URL expansion**: Count keys in scan_summary.json. Gate: ≥ 800 URLs from 232 seeds.
+1. **Event count**: Query DB `scan_results` table for today's date. Check per-sport counts in `scan_run_stats` table.
+2. **Source success**: Check `scan_run_stats.sources_ok` and `scan_run_stats.sources_failed` per sport.
 3. **Error triage**: Read `scan_errors.json`. Separate critical errors from ignorable ones (BetExplorer empty pages for niche sports = normal).
-4. **Domain spread**: Count unique domains. Gate: ≥ 30 domains.
+4. **Sport coverage**: All 14 sports should have entries in `scan_run_stats`.
 
 If gates fail → investigate and fix before proceeding. See Error Triage Playbook in agent definition.
 
@@ -42,12 +45,15 @@ If gates fail → investigate and fix before proceeding. See Error Triage Playbo
 
 The pipeline already ran enrichment in parallel (stats, odds, weather). Now VALIDATE what it produced:
 
-1. **Stats cache health** — Count team files per sport:
+1. **Stats cache health** — Query DB `team_form` table for today's data:
    ```bash
-   for sport in football tennis basketball volleyball hockey baseball handball; do
-     count=$(find betting/data/stats_cache/$sport -maxdepth 1 -name "*.json" 2>/dev/null | wc -l)
-     echo "$sport: $count files"
-   done
+   cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 -c "
+   from bet.db.connection import get_db
+   with get_db() as conn:
+       c = conn.execute('SELECT sport, COUNT(DISTINCT team_name) FROM team_form GROUP BY sport')
+       for row in c:
+           print(f'{row[0]:15s}: {row[1]} teams')
+   "
    ```
    Gates: Football ≥100, Tennis ≥100, Basketball ≥10, Hockey ≥10. **Flag volleyball/handball if 0.**
 
@@ -57,11 +63,11 @@ The pipeline already ran enrichment in parallel (stats, odds, weather). Now VALI
    - Basketball should have 17+ keys
    - If football has <10 keys → ESPN enrichment may have failed
 
-3. **Odds coverage** — Check `odds_multi_sources.json` and `odds_api_snapshot.json` exist. Count events with odds. In STATS-FIRST mode, acknowledge low coverage is expected.
+3. **Odds coverage** — Check `odds_history` DB table and JSON files (`odds_multi_sources.json`, `odds_api_snapshot.json`). Count events with odds. In STATS-FIRST mode, acknowledge low coverage is expected.
 
 4. **Weather** — Check `weather_{date}.json` exists for outdoor sports.
 
-5. **DB population** — Count fixtures for today's date. Count teams with form data. Check source health failure rates.
+5. **DB population** — Count fixtures for today's date. Count teams with form data. Check `source_health` table failure rates.
 
 ### PHASE 2b: Self-Healing
 
@@ -95,21 +101,21 @@ Include all sections from the agent's report format:
 
 | # | Check | Gate |
 |---|-------|------|
-| 01 | All 14 sports listed in scan | Required |
-| 02 | ≥ 40,000 events discovered | Required |
+| 01 | All 14 sports have entries in `scan_run_stats` | Required |
+| 02 | Per-sport event counts reasonable (football ≥200, tennis ≥100) | Required |
 | 03 | ≥ 6 sports with active events | Required |
-| 04 | Every sport from ≥2 sources | Required |
+| 04 | Every sport from ≥2 sources (`sources_ok` ≥ 2) | Required |
 | 05 | KEY sports have deep tournament coverage | Required |
-| 06 | scan_summary.json exists and fresh (>10MB) | Required |
+| 06 | DB `scan_results` populated for today's `betting_date` | Required |
 | 07 | scan_errors.json reviewed, critical errors < 5 | Required |
-| 08 | Stats cache: football ≥100, tennis ≥100 files | Required |
+| 08 | DB `team_form`: football ≥100, tennis ≥100 teams | Required |
 | 09 | Stats depth: football ≥10 keys sampled | Required |
 | 10 | Odds data exists (or STATS-FIRST acknowledged) | Required |
 | 11 | Weather for outdoor events | Required |
 | 12 | Shortlist: 50-100 events, ≥8 sports | Required |
 | 13 | Football ≤50% of shortlist | Required |
 | 14 | DB fixtures populated for today | Required |
-| 15 | Source health <20% failure rate | Required |
+| 15 | `source_health` failure rate <20% | Required |
 
 ## Pass/Fail
 

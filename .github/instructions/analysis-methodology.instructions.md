@@ -40,8 +40,10 @@ All pipeline data is stored in SQLite DB (`betting/data/betting.db`) as the prim
 - `load_fixtures_from_db()`, `load_odds_from_db()`, `load_team_form_from_db()`
 - `load_analysis_results_from_db()`, `save_analysis_results_to_db()`
 - `load_gate_results_from_db()`, `save_gate_results_to_db()`
-- `load_shortlist_from_db()`, `load_betclic_history_from_db()`
-- `build_safety_input()` — assembles safety score input from DB tables
+- `load_betclic_history_from_db()`
+
+**Safety score input:** `scripts/normalize_stats.py` — `build_safety_input(sport, team_a, team_b, competition)` (DB-first, JSON cache fallback)
+
 - **`load_espn_enrichment_for_team(name, sport)`** — ATS/OU records, standings, power index for basketball/hockey/baseball
 - **`load_player_gamelogs_for_team(name, sport, n=10)`** — per-player game-by-game stats for entire roster
 - **`load_sport_specific_cache(sport, name)`** — niche sport data: darts (checkout%, 180s, legs), Dota2 (kills, GPM, hero_damage), table tennis (set scores, form)
@@ -191,7 +193,7 @@ If the file is missing, run: `python3 scripts/parse_betclic_bets.py` (requires H
 
 ## STEP 1: SCAN — Complete Event Discovery
 
-1. Run `python3 scripts/pipeline_orchestrator.py --date YYYY-MM-DD` (preferred — orchestrates all steps with state tracking and resume capability) or `bash scripts/run_full_scan_and_prepare.sh` (manual fallback). Check `scan_errors.json`.
+1. Run `python3 scripts/pipeline_orchestrator.py --date YYYY-MM-DD` (preferred — orchestrates all steps with state tracking and resume capability) or `python3 scripts/scan_events.py --parallel-sport --date YYYY-MM-DD` (manual scan only). Check `scan_errors.json`.
 2. Run `python3 scripts/fetch_odds_api.py` for cross-validation (30 credits/scan, 500/month free).
 3. Browse BetExplorer + Flashscore + OddsPortal for ALL 14 sports.
 4. **Deep Scan (§1.2):** Click into EVERY active tournament/league. Count matches per tournament.
@@ -251,7 +253,7 @@ python3 scripts/build_shortlist.py --date YYYY-MM-DD --stats-first
 
 This produces:
 4. `betting/data/{date}_s2_shortlist.md` — all ranked candidates with sport diversity
-5. `betting/data/{date}_s2_shortlist.json` — structured shortlist for downstream steps (also loadable via `load_shortlist_from_db()`)
+5. `betting/data/{date}_s2_shortlist.json` — structured shortlist for downstream steps
 
 **Purpose:** Bridge the gap between fixture discovery (hundreds of events) and analysis (which requires cached stats). The market matrix shows ALL discovered events with whatever data is available — odds, safety scores, scan data. Nothing is auto-rejected.
 

@@ -4,6 +4,9 @@ mode: agent
 agent: bet-scanner
 ---
 
+> **PERMANENT RULES (from copilot-instructions.md §NON-NEGOTIABLE):**
+> R7 TOURNAMENT PROTECTION: Major tournaments NEVER skipped. R8 MINOR LEAGUE VALUE: Less popular = more profit. R9 SELF-HEALING: Missing data → enrichment sub-agents.
+
 # SCAN ORCHESTRATION — Full Autonomous Pipeline
 
 You are executing the S1 scan step. You MUST complete all 5 phases below without asking the user anything. If errors occur, diagnose and fix them yourself using the troubleshooting section.

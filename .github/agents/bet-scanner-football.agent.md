@@ -72,12 +72,12 @@ import json
 today = str(date.today())
 with get_db() as conn:
     # Event count
-    c = conn.execute('SELECT COUNT(*) FROM scan_results WHERE sport=\"football\" AND date=?', (today,))
+    c = conn.execute('SELECT COUNT(*) FROM scan_results WHERE sport="football" AND betting_date=?', (today,))
     count = c.fetchone()[0]
     print(f'Football events in DB: {count}')
     
     # Stat key coverage (sample 20 events)
-    c = conn.execute('SELECT data FROM scan_results WHERE sport=\"football\" AND date=? LIMIT 20', (today,))
+    c = conn.execute('SELECT raw_data FROM scan_results WHERE sport="football" AND betting_date=? LIMIT 20', (today,))
     all_keys = set()
     for row in c:
         data = json.loads(row[0]) if row[0] else {}
@@ -92,7 +92,7 @@ with get_db() as conn:
         print(f'✅ All required stat keys present')
     
     # League diversity
-    c = conn.execute('SELECT data FROM scan_results WHERE sport=\"football\" AND date=?', (today,))
+    c = conn.execute('SELECT raw_data FROM scan_results WHERE sport="football" AND betting_date=?', (today,))
     leagues = set()
     for row in c:
         data = json.loads(row[0]) if row[0] else {}

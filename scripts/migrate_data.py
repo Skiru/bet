@@ -267,11 +267,9 @@ def main():
 
     if not args.dry_run:
         # Verify
-        import sqlite3
-        verify_conn = sqlite3.connect(str(args.db_path))
-        bets_count = verify_conn.execute("SELECT COUNT(*) FROM bets").fetchone()[0]
-        coupons_count = verify_conn.execute("SELECT COUNT(*) FROM coupons").fetchone()[0]
-        verify_conn.close()
+        with get_db(args.db_path) as verify_conn:
+            bets_count = verify_conn.execute("SELECT COUNT(*) FROM bets").fetchone()[0]
+            coupons_count = verify_conn.execute("SELECT COUNT(*) FROM coupons").fetchone()[0]
         print(f"\n[✓] Migration complete: {coupons_count} coupons, {bets_count} bets in DB")
     else:
         print("\n[i] Dry run complete — no data written")

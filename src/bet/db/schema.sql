@@ -1,4 +1,4 @@
--- Betting system schema v2
+-- Betting system schema v6
 
 PRAGMA journal_mode = WAL;
 PRAGMA foreign_keys = ON;
@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS sports (
 
 CREATE TABLE IF NOT EXISTS competitions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    sport_id INTEGER NOT NULL REFERENCES sports(id),
+    sport_id INTEGER NOT NULL REFERENCES sports(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     country TEXT,
     importance INTEGER NOT NULL DEFAULT 3,
@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS competitions (
 
 CREATE TABLE IF NOT EXISTS teams (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    sport_id INTEGER NOT NULL REFERENCES sports(id),
+    sport_id INTEGER NOT NULL REFERENCES sports(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     aliases TEXT NOT NULL DEFAULT '[]',
     country TEXT,
@@ -34,10 +34,10 @@ CREATE TABLE IF NOT EXISTS teams (
 CREATE TABLE IF NOT EXISTS fixtures (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     external_id TEXT,
-    sport_id INTEGER NOT NULL REFERENCES sports(id),
-    competition_id INTEGER REFERENCES competitions(id),
-    home_team_id INTEGER NOT NULL REFERENCES teams(id),
-    away_team_id INTEGER NOT NULL REFERENCES teams(id),
+    sport_id INTEGER NOT NULL REFERENCES sports(id) ON DELETE CASCADE,
+    competition_id INTEGER REFERENCES competitions(id) ON DELETE SET NULL,
+    home_team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+    away_team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
     kickoff TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'scheduled',
     score_home INTEGER,
@@ -49,8 +49,8 @@ CREATE TABLE IF NOT EXISTS fixtures (
 
 CREATE TABLE IF NOT EXISTS match_stats (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    fixture_id INTEGER NOT NULL REFERENCES fixtures(id),
-    team_id INTEGER NOT NULL REFERENCES teams(id),
+    fixture_id INTEGER NOT NULL REFERENCES fixtures(id) ON DELETE CASCADE,
+    team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
     stat_key TEXT NOT NULL,
     stat_value REAL NOT NULL,
     source TEXT,
@@ -60,15 +60,15 @@ CREATE TABLE IF NOT EXISTS match_stats (
 
 CREATE TABLE IF NOT EXISTS team_form (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    team_id INTEGER NOT NULL REFERENCES teams(id),
-    sport_id INTEGER NOT NULL REFERENCES sports(id),
+    team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+    sport_id INTEGER NOT NULL REFERENCES sports(id) ON DELETE CASCADE,
     stat_key TEXT NOT NULL,
     l10_values TEXT NOT NULL DEFAULT '[]',
     l5_values TEXT NOT NULL DEFAULT '[]',
     l10_avg REAL,
     l5_avg REAL,
     h2h_values TEXT NOT NULL DEFAULT '[]',
-    h2h_opponent_id INTEGER REFERENCES teams(id),
+    h2h_opponent_id INTEGER REFERENCES teams(id) ON DELETE SET NULL,
     trend TEXT,
     updated_at TEXT NOT NULL,
     source TEXT,
@@ -83,7 +83,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_team_form_upsert
 
 CREATE TABLE IF NOT EXISTS odds_history (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    fixture_id INTEGER NOT NULL REFERENCES fixtures(id),
+    fixture_id INTEGER NOT NULL REFERENCES fixtures(id) ON DELETE CASCADE,
     bookmaker TEXT NOT NULL,
     market TEXT NOT NULL,
     selection TEXT NOT NULL,
@@ -110,8 +110,8 @@ CREATE TABLE IF NOT EXISTS coupons (
 
 CREATE TABLE IF NOT EXISTS bets (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    coupon_id INTEGER NOT NULL REFERENCES coupons(id),
-    fixture_id INTEGER REFERENCES fixtures(id),
+    coupon_id INTEGER NOT NULL REFERENCES coupons(id) ON DELETE CASCADE,
+    fixture_id INTEGER REFERENCES fixtures(id) ON DELETE SET NULL,
     sport TEXT NOT NULL,
     event_name TEXT NOT NULL,
     market TEXT NOT NULL,
@@ -154,7 +154,7 @@ CREATE TABLE IF NOT EXISTS source_health (
 
 CREATE TABLE IF NOT EXISTS analysis_results (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    fixture_id INTEGER NOT NULL REFERENCES fixtures(id),
+    fixture_id INTEGER NOT NULL REFERENCES fixtures(id) ON DELETE CASCADE,
     betting_date TEXT NOT NULL,
     has_data INTEGER NOT NULL DEFAULT 0,
     best_market_name TEXT,
@@ -173,7 +173,7 @@ CREATE TABLE IF NOT EXISTS analysis_results (
 
 CREATE TABLE IF NOT EXISTS gate_results (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    fixture_id INTEGER NOT NULL REFERENCES fixtures(id),
+    fixture_id INTEGER NOT NULL REFERENCES fixtures(id) ON DELETE CASCADE,
     betting_date TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'pending',
     gate_score INTEGER NOT NULL DEFAULT 0,
@@ -196,7 +196,7 @@ CREATE INDEX IF NOT EXISTS idx_fixtures_sport_status ON fixtures(sport_id, statu
 
 CREATE TABLE IF NOT EXISTS league_profiles (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    competition_id INTEGER NOT NULL REFERENCES competitions(id),
+    competition_id INTEGER NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,
     stat_key TEXT NOT NULL,
     season TEXT NOT NULL DEFAULT '',
     avg_value REAL NOT NULL,
@@ -225,7 +225,7 @@ CREATE INDEX IF NOT EXISTS idx_gate_results_status ON gate_results(betting_date,
 -- Decision Learning System (v4)
 CREATE TABLE IF NOT EXISTS analysis_raw_data (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    fixture_id INTEGER NOT NULL REFERENCES fixtures(id),
+    fixture_id INTEGER NOT NULL REFERENCES fixtures(id) ON DELETE CASCADE,
     betting_date TEXT NOT NULL,
     team_a_l10_json TEXT NOT NULL DEFAULT '{}',
     team_b_l10_json TEXT NOT NULL DEFAULT '{}',
@@ -238,8 +238,8 @@ CREATE TABLE IF NOT EXISTS analysis_raw_data (
 
 CREATE TABLE IF NOT EXISTS decision_snapshots (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    bet_id INTEGER NOT NULL REFERENCES bets(id),
-    fixture_id INTEGER NOT NULL REFERENCES fixtures(id),
+    bet_id INTEGER NOT NULL REFERENCES bets(id) ON DELETE CASCADE,
+    fixture_id INTEGER NOT NULL REFERENCES fixtures(id) ON DELETE CASCADE,
     betting_date TEXT NOT NULL,
     chosen_market TEXT NOT NULL,
     chosen_line REAL,
@@ -259,8 +259,8 @@ CREATE TABLE IF NOT EXISTS decision_snapshots (
 
 CREATE TABLE IF NOT EXISTS decision_outcomes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    bet_id INTEGER NOT NULL REFERENCES bets(id),
-    fixture_id INTEGER NOT NULL REFERENCES fixtures(id),
+    bet_id INTEGER NOT NULL REFERENCES bets(id) ON DELETE CASCADE,
+    fixture_id INTEGER NOT NULL REFERENCES fixtures(id) ON DELETE CASCADE,
     betting_date TEXT NOT NULL,
     sport TEXT NOT NULL,
     competition TEXT,
@@ -287,6 +287,8 @@ CREATE INDEX IF NOT EXISTS idx_decision_outcomes_sport ON decision_outcomes(spor
 CREATE INDEX IF NOT EXISTS idx_decision_outcomes_market ON decision_outcomes(market);
 CREATE INDEX IF NOT EXISTS idx_decision_outcomes_date ON decision_outcomes(betting_date);
 CREATE INDEX IF NOT EXISTS idx_decision_outcomes_result ON decision_outcomes(result);
+CREATE INDEX IF NOT EXISTS idx_decision_outcomes_sport_market ON decision_outcomes(sport, market);
+CREATE INDEX IF NOT EXISTS idx_odds_history_lookup ON odds_history(fixture_id, market, selection);
 
 -- Scan results (per-event data from sport scanners)
 CREATE TABLE IF NOT EXISTS scan_results (
@@ -325,3 +327,9 @@ CREATE TABLE IF NOT EXISTS scan_run_stats (
 );
 
 CREATE INDEX IF NOT EXISTS idx_scan_run_stats_date ON scan_run_stats(betting_date);
+
+-- Schema metadata (version tracking, migration log)
+CREATE TABLE IF NOT EXISTS schema_meta (
+    key TEXT PRIMARY KEY,
+    value TEXT
+);

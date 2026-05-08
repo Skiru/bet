@@ -160,7 +160,7 @@ Jedyna roznica to filtr czasowy w STEP 2 (ktore mecze wchodza do shortlisty).
 
 ```bash
 # 1. Uruchom pipeline skanowania (pobiera dane ze zrodel + tipsterow)
-bash scripts/run_full_scan_and_prepare.sh
+python3 scripts/pipeline_orchestrator.py --date $(date +%Y-%m-%d) --phase data
 
 # 2. Pobierz kursy z The-Odds-API (jesli klucz skonfigurowany)
 python3 scripts/fetch_odds_api.py
@@ -253,7 +253,7 @@ Quick start (one-liner):
 ```bash
 python3 -m pip install --user -r scripts/requirements.txt
 python3 -m playwright install chromium
-bash scripts/run_full_scan_and_prepare.sh
+python3 scripts/pipeline_orchestrator.py --date $(date +%Y-%m-%d) --phase data
 ```
 
 Or run the individual steps shown above if you prefer manual control.

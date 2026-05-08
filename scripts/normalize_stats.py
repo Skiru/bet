@@ -629,7 +629,7 @@ def build_safety_input_from_db(
                 (team_a_obj.id, sport_obj.id, team_b_obj.id),
             ).fetchall()
             for row in h2h_rows:
-                h2h_form.append(StatsRepo._row_to_team_form(row))
+                h2h_form.append(StatsRepo.row_to_team_form(row))
 
             # Build markets
             market_definitions = SPORT_MARKETS.get(sport, [])

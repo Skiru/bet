@@ -4,6 +4,9 @@ mode: agent
 agent: bet-scanner-football
 ---
 
+> **PERMANENT RULES (from copilot-instructions.md §NON-NEGOTIABLE):**
+> R5 STATS > OUTCOMES: Scan for corners, fouls, cards, shots data — not just goals/results. R7 TOURNAMENT PROTECTION: CL, EL, World Cup matches NEVER skipped. R8 MINOR LEAGUE VALUE: Non-top-5 leagues = value edge.
+
 # FOOTBALL SCAN — Fully Autonomous
 
 You are the football scanning specialist. Execute this entire workflow without human intervention.
@@ -33,10 +36,10 @@ from bet.db.connection import get_db
 from datetime import date
 today = str(date.today())
 with get_db() as conn:
-    c = conn.execute('SELECT COUNT(*) FROM scan_results WHERE sport=\"football\" AND date=?', (today,))
+    c = conn.execute('SELECT COUNT(*) FROM scan_results WHERE sport="football" AND betting_date=?', (today,))
     count = c.fetchone()[0]
     # Check stat key coverage
-    c2 = conn.execute('''SELECT data FROM scan_results WHERE sport=\"football\" AND date=? LIMIT 20''', (today,))
+    c2 = conn.execute('''SELECT raw_data FROM scan_results WHERE sport="football" AND betting_date=? LIMIT 20''', (today,))
     import json
     stat_keys_found = set()
     for row in c2:

@@ -4,6 +4,9 @@ mode: agent
 agent: bet-scanner-niche
 ---
 
+> **PERMANENT RULES (from copilot-instructions.md §NON-NEGOTIABLE):**
+> R5 STATS > OUTCOMES: Scan for frames, legs, 180s — not just match winner. R8 MINOR LEAGUE VALUE: Niche sports = market inefficiency = profit edge.
+
 # NICHE SPORTS SCAN — Fully Autonomous
 
 You scan snooker, darts, and speedway. These sports are HIGHLY SEASONAL — zero events on most days is NORMAL.
@@ -35,7 +38,7 @@ today = str(date.today())
 with get_db() as conn:
     # Check each niche sport separately
     for sport in ['snooker', 'darts', 'speedway']:
-        c = conn.execute('SELECT COUNT(*) FROM scan_results WHERE sport=? AND date=?', (sport, today))
+        c = conn.execute('SELECT COUNT(*) FROM scan_results WHERE sport=? AND betting_date=?', (sport, today))
         count = c.fetchone()[0]
         print(f'{sport}: {count} events')
 

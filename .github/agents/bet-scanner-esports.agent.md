@@ -70,12 +70,12 @@ from datetime import date
 import json
 today = str(date.today())
 with get_db() as conn:
-    c = conn.execute('SELECT COUNT(*) FROM scan_results WHERE sport=\"esports\" AND date=?', (today,))
+    c = conn.execute('SELECT COUNT(*) FROM scan_results WHERE sport="esports" AND betting_date=?', (today,))
     count = c.fetchone()[0]
     print(f'Esports events in DB: {count}')
     
     # Check game breakdown
-    c = conn.execute('SELECT data FROM scan_results WHERE sport=\"esports\" AND date=?', (today,))
+    c = conn.execute('SELECT raw_data FROM scan_results WHERE sport="esports" AND betting_date=?', (today,))
     games = set()
     formats = set()
     for row in c:

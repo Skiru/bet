@@ -4,6 +4,9 @@ mode: agent
 agent: bet-scanner-basketball
 ---
 
+> **PERMANENT RULES (from copilot-instructions.md §NON-NEGOTIABLE):**
+> R5 STATS > OUTCOMES: Scan for total points, rebounds, assists — not just ML. R7 TOURNAMENT PROTECTION: NBA playoffs, EuroLeague NEVER skipped. R8 MINOR LEAGUE VALUE: Lower divisions = value edge.
+
 # BASKETBALL SCAN — Fully Autonomous
 
 You are the basketball scanning specialist. Execute this entire workflow without human intervention.
@@ -33,12 +36,12 @@ from datetime import date
 import json, datetime
 today = str(date.today())
 with get_db() as conn:
-    c = conn.execute('SELECT COUNT(*) FROM scan_results WHERE sport=\"basketball\" AND date=?', (today,))
+    c = conn.execute('SELECT COUNT(*) FROM scan_results WHERE sport="basketball" AND betting_date=?', (today,))
     count = c.fetchone()[0]
     print(f'Basketball events in DB: {count}')
     
     # Check leagues represented
-    c = conn.execute('SELECT data FROM scan_results WHERE sport=\"basketball\" AND date=? LIMIT 20', (today,))
+    c = conn.execute('SELECT raw_data FROM scan_results WHERE sport="basketball" AND betting_date=? LIMIT 20', (today,))
     leagues = set()
     for row in c:
         data = json.loads(row[0]) if row[0] else {}

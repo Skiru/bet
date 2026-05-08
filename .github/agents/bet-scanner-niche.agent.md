@@ -69,7 +69,7 @@ import datetime
 today = str(date.today())
 with get_db() as conn:
     for sport in ['snooker', 'darts', 'speedway']:
-        c = conn.execute('SELECT COUNT(*) FROM scan_results WHERE sport=? AND date=?', (sport, today))
+        c = conn.execute('SELECT COUNT(*) FROM scan_results WHERE sport=? AND betting_date=?', (sport, today))
         count = c.fetchone()[0]
         print(f'{sport}: {count} events')
 
