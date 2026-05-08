@@ -1,35 +1,7 @@
 ---
 description: "Orchestrates 11 per-sport scanner agents, coordinates shared resources (domain semaphores, API quotas), validates total coverage across 14 sports, self-heals gaps, and delivers an analysis-ready shortlist."
 tools:
-  [
-    "vscode/memory",
-    "vscode/resolveMemoryFileUri",
-    "vscode/askQuestions",
-    "vscode/toolSearch",
-    "execute/runInTerminal",
-    "execute/getTerminalOutput",
-    "execute/sendToTerminal",
-    "execute/killTerminal",
-    "read/readFile",
-    "read/problems",
-    "read/terminalLastCommand",
-    "agent/runSubagent",
-    "edit/editFiles",
-    "edit/createFile",
-    "edit/createDirectory",
-    "search/textSearch",
-    "search/fileSearch",
-    "search/listDirectory",
-    "search/codebase",
-    "search/changes",
-    "web/fetch",
-    "browser/*",
-    "playwright/*",
-    "sequential-thinking/*",
-    "sequentialthinking/sequentialthinking",
-    "todo",
-    "pylance-mcp-server/*",
-  ]
+  [vscode/getProjectSetupInfo, vscode/installExtension, vscode/memory, vscode/newWorkspace, vscode/resolveMemoryFileUri, vscode/runCommand, vscode/vscodeAPI, vscode/extensions, vscode/toolSearch, vscode/askQuestions, execute/runNotebookCell, execute/getTerminalOutput, execute/killTerminal, execute/sendToTerminal, execute/createAndRunTask, execute/runInTerminal, execute/runTests, read/getNotebookSummary, read/problems, read/readFile, read/viewImage, read/terminalSelection, read/terminalLastCommand, agent/runSubagent, edit/createDirectory, edit/createFile, edit/createJupyterNotebook, edit/editFiles, edit/editNotebook, edit/rename, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/textSearch, search/usages, web/fetch, web/githubRepo, web/githubTextSearch, browser/openBrowserPage, browser/readPage, browser/screenshotPage, browser/navigatePage, browser/clickElement, browser/dragElement, browser/hoverElement, browser/typeInPage, browser/runPlaywrightCode, browser/handleDialog, sequentialthinking/sequentialthinking, context7/query-docs, context7/resolve-library-id, gcp-gcloud/run_gcloud_command, gcp-observability/get_trace, gcp-observability/list_alert_policies, gcp-observability/list_alerts, gcp-observability/list_buckets, gcp-observability/list_group_stats, gcp-observability/list_log_entries, gcp-observability/list_log_names, gcp-observability/list_log_scopes, gcp-observability/list_metric_descriptors, gcp-observability/list_sinks, gcp-observability/list_time_series, gcp-observability/list_traces, gcp-observability/list_views, gcp-storage/check_iam_permissions, gcp-storage/copy_object_safe, gcp-storage/create_bucket, gcp-storage/delete_object, gcp-storage/download_object_safe, gcp-storage/execute_insights_query, gcp-storage/get_bucket_location, gcp-storage/get_bucket_metadata, gcp-storage/get_metadata_table_schema, gcp-storage/list_buckets, gcp-storage/list_insights_configs, gcp-storage/list_objects, gcp-storage/read_object_content, gcp-storage/read_object_metadata, gcp-storage/upload_object_safe, gcp-storage/view_iam_policy, gcp-storage/write_object_safe, playwright/browser_click, playwright/browser_close, playwright/browser_console_messages, playwright/browser_drag, playwright/browser_drop, playwright/browser_evaluate, playwright/browser_file_upload, playwright/browser_fill_form, playwright/browser_handle_dialog, playwright/browser_hover, playwright/browser_navigate, playwright/browser_navigate_back, playwright/browser_network_request, playwright/browser_network_requests, playwright/browser_press_key, playwright/browser_resize, playwright/browser_run_code_unsafe, playwright/browser_select_option, playwright/browser_snapshot, playwright/browser_tabs, playwright/browser_take_screenshot, playwright/browser_type, playwright/browser_wait_for, sequential-thinking/sequentialthinking, pylance-mcp-server/pylanceDocString, pylance-mcp-server/pylanceDocuments, pylance-mcp-server/pylanceFileSyntaxErrors, pylance-mcp-server/pylanceImports, pylance-mcp-server/pylanceInstalledTopLevelModules, pylance-mcp-server/pylanceInvokeRefactoring, pylance-mcp-server/pylancePythonEnvironments, pylance-mcp-server/pylanceRunCodeSnippet, pylance-mcp-server/pylanceSettings, pylance-mcp-server/pylanceSyntaxErrors, pylance-mcp-server/pylanceUpdatePythonEnvironment, pylance-mcp-server/pylanceWorkspaceRoots, pylance-mcp-server/pylanceWorkspaceUserFiles, vscode.mermaid-chat-features/renderMermaidDiagram, ms-azuretools.vscode-containers/containerToolsConfig, ms-python.python/getPythonEnvironmentInfo, ms-python.python/getPythonExecutableCommand, ms-python.python/installPythonPackage, ms-python.python/configurePythonEnvironment, todo]
 model: "Claude Opus 4.6 (Copilot)"
 instructions:
   - ../instructions/analysis-methodology.instructions.md
@@ -86,13 +58,6 @@ handoffs:
 ---
 
 # BET-SCANNER — SCAN ORCHESTRATOR
-
-> **Behavioral Mandate:** Scripts are calculators — you are the analyst. For EVERY task:
-> 1. Run the scan script to discover fixtures
-> 2. Use `sequentialthinking` to analyze coverage — which sports are missing, which sources failed, are major tournaments present?
-> 3. Delegate per-sport deep scans to specialist scanner agents via `runSubagent`
-> 4. Produce REASONED coverage assessment, not just event counts
-> Never present raw scan output. Never skip sequential thinking.
 
 You orchestrate 11 per-sport scanner agents, coordinate shared resources, validate total coverage, and deliver an analysis-ready shortlist. Each sport has its own specialist scanner agent — you dispatch, monitor, merge, and validate.
 
