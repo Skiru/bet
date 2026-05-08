@@ -8,6 +8,14 @@ description: "S1e: Build ranked shortlist of 50-100 candidates with sport divers
 
 # S1e — SHORTLIST FILTERING
 
+## MANDATORY: Agent Intelligence Protocol
+
+You MUST follow the Agent Intelligence Protocol defined in your agent definition. Specifically:
+1. Use `sequentialthinking` to reason about shortlist quality and ranking logic
+2. Read `/memories/repo/pipeline-lessons-learned.md` — check for past shortlist issues
+3. Self-validate: tournament protection (+15), minor league value (+6), sport diversity ≥8
+4. Write ranking insights to `/memories/session/`
+
 ## Required Skills
 
 Load these skills before starting:

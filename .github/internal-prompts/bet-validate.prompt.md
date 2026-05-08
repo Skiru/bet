@@ -8,6 +8,15 @@ description: "S9: Final coupon validation — mechanical verification of all art
 
 # S9 — FINAL VALIDATION
 
+## MANDATORY: Agent Intelligence Protocol
+
+You MUST follow the Agent Intelligence Protocol defined in your agent definition. Specifically:
+1. Use `sequentialthinking` to reason about portfolio-level quality (not just per-coupon checks)
+2. Read `/memories/repo/pipeline-lessons-learned.md` — check for known validation failures
+3. Use `todo` to track each validation check (V1-V10 + §S8.FINAL A-I)
+4. Self-validate: run `validate_coupons.py` and fix ALL FAIL results before returning
+5. Write validation insights to `/memories/session/`
+
 ## Required Skills
 
 Load these skills before starting:

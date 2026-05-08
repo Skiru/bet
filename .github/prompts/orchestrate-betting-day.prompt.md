@@ -32,6 +32,30 @@ This prompt defines WHAT to do. Agent delegation uses internal-prompts that defi
 
 When delegating via `runSubagent`, read the internal-prompt file and pass its content as the task prompt.
 
+## AGENT INTELLIGENCE MANDATE (ALL AGENTS — ORCHESTRATOR ENFORCES)
+
+**EVERY specialist agent in this pipeline is a RICH THINKING AGENT, not a dumb script runner.**
+
+When delegating to ANY agent, the orchestrator MUST verify that the agent's output demonstrates:
+1. **Sequential Thinking Used**: The agent used `sequentialthinking` for structured reasoning (per candidate for S3-S7)
+2. **Memory Consulted**: The agent checked `/memories/repo/pipeline-lessons-learned.md` for known mistakes
+3. **Self-Validation Done**: The agent ran its own validation checks before returning output
+4. **Analytical Reasoning Present**: Output contains REASONING, not just data/numbers
+5. **Task Tracking**: Agent used `todo` to track progress through multi-candidate analysis
+6. **Questions Asked**: When data was ambiguous, the agent asked (via `askQuestions`) rather than guessing
+7. **Learning Written**: Agent wrote new discoveries to `/memories/session/`
+
+**If an agent's output lacks these markers → the output is REJECTED. Re-delegate with explicit feedback:**
+```
+Your output was rejected because: {specific missing elements}.
+You MUST:
+1. Use sequentialthinking for deep reasoning per candidate
+2. Check /memories/repo/pipeline-lessons-learned.md for known patterns
+3. Self-validate output using your Agent Intelligence Protocol
+4. Write genuine analytical reasoning, not just script output summaries
+Re-analyze and return output with ALL intelligence markers present.
+```
+
 ## NON-NEGOTIABLE RULES (R1-R12) — ENFORCED AT EVERY STEP
 
 These rules are defined in `copilot-instructions.md` and apply to EVERY agent, EVERY session, EVERY step. The orchestrator MUST verify compliance at each checkpoint.
@@ -130,33 +154,240 @@ If the time window yields fewer events → the shortlist is smaller → fewer pi
 
 ## PRE-FLIGHT (runs once before Pass 1)
 
-### OPTION A: Pipeline Orchestrator (RECOMMENDED — two-phase approach)
+### MANDATORY 3-PHASE EXECUTION WITH INTER-PHASE VALIDATION
 
-**Phase 1: Data Collection (automated script)**
+**The orchestrator ALWAYS executes the pipeline in 3 discrete phases, validating state after each phase before proceeding. NEVER run the full pipeline in a single invocation. This is the DEFAULT behavior — no exceptions.**
+
+#### PHASE 1: DATA COLLECTION (S0→S2.5)
 ```bash
-python3 scripts/pipeline_orchestrator.py --date YYYY-MM-DD [--session full|day|night|morning] [--resume]
+python3 scripts/pipeline_orchestrator.py --date YYYY-MM-DD --phase data [--session full|day|night|morning] [--resume]
 ```
-
-This runs the ENTIRE data pipeline S0→S10 automatically, producing raw data artifacts. It executes:
+Runs:
 - **S0**: Betclic history analysis (`analyze_betclic_learning.py`)
-- **S1**: Full 14-sport scan (`scan_events.py --parallel-sport`) — **per-sport parallel scanning** (11 groups, independent timeouts: football 15min, others 2-5min)
+- **S1**: Full 14-sport scan (`scan_events.py --parallel-sport`) — per-sport parallel scanning (11 groups, independent timeouts: football 15min, others 2-5min)
+- **S1-ingest**: Ingest scan stats + analysis pool
 - **S1a**: API fixture discovery + stats enrichment (`discover_fixtures.py` + `fetch_api_stats.py`, timeout: 10 min)
+- **S1a-espn**: ESPN deep data seeding (standings, predictions, gamelogs)
 - **S1b**: Odds + weather + tipsters in PARALLEL (ThreadPoolExecutor, 5 workers, timeout: 10 min)
 - **S1c**: Aggregate scan + analysis pool (`aggregate_and_select.py` + `deep_analysis_pool.py`, timeout: 2 min)
 - **S1d**: Market matrix generation (`generate_market_matrix.py --stats-first`, timeout: 2 min)
 - **S1e**: Ranked shortlist (`build_shortlist.py --stats-first`, all candidates — no cap, timeout: 2 min)
 - **S2**: Tipster cross-reference (timeout: 1 min)
-- **S2.5**: Data enrichment — self-healing fetch of missing team stats from Flashscore/Sofascore/ESPN for shortlisted candidates (timeout: 15 min)
-- **S3**: Deep stats analysis — **8-worker parallel candidate analysis**, Poisson/NegBin probability enrichment, error-resilient (timeout: 10 min)
+- **S2.5**: Data enrichment — self-healing fetch of missing team stats (timeout: 15 min)
+
+##### §PHASE-1-VALIDATION (MANDATORY — BLOCKING before Phase 2)
+
+**This is a 4-step DEEP VALIDATION, not just running a script.**
+
+**Step 1 — Script Validation:**
+```bash
+python3 scripts/validate_phase.py --date YYYY-MM-DD --phase data --format json
+```
+This queries the DB as PRIMARY source (scan_results, fixtures, team_form, analysis_results, odds_history, source_health tables) with JSON fallback only. Checks:
+- **D1-D2**: Pipeline state + step completion
+- **D3-D4**: DB: scan_results rows + sport count, fixtures rows (GATE)
+- **D5**: DB: team_form entries updated today
+- **D6**: DB: analysis_results count cross-referenced with JSON shortlist (GATE)
+- **D7**: Sport diversity ≥6 sports (GATE)
+- **D8**: Candidate count ≥20 for full session
+- **D9**: Kickoff normalization ≥90% ISO
+- **D10**: Enrichment step status
+- **D11**: DB: odds_history coverage (stats-first mode OK without odds)
+- **D12**: DB: source_health — no critical degradation
+- **D13**: Market matrix file exists
+
+**Step 2 — Orchestrator Sequential Thinking Analysis:**
+Use `sequentialthinking` to reason about the validation results:
+- Do the numbers make sense? (e.g., 200 fixtures but 0 enrichment = step didn't run)
+- Read `/memories/repo/pipeline-lessons-learned.md` — has this pattern failed before?
+- What's the downstream impact of any warnings on S3 analysis quality?
+- Are the sport gaps acceptable (off-season) or problematic (source failure)?
+
+**Step 3 — Specialist Agent Deep Review:**
+Delegate to **bet-scanner** (via `runSubagent`):
+```
+Review Phase 1 data output for {date}. Validate:
+1. Scan coverage: are ALL 14 sports represented? Which sources succeeded/failed?
+2. Fixture quality: any phantom fixtures? Any wrong timezone conversions?
+3. Tournament protection: are active major tournaments present?
+4. Shortlist quality: are rankings reasonable? Minor league value applied?
+Return: status (APPROVED/FLAGGED/REJECTED), issues found, fix instructions.
+```
+Delegate to **bet-enricher** (via `runSubagent`):
+```
+Review Phase 1 enrichment output for {date}. Validate:
+1. Enrichment yield: what % of candidates have sufficient stats for S3?
+2. Data gaps: which sports/leagues have no data? Are gaps recoverable?
+3. Source health: which sources are degraded today?
+Return: status (APPROVED/FLAGGED/REJECTED), data quality assessment per sport.
+```
+
+**Step 4 — Decision:**
+- All gates PASS + agents APPROVE → proceed to Phase 2
+- Gates PASS + agents FLAGGED → fix issues, re-validate
+- Gates FAIL → execute recovery commands, re-run, re-validate
+- Two consecutive fix attempts fail → STOP, escalate to user via `askQuestions`
+
+Write phase status to `/memories/session/` before proceeding.
+
+Exit code 0 = all gates pass → proceed to Phase 2.
+Exit code 1 = gate failure(s) → fix using recovery commands printed by the script, then re-validate.
+Exit code 2 = warnings only → proceed with caution.
+
+#### PHASE 2: ANALYSIS (S3→S7)
+```bash
+python3 scripts/pipeline_orchestrator.py --date YYYY-MM-DD --phase analysis [--resume]
+```
+Runs:
+- **S3**: Deep stats analysis — 8-worker parallel candidate analysis, Poisson/NegBin probability (timeout: 10 min)
 - **S4**: Odds evaluation — cross-validate odds, compute EV, detect drift >8% (timeout: 2 min)
 - **S5**: Context checks — weather impact, venue, referee, roster changes (timeout: 1 min)
 - **S6**: Upset risk scoring — sport-specific checklists (timeout: 2 min)
-- **S7**: 18-point advisory gate — **stats-first EV fix** (passes candidates without odds with advisory tier), sport-specific H2H penalties (timeout: 5 min)
-- **S8**: Coupon construction — Kelly 1/4 staking with true probability, rich per-leg Polish analysis (timeout: 2 min)
+- **S7**: 18-point advisory gate — stats-first EV fix, sport-specific H2H penalties (timeout: 5 min)
+
+##### §PHASE-2-VALIDATION (MANDATORY — BLOCKING before Phase 3)
+
+**This is a 4-step DEEP VALIDATION, not just running a script.**
+
+**Step 1 — Script Validation:**
+```bash
+python3 scripts/validate_phase.py --date YYYY-MM-DD --phase analysis --format json
+```
+This queries the DB as PRIMARY source (analysis_results, gate_results tables) with file fallback. Checks:
+- **A1**: DB: analysis_results populated with best_market data (GATE)
+- **A2**: S3 files exist (fallback cross-reference)
+- **A3**: Candidate count: DB vs shortlist (no silent drops)
+- **A4**: S3 structural validation (validate_s3_output.py)
+- **A5**: R5: Football candidates have statistical markets
+- **A6-A8**: S4/S5/S6 step completion (GATE)
+- **A9**: DB: gate_results populated with tier distribution (GATE)
+- **A10**: R4: ≥5 sports in APPROVED gate results
+
+**Step 2 — Orchestrator Sequential Thinking Analysis:**
+Use `sequentialthinking` to reason about analysis quality:
+- Did candidate count drop significantly between S2.5 and S3? WHY? (not just "it's normal")
+- Are the gate tier distributions reasonable? (e.g., >80% FLAGGED = something wrong with gate calibration)
+- Did S3 produce genuine analytical reasoning or just repeat script numbers?
+- Are there contradictions between S4 (odds) and S3 (stats)?
+- Check `/memories/repo/pipeline-lessons-learned.md` for past analysis failures
+
+**Step 3 — Specialist Agent Deep Review:**
+Delegate to **bet-statistician** (via `runSubagent`):
+```
+Review Phase 2 S3 analysis output for {date}. Validate:
+1. Analytical depth: does EVERY candidate have an ANALYTICAL REASONING section with edge mechanism?
+2. R5 compliance: every football candidate has ≥1 stat market (corners/fouls/shots)?
+3. Three-way alignment: L10+H2H+L5 cross-check completed for every market?
+4. Data source diversity: are candidates relying on single sources?
+5. Run validate_s3_output.py — are ALL candidates PASS?
+Return: status (APPROVED/FLAGGED/REJECTED), quality score 1-10, specific issues per candidate.
+```
+Delegate to **bet-challenger** (via `runSubagent`):
+```
+Review Phase 2 S7 gate output for {date}. Validate:
+1. Gate completeness: ALL 18 points evaluated individually per candidate (not abbreviated)?
+2. Bear case quality: specific data-cited scenarios (not "it could go wrong")?
+3. Tier assignments: reasoned (not just mechanical score)?
+4. R4 diversity: ≥5 sports in approved picks?
+5. Extended Pool: gate-failed EV>0 candidates properly documented?
+6. Zero Tolerance: all 20 patterns checked with CONTEXT?
+Return: status (APPROVED/FLAGGED/REJECTED), gate quality assessment, specific weak bear cases to redo.
+```
+
+**Step 4 — Decision:**
+- All gates PASS + agents APPROVE → proceed to Phase 3
+- Gates PASS + agents FLAGGED → fix specific issues (re-delegate to specialist with error feedback), then re-validate
+- Gates FAIL → execute recovery commands, re-run affected steps, re-validate
+- Agent REJECTED → re-run the rejected step with agent feedback. Max 2 retries before escalating.
+
+Write phase status to `/memories/session/` before proceeding.
+
+- **A10**: R4: ≥5 sports in APPROVED gate results
+- **A11**: R3: No auto-rejection language in gate output
+- **A12-A13**: Gate tier distribution + Extended Pool compliance
+- **A14**: No critical analysis step failures
+
+Exit code 0 = all gates pass → proceed to Phase 3.
+Exit code 1 = gate failure(s) → fix using recovery commands, then re-validate.
+If <5 sports in APPROVED → trigger emergency expansion (R4) before Phase 3.
+
+#### PHASE 3: BUILD (S8→S10)
+```bash
+python3 scripts/pipeline_orchestrator.py --date YYYY-MM-DD --phase build [--resume]
+```
+Runs:
+- **S8**: Coupon construction — Kelly 1/4 staking with true probability, Polish analysis (timeout: 2 min)
 - **S9**: V1-V10 validation (expanded odds regex matches `@1.85` and `(1.85)`)
 - **S10**: Final summary
 
-State tracking with `--resume` support. Use `--status` to check progress. Use `--skip-scan` to re-run analysis only.
+##### §PHASE-3-VALIDATION (MANDATORY — BLOCKING before agent delegation)
+
+**This is a 4-step DEEP VALIDATION, not just running a script.**
+
+**Step 1 — Script Validation:**
+```bash
+python3 scripts/validate_phase.py --date YYYY-MM-DD --phase build --format json
+```
+This queries the DB as PRIMARY source (coupons, bets tables) with file fallback. Checks:
+- **B1**: Coupon files exist (GATE)
+- **B2**: DB: coupons + bets persisted
+- **B3**: Coupon structural validation (validate_coupons.py)
+- **B4**: Ledger files exist
+- **B5**: Total exposure ≤ 25% bankroll (GATE)
+- **B6**: R12: Conditional disclaimer present
+- **B7**: Build-phase steps completed (GATE)
+
+**Step 2 — Orchestrator Sequential Thinking Analysis:**
+Use `sequentialthinking` to reason about build quality:
+- Does the portfolio make strategic sense? (not just structurally valid)
+- Are the coupon groupings intelligent? (correlation avoidance, sport diversity)
+- Is the exposure distribution reasonable? (not all on one coupon)
+- Do the Polish descriptions accurately describe the markets?
+- Check `/memories/repo/pipeline-lessons-learned.md` for past coupon construction failures
+
+**Step 3 — Specialist Agent Deep Review:**
+Delegate to **bet-builder** (via `runSubagent`):
+```
+Review Phase 3 build output for {date}. Validate:
+1. Coupon arithmetic: multiply each leg step-by-step. Combined odds match (±0.02)?
+2. Unique events: zero shared events between core coupons?
+3. Sport diversity: ≥5 sports across portfolio?
+4. R5 compliance: ≥60% statistical markets in legs?
+5. Exposure: total stakes ≤25% bankroll? Per-pick concentration <60%?
+6. V1-V10: ALL 10 checks PASS?
+7. §S8.FINAL: ALL 9 mechanical checks (A-I) PASS?
+8. Polish descriptions: market names correct, team names full, numbers precise?
+9. Conditional disclaimer present?
+Return: status (APPROVED/FLAGGED/REJECTED), arithmetic verification per coupon, strategic assessment.
+```
+
+**Step 4 — Decision:**
+- All gates PASS + builder APPROVES → proceed to agent delegation / final presentation
+- Gates PASS + builder FLAGGED → fix specific coupons IN PLACE, re-validate
+- Gates FAIL → execute recovery commands, re-run build, re-validate
+- Builder REJECTED → re-build coupons with feedback. Max 2 retries before escalating.
+
+Write phase status to `/memories/session/` before proceeding.
+
+Exit code 0 = all gates pass → proceed to agent delegation.
+Exit code 1 = gate failure(s) → fix using recovery commands, then re-validate.
+
+#### EXECUTION FLOW SUMMARY (ALWAYS THIS ORDER — DEEP VALIDATION AT EVERY GATE)
+```
+1. Run --phase data     → §DEEP-VALIDATION (script + sequential thinking + agent review + decision) → proceed
+2. Run --phase analysis → §DEEP-VALIDATION (script + sequential thinking + agent review + decision) → proceed
+3. Run --phase build    → §DEEP-VALIDATION (script + sequential thinking + agent review + decision) → proceed
+4. Agent delegation checkpoints (S2→S8) — spawn specialist agents sequentially
+5. Adaptive pass protocol (fix errors found by agents)
+6. Final artifacts
+```
+
+**EVERY phase gate is a 4-step process: (1) script validation → (2) orchestrator sequential thinking → (3) specialist agent deep review → (4) decision & memory.**
+**NEVER reduce this to just running validate_phase.py and checking exit code. The agent review step is what catches quality issues that scripts miss.**
+
+**NEVER combine phases. NEVER skip deep validation. NEVER proceed if a gate fails.**
+
+State tracking with `--resume` support per phase. Use `--status` to check progress. Use `--skip-scan` to re-run analysis only.
 
 **Per-step timeouts** — each step has its own timeout (scan: 15 min, S3: 10 min, gate: 5 min, etc.) instead of a single 40-minute global timeout. A slow scan won't block the entire pipeline.
 
@@ -164,7 +395,7 @@ State tracking with `--resume` support. Use `--status` to check progress. Use `-
 
 **Config keys used:** `bankroll_pln` (fallback: `working_bankroll_pln`), `daily_exposure_range` (fallback: `suggested_daily_allocation_range_pln`), `db_path`.
 
-### OPTION B: Manual step-by-step (fallback)
+### FALLBACK: Manual step-by-step (only when --phase is broken)
 
 Before any pass, ensure:
 1. Run Betclic history analysis: `python3 scripts/analyze_betclic_learning.py` → reads `betting/data/betclic_bets_history.json` (MANDATORY — ground truth of all placed bets)
@@ -416,12 +647,17 @@ This eliminates 2 unnecessary passes when the pipeline produces clean output on 
 
 ### PASS 1 — DISCOVERY (find all errors)
 
-Execute S0 → S1 → S1a → S1b(parallel) → S1c → S1d → S1e → S2 → S2.5 → S3 → S4+S5+S6(parallel) → S7 → S8 → S9 → S10 fully. At each step:
+Execute the pipeline in 3 phases with mandatory inter-phase validation:
+1. `--phase data` → print §PHASE-1-VALIDATION → fix any gate failures → proceed
+2. `--phase analysis` → print §PHASE-2-VALIDATION → fix any gate failures → proceed
+3. `--phase build` → print §PHASE-3-VALIDATION → fix any gate failures → proceed
+
+At each step within each phase:
 - Run the step's self-verification checklist
 - Log EVERY failure to: `betting/data/{date}_pass1_errors.md`
 - Format: `| Step | Check | Status | Error Description | Fix Required |`
-- Do NOT stop at first error — complete ALL steps, log ALL errors
-- At end: count total errors, categorize by step
+- Do NOT stop at first error — complete ALL steps in the phase, log ALL errors
+- At end of each phase: count total errors, categorize by step, validate gates
 
 **Pass 1 output**: `{date}_pass1_errors.md` with full error inventory
 

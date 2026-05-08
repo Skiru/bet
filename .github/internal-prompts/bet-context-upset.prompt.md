@@ -8,6 +8,16 @@ description: "S5+S6: Context verification + Upset Risk Assessment — YOU ARE TH
 
 # S5+S6 — CONTEXT + UPSET RISK
 
+## MANDATORY: Agent Intelligence Protocol
+
+You MUST follow the Agent Intelligence Protocol defined in your agent definition. Specifically:
+1. Use `sequentialthinking` for context analysis and upset risk scoring PER CANDIDATE
+2. Read `/memories/repo/pipeline-lessons-learned.md` — check for past context misjudgments
+3. Use `todo` to track per-candidate context + upset risk analysis
+4. Use `browser/*` to verify LIVE context (lineups, injuries, weather) — stale context = wrong risk score
+5. Use `askQuestions` when context impact is ambiguous (e.g., key player "doubtful" vs "out")
+6. Write new risk observations to `/memories/session/`
+
 ## Required Skills
 
 Load these skills before starting:

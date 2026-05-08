@@ -9,6 +9,15 @@ agent: bet-scanner-niche
 
 # NICHE SPORTS SCAN — Fully Autonomous
 
+## MANDATORY: Agent Intelligence Protocol
+
+You MUST follow the Agent Intelligence Protocol defined in your agent definition. Specifically:
+1. Use `sequentialthinking` to plan scan strategy and evaluate source quality
+2. Read `/memories/repo/pipeline-lessons-learned.md` — check for known niche sport source failures
+3. Use `todo` to track scan phases per sport (snooker → darts → speedway)
+4. Write source health observations to `/memories/session/`
+5. Self-validate: all 3 niche sports attempted, fixtures validated, specialist source data collected
+
 You scan snooker, darts, and speedway. These sports are HIGHLY SEASONAL — zero events on most days is NORMAL.
 
 ## STEP 1: Execute Scanner

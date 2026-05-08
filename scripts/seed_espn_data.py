@@ -75,6 +75,9 @@ REQUEST_DELAY = 0.3
 class ESPNSeeder:
     """Orchestrates full ESPN data seeding into SQLite DB."""
 
+    # Maximum total execution time in seconds (8 minutes)
+    MAX_RUNTIME = 480
+
     def __init__(self, db_path: str, verbose: bool = False):
         self.db_path = db_path
         self.verbose = verbose
@@ -82,6 +85,7 @@ class ESPNSeeder:
         self.stats_client = ESPNStatsClient()
         # Map (sport_id, espn_team_id) → internal team_id for lookups
         self._team_espn_map: dict[tuple[int, str], int] = {}
+        self._start_time: float = 0.0
         self.counts = {
             "standings": 0,
             "athletes": 0,
@@ -101,6 +105,14 @@ class ESPNSeeder:
         if self.verbose:
             print(f"  [ESPN] {msg}")
 
+    def _check_timeout(self) -> bool:
+        """Return True if total runtime exceeded MAX_RUNTIME."""
+        if self._start_time and (time.time() - self._start_time) > self.MAX_RUNTIME:
+            elapsed = int(time.time() - self._start_time)
+            print(f"  ⏱ ESPN seeder timeout after {elapsed}s (max {self.MAX_RUNTIME}s) — saving progress")
+            return True
+        return False
+
     def _delay(self):
         time.sleep(REQUEST_DELAY)
 
@@ -117,6 +129,7 @@ class ESPNSeeder:
         if not date:
             date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
+        self._start_time = time.time()
         target_leagues = leagues or {s: ESPN_LEAGUES.get(s, []) for s in sports}
 
         print(f"ESPN Seeder — target date: {date}")
@@ -149,6 +162,10 @@ class ESPNSeeder:
             conn.commit()
 
             for sport in sports:
+                if self._check_timeout():
+                    print(f"  ⏱ Stopping — timeout reached after processing earlier sports")
+                    break
+
                 sport_leagues = target_leagues.get(sport, [])
                 if not sport_leagues:
                     continue
@@ -164,6 +181,11 @@ class ESPNSeeder:
                 sport_id = sport_obj.id
 
                 for league in sport_leagues:
+                    if self._check_timeout():
+                        print(f"  ⏱ Stopping mid-sport — timeout reached")
+                        conn.commit()
+                        break
+
                     print(f"\n  League: {sport}/{league}")
 
                     # Phase 2: Standings (also discovers teams)

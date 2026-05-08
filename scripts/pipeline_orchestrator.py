@@ -78,6 +78,22 @@ from pipeline_summary import run_summary as _run_s10
 from agent_protocol import write_step_output, read_agent_review, merge_agent_enrichments, STEP_AGENT_CONFIG
 
 # ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def resolve_shortlist_path(date: str) -> Path | None:
+    """Resolve shortlist path, trying YYYY-MM-DD then YYYYMMDD format."""
+    p = DATA_DIR / f"{date}_s2_shortlist.json"
+    if p.exists():
+        return p
+    compact = date.replace("-", "")
+    p2 = DATA_DIR / f"{compact}_s2_shortlist.json"
+    if p2.exists():
+        return p2
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Pipeline steps
 # ---------------------------------------------------------------------------
 
@@ -86,8 +102,9 @@ STEP_TIMEOUTS = {
     "s0_settle": 180,      # 3 min
     "s1_scan": 1200,       # 20 min (parallel per-sport scan — each sport has independent timeout)
     "s1_ingest": 180,      # 3 min (ingest scan data into stats cache)
+    "s1_html_deep": 300,   # 5 min (deep HTML parsing from snapshots)
     "s1a_discover": 600,   # 10 min (DB persistence with caching)
-    "s1a_espn": 600,       # 10 min (ESPN API with rate limiting)
+    "s1a_espn": 300,       # 5 min (ESPN API — has internal 480s timeout, subprocess caps at 5min)
     "s1b_parallel": 600,   # 10 min (odds + weather + tipsters in parallel)
     "s1c_aggregate": 300,  # 5 min (45K events with dedup)
     "s1d_matrix": 120,     # 2 min
@@ -112,10 +129,10 @@ PIPELINE_STEPS = [
         "description": "Settle previous day (if applicable) + evaluate decisions + Betclic history analysis (§0.2 MANDATORY) + data rotation",
         "commands": [
             "python3 scripts/settle_on_finish.py --betting-day {prev_date} --no-poll",
-            "python3 scripts/evaluate_decisions.py --date {prev_date} || true",
+            "python3 scripts/evaluate_decisions.py --date {prev_date}",
             "python3 scripts/analyze_betclic_learning.py",
-            "python3 scripts/data_rotation.py --execute --days 30 || true",
-            "python3 scripts/build_league_profiles.py || true",
+            "python3 scripts/data_rotation.py --execute --days 30",
+            "python3 scripts/build_league_profiles.py",
         ],
         "outputs": ["betting/data/betclic_learning_summary.json"],
         "critical": True,
@@ -141,6 +158,18 @@ PIPELINE_STEPS = [
         "critical": False,
     },
     {
+        "id": "s1_html_deep",
+        "name": "S1-deep: HTML Deep Parsing",
+        "description": "Deep-parse saved HTML snapshots for rich stats (corners HT/FT, dangerous attacks, match IDs, odds, team averages)",
+        "commands": [
+            "python3 scripts/html_deep_parser.py --date {date} --report",
+        ],
+        "outputs": [],
+        "critical": False,
+        "agent_review_required": "bet-scanner",
+        "agent_task": "Validate deep parsing verdicts per domain: verify CSS selectors match current HTML, spot-check extracted values against source snapshots, flag broken profiles",
+    },
+    {
         "id": "s1a_discover",
         "name": "S1a: Discover Fixtures + API Stats + Tennis Enrichment",
         "description": "API fixture discovery + stats enrichment + deep tennis data (run independently of scan)",
@@ -158,7 +187,7 @@ PIPELINE_STEPS = [
         "name": "S1a-ESPN: Seed ESPN Deep Data",
         "description": "Seed ATS/OU records, standings, power index, predictions from ESPN API (skip lengthy player gamelogs)",
         "commands": [
-            "python3 scripts/seed_espn_data.py --skip-players || true",
+            "python3 scripts/seed_espn_data.py --skip-players",
         ],
         "outputs": [],
         "critical": False,
@@ -286,8 +315,10 @@ PIPELINE_STEPS = [
         "critical": False,
     },
 ]
-# Steps that skip with --skip-scan (the heavy Playwright scan + parallel enrichment)
-SCAN_STEP_IDS = {"s1_scan", "s1_ingest", "s1a_discover", "s1a_espn", "s1b_parallel", "s1c_aggregate", "s1d_matrix", "s1e_shortlist"}
+# Steps skipped by --skip-scan: ONLY the Playwright browser scan + HTML parsing.
+# API discovery (s1a_discover), ESPN (s1a_espn), odds/weather/tipsters (s1b_parallel),
+# aggregation (s1c), matrix (s1d), and shortlist (s1e) still run — they use APIs, not browsers.
+SCAN_STEP_IDS = {"s1_scan", "s1_ingest", "s1_html_deep"}
 
 
 # ---------------------------------------------------------------------------
@@ -417,6 +448,12 @@ def run_command(cmd: str, date: str, step_id: str = "") -> tuple[bool, str]:
     prev_date = (datetime.strptime(date, "%Y-%m-%d") - timedelta(days=1)).strftime("%Y-%m-%d")
     cmd = cmd.replace("{prev_date}", prev_date)
     step_timeout = STEP_TIMEOUTS.get(step_id, DEFAULT_STEP_TIMEOUT)
+    # Strip trailing || true (bash ignore-failure syntax) — not needed since
+    # the pipeline_step runner already handles non-critical command failures.
+    ignore_failure = False
+    if cmd.rstrip().endswith("|| true"):
+        cmd = cmd.rstrip().removesuffix("|| true").rstrip()
+        ignore_failure = True
     print(f"  → Running: {cmd} (timeout: {step_timeout}s)")
     try:
         use_shell = cmd.strip().startswith("bash ")
@@ -437,6 +474,9 @@ def run_command(cmd: str, date: str, step_id: str = "") -> tuple[bool, str]:
         )
         output = result.stdout + result.stderr
         if result.returncode != 0:
+            if ignore_failure:
+                print(f"  ⚠ Command failed (exit {result.returncode}) — ignored (non-critical)")
+                return True, output
             print(f"  ✗ Command failed (exit {result.returncode})")
             return False, output
         print(f"  ✓ Command succeeded")
@@ -542,14 +582,17 @@ def _run_parallel_scan(date: str) -> dict:
         for future in as_completed(futures):
             group = futures[future]
             try:
-                stats = future.result(timeout=900)  # 15 min max per scanner
+                stats = future.result(timeout=600)  # 10 min max per scanner
                 results[group] = {
                     "status": "completed",
                     "events_found": getattr(stats, "events_found", 0),
-                    "urls_scanned": getattr(stats, "urls_scanned", 0),
-                    "duration_sec": getattr(stats, "duration_sec", 0),
+                    "sources_ok": getattr(stats, "sources_ok", 0),
+                    "sources_failed": getattr(stats, "sources_failed", 0),
+                    "duration_sec": getattr(stats, "duration_seconds", 0),
+                    "validation_passed": getattr(stats, "validation_passed", True),
+                    "gaps": getattr(stats, "gaps_description", []),
                 }
-                print(f"    ✓ {group}: {results[group]['events_found']} events ({results[group]['duration_sec']:.1f}s)")
+                print(f"    ✓ {group}: {results[group]['events_found']} events ({results[group]['duration_sec']:.1f}s, {results[group]['sources_ok']} sources OK, {results[group]['sources_failed']} failed)")
                 # Record per-sport sub-step
                 if _has_db:
                     try:
@@ -586,12 +629,15 @@ def _run_parallel_scan(date: str) -> dict:
             for future in as_completed(futures):
                 group = futures[future]
                 try:
-                    stats = future.result(timeout=1200)  # Extended timeout for retry
+                    stats = future.result(timeout=900)  # Extended timeout for retry
                     results[group] = {
                         "status": "completed",
                         "events_found": getattr(stats, "events_found", 0),
-                        "urls_scanned": getattr(stats, "urls_scanned", 0),
-                        "duration_sec": getattr(stats, "duration_sec", 0),
+                        "sources_ok": getattr(stats, "sources_ok", 0),
+                        "sources_failed": getattr(stats, "sources_failed", 0),
+                        "duration_sec": getattr(stats, "duration_seconds", 0),
+                        "validation_passed": getattr(stats, "validation_passed", True),
+                        "gaps": getattr(stats, "gaps_description", []),
                         "retry": True,
                     }
                     print(f"    ✓ {group} (retry): {results[group]['events_found']} events")
@@ -896,8 +942,8 @@ def _run_data_enrichment(date: str, state: dict) -> tuple[bool, str]:
     except ImportError as e:
         return True, f"Enrichment agent not available ({e}), skipping"
 
-    shortlist_path = DATA_DIR / f"{date}_s2_shortlist.json"
-    if not shortlist_path.exists():
+    shortlist_path = resolve_shortlist_path(date)
+    if not shortlist_path:
         return True, "No shortlist found, skipping enrichment"
 
     try:
@@ -926,9 +972,8 @@ def _run_data_enrichment(date: str, state: dict) -> tuple[bool, str]:
 
 def _run_s3(date: str, state: dict) -> tuple[bool, str]:
     """S3: Deep Statistical Analysis with probability engine integration."""
-    shortlist_path = str(DATA_DIR / f"{date}_s2_shortlist.json")
-    if not Path(shortlist_path).exists():
-        shortlist_path = None
+    resolved = resolve_shortlist_path(date)
+    shortlist_path = str(resolved) if resolved else None
 
     top = state.get("cli_args", {}).get("top")
     result = generate_deep_stats(date, shortlist_path=shortlist_path, top=top)
@@ -1045,8 +1090,8 @@ def _run_s7(date: str, state: dict) -> tuple[bool, str]:
 
     # Inject tipster_count from enriched shortlist into S3 analyses
     # The tipster xref enriches the shortlist JSON but S3 doesn't propagate it
-    shortlist_path = DATA_DIR / f"{date}_s2_shortlist.json"
-    if shortlist_path.exists():
+    shortlist_path = resolve_shortlist_path(date)
+    if shortlist_path:
         try:
             sl_data = json.loads(shortlist_path.read_text(encoding="utf-8"))
             sl_candidates = sl_data.get("candidates", sl_data.get("shortlist", []))
@@ -1347,6 +1392,13 @@ def run_pipeline(
         state["started_at"] = datetime.now(get_tz()).isoformat()
         if version:
             state["version"] = version
+    else:
+        # Reset stuck "running" steps to "pending" so they re-run properly
+        for sid, info in state.get("steps", {}).items():
+            if isinstance(info, dict) and info.get("status") == "running":
+                print(f"[resume] Resetting stuck step {sid} from 'running' to 'pending'")
+                info["status"] = "pending"
+                info.pop("started_at", None)
 
     # Store CLI args for use by python steps
     state.setdefault("cli_args", {})
@@ -1432,7 +1484,7 @@ def run_pipeline(
             skip_reason = None
             if resume and step_id == "s1d_matrix" and (DATA_DIR / f"market_matrix_{date}.json").exists():
                 skip_reason = "market_matrix already exists (resume mode)"
-            elif resume and step_id == "s1e_shortlist" and (DATA_DIR / f"{date}_s2_shortlist.json").exists():
+            elif resume and step_id == "s1e_shortlist" and resolve_shortlist_path(date):
                 skip_reason = "shortlist already exists (resume mode)"
             if skip_reason:
                 success = True
@@ -1488,6 +1540,31 @@ def run_pipeline(
             step_state["completed_at"] = datetime.now(get_tz()).isoformat()
             step_state["output_summary"] = output[:500] if output else ""
             print(f"  ✓ {output[:200] if output else 'Done'}")
+
+            # Resume invalidation: when a DATA-CHANGING upstream step re-runs,
+            # reset downstream steps so they don't use stale data.
+            # Only invalidate for steps that fundamentally change the data pipeline.
+            # Supplementary steps (ESPN, weather, tipsters, enrichment) do NOT
+            # invalidate — they add data but don't replace it.
+            INVALIDATING_STEPS = {
+                "s1_scan", "s1_ingest", "s1c_aggregate", "s1d_matrix",
+                "s1e_shortlist", "s3_deep_stats", "s7_gate",
+            }
+            if resume and step_id in INVALIDATING_STEPS:
+                step_ids = [s["id"] for s in steps_to_run]
+                current_idx = step_ids.index(step_id) if step_id in step_ids else -1
+                if current_idx >= 0:
+                    downstream_ids = step_ids[current_idx + 1:]
+                    invalidated = []
+                    for ds_id in downstream_ids:
+                        ds_state = state.get("steps", {}).get(ds_id, {})
+                        if ds_state.get("status") == "completed":
+                            ds_state["status"] = "pending"
+                            ds_state["invalidated_by"] = step_id
+                            invalidated.append(ds_id)
+                    if invalidated:
+                        print(f"  ↻ Invalidated {len(invalidated)} downstream steps: {', '.join(invalidated)}")
+                        save_state(date, state)
 
             # Print agent review banner for steps that require specialist agent analysis
             agent_required = step.get("agent_review_required")
@@ -1546,7 +1623,7 @@ def run_pipeline(
 # Phase definitions: which steps belong to which phase
 # ---------------------------------------------------------------------------
 PHASE_STEPS = {
-    "data": {"s0_settle", "s1_scan", "s1_ingest", "s1a_discover", "s1b_parallel", "s1c_aggregate", "s1d_matrix", "s1e_shortlist", "s2_tipster"},
+    "data": {"s0_settle", "s1_scan", "s1_ingest", "s1_html_deep", "s1a_discover", "s1a_espn", "s1b_parallel", "s1c_aggregate", "s1d_matrix", "s1e_shortlist", "s2_tipster", "s2_5_enrich"},
     "analysis": {"s3_deep_stats", "s4_odds_eval", "s5_context", "s6_upset_risk", "s7_gate"},
     "build": {"s8_coupons", "s9_validate", "s10_summary"},
 }

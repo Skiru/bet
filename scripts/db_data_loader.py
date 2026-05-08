@@ -562,7 +562,13 @@ def load_gate_results_from_db(betting_date: str, status: str | None = None) -> l
                     advisory_tier = details.get("advisory_tier")
                     if not advisory_tier and gr.status == "APPROVED":
                         # Reconstruct from gate_score (18-point gate, n_failed = 18 - score)
-                        n_failed = 18 - gr.gate_score
+                        # gate_score may be int or string like "14/18"
+                        score_val = gr.gate_score
+                        if isinstance(score_val, str) and "/" in score_val:
+                            score_val = int(score_val.split("/")[0])
+                        elif isinstance(score_val, str):
+                            score_val = int(score_val) if score_val.isdigit() else 0
+                        n_failed = 18 - int(score_val)
                         if n_failed <= 2:
                             advisory_tier = "STRONG"
                         elif n_failed <= 5:

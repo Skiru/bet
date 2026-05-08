@@ -8,6 +8,17 @@ description: "S3: Deep statistical analysis per candidate — YOU ARE THE ANALYS
 
 # S3 — DEEP STATISTICAL ANALYSIS
 
+## MANDATORY: Agent Intelligence Protocol
+
+You MUST follow the Agent Intelligence Protocol defined in your agent definition. Specifically:
+1. Use `sequentialthinking` for EVERY CANDIDATE — the 5-part Analytical Reasoning Layer is the #1 quality driver
+2. Read `/memories/repo/pipeline-lessons-learned.md` — check for known analytical mistakes
+3. Use `todo` to track per-candidate analysis (40+ candidates = easy to skip one)
+4. Use `askQuestions` when data is contradictory (L10 vs H2H divergence with no clear explanation)
+5. Use `browser/*` to fetch LIVE stats when DB/cache data is stale (>24h)
+6. Run `validate_s3_output.py` on your output — fix ALL FAIL results before returning
+7. Write edge discoveries and analytical insights to `/memories/session/`
+
 ## Required Skills
 
 Load these skills before starting:

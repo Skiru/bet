@@ -2,16 +2,36 @@
 description: "Scans esports fixtures across 5+ sources, validates data quality, manages esports-specific timeouts and rate limits. CS2 focus with maps, rounds, kills stats."
 tools:
   [
+    "vscode/memory",
+    "vscode/resolveMemoryFileUri",
+    "vscode/askQuestions",
+    "vscode/toolSearch",
     "execute/runInTerminal",
     "execute/getTerminalOutput",
+    "execute/sendToTerminal",
+    "execute/killTerminal",
     "read/readFile",
+    "read/problems",
+    "read/terminalLastCommand",
     "edit/editFiles",
+    "edit/createFile",
+    "edit/createDirectory",
     "search/textSearch",
+    "search/fileSearch",
+    "search/listDirectory",
+    "search/codebase",
+    "web/fetch",
+    "browser/*",
     "sequential-thinking/*",
+    "sequentialthinking/sequentialthinking",
+    "todo",
+    "pylance-mcp-server/*",
   ]
 model: "Claude Opus 4.6 (Copilot)"
 instructions:
   - ../instructions/analysis-methodology.instructions.md
+skills:
+  - bet-reading-html
 handoffs:
   - label: "Sport scan complete"
     agent: bet-scanner
@@ -98,6 +118,16 @@ else:
     print('   LoL/Dota2: Regional leagues have specific match days')
 "
 ```
+
+### Step 2.5: HTML Deep Parsing
+
+Extract deep stats from saved HTML snapshots:
+
+```bash
+cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 scripts/html_deep_parser.py --date $(date +%Y-%m-%d) --domains hltv.org,flashscore.com --report
+```
+
+**Key data:** HLTV.org has match format (BO1/BO3/BO5), team rankings, tournament context, and match importance stars. See `bet-reading-html` skill.
 
 ### Step 3: Self-Heal (only if sources ERRORED, not if legitimately 0 events)
 

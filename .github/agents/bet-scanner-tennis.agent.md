@@ -2,16 +2,36 @@
 description: "Scans tennis fixtures across 8+ sources, validates data quality, manages tennis-specific timeouts and fallback chains. Covers aces, serve stats, break points."
 tools:
   [
+    "vscode/memory",
+    "vscode/resolveMemoryFileUri",
+    "vscode/askQuestions",
+    "vscode/toolSearch",
     "execute/runInTerminal",
     "execute/getTerminalOutput",
+    "execute/sendToTerminal",
+    "execute/killTerminal",
     "read/readFile",
+    "read/problems",
+    "read/terminalLastCommand",
     "edit/editFiles",
+    "edit/createFile",
+    "edit/createDirectory",
     "search/textSearch",
+    "search/fileSearch",
+    "search/listDirectory",
+    "search/codebase",
+    "web/fetch",
+    "browser/*",
     "sequential-thinking/*",
+    "sequentialthinking/sequentialthinking",
+    "todo",
+    "pylance-mcp-server/*",
   ]
 model: "Claude Opus 4.6 (Copilot)"
 instructions:
   - ../instructions/analysis-methodology.instructions.md
+skills:
+  - bet-reading-html
 handoffs:
   - label: "Sport scan complete"
     agent: bet-scanner
@@ -101,6 +121,16 @@ else:
     print('❌ FAIL: < 15 events — self-heal needed')
 "
 ```
+
+### Step 2.5: HTML Deep Parsing
+
+Extract deep stats from saved HTML snapshots:
+
+```bash
+cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 scripts/html_deep_parser.py --date $(date +%Y-%m-%d) --domains flashscore.com,tennisexplorer.com,forebet.com --report
+```
+
+**Key data:** tennisexplorer.com has surface info, seeds, and tournament round context. Flashscore match IDs enable H2H API lookups. See `bet-reading-html` skill.
 
 ### Step 3: Self-Heal (only runs if Step 2 reports FAIL)
 

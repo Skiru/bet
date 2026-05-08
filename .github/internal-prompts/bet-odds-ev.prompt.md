@@ -8,6 +8,17 @@ description: "S4: Multi-source odds comparison, EV calculation, Kelly staking �
 
 # S4 — ODDS + EV ANALYSIS
 
+## MANDATORY: Agent Intelligence Protocol
+
+You MUST follow the Agent Intelligence Protocol defined in your agent definition. Specifically:
+1. Use `sequentialthinking` for the 5-part Market Intelligence Reasoning per candidate
+2. Read `/memories/repo/pipeline-lessons-learned.md` — check for known pricing patterns
+3. Use `todo` to track per-candidate odds evaluation
+4. Use `askQuestions` when odds discrepancy >15% between sources with no clear explanation
+5. Use `browser/*` to check live odds when API data is stale
+6. Self-validate EV arithmetic (true_prob × odds - 1) before returning
+7. Write mispricing patterns to `/memories/session/`
+
 ## Required Skills
 
 Load these skills before starting:

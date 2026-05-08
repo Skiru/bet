@@ -8,6 +8,17 @@ description: "S8: Portfolio construction, coupon building, V1-V10, artifact gene
 
 # S8 — PORTFOLIO + COUPONS + VALIDATION
 
+## MANDATORY: Agent Intelligence Protocol
+
+You MUST follow the Agent Intelligence Protocol defined in your agent definition. Specifically:
+1. Use `sequentialthinking` for the 4-part Portfolio Intelligence Layer BEFORE assigning picks to coupons
+2. Read `/memories/repo/pipeline-lessons-learned.md` — check for past coupon construction failures
+3. Use `todo` to track: build core → combos → extended pool → V1-V10 → §S8.FINAL → ledger
+4. Use `askQuestions` when portfolio trade-offs need user input (e.g., weather correlation risk)
+5. Use `browser/*` to verify Betclic market availability before finalizing
+6. Self-validate: run §S8.FINAL ALL 9 checks (A-I), fix failures IN PLACE before returning
+7. Write portfolio insights to `/memories/session/`
+
 ## Required Skills
 
 Load these skills before starting:

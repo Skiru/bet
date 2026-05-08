@@ -8,11 +8,22 @@ description: "S2.5: Self-healing data enrichment — fetch missing team stats fr
 
 # S2.5 — DATA ENRICHMENT
 
+## MANDATORY: Agent Intelligence Protocol
+
+You MUST follow the Agent Intelligence Protocol defined in your agent definition. Specifically:
+1. Use `sequentialthinking` for Enrichment Quality Assessment per batch
+2. Read `/memories/repo/pipeline-lessons-learned.md` — check for known source failures
+3. Use `todo` to track enrichment per sport/batch
+4. Use `askQuestions` when yield is critically low (<40%) and all fallbacks exhausted
+5. Write source health observations to `/memories/session/`
+6. Self-validate yield calculation and gap triage before returning
+
 ## Required Skills
 
 Load these skills before starting:
 - `bet-navigating-sources` — source hierarchy, fallback chains, Playwright navigation tips
 - `bet-analyzing-statistics` — data quality assessment, safety score prerequisites
+- `bet-reading-html` — HTML deep parse profiles (20 domains). Check what S1-deep already extracted before triggering web fetches
 
 ## Agent-Mandatory Warning
 
@@ -27,7 +38,7 @@ Load these skills before starting:
 
 - **Inputs**: `{date}_s2_shortlist.json`, stats cache, DB `team_form` table
 - **Script**: `python3 scripts/data_enrichment_agent.py --date {date}`
-- **Sources**: Flashscore (L10 form, H2H), Sofascore (ratings, stats), ESPN (standings, gamelogs)
+- **Sources**: HTML deep parse (L0 — already extracted from saved snapshots), Flashscore (L10 form, H2H), Sofascore (ratings, stats), ESPN (standings, gamelogs)
 - **DB tables used**: `team_form` (read/write), `match_stats` (write), `source_health` (write)
 - **Rate limits**: Thread-safe rate limiting per source (Flashscore: 2s, Sofascore: 3s, ESPN: 1s)
 - **Timeout**: 15 min (covers ~50 teams across multiple sources)

@@ -27,6 +27,9 @@ DEFAULT_CONCURRENT = 2
 DEFAULT_DELAY = 0.5
 
 
+SEMAPHORE_ACQUIRE_TIMEOUT = 120  # Max seconds to wait for domain semaphore
+
+
 class DomainSemaphoreMap:
     """Manages per-domain semaphores and delays for rate-limited access."""
 
@@ -52,9 +55,19 @@ class DomainSemaphoreMap:
         return DOMAIN_DELAY_OVERRIDES.get(domain, DEFAULT_DELAY)
 
     def acquire(self, domain: str) -> None:
-        """Acquire domain semaphore, enforcing inter-fetch delay."""
+        """Acquire domain semaphore, enforcing inter-fetch delay.
+
+        Raises TimeoutError if semaphore cannot be acquired within
+        SEMAPHORE_ACQUIRE_TIMEOUT seconds (prevents indefinite blocking
+        when another scanner is hanging on the same domain).
+        """
         sem = self._get_semaphore(domain)
-        sem.acquire()
+        acquired = sem.acquire(timeout=SEMAPHORE_ACQUIRE_TIMEOUT)
+        if not acquired:
+            raise TimeoutError(
+                f"Domain semaphore for {domain} not acquired after "
+                f"{SEMAPHORE_ACQUIRE_TIMEOUT}s — another scanner may be hanging"
+            )
         # Enforce delay since last access to this domain
         delay = self._get_delay(domain)
         with self._lock:

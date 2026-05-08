@@ -2,16 +2,36 @@
 description: "Scans football fixtures across 90+ sources, validates data quality, manages football-specific timeouts and fallback chains. Covers corners, fouls, shots, cards stats."
 tools:
   [
+    "vscode/memory",
+    "vscode/resolveMemoryFileUri",
+    "vscode/askQuestions",
+    "vscode/toolSearch",
     "execute/runInTerminal",
     "execute/getTerminalOutput",
+    "execute/sendToTerminal",
+    "execute/killTerminal",
     "read/readFile",
+    "read/problems",
+    "read/terminalLastCommand",
     "edit/editFiles",
+    "edit/createFile",
+    "edit/createDirectory",
     "search/textSearch",
+    "search/fileSearch",
+    "search/listDirectory",
+    "search/codebase",
+    "web/fetch",
+    "browser/*",
     "sequential-thinking/*",
+    "sequentialthinking/sequentialthinking",
+    "todo",
+    "pylance-mcp-server/*",
   ]
 model: "Claude Opus 4.6 (Copilot)"
 instructions:
   - ../instructions/analysis-methodology.instructions.md
+skills:
+  - bet-reading-html
 handoffs:
   - label: "Sport scan complete"
     agent: bet-scanner
@@ -110,6 +130,24 @@ with get_db() as conn:
 "
 ```
 
+### Step 2.5: HTML Deep Parsing
+
+After validation, run the HTML deep parser to extract rich data from saved snapshots that the adapter missed (corners HT/FT splits, dangerous attacks, card counts, league positions, match IDs).
+
+```bash
+cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 scripts/html_deep_parser.py --date $(date +%Y-%m-%d) --domains flashscore.com,totalcorner.com,soccerstats.com,forebet.com,betexplorer.com --report
+```
+
+**Key data to verify after deep parse:**
+- TotalCorner: HT corner counts extracted (format: `5-3(4-2)` → FT + HT split)
+- SoccerStats: Per-team season averages for corners/cards/fouls/goals
+- Flashscore: Match IDs (`g_1_XXXXXXXX`) extracted for API H2H lookups
+- Forebet: `avg_stat` (avg goals), predicted scores, BTTS/O-U predictions
+
+If deep parse finds <50% of expected enrichments, check if HTML snapshots are stale (>24h old) and re-scan the failing domain.
+
+Refer to the `bet-reading-html` skill for CSS patterns and extraction guides per domain.
+
 ### Step 3: Self-Heal (only runs if Step 2 reports FAIL)
 
 **Diagnosis decision tree:**
@@ -130,8 +168,8 @@ with get_db() as conn:
      from scripts.scanners.domain_semaphore import DomainSemaphoreMap
      from datetime import date
      scanner = FootballScanner()
-     scanner.max_deep_links = 10  # Reduced from 30
-     scanner.timeout_per_page = 60  # Extended from 30
+     scanner.max_deep_links = 10  # Reduced from 50
+     scanner.timeout_per_page = 60  # Extended from 45
      stats = scanner.scan(str(date.today()), DomainSemaphoreMap())
      print(f'Retry: {stats.events_found} events')
      "
@@ -161,16 +199,16 @@ Produce a summary with:
 
 | Domain | Role | Adapter | Timeout | Notes |
 |--------|------|---------|---------|-------|
-| flashscore.com | Fixture discovery | `flashscore_adapter` | 30s | JS-heavy, HTML fallback |
-| soccerstats.com | Corner/card/foul averages | `soccerstats_adapter` | 20s | Intermittent HTTP 500s |
-| totalcorner.com | Corner stats + lines | `totalcorner_adapter` | 20s | Dedicated corner data |
-| soccerway.com | Fixture listing | `soccerway_adapter` | 15s | Shallow data |
-| whoscored.com | Possession/shots/corners | `whoscored_adapter` | 30s | JS SPA, often blocks |
-| betexplorer.com | 1X2 odds | `betexplorer_adapter` | 20s | Multi-market odds |
-| oddsportal.com | H2H odds named | `oddsportal_adapter` | 20s | Structured odds |
-| scores24.live | H2H + form + trends | `scores24_adapter` | 30s | DEEP — best adapter |
-| forebet.com | Probabilities | `forebet_adapter` | 15s | No odds, probs only |
-| sofascore.com | REST API fixtures | `sofascore_adapter` | 10s | JSON API |
+| flashscore.com | Fixture discovery | `flashscore_adapter` | 45s | JS-heavy, HTML fallback |
+| soccerstats.com | Corner/card/foul averages | `soccerstats_adapter` | 45s | Intermittent HTTP 500s |
+| totalcorner.com | Corner stats + lines | `totalcorner_adapter` | 45s | Dedicated corner data |
+| soccerway.com | Fixture listing | `soccerway_adapter` | 45s | Shallow data |
+| whoscored.com | Possession/shots/corners | `whoscored_adapter` | 45s | JS SPA, often blocks |
+| betexplorer.com | 1X2 odds | `betexplorer_adapter` | 45s | Multi-market odds |
+| oddsportal.com | H2H odds named | `oddsportal_adapter` | 45s | Structured odds |
+| scores24.live | H2H + form + trends | `scores24_adapter` | 45s | DEEP — best adapter |
+| forebet.com | Probabilities | `forebet_adapter` | 45s | No odds, probs only |
+| sofascore.com | REST API fixtures | `sofascore_adapter` | 45s | JSON API |
 | betclic.pl | Execution odds | `betclic_adapter` | - | ⚠ Always 403 — NEVER retry |
 
 ## Validation Criteria
@@ -184,7 +222,7 @@ Produce a summary with:
 | Error Message | Root Cause | Immediate Fix |
 |---------------|-----------|---------------|
 | `playwright._impl._errors.Error: Browser closed` | Chromium not installed | `python3 -m playwright install chromium` |
-| `TimeoutError: Page fetch timed out` after 30s | Source slow today | Retry with `timeout_per_page=60` |
+| `TimeoutError: Page fetch timed out` after 45s | Source slow today | Retry with `timeout_per_page=60` |
 | `HTTP 403 on betclic.pl` | NEVER scrapeable | Ignore — expected |
 | `HTTP 500 on soccerstats.com` | Intermittent server error | Retry once, then skip |
 | `sqlite3.OperationalError: database is locked` | Concurrent writers | Wait 2s and retry — WAL mode handles this |

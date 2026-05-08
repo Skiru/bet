@@ -9,6 +9,15 @@ agent: bet-scanner
 
 # SCAN MERGE + ENRICHMENT — Final Assembly
 
+## MANDATORY: Agent Intelligence Protocol
+
+You MUST follow the Agent Intelligence Protocol defined in your agent definition. Specifically:
+1. Use `sequentialthinking` to plan merge strategy and evaluate data completeness
+2. Read `/memories/repo/pipeline-lessons-learned.md` — check for known merge/enrichment failures
+3. Use `todo` to track merge phases (merge → enrich → validate → shortlist)
+4. Write coverage and data quality observations to `/memories/session/`
+5. Self-validate: all sport results merged, enrichment yield >60%, shortlist sport diversity ≥6
+
 Run after all sport scanners complete. Merges results, enriches with APIs, validates coverage, produces shortlist.
 
 ## STEP 1: Merge All Sport Results

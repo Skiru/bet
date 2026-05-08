@@ -61,18 +61,59 @@ def _slugify(name: str) -> str:
 # URL builders
 # ---------------------------------------------------------------------------
 
+# Sports where participants are individuals, not teams
+_INDIVIDUAL_SPORTS = {"tennis", "snooker", "darts", "mma", "table_tennis", "padel", "speedway"}
+
+# Flashscore sport slug overrides (when URL path differs from internal sport name)
+_FS_SPORT_SLUGS = {
+    "mma": "mma",
+    "table_tennis": "table-tennis",
+    "esports": "esports",
+}
+
+# Sofascore sport slug overrides
+_SS_SPORT_SLUGS = {
+    "table_tennis": "table-tennis",
+    "mma": "mma",
+    "esports": "esports",
+    "hockey": "ice-hockey",
+}
+
+
 def _build_flashscore_url(team_name: str, sport: str) -> str:
-    """Build Flashscore URL from team name."""
+    """Build Flashscore URL from team/player name."""
     slug = _slugify(team_name)
-    if sport == "tennis":
+    if sport in _INDIVIDUAL_SPORTS:
         return f"https://www.flashscore.com/player/{slug}/"
     return f"https://www.flashscore.com/team/{slug}/"
 
 
+def _build_flashscore_search_url(team_name: str) -> str:
+    """Build Flashscore search URL as fallback when direct slug fails."""
+    from urllib.parse import quote
+    return f"https://www.flashscore.com/?text={quote(team_name)}"
+
+
 def _build_sofascore_url(team_name: str, sport: str) -> str:
-    """Build Sofascore URL from team name (best-effort — ID unknown)."""
+    """Build Sofascore URL from team/player name (best-effort — ID unknown)."""
     slug = _slugify(team_name)
-    return f"https://www.sofascore.com/team/{sport}/{slug}/0"
+    ss_sport = _SS_SPORT_SLUGS.get(sport, sport)
+    if sport in _INDIVIDUAL_SPORTS:
+        return f"https://www.sofascore.com/player/{slug}/0"
+    return f"https://www.sofascore.com/team/{ss_sport}/{slug}/0"
+
+
+def _build_scores24_url(team_name: str, sport: str) -> str:
+    """Build scores24.live URL as third-tier fallback."""
+    slug = _slugify(team_name)
+    sport_map = {
+        "football": "football", "basketball": "basketball", "hockey": "ice-hockey",
+        "volleyball": "volleyball", "handball": "handball", "tennis": "tennis",
+        "baseball": "baseball", "esports": "csgo", "table_tennis": "table-tennis",
+        "snooker": "snooker", "darts": "darts", "mma": "mma",
+    }
+    s24_sport = sport_map.get(sport, sport)
+    return f"https://scores24.live/en/{s24_sport}/team/{slug}"
 
 
 # ---------------------------------------------------------------------------
@@ -113,7 +154,78 @@ def _parse_flashscore_stats(html: str, sport: str) -> dict:
         if values:
             stats[key] = values
 
+    # Fallback: extract match scores from results list
+    # Flashscore shows recent results with score patterns like "2 - 1", "3:1", etc.
+    if not stats:
+        score_key = _primary_score_key(sport)
+        if score_key:
+            scores = _extract_match_scores(html, sport)
+            if scores:
+                stats[score_key] = scores[:10]
+
     return stats
+
+
+def _primary_score_key(sport: str) -> str | None:
+    """Return the primary scoring stat key for a sport."""
+    return {
+        "football": "goals", "basketball": "points", "hockey": "goals",
+        "handball": "total_goals", "volleyball": "total_points",
+        "baseball": "runs", "tennis": "total_games",
+        "snooker": "frames_won", "darts": "legs_won",
+        "esports": "rounds_won", "mma": "rounds",
+        "table_tennis": "total_points", "padel": "total_games",
+    }.get(sport)
+
+
+def _extract_match_scores(html: str, sport: str) -> list[float]:
+    """Extract numeric scores from recent match results in HTML.
+
+    Looks for score patterns: '2 - 1', '2:1', '(3-1)', final score divs.
+    Returns list of total scores (sum of both sides per match).
+    """
+    scores: list[float] = []
+
+    # Pattern: "X - Y" or "X:Y" score lines (common across Flashscore/Sofascore/scores24)
+    score_matches = re.findall(
+        r'(?:score|result|final)[^>]*>?\s*(\d+)\s*[-:]\s*(\d+)',
+        html, re.IGNORECASE
+    )
+    for home, away in score_matches:
+        try:
+            total = float(home) + float(away)
+            if total < 200:  # sanity: avoid matching IDs/dates
+                scores.append(total)
+        except ValueError:
+            continue
+
+    # Also try plain "N - N" patterns in content divs
+    if not scores:
+        plain_scores = re.findall(
+            r'>(\d{1,3})\s*[-–:]\s*(\d{1,3})<',
+            html,
+        )
+        for home, away in plain_scores:
+            try:
+                h, a = float(home), float(away)
+                total = h + a
+                # Filter by sport-appropriate ranges
+                if sport in ("football", "hockey") and total <= 15:
+                    scores.append(total)
+                elif sport in ("basketball",) and 50 < total < 400:
+                    scores.append(total)
+                elif sport in ("handball",) and 20 < total < 90:
+                    scores.append(total)
+                elif sport in ("volleyball", "tennis", "table_tennis") and total <= 10:
+                    scores.append(total)  # sets/games
+                elif sport in ("baseball",) and total <= 30:
+                    scores.append(total)
+                elif total <= 50:  # generic fallback
+                    scores.append(total)
+            except ValueError:
+                continue
+
+    return scores[:10]
 
 
 def _extract_stat_values(html: str, stat_key: str, sport: str) -> list[float]:
@@ -210,6 +322,32 @@ def _extract_stat_values(html: str, stat_key: str, sport: str) -> list[float]:
     )
     cell_matches = re.findall(cell_pattern, html, re.IGNORECASE | re.DOTALL)
     for m in cell_matches:
+        try:
+            v = float(m)
+            if v not in values:
+                values.append(v)
+        except ValueError:
+            continue
+
+    # Pattern 3: Flashscore stat rows in divs (rendered by JS)
+    # e.g., <div class="stat__category">Corners</div> ... <div class="stat__homeValue">7</div>
+    div_pattern = (
+        r'class="[^"]*stat[^"]*"[^>]*>.*?' + pattern
+        + r'.*?(\d+(?:\.\d+)?)\s*</(?:div|span)>'
+    )
+    div_matches = re.findall(div_pattern, html, re.IGNORECASE | re.DOTALL)
+    for m in div_matches:
+        try:
+            v = float(m)
+            if v not in values:
+                values.append(v)
+        except ValueError:
+            continue
+
+    # Pattern 4: data-* attributes containing stat values
+    data_pattern = r'data-(?:' + stat_key + r'|stat)[^=]*=[\"\'](\d+(?:\.\d+)?)[\"\'"]'
+    data_matches = re.findall(data_pattern, html, re.IGNORECASE)
+    for m in data_matches:
         try:
             v = float(m)
             if v not in values:
@@ -331,8 +469,15 @@ def _save_to_db(team_name: str, sport: str, stats: dict, source: str) -> None:
 
             sport_obj = sport_repo.get_by_name(sport)
             if not sport_obj:
-                logger.warning("Sport '%s' not found in DB", sport)
-                return
+                # Auto-create sport entry if missing
+                from bet.db.schema import init_db
+                init_db(conn)
+                sport_repo.seed_defaults()
+                conn.commit()
+                sport_obj = sport_repo.get_by_name(sport)
+                if not sport_obj:
+                    logger.warning("Sport '%s' not found in DB even after seeding", sport)
+                    return
 
             team = team_repo.find_or_create(team_name, sport_obj.id)
 
@@ -358,6 +503,7 @@ def _save_to_db(team_name: str, sport: str, stats: dict, source: str) -> None:
                 )
                 stats_repo.save_team_form(form)
 
+            conn.commit()
             logger.info("Saved to DB: %s (%s) — %d stat keys", team_name, sport, len(stats))
     except Exception as exc:
         logger.error("DB save failed for %s: %s", team_name, exc)
@@ -376,7 +522,15 @@ def _try_flashscore(team_name: str, sport: str) -> tuple[dict, str | None]:
         if html is None:
             return {}, "CAPTCHA or empty response from Flashscore"
         stats = _parse_flashscore_stats(html, sport)
-        return stats, None
+        if stats:
+            return stats, None
+        # Direct slug failed — try search as fallback
+        search_url = _build_flashscore_search_url(team_name)
+        _rate_limit("flashscore.com")
+        search_html = fetch(search_url, save_snapshot=False)
+        if search_html:
+            stats = _parse_flashscore_stats(search_html, sport)
+        return stats, None if stats else "No stats parsed from Flashscore"
     except Exception as exc:
         return {}, f"Flashscore fetch error: {exc}"
 
@@ -393,6 +547,21 @@ def _try_sofascore(team_name: str, sport: str) -> tuple[dict, str | None]:
         return stats, None
     except Exception as exc:
         return {}, f"Sofascore fetch error: {exc}"
+
+
+def _try_scores24(team_name: str, sport: str) -> tuple[dict, str | None]:
+    """Fetch stats from scores24.live (third-tier fallback). Returns (stats_dict, error_or_None)."""
+    url = _build_scores24_url(team_name, sport)
+    _rate_limit("scores24.live")
+    try:
+        html = fetch(url, save_snapshot=False)
+        if html is None:
+            return {}, "Empty response from scores24"
+        # scores24 uses same stat label patterns as Flashscore
+        stats = _parse_flashscore_stats(html, sport)
+        return stats, None
+    except Exception as exc:
+        return {}, f"scores24 fetch error: {exc}"
 
 
 # ---------------------------------------------------------------------------
@@ -478,6 +647,23 @@ def enrich_team(team_name: str, sport: str, max_retries: int = 2) -> dict:
             errors.append(err)
         if attempt < max_retries:
             time.sleep(1.0)
+
+    # Third fallback: try scores24.live
+    stats, err = _try_scores24(team_name, sport)
+    if stats:
+        source = "scores24"
+        result["source"] = source
+        found_keys = set(stats.keys())
+        if found_keys:
+            result["status"] = "partial" if found_keys < set(stat_keys) else "enriched"
+        result["stats_found"] = {
+            k: _safe_avg(v) for k, v in stats.items() if v
+        }
+        _save_to_cache(team_name, sport, stats, source)
+        _save_to_db(team_name, sport, stats, "enrichment-agent")
+        return result
+    if err:
+        errors.append(err)
 
     result["error"] = "; ".join(errors) if errors else "No data found from any source"
     return result

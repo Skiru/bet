@@ -2,16 +2,36 @@
 description: "Scans volleyball fixtures across 12+ sources, validates data quality, manages volleyball-specific timeouts and fallback chains. Covers points, aces, blocks."
 tools:
   [
+    "vscode/memory",
+    "vscode/resolveMemoryFileUri",
+    "vscode/askQuestions",
+    "vscode/toolSearch",
     "execute/runInTerminal",
     "execute/getTerminalOutput",
+    "execute/sendToTerminal",
+    "execute/killTerminal",
     "read/readFile",
+    "read/problems",
+    "read/terminalLastCommand",
     "edit/editFiles",
+    "edit/createFile",
+    "edit/createDirectory",
     "search/textSearch",
+    "search/fileSearch",
+    "search/listDirectory",
+    "search/codebase",
+    "web/fetch",
+    "browser/*",
     "sequential-thinking/*",
+    "sequentialthinking/sequentialthinking",
+    "todo",
+    "pylance-mcp-server/*",
   ]
 model: "Claude Opus 4.6 (Copilot)"
 instructions:
   - ../instructions/analysis-methodology.instructions.md
+skills:
+  - bet-reading-html
 handoffs:
   - label: "Sport scan complete"
     agent: bet-scanner
@@ -90,6 +110,16 @@ else:
     print('❌ FAIL: < 5 events — self-heal or seasonal')
 "
 ```
+
+### Step 2.5: HTML Deep Parsing
+
+Extract deep stats from saved HTML snapshots:
+
+```bash
+cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 scripts/html_deep_parser.py --date $(date +%Y-%m-%d) --domains flashscore.com,forebet.com --report
+```
+
+**Key data:** Flashscore match IDs and scores. Forebet avg_stat (avg sets/points). See `bet-reading-html` skill.
 
 ### Step 3: Self-Heal (only if FAIL during active season)
 

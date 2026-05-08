@@ -9,6 +9,15 @@ agent: bet-scanner
 
 # SCAN ORCHESTRATION — Full Autonomous Pipeline
 
+## MANDATORY: Agent Intelligence Protocol
+
+You MUST follow the Agent Intelligence Protocol defined in your agent definition. Specifically:
+1. Use `sequentialthinking` to plan scan dispatch strategy and evaluate coverage
+2. Read `/memories/repo/pipeline-lessons-learned.md` — check for known scan failures and source health patterns
+3. Use `todo` to track per-sport scanner dispatch (14 sports = 14 todos)
+4. Write source health and coverage observations to `/memories/session/`
+5. Self-validate: ALL 14 sports scanned, ≥6 with events, no phantom fixtures, tournament matches present
+
 You are executing the S1 scan step. You MUST complete all 5 phases below without asking the user anything. If errors occur, diagnose and fix them yourself using the troubleshooting section.
 
 ## PHASE 1: PRE-FLIGHT CHECKS

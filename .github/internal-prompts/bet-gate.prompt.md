@@ -8,6 +8,17 @@ description: "S7: Bear case + Red Flags + Contrarian + 18-point Pick Approval Ga
 
 # S7 — BEAR CASE + RED FLAGS + PICK GATE
 
+## MANDATORY: Agent Intelligence Protocol
+
+You MUST follow the Agent Intelligence Protocol defined in your agent definition. Specifically:
+1. Use `sequentialthinking` for EVERY CANDIDATE — the 5-part Deep Adversarial Reasoning is the KILL STEP quality driver
+2. Read `/memories/repo/pipeline-lessons-learned.md` — check for past picks that lost in similar situations
+3. Use `todo` to track per-candidate gate analysis (no candidate escapes unexamined)
+4. Use `askQuestions` when a candidate is borderline (gate 14-15/18) — present bull/bear to user
+5. Use `browser/*` to verify LIVE context (lineups, injuries) — stale context = false confidence
+6. Self-validate: every approved pick has ALL 18 gate points individually evaluated, specific bear case, ZT scanned
+7. Write risk patterns to `/memories/session/`
+
 ## Required Skills
 
 Load these skills before starting:

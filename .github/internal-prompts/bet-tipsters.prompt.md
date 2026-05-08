@@ -8,6 +8,16 @@ description: "S2: Argument-based tipster intelligence — YOU ARE THE INTELLIGEN
 
 # S2 — TIPSTER DEEP-DIVE
 
+## MANDATORY: Agent Intelligence Protocol
+
+You MUST follow the Agent Intelligence Protocol defined in your agent definition. Specifically:
+1. Use `sequentialthinking` for the 5-part Tipster Intelligence Analysis per candidate
+2. Read `/memories/repo/pipeline-lessons-learned.md` — check for known tipster reliability patterns
+3. Use `todo` to track per-candidate tipster analysis
+4. Use `browser/*` to read FULL tipster arguments (not just scrape picks)
+5. Write tipster quality discoveries to `/memories/session/`
+6. Self-validate: every candidate has ≥2 site checks, argument quality rated, independence verified
+
 ## Required Skills
 
 Load these skills before starting:

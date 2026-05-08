@@ -24,6 +24,9 @@ DATA_DIR = ROOT_DIR / "betting" / "data"
 COUPON_DIR = ROOT_DIR / "betting" / "coupons"
 CONFIG_PATH = ROOT_DIR / "config" / "betting_config.json"
 
+# Ensure src/ is importable
+sys.path.insert(0, str(ROOT_DIR / "src"))
+
 _NOW = lambda: datetime.now(timezone.utc).isoformat()
 
 # ---------------------------------------------------------------------------
@@ -766,7 +769,7 @@ def generate_combos(approved: list, config: dict) -> list[dict]:
         for c in combos
     }
 
-    for k in range(min_legs, min(max_legs + 1, 4)):  # 2-leg and 3-leg combos
+    for k in range(min_legs, max_legs + 1):  # 2-leg up to max_legs combos
         if len(combos) >= max_combos:
             break
         for combo_picks in itertools.combinations(odds_approved, k):

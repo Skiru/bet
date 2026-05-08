@@ -77,19 +77,19 @@ Football has the most aggressive deep-link expansion:
 
 | Domain | Per-page Timeout | Delay Between Pages | Max Concurrent |
 |--------|-----------------|--------------------:|---------------:|
-| flashscore.com | 30s | 1s | 3 |
-| soccerstats.com | 20s | 2s | 2 |
-| totalcorner.com | 20s | 1s | 2 |
+| flashscore.com | 45s | 1s | 3 |
+| soccerstats.com | 45s | 2s | 2 |
+| totalcorner.com | 45s | 1s | 2 |
 | whoscored.com | 45s (JS heavy) | 3s | 1 |
-| soccerway.com | 20s | 1s | 2 |
-| betexplorer.com | 20s | 1s | 2 |
-| oddsportal.com | 20s | 1s | 2 |
-| scores24.live | 20s | 1s | 2 |
-| forebet.com | 20s | 1s | 2 |
-| sofascore.com | 20s | 1s | 2 |
-| betclic.pl | 30s | 2s | 1 |
+| soccerway.com | 45s | 1s | 2 |
+| betexplorer.com | 45s | 1s | 2 |
+| oddsportal.com | 45s | 1s | 2 |
+| scores24.live | 45s | 1s | 2 |
+| forebet.com | 45s | 1s | 2 |
+| sofascore.com | 45s | 1s | 2 |
+| betclic.pl | 45s | 2s | 1 |
 
-**Total scanner timeout:** 15 minutes
+**Total scanner timeout:** 15 minutes (per-sport; enforced by orchestrator at 15 min first attempt, 20 min retry)
 
 ## Fallback Chains
 

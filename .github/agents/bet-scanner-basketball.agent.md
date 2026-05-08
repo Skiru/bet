@@ -2,16 +2,36 @@
 description: "Scans basketball fixtures across 15+ sources, validates data quality, manages basketball-specific timeouts and fallback chains. Covers points, rebounds, assists."
 tools:
   [
+    "vscode/memory",
+    "vscode/resolveMemoryFileUri",
+    "vscode/askQuestions",
+    "vscode/toolSearch",
     "execute/runInTerminal",
     "execute/getTerminalOutput",
+    "execute/sendToTerminal",
+    "execute/killTerminal",
     "read/readFile",
+    "read/problems",
+    "read/terminalLastCommand",
     "edit/editFiles",
+    "edit/createFile",
+    "edit/createDirectory",
     "search/textSearch",
+    "search/fileSearch",
+    "search/listDirectory",
+    "search/codebase",
+    "web/fetch",
+    "browser/*",
     "sequential-thinking/*",
+    "sequentialthinking/sequentialthinking",
+    "todo",
+    "pylance-mcp-server/*",
   ]
 model: "Claude Opus 4.6 (Copilot)"
 instructions:
   - ../instructions/analysis-methodology.instructions.md
+skills:
+  - bet-reading-html
 handoffs:
   - label: "Sport scan complete"
     agent: bet-scanner
@@ -97,6 +117,16 @@ else:
     print('❌ FAIL: < 10 events — self-heal needed')
 "
 ```
+
+### Step 2.5: HTML Deep Parsing
+
+Extract deep stats from saved HTML snapshots:
+
+```bash
+cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 scripts/html_deep_parser.py --date $(date +%Y-%m-%d) --domains flashscore.com,basketball-reference.com,covers.com,forebet.com --report
+```
+
+**Key data:** basketball-reference.com `data-stat` attributes contain per-team season stats (pts_per_g, fg_pct, trb_per_g, ast_per_g). Covers.com has spread/moneyline/total lines. See `bet-reading-html` skill.
 
 ### Step 3: Self-Heal (only if FAIL during active season)
 

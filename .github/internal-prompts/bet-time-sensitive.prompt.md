@@ -8,6 +8,15 @@ description: "S3B: Time-sensitive data — lineups, weather, late injuries, odds
 
 # S3B — TIME-SENSITIVE DATA COLLECTION
 
+## MANDATORY: Agent Intelligence Protocol
+
+You MUST follow the Agent Intelligence Protocol defined in your agent definition. Specifically:
+1. Use `sequentialthinking` to assess impact of late-breaking data on each pick
+2. Read `/memories/repo/pipeline-lessons-learned.md` — check for past lineup surprise impacts
+3. Use `browser/*` to fetch LIVE lineups and injury updates (this step exists to get FRESH data)
+4. Use `askQuestions` if a key player status changes a pick's thesis fundamentally
+5. Write time-sensitive observations to `/memories/session/`
+
 ## Required Skills
 
 Load these skills before starting:

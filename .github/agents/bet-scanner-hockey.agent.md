@@ -2,16 +2,36 @@
 description: "Scans hockey fixtures across 8+ sources, validates data quality, manages hockey-specific timeouts and fallback chains. Covers goals, shots, powerplay stats."
 tools:
   [
+    "vscode/memory",
+    "vscode/resolveMemoryFileUri",
+    "vscode/askQuestions",
+    "vscode/toolSearch",
     "execute/runInTerminal",
     "execute/getTerminalOutput",
+    "execute/sendToTerminal",
+    "execute/killTerminal",
     "read/readFile",
+    "read/problems",
+    "read/terminalLastCommand",
     "edit/editFiles",
+    "edit/createFile",
+    "edit/createDirectory",
     "search/textSearch",
+    "search/fileSearch",
+    "search/listDirectory",
+    "search/codebase",
+    "web/fetch",
+    "browser/*",
     "sequential-thinking/*",
+    "sequentialthinking/sequentialthinking",
+    "todo",
+    "pylance-mcp-server/*",
   ]
 model: "Claude Opus 4.6 (Copilot)"
 instructions:
   - ../instructions/analysis-methodology.instructions.md
+skills:
+  - bet-reading-html
 handoffs:
   - label: "Sport scan complete"
     agent: bet-scanner
@@ -87,6 +107,16 @@ else:
     print('❌ FAIL: < 5 events — check season/sources')
 "
 ```
+
+### Step 2.5: HTML Deep Parsing
+
+Extract deep stats from saved HTML snapshots:
+
+```bash
+cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 scripts/html_deep_parser.py --date $(date +%Y-%m-%d) --domains flashscore.com,hockey-reference.com,covers.com,forebet.com --report
+```
+
+**Key data:** hockey-reference.com `data-stat` attributes contain goals, assists, pts, goals_against, save_pct. See `bet-reading-html` skill.
 
 ### Step 3: Self-Heal (only if FAIL during season)
 

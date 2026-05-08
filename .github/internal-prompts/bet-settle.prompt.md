@@ -8,6 +8,16 @@ description: "S0: Settle previous day's picks/coupons, PnL, CLV, bankroll update
 
 # S0 — SETTLE PREVIOUS DAY
 
+## MANDATORY: Agent Intelligence Protocol
+
+You MUST follow the Agent Intelligence Protocol defined in your agent definition. Specifically:
+1. Use `sequentialthinking` for every complex settlement (multi-leg coupons, partial wins, voids)
+2. Read `/memories/repo/pipeline-lessons-learned.md` before starting — check for known settlement errors
+3. Use `todo` to track each pending pick/coupon through resolution
+4. Use `askQuestions` when results are ambiguous (abandoned matches, extra time)
+5. Write new patterns to `/memories/session/` after settlement
+6. Self-validate ALL arithmetic before returning
+
 ## Required Skills
 
 Load these skills before starting:

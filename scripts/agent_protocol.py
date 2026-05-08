@@ -335,6 +335,26 @@ STEP_AGENT_CONFIG = {
             "If source dead → check source_health DB table, suggest fallback source from source-registry.md",
         ],
     },
+    "s1_html_deep": {
+        "agent": "bet-scanner",
+        "task": "Validate HTML deep parsing: check per-domain verdicts (PASS/WARN/FAIL), verify CSS selectors match current HTML, spot-check extracted values, flag broken profiles needing updates",
+        "required_input": ["{date}_deep_parse_report.json"],
+        "output_metrics": ["total_enrichments", "pass_domains", "warn_domains", "fail_domains", "db_match_rate"],
+        "detailed_instructions": [
+            "1. Read deep_parse_report.json — check verdicts for each domain",
+            "2. For FAIL domains: inspect an HTML snapshot — check if CSS classes still exist",
+            "3. For WARN domains: review out_of_range samples — real errors vs outliers?",
+            "4. For PASS domains: spot-check 2-3 random enrichments against source HTML",
+            "5. Check field_coverage — are expected fields being extracted per domain?",
+            "6. Check db_cross_reference match rates — low match = stale snapshots or wrong parsing",
+            "7. Report broken profiles with specific CSS selector fixes needed",
+        ],
+        "recovery_actions": [
+            "If profile returns 0 extractions → HTML structure changed, need to update CSS selectors",
+            "If match_rate <30% → snapshots may be from wrong date or domain layout changed",
+            "If out_of_range values → extraction parsing wrong table cells or regex is off",
+        ],
+    },
     "s1e_shortlist": {
         "agent": "bet-scanner",
         "task": "Review shortlist for sport diversity (≥8 sports), KEY sport coverage (≥60% Football/Tennis/Basketball/Volleyball), verify ALL candidates included, flag missing major leagues",

@@ -8,10 +8,21 @@ description: "S1-S1e: Full data engine — scan 14 sports, enrich with stats/odd
 
 # S1+S2 — SCAN + ENRICH + VALIDATE + SHORTLIST
 
+## MANDATORY: Agent Intelligence Protocol
+
+You MUST follow the Agent Intelligence Protocol defined in your agent definition. Specifically:
+1. Use `sequentialthinking` to plan scan strategy and evaluate coverage quality
+2. Read `/memories/repo/pipeline-lessons-learned.md` — check for known source failures and phantom patterns
+3. Use `todo` to track per-sport scan progress (14 sports = 14 todos)
+4. Use `askQuestions` when scan coverage is below threshold and re-scanning won't help
+5. Write source health observations to `/memories/session/`
+6. Self-validate: ALL 14 sports scanned, ≥6 with events, no phantom fixtures
+
 ## Required Skills
 
 Load before starting:
 - `bet-navigating-sources` — source tiers, fallback chains, blocked sources, URL formats
+- `bet-reading-html` — load when reviewing S1-deep HTML deep parsing verdicts (20 domain profiles)
 
 ## Context (provided by orchestrator)
 
