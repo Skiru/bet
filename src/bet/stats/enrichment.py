@@ -160,7 +160,7 @@ def _try_api_fetch(team, sport: str, stat_keys: list[str], db_conn) -> bool:
 
 def _try_espn_fetch(team, sport: str, stat_keys: list[str], db_conn) -> bool:
     """Try ESPN as primary stat source. Returns True if successful."""
-    from bet.scanner.discovery import API_ESPN
+    from bet.api_clients import API_ESPN
     from bet.api_clients.espn import ESPNClient, get_espn_league_for_competition, ESPN_LEAGUES
 
     espn_client_name = API_ESPN.get(sport)
@@ -281,7 +281,7 @@ def _try_espn_fetch(team, sport: str, stat_keys: list[str], db_conn) -> bool:
 
 def _try_api_sports_fetch(team, sport: str, stat_keys: list[str], db_conn) -> bool:
     """Try API-Sports as fallback stat source. Returns True if successful."""
-    from bet.scanner.discovery import API_SPORTS
+    from bet.api_clients import API_SPORTS
 
     client_name = API_SPORTS.get(sport)
     if not client_name:

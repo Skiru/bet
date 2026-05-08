@@ -28,20 +28,12 @@ try:
 except ImportError:
     _HAS_DB = False
 
-try:
-    from scripts.normalize_stats import NormalizedFixture
-    from scripts.api_clients import get_client, CLIENT_REGISTRY
-    from scripts.api_clients.rate_limiter import RateLimiter
-except ImportError:
-    from normalize_stats import NormalizedFixture
-    from api_clients import get_client, CLIENT_REGISTRY
-    from api_clients.rate_limiter import RateLimiter
+from normalize_stats import NormalizedFixture
+from api_clients import get_client, CLIENT_REGISTRY
+from api_clients.rate_limiter import RateLimiter
 
 
-try:
-    from scripts.utils import normalize_team_name
-except ImportError:
-    from utils import normalize_team_name
+from utils import normalize_team_name
 
 
 def deduplicate_fixtures(fixtures: list) -> list:

@@ -10,12 +10,14 @@ import sys
 import unicodedata
 from pathlib import Path
 
-# Use the canonical normalize_team_name from utils.py
-sys.path.insert(0, str(Path(__file__).parent.parent))
-try:
-    from scripts.utils import normalize_team_name
-except ImportError:
-    from utils import normalize_team_name
+# Ensure scripts/ is on path for sibling imports
+_SCRIPTS_DIR = Path(__file__).resolve().parent
+if _SCRIPTS_DIR.name != "scripts":
+    _SCRIPTS_DIR = _SCRIPTS_DIR.parent
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
+
+from utils import normalize_team_name
 
 
 class OddsSource(ABC):

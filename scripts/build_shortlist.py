@@ -26,17 +26,12 @@ DATA_DIR = PROJECT_DIR / "betting" / "data"
 # Add scripts dir for sibling imports
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
-from generate_market_matrix import STANDARD_MARKET_LINES, MAJOR_COMPETITIONS, _is_major_competition
+from generate_market_matrix import MAJOR_COMPETITIONS, _is_major_competition
+from bet.stats.market_ranking import STANDARD_MARKET_LINES
 
-try:
-    from utils import normalize_team_name as _normalize_team, normalize_kickoff
-except ImportError:
-    from scripts.utils import normalize_team_name as _normalize_team, normalize_kickoff
+from utils import normalize_team_name as _normalize_team, normalize_kickoff
 
-try:
-    from db_data_loader import load_fixtures_from_db, load_odds_from_db
-except ImportError:
-    from scripts.db_data_loader import load_fixtures_from_db, load_odds_from_db
+from db_data_loader import load_fixtures_from_db, load_odds_from_db
 
 
 # ---------------------------------------------------------------------------
@@ -592,7 +587,6 @@ def write_shortlist_md(
     stats_first: bool = False,
 ) -> Path:
     """Write the shortlist markdown artifact."""
-    date_compact = date.replace("-", "")
     n_events = len(selected)
     sports = sorted(set(e["sport"] for _, e in selected))
     n_sports = len(sports)
@@ -686,7 +680,7 @@ def write_shortlist_md(
             lines.append("")
 
     md_text = "\n".join(lines)
-    output_path = DATA_DIR / f"{date_compact}_s2_shortlist.md"
+    output_path = DATA_DIR / f"{date}_s2_shortlist.md"
     output_path.write_text(md_text, encoding="utf-8")
     print(f"[shortlist] Written: {output_path} ({candidate_num} candidates)")
     return output_path
@@ -694,7 +688,6 @@ def write_shortlist_md(
 
 def write_shortlist_json(selected: list[tuple[float, dict]], date: str) -> Path:
     """Write shortlist as JSON for downstream consumption."""
-    date_compact = date.replace("-", "")
 
     # §1.8 fixture verification
     odds_keys, fixtures_keys = _load_verification_sources(date)
@@ -742,7 +735,7 @@ def write_shortlist_json(selected: list[tuple[float, dict]], date: str) -> Path:
         print(f"[shortlist] §1.8 Fixture verification: {verified_count} verified, "
               f"{unverified_count} UNVERIFIED ({output['fixture_verification']['pct']}% verified)")
 
-    output_path = DATA_DIR / f"{date_compact}_s2_shortlist.json"
+    output_path = DATA_DIR / f"{date}_s2_shortlist.json"
     output_path.write_text(
         json.dumps(output, indent=2, ensure_ascii=False), encoding="utf-8"
     )

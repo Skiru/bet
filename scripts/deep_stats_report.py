@@ -22,17 +22,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-try:
-    from scripts.normalize_stats import build_safety_input, build_safety_input_from_cache, SPORT_STAT_KEYS
-    from scripts.compute_safety_scores import rank_markets
-except ImportError:
-    from normalize_stats import build_safety_input, build_safety_input_from_cache, SPORT_STAT_KEYS
-    from compute_safety_scores import rank_markets
+from normalize_stats import build_safety_input, build_safety_input_from_cache
+from compute_safety_scores import rank_markets
 
-try:
-    from utils import normalize_kickoff
-except ImportError:
-    from scripts.utils import normalize_kickoff
+from bet.stats.market_ranking import SPORT_STAT_KEYS
+
+from utils import normalize_kickoff
 
 DATA_DIR = Path(__file__).parent.parent / "betting" / "data"
 CACHE_DIR = Path(__file__).parent.parent / "betting" / "data" / "stats_cache"

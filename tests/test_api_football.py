@@ -9,7 +9,7 @@ import pytest
 
 from scripts.api_clients.rate_limiter import RateLimiter
 from scripts.api_clients.api_football import APIFootballClient, STAT_TYPE_MAP
-from scripts.normalize_stats import NormalizedFixture, NormalizedMatchStats
+from normalize_stats import NormalizedFixture, NormalizedMatchStats
 
 
 # ---------------------------------------------------------------------------

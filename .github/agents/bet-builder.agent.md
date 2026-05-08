@@ -136,4 +136,24 @@ Read: config/betting_config.json (current bankroll, daily cap)
 - [ ] V10e matrix complete with all 10 columns verified against source data
 - [ ] COMBO MENU uses only picks from approved core set
 
+## Agent Review Protocol
+
+After the pipeline runs S8 (coupons), a structured input file is written to `betting/data/agent_reviews/{date}/s8_coupons_input.json`.
+
+**Input:** Contains step metrics (coupon count, total legs, total stake) and paths to coupon artifacts.
+
+**Analysis:** Review portfolio strategically, check hidden correlations, adjust stakes by conviction, run V1-V10 + §S8.FINAL verification.
+
+**Output:** Write `s8_coupons_review.json` to the same directory with:
+```json
+{
+  "agent": "bet-builder",
+  "step_id": "s8_coupons",
+  "status": "approved|flagged|enriched",
+  "flags": ["issues found"],
+  "enrichments": {"correlation_findings": [], "stake_adjustments": {}},
+  "timestamp": "ISO-8601"
+}
+```
+
 <!-- BET:agent:bet-builder:v2 -->

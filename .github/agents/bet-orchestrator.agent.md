@@ -257,4 +257,48 @@ After EACH agent completes its task, verify:
 - If agent returns partial/failed result: decide retry vs. skip vs. escalate
 - Track cumulative session duration — alert if approaching 45min total
 
+## Agent Review Protocol (Structured JSON I/O)
+
+The pipeline writes structured JSON input files after each step that requires agent review. These files are in `betting/data/agent_reviews/{date}/` and provide a machine-readable complement to the `[AGENT-REVIEW-REQUIRED]` banners.
+
+### Reading Step Outputs
+
+After each pipeline step completes, check for `{step_id}_input.json` in `betting/data/agent_reviews/{date}/`. This file contains:
+- `step_id`: Which pipeline step produced this data
+- `agent`: Which specialist agent should review it
+- `task`: Description of the expected analysis
+- `metrics`: Key numeric metrics from the step
+- `artifacts`: File paths to full data artifacts
+- `expected_output_metrics`: What metrics the review should produce
+
+### Dispatching Specialist Agents
+
+When you find a `{step_id}_input.json`:
+1. Read the `agent` field to determine which specialist to delegate to
+2. Pass the `artifacts` list as context files for the specialist
+3. Include the `task` description in the delegation prompt
+4. The specialist writes its review to `{step_id}_review.json` in the same directory
+
+### Writing Review Responses
+
+Each specialist agent writes `{step_id}_review.json` with this structure:
+```json
+{
+  "agent": "bet-statistician",
+  "step_id": "s3_deep_stats",
+  "status": "approved",
+  "flags": ["Low H2H data for 3 candidates"],
+  "enrichments": {
+    "candidates_analyzed": 45,
+    "edge_discoveries": ["..."]
+  },
+  "timestamp": "2026-05-08T14:30:00+02:00"
+}
+```
+- `status`: `"approved"` (all good), `"flagged"` (issues found but proceed), `"enriched"` (added new data)
+- `flags`: Issues found — surfaced as warnings in pipeline state
+- `enrichments`: Additional data merged into pipeline state for downstream steps
+
+The orchestrator automatically reads review files before running the next step and merges enrichments into pipeline state. If no review file exists, the pipeline proceeds unchanged (backward compatible).
+
 <!-- BET:agent:bet-orchestrator:v3 -->

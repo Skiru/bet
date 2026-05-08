@@ -10,6 +10,21 @@ the registry in sync with the full pipeline.
 from bet.api_clients.rate_limiter import RateLimiter
 from bet.api_clients.base_client import BaseAPIClient, APISportsClient, APIError
 
+# Sport → API client name mappings
+API_SPORTS = {
+    "football": "api-football",
+    "basketball": "api-basketball",
+    "hockey": "api-hockey",
+    "volleyball": "api-volleyball",
+}
+
+API_ESPN = {
+    "football": "espn-football",
+    "basketball": "espn-basketball",
+    "hockey": "espn-hockey",
+    "baseball": "espn-baseball",
+}
+
 # Client registry — maps api-name → class
 CLIENT_REGISTRY: dict[str, type] = {}
 

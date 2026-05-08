@@ -9,13 +9,7 @@ from pathlib import Path
 
 from .base_client import BaseAPIClient, CACHE_DIR
 from .rate_limiter import RateLimiter
-
-try:
-    from scripts.normalize_stats import NormalizedFixture
-except ImportError:
-    import sys
-    sys.path.insert(0, str(Path(__file__).parent.parent))
-    from normalize_stats import NormalizedFixture
+from normalize_stats import NormalizedFixture
 
 # TheSportsDB sport name → our internal sport key
 SPORT_MAP = {

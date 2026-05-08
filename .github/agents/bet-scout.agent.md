@@ -93,4 +93,24 @@ Read: betting/data/scan_summary.json (tipster sources scanned)
 - If consensus calculation fails (conflicting data) → use sequential-thinking to resolve
 - If a promoted watchlist pick lacks statistical backing → flag for statistician review
 
+## Agent Review Protocol
+
+After the pipeline runs S2 (tipster cross-reference), a structured input file is written to `betting/data/agent_reviews/{date}/s2_tipster_input.json`.
+
+**Input:** Contains step metrics (tipster count, event coverage, consensus picks) and paths to tipster aggregation artifacts.
+
+**Analysis:** Read FULL tipster arguments, assess quality and independence, discover angles that stats missed, promote watchlist picks.
+
+**Output:** Write `s2_tipster_review.json` to the same directory with:
+```json
+{
+  "agent": "bet-scout",
+  "step_id": "s2_tipster",
+  "status": "approved|flagged|enriched",
+  "flags": ["issues found"],
+  "enrichments": {"promoted_picks": [], "angle_discoveries": []},
+  "timestamp": "ISO-8601"
+}
+```
+
 <!-- BET:agent:bet-scout:v2 -->

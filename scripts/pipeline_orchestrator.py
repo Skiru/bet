@@ -30,6 +30,7 @@ import shlex
 import subprocess
 import sys
 import tempfile
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -50,44 +51,30 @@ STATE_DIR = DATA_DIR / "pipeline_state"
 CONFIG_PATH = ROOT_DIR / "config" / "betting_config.json"
 
 # ---------------------------------------------------------------------------
-# Module imports (dual-path for direct and package execution)
+# Module imports
 # ---------------------------------------------------------------------------
 sys.path.insert(0, str(SCRIPTS_DIR))
+sys.path.insert(0, str(ROOT_DIR / "src"))
 
-try:
-    from scripts.deep_stats_report import generate_deep_stats
-except ImportError:
-    from deep_stats_report import generate_deep_stats
-
-try:
-    from scripts.gate_checker import (
-        run_gate,
-        _normalise_s3_to_gate_input,
-        _write_json as write_gate_json,
-        _write_markdown as write_gate_md,
-    )
-except ImportError:
-    from gate_checker import (
-        run_gate,
-        _normalise_s3_to_gate_input,
-        _write_json as write_gate_json,
-        _write_markdown as write_gate_md,
-    )
-
-try:
-    from scripts.coupon_builder import (
-        build_coupons,
-        write_coupon_markdown,
-        write_coupon_json,
-        load_config as load_coupon_config,
-    )
-except ImportError:
-    from coupon_builder import (
-        build_coupons,
-        write_coupon_markdown,
-        write_coupon_json,
-        load_config as load_coupon_config,
-    )
+from deep_stats_report import generate_deep_stats
+from gate_checker import (
+    run_gate,
+    _normalise_s3_to_gate_input,
+    _write_json as write_gate_json,
+    _write_markdown as write_gate_md,
+)
+from coupon_builder import (
+    build_coupons,
+    write_coupon_markdown,
+    write_coupon_json,
+    load_config as load_coupon_config,
+)
+from odds_evaluator import run_odds_eval as _run_odds_eval, _convert_espn_odds_to_decimal
+from context_checks import run_context_checks as _run_context_checks
+from upset_risk import run_upset_risk as _run_upset_risk
+from tipster_xref import run_tipster_xref as _run_tipster_xref
+from pipeline_summary import run_summary as _run_s10
+from agent_protocol import write_step_output, read_agent_review, merge_agent_enrichments, STEP_AGENT_CONFIG
 
 # ---------------------------------------------------------------------------
 # Pipeline steps
@@ -119,10 +106,12 @@ PIPELINE_STEPS = [
     {
         "id": "s0_settle",
         "name": "S0: Settle + Learn from History",
-        "description": "Settle previous day (if applicable) + Run Betclic history analysis (§0.2 MANDATORY)",
+        "description": "Settle previous day (if applicable) + evaluate decisions + Betclic history analysis (§0.2 MANDATORY) + data rotation",
         "commands": [
             "python3 scripts/settle_on_finish.py --betting-day {prev_date} --no-poll",
+            "python3 scripts/evaluate_decisions.py --date {prev_date} || true",
             "python3 scripts/analyze_betclic_learning.py",
+            "python3 scripts/data_rotation.py --execute --days 30 || true",
         ],
         "outputs": ["betting/data/betclic_learning_summary.json"],
         "critical": True,
@@ -158,6 +147,7 @@ PIPELINE_STEPS = [
         ],
         "outputs": [],
         "critical": False,
+        "retries": 1,
     },
     {
         "id": "s1b_parallel",
@@ -165,6 +155,7 @@ PIPELINE_STEPS = [
         "description": "Fetch odds, weather, and tipster data concurrently",
         "python_step": "parallel_enrichment",
         "critical": False,
+        "retries": 1,
     },
     {
         "id": "s1c_aggregate",
@@ -457,765 +448,12 @@ def check_outputs(step: dict) -> list[str]:
     return missing
 
 
-# ---------------------------------------------------------------------------
-# ESPN American odds → decimal conversion
-# ---------------------------------------------------------------------------
-def _convert_espn_odds_to_decimal(odds_data: dict) -> dict:
-    """Convert ESPN American odds to decimal format.
 
-    American odds: +X → 1 + X/100; −X → 1 + 100/X
-    """
-    def _american_to_decimal(american) -> float | None:
-        try:
-            val = float(american)
-        except (ValueError, TypeError):
-            return None
-        if val > 0:
-            return round(1 + val / 100, 3)
-        elif val < 0:
-            return round(1 + 100 / abs(val), 3)
-        return None
-
-    result = {}
-
-    # Moneyline
-    ml = odds_data.get("moneyline", {})
-    if ml:
-        result["moneyline"] = {}
-        for side in ("home", "away", "draw"):
-            dec = _american_to_decimal(ml.get(side))
-            if dec:
-                result["moneyline"][side] = dec
-
-    # Total
-    total = odds_data.get("total", {})
-    if total:
-        result["total"] = {"line": total.get("line", "")}
-        over_dec = _american_to_decimal(total.get("over_odds"))
-        under_dec = _american_to_decimal(total.get("under_odds"))
-        if over_dec:
-            result["total"]["over"] = over_dec
-        if under_dec:
-            result["total"]["under"] = under_dec
-
-    # Spread
-    spread = odds_data.get("spread", {})
-    if spread:
-        result["spread"] = {
-            "home_line": spread.get("home_line", ""),
-            "away_line": spread.get("away_line", ""),
-        }
-        home_dec = _american_to_decimal(spread.get("home_odds"))
-        away_dec = _american_to_decimal(spread.get("away_odds"))
-        if home_dec:
-            result["spread"]["home"] = home_dec
-        if away_dec:
-            result["spread"]["away"] = away_dec
-
-    return result
-
-
-# ---------------------------------------------------------------------------
-# EV injection from odds API
-# ---------------------------------------------------------------------------
-def _inject_ev_from_odds(candidates: list[dict], date: str):
-    """Compute and inject EV into candidates using odds API snapshots.
-
-    Sources: SQLite DB (odds_history — 97K+ rows with Betclic PL, Bet365)
-    + the-odds-api (odds_api_snapshot.json) + odds-api.io (odds_api_io_snapshot.json)
-    + ESPN DraftKings (espn_enrichment_{date}.json).
-    EV = (probability × odds) - 1. If no odds snapshot exists, candidates
-    keep ev=None and the gate handles it gracefully (stats-first mode).
-
-    The odds_lookup stores:  key = "home|away" -> {
-        "market_best": float,   # best ML/totals odds from any bookmaker
-        "betclic": float|None,  # Betclic PL odds specifically
-        "bet365": float|None,   # Bet365 odds
-        "totals": [{line, over, under, bookmaker}],  # totals lines
-    }
-    """
-    odds_lookup: dict[str, dict] = {}
-
-    def _ensure_entry(key: str) -> dict:
-        if key not in odds_lookup:
-            odds_lookup[key] = {"market_best": 0, "betclic": None, "bet365": None, "totals": []}
-        return odds_lookup[key]
-
-    # Source 0: SQLite DB (richest source — Betclic PL + Bet365 + 10+ bookmakers)
-    db_path = DATA_DIR / "betting.db"
-    if db_path.exists():
-        try:
-            sys.path.insert(0, str(ROOT_DIR / "src"))
-            from bet.db.connection import get_db
-
-            with get_db() as conn:
-                cur = conn.cursor()
-                cur.execute('''
-                    SELECT t1.name, t2.name, o.bookmaker, o.market, o.selection, o.odds, o.line
-                    FROM odds_history o
-                    JOIN fixtures f ON o.fixture_id = f.id
-                    JOIN teams t1 ON f.home_team_id = t1.id
-                    JOIN teams t2 ON f.away_team_id = t2.id
-                    WHERE date(o.fetched_at) = ?
-                ''', (date,))
-                db_rows = cur.fetchall()
-
-            # Parse DB odds: group totals lines with their over/under prices
-            # DB stores totals as interleaved rows: hdp (line), over (price), under (price)
-            totals_buffer: dict[str, dict] = {}  # key -> {current_line, entries}
-            for home, away, bookmaker, market, selection, odds_val, line_val in db_rows:
-                h = home.strip().lower()
-                a = away.strip().lower()
-                key = f"{h}|{a}"
-                entry = _ensure_entry(key)
-
-                bk_lower = (bookmaker or "").lower()
-                is_betclic = "betclic" in bk_lower
-                is_bet365 = "bet365" in bk_lower
-
-                if market in ("h2h", "ml"):
-                    # ML odds — track market_best (highest) + per-bookmaker
-                    if odds_val and odds_val > entry["market_best"]:
-                        entry["market_best"] = float(odds_val)
-                    sel_lower = (selection or "").lower()
-                    if sel_lower in ("draw", "x"):
-                        pass  # Skip draw for per-bookmaker tracking
-                    elif is_betclic:
-                        prev_betclic = entry.get("betclic") or 0
-                        if odds_val and odds_val > prev_betclic:
-                            entry["betclic"] = float(odds_val)
-                    elif is_bet365:
-                        prev_bet365 = entry.get("bet365") or 0
-                        if odds_val and odds_val > prev_bet365:
-                            entry["bet365"] = float(odds_val)
-
-                elif market == "totals":
-                    sel_lower = (selection or "").lower()
-                    # Format 1: standard Over/Under with line in `line` column
-                    if line_val is not None and sel_lower in ("over", "under"):
-                        line_f = float(line_val)
-                        # Find existing entry for this line+bookmaker, or create
-                        found = False
-                        for tl in entry["totals"]:
-                            if abs(tl.get("line", 0) - line_f) < 0.01 and tl.get("bookmaker") == bookmaker:
-                                tl[sel_lower] = float(odds_val)
-                                found = True
-                                break
-                        if not found:
-                            new_tl = {"line": line_f, "bookmaker": bookmaker, "over": None, "under": None}
-                            new_tl[sel_lower] = float(odds_val)
-                            entry["totals"].append(new_tl)
-
-                    # Format 2: Betclic/Bet365 interleaved hdp/over/under (no line column)
-                    else:
-                        buf_key = f"{key}|{bookmaker}"
-                        if buf_key not in totals_buffer:
-                            totals_buffer[buf_key] = {"line": None, "over": None, "under": None}
-                        buf = totals_buffer[buf_key]
-
-                        if sel_lower == "hdp":
-                            # This is the line value (stored in odds column)
-                            if buf["line"] is not None and buf["over"] is not None:
-                                # Flush previous complete line
-                                entry["totals"].append({
-                                    "line": buf["line"], "over": buf["over"],
-                                    "under": buf["under"], "bookmaker": bookmaker,
-                                })
-                            buf["line"] = float(odds_val)
-                            buf["over"] = None
-                            buf["under"] = None
-                        elif sel_lower == "over":
-                            buf["over"] = float(odds_val)
-                        elif sel_lower == "under":
-                            buf["under"] = float(odds_val)
-
-                        # Flush complete line
-                        if buf["line"] is not None and buf["over"] is not None and buf["under"] is not None:
-                            entry["totals"].append({
-                                "line": buf["line"], "over": buf["over"],
-                                "under": buf["under"], "bookmaker": bookmaker,
-                            })
-                            totals_buffer[buf_key] = {"line": None, "over": None, "under": None}
-
-            # Flush any remaining incomplete totals buffers (line+over without under)
-            for buf_key, buf in totals_buffer.items():
-                if buf["line"] is not None and buf["over"] is not None:
-                    parts = buf_key.split("|")
-                    bk = parts[2] if len(parts) > 2 else "unknown"
-                    match_key = f"{parts[0]}|{parts[1]}" if len(parts) > 1 else buf_key
-                    if match_key in odds_lookup:
-                        odds_lookup[match_key]["totals"].append({
-                            "line": buf["line"], "over": buf["over"],
-                            "under": buf.get("under"), "bookmaker": bk,
-                        })
-
-            if db_rows:
-                print(f"  → DB: loaded {len(db_rows)} odds rows → {len(odds_lookup)} fixtures")
-        except Exception as e:
-            print(f"  ⚠️ DB odds load failed: {e}")
-
-    # Source 1: the-odds-api snapshot
-    odds_path = DATA_DIR / "odds_api_snapshot.json"
-    if odds_path.exists():
-        try:
-            odds_data = json.loads(odds_path.read_text(encoding="utf-8"))
-            for event in odds_data if isinstance(odds_data, list) else odds_data.get("events", []):
-                home = (event.get("home_team") or "").strip().lower()
-                away = (event.get("away_team") or "").strip().lower()
-                if not home or not away:
-                    continue
-                key = f"{home}|{away}"
-                entry = _ensure_entry(key)
-
-                # Try pre-computed best_odds first
-                best_odds = event.get("best_odds") or event.get("odds", {}).get("market_best")
-                if best_odds:
-                    val = float(best_odds)
-                    if val > entry["market_best"]:
-                        entry["market_best"] = val
-
-                # Parse bookmakers array (raw the-odds-api format)
-                for bm in event.get("bookmakers") or []:
-                    bk_title = (bm.get("title") or bm.get("key") or "").lower()
-                    is_betclic = "betclic" in bk_title
-                    is_bet365 = "bet365" in bk_title
-                    for mkt in bm.get("markets") or []:
-                        mkt_key = (mkt.get("key") or "").lower()
-                        if mkt_key in ("ml", "h2h", "moneyline"):
-                            for outcome in mkt.get("outcomes") or []:
-                                price = outcome.get("price")
-                                if not price or price <= 1.0:
-                                    continue
-                                if price > entry["market_best"]:
-                                    entry["market_best"] = float(price)
-                                side = (outcome.get("name") or "").lower()
-                                if side in ("draw", "x"):
-                                    continue
-                                if is_betclic:
-                                    prev = entry.get("betclic") or 0
-                                    if price > prev:
-                                        entry["betclic"] = float(price)
-                                elif is_bet365:
-                                    prev = entry.get("bet365") or 0
-                                    if price > prev:
-                                        entry["bet365"] = float(price)
-                        elif mkt_key in ("totals", "over_under"):
-                            for outcome in mkt.get("outcomes") or []:
-                                price = outcome.get("price")
-                                point = outcome.get("point")
-                                side = (outcome.get("name") or "").lower()
-                                if price and point is not None and side in ("over", "under"):
-                                    entry["totals"].append({
-                                        "line": float(point),
-                                        side: float(price),
-                                        "bookmaker": bm.get("title") or bm.get("key"),
-                                    })
-
-                # Load pre-computed totals from API snapshot
-                api_totals = event.get("totals")
-                if api_totals and isinstance(api_totals, list):
-                    for tl in api_totals:
-                        if tl.get("line") is not None:
-                            entry["totals"].append(tl)
-        except (json.JSONDecodeError, OSError):
-            pass
-
-    # Source 2: odds-api.io snapshot (265 bookmakers, more coverage)
-    io_path = DATA_DIR / "odds_api_io_snapshot.json"
-    if io_path.exists():
-        try:
-            io_data = json.loads(io_path.read_text(encoding="utf-8"))
-            for event in io_data.get("events", []):
-                home = (event.get("home") or "").strip().lower()
-                away = (event.get("away") or "").strip().lower()
-                if not home or not away:
-                    continue
-                key = f"{home}|{away}"
-                entry = _ensure_entry(key)
-                for bookie_name, markets in (event.get("bookmakers") or {}).items():
-                    if not isinstance(markets, list):
-                        continue
-                    for market in markets:
-                        if market.get("name") == "ML":
-                            for odds_entry in market.get("odds", []):
-                                for side in ["home", "away"]:
-                                    try:
-                                        val = float(odds_entry.get(side, 0))
-                                        if val > entry["market_best"]:
-                                            entry["market_best"] = val
-                                    except (ValueError, TypeError):
-                                        pass
-            # Inject from value bets (pre-calculated EV!)
-            for vb in io_data.get("value_bets", []):
-                ev_data = vb.get("event", {})
-                home = (ev_data.get("home") or "").strip().lower()
-                away = (ev_data.get("away") or "").strip().lower()
-                if home and away:
-                    pre_ev = vb.get("expectedValue")
-                    if pre_ev is not None:
-                        for c in candidates:
-                            ch = (c.get("home_team") or "").strip().lower()
-                            ca = (c.get("away_team") or "").strip().lower()
-                            if ch == home and ca == away and c.get("ev") is None:
-                                c["ev"] = round(float(pre_ev), 4)
-                                c["ev_source"] = "odds-api-io-value-bet"
-        except (json.JSONDecodeError, OSError):
-            pass
-
-    # Source 3: ESPN DraftKings odds (free, unlimited)
-    espn_path = DATA_DIR / f"espn_enrichment_{date}.json"
-    if espn_path.exists():
-        try:
-            espn_data = json.loads(espn_path.read_text(encoding="utf-8"))
-            for event in espn_data.get("odds", []):
-                home = (event.get("home") or "").strip().lower()
-                away = (event.get("away") or "").strip().lower()
-                if not home or not away:
-                    continue
-                key = f"{home}|{away}"
-                entry = _ensure_entry(key)
-                dec_odds = event.get("odds_decimal", {}).get("moneyline", {})
-                for side in ("home", "away"):
-                    val = dec_odds.get(side)
-                    if val and val > entry["market_best"]:
-                        entry["market_best"] = val
-        except (json.JSONDecodeError, OSError):
-            pass
-
-    if not odds_lookup:
-        return
-
-    injected = 0
-    odds_enriched = 0
-    for c in candidates:
-        home = (c.get("home_team") or "").strip().lower()
-        away = (c.get("away_team") or "").strip().lower()
-        key = f"{home}|{away}"
-        entry = odds_lookup.get(key)
-        if not entry:
-            continue
-
-        # Always inject odds data (even without probability — for coupon builder)
-        best_market = c.get("best_market") or {}
-
-        # Determine which odds to use: Betclic first, then Bet365, then market_best
-        betclic_odds = entry.get("betclic")
-        bet365_odds = entry.get("bet365")
-        market_best = entry.get("market_best", 0)
-        # Pick best available odds for the candidate
-        use_odds = betclic_odds or bet365_odds or (market_best if market_best > 1.0 else None)
-
-        if use_odds:
-            c.setdefault("odds", {})["market_best"] = use_odds
-            if betclic_odds:
-                c["odds"]["betclic"] = betclic_odds
-            if bet365_odds:
-                c["odds"]["bet365"] = bet365_odds
-            odds_enriched += 1
-
-        # Inject totals data for statistical market matching
-        if entry.get("totals"):
-            c.setdefault("odds", {})["totals"] = entry["totals"]
-
-        # EV calculation (skip if already has EV)
-        if c.get("ev") is not None:
-            continue
-        
-        market_name = (best_market.get("name") or "").lower()
-        is_ml_market = any(kw in market_name for kw in ("winner", "ml", "match winner", "moneyline", "1x2"))
-        is_totals_market = any(kw in market_name for kw in ("o/u", "over", "under", "total", "corners", "fouls", "cards", "shots", "games", "sets", "frames", "points", "goals"))
-
-        prob = best_market.get("probability")
-        safety = best_market.get("safety_score")
-        
-        # For totals/statistical markets, try to find matching line in DB totals
-        matched_odds = None
-        if is_totals_market and entry.get("totals"):
-            line = best_market.get("line")
-            direction = (best_market.get("direction") or "").upper()
-            if line is not None:
-                for tl in entry["totals"]:
-                    if abs(tl.get("line", 0) - float(line)) < 0.01:
-                        if "OVER" in direction and tl.get("over"):
-                            if matched_odds is None or tl["over"] > matched_odds:
-                                matched_odds = tl["over"]
-                        elif "UNDER" in direction and tl.get("under"):
-                            if matched_odds is None or tl["under"] > matched_odds:
-                                matched_odds = tl["under"]
-        elif is_ml_market:
-            # ML market — use ML odds directly
-            matched_odds = use_odds
-        
-        # Only calculate EV when odds match the analyzed market
-        p = prob or safety
-        odds_for_ev = matched_odds or (use_odds if is_ml_market else None)
-        if p and odds_for_ev:
-            ev = round(float(p) * float(odds_for_ev) - 1, 4)
-            c["ev"] = ev
-            c["ev_source"] = "db+api-composite"
-            injected += 1
-
-    print(f"  → Odds enriched: {odds_enriched}/{len(candidates)} candidates")
-    if injected:
-        print(f"  → EV injected: {injected}/{len(candidates)} candidates")
 
 
 # ---------------------------------------------------------------------------
 # Python-driven step implementations
 # ---------------------------------------------------------------------------
-
-def _run_tipster_xref(date: str, state: dict) -> tuple[bool, str]:
-    """S2: Cross-reference shortlist with tipster consensus data.
-
-    Enriches shortlist candidates with tipster support, consensus %, and arguments.
-    """
-    tipster_path = DATA_DIR / f"tipster_aggregation_{date}.json"
-    consensus_path = DATA_DIR / f"{date}_tipster_consensus.json"
-
-    # Try both possible tipster data files
-    tipster_data = None
-    for tpath in [tipster_path, consensus_path]:
-        if tpath.exists():
-            try:
-                tipster_data = json.loads(tpath.read_text(encoding="utf-8"))
-                print(f"  → Loaded tipster data from {tpath.name}")
-                break
-            except (json.JSONDecodeError, OSError):
-                continue
-
-    if tipster_data is None:
-        return True, "No tipster data available — skipping cross-reference"
-
-    # Parse tips into a lookup
-    tips = tipster_data if isinstance(tipster_data, list) else tipster_data.get("tips", [])
-    tip_lookup: dict[str, list[dict]] = {}
-    for tip in tips:
-        home = (tip.get("home") or tip.get("home_team") or "").strip().lower()
-        away = (tip.get("away") or tip.get("away_team") or "").strip().lower()
-        if home and away:
-            key = f"{home}|{away}"
-            tip_lookup.setdefault(key, []).append(tip)
-
-    # Load shortlist and cross-reference
-    date_compact = date.replace("-", "")
-    shortlist_path = DATA_DIR / f"{date_compact}_s2_shortlist.json"
-    if not shortlist_path.exists():
-        shortlist_path = DATA_DIR / f"{date}_s2_shortlist.json"
-
-    matched = 0
-    total = 0
-    if shortlist_path.exists():
-        try:
-            shortlist = json.loads(shortlist_path.read_text(encoding="utf-8"))
-            candidates = shortlist.get("candidates", shortlist.get("shortlist", []))
-            total = len(candidates)
-
-            for c in candidates:
-                home = (c.get("home_team") or c.get("home") or "").strip().lower()
-                away = (c.get("away_team") or c.get("away") or "").strip().lower()
-                key = f"{home}|{away}"
-                matching_tips = tip_lookup.get(key, [])
-                if matching_tips:
-                    matched += 1
-                    tipster_names = list({t.get("tipster", t.get("source", "unknown")) for t in matching_tips})
-                    consensus = len(matching_tips)
-                    c["tipster_support"] = {
-                        "count": consensus,
-                        "tipsters": tipster_names,
-                        "tips": matching_tips,
-                    }
-                    # Also set tipster_count directly for gate_checker compatibility
-                    c["tipster_count"] = consensus
-                    home_disp = c.get("home_team", c.get("home", "?"))
-                    away_disp = c.get("away_team", c.get("away", "?"))
-                    print(f"    ✓ {home_disp} vs {away_disp}: {consensus} tips from {', '.join(tipster_names[:3])}")
-
-            # Save enriched shortlist
-            shortlist_path.write_text(
-                json.dumps(shortlist, indent=2, ensure_ascii=False), encoding="utf-8"
-            )
-        except (json.JSONDecodeError, OSError) as e:
-            print(f"  ⚠ Shortlist enrichment error: {e}")
-
-    n_tips = len(tips)
-    return True, f"Tipster cross-reference: {n_tips} tips loaded, {matched}/{total} shortlist candidates matched"
-
-
-def _run_odds_eval(date: str, state: dict) -> tuple[bool, str]:
-    """S4: Cross-validate odds, compute EV, detect drift."""
-    # Load current candidates from S3 JSON output (primary — has ALL candidates)
-    # IMPORTANT: Do NOT read from DB here — DB only has entries with resolved
-    # fixture_ids (~166), while JSON has the full set (~1440) including
-    # shortlist-fallback candidates.
-    candidates = None
-
-    s3_path = DATA_DIR / f"{date}_s3_deep_stats.json"
-    if s3_path.exists():
-        try:
-            s3_data = json.loads(s3_path.read_text(encoding="utf-8"))
-            candidates = s3_data.get("analyses", [])
-            if candidates:
-                print(f"  → JSON: loaded {len(candidates)} S3 analyses")
-        except (json.JSONDecodeError, OSError):
-            pass
-
-    if not candidates:
-        try:
-            from db_data_loader import load_analysis_results_from_db
-            db_analyses = load_analysis_results_from_db(date)
-            if db_analyses:
-                candidates = db_analyses
-                print(f"  → DB fallback: loaded {len(candidates)} S3 analysis results")
-        except Exception as e:
-            print(f"  ⚠️ DB read also failed: {e}")
-
-    if not candidates:
-        return True, "S4: No S3 data yet — skipping EV injection"
-
-    if not candidates:
-        return True, "S4: No S3 data yet — skipping EV injection"
-
-    try:
-        _inject_ev_from_odds(candidates, date)
-
-        # Count how many have EV and log details
-        with_ev = 0
-        positive_ev = 0
-        for c in candidates:
-            ev = c.get("ev")
-            if ev is not None:
-                with_ev += 1
-                if ev > 0:
-                    positive_ev += 1
-                home = c.get("home_team", "?")
-                away = c.get("away_team", "?")
-                odds = (c.get("odds") or {}).get("market_best", 0)
-                source = c.get("ev_source", "calculated")
-                marker = "💰" if ev > 0 else "📉"
-                print(f"    {marker} {home} vs {away}: EV={ev:+.1%} @{odds:.2f} ({source})")
-        total = len(candidates)
-
-        # Save back enriched data to JSON (for downstream consumers)
-        s3_path = DATA_DIR / f"{date}_s3_deep_stats.json"
-        if s3_path.exists():
-            try:
-                s3_data = json.loads(s3_path.read_text(encoding="utf-8"))
-                s3_data["analyses"] = candidates
-                s3_path.write_text(
-                    json.dumps(s3_data, indent=2, ensure_ascii=False), encoding="utf-8"
-                )
-            except (json.JSONDecodeError, OSError):
-                pass
-
-        return True, f"S4 completed: {with_ev}/{total} with EV data ({positive_ev} positive EV)"
-    except Exception as e:
-        return True, f"S4 odds evaluation error: {e} — continuing without"
-
-
-def _run_context_checks(date: str, state: dict) -> tuple[bool, str]:
-    """S5: Contextual checks — weather, venue, referee, roster changes.
-
-    Enriches S3 candidates with contextual flags for downstream gate checks.
-    """
-    checks_done = []
-    context_flags = {}
-
-    # Load S3 candidates for enrichment
-    s3_path = DATA_DIR / f"{date}_s3_deep_stats.json"
-    candidates = []
-    if s3_path.exists():
-        try:
-            s3_data = json.loads(s3_path.read_text(encoding="utf-8"))
-            candidates = s3_data.get("analyses", [])
-        except (json.JSONDecodeError, OSError):
-            pass
-
-    # Weather data — flag candidates with weather impact
-    weather_path = DATA_DIR / f"weather_{date}.json"
-    weather_impacts = []
-    if weather_path.exists():
-        try:
-            weather = json.loads(weather_path.read_text(encoding="utf-8"))
-            venues = weather if isinstance(weather, list) else weather.get("venues", weather.get("forecasts", {}))
-            if isinstance(venues, dict):
-                for venue, forecast in venues.items():
-                    flags = forecast.get("flags", [])
-                    if flags:
-                        weather_impacts.append(f"{venue}: {', '.join(flags)}")
-                        context_flags[venue] = flags
-            elif isinstance(venues, list):
-                for v in venues:
-                    venue_name = v.get("venue", v.get("city", "unknown"))
-                    flags = v.get("flags", [])
-                    if flags:
-                        weather_impacts.append(f"{venue_name}: {', '.join(flags)}")
-                        context_flags[venue_name] = flags
-            n_venues = len(venues) if isinstance(venues, (list, dict)) else 0
-            n_impacted = len(weather_impacts)
-            checks_done.append(f"weather: {n_venues} venues checked, {n_impacted} with impact flags")
-            if weather_impacts:
-                for wi in weather_impacts[:5]:
-                    print(f"    🌧 {wi}")
-        except (json.JSONDecodeError, OSError):
-            checks_done.append("weather: load_error")
-    else:
-        checks_done.append("weather: unavailable")
-
-    # ESPN injuries/roster data — flag candidates with key injuries
-    espn_path = DATA_DIR / f"espn_enrichment_{date}.json"
-    injury_summary = []
-    if espn_path.exists():
-        try:
-            espn = json.loads(espn_path.read_text(encoding="utf-8"))
-            injuries = espn.get("injuries", {})
-            for sport, sport_injuries in injuries.items():
-                if isinstance(sport_injuries, list):
-                    for inj in sport_injuries:
-                        team = inj.get("team", "unknown")
-                        player = inj.get("player", inj.get("name", "unknown"))
-                        status = inj.get("status", inj.get("type", "unknown"))
-                        injury_summary.append(f"{sport}/{team}: {player} ({status})")
-            n_injuries = len(injury_summary)
-            checks_done.append(f"injuries: {n_injuries} entries across {len(injuries)} sports")
-            if injury_summary:
-                for inj in injury_summary[:8]:
-                    print(f"    🏥 {inj}")
-        except (json.JSONDecodeError, OSError):
-            checks_done.append("injuries: load_error")
-    else:
-        checks_done.append("injuries: unavailable")
-
-    # Enrich S3 candidates with context flags
-    if candidates and s3_path.exists():
-        enriched = 0
-        for c in candidates:
-            c_flags = []
-            home = c.get("home_team", "")
-            away = c.get("away_team", "")
-            sport = c.get("sport", "")
-            # Check weather
-            for venue, flags in context_flags.items():
-                if venue.lower() in (home.lower(), away.lower(), c.get("venue", "").lower()):
-                    c_flags.extend([f"WEATHER:{f}" for f in flags])
-            # Check injuries
-            for inj_entry in injury_summary:
-                if home.lower() in inj_entry.lower() or away.lower() in inj_entry.lower():
-                    c_flags.append(f"INJURY:{inj_entry.split(':')[-1].strip()}")
-            if c_flags:
-                c.setdefault("context_flags", []).extend(c_flags)
-                enriched += 1
-                print(f"    📋 {home} vs {away}: {', '.join(c_flags[:3])}")
-        if enriched:
-            s3_path.write_text(
-                json.dumps(s3_data, indent=2, ensure_ascii=False), encoding="utf-8"
-            )
-            checks_done.append(f"enriched: {enriched}/{len(candidates)} candidates with context flags")
-
-    return True, f"S5 contextual checks: {', '.join(checks_done)}"
-
-
-def _run_upset_risk(date: str, state: dict) -> tuple[bool, str]:
-    """S6: Upset risk scoring per candidate with sport-specific heuristics."""
-    s3_path = DATA_DIR / f"{date}_s3_deep_stats.json"
-    if not s3_path.exists():
-        return True, "S6: No S3 data — skipping upset risk scoring"
-
-    # Sport-specific upset risk thresholds
-    UPSET_THRESHOLDS = {
-        "football": {"safety_low": 0.55, "h2h_min": 3, "form_diverge": 0.15},
-        "tennis": {"safety_low": 0.50, "h2h_min": 2, "form_diverge": 0.20},
-        "basketball": {"safety_low": 0.50, "h2h_min": 3, "form_diverge": 0.10},
-        "volleyball": {"safety_low": 0.50, "h2h_min": 3, "form_diverge": 0.15},
-        "hockey": {"safety_low": 0.50, "h2h_min": 3, "form_diverge": 0.15},
-        "handball": {"safety_low": 0.50, "h2h_min": 2, "form_diverge": 0.15},
-        "baseball": {"safety_low": 0.45, "h2h_min": 3, "form_diverge": 0.10},
-        "esports": {"safety_low": 0.45, "h2h_min": 2, "form_diverge": 0.20},
-    }
-    DEFAULT_THRESHOLDS = {"safety_low": 0.50, "h2h_min": 2, "form_diverge": 0.15}
-
-    try:
-        s3_data = json.loads(s3_path.read_text(encoding="utf-8"))
-        analyses = s3_data.get("analyses", [])
-        scored = 0
-        elevated = 0
-        high_risk = 0
-
-        for analysis in analyses:
-            sport = analysis.get("sport", "").lower()
-            thresholds = UPSET_THRESHOLDS.get(sport, DEFAULT_THRESHOLDS)
-            risk_factors = []
-
-            ranking = analysis.get("ranking", analysis.get("ranking_result", {}).get("ranking", []))
-            top_market = ranking[0] if ranking else {}
-            safety = top_market.get("safety_score", 0)
-
-            # Factor 1: Low safety score (sport-specific threshold)
-            if safety < thresholds["safety_low"]:
-                risk_factors.append(f"safety_below_{thresholds['safety_low']} ({safety})")
-
-            # Factor 2: L5 trend diverging from L10 (form instability)
-            l5_avg = top_market.get("combined_avg_l5", top_market.get("l5_avg"))
-            l10_avg = top_market.get("combined_avg", top_market.get("l10_avg"))
-            if l5_avg and l10_avg and l10_avg != 0:
-                divergence = abs(l5_avg - l10_avg) / abs(l10_avg)
-                if divergence > thresholds["form_diverge"]:
-                    direction = "declining" if l5_avg < l10_avg else "surging"
-                    risk_factors.append(f"form_{direction} ({divergence:.0%} L5 vs L10)")
-
-            # Factor 3: Missing H2H data
-            h2h = analysis.get("h2h", {})
-            h2h_meetings = len(h2h.get("meetings", []))
-            if h2h_meetings < thresholds["h2h_min"]:
-                risk_factors.append(f"h2h_insufficient ({h2h_meetings}/{thresholds['h2h_min']} meetings)")
-
-            # Factor 4: Context flags (weather, injuries)
-            context_flags = analysis.get("context_flags", [])
-            if any("INJURY" in f for f in context_flags):
-                risk_factors.append("key_injury_flagged")
-            if any("WEATHER" in f for f in context_flags):
-                risk_factors.append("adverse_weather")
-
-            # Factor 5: No EV data (stats-first mode = higher uncertainty)
-            if analysis.get("ev") is None:
-                risk_factors.append("no_ev_data_statsFirst")
-
-            # Score upset risk
-            risk_count = len(risk_factors)
-            if risk_count >= 3:
-                risk_level = "HIGH"
-                high_risk += 1
-            elif risk_count >= 1:
-                risk_level = "ELEVATED"
-                elevated += 1
-            else:
-                risk_level = "LOW"
-
-            analysis["upset_risk"] = {
-                "level": risk_level,
-                "factors": risk_factors,
-                "factor_count": risk_count,
-            }
-            analysis.setdefault("flags", [])
-            if risk_level != "LOW":
-                analysis["flags"].append(f"upset_risk_{risk_level.lower()}")
-            scored += 1
-
-            # Verbose per-candidate output
-            home = analysis.get("home_team", "?")
-            away = analysis.get("away_team", "?")
-            marker = {"LOW": "🟢", "ELEVATED": "🟡", "HIGH": "🔴"}[risk_level]
-            print(f"    {marker} {home} vs {away} [{sport}]: {risk_level} ({risk_count} factors)")
-            if risk_factors:
-                for rf in risk_factors[:3]:
-                    print(f"       → {rf}")
-
-        s3_path.write_text(
-            json.dumps(s3_data, indent=2, ensure_ascii=False), encoding="utf-8"
-        )
-        return True, f"S6 completed: {scored} candidates scored — {elevated} elevated, {high_risk} high risk"
-    except Exception as e:
-        return True, f"S6 upset risk error: {e} — continuing without"
-
 
 def _run_source_health(date: str) -> None:
     """Record source health after scan completes."""
@@ -1536,17 +774,9 @@ def _run_parallel_enrichment(date: str, state: dict) -> tuple[bool, str]:
 
 def _run_s3(date: str, state: dict) -> tuple[bool, str]:
     """S3: Deep Statistical Analysis with probability engine integration."""
-    # build_shortlist.py writes date as compact format (no dashes)
-    date_compact = date.replace("-", "")
-    shortlist_path = str(DATA_DIR / f"{date_compact}_s2_shortlist.json")
+    shortlist_path = str(DATA_DIR / f"{date}_s2_shortlist.json")
     if not Path(shortlist_path).exists():
-        # Fallback: try dashed format just in case
-        shortlist_path_alt = str(DATA_DIR / f"{date}_s2_shortlist.json")
-        if Path(shortlist_path_alt).exists():
-            shortlist_path = shortlist_path_alt
-            print(f"  ⚠ Using dashed-format shortlist: {shortlist_path_alt}")
-        else:
-            shortlist_path = None
+        shortlist_path = None
 
     top = state.get("cli_args", {}).get("top")
     result = generate_deep_stats(date, shortlist_path=shortlist_path, top=top)
@@ -1663,10 +893,7 @@ def _run_s7(date: str, state: dict) -> tuple[bool, str]:
 
     # Inject tipster_count from enriched shortlist into S3 analyses
     # The tipster xref enriches the shortlist JSON but S3 doesn't propagate it
-    date_compact = date.replace("-", "")
-    shortlist_path = DATA_DIR / f"{date_compact}_s2_shortlist.json"
-    if not shortlist_path.exists():
-        shortlist_path = DATA_DIR / f"{date}_s2_shortlist.json"
+    shortlist_path = DATA_DIR / f"{date}_s2_shortlist.json"
     if shortlist_path.exists():
         try:
             sl_data = json.loads(shortlist_path.read_text(encoding="utf-8"))
@@ -1674,8 +901,8 @@ def _run_s7(date: str, state: dict) -> tuple[bool, str]:
             # Build tipster lookup by normalized team names
             tipster_lookup: dict[str, int] = {}
             for sc in sl_candidates:
-                h = (sc.get("home_team") or sc.get("home") or "").strip().lower()
-                a = (sc.get("away_team") or sc.get("away") or "").strip().lower()
+                h = (sc.get("home_team") or "").strip().lower()
+                a = (sc.get("away_team") or "").strip().lower()
                 tc = sc.get("tipster_count") or (sc.get("tipster_support") or {}).get("count") or 0
                 if h and a and tc:
                     tipster_lookup[f"{h}|{a}"] = tc
@@ -1801,10 +1028,10 @@ def _run_s8(date: str, state: dict) -> tuple[bool, str]:
 
     # Persist to DB (dual-write)
     try:
-        from scripts.coupon_builder import persist_coupons_to_db
-    except ImportError:
         from coupon_builder import persist_coupons_to_db
-    persist_coupons_to_db(result, date)
+        persist_coupons_to_db(result, date)
+    except Exception as e:
+        print(f"  [warn] DB persist failed: {e}")
 
     if result.get("no_bet"):
         msg = f"S8: NO BET — {result.get('no_bet_reason', 'insufficient picks')}"
@@ -1839,9 +1066,9 @@ def _run_s9(date: str, state: dict) -> tuple[bool, str]:
         return True, "S9: No coupon file to validate (NO BET day?)"
 
     try:
-        from scripts.validate_coupons import validate_file
-    except ImportError:
         from validate_coupons import validate_file
+    except ImportError:
+        return True, "S9: validate_coupons not available"
 
     ledger_path = ROOT_DIR / "betting" / "journal" / "picks-ledger.csv"
     result = validate_file(coupon_file, ledger_path)
@@ -1860,119 +1087,6 @@ def _run_s9(date: str, state: dict) -> tuple[bool, str]:
         return False, msg
 
     msg = f"S9 passed: {result.get('coupons_found', 0)} coupons validated, {len(warnings)} warnings"
-    return True, msg
-
-
-def _run_s10(date: str, state: dict) -> tuple[bool, str]:
-    """S10: Final summary with full pipeline metrics."""
-    step_data = state.get("step_data", {})
-
-    # Calculate pipeline duration
-    started = state.get("started_at", "")
-    now_str = datetime.now(ZoneInfo("Europe/Warsaw")).isoformat()
-    duration = "?"
-    if started:
-        try:
-            start_dt = datetime.fromisoformat(started)
-            end_dt = datetime.now(ZoneInfo("Europe/Warsaw"))
-            elapsed = end_dt - start_dt
-            minutes = int(elapsed.total_seconds() // 60)
-            seconds = int(elapsed.total_seconds() % 60)
-            duration = f"{minutes}m {seconds}s"
-        except Exception:
-            pass
-
-    summary_lines = [
-        "",
-        "═══════════════════════════════════════════════════════════",
-        f"  PIPELINE COMPLETE — {date}",
-        f"  Duration: {duration}",
-        "═══════════════════════════════════════════════════════════",
-        "",
-        "📊 ANALYSIS SUMMARY:",
-        f"  S3 Deep Stats: {step_data.get('s3_with_data', '?')}/{step_data.get('s3_count', '?')} candidates analyzed",
-        f"  S7 Gate: {step_data.get('s7_approved', '?')} approved, {step_data.get('s7_extended', '?')} extended",
-    ]
-
-    if step_data.get("s8_no_bet"):
-        summary_lines.append("  S8 Coupons: NO BET DAY")
-    else:
-        summary_lines.append(
-            f"  S8 Coupons: {step_data.get('s8_core', '?')} core, {step_data.get('s8_combos', '?')} combos"
-        )
-
-    # Parallel enrichment results
-    parallel = step_data.get("parallel_results", {})
-    if parallel:
-        enrichment_parts = []
-        for name, ok in parallel.items():
-            enrichment_parts.append(f"{name}: {'✓' if ok else '✗'}")
-        summary_lines.append(f"  Enrichment: {', '.join(enrichment_parts)}")
-
-    # Step completion status
-    steps_status = state.get("steps", {})
-    completed = sum(1 for v in steps_status.values() if isinstance(v, dict) and v.get("status") == "completed")
-    failed = sum(1 for v in steps_status.values() if isinstance(v, dict) and v.get("status") == "failed")
-    skipped = sum(1 for v in steps_status.values() if isinstance(v, dict) and v.get("status") == "skipped")
-    summary_lines.extend([
-        "",
-        f"📋 STEPS: {completed} completed, {failed} failed, {skipped} skipped",
-    ])
-
-    # Errors summary
-    errors = state.get("errors", [])
-    if errors:
-        summary_lines.append(f"  ⚠ {len(errors)} errors logged:")
-        for err in errors[-3:]:
-            summary_lines.append(f"    - {err[:120]}")
-
-    # Build list of agent checkpoints that completed
-    agent_checkpoints = []
-    for step in PIPELINE_STEPS:
-        agent = step.get("agent_review_required")
-        if agent:
-            step_status = state.get("steps", {}).get(step["id"], {}).get("status", "")
-            if step_status == "completed":
-                agent_checkpoints.append((step["id"], agent, step.get("agent_task", "")))
-
-    summary_lines.extend([
-        "",
-        "📁 OUTPUT FILES:",
-        f"  📊 betting/data/{date}_s3_deep_stats.md",
-        f"  ✅ betting/data/{date}_s7_gate_results.md",
-        f"  🎫 betting/coupons/{date}.md",
-        f"  📦 betting/coupons/{date}.json",
-    ])
-
-    if agent_checkpoints:
-        summary_lines.extend([
-            "",
-            "═══════════════════════════════════════════════════════════",
-            "🤖 AGENT REVIEW CHECKPOINTS (MANDATORY — DO NOT SKIP)",
-            "═══════════════════════════════════════════════════════════",
-            "",
-            "The pipeline produced RAW DATA. The orchestrator MUST now",
-            "spawn specialist agents for deep analysis at each checkpoint:",
-            "",
-        ])
-        for step_id, agent, task in agent_checkpoints:
-            summary_lines.append(f"  [{step_id}] → {agent}: {task}")
-        summary_lines.extend([
-            "",
-            "Script output is NOT final analysis. Agents add: edge",
-            "discovery, cross-source verification, bear cases, strategic",
-            "reasoning, and Polish-language coupon descriptions.",
-            "═══════════════════════════════════════════════════════════",
-        ])
-    else:
-        summary_lines.append("")
-        summary_lines.append("═══════════════════════════════════════════════════════════")
-
-    msg = "\n".join(summary_lines)
-    print(msg)
-
-    state["completed_at"] = now_str
-
     return True, msg
 
 
@@ -2134,6 +1248,19 @@ def run_pipeline(
             save_state(date, state)
             continue
 
+        # --- Agent protocol: ingest review from previous step (if any) ---
+        if step_id in STEP_AGENT_CONFIG:
+            # Find the previous step that has agent config
+            prev_agent_steps = [s["id"] for s in steps_to_run
+                                if s["id"] in STEP_AGENT_CONFIG
+                                and steps_to_run.index(s) < steps_to_run.index(step)]
+            if prev_agent_steps:
+                prev_step_id = prev_agent_steps[-1]
+                prev_review = read_agent_review(date, prev_step_id)
+                if prev_review:
+                    merge_agent_enrichments(state, prev_review)
+                    print(f"  [agent] Loaded review from {prev_review.get('agent', '?')} for {prev_step_id}")
+
         print(f"\n{'─'*60}")
         print(f"[{step_id}] {step['name']}")
         print(f"  {step.get('description', '')}")
@@ -2148,11 +1275,10 @@ def run_pipeline(
             success, output = run_python_step(step_id, date, state)
         elif "commands" in step and step["commands"]:
             # Skip s1d/s1e if outputs already exist AND we're in resume mode
-            date_compact = date.replace("-", "")
             skip_reason = None
             if resume and step_id == "s1d_matrix" and (DATA_DIR / f"market_matrix_{date}.json").exists():
                 skip_reason = "market_matrix already exists (resume mode)"
-            elif resume and step_id == "s1e_shortlist" and (DATA_DIR / f"{date_compact}_s2_shortlist.json").exists():
+            elif resume and step_id == "s1e_shortlist" and (DATA_DIR / f"{date}_s2_shortlist.json").exists():
                 skip_reason = "shortlist already exists (resume mode)"
             if skip_reason:
                 success = True
@@ -2173,6 +1299,36 @@ def run_pipeline(
             success = True
             output = "No-op step"
 
+        # Retry logic for failed non-critical steps with retries configured
+        max_retries = step.get("retries", 0)
+        if not success and max_retries > 0:
+            backoff_delays = [5, 15, 45]  # seconds
+            for attempt in range(1, max_retries + 1):
+                delay = backoff_delays[min(attempt - 1, len(backoff_delays) - 1)]
+                print(f"  ↻ Retry {attempt}/{max_retries} in {delay}s...")
+                time.sleep(delay)
+
+                if "python_step" in step:
+                    success, output = run_python_step(step_id, date, state)
+                elif "commands" in step and step["commands"]:
+                    all_success = True
+                    outputs = []
+                    for cmd in step["commands"]:
+                        cmd_ok, cmd_out = run_command(cmd, date, step_id=step_id)
+                        outputs.append(cmd_out)
+                        if not cmd_ok:
+                            all_success = False
+                            break
+                    success = all_success
+                    output = "\n".join(outputs)
+
+                step_state["retries_used"] = attempt
+                if success:
+                    print(f"  ✓ Retry {attempt} succeeded")
+                    break
+                else:
+                    print(f"  ✗ Retry {attempt} failed")
+
         if success:
             step_state["status"] = "completed"
             step_state["completed_at"] = datetime.now(ZoneInfo("Europe/Warsaw")).isoformat()
@@ -2190,6 +1346,15 @@ def run_pipeline(
                 print(f"  the {agent_required} agent via runSubagent to perform deep analysis.")
                 print(f"  Script output is NOT final — agent analysis is MANDATORY.")
                 print(f"  {'='*60}\n")
+
+                # Write structured agent input file
+                step_metrics = state.get("step_data", {}).get(step_id, {})
+                step_artifacts = [str(DATA_DIR / o) for o in step.get("outputs", []) if o]
+                try:
+                    input_path = write_step_output(date, step_id, step_metrics, step_artifacts)
+                    print(f"  [agent] Wrote input: {input_path}")
+                except Exception as e:
+                    print(f"  [agent] Warning: failed to write input: {e}")
 
             # Note: source health for s1_scan is recorded inside _run_scan_events()
 

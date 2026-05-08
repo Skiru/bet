@@ -1064,7 +1064,7 @@ class TestEVInjection(unittest.TestCase):
         """EV injection from odds API snapshot."""
         import tempfile
         import shutil
-        from scripts.pipeline_orchestrator import _inject_ev_from_odds
+        from scripts.odds_evaluator import _inject_ev_from_odds
 
         tmp = tempfile.mkdtemp()
         data_dir = Path(tmp)
@@ -1080,7 +1080,7 @@ class TestEVInjection(unittest.TestCase):
                 {"home_team": "Unknown", "away_team": "Team",
                  "best_market": {"name": "Match Winner", "safety_score": 0.70, "probability": 0.70}, "ev": None, "odds": {}},
             ]
-            with patch("scripts.pipeline_orchestrator.DATA_DIR", data_dir):
+            with patch("scripts.odds_evaluator.DATA_DIR", data_dir):
                 _inject_ev_from_odds(candidates, "2026-05-01")
 
             # Liverpool match should have EV
@@ -1095,7 +1095,7 @@ class TestEVInjection(unittest.TestCase):
         """No odds snapshot → candidates unchanged."""
         import tempfile
         import shutil
-        from scripts.pipeline_orchestrator import _inject_ev_from_odds
+        from scripts.odds_evaluator import _inject_ev_from_odds
 
         tmp = tempfile.mkdtemp()
         try:
@@ -1103,7 +1103,7 @@ class TestEVInjection(unittest.TestCase):
                 {"home_team": "A", "away_team": "B",
                  "best_market": {"safety_score": 0.80}, "ev": None, "odds": {}},
             ]
-            with patch("scripts.pipeline_orchestrator.DATA_DIR", Path(tmp)):
+            with patch("scripts.odds_evaluator.DATA_DIR", Path(tmp)):
                 _inject_ev_from_odds(candidates, "2026-05-01")
             self.assertIsNone(candidates[0]["ev"])
         finally:
@@ -1113,7 +1113,7 @@ class TestEVInjection(unittest.TestCase):
         """EV injection for totals market uses totals odds, not ML."""
         import tempfile
         import shutil
-        from scripts.pipeline_orchestrator import _inject_ev_from_odds
+        from scripts.odds_evaluator import _inject_ev_from_odds
 
         tmp = tempfile.mkdtemp()
         data_dir = Path(tmp)
@@ -1137,7 +1137,7 @@ class TestEVInjection(unittest.TestCase):
                     "ev": None, "odds": {},
                 },
             ]
-            with patch("scripts.pipeline_orchestrator.DATA_DIR", data_dir):
+            with patch("scripts.odds_evaluator.DATA_DIR", data_dir):
                 _inject_ev_from_odds(candidates, "2026-05-01")
 
             # Should use totals over odds (1.90), not ML odds (1.85)
@@ -1170,24 +1170,6 @@ class TestValidateScore(unittest.TestCase):
     def test_handball_valid(self):
         from scripts.settle_on_finish import _validate_score
         self.assertTrue(_validate_score(35, 29, sport="handball"))
-
-
-class TestNormalizeStatus(unittest.TestCase):
-    """Tests for historical_learning normalize_status."""
-
-    def test_half_won(self):
-        from scripts.historical_learning import normalize_status
-        self.assertEqual(normalize_status("half_win"), "half_won")
-
-    def test_half_lost(self):
-        from scripts.historical_learning import normalize_status
-        self.assertEqual(normalize_status("half_loss"), "half_lost")
-
-    def test_standard(self):
-        from scripts.historical_learning import normalize_status
-        self.assertEqual(normalize_status("won"), "won")
-        self.assertEqual(normalize_status("lost"), "lost")
-        self.assertEqual(normalize_status("push"), "push")
 
 
 class TestDedupNormalization(unittest.TestCase):

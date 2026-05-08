@@ -27,44 +27,10 @@ CONFIG_PATH = ROOT_DIR / "config" / "betting_config.json"
 _NOW = lambda: datetime.now(timezone.utc).isoformat()
 
 # ---------------------------------------------------------------------------
-# Polish market descriptions
+# Polish market descriptions (from canonical source)
 # ---------------------------------------------------------------------------
 
-MARKET_PL = {
-    "Corners Total O/U": "Rzuty rożne łącznie",
-    "Fouls Total O/U": "Faule łącznie",
-    "Cards Total O/U": "Kartki łącznie",
-    "Shots Total O/U": "Strzały łącznie",
-    "Goals Total O/U": "Bramki łącznie",
-    "Total Games O/U": "Gemy łącznie",
-    "Total Sets O/U": "Sety łącznie",
-    "Total Points O/U": "Punkty łącznie",
-    "Total Frames O/U": "Frejmy łącznie",
-    "Total Runs O/U": "Rundy łącznie",
-    "Total Maps O/U": "Mapy łącznie",
-    "Total 180s O/U": "180-tki łącznie",
-    "Total Legs O/U": "Legi łącznie",
-    "Total Goals O/U": "Bramki łącznie",
-    "Total Rebounds O/U": "Zbiórki łącznie",
-    "Total Aces O/U": "Asy łącznie",
-    "Team A Corners O/U": "Rzuty rożne drużyny",
-    "Team B Corners O/U": "Rzuty rożne drużyny",
-    "Team A Fouls O/U": "Faule drużyny",
-    "Team B Fouls O/U": "Faule drużyny",
-    "Match Winner": "Zwycięzca meczu",
-    "1X2": "1X2",
-    "Double Chance": "Podwójna szansa",
-    "Draw No Bet": "Remis bez zakładu",
-    "BTTS": "Obie strzelą",
-    "Handicap": "Handicap",
-    "Set Handicap": "Handicap setowy",
-    "Game Handicap": "Handicap gemowy",
-}
-
-DIRECTION_PL = {
-    "OVER": "powyżej",
-    "UNDER": "poniżej",
-}
+from bet.stats.market_ranking import MARKET_PL, DIRECTION_PL
 
 
 def _bm(pick: dict) -> dict:

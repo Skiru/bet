@@ -21,17 +21,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-try:
-    from scripts.normalize_stats import build_safety_input
-    from scripts.compute_safety_scores import rank_markets
-except ImportError:
-    from normalize_stats import build_safety_input
-    from compute_safety_scores import rank_markets
+from normalize_stats import build_safety_input
+from compute_safety_scores import rank_markets
 
-try:
-    from db_data_loader import load_fixtures_from_db, load_odds_from_db
-except ImportError:
-    from scripts.db_data_loader import load_fixtures_from_db, load_odds_from_db
+from db_data_loader import load_fixtures_from_db, load_odds_from_db
 
 DATA_DIR = Path(__file__).parent.parent / "betting" / "data"
 
@@ -81,10 +74,7 @@ def load_odds_snapshot(date: str | None = None) -> dict:
     return odds_lookup
 
 
-try:
-    from utils import normalize_team_name as _normalize_team
-except ImportError:
-    from scripts.utils import normalize_team_name as _normalize_team
+from utils import normalize_team_name as _normalize_team
 
 
 def _fuzzy_odds_lookup(home: str, away: str, odds_lookup: dict) -> dict:

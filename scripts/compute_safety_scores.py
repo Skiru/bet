@@ -17,13 +17,12 @@ import statistics
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent))
+
 try:
     from probability_engine import optimize_line
 except ImportError:
-    try:
-        from scripts.probability_engine import optimize_line
-    except ImportError:
-        optimize_line = None
+    optimize_line = None
 
 # Minimum markets required per sport
 MIN_MARKETS = {

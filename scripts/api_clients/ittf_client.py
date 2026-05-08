@@ -18,13 +18,7 @@ from pathlib import Path
 
 from .base_client import BaseAPIClient, APINotFoundError, APIRateLimitError, APIError, CACHE_DIR
 from .rate_limiter import RateLimiter
-
-try:
-    from scripts.normalize_stats import NormalizedFixture, NormalizedMatchStats
-except ImportError:
-    import sys
-    sys.path.insert(0, str(Path(__file__).parent.parent))
-    from normalize_stats import NormalizedFixture, NormalizedMatchStats
+from normalize_stats import NormalizedFixture, NormalizedMatchStats
 
 
 class ITTFClient(BaseAPIClient):

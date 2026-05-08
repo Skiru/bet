@@ -19,15 +19,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-try:
-    from scripts.check_48h_repeats import load_recent_losses, normalize_team, normalize_market, find_repeats
-except ImportError:
-    from check_48h_repeats import load_recent_losses, normalize_team, normalize_market, find_repeats
-
-try:
-    from utils import normalize_kickoff
-except ImportError:
-    from scripts.utils import normalize_kickoff
+from check_48h_repeats import load_recent_losses, normalize_team, normalize_market, find_repeats
+from utils import normalize_kickoff
 
 DATA_DIR = Path(__file__).parent.parent / "betting" / "data"
 JOURNAL_DIR = Path(__file__).parent.parent / "betting" / "journal"

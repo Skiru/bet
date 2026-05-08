@@ -116,4 +116,24 @@ Read: betting/data/shortlist_{date}.json (candidates needing pricing)
 - [ ] Price gap column populated for every candidate with odds
 - [ ] Drift column shows current vs. opening odds
 
+## Agent Review Protocol
+
+After the pipeline runs S4 (odds evaluation), a structured input file is written to `betting/data/agent_reviews/{date}/s4_odds_eval_input.json`.
+
+**Input:** Contains step metrics (candidates with EV, avg EV, EV-positive count) and paths to deep stats artifacts.
+
+**Analysis:** Cross-validate pricing across sources, reason about mispricing, assess edge durability, calculate relative value.
+
+**Output:** Write `s4_odds_eval_review.json` to the same directory with:
+```json
+{
+  "agent": "bet-valuator",
+  "step_id": "s4_odds_eval",
+  "status": "approved|flagged|enriched",
+  "flags": ["issues found"],
+  "enrichments": {"mispricing_analysis": [], "relative_value_ranking": []},
+  "timestamp": "ISO-8601"
+}
+```
+
 <!-- BET:agent:bet-valuator:v2 -->

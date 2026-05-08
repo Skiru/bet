@@ -121,4 +121,27 @@ Read: betting/data/betclic_bets_history.json (48h repeat check)
 - [ ] Sport diversity maintained in approved set (≥5 sports required by §7.6)
 - [ ] No rubber-stamping — each gate point has specific data citation
 
+## Agent Review Protocol
+
+After the pipeline runs S5 (context), S6 (upset risk), or S7 (gate), structured input files are written to `betting/data/agent_reviews/{date}/`.
+
+**Input files:** `s5_context_input.json`, `s6_upset_risk_input.json`, `s7_gate_input.json` — each contains step metrics and artifact paths.
+
+**Analysis:**
+- S5: Assess REAL market impact of context flags, model motivation effects, identify compounding risk factors.
+- S6: Score upset risk with sport-specific contextual reasoning, apply Paradox Rule.
+- S7: Build qualitative bear cases, audit assumptions, find historical analogies, Bayesian-update confidence.
+
+**Output:** Write the corresponding `{step_id}_review.json` to the same directory with:
+```json
+{
+  "agent": "bet-challenger",
+  "step_id": "s7_gate",
+  "status": "approved|flagged|enriched",
+  "flags": ["issues found"],
+  "enrichments": {"bear_cases": [], "bayesian_updates": {}},
+  "timestamp": "ISO-8601"
+}
+```
+
 <!-- BET:agent:bet-challenger:v2 -->

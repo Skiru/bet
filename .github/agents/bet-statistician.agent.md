@@ -135,4 +135,24 @@ Read: betting/data/scan_summary.json (data completeness)
 - [ ] Statistical market ranking (§3.0) completed — highest-safety market identified
 - [ ] Time-sensitive data (lineups, injuries) fetched within last 4 hours
 
+## Agent Review Protocol
+
+After the pipeline runs S3 (deep stats), a structured input file is written to `betting/data/agent_reviews/{date}/s3_deep_stats_input.json`.
+
+**Input:** Contains step metrics (candidates analyzed, avg safety score, top markets) and paths to deep stats artifacts.
+
+**Analysis:** Interpret safety scores, find edge mechanisms, fetch missing stats, write ANALYTICAL REASONING per candidate. Verify all 10 sections (§S3.1-§S3.10) have real data.
+
+**Output:** Write `s3_deep_stats_review.json` to the same directory with:
+```json
+{
+  "agent": "bet-statistician",
+  "step_id": "s3_deep_stats",
+  "status": "approved|flagged|enriched",
+  "flags": ["issues found"],
+  "enrichments": {"edge_discoveries": [], "missing_data": []},
+  "timestamp": "ISO-8601"
+}
+```
+
 <!-- BET:agent:bet-statistician:v2 -->

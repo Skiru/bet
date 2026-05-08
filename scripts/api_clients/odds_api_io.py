@@ -23,13 +23,7 @@ import requests
 
 from .base_client import BaseAPIClient, CACHE_DIR
 from .rate_limiter import RateLimiter
-
-# Import normalize_stats from scripts/
-try:
-    from scripts.normalize_stats import NormalizedFixture, NormalizedMatchStats
-except ImportError:
-    sys.path.insert(0, str(Path(__file__).parent.parent))
-    from normalize_stats import NormalizedFixture, NormalizedMatchStats
+from normalize_stats import NormalizedFixture, NormalizedMatchStats
 
 
 ODDS_API_IO_BASE = "https://api.odds-api.io/v3"

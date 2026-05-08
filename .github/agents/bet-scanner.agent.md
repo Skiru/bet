@@ -770,5 +770,27 @@ After scan completes, verify:
 - [ ] Odds available for ≥30% of shortlisted candidates
 - If ANY check fails → expand sources before proceeding to enrichment
 
+## Agent Review Protocol
+
+After the pipeline runs S1 (scan) or S1e (shortlist), structured input files are written to `betting/data/agent_reviews/{date}/`.
+
+**Input:** Read `s1_scan_input.json` or `s1e_shortlist_input.json` — contains step metrics, artifact paths, and expected analysis task.
+
+**Analysis:** Perform the task described in the input file (verify sport coverage, validate shortlist diversity, flag missing leagues). Use the artifact files listed for full data.
+
+**Output:** Write `s1_scan_review.json` or `s1e_shortlist_review.json` to the same directory with:
+```json
+{
+  "agent": "bet-scanner",
+  "step_id": "s1e_shortlist",
+  "status": "approved|flagged|enriched",
+  "flags": ["list of issues found"],
+  "enrichments": {"additional data for downstream steps"},
+  "timestamp": "ISO-8601"
+}
+```
+
+The orchestrator reads this review before starting the next step and merges enrichments into pipeline state.
+
 <!-- BET:agent:bet-scanner:v4 -->
 

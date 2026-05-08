@@ -39,22 +39,17 @@ CACHE_DIR = DATA_DIR / "stats_cache"
 sys.path.insert(0, str(Path(__file__).parent))
 
 try:
-    from normalize_stats import build_safety_input, build_safety_input_from_cache, SPORT_MARKETS
+    from normalize_stats import build_safety_input, build_safety_input_from_cache
+    from bet.stats.market_ranking import SPORT_MARKETS
     from compute_safety_scores import rank_markets
 except ImportError:
     build_safety_input = None
     build_safety_input_from_cache = None
     rank_markets = None
 
-try:
-    from utils import normalize_team_name as _normalize
-except ImportError:
-    from scripts.utils import normalize_team_name as _normalize
+from utils import normalize_team_name as _normalize
 
-try:
-    from db_data_loader import load_fixtures_from_db, load_odds_from_db, load_scan_summary_from_db
-except ImportError:
-    from scripts.db_data_loader import load_fixtures_from_db, load_odds_from_db, load_scan_summary_from_db
+from db_data_loader import load_fixtures_from_db, load_odds_from_db, load_scan_summary_from_db
 
 
 # ---------------------------------------------------------------------------
@@ -100,10 +95,7 @@ def _sport_from_odds_key(sport_key: str) -> str:
 # Kickoff normalization
 # ---------------------------------------------------------------------------
 
-try:
-    from utils import normalize_kickoff as _normalize_kickoff
-except ImportError:
-    from scripts.utils import normalize_kickoff as _normalize_kickoff
+from utils import normalize_kickoff as _normalize_kickoff
 
 
 # ---------------------------------------------------------------------------
@@ -1236,77 +1228,7 @@ def write_matrix_json(matrix: dict, date: str) -> Path:
 # Compact decision matrix for coupon building
 # ---------------------------------------------------------------------------
 
-# ---------------------------------------------------------------------------
-# Standard market lines per sport (for STATS_FIRST mode)
-# Used to suggest bettable markets when no odds are available
-# ---------------------------------------------------------------------------
-
-STANDARD_MARKET_LINES: dict[str, list[dict]] = {
-    "football": [
-        {"market": "Corners Total", "lines": [8.5, 9.5, 10.5, 11.5], "stat": "corners", "is_combined": True},
-        {"market": "Team Corners", "lines": [3.5, 4.5, 5.5], "stat": "corners", "is_combined": False},
-        {"market": "Cards Total", "lines": [3.5, 4.5, 5.5], "stat": "yellow_cards", "is_combined": True},
-        {"market": "Fouls Total", "lines": [20.5, 22.5, 24.5], "stat": "fouls", "is_combined": True},
-        {"market": "Shots on Target", "lines": [4.5, 5.5, 6.5, 7.5], "stat": "shots_on_target", "is_combined": True},
-        {"market": "Goals Total", "lines": [1.5, 2.5, 3.5], "stat": "goals", "is_combined": True},
-    ],
-    "basketball": [
-        {"market": "Total Points", "lines": [195.5, 205.5, 215.5, 225.5], "stat": "points", "is_combined": True},
-        {"market": "Team Points", "lines": [95.5, 100.5, 105.5, 110.5], "stat": "points", "is_combined": False},
-        {"market": "Total Rebounds", "lines": [40.5, 42.5, 44.5], "stat": "rebounds", "is_combined": True},
-        {"market": "Total Assists", "lines": [22.5, 24.5, 26.5], "stat": "assists", "is_combined": True},
-    ],
-    "tennis": [
-        {"market": "Total Games", "lines": [19.5, 21.5, 22.5, 23.5], "stat": "total_games", "is_combined": True},
-        {"market": "Total Aces", "lines": [8.5, 10.5, 12.5], "stat": "aces", "is_combined": True},
-        {"market": "Total Sets", "lines": [2.5], "stat": "sets_won", "is_combined": True},
-    ],
-    "volleyball": [
-        {"market": "Total Sets", "lines": [3.5, 4.5], "stat": "sets_won", "is_combined": True},
-        {"market": "Total Points", "lines": [150.5, 160.5, 170.5, 180.5], "stat": "total_points", "is_combined": True},
-    ],
-    "hockey": [
-        {"market": "Total Goals", "lines": [4.5, 5.5, 6.5], "stat": "goals", "is_combined": True},
-        {"market": "Total Shots", "lines": [55.5, 60.5, 65.5], "stat": "shots", "is_combined": True},
-    ],
-    "handball": [
-        {"market": "Total Goals", "lines": [48.5, 50.5, 52.5, 54.5], "stat": "goals", "is_combined": True},
-        {"market": "Team Goals", "lines": [24.5, 26.5, 28.5], "stat": "goals", "is_combined": False},
-    ],
-    "snooker": [
-        {"market": "Total Frames", "lines": [8.5, 9.5, 10.5, 12.5], "stat": "total_frames", "is_combined": True},
-    ],
-    "darts": [
-        {"market": "Total 180s", "lines": [5.5, 7.5, 9.5], "stat": "one_eighties", "is_combined": True},
-        {"market": "Total Legs", "lines": [6.5, 8.5, 10.5], "stat": "total_legs", "is_combined": True},
-    ],
-    "table_tennis": [
-        {"market": "Total Sets", "lines": [3.5, 4.5], "stat": "total_sets", "is_combined": True},
-        {"market": "Total Points", "lines": [75.5, 80.5, 85.5], "stat": "total_points", "is_combined": True},
-    ],
-    "baseball": [
-        {"market": "Total Runs", "lines": [6.5, 7.5, 8.5, 9.5], "stat": "total_runs", "is_combined": True},
-        {"market": "Total Hits", "lines": [14.5, 16.5, 18.5], "stat": "hits", "is_combined": True},
-        {"market": "Total Strikeouts", "lines": [12.5, 14.5, 16.5], "stat": "strikeouts", "is_combined": True},
-    ],
-    "esports": [
-        {"market": "Total Maps", "lines": [2.5, 3.5], "stat": "total_maps", "is_combined": True},
-        {"market": "Total Rounds", "lines": [24.5, 26.5], "stat": "total_rounds", "is_combined": True},
-    ],
-    "mma": [
-        {"market": "Total Rounds", "lines": [1.5, 2.5], "stat": "rounds", "is_combined": True},
-    ],
-    "padel": [
-        {"market": "Total Games", "lines": [20.5, 22.5, 24.5], "stat": "total_games", "is_combined": True},
-        {"market": "Total Sets", "lines": [2.5], "stat": "sets_won", "is_combined": True},
-    ],
-    "speedway": [
-        {"market": "Total Points", "lines": [80.5, 85.5, 90.5], "stat": "total_points", "is_combined": True},
-    ],
-    "australian_football": [
-        {"market": "Total Points", "lines": [150.5, 160.5, 170.5, 180.5], "stat": "total_points", "is_combined": True},
-    ],
-}
+from bet.stats.market_ranking import STANDARD_MARKET_LINES
 
 # Major competitions where Betclic is likely to offer statistical markets
 MAJOR_COMPETITIONS = {
