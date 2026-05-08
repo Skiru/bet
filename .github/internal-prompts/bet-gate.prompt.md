@@ -26,6 +26,9 @@ Load these skills before starting:
 - **Inputs**: `{date}_s6_context.md`, all S3-S6 data
 - **Script**: `python3 scripts/gate_checker.py` (mechanical gate — starting point)
 - **48h repeat check**: `python3 scripts/check_48h_repeats.py`
+- **ESPN player gamelogs** (basketball/hockey/baseball): Use to CHECK BEAR CASES. If bull case says "Team X scores 110+" but gamelogs show star player inconsistent (5/10 games under 20pts) → FRAGILE.
+- **Standings with streaks**: `standings` table has `streak` and `form` fields — use to verify momentum claims. "5-game win streak" must be verified in DB.
+- **Niche sport caches**: For darts/esports/table_tennis bear cases, verify against actual match data in cache (checkout% variance, map-side imbalance, set pattern breaks).
 
 ## Workflow
 

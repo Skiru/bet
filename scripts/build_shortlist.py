@@ -29,9 +29,9 @@ if str(SCRIPT_DIR) not in sys.path:
 from generate_market_matrix import STANDARD_MARKET_LINES, MAJOR_COMPETITIONS, _is_major_competition
 
 try:
-    from utils import normalize_team_name as _normalize_team
+    from utils import normalize_team_name as _normalize_team, normalize_kickoff
 except ImportError:
-    from scripts.utils import normalize_team_name as _normalize_team
+    from scripts.utils import normalize_team_name as _normalize_team, normalize_kickoff
 
 try:
     from db_data_loader import load_fixtures_from_db, load_odds_from_db
@@ -294,6 +294,18 @@ def _score_event(event: dict, tipster_events: set[str]) -> float:
     if comp_score >= 9:
         # Major tournament event — ensure it never gets dropped
         score += 15
+
+    # 10. Deep data richness boost — teams with ESPN gamelogs get better analysis
+    if sport in ("basketball", "hockey", "baseball"):
+        try:
+            from db_data_loader import load_player_gamelogs_for_team
+            home_team = event.get("home_team", "")
+            if home_team:
+                gamelogs = load_player_gamelogs_for_team(home_team, sport, n=1)
+                if gamelogs:
+                    score += 8  # Rich per-player data = higher analysis confidence
+        except Exception:
+            pass
 
     return score
 
@@ -711,7 +723,7 @@ def write_shortlist_json(selected: list[tuple[float, dict]], date: str) -> Path:
             "home_team": home,
             "away_team": away,
             "competition": event.get("competition", ""),
-            "kickoff": event.get("kickoff", ""),
+            "kickoff": normalize_kickoff(event.get("kickoff", ""), date),
             "data_tier": event.get("data_tier", ""),
             "n_odds_markets": len(event.get("odds_markets", [])),
             "n_safety_markets": len(event.get("safety_markets", [])),

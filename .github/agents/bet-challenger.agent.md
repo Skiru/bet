@@ -96,7 +96,25 @@ Read: betting/data/betclic_bets_history.json (48h repeat check)
 - If S3 data appears truncated → request statistician to re-run for affected candidates
 - If EV data missing for some picks → request valuator to fill gaps
 
-### 5. Gate Integrity Checks
+### 5. Data Richness for Adversarial Analysis
+
+**ESPN enrichment** is available for basketball/hockey/baseball in S3 output (`espn_enrichment` key). Use it for:
+- **Bear case precision**: gamelogs show individual player variance — "Star player scored <15pts in 3/10 games" weakens totals confidence
+- **Standings verification**: Don't trust "5-game winning streak" in narrative — check `standings.streak` field
+- **ATS/OU historical rate**: If OU record shows team goes Under 60% of games, bull case for "Over 215.5" is FRAGILE
+- **Player consistency check**: `load_player_gamelogs_for_team(name, sport)` → verify top scorer is actually consistent, not averaging off a few blowouts
+
+**Niche sport caches** for darts/esports/table_tennis:
+- Darts: checkout% variance across matches → if player has 20-50% range, "Over 4.5 legs" is risky on low-checkout nights
+- Dota2: hero_damage and GPM variance → map-dependent performance weakens map_winner confidence
+- Table Tennis: set patterns, comeback frequency → tight set histories suggest "Over 3.5 sets" is stronger than "match winner"
+
+**Loader functions** (in `db_data_loader.py`):
+- `load_espn_enrichment_for_team(name, sport)` — ATS/OU records, standings, power index
+- `load_player_gamelogs_for_team(name, sport, n=10)` — per-player game-by-game stats
+- `load_sport_specific_cache(sport, name)` — niche sport match data
+
+### 6. Gate Integrity Checks
 - [ ] All 17 gate points evaluated for EVERY candidate (no shortcuts)
 - [ ] Bear case written for EVERY candidate (even those that pass)
 - [ ] Zero Tolerance Shield (20 entries) scanned completely

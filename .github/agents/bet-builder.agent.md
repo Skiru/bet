@@ -110,7 +110,25 @@ Read: config/betting_config.json (current bankroll, daily cap)
 - If validation script finds errors → fix and re-run (do not submit failing coupons)
 - If bankroll state unclear → read both config AND last settled ledger entry to reconcile
 
-### 5. Pre-Submission Checklist
+### 5. Data-Informed Portfolio Decisions
+
+**Player gamelogs** inform coupon confidence scoring:
+- Basketball/Hockey totals picks: verify via `load_player_gamelogs_for_team()` that top contributors are consistent game-to-game. High variance → reduce stake on that leg.
+- Baseball run totals: check pitcher strikeout/ERA gamelogs for consistency before assigning to LR coupon.
+
+**ATS/OU records** inform coupon-type assignment:
+- Teams with >65% Over rate → strong candidates for LR coupon (high conviction)
+- Teams with <45% cover rate vs spread → avoid ATS markets or assign to HR coupon
+
+**Standings and streaks** for correlation detection:
+- Two teams on 5+ win streaks in same coupon? Hidden correlation (both in peak form → market recency bias)
+- Teams at bottom of standings in final month → motivation factor for portfolio intelligence
+
+**Niche sport data quality** for leg reliability:
+- Darts picks with 15+ match cache → HIGH DATA → can anchor LR coupon
+- Esports picks with limited H2H → MODERATE DATA → better in HR diversified coupon
+
+### 6. Pre-Submission Checklist
 - [ ] All coupon arithmetic verified (combined odds × stake = potential return)
 - [ ] No duplicate events across core portfolio coupons
 - [ ] Placement order reflects confidence (highest confidence first)

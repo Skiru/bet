@@ -31,9 +31,18 @@ from build_stats_cache import (
 
 DATA_DIR = Path(__file__).parent.parent / "betting" / "data"
 
-# --- DB support (optional — falls back gracefully) ---
+# --- ESPN Stats client (player gamelogs, splits, leaders) ---
 try:
     sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+    from bet.api_clients.espn_stats import ESPNStatsClient
+    _HAS_ESPN_STATS = True
+except ImportError:
+    _HAS_ESPN_STATS = False
+
+# --- DB support (optional — falls back gracefully) ---
+try:
+    if "src" not in sys.path[0]:
+        sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
     from bet.db.connection import get_db
     from bet.db.repositories import SportRepo, TeamRepo, StatsRepo, FixtureRepo
     from bet.db.models import TeamForm
@@ -48,7 +57,7 @@ FALLBACK_CHAINS = {
     "basketball": ["espn-basketball", "api-basketball", "balldontlie", "thesportsdb", "serpapi"],
     "hockey": ["espn-hockey", "api-hockey", "thesportsdb", "serpapi"],
     "tennis": ["espn-tennis", "api-tennis", "thesportsdb", "serpapi"],
-    "volleyball": ["api-volleyball", "thesportsdb", "serpapi"],
+    "volleyball": ["espn-volleyball", "api-volleyball", "thesportsdb", "serpapi"],
     "handball": ["api-handball", "thesportsdb", "serpapi"],
     "baseball": ["espn-baseball", "api-baseball", "thesportsdb", "serpapi"],
     "mma": ["espn-mma", "thesportsdb", "serpapi"],
@@ -62,6 +71,96 @@ FALLBACK_CHAINS = {
 
 # Tier 1 sports get enriched first
 TIER_1_SPORTS = {"football", "volleyball", "basketball", "tennis"}
+
+
+def fetch_league_leaders_for_sport(sport: str, league: str) -> dict | None:
+    """Fetch and cache league statistical leaders for context.
+
+    Called once per league per pipeline run.
+    Stores in: betting/data/stats_cache/espn/{sport}/{league}/leaders.json
+
+    Returns dict of leader categories or None on failure.
+    """
+    if not _HAS_ESPN_STATS:
+        return None
+
+    cache_path = DATA_DIR / "stats_cache" / "espn" / sport / league / "leaders.json"
+
+    # Check if already fetched today (6-hour TTL)
+    if cache_path.exists():
+        import time as _time
+        age_hours = (_time.time() - cache_path.stat().st_mtime) / 3600
+        if age_hours < 6:
+            return json.loads(cache_path.read_text())
+
+    client = ESPNStatsClient()
+    try:
+        leaders = client.get_league_leaders(sport, league)
+        if leaders:
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
+            cache_path.write_text(json.dumps(leaders, ensure_ascii=False, indent=2))
+            print(f"[leaders] Fetched {len(leaders)} leader entries for {sport}/{league}")
+            return leaders
+    except Exception as e:
+        print(f"[leaders] Error fetching leaders for {sport}/{league}: {e}")
+
+    return None
+
+
+def fetch_player_gamelogs(sport: str, league: str, team_id: str, team_name: str) -> list[dict]:
+    """Fetch gamelogs for top players on a team (NBA/MLB/NHL only).
+
+    Gets team leaders first, then fetches gamelogs for top 3 scorers.
+    Stores in: betting/data/stats_cache/espn/{sport}/players/{athlete_id}/gamelog.json
+
+    Only for sports where gamelogs are available (basketball, baseball, hockey).
+    """
+    if not _HAS_ESPN_STATS:
+        return []
+
+    if sport not in ("basketball", "baseball", "hockey"):
+        return []
+
+    client = ESPNStatsClient()
+
+    # Get team leaders to identify top players
+    try:
+        team_leaders = client.get_team_leaders(sport, league, team_id)
+    except Exception as e:
+        print(f"[gamelogs] Error getting team leaders for {team_name}: {e}")
+        return []
+
+    if not team_leaders:
+        return []
+
+    # Extract top 3 athlete IDs from leaders
+    athlete_ids = []
+    for category in team_leaders:
+        if isinstance(category, dict):
+            leaders = category.get("leaders", [])
+            for leader in leaders[:3]:
+                aid = leader.get("athlete", {}).get("id", "")
+                if aid and aid not in athlete_ids:
+                    athlete_ids.append(aid)
+        if len(athlete_ids) >= 3:
+            break
+
+    # Fetch gamelogs for each top player
+    results = []
+    for athlete_id in athlete_ids[:3]:
+        try:
+            gamelog = client.get_player_gamelog(sport, league, athlete_id)
+            if gamelog:
+                # Cache the gamelog
+                cache_dir = DATA_DIR / "stats_cache" / "espn" / sport / "players" / str(athlete_id)
+                cache_dir.mkdir(parents=True, exist_ok=True)
+                (cache_dir / "gamelog.json").write_text(json.dumps(gamelog, ensure_ascii=False, indent=2))
+                results.append({"athlete_id": athlete_id, "games": len(gamelog)})
+                print(f"[gamelogs] Fetched {len(gamelog)} games for athlete {athlete_id}")
+        except Exception as e:
+            print(f"[gamelogs] Error fetching gamelog for athlete {athlete_id}: {e}")
+
+    return results
 
 
 def fetch_team_stats(
@@ -610,6 +709,27 @@ def fetch_stats_for_date(
             results.append(r)
             with counts_lock:
                 counts[r.get("status", "skipped")] = counts.get(r.get("status", "skipped"), 0) + 1
+
+    # --- Phase 3: Player gamelogs & league leaders (ESPN supplementary) ---
+    if _HAS_ESPN_STATS:
+        try:
+            from bet.api_clients.espn import get_espn_league_for_competition
+
+            # Collect unique sport/league pairs
+            leagues_seen: set[tuple[str, str]] = set()
+            for fixture in fixtures:
+                sport = fixture.get("sport", "").lower()
+                competition = fixture.get("competition", "")
+                if sport and competition:
+                    leagues_seen.add((sport, competition))
+
+            # Fetch league leaders (once per league)
+            for sport, comp in leagues_seen:
+                espn_league = get_espn_league_for_competition(comp)
+                if espn_league:
+                    fetch_league_leaders_for_sport(sport, espn_league)
+        except Exception as e:
+            print(f"[Phase 3] League leaders/gamelogs error (non-fatal): {e}")
 
     # Build summary
     summary = {

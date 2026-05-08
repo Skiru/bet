@@ -29,6 +29,11 @@ except ImportError:
     from normalize_stats import build_safety_input, build_safety_input_from_cache, SPORT_STAT_KEYS
     from compute_safety_scores import rank_markets
 
+try:
+    from utils import normalize_kickoff
+except ImportError:
+    from scripts.utils import normalize_kickoff
+
 DATA_DIR = Path(__file__).parent.parent / "betting" / "data"
 CACHE_DIR = Path(__file__).parent.parent / "betting" / "data" / "stats_cache"
 
@@ -150,6 +155,33 @@ def extract_team_stats(sport: str, team_name: str) -> dict:
     # JSON cache fallback
     cache_file = CACHE_DIR / sport / f"{slug}.json"
     if not cache_file.exists():
+        # ESPN enrichment for basketball/hockey/baseball — ALWAYS try
+        if sport in ("basketball", "hockey", "baseball"):
+            try:
+                from db_data_loader import load_espn_enrichment_for_team
+                espn_data = load_espn_enrichment_for_team(team_name, sport)
+                if espn_data:
+                    result["espn_enrichment"] = espn_data
+                    result["has_data"] = True
+                    if "espn_db" not in result["sources"]:
+                        result["sources"].append("espn_db")
+            except Exception:
+                pass
+
+        # Niche sport cache (darts, esports, table_tennis)
+        if sport in ("esports", "darts", "table_tennis") and not result["has_data"]:
+            try:
+                from db_data_loader import load_sport_specific_cache
+                niche_data = load_sport_specific_cache(sport, team_name)
+                if niche_data:
+                    result["l10_avg"] = niche_data.get("l10_avg", {})
+                    result["l5_avg"] = niche_data.get("l5_avg", {})
+                    result["l10_matches"] = niche_data.get("l10_matches", [])
+                    result["has_data"] = niche_data.get("has_data", False)
+                    result["sources"] = niche_data.get("sources", [])
+            except Exception:
+                pass
+
         return result
 
     try:
@@ -158,7 +190,6 @@ def extract_team_stats(sport: str, team_name: str) -> dict:
         return result
 
     result["raw_cache"] = cache
-    result["has_data"] = True
     result["sources"] = cache.get("sources", [])
 
     form = cache.get("form", {})
@@ -200,6 +231,37 @@ def extract_team_stats(sport: str, team_name: str) -> dict:
     # Extract L10 match-by-match data
     l10 = form.get("l10_matches", form.get("recent_matches", []))
     result["l10_matches"] = l10[:10] if l10 else []
+
+    # Only mark has_data if we actually extracted meaningful stats
+    if result["l10_avg"] or result["l5_avg"] or result["l10_matches"]:
+        result["has_data"] = True
+
+    # ESPN enrichment for basketball/hockey/baseball — ALWAYS load as supplement
+    if sport in ("basketball", "hockey", "baseball"):
+        try:
+            from db_data_loader import load_espn_enrichment_for_team
+            espn_data = load_espn_enrichment_for_team(team_name, sport)
+            if espn_data:
+                result["espn_enrichment"] = espn_data
+                result["has_data"] = True
+                if "espn_db" not in result["sources"]:
+                    result["sources"].append("espn_db")
+        except Exception:
+            pass
+
+    # Niche sport cache (darts, esports, table_tennis)
+    if sport in ("esports", "darts", "table_tennis") and not result["has_data"]:
+        try:
+            from db_data_loader import load_sport_specific_cache
+            niche_data = load_sport_specific_cache(sport, team_name)
+            if niche_data:
+                result["l10_avg"] = niche_data.get("l10_avg", {})
+                result["l5_avg"] = niche_data.get("l5_avg", {})
+                result["l10_matches"] = niche_data.get("l10_matches", [])
+                result["has_data"] = niche_data.get("has_data", False)
+                result["sources"] = niche_data.get("sources", [])
+        except Exception:
+            pass
 
     return result
 
@@ -783,6 +845,7 @@ def analyze_candidate(
             "l5_avg": stats_a["l5_avg"],
             "l10_matches_count": len(stats_a["l10_matches"]),
             "sources": stats_a["sources"],
+            "espn_enrichment": stats_a.get("espn_enrichment"),
         },
         "stats_b_summary": {
             "team": stats_b["team"],
@@ -791,6 +854,7 @@ def analyze_candidate(
             "l5_avg": stats_b["l5_avg"],
             "l10_matches_count": len(stats_b["l10_matches"]),
             "sources": stats_b["sources"],
+            "espn_enrichment": stats_b.get("espn_enrichment"),
         },
         "h2h_summary": {
             "has_data": h2h["has_data"],
@@ -843,6 +907,9 @@ def _load_candidates_from_pool(date: str) -> list[dict]:
             "away_team": e.get("away_team", ""),
             "competition": e.get("competition", ""),
             "kickoff": e.get("kickoff", ""),
+            "safety_markets": e.get("safety_markets"),
+            "n_odds_markets": e.get("n_odds_markets", 0),
+            "fixture_verified": e.get("fixture_verified", False),
         })
     return candidates
 
@@ -867,6 +934,8 @@ def _load_candidates_from_shortlist(path: str) -> list[dict]:
             "competition": e.get("competition", ""),
             "kickoff": e.get("kickoff", e.get("kickoff_cest", "")),
             "safety_markets": e.get("safety_markets", []),
+            "n_odds_markets": e.get("n_odds_markets", 0),
+            "fixture_verified": e.get("fixture_verified", False),
         })
     return candidates
 
@@ -893,6 +962,10 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
         candidates = _load_candidates_from_pool(date)
         source = f"analysis_pool_{date}.json"
 
+    # Normalize kickoff times: bare time strings like "19:00" → full ISO
+    for c in candidates:
+        c["kickoff"] = normalize_kickoff(c.get("kickoff", ""), date)
+
     if not candidates:
         print(f"[deep_stats] No candidates found from {source}")
         return {
@@ -906,6 +979,25 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
 
     if top and top > 0:
         candidates = candidates[:top]
+
+    # SMART FILTER: Only process candidates that have a realistic chance of
+    # producing safety scores. Processing 17K+ candidates where 97% return
+    # null is pure waste. Candidates qualify if they have:
+    # 1. Precomputed safety_markets from shortlist builder (best case), OR
+    # 2. Verified fixture with odds data (n_odds_markets > 0)
+    # Candidates without any precomputed data are skipped — they'll return
+    # null anyway since no cache/DB data exists for them.
+    total_before_filter = len(candidates)
+    candidates_with_potential = [
+        c for c in candidates
+        if c.get("safety_markets")
+        or c.get("n_odds_markets", 0) > 0
+        or c.get("fixture_verified")
+    ]
+    skipped = total_before_filter - len(candidates_with_potential)
+    if skipped > 0:
+        print(f"[deep_stats] Smart filter: {len(candidates_with_potential)} actionable / {total_before_filter} total (skipped {skipped} without data potential)")
+        candidates = candidates_with_potential
 
     # Filter out candidates missing team names upfront
     valid = [(i, c) for i, c in enumerate(candidates, 1)

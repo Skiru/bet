@@ -39,6 +39,11 @@ API_DAILY_LIMITS = {
     "espn-baseball": 10000,
     "espn-tennis": 10000,
     "espn-mma": 10000,
+    # Deep stats clients (free, generous limits)
+    "sofascore-darts": 500,   # No official limit, be respectful
+    "snooker-org": 1000,      # Free API, generous
+    "opendota": 1000,         # 60/min without key
+    "ittf": 300,              # Sofascore-backed, be conservative
 }
 
 USAGE_DIR = Path(__file__).parent.parent.parent / "betting" / "data" / ".api_usage"

@@ -866,17 +866,20 @@ def compute_concentration_warnings(
 
     Returns list of warnings with pick details and exposure calculations.
     If same pick is in >2 coupons, or exposure >25% of daily budget, flag it.
+    BLOCKING: If same event in >2 core coupons (not combos), the last ones are
+    downgraded to combo-only to prevent correlated catastrophic loss.
     """
-    # Map event_key → list of (coupon_id, stake)
-    pick_coupons: dict[str, list[tuple[str, float]]] = {}
+    # Map event_key → list of (coupon_id, stake, is_core)
+    pick_coupons: dict[str, list[tuple[str, float, bool]]] = {}
     pick_display: dict[str, str] = {}  # event_key → display name
 
     for coupon in all_coupons:
         cid = coupon.get("id", "?")
         stake = coupon.get("stake", 0)
+        is_core = "COMBO" not in cid.upper()
         for leg in coupon.get("legs", []):
             ek = _event_key(leg)
-            pick_coupons.setdefault(ek, []).append((cid, stake))
+            pick_coupons.setdefault(ek, []).append((cid, stake, is_core))
             if ek not in pick_display:
                 home = leg.get("home_team", "?")
                 away = leg.get("away_team", "?")
@@ -889,8 +892,9 @@ def compute_concentration_warnings(
         if len(appearances) <= 1:
             continue
 
-        total_exposure = sum(stake for _, stake in appearances)
-        coupon_ids = [cid for cid, _ in appearances]
+        total_exposure = sum(stake for _, stake, _ in appearances)
+        coupon_ids = [cid for cid, _, _ in appearances]
+        core_count = sum(1 for _, _, is_core in appearances if is_core)
         exposure_pct = total_exposure / daily_cap if daily_cap > 0 else 0
 
         warning = {
@@ -898,17 +902,24 @@ def compute_concentration_warnings(
             "event_key": ek,
             "coupon_ids": coupon_ids,
             "appearances": len(appearances),
+            "core_appearances": core_count,
             "total_exposure_pln": round(total_exposure, 2),
             "exposure_pct_of_daily": round(exposure_pct * 100, 1),
-            "flagged": len(appearances) > 2 or exposure_pct > max_exposure_pct,
+            "flagged": core_count > 1 or exposure_pct > max_exposure_pct,
         }
 
         if warning["flagged"]:
-            warning["recommendation"] = (
-                f"⚠️ KONCENTRACJA: {pick_display.get(ek, ek)} w {len(appearances)} kuponach "
-                f"({total_exposure:.2f} PLN = {exposure_pct:.0%} budżetu). "
-                f"Wybierz TYLKO JEDEN z: {', '.join(coupon_ids)}"
-            )
+            if core_count > 1:
+                warning["recommendation"] = (
+                    f"🚫 BLOKADA: {pick_display.get(ek, ek)} w {core_count} kuponach CORE! "
+                    f"Każde wydarzenie max 1× w core. Usuń z: {', '.join(cid for cid, _, ic in appearances if ic)}"
+                )
+            else:
+                warning["recommendation"] = (
+                    f"⚠️ KONCENTRACJA: {pick_display.get(ek, ek)} w {len(appearances)} kuponach "
+                    f"({total_exposure:.2f} PLN = {exposure_pct:.0%} budżetu). "
+                    f"Wybierz TYLKO JEDEN z: {', '.join(coupon_ids)}"
+                )
 
         warnings.append(warning)
 

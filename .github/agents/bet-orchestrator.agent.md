@@ -133,6 +133,17 @@ This decomposes into independently-timed steps:
 If a step times out, use `--resume` to continue from where it stopped.
 If scan times out, use `--skip-scan` to skip S1 and re-run analysis with existing data.
 
+### Data Richness Awareness
+
+The DB now contains **significantly richer data** than JSON artifacts alone. When delegating to `bet-statistician`, remind it about:
+- **ESPN Tables** (basketball/hockey/baseball): 11.5K+ player gamelogs, standings with form/streaks, ATS/OU betting records, power index. `deep_stats_report.py` auto-loads via `load_espn_enrichment_for_team()`.
+- **Niche Sport Caches** (darts/esports/table_tennis): Player form with per-match stats (checkout%, 180s, hero_damage, kills, set scores). Auto-loaded via `load_sport_specific_cache()`.
+- **Team Form** (43K+ entries): Pre-computed averages across all stat keys for all sports.
+- **Odds History** (97K+ rows): Multi-bookmaker price history with Betclic PL, Bet365, DraftKings.
+- **Agent loaders**: `load_espn_enrichment_for_team(name, sport)`, `load_player_gamelogs_for_team(name, sport)`, `load_sport_specific_cache(sport, name)` in `db_data_loader.py`.
+
+When reviewing S3 output, CHECK that ESPN enrichment data was used for basketball/hockey/baseball candidates. If `espn_enrichment` is empty for a team that should have data, flag it.
+
 ### Phase 2: Agent Analysis (S3-S8 — MANDATORY delegation)
 
 **This is where the real work happens.** For EACH step, sequentially:

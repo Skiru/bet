@@ -27,6 +27,14 @@ All pipeline data is stored in SQLite DB (`betting/data/betting.db`) as the prim
 - `gate_results` — S7 gate check output: approved/extended/rejected (replaces `{date}_s7_gate_results.json`)
 - `coupons` + `bets` — placed bets and coupon history (replaces `betclic_bets_history.json` reads)
 - `league_profiles` — Bayesian priors per competition
+- **`athletes`** (6,648) — player profiles: position, age, status (NBA 538, NHL 950, MLB 777, Football 4,160, WNBA 223)
+- **`player_gamelogs`** (25,943) — game-by-game individual stats: points, rebounds, assists, goals, saves, shots. Use for player prop verification and team totals consistency. (NBA 11,599 + NHL 11,039 + MLB 3,305)
+- **`player_splits`** (4,716) — home/away, wins/losses, day-of-week, rest-day splits per player (NBA 1,200 + NHL 1,330 + MLB 2,186)
+- **`standings`** (233) — enriched league standings: form, home/away records, streaks, goal diff (NBA 30 + NHL 32 + MLB 30 + Football 126 + WNBA 15)
+- **`team_ats_records`** — Against The Spread betting records per team: W-L-P overall and by venue
+- **`team_ou_records`** — Over/Under betting history: overs-unders-pushes by venue. CRITICAL for totals markets.
+- **`power_index`** — ESPN power rankings (relative team strength per sport)
+- **`espn_predictions`** — ESPN BPI win probability model per fixture
 
 **Gateway module:** `scripts/db_data_loader.py` — all DB read/write functions:
 - `load_fixtures_from_db()`, `load_odds_from_db()`, `load_team_form_from_db()`
@@ -34,6 +42,15 @@ All pipeline data is stored in SQLite DB (`betting/data/betting.db`) as the prim
 - `load_gate_results_from_db()`, `save_gate_results_to_db()`
 - `load_shortlist_from_db()`, `load_betclic_history_from_db()`
 - `build_safety_input()` — assembles safety score input from DB tables
+- **`load_espn_enrichment_for_team(name, sport)`** — ATS/OU records, standings, power index for basketball/hockey/baseball
+- **`load_player_gamelogs_for_team(name, sport, n=10)`** — per-player game-by-game stats for entire roster
+- **`load_sport_specific_cache(sport, name)`** — niche sport data: darts (checkout%, 180s, legs), Dota2 (kills, GPM, hero_damage), table tennis (set scores, form)
+
+**Niche sport file caches** (auto-loaded by `deep_stats_report.py`):
+- `stats_cache/esports/dota2/` — 200 teams, 93 match details, 11 H2H pairs (OpenDota API)
+- `stats_cache/darts/` — 182 match stats, 15 player forms with L10 (Sofascore)
+- `stats_cache/table_tennis/` — 273 match stats, 24 player forms (ITTF/Sofascore)
+- `stats_cache/espn_stats/basketball/nba/athletes/` — 782 individual player stat files
 
 **Dual-write policy:** Scripts write to BOTH DB and JSON on output. JSON = human-readable debug. DB = queryable primary store.
 
@@ -541,6 +558,30 @@ The ONLY valid reasons to remove a candidate BEFORE S3 analysis are:
 4. **ALREADY STARTED:** Event has already begun.
 
 These pre-S3 removals are logged in a `PRE-S3 REMOVALS` table with the exact reason and verification sources.
+
+### §3.0g ESPN PLAYER GAMELOGS — CONSISTENCY VERIFICATION (basketball/hockey/baseball)
+
+When ESPN enrichment is available (`espn_enrichment` in S3 output for 25.9K+ gamelogs across 3 sports), **USE IT** to verify statistical market consistency:
+
+**Basketball:**
+- Total points market → check top 3 scorers' game-by-game output. Variance > 8 pts/game → LOWER safety score for totals.
+- Team total Over → check if star player had any games with <50% of typical output (injury scare, foul trouble, blowout).
+- Per-player consistency metric: `std_dev / mean` — if >0.30 for key stat, team total is UNSTABLE.
+
+**Hockey:**
+- Goals market → check goalie save% by game. If starter has 2+ games with <0.880 save% → Under less reliable.
+- Period goals → check if team scoring is front-loaded (P1 heavy) or back-loaded (P3 heavy) using gamelog data.
+
+**Baseball:**
+- Run totals → check starting pitcher's ERA variation game-to-game. ERA swing >2.0 between games → totals FRAGILE.
+- Strikeout markets → pitcher K/game consistency from gamelogs. Low variance = high confidence.
+
+**How to use:**
+```python
+from db_data_loader import load_player_gamelogs_for_team
+gamelogs = load_player_gamelogs_for_team("Detroit Pistons", "basketball", n=10)
+# Returns list of dicts: [{player, game_date, stats: {pts, reb, ast, ...}}, ...]
+```
 
 **ALL remaining candidates after pre-S3 filtering MUST receive:**
 - Full §3.0e template (all 10 sections §S3.1-§S3.10)

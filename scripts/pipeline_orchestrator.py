@@ -149,11 +149,12 @@ PIPELINE_STEPS = [
     },
     {
         "id": "s1a_discover",
-        "name": "S1a: Discover Fixtures + API Stats",
-        "description": "API fixture discovery + stats enrichment (run independently of scan)",
+        "name": "S1a: Discover Fixtures + API Stats + Tennis Enrichment",
+        "description": "API fixture discovery + stats enrichment + deep tennis data (run independently of scan)",
         "commands": [
             "python3 scripts/discover_fixtures.py --date {date}",
             "python3 scripts/fetch_api_stats.py --date {date}",
+            "python3 scripts/enrich_tennis_stats.py --date {date} --all-indexed",
         ],
         "outputs": [],
         "critical": False,

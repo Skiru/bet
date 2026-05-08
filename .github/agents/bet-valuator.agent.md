@@ -46,7 +46,11 @@ You add a 5-part Market Intelligence Reasoning Layer via sequential-thinking: ma
 - `OddsRepo.get_odds_history(fixture_id, market)` — full price history for CLV tracking
 - `load_odds_from_db()` — loads all odds for a date (replaces `odds_api_snapshot.json` / `odds_multi_sources.json` reads)
 - `analysis_results` table — pre-computed EV, probability, safety scores from S3 (replaces `analysis_pool_{date}.json`)
-- Gateway: `from db_data_loader import load_odds_from_db, load_analysis_results_from_db`
+- **`team_ats_records`** — Against The Spread: if team is 30-15 ATS, bookmakers may still price them flat. Use for ML/spread value detection.
+- **`team_ou_records`** — Over/Under: if team is 35-20 on OVERS, totals lines may be underpriced. CRITICAL supplementary signal for totals EV.
+- **`espn_predictions`** — ESPN BPI win probability. Compare with implied odds → identify mispricings.
+- **`player_gamelogs`** — 11.5K+ game-by-game stats. Use for player prop verification: if a player averages 28 PPG in L10, check if bookmaker's line is set at 25.5.
+- Gateway: `from db_data_loader import load_odds_from_db, load_analysis_results_from_db, load_espn_enrichment_for_team, load_player_gamelogs_for_team`
 
 ## Tool Usage Guidelines
 

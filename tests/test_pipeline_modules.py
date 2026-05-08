@@ -216,7 +216,8 @@ class TestDeepStatsReport(unittest.TestCase):
         pool = {
             "events": [
                 {"sport": "football", "home_team": "Liverpool", "away_team": "Arsenal",
-                 "competition": "PL", "kickoff": "2026-05-01T15:00:00"},
+                 "competition": "PL", "kickoff": "2026-05-01T15:00:00",
+                 "fixture_verified": True},
             ]
         }
         (self.data_dir / "analysis_pool_2026-05-01.json").write_text(json.dumps(pool))

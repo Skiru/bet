@@ -168,6 +168,46 @@ def _compute_data_tier_cap(competition: str) -> float:
     return 1.0
 
 
+# ---------------------------------------------------------------------------
+# Pattern G: High-stakes context detection (CL SF, playoffs, finals)
+# ---------------------------------------------------------------------------
+
+# Keywords indicating knockout/playoff/final matches where regular L10
+# stats may be less applicable due to different tactical approaches
+HIGH_STAKES_KEYWORDS = (
+    "champions league", "europa league", "conference league",
+    "playoff", "play-off", "final", "semi-final", "semifinal",
+    "quarter-final", "quarterfinal", "knockout", "elimination",
+    "world cup", "copa america", "euro 202", "nations league final",
+    "nba playoff", "nhl playoff", "stanley cup",
+    "grand slam", "masters 1000",
+)
+
+
+def _detect_high_stakes_context(competition: str) -> dict | None:
+    """Detect if a competition represents a high-stakes context.
+
+    Returns a warning dict if L10 stats may be unreliable for this context,
+    or None if regular analysis applies.
+    """
+    comp_lower = competition.lower()
+    for kw in HIGH_STAKES_KEYWORDS:
+        if kw in comp_lower:
+            return {
+                "type": "HIGH_STAKES_CONTEXT",
+                "competition": competition,
+                "keyword_matched": kw,
+                "message": (
+                    f"⚠️ KONTEKST WYSOKIEJ STAWKI: '{competition}' to mecz eliminacyjny/pucharowy. "
+                    f"Statystyki L10 mogą pochodzić z meczów ligowych o NIŻSZEJ intensywności. "
+                    f"Zespoły grają inaczej w KO — defensywniej na wyjeździe, desperacko w domu. "
+                    f"Wymagany dodatkowy margines bezpieczeństwa (+15% na linii)."
+                ),
+                "safety_discount": 0.90,  # 10% discount on safety score
+            }
+    return None
+
+
 # Input JSON schema description (for --help)
 INPUT_SCHEMA = """
 Input JSON format:
@@ -503,12 +543,25 @@ def rank_markets(data: dict) -> dict:
                     r["line"] = opt["best_line"]
                     r["direction"] = opt["direction"].upper()
 
+    # --- Pattern F: Synthetic data cap (May 2026 post-mortem) ---
+    # db-synthetic source = fabricated L10 values from aggregates, NOT real per-match data.
+    # Safety MUST be capped at 0.50 — cannot trust synthetic distributions for probability.
+    SYNTHETIC_SAFETY_CAP = 0.50
+    for r in results:
+        if r.get("source") == "db-synthetic" and r["safety_score"] > SYNTHETIC_SAFETY_CAP:
+            r.setdefault("original_safety", r["safety_score"])
+            r["safety_score"] = SYNTHETIC_SAFETY_CAP
+            r["synthetic_capped"] = True
+            r["synthetic_cap_reason"] = (
+                f"db-synthetic source: safety capped {r['original_safety']:.2f} → {SYNTHETIC_SAFETY_CAP}"
+            )
+
     # --- Pattern C: Sport-specific volatility caps ---
     # Baseball, hockey, etc. have high single-game variance that inflates safety
     for r in results:
         cap = SPORT_VOLATILITY_CAPS.get(sport, {}).get(_market_category(r["name"]))
         if cap is not None and r["safety_score"] > cap:
-            r["original_safety"] = r["safety_score"]
+            r.setdefault("original_safety", r["safety_score"])
             r["safety_score"] = cap
             r["volatility_capped"] = True
 
@@ -585,6 +638,17 @@ def rank_markets(data: dict) -> dict:
             f"minimum {min_required} required for {sport}"
         )
 
+    # --- Pattern H: High-stakes context warning ---
+    high_stakes = _detect_high_stakes_context(competition)
+    if high_stakes:
+        warnings.append(high_stakes["message"])
+        # Apply safety discount to ALL markets for this fixture
+        discount = high_stakes["safety_discount"]
+        for r in results:
+            r.setdefault("original_safety", r["safety_score"])
+            r["safety_score"] = round(r["safety_score"] * discount, 2)
+            r["high_stakes_discounted"] = True
+
     return {
         "candidate": f"{team_a} vs {team_b}",
         "sport": sport,
@@ -600,6 +664,7 @@ def rank_markets(data: dict) -> dict:
         ),
         "recommended_safety": best["safety_score"] if best else None,
         "warnings": warnings,
+        "high_stakes_context": high_stakes,
         "markdown_ranking_table": generate_ranking_markdown(results),
         "markdown_three_way_table": generate_three_way_markdown(three_way) if three_way else "",
     }

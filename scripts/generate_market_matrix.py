@@ -97,6 +97,16 @@ def _sport_from_odds_key(sport_key: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Kickoff normalization
+# ---------------------------------------------------------------------------
+
+try:
+    from utils import normalize_kickoff as _normalize_kickoff
+except ImportError:
+    from scripts.utils import normalize_kickoff as _normalize_kickoff
+
+
+# ---------------------------------------------------------------------------
 # Data loaders
 # ---------------------------------------------------------------------------
 
@@ -137,6 +147,36 @@ def load_odds_api_snapshot(date: str | None = None) -> dict:
         away = _normalize(ev.get("away_team", ""))
         if home and away:
             lookup[f"{home}|{away}"] = ev
+    return lookup
+
+
+def load_espn_odds_snapshot(date: str) -> dict:
+    """Load ESPN odds snapshot (free, no credit cost) as primary odds source.
+
+    Returns lookup by normalized key, same format as load_odds_api_snapshot.
+    """
+    # Try date-specific file first, then current
+    espn_file = DATA_DIR / f"espn_odds_snapshot_{date}.json"
+    if not espn_file.exists():
+        espn_file = DATA_DIR / "espn_odds_snapshot.json"
+    if not espn_file.exists():
+        return {}
+
+    try:
+        data = json.loads(espn_file.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+    items = data.get("events", []) if isinstance(data, dict) else []
+    lookup = {}
+    for ev in items:
+        home = _normalize(ev.get("home_team", ""))
+        away = _normalize(ev.get("away_team", ""))
+        if home and away:
+            lookup[f"{home}|{away}"] = ev
+
+    if lookup:
+        print(f"[market_matrix] ESPN odds: loaded {len(lookup)} events from {espn_file.name}")
     return lookup
 
 
@@ -591,7 +631,12 @@ def generate_market_matrix(
     print(f"[matrix] Loading data for {date}...")
 
     fixtures = load_fixtures(date)
-    odds_lookup = load_odds_api_snapshot(date)
+    odds_lookup = load_espn_odds_snapshot(date)  # ESPN first (free, primary)
+    odds_api_lookup = load_odds_api_snapshot(date)  # the-odds-api (supplement)
+    # Merge: odds_api supplements ESPN (ESPN is primary, don't overwrite)
+    for key, val in odds_api_lookup.items():
+        if key not in odds_lookup:
+            odds_lookup[key] = val
     scan_lookup = load_scan_summary()
     multi_odds = load_multi_source_odds()
     picks_suggested = load_picks_suggested()
@@ -680,7 +725,7 @@ def generate_market_matrix(
                 "home_team": home,
                 "away_team": away,
                 "competition": best_item.get("league", ""),
-                "kickoff": item_time,
+                "kickoff": _normalize_kickoff(item_time, date),
                 "source": "scan-expansion",
             }
             fixtures.append(fixture)
@@ -725,7 +770,9 @@ def generate_market_matrix(
         home = fixture.get("home_team", fixture.get("home", ""))
         away = fixture.get("away_team", fixture.get("away", ""))
         competition = fixture.get("competition", fixture.get("league", ""))
-        kickoff = fixture.get("kickoff", fixture.get("date", ""))
+        kickoff = _normalize_kickoff(
+            fixture.get("kickoff", fixture.get("date", "")), date
+        )
         source = fixture.get("source", "")
 
         if not home or not away:

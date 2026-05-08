@@ -26,10 +26,12 @@ ESPN_SPORT_MAP = {
     "baseball": "baseball",
     "tennis": "tennis",
     "mma": "mma",
+    "volleyball": "volleyball",
 }
 
 ESPN_LEAGUES = {
     "football": [
+        # Top 5 European + major leagues
         "eng.1", "esp.1", "ger.1", "ita.1", "fra.1",
         "bra.1", "arg.1", "mex.1", "usa.1", "col.1",
         "por.1", "ned.1", "bel.1", "tur.1", "sco.1",
@@ -37,12 +39,33 @@ ESPN_LEAGUES = {
         "nor.1", "swe.1", "sui.1", "aus.1", "jpn.1",
         "idn.1", "tha.1", "ven.1", "per.1", "bol.1",
         "par.1", "ecu.1", "uru.1",
+        # Second divisions
+        "eng.2", "eng.3", "esp.2", "ger.2", "ita.2", "fra.2", "ned.2",
+        # European cups
+        "uefa.champions", "uefa.europa", "uefa.europa.conf",
+        # International tournaments
+        "fifa.world", "fifa.worldq.uefa", "fifa.worldq.conmebol", "fifa.worldq.afc",
+        "uefa.euro", "conmebol.copa_america", "concacaf.gold",
+        # Club tournaments
+        "conmebol.libertadores", "conmebol.sudamericana",
+        "afc.champions", "concacaf.champions",
+        # More European first divisions
+        "rou.1", "ukr.1", "ser.1", "cro.1", "hun.1", "bul.1",
+        "svk.1", "fin.1", "isr.1", "cyp.1", "geo.1",
+        "kaz.1", "uzb.1", "rus.1",
+        # African
+        "rsa.1", "egy.1", "mor.1", "tun.1", "nga.1",
+        # Asian
+        "chn.1", "ind.1", "sau.1", "uae.1", "qat.1", "kor.1",
+        # Women's
+        "eng.w.1", "usa.w.1", "fra.w.1",
     ],
     "basketball": ["nba", "wnba"],
     "hockey": ["nhl"],
     "baseball": ["mlb"],
     "tennis": ["atp", "wta"],
     "mma": ["ufc"],
+    "volleyball": ["fivb.m", "fivb.w", "ncaa.w", "ncaa.m"],
 }
 
 # Competition name → ESPN league code (for football enrichment)
@@ -85,6 +108,55 @@ COMPETITION_TO_ESPN_LEAGUE = {
     "super league greece": "gre.1",
     "thai league 1": "tha.1",
     "indonesian super league": "idn.1", "liga 1 indonesia": "idn.1",
+    # European cups
+    "champions league": "uefa.champions", "ucl": "uefa.champions",
+    "europa league": "uefa.europa", "uel": "uefa.europa",
+    "conference league": "uefa.europa.conf",
+    # International
+    "world cup": "fifa.world",
+    "euro": "uefa.euro", "european championship": "uefa.euro",
+    "copa america": "conmebol.copa_america",
+    "gold cup": "concacaf.gold",
+    # South American clubs
+    "copa libertadores": "conmebol.libertadores", "libertadores": "conmebol.libertadores",
+    "copa sudamericana": "conmebol.sudamericana", "sudamericana": "conmebol.sudamericana",
+    # Asian clubs
+    "afc champions league": "afc.champions",
+    # More European first divisions
+    "romanian liga 1": "rou.1", "liga 1 romania": "rou.1",
+    "ukrainian premier league": "ukr.1",
+    "serbian superliga": "ser.1",
+    "croatian hnl": "cro.1", "hnl": "cro.1",
+    "hungarian nb i": "hun.1", "nb i": "hun.1",
+    "bulgarian first league": "bul.1",
+    "slovak super liga": "svk.1",
+    "finnish veikkausliiga": "fin.1", "veikkausliiga": "fin.1",
+    "israeli premier league": "isr.1",
+    "cypriot first division": "cyp.1",
+    # Middle East / Asia
+    "saudi pro league": "sau.1", "saudi professional league": "sau.1",
+    "uae pro league": "uae.1",
+    "qatar stars league": "qat.1",
+    "chinese super league": "chn.1",
+    "indian super league": "ind.1", "isl": "ind.1",
+    # Second divisions
+    "championship": "eng.2",
+    "league one": "eng.3",
+    "segunda division": "esp.2", "la liga 2": "esp.2",
+    "serie b": "ita.2",
+    "2. bundesliga": "ger.2",
+    "ligue 2": "fra.2",
+    "eerste divisie": "ned.2",
+    # African
+    "south african premier": "rsa.1", "psl": "rsa.1",
+    "egyptian premier league": "egy.1",
+    "botola pro": "mor.1",
+    "ligue 1 tunisie": "tun.1",
+    "npfl": "nga.1", "nigerian premier league": "nga.1",
+    # Women
+    "wsl": "eng.w.1", "women's super league": "eng.w.1",
+    "nwsl": "usa.w.1",
+    "d1 arkema": "fra.w.1", "division 1 feminine": "fra.w.1",
     # Tennis tournaments
     "australian open": "atp",
     "roland garros": "atp", "french open": "atp",
@@ -103,6 +175,11 @@ COMPETITION_TO_ESPN_LEAGUE = {
     "wta finals": "wta",
     # MMA
     "ufc": "ufc",
+    # Volleyball
+    "fivb world championship": "fivb.m",
+    "fivb nations league": "fivb.m",
+    "fivb men": "fivb.m",
+    "fivb women": "fivb.w",
 }
 
 # --- Stat Mappings: ESPN name → normalized key ---
@@ -196,11 +273,28 @@ MLB_PITCHING_MAP = {
     "losses": "losses",
 }
 
+VOLLEYBALL_STAT_MAP = {
+    "kills": "kills",
+    "aces": "aces",
+    "blocks": "blocks",
+    "digs": "digs",
+    "assists": "assists",
+    "errors": "errors",
+    "hittingPercentage": "hitting_pct",
+    "serviceAces": "service_aces",
+    "attackErrors": "attack_errors",
+    "blockSolos": "block_solos",
+    "blockAssists": "block_assists",
+    "points": "points",
+    "totalAttacks": "total_attacks",
+}
+
 # Sport → stat map lookup
 _SPORT_STAT_MAPS = {
     "football": SOCCER_STAT_MAP,
     "basketball": NBA_STAT_MAP,
     "hockey": NHL_STAT_MAP,
+    "volleyball": VOLLEYBALL_STAT_MAP,
 }
 
 
@@ -615,23 +709,31 @@ class ESPNClient(BaseAPIClient):
         """Get tennis match stats from scoreboard linescores.
 
         Derives: sets_won, games_won, total_sets from set-by-set scores.
+        Searches multiple days if not found on current scoreboard.
         """
         cache_key = f"espn/{self.sport}/{self.league}/fixture_stats/{fixture_id}"
         cached = self._check_cache(cache_key, ttl_hours=168)
         if cached:
             return [APIMatchStats(**ms) for ms in cached.get("stats", [])]
 
-        # Search scoreboard for this match
-        try:
-            data = self._request("/scoreboard")
-        except Exception:
-            return []
+        from datetime import timedelta
 
-        for event in data.get("events", []):
-            for grouping in event.get("groupings", []):
-                for comp in grouping.get("competitions", []):
-                    if str(comp.get("id", "")) == str(fixture_id):
-                        return self._extract_tennis_stats(comp, fixture_id, cache_key)
+        # Search across recent days to find this specific match
+        today = datetime.now(timezone.utc).date()
+        dates_to_search = [today - timedelta(days=d) for d in range(0, 46, 3)]
+
+        for search_date in dates_to_search:
+            date_str = search_date.strftime("%Y%m%d")
+            try:
+                data = self._request("/scoreboard", params={"dates": date_str})
+            except Exception:
+                continue
+
+            for event in data.get("events", []):
+                for grouping in event.get("groupings", []):
+                    for comp in grouping.get("competitions", []):
+                        if str(comp.get("id", "")) == str(fixture_id):
+                            return self._extract_tennis_stats(comp, fixture_id, cache_key)
         return []
 
     def _extract_tennis_stats(
@@ -661,6 +763,8 @@ class ESPNClient(BaseAPIClient):
             stats.setdefault("sets_won", {})[side] = float(sets_won)
             stats.setdefault("games_won", {})[side] = float(games_won)
             stats.setdefault("total_sets", {})[side] = float(total_sets)
+            # total_games = combined games for BOTH players (key for Total Games O/U market)
+            stats.setdefault("total_games", {})[side] = float(games_won)
             if rank and rank != "NR":
                 try:
                     stats.setdefault("ranking", {})[side] = float(rank)
@@ -926,51 +1030,174 @@ class ESPNClient(BaseAPIClient):
         self._save_cache(cache_key, {"injuries": injuries})
         return injuries
 
-    def _get_athlete_recent_matches(self, athlete_id: str, last_n: int = 10) -> list[dict]:
-        """Get recent matches for an athlete from scoreboard data."""
-        cache_key = f"espn/{self.sport}/{self.league}/athlete_fixtures/{athlete_id}"
-        cached = self._check_cache(cache_key, ttl_hours=12)
+    def get_team_roster(self, team_id: str) -> list[dict]:
+        """Get full team roster with player details.
+
+        Returns list of players: {name, id, position, jersey, age, height, weight, status}
+        """
+        cache_key = f"espn/{self.sport}/{self.league}/roster/{team_id}"
+        cached = self._check_cache(cache_key, ttl_hours=24)
         if cached:
-            return cached.get("fixtures", [])
+            return cached.get("roster", [])
 
         try:
-            data = self._request("/scoreboard")
+            data = self._request(f"/teams/{team_id}/roster")
         except Exception:
             return []
 
-        matches = []
-        for event in data.get("events", []):
-            comps_to_check = []
-            # MMA
-            comps_to_check.extend(event.get("competitions", []))
-            # Tennis
-            for g in event.get("groupings", []):
-                comps_to_check.extend(g.get("competitions", []))
-
-            for comp in comps_to_check:
-                competitors = comp.get("competitors", [])
-                athlete_in_match = any(
-                    str(c.get("id", "")) == str(athlete_id)
-                    for c in competitors
-                )
-                if not athlete_in_match:
+        roster = []
+        # ESPN roster can be in athletes[] directly or grouped by position
+        athletes = data.get("athletes", [])
+        for group in athletes:
+            # Group might be a position group dict or direct athlete
+            items = group.get("items", [group]) if isinstance(group, dict) else [group]
+            for item in items:
+                if not isinstance(item, dict):
                     continue
-
-                status = comp.get("status", {}).get("type", {})
-                if status.get("state") != "post":
-                    continue
-
-                names = []
-                for c in competitors:
-                    ath = c.get("athlete", {})
-                    names.append(ath.get("displayName", ""))
-
-                matches.append({
-                    "id": comp.get("id"),
-                    "date": comp.get("date", comp.get("startDate", "")),
-                    "home_team": names[0] if names else "",
-                    "away_team": names[1] if len(names) > 1 else "",
+                roster.append({
+                    "id": str(item.get("id", "")),
+                    "name": item.get("displayName", item.get("fullName", "")),
+                    "position": item.get("position", {}).get("abbreviation", "") if isinstance(item.get("position"), dict) else str(item.get("position", "")),
+                    "jersey": item.get("jersey", ""),
+                    "age": item.get("age", None),
+                    "height": item.get("displayHeight", ""),
+                    "weight": item.get("displayWeight", ""),
+                    "status": item.get("status", {}).get("type", "") if isinstance(item.get("status"), dict) else "active",
                 })
+
+        self._save_cache(cache_key, {"roster": roster})
+        return roster
+
+    def get_depth_chart(self, team_id: str) -> dict:
+        """Get team depth chart (positional hierarchy).
+
+        Returns dict mapping position → list of players in order (starter first).
+        """
+        cache_key = f"espn/{self.sport}/{self.league}/depthchart/{team_id}"
+        cached = self._check_cache(cache_key, ttl_hours=24)
+        if cached:
+            return cached.get("depthchart", {})
+
+        try:
+            data = self._request(f"/teams/{team_id}/depthcharts")
+        except Exception:
+            return {}
+
+        depth = {}
+        items = data.get("items", [])
+        for item in items:
+            positions = item.get("positions", {})
+            for pos_key, pos_data in positions.items():
+                if isinstance(pos_data, dict):
+                    athletes = pos_data.get("athletes", [])
+                    depth[pos_key] = [
+                        {
+                            "id": str(a.get("id", "")),
+                            "name": a.get("displayName", ""),
+                            "rank": a.get("rank", i + 1),
+                        }
+                        for i, a in enumerate(athletes)
+                    ]
+
+        self._save_cache(cache_key, {"depthchart": depth})
+        return depth
+
+    def get_team_transactions(self, team_id: str, limit: int = 25) -> list[dict]:
+        """Get recent team transactions (trades, signings, waivers).
+
+        Returns list of: {date, type, description, player}
+        """
+        cache_key = f"espn/{self.sport}/{self.league}/transactions/{team_id}"
+        cached = self._check_cache(cache_key, ttl_hours=12)
+        if cached:
+            return cached.get("transactions", [])
+
+        try:
+            data = self._request(f"/teams/{team_id}/transactions", params={"limit": str(limit)})
+        except Exception:
+            return []
+
+        transactions = []
+        items = data.get("items", data.get("transactions", []))
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            transactions.append({
+                "date": item.get("date", ""),
+                "type": item.get("type", {}).get("text", "") if isinstance(item.get("type"), dict) else str(item.get("type", "")),
+                "description": item.get("text", item.get("description", "")),
+                "player": item.get("athlete", {}).get("displayName", "") if isinstance(item.get("athlete"), dict) else "",
+            })
+
+        self._save_cache(cache_key, {"transactions": transactions})
+        return transactions
+
+    def _get_athlete_recent_matches(self, athlete_id: str, last_n: int = 10) -> list[dict]:
+        """Get recent matches for an athlete by scanning multiple days of scoreboard.
+
+        For tennis/MMA, ESPN only exposes match data via the scoreboard endpoint.
+        We scan up to 45 days back (sampling every 3 days) to build proper L10 history.
+        """
+        cache_key = f"espn/{self.sport}/{self.league}/athlete_fixtures/{athlete_id}"
+        cached = self._check_cache(cache_key, ttl_hours=12)
+        if cached and len(cached.get("fixtures", [])) >= last_n:
+            return cached.get("fixtures", [])
+
+        from datetime import timedelta
+
+        matches = []
+        seen_ids: set[str] = set()
+        today = datetime.now(timezone.utc).date()
+
+        # Scan today + past 45 days (every 3 days for efficiency)
+        dates_to_scan = [today - timedelta(days=d) for d in range(0, 46, 3)]
+
+        for scan_date in dates_to_scan:
+            if len(matches) >= last_n:
+                break
+            date_str = scan_date.strftime("%Y%m%d")
+            try:
+                data = self._request("/scoreboard", params={"dates": date_str})
+            except Exception:
+                continue
+
+            for event in data.get("events", []):
+                comps_to_check = []
+                # MMA: competitions at event level
+                comps_to_check.extend(event.get("competitions", []))
+                # Tennis: competitions inside groupings
+                for g in event.get("groupings", []):
+                    comps_to_check.extend(g.get("competitions", []))
+
+                for comp in comps_to_check:
+                    comp_id = str(comp.get("id", ""))
+                    if comp_id in seen_ids:
+                        continue
+
+                    competitors = comp.get("competitors", [])
+                    athlete_in_match = any(
+                        str(c.get("id", "")) == str(athlete_id)
+                        for c in competitors
+                    )
+                    if not athlete_in_match:
+                        continue
+
+                    status = comp.get("status", {}).get("type", {})
+                    if status.get("state") != "post":
+                        continue
+
+                    seen_ids.add(comp_id)
+                    names = []
+                    for c in competitors:
+                        ath = c.get("athlete", {})
+                        names.append(ath.get("displayName", ""))
+
+                    matches.append({
+                        "id": comp_id,
+                        "date": comp.get("date", comp.get("startDate", "")),
+                        "home_team": names[0] if names else "",
+                        "away_team": names[1] if len(names) > 1 else "",
+                    })
 
         matches.sort(key=lambda m: m.get("date", ""), reverse=True)
         result = matches[:last_n]
@@ -985,12 +1212,10 @@ class ESPNClient(BaseAPIClient):
             return cached.get("standings", [])
 
         try:
-            if self.sport == "football":
-                url = f"http://site.api.espn.com/apis/v2/sports/soccer/{self.league}/standings"
-                response = requests.get(url, headers=self._build_headers(), timeout=self.TIMEOUT)
-                data = response.json()
-            else:
-                data = self._request("/standings")
+            # v2 standings API works for ALL sports (soccer, basketball, hockey, baseball)
+            url = f"https://site.api.espn.com/apis/v2/sports/{self._espn_sport}/{self.league}/standings"
+            response = requests.get(url, headers=self._build_headers(), timeout=self.TIMEOUT)
+            data = response.json()
         except Exception:
             return []
 

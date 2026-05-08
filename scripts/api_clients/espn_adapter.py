@@ -271,6 +271,39 @@ class ESPNMultiLeagueClient(BaseAPIClient):
                 continue
         return []
 
+    def get_team_roster(self, team_id: str) -> list[dict]:
+        """Get team roster — resolves league from team cache."""
+        league = self._teamid_league_cache.get(team_id)
+        if not league:
+            leagues = self._get_leagues()
+            league = leagues[0] if leagues else None
+        if not league:
+            return []
+        client = self._get_league_client(league)
+        return client.get_team_roster(team_id)
+
+    def get_depth_chart(self, team_id: str) -> dict:
+        """Get depth chart — resolves league from team cache."""
+        league = self._teamid_league_cache.get(team_id)
+        if not league:
+            leagues = self._get_leagues()
+            league = leagues[0] if leagues else None
+        if not league:
+            return {}
+        client = self._get_league_client(league)
+        return client.get_depth_chart(team_id)
+
+    def get_team_transactions(self, team_id: str, limit: int = 25) -> list[dict]:
+        """Get team transactions — resolves league from team cache."""
+        league = self._teamid_league_cache.get(team_id)
+        if not league:
+            leagues = self._get_leagues()
+            league = leagues[0] if leagues else None
+        if not league:
+            return []
+        client = self._get_league_client(league)
+        return client.get_team_transactions(team_id, limit=limit)
+
     def get_scoreboard_odds(self, date: str, league: str = None) -> list[dict]:
         """Get DraftKings odds from ESPN scoreboard for all games on a date.
 
@@ -341,6 +374,10 @@ def _make_espn_mma(rate_limiter: RateLimiter) -> ESPNMultiLeagueClient:
     return ESPNMultiLeagueClient(sport="mma", rate_limiter=rate_limiter)
 
 
+def _make_espn_volleyball(rate_limiter: RateLimiter) -> ESPNMultiLeagueClient:
+    return ESPNMultiLeagueClient(sport="volleyball", rate_limiter=rate_limiter)
+
+
 # Map of api_name → factory
 ESPN_FACTORIES = {
     "espn-football": _make_espn_football,
@@ -349,4 +386,5 @@ ESPN_FACTORIES = {
     "espn-baseball": _make_espn_baseball,
     "espn-tennis": _make_espn_tennis,
     "espn-mma": _make_espn_mma,
+    "espn-volleyball": _make_espn_volleyball,
 }

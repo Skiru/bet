@@ -250,6 +250,52 @@ These API sources provide structured statistical data via REST APIs. They are th
   Script: `python3 scripts/fetch_odds_multi.py` (integrated as odds source), also callable via `api_clients/odds_api_io.py` directly.
   Added: 2026-05-04.
 
+- Sofascore Darts (custom client)
+  Role: darts deep statistics API — per-match avg 3 darts, 180s, 140+, 100+, highest checkout, checkout accuracy, checkouts over 100.
+  URL: api.sofascore.com/api/v1/sport/darts/scheduled-events/{date} + /event/{id}/statistics
+  Use for: L10/L5/H2H statistical data for darts checkout, 180s, and scoring averages. Provides 9 stat keys per match.
+  Access: free (no key). Rate: ~500 req/day (self-imposed). Sport ID 22.
+  Coverage: PDC events, Modus Super Series, BDO, and all Sofascore-tracked darts tournaments.
+  Stats per match: avg_score (3 darts), one_eighties, thrown_over_140, thrown_over_100, highest_checkout, checkouts_over_100, checkout_pct, checkout_made, checkout_total.
+  Client registry: `sofascore-darts` — first in darts fallback chain.
+  Script: `python3 scripts/seed_deep_stats.py` (darts section).
+  Added: 2026-05-07.
+
+- Snooker.org API (custom client)
+  Role: snooker statistics API — upcoming matches, recent results with frame scores, H2H records, world rankings, season events.
+  URL: api.snooker.org/?t={type}&e={event}&p={player}
+  Use for: snooker frame score analysis (total frames, frame handicap), H2H data, ranking context.
+  Access: FREE for non-commercial use. REQUIRES approved X-Requested-By header value — email webmaster@snooker.org to register.
+  Setup: Set SNOOKER_ORG_APP_NAME env var or add "snooker_org_app_name" to config/api_keys.json after registration.
+  Coverage: All World Snooker Tour, Q Tour, and invitational events (150+ events/season, 500+ ranked players).
+  Stats per match: frames_won (home/away), total_frames, best_of, winner_id, century_breaks.
+  Client registry: `snooker-org` — first in snooker fallback chain (once registered).
+  Script: `python3 scripts/seed_deep_stats.py` (snooker section).
+  Added: 2026-05-07. Status: PENDING REGISTRATION (401 until X-Requested-By approved).
+
+- OpenDota API (custom client)
+  Role: Dota 2 esports statistics API — pro match data with full team-level stats (kills, GPM, XPM, hero damage, tower damage, last hits, denies).
+  URL: api.opendota.com/api/proMatches + /matches/{id}
+  Use for: L10/L5/H2H statistical data for Dota 2 esports markets. Provides 10+ stat keys per match aggregated from player-level data.
+  Access: free (no key = 60 req/min, with key = higher limits). Optional key in OPENDOTA_KEY env var.
+  Coverage: ALL professional Dota 2 matches parsed by OpenDota (10,000+ per month). 200+ ranked pro teams.
+  Stats per match: kills, deaths, assists, gpm (avg), xpm (avg), hero_damage, tower_damage, last_hits, denies, duration_minutes, radiant_win.
+  Client registry: `opendota` — first in esports fallback chain.
+  Script: `python3 scripts/seed_deep_stats.py` (esports section).
+  Added: 2026-05-07.
+
+- ITTF/Sofascore Table Tennis (custom client)
+  Role: table tennis fixture and score data — set scores, rubber results (team events), fixture discovery.
+  URL: api.sofascore.com/api/v1/sport/table-tennis/scheduled-events/{date} + /event/{id}
+  Use for: table tennis set totals and handicap markets. 2000+ daily fixtures including all WTT, ITTF, and national league events.
+  Access: free (no key). Rate: ~300 req/day (self-imposed). Uses Sofascore TT Sport.
+  Coverage: WTT Champions, WTT Contender, ITTF World Championships, national leagues (China, Japan, Germany, etc.). 2000+ fixtures/day.
+  Stats per match: sets_won, total_sets, total_points (individual matches only), points_scored, points_per_set.
+  Note: Team events show rubber wins (3-0, 3-1) without per-point data. Individual matches show full set scores (e.g., 11-8, 11-9).
+  Client registry: `ittf` — first in table tennis fallback chain.
+  Script: `python3 scripts/seed_deep_stats.py` (table tennis section).
+  Added: 2026-05-07.
+
 ### API Fallback Chains
 
 ESPN is first for all sports it covers (FREE, unlimited). SerpAPI is last resort for all sports.
@@ -263,10 +309,10 @@ Baseball:     ESPN → API-Baseball → TheSportsDB → SerpAPI
 MMA:          ESPN → TheSportsDB → SerpAPI
 Volleyball:   API-Volleyball → TheSportsDB → SerpAPI
 Handball:     API-Handball → TheSportsDB → SerpAPI
-Snooker:      TheSportsDB → SerpAPI
-Darts:        TheSportsDB → SerpAPI
-Table Tennis: TheSportsDB → SerpAPI
-Esports:      TheSportsDB → SerpAPI
+Snooker:      Snooker.org API → TheSportsDB → SerpAPI
+Darts:        Sofascore Darts → TheSportsDB → SerpAPI
+Table Tennis: ITTF/Sofascore TT → TheSportsDB → SerpAPI
+Esports:      OpenDota (Dota2) → TheSportsDB → SerpAPI
 Padel:        TheSportsDB → SerpAPI
 Speedway:     TheSportsDB → SerpAPI
 ```
@@ -287,6 +333,10 @@ Speedway:     TheSportsDB → SerpAPI
 | The Odds API | ~16/day | 16 | 0 |
 | Odds-API.io | 5000/hr | 200 | 4800 |
 | SerpAPI | 100/mo | 20 | 80 |
+| Sofascore Darts | 500 | 50 | 450 |
+| Snooker.org | 1000 | 30 | 970 |
+| OpenDota | 1000 | 60 | 940 |
+| ITTF/Sofascore TT | 300 | 50 | 250 |
 
 ## Weather Data Source
 

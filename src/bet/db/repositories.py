@@ -11,23 +11,33 @@ from datetime import datetime, timezone
 from bet.db.models import (
     AnalysisRawData,
     AnalysisResult,
+    Athlete,
     Bet,
     Competition,
     Coupon,
     DecisionOutcome,
     DecisionSnapshot,
+    ESPNPrediction,
     Fixture,
     GateResult,
     LeagueProfile,
     MatchStat,
     OddsRecord,
     PipelineRun,
+    PlayerGamelog,
+    PlayerSplit,
+    PowerIndex,
     ScanResult,
     ScanRunStats,
     SourceHealth,
     Sport,
+    Standing,
     Team,
+    TeamATSRecord,
     TeamForm,
+    TeamOURecord,
+    TeamRoster,
+    Transaction,
 )
 
 _NOW = lambda: datetime.now(timezone.utc).isoformat()
@@ -1668,4 +1678,574 @@ class ScanResultRepo:
             validation_passed=bool(row["validation_passed"]),
             gaps_description=json.loads(row["gaps_description"]) if row["gaps_description"] else [],
             scan_timestamp=row["scan_timestamp"] or "",
+        )
+
+
+# ---------------------------------------------------------------------------
+# AthleteRepo
+# ---------------------------------------------------------------------------
+
+class AthleteRepo:
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+
+    def upsert(self, athlete: Athlete) -> int:
+        """Insert or update athlete, returning the row ID."""
+        self.conn.execute(
+            "INSERT INTO athletes (external_id, sport_id, team_id, name, position, jersey, age, height, weight, status, source, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(external_id, sport_id) DO UPDATE SET "
+            "team_id=excluded.team_id, name=excluded.name, position=excluded.position, "
+            "jersey=excluded.jersey, age=excluded.age, height=excluded.height, "
+            "weight=excluded.weight, status=excluded.status, updated_at=excluded.updated_at",
+            (
+                athlete.external_id, athlete.sport_id, athlete.team_id, athlete.name,
+                athlete.position, athlete.jersey, athlete.age, athlete.height,
+                athlete.weight, athlete.status, athlete.source, athlete.updated_at or _NOW(),
+            ),
+        )
+        row = self.conn.execute(
+            "SELECT id FROM athletes WHERE external_id = ? AND sport_id = ?",
+            (athlete.external_id, athlete.sport_id),
+        ).fetchone()
+        return row["id"] if row else 0
+
+    def get_by_external_id(self, external_id: str, sport_id: int) -> Athlete | None:
+        row = self.conn.execute(
+            "SELECT * FROM athletes WHERE external_id = ? AND sport_id = ?",
+            (external_id, sport_id),
+        ).fetchone()
+        return self._row_to_model(row) if row else None
+
+    def get_by_team(self, team_id: int) -> list[Athlete]:
+        rows = self.conn.execute(
+            "SELECT * FROM athletes WHERE team_id = ? ORDER BY name", (team_id,)
+        ).fetchall()
+        return [self._row_to_model(r) for r in rows]
+
+    def get_by_sport(self, sport_id: int) -> list[Athlete]:
+        rows = self.conn.execute(
+            "SELECT * FROM athletes WHERE sport_id = ? ORDER BY name", (sport_id,)
+        ).fetchall()
+        return [self._row_to_model(r) for r in rows]
+
+    @staticmethod
+    def _row_to_model(row: sqlite3.Row) -> Athlete:
+        return Athlete(
+            id=row["id"],
+            external_id=row["external_id"],
+            sport_id=row["sport_id"],
+            team_id=row["team_id"],
+            name=row["name"],
+            position=row["position"] or "",
+            jersey=row["jersey"] or "",
+            age=row["age"],
+            height=row["height"] or "",
+            weight=row["weight"] or "",
+            status=row["status"] or "active",
+            source=row["source"] or "espn",
+            updated_at=row["updated_at"] or "",
+        )
+
+
+# ---------------------------------------------------------------------------
+# PlayerGamelogRepo
+# ---------------------------------------------------------------------------
+
+class PlayerGamelogRepo:
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+
+    def upsert(self, entry: PlayerGamelog) -> None:
+        self.conn.execute(
+            "INSERT INTO player_gamelogs (athlete_id, fixture_id, game_date, opponent, result, stats_json, source) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(athlete_id, game_date) DO UPDATE SET "
+            "fixture_id=excluded.fixture_id, opponent=excluded.opponent, "
+            "result=excluded.result, stats_json=excluded.stats_json",
+            (
+                entry.athlete_id, entry.fixture_id, entry.game_date,
+                entry.opponent, entry.result, entry.stats_json, entry.source,
+            ),
+        )
+
+    def get_last_n(self, athlete_id: int, n: int = 10) -> list[PlayerGamelog]:
+        rows = self.conn.execute(
+            "SELECT * FROM player_gamelogs WHERE athlete_id = ? ORDER BY game_date DESC LIMIT ?",
+            (athlete_id, n),
+        ).fetchall()
+        return [self._row_to_model(r) for r in rows]
+
+    def get_by_date_range(self, athlete_id: int, start: str, end: str) -> list[PlayerGamelog]:
+        rows = self.conn.execute(
+            "SELECT * FROM player_gamelogs WHERE athlete_id = ? AND game_date BETWEEN ? AND ? ORDER BY game_date",
+            (athlete_id, start, end),
+        ).fetchall()
+        return [self._row_to_model(r) for r in rows]
+
+    @staticmethod
+    def _row_to_model(row: sqlite3.Row) -> PlayerGamelog:
+        return PlayerGamelog(
+            id=row["id"],
+            athlete_id=row["athlete_id"],
+            fixture_id=row["fixture_id"],
+            game_date=row["game_date"],
+            opponent=row["opponent"] or "",
+            result=row["result"] or "",
+            stats_json=row["stats_json"] or "{}",
+            source=row["source"] or "espn",
+        )
+
+
+# ---------------------------------------------------------------------------
+# PlayerSplitRepo
+# ---------------------------------------------------------------------------
+
+class PlayerSplitRepo:
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+
+    def upsert(self, split: PlayerSplit) -> None:
+        self.conn.execute(
+            "INSERT INTO player_splits (athlete_id, split_type, stats_json, season, source, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(athlete_id, split_type, season) DO UPDATE SET "
+            "stats_json=excluded.stats_json, updated_at=excluded.updated_at",
+            (
+                split.athlete_id, split.split_type, split.stats_json,
+                split.season, split.source, split.updated_at or _NOW(),
+            ),
+        )
+
+    def get_for_athlete(self, athlete_id: int) -> list[PlayerSplit]:
+        rows = self.conn.execute(
+            "SELECT * FROM player_splits WHERE athlete_id = ?", (athlete_id,)
+        ).fetchall()
+        return [self._row_to_model(r) for r in rows]
+
+    @staticmethod
+    def _row_to_model(row: sqlite3.Row) -> PlayerSplit:
+        return PlayerSplit(
+            id=row["id"],
+            athlete_id=row["athlete_id"],
+            split_type=row["split_type"],
+            stats_json=row["stats_json"] or "{}",
+            season=row["season"] or "",
+            source=row["source"] or "espn",
+            updated_at=row["updated_at"] or "",
+        )
+
+
+# ---------------------------------------------------------------------------
+# StandingRepo
+# ---------------------------------------------------------------------------
+
+class StandingRepo:
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+
+    def upsert(self, standing: Standing) -> None:
+        self.conn.execute(
+            "INSERT INTO standings "
+            "(competition_id, team_id, season, rank, wins, draws, losses, "
+            "goals_for, goals_against, goal_diff, points, form, "
+            "home_wins, home_draws, home_losses, away_wins, away_draws, away_losses, "
+            "streak, source, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(competition_id, team_id, season) DO UPDATE SET "
+            "rank=excluded.rank, wins=excluded.wins, draws=excluded.draws, losses=excluded.losses, "
+            "goals_for=excluded.goals_for, goals_against=excluded.goals_against, "
+            "goal_diff=excluded.goal_diff, points=excluded.points, form=excluded.form, "
+            "home_wins=excluded.home_wins, home_draws=excluded.home_draws, home_losses=excluded.home_losses, "
+            "away_wins=excluded.away_wins, away_draws=excluded.away_draws, away_losses=excluded.away_losses, "
+            "streak=excluded.streak, updated_at=excluded.updated_at",
+            (
+                standing.competition_id, standing.team_id, standing.season, standing.rank,
+                standing.wins, standing.draws, standing.losses,
+                standing.goals_for, standing.goals_against, standing.goal_diff, standing.points,
+                standing.form,
+                standing.home_wins, standing.home_draws, standing.home_losses,
+                standing.away_wins, standing.away_draws, standing.away_losses,
+                standing.streak, standing.source, standing.updated_at or _NOW(),
+            ),
+        )
+
+    def get_by_competition(self, competition_id: int, season: str = "") -> list[Standing]:
+        if season:
+            rows = self.conn.execute(
+                "SELECT * FROM standings WHERE competition_id = ? AND season = ? ORDER BY rank",
+                (competition_id, season),
+            ).fetchall()
+        else:
+            rows = self.conn.execute(
+                "SELECT * FROM standings WHERE competition_id = ? ORDER BY rank",
+                (competition_id,),
+            ).fetchall()
+        return [self._row_to_model(r) for r in rows]
+
+    def get_team_standing(self, team_id: int, competition_id: int, season: str = "") -> Standing | None:
+        if season:
+            row = self.conn.execute(
+                "SELECT * FROM standings WHERE team_id = ? AND competition_id = ? AND season = ?",
+                (team_id, competition_id, season),
+            ).fetchone()
+        else:
+            row = self.conn.execute(
+                "SELECT * FROM standings WHERE team_id = ? AND competition_id = ? ORDER BY updated_at DESC LIMIT 1",
+                (team_id, competition_id),
+            ).fetchone()
+        return self._row_to_model(row) if row else None
+
+    @staticmethod
+    def _row_to_model(row: sqlite3.Row) -> Standing:
+        return Standing(
+            id=row["id"],
+            competition_id=row["competition_id"],
+            team_id=row["team_id"],
+            season=row["season"] or "",
+            rank=row["rank"],
+            wins=row["wins"] or 0,
+            draws=row["draws"] or 0,
+            losses=row["losses"] or 0,
+            goals_for=row["goals_for"] or 0,
+            goals_against=row["goals_against"] or 0,
+            goal_diff=row["goal_diff"] or 0,
+            points=row["points"] or 0,
+            form=row["form"] or "",
+            home_wins=row["home_wins"] or 0,
+            home_draws=row["home_draws"] or 0,
+            home_losses=row["home_losses"] or 0,
+            away_wins=row["away_wins"] or 0,
+            away_draws=row["away_draws"] or 0,
+            away_losses=row["away_losses"] or 0,
+            streak=row["streak"] or "",
+            source=row["source"] or "espn",
+            updated_at=row["updated_at"] or "",
+        )
+
+
+# ---------------------------------------------------------------------------
+# TeamATSRepo
+# ---------------------------------------------------------------------------
+
+class TeamATSRepo:
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+
+    def upsert(self, record: TeamATSRecord) -> None:
+        self.conn.execute(
+            "INSERT INTO team_ats_records "
+            "(team_id, sport_id, season, season_type, wins, losses, pushes, "
+            "home_wins, home_losses, home_pushes, away_wins, away_losses, away_pushes, "
+            "source, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(team_id, season, season_type) DO UPDATE SET "
+            "wins=excluded.wins, losses=excluded.losses, pushes=excluded.pushes, "
+            "home_wins=excluded.home_wins, home_losses=excluded.home_losses, home_pushes=excluded.home_pushes, "
+            "away_wins=excluded.away_wins, away_losses=excluded.away_losses, away_pushes=excluded.away_pushes, "
+            "updated_at=excluded.updated_at",
+            (
+                record.team_id, record.sport_id, record.season, record.season_type,
+                record.wins, record.losses, record.pushes,
+                record.home_wins, record.home_losses, record.home_pushes,
+                record.away_wins, record.away_losses, record.away_pushes,
+                record.source, record.updated_at or _NOW(),
+            ),
+        )
+
+    def get_for_team(self, team_id: int, season: str = "") -> list[TeamATSRecord]:
+        if season:
+            rows = self.conn.execute(
+                "SELECT * FROM team_ats_records WHERE team_id = ? AND season = ?",
+                (team_id, season),
+            ).fetchall()
+        else:
+            rows = self.conn.execute(
+                "SELECT * FROM team_ats_records WHERE team_id = ? ORDER BY season DESC",
+                (team_id,),
+            ).fetchall()
+        return [self._row_to_model(r) for r in rows]
+
+    @staticmethod
+    def _row_to_model(row: sqlite3.Row) -> TeamATSRecord:
+        return TeamATSRecord(
+            id=row["id"],
+            team_id=row["team_id"],
+            sport_id=row["sport_id"],
+            season=row["season"],
+            season_type=row["season_type"] or 2,
+            wins=row["wins"] or 0,
+            losses=row["losses"] or 0,
+            pushes=row["pushes"] or 0,
+            home_wins=row["home_wins"] or 0,
+            home_losses=row["home_losses"] or 0,
+            home_pushes=row["home_pushes"] or 0,
+            away_wins=row["away_wins"] or 0,
+            away_losses=row["away_losses"] or 0,
+            away_pushes=row["away_pushes"] or 0,
+            source=row["source"] or "espn",
+            updated_at=row["updated_at"] or "",
+        )
+
+
+# ---------------------------------------------------------------------------
+# TeamOURepo
+# ---------------------------------------------------------------------------
+
+class TeamOURepo:
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+
+    def upsert(self, record: TeamOURecord) -> None:
+        self.conn.execute(
+            "INSERT INTO team_ou_records "
+            "(team_id, sport_id, season, season_type, overs, unders, pushes, "
+            "home_overs, home_unders, home_pushes, away_overs, away_unders, away_pushes, "
+            "source, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(team_id, season, season_type) DO UPDATE SET "
+            "overs=excluded.overs, unders=excluded.unders, pushes=excluded.pushes, "
+            "home_overs=excluded.home_overs, home_unders=excluded.home_unders, home_pushes=excluded.home_pushes, "
+            "away_overs=excluded.away_overs, away_unders=excluded.away_unders, away_pushes=excluded.away_pushes, "
+            "updated_at=excluded.updated_at",
+            (
+                record.team_id, record.sport_id, record.season, record.season_type,
+                record.overs, record.unders, record.pushes,
+                record.home_overs, record.home_unders, record.home_pushes,
+                record.away_overs, record.away_unders, record.away_pushes,
+                record.source, record.updated_at or _NOW(),
+            ),
+        )
+
+    def get_for_team(self, team_id: int, season: str = "") -> list[TeamOURecord]:
+        if season:
+            rows = self.conn.execute(
+                "SELECT * FROM team_ou_records WHERE team_id = ? AND season = ?",
+                (team_id, season),
+            ).fetchall()
+        else:
+            rows = self.conn.execute(
+                "SELECT * FROM team_ou_records WHERE team_id = ? ORDER BY season DESC",
+                (team_id,),
+            ).fetchall()
+        return [self._row_to_model(r) for r in rows]
+
+    @staticmethod
+    def _row_to_model(row: sqlite3.Row) -> TeamOURecord:
+        return TeamOURecord(
+            id=row["id"],
+            team_id=row["team_id"],
+            sport_id=row["sport_id"],
+            season=row["season"],
+            season_type=row["season_type"] or 2,
+            overs=row["overs"] or 0,
+            unders=row["unders"] or 0,
+            pushes=row["pushes"] or 0,
+            home_overs=row["home_overs"] or 0,
+            home_unders=row["home_unders"] or 0,
+            home_pushes=row["home_pushes"] or 0,
+            away_overs=row["away_overs"] or 0,
+            away_unders=row["away_unders"] or 0,
+            away_pushes=row["away_pushes"] or 0,
+            source=row["source"] or "espn",
+            updated_at=row["updated_at"] or "",
+        )
+
+
+# ---------------------------------------------------------------------------
+# ESPNPredictionRepo
+# ---------------------------------------------------------------------------
+
+class ESPNPredictionRepo:
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+
+    def upsert(self, pred: ESPNPrediction) -> None:
+        self.conn.execute(
+            "INSERT INTO espn_predictions "
+            "(fixture_id, home_win_pct, away_win_pct, tie_pct, predictor_json, "
+            "power_index_home, power_index_away, source, fetched_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(fixture_id) DO UPDATE SET "
+            "home_win_pct=excluded.home_win_pct, away_win_pct=excluded.away_win_pct, "
+            "tie_pct=excluded.tie_pct, predictor_json=excluded.predictor_json, "
+            "power_index_home=excluded.power_index_home, power_index_away=excluded.power_index_away, "
+            "fetched_at=excluded.fetched_at",
+            (
+                pred.fixture_id, pred.home_win_pct, pred.away_win_pct, pred.tie_pct,
+                pred.predictor_json, pred.power_index_home, pred.power_index_away,
+                pred.source, pred.fetched_at or _NOW(),
+            ),
+        )
+
+    def get_for_fixture(self, fixture_id: int) -> ESPNPrediction | None:
+        row = self.conn.execute(
+            "SELECT * FROM espn_predictions WHERE fixture_id = ?", (fixture_id,)
+        ).fetchone()
+        return self._row_to_model(row) if row else None
+
+    @staticmethod
+    def _row_to_model(row: sqlite3.Row) -> ESPNPrediction:
+        return ESPNPrediction(
+            id=row["id"],
+            fixture_id=row["fixture_id"],
+            home_win_pct=row["home_win_pct"],
+            away_win_pct=row["away_win_pct"],
+            tie_pct=row["tie_pct"],
+            predictor_json=row["predictor_json"],
+            power_index_home=row["power_index_home"],
+            power_index_away=row["power_index_away"],
+            source=row["source"] or "espn",
+            fetched_at=row["fetched_at"] or "",
+        )
+
+
+# ---------------------------------------------------------------------------
+# TeamRosterRepo
+# ---------------------------------------------------------------------------
+
+class TeamRosterRepo:
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+
+    def upsert(self, entry: TeamRoster) -> None:
+        self.conn.execute(
+            "INSERT INTO team_rosters "
+            "(team_id, athlete_id, position, jersey, status, depth_rank, season, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(team_id, athlete_id, season) DO UPDATE SET "
+            "position=excluded.position, jersey=excluded.jersey, status=excluded.status, "
+            "depth_rank=excluded.depth_rank, updated_at=excluded.updated_at",
+            (
+                entry.team_id, entry.athlete_id, entry.position, entry.jersey,
+                entry.status, entry.depth_rank, entry.season, entry.updated_at or _NOW(),
+            ),
+        )
+
+    def get_team_roster(self, team_id: int, season: str = "") -> list[TeamRoster]:
+        if season:
+            rows = self.conn.execute(
+                "SELECT * FROM team_rosters WHERE team_id = ? AND season = ? ORDER BY depth_rank",
+                (team_id, season),
+            ).fetchall()
+        else:
+            rows = self.conn.execute(
+                "SELECT * FROM team_rosters WHERE team_id = ? ORDER BY depth_rank",
+                (team_id,),
+            ).fetchall()
+        return [self._row_to_model(r) for r in rows]
+
+    @staticmethod
+    def _row_to_model(row: sqlite3.Row) -> TeamRoster:
+        return TeamRoster(
+            id=row["id"],
+            team_id=row["team_id"],
+            athlete_id=row["athlete_id"],
+            position=row["position"] or "",
+            jersey=row["jersey"] or "",
+            status=row["status"] or "active",
+            depth_rank=row["depth_rank"],
+            season=row["season"] or "",
+            updated_at=row["updated_at"] or "",
+        )
+
+
+# ---------------------------------------------------------------------------
+# TransactionRepo
+# ---------------------------------------------------------------------------
+
+class TransactionRepo:
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+
+    def insert(self, txn: Transaction) -> None:
+        self.conn.execute(
+            "INSERT INTO transactions "
+            "(team_id, athlete_id, transaction_type, description, transaction_date, source, fetched_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                txn.team_id, txn.athlete_id, txn.transaction_type,
+                txn.description, txn.transaction_date, txn.source, txn.fetched_at or _NOW(),
+            ),
+        )
+
+    def get_for_team(self, team_id: int, limit: int = 50) -> list[Transaction]:
+        rows = self.conn.execute(
+            "SELECT * FROM transactions WHERE team_id = ? ORDER BY transaction_date DESC LIMIT ?",
+            (team_id, limit),
+        ).fetchall()
+        return [self._row_to_model(r) for r in rows]
+
+    def get_recent(self, days: int = 7) -> list[Transaction]:
+        rows = self.conn.execute(
+            "SELECT * FROM transactions WHERE transaction_date >= date('now', ? || ' days') ORDER BY transaction_date DESC",
+            (f"-{days}",),
+        ).fetchall()
+        return [self._row_to_model(r) for r in rows]
+
+    @staticmethod
+    def _row_to_model(row: sqlite3.Row) -> Transaction:
+        return Transaction(
+            id=row["id"],
+            team_id=row["team_id"],
+            athlete_id=row["athlete_id"],
+            transaction_type=row["transaction_type"],
+            description=row["description"] or "",
+            transaction_date=row["transaction_date"] or "",
+            source=row["source"] or "espn",
+            fetched_at=row["fetched_at"] or "",
+        )
+
+
+# ---------------------------------------------------------------------------
+# PowerIndexRepo
+# ---------------------------------------------------------------------------
+
+class PowerIndexRepo:
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+
+    def upsert(self, entry: PowerIndex) -> None:
+        self.conn.execute(
+            "INSERT INTO power_index "
+            "(team_id, sport_id, season, rating, offensive_rating, defensive_rating, rank, source, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(team_id, season) DO UPDATE SET "
+            "rating=excluded.rating, offensive_rating=excluded.offensive_rating, "
+            "defensive_rating=excluded.defensive_rating, rank=excluded.rank, "
+            "updated_at=excluded.updated_at",
+            (
+                entry.team_id, entry.sport_id, entry.season, entry.rating,
+                entry.offensive_rating, entry.defensive_rating, entry.rank,
+                entry.source, entry.updated_at or _NOW(),
+            ),
+        )
+
+    def get_for_team(self, team_id: int) -> list[PowerIndex]:
+        rows = self.conn.execute(
+            "SELECT * FROM power_index WHERE team_id = ? ORDER BY season DESC",
+            (team_id,),
+        ).fetchall()
+        return [self._row_to_model(r) for r in rows]
+
+    def get_sport_rankings(self, sport_id: int, season: str) -> list[PowerIndex]:
+        rows = self.conn.execute(
+            "SELECT * FROM power_index WHERE sport_id = ? AND season = ? ORDER BY rank",
+            (sport_id, season),
+        ).fetchall()
+        return [self._row_to_model(r) for r in rows]
+
+    @staticmethod
+    def _row_to_model(row: sqlite3.Row) -> PowerIndex:
+        return PowerIndex(
+            id=row["id"],
+            team_id=row["team_id"],
+            sport_id=row["sport_id"],
+            season=row["season"],
+            rating=row["rating"],
+            offensive_rating=row["offensive_rating"],
+            defensive_rating=row["defensive_rating"],
+            rank=row["rank"],
+            source=row["source"] or "espn",
+            updated_at=row["updated_at"] or "",
         )

@@ -312,3 +312,162 @@ class ScanRunStats:
     validation_passed: bool = True
     gaps_description: list[str] = field(default_factory=list)
     scan_timestamp: str = ""
+
+
+@dataclass
+class Athlete:
+    id: int | None
+    external_id: str
+    sport_id: int
+    team_id: int | None
+    name: str
+    position: str = ""
+    jersey: str = ""
+    age: int | None = None
+    height: str = ""
+    weight: str = ""
+    status: str = "active"
+    source: str = "espn"
+    updated_at: str = ""
+
+
+@dataclass
+class PlayerGamelog:
+    id: int | None
+    athlete_id: int
+    fixture_id: int | None
+    game_date: str
+    opponent: str = ""
+    result: str = ""
+    stats_json: str = "{}"
+    source: str = "espn"
+
+
+@dataclass
+class PlayerSplit:
+    id: int | None
+    athlete_id: int
+    split_type: str  # 'home', 'away', 'vs_conference', 'last5', 'last10'
+    stats_json: str = "{}"
+    season: str = ""
+    source: str = "espn"
+    updated_at: str = ""
+
+
+@dataclass
+class Standing:
+    id: int | None
+    competition_id: int
+    team_id: int
+    season: str = ""
+    rank: int | None = None
+    wins: int = 0
+    draws: int = 0
+    losses: int = 0
+    goals_for: int = 0
+    goals_against: int = 0
+    goal_diff: int = 0
+    points: int = 0
+    form: str = ""
+    home_wins: int = 0
+    home_draws: int = 0
+    home_losses: int = 0
+    away_wins: int = 0
+    away_draws: int = 0
+    away_losses: int = 0
+    streak: str = ""
+    source: str = "espn"
+    updated_at: str = ""
+
+
+@dataclass
+class TeamATSRecord:
+    id: int | None
+    team_id: int
+    sport_id: int
+    season: str
+    season_type: int = 2
+    wins: int = 0
+    losses: int = 0
+    pushes: int = 0
+    home_wins: int = 0
+    home_losses: int = 0
+    home_pushes: int = 0
+    away_wins: int = 0
+    away_losses: int = 0
+    away_pushes: int = 0
+    source: str = "espn"
+    updated_at: str = ""
+
+
+@dataclass
+class TeamOURecord:
+    id: int | None
+    team_id: int
+    sport_id: int
+    season: str
+    season_type: int = 2
+    overs: int = 0
+    unders: int = 0
+    pushes: int = 0
+    home_overs: int = 0
+    home_unders: int = 0
+    home_pushes: int = 0
+    away_overs: int = 0
+    away_unders: int = 0
+    away_pushes: int = 0
+    source: str = "espn"
+    updated_at: str = ""
+
+
+@dataclass
+class ESPNPrediction:
+    id: int | None
+    fixture_id: int
+    home_win_pct: float | None = None
+    away_win_pct: float | None = None
+    tie_pct: float | None = None
+    predictor_json: str | None = None
+    power_index_home: float | None = None
+    power_index_away: float | None = None
+    source: str = "espn"
+    fetched_at: str = ""
+
+
+@dataclass
+class TeamRoster:
+    id: int | None
+    team_id: int
+    athlete_id: int
+    position: str = ""
+    jersey: str = ""
+    status: str = "active"
+    depth_rank: int | None = None
+    season: str = ""
+    updated_at: str = ""
+
+
+@dataclass
+class Transaction:
+    id: int | None
+    team_id: int
+    athlete_id: int | None
+    transaction_type: str
+    description: str = ""
+    transaction_date: str = ""
+    source: str = "espn"
+    fetched_at: str = ""
+
+
+@dataclass
+class PowerIndex:
+    id: int | None
+    team_id: int
+    sport_id: int
+    season: str
+    rating: float
+    offensive_rating: float | None = None
+    defensive_rating: float | None = None
+    rank: int | None = None
+    source: str = "espn"
+    updated_at: str = ""

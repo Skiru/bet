@@ -994,3 +994,313 @@ def get_team_pair_history(home_team: str, away_team: str) -> list[dict]:
     except Exception as e:
         print(f"[db_loader] Failed to get team pair history for {home_team} vs {away_team}: {e}")
     return []
+
+
+# ---------------------------------------------------------------------------
+# ESPN Enrichment Loaders
+# ---------------------------------------------------------------------------
+
+def load_espn_enrichment_for_team(team_name: str, sport: str) -> dict | None:
+    """Load ESPN enrichment data for a team: ATS/OU records, standings, power index.
+
+    Returns dict with keys: ats_record, ou_record, standing, power_index, predictions
+    or None if no data available.
+    """
+    try:
+        from bet.db.connection import get_db
+        from bet.db.repositories import (
+            PowerIndexRepo,
+            SportRepo,
+            StandingRepo,
+            TeamATSRepo,
+            TeamOURepo,
+            TeamRepo,
+        )
+
+        with get_db() as conn:
+            sr = SportRepo(conn)
+            s = sr.get_by_name(sport)
+            if not s:
+                return None
+
+            tr = TeamRepo(conn)
+            team = tr.resolve(team_name, s.id)
+            if not team:
+                return None
+
+            result = {}
+
+            # ATS records
+            ats_repo = TeamATSRepo(conn)
+            ats_records = ats_repo.get_for_team(team.id)
+            if ats_records:
+                r = ats_records[0]  # Most recent season
+                total = r.wins + r.losses + r.pushes
+                result["ats_record"] = {
+                    "season": r.season,
+                    "wins": r.wins,
+                    "losses": r.losses,
+                    "pushes": r.pushes,
+                    "cover_pct": round(r.wins / total * 100, 1) if total > 0 else 0.0,
+                    "home_wins": r.home_wins,
+                    "home_losses": r.home_losses,
+                    "away_wins": r.away_wins,
+                    "away_losses": r.away_losses,
+                }
+
+            # OU records
+            ou_repo = TeamOURepo(conn)
+            ou_records = ou_repo.get_for_team(team.id)
+            if ou_records:
+                r = ou_records[0]
+                total = r.overs + r.unders + r.pushes
+                result["ou_record"] = {
+                    "season": r.season,
+                    "overs": r.overs,
+                    "unders": r.unders,
+                    "pushes": r.pushes,
+                    "over_pct": round(r.overs / total * 100, 1) if total > 0 else 0.0,
+                    "home_overs": r.home_overs,
+                    "home_unders": r.home_unders,
+                    "away_overs": r.away_overs,
+                    "away_unders": r.away_unders,
+                }
+
+            # Standings
+            standing_repo = StandingRepo(conn)
+            # Get any standing for this team (any competition)
+            standing_row = conn.execute(
+                "SELECT * FROM standings WHERE team_id = ? ORDER BY updated_at DESC LIMIT 1",
+                (team.id,),
+            ).fetchone()
+            if standing_row:
+                result["standing"] = {
+                    "rank": standing_row["rank"],
+                    "wins": standing_row["wins"],
+                    "losses": standing_row["losses"],
+                    "draws": standing_row["draws"],
+                    "points": standing_row["points"],
+                    "form": standing_row["form"],
+                    "home_record": f"{standing_row['home_wins']}-{standing_row['home_losses']}",
+                    "away_record": f"{standing_row['away_wins']}-{standing_row['away_losses']}",
+                    "streak": standing_row["streak"],
+                }
+
+            # Power index
+            pi_repo = PowerIndexRepo(conn)
+            pi_records = pi_repo.get_for_team(team.id)
+            if pi_records:
+                r = pi_records[0]
+                result["power_index"] = {
+                    "rating": r.rating,
+                    "offensive_rating": r.offensive_rating,
+                    "defensive_rating": r.defensive_rating,
+                    "rank": r.rank,
+                    "season": r.season,
+                }
+
+            return result if result else None
+
+    except Exception as e:
+        print(f"[db_loader] ESPN enrichment failed for {team_name}/{sport}: {e}")
+    return None
+
+
+def load_player_gamelogs_for_team(team_name: str, sport: str, n: int = 10) -> list[dict]:
+    """Load player gamelogs for all players on a team.
+
+    Returns list of dicts with: player_name, position, gamelogs (list of game stats).
+    Useful for basketball/hockey player prop analysis and team totals patterns.
+    """
+    try:
+        from bet.db.connection import get_db
+        from bet.db.repositories import AthleteRepo, PlayerGamelogRepo, SportRepo, TeamRepo
+
+        with get_db() as conn:
+            sr = SportRepo(conn)
+            s = sr.get_by_name(sport)
+            if not s:
+                return []
+
+            tr = TeamRepo(conn)
+            team = tr.resolve(team_name, s.id)
+            if not team:
+                return []
+
+            athlete_repo = AthleteRepo(conn)
+            gamelog_repo = PlayerGamelogRepo(conn)
+
+            athletes = athlete_repo.get_by_team(team.id)
+            results = []
+            for athlete in athletes:
+                logs = gamelog_repo.get_last_n(athlete.id, n)
+                if not logs:
+                    continue
+                results.append({
+                    "player_name": athlete.name,
+                    "position": athlete.position,
+                    "status": athlete.status,
+                    "gamelogs": [
+                        {
+                            "date": gl.game_date,
+                            "opponent": gl.opponent,
+                            "result": gl.result,
+                            "stats": json.loads(gl.stats_json) if isinstance(gl.stats_json, str) else gl.stats_json,
+                        }
+                        for gl in logs
+                    ],
+                })
+            return results
+
+    except Exception as e:
+        print(f"[db_loader] Player gamelogs failed for {team_name}/{sport}: {e}")
+    return []
+
+
+def load_sport_specific_cache(sport: str, team_or_player: str) -> dict | None:
+    """Load sport-specific cache data for niche sports (darts, esports, table_tennis).
+
+    These caches use non-standard directory structures:
+    - darts: stats_cache/darts/player_form/{id}.json
+    - esports: stats_cache/esports/dota2/team_matches/{team_id}.json
+    - table_tennis: stats_cache/table_tennis/form/{id}.json
+
+    Returns normalized form dict compatible with extract_team_stats() format:
+    {l10_avg: {}, l5_avg: {}, l10_matches: [], has_data: bool}
+    """
+    cache_base = DATA_DIR / "stats_cache"
+    name_lower = team_or_player.lower().strip()
+
+    def _find_file_by_name(directory: Path, name: str) -> Path | None:
+        """Find cache file by name match in the directory or a registry."""
+        if not directory.exists():
+            return None
+        for f in directory.iterdir():
+            if f.suffix == ".json":
+                # Try loading and checking if the name matches
+                try:
+                    data = json.loads(f.read_text(encoding="utf-8"))
+                    # Check various name fields
+                    for key in ("player_name", "team_name", "name"):
+                        if key in data and data[key].lower().strip() == name:
+                            return f
+                except (json.JSONDecodeError, OSError):
+                    continue
+        return None
+
+    def _avg_stat(matches: list, stat_key: str) -> float | None:
+        """Calculate average of a stat across matches, handling home/away dicts."""
+        values = []
+        for m in matches:
+            stats = m.get("stats", {})
+            val = stats.get(stat_key)
+            if val is None:
+                continue
+            if isinstance(val, dict):
+                # home/away format — sum both sides for combined stat
+                total = sum(v for v in val.values() if isinstance(v, (int, float)))
+                values.append(total)
+            elif isinstance(val, (int, float)):
+                values.append(val)
+        if not values:
+            return None
+        return round(sum(values) / len(values), 2)
+
+    try:
+        matches = []
+        cache_file = None
+
+        if sport == "esports":
+            # Try team registry lookup first
+            registry_path = cache_base / "esports" / "dota2" / "teams.json"
+            team_id = None
+            if registry_path.exists():
+                registry = json.loads(registry_path.read_text(encoding="utf-8"))
+                for t in registry.get("teams", []):
+                    if t.get("name", "").lower() == name_lower or t.get("tag", "").lower() == name_lower:
+                        team_id = t["team_id"]
+                        break
+            if team_id:
+                cache_file = cache_base / "esports" / "dota2" / "team_matches" / f"{team_id}.json"
+            else:
+                cache_file = _find_file_by_name(cache_base / "esports" / "dota2" / "team_matches", name_lower)
+
+        elif sport == "darts":
+            # Try slug-based lookup in player_form
+            slug = re.sub(r"-+", "-", re.sub(r"[\s_]+", "-", re.sub(r"[^a-z0-9\s-]", "", name_lower))).strip("-")
+            # First check root-level files (e.g., benito-van-de-pas.json)
+            root_file = cache_base / "darts" / f"{slug}.json"
+            if root_file.exists():
+                cache_file = root_file
+            else:
+                # Check player_form directory by ID — need to scan contents
+                cache_file = _find_file_by_name(cache_base / "darts" / "player_form", name_lower)
+
+        elif sport == "table_tennis":
+            cache_file = _find_file_by_name(cache_base / "table_tennis" / "form", name_lower)
+
+        if cache_file and cache_file.exists():
+            data = json.loads(cache_file.read_text(encoding="utf-8"))
+            # Standard format: data.form.l10_matches (root slug files)
+            form = data.get("form", {})
+            if form and form.get("l10_avg"):
+                # Already in standard format — return directly
+                return {
+                    "l10_avg": form.get("l10_avg", {}),
+                    "l5_avg": form.get("l5_avg", {}),
+                    "l10_matches": form.get("l10_matches", form.get("recent_matches", []))[:10],
+                    "has_data": True,
+                    "sources": data.get("sources", ["cache"]),
+                }
+            # Niche format: data.matches (player_form/team_matches files)
+            matches = data.get("matches", [])
+
+        if not matches:
+            return None
+
+        # Normalize to standard format
+        l10 = matches[:10]
+        l5 = matches[:5]
+
+        # Discover stat keys from the first match
+        stat_keys = set()
+        for m in l10[:3]:  # Sample first 3 matches
+            stats = m.get("stats", {})
+            stat_keys.update(stats.keys())
+
+        l10_avg = {}
+        l5_avg = {}
+        for key in stat_keys:
+            val10 = _avg_stat(l10, key)
+            if val10 is not None:
+                l10_avg[key] = val10
+            val5 = _avg_stat(l5, key)
+            if val5 is not None:
+                l5_avg[key] = val5
+
+        # Build l10_matches in standard format
+        l10_matches = []
+        for m in l10:
+            match_entry = {
+                "date": m.get("date", ""),
+                "opponent": m.get("opponent", ""),
+            }
+            stats = m.get("stats", {})
+            for key, val in stats.items():
+                if isinstance(val, dict):
+                    match_entry[key] = sum(v for v in val.values() if isinstance(v, (int, float)))
+                elif isinstance(val, (int, float)):
+                    match_entry[key] = val
+            l10_matches.append(match_entry)
+
+        return {
+            "l10_avg": l10_avg,
+            "l5_avg": l5_avg,
+            "l10_matches": l10_matches,
+            "has_data": True,
+            "sources": [f"stats_cache/{sport}"],
+        }
+
+    except Exception as e:
+        print(f"[db_loader] Sport-specific cache failed for {sport}/{team_or_player}: {e}")
+    return None

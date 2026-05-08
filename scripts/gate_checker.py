@@ -24,6 +24,11 @@ try:
 except ImportError:
     from check_48h_repeats import load_recent_losses, normalize_team, normalize_market, find_repeats
 
+try:
+    from utils import normalize_kickoff
+except ImportError:
+    from scripts.utils import normalize_kickoff
+
 DATA_DIR = Path(__file__).parent.parent / "betting" / "data"
 JOURNAL_DIR = Path(__file__).parent.parent / "betting" / "journal"
 LEDGER_PATH = JOURNAL_DIR / "picks-ledger.csv"
@@ -84,6 +89,14 @@ def _check_qualifier_flags(c: dict) -> tuple[bool, str]:
             warnings.append(f"WILD CARD flag on {name}")
         if "(LL)" in upper or " LL " in f" {upper} ":
             warnings.append(f"LUCKY LOSER flag on {name}")
+    # Check entry_method field (propagated from enrichment or manual annotation)
+    entry_method = (c.get("entry_method") or "").upper()
+    if entry_method in ("Q", "QUALIFIER"):
+        warnings.append(f"ENTRY_METHOD: Qualifier")
+    elif entry_method in ("LL", "LUCKY_LOSER", "LUCKY LOSER"):
+        warnings.append(f"ENTRY_METHOD: Lucky Loser — compromised motivation/fatigue")
+    elif entry_method in ("WC", "WILD_CARD", "WILD CARD"):
+        warnings.append(f"ENTRY_METHOD: Wild Card")
     # Gate passes but with warnings — user should verify
     return True, "; ".join(warnings) if warnings else ""
 
@@ -254,7 +267,7 @@ def _check_data_quality(c: dict) -> tuple[bool, str]:
     if one_sided:
         return False, "ONE-SIDED: opponent has zero stat data"
     if source == "db-synthetic":
-        return True, f"SYNTHETIC data (penalized in safety), source={source}"
+        return False, f"SYNTHETIC data — fabricated L10 values, no real per-match stats (source={source})"
     return True, ""
 
 
@@ -314,13 +327,37 @@ def check_red_flags(candidate: dict) -> list[str]:
         if is_relegation and is_goals_market:
             flags.append(f"FLAG: Football relegation + goals market ({market_name})")
 
-    # Tennis: WC/Q vs top-30 + O22.5 games → HARD REJECT (ZT#3)
+    # Tennis: WC/Q/LL + Over sets/games → HARD REJECT (ZT#3)
     if sport == "tennis":
+        is_over_sets_games = (
+            ("set" in market_name or "game" in market_name or "22.5" in market_name)
+            and (best.get("direction", "")).upper() == "OVER"
+        )
         for field in ("home_team", "away_team"):
             name = candidate.get(field, "").upper()
             if "(Q)" in name or "(WC)" in name or "(LL)" in name:
-                if "22.5" in market_name or "games" in market_name:
-                    flags.append(f"HARD REJECT ZT#3: {candidate.get(field)} qualifier + {market_name}")
+                if is_over_sets_games:
+                    flags.append(f"HARD REJECT ZT#3: {candidate.get(field)} qualifier/LL + Over {market_name}")
+
+        # ZT#3 extended: Over sets with H2H-BLIND + single source = structurally unsafe
+        # Even without explicit (Q)/(LL) markers, thin data on Over sets is high risk
+        if is_over_sets_games and h2h_blind:
+            sources = candidate.get("sources", [])
+            if isinstance(sources, str):
+                sources = [s.strip() for s in sources.split("|") if s.strip()]
+            if len(sources) <= 1:
+                flags.append(
+                    f"HARD REJECT ZT#3-EXT: Over {market_name} with H2H-BLIND + single source "
+                    f"({sources}) — insufficient evidence for sets/games direction"
+                )
+
+        # ZT#22: Ranking-ghost favorite — entry_method or form-based detection
+        entry_method = candidate.get("entry_method", "").upper()
+        if entry_method in ("LL", "LUCKY_LOSER", "LUCKY LOSER"):
+            flags.append(
+                f"HARD REJECT ZT#22: Lucky Loser entry ({candidate.get('home_team', '?')} or "
+                f"{candidate.get('away_team', '?')}) — compromised motivation/fatigue"
+            )
 
         # Tennis: odds ratio check for game totals (needs both fav and dog odds)
         odds = candidate.get("odds", {})
@@ -339,6 +376,14 @@ def check_red_flags(candidate: dict) -> list[str]:
     # Any sport: h2h_blind AND safety < 0.60
     if h2h_blind and safety < 0.60:
         flags.append(f"FLAG: H2H-BLIND + safety {safety:.2f} < 0.60")
+
+    # ZT#20: Synthetic data source — safety should never exceed 0.50
+    best_source = best.get("source", "")
+    if best_source == "db-synthetic" and safety > 0.50:
+        flags.append(
+            f"FLAG ZT#20: SYNTHETIC data source (safety {safety:.2f} > 0.50 cap) — "
+            f"fabricated L10 values, no real per-match data"
+        )
 
     return flags
 
@@ -907,6 +952,10 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
     if phantom_count:
         print(f"[gate_checker] Filtered {phantom_count} already-played events (kickoff >2h ago)")
     clean_candidates = live_candidates
+
+    # Normalize kickoff times: bare time strings like "19:00" → full ISO
+    for c in clean_candidates:
+        c["kickoff"] = normalize_kickoff(c.get("kickoff", ""), date)
 
     # Deduplicate events (keep highest safety_score version)
     def _dedup_key(c: dict) -> str:

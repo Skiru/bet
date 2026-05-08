@@ -99,6 +99,59 @@ class NormalizedMatchStats:
     # e.g. {"corners": {"home": 5, "away": 3}, "fouls": {"home": 12, "away": 9}}
 
 
+@dataclass
+class NormalizedOdds:
+    """Normalized odds from any source (ESPN, the-odds-api, etc.)."""
+    event_id: str
+    source: str  # "espn-odds", "the-odds-api", "api-football-odds"
+    sport: str
+    home_team: str
+    away_team: str
+    bookmaker: str  # provider name (e.g., "DraftKings", "FanDuel")
+    timestamp: str  # ISO datetime of odds snapshot
+    markets: dict = field(default_factory=dict)
+    # markets structure:
+    # {
+    #   "moneyline": {"home": decimal_odds, "away": decimal_odds, "draw": decimal_odds | None},
+    #   "spread": {"home": decimal_odds, "away": decimal_odds, "line": float},
+    #   "totals": {"over": decimal_odds, "under": decimal_odds, "line": float},
+    # }
+    opening_line: dict = field(default_factory=dict)  # Same structure as markets, for line movement
+
+
+@dataclass
+class NormalizedPlayerStats:
+    """Normalized player performance data from gamelogs/splits."""
+    athlete_id: str
+    athlete_name: str
+    source: str  # "espn-stats"
+    sport: str
+    team: str
+    season: str
+    games: list = field(default_factory=list)  # gamelog entries [{date, opponent, stats: {}}]
+    splits: dict = field(default_factory=dict)  # {"home": {stat: avg}, "away": {stat: avg}}
+    averages: dict = field(default_factory=dict)  # season averages {stat: value}
+
+
+@dataclass
+class NormalizedStandings:
+    """Normalized league standings with form data."""
+    sport: str
+    league: str
+    season: str
+    source: str  # "espn-standings"
+    teams: list = field(default_factory=list)
+    # Each team entry: {
+    #   "name": str, "rank": int,
+    #   "wins": int, "draws": int, "losses": int,
+    #   "goals_for": int, "goals_against": int, "goal_diff": int, "points": int,
+    #   "form": str,  # e.g. "WWDLW"
+    #   "home": {"wins": int, "draws": int, "losses": int},
+    #   "away": {"wins": int, "draws": int, "losses": int},
+    #   "streak": str,  # e.g. "W3"
+    # }
+
+
 # ---------------------------------------------------------------------------
 # Per-sport stat key definitions
 # ---------------------------------------------------------------------------
@@ -392,8 +445,13 @@ def build_safety_score_input(
     """
     # Minimum match count validation — need ≥5 for at least ONE team
     # (allows team-specific markets like team corners when only one team has data)
-    if len(team_a_matches) < 5 and len(team_b_matches) < 5:
-        print(f"[normalize] Insufficient data for both teams: {team_a}={len(team_a_matches)}, {team_b}={len(team_b_matches)} (need ≥5 for at least one)")
+    # Individual sports (tennis, MMA, snooker, darts) use lower threshold (3)
+    # because players have sparser schedules than team sports
+    INDIVIDUAL_SPORTS = {"tennis", "mma", "snooker", "darts", "table_tennis", "padel"}
+    min_matches = 3 if sport in INDIVIDUAL_SPORTS else 5
+
+    if len(team_a_matches) < min_matches and len(team_b_matches) < min_matches:
+        print(f"[normalize] Insufficient data for both teams: {team_a}={len(team_a_matches)}, {team_b}={len(team_b_matches)} (need ≥{min_matches} for at least one)")
         return None
     if len(team_a_matches) < 3:
         print(f"[normalize] Very thin data for {team_a}: {len(team_a_matches)} matches — using available data")
@@ -429,11 +487,13 @@ def build_safety_score_input(
                 team_b_l10 = []
 
         # Skip market if insufficient stat data
-        if stat_a_key and len(team_a_l10) < 5:
+        # Individual sports use lower threshold (3 vs 5)
+        min_stat_count = 3 if sport in INDIVIDUAL_SPORTS else 5
+        if stat_a_key and len(team_a_l10) < min_stat_count:
             continue
-        if stat_b_key and not stat_a_key and len(team_a_l10) < 5:
+        if stat_b_key and not stat_a_key and len(team_a_l10) < min_stat_count:
             continue
-        if stat_b_key and stat_a_key and len(team_b_l10) < 5:
+        if stat_b_key and stat_a_key and len(team_b_l10) < min_stat_count:
             continue
 
         # H2H values
@@ -644,11 +704,14 @@ def _build_markets_from_db_form(
             team_swapped = True
 
         # Skip market if insufficient stat data
-        if stat_a_key and len(team_a_l10) < 5:
+        # Individual sports use lower threshold (3 vs 5)
+        _INDIVIDUAL = {"tennis", "mma", "snooker", "darts", "table_tennis", "padel"}
+        _min_stat = 3 if sport in _INDIVIDUAL else 5
+        if stat_a_key and len(team_a_l10) < _min_stat:
             continue
-        if stat_b_key and not stat_a_key and len(team_a_l10) < 5:
+        if stat_b_key and not stat_a_key and len(team_a_l10) < _min_stat:
             continue
-        if stat_b_key and stat_a_key and len(team_b_l10) < 5:
+        if stat_b_key and stat_a_key and len(team_b_l10) < _min_stat:
             continue
 
         # H2H values
@@ -1039,16 +1102,26 @@ def build_safety_input_from_cache(
     cache_file_a = _find_cache_file(cache_dir / sport, slug_a)
     cache_file_b = _find_cache_file(cache_dir / sport, slug_b)
 
-    if not cache_file_a or not cache_file_b:
-        # Fallback: try raw API cache files
+    if not cache_file_a and not cache_file_b:
+        # Neither team has cache — try raw API cache as last resort
         return build_safety_from_api_cache(sport, team_a, team_b, competition, cache_dir)
 
-    try:
-        cache_a = json.loads(cache_file_a.read_text(encoding="utf-8"))
-        cache_b = json.loads(cache_file_b.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError) as e:
-        print(f"[normalize] Cache read error: {e}")
-        return None
+    # Allow partial data: one team missing is OK for team-specific markets
+    cache_a = {}
+    cache_b = {}
+    if cache_file_a:
+        try:
+            cache_a = json.loads(cache_file_a.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError) as e:
+            print(f"[normalize] Cache read error ({team_a}): {e}")
+    if cache_file_b:
+        try:
+            cache_b = json.loads(cache_file_b.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError) as e:
+            print(f"[normalize] Cache read error ({team_b}): {e}")
+
+    if not cache_a and not cache_b:
+        return build_safety_from_api_cache(sport, team_a, team_b, competition, cache_dir)
 
     team_a_matches = _cache_to_normalized_matches(cache_a, team_a, sport)
     team_b_matches = _cache_to_normalized_matches(cache_b, team_b, sport)

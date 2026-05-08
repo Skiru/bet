@@ -49,8 +49,22 @@ The DB is the richest data source — check BEFORE JSON/web:
 - `analysis_results` — S3 deep stats output: market rankings, safety scores, probability data (replaces `{date}_s3_deep_stats.json`)
 - `gate_results` — S7 gate check output: approved/extended/rejected status (replaces `{date}_s7_gate_results.json`)
 - `fixtures`, `odds_history` (97K+ rows), `league_profiles` (Bayesian priors)
-- Access: `from bet.db.connection import get_db; from bet.db.repositories import StatsRepo, TeamRepo, FixtureRepo, AnalysisResultRepo, GateResultRepo`
-- Gateway: `from db_data_loader import load_analysis_results_from_db, save_analysis_results_to_db, build_safety_input`
+- **`athletes`** (538+) — NBA/NHL/MLB player profiles (position, age, status)
+- **`player_gamelogs`** (11.5K+) — game-by-game player stats: points, rebounds, assists, goals, saves, etc. Use for player prop analysis AND team total patterns. `PlayerGamelogRepo.get_last_n(athlete_id, 10)` → L10 individual stats.
+- **`standings`** — enriched standings with form, home/away records, streaks
+- **`team_ats_records`** — Against The Spread betting history (win/loss/push by venue). Use to assess if team consistently beats/misses spread.
+- **`team_ou_records`** — Over/Under betting history (overs/unders/pushes by venue). CRITICAL for totals markets: if a team is 35-20 on OVERS, that's a strong signal.
+- **`power_index`** — ESPN relative strength/power rankings per team
+- **`espn_predictions`** — ESPN win probability model (home_win_pct, away_win_pct)
+- Access: `from bet.db.connection import get_db; from bet.db.repositories import StatsRepo, TeamRepo, FixtureRepo, AnalysisResultRepo, GateResultRepo, AthleteRepo, PlayerGamelogRepo, TeamATSRepo, TeamOURepo, StandingRepo, PowerIndexRepo, ESPNPredictionRepo`
+- Gateway: `from db_data_loader import load_analysis_results_from_db, save_analysis_results_to_db, build_safety_input, load_espn_enrichment_for_team, load_player_gamelogs_for_team, load_sport_specific_cache`
+
+**ESPN enrichment is AUTO-LOADED** by `deep_stats_report.py` for basketball/hockey/baseball. The output includes `espn_enrichment` dict with standings, ATS/OU records, and power index data. Use this to:
+- Validate totals markets against ATS/OU records (team goes OVER 60% of the time → strong OVER signal)
+- Cross-reference power index with safety scores (high-power-index team vs low → one-sided stat patterns expected)
+- Check player gamelogs for consistency (star player scoring 25+ppg in 9/10 games → reliable total)
+
+**Niche sport data** (Dota2, darts, table tennis) is also AUTO-LOADED via `load_sport_specific_cache()`. Dota2 has match details (kills, hero_damage, tower_damage, GPM), darts has leg stats (checkout%, 180s, avg), table tennis has set scores.
 
 Safety scores are now computed via `build_safety_input()` from `db_data_loader.py`, which assembles team form, H2H, and match stats from DB tables.
 

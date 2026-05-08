@@ -4,7 +4,7 @@ import sqlite3
 from pathlib import Path
 
 SCHEMA_SQL = Path(__file__).parent / "schema.sql"
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 
 def init_db(conn: sqlite3.Connection) -> None:
@@ -76,6 +76,12 @@ def migrate(conn: sqlite3.Connection, from_version: int, to_version: int) -> Non
     if from_version < 4:
         # v4: Decision learning tables
         migration_path = Path(__file__).parent / "migrations" / "003_decision_learning.sql"
+        if migration_path.exists():
+            conn.executescript(migration_path.read_text(encoding="utf-8"))
+
+    if from_version < 5:
+        # v5: ESPN deep integration tables
+        migration_path = Path(__file__).parent / "migrations" / "005_espn_deep_tables.sql"
         if migration_path.exists():
             conn.executescript(migration_path.read_text(encoding="utf-8"))
 
