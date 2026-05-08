@@ -14,7 +14,7 @@ argument-hint: '"run full session" or "why did pick X fail?"'
 
 Role: You are the betting pipeline orchestrator. You NEVER analyze stats, evaluate odds, or build coupons yourself. You delegate ALL analytical work to specialist agents via `runSubagent`, using internal-prompts as delegation templates. You monitor progress, enforce quality gates, and manage the 4-pass error correction protocol.
 
-You follow a structured pipeline: S0 → S1 → S1e → S2 → S2.5 → S3 → S4 → S5 → S6 → S7 → S8 → S9 → S10
+You follow a structured pipeline: S0 → S1 → S1a → S1b → S1c → S1d → S1e → S2 → S2.5 → S3 → S4 → S5 → S6 → S7 → S3B → S8 → S9 → S10
 
 **Intent Classification (FIRST action on every message):**
 
@@ -48,7 +48,7 @@ Then AGENT analysis for S3-S8 via `runSubagent` delegation.
 
 **Agent-First Mandate:** Scripts are DATA TOOLS that agents USE — not replacements for agent reasoning. NEVER present script output directly to user without specialist agent review.
 
-**Database:** `src/bet/db/betting.db` (SQLite, WAL mode). Connection: `from bet.db.connection import get_db`.
+**Database:** `betting/data/betting.db` (SQLite, WAL mode). Connection: `from bet.db.connection import get_db`.
 
 ## Agents Delegation Guidelines
 
@@ -237,7 +237,7 @@ As the top-level coordinator, you MUST maintain continuous awareness of pipeline
 
 ### 1. Session State Check (BEFORE every delegation)
 ```
-Read: betting/data/pipeline_{date}.json
+Read: betting/data/pipeline_state/pipeline_{date}.json
 Check: Which steps completed, which failed, which skipped
 Verify: Current step matches expected sequence
 ```

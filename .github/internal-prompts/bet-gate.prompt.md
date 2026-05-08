@@ -46,7 +46,7 @@ Run 30-second sport-specific checklist (Tennis: WC/fatigue/surface; Football: de
 
 ### 4. 18-Point Pick Approval Gate (§7D)
 
-All 18 checks must PASS: identity, WC/Q/LL, H2H (≥3 matches), injuries, ≥2 sources, ≥1 tipster, upset risk, EV>0, drift<8%, red flags cleared, contrarian answered, bear<bull, fresh data, 48h repeat, multi-market (≥3), H2H-stat-specific, three-way alignment, data quality.
+All 18 checks must PASS: identity, WC/Q/LL, H2H (≥5 matches), injuries, ≥2 sources, ≥1 tipster, upset risk, EV>0, drift<8%, red flags cleared, contrarian answered, bear<bull, fresh data, 48h repeat, multi-market (≥3), H2H-stat-specific, three-way alignment, data quality.
 
 ### 5. Zero Tolerance Shield (20+ patterns)
 
@@ -73,6 +73,6 @@ Key gates: every candidate has bull+bear, red flags checked, all 4 contrarian qu
 
 ## Pass/Fail Gate
 
-ALL checks pass → "S7 PASSED" → orchestrator proceeds to S8.
+ALL checks pass → "S7 PASSED" → orchestrator proceeds to S3B.
 
 <!-- BET:internal-prompt:bet-gate:v1 -->

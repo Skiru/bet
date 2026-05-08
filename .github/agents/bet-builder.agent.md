@@ -80,8 +80,8 @@ Before starting ANY work, you MUST assess the current pipeline state and adapt a
 
 ### 1. State Check (MANDATORY first action)
 ```
-Read: betting/data/pipeline_{date}.json
-Read: betting/data/gate_results_{date}.json (approved picks)
+Read: betting/data/pipeline_state/pipeline_{date}.json
+Read: betting/data/{date}_s7_gate_results.json (approved picks)
 Read: config/betting_config.json (current bankroll, daily cap)
 ```
 - If s7_gate incomplete → STOP — cannot build coupons without approved picks

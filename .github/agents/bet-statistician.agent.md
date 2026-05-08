@@ -99,8 +99,8 @@ Before starting ANY work, you MUST assess the current pipeline state and adapt a
 
 ### 1. State Check (MANDATORY first action)
 ```
-Read: betting/data/pipeline_{date}.json
-Read: betting/data/shortlist_{date}.json (candidate pool)
+Read: betting/data/pipeline_state/pipeline_{date}.json
+Read: betting/data/{date}_s2_shortlist.json (candidate pool)
 Read: betting/data/scan_summary.json (data completeness)
 ```
 - If s1 steps incomplete → STOP — upstream data not ready

@@ -83,7 +83,7 @@ REQUIRED READS:
 
 **ALL sessions (full/day/night/morning) execute the EXACT SAME pipeline:**
 - Same 4-pass protocol (Discovery → Targeted Fixes → Polish → Final)
-- Same S0 → S1 → S1a(discover) → S1b(PARALLEL: odds+weather+tipsters) → S1c(aggregate) → S1d → S1e → S2(tipster xref) → S2.5(enrichment) → S3 → S4(odds eval) → S5(context) → S6(upset risk) → S7(gate) → S8(coupons) → S9(validate) → S10(summary) automated step sequence
+- Same S0 → S1 → S1a(discover) → S1b(PARALLEL: odds+weather+tipsters) → S1c(aggregate) → S1d → S1e → S2(tipster xref) → S2.5(enrichment) → S3 → S4(odds eval) → S5(context) → S6(upset risk) → S7(gate) → S3B(time-sensitive) → S8(coupons) → S9(validate) → S10(summary) automated step sequence
 - Same 14-sport scan in S1 (ALL sports, even if most have 0 events in the window)
 - Same deep analysis (S3-S7): H2H, tipsters, injuries, bear case, 18-point gate
 - Coupon count = f(quality events, deep statistics), NOT f(bankroll). Produce as many as quality justifies.
@@ -141,7 +141,7 @@ State tracking with `--resume` support. Use `--status` to check progress. Use `-
 
 **Per-step timeouts** — each step has its own timeout (scan: 15 min, S3: 10 min, gate: 5 min, etc.) instead of a single 40-minute global timeout. A slow scan won't block the entire pipeline.
 
-**SQLite DB** — all pipeline outputs are dual-written to `src/bet/db/betting.db` (28-table schema organized by domain: **Core** — sports, teams, competitions, fixtures, athletes; **Stats** — team_form, match_stats, league_profiles, standings, power_index; **Analysis** — analysis_results, analysis_raw_data, gate_results, decision_snapshots, decision_outcomes; **Betting** — coupons, bets, odds_history; **Pipeline** — pipeline_runs, scan_results, scan_run_stats, source_health; **ESPN** — espn_predictions, player_gamelogs, player_splits, team_ats_records, team_ou_records, team_rosters) alongside flat files. Team aliases stored as JSON in `teams` table. Always use `from bet.db.connection import get_db` context manager — never raw `sqlite3.connect()`.
+**SQLite DB** — all pipeline outputs are dual-written to `betting/data/betting.db` (28-table schema organized by domain: **Core** — sports, teams, competitions, fixtures, athletes; **Stats** — team_form, match_stats, league_profiles, standings, power_index; **Analysis** — analysis_results, analysis_raw_data, gate_results, decision_snapshots, decision_outcomes; **Betting** — coupons, bets, odds_history; **Pipeline** — pipeline_runs, scan_results, scan_run_stats, source_health; **ESPN** — espn_predictions, player_gamelogs, player_splits, team_ats_records, team_ou_records, team_rosters) alongside flat files. Team aliases stored as JSON in `teams` table. Always use `from bet.db.connection import get_db` context manager — never raw `sqlite3.connect()`.
 
 **Config keys used:** `bankroll_pln` (fallback: `working_bankroll_pln`), `daily_exposure_range` (fallback: `suggested_daily_allocation_range_pln`), `db_path`.
 

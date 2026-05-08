@@ -64,6 +64,6 @@ Key gates: ≥2 tipster sites per candidate, argument quality rated, independenc
 
 ## Pass/Fail Gate
 
-ALL checks pass → "S4 PASSED" → orchestrator proceeds to S5.
+ALL checks pass → "S2 PASSED" → orchestrator proceeds to S2.5.
 
 <!-- BET:internal-prompt:bet-tipsters:v1 -->

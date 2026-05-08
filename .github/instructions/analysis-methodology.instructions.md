@@ -16,7 +16,7 @@ Goal: find MISPRICED ODDS in statistical markets. EV > 0 is the only valid reaso
 
 ## DATA ARCHITECTURE
 
-All pipeline data is stored in SQLite DB (`src/bet/db/betting.db`) as the primary source. JSON files are maintained as human-readable fallbacks and debug output. Scripts use `db_data_loader.py` functions which try DB first, then JSON fallback.
+All pipeline data is stored in SQLite DB (`betting/data/betting.db`) as the primary source. JSON files are maintained as human-readable fallbacks and debug output. Scripts use `db_data_loader.py` functions which try DB first, then JSON fallback.
 
 **Key DB tables:**
 - `fixtures` — all events for the betting day (replaces `scan_summary.json` reads)

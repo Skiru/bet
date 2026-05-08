@@ -21,7 +21,7 @@ user-invokable: false
 handoffs:
   - label: "Tipster intelligence complete → continue pipeline"
     agent: bet-orchestrator
-    prompt: /orchestrate-betting-day Continue pipeline from S3
+    prompt: /orchestrate-betting-day Continue pipeline from S2.5
     send: false
 ---
 
@@ -66,9 +66,9 @@ Before starting ANY work, you MUST assess the current pipeline state and adapt a
 
 ### 1. State Check (MANDATORY first action)
 ```
-Read: betting/data/pipeline_{date}.json
-Read: betting/data/shortlist_{date}.json (which candidates need tipster coverage)
-Read: betting/data/scan_summary.json (tipster sources scanned)
+Read: betting/data/pipeline_state/pipeline_{date}.json
+Read: betting/data/{date}_s2_shortlist.json (which candidates need tipster coverage)
+Read: betting/data/scan_summary.json (S1 scan coverage)
 ```
 - If s1 steps incomplete → WAIT — candidates not finalized
 - If tipster scan data already exists and is <4h old → use existing, don't rescan

@@ -34,12 +34,12 @@ Route this user message to the appropriate specialist agent.
 ## DATA SOURCES AVAILABLE
 
 When answering questions, check these sources in order of freshness:
-- **SQLite DB**: `src/bet/db/betting.db` — 28-table schema (fixtures, bets, coupons, odds_history, gate_results, team_form, match_stats, standings, analysis_results, espn_predictions, etc.). Query for structured data.
+- **SQLite DB**: `betting/data/betting.db` — 28-table schema (fixtures, bets, coupons, odds_history, gate_results, team_form, match_stats, standings, analysis_results, espn_predictions, etc.). Query for structured data.
 - **Flat files**: `betting/data/` — scan summaries, market matrices, deep stats, analysis pools, weather data
 - **Ledgers**: `betting/journal/picks-ledger.csv`, `coupons-ledger.csv`, `source-log.csv`, `learning-log.csv`
 - **Config**: `config/betting_config.json` — bankroll, daily cap, sports, thresholds, db_path
 - **Betclic history**: `betting/data/betclic_bets_history.json` — real placed bets (run `python3 scripts/analyze_betclic_learning.py` for analysis)
 - **Coupons**: `betting/coupons/` — versioned coupon files per day
 - **Reports**: `betting/reports/` — daily reports
-- **Pipeline state**: `betting/data/pipeline_state_{date}.json` — step-by-step progress with timestamps
+- **Pipeline state**: `betting/data/pipeline_state/pipeline_{date}.json` — step-by-step progress with timestamps
 - **Probability engine**: `scripts/probability_engine.py` — Poisson/NegBin with bootstrap CI, multi-line optimization, Bayesian league priors, weather modifiers, tennis Elo

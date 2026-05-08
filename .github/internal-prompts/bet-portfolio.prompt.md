@@ -50,7 +50,7 @@ No same match, max 2 same sport, no correlated narratives, unique-event verified
 
 ### 5. Staking (§8E)
 
-LR: max 3.00 PLN. HR: max 2.00 PLN. Apply 1/4 Kelly guidance from S5.
+LR: max 3.00 PLN. HR: max 2.00 PLN. Apply 1/4 Kelly guidance from S4.
 
 ### 6. Coupon Stress Test (§8.2 per coupon)
 

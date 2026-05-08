@@ -12,7 +12,7 @@ General rules:
 - On reruns for the same betting day, PRESERVE old versions and ADD new ones. Increment the version suffix (v5 → v6). Mark old pending picks/coupons as `superseded`. Add new picks and coupons with the new version. Create a new versioned coupon file. The previous version files are kept for history. The user compares all versions to decide which to place.
 
 DB-first data storage:
-- All pipeline data is stored in SQLite DB (`src/bet/db/betting.db`) as the primary source.
+- All pipeline data is stored in SQLite DB (`betting/data/betting.db`) as the primary source.
 - JSON/MD files are maintained as human-readable fallbacks and debug output (dual-write).
 - Scripts use `db_data_loader.py` functions which try DB first, then JSON fallback.
 - Key DB tables for artifacts: `analysis_results` (S3 output), `gate_results` (S7 output), `coupons` + `bets` (placed bets), `fixtures`, `odds_history`, `team_form`.

@@ -76,7 +76,7 @@ Before starting ANY work, you MUST assess the current pipeline state and adapt a
 
 ### 1. State Check (MANDATORY first action)
 ```
-Read: betting/data/pipeline_{date}.json
+Read: betting/data/pipeline_state/pipeline_{date}.json
 Read: betting/data/betclic_bets_history.json (check freshness)
 Read: picks-ledger.csv, coupons-ledger.csv (pending entries)
 ```
@@ -103,5 +103,3 @@ Read: picks-ledger.csv, coupons-ledger.csv (pending entries)
 - If learning script fails → still proceed with settlement using ledger data alone
 
 <!-- BET:agent:bet-settler:v2 -->
-
-<!-- BET:agent:bet-settler:v1 -->

@@ -81,9 +81,9 @@ Before starting ANY work, you MUST assess the current pipeline state and adapt a
 
 ### 1. State Check (MANDATORY first action)
 ```
-Read: betting/data/pipeline_{date}.json
+Read: betting/data/pipeline_state/pipeline_{date}.json
 Read: betting/data/odds_api_snapshot.json (check timestamp + quota)
-Read: betting/data/shortlist_{date}.json (candidates needing pricing)
+Read: betting/data/{date}_s2_shortlist.json (candidates needing pricing)
 ```
 - If s3_deep_stats incomplete → WAIT — need probability data before EV calc
 - If odds snapshot is >4h old → re-fetch before calculating EV

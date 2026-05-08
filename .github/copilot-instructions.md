@@ -28,7 +28,7 @@ python3 scripts/analyze_betclic_learning.py
 # GATE: If this file is not read, §0.2 is INCOMPLETE. Do NOT start scanning.
 
 # 1. Run pipeline (scan + analysis)
-python3 scripts/pipeline_orchestrator.py --betting-day YYYY-MM-DD
+python3 scripts/pipeline_orchestrator.py --date YYYY-MM-DD
 # → produces: betting/data/scan_summary.json, picks_suggested.json, scan_errors.json
 # → also produces: market_matrix_{date}.json, market_matrix_{date}.md, decision_matrix_{date}.md
 

@@ -21,7 +21,7 @@ user-invokable: false
 handoffs:
   - label: "Gate + challenge complete → continue pipeline"
     agent: bet-orchestrator
-    prompt: /orchestrate-betting-day Continue pipeline from S8
+    prompt: /orchestrate-betting-day Continue pipeline from S3B
     send: false
 ---
 
@@ -67,8 +67,8 @@ Before starting ANY work, you MUST assess the current pipeline state and adapt a
 
 ### 1. State Check (MANDATORY first action)
 ```
-Read: betting/data/pipeline_{date}.json
-Read: betting/data/gate_results_{date}.json (prior gate runs if any)
+Read: betting/data/pipeline_state/pipeline_{date}.json
+Read: betting/data/{date}_s7_gate_results.json (prior gate runs if any)
 Read: betting/data/betclic_bets_history.json (48h repeat check)
 ```
 - If s3_deep_stats or s4_odds_eval incomplete → WAIT — need full analysis before gating

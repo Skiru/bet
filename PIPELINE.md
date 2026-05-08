@@ -30,11 +30,19 @@ python3 scripts/pipeline_orchestrator.py --list-steps
 |------|------|------|----------|-------------|
 | S0 | Settle + History | Shell | ~1 min | Betclic history analysis (§0.2 MANDATORY) |
 | S1 | Complete Scan | Shell | 5-10 min | 14-sport Playwright scan + API fixtures (PARALLEL: 6 domain workers) |
+| S1a | Discover Fixtures | Python | ~1 min | Fixture discovery from DB + scan results |
 | S1b | Odds+Weather+Tipsters | Python | ~5 min | **PARALLEL**: odds API + weather + tipster aggregation (3 threads) |
+| S1c | Aggregate | Python | ~1 min | Merge all S1b parallel outputs |
 | S1d | Market Matrix | Shell | ~2 min | Consolidated market matrix from all sources |
 | S1e | Shortlist | Shell | ~1 min | Ranked shortlist of top 100 events |
+| S2 | Tipster Cross-Ref | Agent | ~2 min | Tipster consensus from ≥2 sites per candidate |
+| S2.5 | Enrichment | Agent | ~2 min | Tennis/basketball/volleyball deep stat enrichment |
 | S3 | Deep Stats + Probability | Python | ~1 min | Per-candidate L10/H2H/L5 analysis + Poisson probability engine (PARALLEL: 8 workers) |
+| S4 | Odds Evaluation | Agent | ~1 min | EV calculation, Kelly 1/4 criterion, price gap analysis |
+| S5 | Context Checks | Agent | ~1 min | Motivation, fatigue, travel, schedule density |
+| S6 | Upset Risk | Agent | ~1 min | Upset probability scoring, red flag detection |
 | S7 | Gate Check | Python | ~1 min | 18-point approval gate, risk classification |
+| S3B | Time-Sensitive | Agent | ~1 min | Lineups, weather impact, odds drift formula |
 | S8 | Coupons | Python | ~1 min | Core portfolio + combo menu + extended pool |
 | S9 | Validation | Python | ~1 min | Coupon arithmetic and structure validation |
 | S10 | Summary | Python | instant | Final summary and artifact listing |
@@ -65,19 +73,35 @@ After a successful run, find your coupons at:
            score  score  clic   portal Expl  domains
               └──────┴──────┼──────┴──────┴──────┘
                             │
+                     S1a: Discover Fixtures
+                            │
                   S1b: PARALLEL ENRICHMENT
                   ┌─────────┼─────────┐
               S1b-Odds  S1b-Weather S1b-Tipsters
                   └─────────┼─────────┘
+                     S1c: Aggregate
+                            │
                      S1d: Market Matrix
                             │
                      S1e: Shortlist (100 events)
                             │
+                     S2: Tipster Cross-Reference
+                            │
+                     S2.5: Enrichment (tennis/basketball/volleyball)
+                            │
                      S3: Deep Stats + Probability Engine (PARALLEL: 8 workers)
                      (L10/H2H/L5 + Poisson/NegBin → P(hit))
                             │
+                     S4: Odds Evaluation (EV + Kelly)
+                            │
+                     S5: Context Checks (motivation/fatigue/travel)
+                            │
+                     S6: Upset Risk Scoring
+                            │
                      S7: 18-Point Gate Check
                      (approved/extended/rejected)
+                            │
+                     S3B: Time-Sensitive (lineups/weather/drift)
                             │
                      S8: Coupon Builder
                      (core + combos + extended)

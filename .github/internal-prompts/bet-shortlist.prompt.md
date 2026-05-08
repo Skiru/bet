@@ -60,12 +60,12 @@ Save to: `betting/data/{date}_s2_shortlist.md`
 
 Sections: Summary, Removal Log, Tier 1 (statistical markets), Tier 2 (ML/basic), Major Tournaments.
 
-## Self-Verification (V-S2-01 to V-S2-11)
+## Self-Verification (V-S1e-01 to V-S1e-11)
 
 Key gates: 50-100 events, ≥8 sports, football ≤50%, no ITF tennis.
 
 ## Pass/Fail Gate
 
-ALL 11 checks pass → "S2 PASSED" → orchestrator proceeds to S3.
+ALL 11 checks pass → "S1e PASSED" → orchestrator proceeds to S2.
 
 <!-- BET:internal-prompt:bet-shortlist:v2 -->

@@ -1,6 +1,6 @@
 ---
 agent: "bet-scanner"
-description: "S1+S2: Full data engine — scan 14 sports, enrich with stats/odds/weather, live-validate quality, self-heal gaps, build analysis-ready shortlist"
+description: "S1-S1e: Full data engine — scan 14 sports, enrich with stats/odds/weather, live-validate quality, self-heal gaps, build analysis-ready shortlist"
 ---
 
 # S1+S2 — SCAN + ENRICH + VALIDATE + SHORTLIST
@@ -113,7 +113,7 @@ Include all sections from the agent's report format:
 
 ## Pass/Fail
 
-- **15/15** → S1 PASSED → hand off to S3
+- **15/15** → S1 PASSED → hand off to S2
 - **12-14** → S1 CONDITIONAL → document gaps, proceed with warnings
 - **<12** → S1 FAILED → investigate, self-heal, re-validate
 

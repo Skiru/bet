@@ -54,7 +54,7 @@ Nowy system (`src/bet/`) używa SQLite z trybem WAL jako bazy danych. Stare skry
 - `src/bet/scanner/` — odkrywanie meczów, pobieranie kursów
 - `src/bet/stats/` — wzbogacanie danych, safety scores, ranking rynków
 - `src/bet/coupon/` — budowanie kuponów (max 3 nogi), lista zakupów
-- `src/bet/pipeline/` — orkiestrator 5-krokowy z resume
+- `src/bet/pipeline/` — orkiestrator pipeline S0-S10 z resume
 - `src/bet/settlement/` — rozliczanie, analiza historyczna
 
 ## `scripts/` — Przestarzałe (deprecated)
@@ -90,7 +90,7 @@ Pliki instrukcyjne, prompty, agent i pola w CSV sa po angielsku celowo. Copilot 
 
 - .github/copilot-instructions.md
 - .github/instructions/betting-artifacts.instructions.md
-- .github/agents/bet-analyst.agent.md
+- .github/agents/bet-orchestrator.agent.md
 - .github/prompts/orchestrate-betting-day.prompt.md
 - betting/sources/source-registry.md
 - betting/journal/learning-log.md
@@ -106,13 +106,13 @@ Pliki instrukcyjne, prompty, agent i pola w CSV sa po angielsku celowo. Copilot 
 2. Upewnij sie, ze VS Code widzi prompty i custom agents z katalogu .github.
 3. Otworz Copilot Chat.
 4. Sprawdz, czy po wpisaniu / widzisz prompt orchestrate-betting-day.
-5. Sprawdz, czy na liscie agentow widzisz bet-analyst.
+5. Sprawdz, czy na liscie agentow widzisz bet-orchestrator.
 
 ## Jak Uruchamiac
 
 ### Rekomendowany sposob: Orchestrator (4-pass pipeline)
 
-Orchestrator uruchamia pelny pipeline S0→S1→S2→S3→S4→S5→S6→S7→S3B→S8 w 4 przejsciach (Discovery → Fixes → Polish → Final). **Kazda sesja przechodzi IDENTYCZNY proces — rozni sie TYLKO okno czasowe wydarzen.**
+Orchestrator uruchamia pelny pipeline S0→S1→S1a→S1b→S1c→S1d→S1e→S2→S2.5→S3→S4→S5→S6→S7→S3B→S8→S9→S10 w 4 przejsciach (Discovery → Fixes → Polish → Final). **Kazda sesja przechodzi IDENTYCZNY proces — rozni sie TYLKO okno czasowe wydarzen.**
 
 **Pelna sesja (06:00 → 05:59 nastepnego dnia):**
 ```
