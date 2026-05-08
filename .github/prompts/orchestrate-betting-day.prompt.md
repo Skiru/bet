@@ -48,18 +48,34 @@ Print the pre-flight checklist:
 
 ## THE EXECUTION PROTOCOL
 
-**Every step follows the same atomic pattern:**
+> **⛔ YOU DO NOT RUN SCRIPTS YOURSELF (except S0 settlement + trivial file checks).**
+> **The specialist agents run scripts, think, analyze, and return verdicts.**
+> **You are a COORDINATOR — you delegate, receive verdicts, and decide next steps.**
+
+**Every step follows this pattern:**
 ```
-1. RUN: One script, one purpose, ≤10 min
-2. CHECK: Read output, verify sanity (file exists, not empty, reasonable numbers)
-3. THINK: sequentialthinking — analyze what was produced, catch issues
-4. DELEGATE: runSubagent to specialist agent for quality review
-5. DECIDE: PROCEED / FIX+RETRY / ESCALATE to user
+1. DELEGATE: runSubagent(specialist_agent) — pass: date, internal prompt content, input files, issues
+2. AGENT WORKS: Specialist runs script + sequentialthinking + loads skills + validates output
+3. RECEIVE: Agent returns APPROVED/FLAGGED/REJECTED + quality_score + specific_issues[]
+4. DECIDE: PROCEED (if APPROVED) / FIX+RETRY (if FLAGGED) / ESCALATE to user (if REJECTED)
 ```
 
-**If a script takes >10 minutes:** Run in async mode. Check output every 60 seconds. Monitor for errors.
+**What YOU do between steps:**
+- Use `sequentialthinking` to evaluate the agent's verdict — do you agree? Any red flags?
+- Check that methodology rules (R1-R12) are respected in the agent's output
+- Verify sport diversity, statistical market coverage, and gate compliance
 
-**Between EVERY step:** You MUST use `sequentialthinking`. No exceptions. This is where methodology enforcement happens.
+**What you NEVER do:**
+- Run `deep_stats_report.py`, `data_enrichment_agent.py`, `gate_checker.py`, `coupon_builder.py`, or any analytical script yourself
+- Analyze statistical output yourself (that's bet-statistician's job)
+- Build bear cases yourself (that's bet-challenger's job)
+- Evaluate odds yourself (that's bet-valuator's job)
+
+**The ONLY scripts you may run directly:**
+- `settle_on_finish.py` + `analyze_betclic_learning.py` (S0 — lightweight, pre-pipeline)
+- `scan_events.py` (S1 — launches parallel scan, but bet-scanner reviews output)
+- Simple validation one-liners: file existence, line counts, JSON key checks
+- `validate_phase.py` (quick sanity gate between phases)
 
 ---
 
@@ -82,6 +98,8 @@ python3 scripts/data_rotation.py --execute --days 30 2>&1 | tail -10
 
 ### STEP S1: Event Scan (longest step — use async)
 
+**You launch the scan, then delegate review to bet-scanner.**
+
 ```bash
 # Run parallel-sport scan — takes 10-20 min
 python3 scripts/scan_events.py --parallel-sport --date {date} --deep --max-deep-links 30 --workers 8 2>&1 | tail -60
@@ -89,28 +107,31 @@ python3 scripts/scan_events.py --parallel-sport --date {date} --deep --max-deep-
 
 **WHILE RUNNING:** Check output periodically. Look for per-sport completion messages.
 
-**AFTER:** Use `sequentialthinking`:
-- How many events per sport?
-- Which sports had 0 events? (source failure)
-- Any timeout errors?
+**AFTER scan completes — Delegate to bet-scanner** (read `.github/internal-prompts/bet-scan.prompt.md` first):
 
-```bash
-# Quick validation
-python3 -c "
-import json
-from pathlib import Path
-summary = json.loads(Path('betting/data/scan_summary.json').read_text())
-print(f'Total events: {summary.get(\"total_events\", 0)}')
-for sport, data in summary.get('per_sport', {}).items():
-    print(f'  {sport}: {data.get(\"events\", 0)} events, {data.get(\"sources_ok\", 0)} sources OK')
-"
 ```
+runSubagent("bet-scanner"):
+---
+## Task: S1 Scan Review for {date}
 
-**Delegate to bet-scanner** (read `.github/internal-prompts/bet-scan.prompt.md` first):
-- 14-sport coverage check
-- Phantom fixture detection
-- Tournament protection (§SCAN.7)
-- Minor league value (§SCAN.8)
+[Paste content of .github/internal-prompts/bet-scan.prompt.md]
+
+### Context
+- Date: {date}, Session: {session}
+- Scan already completed. Review output quality.
+- Check: betting/data/scan_summary.json
+- Use sequentialthinking to evaluate coverage
+- Load skill: bet-navigating-sources
+- Key checks:
+  - 14-sport coverage (how many events per sport?)
+  - Which sports had 0 events? (source failure)
+  - Phantom fixture detection
+  - Tournament protection (§SCAN.7) — major tournaments present?
+  - Minor league value (§SCAN.8)
+  - Timeout/error triage
+- Return: APPROVED/FLAGGED/REJECTED + per_sport_counts + issues[]
+---
+```
 
 ---
 
@@ -128,8 +149,6 @@ python3 scripts/ingest_scan_stats.py 2>&1 | tail -20
 python3 scripts/html_deep_parser.py --date {date} --report 2>&1 | tail -40
 ```
 
-**AFTER:** `sequentialthinking` — Were key stats extracted? Any broken CSS selectors?
-
 ---
 
 ### STEP S1a: Fixture Discovery + API Stats
@@ -141,8 +160,6 @@ python3 scripts/enrich_tennis_stats.py --date {date} --all-indexed 2>&1 | tail -
 python3 scripts/seed_espn_data.py --skip-players 2>&1 | tail -30
 ```
 
-**AFTER:** `sequentialthinking` — How many fixtures discovered? Coverage gaps?
-
 ---
 
 ### STEP S1b: Odds + Weather + Tipsters
@@ -152,8 +169,6 @@ python3 scripts/fetch_odds_api.py 2>&1 | tail -30
 python3 scripts/fetch_weather.py --date {date} 2>&1 | tail -20
 python3 scripts/tipster_xref.py --date {date} 2>&1 | tail -30
 ```
-
-**AFTER:** `sequentialthinking` — Odds coverage? Weather impacts? Tipster consensus?
 
 ---
 
@@ -172,8 +187,6 @@ python3 scripts/deep_analysis_pool.py --date {date} 2>&1 | tail -30
 python3 scripts/generate_market_matrix.py --date {date} --stats-first 2>&1 | tail -30
 ```
 
-**AFTER:** Verify matrix file exists and has entries.
-
 ---
 
 ### STEP S1e: Build Shortlist
@@ -182,251 +195,267 @@ python3 scripts/generate_market_matrix.py --date {date} --stats-first 2>&1 | tai
 python3 scripts/build_shortlist.py --date {date} --stats-first 2>&1 | tail -40
 ```
 
-**AFTER — CRITICAL CHECKPOINT:**
-```bash
-python3 -c "
-import json
-from pathlib import Path
-from collections import Counter
-# Try both date formats
-for fmt in ['{date}', '{date_compact}']:
-    p = Path(f'betting/data/{{fmt}}_s2_shortlist.json')
-    if p.exists():
-        data = json.loads(p.read_text())
-        candidates = data.get('candidates', [])
-        sports = Counter(c.get('sport','?') for c in candidates)
-        print(f'Shortlist: {{len(candidates)}} candidates across {{len(sports)}} sports')
-        for s, n in sports.most_common():
-            print(f'  {{s}}: {{n}}')
-        break
-"
+**AFTER shortlist built — Delegate to bet-scanner** (read `.github/internal-prompts/bet-shortlist.prompt.md` first):
+
 ```
+runSubagent("bet-scanner"):
+---
+## Task: S1e Shortlist Review for {date}
 
-Use `sequentialthinking`:
-- ≥20 candidates? If not → something failed upstream
-- ≥8 sports? If not → scan coverage issue
-- KEY sports (football, tennis, basketball, volleyball) ≥60% of candidates?
-- Major tournaments present?
+[Paste content of .github/internal-prompts/bet-shortlist.prompt.md]
 
-**Delegate to bet-scanner** (read `.github/internal-prompts/bet-shortlist.prompt.md`):
-- Sport diversity assessment
-- Tournament protection verification
-- Minor league value check
+### Context
+- Date: {date}
+- Shortlist file: betting/data/{date_shortlist_file} (check both YYYY-MM-DD and YYYYMMDD formats)
+- Use sequentialthinking to assess shortlist quality
+- Key checks:
+  - ≥20 candidates? If not → something failed upstream
+  - ≥8 sports? If not → scan coverage issue
+  - KEY sports (football, tennis, basketball, volleyball) ≥60% of candidates?
+  - Major tournaments present? (§SCAN.7)
+  - Minor league value candidates present? (§SCAN.8)
+  - Sport diversity assessment
+- Return: APPROVED/FLAGGED/REJECTED + candidate_count + sport_distribution
+---
+```
 
 ---
 
 ### STEP S2: Tipster Cross-Reference
 
-```bash
-PYTHONPATH=src python3 -c "
-import sys; sys.path.insert(0, 'scripts')
-from tipster_xref import run_tipster_xref
-ok, msg = run_tipster_xref('{date}', {{}})
-print(msg)
-" 2>&1 | tail -30
-```
+**Delegate to bet-scout** — read `.github/internal-prompts/bet-tipsters.prompt.md` first, then:
 
-**Delegate to bet-scout** (read `.github/internal-prompts/bet-tipsters.prompt.md`)
+```
+runSubagent("bet-scout"):
+---
+## Task: S2 Tipster Cross-Reference for {date}
+
+[Paste content of .github/internal-prompts/bet-tipsters.prompt.md]
+
+### Context
+- Date: {date}
+- Shortlist: betting/data/{date_shortlist_file}
+- Script to run: `PYTHONPATH=src python3 -c "import sys; sys.path.insert(0, 'scripts'); from tipster_xref import run_tipster_xref; ok, msg = run_tipster_xref('{date}', {}); print(msg)"`
+- Use sequentialthinking to evaluate tipster consensus quality
+- Load skill: bet-navigating-sources (Tier B tipster sites)
+- Return: APPROVED/FLAGGED/REJECTED + tipster_consensus_summary
+---
+```
 
 ---
 
 ### STEP S2.5: Data Enrichment
 
-```bash
-PYTHONPATH=src python3 scripts/data_enrichment_agent.py --date {date} 2>&1 | tail -50
+**Delegate to bet-enricher** — read `.github/internal-prompts/bet-enrich.prompt.md` first, then:
+
+```
+runSubagent("bet-enricher"):
+---
+## Task: S2.5 Data Enrichment for {date}
+
+[Paste content of .github/internal-prompts/bet-enrich.prompt.md]
+
+### Context
+- Date: {date}
+- Shortlist: betting/data/{date_shortlist_file}
+- Script to run: `PYTHONPATH=src python3 scripts/data_enrichment_agent.py --date {date}`
+- After script: run `python3 scripts/validate_phase.py --date {date} --phase data --format json`
+- Use sequentialthinking for Enrichment Quality Assessment
+- Load skill: bet-navigating-sources (source fallback chains)
+- Key metrics: enrichment yield %, per-sport data quality, gap recoverability
+- Return: APPROVED/FLAGGED/REJECTED + yield_percentage + gaps[]
+---
 ```
 
-**AFTER — ENRICHMENT QUALITY CHECK:**
-```bash
-python3 scripts/validate_phase.py --date {date} --phase data --format json 2>&1 | tail -40
-```
-
-Use `sequentialthinking`:
-- Enrichment yield — what % of candidates have sufficient stats for S3?
-- Which sports/leagues still have gaps?
-- Is downstream analysis possible?
-
-**Delegate to bet-enricher** (read `.github/internal-prompts/bet-enrich.prompt.md`):
-- Data quality per sport
-- Gap recoverability
-- Source health assessment
-
-**GATE:** If enrichment <40% AND bet-enricher returns REJECTED → STOP, escalate to user.
+**GATE:** If bet-enricher returns REJECTED (yield <40%) → STOP, escalate to user.
 
 ---
 
 ## ═══════════════════════════════════════════════
-## ANALYSIS (Steps S3 → S7) — AGENT-INTENSIVE
+## ANALYSIS (Steps S3 → S7) — FULLY DELEGATED TO SPECIALIST AGENTS
 ## ═══════════════════════════════════════════════
 
-> **⚠️ THIS IS WHERE AGENT VALUE IS HIGHEST.**
-> Each step here requires DEEP ANALYTICAL THINKING. The scripts produce numbers.
-> YOU and the specialist agents produce INSIGHTS, EDGE MECHANISMS, and BEAR CASES.
+> **⛔ YOU DO NOT RUN ANY SCRIPTS IN THIS SECTION.**
+> **Each step = one `runSubagent` call. The agent runs scripts, thinks, and returns a verdict.**
+> **You evaluate the verdict with `sequentialthinking`, then decide: PROCEED / RETRY / ESCALATE.**
 
 ### STEP S3: Deep Statistical Analysis
 
-```bash
-PYTHONPATH=src python3 scripts/deep_stats_report.py --date {date} --shortlist betting/data/{date_shortlist_file} --top 200 2>&1 | tail -60
+**Delegate to bet-statistician** — read `.github/internal-prompts/bet-deep-stats.prompt.md` first, then:
+
+```
+runSubagent("bet-statistician"):
+---
+## Task: S3 Deep Statistical Analysis for {date}
+
+[Paste content of .github/internal-prompts/bet-deep-stats.prompt.md]
+
+### Context
+- Date: {date}
+- Shortlist file: betting/data/{date_shortlist_file}
+- Script to run: `PYTHONPATH=src python3 scripts/deep_stats_report.py --date {date} --shortlist betting/data/{date_shortlist_file} --top 200`
+- After script: run `python3 scripts/validate_s3_output.py betting/data/{date}_s3_deep_stats.md --format json`
+- Use sequentialthinking for EVERY CANDIDATE (5-part Analytical Reasoning Layer)
+- Load skills: bet-analyzing-statistics, bet-applying-sport-protocols, bet-navigating-sources
+- Key checks:
+  - R5: Statistical markets ranked FIRST (corners/fouls/shots before ML)
+  - §3.0c: H2H validation for EXACT stat being bet
+  - Three-way cross-check: L10 + H2H + L5 all support direction
+  - Every football match: ≥1 stat market evaluated
+  - Edge mechanisms articulated (not just numbers)
+- Return: APPROVED/FLAGGED/REJECTED + quality_score (1-10) + specific_issues[]
+---
 ```
 
-**⚠️ This takes 5-15 min. Run in async mode if needed. Monitor progress.**
-
-**AFTER — MANDATORY QUALITY AUDIT:**
-
-1. Read the output: `betting/data/{date}_s3_deep_stats.md` (first 200 lines to assess)
-2. Use `sequentialthinking` — CRITICAL analysis:
-   - Does EVERY candidate have analytical reasoning (not just numbers)?
-   - Are statistical markets prioritized (R5)?
-   - Three-way alignment present (L10+H2H+L5)?
-   - Any football candidate missing corners/fouls/shots market?
-   - Safety scores reasonable (not all 0.0 or all 1.0)?
-   - Edge mechanisms articulated?
-
-3. Run validation:
-```bash
-python3 scripts/validate_s3_output.py betting/data/{date}_s3_deep_stats.md --format json 2>&1 | tail -30
-```
-
-4. **Delegate to bet-statistician** (read `.github/internal-prompts/bet-deep-stats.prompt.md`):
-```
-Review S3 output for {date}:
-- Read: betting/data/{date}_s3_deep_stats.md
-- Verify: ANALYTICAL REASONING per candidate (not just tables)
-- Check: R5 compliance (stat markets FIRST)
-- Check: Three-way cross-check (L10+H2H+L5)
-- Check: H2H market-specific validation (§3.0c)
-- Validate: Run validate_s3_output.py
-- Return: APPROVED/FLAGGED/REJECTED + quality score 1-10 + specific issues
-```
-
-5. **If FLAGGED:** Fix issues (re-run specific candidates, fetch missing data)
-6. **If REJECTED:** Escalate to user
+**Your job after receiving verdict:**
+1. Use `sequentialthinking`: Does the quality_score justify proceeding? Are issues fixable?
+2. If FLAGGED: Send back to bet-statistician with specific fix instructions
+3. If REJECTED: Escalate to user with explanation
 
 ---
 
 ### STEP S4: Odds Evaluation
 
-```bash
-PYTHONPATH=src python3 -c "
-import sys; sys.path.insert(0, 'scripts')
-from odds_evaluator import run_odds_eval
-ok, msg = run_odds_eval('{date}', {{}})
-print(msg)
-" 2>&1 | tail -30
+**Delegate to bet-valuator** — read `.github/internal-prompts/bet-odds-ev.prompt.md` first, then:
+
 ```
+runSubagent("bet-valuator"):
+---
+## Task: S4 Odds Evaluation for {date}
 
-**AFTER:** `sequentialthinking` — EV distribution, pricing anomalies, drift flags.
+[Paste content of .github/internal-prompts/bet-odds-ev.prompt.md]
 
-**Delegate to bet-valuator** (read `.github/internal-prompts/bet-odds-ev.prompt.md`)
+### Context
+- Date: {date}
+- S3 output: betting/data/{date}_s3_deep_stats.md
+- Script to run: `PYTHONPATH=src python3 -c "import sys; sys.path.insert(0, 'scripts'); from odds_evaluator import run_odds_eval; ok, msg = run_odds_eval('{date}', {}); print(msg)"`
+- Also run: `python3 scripts/fetch_odds_api.py` for cross-validation
+- Use sequentialthinking for EV assessment and drift detection
+- Load skill: bet-evaluating-odds
+- Key checks:
+  - EV calculation per candidate: (true_prob × odds) - 1
+  - R10: Events without API odds NOT excluded — show with suggested min odds
+  - Drift detection: >8% change = mandatory re-evaluation
+  - Kelly 1/4 sizing for each approved pick
+- Return: APPROVED/FLAGGED/REJECTED + ev_summary + drift_flags[]
+---
+```
 
 ---
 
-### STEP S5: Contextual Checks
+### STEP S5+S6: Context + Upset Risk (combined delegation)
 
-```bash
-PYTHONPATH=src python3 -c "
-import sys; sys.path.insert(0, 'scripts')
-from context_checks import run_context_checks
-ok, msg = run_context_checks('{date}', {{}})
-print(msg)
-" 2>&1 | tail -30
+**Delegate to bet-challenger** — read `.github/internal-prompts/bet-context-upset.prompt.md` first, then:
+
 ```
-
+runSubagent("bet-challenger"):
 ---
+## Task: S5+S6 Context Checks + Upset Risk for {date}
 
-### STEP S6: Upset Risk Scoring
+[Paste content of .github/internal-prompts/bet-context-upset.prompt.md]
 
-```bash
-PYTHONPATH=src python3 -c "
-import sys; sys.path.insert(0, 'scripts')
-from upset_risk import run_upset_risk
-ok, msg = run_upset_risk('{date}', {{}})
-print(msg)
-" 2>&1 | tail -30
+### Context
+- Date: {date}
+- S3 output: betting/data/{date}_s3_deep_stats.md
+- S4 output: (from bet-valuator's verdict above)
+- Scripts to run:
+  1. `PYTHONPATH=src python3 -c "import sys; sys.path.insert(0, 'scripts'); from context_checks import run_context_checks; ok, msg = run_context_checks('{date}', {}); print(msg)"`
+  2. `PYTHONPATH=src python3 -c "import sys; sys.path.insert(0, 'scripts'); from upset_risk import run_upset_risk; ok, msg = run_upset_risk('{date}', {}); print(msg)"`
+- Use sequentialthinking for 5-part Deep Adversarial Reasoning per candidate
+- Load skill: bet-applying-sport-protocols (upset risk checklists)
+- Key checks:
+  - Context flags with REAL market impact (not generic "weather could matter")
+  - Compounding risk factors identified
+  - Sport-specific upset thresholds applied
+  - Bayesian confidence update formula applied
+- Return: APPROVED/FLAGGED/REJECTED + risk_summary + compounding_risks[]
+---
 ```
-
-**AFTER S5+S6:** `sequentialthinking` — which candidates have compounding risk factors?
-
-**Delegate to bet-challenger** (read `.github/internal-prompts/bet-context-upset.prompt.md`):
-- Context flags with REAL market impact
-- Upset risk with sport-specific reasoning
-- Compounding factor identification
 
 ---
 
 ### STEP S7: 18-Point Advisory Gate
 
-```bash
-PYTHONPATH=src python3 scripts/gate_checker.py --date {date} 2>&1 | tail -50
+**Delegate to bet-challenger** — read `.github/internal-prompts/bet-gate.prompt.md` first, then:
+
+```
+runSubagent("bet-challenger"):
+---
+## Task: S7 Gate Check for {date}
+
+[Paste content of .github/internal-prompts/bet-gate.prompt.md]
+
+### Context
+- Date: {date}
+- S3 output: betting/data/{date}_s3_deep_stats.md
+- Script to run: `PYTHONPATH=src python3 scripts/gate_checker.py --date {date}`
+- Use sequentialthinking for gate quality assessment
+- Key checks:
+  - All 18 points evaluated per candidate (not abbreviated)
+  - Bear cases cite SPECIFIC DATA (not generic "it could go wrong")
+  - R4: ≥5 sports in STRONG+MODERATE tiers
+  - R3: NO auto-rejection — ALL candidates visible in output
+  - Extended Pool: gate-failed EV>0 candidates documented
+  - Tier distribution: >80% FLAGGED = gate calibration issue
+- Return: APPROVED/FLAGGED/REJECTED + tier_distribution + sport_diversity_check
+---
 ```
 
-**AFTER — CRITICAL GATE REVIEW:**
-
-Use `sequentialthinking`:
-- Tier distribution: >80% FLAGGED = gate calibration issue
-- ≥5 sports in STRONG+MODERATE tiers? (R4)
-- Any auto-rejection language? (R3 violation)
-- Extended Pool populated?
-
-**Delegate to bet-challenger** (read `.github/internal-prompts/bet-gate.prompt.md`):
-```
-Review S7 gate for {date}:
-- All 18 points evaluated per candidate (not abbreviated)?
-- Bear cases cite SPECIFIC DATA (not generic "it could go wrong")?
-- R4: ≥5 sports in approved picks?
-- R3: NO auto-rejection — ALL candidates visible in output?
-- Extended Pool: gate-failed EV>0 candidates documented?
-- Return: APPROVED/FLAGGED/REJECTED + gate quality assessment
-```
-
-**GATE:** If <5 sports in approved → emergency expansion (R4). Analyze ALL remaining shortlist candidates.
+**GATE:** If <5 sports in approved → emergency expansion (R4). Delegate again with expanded scope.
 
 ---
 
 ## ═══════════════════════════════════════════════
-## BUILD (Steps S8 → S10)
+## BUILD (Steps S8 → S10) — DELEGATED TO bet-builder
 ## ═══════════════════════════════════════════════
 
-### STEP S8: Build Coupons
+### STEP S8+S9: Build + Validate Coupons
 
-```bash
-PYTHONPATH=src python3 scripts/coupon_builder.py --date {date} 2>&1 | tail -40
+**Delegate to bet-builder** — read `.github/internal-prompts/bet-portfolio.prompt.md` first, then:
+
 ```
-
-**AFTER:** `sequentialthinking` — Portfolio strategy, correlation, exposure.
-
+runSubagent("bet-builder"):
 ---
+## Task: S8+S9 Build and Validate Coupons for {date}
 
-### STEP S9: Validate Coupons
+[Paste content of .github/internal-prompts/bet-portfolio.prompt.md]
 
-```bash
-python3 scripts/validate_phase.py --date {date} --phase build --format json 2>&1 | tail -30
-```
-
-**Delegate to bet-builder** (read `.github/internal-prompts/bet-portfolio.prompt.md`):
-```
-Review coupons for {date}:
-- Arithmetic: multiply each leg odds step-by-step → combined odds match (±0.02)?
-- Unique events: zero shared events between core coupons?
-- Sport diversity: ≥5 sports across portfolio?
-- R5: ≥60% statistical markets?
-- Exposure: total stakes ≤25% bankroll?
-- V1-V10 + §S8.FINAL: ALL checks PASS?
-- Conditional disclaimer present?
-Return: APPROVED/FLAGGED/REJECTED with arithmetic verification
+### Context
+- Date: {date}
+- Gate output: betting/data/{date}_s7_gate_results.json (or from bet-challenger verdict)
+- Config: config/betting_config.json
+- Scripts to run:
+  1. `PYTHONPATH=src python3 scripts/coupon_builder.py --date {date}`
+  2. `python3 scripts/validate_phase.py --date {date} --phase build --format json`
+- Use sequentialthinking for 4-part Portfolio Intelligence Layer
+- Load skill: bet-building-coupons
+- Key checks:
+  - Arithmetic: multiply each leg odds step-by-step → combined odds match (±0.02)
+  - Unique events: zero shared events between core coupons
+  - Sport diversity: ≥5 sports across portfolio
+  - R5: ≥60% statistical markets
+  - Exposure: total stakes ≤25% bankroll
+  - V1-V10 + §S8.FINAL: ALL mechanical checks PASS
+  - Conditional disclaimer present
+  - R12: All picks marked CONDITIONAL
+- Return: APPROVED/FLAGGED/REJECTED + arithmetic_verification + coupon_file_path
+---
 ```
 
 ---
 
 ### STEP S10: Final Summary
 
-```bash
-PYTHONPATH=src python3 -c "
-import sys; sys.path.insert(0, 'scripts')
-from pipeline_summary import run_summary
-ok, msg = run_summary('{date}', {{}})
-print(msg)
-" 2>&1 | tail -30
+```
+runSubagent("bet-builder"):
+---
+## Task: S10 Generate Final Summary for {date}
+
+### Context
+- Date: {date}
+- Script to run: `PYTHONPATH=src python3 -c "import sys; sys.path.insert(0, 'scripts'); from pipeline_summary import run_summary; ok, msg = run_summary('{date}', {}); print(msg)"`
+- Return: summary text for user presentation
+---
 ```
 
 ---
@@ -453,13 +482,14 @@ Present to user:
 |---|---|---|
 | 1 | Run `pipeline_orchestrator.py` | Dumb script, no agent analysis, runs 1-2h blind |
 | 2 | Run `--phase data/analysis/build` | Bundles steps, removes agent control points |
-| 3 | Run script → show output → done | Script = calculator. You = analyst. THINK. |
+| 3 | Run script → show output → done | Script = calculator. Agent = analyst. DELEGATE. |
 | 4 | Skip `sequentialthinking` between steps | No methodology enforcement without thinking |
 | 5 | Skip `runSubagent` delegation | Specialist agents catch what you miss |
 | 6 | Proceed despite validation failure | Garbage in → garbage out |
 | 7 | Present raw script output to user | User gets ANALYZED output, not log dumps |
 | 8 | Run S3-S7 as one batch | Each analytical step needs separate agent review |
-| 9 | Run any script >15 min synchronously | Use async mode + periodic monitoring |
+| 9 | Run analytical scripts yourself | `deep_stats_report.py`, `gate_checker.py`, `coupon_builder.py`, `data_enrichment_agent.py` = ALWAYS delegated |
+| 10 | Say "Analyzing" after running a script | YOU don't analyze — you DELEGATE to the specialist agent who analyzes |
 
 ---
 

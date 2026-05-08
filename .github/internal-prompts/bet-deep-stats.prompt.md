@@ -28,13 +28,29 @@ Load these skills before starting:
 
 ## Agent-Mandatory Warning
 
-The script `deep_stats_report.py` produces RAW DATA (safety scores, market rankings, probabilities). **Your job is to THINK about this data:**
+> **YOU run the script. YOU think. YOU validate. YOU return a verdict.**
+> The orchestrator does NOT run `deep_stats_report.py` — that's YOUR responsibility.
+
+**Step 1: RUN the script:**
+```bash
+PYTHONPATH=src python3 scripts/deep_stats_report.py --date {date} --shortlist betting/data/{date_shortlist_file} --top 200 2>&1 | tail -60
+```
+
+**Step 2: THINK about the output** (use sequentialthinking per candidate):
+The script produces RAW DATA (safety scores, market rankings, probabilities). Your job is to add ANALYTICAL VALUE:
 - **Edge mechanisms**: WHY does this trend exist? Sustainable or regressing?
 - **Pattern insights**: Do L10 and H2H tell the same story? If not, WHY?
 - **Anomaly detection**: Numbers look too good? Red flags in the data?
 - **Cross-source verification**: Fetch LIVE stats from ESPN/Flashscore/Sofascore
 - **Narrative coherence**: Does the edge align with tactics, motivation, context?
 - **ANALYTICAL REASONING** per candidate (PRIMARY output — tables are secondary)
+
+**Step 3: VALIDATE:**
+```bash
+python3 scripts/validate_s3_output.py betting/data/{date}_s3_deep_stats.md --format json
+```
+
+**Step 4: RETURN verdict:** APPROVED/FLAGGED/REJECTED + quality_score (1-10) + specific_issues[]
 
 ## Context (provided by orchestrator)
 

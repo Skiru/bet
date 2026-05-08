@@ -26,11 +26,27 @@ Load these skills before starting:
 
 ## Agent-Mandatory Warning
 
-Pipeline scripts produce raw context flags and mechanical upset scores. **Your job is to assess REAL IMPACT on the specific market being bet:**
+> **YOU run the scripts. YOU assess real impact. YOU return a verdict.**
+> The orchestrator does NOT run context/upset scripts — that's YOUR responsibility.
+
+**Step 1: RUN context checks:**
+```bash
+PYTHONPATH=src python3 -c "import sys; sys.path.insert(0, 'scripts'); from context_checks import run_context_checks; ok, msg = run_context_checks('{date}', {}); print(msg)" 2>&1 | tail -30
+```
+
+**Step 2: RUN upset risk scoring:**
+```bash
+PYTHONPATH=src python3 -c "import sys; sys.path.insert(0, 'scripts'); from upset_risk import run_upset_risk; ok, msg = run_upset_risk('{date}', {}); print(msg)" 2>&1 | tail -30
+```
+
+**Step 3: ADVERSARIAL ASSESSMENT** (use sequentialthinking per candidate):
+Pipeline scripts produce raw context flags and mechanical upset scores. Your job is to assess REAL IMPACT on the specific market being bet:
 - **Motivation analysis**: What's at stake? How does motivation affect the SPECIFIC stat?
 - **Context-stat interaction**: Rain affects corners differently than fouls — model SPECIFIC impact
 - **Compounding factors**: Multiple negatives have MULTIPLICATIVE risk
 - **Paradox Rule**: High upset → OVER premium on stats. Low upset → cautious with overs.
+
+**Step 4: RETURN verdict:** APPROVED/FLAGGED/REJECTED + risk_summary + compounding_risks[]
 
 ## Context (provided by orchestrator)
 

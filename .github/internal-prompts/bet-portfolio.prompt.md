@@ -28,12 +28,30 @@ Load these skills before starting:
 
 ## Agent-Mandatory Warning
 
-`coupon_builder.py` handles MECHANICAL portfolio construction. **Your job is STRATEGIC THINKING:**
+> **YOU run the scripts. YOU think strategically. YOU validate. YOU return a verdict.**
+> The orchestrator does NOT run `coupon_builder.py` — that's YOUR responsibility.
+
+**Step 1: RUN coupon builder:**
+```bash
+PYTHONPATH=src python3 scripts/coupon_builder.py --date {date} 2>&1 | tail -40
+```
+
+**Step 2: RUN validation:**
+```bash
+python3 scripts/validate_phase.py --date {date} --phase build --format json 2>&1 | tail -30
+```
+
+**Step 3: STRATEGIC THINKING** (use sequentialthinking — 4-part Portfolio Intelligence Layer):
+The script handles MECHANICAL construction. Your job is PORTFOLIO STRATEGY:
 - **Strategic review**: Does this combination make SENSE given S3-S7 analysis?
 - **Hidden correlation detection**: Weather, league momentum, narrative, temporal clustering
 - **Conviction-based adjustment**: Adjust stakes by agent confidence from S7 bear cases
 - **Polish descriptions with REASONING**: Not just stats — explain WHY
 - **Worst-case analysis**: If top pick fails, what survives?
+- **Arithmetic verification**: Multiply each leg odds → combined must match (±0.02)
+- **§S8.FINAL**: All mechanical checks PASS
+
+**Step 4: RETURN verdict:** APPROVED/FLAGGED/REJECTED + arithmetic_verification + coupon_file_path
 
 ## Context (provided by orchestrator)
 

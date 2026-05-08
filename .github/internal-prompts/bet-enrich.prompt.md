@@ -27,12 +27,27 @@ Load these skills before starting:
 
 ## Agent-Mandatory Warning
 
-`data_enrichment_agent.py` fetches MISSING stats from internet sources. **Your job is to assess ENRICHMENT QUALITY:**
+> **YOU run the script. YOU assess quality. YOU return a verdict.**
+> The orchestrator does NOT run `data_enrichment_agent.py` — that's YOUR responsibility.
+
+**Step 1: RUN the enrichment script:**
+```bash
+PYTHONPATH=src python3 scripts/data_enrichment_agent.py --date {date} 2>&1 | tail -50
+```
+
+**Step 2: VALIDATE with phase checker:**
+```bash
+python3 scripts/validate_phase.py --date {date} --phase data --format json 2>&1 | tail -40
+```
+
+**Step 3: ASSESS enrichment quality** (use sequentialthinking):
 - **Coverage analysis**: Which sports/leagues still have data gaps after enrichment?
 - **Source reliability**: Did Flashscore/Sofascore/ESPN return consistent data?
 - **Data freshness**: Are enriched stats from current season or stale?
 - **Fallback chain effectiveness**: Which sources failed? Why?
 - **Gap triage**: Prioritize remaining gaps by impact on S3 analysis
+
+**Step 4: RETURN verdict:** APPROVED (yield ≥60%) / FLAGGED (40-60%) / REJECTED (<40%) + yield_percentage + gaps[]
 
 ## Context (provided by orchestrator)
 

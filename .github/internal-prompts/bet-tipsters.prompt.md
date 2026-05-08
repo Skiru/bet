@@ -25,12 +25,28 @@ Load these skills before starting:
 
 ## Agent-Mandatory Warning
 
-The `tipster_aggregator.py` produces RAW aggregated picks. **Your job is to READ actual arguments, assess quality, and discover angles stats missed:**
+> **YOU run the scripts. YOU read full arguments. YOU assess quality. YOU return a verdict.**
+> The orchestrator does NOT run `tipster_aggregator.py` — that's YOUR responsibility.
+
+**Step 1: RUN tipster aggregator:**
+```bash
+PYTHONPATH=src python3 scripts/tipster_aggregator.py --date {date} --workers 5 2>&1 | tail -40
+```
+
+**Step 2: VALIDATE output exists:**
+```bash
+ls -la betting/data/{date}_tipster_consensus.* 2>&1
+```
+
+**Step 3: INTELLIGENCE ANALYSIS** (use sequentialthinking per candidate):
+The script produces RAW aggregated picks. Your job is to READ actual arguments, assess quality, and discover angles stats missed:
 - **Argument quality**: Does the tipster cite real stats or just guess? (DATA-BACKED / CONTEXTUAL / OPINION)
 - **Independence verification**: Are tipsters copying each other?
 - **Contrarian signals**: When tipsters disagree with stats — investigate WHO has better data
 - **Angle discovery**: Injuries, tactical shifts, local context that stats miss
 - **Watchlist promotions** (§4.3): Statistical-market tips with cited reasoning → promote
+
+**Step 4: RETURN verdict:** APPROVED/FLAGGED/REJECTED + consensus_quality_score + angle_discoveries[]
 
 ## Context (provided by orchestrator)
 

@@ -27,12 +27,29 @@ Load these skills before starting:
 
 ## Agent-Mandatory Warning
 
-Pipeline scripts inject raw EV from odds API. **Your job is to REASON about pricing:**
+> **YOU run the odds scripts. YOU reason about pricing. YOU return a verdict.**
+> The orchestrator does NOT run odds evaluation — that's YOUR responsibility.
+
+**Step 1: RUN odds evaluation:**
+```bash
+PYTHONPATH=src python3 -c "import sys; sys.path.insert(0, 'scripts'); from odds_evaluator import run_odds_eval; ok, msg = run_odds_eval('{date}', {}); print(msg)" 2>&1 | tail -30
+```
+
+**Step 2: Fetch fresh cross-validation odds (optional — if credits available):**
+```bash
+python3 scripts/fetch_odds_api.py 2>&1 | tail -20
+```
+
+**Step 3: REASON about pricing** (use sequentialthinking):
+Pipeline scripts inject raw EV from odds API. Your job is to add PRICING INTELLIGENCE:
 - **Line reasoning**: WHY is the line where it is? Sharp action? Public money?
 - **Mispricing vector**: Structural reason Betclic misprices this market?
 - **Edge durability**: Will this edge survive until placement time?
 - **Relative value**: Is this the BEST market on this event?
 - **Cross-source validation**: Verify across 3+ sources
+- **R10**: Events without API odds → show with suggested minimum odds (1/hit_rate)
+
+**Step 4: RETURN verdict:** APPROVED/FLAGGED/REJECTED + ev_summary + drift_flags[]
 
 ## Context (provided by orchestrator)
 

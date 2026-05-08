@@ -27,13 +27,29 @@ Load these skills before starting:
 
 ## Agent-Mandatory Warning
 
-`gate_checker.py` runs a MECHANICAL 18-point gate. **Your job is ADVERSARIAL THINKING:**
+> **YOU run the script. YOU think adversarially. YOU return a verdict.**
+> The orchestrator does NOT run `gate_checker.py` — that's YOUR responsibility.
+
+**Step 1: RUN the gate script:**
+```bash
+PYTHONPATH=src python3 scripts/gate_checker.py --date {date} 2>&1 | tail -50
+```
+
+**Step 2: RUN 48h repeat check:**
+```bash
+python3 scripts/check_48h_repeats.py 2>&1 | tail -20
+```
+
+**Step 3: ADVERSARIAL THINKING** (use sequentialthinking per candidate — 5-part Deep Adversarial Reasoning):
+The mechanical gate is just a STARTING POINT. Your job is:
 - **Specific bear cases**: "IF Team X loses Player Y, corner count drops from 11.2 to 8.7"
 - **Assumption audits**: What does the bull case ASSUME? Are those verified?
 - **Historical analogies**: When did a similar situation produce a loss?
 - **Second-order effects**: Rain reduces corners, but ALSO changes formation → cascading effects
 - **Bayesian update**: Given ALL S3-S6 evidence, what's the UPDATED probability?
 - **Zero Tolerance Shield**: 20+ patterns — verify with CONTEXT, not just mechanically
+
+**Step 4: RETURN verdict:** APPROVED/FLAGGED/REJECTED + tier_distribution + sport_diversity (≥5 sports in approved?)
 
 ## Context (provided by orchestrator)
 
