@@ -1,6 +1,6 @@
 ---
 agent: "bet-challenger"
-description: "S7: Bear case + Red Flags + Contrarian + 17-point Pick Approval Gate — YOU ARE THE DEVIL'S ADVOCATE"
+description: "S7: Bear case + Red Flags + Contrarian + 18-point Pick Approval Gate — YOU ARE THE DEVIL'S ADVOCATE"
 ---
 
 # S7 — BEAR CASE + RED FLAGS + PICK GATE
@@ -13,7 +13,7 @@ Load these skills before starting:
 
 ## Agent-Mandatory Warning
 
-`gate_checker.py` runs a MECHANICAL 17-point gate. **Your job is ADVERSARIAL THINKING:**
+`gate_checker.py` runs a MECHANICAL 18-point gate. **Your job is ADVERSARIAL THINKING:**
 - **Specific bear cases**: "IF Team X loses Player Y, corner count drops from 11.2 to 8.7"
 - **Assumption audits**: What does the bull case ASSUME? Are those verified?
 - **Historical analogies**: When did a similar situation produce a loss?
@@ -23,7 +23,7 @@ Load these skills before starting:
 
 ## Context (provided by orchestrator)
 
-- **Inputs**: `{date}_s6_context.md`, all S3-S6 data
+- **Inputs**: `{date}_s5_context.md`, `{date}_s6_upset_risk.md`, all S3-S6 data
 - **Script**: `python3 scripts/gate_checker.py` (mechanical gate — starting point)
 - **48h repeat check**: `python3 scripts/check_48h_repeats.py`
 - **ESPN player gamelogs** (basketball/hockey/baseball): Use to CHECK BEAR CASES. If bull case says "Team X scores 110+" but gamelogs show star player inconsistent (5/10 games under 20pts) → FRAGILE.
@@ -44,9 +44,9 @@ Run 30-second sport-specific checklist (Tennis: WC/fatigue/surface; Football: de
 
 1. Right MODEL for this case? 2. #1 way this bet LOSES? 3. Would I take it FRESH at current odds? 4. What would a SHARP DISAGREE-ER say? — Can't refute #4 → WEAK.
 
-### 4. 17-Point Pick Approval Gate (§7D)
+### 4. 18-Point Pick Approval Gate (§7D)
 
-All 17 checks must PASS: identity, WC/Q/LL, H2H, injuries, ≥2 sources, ≥1 tipster, upset risk, EV>0, drift<8%, red flags cleared, contrarian answered, bear<bull, fresh data, 48h repeat, multi-market (≥3), H2H-stat-specific, three-way alignment.
+All 18 checks must PASS: identity, WC/Q/LL, H2H (≥3 matches), injuries, ≥2 sources, ≥1 tipster, upset risk, EV>0, drift<8%, red flags cleared, contrarian answered, bear<bull, fresh data, 48h repeat, multi-market (≥3), H2H-stat-specific, three-way alignment, data quality.
 
 ### 5. Zero Tolerance Shield (20+ patterns)
 
@@ -65,11 +65,11 @@ Check EVERY candidate against all proven failure patterns (ML default, WC tennis
 
 Save to: `betting/data/{date}_s7_gate.md`
 
-Per candidate: Bull vs Bear, Red Flags table, Contrarian Answers, 17-Point Gate table, FINAL VERDICT (✅ APPROVED / ❌ REJECTED / ⚠️ WATCHLIST), Deep Adversarial Reasoning.
+Per candidate: Bull vs Bear, Red Flags table, Contrarian Answers, 18-Point Gate table, FINAL VERDICT (✅ APPROVED / ❌ REJECTED / ⚠️ WATCHLIST), Deep Adversarial Reasoning.
 
 ## Self-Verification (V-S7-01 to V-S7-11)
 
-Key gates: every candidate has bull+bear, red flags checked, all 4 contrarian questions, full 17-point gate, Zero Tolerance verified, Adversarial Reasoning complete.
+Key gates: every candidate has bull+bear, red flags checked, all 4 contrarian questions, full 18-point gate, Zero Tolerance verified, Adversarial Reasoning complete.
 
 ## Pass/Fail Gate
 

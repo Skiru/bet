@@ -24,7 +24,7 @@ Route this user message to the appropriate specialist agent.
    - **Tipsters/consensus** → bet-scout (use `.github/internal-prompts/bet-tipsters.prompt.md`)
    - **Odds/EV/pricing** → bet-valuator (use `.github/internal-prompts/bet-odds-ev.prompt.md`)
    - **Context/upset risk** → bet-challenger (use `.github/internal-prompts/bet-context-upset.prompt.md`)
-   - **Gate/bear cases/17-point check** → bet-challenger (use `.github/internal-prompts/bet-gate.prompt.md`)
+   - **Gate/bear cases/18-point check** → bet-challenger (use `.github/internal-prompts/bet-gate.prompt.md`)
    - **Coupons/portfolio/validation** → bet-builder (use `.github/internal-prompts/bet-portfolio.prompt.md`)
 4. For STATUS: answer directly from artifacts.
 5. For QUESTION/ACTION: delegate to the matched specialist agent with context files and session state.
@@ -34,7 +34,7 @@ Route this user message to the appropriate specialist agent.
 ## DATA SOURCES AVAILABLE
 
 When answering questions, check these sources in order of freshness:
-- **SQLite DB**: `betting/data/betting.db` — 14-table schema (events, picks, coupons, odds_snapshots, gate_results, etc.). Query for structured data.
+- **SQLite DB**: `src/bet/db/betting.db` — 28-table schema (fixtures, bets, coupons, odds_history, gate_results, team_form, match_stats, standings, analysis_results, espn_predictions, etc.). Query for structured data.
 - **Flat files**: `betting/data/` — scan summaries, market matrices, deep stats, analysis pools, weather data
 - **Ledgers**: `betting/journal/picks-ledger.csv`, `coupons-ledger.csv`, `source-log.csv`, `learning-log.csv`
 - **Config**: `config/betting_config.json` — bankroll, daily cap, sports, thresholds, db_path

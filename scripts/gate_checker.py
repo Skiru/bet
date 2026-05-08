@@ -880,7 +880,7 @@ def _normalise_s3_to_gate_input(analysis: dict) -> dict:
 # ---------------------------------------------------------------------------
 
 def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
-    """Main entry. Run all 17 checks on each candidate.
+    """Main entry. Run all 18 checks on each candidate.
 
     Classifies into approved / extended_pool / rejected.
 
@@ -1375,7 +1375,7 @@ def _load_s3_output(date: str, input_path: str | None = None) -> list[dict]:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="S7 Pick Approval Gate — 17-point programmatic gate checker"
+        description="S7 Pick Approval Gate — 18-point programmatic gate checker"
     )
     parser.add_argument(
         "--date",

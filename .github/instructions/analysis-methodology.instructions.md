@@ -16,7 +16,7 @@ Goal: find MISPRICED ODDS in statistical markets. EV > 0 is the only valid reaso
 
 ## DATA ARCHITECTURE
 
-All pipeline data is stored in SQLite DB (`betting/data/betting.db`) as the primary source. JSON files are maintained as human-readable fallbacks and debug output. Scripts use `db_data_loader.py` functions which try DB first, then JSON fallback.
+All pipeline data is stored in SQLite DB (`src/bet/db/betting.db`) as the primary source. JSON files are maintained as human-readable fallbacks and debug output. Scripts use `db_data_loader.py` functions which try DB first, then JSON fallback.
 
 **Key DB tables:**
 - `fixtures` — all events for the betting day (replaces `scan_summary.json` reads)
@@ -78,7 +78,7 @@ The pipeline has fully automated scripts for S3 (deep stats), S7 (gate checks), 
 | Step | Script | What it does |
 |------|--------|-------------|
 | S3 | `scripts/deep_stats_report.py` | Reads from DB (`team_form`, `match_stats` tables; JSON fallback: stats cache), runs §3.0 `rank_markets()`, generates all 10 §S3 sections per candidate. Output: DB `analysis_results` table + `{date}_s3_deep_stats.json/.md` |
-| S7 | `scripts/gate_checker.py` | Programmatic 17-point gate, §7.3 red flags, §6.5 upset risk, §7.6 sport diversity, risk tier (LR/MS/HR/N), confidence scoring. Output: DB `gate_results` table + `{date}_s7_gate_results.json/.md` |
+| S7 | `scripts/gate_checker.py` | Programmatic 18-point gate, §7.3 red flags, §6.5 upset risk, §7.6 sport diversity, risk tier (LR/MS/HR/N), confidence scoring. Output: DB `gate_results` table + `{date}_s7_gate_results.json/.md` |
 | S8 | `scripts/coupon_builder.py` | Core portfolio + combo menu + extended pool, Kelly 1/4 staking, Polish-language output, §8.2 stress test. Output: `betting/coupons/{date}.json/.md` |
 | Orchestrator | `scripts/pipeline_orchestrator.py` | Runs S0→S10 end-to-end. Injects EV from DB `odds_history` table (fallback: `odds_api_snapshot.json`) between S3→S7. State tracking + resume. |
 
@@ -610,7 +610,7 @@ If the S2 shortlist has 100 candidates but S3 analysis is context-constrained, a
 **Tooling enforcement:** `build_shortlist.py` produces `{date}_s2_shortlist.json` (and stores in DB) with `fixture_verified` flags per candidate. The shortlist JSON/DB serves as a CHECKLIST — every `fixture_verified: true` candidate must have a matching entry in S3 output or PRE-S3 REMOVALS.
 
 **After S3, ALL candidates with completed analysis are classified:**
-- **CORE:** Passed 17-point gate fully → enters core portfolio
+- **CORE:** Passed 18-point gate fully → enters core portfolio
 - **EXTENDED POOL:** Has EV > 0 but failed some gate checks → enters extended pool with bull/bear case
 - **REJECTED:** EV ≤ 0, or bear > bull, or critical red flag → enters ODRZUCONE section with specific reason
 
@@ -859,7 +859,7 @@ KEY FAILURE SCENARIO: [most likely way this fails]
 3. Would I take it FRESH at CURRENT odds? (defeat anchoring)
 4. What would a sharp disagree-er say?
 
-### §7.5 PICK APPROVAL GATE (17 points, EVERY pick)
+### §7.5 PICK APPROVAL GATE (18 points, EVERY pick)
 ```
 [ ] 1. Identity verified (full name, no slashes)
 [ ] 2. WC/Q/LL / debut / stand-in / backup checked
@@ -878,8 +878,17 @@ KEY FAILURE SCENARIO: [most likely way this fails]
 [ ] 15. MULTI-MARKET COMPARISON: ≥3 alternative stat markets calculated for this match (§3.0). Best safety score selected.
 [ ] 16. H2H STAT-SPECIFIC: H2H data for the EXACT stat being bet exists (§3.0c). If missing → H2H-STAT-BLIND, −0.5 confidence, no LR coupon.
 [ ] 17. THREE-WAY ALIGNMENT: L10 avg + H2H avg + L5 recent all support pick direction. 2/3 conflict → DOWNGRADE. 3/3 conflict → REJECT.
-ALL 17 PASS → APPROVED | ANY FAIL → REJECT/DOWNGRADE/WATCHLIST
+[ ] 18. DATA QUALITY: Both teams have sufficient stat data (L10 form exists for both sides). One-sided or synthetic data → −0.5 confidence, no LR coupon.
+ALL 18 PASS → APPROVED | ANY FAIL → REJECT/DOWNGRADE/WATCHLIST
 ```
+
+**Advisory Tier System (assigned by gate_checker.py based on gate score):**
+- **STRONG** (≤2 checks failed): High confidence — full stake
+- **MODERATE** (3-5 failed): Good but gaps — standard stake
+- **WEAK** (6-9 failed): Marginal — reduced stake or watchlist
+- **FLAGGED** (10+ failed): Significant concerns — user must review carefully
+
+Tiers are ADVISORY ONLY — user decides. ALL candidates shown in matrix regardless of tier.
 
 ### §7.6 POST-GATE SPORT DIVERSITY CHECK (MANDATORY — before S8)
 
@@ -1011,7 +1020,7 @@ For EACH coupon, before finalizing:
 
 **V10a: Forced Sport Enumeration** — ALL 14 sports listed with events/sources/candidates/picks. KEY sports (Football, Volleyball, Basketball, Tennis): 0 events + <3 sources → go back. SUPPORT sports: 0 events + <2 sources → go back.
 
-**V10b: Pick Approval Gates** — every pick passed 17-point gate (§7.5).
+**V10b: Pick Approval Gates** — every pick passed 18-point gate (§7.5).
 
 **V10c: Red Flags** — every pick had §7.3 checked. All fired flags addressed.
 
@@ -1019,7 +1028,7 @@ For EACH coupon, before finalizing:
 
 **V10e: PER-PICK COMPLETENESS MATRIX (MANDATORY)**
 ```
-| Pick ID | Tipster≥1 | H2H≥5 | H2H-Stat | StatRank | 3WayChk | Injuries | Sources≥2 | RedFlags | EV>0 | Gate17 | PASS |
+| Pick ID | Tipster≥1 | H2H≥5 | H2H-Stat | StatRank | 3WayChk | Injuries | Sources≥2 | RedFlags | EV>0 | Gate18 | PASS |
 |---------|-----------|--------|----------|----------|---------|----------|-----------|----------|------|--------|------|
 ```
 - **H2H-Stat:** H2H data exists for the SPECIFIC stat being bet (§3.0c). ❌ = H2H-STAT-BLIND, −0.5 confidence, no LR coupon.

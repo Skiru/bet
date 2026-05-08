@@ -1,9 +1,9 @@
 ---
 agent: "bet-challenger"
-description: "S6: Context verification + Upset Risk Assessment — YOU ARE THE CONTEXT ANALYST"
+description: "S5+S6: Context verification + Upset Risk Assessment — YOU ARE THE CONTEXT ANALYST"
 ---
 
-# S6 — CONTEXT + UPSET RISK
+# S5+S6 — CONTEXT + UPSET RISK
 
 ## Required Skills
 
@@ -21,8 +21,9 @@ Pipeline scripts produce raw context flags and mechanical upset scores. **Your j
 
 ## Context (provided by orchestrator)
 
-- **Inputs**: `{date}_s5_odds_ev.md` (approved candidates with EV>0), all S3-S5 data
+- **Inputs**: `{date}_s4_odds_eval.md` (approved candidates with EV>0), all S3-S4 data
 - **Weather**: `weather_{date}.json` (if available)
+- **DB tables**: `standings`, `espn_predictions`, `player_gamelogs`, `team_form` — via `db_data_loader.py`
 
 ## Workflow
 
@@ -48,7 +49,7 @@ HIGH upset → competitive → MORE total play → prefer OVER. LOW upset → bl
 
 ## Output
 
-Save to: `betting/data/{date}_s6_context.md`
+Save to: `betting/data/{date}_s5_context.md` and `betting/data/{date}_s6_upset_risk.md`
 
 Per candidate: Context section, Upset Risk Score table, Paradox Rule, Impact on pick, Contextual Reasoning.
 
@@ -58,6 +59,6 @@ Key gates: every candidate has context check, upset risk scored, ML ban enforced
 
 ## Pass/Fail Gate
 
-ALL checks pass → "S6 PASSED" → orchestrator proceeds to S7.
+ALL checks pass → "S6 PASSED" → orchestrator proceeds to S7 (18-point gate).
 
 <!-- BET:internal-prompt:bet-context-upset:v1 -->

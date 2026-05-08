@@ -1,9 +1,9 @@
 ---
 agent: "bet-valuator"
-description: "S5: Multi-source odds comparison, EV calculation, Kelly staking — YOU ARE THE PRICING ANALYST"
+description: "S4: Multi-source odds comparison, EV calculation, Kelly staking — YOU ARE THE PRICING ANALYST"
 ---
 
-# S5 — ODDS + EV ANALYSIS
+# S4 — ODDS + EV ANALYSIS
 
 ## Required Skills
 
@@ -22,7 +22,7 @@ Pipeline scripts inject raw EV from odds API. **Your job is to REASON about pric
 
 ## Context (provided by orchestrator)
 
-- **Inputs**: `{date}_s3_deep_stats.md`, `{date}_s4_tipsters.md`
+- **Inputs**: `{date}_s3_deep_stats.md`, `{date}_s2_tipsters.md`
 - **Odds sources**: `odds_multi_sources.json` (preferred, 5 sources) or `odds_api_snapshot.json` (fallback)
 - **Analysis pool**: `analysis_pool_{date}.json` (may have pre-computed EV)
 - **Script**: `python3 scripts/fetch_odds_multi.py`
@@ -55,16 +55,16 @@ Check `analysis_pool_{date}.json` for pre-computed `ev` and `odds.market_best`. 
 
 ## Output
 
-Save to: `betting/data/{date}_s5_odds_ev.md`
+Save to: `betting/data/{date}_s4_odds_eval.md`
 
 Per candidate: odds table, true probability (with method), EV, price gap, line movement, Kelly stake, VERDICT, Market Intelligence section.
 
-## Self-Verification (V-S5-01 to V-S5-11)
+## Self-Verification (V-S4-01 to V-S4-11)
 
 Key gates: ≥2 sources per candidate, EV calculated, Betclic odds CONDITIONAL, drift flagged, Market Intelligence complete.
 
 ## Pass/Fail Gate
 
-ALL checks pass → "S5 PASSED" → orchestrator proceeds to S6.
+ALL checks pass → "S4 PASSED" → orchestrator proceeds to S5.
 
 <!-- BET:internal-prompt:bet-odds-ev:v1 -->

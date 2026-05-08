@@ -12,7 +12,7 @@ General rules:
 - On reruns for the same betting day, PRESERVE old versions and ADD new ones. Increment the version suffix (v5 → v6). Mark old pending picks/coupons as `superseded`. Add new picks and coupons with the new version. Create a new versioned coupon file. The previous version files are kept for history. The user compares all versions to decide which to place.
 
 DB-first data storage:
-- All pipeline data is stored in SQLite DB (`betting/data/betting.db`) as the primary source.
+- All pipeline data is stored in SQLite DB (`src/bet/db/betting.db`) as the primary source.
 - JSON/MD files are maintained as human-readable fallbacks and debug output (dual-write).
 - Scripts use `db_data_loader.py` functions which try DB first, then JSON fallback.
 - Key DB tables for artifacts: `analysis_results` (S3 output), `gate_results` (S7 output), `coupons` + `bets` (placed bets), `fixtures`, `odds_history`, `team_form`.
@@ -100,7 +100,7 @@ Structure of the .md file:
    - For events with API odds: show odds + safety + hit%. For STATS-FIRST events (no API odds): show "SPRAWDŹ" + safety + hit% + min odds for EV>0.
 3. Per-type coupon tables (LOW-RISK, MULTI-SPORT, HIGHER RISK, NIGHT) — each with columns: #, Coupon ID, Co obstawić, Kurs, Stawka, Zwrot. UNIQUE EVENT PER COUPON.
 3b. **COMBINATION MENU** — additional combos (COMBO-LR1, COMBO-MS1, etc.) that remix approved picks. Same table format. Prefixed "COMBO-" for clarity.
-3c. **ROZSZERZONY WYBÓR (EXTENDED POOL)** — EV > 0 picks that did NOT fully pass the 17-point gate but have positive expected value. These are optional higher-risk plays the user may choose to add. See §EXTENDED-POOL below for structure.
+3c. **ROZSZERZONY WYBÓR (EXTENDED POOL)** — EV > 0 picks that did NOT fully pass the 18-point gate but have positive expected value. These are optional higher-risk plays the user may choose to add. See §EXTENDED-POOL below for structure.
 4. **Per-coupon reasoning block** (under each table): logic, P(coupon), biggest risk.
 5. PODSUMOWANIE table (Wydatek, Bankroll po, Łączny pot. zwrot, Stan konta po zwrocie, Najlepszy scenariusz, Realistyczny).
 6. KOLEJNOŚĆ STAWIANIA — placement priority list.
@@ -116,12 +116,12 @@ Total suggested stakes (core + combos + extended) WILL exceed daily budget — u
 
 ### §EXTENDED-POOL — Extended Pool (ROZSZERZONY WYBÓR)
 
-The extended pool captures ALL picks with **EV > 0** that were NOT included in core/combo coupons. These are picks that failed some 17-point gate checks, had bear≥bull concerns, or lacked data — but still have positive expected value. The user sees them with full context and decides whether to risk them.
+The extended pool captures ALL picks with **EV > 0** that were NOT included in core/combo coupons. These are picks that failed some 18-point gate checks, had bear≥bull concerns, or lacked data — but still have positive expected value. The user sees them with full context and decides whether to risk them.
 
-**Inclusion threshold:** EV > 0 (calculated in S5). Exclude only: phantom fixtures (ZT#6), wrong dates, or negative EV. **NEVER exclude based on sport/market historical hit rates** — Betclic learning data is advisory for the user only.
+**Inclusion threshold:** EV > 0 (calculated in S4). Exclude only: phantom fixtures (ZT#6), wrong dates, or negative EV. **NEVER exclude based on sport/market historical hit rates** — Betclic learning data is advisory for the user only.
 
 **COMPLETENESS RULE (§3.0f enforcement):** Per §3.0f in analysis-methodology, ALL shortlisted candidates that are not PHANTOM/VOID receive full §3.0 analysis. After analysis, every candidate lands in exactly one of three buckets:
-1. **Core portfolio** — passed 17-point gate fully
+1. **Core portfolio** — passed 18-point gate fully
 2. **Extended pool** — EV > 0 but failed some gate checks
 3. **Rejected list (ODRZUCONE)** — EV ≤ 0 or critical red flag
 

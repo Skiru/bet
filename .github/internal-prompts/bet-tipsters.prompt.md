@@ -1,9 +1,9 @@
 ---
 agent: "bet-scout"
-description: "S4: Argument-based tipster intelligence — YOU ARE THE INTELLIGENCE ANALYST, NOT A SCRIPT RUNNER"
+description: "S2: Argument-based tipster intelligence — YOU ARE THE INTELLIGENCE ANALYST, NOT A SCRIPT RUNNER"
 ---
 
-# S4 — TIPSTER DEEP-DIVE
+# S2 — TIPSTER DEEP-DIVE
 
 ## Required Skills
 
@@ -21,9 +21,10 @@ The `tipster_aggregator.py` produces RAW aggregated picks. **Your job is to READ
 
 ## Context (provided by orchestrator)
 
-- **Inputs**: `{date}_s3_deep_stats.md`, `{date}_tipster_consensus.json`
+- **Inputs**: `{date}_s2_shortlist.md`, `{date}_tipster_consensus.json`
 - **Pre-fetched HTML**: `betting/data/zawodtyper.pl/`, `typersi.pl/`, `sportsgambler.com/`, `pickswise.com/`, `betideas.com/`
 - **Script**: `python3 scripts/tipster_aggregator.py --date {date} --workers 5`
+- **DB tables**: `analysis_results` (previous tipster data for same teams) — via `db_data_loader.py`
 
 ## Workflow
 
@@ -53,7 +54,7 @@ Scan ALL tipster HTML for statistical-market picks NOT in shortlist. If: stat ma
 
 ## Output
 
-Save to: `betting/data/{date}_s4_tipsters.md`
+Save to: `betting/data/{date}_s2_tipsters.md`
 
 Must start with **TIPSTER COVERAGE SUMMARY TABLE** (event, sites checked, consensus %, status). Then per-candidate sections with source tables and consensus analysis. End with §4.3 Watchlist Promotion section.
 

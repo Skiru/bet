@@ -18,7 +18,7 @@ Load these skills before starting:
 
 ## Context (provided by orchestrator)
 
-- **Inputs**: `{date}_s7_gate.md` (approved picks), `{date}_s5_odds_ev.md` (odds at analysis time), `weather_{date}.json`
+- **Inputs**: `{date}_s7_gate.md` (approved picks), `{date}_s4_odds_eval.md` (odds at analysis time), `weather_{date}.json`
 - **Approved picks only**: only verify picks that passed the gate
 
 ## Workflow

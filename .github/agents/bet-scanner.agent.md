@@ -175,7 +175,7 @@ Load before starting:
 
 ## DATA ACCESS: DB-First Architecture
 
-All pipeline data is stored in SQLite DB (`betting/data/betting.db`) as the primary source. JSON files are maintained as human-readable fallbacks and debug output. Scripts use `db_data_loader.py` functions which try DB first, then JSON fallback.
+All pipeline data is stored in SQLite DB (`src/bet/db/betting.db`) as the primary source. JSON files are maintained as human-readable fallbacks and debug output. Scripts use `db_data_loader.py` functions which try DB first, then JSON fallback.
 
 - `fixtures` table — all discovered events for the betting day (replaces `scan_summary.json` reads)
 - `odds_history` table — odds from all sources (replaces `odds_api_snapshot.json` / `odds_multi_sources.json` reads)

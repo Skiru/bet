@@ -1,9 +1,9 @@
 ---
 agent: "bet-scanner"
-description: "S2: Build ranked shortlist of 50-100 candidates with sport diversity"
+description: "S1e: Build ranked shortlist of 50-100 candidates with sport diversity"
 ---
 
-# S2 — SHORTLIST FILTERING
+# S1e — SHORTLIST FILTERING
 
 ## Required Skills
 

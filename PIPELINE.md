@@ -34,7 +34,7 @@ python3 scripts/pipeline_orchestrator.py --list-steps
 | S1d | Market Matrix | Shell | ~2 min | Consolidated market matrix from all sources |
 | S1e | Shortlist | Shell | ~1 min | Ranked shortlist of top 100 events |
 | S3 | Deep Stats + Probability | Python | ~1 min | Per-candidate L10/H2H/L5 analysis + Poisson probability engine (PARALLEL: 8 workers) |
-| S7 | Gate Check | Python | ~1 min | 17-point approval gate, risk classification |
+| S7 | Gate Check | Python | ~1 min | 18-point approval gate, risk classification |
 | S8 | Coupons | Python | ~1 min | Core portfolio + combo menu + extended pool |
 | S9 | Validation | Python | ~1 min | Coupon arithmetic and structure validation |
 | S10 | Summary | Python | instant | Final summary and artifact listing |
@@ -76,7 +76,7 @@ After a successful run, find your coupons at:
                      S3: Deep Stats + Probability Engine (PARALLEL: 8 workers)
                      (L10/H2H/L5 + Poisson/NegBin → P(hit))
                             │
-                     S7: 17-Point Gate Check
+                     S7: 18-Point Gate Check
                      (approved/extended/rejected)
                             │
                      S8: Coupon Builder
@@ -118,9 +118,9 @@ Market Ranking:
 → Best probability: Corners O9.5 (87.6% → Betclic ≥1.14 for EV>0)
 ```
 
-## Gate Check (17 Points)
+## Gate Check (18 Points)
 
-Each candidate is checked against 17 criteria:
+Each candidate is checked against 18 criteria:
 
 1. Identity verified (no slashes)
 2. WC/Q/LL status checked
@@ -139,6 +139,7 @@ Each candidate is checked against 17 criteria:
 15. ≥3 alternative markets
 16. H2H for specific stat
 17. Three-way alignment
+18. Data quality (both sides have sufficient stats)
 
 **Classification:**
 - **APPROVED** → Core coupons (passed most checks, EV > 0)
@@ -183,7 +184,7 @@ python3 -m pytest tests/ -v                             # Full suite (256)
 |--------|---------|
 | `pipeline_orchestrator.py` | Main orchestrator — runs everything |
 | `deep_stats_report.py` | S3: Per-candidate deep statistical analysis |
-| `gate_checker.py` | S7: 17-point pick approval gate |
+| `gate_checker.py` | S7: 18-point pick approval gate |
 | `coupon_builder.py` | S8: Coupon construction + Polish output |
 | `run_full_scan_and_prepare.sh` | S1: Full Playwright scan (called by orchestrator) |
 | `compute_safety_scores.py` | §3.0 safety score calculator |

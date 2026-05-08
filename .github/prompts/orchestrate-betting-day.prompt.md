@@ -7,7 +7,7 @@ argument-hint: "run_date=2026-04-27 session=full" or "run_date=2026-04-27 sessio
 
 # BETTING DAY ORCHESTRATOR
 
-Run the full S0→S8 pipeline for a betting day. Executes 3 TEST passes to find and fix errors, then 1 FINAL pass to produce coupons.
+Run the full S0→S10 pipeline for a betting day. Executes 3 TEST passes to find and fix errors, then 1 FINAL pass to produce coupons.
 
 ## DELEGATION ARCHITECTURE
 
@@ -16,16 +16,19 @@ This prompt defines WHAT to do. Agent delegation uses internal-prompts that defi
 | Pipeline Step | Internal Prompt | Agent |
 |---------------|----------------|-------|
 | S0 Settlement | `.github/internal-prompts/bet-settle.prompt.md` | bet-settler |
-| S1+S2 Scan+Enrich+Shortlist | `.github/internal-prompts/bet-scan.prompt.md` | bet-scanner |
-| S2 Shortlist (refinement) | `.github/internal-prompts/bet-shortlist.prompt.md` | bet-scanner |
+| S1+S1a-S1e Scan+Enrich+Shortlist | `.github/internal-prompts/bet-scan.prompt.md` | bet-scanner |
+| S1e Shortlist (refinement) | `.github/internal-prompts/bet-shortlist.prompt.md` | bet-scanner |
+| S2 Tipsters | `.github/internal-prompts/bet-tipsters.prompt.md` | bet-scout |
+| S2.5 Data Enrichment | `.github/internal-prompts/bet-enrich.prompt.md` | bet-enricher |
 | S3 Deep Stats | `.github/internal-prompts/bet-deep-stats.prompt.md` | bet-statistician |
 | S3B Time-Sensitive | `.github/internal-prompts/bet-time-sensitive.prompt.md` | bet-statistician |
-| S4 Tipsters | `.github/internal-prompts/bet-tipsters.prompt.md` | bet-scout |
-| S5 Odds/EV | `.github/internal-prompts/bet-odds-ev.prompt.md` | bet-valuator |
-| S6 Context/Upset | `.github/internal-prompts/bet-context-upset.prompt.md` | bet-challenger |
+| S4 Odds/EV | `.github/internal-prompts/bet-odds-ev.prompt.md` | bet-valuator |
+| S5 Context | `.github/internal-prompts/bet-context-upset.prompt.md` | bet-challenger |
+| S6 Upset Risk | `.github/internal-prompts/bet-context-upset.prompt.md` | bet-challenger |
 | S7 Gate | `.github/internal-prompts/bet-gate.prompt.md` | bet-challenger |
 | S8 Portfolio | `.github/internal-prompts/bet-portfolio.prompt.md` | bet-builder |
 | S9 Validation | `.github/internal-prompts/bet-validate.prompt.md` | bet-builder |
+| S10 Summary | _(automated)_ | _(script)_ |
 
 When delegating via `runSubagent`, read the internal-prompt file and pass its content as the task prompt.
 
@@ -80,9 +83,9 @@ REQUIRED READS:
 
 **ALL sessions (full/day/night/morning) execute the EXACT SAME pipeline:**
 - Same 4-pass protocol (Discovery → Targeted Fixes → Polish → Final)
-- Same S0 → S1 → S1a(discover) → S1b(PARALLEL: odds+weather+tipsters) → S1c(aggregate) → S1d → S1e → S2(tipster xref) → S3 → S4(tipsters) → S5(odds eval) → S6(context+upset) → S7(gate) → S8(coupons) → S9(validate) automated step sequence
+- Same S0 → S1 → S1a(discover) → S1b(PARALLEL: odds+weather+tipsters) → S1c(aggregate) → S1d → S1e → S2(tipster xref) → S2.5(enrichment) → S3 → S4(odds eval) → S5(context) → S6(upset risk) → S7(gate) → S8(coupons) → S9(validate) → S10(summary) automated step sequence
 - Same 14-sport scan in S1 (ALL sports, even if most have 0 events in the window)
-- Same deep analysis (S3-S7): H2H, tipsters, injuries, bear case, 17-point gate
+- Same deep analysis (S3-S7): H2H, tipsters, injuries, bear case, 18-point gate
 - Coupon count = f(quality events, deep statistics), NOT f(bankroll). Produce as many as quality justifies.
 - Same V1-V10 validation + §S8.FINAL Mechanical Verification
 
@@ -117,18 +120,19 @@ python3 scripts/pipeline_orchestrator.py --date YYYY-MM-DD [--session full|day|n
 
 This runs the ENTIRE data pipeline S0→S10 automatically, producing raw data artifacts. It executes:
 - **S0**: Betclic history analysis (`analyze_betclic_learning.py`)
-- **S1**: Full 14-sport scan (`run_full_scan_and_prepare.sh`) — **domain-grouped parallel scanning** (8 workers, timeout: 30 min incl. enrichment + aggregation)
-- **S1a**: API fixture discovery + stats enrichment (`discover_fixtures.py` + `fetch_api_stats.py`, timeout: 5 min)
+- **S1**: Full 14-sport scan (`run_full_scan_and_prepare.sh`) — **domain-grouped parallel scanning** (8 workers, timeout: 20 min incl. enrichment + aggregation)
+- **S1a**: API fixture discovery + stats enrichment (`discover_fixtures.py` + `fetch_api_stats.py`, timeout: 10 min)
 - **S1b**: Odds + weather + tipsters in PARALLEL (ThreadPoolExecutor, 5 workers, timeout: 10 min)
 - **S1c**: Aggregate scan + analysis pool (`aggregate_and_select.py` + `deep_analysis_pool.py`, timeout: 2 min)
 - **S1d**: Market matrix generation (`generate_market_matrix.py --stats-first`, timeout: 2 min)
 - **S1e**: Ranked shortlist (`build_shortlist.py --stats-first`, all candidates — no cap, timeout: 2 min)
 - **S2**: Tipster cross-reference (timeout: 1 min)
+- **S2.5**: Data enrichment — self-healing fetch of missing team stats from Flashscore/Sofascore/ESPN for shortlisted candidates (timeout: 15 min)
 - **S3**: Deep stats analysis — **8-worker parallel candidate analysis**, Poisson/NegBin probability enrichment, error-resilient (timeout: 10 min)
 - **S4**: Odds evaluation — cross-validate odds, compute EV, detect drift >8% (timeout: 2 min)
 - **S5**: Context checks — weather impact, venue, referee, roster changes (timeout: 1 min)
 - **S6**: Upset risk scoring — sport-specific checklists (timeout: 2 min)
-- **S7**: 17-point gate — **stats-first EV fix** (passes candidates without odds with advisory), sport-specific H2H penalties (timeout: 5 min)
+- **S7**: 18-point advisory gate — **stats-first EV fix** (passes candidates without odds with advisory tier), sport-specific H2H penalties (timeout: 5 min)
 - **S8**: Coupon construction — Kelly 1/4 staking with true probability, rich per-leg Polish analysis (timeout: 2 min)
 - **S9**: V1-V10 validation (expanded odds regex matches `@1.85` and `(1.85)`)
 - **S10**: Final summary
@@ -137,7 +141,7 @@ State tracking with `--resume` support. Use `--status` to check progress. Use `-
 
 **Per-step timeouts** — each step has its own timeout (scan: 15 min, S3: 10 min, gate: 5 min, etc.) instead of a single 40-minute global timeout. A slow scan won't block the entire pipeline.
 
-**SQLite DB** — all pipeline outputs are dual-written to `betting/data/betting.db` (12-table schema: sports, teams, competitions, fixtures, match_stats, team_form, odds_history, league_profiles, coupons, bets, pipeline_runs, source_health) alongside flat files. Team aliases stored as JSON in `teams` table. Always use `from bet.db.connection import get_db` context manager — never raw `sqlite3.connect()`.
+**SQLite DB** — all pipeline outputs are dual-written to `src/bet/db/betting.db` (28-table schema organized by domain: **Core** — sports, teams, competitions, fixtures, athletes; **Stats** — team_form, match_stats, league_profiles, standings, power_index; **Analysis** — analysis_results, analysis_raw_data, gate_results, decision_snapshots, decision_outcomes; **Betting** — coupons, bets, odds_history; **Pipeline** — pipeline_runs, scan_results, scan_run_stats, source_health; **ESPN** — espn_predictions, player_gamelogs, player_splits, team_ats_records, team_ou_records, team_rosters) alongside flat files. Team aliases stored as JSON in `teams` table. Always use `from bet.db.connection import get_db` context manager — never raw `sqlite3.connect()`.
 
 **Config keys used:** `bankroll_pln` (fallback: `working_bankroll_pln`), `daily_exposure_range` (fallback: `suggested_daily_allocation_range_pln`), `db_path`.
 
@@ -194,29 +198,43 @@ When `rerun=true`, previous artifacts are PRESERVED, not replaced:
 
 ## AGENT DELEGATION RULE (MANDATORY — NEVER BYPASS)
 
-**For steps S3, S4, S5, S6, S7, S8 — ALWAYS delegate to the specialist agent** (bet-statistician, bet-scout, bet-valuator, bet-challenger, bet-builder). Scripts generate raw data; agents analyze and decide.
+**For steps S2, S2.5, S3, S4, S5, S6, S7, S8 — ALWAYS delegate to the specialist agent** (bet-scout, bet-enricher, bet-statistician, bet-valuator, bet-challenger, bet-builder). Scripts generate raw data; agents analyze and decide.
 
 **THE ORCHESTRATOR MUST SPAWN DEDICATED AGENTS. SCRIPTS ARE DATA TOOLS, NOT THE ANALYSIS.**
 
 | Step | Script (DATA TOOL — runs first) | Agent (THINKER — runs second, MANDATORY) | What Agent MUST Deliver (NOT optional) |
 |------|-------------------------------|----------------------------------------|---------------------------------------|
+| S2 | tipster consensus from `tipster_xref` | **bet-scout** via `runSubagent` (use `bet-tipsters.prompt.md`) | Per-candidate: FULL tipster argument extraction, argument quality assessment, independence verification, angle discovery, watchlist promotions |
+| S2.5 | `data_enrichment_agent.py` → enriched stats | **bet-enricher** via `runSubagent` (use `bet-enrich.prompt.md`) | Enrichment yield, gap analysis, source reliability, persistent failure flags |
 | S3 | `deep_stats_report.py` → raw safety scores, market rankings, probabilities | **bet-statistician** via `runSubagent` (use `bet-deep-stats.prompt.md`) | Per-candidate: edge mechanism ("WHY does this trend exist?"), pattern insights, anomaly flags, cross-source verification, ANALYTICAL REASONING section |
-| S4 | `tipster_aggregator.py` → aggregated consensus JSON | **bet-scout** via `runSubagent` (use `bet-tipsters.prompt.md`) | Per-candidate: FULL tipster argument extraction, argument quality assessment, independence verification, angle discovery, watchlist promotions |
-| S5 | `_run_odds_eval()` → EV injection from odds API | **bet-valuator** via `runSubagent` (use `bet-odds-ev.prompt.md`) | Per-candidate: multi-source cross-validation, mispricing reasoning, edge durability assessment, relative value vs alternative markets |
-| S6 | `_run_context_checks()` + `_run_upset_risk()` → flags | **bet-challenger** via `runSubagent` (use `bet-context-upset.prompt.md`) | Per-candidate: REAL impact assessment (not just listing flags), motivation modeling, compounding factor analysis, context-stat interactions |
-| S7 | `gate_checker.py` → 17-point mechanical gate | **bet-challenger** via `runSubagent` (use `bet-gate.prompt.md`) | Per-candidate: qualitative bear cases with SPECIFIC scenarios, assumption audits, historical analogies, second-order effects, Bayesian confidence update |
+| S4 | `_run_odds_eval()` → EV injection from odds API | **bet-valuator** via `runSubagent` (use `bet-odds-ev.prompt.md`) | Per-candidate: multi-source cross-validation, mispricing reasoning, edge durability assessment, relative value vs alternative markets |
+| S5 | `_run_context_checks()` → context flags | **bet-challenger** via `runSubagent` (use `bet-context-upset.prompt.md`) | Per-candidate: REAL impact assessment (not just listing flags), motivation modeling, context-stat interactions |
+| S6 | `_run_upset_risk()` → upset scores | **bet-challenger** via `runSubagent` (use `bet-context-upset.prompt.md`) | Per-candidate: upset risk with sport-specific reasoning, compounding factor analysis, Paradox Rule |
+| S7 | `gate_checker.py` → 18-point mechanical gate | **bet-challenger** via `runSubagent` (use `bet-gate.prompt.md`) | Per-candidate: qualitative bear cases with SPECIFIC scenarios, assumption audits, historical analogies, second-order effects, Bayesian confidence update |
 | S8 | `coupon_builder.py` → portfolio math, Kelly staking | **bet-builder** via `runSubagent` (use `bet-portfolio.prompt.md`) | Strategic portfolio review, hidden correlation detection, stake adjustments by conviction, Polish descriptions with reasoning, V1-V10 + §S8.FINAL, placement strategy |
 
-> **Note:** Pipeline script uses S4/S5/S6 for odds→context→upset_risk. Internal prompts in `.github/internal-prompts/` define per-step delegation: `bet-tipsters.prompt.md`, `bet-odds-ev.prompt.md`, `bet-context-upset.prompt.md`. Read the internal prompt and pass its content when calling `runSubagent`.
+> **Note:** Step IDs in `pipeline_orchestrator.py` match the delegation table above: s2_tipster, s2_5_enrich, s3_deep_stats, s4_odds_eval, s5_context, s6_upset_risk, s7_gate, s8_coupons.
 
 ### AGENT DELEGATION CHECKPOINTS (BLOCKING — the pipeline STOPS here until agent completes)
-
-> **Numbering note:** Pipeline script step IDs (s2_tipster, s3_deep_stats, s4_odds_eval, s5_context, s6_upset_risk) differ from internal-prompt naming (bet-tipsters, bet-odds-ev, bet-context-upset). Checkpoints below use **pipeline script step IDs** as the trigger.
 
 After `pipeline_orchestrator.py` finishes (or after each script step), the orchestrator MUST:
 
 ```
-CHECKPOINT 1: After s3_deep_stats completes
+CHECKPOINT 1: After s2_tipster completes
+  → Spawn bet-scout agent with:
+    - Input: {date}_tipster_consensus.json, pre-fetched HTML from betting/data/zawodtyper.pl/ etc.
+    - Task: "Read FULL tipster arguments. Assess quality. Check independence. Discover angles.
+             Promote statistical-market tips to watchlist."
+    - Gate: Each candidate has argument quality + independence + contrarian signal
+
+CHECKPOINT 2: After s2_5_enrich completes
+  → Spawn bet-enricher agent with:
+    - Input: enrichment results, {date}_s2_shortlist.json, source_health table
+    - Task: "Review enrichment yield. Identify persistent gaps. Assess data quality.
+             Flag sports/leagues with no data for S3."
+    - Gate: Enrichment yield ≥60%, gap analysis complete
+
+CHECKPOINT 3: After s3_deep_stats completes
   → Spawn bet-statistician agent with:
     - Input: {date}_s3_deep_stats.json, {date}_s2_shortlist.json, analysis_pool_{date}.json
     - Task: "Analyze ALL candidates. For each: interpret safety scores, find edge mechanisms,
@@ -225,35 +243,28 @@ CHECKPOINT 1: After s3_deep_stats completes
     - Gate: Each candidate has analytical reasoning (edge + pattern + anomaly + narrative)
   → WAIT for agent response before proceeding
 
-CHECKPOINT 2: After s2_tipster completes
-  → Spawn bet-scout agent with:
-    - Input: {date}_tipster_consensus.json, pre-fetched HTML from betting/data/zawodtyper.pl/ etc.
-    - Task: "Read FULL tipster arguments. Assess quality. Check independence. Discover angles.
-             Promote statistical-market tips to watchlist."
-    - Gate: Each candidate has argument quality + independence + contrarian signal
-
-CHECKPOINT 3: After s4_odds_eval completes
+CHECKPOINT 4: After s4_odds_eval completes
   → Spawn bet-valuator agent with:
     - Input: odds_api_snapshot.json, S3 agent output, bet-scout agent output
     - Task: "Cross-validate pricing. Reason about mispricing. Calculate relative value.
              Assess edge durability. Flag drift >8%."
     - Gate: Each candidate has line reasoning + mispricing vector + edge durability
 
-CHECKPOINT 4: After s5_context + s6_upset_risk complete
+CHECKPOINT 5: After s5_context + s6_upset_risk complete
   → Spawn bet-challenger agent with:
     - Input: weather_{date}.json, ALL prior agent outputs (statistician + scout + valuator)
     - Task: "Assess REAL market impact of each context flag. Model motivation effects.
              Score upset risk with sport-specific reasoning. Identify compounding factors."
     - Gate: Each candidate has motivation analysis + context-stat interaction
 
-CHECKPOINT 5: After s7_gate completes
+CHECKPOINT 6: After s7_gate completes
   → Spawn bet-challenger agent with:
     - Input: {date}_s7_gate_results.json, ALL prior agent outputs
     - Task: "Build specific bear cases with named scenarios. Audit assumptions.
              Find historical analogies. Model second-order effects. Bayesian-update confidence."
     - Gate: Each approved candidate has scenario model + assumption audit + historical analogy
 
-CHECKPOINT 6: After s8_coupons completes
+CHECKPOINT 7: After s8_coupons completes
   → Spawn bet-builder agent with:
     - Input: {date}.json (coupons), ALL prior agent outputs, config
     - Task: "Review portfolio strategically. Check hidden correlations. Adjust stakes.
@@ -292,15 +303,16 @@ Each pass executes these steps IN ORDER. Each step:
 | S1d | _(auto)_ | _(script)_ | `generate_market_matrix.py --date {date} --stats-first` | `market_matrix_{date}.json/md`, `decision_matrix_{date}.md` | Full event universe with all odds + safety data (timeout: 2 min) |
 | S1e | _(auto)_ | _(script)_ | `build_shortlist.py --date {date} --stats-first` | `{date}_s2_shortlist.md/json` | All candidates ranked, ≥8 sports (timeout: 2 min) |
 | S2 | _(auto)_ | _(script)_ | tipster consensus + shortlist | tipster cross-reference data | Cross-reference picks with tipster consensus (timeout: 1 min) |
+| S2.5 | `bet-enrich` | bet-enricher | shortlist, stats cache, DB `team_form` | `{date}_s2_5_enrichment.md` | **Self-healing enrichment from Flashscore/Sofascore/ESPN. Yield ≥60%. (timeout: 15 min)** |
 | S3 | **AUTOMATED** (`deep_stats_report.py`, 8-worker parallel) + `bet-deep-stats` supplement | bet-statistician | S2 shortlist, **analysis_pool** (pre-computed safety), stats cache, **DB `team_form` table (tried first)** | `{date}_s3_deep_stats.md/json` | **DB-first stats lookup → JSON cache fallback. Script runs §3.0 market ranking + Poisson/NegBin probability. Sport-specific H2H penalties (0.70-0.90). Agent supplements for candidates without API data. ANALYTICAL GATE: ANALYTICAL REASONING section per candidate. (timeout: 10 min)** |
 | S4 | _(auto)_ | _(script)_ | S3 output + odds snapshots + analysis_pool EV | `{date}_s4_odds_eval.json` | **Cross-validate odds, compute EV, detect drift >8%. (timeout: 2 min)** |
 | S5 | _(auto)_ | _(script)_ | S3 output + weather + venue data | `{date}_s5_context.json` | **Weather impact, venue, referee, roster changes. (timeout: 1 min)** |
 | S6 | _(auto)_ | _(script)_ | S3 output + upset risk checklists | `{date}_s6_upset_risk.json` | **Score upset risk per candidate using sport-specific checklists. (timeout: 2 min)** |
-| S7 | **AUTOMATED** (`gate_checker.py`) + `bet-gate` supplement | bet-challenger | S4+S5+S6 output | `{date}_s7_gate.md/json` | **Script runs 17-point gate, stats-first EV pass (no odds → advisory, not rejection), red flags, risk tiers. Agent builds qualitative bear cases for borderline picks. ANALYTICAL GATE: DEEP ADVERSARIAL REASONING per candidate. (timeout: 5 min)** |
+| S7 | **AUTOMATED** (`gate_checker.py`) + `bet-gate` supplement | bet-challenger | S4+S5+S6 output | `{date}_s7_gate.md/json` | **Script runs 18-point advisory gate with tiers (STRONG/MODERATE/WEAK/FLAGGED), stats-first EV pass (no odds → advisory, not rejection), red flags, risk tiers. Agent builds qualitative bear cases for borderline picks. ANALYTICAL GATE: DEEP ADVERSARIAL REASONING per candidate. (timeout: 5 min)** |
 | S3B | `bet-time-sensitive` | bet-statistician | S7 output + `weather_{date}.json` | `{date}_s3b_time_sensitive.md` | Lineups, weather (from `fetch_weather.py`), odds drift formula per pick |
 | S8 | **AUTOMATED** (`coupon_builder.py`) + `bet-portfolio` review | bet-builder | S7+S3B output | Coupon file + ledgers + **DB coupons/bets tables** | **Script builds core portfolio + combo menu + extended pool with Kelly 1/4 stakes + rich per-leg Polish analysis. Coupons persisted to DB with `fixture_id` resolved via `FixtureRepo.get_by_teams_and_date()`. Agent reviews and runs V1-V10 + §S8.FINAL. (timeout: 2 min)** |
 
-**PARALLEL EXECUTION:** S4 (odds eval), S5 (context), and S6 (upset risk) all receive S3 output as input. None depends on the others. They run in parallel within the pipeline orchestrator. S7 waits for ALL three to complete before running the 17-point gate.
+**PARALLEL EXECUTION:** S4 (odds eval), S5 (context), and S6 (upset risk) all receive S3 output as input. None depends on the others. They run in parallel within the pipeline orchestrator. S7 waits for ALL three to complete before running the 18-point gate.
 
 **PER-STEP TIMEOUTS:** Each step has its own timeout (shown above). A single slow source in S1 (30 min max) won't block S3 (10 min max). If any step times out, the pipeline logs the failure and continues with available data rather than aborting after 40 minutes.
 
@@ -332,7 +344,7 @@ The script checks ALL 7 structural requirements per candidate:
 - Return ONLY failing candidates to bet-statistician with exact error list
 - Do NOT proceed to S4 with any FAIL candidates
 
-### After S4 — Read `{date}_s4_tipsters.md` and verify:
+### After S2 — Read `{date}_tipster_consensus.json` and verify:
 ```
 1. [ ] TIPSTER COVERAGE SUMMARY TABLE present (§S4-COVERAGE format — see below).
 2. [ ] For each candidate: ≥2 site names listed, ≥1 tipster argument text extracted.
@@ -345,8 +357,8 @@ METRIC: candidates_with_2+_tipster_args / total_candidates × 100 = TIPSTER_%
 GATE: TIPSTER_% ≥ 80%. If <80% → list candidates with <2 args → return to bet-scout with fallback chain instructions.
 ```
 
-#### §S4-COVERAGE — Required Summary Table
-The S4 output file must contain the Tipster Coverage Summary table as defined in the `bet-tipsters` internal-prompt. The orchestrator verifies:
+#### §S2-COVERAGE — Required Summary Table
+The S2 tipster output file must contain the Tipster Coverage Summary table as defined in the `bet-tipsters` internal-prompt. The orchestrator verifies:
 - Table exists at the top of the file (before per-candidate sections)
 - A TOTAL row is present with aggregate metrics (avg sites/candidate, avg with args, % full)
 - Status column uses: ✅ OK (≥2 sites with args) / ⚠️ 1-source / ❌ TIPSTER-BLIND (0 args) / 🔄 RETRY
@@ -355,7 +367,7 @@ The S4 output file must contain the Tipster Coverage Summary table as defined in
 ### After S7 — Read `{date}_s7_gate.md` and verify:
 ```
 For EACH approved pick (✅):
-1. [ ] 17-POINT GATE TABLE — all 17 rows present with PASS/FAIL per row (NOT abbreviated to "15-17: PASS").
+1. [ ] 18-POINT GATE TABLE — all 18 rows present with PASS/FAIL per row (NOT abbreviated to "15-18: PASS").
 2. [ ] BEAR CASE references specific data, stats, or a named scenario (NOT "it could go wrong").
 3. [ ] RED FLAG TABLE — sport-specific flags listed and resolved.
 4. [ ] CONTRARIAN — all 4 questions answered with substance.
@@ -385,7 +397,7 @@ This eliminates 2 unnecessary passes when the pipeline produces clean output on 
 
 ### PASS 1 — DISCOVERY (find all errors)
 
-Execute S0 → S1 → S1a → S1b(parallel) → S1c → S1d → S1e → S2 → S3 → S4+S5+S6(parallel) → S7 → S8 → S9 → S10 fully. At each step:
+Execute S0 → S1 → S1a → S1b(parallel) → S1c → S1d → S1e → S2 → S2.5 → S3 → S4+S5+S6(parallel) → S7 → S8 → S9 → S10 fully. At each step:
 - Run the step's self-verification checklist
 - Log EVERY failure to: `betting/data/{date}_pass1_errors.md`
 - Format: `| Step | Check | Status | Error Description | Fix Required |`
@@ -408,10 +420,11 @@ Read `{date}_pass1_errors.md`. For each error:
 - S1: Missing sports, low event count → re-scan specific sports deeper
 - S2: Too few candidates or missing sports → relax filters slightly
 - S3: Missing H2H, missing stats, no TOP 3 markets → fetch specific data
-- S4: Missing tipster sites, no arguments extracted → check specific URLs, use fallbacks. **If §1.5 pre-fetch was skipped → RUN IT NOW (Playwright fetch all 5 tipster sites) before re-doing S4.** Verify §4.3 watchlist promotion was done.
-- S5: Missing odds source, no EV calculated → try alternative source
-- S6: Missing injury check, upset risk not scored → verify on ESPN/Flashscore
-- S7: Incomplete 17-point gate, Zero Tolerance pattern matched → fix or reject pick
+- S2: Missing tipster sites, no arguments extracted → check specific URLs, use fallbacks. **If §1.5 pre-fetch was skipped → RUN IT NOW (Playwright fetch all 5 tipster sites) before re-doing S2.** Verify §4.3 watchlist promotion was done.
+- S4: Missing odds source, no EV calculated → try alternative source
+- S5: Missing injury check, context flags incomplete → verify on ESPN/Flashscore
+- S6: Upset risk not scored → run sport-specific checklists
+- S7: Incomplete 18-point gate, Zero Tolerance pattern matched → fix or reject pick
 - S3B: Lineups not checked, odds drift not calculated → re-run close to kickoff
 - S8: Arithmetic error, orphan picks, missing sections → fix and re-validate
 
@@ -428,7 +441,7 @@ Read `{date}_pass2_errors.md`. Fix remaining issues. Then:
 6. Run Zero Tolerance Shield against known failure patterns
 7. **SESSION PARITY CHECK**: If session=night/morning, verify:
    - ALL 14 sports were scanned (not just US sports for night)
-   - Every candidate got full S3-S7 (H2H, tipsters, injuries, bear case, 17-point gate)
+   - Every candidate got full S3-S7 (H2H, tipsters, injuries, bear case, 18-point gate)
    - ≥5 coupons built (or NO BET declared with justification)
    - V1-V10 ran fully (not a "compact" validation)
    - If ANY of these failed → treat as critical error, fix before Pass 4
@@ -556,7 +569,7 @@ Also include: per-event backing data (L10 form, H2H summary, injuries, referee),
 For each coupon: legs, combined odds (arithmetic shown), stake, type
 
 ### 5b. Extended Pool (ROZSZERZONY WYBÓR)
-EV > 0 picks that didn't fully pass the 17-point gate. For each: event, market, odds, EV, gate score, bull case, bear case, missing data, when to bet, suggested combos with approved picks. See §EXTENDED-POOL in betting-artifacts.instructions.md.
+EV > 0 picks that didn't fully pass the 18-point gate. For each: event, market, odds, EV, gate score, bull case, bear case, missing data, when to bet, suggested combos with approved picks. See §EXTENDED-POOL in betting-artifacts.instructions.md.
 
 ### 6. Watchlist
 Picks awaiting a trigger (e.g., lineup confirm) without calculated EV. For EV > 0 picks, use Extended Pool (§5b) instead.
@@ -589,6 +602,18 @@ If top pick fails: what survives? Worst-case portfolio loss.
 
 ---
 
+## ADVISORY TIER SYSTEM
+
+The S7 gate assigns advisory tiers based on gate score (not binary approved/rejected):
+- **STRONG** (≤2 checks failed): High confidence — full stake
+- **MODERATE** (3-5 failed): Good but gaps — standard stake
+- **WEAK** (6-9 failed): Marginal — reduced stake or watchlist
+- **FLAGGED** (10+ failed): Significant concerns — user must review carefully
+
+Tiers are ADVISORY ONLY — user decides. ALL candidates shown in matrix regardless of tier.
+
+---
+
 ## FILE NAMING CONVENTION
 
 Working files (Passes 1-3):
@@ -596,10 +621,12 @@ Working files (Passes 1-3):
 betting/data/{date}_s0_settlement.md
 betting/data/{date}_s1_master_events.md
 betting/data/{date}_s2_shortlist.md
+betting/data/{date}_s2_tipsters.md
+betting/data/{date}_s2_5_enrichment.md
 betting/data/{date}_s3_deep_stats.md
-betting/data/{date}_s4_tipsters.md
-betting/data/{date}_s5_odds_ev.md
-betting/data/{date}_s6_context.md
+betting/data/{date}_s4_odds_eval.md
+betting/data/{date}_s5_context.md
+betting/data/{date}_s6_upset_risk.md
 betting/data/{date}_s7_gate.md
 betting/data/{date}_s3b_time_sensitive.md
 betting/data/{date}_pass1_errors.md

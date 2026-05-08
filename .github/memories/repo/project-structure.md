@@ -7,7 +7,7 @@
 - Adapters: `scripts/adapters/` — domain-specific HTML parsers, fallback to raw_adapter
 - Settlement: `scripts/settle_on_finish.py --betting-day YYYY-MM-DD [--match "..."] [--no-poll]`
 - Deep stats: `scripts/deep_stats_report.py` — per-candidate S3 analysis
-- Gate checker: `scripts/gate_checker.py` — 17-point S7 approval gate
+- Gate checker: `scripts/gate_checker.py` — 18-point S7 approval gate
 - Coupon builder: `scripts/coupon_builder.py` — S8 portfolio + combo construction
 
 ## Outputs
