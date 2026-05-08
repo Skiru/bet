@@ -94,7 +94,7 @@ def load_settled_bets_for_date(betting_date: str) -> list[dict]:
                 "LEFT JOIN fixtures f ON b.fixture_id = f.id "
                 "LEFT JOIN competitions comp ON f.competition_id = comp.id "
                 "WHERE b.status IN ('won', 'lost') "
-                "AND c.placed_at LIKE ? "
+                "AND COALESCE(c.placed_at, c.created_at) LIKE ? "
                 "AND b.fixture_id IS NOT NULL",
                 (f"{betting_date}%",),
             ).fetchall()

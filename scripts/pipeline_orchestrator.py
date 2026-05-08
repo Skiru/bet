@@ -56,6 +56,7 @@ CONFIG_PATH = ROOT_DIR / "config" / "betting_config.json"
 sys.path.insert(0, str(SCRIPTS_DIR))
 sys.path.insert(0, str(ROOT_DIR / "src"))
 
+from bet.config import get_tz
 from deep_stats_report import generate_deep_stats
 from gate_checker import (
     run_gate,
@@ -86,6 +87,7 @@ STEP_TIMEOUTS = {
     "s1_scan": 1200,       # 20 min (parallel per-sport scan — each sport has independent timeout)
     "s1_ingest": 180,      # 3 min (ingest scan data into stats cache)
     "s1a_discover": 600,   # 10 min (DB persistence with caching)
+    "s1a_espn": 600,       # 10 min (ESPN API with rate limiting)
     "s1b_parallel": 600,   # 10 min (odds + weather + tipsters in parallel)
     "s1c_aggregate": 300,  # 5 min (45K events with dedup)
     "s1d_matrix": 120,     # 2 min
@@ -113,6 +115,7 @@ PIPELINE_STEPS = [
             "python3 scripts/evaluate_decisions.py --date {prev_date} || true",
             "python3 scripts/analyze_betclic_learning.py",
             "python3 scripts/data_rotation.py --execute --days 30 || true",
+            "python3 scripts/build_league_profiles.py || true",
         ],
         "outputs": ["betting/data/betclic_learning_summary.json"],
         "critical": True,
@@ -145,6 +148,17 @@ PIPELINE_STEPS = [
             "python3 scripts/discover_fixtures.py --date {date}",
             "python3 scripts/fetch_api_stats.py --date {date}",
             "python3 scripts/enrich_tennis_stats.py --date {date} --all-indexed",
+        ],
+        "outputs": [],
+        "critical": False,
+        "retries": 1,
+    },
+    {
+        "id": "s1a_espn",
+        "name": "S1a-ESPN: Seed ESPN Deep Data",
+        "description": "Seed ATS/OU records, standings, power index, predictions from ESPN API (skip lengthy player gamelogs)",
+        "commands": [
+            "python3 scripts/seed_espn_data.py --skip-players || true",
         ],
         "outputs": [],
         "critical": False,
@@ -273,7 +287,7 @@ PIPELINE_STEPS = [
     },
 ]
 # Steps that skip with --skip-scan (the heavy Playwright scan + parallel enrichment)
-SCAN_STEP_IDS = {"s1_scan", "s1_ingest", "s1a_discover", "s1b_parallel", "s1c_aggregate", "s1d_matrix", "s1e_shortlist"}
+SCAN_STEP_IDS = {"s1_scan", "s1_ingest", "s1a_discover", "s1a_espn", "s1b_parallel", "s1c_aggregate", "s1d_matrix", "s1e_shortlist"}
 
 
 # ---------------------------------------------------------------------------
@@ -496,7 +510,7 @@ def _run_parallel_scan(date: str) -> dict:
 
     # Inject ZawodTyper daily URL into football scanner
     from datetime import datetime as dt
-    now = dt.now(ZoneInfo("Europe/Warsaw"))
+    now = dt.now(get_tz())
     pl_months = ["", "stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca",
                  "lipca", "sierpnia", "wrzesnia", "pazdziernika", "listopada", "grudnia"]
     pl_days_list = ["", "poniedzialek", "wtorek", "sroda", "czwartek", "piatek", "sobota", "niedziela"]
@@ -627,7 +641,7 @@ def _run_scan_events(date: str, state: dict) -> tuple[bool, str]:
         print(f"  ⚠ Parallel scan failed ({e}), falling back to monolithic scan")
 
     # Fallback: monolithic scan (legacy behavior)
-    now = dt.now(ZoneInfo("Europe/Warsaw"))
+    now = dt.now(get_tz())
     pl_months = ["", "stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca",
                  "lipca", "sierpnia", "wrzesnia", "pazdziernika", "listopada", "grudnia"]
     pl_days = ["", "poniedzialek", "wtorek", "sroda", "czwartek", "piatek", "sobota", "niedziela"]
@@ -1330,7 +1344,7 @@ def run_pipeline(
 
     if not resume:
         state["session"] = session
-        state["started_at"] = datetime.now(ZoneInfo("Europe/Warsaw")).isoformat()
+        state["started_at"] = datetime.now(get_tz()).isoformat()
         if version:
             state["version"] = version
 
@@ -1407,7 +1421,7 @@ def run_pipeline(
         print(f"{'─'*60}")
 
         step_state["status"] = "running"
-        step_state["started_at"] = datetime.now(ZoneInfo("Europe/Warsaw")).isoformat()
+        step_state["started_at"] = datetime.now(get_tz()).isoformat()
         state["current_step"] = step_id
         save_state(date, state)
 
@@ -1471,7 +1485,7 @@ def run_pipeline(
 
         if success:
             step_state["status"] = "completed"
-            step_state["completed_at"] = datetime.now(ZoneInfo("Europe/Warsaw")).isoformat()
+            step_state["completed_at"] = datetime.now(get_tz()).isoformat()
             step_state["output_summary"] = output[:500] if output else ""
             print(f"  ✓ {output[:200] if output else 'Done'}")
 
@@ -1571,14 +1585,14 @@ def main():
 
     if args.status:
         if not args.date:
-            now = datetime.now(ZoneInfo("Europe/Warsaw"))
+            now = datetime.now(get_tz())
             args.date = now.strftime("%Y-%m-%d")
         state = load_state(args.date)
         print_status(state)
         return
 
     if not args.date:
-        now = datetime.now(ZoneInfo("Europe/Warsaw"))
+        now = datetime.now(get_tz())
         args.date = now.strftime("%Y-%m-%d")
 
     run_pipeline(

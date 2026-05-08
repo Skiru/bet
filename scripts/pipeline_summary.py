@@ -24,6 +24,8 @@ DATA_DIR = ROOT_DIR / "betting" / "data"
 sys.path.insert(0, str(SCRIPTS_DIR))
 sys.path.insert(0, str(ROOT_DIR / "src"))
 
+from bet.config import get_tz
+
 
 def run_summary(date: str, state: dict) -> tuple[bool, str]:
     """S10: Final summary with full pipeline metrics."""
@@ -34,12 +36,12 @@ def run_summary(date: str, state: dict) -> tuple[bool, str]:
 
     # Calculate pipeline duration
     started = state.get("started_at", "")
-    now_str = datetime.now(ZoneInfo("Europe/Warsaw")).isoformat()
+    now_str = datetime.now(get_tz()).isoformat()
     duration = "?"
     if started:
         try:
             start_dt = datetime.fromisoformat(started)
-            end_dt = datetime.now(ZoneInfo("Europe/Warsaw"))
+            end_dt = datetime.now(get_tz())
             elapsed = end_dt - start_dt
             minutes = int(elapsed.total_seconds() // 60)
             seconds = int(elapsed.total_seconds() % 60)

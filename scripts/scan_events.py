@@ -143,8 +143,8 @@ def validate_fetched_date(html: str, url: str, domain: str) -> list[str]:
     """
     warnings = []
     try:
-        from zoneinfo import ZoneInfo
-        now = datetime.now(ZoneInfo("Europe/Warsaw"))
+        from bet.config import get_tz
+        now = datetime.now(get_tz())
     except ImportError:
         now = datetime.now()
     current_year = str(now.year)

@@ -1,5 +1,5 @@
 {
-  "description": "Scan URLs grouped by sport for per-sport scanners",
+  "description": "Scan URLs grouped by sport for per-sport scanners. NOTE: timeout_minutes, max_deep_links, dedicated_sources are reference metadata — scanners use their own hardcoded values per sport-scanning skill.",
   "sports": {
     "football": {
       "urls": [

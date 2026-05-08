@@ -4,6 +4,11 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:
+    from backports.zoneinfo import ZoneInfo
+
 CONFIG_PATH = Path(__file__).parent.parent.parent / "config" / "betting_config.json"
 
 
@@ -12,13 +17,22 @@ class BettingConfig:
     bankroll_pln: float
     daily_exposure_range: tuple[float, float]
     max_stake_pln: float
-    max_legs_per_coupon: int  # Hard cap: 3
+    max_legs_per_coupon: int
     min_coupons_per_day: int
-    preferred_odds_range: tuple[float, float]
-    min_safety_score: float  # Default: 0.60
+    min_safety_score: float
     timezone: str
-    sports: list[str]  # 7 sports only
+    sports: list[str]
     db_path: str
+    low_risk_coupon_max_stake_pln: float
+    higher_risk_coupon_max_stake_pln: float
+    min_legs_per_coupon: int
+    max_same_sport_legs_in_coupon: int
+    low_risk_price_gap_threshold_pct: float
+    higher_risk_price_gap_threshold_pct: float
+    max_core_coupons: int
+    max_combo_coupons: int
+    max_singles: int
+    max_picks_per_day: int
 
     @classmethod
     def load(cls, path: Path = CONFIG_PATH) -> "BettingConfig":
@@ -27,22 +41,32 @@ class BettingConfig:
             raw = json.load(f)
 
         exposure = raw.get("daily_exposure_range", raw.get("suggested_daily_allocation_range_pln", [5.0, 15.0]))
-        odds_range = raw.get("preferred_odds_range", [1.30, 3.50])
 
         config = cls(
             bankroll_pln=raw.get("bankroll_pln", raw.get("working_bankroll_pln", 50.0)),
             daily_exposure_range=(exposure[0], exposure[1]),
             max_stake_pln=raw.get("max_stake_pln", raw.get("higher_risk_coupon_max_stake_pln", 2.0)),
-            max_legs_per_coupon=min(raw.get("max_legs_per_coupon", 3), 3),  # Hard cap
+            max_legs_per_coupon=raw.get("max_legs_per_coupon", 3),
             min_coupons_per_day=raw.get("min_coupons_per_day", 3),
-            preferred_odds_range=(odds_range[0], odds_range[1]),
-            min_safety_score=raw.get("min_safety_score", 0.60),
+            min_safety_score=raw.get("min_safety_score", 0.45),
             timezone=raw.get("timezone", "Europe/Warsaw"),
             sports=raw.get("sports", [
-                "football", "volleyball", "basketball", "hockey",
-                "tennis", "snooker", "speedway",
-            ])[:7],
+                "football", "volleyball", "basketball", "tennis",
+                "hockey", "snooker", "speedway", "baseball",
+                "esports", "darts", "table_tennis", "handball",
+                "mma", "padel",
+            ]),
             db_path=raw.get("db_path", "betting/data/betting.db"),
+            low_risk_coupon_max_stake_pln=raw.get("low_risk_coupon_max_stake_pln", 3.0),
+            higher_risk_coupon_max_stake_pln=raw.get("higher_risk_coupon_max_stake_pln", 2.0),
+            min_legs_per_coupon=raw.get("min_legs_per_coupon", 2),
+            max_same_sport_legs_in_coupon=raw.get("max_same_sport_legs_in_coupon", 2),
+            low_risk_price_gap_threshold_pct=raw.get("low_risk_price_gap_threshold_pct", -2.0),
+            higher_risk_price_gap_threshold_pct=raw.get("higher_risk_price_gap_threshold_pct", -5.0),
+            max_core_coupons=raw.get("max_core_coupons", 15),
+            max_combo_coupons=raw.get("max_combo_coupons", 20),
+            max_singles=raw.get("max_singles", 50),
+            max_picks_per_day=raw.get("max_picks_per_day", 50),
         )
 
         # Validate
@@ -57,3 +81,17 @@ class BettingConfig:
             raise ValueError(f"max_stake_pln must be positive, got {config.max_stake_pln}")
 
         return config
+
+
+def get_timezone() -> str:
+    """Return configured timezone string. Falls back to Europe/Warsaw."""
+    try:
+        cfg = BettingConfig.load()
+        return cfg.timezone
+    except Exception:
+        return "Europe/Warsaw"
+
+
+def get_tz() -> ZoneInfo:
+    """Return configured timezone as ZoneInfo object."""
+    return ZoneInfo(get_timezone())

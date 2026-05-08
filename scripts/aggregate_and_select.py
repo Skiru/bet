@@ -421,7 +421,7 @@ def allocate_stakes(candidates, config):
     max_stake = config.get("low_risk_coupon_max_stake_pln", 3.0)
     alloc_range = config.get("daily_exposure_range", config.get("suggested_daily_allocation_range_pln", [5.0, 15.0]))
     max_daily = alloc_range[1] if len(alloc_range) > 1 else 12.0
-    max_picks = config.get("min_coupons_per_day", 5)
+    max_picks = config.get("max_picks_per_day", 50)
     low_gap = config.get("low_risk_price_gap_threshold_pct", LOW_RISK_GAP_THRESHOLD)
     high_gap = config.get("higher_risk_price_gap_threshold_pct", HIGH_RISK_GAP_THRESHOLD)
 

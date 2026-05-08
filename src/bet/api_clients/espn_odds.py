@@ -533,7 +533,11 @@ class ESPNOddsClient:
         return result
 
     def _parse_power_index_response(self, data: dict) -> list[dict]:
-        """Parse power index response."""
+        """Parse power index response.
+
+        ESPN returns items with stats as an array of {name, value} dicts
+        and team as a $ref link that needs resolving.
+        """
         items = data.get("items", [])
         teams = []
 
@@ -544,16 +548,33 @@ class ESPNOddsClient:
                 if ref_data:
                     item = ref_data
 
+            # Resolve team $ref to get team name/id
             team_info = item.get("team", {})
+            if "$ref" in team_info and not team_info.get("displayName"):
+                resolved = self._request(team_info["$ref"])
+                if resolved:
+                    team_info = resolved
+
+            # Extract stats from array format [{name, value}, ...]
+            stats_dict: dict[str, float] = {}
+            for stat in item.get("stats", []):
+                name = stat.get("name", "")
+                val = stat.get("value")
+                if name and val is not None:
+                    try:
+                        stats_dict[name] = float(val)
+                    except (ValueError, TypeError):
+                        pass
+
             team_entry = {
                 "team_id": team_info.get("id", item.get("id", "")),
                 "team_name": team_info.get("displayName", ""),
                 "abbreviation": team_info.get("abbreviation", ""),
-                "rank": item.get("rank", 0),
-                "bpi": item.get("bpiRating", item.get("rating", 0.0)),
-                "offensive_rating": item.get("offensiveRating", item.get("offense", 0.0)),
-                "defensive_rating": item.get("defensiveRating", item.get("defense", 0.0)),
-                "strength_of_schedule": item.get("strengthOfSchedule", 0.0),
+                "rank": int(stats_dict.get("bpirank", item.get("rank", 0))),
+                "bpi": stats_dict.get("bpi", item.get("bpiRating", item.get("rating", 0.0))),
+                "offensive_rating": stats_dict.get("bpioffense", item.get("offensiveRating", 0.0)),
+                "defensive_rating": stats_dict.get("bpidefense", item.get("defensiveRating", 0.0)),
+                "strength_of_schedule": stats_dict.get("strengthofschedule", item.get("strengthOfSchedule", 0.0)),
             }
             teams.append(team_entry)
 

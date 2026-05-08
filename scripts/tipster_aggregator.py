@@ -34,6 +34,7 @@ SCRIPTS_DIR = Path(__file__).resolve().parent
 DATA_DIR = ROOT_DIR / "betting" / "data"
 
 sys.path.insert(0, str(SCRIPTS_DIR))
+sys.path.insert(0, str(ROOT_DIR / "src"))
 
 try:
     from fetch_with_playwright import fetch
@@ -755,12 +756,13 @@ def run_tipster_aggregation(
     Returns summary dict.
     """
     try:
-        from zoneinfo import ZoneInfo
+        from bet.config import get_tz
     except ImportError:
-        from backports.zoneinfo import ZoneInfo
+        from zoneinfo import ZoneInfo
+        get_tz = lambda: ZoneInfo("Europe/Warsaw")
 
     date_obj = datetime.strptime(date, "%Y-%m-%d")
-    date_obj = date_obj.replace(tzinfo=ZoneInfo("Europe/Warsaw"))
+    date_obj = date_obj.replace(tzinfo=get_tz())
 
     print(f"[tipster] Starting aggregation for {date}")
     print(f"[tipster] Sites to fetch: {len(TIPSTER_SITES)}")
@@ -914,10 +916,11 @@ def main():
 
     if not args.date:
         try:
-            from zoneinfo import ZoneInfo
+            from bet.config import get_tz
         except ImportError:
-            from backports.zoneinfo import ZoneInfo
-        args.date = datetime.now(ZoneInfo("Europe/Warsaw")).strftime("%Y-%m-%d")
+            from zoneinfo import ZoneInfo
+            get_tz = lambda: ZoneInfo("Europe/Warsaw")
+        args.date = datetime.now(get_tz()).strftime("%Y-%m-%d")
 
     run_tipster_aggregation(args.date, max_workers=args.workers, sport_filter=args.sport)
 

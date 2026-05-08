@@ -12,15 +12,19 @@ All files are written to: betting/data/agent_reviews/{date}/
 """
 
 import json
+import sys
 from datetime import datetime
 from pathlib import Path
 
-try:
-    from zoneinfo import ZoneInfo
-except ImportError:
-    from backports.zoneinfo import ZoneInfo
-
 ROOT_DIR = Path(__file__).parent.parent
+sys.path.insert(0, str(ROOT_DIR / "src"))
+
+try:
+    from bet.config import get_tz
+except ImportError:
+    from zoneinfo import ZoneInfo
+    get_tz = lambda: ZoneInfo("Europe/Warsaw")
+
 REVIEWS_DIR = ROOT_DIR / "betting" / "data" / "agent_reviews"
 
 # ---------------------------------------------------------------------------
@@ -29,7 +33,7 @@ REVIEWS_DIR = ROOT_DIR / "betting" / "data" / "agent_reviews"
 DB_SCHEMA_REFERENCE = {
     "connection": {
         "how": "from bet.db.connection import get_db; with get_db() as conn: ...",
-        "db_path": "src/bet/db/betting.db (SQLite)",
+        "db_path": "betting/data/betting.db (SQLite)",
         "repositories": "from bet.db.repositories import SportRepo, TeamRepo, FixtureRepo, CompetitionRepo, AnalysisResultRepo, StatsRepo, GateResultRepo, CouponRepo, PipelineRepo, OddsRepo, SourceHealthRepo, ScanResultRepo, AthleteRepo, StandingRepo",
     },
     "core_tables": {
@@ -283,7 +287,7 @@ AGENT_SKILLS_MAP = {
     "bet-builder": {
         "role": "Portfolio construction & coupon validation specialist",
         "responsibilities": [
-            "Build core portfolio: unique event per coupon, max 8 legs",
+            "Build core portfolio: unique event per coupon, max legs per config (default 3)",
             "Create COMBO MENU: extra combinations remixing approved picks",
             "Build EXTENDED POOL: EV>0 but gate-failed picks for user review",
             "Split by advisory tier: STRONG+MODERATE → primary, WEAK/FLAGGED → discovery",
@@ -483,7 +487,7 @@ STEP_AGENT_CONFIG = {
         "required_input": ["{date}.json"],
         "output_metrics": ["coupon_count", "total_legs", "total_stake", "discovery_count"],
         "detailed_instructions": [
-            "1. Build core coupons from STRONG+MODERATE picks — 1 event per coupon, max 8 legs",
+            "1. Build core coupons from STRONG+MODERATE picks — 1 event per coupon, max legs per config",
             "2. Check hidden correlations: same league (weather/fixture congestion), same surface, same timezone",
             "3. Create COMBO MENU: 2-3 alternative combinations remixing the best picks",
             "4. Build EXTENDED POOL (discovery tier): WEAK/FLAGGED picks with EV>0 for user review",
@@ -564,7 +568,7 @@ def write_step_output(date: str, step_id: str, metrics: dict, artifacts: list[st
             "note": "This agent does not trigger enrichment directly. Flag data gaps in review for upstream resolution.",
             "fallback_layers": SELF_HEALING_REGISTRY["fallback_layers"],
         },
-        "written_at": datetime.now(ZoneInfo("Europe/Warsaw")).isoformat(),
+        "written_at": datetime.now(get_tz()).isoformat(),
     }
     out_path = _reviews_dir(date) / f"{step_id}_input.json"
     out_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
