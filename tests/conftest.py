@@ -226,9 +226,9 @@ def config():
         bankroll_pln=50.0,
         daily_exposure_range=(5.0, 15.0),
         max_stake_pln=2.0,
-        max_legs_per_coupon=3,
+        max_legs_per_coupon=4,
         min_coupons_per_day=3,
-        min_safety_score=0.45,
+        min_safety_score=0.4,
         timezone="Europe/Warsaw",
         sports=[
             "football", "volleyball", "basketball", "tennis",
@@ -246,5 +246,5 @@ def config():
         max_core_coupons=15,
         max_combo_coupons=20,
         max_singles=50,
-        max_picks_per_day=50,
+        max_picks_per_day=80,
     )

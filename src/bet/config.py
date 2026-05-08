@@ -46,9 +46,9 @@ class BettingConfig:
             bankroll_pln=raw.get("bankroll_pln", raw.get("working_bankroll_pln", 50.0)),
             daily_exposure_range=(exposure[0], exposure[1]),
             max_stake_pln=raw.get("max_stake_pln", raw.get("higher_risk_coupon_max_stake_pln", 2.0)),
-            max_legs_per_coupon=raw.get("max_legs_per_coupon", 3),
+            max_legs_per_coupon=raw.get("max_legs_per_coupon", 4),
             min_coupons_per_day=raw.get("min_coupons_per_day", 3),
-            min_safety_score=raw.get("min_safety_score", 0.45),
+            min_safety_score=raw.get("min_safety_score", 0.4),
             timezone=raw.get("timezone", "Europe/Warsaw"),
             sports=raw.get("sports", [
                 "football", "volleyball", "basketball", "tennis",
@@ -66,7 +66,7 @@ class BettingConfig:
             max_core_coupons=raw.get("max_core_coupons", 15),
             max_combo_coupons=raw.get("max_combo_coupons", 20),
             max_singles=raw.get("max_singles", 50),
-            max_picks_per_day=raw.get("max_picks_per_day", 50),
+            max_picks_per_day=raw.get("max_picks_per_day", 80),
         )
 
         # Validate

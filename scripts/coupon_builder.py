@@ -393,7 +393,7 @@ def assign_picks_to_core(approved: list, config: dict) -> list[dict]:
 
     tz_name = config.get("timezone", "Europe/Warsaw")
     min_legs = config.get("min_legs_per_coupon", 2)
-    max_legs = config.get("max_legs_per_coupon", 3)
+    max_legs = config.get("max_legs_per_coupon", 4)
     # Dynamic max legs: LR-only coupons can have more legs
     base_max_legs = max_legs
     max_same_sport = config.get("max_same_sport_legs_in_coupon", 2)
@@ -558,14 +558,14 @@ def _make_coupon(coupon_id: str, tier: str, legs: list, config: dict) -> dict:
 
 
 def _merge_orphan_legs(orphans: list, coupons: list, max_same_sport: int, bankroll: float = 50.0,
-                       max_legs: int = 3):
+                       max_legs: int = 4):
     """Merge orphan legs into existing coupons where constraints allow."""
     for leg in orphans:
         _try_insert_into_coupon(leg, coupons, max_same_sport, bankroll, max_legs)
 
 
 def _try_insert_into_coupon(pick: dict, coupons: list, max_same_sport: int, bankroll: float = 50.0,
-                            max_legs: int = 3):
+                            max_legs: int = 4):
     """Try to insert a pick into an existing coupon respecting constraints."""
     ek = _event_key(pick)
     sport = pick.get("sport", "other")
@@ -687,7 +687,7 @@ def generate_combos(approved: list, config: dict) -> list[dict]:
 
     date_str = _extract_date(approved)
     min_legs = config.get("min_legs_per_coupon", 2)
-    max_legs = config.get("max_legs_per_coupon", 3)
+    max_legs = config.get("max_legs_per_coupon", 4)
     max_same_sport = config.get("max_same_sport_legs_in_coupon", 2)
     max_combos = config.get("max_combo_coupons", 20)
     combos: list[dict] = []

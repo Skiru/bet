@@ -287,7 +287,7 @@ AGENT_SKILLS_MAP = {
     "bet-builder": {
         "role": "Portfolio construction & coupon validation specialist",
         "responsibilities": [
-            "Build core portfolio: unique event per coupon, max legs per config (default 3)",
+            "Build core portfolio: unique event per coupon, max legs per config (default 4)",
             "Create COMBO MENU: extra combinations remixing approved picks",
             "Build EXTENDED POOL: EV>0 but gate-failed picks for user review",
             "Split by advisory tier: STRONG+MODERATE → primary, WEAK/FLAGGED → discovery",

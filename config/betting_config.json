@@ -2,9 +2,9 @@
   "bankroll_pln": 53.905,
   "daily_exposure_range": [5.0, 15.0],
   "max_stake_pln": 2.0,
-  "max_legs_per_coupon": 3,
+  "max_legs_per_coupon": 4,
   "min_coupons_per_day": 3,
-  "min_safety_score": 0.45,
+  "min_safety_score": 0.4,
   "timezone": "Europe/Warsaw",
   "sports": [
     "football",
@@ -32,5 +32,5 @@
   "max_same_sport_legs_in_coupon": 2,
   "low_risk_price_gap_threshold_pct": -2.0,
   "higher_risk_price_gap_threshold_pct": -5.0,
-  "max_picks_per_day": 50
+  "max_picks_per_day": 80
 }
