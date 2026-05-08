@@ -305,27 +305,31 @@ def compute_combined_l5(market: dict) -> list[float]:
         return list(a_vals)
 
 
-def compute_hit_rate(values: list[float], line: float, direction: str) -> tuple[int, int]:
-    """Count how many values are over/under the line.
+def compute_hit_rate(values: list[float], line: float, direction: str) -> tuple[int, int, int]:
+    """Count how many values are over/under the line, tracking pushes.
 
     Args:
         values: list of stat values
         line: the betting line (e.g., 9.5)
         direction: "OVER" or "UNDER"
 
-    Returns: (hits, total)
+    Returns: (hits, total, pushes)
+        pushes = values exactly on the line (relevant for whole-number lines)
     """
     if not values:
-        return 0, 0
+        return 0, 0, 0
 
     hits = 0
+    pushes = 0
     for v in values:
-        if direction == "OVER" and v > line:
+        if v == line:
+            pushes += 1
+        elif direction == "OVER" and v > line:
             hits += 1
         elif direction == "UNDER" and v < line:
             hits += 1
 
-    return hits, len(values)
+    return hits, len(values), pushes
 
 
 def infer_direction(avg: float, line: float) -> str:
@@ -459,9 +463,9 @@ def rank_markets(data: dict) -> dict:
         direction = infer_direction(l10_avg, line)
 
         # Compute hit rates
-        hits_l10, total_l10 = compute_hit_rate(l10_values, line, direction)
-        hits_h2h, total_h2h = compute_hit_rate(h2h_values, line, direction)
-        hits_l5, total_l5 = compute_hit_rate(l5_values, line, direction)
+        hits_l10, total_l10, pushes_l10 = compute_hit_rate(l10_values, line, direction)
+        hits_h2h, total_h2h, pushes_h2h = compute_hit_rate(h2h_values, line, direction)
+        hits_l5, total_l5, pushes_l5 = compute_hit_rate(l5_values, line, direction)
 
         # Hit rates as fractions
         rate_l10 = hits_l10 / total_l10 if total_l10 > 0 else 0.0

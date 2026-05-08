@@ -215,6 +215,7 @@ CREATE INDEX IF NOT EXISTS idx_odds_history_fixture ON odds_history(fixture_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_odds_history_upsert ON odds_history(fixture_id, bookmaker, market, selection, fetched_at);
 CREATE INDEX IF NOT EXISTS idx_bets_coupon ON bets(coupon_id);
 CREATE INDEX IF NOT EXISTS idx_bets_status ON bets(status);
+CREATE INDEX IF NOT EXISTS idx_bets_fixture ON bets(fixture_id);
 CREATE INDEX IF NOT EXISTS idx_teams_sport ON teams(sport_id);
 CREATE INDEX IF NOT EXISTS idx_teams_aliases ON teams(aliases);
 CREATE INDEX IF NOT EXISTS idx_analysis_results_date ON analysis_results(betting_date);

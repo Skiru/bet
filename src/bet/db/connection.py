@@ -18,6 +18,7 @@ def _configure_connection(conn: sqlite3.Connection) -> None:
     """Apply standard pragmas and settings."""
     conn.execute("PRAGMA journal_mode = WAL")
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA busy_timeout = 5000")
     conn.row_factory = sqlite3.Row
 
 
@@ -49,6 +50,7 @@ async def get_async_db(db_path: Path | str = DEFAULT_DB_PATH):
     conn = await aiosqlite.connect(str(db_path))
     await conn.execute("PRAGMA journal_mode = WAL")
     await conn.execute("PRAGMA foreign_keys = ON")
+    await conn.execute("PRAGMA busy_timeout = 5000")
     conn.row_factory = sqlite3.Row
     try:
         yield conn

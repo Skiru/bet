@@ -95,40 +95,55 @@ class TestComputeHitRate(unittest.TestCase):
 
     def test_over_counting(self):
         values = [10, 11, 12, 8, 9]
-        hits, total = compute_hit_rate(values, 9.5, "OVER")
+        hits, total, pushes = compute_hit_rate(values, 9.5, "OVER")
         self.assertEqual(hits, 3)  # 10, 11, 12
         self.assertEqual(total, 5)
+        self.assertEqual(pushes, 0)
 
     def test_under_counting(self):
         values = [10, 11, 12, 8, 9]
-        hits, total = compute_hit_rate(values, 9.5, "UNDER")
+        hits, total, pushes = compute_hit_rate(values, 9.5, "UNDER")
         self.assertEqual(hits, 2)  # 8, 9
         self.assertEqual(total, 5)
+        self.assertEqual(pushes, 0)
 
     def test_exact_line_is_push(self):
         """Values exactly on the line should NOT count as hit for OVER or UNDER."""
         values = [9.5, 9.5, 9.5]
-        hits_over, _ = compute_hit_rate(values, 9.5, "OVER")
-        hits_under, _ = compute_hit_rate(values, 9.5, "UNDER")
+        hits_over, _, pushes_over = compute_hit_rate(values, 9.5, "OVER")
+        hits_under, _, pushes_under = compute_hit_rate(values, 9.5, "UNDER")
         self.assertEqual(hits_over, 0)
         self.assertEqual(hits_under, 0)
+        self.assertEqual(pushes_over, 3)
+        self.assertEqual(pushes_under, 3)
 
     def test_empty_values(self):
-        hits, total = compute_hit_rate([], 9.5, "OVER")
+        hits, total, pushes = compute_hit_rate([], 9.5, "OVER")
         self.assertEqual(hits, 0)
         self.assertEqual(total, 0)
+        self.assertEqual(pushes, 0)
 
     def test_all_over(self):
         values = [10, 11, 12]
-        hits, total = compute_hit_rate(values, 5.5, "OVER")
+        hits, total, pushes = compute_hit_rate(values, 5.5, "OVER")
         self.assertEqual(hits, 3)
         self.assertEqual(total, 3)
+        self.assertEqual(pushes, 0)
 
     def test_all_under(self):
         values = [1, 2, 3]
-        hits, total = compute_hit_rate(values, 5.5, "UNDER")
+        hits, total, pushes = compute_hit_rate(values, 5.5, "UNDER")
         self.assertEqual(hits, 3)
         self.assertEqual(total, 3)
+        self.assertEqual(pushes, 0)
+
+    def test_whole_number_line_pushes(self):
+        """Whole-number lines should track pushes separately."""
+        values = [10, 10, 11, 9, 10]
+        hits, total, pushes = compute_hit_rate(values, 10, "OVER")
+        self.assertEqual(hits, 1)  # only 11
+        self.assertEqual(pushes, 3)  # three 10s
+        self.assertEqual(total, 5)
 
 
 class TestComputeMargin(unittest.TestCase):

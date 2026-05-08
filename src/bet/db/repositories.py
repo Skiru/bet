@@ -40,7 +40,9 @@ from bet.db.models import (
     Transaction,
 )
 
-_NOW = lambda: datetime.now(timezone.utc).isoformat()
+def _now() -> str:
+    """Return current UTC time as ISO string."""
+    return datetime.now(timezone.utc).isoformat()
 
 
 # ---------------------------------------------------------------------------
@@ -274,7 +276,7 @@ class FixtureRepo:
                 fixture.score_home,
                 fixture.score_away,
                 fixture.source,
-                fixture.fetched_at or _NOW(),
+                fixture.fetched_at or _now(),
             ),
         )
         if cur.lastrowid:
@@ -445,7 +447,7 @@ class StatsRepo:
         source: str,
     ) -> None:
         """Batch insert match stats (one row per stat_key)."""
-        now = _NOW()
+        now = _now()
         for key, value in stats.items():
             self.conn.execute(
                 "INSERT OR REPLACE INTO match_stats "
@@ -499,42 +501,49 @@ class StatsRepo:
     def save_team_form(self, form: TeamForm) -> None:
         """Upsert team_form row (denormalized cache).
 
-        Uses DELETE+INSERT because SQLite ON CONFLICT doesn't work with
-        expression-based unique indexes (NULL h2h_opponent_id).
+        Uses DELETE+INSERT wrapped in a SAVEPOINT to ensure atomicity.
+        SQLite ON CONFLICT doesn't work with expression-based unique indexes
+        (NULL h2h_opponent_id).
         """
-        # Delete existing row (if any) matching the same logical key
-        if form.h2h_opponent_id is None:
+        self.conn.execute("SAVEPOINT save_form")
+        try:
+            # Delete existing row (if any) matching the same logical key
+            if form.h2h_opponent_id is None:
+                self.conn.execute(
+                    "DELETE FROM team_form "
+                    "WHERE team_id = ? AND stat_key = ? AND h2h_opponent_id IS NULL",
+                    (form.team_id, form.stat_key),
+                )
+            else:
+                self.conn.execute(
+                    "DELETE FROM team_form "
+                    "WHERE team_id = ? AND stat_key = ? AND h2h_opponent_id = ?",
+                    (form.team_id, form.stat_key, form.h2h_opponent_id),
+                )
             self.conn.execute(
-                "DELETE FROM team_form "
-                "WHERE team_id = ? AND stat_key = ? AND h2h_opponent_id IS NULL",
-                (form.team_id, form.stat_key),
+                "INSERT INTO team_form "
+                "(team_id, sport_id, stat_key, l10_values, l5_values, l10_avg, l5_avg, "
+                "h2h_values, h2h_opponent_id, trend, updated_at, source) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    form.team_id,
+                    form.sport_id,
+                    form.stat_key,
+                    json.dumps(form.l10_values),
+                    json.dumps(form.l5_values),
+                    form.l10_avg,
+                    form.l5_avg,
+                    json.dumps(form.h2h_values),
+                    form.h2h_opponent_id,
+                    form.trend,
+                    form.updated_at or _now(),
+                    form.source,
+                ),
             )
-        else:
-            self.conn.execute(
-                "DELETE FROM team_form "
-                "WHERE team_id = ? AND stat_key = ? AND h2h_opponent_id = ?",
-                (form.team_id, form.stat_key, form.h2h_opponent_id),
-            )
-        self.conn.execute(
-            "INSERT INTO team_form "
-            "(team_id, sport_id, stat_key, l10_values, l5_values, l10_avg, l5_avg, "
-            "h2h_values, h2h_opponent_id, trend, updated_at, source) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (
-                form.team_id,
-                form.sport_id,
-                form.stat_key,
-                json.dumps(form.l10_values),
-                json.dumps(form.l5_values),
-                form.l10_avg,
-                form.l5_avg,
-                json.dumps(form.h2h_values),
-                form.h2h_opponent_id,
-                form.trend,
-                form.updated_at or _NOW(),
-                form.source,
-            ),
-        )
+            self.conn.execute("RELEASE save_form")
+        except Exception:
+            self.conn.execute("ROLLBACK TO save_form")
+            raise
 
     def get_all_form_for_team(self, team_id: int, sport_id: int) -> list[TeamForm]:
         """All TeamForm rows for a team (all stat_keys, no H2H filter)."""
@@ -570,7 +579,7 @@ class StatsRepo:
 
         Each tuple: (fixture_id, team_id, stat_key, stat_value, source).
         """
-        now = _NOW()
+        now = _now()
         self.conn.executemany(
             "INSERT OR REPLACE INTO match_stats "
             "(fixture_id, team_id, stat_key, stat_value, source, fetched_at) "
@@ -625,7 +634,7 @@ class OddsRepo:
                 record.selection,
                 record.odds,
                 record.line,
-                record.fetched_at or _NOW(),
+                record.fetched_at or _now(),
                 1 if record.is_closing else 0,
             ),
         )
@@ -742,7 +751,7 @@ class CouponRepo:
                 coupon.settled_at or None,
                 coupon.betclic_ref or None,
                 coupon.version,
-                coupon.created_at or _NOW(),
+                coupon.created_at or _now(),
             ),
         )
         return cur.lastrowid
@@ -784,13 +793,13 @@ class CouponRepo:
     def settle_coupon(self, coupon_id: int, status: str, pnl: float) -> None:
         self.conn.execute(
             "UPDATE coupons SET status = ?, pnl_pln = ?, settled_at = ? WHERE id = ?",
-            (status, pnl, _NOW(), coupon_id),
+            (status, pnl, _now(), coupon_id),
         )
 
     def settle_bet(self, bet_id: int, status: str, pnl: float) -> None:
         self.conn.execute(
             "UPDATE bets SET status = ?, pnl_pln = ?, settled_at = ? WHERE id = ?",
-            (status, pnl, _NOW(), bet_id),
+            (status, pnl, _now(), bet_id),
         )
 
     def get_coupon_with_bets(self, coupon_id: int) -> tuple[Coupon | None, list[Bet]]:
@@ -902,21 +911,21 @@ class PipelineRepo:
             "ON CONFLICT(date, step) DO UPDATE SET "
             "status = 'running', started_at = excluded.started_at, "
             "error_message = NULL",
-            (date, step, _NOW()),
+            (date, step, _now()),
         )
 
     def complete_step(self, date: str, step: str, stats: dict | None = None) -> None:
         self.conn.execute(
             "UPDATE pipeline_runs SET status = 'completed', completed_at = ?, stats = ? "
             "WHERE date = ? AND step = ?",
-            (_NOW(), json.dumps(stats) if stats else None, date, step),
+            (_now(), json.dumps(stats) if stats else None, date, step),
         )
 
     def fail_step(self, date: str, step: str, error: str) -> None:
         self.conn.execute(
             "UPDATE pipeline_runs SET status = 'failed', completed_at = ?, error_message = ? "
             "WHERE date = ? AND step = ?",
-            (_NOW(), error, date, step),
+            (_now(), error, date, step),
         )
 
     def get_completed_steps(self, date: str) -> list[str]:
@@ -965,7 +974,7 @@ class SourceHealthRepo:
             "  (COALESCE(source_health.avg_response_ms, 0) * source_health.total_requests + ?) "
             "  / (source_health.total_requests + 1)"
             ")",
-            (source, _NOW(), response_ms, response_ms),
+            (source, _now(), response_ms, response_ms),
         )
 
     def record_failure(self, source: str) -> None:
@@ -978,7 +987,7 @@ class SourceHealthRepo:
             "consecutive_failures = source_health.consecutive_failures + 1, "
             "total_requests = source_health.total_requests + 1, "
             "total_failures = source_health.total_failures + 1",
-            (source, _NOW()),
+            (source, _now()),
         )
 
     def get_health(self, source: str) -> dict | None:
@@ -1034,7 +1043,7 @@ class LeagueProfileRepo:
             "updated_at = excluded.updated_at",
             (profile.competition_id, profile.stat_key, profile.season,
              profile.avg_value, profile.median_value, profile.std_dev,
-             profile.sample_size, profile.updated_at or _NOW()),
+             profile.sample_size, profile.updated_at or _now()),
         )
 
     def get_for_competition(self, competition_id: int, season: str = "") -> list[LeagueProfile]:
@@ -1092,7 +1101,7 @@ class AnalysisResultRepo:
                 json.dumps(result.warnings_json),
                 json.dumps(result.stats_summary_json) if result.stats_summary_json else None,
                 result.source,
-                result.created_at or _NOW(),
+                result.created_at or _now(),
             ),
         )
 
@@ -1100,7 +1109,7 @@ class AnalysisResultRepo:
         """Bulk insert/replace analysis results using executemany."""
         if not results:
             return
-        now = _NOW()
+        now = _now()
         self.conn.executemany(
             "INSERT OR REPLACE INTO analysis_results "
             "(fixture_id, betting_date, has_data, best_market_name, best_market_line, "
@@ -1224,7 +1233,7 @@ class GateResultRepo:
                 result.risk_tier,
                 json.dumps(result.rejection_reasons_json),
                 result.source,
-                result.created_at or _NOW(),
+                result.created_at or _now(),
             ),
         )
 
@@ -1232,7 +1241,7 @@ class GateResultRepo:
         """Bulk insert/replace gate results using executemany."""
         if not results:
             return
-        now = _NOW()
+        now = _now()
         self.conn.executemany(
             "INSERT OR REPLACE INTO gate_results "
             "(fixture_id, betting_date, status, gate_score, gate_details_json, "
@@ -1337,7 +1346,7 @@ class AnalysisRawDataRepo:
                 json.dumps(raw.h2h_meetings_json, ensure_ascii=False),
                 json.dumps(raw.per_market_details_json, ensure_ascii=False),
                 json.dumps(raw.safety_input_json, ensure_ascii=False) if raw.safety_input_json else None,
-                raw.created_at or _NOW(),
+                raw.created_at or _now(),
             ),
         )
 
@@ -1408,7 +1417,7 @@ class DecisionSnapshotRepo:
                 json.dumps(snapshot.team_b_snapshot_json, ensure_ascii=False),
                 json.dumps(snapshot.h2h_snapshot_json, ensure_ascii=False),
                 json.dumps(snapshot.three_way_check_json, ensure_ascii=False) if snapshot.three_way_check_json else None,
-                snapshot.created_at or _NOW(),
+                snapshot.created_at or _now(),
             ),
         )
 
@@ -1492,7 +1501,7 @@ class DecisionOutcomeRepo:
                 json.dumps(outcome.prediction_accuracy_json, ensure_ascii=False),
                 json.dumps(outcome.pattern_tags_json, ensure_ascii=False),
                 outcome.notes or "",
-                outcome.created_at or _NOW(),
+                outcome.created_at or _now(),
             ),
         )
 
@@ -1542,7 +1551,7 @@ class DecisionOutcomeRepo:
 
     def get_deviation_stats(self, sport: str | None = None, market: str | None = None) -> dict:
         """Get aggregate deviation statistics."""
-        conditions: list[str] = []
+        conditions: list[str] = ["actual_value IS NOT NULL", "predicted_value IS NOT NULL"]
         params: list = []
         if sport:
             conditions.append("sport = ?")
@@ -1551,18 +1560,17 @@ class DecisionOutcomeRepo:
             conditions.append("market = ?")
             params.append(market)
 
-        where = "WHERE " + " AND ".join(conditions) if conditions else ""
-        where_with_values = where + (" AND " if conditions else "WHERE ") + "actual_value IS NOT NULL AND predicted_value IS NOT NULL"
+        where_clause = "WHERE " + " AND ".join(conditions)
 
         row = self.conn.execute(
-            f"SELECT COUNT(*) as count, "
-            f"AVG(deviation) as avg_deviation, "
-            f"AVG(deviation_pct) as avg_deviation_pct, "
-            f"SUM(CASE WHEN deviation > 0 THEN 1 ELSE 0 END) as overestimate_count, "
-            f"SUM(CASE WHEN deviation < 0 THEN 1 ELSE 0 END) as underestimate_count, "
-            f"SUM(CASE WHEN result = 'won' THEN 1 ELSE 0 END) as won_count, "
-            f"SUM(CASE WHEN result = 'lost' THEN 1 ELSE 0 END) as lost_count "
-            f"FROM decision_outcomes {where_with_values}",
+            "SELECT COUNT(*) as count, "
+            "AVG(deviation) as avg_deviation, "
+            "AVG(deviation_pct) as avg_deviation_pct, "
+            "SUM(CASE WHEN deviation > 0 THEN 1 ELSE 0 END) as overestimate_count, "
+            "SUM(CASE WHEN deviation < 0 THEN 1 ELSE 0 END) as underestimate_count, "
+            "SUM(CASE WHEN result = 'won' THEN 1 ELSE 0 END) as won_count, "
+            "SUM(CASE WHEN result = 'lost' THEN 1 ELSE 0 END) as lost_count "
+            "FROM decision_outcomes " + where_clause,
             params,
         ).fetchone()
 
@@ -1629,7 +1637,7 @@ class ScanResultRepo:
                     r.competition,
                     r.kickoff,
                     json.dumps(r.raw_data),
-                    r.scan_timestamp or _NOW(),
+                    r.scan_timestamp or _now(),
                 )
                 for r in results
             ],
@@ -1654,7 +1662,7 @@ class ScanResultRepo:
                 result.competition,
                 result.kickoff,
                 json.dumps(result.raw_data),
-                result.scan_timestamp or _NOW(),
+                result.scan_timestamp or _now(),
             ),
         )
         return cursor.lastrowid
@@ -1702,7 +1710,7 @@ class ScanResultRepo:
                 stats.duration_seconds,
                 int(stats.validation_passed),
                 json.dumps(stats.gaps_description),
-                stats.scan_timestamp or _NOW(),
+                stats.scan_timestamp or _now(),
             ),
         )
 
@@ -1768,7 +1776,7 @@ class AthleteRepo:
             (
                 athlete.external_id, athlete.sport_id, athlete.team_id, athlete.name,
                 athlete.position, athlete.jersey, athlete.age, athlete.height,
-                athlete.weight, athlete.status, athlete.source, athlete.updated_at or _NOW(),
+                athlete.weight, athlete.status, athlete.source, athlete.updated_at or _now(),
             ),
         )
         row = self.conn.execute(
@@ -1880,7 +1888,7 @@ class PlayerSplitRepo:
             "stats_json=excluded.stats_json, updated_at=excluded.updated_at",
             (
                 split.athlete_id, split.split_type, split.stats_json,
-                split.season, split.source, split.updated_at or _NOW(),
+                split.season, split.source, split.updated_at or _now(),
             ),
         )
 
@@ -1933,7 +1941,7 @@ class StandingRepo:
                 standing.form,
                 standing.home_wins, standing.home_draws, standing.home_losses,
                 standing.away_wins, standing.away_draws, standing.away_losses,
-                standing.streak, standing.source, standing.updated_at or _NOW(),
+                standing.streak, standing.source, standing.updated_at or _now(),
             ),
         )
 
@@ -2016,7 +2024,7 @@ class TeamATSRepo:
                 record.wins, record.losses, record.pushes,
                 record.home_wins, record.home_losses, record.home_pushes,
                 record.away_wins, record.away_losses, record.away_pushes,
-                record.source, record.updated_at or _NOW(),
+                record.source, record.updated_at or _now(),
             ),
         )
 
@@ -2080,7 +2088,7 @@ class TeamOURepo:
                 record.overs, record.unders, record.pushes,
                 record.home_overs, record.home_unders, record.home_pushes,
                 record.away_overs, record.away_unders, record.away_pushes,
-                record.source, record.updated_at or _NOW(),
+                record.source, record.updated_at or _now(),
             ),
         )
 
@@ -2141,7 +2149,7 @@ class ESPNPredictionRepo:
             (
                 pred.fixture_id, pred.home_win_pct, pred.away_win_pct, pred.tie_pct,
                 pred.predictor_json, pred.power_index_home, pred.power_index_away,
-                pred.source, pred.fetched_at or _NOW(),
+                pred.source, pred.fetched_at or _now(),
             ),
         )
 
@@ -2185,7 +2193,7 @@ class TeamRosterRepo:
             "depth_rank=excluded.depth_rank, updated_at=excluded.updated_at",
             (
                 entry.team_id, entry.athlete_id, entry.position, entry.jersey,
-                entry.status, entry.depth_rank, entry.season, entry.updated_at or _NOW(),
+                entry.status, entry.depth_rank, entry.season, entry.updated_at or _now(),
             ),
         )
 
@@ -2232,7 +2240,7 @@ class TransactionRepo:
             "VALUES (?, ?, ?, ?, ?, ?, ?)",
             (
                 txn.team_id, txn.athlete_id, txn.transaction_type,
-                txn.description, txn.transaction_date, txn.source, txn.fetched_at or _NOW(),
+                txn.description, txn.transaction_date, txn.source, txn.fetched_at or _now(),
             ),
         )
 
@@ -2284,7 +2292,7 @@ class PowerIndexRepo:
             (
                 entry.team_id, entry.sport_id, entry.season, entry.rating,
                 entry.offensive_rating, entry.defensive_rating, entry.rank,
-                entry.source, entry.updated_at or _NOW(),
+                entry.source, entry.updated_at or _now(),
             ),
         )
 

@@ -87,7 +87,7 @@ async def enrich_fixtures(
                 else:
                     counters["failed"] += 1
             except Exception as exc:
-                logger.debug("Enrichment failed: %s", exc)
+                logger.warning("Enrichment failed for team: %s", exc)
                 counters["failed"] += 1
 
     db_conn.commit()
