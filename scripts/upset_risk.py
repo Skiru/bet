@@ -118,6 +118,46 @@ def run_upset_risk(date: str, state: dict) -> tuple[bool, str]:
         s3_path.write_text(
             json.dumps(s3_data, indent=2, ensure_ascii=False), encoding="utf-8"
         )
+
+        # Save upset risk scores to analysis_results in DB
+        try:
+            from bet.db.connection import get_db
+            from bet.db.repositories import AnalysisResultRepo, FixtureRepo, SportRepo
+            with get_db() as conn:
+                repo = AnalysisResultRepo(conn)
+                fixture_repo = FixtureRepo(conn)
+                sport_repo = SportRepo(conn)
+                updated = 0
+                for analysis in analyses:
+                    upset = analysis.get("upset_risk")
+                    if not upset:
+                        continue
+                    fid = analysis.get("fixture_id")
+                    if not fid:
+                        sport_name = analysis.get("sport", "")
+                        s = sport_repo.get_by_name(sport_name) if sport_name else None
+                        if s:
+                            ko = analysis.get("kickoff", date)
+                            f = fixture_repo.get_by_teams_and_date(
+                                analysis.get("home_team", ""), analysis.get("away_team", ""),
+                                ko[:10] if ko else date, s.id,
+                            )
+                            fid = f.id if f else None
+                    if not fid:
+                        print(f"  ⚠ S6 DB: fixture_id not resolved for {analysis.get('home_team', '?')} vs {analysis.get('away_team', '?')}")
+                        continue
+                    ar = repo.get_by_fixture(fid, date)
+                    if ar:
+                        summary = ar.stats_summary_json or {}
+                        summary["upset_risk"] = upset
+                        repo.update_stats_summary(fid, date, summary)
+                        updated += 1
+                conn.commit()
+                if updated:
+                    print(f"  → DB: updated {updated} analysis_results with upset risk")
+        except Exception as e:
+            print(f"  ⚠ DB upset risk update failed (non-fatal): {e}")
+
         return True, f"S6 completed: {scored} candidates scored — {elevated} elevated, {high_risk} high risk"
     except Exception as e:
         return True, f"S6 upset risk error: {e} — continuing without"

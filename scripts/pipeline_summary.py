@@ -138,4 +138,31 @@ def run_summary(date: str, state: dict) -> tuple[bool, str]:
 
     state["completed_at"] = now_str
 
+    # Save summary metrics to pipeline_runs DB
+    try:
+        from bet.db.connection import get_db
+        from bet.db.repositories import PipelineRepo
+        summary_stats = {
+            "duration": duration,
+            "s3_count": step_data.get("s3_count"),
+            "s3_with_data": step_data.get("s3_with_data"),
+            "s7_approved": step_data.get("s7_approved"),
+            "s7_extended": step_data.get("s7_extended"),
+            "s8_core": step_data.get("s8_core"),
+            "s8_combos": step_data.get("s8_combos"),
+            "s8_no_bet": step_data.get("s8_no_bet", False),
+            "completed_steps": completed,
+            "failed_steps": failed,
+            "skipped_steps": skipped,
+            "errors_count": len(errors),
+            "parallel_results": step_data.get("parallel_results", {}),
+        }
+        with get_db() as conn:
+            repo = PipelineRepo(conn)
+            repo.start_step(date, "s10_summary")
+            repo.complete_step(date, "s10_summary", stats=summary_stats)
+            conn.commit()
+    except Exception as e:
+        print(f"  ⚠ DB summary save failed (non-fatal): {e}")
+
     return True, msg

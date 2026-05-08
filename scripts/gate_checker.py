@@ -842,6 +842,7 @@ def _normalise_s3_to_gate_input(analysis: dict) -> dict:
                 sources.append(src)
 
     return {
+        "fixture_id": analysis.get("fixture_id"),
         "sport": analysis.get("sport", ""),
         "home_team": analysis.get("home_team", ""),
         "away_team": analysis.get("away_team", ""),
@@ -860,6 +861,8 @@ def _normalise_s3_to_gate_input(analysis: dict) -> dict:
         ),
         "ev": analysis.get("ev"),
         "odds": analysis.get("odds", {}),
+        "context_flags": analysis.get("context_flags", []),
+        "upset_risk": analysis.get("upset_risk"),
         "sources": sources,
         "tipster_count": (
             analysis.get("tipster_count")
@@ -1042,37 +1045,49 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
         # Remove internal temp key
         entry.pop("_upset_risk", None)
 
-        # Classification logic
+        # ADVISORY CLASSIFICATION — gate results are informational labels, NOT rejections.
+        # Only phantom fixtures and 48h repeat losses are hard-rejected.
+        # Everything else passes through with an advisory tier label.
         n_failed = len(gate_result["gate_failed"])
         ev = c.get("ev")
-        has_positive_ev = ev is not None and ev > 0
+        best = c.get("best_market") or {}
+        safety = best.get("safety_score", 0)
 
-        # Hard reject conditions
+        # Hard reject: ONLY for structural issues (phantoms, 48h repeats, ZT red flags)
         hard_reject = False
+        hard_reject_reason = ""
         for detail in gate_result["gate_details"].values():
-            if "HARD REJECT" in detail.get("message", ""):
+            msg = detail.get("message", "")
+            if "HARD REJECT" in msg:
                 hard_reject = True
+                hard_reject_reason = msg
                 break
 
         if hard_reject:
             entry["status"] = "REJECTED"
-            entry["rejection_reason"] = "HARD REJECT triggered"
+            entry["rejection_reason"] = hard_reject_reason
             rejected.append(entry)
         elif strict and n_failed > 0:
             entry["status"] = "REJECTED"
             entry["rejection_reason"] = f"STRICT mode: {n_failed} gate failures"
             rejected.append(entry)
-        elif not has_positive_ev and ev is not None:
-            # EV ≤ 0 → extended pool (NOT rejected per NO AUTO-REJECTION rule)
-            entry["status"] = "EXTENDED"
-            extended_pool.append(entry)
-        elif n_failed <= 5:
+        else:
+            # Advisory tier based on gate score (number of passes)
+            # STRONG: 0-2 failures → highest confidence
+            # MODERATE: 3-5 failures → good candidate, some data gaps
+            # WEAK: 6-9 failures → needs enrichment but still analyzable
+            # FLAGGED: 10+ failures → low data, user should verify
+            if n_failed <= 2:
+                entry["advisory_tier"] = "STRONG"
+            elif n_failed <= 5:
+                entry["advisory_tier"] = "MODERATE"
+            elif n_failed <= 9:
+                entry["advisory_tier"] = "WEAK"
+            else:
+                entry["advisory_tier"] = "FLAGGED"
+
             entry["status"] = "APPROVED"
             approved.append(entry)
-        else:
-            # Many failures but EV > 0 → extended pool
-            entry["status"] = "EXTENDED"
-            extended_pool.append(entry)
 
     diversity = check_sport_diversity(approved)
     expansion_needed = not diversity["passes_diversity"]

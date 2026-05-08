@@ -307,12 +307,11 @@ def _update_player_cache(player_name: str, form_data: dict, force: bool = False)
 
 def get_shortlisted_tennis_players(date: str) -> list[str]:
     """Extract all tennis player names from today's shortlist."""
-    shortlist_file = DATA_DIR / f"{date.replace('-', '')}_{{}}_shortlist.json"
 
-    # Try multiple filename patterns
+    # Try multiple filename patterns (pipeline uses YYYY-MM-DD, legacy uses YYYYMMDD)
     patterns = [
+        DATA_DIR / f"{date}_s2_shortlist.json",
         DATA_DIR / f"{date.replace('-', '')}_s2_shortlist.json",
-        DATA_DIR / f"20{date[2:].replace('-', '')}_s2_shortlist.json",
     ]
 
     shortlist_data = None

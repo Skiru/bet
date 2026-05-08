@@ -91,6 +91,7 @@ STEP_TIMEOUTS = {
     "s1d_matrix": 120,     # 2 min
     "s1e_shortlist": 120,  # 2 min
     "s2_tipster": 60,      # 1 min (data loading only)
+    "s2_5_enrich": 900,    # 15 min (internet enrichment with Playwright)
     "s3_deep_stats": 600,  # 10 min (8-worker parallel analysis)
     "s4_odds_eval": 120,   # 2 min
     "s5_context": 60,      # 1 min
@@ -196,9 +197,19 @@ PIPELINE_STEPS = [
         "agent_task": "Read FULL tipster arguments, assess quality, check independence, discover angles stats missed, promote watchlist picks",
     },
     {
+        "id": "s2_5_enrich",
+        "name": "S2.5: Data Enrichment",
+        "description": "Self-healing enrichment — fetch missing team stats from internet sources (Flashscore/Sofascore/ESPN) for shortlisted candidates without data",
+        "python_step": "data_enrichment",
+        "critical": False,
+        "retries": 1,
+        "agent_review_required": "bet-enricher",
+        "agent_task": "Review enrichment yield, identify sports/leagues with persistent data gaps, suggest alternative sources for failed enrichments",
+    },
+    {
         "id": "s3_deep_stats",
         "name": "S3: Deep Statistical Analysis",
-        "description": "Per-candidate §3.0 analysis with L10/H2H/L5 stats",
+        "description": "Per-candidate §3.0 analysis with L10/H2H/L5 stats (enrichment-aware, no smart filter)",
         "python_step": "deep_stats",
         "agent_review_required": "bet-statistician",
         "agent_task": "Interpret safety scores, find edge mechanisms, fetch missing stats, write ANALYTICAL REASONING per candidate",
@@ -232,8 +243,8 @@ PIPELINE_STEPS = [
     },
     {
         "id": "s7_gate",
-        "name": "S7: 17-Point Gate Check",
-        "description": "Run gate checks, classify approved/extended/rejected",
+        "name": "S7: 18-Point Advisory Gate",
+        "description": "Run gate checks, assign advisory tiers (STRONG/MODERATE/WEAK/FLAGGED) — no auto-rejection",
         "python_step": "gate_check",
         "agent_review_required": "bet-challenger",
         "agent_task": "Build qualitative bear cases, audit assumptions, find historical analogies, Bayesian-update confidence",
@@ -548,6 +559,32 @@ def _run_parallel_scan(date: str) -> dict:
                     except Exception:
                         pass
 
+    # Retry failed sport groups once with increased timeout
+    failed_groups = [g for g, r in results.items() if r.get("status") == "failed"]
+    if failed_groups:
+        print(f"  → Retrying {len(failed_groups)} failed groups: {', '.join(failed_groups)}")
+        retry_scanners = [s for s in scanners if s.scanner_group in failed_groups]
+        with ThreadPoolExecutor(max_workers=len(retry_scanners)) as executor:
+            futures = {
+                executor.submit(scanner.scan, date, semaphore_map): scanner.scanner_group
+                for scanner in retry_scanners
+            }
+            for future in as_completed(futures):
+                group = futures[future]
+                try:
+                    stats = future.result(timeout=1200)  # Extended timeout for retry
+                    results[group] = {
+                        "status": "completed",
+                        "events_found": getattr(stats, "events_found", 0),
+                        "urls_scanned": getattr(stats, "urls_scanned", 0),
+                        "duration_sec": getattr(stats, "duration_sec", 0),
+                        "retry": True,
+                    }
+                    print(f"    ✓ {group} (retry): {results[group]['events_found']} events")
+                except Exception as e:
+                    results[group]["retry_error"] = str(e)
+                    print(f"    ✗ {group} (retry): {e}")
+
     # Merge all results into scan_summary.json
     merge_scan_results(date)
     return results
@@ -717,6 +754,66 @@ def _run_parallel_enrichment(date: str, state: dict) -> tuple[bool, str]:
             out_path.write_text(
                 json.dumps(enrichment, indent=2, ensure_ascii=False), encoding="utf-8"
             )
+
+            # Save ESPN odds to DB
+            try:
+                from bet.db.connection import get_db
+                from bet.db.repositories import OddsRepo, FixtureRepo, SportRepo
+                from bet.db.models import OddsRecord as OddsRec
+                with get_db() as conn:
+                    odds_repo = OddsRepo(conn)
+                    fixture_repo = FixtureRepo(conn)
+                    sport_repo = SportRepo(conn)
+                    saved_count = 0
+                    for item in enrichment["odds"]:
+                        odds_dec = item.get("odds_decimal", {})
+                        home = item.get("home_team", item.get("home", ""))
+                        away = item.get("away_team", item.get("away", ""))
+                        sport_name = item.get("sport", "")
+                        if not home or not away or not sport_name:
+                            continue
+                        sport_obj = sport_repo.get_by_name(sport_name)
+                        if not sport_obj:
+                            continue
+                        fixture = fixture_repo.get_by_teams_and_date(
+                            home, away, date, sport_obj.id
+                        )
+                        if not fixture:
+                            continue
+                        # Save moneyline odds
+                        ml = odds_dec.get("moneyline", {})
+                        for side in ("home", "away", "draw"):
+                            if side in ml:
+                                odds_repo.upsert(OddsRec(
+                                    id=None,
+                                    fixture_id=fixture.id,
+                                    bookmaker="ESPN/DraftKings",
+                                    market="h2h",
+                                    selection=side,
+                                    odds=ml[side],
+                                ))
+                                saved_count += 1
+                        # Save totals odds
+                        total = odds_dec.get("total", {})
+                        if total.get("line"):
+                            for side in ("over", "under"):
+                                if side in total:
+                                    odds_repo.upsert(OddsRec(
+                                        id=None,
+                                        fixture_id=fixture.id,
+                                        bookmaker="ESPN/DraftKings",
+                                        market="totals",
+                                        selection=side,
+                                        odds=total[side],
+                                        line=float(total["line"]),
+                                    ))
+                                    saved_count += 1
+                    conn.commit()
+                    if saved_count:
+                        print(f"  → ESPN DB: saved {saved_count} odds records")
+            except Exception as e:
+                print(f"  ⚠ ESPN DB save failed (non-fatal): {e}")
+
             return "espn", True, f"ESPN: {len(enrichment['odds'])} events with odds"
         except Exception as e:
             return "espn", False, str(e)[:200]
@@ -770,6 +867,47 @@ def _run_parallel_enrichment(date: str, state: dict) -> tuple[bool, str]:
 
     # Non-critical — always return True (individual failures logged)
     return True, msg
+
+
+def _run_data_enrichment(date: str, state: dict) -> tuple[bool, str]:
+    """S2.5: Self-healing data enrichment for shortlisted candidates missing stats.
+
+    Reads the shortlist, identifies teams without cached data, and uses the
+    data enrichment agent to fetch stats from internet sources (Flashscore,
+    Sofascore, ESPN). Results are saved to DB + JSON cache so that S3 deep
+    stats analysis can find them.
+    """
+    try:
+        from data_enrichment_agent import batch_enrich, _detect_missing_from_shortlist
+    except ImportError as e:
+        return True, f"Enrichment agent not available ({e}), skipping"
+
+    shortlist_path = DATA_DIR / f"{date}_s2_shortlist.json"
+    if not shortlist_path.exists():
+        return True, "No shortlist found, skipping enrichment"
+
+    try:
+        missing = _detect_missing_from_shortlist(date)
+        if not missing:
+            return True, "All shortlisted teams have data, no enrichment needed"
+
+        print(f"  → Enriching {len(missing)} teams with missing data")
+        results = batch_enrich(missing, max_workers=4)
+
+        enriched = sum(1 for r in results if r.get("status") == "enriched")
+        partial = sum(1 for r in results if r.get("status") == "partial")
+        failed = sum(1 for r in results if r.get("status") == "failed")
+
+        state.setdefault("step_data", {})["s2_5_enrichment"] = {
+            "teams_attempted": len(missing),
+            "enriched": enriched,
+            "partial": partial,
+            "failed": failed,
+        }
+
+        return True, f"Enrichment: {enriched} enriched, {partial} partial, {failed} failed (from {len(missing)} teams)"
+    except Exception as e:
+        return True, f"Enrichment failed (non-critical): {e}"
 
 
 def _run_s3(date: str, state: dict) -> tuple[bool, str]:
@@ -1099,6 +1237,8 @@ def run_python_step(step_id: str, date: str, state: dict) -> tuple[bool, str]:
             return _run_parallel_enrichment(date, state)
         elif step_id == "s2_tipster":
             return _run_tipster_xref(date, state)
+        elif step_id == "s2_5_enrich":
+            return _run_data_enrichment(date, state)
         elif step_id == "s3_deep_stats":
             return _run_s3(date, state)
         elif step_id == "s4_odds_eval":

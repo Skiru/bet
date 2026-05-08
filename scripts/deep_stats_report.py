@@ -258,6 +258,37 @@ def extract_team_stats(sport: str, team_name: str) -> dict:
         except Exception:
             pass
 
+    # LAST RESORT: Internet enrichment via data_enrichment_agent
+    if not result["has_data"]:
+        try:
+            from data_enrichment_agent import enrich_team
+            enrichment = enrich_team(team_name, sport)
+            if enrichment.get("status") in ("enriched", "partial"):
+                # Re-read from cache after enrichment saved data
+                slug = result["slug"]
+                cache_file = CACHE_DIR / sport / f"{slug}.json"
+                if cache_file.exists():
+                    try:
+                        cache = json.loads(cache_file.read_text(encoding="utf-8"))
+                        form = cache.get("form", {})
+                        stat_keys_refresh = SPORT_STAT_KEYS.get(sport, [])
+                        for key in stat_keys_refresh:
+                            if key in form.get("l10_avg", {}):
+                                result["l10_avg"][key] = form["l10_avg"][key]
+                            if key in form.get("l5_avg", {}):
+                                result["l5_avg"][key] = form["l5_avg"][key]
+                        result["l10_matches"] = form.get("l10_matches", [])[:10]
+                        if result["l10_avg"] or result["l5_avg"]:
+                            result["has_data"] = True
+                        result["sources"] = cache.get("sources", [])
+                        if "enrichment-agent" not in result["sources"]:
+                            result["sources"].append("enrichment-agent")
+                    except (json.JSONDecodeError, OSError):
+                        pass
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).debug("Inline enrichment failed for %s: %s", team_name, e)
+
     return result
 
 
@@ -279,63 +310,69 @@ def extract_h2h_stats(sport: str, team_a: str, team_b: str) -> dict:
         "has_data": False,
     }
 
-    if not cache_file.exists():
-        return result
+    # Try cache/DB sources first
+    h2h_data = None
+    if cache_file.exists():
+        try:
+            cache = json.loads(cache_file.read_text(encoding="utf-8"))
+            h2h_section = cache.get("h2h", {})
+            # Try exact slug, then fuzzy match
+            h2h_data = h2h_section.get(slug_b)
+            if not h2h_data:
+                for key, val in h2h_section.items():
+                    if slug_b in key or key in slug_b:
+                        h2h_data = val
+                        break
+        except (json.JSONDecodeError, OSError):
+            pass
 
-    try:
-        cache = json.loads(cache_file.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return result
+    if h2h_data:
+        meetings = h2h_data.get("matches", [])
+        if meetings:
+            result["has_data"] = True
+            result["meetings"] = meetings
 
-    h2h_section = cache.get("h2h", {})
-    # Try exact slug, then fuzzy match
-    h2h_data = h2h_section.get(slug_b)
-    if not h2h_data:
-        # Try matching by partial name
-        for key, val in h2h_section.items():
-            if slug_b in key or key in slug_b:
-                h2h_data = val
-                break
+            # Compute averages from h2h_data directly if available
+            avg = h2h_data.get("avg", {})
+            if avg:
+                result["averages"] = avg
+            else:
+                # Compute from meetings
+                stat_keys = SPORT_STAT_KEYS.get(sport, [])
+                accum: dict[str, list] = {k: [] for k in stat_keys}
+                for m in meetings:
+                    stats = m.get("stats", m)
+                    for key in stat_keys:
+                        if key in stats:
+                            val = stats[key]
+                            if isinstance(val, (int, float)):
+                                accum[key].append(val)
+                            elif isinstance(val, dict):
+                                total = sum(v for v in val.values() if isinstance(v, (int, float)))
+                                accum[key].append(total)
+                        # Also check for _total variants (fallback when base key has no data)
+                        total_key = f"{key}_total"
+                        if total_key in stats and not accum[key]:
+                            val = stats[total_key]
+                            if isinstance(val, (int, float)):
+                                accum[key].append(val)
 
-    if not h2h_data:
-        return result
+                for key, vals in accum.items():
+                    avg_val = _safe_avg(vals)
+                    if avg_val is not None:
+                        result["averages"][key] = avg_val
 
-    meetings = h2h_data.get("matches", [])
-    if not meetings:
-        return result
-
-    result["has_data"] = True
-    result["meetings"] = meetings
-
-    # Compute averages from h2h_data directly if available
-    avg = h2h_data.get("avg", {})
-    if avg:
-        result["averages"] = avg
-    else:
-        # Compute from meetings
-        stat_keys = SPORT_STAT_KEYS.get(sport, [])
-        accum: dict[str, list] = {k: [] for k in stat_keys}
-        for m in meetings:
-            stats = m.get("stats", m)
-            for key in stat_keys:
-                if key in stats:
-                    val = stats[key]
-                    if isinstance(val, (int, float)):
-                        accum[key].append(val)
-                    elif isinstance(val, dict):
-                        total = sum(v for v in val.values() if isinstance(v, (int, float)))
-                        accum[key].append(total)
-                # Also check for _total variants (fallback when base key has no data)
-                total_key = f"{key}_total"
-                if total_key in stats and not accum[key]:
-                    val = stats[total_key]
-                    if isinstance(val, (int, float)):
-                        accum[key].append(val)
-
-        for key, vals in accum.items():
-            avg_val = _safe_avg(vals)
-            if avg_val is not None:
-                result["averages"][key] = avg_val
+    # LAST RESORT: Internet H2H enrichment via data_enrichment_agent
+    if not result["has_data"]:
+        try:
+            from data_enrichment_agent import enrich_h2h
+            h2h_enriched = enrich_h2h(team_a, team_b, sport)
+            if h2h_enriched.get("status") == "enriched":
+                result["has_data"] = True
+                result["averages"] = h2h_enriched.get("h2h_stats", {})
+                result["meetings"] = [{"source": "enrichment-agent", "meeting_count": h2h_enriched.get("meetings_found", 0)}]
+        except Exception:
+            pass
 
     return result
 
@@ -975,24 +1012,50 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
     if top and top > 0:
         candidates = candidates[:top]
 
-    # SMART FILTER: Only process candidates that have a realistic chance of
-    # producing safety scores. Processing 17K+ candidates where 97% return
-    # null is pure waste. Candidates qualify if they have:
-    # 1. Precomputed safety_markets from shortlist builder (best case), OR
-    # 2. Verified fixture with odds data (n_odds_markets > 0)
-    # Candidates without any precomputed data are skipped — they'll return
-    # null anyway since no cache/DB data exists for them.
-    total_before_filter = len(candidates)
-    candidates_with_potential = [
-        c for c in candidates
-        if c.get("safety_markets")
-        or c.get("n_odds_markets", 0) > 0
-        or c.get("fixture_verified")
-    ]
-    skipped = total_before_filter - len(candidates_with_potential)
-    if skipped > 0:
-        print(f"[deep_stats] Smart filter: {len(candidates_with_potential)} actionable / {total_before_filter} total (skipped {skipped} without data potential)")
-        candidates = candidates_with_potential
+    # ENRICHMENT-FIRST: Collect teams with missing data, attempt enrichment before analysis.
+    # Previously a "SMART FILTER" dropped ~95% of candidates here. Now ALL candidates
+    # proceed to analysis — enrichment fills data gaps, and partial-data events still
+    # get analyzed with whatever stats exist.
+    total_candidates = len(candidates)
+    
+    # Phase 1: Detect teams needing enrichment (no safety_markets AND no odds AND not verified)
+    needs_enrichment = []
+    for c in candidates:
+        has_data = c.get("safety_markets") or c.get("n_odds_markets", 0) > 0 or c.get("fixture_verified")
+        if not has_data:
+            home = c.get("home_team", "")
+            away = c.get("away_team", "")
+            sport = c.get("sport", "")
+            if home and away and sport:
+                needs_enrichment.append({"team": home, "sport": sport, "event": c})
+                needs_enrichment.append({"team": away, "sport": sport, "event": c})
+    
+    # Phase 2: Run batch enrichment for missing teams (if any)
+    enrichment_results = {}
+    if needs_enrichment:
+        # Deduplicate teams
+        unique_teams = {}
+        for item in needs_enrichment:
+            key = f"{item['sport']}|{item['team']}"
+            if key not in unique_teams:
+                unique_teams[key] = item
+        
+        enrichment_list = [{"team": v["team"], "sport": v["sport"]} for v in unique_teams.values()]
+        print(f"[deep_stats] Enrichment needed for {len(enrichment_list)} teams ({total_candidates - len([c for c in candidates if c.get('safety_markets') or c.get('n_odds_markets', 0) > 0 or c.get('fixture_verified')])} events without data)")
+        
+        try:
+            from data_enrichment_agent import batch_enrich
+            enrichment_results = {
+                f"{r['sport']}|{r['team']}": r
+                for r in batch_enrich(enrichment_list, max_workers=6)
+            }
+            enriched_count = sum(1 for r in enrichment_results.values() if r.get("status") == "enriched")
+            partial_count = sum(1 for r in enrichment_results.values() if r.get("status") == "partial")
+            print(f"[deep_stats] Enrichment complete: {enriched_count} enriched, {partial_count} partial, {len(enrichment_results) - enriched_count - partial_count} failed")
+        except Exception as e:
+            print(f"[deep_stats] Enrichment agent unavailable ({e}), proceeding with existing data")
+    
+    print(f"[deep_stats] Processing ALL {total_candidates} candidates (no smart filter)")
 
     # Filter out candidates missing team names upfront
     valid = [(i, c) for i, c in enumerate(candidates, 1)
@@ -1042,20 +1105,25 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
         "source": source,
         "total_candidates": len(analyses),
         "candidates_with_data": with_data,
+        "candidates_without_data": len(analyses) - with_data,
+        "enrichment_attempted": len(enrichment_results) if enrichment_results else 0,
+        "enrichment_successful": sum(1 for r in enrichment_results.values() if r.get("status") in ("enriched", "partial")) if enrichment_results else 0,
         "analyses": analyses,
     }
 
-    # Write outputs
+    # Write markdown first (doesn't need fixture_ids)
     _write_markdown(output, date)
-    _write_json(output, date)
 
-    # Dual-write: save analysis results to DB
+    # Dual-write: save analysis results to DB FIRST (injects fixture_id back)
     try:
         from db_data_loader import save_analysis_results_to_db
         saved = save_analysis_results_to_db(date, output["analyses"])
         print(f"[deep_stats] DB: saved {saved} analysis results")
     except Exception as e:
         print(f"[deep_stats] DB write failed (non-fatal): {e}")
+
+    # Write JSON AFTER DB save so analyses have fixture_id injected
+    _write_json(output, date)
 
     return output
 
@@ -1115,6 +1183,9 @@ def _write_json(output: dict, date: str) -> Path:
             "three_way_check": a["ranking_result"].get("three_way_check"),
             "warnings": a["ranking_result"].get("warnings", []),
         }
+        # Preserve fixture_id if injected by DB save (needed by S4/S5/S6)
+        if a.get("fixture_id"):
+            json_entry["fixture_id"] = a["fixture_id"]
         json_output["analyses"].append(json_entry)
 
     json_path.write_text(

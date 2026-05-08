@@ -767,6 +767,33 @@ def main():
     write_shortlist_md(selected, date, stats_first=args.stats_first)
     write_shortlist_json(selected, date)
 
+    # Save shortlist summary to DB
+    try:
+        from bet.db.connection import get_db
+        from bet.db.repositories import PipelineRepo
+        from collections import Counter as _Counter
+        shortlist_stats = {
+            "total_candidates": len(selected),
+            "sport_distribution": dict(_Counter(e["sport"] for _, e in selected)),
+            "top_10": [
+                {
+                    "home_team": e.get("home_team", ""),
+                    "away_team": e.get("away_team", ""),
+                    "sport": e.get("sport", ""),
+                    "score": round(score, 1),
+                }
+                for score, e in selected[:10]
+            ],
+        }
+        with get_db() as conn:
+            repo = PipelineRepo(conn)
+            repo.start_step(date, "s1e_shortlist")
+            repo.complete_step(date, "s1e_shortlist", stats=shortlist_stats)
+            conn.commit()
+            print(f"  → DB: saved shortlist summary ({len(selected)} candidates)")
+    except Exception as e:
+        print(f"  ⚠ DB shortlist save failed (non-fatal): {e}")
+
     # Summary
     sport_counts = Counter(e["sport"] for _, e in selected)
     tier_counts = Counter(e["data_tier"] for _, e in selected)

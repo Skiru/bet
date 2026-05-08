@@ -453,21 +453,26 @@ class TestGateChecker(unittest.TestCase):
         self.assertIn("17", result["gate_failed"])
 
     def test_run_gate_classification(self):
-        """Full gate run with mixed candidates — correct classification."""
+        """Full gate run with mixed candidates — advisory classification."""
         from scripts.gate_checker import run_gate
         candidates = [
             # Strong candidate → approved
             _base_candidate(ev=0.12),
-            # EV ≤ 0 → extended pool (NOT rejected per NO AUTO-REJECTION)
+            # EV ≤ 0 → also approved (advisory mode, NOT rejected per NO AUTO-REJECTION)
             _base_candidate(ev=-0.03, home_team="TeamC", away_team="TeamD"),
         ]
         with self._patch_ledger():
             result = run_gate(candidates, "2026-05-01")
         gr = result["gate_results"]
+        # Advisory mode: ALL non-hard-rejected events go to approved
         self.assertGreater(len(gr["approved"]), 0)
-        # Negative EV goes to extended, not rejected
-        neg_ev = [c for c in gr["extended_pool"] if c.get("ev", 0) < 0]
-        self.assertGreater(len(neg_ev), 0, "Negative EV should go to extended_pool")
+        # Negative EV events are now approved with advisory tier (not in extended_pool)
+        neg_ev_approved = [c for c in gr["approved"] if (c.get("ev") or 0) < 0]
+        self.assertGreater(len(neg_ev_approved), 0, "Negative EV should be in approved with advisory tier")
+        # Each approved pick should have an advisory_tier
+        for pick in gr["approved"]:
+            self.assertIn(pick.get("advisory_tier"), ("STRONG", "MODERATE", "WEAK", "FLAGGED"),
+                         f"Missing advisory_tier on {pick.get('home_team')}")
 
     def test_sport_diversity_check(self):
         """§7.6 sport diversity check."""

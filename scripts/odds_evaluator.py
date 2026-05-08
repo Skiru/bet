@@ -486,6 +486,59 @@ def run_odds_eval(date: str, state: dict) -> tuple[bool, str]:
             except (json.JSONDecodeError, OSError):
                 pass
 
+        # Save EV data back to analysis_results in DB
+        try:
+            from bet.db.connection import get_db
+            from bet.db.repositories import AnalysisResultRepo, FixtureRepo, SportRepo
+            with get_db() as conn:
+                repo = AnalysisResultRepo(conn)
+                existing = repo.get_by_date(date)
+                db_lookup = {ar.fixture_id: ar for ar in existing}
+
+                # Build name→fixture_id resolver for candidates without fixture_id
+                fixture_repo = FixtureRepo(conn)
+                sport_repo = SportRepo(conn)
+
+                def _resolve_fid(c: dict) -> int | None:
+                    fid = c.get("fixture_id")
+                    if fid:
+                        return fid
+                    sport_name = c.get("sport", "")
+                    s = sport_repo.get_by_name(sport_name) if sport_name else None
+                    if not s:
+                        return None
+                    ko = c.get("kickoff", date)
+                    f = fixture_repo.get_by_teams_and_date(
+                        c.get("home_team", ""), c.get("away_team", ""),
+                        ko[:10] if ko else date, s.id,
+                    )
+                    return f.id if f else None
+
+                updated = 0
+                for c in candidates:
+                    ev = c.get("ev")
+                    if ev is None:
+                        continue
+                    fid = _resolve_fid(c)
+                    if fid and fid in db_lookup:
+                        ar = db_lookup[fid]
+                        summary = ar.stats_summary_json or {}
+                        summary["ev"] = ev
+                        summary["ev_source"] = c.get("ev_source", "calculated")
+                        odds_data = c.get("odds", {})
+                        if odds_data:
+                            summary["odds_market_best"] = odds_data.get("market_best")
+                            summary["odds_betclic"] = odds_data.get("betclic")
+                        repo.update_stats_summary(fid, date, summary)
+                        updated += 1
+                    elif fid is None:
+                        print(f"  ⚠ S4 DB: fixture_id not resolved for {c.get('home_team', '?')} vs {c.get('away_team', '?')}")
+                conn.commit()
+                if updated:
+                    print(f"  → DB: updated {updated} analysis_results with EV data")
+        except Exception as e:
+            print(f"  ⚠ DB EV update failed (non-fatal): {e}")
+
         return True, f"S4 completed: {with_ev}/{total} with EV data ({positive_ev} positive EV)"
     except Exception as e:
         return True, f"S4 odds evaluation error: {e} — continuing without"

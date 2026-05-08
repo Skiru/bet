@@ -877,6 +877,27 @@ def run_tipster_aggregation(
     print(f"\n[tipster] Summary: {total_picks} picks from {sites_ok} sites, "
           f"{len(consensus)} events, {statistical_picks} statistical markets")
 
+    # Save tipster summary to DB
+    try:
+        from bet.db.connection import get_db
+        from bet.db.repositories import PipelineRepo
+        tipster_stats = {
+            "total_tipsters": sites_ok,
+            "sites_total": len(TIPSTER_SITES),
+            "sites_error": sites_error,
+            "total_picks": total_picks,
+            "statistical_picks": statistical_picks,
+            "events_covered": len(consensus),
+            "consensus_picks": sum(1 for c in consensus if c["agreement_pct"] >= 60),
+        }
+        with get_db() as conn:
+            repo = PipelineRepo(conn)
+            repo.start_step(date, "s2_tipster")
+            repo.complete_step(date, "s2_tipster", stats=tipster_stats)
+            conn.commit()
+    except Exception as e:
+        print(f"  ⚠ DB tipster save failed (non-fatal): {e}")
+
     return summary
 
 

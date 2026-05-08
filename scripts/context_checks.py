@@ -41,6 +41,16 @@ def run_context_checks(date: str, state: dict) -> tuple[bool, str]:
     # Weather data — flag candidates with weather impact
     weather_path = DATA_DIR / f"weather_{date}.json"
     weather_impacts = []
+    # Fallback: fetch weather if not already available
+    if not weather_path.exists():
+        try:
+            import subprocess
+            subprocess.run(
+                ["python3", str(Path(__file__).parent / "fetch_weather.py"), "--date", date],
+                timeout=60, capture_output=True,
+            )
+        except Exception:
+            pass
     if weather_path.exists():
         try:
             weather = json.loads(weather_path.read_text(encoding="utf-8"))
@@ -72,6 +82,25 @@ def run_context_checks(date: str, state: dict) -> tuple[bool, str]:
     # ESPN injuries/roster data — flag candidates with key injuries
     espn_path = DATA_DIR / f"espn_enrichment_{date}.json"
     injury_summary = []
+    # Fallback: fetch ESPN enrichment if not already available
+    if not espn_path.exists():
+        try:
+            from api_clients.espn_adapter import ESPNMultiLeagueClient
+            from api_clients.rate_limiter import RateLimiter
+            rl = RateLimiter()
+            enrichment = {"date": date, "odds": [], "injuries": {}, "form": {}}
+            for sport_name in ["football", "basketball", "hockey", "baseball"]:
+                try:
+                    client = ESPNMultiLeagueClient(sport=sport_name, rate_limiter=rl)
+                    injuries = client.get_injuries()
+                    if injuries:
+                        enrichment["injuries"][sport_name] = injuries
+                except Exception:
+                    pass
+            if enrichment["injuries"]:
+                espn_path.write_text(json.dumps(enrichment, indent=2, ensure_ascii=False), encoding="utf-8")
+        except Exception:
+            pass
     if espn_path.exists():
         try:
             espn = json.loads(espn_path.read_text(encoding="utf-8"))
@@ -118,5 +147,44 @@ def run_context_checks(date: str, state: dict) -> tuple[bool, str]:
                 json.dumps(s3_data, indent=2, ensure_ascii=False), encoding="utf-8"
             )
             checks_done.append(f"enriched: {enriched}/{len(candidates)} candidates with context flags")
+
+    # Save context enrichments to analysis_results in DB
+    try:
+        from bet.db.connection import get_db
+        from bet.db.repositories import AnalysisResultRepo, FixtureRepo, SportRepo
+        with get_db() as conn:
+            repo = AnalysisResultRepo(conn)
+            fixture_repo = FixtureRepo(conn)
+            sport_repo = SportRepo(conn)
+            updated = 0
+            for c in candidates:
+                c_flags = c.get("context_flags", [])
+                if not c_flags:
+                    continue
+                fid = c.get("fixture_id")
+                if not fid:
+                    sport_name = c.get("sport", "")
+                    s = sport_repo.get_by_name(sport_name) if sport_name else None
+                    if s:
+                        ko = c.get("kickoff", date)
+                        f = fixture_repo.get_by_teams_and_date(
+                            c.get("home_team", ""), c.get("away_team", ""),
+                            ko[:10] if ko else date, s.id,
+                        )
+                        fid = f.id if f else None
+                if not fid:
+                    print(f"  ⚠ S5 DB: fixture_id not resolved for {c.get('home_team', '?')} vs {c.get('away_team', '?')}")
+                    continue
+                ar = repo.get_by_fixture(fid, date)
+                if ar:
+                    summary = ar.stats_summary_json or {}
+                    summary["context_flags"] = c_flags
+                    repo.update_stats_summary(fid, date, summary)
+                    updated += 1
+            conn.commit()
+            if updated:
+                print(f"  → DB: updated {updated} analysis_results with context flags")
+    except Exception as e:
+        print(f"  ⚠ DB context update failed (non-fatal): {e}")
 
     return True, f"S5 contextual checks: {', '.join(checks_done)}"

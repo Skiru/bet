@@ -1126,6 +1126,19 @@ class AnalysisResultRepo:
         ).fetchall()
         return [self._row_to_model(r) for r in rows]
 
+    def update_stats_summary(self, fixture_id: int, betting_date: str, stats_summary: dict) -> int:
+        """Update only the stats_summary_json field (for S4/S5/S6 enrichment).
+
+        Uses UPDATE instead of INSERT OR REPLACE to preserve the row id.
+        Returns number of rows updated (0 or 1).
+        """
+        cursor = self.conn.execute(
+            "UPDATE analysis_results SET stats_summary_json = ? "
+            "WHERE fixture_id = ? AND betting_date = ?",
+            (json.dumps(stats_summary), fixture_id, betting_date),
+        )
+        return cursor.rowcount
+
     def delete_by_date(self, betting_date: str) -> int:
         """Delete all analysis results for a date. Returns count deleted."""
         cursor = self.conn.execute(

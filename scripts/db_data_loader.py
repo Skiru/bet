@@ -391,6 +391,15 @@ def load_analysis_results_from_db(betting_date: str) -> list[dict]:
                         "stats_a_summary": stats_summary.get("stats_a", {}),
                         "stats_b_summary": stats_summary.get("stats_b", {}),
                         "h2h_summary": stats_summary.get("h2h", {}),
+                        # S4/S5/S6 enrichment fields from stats_summary_json
+                        "ev": stats_summary.get("ev"),
+                        "ev_source": stats_summary.get("ev_source"),
+                        "odds": {
+                            "market_best": stats_summary.get("odds_market_best"),
+                            "betclic": stats_summary.get("odds_betclic"),
+                        } if stats_summary.get("odds_market_best") else {},
+                        "context_flags": stats_summary.get("context_flags", []),
+                        "upset_risk": stats_summary.get("upset_risk"),
                     }
                     out.append(entry)
                 print(f"[db_loader] Loaded {len(out)} analysis results from DB for {betting_date}")
@@ -399,10 +408,10 @@ def load_analysis_results_from_db(betting_date: str) -> list[dict]:
         print(f"[db_loader] DB read failed for analysis results: {e}")
 
     # JSON fallback
-    json_path = DATA_DIR / f"s3_deep_stats_{betting_date}.json"
+    json_path = DATA_DIR / f"{betting_date}_s3_deep_stats.json"
     if not json_path.exists():
-        # Try alternate naming without date prefix
-        json_path = DATA_DIR / f"{betting_date}_s3_deep_stats.json"
+        # Try alternate naming with date suffix
+        json_path = DATA_DIR / f"s3_deep_stats_{betting_date}.json"
     if json_path.exists():
         data = json.loads(json_path.read_text(encoding="utf-8"))
         analyses = data.get("analyses", data if isinstance(data, list) else [])
@@ -446,6 +455,8 @@ def save_analysis_results_to_db(betting_date: str, analyses: list[dict]) -> int:
                     )
                 if not fixture_id:
                     continue
+                # Inject fixture_id back so downstream steps (S4/S5/S6) have it
+                a["fixture_id"] = fixture_id
 
                 best_market = a.get("best_market", {}) or {}
                 stats_summary = {}
@@ -546,6 +557,21 @@ def load_gate_results_from_db(betting_date: str, status: str | None = None) -> l
                     if not row:
                         continue
 
+                    # Reconstruct advisory_tier from gate_details_json or gate_score
+                    details = gr.gate_details_json or {}
+                    advisory_tier = details.get("advisory_tier")
+                    if not advisory_tier and gr.status == "APPROVED":
+                        # Reconstruct from gate_score (18-point gate, n_failed = 18 - score)
+                        n_failed = 18 - gr.gate_score
+                        if n_failed <= 2:
+                            advisory_tier = "STRONG"
+                        elif n_failed <= 5:
+                            advisory_tier = "MODERATE"
+                        elif n_failed <= 9:
+                            advisory_tier = "WEAK"
+                        else:
+                            advisory_tier = "FLAGGED"
+
                     entry = {
                         "fixture_id": gr.fixture_id,
                         "sport": row["sport"],
@@ -554,6 +580,7 @@ def load_gate_results_from_db(betting_date: str, status: str | None = None) -> l
                         "competition": row["competition"],
                         "kickoff": row["kickoff"],
                         "status": gr.status,
+                        "advisory_tier": advisory_tier,
                         "gate_score": gr.gate_score,
                         "best_market": {
                             "name": gr.best_market_name,
@@ -574,9 +601,9 @@ def load_gate_results_from_db(betting_date: str, status: str | None = None) -> l
         print(f"[db_loader] DB read failed for gate results: {e}")
 
     # JSON fallback
-    json_path = DATA_DIR / f"s7_gate_results_{betting_date}.json"
+    json_path = DATA_DIR / f"{betting_date}_s7_gate_results.json"
     if not json_path.exists():
-        json_path = DATA_DIR / f"{betting_date}_s7_gate_results.json"
+        json_path = DATA_DIR / f"s7_gate_results_{betting_date}.json"
     if json_path.exists():
         data = json.loads(json_path.read_text(encoding="utf-8"))
         results_list = data if isinstance(data, list) else data.get("results", [])
@@ -623,13 +650,17 @@ def save_gate_results_to_db(betting_date: str, results: list[dict]) -> int:
                     continue
 
                 best_market = r.get("best_market", {}) or {}
+                # Preserve advisory_tier in gate_details_json for DB round-trip
+                gate_details = r.get("gate_details", {}) or {}
+                if isinstance(gate_details, dict) and r.get("advisory_tier"):
+                    gate_details["advisory_tier"] = r["advisory_tier"]
                 gate_result = GateResult(
                     id=None,
                     fixture_id=fixture_id,
                     betting_date=betting_date,
                     status=r.get("status", "pending"),
                     gate_score=r.get("gate_score", 0),
-                    gate_details_json=r.get("gate_details", {}),
+                    gate_details_json=gate_details,
                     best_market_name=best_market.get("name", ""),
                     best_market_line=best_market.get("line"),
                     best_market_direction=best_market.get("direction", ""),

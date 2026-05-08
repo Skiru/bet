@@ -1015,9 +1015,22 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
     """
     date = gate_results.get("date", datetime.now().strftime("%Y-%m-%d"))
     gr = gate_results.get("gate_results", {})
-    approved = gr.get("approved", [])
+    all_approved = gr.get("approved", [])
     extended_pool = gr.get("extended_pool", [])
     rejected = gr.get("rejected", [])
+
+    # Split by advisory tier for tiered coupon construction
+    strong_picks = [p for p in all_approved if p.get("advisory_tier") == "STRONG"]
+    moderate_picks = [p for p in all_approved if p.get("advisory_tier") == "MODERATE"]
+    weak_picks = [p for p in all_approved if p.get("advisory_tier") in ("WEAK", "FLAGGED")]
+    # Legacy: picks without advisory_tier treated as MODERATE (backward compat)
+    untiered = [p for p in all_approved if not p.get("advisory_tier")]
+    moderate_picks.extend(untiered)
+
+    # Primary coupon construction uses STRONG + MODERATE
+    approved = strong_picks + moderate_picks
+    # VALUE/DISCOVERY picks are shown separately
+    discovery_picks = weak_picks
 
     bankroll = config.get("bankroll_pln", config.get("working_bankroll_pln", 50.0))
     alloc_range = config.get("daily_exposure_range", config.get("suggested_daily_allocation_range_pln", [5.0, 15.0]))
@@ -1026,13 +1039,18 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
         "date": date,
         "bankroll": bankroll,
         "daily_allocation_range": alloc_range,
-        "approved_count": len(approved),
+        "approved_count": len(all_approved),
+        "strong_count": len(strong_picks),
+        "moderate_count": len(moderate_picks),
+        "discovery_count": len(discovery_picks),
         "core_coupons": [],
         "combos": [],
         "singles": [],
+        "discovery_singles": [],
         "banker": None,
         "extended_pool": extended_pool,
         "rejected": rejected,
+        "discovery_pool": discovery_picks,
         "no_bet": False,
         "no_bet_reason": None,
     }
@@ -1099,6 +1117,47 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
     # Build combo menu (requires ≥2 picks)
     combos = generate_combos(approved, config)
     result["combos"] = combos
+
+    # DISCOVERY SINGLES — weak/flagged picks with discounted stakes
+    # These are shown to the user for manual evaluation
+    discovery_singles = []
+    for i, pick in enumerate(discovery_picks[:30], 1):
+        odds_val = (pick.get("odds") or {}).get("market_best", 0) or 0
+        safety = (pick.get("best_market") or {}).get("safety_score", 0.5)
+        prob = (pick.get("best_market") or {}).get("probability")
+        if odds_val <= 1.0:
+            disc_single = {
+                "id": f"CP-{date_str}-DISC{i}",
+                "tier": "DISCOVERY",
+                "advisory_tier": pick.get("advisory_tier", "WEAK"),
+                "legs": [pick],
+                "combined_odds": 0.0,
+                "stake": 0.0,
+                "potential_return": 0.0,
+                "stress_test": stress_test_coupon({"legs": [pick]}),
+                "correlation_flags": [],
+                "is_single": True,
+                "stats_first": True,
+            }
+        else:
+            # Discounted stake: 0.25× for WEAK, 0× for FLAGGED (show only)
+            tier_discount = 0.25 if pick.get("advisory_tier") == "WEAK" else 0.0
+            base_stake = compute_stake(odds_val, safety, bankroll, "HR", probability=prob)
+            disc_stake = round(base_stake * tier_discount, 2) if tier_discount > 0 else 0.0
+            disc_single = {
+                "id": f"CP-{date_str}-DISC{i}",
+                "tier": "DISCOVERY",
+                "advisory_tier": pick.get("advisory_tier", "WEAK"),
+                "legs": [pick],
+                "combined_odds": round(odds_val, 2),
+                "stake": disc_stake,
+                "potential_return": round(disc_stake * odds_val, 2),
+                "stress_test": stress_test_coupon({"legs": [pick]}),
+                "correlation_flags": [],
+                "is_single": True,
+            }
+        discovery_singles.append(disc_single)
+    result["discovery_singles"] = discovery_singles
 
     # ENFORCE DAILY CAP: trim coupons to stay within daily_exposure_range
     max_daily = alloc_range[1] if isinstance(alloc_range, list) and len(alloc_range) > 1 else 15.0
