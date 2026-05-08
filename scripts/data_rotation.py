@@ -243,9 +243,9 @@ def delete_old_db_rows(days_scan: int = 60, days_odds: int = 90) -> dict[str, in
             try:
                 cur = conn.execute(
                     "DELETE FROM fixtures WHERE kickoff < ? "
-                    "AND id NOT IN (SELECT DISTINCT fixture_id FROM match_stats WHERE fixture_id IS NOT NULL) "
-                    "AND id NOT IN (SELECT DISTINCT fixture_id FROM odds_history WHERE fixture_id IS NOT NULL) "
-                    "AND id NOT IN (SELECT DISTINCT fixture_id FROM bets WHERE fixture_id IS NOT NULL)",
+                    "AND NOT EXISTS (SELECT 1 FROM match_stats ms WHERE ms.fixture_id = fixtures.id) "
+                    "AND NOT EXISTS (SELECT 1 FROM odds_history oh WHERE oh.fixture_id = fixtures.id) "
+                    "AND NOT EXISTS (SELECT 1 FROM bets b WHERE b.fixture_id = fixtures.id)",
                     (cutoff_scan,),
                 )
                 deleted["fixtures"] = cur.rowcount
