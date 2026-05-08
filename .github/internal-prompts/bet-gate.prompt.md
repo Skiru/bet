@@ -4,7 +4,7 @@ description: "S7: Bear case + Red Flags + Contrarian + 18-point Pick Approval Ga
 ---
 
 > **PERMANENT RULES (from copilot-instructions.md §NON-NEGOTIABLE):**
-> R3 NO AUTO-REJECTION: Gate assigns ADVISORY TIERS (STRONG/MODERATE/WEAK/FLAGGED). ALL candidates in matrix. Gate-failed → Extended Pool. R4 NO AGGRESSIVE NARROWING: §7.6 blocks S8 if <5 sports. R6 BETCLIC ADVISORY: Hit rates = informational. R7 TOURNAMENT PROTECTION: Tournament picks never penalized. R8 MINOR LEAGUE VALUE: Minor league picks never penalized. R11 SEQUENTIAL THINKING: One `sequentialthinking` PER CANDIDATE.
+> R3 NO AUTO-REJECTION: Gate assigns ADVISORY TIERS (STRONG/MODERATE/WEAK/FLAGGED). ALL candidates in matrix. Gate-failed → Extended Pool. R4 NO AGGRESSIVE NARROWING: §7.6 blocks S8 if <5 sports. R6 BETCLIC ADVISORY: Hit rates = informational. R7 TOURNAMENT PROTECTION: Tournament picks never penalized. R8 MINOR LEAGUE VALUE: Minor league picks never penalized. R11 SEQUENTIAL THINKING: One `sequentialthinking` PER CANDIDATE. R13 MAJOR DOMESTIC LEAGUE PROTECTION: Protected domestic leagues (Brasileirão, MLS, Liga MX, CSL, J-League, K-League, Saudi Pro, etc.) never penalized — they get +10 boost.
 
 # S7 — BEAR CASE + RED FLAGS + PICK GATE
 

@@ -127,6 +127,7 @@ runSubagent("bet-scanner"):
   - Which sports had 0 events? (source failure)
   - Phantom fixture detection
   - Tournament protection (§SCAN.7) — major tournaments present?
+  - Major domestic league protection (§SCAN.9) — Brasileirão, MLS, Liga MX, CSL, J-League, K-League, etc. present?
   - Minor league value (§SCAN.8)
   - Timeout/error triage
 - Return: APPROVED/FLAGGED/REJECTED + per_sport_counts + issues[]
@@ -213,6 +214,7 @@ runSubagent("bet-scanner"):
   - ≥8 sports? If not → scan coverage issue
   - KEY sports (football, tennis, basketball, volleyball) ≥60% of candidates?
   - Major tournaments present? (§SCAN.7)
+  - Major domestic leagues present? (§SCAN.9) — Brasileirão, MLS, Liga MX, CSL, etc.
   - Minor league value candidates present? (§SCAN.8)
   - Sport diversity assessment
 - Return: APPROVED/FLAGGED/REJECTED + candidate_count + sport_distribution
@@ -507,6 +509,7 @@ Present to user:
 | R10 STATS-FIRST | Events without odds NOT excluded | S4, S7 |
 | R11 SEQUENTIAL THINKING | sequentialthinking per step + per candidate in S3 | ALL |
 | R12 CONDITIONAL | Coupon carries conditional disclaimer | S8 |
+| R13 MAJOR DOMESTIC LEAGUE | Brasileirão/MLS/Liga MX/CSL/J-League/K-League present when active | S1e |
 
 ---
 

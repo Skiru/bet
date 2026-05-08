@@ -107,6 +107,45 @@ def _verify_fixture(
 
 
 # ---------------------------------------------------------------------------
+# §SCAN.9 — Protected major domestic leagues worldwide
+# These leagues get +10 boost and must appear in scan when active.
+# ---------------------------------------------------------------------------
+PROTECTED_DOMESTIC_LEAGUES: dict[str, list[str]] = {
+    "football": [
+        "brasileirao", "brasileirão", "brazil serie a", "brazil serie b",
+        "copa do brasil", "mls", "liga mx", "liga de expansion",
+        "liga profesional", "primera division argentina", "primera nacional",
+        "liga betplay", "primera a colombia", "primera division chile",
+        "chinese super league", "csl", "cfa super",
+        "j1 league", "j-league", "j2 league",
+        "k league", "k-league",
+        "saudi pro league", "spl", "roshn saudi",
+        "indian super league", "isl",
+        "a-league",
+        "egyptian premier", "south african psl",
+    ],
+    "basketball": [
+        "cba", "nbb", "b.league", "kbl", "pba", "nbl australia", "lnbp",
+    ],
+    "baseball": [
+        "npb", "kbo", "cpbl", "lmp",
+    ],
+    "hockey": [
+        "khl",
+    ],
+}
+
+
+def _is_protected_domestic_league(sport: str, competition: str) -> bool:
+    """Check if a competition is a protected major domestic league (§SCAN.9)."""
+    if not competition:
+        return False
+    comp_lower = competition.lower()
+    keywords = PROTECTED_DOMESTIC_LEAGUES.get(sport, [])
+    return any(kw in comp_lower for kw in keywords)
+
+
+# ---------------------------------------------------------------------------
 # Competition tiers (higher = more important)
 # ---------------------------------------------------------------------------
 COMP_TIER_KEYWORDS: dict[str, list[tuple[int, list[str]]]] = {
@@ -116,11 +155,20 @@ COMP_TIER_KEYWORDS: dict[str, list[tuple[int, list[str]]]] = {
         (9, ["english premier league", "la liga", "laliga", "bundesliga", "serie a", "ligue 1"]),
         (8, ["eredivisie", "primeira liga", "ekstraklasa", "super lig", "championship",
              "copa libertadores", "copa sudamericana", "fa cup", "coppa italia",
-             "dfb pokal", "copa del rey", "coupe de france"]),
-        (7, ["mls", "brasileirao", "allsvenskan", "eliteserien", "superliga",
-             "belgian", "jupiler", "scottish", "swiss super league"]),
-        (6, ["2. bundesliga", "serie b", "ligue 2", "segunda", "liga mx"]),
-        (5, ["k-league", "j-league", "a-league", "nations league", "qualification",
+             "dfb pokal", "copa del rey", "coupe de france",
+             "brasileirao", "brasileirão", "brazil serie a", "brazil serie b",
+             "mls", "liga mx", "liga profesional", "primera division argentina",
+             "liga betplay", "chinese super league", "csl", "cfa super",
+             "j1 league", "j-league", "j2 league", "k league", "k-league",
+             "saudi pro league", "spl", "indian super league", "isl",
+             "a-league", "egyptian premier", "south african psl"]),
+        (7, ["allsvenskan", "eliteserien", "superliga",
+             "belgian", "jupiler", "scottish", "swiss super league",
+             "liga de expansion", "primera nacional", "copa do brasil",
+             "primera division chile", "primera a colombia"]),
+        (6, ["2. bundesliga", "serie b", "ligue 2", "segunda",
+             "usl championship", "nwsl", "mls next pro"]),
+        (5, ["nations league", "qualification",
              "1. liga", "first division b", "eerste divisie"]),
         (3, []),  # default for any unknown football league (raised from 2)
     ],
@@ -136,8 +184,9 @@ COMP_TIER_KEYWORDS: dict[str, list[tuple[int, list[str]]]] = {
     "basketball": [
         (10, ["nba playoff", "nba finals", "fiba world cup", "olympic"]),
         (9, ["nba", "euroleague"]),
-        (8, ["eurocup", "ncaa", "acb", "final four"]),
-        (7, ["plk", "bbl", "bcl", "fiba", "lnb", "nbl"]),
+        (8, ["eurocup", "ncaa", "acb", "final four",
+             "cba", "nbb", "b.league", "kbl", "pba", "nbl australia"]),
+        (7, ["plk", "bbl", "bcl", "fiba", "lnb", "nbl", "lnbp"]),
     ],
     "volleyball": [
         (10, ["cev champions league", "world championship", "nations league finals", "olympic"]),
@@ -159,7 +208,8 @@ COMP_TIER_KEYWORDS: dict[str, list[tuple[int, list[str]]]] = {
     "baseball": [
         (10, ["world series", "mlb playoff"]),
         (9, ["mlb"]),
-        (7, ["npb", "kbo"]),
+        (8, ["npb", "kbo"]),
+        (6, ["cpbl", "lmp", "lmb"]),
     ],
     "snooker": [
         (10, ["world championship"]),
@@ -289,6 +339,11 @@ def _score_event(event: dict, tipster_events: set[str]) -> float:
     if comp_score >= 9:
         # Major tournament event — ensure it never gets dropped
         score += 15
+
+    # 9b. Major domestic league protection (§SCAN.9) — top leagues worldwide
+    # Protected leagues get +10 boost, between tournament (+15) and minor league (+6)
+    if comp_score == 8 and _is_protected_domestic_league(sport, competition):
+        score += 10
 
     # 10. Deep data richness boost — teams with ESPN gamelogs get better analysis
     if sport in ("basketball", "hockey", "baseball"):

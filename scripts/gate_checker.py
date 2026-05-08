@@ -56,6 +56,139 @@ GATE_LABELS = {
 
 
 # ---------------------------------------------------------------------------
+# Ghost fixture filter — cross-reference against known fixtures
+# ---------------------------------------------------------------------------
+
+def _normalize_name_for_match(name: str) -> str:
+    """Normalize a team name for fuzzy fixture matching."""
+    n = name.strip().lower()
+    # Remove common prefixes/suffixes
+    n = re.sub(r"^(fc|sc|sk|ac|as|fk|cd|cf|afc|bsc|1\.\s*)\s+", "", n)
+    n = re.sub(r"\s+(fc|sc|sk|ac|cf|afc)$", "", n)
+    # Normalize common abbreviations
+    for short, full in [
+        ("man utd", "manchester united"), ("man city", "manchester city"),
+        ("nottm forest", "nottingham forest"), ("sheff utd", "sheffield united"),
+        ("wolves", "wolverhampton"), ("newcastle utd", "newcastle united"),
+        ("spurs", "tottenham"), ("inter miami", "inter miami"),
+    ]:
+        if n == short:
+            n = full
+    # Remove non-alphanumeric for fuzzy comparison
+    n = re.sub(r"[^a-z0-9 ]", "", n)
+    return n.strip()
+
+
+def _build_fixture_lookup(date: str) -> set[tuple[str, str]]:
+    """Build a set of (home, away) normalized name pairs from real fixture sources.
+
+    Sources (in priority order):
+    1. fixtures DB table (API-sourced, high quality)
+    2. fixtures_{date}.json (API-Football, comprehensive)
+
+    Returns a set of (normalized_home, normalized_away) tuples.
+    """
+    pairs: set[tuple[str, str]] = set()
+    names_seen: set[str] = set()  # all team names seen in any fixture
+
+    # 1. DB fixtures
+    try:
+        from bet.db.connection import get_db
+        with get_db() as conn:
+            rows = conn.execute(
+                """SELECT t1.name, t2.name
+                   FROM fixtures f
+                   JOIN teams t1 ON t1.id = f.home_team_id
+                   JOIN teams t2 ON t2.id = f.away_team_id
+                   WHERE f.kickoff LIKE ? || '%'""",
+                (date,),
+            ).fetchall()
+            for home, away in rows:
+                h = _normalize_name_for_match(home)
+                a = _normalize_name_for_match(away)
+                pairs.add((h, a))
+                names_seen.add(h)
+                names_seen.add(a)
+    except Exception:
+        pass
+
+    # 2. JSON fixtures
+    fixtures_path = DATA_DIR / f"fixtures_{date}.json"
+    if fixtures_path.exists():
+        try:
+            data = json.loads(fixtures_path.read_text(encoding="utf-8"))
+            fixture_list = data.get("fixtures", data) if isinstance(data, dict) else data
+            if isinstance(fixture_list, list):
+                for f in fixture_list:
+                    home = f.get("home_team", "")
+                    away = f.get("away_team", "")
+                    if home and away:
+                        h = _normalize_name_for_match(home)
+                        a = _normalize_name_for_match(away)
+                        pairs.add((h, a))
+                        names_seen.add(h)
+                        names_seen.add(a)
+        except Exception:
+            pass
+
+    return pairs, names_seen
+
+
+def _is_fixture_ghost(
+    home: str, away: str, fixture_pairs: set[tuple[str, str]], known_names: set[str]
+) -> bool:
+    """Check if a candidate matchup is a ghost (not in real fixtures).
+
+    Uses a two-level check:
+    1. Exact pair match (home, away) in fixture_pairs → NOT ghost
+    2. Both team names individually found in known_names → NOT ghost
+       (covers cases where team names are slightly different between sources)
+    3. Neither team name found in known_names → GHOST
+
+    Returns True if the fixture appears to be a ghost.
+    """
+    h = _normalize_name_for_match(home)
+    a = _normalize_name_for_match(away)
+
+    # Level 1: exact pair match
+    if (h, a) in fixture_pairs:
+        return False
+
+    # Level 2: substring match on pairs (handles slight name differences)
+    for fh, fa in fixture_pairs:
+        # Check if candidate teams are substrings of fixture teams or vice versa
+        h_match = h in fh or fh in h or _token_overlap(h, fh) >= 0.6
+        a_match = a in fa or fa in a or _token_overlap(a, fa) >= 0.6
+        if h_match and a_match:
+            return False
+
+    # Level 3: if NEITHER team appears anywhere in known fixtures → ghost
+    h_found = h in known_names or any(h in n or n in h for n in known_names if len(n) > 3)
+    a_found = a in known_names or any(a in n or n in a for n in known_names if len(n) > 3)
+
+    # If both teams are completely unknown in fixtures data, it's a ghost
+    if not h_found and not a_found:
+        return True
+
+    # If we have fixture data but this specific pairing doesn't exist, it's likely a ghost
+    # (the teams may exist but in different matchups = this is a historical form game)
+    if len(fixture_pairs) > 50:  # only flag if we have substantial fixture data
+        return True
+
+    return False
+
+
+def _token_overlap(a: str, b: str) -> float:
+    """Compute token overlap ratio between two strings."""
+    tokens_a = set(a.split())
+    tokens_b = set(b.split())
+    if not tokens_a or not tokens_b:
+        return 0.0
+    overlap = len(tokens_a & tokens_b)
+    return overlap / min(len(tokens_a), len(tokens_b))
+
+
+# ---------------------------------------------------------------------------
 # Gate checks
 # ---------------------------------------------------------------------------
 
@@ -949,6 +1082,27 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
         print(f"[gate_checker] Filtered {phantom_count} already-played events (kickoff >2h ago)")
     clean_candidates = live_candidates
 
+    # GHOST FIXTURE FILTER — cross-reference against real fixture sources
+    # Catches historical form games that were mistakenly treated as today's fixtures
+    fixture_pairs, known_names = _build_fixture_lookup(date)
+    if fixture_pairs:
+        verified_candidates = []
+        ghost_count = 0
+        for c in clean_candidates:
+            home = c.get("home_team", "")
+            away = c.get("away_team", "")
+            if _is_fixture_ghost(home, away, fixture_pairs, known_names):
+                ghost_count += 1
+                c["_ghost"] = True
+                continue
+            verified_candidates.append(c)
+        if ghost_count:
+            print(f"[gate_checker] Filtered {ghost_count} ghost fixtures "
+                  f"(not in {len(fixture_pairs)} verified fixtures)")
+        clean_candidates = verified_candidates
+    else:
+        print("[gate_checker] ⚠️ No fixture lookup data — ghost filter skipped")
+
     # Normalize kickoff times: bare time strings like "19:00" → full ISO
     for c in clean_candidates:
         c["kickoff"] = normalize_kickoff(c.get("kickoff", ""), date)
@@ -1085,6 +1239,23 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
                 entry["advisory_tier"] = "WEAK"
             else:
                 entry["advisory_tier"] = "FLAGGED"
+
+            # Tier cap: INSUFFICIENT_MARKETS — if market_count < minimum, cap tier
+            MIN_MARKETS = {"football": 3, "basketball": 3, "tennis": 2, "volleyball": 2}
+            market_count = c.get("market_count", 0) or 0
+            sport = (c.get("sport") or "").lower()
+            min_req = MIN_MARKETS.get(sport, 2)
+            if market_count < min_req and entry["advisory_tier"] in ("STRONG", "MODERATE"):
+                entry["advisory_tier"] = "WEAK"
+                entry.setdefault("tier_caps", []).append(
+                    f"INSUFFICIENT_MARKETS: {market_count}/{min_req} markets"
+                )
+
+            # Tier cap: ONE_SIDED_DATA — if best market has one_sided flag, cap tier
+            if best.get("one_sided"):
+                if entry["advisory_tier"] in ("STRONG", "MODERATE"):
+                    entry["advisory_tier"] = "WEAK"
+                    entry.setdefault("tier_caps", []).append("ONE_SIDED_DATA: opponent missing form data")
 
             entry["status"] = "APPROVED"
             approved.append(entry)

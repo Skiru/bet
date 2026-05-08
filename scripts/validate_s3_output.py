@@ -234,13 +234,13 @@ def validate_s3_10(section_text):
 def get_section_text(content, section_marker):
     """Extract text for a section from its header to the next §S3.X or END CANDIDATE."""
     pattern = re.escape(section_marker)
-    match = re.search(rf"^#{{{2,3}}}\s*{pattern}\b.*$", content, re.MULTILINE)
+    match = re.search(rf"^(?:#{{{2,3}}}\s*)?{pattern}\b.*$", content, re.MULTILINE)
     if not match:
         return None
 
     start = match.end()
     end_match = re.search(
-        r"^#{2,3}\s*(?:§S3\.\d+|══\s*END CANDIDATE)",
+        r"^(?:#{2,3}\s*)?(?:§S3\.\d+|══\s*END CANDIDATE)",
         content[start:],
         re.MULTILINE,
     )
@@ -251,8 +251,8 @@ def get_section_text(content, section_marker):
 
 def split_candidates(content):
     """Split file content into (header_line, block_text) tuples."""
-    start_re = re.compile(r"^#{2,3}\s*══\s*CANDIDATE\b", re.MULTILINE)
-    end_re = re.compile(r"^#{2,3}\s*══\s*END CANDIDATE\b", re.MULTILINE)
+    start_re = re.compile(r"^(?:#{2,3}\s*)?══\s*CANDIDATE\b", re.MULTILINE)
+    end_re = re.compile(r"^(?:#{2,3}\s*)?══\s*END CANDIDATE\b", re.MULTILINE)
 
     candidates = []
     for m in start_re.finditer(content):

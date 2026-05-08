@@ -1244,6 +1244,17 @@ MAJOR_COMPETITIONS = {
         "super cup", "community shield", "carabao", "league cup",
         "allsvenskan", "eliteserien", "superliga", "swiss super league",
         "scottish", "belgian", "jupiler", "pro league",
+        # §SCAN.9 — Protected domestic leagues (Americas, Asia, Africa)
+        "brasileirão", "brazil serie a", "brazil serie b", "copa do brasil",
+        "liga profesional", "primera division argentina", "primera nacional",
+        "liga betplay", "primera a colombia", "primera division chile",
+        "liga de expansion", "usl championship", "nwsl", "mls next pro",
+        "chinese super league", "csl", "cfa super",
+        "j1 league", "j2 league", "j1", "j2",
+        "k league", "k1", "k2",
+        "saudi pro league", "spl", "roshn",
+        "indian super league", "isl",
+        "egyptian premier", "south african psl",
     ],
     "tennis": [
         "atp", "wta", "grand slam", "masters", "open", "500", "250", "1000",
@@ -1255,6 +1266,8 @@ MAJOR_COMPETITIONS = {
         "nba", "euroleague", "eurocup", "acb", "bbl", "nbl", "bsl", "lnb",
         "serie a", "plk", "bcl", "fiba", "ncaa", "playoff", "finals",
         "world cup", "olympic",
+        # §SCAN.9 — Protected domestic leagues
+        "cba", "nbb", "b.league", "kbl", "pba", "nbl australia", "lnbp",
     ],
     "volleyball": [
         "plusliga", "superlega", "ligue a", "bundesliga", "cev", "champions",

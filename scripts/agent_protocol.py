@@ -154,13 +154,14 @@ AGENT_SKILLS_MAP = {
             "Review shortlist for sport diversity (≥8 sports), ensure KEY sports ≥60%",
             "Verify ALL candidates included — NO artificial caps or auto-filtering",
             "Flag missing major leagues and tournaments (§SCAN.7 tournament protection)",
+            "Flag missing major domestic leagues worldwide (§SCAN.9 — Brasileirão, MLS, Liga MX, CSL, J-League, K-League, Saudi Pro, ISL, etc.)",
             "Apply §SCAN.8 minor league value edge — never penalize 'obscure' events",
         ],
         "skills_to_load": [
             "bet-navigating-sources (source hierarchy, fallback chains, URL patterns)",
         ],
         "instructions_to_follow": [
-            "analysis-methodology.instructions.md (§SCAN.7, §SCAN.8, §1.1-§1.8)",
+            "analysis-methodology.instructions.md (§SCAN.7, §SCAN.8, §SCAN.9, §1.1-§1.8)",
         ],
         "db_reads": ["scan_results", "scan_run_stats", "source_health", "fixtures", "competitions"],
         "db_writes": [],
@@ -366,12 +367,14 @@ STEP_AGENT_CONFIG = {
             "3. Calculate KEY sport percentage: (football+tennis+basketball+volleyball) / total ≥60%",
             "4. Check for §SCAN.7 tournament protection — are all active major tournaments represented?",
             "5. Verify §SCAN.8 minor league value — non-top-5 league events should have +6 boost",
-            "6. Ensure NO artificial caps — all candidates from aggregate must flow through",
-            "7. Check fixture_verified field — flag high unverified percentage",
+            "6. Check for §SCAN.9 major domestic league protection — are Brasileirão, MLS, Liga MX, CSL, J-League, K-League, Saudi Pro League present when active?",
+            "7. Ensure NO artificial caps — all candidates from aggregate must flow through",
+            "8. Check fixture_verified field — flag high unverified percentage",
         ],
         "recovery_actions": [
             "If <8 sports → re-run build_shortlist.py with --min-sports 8",
             "If missing tournament → check if scan captured it, may need targeted re-scan",
+            "If missing protected domestic league → check scan_results for that league, may need targeted re-scan of that region's sources",
         ],
     },
     "s2_tipster": {

@@ -149,6 +149,40 @@ Bookmaker markets are LESS efficient for minor/lower leagues because:
 
 **This does NOT mean:** randomly betting on leagues with zero data. Good data coverage + minor league = high edge. No data + minor league = skip (as normal).
 
+### §SCAN.9 MAJOR DOMESTIC LEAGUE PROTECTION (NEVER SKIP)
+
+**RULE: TOP DOMESTIC LEAGUES WORLDWIDE ARE NEVER SKIPPED, FILTERED, OR DEPRIORITIZED — REGARDLESS OF REGION.**
+
+Major domestic leagues outside Europe are systematically underrepresented in the pipeline because scan sources and keyword matching favor European competitions. These leagues generate high betting volume on Betclic, have deep statistical data, and are active during Americas/Asia time windows — providing night-session coverage that European leagues cannot.
+
+**Protected domestic leagues (MUST appear in scan when active):**
+
+| Region | Football | Basketball | Baseball | Other |
+|--------|----------|------------|----------|-------|
+| 🇧🇷 Brazil | Brasileirão Serie A, Serie B, Copa do Brasil | NBB | — | — |
+| 🇺🇸 USA | MLS | NBA | MLB | NHL (hockey) |
+| 🇦🇷 Argentina | Liga Profesional, Primera Nacional | — | — | — |
+| 🇲🇽 Mexico | Liga MX, Liga de Expansión | LNBP | LMP | — |
+| 🇨🇴 Colombia | Liga BetPlay | — | — | — |
+| 🇨🇱 Chile | Primera División | — | — | — |
+| 🇨🇳 China | Chinese Super League (CSL) | CBA | — | — |
+| 🇯🇵 Japan | J1 League, J2 League | B.League | NPB | — |
+| 🇰🇷 Korea | K League 1, K League 2 | KBL | KBO | — |
+| 🇦🇺 Australia | A-League | NBL | — | — |
+| 🇸🇦 Saudi Arabia | Saudi Pro League (SPL) | — | — | — |
+| 🇮🇳 India | Indian Super League (ISL) | — | — | — |
+| 🇪🇬 Egypt | Egyptian Premier League | — | — | — |
+| 🇿🇦 South Africa | PSL | — | — | — |
+
+**Pipeline behavior:**
+1. **+10 score boost** in shortlist scoring (between tournament +15 and minor league +6).
+2. Events from these leagues NEVER filtered by FIXTURE_ONLY tier or sport caps.
+3. **Empty competition field bypass:** If an event has a team from a protected league but the competition field is empty, infer the competition from team names and apply the boost anyway.
+4. **Night session priority:** Americas and Asia leagues provide critical time-window diversity. Night sessions MUST include them.
+5. **GATE:** If a protected league is active (in-season) AND has matches today but ZERO appear in the final matrix → scan coverage FAILED → investigate sources and re-scan.
+
+**Why this matters:** The May 8 2026 pipeline had 17,480 scan results but only 18 candidates — zero from Brazil, zero from MLS main league, zero from China/Japan/Korea. The scan captured the events but aggressive filtering + empty competition fields + keyword mismatches eliminated entire continents.
+
 ---
 
 ## STEP 0: SETTLE PREVIOUS DAY + LEARN FROM HISTORY

@@ -4,7 +4,7 @@ description: "S1e: Build ranked shortlist of 50-100 candidates with sport divers
 ---
 
 > **PERMANENT RULES (from copilot-instructions.md §NON-NEGOTIABLE):**
-> R3 NO AUTO-REJECTION: ALL candidates ranked — no hardcoded cap. R7 TOURNAMENT PROTECTION: +15 score boost. R8 MINOR LEAGUE VALUE: +6 boost for non-top-5. R10 STATS-FIRST: Include events without odds.
+> R3 NO AUTO-REJECTION: ALL candidates ranked — no hardcoded cap. R7 TOURNAMENT PROTECTION: +15 score boost. R8 MINOR LEAGUE VALUE: +6 boost for non-top-5. R10 STATS-FIRST: Include events without odds. R13 MAJOR DOMESTIC LEAGUE PROTECTION: +10 boost for protected leagues worldwide (Brasileirão, MLS, Liga MX, CSL, J-League, K-League, Saudi Pro, ISL, etc.). Americas/Asia leagues critical for night-session coverage. Scan fails if protected league is active but missing from matrix.
 
 # S1e — SHORTLIST FILTERING
 
@@ -13,7 +13,7 @@ description: "S1e: Build ranked shortlist of 50-100 candidates with sport divers
 You MUST follow the Agent Intelligence Protocol defined in your agent definition. Specifically:
 1. Use `sequentialthinking` to reason about shortlist quality and ranking logic
 2. Read `/memories/repo/pipeline-lessons-learned.md` — check for past shortlist issues
-3. Self-validate: tournament protection (+15), minor league value (+6), sport diversity ≥8
+3. Self-validate: tournament protection (+15), major domestic league protection (+10, §SCAN.9), minor league value (+6), sport diversity ≥8
 4. Write ranking insights to `/memories/session/`
 
 ## Required Skills

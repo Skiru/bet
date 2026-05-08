@@ -5,7 +5,7 @@ agent: bet-scanner
 ---
 
 > **PERMANENT RULES (from copilot-instructions.md §NON-NEGOTIABLE):**
-> R3 NO AUTO-REJECTION: ALL events from all scanners merge into shortlist. R7 TOURNAMENT PROTECTION: Verify tournament matches present. R10 STATS-FIRST: Events without odds included.
+> R3 NO AUTO-REJECTION: ALL events from all scanners merge into shortlist. R7 TOURNAMENT PROTECTION: Verify tournament matches present. R10 STATS-FIRST: Events without odds included. R13 MAJOR DOMESTIC LEAGUE PROTECTION: Verify protected domestic leagues present (Brasileirão, MLS, Liga MX, CSL, J-League, K-League, Saudi Pro, ISL, etc.). If any protected league is active today but missing → scan coverage FAILED → re-scan.
 
 # SCAN MERGE + ENRICHMENT — Final Assembly
 

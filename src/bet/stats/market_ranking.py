@@ -219,8 +219,12 @@ STANDARD_MARKET_LINES: dict[str, list[dict]] = {
     "basketball": [
         {"market": "Total Points", "lines": [195.5, 205.5, 215.5, 225.5], "stat": "points", "is_combined": True},
         {"market": "Team Points", "lines": [95.5, 100.5, 105.5, 110.5], "stat": "points", "is_combined": False},
-        {"market": "Total Rebounds", "lines": [40.5, 42.5, 44.5], "stat": "rebounds", "is_combined": True},
-        {"market": "Total Assists", "lines": [22.5, 24.5, 26.5], "stat": "assists", "is_combined": True},
+        {"market": "Total Rebounds", "lines": [78.5, 82.5, 86.5, 90.5], "stat": "rebounds", "is_combined": True},
+        {"market": "Team Rebounds", "lines": [38.5, 40.5, 42.5, 44.5], "stat": "rebounds", "is_combined": False},
+        {"market": "Total Assists", "lines": [42.5, 44.5, 46.5, 48.5], "stat": "assists", "is_combined": True},
+        {"market": "Team Assists", "lines": [20.5, 22.5, 24.5, 26.5], "stat": "assists", "is_combined": False},
+        {"market": "Total Steals", "lines": [12.5, 14.5, 16.5], "stat": "steals", "is_combined": True},
+        {"market": "Total Turnovers", "lines": [24.5, 26.5, 28.5, 30.5], "stat": "turnovers", "is_combined": True},
     ],
     "tennis": [
         {"market": "Total Games", "lines": [19.5, 21.5, 22.5, 23.5], "stat": "total_games", "is_combined": True},

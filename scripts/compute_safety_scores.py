@@ -484,6 +484,16 @@ def rank_markets(data: dict) -> dict:
         if one_sided:
             safety = round(safety * 0.70, 2)
 
+        # LINE REASONABLENESS CHECK: flag when line is far from data average.
+        # If line < 50% of avg or line > 200% of avg, cap safety at 0.50.
+        # This catches misconfigured standard lines (e.g., per-team lines used as combined).
+        line_suspicious = False
+        if l10_avg > 0 and line > 0:
+            ratio = line / l10_avg
+            if ratio < 0.50 or ratio > 2.0:
+                line_suspicious = True
+                safety = min(safety, 0.50)
+
         # Margin
         margin = compute_margin(l10_avg, line, direction)
 
@@ -509,6 +519,7 @@ def rank_markets(data: dict) -> dict:
             "source": source,
             "h2h_blind": total_h2h == 0,
             "one_sided": one_sided,
+            "line_suspicious": line_suspicious,
             "three_way_check": per_market_three_way,
         })
 

@@ -55,8 +55,11 @@ def _find_closest_standard_line(sport: str, stat_key: str, avg: float, is_combin
     if not lines:
         return None
     closest = min(lines, key=lambda x: abs(x - avg))
-    # Sanity check: don't use a standard line that's wildly different from the average
-    if avg > 0 and abs(closest - avg) / avg > 0.40:
+    # Sanity check: don't use a standard line that's wildly different from the average.
+    # Combined markets use tighter threshold (25%) since the combined average is more stable.
+    # Per-team markets allow 40% since single-team variance is higher.
+    max_deviation = 0.25 if is_combined else 0.40
+    if avg > 0 and abs(closest - avg) / avg > max_deviation:
         return None
     return closest
 
@@ -555,12 +558,18 @@ def _build_markets_from_db_form(
         market_name = market_name.replace("Fighter A", team_a).replace("Fighter B", team_b)
         market_name = market_name.replace("Pair A", team_a).replace("Pair B", team_b)
 
-        # Detect one-sided data: combined market where one team has no data
+        # Detect one-sided data: market where one team has no meaningful data
         one_sided = False
-        if is_combined and stat_a_key and stat_b_key:
-            if not team_b_l10 or all(v == 0.0 for v in team_b_l10):
+        if is_combined:
+            # Combined market: flag if either team has no data or all zeros
+            a_empty = not team_a_l10 or all(v == 0.0 for v in team_a_l10)
+            b_empty = not team_b_l10 or all(v == 0.0 for v in team_b_l10)
+            if a_empty or b_empty:
                 one_sided = True
-            elif not team_a_l10 or all(v == 0.0 for v in team_a_l10):
+        else:
+            # Per-team market: flag if the target team has no data
+            # (team_a_l10 is the target team's data for non-combined markets)
+            if not team_a_l10 or all(v == 0.0 for v in team_a_l10):
                 one_sided = True
 
         built_markets.append({
