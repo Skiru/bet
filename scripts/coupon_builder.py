@@ -1105,12 +1105,46 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
     # Store approved for markdown writer (market matrix)
     result["_approved"] = approved
 
+    # Sort by data quality (FULL > PARTIAL > MINIMAL) then safety score
+    quality_order = {"FULL": 0, "PARTIAL": 1, "MINIMAL": 2}
+    approved.sort(key=lambda c: (
+        quality_order.get(
+            (c.get("data_quality") or {}).get("label", "MINIMAL")
+            if isinstance(c.get("data_quality"), dict)
+            else c.get("data_quality", "MINIMAL"),
+            2,
+        ),
+        -(_bm(c).get("safety_score", 0)),
+    ))
+
+    # Event deduplication — ensure unique events across core coupons
+    used_events: set[str] = set()
+    deduped_approved = []
+    for c in approved:
+        ek = _event_key(c)
+        if ek in used_events:
+            continue
+        used_events.add(ek)
+        deduped_approved.append(c)
+    approved = deduped_approved
+
+    # MINIMAL quality candidates → Extended Pool only, not core coupons
+    core_eligible = []
+    for c in approved:
+        dq = c.get("data_quality")
+        label = (dq.get("label", "MINIMAL") if isinstance(dq, dict) else dq) if dq else "MINIMAL"
+        if label == "MINIMAL":
+            c["extended_pool_reason"] = "MINIMAL data quality — Extended Pool only"
+            extended_pool.append(c)
+        else:
+            core_eligible.append(c)
+
     # Build core portfolio (requires ≥2 picks)
-    core = assign_picks_to_core(approved, config)
+    core = assign_picks_to_core(core_eligible, config)
     result["core_coupons"] = core
 
     # Build combo menu (requires ≥2 picks)
-    combos = generate_combos(approved, config)
+    combos = generate_combos(core_eligible, config)
     result["combos"] = combos
 
     # DISCOVERY SINGLES — weak/flagged picks with discounted stakes

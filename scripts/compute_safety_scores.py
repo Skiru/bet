@@ -210,6 +210,61 @@ For team-specific markets (team corners O/U, team shots):
 """
 
 
+def compute_data_quality_score(ranking_result: dict, has_injuries: bool = False,
+                                has_league_context: bool = False,
+                                has_tipster: bool = False,
+                                odds_sources: int = 0) -> dict:
+    """Compute data quality score (0-10) based on data availability."""
+    score = 0
+    breakdown = {}
+
+    # +2 for L10 data with ≥3 ranked markets (proxy for sufficient data points)
+    l10_ok = len(ranking_result.get("ranking", [])) >= 3
+    if l10_ok:
+        score += 2
+    breakdown["l10_data"] = l10_ok
+
+    # +2 for H2H with ≥3 meetings (not H2H-blind)
+    h2h_ok = not ranking_result.get("ranking", [{}])[0].get("h2h_blind", True) if ranking_result.get("ranking") else False
+    if h2h_ok:
+        score += 2
+    breakdown["h2h_data"] = h2h_ok
+
+    # +1 for L5 trend
+    l5_ok = (ranking_result.get("ranking", [{}])[0].get("hit_rate_l5", "N/A") != "N/A") if ranking_result.get("ranking") else False
+    if l5_ok:
+        score += 1
+    breakdown["l5_trend"] = l5_ok
+
+    # +1 each for additional data
+    if has_injuries:
+        score += 1
+    breakdown["injuries"] = has_injuries
+
+    if has_league_context:
+        score += 1
+    breakdown["league_context"] = has_league_context
+
+    if has_tipster:
+        score += 1
+    breakdown["tipster_data"] = has_tipster
+
+    if odds_sources >= 2:
+        score += 1
+    breakdown["odds_validated"] = odds_sources >= 2
+
+    # +1 for three-way check alignment
+    twc = ranking_result.get("three_way_check")
+    three_ok = twc is not None and twc.get("alignment") is not None and "SUPPORT" in str(twc.get("alignment", "")).upper()
+    if three_ok:
+        score += 1
+    breakdown["three_way_check"] = three_ok
+
+    label = "FULL" if score >= 7 else "PARTIAL" if score >= 4 else "MINIMAL"
+
+    return {"score": score, "label": label, "breakdown": breakdown}
+
+
 def validate_input(data: dict) -> list[str]:
     """Validate input JSON structure. Returns list of errors."""
     errors = []

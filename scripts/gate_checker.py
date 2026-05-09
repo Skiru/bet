@@ -856,6 +856,25 @@ def compute_confidence(candidate: dict, gate_result: dict) -> tuple[float, list[
     return round(conf, 1), adjustments
 
 
+def check_data_quality_gate(candidate: dict) -> dict:
+    """Check data depth quality for a candidate. Returns PASS/WARN/FAIL."""
+    dq = candidate.get("data_quality", {})
+    if isinstance(dq, str):
+        # Legacy string format — convert
+        dq = {"score": 0, "label": dq}
+    score = dq.get("score", 0)
+    label = dq.get("label", "MINIMAL")
+
+    if label == "FULL":
+        return {"status": "PASS", "score": score, "label": label}
+    elif label == "PARTIAL":
+        return {"status": "WARN", "score": score, "label": label,
+                "message": "Partial data — H2H or context may be missing"}
+    else:
+        return {"status": "FAIL", "score": score, "label": label,
+                "message": "Minimal data — only basic stats available. Extended Pool only."}
+
+
 # ---------------------------------------------------------------------------
 # 18-point gate runner
 # ---------------------------------------------------------------------------
@@ -905,22 +924,29 @@ def check_18_point_gate(candidate: dict, repeat_losses: list) -> dict:
 # ---------------------------------------------------------------------------
 
 def check_sport_diversity(approved: list[dict]) -> dict:
-    """Post-gate diversity check per §7.6.
+    """Post-gate diversity check — INFORMATIONAL ONLY (never blocks).
 
-    Requirements:
-      - ≥5 sports in approved picks
-      - ≥1 KEY sport (football/volleyball/basketball/tennis) in approved
+    Reports sport distribution for user awareness but never blocks S8 progression.
     """
     approved_sports = sorted({c.get("sport", "").lower() for c in approved} - {""})
     key_sports = [s for s in approved_sports if s in KEY_SPORTS]
-    passes = len(approved_sports) >= 5 and len(key_sports) >= 1
     missing = sorted(ALL_SPORTS - set(approved_sports))
 
+    if len(approved_sports) >= 5 and len(key_sports) >= 1:
+        message = f"Good diversity: {len(approved_sports)} sports, {len(key_sports)} key sports"
+    else:
+        message = (
+            f"Low diversity: {len(approved_sports)} sports ({', '.join(approved_sports)}). "
+            f"Consider expanding scan to: {', '.join(missing)}"
+        )
+
     return {
+        "status": "info",
+        "message": message,
         "approved_sports": approved_sports,
         "sports_count": len(approved_sports),
         "key_sports_count": len(key_sports),
-        "passes_diversity": passes,
+        "passes_diversity": True,  # Always True — informational only
         "missing_sports": missing,
     }
 
@@ -985,9 +1011,10 @@ def _normalise_s3_to_gate_input(analysis: dict) -> dict:
         "h2h_blind": h2h_blind,
         "three_way_alignment": alignment,
         "data_quality": (
-            "FULL"
-            if analysis.get("has_data")
-            else "THIN"
+            analysis.get("data_quality")
+            if isinstance(analysis.get("data_quality"), dict)
+            else {"score": 5 if analysis.get("has_data") else 0,
+                  "label": "PARTIAL" if analysis.get("has_data") else "MINIMAL"}
         ),
         "ev": analysis.get("ev"),
         "odds": analysis.get("odds", {}),
@@ -1254,11 +1281,22 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
                     entry["advisory_tier"] = "WEAK"
                     entry.setdefault("tier_caps", []).append("ONE_SIDED_DATA: opponent missing form data")
 
-            entry["status"] = "APPROVED"
-            approved.append(entry)
+            # Data quality gate — FAIL marks for Extended Pool, but still shown (R3)
+            dq_result = check_data_quality_gate(c)
+            entry["data_quality_check"] = dq_result
+            if dq_result["status"] == "FAIL":
+                entry["status"] = "APPROVED"
+                entry["advisory_tier"] = "FLAGGED"
+                entry.setdefault("tier_caps", []).append(
+                    f"MINIMAL_DATA: {dq_result.get('message', 'low data quality')}"
+                )
+                entry["extended_pool_reason"] = dq_result.get("message", "Minimal data quality")
+                extended_pool.append(entry)
+            else:
+                entry["status"] = "APPROVED"
+                approved.append(entry)
 
     diversity = check_sport_diversity(approved)
-    expansion_needed = not diversity["passes_diversity"]
 
     return {
         "date": date,
@@ -1266,7 +1304,6 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
             "approved": approved,
             "extended_pool": extended_pool,
             "rejected": rejected,
-            "expansion_needed": expansion_needed,
             "sport_diversity": diversity,
         },
         "summary": {
@@ -1590,8 +1627,8 @@ def main():
         f"{s['approved_count']} approved, {s['extended_count']} extended, "
         f"{s['rejected_count']} rejected"
     )
-    if results["gate_results"]["expansion_needed"]:
-        print("[gate_checker] ⚠️  EXPANSION NEEDED — sport diversity check failed (§7.6)")
+    diversity = results["gate_results"].get("sport_diversity", {})
+    print(f"[gate_checker] Sport diversity: {diversity.get('message', 'N/A')}")
 
 
 if __name__ == "__main__":

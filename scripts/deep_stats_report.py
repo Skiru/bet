@@ -57,6 +57,108 @@ def _safe_avg(values: list) -> float | None:
     return round(sum(nums) / len(nums), 2)
 
 
+def compute_data_quality(stats_a: dict, stats_b: dict, h2h: dict, sport: str) -> dict:
+    """Compute data quality score (0-10) based on data availability.
+
+    Returns dict with score, label (FULL/PARTIAL/MINIMAL), and breakdown.
+    """
+    score = 0
+    breakdown = {}
+
+    # +2 if L10 has ≥8 data points (across both teams)
+    l10_count = len(stats_a.get("l10_matches", [])) + len(stats_b.get("l10_matches", []))
+    l10_ok = l10_count >= 8
+    if l10_ok:
+        score += 2
+    breakdown["l10_data"] = l10_ok
+
+    # +2 if H2H has ≥3 meetings
+    h2h_ok = h2h.get("has_data", False) and len(h2h.get("meetings", [])) >= 3
+    if h2h_ok:
+        score += 2
+    breakdown["h2h_data"] = h2h_ok
+
+    # +1 if L5 available for at least one team
+    l5_ok = bool(stats_a.get("l5_avg")) or bool(stats_b.get("l5_avg"))
+    if l5_ok:
+        score += 1
+    breakdown["l5_trend"] = l5_ok
+
+    # +1 if injury data checked (present in cache)
+    cache_a = stats_a.get("raw_cache") or {}
+    cache_b = stats_b.get("raw_cache") or {}
+    injuries_ok = bool(
+        cache_a.get("injuries") or cache_a.get("unavailable")
+        or cache_b.get("injuries") or cache_b.get("unavailable")
+    )
+    # Also check DB injuries table
+    if not injuries_ok:
+        try:
+            from bet.db.connection import get_db
+            with get_db() as conn:
+                row = conn.execute(
+                    "SELECT COUNT(*) FROM injuries WHERE team_name IN (?, ?)",
+                    (stats_a.get("team", ""), stats_b.get("team", "")),
+                ).fetchone()
+                if row and row[0] > 0:
+                    injuries_ok = True
+        except Exception:
+            pass
+    if injuries_ok:
+        score += 1
+    breakdown["injuries"] = injuries_ok
+
+    # +1 if standings available
+    league_ok = False
+    try:
+        from bet.db.connection import get_db
+        with get_db() as conn:
+            row = conn.execute(
+                "SELECT COUNT(*) FROM standings WHERE team_name IN (?, ?)",
+                (stats_a.get("team", ""), stats_b.get("team", "")),
+            ).fetchone()
+            if row and row[0] > 0:
+                league_ok = True
+    except Exception:
+        pass
+    if league_ok:
+        score += 1
+    breakdown["league_context"] = league_ok
+
+    # +1 if tipster data available
+    tipster_ok = False
+    try:
+        from bet.db.connection import get_db
+        with get_db() as conn:
+            row = conn.execute(
+                "SELECT COUNT(*) FROM web_research_cache WHERE query LIKE ? OR query LIKE ?",
+                (f"%{stats_a.get('team', '')}%", f"%{stats_b.get('team', '')}%"),
+            ).fetchone()
+            if row and row[0] > 0:
+                tipster_ok = True
+    except Exception:
+        pass
+    if tipster_ok:
+        score += 1
+    breakdown["tipster_data"] = tipster_ok
+
+    # +1 if odds from ≥2 sources
+    sources_a = set(stats_a.get("sources", []))
+    sources_b = set(stats_b.get("sources", []))
+    all_sources = sources_a | sources_b
+    odds_ok = len(all_sources) >= 2
+    if odds_ok:
+        score += 1
+    breakdown["odds_validated"] = odds_ok
+
+    # +1 if 3-way alignment (checked downstream, default False)
+    breakdown["three_way_check"] = False
+
+    label = "FULL" if score >= 7 else "PARTIAL" if score >= 4 else "MINIMAL"
+
+    return {"score": score, "label": label, "breakdown": breakdown}
+
+
 def _ranking_from_shortlist_markets(safety_markets: list) -> dict:
     """Build a ranking_result dict from precomputed shortlist safety_markets.
 
@@ -709,6 +811,82 @@ def _build_s310_depth(stats_a: dict, stats_b: dict, h2h: dict, ranking_result: d
     return "\n".join(lines)
 
 
+def _build_league_context(sport: str, team_a: str, team_b: str) -> str:
+    """§S3.11 League Context — standings, zone, points gap from DB."""
+    lines = ["§S3.11 League Context"]
+    try:
+        from bet.db.connection import get_db
+        with get_db() as conn:
+            rows = conn.execute(
+                "SELECT team_name, position, points, zone FROM standings WHERE team_name IN (?, ?)",
+                (team_a, team_b),
+            ).fetchall()
+            if rows:
+                lines.append("| Team | Position | Points | Zone |")
+                lines.append("|------|----------|--------|------|")
+                for row in rows:
+                    zone = row[3] if row[3] else "MIDTABLE"
+                    lines.append(f"| {row[0]} | {row[1]} | {row[2]} | {zone} |")
+                # Points gap
+                if len(rows) >= 2:
+                    gap = abs((rows[0][2] or 0) - (rows[1][2] or 0))
+                    lines.append(f"Points gap: {gap}")
+            else:
+                lines.append("⚠️ No standings data in DB — verify league context manually")
+    except Exception:
+        lines.append("⚠️ Standings table not available — verify league context manually")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _build_injuries_section(sport: str, team_a: str, team_b: str) -> str:
+    """§S3.12 Injuries (DB) — current injuries per team from injuries table."""
+    lines = ["§S3.12 Injuries (DB)"]
+    try:
+        from bet.db.connection import get_db
+        with get_db() as conn:
+            for team in (team_a, team_b):
+                rows = conn.execute(
+                    "SELECT player_name, injury_type, status FROM injuries WHERE team_name = ?",
+                    (team,),
+                ).fetchall()
+                if rows:
+                    lines.append(f"**{team}** ({len(rows)} injuries):")
+                    for row in rows:
+                        status = row[2] if row[2] else "OUT"
+                        lines.append(f"  - {row[0]}: {row[1]} ({status})")
+                else:
+                    lines.append(f"**{team}**: No injury records in DB")
+    except Exception:
+        lines.append("⚠️ Injuries table not available — check Flashscore/Sofascore")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _build_expert_sentiment(sport: str, team_a: str, team_b: str) -> str:
+    """§S3.13 Expert Sentiment — tipster/research data from web_research_cache."""
+    lines = ["§S3.13 Expert Sentiment"]
+    try:
+        from bet.db.connection import get_db
+        with get_db() as conn:
+            rows = conn.execute(
+                "SELECT query, summary, source_url FROM web_research_cache "
+                "WHERE (query LIKE ? OR query LIKE ?) ORDER BY created_at DESC LIMIT 5",
+                (f"%{team_a}%", f"%{team_b}%"),
+            ).fetchall()
+            if rows:
+                for row in rows:
+                    summary = (row[1] or "")[:200]
+                    source = row[2] or "unknown"
+                    lines.append(f"- [{source}] {summary}")
+            else:
+                lines.append("⚠️ No expert/tipster data cached — TIPSTER-BLIND")
+    except Exception:
+        lines.append("⚠️ Web research cache not available")
+    lines.append("")
+    return "\n".join(lines)
+
+
 # ---------------------------------------------------------------------------
 # Core analysis
 # ---------------------------------------------------------------------------
@@ -737,14 +915,29 @@ def analyze_candidate(
     h2h = extract_h2h_stats(sport, home, away)
 
     # Build safety input and rank markets
-    ranking_result = {}
+    ranking_result = None
     safety_input = build_safety_input(sport, home, away, competition)
     if safety_input and safety_input.get("markets"):
         ranking_result = rank_markets(safety_input)
-    elif shortlist_safety_markets:
+    else:
+        # Before shortlist fallback: try enrichment
+        if not safety_input or not safety_input.get("markets"):
+            try:
+                from data_enrichment_agent import enrich_team
+                enrich_team(home, sport)
+                enrich_team(away, sport)
+                # Retry safety input after enrichment
+                safety_input = build_safety_input(sport, home, away, competition)
+                if safety_input and safety_input.get("markets"):
+                    ranking_result = rank_markets(safety_input)
+            except Exception:
+                pass
+
+    if not ranking_result and shortlist_safety_markets:
         # FALLBACK: use precomputed safety data from shortlist builder
         ranking_result = _ranking_from_shortlist_markets(shortlist_safety_markets)
-    else:
+
+    if not ranking_result:
         ranking_result = {
             "ranking": [],
             "three_way_check": None,
@@ -759,7 +952,16 @@ def analyze_candidate(
 
     best_market = ranking_result["ranking"][0] if ranking_result.get("ranking") else None
 
-    # Build all 10 sections
+    # Compute data quality
+    dq = compute_data_quality(stats_a, stats_b, h2h, sport)
+    # Update three_way_check in data quality if ranking has it
+    tw = ranking_result.get("three_way_check")
+    if tw and tw.get("alignment") and "SUPPORT" in str(tw.get("alignment", "")).upper():
+        dq["breakdown"]["three_way_check"] = True
+        dq["score"] += 1
+        dq["label"] = "FULL" if dq["score"] >= 7 else "PARTIAL" if dq["score"] >= 4 else "MINIMAL"
+
+    # Build all 10+ sections
     sections = {
         "s31": _build_s31_h2h(sport, h2h),
         "s32": _build_s32_form(sport, stats_a, stats_b),
@@ -771,15 +973,19 @@ def analyze_candidate(
         "s38": _build_s38_recommended(ranking_result),
         "s39": _build_s39_sources(stats_a, stats_b),
         "s310": _build_s310_depth(stats_a, stats_b, h2h, ranking_result),
+        "s311": _build_league_context(sport, home, away),
+        "s312": _build_injuries_section(sport, home, away),
+        "s313": _build_expert_sentiment(sport, home, away),
     }
 
     # Compose full markdown
     header = (
         f"══ CANDIDATE: {home} vs {away} | {competition} | {kickoff} "
-        f"| {sport.upper()} ══"
+        f"| {sport.upper()} | Data: {dq['label']} ({dq['score']}/10) ══"
     )
     md_parts = [header, ""]
-    for key in ["s31", "s32", "s33", "s34", "s35", "s36", "s37", "s38", "s39", "s310"]:
+    for key in ["s31", "s32", "s33", "s34", "s35", "s36", "s37", "s38", "s39", "s310",
+                "s311", "s312", "s313"]:
         md_parts.append(sections[key])
 
     md_parts.append("══ END CANDIDATE ══\n")
@@ -841,6 +1047,7 @@ def analyze_candidate(
         "competition": competition,
         "kickoff": kickoff,
         "has_data": has_data,
+        "data_quality": dq,
         "ranking_result": ranking_result,
         "stats_a_summary": {
             "team": stats_a["team"],
@@ -1146,6 +1353,7 @@ def _write_json(output: dict, date: str) -> Path:
             "competition": a["competition"],
             "kickoff": a["kickoff"],
             "has_data": a["has_data"],
+            "data_quality": a.get("data_quality"),
             "best_market": a["best_market"],
             "markets_evaluated": a["markets_evaluated"],
             "stats_a_summary": a["stats_a_summary"],
