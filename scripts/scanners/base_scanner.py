@@ -50,6 +50,45 @@ def _domain_from_url(url: str) -> str:
     return urlparse(url).netloc.replace("www.", "")
 
 
+def _competition_from_url(url: str, domain: str) -> str:
+    """Extract competition/league name from URL path structure.
+
+    Works for sources that encode league info in URL paths:
+    - flashscore.com/football/brazil/serie-a/  → "Brazil - Serie A"
+    - forebet.com/en/football/brazil-serie-a/   → "Brazil Serie A"
+    - betexplorer.com/football/brazil/serie-a/  → "Brazil - Serie A"
+    - soccerway.com/national/brazil/serie-a/    → "Brazil - Serie A"
+
+    Returns empty string if no meaningful competition can be extracted.
+    """
+    import re
+    path = urlparse(url).path
+    parts = [p for p in path.strip('/').split('/') if p]
+
+    # Flashscore & BetExplorer: /{sport}/{country}/{league}/
+    if domain in ("flashscore.com", "betexplorer.com"):
+        if len(parts) >= 3:
+            country = parts[1].replace('-', ' ').title()
+            league = parts[2].replace('-', ' ').title()
+            return f"{country} - {league}"
+        if len(parts) >= 2 and parts[1] not in ('en', 'pl', 'com'):
+            country = parts[1].replace('-', ' ').title()
+            return country
+    # Forebet: /en/football-tips/{country}-{league}-predictions/
+    if domain == "forebet.com":
+        m = re.search(r'/football-tips/([^/]+?)(?:-predictions)?/?$', url)
+        if m:
+            return m.group(1).replace('-', ' ').title()
+    # Soccerway: /{lang}/national/{country}/{league}/
+    if domain == "soccerway.com":
+        m = re.search(r'/national/([^/]+)/([^/]+)', url)
+        if m:
+            country = m.group(1).replace('-', ' ').title()
+            league = m.group(2).replace('-', ' ').title()
+            return f"{country} - {league}"
+    return ""
+
+
 class BaseSportScanner(ABC):
     """Abstract base class for per-sport scanners."""
 
@@ -244,12 +283,19 @@ class BaseSportScanner(ABC):
 
         for url, events in results.items():
             domain = _domain_from_url(url)
+            url_competition = _competition_from_url(url, domain)
             for event in events:
                 home = event.get("home", "")
                 away = event.get("away", "")
                 event_key = f"{home}|{away}|{event.get('time', '')}".lower().strip()
                 if not event_key or event_key == "||":
                     continue
+                # Check both "league" and "competition" keys (adapters use both)
+                competition = (
+                    event.get("league", "")
+                    or event.get("competition", "")
+                    or url_competition
+                )
                 scan_results.append(
                     ScanResult(
                         id=None,
@@ -259,7 +305,7 @@ class BaseSportScanner(ABC):
                         event_key=event_key,
                         home_team=home,
                         away_team=away,
-                        competition=event.get("league", ""),
+                        competition=competition,
                         kickoff=event.get("time", ""),
                         raw_data=event,
                         scan_timestamp=now_ts,

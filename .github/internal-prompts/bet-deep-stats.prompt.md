@@ -10,6 +10,10 @@ description: "S3: Deep statistical analysis per candidate — YOU ARE THE ANALYS
 
 ## MANDATORY: Agent Intelligence Protocol
 
+> **⛔ Follow `agent-execution-protocol.instructions.md` for EVERY script execution.**
+> Run script → read FULL output → extract metrics → `sequentialthinking` → structured verdict.
+> Raw output paste = YOUR RESPONSE WILL BE REJECTED by the orchestrator.
+
 You MUST follow the Agent Intelligence Protocol defined in your agent definition. Specifically:
 1. Use `sequentialthinking` for EVERY CANDIDATE — the 5-part Analytical Reasoning Layer is the #1 quality driver
 2. Read `/memories/repo/pipeline-lessons-learned.md` — check for known analytical mistakes

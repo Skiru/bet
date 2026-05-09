@@ -15,6 +15,28 @@ _HEADER_CLASS_RE = re.compile(
     r"event__round|event__series",
     re.I,
 )
+
+
+def _competition_from_url(url: str) -> str:
+    """Extract competition name from a Flashscore league-specific URL path.
+
+    Examples:
+        /football/brazil/serie-a/       → "Brazil - Serie A"
+        /football/usa/mls/              → "Usa - Mls"
+        /football/england/premier-league/ → "England - Premier League"
+        /football/brazil/                → "Brazil"
+        /football/                       → ""
+    """
+    m = re.search(r'flashscore\.com/[^/]+/([^/]+)/([^/]+)', url)
+    if m:
+        country = m.group(1).replace('-', ' ').title()
+        league = m.group(2).replace('-', ' ').title()
+        return f"{country} - {league}"
+    m = re.search(r'flashscore\.com/[^/]+/([^/]+)/?$', url)
+    if m:
+        country = m.group(1).replace('-', ' ').title()
+        return country
+    return ""
 # Patterns for identifying match row elements
 _MATCH_CLASS_RE = re.compile(r"event__match|event__participant", re.I)
 # Patterns for time elements
@@ -87,6 +109,7 @@ def _heuristic0_event_classes(soup: BeautifulSoup, url: str) -> List[Dict]:
     """
     results = []
     current_league = ""
+    url_league = _competition_from_url(url)
 
     # Regex for home/away participant elements — handles two known class patterns:
     # Real Flashscore (2026): "event__homeParticipant", "event__awayParticipant"
@@ -152,6 +175,7 @@ def _heuristic0_event_classes(soup: BeautifulSoup, url: str) -> List[Dict]:
             if tm:
                 row_time = tm.group(1)
 
+        league_val = current_league or url_league
         entry = {
             "home": home,
             "away": away,
@@ -159,8 +183,8 @@ def _heuristic0_event_classes(soup: BeautifulSoup, url: str) -> List[Dict]:
             "source_url": url,
             "raw": f"{home} - {away}",
         }
-        if current_league:
-            entry["league"] = current_league
+        if league_val:
+            entry["league"] = league_val
         results.append(entry)
 
     return results
@@ -169,6 +193,7 @@ def _heuristic0_event_classes(soup: BeautifulSoup, url: str) -> List[Dict]:
 def parse(html: str, url: str) -> List[Dict]:
     soup = BeautifulSoup(html, "html.parser")
     results = []
+    url_league = _competition_from_url(url)
 
     # Heuristic 0: Flashscore event__ class structure (works best for
     # volleyball and improves other sports too).
@@ -198,7 +223,10 @@ def parse(html: str, url: str) -> List[Dict]:
             # try find time in the row
             time_m = re.search(r"\b(\d{1,2}:\d{2})\b", text)
             time = time_m.group(1) if time_m else None
-            results.append({"home": home, "away": away, "time": time, "source_url": url, "raw": text})
+            entry = {"home": home, "away": away, "time": time, "source_url": url, "raw": text}
+            if url_league:
+                entry["league"] = url_league
+            results.append(entry)
 
     # Heuristic 2: look for participant spans (common in Flashscore markup)
     if not results:
@@ -215,7 +243,10 @@ def parse(html: str, url: str) -> List[Dict]:
                 continue
             away = participants[i + 1][1]
             if home and away and home != away:
-                results.append({"home": home, "away": away, "time": None, "source_url": url, "raw": f"{home} - {away}"})
+                entry = {"home": home, "away": away, "time": None, "source_url": url, "raw": f"{home} - {away}"}
+                if url_league:
+                    entry["league"] = url_league
+                results.append(entry)
 
     if results:
         from adapters import dedup_results

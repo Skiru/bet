@@ -5,6 +5,7 @@ tools:
 agents: ["bet-settler", "bet-scanner", "bet-enricher", "bet-statistician", "bet-scout", "bet-valuator", "bet-challenger", "bet-builder"]
 model: "Claude Opus 4.6 (Copilot)"
 instructions:
+  - ../instructions/agent-execution-protocol.instructions.md
   - ../instructions/analysis-methodology.instructions.md
   - ../instructions/betting-artifacts.instructions.md
 argument-hint: '"run full session" or "why did pick X fail?"'
@@ -134,9 +135,18 @@ runSubagent(agent_name, prompt):
 - Primary: [path to main input file]
 - Secondary: [paths to supporting data]
 
+### ⛔ MANDATORY: Analysis Protocol
+You MUST follow `agent-execution-protocol.instructions.md`:
+1. Run script → read FULL output → extract specific metrics
+2. Use `sequentialthinking` to reason about what the output means
+3. Return structured verdict with: metrics table, anomalies, reasoning
+4. Raw script paste without analysis = YOUR OUTPUT WILL BE REJECTED
+
 ### Expected Response
 Return one of: APPROVED / FLAGGED / REJECTED
 Include: quality_score (1-10), specific_issues[], methodology_violations[]
+Include: KEY METRICS extracted from script output (counts, percentages, scores)
+Include: ANALYTICAL REASONING (not raw paste) — WHY this verdict
 ---
 ```
 
@@ -152,6 +162,13 @@ Include: quality_score (1-10), specific_issues[], methodology_violations[]
 4. **NEVER proceed past a failed validation.** If an agent returns REJECTED → STOP, escalate to user via `askQuestions`.
 5. **NEVER bundle analytical steps.** Each analytical step (S2, S2.5, S3, S4, S5+S6, S7, S8+S9) is a separate `runSubagent` call.
 6. **Present AGENT-REVIEWED output** to the user. The user sees synthesized insights, not log dumps or raw script output.
+7. **VERIFY subagent output quality.** When a subagent returns, check that the response contains: (a) specific metrics extracted from script output, (b) analytical reasoning (not raw paste), (c) a structured verdict with justification. If the subagent returned raw script output without analysis → **REJECT the verdict and re-delegate** with explicit instruction: "You returned raw output without analysis. Re-read `agent-execution-protocol.instructions.md` and return a structured verdict with metrics, reasoning, and verdict."
+8. **Subagent output red flags** — if you see ANY of these in a subagent's response, REJECT and re-delegate:
+   - Terminal output pasted verbatim without commentary
+   - "Script completed successfully" without extracted metrics
+   - No `sequentialthinking` usage (check for analytical depth)
+   - Verdict with no supporting data ("APPROVED" with no reason)
+   - Copy-paste of script's summary line as the entire analysis
 
 ---
 

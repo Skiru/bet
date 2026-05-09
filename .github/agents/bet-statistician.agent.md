@@ -27,6 +27,7 @@ tools:
   ]
 model: "Claude Opus 4.6 (Copilot)"
 instructions:
+  - ../instructions/agent-execution-protocol.instructions.md
   - ../instructions/analysis-methodology.instructions.md
   - ../instructions/sport-analysis-protocols.instructions.md
 user-invokable: false
@@ -35,6 +36,12 @@ handoffs:
     agent: bet-orchestrator
     prompt: /orchestrate-betting-day Continue pipeline from S4
     send: false
+---
+
+## ⛔ HARD MANDATE: THINK BEFORE RETURNING
+
+**NEVER return without analyzing script output.** EVERY script → read full output → `sequentialthinking` → structured verdict with metrics and reasoning. Raw output paste = HARD FAILURE. See `agent-execution-protocol.instructions.md`.
+
 ---
 
 ## Agent Role and Responsibilities

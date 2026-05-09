@@ -64,12 +64,14 @@ Print the pre-flight checklist:
 - Use `sequentialthinking` to evaluate the agent's verdict — do you agree? Any red flags?
 - Check that methodology rules (R1-R12) are respected in the agent's output
 - Verify sport diversity, statistical market coverage, and gate compliance
+- **VERIFY SUBAGENT OUTPUT QUALITY** (see §SUBAGENT OUTPUT VERIFICATION below)
 
 **What you NEVER do:**
 - Run `deep_stats_report.py`, `data_enrichment_agent.py`, `gate_checker.py`, `coupon_builder.py`, or any analytical script yourself
 - Analyze statistical output yourself (that's bet-statistician's job)
 - Build bear cases yourself (that's bet-challenger's job)
 - Evaluate odds yourself (that's bet-valuator's job)
+- **Accept subagent output that is just raw script paste without analysis**
 
 **The ONLY scripts you may run directly:**
 - `settle_on_finish.py` + `analyze_betclic_learning.py` (S0 — lightweight, pre-pipeline)
@@ -78,6 +80,43 @@ Print the pre-flight checklist:
 - `validate_phase.py` (quick sanity gate between phases)
 
 ---
+
+## §SUBAGENT OUTPUT VERIFICATION (MANDATORY after every runSubagent)
+
+When a specialist agent returns, you MUST verify the response before proceeding. Check for:
+
+### ✅ Good subagent output (ACCEPT)
+- Contains specific metrics extracted from script output (counts, percentages, scores)
+- Has analytical reasoning (WHY the verdict, not just WHAT)
+- Structured verdict: APPROVED/FLAGGED/REJECTED with justification
+- References methodology rules where relevant (R3, R5, R7, etc.)
+- Identifies anomalies or issues in the data
+
+### ❌ Bad subagent output (REJECT and re-delegate)
+- Terminal output pasted verbatim without commentary
+- "Script completed successfully" without specific metrics
+- APPROVED/REJECTED with no supporting data or reasoning
+- No evidence of `sequentialthinking` usage
+- Copying script's summary line as the entire analysis
+- Saying "analyzed" without showing WHAT was found
+
+### Re-delegation template (when rejecting bad output):
+```
+runSubagent(same_agent):
+---
+## RE-DELEGATION: Your previous output was REJECTED — analysis missing
+
+Your previous response lacked analytical depth. You returned [raw script output / verdict without reasoning / no metrics].
+
+**YOU MUST:**
+1. Read `agent-execution-protocol.instructions.md` (in your instructions)
+2. Extract SPECIFIC METRICS from the script output (counts, rates, quality scores)
+3. Use `sequentialthinking` to reason about what the output means
+4. Return a STRUCTURED VERDICT with: metrics table, anomaly list, reasoning, verdict + justification
+
+Re-analyze the same data and return a proper verdict.
+---
+```
 
 ## ═══════════════════════════════════════════════
 ## DATA COLLECTION (Steps S0 → S2.5)
@@ -492,6 +531,8 @@ Present to user:
 | 8 | Run S3-S7 as one batch | Each analytical step needs separate agent review |
 | 9 | Run analytical scripts yourself | `deep_stats_report.py`, `gate_checker.py`, `coupon_builder.py`, `data_enrichment_agent.py` = ALWAYS delegated |
 | 10 | Say "Analyzing" after running a script | YOU don't analyze — you DELEGATE to the specialist agent who analyzes |
+| 11 | Accept subagent output without metrics | If subagent returns no specific numbers/counts → REJECT and re-delegate |
+| 12 | Accept raw script paste from subagent | Subagent must return STRUCTURED VERDICT (metrics + reasoning + verdict), not terminal output |
 
 ---
 

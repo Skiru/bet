@@ -10,6 +10,10 @@ description: "S8: Portfolio construction, coupon building, V1-V10, artifact gene
 
 ## MANDATORY: Agent Intelligence Protocol
 
+> **⛔ Follow `agent-execution-protocol.instructions.md` for EVERY script execution.**
+> Run script → read FULL output → extract metrics → `sequentialthinking` → structured verdict.
+> Raw output paste = YOUR RESPONSE WILL BE REJECTED by the orchestrator.
+
 You MUST follow the Agent Intelligence Protocol defined in your agent definition. Specifically:
 1. Use `sequentialthinking` for the 4-part Portfolio Intelligence Layer BEFORE assigning picks to coupons
 2. Read `/memories/repo/pipeline-lessons-learned.md` — check for past coupon construction failures

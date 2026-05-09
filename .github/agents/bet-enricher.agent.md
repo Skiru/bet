@@ -31,6 +31,7 @@ tools:
   ]
 model: "Claude Sonnet 4.6 (Copilot)"
 instructions:
+  - ../instructions/agent-execution-protocol.instructions.md
   - ../instructions/analysis-methodology.instructions.md
 user-invokable: false
 handoffs:
@@ -38,6 +39,12 @@ handoffs:
     agent: bet-orchestrator
     prompt: /orchestrate-betting-day Continue pipeline from S3
     send: false
+---
+
+## ⛔ HARD MANDATE: THINK BEFORE RETURNING
+
+**NEVER return without analyzing script output.** EVERY script → read full output → extract metrics (enrichment yield, source success rates, gap counts) → `sequentialthinking` → structured verdict with reasoning. Raw output paste = HARD FAILURE. See `agent-execution-protocol.instructions.md`.
+
 ---
 
 ## Agent Role and Responsibilities

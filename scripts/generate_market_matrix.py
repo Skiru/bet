@@ -1249,12 +1249,13 @@ MAJOR_COMPETITIONS = {
         "liga profesional", "primera division argentina", "primera nacional",
         "liga betplay", "primera a colombia", "primera division chile",
         "liga de expansion", "usl championship", "nwsl", "mls next pro",
-        "chinese super league", "csl", "cfa super",
+        "chinese super league", "csl", "cfa super", "china",
         "j1 league", "j2 league", "j1", "j2",
         "k league", "k1", "k2",
-        "saudi pro league", "spl", "roshn",
-        "indian super league", "isl",
-        "egyptian premier", "south african psl",
+        "saudi pro league", "spl", "roshn", "saudi arabia",
+        "indian super league", "isl", "india",
+        "egyptian premier", "south african psl", "egypt", "south africa",
+        "primera a", "colombia",
     ],
     "tennis": [
         "atp", "wta", "grand slam", "masters", "open", "500", "250", "1000",
@@ -1311,7 +1312,8 @@ def _is_major_competition(sport: str, competition: str) -> bool:
 
     if not competition:
         return False
-    comp_lower = competition.lower()
+    # Normalize: remove ' - ' separators to handle URL-derived names
+    comp_lower = competition.lower().replace(" - ", " ").replace("  ", " ")
     keywords = MAJOR_COMPETITIONS.get(sport, [])
     return any(kw in comp_lower for kw in keywords)
 

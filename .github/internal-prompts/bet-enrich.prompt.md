@@ -10,6 +10,10 @@ description: "S2.5: Self-healing data enrichment — fetch missing team stats fr
 
 ## MANDATORY: Agent Intelligence Protocol
 
+> **⛔ Follow `agent-execution-protocol.instructions.md` for EVERY script execution.**
+> Run script → read FULL output → extract metrics → `sequentialthinking` → structured verdict.
+> Raw output paste = YOUR RESPONSE WILL BE REJECTED by the orchestrator.
+
 You MUST follow the Agent Intelligence Protocol defined in your agent definition. Specifically:
 1. Use `sequentialthinking` for Enrichment Quality Assessment per batch
 2. Read `/memories/repo/pipeline-lessons-learned.md` — check for known source failures

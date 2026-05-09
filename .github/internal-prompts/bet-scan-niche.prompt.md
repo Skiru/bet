@@ -11,6 +11,10 @@ agent: bet-scanner-niche
 
 ## MANDATORY: Agent Intelligence Protocol
 
+> **⛔ Follow `agent-execution-protocol.instructions.md` for EVERY script execution.**
+> Run script → read FULL output → extract metrics → `sequentialthinking` → structured verdict.
+> Raw output paste = YOUR RESPONSE WILL BE REJECTED by the orchestrator.
+
 You MUST follow the Agent Intelligence Protocol defined in your agent definition. Specifically:
 1. Use `sequentialthinking` to plan scan strategy and evaluate source quality
 2. Read `/memories/repo/pipeline-lessons-learned.md` — check for known niche sport source failures

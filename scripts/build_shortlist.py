@@ -115,14 +115,15 @@ PROTECTED_DOMESTIC_LEAGUES: dict[str, list[str]] = {
         "brasileirao", "brasileirão", "brazil serie a", "brazil serie b",
         "copa do brasil", "mls", "liga mx", "liga de expansion",
         "liga profesional", "primera division argentina", "primera nacional",
-        "liga betplay", "primera a colombia", "primera division chile",
-        "chinese super league", "csl", "cfa super",
+        "liga betplay", "primera a colombia", "primera a", "primera division chile",
+        "chinese super league", "csl", "cfa super", "china",
         "j1 league", "j-league", "j2 league",
         "k league", "k-league",
-        "saudi pro league", "spl", "roshn saudi",
-        "indian super league", "isl",
+        "saudi pro league", "spl", "roshn saudi", "saudi arabia",
+        "indian super league", "isl", "india",
         "a-league",
-        "egyptian premier", "south african psl",
+        "egyptian premier", "egypt",
+        "south african psl", "south africa",
     ],
     "basketball": [
         "cba", "nbb", "b.league", "kbl", "pba", "nbl australia", "lnbp",
@@ -137,10 +138,15 @@ PROTECTED_DOMESTIC_LEAGUES: dict[str, list[str]] = {
 
 
 def _is_protected_domestic_league(sport: str, competition: str) -> bool:
-    """Check if a competition is a protected major domestic league (§SCAN.9)."""
+    """Check if a competition is a protected major domestic league (§SCAN.9).
+    
+    Normalizes separators (e.g. 'Brazil - Serie A' → 'brazil serie a') to handle
+    URL-derived competition names that use ' - ' between country and league.
+    """
     if not competition:
         return False
-    comp_lower = competition.lower()
+    # Normalize: remove ' - ' separators, collapse whitespace, lowercase
+    comp_lower = competition.lower().replace(" - ", " ").replace("  ", " ")
     keywords = PROTECTED_DOMESTIC_LEAGUES.get(sport, [])
     return any(kw in comp_lower for kw in keywords)
 
@@ -256,7 +262,8 @@ def _score_competition(sport: str, competition: str) -> int:
     """Score a competition within its sport (higher = more important)."""
     if not competition:
         return 1
-    comp_lower = competition.lower()
+    # Normalize: remove ' - ' separators to handle URL-derived names
+    comp_lower = competition.lower().replace(" - ", " ").replace("  ", " ")
 
     # Penalize clearly obscure/minor leagues
     obscure_markers = [
@@ -342,7 +349,7 @@ def _score_event(event: dict, tipster_events: set[str]) -> float:
 
     # 9b. Major domestic league protection (§SCAN.9) — top leagues worldwide
     # Protected leagues get +10 boost, between tournament (+15) and minor league (+6)
-    if comp_score == 8 and _is_protected_domestic_league(sport, competition):
+    if comp_score == 8 and _is_protected_domestic_league(sport, comp):
         score += 10
 
     # 10. Deep data richness boost — teams with ESPN gamelogs get better analysis
