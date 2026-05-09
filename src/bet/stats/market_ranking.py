@@ -9,7 +9,7 @@ SINGLE SOURCE OF TRUTH for:
 """
 
 # ---------------------------------------------------------------------------
-# Per-sport stat key definitions (14 sports)
+# Per-sport stat key definitions (5 sports)
 # ---------------------------------------------------------------------------
 
 SPORT_STAT_KEYS: dict[str, list[str]] = {
@@ -28,15 +28,6 @@ SPORT_STAT_KEYS: dict[str, list[str]] = {
     ],
     "tennis": ["aces", "double_faults", "first_serve_pct", "break_points_won", "games_won", "sets_won", "total_games"],
     "volleyball": ["points", "aces", "blocks", "attack_pct", "sets_won", "total_points", "errors"],
-    "handball": ["goals", "saves", "turnovers", "penalties", "suspensions", "total_goals"],
-    "snooker": ["frames_won", "centuries", "highest_break", "total_frames", "fifty_plus_breaks"],
-    "darts": ["legs_won", "checkout_pct", "one_eighties", "avg_score", "total_legs"],
-    "table_tennis": ["sets_won", "points_per_set", "total_sets", "total_points"],
-    "esports": ["maps_won", "rounds_won", "kills", "total_maps", "total_rounds"],
-    "baseball": ["runs", "hits", "errors", "strikeouts", "walks", "total_runs", "home_runs"],
-    "mma": ["takedowns", "sig_strikes", "submission_attempts", "rounds", "control_time"],
-    "padel": ["games_won", "break_points", "sets_won", "total_games"],
-    "speedway": ["heat_points", "total_points", "heat_wins"],
 }
 
 # ---------------------------------------------------------------------------
@@ -108,103 +99,16 @@ VOLLEYBALL_MARKETS = [
     {"name": "Total Errors O/U", "stat_a": "errors", "stat_b": "errors", "is_combined": True},
 ]
 
-HANDBALL_MARKETS = [
-    {"name": "Total Goals O/U", "stat_a": "goals", "stat_b": "goals", "is_combined": True},
-    {"name": "Team A Goals O/U", "stat_a": "goals", "stat_b": None, "is_combined": False},
-    {"name": "Team B Goals O/U", "stat_a": None, "stat_b": "goals", "is_combined": False},
-    {"name": "Total Saves O/U", "stat_a": "saves", "stat_b": "saves", "is_combined": True},
-    {"name": "Total Suspensions O/U", "stat_a": "suspensions", "stat_b": "suspensions", "is_combined": True},
-    {"name": "Total Turnovers O/U", "stat_a": "turnovers", "stat_b": "turnovers", "is_combined": True},
-    {"name": "Total Penalties O/U", "stat_a": "penalties", "stat_b": "penalties", "is_combined": True},
-]
-
-SNOOKER_MARKETS = [
-    {"name": "Total Frames O/U", "stat_a": "total_frames", "stat_b": "total_frames", "is_combined": True},
-    {"name": "Total Centuries O/U", "stat_a": "centuries", "stat_b": "centuries", "is_combined": True},
-    {"name": "Total 50+ Breaks O/U", "stat_a": "fifty_plus_breaks", "stat_b": "fifty_plus_breaks", "is_combined": True},
-    {"name": "Player A Frames O/U", "stat_a": "frames_won", "stat_b": None, "is_combined": False},
-    {"name": "Player B Frames O/U", "stat_a": None, "stat_b": "frames_won", "is_combined": False},
-]
-
-DARTS_MARKETS = [
-    {"name": "Total 180s O/U", "stat_a": "one_eighties", "stat_b": "one_eighties", "is_combined": True},
-    {"name": "Total Legs O/U", "stat_a": "total_legs", "stat_b": "total_legs", "is_combined": True},
-    {"name": "Player A Legs O/U", "stat_a": "legs_won", "stat_b": None, "is_combined": False},
-    {"name": "Player B Legs O/U", "stat_a": None, "stat_b": "legs_won", "is_combined": False},
-    {"name": "Player A 180s O/U", "stat_a": "one_eighties", "stat_b": None, "is_combined": False},
-    {"name": "Player B 180s O/U", "stat_a": None, "stat_b": "one_eighties", "is_combined": False},
-]
-
-TABLE_TENNIS_MARKETS = [
-    {"name": "Total Sets O/U", "stat_a": "total_sets", "stat_b": "total_sets", "is_combined": True},
-    {"name": "Total Points O/U", "stat_a": "total_points", "stat_b": "total_points", "is_combined": True},
-    {"name": "Player A Sets O/U", "stat_a": "sets_won", "stat_b": None, "is_combined": False},
-    {"name": "Player B Sets O/U", "stat_a": None, "stat_b": "sets_won", "is_combined": False},
-]
-
-ESPORTS_MARKETS = [
-    {"name": "Total Maps O/U", "stat_a": "total_maps", "stat_b": "total_maps", "is_combined": True},
-    {"name": "Total Rounds O/U", "stat_a": "total_rounds", "stat_b": "total_rounds", "is_combined": True},
-    {"name": "Total Kills O/U", "stat_a": "kills", "stat_b": "kills", "is_combined": True},
-    {"name": "Team A Maps O/U", "stat_a": "maps_won", "stat_b": None, "is_combined": False},
-    {"name": "Team B Maps O/U", "stat_a": None, "stat_b": "maps_won", "is_combined": False},
-    {"name": "Team A Rounds O/U", "stat_a": "rounds_won", "stat_b": None, "is_combined": False},
-    {"name": "Team B Rounds O/U", "stat_a": None, "stat_b": "rounds_won", "is_combined": False},
-]
-
-BASEBALL_MARKETS = [
-    {"name": "Total Runs O/U", "stat_a": "total_runs", "stat_b": "total_runs", "is_combined": True},
-    {"name": "Total Hits O/U", "stat_a": "hits", "stat_b": "hits", "is_combined": True},
-    {"name": "Total Strikeouts O/U", "stat_a": "strikeouts", "stat_b": "strikeouts", "is_combined": True},
-    {"name": "Team A Runs O/U", "stat_a": "runs", "stat_b": None, "is_combined": False},
-    {"name": "Team B Runs O/U", "stat_a": None, "stat_b": "runs", "is_combined": False},
-    {"name": "Total Errors O/U", "stat_a": "errors", "stat_b": "errors", "is_combined": True},
-    {"name": "Total Home Runs O/U", "stat_a": "home_runs", "stat_b": "home_runs", "is_combined": True},
-    {"name": "Total Walks O/U", "stat_a": "walks", "stat_b": "walks", "is_combined": True},
-]
-
-MMA_MARKETS = [
-    {"name": "Total Rounds O/U", "stat_a": "rounds", "stat_b": "rounds", "is_combined": True},
-    {"name": "Total Significant Strikes O/U", "stat_a": "sig_strikes", "stat_b": "sig_strikes", "is_combined": True},
-    {"name": "Total Takedowns O/U", "stat_a": "takedowns", "stat_b": "takedowns", "is_combined": True},
-    {"name": "Fighter A Sig Strikes O/U", "stat_a": "sig_strikes", "stat_b": None, "is_combined": False},
-    {"name": "Fighter B Sig Strikes O/U", "stat_a": None, "stat_b": "sig_strikes", "is_combined": False},
-]
-
-PADEL_MARKETS = [
-    {"name": "Total Games O/U", "stat_a": "total_games", "stat_b": "total_games", "is_combined": True},
-    {"name": "Total Sets O/U", "stat_a": "sets_won", "stat_b": "sets_won", "is_combined": True},
-    {"name": "Total Break Points O/U", "stat_a": "break_points", "stat_b": "break_points", "is_combined": True},
-    {"name": "Pair A Games O/U", "stat_a": "games_won", "stat_b": None, "is_combined": False},
-    {"name": "Pair B Games O/U", "stat_a": None, "stat_b": "games_won", "is_combined": False},
-]
-
-SPEEDWAY_MARKETS = [
-    {"name": "Total Points O/U", "stat_a": "total_points", "stat_b": "total_points", "is_combined": True},
-    {"name": "Team A Points O/U", "stat_a": "heat_points", "stat_b": None, "is_combined": False},
-    {"name": "Team B Points O/U", "stat_a": None, "stat_b": "heat_points", "is_combined": False},
-    {"name": "Total Heat Wins O/U", "stat_a": "heat_wins", "stat_b": "heat_wins", "is_combined": True},
-]
-
 SPORT_MARKETS: dict[str, list[dict]] = {
     "football": FOOTBALL_MARKETS,
     "basketball": BASKETBALL_MARKETS,
     "hockey": HOCKEY_MARKETS,
     "tennis": TENNIS_MARKETS,
     "volleyball": VOLLEYBALL_MARKETS,
-    "handball": HANDBALL_MARKETS,
-    "snooker": SNOOKER_MARKETS,
-    "darts": DARTS_MARKETS,
-    "table_tennis": TABLE_TENNIS_MARKETS,
-    "esports": ESPORTS_MARKETS,
-    "baseball": BASEBALL_MARKETS,
-    "mma": MMA_MARKETS,
-    "padel": PADEL_MARKETS,
-    "speedway": SPEEDWAY_MARKETS,
 }
 
 # ---------------------------------------------------------------------------
-# Standard market lines for stats-first mode (15 sports)
+# Standard market lines for stats-first mode (5 sports)
 # ---------------------------------------------------------------------------
 
 STANDARD_MARKET_LINES: dict[str, list[dict]] = {
@@ -239,43 +143,6 @@ STANDARD_MARKET_LINES: dict[str, list[dict]] = {
         {"market": "Total Goals", "lines": [4.5, 5.5, 6.5], "stat": "goals", "is_combined": True},
         {"market": "Total Shots", "lines": [55.5, 60.5, 65.5], "stat": "shots", "is_combined": True},
     ],
-    "handball": [
-        {"market": "Total Goals", "lines": [48.5, 50.5, 52.5, 54.5], "stat": "goals", "is_combined": True},
-        {"market": "Team Goals", "lines": [24.5, 26.5, 28.5], "stat": "goals", "is_combined": False},
-    ],
-    "snooker": [
-        {"market": "Total Frames", "lines": [8.5, 9.5, 10.5, 12.5], "stat": "total_frames", "is_combined": True},
-    ],
-    "darts": [
-        {"market": "Total 180s", "lines": [5.5, 7.5, 9.5], "stat": "one_eighties", "is_combined": True},
-        {"market": "Total Legs", "lines": [6.5, 8.5, 10.5], "stat": "total_legs", "is_combined": True},
-    ],
-    "table_tennis": [
-        {"market": "Total Sets", "lines": [3.5, 4.5], "stat": "total_sets", "is_combined": True},
-        {"market": "Total Points", "lines": [75.5, 80.5, 85.5], "stat": "total_points", "is_combined": True},
-    ],
-    "baseball": [
-        {"market": "Total Runs", "lines": [6.5, 7.5, 8.5, 9.5], "stat": "total_runs", "is_combined": True},
-        {"market": "Total Hits", "lines": [14.5, 16.5, 18.5], "stat": "hits", "is_combined": True},
-        {"market": "Total Strikeouts", "lines": [12.5, 14.5, 16.5], "stat": "strikeouts", "is_combined": True},
-    ],
-    "esports": [
-        {"market": "Total Maps", "lines": [2.5, 3.5], "stat": "total_maps", "is_combined": True},
-        {"market": "Total Rounds", "lines": [24.5, 26.5], "stat": "total_rounds", "is_combined": True},
-    ],
-    "mma": [
-        {"market": "Total Rounds", "lines": [1.5, 2.5], "stat": "rounds", "is_combined": True},
-    ],
-    "padel": [
-        {"market": "Total Games", "lines": [20.5, 22.5, 24.5], "stat": "total_games", "is_combined": True},
-        {"market": "Total Sets", "lines": [2.5], "stat": "sets_won", "is_combined": True},
-    ],
-    "speedway": [
-        {"market": "Total Points", "lines": [80.5, 85.5, 90.5], "stat": "total_points", "is_combined": True},
-    ],
-    "australian_football": [
-        {"market": "Total Points", "lines": [150.5, 160.5, 170.5, 180.5], "stat": "total_points", "is_combined": True},
-    ],
 }
 
 # ---------------------------------------------------------------------------
@@ -292,11 +159,6 @@ MARKET_PL: dict[str, str] = {
     "Total Games O/U": "Gemy łącznie",
     "Total Sets O/U": "Sety łącznie",
     "Total Points O/U": "Punkty łącznie",
-    "Total Frames O/U": "Frejmy łącznie",
-    "Total Runs O/U": "Rundy łącznie",
-    "Total Maps O/U": "Mapy łącznie",
-    "Total 180s O/U": "180-tki łącznie",
-    "Total Legs O/U": "Legi łącznie",
     "Total Goals O/U": "Bramki łącznie",
     "Total Rebounds O/U": "Zbiórki łącznie",
     "Total Aces O/U": "Asy łącznie",
@@ -308,20 +170,7 @@ MARKET_PL: dict[str, str] = {
     "Total Hits O/U": "Hity łącznie",
     "Total Blocks O/U": "Bloki łącznie",
     "Total Double Faults O/U": "Podwójne błędy łącznie",
-    "Total Centuries O/U": "Centurie łącznie",
-    "Total 50+ Breaks O/U": "Breaki 50+ łącznie",
     "Total Errors O/U": "Błędy łącznie",
-    "Total Saves O/U": "Obrony łącznie",
-    "Total Suspensions O/U": "Wykluczenia łącznie",
-    "Total Penalties O/U": "Kary łącznie",
-    "Total Rounds O/U": "Rundy łącznie",
-    "Total Significant Strikes O/U": "Celne uderzenia łącznie",
-    "Total Takedowns O/U": "Obalenia łącznie",
-    "Total Kills O/U": "Zabójstwa łącznie",
-    "Total Strikeouts O/U": "Strikeouty łącznie",
-    "Total Home Runs O/U": "Home runy łącznie",
-    "Total Walks O/U": "Spacery łącznie",
-    "Total Heat Wins O/U": "Wygrane biegi łącznie",
     "Break Points Total O/U": "Break pointy łącznie",
     "Total Break Points O/U": "Break pointy łącznie",
     "Team A Corners O/U": "Rzuty rożne drużyny",
@@ -340,30 +189,14 @@ MARKET_PL: dict[str, str] = {
     "Team B Rebounds O/U": "Zbiórki drużyny",
     "Team A Assists O/U": "Asysty drużyny",
     "Team B Assists O/U": "Asysty drużyny",
-    "Team A Runs O/U": "Rundy drużyny",
-    "Team B Runs O/U": "Rundy drużyny",
     "Team A Goals O/U": "Bramki drużyny",
     "Team B Goals O/U": "Bramki drużyny",
-    "Team A Maps O/U": "Mapy drużyny",
-    "Team B Maps O/U": "Mapy drużyny",
-    "Team A Rounds O/U": "Rundy drużyny",
-    "Team B Rounds O/U": "Rundy drużyny",
     "Player A Games O/U": "Gemy zawodnika",
     "Player B Games O/U": "Gemy zawodnika",
     "Player A Aces O/U": "Asy zawodnika",
     "Player B Aces O/U": "Asy zawodnika",
-    "Player A Frames O/U": "Frejmy zawodnika",
-    "Player B Frames O/U": "Frejmy zawodnika",
-    "Player A Legs O/U": "Legi zawodnika",
-    "Player B Legs O/U": "Legi zawodnika",
-    "Player A 180s O/U": "180-tki zawodnika",
-    "Player B 180s O/U": "180-tki zawodnika",
     "Player A Sets O/U": "Sety zawodnika",
     "Player B Sets O/U": "Sety zawodnika",
-    "Pair A Games O/U": "Gemy pary",
-    "Pair B Games O/U": "Gemy pary",
-    "Fighter A Sig Strikes O/U": "Celne uderzenia zawodnika",
-    "Fighter B Sig Strikes O/U": "Celne uderzenia zawodnika",
     "Match Winner": "Zwycięzca meczu",
     "1X2": "1X2",
     "Double Chance": "Podwójna szansa",

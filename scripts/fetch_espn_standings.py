@@ -32,7 +32,6 @@ SPORT_MAP = {
     "football": "soccer",
     "basketball": "basketball",
     "hockey": "hockey",
-    "baseball": "baseball",
 }
 
 # Default leagues per sport to fetch when no specific league is given
@@ -40,7 +39,6 @@ DEFAULT_LEAGUES = {
     "football": ["eng.1", "esp.1", "ger.1", "ita.1", "fra.1", "pol.1", "ned.1", "por.1"],
     "basketball": ["nba"],
     "hockey": ["nhl"],
-    "baseball": ["mlb"],
 }
 
 TIMEOUT = 15

@@ -33,9 +33,6 @@ def run_upset_risk(date: str, state: dict) -> tuple[bool, str]:
         "basketball": {"safety_low": 0.50, "h2h_min": 3, "form_diverge": 0.10},
         "volleyball": {"safety_low": 0.50, "h2h_min": 3, "form_diverge": 0.15},
         "hockey": {"safety_low": 0.50, "h2h_min": 3, "form_diverge": 0.15},
-        "handball": {"safety_low": 0.50, "h2h_min": 2, "form_diverge": 0.15},
-        "baseball": {"safety_low": 0.45, "h2h_min": 3, "form_diverge": 0.10},
-        "esports": {"safety_low": 0.45, "h2h_min": 2, "form_diverge": 0.20},
     }
     DEFAULT_THRESHOLDS = {"safety_low": 0.50, "h2h_min": 2, "form_diverge": 0.15}
 

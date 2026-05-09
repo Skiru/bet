@@ -67,26 +67,10 @@ def _sport_from_odds_key(sport_key: str) -> str:
         return "basketball"
     if "hockey" in sk or "icehockey" in sk:
         return "hockey"
-    if "baseball" in sk:
-        return "baseball"
     if "tennis" in sk:
         return "tennis"
-    if "mma" in sk:
-        return "mma"
-    if "handball" in sk:
-        return "handball"
     if "volleyball" in sk:
         return "volleyball"
-    if "snooker" in sk:
-        return "snooker"
-    if "darts" in sk:
-        return "darts"
-    if "aussierules" in sk or "australian" in sk or "afl" in sk:
-        return "australian_football"
-    if "rugby" in sk:
-        return "rugby"
-    if "cricket" in sk:
-        return "cricket"
     # Unknown sport — return as-is instead of defaulting to football
     return sk or "other"
 
@@ -391,7 +375,7 @@ def extract_markets_from_scan(scan_items: list[dict]) -> list[dict]:
                 source_domain = source_url
 
         # Map odds positions to market types based on count
-        # 3 odds = 1X2 (football, handball), 2 odds = ML (tennis, basketball, hockey)
+        # 3 odds = 1X2 (football), 2 odds = ML (tennis, basketball, hockey)
         if len(odds_list) == 3:
             labels = ["1X2:Home", "1X2:Draw", "1X2:Away"]
         elif len(odds_list) == 2:
@@ -1256,12 +1240,21 @@ MAJOR_COMPETITIONS = {
         "indian super league", "isl", "india",
         "egyptian premier", "south african psl", "egypt", "south africa",
         "primera a", "colombia",
+        # Lower divisions expanded
+        "3. liga", "serie c", "serie d", "national league", "league two",
+        "regionalliga", "division 1", "premier league 2", "primera federacion",
+        "national", "2. division", "postnord", "obos", "ykkonen", "1. deild",
+        "fnl", "2. liga", "nike liga", "prva liga", "first nl", "nb ii",
+        "super league 2", "challenger pro league", "eerste divisie", "1. lig",
+        "liga 1", "thai league", "v.league", "persian gulf",
     ],
     "tennis": [
         "atp", "wta", "grand slam", "masters", "open", "500", "250", "1000",
         "australian", "french", "wimbledon", "us open", "roland garros",
         "indian wells", "miami", "monte carlo", "madrid", "rome", "roma",
         "canada", "cincinnati", "shanghai", "paris", "beijing",
+        "challenger", "itf", "futures", "billie jean king", "laver cup",
+        "olympics", "next gen",
     ],
     "basketball": [
         "nba", "euroleague", "eurocup", "acb", "bbl", "nbl", "bsl", "lnb",
@@ -1269,47 +1262,32 @@ MAJOR_COMPETITIONS = {
         "world cup", "olympic",
         # §SCAN.9 — Protected domestic leagues
         "cba", "nbb", "b.league", "kbl", "pba", "nbl australia", "lnbp",
+        # Expanded
+        "g-league", "summer league", "wnba", "wbbl", "ncaa women",
+        "basket liga", "pro a", "pro b", "bkt", "a1 ethniki",
+        "premijer liga", "adriatic league", "aba league", "copa del rey",
+        "lkl", "vtb",
     ],
     "volleyball": [
         "plusliga", "superlega", "ligue a", "bundesliga", "cev", "champions",
         "serie a", "efeler", "superliga", "nations league", "world championship",
         "playoff", "olympic",
+        # Expanded
+        "serie a2", "a1 ethniki", "eredivisie", "euromillions", "division 1",
+        "1st division", "mestaruusliiga", "v-league", "super league",
+        "liga a1",
     ],
     "hockey": ["nhl", "khl", "shl", "liiga", "del", "nla", "extraliga", "iihf",
-               "playoff", "stanley cup", "world championship"],
-    "handball": ["ehf", "champions", "bundesliga", "liga asobal", "starligue", "superliga",
-                 "world championship", "olympic", "final four"],
-    "baseball": ["mlb", "npb", "kbo", "cpbl", "playoff", "world series",
-                 "world baseball classic"],
-    "snooker": ["world", "masters", "champion", "open", "trophy", "grand prix", "classic",
-                "uk championship"],
-    "darts": ["pdc", "premier", "world", "grand prix", "championship", "grand slam",
-              "players championship"],
-    "esports": ["major", "esl", "blast", "iem", "pgl", "worlds", "champions",
-                "international", "valorant", "masters"],
-    "table_tennis": ["wtt", "world", "champions", "star contender", "grand smash",
-                     "olympic"],
-    "mma": ["ufc", "bellator", "pfl", "one championship"],
-    "padel": ["premier padel", "world padel tour", "fip", "major"],
-    "speedway": ["ekstraliga", "speedway gp", "sec", "grand prix"],
+               "playoff", "stanley cup", "world championship",
+               # Expanded
+               "echl", "eihl", "ligue magnus", "erste liga", "mestis",
+               "hockeyallsvenskan", "1. liga", "tipsport liga",
+               "metal ligaen", "optibet liga", "allsvenskan"],
 }
 
 
 def _is_major_competition(sport: str, competition: str) -> bool:
-    """Check if a competition is considered major for Betclic availability.
-
-    For sports with zero API odds coverage (snooker, darts, table_tennis,
-    esports, mma, padel, speedway), include ALL events since these sports
-    are completely dark without manual Betclic checks.
-    """
-    # Sports with zero API odds coverage — include all events
-    ZERO_ODDS_SPORTS = {
-        "snooker", "darts", "table_tennis", "esports", "mma", "padel", "speedway",
-        "australian_football",
-    }
-    if sport in ZERO_ODDS_SPORTS:
-        return True
-
+    """Check if a competition is considered major for Betclic availability."""
     if not competition:
         return False
     # Normalize: remove ' - ' separators to handle URL-derived names

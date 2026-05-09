@@ -25,9 +25,7 @@ SPORT_MAP = {
     "football": "soccer",
     "basketball": "basketball",
     "hockey": "hockey",
-    "baseball": "baseball",
     "tennis": "tennis",
-    "mma": "mma",
 }
 
 # Sport → default categories for league leaders
@@ -38,12 +36,6 @@ LEADER_CATEGORIES = {
         ("assists", "assists:desc"),
         ("steals", "steals:desc"),
         ("blocks", "blocks:desc"),
-    ],
-    "baseball": [
-        ("batting", "batting.homeRuns:desc"),
-        ("batting", "batting.RBIs:desc"),
-        ("pitching", "pitching.strikeouts:desc"),
-        ("pitching", "pitching.ERA:asc"),
     ],
     "hockey": [
         ("points", "points:desc"),
@@ -66,7 +58,7 @@ class ESPNStatsClient:
     SITE_BASE = "https://site.api.espn.com/apis/site/v2/sports"
 
     # Sports with gamelog support (confirmed working)
-    GAMELOG_SPORTS = {"basketball", "baseball", "hockey"}
+    GAMELOG_SPORTS = {"basketball", "hockey"}
 
     TIMEOUT = 15
     MAX_RETRIES = 3
@@ -141,7 +133,7 @@ class ESPNStatsClient:
     ) -> list[dict]:
         """Fetch player game-by-game log.
 
-        Only works for: basketball (NBA), baseball (MLB), hockey (NHL).
+        Only works for: basketball (NBA), hockey (NHL).
         Returns list of game entries with stats keyed by label names.
         """
         slug = self._sport_slug(sport)
@@ -266,7 +258,7 @@ class ESPNStatsClient:
         """Fetch head-to-head stats between two athletes.
 
         Uses Core API: athletes/{id}/vsathlete/{opponentId}
-        Useful for tennis matchups, MMA fighter comparisons.
+        Useful for tennis matchups.
         """
         slug = self._sport_slug(sport)
         cache_key = f"espn_stats/{slug}/{league}/h2h/{athlete_id}_vs_{opponent_id}"

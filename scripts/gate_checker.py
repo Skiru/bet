@@ -26,11 +26,9 @@ DATA_DIR = Path(__file__).parent.parent / "betting" / "data"
 JOURNAL_DIR = Path(__file__).parent.parent / "betting" / "journal"
 LEDGER_PATH = JOURNAL_DIR / "picks-ledger.csv"
 
-KEY_SPORTS = {"football", "volleyball", "basketball", "tennis"}
+KEY_SPORTS = {"football", "volleyball", "basketball", "tennis", "hockey"}
 ALL_SPORTS = {
-    "football", "volleyball", "basketball", "tennis",
-    "hockey", "baseball", "handball", "esports", "snooker",
-    "darts", "table_tennis", "mma", "padel", "speedway",
+    "football", "volleyball", "basketball", "tennis", "hockey",
 }
 
 GATE_LABELS = {
@@ -641,9 +639,8 @@ TOP_CLUBS = frozenset([
     "barcelona", "real madrid", "bayern", "manchester city",
     "liverpool", "psg", "inter", "juventus", "arsenal",
     "atletico madrid", "borussia dortmund", "napoli",
-    # Add handball/basketball powerhouses
-    "fc barcelona", "thw kiel", "sc magdeburg",
-    "real madrid baloncesto", "olympiacos",
+    # Add basketball powerhouses
+    "fc barcelona", "real madrid baloncesto", "olympiacos",
 ])
 
 

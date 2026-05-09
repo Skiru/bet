@@ -31,15 +31,7 @@ MIN_MARKETS = {
     "basketball": 3,
     "volleyball": 3,
     "hockey": 3,
-    "baseball": 3,
-    "esports": 3,
-    "snooker": 3,
-    "darts": 3,
-    "handball": 3,
-    "table_tennis": 3,
-    "mma": 3,
-    "padel": 3,
-    "speedway": 2,
+
 }
 
 # Sport-specific H2H penalty — niche sports rarely have H2H data
@@ -49,42 +41,23 @@ H2H_MISSING_PENALTY = {
     "basketball": 0.70,   # 30% penalty — H2H expected
     "volleyball": 0.75,   # 25% penalty — H2H common but not universal
     "hockey": 0.75,       # 25% penalty
-    "handball": 0.80,     # 20% penalty
-    "baseball": 0.80,     # 20% penalty
-    "esports": 0.85,      # 15% penalty — roster changes make H2H less relevant
-    "snooker": 0.85,      # 15% penalty — individual sport
-    "darts": 0.85,        # 15% penalty — individual sport
-    "table_tennis": 0.85, # 15% penalty — individual sport
-    "mma": 0.90,          # 10% penalty — rarely same matchup
-    "padel": 0.90,        # 10% penalty — new sport, limited H2H
-    "speedway": 0.90,     # 10% penalty — team sport but format varies
+
 }
 
 # ---------------------------------------------------------------------------
 # Pattern C: Sport-specific volatility caps (May 2026 post-mortem)
 # ---------------------------------------------------------------------------
 # Single-game variance differs enormously across sports. Baseball CV ~70-80%,
-# basketball ~15%, handball ~20%. These caps prevent inflated safety scores
+# basketball ~15%. These caps prevent inflated safety scores
 # on inherently volatile per-game stats.
 
 SPORT_VOLATILITY_CAPS: dict[str, dict[str, float]] = {
-    "baseball": {
-        "team_runs": 0.55,
-        "team_hits": 0.55,
-        "total_runs": 0.55,
-        "total_hits": 0.55,
-        "strikeouts": 0.60,
-    },
     "hockey": {
         "team_goals": 0.60,
         "total_goals": 0.60,
     },
     "basketball": {
         "team_points": 0.70,
-    },
-    "handball": {
-        "team_goals": 0.70,
-        "total_goals": 0.70,
     },
     "football": {
         "team_goals": 0.65,

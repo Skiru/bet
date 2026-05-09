@@ -27,11 +27,8 @@ ESPN_SPORT_SLUGS = {
     "football": "soccer",
     "basketball": "basketball",
     "hockey": "hockey",
-    "baseball": "baseball",
     "tennis": "tennis",
-    "mma": "mma",
     "volleyball": "volleyball",
-    "rugby": "rugby",
 }
 
 # Known provider IDs from ESPN Core API

@@ -31,16 +31,11 @@ TIER_A_STATS = {"flashscore.com", "sofascore.com"}
 TIER_A_STATS_EXTENDED = {
     "tennis": {"flashscore.com", "sofascore.com", "tennisabstract.com", "tennisexplorer.com"},
     "basketball": {"flashscore.com", "sofascore.com", "covers.com", "teamrankings.com", "basketball-reference.com"},
-    "baseball": {"flashscore.com", "sofascore.com", "covers.com", "teamrankings.com"},
+
     "hockey": {"flashscore.com", "sofascore.com", "covers.com", "teamrankings.com", "hockey-reference.com"},
     "football": {"flashscore.com", "sofascore.com", "betideas.com", "soccerstats.com", "soccerway.com", "aiscore.com", "xscores.com"},
     "volleyball": {"flashscore.com", "sofascore.com"},
-    "handball": {"flashscore.com", "sofascore.com"},
-    "snooker": {"flashscore.com", "cuetracker.net"},
-    "esports": {"flashscore.com", "gosugamers.net"},
-    "darts": {"flashscore.com", "dartsorakel.com"},
-    "table_tennis": {"flashscore.com", "sofascore.com"},
-    "mma": {"flashscore.com", "sofascore.com"},
+
 }
 TIER_A_MARKETS = {"oddsportal.com", "betexplorer.com", "odds-api"}
 BOOKMAKER_DOMAINS = {"betclic.pl", "betclic.com"}

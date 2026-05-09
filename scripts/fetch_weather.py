@@ -197,7 +197,7 @@ def fetch_weather_for_fixtures(fixtures: list[dict], date: str) -> dict:
         sport = fixture.get("sport", "football")
 
         # Only fetch weather for outdoor sports
-        outdoor_sports = {"football", "baseball", "speedway", "mma", "padel"}
+        outdoor_sports = {"football"}
         if sport not in outdoor_sports:
             continue
 

@@ -148,10 +148,10 @@ AGENT_SKILLS_MAP = {
     "bet-scanner": {
         "role": "Scan verification & shortlist curation specialist",
         "responsibilities": [
-            "Verify 14-sport coverage across all scan sources",
+            "Verify 5-sport coverage across all scan sources (Football, Volleyball, Basketball, Tennis, Hockey)",
             "Cross-validate fixtures appear in ≥2 independent sources",
             "Check deep-link discovery yield and flag source failures",
-            "Review shortlist for sport diversity (≥8 sports), ensure KEY sports ≥60%",
+            "Review shortlist for sport diversity (all 5 sports represented), ensure comprehensive league coverage per sport",
             "Verify ALL candidates included — NO artificial caps or auto-filtering",
             "Flag missing major leagues and tournaments (§SCAN.7 tournament protection)",
             "Flag missing major domestic leagues worldwide (§SCAN.9 — Brasileirão, MLS, Liga MX, CSL, J-League, K-League, Saudi Pro, ISL, etc.)",
@@ -320,12 +320,12 @@ AGENT_SKILLS_MAP = {
 STEP_AGENT_CONFIG = {
     "s1_scan": {
         "agent": "bet-scanner",
-        "task": "Verify 14-sport coverage, cross-validate fixtures ≥2 sources, check deep-link discovery yield, flag source failures, ensure ≥50 unique events",
+        "task": "Verify 5-sport coverage (Football, Volleyball, Basketball, Tennis, Hockey), cross-validate fixtures ≥2 sources, check deep-link discovery yield, flag source failures, ensure ≥50 unique events",
         "required_input": ["scan_summary.json"],
         "output_metrics": ["total_events", "sports_covered", "source_failures", "deep_link_yield"],
         "detailed_instructions": [
             "1. Read scan_summary.json — check per-sport event counts",
-            "2. Verify all 14 sports scanned: football, tennis, basketball, volleyball, baseball, hockey, handball, mma, esports, table_tennis, snooker, darts, padel, speedway",
+            "2. Verify all 5 sports scanned: football, tennis, basketball, volleyball, hockey",
             "3. Check source_health — any source with >3 consecutive failures needs flagging",
             "4. Verify deep-link discovery yield >20% (deep links found / seed URLs scanned)",
             "5. Cross-reference scan_results in DB — do fixtures appear from ≥2 sources?",
@@ -358,13 +358,13 @@ STEP_AGENT_CONFIG = {
     },
     "s1e_shortlist": {
         "agent": "bet-scanner",
-        "task": "Review shortlist for sport diversity (≥8 sports), KEY sport coverage (≥60% Football/Tennis/Basketball/Volleyball), verify ALL candidates included, flag missing major leagues",
+        "task": "Review shortlist for sport diversity (all 5 sports), comprehensive league coverage, verify ALL candidates included, flag missing major leagues",
         "required_input": ["{date}_s2_shortlist.json"],
         "output_metrics": ["total_candidates", "sport_distribution", "key_sport_pct", "missing_leagues"],
         "detailed_instructions": [
             "1. Load shortlist JSON — count candidates per sport",
-            "2. Verify ≥8 distinct sports represented",
-            "3. Calculate KEY sport percentage: (football+tennis+basketball+volleyball) / total ≥60%",
+            "2. Verify all 5 sports represented (football, volleyball, basketball, tennis, hockey)",
+            "3. Verify all 5 sports have adequate league representation; flag any sport with <3 leagues",
             "4. Check for §SCAN.7 tournament protection — are all active major tournaments represented?",
             "5. Verify §SCAN.8 minor league value — non-top-5 league events should have +6 boost",
             "6. Check for §SCAN.9 major domestic league protection — are Brasileirão, MLS, Liga MX, CSL, J-League, K-League, Saudi Pro League present when active?",
@@ -372,7 +372,7 @@ STEP_AGENT_CONFIG = {
             "8. Check fixture_verified field — flag high unverified percentage",
         ],
         "recovery_actions": [
-            "If <8 sports → re-run build_shortlist.py with --min-sports 8",
+            "If any sport missing → re-run scan for that sport group",
             "If missing tournament → check if scan captured it, may need targeted re-scan",
             "If missing protected domestic league → check scan_results for that league, may need targeted re-scan of that region's sources",
         ],
@@ -407,7 +407,6 @@ STEP_AGENT_CONFIG = {
         "recovery_actions": [
             "If Flashscore blocked → try Sofascore, then ESPN standings for US sports",
             "If sport has 0% enrichment → check if stat_keys are defined in SPORT_STAT_KEYS",
-            "For niche sports (snooker, darts, speedway) → use specialist sources from bet-scanning-niche skill",
         ],
     },
     "s3_deep_stats": {
@@ -501,7 +500,7 @@ STEP_AGENT_CONFIG = {
             "6. Historical analogies: similar picks in betclic_bets_history.json — what happened?",
             "7. Bayesian update: combine statistical confidence with context/upset adjustments",
             "8. IMPORTANT: Advisory tiers are INFORMATIONAL — user decides. No auto-rejection.",
-            "9. Verify ≥5 sports in approved picks per §7.6",
+            "9. Verify all 5 sports represented in approved picks per §7.6",
         ],
     },
     "s8_coupons": {

@@ -128,8 +128,13 @@ PROTECTED_DOMESTIC_LEAGUES: dict[str, list[str]] = {
     "basketball": [
         "cba", "nbb", "b.league", "kbl", "pba", "nbl australia", "lnbp",
     ],
-    "baseball": [
-        "npb", "kbo", "cpbl", "lmp",
+    "volleyball": [
+        "plusliga", "superlega", "ligue a", "superliga", "v-league",
+        "superliga brazil", "bundesliga", "efeler",
+    ],
+    "tennis": [
+        "australian open", "roland garros", "french open", "wimbledon",
+        "us open", "masters", "atp 1000", "wta 1000",
     ],
     "hockey": [
         "khl",
@@ -172,10 +177,14 @@ COMP_TIER_KEYWORDS: dict[str, list[tuple[int, list[str]]]] = {
              "belgian", "jupiler", "scottish", "swiss super league",
              "liga de expansion", "primera nacional", "copa do brasil",
              "primera division chile", "primera a colombia"]),
-        (6, ["2. bundesliga", "serie b", "ligue 2", "segunda",
-             "usl championship", "nwsl", "mls next pro"]),
-        (5, ["nations league", "qualification",
-             "1. liga", "first division b", "eerste divisie"]),
+        (6, ["2. bundesliga", "serie b", "ligue 2", "segunda", "3. liga",
+             "serie c", "national league", "league two",
+             "usl championship", "nwsl", "mls next pro",
+             "division 1", "division 2", "1. liga", "first division b",
+             "eerste divisie", "2nd division", "3rd division"]),
+        (5, ["nations league", "qualification", "friendly",
+             "regionalliga", "national league north", "national league south",
+             "serie d", "4th division"]),
         (3, []),  # default for any unknown football league (raised from 2)
     ],
     "tennis": [
@@ -185,77 +194,41 @@ COMP_TIER_KEYWORDS: dict[str, list[tuple[int, list[str]]]] = {
              "monte carlo", "madrid", "rome", "canada", "cincinnati", "shanghai", "paris"]),
         (8, ["atp 500", "wta 500"]),
         (7, ["atp 250", "wta 250"]),
-        (5, ["challenger", "itf"]),
+        (5, ["challenger", "itf", "futures", "billie jean king", "laver cup",
+             "olympics", "next gen"]),
     ],
     "basketball": [
         (10, ["nba playoff", "nba finals", "fiba world cup", "olympic"]),
         (9, ["nba", "euroleague"]),
         (8, ["eurocup", "ncaa", "acb", "final four",
              "cba", "nbb", "b.league", "kbl", "pba", "nbl australia"]),
-        (7, ["plk", "bbl", "bcl", "fiba", "lnb", "nbl", "lnbp"]),
+        (7, ["plk", "bbl", "bcl", "fiba", "lnb", "nbl", "lnbp",
+             "basket liga", "a1 ethniki", "lega 2", "pro b",
+             "superleague", "bkt liga"]),
+        (6, ["division 1", "liga femenina", "wbbl", "wnbl",
+             "2nd division", "1st division"]),
     ],
     "volleyball": [
         (10, ["cev champions league", "world championship", "nations league finals", "olympic"]),
         (9, ["plusliga", "superlega"]),
         (8, ["serie a", "ligue a", "bundesliga", "cev"]),
-        (7, ["efeler", "superliga", "plusliga playoff", "superlega playoff"]),
+        (7, ["efeler", "superliga", "plusliga playoff", "superlega playoff",
+             "division 1", "liga a1", "eredivisie", "a1 ethniki"]),
+        (6, ["2nd division", "division 2", "serie a2", "1st division",
+             "v-league", "mestaruusliiga"]),
     ],
     "hockey": [
         (10, ["nhl playoff", "stanley cup", "iihf world"]),
         (9, ["nhl", "khl"]),
         (8, ["shl", "liiga", "del"]),
-    ],
-    "handball": [
-        (10, ["ehf champions league final four", "world championship"]),
-        (9, ["ehf champions league"]),
-        (8, ["ehf", "bundesliga", "starligue"]),
-        (7, ["liga asobal", "superliga"]),
-    ],
-    "baseball": [
-        (10, ["world series", "mlb playoff"]),
-        (9, ["mlb"]),
-        (8, ["npb", "kbo"]),
-        (6, ["cpbl", "lmp", "lmb"]),
-    ],
-    "snooker": [
-        (10, ["world championship"]),
-        (9, ["masters", "champion of champions", "uk championship"]),
-        (7, ["grand prix", "open", "trophy", "classic"]),
-    ],
-    "darts": [
-        (10, ["world championship", "grand slam"]),
-        (9, ["pdc", "premier league"]),
-        (7, ["world grand prix", "players championship"]),
-    ],
-    "esports": [
-        (10, ["major", "worlds", "the international"]),
-        (8, ["champions", "blast premier"]),
-        (6, ["esl", "blast", "iem", "pgl"]),
-    ],
-    "mma": [
-        (10, ["ufc numbered", "ufc ppv"]),
-        (9, ["ufc"]),
-        (7, ["bellator", "pfl", "one"]),
-    ],
-    "table_tennis": [
-        (10, ["world championship", "wtt grand smash", "olympic"]),
-        (8, ["wtt champions"]),
-        (6, ["wtt star contender", "wtt"]),
-    ],
-    "padel": [
-        (10, ["premier padel major"]),
-        (8, ["premier padel"]),
-        (6, ["world padel tour"]),
-    ],
-    "speedway": [
-        (10, ["speedway gp"]),
-        (8, ["ekstraliga"]),
-        (6, ["sec"]),
+        (7, ["allsvenskan", "mestis", "1. liga", "ligue magnus",
+             "erste liga", "tipsport liga", "echl", "eihl"]),
+        (6, ["division 1", "2nd division", "hockeyettan", "optibet liga"]),
     ],
 }
 
 # Tier 1 = KEY sports (always prioritize); Tier 2 = support
-TIER1_SPORTS = {"football", "volleyball", "basketball", "tennis"}
+TIER1_SPORTS = {"football", "volleyball", "basketball", "tennis", "hockey"}
 
 
 def _score_competition(sport: str, competition: str) -> int:
@@ -353,7 +326,7 @@ def _score_event(event: dict, tipster_events: set[str]) -> float:
         score += 10
 
     # 10. Deep data richness boost — teams with ESPN gamelogs get better analysis
-    if sport in ("basketball", "hockey", "baseball"):
+    if sport in ("basketball", "hockey"):
         try:
             from db_data_loader import load_player_gamelogs_for_team
             home_team = event.get("home_team", "")

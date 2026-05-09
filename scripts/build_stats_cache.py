@@ -43,8 +43,7 @@ def _persist_to_db(sport: str, team_name: str, stats_data: dict) -> None:
 
     # Map slugified cache sport names to canonical DB sport names
     _SPORT_ALIASES = {
-        "tabletennis": "table_tennis",
-        "table-tennis": "table_tennis",
+
     }
     db_sport = _SPORT_ALIASES.get(sport, sport)
 

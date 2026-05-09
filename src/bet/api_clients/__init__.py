@@ -22,7 +22,6 @@ API_ESPN = {
     "football": "espn-football",
     "basketball": "espn-basketball",
     "hockey": "espn-hockey",
-    "baseball": "espn-baseball",
 }
 
 # Client registry — maps api-name → class
@@ -67,7 +66,6 @@ def _espn_factory(sport: str, league: str):
 CLIENT_REGISTRY["espn-football"] = _espn_factory("football", "eng.1")
 CLIENT_REGISTRY["espn-basketball"] = _espn_factory("basketball", "nba")
 CLIENT_REGISTRY["espn-hockey"] = _espn_factory("hockey", "nhl")
-CLIENT_REGISTRY["espn-baseball"] = _espn_factory("baseball", "mlb")
 
 # --- Sync with scripts/api_clients/ for clients not yet in src/ ---
 # This ensures any code importing from bet.api_clients gets the full registry.

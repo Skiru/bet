@@ -125,17 +125,6 @@ def _parse_football_scores(scores: list) -> dict:
     return {"goals": {"home": int(scores[0]), "away": int(scores[1])}}
 
 
-def _parse_handball_scores(scores: list) -> dict:
-    """[goals_t1, goals_t2] or [goals_t1, goals_t2, ht_t1, ht_t2]"""
-    if len(scores) < 2:
-        return {}
-    stats = {
-        "goals": {"home": int(scores[0]), "away": int(scores[1])},
-        "total_goals": {"home": int(scores[0]), "away": int(scores[1])},
-    }
-    return stats
-
-
 def _parse_basketball_scores(scores: list) -> dict:
     """[pts_t1, pts_t2] or [pts_t1, pts_t2, q1_t1, q1_t2, ...]"""
     if len(scores) < 2:
@@ -150,83 +139,12 @@ def _parse_hockey_scores(scores: list) -> dict:
     return {"goals": {"home": int(scores[0]), "away": int(scores[1])}}
 
 
-def _parse_baseball_scores(scores: list) -> dict:
-    """[runs_t1, runs_t2] or with innings"""
-    if len(scores) < 2:
-        return {}
-    return {
-        "runs": {"home": int(scores[0]), "away": int(scores[1])},
-        "total_runs": {"home": int(scores[0]), "away": int(scores[1])},
-    }
-
-
-def _parse_snooker_scores(scores: list) -> dict:
-    """[frames_t1, frames_t2]"""
-    if len(scores) < 2:
-        return {}
-    return {
-        "frames_won": {"home": int(scores[0]), "away": int(scores[1])},
-        "total_frames": {"home": int(scores[0]), "away": int(scores[1])},
-    }
-
-
-def _parse_table_tennis_scores(scores: list) -> dict:
-    """[sets_t1, sets_t2, s1_t1, s1_t2, ...]"""
-    if len(scores) < 2:
-        return {}
-    stats = {"sets_won": {"home": int(scores[0]), "away": int(scores[1])}}
-    set_scores = scores[2:]
-    home_pts, away_pts = 0, 0
-    for i in range(0, len(set_scores) - 1, 2):
-        home_pts += int(set_scores[i])
-        away_pts += int(set_scores[i + 1])
-    if home_pts or away_pts:
-        stats["total_points"] = {"home": home_pts, "away": away_pts}
-    return stats
-
-
-def _parse_darts_scores(scores: list) -> dict:
-    """[legs_t1, legs_t2] or [sets_t1, sets_t2, legs_t1, legs_t2]"""
-    if len(scores) < 2:
-        return {}
-    return {
-        "legs_won": {"home": int(scores[0]), "away": int(scores[1])},
-        "total_legs": {"home": int(scores[0]), "away": int(scores[1])},
-    }
-
-
-def _parse_esports_scores(scores: list) -> dict:
-    """[maps_t1, maps_t2]"""
-    if len(scores) < 2:
-        return {}
-    return {
-        "maps_won": {"home": int(scores[0]), "away": int(scores[1])},
-        "total_maps": {"home": int(scores[0]), "away": int(scores[1])},
-    }
-
-
-def _parse_mma_scores(scores: list) -> dict:
-    """[rounds] total rounds completed"""
-    if len(scores) < 1:
-        return {}
-    r = int(scores[0])
-    return {"rounds": {"home": r, "away": r}}
-
-
 SCORE_PARSERS = {
     "volleyball": _parse_volleyball_scores,
     "tennis": _parse_tennis_scores,
     "football": _parse_football_scores,
-    "handball": _parse_handball_scores,
     "basketball": _parse_basketball_scores,
     "hockey": _parse_hockey_scores,
-    "baseball": _parse_baseball_scores,
-    "snooker": _parse_snooker_scores,
-    "table_tennis": _parse_table_tennis_scores,
-    "darts": _parse_darts_scores,
-    "esports": _parse_esports_scores,
-    "mma": _parse_mma_scores,
-    "padel": _parse_tennis_scores,  # same structure as tennis
 }
 
 

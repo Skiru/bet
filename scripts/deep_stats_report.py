@@ -150,8 +150,8 @@ def extract_team_stats(sport: str, team_name: str) -> dict:
     # JSON cache fallback
     cache_file = CACHE_DIR / sport / f"{slug}.json"
     if not cache_file.exists():
-        # ESPN enrichment for basketball/hockey/baseball — ALWAYS try
-        if sport in ("basketball", "hockey", "baseball"):
+        # ESPN enrichment for basketball/hockey — ALWAYS try
+        if sport in ("basketball", "hockey"):
             try:
                 from db_data_loader import load_espn_enrichment_for_team
                 espn_data = load_espn_enrichment_for_team(team_name, sport)
@@ -160,20 +160,6 @@ def extract_team_stats(sport: str, team_name: str) -> dict:
                     result["has_data"] = True
                     if "espn_db" not in result["sources"]:
                         result["sources"].append("espn_db")
-            except Exception:
-                pass
-
-        # Niche sport cache (darts, esports, table_tennis)
-        if sport in ("esports", "darts", "table_tennis") and not result["has_data"]:
-            try:
-                from db_data_loader import load_sport_specific_cache
-                niche_data = load_sport_specific_cache(sport, team_name)
-                if niche_data:
-                    result["l10_avg"] = niche_data.get("l10_avg", {})
-                    result["l5_avg"] = niche_data.get("l5_avg", {})
-                    result["l10_matches"] = niche_data.get("l10_matches", [])
-                    result["has_data"] = niche_data.get("has_data", False)
-                    result["sources"] = niche_data.get("sources", [])
             except Exception:
                 pass
 
@@ -231,8 +217,8 @@ def extract_team_stats(sport: str, team_name: str) -> dict:
     if result["l10_avg"] or result["l5_avg"] or result["l10_matches"]:
         result["has_data"] = True
 
-    # ESPN enrichment for basketball/hockey/baseball — ALWAYS load as supplement
-    if sport in ("basketball", "hockey", "baseball"):
+    # ESPN enrichment for basketball/hockey — ALWAYS load as supplement
+    if sport in ("basketball", "hockey"):
         try:
             from db_data_loader import load_espn_enrichment_for_team
             espn_data = load_espn_enrichment_for_team(team_name, sport)
@@ -241,20 +227,6 @@ def extract_team_stats(sport: str, team_name: str) -> dict:
                 result["has_data"] = True
                 if "espn_db" not in result["sources"]:
                     result["sources"].append("espn_db")
-        except Exception:
-            pass
-
-    # Niche sport cache (darts, esports, table_tennis)
-    if sport in ("esports", "darts", "table_tennis") and not result["has_data"]:
-        try:
-            from db_data_loader import load_sport_specific_cache
-            niche_data = load_sport_specific_cache(sport, team_name)
-            if niche_data:
-                result["l10_avg"] = niche_data.get("l10_avg", {})
-                result["l5_avg"] = niche_data.get("l5_avg", {})
-                result["l10_matches"] = niche_data.get("l10_matches", [])
-                result["has_data"] = niche_data.get("has_data", False)
-                result["sources"] = niche_data.get("sources", [])
         except Exception:
             pass
 

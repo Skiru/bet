@@ -4,7 +4,6 @@ Provides per-game statistics for:
 - Soccer (football): 28 stats per game across 36+ leagues
 - Basketball (NBA/WNBA): 25 stats per game
 - Hockey (NHL): 14 stats per game
-- Baseball (MLB): batting/pitching/fielding stats
 
 Base URL: http://site.api.espn.com/apis/site/v2/sports/{sport}/{league}/
 """
@@ -23,9 +22,7 @@ ESPN_SPORT_MAP = {
     "football": "soccer",
     "basketball": "basketball",
     "hockey": "hockey",
-    "baseball": "baseball",
     "tennis": "tennis",
-    "mma": "mma",
     "volleyball": "volleyball",
 }
 
@@ -62,9 +59,7 @@ ESPN_LEAGUES = {
     ],
     "basketball": ["nba", "wnba"],
     "hockey": ["nhl"],
-    "baseball": ["mlb"],
     "tennis": ["atp", "wta"],
-    "mma": ["ufc"],
     "volleyball": ["fivb.m", "fivb.w", "ncaa.w", "ncaa.m"],
 }
 
@@ -174,7 +169,7 @@ COMPETITION_TO_ESPN_LEAGUE = {
     "atp finals": "atp",
     "wta finals": "wta",
     # MMA
-    "ufc": "ufc",
+    # (removed — sport no longer supported)
     # Volleyball
     "fivb world championship": "fivb.m",
     "fivb nations league": "fivb.m",
@@ -350,7 +345,7 @@ class ESPNClient(BaseAPIClient):
     """ESPN Hidden API client — free, unlimited requests.
 
     Supports soccer (36+ leagues), basketball (NBA/WNBA),
-    hockey (NHL), and baseball (MLB).
+    hockey (NHL), tennis, and volleyball.
     """
 
     ESPN_BASE = "http://site.api.espn.com/apis/site/v2/sports"
@@ -359,7 +354,7 @@ class ESPNClient(BaseAPIClient):
         """Initialize ESPN client for a specific sport and league.
 
         Args:
-            sport: Our sport name (football/basketball/hockey/baseball)
+            sport: Our sport name (football/basketball/hockey/tennis/volleyball)
             league: ESPN league code (eng.1, nba, nhl, mlb, etc.)
             rate_limiter: RateLimiter instance (not used for ESPN but required by base)
         """
@@ -442,8 +437,8 @@ class ESPNClient(BaseAPIClient):
             print(f"[{self.api_name}] Error fetching fixtures for {date}: {e}")
             return []
 
-        # Individual sports (tennis, MMA) have different structure
-        if self.sport in ("tennis", "mma"):
+        # Individual sports (tennis) have different structure
+        if self.sport == "tennis":
             fixtures = self._get_individual_sport_fixtures(data, date)
             self._save_cache(cache_key, {
                 "fixtures": [asdict(f) for f in fixtures],
@@ -494,34 +489,26 @@ class ESPNClient(BaseAPIClient):
         return fixtures
 
     def _get_individual_sport_fixtures(self, data: dict, date: str) -> list[APIFixture]:
-        """Parse fixtures for individual sports (tennis, MMA).
+        """Parse fixtures for individual sports (tennis).
 
         Tennis: events are tournaments, groupings contain singles/doubles,
                 competitions are individual matches.
-        MMA: events are fight cards, competitions are individual fights.
         """
         fixtures = []
         for event in data.get("events", []):
             event_name = event.get("name", "")
 
-            # MMA: fights are directly in competitions
-            if self.sport == "mma":
-                for comp in event.get("competitions", []):
-                    fixture = self._parse_individual_competition(comp, event_name)
+            # Tennis: matches are in groupings→competitions
+            for grouping in event.get("groupings", []):
+                group_name = grouping.get("grouping", {}).get("displayName", "")
+                # Only singles matches (skip doubles for betting)
+                if "double" in group_name.lower():
+                    continue
+                for comp in grouping.get("competitions", []):
+                    fixture = self._parse_individual_competition(
+                        comp, f"{event_name} - {group_name}"
+                    )
                     if fixture:
-                        fixtures.append(fixture)
-            else:
-                # Tennis: matches are in groupings→competitions
-                for grouping in event.get("groupings", []):
-                    group_name = grouping.get("grouping", {}).get("displayName", "")
-                    # Only singles matches (skip doubles for betting)
-                    if "double" in group_name.lower():
-                        continue
-                    for comp in grouping.get("competitions", []):
-                        fixture = self._parse_individual_competition(
-                            comp, f"{event_name} - {group_name}"
-                        )
-                        if fixture:
                             fixtures.append(fixture)
         return fixtures
 
@@ -608,7 +595,7 @@ class ESPNClient(BaseAPIClient):
             team_stats_raw = team_data.get("statistics", [])
 
             if self.sport == "baseball":
-                # MLB: nested categories with sub-stats
+                # MLB: nested categories with sub-stats (legacy — sport removed)
                 self._parse_mlb_stats(team_stats_raw, side, stats)
             else:
                 # Soccer/NBA/NHL: flat stat list
@@ -838,7 +825,7 @@ class ESPNClient(BaseAPIClient):
             return cached.get("team_id")
 
         # For individual sports, search scoreboard for athlete IDs
-        if self.sport in ("tennis", "mma"):
+        if self.sport == "tennis":
             return self._resolve_athlete_id(team_name)
 
         try:
@@ -906,12 +893,6 @@ class ESPNClient(BaseAPIClient):
         # Build athlete list from scoreboard
         athletes = []
         for event in data.get("events", []):
-            # MMA: direct competitions
-            for comp in event.get("competitions", []):
-                for c in comp.get("competitors", []):
-                    ath = c.get("athlete", {})
-                    if ath:
-                        athletes.append({"id": str(c.get("id", "")), **ath})
             # Tennis: groupings→competitions
             for grouping in event.get("groupings", []):
                 for comp in grouping.get("competitions", []):
@@ -953,7 +934,7 @@ class ESPNClient(BaseAPIClient):
             return cached.get("fixtures", [])
 
         # Individual sports: scan scoreboard for athlete matches
-        if self.sport in ("tennis", "mma"):
+        if self.sport == "tennis":
             return self._get_athlete_recent_matches(team_id, last_n)
 
         try:
@@ -1212,7 +1193,7 @@ class ESPNClient(BaseAPIClient):
             return cached.get("standings", [])
 
         try:
-            # v2 standings API works for ALL sports (soccer, basketball, hockey, baseball)
+            # v2 standings API works for ALL sports (soccer, basketball, hockey, etc.)
             url = f"https://site.api.espn.com/apis/v2/sports/{self._espn_sport}/{self.league}/standings"
             response = requests.get(url, headers=self._build_headers(), timeout=self.TIMEOUT)
             data = response.json()

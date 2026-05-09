@@ -62,20 +62,14 @@ def _slugify(name: str) -> str:
 # ---------------------------------------------------------------------------
 
 # Sports where participants are individuals, not teams
-_INDIVIDUAL_SPORTS = {"tennis", "snooker", "darts", "mma", "table_tennis", "padel", "speedway"}
+_INDIVIDUAL_SPORTS = {"tennis"}
 
 # Flashscore sport slug overrides (when URL path differs from internal sport name)
 _FS_SPORT_SLUGS = {
-    "mma": "mma",
-    "table_tennis": "table-tennis",
-    "esports": "esports",
 }
 
 # Sofascore sport slug overrides
 _SS_SPORT_SLUGS = {
-    "table_tennis": "table-tennis",
-    "mma": "mma",
-    "esports": "esports",
     "hockey": "ice-hockey",
 }
 
@@ -108,9 +102,7 @@ def _build_scores24_url(team_name: str, sport: str) -> str:
     slug = _slugify(team_name)
     sport_map = {
         "football": "football", "basketball": "basketball", "hockey": "ice-hockey",
-        "volleyball": "volleyball", "handball": "handball", "tennis": "tennis",
-        "baseball": "baseball", "esports": "csgo", "table_tennis": "table-tennis",
-        "snooker": "snooker", "darts": "darts", "mma": "mma",
+        "volleyball": "volleyball", "tennis": "tennis",
     }
     s24_sport = sport_map.get(sport, sport)
     return f"https://scores24.live/en/{s24_sport}/team/{slug}"
@@ -170,11 +162,8 @@ def _primary_score_key(sport: str) -> str | None:
     """Return the primary scoring stat key for a sport."""
     return {
         "football": "goals", "basketball": "points", "hockey": "goals",
-        "handball": "total_goals", "volleyball": "total_points",
-        "baseball": "runs", "tennis": "total_games",
-        "snooker": "frames_won", "darts": "legs_won",
-        "esports": "rounds_won", "mma": "rounds",
-        "table_tennis": "total_points", "padel": "total_games",
+        "volleyball": "total_points",
+        "tennis": "total_games",
     }.get(sport)
 
 
@@ -214,12 +203,8 @@ def _extract_match_scores(html: str, sport: str) -> list[float]:
                     scores.append(total)
                 elif sport in ("basketball",) and 50 < total < 400:
                     scores.append(total)
-                elif sport in ("handball",) and 20 < total < 90:
-                    scores.append(total)
-                elif sport in ("volleyball", "tennis", "table_tennis") and total <= 10:
+                elif sport in ("volleyball", "tennis") and total <= 10:
                     scores.append(total)  # sets/games
-                elif sport in ("baseball",) and total <= 30:
-                    scores.append(total)
                 elif total <= 50:  # generic fallback
                     scores.append(total)
             except ValueError:
@@ -363,6 +348,659 @@ def _parse_sofascore_stats(html: str, sport: str) -> dict:
     """Extract stats from Sofascore HTML (fallback parser)."""
     # Sofascore uses similar patterns — reuse core extraction logic
     return _parse_flashscore_stats(html, sport)
+
+
+# ---------------------------------------------------------------------------
+# Deep extraction — structured data from Flashscore HTML
+# ---------------------------------------------------------------------------
+
+def _parse_flashscore_deep(html: str, sport: str) -> dict:
+    """Extract deep structured data from Flashscore team/match page HTML.
+
+    Returns:
+        {
+            "recent_form": [{"date": "...", "opponent": "...", "result": "W/L/D",
+                             "score": "2-1", "competition": "...", "venue": "H/A"}],
+            "h2h_meetings": [{"date": "...", "score": "...", "competition": "...",
+                              "stats": {"corners": 8, "fouls": 22}}],
+            "injuries": [{"player": "...", "status": "OUT/DOUBTFUL", "since": "..."}],
+            "stats_per_match": {"corners": [7,8,5,9,6], "fouls": [...]}
+        }
+    """
+    result = {
+        "recent_form": [],
+        "h2h_meetings": [],
+        "injuries": [],
+        "stats_per_match": {},
+    }
+
+    if not html or len(html) < 500:
+        return result
+
+    # --- Recent form ---
+    # Flashscore renders recent results with patterns like:
+    # "W 2-1 vs Opponent (League)" or structured divs
+    form_patterns = [
+        # "result W/L/D score opponent" patterns
+        re.compile(
+            r'(?:class="[^"]*(?:form|result|match)[^"]*"[^>]*>.*?)?'
+            r'([WLD])\s*(\d{1,3})\s*[-:–]\s*(\d{1,3})\s+'
+            r'(?:vs\.?\s+)?([A-Z][A-Za-z\s\.\'-]{2,30})',
+            re.IGNORECASE | re.DOTALL,
+        ),
+        # Date + score patterns: "DD.MM. Home 2-1 Away"
+        re.compile(
+            r'(\d{2}\.\d{2}\.?\d{0,4})\s+'
+            r'([A-Z][A-Za-z\s\.\'-]{2,30})\s+'
+            r'(\d{1,3})\s*[-:–]\s*(\d{1,3})\s+'
+            r'([A-Z][A-Za-z\s\.\'-]{2,30})',
+            re.IGNORECASE,
+        ),
+    ]
+
+    for pat in form_patterns:
+        for m in pat.finditer(html):
+            groups = m.groups()
+            if len(groups) == 4:
+                # W/L/D pattern
+                entry = {
+                    "result": groups[0].upper(),
+                    "score": f"{groups[1]}-{groups[2]}",
+                    "opponent": groups[3].strip(),
+                    "date": "",
+                    "competition": "",
+                    "venue": "",
+                }
+                result["recent_form"].append(entry)
+            elif len(groups) == 5:
+                # Date + teams pattern
+                entry = {
+                    "date": groups[0],
+                    "opponent": groups[4].strip(),
+                    "score": f"{groups[2]}-{groups[3]}",
+                    "result": "",
+                    "competition": "",
+                    "venue": "",
+                }
+                result["recent_form"].append(entry)
+        if result["recent_form"]:
+            break
+
+    # Limit to last 10
+    result["recent_form"] = result["recent_form"][:10]
+
+    # --- H2H meetings ---
+    # Look for H2H section markers
+    h2h_section = re.search(
+        r'(?:h2h|head.to.head|direct.meetings)(.*?)(?:standings|statistics|$)',
+        html, re.IGNORECASE | re.DOTALL,
+    )
+    if h2h_section:
+        h2h_html = h2h_section.group(1)[:5000]  # limit search scope
+        h2h_matches = re.findall(
+            r'(\d{2}\.\d{2}\.\d{2,4})\s*.*?'
+            r'(\d{1,3})\s*[-:–]\s*(\d{1,3})',
+            h2h_html,
+        )
+        for date_str, score_h, score_a in h2h_matches[:10]:
+            meeting = {
+                "date": date_str,
+                "score": f"{score_h}-{score_a}",
+                "competition": "",
+                "stats": {},
+            }
+            result["h2h_meetings"].append(meeting)
+
+    # --- Injuries ---
+    # Look for injury markers in the HTML
+    injury_patterns = [
+        re.compile(
+            r'(?:class="[^"]*injur[^"]*"[^>]*>.*?)'
+            r'([A-Z][A-Za-z\s\.\'-]{2,30})\s*'
+            r'(?:[-–]\s*)?(OUT|Doubtful|Questionable|Day-to-day|Injured|Suspended)',
+            re.IGNORECASE | re.DOTALL,
+        ),
+        re.compile(
+            r'(OUT|Doubtful|Questionable|Injured|Suspended)\s*[-–:]\s*'
+            r'([A-Z][A-Za-z\s\.\'-]{2,30})',
+            re.IGNORECASE,
+        ),
+    ]
+    for pat in injury_patterns:
+        for m in pat.finditer(html):
+            groups = m.groups()
+            if len(groups) == 2:
+                player = groups[0].strip() if groups[0][0].isupper() else groups[1].strip()
+                status = groups[1].strip() if groups[0][0].isupper() else groups[0].strip()
+                result["injuries"].append({
+                    "player": player,
+                    "status": status.upper(),
+                    "since": "",
+                })
+    # Deduplicate injuries by player name
+    seen_players = set()
+    unique_injuries = []
+    for inj in result["injuries"]:
+        if inj["player"] not in seen_players:
+            seen_players.add(inj["player"])
+            unique_injuries.append(inj)
+    result["injuries"] = unique_injuries[:20]
+
+    # --- Stats per match ---
+    stat_keys = SPORT_STAT_KEYS.get(sport, [])
+    for key in stat_keys:
+        values = _extract_stat_values(html, key, sport)
+        if values:
+            result["stats_per_match"][key] = values[:10]
+
+    # Fallback: extract match scores if no stat keys found
+    if not result["stats_per_match"]:
+        score_key = _primary_score_key(sport)
+        if score_key:
+            scores = _extract_match_scores(html, sport)
+            if scores:
+                result["stats_per_match"][score_key] = scores[:10]
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Deep extraction — Sofascore API (public, no key needed)
+# ---------------------------------------------------------------------------
+
+_SOFASCORE_API_BASE = "https://api.sofascore.com/api/v1"
+_SOFASCORE_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+    "Accept": "application/json",
+    "Referer": "https://www.sofascore.com/",
+}
+_SOFASCORE_SPORT_MAP = {
+    "football": "football",
+    "basketball": "basketball",
+    "hockey": "ice-hockey",
+    "tennis": "tennis",
+    "volleyball": "volleyball",
+}
+
+
+def _sofascore_request(url: str, max_retries: int = 3) -> dict | None:
+    """Make a Sofascore API request with exponential backoff retry."""
+    import urllib.request
+    import urllib.error
+
+    for attempt in range(max_retries):
+        try:
+            req = urllib.request.Request(url, headers=_SOFASCORE_HEADERS)
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            if e.code == 429:
+                wait = (2 ** attempt) * 1.5
+                logger.warning("Sofascore rate limited, waiting %.1fs (attempt %d/%d)",
+                               wait, attempt + 1, max_retries)
+                time.sleep(wait)
+            elif e.code in (403, 404):
+                logger.debug("Sofascore %d for %s", e.code, url)
+                return None
+            else:
+                logger.warning("Sofascore HTTP %d for %s", e.code, url)
+                return None
+        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as e:
+            logger.debug("Sofascore request error: %s", e)
+            if attempt < max_retries - 1:
+                time.sleep(2 ** attempt)
+            else:
+                return None
+    return None
+
+
+def _fetch_sofascore_deep(team_name: str, sport: str) -> dict:
+    """Fetch deep structured data from Sofascore public API.
+
+    Returns same structure as _parse_flashscore_deep.
+    """
+    result = {
+        "recent_form": [],
+        "h2h_meetings": [],
+        "injuries": [],
+        "stats_per_match": {},
+    }
+
+    ss_sport = _SOFASCORE_SPORT_MAP.get(sport, sport)
+
+    # Step 1: Search for team
+    from urllib.parse import quote
+    search_url = f"{_SOFASCORE_API_BASE}/search/all?q={quote(team_name)}&page=0"
+    _rate_limit("sofascore.com")
+    search_data = _sofascore_request(search_url)
+    if not search_data:
+        return result
+
+    # Find team ID from search results
+    team_id = None
+    teams = search_data.get("teams", [])
+    for t in teams:
+        t_sport = t.get("sport", {}).get("slug", "")
+        if t_sport == ss_sport:
+            team_id = t.get("id")
+            break
+    # Fallback: take first team result
+    if not team_id and teams:
+        team_id = teams[0].get("id")
+
+    if not team_id:
+        logger.debug("Sofascore: team not found for '%s' (%s)", team_name, sport)
+        return result
+
+    # Step 2: Get last events
+    events_url = f"{_SOFASCORE_API_BASE}/team/{team_id}/events/last/0"
+    _rate_limit("sofascore.com")
+    events_data = _sofascore_request(events_url)
+    if not events_data:
+        return result
+
+    events = events_data.get("events", [])[:10]
+
+    # Step 3: Extract form + per-event stats
+    for event in events:
+        home_team = event.get("homeTeam", {})
+        away_team = event.get("awayTeam", {})
+        home_name = home_team.get("name", "")
+        away_name = away_team.get("name", "")
+        home_score = event.get("homeScore", {})
+        away_score = event.get("awayScore", {})
+
+        is_home = home_name.lower() == team_name.lower() or home_team.get("id") == team_id
+        opponent = away_name if is_home else home_name
+        h_score = home_score.get("current", home_score.get("display", ""))
+        a_score = away_score.get("current", away_score.get("display", ""))
+
+        # Determine result
+        result_str = ""
+        try:
+            hs, as_ = int(h_score), int(a_score)
+            if is_home:
+                result_str = "W" if hs > as_ else ("L" if hs < as_ else "D")
+            else:
+                result_str = "W" if as_ > hs else ("L" if as_ < hs else "D")
+        except (ValueError, TypeError):
+            pass
+
+        tournament = event.get("tournament", {})
+        comp_name = tournament.get("name", "")
+        start_ts = event.get("startTimestamp", 0)
+        date_str = ""
+        if start_ts:
+            try:
+                date_str = datetime.fromtimestamp(start_ts, tz=timezone.utc).strftime("%Y-%m-%d")
+            except (ValueError, TypeError, OSError):
+                pass
+
+        form_entry = {
+            "date": date_str,
+            "opponent": opponent,
+            "result": result_str,
+            "score": f"{h_score}-{a_score}" if h_score != "" and a_score != "" else "",
+            "competition": comp_name,
+            "venue": "H" if is_home else "A",
+        }
+        result["recent_form"].append(form_entry)
+
+        # Step 4: Get per-event statistics
+        event_id = event.get("id")
+        if event_id:
+            stats_url = f"{_SOFASCORE_API_BASE}/event/{event_id}/statistics"
+            _rate_limit("sofascore.com")
+            stats_data = _sofascore_request(stats_url)
+            if stats_data:
+                _extract_sofascore_event_stats(
+                    stats_data, is_home, result["stats_per_match"]
+                )
+
+    return result
+
+
+def _extract_sofascore_event_stats(
+    stats_data: dict, is_home: bool, stats_per_match: dict
+) -> None:
+    """Extract per-match stat values from Sofascore event statistics response."""
+    # Sofascore stats structure: {"statistics": [{"period": "ALL", "groups": [...]}]}
+    stat_name_map = {
+        "corner kicks": "corners",
+        "corners": "corners",
+        "fouls": "fouls",
+        "yellow cards": "yellow_cards",
+        "red cards": "red_cards",
+        "total shots": "shots",
+        "shots on target": "shots_on_target",
+        "shots off target": "shots",
+        "ball possession": "possession",
+        "offsides": "offsides",
+        "goalkeeper saves": "saves",
+        "free kicks": "free_kicks",
+        "total passes": "passes",
+        "tackles": "tackles",
+        "blocked shots": "blocked_shots",
+        "points": "points",
+        "rebounds": "rebounds",
+        "assists": "assists",
+        "steals": "steals",
+        "blocks": "blocks",
+        "turnovers": "turnovers",
+        "aces": "aces",
+        "double faults": "double_faults",
+        "break points won": "break_points_won",
+        "hits": "hits",
+        "penalty minutes": "pim",
+        "faceoffs won": "faceoffs_won",
+    }
+
+    for period_group in stats_data.get("statistics", []):
+        if period_group.get("period") != "ALL":
+            continue
+        for group in period_group.get("groups", []):
+            for item in group.get("statisticsItems", []):
+                stat_name = item.get("name", "").lower()
+                mapped_key = stat_name_map.get(stat_name)
+                if not mapped_key:
+                    continue
+                home_val = item.get("home", "")
+                away_val = item.get("away", "")
+                try:
+                    val = float(str(home_val).rstrip("%")) if is_home else float(str(away_val).rstrip("%"))
+                    stats_per_match.setdefault(mapped_key, []).append(val)
+                except (ValueError, TypeError):
+                    pass
+
+
+# ---------------------------------------------------------------------------
+# Deep extraction — ESPN API (free, unlimited)
+# ---------------------------------------------------------------------------
+
+def _fetch_espn_deep(team_name: str, sport: str) -> dict:
+    """Fetch deep structured data from ESPN API.
+
+    Uses existing ESPNStatsClient and ESPN hidden API for:
+    - Game logs with per-match stat breakdowns
+    - Team injuries
+    - Standings
+
+    Returns same structure as _parse_flashscore_deep.
+    """
+    import urllib.request
+    import urllib.error
+
+    result = {
+        "recent_form": [],
+        "h2h_meetings": [],
+        "injuries": [],
+        "stats_per_match": {},
+    }
+
+    # ESPN sport/league mappings
+    espn_sport_map = {
+        "football": ("soccer", ""),
+        "basketball": ("basketball", "nba"),
+        "hockey": ("hockey", "nhl"),
+        "tennis": ("tennis", ""),
+        "volleyball": ("volleyball", ""),
+    }
+    espn_sport, espn_league = espn_sport_map.get(sport, (sport, ""))
+    if not espn_sport:
+        return result
+
+    # Step 1: Search for team via ESPN API
+    from urllib.parse import quote
+    search_url = f"https://site.api.espn.com/apis/site/v2/sports/{espn_sport}/{espn_league}/teams?limit=100"
+    try:
+        req = urllib.request.Request(search_url)
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            teams_data = json.loads(resp.read().decode("utf-8"))
+    except Exception as e:
+        logger.debug("ESPN team search error: %s", e)
+        return result
+
+    # Find team ID
+    team_id = None
+    team_lower = team_name.lower()
+    for group in teams_data.get("sports", [{}]):
+        for league in group.get("leagues", [{}]):
+            for t in league.get("teams", []):
+                team_info = t.get("team", t)
+                names = [
+                    team_info.get("displayName", "").lower(),
+                    team_info.get("shortDisplayName", "").lower(),
+                    team_info.get("name", "").lower(),
+                    team_info.get("abbreviation", "").lower(),
+                ]
+                if any(team_lower in n or n in team_lower for n in names if n):
+                    team_id = team_info.get("id")
+                    break
+
+    if not team_id:
+        logger.debug("ESPN: team not found for '%s' (%s)", team_name, sport)
+        return result
+
+    # Step 2: Get team schedule/results
+    if espn_league:
+        schedule_url = (
+            f"https://site.api.espn.com/apis/site/v2/sports/{espn_sport}/{espn_league}"
+            f"/teams/{team_id}/schedule"
+        )
+    else:
+        schedule_url = (
+            f"https://site.api.espn.com/apis/site/v2/sports/{espn_sport}"
+            f"/teams/{team_id}/schedule"
+        )
+
+    try:
+        req = urllib.request.Request(schedule_url)
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            schedule_data = json.loads(resp.read().decode("utf-8"))
+    except Exception as e:
+        logger.debug("ESPN schedule error: %s", e)
+        schedule_data = {}
+
+    # Extract recent form from schedule events
+    events = schedule_data.get("events", [])
+    # Filter finished games, take last 10
+    finished_events = [
+        ev for ev in events
+        if ev.get("competitions", [{}])[0].get("status", {}).get("type", {}).get("state") == "post"
+    ]
+    for ev in finished_events[-10:]:
+        comps = ev.get("competitions", [{}])
+        if not comps:
+            continue
+        comp = comps[0]
+        competitors = comp.get("competitors", [])
+        if len(competitors) < 2:
+            continue
+
+        is_home = False
+        opponent = ""
+        h_score = ""
+        a_score = ""
+        for c in competitors:
+            c_id = c.get("id", "")
+            if str(c_id) == str(team_id):
+                is_home = c.get("homeAway") == "home"
+                h_score = c.get("score", "")
+            else:
+                opponent = c.get("team", {}).get("displayName", "")
+                a_score = c.get("score", "")
+
+        # Swap scores if our team is away
+        if not is_home:
+            h_score, a_score = a_score, h_score
+
+        result_str = ""
+        try:
+            hs, as_ = int(h_score), int(a_score)
+            if is_home:
+                result_str = "W" if hs > as_ else ("L" if hs < as_ else "D")
+            else:
+                result_str = "W" if as_ > hs else ("L" if as_ < hs else "D")
+        except (ValueError, TypeError):
+            pass
+
+        date_str = ev.get("date", "")[:10]
+        comp_name = ev.get("name", "")
+
+        result["recent_form"].append({
+            "date": date_str,
+            "opponent": opponent,
+            "result": result_str,
+            "score": f"{h_score}-{a_score}",
+            "competition": comp_name,
+            "venue": "H" if is_home else "A",
+        })
+
+    # Step 3: Get injuries
+    if espn_league:
+        injuries_url = (
+            f"https://site.api.espn.com/apis/site/v2/sports/{espn_sport}/{espn_league}"
+            f"/teams/{team_id}/injuries"
+        )
+    else:
+        injuries_url = (
+            f"https://site.api.espn.com/apis/site/v2/sports/{espn_sport}"
+            f"/teams/{team_id}/injuries"
+        )
+    try:
+        req = urllib.request.Request(injuries_url)
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            injuries_data = json.loads(resp.read().decode("utf-8"))
+        for item in injuries_data.get("items", []):
+            athlete = item.get("athlete", {})
+            player_name = athlete.get("displayName", "")
+            status = item.get("status", "")
+            date_of = item.get("date", "")
+            if player_name:
+                mapped_status = "OUT" if status.lower() in ("out", "injured reserve") else "DOUBTFUL"
+                result["injuries"].append({
+                    "player": player_name,
+                    "status": mapped_status,
+                    "since": date_of[:10] if date_of else "",
+                })
+    except Exception as e:
+        logger.debug("ESPN injuries error: %s", e)
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Enrichment completeness validation
+# ---------------------------------------------------------------------------
+
+def _compute_enrichment_quality(deep_data: dict, sport: str) -> dict:
+    """Compute a quality score (0-100) for enriched data completeness.
+
+    Checks:
+    - recent_form: has L10 matches with actual results (30 pts)
+    - stats_per_match: at least 2 stat keys with per-match values (30 pts)
+    - h2h_meetings: has H2H data (20 pts)
+    - injuries: has injury data (10 pts)
+    - competition context: form entries have competition info (10 pts)
+    """
+    score = 0
+    details = {}
+
+    # Recent form (0-30)
+    form = deep_data.get("recent_form", [])
+    form_with_results = [f for f in form if f.get("result")]
+    if len(form_with_results) >= 8:
+        score += 30
+        details["recent_form"] = "excellent"
+    elif len(form_with_results) >= 5:
+        score += 20
+        details["recent_form"] = "good"
+    elif len(form_with_results) >= 3:
+        score += 10
+        details["recent_form"] = "partial"
+    else:
+        details["recent_form"] = "missing"
+
+    # Stats per match (0-30)
+    spm = deep_data.get("stats_per_match", {})
+    keys_with_data = sum(1 for v in spm.values() if len(v) >= 3)
+    if keys_with_data >= 4:
+        score += 30
+        details["stats_per_match"] = f"excellent ({keys_with_data} keys)"
+    elif keys_with_data >= 2:
+        score += 20
+        details["stats_per_match"] = f"good ({keys_with_data} keys)"
+    elif keys_with_data >= 1:
+        score += 10
+        details["stats_per_match"] = f"partial ({keys_with_data} keys)"
+    else:
+        details["stats_per_match"] = "missing"
+
+    # H2H (0-20)
+    h2h = deep_data.get("h2h_meetings", [])
+    if len(h2h) >= 3:
+        score += 20
+        details["h2h"] = f"good ({len(h2h)} meetings)"
+    elif len(h2h) >= 1:
+        score += 10
+        details["h2h"] = f"partial ({len(h2h)} meetings)"
+    else:
+        details["h2h"] = "missing"
+
+    # Injuries (0-10)
+    injuries = deep_data.get("injuries", [])
+    if injuries:
+        score += 10
+        details["injuries"] = f"{len(injuries)} players"
+    else:
+        details["injuries"] = "not available"
+
+    # Competition context (0-10)
+    form_with_comp = [f for f in form if f.get("competition")]
+    if len(form_with_comp) >= 3:
+        score += 10
+        details["competition_context"] = "present"
+    else:
+        details["competition_context"] = "missing"
+
+    return {"score": score, "details": details}
+
+
+# ---------------------------------------------------------------------------
+# Deep data save helper
+# ---------------------------------------------------------------------------
+
+def _save_deep_data(
+    team_name: str, sport: str, deep_data: dict, source: str
+) -> None:
+    """Save deep extraction data to cache and DB."""
+    # Save stats_per_match via existing save functions
+    stats = deep_data.get("stats_per_match", {})
+    if stats:
+        _save_to_cache(team_name, sport, stats, source)
+        _save_to_db(team_name, sport, stats, f"deep-{source}")
+
+    # Save deep data JSON to separate cache file
+    slug = _slugify(team_name)
+    deep_dir = CACHE_DIR / sport / "deep"
+    deep_dir.mkdir(parents=True, exist_ok=True)
+    deep_path = deep_dir / f"{slug}.json"
+
+    deep_cache = {
+        "team": team_name,
+        "sport": sport,
+        "source": source,
+        "recent_form": deep_data.get("recent_form", []),
+        "h2h_meetings": deep_data.get("h2h_meetings", []),
+        "injuries": deep_data.get("injuries", []),
+        "stats_per_match_keys": list(stats.keys()),
+        "enriched_at": _now_iso(),
+    }
+    deep_path.write_text(
+        json.dumps(deep_cache, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    logger.info("Saved deep data: %s (%s via %s)", team_name, sport, source)
 
 
 # ---------------------------------------------------------------------------
@@ -667,6 +1305,87 @@ def enrich_team(team_name: str, sport: str, max_retries: int = 2) -> dict:
 
     result["error"] = "; ".join(errors) if errors else "No data found from any source"
     return result
+
+
+def enrich_team_deep(team_name: str, sport: str) -> dict:
+    """Run deep extraction for a team from multiple sources.
+
+    Tries sources in order of data quality and speed:
+    1. Sofascore API (structured, fast, rich stats)
+    2. ESPN API (free, unlimited, good for injuries/schedule)
+    3. Flashscore deep parse (Playwright-based, slowest)
+
+    Returns deep data dict with quality score.
+    """
+    deep_result = {
+        "team": team_name,
+        "sport": sport,
+        "deep_data": None,
+        "source": None,
+        "quality_score": 0,
+    }
+
+    best_data = None
+    best_score = 0
+    best_source = None
+
+    # Source 1: Sofascore API
+    try:
+        ss_data = _fetch_sofascore_deep(team_name, sport)
+        ss_quality = _compute_enrichment_quality(ss_data, sport)
+        if ss_quality["score"] > best_score:
+            best_data = ss_data
+            best_score = ss_quality["score"]
+            best_source = "sofascore-api"
+            logger.info("Sofascore deep: %s (%s) quality=%d",
+                        team_name, sport, ss_quality["score"])
+    except Exception as e:
+        logger.warning("Sofascore deep failed for %s: %s", team_name, e)
+
+    # Source 2: ESPN API (always try — free and has injuries)
+    try:
+        espn_data = _fetch_espn_deep(team_name, sport)
+        espn_quality = _compute_enrichment_quality(espn_data, sport)
+        if espn_quality["score"] > best_score:
+            best_data = espn_data
+            best_score = espn_quality["score"]
+            best_source = "espn-api"
+            logger.info("ESPN deep: %s (%s) quality=%d",
+                        team_name, sport, espn_quality["score"])
+        # Merge injury data from ESPN even if Sofascore had better stats
+        elif best_data and espn_data.get("injuries") and not best_data.get("injuries"):
+            best_data["injuries"] = espn_data["injuries"]
+            logger.info("ESPN injuries merged for %s", team_name)
+    except Exception as e:
+        logger.warning("ESPN deep failed for %s: %s", team_name, e)
+
+    # Source 3: Flashscore deep parse (only if we don't have good data yet)
+    if best_score < 40:
+        try:
+            url = _build_flashscore_url(team_name, sport)
+            _rate_limit("flashscore.com")
+            html = fetch(url, save_snapshot=False)
+            if html:
+                fs_data = _parse_flashscore_deep(html, sport)
+                fs_quality = _compute_enrichment_quality(fs_data, sport)
+                if fs_quality["score"] > best_score:
+                    best_data = fs_data
+                    best_score = fs_quality["score"]
+                    best_source = "flashscore-deep"
+                    logger.info("Flashscore deep: %s (%s) quality=%d",
+                                team_name, sport, fs_quality["score"])
+        except Exception as e:
+            logger.warning("Flashscore deep failed for %s: %s", team_name, e)
+
+    if best_data and best_source:
+        _save_deep_data(team_name, sport, best_data, best_source)
+        deep_result["deep_data"] = best_data
+        deep_result["source"] = best_source
+        deep_result["quality_score"] = best_score
+    else:
+        logger.warning("No deep data found for %s (%s)", team_name, sport)
+
+    return deep_result
 
 
 def enrich_h2h(team_a: str, team_b: str, sport: str) -> dict:

@@ -247,9 +247,9 @@ def build_safety_score_input(
     """
     # Minimum match count validation — need ≥5 for at least ONE team
     # (allows team-specific markets like team corners when only one team has data)
-    # Individual sports (tennis, MMA, snooker, darts) use lower threshold (3)
+    # Individual sports (tennis) use lower threshold (3)
     # because players have sparser schedules than team sports
-    INDIVIDUAL_SPORTS = {"tennis", "mma", "snooker", "darts", "table_tennis", "padel"}
+    INDIVIDUAL_SPORTS = {"tennis"}
     min_matches = 3 if sport in INDIVIDUAL_SPORTS else 5
 
     if len(team_a_matches) < min_matches and len(team_b_matches) < min_matches:
@@ -507,7 +507,7 @@ def _build_markets_from_db_form(
 
         # Skip market if insufficient stat data
         # Individual sports use lower threshold (3 vs 5)
-        _INDIVIDUAL = {"tennis", "mma", "snooker", "darts", "table_tennis", "padel"}
+        _INDIVIDUAL = {"tennis"}
         _min_stat = 3 if sport in _INDIVIDUAL else 5
         if stat_a_key and len(team_a_l10) < _min_stat:
             continue

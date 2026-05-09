@@ -64,15 +64,7 @@ SPORT_EMOJI = {
     "tennis": "🎾",
     "volleyball": "🏐",
     "hockey": "🏒",
-    "baseball": "⚾",
-    "handball": "🤾",
-    "esports": "🎮",
-    "snooker": "🎱",
-    "table_tennis": "🏓",
-    "darts": "🎯",
-    "mma": "🥊",
-    "padel": "🏸",
-    "speedway": "🏍️",
+
 }
 
 TIER_ORDER = {"LR": 0, "MS": 1, "HR": 2, "N": 3}
@@ -903,7 +895,7 @@ def compute_concentration_warnings(
 
 # Sports where Betclic commonly offers different lines than pipeline suggests
 LINE_SENSITIVE_SPORTS = frozenset([
-    "handball", "basketball", "baseball", "tennis", "volleyball",
+    "basketball", "tennis", "volleyball",
 ])
 
 

@@ -63,10 +63,10 @@ from bet.api_clients.rate_limiter import RateLimiter
 
 
 # Sports that have ATS/OU data on ESPN
-ATS_OU_SPORTS = {"basketball", "hockey", "baseball"}
+ATS_OU_SPORTS = {"basketball", "hockey"}
 
 # Sports that have player gamelogs on ESPN
-GAMELOG_SPORTS = {"basketball", "hockey", "baseball"}
+GAMELOG_SPORTS = {"basketball", "hockey"}
 
 # Default delay between ESPN API requests (seconds)
 REQUEST_DELAY = 0.3

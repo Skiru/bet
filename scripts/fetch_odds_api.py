@@ -78,17 +78,8 @@ SPORT_KEY_MAP = {
     ],
     "basketball": ["basketball_nba", "basketball_euroleague", "basketball_ncaab", "basketball_wnba"],
     "hockey": ["icehockey_nhl", "icehockey_shl", "icehockey_liiga"],
-    "baseball": ["baseball_mlb", "baseball_ncaa"],
-    "mma": ["mma_mixed_martial_arts"],
-    "handball": ["handball_germany_bundesliga"],
     # These sports are NOT covered by the API — skip silently
     "volleyball": [],
-    "esports": [],
-    "snooker": [],
-    "table_tennis": [],
-    "darts": [],
-    "padel": [],
-    "speedway": [],
 }
 
 
@@ -115,9 +106,6 @@ def discover_active_sport_keys(api_key: str) -> dict:
         "tennis_": "tennis",
         "basketball_": "basketball",
         "icehockey_": "hockey",
-        "baseball_": "baseball",
-        "mma_": "mma",
-        "handball_": "handball",
     }
 
     for s in live_sports:
@@ -546,8 +534,8 @@ def run_scores(api_key, sport_filter, days_from=2):
 def main():
     parser = argparse.ArgumentParser(description="Fetch odds from The Odds API")
     parser.add_argument("--list-sports", action="store_true", help="List available sports (FREE)")
-    parser.add_argument("--sports", type=str, help="Comma-separated sports to fetch (e.g., baseball,hockey)")
-    parser.add_argument("--scores", type=str, help="Fetch scores for settlement (e.g., baseball,hockey)")
+    parser.add_argument("--sports", type=str, help="Comma-separated sports to fetch (e.g., football,hockey)")
+    parser.add_argument("--scores", type=str, help="Fetch scores for settlement (e.g., football,hockey)")
     parser.add_argument("--no-window", action="store_true", help="Don't filter by betting day window")
     args = parser.parse_args()
 

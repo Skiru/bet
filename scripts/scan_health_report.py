@@ -34,13 +34,7 @@ SPORT_THRESHOLDS: dict[str, tuple[int, int, bool]] = {
     "tennis": (20, 80, True),
     "basketball": (15, 50, True),
     "volleyball": (10, 40, True),
-    "hockey": (8, 30, False),
-    "handball": (5, 20, False),
-    "esports": (3, 15, False),
-    "baseball": (3, 20, False),
-    "combat": (0, 5, False),   # MMA: 0 ok on non-event days
-    "racket": (3, 15, False),
-    "niche": (0, 10, False),   # Snooker/darts/speedway: seasonal
+    "hockey": (8, 30, True),
 }
 
 # Map scanner groups to sports covered
@@ -50,12 +44,6 @@ GROUP_TO_SPORTS: dict[str, list[str]] = {
     "basketball": ["basketball"],
     "volleyball": ["volleyball"],
     "hockey": ["hockey"],
-    "handball": ["handball"],
-    "esports": ["esports"],
-    "baseball": ["baseball"],
-    "combat": ["mma"],
-    "racket": ["table_tennis", "padel"],
-    "niche": ["snooker", "darts", "speedway"],
 }
 
 

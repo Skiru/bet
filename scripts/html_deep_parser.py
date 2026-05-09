@@ -54,10 +54,16 @@ class ExtractionProfile:
 
 
 class FlashscoreProfile(ExtractionProfile):
-    """Flashscore — extract match IDs, scores, league hierarchy, and form data.
+    """Flashscore — extract match IDs, scores, league hierarchy, form, and deep data.
 
     Flashscore match elements have `id='g_1_XXXXXXXX'` which is the internal match ID.
     This ID can be used for Flashscore API calls to get H2H, stats, lineups.
+
+    Deep extraction rules:
+    - Recent form: from "formTable" or "formRow" elements with W/L/D results
+    - H2H data: from dedicated H2H sections with match scores
+    - Standings: from league position markers in header/context elements
+    - Injury markers: from "lineUp" sections with "injury" or "miss" markers
     """
     domain = "flashscore.com"
 
@@ -149,6 +155,92 @@ class FlashscoreProfile(ExtractionProfile):
                 enrichment["enrichments"]["part_scores"] = part_scores
 
             results.append(enrichment)
+
+        # --- Deep extraction: form indicators ---
+        # Look for form elements (WLWWD patterns)
+        for form_el in soup.find_all(True, class_=re.compile(r"form|formRow", re.I)):
+            form_text = form_el.get_text(strip=True)
+            # Extract W/L/D sequence
+            form_chars = re.findall(r'[WLD]', form_text, re.I)
+            if len(form_chars) >= 3:
+                # Find closest team name
+                parent = form_el.parent
+                team_el = None
+                if parent:
+                    team_el = parent.find(True, class_=re.compile(r"participant|team", re.I))
+                team_name = team_el.get_text(strip=True) if team_el else ""
+                if team_name:
+                    results.append({
+                        "team": team_name,
+                        "source_domain": "flashscore.com",
+                        "stat_type": "recent_form",
+                        "enrichments": {
+                            "form_sequence": "".join(form_chars[:10]),
+                            "wins": form_chars.count("W"),
+                            "draws": form_chars.count("D"),
+                            "losses": form_chars.count("L"),
+                        },
+                    })
+
+        # --- Deep extraction: standings/league position ---
+        for standing_el in soup.find_all(True, class_=re.compile(
+            r"standings?|tableLeague|table__row", re.I
+        )):
+            cells = standing_el.find_all(["td", "div"])
+            if len(cells) >= 4:
+                pos_text = cells[0].get_text(strip=True) if cells else ""
+                team_cell = standing_el.find(True, class_=re.compile(r"participant|team", re.I))
+                team_link = standing_el.find("a")
+                t_name = ""
+                if team_cell:
+                    t_name = team_cell.get_text(strip=True)
+                elif team_link:
+                    t_name = team_link.get_text(strip=True)
+
+                if t_name and pos_text.isdigit():
+                    standing_data = {"league_position": int(pos_text)}
+                    # Extract W/D/L/GF/GA from table cells
+                    for i, cell in enumerate(cells[1:], 1):
+                        txt = cell.get_text(strip=True)
+                        if txt.isdigit() and i <= 8:
+                            standing_data[f"col_{i}"] = int(txt)
+                    results.append({
+                        "team": t_name,
+                        "source_domain": "flashscore.com",
+                        "stat_type": "standings",
+                        "enrichments": standing_data,
+                    })
+
+        # --- Deep extraction: injury markers ---
+        for lineup_el in soup.find_all(True, class_=re.compile(
+            r"lineup|lineUp|missPlayers|injured", re.I
+        )):
+            player_els = lineup_el.find_all(True, class_=re.compile(
+                r"player|name|miss|injury", re.I
+            ))
+            for p_el in player_els:
+                p_name = p_el.get_text(strip=True)
+                if not p_name or len(p_name) < 2:
+                    continue
+                # Check for injury indicator
+                injury_indicator = p_el.find(True, class_=re.compile(
+                    r"injur|miss|absent|suspend", re.I
+                ))
+                icon_el = p_el.find("svg") or p_el.find("i", class_=re.compile(r"icon", re.I))
+                if injury_indicator or icon_el:
+                    status = "OUT"
+                    indicator_text = injury_indicator.get_text(strip=True) if injury_indicator else ""
+                    if "doubt" in indicator_text.lower() or "question" in indicator_text.lower():
+                        status = "DOUBTFUL"
+                    results.append({
+                        "team": "",  # context-dependent
+                        "source_domain": "flashscore.com",
+                        "stat_type": "injury",
+                        "enrichments": {
+                            "player": p_name,
+                            "status": status,
+                        },
+                    })
 
         return results
 
@@ -1750,13 +1842,9 @@ PROFILES: dict[str, ExtractionProfile] = {
     # Tennis
     "tennisexplorer.com": TennisExplorerProfile(),
     "tennisabstract.com": TennisAbstractProfile(),
-    # Esports
-    "hltv.org": HLTVProfile(),
-    "gosugamers.net": GosuGamersProfile(),
-    # Niche sports
-    "cuetracker.net": CueTrackerProfile(),
-    "dartsorakel.com": DartsOrakelProfile(),
-    "speedwayekstraliga.pl": SpeedwayProfile(),
+    # NOTE: Removed sport profiles (hltv.org, cuetracker.net, dartsorakel.com,
+    # speedwayekstraliga.pl, gosugamers.net) kept in code but excluded from
+    # registry — pipeline now covers 5 sports only.
 }
 
 

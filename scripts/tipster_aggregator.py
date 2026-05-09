@@ -150,7 +150,7 @@ TIPSTER_SITES = [
         "url_builder": "zawodtyper",
         "language": "pl",
         "parser": "zawodtyper",
-        "sports": ["football", "tennis", "basketball", "volleyball", "hockey", "handball", "esports", "speedway"],
+        "sports": ["football", "tennis", "basketball", "volleyball", "hockey"],
         "accuracy_tracked": True,
     },
     {
@@ -166,7 +166,7 @@ TIPSTER_SITES = [
         "url": "https://www.sportsgambler.com/predictions/today/",
         "language": "en",
         "parser": "sportsgambler",
-        "sports": ["football", "tennis", "basketball", "hockey", "baseball", "handball", "mma"],
+        "sports": ["football", "tennis", "basketball", "hockey"],
         "accuracy_tracked": False,
     },
     {
@@ -176,11 +176,10 @@ TIPSTER_SITES = [
             "https://www.pickswise.com/tennis/predictions/",
             "https://www.pickswise.com/nba/predictions/",
             "https://www.pickswise.com/nhl/predictions/",
-            "https://www.pickswise.com/mlb/predictions/",
         ],
         "language": "en",
         "parser": "pickswise",
-        "sports": ["football", "tennis", "basketball", "hockey", "baseball"],
+        "sports": ["football", "tennis", "basketball", "hockey"],
         "accuracy_tracked": True,
     },
     {
@@ -208,7 +207,7 @@ TIPSTER_SITES = [
         "url": "https://www.tipstrr.com/tips",
         "language": "en",
         "parser": "tipstrr",
-        "sports": ["football", "tennis", "basketball", "snooker", "darts"],
+        "sports": ["football", "tennis", "basketball"],
         "accuracy_tracked": True,
     },
     {
@@ -233,14 +232,6 @@ TIPSTER_SITES = [
         "language": "en",
         "parser": "tips180",
         "sports": ["football"],
-        "accuracy_tracked": False,
-    },
-    {
-        "name": "GosuGamers",
-        "url": "https://www.gosugamers.net/predictions",
-        "language": "en",
-        "parser": "gosugamers",
-        "sports": ["esports"],
         "accuracy_tracked": False,
     },
 ]
@@ -352,15 +343,6 @@ def detect_sport(text: str, url: str = "") -> str:
         "basketball": ["basketball", "koszykówka", "nba", "euroleague", "plk"],
         "volleyball": ["volleyball", "siatkówka", "plusliga", "superlega"],
         "hockey": ["hockey", "hokej", "nhl", "khl"],
-        "baseball": ["baseball", "mlb"],
-        "handball": ["handball", "piłka ręczna", "ehf"],
-        "esports": ["esports", "cs2", "counter-strike", "lol", "dota"],
-        "snooker": ["snooker"],
-        "darts": ["darts", "rzutki", "pdc"],
-        "mma": ["mma", "ufc", "bellator"],
-        "table_tennis": ["table tennis", "tenis stołowy"],
-        "speedway": ["speedway", "żużel"],
-        "padel": ["padel"],
     }
     for sport, keywords in sport_keywords.items():
         for kw in keywords:

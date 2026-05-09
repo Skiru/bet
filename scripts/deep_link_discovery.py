@@ -23,13 +23,6 @@ DOMAIN_PATTERNS = {
             re.compile(r"/basketball/[a-z-]+/[a-z0-9-]+/?$"),
             re.compile(r"/volleyball/[a-z-]+/[a-z0-9-]+/?$"),
             re.compile(r"/hockey/[a-z-]+/[a-z0-9-]+/?$"),
-            re.compile(r"/handball/[a-z-]+/[a-z0-9-]+/?$"),
-            re.compile(r"/baseball/[a-z-]+/[a-z0-9-]+/?$"),
-            re.compile(r"/esports/[a-z-]+/[a-z0-9-]+/?$"),
-            re.compile(r"/snooker/[a-z-]+/[a-z0-9-]+/?$"),
-            re.compile(r"/darts/[a-z-]+/[a-z0-9-]+/?$"),
-            re.compile(r"/table-tennis/[a-z-]+/[a-z0-9-]+/?$"),
-            re.compile(r"/mma/[a-z-]+/[a-z0-9-]+/?$"),
             # Football country landing pages (list all leagues)
             re.compile(r"/football/[a-z-]+/?$"),
         ],
@@ -52,11 +45,6 @@ DOMAIN_PATTERNS = {
             re.compile(r"/basketball/[a-z-]+/[a-z0-9-]+/?$"),
             re.compile(r"/volleyball/[a-z-]+/[a-z0-9-]+/?$"),
             re.compile(r"/hockey/[a-z-]+/[a-z0-9-]+/?$"),
-            re.compile(r"/handball/[a-z-]+/[a-z0-9-]+/?$"),
-            re.compile(r"/snooker/[a-z-]+/[a-z0-9-]+/?$"),
-            re.compile(r"/esports/[a-z-]+/[a-z0-9-]+/?$"),
-            re.compile(r"/darts/[a-z-]+/[a-z0-9-]+/?$"),
-            re.compile(r"/table-tennis/[a-z-]+/[a-z0-9-]+/?$"),
         ],
         "exclude": [
             re.compile(r"/results/"),
@@ -85,8 +73,6 @@ DOMAIN_PATTERNS = {
             re.compile(r"/basketball/[a-z-]+/[a-z0-9-]+/?$"),
             re.compile(r"/volleyball/[a-z-]+/[a-z0-9-]+/?$"),
             re.compile(r"/hockey/[a-z-]+/[a-z0-9-]+/?$"),
-            re.compile(r"/handball/[a-z-]+/[a-z0-9-]+/?$"),
-            re.compile(r"/baseball/[a-z-]+/[a-z0-9-]+/?$"),
         ],
         "exclude": [
             re.compile(r"/results/"),
@@ -197,9 +183,7 @@ def discover_deep_links(
             # Generic sports patterns
             if any(sport in path for sport in [
                 "/football/", "/tennis/", "/basketball/", "/volleyball/",
-                "/hockey/", "/handball/", "/baseball/", "/esports/",
-                "/snooker/", "/darts/", "/table-tennis/", "/mma/",
-                "/soccer/", "/padel/", "/speedway/",
+                "/hockey/", "/soccer/",
             ]):
                 # Must have at least 2 path segments (not just landing)
                 segments = [s for s in path.split("/") if s]
@@ -240,10 +224,10 @@ def discover_flashscore_tournament_links(html: str, base_url: str) -> list[str]:
     for link in links:
         path = urlparse(link).path.lower()
         # Match country/league patterns across all sports
-        if re.match(r"^/(football|tennis|basketball|volleyball|hockey|handball|baseball|esports|snooker|darts|table-tennis|mma)/[a-z-]+/[a-z0-9-]+/?$", path):
+        if re.match(r"^/(football|tennis|basketball|volleyball|hockey)/[a-z-]+/[a-z0-9-]+/?$", path):
             results.append(link)
         # Also match country-level pages (lists all leagues in that country)
-        elif re.match(r"^/(football|tennis|basketball|volleyball|hockey|handball|baseball)/[a-z-]+/?$", path):
+        elif re.match(r"^/(football|tennis|basketball|volleyball|hockey)/[a-z-]+/?$", path):
             results.append(link)
 
     return sorted(set(results))

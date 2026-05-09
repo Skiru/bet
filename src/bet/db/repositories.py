@@ -61,15 +61,6 @@ class SportRepo:
             "hockey": ["goals", "shots", "powerplay_goals", "pim", "hits", "blocks", "faceoff_pct"],
             "tennis": ["aces", "double_faults", "first_serve_pct", "break_points_won", "games_won", "sets_won", "total_games"],
             "volleyball": ["points", "aces", "blocks", "attack_pct", "sets_won", "total_points", "errors"],
-            "handball": ["goals", "saves", "turnovers", "penalties", "suspensions", "total_goals"],
-            "snooker": ["frames_won", "centuries", "highest_break", "total_frames", "fifty_plus_breaks"],
-            "darts": ["legs_won", "checkout_pct", "one_eighties", "avg_score", "total_legs"],
-            "table_tennis": ["sets_won", "points_per_set", "total_sets", "total_points"],
-            "esports": ["maps_won", "rounds_won", "kills", "total_maps", "total_rounds"],
-            "baseball": ["runs", "hits", "errors", "strikeouts", "walks", "total_runs", "home_runs"],
-            "mma": ["takedowns", "sig_strikes", "submission_attempts", "rounds", "control_time"],
-            "padel": ["games_won", "break_points", "sets_won", "total_games"],
-            "speedway": ["heat_points", "total_points", "heat_wins"],
         }
         try:
             from bet.stats.market_ranking import SPORT_STAT_KEYS
@@ -84,15 +75,6 @@ class SportRepo:
             ("basketball", 1),
             ("tennis", 1),
             ("hockey", 2),
-            ("handball", 2),
-            ("baseball", 2),
-            ("esports", 2),
-            ("snooker", 2),
-            ("darts", 2),
-            ("table_tennis", 2),
-            ("mma", 2),
-            ("padel", 2),
-            ("speedway", 2),
         ]
         for name, tier in defaults:
             stat_keys = json.dumps(stat_keys_dict.get(name, []))

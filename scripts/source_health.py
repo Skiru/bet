@@ -39,22 +39,13 @@ DOMAIN_TO_SOURCE = {
     "olbg.com": "OLBG",
     "pickswise.com": "Pickswise",
     "betideas.com": "BetIdeas",
-    "hltv.org": "HLTV",
-    "gosugamers.net": "GosuGamers",
-    "cuetracker.net": "CueTracker",
-    "dartsorakel.com": "DartsOrakel",
     "betaminic.com": "Betaminic",
     "covers.com": "Covers",
     "teamrankings.com": "TeamRankings",
     "naturalstattrick.com": "NaturalStatTrick",
     "moneypuck.com": "MoneyPuck",
     "dailyfaceoff.com": "DailyFaceoff",
-    "speedwayekstraliga.pl": "SpeedwayEkstraliga",
     "sportowefakty.wp.pl": "SportoweFakty",
-    "tapology.com": "Tapology",
-    "sherdog.com": "Sherdog",
-    "padelfip.com": "PadelFIP",
-    "premierpadel.com": "PremierPadel",
 }
 
 # URL path to sport mapping
@@ -63,16 +54,7 @@ SPORT_PATTERNS = {
     "tennis": "tennis", "tenis": "tennis",
     "basketball": "basketball", "nba": "basketball",
     "hockey": "hockey", "nhl": "hockey",
-    "baseball": "baseball", "mlb": "baseball",
     "volleyball": "volleyball",
-    "esports": "esports", "csgo": "esports", "cs2": "esports",
-    "snooker": "snooker",
-    "darts": "darts",
-    "table-tennis": "table_tennis",
-    "handball": "handball",
-    "mma": "mma", "ufc": "mma",
-    "padel": "padel",
-    "speedway": "speedway",
 }
 
 

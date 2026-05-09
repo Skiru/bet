@@ -11,16 +11,7 @@
     "volleyball",
     "basketball",
     "tennis",
-    "hockey",
-    "snooker",
-    "speedway",
-    "baseball",
-    "esports",
-    "darts",
-    "table_tennis",
-    "handball",
-    "mma",
-    "padel"
+    "hockey"
   ],
   "db_path": "betting/data/betting.db",
   "max_core_coupons": 15,

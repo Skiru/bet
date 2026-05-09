@@ -421,10 +421,10 @@
     - Eurohockey.com — European hockey coverage
 
 - **Definition of Done:**
-  - No source entries reference removed sports as their primary purpose.
-  - Each of the 5 sports has ≥4 dedicated sources listed.
-  - New sources for lower-division coverage are documented with access notes.
-  - Coverage descriptions for Tier A sources are updated.
+  - [x] No source entries reference removed sports as their primary purpose.
+  - [x] Each of the 5 sports has ≥4 dedicated sources listed.
+  - [x] New sources for lower-division coverage are documented with access notes.
+  - [x] Coverage descriptions for Tier A sources are updated.
 
 ---
 

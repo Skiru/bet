@@ -198,14 +198,9 @@ def _validate_score(s1, s2, max_total=30, sport=None):
     """Reject clearly impossible scores. Sport-aware thresholds."""
     sport_limits = {
         "basketball": (300, 200),  # max_total, max_single
-        "handball": (80, 50),
         "volleyball": (5, 3),     # set-based score (max 3-2)
         "tennis": (7, 5),          # set-based score (max 3-2 or 7-6 tiebreak sets)
-        "baseball": (50, 30),
         "hockey": (30, 20),
-        "snooker": (50, 30),      # frame-based
-        "darts": (20, 12),        # set-based
-        "table_tennis": (15, 8),  # set-based
     }
     if sport and sport.lower() in sport_limits:
         mt, ms = sport_limits[sport.lower()]
@@ -290,7 +285,7 @@ class _FlashscoreBatchFetcher:
 
         # Fetch results pages — both today (for overnight games) and yesterday
         sport_slugs = ["football", "tennis", "basketball", "hockey",
-                       "baseball", "volleyball", "snooker", "handball"]
+                       "volleyball"]
 
         try:
             with sync_playwright() as p:

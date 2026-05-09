@@ -38,8 +38,6 @@ DOMAIN_DELAY_OVERRIDES = {
     "betclic.pl": 2.0,
     "soccerstats.com": 1.5,
     "totalcorner.com": 1.0,
-    "hltv.org": 2.0,
-    "dartsorakel.com": 2.0,
 }
 
 # Domains safe for intra-domain parallel fetching (value = max concurrent fetches)
@@ -57,17 +55,8 @@ SPORT_URL_PATTERNS = {
     "tennis": ["/tennis", "/tenis", "tennisabstract", "tennisexplorer"],
     "basketball": ["/basketball", "/koszykowka", "/nba", "teamrankings.com", "basketball-reference"],
     "hockey": ["/hockey", "/hokej", "/nhl", "hockey-reference", "/ice-hockey"],
-    "baseball": ["/baseball", "/mlb", "baseballsavant"],
     "football": ["/football", "/pilka-nozna", "/soccer", "forebet", "predictz", "betideas", "soccerstats", "totalcorner", "soccerway", "aiscore", "xscores", "goaloo", "nowgoal", "feedinco", "bettingclosed", "tips180", "asiabet"],
     "volleyball": ["/volleyball", "/siatkowka"],
-    "handball": ["/handball", "/pilka-reczna"],
-    "snooker": ["/snooker", "cuetracker"],
-    "esports": ["/esports", "/esport", "gosugamers", "bo3.gg", "hltv", "/csgo", "/lol"],
-    "darts": ["/darts", "/rzutki", "dartsorakel"],
-    "table_tennis": ["/table-tennis", "/tenis-stolowy"],
-    "mma": ["/mma", "tapology", "ufcstats"],
-    "padel": ["/padel", "premierpadel", "padelfip"],
-    "speedway": ["/speedway", "/zuzel", "speedwayekstraliga"],
 }
 
 # Multi-sport tipster sites that cover ALL sports — URL-based sport detection

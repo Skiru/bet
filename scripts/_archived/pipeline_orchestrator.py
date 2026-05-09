@@ -789,7 +789,7 @@ def _run_parallel_enrichment(date: str, state: dict) -> tuple[bool, str]:
             enrichment = {"date": date, "odds": [], "injuries": {}, "form": {}}
 
             # Fetch odds for all ESPN-covered sports
-            for sport in ["football", "basketball", "hockey", "baseball"]:
+            for sport in ["football", "basketball", "hockey"]:
                 client = ESPNMultiLeagueClient(sport=sport, rate_limiter=rl)
                 try:
                     odds_data = client.get_scoreboard_odds(date)

@@ -59,19 +59,37 @@ FALLBACK_CHAINS = {
     "hockey": ["espn-hockey", "api-hockey", "thesportsdb", "serpapi"],
     "tennis": ["espn-tennis", "api-tennis", "thesportsdb", "serpapi"],
     "volleyball": ["espn-volleyball", "api-volleyball", "thesportsdb", "serpapi"],
-    "handball": ["api-handball", "thesportsdb", "serpapi"],
-    "baseball": ["espn-baseball", "api-baseball", "thesportsdb", "serpapi"],
-    "mma": ["espn-mma", "thesportsdb", "serpapi"],
-    "snooker": ["thesportsdb", "serpapi"],
-    "darts": ["thesportsdb", "serpapi"],
-    "table_tennis": ["thesportsdb", "serpapi"],
-    "esports": ["thesportsdb", "serpapi"],
-    "padel": ["thesportsdb", "serpapi"],
-    "speedway": ["thesportsdb", "serpapi"],
 }
 
 # Tier 1 sports get enriched first
-TIER_1_SPORTS = {"football", "volleyball", "basketball", "tennis"}
+TIER_1_SPORTS = {"football", "volleyball", "basketball", "tennis", "hockey"}
+
+# Expected stat keys per sport — used to audit extraction completeness
+EXPECTED_STATS_PER_SPORT = {
+    "football": [
+        "corners", "fouls", "yellow_cards", "red_cards", "shots",
+        "shots_on_target", "possession", "offsides", "saves",
+        "total_passes", "pass_accuracy",
+    ],
+    "basketball": [
+        "rebounds", "assists", "steals", "blocks", "turnovers",
+        "fouls", "fg_pct", "three_pct", "ft_pct",
+        "points_in_paint", "fast_break_points",
+    ],
+    "hockey": [
+        "shots", "hits", "blocks", "penalties", "pim",
+        "powerplay_goals", "faceoffs_won", "faceoff_pct",
+        "takeaways", "giveaways",
+    ],
+    "tennis": [
+        "aces", "double_faults", "first_serve_pct",
+        "break_points_won",
+    ],
+    "volleyball": [
+        "kills", "aces", "blocks", "digs", "assists",
+        "hitting_pct", "points",
+    ],
+}
 
 
 def fetch_league_leaders_for_sport(sport: str, league: str) -> dict | None:
@@ -114,12 +132,12 @@ def fetch_player_gamelogs(sport: str, league: str, team_id: str, team_name: str)
     Gets team leaders first, then fetches gamelogs for top 3 scorers.
     Stores in: betting/data/stats_cache/espn/{sport}/players/{athlete_id}/gamelog.json
 
-    Only for sports where gamelogs are available (basketball, baseball, hockey).
+    Only for sports where gamelogs are available (basketball, hockey).
     """
     if not _HAS_ESPN_STATS:
         return []
 
-    if sport not in ("basketball", "baseball", "hockey"):
+    if sport not in ("basketball", "hockey"):
         return []
 
     client = ESPNStatsClient()
@@ -298,6 +316,12 @@ def _store_in_cache(
     # --- DB: persist match_stats rows for each match ---
     _persist_match_stats_to_db(sport, team_name, team_matches, api_source)
 
+    # --- DB: persist per-match stat arrays to team_form.l10_values ---
+    _save_per_match_stat_arrays(sport, team_name, team_matches, api_source)
+
+    # --- Audit stat extraction completeness ---
+    _audit_stat_extraction(sport, team_name, team_matches, api_source)
+
 
 def _persist_match_stats_to_db(
     sport: str,
@@ -365,6 +389,148 @@ def _persist_match_stats_to_db(
                 print(f"[cache] DB: saved {len(rows)} match_stats rows for {sport}/{team_name}")
     except Exception as e:
         print(f"[cache] DB match_stats error (non-fatal): {e}")
+
+
+def _save_per_match_stat_arrays(
+    sport: str,
+    team_name: str,
+    matches: list[NormalizedMatchStats],
+    api_source: str,
+) -> None:
+    """Save per-match stat VALUE ARRAYS to team_form.l10_values in DB.
+
+    This ensures l10_values contains real per-match data (e.g. corners: [7,8,5,9,6])
+    rather than just averages. Critical for three-way cross-check.
+    """
+    if not _HAS_DB or not matches:
+        return
+
+    try:
+        with get_db() as conn:
+            sport_repo = SportRepo(conn)
+            team_repo = TeamRepo(conn)
+            stats_repo = StatsRepo(conn)
+
+            sport_obj = sport_repo.get_by_name(sport.lower())
+            if not sport_obj:
+                return
+
+            team_obj = team_repo.find_or_create(team_name, sport_obj.id)
+            team_lower = team_name.lower()
+            now_ts = datetime.now(timezone.utc).isoformat()
+
+            # Collect per-stat arrays across all matches
+            stat_arrays: dict[str, list[float]] = {}
+            for match in matches[:10]:
+                raw_stats = getattr(match, "stats", {})
+                if not raw_stats:
+                    continue
+
+                home_team = getattr(match, "home_team", "")
+                is_away = (
+                    team_lower
+                    and home_team
+                    and team_lower != home_team.lower()
+                )
+
+                for stat_key, value in raw_stats.items():
+                    if isinstance(value, dict):
+                        val = value.get("away" if is_away else "home")
+                    elif isinstance(value, (int, float)):
+                        val = value
+                    else:
+                        continue
+
+                    if val is not None:
+                        try:
+                            stat_arrays.setdefault(stat_key, []).append(float(val))
+                        except (ValueError, TypeError):
+                            pass
+
+            # Save each stat key as a TeamForm row with full l10_values array
+            from bet.db.models import TeamForm
+
+            for stat_key, values in stat_arrays.items():
+                l10 = values[:10]
+                l5 = values[:5]
+                l10_avg = round(sum(l10) / len(l10), 2) if l10 else None
+                l5_avg = round(sum(l5) / len(l5), 2) if l5 else None
+
+                trend = ""
+                if l10_avg and l5_avg:
+                    diff = l5_avg - l10_avg
+                    if abs(diff) < 0.3:
+                        trend = "stable"
+                    else:
+                        trend = "rising" if diff > 0 else "falling"
+
+                form = TeamForm(
+                    id=None,
+                    team_id=team_obj.id,
+                    sport_id=sport_obj.id,
+                    stat_key=stat_key,
+                    l10_values=l10,
+                    l5_values=l5,
+                    l10_avg=l10_avg,
+                    l5_avg=l5_avg,
+                    h2h_values=[],
+                    h2h_opponent_id=None,
+                    trend=trend,
+                    updated_at=now_ts,
+                    source=api_source,
+                )
+                stats_repo.save_team_form(form)
+
+            conn.commit()
+            if stat_arrays:
+                print(f"[cache] DB team_form arrays: {len(stat_arrays)} stat keys for {sport}/{team_name}")
+    except Exception as e:
+        print(f"[cache] DB team_form arrays error (non-fatal): {e}")
+
+
+def _audit_stat_extraction(
+    sport: str,
+    team_name: str,
+    matches: list[NormalizedMatchStats],
+    api_source: str,
+) -> dict:
+    """Audit what stats were actually captured vs expected for a sport.
+
+    Returns dict with captured keys, missing keys, and coverage percentage.
+    """
+    expected = set(EXPECTED_STATS_PER_SPORT.get(sport, []))
+    if not expected:
+        return {"sport": sport, "team": team_name, "status": "no_expected_stats_defined"}
+
+    captured: set[str] = set()
+    for match in matches:
+        raw_stats = getattr(match, "stats", {})
+        for key, value in raw_stats.items():
+            if isinstance(value, dict):
+                if value.get("home") is not None or value.get("away") is not None:
+                    captured.add(key)
+            elif isinstance(value, (int, float)):
+                captured.add(key)
+
+    missing = expected - captured
+    coverage = round(len(expected & captured) / len(expected) * 100, 1) if expected else 0
+
+    result = {
+        "sport": sport,
+        "team": team_name,
+        "api_source": api_source,
+        "expected_keys": sorted(expected),
+        "captured_keys": sorted(captured),
+        "missing_keys": sorted(missing),
+        "extra_keys": sorted(captured - expected),
+        "coverage_pct": coverage,
+    }
+
+    if missing:
+        print(f"[audit] {sport}/{team_name} via {api_source}: {coverage}% coverage, "
+              f"missing: {', '.join(sorted(missing))}")
+
+    return result
 
 
 def enrich_fixture(fixture: dict, rate_limiter: RateLimiter, chain_filter: set | None = None) -> dict:

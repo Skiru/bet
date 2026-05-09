@@ -203,29 +203,8 @@ def main():
     rl = RateLimiter()
     all_results = {}
 
-    try:
-        all_results["darts"] = seed_darts(rl)
-    except Exception as e:
-        print(f"\n  ⚠️ Darts seeder error: {e}")
-        all_results["darts"] = {"error": str(e)}
-
-    try:
-        all_results["snooker"] = seed_snooker(rl)
-    except Exception as e:
-        print(f"\n  ⚠️ Snooker seeder error: {e}")
-        all_results["snooker"] = {"error": str(e)}
-
-    try:
-        all_results["esports_dota2"] = seed_opendota(rl)
-    except Exception as e:
-        print(f"\n  ⚠️ OpenDota seeder error: {e}")
-        all_results["esports_dota2"] = {"error": str(e)}
-
-    try:
-        all_results["table_tennis"] = seed_table_tennis(rl)
-    except Exception as e:
-        print(f"\n  ⚠️ Table Tennis seeder error: {e}")
-        all_results["table_tennis"] = {"error": str(e)}
+    # All niche sport seeders removed (darts, snooker, esports, table_tennis)
+    # Only 5 sports supported: football, volleyball, basketball, tennis, hockey
 
     # Final summary
     print("\n" + "=" * 60)

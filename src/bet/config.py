@@ -52,9 +52,7 @@ class BettingConfig:
             timezone=raw.get("timezone", "Europe/Warsaw"),
             sports=raw.get("sports", [
                 "football", "volleyball", "basketball", "tennis",
-                "hockey", "snooker", "speedway", "baseball",
-                "esports", "darts", "table_tennis", "handball",
-                "mma", "padel",
+                "hockey",
             ]),
             db_path=raw.get("db_path", "betting/data/betting.db"),
             low_risk_coupon_max_stake_pln=raw.get("low_risk_coupon_max_stake_pln", 3.0),

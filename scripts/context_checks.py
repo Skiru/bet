@@ -89,7 +89,7 @@ def run_context_checks(date: str, state: dict) -> tuple[bool, str]:
             from api_clients.rate_limiter import RateLimiter
             rl = RateLimiter()
             enrichment = {"date": date, "odds": [], "injuries": {}, "form": {}}
-            for sport_name in ["football", "basketball", "hockey", "baseball"]:
+            for sport_name in ["football", "basketball", "hockey"]:
                 try:
                     client = ESPNMultiLeagueClient(sport=sport_name, rate_limiter=rl)
                     injuries = client.get_injuries()

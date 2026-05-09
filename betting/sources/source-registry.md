@@ -1,14 +1,14 @@
 # Betting Source Registry
 
-Purpose: use sources by role, not by raw count. The internet is rich with statistics, analysis, and prediction sites for every sport. Never reject a sport for "lack of sources" — search for specialized sources instead.
+Purpose: document all data sources used by the 5-sport pipeline (football, volleyball, basketball, tennis, hockey). Sources organized by role — stats, odds, fixtures, tipsters — with depth across every league.
 
 ## Source Philosophy
 
-Every sport has dedicated communities, statistical databases, and prediction sites. The workflow must:
-1. Use Tier A statistical and market sources as the analytical backbone.
+The pipeline focuses on 5 sports — football, volleyball, basketball, tennis, hockey — with depth over breadth. Every league in every sport must have multiple independent data sources. The workflow must:
+1. Use Tier A statistical and market sources as the analytical backbone — multiple sources per sport, per league.
 2. Use Tier B tipster/community sites to validate direction, discover angles, and check consensus.
-3. Use Tier C niche/specialist sites for sport-specific deep dives.
-4. Never reject a sport solely because the orchestrator didn't find data — manually search specialist sources.
+3. Use Tier C specialist sites for sport-specific deep dives, especially lower divisions and exotic leagues.
+4. Prioritize lower-division and minor-league coverage — market inefficiency is highest where bookmaker lines are weakest.
 
 ## Tier A Core Market and Price Sources
 
@@ -29,29 +29,29 @@ Every sport has dedicated communities, statistical databases, and prediction sit
   Access: OK.
 
 - SportsbookReview (SBR)
-  Role: US-sport odds comparison — NHL, NBA, MLB, NFL. Moneyline, spread, AND totals tabs with lines from 6+ books.
+  Role: US-sport odds comparison — NHL, NBA. Moneyline, spread, AND totals tabs with lines from 6+ books.
   URL: sportsbookreview.com/betting-odds/{sport}/
-  Sport slugs: nhl-hockey, nba-basketball, mlb-baseball, nfl-football, college-football, college-basketball.
+  Sport slugs: nhl-hockey, nba-basketball.
   Use for: totals lines + prices for US sports (the "Totals" tab shows O/U line + American odds per book).
   Access: OK (no GDPR wall, renders in Playwright). Click "Totals" tab for O/U.
-  Coverage: NHL, NBA, MLB, NFL, college sports only.
+  Coverage: NHL, NBA.
   American-to-decimal conversion: positive +X → 1 + X/100; negative -X → 1 + 100/X.
   Added: 2026-04-23.
 
 - ESPN Odds
-  Role: US-sport odds — NHL, NBA, MLB. Shows moneyline, spread, totals with lines and American odds.
-  URL: espn.com/{sport}/odds (sport = nhl, nba, mlb)
+  Role: US-sport odds — NHL, NBA. Shows moneyline, spread, totals with lines and American odds.
+  URL: espn.com/{sport}/odds (sport = nhl, nba)
   Use for: cross-validation of US sport totals and moneylines. Shows team records inline.
   Access: OK from EU/PL IP. No soccer or tennis odds available.
-  Coverage: NHL, NBA, MLB, NFL only.
+  Coverage: NHL, NBA.
   Added: 2026-04-23.
 
 - ScoresAndOdds
-  Role: US-sport odds comparison with line movements — NHL, NBA, MLB, NFL.
-  URL: scoresandodds.com/{sport} (sport = nhl, nba, mlb, nfl)
-  Use for: totals lines, moneyline, puck/run/point line, line movement tracking. Shows opening vs current odds.
+  Role: US-sport odds comparison with line movements — NHL, NBA.
+  URL: scoresandodds.com/{sport} (sport = nhl, nba)
+  Use for: totals lines, moneyline, puck/point line, line movement tracking. Shows opening vs current odds.
   Access: OK from EU/PL IP. Renders in Playwright. Has "LINE MOVEMENTS" column.
-  Coverage: NHL, NBA, MLB, NFL only.
+  Coverage: NHL, NBA.
   Added: 2026-04-23.
 
 - The-Odds-API
@@ -59,11 +59,11 @@ Every sport has dedicated communities, statistical databases, and prediction sit
   URL: api.the-odds-api.com/v4/sports/{sport}/odds?regions={region}&markets={markets}&apiKey={key}
   Use for: programmatic odds retrieval for ANY sport when manual scraping fails. Supports h2h, spreads, totals.
   Access: free tier (500 credits/month). API key in config/odds_api_key.txt or ODDS_API_KEY env var.
-  Coverage: MLB, NBA, NHL, NFL, EPL, La Liga, Bundesliga, Serie A, Ligue 1, Eredivisie, Ekstraklasa, MLS, tennis Grand Slams, MMA, and 70+ more.
-  NOT covered: volleyball, esports, snooker, darts, table tennis, handball, padel, speedway (fallback sources — OddsPortal, BetExplorer, Betclic — now handle these via the multi-source system).
+  Coverage: NBA, NHL, EPL, La Liga, Bundesliga, Serie A, Ligue 1, Eredivisie, Ekstraklasa, MLS, tennis Grand Slams, and 70+ more.
+  NOT covered: volleyball (fallback sources — OddsPortal, BetExplorer, Betclic — handle this via the multi-source system).
   Script: `python3 scripts/fetch_odds_api.py` — fetches all sports, saves to betting/data/odds_api_snapshot.json + odds_api_summary.csv.
-  Commands: `--list-sports` (free, 0 credits), `--sports baseball,hockey` (filter), `--scores baseball` (settlement).
-  Quota: 1 credit per sport×market×region. Full scan (14 sport groups × h2h+totals × eu) ≈ 30 credits. ~16 full scans/month on free tier.
+  Commands: `--list-sports` (free, 0 credits), `--sports hockey,basketball` (filter), `--scores hockey` (settlement).
+  Quota: 1 credit per sport×market×region. Full scan (5 sport groups × h2h+totals × eu) ≈ 12 credits. ~40 full scans/month on free tier.
   Integration: Run in STEP 1 (event scan) as cross-validation source. Run in STEP 5 (odds check) for market-best prices. Run with --scores for STEP 0 (settlement).
   Added: 2026-04-23. Activated: 2026-04-24.
 
@@ -88,12 +88,12 @@ Every sport has dedicated communities, statistical databases, and prediction sit
 
 - Covers
   Role: expert-written previews for US sports and big markets.
-  Use for: NHL, MLB, NFL, and UFC support and narrative checks.
+  Use for: NHL, NBA support and narrative checks.
   Access: PARTIAL — NBA pages return empty; other sections intermittent. Do not rely as sole source.
 
 - TeamRankings
   Role: algorithmic picks, rankings, trends, injuries, matchup pages, and efficiency stats.
-  Use for: NBA, MLB, NFL, and college sports, especially totals and spread context.
+  Use for: NBA and college sports, especially totals and spread context.
   Access: INTERMITTENT — sometimes blocked. Do not rely as sole source. When available, useful for totals context.
 
 - TennisAbstract
@@ -106,7 +106,7 @@ Every sport has dedicated communities, statistical databases, and prediction sit
 
 - Scores24.live
   Role: universal multi-sport deep data source — match detail pages with H2H, recent form (last 5-10 matches with scores), live odds (W1/X/W2, handicaps, totals), and structured betting trends with statistical hit rates.
-  URL: scores24.live/en/{sport} (sport = soccer, tennis, basketball, ice-hockey, handball, volleyball, baseball, snooker, darts, table-tennis, mma, csgo, lol, american-football, cricket, rugby, badminton, boxing, futsal, aussie-rules)
+  URL: scores24.live/en/{sport} (sport = soccer, tennis, basketball, ice-hockey, volleyball)
   Detail URL: scores24.live/en/{sport}/m-{DD-MM-YYYY}-{slug}
   Trends URL: scores24.live/en/{sport}/m-{DD-MM-YYYY}-{slug}#trends
   Use for:
@@ -122,7 +122,7 @@ Every sport has dedicated communities, statistical databases, and prediction sit
     - form_home / form_away: last 5-10 matches with opponent, result (W/L), scores
     - trends: categorized tips (Match Result, Double Chance, Over/Under, Handicap, BTTS) with hit_count/sample_size/hit_rate and associated odds
   Access: OK. Renders via Playwright (JS-heavy SPA). No GDPR wall. Cookie selectors configured.
-  Coverage: 20+ sports globally. Best coverage for tennis, basketball, football, handball, darts, ice hockey.
+  Coverage: 20+ sports globally. Best coverage for football, tennis, basketball, ice hockey, volleyball.
   Adapter: `scripts/adapters/scores24_adapter.py` — handles both listing pages and detail pages.
   Added: 2026-04-30.
 
@@ -199,34 +199,20 @@ These API sources provide structured statistical data via REST APIs. They are th
   Fallback: TheSportsDB → Playwright (Flashscore, Sofascore).
   Added: 2026-04-30.
 
-- API-Handball (custom client)
-  Role: handball statistics API client — team stats, match results, half-time scores, goal totals.
-  Use for: L10/L5/H2H statistical data for handball half totals, game totals, and team total markets.
-  Script: `python3 scripts/fetch_api_stats.py --sports handball` (uses `api_clients/api_handball.py`)
-  Fallback: TheSportsDB → Playwright (EHF, Handball-World).
-  Added: 2026-04-30.
-
-- API-Baseball (custom client)
-  Role: baseball statistics API client — team stats, pitcher data, game results, run totals.
-  Use for: L10/L5/H2H statistical data for baseball F5 totals, team totals, and run line markets.
-  Script: `python3 scripts/fetch_api_stats.py --sports baseball` (uses `api_clients/api_baseball.py`)
-  Fallback: TheSportsDB → Playwright (BaseballSavant, ESPN).
-  Added: 2026-04-30.
-
 - TheSportsDB
   Role: universal sports fixture database — covers ALL sports with basic fixture/result data.
-  Use for: fixture discovery for sports without API-Sports.io coverage (volleyball, tennis, handball, etc.). No per-match stats.
+  Use for: fixture discovery for sports without API-Sports.io coverage (volleyball, tennis, etc.). No per-match stats.
   Access: free tier (~100 req/day). Key "3" for free tier.
   Coverage: All sports globally — but basic data only (fixtures, results, team info).
   Added: 2026-04-28.
 
 - ESPN API (espn_adapter.py)
-  Role: FREE, UNLIMITED, NO API KEY — multi-sport statistics via ESPN's public endpoints. Per-match stats: corners, fouls, cards, shots, shots on target, possession, saves, offsides, passes, tackles, interceptions, clearances. 36+ football leagues, NBA, NHL, MLB, ATP/WTA, UFC.
+  Role: FREE, UNLIMITED, NO API KEY — multi-sport statistics via ESPN's public endpoints. Per-match stats: corners, fouls, cards, shots, shots on target, possession, saves, offsides, passes, tackles, interceptions, clearances. 36+ football leagues, NBA, NHL, ATP/WTA.
   Use for: PRIMARY L10/L5/H2H stats source (first in every applicable fallback chain). Produces ~64KB slug-based cache per team. Feeds safety score computation and market ranking.
   Access: free (no API key, no rate limit). Endpoint: site.api.espn.com/apis/site/v2/sports/{sport}/{league}/.
-  Coverage: Football (36 leagues: eng.1-4, ger.1, esp.1, ita.1, fra.1, ned.1, por.1, usa.1, mex.1, bra.1, arg.1, tur.1, gre.1, rus.1, bel.1, sco.1, chn.1, jpn.1, kor.1, aus.1 + 16 more). Basketball (NBA). Hockey (NHL). Baseball (MLB). Tennis (ATP, WTA). MMA (UFC).
+  Coverage: Football (36 leagues: eng.1-4, ger.1, esp.1, ita.1, fra.1, ned.1, por.1, usa.1, mex.1, bra.1, arg.1, tur.1, gre.1, rus.1, bel.1, sco.1, chn.1, jpn.1, kor.1, aus.1 + 16 more). Basketball (NBA). Hockey (NHL). Tennis (ATP, WTA).
   Stats per match (football): fouls, yellow_cards, red_cards, offsides, corners, saves, possession, shots, shots_on_target, shot_accuracy, penalty_goals, accurate_passes, total_passes, pass_accuracy, accurate_crosses, long_balls, blocked_shots, tackles_won, interceptions, clearances, goals.
-  Client registry: `espn-football`, `espn-basketball`, `espn-hockey`, `espn-baseball`, `espn-tennis`, `espn-mma` (6 registered factories).
+  Client registry: `espn-football`, `espn-basketball`, `espn-hockey`, `espn-tennis` (4 registered factories).
   Script: Integrated into `python3 scripts/fetch_api_stats.py` via fallback chains.
   Added: 2026-04-30. Promoted to first in chains: 2026-05-04.
 
@@ -242,59 +228,13 @@ These API sources provide structured statistical data via REST APIs. They are th
 - Odds-API.io
   Role: real-time odds comparison from 265 bookmakers across 34 sports — value bets, pre-calculated EV opportunities, participant search.
   URL: api.odds-api.io/v3
-  Use for: odds cross-validation with Betclic PL and Bet365 focus. Value bet detection (/value-bets endpoint). Fixture discovery for niche sports. 34 sports including volleyball, handball, padel, snooker, darts, table tennis, esports.
+  Use for: odds cross-validation with Betclic PL and Bet365 focus. Value bet detection (/value-bets endpoint). Fixture discovery. 34 sports including volleyball and more.
   Access: free tier (5,000 req/hour). API key in config/api_keys.json or ODDS_API_IO_KEY env var.
-  Coverage: 34 sports (football, basketball, tennis, hockey, baseball, volleyball, handball, esports, darts, mma, snooker, table_tennis, padel, rugby, cricket + more). 265 bookmakers.
+  Coverage: 34 sports (football, basketball, tennis, hockey, volleyball + more). 265 bookmakers.
   Key endpoints: /events (fixtures by sport), /odds (bookmaker odds per event), /odds/multi (batch), /value-bets (pre-calculated EV), /participants (team/player search).
   Client registry: `odds-api-io` — used separately by `fetch_odds_multi.py`, NOT in stats fallback chains.
   Script: `python3 scripts/fetch_odds_multi.py` (integrated as odds source), also callable via `api_clients/odds_api_io.py` directly.
   Added: 2026-05-04.
-
-- Sofascore Darts (custom client)
-  Role: darts deep statistics API — per-match avg 3 darts, 180s, 140+, 100+, highest checkout, checkout accuracy, checkouts over 100.
-  URL: api.sofascore.com/api/v1/sport/darts/scheduled-events/{date} + /event/{id}/statistics
-  Use for: L10/L5/H2H statistical data for darts checkout, 180s, and scoring averages. Provides 9 stat keys per match.
-  Access: free (no key). Rate: ~500 req/day (self-imposed). Sport ID 22.
-  Coverage: PDC events, Modus Super Series, BDO, and all Sofascore-tracked darts tournaments.
-  Stats per match: avg_score (3 darts), one_eighties, thrown_over_140, thrown_over_100, highest_checkout, checkouts_over_100, checkout_pct, checkout_made, checkout_total.
-  Client registry: `sofascore-darts` — first in darts fallback chain.
-  Script: `python3 scripts/seed_deep_stats.py` (darts section).
-  Added: 2026-05-07.
-
-- Snooker.org API (custom client)
-  Role: snooker statistics API — upcoming matches, recent results with frame scores, H2H records, world rankings, season events.
-  URL: api.snooker.org/?t={type}&e={event}&p={player}
-  Use for: snooker frame score analysis (total frames, frame handicap), H2H data, ranking context.
-  Access: FREE for non-commercial use. REQUIRES approved X-Requested-By header value — email webmaster@snooker.org to register.
-  Setup: Set SNOOKER_ORG_APP_NAME env var or add "snooker_org_app_name" to config/api_keys.json after registration.
-  Coverage: All World Snooker Tour, Q Tour, and invitational events (150+ events/season, 500+ ranked players).
-  Stats per match: frames_won (home/away), total_frames, best_of, winner_id, century_breaks.
-  Client registry: `snooker-org` — first in snooker fallback chain (once registered).
-  Script: `python3 scripts/seed_deep_stats.py` (snooker section).
-  Added: 2026-05-07. Status: PENDING REGISTRATION (401 until X-Requested-By approved).
-
-- OpenDota API (custom client)
-  Role: Dota 2 esports statistics API — pro match data with full team-level stats (kills, GPM, XPM, hero damage, tower damage, last hits, denies).
-  URL: api.opendota.com/api/proMatches + /matches/{id}
-  Use for: L10/L5/H2H statistical data for Dota 2 esports markets. Provides 10+ stat keys per match aggregated from player-level data.
-  Access: free (no key = 60 req/min, with key = higher limits). Optional key in OPENDOTA_KEY env var.
-  Coverage: ALL professional Dota 2 matches parsed by OpenDota (10,000+ per month). 200+ ranked pro teams.
-  Stats per match: kills, deaths, assists, gpm (avg), xpm (avg), hero_damage, tower_damage, last_hits, denies, duration_minutes, radiant_win.
-  Client registry: `opendota` — first in esports fallback chain.
-  Script: `python3 scripts/seed_deep_stats.py` (esports section).
-  Added: 2026-05-07.
-
-- ITTF/Sofascore Table Tennis (custom client)
-  Role: table tennis fixture and score data — set scores, rubber results (team events), fixture discovery.
-  URL: api.sofascore.com/api/v1/sport/table-tennis/scheduled-events/{date} + /event/{id}
-  Use for: table tennis set totals and handicap markets. 2000+ daily fixtures including all WTT, ITTF, and national league events.
-  Access: free (no key). Rate: ~300 req/day (self-imposed). Uses Sofascore TT Sport.
-  Coverage: WTT Champions, WTT Contender, ITTF World Championships, national leagues (China, Japan, Germany, etc.). 2000+ fixtures/day.
-  Stats per match: sets_won, total_sets, total_points (individual matches only), points_scored, points_per_set.
-  Note: Team events show rubber wins (3-0, 3-1) without per-point data. Individual matches show full set scores (e.g., 11-8, 11-9).
-  Client registry: `ittf` — first in table tennis fallback chain.
-  Script: `python3 scripts/seed_deep_stats.py` (table tennis section).
-  Added: 2026-05-07.
 
 ### API Fallback Chains
 
@@ -305,19 +245,10 @@ Football:     ESPN → API-Football → Football-Data.org → Understat (xG only
 Basketball:   ESPN → API-Basketball → BallDontLie → TheSportsDB → SerpAPI
 Hockey:       ESPN → API-Hockey → TheSportsDB → SerpAPI
 Tennis:       ESPN → API-Tennis → TheSportsDB → SerpAPI
-Baseball:     ESPN → API-Baseball → TheSportsDB → SerpAPI
-MMA:          ESPN → TheSportsDB → SerpAPI
 Volleyball:   API-Volleyball → TheSportsDB → SerpAPI
-Handball:     API-Handball → TheSportsDB → SerpAPI
-Snooker:      Snooker.org API → TheSportsDB → SerpAPI
-Darts:        Sofascore Darts → TheSportsDB → SerpAPI
-Table Tennis: ITTF/Sofascore TT → TheSportsDB → SerpAPI
-Esports:      OpenDota (Dota2) → TheSportsDB → SerpAPI
-Padel:        TheSportsDB → SerpAPI
-Speedway:     TheSportsDB → SerpAPI
 ```
 
-### Daily API Budget (~776 requests)
+### Daily API Budget (~560 requests)
 
 | API | Daily Limit | Typical Use | Reserve |
 |-----|-------------|-------------|---------|
@@ -330,20 +261,16 @@ Speedway:     TheSportsDB → SerpAPI
 | nba_api | ~1800/hr | 200 | 1600 |
 | TheSportsDB | ~100 | 30 | 70 |
 | Understat | unlimited | 50 | — |
-| The Odds API | ~16/day | 16 | 0 |
+| The Odds API | ~40/day | 40 | 0 |
 | Odds-API.io | 5000/hr | 200 | 4800 |
 | SerpAPI | 100/mo | 20 | 80 |
-| Sofascore Darts | 500 | 50 | 450 |
-| Snooker.org | 1000 | 30 | 970 |
-| OpenDota | 1000 | 60 | 940 |
-| ITTF/Sofascore TT | 300 | 50 | 250 |
 
 ## Weather Data Source
 
 - Open-Meteo
   Role: free weather API — temperature, precipitation, wind speed, weather conditions by geographic coordinates.
   URL: api.open-meteo.com/v1/forecast
-  Use for: STEP 3B weather impact assessment for outdoor sports (football, tennis, baseball, speedway). No API key required.
+  Use for: STEP 3B weather impact assessment for outdoor sports (football, tennis). No API key required.
   Script: `python3 scripts/fetch_weather.py --date YYYY-MM-DD` — fetches weather data for all outdoor event venues.
   Access: free (no key, no registration). Rate limit ~10,000 req/day.
   Coverage: Global. Hourly forecast data for any latitude/longitude.
@@ -380,12 +307,12 @@ These adapters provide structured data extraction from web sources, normalizing 
   Use for: multi-sport fixture discovery + deep pre-match data. Provides structured betting trends with hit rates, H2H with match scores, form per team, and multi-market odds.
   Input: scores24.live listing URLs (`/en/{sport}`) or detail URLs (`/en/{sport}/m-{date}-{slug}`).
   Output: listing → match links with dates and detail URLs; detail → full match data dict with match_info, odds, h2h, form_home, form_away, and trends.
-  Sports covered: soccer, tennis, basketball, ice-hockey, handball, volleyball, baseball, snooker, darts, table-tennis, mma, csgo, lol, american-football, cricket, rugby, badminton, boxing, futsal, aussie-rules.
+  Sports covered: soccer, tennis, basketball, ice-hockey, volleyball.
   Added: 2026-04-30.
 
 - flashscore_adapter.py (`scripts/adapters/flashscore_adapter.py`)
   Role: structured parser for Flashscore pages — extracts fixtures, live scores, results across ALL 14 sports using 3 heuristic methods (table rows, event blocks, regex patterns).
-  Use for: primary fixture discovery. Handles football, tennis, basketball, hockey, volleyball, handball, esports, snooker, darts, table tennis, MMA, baseball, padel, speedway.
+  Use for: primary fixture discovery. Handles football, tennis, basketball, hockey, volleyball.
   Input: Flashscore URLs (e.g., `/football/`, `/tennis/`, `/volleyball/`)
   Output: normalized fixture list with home/away teams, competition, sport, kickoff time.
   Includes: garbage entry filtering, team name cleanup, deep-link discovery support.
@@ -393,8 +320,8 @@ These adapters provide structured data extraction from web sources, normalizing 
 
 - betexplorer_adapter.py (`scripts/adapters/betexplorer_adapter.py`)
   Role: structured parser for BetExplorer pages — extracts fixtures with odds, results, and competition context across all sports.
-  Use for: fixture discovery with embedded odds data. Covers all 14 sports including niche (padel, speedway, esports).
-  Input: BetExplorer sport URLs (e.g., `/football/`, `/volleyball/`, `/snooker/`)
+  Use for: fixture discovery with embedded odds data. Covers football, tennis, basketball, hockey, volleyball.
+  Input: BetExplorer sport URLs (e.g., `/football/`, `/volleyball/`)
   Output: normalized fixture list with odds context (1X2 or ML prices where available).
   Added: 2026-04-30.
 
@@ -457,16 +384,7 @@ The multi-source odds aggregator (`fetch_odds_multi.py`) tries sources in priori
 | tennis | The Odds API | OddsPortal | BetExplorer | Betclic | — |
 | basketball | The Odds API | OddsPortal | BetExplorer | Betclic | — |
 | hockey | The Odds API | OddsPortal | BetExplorer | Betclic | — |
-| baseball | The Odds API | OddsPortal | BetExplorer | Betclic | — |
-| mma | The Odds API | OddsPortal | BetExplorer | Betclic | — |
 | volleyball | OddsPortal | BetExplorer | Betclic | — | — |
-| handball | OddsPortal | BetExplorer | Betclic | — | — |
-| esports | OddsPortal | BetExplorer | Betclic | — | — |
-| snooker | OddsPortal | BetExplorer | Betclic | — | — |
-| darts | OddsPortal | BetExplorer | Betclic | — | — |
-| table_tennis | OddsPortal | BetExplorer | Betclic | — | — |
-| padel | BetExplorer | Betclic | — | — | — |
-| speedway | BetExplorer | Betclic | — | — | — |
 
 Script: `python3 scripts/fetch_odds_multi.py`
 Commands: `--sports volleyball` (filter sport), `--sources the-odds-api,oddsportal` (filter sources), `--dry-run` (show plan only), `--no-window` (all events).
@@ -506,7 +424,7 @@ Added: 2026-04-29.
   **Deep-dive required**: YES — read each tipster's reasoning.
 
 - PicksWise
-  Role: ARGUMENT-BASED expert analysis — detailed game previews with reasoning for NBA, NHL, MLB, NFL, tennis, soccer.
+  Role: ARGUMENT-BASED expert analysis — detailed game previews with reasoning for NBA, NHL, tennis, soccer.
   URL: pickswise.com
   Navigation: Sport → game preview pages. Expert analysis with detailed reasoning per game.
   Use for: US sport totals/spreads analysis, parlay ideas, and expert reasoning per game.
@@ -553,7 +471,7 @@ These sources provide tips, predictions, and community analysis for exotic footb
   **Deep-dive required**: NO — automated model predictions, not written arguments. Use for consensus direction only.
 
 - Forebet
-  Role: algorithmic predictions — mathematical model covering 500+ leagues with probability, predicted score, odds value. Covers football, tennis, basketball, hockey, handball, volleyball.
+  Role: algorithmic predictions — mathematical model covering 500+ leagues with probability, predicted score, odds value. Covers football, tennis, basketball, hockey, volleyball.
   URL: forebet.com
   Use for: model-based predictions for all sports. Shows predicted score, probability %, average stats (goals, corners, etc.), and whether odds represent value.
   Access: OK via Playwright (custom forebet_adapter.py). Direct pages work: football-tips-and-predictions-for-today, tennis/predictions-today, etc.
@@ -717,9 +635,9 @@ These sources provide tips, predictions, and community analysis for exotic footb
 ### Tennis
 
 - TennisExplorer
-  Role: player rankings, H2H records, match schedules, results, surface form, and tournament draws.
+  Role: player rankings, H2H records, match schedules, results, surface form, and tournament draws. Covers ATP, WTA, Challenger, and ITF Futures circuits.
   URL: tennisexplorer.com
-  Use for: H2H matchup data, surface-specific records, recent form sequences.
+  Use for: H2H matchup data, surface-specific records, recent form sequences. Includes Challenger and ITF draws for lower-tier coverage.
   Access: OK.
 
 - TennisAbstract
@@ -773,6 +691,12 @@ These sources provide tips, predictions, and community analysis for exotic footb
   Use for: roster changes, league standings, and scheduling context for European basketball.
   Access: OK.
 
+- Proballers.com
+  Role: global basketball player and team database — career stats, team rosters, season-by-season stats across 100+ leagues worldwide.
+  URL: proballers.com
+  Use for: European and international league player stats, team history, roster depth for non-NBA basketball. Covers BBL, ACB, Euroleague, VTB, ABA, NBL, and many minor leagues.
+  Access: OK.
+
 ### Hockey
 
 - Hockey-Reference
@@ -812,12 +736,16 @@ These sources provide tips, predictions, and community analysis for exotic footb
   Access: OK.
   Note: Goalie confirmations typically posted 2-4h before puck drop. Check as part of STEP 3B time-sensitive data collection.
 
-### Baseball
+- EliteProspects.com
+  Role: comprehensive hockey player database — player profiles, career stats, team rosters across NHL, KHL, SHL, DEL, Liiga, Czech Extraliga, Swiss NL, and 50+ leagues worldwide.
+  URL: eliteprospects.com
+  Use for: player depth, roster changes, prospect tracking, team roster context for European hockey leagues. Covers all levels from junior to professional.
+  Access: OK.
 
-- BaseballSavant (Statcast)
-  Role: MLB Statcast data — exit velocity, launch angle, pitch movement, sprint speed, expected stats.
-  URL: baseballsavant.mlb.com
-  Use for: pitcher quality (xERA, xFIP), hitter quality (xwOBA, barrel%), and totals context.
+- Eurohockey.com
+  Role: European hockey league coverage — standings, schedules, results, team stats for SHL, DEL, Liiga, Czech Extraliga, Swiss NL, EIHL, ICE Hockey League, and more.
+  URL: eurohockey.com
+  Use for: European hockey league standings, scheduling, and results cross-validation. Good for non-NHL hockey context.
   Access: OK.
 
 ### Volleyball
@@ -852,210 +780,22 @@ These sources provide tips, predictions, and community analysis for exotic footb
   Use for: Polish volleyball context — team form, player stats, standings. Relevant for Betclic PL market.
   Access: OK.
 
-### Esports
-
-- HLTV
-  Role: CS2 statistics, team rankings, match history, player stats, map veto patterns, event schedules.
-  URL: hltv.org
-  Use for: CS2 moneyline, map handicap, map totals. Team rankings, recent form, map pool analysis.
-  Access: BLOCKED — Cloudflare 403 on all pages including /matches. Confirmed via Playwright test 2026-04-30.
-  Alternatives: GosuGamers (gosugamers.net), bo3.gg for CS2 match fixtures and stats.
-  Note: HLTV tips are BLOCKED. Stats pages also blocked. Use GosuGamers and Liquipedia as primary CS2 sources.
-
-- Liquipedia
-  Role: comprehensive esports wiki — CS2, Dota 2, League of Legends, Valorant, StarCraft, Rocket League. Tournament brackets, team rosters, match history.
-  URL: liquipedia.net
-  Use for: tournament context, roster changes, bracket paths, format context.
+- VolleyballWorld.com
+  Role: official FIVB platform — international volleyball competitions, world rankings, team stats, match results, tournament schedules.
+  URL: volleyballworld.com
+  Use for: international competition context (Nations League, World Championship, Olympic qualifiers), team world rankings, and official match stats.
   Access: OK.
-
-- VLR.gg
-  Role: Valorant statistics — team stats, player stats, match history, event coverage.
-  URL: vlr.gg
-  Use for: Valorant map stats, team form, head-to-head.
-  Access: OK.
-
-- GosuGamers
-  Role: esports match schedule, odds comparison, community predictions, and results across CS2, Dota 2, LoL, Valorant.
-  URL: gosugamers.net
-  Use for: esports consensus, odds comparison, and match scheduling.
-  Access: OK.
-
-- Esports Charts
-  Role: esports viewership and popularity data — useful for identifying high-stakes matches.
-  URL: escharts.com
-  Use for: identifying Tier 1 vs Tier 2 events (higher tier = more reliable data).
-  Access: OK.
-
-- BO3.gg
-  Role: CS2 match predictions with model confidence, map stats, head-to-head.
-  URL: bo3.gg
-  Use for: CS2 map predictions, win probabilities, match analysis.
-  Access: OK.
-
-### Snooker
-
-- CueTracker
-  Role: snooker statistics — player rankings, tournament history, head-to-head records, frame averages, century breaks.
-  URL: cuetracker.net
-  Use for: H2H analysis, frame averages, scoring patterns, tournament form.
-  Access: OK.
-
-- SnookerOrg
-  Role: live scores, rankings, draw brackets, season statistics.
-  URL: snooker.org
-  Use for: live fixtures, draw context, ranking points context.
-  Access: OK.
-
-- WorldSnooker (WST)
-  Role: official World Snooker Tour — tournament schedules, results, player profiles.
-  URL: wst.tv
-  Use for: official schedule, tournament format (best-of-X frames), and player news.
-  Access: OK.
-
-### Table Tennis
-
-- ITTF (International Table Tennis Federation)
-  Role: official rankings, tournament schedules, player profiles.
-  URL: ittf.com
-  Use for: official rankings, tournament tier context.
-  Access: OK.
-
-- tt-series.com
-  Role: table tennis statistics and predictions — player form, head-to-head, recent results.
-  URL: tt-series.com
-  Use for: predictions and form analysis for Russian/Ukrainian/Polish table tennis leagues (popular for live betting).
-  Access: OK.
-
-- TableTennisDaily
-  Role: table tennis news, analysis, and community discussion.
-  URL: tabletennisdaily.com
-  Use for: player form context, equipment changes, injury news.
-  Access: OK.
-
-### Darts
-
-- DartConnect
-  Role: darts statistics — player averages, checkout percentages, leg/set data.
-  URL: dartconnect.com
-  Use for: player averages, form trends, tournament-level performance.
-  Access: OK.
-
-- DartsOrakel
-  Role: darts predictions and statistics — modeled probabilities, head-to-head analysis.
-  URL: dartsorakel.com
-  Use for: match predictions, leg/set totals analysis.
-  Access: BLOCKED — Cloudflare 403. Confirmed via Playwright test 2026-04-30.
-  Alternatives: Use BetExplorer for darts odds, Flashscore for darts fixtures.
-
-- PDC.tv
-  Role: official PDC — tournament schedules, results, player profiles, averages, order of merit.
-  URL: pdc.tv
-  Use for: official schedule, format (best-of-X legs/sets), player form. Referenced in darts protocol.
-  Access: OK.
-
-### Handball
-
-- Handball-World
-  Role: handball news, statistics, and analysis across European leagues.
-  URL: handball-world.com
-  Use for: team form, league standings, injury context.
-  Access: OK.
-
-- EHF (European Handball Federation)
-  Role: official European handball — Champions League, EHF League results and stats.
-  URL: eurohandball.com
-  Use for: fixture confirmation, team stats, competition context.
-  Access: OK.
-
-### MMA / UFC
-
-- UFCstats
-  Role: official UFC statistics — strikes, takedowns, submission attempts, fight history.
-  URL: ufcstats.com
-  Use for: fighter comparison, statistical matchup analysis, finish rate.
-  Access: OK.
-
-- Tapology
-  Role: MMA rankings, fight cards, fighter records, community predictions.
-  URL: tapology.com
-  Use for: community consensus, fighter records, weight class context.
-  Access: OK.
-
-- Sherdog
-  Role: MMA fighter records, fight history, news, rankings across all promotions (UFC, Bellator, ONE, PFL).
-  URL: sherdog.com
-  Use for: fighter records, fight history, win/loss streaks. Referenced in MMA protocol.
-  Access: OK.
-
-### Padel
-
-- Premier Padel (Official)
-  Role: official Premier Padel Tour — live scores, results, draws, match stats, highlights.
-  URL: premierpadel.com
-  Use for: fixture confirmation, draw context, match stats per event, tournament format.
-  Access: OK.
-
-- Sofascore Padel
-  Role: padel livescores, H2H, form, and basic match stats across Premier Padel + FIP Tours.
-  URL: sofascore.com/padel
-  Use for: fixture discovery, H2H records, form context, live scores and settlement.
-  Access: OK.
-
-- PadelFIP (Official Rankings)
-  Role: official FIP world rankings for men and women, tournament calendar.
-  URL: padelfip.com
-  Use for: ranking context, tournament tier (Major/P1/P2/Bronze), seeding verification.
-  Access: OK.
-
-- BetExplorer Padel
-  Role: padel odds comparison — moneyline, set totals.
-  URL: betexplorer.com/padel/
-  Use for: price comparison across bookmakers, market depth check.
-  Access: OK (JS-rendered, may need Playwright).
-
-- OddsPortal Padel
-  Role: padel odds comparison and historical odds data.
-  URL: oddsportal.com/padel/
-  Use for: secondary odds comparison, odds movement tracking.
-  Access: OK (JS-rendered, may need Playwright).
-
-### Speedway / Żużel
-
-- Ekstraliga App / SpeedwayEkstraliga (Official)
-  Role: official PGE Ekstraliga — results, standings, rider stats, heat-by-heat scores.
-  URL: speedwayekstraliga.pl
-  Use for: team lineups, rider averages, home/away stats, heat results, league standings.
-  Access: OK.
-
-- SportoweFakty Żużel
-  Role: comprehensive Polish speedway coverage — news, analysis, expert predictions, lineup announcements, track conditions.
-  URL: sportowefakty.wp.pl/zuzel
-  Use for: pre-match analysis, lineup changes, rider form, expert opinions, track/weather context. CRITICAL for Polish speedway insight.
-  Access: OK (GDPR wall — accept cookies to access content).
-  **Deep-dive required**: YES — expert opinions and match previews contain valuable angles.
-
-- Flashscore Speedway
-  Role: speedway live scores and results.
-  URL: flashscore.com/speedway/ (or within motorsport section)
-  Use for: fixture discovery, results, settlement.
-  Access: OK (may be under motorsport category).
-
-- BetExplorer Speedway
-  Role: speedway odds comparison — match winner, handicap, total points.
-  URL: betexplorer.com/speedway/
-  Use for: price comparison across bookmakers for PGE Ekstraliga and international events.
-  Access: OK (JS-rendered).
 
 ### Multi-Sport Odds and Analytics
 
 - Covers
-  Role: expert previews, odds, and picks for NBA, NHL, MLB, NFL, and more.
+  Role: expert previews, odds, and picks for NBA, NHL, and more.
   URL: covers.com
   Use for: narrative and preview context for US sports.
   Access: OK.
 
 - StatMuse
-  Role: natural language sports queries — NBA, NHL, MLB, NFL stats on demand.
+  Role: natural language sports queries — NBA, NHL stats on demand.
   URL: statmuse.com
   Use for: quick stat lookups across multiple sports.
   Access: OK.
@@ -1079,7 +819,7 @@ These sources help ensure NO tournament or event is missed during the scan phase
 - Sofascore (All Sports)
   Role: universal fixture aggregator — ALL sports in one place with form, H2H, stats.
   URL: sofascore.com
-  Use for: cross-validating event counts from BetExplorer/Flashscore. Covers ALL 14 sports. Good for niche sports missing on BetExplorer (padel, speedway).
+  Use for: cross-validating event counts from BetExplorer/Flashscore. Covers all 5 pipeline sports plus many others.
   Access: OK.
 
 - LiveScore
@@ -1121,10 +861,8 @@ Do NOT attempt to fetch these — they waste time and produce no data:
 - FCTables (fctables.com) — 403
 - ~~WhoScored (whoscored.com)~~ — **FIXED**: accessible via Playwright (425k chars). Added to scan URLs.
 - KenPom (kenpom.com) — blocked
-- FanGraphs (fangraphs.com) — blocked. Use BaseballSavant (Statcast) as replacement for pitcher/hitter stats.
 - ActionNetwork (actionnetwork.com) — blocked
 - VolleyBox (volleybox.net) — blocked
-- HLTV (hltv.org) — tips/predictions 403. Stats pages (rankings, match history, player data) partially accessible. Use GosuGamers for esports tips.
 
 **Partial (availability noted in main entries above):**
 - Covers (covers.com) — NBA pages return empty; other sections partial. See Tier A entry.
@@ -1142,18 +880,8 @@ Use this table to know WHERE to get odds for each sport. Never give up after one
 | **Football** (Exotic) | BetExplorer | OddsPortal | Soccerway | The-Odds-API |
 | **NHL** | SBR (Totals tab) | ESPN Odds | ScoresAndOdds | The-Odds-API |
 | **NBA** | SBR (Totals tab) | ESPN Odds | ScoresAndOdds | The-Odds-API |
-| **MLB** | SBR (Totals tab) | ESPN Odds | ScoresAndOdds | The-Odds-API |
-| **NFL** | SBR (Totals tab) | ESPN Odds | ScoresAndOdds | The-Odds-API |
 | **Tennis** | BetExplorer (ML) | OddsPortal | — | The-Odds-API |
 | **Volleyball** | BetExplorer (set/point totals) | OddsPortal | — | The-Odds-API |
-| **Esports** | BetExplorer | OddsPortal | GosuGamers | The-Odds-API |
-| **Snooker** | OddsPortal | BetExplorer | — | The-Odds-API |
-| **Darts** | BetExplorer | OddsPortal | — | The-Odds-API |
-| **Table Tennis** | BetExplorer | OddsPortal | — | The-Odds-API |
-| **Handball** | BetExplorer | OddsPortal | — | The-Odds-API |
-| **MMA/UFC** | OddsPortal | BetExplorer | — | The-Odds-API |
-| **Padel** | BetExplorer | OddsPortal | — | The-Odds-API |
-| **Speedway** | BetExplorer | OddsPortal | — | The-Odds-API |
 
 **Rule:** If all sources in the row fail for a pick → do NOT skip. Try The-Odds-API or search for a new source. The internet always has odds data somewhere.
 
@@ -1163,82 +891,33 @@ Use this table to know WHERE to get odds for each sport. Never give up after one
   Minimum stack: Flashscore or Sofascore + BetExplorer or OddsPortal + SoccerStats (league context) + TotalCorner (match corners).
   Tipster cross-check: Zawod Typer, Typersi, BetIdeas, PicksWise, Tipstrr.
   Specialist sources: Betaminic (corners/cards tables), Betclic Statystyki (top leagues only), TransferMarkt (coaching changes, transfers).
+  Lower-division coverage: Soccerway (200+ countries, 1000+ leagues) + AiScore/Xscores (Asian/African stats) + Goaloo/NowGoal (Asian coverage). Use when SoccerStats/TotalCorner have no data for the league. BetsAPI for programmatic fixture discovery of ultra-exotic leagues.
   Preferred markets: fouls > cards > corners > shots > team totals > BTTS > U2.5 > O2.5 > DC/DNB > 1X2 (LAST RESORT).
-  Exotic fallback: Soccerway (H2H, standings) + AiScore/Xscores (Asian/African stats) + Goaloo/NowGoal (Asian coverage). Use when SoccerStats/TotalCorner have no data for the league.
 
 - Basketball
   Minimum stack: Basketball-Reference + **SBR or ESPN or ScoresAndOdds** (totals/spreads) + BetExplorer.
   Tipster cross-check: PicksWise, Tipstrr.
+  European coverage: Eurobasket.com (50+ European leagues — BBL, ACB, BSL, VTB, ABA, LNB, LBA, PLK) + RealGM Basketball (rosters, transactions) + Proballers.com (player stats, team history across European leagues).
   Preferred markets: team totals > quarter totals > game totals > spreads > moneyline (LAST RESORT).
-
-- Baseball
-  Minimum stack: BaseballSavant (Statcast) + **SBR or ESPN** (totals/run line) + BetExplorer.
-  Note: FanGraphs is BLOCKED — use BaseballSavant (xERA, xFIP, barrel%) as the primary pitcher/hitter stats source.
-  Tipster cross-check: PicksWise.
-  Preferred markets: F5 totals > team totals > game totals > run line > moneyline (LAST RESORT).
 
 - Hockey
   Minimum stack: Hockey-Reference + **SBR or ESPN or ScoresAndOdds** (totals/puck line) + NaturalStatTrick for xG.
   Tipster cross-check: PicksWise.
+  European coverage: EliteProspects.com (player profiles, team rosters for SHL, DEL, Liiga, Czech Extraliga, Swiss NL, KHL) + HockeyDB.com (historical stats, player careers) + Eurohockey.com (European league standings, schedules, results).
   Preferred markets: period totals > game totals > puck line > moneyline (LAST RESORT).
 
 - Tennis
   Minimum stack: TennisAbstract (Elo) + TennisExplorer (H2H) + BetExplorer or OddsPortal.
   Tipster cross-check: Zawod Typer, Tipstrr.
+  Challenger/ITF coverage: TennisExplorer covers Challenger and ITF Futures draws. UltimateTennisStatistics provides surface-specific Elo for lower-ranked players. Flashscore and Sofascore list all ITF events.
   Preferred markets: game totals O/U (PRIMARY) > set totals O/U > game handicap > set handicap > moneyline (LAST RESORT — only 1.50-2.50 range + STRONG odds ratio + surface + H2H dominance).
   **ABSOLUTE RULE**: NEVER default to ML in tennis. Statistical markets have ~65% hit rate vs ML ~58%. Always prefer games/sets.
 
 - Volleyball
   Minimum stack: BetExplorer volleyball section + Flashscore or Sofascore.
   Tipster cross-check: Tipstrr.
+  Enhanced coverage: VolleyballWorld.com (official FIVB — international competitions, world rankings, team stats) + CEV.eu (European club competitions — Champions League, CEV Cup) + PlusLiga.pl (Polish league).
   Preferred markets: set totals > point totals > set handicap > moneyline (LAST RESORT).
-
-- Esports (CS2, Dota 2, LoL, Valorant)
-  Minimum stack: GosuGamers + Liquipedia + BetExplorer or OddsPortal.
-  Tipster cross-check: GosuGamers community, Tipstrr.
-  Note: HLTV blocked — use GosuGamers and Liquipedia as primary CS2 sources.
-  Preferred markets: map totals > round totals > map handicap > kill totals > moneyline (LAST RESORT).
-
-- Snooker
-  Minimum stack: CueTracker (H2H, frame stats) + BetExplorer or OddsPortal. SnookerOrg/WST for schedule.
-  Tipster cross-check: Tipstrr.
-  Preferred markets: frame totals > frame handicap > century/50+ break props > moneyline (LAST RESORT).
-
-- Table Tennis
-  Minimum stack: ITTF rankings + Flashscore or Sofascore. tt-series.com for league-level analysis.
-  Tipster cross-check: Tipstrr.
-  Preferred markets: total points > set totals > set handicap > moneyline (LAST RESORT).
-
-- Darts
-  Minimum stack: DartsOrakel + BetExplorer or OddsPortal.
-  Tipster cross-check: Tipstrr.
-  Preferred markets: 180s O/U > leg/set totals > checkout props > moneyline (LAST RESORT).
-
-- Handball
-  Minimum stack: EHF or Handball-World + BetExplorer or OddsPortal. Flashscore for results.
-  Tipster cross-check: Tipstrr.
-  Preferred markets: half totals > game totals > handicap > moneyline (LAST RESORT).
-
-- MMA / UFC
-  Minimum stack: UFCstats + OddsPortal or BetExplorer. Tapology for records.
-  Tipster cross-check: PicksWise, Tipstrr.
-  Preferred markets: method of victory > O/U rounds > ITD > round betting > moneyline (LAST RESORT).
-
-- Padel
-  Minimum stack: Sofascore Padel (H2H, form) + BetExplorer or OddsPortal. PremierPadel.com for draws/stats.
-  Tipster cross-check: Limited — no major tipster sites cover padel yet. Use ranking context + H2H as primary edge.
-  Statistical edge: Rankings highly predictive at top level (top-8 pairs dominate). H2H and surface (indoor/outdoor) matter.
-  Market note: ML market similar to tennis — ranking gaps create predictable outcomes. Set totals viable for close matchups.
-  Preferred markets: game totals > set totals O/U 2.5 > set handicap > moneyline (LAST RESORT, 1.40-2.20 range, only when ranking gap >3000).
-  Seasonal note: Premier Padel tour runs Feb-Dec with P1/P2 events most weeks. FIP Bronze events daily but low data quality.
-
-- Speedway / Żużel
-  Minimum stack: SpeedwayEkstraliga.pl (rider stats, home/away averages) + SportoweFakty.wp.pl/zuzel (expert analysis, lineups) + BetExplorer or OddsPortal.
-  Tipster cross-check: SportoweFakty experts, Polish betting forums. Deep-dive SportoweFakty match previews.
-  Statistical edge: HOME ADVANTAGE is extreme in speedway (70-75% home win rate). Rider track-specific averages, lineup changes, track conditions (weather), and gate positions are statistically significant. Reserve rider usage patterns matter.
-  Market note: Match winner (handicap) and total points are the main markets. Home dominance is well-known but still often mispriced in handicap lines.
-  Preferred markets: handicap > total_points > match_winner (LAST RESORT).
-  Seasonal note: PGE Ekstraliga runs Apr-Sep, 1-2 matches per round (4 teams play per matchday). 2. Ekstraliga and KLŻ also covered. SGP events occasionally.
 
 ### Exotic League Coverage Map
 
@@ -1322,12 +1001,12 @@ Use this table to know WHERE to get data for exotic football leagues. "Betclic" 
 
 - A final pick must have at least one Tier A stats or fixture source and one Tier A market or price source.
 - Tier B sources can strengthen or weaken confidence by at most one level, but they cannot create a bet on their own.
-- Community sources (Zawod Typer, Typersi, Meczyki, OLBG, PicksWise, BetIdeas, Sportsgambler, Tipstrr, GosuGamers) can adjust confidence by ±1 level based on consensus alignment/divergence, but cannot be the primary reason for a pick.
+- Community sources (Zawod Typer, Typersi, Meczyki, OLBG, PicksWise, BetIdeas, Sportsgambler, Tipstrr) can adjust confidence by ±1 level based on consensus alignment/divergence, but cannot be the primary reason for a pick.
 - However, strong consensus from multiple tipster sites IS a valid supporting signal — it provides angles and perspectives that statistics alone may miss.
 - If Tier A sources materially disagree on the core read, skip the bet unless the disagreement is clearly explained and the stake is reduced.
 - If the only support comes from a single consensus or tipster page with no statistical backing, skip the bet.
 - If community consensus strongly diverges from Tier A direction (≥60% opposite), note the divergence in the report and investigate before proceeding.
-- Never reject a sport for "lack of sources" — search specialist sites (see Sport Playbooks above).
+- Never reject a sport for "lack of sources" — search specialist sites (see Sport Playbooks above). Each of the 5 pipeline sports has ≥4 dedicated sources.
 - Record source outages and partial availability in the daily source log.
 
 ## Internal Data Sources (Historical Learning)
