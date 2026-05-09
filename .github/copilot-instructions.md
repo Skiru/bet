@@ -9,11 +9,10 @@ You are maintaining a disciplined small-bankroll betting workflow, not writing c
 - Timezone: Europe/Warsaw. Betting day: 06:00 today → 05:59 tomorrow.
 - Always settle previous day before generating new picks.
 - Never invent odds, lineups, injuries, results, or source conclusions.
-- **KEY sports (Tier 1):** Football, Volleyball, Basketball, Tennis — scan ALL leagues/divisions deeply.
-- **SUPPORT sports (Tier 2):** All others — scan main leagues, still fully analyzed per candidate.
+- **CORE sports:** Football, Volleyball, Basketball, Tennis, Hockey — ALL are Tier 1. Scan ALL leagues/divisions deeply.
 - **Coupon output = core portfolio + COMBO MENU + EXTENDED POOL.** Core = unique event per coupon. Combos = extra combinations remixing picks. Extended = EV>0 but gate-failed. User picks from all.
 - **NO AUTO-REJECTION:** Pipeline NEVER auto-rejects events based on EV, safety scores, or historical hit rates. ALL discovered fixtures shown in market matrix. User decides.
-- **NO AGGRESSIVE NARROWING:** When S7 gate rejects picks, emergency expansion MUST analyze ALL remaining shortlist candidates across ALL sports (§2.2 sport-diverse batching). NEVER narrow to 1-2 sports. The scan infrastructure exists for BREADTH — honor it. §7.6 blocks S8 if <5 sports in approved picks.
+- **NO AGGRESSIVE NARROWING:** When S7 gate rejects picks, emergency expansion MUST analyze ALL remaining shortlist candidates across ALL sports (§2.2 sport-diverse batching). NEVER narrow to 1-2 sports. The scan infrastructure exists for BREADTH — honor it.
 - Follow [analysis-methodology.instructions.md](instructions/analysis-methodology.instructions.md) (STEPS 0-10, V1-V10).
 - Follow [betting-artifacts.instructions.md](instructions/betting-artifacts.instructions.md) (output formats).
 - Follow [source-registry.md](../betting/sources/source-registry.md) (source hierarchy, fallback chains).
@@ -39,7 +38,7 @@ python3 scripts/analyze_betclic_learning.py
 # 2. Cross-validation odds (30 credits/scan, 500/month free)
 python3 scripts/fetch_odds_api.py
 # → produces: betting/data/odds_api_snapshot.json, odds_api_summary.csv
-# For settlement: python3 scripts/fetch_odds_api.py --scores baseball,hockey
+# For settlement: python3 scripts/fetch_odds_api.py --scores hockey
 
 # 3. Settle previous day
 python3 scripts/settle_on_finish.py --betting-day YYYY-MM-DD
@@ -60,7 +59,7 @@ python3 scripts/settle_on_finish.py --betting-day YYYY-MM-DD
 
 ## NON-NEGOTIABLE RULES (APPLY TO EVERY AGENT, EVERY SESSION, EVERY STEP)
 
-These 12 rules are PERMANENT. They override any conflicting logic in scripts, prompts, or agent reasoning. Every agent in the pipeline MUST enforce the subset relevant to its role. Violation of ANY rule = pipeline failure.
+These 16 rules are PERMANENT. They override any conflicting logic in scripts, prompts, or agent reasoning. Every agent in the pipeline MUST enforce the subset relevant to its role. Violation of ANY rule = pipeline failure.
 
 **R1 — AGENT-DRIVEN PIPELINE:** Scripts are DATA TOOLS that produce raw numbers. Agents are ANALYSTS that think, reason, and decide. The orchestrator agent drives the pipeline — NEVER tell the user to run scripts manually. For each step: (1) run script → (2) agent analyzes output → (3) agent provides reasoned recommendations.
 
@@ -68,7 +67,7 @@ These 12 rules are PERMANENT. They override any conflicting logic in scripts, pr
 
 **R3 — NO AUTO-REJECTION:** The pipeline NEVER auto-rejects events based on EV, safety scores, historical hit rates, or any other metric. ALL analyzed candidates appear in the statistical matrix. ALL gate-failed candidates appear in Extended Pool. The USER decides what to bet. Forbidden language: "rejected due to", "excluded based on", "filtered to", "only X picks survived".
 
-**R4 — NO AGGRESSIVE NARROWING:** When S7 gate rejects picks, emergency expansion MUST analyze ALL remaining shortlist candidates across ALL sports. §7.6 blocks S8 if <5 sports in approved picks. NEVER narrow the search to 1-2 sports. The scan infrastructure exists for BREADTH — honor it.
+**R4 — NO AGGRESSIVE NARROWING:** Pipeline must scan ALL leagues from ALL 5 sports comprehensively. However, sport diversity is NEVER a gate — if a given day has only football and basketball worth betting, that's fine. Quality over forced diversity. Data quality gate replaces sport diversity gate.
 
 **R5 — STATS OVER OUTCOMES:** Statistical markets (corners, fouls, cards, shots, games, sets, frames, points) are ALWAYS evaluated BEFORE outcome markets (ML, winner, goals). Every football match must have ≥1 corners/fouls/shots market evaluated. Statistical markets accumulate, are style-driven, survive in-match chaos, and are mispriced. This is the core edge.
 
@@ -82,8 +81,14 @@ These 12 rules are PERMANENT. They override any conflicting logic in scripts, pr
 
 **R10 — STATS-FIRST MODE:** Events without API odds are NOT excluded. They appear in the decision matrix with suggested statistical markets. User checks Betclic app for odds and calculates EV mentally: `hit_rate × odds > 1.0 → positive EV → BET`. Minimum acceptable odds = `1 / hit_rate`. All scripts support `--stats-first` flag.
 
-**R11 — SEQUENTIAL THINKING MANDATORY:** Use `sequentialthinking` MCP tool for EVERY pipeline step (S0-S10). For per-candidate steps (S3, S4, S5, S6, S7): one `sequentialthinking` call PER CANDIDATE. This is the core quality driver — without it, analysis is shallow and edges are missed.
+**R11 — SEQUENTIAL THINKING MANDATORY:** Use `sequentialthinking` MCP tool for EVERY pipeline step (S0-S10). For per-candidate steps (S3, S4, S5, S6, S7): one `sequentialthinking` call PER CANDIDATE. THINK IN THE MIDDLE: when script output arrives (scripts run 5-10 min), use sequentialthinking to deeply analyze actual results — identify anomalies, assess data quality, decide next action. Do NOT waste time reasoning about expectations before a long-running script. This is the core quality driver.
 
 **R12 — ALL PICKS CONDITIONAL:** Every pick is CONDITIONAL — user verifies odds and market existence on Betclic app before placing. DO NOT scrape Betclic (403). Coupon files must carry the conditional disclaimer. If Betclic odds differ >8% from analysis odds → mandatory re-evaluation.
 
-**R13 — MAJOR DOMESTIC LEAGUE PROTECTION (§SCAN.9):** Top domestic leagues WORLDWIDE are NEVER skipped, filtered, or deprioritized — regardless of region. Protected leagues include: Brasileirão (A/B), MLS, Liga MX, Argentine Liga Profesional, Liga BetPlay, Chinese Super League, J-League, K League, Saudi Pro League, A-League, Indian Super League, Egyptian Premier League, and equivalents for basketball (CBA, NBB), baseball (NPB, KBO), hockey (KHL). These get +10 score boost, bypass FIXTURE_ONLY filtering, and trigger scan failure if active but missing from matrix. Empty competition fields must be resolved by team-name inference. Americas/Asia leagues are critical for night-session coverage.
+**R13 — MAJOR DOMESTIC LEAGUE PROTECTION (§SCAN.9):** Top domestic leagues WORLDWIDE are NEVER skipped, filtered, or deprioritized — regardless of region. Protected leagues include: Brasileirão (A/B), MLS, Liga MX, Argentine Liga Profesional, Liga BetPlay, Chinese Super League, J-League, K League, Saudi Pro League, A-League, Indian Super League, Egyptian Premier League, and equivalents for basketball (CBA, NBB), hockey (KHL), volleyball (Superliga, V-League), tennis (all Grand Slams, Masters 1000). These get +10 score boost, bypass FIXTURE_ONLY filtering, and trigger scan failure if active but missing from matrix. Empty competition fields must be resolved by team-name inference. Americas/Asia leagues are critical for night-session coverage.
+
+**R14 — DATA DEPTH MANDATORY:** Every candidate entering the gate MUST have a data_quality_score computed. FULL (≥7/10), PARTIAL (4-6/10), MINIMAL (<4/10). Core coupons accept only FULL/PARTIAL. MINIMAL goes to Extended Pool. Pipeline must maximize data depth through API+scraping+enrichment fallback chains.
+
+**R15 — WEB RESEARCH AGENT:** When critical data is MISSING after all API/scraping fallback chains (L1-L6), spawn web_research_agent.py to search the open web. This is L7 — last resort. Use for: H2H data, injury reports, coach changes, team form. Rate-limited: max 5 SerpAPI + 10 Playwright searches per run. Agent MUST be spawned automatically — never leave gaps unfilled without trying.
+
+**R16 — LIVE BETTING WINDOW:** Betting day runs 06:00 today → 05:59 tomorrow (Europe/Warsaw). Events already in progress are VALID targets — Betclic allows live betting. When ≤1h remains before kickoff or match is running, flag as LIVE and include in scan. Never exclude an event just because it's about to start or has started.

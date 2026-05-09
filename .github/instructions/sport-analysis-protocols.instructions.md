@@ -6,7 +6,7 @@ applyTo: ""
 
 > **This file is loaded ON DEMAND, not auto-loaded.** It contains detailed per-sport statistical protocols, upset risk checklists, and instant red flag tables. The agent loads it when performing deep analysis (STEP 3+).
 >
-> **Sport Tiers:** KEY (Tier 1) = Football, Volleyball, Basketball, Tennis — scan ALL leagues/divisions deeply. SUPPORT (Tier 2) = all others — scan main leagues/tournaments. Analysis depth is identical for all candidates regardless of tier.
+> **Sports:** Football, Volleyball, Basketball, Tennis, Hockey — all Tier 1. Scan ALL leagues/divisions deeply. Analysis depth is identical for all candidates.
 
 ---
 
@@ -217,174 +217,23 @@ Before selecting ANY volleyball market, calculate ALL of these:
 ```
 Pick the market with HIGHEST safety score.
 
-### §3.6 Esports (CS2/LoL/Dota2/Valorant)
+### §3.6 Esports — ARCHIVED (removed from pipeline v4)
 
-**Required stats:** Map pool overlap + win rates, Avg rounds/map, Pistol round win%, K/D rating, CT/T splits (CS2), Game duration + objectives (LoL/Dota2). Sources: HLTV stats (NOT tips), Liquipedia, GosuGamers, VLR.gg.
+### §3.7 Snooker — ARCHIVED (removed from pipeline v4)
 
-**Market decision:** Round totals O/U → Map totals O/U 2.5 (BO3) → Map HC -1.5 → Kill totals → ML (LAST RESORT). BO1 = massive upset risk, reduce confidence -1.
+### §3.8 Darts — ARCHIVED (removed from pipeline v4)
 
-**Context:** Stand-in player? New patch <2 weeks? Online vs LAN? BO1 format?
+### §3.9 Handball — ARCHIVED (removed from pipeline v4)
 
-**§3.6M MANDATORY MULTI-MARKET CALCULATION (ESPORTS):**
-Before selecting ANY esports market, calculate ALL of these:
-```
-| Market               | TeamA avg | TeamB avg | H2H avg | Line | Hit L10 | Hit H2H | Safety |
-|----------------------|-----------|-----------|---------|------|---------|---------|--------|
-| Round total O/U X.5  |           |           |         |      |         |         |        |
-| Map total O/U 2.5    |           |           |         |      |         |         |        |
-| Map HC -1.5/+1.5     |           |           |         |      |         |         |        |
-| Kill total O/U X.5   |           |           |         |      |         |         |        |
-```
-Pick the market with HIGHEST safety score. **Game-specific:** CS2 round totals from HLTV stats. LoL/Dota2 use Liquipedia + GosuGamers for game duration and objective stats. **BO1 = massive variance** — reduce safety score by 0.15 for all markets in BO1 format.
+### §3.10 Table Tennis — ARCHIVED (removed from pipeline v4)
 
-### §3.7 Snooker
+### §3.11 MMA/UFC — ARCHIVED (removed from pipeline v4)
 
-**Required stats:** Frame win%, Century breaks/match, 50+ breaks/match, Frame duration, Decider frame record, Form (last 10). Sources: CueTracker (PRIMARY), WorldSnooker, Flashscore.
+### §3.12 Baseball (MLB) — ARCHIVED (removed from pipeline v4)
 
-**Market decision:** Century O/U → Frame totals O/U → Frame HC → Correct score → ML (LAST RESORT). Both within 15 spots → O frames. Both >18min/frame → O frames (tactical).
+### §3.13 Padel — ARCHIVED (removed from pipeline v4)
 
-**§3.7M MANDATORY MULTI-MARKET CALCULATION (SNOOKER):**
-Before selecting ANY snooker market, calculate ALL of these:
-```
-| Market                 | P1 avg | P2 avg | H2H avg | Line | Hit L10 | Hit H2H | Safety |
-|------------------------|--------|--------|---------|------|---------|---------|--------|
-| Frame total O/U X.5    |        |        |         |      |         |         |        |
-| Century breaks O/U 0.5 |        |        |         |      |         |         |        |
-| 50+ breaks O/U X.5     |        |        |         |      |         |         |        |
-| Frame HC -X.5/+X.5     |        |        |         |      |         |         |        |
-```
-Pick the market with HIGHEST safety score. **CueTracker is PRIMARY** for frame stats and break frequency. Format (BO7/BO9/BO11/BO19/BO25) dramatically affects frame totals — use format-specific averages, not overall season averages.
-
-### §3.8 Darts
-
-**Required stats:** 3-dart average (>95 elite), Checkout%, 180s/match, Leg totals, Break of throw%. Sources: DartsOrakel (PRIMARY), PDC.tv, Flashscore.
-
-**Market decision:** 180s O/U → Leg totals O/U → Set totals → Correct score → ML (LAST RESORT). Both avg >95 → more breaks → O legs. Floor events = higher upset rate.
-
-**§3.8M MANDATORY MULTI-MARKET CALCULATION (DARTS):**
-Before selecting ANY darts market, calculate ALL of these:
-```
-| Market              | P1 avg | P2 avg | H2H avg | Line | Hit L10 | Hit H2H | Safety |
-|---------------------|--------|--------|---------|------|---------|---------|--------|
-| 180s O/U X.5        |        |        |         |      |         |         |        |
-| Total legs O/U X.5  |        |        |         |      |         |         |        |
-| Set total O/U X.5   |        |        |         |      |         |         |        |
-| Checkout % props    |        |        |         |      |         |         |        |
-```
-Pick the market with HIGHEST safety score. **DartsOrakel is PRIMARY** for 180s per match and checkout%. Sets vs legs format matters — verify tournament format before calculating. Floor events have higher upset variance — reduce safety by 0.10.
-
-### §3.9 Handball
-
-**Required stats:** Goals scored/match, Conceded/match, Combined avg, Goalkeeper save%, Suspensions/match, Half splits (2nd half +1-2 goals), Home/Away (60-65% home win). Sources: Flashscore, EHF/eurohandball.
-
-**Market decision:** Half totals O/U → Game total goals O/U → HC → ML (LAST RESORT). Both >28 scored → O totals. HOME ADVANTAGE is extreme.
-
-**§3.9M MANDATORY MULTI-MARKET CALCULATION (HANDBALL):**
-Before selecting ANY handball market, calculate ALL of these:
-```
-| Market               | TeamA avg | TeamB avg | H2H avg | Line | Hit L10 | Hit H2H | Safety |
-|----------------------|-----------|-----------|---------|------|---------|---------|--------|
-| 1H total O/U X.5    |           |           |         |      |         |         |        |
-| Game total O/U X.5   |           |           |         |      |         |         |        |
-| Team goals O/U X.5   |           |           |         |      |         |         |        |
-| Suspensions O/U X.5  |           |           |         |      |         |         |        |
-```
-Pick the market with HIGHEST safety score. HOME ADVANTAGE is extreme in handball (60-65% home win rate) — factor into team goal calculations. Use Flashscore + EHF/eurohandball for stats. 2nd half typically produces 1-2 more goals than 1st half.
-
-### §3.10 Table Tennis
-
-**Required stats:** Ranking, Avg sets/match, Set win%, Points/set, Style (attacking/defensive), Form. Sources: ITTF, Flashscore, tt-series.com.
-
-**Market decision:** Total pts O/U → Set totals O/U → Set HC → ML (LAST RESORT). Close ranking (<20 spots) → O sets. HIGH-VARIANCE — reduce confidence -0.5.
-
-**§3.10M MANDATORY MULTI-MARKET CALCULATION (TABLE TENNIS):**
-Before selecting ANY table tennis market, calculate ALL of these:
-```
-| Market               | P1 avg | P2 avg | H2H avg | Line | Hit L10 | Hit H2H | Safety |
-|----------------------|--------|--------|---------|------|---------|---------|--------|
-| Total pts O/U X.5   |        |        |         |      |         |         |        |
-| Set total O/U X.5    |        |        |         |      |         |         |        |
-| Set HC -X.5/+X.5     |        |        |         |      |         |         |        |
-```
-Pick the market with HIGHEST safety score. **HIGH-VARIANCE SPORT** — reduce all safety scores by 0.10. Use ITTF rankings + Flashscore for form. Close ranking (<20 spots) → Over sets is default tendency. BO5 vs BO7 format affects set totals significantly — use format-filtered averages.
-
-### §3.11 MMA/UFC
-
-**Required stats:** Sig strikes/min, Strike accuracy%, TD accuracy%, TD defense%, Finish rate (KO/Sub/Dec split), Record vs ranked. Sources: UFC.com/stats, Sherdog, Tapology.
-
-**Market decision:** Method of victory → O/U rounds → Round betting → ITD → ML (LAST RESORT). Both finish >50% → U rounds. Both decision >50% → O rounds. HW = highest KO variance.
-
-**Context:** Weight cut issues, layoff >12mo, camp change, reach advantage.
-
-**§3.11M MANDATORY MULTI-MARKET CALCULATION (MMA):**
-Before selecting ANY MMA market, calculate ALL of these:
-```
-| Market                | FighterA | FighterB | H2H avg | Line | Hit L10 | Hit H2H | Safety |
-|-----------------------|----------|----------|---------|------|---------|---------|--------|
-| Total rounds O/U X.5  |          |          |         |      |         |         |        |
-| Method of victory     |          |          |         |      |         |         |        |
-| ITD Y/N               |          |          |         |      |         |         |        |
-```
-Pick the market with HIGHEST safety score. **Finish rate is the key stat:** Both >50% finish rate → Under rounds. Both >50% decision rate → Over rounds. HW = highest KO variance — reduce safety by 0.15. Use UFC.com/stats + Sherdog + Tapology. H2H is rarely available (most fighters meet once) — use style-matchup analysis as substitute, flag as H2H-STAT-BLIND.
-
-### §3.12 Baseball (MLB)
-
-**Required stats:** SP: ERA, WHIP, xERA, K/9, BB/9, Hard hit%, Barrel%, vs LHB/RHB splits, last 3-5 starts. Bullpen: ERA last 7/14/30 days, innings last 3 days, closer availability. Offense: R/game, OPS, wRC+, BABIP, K rate, vs LHP/RHP. Sources: BaseballSavant (PRIMARY — FanGraphs BLOCKED), Baseball-Reference, ESPN.
-
-**Market decision:** F5 totals O/U → Team totals → Game totals O/U → Run line → ML (LAST RESORT). F5 removes bullpen variance = most reliable. Both SP xERA >4.50 → O runs.
-
-**Context:** WEATHER CRITICAL (wind at Wrigley/Coors = +1.5 runs), park factor, day-after-night, umpire K-rate.
-
-**§3.12M MANDATORY MULTI-MARKET CALCULATION (BASEBALL):**
-Before selecting ANY baseball market, calculate ALL of these:
-```
-| Market               | TeamA avg | TeamB avg | H2H avg | Line | Hit L10 | Hit H2H | Safety |
-|----------------------|-----------|-----------|---------|------|---------|---------|--------|
-| F5 innings total O/U |           |           |         |      |         |         |        |
-| Team total O/U X.5   |           |           |         |      |         |         |        |
-| Game total O/U X.5   |           |           |         |      |         |         |        |
-| Hits O/U X.5         |           |           |         |      |         |         |        |
-| Strikeouts O/U X.5   |           |           |         |      |         |         |        |
-| Run line ±1.5        |           |           |         |      |         |         |        |
-```
-Pick the market with HIGHEST safety score. **F5 innings are most reliable** (removes bullpen variance). Use BaseballSavant for pitcher stats + Baseball-Reference for team offense. **⚠️ ADVISORY:** MLB totals have 33% historical hit rate — flag for user awareness in report. Analyze fully regardless; user decides.
-
-### §3.13 Padel
-
-**Required stats:** FIP world ranking (both pairs), Ranking gap, Partnership duration (>6mo = stable), Avg sets/match, 3-set%, O/U game totals. Sources: PadelFIP (PRIMARY), PremierPadel, Sofascore padel.
-
-**Market decision:** Game totals O/U → Set totals O/U 2.5 → Set HC → ML (LAST RESORT, ranking gap >3000 only). Gap <1000 → O2.5 sets. New partnership = volatility.
-
-**Context:** Tournament tier (Major/P1/P2/Bronze), indoor vs outdoor (wind disrupts lobs), fatigue from 3-set previous match.
-
-**§3.13M MANDATORY MULTI-MARKET CALCULATION (PADEL):**
-Before selecting ANY padel market, calculate ALL of these:
-```
-| Market               | PairA avg | PairB avg | H2H avg | Line | Hit L10 | Hit H2H | Safety |
-|----------------------|-----------|-----------|---------|------|---------|---------|--------|
-| Game total O/U X.5   |           |           |         |      |         |         |        |
-| Set total O/U 2.5    |           |           |         |      |         |         |        |
-| Set HC -1.5/+1.5     |           |           |         |      |         |         |        |
-```
-Pick the market with HIGHEST safety score. Use PadelFIP + PremierPadel + Sofascore padel. **Partnership duration is critical** — new pair (<6 months) = volatile, reduce safety by 0.15. Ranking gap <1000 → default tendency toward Over 2.5 sets.
-
-### §3.14 Speedway
-
-**Required stats:** Rider avg at THIS TRACK (most important), Season avg, Team match avg (home/away), Junior (U24) slot contribution, Heat leader performance. Sources: SpeedwayEkstraliga (PRIMARY), SportoweFakty.
-
-**Market decision:** Total pts O/U → HC → Match winner (LAST RESORT, usually too short at 1.20-1.40). HOME ADVANTAGE = 70-75%. Calculate team total from rider track-specific averages.
-
-**Context:** LINEUP CONFIRMATION (SportoweFakty, 2-3h before — rider out = 6-10 pts lost), weather (rain = chaos), track preparation bias, junior rider rule.
-
-**§3.14M MANDATORY MULTI-MARKET CALCULATION (SPEEDWAY):**
-Before selecting ANY speedway market, calculate ALL of these:
-```
-| Market               | TeamA avg | TeamB avg | H2H avg | Line | Hit L10 | Hit H2H | Safety |
-|----------------------|-----------|-----------|---------|------|---------|---------|--------|
-| Total pts O/U X.5    |           |           |         |      |         |         |        |
-| Team HC ±X.5         |           |           |         |      |         |         |        |
-```
-Pick the market with HIGHEST safety score. **TRACK-SPECIFIC rider averages are most important** — use rider avg AT THIS TRACK, not season avg. Use SpeedwayEkstraliga + SportoweFakty. HOME ADVANTAGE = 70-75%. Calculate team total from rider track-specific averages, not team-level stats.
+### §3.14 Speedway — ARCHIVED (removed from pipeline v4)
 
 ---
 
@@ -394,7 +243,7 @@ Run for EVERY candidate BEFORE approving. Score on sport-specific checklist. If 
 
 **THE PARADOX RULE:** High upset risk → competitive match → MORE total play → prefer OVER totals. Low upset risk → blowout → OVERS FAIL → prefer UNDER/HC.
 
-**Thresholds:** Tennis ≥4, Football ≥4, Basketball ≥3, Hockey ≥3, Baseball ≥3, Volleyball ≥3, Esports ≥2, Snooker ≥2, Darts ≥2, MMA ≥3, Handball ≥3, Table Tennis ≥2, Padel ≥3, Speedway ≥3.
+**Thresholds:** Tennis ≥4, Football ≥4, Basketball ≥3, Hockey ≥3, Volleyball ≥3.
 
 ### Tennis (0-12, threshold ≥4)
 1. Surface mismatch (0-2): Favorite's surface win% 10%+ lower?
@@ -448,42 +297,26 @@ Run for EVERY candidate BEFORE approving. Score on sport-specific checklist. If 
 7. Empty net adjustment (0-0.5)
 8. Revenge game (0-0.5)
 
-### Baseball (0-10, threshold ≥3)
-1. SP ERA>4.50 or rookie (0-2)
-2. Bullpen fatigue (0-1.5): 6+ IP in 2 days?
-3. Platoon advantage (0-1)
-4. Day after night (0-1)
-5. Key batter sitting (0-1)
-6. Umpire factor (0-1)
-7. Weather at ballpark (0-1): Wind blowing out = +1.5 runs.
-8. Cross-country travel (0-0.5)
+### Baseball — ARCHIVED (removed from pipeline v4)
 
 ### Volleyball (0-7, threshold ≥3)
 1. Playoff context (0-1.5), 2. European travel (0-1), 3. New setter (0-1.5), 4. Home crowd (0-1), 5. Rest rotation (0-1), 6. 5th set record (0-1)
 
-### Esports (0-10, threshold ≥2)
-1. Stand-in (0-2), 2. Map pool edge (0-1.5), 3. Online match (0-1), 4. New patch <2wks (0-1.5), 5. BO1 format (0-1.5), 6. LAN/online gap (0-1), 7. Coach ban (0-0.5), 8. Regional style (0-0.5)
+### Esports — ARCHIVED (removed from pipeline v4)
 
-### Snooker (0-7, threshold ≥2)
-1. Short format BO7/BO9 (0-1.5), 2. Form discrepancy (0-1), 3. Safety-heavy underdog (0-1), 4. WC R1 pressure (0-1), 5. Multi-session (0-1), 6. Jet lag (0-0.5), 7. Table conditions (0-0.5)
+### Snooker — ARCHIVED (removed from pipeline v4)
 
-### MMA (0-10, threshold ≥3)
-1. Stylistic mismatch (0-2), 2. Long layoff >12mo (0-1.5), 3. Weight class move (0-1), 4. Short notice (0-1), 5. Heavyweight (0-1), 6. Bad weight cut (0-1), 7. Southpaw/Orthodox (0-0.5), 8. Altitude (0-0.5), 9. Camp issues (0-0.5)
+### MMA — ARCHIVED (removed from pipeline v4)
 
-### Darts (0-7, threshold ≥2)
-1. Floor event (0-1.5), 2. Short format (0-1), 3. Checkout slump (0-1), 4. Underdog avg >95 (0-1), 5. Multiple matches (0-1), 6. Home crowd (0-0.5)
+### Darts — ARCHIVED (removed from pipeline v4)
 
-### Handball (0-7, threshold ≥3)
-1. European midweek (0-1.5), 2. Home advantage (0-1.5), 3. Goalkeeper form (0-1), 4. Derby (0-1), 5. Key pivot absent (0-1), 6. 7v6 play (0-0.5)
+### Handball — ARCHIVED (removed from pipeline v4)
 
-### Table Tennis (0-6, threshold ≥2)
-1. Ranking gap <20 (0-1.5), 2. Multiple matches/day (0-1), 3. Style mismatch (0-1), 4. Equipment change (0-0.5), 5. Asian vs European (0-0.5), 6. Tournament round (0-0.5)
+### Table Tennis — ARCHIVED (removed from pipeline v4)
 
-### Padel (0-8, threshold ≥3)
-1. New partnership (0-2), 2. Ranking gap <1000 (0-1.5), 3. Surface change (0-1), 4. R32/R16 (0-1), 5. Altitude (0-0.5), 6. Wind outdoor (0-1), 7. Fatigue (0-0.5)
+### Padel — ARCHIVED (removed from pipeline v4)
 
-### Speedway (0-8, threshold ≥3)
-1. Track preparation bias (0-2), 2. Rider injury/change (0-1.5), 3. Weather/wet track (0-1), 4. Junior rider weakness (0-1), 5. Away "good traveler" (0-1), 6. Equipment failure (0-0.5), 7. Guest rider unfamiliarity (0-0.5)
+### Speedway — ARCHIVED (removed from pipeline v4)
 
 ### Decision Matrix (ALL SPORTS)
 
@@ -527,54 +360,23 @@ Run for EVERY candidate BEFORE approving. Score on sport-specific checklist. If 
 | H3 | 0-3 in series? → 4% comeback rate |
 | H4 | Goalie unconfirmed (totals pick)? → WAIT or SKIP |
 
-### Baseball
-| BB1 | Bullpen game/opener? → +1.5 runs, OVER |
-| BB2 | MLB debut pitcher? → OVER, −1 |
-| BB3 | Wind blowing out (Wrigley/Coors)? → +2 runs, OVER |
-| BB4 | Day after night? → −1 |
-
 ### Volleyball
 | VB1 | Playoff clinched? → Rotation, −1 |
 | VB2 | 5th set to 15? → Verify line |
 | VB3 | Home crowd >70%? → Factor into ML/spread |
 
-### Esports
-| E1 | Stand-in? → Underdog value rises |
-| E2 | New patch <2wks? → +30-40% upset rate, SKIP ML |
-| E3 | Online vs LAN mismatch? → 20%+ gap |
-| E4 | BO1? → Massive upset rate |
+### Esports — ARCHIVED (removed from pipeline v4)
 
-### Snooker
-| S1 | Long-format fatigue (10+ frames)? → UNDER frames |
-| S2 | Morning session? → Check player patterns |
-| S3 | Century frequency mismatch? → Affects frame totals |
+### Snooker — ARCHIVED (removed from pipeline v4)
 
-### Darts
-| D1 | Sets vs legs format? → Different dynamics |
-| D2 | Premier League vs ranking event? → Different motivation |
-| D3 | Both top-10 in 180s? → OVER 180s |
+### Darts — ARCHIVED (removed from pipeline v4)
 
-### Handball
-| HB1 | CL/EHF midweek? → Rotation, −1 |
-| HB2 | 7m specialist absent? → Affects total goals |
+### Handball — ARCHIVED (removed from pipeline v4)
 
-### Table Tennis
-| TT1 | Division gap in cup? → Blowout, UNDER |
-| TT2 | BO5 vs BO7? → Verify line format |
-| TT3 | Withdrawal history? → Avoid |
+### Table Tennis — ARCHIVED (removed from pipeline v4)
 
-### MMA
-| MMA1 | Late opponent change (<2wks)? → −1 |
-| MMA2 | Failed weight cut? → Grappler advantage |
-| MMA3 | Layoff >1 year? → Ring rust, −1 |
-| MMA4 | Reach advantage >6"? → Decisions more likely |
+### MMA — ARCHIVED (removed from pipeline v4)
 
-### Padel
-| PD1 | New pair (<3 events)? → OVER sets, ML volatile |
-| PD2 | Outdoor + wind? → More breaks, totals UP |
-| PD3 | FIP gap <500? → SKIP ML |
+### Padel — ARCHIVED (removed from pipeline v4)
 
-### Speedway
-| SP1 | Rain/wet? → UNDER everything, −1 |
-| SP2 | Rider track record checked? → Individual > overall |
-| SP3 | Junior rider in key heat? → Lower team score |
+### Speedway — ARCHIVED (removed from pipeline v4)

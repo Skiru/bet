@@ -27,10 +27,10 @@ All pipeline data is stored in SQLite DB (`betting/data/betting.db`) as the prim
 - `gate_results` — S7 gate check output: approved/extended/rejected (replaces `{date}_s7_gate_results.json`)
 - `coupons` + `bets` — placed bets and coupon history (replaces `betclic_bets_history.json` reads)
 - `league_profiles` — Bayesian priors per competition
-- **`athletes`** (6,648) — player profiles: position, age, status (NBA 538, NHL 950, MLB 777, Football 4,160, WNBA 223)
-- **`player_gamelogs`** (25,943) — game-by-game individual stats: points, rebounds, assists, goals, saves, shots. Use for player prop verification and team totals consistency. (NBA 11,599 + NHL 11,039 + MLB 3,305)
-- **`player_splits`** (4,716) — home/away, wins/losses, day-of-week, rest-day splits per player (NBA 1,200 + NHL 1,330 + MLB 2,186)
-- **`standings`** (233) — enriched league standings: form, home/away records, streaks, goal diff (NBA 30 + NHL 32 + MLB 30 + Football 126 + WNBA 15)
+- **`athletes`** (6,648) — player profiles: position, age, status (NBA 538, NHL 950, Football 4,160, WNBA 223)
+- **`player_gamelogs`** (25,943) — game-by-game individual stats: points, rebounds, assists, goals, saves, shots. Use for player prop verification and team totals consistency. (NBA 11,599 + NHL 11,039)
+- **`player_splits`** (4,716) — home/away, wins/losses, day-of-week, rest-day splits per player (NBA 1,200 + NHL 1,330)
+- **`standings`** (233) — enriched league standings: form, home/away records, streaks, goal diff (NBA 30 + NHL 32 + Football 126 + WNBA 15)
 - **`team_ats_records`** — Against The Spread betting records per team: W-L-P overall and by venue
 - **`team_ou_records`** — Over/Under betting history: overs-unders-pushes by venue. CRITICAL for totals markets.
 - **`power_index`** — ESPN power rankings (relative team strength per sport)
@@ -44,14 +44,11 @@ All pipeline data is stored in SQLite DB (`betting/data/betting.db`) as the prim
 
 **Safety score input:** `scripts/normalize_stats.py` — `build_safety_input(sport, team_a, team_b, competition)` (DB-first, JSON cache fallback)
 
-- **`load_espn_enrichment_for_team(name, sport)`** — ATS/OU records, standings, power index for basketball/hockey/baseball
+- **`load_espn_enrichment_for_team(name, sport)`** — ATS/OU records, standings, power index for basketball/hockey
 - **`load_player_gamelogs_for_team(name, sport, n=10)`** — per-player game-by-game stats for entire roster
-- **`load_sport_specific_cache(sport, name)`** — niche sport data: darts (checkout%, 180s, legs), Dota2 (kills, GPM, hero_damage), table tennis (set scores, form)
+- **`load_sport_specific_cache(sport, name)`** — sport data caches
 
-**Niche sport file caches** (auto-loaded by `deep_stats_report.py`):
-- `stats_cache/esports/dota2/` — 200 teams, 93 match details, 11 H2H pairs (OpenDota API)
-- `stats_cache/darts/` — 182 match stats, 15 player forms with L10 (Sofascore)
-- `stats_cache/table_tennis/` — 273 match stats, 24 player forms (ITTF/Sofascore)
+**Sport file caches** (auto-loaded by `deep_stats_report.py`):
 - `stats_cache/espn_stats/basketball/nba/athletes/` — 782 individual player stat files
 
 **Dual-write policy:** Scripts write to BOTH DB and JSON on output. JSON = human-readable debug. DB = queryable primary store.
@@ -62,14 +59,18 @@ All pipeline data is stored in SQLite DB (`betting/data/betting.db`) as the prim
 
 | Tier | Sports | Scanning | Analysis |
 |------|--------|----------|----------|
-| **KEY (Tier 1)** | Football, Volleyball, Basketball, Tennis | ALL leagues/divisions/tournaments — not just top leagues. Go deep: 2nd/3rd divisions, cups, youth internationals, women's leagues, regional tournaments. Every sub-page. | Full STEPS 3-7 per candidate. |
-| **SUPPORT (Tier 2)** | Hockey, Baseball, Esports, Snooker, Darts, Table Tennis, Handball, MMA, Padel, Speedway | Top leagues + major tournaments. Don't drill into every sub-division but cover main events. | Full STEPS 3-7 per candidate. Same quality, fewer leagues scanned. |
+| **CORE (Tier 1)** | Football, Volleyball, Basketball, Tennis, Hockey | ALL leagues/divisions/tournaments — not just top leagues. Go deep: 2nd/3rd divisions, cups, youth internationals, women's leagues, regional tournaments. Every sub-page. | Full STEPS 3-7 per candidate. |
 
-**KEY sport league depth (CRITICAL):** For Football, Volleyball, Basketball, Tennis — scan beyond the obvious. Examples:
+All 5 sports are Tier 1. There is no Tier 2.
+
+**League depth (CRITICAL):** For all 5 sports — scan beyond the obvious. Examples:
 - Football: not just EPL/LaLiga/Bundesliga but also Ekstraklasa, 2. Bundesliga, Serie B, Ligue 2, Eredivisie, Belgian Pro League, Turkish Super Lig, MLS, Liga MX, K-League, J-League, women's leagues, youth tournaments.
 - Volleyball: PlusLiga, SuperLega, Ligue A, women's leagues, CEV Champions League, national cups.
 - Basketball: not just NBA/Euroleague but also NBP (Poland), ACB, BSL, LNB, BCL, women's leagues.
 - Tennis: all ATP/WTA draws at every level (250/500/1000/GS), Challengers (but NOT ITF).
+- Hockey: NHL, KHL, SHL, DEL, Liiga, Czech Extraliga, IIHF tournaments.
+
+**Data quality requirement (R14):** Every candidate MUST have data_quality_score computed. FULL ≥7/10, PARTIAL 4-6/10, MINIMAL <4/10. Only FULL/PARTIAL in core coupons. MINIMAL goes to Extended Pool.
 
 ---
 
@@ -89,14 +90,14 @@ The pipeline has individual scripts for each step. The ORCHESTRATOR AGENT calls 
 
 ## SCANNING MANDATE (NEVER VIOLATE)
 
-1. **WIDE:** ALL 14 sports every run. KEY sports get league-depth priority. Never say "no events" without exhausting the FULL fallback chain (see source-registry.md) + a Google search.
-2. **DEEP:** Enter EVERY tournament/league for KEY sports. For SUPPORT sports, cover main tournaments. Landing pages hide 80%. Count matches. Cross-validate counts between ≥2 sources (>20% discrepancy = missed events).
+1. **WIDE:** ALL 5 sports every run. All sports get league-depth priority. Never say "no events" without exhausting the FULL fallback chain (see source-registry.md) + a Google search.
+2. **DEEP:** Enter EVERY tournament/league for all 5 sports. Landing pages hide 80%. Count matches. Cross-validate counts between ≥2 sources (>20% discrepancy = missed events).
 3. **MULTI-LEVEL:** Per candidate: Tier A stats → Tier A markets → Tier B tipsters (read REASONING) → specialist sources → context.
 4. **AGGRESSIVELY:** Source fails? Log the error, try next in chain immediately. All chain sources fail? Google `"[sport] matches today site:flashscore.com OR site:sofascore.com"` or `"[tournament] schedule [date]"`. After finishing other sports, RETRY failed sources (rate limits often clear in 15-30 min). **Never declare a sport empty without trying ≥3 independent sources + 1 Google search.**
 5. **COMPARE:** Every data point needs ≥2 independent confirmations.
 6. **RETRY LOOP:** After the first scan pass, review `scan_errors.json` and ALL failed sources. Retry each failed source ONCE. If it works now, add its events. Log final status.
 
-**Minimums:** ≥50 events scanned, ≥80% scan completeness, shortlist across ≥8 sports (via `build_shortlist.py --stats-first`), final picks from ≥5 sports, core coupons scale with picks (target ≥5 when 10+ approved) + ≥4 combo coupons. KEY sports ≥60% of shortlist. **Target ≥30 picks in final market matrix for user to choose from.**
+**Minimums:** ≥50 events scanned, ≥80% scan completeness, shortlist across ≥3 sports (via `build_shortlist.py --stats-first`), final picks from ≥3 sports, core coupons scale with picks (target ≥5 when 10+ approved) + ≥4 combo coupons. **Target ≥30 picks in final market matrix for user to choose from.**
 
 **SESSION PARITY:** Session type (full/day/night) controls ONLY the event time window. Analysis depth, coupon count, all steps, all validation = IDENTICAL regardless of session.
 
@@ -119,15 +120,6 @@ Active major tournaments get PRIORITY treatment across the entire pipeline:
 - Basketball: NBA Playoffs, EuroLeague Final Four, FIBA World Cup, NCAA March Madness
 - Volleyball: CEV Champions League, World Championship, Nations League Finals, PlusLiga Playoffs, SuperLega Playoffs
 - Hockey: NHL Playoffs, Stanley Cup, IIHF World Championship
-- Handball: EHF Champions League Final Four, World Championship
-- Esports: CS2 Majors, LoL Worlds, Dota TI, BLAST Premier
-- Snooker: World Championship, Masters, Champion of Champions, UK Championship
-- Darts: World Championship, Premier League, World Grand Prix, Grand Slam
-- Baseball: MLB Playoffs, World Series, World Baseball Classic
-- MMA: UFC numbered events (PPVs), UFC Fight Night with ranked fighters
-- Table Tennis: WTT Grand Smash, World Championships
-- Padel: Premier Padel Majors
-- Speedway: Speedway GP rounds
 
 **GATE:** If a major tournament is active today AND has matches, they MUST appear in the final market matrix. If missing → scan failed → re-scan that sport specifically for the tournament.
 
@@ -157,22 +149,22 @@ Major domestic leagues outside Europe are systematically underrepresented in the
 
 **Protected domestic leagues (MUST appear in scan when active):**
 
-| Region | Football | Basketball | Baseball | Other |
-|--------|----------|------------|----------|-------|
-| 🇧🇷 Brazil | Brasileirão Serie A, Serie B, Copa do Brasil | NBB | — | — |
-| 🇺🇸 USA | MLS | NBA | MLB | NHL (hockey) |
-| 🇦🇷 Argentina | Liga Profesional, Primera Nacional | — | — | — |
-| 🇲🇽 Mexico | Liga MX, Liga de Expansión | LNBP | LMP | — |
-| 🇨🇴 Colombia | Liga BetPlay | — | — | — |
-| 🇨🇱 Chile | Primera División | — | — | — |
-| 🇨🇳 China | Chinese Super League (CSL) | CBA | — | — |
-| 🇯🇵 Japan | J1 League, J2 League | B.League | NPB | — |
-| 🇰🇷 Korea | K League 1, K League 2 | KBL | KBO | — |
-| 🇦🇺 Australia | A-League | NBL | — | — |
-| 🇸🇦 Saudi Arabia | Saudi Pro League (SPL) | — | — | — |
-| 🇮🇳 India | Indian Super League (ISL) | — | — | — |
-| 🇪🇬 Egypt | Egyptian Premier League | — | — | — |
-| 🇿🇦 South Africa | PSL | — | — | — |
+| Region | Football | Basketball | Other |
+|--------|----------|------------|-------|
+| 🇧🇷 Brazil | Brasileirão Serie A, Serie B, Copa do Brasil | NBB | — |
+| 🇺🇸 USA | MLS | NBA | NHL (hockey) |
+| 🇦🇷 Argentina | Liga Profesional, Primera Nacional | — | — |
+| 🇲🇽 Mexico | Liga MX, Liga de Expansión | LNBP | — |
+| 🇨🇴 Colombia | Liga BetPlay | — | — |
+| 🇨🇱 Chile | Primera División | — | — |
+| 🇨🇳 China | Chinese Super League (CSL) | CBA | — |
+| 🇯🇵 Japan | J1 League, J2 League | B.League | — |
+| 🇰🇷 Korea | K League 1, K League 2 | KBL | — |
+| 🇦🇺 Australia | A-League | NBL | — |
+| 🇸🇦 Saudi Arabia | Saudi Pro League (SPL) | — | — |
+| 🇮🇳 India | Indian Super League (ISL) | — | — |
+| 🇪🇬 Egypt | Egyptian Premier League | — | — |
+| 🇿🇦 South Africa | PSL | — | — |
 
 **Pipeline behavior:**
 1. **+10 score boost** in shortlist scoring (between tournament +15 and minor league +6).
@@ -228,18 +220,17 @@ If the file is missing, run: `python3 scripts/parse_betclic_bets.py` (requires H
 
 1. Run `python3 scripts/scan_events.py --deep --max-deep-links 30 --workers 8 --date YYYY-MM-DD` (agent-driven — NEVER use `pipeline_orchestrator.py`). Check `scan_errors.json`.
 2. Run `python3 scripts/fetch_odds_api.py` for cross-validation (30 credits/scan, 500/month free).
-3. Browse BetExplorer + Flashscore + OddsPortal for ALL 14 sports.
+3. Browse BetExplorer + Flashscore + OddsPortal for all 5 sports.
 4. **Deep Scan (§1.2):** Click into EVERY active tournament/league. Count matches per tournament.
 5. **Tournament depth (§1.3):** Major tournament active? Analyze FULL daily slate (all matches, not 1-2). ANY tournament with ≥4 matches → screen ALL.
 6. **Cross-validate:** Compare event counts per sport between ≥2 sources. Discrepancy >20% → investigate.
 7. Record per event: sport, competition, event, kickoff, initial odds, source.
 
-**14-SPORT CHECKLIST (mandatory — check each):**
-- **KEY (deep league scan):** Football, Tennis, Basketball, Volleyball.
-- **SUPPORT (main leagues):** Hockey, Baseball, Esports, Snooker, Darts, Table Tennis, Handball, MMA, Padel, Speedway.
+**5-SPORT CHECKLIST (mandatory — check each):**
+- **CORE (deep league scan):** Football, Tennis, Basketball, Volleyball, Hockey.
 
-**Niche sport source fallback (BetExplorer returns empty for snooker, esports, darts, table tennis, padel, speedway):**
-Primary: Flashscore (fixtures + odds) → scores24.live (odds + trends) → OddsPortal. BetExplorer is EXPECTED to fail for these — use the other sources.
+**Niche sport source fallback (BetExplorer returns empty for some sports):**
+Primary: Flashscore (fixtures + odds) → scores24.live (odds + trends) → OddsPortal. BetExplorer is EXPECTED to fail for niche sports — use the other sources.
 
 ### §1.5 TIPSTER PRE-FETCH (MANDATORY — runs as part of STEP 1)
 
@@ -436,12 +427,12 @@ Remove: outside betting window, no Tier A coverage, <2h to kickoff, already star
 Prioritize: events WITH statistical markets (corners, totals, HC) over basic ML-only.
 **Early Betclic market hint:** For niche sports (volleyball, table tennis, padel, speedway), check Betclic market availability BEFORE deep analysis. If market doesn't exist on Betclic → don't waste analysis time.
 Preferred odds range: 1.30-3.50.
-**Target: 50-100 events across ≥8 sports in shortlist. S3 deep analysis narrows to ~35 best picks for coupon building.** KEY sports (Football+Volleyball+Basketball+Tennis) should be ≥60% of shortlist but no single sport >40%.
+**Target: 50-100 events across ≥3 sports in shortlist. S3 deep analysis narrows to ~35 best picks for coupon building.** No single sport >40%.
 
 **§2.1 MINIMUM PICK EXPANSION TRIGGER:**
 If after S7 gate fewer than 4 picks survive OR fewer than 5 sports are represented in approved picks → DO NOT proceed to S8. Instead:
 1. Identify ALL remaining S2 shortlist candidates that have NOT received S3 analysis — grouped by sport.
-2. Process ALL of them through S3→S7 in sport-diverse batches (see §2.2). Priority: KEY sports (football, volleyball, basketball, tennis) first, then SUPPORT sports with highest shortlist scores.
+2. Process ALL of them through S3→S7 in sport-diverse batches (see §2.2). Priority: all 5 core sports with highest shortlist scores.
 3. Do NOT cherry-pick only "API-verified" or "easy" events. The shortlist was built from verified fixtures — they ALL deserve analysis.
 4. After expansion: re-check pick count AND sport diversity. If STILL <4 picks AND <5 sports after analyzing ALL shortlisted candidates → declare NO BET day.
 5. NEVER narrow expansion to a single sport or data source. If the shortlist has 25 football + 5 volleyball + 8 handball + 14 tennis candidates, the expansion MUST cover all four — not just the sport with easiest API data.
@@ -459,18 +450,17 @@ If after S7 gate fewer than 4 picks survive OR fewer than 5 sports are represent
 Batching protocol:
 1. Sort shortlist candidates by sport tier (KEY first) then by shortlist score (highest first).
 2. Build S3 batches using round-robin across sports: pick the top candidate from each sport before picking the 2nd candidate from any sport.
-3. Example for 100-candidate shortlist across 15 sports: Batch 1 = top football + top volleyball + top basketball + top tennis + top hockey + top handball + ... (one per sport). Batch 2 = 2nd football + 2nd volleyball + ... Continue until all candidates are batched.
+3. Example for 100-candidate shortlist across 5 sports: Batch 1 = top football + top volleyball + top basketball + top tennis + top hockey (one per sport). Batch 2 = 2nd football + 2nd volleyball + ... Continue until all candidates are batched.
 4. Process batches IN ORDER. This ensures that if S3 is interrupted or context runs out, ALL sports have at least some representation.
 5. **NEVER process all candidates from one sport before starting another sport.**
 
 **S3 Sport Coverage Gate (checked after EACH batch):**
 ```
 Sports with ≥1 completed S3 analysis:  [X] / [Y total sports in shortlist]
-KEY sports with ≥1 completed S3:       [A] / 4
-Target: ALL KEY sports covered after Batch 1. ALL sports after Batch 2.
+Target: ALL sports covered after Batch 1.
 ```
 
-**If a context window or time constraint forces partial S3:** The round-robin ensures maximum sport diversity in whatever candidates ARE analyzed. Partial S3 with 15 sports × 2 candidates each = 30 diverse picks >> 30 candidates all from basketball.
+**If a context window or time constraint forces partial S3:** The round-robin ensures maximum sport diversity in whatever candidates ARE analyzed. Partial S3 with 5 sports × 6 candidates each = 30 diverse picks >> 30 candidates all from basketball.
 
 **CRITICAL: The S2 shortlist is a COMMITMENT.** Every candidate that enters the shortlist WILL receive full §3.0 analysis in S3 (see §3.0f). The only removals between S2 and S3 are PHANTOM/VOID/WRONG DATE/ALREADY STARTED — verified against ≥2 sources. Do NOT shortlist candidates you plan to skip later. If data looks thin at S2, either investigate further NOW or don't shortlist.
 
@@ -488,7 +478,7 @@ Target: ALL KEY sports covered after Batch 1. ALL sports after Batch 2.
 3. **Calculate hit rates** for O/U lines.
 4. **Run §3.0 STATISTICAL MARKET RANKING** (below). Rank ALL available stat markets by safety score. Choose SAFEST, not most interesting.
 5. **Present TOP 2-3 markets** per match from §3.0 ranking table BEFORE choosing.
-6. **NEVER default to ML/1X2.** Statistical markets ALWAYS preferred across ALL 14 sports.
+6. **NEVER default to ML/1X2.** Statistical markets ALWAYS preferred across ALL 5 sports.
 7. ML only when: (1) no statistical market on Betclic AND (2) statistical edge overwhelming AND (3) price acceptable.
 8. **COACH/ROSTER STABILITY CHECK (mandatory):** For EVERY candidate: Did the coach change in the last 5 matches? Any major transfers, loan returns, or squad changes in the last 14 days? New coach bounce = volatile form (first 5 games unreliable). Major roster change = stats from previous games may not apply.
 
@@ -509,7 +499,7 @@ Target: ALL KEY sports covered after Batch 1. ALL sports after Batch 2.
 
 > **Full table** in `bet-analyzing-statistics` SKILL.md §3.0b. Per-sport mandatory multi-market calculation tables in sport-analysis-protocols.instructions.md (§3.1M-§3.14M).
 >
-> **Quick reference:** Football (Fouls, Cards, Corners, Shots, Throw-ins, Goal kicks, Offsides, Goals, BTTS) | Tennis (Games, Sets, HC, Tiebreaks, Aces) | Basketball (Team pts, Quarter, Half, Total, Rebounds, 3PT) | Volleyball (Sets, Points, Set HC) | Hockey (Period, Goals, Shots, PP) | Baseball (F5, Team, Total, Hits, K's) | Snooker (Frames, Centuries, 50+) | Darts (180s, Legs, Sets) | Handball (Half, Total, Team, Suspensions) | Esports (Rounds, Maps, Kills) | Table Tennis (Sets, Points) | MMA (Rounds, Method, ITD) | Padel (Games, Sets) | Speedway (Points, HC)
+> **Quick reference:** Football (Fouls, Cards, Corners, Shots, Throw-ins, Goal kicks, Offsides, Goals, BTTS) | Tennis (Games, Sets, HC, Tiebreaks, Aces) | Basketball (Team pts, Quarter, Half, Total, Rebounds, 3PT) | Volleyball (Sets, Points, Set HC) | Hockey (Period, Goals, Shots, PP)
 
 ### §3.0c H2H MARKET-SPECIFIC VALIDATION (MANDATORY — NEVER SKIP)
 
@@ -594,9 +584,9 @@ The ONLY valid reasons to remove a candidate BEFORE S3 analysis are:
 
 These pre-S3 removals are logged in a `PRE-S3 REMOVALS` table with the exact reason and verification sources.
 
-### §3.0g ESPN PLAYER GAMELOGS — CONSISTENCY VERIFICATION (basketball/hockey/baseball)
+### §3.0g ESPN PLAYER GAMELOGS — CONSISTENCY VERIFICATION (basketball/hockey)
 
-When ESPN enrichment is available (`espn_enrichment` in S3 output for 25.9K+ gamelogs across 3 sports), **USE IT** to verify statistical market consistency:
+When ESPN enrichment is available (`espn_enrichment` in S3 output for gamelogs across 2 sports), **USE IT** to verify statistical market consistency:
 
 **Basketball:**
 - Total points market → check top 3 scorers' game-by-game output. Variance > 8 pts/game → LOWER safety score for totals.
@@ -606,10 +596,6 @@ When ESPN enrichment is available (`espn_enrichment` in S3 output for 25.9K+ gam
 **Hockey:**
 - Goals market → check goalie save% by game. If starter has 2+ games with <0.880 save% → Under less reliable.
 - Period goals → check if team scoring is front-loaded (P1 heavy) or back-loaded (P3 heavy) using gamelog data.
-
-**Baseball:**
-- Run totals → check starting pitcher's ERA variation game-to-game. ERA swing >2.0 between games → totals FRAGILE.
-- Strikeout markets → pitcher K/game consistency from gamelogs. Low variance = high confidence.
 
 **How to use:**
 ```python
@@ -637,7 +623,7 @@ S3 COVERAGE:                   [Y / (N - X)] = must be 100%
 **PRACTICAL S3 BATCHING PROTOCOL (when context window constrains full coverage):**
 If the S2 shortlist has 100 candidates but S3 analysis is context-constrained, apply this priority protocol:
 1. **Batch 1 (MANDATORY):** Use §2.2 round-robin — top 1 candidate per sport × all sports in shortlist (~15 candidates). This ensures every sport is represented.
-2. **Batch 2:** Next top candidates per sport using round-robin. Focus on KEY sports (football, volleyball, basketball, tennis).
+2. **Batch 2:** Next top candidates per sport using round-robin. Focus on core sports (football, volleyball, basketball, tennis, hockey).
 3. **Batch 3+:** Continue round-robin until all candidates analyzed OR all available context consumed.
 4. **If context runs out before 100% coverage:** Document exactly which candidates were skipped and why. The skipped candidates MUST appear in the report as `S3-PENDING — not yet analyzed` (NOT silently dropped). On next rerun or continuation, start with the skipped candidates.
 5. **NEVER silently drop candidates.** Every shortlisted candidate appears in one of: S3 analyzed → core/extended/rejected, S3-PENDING, or PRE-S3 REMOVAL (phantom/void).
@@ -681,15 +667,6 @@ Check ≥2 ARGUMENT-BASED tipster sites per candidate. Read WRITTEN REASONING, n
 | Basketball (US) | PicksWise | Sportsgambler | OLBG |
 | Volleyball | ZawodTyper → Typersi | Sportsgambler | Meczyki |
 | Hockey | PicksWise | Sportsgambler | OLBG |
-| Baseball | PicksWise | Sportsgambler | OLBG |
-| Handball | Sportsgambler | ZawodTyper | OLBG |
-| Snooker | Sportsgambler → OLBG | Tipstrr | — |
-| Darts | Sportsgambler → OLBG | Tipstrr | — |
-| Esports | GosuGamers | Tipstrr | BO3.gg |
-| Table Tennis | Sportsgambler | OLBG | Tipstrr |
-| MMA | Sportsgambler | PicksWise | Tipstrr |
-| Padel | Google "[event] prediction" | Sportsgambler | — |
-| Speedway | ZawodTyper | Typersi | Google "[event] tips" |
 | Football (Exotic SA) | Feedinco → Bettingclosed | Sportsgambler | OLBG → Google "[league] tips [date]" |
 | Football (Exotic Africa/ME) | Tips180 → Feedinco | Bettingclosed → Tips180 | Sportsgambler → Google "[league] tips [date]" |
 | Football (Exotic Asia) | AsiaBet → Feedinco | Bettingclosed → Tips180 | Sportsgambler → Google "[league] tips [date]" |
@@ -934,13 +911,12 @@ S2 shortlist sports:               [list all sports]
 S3 analyzed sports:                 [list all sports with completed S3]
 S7 approved picks — sport breakdown: [sport: count]
 Sports in approved picks:           [X]
-KEY sports in approved picks:       [Y] / 4
 ```
 
 **DIVERSITY GATE CONDITIONS:**
-1. **≥5 sports in approved picks** → PASS. Proceed to S8.
-2. **<5 sports in approved picks** → FAIL. Trigger §2.1 expansion on ALL unanalyzed shortlist candidates from missing sports.
-3. **0 KEY sports (football/volleyball/basketball/tennis) in approved picks** → CRITICAL FAIL. KEY sports had the most shortlist candidates — they MUST be analyzed.
+1. **≥3 sports in approved picks** → PASS. Proceed to S8.
+2. **<3 sports in approved picks** → FAIL. Trigger §2.1 expansion on ALL unanalyzed shortlist candidates from missing sports.
+3. **0 core sports (football/volleyball/basketball/tennis/hockey) in approved picks** → CRITICAL FAIL. Core sports had the most shortlist candidates — they MUST be analyzed.
 4. **S3 analyzed fewer sports than S2 shortlisted** → FAIL. Every sport in the shortlist must have ≥1 candidate with completed S3.
 
 **EXPANSION LOOP (if diversity gate fails):**
@@ -950,7 +926,7 @@ KEY sports in approved picks:       [Y] / 4
 4. Re-check diversity gate. Repeat until PASS or all shortlist candidates exhausted.
 5. **This loop has NO sport-preference bias** — football, volleyball, handball, tennis all get equal treatment.
 
-**NEVER proceed to S8 with <5 sports if the shortlist had ≥8 sports.** The shortlist was built from a 51K-event scan — honor that work.
+**NEVER proceed to S8 with <3 sports if the shortlist had ≥5 sports.** The shortlist was built from a comprehensive scan — honor that work.
 
 ---
 
@@ -1041,7 +1017,7 @@ For EACH coupon, before finalizing:
 
 ### V8: Source Completeness
 - Every pick: ≥2 independent sources + ≥1 argument-based tipster.
-- Sport-specific sources checked (football corners: TotalCorner+SoccerStats, tennis: TennisAbstract, MLB: BaseballSavant, esports: Liquipedia/GosuGamers, snooker: CueTracker).
+- Sport-specific sources checked (football corners: TotalCorner+SoccerStats, tennis: TennisAbstract, hockey: NaturalStatTrick+MoneyPuck).
 - H2H, injuries verified for EVERY pick.
 - **V8b: H2H STAT-SPECIFIC CHECK:** For EVERY pick, H2H data for the SPECIFIC stat market exists (not just match results). If H2H-STAT-BLIND → pick is flagged, −0.5 confidence, excluded from LR coupons.
 - **V8c: STATISTICAL MARKET RANKING AUDIT:** For EVERY pick, §3.0 ranking table was produced showing ≥3 alternative markets considered. If no ranking table → FAIL.
@@ -1053,7 +1029,7 @@ For EACH coupon, before finalizing:
 
 ### V10: Final Sign-Off
 
-**V10a: Forced Sport Enumeration** — ALL 14 sports listed with events/sources/candidates/picks. KEY sports (Football, Volleyball, Basketball, Tennis): 0 events + <3 sources → go back. SUPPORT sports: 0 events + <2 sources → go back.
+**V10a: Forced Sport Enumeration** — ALL 5 sports listed with events/sources/candidates/picks. Any sport: 0 events + <3 sources → go back.
 
 **V10b: Pick Approval Gates** — every pick passed 18-point gate (§7.5).
 

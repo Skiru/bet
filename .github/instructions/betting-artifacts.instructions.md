@@ -223,12 +223,9 @@ Standard translations:
 - Over X.5 shots → Powyżej X.5 strzałów
 - Over X.5 total games (tennis) → Powyżej X.5 gemów łącznie
 - Set handicap -1.5 → Handicap setowy -1.5
-- Map handicap -1.5 → Handicap mapowy -1.5
 - Total sets Over 3.5 → Łączna liczba setów powyżej 3.5
 - Team +X.5 pts set 1 → [Team] +X.5 pkt w 1. secie
-- Total frames Over X.5 → Łączna liczba framów powyżej X.5
 - Total goals Under X → Łączna liczba goli poniżej X
-- Run line -1.5 → Handicap -1.5 (runs)
 For any market not listed: provide a clear Polish description that matches Betclic's terminology.
 
 Use these exact CSV headers.
