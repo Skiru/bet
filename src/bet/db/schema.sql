@@ -329,6 +329,66 @@ CREATE TABLE IF NOT EXISTS scan_run_stats (
 
 CREATE INDEX IF NOT EXISTS idx_scan_run_stats_date ON scan_run_stats(betting_date);
 
+-- Deep data tables (injuries, H2H stats, coach history, web research cache)
+CREATE TABLE IF NOT EXISTS injuries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    team_id INTEGER,
+    athlete_name TEXT NOT NULL,
+    sport TEXT NOT NULL,
+    status TEXT NOT NULL,  -- OUT, DOUBTFUL, QUESTIONABLE, PROBABLE
+    injury_type TEXT,
+    expected_return TEXT,
+    source TEXT,
+    fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (team_id) REFERENCES teams(id)
+);
+
+CREATE TABLE IF NOT EXISTS h2h_stats (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    team1_id INTEGER,
+    team2_id INTEGER,
+    sport TEXT NOT NULL,
+    stat_key TEXT NOT NULL,  -- corners, fouls, goals, etc.
+    values_json TEXT,  -- JSON array of per-match values
+    avg_value REAL,
+    match_count INTEGER,
+    source TEXT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS coach_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    team_id INTEGER,
+    coach_name TEXT NOT NULL,
+    sport TEXT NOT NULL,
+    appointed_date TEXT,
+    left_date TEXT,
+    is_current BOOLEAN DEFAULT 1,
+    source TEXT,
+    fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (team_id) REFERENCES teams(id)
+);
+
+CREATE TABLE IF NOT EXISTS web_research_cache (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    query_hash TEXT UNIQUE NOT NULL,
+    query_text TEXT NOT NULL,
+    data_type TEXT NOT NULL,  -- h2h, injuries, form, coach
+    result_json TEXT,
+    source_urls TEXT,
+    confidence REAL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_injuries_team ON injuries(team_id);
+CREATE INDEX IF NOT EXISTS idx_injuries_sport ON injuries(sport);
+CREATE INDEX IF NOT EXISTS idx_h2h_stats_teams ON h2h_stats(team1_id, team2_id);
+CREATE INDEX IF NOT EXISTS idx_h2h_stats_sport ON h2h_stats(sport);
+CREATE INDEX IF NOT EXISTS idx_coach_history_team ON coach_history(team_id);
+CREATE INDEX IF NOT EXISTS idx_web_research_cache_hash ON web_research_cache(query_hash);
+CREATE INDEX IF NOT EXISTS idx_web_research_cache_expires ON web_research_cache(expires_at);
+
 -- Schema metadata (version tracking, migration log)
 CREATE TABLE IF NOT EXISTS schema_meta (
     key TEXT PRIMARY KEY,

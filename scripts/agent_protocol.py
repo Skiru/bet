@@ -131,6 +131,13 @@ SELF_HEALING_REGISTRY = {
         "description": "The Odds API — cross-bookmaker odds comparison. 30 credits/scan, 500/month free.",
         "use_when": "Need independent odds validation or missing odds for specific events",
     },
+    "L7_web_research": {
+        "module": "scripts.web_research_agent",
+        "function": "research_missing_data",
+        "trigger": "All L1-L6 fallbacks exhausted, data still missing",
+        "description": "Search open web for missing H2H, injury, form, coach data",
+        "rate_limit": "5 SerpAPI + 10 Playwright per run",
+    },
     "fallback_layers": [
         "L1: Scan retry with extended timeout (pipeline auto-handles)",
         "L2: Parallel S1b enrichment (ESPN odds + weather + tipsters concurrently)",
@@ -138,6 +145,7 @@ SELF_HEALING_REGISTRY = {
         "L4: S3 batch enrichment before analysis loop",
         "L5: S3 inline extract_team_stats/extract_h2h_stats fallback (per-candidate)",
         "L6: S5 inline context fetch (weather API + ESPN injury scrape)",
+        "L7: Web research agent — open web search for missing H2H/injuries/form/coach (scripts.web_research_agent)",
     ],
 }
 

@@ -1303,6 +1303,27 @@ def enrich_team(team_name: str, sport: str, max_retries: int = 2) -> dict:
     if err:
         errors.append(err)
 
+    # L7: Web research agent — last resort for missing data
+    try:
+        from web_research_agent import research_missing_data
+
+        for data_type in ("form", "injuries"):
+            l7_result = research_missing_data(
+                team1=team_name, sport=sport, data_type=data_type,
+            )
+            if l7_result.get("data") and not l7_result.get("error"):
+                result["status"] = "partial"
+                result["source"] = f"web-research-{data_type}"
+                logger.info("L7 web research found %s data for %s", data_type, team_name)
+                break
+    except ImportError:
+        pass
+    except Exception as exc:
+        logger.debug("L7 web research failed for %s: %s", team_name, exc)
+
+    if result["status"] != "failed":
+        return result
+
     result["error"] = "; ".join(errors) if errors else "No data found from any source"
     return result
 
