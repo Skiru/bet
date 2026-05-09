@@ -98,6 +98,23 @@ user-invokable: false
 | Client | Free? | Keys Returned | Notes |
 |--------|-------|---------------|-------|
 | ESPN | ✅ FREE | 17+ per game | NBA primary |
+
+## Deep Data Requirements (v4 Pipeline)
+
+For every scanned fixture, the scanner MUST attempt to collect:
+1. H2H history (last 5 meetings minimum) with per-stat breakdowns
+2. Recent form (last 10 matches) with opponents, results, scores  
+3. League standings position and zone status
+4. Key injuries/suspensions
+5. Per-match statistical data (not just averages)
+
+## Data Quality Validation
+
+After scan completes, validate per fixture:
+- Has ≥2 independent source confirmations?
+- Has team form data for BOTH teams?
+- Has at least 1 statistical data source (API or deep parse)?
+- THINK IN THE MIDDLE: use sequentialthinking to evaluate scan quality
 | BallDontLie | ✅ FREE | Player box scores → team aggregation | H2H fallback |
 | NBA API | ✅ FREE (1 req/sec) | PTS, REB, AST, STL, BLK, TOV | Rate-limited |
 | API-Basketball | ❌ 100/day shared | points, rebounds, assists, blocks, fg_pct | Shared quota |

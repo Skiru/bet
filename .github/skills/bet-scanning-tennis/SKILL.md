@@ -87,3 +87,20 @@ user-invokable: false
 - **Surface matters:** Clay specialists vs hard court — surface detection via TennisExplorer is critical for analysis.
 - **Qualifier rounds:** Many matches feature qualifiers with zero historical data.
 - **Walkovers/retirements:** Tennis has high withdrawal rate — check for WO/RET status.
+
+## Deep Data Requirements (v4 Pipeline)
+
+For every scanned fixture, the scanner MUST attempt to collect:
+1. H2H between players (last 5 meetings minimum) with per-stat breakdowns
+2. Recent form (last 10 matches) with opponents, results, scores  
+3. Current ranking and recent ranking trajectory
+4. Key injuries/fitness concerns
+5. Per-match statistical data (not just averages)
+
+## Data Quality Validation
+
+After scan completes, validate per fixture:
+- Has ≥2 independent source confirmations?
+- Has form data for BOTH players?
+- Has at least 1 statistical data source (API or deep parse)?
+- THINK IN THE MIDDLE: use sequentialthinking to evaluate scan quality

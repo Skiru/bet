@@ -201,3 +201,19 @@ ev = compute_ev(prob, betclic_odds)
 - `scripts/adapters/soccerstats_adapter.py` — normalized football statistics
 
 These adapters parse sport-specific web pages into structured JSON data, reducing reliance on manual web-fetch for common stats.
+
+## Data Depth Requirements (v4 Pipeline)
+
+Before computing safety scores, verify data completeness:
+- L10: ≥8 actual match data points (not interpolated)
+- H2H: ≥3 meetings with per-stat data
+- L5: ≥4 actual match data points
+- If any dimension has <minimum → flag as PARTIAL quality
+
+## Reasoning Before Ranking
+
+THINK IN THE MIDDLE — when data arrives:
+1. Is the data source reliable? (API > deep parse > regex)
+2. Are the stat values in expected ranges for this sport/league?
+3. Do recent matches suggest a trend change that averages might hide?
+4. Is H2H relevant? (same teams, similar context, or very different?)

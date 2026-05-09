@@ -28,6 +28,55 @@ except ImportError:
 REVIEWS_DIR = ROOT_DIR / "betting" / "data" / "agent_reviews"
 
 # ---------------------------------------------------------------------------
+# Mandatory agent behaviors — enforced for EVERY agent in EVERY step
+# ---------------------------------------------------------------------------
+MANDATORY_BEHAVIORS = {
+    "sequential_thinking": (
+        "Use sequentialthinking MCP for EVERY decision. THINK IN THE MIDDLE — "
+        "when a script produces output, use sequential thinking to analyze results "
+        "AS THEY ARRIVE. Scripts run 5-10 minutes; the thinking happens DURING "
+        "analysis of output, not in wasted time before/after."
+    ),
+    "live_error_handling": (
+        "If a script fails or produces unexpected output, diagnose the error "
+        "immediately. Do NOT just report the error — fix it or try alternative approach."
+    ),
+    "data_validation": (
+        "After every data fetch, validate: Is the data reasonable? Are stat values "
+        "in expected ranges? Are there suspiciously many zeros or nulls?"
+    ),
+    "think_in_the_middle": (
+        "When script output arrives: (1) Use sequentialthinking to deeply analyze "
+        "the data, (2) Assess data quality, (3) Identify anomalies and gaps, "
+        "(4) Decide next action with justification. Do NOT reason about expectations "
+        "before a 5-10min script — reason about ACTUAL output when it arrives."
+    ),
+}
+
+# ---------------------------------------------------------------------------
+# Error handling protocol — structured recovery for common failures
+# ---------------------------------------------------------------------------
+ERROR_HANDLING_PROTOCOL = {
+    "script_failure": {
+        "action": "Read error message → identify root cause → fix if possible → retry",
+        "common_fixes": {
+            "ConnectionError": "Rate limited or blocked. Wait 30s, try alternative source.",
+            "JSONDecodeError": "Corrupt cache or empty response. Delete cache, retry.",
+            "KeyError": "API response schema changed. Log and try fallback source.",
+            "TimeoutError": "Source too slow. Try next fallback in chain.",
+            "FileNotFoundError": "Cache/data file missing. Run enrichment first.",
+        },
+    },
+    "empty_data": {
+        "action": "Source returned empty data. Trigger enrichment for missing teams. Try alternative sources.",
+        "threshold": "If >50% candidates have MINIMAL data quality → enrichment failed → escalate to user.",
+    },
+    "quality_regression": {
+        "action": "If data quality is WORSE than previous run → compare with DB history → identify what changed.",
+    },
+}
+
+# ---------------------------------------------------------------------------
 # Database Schema Reference — compact map for agent awareness
 # ---------------------------------------------------------------------------
 DB_SCHEMA_REFERENCE = {
@@ -155,11 +204,12 @@ SELF_HEALING_REGISTRY = {
 AGENT_SKILLS_MAP = {
     "bet-scanner": {
         "role": "Scan verification & shortlist curation specialist",
+        "mandatory_behaviors": MANDATORY_BEHAVIORS,
         "responsibilities": [
             "Verify 5-sport coverage across all scan sources (Football, Volleyball, Basketball, Tennis, Hockey)",
             "Cross-validate fixtures appear in ≥2 independent sources",
             "Check deep-link discovery yield and flag source failures",
-            "Review shortlist for sport diversity (all 5 sports represented), ensure comprehensive league coverage per sport",
+            "Review shortlist for league diversity and data depth, ensure comprehensive league coverage per sport",
             "Verify ALL candidates included — NO artificial caps or auto-filtering",
             "Flag missing major leagues and tournaments (§SCAN.7 tournament protection)",
             "Flag missing major domestic leagues worldwide (§SCAN.9 — Brasileirão, MLS, Liga MX, CSL, J-League, K-League, Saudi Pro, ISL, etc.)",
@@ -177,6 +227,7 @@ AGENT_SKILLS_MAP = {
     },
     "bet-scout": {
         "role": "Tipster cross-reference & consensus analyst",
+        "mandatory_behaviors": MANDATORY_BEHAVIORS,
         "responsibilities": [
             "Read FULL tipster arguments (not just pick summaries)",
             "Assess tipster quality: track record, reasoning depth, independence",
@@ -197,6 +248,7 @@ AGENT_SKILLS_MAP = {
     },
     "bet-enricher": {
         "role": "Data quality guardian & self-healing enrichment specialist",
+        "mandatory_behaviors": MANDATORY_BEHAVIORS,
         "responsibilities": [
             "Review enrichment yield by sport and source",
             "Identify sports/leagues with persistent data gaps",
@@ -219,6 +271,7 @@ AGENT_SKILLS_MAP = {
     },
     "bet-statistician": {
         "role": "Deep statistical analyst & market ranking specialist",
+        "mandatory_behaviors": MANDATORY_BEHAVIORS,
         "responsibilities": [
             "Interpret safety scores and identify edge mechanisms",
             "Perform §3.0 STATISTICAL MARKET RANKING per candidate",
@@ -246,6 +299,7 @@ AGENT_SKILLS_MAP = {
     },
     "bet-valuator": {
         "role": "Odds evaluation & expected value specialist",
+        "mandatory_behaviors": MANDATORY_BEHAVIORS,
         "responsibilities": [
             "Cross-validate pricing across sources (BetExplorer, OddsPortal, The-Odds-API, ESPN)",
             "Calculate EV for each candidate: EV = (hit_rate × odds) - 1",
@@ -269,6 +323,7 @@ AGENT_SKILLS_MAP = {
     },
     "bet-challenger": {
         "role": "Devil's advocate, context analyst & risk assessor",
+        "mandatory_behaviors": MANDATORY_BEHAVIORS,
         "responsibilities": [
             "S5: Assess REAL market impact of weather, injuries, venue, referee, motivation",
             "S5: Model motivation effects — tournament stage, relegation battle, dead rubber",
@@ -295,6 +350,7 @@ AGENT_SKILLS_MAP = {
     },
     "bet-builder": {
         "role": "Portfolio construction & coupon validation specialist",
+        "mandatory_behaviors": MANDATORY_BEHAVIORS,
         "responsibilities": [
             "Build core portfolio: unique event per coupon, max legs per config (default 4)",
             "Create COMBO MENU: extra combinations remixing approved picks",
@@ -331,6 +387,9 @@ STEP_AGENT_CONFIG = {
         "task": "Verify 5-sport coverage (Football, Volleyball, Basketball, Tennis, Hockey), cross-validate fixtures ≥2 sources, check deep-link discovery yield, flag source failures, ensure ≥50 unique events",
         "required_input": ["scan_summary.json"],
         "output_metrics": ["total_events", "sports_covered", "source_failures", "deep_link_yield"],
+        "think_in_the_middle": True,
+        "error_handling": "ERROR_HANDLING_PROTOCOL",
+        "validate_output": True,
         "detailed_instructions": [
             "1. Read scan_summary.json — check per-sport event counts",
             "2. Verify all 5 sports scanned: football, tennis, basketball, volleyball, hockey",
@@ -349,6 +408,9 @@ STEP_AGENT_CONFIG = {
         "task": "Validate HTML deep parsing: check per-domain verdicts (PASS/WARN/FAIL), verify CSS selectors match current HTML, spot-check extracted values, flag broken profiles needing updates",
         "required_input": ["{date}_deep_parse_report.json"],
         "output_metrics": ["total_enrichments", "pass_domains", "warn_domains", "fail_domains", "db_match_rate"],
+        "think_in_the_middle": True,
+        "error_handling": "ERROR_HANDLING_PROTOCOL",
+        "validate_output": True,
         "detailed_instructions": [
             "1. Read deep_parse_report.json — check verdicts for each domain",
             "2. For FAIL domains: inspect an HTML snapshot — check if CSS classes still exist",
@@ -366,9 +428,12 @@ STEP_AGENT_CONFIG = {
     },
     "s1e_shortlist": {
         "agent": "bet-scanner",
-        "task": "Review shortlist for sport diversity (all 5 sports), comprehensive league coverage, verify ALL candidates included, flag missing major leagues",
+        "task": "Review shortlist for league diversity and data depth, comprehensive league coverage, verify ALL candidates included, flag missing major leagues",
         "required_input": ["{date}_s2_shortlist.json"],
         "output_metrics": ["total_candidates", "sport_distribution", "key_sport_pct", "missing_leagues"],
+        "think_in_the_middle": True,
+        "error_handling": "ERROR_HANDLING_PROTOCOL",
+        "validate_output": True,
         "detailed_instructions": [
             "1. Load shortlist JSON — count candidates per sport",
             "2. Verify all 5 sports represented (football, volleyball, basketball, tennis, hockey)",
@@ -390,6 +455,9 @@ STEP_AGENT_CONFIG = {
         "task": "Read FULL tipster arguments, assess quality, check independence, discover angles stats missed, promote watchlist picks",
         "required_input": ["tipster_aggregation_{date}.json"],
         "output_metrics": ["tipster_count", "event_coverage", "consensus_picks"],
+        "think_in_the_middle": True,
+        "error_handling": "ERROR_HANDLING_PROTOCOL",
+        "validate_output": True,
         "detailed_instructions": [
             "1. Read tipster aggregation — extract per-tipster picks with full reasoning",
             "2. Assess tipster quality: named expert > anonymous aggregate",
@@ -404,6 +472,9 @@ STEP_AGENT_CONFIG = {
         "task": "Review enrichment yield by sport and source, identify persistent data gaps, suggest alternative sources for failed enrichments, verify enriched data quality",
         "required_input": ["{date}_s2_shortlist.json"],
         "output_metrics": ["teams_attempted", "enriched_count", "partial_count", "failed_count", "source_breakdown"],
+        "think_in_the_middle": True,
+        "error_handling": "ERROR_HANDLING_PROTOCOL",
+        "validate_output": True,
         "detailed_instructions": [
             "1. Review batch_enrich results — break down by sport and source",
             "2. For each failed enrichment: identify WHY (CAPTCHA? 404? empty page? parsing error?)",
@@ -422,6 +493,9 @@ STEP_AGENT_CONFIG = {
         "task": "Interpret safety scores, find edge mechanisms, fetch missing stats, write ANALYTICAL REASONING per candidate",
         "required_input": ["{date}_s3_deep_stats.json"],
         "output_metrics": ["candidates_analyzed", "avg_safety_score", "top_markets"],
+        "think_in_the_middle": True,
+        "error_handling": "ERROR_HANDLING_PROTOCOL",
+        "validate_output": True,
         "detailed_instructions": [
             "1. For EACH candidate in s3_deep_stats.json:",
             "   a. Review ranking_result — which market has highest safety score?",
@@ -445,6 +519,9 @@ STEP_AGENT_CONFIG = {
         "task": "Cross-validate pricing across sources, reason about mispricing, assess edge durability, calculate relative value",
         "required_input": ["{date}_s3_deep_stats.json"],
         "output_metrics": ["candidates_with_ev", "avg_ev", "ev_positive_count"],
+        "think_in_the_middle": True,
+        "error_handling": "ERROR_HANDLING_PROTOCOL",
+        "validate_output": True,
         "detailed_instructions": [
             "1. For each candidate with safety_score > 0:",
             "   a. Check odds_history DB for available odds from multiple bookmakers",
@@ -467,6 +544,9 @@ STEP_AGENT_CONFIG = {
         "task": "Assess REAL market impact of context flags, model motivation effects, identify compounding risk factors",
         "required_input": ["{date}_s3_deep_stats.json", "weather_{date}.json"],
         "output_metrics": ["weather_flags", "injury_flags", "motivation_adjustments"],
+        "think_in_the_middle": True,
+        "error_handling": "ERROR_HANDLING_PROTOCOL",
+        "validate_output": True,
         "detailed_instructions": [
             "1. Read weather data — flag wind >30 km/h (outdoor sports), rain (corners impact), extreme heat",
             "2. Check injuries/suspensions — key player absence changes WHICH markets, not just ML",
@@ -485,6 +565,9 @@ STEP_AGENT_CONFIG = {
         "task": "Score upset risk with sport-specific contextual reasoning, apply Paradox Rule",
         "required_input": ["{date}_s3_deep_stats.json"],
         "output_metrics": ["high_risk_count", "medium_risk_count", "low_risk_count"],
+        "think_in_the_middle": True,
+        "error_handling": "ERROR_HANDLING_PROTOCOL",
+        "validate_output": True,
         "detailed_instructions": [
             "1. For each candidate: run sport-specific upset risk checklist (§6 in sport protocols)",
             "2. Apply numerical thresholds per sport (e.g., tennis: surface mismatch +2, H2H losing record +3)",
@@ -499,6 +582,9 @@ STEP_AGENT_CONFIG = {
         "task": "Review advisory tier assignments, build qualitative bear cases, audit assumptions, find historical analogies, Bayesian-update confidence",
         "required_input": ["{date}_s7_gate_results.json"],
         "output_metrics": ["approved_count", "strong_count", "moderate_count", "weak_count", "rejected_count"],
+        "think_in_the_middle": True,
+        "error_handling": "ERROR_HANDLING_PROTOCOL",
+        "validate_output": True,
         "detailed_instructions": [
             "1. Read gate_results — review tier assignments (STRONG/MODERATE/WEAK/FLAGGED)",
             "2. For STRONG picks: build BEAR CASE — what single event could kill this pick?",
@@ -508,14 +594,18 @@ STEP_AGENT_CONFIG = {
             "6. Historical analogies: similar picks in betclic_bets_history.json — what happened?",
             "7. Bayesian update: combine statistical confidence with context/upset adjustments",
             "8. IMPORTANT: Advisory tiers are INFORMATIONAL — user decides. No auto-rejection.",
-            "9. Verify all 5 sports represented in approved picks per §7.6",
+            "9. Verify league diversity and data depth in approved picks",
         ],
+        "data_quality_validation": True,
     },
     "s8_coupons": {
         "agent": "bet-builder",
         "task": "Review portfolio strategically, check hidden correlations, adjust stakes by conviction, V1-V10 + §S8.FINAL. Review DISCOVERY tier picks for promotion.",
         "required_input": ["{date}.json"],
         "output_metrics": ["coupon_count", "total_legs", "total_stake", "discovery_count"],
+        "think_in_the_middle": True,
+        "error_handling": "ERROR_HANDLING_PROTOCOL",
+        "validate_output": True,
         "detailed_instructions": [
             "1. Build core coupons from STRONG+MODERATE picks — 1 event per coupon, max legs per config",
             "2. Check hidden correlations: same league (weather/fixture congestion), same surface, same timezone",
