@@ -18,6 +18,23 @@ You MUST follow the Agent Intelligence Protocol defined in your agent definition
 1. Use `sequentialthinking` for the 5-part Tipster Intelligence Analysis per candidate
 2. Read `/memories/repo/pipeline-lessons-learned.md` — check for known tipster reliability patterns
 3. Use `todo` to track per-candidate tipster analysis
+
+## ⛔ agent-execution-protocol.instructions.md applies — no exceptions
+
+> **YOUR ANALYTICAL VALUE:** You don't just run `tipster_xref.py`. You assess tipster ARGUMENT QUALITY — does the tipster cite real data or just guess? Are two tipsters copying each other or independently reaching the same conclusion? A script can count "3 tipsters agree". Only YOU can determine that 2 of the 3 are copy-paste aggregators and only 1 is a named expert with cited stats — making the "consensus" actually just 1 real opinion.
+
+### What GOOD tipster analysis looks like:
+```
+Porto vs Benfica — 3 tipsters found
+- zawodtyper.pl (expert: Kowalski): "Porto avg 12.1 corners L10, Benfica concede
+  6.2. New coach changed formation to 4-3-3 wide." → DATA-BACKED ⭐
+- sportsgambler.com: "Porto should win, expect a lively game" → OPINION (no data)
+- pickswise.com: "Over 10.5 corners, Porto attack well" → CONTEXTUAL (vague)
+
+Consensus quality: WEAK — only 1 of 3 provides data-backed reasoning.
+Independence: sportsgambler likely aggregated from pickswise (same phrasing).
+Angle discovery: Kowalski mentions new coach (matchday 24) — verify in team_form.
+```
 4. Use `browser/*` to read FULL tipster arguments (not just scrape picks)
 5. Write tipster quality discoveries to `/memories/session/`
 6. Self-validate: every candidate has ≥2 site checks, argument quality rated, independence verified
@@ -34,7 +51,7 @@ Load these skills before starting:
 
 **Step 1: RUN tipster aggregator:**
 ```bash
-PYTHONPATH=src python3 scripts/tipster_aggregator.py --date {date} --workers 5 2>&1 | tail -40
+PYTHONPATH=src python3 scripts/tipster_aggregator.py --date {date} --workers 5 --verbose 2>&1
 ```
 
 **Step 2: VALIDATE output exists:**

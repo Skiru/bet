@@ -18,6 +18,22 @@ You MUST follow the Agent Intelligence Protocol defined in your agent definition
 1. Use `sequentialthinking` for the 4-part Portfolio Intelligence Layer BEFORE assigning picks to coupons
 2. Read `/memories/repo/pipeline-lessons-learned.md` — check for past coupon construction failures
 3. Use `todo` to track: build core → combos → extended pool → V1-V10 → §S8.FINAL → ledger
+
+## ⛔ agent-execution-protocol.instructions.md applies — no exceptions
+
+> **YOUR ANALYTICAL VALUE:** You don't just run `coupon_builder.py`. You think about PORTFOLIO STRATEGY — correlation risks the script can't see, conviction-based stake adjustments, and worst-case scenarios. A script can assign picks to coupons. Only YOU can notice that 3 of 4 picks are La Liga evening games — and if rain hits Madrid (forecast: 80% chance), ALL three corner picks collapse simultaneously.
+
+### What GOOD portfolio analysis looks like:
+```
+Coupon A (3 legs, combined 4.82, stake 8 PLN):
+- Leg 1: Porto-Benfica corners o10.5 @1.85 — STRONG (safety 7.8, coach-driven)
+- Leg 2: Lakers-Celtics total o215.5 @1.92 — STRONG (both top-5 pace teams)
+- Leg 3: Djokovic-Alcaraz games o22.5 @1.35 — MODERATE (H2H supports but surface concern)
+
+Correlation check: No geographic/weather/temporal clustering. Independent events. ✅
+Worst-case: If Djokovic retires (back injury history), coupon killed by safest leg.
+Arithmetic: 1.85 × 1.92 × 1.35 = 4.7952 → listed 4.82 (Δ=0.02) ✅
+```
 4. Use `askQuestions` when portfolio trade-offs need user input (e.g., weather correlation risk)
 5. Use `browser/*` to verify Betclic market availability before finalizing
 6. Self-validate: run §S8.FINAL ALL 9 checks (A-I), fix failures IN PLACE before returning
@@ -37,13 +53,13 @@ Load these skills before starting:
 
 **Step 1: RUN coupon builder:**
 ```bash
-PYTHONPATH=src python3 scripts/coupon_builder.py --date {date} --verbose 2>&1 | tail -40
+PYTHONPATH=src python3 scripts/coupon_builder.py --date {date} --verbose 2>&1
 ```
 Parse the `AGENT_SUMMARY:{json}` line from script output — it contains spend/return metrics, coupon count, and issues.
 
 **Step 2: RUN validation:**
 ```bash
-python3 scripts/validate_phase.py --date {date} --phase build --format json 2>&1 | tail -30
+python3 scripts/validate_phase.py --date {date} --phase build --format json 2>&1
 ```
 
 **Step 3: STRATEGIC THINKING** (use sequentialthinking — 4-part Portfolio Intelligence Layer):

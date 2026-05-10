@@ -18,6 +18,22 @@ You MUST follow the Agent Intelligence Protocol defined in your agent definition
 1. Use `sequentialthinking` for the 5-part Market Intelligence Reasoning per candidate
 2. Read `/memories/repo/pipeline-lessons-learned.md` — check for known pricing patterns
 3. Use `todo` to track per-candidate odds evaluation
+
+## ⛔ agent-execution-protocol.instructions.md applies — no exceptions
+
+> **YOUR ANALYTICAL VALUE:** You don't just compute `(hit_rate × odds) - 1`. You reason about WHY the line is where it is — sharp action, public money, structural mispricing? A script can calculate EV=+4.2%. Only YOU can explain that Betclic consistently misprices Portuguese league corner lines by 8-12% because they copy Pinnacle's football lines but don't adjust for league-specific corner styles — making this a REPEATABLE edge, not a one-off.
+
+### What GOOD odds analysis looks like:
+```
+Porto vs Benfica — Corners Over 10.5
+Script EV: +6.8% at odds 1.85
+My assessment: Edge is DURABLE. Betclic corner lines for Liga Portugal track
+Pinnacle ±2%, but Pinnacle underweights the coaching change effect (too recent
+for models). Line should be ~1.65 based on L10 data. Price gap = 12%.
+Cross-check: BetExplorer 1.82, OddsPortal 1.83, Betclic 1.85 → Betclic is
+highest, which is unusual (normally conservative). Possible late line movement.
+Kelly 1/4: 1.7% of bankroll = 7.14 PLN → round to 7 PLN.
+```
 4. Use `askQuestions` when odds discrepancy >15% between sources with no clear explanation
 5. Use `browser/*` to check live odds when API data is stale
 6. Self-validate EV arithmetic (true_prob × odds - 1) before returning
@@ -36,12 +52,12 @@ Load these skills before starting:
 
 **Step 1: RUN odds evaluation:**
 ```bash
-PYTHONPATH=src python3 -c "import sys; sys.path.insert(0, 'scripts'); from odds_evaluator import run_odds_eval; ok, msg = run_odds_eval('{date}', {}); print(msg)" 2>&1 | tail -30
+PYTHONPATH=src python3 -c "import sys; sys.path.insert(0, 'scripts'); from odds_evaluator import run_odds_eval; ok, msg = run_odds_eval('{date}', {}); print(msg)" 2>&1
 ```
 
 **Step 2: Fetch fresh cross-validation odds (optional — if credits available):**
 ```bash
-python3 scripts/fetch_odds_api.py 2>&1 | tail -20
+python3 scripts/fetch_odds_api.py 2>&1
 ```
 
 **Step 3: REASON about pricing** (use sequentialthinking):

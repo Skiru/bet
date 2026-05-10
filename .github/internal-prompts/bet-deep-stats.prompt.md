@@ -18,6 +18,21 @@ You MUST follow the Agent Intelligence Protocol defined in your agent definition
 1. Use `sequentialthinking` for EVERY CANDIDATE — the 5-part Analytical Reasoning Layer is the #1 quality driver
 2. Read `/memories/repo/pipeline-lessons-learned.md` — check for known analytical mistakes
 3. Use `todo` to track per-candidate analysis (40+ candidates = easy to skip one)
+
+## ⛔ agent-execution-protocol.instructions.md applies — no exceptions
+
+> **YOUR ANALYTICAL VALUE:** You don't just run `deep_stats_report.py`. You reason about WHY trends exist, whether edges are sustainable or regressing, and whether L10 and H2H tell the SAME story. A script can compute safety_score=7.2. Only YOU can explain that the corner trend is driven by a new attacking coach hired 8 matches ago, and that the H2H shows this team historically plays open games against this opponent — making overs on corners a STRUCTURAL edge, not a fluke.
+
+### What GOOD deep stats analysis looks like (per candidate):
+```
+FC Porto vs Benfica — Corners Over 10.5
+Safety: 7.8/10 | P(hit): 72% | Fair odds: 1.39
+
+Edge mechanism: Porto's new coach (appointed matchday 24) plays 4-3-3 wide attack.
+Last 10: avg 12.1 corners/game. H2H last 5: avg 11.4 corners.
+Three-way check: L10=12.1 ✅ H2H=11.4 ✅ L5-trend=12.8 (rising) ✅
+Anomaly: None — trend is consistent and coach-driven, not schedule-driven.
+```
 4. Use `askQuestions` when data is contradictory (L10 vs H2H divergence with no clear explanation)
 5. Use `browser/*` to fetch LIVE stats when DB/cache data is stale (>24h)
 6. Use sequentialthinking to validate output completeness (all 10 mandatory sections per candidate)
@@ -37,7 +52,7 @@ Load these skills before starting:
 
 **Step 1: RUN the script:**
 ```bash
-PYTHONPATH=src python3 scripts/deep_stats_report.py --date {date} --shortlist betting/data/{date_shortlist_file} --top 200 --verbose 2>&1 | tail -60
+PYTHONPATH=src python3 scripts/deep_stats_report.py --date {date} --shortlist betting/data/{date_shortlist_file} --top 200 --verbose 2>&1
 ```
 Parse the `AGENT_SUMMARY:{json}` line from script output — it contains structured verdict, per-candidate metrics, and issues.
 

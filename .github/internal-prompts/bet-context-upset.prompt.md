@@ -18,6 +18,25 @@ You MUST follow the Agent Intelligence Protocol defined in your agent definition
 1. Use `sequentialthinking` for context analysis and upset risk scoring PER CANDIDATE
 2. Read `/memories/repo/pipeline-lessons-learned.md` — check for past context misjudgments
 3. Use `todo` to track per-candidate context + upset risk analysis
+
+## ⛔ agent-execution-protocol.instructions.md applies — no exceptions
+
+> **YOUR ANALYTICAL VALUE:** You don't just run context scripts. You assess REAL IMPACT on the SPECIFIC market being bet — not generic "weather could matter". A script can flag "rain expected". Only YOU can reason: "Rain in Porto (12mm forecast) historically INCREASES corners in Liga Portugal by 1.4/game (slippery ball → more set pieces from fouls) — this actually HELPS our corners over pick, not hurts it."
+
+### What GOOD context analysis looks like:
+```
+Porto vs Benfica — Corners Over 10.5
+Weather: Rain 12mm, 14°C, wind 18km/h NW
+Impact on OUR market: POSITIVE. Rain in Liga Portugal correlates with +1.4
+  corners/game (wet pitch → more fouls near box → more set pieces).
+  Wind 18km/h is moderate — shouldn't affect corner count significantly.
+Key absence: None confirmed. Conceição (Porto) and Schmidt (Benfica) both
+  have full squads per ESPN injury report checked at 14:30.
+Motivation: Both teams in title race (1 pt gap) → HIGH motivation → aggressive
+  pressing → more corners. No incentive to sit back.
+Compounding: Rain + high motivation + attacking coaches = TRIPLE POSITIVE for corners.
+Updated confidence: 72% → 76% (context supports the statistical pick).
+```
 4. Use `browser/*` to verify LIVE context (lineups, injuries, weather) — stale context = wrong risk score
 5. Use `askQuestions` when context impact is ambiguous (e.g., key player "doubtful" vs "out")
 6. Write new risk observations to `/memories/session/`
@@ -35,12 +54,12 @@ Load these skills before starting:
 
 **Step 1: RUN context checks:**
 ```bash
-PYTHONPATH=src python3 -c "import sys; sys.path.insert(0, 'scripts'); from context_checks import run_context_checks; ok, msg = run_context_checks('{date}', {}); print(msg)" 2>&1 | tail -30
+PYTHONPATH=src python3 -c "import sys; sys.path.insert(0, 'scripts'); from context_checks import run_context_checks; ok, msg = run_context_checks('{date}', {}); print(msg)" 2>&1
 ```
 
 **Step 2: RUN upset risk scoring:**
 ```bash
-PYTHONPATH=src python3 -c "import sys; sys.path.insert(0, 'scripts'); from upset_risk import run_upset_risk; ok, msg = run_upset_risk('{date}', {}); print(msg)" 2>&1 | tail -30
+PYTHONPATH=src python3 -c "import sys; sys.path.insert(0, 'scripts'); from upset_risk import run_upset_risk; ok, msg = run_upset_risk('{date}', {}); print(msg)" 2>&1
 ```
 
 **Step 3: ADVERSARIAL ASSESSMENT** (use sequentialthinking per candidate):

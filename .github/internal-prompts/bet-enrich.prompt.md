@@ -29,6 +29,23 @@ Load these skills before starting:
 - `bet-analyzing-statistics` — data quality assessment, safety score prerequisites
 - `bet-reading-html` — HTML deep parse profiles (20 domains). Check what S1-deep already extracted before triggering web fetches
 
+## ⛔ agent-execution-protocol.instructions.md applies — no exceptions
+
+> **YOUR ANALYTICAL VALUE:** You don't just run `data_enrichment_agent.py`. You assess WHERE data gaps are, WHY sources failed, and WHICH candidates will suffer in S3 without enrichment. A script can report "73% yield". Only YOU can explain that hockey is at 44% because KHL season ended and Flashscore cache is stale — and that this means hockey candidates need PARTIAL data quality flags.
+
+### What GOOD enrichment analysis looks like:
+```
+| Metric | Value | Assessment |
+|--------|-------|------------|
+| Yield | 73% (42/57) | OK — above 60% threshold |
+| Football | 24/28 (86%) | OK — core sport well-covered |
+| Hockey | 4/9 (44%) | WARNING — KHL stale, ESPN fallback partial |
+| L10 gaps | 15 candidates | WARNING — will enter S3 as PARTIAL |
+
+Anomalies: Hockey enrichment structurally weak (off-season). Not a pipeline bug.
+Impact: 42 FULL + 15 PARTIAL for S3. Hockey candidates need extra safety score caution.
+```
+
 ## Agent-Mandatory Warning
 
 > **YOU run the script. YOU assess quality. YOU return a verdict.**
@@ -36,13 +53,13 @@ Load these skills before starting:
 
 **Step 1: RUN the enrichment script:**
 ```bash
-PYTHONPATH=src python3 scripts/data_enrichment_agent.py --date {date} --verbose 2>&1 | tail -50
+PYTHONPATH=src python3 scripts/data_enrichment_agent.py --date {date} --verbose 2>&1
 ```
 Parse the `AGENT_SUMMARY:{json}` line from script output — it contains enrichment yield, per-sport data quality, and gap details.
 
 **Step 2: VALIDATE with phase checker:**
 ```bash
-python3 scripts/validate_phase.py --date {date} --phase data --format json 2>&1 | tail -40
+python3 scripts/validate_phase.py --date {date} --phase data --format json 2>&1
 ```
 
 **Step 3: ASSESS enrichment quality** (use sequentialthinking):

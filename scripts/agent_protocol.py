@@ -494,7 +494,7 @@ STEP_AGENT_CONFIG = {
     "s2_tipster": {
         "agent": "bet-scout",
         "task": "Read FULL tipster arguments, assess quality, check independence, discover angles stats missed, promote watchlist picks",
-        "required_input": ["tipster_aggregation_{date}.json"],
+        "required_input": ["{date}_tipster_consensus.json"],
         "output_metrics": ["tipster_count", "event_coverage", "consensus_picks"],
         "think_in_the_middle": True,
         "error_handling": "ERROR_HANDLING_PROTOCOL",
@@ -642,7 +642,7 @@ STEP_AGENT_CONFIG = {
     "s8_coupons": {
         "agent": "bet-builder",
         "task": "Review portfolio strategically, check hidden correlations, adjust stakes by conviction, V1-V10 + §S8.FINAL. Review DISCOVERY tier picks for promotion.",
-        "required_input": ["{date}.json"],
+        "required_input": ["{date}_s7_gate_results.json"],
         "output_metrics": ["coupon_count", "total_legs", "total_stake", "discovery_count"],
         "think_in_the_middle": True,
         "error_handling": "ERROR_HANDLING_PROTOCOL",

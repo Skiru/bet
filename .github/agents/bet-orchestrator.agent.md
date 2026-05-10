@@ -276,12 +276,14 @@ See `STRUCTURED_OUTPUT_PROTOCOL` in `scripts/agent_protocol.py` for full specifi
 | # | Rule | Enforcement |
 |---|------|-------------|
 | R1 | AGENT-DRIVEN | Script → sequentialthinking → agent delegation → reviewed output |
+| R2 | DB-FIRST | Read from `betting/data/betting.db` via `get_db()`. JSON = fallback only. |
 | R3 | NO AUTO-REJECTION | ALL candidates in matrix. Gate-failed → Extended Pool. |
 | R4 | NO NARROWING | Sport diversity = informational, never a gate. Quality over forced diversity. |
 | R5 | STATS > OUTCOMES | Every football match: ≥1 stat market. |
 | R6 | BETCLIC ADVISORY | Show hit rates. Never auto-penalize. |
 | R7 | TOURNAMENTS | Major tournaments always present. |
 | R8 | MINOR LEAGUE VALUE | No "obscure" penalties. |
+| R9 | SELF-HEALING DATA | Missing data → auto-fallback L1→L6, then L7 web research (R15). |
 | R10 | STATS-FIRST | Events without odds NOT excluded. |
 | R11 | SEQUENTIAL THINKING | `sequentialthinking` per step + per candidate in S3/S7. |
 | R12 | CONDITIONAL | Coupon carries conditional disclaimer. |
@@ -289,7 +291,7 @@ See `STRUCTURED_OUTPUT_PROTOCOL` in `scripts/agent_protocol.py` for full specifi
 | R14 | DATA DEPTH | Every candidate needs data_quality_score. FULL/PARTIAL only in core coupons. |
 | R15 | WEB RESEARCH | When L1-L6 exhausted, spawn `web_research_agent.py` (L7). |
 | R16 | LIVE BETTING | Events in progress are VALID targets. Flag as LIVE. |
-| R17 | NO TERMINAL POLLING | NEVER poll terminals. Terminal auto-notifies. Use `mode=sync` + generous timeout. |
+| R17 | LIVE SCRIPT MONITORING | ALWAYS --verbose. Read FULL output. Extract metrics. Report specific numbers. React to errors in real-time. If timeout: use `get_terminal_output` to diagnose. |
 | R18 | DATA FLOW VERIFICATION | READ script code before running. TRACE producer→consumer data flow. |
 | R19 | STRUCTURED OUTPUT | 9 analytical scripts support `--verbose` + `AGENT_SUMMARY:{json}` (see §Structured Script Output). Parse AGENT_SUMMARY for verdict/metrics/issues. Exit: 0=OK, 1=partial, 2=critical. |
 
@@ -308,7 +310,7 @@ See `STRUCTURED_OUTPUT_PROTOCOL` in `scripts/agent_protocol.py` for full specifi
 | 7 | Proceed despite REJECTED verdict | STOP. Escalate to user via askQuestions |
 | 8 | Present raw script output | User sees agent-synthesized insights, not log dumps |
 | 9 | Run S3-S7 without separate delegations | Each step = separate runSubagent call |
-| 10 | Poll terminals with `get_terminal_output` / `ps -p` / `tail` loops | Terminal auto-notifies on completion. Use `mode=sync` + generous timeout. Do productive work while waiting — NEVER poll (R17) |
+| 10 | Run scripts WITHOUT `--verbose` or ignore output after completion | ALWAYS `--verbose`. After completion, read FULL output, extract metrics, react to errors. Verdict MUST cite specific numbers. Blind fire-and-forget = pipeline failure (R17) |
 
 ---
 
@@ -322,7 +324,7 @@ See `STRUCTURED_OUTPUT_PROTOCOL` in `scripts/agent_protocol.py` for full specifi
 | Past 18:00 Warsaw, picks not ready | Accelerate — skip optional enrichment |
 | >20% bankroll drawdown | ALERT user — consider NO BET day |
 | Agent contradicts prior agent | Use `sequentialthinking` to resolve |
-| Script takes >10 min | Use `mode=sync` with generous timeout (600000ms+). Terminal auto-notifies on completion. Do productive work while waiting — NEVER poll. |
+| Script takes >10 min | Use `mode=sync` with `timeout=600000`. If timeout expires, use `get_terminal_output` to read accumulated output. Diagnose: progressing? hung? erroring? Decide: wait more or kill+retry. NEVER ignore. |
 
 ---
 

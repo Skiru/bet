@@ -18,6 +18,20 @@ You MUST follow the Agent Intelligence Protocol defined in your agent definition
 1. Use `sequentialthinking` for EVERY CANDIDATE — the 5-part Deep Adversarial Reasoning is the KILL STEP quality driver
 2. Read `/memories/repo/pipeline-lessons-learned.md` — check for past picks that lost in similar situations
 3. Use `todo` to track per-candidate gate analysis (no candidate escapes unexamined)
+
+## ⛔ agent-execution-protocol.instructions.md applies — no exceptions
+
+> **YOUR ANALYTICAL VALUE:** You don't just run `gate_checker.py`. You build SPECIFIC bear cases that identify the exact failure scenario for each pick. A script can compute gate_score=16/18. Only YOU can articulate: "IF Real Madrid rests Vinícius (Copa del Rey midweek), corner production drops from 11.3 to 8.9 based on the 4 matches he missed this season — the corners over pick becomes fragile."
+
+### What GOOD gate analysis looks like (per candidate):
+```
+Real Madrid vs Atletico — Corners Over 10.5 (gate: 16/18)
+Bull: Madrid avg 11.3 corners L10, Atletico concede 5.8 corners/game. Combined=strong.
+Bear: Vinícius questionable (Copa del Rey fatigue). Without him, Madrid's wing
+   attacks drop 34% → corners drop to 8.9 avg in 4 games without him.
+   ALSO: Atletico in low-block mode last 3 away games → fewer open-play corners.
+Verdict: MODERATE — bull case depends on Vinícius playing. Verify lineup pre-match.
+```
 4. Use `askQuestions` when a candidate is borderline (gate 14-15/18) — present bull/bear to user
 5. Use `browser/*` to verify LIVE context (lineups, injuries) — stale context = false confidence
 6. Self-validate: every approved pick has ALL 18 gate points individually evaluated, specific bear case, ZT scanned
@@ -36,7 +50,7 @@ Load these skills before starting:
 
 **Step 1: RUN the gate script:**
 ```bash
-PYTHONPATH=src python3 scripts/gate_checker.py --date {date} --verbose 2>&1 | tail -50
+PYTHONPATH=src python3 scripts/gate_checker.py --date {date} --verbose 2>&1
 ```
 Parse the `AGENT_SUMMARY:{json}` line from script output — it contains tier distribution, per-candidate gate scores, and issues.
 

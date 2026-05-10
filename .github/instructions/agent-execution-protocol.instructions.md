@@ -2,178 +2,140 @@
 applyTo: ".github/agents/bet-*.agent.md"
 ---
 
-# Agent Execution Protocol — THINK BEFORE RETURNING
+# Agent Execution Protocol v3
 
-> **⛔ ABSOLUTE RULE: You are an ANALYST, not a script runner.**
-> Every script you run produces RAW DATA. Your job is to THINK about that data, find meaning, and return REASONED VERDICTS.
-> Returning raw script output or "script completed successfully" is a HARD FAILURE.
+## THE ONE RULE
+
+> **If your response could be produced by piping terminal output to a file, you have FAILED.**
+> Your response must contain YOUR ORIGINAL ANALYSIS — insights, patterns, anomalies, and reasoning that NO script could produce.
+> A bash script can run commands and print output. YOU exist to THINK about what that output MEANS.
 
 ---
 
-## Script Execution + Monitoring Protocol
+## The 4-Step Cycle (EVERY script execution, no exceptions)
 
-**EVERY TIME you run a script**, follow this 4-step cycle. No exceptions.
+### 1. RUN — Launch with `--verbose` and `mode=sync`
 
-### Step 1: CAPTURE — Read the full output
+Always `--verbose`. Always `mode=sync`. Timeouts: fast=120000, medium=300000, long=600000.
+Parse `AGENT_SUMMARY:{json}` from output — this is your structured data source.
+If timeout expires → `get_terminal_output` → diagnose (progressing/hung/erroring) → decide.
 
-- After running a script via `runInTerminal`, read the COMPLETE output using `getTerminalOutput`
-- Do NOT rely on `tail -N` truncation alone — if the output seems incomplete, get more
-- Look for: exit code, error messages, warning lines, summary statistics, counts
+### 2. EXTRACT — Pull specific numbers
 
-### Step 2: EXTRACT — Parse key metrics
+From the output, extract: total count, success/fail rates, per-category breakdown, error patterns, data quality signals. If you can't cite at least 3 specific numbers, you didn't read the output.
 
-**R19 — Structured Output:** If the script supports `--verbose` mode (scan_events, html_deep_parser, ingest_scan_stats, tipster_aggregator, tipster_xref, data_enrichment_agent, deep_stats_report, gate_checker, coupon_builder), parse the `AGENT_SUMMARY:{json}` line from the output. This is the authoritative machine-readable verdict containing `step`, `verdict` (OK/PARTIAL/FAILED), `metrics`, `issues[]`, and `counts`. Use these structured metrics as your primary data source, supplemented by any human-readable output above it.
+### 3. THINK — `sequentialthinking` is MANDATORY
 
-Pull out the meaningful numbers and facts from the output:
-- **Counts**: How many events/candidates/matches/picks were processed?
-- **Success/failure rates**: What % succeeded? What failed?
-- **Per-category breakdown**: Results by sport, by market, by tier
-- **Errors and warnings**: Any non-zero exit codes, tracebacks, timeout messages?
-- **Data quality signals**: Missing fields, zero-count categories, unexpected values
+Before forming ANY verdict, run `sequentialthinking` answering:
+1. What did the script produce? (2-3 sentences)
+2. Quality acceptable? (compare against baselines)
+3. What anomalies exist? (numbers too high/low, missing categories)
+4. Impact on next pipeline step?
+5. My verdict and WHY?
 
-### Step 3: THINK — Use sequentialthinking to analyze
-
-**MANDATORY.** Before you form a verdict, run `sequentialthinking` to reason about:
-1. **What did the script produce?** — Summarize in 2-3 sentences
-2. **Is the output quality acceptable?** — Compare against expected baselines
-3. **What anomalies exist?** — Numbers too high/low, missing categories, errors
-4. **What does this mean for the next pipeline step?** — Upstream/downstream impact
-5. **What is my verdict and WHY?** — Not just APPROVED/REJECTED but the reasoning
-
-### Step 4: RETURN — Structured verdict with reasoning
-
-Your response MUST include:
+### 4. RETURN — Fill in this MANDATORY template
 
 ```
-## Script Execution Report: {script_name}
+## Verdict: {script_name}
 
-**Exit code:** {0/1}
-**Key metrics:**
+**Result:** APPROVED / FLAGGED / REJECTED
+
 | Metric | Value | Assessment |
 |--------|-------|------------|
-| {metric} | {value} | OK / WARNING / CRITICAL |
+| (fill in ≥3 rows with REAL numbers from output) |
 
-**Anomalies:** {list specific anomalies or "None detected"}
+**Anomalies:** (specific anomalies with explanations, or "None")
 
-**Analysis:** {3-5 sentences of YOUR reasoning — not script output}
+**My Analysis:** (3-5 sentences of YOUR reasoning — what the numbers MEAN, not what they ARE)
 
-**Verdict:** APPROVED / FLAGGED / REJECTED
-**Reasoning:** {WHY this verdict — cite specific metrics}
-**Issues:** {specific actionable issues, or "None"}
+**Impact on Next Step:** (what downstream step should know)
+
+**Issues:** (actionable items, or "None")
 ```
 
 ---
 
-## Anti-Patterns (HARD FAILURES — doing ANY of these = pipeline failure)
+## ⛔ BAD vs GOOD Output (learn this by heart)
 
-| # | Anti-Pattern | What to do instead |
-|---|---|---|
-| 1 | Run script → return without reading output | ALWAYS read full output via getTerminalOutput |
-| 2 | Paste terminal output as your "analysis" | Extract metrics, think, write YOUR conclusions |
-| 3 | Say "Script completed successfully" | Say WHAT it produced, HOW MUCH, WHAT QUALITY |
-| 4 | Skip sequentialthinking after script | ALWAYS think before forming verdict |
-| 5 | Return APPROVED without specific reasons | APPROVED because {metric X is above threshold, coverage is Y%, etc.} |
-| 6 | Return REJECTED without specific reasons | REJECTED because {metric X failed: expected Y, got Z} |
-| 7 | Ignore errors/warnings in output | Every error must be triaged: critical vs ignorable |
-| 8 | Run multiple scripts without analyzing between them | Analyze output of script 1 BEFORE running script 2 |
-| 9 | Say "I'll analyze the output" then don't | Sequential thinking is MANDATORY, not aspirational |
-| 10 | Return within 10 seconds of running a script | Analysis takes time — if you return instantly, you didn't think |
-| 11 | Poll terminals with `get_terminal_output` / `ps -p` / `tail` loops | Terminal auto-notifies on completion. Use `mode=sync` + generous timeout (600000ms). Do productive work while waiting (sequentialthinking, read files, plan). NEVER busy-wait (R17) |
-| 12 | Run `sleep` or busy-wait loops to check script status | You will be automatically notified when async/timed-out commands finish. Trust the notification system. |
-
----
-
-## Quality Signals Checklist (verify before EVERY return)
-
-- [ ] I read the script's full output (not just the last line)
-- [ ] I extracted specific numbers/metrics from the output
-- [ ] I used `sequentialthinking` to reason about what the output means
-- [ ] My verdict cites specific metrics that justify APPROVED/FLAGGED/REJECTED
-- [ ] I identified any anomalies or issues in the data
-- [ ] I explained the impact on downstream pipeline steps
-- [ ] My response contains MY analysis, not raw script output
-
----
-
-## ⛔ Terminal Execution Rules (R17 — NO POLLING)
-
-**NEVER poll terminals.** The terminal system sends automatic notifications when commands complete.
-
-| Do this | NOT this |
-|---------|----------|
-| `mode=sync` + timeout 600000 (10-min scripts) | `mode=async` + `get_terminal_output` loop |
-| While waiting: `sequentialthinking`, read files, plan | While waiting: `ps -p`, `tail -40`, `sleep`, busy-wait |
-| Trust auto-notification on command completion | Repeatedly call `get_terminal_output` to check status |
-| Set generous timeout as safety net | Set short timeout + poll for completion |
-
-**Violation = pipeline failure.** Any `ps -p`, `get_terminal_output` polling loop, `tail -N` on a buffered terminal, or `sleep` command in a terminal burns context and is a HARD FAILURE.
-
----
-
-## ⛔ Data Flow Verification Protocol (R18 — MANDATORY)
-
-> **The #1 source of pipeline failures is data format mismatches between producer and consumer scripts.**
-> Script A writes JSON key `"all_picks"` → Script B reads key `"tips"` → 0 results → pipeline silently broken.
-> This protocol prevents that.
-
-### BEFORE Running a Script
-
-1. **READ the script's code** — understand what it reads and writes:
-   - Input: Which JSON keys does it parse? Which DB tables does it query? What function parameters does it expect?
-   - Output: What JSON structure does it produce? What DB tables does it INSERT into? What file does it write?
-2. **READ the NEXT script in the pipeline** — the consumer of this script's output:
-   - Does it read the SAME keys the producer writes? (e.g., producer writes `"all_picks"`, consumer reads `"all_picks"` — not `"tips"`)
-   - Does it query the SAME DB tables the producer populates?
-   - Do field names match? (`"home_team"` vs `"home"`, `"source_site"` vs `"tipster"`)
-3. **If you find a MISMATCH** — fix it BEFORE running. Don't run and hope.
-
-### AFTER Running a Script
-
-4. **VERIFY output was actually produced:**
-   - Check the output file exists and has expected structure: `python3 -c "import json; d=json.load(open('file.json')); print(list(d.keys()))"`
-   - Check DB tables have rows: `SELECT COUNT(*) FROM table WHERE date = ?`
-   - Check downstream compatibility: does the next script's reader match the actual output format?
-5. **SPOT-CHECK data quality:**
-   - Are there garbage entries? (navigation text parsed as events, "Page Not Found" as team names)
-   - Are key fields populated? (market != "N/A", home_team != empty)
-   - Do counts make sense? (234 picks from 10 tipster sites = ~23 per site — reasonable)
-
-### The Data Flow Tracing Methodology
-
-When diagnosing ANY pipeline problem:
-
+### ❌ BAD — This is a script runner, not an analyst:
 ```
-1. READ CODE  — grep for output keys, DB writes, file saves in the PRODUCER script
-2. READ CODE  — grep for input keys, DB reads, file loads in the CONSUMER script
-3. COMPARE    — do the keys/tables/formats MATCH?
-4. VERIFY     — check ACTUAL data: real JSON files, real DB tables, real shortlist
-5. THINK      — use sequentialthinking to map the complete data flow and identify ALL breaks
-6. FIX        — fix ALL breaks at once, not just the first symptom
-7. TEST       — single end-to-end verification run
+The enrichment script completed successfully. 57 candidates were processed.
+Data was enriched from multiple sources including Flashscore and ESPN.
+Some teams had missing data. The pipeline can proceed.
+Verdict: APPROVED
 ```
 
-**NEVER:** Run a script blindly → see it "succeeded" → move on without verifying the output was consumed correctly downstream.
+### ✅ GOOD — This is an analyst who THOUGHT about the output:
+```
+## Verdict: data_enrichment_agent.py
 
-### Anti-Patterns (additions to the table above)
+**Result:** APPROVED
 
-| # | Anti-Pattern | What to do instead |
-|---|---|---|
-| 13 | Run script A → run script B without checking A's output format matches B's input | READ both scripts' code, verify keys/tables/formats match BEFORE running |
-| 14 | Assume JSON keys match between scripts | `grep` for output keys in producer, input keys in consumer — verify they're identical |
-| 15 | Say "data saved to DB" without verifying table exists | `SELECT COUNT(*) FROM table` — if table doesn't exist, it was never created |
-| 16 | Re-run a failing script without reading its code first | READ the code → understand WHY it fails → fix the root cause → run once |
+| Metric | Value | Assessment |
+|--------|-------|------------|
+| Yield | 73% (42/57) | OK (above 60% threshold) |
+| Football | 24/28 (86%) | OK |
+| Tennis | 8/12 (67%) | OK |
+| Hockey | 4/9 (44%) | WARNING — below sport threshold |
+| L10 form gaps | 15 candidates | WARNING — degraded S3 input |
+
+**Anomalies:** Hockey enrichment at 44% — Flashscore returned stale data for KHL
+teams (season ended). ESPN fallback provided standings but no team form.
+This means hockey candidates will enter S3 with PARTIAL data quality.
+
+**My Analysis:** Overall yield of 73% is healthy and above the 60% approval
+threshold. The hockey weakness is structural (off-season) not a pipeline bug.
+15 candidates with missing L10 form will get degraded analysis in S3 — they
+should be flagged as PARTIAL data quality, not rejected. The football enrichment
+at 86% is strong — our core sport has deep data for stat market analysis.
+
+**Impact on Next Step:** S3 deep stats should expect 42 candidates with full
+data and 15 with partial. Hockey candidates need extra caution in safety scores.
+
+**Issues:** None blocking. Hockey gap is informational.
+```
+
+**The difference:** The GOOD output has specific numbers, per-category breakdown, anomaly explanation with ROOT CAUSE, impact assessment, and original reasoning. The BAD output has vague summaries that could apply to any script run ever.
+
+---
+
+## Anti-Patterns (doing ANY = pipeline failure)
+
+| # | Pattern | Fix |
+|---|---------|-----|
+| 1 | Run script → return without reading output | Read FULL output first |
+| 2 | Paste terminal output as "analysis" | Extract metrics, write YOUR conclusions |
+| 3 | "Script completed successfully" | Say WHAT, HOW MUCH, WHAT QUALITY |
+| 4 | Skip sequentialthinking | MANDATORY before every verdict |
+| 5 | APPROVED/REJECTED without reasons | Cite specific metrics |
+| 6 | Ignore errors in output | Triage every error: critical vs ignorable |
+| 7 | Run script B without analyzing script A's output | Analyze BETWEEN scripts |
+| 8 | Run without `--verbose` | Blind execution = failure |
+| 9 | "Completed" without specific numbers | Cite ≥3 metrics from output |
+| 10 | Summarize script's own summary as YOUR analysis | Add ORIGINAL INSIGHT the script didn't produce |
+| 11 | "I analyzed the output" then just restate it | Analysis = WHY + IMPACT + ANOMALIES, not restating |
+| 12 | Present script conclusions as your own | Your value is reasoning BEYOND what the script computed |
+
+---
+
+## Data Flow Verification (R18)
+
+Before running script B after script A: verify A's output keys/tables match B's input expectations.
+READ producer code → READ consumer code → COMPARE keys → VERIFY with actual data → FIX mismatches before running.
+
+**Real example of what goes wrong:** `tipster_aggregator.py` saved picks under `"all_picks"` → `tipster_xref.py` read `"tips"` → got 0 matches → pipeline ran for DAYS with zero tipster data. Nobody noticed because nobody READ THE CODE.
+
+After every script: verify output file exists, check DB row counts, spot-check for garbage entries.
 
 ---
 
 ## The THINKING Agent Contract
 
-You are bound by this contract with the orchestrator:
+1. **You exist to THINK** — not to run bash commands. A bash script can do that.
+2. **Your value = the ANALYSIS** between script execution and verdict delivery.
+3. **If you could be replaced by `cat output.log | grep -c`**, you're doing it wrong.
+4. **The orchestrator will REJECT your verdict** if it lacks reasoning or cites <3 specific metrics.
+5. **Before connecting scripts**, verify data format compatibility — you are the integration layer.
+6. **TEST: Read your response. Remove all numbers and metrics. Is anything left? If not, you just reformatted the output — you didn't analyze it.**
 
-1. **The orchestrator delegates to you because you THINK** — not because you can run bash commands
-2. **Your value is in the ANALYSIS** between script execution and verdict delivery
-3. **If you could be replaced by a bash script**, you're doing it wrong
-4. **The orchestrator will REJECT your verdict** if it lacks reasoning or cites no specific metrics
-5. **Every interaction with a script output is an opportunity** to find an edge, spot an anomaly, or prevent a downstream failure
-6. **Before connecting two scripts**, you MUST verify the data format compatibility — you are the integration layer
-
-<!-- BET:instruction:agent-execution-protocol:v2 -->
+<!-- BET:instruction:agent-execution-protocol:v3 -->

@@ -82,86 +82,27 @@ Print the pre-flight checklist:
 
 ---
 
-## ⛔ TERMINAL EXECUTION RULES (R17 — NO POLLING)
+## ⛔ TERMINAL EXECUTION RULES
 
-**NEVER poll terminals.** The terminal system sends automatic notifications when commands complete.
-
-- **Long-running scripts (scan, fetch, enrich):** Use `mode=sync` with generous timeout (600000ms for 10-min scripts, longer for big jobs). The command completes before control returns. If it times out, you get a terminal ID and auto-notification when it finishes.
-- **Background processes (servers, watchers):** Use `mode=async`. Returns terminal ID immediately.
-- **While a script runs:** Do PRODUCTIVE WORK — `sequentialthinking`, read files, plan next steps, review Betclic history. Do NOT burn context on `get_terminal_output` / `ps -p` / `tail -40` polling loops.
-- **BANNED commands:** `sleep`, `ps -p {pid}`, repeated `get_terminal_output` calls, `tail -N` on buffered terminals to check completion status.
-- **Violation = pipeline failure.**
+All agents follow `agent-execution-protocol.instructions.md` (loaded via their `instructions:` array). That protocol covers: `--verbose` mandatory, `mode=sync` with timeouts, `AGENT_SUMMARY:{json}` parsing, live monitoring, and structured verdicts. **Do not repeat these rules in delegation messages** — the agents already have them.
 
 ---
 
-## §STRUCTURED SCRIPT OUTPUT — Analytical scripts are agent-aware (R19)
+## §STRUCTURED SCRIPT OUTPUT (R19)
 
-The following 9 analytical pipeline scripts support structured output for agent consumption:
-`scan_events.py`, `html_deep_parser.py`, `ingest_scan_stats.py`, `tipster_aggregator.py`, `tipster_xref.py`, `data_enrichment_agent.py`, `deep_stats_report.py`, `gate_checker.py`, `coupon_builder.py`.
-
-**Flags available on these scripts:**
-- `--verbose` / `-v` — JSON-line events for real-time monitoring (progress, warnings, errors, per-candidate data)
-- `--stop-on-error` — Halt on first critical error instead of log-and-continue
-
-**AGENT_SUMMARY protocol:**
-- Every script emits a final line: `AGENT_SUMMARY:{json}` — ALWAYS, in both verbose and non-verbose mode
-- The JSON contains: `step`, `verdict` (OK/PARTIAL/FAILED), `metrics`, `issues[]`, `counts`, `ts` (ISO 8601 timestamp)
-- **Agents MUST parse this line** after every script run — it's the structured verdict
-- Exit codes: 0 = success, 1 = partial/degraded, 2 = critical failure (stop-on-error triggered)
-
-**How to use in delegation:**
-```
-# When running a script yourself (S0, S1 data collection):
-python3 scripts/scan_events.py --parallel-sport --date {date} --verbose 2>&1
-# → Parse AGENT_SUMMARY from output → use metrics in your sequentialthinking
-
-# When delegating to a specialist agent (S2-S10 analysis):
-# Tell the agent to run with --verbose and parse AGENT_SUMMARY:
-# "Run with --verbose. Parse the AGENT_SUMMARY JSON for your verdict metrics."
-```
-
-**Scripts with --sport filter** (for targeted re-runs):
-- `scan_events.py --sport football` — re-scan single sport
-- `tipster_aggregator.py --sport tennis` — re-fetch tipster data for one sport
+9 analytical scripts emit `AGENT_SUMMARY:{json}`: `scan_events.py`, `html_deep_parser.py`, `ingest_scan_stats.py`, `tipster_aggregator.py`, `tipster_xref.py`, `data_enrichment_agent.py`, `deep_stats_report.py`, `gate_checker.py`, `coupon_builder.py`. Exit codes: 0=OK, 1=partial, 2=critical. Scripts with `--sport` filter: `scan_events.py`, `tipster_aggregator.py`.
 
 ---
 
-## §SUBAGENT OUTPUT VERIFICATION (MANDATORY after every runSubagent)
+## §SUBAGENT OUTPUT VERIFICATION (after every runSubagent)
 
-When a specialist agent returns, you MUST verify the response before proceeding. Check for:
+**3-question quality gate — if ANY answer is NO, REJECT and re-delegate:**
+1. Does the response cite ≥3 specific metrics extracted from script output? (not vague summaries)
+2. Does it contain ORIGINAL ANALYSIS beyond what the script computed? (insights, anomalies, reasoning)
+3. Is there a structured verdict with justification? (not just "APPROVED")
 
-### ✅ Good subagent output (ACCEPT)
-- Contains specific metrics extracted from script output (counts, percentages, scores)
-- Has analytical reasoning (WHY the verdict, not just WHAT)
-- Structured verdict: APPROVED/FLAGGED/REJECTED with justification
-- References methodology rules where relevant (R3, R5, R7, etc.)
-- Identifies anomalies or issues in the data
-
-### ❌ Bad subagent output (REJECT and re-delegate)
-- Terminal output pasted verbatim without commentary
-- "Script completed successfully" without specific metrics
-- APPROVED/REJECTED with no supporting data or reasoning
-- No evidence of `sequentialthinking` usage
-- Copying script's summary line as the entire analysis
-- Saying "analyzed" without showing WHAT was found
-
-### Re-delegation template (when rejecting bad output):
-```
-runSubagent(same_agent):
----
-## RE-DELEGATION: Your previous output was REJECTED — analysis missing
-
-Your previous response lacked analytical depth. You returned [raw script output / verdict without reasoning / no metrics].
-
-**YOU MUST:**
-1. Read `agent-execution-protocol.instructions.md` (in your instructions)
-2. Extract SPECIFIC METRICS from the script output (counts, rates, quality scores)
-3. Use `sequentialthinking` to reason about what the output means
-4. Return a STRUCTURED VERDICT with: metrics table, anomaly list, reasoning, verdict + justification
-
-Re-analyze the same data and return a proper verdict.
----
-```
+**Re-delegation instruction when rejecting:**
+"Your output was rejected — you returned [raw script paste / verdict without reasoning / no original analysis]. Read agent-execution-protocol.instructions.md. Return: metrics table (≥3 rows), anomaly analysis, YOUR original reasoning, structured verdict with justification."
 
 ## ═══════════════════════════════════════════════
 ## DATA COLLECTION (Steps S0 → S2.5)
@@ -170,11 +111,11 @@ Re-analyze the same data and return a proper verdict.
 ### STEP S0: Settlement + History
 
 ```bash
-python3 scripts/settle_on_finish.py --betting-day {prev_date} --no-poll 2>&1 | tail -30
-python3 scripts/evaluate_decisions.py --date {prev_date} 2>&1 | tail -30
-python3 scripts/analyze_betclic_learning.py 2>&1 | tail -50
-python3 scripts/data_rotation.py --execute --days 30 2>&1 | tail -10
-python3 scripts/build_league_profiles.py 2>&1 | tail -10
+python3 scripts/settle_on_finish.py --betting-day {prev_date} --no-poll 2>&1
+python3 scripts/evaluate_decisions.py --date {prev_date} 2>&1
+python3 scripts/analyze_betclic_learning.py 2>&1
+python3 scripts/data_rotation.py --execute --days 30 2>&1
+python3 scripts/build_league_profiles.py 2>&1
 ```
 
 **AFTER — Delegate to bet-settler** (read `.github/internal-prompts/bet-settle.prompt.md` first):
@@ -210,10 +151,10 @@ runSubagent("bet-settler"):
 
 ```bash
 # Run parallel-sport scan — takes 10-20 min
-python3 scripts/scan_events.py --parallel-sport --date {date} --deep --max-deep-links 30 --workers 8 --verbose 2>&1 | tail -60
+python3 scripts/scan_events.py --parallel-sport --date {date} --deep --max-deep-links 30 --workers 8 --verbose 2>&1
 ```
 
-**WHILE RUNNING:** The terminal will auto-notify when the scan completes. Do NOT poll with `get_terminal_output` or `ps -p` — use the waiting time for productive work (read shortlist files from yesterday, review Betclic history, plan next steps with `sequentialthinking`). R17: NO TERMINAL POLLING.
+**WHILE RUNNING:** Use `mode=sync` with `timeout=600000`. When the script completes, read the full output immediately. If it times out, use `get_terminal_output` to check accumulated output and diagnose. While waiting, do productive work (read files, plan next steps with `sequentialthinking`). R17: LIVE MONITORING.
 
 **AFTER scan completes — Delegate to bet-scanner** (read `.github/internal-prompts/bet-scan.prompt.md` first):
 
@@ -248,7 +189,7 @@ runSubagent("bet-scanner"):
 ### STEP S1-ingest: Ingest Scan Stats
 
 ```bash
-python3 scripts/ingest_scan_stats.py --verbose 2>&1 | tail -20
+python3 scripts/ingest_scan_stats.py --verbose 2>&1
 ```
 
 **AFTER:** Parse `AGENT_SUMMARY` from output → verify `verdict=OK`. If PARTIAL/FAILED → check which sports/sources had ingestion errors before proceeding.
@@ -258,7 +199,7 @@ python3 scripts/ingest_scan_stats.py --verbose 2>&1 | tail -20
 ### STEP S1-deep: HTML Deep Parsing
 
 ```bash
-python3 scripts/html_deep_parser.py --date {date} --report --verbose 2>&1 | tail -40
+python3 scripts/html_deep_parser.py --date {date} --report --verbose 2>&1
 ```
 
 **AFTER — Delegate to bet-scanner** for parsing quality review:
@@ -289,20 +230,22 @@ runSubagent("bet-scanner"):
 ### STEP S1a: Fixture Discovery + API Stats
 
 ```bash
-python3 scripts/discover_fixtures.py --date {date} 2>&1 | tail -30
-python3 scripts/fetch_api_stats.py --date {date} 2>&1 | tail -30
+python3 scripts/discover_fixtures.py --date {date} 2>&1
+python3 scripts/fetch_api_stats.py --date {date} 2>&1
 # Tennis enrichment handled by data_enrichment_agent.py in S2.5
-python3 scripts/seed_espn_data.py --skip-players 2>&1 | tail -30
+python3 scripts/seed_espn_data.py --skip-players 2>&1
 ```
+
+**Post-run check**: Verify fixtures discovered (>0 per active sport). If `fetch_api_stats.py` reports 0 API responses, proceed in stats-first mode (R10) — API stats are supplemental, not required.
 
 ---
 
 ### STEP S1b: Odds + Weather + Tipster Fetch
 
 ```bash
-python3 scripts/fetch_odds_api.py 2>&1 | tail -30
-python3 scripts/fetch_weather.py --date {date} 2>&1 | tail -20
-python3 scripts/tipster_aggregator.py --date {date} --verbose 2>&1 | tail -30
+python3 scripts/fetch_odds_api.py 2>&1
+python3 scripts/fetch_weather.py --date {date} 2>&1
+python3 scripts/tipster_aggregator.py --date {date} --verbose 2>&1
 ```
 
 **Note:** `tipster_aggregator.py` FETCHES raw tipster picks from all sites → produces `betting/data/{date}_tipster_consensus.json`. The ANALYSIS of tipster data (cross-reference vs shortlist) happens in S2 via `tipster_xref.py`.
@@ -320,7 +263,7 @@ python3 scripts/tipster_aggregator.py --date {date} --verbose 2>&1 | tail -30
 ### STEP S1d: Market Matrix
 
 ```bash
-python3 scripts/generate_market_matrix.py --date {date} --stats-first 2>&1 | tail -30
+python3 scripts/generate_market_matrix.py --date {date} --stats-first 2>&1
 ```
 
 ---
@@ -328,7 +271,7 @@ python3 scripts/generate_market_matrix.py --date {date} --stats-first 2>&1 | tai
 ### STEP S1e: Build Shortlist
 
 ```bash
-python3 scripts/build_shortlist.py --date {date} --stats-first 2>&1 | tail -40
+python3 scripts/build_shortlist.py --date {date} --stats-first 2>&1
 ```
 
 **AFTER shortlist built — Delegate to bet-scanner** (read `.github/internal-prompts/bet-shortlist.prompt.md` first):
@@ -342,7 +285,7 @@ runSubagent("bet-scanner"):
 
 ### Context
 - Date: {date}
-- Shortlist file: betting/data/{date_shortlist_file} (check both YYYY-MM-DD and YYYYMMDD formats)
+- Shortlist file: `betting/data/{date}_s2_shortlist.json`
 - Use sequentialthinking to assess shortlist quality
 - Key checks:
   - ≥20 candidates? If not → something failed upstream
@@ -372,8 +315,8 @@ runSubagent("bet-scout"):
 
 ### Context
 - Date: {date}
-- Shortlist: betting/data/{date_shortlist_file}
-- Tipster data (from S1b): betting/data/{date}_tipster_consensus.json
+- Shortlist: `betting/data/{date}_s2_shortlist.json`
+- Tipster data (from S1b): `betting/data/{date}_tipster_consensus.json`
 - Script to run: `PYTHONPATH=src python3 scripts/tipster_xref.py --date {date} --verbose`
 - Parse `AGENT_SUMMARY:` JSON from output for structured metrics (tips_loaded, matched, total)
 - Use sequentialthinking to evaluate tipster consensus quality
@@ -403,13 +346,13 @@ runSubagent("bet-enricher"):
 
 ### Context
 - Date: {date}
-- Shortlist: betting/data/{date_shortlist_file}
+- Shortlist: `betting/data/{date}_s2_shortlist.json`
 - Script to run: `PYTHONPATH=src python3 scripts/data_enrichment_agent.py --date {date} --verbose`
 - Parse `AGENT_SUMMARY:` JSON from output for structured metrics (verdict, yield %, gaps)
 - After script: run `python3 scripts/validate_phase.py --date {date} --phase data --format json`
 - Use sequentialthinking for Enrichment Quality Assessment
 - Load skill: bet-navigating-sources (source fallback chains)
-- Key metrics: enrichment yield %, per-sport data quality, gap recoverability
+- Key checks: enrichment yield %, per-sport data quality, gap recoverability
 - Return: APPROVED/FLAGGED/REJECTED + yield_percentage + gaps[]
 ---
 ```
@@ -439,8 +382,8 @@ runSubagent("bet-statistician"):
 
 ### Context
 - Date: {date}
-- Shortlist file: betting/data/{date_shortlist_file}
-- Script to run: `PYTHONPATH=src python3 scripts/deep_stats_report.py --date {date} --shortlist betting/data/{date_shortlist_file} --top 200 --verbose`
+- Shortlist file: `betting/data/{date}_s2_shortlist.json`
+- Script to run: `PYTHONPATH=src python3 scripts/deep_stats_report.py --date {date} --shortlist betting/data/{date}_s2_shortlist.json --top 200 --verbose`
 - Parse `AGENT_SUMMARY:` JSON from output for per-candidate metrics, data quality scores, and issues
 - After script: validate output quality with sequentialthinking (data depth, market coverage, three-way cross-check alignment)
 - Use sequentialthinking for EVERY CANDIDATE (5-part Analytical Reasoning Layer)
@@ -465,6 +408,8 @@ runSubagent("bet-statistician"):
 2. If FLAGGED: Send back to bet-statistician with specific fix instructions
 3. If REJECTED: Escalate to user with explanation
 
+> **S3B Trigger**: If earliest kickoff is ≤3h away, delegate `bet-time-sensitive.prompt.md` to bet-statistician BEFORE S4. This fetches live lineups, weather, late injuries, and odds drift. Re-evaluate affected picks' safety scores after S3B returns.
+
 ---
 
 ### STEP S4: Odds Evaluation
@@ -480,7 +425,7 @@ runSubagent("bet-valuator"):
 
 ### Context
 - Date: {date}
-- S3 output: betting/data/{date}_s3_deep_stats.md
+- S3 output: DB `analysis_results` table + `betting/data/{date}_s3_deep_stats.json`
 - Script to run: `PYTHONPATH=src python3 -c "import sys; sys.path.insert(0, 'scripts'); from odds_evaluator import run_odds_eval; ok, msg = run_odds_eval('{date}', {}); print(msg)"`
 - Also run: `python3 scripts/fetch_odds_api.py` for cross-validation
 - Use sequentialthinking for EV assessment and drift detection
@@ -510,7 +455,7 @@ runSubagent("bet-challenger"):
 
 ### Context
 - Date: {date}
-- S3 output: betting/data/{date}_s3_deep_stats.md
+- S3 output: DB `analysis_results` table + `betting/data/{date}_s3_deep_stats.json`
 - S4 output: (from bet-valuator's verdict above)
 - Scripts to run:
   1. `PYTHONPATH=src python3 -c "import sys; sys.path.insert(0, 'scripts'); from context_checks import run_context_checks; ok, msg = run_context_checks('{date}', {}); print(msg)"`
@@ -545,7 +490,7 @@ runSubagent("bet-challenger"):
 
 ### Context
 - Date: {date}
-- S3 output: betting/data/{date}_s3_deep_stats.md
+- S3 output: DB `analysis_results` table + `betting/data/{date}_s3_deep_stats.json`
 - Script to run: `PYTHONPATH=src python3 scripts/gate_checker.py --date {date} --verbose`
 - Parse `AGENT_SUMMARY:` JSON from output for tier distribution, gate scores, and issues
 - Use sequentialthinking for gate quality assessment
@@ -656,64 +601,16 @@ Present to user:
 | 10 | Say "Analyzing" after running a script | YOU don't analyze — you DELEGATE to the specialist agent who analyzes |
 | 11 | Accept subagent output without metrics | If subagent returns no specific numbers/counts → REJECT and re-delegate |
 | 12 | Accept raw script paste from subagent | Subagent must return STRUCTURED VERDICT (metrics + reasoning + verdict), not terminal output |
-| 13 | Fire-and-forget long scripts | Use `mode=sync` + generous timeout. Terminal auto-notifies. Do productive work while waiting (R17). |
+| 13 | Fire-and-forget long scripts | Use `mode=sync` + timeout. After completion, READ FULL OUTPUT and extract metrics. If timed out, use `get_terminal_output` to diagnose (R17). |
 | 14 | Skip data quality checks | Proceeding without checking data_quality_score. FULL/PARTIAL are core requirements. |
 | 15 | Ignore live betting window | Excluding events ≤1h to kickoff. Betclic allows live betting (R16). |
 
 ---
-## §THINK IN THE MIDDLE — SCRIPT EXECUTION PROTOCOL (R17 + R18)
+## §THINK IN THE MIDDLE
 
-**⛔ NEVER poll terminals. NEVER fire-and-forget. Use `mode=sync` + generous timeout.**
-
-For ANY script that runs >30 seconds (scan, enrichment, deep stats, API fetch):
-
-### BEFORE Running (R18 — Data Flow Verification)
-1. **READ** the script's code — understand what it READS (JSON keys, DB tables) and WRITES (output format, DB inserts)
-2. **TRACE** the connection to the NEXT script — does the consumer read the SAME keys/tables the producer writes?
-3. **VERIFY** with actual data if needed (check JSON files, query DB tables)
-
-### Running (R17 — No Terminal Polling)
-1. **LAUNCH** with `mode=sync` and generous timeout (e.g. `timeout=600000` for 10-min scripts)
-2. **DO PRODUCTIVE WORK** while waiting — the terminal auto-notifies when done:
-   - Use `sequentialthinking` to plan next steps
-   - Read files needed for subsequent analysis
-   - Review data from previous steps
-   - Read the NEXT script's code (R18 prep)
-3. **NEVER** call `get_terminal_output`, `ps -p`, `tail`, or `sleep` to check status
-
-### AFTER Completion (auto-notification received)
-1. **ANALYZE** output with `sequentialthinking`:
-   - Error patterns? (timeouts, 403s, ConnectionError, empty responses)
-   - Sport/source failures? (entire sport group returning 0 events)
-   - Data quality issues? (garbage text, missing fields)
-2. **VALIDATE** data in DB: `SELECT COUNT(*) FROM scan_results WHERE date = '{date}'` — confirm events were saved
-3. **VERIFY** output format matches what next script expects (R18)
-4. **ACT** on issues:
-   - Source 403 → note for fallback chain, proceed
-   - >50% errors → diagnose, relaunch with different params
-   - Data format mismatch → FIX before proceeding
-
-**What this looks like in practice:**
-```
-# R18: Read script code FIRST — understand inputs/outputs
-read_file("scripts/scan_events.py") → understand output format
-read_file("scripts/build_shortlist.py") → verify it reads same format
-
-# Launch with sync + generous timeout (R17: NO polling)
-run_in_terminal(command="python3 scripts/scan_events.py ...", mode="sync", timeout=600000)
-
-# While waiting (terminal auto-notifies): do productive work
-sequentialthinking: "Next step needs shortlist. Let me read build_shortlist.py to verify data flow..."
-read_file("scripts/build_shortlist.py") → prep for next step
-
-# Terminal auto-notifies completion → analyze output
-sequentialthinking: "FULL ANALYSIS — 5 sports scanned, 234 total events. Tennis=0 (FAILED), need retry..."
-
-# R18: Verify output matches next script's expectations
-# Check DB: SELECT COUNT(*) FROM scan_results WHERE betting_date = '2026-05-10'
-```
-
-**⛔ ANTI-PATTERN: Running a long script and then polling for completion with `get_terminal_output`/`ps -p`/`tail` = FORBIDDEN (R17)**
+> All agents follow `agent-execution-protocol.instructions.md` for the full RUN→EXTRACT→THINK→RETURN cycle.
+> R18 data flow verification: READ producer/consumer code BEFORE running. Verify keys/tables/formats match.
+> See the protocol for the complete GOOD vs BAD output examples and anti-pattern list.
 
 ---
 ## RULES ENFORCEMENT (R1-R19)
@@ -736,7 +633,7 @@ sequentialthinking: "FULL ANALYSIS — 5 sports scanned, 234 total events. Tenni
 | R14 DATA DEPTH | data_quality_score computed per candidate. FULL/PARTIAL only in core coupons | S3, S7, S8 |
 | R15 WEB RESEARCH | Missing H2H/injuries → spawn web_research_agent.py. Max 5 SerpAPI + 10 Playwright | S2.5, S3 |
 | R16 LIVE WINDOW | 06:00→05:59 next day. Events ≤1h to kickoff or in-play = LIVE, include in scan | S1, S1e |
-| R17 NO TERMINAL POLLING | NEVER poll terminals. Use `mode=sync` + generous timeout. Auto-notification on completion. Do productive work while waiting. | ALL |
+| R17 LIVE SCRIPT MONITORING | ALWAYS --verbose. Read FULL output. Extract metrics. Report specific numbers. React to errors. If timeout: use get_terminal_output to diagnose. | ALL |
 | R18 DATA FLOW VERIFICATION | Before running a script, READ its code to understand inputs/outputs. TRACE producer→consumer: do JSON keys, DB tables, field names match? Verify with actual data. READ CODE → THINK → CHECK → FIX. | ALL |
 | R19 STRUCTURED OUTPUT | 9 analytical scripts support `--verbose` + `AGENT_SUMMARY:{json}` (see §STRUCTURED SCRIPT OUTPUT). Use `--verbose` on those scripts. Parse AGENT_SUMMARY for verdict/metrics/issues. Exit: 0=OK, 1=partial, 2=critical. | ALL |
 
@@ -777,14 +674,14 @@ All internal prompts are in `.github/internal-prompts/`. **Read them BEFORE dele
 
 ## SESSION PARITY
 
-ALL sessions execute the SAME pipeline. Only the time window differs. Night/morning sessions get FULL analysis. If <3 picks survive → declare NO BET.
+ALL sessions execute the SAME pipeline. Only the time window differs. Night/morning sessions get FULL analysis. If <3 picks survive after expansion → declare NO BET.
 
 ## KNOWN FAILURE PATTERNS
 
 1. **PHANTOM GAMES**: ZT/tipster sites list tips for games that already played. Verify on Flashscore before shortlisting.
 2. **BETCLIC LINE MISMATCH**: Do not assume BetExplorer lines = Betclic. When avg ≈ line → zero edge → DROP.
 3. **MARKET UNAVAILABILITY**: Top market not on Betclic → need fallback. Check availability BEFORE deep analysis.
-4. **INSUFFICIENT PICKS**: If pick drops in S7 → expand shortlist (§2.1), do not accept <4 picks.
+4. **INSUFFICIENT PICKS**: If <4 picks survive S7 → expand shortlist (§2.1). If <3 survive after expansion → NO BET.
 5. **MISSING TIPSTER PICKS**: Always scan ZT for statistical-market tips with reasoning.
 
 ## §S8.FINAL — MECHANICAL VERIFICATION
