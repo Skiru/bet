@@ -24,7 +24,7 @@
 - `scripts/context_checks.py` — S5 context verification
 - `scripts/upset_risk.py` — S6 upset risk scoring
 - `scripts/tipster_xref.py` — S2 tipster cross-reference
-- `scripts/pipeline_summary.py` — S10 summary
+- S10 summary built by orchestrator agent from collected verdicts (no dedicated script)
 - `scripts/agent_protocol.py` — agent JSON I/O for agent reviews
 - `scripts/data_rotation.py` — artifact cleanup
 

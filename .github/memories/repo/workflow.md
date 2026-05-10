@@ -9,7 +9,7 @@
 
 ## Scanning Architecture
 - Parallel per-sport scanning: `python3 scripts/scan_events.py --parallel-sport --urls-file config/scan_urls.json --deep`
-- 11 scanner groups, 14 sports. Independent timeouts (football 15min, others 2-5min)
+- 5 scanner groups, 5 core sports (football, volleyball, basketball, tennis, hockey). Independent timeouts (football 15min, others 2-5min)
 - DB-first storage: `scan_results` + `scan_run_stats` tables, `ScanResultRepo`
 - Config: `config/scan_urls.json` (sport-grouped URL source of truth)
 

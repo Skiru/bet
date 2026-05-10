@@ -101,7 +101,7 @@ The pipeline has individual scripts for each step. The ORCHESTRATOR AGENT calls 
 
 **SESSION PARITY:** Session type (full/day/night) controls ONLY the event time window. Analysis depth, coupon count, all steps, all validation = IDENTICAL regardless of session.
 
-**NO AUTO-REJECTION RULE:** The pipeline NEVER auto-rejects events based on EV, safety scores, or historical hit rates. ALL discovered fixtures with available markets are shown in the market matrix. The USER decides which to bet on. The pipeline's job is to provide maximum information — odds, safety scores, H2H data, market alternatives — not to filter down to a tiny list. **This policy is enforced at script level:** `aggregate_and_select.py` uses advisory flags instead of auto-rejection, ensuring all events flow through to the market matrix regardless of calculated scores.
+**NO AUTO-REJECTION RULE:** The pipeline NEVER auto-rejects events based on EV, safety scores, or historical hit rates. ALL discovered fixtures with available markets are shown in the market matrix. The USER decides which to bet on. The pipeline's job is to provide maximum information — odds, safety scores, H2H data, market alternatives — not to filter down to a tiny list. **This policy is enforced at script level:** `build_shortlist.py` uses advisory flags instead of auto-rejection, ensuring all events flow through to the market matrix regardless of calculated scores.
 
 ### §SCAN.7 MAJOR TOURNAMENT PROTECTION (NEVER SKIP)
 
@@ -415,7 +415,7 @@ Tier E3 picks require ALL of: Betclic market confirmed, ≥2 sources with data, 
 
 **Automated shortlist generation:** `python3 scripts/build_shortlist.py --date YYYY-MM-DD --stats-first`
 - Reads from DB `fixtures` + `odds_history` + `team_form` tables (fallback: `market_matrix_{date}.json`) and scores all events by: data tier, competition importance, sport tier, odds quality, tipster coverage
-- Enforces sport diversity (≥8 sports guaranteed, per-sport caps)
+- Assesses sport coverage (informational per R4, never a gate). Data quality gate (R14) replaces sport diversity gate.
 - Deduplicates same-team events across sources
 - Produces `{date}_s2_shortlist.md` + `{date}_s2_shortlist.json` (also stored in DB; use `--top N` to cap)
 - **§1.8 Fixture verification:** Each candidate is cross-referenced against DB `odds_history` table (fallback: odds_api_snapshot.json) and fixtures. Verified candidates get ✅, unverified get ⚠️. Unverified events should be manually confirmed before S3 analysis to avoid phantom fixtures.
@@ -563,7 +563,7 @@ This passes the gate but signals incomplete validation to the user.
 9. **§S3.9** Sources Used — ≥2 rows with actual source names
 10. **§S3.10** Depth Proof — 5 metrics with numbers
 
-**VALIDATION (automated via `validate_s3_output.py`):**
+**VALIDATION (agent-driven via sequentialthinking):**
 1. All 10 section markers present
 2. §S3.3 ≥3 data rows (≥4 football), Safety values are decimal 0.00-1.00
 3. §S3.4 has 3 rows with numeric values + alignment verdict
@@ -926,7 +926,7 @@ Sports in approved picks:           [X]
 4. Re-check diversity gate. Repeat until PASS or all shortlist candidates exhausted.
 5. **This loop has NO sport-preference bias** — football, volleyball, handball, tennis all get equal treatment.
 
-**NEVER proceed to S8 with <3 sports if the shortlist had ≥5 sports.** The shortlist was built from a comprehensive scan — honor that work.
+**NEVER proceed to S8 with 0 candidates from any sport that had strong shortlist presence.** The shortlist was built from a comprehensive scan — honor that work. Sport diversity is informational (R4), but complete sport dropout warrants investigation.
 
 ---
 
@@ -1084,7 +1084,7 @@ On reruns: increment version (v5→v6). Mark old pending as `superseded`. Keep a
 | 18 | Exotic league analyzed without Betclic market check | Full S3-S7 done on a league where Betclic has no markets | §1.7a BETCLIC MARKET GATE: Check Betclic market existence BEFORE starting deep analysis. No markets → SKIP. |
 | 19 | 16/33 shortlisted candidates skipped S3 entirely | S3 only run for "top" candidates; rest silently dropped without analysis or user visibility | §3.0f S3 COMPLETENESS GATE: 100% of non-PHANTOM shortlisted candidates MUST receive full §3.0 analysis. ALL analyzed candidates appear in core, extended pool, or rejected list. User sees everything. |
 | 20 | 58% shortlist was phantom fixtures (19/33) | Tipster-sourced events not verified against independent sources before shortlisting. Wrong opponents, wrong dates, matches already played | §1.8 FIXTURE VERIFICATION GATE: Every candidate must be verified against ≥2 non-tipster sources BEFORE entering S2 shortlist. Tipster-only = UNVERIFIED-SKIP. Tennis draws must be checked against current tournament state. |
-| 21 | Emergency expansion narrowed to 1-2 sports (NBA+snooker), ignoring 25 football + 5 volleyball + 8 handball + 14 tennis shortlisted candidates | After S7 gate rejected initial picks, emergency re-analysis only targeted "API-verified" events from one sport instead of processing ALL remaining shortlist candidates across ALL sports | §2.1 expansion MUST cover ALL unanalyzed shortlist candidates using §2.2 sport-diverse batching. §7.6 POST-GATE SPORT DIVERSITY CHECK blocks S8 if <5 sports in approved picks. NEVER narrow to just the sport with easiest API data. The 51K-event scan exists to provide BREADTH — use it. |
+| 21 | Emergency expansion narrowed to 1-2 sports (NBA+snooker), ignoring 25 football + 5 volleyball + 8 handball + 14 tennis shortlisted candidates | After S7 gate rejected initial picks, emergency re-analysis only targeted "API-verified" events from one sport instead of processing ALL remaining shortlist candidates across ALL sports | §2.1 expansion MUST cover ALL unanalyzed shortlist candidates using §2.2 sport-diverse batching. §7.6 POST-GATE CHECK verifies all shortlisted candidates were analyzed across all sports. NEVER narrow to just the sport with easiest API data. The 51K-event scan exists to provide BREADTH — use it. |
 
 ---
 

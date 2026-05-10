@@ -40,7 +40,7 @@ Print the pre-flight checklist:
 ```
 [ ] Bankroll: ___ PLN | Daily budget: ___-___ PLN
 [ ] Session: {session} → window: HH:MM → HH:MM
-[ ] Sports: 14 | Previous day settled: yes/no
+[ ] Sports: 5 (football, volleyball, basketball, tennis, hockey) | Previous day settled: yes/no
 [ ] Memory loaded: yes/no (mistakes count: ___)
 ```
 
@@ -78,6 +78,7 @@ Print the pre-flight checklist:
 - `scan_events.py` (S1 — launches parallel scan, but bet-scanner reviews output)
 - Simple validation one-liners: file existence, line counts, JSON key checks
 - `validate_phase.py` (quick sanity gate between phases)
+- `web_research_agent.py` — L7 fallback for missing H2H/injuries (R15)
 
 ---
 
@@ -162,8 +163,9 @@ runSubagent("bet-scanner"):
 - Use sequentialthinking to evaluate coverage
 - Load skill: bet-navigating-sources
 - Key checks:
-  - 14-sport coverage (how many events per sport?)
-  - Which sports had 0 events? (source failure)
+  - 5-sport coverage: football, volleyball, basketball, tennis, hockey
+  - Which of the 5 sports had 0 events? (source failure → retry with fallback)
+  - Data quality: How many events have deep data (H2H, form, injuries)?
   - Phantom fixture detection
   - Tournament protection (§SCAN.7) — major tournaments present?
   - Major domestic league protection (§SCAN.9) — Brasileirão, MLS, Liga MX, CSL, J-League, K-League, etc. present?
@@ -196,7 +198,7 @@ python3 scripts/html_deep_parser.py --date {date} --report 2>&1 | tail -40
 ```bash
 python3 scripts/discover_fixtures.py --date {date} 2>&1 | tail -30
 python3 scripts/fetch_api_stats.py --date {date} 2>&1 | tail -30
-python3 scripts/enrich_tennis_stats.py --date {date} --all-indexed 2>&1 | tail -20
+# Tennis enrichment handled by data_enrichment_agent.py in S2.5
 python3 scripts/seed_espn_data.py --skip-players 2>&1 | tail -30
 ```
 
@@ -215,8 +217,7 @@ python3 scripts/tipster_xref.py --date {date} 2>&1 | tail -30
 ### STEP S1c: Aggregate + Analysis Pool
 
 ```bash
-python3 scripts/aggregate_and_select.py --date {date} 2>&1 | tail -30
-python3 scripts/deep_analysis_pool.py --date {date} 2>&1 | tail -30
+# Aggregation and analysis pool handled by build_shortlist.py in S1e
 ```
 
 ---
@@ -250,13 +251,14 @@ runSubagent("bet-scanner"):
 - Use sequentialthinking to assess shortlist quality
 - Key checks:
   - ≥20 candidates? If not → something failed upstream
-  - ≥8 sports? If not → scan coverage issue
-  - KEY sports (football, tennis, basketball, volleyball) ≥60% of candidates?
+  - All 5 sports represented? (informational — NOT a gate, just awareness)
+  - Data quality: How many candidates have FULL/PARTIAL/MINIMAL data?
+  - Lower-division leagues present? (minor league value — R8)
   - Major tournaments present? (§SCAN.7)
   - Major domestic leagues present? (§SCAN.9) — Brasileirão, MLS, Liga MX, CSL, etc.
   - Minor league value candidates present? (§SCAN.8)
-  - Sport diversity assessment
-- Return: APPROVED/FLAGGED/REJECTED + candidate_count + sport_distribution
+  - Data quality distribution (FULL/PARTIAL/MINIMAL counts)
+- Return: APPROVED/FLAGGED/REJECTED + candidate_count + data_quality_distribution
 ---
 ```
 
@@ -335,7 +337,7 @@ runSubagent("bet-statistician"):
 - Date: {date}
 - Shortlist file: betting/data/{date_shortlist_file}
 - Script to run: `PYTHONPATH=src python3 scripts/deep_stats_report.py --date {date} --shortlist betting/data/{date_shortlist_file} --top 200`
-- After script: run `python3 scripts/validate_s3_output.py betting/data/{date}_s3_deep_stats.md --format json`
+- After script: validate output quality with sequentialthinking (data depth, market coverage, three-way cross-check alignment)
 - Use sequentialthinking for EVERY CANDIDATE (5-part Analytical Reasoning Layer)
 - Load skills: bet-analyzing-statistics, bet-applying-sport-protocols, bet-navigating-sources
 - Key checks:
@@ -434,7 +436,8 @@ runSubagent("bet-challenger"):
 - Key checks:
   - All 18 points evaluated per candidate (not abbreviated)
   - Bear cases cite SPECIFIC DATA (not generic "it could go wrong")
-  - R4: ≥5 sports in STRONG+MODERATE tiers
+  - R4: Sport coverage is informational — NOT a gate. Quality over forced diversity.
+  - R14: Data quality per candidate (FULL/PARTIAL/MINIMAL). Only FULL/PARTIAL in core coupons.
   - R3: NO auto-rejection — ALL candidates visible in output
   - Extended Pool: gate-failed EV>0 candidates documented
   - Tier distribution: >80% FLAGGED = gate calibration issue
@@ -442,7 +445,7 @@ runSubagent("bet-challenger"):
 ---
 ```
 
-**GATE:** If <5 sports in approved → emergency expansion (R4). Delegate again with expanded scope.
+**GATE:** If >50% candidates have MINIMAL data quality → enrichment failure. Spawn web_research_agent.py (R15) for data gaps. Re-delegate to bet-enricher.
 
 ---
 
@@ -473,7 +476,8 @@ runSubagent("bet-builder"):
 - Key checks:
   - Arithmetic: multiply each leg odds step-by-step → combined odds match (±0.02)
   - Unique events: zero shared events between core coupons
-  - Sport diversity: ≥5 sports across portfolio
+  - Data quality: Only FULL/PARTIAL picks in core coupons (R14). MINIMAL → Extended Pool.
+  - No event duplication: Each event in at most 1 core coupon.
   - R5: ≥60% statistical markets
   - Exposure: total stakes ≤25% bankroll
   - V1-V10 + §S8.FINAL: ALL mechanical checks PASS
@@ -494,7 +498,8 @@ runSubagent("bet-builder"):
 
 ### Context
 - Date: {date}
-- Script to run: `PYTHONPATH=src python3 -c "import sys; sys.path.insert(0, 'scripts'); from pipeline_summary import run_summary; ok, msg = run_summary('{date}', {}); print(msg)"`
+- No script needed — build summary from agent verdicts collected during S0-S9.
+- Present: settlement PnL, scan coverage, data quality distribution, coupon details, Extended Pool.
 - Return: summary text for user presentation
 ---
 ```
@@ -533,16 +538,59 @@ Present to user:
 | 10 | Say "Analyzing" after running a script | YOU don't analyze — you DELEGATE to the specialist agent who analyzes |
 | 11 | Accept subagent output without metrics | If subagent returns no specific numbers/counts → REJECT and re-delegate |
 | 12 | Accept raw script paste from subagent | Subagent must return STRUCTURED VERDICT (metrics + reasoning + verdict), not terminal output |
+| 13 | Fire-and-forget long scripts | Launching scan/enrichment in sync mode and waiting silently. Use async + monitoring. |
+| 14 | Skip data quality checks | Proceeding without checking data_quality_score. FULL/PARTIAL are core requirements. |
+| 15 | Ignore live betting window | Excluding events ≤1h to kickoff. Betclic allows live betting (R16). |
 
 ---
+## §THINK IN THE MIDDLE — MONITORING PROTOCOL (MANDATORY for scripts >30s)
 
+**⛔ NEVER fire-and-forget a long-running script. You MUST monitor output AS IT ARRIVES.**
+
+For ANY script that runs >30 seconds (scan, enrichment, deep stats, API fetch):
+
+1. **LAUNCH** with `mode=async` → get `terminal_id`
+2. **MONITOR** every 30-60 seconds: `get_terminal_output(terminal_id)` 
+3. **THINK** after EACH output chunk — use `sequentialthinking`:
+   - Progress indicators? (events found, errors, sport completion messages)
+   - Error patterns? (timeouts, 403s, ConnectionError, empty responses)
+   - Sport/source failures? (entire sport group returning 0 events)
+   - Action needed NOW? (kill failed source, retry, switch fallback)
+4. **ACT** if issues detected mid-run:
+   - Source 403 → skip, note for fallback chain
+   - Timeout on sport group → will retry after main scan
+   - >50% errors → kill scan, diagnose, relaunch with different params
+5. **ANALYZE** when terminal finishes: FULL analysis with `sequentialthinking` before proceeding
+6. **VALIDATE** data in DB: `SELECT COUNT(*) FROM scan_results WHERE date = '{date}'` — confirm events were saved
+
+**What this looks like in practice:**
+```
+# Launch scan async
+run_in_terminal(command="python3 scripts/scan_events.py ...", mode="async") → terminal_id
+
+# 30s later - check progress
+get_terminal_output(terminal_id) → see partial output
+sequentialthinking: "Football scan found 47 events across 12 leagues. Basketball scan in progress..."
+
+# 60s later - check again  
+get_terminal_output(terminal_id) → more output
+sequentialthinking: "Tennis scan returned 0 events — source timeout. Will need fallback after scan completes..."
+
+# Scan finishes
+get_terminal_output(terminal_id) → final output
+sequentialthinking: "FULL ANALYSIS — 5 sports scanned, 234 total events. Tennis=0 (FAILED), need retry..."
+```
+
+**⛔ ANTI-PATTERN: Running a 10-minute scan in sync mode and waiting silently = FORBIDDEN**
+
+---
 ## RULES ENFORCEMENT (R1-R12)
 
 | Rule | What to check | When |
 |------|--------------|------|
 | R1 AGENT-DRIVEN | Script ran → agent analyzed → reasoned output | Every step |
 | R3 NO AUTO-REJECTION | ALL candidates visible. No "rejected due to" | S7, S8 |
-| R4 NO NARROWING | ≥5 sports in approved picks | S7 gate |
+| R4 NO NARROWING | Sport diversity is informational, never a gate. Quality > forced diversity | S7 |
 | R5 STATS > OUTCOMES | Every football match ≥1 stat market | S3, S8 |
 | R6 BETCLIC ADVISORY | Hit rates shown, never auto-penalize | S0, S3 |
 | R7 TOURNAMENT PROTECTION | Major tournaments present | S1e |
@@ -551,6 +599,9 @@ Present to user:
 | R11 SEQUENTIAL THINKING | sequentialthinking per step + per candidate in S3 | ALL |
 | R12 CONDITIONAL | Coupon carries conditional disclaimer | S8 |
 | R13 MAJOR DOMESTIC LEAGUE | Brasileirão/MLS/Liga MX/CSL/J-League/K-League present when active | S1e |
+| R14 DATA DEPTH | data_quality_score computed per candidate. FULL/PARTIAL only in core coupons | S3, S7, S8 |
+| R15 WEB RESEARCH | Missing H2H/injuries → spawn web_research_agent.py. Max 5 SerpAPI + 10 Playwright | S2.5, S3 |
+| R16 LIVE WINDOW | 06:00→05:59 next day. Events ≤1h to kickoff or in-play = LIVE, include in scan | S1, S1e |
 
 ---
 
@@ -616,7 +667,7 @@ After coupons are built, verify:
 python3 scripts/validate_phase.py --date {date} --phase data|analysis|build --format json
 
 # S3 output validation:
-python3 scripts/validate_s3_output.py betting/data/{date}_s3_deep_stats.md --format json
+# Use sequentialthinking to validate deep stats quality (no script needed)
 
 # Coupon validation:
 python3 scripts/validate_coupons.py betting/coupons/{date}*.md --format json
@@ -625,10 +676,9 @@ python3 scripts/validate_coupons.py betting/coupons/{date}*.md --format json
 python3 scripts/analyze_betclic_learning.py
 python3 scripts/fetch_odds_api.py [--scores baseball,hockey]
 python3 scripts/settle_on_finish.py --betting-day YYYY-MM-DD
-python3 scripts/check_48h_repeats.py
 ```
 
 ## DB REFERENCE
 
 SQLite at `betting/data/betting.db`. Connection: `from bet.db.connection import get_db`.
-28 tables across 6 domains: Core (sports/teams/competitions/fixtures/athletes), Stats (team_form/match_stats/league_profiles/standings/power_index), Analysis (analysis_results/gate_results/decision_snapshots), Betting (coupons/bets/odds_history), Pipeline (pipeline_runs/scan_results/source_health), ESPN (espn_predictions/player_gamelogs/team_ats_records/team_ou_records).
+35 tables across 7 domains: Core (sports/teams/competitions/fixtures/athletes), Stats (team_form/match_stats/league_profiles/standings/power_index), Analysis (analysis_results/gate_results/decision_snapshots), Betting (coupons/bets/odds_history), Pipeline (pipeline_runs/scan_results/source_health), ESPN (espn_predictions/player_gamelogs/team_ats_records/team_ou_records).

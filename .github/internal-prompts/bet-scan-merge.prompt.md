@@ -20,7 +20,7 @@ You MUST follow the Agent Intelligence Protocol defined in your agent definition
 2. Read `/memories/repo/pipeline-lessons-learned.md` — check for known merge/enrichment failures
 3. Use `todo` to track merge phases (merge → enrich → validate → shortlist)
 4. Write coverage and data quality observations to `/memories/session/`
-5. Self-validate: all sport results merged, enrichment yield >60%, shortlist sport diversity ≥6
+5. Self-validate: all sport results merged, enrichment yield >60%, shortlist data quality assessed per R14
 
 Run after all sport scanners complete. Merges results, enriches with APIs, validates coverage, produces shortlist.
 
@@ -79,11 +79,8 @@ python3 scripts/ingest_scan_stats.py
 ```bash
 cd /Users/mkoziol/projects/bet && PYTHONPATH=src:.
 
-# Deep analysis pool
-python3 scripts/deep_analysis_pool.py --date $(date +%Y-%m-%d)
-
-# Aggregate and rank
-python3 scripts/aggregate_and_select.py --date $(date +%Y-%m-%d)
+# Aggregation and analysis pool now handled by build_shortlist.py
+python3 scripts/build_shortlist.py --date $(date +%Y-%m-%d) --stats-first
 
 # Generate market matrix (STATS-FIRST mode)
 python3 scripts/generate_market_matrix.py --date $(date +%Y-%m-%d) --stats-first
@@ -139,8 +136,8 @@ if sl_path.exists():
     if len(events) < 50:
         print(f'⚠️ Only {len(events)} events (target 50-100)')
         passed = False
-    if len(sports) < 8:
-        print(f'⚠️ Only {len(sports)} sports (target ≥8)')
+    if len(sports) < 3:
+        print(f'⚠️ Only {len(sports)} sports (sport diversity is informational per R4)')
         passed = False
     if passed:
         print('✅ Shortlist quality gates PASS')
@@ -181,7 +178,7 @@ python3 scripts/generate_market_matrix.py --date $(date +%Y-%m-%d) --stats-first
 - Check scan_summary total — if raw scan had 300+, aggregation thresholds may be too strict
 - Proceed with what's available — user decides from market matrix
 
-**If <8 sports in shortlist:**
+**If any core sport has 0 events in shortlist:**
 - Check which sports are missing
 - Seasonal gaps (baseball off-season, combat no-event-today) are acceptable
 - If a Tier 1 sport is missing, that's a real problem — check its scanner report
@@ -190,7 +187,7 @@ python3 scripts/generate_market_matrix.py --date $(date +%Y-%m-%d) --stats-first
 
 | Error | Cause | Fix |
 |-------|-------|-----|
-| `aggregate_and_select.py` crashes | Missing dependency file | Check scan_summary.json exists first |
+| `build_shortlist.py` crashes | Missing dependency file | Check scan_summary.json exists first |
 | `generate_market_matrix.py` no output | Zero events after filtering | Add `--stats-first` to lower threshold |
 | `build_shortlist.py` produces 0 | No events pass safety score | Use `--force` to include all events |
 | `fetch_api_stats.py` timeout | API slow | Proceed without — scan data is primary |

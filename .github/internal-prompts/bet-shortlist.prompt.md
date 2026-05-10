@@ -17,7 +17,7 @@ description: "S1e: Build ranked shortlist of 50-100 candidates with sport divers
 You MUST follow the Agent Intelligence Protocol defined in your agent definition. Specifically:
 1. Use `sequentialthinking` to reason about shortlist quality and ranking logic
 2. Read `/memories/repo/pipeline-lessons-learned.md` — check for past shortlist issues
-3. Self-validate: tournament protection (+15), major domestic league protection (+10, §SCAN.9), minor league value (+6), sport diversity ≥8
+3. Self-validate: tournament protection (+15), major domestic league protection (+10, §SCAN.9), minor league value (+6), sport diversity (informational per R4)
 4. Write ranking insights to `/memories/session/`
 
 ## Required Skills
@@ -63,11 +63,11 @@ For niche sports (volleyball, table tennis, padel, speedway): verify Betclic mar
 
 Assess: statistical market available? Odds in range (1.30-3.50)? Major tournament? Tier A data quality?
 
-### 5. Sport Diversity Gate
+### 5. Sport Diversity (Informational — R4)
 
-- ≥8 sports in shortlist (≥5 in final picks)
+- Sport diversity is informational, never a gate (R4). Quality over forced diversity.
 - Football ≤50% of shortlist
-- If <8 sports → go back to S1, scan missing sports deeper
+- If only 1-2 sports have quality data — that's fine. Report diversity stats but do NOT block.
 
 ## Output
 
@@ -77,7 +77,7 @@ Sections: Summary, Removal Log, Tier 1 (statistical markets), Tier 2 (ML/basic),
 
 ## Self-Verification (V-S1e-01 to V-S1e-11)
 
-Key gates: 50-100 events, ≥8 sports, football ≤50%, no ITF tennis.
+Key gates: 50-100 events, football ≤50%, no ITF tennis.
 
 ## Pass/Fail Gate
 

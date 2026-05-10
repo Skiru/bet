@@ -6,7 +6,7 @@ user-invokable: false
 
 # Navigating Betting Sources
 
-Guides agents through the multi-tier source ecosystem for all 14 sports. Ensures fallback chains are followed, blocked sources are avoided, and source-specific quirks are handled.
+Guides agents through the multi-tier source ecosystem for all 5 core sports (football, volleyball, basketball, tennis, hockey). Ensures fallback chains are followed, blocked sources are avoided, and source-specific quirks are handled.
 
 ## Source Philosophy
 

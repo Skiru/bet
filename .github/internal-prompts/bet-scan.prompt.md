@@ -1,6 +1,6 @@
 ---
 agent: "bet-scanner"
-description: "S1-S1e: Full data engine — scan 14 sports, enrich with stats/odds/weather, live-validate quality, self-heal gaps, build analysis-ready shortlist"
+description: "S1-S1e: Full data engine — scan 5 core sports (football, volleyball, basketball, tennis, hockey), enrich with stats/odds/weather, live-validate quality, self-heal gaps, build analysis-ready shortlist"
 ---
 
 > **PERMANENT RULES (from copilot-instructions.md §NON-NEGOTIABLE):**
@@ -17,10 +17,10 @@ description: "S1-S1e: Full data engine — scan 14 sports, enrich with stats/odd
 You MUST follow the Agent Intelligence Protocol defined in your agent definition. Specifically:
 1. Use `sequentialthinking` to plan scan strategy and evaluate coverage quality
 2. Read `/memories/repo/pipeline-lessons-learned.md` — check for known source failures and phantom patterns
-3. Use `todo` to track per-sport scan progress (14 sports = 14 todos)
+3. Use `todo` to track per-sport scan progress (5 core sports + supplementary)
 4. Use `askQuestions` when scan coverage is below threshold and re-scanning won't help
 5. Write source health observations to `/memories/session/`
-6. Self-validate: ALL 14 sports scanned, ≥6 with events, no phantom fixtures
+6. Self-validate: ALL 5 core sports scanned, no phantom fixtures
 
 ## Required Skills
 
@@ -32,7 +32,7 @@ Load before starting:
 
 - **run_date**: `{date}` (today's betting day)
 - **session**: `{session}` — full/day/night/morning (controls event time window)
-- **14 sports**: football, tennis, basketball, hockey, baseball, volleyball, esports, snooker, darts, table_tennis, handball, mma, padel, speedway
+- **5 core sports**: football, volleyball, basketball, tennis, hockey
 
 ## Workflow: DISCOVER → VALIDATE → ENRICH → VALIDATE → BUILD → VALIDATE
 
@@ -52,7 +52,7 @@ This runs per-sport parallel scanning (11 sport groups, independent timeouts). I
 1. **Event count**: Query DB `scan_results` table for today's date. Check per-sport counts in `scan_run_stats` table.
 2. **Source success**: Check `scan_run_stats.sources_ok` and `scan_run_stats.sources_failed` per sport.
 3. **Error triage**: Read `scan_errors.json`. Separate critical errors from ignorable ones (BetExplorer empty pages for niche sports = normal).
-4. **Sport coverage**: All 14 sports should have entries in `scan_run_stats`.
+4. **Sport coverage**: All 5 core sports should have entries in `scan_run_stats`.
 
 If gates fail → investigate and fix before proceeding. See Error Triage Playbook in agent definition.
 
@@ -96,7 +96,7 @@ If enrichment validation found gaps:
 
 Verify the final artifacts exist and have quality content:
 
-1. **Shortlist**: Read `{date}_s2_shortlist.json`. Gates: 50-100 events, ≥8 sports, football ≤50%.
+1. **Shortlist**: Read `{date}_s2_shortlist.json`. Gates: 50-100 events, football ≤50%.
 2. **Market matrix**: Check `market_matrix_{date}.md` exists and has >100 lines.
 3. **Decision matrix**: Check `decision_matrix_{date}.md` exists.
 
@@ -116,7 +116,7 @@ Include all sections from the agent's report format:
 
 | # | Check | Gate |
 |---|-------|------|
-| 01 | All 14 sports have entries in `scan_run_stats` | Required |
+| 01 | All 5 core sports have entries in `scan_run_stats` | Required |
 | 02 | Per-sport event counts reasonable (football ≥200, tennis ≥100) | Required |
 | 03 | ≥ 6 sports with active events | Required |
 | 04 | Every sport from ≥2 sources (`sources_ok` ≥ 2) | Required |
@@ -127,7 +127,7 @@ Include all sections from the agent's report format:
 | 09 | Stats depth: football ≥10 keys sampled | Required |
 | 10 | Odds data exists (or STATS-FIRST acknowledged) | Required |
 | 11 | Weather for outdoor events | Required |
-| 12 | Shortlist: 50-100 events, ≥8 sports | Required |
+| 12 | Shortlist: 50-100 events, ≥3 sports | Required |
 | 13 | Football ≤50% of shortlist | Required |
 | 14 | DB fixtures populated for today | Required |
 | 15 | `source_health` failure rate <20% | Required |

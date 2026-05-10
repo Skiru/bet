@@ -20,7 +20,7 @@ You MUST follow the Agent Intelligence Protocol defined in your agent definition
 3. Use `todo` to track per-candidate analysis (40+ candidates = easy to skip one)
 4. Use `askQuestions` when data is contradictory (L10 vs H2H divergence with no clear explanation)
 5. Use `browser/*` to fetch LIVE stats when DB/cache data is stale (>24h)
-6. Run `validate_s3_output.py` on your output — fix ALL FAIL results before returning
+6. Use sequentialthinking to validate output completeness (all 10 mandatory sections per candidate)
 7. Write edge discoveries and analytical insights to `/memories/session/`
 
 ## Required Skills
@@ -50,8 +50,8 @@ The script produces RAW DATA (safety scores, market rankings, probabilities). Yo
 - **ANALYTICAL REASONING** per candidate (PRIMARY output — tables are secondary)
 
 **Step 3: VALIDATE:**
-```bash
-python3 scripts/validate_s3_output.py betting/data/{date}_s3_deep_stats.md --format json
+```
+# Validation: Use sequentialthinking to check data depth, market coverage, three-way cross-check alignment
 ```
 
 **Step 4: RETURN verdict:** APPROVED/FLAGGED/REJECTED + quality_score (1-10) + specific_issues[]

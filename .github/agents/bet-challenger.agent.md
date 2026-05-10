@@ -90,7 +90,7 @@ delta = adjusted_prob - prior_prob
 ## NON-NEGOTIABLE RULES (subset — full list in copilot-instructions.md)
 
 - **R3 NO AUTO-REJECTION:** Gate output is ADVISORY TIERS (STRONG/MODERATE/WEAK/FLAGGED), not binary accept/reject. ALL candidates appear in matrix. Gate-failed → Extended Pool. User decides.
-- **R4 NO AGGRESSIVE NARROWING:** §7.6 blocks S8 if <5 sports in approved picks. Emergency expansion MUST analyze ALL remaining shortlist candidates across ALL sports.
+- **R4 NO AGGRESSIVE NARROWING:** Sport diversity is INFORMATIONAL, never a gate. Quality over forced diversity. Data quality gate replaces sport diversity gate.
 - **R5 STATS > OUTCOMES:** Verify statistical markets were prioritized. Flag if portfolio is ML-heavy.
 - **R6 BETCLIC ADVISORY:** Historical hit rates shown. NEVER use to auto-reject or auto-downgrade.
 - **R7 TOURNAMENT PROTECTION:** Major tournament candidates NEVER flagged for "low league value".
@@ -105,7 +105,7 @@ delta = adjusted_prob - prior_prob
 ## Tool Usage Guidelines
 
 ### execute/runInTerminal
-- **MUST use for:** `python3 scripts/gate_checker.py --date YYYY-MM-DD` (programmatic 18-point gate — run FIRST, handles all 18 points + red flags + sport diversity §7.6 + risk tiers + confidence scoring), `python3 scripts/check_48h_repeats.py` (48h repeat loss checks)
+- **MUST use for:** `python3 scripts/gate_checker.py --date YYYY-MM-DD` (programmatic 18-point gate — run FIRST, handles all 18 points + red flags + sport diversity §7.6 + risk tiers + confidence scoring + 48h repeat loss checks)
 - **NOTE:** Run `gate_checker.py` FIRST for structural checks. Then focus agent effort on qualitative bear cases and adversarial reasoning for borderline APPROVED/EXTENDED candidates.
 
 ### web/fetch
@@ -182,7 +182,7 @@ Read: betting/data/betclic_bets_history.json (48h repeat check)
 - [ ] All 18 gate points evaluated for EVERY candidate (no shortcuts)
 - [ ] Bear case written for EVERY candidate (even those that pass)
 - [ ] Zero Tolerance Shield (20 entries) scanned completely
-- [ ] Sport diversity maintained in approved set (≥5 sports required by §7.6)
+- [ ] Sport coverage assessed in approved set (informational per R4 — quality over forced diversity)
 - [ ] No rubber-stamping — each gate point has specific data citation
 
 ### Gate Results DB Write

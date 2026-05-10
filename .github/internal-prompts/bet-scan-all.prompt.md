@@ -18,9 +18,9 @@ agent: bet-scanner
 You MUST follow the Agent Intelligence Protocol defined in your agent definition. Specifically:
 1. Use `sequentialthinking` to plan scan dispatch strategy and evaluate coverage
 2. Read `/memories/repo/pipeline-lessons-learned.md` — check for known scan failures and source health patterns
-3. Use `todo` to track per-sport scanner dispatch (14 sports = 14 todos)
+3. Use `todo` to track per-sport scanner dispatch (5 core sports + supplementary)
 4. Write source health and coverage observations to `/memories/session/`
-5. Self-validate: ALL 14 sports scanned, ≥6 with events, no phantom fixtures, tournament matches present
+5. Self-validate: ALL 5 core sports scanned, no phantom fixtures, tournament matches present
 
 You are executing the S1 scan step. You MUST complete all 5 phases below without asking the user anything. If errors occur, diagnose and fix them yourself using the troubleshooting section.
 
@@ -248,9 +248,8 @@ python3 scripts/fetch_odds_multi.py
 # 5e. Fetch weather for outdoor sports
 python3 scripts/fetch_weather.py --date $(date +%Y-%m-%d)
 
-# 5f. Aggregate all data
-python3 scripts/deep_analysis_pool.py --date $(date +%Y-%m-%d)
-python3 scripts/aggregate_and_select.py --date $(date +%Y-%m-%d)
+# 5f. Aggregate all data (handled by build_shortlist.py)
+python3 scripts/build_shortlist.py --date $(date +%Y-%m-%d) --stats-first
 
 # 5g. Generate market matrix (STATS-FIRST mode)
 python3 scripts/generate_market_matrix.py --date $(date +%Y-%m-%d) --stats-first
@@ -301,8 +300,8 @@ if sl_path.exists():
         print(f'    {s}: {c}')
     if len(events) < 50:
         print(f'  ⚠️ Only {len(events)} events (target 50-100)')
-    if len(sports) < 8:
-        print(f'  ⚠️ Only {len(sports)} sports (target ≥8)')
+    if len(sports) < 3:
+        print(f'  ⚠️ Only {len(sports)} sports (sport diversity is informational per R4)')
 
 if all_ok:
     print(f'\n✅ SCAN COMPLETE — ready for S3 deep analysis')
@@ -340,9 +339,9 @@ Each sport agent has its own SKILL loaded (`bet-scanning-{sport}`) with source U
 
 The scan is DONE when:
 1. `scan_summary.json` exists with ≥ 300 events
-2. `{date}_s2_shortlist.json` exists with 50-100 events across ≥ 8 sports
+2. `{date}_s2_shortlist.json` exists with 50-100 events
 3. `market_matrix_{date}.json` exists
 4. DB `scan_results` table has data for today
-5. No Tier 1 sport (football, tennis, basketball, volleyball) has zero events (unless seasonal)
+5. No Tier 1 sport (football, tennis, basketball, volleyball, hockey) has zero events (unless seasonal)
 
 After success, report to user: event counts per sport, any gaps, total duration, and confirm readiness for S3.

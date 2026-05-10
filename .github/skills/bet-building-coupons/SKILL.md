@@ -101,7 +101,7 @@ Borderline/conditional picks listed, dates verified for EVERY event, cross-coupo
 Ranked by EV×confidence, no orphan picks, no ≥3 same-market-type, night coupons = night games only, weakest-leg swap test.
 
 ### V10 — Final Sign-Off
-V10a: Forced 14-sport enumeration. V10b: 18-point gate per pick. V10c: Red flags addressed. V10d: Portfolio damage test. V10e: PER-PICK COMPLETENESS MATRIX (10 columns, all ✅).
+V10a: Forced 5-sport enumeration (football, volleyball, basketball, tennis, hockey). V10b: 18-point gate per pick. V10c: Red flags addressed. V10d: Portfolio damage test. V10e: PER-PICK COMPLETENESS MATRIX (10 columns, all ✅).
 
 ### V10e Matrix Template
 ```

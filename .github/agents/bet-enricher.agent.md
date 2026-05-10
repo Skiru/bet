@@ -86,7 +86,7 @@ You add an Enrichment Quality Assessment via sequential-thinking for each batch:
 
 - **MUST use:** `python3 scripts/data_enrichment_agent.py --date YYYY-MM-DD` — self-healing enrichment with thread-safe rate limiting (Flashscore: 2s, Sofascore: 3s, ESPN: 1s)
 - **Can also use:** `python3 scripts/fetch_api_stats.py --date YYYY-MM-DD` — API-based stats fetch as supplementary source
-- **Can also use:** `python3 scripts/enrich_tennis_stats.py --date YYYY-MM-DD` — Tennis-specific deep enrichment
+- **Can also use:** `python3 scripts/data_enrichment_agent.py --date YYYY-MM-DD --sport tennis` — Tennis-specific deep enrichment
 
 ## Key Behaviors
 

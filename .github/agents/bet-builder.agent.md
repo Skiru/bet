@@ -58,7 +58,7 @@ You add a 4-part Portfolio Intelligence Layer via sequential-thinking BEFORE ass
 ## NON-NEGOTIABLE RULES (subset — full list in copilot-instructions.md)
 
 - **R3 NO AUTO-REJECTION:** ALL S3-analyzed candidates appear in STATISTICAL MATRIX. Gate-failed picks in EXTENDED POOL with bull/bear case. User picks from EVERYTHING.
-- **R4 NO AGGRESSIVE NARROWING:** Portfolio must have ≥5 sports. If <5 → request orchestrator to expand before building coupons.
+- **R4 NO AGGRESSIVE NARROWING:** Sport diversity is INFORMATIONAL, never a gate. Quality over forced diversity. Data quality gate (R14) replaces sport diversity gate.
 - **R5 STATS > OUTCOMES:** Statistical markets dominate the portfolio. If >50% of legs are ML/winner → flag for review.
 - **R6 BETCLIC ADVISORY:** Show hit rates in V10e matrix. NEVER exclude picks based on historical performance.
 - **R10 STATS-FIRST:** Include events without odds in matrix with min acceptable odds column.
@@ -135,7 +135,7 @@ with open(f'betting/data/{date}_s7_gate_results.json') as f:
 ### 2. Upstream Data Quality
 - Verify every approved pick has: final odds, EV, safety score, risk tier
 - Check that no approved pick has odds drift >8% since gate approval
-- Verify sport diversity in approved set (≥5 sports expected)
+- Verify data quality in approved set (R14: FULL/PARTIAL for core coupons, MINIMAL → Extended Pool)
 - If odds changed significantly since S4 → recalculate coupon combined odds
 
 ### 3. Anomaly Detection & Reaction
@@ -248,7 +248,7 @@ You are a PORTFOLIO STRATEGIST. Coupon construction is not just math — it's st
 ### Self-Validation Before Returning
 1. **Arithmetic**: Multiply each leg's odds step-by-step for EVERY coupon. Combined odds match (±0.02). Return = combined odds × stake.
 2. **Unique Events**: Core portfolio has zero shared events between coupons. Verify by listing event per coupon.
-3. **Sport Diversity**: ≥5 sports across portfolio. If <5, request orchestrator to expand before finalizing.
+3. **Data Quality**: Only FULL/PARTIAL data quality picks in core coupons (R14). MINIMAL → Extended Pool. Sport diversity is informational (R4), not a gate.
 4. **R5 Compliance**: Statistical markets dominate (≥60% of legs). If >50% are ML/winner, flag and rebalance.
 5. **Exposure Limits**: Total stakes (core + combos) ≤25% bankroll. Per-pick concentration <60% of coupons.
 6. **V1-V10 Complete**: All 10 validation checks passed. List any exceptions with reasoning.

@@ -4,7 +4,7 @@ description: "S7: Bear case + Red Flags + Contrarian + 18-point Pick Approval Ga
 ---
 
 > **PERMANENT RULES (from copilot-instructions.md §NON-NEGOTIABLE):**
-> R3 NO AUTO-REJECTION: Gate assigns ADVISORY TIERS (STRONG/MODERATE/WEAK/FLAGGED). ALL candidates in matrix. Gate-failed → Extended Pool. R4 NO AGGRESSIVE NARROWING: §7.6 blocks S8 if <5 sports. R6 BETCLIC ADVISORY: Hit rates = informational. R7 TOURNAMENT PROTECTION: Tournament picks never penalized. R8 MINOR LEAGUE VALUE: Minor league picks never penalized. R11 SEQUENTIAL THINKING: One `sequentialthinking` PER CANDIDATE. R13 MAJOR DOMESTIC LEAGUE PROTECTION: Protected domestic leagues (Brasileirão, MLS, Liga MX, CSL, J-League, K-League, Saudi Pro, etc.) never penalized — they get +10 boost.
+> R3 NO AUTO-REJECTION: Gate assigns ADVISORY TIERS (STRONG/MODERATE/WEAK/FLAGGED). ALL candidates in matrix. Gate-failed → Extended Pool. R4 NO AGGRESSIVE NARROWING: Sport diversity = informational, never a gate. Data quality gate (R14) replaces sport diversity gate. R6 BETCLIC ADVISORY: Hit rates = informational. R7 TOURNAMENT PROTECTION: Tournament picks never penalized. R8 MINOR LEAGUE VALUE: Minor league picks never penalized. R11 SEQUENTIAL THINKING: One `sequentialthinking` PER CANDIDATE. R13 MAJOR DOMESTIC LEAGUE PROTECTION: Protected domestic leagues (Brasileirão, MLS, Liga MX, CSL, J-League, K-League, Saudi Pro, etc.) never penalized — they get +10 boost. R14 DATA DEPTH: Every candidate needs data_quality_score (FULL/PARTIAL/MINIMAL).
 
 # S7 — BEAR CASE + RED FLAGS + PICK GATE
 
@@ -41,7 +41,7 @@ PYTHONPATH=src python3 scripts/gate_checker.py --date {date} 2>&1 | tail -50
 
 **Step 2: RUN 48h repeat check:**
 ```bash
-python3 scripts/check_48h_repeats.py 2>&1 | tail -20
+# 48h repeat checking is integrated into gate_checker.py (no separate script needed)
 ```
 
 **Step 3: ADVERSARIAL THINKING** (use sequentialthinking per candidate — 5-part Deep Adversarial Reasoning):
@@ -53,13 +53,13 @@ The mechanical gate is just a STARTING POINT. Your job is:
 - **Bayesian update**: Given ALL S3-S6 evidence, what's the UPDATED probability?
 - **Zero Tolerance Shield**: 20+ patterns — verify with CONTEXT, not just mechanically
 
-**Step 4: RETURN verdict:** APPROVED/FLAGGED/REJECTED + tier_distribution + sport_diversity (≥5 sports in approved?)
+**Step 4: RETURN verdict:** APPROVED/FLAGGED/REJECTED + tier_distribution + sport_diversity (informational, not a gate per R4)
 
 ## Context (provided by orchestrator)
 
 - **Inputs**: `{date}_s5_context.md`, `{date}_s6_upset_risk.md`, all S3-S6 data
 - **Script**: `python3 scripts/gate_checker.py` (mechanical gate — starting point)
-- **48h repeat check**: `python3 scripts/check_48h_repeats.py`
+- **48h repeat check**: integrated into `gate_checker.py` (no separate script needed)
 - **ESPN player gamelogs** (basketball/hockey/baseball): Use to CHECK BEAR CASES. If bull case says "Team X scores 110+" but gamelogs show star player inconsistent (5/10 games under 20pts) → FRAGILE.
 - **Standings with streaks**: `standings` table has `streak` and `form` fields — use to verify momentum claims. "5-game win streak" must be verified in DB.
 - **Niche sport caches**: For darts/esports/table_tennis bear cases, verify against actual match data in cache (checkout% variance, map-side imbalance, set pattern breaks).

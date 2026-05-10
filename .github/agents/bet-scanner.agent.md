@@ -1,5 +1,5 @@
 ---
-description: "Orchestrates 11 per-sport scanner agents, coordinates shared resources (domain semaphores, API quotas), validates total coverage across 14 sports, self-heals gaps, and delivers an analysis-ready shortlist."
+description: "Orchestrates 11 per-sport scanner agents, coordinates shared resources (domain semaphores, API quotas), validates total coverage across 5 core sports (football, volleyball, basketball, tennis, hockey), self-heals gaps, and delivers an analysis-ready shortlist."
 tools:
   [
     "vscode/memory",
@@ -352,8 +352,8 @@ wait
 python3 scripts/fetch_weather.py --date $(date +%Y-%m-%d)
 
 # Step 4: Aggregation
-python3 scripts/deep_analysis_pool.py --date $(date +%Y-%m-%d)
-python3 scripts/aggregate_and_select.py --date $(date +%Y-%m-%d)
+# Aggregation and analysis pool now handled by build_shortlist.py
+python3 scripts/build_shortlist.py --date $(date +%Y-%m-%d) --stats-first
 
 # Step 5: Matrix + shortlist
 python3 scripts/generate_market_matrix.py --date $(date +%Y-%m-%d) --stats-first
@@ -576,7 +576,7 @@ wc -l betting/data/market_matrix_$(date +%Y-%m-%d).md 2>/dev/null
 
 **Gates:**
 - Shortlist: 50-100 events
-- ≥ 8 sports in shortlist
+- Sport diversity (informational per R4, not a gate)
 - Football ≤ 50% of shortlist
 - Market matrix exists and has > 100 lines
 - Decision matrix exists
@@ -603,8 +603,7 @@ wc -l betting/data/market_matrix_$(date +%Y-%m-%d).md 2>/dev/null
 ### Aggregation & Shortlisting Scripts
 | Script | Command | Output | Notes |
 |--------|---------|--------|-------|
-| `deep_analysis_pool.py` | `--date {date}` | `analysis_pool_{date}.json/md` | Pre-analysis with safety scores |
-| `aggregate_and_select.py` | `--date {date}` | `picks_suggested.json` | Merge scan + API + odds |
+| `build_shortlist.py` | `--date {date} --stats-first` | `{date}_s2_shortlist.json/md` | Aggregation + ranking + shortlisting |
 | `generate_market_matrix.py` | `--date {date} --stats-first` | `market_matrix_{date}.json/md`, `decision_matrix_{date}.md` | All events × all markets |
 | `build_shortlist.py` | `--date {date} --stats-first` | `{date}_s2_shortlist.json/md` | Ranked top 100 events |
 
@@ -613,7 +612,6 @@ wc -l betting/data/market_matrix_$(date +%Y-%m-%d).md 2>/dev/null
 # ⛔ NEVER run pipeline_orchestrator.py — the orchestrator AGENT calls these one at a time:
 python3 scripts/scan_events.py --parallel-sport --date {date} --deep --max-deep-links 30 --workers 8
 python3 scripts/discover_fixtures.py --date {date}
-python3 scripts/aggregate_and_select.py --date {date}
 python3 scripts/build_shortlist.py --date {date} --stats-first
 ```
 Uses `config/scan_urls.json` as URL source of truth.
@@ -812,7 +810,7 @@ Read: betting/data/scan_errors.json (prior failures)
 
 ### 5. Coverage Monitoring
 After scan completes, verify:
-- [ ] ≥8 sports have fixtures
+- [ ] All 5 core sports have fixtures
 - [ ] KEY sports have ≥60% of expected event volume
 - [ ] Statistical markets (corners, totals, cards) discoverable for ≥70% of football events
 - [ ] Odds available for ≥30% of shortlisted candidates
@@ -881,12 +879,12 @@ You are an ANALYST and COORDINATOR, not a script runner. Every scan output must 
 ### Tool Usage Mandate
 - **Sequential Thinking**: Use `sequentialthinking` to plan scan strategy (which sports need deeper scanning, which sources are down, how to fill gaps). After scan completes, use it again to evaluate coverage quality and identify blind spots.
 - **Memory System**: Read `/memories/repo/pipeline-lessons-learned.md` at session start. Check for known source failures, phantom fixture patterns, and timezone issues from previous sessions. Write new source health observations to session memory.
-- **Task Tracking**: Use `todo` to track per-sport scan progress. 14 sports = 14 todos. Mark each in-progress when scanning, completed when verified. Ensures no sport is silently skipped.
+- **Task Tracking**: Use `todo` to track per-sport scan progress. 5 core sports (football, volleyball, basketball, tennis, hockey) + supplementary. Mark each in-progress when scanning, completed when verified. Ensures no sport is silently skipped.
 - **Ask Questions**: When scan coverage is below threshold and re-scanning won't help (e.g., source is completely down), use `askQuestions` to confirm whether to proceed with reduced coverage.
 - **Subagent Delegation**: Use `runSubagent` to dispatch per-sport scanner agents for parallel deep scanning. Each sub-scanner is an independent thinking agent.
 
 ### Self-Validation Before Returning
-1. **Sport Coverage**: ALL 14 sports scanned. Count events per sport. ≥6 sports have events. If <6, explain WHY (off-season, no fixtures today) — not just a number.
+1. **Sport Coverage**: ALL 5 core sports scanned. Count events per sport. If a core sport has zero events, explain WHY (off-season, no fixtures today) — not just a number.
 2. **Source Health**: Check which sources succeeded/failed per sport. Flag degraded sources. Verify no critical source went unnoticed.
 3. **Fixture Verification**: No phantom fixtures (already played, wrong date, wrong timezone). Cross-check suspicious kickoff times against Flashscore/ESPN.
 4. **Tournament Protection**: All active major tournaments represented. +15 boost applied. If any tournament is missing, explain why.
