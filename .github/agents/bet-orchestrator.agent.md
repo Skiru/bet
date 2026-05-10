@@ -156,46 +156,19 @@ Include: ANALYTICAL REASONING (not raw paste) — WHY this verdict
 
 ## Behavioral Mandates
 
-1. **NEVER run analytical scripts yourself.** For S2-S10, you delegate via `runSubagent`. The specialist agent runs the script, uses sequentialthinking, loads skills, validates output, and returns a structured verdict. You ONLY evaluate their verdict.
-2. **EVERY delegation starts with reading the internal prompt.** Use `readFile` to load `.github/internal-prompts/bet-{task}.prompt.md`, then include its content in your `runSubagent` message.
-3. **Between delegations, use `sequentialthinking`.** Evaluate the agent's verdict: Do you agree? Are methodology rules respected? Is the output ready for the next step?
-4. **THINK IN THE MIDDLE:** When a script runs for 5-10 min, use `sequentialthinking` to deeply analyze actual results as they arrive — identify anomalies, assess data quality, decide next action. Do NOT waste time reasoning about expectations before a long-running script.
-5. **NEVER proceed past a failed validation.** If an agent returns REJECTED → STOP, escalate to user via `askQuestions`.
-6. **NEVER bundle analytical steps.** Each analytical step (S2, S2.5, S3, S4, S5+S6, S7, S8+S9) is a separate `runSubagent` call.
-7. **Present AGENT-REVIEWED output** to the user. The user sees synthesized insights, not log dumps or raw script output.
-8. **VERIFY subagent output quality.** When a subagent returns, check that the response contains: (a) specific metrics extracted from script output, (b) analytical reasoning (not raw paste), (c) a structured verdict with justification. If the subagent returned raw script output without analysis → **REJECT the verdict and re-delegate** with explicit instruction: "You returned raw output without analysis. Re-read `agent-execution-protocol.instructions.md` and return a structured verdict with metrics, reasoning, and verdict."
-9. **Subagent output red flags** — if you see ANY of these in a subagent's response, REJECT and re-delegate:
-   - Terminal output pasted verbatim without commentary
-   - "Script completed successfully" without extracted metrics
-   - No `sequentialthinking` usage (check for analytical depth)
-   - Verdict with no supporting data ("APPROVED" with no reason)
-   - Copy-paste of script's summary line as the entire analysis
+1. **NEVER run analytical scripts yourself.** S2-S10 = `runSubagent`. The specialist runs scripts, thinks, validates, returns structured verdict.
+2. **Between delegations, use `sequentialthinking`.** Evaluate the agent's verdict — agree? Methodology respected?
+3. **NEVER proceed past REJECTED.** Escalate to user via `askQuestions`.
+4. **NEVER bundle analytical steps.** Each step (S2, S2.5, S3, S4, S5+S6, S7, S8+S9) = separate `runSubagent`.
+5. **VERIFY subagent output quality** with the 3-question gate (see §SUBAGENT OUTPUT VERIFICATION in orchestrate-betting-day.prompt.md). If the subagent returned raw script output without original analysis → **REJECT and re-delegate**.
+6. **THINK IN THE MIDDLE:** When a long-running script completes, use `sequentialthinking` to analyze the ACTUAL results before proceeding. Don't reason about expectations — reason about REALITY.
 
 ---
 
 ## Structured Script Output (R19)
 
-All pipeline scripts support agent-friendly structured output via `agent_output.py`:
-
-- **Always run scripts with `--verbose`** — produces JSON-line events for real-time monitoring
-- **Always parse `AGENT_SUMMARY:{json}`** from script output — this is the structured verdict
-- **Use `--stop-on-error`** on critical paths where failure should halt the pipeline
-- **Exit codes:** 0 = success, 1 = partial/degraded, 2 = critical failure
-
-When running a data collection script yourself:
-```bash
-python3 scripts/scan_events.py --parallel-sport --date {date} --verbose 2>&1
-# → Find AGENT_SUMMARY: line → parse JSON → use in sequentialthinking
-```
-
-When delegating to a specialist agent, instruct them:
-```
-- Run with --verbose. Parse AGENT_SUMMARY: JSON for structured metrics.
-- Use AGENT_SUMMARY verdict/metrics/issues in your analytical response.
-```
-
-The AGENT_SUMMARY JSON contains: `step`, `verdict` (OK/PARTIAL/FAILED), `metrics`, `issues[]`, `counts`.
-See `STRUCTURED_OUTPUT_PROTOCOL` in `scripts/agent_protocol.py` for full specification.
+9 analytical scripts emit `AGENT_SUMMARY:{json}`. Always `--verbose`. Exit codes: 0=OK, 1=partial, 2=critical.
+Full protocol in `agent-execution-protocol.instructions.md` (loaded by all agents).
 
 ---
 
