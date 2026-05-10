@@ -383,23 +383,46 @@ def _record_source_health(
         print(f"[scan] DB source health error (non-fatal): {e}")
 
 
-def _run_parallel_sport_scan(betting_date: str) -> dict:
+def _run_parallel_sport_scan(betting_date: str, *, sport_filter: str | None = None,
+                             out: "AgentOutput | None" = None) -> dict:
     """Run all per-sport scanners in parallel with independent timeouts.
 
     This is the new parallel dispatch mode that replaces monolithic scanning.
     Each sport scanner runs independently with its own URL list and timeout.
+
+    Args:
+        betting_date: YYYY-MM-DD
+        sport_filter: If set, only run this sport's scanner (for targeted re-scans).
+        out: AgentOutput instance for structured agent monitoring.
     """
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
     sys.path.insert(0, str(BASE))
-    from scanners import get_all_scanners
+    from scanners import get_all_scanners, get_scanner
     from scanners.domain_semaphore import DomainSemaphoreMap
     from scanners.merge_results import merge_scan_results
 
     semaphore_map = DomainSemaphoreMap()
-    scanners = get_all_scanners()
 
-    print(f"[parallel-sport] Launching {len(scanners)} sport scanners for {betting_date}")
+    if sport_filter:
+        try:
+            scanners = [get_scanner(sport_filter)]
+        except ValueError:
+            msg = f"Unknown sport group: {sport_filter}. Available: football, tennis, basketball, volleyball, hockey"
+            if out:
+                out.error(msg, recoverable=False, sport=sport_filter)
+            else:
+                print(f"[parallel-sport] ✗ {msg}")
+            return {}
+    else:
+        scanners = get_all_scanners()
+
+    if out:
+        out.event("scan_start", scanners=len(scanners), date=betting_date,
+                  sport_filter=sport_filter or "all")
+    else:
+        print(f"[parallel-sport] Launching {len(scanners)} sport scanners for {betting_date}")
+
     results = {}
 
     with ThreadPoolExecutor(max_workers=len(scanners)) as executor:
@@ -417,18 +440,29 @@ def _run_parallel_sport_scan(betting_date: str) -> dict:
                     "urls_scanned": getattr(stats, "urls_scanned", 0),
                     "duration_sec": getattr(stats, "duration_sec", 0),
                 }
-                print(f"  ✓ {group}: {results[group]['events_found']} events")
+                if out:
+                    out.sport_done(group, **results[group])
+                else:
+                    print(f"  ✓ {group}: {results[group]['events_found']} events")
             except Exception as e:
                 results[group] = {"status": "failed", "error": str(e)}
-                print(f"  ✗ {group}: {e}")
+                if out:
+                    out.error(f"{group} scanner failed: {e}", recoverable=True, sport=group)
+                else:
+                    print(f"  ✗ {group}: {e}")
 
     # Merge all results into scan_summary.json
     merge_scan_results(betting_date)
-    print(f"[parallel-sport] All scanners complete. Results merged to scan_summary.json")
+    if out:
+        out.event("scan_merged", detail="Results merged to scan_summary.json")
+    else:
+        print(f"[parallel-sport] All scanners complete. Results merged to scan_summary.json")
     return results
 
 
 def main():
+    from agent_output import AgentOutput, add_agent_args, add_sport_filter_arg
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--urls", nargs="+", help="List of URLs to scan")
     parser.add_argument("--urls-file", help="JSON file with URL list (alternative to --urls)")
@@ -438,30 +472,46 @@ def main():
     parser.add_argument("--parallel-sport", action="store_true",
                         help="Use per-sport parallel scanner dispatch instead of monolithic scan")
     parser.add_argument("--date", help="Betting date (YYYY-MM-DD) for parallel-sport mode")
+    add_agent_args(parser)  # --verbose, --stop-on-error
+    add_sport_filter_arg(parser)  # --sport (filter to single sport for re-scans)
     args = parser.parse_args()
+
+    out = AgentOutput("s1_scan", verbose=args.verbose, stop_on_error=args.stop_on_error)
 
     # Parallel sport dispatch mode
     if args.parallel_sport:
         from datetime import date as date_cls
         betting_date = args.date or date_cls.today().isoformat()
-        results = _run_parallel_sport_scan(betting_date)
+        results = _run_parallel_sport_scan(betting_date, sport_filter=args.sport, out=out)
         total_events = sum(r.get("events_found", 0) for r in results.values() if r.get("status") == "completed")
         failed = [g for g, r in results.items() if r.get("status") == "failed"]
-        print(f"\n[parallel-sport] Summary: {total_events} events, {len(failed)} failed groups")
+        completed = [g for g, r in results.items() if r.get("status") == "completed"]
+
         if failed:
-            print(f"  Failed: {', '.join(failed)}")
+            for g in failed:
+                out.warning(f"Sport group failed: {g}", sport=g, error=results[g].get("error", ""))
 
         # Phase 2: Generate health report for agent-driven monitoring
-        print(f"\n[parallel-sport] Generating health report...")
         try:
             from scan_health_report import generate_health_report, print_health_dashboard, write_health_json
             report = generate_health_report(betting_date)
             write_health_json(report, betting_date)
-            print_health_dashboard(report)
+            if not args.verbose:
+                print_health_dashboard(report)
         except Exception as e:
-            print(f"[parallel-sport] WARNING: Health report generation failed: {e}")
+            out.warning(f"Health report generation failed: {e}")
 
-        return
+        # Final summary — agent reads this
+        out.summary(
+            verdict="FAILED" if len(failed) == len(results) else ("PARTIAL" if failed else "OK"),
+            metrics={
+                "total_events": total_events,
+                "sports_completed": completed,
+                "sports_failed": failed,
+                "per_sport": {g: r.get("events_found", 0) for g, r in results.items()},
+            },
+        )
+        sys.exit(2 if len(failed) == len(results) else (1 if failed else 0))
 
     # Legacy monolithic scan mode
     urls = []

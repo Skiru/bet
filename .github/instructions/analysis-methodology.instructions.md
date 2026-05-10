@@ -229,8 +229,8 @@ If the file is missing, run: `python3 scripts/parse_betclic_bets.py` (requires H
 **5-SPORT CHECKLIST (mandatory — check each):**
 - **CORE (deep league scan):** Football, Tennis, Basketball, Volleyball, Hockey.
 
-**Niche sport source fallback (BetExplorer returns empty for some sports):**
-Primary: Flashscore (fixtures + odds) → scores24.live (odds + trends) → OddsPortal. BetExplorer is EXPECTED to fail for niche sports — use the other sources.
+**Source fallback (BetExplorer returns empty for some sports):**
+Primary: Flashscore (fixtures + odds) → scores24.live (odds + trends) → OddsPortal. BetExplorer is EXPECTED to fail for some sports — use the other sources.
 
 ### §1.5 TIPSTER PRE-FETCH (MANDATORY — runs as part of STEP 1)
 
@@ -425,7 +425,7 @@ After automated generation, agent reviews and may adjust:
 
 Remove: outside betting window, no Tier A coverage, <2h to kickoff, already started, exhibitions.
 Prioritize: events WITH statistical markets (corners, totals, HC) over basic ML-only.
-**Early Betclic market hint:** For niche sports (volleyball, table tennis, padel, speedway), check Betclic market availability BEFORE deep analysis. If market doesn't exist on Betclic → don't waste analysis time.
+**Early Betclic market hint:** For less popular sports (volleyball), check Betclic market availability BEFORE deep analysis. If market doesn't exist on Betclic → don't waste analysis time.
 Preferred odds range: 1.30-3.50.
 **Target: 50-100 events across ≥3 sports in shortlist. S3 deep analysis narrows to ~35 best picks for coupon building.** No single sport >40%.
 
@@ -435,11 +435,11 @@ If after S7 gate fewer than 4 picks survive OR fewer than 5 sports are represent
 2. Process ALL of them through S3→S7 in sport-diverse batches (see §2.2). Priority: all 5 core sports with highest shortlist scores.
 3. Do NOT cherry-pick only "API-verified" or "easy" events. The shortlist was built from verified fixtures — they ALL deserve analysis.
 4. After expansion: re-check pick count AND sport diversity. If STILL <4 picks AND <5 sports after analyzing ALL shortlisted candidates → declare NO BET day.
-5. NEVER narrow expansion to a single sport or data source. If the shortlist has 25 football + 5 volleyball + 8 handball + 14 tennis candidates, the expansion MUST cover all four — not just the sport with easiest API data.
+5. NEVER narrow expansion to a single sport or data source. If the shortlist has 25 football + 5 volleyball + 14 tennis candidates, the expansion MUST cover all three — not just the sport with easiest API data.
 
 **Lesson (v4, 2026-04-29):** v4 had only 3 picks (below minimum 4) because PK-02 (Higgins frames) was dropped for Betclic line mismatch. The pipeline should have triggered expansion rather than producing coupons with only 3 picks.
 
-**Lesson (v4, 2026-04-30):** After S7 gate rejected all 3 initial core picks (2 phantom fixtures + 1 fabricated data), the emergency expansion only analyzed NBA playoffs + snooker + NHL — completely ignoring 25 football (UEL/UECL semifinals!), 5 volleyball (PlusLiga!), 8 handball (Bundesliga!), and 14 tennis candidates from the shortlist. 51K events were scraped but only ~8 got emergency analysis. The scan infrastructure was wasted.
+**Lesson (v4, 2026-04-30):** After S7 gate rejected all 3 initial core picks (2 phantom fixtures + 1 fabricated data), the emergency expansion only analyzed NBA playoffs + NHL — completely ignoring 25 football (UEL/UECL semifinals!), 5 volleyball (PlusLiga!), and 14 tennis candidates from the shortlist. 51K events were scraped but only ~8 got emergency analysis. The scan infrastructure was wasted.
 
 ### §2.2 S3 SPORT-DIVERSE BATCHING (MANDATORY — NEVER SKIP)
 
@@ -508,7 +508,6 @@ Target: ALL sports covered after Batch 1.
 - Picking corners? → Get H2H corner totals between these exact teams (last 3-5 meetings).
 - Picking total games in tennis? → Get H2H game totals between these exact players (last 3-5 meetings, surface-filtered).
 - Picking total points in basketball? → Get H2H combined scoring (last 3-5 meetings at this venue).
-- Picking frame totals in snooker? → Get H2H frame counts (last 3-5 meetings).
 
 **If H2H data for the SPECIFIC stat is unavailable:**
 1. Mark pick as `H2H-STAT-BLIND` in the analysis.
@@ -641,7 +640,7 @@ If the S2 shortlist has 100 candidates but S3 analysis is context-constrained, a
 
 ## STEP 3B: TIME-SENSITIVE DATA (run 2-3h before earliest event)
 
-1. **Lineups:** Flashscore (~1h), SportoweFakty for speedway (~2-3h), DailyFaceoff for NHL goalies.
+1. **Lineups:** Flashscore (~1h), DailyFaceoff for NHL goalies.
 2. **Late injuries:** ESPN, team social media, ATP/WTA Order of Play.
 3. **Weather:** Outdoor sports — run `python3 scripts/fetch_weather.py --date YYYY-MM-DD` (Open-Meteo API, free, no key) for automated weather data per venue. Covers temperature, precipitation, wind speed, conditions. Impact: rain → fewer corners/shots; wind → fewer goals; extreme heat → lower pace. If weather changed significantly since S3 → re-evaluate stat market direction.
 4. **Odds movement:** Compare current vs analysis-time. If Betclic moved >10% → recalculate EV.
@@ -653,7 +652,7 @@ If the S2 shortlist has 100 candidates but S3 analysis is context-constrained, a
 
 Check ≥2 ARGUMENT-BASED tipster sites per candidate. Read WRITTEN REASONING, not bare picks.
 
-**Sites:** ZawodTyper (PL), Typersi (PL), Meczyki (PL), OLBG (EN), PicksWise (EN), BetIdeas (EN), Sportsgambler (EN), Tipstrr (EN, verified ROI), GosuGamers (esports).
+**Sites:** ZawodTyper (PL), Typersi (PL), Meczyki (PL), OLBG (EN), PicksWise (EN), BetIdeas (EN), Sportsgambler (EN), Tipstrr (EN, verified ROI).
 
 **Sport-specific tipster fallback chains (try in order until ≥2 sources found):**
 
@@ -723,7 +722,7 @@ These are NOT auto-approved picks — they enter the watchlist with rich context
 
 ### §5.ALT STATS-FIRST MODE (when API odds are unavailable)
 
-When odds APIs don't cover an event (common for: table tennis, snooker, darts, esports, padel, speedway, minor leagues), use the STATS-FIRST workflow:
+When odds APIs don't cover an event (common for: minor leagues), use the STATS-FIRST workflow:
 
 1. **Complete S3 analysis normally** — safety scores, hit rates, three-way check all work WITHOUT odds.
 2. **Mark the pick as `MANUAL_ODDS_CHECK`** instead of calculating EV.

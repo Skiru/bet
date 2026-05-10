@@ -61,21 +61,18 @@ The script produces RAW DATA (safety scores, market rankings, probabilities). Yo
 - **Inputs**: `{date}_s2_shortlist.md`, `analysis_pool_{date}.json`
 - **Sport protocols**: `sport-analysis-protocols.instructions.md` (loaded via skill)
 - **Script**: `python3 scripts/deep_stats_report.py` (produces raw data as starting point)
-- **ESPN enrichment** (auto-loaded for basketball/hockey/baseball): player gamelogs (25.9K+), standings, ATS/OU records. The script outputs `espn_enrichment` in each candidate's analysis.
-- **Niche sport data** (auto-loaded for darts/esports/table_tennis): match-level stats from sport-specific caches. Dota2: kills, GPM, hero_damage; Darts: checkout%, 180s, avg; Table Tennis: set scores.
-- **DB loaders**: `load_espn_enrichment_for_team(name, sport)`, `load_player_gamelogs_for_team(name, sport)`, `load_sport_specific_cache(sport, name)` in `db_data_loader.py`
+- **ESPN enrichment** (auto-loaded for basketball/hockey): player gamelogs, standings, ATS/OU records. The script outputs `espn_enrichment` in each candidate's analysis.
+- **DB loaders**: `load_espn_enrichment_for_team(name, sport)`, `load_player_gamelogs_for_team(name, sport)` in `db_data_loader.py`
 
 ### Data Richness per Sport (USE THIS)
 
 | Sport | DB Data Available | Key Insight |
 |-------|------------------|-------------|
+| Football | 4160 athletes, 43K+ team form entries | Deepest form data — stat markets highly reliable |
 | Basketball (NBA) | 538 athletes × 10 gamelogs each, standings with form | Individual player consistency → team totals reliability |
 | Hockey (NHL) | 950 athletes × 10 gamelogs each, standings | Goalie save%, team scoring patterns by period |
-| Baseball (MLB) | 777 athletes × 4+ gamelogs each | Pitcher ERA/strikeouts → run totals confidence |
-| Football | 4160 athletes, 43K+ team form entries | Deepest form data — stat markets highly reliable |
-| Dota2 | 200 teams, 93 match details, H2H | Kill totals, GPM patterns, map-side analysis |
-| Darts | 182 matches, 15 player forms | Checkout%, 180s per match → leg totals |
-| Table Tennis | 273 matches, 24 forms | Set patterns, comeback frequency |
+| Volleyball | Team form entries, league profiles | Set patterns, serve/reception stats |
+| Tennis | Player rankings, surface-specific form | Surface splits, break point conversion |
 
 ## Workflow
 

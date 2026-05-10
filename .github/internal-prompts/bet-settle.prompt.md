@@ -43,7 +43,7 @@ Load these skills before starting:
 1. Run `python3 scripts/settle_on_finish.py --betting-day {yesterday}`
 2. For each pending pick: find result (Flashscore → verify Sofascore), resolve market (auto: 1X2/totals/BTTS/DC; manual: corners/cards/HC/MyCombi), update `picks-ledger.csv`
 3. For each pending coupon: all legs win = coupon win; void leg = recalculate odds; update `coupons-ledger.csv`
-4. US sports: `python3 scripts/fetch_odds_api.py --scores baseball,hockey`
+4. US sports: `python3 scripts/fetch_odds_api.py --scores hockey`
 
 ### 2. Historical Learning Query (§0.2 — MANDATORY)
 

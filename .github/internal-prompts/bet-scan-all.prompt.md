@@ -82,7 +82,7 @@ cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 scripts/scan_events.p
   --max-deep-links 30
 ```
 
-This launches all 11 scanners in parallel with independent timeouts:
+This launches all 5 scanners in parallel with independent timeouts:
 
 | Scanner Group | Agent to Delegate | Timeout | Min Events | Key Sources |
 |---------------|-------------------|---------|------------|-------------|
@@ -91,12 +91,6 @@ This launches all 11 scanners in parallel with independent timeouts:
 | basketball | `bet-scanner-basketball` | 5 min | 20 | basketball-reference, flashscore, covers |
 | volleyball | `bet-scanner-volleyball` | 5 min | 15 | flashscore, betexplorer, scores24 |
 | hockey | `bet-scanner-hockey` | 3 min | 10 | hockey-reference, flashscore, covers |
-| esports | `bet-scanner-esports` | 5 min | 5 | hltv (rate-limited!), flashscore |
-| handball | `bet-scanner-handball` | 3 min | 10 | flashscore, betexplorer, scores24 |
-| combat | `bet-scanner-combat` | 2 min | 1 | flashscore (UFC sporadic) |
-| racket | `bet-scanner-racket` | 3 min | 5 | flashscore, betexplorer |
-| niche | `bet-scanner-niche` | 5 min | 1 | flashscore, cuetracker, dartsorakel |
-| baseball | `bet-scanner-baseball` | 3 min | 5 | flashscore, covers (seasonal Apr-Oct) |
 
 **If the parallel command times out or fails**, run sport scanners individually:
 
@@ -147,8 +141,7 @@ from collections import Counter
 sports = Counter(r.sport for r in results)
 print('Per-sport event counts:')
 THRESHOLDS = {'football': 200, 'tennis': 30, 'basketball': 20, 'volleyball': 15,
-              'hockey': 10, 'handball': 10, 'esports': 5, 'baseball': 5,
-              'table_tennis': 3, 'padel': 2, 'mma': 1, 'snooker': 1, 'darts': 1, 'speedway': 1}
+              'hockey': 10}
 gaps = []
 for sport, count in sorted(sports.items(), key=lambda x: -x[1]):
     threshold = THRESHOLDS.get(sport, 1)
@@ -330,8 +323,9 @@ else:
 When you encounter issues that require sport-specific expertise:
 - **Football issues** → delegate to `bet-scanner-football` agent with the specific error
 - **Tennis/Elo issues** → delegate to `bet-scanner-tennis` agent
-- **HLTV/rate-limit issues** → delegate to `bet-scanner-esports` agent
-- **Niche sport calendar** → delegate to `bet-scanner-niche` agent
+- **Basketball issues** → delegate to `bet-scanner-basketball` agent
+- **Volleyball issues** → delegate to `bet-scanner-volleyball` agent
+- **Hockey issues** → delegate to `bet-scanner-hockey` agent
 
 Each sport agent has its own SKILL loaded (`bet-scanning-{sport}`) with source URLs, adapter mappings, and known issues. They know their domain better than you.
 

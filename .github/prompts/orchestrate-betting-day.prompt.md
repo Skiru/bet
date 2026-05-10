@@ -62,7 +62,7 @@ Print the pre-flight checklist:
 
 **What YOU do between steps:**
 - Use `sequentialthinking` to evaluate the agent's verdict — do you agree? Any red flags?
-- Check that methodology rules (R1-R12) are respected in the agent's output
+- Check that methodology rules (R1-R17) are respected in the agent's output
 - Verify sport diversity, statistical market coverage, and gate compliance
 - **VERIFY SUBAGENT OUTPUT QUALITY** (see §SUBAGENT OUTPUT VERIFICATION below)
 
@@ -79,6 +79,49 @@ Print the pre-flight checklist:
 - Simple validation one-liners: file existence, line counts, JSON key checks
 - `validate_phase.py` (quick sanity gate between phases)
 - `web_research_agent.py` — L7 fallback for missing H2H/injuries (R15)
+
+---
+
+## ⛔ TERMINAL EXECUTION RULES (R17 — NO POLLING)
+
+**NEVER poll terminals.** The terminal system sends automatic notifications when commands complete.
+
+- **Long-running scripts (scan, fetch, enrich):** Use `mode=sync` with generous timeout (600000ms for 10-min scripts, longer for big jobs). The command completes before control returns. If it times out, you get a terminal ID and auto-notification when it finishes.
+- **Background processes (servers, watchers):** Use `mode=async`. Returns terminal ID immediately.
+- **While a script runs:** Do PRODUCTIVE WORK — `sequentialthinking`, read files, plan next steps, review Betclic history. Do NOT burn context on `get_terminal_output` / `ps -p` / `tail -40` polling loops.
+- **BANNED commands:** `sleep`, `ps -p {pid}`, repeated `get_terminal_output` calls, `tail -N` on buffered terminals to check completion status.
+- **Violation = pipeline failure.**
+
+---
+
+## §STRUCTURED SCRIPT OUTPUT — ALL scripts are agent-aware (R18)
+
+Every pipeline script supports structured output for agent consumption:
+
+**Flags available on ALL scripts:**
+- `--verbose` / `-v` — JSON-line events for real-time monitoring (progress, warnings, errors, per-candidate data)
+- `--stop-on-error` — Halt on first critical error instead of log-and-continue
+
+**AGENT_SUMMARY protocol:**
+- Every script emits a final line: `AGENT_SUMMARY:{json}` — ALWAYS, in both verbose and non-verbose mode
+- The JSON contains: `step`, `verdict` (OK/PARTIAL/FAILED), `metrics`, `issues[]`, `counts`
+- **Agents MUST parse this line** after every script run — it's the structured verdict
+- Exit codes: 0 = success, 1 = partial/degraded, 2 = critical failure (stop-on-error triggered)
+
+**How to use in delegation:**
+```
+# When running a script yourself (S0, S1 data collection):
+python3 scripts/scan_events.py --parallel-sport --date {date} --verbose 2>&1
+# → Parse AGENT_SUMMARY from output → use metrics in your sequentialthinking
+
+# When delegating to a specialist agent (S2-S10 analysis):
+# Tell the agent to run with --verbose and parse AGENT_SUMMARY:
+# "Run with --verbose. Parse the AGENT_SUMMARY JSON for your verdict metrics."
+```
+
+**Scripts with --sport filter** (for targeted re-runs):
+- `scan_events.py --sport football` — re-scan single sport
+- `tipster_aggregator.py --sport tennis` — re-fetch tipster data for one sport
 
 ---
 
@@ -145,7 +188,7 @@ python3 scripts/data_rotation.py --execute --days 30 2>&1 | tail -10
 python3 scripts/scan_events.py --parallel-sport --date {date} --deep --max-deep-links 30 --workers 8 2>&1 | tail -60
 ```
 
-**WHILE RUNNING:** Check output periodically. Look for per-sport completion messages.
+**WHILE RUNNING:** The terminal will auto-notify when the scan completes. Do NOT poll with `get_terminal_output` or `ps -p` — use the waiting time for productive work (read shortlist files from yesterday, review Betclic history, plan next steps with `sequentialthinking`). R17: NO TERMINAL POLLING.
 
 **AFTER scan completes — Delegate to bet-scanner** (read `.github/internal-prompts/bet-scan.prompt.md` first):
 
@@ -581,10 +624,10 @@ get_terminal_output(terminal_id) → final output
 sequentialthinking: "FULL ANALYSIS — 5 sports scanned, 234 total events. Tennis=0 (FAILED), need retry..."
 ```
 
-**⛔ ANTI-PATTERN: Running a 10-minute scan in sync mode and waiting silently = FORBIDDEN**
+**⛔ ANTI-PATTERN: Running a long script and then polling for completion with `get_terminal_output`/`ps -p`/`tail` = FORBIDDEN (R17)**
 
 ---
-## RULES ENFORCEMENT (R1-R12)
+## RULES ENFORCEMENT (R1-R17)
 
 | Rule | What to check | When |
 |------|--------------|------|
@@ -602,6 +645,7 @@ sequentialthinking: "FULL ANALYSIS — 5 sports scanned, 234 total events. Tenni
 | R14 DATA DEPTH | data_quality_score computed per candidate. FULL/PARTIAL only in core coupons | S3, S7, S8 |
 | R15 WEB RESEARCH | Missing H2H/injuries → spawn web_research_agent.py. Max 5 SerpAPI + 10 Playwright | S2.5, S3 |
 | R16 LIVE WINDOW | 06:00→05:59 next day. Events ≤1h to kickoff or in-play = LIVE, include in scan | S1, S1e |
+| R17 NO TERMINAL POLLING | NEVER poll terminals. Use `mode=sync` + generous timeout. Auto-notification on completion. Do productive work while waiting. | ALL |
 
 ---
 
@@ -674,7 +718,7 @@ python3 scripts/validate_coupons.py betting/coupons/{date}*.md --format json
 
 # Individual tools:
 python3 scripts/analyze_betclic_learning.py
-python3 scripts/fetch_odds_api.py [--scores baseball,hockey]
+python3 scripts/fetch_odds_api.py [--scores hockey]
 python3 scripts/settle_on_finish.py --betting-day YYYY-MM-DD
 ```
 

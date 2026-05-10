@@ -101,8 +101,13 @@ def _save_html(domain: str, html: str) -> Path:
     return p
 
 
-def fetch(url: str, headless: bool = True, timeout: int = 30, retries: int = 2, save_snapshot: bool = True) -> str:
+def fetch(url: str, headless: bool = True, timeout: int = 30, retries: int = 2,
+          save_snapshot: bool = True, wait_after_load: int = 500) -> str:
     """Fetch a page using Playwright and return HTML content.
+
+    Args:
+        wait_after_load: milliseconds to wait after page load for JS to render (default 500).
+                         Set higher for JS-heavy sites (e.g., 3000 for SPAs).
 
     Raises ImportError if Playwright is not installed.
     """
@@ -116,6 +121,7 @@ def fetch(url: str, headless: bool = True, timeout: int = 30, retries: int = 2, 
         raise ImportError("playwright.sync_api not available. Install 'playwright' and run 'playwright install chromium'.")
 
     last_exc = None
+    _fetch_start = time.time()
     for attempt in range(1, retries + 1):
         try:
             with sync_playwright() as p:
@@ -135,15 +141,21 @@ def fetch(url: str, headless: bool = True, timeout: int = 30, retries: int = 2, 
                         json.load(open(storage_file))
                         context_kwargs["storage_state"] = str(storage_file)
                     except (json.JSONDecodeError, Exception) as e:
-                        print(f"[fetch_with_playwright] corrupt storage state {storage_file}, removing: {e}", file=sys.stderr)
+                        print(f"[fetch_with_playwright] corrupt storage state {storage_file}, removing: {e}", flush=True)
                         storage_file.unlink(missing_ok=True)
 
                 ctx = browser.new_context(**context_kwargs)
                 page = ctx.new_page()
                 try:
                     page.goto(url, wait_until="domcontentloaded", timeout=int(timeout * 1000))
-                except Exception:
-                    page.goto(url, wait_until="load", timeout=int(timeout * 1000))
+                except Exception as goto_exc:
+                    # Don't double timeout — use remaining budget only
+                    elapsed_ms = int((time.time() - _fetch_start) * 1000)
+                    remaining_ms = max(int(timeout * 1000) - elapsed_ms, 3000)
+                    try:
+                        page.goto(url, wait_until="load", timeout=remaining_ms)
+                    except Exception:
+                        raise goto_exc  # report original error
 
                 # try to click known cookie/consent selectors
                 for sel in selectors:
@@ -168,7 +180,7 @@ def fetch(url: str, headless: bool = True, timeout: int = 30, retries: int = 2, 
                     pass
 
                 try:
-                    page.wait_for_timeout(1200)
+                    page.wait_for_timeout(wait_after_load)  # settle time for JS rendering
                 except Exception:
                     pass
 
@@ -176,7 +188,7 @@ def fetch(url: str, headless: bool = True, timeout: int = 30, retries: int = 2, 
 
                 # CAPTCHA / challenge detection
                 if _is_captcha_page(content):
-                    print(f"  ⚠ CAPTCHA detected on {url} (attempt {attempt})", file=sys.stderr)
+                    print(f"  ⚠ CAPTCHA detected on {url} (attempt {attempt})", flush=True)
                     browser.close()
                     if _proxies and attempt < retries:
                         time.sleep(1)
@@ -197,8 +209,8 @@ def fetch(url: str, headless: bool = True, timeout: int = 30, retries: int = 2, 
 
         except Exception as e:
             last_exc = e
-            print(f"[fetch_with_playwright] attempt {attempt} failed: {e}", file=sys.stderr)
-            time.sleep(1)
+            print(f"[fetch_with_playwright] attempt {attempt} failed: {e}", flush=True)
+            time.sleep(0.5)
             continue
 
     raise RuntimeError(f"All attempts to fetch {url} failed: {last_exc}")

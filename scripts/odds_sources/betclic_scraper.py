@@ -25,18 +25,10 @@ SPORT_URLS = {
     "basketball": "https://www.betclic.pl/koszykowka-s4",
     "volleyball": "https://www.betclic.pl/siatkowka-s18",
     "hockey": "https://www.betclic.pl/hokej-na-lodzie-s13",
-    "handball": "https://www.betclic.pl/pilka-reczna-s9",
-    "baseball": "https://www.betclic.pl/baseball-s14",
-    "esports": "https://www.betclic.pl/esport-s42",
-    "mma": "https://www.betclic.pl/sporty-walki-s15",
-    "snooker": "https://www.betclic.pl/snooker-s36",
-    "darts": "https://www.betclic.pl/rzutki-s33",
-    "table_tennis": "https://www.betclic.pl/tenis-stolowy-s37",
 }
 
 TWO_WAY_SPORTS = {
-    "tennis", "basketball", "volleyball", "handball", "baseball",
-    "table_tennis", "esports", "mma", "snooker", "darts",
+    "tennis", "basketball", "volleyball",
 }
 
 

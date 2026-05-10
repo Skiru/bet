@@ -4,7 +4,7 @@ Registers per-sport ESPN clients (espn-football, espn-basketball, etc.)
 that conform to the scripts/api_clients interface (NormalizedFixture/NormalizedMatchStats).
 
 ESPN is FREE, unlimited, no API key. Covers football (36+ leagues),
-basketball (NBA/WNBA), hockey (NHL), baseball (MLB).
+basketball (NBA/WNBA), hockey (NHL), tennis (ATP/WTA), volleyball (FIVB).
 """
 
 import sys
@@ -31,7 +31,7 @@ class ESPNMultiLeagueClient(BaseAPIClient):
     """ESPN adapter that tries all leagues for a sport.
 
     For football, iterates through 36+ leagues to find teams.
-    For basketball/hockey/baseball, there's only 1-2 leagues.
+    For basketball/hockey/tennis/volleyball, there's only 1-2 leagues.
     """
 
     def __init__(self, sport: str, rate_limiter: RateLimiter):
@@ -356,16 +356,8 @@ def _make_espn_hockey(rate_limiter: RateLimiter) -> ESPNMultiLeagueClient:
     return ESPNMultiLeagueClient(sport="hockey", rate_limiter=rate_limiter)
 
 
-def _make_espn_baseball(rate_limiter: RateLimiter) -> ESPNMultiLeagueClient:
-    return ESPNMultiLeagueClient(sport="baseball", rate_limiter=rate_limiter)
-
-
 def _make_espn_tennis(rate_limiter: RateLimiter) -> ESPNMultiLeagueClient:
     return ESPNMultiLeagueClient(sport="tennis", rate_limiter=rate_limiter)
-
-
-def _make_espn_mma(rate_limiter: RateLimiter) -> ESPNMultiLeagueClient:
-    return ESPNMultiLeagueClient(sport="mma", rate_limiter=rate_limiter)
 
 
 def _make_espn_volleyball(rate_limiter: RateLimiter) -> ESPNMultiLeagueClient:
@@ -377,8 +369,6 @@ ESPN_FACTORIES = {
     "espn-football": _make_espn_football,
     "espn-basketball": _make_espn_basketball,
     "espn-hockey": _make_espn_hockey,
-    "espn-baseball": _make_espn_baseball,
     "espn-tennis": _make_espn_tennis,
-    "espn-mma": _make_espn_mma,
     "espn-volleyball": _make_espn_volleyball,
 }

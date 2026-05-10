@@ -41,9 +41,9 @@ Load these skills before starting:
 
 ### 1. Lineup & Injury Verification (§3B.1)
 
-Per-sport verification: Football (lineups ~1h before), Tennis (not withdrawn?), Hockey (goalie CONFIRMED via DailyFaceoff), Basketball (injury report), Baseball (pitcher confirmed), Speedway (full lineup), others as applicable.
+Per-sport verification: Football (lineups ~1h before), Tennis (not withdrawn?), Hockey (goalie CONFIRMED via DailyFaceoff), Basketball (injury report), Volleyball (starting setter confirmed).
 
-**Key actions**: Surprise benching → recalculate. Goalie change → void totals. Pitcher change → void immediately.
+**Key actions**: Surprise benching → recalculate. Goalie change → void totals.
 
 ### 2. Weather Check (§3B.2)
 

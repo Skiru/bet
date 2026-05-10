@@ -45,7 +45,7 @@ Run the parallel sport scanner:
 python3 scripts/scan_events.py --parallel-sport --urls-file config/scan_urls.json --deep --date {date}
 ```
 
-This runs per-sport parallel scanning (11 sport groups, independent timeouts). If it times out, use `--resume` or run individual sport scanners manually.
+This runs per-sport parallel scanning (5 sport groups, independent timeouts). If it times out, use `--resume` or run individual sport scanners manually.
 
 **VALIDATE Phase 1** — Run these checks immediately after scan completes:
 
@@ -70,7 +70,7 @@ The pipeline already ran enrichment in parallel (stats, odds, weather). Now VALI
            print(f'{row[0]:15s}: {row[1]} teams')
    "
    ```
-   Gates: Football ≥100, Tennis ≥100, Basketball ≥10, Hockey ≥10. **Flag volleyball/handball if 0.**
+   Gates: Football ≥100, Tennis ≥100, Basketball ≥10, Hockey ≥10. **Flag volleyball if 0.**
 
 2. **Stats depth** — Sample 2-3 teams per KEY sport, check stat key count:
    - Football should have 28+ keys (ESPN source)
@@ -88,7 +88,6 @@ The pipeline already ran enrichment in parallel (stats, odds, weather). Now VALI
 
 If enrichment validation found gaps:
 - **Volleyball cache empty**: Run `python3 scripts/fetch_api_stats.py --date {date} --sports volleyball`
-- **Handball cache empty**: Run `python3 scripts/fetch_api_stats.py --date {date} --sports handball`
 - **Stats too shallow (< 10 keys for football)**: Check API source — ESPN should give 28+, API-Football only 10
 - **All enrichment failed**: Check API rate limits at `scripts/api_clients/.rate_limit_state/`
 
@@ -106,7 +105,7 @@ Save to: `betting/data/{date}_s1_scan_report.md`
 
 Include all sections from the agent's report format:
 1. Scan Summary (events, URLs, domains, errors, duration)
-2. Sport Coverage table (14 rows: events, sources, cache files, stat keys, H2H, status)
+2. Sport Coverage table (5 rows: events, sources, cache files, stat keys, H2H, status)
 3. Enrichment Health (stats/odds/weather coverage percentages)
 4. Data Quality Issues (every issue found with severity and workaround)
 5. Shortlist Summary (count, sports, top events)
@@ -118,7 +117,7 @@ Include all sections from the agent's report format:
 |---|-------|------|
 | 01 | All 5 core sports have entries in `scan_run_stats` | Required |
 | 02 | Per-sport event counts reasonable (football ≥200, tennis ≥100) | Required |
-| 03 | ≥ 6 sports with active events | Required |
+| 03 | ≥ 3 sports with active events | Required |
 | 04 | Every sport from ≥2 sources (`sources_ok` ≥ 2) | Required |
 | 05 | KEY sports have deep tournament coverage | Required |
 | 06 | DB `scan_results` populated for today's `betting_date` | Required |

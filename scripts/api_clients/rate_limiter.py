@@ -19,8 +19,6 @@ API_DAILY_LIMITS = {
     "api-hockey": 100,
     "api-tennis": 100,       # shares api-sports.io quota with api-football
     "api-volleyball": 100,   # shares api-sports.io quota with api-football
-    "api-handball": 100,     # shares api-sports.io quota with api-football
-    "api-baseball": 100,     # shares api-sports.io quota with api-football
     "football-data-org": 1000,
     "balldontlie": 1000,
     "thesportsdb": 100,
@@ -36,14 +34,8 @@ API_DAILY_LIMITS = {
     "espn-football": 10000,
     "espn-basketball": 10000,
     "espn-hockey": 10000,
-    "espn-baseball": 10000,
     "espn-tennis": 10000,
-    "espn-mma": 10000,
-    # Deep stats clients (free, generous limits)
-    "sofascore-darts": 500,   # No official limit, be respectful
-    "snooker-org": 1000,      # Free API, generous
-    "opendota": 1000,         # 60/min without key
-    "ittf": 300,              # Sofascore-backed, be conservative
+    "espn-volleyball": 10000,
 }
 
 USAGE_DIR = Path(__file__).parent.parent.parent / "betting" / "data" / ".api_usage"

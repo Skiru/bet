@@ -24,10 +24,8 @@ SEARCH_TEMPLATES = {
     "football": "{team} football statistics last 10 matches",
     "basketball": "{team} basketball statistics season",
     "hockey": "{team} NHL statistics season",
-    "baseball": "{team} MLB statistics season",
     "tennis": "{player} tennis statistics ATP WTA",
     "volleyball": "{team} volleyball statistics",
-    "handball": "{team} handball statistics",
 }
 
 

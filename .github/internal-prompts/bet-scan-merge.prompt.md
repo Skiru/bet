@@ -180,8 +180,8 @@ python3 scripts/generate_market_matrix.py --date $(date +%Y-%m-%d) --stats-first
 
 **If any core sport has 0 events in shortlist:**
 - Check which sports are missing
-- Seasonal gaps (baseball off-season, combat no-event-today) are acceptable
-- If a Tier 1 sport is missing, that's a real problem — check its scanner report
+- Seasonal gaps are acceptable for some sports on certain days
+- If a Tier 1 sport (football, volleyball, basketball, tennis, hockey) is missing, that's a real problem — check its scanner report
 
 ## TROUBLESHOOTING
 

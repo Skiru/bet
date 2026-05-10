@@ -12,9 +12,7 @@ ODDS_RE = re.compile(r"\b\d+\.\d{2}\b")
 
 # Sports where OddsPortal shows 2-way odds (no draw)
 _TWO_WAY_URL_PATTERNS = (
-    "/tennis/", "/basketball/", "/volleyball/", "/handball/",
-    "/baseball/", "/table-tennis/", "/esports/", "/mma/",
-    "/snooker/", "/darts/", "/padel/", "/speedway/",
+    "/tennis/", "/basketball/", "/volleyball/",
 )
 
 

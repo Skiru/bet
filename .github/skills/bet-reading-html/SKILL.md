@@ -20,7 +20,7 @@ DB enrichment: scan_results.raw_data + team_form
 
 **Script:** `python3 scripts/html_deep_parser.py --date YYYY-MM-DD [--domains dom1,dom2] [--dry-run] [--report]`
 
-**Profiles configured:** flashscore.com, totalcorner.com, soccerstats.com, forebet.com, betexplorer.com, covers.com, basketball-reference.com, hockey-reference.com, hltv.org, betclic.pl, tennisexplorer.com
+**Profiles configured:** flashscore.com, totalcorner.com, soccerstats.com, forebet.com, betexplorer.com, covers.com, basketball-reference.com, hockey-reference.com, betclic.pl, tennisexplorer.com
 
 ## Per-Domain Extraction Guide
 
@@ -136,18 +136,6 @@ Regex: (\d+)\s*-\s*(\d+)\s*\((\d+)\s*-\s*(\d+)\)
 - Basketball: `pts_per_g`, `fg_pct`, `trb_per_g`, `ast_per_g`, `stl_per_g`, `blk_per_g`, `tov_per_g`
 - Hockey: `goals`, `assists`, `pts`, `goals_against`, `save_pct`, `shutouts`
 
-### hltv.org (Esports — CS2)
-
-**Snapshot location:** `betting/data/hltv.org/*.html`
-**Critical for:** Match format (BO1/BO3/BO5), team rankings, tournament context
-
-**Key patterns:**
-- Match containers: classes containing `match`, `upcomingMatch`
-- Format: classes with `bestof` or text matching `bo\d`
-- Team rankings: classes with `rank`
-- Tournament/event: classes with `event`, `tournament`
-- Star ratings indicate match importance
-
 ### tennisexplorer.com (Tennis)
 
 **Snapshot location:** `betting/data/tennisexplorer.com/*.html`
@@ -182,8 +170,7 @@ Regex: (\d+)\s*-\s*(\d+)\s*\((\d+)\s*-\s*(\d+)\)
 ### During S3 deep stats (bet-statistician agent)
 1. When a candidate is missing corner/card/foul averages, check TotalCorner and SoccerStats HTML
 2. When a tennis match needs surface info, check TennisExplorer HTML
-3. When an esports match needs format info, check HLTV HTML
-4. Use flashscore_match_id for programmatic H2H lookups
+3. Use flashscore_match_id for programmatic H2H lookups
 
 ### For self-healing (any scanner agent in healing mode)
 1. If a source failed during scan but HTML was partially saved → deep-parse what exists

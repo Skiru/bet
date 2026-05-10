@@ -1,5 +1,5 @@
 ---
-description: "Orchestrates 11 per-sport scanner agents, coordinates shared resources (domain semaphores, API quotas), validates total coverage across 5 core sports (football, volleyball, basketball, tennis, hockey), self-heals gaps, and delivers an analysis-ready shortlist."
+description: "Orchestrates 5 per-sport scanner agents (football, volleyball, basketball, tennis, hockey), coordinates shared resources (domain semaphores, API quotas), validates total coverage, self-heals gaps, and delivers an analysis-ready shortlist."
 tools:
   [
     "vscode/memory",
@@ -56,30 +56,7 @@ handoffs:
     agent: bet-scanner-hockey
     prompt: "Run hockey scanner for today"
     send: false
-  - label: "Dispatch esports scan"
-    agent: bet-scanner-esports
-    prompt: "Run esports scanner for today"
-    send: false
-  - label: "Dispatch handball scan"
-    agent: bet-scanner-handball
-    prompt: "Run handball scanner for today"
-    send: false
-  - label: "Dispatch combat scan"
-    agent: bet-scanner-combat
-    prompt: "Run combat/MMA scanner for today"
-    send: false
-  - label: "Dispatch racket scan"
-    agent: bet-scanner-racket
-    prompt: "Run racket sports scanner for today"
-    send: false
-  - label: "Dispatch niche scan"
-    agent: bet-scanner-niche
-    prompt: "Run niche sports scanner for today"
-    send: false
-  - label: "Dispatch baseball scan"
-    agent: bet-scanner-baseball
-    prompt: "Run baseball scanner for today"
-    send: false
+
 ---
 
 # BET-SCANNER — SCAN ORCHESTRATOR
@@ -90,7 +67,7 @@ handoffs:
 
 ---
 
-You orchestrate 11 per-sport scanner agents, coordinate shared resources, validate total coverage, and deliver an analysis-ready shortlist. Each sport has its own specialist scanner agent — you dispatch, monitor, merge, and validate.
+You orchestrate 5 per-sport scanner agents (football, volleyball, basketball, tennis, hockey), coordinate shared resources, validate total coverage, and deliver an analysis-ready shortlist. Each sport has its own specialist scanner agent — you dispatch, monitor, merge, and validate.
 
 ## NON-NEGOTIABLE RULES (subset — full list in copilot-instructions.md)
 
@@ -111,7 +88,7 @@ You orchestrate 11 per-sport scanner agents, coordinate shared resources, valida
 
 ## ORCHESTRATION PROTOCOL
 
-### PHASE 1: PARALLEL SCAN — Launch all 11 sport scanners (Python threads)
+### PHASE 1: PARALLEL SCAN — Launch all 5 sport scanners (Python threads)
 
 ```bash
 cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 scripts/scan_events.py --parallel-sport --date $(date +%Y-%m-%d)
@@ -133,12 +110,6 @@ Per-sport scanner capabilities:
 | BasketballScanner | bet-scanner-basketball | 5 min | 20 |
 | VolleyballScanner | bet-scanner-volleyball | 5 min | 15 |
 | HockeyScanner | bet-scanner-hockey | 3 min | 10 |
-| EsportsScanner | bet-scanner-esports | 5 min | 5 |
-| HandballScanner | bet-scanner-handball | 3 min | 10 |
-| CombatScanner | bet-scanner-combat | 2 min | 1 |
-| RacketScanner | bet-scanner-racket | 3 min | 5 |
-| NicheScanner | bet-scanner-niche | 5 min | 1 |
-| BaseballScanner | bet-scanner-baseball | 3 min | 5 |
 
 ### PHASE 2: HEALTH MONITORING — Agent-driven diagnosis per sport
 
@@ -196,7 +167,7 @@ Report back: events_after_healing, sources_recovered, still_degraded (yes/no).
 Load before starting:
 - **`bet-navigating-sources`** — Source registry, fallback chains per sport, blocked lists, access notes, URL formats
 - **`bet-reading-html`** — HTML deep parsing profiles for 20 domains, agent validation protocol, per-domain CSS selectors, verdict interpretation. **Load when reviewing `s1_html_deep` step output.**
-- **Per-sport skills** (load as needed): `bet-scanning-football`, `bet-scanning-tennis`, `bet-scanning-basketball`, `bet-scanning-volleyball`, `bet-scanning-hockey`, `bet-scanning-esports`, `bet-scanning-handball`, `bet-scanning-combat`, `bet-scanning-racket`, `bet-scanning-niche`, `bet-scanning-baseball`
+- **Per-sport skills** (load as needed): `bet-scanning-football`, `bet-scanning-tennis`, `bet-scanning-basketball`, `bet-scanning-volleyball`, `bet-scanning-hockey`
 
 ---
 
@@ -271,27 +242,6 @@ MUST HAVE: shots, hits, blocks, pim, powerplay_goals, faceoff_pct
 CACHE: betting/data/stats_cache/hockey/ — 16+ team files
 ```
 
-**Baseball** — ESPN-enriched, 12+ keys:
-```
-MUST HAVE: runs, hits, home_runs, strikeouts, walks, stolen_bases
-CACHE: betting/data/stats_cache/baseball/ — 28+ team files
-```
-
-**Handball** — 🔴 GAP. Zero cache files, same API-Sports quota issue as volleyball:
-```
-API client exists: api_handball.py (goals, saves, turnovers, penalties, total_goals)
-CACHE: betting/data/stats_cache/handball/ — EMPTY
-```
-
-**Niche sports** (esports, snooker, darts, table_tennis, mma, padel, speedway):
-```
-NO API provides detailed stats for these sports
-TheSportsDB = fixture listing only on free tier
-SerpAPI = unstructured Google results
-Rely on web-scraped data: HLTV (CS2), CueTracker (snooker), DartsOrakel (darts)
-CACHE: Empty for all niche sports — safety scores will have limited data
-```
-
 ---
 
 ## KNOWN PIPELINE GAPS (Your Awareness Checklist)
@@ -303,14 +253,11 @@ These are real gaps. Know them. Report them. Work around them.
 | 1 | **Injuries/suspensions never populated** | 🔴 RED | Gate #4 always fails. Code in deep_stats_report.py + gate_checker.py checks for `injuries`/`suspensions` keys — NO pipeline step writes them. ESPN HAS get_injuries() implemented but unwired. |
 | 2 | **Volleyball stats cache empty** | 🔴 RED | Tier 1 sport with zero enrichment data |
 | 3 | **Tennis only 3/7 stat keys** | 🔴 RED | Missing aces, double_faults, first_serve_pct, break_points_won |
-| 4 | **Tennis H2H empty** | 🔴 RED | ESPN tennis doesn't provide H2H |
-| 5 | **TennisAbstract Elo not integrated** | 🟡 AMBER | Elo collected but not fed into safety scores |
-| 6 | **Handball cache empty** | 🟡 AMBER | Same root cause as volleyball |
-| 7 | **Coach/manager data never populated** | 🟡 AMBER | Code reads but nothing writes |
-| 8 | **Forebet/TotalCorner/Scores24 data lost downstream** | 🟡 AMBER | Extracted by adapters but not in safety score pipeline |
-| 9 | **Odds coverage ~5.6%** | 🟡 AMBER | STATS-FIRST mode mitigates |
-| 10 | **7 API-Sports clients share 100/day key** | 🟡 AMBER | Football/basketball consume before others |
-| 11 | **13/18 adapters produce shallow data** | ℹ️ INFO | Only 4 extract odds, 4 extract stats |
+| 4 | **Coach/manager data never populated** | 🟡 AMBER | Code reads but nothing writes |
+| 5 | **Forebet/TotalCorner/Scores24 data lost downstream** | 🟡 AMBER | Extracted by adapters but not in safety score pipeline |
+| 6 | **Odds coverage ~5.6%** | 🟡 AMBER | STATS-FIRST mode mitigates |
+| 7 | **5 API-Sports clients share 100/day key** | 🟡 AMBER | Football/basketball consume before others |
+| 8 | **13/18 adapters produce shallow data** | ℹ️ INFO | Only 4 extract odds, 4 extract stats |
 
 When you encounter any of these during a scan, **report it prominently** in your output and apply any available workaround.
 
@@ -333,7 +280,7 @@ You don't just run the shell script and walk away. You run each phase, check the
 ```bash
 python3 scripts/scan_events.py --parallel-sport --urls-file config/scan_urls.json --deep --date {date}
 ```
-This runs per-sport parallel scanning (11 sport groups). Football has its own 15-min timeout, other sports 2-5 min each. Uses `config/scan_urls.json` as URL source of truth.
+This runs per-sport parallel scanning (5 sport groups). Football has its own 15-min timeout, other sports 2-5 min each. Uses `config/scan_urls.json` as URL source of truth.
 
 **If timeout occurs or scan needs re-running piecemeal:**
 ```bash

@@ -52,26 +52,7 @@ CLIENT_REGISTRY["api-tennis"] = APITennisClient
 from .api_volleyball import APIVolleyballClient
 CLIENT_REGISTRY["api-volleyball"] = APIVolleyballClient
 
-from .api_handball import APIHandballClient
-CLIENT_REGISTRY["api-handball"] = APIHandballClient
-
-# Deep stats clients for zero-API sports
-from .sofascore_darts import SofascoreDartsClient
-CLIENT_REGISTRY["sofascore-darts"] = SofascoreDartsClient
-
-from .snooker_org import SnookerOrgClient
-CLIENT_REGISTRY["snooker-org"] = SnookerOrgClient
-
-from .opendota import OpenDotaClient
-CLIENT_REGISTRY["opendota"] = OpenDotaClient
-
-from .ittf_client import ITTFClient
-CLIENT_REGISTRY["ittf"] = ITTFClient
-
-from .api_baseball import APIBaseballClient
-CLIENT_REGISTRY["api-baseball"] = APIBaseballClient
-
-# ESPN — FREE, unlimited, no API key (football, basketball, hockey, baseball)
+# ESPN — FREE, unlimited, no API key (football, basketball, hockey, tennis, volleyball)
 from .espn_adapter import ESPN_FACTORIES
 CLIENT_REGISTRY.update(ESPN_FACTORIES)
 

@@ -18,11 +18,6 @@ SPORT_MAP = {
     "Ice Hockey": "hockey",
     "Tennis": "tennis",
     "Volleyball": "volleyball",
-    "Handball": "handball",
-    "Baseball": "baseball",
-    "American Football": "football_am",
-    "Motorsport": "motorsport",
-    "Fighting": "mma",
 }
 
 

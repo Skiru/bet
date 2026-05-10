@@ -16,21 +16,11 @@ SPORT_URLS = {
     "tennis": "https://www.betexplorer.com/tennis/",
     "basketball": "https://www.betexplorer.com/basketball/",
     "hockey": "https://www.betexplorer.com/hockey/",
-    "baseball": "https://www.betexplorer.com/baseball/",
     "volleyball": "https://www.betexplorer.com/volleyball/",
-    "handball": "https://www.betexplorer.com/handball/",
-    "esports": "https://www.betexplorer.com/esports/",
-    "snooker": "https://www.betexplorer.com/snooker/",
-    "darts": "https://www.betexplorer.com/darts/",
-    "table_tennis": "https://www.betexplorer.com/table-tennis/",
-    "mma": "https://www.betexplorer.com/mma/",
-    "padel": "https://www.betexplorer.com/padel/",
-    "speedway": "https://www.betexplorer.com/speedway/",
 }
 
 TWO_WAY_SPORTS = {
-    "tennis", "basketball", "volleyball", "handball", "baseball",
-    "table_tennis", "esports", "mma", "snooker", "darts", "padel", "speedway",
+    "tennis", "basketball", "volleyball",
 }
 
 

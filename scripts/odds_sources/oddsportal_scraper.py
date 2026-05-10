@@ -16,21 +16,11 @@ SPORT_URLS = {
     "tennis": "https://www.oddsportal.com/tennis/",
     "basketball": "https://www.oddsportal.com/basketball/",
     "hockey": "https://www.oddsportal.com/hockey/",
-    "baseball": "https://www.oddsportal.com/baseball/",
     "volleyball": "https://www.oddsportal.com/volleyball/",
-    "handball": "https://www.oddsportal.com/handball/",
-    "esports": "https://www.oddsportal.com/esports/",
-    "snooker": "https://www.oddsportal.com/snooker/",
-    "darts": "https://www.oddsportal.com/darts/",
-    "table_tennis": "https://www.oddsportal.com/table-tennis/",
-    "mma": "https://www.oddsportal.com/mma/",
-    "padel": "https://www.oddsportal.com/padel/",
-    "speedway": "https://www.oddsportal.com/speedway/",
 }
 
 TWO_WAY_SPORTS = {
-    "tennis", "basketball", "volleyball", "handball", "baseball",
-    "table_tennis", "esports", "mma", "snooker", "darts", "padel", "speedway",
+    "tennis", "basketball", "volleyball",
 }
 
 

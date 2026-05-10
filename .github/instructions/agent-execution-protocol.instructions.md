@@ -76,6 +76,8 @@ Your response MUST include:
 | 8 | Run multiple scripts without analyzing between them | Analyze output of script 1 BEFORE running script 2 |
 | 9 | Say "I'll analyze the output" then don't | Sequential thinking is MANDATORY, not aspirational |
 | 10 | Return within 10 seconds of running a script | Analysis takes time — if you return instantly, you didn't think |
+| 11 | Poll terminals with `get_terminal_output` / `ps -p` / `tail` loops | Terminal auto-notifies on completion. Use `mode=sync` + generous timeout (600000ms). Do productive work while waiting (sequentialthinking, read files, plan). NEVER busy-wait (R17) |
+| 12 | Run `sleep` or busy-wait loops to check script status | You will be automatically notified when async/timed-out commands finish. Trust the notification system. |
 
 ---
 
@@ -91,6 +93,76 @@ Your response MUST include:
 
 ---
 
+## ⛔ Terminal Execution Rules (R17 — NO POLLING)
+
+**NEVER poll terminals.** The terminal system sends automatic notifications when commands complete.
+
+| Do this | NOT this |
+|---------|----------|
+| `mode=sync` + timeout 600000 (10-min scripts) | `mode=async` + `get_terminal_output` loop |
+| While waiting: `sequentialthinking`, read files, plan | While waiting: `ps -p`, `tail -40`, `sleep`, busy-wait |
+| Trust auto-notification on command completion | Repeatedly call `get_terminal_output` to check status |
+| Set generous timeout as safety net | Set short timeout + poll for completion |
+
+**Violation = pipeline failure.** Any `ps -p`, `get_terminal_output` polling loop, `tail -N` on a buffered terminal, or `sleep` command in a terminal burns context and is a HARD FAILURE.
+
+---
+
+## ⛔ Data Flow Verification Protocol (R18 — MANDATORY)
+
+> **The #1 source of pipeline failures is data format mismatches between producer and consumer scripts.**
+> Script A writes JSON key `"all_picks"` → Script B reads key `"tips"` → 0 results → pipeline silently broken.
+> This protocol prevents that.
+
+### BEFORE Running a Script
+
+1. **READ the script's code** — understand what it reads and writes:
+   - Input: Which JSON keys does it parse? Which DB tables does it query? What function parameters does it expect?
+   - Output: What JSON structure does it produce? What DB tables does it INSERT into? What file does it write?
+2. **READ the NEXT script in the pipeline** — the consumer of this script's output:
+   - Does it read the SAME keys the producer writes? (e.g., producer writes `"all_picks"`, consumer reads `"all_picks"` — not `"tips"`)
+   - Does it query the SAME DB tables the producer populates?
+   - Do field names match? (`"home_team"` vs `"home"`, `"source_site"` vs `"tipster"`)
+3. **If you find a MISMATCH** — fix it BEFORE running. Don't run and hope.
+
+### AFTER Running a Script
+
+4. **VERIFY output was actually produced:**
+   - Check the output file exists and has expected structure: `python3 -c "import json; d=json.load(open('file.json')); print(list(d.keys()))"`
+   - Check DB tables have rows: `SELECT COUNT(*) FROM table WHERE date = ?`
+   - Check downstream compatibility: does the next script's reader match the actual output format?
+5. **SPOT-CHECK data quality:**
+   - Are there garbage entries? (navigation text parsed as events, "Page Not Found" as team names)
+   - Are key fields populated? (market != "N/A", home_team != empty)
+   - Do counts make sense? (234 picks from 10 tipster sites = ~23 per site — reasonable)
+
+### The Data Flow Tracing Methodology
+
+When diagnosing ANY pipeline problem:
+
+```
+1. READ CODE  — grep for output keys, DB writes, file saves in the PRODUCER script
+2. READ CODE  — grep for input keys, DB reads, file loads in the CONSUMER script
+3. COMPARE    — do the keys/tables/formats MATCH?
+4. VERIFY     — check ACTUAL data: real JSON files, real DB tables, real shortlist
+5. THINK      — use sequentialthinking to map the complete data flow and identify ALL breaks
+6. FIX        — fix ALL breaks at once, not just the first symptom
+7. TEST       — single end-to-end verification run
+```
+
+**NEVER:** Run a script blindly → see it "succeeded" → move on without verifying the output was consumed correctly downstream.
+
+### Anti-Patterns (additions to the table above)
+
+| # | Anti-Pattern | What to do instead |
+|---|---|---|
+| 13 | Run script A → run script B without checking A's output format matches B's input | READ both scripts' code, verify keys/tables/formats match BEFORE running |
+| 14 | Assume JSON keys match between scripts | `grep` for output keys in producer, input keys in consumer — verify they're identical |
+| 15 | Say "data saved to DB" without verifying table exists | `SELECT COUNT(*) FROM table` — if table doesn't exist, it was never created |
+| 16 | Re-run a failing script without reading its code first | READ the code → understand WHY it fails → fix the root cause → run once |
+
+---
+
 ## The THINKING Agent Contract
 
 You are bound by this contract with the orchestrator:
@@ -100,5 +172,6 @@ You are bound by this contract with the orchestrator:
 3. **If you could be replaced by a bash script**, you're doing it wrong
 4. **The orchestrator will REJECT your verdict** if it lacks reasoning or cites no specific metrics
 5. **Every interaction with a script output is an opportunity** to find an edge, spot an anomaly, or prevent a downstream failure
+6. **Before connecting two scripts**, you MUST verify the data format compatibility — you are the integration layer
 
-<!-- BET:instruction:agent-execution-protocol:v1 -->
+<!-- BET:instruction:agent-execution-protocol:v2 -->

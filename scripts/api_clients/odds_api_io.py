@@ -34,17 +34,7 @@ SPORT_SLUG_MAP = {
     "basketball": "basketball",
     "tennis": "tennis",
     "hockey": "ice-hockey",
-    "baseball": "baseball",
     "volleyball": "volleyball",
-    "handball": "handball",
-    "esports": "esports",
-    "darts": "darts",
-    "mma": "mixed-martial-arts",
-    "snooker": "snooker",
-    "table_tennis": "table-tennis",
-    "padel": "padel",
-    "rugby": "rugby",
-    "cricket": "cricket",
 }
 
 # Default bookmakers (free plan: max 2 selected via /bookmakers/selected/select)

@@ -84,14 +84,12 @@ The DB is the richest data source — check BEFORE JSON/web:
 - Gateway: `from db_data_loader import load_analysis_results_from_db, save_analysis_results_to_db, load_espn_enrichment_for_team, load_player_gamelogs_for_team, load_sport_specific_cache`
 - Safety input: `from normalize_stats import build_safety_input, build_safety_input_from_db, build_safety_input_from_cache`
 
-**ESPN enrichment is AUTO-LOADED** by `deep_stats_report.py` for basketball/hockey/baseball. The output includes `espn_enrichment` dict with standings, ATS/OU records, and power index data. Use this to:
+**ESPN enrichment is AUTO-LOADED** by `deep_stats_report.py` for basketball/hockey. The output includes `espn_enrichment` dict with standings, ATS/OU records, and power index data. Use this to:
 - Validate totals markets against ATS/OU records (team goes OVER 60% of the time → strong OVER signal)
 - Cross-reference power index with safety scores (high-power-index team vs low → one-sided stat patterns expected)
 - Check player gamelogs for consistency (star player scoring 25+ppg in 9/10 games → reliable total)
 
-**Niche sport data** (Dota2, darts, table tennis) is also AUTO-LOADED via `load_sport_specific_cache()`. Dota2 has match details (kills, hero_damage, tower_damage, GPM), darts has leg stats (checkout%, 180s, avg), table tennis has set scores.
-
-**HTML deep parse data** (20 domains) is extracted from saved HTML snapshots in S1-deep and written to `scan_results.raw_data`. This includes: soccerstats corner/card/foul averages, totalcorner corner counts, tennisabstract Elo ratings, dartsorakel player averages, basketball-reference standings, hockey-reference standings, and more. When L10/H2H data is sparse, CHECK deep parse enrichments — they may contain the exact stat averages needed for safety score calculation.
+**HTML deep parse data** is extracted from saved HTML snapshots in S1-deep and written to `scan_results.raw_data`. This includes: soccerstats corner/card/foul averages, totalcorner corner counts, tennisabstract Elo ratings, basketball-reference standings, hockey-reference standings, and more. When L10/H2H data is sparse, CHECK deep parse enrichments — they may contain the exact stat averages needed for safety score calculation.
 
 Safety scores are now computed via `build_safety_input()` from `normalize_stats.py`, which assembles team form, H2H, and match stats from DB tables (DB-first, JSON cache fallback).
 
@@ -135,7 +133,7 @@ FLAG manual computation in output: `⚠️ MANUAL_SAFETY: script failed, compute
 5. **If batch_enrich fails** → DELEGATION REQUEST to orchestrator: `type: ENRICHMENT_NEEDED`
 
 ### web/fetch + browser/*
-- **MUST use for:** Gathering stats from SoccerStats, Flashscore, Sofascore, TennisAbstract, Basketball-Reference (US only), NaturalStatTrick, CueTracker, DartsOrakel, TransferMarkt, scores24.live
+- **MUST use for:** Gathering stats from SoccerStats, Flashscore, Sofascore, TennisAbstract, Basketball-Reference (US only), NaturalStatTrick, TransferMarkt, scores24.live
 - **RULE:** Collect ALL stats from sport-specific table. Split by home/away. Fetch H2H for the SPECIFIC stat. Check DB `fixtures` + `odds_history` tables (or fallback to `market_matrix_{date}.json`) for pre-loaded scores24 data before web-fetching.
 
 ### sequential-thinking

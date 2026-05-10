@@ -56,7 +56,6 @@ _SOURCE_PATTERNS = [
     ("flashscore.com", re.compile(r"flashscore\.com", re.I)),
     ("sofascore.com", re.compile(r"sofascore\.com", re.I)),
     ("soccerway.com", re.compile(r"soccerway\.com", re.I)),
-    ("hltv.org", re.compile(r"hltv\.org", re.I)),
     ("tennisexplorer.com", re.compile(r"tennisexplorer\.com", re.I)),
     ("tennisabstract.com", re.compile(r"tennisabstract\.com", re.I)),
     ("basketball-reference.com", re.compile(r"basketball-reference\.com", re.I)),
@@ -436,23 +435,36 @@ def _ingest_team_side(
 # Main
 # ---------------------------------------------------------------------------
 
-def run(scan_path: Path, dry_run: bool = False, target_date: str | None = None) -> dict:
+def run(scan_path: Path, dry_run: bool = False, target_date: str | None = None,
+        out: "AgentOutput | None" = None) -> dict:
     """Run full ingestion from scan_summary.json.
 
     Returns summary dict: {sport: {teams_ingested, h2h_added, form_added}}.
     """
     if not scan_path.exists():
-        print(f"[ingest] ERROR: scan file not found: {scan_path}", file=sys.stderr)
+        msg = f"scan file not found: {scan_path}"
+        if out:
+            out.error(msg, recoverable=False)
+        else:
+            print(f"[ingest] ERROR: {msg}", file=sys.stderr)
         return {}
 
     try:
         raw = json.loads(scan_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
-        print(f"[ingest] ERROR: invalid JSON in {scan_path}: {exc}", file=sys.stderr)
+        msg = f"invalid JSON in {scan_path}: {exc}"
+        if out:
+            out.error(msg, recoverable=False)
+        else:
+            print(f"[ingest] ERROR: {msg}", file=sys.stderr)
         return {}
 
     if not isinstance(raw, dict):
-        print(f"[ingest] ERROR: expected dict in {scan_path}, got {type(raw).__name__}", file=sys.stderr)
+        msg = f"expected dict in {scan_path}, got {type(raw).__name__}"
+        if out:
+            out.error(msg, recoverable=False)
+        else:
+            print(f"[ingest] ERROR: {msg}", file=sys.stderr)
         return {}
 
     summary: dict = {}
@@ -460,7 +472,8 @@ def run(scan_path: Path, dry_run: bool = False, target_date: str | None = None) 
     ingested_events = 0
     errors = 0
 
-    for url, events in raw.items():
+    url_list = list(raw.items())
+    for idx, (url, events) in enumerate(url_list, 1):
         if not isinstance(events, list):
             continue
         for event in events:
@@ -484,23 +497,63 @@ def run(scan_path: Path, dry_run: bool = False, target_date: str | None = None) 
                 errors += 1
                 sport = event.get("sport", "?")
                 home = event.get("home", "?")
-                print(f"[ingest] ERROR processing {sport}/{home} from {url}: {exc}", file=sys.stderr)
+                if out:
+                    out.error(f"{sport}/{home} from {url}: {exc}", recoverable=True)
+                else:
+                    print(f"[ingest] ERROR processing {sport}/{home} from {url}: {exc}", file=sys.stderr)
+
+        if out:
+            out.progress(idx, len(url_list), url[:60])
+
+    # Post-ingest DB verification
+    db_verify = {}
+    if not dry_run:
+        try:
+            from bet.db.connection import get_db
+            with get_db() as conn:
+                rows = conn.execute(
+                    "SELECT sport, COUNT(*) as cnt FROM team_form GROUP BY sport"
+                ).fetchall()
+                db_verify = {row[0]: row[1] for row in rows}
+                if out:
+                    out.event("db_verify", team_form_by_sport=db_verify)
+        except Exception as e:
+            if out:
+                out.warning(f"DB verification failed: {e}")
+            else:
+                print(f"[ingest] DB verification failed: {e}", file=sys.stderr)
 
     # Print summary
     mode = "DRY-RUN " if dry_run else ""
-    print(f"\n[ingest] {mode}DONE — {ingested_events}/{total_events} events ingested, {errors} errors")
-    for sport, counts in sorted(summary.items()):
-        print(
-            f"  {sport}: "
-            f"{counts['teams_ingested']} teams, "
-            f"{counts['h2h_added']} H2H matches, "
-            f"{counts['form_added']} form matches"
+    if out:
+        out.summary(
+            verdict="OK" if errors == 0 else "PARTIAL",
+            metrics={
+                "total_events": total_events,
+                "ingested_events": ingested_events,
+                "errors": errors,
+                "per_sport": summary,
+                "db_verify": db_verify,
+            },
         )
+    else:
+        print(f"\n[ingest] {mode}DONE — {ingested_events}/{total_events} events ingested, {errors} errors")
+        for sport, counts in sorted(summary.items()):
+            print(
+                f"  {sport}: "
+                f"{counts['teams_ingested']} teams, "
+                f"{counts['h2h_added']} H2H matches, "
+                f"{counts['form_added']} form matches"
+            )
+        if db_verify:
+            print(f"[ingest] DB verification — team_form rows: {db_verify}")
 
     return summary
 
 
 def main():
+    from agent_output import AgentOutput, add_agent_args
+
     parser = argparse.ArgumentParser(
         description="Ingest Playwright scan data into stats_cache"
     )
@@ -520,17 +573,20 @@ def main():
         default=SCAN_SUMMARY_PATH,
         help="Path to scan_summary.json (default: betting/data/scan_summary.json)",
     )
+    add_agent_args(parser)
     args = parser.parse_args()
+
+    out = AgentOutput("s1_ingest", verbose=args.verbose, stop_on_error=args.stop_on_error)
 
     # Validate date format
     if args.date:
         try:
             datetime.strptime(args.date, "%Y-%m-%d")
         except ValueError:
-            print(f"[ingest] ERROR: invalid date format '{args.date}', expected YYYY-MM-DD", file=sys.stderr)
+            out.error(f"invalid date format '{args.date}', expected YYYY-MM-DD", recoverable=False)
             sys.exit(1)
 
-    run(args.scan_file, dry_run=args.dry_run, target_date=args.date)
+    run(args.scan_file, dry_run=args.dry_run, target_date=args.date, out=out)
 
 
 if __name__ == "__main__":

@@ -1058,7 +1058,6 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
         r"1x\s*✅|"  # result markers
         r"\binfo\b$|"  # placeholder "info" as team name
         r",\s*\w.+vs\b|"  # multi-match (", RB Leipzig vs Borussia")
-        r"żużel|fame\s+mma|pfl\s+\w+\s+wyniki|wiek,\s*waga|"
         r"\bview\s+prediction\b|\bgaleria\b|\bsprawdź\b|\brekord,\s*walka\b",
         re.I,
     )
@@ -1579,6 +1578,8 @@ def _load_s3_output(date: str, input_path: str | None = None) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 def main():
+    from agent_output import AgentOutput, add_agent_args
+
     parser = argparse.ArgumentParser(
         description="S7 Pick Approval Gate — 18-point programmatic gate checker"
     )
@@ -1597,12 +1598,16 @@ def main():
         action="store_true",
         help="Reject on ANY gate failure",
     )
+    add_agent_args(parser)
 
     args = parser.parse_args()
+    out = AgentOutput("s7_gate", verbose=args.verbose, stop_on_error=args.stop_on_error)
+
     candidates = _load_s3_output(args.date, args.input)
 
     if not candidates:
-        print("[gate_checker] No candidates to gate-check.")
+        out.warning("No candidates to gate-check")
+        out.summary(verdict="OK", metrics={"total": 0, "approved": 0, "extended": 0, "rejected": 0})
         sys.exit(0)
 
     results = run_gate(candidates, args.date, strict=args.strict)
@@ -1617,18 +1622,48 @@ def main():
         for bucket in ("approved", "extended_pool", "rejected"):
             all_results.extend(results.get("gate_results", {}).get(bucket, []))
         saved = save_gate_results_to_db(args.date, all_results)
-        print(f"[gate_checker] DB: saved {saved} gate results")
+        if args.verbose:
+            out.event("db_write", saved=saved)
+        else:
+            print(f"[gate_checker] DB: saved {saved} gate results")
     except Exception as e:
-        print(f"[gate_checker] DB write failed (non-fatal): {e}")
+        out.error(f"DB write failed: {e}", recoverable=True)
 
     s = results["summary"]
-    print(
-        f"\n[gate_checker] Done: {s['total_candidates']} candidates → "
-        f"{s['approved_count']} approved, {s['extended_count']} extended, "
-        f"{s['rejected_count']} rejected"
-    )
     diversity = results["gate_results"].get("sport_diversity", {})
-    print(f"[gate_checker] Sport diversity: {diversity.get('message', 'N/A')}")
+
+    if args.verbose:
+        # Per-bucket candidate events for agent
+        for bucket in ("approved", "extended_pool", "rejected"):
+            for r in results.get("gate_results", {}).get(bucket, []):
+                out.candidate(
+                    f"{r.get('home_team', '?')} vs {r.get('away_team', '?')}",
+                    sport=r.get("sport", "?"),
+                    bucket=bucket,
+                    gate_score=r.get("gate_score", "0/18"),
+                    tier=r.get("risk_tier", "?"),
+                )
+
+    out.summary(
+        verdict="OK" if s["approved_count"] > 0 else "FAILED",
+        metrics={
+            "total": s["total_candidates"],
+            "approved": s["approved_count"],
+            "extended": s["extended_count"],
+            "rejected": s["rejected_count"],
+            "sport_diversity": diversity.get("message", "N/A"),
+        },
+    )
+
+    if not args.verbose:
+        print(
+            f"\n[gate_checker] Done: {s['total_candidates']} candidates → "
+            f"{s['approved_count']} approved, {s['extended_count']} extended, "
+            f"{s['rejected_count']} rejected"
+        )
+        print(f"[gate_checker] Sport diversity: {diversity.get('message', 'N/A')}")
+
+    sys.exit(0 if s["approved_count"] > 0 else 1)
 
 
 if __name__ == "__main__":

@@ -23,8 +23,7 @@
 ## Tier A stats sources by sport
 - Football: Flashscore, Sofascore, SoccerStats, scores24
 - Tennis: Flashscore, Sofascore, TennisAbstract
-- Basketball/Baseball/Hockey: ESPN (auto-loaded: gamelogs, standings, ATS/OU, power index)
-- Niche: DartsOrakel, CueTracker, OpenDota
+- Basketball/Hockey: ESPN (auto-loaded: gamelogs, standings, ATS/OU, power index)
 
 ## Market diversity
 - Statistical markets ALWAYS preferred: corners, fouls, cards, shots, games, sets, points

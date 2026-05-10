@@ -870,66 +870,6 @@ class HockeyReferenceProfile(ExtractionProfile):
         return results
 
 
-class HLTVProfile(ExtractionProfile):
-    """HLTV — extract CS2 match details, player ratings, format info."""
-    domain = "hltv.org"
-    sport_filter = "esports"
-
-    def extract(self, html: str, url: str, soup: BeautifulSoup) -> list[dict]:
-        results = []
-
-        # HLTV match elements
-        for match_el in soup.find_all(True, class_=re.compile(r"match|upcomingMatch", re.I)):
-            teams = match_el.find_all(True, class_=re.compile(r"team", re.I))
-            if len(teams) < 2:
-                continue
-
-            home = teams[0].get_text(strip=True)
-            away = teams[1].get_text(strip=True)
-
-            if not home or not away or len(home) < 2:
-                continue
-
-            enrichment = {
-                "home": home,
-                "away": away,
-                "source_domain": "hltv.org",
-                "enrichments": {},
-            }
-
-            # Extract format (BO1, BO3, BO5)
-            format_el = match_el.find(True, class_=re.compile(r"bestof|format|matchMeta", re.I))
-            if format_el:
-                fmt_text = format_el.get_text(strip=True)
-                if re.search(r"bo\d|best.of.\d", fmt_text, re.I):
-                    enrichment["enrichments"]["format"] = fmt_text
-
-            # Extract event/tournament name
-            event_el = match_el.find(True, class_=re.compile(r"event|tournament", re.I))
-            if event_el:
-                enrichment["enrichments"]["tournament"] = event_el.get_text(strip=True)
-
-            # Extract team rankings
-            for i, team_el in enumerate(teams[:2]):
-                rank_el = team_el.find(True, class_=re.compile(r"rank", re.I))
-                if rank_el:
-                    rank_text = rank_el.get_text(strip=True)
-                    label = "home" if i == 0 else "away"
-                    enrichment["enrichments"][f"rank_{label}"] = rank_text
-
-            # Extract star ratings / match importance
-            stars_el = match_el.find(True, class_=re.compile(r"star|importance", re.I))
-            if stars_el:
-                stars = len(stars_el.find_all(True, class_=re.compile(r"star", re.I)))
-                if stars:
-                    enrichment["enrichments"]["match_importance"] = stars
-
-            if enrichment["enrichments"]:
-                results.append(enrichment)
-
-        return results
-
-
 class BetclicProfile(ExtractionProfile):
     """Betclic — extract match names and odds from Angular HTML + JSON blocks.
 
@@ -1499,256 +1439,6 @@ class WhoScoredProfile(ExtractionProfile):
         return results
 
 
-class CueTrackerProfile(ExtractionProfile):
-    """CueTracker — extract snooker tournament info and player data."""
-    domain = "cuetracker.net"
-    sport_filter = "snooker"
-
-    def extract(self, html: str, url: str, soup: BeautifulSoup) -> list[dict]:
-        results = []
-
-        # Extract current tournament info
-        for table in soup.find_all("table", class_=re.compile(r"table-small|table")):
-            for row in table.find_all("tr"):
-                cells = row.find_all("td")
-                # Tournament links
-                for cell in cells:
-                    link = cell.find("a", href=re.compile(r"/tournaments/"))
-                    if link:
-                        tournament_name = link.get_text(strip=True)
-                        if tournament_name:
-                            enrichment = {
-                                "team": tournament_name,
-                                "source_domain": "cuetracker.net",
-                                "stat_type": "tournament",
-                                "enrichments": {
-                                    "tournament": tournament_name,
-                                    "url": link.get("href", ""),
-                                },
-                            }
-                            # Country from flag
-                            flag = cell.find("img", class_=re.compile(r"flag"))
-                            if flag:
-                                for cls in flag.get("class", []):
-                                    if cls.startswith("flag-") and cls != "flag":
-                                        enrichment["enrichments"]["country"] = cls[5:]
-                            results.append(enrichment)
-
-                    # Player links
-                    player_link = cell.find("a", href=re.compile(r"/players/"))
-                    if player_link:
-                        player_name = player_link.get_text(strip=True)
-                        if player_name and len(player_name) > 2:
-                            results.append({
-                                "team": player_name,
-                                "source_domain": "cuetracker.net",
-                                "stat_type": "player",
-                                "enrichments": {
-                                    "player": player_name,
-                                    "url": player_link.get("href", ""),
-                                },
-                            })
-
-        # Extract match results from table rows
-        for table in soup.find_all("table"):
-            rows = table.find_all("tr")
-            for row in rows:
-                links = row.find_all("a", href=re.compile(r"/players/"))
-                if len(links) >= 2:
-                    p1 = links[0].get_text(strip=True)
-                    p2 = links[1].get_text(strip=True)
-                    if p1 and p2:
-                        enrichment = {
-                            "home": p1, "away": p2,
-                            "source_domain": "cuetracker.net",
-                            "enrichments": {},
-                        }
-                        # Score from cells
-                        cells = row.find_all("td")
-                        for cell in cells:
-                            txt = cell.get_text(strip=True)
-                            m = re.match(r"^(\d+)\s*[-–]\s*(\d+)$", txt)
-                            if m:
-                                enrichment["enrichments"]["score"] = txt
-                        results.append(enrichment)
-
-        return results
-
-
-class DartsOrakelProfile(ExtractionProfile):
-    """DartsOrakel — extract match results, player averages, and predictions."""
-    domain = "dartsorakel.com"
-    sport_filter = "darts"
-
-    def extract(self, html: str, url: str, soup: BeautifulSoup) -> list[dict]:
-        results = []
-
-        # Parse #latest-results-table
-        table = soup.find("table", id="latest-results-table")
-        if not table:
-            # Fallback: any DataTable with darts data
-            table = soup.find("table", class_=re.compile(r"dataTable|new-design-table"))
-
-        if table:
-            for row in table.find_all("tr", class_=re.compile(r"odd|even|cursor")):
-                cells = row.find_all("td", class_=re.compile(r"new-design-table-data|"))
-                if not cells:
-                    cells = row.find_all("td")
-                if len(cells) < 3:
-                    continue
-
-                # Players from links
-                player_links = row.find_all("a", class_=re.compile(r"player-name"))
-                if not player_links:
-                    player_links = row.find_all("a", href=re.compile(r"/player/details/"))
-
-                players = [l.get_text(strip=True) for l in player_links if l.get_text(strip=True)]
-
-                # Averages from span.player-avg
-                averages = []
-                for span in row.find_all("span", class_=re.compile(r"player-avg")):
-                    txt = span.get_text(strip=True).strip("()")
-                    try:
-                        averages.append(float(txt))
-                    except ValueError:
-                        pass
-
-                if len(players) >= 2:
-                    enrichment = {
-                        "home": players[0], "away": players[1],
-                        "source_domain": "dartsorakel.com",
-                        "enrichments": {},
-                    }
-                    if len(averages) >= 1:
-                        enrichment["enrichments"]["avg_home"] = averages[0]
-                    if len(averages) >= 2:
-                        enrichment["enrichments"]["avg_away"] = averages[1]
-
-                    # Tournament from first cell
-                    first_cell = cells[0].get_text(strip=True) if cells else ""
-                    if first_cell and len(first_cell) > 2:
-                        enrichment["enrichments"]["tournament"] = first_cell
-
-                    # Date from second cell
-                    if len(cells) > 1:
-                        date_txt = cells[1].get_text(strip=True) if len(cells) > 1 else ""
-                        if re.match(r"\d{4}-\d{2}-\d{2}", date_txt):
-                            enrichment["enrichments"]["date"] = date_txt
-
-                    # Match URL from onclick
-                    onclick = row.get("onclick", "")
-                    m = re.search(r"match/stats/(\d+)", onclick)
-                    if m:
-                        enrichment["enrichments"]["match_id"] = m.group(1)
-
-                    results.append(enrichment)
-                elif len(players) == 1:
-                    # Single player row (standings/rankings)
-                    enrichment = {
-                        "team": players[0],
-                        "source_domain": "dartsorakel.com",
-                        "stat_type": "player_stats",
-                        "enrichments": {},
-                    }
-                    if averages:
-                        enrichment["enrichments"]["avg"] = averages[0]
-                    results.append(enrichment)
-
-        return results
-
-
-class SpeedwayProfile(ExtractionProfile):
-    """SpeedwayEkstraliga — extract team and rider data from Next.js RSC payloads."""
-    domain = "speedwayekstraliga.pl"
-    sport_filter = "speedway"
-
-    def extract(self, html: str, url: str, soup: BeautifulSoup) -> list[dict]:
-        results = []
-
-        # Strategy 1: Parse JSON from Next.js RSC script payloads
-        for script in soup.find_all("script"):
-            if not script.string:
-                continue
-            # Look for team data in self.__next_f push calls
-            for m in re.finditer(r'"label"\s*:\s*"([^"]+)"[^}]*"url"\s*:\s*"([^"]*druzyny[^"]*)"', script.string):
-                team_name = m.group(1)
-                team_url = m.group(2)
-                if team_name and "druzyny" in team_url:
-                    results.append({
-                        "team": team_name,
-                        "source_domain": "speedwayekstraliga.pl",
-                        "stat_type": "team",
-                        "enrichments": {"url": team_url, "team": team_name},
-                    })
-
-        # Strategy 2: Parse Tailwind tables
-        for table in soup.find_all("table", class_=re.compile(r"w-full|table-auto")):
-            for row in table.find_all("tr"):
-                cells = row.find_all(["td", "th"])
-                if len(cells) < 3:
-                    continue
-                # Look for team/rider names
-                link = row.find("a")
-                name = link.get_text(strip=True) if link else ""
-                if not name:
-                    for cell in cells:
-                        txt = cell.get_text(strip=True)
-                        if txt and len(txt) > 2 and not txt.isdigit():
-                            name = txt
-                            break
-                if name and len(name) > 2:
-                    stats = {}
-                    for idx, cell in enumerate(cells):
-                        txt = cell.get_text(strip=True)
-                        try:
-                            stats[f"col_{idx}"] = float(txt)
-                        except ValueError:
-                            pass
-                    if stats:
-                        results.append({
-                            "team": name,
-                            "source_domain": "speedwayekstraliga.pl",
-                            "enrichments": stats,
-                        })
-
-        return results
-
-
-class GosuGamersProfile(ExtractionProfile):
-    """GosuGamers — extract esports match data from URL patterns and MUI components."""
-    domain = "gosugamers.net"
-    sport_filter = "esports"
-
-    def extract(self, html: str, url: str, soup: BeautifulSoup) -> list[dict]:
-        results = []
-
-        # Parse match URLs: /{game}/tournaments/{id}/matches/{id}-{team1}-vs-{team2}
-        for link in soup.find_all("a", href=re.compile(r"/matches/\d+-.*-vs-")):
-            href = link.get("href", "")
-            m = re.search(r"/(\w+)/tournaments/(\d+)-([^/]*)/matches/(\d+)-(.+)-vs-(.+?)(?:\?|$|#)", href)
-            if m:
-                game = m.group(1)
-                tournament_id = m.group(2)
-                tournament_slug = m.group(3).replace("-", " ").title()
-                match_id = m.group(4)
-                team1 = m.group(5).replace("-", " ").title()
-                team2 = m.group(6).replace("-", " ").title()
-
-                results.append({
-                    "home": team1, "away": team2,
-                    "source_domain": "gosugamers.net",
-                    "enrichments": {
-                        "game": game,
-                        "tournament": tournament_slug,
-                        "tournament_id": tournament_id,
-                        "match_id": match_id,
-                        "url": href,
-                    },
-                })
-
-        return results
-
-
 class TennisAbstractProfile(ExtractionProfile):
     """TennisAbstract — extract Elo ratings and player rankings from clean tables."""
     domain = "tennisabstract.com"
@@ -1842,9 +1532,6 @@ PROFILES: dict[str, ExtractionProfile] = {
     # Tennis
     "tennisexplorer.com": TennisExplorerProfile(),
     "tennisabstract.com": TennisAbstractProfile(),
-    # NOTE: Removed sport profiles (hltv.org, cuetracker.net, dartsorakel.com,
-    # speedwayekstraliga.pl, gosugamers.net) kept in code but excluded from
-    # registry — pipeline now covers 5 sports only.
 }
 
 
@@ -2274,7 +1961,7 @@ def _write_to_db(enrichments: list[dict], domain: str, date: str):
 
 
 def run_deep_parse(date: str, domains: list[str] | None = None,
-                   dry_run: bool = False) -> dict:
+                   dry_run: bool = False, out: "AgentOutput | None" = None) -> dict:
     """Run deep parsing for all configured domains."""
     target_domains = domains or list(PROFILES.keys())
 
@@ -2284,14 +1971,22 @@ def run_deep_parse(date: str, domains: list[str] | None = None,
         "domains": {},
         "totals": {"snapshots": 0, "extractions": 0, "errors": 0},
         "verdicts": {},
+        "needs_enrichment": [],  # Teams/events that got no data from FAIL domains
     }
 
-    for domain in target_domains:
+    for idx, domain in enumerate(target_domains, 1):
         if domain not in PROFILES:
-            print(f"[deep-parser] No profile for {domain}, skipping")
+            if out:
+                out.warning(f"No profile for {domain}", domain=domain)
+            else:
+                print(f"[deep-parser] No profile for {domain}, skipping")
             continue
 
-        print(f"[deep-parser] Processing {domain}...")
+        if out:
+            out.progress(idx, len(target_domains), domain)
+        else:
+            print(f"[deep-parser] Processing {domain}...")
+
         result = parse_domain(domain, date, dry_run=dry_run)
         report["domains"][domain] = result
 
@@ -2299,7 +1994,7 @@ def run_deep_parse(date: str, domains: list[str] | None = None,
         report["totals"]["extractions"] += result.get("unique_extractions", 0)
         report["totals"]["errors"] += len(result.get("errors", []))
 
-        # Print verdict
+        # Compute verdict
         verdict = result.get("verdict", {})
         verdict_label = verdict.get("verdict", "?")
         verdict_reason = verdict.get("reason", "")
@@ -2310,39 +2005,82 @@ def run_deep_parse(date: str, domains: list[str] | None = None,
         xref = result.get("db_cross_reference", {})
         match_rate = xref.get("match_rate_pct", "n/a")
 
-        icon = {"PASS": "✅", "WARN": "⚠️", "FAIL": "❌", "SKIP": "⏭"}.get(verdict_label, "?")
-        print(f"  {icon} {verdict_label}: {count} enrichments from {snaps} snapshots | DB match: {match_rate}%")
-        if verdict_label in ("WARN", "FAIL"):
-            print(f"     Reason: {verdict_reason}")
-            action = verdict.get("action", "")
-            if action:
-                print(f"     Action: {action}")
+        if out:
+            out.event("domain_verdict", domain=domain, verdict=verdict_label,
+                      extractions=count, snapshots=snaps, match_rate=match_rate,
+                      reason=verdict_reason)
+        else:
+            icon = {"PASS": "✅", "WARN": "⚠️", "FAIL": "❌", "SKIP": "⏭"}.get(verdict_label, "?")
+            print(f"  {icon} {verdict_label}: {count} enrichments from {snaps} snapshots | DB match: {match_rate}%")
+            if verdict_label in ("WARN", "FAIL"):
+                print(f"     Reason: {verdict_reason}")
+                action = verdict.get("action", "")
+                if action:
+                    print(f"     Action: {action}")
+
+        # Collect teams that need enrichment from FAIL/WARN domains
+        if verdict_label in ("FAIL", "WARN") and snaps > 0:
+            # Extract team names from sample enrichments (parse_domain returns "sample" with home/away/team keys)
+            seen_teams = set()
+            for entry in result.get("sample", []):
+                for key in ("home", "away", "team"):
+                    name = entry.get(key, "").strip()
+                    if name and name not in seen_teams:
+                        seen_teams.add(name)
+                        report["needs_enrichment"].append({
+                            "team": name, "domain": domain,
+                            "reason": f"{verdict_label}: {verdict_reason}",
+                        })
 
     # Write report
     report_path = DATA_DIR / f"{date.replace('-', '')}_deep_parse_report.json"
     report_path.write_text(json.dumps(report, indent=2, ensure_ascii=False))
 
+    # Write needs_enrichment list for data_enrichment_agent.py to consume
+    if report["needs_enrichment"]:
+        enrichment_path = DATA_DIR / f"{date.replace('-', '')}_needs_enrichment.json"
+        enrichment_path.write_text(
+            json.dumps(report["needs_enrichment"], indent=2, ensure_ascii=False)
+        )
+        if out:
+            out.event("needs_enrichment", count=len(report["needs_enrichment"]),
+                      path=str(enrichment_path))
+        else:
+            print(f"[deep-parser] Wrote {len(report['needs_enrichment'])} teams needing enrichment → {enrichment_path}")
+
     # Write agent review input (follows agent_protocol.py pattern)
     _write_agent_review(date, report)
 
-    # Print summary
+    # Summary
     pass_count = sum(1 for v in report["verdicts"].values() if v == "PASS")
     warn_count = sum(1 for v in report["verdicts"].values() if v == "WARN")
     fail_count = sum(1 for v in report["verdicts"].values() if v == "FAIL")
 
-    print(f"\n[deep-parser] Report: {report_path}")
-    print(f"[deep-parser] Totals: {report['totals']['snapshots']} snapshots → "
-          f"{report['totals']['extractions']} enrichments, "
-          f"{report['totals']['errors']} errors")
-    print(f"[deep-parser] Verdicts: {pass_count} PASS, {warn_count} WARN, {fail_count} FAIL")
+    if out:
+        out.summary(
+            verdict="FAILED" if fail_count > pass_count else ("PARTIAL" if fail_count > 0 else "OK"),
+            metrics={
+                "pass": pass_count, "warn": warn_count, "fail": fail_count,
+                "snapshots": report["totals"]["snapshots"],
+                "extractions": report["totals"]["extractions"],
+                "errors": report["totals"]["errors"],
+                "needs_enrichment_count": len(report["needs_enrichment"]),
+            },
+        )
+    else:
+        print(f"\n[deep-parser] Report: {report_path}")
+        print(f"[deep-parser] Totals: {report['totals']['snapshots']} snapshots → "
+              f"{report['totals']['extractions']} enrichments, "
+              f"{report['totals']['errors']} errors")
+        print(f"[deep-parser] Verdicts: {pass_count} PASS, {warn_count} WARN, {fail_count} FAIL")
 
-    if fail_count > 0:
-        print(f"\n  {'='*60}")
-        print(f"  [AGENT-REVIEW-REQUIRED] Agent: bet-scanner")
-        print(f"  {fail_count} domain(s) FAILED validation.")
-        print(f"  Agent must inspect HTML snapshots and verify extraction profiles.")
-        print(f"  Review file: betting/data/agent_reviews/{date}/s1_html_deep_input.json")
-        print(f"  {'='*60}\n")
+        if fail_count > 0:
+            print(f"\n  {'='*60}")
+            print(f"  [AGENT-REVIEW-REQUIRED] Agent: bet-scanner")
+            print(f"  {fail_count} domain(s) FAILED validation.")
+            print(f"  Agent must inspect HTML snapshots and verify extraction profiles.")
+            print(f"  Review file: betting/data/agent_reviews/{date}/s1_html_deep_input.json")
+            print(f"  {'='*60}\n")
 
     return report
 
@@ -2437,15 +2175,36 @@ def _write_agent_review(date: str, report: dict):
 
 
 def main():
+    from agent_output import AgentOutput, add_agent_args
+
     parser = argparse.ArgumentParser(description="HTML Deep Parser")
     parser.add_argument("--date", required=True, help="Betting date YYYY-MM-DD")
     parser.add_argument("--domains", help="Comma-separated domains to parse")
     parser.add_argument("--dry-run", action="store_true", help="Don't write to DB")
     parser.add_argument("--report", action="store_true", help="Show detailed report")
+    add_agent_args(parser)  # --verbose, --stop-on-error
     args = parser.parse_args()
 
+    out = AgentOutput("s1_deep", verbose=args.verbose, stop_on_error=args.stop_on_error)
     domains = args.domains.split(",") if args.domains else None
-    report = run_deep_parse(args.date, domains, dry_run=args.dry_run)
+    report = run_deep_parse(args.date, domains, dry_run=args.dry_run, out=out if args.verbose else None)
+
+    # Ensure AGENT_SUMMARY is always emitted (run_deep_parse only emits when out is passed)
+    if not args.verbose:
+        verdicts = report.get("verdicts", {})
+        fail_count = sum(1 for v in verdicts.values() if v == "FAIL")
+        pass_count = sum(1 for v in verdicts.values() if v == "PASS")
+        out.summary(
+            verdict="FAILED" if fail_count > pass_count else ("PARTIAL" if fail_count > 0 else "OK"),
+            metrics={
+                "pass": pass_count, "warn": sum(1 for v in verdicts.values() if v == "WARN"),
+                "fail": fail_count,
+                "snapshots": report["totals"]["snapshots"],
+                "extractions": report["totals"]["extractions"],
+                "errors": report["totals"]["errors"],
+                "needs_enrichment_count": len(report.get("needs_enrichment", [])),
+            },
+        )
 
     if args.report:
         print("\n" + json.dumps(report, indent=2, ensure_ascii=False))

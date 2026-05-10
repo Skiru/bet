@@ -81,19 +81,12 @@ You are the orchestrator (`bet-scanner`). You delegate to sport-specific agents 
 | `bet-scanner-basketball` | Basketball status DEGRADED/FAILED/MISSING |
 | `bet-scanner-volleyball` | Volleyball status DEGRADED/FAILED/MISSING |
 | `bet-scanner-hockey` | Hockey status DEGRADED/FAILED/MISSING |
-| `bet-scanner-esports` | Esports status DEGRADED/FAILED/MISSING |
-| `bet-scanner-handball` | Handball status DEGRADED/FAILED/MISSING |
-| `bet-scanner-combat` | Combat/MMA status FAILED (ignore MISSING on non-event days) |
-| `bet-scanner-racket` | Racket sports status DEGRADED/FAILED/MISSING |
-| `bet-scanner-niche` | Niche sports status FAILED (ignore seasonal zeros) |
-| `bet-scanner-baseball` | Baseball status DEGRADED/FAILED/MISSING |
 
 Each sport agent is FULLY AUTONOMOUS with its own:
 - Execution commands and fallback URLs
 - Validation criteria and thresholds
 - Self-healing protocols (retry, expand, alternative sources)
 - Error pattern recognition (403 = skip domain, timeout = reduce workers)
-- Seasonal awareness (MMA non-event days, baseball off-season)
 
 ## INPUTS
 
@@ -122,7 +115,7 @@ Use `/orchestrate-betting-day` to continue from S3 (deep stats → odds → coup
 3. **NEVER report "I couldn't do X"** — try alternatives from troubleshooting section
 4. **ALWAYS set PYTHONPATH** — every command needs `PYTHONPATH=src:.`
 5. **ALWAYS cd first** — every command starts with `cd /Users/mkoziol/projects/bet`
-6. **Seasonal zeros are NOT failures** — baseball off-season, MMA non-event day = normal
+6. **Seasonal zeros are NOT failures** — some sports have off-days = normal
 7. **Read health report BEFORE delegating** — don't heal sports that are already HEALTHY
 8. **Heal in priority order** — critical sports first (football > tennis > basketball > volleyball)
 

@@ -413,7 +413,7 @@ def build_shortlist(
     date: str,
     top_n: int = 0,
     stats_first: bool = False,
-    min_sports: int = 8,
+    min_sports: int = 5,
 ) -> list[dict]:
     """Build a ranked shortlist of top_n events from the market matrix."""
     matrix_path = DATA_DIR / f"market_matrix_{date}.json"
@@ -784,7 +784,7 @@ def main():
     parser.add_argument("--top", type=int, default=0, help="Number of candidates to select (0 = all, default: 0)")
     parser.add_argument("--stats-first", action="store_true",
                         help="Include FIXTURE_ONLY events from major competitions")
-    parser.add_argument("--min-sports", type=int, default=8, help="Minimum sport diversity (default: 8)")
+    parser.add_argument("--min-sports", type=int, default=5, help="Minimum sport diversity (default: 5)")
     args = parser.parse_args()
 
     date = args.date or datetime.now(timezone.utc).strftime("%Y-%m-%d")

@@ -130,12 +130,27 @@ def compute_data_quality(stats_a: dict, stats_b: dict, h2h: dict, sport: str) ->
     try:
         from bet.db.connection import get_db
         with get_db() as conn:
-            row = conn.execute(
-                "SELECT COUNT(*) FROM web_research_cache WHERE query LIKE ? OR query LIKE ?",
-                (f"%{stats_a.get('team', '')}%", f"%{stats_b.get('team', '')}%"),
-            ).fetchone()
-            if row and row[0] > 0:
-                tipster_ok = True
+            # Check tipster_picks first (primary source)
+            try:
+                row = conn.execute(
+                    "SELECT COUNT(*) FROM tipster_picks WHERE "
+                    "(LOWER(home_team) LIKE ? OR LOWER(away_team) LIKE ? "
+                    "OR LOWER(home_team) LIKE ? OR LOWER(away_team) LIKE ?)",
+                    (f"%{stats_a.get('team', '').lower()}%", f"%{stats_a.get('team', '').lower()}%",
+                     f"%{stats_b.get('team', '').lower()}%", f"%{stats_b.get('team', '').lower()}%"),
+                ).fetchone()
+                if row and row[0] > 0:
+                    tipster_ok = True
+            except Exception:
+                pass
+            # Fallback: web_research_cache
+            if not tipster_ok:
+                row = conn.execute(
+                    "SELECT COUNT(*) FROM web_research_cache WHERE query LIKE ? OR query LIKE ?",
+                    (f"%{stats_a.get('team', '')}%", f"%{stats_b.get('team', '')}%"),
+                ).fetchone()
+                if row and row[0] > 0:
+                    tipster_ok = True
     except Exception:
         pass
     if tipster_ok:
@@ -864,25 +879,54 @@ def _build_injuries_section(sport: str, team_a: str, team_b: str) -> str:
 
 
 def _build_expert_sentiment(sport: str, team_a: str, team_b: str) -> str:
-    """§S3.13 Expert Sentiment — tipster/research data from web_research_cache."""
+    """§S3.13 Expert Sentiment — tipster consensus + web research data."""
     lines = ["§S3.13 Expert Sentiment"]
+    found_tipster = False
     try:
         from bet.db.connection import get_db
         with get_db() as conn:
-            rows = conn.execute(
-                "SELECT query, summary, source_url FROM web_research_cache "
-                "WHERE (query LIKE ? OR query LIKE ?) ORDER BY created_at DESC LIMIT 5",
-                (f"%{team_a}%", f"%{team_b}%"),
-            ).fetchall()
-            if rows:
-                for row in rows:
-                    summary = (row[1] or "")[:200]
-                    source = row[2] or "unknown"
-                    lines.append(f"- [{source}] {summary}")
-            else:
+            # Primary: tipster consensus table
+            try:
+                rows = conn.execute(
+                    "SELECT consensus_market, consensus_direction, agreement_pct, total_tipsters, "
+                    "statistical_picks, tipster_sources FROM tipster_consensus "
+                    "WHERE (LOWER(home_team) LIKE ? AND LOWER(away_team) LIKE ?) "
+                    "ORDER BY agreement_pct DESC LIMIT 3",
+                    (f"%{team_a.lower()}%", f"%{team_b.lower()}%"),
+                ).fetchall()
+                if rows:
+                    found_tipster = True
+                    for row in rows:
+                        market = row[0] or "N/A"
+                        direction = row[1] or "N/A"
+                        agreement = row[2] or 0
+                        tipsters = row[3] or 0
+                        stat_picks = row[4] or 0
+                        signal = "🟢" if agreement >= 70 else ("🟡" if agreement >= 50 else "🔴")
+                        lines.append(f"- {signal} {market} → {direction} ({agreement:.0f}% agreement, {tipsters} tipsters, {stat_picks} statistical)")
+            except Exception:
+                pass  # table may not exist yet
+
+            # Supplementary: web_research_cache
+            try:
+                rows = conn.execute(
+                    "SELECT query, summary, source_url FROM web_research_cache "
+                    "WHERE (query LIKE ? OR query LIKE ?) ORDER BY created_at DESC LIMIT 3",
+                    (f"%{team_a}%", f"%{team_b}%"),
+                ).fetchall()
+                if rows:
+                    found_tipster = True
+                    for row in rows:
+                        summary = (row[1] or "")[:200]
+                        source = row[2] or "unknown"
+                        lines.append(f"- [{source}] {summary}")
+            except Exception:
+                pass
+
+            if not found_tipster:
                 lines.append("⚠️ No expert/tipster data cached — TIPSTER-BLIND")
     except Exception:
-        lines.append("⚠️ Web research cache not available")
+        lines.append("⚠️ Tipster/research data not available")
     lines.append("")
     return "\n".join(lines)
 
@@ -1379,7 +1423,9 @@ def _write_json(output: dict, date: str) -> Path:
 # CLI
 # ---------------------------------------------------------------------------
 
-if __name__ == "__main__":
+def main():
+    from agent_output import AgentOutput, add_agent_args
+
     parser = argparse.ArgumentParser(
         description="S3 Deep Stats Report — per-candidate 10-section statistical analysis"
     )
@@ -1399,10 +1445,36 @@ if __name__ == "__main__":
         default=None,
         help="Limit to first N candidates",
     )
+    add_agent_args(parser)
 
     args = parser.parse_args()
+    out = AgentOutput("s3_deep", verbose=args.verbose, stop_on_error=args.stop_on_error)
     result = generate_deep_stats(args.date, args.shortlist, args.top)
-    print(
-        f"\n[deep_stats] Done: {result['total_candidates']} candidates, "
-        f"{result['candidates_with_data']} with data"
+
+    if args.verbose:
+        # Emit per-candidate quality summary for agent
+        for a in result.get("analyses", []):
+            dq = a.get("data_quality", {})
+            out.candidate(
+                f"{a.get('home_team', '?')} vs {a.get('away_team', '?')}",
+                sport=a.get("sport", "?"),
+                has_data=a.get("has_data", False),
+                data_quality=dq.get("label", "?"),
+                best_market=a.get("best_market", "none"),
+                markets_evaluated=a.get("markets_evaluated", 0),
+            )
+
+    out.summary(
+        verdict="OK" if result["candidates_with_data"] > 0 else "FAILED",
+        metrics={
+            "total_candidates": result["total_candidates"],
+            "with_data": result["candidates_with_data"],
+            "without_data": result.get("candidates_without_data", 0),
+            "enrichment_attempted": result.get("enrichment_attempted", 0),
+            "enrichment_successful": result.get("enrichment_successful", 0),
+        },
     )
+
+
+if __name__ == "__main__":
+    main()

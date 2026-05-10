@@ -24,16 +24,7 @@ _SPORT_FROM_URL = {
     "tennis": "tennis",
     "basketball": "basketball",
     "volleyball": "volleyball",
-    "handball": "handball",
     "hockey": "ice-hockey",
-    "baseball": "baseball",
-    "snooker": "snooker",
-    "darts": "darts",
-    "table-tennis": "table-tennis",
-    "mma": "mma",
-    "esports": "esports",
-    "padel": "padel",
-    "motorsport": "motorsport",
 }
 
 _HEADERS = {

@@ -13,15 +13,6 @@ SPORT_TO_GROUP: dict[str, str] = {
     "basketball": "basketball",
     "volleyball": "volleyball",
     "hockey": "hockey",
-    "esports": "esports",
-    "handball": "handball",
-    "mma": "combat",
-    "table_tennis": "racket",
-    "padel": "racket",
-    "snooker": "niche",
-    "darts": "niche",
-    "speedway": "niche",
-    "baseball": "baseball",
 }
 
 
@@ -48,9 +39,3 @@ from . import tennis_scanner  # noqa: E402, F401
 from . import basketball_scanner  # noqa: E402, F401
 from . import volleyball_scanner  # noqa: E402, F401
 from . import hockey_scanner  # noqa: E402, F401
-from . import esports_scanner  # noqa: E402, F401
-from . import handball_scanner  # noqa: E402, F401
-from . import combat_scanner  # noqa: E402, F401
-from . import racket_scanner  # noqa: E402, F401
-from . import niche_scanner  # noqa: E402, F401
-from . import baseball_scanner  # noqa: E402, F401

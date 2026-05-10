@@ -25,25 +25,50 @@ def run_tipster_xref(date: str, state: dict) -> tuple[bool, str]:
 
     Enriches shortlist candidates with tipster support, consensus %, and arguments.
     """
-    tipster_path = DATA_DIR / f"tipster_aggregation_{date}.json"
-    consensus_path = DATA_DIR / f"{date}_tipster_consensus.json"
+    # DB-first (R2) — try tipster_picks table
+    tips = []
+    try:
+        from bet.db.connection import get_db
+        with get_db() as conn:
+            rows = conn.execute(
+                "SELECT source_site, tipster_name, sport, event, home_team, away_team, "
+                "competition, market, market_type, direction, odds, reasoning "
+                "FROM tipster_picks WHERE betting_date = ?", (date,)
+            ).fetchall()
+            if rows:
+                tips = [
+                    {
+                        "source_site": r[0], "tipster_name": r[1], "sport": r[2], "event": r[3],
+                        "home_team": r[4], "away_team": r[5], "competition": r[6],
+                        "market": r[7], "market_type": r[8], "direction": r[9],
+                        "odds": r[10], "reasoning": r[11],
+                    }
+                    for r in rows
+                ]
+                print(f"  → Loaded {len(tips)} tipster picks from DB")
+    except Exception:
+        pass  # DB not available, fall through to JSON
 
-    # Try both possible tipster data files
-    tipster_data = None
-    for tpath in [tipster_path, consensus_path]:
-        if tpath.exists():
-            try:
-                tipster_data = json.loads(tpath.read_text(encoding="utf-8"))
-                print(f"  → Loaded tipster data from {tpath.name}")
-                break
-            except (json.JSONDecodeError, OSError):
-                continue
+    # JSON fallback if DB had no data
+    if not tips:
+        tipster_path = DATA_DIR / f"tipster_aggregation_{date}.json"
+        consensus_path = DATA_DIR / f"{date}_tipster_consensus.json"
 
-    if tipster_data is None:
-        return True, "No tipster data available — skipping cross-reference"
+        tipster_data = None
+        for tpath in [tipster_path, consensus_path]:
+            if tpath.exists():
+                try:
+                    tipster_data = json.loads(tpath.read_text(encoding="utf-8"))
+                    print(f"  → Loaded tipster data from {tpath.name}")
+                    break
+                except (json.JSONDecodeError, OSError):
+                    continue
 
-    # Parse tips into a lookup
-    tips = tipster_data if isinstance(tipster_data, list) else tipster_data.get("tips", [])
+        if tipster_data is None:
+            return True, "No tipster data available — skipping cross-reference"
+
+        # Parse tips — use "all_picks" key (written by tipster_aggregator.py)
+        tips = tipster_data if isinstance(tipster_data, list) else tipster_data.get("all_picks", tipster_data.get("tips", []))
     tip_lookup: dict[str, list[dict]] = {}
     for tip in tips:
         home = (tip.get("home") or tip.get("home_team") or "").strip().lower()
@@ -70,7 +95,7 @@ def run_tipster_xref(date: str, state: dict) -> tuple[bool, str]:
                 matching_tips = tip_lookup.get(key, [])
                 if matching_tips:
                     matched += 1
-                    tipster_names = list({t.get("tipster", t.get("source", "unknown")) for t in matching_tips})
+                    tipster_names = list({t.get("source_site") or t.get("tipster") or t.get("source") or "unknown" for t in matching_tips})
                     consensus = len(matching_tips)
                     c["tipster_support"] = {
                         "count": consensus,
@@ -92,3 +117,47 @@ def run_tipster_xref(date: str, state: dict) -> tuple[bool, str]:
 
     n_tips = len(tips)
     return True, f"Tipster cross-reference: {n_tips} tips loaded, {matched}/{total} shortlist candidates matched"
+
+
+# ---------------------------------------------------------------------------
+# CLI entry point — agent-friendly
+# ---------------------------------------------------------------------------
+
+def main():
+    import argparse
+    from agent_output import AgentOutput, add_agent_args
+
+    parser = argparse.ArgumentParser(
+        description="S2 Tipster Cross-Reference — match tipster picks to shortlist"
+    )
+    parser.add_argument("--date", required=True, help="Betting date YYYY-MM-DD")
+    add_agent_args(parser)
+    args = parser.parse_args()
+
+    out = AgentOutput("s2_xref", verbose=args.verbose, stop_on_error=args.stop_on_error)
+
+    ok, msg = run_tipster_xref(args.date, {})
+
+    # Parse metrics from message for structured summary
+    # Message format: "Tipster cross-reference: N tips loaded, M/T shortlist candidates matched"
+    import re
+    m = re.search(r"(\d+) tips loaded, (\d+)/(\d+)", msg)
+    metrics = {}
+    if m:
+        metrics = {"tips_loaded": int(m.group(1)), "matched": int(m.group(2)), "total": int(m.group(3))}
+    else:
+        metrics = {"tips_loaded": 0, "matched": 0, "total": 0, "skipped": True}
+
+    if args.verbose:
+        out.event("xref_result", ok=ok, message=msg, **metrics)
+
+    out.summary(
+        verdict="OK" if ok else "FAILED",
+        metrics=metrics,
+    )
+
+    sys.exit(0 if ok else 1)
+
+
+if __name__ == "__main__":
+    main()

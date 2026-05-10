@@ -35,18 +35,8 @@ def _detect_sport(url: str) -> str:
         return "basketball"
     if "/hockey/" in url_lower:
         return "hockey"
-    if "/handball/" in url_lower:
-        return "handball"
     if "/volleyball/" in url_lower:
         return "volleyball"
-    if "/baseball/" in url_lower:
-        return "baseball"
-    if "/mma/" in url_lower:
-        return "mma"
-    if "/rugby/" in url_lower:
-        return "rugby"
-    if "/cricket/" in url_lower:
-        return "cricket"
     return "football"
 
 

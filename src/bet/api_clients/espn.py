@@ -247,27 +247,6 @@ NHL_STAT_MAP = {
     "shootoutGoals": "shootout_goals",
 }
 
-MLB_BATTING_MAP = {
-    "hits": "hits",
-    "runs": "runs",
-    "RBIs": "rbis",
-    "homeRuns": "home_runs",
-    "strikeouts": "strikeouts_batting",
-    "walks": "walks",
-    "stolenBases": "stolen_bases",
-    "hitByPitch": "hit_by_pitch",
-    "groundBalls": "ground_balls",
-}
-
-MLB_PITCHING_MAP = {
-    "strikeouts": "strikeouts_pitching",
-    "earnedRuns": "earned_runs",
-    "hits": "hits_allowed",
-    "walks": "walks_allowed",
-    "saves": "saves",
-    "losses": "losses",
-}
-
 VOLLEYBALL_STAT_MAP = {
     "kills": "kills",
     "aces": "aces",
@@ -594,12 +573,7 @@ class ESPNClient(BaseAPIClient):
 
             team_stats_raw = team_data.get("statistics", [])
 
-            if self.sport == "baseball":
-                # MLB: nested categories with sub-stats (legacy — sport removed)
-                self._parse_mlb_stats(team_stats_raw, side, stats)
-            else:
-                # Soccer/NBA/NHL: flat stat list
-                self._parse_flat_stats(team_stats_raw, side, stats)
+            self._parse_flat_stats(team_stats_raw, side, stats)
 
         # Extract goals/points from scores (not in boxscore stats)
         # Soccer/Hockey → "goals", Basketball → "points"
@@ -659,38 +633,6 @@ class ESPNClient(BaseAPIClient):
             if normalized_key not in stats:
                 stats[normalized_key] = {}
             stats[normalized_key][side] = value
-
-    def _parse_mlb_stats(
-        self, team_stats_raw: list, side: str, stats: dict[str, dict[str, float]]
-    ) -> None:
-        """Parse MLB nested statistics (batting/pitching/fielding categories)."""
-        for category in team_stats_raw:
-            cat_name = category.get("name", "").lower()
-            sub_stats = category.get("stats", [])
-
-            if cat_name == "batting":
-                stat_map = MLB_BATTING_MAP
-            elif cat_name == "pitching":
-                stat_map = MLB_PITCHING_MAP
-            else:
-                continue
-
-            for stat_entry in sub_stats:
-                espn_name = stat_entry.get("name", "")
-                display_value = stat_entry.get("displayValue", "0")
-
-                normalized_key = stat_map.get(espn_name)
-                if not normalized_key:
-                    continue
-
-                try:
-                    value = float(display_value.replace("%", "").strip() or "0")
-                except (ValueError, TypeError):
-                    value = 0.0
-
-                if normalized_key not in stats:
-                    stats[normalized_key] = {}
-                stats[normalized_key][side] = value
 
     def _get_tennis_match_stats(self, fixture_id: str) -> list[APIMatchStats]:
         """Get tennis match stats from scoreboard linescores.

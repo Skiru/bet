@@ -1609,6 +1609,8 @@ def _detect_missing_from_shortlist(date_str: str) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 def main():
+    from agent_output import AgentOutput
+
     parser = argparse.ArgumentParser(
         description="Self-healing data enrichment agent"
     )
@@ -1619,7 +1621,10 @@ def main():
     parser.add_argument("--h2h", nargs=2, metavar=("TEAM_A", "TEAM_B"), help="Fetch H2H stats")
     parser.add_argument("--workers", type=int, default=4, help="Max parallel workers")
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose logging")
+    parser.add_argument("--stop-on-error", action="store_true", help="Stop on first critical error")
     args = parser.parse_args()
+
+    out = AgentOutput("s2_enrich", verbose=args.verbose, stop_on_error=args.stop_on_error)
 
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
@@ -1628,50 +1633,61 @@ def main():
 
     if args.team:
         if not args.sport:
-            print("ERROR: --sport required with --team", file=sys.stderr)
+            out.error("--sport required with --team", recoverable=False)
+            out.summary(verdict="FAILED", metrics={"error": "--sport required with --team"})
             sys.exit(1)
         result = enrich_team(args.team, args.sport)
         print(json.dumps(result, indent=2, ensure_ascii=False))
+        out.summary(verdict="OK" if result.get("status") == "enriched" else "PARTIAL",
+                     metrics={"team": args.team, "sport": args.sport, "status": result.get("status", "?")})
 
     elif args.h2h:
         if not args.sport:
-            print("ERROR: --sport required with --h2h", file=sys.stderr)
+            out.error("--sport required with --h2h", recoverable=False)
+            out.summary(verdict="FAILED", metrics={"error": "--sport required with --h2h"})
             sys.exit(1)
         result = enrich_h2h(args.h2h[0], args.h2h[1], args.sport)
         print(json.dumps(result, indent=2, ensure_ascii=False))
+        out.summary(verdict="OK", metrics={"h2h": f"{args.h2h[0]} vs {args.h2h[1]}", "sport": args.sport})
 
     elif args.batch:
         batch_path = Path(args.batch)
         if not batch_path.exists():
-            print(f"ERROR: Batch file not found: {batch_path}", file=sys.stderr)
+            out.error(f"Batch file not found: {batch_path}", recoverable=False)
+            out.summary(verdict="FAILED", metrics={"error": f"Batch file not found: {batch_path}"})
             sys.exit(1)
         try:
             teams = json.loads(batch_path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError) as exc:
-            print(f"ERROR: Failed to read batch file: {exc}", file=sys.stderr)
+            out.error(f"Failed to read batch file: {exc}", recoverable=False)
+            out.summary(verdict="FAILED", metrics={"error": str(exc)})
             sys.exit(1)
         results = batch_enrich(teams, max_workers=args.workers)
         print(json.dumps(results, indent=2, ensure_ascii=False))
 
-        # Summary
-        enriched = sum(1 for r in results if r["status"] == "enriched")
-        partial = sum(1 for r in results if r["status"] == "partial")
-        failed = sum(1 for r in results if r["status"] == "failed")
-        print(f"\nSummary: {enriched} enriched, {partial} partial, {failed} failed", file=sys.stderr)
+        enriched = sum(1 for r in results if r.get("status") == "enriched")
+        partial = sum(1 for r in results if r.get("status") == "partial")
+        failed = sum(1 for r in results if r.get("status") == "failed")
+        out.summary(verdict="OK" if enriched > 0 else "PARTIAL",
+                     metrics={"enriched": enriched, "partial": partial, "failed": failed, "total": len(results)})
 
     elif args.date:
         missing = _detect_missing_from_shortlist(args.date)
         if not missing:
-            print(f"No missing teams found for {args.date}")
+            out.summary(verdict="OK", metrics={"missing": 0, "message": f"No missing teams for {args.date}"})
             sys.exit(0)
-        print(f"Found {len(missing)} teams with missing stats", file=sys.stderr)
+        if args.verbose:
+            out.event("missing_detected", count=len(missing))
+        else:
+            print(f"Found {len(missing)} teams with missing stats", file=sys.stderr)
         results = batch_enrich(missing, max_workers=args.workers)
         print(json.dumps(results, indent=2, ensure_ascii=False))
 
-        enriched = sum(1 for r in results if r["status"] == "enriched")
-        partial = sum(1 for r in results if r["status"] == "partial")
-        failed = sum(1 for r in results if r["status"] == "failed")
-        print(f"\nSummary: {enriched} enriched, {partial} partial, {failed} failed", file=sys.stderr)
+        enriched = sum(1 for r in results if r.get("status") == "enriched")
+        partial = sum(1 for r in results if r.get("status") == "partial")
+        failed = sum(1 for r in results if r.get("status") == "failed")
+        out.summary(verdict="OK" if enriched > 0 else "PARTIAL",
+                     metrics={"enriched": enriched, "partial": partial, "failed": failed, "total": len(results)})
 
     else:
         parser.print_help()

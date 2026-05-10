@@ -61,7 +61,7 @@ Pipeline scripts inject raw EV from odds API. Your job is to add PRICING INTELLI
 - **Odds sources**: `odds_multi_sources.json` (preferred, 5 sources) or `odds_api_snapshot.json` (fallback)
 - **Analysis pool**: `analysis_pool_{date}.json` (may have pre-computed EV)
 - **Script**: `python3 scripts/fetch_odds_multi.py`
-- **ESPN ATS/OU records** (basketball/hockey/baseball): use `load_espn_enrichment_for_team()` from `db_data_loader.py`. ATS = historical cover rate per team. OU = overs-unders-pushes per team. These give SHARP PRIORS for totals/spread EV.
+- **ESPN ATS/OU records** (basketball/hockey): use `load_espn_enrichment_for_team()` from `db_data_loader.py`. ATS = historical cover rate per team. OU = overs-unders-pushes per team. These give SHARP PRIORS for totals/spread EV.
 - **Player gamelogs** (25.9K+): `load_player_gamelogs_for_team()` provides game-by-game individual stats — use for verifying consistency of totals market probability (e.g., "Player X scored 20+ in 8/10 games" → high confidence in team totals).
 
 ## Workflow

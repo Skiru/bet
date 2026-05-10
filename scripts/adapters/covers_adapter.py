@@ -16,12 +16,12 @@ _SCORE_RE = re.compile(r"(\d+)\s*[-–]\s*(\d+)")
 _SPORT_MAP = {
     "nfl": "football",
     "nba": "basketball",
-    "mlb": "baseball",
     "nhl": "hockey",
     "ncaaf": "football",
     "ncaab": "basketball",
     "soccer": "football",
     "tennis": "tennis",
+    "volleyball": "volleyball",
 }
 
 

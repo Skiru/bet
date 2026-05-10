@@ -51,6 +51,9 @@ from utils import normalize_team_name as _normalize
 
 from db_data_loader import load_fixtures_from_db, load_odds_from_db, load_scan_summary_from_db
 
+# Allowed sports — filter out legacy data for removed sports
+_ALLOWED_SPORTS = {"football", "basketball", "hockey", "tennis", "volleyball"}
+
 
 # ---------------------------------------------------------------------------
 # Sport key mapping
@@ -607,6 +610,8 @@ def generate_market_matrix(
     print(f"[matrix] Loading data for {date}...")
 
     fixtures = load_fixtures(date)
+    # Filter to supported sports only (DB may contain legacy data for removed sports)
+    fixtures = [f for f in fixtures if f.get("sport", "football") in _ALLOWED_SPORTS]
     odds_lookup = load_espn_odds_snapshot(date)  # ESPN first (free, primary)
     odds_api_lookup = load_odds_api_snapshot(date)  # the-odds-api (supplement)
     # Merge: odds_api supplements ESPN (ESPN is primary, don't overwrite)
@@ -704,6 +709,9 @@ def generate_market_matrix(
                 "kickoff": _normalize_kickoff(item_time, date),
                 "source": "scan-expansion",
             }
+            # Skip removed sports
+            if fixture["sport"] not in _ALLOWED_SPORTS:
+                continue
             fixtures.append(fixture)
             fixture_keys.add(match_key)
             scan_only_events += 1
@@ -715,8 +723,11 @@ def generate_market_matrix(
             home = oev.get("home_team", "")
             away = oev.get("away_team", "")
             if home and away:
+                sport = _sport_from_odds_key(oev.get("sport_key", ""))
+                if sport not in _ALLOWED_SPORTS:
+                    continue
                 fixture = {
-                    "sport": _sport_from_odds_key(oev.get("sport_key", "")),
+                    "sport": sport,
                     "home_team": home,
                     "away_team": away,
                     "competition": oev.get("sport_title", ""),
@@ -743,6 +754,8 @@ def generate_market_matrix(
 
     for fixture in fixtures:
         sport = fixture.get("sport", "football")
+        if sport not in _ALLOWED_SPORTS:
+            continue
         home = fixture.get("home_team", fixture.get("home", ""))
         away = fixture.get("away_team", fixture.get("away", ""))
         competition = fixture.get("competition", fixture.get("league", ""))

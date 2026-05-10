@@ -20,7 +20,6 @@ from .whoscored_adapter import parse as whoscored_parse
 from .basketball_reference_adapter import parse as basketball_reference_parse
 from .hockey_reference_adapter import parse as hockey_reference_parse
 from .covers_adapter import parse as covers_parse
-from .hltv_adapter import parse as hltv_parse
 
 
 def dedup_results(results, key_fn=None):
@@ -65,7 +64,6 @@ ADAPTERS = {
     "soccerstats.com": soccerstats_parse,
     "totalcorner.com": totalcorner_parse,
     "scores24.live": scores24_parse,
-    "hltv.org": hltv_parse,
     "atptour.com": raw_parse,
     "betaminic.com": raw_parse,
     "whoscored.com": whoscored_parse,

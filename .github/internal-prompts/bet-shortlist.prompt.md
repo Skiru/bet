@@ -57,7 +57,7 @@ Flag events with <50% enrichment data as "DATA-SPARSE" — they still proceed bu
 
 ### 3. Early Betclic Market Check
 
-For niche sports (volleyball, table tennis, padel, speedway): verify Betclic market existence BEFORE deep analysis.
+For less popular sports (volleyball): verify Betclic market existence BEFORE deep analysis.
 
 ### 4. Screening Criteria
 

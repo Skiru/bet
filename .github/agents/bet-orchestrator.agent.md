@@ -206,7 +206,7 @@ Include: ANALYTICAL REASONING (not raw paste) — WHY this verdict
 ├─────────────────────────────────────────────────┤
 │ 3. THINK: sequentialthinking                    │
 │    → Evaluate agent's verdict. Agree?            │
-│    → Methodology compliance (R1-R16)?            │
+│    → Methodology compliance (R1-R17)?            │
 │    → Ready for next step?                        │
 ├─────────────────────────────────────────────────┤
 │ 4. DECIDE:                                      │
@@ -244,7 +244,7 @@ Include: ANALYTICAL REASONING (not raw paste) — WHY this verdict
 
 ---
 
-## Rules (R1-R16) — Enforced at Every Step
+## Rules (R1-R17) — Enforced at Every Step
 
 | # | Rule | Enforcement |
 |---|------|-------------|
@@ -262,6 +262,7 @@ Include: ANALYTICAL REASONING (not raw paste) — WHY this verdict
 | R14 | DATA DEPTH | Every candidate needs data_quality_score: FULL (≥7/10), PARTIAL (4-6/10), MINIMAL (<4/10). Core coupons = FULL/PARTIAL only. |
 | R15 | WEB RESEARCH | When L1-L6 exhausted, spawn `web_research_agent.py` (L7). Max 5 SerpAPI + 10 Playwright per run. |
 | R16 | LIVE BETTING | Events in progress are VALID targets. Flag as LIVE, include in scan. Never exclude for being about to start. |
+| R17 | NO TERMINAL POLLING | NEVER poll terminals with `get_terminal_output`/`ps -p`/`tail` loops. Terminal auto-notifies on completion. Use `mode=sync` + generous timeout. Do productive work while waiting. |
 
 ---
 
@@ -278,6 +279,7 @@ Include: ANALYTICAL REASONING (not raw paste) — WHY this verdict
 | 7 | Proceed despite REJECTED verdict | STOP. Escalate to user via askQuestions |
 | 8 | Present raw script output | User sees agent-synthesized insights, not log dumps |
 | 9 | Run S3-S7 without separate delegations | Each step = separate runSubagent call |
+| 10 | Poll terminals with `get_terminal_output` / `ps -p` / `tail` loops | Terminal auto-notifies on completion. Use `mode=sync` + generous timeout. Do productive work while waiting — NEVER poll (R17) |
 
 ---
 
@@ -291,7 +293,7 @@ Include: ANALYTICAL REASONING (not raw paste) — WHY this verdict
 | Past 18:00 Warsaw, picks not ready | Accelerate — skip optional enrichment |
 | >20% bankroll drawdown | ALERT user — consider NO BET day |
 | Agent contradicts prior agent | Use `sequentialthinking` to resolve |
-| Script takes >10 min | Switch to async mode, monitor periodically |
+| Script takes >10 min | Use `mode=sync` with generous timeout (600000ms+). Terminal auto-notifies on completion. Do productive work while waiting — NEVER poll. |
 
 ---
 

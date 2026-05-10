@@ -4,9 +4,9 @@ Fetch odds from The Odds API for all configured sports.
 
 Usage:
     python3 scripts/fetch_odds_api.py                     # fetch all sports
-    python3 scripts/fetch_odds_api.py --sports mlb,nba    # fetch specific sports
-    python3 scripts/fetch_odds_api.py --list-sports       # list available sports (FREE, 0 credits)
-    python3 scripts/fetch_odds_api.py --scores mlb        # fetch scores for settlement
+    python3 scripts/fetch_odds_api.py --sports football,hockey  # fetch specific sports
+    python3 scripts/fetch_odds_api.py --list-sports               # list available sports (FREE, 0 credits)
+    python3 scripts/fetch_odds_api.py --scores hockey              # fetch scores for settlement
 
 Requires ODDS_API_KEY env var or config/odds_api_key.txt file.
 Free tier: 500 credits/month. Each sport+market+region = 1 credit.

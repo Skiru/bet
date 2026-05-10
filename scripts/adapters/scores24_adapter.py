@@ -8,9 +8,8 @@ scores24.live URL patterns:
   Odds:     /en/{sport}/m-{date}-{slug}#odds — bookmaker odds
   Predict:  /en/{sport}/m-{date}-{slug}-prediction — community prediction
 
-Sport slugs: soccer, tennis, basketball, ice-hockey, handball, volleyball,
-             baseball, snooker, darts, table-tennis, mma, american-football,
-             cricket, rugby, badminton, csgo, lol, futsal, aussie-rules, boxing
+Sport slugs: soccer, tennis, basketball, ice-hockey, volleyball,
+             american-football, futsal
 
 Data extracted from detail pages:
   - Match info: teams, date, time, venue, surface, tournament, round
@@ -29,22 +28,9 @@ _SPORT_MAP = {
     "tennis": "tennis",
     "basketball": "basketball",
     "ice-hockey": "hockey",
-    "handball": "handball",
     "volleyball": "volleyball",
-    "baseball": "baseball",
-    "snooker": "snooker",
-    "darts": "darts",
-    "table-tennis": "table_tennis",
-    "mma": "mma",
     "american-football": "football",  # NFL
-    "cricket": "cricket",
-    "rugby": "rugby",
-    "badminton": "badminton",
-    "csgo": "esports",
-    "lol": "esports",
     "futsal": "football",
-    "aussie-rules": "aussie_rules",
-    "boxing": "boxing",
 }
 
 # Regex to detect match detail URLs
@@ -285,7 +271,7 @@ def _extract_match_info(lines: List[str], url: str) -> Dict:
             info["venue"] = lines[i + 2]
             break
 
-    # Surface (tennis, padel)
+    # Surface (tennis)
     for i, line in enumerate(lines):
         if line == "Surface:" and i + 1 < len(lines):
             info["surface"] = lines[i + 1]

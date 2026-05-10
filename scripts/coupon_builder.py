@@ -1903,6 +1903,8 @@ def persist_coupons_to_db(coupons_data: dict, date: str) -> int:
 # ---------------------------------------------------------------------------
 
 def main():
+    from agent_output import AgentOutput, add_agent_args
+
     parser = argparse.ArgumentParser(
         description="S8 Coupon Builder — Build coupons from S7 gate-approved picks"
     )
@@ -1916,8 +1918,10 @@ def main():
         default=None,
         help="Path to S7 gate results JSON (overrides default path)",
     )
+    add_agent_args(parser)
 
     args = parser.parse_args()
+    out = AgentOutput("s8_coupon", verbose=args.verbose, stop_on_error=args.stop_on_error)
 
     # Load gate results — DB first, JSON fallback
     gate_results = None
@@ -1925,7 +1929,8 @@ def main():
     if args.input:
         input_path = Path(args.input)
         if not input_path.exists():
-            print(f"[coupon_builder] ERROR: Gate results not found: {input_path}")
+            out.error(f"Gate results not found: {input_path}", recoverable=False)
+            out.summary(verdict="FAILED", metrics={"error": f"Gate results not found: {input_path}"})
             sys.exit(1)
         with open(input_path, encoding="utf-8") as f:
             gate_results = json.load(f)
@@ -1950,16 +1955,19 @@ def main():
                         "rejected_count": len(rejected or []),
                     },
                 }
-                print(f"[coupon_builder] DB: loaded {len(approved or [])} approved, {len(extended or [])} extended")
+                if args.verbose:
+                    out.event("db_load", approved=len(approved or []), extended=len(extended or []))
+                else:
+                    print(f"[coupon_builder] DB: loaded {len(approved or [])} approved, {len(extended or [])} extended")
         except Exception as e:
-            print(f"[coupon_builder] DB read failed, using JSON fallback: {e}")
+            out.warning(f"DB read failed, using JSON fallback: {e}")
 
         # JSON fallback
         if gate_results is None:
             input_path = DATA_DIR / f"{args.date}_s7_gate_results.json"
             if not input_path.exists():
-                print(f"[coupon_builder] ERROR: Gate results not found: {input_path}")
-                print(f"[coupon_builder] Run gate_checker.py first: python3 scripts/gate_checker.py --date {args.date}")
+                out.error(f"Gate results not found: {input_path}. Run gate_checker.py first.", recoverable=False)
+                out.summary(verdict="FAILED", metrics={"error": f"Gate results not found: {input_path}"})
                 sys.exit(1)
             with open(input_path, encoding="utf-8") as f:
                 gate_results = json.load(f)
@@ -1977,23 +1985,40 @@ def main():
     write_coupon_markdown(coupons_data, args.date)
     write_coupon_json(coupons_data, args.date)
 
-    # Print summary
+    # Structured summary
     if coupons_data.get("no_bet"):
-        print(f"\n[coupon_builder] NO BET: {coupons_data['no_bet_reason']}")
+        out.summary(
+            verdict="NO_BET",
+            metrics={"reason": coupons_data["no_bet_reason"]},
+        )
+        if not args.verbose:
+            print(f"\n[coupon_builder] NO BET: {coupons_data['no_bet_reason']}")
     else:
         s = coupons_data["summary"]
-        print(
-            f"\n[coupon_builder] Done: "
-            f"{len(coupons_data.get('singles', []))} singles, "
-            f"{len(coupons_data['core_coupons'])} core coupons, "
-            f"{len(coupons_data['combos'])} combos"
+        out.summary(
+            verdict="OK",
+            metrics={
+                "singles": len(coupons_data.get("singles", [])),
+                "core_coupons": len(coupons_data["core_coupons"]),
+                "combos": len(coupons_data["combos"]),
+                "core_spend": round(s["core_spend"], 2),
+                "total_spend": round(s["total_spend"], 2),
+                "potential_return": round(s["total_potential_return"], 2),
+            },
         )
-        if coupons_data.get("banker"):
-            bleg = coupons_data["banker"]["legs"][0]
-            print(f"  Banker: {bleg.get('home_team', '?')} vs {bleg.get('away_team', '?')}")
-        print(f"  Core spend: {s['core_spend']:.2f} PLN")
-        print(f"  Total spend: {s['total_spend']:.2f} PLN")
-        print(f"  Potential return: {s['total_potential_return']:.2f} PLN")
+        if not args.verbose:
+            print(
+                f"\n[coupon_builder] Done: "
+                f"{len(coupons_data.get('singles', []))} singles, "
+                f"{len(coupons_data['core_coupons'])} core coupons, "
+                f"{len(coupons_data['combos'])} combos"
+            )
+            if coupons_data.get("banker"):
+                bleg = coupons_data["banker"]["legs"][0]
+                print(f"  Banker: {bleg.get('home_team', '?')} vs {bleg.get('away_team', '?')}")
+            print(f"  Core spend: {s['core_spend']:.2f} PLN")
+            print(f"  Total spend: {s['total_spend']:.2f} PLN")
+            print(f"  Potential return: {s['total_potential_return']:.2f} PLN")
 
 
 if __name__ == "__main__":

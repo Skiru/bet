@@ -127,7 +127,7 @@ def fetch_league_leaders_for_sport(sport: str, league: str) -> dict | None:
 
 
 def fetch_player_gamelogs(sport: str, league: str, team_id: str, team_name: str) -> list[dict]:
-    """Fetch gamelogs for top players on a team (NBA/MLB/NHL only).
+    """Fetch gamelogs for top players on a team (NBA/NHL only).
 
     Gets team leaders first, then fetches gamelogs for top 3 scorers.
     Stores in: betting/data/stats_cache/espn/{sport}/players/{athlete_id}/gamelog.json
