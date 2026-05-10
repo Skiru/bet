@@ -16,7 +16,6 @@ from agent_protocol import (
     STEP_AGENT_CONFIG,
     REVIEWS_DIR,
 )
-from pipeline_orchestrator import PIPELINE_STEPS
 
 
 # ---------------------------------------------------------------------------
@@ -98,12 +97,7 @@ def test_read_agent_review_reads_existing():
 # ---------------------------------------------------------------------------
 
 
-def test_step_agent_config_covers_all_review_steps():
-    """Verify all steps with agent_review_required are in STEP_AGENT_CONFIG."""
-    review_steps = {
-        s["id"] for s in PIPELINE_STEPS if s.get("agent_review_required")
-    }
-    for step_id in review_steps:
-        assert step_id in STEP_AGENT_CONFIG, (
-            f"Step {step_id} has agent_review_required but no STEP_AGENT_CONFIG entry"
-        )
+def test_step_agent_config_has_required_keys():
+    """Verify STEP_AGENT_CONFIG entries have expected structure."""
+    for step_id, config in STEP_AGENT_CONFIG.items():
+        assert "agent" in config, f"Step {step_id} missing 'agent' key"

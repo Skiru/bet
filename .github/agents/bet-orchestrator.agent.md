@@ -173,13 +173,40 @@ Include: ANALYTICAL REASONING (not raw paste) — WHY this verdict
 
 ---
 
+## Structured Script Output (R19)
+
+All pipeline scripts support agent-friendly structured output via `agent_output.py`:
+
+- **Always run scripts with `--verbose`** — produces JSON-line events for real-time monitoring
+- **Always parse `AGENT_SUMMARY:{json}`** from script output — this is the structured verdict
+- **Use `--stop-on-error`** on critical paths where failure should halt the pipeline
+- **Exit codes:** 0 = success, 1 = partial/degraded, 2 = critical failure
+
+When running a data collection script yourself:
+```bash
+python3 scripts/scan_events.py --parallel-sport --date {date} --verbose 2>&1
+# → Find AGENT_SUMMARY: line → parse JSON → use in sequentialthinking
+```
+
+When delegating to a specialist agent, instruct them:
+```
+- Run with --verbose. Parse AGENT_SUMMARY: JSON for structured metrics.
+- Use AGENT_SUMMARY verdict/metrics/issues in your analytical response.
+```
+
+The AGENT_SUMMARY JSON contains: `step`, `verdict` (OK/PARTIAL/FAILED), `metrics`, `issues[]`, `counts`.
+See `STRUCTURED_OUTPUT_PROTOCOL` in `scripts/agent_protocol.py` for full specification.
+
+---
+
 ## The Execution Loop (per step)
 
 **For DATA COLLECTION steps (S0, S1-S1e):**
 ```
 ┌─────────────────────────────────────────────────┐
 │ 1. RUN: python3 scripts/{data_script}.py [args] │
-│    → Only data-fetching scripts (scan, fetch)    │
+│    → Use --verbose for AgentOutput scripts (R19) │
+│    → Parse AGENT_SUMMARY:{json} from output      │
 ├─────────────────────────────────────────────────┤
 │ 2. DELEGATE: runSubagent(specialist)            │
 │    → Agent reviews output quality                │
@@ -206,7 +233,7 @@ Include: ANALYTICAL REASONING (not raw paste) — WHY this verdict
 ├─────────────────────────────────────────────────┤
 │ 3. THINK: sequentialthinking                    │
 │    → Evaluate agent's verdict. Agree?            │
-│    → Methodology compliance (R1-R17)?            │
+│    → Methodology compliance (R1-R19)?            │
 │    → Ready for next step?                        │
 ├─────────────────────────────────────────────────┤
 │ 4. DECIDE:                                      │
@@ -244,7 +271,7 @@ Include: ANALYTICAL REASONING (not raw paste) — WHY this verdict
 
 ---
 
-## Rules (R1-R17) — Enforced at Every Step
+## Rules (R1-R19) — Enforced at Every Step
 
 | # | Rule | Enforcement |
 |---|------|-------------|
@@ -259,10 +286,12 @@ Include: ANALYTICAL REASONING (not raw paste) — WHY this verdict
 | R11 | SEQUENTIAL THINKING | `sequentialthinking` per step + per candidate in S3/S7. |
 | R12 | CONDITIONAL | Coupon carries conditional disclaimer. |
 | R13 | MAJOR DOMESTIC LEAGUES | Brasileirão/MLS/Liga MX/CSL/J-League/K-League etc. present when active. +10 boost. |
-| R14 | DATA DEPTH | Every candidate needs data_quality_score: FULL (≥7/10), PARTIAL (4-6/10), MINIMAL (<4/10). Core coupons = FULL/PARTIAL only. |
-| R15 | WEB RESEARCH | When L1-L6 exhausted, spawn `web_research_agent.py` (L7). Max 5 SerpAPI + 10 Playwright per run. |
-| R16 | LIVE BETTING | Events in progress are VALID targets. Flag as LIVE, include in scan. Never exclude for being about to start. |
-| R17 | NO TERMINAL POLLING | NEVER poll terminals with `get_terminal_output`/`ps -p`/`tail` loops. Terminal auto-notifies on completion. Use `mode=sync` + generous timeout. Do productive work while waiting. |
+| R14 | DATA DEPTH | Every candidate needs data_quality_score. FULL/PARTIAL only in core coupons. |
+| R15 | WEB RESEARCH | When L1-L6 exhausted, spawn `web_research_agent.py` (L7). |
+| R16 | LIVE BETTING | Events in progress are VALID targets. Flag as LIVE. |
+| R17 | NO TERMINAL POLLING | NEVER poll terminals. Terminal auto-notifies. Use `mode=sync` + generous timeout. |
+| R18 | DATA FLOW VERIFICATION | READ script code before running. TRACE producer→consumer data flow. |
+| R19 | STRUCTURED OUTPUT | 9 analytical scripts support `--verbose` + `AGENT_SUMMARY:{json}` (see §Structured Script Output). Parse AGENT_SUMMARY for verdict/metrics/issues. Exit: 0=OK, 1=partial, 2=critical. |
 
 ---
 

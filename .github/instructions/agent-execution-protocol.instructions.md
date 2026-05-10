@@ -22,6 +22,8 @@ applyTo: ".github/agents/bet-*.agent.md"
 
 ### Step 2: EXTRACT — Parse key metrics
 
+**R19 — Structured Output:** If the script supports `--verbose` mode (scan_events, html_deep_parser, ingest_scan_stats, tipster_aggregator, tipster_xref, data_enrichment_agent, deep_stats_report, gate_checker, coupon_builder), parse the `AGENT_SUMMARY:{json}` line from the output. This is the authoritative machine-readable verdict containing `step`, `verdict` (OK/PARTIAL/FAILED), `metrics`, `issues[]`, and `counts`. Use these structured metrics as your primary data source, supplemented by any human-readable output above it.
+
 Pull out the meaningful numbers and facts from the output:
 - **Counts**: How many events/candidates/matches/picks were processed?
 - **Success/failure rates**: What % succeeded? What failed?

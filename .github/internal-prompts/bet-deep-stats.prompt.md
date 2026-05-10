@@ -37,8 +37,9 @@ Load these skills before starting:
 
 **Step 1: RUN the script:**
 ```bash
-PYTHONPATH=src python3 scripts/deep_stats_report.py --date {date} --shortlist betting/data/{date_shortlist_file} --top 200 2>&1 | tail -60
+PYTHONPATH=src python3 scripts/deep_stats_report.py --date {date} --shortlist betting/data/{date_shortlist_file} --top 200 --verbose 2>&1 | tail -60
 ```
+Parse the `AGENT_SUMMARY:{json}` line from script output — it contains structured verdict, per-candidate metrics, and issues.
 
 **Step 2: THINK about the output** (use sequentialthinking per candidate):
 The script produces RAW DATA (safety scores, market rankings, probabilities). Your job is to add ANALYTICAL VALUE:

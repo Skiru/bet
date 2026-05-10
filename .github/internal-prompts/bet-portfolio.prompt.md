@@ -37,8 +37,9 @@ Load these skills before starting:
 
 **Step 1: RUN coupon builder:**
 ```bash
-PYTHONPATH=src python3 scripts/coupon_builder.py --date {date} 2>&1 | tail -40
+PYTHONPATH=src python3 scripts/coupon_builder.py --date {date} --verbose 2>&1 | tail -40
 ```
+Parse the `AGENT_SUMMARY:{json}` line from script output — it contains spend/return metrics, coupon count, and issues.
 
 **Step 2: RUN validation:**
 ```bash

@@ -36,8 +36,9 @@ Load these skills before starting:
 
 **Step 1: RUN the enrichment script:**
 ```bash
-PYTHONPATH=src python3 scripts/data_enrichment_agent.py --date {date} 2>&1 | tail -50
+PYTHONPATH=src python3 scripts/data_enrichment_agent.py --date {date} --verbose 2>&1 | tail -50
 ```
+Parse the `AGENT_SUMMARY:{json}` line from script output — it contains enrichment yield, per-sport data quality, and gap details.
 
 **Step 2: VALIDATE with phase checker:**
 ```bash

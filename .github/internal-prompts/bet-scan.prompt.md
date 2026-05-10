@@ -42,8 +42,9 @@ You follow a strict 3-phase workflow with INLINE VALIDATION after each phase. Do
 
 Run the parallel sport scanner:
 ```bash
-python3 scripts/scan_events.py --parallel-sport --urls-file config/scan_urls.json --deep --date {date}
+python3 scripts/scan_events.py --parallel-sport --urls-file config/scan_urls.json --deep --date {date} --verbose
 ```
+Parse the `AGENT_SUMMARY:{json}` line from script output — it contains per-sport event counts, source success/failure rates, and issues.
 
 This runs per-sport parallel scanning (5 sport groups, independent timeouts). If it times out, use `--resume` or run individual sport scanners manually.
 

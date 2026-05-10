@@ -36,8 +36,9 @@ Load these skills before starting:
 
 **Step 1: RUN the gate script:**
 ```bash
-PYTHONPATH=src python3 scripts/gate_checker.py --date {date} 2>&1 | tail -50
+PYTHONPATH=src python3 scripts/gate_checker.py --date {date} --verbose 2>&1 | tail -50
 ```
+Parse the `AGENT_SUMMARY:{json}` line from script output — it contains tier distribution, per-candidate gate scores, and issues.
 
 **Step 2: RUN 48h repeat check:**
 ```bash

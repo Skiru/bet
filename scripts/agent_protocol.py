@@ -379,6 +379,47 @@ AGENT_SKILLS_MAP = {
 }
 
 # ---------------------------------------------------------------------------
+# Structured Output Protocol (R19) — agent_output.py integration
+# ---------------------------------------------------------------------------
+STRUCTURED_OUTPUT_PROTOCOL = {
+    "description": (
+        "ALL pipeline scripts support --verbose (JSON-line events) and emit "
+        "AGENT_SUMMARY:{json} as the final output line. Agents MUST run scripts "
+        "with --verbose and parse AGENT_SUMMARY for structured verdicts."
+    ),
+    "flags": {
+        "--verbose / -v": "JSON-line events for real-time monitoring (progress, warnings, errors, candidates)",
+        "--stop-on-error": "Halt on first critical error (exit code 2) instead of log-and-continue",
+        "--sport SPORT": "Filter to single sport group (scan_events.py, tipster_aggregator.py only)",
+    },
+    "agent_summary_format": {
+        "step": "Script/step identifier (e.g. 'scan_events', 'gate_checker')",
+        "verdict": "OK | PARTIAL | FAILED",
+        "metrics": "Dict of step-specific counts and rates",
+        "issues": "List of {level, message, ...} dicts (level: warning|error|critical)",
+        "counts": "Dict with 'errors' and 'warnings' integer counts",
+        "ts": "ISO 8601 timestamp of summary generation",
+    },
+    "exit_codes": {
+        0: "Success — all operations completed normally",
+        1: "Partial/degraded — some operations failed but results are usable",
+        2: "Critical failure — stop-on-error triggered, output unreliable",
+    },
+    "scripts_with_verbose": [
+        "scan_events.py", "html_deep_parser.py", "ingest_scan_stats.py",
+        "tipster_aggregator.py", "tipster_xref.py", "data_enrichment_agent.py",
+        "deep_stats_report.py", "gate_checker.py", "coupon_builder.py",
+    ],
+    "parsing_instructions": (
+        "After running a script, find the line starting with 'AGENT_SUMMARY:' "
+        "in terminal output. Parse the JSON after the prefix. Use verdict, "
+        "metrics, and issues to populate your structured response. "
+        "Do NOT rely solely on human-readable output — AGENT_SUMMARY is the "
+        "authoritative machine-readable verdict."
+    ),
+}
+
+# ---------------------------------------------------------------------------
 # Step → Agent configuration (enhanced with full context)
 # ---------------------------------------------------------------------------
 STEP_AGENT_CONFIG = {
