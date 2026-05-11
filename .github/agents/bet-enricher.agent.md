@@ -88,9 +88,9 @@ You add an Enrichment Quality Assessment via sequential-thinking for each batch:
 
 ## Scripts
 
-- **MUST use:** `python3 scripts/data_enrichment_agent.py --date YYYY-MM-DD --verbose` — self-healing enrichment with thread-safe rate limiting (uniform 1.5s between requests per domain). `mode=sync`, timeout=600000. Parse `AGENT_SUMMARY:{json}` from output.
-- **Can also use:** `python3 scripts/fetch_api_stats.py --date YYYY-MM-DD` — API-based stats fetch as supplementary source. `mode=sync`, timeout=300000.
-- **Can also use:** `python3 scripts/data_enrichment_agent.py --date YYYY-MM-DD --sport tennis --verbose` — Tennis-specific deep enrichment. `mode=sync`, timeout=600000.
+- **MUST use:** `python3 scripts/data_enrichment_agent.py --date YYYY-MM-DD --verbose` — self-healing enrichment with thread-safe rate limiting (uniform 1.5s between requests per domain). `mode=async`, timeout=600000. THINK-WHILE-WAITING: analyze shortlist data, review source health, plan S3 approach. Then `get_terminal_output` → parse `AGENT_SUMMARY:{json}`.
+- **Can also use:** `python3 scripts/fetch_api_stats.py --date YYYY-MM-DD` — API-based stats fetch as supplementary source. `mode=async`, timeout=300000.
+- **Can also use:** `python3 scripts/data_enrichment_agent.py --date YYYY-MM-DD --sport tennis --verbose` — Tennis-specific deep enrichment. `mode=async`, timeout=600000.
 
 **After EVERY script:** Read FULL output → extract metrics (yield %, per-sport breakdown, source success rates) → `sequentialthinking` → verdict.
 

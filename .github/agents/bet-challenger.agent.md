@@ -109,9 +109,9 @@ delta = adjusted_prob - prior_prob
 ## Tool Usage Guidelines
 
 ### execute/runInTerminal
-- **MUST use for:** `PYTHONPATH=src python3 scripts/context_checks.py --date YYYY-MM-DD --verbose` (S5 context — weather, injuries, motivation, `mode=sync` timeout=300000, parse `AGENT_SUMMARY:{json}`), `PYTHONPATH=src python3 scripts/upset_risk.py --date YYYY-MM-DD --verbose` (S6 upset risk scoring, `mode=sync` timeout=300000, parse `AGENT_SUMMARY:{json}`), `python3 scripts/gate_checker.py --date YYYY-MM-DD --verbose` (S7 programmatic 18-point gate, `mode=sync` timeout=300000, parse `AGENT_SUMMARY:{json}`, handles all 18 points + red flags + sport diversity §7.6 + risk tiers + confidence scoring + 48h repeat loss checks)
+- **MUST use for:** `PYTHONPATH=src python3 scripts/context_checks.py --date YYYY-MM-DD --verbose` (S5 context — weather, injuries, motivation, `mode=async` timeout=300000, parse `AGENT_SUMMARY:{json}`), `PYTHONPATH=src python3 scripts/upset_risk.py --date YYYY-MM-DD --verbose` (S6 upset risk scoring, `mode=async` timeout=300000, parse `AGENT_SUMMARY:{json}`), `python3 scripts/gate_checker.py --date YYYY-MM-DD --verbose` (S7 programmatic 18-point gate, `mode=async` timeout=300000, parse `AGENT_SUMMARY:{json}`, handles all 18 points + red flags + sport diversity §7.6 + risk tiers + confidence scoring + 48h repeat loss checks)
 - **NOTE:** Run S5 context_checks FIRST, then S6 upset_risk, then S7 gate_checker for structural checks. Then focus agent effort on qualitative bear cases and adversarial reasoning for borderline APPROVED/EXTENDED candidates.
-- **After EVERY script:** Read FULL output → extract metrics → `sequentialthinking` → verdict.
+- **After EVERY script:** THINK-WHILE-WAITING: while S5 runs → review deep stats output, identify candidates with weak data; while S6 runs → study S5 context flags, prepare bear cases; while S7 runs → draft adversarial reasoning for borderline candidates. Then `get_terminal_output` → extract metrics → `sequentialthinking` → verdict.
 
 ### ⛔ BANNED TERMINAL PATTERNS
 

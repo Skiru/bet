@@ -175,29 +175,30 @@ Include: ANALYTICAL REASONING (not raw paste) — WHY this verdict
 
 ### R17 + R19: LIVE MONITORING + STRUCTURED OUTPUT
 
-15 analytical scripts emit `AGENT_SUMMARY:{json}`. Always `--verbose`. Always `mode=sync`. Exit codes: 0=OK, 1=partial, 2=critical.
+15 analytical scripts emit `AGENT_SUMMARY:{json}`. Always `--verbose`. Fast scripts (≤120s): `mode=sync`. Medium/long scripts (≥300s): `mode=async` + THINK-WHILE-WAITING (analyze previous step while script runs, then `get_terminal_output`). Exit codes: 0=OK, 1=partial, 2=critical.
 
 **Scripts you run directly — EXACT commands with `--verbose`:**
 
-| Script | Command | Timeout |
-|--------|---------|---------|
-| scan_events.py | `python3 scripts/scan_events.py --parallel-sport --date YYYY-MM-DD --verbose` | 600000 |
-| ingest_scan_stats.py | `python3 scripts/ingest_scan_stats.py --date YYYY-MM-DD --verbose` | 120000 |
-| html_deep_parser.py | `python3 scripts/html_deep_parser.py --date YYYY-MM-DD --verbose` | 300000 |
-| build_shortlist.py | `python3 scripts/build_shortlist.py --date YYYY-MM-DD --stats-first --verbose` | 120000 |
-| fetch_api_stats.py | `python3 scripts/fetch_api_stats.py --date YYYY-MM-DD` | 300000 |
-| fetch_odds_api.py | `python3 scripts/fetch_odds_api.py` | 120000 |
-| settle_on_finish.py | `python3 scripts/settle_on_finish.py --betting-day YYYY-MM-DD` | 300000 |
-| analyze_betclic_learning.py | `python3 scripts/analyze_betclic_learning.py` | 120000 |
+| Script | Command | Timeout | Mode |
+|--------|---------|---------|------|
+| scan_events.py | `python3 scripts/scan_events.py --parallel-sport --date YYYY-MM-DD --verbose` | 600000 | async |
+| ingest_scan_stats.py | `python3 scripts/ingest_scan_stats.py --date YYYY-MM-DD --verbose` | 120000 | sync |
+| html_deep_parser.py | `python3 scripts/html_deep_parser.py --date YYYY-MM-DD --verbose` | 300000 | async |
+| build_shortlist.py | `python3 scripts/build_shortlist.py --date YYYY-MM-DD --stats-first --verbose` | 120000 | sync |
+| fetch_api_stats.py | `python3 scripts/fetch_api_stats.py --date YYYY-MM-DD` | 300000 | async |
+| fetch_odds_api.py | `python3 scripts/fetch_odds_api.py` | 120000 | sync |
+| settle_on_finish.py | `python3 scripts/settle_on_finish.py --betting-day YYYY-MM-DD` | 300000 | async |
+| analyze_betclic_learning.py | `python3 scripts/analyze_betclic_learning.py` | 120000 | sync |
 
-After EVERY script: read FULL output → extract metrics → `sequentialthinking` → decide next step. See `agent-execution-protocol.instructions.md`.
+After EVERY script: read FULL output → extract metrics → `sequentialthinking` → decide next step. For `mode=async`: THINK-WHILE-WAITING (analyze previous step, review data) → `get_terminal_output` → EXTRACT. See `agent-execution-protocol.instructions.md`.
 
 ### ⛔ BANNED TERMINAL PATTERNS
 
 - **NEVER** run `for` loops or batch loops in terminal
 - **NEVER** use `sleep`, `ps -p` polling, or idle waiting
 - **NEVER** chain scripts with `&&` blindly (`A.py && B.py && C.py`)
-- **NEVER** fire-and-forget with `mode=async` then ignore output
+- **NEVER** fire-and-forget with `mode=async` then ignore output — async requires THINK-WHILE-WAITING + `get_terminal_output`
+- **NEVER** block with `mode=sync` for scripts ≥300s — use `mode=async` and think productively while waiting
 - **ALWAYS:** ONE command → READ output → THINK → NEXT command
 
 ---
@@ -327,7 +328,7 @@ After EVERY script: read FULL output → extract metrics → `sequentialthinking
 | Past 18:00 Warsaw, picks not ready | Accelerate — skip optional enrichment |
 | >20% bankroll drawdown | ALERT user — consider NO BET day |
 | Agent contradicts prior agent | Use `sequentialthinking` to resolve |
-| Script takes >10 min | Use `mode=sync` with `timeout=600000`. If timeout expires, use `get_terminal_output` to read accumulated output. Diagnose: progressing? hung? erroring? Decide: wait more or kill+retry. NEVER ignore. |
+| Script takes >5 min | Use `mode=async`. THINK-WHILE-WAITING: `sequentialthinking` on previous step, review data, plan next analysis. Then `get_terminal_output` to check completion. If done → EXTRACT → THINK → RETURN. If still running → more thinking, check again. NEVER block with `mode=sync` for long scripts. |
 
 ---
 

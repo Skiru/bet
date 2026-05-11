@@ -149,15 +149,15 @@ Scan + verification complete. Report aggregate metrics and proceed to next pipel
 
 ### R17 + R19: LIVE MONITORING + STRUCTURED OUTPUT
 
-| Script | Command | Timeout | `AGENT_SUMMARY` |
-|--------|---------|---------|-----------------|
-| scan_events.py | `python3 scripts/scan_events.py --parallel-sport --date YYYY-MM-DD --verbose` | 600000 | YES |
-| html_deep_parser.py | `python3 scripts/html_deep_parser.py --date YYYY-MM-DD --verbose` | 300000 | YES |
-| ingest_scan_stats.py | `python3 scripts/ingest_scan_stats.py --date YYYY-MM-DD --verbose` | 120000 | YES |
-| build_shortlist.py | `python3 scripts/build_shortlist.py --date YYYY-MM-DD --stats-first --verbose` | 120000 | YES |
-| scan_health_report.py | `python3 scripts/scan_health_report.py --date YYYY-MM-DD` | 120000 | NO |
+| Script | Command | Timeout | Mode | `AGENT_SUMMARY` |
+|--------|---------|---------|------|------------------|
+| scan_events.py | `python3 scripts/scan_events.py --parallel-sport --date YYYY-MM-DD --verbose` | 600000 | async | YES |
+| html_deep_parser.py | `python3 scripts/html_deep_parser.py --date YYYY-MM-DD --verbose` | 300000 | async | YES |
+| ingest_scan_stats.py | `python3 scripts/ingest_scan_stats.py --date YYYY-MM-DD --verbose` | 120000 | sync | YES |
+| build_shortlist.py | `python3 scripts/build_shortlist.py --date YYYY-MM-DD --stats-first --verbose` | 120000 | sync | YES |
+| scan_health_report.py | `python3 scripts/scan_health_report.py --date YYYY-MM-DD` | 120000 | sync | NO |
 
-**After EVERY script:** `mode=sync` with timeout above → read FULL output → parse `AGENT_SUMMARY:{json}` → `sequentialthinking` → verdict.
+**After EVERY script:** For `sync`: read FULL output → parse `AGENT_SUMMARY:{json}` → `sequentialthinking` → verdict. For `async`: THINK-WHILE-WAITING (analyze previous step, review data) → `get_terminal_output` → parse → verdict.
 
 ### ⛔ BANNED TERMINAL PATTERNS
 

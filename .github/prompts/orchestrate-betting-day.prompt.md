@@ -84,7 +84,7 @@ Print the pre-flight checklist:
 
 ## ⛔ TERMINAL EXECUTION RULES
 
-All agents follow `agent-execution-protocol.instructions.md` (loaded via their `instructions:` array). That protocol covers: `--verbose` mandatory, `mode=sync` with timeouts, `AGENT_SUMMARY:{json}` parsing, live monitoring, and structured verdicts. **Do not repeat these rules in delegation messages** — the agents already have them.
+All agents follow `agent-execution-protocol.instructions.md` (loaded via their `instructions:` array). That protocol covers: `--verbose` mandatory, `mode=sync` (fast ≤120s) / `mode=async` + THINK-WHILE-WAITING (≥300s), `AGENT_SUMMARY:{json}` parsing, live monitoring, and structured verdicts. **Do not repeat these rules in delegation messages** — the agents already have them.
 
 ---
 
@@ -183,7 +183,7 @@ runSubagent("bet-db-analyst"):
 python3 scripts/scan_events.py --parallel-sport --date {date} --deep --max-deep-links 30 --workers 8 --verbose 2>&1
 ```
 
-**WHILE RUNNING:** Use `mode=sync` with `timeout=600000`. When the script completes, read the full output immediately. If it times out, use `get_terminal_output` to check accumulated output and diagnose. While waiting, do productive work (read files, plan next steps with `sequentialthinking`). R17: LIVE MONITORING.
+**WHILE RUNNING:** Use `mode=async` with `timeout=600000`. THINK-WHILE-WAITING: review previous scan stats, check tournament schedules, query DB for source health. Then `get_terminal_output` to read results when done → EXTRACT → THINK → RETURN. R17: LIVE MONITORING.
 
 **AFTER scan completes — Delegate to bet-scanner** (read `.github/internal-prompts/bet-scan.prompt.md` first):
 
@@ -690,7 +690,7 @@ Present to user:
 | 10 | Say "Analyzing" after running a script | YOU don't analyze — you DELEGATE to the specialist agent who analyzes |
 | 11 | Accept subagent output without metrics | If subagent returns no specific numbers/counts → REJECT and re-delegate |
 | 12 | Accept raw script paste from subagent | Subagent must return STRUCTURED VERDICT (metrics + reasoning + verdict), not terminal output |
-| 13 | Fire-and-forget long scripts | Use `mode=sync` + timeout. After completion, READ FULL OUTPUT and extract metrics. If timed out, use `get_terminal_output` to diagnose (R17). |
+| 13 | Fire-and-forget long scripts | Use `mode=async` + THINK-WHILE-WAITING. Launch async, actively analyze previous step data while waiting. Call `get_terminal_output` when complete → EXTRACT → THINK → RETURN (R17). |
 | 14 | Skip data quality checks | Proceeding without checking data_quality_score. FULL/PARTIAL are core requirements. |
 | 15 | Ignore live betting window | Excluding events ≤1h to kickoff. Betclic allows live betting (R16). |
 

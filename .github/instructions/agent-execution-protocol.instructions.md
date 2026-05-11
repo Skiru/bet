@@ -2,7 +2,7 @@
 applyTo: ".github/agents/bet-*.agent.md"
 ---
 
-# Agent Execution Protocol v3
+# Agent Execution Protocol v4
 
 ## THE ONE RULE
 
@@ -14,11 +14,63 @@ applyTo: ".github/agents/bet-*.agent.md"
 
 ## The 4-Step Cycle (EVERY script execution, no exceptions)
 
-### 1. RUN — Launch with `--verbose` and `mode=sync`
+### 1. RUN — Launch with `--verbose`, choose execution mode
 
-Always `--verbose`. Always `mode=sync`. Timeouts: fast=120000, medium=300000, long=600000.
-Parse `AGENT_SUMMARY:{json}` from output — this is your structured data source.
-If timeout expires → `get_terminal_output` → diagnose (progressing/hung/erroring) → decide.
+Always `--verbose`. Choose mode by script duration:
+
+| Tier | Timeout | Mode | Why |
+|------|---------|------|-----|
+| fast | ≤120000 | `mode=sync` | Quick — just wait for it |
+| medium | 300000 | `mode=async` | 5 min — THINK while waiting |
+| long | 600000 | `mode=async` | 10 min — THINK while waiting |
+
+**FAST scripts (≤120s):** `mode=sync` — wait for completion, proceed to EXTRACT.
+
+**MEDIUM/LONG scripts (≥300s):** `mode=async` — launch, then **THINK-WHILE-WAITING** (step 1b below). This is NOT fire-and-forget. You WILL check output.
+
+### 1b. THINK-WHILE-WAITING (async scripts only)
+
+While the script runs, use this time productively:
+- `sequentialthinking` → analyze PREVIOUS step's output deeper
+- Review data quality from earlier stages
+- Read relevant data files, DB tables, or JSON for the upcoming analysis
+- Plan your approach for the NEXT pipeline step
+- Prepare the verdict template with what you already know
+
+Then call `get_terminal_output(id)` to check if the script is done:
+- **Done?** → proceed to step 2 (EXTRACT)
+- **Still running?** → do more productive thinking, check again
+- **Erroring?** → diagnose and decide: wait / kill+retry / escalate
+
+#### Productive Async Work by Agent Role
+
+| Agent | Script Running | THINK-WHILE-WAITING: Do This |
+|-------|---------------|------------------------------|
+| bet-scanner | `scan_events.py` (10 min) | Query DB for previous scan stats, review source health, check tournament schedules |
+| bet-enricher | `data_enrichment_agent.py` (10 min) | Read shortlist JSON, check which teams already have form data in DB, identify gap candidates |
+| bet-statistician | `deep_stats_report.py` (10 min) | Read enrichment output, assess data quality per candidate, pre-load sport protocols |
+| bet-valuator | `odds_evaluator.py` (5 min) | Read S3 deep stats, pre-load safety scores and P(hit), identify strongest stat edges |
+| bet-challenger | `context_checks.py` (5 min) | Review deep stats output, draft bear cases for borderline candidates |
+| bet-scout | `tipster_aggregator.py` (5 min) | Read scan results, check pre-fetched HTML, identify tipster coverage gaps |
+| bet-builder | `coupon_builder.py` (5 min) | Review gate results, check bankroll config, prepare portfolio intelligence |
+
+#### ⛔ BAD vs ✅ GOOD Async Pattern
+
+```
+❌ BAD — brain-dead blocking:
+run_in_terminal(command="python3 scripts/deep_stats_report.py ...", mode=sync, timeout=600000)
+# Agent sits idle for 10 minutes doing NOTHING
+# Then reads output
+
+✅ GOOD — THINK-WHILE-WAITING:
+terminal_id = run_in_terminal(command="python3 scripts/deep_stats_report.py ...", mode=async)
+# Agent immediately starts productive work:
+sequentialthinking("What did enrichment produce? 42/57 yield, hockey weak at 44%...")
+read_file("betting/data/2026-05-11_s2_shortlist.json")  # understand candidates
+run_in_terminal("SELECT COUNT(*) FROM team_form WHERE ...", mode=sync)  # fast DB check
+# Then check if script is done:
+get_terminal_output(terminal_id)  # read results → EXTRACT → THINK → RETURN
+```
 
 ### 2. EXTRACT — Pull specific numbers
 
@@ -116,8 +168,8 @@ data and 15 with partial. Hockey candidates need extra caution in safety scores.
 | 11 | "I analyzed the output" then just restate it | Analysis = WHY + IMPACT + ANOMALIES, not restating |
 | 12 | Present script conclusions as your own | Your value is reasoning BEYOND what the script computed |
 | 13 | Run `for` loops / batch loops in terminal | Run ONE command at a time, THINK about result, proceed |
-| 14 | `sleep` / `ps -p` polling / idle waiting | Use `mode=sync` with timeout. Get notified on completion |
-| 15 | Fire-and-forget (`mode=async` then ignore) | `mode=sync` + read output + extract metrics immediately |
+| 14 | `sleep` / `ps -p` polling / idle waiting | Use `mode=async` + THINK-WHILE-WAITING. Get notified on completion |
+| 15 | Fire-and-forget (`mode=async` then ignore output) | `mode=async` + THINK-WHILE-WAITING + `get_terminal_output` + EXTRACT |
 
 ---
 
@@ -133,8 +185,11 @@ for f in betting/data/*.json; do python3 scripts/process.py "$f"; done
 # Sleep/poll loops — wasted time, no analysis
 while ps -p $PID > /dev/null; do sleep 5; done
 
-# Fire-and-forget async
-run_in_terminal(mode=async)  # then never check output
+# Fire-and-forget async — launch then IGNORE output
+run_in_terminal(mode=async)  # then never check output or think
+
+# Blocking sync for long scripts — agent sits idle 10 min doing NOTHING
+run_in_terminal(mode=sync, timeout=600000)  # brain-dead waiting
 
 # Multiple scripts chained blindly
 python3 scripts/A.py && python3 scripts/B.py && python3 scripts/C.py
@@ -142,14 +197,20 @@ python3 scripts/A.py && python3 scripts/B.py && python3 scripts/C.py
 
 ### ✅ INSTEAD DO:
 ```
-1. Run ONE script: mode=sync, timeout=300000, --verbose
-2. Read FULL output → extract metrics → AGENT_SUMMARY
-3. sequentialthinking → analyze what output MEANS
-4. Decide: proceed / retry / escalate
-5. THEN run next script
+FOR FAST SCRIPTS (≤120s):
+1. Run script: mode=sync, timeout=120000, --verbose
+2. Read output → EXTRACT → THINK → RETURN
+
+FOR MEDIUM/LONG SCRIPTS (≥300s):
+1. Run script: mode=async, --verbose
+2. THINK-WHILE-WAITING: sequentialthinking on PREVIOUS step, review data, plan next
+3. get_terminal_output → check if done
+4. If done: EXTRACT → THINK → RETURN
+5. If still running: more thinking, check again
+6. THEN run next script
 ```
 
-**The rule:** ONE command → THINK → NEXT command. Never batch. Never loop. Never idle.
+**The rule:** ONE command → THINK → NEXT command. Never batch. Never loop. For long scripts: launch async → think productively → check output → analyze.
 
 ---
 

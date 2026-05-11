@@ -15,6 +15,7 @@ Usage:
 import argparse
 import concurrent.futures
 import json
+import os
 import re
 import sys
 from datetime import datetime, timezone
@@ -57,6 +58,24 @@ def _safe_avg(values: list) -> float | None:
     return round(sum(nums) / len(nums), 2)
 
 
+def _resolve_team_ids(conn, team_a: str, team_b: str, sport: str) -> tuple[int | None, int | None]:
+    """Resolve team names to DB IDs via TeamRepo.resolve().
+
+    Returns (team_id_a, team_id_b). Either may be None if not found.
+    """
+    from bet.db.repositories import SportRepo, TeamRepo
+
+    sr = SportRepo(conn)
+    s = sr.get_by_name(sport)
+    if not s:
+        return None, None
+
+    tr = TeamRepo(conn)
+    ta = tr.resolve(team_a, s.id)
+    tb = tr.resolve(team_b, s.id)
+    return (ta.id if ta else None), (tb.id if tb else None)
+
+
 def compute_data_quality(stats_a: dict, stats_b: dict, h2h: dict, sport: str) -> dict:
     """Compute data quality score (0-10) based on data availability.
 
@@ -91,36 +110,39 @@ def compute_data_quality(stats_a: dict, stats_b: dict, h2h: dict, sport: str) ->
         cache_a.get("injuries") or cache_a.get("unavailable")
         or cache_b.get("injuries") or cache_b.get("unavailable")
     )
-    # Also check DB injuries table
-    if not injuries_ok:
-        try:
-            from bet.db.connection import get_db
-            with get_db() as conn:
+    league_ok = False
+    # Check DB injuries + standings (single DB connection, resolve once)
+    try:
+        from bet.db.connection import get_db
+        with get_db() as conn:
+            tid_a, tid_b = _resolve_team_ids(
+                conn, stats_a.get("team", ""), stats_b.get("team", ""),
+                sport,
+            )
+            ids = [i for i in (tid_a, tid_b) if i is not None]
+            if ids:
+                placeholders = ",".join("?" * len(ids))
+                if not injuries_ok:
+                    row = conn.execute(
+                        f"SELECT COUNT(*) FROM injuries WHERE team_id IN ({placeholders})",
+                        ids,
+                    ).fetchone()
+                    if row and row[0] > 0:
+                        injuries_ok = True
+                # standings check
                 row = conn.execute(
-                    "SELECT COUNT(*) FROM injuries WHERE team_name IN (?, ?)",
-                    (stats_a.get("team", ""), stats_b.get("team", "")),
+                    f"SELECT COUNT(*) FROM standings WHERE team_id IN ({placeholders})",
+                    ids,
                 ).fetchone()
                 if row and row[0] > 0:
-                    injuries_ok = True
-        except Exception:
-            pass
+                    league_ok = True
+    except Exception as e:
+        print(f"[deep_stats] DB injuries/standings check failed: {e}")
     if injuries_ok:
         score += 1
     breakdown["injuries"] = injuries_ok
 
     # +1 if standings available
-    league_ok = False
-    try:
-        from bet.db.connection import get_db
-        with get_db() as conn:
-            row = conn.execute(
-                "SELECT COUNT(*) FROM standings WHERE team_name IN (?, ?)",
-                (stats_a.get("team", ""), stats_b.get("team", "")),
-            ).fetchone()
-            if row and row[0] > 0:
-                league_ok = True
-    except Exception:
-        pass
     if league_ok:
         score += 1
     breakdown["league_context"] = league_ok
@@ -348,7 +370,7 @@ def extract_team_stats(sport: str, team_name: str) -> dict:
             pass
 
     # LAST RESORT: Internet enrichment via data_enrichment_agent
-    if not result["has_data"]:
+    if not result["has_data"] and not os.environ.get("NO_ENRICH"):
         try:
             from data_enrichment_agent import enrich_team
             enrichment = enrich_team(team_name, sport)
@@ -827,29 +849,52 @@ def _build_s310_depth(stats_a: dict, stats_b: dict, h2h: dict, ranking_result: d
 
 
 def _build_league_context(sport: str, team_a: str, team_b: str) -> str:
-    """§S3.11 League Context — standings, zone, points gap from DB."""
+    """§S3.11 League Context — standings, rank, points gap from DB."""
     lines = ["§S3.11 League Context"]
     try:
         from bet.db.connection import get_db
         with get_db() as conn:
+            tid_a, tid_b = _resolve_team_ids(conn, team_a, team_b, sport)
+            ids = [i for i in (tid_a, tid_b) if i is not None]
+            if not ids:
+                lines.append("⚠️ Teams not found in DB — verify league context manually")
+                lines.append("")
+                return "\n".join(lines)
+
+            placeholders = ",".join("?" * len(ids))
             rows = conn.execute(
-                "SELECT team_name, position, points, zone FROM standings WHERE team_name IN (?, ?)",
-                (team_a, team_b),
+                f"SELECT t.name, s.rank, s.points, s.wins, s.draws, s.losses, s.form, s.competition_id "
+                f"FROM standings s JOIN teams t ON s.team_id = t.id "
+                f"WHERE s.team_id IN ({placeholders}) "
+                f"ORDER BY s.updated_at DESC",
+                ids,
             ).fetchall()
             if rows:
-                lines.append("| Team | Position | Points | Zone |")
-                lines.append("|------|----------|--------|------|")
+                # Deduplicate (take most recent per team)
+                seen = set()
+                unique_rows = []
                 for row in rows:
-                    zone = row[3] if row[3] else "MIDTABLE"
-                    lines.append(f"| {row[0]} | {row[1]} | {row[2]} | {zone} |")
-                # Points gap
-                if len(rows) >= 2:
-                    gap = abs((rows[0][2] or 0) - (rows[1][2] or 0))
+                    if row[0] not in seen:
+                        seen.add(row[0])
+                        unique_rows.append(row)
+
+                lines.append("| Team | Rank | Points | W-D-L | Form |")
+                lines.append("|------|------|--------|-------|------|")
+                for row in unique_rows:
+                    form = row[6] if row[6] else "N/A"
+                    lines.append(
+                        f"| {row[0]} | {row[1]} | {row[2]} | "
+                        f"{row[3]}-{row[4]}-{row[5]} | {form} |"
+                    )
+                # Points gap (only if both teams share the same competition)
+                if len(unique_rows) >= 2 and unique_rows[0][7] == unique_rows[1][7]:
+                    gap = abs((unique_rows[0][2] or 0) - (unique_rows[1][2] or 0))
                     lines.append(f"Points gap: {gap}")
             else:
                 lines.append("⚠️ No standings data in DB — verify league context manually")
-    except Exception:
-        lines.append("⚠️ Standings table not available — verify league context manually")
+    except Exception as e:
+        print(f"[deep_stats] League context query failed: {e}")
+        lines.append("⚠️ Standings query failed — verify league context manually")
     lines.append("")
     return "\n".join(lines)
 
@@ -860,19 +905,26 @@ def _build_injuries_section(sport: str, team_a: str, team_b: str) -> str:
     try:
         from bet.db.connection import get_db
         with get_db() as conn:
-            for team in (team_a, team_b):
+            tid_a, tid_b = _resolve_team_ids(conn, team_a, team_b, sport)
+            for team, tid in ((team_a, tid_a), (team_b, tid_b)):
+                if tid is None:
+                    lines.append(f"**{team}**: Team not found in DB")
+                    continue
                 rows = conn.execute(
-                    "SELECT player_name, injury_type, status FROM injuries WHERE team_name = ?",
-                    (team,),
+                    "SELECT athlete_name, injury_type, status, expected_return "
+                    "FROM injuries WHERE team_id = ?",
+                    (tid,),
                 ).fetchall()
                 if rows:
                     lines.append(f"**{team}** ({len(rows)} injuries):")
                     for row in rows:
                         status = row[2] if row[2] else "OUT"
-                        lines.append(f"  - {row[0]}: {row[1]} ({status})")
+                        ret = f", return: {row[3]}" if row[3] else ""
+                        lines.append(f"  - {row[0]}: {row[1]} ({status}{ret})")
                 else:
                     lines.append(f"**{team}**: No injury records in DB")
-    except Exception:
+    except Exception as e:
+        print(f"[deep_stats] Injuries query failed: {e}")
         lines.append("⚠️ Injuries table not available — check Flashscore/Sofascore")
     lines.append("")
     return "\n".join(lines)
@@ -928,6 +980,92 @@ def _build_expert_sentiment(sport: str, team_a: str, team_b: str) -> str:
     except Exception:
         lines.append("⚠️ Tipster/research data not available")
     lines.append("")
+    return "\n".join(lines)
+
+
+def _build_s314_espn(stats_a: dict, stats_b: dict) -> str:
+    """§S3.14 ESPN Enrichment — ATS, O/U records, power index, standings."""
+    lines = ["§S3.14 ESPN Enrichment"]
+
+    espn_a = stats_a.get("espn_enrichment") or {}
+    espn_b = stats_b.get("espn_enrichment") or {}
+
+    if not espn_a and not espn_b:
+        lines.append("⚠️ No ESPN enrichment data available")
+        lines.append("")
+        return "\n".join(lines)
+
+    team_a = stats_a["team"]
+    team_b = stats_b["team"]
+
+    # ATS Records
+    ats_a = espn_a.get("ats_record")
+    ats_b = espn_b.get("ats_record")
+    if ats_a or ats_b:
+        lines.append("**ATS (Against The Spread):**")
+        lines.append("| Team | W-L-P | Cover% | Home W-L | Away W-L |")
+        lines.append("|------|-------|--------|----------|----------|")
+        for team, ats in ((team_a, ats_a), (team_b, ats_b)):
+            if ats:
+                lines.append(
+                    f"| {team} | {ats.get('wins', 0)}-{ats.get('losses', 0)}-{ats.get('pushes', 0)} "
+                    f"| {ats.get('cover_pct', 0)}% "
+                    f"| {ats.get('home_wins', 0)}-{ats.get('home_losses', 0)} "
+                    f"| {ats.get('away_wins', 0)}-{ats.get('away_losses', 0)} |"
+                )
+        lines.append("")
+
+    # O/U Records
+    ou_a = espn_a.get("ou_record")
+    ou_b = espn_b.get("ou_record")
+    if ou_a or ou_b:
+        lines.append("**Over/Under Records:**")
+        lines.append("| Team | O-U-P | Over% | Home O-U | Away O-U |")
+        lines.append("|------|-------|-------|----------|----------|")
+        for team, ou in ((team_a, ou_a), (team_b, ou_b)):
+            if ou:
+                lines.append(
+                    f"| {team} | {ou.get('overs', 0)}-{ou.get('unders', 0)}-{ou.get('pushes', 0)} "
+                    f"| {ou.get('over_pct', 0)}% "
+                    f"| {ou.get('home_overs', 0)}-{ou.get('home_unders', 0)} "
+                    f"| {ou.get('away_overs', 0)}-{ou.get('away_unders', 0)} |"
+                )
+        lines.append("")
+
+    # Standings (from ESPN)
+    std_a = espn_a.get("standing")
+    std_b = espn_b.get("standing")
+    if std_a or std_b:
+        lines.append("**ESPN Standings:**")
+        lines.append("| Team | Rank | W-L-D | Pts | Home | Away | Form | Streak |")
+        lines.append("|------|------|-------|-----|------|------|------|--------|")
+        for team, std in ((team_a, std_a), (team_b, std_b)):
+            if std:
+                lines.append(
+                    f"| {team} | {std.get('rank', 'N/A')} "
+                    f"| {std.get('wins', 0)}-{std.get('losses', 0)}-{std.get('draws', 0)} "
+                    f"| {std.get('points', 'N/A')} "
+                    f"| {std.get('home_record', 'N/A')} "
+                    f"| {std.get('away_record', 'N/A')} "
+                    f"| {std.get('form', 'N/A')} "
+                    f"| {std.get('streak', 'N/A')} |"
+                )
+        lines.append("")
+
+    # Power Index
+    pi_a = espn_a.get("power_index")
+    pi_b = espn_b.get("power_index")
+    if pi_a or pi_b:
+        lines.append("**Power Index:**")
+        for team, pi in ((team_a, pi_a), (team_b, pi_b)):
+            if pi:
+                lines.append(f"  - {team}: {pi}")
+        lines.append("")
+
+    if not any([ats_a, ats_b, ou_a, ou_b, std_a, std_b, pi_a, pi_b]):
+        lines.append("ESPN data loaded but all sub-sections empty")
+        lines.append("")
+
     return "\n".join(lines)
 
 
@@ -1020,6 +1158,7 @@ def analyze_candidate(
         "s311": _build_league_context(sport, home, away),
         "s312": _build_injuries_section(sport, home, away),
         "s313": _build_expert_sentiment(sport, home, away),
+        "s314": _build_s314_espn(stats_a, stats_b),
     }
 
     # Compose full markdown
@@ -1029,7 +1168,7 @@ def analyze_candidate(
     )
     md_parts = [header, ""]
     for key in ["s31", "s32", "s33", "s34", "s35", "s36", "s37", "s38", "s39", "s310",
-                "s311", "s312", "s313"]:
+                "s311", "s312", "s313", "s314"]:
         md_parts.append(sections[key])
 
     md_parts.append("══ END CANDIDATE ══\n")
@@ -1195,27 +1334,71 @@ def _load_candidates_from_shortlist(path: str) -> list[dict]:
     return candidates
 
 
+def _load_candidates_from_db(date: str) -> list[dict]:
+    """Load candidates from fixtures DB table (R2 DB-FIRST).
+
+    Falls back to _load_candidates_from_pool() if DB is empty.
+    """
+    try:
+        from db_data_loader import load_fixtures_from_db
+        fixtures = load_fixtures_from_db(date)
+        if not fixtures:
+            return []
+        candidates = []
+        for f in fixtures:
+            candidates.append({
+                "sport": f.get("sport", f.get("sport_name", "football")),
+                "home_team": f.get("home_team", ""),
+                "away_team": f.get("away_team", ""),
+                "competition": f.get("competition", f.get("competition_name", "")),
+                "kickoff": f.get("kickoff", f.get("kickoff_utc", "")),
+                "safety_markets": None,
+                "n_odds_markets": 0,
+                "fixture_verified": True,  # DB fixtures are verified
+            })
+        print(f"[deep_stats] Loaded {len(candidates)} candidates from DB fixtures")
+        return candidates
+    except Exception as e:
+        print(f"[deep_stats] DB fixture loading failed: {e}")
+        return []
+
+
 # ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
 
-def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int | None = None) -> dict:
+def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int | None = None, no_enrich: bool = False, from_db: bool = False) -> dict:
     """Generate S3 deep stats report for all candidates.
 
     Args:
         date: betting day YYYY-MM-DD
         shortlist_path: optional path to shortlist JSON (overrides pool)
         top: limit to first N candidates
+        no_enrich: skip enrichment phase
+        from_db: load candidates from DB fixtures table first
 
     Returns:
         dict with metadata and per-candidate analyses.
     """
     if shortlist_path:
+        # Explicit shortlist file overrides everything
         candidates = _load_candidates_from_shortlist(shortlist_path)
         source = f"shortlist:{shortlist_path}"
+    elif from_db:
+        # Explicit DB-first mode
+        candidates = _load_candidates_from_db(date)
+        source = f"db:fixtures:{date}"
+        if not candidates:
+            # Fallback to JSON pool
+            candidates = _load_candidates_from_pool(date)
+            source = f"analysis_pool_{date}.json (DB fallback)"
     else:
-        candidates = _load_candidates_from_pool(date)
-        source = f"analysis_pool_{date}.json"
+        # Default: try DB first (R2), fall back to JSON pool
+        candidates = _load_candidates_from_db(date)
+        source = f"db:fixtures:{date}"
+        if not candidates:
+            candidates = _load_candidates_from_pool(date)
+            source = f"analysis_pool_{date}.json (DB empty)"
 
     # Normalize kickoff times: bare time strings like "19:00" → full ISO
     for c in candidates:
@@ -1255,7 +1438,7 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
     
     # Phase 2: Run batch enrichment for missing teams (if any)
     enrichment_results = {}
-    if needs_enrichment:
+    if needs_enrichment and not no_enrich:
         # Deduplicate teams
         unique_teams = {}
         for item in needs_enrichment:
@@ -1445,11 +1628,28 @@ def main():
         default=None,
         help="Limit to first N candidates",
     )
+    parser.add_argument(
+        "--no-enrich",
+        action="store_true",
+        default=False,
+        help="Skip inline enrichment (use existing cache/DB data only)",
+    )
+    parser.add_argument(
+        "--from-db",
+        action="store_true",
+        default=False,
+        help="Load candidates from DB fixtures table (R2 DB-FIRST, ignores analysis pool JSON)",
+    )
     add_agent_args(parser)
 
     args = parser.parse_args()
     out = AgentOutput("s3_deep", verbose=args.verbose, stop_on_error=args.stop_on_error)
-    result = generate_deep_stats(args.date, args.shortlist, args.top)
+    if args.no_enrich:
+        os.environ["NO_ENRICH"] = "1"
+    result = generate_deep_stats(
+        args.date, args.shortlist, args.top,
+        no_enrich=args.no_enrich, from_db=args.from_db,
+    )
 
     if args.verbose:
         # Emit per-candidate quality summary for agent

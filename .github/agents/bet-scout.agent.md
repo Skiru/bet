@@ -76,7 +76,7 @@ You apply a 5-part Tipster Intelligence Analysis Layer via sequential-thinking: 
 ### execute/runInTerminal
 - **MUST use for:** `python3 scripts/tipster_aggregator.py --date YYYY-MM-DD --workers 5 --verbose` (automated collection — 12 sites in parallel), `python3 scripts/fetch_with_playwright.py` (JS-rendered pages)
 - **NOTE:** Check DB first via `load_analysis_results_from_db()`, then fallback to `{date}_tipster_consensus.json` — if it exists from S1b parallel step, use it as starting point. Only run aggregator manually if missing/stale.
-- **ALWAYS:** `mode=sync`, timeout=300000. After completion: read FULL output → parse `AGENT_SUMMARY:{json}` → extract metrics → `sequentialthinking` → verdict.
+- **ALWAYS:** `mode=async`, timeout=300000. THINK-WHILE-WAITING: review scan results, read shortlist composition, identify which candidates have tipster coverage from pre-fetched HTML in `betting/data/`. Then `get_terminal_output` → parse `AGENT_SUMMARY:{json}` → extract metrics → `sequentialthinking` → verdict.
 
 ### ⛔ BANNED TERMINAL PATTERNS
 

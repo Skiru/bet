@@ -275,16 +275,16 @@ if stats.events_found < 10:
 
 ### R17: LIVE MONITORING
 
-All terminal commands use `mode=sync` with these timeouts:
+All terminal commands use `--verbose`. Mode by duration: `sync` for fast (≤120s), `async` for medium/long (≥300s).
 
-| Operation | Timeout |
-|-----------|--------|
-| Basketball scanner (inline Python) | 300000 |
-| html_deep_parser.py (with `--verbose`) | 300000 |
-| DB validation queries | 120000 |
-| Self-heal retry | 300000 |
+| Operation | Timeout | Mode |
+|-----------|---------|------|
+| Basketball scanner (inline Python) | 300000 | async |
+| html_deep_parser.py (with `--verbose`) | 300000 | async |
+| DB validation queries | 120000 | sync |
+| Self-heal retry | 300000 | async |
 
-**After EVERY command:** Read FULL output → extract metrics (game count, source status, error count) → `sequentialthinking` → verdict.
+**After EVERY command:** For `sync`: read output directly → extract metrics → verdict. For `async`: THINK-WHILE-WAITING (review source health, check game counts, validate previous step data) → `get_terminal_output` → extract metrics (game count, source status, error count) → `sequentialthinking` → verdict.
 
 ### ⛔ BANNED TERMINAL PATTERNS
 
