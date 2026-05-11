@@ -54,13 +54,15 @@ Load these skills before starting:
 
 **Step 1: RUN context checks:**
 ```bash
-PYTHONPATH=src python3 -c "import sys; sys.path.insert(0, 'scripts'); from context_checks import run_context_checks; ok, msg = run_context_checks('{date}', {}); print(msg)" 2>&1
+PYTHONPATH=src python3 scripts/context_checks.py --date {date} --verbose 2>&1
 ```
+Parse the `AGENT_SUMMARY:{json}` line from script output — it contains weather, injury, and enrichment metrics.
 
 **Step 2: RUN upset risk scoring:**
 ```bash
-PYTHONPATH=src python3 -c "import sys; sys.path.insert(0, 'scripts'); from upset_risk import run_upset_risk; ok, msg = run_upset_risk('{date}', {}); print(msg)" 2>&1
+PYTHONPATH=src python3 scripts/upset_risk.py --date {date} --verbose 2>&1
 ```
+Parse the `AGENT_SUMMARY:{json}` line from script output — it contains risk distribution (low/elevated/high counts).
 
 **Step 3: ADVERSARIAL ASSESSMENT** (use sequentialthinking per candidate):
 Pipeline scripts produce raw context flags and mechanical upset scores. Your job is to assess REAL IMPACT on the specific market being bet:

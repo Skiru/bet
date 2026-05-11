@@ -45,6 +45,59 @@ Load these skills before starting:
 - `bet-applying-sport-protocols` — per-sport stat tables, mandatory multi-market calculations, bettable market lists
 - `bet-navigating-sources` — stats sources, fallback chains, API clients
 
+## Computation Knowledge (YOU MUST UNDERSTAND THE MATH)
+
+### How Safety Scores Are Computed
+
+The `compute_safety_scores.py` script takes structured stats and produces safety-ranked markets. YOU need to verify its output:
+
+1. **Hit rate = count(values > line) / count(total values)**
+   - L10 hit rate: how many of the last 10 matches exceeded the line
+   - H2H hit rate: how many of the H2H meetings exceeded the line
+   - L5 hit rate: how many of the last 5 exceeded (trend indicator)
+
+2. **Safety = min(L10_hit_rate, H2H_hit_rate)** — the CONSERVATIVE estimate
+   - If H2H missing: safety = L10_hit_rate × 0.70 (football/tennis/basketball) or × 0.75 (hockey/volleyball)
+   - Then caps apply: evidence (max 0.70 if <10 games), synthetic (max 0.50), volatility (sport-specific), data tier (competition quality)
+
+3. **What you should verify:**
+   - Safety > 0.80 is SUSPICIOUS — check if evidence cap should apply (needs ≥10 L10 + H2H + not one-sided)
+   - Safety = 0.50 for many candidates = synthetic data cap hitting everywhere
+   - Safety scores don't match hit rates in the ranking table = a cap was applied — identify which one
+   - Margin < 1.0 means average is on the WRONG side of the line — direction should flip
+
+### How Three-Way Cross-Check Works
+
+```
+L10 avg vs line → OVER or UNDER
+H2H avg vs line → OVER or UNDER
+L5 avg vs line → OVER or UNDER (plus trend: UP/DOWN/STABLE)
+
+3/3 agree → STRONG pick
+2/3 agree → ACCEPTABLE
+1/3 agree → CONFLICT → DOWNGRADE safety by explaining WHY disagreement exists
+0/3 agree → REJECT (impossible — at least L10 always agrees with itself)
+```
+
+**YOUR job**: When cross-check shows CONFLICT, explain WHY. Common reasons:
+- H2H says UNDER but L10 says OVER → team's style changed recently (new coach? new formation?)
+- L5 trend DOWN but L10 says OVER → regression detected — recent form is weaker
+- H2H data is stale (3+ years old) → H2H unreliable, weight L10 more
+
+### Quick EV Mental Math
+
+```
+P(hit) × odds > 1.0 → positive EV → BET
+min_acceptable_odds = 1 / P(hit)
+```
+
+| Hit Rate | Min Odds | Sweet Spot Odds |
+|----------|----------|-----------------|
+| 90% (9/10) | ≥1.12 | 1.15-1.25 |
+| 80% (8/10) | ≥1.26 | 1.35-1.50 |
+| 70% (7/10) | ≥1.44 | 1.55-1.75 |
+| 60% (6/10) | ≥1.68 | 1.80-2.10 |
+
 ## Agent-Mandatory Warning
 
 > **YOU run the script. YOU think. YOU validate. YOU return a verdict.**
@@ -129,6 +182,34 @@ After sections 1-10, write:
 - **Narrative coherence**: CONSISTENT or CONFLICT
 - **Edge hypothesis**: why the market misprices this
 - **Confidence modifier**: +0.5 / 0 / −0.5
+
+## Output Quality Verification (sequentialthinking per candidate)
+
+For EACH candidate analyzed, use `sequentialthinking` to verify:
+
+1. **Are safety scores plausible?** Check against hit rates in the ranking table. If safety = 0.70 but hit_rate_L10 = 8/10 (0.80) and hit_rate_H2H = N/A → H2H_MISSING_PENALTY applies: `0.80 × 0.70 = 0.56`. So if the script shows 0.70 for this case, something is off (penalty not applied, or evidence cap fired at 0.80 before penalty).
+
+2. **Are stat values within expected ranges?**
+   - Football corners L10 avg should be 4-7 per team, 8-14 combined
+   - Basketball points should be 100-120 per team (NBA)
+   - Hockey goals should be 5.5-6.5 combined (NHL)
+   - Values far outside these ranges = data error or wrong source
+
+3. **Does the recommended market make sense for this sport?**
+   - Football: stat markets (corners/fouls/cards) should rank ABOVE goals/winner
+   - Basketball: total points should be prominent
+   - Hockey: total goals + shots should dominate
+   - Tennis: total games is the core market
+
+4. **Is three-way cross-check alignment consistent with your analysis?**
+   - 3/3 SUPPORT → you should feel confident recommending this
+   - 2/3 with L5 trend DOWN → flag as "edge may be fading"
+   - H2H CONFLICT → check if H2H data is recent enough to matter
+
+5. **Do you have an EDGE HYPOTHESIS?** (the #1 quality signal)
+   - WHY does this trend exist? (coach change, formation switch, key player injury)
+   - Is it SUSTAINABLE? (structural vs. schedule-driven)
+   - Can the market KNOW about it already? (if yes → no edge)
 
 ## Output
 

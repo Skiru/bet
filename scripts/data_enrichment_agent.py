@@ -38,6 +38,36 @@ logger = logging.getLogger(__name__)
 DATA_DIR = ROOT_DIR / "betting" / "data"
 CACHE_DIR = DATA_DIR / "stats_cache"
 
+# Per-sport expected stat value ranges for sanity checking parsed data
+SPORT_VALUE_RANGES: dict[str, dict[str, tuple[float, float]]] = {
+    "football": {
+        "corners": (0, 20), "fouls": (0, 35), "yellow_cards": (0, 12),
+        "red_cards": (0, 4), "shots": (0, 40), "shots_on_target": (0, 20),
+        "possession": (20, 80), "goals": (0, 12), "offsides": (0, 15),
+        "saves": (0, 15),
+    },
+    "basketball": {
+        "points": (50, 180), "rebounds": (15, 70), "assists": (10, 45),
+        "steals": (0, 20), "blocks": (0, 15), "turnovers": (0, 30),
+        "fg_pct": (25, 65), "three_pct": (15, 55), "ft_pct": (50, 100),
+    },
+    "hockey": {
+        "goals": (0, 12), "shots": (10, 60), "powerplay_goals": (0, 5),
+        "pim": (0, 50), "hits": (10, 70), "blocks": (5, 35),
+        "faceoff_pct": (30, 70),
+    },
+    "tennis": {
+        "aces": (0, 40), "double_faults": (0, 15), "first_serve_pct": (40, 95),
+        "break_points_won": (0, 15), "games_won": (0, 25), "sets_won": (0, 5),
+        "total_games": (10, 80),
+    },
+    "volleyball": {
+        "points": (0, 160), "aces": (0, 15), "blocks": (0, 20),
+        "attack_pct": (20, 70), "sets_won": (0, 5), "total_points": (60, 250),
+        "errors": (0, 30),
+    },
+}
+
 # Rate-limit tracking per domain (thread-safe)
 _last_request_time: dict[str, float] = {}
 _rate_lock = threading.Lock()
@@ -155,7 +185,13 @@ def _parse_flashscore_stats(html: str, sport: str) -> dict:
             if scores:
                 stats[score_key] = scores[:10]
 
-    return stats
+    # Validate extracted values
+    validated_stats = {}
+    for key, vals in stats.items():
+        clean = _validate_stat_values(vals, key, sport)
+        if clean:
+            validated_stats[key] = clean
+    return validated_stats
 
 
 def _primary_score_key(sport: str) -> str | None:
@@ -344,10 +380,196 @@ def _extract_stat_values(html: str, stat_key: str, sport: str) -> list[float]:
     return values[:10]
 
 
+def _validate_stat_values(values: list[float], stat_key: str, sport: str) -> list[float]:
+    """Filter out values outside expected ranges for a sport+stat combination."""
+    ranges = SPORT_VALUE_RANGES.get(sport, {})
+    bounds = ranges.get(stat_key)
+    if not bounds:
+        return values  # No validation available for this stat
+    lo, hi = bounds
+    filtered = [v for v in values if lo <= v <= hi]
+    if len(filtered) < len(values):
+        logger.warning(
+            "Filtered %d/%d %s %s values outside range [%.1f, %.1f]",
+            len(values) - len(filtered), len(values), sport, stat_key, lo, hi,
+        )
+    return filtered
+
+
 def _parse_sofascore_stats(html: str, sport: str) -> dict:
-    """Extract stats from Sofascore HTML (fallback parser)."""
-    # Sofascore uses similar patterns — reuse core extraction logic
-    return _parse_flashscore_stats(html, sport)
+    """Extract stats from Sofascore HTML (fallback parser).
+
+    Sofascore uses React-rendered HTML with JSON-LD blocks, data-testid
+    attributes, and embedded JSON in script tags. This parser tries
+    multiple extraction strategies specific to Sofascore's structure.
+    """
+    stats: dict[str, list[float]] = {}
+    stat_keys = SPORT_STAT_KEYS.get(sport, [])
+
+    if not html or len(html) < 200:
+        return stats
+
+    # Strategy 1: Extract JSON from <script> tags containing statistics data
+    # Sofascore embeds structured data in script tags (JSON-LD or __NEXT_DATA__)
+    script_blocks = re.findall(
+        r'<script[^>]*>\s*({.*?"statistics".*?})\s*</script>',
+        html, re.DOTALL | re.IGNORECASE,
+    )
+    if not script_blocks:
+        # Try __NEXT_DATA__ pattern
+        next_data = re.findall(
+            r'<script[^>]*id="__NEXT_DATA__"[^>]*>\s*({.*?})\s*</script>',
+            html, re.DOTALL,
+        )
+        script_blocks.extend(next_data)
+
+    for block in script_blocks:
+        try:
+            data = json.loads(block)
+            _extract_sofascore_json_stats(data, stat_keys, stats)
+        except (json.JSONDecodeError, TypeError):
+            continue
+
+    # Strategy 2: Parse data-testid attributes (React-rendered stat cells)
+    # Sofascore uses patterns like: <div data-testid="cell">8</div>
+    for key in stat_keys:
+        if key in stats:
+            continue
+        label_map = {
+            "corners": r"corner", "fouls": r"foul", "yellow_cards": r"yellow",
+            "red_cards": r"red", "shots": r"shot", "shots_on_target": r"on.?target",
+            "possession": r"possession", "goals": r"goal", "offsides": r"offside",
+            "saves": r"save", "points": r"point", "rebounds": r"rebound",
+            "assists": r"assist", "aces": r"ace", "blocks": r"block",
+            "total_games": r"game", "total_points": r"total.?point",
+            "hits": r"hit", "pim": r"penal",
+        }
+        label_re = label_map.get(key, re.escape(key.replace("_", " ")))
+
+        # data-testid rows: label cell followed by value cell
+        testid_pattern = (
+            r'data-testid="[^"]*"[^>]*>[^<]*'
+            + label_re
+            + r'[^<]*<.*?>(\d+(?:\.\d+)?)\s*</'
+        )
+        testid_matches = re.findall(testid_pattern, html, re.IGNORECASE | re.DOTALL)
+        for m in testid_matches:
+            try:
+                stats.setdefault(key, []).append(float(m))
+            except ValueError:
+                continue
+
+    # Strategy 3: Generic stat label + value extraction (non-Flashscore-specific)
+    # Sofascore renders "StatName  value" in React Box/Text components
+    for key in stat_keys:
+        if key in stats:
+            continue
+        label_map = {
+            "corners": r"(?:corners?|corner\s*kicks?)",
+            "fouls": r"(?:fouls?)", "yellow_cards": r"(?:yellow\s*cards?)",
+            "shots": r"(?:shots?|total\s*shots?)",
+            "possession": r"(?:possession)", "goals": r"(?:goals?)",
+            "points": r"(?:points?|pts)", "rebounds": r"(?:rebounds?|reb)",
+            "assists": r"(?:assists?|ast)", "aces": r"(?:aces?)",
+            "blocks": r"(?:blocks?|blk)", "total_games": r"(?:total\s*games?)",
+            "total_points": r"(?:total\s*points?)",
+        }
+        pattern = label_map.get(key, re.escape(key.replace("_", " ")))
+
+        # Look for: <Text/span/div>Label</...><Text/span/div>Value</...>
+        generic_pattern = (
+            r'>[^<]*' + pattern + r'[^<]*</[^>]+>\s*'
+            r'(?:<[^>]+>\s*)*?(\d+(?:\.\d+)?)\s*</'
+        )
+        generic_matches = re.findall(generic_pattern, html, re.IGNORECASE | re.DOTALL)
+        for m in generic_matches:
+            try:
+                v = float(m)
+                stats.setdefault(key, []).append(v)
+            except ValueError:
+                continue
+
+    # Strategy 4: JSON-LD structured data blocks
+    jsonld_blocks = re.findall(
+        r'<script\s+type="application/ld\+json"[^>]*>\s*({.*?})\s*</script>',
+        html, re.DOTALL,
+    )
+    for block in jsonld_blocks:
+        try:
+            data = json.loads(block)
+            _extract_sofascore_json_stats(data, stat_keys, stats)
+        except (json.JSONDecodeError, TypeError):
+            continue
+
+    # Keep last 10 values per key (no value-based dedup — same stat value
+    # can legitimately occur in multiple matches, e.g., 7 corners twice)
+    for key in stats:
+        stats[key] = stats[key][:10]
+
+    # Validate extracted values
+    validated_stats = {}
+    for key, vals in stats.items():
+        clean = _validate_stat_values(vals, key, sport)
+        if clean:
+            validated_stats[key] = clean
+    return validated_stats
+
+
+def _extract_sofascore_json_stats(
+    data: dict | list, stat_keys: list[str], stats: dict[str, list[float]],
+    _depth: int = 0,
+) -> None:
+    """Recursively extract stat values from parsed Sofascore JSON data."""
+    if _depth > 20:
+        return
+    if isinstance(data, list):
+        for item in data:
+            if isinstance(item, (dict, list)):
+                _extract_sofascore_json_stats(item, stat_keys, stats, _depth + 1)
+        return
+    if not isinstance(data, dict):
+        return
+
+    # Check if this dict has a "name"/"key" + "value" pattern
+    name = data.get("name") or data.get("key") or data.get("statisticName") or ""
+    value = data.get("value")
+    if value is None:
+        value = data.get("home")
+    if value is None:
+        value = data.get("away")
+    if isinstance(name, str) and value is not None:
+        name_lower = name.lower().replace(" ", "_").replace("-", "_")
+        for key in stat_keys:
+            if key in name_lower or name_lower in key:
+                try:
+                    stats.setdefault(key, []).append(float(value))
+                except (ValueError, TypeError):
+                    pass
+                break
+
+    # Check "groups" pattern (Sofascore statistics API format)
+    for group in data.get("groups", []):
+        if isinstance(group, dict):
+            for item in group.get("statisticsItems", []):
+                if isinstance(item, dict):
+                    item_name = (item.get("name") or "").lower().replace(" ", "_")
+                    for key in stat_keys:
+                        if key in item_name or item_name in key:
+                            for side in ("home", "away", "value", "homeValue", "awayValue"):
+                                val = item.get(side)
+                                if val is not None:
+                                    try:
+                                        stats.setdefault(key, []).append(float(str(val).rstrip("%")))
+                                    except (ValueError, TypeError):
+                                        pass
+                            break
+
+    # Recurse into nested dicts (skip "groups" — already processed above)
+    for k, v in data.items():
+        if k == "groups":
+            continue
+        if isinstance(v, (dict, list)):
+            _extract_sofascore_json_stats(v, stat_keys, stats, _depth + 1)
 
 
 # ---------------------------------------------------------------------------

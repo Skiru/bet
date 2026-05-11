@@ -78,7 +78,7 @@ The script handles MECHANICAL construction. Your job is PORTFOLIO STRATEGY:
 
 - **Inputs**: `{date}_s7_gate.md` (approved picks), all S1-S7 data, `config/betting_config.json`
 - **Script**: `python3 scripts/coupon_builder.py --date {date} --input {date}_s7_gate_results.json`
-- **Validation**: `python3 scripts/validate_coupons.py betting/coupons/{date}*.md --format json`
+- **Validation**: `python3 scripts/validate_coupons.py betting/coupons/{date}*.md --format json --verbose`
 
 ## Workflow
 

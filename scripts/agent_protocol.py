@@ -428,7 +428,8 @@ STRUCTURED_OUTPUT_PROTOCOL = {
         "scan_events.py", "html_deep_parser.py", "ingest_scan_stats.py",
         "tipster_aggregator.py", "tipster_xref.py", "data_enrichment_agent.py",
         "deep_stats_report.py", "gate_checker.py", "coupon_builder.py",
-        "build_shortlist.py",
+        "build_shortlist.py", "odds_evaluator.py", "context_checks.py",
+        "upset_risk.py", "fetch_odds_multi.py", "validate_coupons.py",
     ],
     "parsing_instructions": (
         "After running a script, find the line starting with 'AGENT_SUMMARY:' "

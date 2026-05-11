@@ -77,7 +77,7 @@ python3 scripts/validate_phase.py --date {date} --phase data --format json 2>&1
 - **Script**: `python3 scripts/data_enrichment_agent.py --date {date}`
 - **Sources**: HTML deep parse (L0 — already extracted from saved snapshots), Flashscore (L10 form, H2H), Sofascore (ratings, stats), ESPN (standings, gamelogs)
 - **DB tables used**: `team_form` (read/write), `match_stats` (write), `source_health` (write)
-- **Rate limits**: Thread-safe rate limiting per source (Flashscore: 2s, Sofascore: 3s, ESPN: 1s)
+- **Rate limits**: Thread-safe rate limiting (uniform 1.5s between requests per domain)
 - **Timeout**: 15 min (covers ~50 teams across multiple sources)
 
 ## Workflow
@@ -110,6 +110,46 @@ Group remaining data gaps by sport and league. For each gap:
 
 Report enrichment success rate: `enriched / attempted × 100 = YIELD_%`
 GATE: YIELD_% ≥ 60%. If <60% → log persistent failures, suggest source additions.
+
+## Parsing Verification Checklist (MANDATORY)
+
+After enrichment completes, verify data quality with these checks:
+
+### 1. Value Range Check
+For each enriched team, verify that extracted values are within expected ranges:
+- Football: corners (0-20), fouls (0-35), cards (0-12), shots (0-40), goals (0-12)
+- Basketball: points (50-180), rebounds (20-70), assists (10-45)
+- Hockey: goals (0-12), shots (15-60), PIM (0-50)
+- Tennis: aces (0-40), total_games (10-80)
+- Volleyball: total_points (60-250), sets (0-5)
+
+If values are outside these ranges, the script auto-filters them and logs a warning. Report filtered counts.
+
+### 2. Source Cross-Validation
+When multiple sources provide data for the same team:
+- Compare L10 averages across sources. Difference >30% = DATA_CONFLICT → flag in report.
+- Prefer Sofascore API (structured JSON) over Flashscore HTML (regex-parsed).
+- ESPN injury data should always be merged regardless of primary stats source.
+
+### 3. Completeness Verification
+Run a quick DB check after enrichment:
+```bash
+PYTHONPATH=src python3 -c "
+from bet.db.connection import get_db
+with get_db() as conn:
+    r = conn.execute('SELECT sport_id, COUNT(DISTINCT team_id), COUNT(*) FROM team_form GROUP BY sport_id').fetchall()
+    for row in r: print(f'  Sport {row[0]}: {row[1]} teams, {row[2]} form entries')
+"
+```
+Compare team counts with shortlist candidate counts. If teams are missing from DB → enrichment didn't write to DB.
+
+### 4. Enrichment Quality Assessment (sequentialthinking)
+Use `sequentialthinking` to answer:
+1. What is the overall enrichment yield? Above 60% threshold?
+2. Which sports have the weakest data coverage? WHY?
+3. Are any failed teams from HIGH-PRIORITY matches (tournaments, major leagues)?
+4. What is the expected impact on S3 deep stats quality?
+5. Are there any systematic source failures (same source failing for all teams)?
 
 ## Output
 

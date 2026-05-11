@@ -2,8 +2,10 @@
 """S5 Contextual Checks — weather, venue, referee, roster changes.
 
 Extracted from pipeline_orchestrator.py (Phase 3.2).
+Supports --verbose + AGENT_SUMMARY for agent-driven pipeline (R17/R19).
 """
 
+import argparse
 import json
 import sys
 from pathlib import Path
@@ -194,3 +196,50 @@ def run_context_checks(date: str, state: dict) -> tuple[bool, str]:
         print(f"  ⚠ DB context update failed (non-fatal): {e}")
 
     return True, f"S5 contextual checks: {', '.join(checks_done)}"
+
+
+# ---------------------------------------------------------------------------
+# CLI entry point with --verbose + AGENT_SUMMARY (R17/R19)
+# ---------------------------------------------------------------------------
+def main():
+    from agent_output import AgentOutput, add_agent_args
+
+    parser = argparse.ArgumentParser(
+        description="S5 Contextual Checks — weather, venue, referee, roster changes"
+    )
+    parser.add_argument("--date", required=True, help="Betting date YYYY-MM-DD")
+    add_agent_args(parser)
+    args = parser.parse_args()
+
+    out = AgentOutput("s5_context", verbose=args.verbose, stop_on_error=args.stop_on_error)
+
+    ok, msg = run_context_checks(args.date, {})
+
+    # Parse checks_done from message
+    import re
+    weather_m = re.search(r"weather: (\d+) venues checked, (\d+) with impact", msg)
+    injury_m = re.search(r"injuries: (\d+) entries across (\d+) sports", msg)
+    enriched_m = re.search(r"enriched: (\d+)/(\d+) candidates", msg)
+
+    metrics = {}
+    if weather_m:
+        metrics["weather_venues"] = int(weather_m.group(1))
+        metrics["weather_impacted"] = int(weather_m.group(2))
+    if injury_m:
+        metrics["injury_entries"] = int(injury_m.group(1))
+        metrics["injury_sports"] = int(injury_m.group(2))
+    if enriched_m:
+        metrics["enriched_candidates"] = int(enriched_m.group(1))
+        metrics["total_candidates"] = int(enriched_m.group(2))
+
+    verdict = "OK" if ok else "FAILED"
+    if "unavailable" in msg or "load_error" in msg:
+        verdict = "PARTIAL"
+
+    out.summary(verdict=verdict, metrics=metrics)
+
+    sys.exit(0 if ok else 1)
+
+
+if __name__ == "__main__":
+    main()

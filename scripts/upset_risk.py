@@ -2,8 +2,10 @@
 """S6 Upset Risk Scoring — sport-specific heuristics.
 
 Extracted from pipeline_orchestrator.py (Phase 3.3).
+Supports --verbose + AGENT_SUMMARY for agent-driven pipeline (R17/R19).
 """
 
+import argparse
 import json
 import sys
 from pathlib import Path
@@ -158,3 +160,55 @@ def run_upset_risk(date: str, state: dict) -> tuple[bool, str]:
         return True, f"S6 completed: {scored} candidates scored — {elevated} elevated, {high_risk} high risk"
     except Exception as e:
         return True, f"S6 upset risk error: {e} — continuing without"
+
+
+# ---------------------------------------------------------------------------
+# CLI entry point with --verbose + AGENT_SUMMARY (R17/R19)
+# ---------------------------------------------------------------------------
+def main():
+    from agent_output import AgentOutput, add_agent_args
+
+    parser = argparse.ArgumentParser(
+        description="S6 Upset Risk Scoring — sport-specific heuristics"
+    )
+    parser.add_argument("--date", required=True, help="Betting date YYYY-MM-DD")
+    add_agent_args(parser)
+    args = parser.parse_args()
+
+    out = AgentOutput("s6_upset_risk", verbose=args.verbose, stop_on_error=args.stop_on_error)
+
+    ok, msg = run_upset_risk(args.date, {})
+
+    # Parse metrics from message
+    import re
+    m = re.search(r"(\d+) candidates scored.*?(\d+) elevated.*?(\d+) high risk", msg)
+    scored = int(m.group(1)) if m else 0
+    elevated = int(m.group(2)) if m else 0
+    high_risk = int(m.group(3)) if m else 0
+
+    if not m:
+        # Regex didn't match — error path or unexpected message format
+        verdict = "PARTIAL" if ok else "FAILED"
+    elif ok and high_risk == 0:
+        verdict = "OK"
+    elif ok:
+        verdict = "PARTIAL"
+    else:
+        verdict = "FAILED"
+
+    out.summary(
+        verdict=verdict,
+        metrics={
+            "total_scored": scored,
+            "low_risk": scored - elevated - high_risk,
+            "elevated_risk": elevated,
+            "high_risk": high_risk,
+            "high_risk_pct": round(high_risk / max(scored, 1) * 100, 1),
+        },
+    )
+
+    sys.exit(0 if ok else 1)
+
+
+if __name__ == "__main__":
+    main()

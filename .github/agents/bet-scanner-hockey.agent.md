@@ -47,20 +47,18 @@ Hockey covers NHL (primary) plus European leagues (SHL, Liiga, Extraliga). US ma
 
 **You are FULLY AUTONOMOUS.** When invoked, execute the complete workflow below without asking the user anything. Diagnose and fix issues yourself.
 
-**TWO INVOCATION MODES:**
-1. **Fresh scan** — No health report context. Run full workflow from Step 1.
-2. **Healing mode** — Invoked by orchestrator WITH health context. Skip Step 1, go directly to Step 3 (self-heal) using the provided diagnosis.
+**THREE INVOCATION MODES:**
+1. **Fresh scan** — No context. Run full workflow: Step 1 → 2 → 2.5 → 3 (if needed) → 4.
+2. **Healing mode** — Invoked with health context (status, diagnosis). Skip to Step 3.
+3. **Verification mode** — Invoked after parallel scan with "verify your results". Skip to Step 2.
 
 ## OPERATIONAL WORKFLOW
 
 ### Step 0: Check Invocation Context
 
-If you received health context from the orchestrator (status, events_found, diagnosis, healing_action), you are in **healing mode**:
-- Read `betting/data/scan_health_{date}.json` for your sport's detailed status
-- Skip Step 1 (scan already ran in parallel)
-- Go directly to Step 3 using the diagnosis provided
-
-Otherwise, proceed with Step 1 (fresh scan).
+- If you received **health context** (status, events_found, diagnosis) → **healing mode** → Step 3
+- If you received **"verify your results"** → **verification mode** → Step 2
+- Otherwise → **fresh scan** → Step 1
 
 ### Step 1: Execute Scanner (Fresh Scan Mode Only)
 
@@ -78,34 +76,106 @@ if not stats.validation_passed:
 "
 ```
 
-### Step 2: Validate Results
+### Step 2: Verify Scan Results
 
 ```bash
 cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 -c "
 from bet.db.connection import get_db
-from datetime import date
-import datetime
+from datetime import date, datetime, timedelta
+import json
 today = str(date.today())
+sport = 'hockey'
 with get_db() as conn:
-    c = conn.execute('SELECT COUNT(*) FROM scan_results WHERE sport="hockey" AND betting_date=?', (today,))
+    # --- Event count ---
+    c = conn.execute('SELECT COUNT(*) FROM scan_results WHERE sport=? AND betting_date=?', (sport, today))
     count = c.fetchone()[0]
-    print(f'Hockey events in DB: {count}')
+    print(f'{sport} events: {count}')
 
-month = datetime.date.today().month
-if month in [7, 8, 9]:
-    print('⚠️ NHL off-season (Jul-Sep) — check IIHF World Championship (May)')
-    print('   EU leagues (SHL, Liiga) start Sep-Oct')
-else:
-    print('NHL active + EU leagues running')
+    # --- CHECK 1: Phantom detection (past kickoff) ---
+    cutoff = (datetime.utcnow() - timedelta(hours=2)).strftime('%Y-%m-%dT%H:%M')
+    c = conn.execute('''SELECT COUNT(*) FROM scan_results
+        WHERE sport=? AND betting_date=? AND kickoff != '' AND kickoff < ?''', (sport, today, cutoff))
+    phantoms = c.fetchone()[0]
+    print(f'Phantoms (kickoff >2h ago): {phantoms}')
 
-if count >= 10:
-    print('✅ PASS: Hockey ≥ 10 events')
-elif count >= 5:
-    print('⚠️ MARGINAL: 5-9 events (NHL off-day)')
-else:
-    print('❌ FAIL: < 5 events — check season/sources')
+    # --- CHECK 2: Duplicate event_keys within same source ---
+    c = conn.execute('''SELECT source_domain, event_key, COUNT(*) as cnt FROM scan_results
+        WHERE sport=? AND betting_date=? GROUP BY source_domain, event_key HAVING cnt > 1''', (sport, today))
+    dupes = c.fetchall()
+    print(f'Duplicate event_keys: {len(dupes)}')
+
+    # --- CHECK 3: Data completeness ---
+    c = conn.execute('''SELECT
+        SUM(CASE WHEN home_team IS NULL OR home_team='' THEN 1 ELSE 0 END),
+        SUM(CASE WHEN away_team IS NULL OR away_team='' THEN 1 ELSE 0 END),
+        SUM(CASE WHEN competition IS NULL OR competition='' THEN 1 ELSE 0 END),
+        SUM(CASE WHEN kickoff IS NULL OR kickoff='' THEN 1 ELSE 0 END),
+        COUNT(*)
+        FROM scan_results WHERE sport=? AND betting_date=?''', (sport, today))
+    no_home, no_away, no_comp, no_ko, total = c.fetchone()
+    completeness = round((1 - max(no_home, no_away) / max(total, 1)) * 100, 1)
+    print(f'Completeness: {completeness}% (missing: home={no_home}, away={no_away}, comp={no_comp}, kickoff={no_ko})')
+
+    # --- CHECK 4: League coverage vs yesterday ---
+    c = conn.execute(\"SELECT DISTINCT competition FROM scan_results WHERE sport=? AND betting_date=? AND competition != ''\", (sport, today))
+    today_leagues = set(r[0] for r in c)
+    yesterday = str(date.today() - timedelta(days=1))
+    c = conn.execute(\"SELECT DISTINCT competition FROM scan_results WHERE sport=? AND betting_date=? AND competition != ''\", (sport, yesterday))
+    yest_leagues = set(r[0] for r in c)
+    missing = yest_leagues - today_leagues
+    print(f'Leagues today: {len(today_leagues)} | Yesterday: {len(yest_leagues)} | Missing: {len(missing)}')
+    if missing:
+        print(f'  Missing leagues: {list(missing)[:5]}')
+
+    # --- CHECK 5: Cross-source coverage ---
+    c = conn.execute('''SELECT event_key, COUNT(DISTINCT source_domain) as src_cnt FROM scan_results
+        WHERE sport=? AND betting_date=? GROUP BY event_key HAVING src_cnt >= 2''', (sport, today))
+    multi = len(c.fetchall())
+    print(f'Events from 2+ sources: {multi}/{count} ({round(multi*100/max(count,1),1)}%)')
+
+    # --- CHECK 6: Source health ---
+    c = conn.execute('''SELECT source_name, consecutive_failures, total_requests, total_failures
+        FROM source_health WHERE consecutive_failures > 3 ORDER BY consecutive_failures DESC LIMIT 5''')
+    degraded = c.fetchall()
+    if degraded:
+        print(f'Degraded sources ({len(degraded)}):')
+        for s in degraded:
+            print(f'  {s[0]}: {s[1]} consecutive failures ({s[3]}/{s[2]} total)')
+    else:
+        print('All sources healthy')
+
+    # Hockey: check for shots/hits/powerplay keys
+    c = conn.execute('SELECT raw_data FROM scan_results WHERE sport=? AND betting_date=? AND raw_data IS NOT NULL LIMIT 20', (sport, today))
+    stat_keys_found = set()
+    for row in c:
+        data = json.loads(row[0]) if row[0] else {}
+        stat_keys_found.update(data.get('stat_keys', []))
+    required = {'shots', 'hits', 'pim', 'powerplay_goals'}
+    found = required & stat_keys_found
+    print(f'Stat keys: {len(found)}/{len(required)} required ({found or \"NONE\"})')
+
+    # --- VERDICT ---
+    issues = []
+    if phantoms > 5: issues.append(f'{phantoms} phantom fixtures')
+    if dupes: issues.append(f'{len(dupes)} duplicate event_keys')
+    if completeness < 80: issues.append(f'completeness {completeness}%')
+    if len(missing) > 3: issues.append(f'{len(missing)} leagues missing vs yesterday')
+
+    if count >= 10 and not issues:
+        print('VERDICT: PASS')
+    elif count >= 5 and len(issues) <= 1:
+        print(f'VERDICT: MARGINAL — {issues}')
+    else:
+        print(f'VERDICT: FAIL — {issues}')
 "
 ```
+
+**Interpret with `sequentialthinking`:**
+- NHL regular season Oct-Apr, playoffs Apr-Jun. Jul-Sep off-season — zero events is normal.
+- KHL runs Sep-Apr. SHL/Liiga Oct-Mar. Not all leagues overlap.
+- NHL has off-days — 5-9 events is normal, not a failure.
+- Stat keys (shots, hits, PIM, powerplay) come from ESPN enrichment — sparse at scan phase is expected.
+- If FAIL during season → proceed to Step 3 (self-heal). If off-season → report as seasonal.
 
 ### Step 2.5: HTML Deep Parsing
 

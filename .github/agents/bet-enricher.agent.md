@@ -84,7 +84,7 @@ You add an Enrichment Quality Assessment via sequential-thinking for each batch:
 
 ## Scripts
 
-- **MUST use:** `python3 scripts/data_enrichment_agent.py --date YYYY-MM-DD --verbose` — self-healing enrichment with thread-safe rate limiting (Flashscore: 2s, Sofascore: 3s, ESPN: 1s). `mode=sync`, timeout=600000. Parse `AGENT_SUMMARY:{json}` from output.
+- **MUST use:** `python3 scripts/data_enrichment_agent.py --date YYYY-MM-DD --verbose` — self-healing enrichment with thread-safe rate limiting (uniform 1.5s between requests per domain). `mode=sync`, timeout=600000. Parse `AGENT_SUMMARY:{json}` from output.
 - **Can also use:** `python3 scripts/fetch_api_stats.py --date YYYY-MM-DD` — API-based stats fetch as supplementary source. `mode=sync`, timeout=300000.
 - **Can also use:** `python3 scripts/data_enrichment_agent.py --date YYYY-MM-DD --sport tennis --verbose` — Tennis-specific deep enrichment. `mode=sync`, timeout=600000.
 
@@ -120,6 +120,100 @@ with get_db() as conn:
 - Ensure enriched data flows correctly to DB (`team_form` table updated)
 - Report source health metrics to orchestrator for source registry updates
 - Never fabricate stats — missing data is BETTER than invented data
+
+## Source Parsing Reference (KNOW YOUR SOURCES)
+
+### Per-Source Data Structure
+
+| Source | Method | Data Type | Reliability | Common Failures |
+|--------|--------|-----------|-------------|-----------------|
+| Sofascore API | REST JSON | L10 form, per-match stats, injuries | HIGH — structured JSON | Rate limits (429), team ID not found |
+| ESPN API | REST JSON | Schedule, injuries, standings, gamelogs | HIGH — free, unlimited | Team name mismatch, sport/league not supported |
+| Flashscore HTML | Playwright render | L10 form, H2H, injury list | MEDIUM — regex on rendered JS | CAPTCHA, layout changes, empty response |
+| Flashscore search | Playwright render | Team page redirect | LOW — fallback only | Ambiguous results, wrong team matched |
+| scores24.live HTML | HTTP fetch | Basic stats | LOW — third-tier fallback | Site changes, sparse data |
+
+### What to Verify After Enrichment
+
+1. **Value sanity**: Every extracted stat value must be within sport-specific ranges (e.g., football corners 0-20, basketball points 50-180). Values outside ranges are auto-filtered with a warning log.
+2. **Source consistency**: If Flashscore says avg 8 corners and Sofascore API says avg 3 corners for the same team — one source is wrong. Flag as DATA_CONFLICT.
+3. **Data freshness**: Check `enriched_at` timestamps. Data older than 48h for active seasons = STALE.
+4. **L10 completeness**: A team should have 10 recent matches. If only 3-4 data points → enrichment is PARTIAL, not FULL.
+5. **Sport-specific checks**:
+   - Football: Must have corners + fouls + cards (core stat markets). Goals alone is insufficient.
+   - Basketball: Must have points + rebounds. Missing assists/steals = PARTIAL.
+   - Hockey: Must have goals + shots. Missing PIM/hits = PARTIAL.
+   - Tennis: Must have aces + total_games. Missing break points = PARTIAL.
+   - Volleyball: Must have total_points + sets. Missing aces/blocks = PARTIAL.
+
+### Sofascore API Deep Parsing (PRIMARY source — best data)
+
+The enrichment script uses Sofascore's public API (`api.sofascore.com/api/v1/`):
+1. **Search**: `/search/all?q={team_name}` → find team ID (match by sport slug)
+2. **Events**: `/team/{id}/events/last/0` → last 10 matches with scores, dates, competition
+3. **Per-event stats**: `/event/{id}/statistics` → structured stat groups (corners, fouls, shots, etc.)
+
+**What to verify in output:**
+- Search returned correct team (not namesake from wrong sport/league)
+- Events are from CURRENT SEASON (not 2+ years old)
+- Per-event stats have the "ALL" period group (not just half-time)
+
+### ESPN API Deep Parsing (SECONDARY — always try for injuries)
+
+Free API at `site.api.espn.com`:
+1. **Teams**: `/apis/site/v2/sports/{sport}/{league}/teams` → team ID lookup
+2. **Schedule**: `/teams/{id}/schedule` → past results with scores
+3. **Injuries**: `/teams/{id}/injuries` → player name, status (OUT/DOUBTFUL), date
+
+**ESPN is BEST for injuries** — always merge injury data even if Sofascore had better stats.
+
+### Flashscore HTML Parsing (FALLBACK — Playwright-based)
+
+Flashscore renders via JavaScript. The parser extracts:
+- Stat values from CSS classes: `stat__category`, `stat__homeValue`, `stat__awayValue`
+- Score patterns: `X - Y`, `X:Y` in result divs
+- H2H section via regex: `h2h|head.to.head|direct.meetings`
+- Injury markers: class names containing "injur"
+
+**Known pitfalls:**
+- CAPTCHA triggers after ~20 requests → rate limit enforced at 1.5s
+- Team slug mismatch (FC Barcelona → flashscore uses `/team/fc-barcelona/` but sometimes `/team/barcelona/`)
+- Layout changes break regex patterns — if extracting 0 values, the parser may be outdated
+
+## Verbose Output Monitoring Guide
+
+When running `data_enrichment_agent.py --verbose`, monitor these patterns:
+
+### Real-Time Events (JSON lines during execution)
+```json
+{"step":"s2_enrich","event":"missing_detected","count":45,"ts":"..."}
+{"step":"s2_enrich","event":"progress","current":5,"total":45,"detail":"flashscore.com football","ts":"..."}
+{"step":"s2_enrich","event":"warning","msg":"403 from sofascore.com","ts":"..."}
+{"step":"s2_enrich","event":"error","msg":"timeout","recoverable":true,"ts":"..."}
+```
+
+### AGENT_SUMMARY (final line — YOUR primary data source)
+```json
+AGENT_SUMMARY:{"verdict":"OK","metrics":{"enriched":32,"partial":8,"failed":5,"total":45},"issues":[]}
+```
+
+### What to Watch For (RED FLAGS)
+| Signal | Meaning | Action |
+|--------|---------|--------|
+| `enriched: 0` | ALL enrichment failed | Check network, source health, retry |
+| `failed > 50%` | Major source outage | Check which source, try alternative |
+| Many `"event":"warning","msg":"403"` | Rate-limited or blocked | Increase delay, check IP |
+| `"event":"error","recoverable":false` | Script crash | Read traceback, fix, retry |
+| `Filtered X/Y values outside range` | Parser extracted garbage | Source HTML changed, parser needs update |
+| Very fast completion (<10s for 40+ teams) | Cached data reused, no fresh fetch | Check data freshness timestamps |
+
+### Key Metrics to Extract
+After script completes, you MUST report:
+1. **Yield**: `enriched / total × 100` — target ≥60%
+2. **Per-sport breakdown**: football X/Y, basketball X/Y, etc.
+3. **Source success rates**: how many from Sofascore API vs ESPN vs Flashscore
+4. **Validation warnings**: any values filtered as out-of-range
+5. **Data quality tiers**: FULL (L10+H2H+standings) / PARTIAL (some stats) / MINIMAL (basic only)
 
 ## Cross-Agent Delegation Protocol
 

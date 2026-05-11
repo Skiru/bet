@@ -221,6 +221,161 @@ After the pipeline runs S3 (deep stats), a structured input file is written to `
 }
 ```
 
+## Computation Reference (THE MATH — know what you're validating)
+
+### Safety Score Formula
+
+```
+safety_score = min(hit_rate_L10, hit_rate_H2H)
+```
+
+Where:
+- `hit_rate_L10` = (matches where stat OVER line) / (total L10 matches). E.g., 8/10 = 0.80
+- `hit_rate_H2H` = (H2H meetings where stat OVER line) / (total H2H meetings). E.g., 4/5 = 0.80
+- If H2H missing: `safety_score = hit_rate_L10 × H2H_MISSING_PENALTY`
+  - Football/Tennis/Basketball: penalty = 0.70 (30% discount)
+  - Volleyball/Hockey: penalty = 0.75 (25% discount)
+- If one team has zero data (one-sided): `safety × 0.70` additional penalty
+
+### Safety Score Caps (IMPORTANT — raw scores get CAPPED)
+
+| Cap Type | Condition | Max Safety | Reason |
+|----------|-----------|------------|--------|
+| **Evidence cap** | safety ≥0.80 but <10 L10 games OR no H2H OR one-sided | 0.70 | Insufficient evidence for high confidence |
+| **Synthetic cap** | source = "db-synthetic" | 0.50 | Fabricated L10 from aggregates, not real per-match |
+| **Volatility cap** | Hockey goals, basketball points | 0.60-0.70 | High single-game variance inflates hit rates |
+| **Data tier cap** | Youth leagues | 0.60 | Weak/unreliable data |
+| **Data tier cap** | State/regional leagues (BR) | 0.55 | Very sparse data |
+| **Data tier cap** | Women's (non-top) | 0.60 | Limited coverage |
+| **Data tier cap** | Second/third division | 0.70 | Moderate data quality |
+| **Line suspicious** | Line < 50% or > 200% of L10 avg | 0.50 | Misconfigured standard line |
+| **High stakes** | CL, playoffs, finals, Grand Slams | ×0.90 | Different tactical approach than league |
+
+### Three-Way Cross-Check Formula
+
+```
+L10 direction: OVER if L10_avg > line, UNDER if L10_avg < line
+H2H direction: OVER if H2H_avg > line, UNDER if H2H_avg < line  
+L5 direction: OVER if L5_avg > line, UNDER if L5_avg < line
+L5 trend: UP if L5 > L10 by >5%, DOWN if L5 < L10 by >5%, STABLE otherwise
+
+Alignment:
+  3/3 SUPPORT → Strong pick — all timeframes agree
+  2/3 SUPPORT → Acceptable — one minor disagreement
+  2/3 CONFLICT → DOWNGRADE — trend reversal or H2H contradicts
+  3/3 CONFLICT → REJECT — all data says opposite
+```
+
+### Margin Calculation
+
+```
+OVER: margin = avg / line  (>1 = good margin, e.g., avg 11.2 / line 9.5 = 1.18)
+UNDER: margin = line / avg (>1 = good margin, e.g., line 9.5 / avg 7.3 = 1.30)
+```
+Higher margin = more buffer between average and line = safer bet.
+
+### Probability Engine (when available)
+
+The `probability_engine.py` uses statistical distributions:
+- **Poisson model** for count stats: goals, corners, cards, aces (discrete events)
+- **Normal model** for continuous stats: points, total scores, possession
+
+```
+P(OVER X) = 1 - CDF(X, model_params)
+P(UNDER X) = CDF(X, model_params)
+fair_odds = 1 / P(hit)
+min_odds_ev0 = 1 / P(hit)  (minimum odds for positive EV)
+```
+
+### Hit Rate → Fair Odds → EV Quick Reference
+
+| Hit Rate | Fair Odds | Min Betclic Odds for EV>0 |
+|----------|-----------|---------------------------|
+| 90% | 1.11 | ≥1.12 |
+| 80% | 1.25 | ≥1.26 |
+| 70% | 1.43 | ≥1.44 |
+| 60% | 1.67 | ≥1.68 |
+| 50% | 2.00 | ≥2.01 |
+
+## Expected Stat Ranges Per Sport (sanity check your analysis)
+
+When reviewing `deep_stats_report.py` output, verify values are within expected ranges:
+
+### Football
+| Stat | Per-match Range | Typical L10 Avg | Red Flag |
+|------|----------------|-----------------|----------|
+| Corners | 0-20 per team | 4-7 per team | avg >12 or <2 |
+| Fouls | 0-35 combined | 20-30 combined | avg >35 or <10 |
+| Yellow cards | 0-12 combined | 3-6 combined | avg >8 or <1 |
+| Shots | 0-40 per team | 10-18 per team | avg >25 or <5 |
+| Goals | 0-12 combined | 2.2-3.0 combined (top leagues) | avg >5 or <1 |
+
+### Basketball
+| Stat | Per-game Range | Typical L10 Avg | Red Flag |
+|------|----------------|-----------------|----------|
+| Points | 50-180 per team | 100-120 (NBA) | avg >140 or <70 |
+| Rebounds | 20-70 per team | 40-50 (NBA) | avg >60 or <25 |
+| Assists | 10-45 per team | 22-28 (NBA) | avg >35 or <15 |
+
+### Hockey
+| Stat | Per-game Range | Typical L10 Avg | Red Flag |
+|------|----------------|-----------------|----------|
+| Goals | 0-12 combined | 5.5-6.5 (NHL) | avg >9 or <3 |
+| Shots | 15-60 per team | 28-35 (NHL) | avg >45 or <20 |
+| PIM | 0-50 combined | 8-16 (NHL) | avg >30 or <2 |
+
+### Tennis
+| Stat | Per-match Range | Typical Avg | Red Flag |
+|------|----------------|-------------|----------|
+| Aces | 0-40 per player | 5-12 (hard court) | avg >25 or <1 |
+| Total games | 10-80 | 22-30 (Bo3), 35-48 (Bo5) | avg >50 or <18 |
+| Double faults | 0-15 per player | 2-5 | avg >10 or <0.5 |
+
+### Volleyball
+| Stat | Per-match Range | Typical Avg | Red Flag |
+|------|----------------|-------------|----------|
+| Total points | 60-250 | 150-180 (5 sets) | avg >220 or <80 |
+| Sets | 3-5 | 3.2-3.8 | avg >5 (impossible) |
+| Aces | 0-15 per team | 3-7 | avg >12 or <1 |
+
+## Verbose Output Monitoring Guide
+
+When running `deep_stats_report.py --verbose`, monitor these patterns:
+
+### Real-Time Events
+```json
+{"step":"s3_deep_stats","event":"progress","current":5,"total":42,"detail":"Liverpool vs Arsenal (football)","ts":"..."}
+{"step":"s3_deep_stats","event":"candidate_analyzed","candidate":"Liverpool vs Arsenal","safety_score":0.78,"markets_ranked":5,"ts":"..."}
+{"step":"s3_deep_stats","event":"warning","msg":"H2H data missing — H2H-blind analysis","ts":"..."}
+{"step":"s3_deep_stats","event":"enrichment_triggered","team":"FC Midtjylland","reason":"no cache data","ts":"..."}
+```
+
+### AGENT_SUMMARY (final line — YOUR primary data source)
+```json
+AGENT_SUMMARY:{"verdict":"OK","metrics":{"candidates_analyzed":42,"avg_safety":0.65,"markets_per_candidate":4.2,"data_quality":{"FULL":28,"PARTIAL":10,"MINIMAL":4},"top_markets":["Corners O/U","Fouls O/U","Total Points O/U"]},"issues":[]}
+```
+
+### What to Watch For (RED FLAGS)
+| Signal | Meaning | Action |
+|--------|---------|--------|
+| `candidates_analyzed` < shortlist count | Some candidates silently dropped | Verify which ones and why |
+| `avg_safety` > 0.85 | Suspiciously high — possible data error | Check if safety caps applied correctly |
+| `avg_safety` < 0.40 | Very weak data quality overall | Check enrichment was done, verify sources |
+| `data_quality.MINIMAL > 30%` | Too many candidates with thin data | Trigger re-enrichment before proceeding |
+| `markets_per_candidate < 3` | Too few markets ranked | Check SPORT_STAT_KEYS availability |
+| `enrichment_triggered` events > 10 | Heavy inline enrichment | S2.5 enrichment was insufficient |
+| Safety score = exactly 0.50 for many candidates | Synthetic data cap hitting | Check DB sources — db-synthetic is placeholder data |
+| Many `H2H-blind` candidates | H2H enrichment failed widely | Note in output, flag as lower confidence |
+
+### Key Metrics to Extract After Script Completes
+1. **Candidates analyzed** vs shortlist count (should be 100% — zero silent drops)
+2. **Average safety score** — typical: 0.50-0.70. Above 0.80 = suspicious
+3. **Data quality distribution** — FULL/PARTIAL/MINIMAL counts
+4. **Markets per candidate** — target ≥3 for football, ≥2 for other sports
+5. **H2H coverage** — how many candidates have H2H data (not H2H-blind)
+6. **Enrichment triggers** — how many candidates needed inline enrichment (should be <20%)
+7. **Per-sport safety scores** — any sport systematically low = enrichment gap
+
 ## Cross-Agent Delegation Protocol
 
 When you need data or analysis from another agent's domain, delegate BACK to bet-orchestrator with a structured request:

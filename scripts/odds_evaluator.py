@@ -2,8 +2,10 @@
 """S4 Odds Evaluation — cross-validate odds, compute EV, detect drift.
 
 Extracted from pipeline_orchestrator.py (Phase 3.1).
+Supports --verbose + AGENT_SUMMARY for agent-driven pipeline (R17/R19).
 """
 
+import argparse
 import json
 import sys
 from pathlib import Path
@@ -542,3 +544,55 @@ def run_odds_eval(date: str, state: dict) -> tuple[bool, str]:
         return True, f"S4 completed: {with_ev}/{total} with EV data ({positive_ev} positive EV)"
     except Exception as e:
         return True, f"S4 odds evaluation error: {e} — continuing without"
+
+
+# ---------------------------------------------------------------------------
+# CLI entry point with --verbose + AGENT_SUMMARY (R17/R19)
+# ---------------------------------------------------------------------------
+def main():
+    from agent_output import AgentOutput, add_agent_args
+
+    parser = argparse.ArgumentParser(
+        description="S4 Odds Evaluation — cross-validate odds, compute EV, detect drift"
+    )
+    parser.add_argument("--date", required=True, help="Betting date YYYY-MM-DD")
+    add_agent_args(parser)
+    args = parser.parse_args()
+
+    out = AgentOutput("s4_odds_eval", verbose=args.verbose, stop_on_error=args.stop_on_error)
+
+    ok, msg = run_odds_eval(args.date, {})
+
+    # Parse the message for metrics
+    import re
+    m = re.search(r"(\d+)/(\d+) with EV data \((\d+) positive", msg)
+    with_ev = int(m.group(1)) if m else 0
+    total = int(m.group(2)) if m else 0
+    positive_ev = int(m.group(3)) if m else 0
+
+    if not m:
+        # Regex didn't match — error path or unexpected format
+        verdict = "PARTIAL" if ok else "FAILED"
+    elif positive_ev > 0:
+        verdict = "OK"
+    elif with_ev > 0:
+        verdict = "PARTIAL"
+    else:
+        verdict = "FAILED"
+
+    out.summary(
+        verdict=verdict,
+        metrics={
+            "total_candidates": total,
+            "with_ev": with_ev,
+            "positive_ev": positive_ev,
+            "ev_coverage_pct": round(with_ev / max(total, 1) * 100, 1),
+        },
+        issues=[] if ok else [{"level": "error", "message": msg}],
+    )
+
+    sys.exit(0 if ok else 1)
+
+
+if __name__ == "__main__":
+    main()

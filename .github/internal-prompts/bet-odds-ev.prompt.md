@@ -52,8 +52,9 @@ Load these skills before starting:
 
 **Step 1: RUN odds evaluation:**
 ```bash
-PYTHONPATH=src python3 -c "import sys; sys.path.insert(0, 'scripts'); from odds_evaluator import run_odds_eval; ok, msg = run_odds_eval('{date}', {}); print(msg)" 2>&1
+PYTHONPATH=src python3 scripts/odds_evaluator.py --date {date} --verbose 2>&1
 ```
+Parse the `AGENT_SUMMARY:{json}` line from script output — it contains total candidates, EV counts, and coverage metrics.
 
 **Step 2: Fetch fresh cross-validation odds (optional — if credits available):**
 ```bash
@@ -76,7 +77,7 @@ Pipeline scripts inject raw EV from odds API. Your job is to add PRICING INTELLI
 - **Inputs**: `{date}_s3_deep_stats.md`, `{date}_s2_tipsters.md`
 - **Odds sources**: `odds_multi_sources.json` (preferred, 5 sources) or `odds_api_snapshot.json` (fallback)
 - **Analysis pool**: `analysis_pool_{date}.json` (may have pre-computed EV)
-- **Script**: `python3 scripts/fetch_odds_multi.py`
+- **Script**: `python3 scripts/fetch_odds_multi.py --verbose`
 - **ESPN ATS/OU records** (basketball/hockey): use `load_espn_enrichment_for_team()` from `db_data_loader.py`. ATS = historical cover rate per team. OU = overs-unders-pushes per team. These give SHARP PRIORS for totals/spread EV.
 - **Player gamelogs** (25.9K+): `load_player_gamelogs_for_team()` provides game-by-game individual stats — use for verifying consistency of totals market probability (e.g., "Player X scored 20+ in 8/10 games" → high confidence in team totals).
 

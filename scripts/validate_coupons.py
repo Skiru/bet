@@ -615,6 +615,8 @@ def format_text(result: dict) -> str:
 
 
 def main():
+    from agent_output import AgentOutput, add_agent_args
+
     parser = argparse.ArgumentParser(
         description="Validate coupon markdown files — arithmetic, structure, cross-references."
     )
@@ -635,7 +637,10 @@ def main():
         "--strict", action="store_true",
         help="Treat warnings as errors"
     )
+    add_agent_args(parser)
     args = parser.parse_args()
+
+    out = AgentOutput("s8_validate_coupons", verbose=args.verbose, stop_on_error=args.stop_on_error)
 
     all_results = []
     any_fail = False
@@ -658,6 +663,28 @@ def main():
     else:
         output = all_results if len(all_results) > 1 else all_results[0]
         print(json.dumps(output, indent=2, ensure_ascii=False))
+
+    # AGENT_SUMMARY
+    total_checks = sum(r.get("passed", 0) + r.get("failed", 0) for r in all_results)
+    total_passed = sum(r.get("passed", 0) for r in all_results)
+    total_failed = sum(r.get("failed", 0) for r in all_results)
+    total_warnings = sum(
+        sum(len(c.get("warnings", [])) for c in r.get("checks", []))
+        for r in all_results
+    )
+
+    verdict = "OK" if not any_fail else "FAILED"
+
+    out.summary(
+        verdict=verdict,
+        metrics={
+            "files_validated": len(all_results),
+            "total_checks": total_checks,
+            "passed": total_passed,
+            "failed": total_failed,
+            "warnings": total_warnings,
+        },
+    )
 
     sys.exit(1 if any_fail else 0)
 

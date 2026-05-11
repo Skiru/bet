@@ -402,6 +402,8 @@ def run_multi_scan(
 
 
 def main():
+    from agent_output import AgentOutput, add_agent_args
+
     parser = argparse.ArgumentParser(
         description="Multi-source odds aggregator — fetches odds from multiple sources in priority order"
     )
@@ -421,7 +423,10 @@ def main():
         "--no-window", action="store_true",
         help="Don't filter by betting day time window",
     )
+    add_agent_args(parser)
     args = parser.parse_args()
+
+    out = AgentOutput("s4_fetch_odds_multi", verbose=args.verbose, stop_on_error=args.stop_on_error)
 
     sport_filter = None
     if args.sports:
@@ -431,11 +436,36 @@ def main():
     if args.sources:
         source_filter = [s.strip() for s in args.sources.split(",")]
 
-    run_multi_scan(
+    events = run_multi_scan(
         sport_filter=sport_filter,
         source_filter=source_filter,
         dry_run=args.dry_run,
         use_window=not args.no_window,
+    )
+
+    total_events = len(events) if events else 0
+
+    # Count sources from provenance file
+    sources_used = []
+    source_counts = {}
+    try:
+        prov_path = DATA_DIR / "odds_multi_sources.json"
+        if prov_path.exists():
+            prov = json.loads(prov_path.read_text(encoding="utf-8"))
+            sources_used = prov.get("sources_used", [])
+            source_counts = prov.get("total_by_source", {})
+    except Exception:
+        pass
+
+    verdict = "OK" if total_events > 0 else "PARTIAL"
+
+    out.summary(
+        verdict=verdict,
+        metrics={
+            "total_events": total_events,
+            "sources_used": len(sources_used),
+            "source_breakdown": source_counts,
+        },
     )
 
 

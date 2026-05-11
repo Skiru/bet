@@ -50,14 +50,21 @@ Parse the `AGENT_SUMMARY:{json}` line from script output — it contains per-spo
 
 This runs per-sport parallel scanning (5 sport groups, independent timeouts). If it times out, use `--resume` or run individual sport scanners manually.
 
-**VALIDATE Phase 1** — Run these checks immediately after scan completes:
+**VALIDATE Phase 1** — Dispatch per-sport agents in **verification mode**:
 
-1. **Event count**: Query DB `scan_results` table for today's date. Check per-sport counts in `scan_run_stats` table.
-2. **Source success**: Check `scan_run_stats.sources_ok` and `scan_run_stats.sources_failed` per sport.
-3. **Error triage**: Read `scan_errors.json`. Separate critical errors from ignorable ones (BetExplorer empty pages for niche sports = normal).
-4. **Sport coverage**: All 5 core sports should have entries in `scan_run_stats`.
+> Parallel scan completed. Verify your sport's scan results — run your enhanced Step 2.
+> Date: {date}. Report: event count, data quality, league coverage, issues found.
 
-If gates fail → investigate and fix before proceeding. See Error Triage Playbook in agent definition.
+Each per-sport agent (football, basketball, tennis, volleyball, hockey) runs 6 inline verification checks:
+1. Phantom detection (past kickoff events)
+2. Duplicate event_keys
+3. Data completeness (team names, competition, kickoff)
+4. League coverage vs yesterday
+5. Cross-source coverage (events from 2+ sources)
+6. Source health (consecutive failures)
+Plus a sport-specific check (stat keys, surface detection, etc.)
+
+**Aggregate verdicts:** All 5 sports reported? Total events > 250? Any FAIL → dispatch healing mode (Step 3).
 
 ### PHASE 2: Enrichment Validation
 

@@ -1,475 +1,473 @@
-# Scan Verification Mode — Implementation Plan
+# Scan Self-Verification — Implementation Plan v2
 
 **Created:** 2026-05-11
 **Status:** DRAFT
-**Goal:** Add deep, continuous verification of scan results to the existing 2-tier scanner hierarchy (orchestrator + 5 per-sport agents).
+**Replaces:** v1 (REJECTED — created a new script, kept orchestrator fat)
 
 ---
 
-## Problem Statement
+## Design Principles
 
-Currently `bet-scanner` only performs basic health checks (event counts, source failures via `scan_health_report.py`). There is no:
-- Trend analysis (comparison with previous days)
-- Phantom fixture detection (duplicates, already-played matches)
-- Per-event data quality validation (kickoff times, team names, leagues)
-- Source trend tracking (coverage degradation over time)
-- Anomaly alerts (sudden deviations from normal patterns)
-- Cross-source consistency checks (same match, different data)
+1. **NO new Python scripts.** Verification = agent reading DB via inline Python + reasoning.
+2. **Per-sport agents own their full lifecycle** — scan + verify + self-heal + report.
+3. **Orchestrator is THIN** — dispatch, wait, aggregate.
+4. **SHORTER = BETTER** — enhanced Step 2 adds ≤30 lines per agent file.
+5. **Agents are COLLECTORS + VERIFIERS, not CALCULATORS** — they check "did I collect enough good data?"
 
 ## Architecture
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│  bet-scanner (orchestrator)                                  │
-│                                                              │
-│  PHASE 1: Parallel Scan ──────────────────── (existing)      │
-│  PHASE 2: Health Check + Self-Healing ─────── (existing)     │
-│  PHASE 2.5: VERIFICATION ─────────────────── (NEW)           │
-│    └─ run verify_scan_results.py (cross-sport)               │
-│    └─ analyze: trends, phantoms, anomalies                   │
-│    └─ dispatch per-sport agents in verification mode         │
-│  PHASE 3: Merge + Enrich ─────────────────── (existing)      │
-└──────────────────────────────────────────────────────────────┘
-         │                                │
-    ┌────▼────┐                      ┌────▼────┐
-    │ per-sport│  (5 agents)         │ verify_ │
-    │ agent    │                     │ scan_   │
-    │          │ verification mode:  │ results │
-    │ Step 5:  │ run script --sport  │ .py     │
-    │ Verify   │ → interpret results │ (NEW)   │
-    └──────────┘                     └─────────┘
+bet-scanner (THIN coordinator)
+  ├─ PHASE 1: run scan_events.py --parallel-sport (existing)
+  ├─ PHASE 2: dispatch 5 per-sport agents in VERIFICATION mode
+  │    ├─ bet-scanner-football   → Step 2 (enhanced)
+  │    ├─ bet-scanner-basketball → Step 2 (enhanced)
+  │    ├─ bet-scanner-tennis     → Step 2 (enhanced)
+  │    ├─ bet-scanner-volleyball → Step 2 (enhanced)
+  │    └─ bet-scanner-hockey     → Step 2 (enhanced)
+  └─ PHASE 3: aggregate verdicts → proceed or heal
 ```
 
-**Design principle:** The Python script does ALL heavy computation (DB queries, comparisons, statistics). Agents interpret results and provide qualitative analysis.
+Each per-sport agent's enhanced Step 2 runs 6 verification checks via inline DB queries, then the agent interprets results using `sequentialthinking`.
 
 ---
 
-## Files to Modify/Create
+## Files to Modify
 
-| # | File | Action | Lines Added (est.) |
-|---|------|--------|--------------------|
-| 1 | `scripts/verify_scan_results.py` | CREATE | ~280 |
-| 2 | `.github/agents/bet-scanner.agent.md` | MODIFY | ~25 |
-| 3 | `.github/agents/bet-scanner-football.agent.md` | MODIFY | ~18 |
-| 4 | `.github/agents/bet-scanner-basketball.agent.md` | MODIFY | ~18 |
-| 5 | `.github/agents/bet-scanner-tennis.agent.md` | MODIFY | ~18 |
-| 6 | `.github/agents/bet-scanner-volleyball.agent.md` | MODIFY | ~18 |
-| 7 | `.github/agents/bet-scanner-hockey.agent.md` | MODIFY | ~18 |
-| 8 | `.github/internal-prompts/bet-scan.prompt.md` | MODIFY | ~6 |
-| 9 | `scripts/agent_protocol.py` | MODIFY | ~22 |
+| # | File | Action | Change Summary | Est. Lines |
+|---|------|--------|----------------|------------|
+| 1 | `bet-scanner.agent.md` | [MODIFY] | Slim down: remove KNOWLEDGE BASE, KNOWN PIPELINE GAPS, duplicated OPERATIONAL WORKFLOW, detailed validation snippets. Replace with thin dispatch-aggregate flow. | −150 |
+| 2 | `bet-scanner-football.agent.md` | [MODIFY] | Add verification mode to Step 0, enhance Step 2 with 6 checks + interpretation guidance | +25 |
+| 3 | `bet-scanner-basketball.agent.md` | [MODIFY] | Same structure as football, basketball-specific params/interpretation | +25 |
+| 4 | `bet-scanner-tennis.agent.md` | [MODIFY] | Same structure, tennis-specific params/interpretation | +25 |
+| 5 | `bet-scanner-volleyball.agent.md` | [MODIFY] | Same structure, volleyball-specific params/interpretation | +25 |
+| 6 | `bet-scanner-hockey.agent.md` | [MODIFY] | Same structure, hockey-specific params/interpretation | +25 |
+| 7 | `bet-scan.prompt.md` | [MODIFY] | Update workflow description to reflect per-sport verification | +5 |
 
----
-
-## Phase 1: Create Verification Script [CREATE]
-
-### Task 1.1: `scripts/verify_scan_results.py`
-
-**Purpose:** Query DB, compute verification metrics, produce structured report for agent consumption.
-
-**CLI interface:**
-```
-python3 scripts/verify_scan_results.py --date YYYY-MM-DD [--sport SPORT] [--verbose] [--stop-on-error] [--days-back 7]
-```
-
-**Arguments:**
-- `--date` (required) — betting date to verify
-- `--sport` — filter to single sport (for per-sport agent invocation)
-- `--verbose` / `-v` — JSON-line events (R19 compliance)
-- `--stop-on-error` — halt on critical (R19 compliance)
-- `--days-back` — historical comparison window (default: 7)
-
-**Imports:**
-- `from bet.db.connection import get_db` (R2 DB-first)
-- `from agent_output import AgentOutput, add_agent_args, add_sport_filter_arg`
-- Standard: `argparse`, `json`, `collections.Counter`, `datetime`, `statistics`
-
-**Verification checks (7 functions):**
-
-1. **`check_trend_analysis(conn, date, sport, days_back) → dict`**
-   - Query `scan_run_stats` for last `days_back` days per sport
-   - Compute 7-day average `events_found` per sport
-   - Compare today vs average → flag deviations >30%
-   - Return: `{sport: {today, avg_7d, deviation_pct, status}}`
-
-2. **`check_phantom_fixtures(conn, date, sport) → dict`**
-   - Query `scan_results` for today
-   - Find events with `kickoff` in the past (>2h before scan time)
-   - Find duplicate `event_key` within same source (true duplicates, not cross-source which is expected)
-   - Return: `{past_kickoff_count, duplicate_count, examples: [...]}`
-
-3. **`check_event_quality(conn, date, sport) → dict`**
-   - Iterate all `scan_results` for today
-   - Check per-event: `home_team` not empty, `away_team` not empty, `kickoff` is valid ISO datetime, `competition` not empty
-   - Count issues per field per sport
-   - Return: `{total_events, issues_by_field: {home_team: N, away_team: N, ...}, quality_pct}`
-
-4. **`check_cross_source_consistency(conn, date, sport) → dict`**
-   - Group `scan_results` by normalized `event_key`
-   - For events appearing from 2+ sources: compare `home_team`, `away_team`, `kickoff`
-   - Flag mismatches (team name differences beyond minor variations, kickoff >30min apart)
-   - Return: `{multi_source_events, mismatches, mismatch_examples: [...]}`
-
-5. **`check_sport_specific_quality(conn, date, sport) → dict`**
-   - Sport-dependent raw_data checks:
-     - Football: check `raw_data` JSON for presence of stat-related keys (corners, fouls, shots)
-     - Basketball: check for points, rebounds, assists keys
-     - Tennis: check for sets, games keys
-     - Volleyball: check for points, sets keys
-     - Hockey: check for shots, goals keys
-   - Return: `{events_with_stats, events_without_stats, stat_coverage_pct}`
-
-6. **`check_league_coverage(conn, date, sport, days_back) → dict`**
-   - Get distinct `competition` values from today's scan_results per sport
-   - Get distinct `competition` values from last 7d scan_results per sport
-   - Find leagues present in all 7 prior days but missing today → flag as potential gap
-   - Return: `{leagues_today, leagues_7d_avg, missing_leagues: [...]}`
-
-7. **`check_source_health_trend(conn, sport) → dict`**
-   - Query `source_health` table for sources related to this sport
-   - Flag sources with `consecutive_failures > 3` or failure rate >20%
-   - Return: `{sources_checked, degraded_sources: [{name, failure_rate, consecutive_failures}]}`
-
-**Output structure (AGENT_SUMMARY):**
-```json
-{
-  "step": "verify_scan",
-  "verdict": "OK|PARTIAL|FAILED",
-  "metrics": {
-    "total_events_today": 8500,
-    "phantom_fixtures": 12,
-    "past_kickoff_events": 45,
-    "duplicate_event_keys": 3,
-    "event_quality_pct": 94.2,
-    "cross_source_match_pct": 97.1,
-    "sports_with_trend_anomaly": 1,
-    "missing_historical_leagues": 2,
-    "degraded_sources": 1
-  },
-  "per_sport": {
-    "football": {"events": 4200, "avg_7d": 4100, "deviation_pct": 2.4, "quality_pct": 96.0, "issues": []},
-    "tennis": {"events": 80, "avg_7d": 150, "deviation_pct": -46.7, "quality_pct": 88.0, "issues": ["trend_anomaly"]}
-  },
-  "issues": [
-    {"level": "warning", "message": "Tennis event count 46.7% below 7-day average", "sport": "tennis"},
-    {"level": "warning", "message": "12 phantom fixtures detected (past kickoff)", "sport": "all"}
-  ]
-}
-```
-
-**Exit codes:** 0 = all clean, 1 = warnings found, 2 = critical issues
-
-**Output file:** `betting/data/scan_verification_{date}.json`
-
-**Definition of done:**
-- [ ] Script runs with `--date 2026-05-11` and produces valid AGENT_SUMMARY JSON
-- [ ] `--sport football` correctly filters to football-only checks
-- [ ] `--verbose` produces JSON-line events during execution
-- [ ] All 7 check functions have unit tests in `tests/test_verify_scan_results.py`
-- [ ] Uses `from bet.db.connection import get_db` (not raw `sqlite3.connect`)
-- [ ] Uses `AgentOutput` from `agent_output.py` for all structured output
-- [ ] Writes `betting/data/scan_verification_{date}.json` with full report
-- [ ] All SQL queries use parameterized arguments (no f-string interpolation)
+**No new files. No new scripts.**
 
 ---
 
-## Phase 2: Modify Orchestrator Agent [MODIFY]
+## Phase A: Slim Down Orchestrator [MODIFY bet-scanner.agent.md]
 
-### Task 2.1: Add PHASE 2.5: VERIFICATION to `bet-scanner.agent.md`
+### What to REMOVE
 
-**Location:** Insert after the existing "PHASE 2b: SELF-HEALING" section and before "PHASE 3: MERGE + ENRICH".
+| Section | Current Location | Lines | Reason |
+|---------|-----------------|-------|--------|
+| KNOWLEDGE BASE: What "Rich Data" Means Per Sport | Lines ~200-250 | ~50 | Per-sport agents know their own data requirements |
+| KNOWN PIPELINE GAPS table | Lines ~260-290 | ~30 | Move relevant gaps to each sport's agent |
+| Duplicated OPERATIONAL WORKFLOW (2nd copy) | Lines ~300-420 | ~120 | Duplicate of Phase 1-3 with different commands and inline Python validation blocks |
 
-**Content to add (~25 lines):**
+### What to KEEP (slimmed)
+
+**PHASE 1: PARALLEL SCAN** — Keep as-is (the `scan_events.py --parallel-sport` command + timeout table).
+
+**PHASE 2: DISPATCH VERIFICATION** — Replace current PHASE 2 (detailed health monitoring + self-healing delegation) with:
 
 ```markdown
-### PHASE 2.5: VERIFICATION — Deep quality checks (runs after healing)
+### PHASE 2: PER-SPORT VERIFICATION — Dispatch agents
 
-After health check and any self-healing, run deep verification:
+After parallel scan completes, dispatch each per-sport agent in **verification mode**:
 
-```bash
-cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 scripts/verify_scan_results.py --date {date} --verbose
+**Dispatch prompt:**
+> Parallel scan completed. Verify your sport's scan results — run your enhanced Step 2.
+> Date: {date}. Report: event count, data quality, league coverage, issues found.
+
+Dispatch all 5 agents. Each runs Step 2 (DB queries + interpretation) and reports back with:
+- Event count + verdict (PASS/MARGINAL/FAIL)
+- Phantom fixtures found
+- Missing leagues vs yesterday
+- Data completeness %
+- Sport-specific stat coverage
+- Self-heal recommendation (if FAIL)
+
+### PHASE 2b: AGGREGATE + DECIDE
+
+After all 5 agents report:
+
+| Check | Gate |
+|-------|------|
+| All 5 sports reported | Required |
+| Total events across sports > 250 | Required |
+| No sport in FAIL state | Advisory — if FAIL, dispatch that agent in healing mode |
+
+If any sport reports FAIL → dispatch that sport's agent in **healing mode** (existing Step 3).
+If all PASS/MARGINAL → proceed to enrichment.
 ```
 
-Parse `AGENT_SUMMARY:{json}` — this contains trend analysis, phantom detection, event quality, cross-source consistency, and league coverage checks.
+**PHASE 3** — Remove entirely (enrichment validation belongs to the enrichment step, not scanner).
 
-**Agent decision logic after verification:**
-- `verdict: OK` → Proceed to Phase 3
-- `verdict: PARTIAL` → Review `per_sport` for flagged sports. If a sport has `trend_anomaly` or `quality_pct < 80` → dispatch that sport's scanner agent in **verification mode** with the report
-- `verdict: FAILED` → Critical issues found (>20 phantom fixtures or quality_pct <60). Investigate before proceeding.
+### What to MOVE to per-sport agents
 
-**Per-sport verification dispatch template:**
-```
-Your sport has verification issues. Here is your verification report:
-- Quality score: {quality_pct}%
-- Trend: {deviation_pct}% vs 7-day average
-- Issues: {issues_list}
+| Knowledge | From orchestrator | To agent |
+|-----------|-------------------|----------|
+| Football needs 28+ stat keys, corners/fouls/shots | KNOWLEDGE BASE | bet-scanner-football Step 2 |
+| Tennis has 3/7 stat keys, no H2H | KNOWLEDGE BASE | bet-scanner-tennis Step 2 |
+| Basketball needs rebounds/assists | KNOWLEDGE BASE | bet-scanner-basketball Step 2 |
+| Volleyball has zero cache files | KNOWN PIPELINE GAPS #2 | bet-scanner-volleyball Step 2 |
+| Volleyball API quota issue | KNOWN PIPELINE GAPS #7 | bet-scanner-volleyball Step 3 |
+| Tennis 3/7 stat keys | KNOWN PIPELINE GAPS #3 | bet-scanner-tennis Step 2 |
+| Injuries never populated | KNOWN PIPELINE GAPS #1 | Remove (not scan-phase concern) |
+| Coach data never populated | KNOWN PIPELINE GAPS #4 | Remove (not scan-phase concern) |
+| Forebet/Scores24 data lost | KNOWN PIPELINE GAPS #5 | Remove (not scan-phase concern) |
+| Odds coverage ~5.6% | KNOWN PIPELINE GAPS #6 | Remove (STATS-FIRST handles this) |
+| 13/18 adapters shallow | KNOWN PIPELINE GAPS #8 | Remove (info only) |
 
-Run verification mode — deep-check your sport's scan results and report findings.
-```
-```
+### Definition of done
 
-**Also modify:** The overview workflow diagram at the top to show VERIFICATION between HEAL and MERGE.
-
-**Definition of done:**
-- [ ] PHASE 2.5 section exists between Phase 2b and Phase 3
-- [ ] Includes the `verify_scan_results.py` command with `--verbose`
-- [ ] Includes decision logic (OK/PARTIAL/FAILED → actions)
-- [ ] Includes per-sport verification dispatch template
-- [ ] Overview diagram updated to include VERIFICATION step
-- [ ] File size increase ≤ 30 lines
+- [ ] KNOWLEDGE BASE section removed entirely
+- [ ] KNOWN PIPELINE GAPS table removed entirely
+- [ ] Duplicated OPERATIONAL WORKFLOW (2nd copy with inline Python validation) removed
+- [ ] PHASE 2 replaced with thin dispatch-aggregate pattern (≤25 lines)
+- [ ] PHASE 3 removed (not scanner's job)
+- [ ] File is ~60% shorter than current version
+- [ ] Remaining content: frontmatter + mandate + rules + philosophy + PHASE 1 + PHASE 2 (thin) + skills + DB access + R17/R19 table + banned patterns
 
 ---
 
-### Task 2.2: Add verification handoff labels to `bet-scanner.agent.md` frontmatter
+## Phase B: Enhance Per-Sport Agents [MODIFY × 5]
 
-**Location:** YAML frontmatter `handoffs:` array.
+All 5 agents receive the same structural change. Sport-specific differences are noted per task.
 
-**Content to add:** No change needed — existing per-sport dispatch handoffs already cover verification mode (same agents, different prompt). The dispatch template in PHASE 2.5 provides the verification-mode prompt.
+### Shared Change: Enhanced Step 2 (Verification Query Block)
 
----
+**Location:** Replace current Step 2 content with an enhanced version.
 
-## Phase 3: Add Verification Mode to Per-Sport Agents [MODIFY]
+**Structure:**
+1. Existing basic checks (event count, league diversity) — keep
+2. NEW: 6 verification checks via inline Python — add
+3. NEW: Interpretation guidance for the agent — add
 
-All 5 per-sport agents get the same structural change. Each gets ~15-18 lines added.
+**The unified verification query block** (shared across all 5, with `{SPORT}` placeholder):
 
-### Task 3.1: Modify `bet-scanner-football.agent.md`
+```python
+cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 -c "
+from bet.db.connection import get_db
+from datetime import date, datetime, timedelta
+import json
+today = str(date.today())
+sport = '{SPORT}'
+with get_db() as conn:
+    # --- BASIC: Event count ---
+    c = conn.execute('SELECT COUNT(*) FROM scan_results WHERE sport=? AND betting_date=?', (sport, today))
+    count = c.fetchone()[0]
+    print(f'{sport} events: {count}')
 
-**Location 1:** Modify the "TWO INVOCATION MODES" section to become "THREE INVOCATION MODES":
+    # --- CHECK 1: Phantom detection (past kickoff) ---
+    cutoff = (datetime.utcnow() - timedelta(hours=2)).strftime('%Y-%m-%dT%H:%M')
+    c = conn.execute('''SELECT COUNT(*) FROM scan_results
+        WHERE sport=? AND betting_date=? AND kickoff != '' AND kickoff < ?''', (sport, today, cutoff))
+    phantoms = c.fetchone()[0]
+    print(f'Phantoms (kickoff >2h ago): {phantoms}')
+
+    # --- CHECK 2: Duplicate event_keys within same source ---
+    c = conn.execute('''SELECT source_domain, event_key, COUNT(*) as cnt FROM scan_results
+        WHERE sport=? AND betting_date=? GROUP BY source_domain, event_key HAVING cnt > 1''', (sport, today))
+    dupes = c.fetchall()
+    print(f'Duplicate event_keys: {len(dupes)}')
+
+    # --- CHECK 3: Data completeness ---
+    c = conn.execute('''SELECT
+        SUM(CASE WHEN home_team IS NULL OR home_team='' THEN 1 ELSE 0 END),
+        SUM(CASE WHEN away_team IS NULL OR away_team='' THEN 1 ELSE 0 END),
+        SUM(CASE WHEN competition IS NULL OR competition='' THEN 1 ELSE 0 END),
+        SUM(CASE WHEN kickoff IS NULL OR kickoff='' THEN 1 ELSE 0 END),
+        COUNT(*)
+        FROM scan_results WHERE sport=? AND betting_date=?''', (sport, today))
+    no_home, no_away, no_comp, no_ko, total = c.fetchone()
+    completeness = round((1 - max(no_home, no_away) / max(total, 1)) * 100, 1)
+    print(f'Completeness: {completeness}% (missing: home={no_home}, away={no_away}, comp={no_comp}, kickoff={no_ko})')
+
+    # --- CHECK 4: League coverage vs yesterday ---
+    c = conn.execute('''SELECT DISTINCT competition FROM scan_results
+        WHERE sport=? AND betting_date=? AND competition != \\\"\\\"''', (sport, today))
+    today_leagues = set(r[0] for r in c)
+    yesterday = str(date.today() - timedelta(days=1))
+    c = conn.execute('''SELECT DISTINCT competition FROM scan_results
+        WHERE sport=? AND betting_date=? AND competition != \\\"\\\"''', (sport, yesterday))
+    yest_leagues = set(r[0] for r in c)
+    missing = yest_leagues - today_leagues
+    print(f'Leagues today: {len(today_leagues)} | Yesterday: {len(yest_leagues)} | Missing: {len(missing)}')
+    if missing:
+        print(f'  Missing leagues: {list(missing)[:5]}')
+
+    # --- CHECK 5: Cross-source coverage ---
+    c = conn.execute('''SELECT event_key, COUNT(DISTINCT source_domain) as src_cnt FROM scan_results
+        WHERE sport=? AND betting_date=? GROUP BY event_key HAVING src_cnt >= 2''', (sport, today))
+    multi = len(c.fetchall())
+    print(f'Events from 2+ sources: {multi}/{count} ({round(multi*100/max(count,1),1)}%)')
+
+    # --- CHECK 6: Source health ---
+    c = conn.execute('''SELECT source_name, consecutive_failures, total_requests, total_failures
+        FROM source_health WHERE consecutive_failures > 3 ORDER BY consecutive_failures DESC LIMIT 5''')
+    degraded = c.fetchall()
+    if degraded:
+        print(f'Degraded sources ({len(degraded)}):')
+        for s in degraded:
+            print(f'  {s[0]}: {s[1]} consecutive failures ({s[3]}/{s[2]} total)')
+    else:
+        print('All sources healthy')
+
+    # --- SPORT-SPECIFIC CHECK ---
+    {SPORT_SPECIFIC_CHECK}
+
+    # --- VERDICT ---
+    issues = []
+    if phantoms > 5: issues.append(f'{phantoms} phantom fixtures')
+    if dupes: issues.append(f'{len(dupes)} duplicate event_keys')
+    if completeness < 80: issues.append(f'completeness {completeness}%')
+    if len(missing) > 3: issues.append(f'{len(missing)} leagues missing vs yesterday')
+
+    if count >= {MIN_EVENTS} and not issues:
+        print('✅ VERDICT: PASS')
+    elif count >= {MIN_EVENTS_MARGINAL} and len(issues) <= 1:
+        print(f'⚠️ VERDICT: MARGINAL — {issues}')
+    else:
+        print(f'❌ VERDICT: FAIL — {issues}')
+"
+```
+
+### Sport-Specific Check Blocks (replace `{SPORT_SPECIFIC_CHECK}`)
+
+**Football:**
+```python
+    # Football: check for corners/fouls/shots in raw_data (sample 20)
+    c = conn.execute('SELECT raw_data FROM scan_results WHERE sport=? AND betting_date=? AND raw_data IS NOT NULL LIMIT 20', (sport, today))
+    stat_keys_found = set()
+    for row in c:
+        data = json.loads(row[0]) if row[0] else {}
+        stat_keys_found.update(data.get('stat_keys', []))
+    required = {'corners', 'fouls', 'yellow_cards', 'shots', 'shots_on_target'}
+    found = required & stat_keys_found
+    print(f'Stat keys: {len(found)}/{len(required)} required ({found or "NONE"})')
+```
+
+**Basketball:**
+```python
+    # Basketball: check for points/rebounds/assists keys
+    c = conn.execute('SELECT raw_data FROM scan_results WHERE sport=? AND betting_date=? AND raw_data IS NOT NULL LIMIT 20', (sport, today))
+    stat_keys_found = set()
+    for row in c:
+        data = json.loads(row[0]) if row[0] else {}
+        stat_keys_found.update(data.get('stat_keys', []))
+    required = {'rebounds', 'assists', 'steals', 'fg_pct'}
+    found = required & stat_keys_found
+    print(f'Stat keys: {len(found)}/{len(required)} required ({found or "NONE"})')
+```
+
+**Tennis:**
+```python
+    # Tennis: surface detection (must-have for analysis)
+    c = conn.execute('SELECT raw_data FROM scan_results WHERE sport=? AND betting_date=? AND raw_data IS NOT NULL LIMIT 30', (sport, today))
+    surfaces = set()
+    for row in c:
+        data = json.loads(row[0]) if row[0] else {}
+        if data.get('surface'): surfaces.add(data['surface'])
+    print(f'Surfaces detected: {surfaces or "NONE — TennisExplorer may have failed"}')
+    # Known gap: only 3/7 stat keys from ESPN (sets_won, games_won, total_sets)
+    print('Note: aces/DFs/1st-serve% expected MISSING (known ESPN gap)')
+```
+
+**Volleyball:**
+```python
+    # Volleyball: known zero-enrichment sport — just flag it
+    print('Note: volleyball stats cache likely EMPTY (known API quota gap)')
+    print('  → Enrichment should run volleyball FIRST to get quota allocation')
+```
+
+**Hockey:**
+```python
+    # Hockey: check for shots/hits/powerplay keys
+    c = conn.execute('SELECT raw_data FROM scan_results WHERE sport=? AND betting_date=? AND raw_data IS NOT NULL LIMIT 20', (sport, today))
+    stat_keys_found = set()
+    for row in c:
+        data = json.loads(row[0]) if row[0] else {}
+        stat_keys_found.update(data.get('stat_keys', []))
+    required = {'shots', 'hits', 'pim', 'powerplay_goals'}
+    found = required & stat_keys_found
+    print(f'Stat keys: {len(found)}/{len(required)} required ({found or "NONE"})')
+```
+
+### Shared Change: Interpretation Guidance
+
+After the query block, add agent interpretation guidance (~5 lines per agent):
+
+```markdown
+**Interpret with `sequentialthinking`:**
+- Phantoms > 5 → Are these yesterday's unsettled events leaking in? Check kickoff dates.
+- Missing leagues vs yesterday → Source failure or genuinely no matches scheduled? Check degraded sources.
+- Completeness < 80% → Which source is producing incomplete records? Cross-ref with source health.
+- If FAIL → proceed to Step 3 (self-heal). If PASS/MARGINAL → proceed to Step 4 (report).
+```
+
+### Shared Change: Add Verification Mode to Step 0
+
+Add a third path in Step 0:
+
 ```markdown
 **THREE INVOCATION MODES:**
-1. **Fresh scan** — No context. Run full workflow from Step 1.
-2. **Healing mode** — Invoked with health context. Skip to Step 3 (self-heal).
-3. **Verification mode** — Invoked with verification report. Run Step 5 (verify).
+1. **Fresh scan** — No context. Run full workflow: Step 1 → 2 → 2.5 → 3 (if needed) → 4.
+2. **Healing mode** — Invoked with health context (status, diagnosis). Skip to Step 3.
+3. **Verification mode** — Invoked after parallel scan with "verify your results". Skip to Step 2.
 ```
 
-**Location 2:** Modify Step 0 to detect verification context:
+Update Step 0 detection:
+
 ```markdown
-If you received verification context (quality_pct, deviation_pct, issues), you are in **verification mode**:
-- Go directly to Step 5
+### Step 0: Check Invocation Context
+
+- If you received **health context** (status, events_found, diagnosis) → **healing mode** → Step 3
+- If you received **"verify your results"** → **verification mode** → Step 2
+- Otherwise → **fresh scan** → Step 1
 ```
 
-**Location 3:** Add new Step 5 section after existing Step 4:
+### Validation Criteria Update
+
+Each agent's existing Validation Criteria section stays unchanged — the thresholds are already defined there and the enhanced Step 2 references them via `{MIN_EVENTS}` / `{MIN_EVENTS_MARGINAL}`.
+
+---
+
+### Task B.1: Modify `bet-scanner-football.agent.md`
+
+**Changes:**
+1. **Step 0** — "TWO INVOCATION MODES" → "THREE INVOCATION MODES" with verification mode
+2. **Step 2** — Replace current ~25-line basic validation with enhanced verification block using `sport='football'`, `MIN_EVENTS=200`, `MIN_EVENTS_MARGINAL=100`, football stat key check
+3. **After Step 2** — Add 5-line football interpretation guidance:
+   - Stat keys at scan phase may be sparse — enrichment adds them. Only flag if zero.
+   - League coverage is critical — football has 30+ leagues daily. Missing > 5 leagues = investigate.
+   - §SCAN.7: Check for Champions League, Europa League if active (season Sep-May).
+   - §SCAN.9: Check for Brasileirão, MLS, Liga MX if active.
+
+**Definition of done:**
+- [ ] Step 0 has THREE INVOCATION MODES with verification mode described
+- [ ] Step 2 has all 6 verification checks inline
+- [ ] Football-specific stat key check: corners, fouls, yellow_cards, shots, shots_on_target
+- [ ] Interpretation guidance references §SCAN.7 and §SCAN.9
+- [ ] File growth ≤ 30 lines
+
+---
+
+### Task B.2: Modify `bet-scanner-basketball.agent.md`
+
+**Changes:**
+1. **Step 0** — Add verification mode
+2. **Step 2** — Enhanced block with `sport='basketball'`, `MIN_EVENTS=20`, `MIN_EVENTS_MARGINAL=10`, basketball stat key check
+3. **After Step 2** — Basketball interpretation guidance:
+   - NBA has natural off-days (some Mon/Thu). Low event count on those days is normal.
+   - EU leagues have weekday-specific schedules (Euroleague Tue/Thu).
+   - Jul-Sep: NBA off-season — low/zero events is seasonal, not a failure.
+
+**Definition of done:**
+- [ ] Step 0 has THREE INVOCATION MODES
+- [ ] Step 2 has all 6 verification checks
+- [ ] Basketball stat key check: rebounds, assists, steals, fg_pct
+- [ ] Seasonal awareness in interpretation (NBA off-season Jul-Sep)
+- [ ] File growth ≤ 30 lines
+
+---
+
+### Task B.3: Modify `bet-scanner-tennis.agent.md`
+
+**Changes:**
+1. **Step 0** — Add verification mode
+2. **Step 2** — Enhanced block with `sport='tennis'`, `MIN_EVENTS=30`, `MIN_EVENTS_MARGINAL=15`, tennis surface check
+3. **After Step 2** — Tennis interpretation guidance:
+   - Dramatic day-to-day variation: Grand Slam week = 200+ matches, transition week = 30.
+   - Surface detection is critical for analysis — if zero surfaces, TennisExplorer likely failed.
+   - Known gap: only 3/7 stat keys from ESPN. Aces/DFs missing is EXPECTED, not a failure.
+   - H2H always empty from ESPN — Scores24 provides some tennis H2H.
+
+**Definition of done:**
+- [ ] Step 0 has THREE INVOCATION MODES
+- [ ] Step 2 has all 6 verification checks
+- [ ] Tennis-specific: surface detection check instead of stat keys
+- [ ] Known gaps acknowledged in interpretation (3/7 keys, empty H2H)
+- [ ] File growth ≤ 30 lines
+
+---
+
+### Task B.4: Modify `bet-scanner-volleyball.agent.md`
+
+**Changes:**
+1. **Step 0** — Add verification mode
+2. **Step 2** — Enhanced block with `sport='volleyball'`, `MIN_EVENTS=15`, `MIN_EVENTS_MARGINAL=5`, volleyball gap acknowledgment
+3. **After Step 2** — Volleyball interpretation guidance:
+   - EU volleyball season: Oct-May. Jun-Aug off-season — low/zero events is normal.
+   - Stats cache EMPTY is a KNOWN gap (API quota issue) — flag but don't fail.
+   - Fewer sources → completeness may be lower than football. <70% completeness is concerning.
+
+**Definition of done:**
+- [ ] Step 0 has THREE INVOCATION MODES
+- [ ] Step 2 has all 6 verification checks
+- [ ] Volleyball-specific: acknowledges zero-enrichment gap
+- [ ] Seasonal awareness (EU off-season Jun-Aug)
+- [ ] File growth ≤ 30 lines
+
+---
+
+### Task B.5: Modify `bet-scanner-hockey.agent.md`
+
+**Changes:**
+1. **Step 0** — Add verification mode
+2. **Step 2** — Enhanced block with `sport='hockey'`, `MIN_EVENTS=10`, `MIN_EVENTS_MARGINAL=5`, hockey stat key check
+3. **After Step 2** — Hockey interpretation guidance:
+   - NHL regular season Oct-Apr, playoffs Apr-Jun. Jul-Sep off-season.
+   - KHL runs Sep-Apr. SHL/Liiga Oct-Mar.
+   - NHL has off-days — 5-9 events is normal, not a failure.
+   - Stat keys (shots, hits, PIM, powerplay) come from ESPN enrichment — may be sparse at scan phase.
+
+**Definition of done:**
+- [ ] Step 0 has THREE INVOCATION MODES
+- [ ] Step 2 has all 6 verification checks
+- [ ] Hockey stat key check: shots, hits, pim, powerplay_goals
+- [ ] Seasonal awareness (NHL Jul-Sep off-season, KHL Sep-Apr)
+- [ ] File growth ≤ 30 lines
+
+---
+
+## Phase C: Update Scan Prompt [MODIFY bet-scan.prompt.md]
+
+### Task C.1: Update workflow description
+
+**Location:** "Workflow: DISCOVER → VALIDATE → ENRICH → VALIDATE → BUILD → VALIDATE" section.
+
+**Change:** In PHASE 1, after the scan command, replace the current "VALIDATE Phase 1" inline Python checks with:
+
 ```markdown
-### Step 5: Verification Mode (only when invoked with verification context)
+**VALIDATE Phase 1** — Dispatch per-sport agents in verification mode:
+> Parallel scan completed. Verify your sport's scan results — run your enhanced Step 2.
+> Date: {date}. Report: event count, data quality, league coverage, issues found.
 
-Run sport-specific verification:
-```bash
-cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 scripts/verify_scan_results.py --date $(date +%Y-%m-%d) --sport football --verbose
-```
+Each per-sport agent runs 6 verification checks (phantoms, duplicates, completeness, league coverage, cross-source, source health + sport-specific) and reports verdict.
 
-**Interpret results using `sequentialthinking`:**
-- Trend: Is event count deviation explained by schedule (weekday vs weekend)?
-- Quality: Football events MUST have `home_team` + `away_team` + `competition`. Quality <90% = problem.
-- Stat coverage: What percentage of events have `corners`/`fouls`/`shots` in raw_data? Football should have >40% with stat keys.
-- League coverage: Are protected leagues (§SCAN.9) present? Are major tournaments (§SCAN.7) covered?
-- Cross-source: Mismatches in team names between Flashscore and Scores24 are common (transliteration). Only flag kickoff time mismatches >1h.
-
-Report findings to orchestrator with sport-specific context.
+Aggregate: all 5 sports reported? Total events > 250? Any FAIL → dispatch healing.
 ```
 
 **Definition of done:**
-- [ ] "TWO INVOCATION MODES" → "THREE INVOCATION MODES" with verification described
-- [ ] Step 0 detects verification context and routes to Step 5
-- [ ] Step 5 section exists with script command + interpretation guidance
-- [ ] Football-specific interpretation includes stat key checks (corners/fouls/shots)
-- [ ] File size increase ≤ 20 lines
+- [ ] VALIDATE Phase 1 references per-sport agent dispatch instead of inline Python
+- [ ] Text is ≤10 lines
+- [ ] No new inline Python validation code in the prompt
 
 ---
 
-### Task 3.2: Modify `bet-scanner-basketball.agent.md`
-
-Same structure as Task 3.1 with basketball-specific interpretation:
-- Trend: NBA schedule has natural off-days (Mon/Thu lighter). EU leagues have weekday-only schedules.
-- Quality: Basketball events need `home_team` + `away_team`. Quality <85% = problem.
-- Stat coverage: Check for `rebounds`/`assists`/`steals` in raw_data.
-- League coverage: Check NBA, Euroleague, CBA, NBB presence when in season.
-
-**Definition of done:**
-- [ ] THREE INVOCATION MODES listed
-- [ ] Step 0 routes verification context to Step 5
-- [ ] Step 5 with basketball-specific interpretation (NBA schedule awareness, stat keys)
-- [ ] File size increase ≤ 20 lines
-
----
-
-### Task 3.3: Modify `bet-scanner-tennis.agent.md`
-
-Same structure with tennis-specific interpretation:
-- Trend: Tennis has dramatic day-to-day variation (Grand Slam week = 200+ matches, off-week = 30).
-- Quality: Tennis uses player names (not team names) — `home_team` = player1, `away_team` = player2.
-- Stat coverage: Only 3/7 stat keys populated (known gap). Check for `sets_won`/`games_won`.
-- League coverage: Check Grand Slam, Masters 1000, ATP/WTA 500/250 presence.
-
-**Definition of done:**
-- [ ] THREE INVOCATION MODES listed
-- [ ] Step 0 routes verification context to Step 5
-- [ ] Step 5 with tennis-specific interpretation (tournament schedule variance, known stat key gap)
-- [ ] File size increase ≤ 20 lines
-
----
-
-### Task 3.4: Modify `bet-scanner-volleyball.agent.md`
-
-Same structure with volleyball-specific interpretation:
-- Trend: Volleyball has seasonal patterns. European leagues Oct-May, South American Jun-Nov.
-- Quality: Quality <80% expected due to fewer sources.
-- Stat coverage: Volleyball has ZERO enrichment (known gap #2). Flag but don't fail.
-- League coverage: Check SuperLiga, V-League, CEV Champions League presence when active.
-
-**Definition of done:**
-- [ ] THREE INVOCATION MODES listed
-- [ ] Step 0 routes verification context to Step 5
-- [ ] Step 5 with volleyball-specific interpretation (known enrichment gap acknowledgment)
-- [ ] File size increase ≤ 20 lines
-
----
-
-### Task 3.5: Modify `bet-scanner-hockey.agent.md`
-
-Same structure with hockey-specific interpretation:
-- Trend: NHL regular season Oct-Apr, playoffs Apr-Jun. KHL Sep-Apr.
-- Quality: Hockey events need `home_team` + `away_team`. Quality <85% = problem.
-- Stat coverage: Check for `shots`/`hits`/`powerplay` in raw_data.
-- League coverage: Check NHL, KHL, SHL, Liiga presence when active.
-
-**Definition of done:**
-- [ ] THREE INVOCATION MODES listed
-- [ ] Step 0 routes verification context to Step 5
-- [ ] Step 5 with hockey-specific interpretation (seasonal awareness, stat keys)
-- [ ] File size increase ≤ 20 lines
-
----
-
-## Phase 4: Integration Updates [MODIFY]
-
-### Task 4.1: Add verification checks to `bet-scan.prompt.md`
-
-**Location:** The "Self-Verification" table at the bottom of the file (V-S1-01 to V-S1-15).
-
-**Content to add (4 rows):**
-
-| # | Check | Gate |
-|---|-------|------|
-| 16 | Phantom fixtures (past kickoff + duplicates) < 10 | Required |
-| 17 | Per-sport trend deviation < 40% vs 7-day average | Required |
-| 18 | Event data quality > 80% (non-empty team names + kickoff) | Required |
-| 19 | Cross-source consistency > 85% (matching team names + kickoff) | Advisory |
-
-**Also update** the Pass/Fail section to reflect 19 total checks:
-- **19/19** → S1 PASSED
-- **15-18** → S1 CONDITIONAL
-- **<15** → S1 FAILED
-
-**Definition of done:**
-- [ ] V-S1-16 through V-S1-19 added to self-verification table
-- [ ] Pass/Fail thresholds updated to reflect 19 checks
-- [ ] Checks reference verification script output metrics
-
----
-
-### Task 4.2: Add `s1_verify` step to `scripts/agent_protocol.py`
-
-**Location:** `STEP_AGENT_CONFIG` dict, after `s1e_shortlist` entry.
-
-**Content to add:**
-```python
-"s1_verify": {
-    "agent": "bet-scanner",
-    "task": "Deep verification of scan results: trend analysis vs 7-day history, phantom fixture detection, per-event data quality validation, cross-source consistency, league coverage gaps",
-    "required_input": ["scan_verification_{date}.json"],
-    "output_metrics": ["phantom_fixtures", "event_quality_pct", "trend_deviations", "cross_source_match_pct", "missing_leagues"],
-    "think_in_the_middle": True,
-    "error_handling": "ERROR_HANDLING_PROTOCOL",
-    "validate_output": True,
-    "detailed_instructions": [
-        "1. Run verify_scan_results.py --date {date} --verbose",
-        "2. Parse AGENT_SUMMARY — check verdict (OK/PARTIAL/FAILED)",
-        "3. Review per_sport breakdown — flag sports with trend anomalies or quality < 80%",
-        "4. Check phantom fixtures count — > 10 requires investigation",
-        "5. Check cross-source mismatches — investigate kickoff time conflicts",
-        "6. Check missing historical leagues — may indicate source failure or seasonal end",
-        "7. For flagged sports: dispatch per-sport agent in verification mode",
-    ],
-    "recovery_actions": [
-        "If trend anomaly → check if schedule-related (weekday, off-season) vs source failure",
-        "If phantom fixtures → check if events were already played (settle_on_finish may have missed)",
-        "If quality < 80% → specific source may be returning malformed data — check source_health",
-        "If missing leagues → targeted re-scan for that league's source URLs",
-    ],
-},
-```
-
-**Also add** `verify_scan_results.py` to the `STRUCTURED_OUTPUT_PROTOCOL.scripts_with_verbose` list.
-
-**Definition of done:**
-- [ ] `s1_verify` key exists in `STEP_AGENT_CONFIG`
-- [ ] All fields populated: agent, task, required_input, output_metrics, detailed_instructions, recovery_actions
-- [ ] `verify_scan_results.py` listed in `scripts_with_verbose`
-
----
-
-## Phase 5: Tests [CREATE]
-
-### Task 5.1: `tests/test_verify_scan_results.py`
-
-**Purpose:** Unit tests for the 7 verification functions + integration test for main().
-
-**Test strategy:**
-- Use in-memory SQLite DB with schema from `src/bet/db/schema.sql`
-- Seed test data: scan_results, scan_run_stats, fixtures, source_health for 7 days
-- Test each check function independently:
-  1. `test_trend_analysis_normal` — no deviation → status OK
-  2. `test_trend_analysis_anomaly` — 50% drop → flags sport
-  3. `test_phantom_fixtures_none` — all kickoffs in future → 0 phantoms
-  4. `test_phantom_fixtures_detected` — seed past-kickoff events → detected
-  5. `test_event_quality_clean` — all fields populated → 100% quality
-  6. `test_event_quality_gaps` — missing team names → quality < 100%
-  7. `test_cross_source_consistency` — matching data → high match%
-  8. `test_cross_source_mismatch` — different kickoff times → flagged
-  9. `test_sport_specific_football` — with/without stat keys in raw_data
-  10. `test_league_coverage_gap` — league present 7 days but missing today
-  11. `test_source_health_degraded` — high consecutive failures → flagged
-- Integration: `test_main_full_run` — run main() with test DB, verify AGENT_SUMMARY JSON parseable
-
-**Definition of done:**
-- [ ] 11+ unit tests covering all 7 check functions
-- [ ] 1 integration test for end-to-end execution
-- [ ] All tests pass with `pytest tests/test_verify_scan_results.py -v`
-- [ ] Tests use in-memory DB seeded from schema.sql (no external dependencies)
-
----
-
-## Task Dependency Graph
+## Task Dependency & Ordering
 
 ```
-Phase 1 (Task 1.1: create script)
-    │
-    ├──► Phase 2 (Task 2.1: orchestrator agent)
-    │
-    ├──► Phase 3 (Tasks 3.1-3.5: per-sport agents) — all 5 can be done in parallel
-    │
-    ├──► Phase 4 (Tasks 4.1-4.2: prompt + protocol) — can be done in parallel with Phase 3
-    │
-    └──► Phase 5 (Task 5.1: tests) — can be done in parallel with Phases 2-4
+Phase A (slim orchestrator)  ──┐
+                               ├──► Phase C (update prompt) ──► DONE
+Phase B (enhance 5 agents)  ──┘
 ```
 
-**Critical path:** Phase 1 → Phase 2 (script must exist before orchestrator references it)
+- Phase A and Phase B are **independent** — can be done in parallel
+- Phase C depends on both A and B being conceptually finalized (but is a minor text change)
 
-Phases 3, 4, 5 are independent of each other and can be implemented in parallel after Phase 1.
+## Implementation Checklist
 
----
-
-## Security Considerations
-
-- All SQL queries use parameterized arguments (`?` placeholders) — no f-string interpolation into SQL
-- Script reads from local SQLite DB only — no external network calls
-- Output files written to `betting/data/` (existing data directory) — no new filesystem locations
-- No user-supplied input flows into SQL queries beyond validated `--date` and `--sport` CLI args
-
-## Quality Assurance
-
-- Script follows R19 structured output protocol: `AGENT_SUMMARY:{json}`, `--verbose`, exit codes 0/1/2
-- Script follows R2 DB-first approach: `from bet.db.connection import get_db`
-- Agent modifications follow instruction-design-lessons: compact sections, no file size doubling
-- All agents follow agent-execution-protocol.instructions.md 4-step cycle for script output analysis
-- Unit tests cover all 7 verification functions with positive and negative cases
-- Integration test validates end-to-end AGENT_SUMMARY output is valid JSON
+- [ ] Phase A: Slim `bet-scanner.agent.md` (remove ~150 lines, replace PHASE 2)
+- [ ] Phase B.1: Enhance `bet-scanner-football.agent.md` Step 2
+- [ ] Phase B.2: Enhance `bet-scanner-basketball.agent.md` Step 2
+- [ ] Phase B.3: Enhance `bet-scanner-tennis.agent.md` Step 2
+- [ ] Phase B.4: Enhance `bet-scanner-volleyball.agent.md` Step 2
+- [ ] Phase B.5: Enhance `bet-scanner-hockey.agent.md` Step 2
+- [ ] Phase C: Update `bet-scan.prompt.md`
+- [ ] Final review: each per-sport agent file grew ≤30 lines, orchestrator shrank ≥100 lines
