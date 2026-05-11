@@ -24,3 +24,47 @@
 2. No source health auto-disable mechanism
 3. No DB write count verification (input vs saved)
 4. Missing `pipeline-lessons-learned.md` (this file!) was referenced in STEP 0 but didn't exist
+
+## 2026-05-11: SPA Content-Ready Selectors + Adapter Enrichment
+
+### Problem: 3 SPA domains returning 0 events
+- **oddsportal.com**, **scores24.live**, **atptour.com** — all React/JS SPAs
+- `fetch_with_playwright.py` had `wait_after_load=500ms` — too short for SPA hydration
+- Adapters couldn't parse pre-hydration HTML shells
+
+### Solution: Content-Ready Selector Infrastructure
+- `site_selectors.json` → new `_content_ready` section with per-domain CSS selectors, timeouts, settle times
+- `fetch_with_playwright.py` → `load_content_ready_config()` + `page.wait_for_selector()` after cookie consent
+- Non-SPA domains unaffected (still use original 500ms wait)
+
+### OddsPortal Adapter Rewrite
+- React DOM has `.participant-name` elements (paired home/away) + `.default-odds-bg-bgcolor` odds elements
+- New Strategy 1: parse participant pairs, walk up DOM to find odds container
+- Result: **0 → 51 events** with structured 3-way odds (home_win/draw/away_win)
+- Match URLs via `/h2h/` links (only 1 found in listing page — detail pages have more)
+
+### Scores24 Content Selectors
+- Uses styled-components with hashed class names (e.g., `sc-mhmn9c`)
+- Selector: `.link[class*='sc-mhmn9c']` — detects rendered match links
+- Fetch time dropped from 29s (fallback wait) to 5.8s (selector-based)
+
+### ATP Tour: Cloudflare Blocked
+- Returns Cloudflare challenge page (`loading-verifying`, `ray-id`)
+- Not fixable via CSS selectors — needs Cloudflare bypass or alternative data source
+
+### Key Selectors Reference
+| Domain | Content Selector | Timeout | Settle |
+|---|---|---|---|
+| oddsportal.com | `.participant-name` | 8000ms | 3000ms |
+| scores24.live | `.link[class*='sc-mhmn9c']` | 8000ms | 3000ms |
+| atptour.com | BLOCKED by Cloudflare | — | — |
+
+### Adapter Audit Results (27 adapters tested)
+- 18 working with events, 6 no data available, 3 SPA (2 now fixed), 0 errors
+- Top producers: flashscore (285), betexplorer (631), forebet (68), betclic (59)
+- OddsPortal now: 51 events with odds (was 0)
+
+### ingest_scan_stats.py Bug Fix
+- `_extract_form_matches()` crashed on plain string form entries (`["W", "W", "L"]`)
+- Added `isinstance(entry, str)` guard before calling `.get("scores")`
+- Test added: `test_ingest_deep_parse_none_safe` with string form data
