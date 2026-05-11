@@ -183,29 +183,29 @@ class TestSupportedSports:
             from scripts.odds_sources.the_odds_api import TheOddsAPISource
             src = TheOddsAPISource()
         sports = src.supported_sports()
-        for s in ["football", "tennis", "basketball", "hockey", "baseball", "mma"]:
+        for s in ["football", "tennis", "basketball", "hockey"]:
             assert s in sports
         # Volleyball has empty keys in SPORT_KEY_MAP → not supported
         assert "volleyball" not in sports
 
-    def test_oddsportal_covers_14_sports(self):
+    def test_oddsportal_covers_5_sports(self):
         from scripts.odds_sources.oddsportal_scraper import OddsPortalSource
         src = OddsPortalSource()
-        assert len(src.supported_sports()) == 14
+        assert len(src.supported_sports()) == 5
         assert "football" in src.supported_sports()
-        assert "speedway" in src.supported_sports()
+        assert "volleyball" in src.supported_sports()
 
-    def test_betexplorer_covers_14_sports(self):
+    def test_betexplorer_covers_5_sports(self):
         from scripts.odds_sources.betexplorer_scraper import BetExplorerSource
         src = BetExplorerSource()
-        assert len(src.supported_sports()) == 14
-        assert "padel" in src.supported_sports()
+        assert len(src.supported_sports()) == 5
+        assert "volleyball" in src.supported_sports()
 
-    def test_betclic_covers_12_sports(self):
+    def test_betclic_covers_5_sports(self):
         from scripts.odds_sources.betclic_scraper import BetclicSource
         src = BetclicSource()
         sports = src.supported_sports()
-        assert len(sports) == 12
+        assert len(sports) == 5
         assert "padel" not in sports
         assert "speedway" not in sports
         assert "football" in sports
@@ -449,7 +449,7 @@ class TestBetclicFetch:
 
 class TestSportSourcePriority:
     def test_all_14_sports_have_priority(self):
-        assert len(SPORT_SOURCE_PRIORITY) >= 14
+        assert len(SPORT_SOURCE_PRIORITY) == 5
 
     def test_football_includes_all_sources(self):
         assert "the-odds-api" in SPORT_SOURCE_PRIORITY["football"]

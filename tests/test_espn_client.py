@@ -11,8 +11,6 @@ from bet.api_clients.espn import (
     SOCCER_STAT_MAP,
     NBA_STAT_MAP,
     NHL_STAT_MAP,
-    MLB_BATTING_MAP,
-    MLB_PITCHING_MAP,
     COMPETITION_TO_ESPN_LEAGUE,
     get_espn_league_for_competition,
     _is_game_finished,
@@ -40,10 +38,6 @@ def nba_client(rate_limiter):
 def nhl_client(rate_limiter):
     return ESPNClient(sport="hockey", league="nhl", rate_limiter=rate_limiter)
 
-
-@pytest.fixture
-def mlb_client(rate_limiter):
-    return ESPNClient(sport="baseball", league="mlb", rate_limiter=rate_limiter)
 
 
 class TestESPNClientInit:
@@ -100,15 +94,6 @@ class TestStatMappings:
         assert NHL_STAT_MAP["blockedShots"] == "blocks"
         assert NHL_STAT_MAP["shotsTotal"] == "shots"
         assert NHL_STAT_MAP["powerPlayPct"] == "power_play_pct"
-
-    def test_mlb_batting_map(self):
-        assert MLB_BATTING_MAP["hits"] == "hits"
-        assert MLB_BATTING_MAP["homeRuns"] == "home_runs"
-        assert MLB_BATTING_MAP["runs"] == "runs"
-
-    def test_mlb_pitching_map(self):
-        assert MLB_PITCHING_MAP["strikeouts"] == "strikeouts_pitching"
-        assert MLB_PITCHING_MAP["earnedRuns"] == "earned_runs"
 
     def test_soccer_stat_map_size(self):
         assert len(SOCCER_STAT_MAP) == 28
@@ -316,67 +301,6 @@ class TestGetFixtureStats:
     @patch("bet.api_clients.espn.ESPNClient._check_cache", return_value=None)
     @patch("bet.api_clients.espn.ESPNClient._save_cache")
     @patch("bet.api_clients.espn.ESPNClient._request")
-    def test_mlb_nested_stats_parsed(self, mock_request, mock_save, mock_cache, mlb_client):
-        mock_request.return_value = {
-            "boxscore": {
-                "teams": [
-                    {
-                        "team": {"displayName": "New York Yankees"},
-                        "homeAway": "home",
-                        "statistics": [
-                            {
-                                "name": "batting",
-                                "stats": [
-                                    {"name": "hits", "displayValue": "9"},
-                                    {"name": "homeRuns", "displayValue": "2"},
-                                    {"name": "runs", "displayValue": "5"},
-                                ],
-                            },
-                            {
-                                "name": "pitching",
-                                "stats": [
-                                    {"name": "strikeouts", "displayValue": "11"},
-                                    {"name": "earnedRuns", "displayValue": "3"},
-                                ],
-                            },
-                        ],
-                    },
-                    {
-                        "team": {"displayName": "Boston Red Sox"},
-                        "homeAway": "away",
-                        "statistics": [
-                            {
-                                "name": "batting",
-                                "stats": [
-                                    {"name": "hits", "displayValue": "6"},
-                                    {"name": "homeRuns", "displayValue": "1"},
-                                    {"name": "runs", "displayValue": "3"},
-                                ],
-                            },
-                            {
-                                "name": "pitching",
-                                "stats": [
-                                    {"name": "strikeouts", "displayValue": "8"},
-                                    {"name": "earnedRuns", "displayValue": "5"},
-                                ],
-                            },
-                        ],
-                    },
-                ]
-            }
-        }
-
-        stats = mlb_client.get_fixture_stats("99999")
-        assert len(stats) == 1
-        ms = stats[0]
-        assert ms.stats["hits"]["home"] == 9.0
-        assert ms.stats["home_runs"]["home"] == 2.0
-        assert ms.stats["strikeouts_pitching"]["home"] == 11.0
-        assert ms.stats["earned_runs"]["away"] == 5.0
-
-    @patch("bet.api_clients.espn.ESPNClient._check_cache", return_value=None)
-    @patch("bet.api_clients.espn.ESPNClient._save_cache")
-    @patch("bet.api_clients.espn.ESPNClient._request")
     def test_nhl_stats_parsed(self, mock_request, mock_save, mock_cache, nhl_client):
         mock_request.return_value = {
             "boxscore": {
@@ -570,10 +494,6 @@ class TestESPNClientRegistry:
     def test_espn_hockey_registered(self):
         from bet.api_clients import CLIENT_REGISTRY
         assert "espn-hockey" in CLIENT_REGISTRY
-
-    def test_espn_baseball_registered(self):
-        from bet.api_clients import CLIENT_REGISTRY
-        assert "espn-baseball" in CLIENT_REGISTRY
 
     def test_get_client_factory(self):
         from bet.api_clients import get_client

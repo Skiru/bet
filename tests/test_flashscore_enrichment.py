@@ -81,3 +81,59 @@ def test_flashscore_enrichment():
     assert match3["is_live"] is True
     assert match3["country"] == "USA"
     assert match3["league"] == "NBA - Play Offs"
+
+
+def test_flashscore_relative_url():
+    """match_url with relative href must be normalized to absolute."""
+    html = """
+    <html><body>
+        <div id="g_1_AbcDef" class="event__match">
+            <a href="/match/football/abcdef" class="eventRowLink"></a>
+            <div class="event__homeParticipant">Arsenal</div>
+            <div class="event__awayParticipant">Chelsea</div>
+        </div>
+    </body></html>
+    """
+    results = parse(html, "https://www.flashscore.com/football/england/premier-league/")
+    assert len(results) == 1
+    assert results[0]["match_url"] == "https://www.flashscore.com/match/football/abcdef"
+
+
+def test_flashscore_zero_score():
+    """score_home=0 must not be dropped (integer zero is valid)."""
+    html = """
+    <html><body>
+        <div id="g_1_ZeroTest" class="event__match">
+            <div class="event__homeParticipant">Team X</div>
+            <div class="event__awayParticipant">Team Y</div>
+            <span class="event__score event__score--home">0</span>
+            <span class="event__score event__score--away">3</span>
+            <div class="event__stage--block">Finished</div>
+        </div>
+    </body></html>
+    """
+    results = parse(html, "https://www.flashscore.com/football/")
+    assert len(results) == 1
+    assert results[0]["score_home"] == 0
+    assert results[0]["score_away"] == 3
+
+
+def test_ingest_deep_parse_none_safe():
+    """deep_parse=None must not raise AttributeError during ingest."""
+    from scripts.ingest_scan_stats import ingest_event as ingest_scan_event
+
+    event = {
+        "sport": "football",
+        "home": "Alpha FC",
+        "away": "Beta FC",
+        "odds": {"w1": 2.0, "x": 3.2, "w2": 3.8},
+        "form_home": [],
+        "form_away": [],
+        "h2h": {},
+        "deep_parse": None,  # Explicitly None — must not raise
+    }
+    # Should not raise; result may be True or False depending on cache state
+    try:
+        ingest_scan_event("https://www.flashscore.com/football/", event, dry_run=True)
+    except AttributeError as e:
+        pytest.fail(f"ingest_scan_event raised AttributeError with deep_parse=None: {e}")

@@ -279,7 +279,7 @@ Volleyball:   API-Volleyball → TheSportsDB → SerpAPI
 
 ## Scan Adapters (Structured Parsing)
 
-These adapters provide structured data extraction from web sources, normalizing raw HTML into fixture/stats JSON format used by the pipeline. They are invoked by `run_full_scan_and_prepare.sh` and `deep_link_discovery.py`.
+These adapters provide structured data extraction from web sources, normalizing raw HTML into fixture/stats JSON format used by the pipeline. They are invoked by `scan_events.py` and `deep_link_discovery.py`.
 
 - soccerway_adapter.py (`scripts/adapters/soccerway_adapter.py`)
   Role: structured parser for Soccerway pages — extracts fixtures, results, standings, H2H, and squad data.

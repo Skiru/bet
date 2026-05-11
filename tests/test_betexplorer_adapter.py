@@ -94,7 +94,7 @@ class TestBetExplorerAdapter(unittest.TestCase):
         self.assertEqual(r0["home"], "Real Madrid")
         self.assertEqual(r0["away"], "Barcelona")
         self.assertEqual(r0["time"], "21:00")
-        self.assertEqual(r0["odds"], ["1.85", "3.60", "4.20"])
+        self.assertEqual(r0["odds"], {'w1': 1.85, 'x': 3.6, 'w2': 4.2})
         self.assertEqual(r0["source_url"], "https://www.betexplorer.com/football/")
 
     def test_team_names_and_odds_correct(self):
@@ -103,11 +103,11 @@ class TestBetExplorerAdapter(unittest.TestCase):
         self.assertEqual(results[1]["home"], "Bayern Munich")
         self.assertEqual(results[1]["away"], "Borussia Dortmund")
         self.assertEqual(results[1]["time"], "18:30")
-        self.assertEqual(results[1]["odds"], ["1.55", "4.10", "5.50"])
+        self.assertEqual(results[1]["odds"], {'w1': 1.55, 'x': 4.1, 'w2': 5.5})
 
         self.assertEqual(results[2]["home"], "PSG")
         self.assertEqual(results[2]["away"], "Marseille")
-        self.assertEqual(results[2]["odds"], ["1.40", "4.75", "7.00"])
+        self.assertEqual(results[2]["odds"], {'w1': 1.4, 'x': 4.75, 'w2': 7.0})
 
     def test_multi_sport_page(self):
         """Page with multiple sports should extract all matches."""

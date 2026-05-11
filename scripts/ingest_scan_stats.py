@@ -257,7 +257,7 @@ def ingest_event(
     wrote_any = False
 
     # Deep parse fallback: if top-level fields are empty, try deep_parse
-    dp = event.get("deep_parse", {})
+    dp = event.get("deep_parse") or {}
     
     # Odds fallback from deep_parse
     odds_raw = event.get("odds", {})

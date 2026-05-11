@@ -243,7 +243,11 @@ def _heuristic0_event_classes(soup: BeautifulSoup, url: str) -> List[Dict]:
         match_url = None
         link_el = el.find("a", class_=lambda c: c and "eventRowLink" in (" ".join(c) if isinstance(c, (list, tuple)) else c))
         if link_el and link_el.get("href"):
-            match_url = link_el.get("href")
+            href = link_el.get("href")
+            if href.startswith("/"):
+                match_url = "https://www.flashscore.com" + href
+            else:
+                match_url = href
 
         # Extract Status and is_live
         status = None
