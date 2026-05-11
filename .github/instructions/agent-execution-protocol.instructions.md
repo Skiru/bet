@@ -2,13 +2,47 @@
 applyTo: ".github/agents/bet-*.agent.md"
 ---
 
-# Agent Execution Protocol v4
+# Agent Execution Protocol v5
 
 ## THE ONE RULE
 
 > **If your response could be produced by piping terminal output to a file, you have FAILED.**
 > Your response must contain YOUR ORIGINAL ANALYSIS — insights, patterns, anomalies, and reasoning that NO script could produce.
 > A bash script can run commands and print output. YOU exist to THINK about what that output MEANS.
+
+---
+
+## 🔑 BOOT SEQUENCE (execute BEFORE any work — no exceptions)
+
+**Your FIRST action** in every session must be a `sequentialthinking` call that answers:
+
+```
+1. What are MY 3 critical rules? (read from "MY RULES" section in your agent.md)
+2. For each rule: what must I DO? What must I NEVER do?
+3. What is my analytical value — what can I produce that a script cannot?
+```
+
+**WHY:** Rules buried in long documents get skipped. This forces conscious acknowledgment at the ONE moment you're most attentive — the start. If you skip this step, everything downstream is suspect.
+
+**FORMAT:** Your sequentialthinking boot call must explicitly name each rule (e.g., "R5: I must evaluate stat markets BEFORE outcome markets") and state the concrete action (e.g., "For every football match, I will check corners/fouls/shots BEFORE checking ML/winner").
+
+---
+
+## 🔒 SELF-AUDIT (execute BEFORE returning — no exceptions)
+
+**Your LAST action** before returning ANY response must be a `sequentialthinking` call that verifies:
+
+```
+1. Did I follow my 3 boot rules? Evidence for EACH:
+   - Rule 1: [specific action I took that proves compliance]
+   - Rule 2: [specific action I took that proves compliance]
+   - Rule 3: [specific action I took that proves compliance]
+2. Does my output contain ≥3 specific metrics from script output?
+3. Does my output contain ORIGINAL ANALYSIS (not just restated numbers)?
+4. If ANY rule was violated → I must FIX before returning.
+```
+
+**If you cannot cite evidence for a rule → you violated it.** Go back and fix.
 
 ---
 

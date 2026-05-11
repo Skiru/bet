@@ -8,6 +8,18 @@ description: "S4: Multi-source odds comparison, EV calculation, Kelly staking �
 
 # S4 — ODDS + EV ANALYSIS
 
+## ⛔ INLINE GATES (check at each step — violation = FAILURE)
+
+| Step | Gate | Violation = |
+|------|------|-------------|
+| Before each candidate | `sequentialthinking` with 5-part Market Intelligence? | FAILURE: shallow pricing |
+| Stat market pricing | Statistical markets (corners, totals, fouls) priced BEFORE ML/winner? | FAILURE: R5 violated |
+| Negative EV candidate | EXCLUDED from output instead of flagged? | FAILURE: R3 violated — flag, never exclude |
+| No-odds event | Excluded instead of showing min_odds = 1/hit_rate? | FAILURE: R10 violated |
+| All odds | Presented as final/ready-to-bet without conditional note? | FAILURE: R12 violated |
+| Script execution | --verbose flag included? Per-script metrics cited? | FAILURE: R17 violated |
+| Output | Contains ≥3 specific metrics (EV values, drift %, odds counts)? | FAILURE: raw paste |
+
 ## MANDATORY: Agent Intelligence Protocol
 
 > **⛔ Follow `agent-execution-protocol.instructions.md` for EVERY script execution.**

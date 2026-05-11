@@ -8,6 +8,17 @@ description: "S2.5: Self-healing data enrichment — fetch missing team stats fr
 
 # S2.5 — DATA ENRICHMENT
 
+## ⛔ INLINE GATES (check at each step — violation = FAILURE)
+
+| Step | Gate | Violation = |
+|------|------|-------------|
+| Before running script | Verified shortlist format matches enrichment script's expected input? | FAILURE: R18 violated |
+| Script execution | --verbose flag included? timeout=600000? | FAILURE: R17 violated |
+| After script output | Yield %, per-sport breakdown, source success rates extracted? | FAILURE: R17 — no metrics |
+| Low yield detected | ALL 6 fallback layers (L1-L6) attempted before accepting gaps? | FAILURE: R9 violated |
+| Data writes | Used `get_db()` and repository classes (not raw JSON-only)? | FAILURE: R2 violated |
+| After enrichment | Output format verified to match what S3 deep_stats_report.py expects? | FAILURE: R18 violated |
+
 ## MANDATORY: Agent Intelligence Protocol
 
 > **⛔ Follow `agent-execution-protocol.instructions.md` for EVERY script execution.**

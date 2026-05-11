@@ -8,6 +8,19 @@ description: "S7: Bear case + Red Flags + Contrarian + 18-point Pick Approval Ga
 
 # S7 — BEAR CASE + RED FLAGS + PICK GATE
 
+## ⛔ INLINE GATES (check at each step — violation = FAILURE)
+
+| Step | Gate | Violation = |
+|------|------|-------------|
+| Before each candidate | `sequentialthinking` called with 5-part adversarial reasoning? | FAILURE: shallow gate |
+| Any candidate | Candidate EXCLUDED from output (not in matrix or Extended Pool)? | FAILURE: R3 violated — ALL must appear |
+| Gate-failed candidate | Removed entirely instead of placed in Extended Pool with bull/bear? | FAILURE: R3 violated |
+| Hit rate reference | Used to auto-penalize confidence or auto-reject? | FAILURE: R6 violated — advisory only |
+| Gate evaluation | Statistical markets (corners/totals/fouls) assessed before ML/winner for each candidate? | FAILURE: R5 violated |
+| Tournament/protected league pick | Penalized or deprioritized? | FAILURE: R7/R8/R13 violated |
+| Script execution | --verbose flag included? Per-script metrics cited? | FAILURE: R17 violated |
+| Output | Uses "rejected due to", "excluded based on", "filtered to"? | FAILURE: R3 FORBIDDEN LANGUAGE |
+
 ## MANDATORY: Agent Intelligence Protocol
 
 > **⛔ Follow `agent-execution-protocol.instructions.md` for EVERY script execution.**

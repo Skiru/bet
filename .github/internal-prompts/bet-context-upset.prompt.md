@@ -8,6 +8,18 @@ description: "S5+S6: Context verification + Upset Risk Assessment — YOU ARE TH
 
 # S5+S6 — CONTEXT + UPSET RISK
 
+## ⛔ INLINE GATES (check at each step — violation = FAILURE)
+
+| Step | Gate | Violation = |
+|------|------|-------------|
+| Before each candidate | `sequentialthinking` called with context + upset analysis? | FAILURE: shallow assessment |
+| Context flag found | Used to AUTO-REJECT or EXCLUDE candidate from matrix? | FAILURE: R3 violated — flags are advisory |
+| Upset risk scored | Candidate removed from pipeline based on risk score? | FAILURE: R3 violated — user decides |
+| Impact assessment | Assessed for GENERIC "weather matters" instead of SPECIFIC market impact? | FAILURE: no analytical value — specify HOW context affects the EXACT stat being bet |
+| Statistical markets | Context impact on stat markets (corners/fouls/totals) evaluated BEFORE ML? | FAILURE: R5 violated |
+| Script execution | --verbose flag included? Per-script metrics cited? | FAILURE: R17 violated |
+| Output | Contains ≥3 specific metrics + original analysis? | FAILURE: raw paste |
+
 ## MANDATORY: Agent Intelligence Protocol
 
 > **⛔ Follow `agent-execution-protocol.instructions.md` for EVERY script execution.**

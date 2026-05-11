@@ -8,6 +8,18 @@ description: "S0: Settle previous day's picks/coupons, PnL, CLV, bankroll update
 
 # S0 — SETTLE PREVIOUS DAY
 
+## ⛔ INLINE GATES (check at each step — violation = FAILURE)
+
+| Step | Gate | Violation = |
+|------|------|-------------|
+| Before settlement | Betclic history (DB or JSON) read? `analyze_betclic_learning.py` run? | FAILURE: §0.2 INCOMPLETE — do NOT proceed |
+| Data access | Used `get_db()` + CouponRepo for reads/writes? | FAILURE: R2 violated — no raw sqlite3 |
+| Settlement output | Hit rates shown for user information? | Required: R6 — show prominently |
+| Settlement output | Hit rates used to auto-reject markets/sports for future sessions? | FAILURE: R6 violated — advisory ONLY |
+| PnL calculation | Arithmetic verified via `sequentialthinking`? | FAILURE: R11 violated |
+| Script execution | --verbose flag included? Per-script metrics cited? | FAILURE: R17 violated |
+| Output | Contains PnL, win/loss/push counts, bankroll delta, + learning insights? | FAILURE: raw numbers without analysis |
+
 ## MANDATORY: Agent Intelligence Protocol
 
 > **⛔ Follow `agent-execution-protocol.instructions.md` for EVERY script execution.**

@@ -4,9 +4,22 @@ description: "S8: Portfolio construction, coupon building, V1-V10, artifact gene
 ---
 
 > **PERMANENT RULES (from copilot-instructions.md §NON-NEGOTIABLE):**
-> R3 NO AUTO-REJECTION: ALL S3-analyzed candidates in STATISTICAL MATRIX. Extended Pool for gate-failed. R4 NO AGGRESSIVE NARROWING: Sport diversity = informational, never a gate. Quality over forced diversity. R5 STATS > OUTCOMES: Statistical markets dominate portfolio. R10 STATS-FIRST: Include events without odds. R12 CONDITIONAL: Coupon MUST carry "⚠️ Wszystkie typy są WARUNKOWE" disclaimer.
+> R3 NO AUTO-REJECTION: ALL S3-analyzed candidates in STATISTICAL MATRIX. Extended Pool for gate-failed. R4 NO AGGRESSIVE NARROWING: Sport diversity = informational, never a gate. Quality over forced diversity. R5 STATS > OUTCOMES: Statistical markets dominate portfolio. R6 BETCLIC ADVISORY: Show hit rates. NEVER exclude picks based on historical performance. R10 STATS-FIRST: Include events without odds. R12 CONDITIONAL: Coupon MUST carry "⚠️ Wszystkie typy są WARUNKOWE" disclaimer.
 
 # S8 — PORTFOLIO + COUPONS + VALIDATION
+
+## ⛔ INLINE GATES (check at each step — violation = FAILURE)
+
+| Step | Gate | Violation = |
+|------|------|-------------|
+| Matrix output | ALL S3-analyzed candidates shown (not just gate-passed)? | FAILURE: R3 violated |
+| Extended Pool | Gate-failed candidates with EV>0 present with bull/bear case? | FAILURE: R3 violated — never silently drop |
+| Portfolio composition | >50% of legs are ML/winner without flagging? | FAILURE: R5 violated — stat markets must dominate |
+| No-odds events | Excluded from matrix instead of showing min acceptable odds? | FAILURE: R10 violated |
+| Coupon file | Missing "⚠️ Wszystkie typy są WARUNKOWE" disclaimer? | FAILURE: R12 violated |
+| Hit rates | Used to reorder, exclude, or deprioritize candidates? | FAILURE: R6 violated — advisory only |
+| Script execution | --verbose flag included? Per-script metrics cited? | FAILURE: R17 violated |
+| sequentialthinking | 4-part Portfolio Intelligence (correlations, worst-case, placement, user support) done? | FAILURE: R11 violated |
 
 ## MANDATORY: Agent Intelligence Protocol
 

@@ -8,6 +8,17 @@ description: "S3: Deep statistical analysis per candidate — YOU ARE THE ANALYS
 
 # S3 — DEEP STATISTICAL ANALYSIS
 
+## ⛔ INLINE GATES (check at each step — violation = FAILURE)
+
+| Step | Gate | Violation = |
+|------|------|-------------|
+| Before each candidate | `sequentialthinking` called? | FAILURE: shallow analysis |
+| Market ranking | Stat markets (corners/fouls/shots/sets/points) evaluated BEFORE ML/winner? | FAILURE: R5 violated |
+| Per football match | ≥1 statistical market (corners/fouls/cards/shots) in ranking table? | FAILURE: R5 violated |
+| Any candidate | Candidate excluded/rejected for low data quality, low EV, or bad safety score? | FAILURE: R3 violated — flag, never exclude |
+| Hit rate shown | Used to PENALIZE confidence or exclude market? | FAILURE: R6 violated — show only, never penalize |
+| Output | Contains ≥3 specific metrics extracted from script output? | FAILURE: raw paste |
+
 ## MANDATORY: Agent Intelligence Protocol
 
 > **⛔ Follow `agent-execution-protocol.instructions.md` for EVERY script execution.**

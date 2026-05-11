@@ -4,9 +4,20 @@ description: "S1-S1e: Full data engine — scan 5 core sports (football, volleyb
 ---
 
 > **PERMANENT RULES (from copilot-instructions.md §NON-NEGOTIABLE):**
-> R3 NO AUTO-REJECTION: ALL fixtures in shortlist. R7 TOURNAMENT PROTECTION: Major tournaments NEVER skipped (+15 boost). R8 MINOR LEAGUE VALUE: Non-top-5 = +6 boost, never penalize "obscure". R10 STATS-FIRST: Events without odds included.
+> R3 NO AUTO-REJECTION: ALL fixtures in shortlist. R7 TOURNAMENT PROTECTION: Major tournaments NEVER skipped (+15 boost). R8 MINOR LEAGUE VALUE: Non-top-5 = +6 boost, never penalize "obscure". R10 STATS-FIRST: Events without odds included. R13 DOMESTIC LEAGUE PROTECTION: Protected leagues (Brasileirão/MLS/CSL/J-League/KHL) never skipped.
 
 # S1+S2 — SCAN + ENRICH + VALIDATE + SHORTLIST
+
+## ⛔ INLINE GATES (check at each step — violation = FAILURE)
+
+| Step | Gate | Violation = |
+|------|------|-------------|
+| After scan completes | ALL 5 sports represented in results? | FAILURE: missing sport coverage |
+| Tournament check | CL/EL/WC/Grand Slams/Stanley Cup/VNL present if active? | FAILURE: R7 violated |
+| Minor league events | Penalized or excluded for being "obscure"? | FAILURE: R8 violated — they get +6 boost |
+| No-odds events | Excluded from shortlist? | FAILURE: R10 violated — include with stats-first |
+| Protected domestic leagues | Brasileirão/MLS/Liga MX/CSL/KHL present if active? | FAILURE: R13 violated |
+| Script execution | --verbose and --parallel-sport included? Per-sport metrics cited? | FAILURE: R17 violated |
 
 > **YOUR ANALYTICAL VALUE:** You don't just run scanners and report numbers. You diagnose SOURCE HEALTH patterns — is Flashscore getting slower (timeout rate up 20% vs yesterday)? Is a whole sport losing coverage silently? Are phantom fixtures leaking through (tipster artifacts, already-played matches)? A script can say "scan complete: 8000 events". Only YOU can determine that 84% are FIXTURE_ONLY tier and the pipeline will be data-starved for statistical analysis in S3 unless enrichment (S2.5) significantly upgrades data depth.
 

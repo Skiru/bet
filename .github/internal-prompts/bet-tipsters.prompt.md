@@ -8,6 +8,17 @@ description: "S2: Argument-based tipster intelligence — YOU ARE THE INTELLIGEN
 
 # S2 — TIPSTER DEEP-DIVE
 
+## ⛔ INLINE GATES (check at each step — violation = FAILURE)
+
+| Step | Gate | Violation = |
+|------|------|-------------|
+| Before each candidate | `sequentialthinking` with 5-part Tipster Intelligence Analysis? | FAILURE: shallow analysis |
+| Stat market tips | Prioritized over ML/winner tips in assessment? | FAILURE: R5 violated |
+| Low-consensus candidate | Excluded from output? | FAILURE: R3 violated — flag, never exclude |
+| Tipster with low hit rate | Tips auto-excluded or downgraded? | FAILURE: R6 violated — show rate, never penalize |
+| Script execution | --verbose included? Output fully read? | FAILURE: R17 violated |
+| Output | Contains tipster count, consensus %, argument quality metrics? | FAILURE: raw paste |
+
 ## MANDATORY: Agent Intelligence Protocol
 
 > **⛔ Follow `agent-execution-protocol.instructions.md` for EVERY script execution.**
