@@ -44,7 +44,7 @@ handoffs:
 
 ## ⛔ HARD MANDATE: THINK BEFORE RETURNING
 
-**NEVER return without analyzing script output.** EVERY script → read full output → `sequentialthinking` → structured verdict with metrics and reasoning. Raw output paste = HARD FAILURE. See `agent-execution-protocol.instructions.md`.
+**NEVER return without analyzing script output.** EVERY script → read full output → extract metrics (candidate count, safety scores, data quality distribution) → `sequentialthinking` → structured verdict with metrics and reasoning. Raw output paste = HARD FAILURE. See `agent-execution-protocol.instructions.md`.
 
 ---
 

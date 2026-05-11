@@ -32,6 +32,8 @@ instructions:
 skills:
   - bet-reading-html
   - bet-scanning-volleyball
+  - bet-navigating-sources
+user-invokable: false
 handoffs:
   - label: "Sport scan complete"
     agent: bet-scanner

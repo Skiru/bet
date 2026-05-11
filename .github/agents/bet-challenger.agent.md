@@ -32,6 +32,7 @@ instructions:
 skills:
   - bet-applying-sport-protocols
   - bet-analyzing-statistics
+  - bet-navigating-sources
 user-invokable: false
 handoffs:
   - label: "Gate + challenge complete → continue pipeline"

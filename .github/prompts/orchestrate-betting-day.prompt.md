@@ -90,7 +90,7 @@ All agents follow `agent-execution-protocol.instructions.md` (loaded via their `
 
 ## §STRUCTURED SCRIPT OUTPUT (R19)
 
-10 analytical scripts emit `AGENT_SUMMARY:{json}`: `scan_events.py`, `html_deep_parser.py`, `ingest_scan_stats.py`, `tipster_aggregator.py`, `tipster_xref.py`, `data_enrichment_agent.py`, `deep_stats_report.py`, `gate_checker.py`, `coupon_builder.py`, `build_shortlist.py`. Exit codes: 0=OK, 1=partial, 2=critical. Scripts with `--sport` filter: `scan_events.py`, `tipster_aggregator.py`.
+15 analytical scripts emit `AGENT_SUMMARY:{json}`: `scan_events.py`, `html_deep_parser.py`, `ingest_scan_stats.py`, `tipster_aggregator.py`, `tipster_xref.py`, `data_enrichment_agent.py`, `deep_stats_report.py`, `gate_checker.py`, `coupon_builder.py`, `build_shortlist.py`, `odds_evaluator.py`, `context_checks.py`, `upset_risk.py`, `fetch_odds_multi.py`, `validate_coupons.py`. Exit codes: 0=OK, 1=partial, 2=critical. Scripts with `--sport` filter: `scan_events.py`, `tipster_aggregator.py`.
 
 ---
 
@@ -474,8 +474,9 @@ runSubagent("bet-valuator"):
 ### Context
 - Date: {date}
 - S3 output: DB `analysis_results` table + `betting/data/{date}_s3_deep_stats.json`
-- Script to run: `PYTHONPATH=src python3 -c "import sys; sys.path.insert(0, 'scripts'); from odds_evaluator import run_odds_eval; ok, msg = run_odds_eval('{date}', {}); print(msg)"`
+- Script to run: `PYTHONPATH=src python3 scripts/odds_evaluator.py --date {date} --verbose`
 - Also run: `python3 scripts/fetch_odds_api.py` for cross-validation
+- Parse `AGENT_SUMMARY:` JSON from output for EV metrics and drift detection
 - Use sequentialthinking for EV assessment and drift detection
 - Load skill: bet-evaluating-odds
 - Key checks:
@@ -506,8 +507,9 @@ runSubagent("bet-challenger"):
 - S3 output: DB `analysis_results` table + `betting/data/{date}_s3_deep_stats.json`
 - S4 output: (from bet-valuator's verdict above)
 - Scripts to run:
-  1. `PYTHONPATH=src python3 -c "import sys; sys.path.insert(0, 'scripts'); from context_checks import run_context_checks; ok, msg = run_context_checks('{date}', {}); print(msg)"`
-  2. `PYTHONPATH=src python3 -c "import sys; sys.path.insert(0, 'scripts'); from upset_risk import run_upset_risk; ok, msg = run_upset_risk('{date}', {}); print(msg)"`
+  1. `PYTHONPATH=src python3 scripts/context_checks.py --date {date} --verbose`
+  2. `PYTHONPATH=src python3 scripts/upset_risk.py --date {date} --verbose`
+- Parse `AGENT_SUMMARY:` JSON from BOTH script outputs for context flags and risk distribution
 - Use sequentialthinking for 5-part Deep Adversarial Reasoning per candidate
 - Load skill: bet-applying-sport-protocols (upset risk checklists)
 - Key checks:
@@ -722,7 +724,7 @@ Present to user:
 | R16 LIVE WINDOW | 06:00→05:59 next day. Events ≤1h to kickoff or in-play = LIVE, include in scan | S1, S1e |
 | R17 LIVE SCRIPT MONITORING | ALWAYS --verbose. Read FULL output. Extract metrics. Report specific numbers. React to errors. If timeout: use get_terminal_output to diagnose. | ALL |
 | R18 DATA FLOW VERIFICATION | Before running a script, READ its code to understand inputs/outputs. TRACE producer→consumer: do JSON keys, DB tables, field names match? Verify with actual data. READ CODE → THINK → CHECK → FIX. | ALL |
-| R19 STRUCTURED OUTPUT | 9 analytical scripts support `--verbose` + `AGENT_SUMMARY:{json}` (see §STRUCTURED SCRIPT OUTPUT). Use `--verbose` on those scripts. Parse AGENT_SUMMARY for verdict/metrics/issues. Exit: 0=OK, 1=partial, 2=critical. | ALL |
+| R19 STRUCTURED OUTPUT | 15 analytical scripts support `--verbose` + `AGENT_SUMMARY:{json}` (see §STRUCTURED SCRIPT OUTPUT). Use `--verbose` on those scripts. Parse AGENT_SUMMARY for verdict/metrics/issues. Exit: 0=OK, 1=partial, 2=critical. | ALL |
 
 ---
 
@@ -733,7 +735,7 @@ Present to user:
 | S0 Settlement | `bet-settle.prompt.md` | bet-settler |
 | S0.5 DB Quality | `bet-db-quality.prompt.md` | bet-db-analyst |
 | S1 Scan | `bet-scan.prompt.md` | bet-scanner |
-| S1 Scan (sport-specific) | `bet-scan-football.prompt.md`, `bet-scan-basketball.prompt.md`, `bet-scan-tennis.prompt.md` | bet-scanner |
+| S1 Scan (sport-specific) | `bet-scan-football.prompt.md`, `bet-scan-basketball.prompt.md`, `bet-scan-tennis.prompt.md`, `bet-scan-volleyball.prompt.md`, `bet-scan-hockey.prompt.md` | bet-scanner |
 | S1 Scan (merge) | `bet-scan-merge.prompt.md` | bet-scanner |
 | S1 Scan (all sports) | `bet-scan-all.prompt.md` | bet-scanner |
 | S1e Shortlist | `bet-shortlist.prompt.md` | bet-scanner |

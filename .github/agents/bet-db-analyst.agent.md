@@ -18,7 +18,7 @@ tools:
     "search/fileSearch",
     "search/listDirectory",
     "search/codebase",
-    "sequential-thinking/*",
+    "sequential-thinking/sequentialthinking",
     "sequentialthinking/sequentialthinking",
     "todo",
     "pylance-mcp-server/*",
@@ -29,6 +29,12 @@ instructions:
 skills:
   - bet-querying-database
 user-invokable: false
+---
+
+## ⛔ HARD MANDATE: THINK BEFORE RETURNING
+
+**NEVER return without analyzing query output.** EVERY query → read full output → extract metrics (row counts, gap counts, freshness) → `sequentialthinking` → structured verdict with reasoning. Raw output paste = HARD FAILURE. See `agent-execution-protocol.instructions.md`.
+
 ---
 
 ## Agent Role and Responsibilities

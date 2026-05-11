@@ -24,7 +24,7 @@ tools:
     "web/fetch",
     "browser/*",
     "playwright/*",
-    "sequential-thinking/*",
+    "sequential-thinking/sequentialthinking",
     "sequentialthinking/sequentialthinking",
     "todo",
     "pylance-mcp-server/*",

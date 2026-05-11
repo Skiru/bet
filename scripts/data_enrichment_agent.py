@@ -169,6 +169,9 @@ def _parse_flashscore_stats(html: str, sport: str) -> dict:
     if not html or len(html) < 500:
         return stats
 
+    # Cap HTML processing to 2MB to prevent catastrophic regex backtracking
+    html = html[:2_000_000]
+
     # Flashscore renders stats in structured divs/tables.
     # Look for patterns like "Corners: 7" or stat values in table cells.
     for key in stat_keys:
@@ -376,8 +379,9 @@ def _extract_stat_values(html: str, stat_key: str, sport: str) -> list[float]:
         except ValueError:
             continue
 
-    # Deduplicate and keep last 10
-    return values[:10]
+    # Deduplicate, validate range, and keep last 10
+    validated = _validate_stat_values(values, stat_key, sport)
+    return validated[:10]
 
 
 def _validate_stat_values(values: list[float], stat_key: str, sport: str) -> list[float]:
@@ -413,17 +417,19 @@ def _parse_sofascore_stats(html: str, sport: str) -> dict:
     # Sofascore embeds structured data in script tags (JSON-LD or __NEXT_DATA__)
     script_blocks = re.findall(
         r'<script[^>]*>\s*({.*?"statistics".*?})\s*</script>',
-        html, re.DOTALL | re.IGNORECASE,
+        html[:500_000], re.DOTALL | re.IGNORECASE,  # Cap regex scan to 500KB
     )
     if not script_blocks:
-        # Try __NEXT_DATA__ pattern
+        # Try __NEXT_DATA__ pattern — limit to first 2MB to avoid catastrophic backtracking
         next_data = re.findall(
             r'<script[^>]*id="__NEXT_DATA__"[^>]*>\s*({.*?})\s*</script>',
-            html, re.DOTALL,
+            html[:2_000_000], re.DOTALL,
         )
         script_blocks.extend(next_data)
 
-    for block in script_blocks:
+    for block in script_blocks[:5]:  # Process at most 5 script blocks
+        if len(block) > 1_000_000:  # Skip blocks > 1MB — likely not statistics
+            continue
         try:
             data = json.loads(block)
             _extract_sofascore_json_stats(data, stat_keys, stats)
@@ -492,9 +498,11 @@ def _parse_sofascore_stats(html: str, sport: str) -> dict:
     # Strategy 4: JSON-LD structured data blocks
     jsonld_blocks = re.findall(
         r'<script\s+type="application/ld\+json"[^>]*>\s*({.*?})\s*</script>',
-        html, re.DOTALL,
+        html[:500_000], re.DOTALL,
     )
-    for block in jsonld_blocks:
+    for block in jsonld_blocks[:10]:  # Cap to 10 JSON-LD blocks
+        if len(block) > 500_000:
+            continue
         try:
             data = json.loads(block)
             _extract_sofascore_json_stats(data, stat_keys, stats)
@@ -522,8 +530,11 @@ def _extract_sofascore_json_stats(
     """Recursively extract stat values from parsed Sofascore JSON data."""
     if _depth > 20:
         return
+    # Safety: stop if we already have enough data per key (prevent runaway on huge JSON)
+    if all(len(stats.get(k, [])) >= 20 for k in stat_keys if k in stats) and stats:
+        return
     if isinstance(data, list):
-        for item in data:
+        for item in data[:200]:  # Cap list iteration to prevent memory issues on huge arrays
             if isinstance(item, (dict, list)):
                 _extract_sofascore_json_stats(item, stat_keys, stats, _depth + 1)
         return

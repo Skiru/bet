@@ -673,7 +673,12 @@ def main():
         for r in all_results
     )
 
-    verdict = "OK" if not any_fail else "FAILED"
+    if not all_results:
+        verdict = "FAILED"
+    elif any_fail:
+        verdict = "FAILED"
+    else:
+        verdict = "OK"
 
     out.summary(
         verdict=verdict,
@@ -684,6 +689,7 @@ def main():
             "failed": total_failed,
             "warnings": total_warnings,
         },
+        issues=[{"level": "error", "message": "No coupon files found to validate"}] if not all_results else [],
     )
 
     sys.exit(1 if any_fail else 0)

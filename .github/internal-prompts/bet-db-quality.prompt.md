@@ -1,3 +1,8 @@
+---
+agent: "bet-db-analyst"
+description: "S0.5: DB quality check — table census, freshness, gap analysis"
+---
+
 # DB Analyst — Data Quality & Gap Analysis
 
 ## YOUR ANALYTICAL VALUE

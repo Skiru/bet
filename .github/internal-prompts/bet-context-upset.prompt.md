@@ -46,6 +46,7 @@ Updated confidence: 72% → 76% (context supports the statistical pick).
 Load these skills before starting:
 - `bet-applying-sport-protocols` — per-sport upset risk checklists, thresholds, instant red flags
 - `bet-analyzing-statistics` — safety score recalculation after context changes
+- `bet-navigating-sources` — source fallback chains for injury/weather/lineup data
 
 ## Agent-Mandatory Warning
 

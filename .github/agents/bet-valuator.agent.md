@@ -7,6 +7,7 @@ tools:
     "vscode/toolSearch",
     "execute/runInTerminal",
     "execute/getTerminalOutput",
+    "execute/sendToTerminal",
     "execute/killTerminal",
     "read/readFile",
     "read/problems",

@@ -47,15 +47,25 @@ Load these skills before starting:
 ## Agent-Mandatory Warning
 
 > **YOU run the scripts. YOU read full arguments. YOU assess quality. YOU return a verdict.**
-> The orchestrator does NOT run `tipster_aggregator.py` — that's YOUR responsibility.
+> The orchestrator pre-fetches tipster data in S1b via `tipster_aggregator.py`. YOUR job is to run `tipster_xref.py` for cross-reference, then perform intelligence analysis.
 
-**Step 1: RUN tipster aggregator:**
+**Step 1: VERIFY tipster data from S1b pre-fetch:**
+```bash
+ls -la betting/data/{date}_tipster_consensus.* 2>&1
+```
+If file exists and is non-empty → proceed to Step 2. If MISSING or empty → run aggregator:
 ```bash
 PYTHONPATH=src python3 scripts/tipster_aggregator.py --date {date} --workers 5 --verbose 2>&1
 ```
 Parse the `AGENT_SUMMARY:{json}` line from the output for structured metrics (verdict, tip count, source breakdown, errors).
 
-**Step 2: VALIDATE output exists:**
+**Step 2: RUN cross-reference vs shortlist:**
+```bash
+PYTHONPATH=src python3 scripts/tipster_xref.py --date {date} --verbose 2>&1
+```
+Parse `AGENT_SUMMARY:{json}` for match rate, consensus entries, coverage metrics.
+
+**Step 3: VALIDATE output exists:**
 ```bash
 ls -la betting/data/{date}_tipster_consensus.* 2>&1
 ```

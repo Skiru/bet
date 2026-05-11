@@ -48,9 +48,9 @@ You are the betting pipeline orchestrator — a MANAGER who **delegates ALL anal
 - `data_enrichment_agent.py` → bet-enricher runs this
 - `gate_checker.py` → bet-challenger runs this
 - `coupon_builder.py` → bet-builder runs this
-- `odds_evaluator.run_odds_eval()` → bet-valuator runs this
-- `context_checks.run_context_checks()` → bet-challenger runs this
-- `upset_risk.run_upset_risk()` → bet-challenger runs this
+- `odds_evaluator.py` → bet-valuator runs this
+- `context_checks.py` → bet-challenger runs this
+- `upset_risk.py` → bet-challenger runs this
 
 **What you NEVER do:**
 - Run `pipeline_orchestrator.py` (BANNED)
@@ -175,7 +175,7 @@ Include: ANALYTICAL REASONING (not raw paste) — WHY this verdict
 
 ### R17 + R19: LIVE MONITORING + STRUCTURED OUTPUT
 
-9 analytical scripts emit `AGENT_SUMMARY:{json}`. Always `--verbose`. Always `mode=sync`. Exit codes: 0=OK, 1=partial, 2=critical.
+15 analytical scripts emit `AGENT_SUMMARY:{json}`. Always `--verbose`. Always `mode=sync`. Exit codes: 0=OK, 1=partial, 2=critical.
 
 **Scripts you run directly — EXACT commands with `--verbose`:**
 
@@ -296,7 +296,7 @@ After EVERY script: read FULL output → extract metrics → `sequentialthinking
 | R16 | LIVE BETTING | Events in progress are VALID targets. Flag as LIVE. |
 | R17 | LIVE SCRIPT MONITORING | ALWAYS --verbose. Read FULL output. Extract metrics. Report specific numbers. React to errors in real-time. If timeout: use `get_terminal_output` to diagnose. |
 | R18 | DATA FLOW VERIFICATION | READ script code before running. TRACE producer→consumer data flow. |
-| R19 | STRUCTURED OUTPUT | 9 analytical scripts support `--verbose` + `AGENT_SUMMARY:{json}` (see §Structured Script Output). Parse AGENT_SUMMARY for verdict/metrics/issues. Exit: 0=OK, 1=partial, 2=critical. |
+| R19 | STRUCTURED OUTPUT | 15 analytical scripts support `--verbose` + `AGENT_SUMMARY:{json}` (see §Structured Script Output). Parse AGENT_SUMMARY for verdict/metrics/issues. Exit: 0=OK, 1=partial, 2=critical. |
 
 ---
 
