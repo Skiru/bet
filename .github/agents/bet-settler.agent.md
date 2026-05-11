@@ -82,8 +82,16 @@ Settlement syncs to DB via `_sync_settlement_to_db()` in `settle_on_finish.py`:
 ## Tool Usage Guidelines
 
 ### execute/runInTerminal
-- **MUST use for:** \`python3 scripts/settle_on_finish.py --betting-day YYYY-MM-DD\`, \`python3 scripts/fetch_odds_api.py --scores\` (US sport results), \`python3 scripts/analyze_betclic_learning.py\`
+- **MUST use for:** `python3 scripts/settle_on_finish.py --betting-day YYYY-MM-DD` (`mode=sync` timeout=300000), `python3 scripts/fetch_odds_api.py --scores` (US sport results, `mode=sync` timeout=120000), `python3 scripts/analyze_betclic_learning.py` (`mode=sync` timeout=120000)
+- **After EVERY script:** Read FULL output → extract metrics (PnL, win/loss/push counts, bankroll delta) → `sequentialthinking` → verdict.
 - **SHOULD NOT use for:** Manual calculations — use sequential-thinking instead
+
+### ⛔ BANNED TERMINAL PATTERNS
+
+- **NEVER** run `for` loops or batch loops in terminal
+- **NEVER** use `sleep`, `ps -p` polling, or idle waiting
+- **NEVER** chain scripts blindly with `&&`
+- **ALWAYS:** ONE command → READ output → THINK → NEXT command
 
 ### web/fetch + browser/*
 - **MUST use for:** Verifying results on Flashscore, Sofascore; checking OddsPortal for CLV closing odds

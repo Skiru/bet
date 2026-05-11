@@ -87,8 +87,16 @@ You add a 5-part Market Intelligence Reasoning Layer via sequential-thinking: ma
 ## Tool Usage Guidelines
 
 ### execute/runInTerminal
-- **MUST use for:** `python3 scripts/fetch_odds_multi.py --date YYYY-MM-DD` (5-source aggregation — RECOMMENDED), `python3 scripts/fetch_odds_api.py` (single-source fallback), `python3 scripts/probability_engine.py --line X.5 --direction OVER --values "v1,v2,..."` (direct probability checks)
+- **MUST use for:** `python3 scripts/fetch_odds_multi.py --date YYYY-MM-DD` (5-source aggregation — RECOMMENDED, `mode=sync` timeout=300000), `python3 scripts/fetch_odds_api.py` (single-source fallback, `mode=sync` timeout=120000), `python3 scripts/probability_engine.py --line X.5 --direction OVER --values "v1,v2,..."` (direct probability checks, `mode=sync` timeout=120000)
 - **NOTE:** Check DB via `load_analysis_results_from_db()` for pre-computed EV values (fallback: `analysis_pool_{date}.json`). Read S3 deep stats for P(hit), fair odds, λ, CI columns.
+- **After EVERY script:** Read FULL output → extract metrics (odds count, EV values, source coverage) → `sequentialthinking` → verdict.
+
+### ⛔ BANNED TERMINAL PATTERNS
+
+- **NEVER** run `for` loops or batch loops in terminal
+- **NEVER** use `sleep`, `ps -p` polling, or idle waiting
+- **NEVER** chain scripts blindly with `&&`
+- **ALWAYS:** ONE command → READ output → THINK → NEXT command
 
 ### web/fetch + browser/*
 - **MUST use for:** Fetching odds from BetExplorer, OddsPortal, SBR, ESPN Odds, ScoresAndOdds

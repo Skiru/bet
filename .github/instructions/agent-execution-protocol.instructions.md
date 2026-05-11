@@ -115,6 +115,41 @@ data and 15 with partial. Hockey candidates need extra caution in safety scores.
 | 10 | Summarize script's own summary as YOUR analysis | Add ORIGINAL INSIGHT the script didn't produce |
 | 11 | "I analyzed the output" then just restate it | Analysis = WHY + IMPACT + ANOMALIES, not restating |
 | 12 | Present script conclusions as your own | Your value is reasoning BEYOND what the script computed |
+| 13 | Run `for` loops / batch loops in terminal | Run ONE command at a time, THINK about result, proceed |
+| 14 | `sleep` / `ps -p` polling / idle waiting | Use `mode=sync` with timeout. Get notified on completion |
+| 15 | Fire-and-forget (`mode=async` then ignore) | `mode=sync` + read output + extract metrics immediately |
+
+---
+
+## ⛔ BANNED TERMINAL PATTERNS
+
+These patterns are **ABSOLUTELY FORBIDDEN**. Violation = pipeline failure.
+
+### ❌ NEVER DO:
+```bash
+# Batch loops — user CANNOT tell if hung or running
+for f in betting/data/*.json; do python3 scripts/process.py "$f"; done
+
+# Sleep/poll loops — wasted time, no analysis
+while ps -p $PID > /dev/null; do sleep 5; done
+
+# Fire-and-forget async
+run_in_terminal(mode=async)  # then never check output
+
+# Multiple scripts chained blindly
+python3 scripts/A.py && python3 scripts/B.py && python3 scripts/C.py
+```
+
+### ✅ INSTEAD DO:
+```
+1. Run ONE script: mode=sync, timeout=300000, --verbose
+2. Read FULL output → extract metrics → AGENT_SUMMARY
+3. sequentialthinking → analyze what output MEANS
+4. Decide: proceed / retry / escalate
+5. THEN run next script
+```
+
+**The rule:** ONE command → THINK → NEXT command. Never batch. Never loop. Never idle.
 
 ---
 

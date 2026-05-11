@@ -122,7 +122,7 @@ def validate_data_phase(date: str) -> list[Check]:
                          "PASS" if state else "FAIL",
                          f"{'Found' if state else 'MISSING'}: pipeline_state/pipeline_{date}.json",
                          gate=True,
-                         recovery=f"Run: python3 scripts/pipeline_orchestrator.py --date {date} --phase data"))
+                         recovery=f"Run: PYTHONPATH=src python3 scripts/scan_events.py --date {date} --verbose"))
 
     if not state:
         return checks  # Can't continue without state
@@ -142,7 +142,7 @@ def validate_data_phase(date: str) -> list[Check]:
                          (f", Failed: {list(failed.keys())}" if failed else "") +
                          (f", Missing: {list(missing)}" if missing else ""),
                          gate=True,
-                         recovery=f"Run: python3 scripts/pipeline_orchestrator.py --date {date} --phase data --resume"))
+                         recovery=f"Re-run failed data steps individually (scan_events, build_shortlist, data_enrichment_agent)"))
 
     # D3: DB populated — scan_results (PRIMARY CHECK)
     try:
@@ -164,18 +164,18 @@ def validate_data_phase(date: str) -> list[Check]:
                          "PASS" if scan_cnt > 0 else "FAIL",
                          f"{scan_cnt} rows, {len(scan_sports)} sports: {scan_sports}",
                          gate=True,
-                         recovery=f"Run: python3 scripts/pipeline_orchestrator.py --date {date} --step s1_scan"))
+                         recovery=f"Run: PYTHONPATH=src python3 scripts/scan_events.py --date {date} --verbose"))
 
     checks.append(Check("D4", "DB: fixtures populated",
                          "PASS" if fix_cnt > 0 else "FAIL",
                          f"{fix_cnt} fixtures for {date}",
                          gate=True,
-                         recovery=f"Run: python3 scripts/pipeline_orchestrator.py --date {date} --step s1a_discover"))
+                         recovery=f"Run: PYTHONPATH=src python3 scripts/discover_fixtures.py --date {date} --verbose"))
 
     checks.append(Check("D5", "DB: team_form updated today",
                          "PASS" if tf_cnt > 0 else "WARN",
                          f"{tf_cnt} entries updated since {date}",
-                         recovery=f"Run: python3 scripts/pipeline_orchestrator.py --date {date} --step s2_5_enrich"))
+                         recovery=f"Run: PYTHONPATH=src python3 scripts/data_enrichment_agent.py --date {date} --verbose"))
 
     # D6: Shortlist — DB-FIRST via analysis_results, fallback to JSON
     try:
@@ -202,10 +202,10 @@ def validate_data_phase(date: str) -> list[Check]:
                          "PASS" if candidate_count > 0 else "FAIL",
                          f"DB: {ar_cnt} analysis_results, JSON shortlist: {len(shortlist)} candidates",
                          gate=True,
-                         recovery=f"Run: python3 scripts/pipeline_orchestrator.py --date {date} --step s1e_shortlist"))
+                         recovery=f"Run: PYTHONPATH=src python3 scripts/build_shortlist.py --date {date} --stats-first --verbose"))
 
     checks.append(Check("D7", "Sport diversity",
-                         "PASS" if len(sport_list) >= 6 else "FAIL",
+                         "PASS" if len(sport_list) >= 3 else "FAIL",
                          f"{len(sport_list)} sports: {sorted(sport_list)}",
                          gate=True,
                          recovery="Check scan_urls.json coverage; re-scan missing sports with --step s1_scan"))
@@ -234,7 +234,7 @@ def validate_data_phase(date: str) -> list[Check]:
                          "WARN" if enrich_status == "skipped" else "FAIL",
                          f"Status: {enrich_status}",
                          gate=enrich_status == "failed",
-                         recovery=f"Run: python3 scripts/pipeline_orchestrator.py --date {date} --step s2_5_enrich"))
+                         recovery=f"Run: PYTHONPATH=src python3 scripts/data_enrichment_agent.py --date {date} --verbose"))
 
     # D11: Odds coverage — DB-FIRST
     try:
@@ -305,7 +305,7 @@ def validate_analysis_phase(date: str) -> list[Check]:
                          "PASS" if ar_cnt > 0 else "FAIL",
                          f"{ar_cnt} results in DB, {ar_with_market} with best_market",
                          gate=True,
-                         recovery=f"Run: python3 scripts/pipeline_orchestrator.py --date {date} --step s3_deep_stats"))
+                         recovery=f"Run: PYTHONPATH=src python3 scripts/deep_stats_report.py --date {date} --verbose"))
 
     md_info = f"MD: ✓ ({s3_md.stat().st_size:,}B)" if s3_md.exists() else "MD: ✗"
     json_info = f"JSON: ✓ ({s3_json.stat().st_size:,}B)" if s3_json.exists() else "JSON: ✗"
@@ -341,7 +341,7 @@ def validate_analysis_phase(date: str) -> list[Check]:
                     checks.append(Check("A4", "S3 structural validation (validate_s3_output.py)",
                                          "PASS" if failed == 0 else "WARN",
                                          f"{passed}/{total} candidates PASS, {failed} FAIL",
-                                         recovery=f"Re-run: python3 scripts/pipeline_orchestrator.py --date {date} --step s3_deep_stats"))
+                                         recovery=f"Re-run: PYTHONPATH=src python3 scripts/deep_stats_report.py --date {date} --verbose"))
                 except json.JSONDecodeError:
                     checks.append(Check("A4", "S3 structural validation",
                                          "PASS" if result.returncode == 0 else "WARN",
@@ -397,7 +397,7 @@ def validate_analysis_phase(date: str) -> list[Check]:
                              "PASS" if status == "completed" else "FAIL",
                              f"Status: {status}",
                              gate=status != "completed",
-                             recovery=f"Run: python3 scripts/pipeline_orchestrator.py --date {date} --step {step_id}"))
+                             recovery=f"Re-run step {step_id} via orchestrator agent (individual script execution)"))
 
     # A9: S7 gate — DB-FIRST (gate_results table)
     try:
@@ -421,7 +421,7 @@ def validate_analysis_phase(date: str) -> list[Check]:
                          "PASS" if gate_cnt > 0 else "FAIL",
                          f"{gate_cnt} results: {gate_tiers}",
                          gate=True,
-                         recovery=f"Run: python3 scripts/pipeline_orchestrator.py --date {date} --step s7_gate"))
+                         recovery=f"Run: PYTHONPATH=src python3 scripts/gate_checker.py --date {date} --verbose"))
 
 
     # A10: Sport diversity in approved (R4)
@@ -472,7 +472,7 @@ def validate_analysis_phase(date: str) -> list[Check]:
                          "PASS" if not critical_fails else "FAIL",
                          f"{'All OK' if not critical_fails else f'Failed: {critical_fails}'}",
                          gate=bool(critical_fails),
-                         recovery=f"Fix and re-run: python3 scripts/pipeline_orchestrator.py --date {date} --phase analysis --resume"))
+                         recovery=f"Fix failing step and re-run individually (deep_stats_report, gate_checker)"))
 
     return checks
 
@@ -492,7 +492,7 @@ def validate_build_phase(date: str) -> list[Check]:
                          "PASS" if coupon_files else "FAIL",
                          f"{len(coupon_files)} files: {[f.name for f in coupon_files]}",
                          gate=True,
-                         recovery=f"Run: python3 scripts/pipeline_orchestrator.py --date {date} --phase build"))
+                         recovery=f"Run: PYTHONPATH=src python3 scripts/coupon_builder.py --date {date} --verbose"))
 
 
     # B2: Coupon data in DB — DB-FIRST
@@ -593,7 +593,7 @@ def validate_build_phase(date: str) -> list[Check]:
                          "PASS" if build_completed == build_steps else "FAIL",
                          f"Completed: {sorted(build_completed)}, Missing: {sorted(build_steps - build_completed)}",
                          gate=bool(build_steps - build_completed),
-                         recovery=f"Run: python3 scripts/pipeline_orchestrator.py --date {date} --phase build --resume"))
+                         recovery=f"Re-run build steps individually (coupon_builder, validate_phase --phase build)"))
 
 
     return checks

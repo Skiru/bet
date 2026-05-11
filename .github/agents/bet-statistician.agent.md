@@ -96,8 +96,16 @@ Safety scores are now computed via `build_safety_input()` from `normalize_stats.
 ## Tool Usage Guidelines
 
 ### execute/runInTerminal
-- **MUST use for:** `python3 scripts/deep_stats_report.py --date YYYY-MM-DD` (batch S3 — run FIRST), `python3 scripts/compute_safety_scores.py stats_input.json` (deterministic ranking), `python3 scripts/probability_engine.py --line X.5 --direction OVER --values "v1,v2,..."` (probability checks), `python3 scripts/fetch_api_stats.py --date YYYY-MM-DD` (API stats collection)
+- **MUST use for:** `python3 scripts/deep_stats_report.py --date YYYY-MM-DD --verbose` (batch S3 — run FIRST, `mode=sync` timeout=600000, parse `AGENT_SUMMARY:{json}`), `python3 scripts/compute_safety_scores.py stats_input.json` (`mode=sync` timeout=120000), `python3 scripts/probability_engine.py --line X.5 --direction OVER --values "v1,v2,..."` (`mode=sync` timeout=120000), `python3 scripts/fetch_api_stats.py --date YYYY-MM-DD` (`mode=sync` timeout=300000)
 - **NOTE:** `deep_stats_report.py` automatically runs probability engine enrichment after safety scores. Supplement its output with web-fetched data for incomplete candidates.
+- **After EVERY script:** Read FULL output → extract metrics (candidate count, safety scores, data quality) → `sequentialthinking` → verdict.
+
+### ⛔ BANNED TERMINAL PATTERNS
+
+- **NEVER** run `for` loops or batch loops in terminal
+- **NEVER** use `sleep`, `ps -p` polling, or idle waiting
+- **NEVER** chain scripts blindly with `&&`
+- **ALWAYS:** ONE command → READ output → THINK → NEXT command
 
 ### Safety Score Computation
 

@@ -390,6 +390,25 @@ runSubagent("bet-enricher"):
 
 ---
 
+### ⛔ DATA PHASE GATE (MANDATORY before S3)
+
+Run validation BEFORE entering the analysis phase. This is your checkpoint — do NOT skip it.
+
+```bash
+PYTHONPATH=src python3 scripts/validate_phase.py --date {date} --phase data --format json 2>&1
+```
+
+**Assertion checklist (verify ALL before proceeding):**
+- [ ] Exit code 0 (all gates pass) or 2 (warnings only, non-blocking)
+- [ ] D3: scan_results > 0 for today
+- [ ] D6: candidates available (shortlist or analysis_results > 0)
+- [ ] D8: candidate count ≥ 20
+- [ ] D13: market_matrix_{date}.json exists
+
+**If exit code 1 (gate failure):** Read the JSON output, identify WHICH gate failed, run the recovery command shown in output. Re-run validation after fix. Do NOT proceed to S3 with gate failures.
+
+---
+
 ## ═══════════════════════════════════════════════
 ## ANALYSIS (Steps S3 → S7) — FULLY DELEGATED TO SPECIALIST AGENTS
 ## ═══════════════════════════════════════════════
@@ -540,6 +559,25 @@ runSubagent("bet-challenger"):
 
 ---
 
+### ⛔ ANALYSIS PHASE GATE (MANDATORY before S8)
+
+Run validation BEFORE entering the build phase. This is your checkpoint — do NOT skip it.
+
+```bash
+PYTHONPATH=src python3 scripts/validate_phase.py --date {date} --phase analysis --format json 2>&1
+```
+
+**Assertion checklist (verify ALL before proceeding):**
+- [ ] Exit code 0 or 2
+- [ ] A1: S3 deep stats output exists (analysis_results in DB or JSON)
+- [ ] A2: gate_results exist (S7 ran)
+- [ ] A3: ≥1 candidate with APPROVED or EXTENDED status
+- [ ] A5: STRONG+MODERATE ≥ 3 candidates (enough for coupons)
+
+**If exit code 1 (gate failure):** Read the JSON output, identify WHICH gate failed. If A5 fails (too few approved picks), trigger emergency expansion: re-run `build_shortlist.py --date {date} --stats-first --force` then re-delegate S3→S7 with expanded pool. Do NOT build coupons from insufficient picks.
+
+---
+
 ## ═══════════════════════════════════════════════
 ## BUILD (Steps S8 → S10) — DELEGATED TO bet-builder
 ## ═══════════════════════════════════════════════
@@ -595,6 +633,26 @@ runSubagent("bet-builder"):
 - Return: summary text for user presentation
 ---
 ```
+
+---
+
+### ⛔ BUILD PHASE GATE (MANDATORY before presenting to user)
+
+Run validation BEFORE presenting results.
+
+```bash
+PYTHONPATH=src python3 scripts/validate_phase.py --date {date} --phase build --format json 2>&1
+```
+
+**Assertion checklist (verify ALL before presenting):**
+- [ ] Exit code 0 or 2
+- [ ] B1: Coupon files exist in `betting/coupons/`
+- [ ] B2: Each coupon has ≥2 legs
+- [ ] B3: Total stake ≤ 25% bankroll
+- [ ] B4: No duplicate events across core coupons
+- [ ] B5: Arithmetic verified (combined odds match leg multiplication ±0.02)
+
+**If exit code 1:** Fix coupons before presenting. Re-delegate to bet-builder with specific issues.
 
 ---
 

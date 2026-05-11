@@ -80,8 +80,16 @@ Coupons persisted via `persist_coupons_to_db()` in `coupon_builder.py`:
 ## Tool Usage Guidelines
 
 ### execute/runInTerminal
-- **MUST use for:** `python3 scripts/coupon_builder.py --date YYYY-MM-DD` (automated coupon construction — core + combos + extended, Kelly 1/4, Polish output — run FIRST), `python3 scripts/validate_coupons.py betting/coupons/{date}*.md` (V1-V10 validation — run AFTER, fix ALL FAIL results)
+- **MUST use for:** `python3 scripts/coupon_builder.py --date YYYY-MM-DD --verbose` (automated coupon construction — core + combos + extended, Kelly 1/4, Polish output — run FIRST, `mode=sync` timeout=300000, parse `AGENT_SUMMARY:{json}`), `python3 scripts/validate_coupons.py betting/coupons/{date}*.md` (V1-V10 validation — run AFTER, `mode=sync` timeout=120000, fix ALL FAIL results)
 - **NOTE:** Review `coupon_builder.py` output for edge cases: adjust stakes if bankroll changed, verify Polish descriptions, check correlation flags.
+- **After EVERY script:** Read FULL output → extract metrics (coupon count, leg count, validation pass/fail) → `sequentialthinking` → verdict.
+
+### ⛔ BANNED TERMINAL PATTERNS
+
+- **NEVER** run `for` loops or batch loops in terminal
+- **NEVER** use `sleep`, `ps -p` polling, or idle waiting
+- **NEVER** chain scripts blindly with `&&`
+- **ALWAYS:** ONE command → READ output → THINK → NEXT command
 
 ### sequential-thinking
 - **MUST use for:** The 4-part Portfolio Intelligence Layer (before coupon assignment), reviewing coupon output arithmetic, §S8.FINAL mechanical verification, coupon optimization decisions.

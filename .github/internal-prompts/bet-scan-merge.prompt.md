@@ -9,6 +9,8 @@ agent: bet-scanner
 
 # SCAN MERGE + ENRICHMENT — Final Assembly
 
+> **YOUR ANALYTICAL VALUE:** You don't just merge event lists. You assess DATA COMPLETENESS across the merge — which sports lost events during dedup, which enrichment sources failed silently, and whether the final shortlist has enough STATISTICAL DEPTH for S3 analysis. A script can merge 8000 events. Only YOU can spot that volleyball went from 250 scan events to 15 in the shortlist because all its events lacked kickoff times and got filtered as garbage — requiring a targeted re-scan with a different source.
+
 ## MANDATORY: Agent Intelligence Protocol
 
 > **⛔ Follow `agent-execution-protocol.instructions.md` for EVERY script execution.**
@@ -52,7 +54,7 @@ else:
 ```bash
 cd /Users/mkoziol/projects/bet && PYTHONPATH=src:.
 
-# Stats enrichment (parallel per sport)
+# Stats enrichment
 python3 scripts/fetch_api_stats.py --date $(date +%Y-%m-%d)
 
 # Odds from multiple sources
@@ -62,7 +64,7 @@ python3 scripts/fetch_odds_multi.py
 python3 scripts/fetch_weather.py --date $(date +%Y-%m-%d)
 
 # Ingest scan data into stats cache
-python3 scripts/ingest_scan_stats.py
+python3 scripts/ingest_scan_stats.py --verbose 2>&1
 ```
 
 **If fetch_api_stats fails:**
@@ -80,14 +82,16 @@ python3 scripts/ingest_scan_stats.py
 cd /Users/mkoziol/projects/bet && PYTHONPATH=src:.
 
 # Aggregation and analysis pool now handled by build_shortlist.py
-python3 scripts/build_shortlist.py --date $(date +%Y-%m-%d) --stats-first
+python3 scripts/build_shortlist.py --date $(date +%Y-%m-%d) --stats-first --verbose 2>&1
 
 # Generate market matrix (STATS-FIRST mode)
 python3 scripts/generate_market_matrix.py --date $(date +%Y-%m-%d) --stats-first
 
 # Build shortlist
-python3 scripts/build_shortlist.py --date $(date +%Y-%m-%d) --stats-first
+python3 scripts/build_shortlist.py --date $(date +%Y-%m-%d) --stats-first --verbose 2>&1
 ```
+
+Parse the `AGENT_SUMMARY:{json}` line from `build_shortlist.py` and `ingest_scan_stats.py` output — they contain candidate counts, sport distribution, and data quality tiers.
 
 ## STEP 4: Validate Final Outputs
 

@@ -230,6 +230,28 @@ Produce a summary with:
 | `NavigationError: net::ERR_NAME_NOT_RESOLVED` | DNS failure | Check internet; skip that domain |
 | `ParseError: unexpected tag` in adapter | HTML structure changed | Use `raw_adapter` fallback for that source |
 
+## Script Execution Rules
+
+### R17: LIVE MONITORING
+
+All terminal commands use `mode=sync` with these timeouts:
+
+| Operation | Timeout |
+|-----------|---------|
+| Football scanner (inline Python) | 600000 |
+| html_deep_parser.py (with `--verbose`) | 300000 |
+| DB validation queries | 120000 |
+| Self-heal retry | 300000 |
+
+**After EVERY command:** Read FULL output → extract metrics (event count, source status, error count) → `sequentialthinking` → verdict.
+
+### ⛔ BANNED TERMINAL PATTERNS
+
+- **NEVER** run `for` loops or batch loops in terminal
+- **NEVER** use `sleep`, `ps -p` polling, or idle waiting
+- **NEVER** chain scripts blindly with `&&`
+- **ALWAYS:** ONE command → READ output → THINK → NEXT command
+
 ## Skills
 
 Load: `bet-scanning-football` for: all 90+ source URLs, 5 adapter mappings, full league list, data quality requirements.

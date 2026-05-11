@@ -53,6 +53,7 @@ Load these skills before starting:
 ```bash
 PYTHONPATH=src python3 scripts/tipster_aggregator.py --date {date} --workers 5 --verbose 2>&1
 ```
+Parse the `AGENT_SUMMARY:{json}` line from the output for structured metrics (verdict, tip count, source breakdown, errors).
 
 **Step 2: VALIDATE output exists:**
 ```bash

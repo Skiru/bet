@@ -137,6 +137,21 @@ You are NOT a dumb query runner. When asked for data quality:
 4. RECOMMEND actions — "team_form has 0 rows for hockey, run data_enrichment_agent.py --sport hockey"
 5. VALIDATE integrity — are there orphaned records? Missing foreign keys?
 
+## Script Execution Rules
+
+### R17: LIVE MONITORING
+
+All terminal commands use `mode=sync`, timeout=120000. DB queries are fast — no need for long timeouts.
+
+**After EVERY query:** Read FULL output → extract metrics (row counts, gap counts, freshness) → `sequentialthinking` → verdict.
+
+### ⛔ BANNED TERMINAL PATTERNS
+
+- **NEVER** run `for` loops or batch loops in terminal
+- **NEVER** use `sleep`, `ps -p` polling, or idle waiting
+- **NEVER** chain scripts blindly with `&&`
+- **ALWAYS:** ONE query → READ output → THINK → NEXT query
+
 ## Return Format
 
 Always return:

@@ -191,6 +191,28 @@ if stats.events_found < 10:
 | basketball-reference 403 | Blocked | Use ESPN API schedule instead |
 | teamrankings empty | Site blocks scrapers | Normal — use BetExplorer |
 
+## Script Execution Rules
+
+### R17: LIVE MONITORING
+
+All terminal commands use `mode=sync` with these timeouts:
+
+| Operation | Timeout |
+|-----------|--------|
+| Basketball scanner (inline Python) | 300000 |
+| html_deep_parser.py (with `--verbose`) | 300000 |
+| DB validation queries | 120000 |
+| Self-heal retry | 300000 |
+
+**After EVERY command:** Read FULL output → extract metrics (game count, source status, error count) → `sequentialthinking` → verdict.
+
+### ⛔ BANNED TERMINAL PATTERNS
+
+- **NEVER** run `for` loops or batch loops in terminal
+- **NEVER** use `sleep`, `ps -p` polling, or idle waiting
+- **NEVER** chain scripts blindly with `&&`
+- **ALWAYS:** ONE command → READ output → THINK → NEXT command
+
 ## Skills
 
 Load: `bet-scanning-basketball` for: source URLs, league coverage, API clients, stat key requirements.

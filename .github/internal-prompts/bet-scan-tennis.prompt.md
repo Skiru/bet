@@ -9,6 +9,8 @@ agent: bet-scanner-tennis
 
 # TENNIS SCAN — Fully Autonomous
 
+> **YOUR ANALYTICAL VALUE:** You don't just count tennis events. You assess H2H and SURFACE coverage — tennis analysis REQUIRES knowing surface type (clay/hard/grass) and head-to-head history. A script can report "163 tennis events". Only YOU can flag that 90% are ITF Futures with zero H2H data and no Elo ratings — meaning those events can only support games totals markets (where form data alone drives the edge), not match winner or sets markets.
+
 ## MANDATORY: Agent Intelligence Protocol
 
 > **⛔ Follow `agent-execution-protocol.instructions.md` for EVERY script execution.**

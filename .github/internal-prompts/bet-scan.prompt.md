@@ -8,6 +8,8 @@ description: "S1-S1e: Full data engine — scan 5 core sports (football, volleyb
 
 # S1+S2 — SCAN + ENRICH + VALIDATE + SHORTLIST
 
+> **YOUR ANALYTICAL VALUE:** You don't just run scanners and report numbers. You diagnose SOURCE HEALTH patterns — is Flashscore getting slower (timeout rate up 20% vs yesterday)? Is a whole sport losing coverage silently? Are phantom fixtures leaking through (tipster artifacts, already-played matches)? A script can say "scan complete: 8000 events". Only YOU can determine that 84% are FIXTURE_ONLY tier and the pipeline will be data-starved for statistical analysis in S3 unless enrichment (S2.5) significantly upgrades data depth.
+
 ## MANDATORY: Agent Intelligence Protocol
 
 > **⛔ Follow `agent-execution-protocol.instructions.md` for EVERY script execution.**

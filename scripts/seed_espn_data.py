@@ -274,7 +274,7 @@ class ESPNSeeder:
                 id=None,
                 competition_id=comp_id,
                 team_id=team_id,
-                season="",
+                season=str(datetime.now(timezone.utc).year),
                 rank=rank,
                 wins=wins,
                 draws=draws,
@@ -311,11 +311,11 @@ class ESPNSeeder:
 
         self.log(f"Fetching rosters for {len(teams_with_espn)} teams")
         now = datetime.now(timezone.utc).isoformat()
+        rl = RateLimiter()
+        espn = ESPNClient(sport=ESPN_SPORT_MAP.get(sport, sport), league=league, rate_limiter=rl)
 
         for team_id, espn_team_id in teams_with_espn:
             try:
-                rl = RateLimiter()
-                espn = ESPNClient(sport=ESPN_SPORT_MAP.get(sport, sport), league=league, rate_limiter=rl)
                 roster = espn.get_team_roster(espn_team_id)
                 self._delay()
             except Exception as e:
@@ -354,7 +354,7 @@ class ESPNSeeder:
                     jersey=player.get("jersey", ""),
                     status=player.get("status", "active"),
                     depth_rank=None,
-                    season="",
+                    season=str(datetime.now(timezone.utc).year),
                     updated_at=now,
                 )
                 roster_repo.upsert(roster_entry)
@@ -585,7 +585,7 @@ class ESPNSeeder:
                         athlete_id=ath_id,
                         split_type=split_type,
                         stats_json=json.dumps(split_data),
-                        season="",
+                        season=str(datetime.now(timezone.utc).year),
                         source="espn",
                         updated_at=now,
                     )

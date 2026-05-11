@@ -72,8 +72,16 @@ You apply a 5-part Tipster Intelligence Analysis Layer via sequential-thinking: 
 ## Tool Usage Guidelines
 
 ### execute/runInTerminal
-- **MUST use for:** `python3 scripts/tipster_aggregator.py --date YYYY-MM-DD --workers 5` (automated collection — 12 sites in parallel), `python3 scripts/fetch_with_playwright.py` (JS-rendered pages)
+- **MUST use for:** `python3 scripts/tipster_aggregator.py --date YYYY-MM-DD --workers 5 --verbose` (automated collection — 12 sites in parallel), `python3 scripts/fetch_with_playwright.py` (JS-rendered pages)
 - **NOTE:** Check DB first via `load_analysis_results_from_db()`, then fallback to `{date}_tipster_consensus.json` — if it exists from S1b parallel step, use it as starting point. Only run aggregator manually if missing/stale.
+- **ALWAYS:** `mode=sync`, timeout=300000. After completion: read FULL output → parse `AGENT_SUMMARY:{json}` → extract metrics → `sequentialthinking` → verdict.
+
+### ⛔ BANNED TERMINAL PATTERNS
+
+- **NEVER** run `for` loops or batch loops in terminal
+- **NEVER** use `sleep`, `ps -p` polling, or idle waiting
+- **NEVER** chain scripts blindly with `&&`
+- **ALWAYS:** ONE command → READ output → THINK → NEXT command
 
 ### web/fetch + browser/*
 - **MUST use for:** Navigating tipster sites for FULL WRITTEN ARGUMENTS. Check `betting/data/` for pre-fetched HTML (§1.5) before live-fetching.

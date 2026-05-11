@@ -9,6 +9,8 @@ agent: bet-scanner
 
 # SCAN ORCHESTRATION — Full Autonomous Pipeline
 
+> **YOUR ANALYTICAL VALUE:** You don't just launch scanners and report event counts. You assess SOURCE QUALITY — which domains returned shallow fixture-only data vs. rich statistical data, which sources are degrading (increasing 403s, slower response), and whether the overall coverage ACTUALLY supports the markets we need. A script can say "7200 events scanned". Only YOU can determine that 6800 of those are fixture-only from a single shallow source while the 400 with real stat data are all football — meaning tennis/volleyball/basketball analysis will be data-starved in S3.
+
 ## MANDATORY: Agent Intelligence Protocol
 
 > **⛔ Follow `agent-execution-protocol.instructions.md` for EVERY script execution.**
@@ -230,10 +232,9 @@ print(f'Merged to: {path}')
 # 5b. Ingest scan data into stats cache
 python3 scripts/ingest_scan_stats.py
 
-# 5c. Discover fixtures via APIs (parallel with stats)
-python3 scripts/discover_fixtures.py --date $(date +%Y-%m-%d) &
-python3 scripts/fetch_api_stats.py --date $(date +%Y-%m-%d) &
-wait
+# 5c. Discover fixtures via APIs (run sequentially — R17: no background jobs)
+python3 scripts/discover_fixtures.py --date $(date +%Y-%m-%d)
+python3 scripts/fetch_api_stats.py --date $(date +%Y-%m-%d)
 
 # 5d. Fetch odds from multiple sources
 python3 scripts/fetch_odds_multi.py

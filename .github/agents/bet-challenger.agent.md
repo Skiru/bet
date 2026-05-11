@@ -105,8 +105,16 @@ delta = adjusted_prob - prior_prob
 ## Tool Usage Guidelines
 
 ### execute/runInTerminal
-- **MUST use for:** `python3 scripts/gate_checker.py --date YYYY-MM-DD` (programmatic 18-point gate — run FIRST, handles all 18 points + red flags + sport diversity §7.6 + risk tiers + confidence scoring + 48h repeat loss checks)
+- **MUST use for:** `python3 scripts/gate_checker.py --date YYYY-MM-DD --verbose` (programmatic 18-point gate — run FIRST, `mode=sync` timeout=300000, parse `AGENT_SUMMARY:{json}`, handles all 18 points + red flags + sport diversity §7.6 + risk tiers + confidence scoring + 48h repeat loss checks)
 - **NOTE:** Run `gate_checker.py` FIRST for structural checks. Then focus agent effort on qualitative bear cases and adversarial reasoning for borderline APPROVED/EXTENDED candidates.
+- **After script:** Read FULL output → extract metrics (approved/extended/rejected counts, tier distribution, red flag count) → `sequentialthinking` → verdict.
+
+### ⛔ BANNED TERMINAL PATTERNS
+
+- **NEVER** run `for` loops or batch loops in terminal
+- **NEVER** use `sleep`, `ps -p` polling, or idle waiting
+- **NEVER** chain scripts blindly with `&&`
+- **ALWAYS:** ONE command → READ output → THINK → NEXT command
 
 ### web/fetch
 - **MUST use for:** Verifying injuries/suspensions (ESPN, Flashscore), checking weather (outdoor sports), confirming fixture status, checking referee stats for cards/fouls markets, TransferMarkt for coach/roster changes

@@ -207,6 +207,28 @@ Produce a summary with:
 | `No matches found` in parser | Wrong section/date | Check URL has today's date param |
 | Flashscore JS timeout | Heavy page | HTML fallback captures enough |
 
+## Script Execution Rules
+
+### R17: LIVE MONITORING
+
+All terminal commands use `mode=sync` with these timeouts:
+
+| Operation | Timeout |
+|-----------|--------|
+| Tennis scanner (inline Python) | 300000 |
+| html_deep_parser.py (with `--verbose`) | 300000 |
+| DB validation queries | 120000 |
+| Self-heal retry | 300000 |
+
+**After EVERY command:** Read FULL output → extract metrics (match count, source status, error count) → `sequentialthinking` → verdict.
+
+### ⛔ BANNED TERMINAL PATTERNS
+
+- **NEVER** run `for` loops or batch loops in terminal
+- **NEVER** use `sleep`, `ps -p` polling, or idle waiting
+- **NEVER** chain scripts blindly with `&&`
+- **ALWAYS:** ONE command → READ output → THINK → NEXT command
+
 ## Skills
 
 Load: `bet-scanning-tennis` for: all source URLs, adapter mappings, surface detection rules, Elo integration, timeout config.

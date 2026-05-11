@@ -91,7 +91,7 @@ You orchestrate 5 per-sport scanner agents (football, volleyball, basketball, te
 ### PHASE 1: PARALLEL SCAN — Launch all 5 sport scanners (Python threads)
 
 ```bash
-cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 scripts/scan_events.py --parallel-sport --date $(date +%Y-%m-%d)
+cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 scripts/scan_events.py --parallel-sport --date $(date +%Y-%m-%d) --verbose
 ```
 
 This runs all scanners in parallel Python threads (~5 min total). Each scanner:
@@ -241,6 +241,29 @@ WORKAROUND: Run volleyball enrichment FIRST or use dedicated quota. Also try Sof
 MUST HAVE: shots, hits, blocks, pim, powerplay_goals, faceoff_pct
 CACHE: betting/data/stats_cache/hockey/ — 16+ team files
 ```
+
+---
+
+## Script Execution Rules
+
+### R17 + R19: LIVE MONITORING + STRUCTURED OUTPUT
+
+| Script | Command | Timeout | `AGENT_SUMMARY` |
+|--------|---------|---------|-----------------|
+| scan_events.py | `python3 scripts/scan_events.py --parallel-sport --date YYYY-MM-DD --verbose` | 600000 | YES |
+| html_deep_parser.py | `python3 scripts/html_deep_parser.py --date YYYY-MM-DD --verbose` | 300000 | YES |
+| ingest_scan_stats.py | `python3 scripts/ingest_scan_stats.py --date YYYY-MM-DD --verbose` | 120000 | YES |
+| build_shortlist.py | `python3 scripts/build_shortlist.py --date YYYY-MM-DD --stats-first --verbose` | 120000 | YES |
+| scan_health_report.py | `python3 scripts/scan_health_report.py --date YYYY-MM-DD` | 120000 | NO |
+
+**After EVERY script:** `mode=sync` with timeout above → read FULL output → parse `AGENT_SUMMARY:{json}` → `sequentialthinking` → verdict.
+
+### ⛔ BANNED TERMINAL PATTERNS
+
+- **NEVER** run `for` loops or batch loops in terminal
+- **NEVER** use `sleep`, `ps -p` polling, or idle waiting
+- **NEVER** chain scripts blindly with `&&`
+- **ALWAYS:** ONE command → READ output → THINK → NEXT command
 
 ---
 

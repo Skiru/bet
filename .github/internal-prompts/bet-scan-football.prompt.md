@@ -9,6 +9,8 @@ agent: bet-scanner-football
 
 # FOOTBALL SCAN — Fully Autonomous
 
+> **YOUR ANALYTICAL VALUE:** You don't just count football events. You assess STATISTICAL DATA DEPTH — how many events have corners, fouls, cards, shots data (the markets we actually bet) vs. just goals/results. A script can report "4200 football events". Only YOU can determine that only 180 have corner data from Totalcorner while the rest are shallow Flashscore fixture-only entries — meaning the S3 statistician will have data for <5% of football candidates.
+
 ## MANDATORY: Agent Intelligence Protocol
 
 > **⛔ Follow `agent-execution-protocol.instructions.md` for EVERY script execution.**

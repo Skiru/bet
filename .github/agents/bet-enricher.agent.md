@@ -84,9 +84,18 @@ You add an Enrichment Quality Assessment via sequential-thinking for each batch:
 
 ## Scripts
 
-- **MUST use:** `python3 scripts/data_enrichment_agent.py --date YYYY-MM-DD` — self-healing enrichment with thread-safe rate limiting (Flashscore: 2s, Sofascore: 3s, ESPN: 1s)
-- **Can also use:** `python3 scripts/fetch_api_stats.py --date YYYY-MM-DD` — API-based stats fetch as supplementary source
-- **Can also use:** `python3 scripts/data_enrichment_agent.py --date YYYY-MM-DD --sport tennis` — Tennis-specific deep enrichment
+- **MUST use:** `python3 scripts/data_enrichment_agent.py --date YYYY-MM-DD --verbose` — self-healing enrichment with thread-safe rate limiting (Flashscore: 2s, Sofascore: 3s, ESPN: 1s). `mode=sync`, timeout=600000. Parse `AGENT_SUMMARY:{json}` from output.
+- **Can also use:** `python3 scripts/fetch_api_stats.py --date YYYY-MM-DD` — API-based stats fetch as supplementary source. `mode=sync`, timeout=300000.
+- **Can also use:** `python3 scripts/data_enrichment_agent.py --date YYYY-MM-DD --sport tennis --verbose` — Tennis-specific deep enrichment. `mode=sync`, timeout=600000.
+
+**After EVERY script:** Read FULL output → extract metrics (yield %, per-sport breakdown, source success rates) → `sequentialthinking` → verdict.
+
+### ⛔ BANNED TERMINAL PATTERNS
+
+- **NEVER** run `for` loops or batch loops in terminal
+- **NEVER** use `sleep`, `ps -p` polling, or idle waiting
+- **NEVER** chain scripts blindly with `&&`
+- **ALWAYS:** ONE command → READ output → THINK → NEXT command
 
 ## Key Behaviors
 

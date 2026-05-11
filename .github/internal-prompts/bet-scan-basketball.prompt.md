@@ -9,6 +9,8 @@ agent: bet-scanner-basketball
 
 # BASKETBALL SCAN — Fully Autonomous
 
+> **YOUR ANALYTICAL VALUE:** You don't just count basketball events. You assess LEAGUE DEPTH — are we getting only NBA/Euroleague (razor-sharp lines, low edge) or also CBA, NBB, Liga ACB, BSL (weak bookmaker lines = real edge)? A script can say "427 basketball events". Only YOU can see that 400 are NBA and only 27 are minor leagues — yet those 27 are WHERE THE MONEY IS because bookmakers don't price them carefully.
+
 ## MANDATORY: Agent Intelligence Protocol
 
 > **⛔ Follow `agent-execution-protocol.instructions.md` for EVERY script execution.**
