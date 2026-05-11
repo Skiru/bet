@@ -59,20 +59,20 @@ def parse(html: str, url: str) -> List[Dict]:
             yc = home_td.find("span", class_=re.compile(r"yellow|card_y", re.I))
             if yc:
                 try: yellow_home = float(yc.get_text(strip=True))
-                except: pass
+                except (ValueError, TypeError, AttributeError): pass
             rc = home_td.find("span", class_=re.compile(r"red|card_r", re.I))
             if rc:
                 try: red_home = float(rc.get_text(strip=True))
-                except: pass
+                except (ValueError, TypeError, AttributeError): pass
         if away_td:
             yc = away_td.find("span", class_=re.compile(r"yellow|card_y", re.I))
             if yc:
                 try: yellow_away = float(yc.get_text(strip=True))
-                except: pass
+                except (ValueError, TypeError, AttributeError): pass
             rc = away_td.find("span", class_=re.compile(r"red|card_r", re.I))
             if rc:
                 try: red_away = float(rc.get_text(strip=True))
-                except: pass
+                except (ValueError, TypeError, AttributeError): pass
         
         cards = {"yellow_home": yellow_home, "yellow_away": yellow_away, "red_home": red_home, "red_away": red_away}
 

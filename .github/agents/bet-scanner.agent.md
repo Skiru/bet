@@ -95,7 +95,7 @@ You orchestrate 5 per-sport scanner agents (football, volleyball, basketball, te
 ### PHASE 1: PARALLEL SCAN — Launch all 5 sport scanners (Python threads)
 
 ```bash
-cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 scripts/scan_events.py --parallel-sport --date $(date +%Y-%m-%d) --verbose
+cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 scripts/scan_events.py --parallel-sport --date {YYYY-MM-DD} --verbose
 ```
 
 This runs all scanners in parallel Python threads (~5 min total). Each scanner:

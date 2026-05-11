@@ -29,77 +29,20 @@ You are the hockey scanning specialist. Execute this entire workflow without hum
 ## STEP 1: Execute Scanner
 
 ```bash
-cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 -c "
-from scripts.scanners.hockey_scanner import HockeyScanner
-from scripts.scanners.domain_semaphore import DomainSemaphoreMap
-from datetime import date
-scanner = HockeyScanner()
-stats = scanner.scan(str(date.today()), DomainSemaphoreMap())
-print(f'Hockey: {stats.events_found} events | {stats.sources_ok} OK | {stats.sources_failed} failed')
-print(f'Validation: {\"PASS\" if stats.validation_passed else \"FAIL\"}')
-if not stats.validation_passed:
-    print(f'  Gaps: {stats.gaps_description}')
-"
+python3 scripts/run_scanner.py --sport hockey --date {YYYY-MM-DD}
 ```
 
 ## STEP 2: Validate Results
 
 ```bash
-cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 -c "
-from bet.db.connection import get_db
-from datetime import date
-import json
-today = str(date.today())
-with get_db() as conn:
-    c = conn.execute('SELECT COUNT(*) FROM scan_results WHERE sport=\"hockey\" AND betting_date=?', (today,))
-    count = c.fetchone()[0]
-    print(f'Hockey events in DB: {count}')
-
-    # Check data depth — shots, PIM, hits
-    c = conn.execute('''SELECT raw_data FROM scan_results WHERE sport=\"hockey\" AND betting_date=? LIMIT 10''', (today,))
-    with_stats = 0
-    for row in c:
-        data = json.loads(row[0]) if row[0] else {}
-        if data.get('shots') or data.get('pim') or data.get('hits'):
-            with_stats += 1
-    print(f'Events with shots/pim/hits data: {with_stats}/10 sampled')
-
-    # League distribution
-    c = conn.execute('''SELECT json_extract(raw_data, \"$.competition\") as comp, COUNT(*) 
-        FROM scan_results WHERE sport=\"hockey\" AND betting_date=?
-        GROUP BY comp ORDER BY COUNT(*) DESC LIMIT 10''', (today,))
-    print('Leagues:')
-    for row in c:
-        print(f'  {row[0] or \"unknown\"}: {row[1]}')
-
-if count >= 10:
-    print('✅ PASS: Hockey ≥ 10 events')
-elif count >= 5:
-    print('⚠️ MARGINAL: 5-9 events (check if off-season or playoff round)')
-else:
-    print('❌ FAIL: < 5 events — check seasonality')
-"
+python3 scripts/verify_scan.py --sport hockey --date {YYYY-MM-DD}
 ```
 
 ## STEP 3: Self-Heal (only if FAIL)
 
 **If < 5 events:**
 ```bash
-cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 -c "
-# Retry with extended timeout
-from scripts.scanners.hockey_scanner import HockeyScanner
-from scripts.scanners.domain_semaphore import DomainSemaphoreMap
-from datetime import date
-scanner = HockeyScanner()
-scanner.timeout_per_page = 60
-stats = scanner.scan(str(date.today()), DomainSemaphoreMap())
-print(f'Retry: {stats.events_found} events')
-if stats.events_found < 5:
-    print('Still low — checking seasonality')
-    print('Hockey off-season: Jul-Sep (NHL/KHL/SHL/Liiga)')
-    print('If Oct-Jun: Should have NHL + at least 1 European league')
-    print('If playoff period: Fewer games but HIGH value (elimination games)')
-"
+python3 scripts/run_scanner.py --sport hockey --date {YYYY-MM-DD}
 ```
 
 **If ESPN hockey data missing:**

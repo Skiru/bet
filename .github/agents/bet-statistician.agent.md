@@ -137,15 +137,11 @@ FLAG manual computation in output: `⚠️ MANUAL_SAFETY: script failed, compute
 2. **Scan output for `data_quality: THIN`** — identify candidates with insufficient stats
 3. **Batch enrichment trigger:**
    ```bash
-   PYTHONPATH=src:. python3 -c "
-   from scripts.data_enrichment_agent import batch_enrich
-   teams = [{'team': 'TeamA', 'sport': 'football', 'missing': ['form']}, ...]
-   batch_enrich(teams, max_workers=4)
-   "
+   PYTHONPATH=src:. python3 scripts/data_enrichment_agent.py --date {YYYY-MM-DD} --candidates TeamA,TeamB --verbose
    ```
 4. **Re-run `deep_stats_report.py` for enriched candidates ONLY:**
    ```bash
-   python3 scripts/deep_stats_report.py --date {date} --candidates team1,team2
+   python3 scripts/deep_stats_report.py --date {YYYY-MM-DD} --candidates team1,team2
    ```
 5. **If batch_enrich fails** → DELEGATION REQUEST to orchestrator: `type: ENRICHMENT_NEEDED`
 

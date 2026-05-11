@@ -31,39 +31,7 @@ You are executing the S1 scan step. You MUST complete all 5 phases below without
 Run these BEFORE launching scanners. Fix any failures before proceeding.
 
 ```bash
-cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 -c "
-import sys
-# 1. Check Playwright browser available
-try:
-    from playwright.sync_api import sync_playwright
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        browser.close()
-    print('✅ Playwright browser OK')
-except Exception as e:
-    print(f'❌ Playwright FAILED: {e}')
-    print('FIX: python3 -m playwright install chromium')
-    sys.exit(1)
-
-# 2. Check DB accessible
-from bet.db.connection import get_db
-with get_db() as conn:
-    tables = [r[0] for r in conn.execute(\"SELECT name FROM sqlite_master WHERE type='table'\").fetchall()]
-    assert 'scan_results' in tables, 'Missing scan_results table — run: python3 scripts/init_database.py'
-    assert 'scan_run_stats' in tables, 'Missing scan_run_stats table'
-    print(f'✅ DB OK ({len(tables)} tables)')
-
-# 3. Check config loadable
-import json
-config = json.loads(open('config/scan_urls.json').read())
-assert 'sports' in config, 'scan_urls.json not in new format — expected sports key'
-print(f'✅ Config OK ({len(config[\"sports\"])} sport groups)')
-
-# 4. Check scanner modules importable
-from scripts.scanners import get_all_scanners
-scanners = get_all_scanners()
-print(f'✅ Scanners OK ({len(scanners)} registered)')
-"
+python3 scripts/validate_phase.py --date {YYYY-MM-DD} --phase pre-flight
 ```
 
 **If pre-flight fails:**
@@ -98,17 +66,7 @@ This launches all 5 scanners in parallel with independent timeouts:
 
 ```bash
 # Run each sport independently (use when parallel dispatch has issues)
-cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 -c "
-from scripts.scanners.football_scanner import FootballScanner
-from scripts.scanners.domain_semaphore import DomainSemaphoreMap
-from datetime import date
-sem = DomainSemaphoreMap()
-scanner = FootballScanner()
-stats = scanner.scan(str(date.today()), sem)
-print(f'Football: {stats.events_found} events, {stats.sources_ok} OK, {stats.sources_failed} failed')
-if not stats.validation_passed:
-    print(f'  GAPS: {stats.gaps_description}')
-"
+python3 scripts/run_scanner.py --sport football --date {YYYY-MM-DD}
 ```
 
 Repeat for each scanner class: `TennisScanner`, `BasketballScanner`, `VolleyballScanner`, `HockeyScanner`, `EsportsScanner`, `HandballScanner`, `CombatScanner`, `RacketScanner`, `NicheScanner`, `BaseballScanner`.
@@ -118,57 +76,7 @@ Repeat for each scanner class: `TennisScanner`, `BasketballScanner`, `Volleyball
 After scan completes, run validation:
 
 ```bash
-cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 -c "
-import json
-from datetime import date
-from pathlib import Path
-from bet.db.connection import get_db
-from bet.db.repositories import ScanResultRepo
-
-today = str(date.today())
-
-# Check DB results
-with get_db() as conn:
-    repo = ScanResultRepo(conn)
-    results = repo.get_all_by_date(today)
-    run_stats = repo.get_run_stats(today)
-
-print(f'=== SCAN VALIDATION for {today} ===')
-print(f'Total events in DB: {len(results)}')
-print(f'Scanner groups reported: {len(run_stats)}')
-print()
-
-# Per-sport breakdown
-from collections import Counter
-sports = Counter(r.sport for r in results)
-print('Per-sport event counts:')
-THRESHOLDS = {'football': 200, 'tennis': 30, 'basketball': 20, 'volleyball': 15,
-              'hockey': 10}
-gaps = []
-for sport, count in sorted(sports.items(), key=lambda x: -x[1]):
-    threshold = THRESHOLDS.get(sport, 1)
-    status = '✅' if count >= threshold else '❌'
-    print(f'  {status} {sport}: {count} (min: {threshold})')
-    if count < threshold:
-        gaps.append(sport)
-
-print()
-if gaps:
-    print(f'⚠️ GAPS FOUND in: {gaps}')
-    print('  → Proceed to PHASE 4 (self-healing)')
-else:
-    print('✅ All sports meet minimum thresholds')
-    print('  → Skip to PHASE 5 (merge + enrichment)')
-
-# Check scan_summary.json also exists (backward compat)
-summary_path = Path('betting/data/scan_summary.json')
-if summary_path.exists():
-    d = json.loads(summary_path.read_text())
-    total = sum(len(v) for v in d.values() if isinstance(v, list))
-    print(f'\nscan_summary.json: {total} events across {len(d)} URL keys')
-else:
-    print('\n⚠️ scan_summary.json not found — will be created by merge step')
-"
+python3 scripts/verify_scan.py --sport all --date {YYYY-MM-DD}
 ```
 
 **Validation Gates:**
@@ -187,16 +95,7 @@ For each sport below threshold, retry with targeted approach:
 
 ```bash
 # Retry a specific sport scanner independently
-cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 -c "
-from scripts.scanners.SPORT_scanner import SPORTScanner  # Replace SPORT
-from scripts.scanners.domain_semaphore import DomainSemaphoreMap
-from datetime import date
-scanner = SPORTScanner()
-# Try with extended timeout
-scanner._timeout_override = 90  # double the per-page timeout
-stats = scanner.scan(str(date.today()), DomainSemaphoreMap())
-print(f'Retry result: {stats.events_found} events')
-"
+python3 scripts/run_scanner.py --sport SPORT --date {YYYY-MM-DD}
 ```
 
 **Common fixes by sport:**
@@ -221,35 +120,27 @@ After scan is validated (or gaps are documented), run the full enrichment chain:
 ```bash
 cd /Users/mkoziol/projects/bet && PYTHONPATH=src:.
 
-# 5a. Merge scan results into unified format
-python3 -c "
-from scripts.scanners.merge_results import merge_scan_results
-from datetime import date
-path = merge_scan_results(str(date.today()))
-print(f'Merged to: {path}')
-"
+# 5a. Merge scan results — use ingest_scan_stats which handles merge internally
+python3 scripts/ingest_scan_stats.py --verbose
 
-# 5b. Ingest scan data into stats cache
-python3 scripts/ingest_scan_stats.py
+# 5b. Discover fixtures via APIs (run sequentially — R17: no background jobs)
+python3 scripts/discover_fixtures.py --date {YYYY-MM-DD}
+python3 scripts/fetch_api_stats.py --date {YYYY-MM-DD}
 
-# 5c. Discover fixtures via APIs (run sequentially — R17: no background jobs)
-python3 scripts/discover_fixtures.py --date $(date +%Y-%m-%d)
-python3 scripts/fetch_api_stats.py --date $(date +%Y-%m-%d)
-
-# 5d. Fetch odds from multiple sources
+# 5c. Fetch odds from multiple sources
 python3 scripts/fetch_odds_multi.py
 
-# 5e. Fetch weather for outdoor sports
-python3 scripts/fetch_weather.py --date $(date +%Y-%m-%d)
+# 5d. Fetch weather for outdoor sports
+python3 scripts/fetch_weather.py --date {YYYY-MM-DD}
 
-# 5f. Aggregate all data (handled by build_shortlist.py)
-python3 scripts/build_shortlist.py --date $(date +%Y-%m-%d) --stats-first
+# 5e. Aggregate all data (handled by build_shortlist.py)
+python3 scripts/build_shortlist.py --date {YYYY-MM-DD} --stats-first
 
-# 5g. Generate market matrix (STATS-FIRST mode)
-python3 scripts/generate_market_matrix.py --date $(date +%Y-%m-%d) --stats-first
+# 5f. Generate market matrix (STATS-FIRST mode)
+python3 scripts/generate_market_matrix.py --date {YYYY-MM-DD} --stats-first
 
-# 5h. Build ranked shortlist
-python3 scripts/build_shortlist.py --date $(date +%Y-%m-%d) --stats-first
+# 5g. Build ranked shortlist
+python3 scripts/build_shortlist.py --date {YYYY-MM-DD} --stats-first
 ```
 
 **If any enrichment step fails:** Continue with remaining steps. Non-scan enrichment failures are non-blocking — the pipeline operates in STATS-FIRST mode where odds are optional.
@@ -257,52 +148,18 @@ python3 scripts/build_shortlist.py --date $(date +%Y-%m-%d) --stats-first
 ## PHASE 5 FINAL VALIDATION
 
 ```bash
-cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 -c "
-import json, os
-from datetime import date
-from pathlib import Path
-
-today = str(date.today())
-print(f'=== FINAL SCAN VALIDATION for {today} ===')
-
-# Check all expected outputs exist
-outputs = {
-    'scan_summary.json': Path('betting/data/scan_summary.json'),
-    'shortlist': Path(f'betting/data/{today}_s2_shortlist.json'),
-    'market_matrix': Path(f'betting/data/market_matrix_{today}.json'),
-    'decision_matrix': Path(f'betting/data/decision_matrix_{today}.md'),
-}
-
-all_ok = True
-for name, path in outputs.items():
-    if path.exists():
-        size = path.stat().st_size
-        print(f'  ✅ {name}: {size:,} bytes')
-    else:
-        print(f'  ❌ {name}: NOT FOUND')
-        all_ok = False
-
-# Check shortlist quality
-sl_path = outputs['shortlist']
-if sl_path.exists():
-    sl = json.loads(sl_path.read_text())
-    events = sl if isinstance(sl, list) else sl.get('events', sl.get('shortlist', []))
-    from collections import Counter
-    sports = Counter(e.get('sport', 'unknown') for e in events)
-    print(f'\n  Shortlist: {len(events)} events across {len(sports)} sports')
-    for s, c in sports.most_common():
-        print(f'    {s}: {c}')
-    if len(events) < 50:
-        print(f'  ⚠️ Only {len(events)} events (target 50-100)')
-    if len(sports) < 3:
-        print(f'  ⚠️ Only {len(sports)} sports (sport diversity is informational per R4)')
-
-if all_ok:
-    print(f'\n✅ SCAN COMPLETE — ready for S3 deep analysis')
-else:
-    print(f'\n⚠️ Some outputs missing — check errors above')
-"
+cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 scripts/validate_phase.py --date {YYYY-MM-DD} --phase data
 ```
+
+Also verify with `verify_scan.py`:
+```bash
+cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 scripts/verify_scan.py --sport all --date {YYYY-MM-DD}
+```
+
+Use `read_file` tool to inspect key outputs:
+- `betting/data/{YYYY-MM-DD}_s2_shortlist.json` — check event count, sport diversity
+- `betting/data/market_matrix_{YYYY-MM-DD}.json` — check artifact exists
+- `betting/data/scan_summary.json` — overall scan health
 
 ## TROUBLESHOOTING REFERENCE
 

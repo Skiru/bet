@@ -78,127 +78,13 @@ Volleyball is a Tier 1 KEY sport with a CRITICAL data gap — zero stats cache f
 ### Step 1: Execute Scanner (Fresh Scan Mode Only)
 
 ```bash
-cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 -c "
-from scripts.scanners.volleyball_scanner import VolleyballScanner
-from scripts.scanners.domain_semaphore import DomainSemaphoreMap
-from datetime import date
-scanner = VolleyballScanner()
-stats = scanner.scan(str(date.today()), DomainSemaphoreMap())
-print(f'Volleyball: {stats.events_found} events | {stats.sources_ok} OK | {stats.sources_failed} failed')
-print(f'Validation: {\"PASS\" if stats.validation_passed else \"FAIL\"}')
-if not stats.validation_passed:
-    print(f'  Gaps: {stats.gaps_description}')
-"
+cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 scripts/run_scanner.py --sport volleyball --date {YYYY-MM-DD}
 ```
 
 ### Step 2: Verify Scan Results
 
 ```bash
-cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 -c "
-from bet.db.connection import get_db
-from datetime import date, datetime, timedelta
-import json
-today = str(date.today())
-sport = 'volleyball'
-MIN_EVENTS = 15
-MIN_EVENTS_MARGINAL = 5
-try:
-  with get_db() as conn:
-    # --- Event count ---
-    c = conn.execute('SELECT COUNT(*) FROM scan_results WHERE sport=? AND betting_date=?', (sport, today))
-    count = c.fetchone()[0]
-    print(f'{sport} events: {count}')
-    if count == 0:
-        print('VERDICT: FAIL — scan produced 0 events')
-        raise SystemExit(0)
-
-    # --- CHECK 1: Phantom detection (past kickoff) ---
-    cutoff_iso = (datetime.utcnow() - timedelta(hours=2)).strftime('%Y-%m-%dT%H:%M')
-    cutoff_time = (datetime.utcnow() - timedelta(hours=2)).strftime('%H:%M')
-    c = conn.execute('''SELECT COUNT(*) FROM scan_results
-        WHERE sport=? AND betting_date=? AND kickoff != ''
-        AND ((length(kickoff) <= 5 AND kickoff < ?) OR (length(kickoff) > 5 AND kickoff < ?))''',
-        (sport, today, cutoff_time, cutoff_iso))
-    phantoms = c.fetchone()[0]
-    print(f'Phantoms (kickoff >2h ago): {phantoms}')
-
-    # --- CHECK 2: Duplicate event_keys within same source ---
-    c = conn.execute('''SELECT source_domain, event_key, COUNT(*) as cnt FROM scan_results
-        WHERE sport=? AND betting_date=? GROUP BY source_domain, event_key HAVING cnt > 1''', (sport, today))
-    dupes = c.fetchall()
-    print(f'Duplicate event_keys: {len(dupes)}')
-
-    # --- CHECK 3: Data completeness ---
-    c = conn.execute('''SELECT
-        COALESCE(SUM(CASE WHEN home_team IS NULL OR home_team='' THEN 1 ELSE 0 END), 0),
-        COALESCE(SUM(CASE WHEN away_team IS NULL OR away_team='' THEN 1 ELSE 0 END), 0),
-        COALESCE(SUM(CASE WHEN competition IS NULL OR competition='' THEN 1 ELSE 0 END), 0),
-        COALESCE(SUM(CASE WHEN kickoff IS NULL OR kickoff='' THEN 1 ELSE 0 END), 0),
-        COUNT(*)
-        FROM scan_results WHERE sport=? AND betting_date=?''', (sport, today))
-    no_home, no_away, no_comp, no_ko, total = c.fetchone()
-    completeness = round((1 - max(no_home, no_away, no_comp, no_ko) / max(total, 1)) * 100, 1)
-    print(f'Completeness: {completeness}% (missing: home={no_home}, away={no_away}, comp={no_comp}, kickoff={no_ko})')
-
-    # --- CHECK 4: League coverage vs yesterday ---
-    c = conn.execute(\"SELECT DISTINCT competition FROM scan_results WHERE sport=? AND betting_date=? AND competition != ''\", (sport, today))
-    today_leagues = set(r[0] for r in c)
-    yesterday = str(date.today() - timedelta(days=1))
-    c = conn.execute(\"SELECT DISTINCT competition FROM scan_results WHERE sport=? AND betting_date=? AND competition != ''\", (sport, yesterday))
-    yest_leagues = set(r[0] for r in c)
-    missing = yest_leagues - today_leagues
-    print(f'Leagues today: {len(today_leagues)} | Yesterday: {len(yest_leagues)} | Missing: {len(missing)}')
-    if missing:
-        print(f'  Missing leagues: {list(missing)[:5]}')
-
-    # --- CHECK 5: Cross-source coverage ---
-    c = conn.execute('''SELECT event_key, COUNT(DISTINCT source_domain) as src_cnt FROM scan_results
-        WHERE sport=? AND betting_date=? GROUP BY event_key HAVING src_cnt >= 2''', (sport, today))
-    multi = len(c.fetchall())
-    print(f'Events from 2+ sources: {multi}/{count} ({round(multi*100/max(count,1),1)}%)')
-
-    # --- CHECK 6: Source health ---
-    c = conn.execute('''SELECT source_name, consecutive_failures, total_requests, total_failures
-        FROM source_health WHERE consecutive_failures > 3 ORDER BY consecutive_failures DESC LIMIT 5''')
-    degraded = c.fetchall()
-    if degraded:
-        print(f'Degraded sources ({len(degraded)}):')
-        for s in degraded:
-            print(f'  {s[0]}: {s[1]} consecutive failures ({s[3]}/{s[2]} total)')
-    else:
-        print('All sources healthy')
-
-    # Volleyball: check for stat keys in raw_data (sparse — known API gap)
-    c = conn.execute('SELECT raw_data FROM scan_results WHERE sport=? AND betting_date=? AND raw_data IS NOT NULL LIMIT 20', (sport, today))
-    stat_keys_found = set()
-    for row in c:
-        try:
-            data = json.loads(row[0]) if row[0] else {}
-        except (json.JSONDecodeError, TypeError):
-            data = {}
-        stat_keys_found.update(data.get('stat_keys', []))
-    required = {'points', 'sets', 'blocks', 'aces'}
-    found = required & stat_keys_found
-    print(f'Stat keys: {len(found)}/{len(required)} required ({found or \"NONE — known API quota gap\"})')
-
-    # --- VERDICT ---
-    issues = []
-    if count < MIN_EVENTS_MARGINAL: issues.append(f'only {count} events (need ≥{MIN_EVENTS_MARGINAL})')
-    if phantoms > 5: issues.append(f'{phantoms} phantom fixtures')
-    if dupes: issues.append(f'{len(dupes)} duplicate event_keys')
-    if completeness < 80: issues.append(f'completeness {completeness}%')
-    if len(missing) > 3: issues.append(f'{len(missing)} leagues missing vs yesterday')
-
-    if count >= MIN_EVENTS and not issues:
-        print('VERDICT: PASS')
-    elif count >= MIN_EVENTS_MARGINAL and len(issues) <= 1:
-        print(f'VERDICT: MARGINAL — {issues}')
-    else:
-        print(f'VERDICT: FAIL — {issues}')
-except Exception as e:
-    print(f'ERROR running verification: {e}')
-    print('VERDICT: FAIL — DB error (table missing or connection issue)')
-"
+cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 scripts/verify_scan.py --sport volleyball --date {YYYY-MM-DD}
 ```
 
 **Interpret with `sequentialthinking`:**
@@ -213,7 +99,7 @@ except Exception as e:
 Extract deep stats from saved HTML snapshots:
 
 ```bash
-cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 scripts/html_deep_parser.py --date $(date +%Y-%m-%d) --domains flashscore.com,forebet.com --report
+cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 scripts/html_deep_parser.py --date {YYYY-MM-DD} --domains flashscore.com,forebet.com --report
 ```
 
 **Key data:** Flashscore match IDs and scores. Forebet avg_stat (avg sets/points). See `bet-reading-html` skill.
@@ -222,21 +108,13 @@ cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 scripts/html_deep_par
 
 **If 0 events during season (Oct-May):**
 ```bash
-cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 -c "
-from scripts.scanners.volleyball_scanner import VolleyballScanner
-from scripts.scanners.domain_semaphore import DomainSemaphoreMap
-from datetime import date
-scanner = VolleyballScanner()
-scanner.timeout_per_page = 60
-stats = scanner.scan(str(date.today()), DomainSemaphoreMap())
-print(f'Retry: {stats.events_found} events')
-"
+cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 scripts/run_scanner.py --sport volleyball --date {YYYY-MM-DD} --timeout 60
 ```
 
 **Stats cache empty (KNOWN CRITICAL GAP):**
 ```bash
 # Try dedicated volleyball enrichment BEFORE other sports consume quota
-cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 scripts/fetch_api_stats.py --date $(date +%Y-%m-%d) --sports volleyball
+cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 scripts/fetch_api_stats.py --date {YYYY-MM-DD} --sports volleyball
 ```
 
 If API-Sports quota exhausted:

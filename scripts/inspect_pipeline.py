@@ -42,20 +42,13 @@ def _get_db():
     """Get DB context manager, returns None on import/connection failure."""
     try:
         from bet.db.connection import get_db
+        # Return the context manager directly — callers use `with _get_db() as conn:`
+        # Test that it can be entered by doing a quick probe
         ctx = get_db()
-        # Eagerly test connection by entering context, then return a wrapper
         conn = ctx.__enter__()
-        # Return a simple context manager that yields the already-open connection
-        from contextlib import contextmanager
-
-        @contextmanager
-        def _wrap():
-            try:
-                yield conn
-            finally:
-                ctx.__exit__(None, None, None)
-
-        return _wrap()
+        # Connection works — close it and return a fresh context
+        ctx.__exit__(None, None, None)
+        return get_db()
     except Exception as e:
         print(f"[inspect] ⚠ DB unavailable: {e}", file=sys.stderr)
         return None
@@ -261,7 +254,7 @@ def inspect_s1e(date: str, out: AgentOutput) -> dict:
     # Top 5 candidates
     metrics["top_5"] = [
         {
-            "event": f"{e.get('home_team', '?')} vs {e.get('away_team', '?')}",
+            "event": f"{e.get('home_team') or e.get('home', '?')} vs {e.get('away_team') or e.get('away', '?')}",
             "sport": e.get("sport", "?"),
             "competition": e.get("competition", "?"),
         }
@@ -291,8 +284,8 @@ def inspect_s2(date: str, out: AgentOutput) -> dict:
         for c in candidates:
             ev = c[1] if isinstance(c, (list, tuple)) and len(c) >= 2 else c
             if isinstance(ev, dict):
-                shortlist_teams.add(ev.get("home_team", ""))
-                shortlist_teams.add(ev.get("away_team", ""))
+                shortlist_teams.add(ev.get("home_team") or ev.get("home", ""))
+                shortlist_teams.add(ev.get("away_team") or ev.get("away", ""))
         shortlist_teams.discard("")
     metrics["shortlist_teams_count"] = len(shortlist_teams)
 

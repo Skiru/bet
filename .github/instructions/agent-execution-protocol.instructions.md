@@ -4,6 +4,37 @@ applyTo: ".github/agents/bet-*.agent.md"
 
 # Agent Execution Protocol v5
 
+## ⛔ FISH SHELL — ABSOLUTE TERMINAL RULES (VIOLATION = PIPELINE FAILURE)
+
+This project uses **fish shell** (NOT bash/zsh). The following are **ABSOLUTELY FORBIDDEN** and WILL HANG/GARBLE:
+
+### 🚫 NEVER DO (INSTANT FAILURE):
+
+1. **`python3 -c "..."`** — ANY inline Python in terminal. Multi-line = GARBLES. Single-line with quotes = GARBLES. **ZERO EXCEPTIONS.** This has caused DOZENS of pipeline failures. The terminal output becomes gibberish and the command hangs indefinitely.
+2. **`for f in ...; do ...; done`** — bash loop syntax. INVALID in fish.
+3. **`while ...; do ...; done`** — bash loop syntax. INVALID in fish.
+4. **`$(command)`** — bash command substitution. Use explicit values (e.g., `2026-05-11` not `$(date +%Y-%m-%d)`).
+5. **Heredocs (`<< EOF`)** — Not supported in fish.
+6. **`[[ ]]` conditionals** — bash-only. Fish uses `test` or `[ ]`.
+
+### ✅ ALWAYS DO INSTEAD:
+
+| Need | Solution |
+|------|----------|
+| Run a scanner | `python3 scripts/run_scanner.py --sport football --date 2026-05-11` |
+| Verify scan results | `python3 scripts/verify_scan.py --sport football --date 2026-05-11` |
+| Check DB state | `python3 scripts/db_report.py --report quality` |
+| Check scan data | `python3 scripts/db_report.py --report scan --date 2026-05-11` |
+| Check source health | `python3 scripts/db_report.py --report source-health` |
+| Validate pipeline | `python3 scripts/validate_phase.py --date 2026-05-11 --phase data` |
+| Deep parse HTML | `python3 scripts/html_deep_parser.py --date 2026-05-11 --domains X,Y --report` |
+| Any other logic | Create a `.py` file in `scripts/`, run it, then delete if temporary |
+| Read data files | Use `read_file` tool (instant, no terminal needed) |
+
+**WHY:** Fish shell handles multi-line strings and nested quotes differently from bash. Every `python3 -c "..."` attempt gets split into fragments by fish's parser, producing garbage output like `")` repeated hundreds of times, or hanging indefinitely. This is NOT fixable with escaping — it's a fundamental incompatibility.
+
+---
+
 ## THE ONE RULE
 
 > **If your response could be produced by piping terminal output to a file, you have FAILED.**
@@ -46,7 +77,7 @@ applyTo: ".github/agents/bet-*.agent.md"
 
 ---
 
-## The 5-Step Cycle (EVERY script execution, no exceptions)
+## The 4-Step Cycle (EVERY script execution, no exceptions)
 
 ### 1. RUN — Launch with `--verbose`, choose execution mode
 
@@ -88,8 +119,6 @@ Then call `get_terminal_output(id)` to check if the script is done:
 | bet-scout | `tipster_aggregator.py` (5 min) | Read scan results, check pre-fetched HTML, identify tipster coverage gaps |
 | bet-builder | `coupon_builder.py` (5 min) | Review gate results, check bankroll config, prepare portfolio intelligence |
 
-> **Concrete SQL queries and file reads per agent:** See `THINK_WHILE_WAITING_QUERIES` in `scripts/agent_protocol.py` for exact queries with `{date}` placeholders.
-
 #### ⛔ BAD vs ✅ GOOD Async Pattern
 
 ```
@@ -111,15 +140,6 @@ get_terminal_output(terminal_id)  # read results → EXTRACT → THINK → RETUR
 ### 2. EXTRACT — Pull specific numbers
 
 From the output, extract: total count, success/fail rates, per-category breakdown, error patterns, data quality signals. If you can't cite at least 3 specific numbers, you didn't read the output.
-
-### 2b. VALIDATE — Check output structure (V5)
-
-After extracting numbers, validate the script output structure:
-1. **AGENT_SUMMARY check:** `validate_summary()` auto-runs inside every script's `summary()` call (V5). If the AGENT_SUMMARY line is malformed or missing, flag it.
-2. **Input contract for NEXT step:** Before running the next script, call `AgentOutput.validate_input_contract(step_id, date)` or use `python3 scripts/inspect_pipeline.py --step {next_step} --date {date}` to verify the data handoff.
-3. **Reaction check:** If validation warnings exist, consult `REACTION_PATTERNS` in `agent_protocol.py` for recovery guidance.
-
-Validation is **ADVISORY** — it adds warnings, never blocks the pipeline. The scripts themselves handle hard failures (exit codes, sys.exit).
 
 ### 3. THINK — `sequentialthinking` is MANDATORY
 
@@ -196,26 +216,6 @@ data and 15 with partial. Hockey candidates need extra caution in safety scores.
 
 ---
 
-## Reaction Patterns (V5)
-
-When a script produces unexpected results, consult `REACTION_PATTERNS` in `scripts/agent_protocol.py` for structured recovery guidance:
-
-| Trigger | Severity | Action |
-|---------|----------|--------|
-| Empty output (0 events) | HIGH | Retry with alt source, check `source_health` DB table |
-| Yield < 40% | MEDIUM | Trigger L3-L6 fallback enrichment for failed items |
-| Missing sport in results | HIGH | Re-scan that sport: `--sport {sport}` |
-| Exit code 2 | CRITICAL | STOP pipeline, escalate to user immediately |
-| No AGENT_SUMMARY line | HIGH | Script crashed — check exit code and last 50 lines |
-| >50% MINIMAL quality | HIGH | Spawn `web_research_agent.py` (L7) for data gaps |
-| Odds drift >8% | MEDIUM | Mandatory EV re-evaluation with new odds |
-| DB connection failure | CRITICAL | Check `betting.db` exists, fall back to JSON |
-| Timeout exceeded | MEDIUM | `get_terminal_output` to check progress, wait or kill+retry |
-
-**Pipeline inspector:** Use `python3 scripts/inspect_pipeline.py --step {step} --date {date}` for quick state checks instead of complex inline Python.
-
----
-
 ## Anti-Patterns (doing ANY = pipeline failure)
 
 | # | Pattern | Fix |
@@ -246,36 +246,46 @@ These patterns are **ABSOLUTELY FORBIDDEN**. Violation = pipeline failure.
 
 ### ❌ NEVER DO:
 ```bash
+# ANY inline python — GARBLES in fish shell, HANGS terminal
+python3 -c "anything"
+python3 -c 'anything'
+PYTHONPATH=src python3 -c "anything"
+
 # Batch loops — user CANNOT tell if hung or running
 for f in betting/data/*.json; do python3 scripts/process.py "$f"; done
 
 # Sleep/poll loops — wasted time, no analysis
 while ps -p $PID > /dev/null; do sleep 5; done
 
+# Bash command substitution — INVALID in fish
+python3 scripts/X.py --date $(date +%Y-%m-%d)
+
 # Fire-and-forget async — launch then IGNORE output
 run_in_terminal(mode=async)  # then never check output or think
 
-# Blocking sync for long scripts — agent sits idle 10 min doing NOTHING
-run_in_terminal(mode=sync, timeout=600000)  # brain-dead waiting
-
 # Multiple scripts chained blindly
 python3 scripts/A.py && python3 scripts/B.py && python3 scripts/C.py
-
-# Complex inline Python with nested quotes — GARBLES in terminal
-python3 -c "d = json.load(open('file.json')); print(f'{d[\"key\"]}')"  # quoting hell
 ```
 
 ### ✅ INSTEAD DO:
 ```
 FOR DATA INSPECTION (R2 = DB-FIRST):
-→ BEST: Delegate to bet-db-analyst (full DB access, complex queries)
-→ GOOD: Run simple query script (python3 scripts/db_data_loader.py helpers)
-→ FALLBACK: read_file on JSON output files — instant, no quoting issues
-→ NEVER: python3 -c with inline SQL/JSON parsing in terminal
+→ BEST: python3 scripts/db_report.py --report quality|gaps|scan|source-health
+→ GOOD: Delegate to bet-db-analyst (complex queries)
+→ GOOD: read_file on JSON output files — instant, no quoting issues
+→ NEVER: python3 -c with inline SQL/JSON parsing
 
-FOR RUNNING SCRIPTS:
-→ Use the script's CLI (python3 scripts/X.py --args)
-→ NEVER write inline Python in terminal to analyze script output
+FOR RUNNING SCANNERS:
+→ python3 scripts/run_scanner.py --sport {sport} --date {YYYY-MM-DD}
+→ NEVER: python3 -c "from scripts.scanners..."
+
+FOR VERIFYING SCANS:
+→ python3 scripts/verify_scan.py --sport {sport} --date {YYYY-MM-DD}
+→ NEVER: python3 -c "from bet.db.connection..."
+
+FOR DATES:
+→ Always use explicit date: --date 2026-05-11
+→ NEVER: $(date +%Y-%m-%d) or `date +%Y-%m-%d`
 
 FOR FAST SCRIPTS (≤120s):
 1. Run script: mode=sync, timeout=120000, --verbose
@@ -299,8 +309,6 @@ FOR MEDIUM/LONG SCRIPTS (≥300s):
 Before running script B after script A: verify A's output keys/tables match B's input expectations.
 READ producer code → READ consumer code → COMPARE keys → VERIFY with actual data → FIX mismatches before running.
 
-**V5 programmatic enforcement:** `DATA_FLOW_CONTRACTS` in `scripts/agent_protocol.py` defines expected inputs/outputs per step. Scripts auto-validate via `AgentOutput.validate_input_contract()` at startup (warning-only). Use `python3 scripts/inspect_pipeline.py --step {step} --date {date}` for quick data flow checks.
-
 **Real example of what goes wrong:** `tipster_aggregator.py` saved picks under `"all_picks"` → `tipster_xref.py` read `"tips"` → got 0 matches → pipeline ran for DAYS with zero tipster data. Nobody noticed because nobody READ THE CODE.
 
 After every script: verify output file exists, check DB row counts, spot-check for garbage entries.
@@ -316,4 +324,4 @@ After every script: verify output file exists, check DB row counts, spot-check f
 5. **Before connecting scripts**, verify data format compatibility — you are the integration layer.
 6. **TEST: Read your response. Remove all numbers and metrics. Is anything left? If not, you just reformatted the output — you didn't analyze it.**
 
-<!-- BET:instruction:agent-execution-protocol:v5 -->
+<!-- BET:instruction:agent-execution-protocol:v3 -->

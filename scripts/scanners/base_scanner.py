@@ -292,6 +292,9 @@ class BaseSportScanner(ABC):
                 if not event_key or event_key == "||":
                     continue
                 normalized = normalize_adapter_output(event, source_type=domain)
+                # Use normalized fields — normalizer handles legacy field mapping
+                norm_home = normalized.get("home") or home
+                norm_away = normalized.get("away") or away
                 # Check both "league" and "competition" keys (adapters use both)
                 competition = (
                     normalized.get("league", "")
@@ -305,8 +308,8 @@ class BaseSportScanner(ABC):
                         sport=normalized.get("sport") or event.get("sport", self.sport_name),
                         source_domain=domain,
                         event_key=event_key,
-                        home_team=home,
-                        away_team=away,
+                        home_team=norm_home,
+                        away_team=norm_away,
                         competition=competition,
                         kickoff=event.get("time", ""),
                         raw_data=normalized,

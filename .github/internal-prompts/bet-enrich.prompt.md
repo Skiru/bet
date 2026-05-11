@@ -145,12 +145,7 @@ When multiple sources provide data for the same team:
 ### 3. Completeness Verification
 Run a quick DB check after enrichment:
 ```bash
-PYTHONPATH=src python3 -c "
-from bet.db.connection import get_db
-with get_db() as conn:
-    r = conn.execute('SELECT sport_id, COUNT(DISTINCT team_id), COUNT(*) FROM team_form GROUP BY sport_id').fetchall()
-    for row in r: print(f'  Sport {row[0]}: {row[1]} teams, {row[2]} form entries')
-"
+python3 scripts/db_report.py --report quality
 ```
 Compare team counts with shortlist candidate counts. If teams are missing from DB → enrichment didn't write to DB.
 

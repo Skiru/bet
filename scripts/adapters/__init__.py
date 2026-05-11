@@ -3,6 +3,9 @@
 This module exposes a domain -> parser mapping. Each adapter must provide
 `parse(html: str, url: str) -> List[Dict]`.
 """
+import copy
+import sys
+
 from .raw_adapter import parse as raw_parse
 from .flashscore_adapter import parse as flashscore_parse
 from .sofascore_adapter import parse as sofascore_parse
@@ -85,6 +88,12 @@ ENRICHED_EVENT_DEFAULTS = {
     "source_type": None,
     "match_id": None,
     "match_url": None,
+    "score_home": None,
+    "score_away": None,
+    "period_scores": None,
+    "status": None,
+    "is_live": False,
+    "country": None,
     "predictions": {
         "prob_home": None,
         "prob_draw": None,
@@ -115,9 +124,9 @@ ENRICHED_EVENT_DEFAULTS = {
 
 def normalize_adapter_output(event: dict, source_type: str) -> dict:
     """Normalize event structure mapping legacy fields to standard schema."""
-    import copy
     try:
-        normalized = {k: copy.deepcopy(v) for k, v in ENRICHED_EVENT_DEFAULTS.items()}
+        normalized = {k: (copy.copy(v) if isinstance(v, (dict, list)) else v)
+                      for k, v in ENRICHED_EVENT_DEFAULTS.items()}
         normalized["source_type"] = source_type
         
         # Legacy mapping
@@ -137,9 +146,10 @@ def normalize_adapter_output(event: dict, source_type: str) -> dict:
             
         predictions = normalized["predictions"]
         if "forebet_probs" in event:
-            predictions["prob_home"] = event["forebet_probs"].get("1")
-            predictions["prob_draw"] = event["forebet_probs"].get("X")
-            predictions["prob_away"] = event["forebet_probs"].get("2")
+            fp = event["forebet_probs"]
+            predictions["prob_home"] = fp.get("home") or fp.get("1")
+            predictions["prob_draw"] = fp.get("draw") or fp.get("X")
+            predictions["prob_away"] = fp.get("away") or fp.get("2")
         if "forebet_prediction" in event:
             predictions["predicted_winner"] = event["forebet_prediction"]
         if "forebet_score" in event:
@@ -185,10 +195,17 @@ def normalize_adapter_output(event: dict, source_type: str) -> dict:
         if "detail_url" in event:
             normalized["match_url"] = event["detail_url"]
             
-        # Copy direct standard fields
-        for field in ["home", "away", "time", "sport", "league", "source_url", "match_id", "match_url", "form_home", "form_away", "h2h", "cards", "fouls", "shots"]:
-            if field in event:
+        # Copy direct standard fields (only if present and non-None — don't overwrite with empty)
+        for field in ["home", "away", "time", "sport", "league", "source_url", "match_id", "match_url", 
+                      "form_home", "form_away", "h2h", "cards", "fouls", "shots",
+                      "score_home", "score_away", "period_scores", "status", "is_live", "country"]:
+            if field in event and event[field] is not None:
                 normalized[field] = event[field]
+        # Merge predictions dict if adapter provides it
+        if "predictions" in event and isinstance(event["predictions"], dict):
+            for k, v in event["predictions"].items():
+                if v is not None:
+                    normalized["predictions"][k] = v
         if "corners" in event and isinstance(event["corners"], dict):
             normalized["corners"].update(event["corners"])
             
@@ -197,7 +214,8 @@ def normalize_adapter_output(event: dict, source_type: str) -> dict:
         
         return normalized
     except Exception as e:
-        # Fallback to empty if crashes
+        # Fallback to raw event — log so pipeline agent sees normalization failures
+        print(f"[normalize] failed for {event.get('home', '?')} vs {event.get('away', '?')}: {e}", file=sys.stderr)
         return event
 
 def normalize_batch(events: list[dict], source_type: str) -> list[dict]:

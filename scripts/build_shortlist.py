@@ -793,7 +793,7 @@ def main():
 
     date = args.date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
     if not re.match(r"^\d{4}-\d{2}-\d{2}$", date):
-        out.error("invalid_date", f"Invalid date format '{date}'. Use YYYY-MM-DD.")
+        out.error(f"Invalid date format '{date}'. Use YYYY-MM-DD.")
         out.summary(verdict="FAILED", metrics={"error": "invalid_date"})
         sys.exit(2)
 

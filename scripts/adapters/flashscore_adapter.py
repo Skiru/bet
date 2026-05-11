@@ -118,6 +118,7 @@ def _heuristic0_event_classes(soup: BeautifulSoup, url: str) -> List[Dict]:
     """
     results = []
     current_league = ""
+    current_country = None
     url_league = _competition_from_url(url)
 
     # Regex for home/away participant elements — handles two known class patterns:
@@ -125,12 +126,13 @@ def _heuristic0_event_classes(soup: BeautifulSoup, url: str) -> List[Dict]:
     # Older/test format: "event__participant--home", "event__participant--away"
     _HOME_RE = re.compile(r"homeParticipant|participant--home", re.I)
     _AWAY_RE = re.compile(r"awayParticipant|participant--away", re.I)
+    _HEADER_LEAGUE_RE = re.compile(r"headerLeague", re.I)
 
     # Build ordered list of headers and match containers
     all_elements = soup.find_all(
         True,
         class_=lambda c: c and re.search(
-            r"event__header|event__title|event__match|league-header|tournament-header",
+            r"event__header|event__title|event__match|league-header|tournament-header|headerLeague",
             " ".join(c) if isinstance(c, (list, tuple)) else c,
             re.I,
         ),
@@ -142,7 +144,17 @@ def _heuristic0_event_classes(soup: BeautifulSoup, url: str) -> List[Dict]:
     for el in all_elements:
         classes_str = " ".join(el.get("class", []))
 
-        # Detect header — update league context
+        # Detect new headerLeague container
+        if _HEADER_LEAGUE_RE.search(classes_str):
+            country_el = el.find(True, class_=lambda c: c and "headerLeague__category-text" in (" ".join(c) if isinstance(c, (list, tuple)) else c))
+            title_el = el.find(True, class_=lambda c: c and "headerLeague__title-text" in (" ".join(c) if isinstance(c, (list, tuple)) else c))
+            if country_el:
+                current_country = (country_el.get_text(separator=" ") or "").strip()
+            if title_el:
+                current_league = (title_el.get_text(separator=" ") or "").strip()
+            continue
+
+        # Detect older header — update league context
         if _HEADER_CLASS_RE.search(classes_str) and "event__match" not in classes_str:
             current_league = (el.get_text(separator=" ") or "").strip()
             continue
@@ -193,11 +205,61 @@ def _heuristic0_event_classes(soup: BeautifulSoup, url: str) -> List[Dict]:
             if tm:
                 row_time = tm.group(1)
 
+        # Extract scores
+        score_home = None
+        score_away = None
+        score_home_el = el.find(True, class_=lambda c: c and "event__score--home" in (" ".join(c) if isinstance(c, (list, tuple)) else c))
+        score_away_el = el.find(True, class_=lambda c: c and "event__score--away" in (" ".join(c) if isinstance(c, (list, tuple)) else c))
+        try:
+            if score_home_el:
+                score_home = int(score_home_el.get_text(strip=True))
+            if score_away_el:
+                score_away = int(score_away_el.get_text(strip=True))
+        except ValueError:
+            pass
+
+        # Extract period scores
+        period_scores = None
+        part_home_els = el.find_all(True, class_=lambda c: c and "event__part--home" in (" ".join(c) if isinstance(c, (list, tuple)) else c) and re.search(r"event__part--\d+", " ".join(c) if isinstance(c, (list, tuple)) else c))
+        part_away_els = el.find_all(True, class_=lambda c: c and "event__part--away" in (" ".join(c) if isinstance(c, (list, tuple)) else c) and re.search(r"event__part--\d+", " ".join(c) if isinstance(c, (list, tuple)) else c))
+        
+        home_parts = []
+        away_parts = []
+        for p_el in part_home_els:
+            try:
+                home_parts.append(int(p_el.get_text(strip=True)))
+            except ValueError:
+                pass
+        for p_el in part_away_els:
+            try:
+                away_parts.append(int(p_el.get_text(strip=True)))
+            except ValueError:
+                pass
+        
+        if home_parts or away_parts:
+            period_scores = {"home": home_parts, "away": away_parts}
+
+        # Extract Match URL
+        match_url = None
+        link_el = el.find("a", class_=lambda c: c and "eventRowLink" in (" ".join(c) if isinstance(c, (list, tuple)) else c))
+        if link_el and link_el.get("href"):
+            match_url = link_el.get("href")
+
+        # Extract Status and is_live
+        status = None
+        is_live = False
+        stage_el = el.find(True, class_=lambda c: c and "event__stage--block" in (" ".join(c) if isinstance(c, (list, tuple)) else c))
+        if stage_el:
+            status = stage_el.get_text(strip=True)
+            if status and status not in ("Finished", "After Pen.", "After ET", "Postponed", "Cancelled", "Abandoned", "Walkover", "Awarded"):
+                if not re.match(r"^\d{1,2}:\d{2}$", status):
+                    is_live = True
+
         league_val = current_league or url_league
         
         match_id = el.get("id")
-        if match_id and match_id.startswith("g_1_"):
-            match_id = match_id[4:]
+        if match_id and re.match(r'^g_\d+_', match_id):
+            match_id = re.sub(r'^g_\d+_', '', match_id)
 
         entry = {
             "home": home,
@@ -208,6 +270,13 @@ def _heuristic0_event_classes(soup: BeautifulSoup, url: str) -> List[Dict]:
             "standings": standings,
             "source_type": "flashscore",
             "sport": _detect_sport_from_url(url),
+            "score_home": score_home,
+            "score_away": score_away,
+            "period_scores": period_scores,
+            "match_url": match_url,
+            "status": status,
+            "is_live": is_live,
+            "country": current_country,
         }
         if match_id:
             entry["match_id"] = match_id

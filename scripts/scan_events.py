@@ -225,7 +225,7 @@ def _scan_domain_group(domain: str, urls: list[str], deep: bool, max_deep_links:
         items = [normalize_adapter_output(item, source_type=domain) for item in items]
             
         for item in items:
-            if "sport" not in item or not item["sport"]:
+            if not item.get("sport"):
                 if sport:  # only set if URL-based detection returned a result
                     item["sport"] = sport
                 # else: leave untagged — will be resolved by fixture matching
@@ -260,9 +260,9 @@ def _scan_domain_group(domain: str, urls: list[str], deep: bool, max_deep_links:
                         sub_extracted = [normalize_adapter_output(item, source_type=domain) for item in sub_extracted]
                             
                         for item in sub_extracted:
-                            if "sport" not in item or not item["sport"]:
+                            if not item.get("sport"):
                                 item["sport"] = sub_sport
-                            item["source_type"] = "deep-link"
+                            item["source_type"] = f"{domain}:deep-link"
                         deep_items[sub_url] = sub_extracted
                         print(f"    [{domain}] [deep] Extracted {len(sub_extracted)} from {sub_url}")
                         time.sleep(delay)

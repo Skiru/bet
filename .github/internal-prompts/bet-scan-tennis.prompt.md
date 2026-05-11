@@ -29,76 +29,20 @@ You are the tennis scanning specialist. Execute this entire workflow without hum
 ## STEP 1: Execute Scanner
 
 ```bash
-cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 -c "
-from scripts.scanners.tennis_scanner import TennisScanner
-from scripts.scanners.domain_semaphore import DomainSemaphoreMap
-from datetime import date
-scanner = TennisScanner()
-stats = scanner.scan(str(date.today()), DomainSemaphoreMap())
-print(f'Tennis: {stats.events_found} events | {stats.sources_ok} OK | {stats.sources_failed} failed')
-print(f'Validation: {\"PASS\" if stats.validation_passed else \"FAIL\"}')
-if not stats.validation_passed:
-    print(f'  Gaps: {stats.gaps_description}')
-"
+python3 scripts/run_scanner.py --sport tennis --date {YYYY-MM-DD}
 ```
 
 ## STEP 2: Validate Results
 
 ```bash
-cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 -c "
-from bet.db.connection import get_db
-from datetime import date
-import json, os
-today = str(date.today())
-with get_db() as conn:
-    c = conn.execute('SELECT COUNT(*) FROM scan_results WHERE sport="tennis" AND betting_date=?', (today,))
-    count = c.fetchone()[0]
-    print(f'Tennis events in DB: {count}')
-
-# Check Elo data availability
-elo_dir = 'betting/data/tennisabstract.com'
-if os.path.exists(elo_dir):
-    files = os.listdir(elo_dir)
-    print(f'TennisAbstract Elo files: {len(files)}')
-else:
-    print('⚠️ No TennisAbstract Elo data directory')
-
-# Check surface detection
-with get_db() as conn:
-    c = conn.execute('''SELECT raw_data FROM scan_results WHERE sport="tennis" AND betting_date=? LIMIT 10''', (today,))
-    surfaces = set()
-    for row in c:
-        data = json.loads(row[0]) if row[0] else {}
-        if data.get('surface'):
-            surfaces.add(data['surface'])
-    print(f'Surfaces detected: {surfaces or \"NONE\"}')
-
-if count >= 30:
-    print('✅ PASS: Tennis ≥ 30 events')
-elif count >= 15:
-    print('⚠️ MARGINAL: 15-29 events (check if tournament break)')
-else:
-    print('❌ FAIL: < 15 events — self-heal needed')
-"
+python3 scripts/verify_scan.py --sport tennis --date {YYYY-MM-DD}
 ```
 
 ## STEP 3: Self-Heal (only if FAIL)
 
 **If < 15 events:**
 ```bash
-cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 -c "
-# Retry with extended timeout for slow tennis sources
-from scripts.scanners.tennis_scanner import TennisScanner
-from scripts.scanners.domain_semaphore import DomainSemaphoreMap
-from datetime import date
-scanner = TennisScanner()
-scanner.timeout_per_page = 60
-stats = scanner.scan(str(date.today()), DomainSemaphoreMap())
-print(f'Retry: {stats.events_found} events')
-if stats.events_found < 15:
-    print('Still low — checking if legitimate (tournament break, off-day)')
-    print('Tennis has events 51 weeks/year. Only Christmas week is truly empty.')
-"
+python3 scripts/run_scanner.py --sport tennis --date {YYYY-MM-DD}
 ```
 
 **If TennisExplorer blocked (403):**

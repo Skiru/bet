@@ -15,66 +15,17 @@ Run data quality analysis on `betting/data/betting.db` for the given date. Repor
 
 ### Step 1: Full Table Census
 ```bash
-PYTHONPATH=src python3 -c "
-from bet.db.connection import get_db
-with get_db() as conn:
-    tables = ['sports','teams','competitions','fixtures','team_form','match_stats',
-              'league_profiles','standings','odds_history','scan_results','source_health',
-              'analysis_results','gate_results','coupons','bets','espn_predictions',
-              'player_gamelogs','pipeline_runs','scan_run_stats','power_index',
-              'decision_snapshots','decision_outcomes','athletes','team_rosters',
-              'player_splits','team_ats_records','team_ou_records','tipster_picks']
-    for t in tables:
-        try:
-            count = conn.execute(f'SELECT COUNT(*) FROM {t}').fetchone()[0]
-            print(f'{t:30s}: {count:>8} rows')
-        except Exception as e:
-            print(f'{t:30s}: TABLE MISSING — {e}')
-"
+python3 scripts/db_report.py --report quality
 ```
 
 ### Step 2: Date-Specific Analysis
 ```bash
-PYTHONPATH=src python3 -c "
-from bet.db.connection import get_db
-date = '{date}'
-with get_db() as conn:
-    # Fixtures for date
-    fix = conn.execute('SELECT COUNT(*) FROM fixtures WHERE date(kickoff) = ?', (date,)).fetchone()[0]
-    print(f'Fixtures for {date}: {fix}')
-    
-    # By sport
-    rows = conn.execute('SELECT s.name, COUNT(f.id) FROM fixtures f JOIN sports s ON f.sport_id = s.id WHERE date(f.kickoff) = ? GROUP BY s.name ORDER BY COUNT(f.id) DESC', (date,)).fetchall()
-    for r in rows: print(f'  {r[0]:15s}: {r[1]}')
-    
-    # Team form coverage
-    tf = conn.execute('SELECT COUNT(DISTINCT team_id) FROM team_form').fetchone()[0]
-    print(f'\\nTeams with form data: {tf}')
-    
-    # Teams missing form (for today's fixtures)
-    gaps = conn.execute('''
-        SELECT t.name, s.name FROM fixtures f
-        JOIN teams t ON f.home_team_id = t.id
-        JOIN sports s ON f.sport_id = s.id
-        LEFT JOIN team_form tf ON tf.team_id = t.id
-        WHERE date(f.kickoff) = ? AND tf.id IS NULL
-    ''', (date,)).fetchall()
-    print(f'Home teams MISSING form: {len(gaps)}')
-    for g in gaps[:15]: print(f'  [{g[1]}] {g[0]}')
-"
+python3 scripts/db_report.py --report gaps --date {YYYY-MM-DD}
 ```
 
 ### Step 3: Source Health
 ```bash
-PYTHONPATH=src python3 -c "
-from bet.db.connection import get_db
-with get_db() as conn:
-    rows = conn.execute('SELECT source_name, total_requests, total_failures, ROUND(total_failures*100.0/MAX(total_requests,1),1) FROM source_health ORDER BY total_requests DESC LIMIT 20').fetchall()
-    print('=== SOURCE HEALTH ===')
-    for r in rows:
-        status = '✓' if float(r[3]) < 20 else '⚠' if float(r[3]) < 50 else '✗'
-        print(f'  {status} {r[0]:35s}: {r[1]:>5} req, {r[2]:>3} fail ({r[3]}%)')
-"
+python3 scripts/db_report.py --report source-health
 ```
 
 ### Step 4: Interpret & Recommend

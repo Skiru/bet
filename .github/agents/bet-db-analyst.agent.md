@@ -65,7 +65,7 @@ You are the **database specialist** for the betting pipeline. You are the ONLY a
 2. **ALWAYS use parameterized queries** — NEVER string interpolation for SQL values
 3. **Use repository classes when available** — `SportRepo`, `TeamRepo`, `CompetitionRepo`, `FixtureRepo`, `StatsRepo`, `PipelineRepo` from `bet.db.repositories`
 4. **Report specific numbers** — "team_form has 1,247 rows across 5 sports, 89 teams" not "data exists"
-5. **Run all DB operations via terminal** with `PYTHONPATH=src python3 -c "..."` — short, focused queries
+5. **NEVER run `python3 -c "..."`** — Fish shell GARBLES inline Python. Use `python3 scripts/db_report.py --report {type}` or create a temp `.py` file
 
 ## DB Schema Reference (28 tables, 6 domains)
 
@@ -112,41 +112,27 @@ You are the **database specialist** for the betting pipeline. You are the ONLY a
 ## Standard Operations
 
 ### Data Quality Report (run at pipeline start)
-```python
-PYTHONPATH=src python3 -c "
-from bet.db.connection import get_db
-with get_db() as conn:
-    tables = ['sports','teams','competitions','fixtures','team_form','match_stats',
-              'league_profiles','standings','odds_history','scan_results','source_health',
-              'analysis_results','gate_results','coupons','bets','espn_predictions',
-              'player_gamelogs','pipeline_runs']
-    for t in tables:
-        count = conn.execute(f'SELECT COUNT(*) FROM {t}').fetchone()[0]
-        print(f'{t:30s}: {count:>8} rows')
-"
+```bash
+PYTHONPATH=src python3 scripts/db_report.py --report quality
 ```
 
 ### Gap Analysis for a Date
-```python
-PYTHONPATH=src python3 -c "
-from bet.db.connection import get_db
-with get_db() as conn:
-    date = '2026-05-11'
-    # Fixtures without team_form
-    gaps = conn.execute('''
-        SELECT f.id, t1.name, t2.name, s.name as sport
-        FROM fixtures f
-        JOIN teams t1 ON f.home_team_id = t1.id
-        JOIN teams t2 ON f.away_team_id = t2.id
-        JOIN sports s ON f.sport_id = s.id
-        LEFT JOIN team_form tf ON tf.team_id = t1.id
-        WHERE date(f.kickoff) = ? AND tf.id IS NULL
-    ''', (date,)).fetchall()
-    print(f'Fixtures missing home team_form: {len(gaps)}')
-    for g in gaps[:10]:
-        print(f'  {g[\"sport\"]}: {g[1]} vs {g[2]}')
-"
+```bash
+PYTHONPATH=src python3 scripts/db_report.py --report gaps --date 2026-05-11
 ```
+
+### Scan Results Summary
+```bash
+PYTHONPATH=src python3 scripts/db_report.py --report scan --date 2026-05-11
+```
+
+### Source Health
+```bash
+PYTHONPATH=src python3 scripts/db_report.py --report source-health
+```
+
+**⛔ NEVER use `python3 -c "..."` for DB queries — fish shell GARBLES multi-line inline Python.**
+If you need a custom query not covered by `db_report.py`, create a temporary `.py` file, run it, then report results.
 
 ## YOUR ANALYTICAL VALUE
 

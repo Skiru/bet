@@ -29,24 +29,12 @@ Run after all sport scanners complete. Merges results, enriches with APIs, valid
 ## STEP 1: Merge All Sport Results
 
 ```bash
-cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 -c "
-from scripts.scanners.merge_results import merge_scan_results
-from datetime import date
-today = str(date.today())
-path = merge_scan_results(today)
-print(f'Merged scan results to: {path}')
+cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 scripts/ingest_scan_stats.py --verbose
+```
 
-# Verify merge quality
-import json
-from pathlib import Path
-data = json.loads(Path(path).read_text())
-if isinstance(data, dict):
-    total = sum(len(v) for v in data.values() if isinstance(v, list))
-    print(f'Total merged events: {total}')
-    print(f'URL keys: {len(data)}')
-else:
-    print(f'Events in list format: {len(data)}')
-"
+Then validate with:
+```bash
+python3 scripts/validate_phase.py --date {YYYY-MM-DD} --phase data
 ```
 
 ## STEP 2: Run Enrichment Chain
@@ -55,13 +43,13 @@ else:
 cd /Users/mkoziol/projects/bet && PYTHONPATH=src:.
 
 # Stats enrichment
-python3 scripts/fetch_api_stats.py --date $(date +%Y-%m-%d)
+python3 scripts/fetch_api_stats.py --date {YYYY-MM-DD}
 
 # Odds from multiple sources
 python3 scripts/fetch_odds_multi.py
 
 # Weather for outdoor sports
-python3 scripts/fetch_weather.py --date $(date +%Y-%m-%d)
+python3 scripts/fetch_weather.py --date {YYYY-MM-DD}
 
 # Ingest scan data into stats cache
 python3 scripts/ingest_scan_stats.py --verbose 2>&1
@@ -82,13 +70,13 @@ python3 scripts/ingest_scan_stats.py --verbose 2>&1
 cd /Users/mkoziol/projects/bet && PYTHONPATH=src:.
 
 # Aggregation and analysis pool now handled by build_shortlist.py
-python3 scripts/build_shortlist.py --date $(date +%Y-%m-%d) --stats-first --verbose 2>&1
+python3 scripts/build_shortlist.py --date {YYYY-MM-DD} --stats-first --verbose 2>&1
 
 # Generate market matrix (STATS-FIRST mode)
-python3 scripts/generate_market_matrix.py --date $(date +%Y-%m-%d) --stats-first
+python3 scripts/generate_market_matrix.py --date {YYYY-MM-DD} --stats-first
 
 # Build shortlist
-python3 scripts/build_shortlist.py --date $(date +%Y-%m-%d) --stats-first --verbose 2>&1
+python3 scripts/build_shortlist.py --date {YYYY-MM-DD} --stats-first --verbose 2>&1
 ```
 
 Parse the `AGENT_SUMMARY:{json}` line from `build_shortlist.py` and `ingest_scan_stats.py` output — they contain candidate counts, sport distribution, and data quality tiers.
@@ -96,85 +84,26 @@ Parse the `AGENT_SUMMARY:{json}` line from `build_shortlist.py` and `ingest_scan
 ## STEP 4: Validate Final Outputs
 
 ```bash
-cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 -c "
-import json, os
-from datetime import date
-from pathlib import Path
-from collections import Counter
-
-today = str(date.today())
-print(f'=== MERGE VALIDATION for {today} ===')
-
-# Check all required artifacts
-checks = {
-    'scan_summary.json': Path('betting/data/scan_summary.json'),
-    f'{today}_s2_shortlist.json': Path(f'betting/data/{today}_s2_shortlist.json'),
-    f'market_matrix_{today}.json': Path(f'betting/data/market_matrix_{today}.json'),
-    f'market_matrix_{today}.md': Path(f'betting/data/market_matrix_{today}.md'),
-    f'decision_matrix_{today}.md': Path(f'betting/data/decision_matrix_{today}.md'),
-}
-
-all_ok = True
-for name, path in checks.items():
-    exists = path.exists()
-    size = path.stat().st_size if exists else 0
-    status = '✅' if exists and size > 100 else '❌'
-    if not exists:
-        all_ok = False
-    print(f'  {status} {name}: {size:,} bytes' if exists else f'  {status} {name}: MISSING')
-
-# Shortlist diversity check
-sl_path = checks[f'{today}_s2_shortlist.json']
-if sl_path.exists():
-    sl = json.loads(sl_path.read_text())
-    events = sl if isinstance(sl, list) else sl.get('events', sl.get('shortlist', []))
-    sports = Counter(e.get('sport', 'unknown') for e in events)
-    print(f'\nShortlist: {len(events)} events, {len(sports)} sports')
-    for s, c in sports.most_common():
-        pct = c * 100 / max(len(events), 1)
-        flag = ' ⚠️ >50%' if pct > 50 else ''
-        print(f'  {s}: {c} ({pct:.0f}%){flag}')
-    
-    # Gates
-    passed = True
-    if len(events) < 50:
-        print(f'⚠️ Only {len(events)} events (target 50-100)')
-        passed = False
-    if len(sports) < 3:
-        print(f'⚠️ Only {len(sports)} sports (sport diversity is informational per R4)')
-        passed = False
-    if passed:
-        print('✅ Shortlist quality gates PASS')
-    else:
-        print('⚠️ Shortlist below ideal — but PROCEEDING (non-blocking)')
-
-# Stats cache summary
-print(f'\nStats cache health:')
-for sport in ['football', 'tennis', 'basketball', 'volleyball', 'hockey']:
-    cache_dir = f'betting/data/stats_cache/{sport}'
-    count = len(os.listdir(cache_dir)) if os.path.exists(cache_dir) else 0
-    print(f'  {sport}: {count} files')
-
-if all_ok:
-    print(f'\n✅ ALL ARTIFACTS READY — S1+S2 complete, ready for S3')
-else:
-    print(f'\n⚠️ Missing artifacts — check specific errors above')
-"
+cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 scripts/validate_phase.py --date {YYYY-MM-DD} --phase data
 ```
+
+Also use `read_file` tool to inspect key output files:
+- `betting/data/{YYYY-MM-DD}_s2_shortlist.json` — check event count, sport diversity
+- `betting/data/market_matrix_{YYYY-MM-DD}.json` — check artifact exists
+- `betting/data/scan_summary.json` — overall scan health
 
 ## STEP 5: Self-Heal Missing Artifacts
 
 **If shortlist missing:**
 ```bash
 cd /Users/mkoziol/projects/bet && PYTHONPATH=src:.
-# Rebuild from scan_summary.json directly
-python3 scripts/build_shortlist.py --date $(date +%Y-%m-%d) --stats-first --force
+python3 scripts/build_shortlist.py --date {YYYY-MM-DD} --stats-first --force
 ```
 
 **If market matrix missing:**
 ```bash
 cd /Users/mkoziol/projects/bet && PYTHONPATH=src:.
-python3 scripts/generate_market_matrix.py --date $(date +%Y-%m-%d) --stats-first --force
+python3 scripts/generate_market_matrix.py --date {YYYY-MM-DD} --stats-first --force
 ```
 
 **If shortlist has <50 events:**
