@@ -110,7 +110,9 @@ def report_scan(betting_date: str):
 
         # Fixtures
         c = conn.execute(
-            "SELECT sport, COUNT(*) FROM fixtures WHERE date(kickoff) = ? GROUP BY sport ORDER BY COUNT(*) DESC",
+            """SELECT s.name, COUNT(*) FROM fixtures f
+            JOIN sports s ON f.sport_id = s.id
+            WHERE date(f.kickoff) = ? GROUP BY s.name ORDER BY COUNT(*) DESC""",
             (betting_date,),
         )
         rows = c.fetchall()

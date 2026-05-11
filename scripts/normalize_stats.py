@@ -39,6 +39,21 @@ for _sport_key, _markets_list in _SML.items():
             else:
                 _STANDARD_LINES_TEAM[(_sport_key, _stat)] = _lines
 
+# Maximum reasonable line values per sport/stat (combined markets).
+# Lines above these are almost certainly data errors (e.g., goals=9.0 in football).
+# Derived from max standard line + 50% margin.
+_MAX_REASONABLE_LINE: dict[tuple[str, str], float] = {
+    ("football", "goals"): 5.5,
+    ("football", "corners"): 16.5,
+    ("football", "yellow_cards"): 8.5,
+    ("football", "fouls"): 32.5,
+    ("football", "shots_on_target"): 12.5,
+    ("hockey", "goals"): 9.5,
+    ("tennis", "total_games"): 35.5,
+    ("tennis", "aces"): 20.5,
+    ("basketball", "points"): 260.5,
+    ("volleyball", "total_points"): 220.5,
+}
 
 def _find_closest_standard_line(sport: str, stat_key: str, avg: float, is_combined: bool = True) -> float | None:
     """Find the closest standard line for a given sport/stat/average.
@@ -50,6 +65,16 @@ def _find_closest_standard_line(sport: str, stat_key: str, avg: float, is_combin
     Uses separate lookups for combined (total) vs per-team markets to avoid
     the collision where team lines [95.5-110.5] overwrite total lines [195.5-225.5].
     """
+    # Sanity check: reject absurdly high averages (data errors)
+    if is_combined:
+        max_line = _MAX_REASONABLE_LINE.get((sport, stat_key))
+        if max_line and avg > max_line:
+            import logging
+            logging.getLogger(__name__).warning(
+                "Rejecting unreasonable %s %s avg=%.1f (max=%.1f)",
+                sport, stat_key, avg, max_line,
+            )
+            return None
     lookup = _STANDARD_LINES_COMBINED if is_combined else _STANDARD_LINES_TEAM
     lines = lookup.get((sport, stat_key))
     if not lines:
@@ -332,6 +357,11 @@ def build_safety_score_input(
         else:
             continue
 
+        # Reject lines that exceed sport-reasonable maximums (data error guard)
+        max_line = _MAX_REASONABLE_LINE.get((sport, stat_key_for_line))
+        if max_line and line > max_line:
+            continue
+
         # Replace Team A/B placeholders with actual team names
         market_name = market_def["name"]
         market_name = market_name.replace("Team A", team_a).replace("Team B", team_b)
@@ -549,6 +579,11 @@ def _build_markets_from_db_form(
             std_line = _find_closest_standard_line(sport, stat_key_for_line, avg, is_combined=False)
             line = std_line if std_line is not None else _round_to_half(avg)
         else:
+            continue
+
+        # Reject lines that exceed sport-reasonable maximums (data error guard)
+        max_line = _MAX_REASONABLE_LINE.get((sport, stat_key_for_line))
+        if max_line and line > max_line:
             continue
 
         # Replace placeholders in market name

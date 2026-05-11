@@ -461,7 +461,21 @@ def build_shortlist(
         r"picks\s*&\s*odds|epl\s+picks|odds\s+for\s+(saturday|friday|monday|sunday|tuesday|wednesday|thursday)|"
         r"typy\s+bukmacherów|kolejka|wydarzenie|bukmacherów|"
         r"\d+\.\d{2}\s+\d+\.\d{2}|"  # embedded odds (1.68 3.75)
-        r"\d+\s*'",  # match minute markers (37 ')
+        r"\d+\s*'|"  # match minute markers (37 ')
+        # Soccerway adapter garbage — structural HTML scraped as team names
+        r"^division\s+\d|^primera\s+division$|^segunda\s+division$|^tercera\s+division$|"
+        r"display\s+matches|^round\s+\d|^matchday\s+\d|^group\s+[a-z]$|"
+        r"^league\s+table$|^results$|^fixtures$|^standings$|"
+        # Bookmaker names scraped as team names (tennis adapter)
+        r"^1xbet$|^bet365$|^unibet$|^pinnacle$|^betway$|^william\s+hill$|"
+        r"^betfair$|^bwin$|^marathon\s*bet$|^betclic$|^betsson$|"
+        r"^888sport$|^paddy\s+power$|^coral$|^ladbrokes$|^stake$",
+        re.I,
+    )
+    # Bookmaker-vs-bookmaker pattern: "1xBet vs bet365"
+    _bookmaker_vs_re = re.compile(
+        r"\b(1xbet|bet365|unibet|pinnacle|betway|bwin|betfair|betclic|betsson|"
+        r"marathon\s*bet|william\s+hill|888sport|paddy\s+power|coral|ladbrokes|stake)\b",
         re.I,
     )
     filtered = []
@@ -469,10 +483,18 @@ def build_shortlist(
     for score, event in scored:
         home = event.get("home_team", "")
         away = event.get("away_team", "")
+        # Too short — structural artifacts or empty
+        if len(home.strip()) < 2 or len(away.strip()) < 2:
+            garbage_count += 1
+            continue
         if len(home) > 60 or len(away) > 60:
             garbage_count += 1
             continue
         if _garbage_re.search(home) or _garbage_re.search(away):
+            garbage_count += 1
+            continue
+        # Both home and away match bookmaker names → "1xBet vs bet365" garbage
+        if _bookmaker_vs_re.fullmatch(home.strip()) or _bookmaker_vs_re.fullmatch(away.strip()):
             garbage_count += 1
             continue
         if " / " in home or " / " in away:
@@ -483,6 +505,10 @@ def build_shortlist(
             continue
         # Date-prefixed team names (e.g., "CZW 30.04.2026 20:30 Northampton")
         if re.match(r"^[A-Z]{2,4}\s+\d{2}\.\d{2}\.\d{4}", home) or re.match(r"^[A-Z]{2,4}\s+\d{2}\.\d{2}\.\d{4}", away):
+            garbage_count += 1
+            continue
+        # All-digit team names (e.g., "123") — not valid
+        if re.fullmatch(r"\d+", home.strip()) or re.fullmatch(r"\d+", away.strip()):
             garbage_count += 1
             continue
         filtered.append((score, event))

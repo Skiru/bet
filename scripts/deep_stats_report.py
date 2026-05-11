@@ -1102,8 +1102,8 @@ def analyze_candidate(
     if safety_input and safety_input.get("markets"):
         ranking_result = rank_markets(safety_input)
     else:
-        # Before shortlist fallback: try enrichment
-        if not safety_input or not safety_input.get("markets"):
+        # Before shortlist fallback: try enrichment (respects NO_ENRICH env var)
+        if (not safety_input or not safety_input.get("markets")) and not os.environ.get("NO_ENRICH"):
             try:
                 from data_enrichment_agent import enrich_team
                 enrich_team(home, sport)
