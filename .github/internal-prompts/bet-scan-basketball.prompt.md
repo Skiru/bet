@@ -35,47 +35,14 @@ python3 scripts/run_scanner.py --sport basketball --date {YYYY-MM-DD}
 ## STEP 2: Validate Results
 
 ```bash
-```bash
 python3 scripts/verify_scan.py --sport basketball --date {YYYY-MM-DD}
-```
-
-    count = c.fetchone()[0]
-    print(f'Basketball events in DB: {count}')
-    
-    # Check leagues represented
-    c = conn.execute('SELECT raw_data FROM scan_results WHERE sport="basketball" AND betting_date=? LIMIT 20', (today,))
-    leagues = set()
-    for row in c:
-        data = json.loads(row[0]) if row[0] else {}
-        if data.get('league'):
-            leagues.add(data['league'])
-    print(f'Leagues: {leagues or \"unknown\"}')
-
-# Season check
-month = datetime.date.today().month
-if month in [7, 8, 9]:
-    print('⚠️ NBA off-season (Jul-Sep) — EU leagues (ACB, BSL, Euroleague) still active')
-    print('   Also check: Summer League (Jul), FIBA windows')
-elif month in [10, 11, 12, 1, 2, 3, 4, 5, 6]:
-    print('NBA regular/playoffs active')
-
-if count >= 20:
-    print('✅ PASS: Basketball ≥ 20 events')
-elif count >= 10:
-    print('⚠️ MARGINAL: 10-19 events (might be off-day)')
-else:
-    print('❌ FAIL: < 10 events — self-heal needed')
-"
 ```
 
 ## STEP 3: Self-Heal (only if FAIL)
 
 **If < 10 events during NBA season:**
 ```bash
-```bash
-python3 scripts/verify_scan.py --sport basketball --date {YYYY-MM-DD}
-```
-
+python3 scripts/run_scanner.py --sport basketball --date {YYYY-MM-DD}
 ```
 
 **If NBA API source fails:**

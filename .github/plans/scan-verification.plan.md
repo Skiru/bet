@@ -140,56 +140,11 @@ All 5 agents receive the same structural change. Sport-specific differences are 
 
 **The unified verification query block** (shared across all 5, with `{SPORT}` placeholder):
 
-```python
 ```bash
 python3 scripts/verify_scan.py --sport {SPORT} --date {YYYY-MM-DD}
 ```
 
-    today_leagues = set(r[0] for r in c)
-    yesterday = str(date.today() - timedelta(days=1))
-    c = conn.execute('''SELECT DISTINCT competition FROM scan_results
-        WHERE sport=? AND betting_date=? AND competition != \\\"\\\"''', (sport, yesterday))
-    yest_leagues = set(r[0] for r in c)
-    missing = yest_leagues - today_leagues
-    print(f'Leagues today: {len(today_leagues)} | Yesterday: {len(yest_leagues)} | Missing: {len(missing)}')
-    if missing:
-        print(f'  Missing leagues: {list(missing)[:5]}')
-
-    # --- CHECK 5: Cross-source coverage ---
-    c = conn.execute('''SELECT event_key, COUNT(DISTINCT source_domain) as src_cnt FROM scan_results
-        WHERE sport=? AND betting_date=? GROUP BY event_key HAVING src_cnt >= 2''', (sport, today))
-    multi = len(c.fetchall())
-    print(f'Events from 2+ sources: {multi}/{count} ({round(multi*100/max(count,1),1)}%)')
-
-    # --- CHECK 6: Source health ---
-    c = conn.execute('''SELECT source_name, consecutive_failures, total_requests, total_failures
-        FROM source_health WHERE consecutive_failures > 3 ORDER BY consecutive_failures DESC LIMIT 5''')
-    degraded = c.fetchall()
-    if degraded:
-        print(f'Degraded sources ({len(degraded)}):')
-        for s in degraded:
-            print(f'  {s[0]}: {s[1]} consecutive failures ({s[3]}/{s[2]} total)')
-    else:
-        print('All sources healthy')
-
-    # --- SPORT-SPECIFIC CHECK ---
-    {SPORT_SPECIFIC_CHECK}
-
-    # --- VERDICT ---
-    issues = []
-    if phantoms > 5: issues.append(f'{phantoms} phantom fixtures')
-    if dupes: issues.append(f'{len(dupes)} duplicate event_keys')
-    if completeness < 80: issues.append(f'completeness {completeness}%')
-    if len(missing) > 3: issues.append(f'{len(missing)} leagues missing vs yesterday')
-
-    if count >= {MIN_EVENTS} and not issues:
-        print('✅ VERDICT: PASS')
-    elif count >= {MIN_EVENTS_MARGINAL} and len(issues) <= 1:
-        print(f'⚠️ VERDICT: MARGINAL — {issues}')
-    else:
-        print(f'❌ VERDICT: FAIL — {issues}')
-"
-```
+This script performs all 6 verification checks (event count, phantom detection, duplicate event_keys, data completeness, league coverage vs yesterday, cross-source coverage, source health) and sport-specific stat key checks. It outputs a PASS/MARGINAL/FAIL verdict.
 
 ### Sport-Specific Check Blocks (replace `{SPORT_SPECIFIC_CHECK}`)
 
