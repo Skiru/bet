@@ -379,10 +379,20 @@ def assign_picks_to_core(approved: list, config: dict) -> list[dict]:
     Sorting: EV desc → confidence desc → safety desc.
     Grouping: LR → LR coupons, MS → MS, HR → HR, night → NIGHT.
     Constraints: min 2 legs, max 2 same sport, no same-match legs.
-    Only picks with real odds (>1.0) are eligible for multi-bet coupons.
+    Picks with real odds preferred; in stats-first mode (R10), picks without
+    odds are included using min_acceptable_odds = 1/safety_score.
     """
     # Filter to picks with real odds for multi-bet coupons
     odds_approved = [p for p in approved if ((p.get("odds") or {}).get("market_best") or 0) > 1.0]
+    stats_first_mode = len(odds_approved) < 2 and len(approved) >= 2
+    if stats_first_mode:
+        # R10: Stats-first fallback — use all approved picks, compute theoretical odds
+        odds_approved = list(approved)
+        for p in odds_approved:
+            if not ((p.get("odds") or {}).get("market_best") or 0) > 1.0:
+                safety = (_bm(p).get("safety_score") or 0.5)
+                p.setdefault("odds", {})["market_best"] = round(1.0 / max(safety, 0.1), 2)
+                p["_stats_first_odds"] = True
     if len(odds_approved) < 2:
         return []
 
@@ -509,9 +519,12 @@ def _make_coupon(coupon_id: str, tier: str, legs: list, config: dict) -> dict:
     bankroll = config.get("bankroll_pln", config.get("working_bankroll_pln", 50.0))
 
     combined_odds = 1.0
+    has_stats_first = False
     for leg in legs:
         odds = (leg.get("odds") or {}).get("market_best", 1.0) or 1.0
         combined_odds *= odds
+        if leg.get("_stats_first_odds"):
+            has_stats_first = True
     combined_odds = round(combined_odds, 2)
 
     # Stake: use worst probability/safety among legs for Kelly
@@ -538,6 +551,8 @@ def _make_coupon(coupon_id: str, tier: str, legs: list, config: dict) -> dict:
         "potential_return": potential_return,
         "stress_test": stress_test_coupon({"legs": legs}),
     }
+    if has_stats_first:
+        coupon["stats_first"] = True
 
     # Correlation check: same competition ≥2 legs
     comps = [leg.get("competition", "") for leg in legs if leg.get("competition")]
@@ -675,8 +690,18 @@ COMBO_THEMES = [
 
 def generate_combos(approved: list, config: dict) -> list[dict]:
     """Generate combo coupons by remixing approved picks (theme-based + combinatorial)."""
-    # Only use picks with real odds for combo coupons
+    # Only use picks with real odds for combo coupons; stats-first fallback (R10)
     odds_approved = [p for p in approved if ((p.get("odds") or {}).get("market_best") or 0) > 1.0]
+    if len(odds_approved) < 2 and len(approved) >= 2:
+        # Stats-first mode: use all approved (theoretical odds set by assign_picks_to_core)
+        odds_approved = [p for p in approved if ((p.get("odds") or {}).get("market_best") or 0) > 1.0]
+        if len(odds_approved) < 2:
+            odds_approved = list(approved)
+            for p in odds_approved:
+                if not ((p.get("odds") or {}).get("market_best") or 0) > 1.0:
+                    safety = (_bm(p).get("safety_score") or 0.5)
+                    p.setdefault("odds", {})["market_best"] = round(1.0 / max(safety, 0.1), 2)
+                    p["_stats_first_odds"] = True
     if len(odds_approved) < 2:
         return []
 

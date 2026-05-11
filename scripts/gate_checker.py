@@ -1192,9 +1192,31 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
     extended_pool = []
     rejected = []
 
+    # --- First pass: compute gate results and detect systemic failures ---
+    # Gate points that fail for >80% of candidates are infrastructure gaps (H2H-blind,
+    # tipster unavailable, API expired) — they should not dominate tier classification.
+    gate_results_per_candidate: list[tuple[dict, dict]] = []
+    point_failure_counts: dict[str, int] = {str(i): 0 for i in range(1, 19)}
+    total_count = len(candidates)
+
     for c in candidates:
         gate_result = check_18_point_gate(c, repeat_losses)
+        gate_results_per_candidate.append((c, gate_result))
+        for pt in gate_result.get("gate_failed", []):
+            point_failure_counts[pt] = point_failure_counts.get(pt, 0) + 1
 
+    # Systemic points: fail for >80% of candidates (infrastructure gap, not candidate weakness)
+    systemic_threshold = 0.80
+    systemic_points = set()
+    if total_count > 0:
+        for pt, cnt in point_failure_counts.items():
+            if cnt / total_count > systemic_threshold:
+                systemic_points.add(pt)
+    if systemic_points:
+        print(f"[gate_checker] Systemic gate failures (>{systemic_threshold*100:.0f}%): "
+              f"points {sorted(systemic_points)} — discounted for tier assignment")
+
+    for c, gate_result in gate_results_per_candidate:
         # --- Pattern A: Flag directional conflicts ---
         home = (c.get("home_team") or "").strip().lower()
         away = (c.get("away_team") or "").strip().lower()
@@ -1249,19 +1271,30 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
             entry["rejection_reason"] = f"STRICT mode: {n_failed} gate failures"
             rejected.append(entry)
         else:
-            # Advisory tier based on gate score (number of passes)
-            # STRONG: 0-2 failures → highest confidence
-            # MODERATE: 3-5 failures → good candidate, some data gaps
-            # WEAK: 6-9 failures → needs enrichment but still analyzable
-            # FLAGGED: 10+ failures → low data, user should verify
-            if n_failed <= 2:
+            # Advisory tier based on EFFECTIVE failures (excluding systemic infrastructure gaps)
+            # Systemic failures affect >80% of candidates equally — they're not candidate-specific
+            # STRONG: 0-2 effective failures → highest confidence
+            # MODERATE: 3-5 effective failures → good candidate, some data gaps
+            # WEAK: 6-9 effective failures → needs enrichment but still analyzable
+            # FLAGGED: 10+ effective failures → low data, user should verify
+            effective_failed = [f for f in gate_result["gate_failed"] if f not in systemic_points]
+            n_effective = len(effective_failed)
+            if n_effective <= 2:
                 entry["advisory_tier"] = "STRONG"
-            elif n_failed <= 5:
+            elif n_effective <= 5:
                 entry["advisory_tier"] = "MODERATE"
-            elif n_failed <= 9:
+            elif n_effective <= 9:
                 entry["advisory_tier"] = "WEAK"
             else:
                 entry["advisory_tier"] = "FLAGGED"
+
+            if systemic_points:
+                entry["systemic_discount"] = {
+                    "original_failures": n_failed,
+                    "systemic_failures": len([f for f in gate_result["gate_failed"] if f in systemic_points]),
+                    "effective_failures": n_effective,
+                    "systemic_points": sorted(systemic_points),
+                }
 
             # Tier cap: INSUFFICIENT_MARKETS — if market_count < minimum, cap tier
             MIN_MARKETS = {"football": 3, "basketball": 3, "tennis": 2, "volleyball": 2}
