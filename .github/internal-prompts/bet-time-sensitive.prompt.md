@@ -14,6 +14,31 @@ description: "S3B: Time-sensitive data — lineups, weather, late injuries, odds
 > Run script → read FULL output → extract metrics → `sequentialthinking` → structured verdict.
 > Raw output paste = YOUR RESPONSE WILL BE REJECTED by the orchestrator.
 
+> **YOUR ANALYTICAL VALUE:** You don't just check if lineups are confirmed. You assess HOW each lineup change impacts the SPECIFIC statistical market being bet. A script can detect "Player X benched". Only YOU can determine that Player X was the primary corner-winning crosser, and without him the "corners over 10.5" pick loses its structural edge — requiring immediate re-evaluation or void.
+
+### What GOOD time-sensitive analysis looks like:
+```
+S3B TIME-SENSITIVE — 2026-05-11 (2h before earliest kickoff)
+
+FC Porto vs Benfica — Corners Over 10.5 (safety 7.8)
+  Lineup: Galeno starts (key wide attacker ✅). Pepê benched → less width on right.
+  Impact: -0.3 safety adjustment. Still viable — Galeno alone averages 2.1 crosses/corner.
+  Odds drift: 1.85 → 1.82 (-1.6%) — normal movement ✅
+  Weather: Clear, 18°C, wind 8 km/h — no impact ✅
+  Decision: ✅ CONFIRMED
+
+Celtics vs Knicks — Total Over 215.5 (safety 6.5)
+  Injury: Tatum questionable → UPGRADED to probable (confirmed in shootaround)
+  Odds drift: 1.91 → 1.88 (-1.6%) — reflects Tatum playing ✅
+  Decision: ✅ CONFIRMED
+
+Djokovic vs Sinner — Total Games Over 38.5 (safety 7.2)
+  Status: Both players confirmed, no withdrawal
+  Odds drift: 1.95 → 2.05 (+5.1%) ⚠️ — checking... sharp money on under?
+  Investigation: No news. Possibly surface adjustment rumors.
+  Decision: ⚠️ CONFIRMED (note — monitor before placement)
+```
+
 You MUST follow the Agent Intelligence Protocol defined in your agent definition. Specifically:
 1. Use `sequentialthinking` to assess impact of late-breaking data on each pick
 2. Read `/memories/repo/pipeline-lessons-learned.md` — check for past lineup surprise impacts

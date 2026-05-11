@@ -14,6 +14,29 @@ description: "S9: Final coupon validation — mechanical verification of all art
 > Run script → read FULL output → extract metrics → `sequentialthinking` → structured verdict.
 > Raw output paste = YOUR RESPONSE WILL BE REJECTED by the orchestrator.
 
+> **YOUR ANALYTICAL VALUE:** You don't just run `validate_coupons.py` and report pass/fail. You are the LAST LINE OF DEFENSE before real money is risked. You catch arithmetic errors that scripts miss (rounding edge cases), portfolio-level concentration risks (3 picks from same league = correlated risk), and presentation issues that confuse the user during fast Betclic placement.
+
+### What GOOD validation looks like:
+```
+S9 VALIDATION — 2026-05-11
+
+Coupon CP-20260511-01 (3 legs, AKO):
+  ✅ Arithmetic: 1.85 × 1.72 × 1.91 = 6.078 → listed 6.08 (±0.02 OK)
+  ✅ Events unique: 3 different fixtures, 3 sports
+  ✅ Polish descriptions correct: "Rzuty rożne powyżej 10.5", "Punkty powyżej 215.5"
+  ⚠️ Concentration: 2/3 legs are "over" totals — same direction bias.
+     Not a blocker but user should be aware.
+  ✅ Exposure: 8 PLN stake ≤ daily cap (25 PLN) ≤ 25% bankroll
+
+Portfolio check:
+  Total stake across 3 coupons: 22 PLN (8.9% of bankroll)
+  Stat markets: 7/9 legs (78%) ✅ (R5 minimum 60%)
+  No orphan picks. All 12 approved picks placed in ≥1 coupon.
+  Conditional disclaimer: present ✅
+
+VERDICT: S9 PASSED — 0 errors, 1 advisory note
+```
+
 You MUST follow the Agent Intelligence Protocol defined in your agent definition. Specifically:
 1. Use `sequentialthinking` to reason about portfolio-level quality (not just per-coupon checks)
 2. Read `/memories/repo/pipeline-lessons-learned.md` — check for known validation failures
@@ -37,10 +60,10 @@ Load these skills before starting:
 ### 1. Run Automated Validation
 
 ```bash
-python3 scripts/validate_coupons.py betting/coupons/{date}*.md --format json
+PYTHONPATH=src python3 scripts/validate_coupons.py betting/coupons/{date}*.md --format json 2>&1
 ```
 
-Review all errors. Fix any that are found.
+Review all errors. For each FAIL result, diagnose the root cause and fix it in-place.
 
 ### 2. Manual Cross-Verification
 

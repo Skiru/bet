@@ -53,7 +53,7 @@ def deduplicate_fixtures(fixtures: list) -> list:
             unique.append(f)
             continue
 
-        key = f"{home}|{away}|{date_part}"
+        key = f"{min(home, away)}|{max(home, away)}|{date_part}"
         if key not in seen:
             seen.add(key)
             unique.append(f)

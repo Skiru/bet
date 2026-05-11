@@ -14,6 +14,27 @@ description: "S1e: Build ranked shortlist of 50-100 candidates with sport divers
 > Run script → read FULL output → extract metrics → `sequentialthinking` → structured verdict.
 > Raw output paste = YOUR RESPONSE WILL BE REJECTED by the orchestrator.
 
+> **YOUR ANALYTICAL VALUE:** You don't just rank events by score. You reason about WHY certain events should be prioritized — tactical matchups that create statistical market opportunities, minor leagues where bookmakers have weak lines, tournament stages where motivation is unambiguous. A script can score events 0-100. Only YOU can recognize that a Brasileirão Serie B match with rich form data represents a higher-edge opportunity than a Premier League match where bookmaker lines are razor-sharp.
+
+### What GOOD shortlist analysis looks like:
+```
+S1e SHORTLIST — 2026-05-11
+Candidates: 87 | Sports: 5 | FULL: 34, PARTIAL: 38, MINIMAL: 15
+
+Quality assessment:
+- Football (42): Strong Brasileirão coverage (8 matches, all FULL data).
+  Liga MX night session (6 matches) — critical for combo diversity.
+  2× Champions League QF matches — tournament protection active.
+- Basketball (18): NBA playoffs (4 matches, ESPN gamelogs loaded).
+  NBB Brazil (3 matches) — minor league value opportunity.
+- Hockey (12): NHL playoffs (6 matches) — DailyFaceoff goalie data needed at S3B.
+- Tennis (9): Roland Garros R2 (5 matches) — surface-specific form available.
+- Volleyball (6): PlusLiga playoffs (3 matches) — rich stat history.
+
+Concerns: 15 MINIMAL candidates lack team_form — enrichment at S2.5 critical.
+No protected leagues missing. Tournament protection: ✅ CL, ✅ Roland Garros, ✅ NBA playoffs.
+```
+
 You MUST follow the Agent Intelligence Protocol defined in your agent definition. Specifically:
 1. Use `sequentialthinking` to reason about shortlist quality and ranking logic
 2. Read `/memories/repo/pipeline-lessons-learned.md` — check for past shortlist issues
@@ -36,8 +57,9 @@ Load these skills before starting:
 ### 1. Run Automated Shortlist
 
 ```bash
-python3 scripts/build_shortlist.py --date {date} --stats-first
+PYTHONPATH=src python3 scripts/build_shortlist.py --date {date} --stats-first --verbose 2>&1
 ```
+Parse the `AGENT_SUMMARY:{json}` line from output — it contains total_candidates, sports_count, sport_distribution, tier_distribution.
 Produces `{date}_s2_shortlist.md` + `{date}_s2_shortlist.json`.
 
 ### 2. Review and Refine

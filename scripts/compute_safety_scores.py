@@ -323,8 +323,9 @@ def compute_combined_values(market: dict) -> list[float]:
 def compute_combined_l5(market: dict) -> list[float]:
     """Compute combined L5 values from team A + team B."""
     is_combined = market.get("is_combined", True)
-    a_vals = market.get("team_a_l5") or market.get("team_a_l10", [])[-5:]
-    b_vals = market.get("team_b_l5") or market.get("team_b_l10", [])[-5:]
+    # L10 is ordered most-recent-first, so [:5] gives the 5 most recent matches
+    a_vals = market.get("team_a_l5") or market.get("team_a_l10", [])[:5]
+    b_vals = market.get("team_b_l5") or market.get("team_b_l10", [])[:5]
 
     if is_combined:
         min_len = min(len(a_vals), len(b_vals))

@@ -791,7 +791,9 @@ def fetch_stats_for_date(
                 status = result.get("status", "skipped")
                 if status in ("enriched", "partial"):
                     # Track by INPUT fixture_id (not output — mocks may return wrong id)
-                    espn_enriched_ids.add(input_fixture.get("fixture_id", ""))
+                    fid = input_fixture.get("fixture_id", "")
+                    if fid:
+                        espn_enriched_ids.add(fid)
                 if processed % 100 == 0:
                     enriched_so_far = len(espn_enriched_ids)
                     print(f"[Phase 1] Progress: {processed}/{len(espn_eligible)} processed, {enriched_so_far} enriched")

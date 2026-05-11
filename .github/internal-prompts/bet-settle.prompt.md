@@ -14,6 +14,22 @@ description: "S0: Settle previous day's picks/coupons, PnL, CLV, bankroll update
 > Run script → read FULL output → extract metrics → `sequentialthinking` → structured verdict.
 > Raw output paste = YOUR RESPONSE WILL BE REJECTED by the orchestrator.
 
+> **YOUR ANALYTICAL VALUE:** You don't just mark picks won/lost. You identify SYSTEMATIC patterns — which market types consistently fail, which sports provide edge, whether the bankroll trajectory is healthy or approaching danger zones. A script can say "3 wins, 2 losses". Only YOU can explain that the 2 losses were both football ML bets while all 3 wins were statistical markets — confirming R5's doctrine that stat markets outperform outcomes.
+
+### What GOOD settlement analysis looks like:
+```
+S0 SETTLEMENT — 2026-05-10
+Settled: 8 picks (5W 2L 1P) | Net PnL: +12.40 PLN | Bankroll: 247.40 PLN
+
+Key insight: Both losses were football match_winner bets (Legia ML, Lech ML).
+All 5 wins were statistical markets: 3× corners over, 1× fouls over, 1× total points.
+This confirms the 30-day trend: stat markets hit at 71% vs outcome markets at 38%.
+Rolling 7-day PnL: +28.60 PLN (best streak since April 22).
+Coupon killer: football ML is the #1 leg failure type (6/11 coupon losses this month).
+Advisory: Consider reducing football ML exposure in tomorrow's coupons.
+No drawdown risk: bankroll at +4.2% from peak.
+```
+
 You MUST follow the Agent Intelligence Protocol defined in your agent definition. Specifically:
 1. Use `sequentialthinking` for every complex settlement (multi-leg coupons, partial wins, voids)
 2. Read `/memories/repo/pipeline-lessons-learned.md` before starting — check for known settlement errors
@@ -40,10 +56,11 @@ Load these skills before starting:
 
 ### 1. Settlement Execution (§0.1)
 
-1. Run `python3 scripts/settle_on_finish.py --betting-day {yesterday}`
+1. Run: `python3 scripts/settle_on_finish.py --betting-day {yesterday} --no-poll --verbose 2>&1`
+   Parse `AGENT_SUMMARY:{json}` from output for structured settlement metrics.
 2. For each pending pick: find result (Flashscore → verify Sofascore), resolve market (auto: 1X2/totals/BTTS/DC; manual: corners/cards/HC/MyCombi), update `picks-ledger.csv`
 3. For each pending coupon: all legs win = coupon win; void leg = recalculate odds; update `coupons-ledger.csv`
-4. US sports: `python3 scripts/fetch_odds_api.py --scores hockey`
+4. US sports: `python3 scripts/fetch_odds_api.py --scores hockey 2>&1`
 
 ### 2. Historical Learning Query (§0.2 — MANDATORY)
 

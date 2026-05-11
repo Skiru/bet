@@ -90,7 +90,7 @@ All agents follow `agent-execution-protocol.instructions.md` (loaded via their `
 
 ## §STRUCTURED SCRIPT OUTPUT (R19)
 
-9 analytical scripts emit `AGENT_SUMMARY:{json}`: `scan_events.py`, `html_deep_parser.py`, `ingest_scan_stats.py`, `tipster_aggregator.py`, `tipster_xref.py`, `data_enrichment_agent.py`, `deep_stats_report.py`, `gate_checker.py`, `coupon_builder.py`. Exit codes: 0=OK, 1=partial, 2=critical. Scripts with `--sport` filter: `scan_events.py`, `tipster_aggregator.py`.
+10 analytical scripts emit `AGENT_SUMMARY:{json}`: `scan_events.py`, `html_deep_parser.py`, `ingest_scan_stats.py`, `tipster_aggregator.py`, `tipster_xref.py`, `data_enrichment_agent.py`, `deep_stats_report.py`, `gate_checker.py`, `coupon_builder.py`, `build_shortlist.py`. Exit codes: 0=OK, 1=partial, 2=critical. Scripts with `--sport` filter: `scan_events.py`, `tipster_aggregator.py`.
 
 ---
 
@@ -142,6 +142,35 @@ runSubagent("bet-settler"):
 - Return: APPROVED/FLAGGED/REJECTED + pnl_summary + bankroll_update + learning_insights
 ---
 ```
+
+---
+
+### STEP S0.5: DB Quality Check (NEW — data foundation validation)
+
+**Delegate to bet-db-analyst** (read `.github/internal-prompts/bet-db-quality.prompt.md` first):
+
+```
+runSubagent("bet-db-analyst"):
+---
+## Task: S0.5 DB Quality Check for {date}
+
+[Paste content of .github/internal-prompts/bet-db-quality.prompt.md]
+
+### Context
+- Date: {date}
+- Run full table census, date-specific analysis, source health check
+- Load skill: bet-querying-database
+- Key checks:
+  - All 28 tables exist and are populated
+  - team_form has data for all 5 sports
+  - fixtures for today's date are loaded
+  - source_health shows acceptable success rates
+  - league_profiles populated for active competitions
+- Return: APPROVED/FLAGGED/REJECTED + tables_populated + gaps[] + recommendations[]
+---
+```
+
+**GATE:** If bet-db-analyst returns FLAGGED with critical gaps → run recommended enrichment scripts before S1.
 
 ---
 
@@ -644,6 +673,7 @@ Present to user:
 | Step | Internal Prompt | Agent |
 |------|----------------|-------|
 | S0 Settlement | `bet-settle.prompt.md` | bet-settler |
+| S0.5 DB Quality | `bet-db-quality.prompt.md` | bet-db-analyst |
 | S1 Scan | `bet-scan.prompt.md` | bet-scanner |
 | S1 Scan (sport-specific) | `bet-scan-football.prompt.md`, `bet-scan-basketball.prompt.md`, `bet-scan-tennis.prompt.md` | bet-scanner |
 | S1 Scan (merge) | `bet-scan-merge.prompt.md` | bet-scanner |

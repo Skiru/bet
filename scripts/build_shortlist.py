@@ -30,6 +30,7 @@ from generate_market_matrix import MAJOR_COMPETITIONS, _is_major_competition
 from bet.stats.market_ranking import STANDARD_MARKET_LINES
 
 from utils import normalize_team_name as _normalize_team, normalize_kickoff
+from agent_output import AgentOutput, add_agent_args
 
 from db_data_loader import load_fixtures_from_db, load_odds_from_db
 
@@ -785,12 +786,18 @@ def main():
     parser.add_argument("--stats-first", action="store_true",
                         help="Include FIXTURE_ONLY events from major competitions")
     parser.add_argument("--min-sports", type=int, default=5, help="Minimum sport diversity (default: 5)")
+    add_agent_args(parser)
     args = parser.parse_args()
+
+    out = AgentOutput("s1e_shortlist", verbose=args.verbose, stop_on_error=args.stop_on_error)
 
     date = args.date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
     if not re.match(r"^\d{4}-\d{2}-\d{2}$", date):
-        print(f"[shortlist] ERROR: Invalid date format '{date}'. Use YYYY-MM-DD.")
-        sys.exit(1)
+        out.error("invalid_date", f"Invalid date format '{date}'. Use YYYY-MM-DD.")
+        out.summary(verdict="FAILED", metrics={"error": "invalid_date"})
+        sys.exit(2)
+
+    out.event("start", date=date, stats_first=args.stats_first)
 
     selected = build_shortlist(
         date=date,
@@ -825,11 +832,11 @@ def main():
             repo.start_step(date, "s1e_shortlist")
             repo.complete_step(date, "s1e_shortlist", stats=shortlist_stats)
             conn.commit()
-            print(f"  → DB: saved shortlist summary ({len(selected)} candidates)")
+            out.event("db_saved", candidates=len(selected))
     except Exception as e:
-        print(f"  ⚠ DB shortlist save failed (non-fatal): {e}")
+        out.warning(f"DB shortlist save failed (non-fatal): {e}")
 
-    # Summary
+    # Summary metrics
     sport_counts = Counter(e["sport"] for _, e in selected)
     tier_counts = Counter(e["data_tier"] for _, e in selected)
 
@@ -841,6 +848,8 @@ def main():
     for sport, count in sport_counts.most_common():
         tier = "KEY" if sport in TIER1_SPORTS else "SUP"
         print(f"  [{tier}] {sport}: {count}")
+        if args.verbose:
+            out.event("sport_count", sport=sport, count=count, tier=tier)
     print(f"\nBy data tier:")
     for tier, count in tier_counts.most_common():
         print(f"  {tier}: {count}")
@@ -848,6 +857,21 @@ def main():
     for i, (score, event) in enumerate(selected[:10], 1):
         print(f"  {i}. [{event['sport']}] {event.get('home_team','?')} vs {event.get('away_team','?')} "
               f"({event.get('competition','?')}) — score {score:.1f}, tier {event['data_tier']}")
+
+    out.summary(
+        verdict="OK" if len(selected) >= 10 else ("PARTIAL" if selected else "FAILED"),
+        metrics={
+            "total_candidates": len(selected),
+            "sports_count": len(sport_counts),
+            "sport_distribution": dict(sport_counts),
+            "tier_distribution": dict(tier_counts),
+            "full_data": tier_counts.get("FULL", 0),
+            "partial_data": tier_counts.get("PARTIAL", 0),
+            "minimal_data": tier_counts.get("MINIMAL", 0) + tier_counts.get("FIXTURE_ONLY", 0),
+        },
+    )
+
+    sys.exit(0 if selected else 1)
 
 
 if __name__ == "__main__":

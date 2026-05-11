@@ -376,6 +376,25 @@ AGENT_SKILLS_MAP = {
         "db_writes": ["coupons", "bets", "decision_snapshots"],
         "can_trigger_enrichment": False,
     },
+    "bet-db-analyst": {
+        "role": "Database specialist — data quality, gap analysis, integrity checks",
+        "mandatory_behaviors": MANDATORY_BEHAVIORS,
+        "responsibilities": [
+            "Run full table census — row counts for all 28 tables",
+            "Date-specific gap analysis — fixtures without team_form, missing odds, etc.",
+            "Source health monitoring — flag sources with >20% failure rate",
+            "Cross-table integrity checks — orphaned records, missing foreign keys",
+            "Pipeline state verification — which steps ran, their status and metrics",
+            "Recommend enrichment actions to fill data gaps",
+        ],
+        "skills_to_load": [
+            "bet-querying-database (DB schema, repository classes, standard queries)",
+        ],
+        "instructions_to_follow": [],
+        "db_reads": ["ALL 28 tables"],
+        "db_writes": [],
+        "can_trigger_enrichment": False,
+    },
 }
 
 # ---------------------------------------------------------------------------
@@ -409,6 +428,7 @@ STRUCTURED_OUTPUT_PROTOCOL = {
         "scan_events.py", "html_deep_parser.py", "ingest_scan_stats.py",
         "tipster_aggregator.py", "tipster_xref.py", "data_enrichment_agent.py",
         "deep_stats_report.py", "gate_checker.py", "coupon_builder.py",
+        "build_shortlist.py",
     ],
     "parsing_instructions": (
         "After running a script, find the line starting with 'AGENT_SUMMARY:' "

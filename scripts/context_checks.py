@@ -89,7 +89,7 @@ def run_context_checks(date: str, state: dict) -> tuple[bool, str]:
             from api_clients.rate_limiter import RateLimiter
             rl = RateLimiter()
             enrichment = {"date": date, "odds": [], "injuries": {}, "form": {}}
-            for sport_name in ["football", "basketball", "hockey"]:
+            for sport_name in ["football", "basketball", "hockey", "tennis", "volleyball"]:
                 try:
                     client = ESPNMultiLeagueClient(sport=sport_name, rate_limiter=rl)
                     injuries = client.get_injuries()
@@ -130,9 +130,15 @@ def run_context_checks(date: str, state: dict) -> tuple[bool, str]:
             home = c.get("home_team", "")
             away = c.get("away_team", "")
             sport = c.get("sport", "")
-            # Check weather
+            # Check weather — use substring matching for venue keys like "Liverpool vs Arsenal"
             for venue, flags in context_flags.items():
-                if venue.lower() in (home.lower(), away.lower(), c.get("venue", "").lower()):
+                venue_l = venue.lower()
+                home_l = home.lower()
+                away_l = away.lower()
+                venue_of_c = c.get("venue", "").lower()
+                if (home_l in venue_l or away_l in venue_l
+                        or venue_l in home_l or venue_l in away_l
+                        or (venue_of_c and venue_of_c in venue_l)):
                     c_flags.extend([f"WEATHER:{f}" for f in flags])
             # Check injuries
             for inj_entry in injury_summary:

@@ -51,11 +51,11 @@ def run_tipster_xref(date: str, state: dict) -> tuple[bool, str]:
 
     # JSON fallback if DB had no data
     if not tips:
-        tipster_path = DATA_DIR / f"tipster_aggregation_{date}.json"
         consensus_path = DATA_DIR / f"{date}_tipster_consensus.json"
+        tipster_path = DATA_DIR / f"tipster_aggregation_{date}.json"
 
         tipster_data = None
-        for tpath in [tipster_path, consensus_path]:
+        for tpath in [consensus_path, tipster_path]:
             if tpath.exists():
                 try:
                     tipster_data = json.loads(tpath.read_text(encoding="utf-8"))
