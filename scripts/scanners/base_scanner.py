@@ -24,6 +24,7 @@ sys.path.insert(0, str(BASE.parent / "src"))
 from bet.db.connection import get_db
 from bet.db.models import ScanResult, ScanRunStats
 from bet.db.repositories import ScanResultRepo, SourceHealthRepo
+from adapters import normalize_adapter_output
 
 try:
     from fetch_with_playwright import fetch
@@ -290,9 +291,10 @@ class BaseSportScanner(ABC):
                 event_key = f"{home}|{away}|{event.get('time', '')}".lower().strip()
                 if not event_key or event_key == "||":
                     continue
+                normalized = normalize_adapter_output(event, source_type=domain)
                 # Check both "league" and "competition" keys (adapters use both)
                 competition = (
-                    event.get("league", "")
+                    normalized.get("league", "")
                     or event.get("competition", "")
                     or url_competition
                 )
@@ -300,14 +302,14 @@ class BaseSportScanner(ABC):
                     ScanResult(
                         id=None,
                         betting_date=betting_date,
-                        sport=event.get("sport", self.sport_name),
+                        sport=normalized.get("sport") or event.get("sport", self.sport_name),
                         source_domain=domain,
                         event_key=event_key,
                         home_team=home,
                         away_team=away,
                         competition=competition,
                         kickoff=event.get("time", ""),
-                        raw_data=event,
+                        raw_data=normalized,
                         scan_timestamp=now_ts,
                     )
                 )

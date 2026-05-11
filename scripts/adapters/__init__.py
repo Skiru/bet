@@ -75,4 +75,133 @@ ADAPTERS = {
 def get_adapter(domain: str):
     return ADAPTERS.get(domain, raw_parse)
 
+ENRICHED_EVENT_DEFAULTS = {
+    "home": None,
+    "away": None,
+    "time": None,
+    "sport": None,
+    "league": None,
+    "source_url": None,
+    "source_type": None,
+    "match_id": None,
+    "match_url": None,
+    "predictions": {
+        "prob_home": None,
+        "prob_draw": None,
+        "prob_away": None,
+        "predicted_winner": None,
+        "predicted_score": None,
+        "avg_stat": None
+    },
+    "odds": {
+        "w1": None,
+        "x": None,
+        "w2": None,
+        "total_lines": []
+    },
+    "corners": {
+        "handicap": None,
+        "home": None,
+        "away": None
+    },
+    "form_home": [],
+    "form_away": [],
+    "h2h": [],
+    "cards": {},
+    "fouls": {},
+    "shots": {},
+    "raw": {}
+}
+
+def normalize_adapter_output(event: dict, source_type: str) -> dict:
+    """Normalize event structure mapping legacy fields to standard schema."""
+    import copy
+    try:
+        normalized = {k: copy.deepcopy(v) for k, v in ENRICHED_EVENT_DEFAULTS.items()}
+        normalized["source_type"] = source_type
+        
+        # Legacy mapping
+        if "home_team" in event and not event.get("home"):
+            normalized["home"] = event["home_team"]
+        if "away_team" in event and not event.get("away"):
+            normalized["away"] = event["away_team"]
+        if "kickoff" in event and not event.get("time"):
+            normalized["time"] = event["kickoff"]
+        if "competition" in event and not event.get("league"):
+            normalized["league"] = event["competition"]
+        
+        if "source" in event and str(event["source"]).startswith("http") and not event.get("source_url"):
+            normalized["source_url"] = event["source"]
+        if "url" in event and not event.get("source_url"):
+            normalized["source_url"] = event["url"]
+            
+        predictions = normalized["predictions"]
+        if "forebet_probs" in event:
+            predictions["prob_home"] = event["forebet_probs"].get("1")
+            predictions["prob_draw"] = event["forebet_probs"].get("X")
+            predictions["prob_away"] = event["forebet_probs"].get("2")
+        if "forebet_prediction" in event:
+            predictions["predicted_winner"] = event["forebet_prediction"]
+        if "forebet_score" in event:
+            predictions["predicted_score"] = event["forebet_score"]
+        if "forebet_avg" in event:
+            predictions["avg_stat"] = event["forebet_avg"]
+            
+        corners = normalized["corners"]
+        if "corner_handicap" in event:
+            corners["handicap"] = event["corner_handicap"]
+        if "corner_count" in event and isinstance(event["corner_count"], str) and "-" in event["corner_count"]:
+            parts = event["corner_count"].split("-")
+            corners["home"] = parts[0].strip()
+            corners["away"] = parts[1].strip()
+            
+        odds = normalized["odds"]
+        if "total_goals_line" in event:
+            try:
+                line = float(str(event["total_goals_line"]).split()[0])
+                odds["total_lines"].append({"line": line})
+            except Exception:
+                pass
+                
+        if "odds" in event:
+            if isinstance(event["odds"], list):
+                if len(event["odds"]) >= 1: odds["w1"] = event["odds"][0]
+                if len(event["odds"]) >= 2: 
+                    if len(event["odds"]) == 2:
+                        odds["w2"] = event["odds"][1]
+                    else:
+                        odds["x"] = event["odds"][1]
+                        odds["w2"] = event["odds"][2]
+            elif isinstance(event["odds"], dict):
+                odds.update(event["odds"])
+                
+        if "consensus" in event and isinstance(event["consensus"], dict):
+            # Try to map spread/total/moneyline into odds
+            for k, v in event["consensus"].items():
+                odds[k] = v
+            
+        if "sofascore_id" in event:
+            normalized["match_id"] = event["sofascore_id"]
+        if "detail_url" in event:
+            normalized["match_url"] = event["detail_url"]
+            
+        # Copy direct standard fields
+        for field in ["home", "away", "time", "sport", "league", "source_url", "match_id", "match_url", "form_home", "form_away", "h2h", "cards", "fouls", "shots"]:
+            if field in event:
+                normalized[field] = event[field]
+        if "corners" in event and isinstance(event["corners"], dict):
+            normalized["corners"].update(event["corners"])
+            
+        # Store unmapped fields in raw
+        normalized["raw"] = event
+        
+        return normalized
+    except Exception as e:
+        # Fallback to empty if crashes
+        return event
+
+def normalize_batch(events: list[dict], source_type: str) -> list[dict]:
+    """Normalize a batch of events."""
+    return [normalize_adapter_output(event, source_type) for event in events]
+
 

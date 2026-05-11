@@ -229,8 +229,15 @@ class AgentOutput:
              "found": [...], "missing": [...], "warnings": [...]}
         """
         from pathlib import Path
+        import re
         
         result = {"status": "OK", "found": [], "missing": [], "warnings": []}
+        
+        # Validate date format to prevent path traversal
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
+            result["status"] = "UNKNOWN"
+            result["warnings"].append(f"Invalid date format: {date!r}")
+            return result
         
         # Load contracts
         if contracts is None:
@@ -264,7 +271,9 @@ class AgentOutput:
         if required_tables:
             try:
                 import sys as _sys
-                _sys.path.insert(0, str(root / "src"))
+                src_path = str(root / "src")
+                if src_path not in _sys.path:
+                    _sys.path.insert(0, src_path)
                 from bet.db.connection import get_db
                 with get_db() as conn:
                     for table in required_tables:

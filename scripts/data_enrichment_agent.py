@@ -1905,6 +1905,14 @@ def main():
                      metrics={"enriched": enriched, "partial": partial, "failed": failed, "total": len(results)})
 
     elif args.date:
+        # V5: Input contract pre-check (warning-only, never blocks)
+        _contract = AgentOutput.validate_input_contract("s2_5_enrich", args.date)
+        if _contract["status"] != "OK":
+            for _w in _contract.get("warnings", []):
+                out.warning(f"Input contract: {_w}")
+            for _m in _contract.get("missing", []):
+                out.warning(f"Missing input: {_m}")
+
         missing = _detect_missing_from_shortlist(args.date)
         if not missing:
             out.summary(verdict="OK", metrics={"missing": 0, "message": f"No missing teams for {args.date}"})

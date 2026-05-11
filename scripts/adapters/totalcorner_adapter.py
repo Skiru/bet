@@ -51,6 +51,38 @@ def parse(html: str, url: str) -> List[Dict]:
         if not home or not away:
             continue
 
+        yellow_home = None
+        yellow_away = None
+        red_home = None
+        red_away = None
+        if home_td:
+            yc = home_td.find("span", class_=re.compile(r"yellow|card_y", re.I))
+            if yc:
+                try: yellow_home = float(yc.get_text(strip=True))
+                except: pass
+            rc = home_td.find("span", class_=re.compile(r"red|card_r", re.I))
+            if rc:
+                try: red_home = float(rc.get_text(strip=True))
+                except: pass
+        if away_td:
+            yc = away_td.find("span", class_=re.compile(r"yellow|card_y", re.I))
+            if yc:
+                try: yellow_away = float(yc.get_text(strip=True))
+                except: pass
+            rc = away_td.find("span", class_=re.compile(r"red|card_r", re.I))
+            if rc:
+                try: red_away = float(rc.get_text(strip=True))
+                except: pass
+        
+        cards = {"yellow_home": yellow_home, "yellow_away": yellow_away, "red_home": red_home, "red_away": red_away}
+
+        pos_match_home = re.search(r"\[(\d+)\]", home)
+        pos_match_away = re.search(r"\[(\d+)\]", away)
+        standings = {
+            "home_pos": int(pos_match_home.group(1)) if pos_match_home else None,
+            "away_pos": int(pos_match_away.group(1)) if pos_match_away else None
+        }
+
         # Clean team names: remove ranking brackets like [3] or [12]
         # Only strip when square brackets are present to avoid removing
         # legitimate trailing digits (e.g., "Dynamo2", "1860 Munich")
@@ -82,6 +114,8 @@ def parse(html: str, url: str) -> List[Dict]:
 
         # Find corner counts (in the td after handicap)
         corner_count = None
+        corners_ht_home = None
+        corners_ht_away = None
         if handicap_td:
             next_td = handicap_td.find_next_sibling("td")
             if next_td:
@@ -90,6 +124,10 @@ def parse(html: str, url: str) -> List[Dict]:
                 m = re.match(r"(\d+)\s*-\s*(\d+)", cc)
                 if m:
                     corner_count = f"{m.group(1)}-{m.group(2)}"
+                ht_match = re.search(r"\((\d+)\s*-\s*(\d+)\)", cc) if cc else None
+                if ht_match:
+                    corners_ht_home = int(ht_match.group(1))
+                    corners_ht_away = int(ht_match.group(2))
 
         # Find total goals line
         total_goals = None
@@ -101,6 +139,18 @@ def parse(html: str, url: str) -> List[Dict]:
             if m and "match_handicap" not in classes and "match_status" not in classes:
                 total_goals = txt
                 break
+                
+        attack_home = None
+        attack_away = None
+        for td in tds:
+            cls = " ".join(td.get("class", []))
+            if "attack" in cls.lower() or "danger" in cls.lower():
+                txt = td.get_text(strip=True)
+                m = re.match(r"(\d+)\s*[-–]\s*(\d+)", txt)
+                if m:
+                    attack_home = int(m.group(1))
+                    attack_away = int(m.group(2))
+                    break
 
         result = {
             "home": home,
@@ -110,7 +160,15 @@ def parse(html: str, url: str) -> List[Dict]:
             "raw": f"{home} vs {away}",
             "sport": "football",
             "source_type": "totalcorner",
+            "cards": cards,
+            "standings": standings,
+            "dangerous_attacks": {"home": attack_home, "away": attack_away},
         }
+
+        if corners_ht_home is not None:
+            result["corners_ht_home"] = corners_ht_home
+        if corners_ht_away is not None:
+            result["corners_ht_away"] = corners_ht_away
 
         if league:
             result["league"] = league

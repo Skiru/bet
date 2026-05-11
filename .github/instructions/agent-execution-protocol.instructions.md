@@ -46,7 +46,7 @@ applyTo: ".github/agents/bet-*.agent.md"
 
 ---
 
-## The 4-Step Cycle (EVERY script execution, no exceptions)
+## The 5-Step Cycle (EVERY script execution, no exceptions)
 
 ### 1. RUN — Launch with `--verbose`, choose execution mode
 
@@ -88,6 +88,8 @@ Then call `get_terminal_output(id)` to check if the script is done:
 | bet-scout | `tipster_aggregator.py` (5 min) | Read scan results, check pre-fetched HTML, identify tipster coverage gaps |
 | bet-builder | `coupon_builder.py` (5 min) | Review gate results, check bankroll config, prepare portfolio intelligence |
 
+> **Concrete SQL queries and file reads per agent:** See `THINK_WHILE_WAITING_QUERIES` in `scripts/agent_protocol.py` for exact queries with `{date}` placeholders.
+
 #### ⛔ BAD vs ✅ GOOD Async Pattern
 
 ```
@@ -109,6 +111,15 @@ get_terminal_output(terminal_id)  # read results → EXTRACT → THINK → RETUR
 ### 2. EXTRACT — Pull specific numbers
 
 From the output, extract: total count, success/fail rates, per-category breakdown, error patterns, data quality signals. If you can't cite at least 3 specific numbers, you didn't read the output.
+
+### 2b. VALIDATE — Check output structure (V5)
+
+After extracting numbers, validate the script output structure:
+1. **AGENT_SUMMARY check:** `validate_summary()` auto-runs inside every script's `summary()` call (V5). If the AGENT_SUMMARY line is malformed or missing, flag it.
+2. **Input contract for NEXT step:** Before running the next script, call `AgentOutput.validate_input_contract(step_id, date)` or use `python3 scripts/inspect_pipeline.py --step {next_step} --date {date}` to verify the data handoff.
+3. **Reaction check:** If validation warnings exist, consult `REACTION_PATTERNS` in `agent_protocol.py` for recovery guidance.
+
+Validation is **ADVISORY** — it adds warnings, never blocks the pipeline. The scripts themselves handle hard failures (exit codes, sys.exit).
 
 ### 3. THINK — `sequentialthinking` is MANDATORY
 
@@ -182,6 +193,26 @@ data and 15 with partial. Hockey candidates need extra caution in safety scores.
 ```
 
 **The difference:** The GOOD output has specific numbers, per-category breakdown, anomaly explanation with ROOT CAUSE, impact assessment, and original reasoning. The BAD output has vague summaries that could apply to any script run ever.
+
+---
+
+## Reaction Patterns (V5)
+
+When a script produces unexpected results, consult `REACTION_PATTERNS` in `scripts/agent_protocol.py` for structured recovery guidance:
+
+| Trigger | Severity | Action |
+|---------|----------|--------|
+| Empty output (0 events) | HIGH | Retry with alt source, check `source_health` DB table |
+| Yield < 40% | MEDIUM | Trigger L3-L6 fallback enrichment for failed items |
+| Missing sport in results | HIGH | Re-scan that sport: `--sport {sport}` |
+| Exit code 2 | CRITICAL | STOP pipeline, escalate to user immediately |
+| No AGENT_SUMMARY line | HIGH | Script crashed — check exit code and last 50 lines |
+| >50% MINIMAL quality | HIGH | Spawn `web_research_agent.py` (L7) for data gaps |
+| Odds drift >8% | MEDIUM | Mandatory EV re-evaluation with new odds |
+| DB connection failure | CRITICAL | Check `betting.db` exists, fall back to JSON |
+| Timeout exceeded | MEDIUM | `get_terminal_output` to check progress, wait or kill+retry |
+
+**Pipeline inspector:** Use `python3 scripts/inspect_pipeline.py --step {step} --date {date}` for quick state checks instead of complex inline Python.
 
 ---
 
@@ -268,6 +299,8 @@ FOR MEDIUM/LONG SCRIPTS (≥300s):
 Before running script B after script A: verify A's output keys/tables match B's input expectations.
 READ producer code → READ consumer code → COMPARE keys → VERIFY with actual data → FIX mismatches before running.
 
+**V5 programmatic enforcement:** `DATA_FLOW_CONTRACTS` in `scripts/agent_protocol.py` defines expected inputs/outputs per step. Scripts auto-validate via `AgentOutput.validate_input_contract()` at startup (warning-only). Use `python3 scripts/inspect_pipeline.py --step {step} --date {date}` for quick data flow checks.
+
 **Real example of what goes wrong:** `tipster_aggregator.py` saved picks under `"all_picks"` → `tipster_xref.py` read `"tips"` → got 0 matches → pipeline ran for DAYS with zero tipster data. Nobody noticed because nobody READ THE CODE.
 
 After every script: verify output file exists, check DB row counts, spot-check for garbage entries.
@@ -283,4 +316,4 @@ After every script: verify output file exists, check DB row counts, spot-check f
 5. **Before connecting scripts**, verify data format compatibility — you are the integration layer.
 6. **TEST: Read your response. Remove all numbers and metrics. Is anything left? If not, you just reformatted the output — you didn't analyze it.**
 
-<!-- BET:instruction:agent-execution-protocol:v3 -->
+<!-- BET:instruction:agent-execution-protocol:v5 -->

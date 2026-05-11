@@ -441,7 +441,69 @@ AGENT_SKILLS_MAP = {
             "S7: Bayesian-update confidence based on context + upset risk",
             "Merge context_flags/upset_risk into analysis_results.stats_summary_json",
         ],
-  Data Flow Contracts (R18) — expected inputs/outputs per pipeline step
+        "skills_to_load": [
+            "bet-applying-sport-protocols (upset risk checklists, instant red flags §7.3)",
+            "bet-analyzing-statistics (safety score validation)",
+        ],
+        "instructions_to_follow": [
+            "analysis-methodology.instructions.md (§5 context, §6 upset risk, §7 gate)",
+        ],
+        "db_reads": ["analysis_results", "gate_results", "fixtures", "standings", "espn_predictions", "team_form"],
+        "db_writes": ["analysis_results (update_stats_summary for context_flags/upset_risk)", "gate_results"],
+        "can_trigger_enrichment": True,
+        "enrichment_tools": ["fetch_espn_standings (injury/roster data)", "fetch (weather URLs via Playwright)"],
+    },
+    "bet-builder": {
+        "role": "Portfolio construction & coupon validation specialist",
+        "mandatory_behaviors": MANDATORY_BEHAVIORS,
+        "responsibilities": [
+            "Build core portfolio: unique event per coupon, max legs per config (default 4)",
+            "Create COMBO MENU: extra combinations remixing approved picks",
+            "Build EXTENDED POOL: EV>0 but gate-failed picks for user review",
+            "Split by advisory tier: STRONG+MODERATE -> primary, WEAK/FLAGGED -> discovery",
+            "Check hidden correlations between legs (same league, weather, surface)",
+            "Run coupon stress test (§8.2) -- what if 1 leg fails?",
+            "Apply V1-V10 validation suite + §S8.FINAL mechanical verification",
+            "Assign risk tier labels: LR/MS/HR/N per coupon",
+            "Adjust stakes by conviction -- higher conviction = closer to Kelly optimal",
+            "Per-pick concentration limits -- no single pick >25% of stake",
+        ],
+        "skills_to_load": [
+            "bet-building-coupons (portfolio rules, V1-V10, §S8.FINAL, correlation checks)",
+            "bet-formatting-artifacts (coupon table structure, Polish market names, ID generation)",
+            "bet-evaluating-odds (Kelly 1/4 for stake sizing)",
+        ],
+        "instructions_to_follow": [
+            "analysis-methodology.instructions.md (§8 coupon building, §S8.FINAL)",
+            "betting-artifacts.instructions.md (output formats)",
+        ],
+        "db_reads": ["analysis_results", "gate_results", "fixtures", "odds_history", "coupons", "bets"],
+        "db_writes": ["coupons", "bets", "decision_snapshots"],
+        "can_trigger_enrichment": False,
+    },
+    "bet-db-analyst": {
+        "role": "Database specialist -- data quality, gap analysis, integrity checks",
+        "mandatory_behaviors": MANDATORY_BEHAVIORS,
+        "responsibilities": [
+            "Run full table census -- row counts for all 28 tables",
+            "Date-specific gap analysis -- fixtures without team_form, missing odds, etc.",
+            "Source health monitoring -- flag sources with >20% failure rate",
+            "Cross-table integrity checks -- orphaned records, missing foreign keys",
+            "Pipeline state verification -- which steps ran, their status and metrics",
+            "Recommend enrichment actions to fill data gaps",
+        ],
+        "skills_to_load": [
+            "bet-querying-database (DB schema, repository classes, standard queries)",
+        ],
+        "instructions_to_follow": [],
+        "db_reads": ["ALL 28 tables"],
+        "db_writes": [],
+        "can_trigger_enrichment": False,
+    },
+}
+
+# ---------------------------------------------------------------------------
+# Data Flow Contracts (R18) -- expected inputs/outputs per pipeline step
 # ---------------------------------------------------------------------------
 DATA_FLOW_CONTRACTS = {
     "s1_scan": {
@@ -725,69 +787,7 @@ THINK_WHILE_WAITING_QUERIES = {
 }
 
 # ---------------------------------------------------------------------------
-#       "skills_to_load": [
-            "bet-applying-sport-protocols (upset risk checklists, instant red flags §7.3)",
-            "bet-analyzing-statistics (safety score validation)",
-        ],
-        "instructions_to_follow": [
-            "analysis-methodology.instructions.md (§5 context, §6 upset risk, §7 gate)",
-        ],
-        "db_reads": ["analysis_results", "gate_results", "fixtures", "standings", "espn_predictions", "team_form"],
-        "db_writes": ["analysis_results (update_stats_summary for context_flags/upset_risk)", "gate_results"],
-        "can_trigger_enrichment": True,
-        "enrichment_tools": ["fetch_espn_standings (injury/roster data)", "fetch (weather URLs via Playwright)"],
-    },
-    "bet-builder": {
-        "role": "Portfolio construction & coupon validation specialist",
-        "mandatory_behaviors": MANDATORY_BEHAVIORS,
-        "responsibilities": [
-            "Build core portfolio: unique event per coupon, max legs per config (default 4)",
-            "Create COMBO MENU: extra combinations remixing approved picks",
-            "Build EXTENDED POOL: EV>0 but gate-failed picks for user review",
-            "Split by advisory tier: STRONG+MODERATE → primary, WEAK/FLAGGED → discovery",
-            "Check hidden correlations between legs (same league, weather, surface)",
-            "Run coupon stress test (§8.2) — what if 1 leg fails?",
-            "Apply V1-V10 validation suite + §S8.FINAL mechanical verification",
-            "Assign risk tier labels: LR/MS/HR/N per coupon",
-            "Adjust stakes by conviction — higher conviction = closer to Kelly optimal",
-            "Per-pick concentration limits — no single pick >25% of stake",
-        ],
-        "skills_to_load": [
-            "bet-building-coupons (portfolio rules, V1-V10, §S8.FINAL, correlation checks)",
-            "bet-formatting-artifacts (coupon table structure, Polish market names, ID generation)",
-            "bet-evaluating-odds (Kelly 1/4 for stake sizing)",
-        ],
-        "instructions_to_follow": [
-            "analysis-methodology.instructions.md (§8 coupon building, §S8.FINAL)",
-            "betting-artifacts.instructions.md (output formats)",
-        ],
-        "db_reads": ["analysis_results", "gate_results", "fixtures", "odds_history", "coupons", "bets"],
-        "db_writes": ["coupons", "bets", "decision_snapshots"],
-        "can_trigger_enrichment": False,
-    },
-    "bet-db-analyst": {
-        "role": "Database specialist — data quality, gap analysis, integrity checks",
-        "mandatory_behaviors": MANDATORY_BEHAVIORS,
-        "responsibilities": [
-            "Run full table census — row counts for all 28 tables",
-            "Date-specific gap analysis — fixtures without team_form, missing odds, etc.",
-            "Source health monitoring — flag sources with >20% failure rate",
-            "Cross-table integrity checks — orphaned records, missing foreign keys",
-            "Pipeline state verification — which steps ran, their status and metrics",
-            "Recommend enrichment actions to fill data gaps",
-        ],
-        "skills_to_load": [
-            "bet-querying-database (DB schema, repository classes, standard queries)",
-        ],
-        "instructions_to_follow": [],
-        "db_reads": ["ALL 28 tables"],
-        "db_writes": [],
-        "can_trigger_enrichment": False,
-    },
-}
-
-# ---------------------------------------------------------------------------
-# Structured Output Protocol (R19) — agent_output.py integration
+# Structured Output Protocol (R19) -- agent_output.py integration
 # ---------------------------------------------------------------------------
 STRUCTURED_OUTPUT_PROTOCOL = {
     "description": (

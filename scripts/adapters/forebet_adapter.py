@@ -133,6 +133,7 @@ def _parse_match_row(link_el, sport: str, source_url: str) -> Dict | None:
         result["date"] = date_str
     if detail_url:
         result["detail_url"] = detail_url
+        result["match_url"] = detail_url
     if probs:
         result["forebet_probs"] = probs
     if prediction:
@@ -141,6 +142,14 @@ def _parse_match_row(link_el, sport: str, source_url: str) -> Dict | None:
         result["forebet_score"] = predicted_score
     if avg_stat is not None:
         result["forebet_avg"] = avg_stat
+
+    result["predictions"] = {
+        "prob_home": probs.get("home"),
+        "prob_draw": probs.get("draw"),
+        "prob_away": probs.get("away"),
+        "predicted_score": predicted_score,
+        "avg_stat": avg_stat,
+    }
 
     return result
 

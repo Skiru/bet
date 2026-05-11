@@ -122,8 +122,8 @@ def _parse_listing_page(html: str, url: str) -> List[Dict]:
             home = slug.replace("-", " ").title()
             away = ""
 
-        # Get surrounding text for time
         time_str = None
+        current_league = None
         parent = a_tag.parent
         if parent:
             parent_text = parent.get_text(separator=" ", strip=True)
@@ -131,16 +131,30 @@ def _parse_listing_page(html: str, url: str) -> List[Dict]:
             if time_m:
                 time_str = time_m.group(1)
 
+            # Try to grab league from a preceding header
+            prev_header = parent.find_previous(["h2", "h3", "div"], class_=re.compile(r"league|tournament|competition", re.I))
+            if prev_header:
+                current_league = prev_header.get_text(strip=True)
+                
+        # If no heading found, try to extract from URL if it's a league page
+        if not current_league:
+            url_parts = url.rstrip("/").split("/")
+            if len(url_parts) > 4:
+                # e.g. /en/football/england-premier-league
+                current_league = url_parts[-1].replace("-", " ").title()
+
         full_url = f"https://scores24.live{href}"
         results.append({
             "home": home,
             "away": away,
             "time": time_str,
             "date": iso_date,
+            "league": current_league or "(unknown league)",
             "sport": sport,
             "source_url": url,
             "detail_url": full_url,
             "detail_url_trends": f"{full_url}#trends",
+            "source_type": "scores24"
         })
 
     return results
@@ -192,6 +206,15 @@ def _parse_detail_page(html: str, url: str) -> List[Dict]:
     away = result["match_info"].get("away", "")
     result["home"] = home
     result["away"] = away
+    
+    if "surface" in result["match_info"]:
+        result["surface"] = result["match_info"]["surface"]
+    if "venue" in result["match_info"]:
+        result["venue"] = result["match_info"]["venue"]
+    if "tournament" in result["match_info"]:
+        result["league"] = result["match_info"]["tournament"]
+        
+    result["source_type"] = "scores24"
 
     # --- Extract odds ---
     result["odds"] = _extract_odds(lines, soup, sport)

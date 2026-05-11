@@ -1923,6 +1923,14 @@ def main():
     args = parser.parse_args()
     out = AgentOutput("s8_coupon", verbose=args.verbose, stop_on_error=args.stop_on_error)
 
+    # V5: Input contract pre-check (warning-only, never blocks)
+    _contract = AgentOutput.validate_input_contract("s8_coupons", args.date)
+    if _contract["status"] != "OK":
+        for _w in _contract.get("warnings", []):
+            out.warning(f"Input contract: {_w}")
+        for _m in _contract.get("missing", []):
+            out.warning(f"Missing input: {_m}")
+
     # Load gate results — DB first, JSON fallback
     gate_results = None
 

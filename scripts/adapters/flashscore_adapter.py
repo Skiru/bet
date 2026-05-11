@@ -17,6 +17,15 @@ _HEADER_CLASS_RE = re.compile(
 )
 
 
+def _detect_sport_from_url(url: str) -> str | None:
+    m = re.search(r'flashscore\.com/(\w+)/', url)
+    if m:
+        sport_map = {"football": "football", "tennis": "tennis", "basketball": "basketball", 
+                     "hockey": "hockey", "volleyball": "volleyball", "handball": "handball",
+                     "baseball": "baseball", "rugby": "rugby"}
+        return sport_map.get(m.group(1).lower())
+    return None
+
 def _competition_from_url(url: str) -> str:
     """Extract competition name from a Flashscore league-specific URL path.
 
@@ -157,7 +166,16 @@ def _heuristic0_event_classes(soup: BeautifulSoup, url: str) -> List[Dict]:
         if not home or not away or len(home) < 2 or len(away) < 2:
             continue
 
-        # Clean suffixes
+        pos_match_home = re.search(r"\[(\d+)\]", home)
+        pos_match_away = re.search(r"\[(\d+)\]", away)
+        standings = {
+            "home_pos": int(pos_match_home.group(1)) if pos_match_home else None, 
+            "away_pos": int(pos_match_away.group(1)) if pos_match_away else None
+        }
+
+        # Clean suffixes and prefixes
+        home = re.sub(r"\[\d+\]", "", home).strip()
+        away = re.sub(r"\[\d+\]", "", away).strip()
         home = re.sub(r"Advancing to next round:?\s*.*", "", home, flags=re.I).strip()
         away = re.sub(r"Advancing to next round:?\s*.*", "", away, flags=re.I).strip()
         home = re.sub(r"Winner:?\s*.*", "", home, flags=re.I).strip()
@@ -176,13 +194,23 @@ def _heuristic0_event_classes(soup: BeautifulSoup, url: str) -> List[Dict]:
                 row_time = tm.group(1)
 
         league_val = current_league or url_league
+        
+        match_id = el.get("id")
+        if match_id and match_id.startswith("g_1_"):
+            match_id = match_id[4:]
+
         entry = {
             "home": home,
             "away": away,
             "time": row_time,
             "source_url": url,
             "raw": f"{home} - {away}",
+            "standings": standings,
+            "source_type": "flashscore",
+            "sport": _detect_sport_from_url(url),
         }
+        if match_id:
+            entry["match_id"] = match_id
         if league_val:
             entry["league"] = league_val
         results.append(entry)
@@ -223,7 +251,15 @@ def parse(html: str, url: str) -> List[Dict]:
             # try find time in the row
             time_m = re.search(r"\b(\d{1,2}:\d{2})\b", text)
             time = time_m.group(1) if time_m else None
-            entry = {"home": home, "away": away, "time": time, "source_url": url, "raw": text}
+            entry = {
+                "home": home, 
+                "away": away, 
+                "time": time, 
+                "source_url": url, 
+                "raw": text,
+                "source_type": "flashscore",
+                "sport": _detect_sport_from_url(url),
+            }
             if url_league:
                 entry["league"] = url_league
             results.append(entry)
@@ -243,7 +279,15 @@ def parse(html: str, url: str) -> List[Dict]:
                 continue
             away = participants[i + 1][1]
             if home and away and home != away:
-                entry = {"home": home, "away": away, "time": None, "source_url": url, "raw": f"{home} - {away}"}
+                entry = {
+                    "home": home, 
+                    "away": away, 
+                    "time": None, 
+                    "source_url": url, 
+                    "raw": f"{home} - {away}",
+                    "source_type": "flashscore",
+                    "sport": _detect_sport_from_url(url),
+                }
                 if url_league:
                     entry["league"] = url_league
                 results.append(entry)

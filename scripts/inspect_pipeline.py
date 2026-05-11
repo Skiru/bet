@@ -39,10 +39,23 @@ CONFIG_DIR = ROOT / "config"
 # ---------------------------------------------------------------------------
 
 def _get_db():
-    """Get DB connection, returns None on failure."""
+    """Get DB context manager, returns None on import/connection failure."""
     try:
         from bet.db.connection import get_db
-        return get_db()
+        ctx = get_db()
+        # Eagerly test connection by entering context, then return a wrapper
+        conn = ctx.__enter__()
+        # Return a simple context manager that yields the already-open connection
+        from contextlib import contextmanager
+
+        @contextmanager
+        def _wrap():
+            try:
+                yield conn
+            finally:
+                ctx.__exit__(None, None, None)
+
+        return _wrap()
     except Exception as e:
         print(f"[inspect] ⚠ DB unavailable: {e}", file=sys.stderr)
         return None
@@ -54,7 +67,8 @@ def _safe_query(conn, sql, params=(), default=None):
         return default
     try:
         return conn.execute(sql, params).fetchall()
-    except Exception:
+    except Exception as e:
+        print(f"[inspect] query failed: {e!r} | sql={sql[:80]}", file=sys.stderr)
         return default
 
 
@@ -65,7 +79,8 @@ def _safe_fetchone(conn, sql, params=(), default=None):
     try:
         row = conn.execute(sql, params).fetchone()
         return row[0] if row else default
-    except Exception:
+    except Exception as e:
+        print(f"[inspect] query failed: {e!r} | sql={sql[:80]}", file=sys.stderr)
         return default
 
 
@@ -96,7 +111,7 @@ def inspect_s0(date: str, out: AgentOutput) -> dict:
     conn_ctx = _get_db()
     if conn_ctx is None:
         out.error("Cannot connect to betting.db", recoverable=False)
-        return {"db_available": False}
+        return {"db_available": False, "_verdict": "FAILED"}
 
     with conn_ctx as conn:
         # Table census
@@ -144,10 +159,9 @@ def inspect_s0(date: str, out: AgentOutput) -> dict:
             {"source": r[0], "consecutive_failures": r[1]} for r in failing
         ]
 
-    out.summary(
-        verdict="OK" if metrics.get("tables_total", 0) >= 15 else "PARTIAL",
-        metrics=metrics,
-    )
+    verdict = "OK" if metrics.get("tables_total", 0) >= 15 else "PARTIAL"
+    metrics["_verdict"] = verdict
+    out.summary(verdict=verdict, metrics=metrics)
     return metrics
 
 
@@ -163,6 +177,7 @@ def inspect_s1(date: str, out: AgentOutput) -> dict:
     conn_ctx = _get_db()
     if conn_ctx is None:
         out.warning("DB unavailable — file-only inspection")
+        metrics["_verdict"] = "PARTIAL"
         out.summary(verdict="PARTIAL", metrics=metrics)
         return metrics
 
@@ -209,6 +224,7 @@ def inspect_s1(date: str, out: AgentOutput) -> dict:
     elif len(sport_dist) < 3:
         verdict = "PARTIAL"
 
+    metrics["_verdict"] = verdict
     out.summary(verdict=verdict, metrics=metrics)
     return metrics
 
@@ -221,7 +237,7 @@ def inspect_s1e(date: str, out: AgentOutput) -> dict:
     if shortlist is None:
         out.error(f"Shortlist not found: betting/data/{date}_s2_shortlist.json")
         out.summary(verdict="FAILED", metrics={"shortlist_exists": False})
-        return {"shortlist_exists": False}
+        return {"shortlist_exists": False, "_verdict": "FAILED"}
 
     candidates = shortlist if isinstance(shortlist, list) else shortlist.get("candidates", [])
 
@@ -258,6 +274,7 @@ def inspect_s1e(date: str, out: AgentOutput) -> dict:
     elif len(events) < 20:
         verdict = "PARTIAL"
 
+    metrics["_verdict"] = verdict
     out.summary(verdict=verdict, metrics=metrics)
     return metrics
 
@@ -282,6 +299,7 @@ def inspect_s2(date: str, out: AgentOutput) -> dict:
     conn_ctx = _get_db()
     if conn_ctx is None:
         out.warning("DB unavailable")
+        metrics["_verdict"] = "PARTIAL"
         out.summary(verdict="PARTIAL", metrics=metrics)
         return metrics
 
@@ -301,10 +319,9 @@ def inspect_s2(date: str, out: AgentOutput) -> dict:
             default=[])
         metrics["top_stat_keys"] = {r[0]: r[1] for r in stat_keys}
 
-    out.summary(
-        verdict="OK" if metrics.get("total_teams_with_form", 0) > 0 else "PARTIAL",
-        metrics=metrics,
-    )
+    verdict = "OK" if metrics.get("total_teams_with_form", 0) > 0 else "PARTIAL"
+    metrics["_verdict"] = verdict
+    out.summary(verdict=verdict, metrics=metrics)
     return metrics
 
 
@@ -364,6 +381,7 @@ def inspect_s3(date: str, out: AgentOutput) -> dict:
     elif metrics.get("avg_safety_score", 0) < 4:
         verdict = "PARTIAL"
 
+    metrics["_verdict"] = verdict
     out.summary(verdict=verdict, metrics=metrics)
     return metrics
 
@@ -422,6 +440,7 @@ def inspect_s7(date: str, out: AgentOutput) -> dict:
     elif metrics.get("approved_count", 0) == 0:
         verdict = "PARTIAL"
 
+    metrics["_verdict"] = verdict
     out.summary(verdict=verdict, metrics=metrics)
     return metrics
 
@@ -482,6 +501,7 @@ def inspect_s8(date: str, out: AgentOutput) -> dict:
     elif metrics.get("total_legs", 0) == 0:
         verdict = "PARTIAL"
 
+    metrics["_verdict"] = verdict
     out.summary(verdict=verdict, metrics=metrics)
     return metrics
 
@@ -521,6 +541,8 @@ def main():
 
     out = AgentOutput("inspect", verbose=args.verbose, stop_on_error=args.stop_on_error)
 
+    verdict_rank = {"OK": 0, "PARTIAL": 1, "FAILED": 2}
+
     if args.step == "all":
         all_metrics = {}
         worst_verdict = "OK"
@@ -534,19 +556,32 @@ def main():
             )
             m = handler(args.date, step_out)
             all_metrics[step_id] = m
-            # Track worst verdict
-            # (summary was already printed by handler via step_out)
+            # Track worst verdict from handler's output
+            step_verdict = m.get("_verdict", "OK") if isinstance(m, dict) else "OK"
+            if verdict_rank.get(step_verdict, 0) > verdict_rank[worst_verdict]:
+                worst_verdict = step_verdict
 
         out.summary(
-            verdict="OK",
-            metrics={"steps_inspected": list(STEP_HANDLERS.keys())},
+            verdict=worst_verdict,
+            metrics={"steps_inspected": list(STEP_HANDLERS.keys()), **all_metrics},
         )
+        # Exit code reflects overall health
+        if worst_verdict == "FAILED":
+            sys.exit(2)
+        elif worst_verdict == "PARTIAL":
+            sys.exit(1)
     else:
         label, handler = STEP_HANDLERS[args.step]
         print(f"\n{'='*60}")
         print(f"  {args.step.upper()}: {label} — {args.date}")
         print(f"{'='*60}")
-        handler(args.date, out)
+        m = handler(args.date, out)
+        # Exit code reflects step health
+        step_verdict = m.get("_verdict", "OK") if isinstance(m, dict) else "OK"
+        if step_verdict == "FAILED":
+            sys.exit(2)
+        elif step_verdict == "PARTIAL":
+            sys.exit(1)
 
 
 if __name__ == "__main__":

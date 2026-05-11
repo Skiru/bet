@@ -96,9 +96,28 @@ def _parse_match_tables(soup: BeautifulSoup, url: str) -> List[Dict]:
                     "sport": "football",
                     "source": "soccerstats.com",
                     "url": url,
+                    "source_url": url,
+                    "source_type": "soccerstats",
+                    "raw": f"{home} - {away}"
                 }
                 if stats:
                     result["stats"] = stats
+                    
+                    if "corners_home" in stats or "corners_away" in stats:
+                        result["corners"] = {
+                            "home": stats.get("corners_home"),
+                            "away": stats.get("corners_away")
+                        }
+                    if "cards_home" in stats or "cards_away" in stats:
+                        result["cards"] = {
+                            "home": stats.get("cards_home"),
+                            "away": stats.get("cards_away")
+                        }
+                    if "fouls_home" in stats or "fouls_away" in stats:
+                        result["fouls"] = {
+                            "home": stats.get("fouls_home"),
+                            "away": stats.get("fouls_away")
+                        }
                 results.append(result)
 
     return results
@@ -142,6 +161,8 @@ def _parse_stat_tables(soup: BeautifulSoup, url: str) -> List[Dict]:
                     "sport": "football",
                     "source": "soccerstats.com",
                     "url": url,
+                    "source_url": url,
+                    "source_type": "soccerstats",
                     "data_type": "team_stats",
                     "stats": {k: v for k, v in row_data.items() if k != "team"},
                 }

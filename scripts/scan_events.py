@@ -18,6 +18,8 @@ import time
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 
+from adapters import normalize_adapter_output
+
 BASE = Path(__file__).resolve().parent
 DATA_DIR = BASE.parent / "betting" / "data"
 
@@ -219,8 +221,11 @@ def _scan_domain_group(domain: str, urls: list[str], deep: bool, max_deep_links:
             print(f"  [{domain}] Adapter failed, falling back to raw parser: {e}")
             from adapters.raw_adapter import parse as raw_parse
             items = raw_parse(html, url)
+            
+        items = [normalize_adapter_output(item, source_type=domain) for item in items]
+            
         for item in items:
-            if "sport" not in item:
+            if "sport" not in item or not item["sport"]:
                 if sport:  # only set if URL-based detection returned a result
                     item["sport"] = sport
                 # else: leave untagged — will be resolved by fixture matching
@@ -251,8 +256,11 @@ def _scan_domain_group(domain: str, urls: list[str], deep: bool, max_deep_links:
                         except Exception:
                             from adapters.raw_adapter import parse as raw_parse
                             sub_extracted = raw_parse(sub_html, sub_url)
+                            
+                        sub_extracted = [normalize_adapter_output(item, source_type=domain) for item in sub_extracted]
+                            
                         for item in sub_extracted:
-                            if "sport" not in item:
+                            if "sport" not in item or not item["sport"]:
                                 item["sport"] = sub_sport
                             item["source_type"] = "deep-link"
                         deep_items[sub_url] = sub_extracted

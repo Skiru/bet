@@ -31,7 +31,8 @@ That script is a DUMB automation wrapper. It runs for 1-2 hours, produces zero a
 
 Before starting any work, check what already exists for `run_date`:
 
-1. Check data files: `ls betting/data/{run_date}*` — scan results, shortlist, deep stats, enrichment, etc.
+1. **Quick state check:** `python3 scripts/inspect_pipeline.py --step all --date {run_date} --verbose`
+   This replaces manual `ls` + inline Python queries. Shows per-step metrics.
 2. Check coupons: `ls betting/coupons/{run_date}*`
 3. Check reports: `ls betting/reports/{run_date}*`
 4. Check DB tables (via bet-db-analyst or quick query): fixtures, scan_results, shortlist_candidates for that date
@@ -109,7 +110,9 @@ Print the pre-flight checklist:
 
 ## ⛔ TERMINAL EXECUTION RULES
 
-All agents follow `agent-execution-protocol.instructions.md` (loaded via their `instructions:` array). That protocol covers: `--verbose` mandatory, `mode=sync` (fast ≤120s) / `mode=async` + THINK-WHILE-WAITING (≥300s), `AGENT_SUMMARY:{json}` parsing, live monitoring, and structured verdicts. **Do not repeat these rules in delegation messages** — the agents already have them.
+All agents follow `agent-execution-protocol.instructions.md` v5 (loaded via their `instructions:` array). That protocol covers: `--verbose` mandatory, `mode=sync` (fast ≤120s) / `mode=async` + THINK-WHILE-WAITING (≥300s), `AGENT_SUMMARY:{json}` parsing, live monitoring, structured verdicts, **V5: VALIDATE step, REACTION_PATTERNS, input contract pre-checks, `inspect_pipeline.py` for state checks**. **Do not repeat these rules in delegation messages** — the agents already have them.
+
+**V5 pipeline inspector:** Use `python3 scripts/inspect_pipeline.py --step {step} --date {date}` instead of complex inline Python for state checks. Supports: s0/s1/s1e/s2/s3/s7/s8/all.
 
 ---
 
@@ -722,8 +725,9 @@ Present to user:
 ---
 ## §THINK IN THE MIDDLE
 
-> All agents follow `agent-execution-protocol.instructions.md` for the full RUN→EXTRACT→THINK→RETURN cycle.
-> R18 data flow verification: READ producer/consumer code BEFORE running. Verify keys/tables/formats match.
+> All agents follow `agent-execution-protocol.instructions.md` v5 for the full RUN→EXTRACT→**VALIDATE**→THINK→RETURN cycle.
+> R18 data flow verification: V5 adds `DATA_FLOW_CONTRACTS` in `agent_protocol.py` + `validate_input_contract()` for programmatic enforcement.
+> Reaction patterns: V5 adds `REACTION_PATTERNS` in `agent_protocol.py` for structured failure→recovery guidance.
 > See the protocol for the complete GOOD vs BAD output examples and anti-pattern list.
 
 ---

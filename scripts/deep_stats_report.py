@@ -1644,6 +1644,15 @@ def main():
 
     args = parser.parse_args()
     out = AgentOutput("s3_deep", verbose=args.verbose, stop_on_error=args.stop_on_error)
+
+    # V5: Input contract pre-check (warning-only, never blocks)
+    _contract = AgentOutput.validate_input_contract("s3_deep_stats", args.date)
+    if _contract["status"] != "OK":
+        for _w in _contract.get("warnings", []):
+            out.warning(f"Input contract: {_w}")
+        for _m in _contract.get("missing", []):
+            out.warning(f"Missing input: {_m}")
+
     if args.no_enrich:
         os.environ["NO_ENRICH"] = "1"
     result = generate_deep_stats(

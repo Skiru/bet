@@ -797,6 +797,14 @@ def main():
         out.summary(verdict="FAILED", metrics={"error": "invalid_date"})
         sys.exit(2)
 
+    # V5: Input contract pre-check (warning-only, never blocks)
+    _contract = AgentOutput.validate_input_contract("s1e_shortlist", date)
+    if _contract["status"] != "OK":
+        for _w in _contract.get("warnings", []):
+            out.warning(f"Input contract: {_w}")
+        for _m in _contract.get("missing", []):
+            out.warning(f"Missing input: {_m}")
+
     out.event("start", date=date, stats_first=args.stats_first)
 
     selected = build_shortlist(
