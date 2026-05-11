@@ -127,7 +127,7 @@ def test_ingest_deep_parse_none_safe():
         "home": "Alpha FC",
         "away": "Beta FC",
         "odds": {"w1": 2.0, "x": 3.2, "w2": 3.8},
-        "form_home": [],
+        "form_home": ["W", "W", "L"],  # Plain strings — must not crash
         "form_away": [],
         "h2h": {},
         "deep_parse": None,  # Explicitly None — must not raise

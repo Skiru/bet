@@ -79,6 +79,16 @@ def load_selectors():
         return {"default": []}
 
 
+def load_content_ready_config() -> dict:
+    """Load per-domain content-ready selectors from site_selectors.json."""
+    try:
+        with open(SELECTORS_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data.get("_content_ready", {})
+    except Exception:
+        return {}
+
+
 def domain_from_url(url: str) -> str:
     parsed = urlparse(url)
     return parsed.netloc.replace("www.", "")
@@ -179,10 +189,39 @@ def fetch(url: str, headless: bool = True, timeout: int = 30, retries: int = 2,
                 except Exception:
                     pass
 
-                try:
-                    page.wait_for_timeout(wait_after_load)  # settle time for JS rendering
-                except Exception:
-                    pass
+                # Wait for SPA content to render (for React/JS-heavy sites)
+                content_ready_cfg = load_content_ready_config()
+                domain_cfg = content_ready_cfg.get(domain, {})
+                if domain_cfg:
+                    cr_selectors = domain_cfg.get("selectors", [])
+                    cr_timeout = domain_cfg.get("timeout", 5000)
+                    cr_wait = domain_cfg.get("wait_after_load", 2000)
+                    content_found = False
+                    for sel in cr_selectors:
+                        try:
+                            page.wait_for_selector(sel, timeout=cr_timeout)
+                            content_found = True
+                            print(f"  [content_ready] {domain}: found '{sel}'", flush=True)
+                            break
+                        except Exception:
+                            continue
+                    if content_found:
+                        # Extra settle time after content appears
+                        try:
+                            page.wait_for_timeout(cr_wait)
+                        except Exception:
+                            pass
+                    else:
+                        print(f"  [content_ready] {domain}: no content selectors matched, using fallback wait", flush=True)
+                        try:
+                            page.wait_for_timeout(cr_wait)
+                        except Exception:
+                            pass
+                else:
+                    try:
+                        page.wait_for_timeout(wait_after_load)  # settle time for JS rendering
+                    except Exception:
+                        pass
 
                 content = page.content()
 

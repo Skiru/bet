@@ -50,45 +50,95 @@ def parse(html: str, url: str) -> List[Dict]:
         re.I,
     )
 
-    # Try to find rows with odds in actual table elements
-    for tr in soup.find_all("tr"):
-        text = tr.get_text(" ", strip=True)
-        if not text:
-            continue
-        odds = ODDS_RE.findall(text)
-        if odds:
-            # Split on " - " or " vs " with spaces required
-            parts = re.split(r"\s+vs\.?\s+|\s+-\s+|\s+–\s+|\s+—\s+", text, flags=re.I)
-            if len(parts) >= 2:
-                home = parts[0].strip()
-                away = parts[1].strip()
-                if len(home) >= 2 and len(away) >= 2:
-                    # Skip league navigation entries
-                    full_text = f"{home} - {away}"
-                    if _LEAGUE_NAV_RE.search(full_text):
-                        continue
-                    entry = {
-                        "home": home,
-                        "away": away,
-                        "odds": odds,
-                        "market_type": "h2h",
-                        "source_url": url,
-                        "raw": text,
-                    }
-                    structured = _build_odds_structured(odds, two_way)
-                    if structured:
-                        entry["odds_structured"] = structured
-                    results.append(entry)
+    # --- Strategy 1: React SPA DOM with participant-name elements ---
+    participants = soup.find_all(class_="participant-name")
+    if len(participants) >= 2:
+        for i in range(0, len(participants) - 1, 2):
+            home = participants[i].get_text(strip=True)
+            away = participants[i + 1].get_text(strip=True)
+            if len(home) < 2 or len(away) < 2:
+                continue
+            # Walk up to find container with odds
+            odds_texts = []
+            match_url = ""
+            container = participants[i].parent
+            for _ in range(8):
+                if not container:
+                    break
+                odds_els = container.find_all(
+                    class_=lambda c: c and "default-odds-bg-bgcolor" in c if c else False
+                )
+                if odds_els:
+                    odds_texts = [
+                        o.get_text(strip=True) for o in odds_els
+                        if o.get_text(strip=True) and o.get_text(strip=True) != "-"
+                    ]
+                    break
+                container = container.parent
+            # Try to find match URL from nearby <a> with h2h path
+            link_parent = participants[i].parent
+            for _ in range(4):
+                if not link_parent:
+                    break
+                link = link_parent.find("a", href=re.compile(r"/h2h/"))
+                if link:
+                    match_url = link.get("href", "")
+                    if match_url and not match_url.startswith("http"):
+                        match_url = f"https://www.oddsportal.com{match_url}"
+                    break
+                link_parent = link_parent.parent
+            odds_valid = [o for o in odds_texts if ODDS_RE.match(o)]
+            entry = {
+                "home": home,
+                "away": away,
+                "odds": odds_valid,
+                "market_type": "h2h",
+                "source_url": url,
+                "raw": f"{home} - {away}",
+            }
+            if match_url:
+                entry["match_url"] = match_url
+            structured = _build_odds_structured(odds_valid, two_way)
+            if structured:
+                entry["odds_structured"] = structured
+            results.append(entry)
 
-    # Also try div-based extraction for React-rendered content
+    # --- Strategy 2: Traditional table rows (pre-SPA pages) ---
     if not results:
-        # Look for links that contain "Team - Team" patterns (not league navs)
+        for tr in soup.find_all("tr"):
+            text = tr.get_text(" ", strip=True)
+            if not text:
+                continue
+            odds = ODDS_RE.findall(text)
+            if odds:
+                parts = re.split(r"\s+vs\.?\s+|\s+-\s+|\s+–\s+|\s+—\s+", text, flags=re.I)
+                if len(parts) >= 2:
+                    home = parts[0].strip()
+                    away = parts[1].strip()
+                    if len(home) >= 2 and len(away) >= 2:
+                        full_text = f"{home} - {away}"
+                        if _LEAGUE_NAV_RE.search(full_text):
+                            continue
+                        entry = {
+                            "home": home,
+                            "away": away,
+                            "odds": odds,
+                            "market_type": "h2h",
+                            "source_url": url,
+                            "raw": text,
+                        }
+                        structured = _build_odds_structured(odds, two_way)
+                        if structured:
+                            entry["odds_structured"] = structured
+                        results.append(entry)
+
+    # --- Strategy 3: Link-based extraction ---
+    if not results:
         for link in soup.find_all("a", href=True):
             href = link.get("href", "")
             text = link.get_text(strip=True)
             if not text or len(text) > 120 or len(text) < 8:
                 continue
-            # Match "Home - Away" but NOT league navigation
             parts = re.split(r"\s+-\s+", text)
             if len(parts) == 2:
                 home = parts[0].strip()
@@ -96,7 +146,6 @@ def parse(html: str, url: str) -> List[Dict]:
                 if (len(home) >= 2 and len(away) >= 2
                         and not _LEAGUE_NAV_RE.search(text)
                         and not home[0].isdigit()):
-                    # Try to find odds near this element
                     parent = link.parent
                     odds = []
                     if parent:
@@ -123,7 +172,4 @@ def parse(html: str, url: str) -> List[Dict]:
             key_fn=lambda r: (r.get("home"), r.get("away"), tuple(r.get("odds", []))),
         )
 
-    # OddsPortal is a React SPA — match data loads via JS after page render.
-    # Don't fall back to raw_parse as it captures league navigation links as
-    # fake matches (e.g., "3. CFL - Group A"). Return empty instead.
     return []

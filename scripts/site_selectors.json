@@ -289,5 +289,23 @@
     "button[aria-label*='Akceptuj']",
     ".cookie-accept",
     "#onetrust-accept-btn-handler"
-  ]
+  ],
+
+  "_content_ready": {
+    "oddsportal.com": {
+      "selectors": [".participant-name", ".eventRow", "[class*='eventRow']"],
+      "timeout": 8000,
+      "wait_after_load": 3000
+    },
+    "scores24.live": {
+      "selectors": [".link[class*='sc-mhmn9c']", "a.link[href*='/en/']", "[data-testid='Chip']"],
+      "timeout": 8000,
+      "wait_after_load": 3000
+    },
+    "atptour.com": {
+      "selectors": [".match-info", ".draw-bracket", ".scores-table", "a[href*='/scores/']"],
+      "timeout": 6000,
+      "wait_after_load": 2000
+    }
+  }
 }

@@ -53,12 +53,13 @@ except ImportError:
 
 # Fallback chains per sport — ESPN first (free, unlimited, no API key)
 # SerpAPI last (250/month limit, supplementary Google search data)
+# Disabled sources (2026-05-11): thesportsdb (97.8% fail), balldontlie (100% fail), api-tennis (100% fail)
 FALLBACK_CHAINS = {
-    "football": ["espn-football", "api-football", "football-data-org", "understat", "thesportsdb", "serpapi"],
-    "basketball": ["espn-basketball", "api-basketball", "balldontlie", "thesportsdb", "serpapi"],
-    "hockey": ["espn-hockey", "api-hockey", "thesportsdb", "serpapi"],
-    "tennis": ["espn-tennis", "api-tennis", "thesportsdb", "serpapi"],
-    "volleyball": ["espn-volleyball", "api-volleyball", "thesportsdb", "serpapi"],
+    "football": ["espn-football", "api-football", "football-data-org", "understat", "serpapi"],
+    "basketball": ["espn-basketball", "api-basketball", "serpapi"],
+    "hockey": ["espn-hockey", "api-hockey", "serpapi"],
+    "tennis": ["espn-tennis", "serpapi"],
+    "volleyball": ["espn-volleyball", "api-volleyball", "serpapi"],
 }
 
 # Tier 1 sports get enriched first

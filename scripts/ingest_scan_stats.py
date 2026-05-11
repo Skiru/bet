@@ -166,6 +166,19 @@ def _extract_form_matches(form_list: list, sport: str, team: str) -> list[dict]:
     """Convert scan form data into cache-compatible l10_matches entries."""
     matches = []
     for idx, entry in enumerate(form_list or []):
+        # Handle plain strings like "W", "L", "D" (simplified form data)
+        if isinstance(entry, str):
+            match_entry = {
+                "date": "",
+                "opponent": "Unknown",
+                "fixture_id": f"scan-form-{idx}",
+                "stats": {},
+                "was_away": False,
+            }
+            matches.append(match_entry)
+            continue
+        if not isinstance(entry, dict):
+            continue
         scores = entry.get("scores", [])
         stats = parse_scores(sport, scores)
         if not stats and scores:

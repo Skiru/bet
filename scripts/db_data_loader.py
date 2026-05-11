@@ -334,6 +334,45 @@ def _resolve_fixture_id(conn, sport: str, home_team: str, away_team: str, kickof
     return fixture.id if fixture else None
 
 
+def _create_minimal_fixture(conn, sport: str, home_team: str, away_team: str,
+                            kickoff: str, competition: str = "") -> int | None:
+    """Create a minimal fixture entry when resolve fails. Returns fixture ID or None."""
+    from bet.db.models import Fixture
+    from bet.db.repositories import CompetitionRepo, FixtureRepo, SportRepo, TeamRepo
+
+    try:
+        sr = SportRepo(conn)
+        s = sr.get_by_name(sport)
+        if not s:
+            return None
+
+        tr = TeamRepo(conn)
+        home = tr.find_or_create(home_team, s.id)
+        away = tr.find_or_create(away_team, s.id)
+
+        comp_id = None
+        if competition:
+            cr = CompetitionRepo(conn)
+            comp_id = cr.find_or_create(competition, s.id)
+
+        fixture = Fixture(
+            id=None,
+            sport_id=s.id,
+            competition_id=comp_id,
+            home_team_id=home.id,
+            away_team_id=away.id,
+            kickoff=kickoff,
+            status="scheduled",
+            source="auto-created-by-s3",
+            fetched_at=_NOW(),
+        )
+        repo = FixtureRepo(conn)
+        return repo.upsert(fixture)
+    except Exception as e:
+        print(f"[db_loader] Failed to create minimal fixture for {home_team} vs {away_team}: {e}")
+        return None
+
+
 def load_analysis_results_from_db(betting_date: str) -> list[dict]:
     """Load S3 analysis results from DB, fallback to s3_deep_stats JSON.
 
@@ -440,6 +479,7 @@ def save_analysis_results_to_db(betting_date: str, analyses: list[dict]) -> int:
         from bet.db.repositories import AnalysisResultRepo
 
         saved = 0
+        skipped = 0
         with get_db() as conn:
             repo = AnalysisResultRepo(conn)
             for a in analyses:
@@ -454,6 +494,21 @@ def save_analysis_results_to_db(betting_date: str, analyses: list[dict]) -> int:
                         a.get("kickoff", betting_date),
                     )
                 if not fixture_id:
+                    # Fallback: create a minimal fixture entry
+                    fixture_id = _create_minimal_fixture(
+                        conn,
+                        a.get("sport", ""),
+                        a.get("home_team", ""),
+                        a.get("away_team", ""),
+                        a.get("kickoff", betting_date),
+                        a.get("competition", ""),
+                    )
+                if not fixture_id:
+                    print(
+                        f"[db_loader] WARN: Skipping analysis — no fixture for "
+                        f"{a.get('home_team', '?')} vs {a.get('away_team', '?')} ({a.get('sport', '?')})"
+                    )
+                    skipped += 1
                     continue
                 # Inject fixture_id back so downstream steps (S4/S5/S6) have it
                 a["fixture_id"] = fixture_id
@@ -509,7 +564,7 @@ def save_analysis_results_to_db(betting_date: str, analyses: list[dict]) -> int:
                     except Exception as e:
                         print(f"[db_loader] Raw data save failed for fixture {fixture_id}: {e}")
 
-        print(f"[db_loader] Saved {saved} analysis results to DB")
+        print(f"[db_loader] Saved {saved} analysis results to DB (skipped {skipped})")
         return saved
     except Exception as e:
         print(f"[db_loader] DB write failed for analysis results: {e}")
@@ -640,6 +695,7 @@ def save_gate_results_to_db(betting_date: str, results: list[dict]) -> int:
         from bet.db.repositories import GateResultRepo
 
         saved = 0
+        skipped_gate = 0
         with get_db() as conn:
             repo = GateResultRepo(conn)
             for r in results:
@@ -653,6 +709,20 @@ def save_gate_results_to_db(betting_date: str, results: list[dict]) -> int:
                         r.get("kickoff", betting_date),
                     )
                 if not fixture_id:
+                    fixture_id = _create_minimal_fixture(
+                        conn,
+                        r.get("sport", ""),
+                        r.get("home_team", ""),
+                        r.get("away_team", ""),
+                        r.get("kickoff", betting_date),
+                        r.get("competition", ""),
+                    )
+                if not fixture_id:
+                    print(
+                        f"[db_loader] WARN: Skipping gate result — no fixture for "
+                        f"{r.get('home_team', '?')} vs {r.get('away_team', '?')} ({r.get('sport', '?')})"
+                    )
+                    skipped_gate += 1
                     continue
 
                 best_market = r.get("best_market", {}) or {}
@@ -680,7 +750,7 @@ def save_gate_results_to_db(betting_date: str, results: list[dict]) -> int:
                 repo.save(gate_result)
                 saved += 1
 
-        print(f"[db_loader] Saved {saved} gate results to DB")
+        print(f"[db_loader] Saved {saved} gate results to DB (skipped {skipped_gate})")
         return saved
     except Exception as e:
         print(f"[db_loader] DB write failed for gate results: {e}")

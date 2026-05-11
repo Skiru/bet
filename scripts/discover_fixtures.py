@@ -137,7 +137,7 @@ def _load_scan_summary(date: str) -> list:
             competition=event.get("league", event.get("competition", "")),
             home_team=home,
             away_team=away,
-            kickoff=event_date or event_time,
+            kickoff=event_date or (f"{date}T{event_time}" if event_time else ""),
             status="scheduled",
         )
         fixtures.append(fixture)

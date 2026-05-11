@@ -27,6 +27,14 @@ def build_profiles(sport_filter: str | None = None, season: str = ""):
         lp_repo = LeagueProfileRepo(conn)
         sport_repo = SportRepo(conn)
 
+        # Diagnostic: check prerequisites
+        match_stats_count = conn.execute("SELECT COUNT(*) FROM match_stats").fetchone()[0]
+        fixtures_count = conn.execute("SELECT COUNT(*) FROM fixtures").fetchone()[0]
+        print(f"[league_profiles] Prerequisites: {fixtures_count} fixtures, {match_stats_count} match_stats rows")
+        if match_stats_count == 0:
+            print("WARNING: match_stats table is empty. Run data enrichment first to populate it.")
+            return
+
         # Get competitions with match data
         where_clause = ""
         params: list = []
