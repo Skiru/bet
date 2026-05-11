@@ -2,7 +2,7 @@
 name: orchestrate-betting-day
 description: "Agent-driven daily cycle: YOU are the orchestrator. Scripts are tools. NEVER run pipeline_orchestrator.py."
 agent: bet-orchestrator
-argument-hint: "run_date=2026-05-11 session=full" or "run_date=2026-05-11 resume_from=S3"
+argument-hint: "run_date=2026-05-08 session=full" or "run_date=2026-05-08 session=night rerun=true"
 ---
 
 # BETTING DAY ORCHESTRATOR

@@ -77,6 +77,111 @@ ERROR_HANDLING_PROTOCOL = {
 }
 
 # ---------------------------------------------------------------------------
+# Reaction Patterns — structured failure → recovery mappings for agents
+# ---------------------------------------------------------------------------
+REACTION_PATTERNS = {
+    "empty_output": {
+        "trigger": "Script produces 0 candidates/events in output",
+        "severity": "HIGH",
+        "recovery": [
+            "Check source_health DB table for blocked/failed sources",
+            "Retry with alternative source or extended timeout",
+            "If scan: re-run for specific sport with --sport flag",
+        ],
+        "escalation": "If retry also empty → escalate to user with source health report",
+        "scripts_affected": ["scan_events.py", "build_shortlist.py", "deep_stats_report.py"],
+    },
+    "low_yield": {
+        "trigger": "Enrichment/scan yield < 40% (successful / attempted)",
+        "severity": "MEDIUM",
+        "recovery": [
+            "Trigger L3-L6 fallback enrichment for failed items",
+            "Try alternative sources from source-registry.md",
+            "Check if sport season ended (structural cause vs bug)",
+        ],
+        "escalation": "If yield still < 20% after all fallbacks → escalate to user",
+        "scripts_affected": ["data_enrichment_agent.py", "scan_events.py"],
+    },
+    "missing_sport": {
+        "trigger": "Expected sport has 0 events in scan/shortlist",
+        "severity": "HIGH",
+        "recovery": [
+            "Re-scan that sport group only: scan_events.py --sport {sport}",
+            "Check scan_urls.json for that sport's source URLs",
+            "Verify sport season is active (not off-season)",
+        ],
+        "escalation": "If sport still missing after re-scan → check if season ended, inform user",
+        "scripts_affected": ["scan_events.py", "build_shortlist.py"],
+    },
+    "exit_code_2": {
+        "trigger": "Script exits with code 2 (critical failure)",
+        "severity": "CRITICAL",
+        "recovery": [
+            "STOP pipeline — do NOT retry blindly",
+            "Read error output carefully — identify root cause",
+            "Check if --stop-on-error was set (stop_on_error flag in AgentOutput)",
+        ],
+        "escalation": "Immediate — show user the error and ask for guidance",
+        "scripts_affected": ["all"],
+    },
+    "agent_summary_missing": {
+        "trigger": "Script output has no AGENT_SUMMARY: line",
+        "severity": "HIGH",
+        "recovery": [
+            "Script crashed before emitting summary — check exit code",
+            "Read last 50 lines of output for Python tracebacks",
+            "Check if script was run with --verbose (required for AGENT_SUMMARY)",
+        ],
+        "escalation": "If crash is in script logic → file bug. If data issue → fix data, retry.",
+        "scripts_affected": ["all verbose-enabled scripts"],
+    },
+    "data_quality_mostly_minimal": {
+        "trigger": ">50% of candidates have MINIMAL data quality (<4/10 data_quality_score)",
+        "severity": "HIGH",
+        "recovery": [
+            "Enrichment failure — spawn web_research_agent.py (L7) for top-priority missing teams",
+            "Check team_form DB table for empty rows",
+            "Verify enrichment sources are responsive (source_health table)",
+        ],
+        "escalation": "If still >50% minimal after L7 → inform user, proceed with warnings",
+        "scripts_affected": ["data_enrichment_agent.py", "deep_stats_report.py"],
+    },
+    "odds_drift": {
+        "trigger": "Odds drifted >8% between API fetch and current value",
+        "severity": "MEDIUM",
+        "recovery": [
+            "Mandatory EV re-evaluation with new odds",
+            "Recalculate: EV = (hit_rate × new_odds) - 1",
+            "If EV turns negative → move pick to extended pool",
+        ],
+        "escalation": "If EV negative → inform user, recommend SKIP",
+        "scripts_affected": ["odds_evaluator.py", "fetch_odds_api.py"],
+    },
+    "db_connection_failure": {
+        "trigger": "Cannot connect to betting.db or table missing",
+        "severity": "CRITICAL",
+        "recovery": [
+            "Check betting/data/betting.db exists",
+            "Verify DB schema with: python3 scripts/inspect_pipeline.py --step s0 --date {date}",
+            "Fall back to JSON files if DB is corrupted",
+        ],
+        "escalation": "If DB corrupted → user must restore from backup",
+        "scripts_affected": ["all DB-using scripts"],
+    },
+    "timeout_exceeded": {
+        "trigger": "Script exceeds expected timeout (async mode returns before completion)",
+        "severity": "MEDIUM",
+        "recovery": [
+            "Use get_terminal_output(id) to check if still progressing",
+            "If progressing: wait longer (extend timeout mentally)",
+            "If stuck on one item: may need to kill and retry with --sport filter",
+        ],
+        "escalation": "If hung >2x expected time → kill terminal, escalate to user",
+        "scripts_affected": ["scan_events.py", "data_enrichment_agent.py", "deep_stats_report.py"],
+    },
+}
+
+# ---------------------------------------------------------------------------
 # Database Schema Reference — compact map for agent awareness
 # ---------------------------------------------------------------------------
 DB_SCHEMA_REFERENCE = {
@@ -336,7 +441,291 @@ AGENT_SKILLS_MAP = {
             "S7: Bayesian-update confidence based on context + upset risk",
             "Merge context_flags/upset_risk into analysis_results.stats_summary_json",
         ],
-        "skills_to_load": [
+  Data Flow Contracts (R18) — expected inputs/outputs per pipeline step
+# ---------------------------------------------------------------------------
+DATA_FLOW_CONTRACTS = {
+    "s1_scan": {
+        "depends_on": None,
+        "requires": {
+            "files": [],
+            "db": [],
+        },
+        "produces": {
+            "db": ["scan_results", "scan_run_stats", "source_health", "fixtures"],
+            "files": [
+                "betting/data/scan_summary.json",
+                "betting/data/market_matrix_{date}.json",
+            ],
+        },
+        "required_output_keys": {
+            "scan_summary.json": ["sports_scanned", "total_events"],
+            "market_matrix_{date}.json": ["events"],
+        },
+    },
+    "s1e_shortlist": {
+        "depends_on": "s1_scan",
+        "requires": {
+            "files": ["betting/data/market_matrix_{date}.json"],
+            "db": [],
+        },
+        "produces": {
+            "db": ["pipeline_runs"],
+            "files": ["betting/data/{date}_s2_shortlist.json"],
+        },
+        "required_output_keys": {
+            "{date}_s2_shortlist.json": ["candidates"],
+        },
+    },
+    "s2_tipster": {
+        "depends_on": "s1e_shortlist",
+        "requires": {
+            "files": [
+                "betting/data/{date}_s2_shortlist.json",
+                "betting/data/{date}_tipster_consensus.json",
+            ],
+            "db": [],
+        },
+        "produces": {
+            "db": [],
+            "files": [],
+        },
+        "required_output_keys": {},
+    },
+    "s2_5_enrich": {
+        "depends_on": "s1e_shortlist",
+        "requires": {
+            "files": ["betting/data/{date}_s2_shortlist.json"],
+            "db": [],
+        },
+        "produces": {
+            "db": ["team_form"],
+            "files": [],
+        },
+        "required_output_keys": {},
+    },
+    "s3_deep_stats": {
+        "depends_on": "s2_5_enrich",
+        "requires": {
+            "files": ["betting/data/{date}_s2_shortlist.json"],
+            "db": ["team_form"],
+        },
+        "produces": {
+            "db": ["analysis_results", "analysis_raw_data"],
+            "files": ["betting/data/{date}_s3_deep_stats.json"],
+        },
+        "required_output_keys": {
+            "{date}_s3_deep_stats.json": [
+                "analyses", "date", "total_candidates",
+                "candidates_with_data",
+            ],
+        },
+    },
+    "s4_odds": {
+        "depends_on": "s3_deep_stats",
+        "requires": {
+            "files": ["betting/data/{date}_s3_deep_stats.json"],
+            "db": ["analysis_results"],
+        },
+        "produces": {
+            "db": ["analysis_results"],
+            "files": [],
+        },
+        "required_output_keys": {},
+    },
+    "s5_s6_context_upset": {
+        "depends_on": "s3_deep_stats",
+        "requires": {
+            "files": ["betting/data/{date}_s3_deep_stats.json"],
+            "db": ["analysis_results"],
+        },
+        "produces": {
+            "db": ["analysis_results"],
+            "files": [],
+        },
+        "required_output_keys": {},
+    },
+    "s7_gate": {
+        "depends_on": "s3_deep_stats",
+        "requires": {
+            "files": ["betting/data/{date}_s3_deep_stats.json"],
+            "db": ["analysis_results"],
+        },
+        "produces": {
+            "db": ["gate_results"],
+            "files": ["betting/data/{date}_s7_gate_results.json"],
+        },
+        "required_output_keys": {
+            "{date}_s7_gate_results.json": ["gate_results", "summary"],
+        },
+    },
+    "s8_coupons": {
+        "depends_on": "s7_gate",
+        "requires": {
+            "files": ["betting/data/{date}_s7_gate_results.json"],
+            "db": ["gate_results"],
+        },
+        "produces": {
+            "db": ["coupons", "bets", "decision_snapshots"],
+            "files": [],
+        },
+        "required_output_keys": {},
+    },
+}
+
+# ---------------------------------------------------------------------------
+# THINK-WHILE-WAITING — concrete queries for productive async work per agent
+# ---------------------------------------------------------------------------
+THINK_WHILE_WAITING_QUERIES = {
+    "bet-scanner": {
+        "description": "While scan_events.py runs (~10 min), query previous scan data and source health",
+        "tasks": [
+            {
+                "label": "Source health overview",
+                "type": "sql",
+                "query": "SELECT source_name, total_requests, total_failures, ROUND(total_failures*100.0/MAX(total_requests,1),1) as fail_pct FROM source_health ORDER BY total_requests DESC LIMIT 10",
+                "purpose": "Identify which sources are reliable vs failing — adjust expectations for scan results",
+            },
+            {
+                "label": "Previous scan sport distribution",
+                "type": "sql",
+                "query": "SELECT sport, COUNT(*) as cnt FROM scan_results WHERE betting_date='{prev_date}' GROUP BY sport ORDER BY cnt DESC",
+                "purpose": "Compare today's scan against yesterday's baseline — detect coverage drops",
+            },
+            {
+                "label": "Active tournaments in fixtures",
+                "type": "sql",
+                "query": "SELECT DISTINCT competition FROM fixtures WHERE date(kickoff_utc)='{date}' AND (competition LIKE '%Champions%' OR competition LIKE '%World%' OR competition LIKE '%Grand Slam%' OR competition LIKE '%Europa%' OR competition LIKE '%Copa%')",
+                "purpose": "Verify tournament protection (R7) — are major tournaments captured?",
+            },
+        ],
+    },
+    "bet-enricher": {
+        "description": "While data_enrichment_agent.py runs (~10 min), review shortlist quality and existing data",
+        "tasks": [
+            {
+                "label": "Shortlist sport distribution",
+                "type": "file",
+                "path": "betting/data/{date}_s2_shortlist.json",
+                "action": "Count candidates per sport, identify sports with most candidates needing enrichment",
+                "purpose": "Prioritize which sport's enrichment results to check first",
+            },
+            {
+                "label": "Existing team_form coverage",
+                "type": "sql",
+                "query": "SELECT s.name as sport, COUNT(DISTINCT tf.team_name) as teams FROM team_form tf JOIN sports s ON tf.sport_id=s.id GROUP BY s.name ORDER BY teams DESC",
+                "purpose": "Know baseline coverage before enrichment — what % improvement did enrichment add?",
+            },
+            {
+                "label": "Source failure patterns",
+                "type": "sql",
+                "query": "SELECT source_name, consecutive_failures, last_failure FROM source_health WHERE consecutive_failures > 0 ORDER BY consecutive_failures DESC LIMIT 5",
+                "purpose": "If a source has consecutive failures, enrichment likely failed for those teams — prepare fallback plan",
+            },
+        ],
+    },
+    "bet-statistician": {
+        "description": "While deep_stats_report.py runs (~10 min), review enrichment quality and pre-load sport context",
+        "tasks": [
+            {
+                "label": "Enrichment data quality check",
+                "type": "sql",
+                "query": "SELECT sport_id, stat_key, COUNT(*) as cnt, AVG(l10_avg) as avg_val FROM team_form GROUP BY sport_id, stat_key ORDER BY sport_id, cnt DESC",
+                "purpose": "Understand which stat keys have deepest data — prioritize markets with most evidence",
+            },
+            {
+                "label": "League baselines available",
+                "type": "sql",
+                "query": "SELECT c.name, lp.stat_key, lp.avg_value, lp.sample_size FROM league_profiles lp JOIN competitions c ON lp.competition_id=c.id WHERE lp.sample_size >= 10 ORDER BY lp.sample_size DESC LIMIT 20",
+                "purpose": "Know which leagues have reliable baselines for deviation analysis in S3",
+            },
+            {
+                "label": "Previous day's top safety scores",
+                "type": "sql",
+                "query": "SELECT home_team, away_team, best_market_name, best_safety_score FROM analysis_results WHERE betting_date='{prev_date}' AND best_safety_score > 6 ORDER BY best_safety_score DESC LIMIT 10",
+                "purpose": "Calibrate today's scores against yesterday's — are we seeing similar ranges?",
+            },
+        ],
+    },
+    "bet-valuator": {
+        "description": "While odds_evaluator.py runs (~5 min), review S3 stats and prepare EV framework",
+        "tasks": [
+            {
+                "label": "Top safety scores from S3",
+                "type": "sql",
+                "query": "SELECT home_team, away_team, best_market_name, best_safety_score, markets_evaluated FROM analysis_results WHERE betting_date='{date}' AND best_safety_score > 5 ORDER BY best_safety_score DESC LIMIT 15",
+                "purpose": "Pre-identify strongest statistical edges — focus EV analysis on these first",
+            },
+            {
+                "label": "Available odds data",
+                "type": "sql",
+                "query": "SELECT bookmaker, COUNT(*) as cnt FROM odds_history WHERE fetched_at > datetime('now', '-24 hours') GROUP BY bookmaker ORDER BY cnt DESC",
+                "purpose": "Know which bookmakers have odds loaded — determines cross-validation depth",
+            },
+        ],
+    },
+    "bet-challenger": {
+        "description": "While context_checks.py / upset_risk.py run (~5 min each), review deep stats for bear case prep",
+        "tasks": [
+            {
+                "label": "Candidates with high safety but few markets",
+                "type": "sql",
+                "query": "SELECT home_team, away_team, best_safety_score, markets_evaluated FROM analysis_results WHERE betting_date='{date}' AND best_safety_score > 7 AND markets_evaluated < 3",
+                "purpose": "High safety + few markets = narrow analysis — these need extra scrutiny in gate",
+            },
+            {
+                "label": "Standings context for upset risk",
+                "type": "sql",
+                "query": "SELECT t.name, s.rank, s.form, s.streak FROM standings s JOIN teams t ON s.team_id=t.id WHERE s.season LIKE '%2025%' OR s.season LIKE '%2026%' ORDER BY s.rank ASC LIMIT 20",
+                "purpose": "Know team league positions for motivation analysis — top vs bottom, playoff contender vs relegated",
+            },
+        ],
+    },
+    "bet-scout": {
+        "description": "While tipster_aggregator.py runs (~5 min), review scan data for coverage gaps",
+        "tasks": [
+            {
+                "label": "Events with most sources",
+                "type": "sql",
+                "query": "SELECT home_team, away_team, sport, COUNT(DISTINCT source_domain) as sources FROM scan_results WHERE betting_date='{date}' GROUP BY home_team, away_team HAVING sources >= 2 ORDER BY sources DESC LIMIT 10",
+                "purpose": "Events covered by multiple sources = higher data confidence for tipster cross-ref",
+            },
+            {
+                "label": "Check pre-fetched HTML snapshots",
+                "type": "file",
+                "path": "betting/data/html_snapshots/",
+                "action": "List available domain snapshots — know which tipster sites have cached data",
+                "purpose": "Understand tipster data availability before aggregation results arrive",
+            },
+        ],
+    },
+    "bet-builder": {
+        "description": "While coupon_builder.py runs (~5 min), review gate results and bankroll",
+        "tasks": [
+            {
+                "label": "Gate result distribution",
+                "type": "sql",
+                "query": "SELECT status, COUNT(*) as cnt FROM gate_results WHERE betting_date='{date}' GROUP BY status ORDER BY cnt DESC",
+                "purpose": "Know approved/extended/rejected counts — prepare portfolio strategy",
+            },
+            {
+                "label": "Current bankroll and limits",
+                "type": "file",
+                "path": "config/betting_config.json",
+                "action": "Read bankroll, daily_budget_min, daily_budget_max, max_legs_per_coupon",
+                "purpose": "Set stake constraints before seeing coupon builder output",
+            },
+            {
+                "label": "Recent coupon performance",
+                "type": "sql",
+                "query": "SELECT coupon_type, COUNT(*) as cnt, SUM(CASE WHEN status='won' THEN 1 ELSE 0 END) as wins, SUM(pnl_pln) as total_pnl FROM coupons WHERE created_at > datetime('now', '-7 days') GROUP BY coupon_type",
+                "purpose": "Last 7 days performance by coupon type — inform today's coupon strategy",
+            },
+        ],
+    },
+}
+
+# ---------------------------------------------------------------------------
+#       "skills_to_load": [
             "bet-applying-sport-protocols (upset risk checklists, instant red flags §7.3)",
             "bet-analyzing-statistics (safety score validation)",
         ],
