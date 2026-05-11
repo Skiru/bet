@@ -170,6 +170,8 @@ data and 15 with partial. Hockey candidates need extra caution in safety scores.
 | 13 | Run `for` loops / batch loops in terminal | Run ONE command at a time, THINK about result, proceed |
 | 14 | `sleep` / `ps -p` polling / idle waiting | Use `mode=async` + THINK-WHILE-WAITING. Get notified on completion |
 | 15 | Fire-and-forget (`mode=async` then ignore output) | `mode=async` + THINK-WHILE-WAITING + `get_terminal_output` + EXTRACT |
+| 16 | `python3 -c "..."` with complex nested quotes | Use `read_file` for JSON/data inspection. For complex Python, use heredoc: `python3 << 'EOF'` |
+| 17 | Running terminal Python to read JSON files | Use `read_file` tool — instant, no quoting issues, no terminal waste |
 
 ---
 
@@ -193,10 +195,21 @@ run_in_terminal(mode=sync, timeout=600000)  # brain-dead waiting
 
 # Multiple scripts chained blindly
 python3 scripts/A.py && python3 scripts/B.py && python3 scripts/C.py
+
+# Complex inline Python with nested quotes — GARBLES in terminal
+python3 -c "d = json.load(open('file.json')); print(f'{d[\"key\"]}')"  # quoting hell
 ```
 
 ### ✅ INSTEAD DO:
 ```
+FOR DATA INSPECTION (JSON files, DB queries):
+→ Use read_file tool — instant, no quoting issues
+→ For JSON summary: read_file + grep_search, NOT terminal Python
+
+FOR RUNNING SCRIPTS:
+→ Use the script's CLI (python3 scripts/X.py --args)
+→ NEVER write inline Python in terminal to analyze script output
+
 FOR FAST SCRIPTS (≤120s):
 1. Run script: mode=sync, timeout=120000, --verbose
 2. Read output → EXTRACT → THINK → RETURN
