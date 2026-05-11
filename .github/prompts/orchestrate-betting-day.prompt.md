@@ -2,7 +2,7 @@
 name: orchestrate-betting-day
 description: "Agent-driven daily cycle: YOU are the orchestrator. Scripts are tools. NEVER run pipeline_orchestrator.py."
 agent: bet-orchestrator
-argument-hint: "run_date=2026-05-08 session=full" or "run_date=2026-05-08 session=night rerun=true"
+argument-hint: "run_date=2026-05-11 session=full" or "run_date=2026-05-11 resume_from=S3"
 ---
 
 # BETTING DAY ORCHESTRATOR
@@ -24,6 +24,31 @@ That script is a DUMB automation wrapper. It runs for 1-2 hours, produces zero a
 - **rerun** = {{rerun}} (default: `false`)
 - **version** = {{version}} (default: `v1`)
 - Timezone: Europe/Warsaw (CEST). Bookmaker: Betclic.
+
+---
+
+## STEP -1: DETECT PROGRESS & ASK WHERE TO CONTINUE
+
+Before starting any work, check what already exists for `run_date`:
+
+1. Check data files: `ls betting/data/{run_date}*` — scan results, shortlist, deep stats, enrichment, etc.
+2. Check coupons: `ls betting/coupons/{run_date}*`
+3. Check reports: `ls betting/reports/{run_date}*`
+4. Check DB tables (via bet-db-analyst or quick query): fixtures, scan_results, shortlist_candidates for that date
+
+**Then ASK the user:**
+```
+Pipeline progress for {run_date}:
+✅ S0 Settlement — [done/not done]
+✅ S1 Scan — [X events found / not done]
+✅ S2 Enrichment — [Y teams enriched / not done]
+❌ S3 Deep Stats — [not started / partial]
+❌ S4-S10 — not started
+
+Where should I start? [S3 / full rerun / specific step]
+```
+
+**NEVER assume** — always ask. Even if rerun=true, confirm which steps to redo.
 
 ---
 

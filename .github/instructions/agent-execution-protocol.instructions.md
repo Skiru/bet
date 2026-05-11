@@ -171,7 +171,7 @@ data and 15 with partial. Hockey candidates need extra caution in safety scores.
 | 14 | `sleep` / `ps -p` polling / idle waiting | Use `mode=async` + THINK-WHILE-WAITING. Get notified on completion |
 | 15 | Fire-and-forget (`mode=async` then ignore output) | `mode=async` + THINK-WHILE-WAITING + `get_terminal_output` + EXTRACT |
 | 16 | `python3 -c "..."` with complex nested quotes | Use `read_file` for JSON/data inspection. For complex Python, use heredoc: `python3 << 'EOF'` |
-| 17 | Running terminal Python to read JSON files | Use `read_file` tool — instant, no quoting issues, no terminal waste |
+| 17 | Running terminal Python to inspect data | DB-FIRST (R2): delegate to `bet-db-analyst` or run simple query script. Fallback: `read_file` on JSON output |
 
 ---
 
@@ -202,9 +202,11 @@ python3 -c "d = json.load(open('file.json')); print(f'{d[\"key\"]}')"  # quoting
 
 ### ✅ INSTEAD DO:
 ```
-FOR DATA INSPECTION (JSON files, DB queries):
-→ Use read_file tool — instant, no quoting issues
-→ For JSON summary: read_file + grep_search, NOT terminal Python
+FOR DATA INSPECTION (R2 = DB-FIRST):
+→ BEST: Delegate to bet-db-analyst (full DB access, complex queries)
+→ GOOD: Run simple query script (python3 scripts/db_data_loader.py helpers)
+→ FALLBACK: read_file on JSON output files — instant, no quoting issues
+→ NEVER: python3 -c with inline SQL/JSON parsing in terminal
 
 FOR RUNNING SCRIPTS:
 → Use the script's CLI (python3 scripts/X.py --args)
