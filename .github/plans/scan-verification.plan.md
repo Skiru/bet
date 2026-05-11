@@ -141,46 +141,10 @@ All 5 agents receive the same structural change. Sport-specific differences are 
 **The unified verification query block** (shared across all 5, with `{SPORT}` placeholder):
 
 ```python
-cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 -c "
-from bet.db.connection import get_db
-from datetime import date, datetime, timedelta
-import json
-today = str(date.today())
-sport = '{SPORT}'
-with get_db() as conn:
-    # --- BASIC: Event count ---
-    c = conn.execute('SELECT COUNT(*) FROM scan_results WHERE sport=? AND betting_date=?', (sport, today))
-    count = c.fetchone()[0]
-    print(f'{sport} events: {count}')
+```bash
+python3 scripts/verify_scan.py --sport {SPORT} --date {YYYY-MM-DD}
+```
 
-    # --- CHECK 1: Phantom detection (past kickoff) ---
-    cutoff = (datetime.utcnow() - timedelta(hours=2)).strftime('%Y-%m-%dT%H:%M')
-    c = conn.execute('''SELECT COUNT(*) FROM scan_results
-        WHERE sport=? AND betting_date=? AND kickoff != '' AND kickoff < ?''', (sport, today, cutoff))
-    phantoms = c.fetchone()[0]
-    print(f'Phantoms (kickoff >2h ago): {phantoms}')
-
-    # --- CHECK 2: Duplicate event_keys within same source ---
-    c = conn.execute('''SELECT source_domain, event_key, COUNT(*) as cnt FROM scan_results
-        WHERE sport=? AND betting_date=? GROUP BY source_domain, event_key HAVING cnt > 1''', (sport, today))
-    dupes = c.fetchall()
-    print(f'Duplicate event_keys: {len(dupes)}')
-
-    # --- CHECK 3: Data completeness ---
-    c = conn.execute('''SELECT
-        SUM(CASE WHEN home_team IS NULL OR home_team='' THEN 1 ELSE 0 END),
-        SUM(CASE WHEN away_team IS NULL OR away_team='' THEN 1 ELSE 0 END),
-        SUM(CASE WHEN competition IS NULL OR competition='' THEN 1 ELSE 0 END),
-        SUM(CASE WHEN kickoff IS NULL OR kickoff='' THEN 1 ELSE 0 END),
-        COUNT(*)
-        FROM scan_results WHERE sport=? AND betting_date=?''', (sport, today))
-    no_home, no_away, no_comp, no_ko, total = c.fetchone()
-    completeness = round((1 - max(no_home, no_away) / max(total, 1)) * 100, 1)
-    print(f'Completeness: {completeness}% (missing: home={no_home}, away={no_away}, comp={no_comp}, kickoff={no_ko})')
-
-    # --- CHECK 4: League coverage vs yesterday ---
-    c = conn.execute('''SELECT DISTINCT competition FROM scan_results
-        WHERE sport=? AND betting_date=? AND competition != \\\"\\\"''', (sport, today))
     today_leagues = set(r[0] for r in c)
     yesterday = str(date.today() - timedelta(days=1))
     c = conn.execute('''SELECT DISTINCT competition FROM scan_results

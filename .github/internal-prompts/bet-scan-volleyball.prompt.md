@@ -29,76 +29,20 @@ You are the volleyball scanning specialist. Execute this entire workflow without
 ## STEP 1: Execute Scanner
 
 ```bash
-cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 -c "
-from scripts.scanners.volleyball_scanner import VolleyballScanner
-from scripts.scanners.domain_semaphore import DomainSemaphoreMap
-from datetime import date
-scanner = VolleyballScanner()
-stats = scanner.scan(str(date.today()), DomainSemaphoreMap())
-print(f'Volleyball: {stats.events_found} events | {stats.sources_ok} OK | {stats.sources_failed} failed')
-print(f'Validation: {\"PASS\" if stats.validation_passed else \"FAIL\"}')
-if not stats.validation_passed:
-    print(f'  Gaps: {stats.gaps_description}')
-"
+python3 scripts/run_scanner.py --sport volleyball --date {YYYY-MM-DD}
 ```
 
 ## STEP 2: Validate Results
 
 ```bash
-cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 -c "
-from bet.db.connection import get_db
-from datetime import date
-import json
-today = str(date.today())
-with get_db() as conn:
-    c = conn.execute('SELECT COUNT(*) FROM scan_results WHERE sport=\"volleyball\" AND betting_date=?', (today,))
-    count = c.fetchone()[0]
-    print(f'Volleyball events in DB: {count}')
-
-    # Check data depth — do events have set/point totals?
-    c = conn.execute('''SELECT raw_data FROM scan_results WHERE sport=\"volleyball\" AND betting_date=? LIMIT 10''', (today,))
-    with_stats = 0
-    for row in c:
-        data = json.loads(row[0]) if row[0] else {}
-        if data.get('sets') or data.get('total_points') or data.get('score'):
-            with_stats += 1
-    print(f'Events with score/stats data: {with_stats}/10 sampled')
-
-    # League distribution
-    c = conn.execute('''SELECT json_extract(raw_data, \"$.competition\") as comp, COUNT(*) 
-        FROM scan_results WHERE sport=\"volleyball\" AND betting_date=?
-        GROUP BY comp ORDER BY COUNT(*) DESC LIMIT 10''', (today,))
-    print('Leagues:')
-    for row in c:
-        print(f'  {row[0] or \"unknown\"}: {row[1]}')
-
-if count >= 15:
-    print('✅ PASS: Volleyball ≥ 15 events')
-elif count >= 8:
-    print('⚠️ MARGINAL: 8-14 events (check if off-season)')
-else:
-    print('❌ FAIL: < 8 events — self-heal needed')
-"
+python3 scripts/verify_scan.py --sport volleyball --date {YYYY-MM-DD}
 ```
 
 ## STEP 3: Self-Heal (only if FAIL)
 
 **If < 8 events:**
 ```bash
-cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 -c "
-# Retry with extended timeout for slow volleyball sources
-from scripts.scanners.volleyball_scanner import VolleyballScanner
-from scripts.scanners.domain_semaphore import DomainSemaphoreMap
-from datetime import date
-scanner = VolleyballScanner()
-scanner.timeout_per_page = 60
-stats = scanner.scan(str(date.today()), DomainSemaphoreMap())
-print(f'Retry: {stats.events_found} events')
-if stats.events_found < 8:
-    print('Still low — checking if legitimate off-season')
-    print('Volleyball off-season: Jun-Aug (Europe), varies for Asia/Americas')
-    print('If May: should have PlusLiga playoffs, Serie A, Bundesliga')
-"
+python3 scripts/run_scanner.py --sport volleyball --date {YYYY-MM-DD}
 ```
 
 **If Flashscore volleyball blocked:**

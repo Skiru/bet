@@ -29,29 +29,16 @@ You are the basketball scanning specialist. Execute this entire workflow without
 ## STEP 1: Execute Scanner
 
 ```bash
-cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 -c "
-from scripts.scanners.basketball_scanner import BasketballScanner
-from scripts.scanners.domain_semaphore import DomainSemaphoreMap
-from datetime import date
-scanner = BasketballScanner()
-stats = scanner.scan(str(date.today()), DomainSemaphoreMap())
-print(f'Basketball: {stats.events_found} events | {stats.sources_ok} OK | {stats.sources_failed} failed')
-print(f'Validation: {\"PASS\" if stats.validation_passed else \"FAIL\"}')
-if not stats.validation_passed:
-    print(f'  Gaps: {stats.gaps_description}')
-"
+python3 scripts/run_scanner.py --sport basketball --date {YYYY-MM-DD}
 ```
 
 ## STEP 2: Validate Results
 
 ```bash
-cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 -c "
-from bet.db.connection import get_db
-from datetime import date
-import json, datetime
-today = str(date.today())
-with get_db() as conn:
-    c = conn.execute('SELECT COUNT(*) FROM scan_results WHERE sport="basketball" AND betting_date=?', (today,))
+```bash
+python3 scripts/verify_scan.py --sport basketball --date {YYYY-MM-DD}
+```
+
     count = c.fetchone()[0]
     print(f'Basketball events in DB: {count}')
     
@@ -85,18 +72,10 @@ else:
 
 **If < 10 events during NBA season:**
 ```bash
-cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 -c "
-from scripts.scanners.basketball_scanner import BasketballScanner
-from scripts.scanners.domain_semaphore import DomainSemaphoreMap
-from datetime import date
-scanner = BasketballScanner()
-scanner.timeout_per_page = 60
-stats = scanner.scan(str(date.today()), DomainSemaphoreMap())
-print(f'Retry: {stats.events_found} events')
-if stats.events_found < 10:
-    print('Check: NBA has off-days (Mon/Thu sometimes light)')
-    print('Check: EU leagues may be in break')
-"
+```bash
+python3 scripts/verify_scan.py --sport basketball --date {YYYY-MM-DD}
+```
+
 ```
 
 **If NBA API source fails:**

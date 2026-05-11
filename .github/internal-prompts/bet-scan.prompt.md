@@ -83,13 +83,7 @@ The pipeline already ran enrichment in parallel (stats, odds, weather). Now VALI
 
 1. **Stats cache health** — Query DB `team_form` table for today's data:
    ```bash
-   cd /Users/mkoziol/projects/bet && PYTHONPATH=src:. python3 -c "
-   from bet.db.connection import get_db
-   with get_db() as conn:
-       c = conn.execute('SELECT sport, COUNT(DISTINCT team_name) FROM team_form GROUP BY sport')
-       for row in c:
-           print(f'{row[0]:15s}: {row[1]} teams')
-   "
+   python3 scripts/db_report.py --report quality
    ```
    Gates: Football ≥100, Tennis ≥30 (Grand Slam weeks ≥200), Basketball ≥10, Hockey ≥10. **Flag volleyball if 0.**
 

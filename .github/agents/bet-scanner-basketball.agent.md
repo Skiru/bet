@@ -23,6 +23,10 @@ tools:
     "playwright/*",
     "sequentialthinking/sequentialthinking",
     "sequential-thinking/sequentialthinking",
+    "ms-python.python/configurePythonEnvironment",
+    "ms-python.python/getPythonExecutableCommand",
+    "ms-python.python/getPythonEnvironmentInfo",
+    "ms-python.python/installPythonPackage",
     "todo",
   ]
 model: "Claude Opus 4.6 (Copilot)"

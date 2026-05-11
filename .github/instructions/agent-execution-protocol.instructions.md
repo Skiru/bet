@@ -21,6 +21,7 @@ This project uses **fish shell** (NOT bash/zsh). The following are **ABSOLUTELY 
 
 | Need | Solution |
 |------|----------|
+| Set up Python env | `ms-python.python/configurePythonEnvironment` → `ms-python.python/getPythonExecutableCommand` (once per session) |
 | Run a scanner | `python3 scripts/run_scanner.py --sport football --date 2026-05-11` |
 | Verify scan results | `python3 scripts/verify_scan.py --sport football --date 2026-05-11` |
 | Check DB state | `python3 scripts/db_report.py --report quality` |
@@ -48,6 +49,7 @@ This project uses **fish shell** (NOT bash/zsh). The following are **ABSOLUTELY 
 **Your FIRST action** in every session must be a `sequentialthinking` call that answers:
 
 ```
+0. Python env: Have I configured the Python environment via ms-python.python/configurePythonEnvironment?
 1. What are MY 3 critical rules? (read from "MY RULES" section in your agent.md)
 2. For each rule: what must I DO? What must I NEVER do?
 3. What is my analytical value — what can I produce that a script cannot?
@@ -74,6 +76,16 @@ This project uses **fish shell** (NOT bash/zsh). The following are **ABSOLUTELY 
 ```
 
 **If you cannot cite evidence for a rule → you violated it.** Go back and fix.
+
+---
+
+## 🐍 Python Environment Setup (BEFORE first script execution)
+
+Before running ANY Python script, use the `ms-python.python/configurePythonEnvironment` tool to ensure the correct virtual environment is active. Then use `ms-python.python/getPythonExecutableCommand` to get the proper Python executable path. This ensures scripts run in the project's `.venv` with all dependencies available — not the system Python.
+
+**Do this ONCE per session**, before your first script execution. Cache the executable command and reuse it for all subsequent `run_in_terminal` calls.
+
+If a script fails with `ModuleNotFoundError`, use `ms-python.python/installPythonPackage` to install the missing dependency, then retry.
 
 ---
 

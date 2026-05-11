@@ -20,6 +20,10 @@ tools:
     "search/codebase",
     "sequential-thinking/sequentialthinking",
     "sequentialthinking/sequentialthinking",
+    "ms-python.python/configurePythonEnvironment",
+    "ms-python.python/getPythonExecutableCommand",
+    "ms-python.python/getPythonEnvironmentInfo",
+    "ms-python.python/installPythonPackage",
     "todo",
     "pylance-mcp-server/*",
   ]

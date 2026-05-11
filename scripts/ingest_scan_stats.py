@@ -256,16 +256,47 @@ def ingest_event(
 
     wrote_any = False
 
+    # Deep parse fallback: if top-level fields are empty, try deep_parse
+    dp = event.get("deep_parse", {})
+    
+    # Odds fallback from deep_parse
+    odds_raw = event.get("odds", {})
+    if not odds_raw or (isinstance(odds_raw, dict) and not any(v for k, v in odds_raw.items() if k != "total_lines")):
+        dp_odds = {}
+        if dp.get("odds_1"):
+            dp_odds["w1"] = dp["odds_1"]
+        if dp.get("odds_x"):
+            dp_odds["x"] = dp["odds_x"]
+        if dp.get("odds_2"):
+            dp_odds["w2"] = dp["odds_2"]
+        if dp_odds:
+            odds_raw = dp_odds
+    
+    # Form fallback from deep_parse
+    form_home = event.get("form_home", [])
+    form_away = event.get("form_away", [])
+    if not form_home and dp.get("recent_form_data"):
+        # deep_parse recent_form_data may contain form info
+        rfd = dp["recent_form_data"]
+        if isinstance(rfd, dict):
+            form_home = rfd.get("home", [])
+            form_away = rfd.get("away", [])
+        elif isinstance(rfd, list):
+            form_home = rfd  # Best effort
+    
+    h2h_raw = event.get("h2h", {})
+
     # --- Process HOME team ---
     wrote_any |= _ingest_team_side(
         sport=sport,
         team=home,
         opponent=away,
-        form_raw=event.get("form_home", []),
-        h2h_raw=event.get("h2h", {}),
-        odds_raw=event.get("odds", {}),
+        form_raw=form_home,
+        h2h_raw=h2h_raw,
+        odds_raw=odds_raw,
         source_tag=source_tag,
         is_home=True,
+        deep_parse=dp,
         dry_run=dry_run,
         summary=summary,
     )
@@ -276,11 +307,12 @@ def ingest_event(
             sport=sport,
             team=away,
             opponent=home,
-            form_raw=event.get("form_away", []),
-            h2h_raw=event.get("h2h", {}),
-            odds_raw=event.get("odds", {}),
+            form_raw=form_away,
+            h2h_raw=h2h_raw,
+            odds_raw=odds_raw,
             source_tag=source_tag,
             is_home=False,
+            deep_parse=dp,
             dry_run=dry_run,
             summary=summary,
         )
@@ -297,6 +329,7 @@ def _ingest_team_side(
     odds_raw: dict,
     source_tag: str,
     is_home: bool,
+    deep_parse: dict | None,
     dry_run: bool,
     summary: dict | None,
 ) -> bool:
@@ -380,6 +413,16 @@ def _ingest_team_side(
             if odds_raw.get("total_lines"):
                 scan_odds["total_lines"] = odds_raw["total_lines"]
 
+    # --- Stats from deep_parse ---
+    scan_stats = {}
+    if deep_parse:
+        for key in ["corners_ft_home", "corners_ft_away", "corners_ht_home", "corners_ht_away",
+                     "yellow_cards_home", "yellow_cards_away", 
+                     "prob_home", "prob_draw", "prob_away",
+                     "predicted_score"]:
+            if deep_parse.get(key) is not None:
+                scan_stats[key] = deep_parse[key]
+
     # --- Build sources list ---
     sources = list(set(existing_sources + [source_tag]))
 
@@ -391,6 +434,8 @@ def _ingest_team_side(
         parts.append(f"H2H vs {opponent} ({h2h_added} matches)")
     if scan_odds:
         parts.append(f"odds ({len(scan_odds)} keys)")
+    if scan_stats:
+        parts.append(f"stats ({len(scan_stats)} keys from deep_parse)")
 
     if not parts:
         return False
@@ -409,6 +454,8 @@ def _ingest_team_side(
         )
         if scan_odds:
             entry["scan_odds"] = scan_odds
+        if scan_stats:
+            entry["scan_stats"] = scan_stats
 
         update_cache(sport, team, entry)
 
