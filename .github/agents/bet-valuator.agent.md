@@ -28,6 +28,9 @@ instructions:
   - ../instructions/agent-execution-protocol.instructions.md
   - ../instructions/analysis-methodology.instructions.md
   - ../instructions/betting-artifacts.instructions.md
+skills:
+  - bet-evaluating-odds
+  - bet-navigating-sources
 user-invokable: false
 handoffs:
   - label: "Odds evaluation complete → continue pipeline"

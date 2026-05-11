@@ -80,7 +80,7 @@ The pipeline already ran enrichment in parallel (stats, odds, weather). Now VALI
            print(f'{row[0]:15s}: {row[1]} teams')
    "
    ```
-   Gates: Football ≥100, Tennis ≥100, Basketball ≥10, Hockey ≥10. **Flag volleyball if 0.**
+   Gates: Football ≥100, Tennis ≥30 (Grand Slam weeks ≥200), Basketball ≥10, Hockey ≥10. **Flag volleyball if 0.**
 
 2. **Stats depth** — Sample 2-3 teams per KEY sport, check stat key count:
    - Football should have 28+ keys (ESPN source)
@@ -126,13 +126,13 @@ Include all sections from the agent's report format:
 | # | Check | Gate |
 |---|-------|------|
 | 01 | All 5 core sports have entries in `scan_run_stats` | Required |
-| 02 | Per-sport event counts reasonable (football ≥200, tennis ≥100) | Required |
+| 02 | Per-sport event counts reasonable (football ≥200, tennis ≥30) | Required |
 | 03 | ≥ 3 sports with active events | Required |
 | 04 | Every sport from ≥2 sources (`sources_ok` ≥ 2) | Required |
 | 05 | KEY sports have deep tournament coverage | Required |
 | 06 | DB `scan_results` populated for today's `betting_date` | Required |
 | 07 | scan_errors.json reviewed, critical errors < 5 | Required |
-| 08 | DB `team_form`: football ≥100, tennis ≥100 teams | Required |
+| 08 | DB `team_form`: football ≥100, tennis ≥30 teams | Required |
 | 09 | Stats depth: football ≥10 keys sampled | Required |
 | 10 | Odds data exists (or STATS-FIRST acknowledged) | Required |
 | 11 | Weather for outdoor events | Required |

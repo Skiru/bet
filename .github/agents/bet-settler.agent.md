@@ -29,6 +29,9 @@ instructions:
   - ../instructions/agent-execution-protocol.instructions.md
   - ../instructions/analysis-methodology.instructions.md
   - ../instructions/betting-artifacts.instructions.md
+skills:
+  - bet-settling-results
+  - bet-formatting-artifacts
 user-invokable: false
 handoffs:
   - label: "Settlement complete → continue pipeline"

@@ -29,6 +29,8 @@ model: "Claude Sonnet 4.6 (Copilot)"
 instructions:
   - ../instructions/agent-execution-protocol.instructions.md
   - ../instructions/analysis-methodology.instructions.md
+skills:
+  - bet-navigating-sources
 user-invokable: false
 handoffs:
   - label: "Tipster intelligence complete → continue pipeline"

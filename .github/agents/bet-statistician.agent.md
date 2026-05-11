@@ -30,6 +30,10 @@ instructions:
   - ../instructions/agent-execution-protocol.instructions.md
   - ../instructions/analysis-methodology.instructions.md
   - ../instructions/sport-analysis-protocols.instructions.md
+skills:
+  - bet-analyzing-statistics
+  - bet-applying-sport-protocols
+  - bet-navigating-sources
 user-invokable: false
 handoffs:
   - label: "Deep stats + time-sensitive complete → continue pipeline"

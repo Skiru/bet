@@ -33,6 +33,10 @@ model: "Claude Sonnet 4.6 (Copilot)"
 instructions:
   - ../instructions/agent-execution-protocol.instructions.md
   - ../instructions/analysis-methodology.instructions.md
+skills:
+  - bet-navigating-sources
+  - bet-analyzing-statistics
+  - bet-reading-html
 user-invokable: false
 handoffs:
   - label: "Enrichment complete → continue pipeline"

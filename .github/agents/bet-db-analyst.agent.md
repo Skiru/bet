@@ -26,6 +26,8 @@ tools:
 model: "Claude Sonnet 4.6 (Copilot)"
 instructions:
   - ../instructions/agent-execution-protocol.instructions.md
+skills:
+  - bet-querying-database
 user-invokable: false
 ---
 

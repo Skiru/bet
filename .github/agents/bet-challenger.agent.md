@@ -29,6 +29,9 @@ instructions:
   - ../instructions/agent-execution-protocol.instructions.md
   - ../instructions/analysis-methodology.instructions.md
   - ../instructions/sport-analysis-protocols.instructions.md
+skills:
+  - bet-applying-sport-protocols
+  - bet-analyzing-statistics
 user-invokable: false
 handoffs:
   - label: "Gate + challenge complete → continue pipeline"

@@ -28,6 +28,10 @@ instructions:
   - ../instructions/agent-execution-protocol.instructions.md
   - ../instructions/analysis-methodology.instructions.md
   - ../instructions/betting-artifacts.instructions.md
+skills:
+  - bet-building-coupons
+  - bet-formatting-artifacts
+  - bet-applying-sport-protocols
 user-invokable: false
 handoffs:
   - label: "Coupons + artifacts complete → continue pipeline"

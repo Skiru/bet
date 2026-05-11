@@ -31,6 +31,7 @@ instructions:
   - ../instructions/analysis-methodology.instructions.md
 skills:
   - bet-reading-html
+  - bet-scanning-volleyball
 handoffs:
   - label: "Sport scan complete"
     agent: bet-scanner
@@ -85,16 +86,25 @@ from datetime import date, datetime, timedelta
 import json
 today = str(date.today())
 sport = 'volleyball'
-with get_db() as conn:
+MIN_EVENTS = 15
+MIN_EVENTS_MARGINAL = 5
+try:
+  with get_db() as conn:
     # --- Event count ---
     c = conn.execute('SELECT COUNT(*) FROM scan_results WHERE sport=? AND betting_date=?', (sport, today))
     count = c.fetchone()[0]
     print(f'{sport} events: {count}')
+    if count == 0:
+        print('VERDICT: FAIL — scan produced 0 events')
+        raise SystemExit(0)
 
     # --- CHECK 1: Phantom detection (past kickoff) ---
-    cutoff = (datetime.utcnow() - timedelta(hours=2)).strftime('%Y-%m-%dT%H:%M')
+    cutoff_iso = (datetime.utcnow() - timedelta(hours=2)).strftime('%Y-%m-%dT%H:%M')
+    cutoff_time = (datetime.utcnow() - timedelta(hours=2)).strftime('%H:%M')
     c = conn.execute('''SELECT COUNT(*) FROM scan_results
-        WHERE sport=? AND betting_date=? AND kickoff != '' AND kickoff < ?''', (sport, today, cutoff))
+        WHERE sport=? AND betting_date=? AND kickoff != ''
+        AND ((length(kickoff) <= 5 AND kickoff < ?) OR (length(kickoff) > 5 AND kickoff < ?))''',
+        (sport, today, cutoff_time, cutoff_iso))
     phantoms = c.fetchone()[0]
     print(f'Phantoms (kickoff >2h ago): {phantoms}')
 
@@ -106,14 +116,14 @@ with get_db() as conn:
 
     # --- CHECK 3: Data completeness ---
     c = conn.execute('''SELECT
-        SUM(CASE WHEN home_team IS NULL OR home_team='' THEN 1 ELSE 0 END),
-        SUM(CASE WHEN away_team IS NULL OR away_team='' THEN 1 ELSE 0 END),
-        SUM(CASE WHEN competition IS NULL OR competition='' THEN 1 ELSE 0 END),
-        SUM(CASE WHEN kickoff IS NULL OR kickoff='' THEN 1 ELSE 0 END),
+        COALESCE(SUM(CASE WHEN home_team IS NULL OR home_team='' THEN 1 ELSE 0 END), 0),
+        COALESCE(SUM(CASE WHEN away_team IS NULL OR away_team='' THEN 1 ELSE 0 END), 0),
+        COALESCE(SUM(CASE WHEN competition IS NULL OR competition='' THEN 1 ELSE 0 END), 0),
+        COALESCE(SUM(CASE WHEN kickoff IS NULL OR kickoff='' THEN 1 ELSE 0 END), 0),
         COUNT(*)
         FROM scan_results WHERE sport=? AND betting_date=?''', (sport, today))
     no_home, no_away, no_comp, no_ko, total = c.fetchone()
-    completeness = round((1 - max(no_home, no_away) / max(total, 1)) * 100, 1)
+    completeness = round((1 - max(no_home, no_away, no_comp, no_ko) / max(total, 1)) * 100, 1)
     print(f'Completeness: {completeness}% (missing: home={no_home}, away={no_away}, comp={no_comp}, kickoff={no_ko})')
 
     # --- CHECK 4: League coverage vs yesterday ---
@@ -144,28 +154,42 @@ with get_db() as conn:
     else:
         print('All sources healthy')
 
-    # Volleyball: known zero-enrichment sport — just flag it
-    print('Note: volleyball stats cache likely EMPTY (known API quota gap)')
-    print('  -> Enrichment should run volleyball FIRST to get quota allocation')
+    # Volleyball: check for stat keys in raw_data (sparse — known API gap)
+    c = conn.execute('SELECT raw_data FROM scan_results WHERE sport=? AND betting_date=? AND raw_data IS NOT NULL LIMIT 20', (sport, today))
+    stat_keys_found = set()
+    for row in c:
+        try:
+            data = json.loads(row[0]) if row[0] else {}
+        except (json.JSONDecodeError, TypeError):
+            data = {}
+        stat_keys_found.update(data.get('stat_keys', []))
+    required = {'points', 'sets', 'blocks', 'aces'}
+    found = required & stat_keys_found
+    print(f'Stat keys: {len(found)}/{len(required)} required ({found or \"NONE — known API quota gap\"})')
 
     # --- VERDICT ---
     issues = []
+    if count < MIN_EVENTS_MARGINAL: issues.append(f'only {count} events (need ≥{MIN_EVENTS_MARGINAL})')
     if phantoms > 5: issues.append(f'{phantoms} phantom fixtures')
     if dupes: issues.append(f'{len(dupes)} duplicate event_keys')
     if completeness < 80: issues.append(f'completeness {completeness}%')
     if len(missing) > 3: issues.append(f'{len(missing)} leagues missing vs yesterday')
 
-    if count >= 15 and not issues:
+    if count >= MIN_EVENTS and not issues:
         print('VERDICT: PASS')
-    elif count >= 5 and len(issues) <= 1:
+    elif count >= MIN_EVENTS_MARGINAL and len(issues) <= 1:
         print(f'VERDICT: MARGINAL — {issues}')
     else:
         print(f'VERDICT: FAIL — {issues}')
+except Exception as e:
+    print(f'ERROR running verification: {e}')
+    print('VERDICT: FAIL — DB error (table missing or connection issue)')
 "
 ```
 
 **Interpret with `sequentialthinking`:**
 - EU volleyball season: Oct-May. Jun-Aug off-season — low/zero events is normal, NOT a failure.
+- §SCAN.7: Are CEV Champions League, FIVB World Championship, Nations League present if active? Missing → investigate.
 - Stats cache EMPTY is a KNOWN gap (API quota issue) — flag but don't fail.
 - Fewer sources → completeness may be lower than football. <70% completeness is concerning.
 - If FAIL during season → proceed to Step 3 (self-heal). If off-season with 0 events → report as seasonal.
@@ -276,3 +300,5 @@ All terminal commands use `mode=sync` with these timeouts:
 ## Skills
 
 Load: `bet-scanning-volleyball` for: source URLs, league coverage, stats gap workarounds, validation rules.
+
+<!-- BET:agent:bet-scanner-volleyball:v2 -->

@@ -30,6 +30,9 @@ model: "Claude Opus 4.6 (Copilot)"
 instructions:
   - ../instructions/agent-execution-protocol.instructions.md
   - ../instructions/analysis-methodology.instructions.md
+skills:
+  - bet-navigating-sources
+  - bet-reading-html
 user-invokable: true
 handoffs:
   - label: "Scan + shortlist complete → continue pipeline"
@@ -130,9 +133,10 @@ After all 5 agents report back:
 |-------|------|
 | All 5 sports reported | Required |
 | Total events across sports > 250 | Required |
-| No sport in FAIL state | Advisory — if FAIL, dispatch that agent in healing mode |
+| No sport in FAIL state (non-seasonal) | Advisory — if FAIL, dispatch that agent in healing mode |
 
-- If any sport FAIL → dispatch that sport's agent in **healing mode** (their Step 3)
+- If any sport FAIL **and** it's NOT a seasonal zero (off-season) → dispatch healing mode (Step 3)
+- Seasonal FAIL (e.g., volleyball Jun-Aug, hockey Jul-Sep, tennis mid-Nov to early Jan) → acknowledge, do NOT heal
 - If all PASS/MARGINAL → proceed to enrichment phase
 
 ### PHASE 3: HANDOFF
