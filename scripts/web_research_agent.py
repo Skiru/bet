@@ -163,16 +163,7 @@ def _save_to_cache(
 # Web fetching
 # ---------------------------------------------------------------------------
 def _fetch_via_playwright(url: str) -> str | None:
-    """Fetch a URL using fetch_with_playwright. Returns HTML or None."""
-    try:
-        from fetch_with_playwright import fetch
-        return fetch(url, save_snapshot=False)
-    except ImportError:
-        logger.warning("fetch_with_playwright not available, trying urllib fallback")
-    except Exception as exc:
-        logger.warning("Playwright fetch failed for %s: %s", url, exc)
-
-    # Fallback: urllib
+    """Fetch URL via HTTP (Playwright removed in Beast Mode migration)."""
     return _fetch_via_urllib(url)
 
 

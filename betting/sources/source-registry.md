@@ -4,11 +4,22 @@ Purpose: document all data sources used by the 5-sport pipeline (football, volle
 
 ## Source Philosophy
 
-The pipeline focuses on 5 sports — football, volleyball, basketball, tennis, hockey — with depth over breadth. Every league in every sport must have multiple independent data sources. The workflow must:
-1. Use Tier A statistical and market sources as the analytical backbone — multiple sources per sport, per league.
-2. Use Tier B tipster/community sites to validate direction, discover angles, and check consensus.
-3. Use Tier C specialist sites for sport-specific deep dives, especially lower divisions and exotic leagues.
-4. Prioritize lower-division and minor-league coverage — market inefficiency is highest where bookmaker lines are weakest.
+The pipeline uses **Beast Mode architecture**: Sofascore REST API as the primary scan source for event discovery and deep data (form, H2H, odds) across all 5 sports. Enrichment sources fill gaps. The workflow must:
+1. Use Sofascore REST API as the event discovery + deep data backbone (`scan_events.py`).
+2. Use Tier A market sources for odds comparison and line shopping.
+3. Use enrichment sources (ESPN, Flashscore HTTP) to fill statistical gaps from the scan.
+4. Use Tier B tipster/community sites to validate direction, discover angles, and check consensus.
+5. Prioritize lower-division and minor-league coverage — market inefficiency is highest where bookmaker lines are weakest.
+
+## PRIMARY: Sofascore REST API (Beast Mode)
+
+- Sofascore REST API
+  Role: primary event discovery + deep enrichment for ALL 5 sports.
+  Endpoints: `api.sofascore.com/api/v1/sport/{sport}/scheduled-events/{date}`, `/event/{id}/pregame-form`, `/event/{id}/h2h`, `/event/{id}/odds/1/all`
+  Use for: fixture discovery, team form, H2H history, pre-match odds.
+  Access: public API, no key required. Rate limit: 0.3s between requests.
+  Script: `scripts/scan_events.py`
+  Output: `betting/data/global_events_api.json` + DB (fixtures, scan_results, teams, competitions)
 
 ## Tier A Core Market and Price Sources
 

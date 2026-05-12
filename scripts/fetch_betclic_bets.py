@@ -19,7 +19,7 @@ from datetime import datetime, timezone
 BASE = Path(__file__).resolve().parent
 sys.path.insert(0, str(BASE))
 
-from fetch_with_playwright import USER_AGENTS, STORAGE_DIR, load_selectors
+from betclic_helpers import USER_AGENTS, STORAGE_DIR, load_selectors
 
 try:
     from playwright.sync_api import sync_playwright

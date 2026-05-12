@@ -40,6 +40,10 @@ class BetExplorerSource(OddsSource):
         if not url:
             return []
 
+        # DEPRECATED: BetExplorer HTML scraping removed in Beast Mode migration (2026-05-12).
+        # Use API-based odds sources instead (fetch_odds_api.py, The-Odds-API).
+        return []
+
         if not self._limiter.can_request("betexplorer-scraper"):
             print("[betexplorer] Daily rate limit reached, skipping")
             return []

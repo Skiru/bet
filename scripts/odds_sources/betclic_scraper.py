@@ -52,6 +52,10 @@ class BetclicSource(OddsSource):
         if not url:
             return []
 
+        # DEPRECATED: Betclic HTML scraping removed in Beast Mode migration (2026-05-12).
+        # Use API-based odds sources instead (fetch_odds_api.py, The-Odds-API).
+        return []
+
         if not self._limiter.can_request("betclic-scraper"):
             print("[betclic] Daily rate limit reached, skipping")
             return []

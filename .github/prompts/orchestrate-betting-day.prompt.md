@@ -136,7 +136,7 @@ All agents follow `agent-execution-protocol.instructions.md` v5 (loaded via thei
 
 ## §STRUCTURED SCRIPT OUTPUT (R19)
 
-15 analytical scripts emit `AGENT_SUMMARY:{json}`: `scan_events.py`, `html_deep_parser.py`, `ingest_scan_stats.py`, `tipster_aggregator.py`, `tipster_xref.py`, `data_enrichment_agent.py`, `deep_stats_report.py`, `gate_checker.py`, `coupon_builder.py`, `build_shortlist.py`, `odds_evaluator.py`, `context_checks.py`, `upset_risk.py`, `fetch_odds_multi.py`, `validate_coupons.py`. Exit codes: 0=OK, 1=partial, 2=critical. Scripts with `--sport` filter: `scan_events.py`, `tipster_aggregator.py`.
+14 analytical scripts emit `AGENT_SUMMARY:{json}`: `scan_events.py`, `ingest_scan_stats.py`, `tipster_aggregator.py`, `tipster_xref.py`, `data_enrichment_agent.py`, `deep_stats_report.py`, `gate_checker.py`, `coupon_builder.py`, `build_shortlist.py`, `odds_evaluator.py`, `context_checks.py`, `upset_risk.py`, `fetch_odds_multi.py`, `validate_coupons.py`. Exit codes: 0=OK, 1=partial, 2=critical. Scripts with `--sport` filter: `scan_events.py`, `tipster_aggregator.py`.
 
 ---
 
@@ -225,8 +225,8 @@ runSubagent("bet-db-analyst"):
 **You launch the scan, then delegate review to bet-scanner.**
 
 ```bash
-# Run parallel-sport scan — takes 10-20 min
-python3 scripts/scan_events.py --parallel-sport --date {date} --deep --max-deep-links 30 --workers 8 --verbose 2>&1
+# Beast Mode scan — Sofascore REST API for all 5 sports, ~15 min with deep enrichment
+.venv/bin/python scripts/scan_events.py --date {date} --verbose 2>&1
 ```
 
 **WHILE RUNNING:** Use `mode=async` with `timeout=600000`. THINK-WHILE-WAITING: review previous scan stats, check tournament schedules, query DB for source health. Then `get_terminal_output` to read results when done → EXTRACT → THINK → RETURN. R17: LIVE MONITORING.
@@ -264,54 +264,21 @@ runSubagent("bet-scanner"):
 ### STEP S1-ingest: Ingest Scan Stats
 
 ```bash
-python3 scripts/ingest_scan_stats.py --verbose 2>&1
+.venv/bin/python scripts/ingest_scan_stats.py --date {date} --verbose 2>&1
 ```
 
-**AFTER:** Parse `AGENT_SUMMARY` from output → verify `verdict=OK`. If PARTIAL/FAILED → check which sports/sources had ingestion errors before proceeding.
+**AFTER:** Parse `AGENT_SUMMARY` from output → verify `verdict=OK`. If PARTIAL/FAILED → check which sports had ingestion errors before proceeding. This step transforms Beast Mode form/H2H/odds data from `global_events_api.json` into `stats_cache/` + DB `team_form`.
 
 ---
 
-### STEP S1-deep: HTML Deep Parsing
+### STEP S1a: API Stats + ESPN Enrichment
 
 ```bash
-python3 scripts/html_deep_parser.py --date {date} --report --verbose 2>&1
+.venv/bin/python scripts/fetch_api_stats.py --date {date} 2>&1
+.venv/bin/python scripts/seed_espn_data.py --skip-players 2>&1
 ```
 
-**AFTER — Delegate to bet-scanner** for parsing quality review:
-
-```
-runSubagent("bet-scanner"):
----
-## Task: S1-deep HTML Deep Parsing Review for {date}
-
-### Context
-- Date: {date}
-- Script already ran. Review output quality.
-- Check: betting/data/{date}_deep_parse_report.json
-- Parse `AGENT_SUMMARY:` JSON from script output for verdict, metrics, issues
-- Use sequentialthinking to evaluate parsing quality
-- Key checks:
-  - Per-domain verdicts: PASS/WARN/FAIL — any FAIL domains need CSS selector fixes
-  - WARN domains: are out_of_range values real errors or outliers?
-  - db_cross_reference match rates — low match = stale snapshots
-  - field_coverage — expected fields being extracted per domain?
-- Recovery: If profile returns 0 extractions → HTML structure changed, flag for update
-- Return: APPROVED/FLAGGED/REJECTED + pass_domains + warn_domains + fail_domains + db_match_rate
----
-```
-
----
-
-### STEP S1a: Fixture Discovery + API Stats
-
-```bash
-python3 scripts/discover_fixtures.py --date {date} 2>&1
-python3 scripts/fetch_api_stats.py --date {date} 2>&1
-# Tennis enrichment handled by data_enrichment_agent.py in S2.5
-python3 scripts/seed_espn_data.py --skip-players 2>&1
-```
-
-**Post-run check**: Verify fixtures discovered (>0 per active sport). If `fetch_api_stats.py` reports 0 API responses, proceed in stats-first mode (R10) — API stats are supplemental, not required.
+**Post-run check**: If `fetch_api_stats.py` reports 0 API responses, proceed in stats-first mode (R10) — API stats are supplemental to Beast Mode scan data.
 
 ---
 

@@ -22,7 +22,84 @@ sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 import requests
-from adapters.tennisabstract_adapter import parse as tennisabstract_parse
+from bs4 import BeautifulSoup
+
+def tennisabstract_parse(html: str, url: str) -> list[dict]:
+    """Parse TennisAbstract Elo ratings HTML table (inlined from deleted adapter)."""
+    soup = BeautifulSoup(html, "html.parser")
+    results = []
+    tour = "atp" if "atp" in url.lower() else "wta"
+
+    elo_table = soup.find("table", id="reportable") or soup.find("table", class_="tablesorter")
+    if not elo_table:
+        for t in soup.find_all("table"):
+            if len(t.find_all("tr", recursive=False)) > 100:
+                elo_table = t
+                break
+    if not elo_table:
+        return results
+
+    trs = elo_table.find_all("tr")
+    header_cells = []
+    data_start = 0
+    for i, tr in enumerate(trs):
+        cells = [c.get_text(strip=True) for c in tr.find_all(["td", "th"])]
+        if any("Elo" in c for c in cells) and any("Player" in c for c in cells):
+            header_cells = cells
+            data_start = i + 1
+            break
+
+    col_idx = {h.strip(): i for i, h in enumerate(header_cells) if h.strip()}
+
+    def _col(name, cells_list, cast=float):
+        idx = col_idx.get(name)
+        if idx is None or idx >= len(cells_list):
+            return None
+        val = cells_list[idx].strip()
+        if not val:
+            return None
+        try:
+            return cast(val)
+        except (ValueError, TypeError):
+            return None
+
+    for tr in trs[data_start:]:
+        cells = [c.get_text(strip=True).replace("\xa0", " ") for c in tr.find_all(["td", "th"])]
+        if len(cells) < 10:
+            continue
+        try:
+            rank = int(cells[0])
+        except (ValueError, IndexError):
+            continue
+        player = cells[1] if len(cells) > 1 else ""
+        if not player or len(player) < 3:
+            continue
+        try:
+            elo = _col("Elo", cells) if col_idx else (float(cells[3]) if cells[3] else None)
+        except (ValueError, IndexError):
+            continue
+
+        h_elo = _col("hElo", cells) if col_idx else None
+        c_elo = _col("cElo", cells) if col_idx else None
+        g_elo = _col("gElo", cells) if col_idx else None
+        peak_elo = _col("Peak Elo", cells) or _col("Peak", cells) if col_idx else None
+
+        result = {
+            "home": player,
+            "away": f"{tour.upper()} Elo #{rank}",
+            "sport": "tennis",
+            "source_type": "tennisabstract_elo",
+            "elo_rank": rank,
+            "elo_rating": elo,
+            "tour": tour,
+        }
+        if h_elo: result["hard_elo"] = h_elo
+        if c_elo: result["clay_elo"] = c_elo
+        if g_elo: result["grass_elo"] = g_elo
+        if peak_elo: result["peak_elo"] = peak_elo
+        results.append(result)
+
+    return results
 
 ELO_URLS = {
     "atp": "https://www.tennisabstract.com/reports/atp_elo_ratings.html",

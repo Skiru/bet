@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Ingest Playwright scan data into stats_cache.
+"""Ingest scan data into stats_cache.
 
-Reads betting/data/scan_summary.json, transforms adapter-specific output
-into the standard stats_cache format, and writes via build_stats_cache.
+Reads Beast Mode output (betting/data/global_events_api.json) or legacy
+scan_summary.json, transforms into the standard stats_cache format,
+and writes via build_stats_cache.
 
 CLI: python3 scripts/ingest_scan_stats.py [--date YYYY-MM-DD] [--dry-run]
 """
@@ -39,6 +40,7 @@ except ImportError:
     _HAS_DB = False
 
 SCAN_SUMMARY_PATH = Path(__file__).parent.parent / "betting" / "data" / "scan_summary.json"
+BEAST_MODE_PATH = Path(__file__).parent.parent / "betting" / "data" / "global_events_api.json"
 
 # Minimum API-sourced L10 matches before we skip overwriting form with scan data
 API_FORM_THRESHOLD = 5
@@ -205,6 +207,23 @@ def _extract_form_matches(form_list: list, sport: str, team: str) -> list[dict]:
 
 def _extract_h2h_matches(h2h_data: dict, sport: str) -> list[dict]:
     """Convert scan H2H matches into cache-compatible entries."""
+    # Beast Mode format: {"teamDuel": {"homeWins": N, "awayWins": N, "draws": N}}
+    if "teamDuel" in h2h_data:
+        td = h2h_data.get("teamDuel") or {}
+        if td:
+            # Create synthetic H2H summary entry
+            return [{
+                "date": "",
+                "fixture_id": "scan-h2h-summary",
+                "stats": {
+                    "home_wins": td.get("homeWins", 0),
+                    "away_wins": td.get("awayWins", 0),
+                    "draws": td.get("draws", 0),
+                },
+            }]
+        return []
+
+    # Legacy format: {"matches": [...]}
     raw_matches = h2h_data.get("matches", [])
     entries = []
     for idx, m in enumerate(raw_matches):
@@ -217,6 +236,265 @@ def _extract_h2h_matches(h2h_data: dict, sport: str) -> list[dict]:
         })
     entries.sort(key=lambda e: e.get("date", ""), reverse=True)
     return entries
+
+
+# ---------------------------------------------------------------------------
+# Beast Mode format normalization
+# ---------------------------------------------------------------------------
+
+def _parse_odds_val(choice: dict) -> float | None:
+    """Extract decimal odds from a Sofascore choice dict.
+    
+    Handles fractional ("5/4" → 2.25) and decimal formats.
+    Returns None for invalid or sub-1.0 odds.
+    """
+    raw = choice.get("fractionalValue") or choice.get("decimalValue")
+    if raw is None:
+        return None
+    if isinstance(raw, str) and "/" in raw:
+        parts = raw.split("/", 1)
+        try:
+            result = round(float(parts[0]) / float(parts[1]) + 1, 3)
+        except (ValueError, ZeroDivisionError):
+            return None
+        if result < 1.0:
+            return None
+        return result
+    try:
+        result = float(raw)
+    except (ValueError, TypeError):
+        return None
+    if result < 1.0:
+        return None
+    return result
+
+
+def _normalize_beast_mode_event(event: dict) -> tuple[str, dict]:
+    """Normalize a Beast Mode event (from global_events_api.json) to legacy format.
+
+    Beast Mode format:
+      {"id": N, "sport": "football", "home_team": "X", "away_team": "Y",
+       "form": {"homeTeam": {"form": ["W","L"]}, "awayTeam": {"form": ["W","L"]}},
+       "h2h": {"teamDuel": {"homeWins": N, ...}},
+       "odds": [{"marketName": "Full time", "choices": [...]}]}
+
+    Returns (fake_url, normalized_event) in legacy-compatible format.
+    """
+    normalized = dict(event)
+    # Key renames
+    normalized["home"] = event.get("home_team", event.get("home", ""))
+    normalized["away"] = event.get("away_team", event.get("away", ""))
+    normalized["source"] = "sofascore-api"
+
+    # Form normalization: Beast Mode nested → flat form_home/form_away
+    # Preserve ALL data from pregame-form endpoint (position, value, form sequence, matches)
+    form = event.get("form") or {}
+    if isinstance(form, dict):
+        home_form = form.get("homeTeam") or {}
+        away_form = form.get("awayTeam") or {}
+        if isinstance(home_form, dict):
+            if home_form.get("form"):
+                normalized["form_home"] = home_form["form"]
+            # Preserve league position and points from form data
+            if home_form.get("position") is not None:
+                normalized.setdefault("standings", {})["home_pos"] = home_form["position"]
+            if home_form.get("value") is not None:
+                normalized.setdefault("standings", {})["home_pts"] = home_form["value"]
+            # Preserve detailed match history if available
+            if home_form.get("matches"):
+                normalized["form_home_matches"] = home_form["matches"]
+        if isinstance(away_form, dict):
+            if away_form.get("form"):
+                normalized["form_away"] = away_form["form"]
+            if away_form.get("position") is not None:
+                normalized.setdefault("standings", {})["away_pos"] = away_form["position"]
+            if away_form.get("value") is not None:
+                normalized.setdefault("standings", {})["away_pts"] = away_form["value"]
+            if away_form.get("matches"):
+                normalized["form_away_matches"] = away_form["matches"]
+        # Keep the form label (e.g., "Pts")
+        if form.get("label"):
+            normalized.setdefault("standings", {})["label"] = form["label"]
+
+    # H2H: pass through — _extract_h2h_matches now handles Beast Mode format
+    # Odds normalization: Beast Mode array → dict (ALL market types)
+    odds_raw = event.get("odds") or []
+    if isinstance(odds_raw, list) and odds_raw:
+        odds_dict = {}
+        for market in odds_raw:
+            if not isinstance(market, dict):
+                continue
+            name = market.get("marketName", "")
+            choices = market.get("choices") or market.get("outcomes") or []
+            name_lower = name.lower()
+
+            # 1X2 / Match Winner
+            if name == "Full time" and choices:
+                for choice in choices:
+                    if not isinstance(choice, dict):
+                        continue
+                    cname = choice.get("name", "")
+                    odds_val = _parse_odds_val(choice)
+                    if odds_val is None:
+                        continue
+                    if cname == "1" or cname.lower() == "home":
+                        odds_dict["w1"] = odds_val
+                    elif cname == "X" or cname.lower() == "draw":
+                        odds_dict["x"] = odds_val
+                    elif cname == "2" or cname.lower() == "away":
+                        odds_dict["w2"] = odds_val
+
+            # Totals (goals, games, points)
+            elif "total" in name_lower or "over" in name_lower or name_lower == "match goals":
+                total_lines = odds_dict.setdefault("total_lines", {})
+                for choice in choices:
+                    if not isinstance(choice, dict):
+                        continue
+                    cname = (choice.get("name") or "").strip()
+                    odds_val = _parse_odds_val(choice)
+                    if odds_val is None:
+                        continue
+                    cname_lower = cname.lower()
+                    if "over" in cname_lower:
+                        total_lines[f"over_{cname}"] = odds_val
+                    elif "under" in cname_lower:
+                        total_lines[f"under_{cname}"] = odds_val
+
+            # Both Teams to Score (BTTS) — R5 statistical market
+            elif name_lower == "both teams to score":
+                for choice in choices:
+                    if not isinstance(choice, dict):
+                        continue
+                    cname = (choice.get("name") or "").lower()
+                    odds_val = _parse_odds_val(choice)
+                    if odds_val is None:
+                        continue
+                    if cname == "yes":
+                        odds_dict["btts_yes"] = odds_val
+                    elif cname == "no":
+                        odds_dict["btts_no"] = odds_val
+
+            # Double Chance
+            elif name_lower == "double chance":
+                dc = odds_dict.setdefault("double_chance", {})
+                for choice in choices:
+                    if not isinstance(choice, dict):
+                        continue
+                    cname = (choice.get("name") or "").strip()
+                    odds_val = _parse_odds_val(choice)
+                    if odds_val is None:
+                        continue
+                    dc[cname] = odds_val  # "1X", "12", "X2"
+
+            # Draw No Bet
+            elif name_lower == "draw no bet":
+                dnb = odds_dict.setdefault("draw_no_bet", {})
+                for choice in choices:
+                    if not isinstance(choice, dict):
+                        continue
+                    cname = choice.get("name", "")
+                    odds_val = _parse_odds_val(choice)
+                    if odds_val is None:
+                        continue
+                    if cname == "1":
+                        dnb["home"] = odds_val
+                    elif cname == "2":
+                        dnb["away"] = odds_val
+
+            # Asian Handicap
+            elif "handicap" in name_lower:
+                hc = odds_dict.setdefault("handicap_lines", {})
+                for choice in choices:
+                    if not isinstance(choice, dict):
+                        continue
+                    cname = (choice.get("name") or "").strip()
+                    odds_val = _parse_odds_val(choice)
+                    if odds_val is None:
+                        continue
+                    hc[cname] = odds_val
+
+            # Corners (R5 — priority statistical market)
+            elif "corner" in name_lower:
+                corners = odds_dict.setdefault("corners", {})
+                for choice in choices:
+                    if not isinstance(choice, dict):
+                        continue
+                    cname = (choice.get("name") or "").strip()
+                    odds_val = _parse_odds_val(choice)
+                    if odds_val is None:
+                        continue
+                    corners[cname] = odds_val
+
+            # Cards (R5 — priority statistical market)
+            elif "card" in name_lower:
+                cards = odds_dict.setdefault("cards", {})
+                for choice in choices:
+                    if not isinstance(choice, dict):
+                        continue
+                    cname = (choice.get("name") or "").strip()
+                    odds_val = _parse_odds_val(choice)
+                    if odds_val is None:
+                        continue
+                    cards[cname] = odds_val
+
+            # Half-time / half markets (1st and 2nd half)
+            elif "1st half" in name_lower or "half time" in name_lower:
+                ht = odds_dict.setdefault("half_time", {})
+                for choice in choices:
+                    if not isinstance(choice, dict):
+                        continue
+                    cname = (choice.get("name") or "").strip()
+                    odds_val = _parse_odds_val(choice)
+                    if odds_val is None:
+                        continue
+                    ht[cname] = odds_val
+
+            elif "2nd half" in name_lower:
+                ht2 = odds_dict.setdefault("half_time_2nd", {})
+                for choice in choices:
+                    if not isinstance(choice, dict):
+                        continue
+                    cname = (choice.get("name") or "").strip()
+                    odds_val = _parse_odds_val(choice)
+                    if odds_val is None:
+                        continue
+                    ht2[cname] = odds_val
+
+            # Tennis: set winner
+            elif "set winner" in name_lower:
+                sw = odds_dict.setdefault("set_winner", {})
+                for choice in choices:
+                    if not isinstance(choice, dict):
+                        continue
+                    cname = (choice.get("name") or "").strip()
+                    odds_val = _parse_odds_val(choice)
+                    if odds_val is None:
+                        continue
+                    sw[f"{name}_{cname}"] = odds_val
+
+            # Basketball/Hockey: period/quarter markets
+            elif "quarter" in name_lower or "period" in name_lower:
+                period_key = name_lower.replace(" ", "_")
+                pm = odds_dict.setdefault("period_markets", {})
+                for choice in choices:
+                    if not isinstance(choice, dict):
+                        continue
+                    cname = (choice.get("name") or "").strip()
+                    odds_val = _parse_odds_val(choice)
+                    if odds_val is None:
+                        continue
+                    pm[f"{period_key}_{cname}"] = odds_val
+
+        if odds_dict:
+            normalized["odds"] = odds_dict
+
+    # Expected stats from Sofascore (pre-match projections)
+    expected_stats = event.get("expected_stats") or {}
+    if expected_stats:
+        normalized["expected_stats"] = expected_stats
+
+    fake_url = f"sofascore-api/{event.get('sport', 'unknown')}/{event.get('id', 0)}"
+    return fake_url, normalized
 
 
 # ---------------------------------------------------------------------------
@@ -265,7 +543,8 @@ def ingest_event(
 
     if summary is not None:
         if sport not in summary:
-            summary[sport] = {"teams_ingested": 0, "h2h_added": 0, "form_added": 0}
+            summary[sport] = {"teams_ingested": 0, "h2h_added": 0, "form_added": 0,
+                              "market_types": set()}
 
     wrote_any = False
 
@@ -316,6 +595,7 @@ def ingest_event(
         "standings": standings,
         "predictions": predictions,
         "dangerous_attacks": dangerous_attacks,
+        "expected_stats": event.get("expected_stats") or {},
     }
 
     # --- Process HOME team ---
@@ -443,10 +723,16 @@ def _ingest_team_side(
             for key in ("w1", "w2", "x", "draw"):
                 if key in odds_raw and odds_raw[key]:
                     scan_odds[key] = odds_raw[key]
-            if odds_raw.get("handicap_lines"):
-                scan_odds["handicap_lines"] = odds_raw["handicap_lines"]
-            if odds_raw.get("total_lines"):
-                scan_odds["total_lines"] = odds_raw["total_lines"]
+            # Pass through ALL structured market types from Beast Mode
+            for market_key in ("handicap_lines", "total_lines", "double_chance",
+                               "draw_no_bet", "corners", "cards", "half_time",
+                               "half_time_2nd", "set_winner", "period_markets"):
+                if odds_raw.get(market_key):
+                    scan_odds[market_key] = odds_raw[market_key]
+            # Scalar market odds
+            for scalar_key in ("btts_yes", "btts_no"):
+                if odds_raw.get(scalar_key):
+                    scan_odds[scalar_key] = odds_raw[scalar_key]
 
     # --- Stats from deep_parse ---
     scan_stats = {}
@@ -519,6 +805,12 @@ def _ingest_team_side(
         if predictions.get("avg_stat") is not None:
             scan_stats["avg_stat"] = predictions["avg_stat"]
 
+        # Sofascore expected stats (pre-match projections)
+        expected = enriched.get("expected_stats") or {}
+        if expected:
+            # Store the full expected stats blob for downstream analysis
+            scan_stats["expected_stats"] = expected
+
     # --- Build sources list ---
     sources = list(set(existing_sources + [source_tag]))
 
@@ -529,9 +821,34 @@ def _ingest_team_side(
     if h2h_added:
         parts.append(f"H2H vs {opponent} ({h2h_added} matches)")
     if scan_odds:
-        parts.append(f"odds ({len(scan_odds)} keys)")
+        # Count market categories
+        market_types = []
+        if "w1" in scan_odds or "w2" in scan_odds:
+            market_types.append("1X2")
+        if "btts_yes" in scan_odds:
+            market_types.append("BTTS")
+        if "total_lines" in scan_odds:
+            market_types.append("totals")
+        if "corners" in scan_odds:
+            market_types.append("corners")
+        if "cards" in scan_odds:
+            market_types.append("cards")
+        if "double_chance" in scan_odds:
+            market_types.append("DC")
+        if "handicap_lines" in scan_odds:
+            market_types.append("HC")
+        if "half_time" in scan_odds:
+            market_types.append("HT")
+        if "draw_no_bet" in scan_odds:
+            market_types.append("DNB")
+        if "period_markets" in scan_odds:
+            market_types.append("periods")
+        if "set_winner" in scan_odds:
+            market_types.append("sets")
+        market_str = ",".join(market_types) if market_types else f"{len(scan_odds)} keys"
+        parts.append(f"odds [{market_str}]")
     if scan_stats:
-        parts.append(f"stats ({len(scan_stats)} keys from deep_parse)")
+        parts.append(f"stats ({len(scan_stats)} keys)")
         
     enriched_count = sum(1 for k in ["corners_per_game", "yellow_cards_per_game", "fouls_per_game", 
                                       "shots_per_game", "league_position", "dangerous_attacks"]
@@ -576,6 +893,16 @@ def _ingest_team_side(
         summary[sport]["teams_ingested"] += 1
         summary[sport]["h2h_added"] += h2h_added
         summary[sport]["form_added"] += form_added
+        # Track which market types were extracted
+        if scan_odds:
+            for mk in ("btts_yes", "btts_no"):
+                if mk in scan_odds:
+                    summary[sport]["market_types"].add("BTTS")
+            for mk in ("corners", "cards", "double_chance", "draw_no_bet",
+                        "handicap_lines", "total_lines", "half_time", "half_time_2nd",
+                        "set_winner", "period_markets"):
+                if mk in scan_odds:
+                    summary[sport]["market_types"].add(mk)
 
     return True
 
@@ -586,7 +913,11 @@ def _ingest_team_side(
 
 def run(scan_path: Path, dry_run: bool = False, target_date: str | None = None,
         out: "AgentOutput | None" = None) -> dict:
-    """Run full ingestion from scan_summary.json.
+    """Run full ingestion from scan data.
+
+    Supports both:
+    - Beast Mode: global_events_api.json (flat list of events)
+    - Legacy: scan_summary.json (dict of URL → events list)
 
     Returns summary dict: {sport: {teams_ingested, h2h_added, form_added}}.
     """
@@ -608,51 +939,84 @@ def run(scan_path: Path, dry_run: bool = False, target_date: str | None = None,
             print(f"[ingest] ERROR: {msg}", file=sys.stderr)
         return {}
 
-    if not isinstance(raw, dict):
-        msg = f"expected dict in {scan_path}, got {type(raw).__name__}"
-        if out:
-            out.error(msg, recoverable=False)
-        else:
-            print(f"[ingest] ERROR: {msg}", file=sys.stderr)
-        return {}
-
     summary: dict = {}
     total_events = 0
     ingested_events = 0
     errors = 0
 
-    url_list = list(raw.items())
-    for idx, (url, events) in enumerate(url_list, 1):
-        if not isinstance(events, list):
-            continue
-        for event in events:
+    # Detect format: Beast Mode (list) vs legacy (dict)
+    if isinstance(raw, list):
+        # Beast Mode format: flat list of events from global_events_api.json
+        print(f"[ingest] Beast Mode format detected — {len(raw)} events")
+        for idx, event in enumerate(raw, 1):
             if not isinstance(event, dict):
                 continue
 
             # Optional date filter
             if target_date:
-                event_date = (
-                    event.get("match_info", {}).get("date", "")
-                    or event.get("date", "")
-                )
+                event_date = (event.get("start_time", "") or "")[:10]
                 if event_date and event_date != target_date:
                     continue
 
             total_events += 1
             try:
-                if ingest_event(url, event, dry_run=dry_run, summary=summary):
+                fake_url, normalized = _normalize_beast_mode_event(event)
+                if ingest_event(fake_url, normalized, dry_run=dry_run, summary=summary):
                     ingested_events += 1
             except Exception as exc:
                 errors += 1
                 sport = event.get("sport", "?")
-                home = event.get("home", "?")
+                home = event.get("home_team", event.get("home", "?"))
                 if out:
-                    out.error(f"{sport}/{home} from {url}: {exc}", recoverable=True)
+                    out.error(f"{sport}/{home}: {exc}", recoverable=True)
                 else:
-                    print(f"[ingest] ERROR processing {sport}/{home} from {url}: {exc}", file=sys.stderr)
+                    print(f"[ingest] ERROR processing {sport}/{home}: {exc}", file=sys.stderr)
 
+            if out and idx % 100 == 0:
+                out.progress(idx, len(raw), f"Beast Mode event {idx}")
+
+    elif isinstance(raw, dict):
+        # Legacy format: dict keyed by URL → list of events
+        url_list = list(raw.items())
+        for idx, (url, events) in enumerate(url_list, 1):
+            if not isinstance(events, list):
+                continue
+            for event in events:
+                if not isinstance(event, dict):
+                    continue
+
+                # Optional date filter
+                if target_date:
+                    event_date = (
+                        event.get("match_info", {}).get("date", "")
+                        or event.get("date", "")
+                    )
+                    if event_date and event_date != target_date:
+                        continue
+
+                total_events += 1
+                try:
+                    if ingest_event(url, event, dry_run=dry_run, summary=summary):
+                        ingested_events += 1
+                except Exception as exc:
+                    errors += 1
+                    sport = event.get("sport", "?")
+                    home = event.get("home", "?")
+                    if out:
+                        out.error(f"{sport}/{home} from {url}: {exc}", recoverable=True)
+                    else:
+                        print(f"[ingest] ERROR processing {sport}/{home} from {url}: {exc}", file=sys.stderr)
+
+            if out:
+                out.progress(idx, len(url_list), url[:60])
+
+    else:
+        msg = f"expected list or dict in {scan_path}, got {type(raw).__name__}"
         if out:
-            out.progress(idx, len(url_list), url[:60])
+            out.error(msg, recoverable=False)
+        else:
+            print(f"[ingest] ERROR: {msg}", file=sys.stderr)
+        return {}
 
     # Post-ingest DB verification
     db_verify = {}
@@ -674,6 +1038,13 @@ def run(scan_path: Path, dry_run: bool = False, target_date: str | None = None,
 
     # Print summary
     mode = "DRY-RUN " if dry_run else ""
+    # Convert sets to lists for JSON serialization
+    serializable_summary = {}
+    for sport, counts in summary.items():
+        serializable_summary[sport] = dict(counts)
+        if "market_types" in serializable_summary[sport]:
+            serializable_summary[sport]["market_types"] = sorted(serializable_summary[sport]["market_types"])
+
     if out:
         out.summary(
             verdict="OK" if errors == 0 else "PARTIAL",
@@ -681,18 +1052,20 @@ def run(scan_path: Path, dry_run: bool = False, target_date: str | None = None,
                 "total_events": total_events,
                 "ingested_events": ingested_events,
                 "errors": errors,
-                "per_sport": summary,
+                "per_sport": serializable_summary,
                 "db_verify": db_verify,
             },
         )
     else:
         print(f"\n[ingest] {mode}DONE — {ingested_events}/{total_events} events ingested, {errors} errors")
-        for sport, counts in sorted(summary.items()):
+        for sport, counts in sorted(serializable_summary.items()):
+            market_str = ", ".join(counts.get("market_types", []))
             print(
                 f"  {sport}: "
                 f"{counts['teams_ingested']} teams, "
                 f"{counts['h2h_added']} H2H matches, "
                 f"{counts['form_added']} form matches"
+                + (f", markets: [{market_str}]" if market_str else "")
             )
         if db_verify:
             print(f"[ingest] DB verification — team_form rows: {db_verify}")
@@ -704,7 +1077,7 @@ def main():
     from agent_output import AgentOutput, add_agent_args
 
     parser = argparse.ArgumentParser(
-        description="Ingest Playwright scan data into stats_cache"
+        description="Ingest scan data into stats_cache (Beast Mode or legacy format)"
     )
     parser.add_argument(
         "--date",
@@ -719,13 +1092,26 @@ def main():
     parser.add_argument(
         "--scan-file",
         type=Path,
-        default=SCAN_SUMMARY_PATH,
-        help="Path to scan_summary.json (default: betting/data/scan_summary.json)",
+        default=None,
+        help="Path to scan data file. Auto-detects: tries global_events_api.json (Beast Mode) first, falls back to scan_summary.json (legacy)",
     )
     add_agent_args(parser)
     args = parser.parse_args()
 
     out = AgentOutput("s1_ingest", verbose=args.verbose, stop_on_error=args.stop_on_error)
+
+    # Auto-detect scan file: Beast Mode first, then legacy
+    scan_file = args.scan_file
+    if scan_file is None:
+        if BEAST_MODE_PATH.exists():
+            scan_file = BEAST_MODE_PATH
+            print(f"[ingest] Auto-detected Beast Mode file: {scan_file}")
+        elif SCAN_SUMMARY_PATH.exists():
+            scan_file = SCAN_SUMMARY_PATH
+            print(f"[ingest] Auto-detected legacy file: {scan_file}")
+        else:
+            out.error("No scan data found. Run scan_events.py first.", recoverable=False)
+            sys.exit(1)
 
     # Validate date format
     if args.date:
@@ -735,7 +1121,7 @@ def main():
             out.error(f"invalid date format '{args.date}', expected YYYY-MM-DD", recoverable=False)
             sys.exit(1)
 
-    run(args.scan_file, dry_run=args.dry_run, target_date=args.date, out=out)
+    run(scan_file, dry_run=args.dry_run, target_date=args.date, out=out)
 
 
 if __name__ == "__main__":

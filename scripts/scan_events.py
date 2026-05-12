@@ -1,551 +1,426 @@
-#!/usr/bin/env python3
-"""Small scanning framework using the Playwright fetcher.
-
-Usage: python scripts/scan_events.py --urls <url1> <url2> ...
-
-The script will fetch each URL using `fetch_with_playwright.fetch`, save the
-raw HTML under `betting/data/<domain>/`, and run the `raw_adapter.parse`
-heuristic to produce a quick list of candidate matches.
-"""
-import sys
 import argparse
-import re
-from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from pathlib import Path
+import concurrent.futures
 import json
+import logging
+import sys
 import time
-from datetime import datetime, timezone
-from urllib.parse import urlparse
+import threading
+from datetime import datetime, timezone, timedelta
+from pathlib import Path
+from zoneinfo import ZoneInfo
+import requests
 
-from adapters import normalize_adapter_output
+# DB Integration
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+from bet.db.connection import get_db
+from bet.db.repositories import SportRepo, TeamRepo, CompetitionRepo, FixtureRepo, ScanResultRepo
+from bet.db.models import Fixture, ScanResult
 
-BASE = Path(__file__).resolve().parent
-DATA_DIR = BASE.parent / "betting" / "data"
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
 
-# --- DB support (optional — falls back gracefully) ---
-try:
-    sys.path.insert(0, str(BASE.parent / "src"))
-    from bet.db.connection import get_db
-    from bet.db.repositories import SourceHealthRepo
-    _HAS_DB = True
-except ImportError:
-    _HAS_DB = False
-
-FETCH_DELAY_SECONDS = 0.5  # default delay between fetches
-PER_PAGE_TIMEOUT = 45  # max seconds per page fetch
-
-# Per-domain delays: rate-sensitive sites get higher delays
-DOMAIN_DELAY_OVERRIDES = {
-    "betclic.pl": 2.0,
-    "soccerstats.com": 1.5,
-    "totalcorner.com": 1.0,
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/115.0",
+    "Accept": "application/json",
 }
 
-# Domains safe for intra-domain parallel fetching (value = max concurrent fetches)
-PARALLEL_SAFE_DOMAINS = {
-    "flashscore.com": 3,
-    "sofascore.com": 2,
-    "betexplorer.com": 2,
-    "oddsportal.com": 2,
-    "forebet.com": 2,
-    "scores24.live": 2,
-    "soccerway.com": 2,
+# Unified sport mapping for Sofascore
+SPORT_MAP = {
+    "football": "football",
+    "tennis": "tennis",
+    "basketball": "basketball",
+    "hockey": "ice-hockey",
+    "volleyball": "volleyball"
 }
 
-SPORT_URL_PATTERNS = {
-    "tennis": ["/tennis", "/tenis", "tennisabstract", "tennisexplorer"],
-    "basketball": ["/basketball", "/koszykowka", "/nba", "teamrankings.com", "basketball-reference"],
-    "hockey": ["/hockey", "/hokej", "/nhl", "hockey-reference", "/ice-hockey"],
-    "football": ["/football", "/pilka-nozna", "/soccer", "forebet", "predictz", "betideas", "soccerstats", "totalcorner", "soccerway", "aiscore", "xscores", "goaloo", "nowgoal", "feedinco", "bettingclosed", "tips180", "asiabet"],
-    "volleyball": ["/volleyball", "/siatkowka"],
-}
+# Tournament keywords for priority enrichment (R7)
+TOURNAMENT_KEYWORDS = [
+    "champions league", "europa league", "conference league",
+    "world cup", "euro 20", "copa america", "olympics",
+    "grand slam", "roland garros", "wimbledon", "us open", "australian open",
+    "masters 1000", "atp finals", "wta finals",
+    "nba", "nhl", "stanley cup", "playoffs",
+    "euroleague", "eurocup",
+]
 
-# Multi-sport tipster sites that cover ALL sports — URL-based sport detection
-# is unreliable for these. Items from these sites should keep whatever sport
-# the adapter/content sets, or remain untagged for fixture-level matching.
-MULTI_SPORT_DOMAINS = {
-    "zawodtyper.pl", "typersi.pl", "sportowefakty.wp.pl",
-    "sportsgambler.com", "pickswise.com", "betaminic.com",
-    "tipstrr.com",
-}
+# Protected domestic leagues (R13) — substring matches
+PROTECTED_LEAGUES = [
+    "premier league", "la liga", "serie a", "bundesliga", "ligue 1",
+    "eredivisie", "primeira liga", "süper lig", "jupiler",
+    "brasileirão", "brasileirao", "mls", "liga mx", "liga profesional",
+    "liga betplay", "chinese super league", "j-league", "j1 league",
+    "k league", "saudi pro league", "a-league",
+    "indian super league", "egyptian premier",
+    "liga acb", "nba", "bbl", "vtb united", "khl",
+    "superliga", "v-league", "plusliga",
+]
 
+# Per-worker rate limiter for Sofascore API
+_rate_lock = threading.Lock()
+_last_request_time = 0.0
+RATE_LIMIT_SECONDS = 0.35  # slightly above 0.3 for safety
 
-def detect_sport(url: str) -> str:
-    """Detect sport from URL path patterns.
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
-    Returns empty string for multi-sport tipster sites where URL alone
-    cannot determine the sport.
-    """
-    url_lower = url.lower()
-    # Multi-sport tipster sites — cannot determine sport from URL
-    for domain in MULTI_SPORT_DOMAINS:
-        if domain in url_lower:
-            return ""  # unknown — must be resolved downstream
-    for sport, patterns in SPORT_URL_PATTERNS.items():
-        for pat in patterns:
-            if pat in url_lower:
-                return sport
-    return "football"  # default for football-specific sites
-
-sys.path.insert(0, str(BASE))
-try:
-    from fetch_with_playwright import fetch
-except Exception:
-    # Fallback simple fetcher using requests when Playwright is not available
-    import requests
-
-    def fetch(url: str) -> str:
-        resp = requests.get(url, timeout=20, headers={"User-Agent": "Mozilla/5.0"})
-        resp.raise_for_status()
-        return resp.text
-
-from adapters import get_adapter
-
-
-def _fetch_with_timeout(url: str, timeout_sec: int = PER_PAGE_TIMEOUT) -> str:
-    """Fetch a URL with a hard timeout to prevent stalled pages."""
-    import concurrent.futures
-    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
-        future = ex.submit(fetch, url)
-        try:
-            return future.result(timeout=timeout_sec)
-        except concurrent.futures.TimeoutError:
-            raise TimeoutError(f"Page fetch timed out after {timeout_sec}s: {url}")
-
-
-def save_html(domain: str, html: str) -> Path:
-    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    d = DATA_DIR / domain
-    d.mkdir(parents=True, exist_ok=True)
-    p = d / f"{ts}.html"
-    p.write_text(html, encoding="utf-8")
-    return p
-
-
-def domain_from_url(url: str) -> str:
-    return urlparse(url).netloc.replace("www.", "")
-
-
-def validate_fetched_date(html: str, url: str, domain: str) -> list[str]:
-    """Validate that fetched HTML content is from the current year/date.
-
-    Returns list of warning strings (empty if all OK).
-    """
-    warnings = []
+def fetch_events_for_sport(sport_key: str, date_str: str) -> list:
+    api_sport = SPORT_MAP.get(sport_key)
+    if not api_sport:
+        return []
+    
+    url = f"https://api.sofascore.com/api/v1/sport/{api_sport}/scheduled-events/{date_str}"
+    session = requests.Session()
+    session.headers.update(HEADERS)
+    
+    logger.info(f"Scanning {sport_key.upper()} events for {date_str}...")
     try:
-        from bet.config import get_tz
-        now = datetime.now(get_tz())
-    except ImportError:
-        now = datetime.now()
-    current_year = str(now.year)
-
-    # Check datePublished meta tag
-    date_match = re.search(r'"datePublished"\s*:\s*"(\d{4})-', html[:5000])
-    if date_match:
-        pub_year = date_match.group(1)
-        if pub_year != current_year:
-            warnings.append(
-                f"STALE_CONTENT: {domain} datePublished year={pub_year}, expected={current_year}"
-            )
-
-    # ZawodTyper-specific: verify day-of-week in URL matches today
-    if "zawodtyper" in domain:
-        PL_DAYS = {
-            0: "poniedzialek", 1: "wtorek", 2: "sroda",
-            3: "czwartek", 4: "piatek", 5: "sobota", 6: "niedziela"
-        }
-        expected_day = PL_DAYS[now.weekday()]
-        url_lower = url.lower()
-        for day_name in PL_DAYS.values():
-            if day_name in url_lower and day_name != expected_day:
-                warnings.append(
-                    f"ZT_DAY_MISMATCH: URL contains '{day_name}' but today is '{expected_day}'"
-                )
-                break
-
-    return warnings
-
-
-def _scan_domain_group(domain: str, urls: list[str], deep: bool, max_deep_links: int) -> tuple[dict, list]:
-    """Scan all URLs for a single domain group. Returns (extracted_dict, errors_list)."""
-    extracted = {}
-    errors = []
-    deep_links_found = 0
-    delay = DOMAIN_DELAY_OVERRIDES.get(domain, FETCH_DELAY_SECONDS)
-    intra_workers = PARALLEL_SAFE_DOMAINS.get(domain, 1)
-
-    discover_deep_links = None
-    if deep:
-        try:
-            from deep_link_discovery import discover_deep_links as _ddl
-            discover_deep_links = _ddl
-        except ImportError:
-            pass
-
-    adapter = get_adapter(domain)
-
-    def _fetch_single_url(i: int, url: str) -> tuple:
-        """Fetch and parse a single URL. Returns (url, items, local_errors, deep_items)."""
-        print(f"  [{domain}] [{i+1}/{len(urls)}] Fetching {url}")
-        local_errors = []
-        try:
-            html = _fetch_with_timeout(url)
-        except Exception as e:
-            msg = f"Failed to fetch {url}: {e}"
-            print(msg)
-            return url, None, [{"url": url, "error": str(e)}], {}
-        if not html or len(html) < 100:
-            msg = f"Empty or too-short response from {url} ({len(html or '')} chars)"
-            print(msg)
-            # Retry once with longer timeout for JS-heavy sites (e.g., BetExplorer)
-            try:
-                html = _fetch_with_timeout(url, timeout_sec=PER_PAGE_TIMEOUT * 2)
-                if not html or len(html) < 100:
-                    return url, None, [{"url": url, "error": msg}], {}
-                print(f"  [{domain}] Retry succeeded ({len(html)} chars)")
-            except Exception:
-                return url, None, [{"url": url, "error": msg}], {}
-
-        saved = save_html(domain, html)
-        print(f"  [{domain}] Saved raw HTML to {saved}")
-        date_warnings = validate_fetched_date(html, url, domain)
-        for w in date_warnings:
-            print(f"  [{domain}] ⚠️  {w}")
-            local_errors.append({"url": url, "warning": w})
-
-        sport = detect_sport(url)
-        try:
-            items = adapter(html, url)
-        except Exception as e:
-            print(f"  [{domain}] Adapter failed, falling back to raw parser: {e}")
-            from adapters.raw_adapter import parse as raw_parse
-            items = raw_parse(html, url)
+        resp = session.get(url, timeout=15)
+        if resp.status_code == 200:
+            events = resp.json().get('events', [])
+            logger.info(f"Found {len(events)} {sport_key.upper()} events.")
             
-        items = [n for n in (normalize_adapter_output(item, source_type=domain) for item in items) if n is not None]
-            
-        for item in items:
-            if not item.get("sport"):
-                if sport:  # only set if URL-based detection returned a result
-                    item["sport"] = sport
-                # else: leave untagged — will be resolved by fixture matching
-        sport_label = sport or "multi-sport"
-        print(f"  [{domain}] Extracted {len(items)} candidate match lines [{sport_label}]")
-
-        # Deep-link discovery
-        deep_items = {}
-        if discover_deep_links and domain in ("flashscore.com", "betexplorer.com", "sofascore.com", "soccerway.com", "forebet.com", "scores24.live", "oddsportal.com"):
-            try:
-                sub_links = discover_deep_links(html, url, domain, max_links=max_deep_links)
-                new_links = [sl for sl in sub_links if sl not in urls and sl not in extracted]
-                if new_links:
-                    print(f"  [{domain}] [deep] Discovered {len(new_links)} sub-links")
-                    for j, sub_url in enumerate(new_links[:max_deep_links]):
-                        print(f"    [{domain}] [deep {j+1}/{len(new_links)}] Fetching {sub_url}")
-                        try:
-                            sub_html = _fetch_with_timeout(sub_url)
-                        except Exception as e:
-                            local_errors.append({"url": sub_url, "error": str(e), "source_type": "deep-link"})
-                            continue
-                        if not sub_html or len(sub_html) < 100:
-                            continue
-                        save_html(domain, sub_html)
-                        sub_sport = detect_sport(sub_url)
-                        try:
-                            sub_extracted = adapter(sub_html, sub_url)
-                        except Exception:
-                            from adapters.raw_adapter import parse as raw_parse
-                            sub_extracted = raw_parse(sub_html, sub_url)
-                            
-                        sub_extracted = [n for n in (normalize_adapter_output(item, source_type=domain) for item in sub_extracted) if n is not None]
-                            
-                        for item in sub_extracted:
-                            if not item.get("sport"):
-                                item["sport"] = sub_sport
-                            item["source_type"] = f"{domain}:deep-link"
-                        deep_items[sub_url] = sub_extracted
-                        print(f"    [{domain}] [deep] Extracted {len(sub_extracted)} from {sub_url}")
-                        time.sleep(delay)
-            except Exception as e:
-                print(f"  [{domain}] [deep] Deep-link discovery error: {e}")
-
-        return url, items, local_errors, deep_items
-
-    # Use intra-domain parallelism for supported domains
-    if intra_workers > 1 and len(urls) > 1:
-        with ThreadPoolExecutor(max_workers=intra_workers) as executor:
-            futures = {executor.submit(_fetch_single_url, i, url): url for i, url in enumerate(urls)}
-            for future in as_completed(futures):
-                try:
-                    url, items, local_errors, deep_items = future.result()
-                    errors.extend(local_errors)
-                    if items is not None:
-                        extracted[url] = items
-                    if deep_items:
-                        extracted.update(deep_items)
-                        deep_links_found += len(deep_items)
-                except Exception as e:
-                    errors.append({"domain": domain, "error": str(e)})
-    else:
-        # Serial processing for rate-sensitive domains
-        for i, url in enumerate(urls):
-            url, items, local_errors, deep_items = _fetch_single_url(i, url)
-            errors.extend(local_errors)
-            if items is not None:
-                extracted[url] = items
-            if deep_items:
-                extracted.update(deep_items)
-                deep_links_found += len(deep_items)
-            if i < len(urls) - 1:
-                time.sleep(delay)
-
-    if deep_links_found:
-        print(f"  [{domain}] [deep] Total deep-links scanned: {deep_links_found}")
-
-    return extracted, errors
-
-
-def scan_urls(urls, deep=False, max_deep_links=30, workers=8):
-    # Group URLs by domain
-    domain_groups = defaultdict(list)
-    for url in urls:
-        domain_groups[domain_from_url(url)].append(url)
-
-    print(f"Scanning {len(urls)} URLs across {len(domain_groups)} domains with {min(workers, len(domain_groups))} workers")
-
-    all_extracted = {}
-    errors = []
-
-    # Run domain groups in parallel
-    with ThreadPoolExecutor(max_workers=min(workers, len(domain_groups))) as executor:
-        futures = {
-            executor.submit(_scan_domain_group, domain, group_urls, deep, max_deep_links): domain
-            for domain, group_urls in domain_groups.items()
-        }
-        for future in as_completed(futures):
-            domain = futures[future]
-            try:
-                domain_extracted, domain_errors = future.result()
-                all_extracted.update(domain_extracted)
-                errors.extend(domain_errors)
-            except Exception as e:
-                print(f"[ERROR] Domain {domain} worker failed: {e}")
-                errors.append({"domain": domain, "error": str(e)})
-
-    # write a small JSON summary
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    out = DATA_DIR / "scan_summary.json"
-    out.write_text(json.dumps(all_extracted, indent=2, ensure_ascii=False), encoding="utf-8")
-    # also write per-domain structured outputs (latest)
-    for url, items in all_extracted.items():
-        domain = domain_from_url(url)
-        d = DATA_DIR / domain
-        d.mkdir(parents=True, exist_ok=True)
-        p = d / "structured_latest.json"
-        p.write_text(json.dumps(items, indent=2, ensure_ascii=False), encoding="utf-8")
-    # write error log if any
-    if errors:
-        err_path = DATA_DIR / "scan_errors.json"
-        err_path.write_text(json.dumps(errors, indent=2, ensure_ascii=False), encoding="utf-8")
-        print(f"[WARNING] {len(errors)} source(s) failed. See {err_path}")
-    print(f"Wrote summary to {out} ({len(all_extracted)} sources OK, {len(errors)} failed)")
-
-    # --- Record source health in DB ---
-    _record_source_health(domain_groups, all_extracted, errors)
-
-    return all_extracted
-
-
-def _record_source_health(
-    domain_groups: dict, all_extracted: dict, errors: list
-) -> None:
-    """Record per-domain scan success/failure in source_health table."""
-    if not _HAS_DB:
-        return
-
-    try:
-        # Collect successful and failed domains
-        successful_domains: set[str] = set()
-        for url in all_extracted:
-            successful_domains.add(domain_from_url(url))
-
-        failed_domains: set[str] = set()
-        for err in errors:
-            domain = err.get("domain", "")
-            if not domain and err.get("url"):
-                domain = domain_from_url(err["url"])
-            if domain:
-                failed_domains.add(domain)
-
-        with get_db() as conn:
-            health_repo = SourceHealthRepo(conn)
-            for domain in successful_domains:
-                health_repo.record_success(domain, response_ms=0.0)
-            for domain in failed_domains - successful_domains:
-                health_repo.record_failure(domain)
-
-        total = len(successful_domains) + len(failed_domains - successful_domains)
-        if total:
-            print(f"[scan] DB: recorded source health for {total} domains")
+            normalized = []
+            for ev in events:
+                dt_val = ev.get("startTimestamp", 0)
+                dt = datetime.fromtimestamp(dt_val, tz=timezone.utc).isoformat() if dt_val else ""
+                normalized.append({
+                    "id": ev.get("id"),
+                    "sport": sport_key,
+                    "tournament": ev.get("tournament", {}).get("name", "Unknown"),
+                    "country": ev.get("tournament", {}).get("category", {}).get("name", "Unknown"), # Approximation for country
+                    "home_team": ev.get("homeTeam", {}).get("name", "Unknown"),
+                    "away_team": ev.get("awayTeam", {}).get("name", "Unknown"),
+                    "start_time": dt
+                })
+            return normalized
+        else:
+            logger.error(f"Failed {sport_key}: HTTP {resp.status_code}")
     except Exception as e:
-        print(f"[scan] DB source health error (non-fatal): {e}")
+        logger.error(f"Error fetching {sport_key}: {e}")
+        
+    return []
+
+# Thread-local storage for per-thread sessions
+_thread_local = threading.local()
+
+def _get_thread_session() -> requests.Session:
+    """Get or create a thread-local requests.Session."""
+    if not hasattr(_thread_local, 'session'):
+        _thread_local.session = requests.Session()
+        _thread_local.session.headers.update(HEADERS)
+    return _thread_local.session
 
 
-def _run_parallel_sport_scan(betting_date: str, *, sport_filter: str | None = None,
-                             out: "AgentOutput | None" = None) -> dict:
-    """Run all per-sport scanners in parallel with independent timeouts.
-
-    This is the new parallel dispatch mode that replaces monolithic scanning.
-    Each sport scanner runs independently with its own URL list and timeout.
-
-    Args:
-        betting_date: YYYY-MM-DD
-        sport_filter: If set, only run this sport's scanner (for targeted re-scans).
-        out: AgentOutput instance for structured agent monitoring.
-    """
-    from concurrent.futures import ThreadPoolExecutor, as_completed
-
-    sys.path.insert(0, str(BASE))
-    from scanners import get_all_scanners, get_scanner
-    from scanners.domain_semaphore import DomainSemaphoreMap
-    from scanners.merge_results import merge_scan_results
-
-    semaphore_map = DomainSemaphoreMap()
-
-    if sport_filter:
+def _rate_limited_get(session: requests.Session, url: str, timeout: int = 10, max_retries: int = 2) -> requests.Response | None:
+    """Thread-safe rate-limited GET with exponential backoff on 429."""
+    global _last_request_time
+    for attempt in range(max_retries + 1):
+        # Reserve a time slot inside the lock, sleep OUTSIDE
+        with _rate_lock:
+            now = time.monotonic()
+            wait = RATE_LIMIT_SECONDS - (now - _last_request_time)
+            _last_request_time = time.monotonic() + max(0.0, wait)
+        if wait > 0:
+            time.sleep(wait)
         try:
-            scanners = [get_scanner(sport_filter)]
-        except ValueError:
-            msg = f"Unknown sport group: {sport_filter}. Available: football, tennis, basketball, volleyball, hockey"
-            if out:
-                out.error(msg, recoverable=False, sport=sport_filter)
+            r = session.get(url, timeout=timeout)
+            if r.status_code == 403:
+                logger.warning(f"Forbidden (403) on {url} — not retryable")
+                return None
+            if r.status_code == 429:
+                backoff = (2 ** attempt) * 1.0
+                logger.warning(f"Rate limited (429) on {url}, backoff {backoff:.1f}s")
+                time.sleep(backoff)
+                continue
+            return r
+        except Exception:
+            if attempt < max_retries:
+                time.sleep(1.0)
             else:
-                print(f"[parallel-sport] ✗ {msg}")
-            return {}
-    else:
-        scanners = get_all_scanners()
+                return None
+    return None
 
-    if out:
-        out.event("scan_start", scanners=len(scanners), date=betting_date,
-                  sport_filter=sport_filter or "all")
-    else:
-        print(f"[parallel-sport] Launching {len(scanners)} sport scanners for {betting_date}")
 
-    results = {}
+def _compute_enrichment_priority(ev: dict) -> int:
+    """Score an event for deep enrichment priority. Higher = enrich first."""
+    score = 0
+    tournament = (ev.get("tournament") or "").lower()
+    sport = ev.get("sport", "")
 
-    with ThreadPoolExecutor(max_workers=len(scanners)) as executor:
-        futures = {
-            executor.submit(scanner.scan, betting_date, semaphore_map): scanner.scanner_group
-            for scanner in scanners
-        }
-        for future in as_completed(futures):
-            group = futures[future]
-            try:
-                stats = future.result(timeout=900)  # 15 min max per scanner
-                results[group] = {
-                    "status": "completed",
-                    "events_found": getattr(stats, "events_found", 0),
-                    "urls_scanned": getattr(stats, "urls_scanned", 0),
-                    "duration_sec": getattr(stats, "duration_sec", 0),
-                }
-                if out:
-                    out.sport_done(group, **results[group])
-                else:
-                    print(f"  ✓ {group}: {results[group]['events_found']} events")
-            except Exception as e:
-                results[group] = {"status": "failed", "error": str(e)}
-                if out:
-                    out.error(f"{group} scanner failed: {e}", recoverable=True, sport=group)
-                else:
-                    print(f"  ✗ {group}: {e}")
+    # Tournament matches (R7): highest priority
+    for kw in TOURNAMENT_KEYWORDS:
+        if kw in tournament:
+            score += 100
+            break
 
-    # Merge all results into scan_summary.json
-    merge_scan_results(betting_date)
-    if out:
-        out.event("scan_merged", detail="Results merged to scan_summary.json")
-    else:
-        print(f"[parallel-sport] All scanners complete. Results merged to scan_summary.json")
-    return results
+    # Protected domestic leagues (R13)
+    for kw in PROTECTED_LEAGUES:
+        if kw in tournament:
+            score += 80
+            break
+
+    # Football and basketball are data-rich on Sofascore — prioritize
+    if sport == "football":
+        score += 30
+    elif sport == "basketball":
+        score += 25
+    elif sport == "hockey":
+        score += 20
+    elif sport == "volleyball":
+        score += 15
+    elif sport == "tennis":
+        score += 10  # Tennis has less form/H2H on Sofascore
+
+    return score
+
+
+def fetch_deep_data(event_id: int, session: requests.Session) -> tuple:
+    """Fetch form, H2H, odds, and statistics for an event."""
+    form_data, h2h_data, odds_data, stats_data = {}, {}, [], {}
+
+    base = f"https://api.sofascore.com/api/v1/event/{event_id}"
+
+    # Form
+    r = _rate_limited_get(session, f"{base}/pregame-form")
+    if r and r.status_code == 200:
+        form_data = r.json()
+
+    # H2H
+    r = _rate_limited_get(session, f"{base}/h2h")
+    if r and r.status_code == 200:
+        h2h_data = r.json()
+
+    # Odds — all markets
+    r = _rate_limited_get(session, f"{base}/odds/1/all")
+    if r and r.status_code == 200:
+        odds_data = r.json().get("markets", [])
+
+    # Statistics (pre-match expected stats — corners, shots, etc.)
+    r = _rate_limited_get(session, f"{base}/expected")
+    if r and r.status_code == 200:
+        stats_data = r.json()
+
+    return form_data, h2h_data, odds_data, stats_data
+
+def _enrich_single_event(ev: dict, session: requests.Session, verbose: bool = False) -> dict:
+    """Enrich a single event with deep data. Returns the event dict (mutated)."""
+    if not ev.get("id"):
+        return ev
+    if verbose:
+        print(json.dumps({"event": "enriching", "id": ev["id"], "match": f"{ev['home_team']} vs {ev['away_team']}"}))
+    # Use per-thread session for thread safety
+    thread_session = _get_thread_session()
+    form, h2h, odds, stats = fetch_deep_data(ev["id"], thread_session)
+    ev["form"] = form
+    ev["h2h"] = h2h
+    ev["odds"] = odds
+    if stats:
+        ev["expected_stats"] = stats
+    return ev
 
 
 def main():
-    from agent_output import AgentOutput, add_agent_args, add_sport_filter_arg
-
     parser = argparse.ArgumentParser()
-    parser.add_argument("--urls", nargs="+", help="List of URLs to scan")
-    parser.add_argument("--urls-file", help="JSON file with URL list (alternative to --urls)")
-    parser.add_argument("--deep", action="store_true", help="Enable deep-link discovery for tournament sub-pages")
-    parser.add_argument("--max-deep-links", type=int, default=50, help="Max sub-links per domain (default: 50)")
-    parser.add_argument("--workers", type=int, default=6, help="Number of parallel domain workers (default: 6)")
-    parser.add_argument("--parallel-sport", action="store_true",
-                        help="Use per-sport parallel scanner dispatch instead of monolithic scan")
-    parser.add_argument("--date", help="Betting date (YYYY-MM-DD) for parallel-sport mode")
-    add_agent_args(parser)  # --verbose, --stop-on-error
-    add_sport_filter_arg(parser)  # --sport (filter to single sport for re-scans)
+    parser.add_argument("--date", default=datetime.now(ZoneInfo("Europe/Warsaw")).strftime("%Y-%m-%d"), help="YYYY-MM-DD")
+    parser.add_argument("--sport", help="Optional sport filter")
+    parser.add_argument("--verbose", action="store_true", help="Print JSON-line events")
+    parser.add_argument("--stats-first", action="store_true", help="Include events without odds")
+    parser.add_argument("--skip-deep", action="store_true", help="Skip deep enrichment")
+    parser.add_argument("--stop-on-error", action="store_true", help="Halt on first critical error")
+    parser.add_argument("--deep-workers", type=int, default=3, help="Concurrent deep enrichment workers (default: 3)")
+    parser.add_argument("--deep-limit", type=int, default=0, help="Max events to deep-enrich (0=all)")
     args = parser.parse_args()
 
-    out = AgentOutput("s1_scan", verbose=args.verbose, stop_on_error=args.stop_on_error)
+    sports_to_scan = [args.sport] if args.sport and args.sport in SPORT_MAP else list(SPORT_MAP.keys())
+    all_events = []
+    
+    verdict = "OK"
+    errors = 0
+    issues = []
+    
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+            future_to_sport = {executor.submit(fetch_events_for_sport, sport, args.date): sport for sport in sports_to_scan}
+            for future in concurrent.futures.as_completed(future_to_sport):
+                sport_events = future.result()
+                all_events.extend(sport_events)
+    except Exception as e:
+        logger.error(f"Error scanning events: {e}")
+        errors += 1
+        issues.append(str(e))
+        verdict = "FAILED"
 
-    # Parallel sport dispatch mode
-    if args.parallel_sport:
-        from datetime import date as date_cls
-        betting_date = args.date or date_cls.today().isoformat()
-        results = _run_parallel_sport_scan(betting_date, sport_filter=args.sport, out=out)
-        total_events = sum(r.get("events_found", 0) for r in results.values() if r.get("status") == "completed")
-        failed = [g for g, r in results.items() if r.get("status") == "failed"]
-        completed = [g for g, r in results.items() if r.get("status") == "completed"]
+    by_sport = {}
+    for ev in all_events:
+        by_sport[ev["sport"]] = by_sport.get(ev["sport"], 0) + 1
 
-        if failed:
-            for g in failed:
-                out.warning(f"Sport group failed: {g}", sport=g, error=results[g].get("error", ""))
+    logger.info(f"Discovered {len(all_events)} events across {len(by_sport)} sports: {json.dumps(by_sport)}")
 
-        # Phase 2: Generate health report for agent-driven monitoring
+    deep_enriched = 0
+    deep_enriched_by_sport = {}
+    deep_with_form = 0
+    deep_with_h2h = 0
+    deep_with_odds = 0
+    deep_with_stats = 0
+    
+    if not args.skip_deep and all_events:
+        # Sort events by enrichment priority (highest first)
+        for ev in all_events:
+            ev["_priority"] = _compute_enrichment_priority(ev)
+        all_events.sort(key=lambda e: e["_priority"], reverse=True)
+
+        events_to_enrich = all_events
+        if args.deep_limit > 0:
+            events_to_enrich = all_events[:args.deep_limit]
+            logger.info(f"Deep enrichment limited to top {args.deep_limit} priority events")
+
+        total_to_enrich = len(events_to_enrich)
+        logger.info(f"Starting concurrent deep enrichment ({args.deep_workers} workers, {total_to_enrich} events)...")
+        
+        enriched_count = [0]  # mutable for thread-safe counter
+        count_lock = threading.Lock()
+        
+        def _enrich_and_track(ev):
+            _enrich_single_event(ev, None, verbose=args.verbose)
+            with count_lock:
+                enriched_count[0] += 1
+                if enriched_count[0] % 50 == 0:
+                    logger.info(f"Deep enrichment progress: {enriched_count[0]}/{total_to_enrich}")
+            return ev
+        
         try:
-            from scan_health_report import generate_health_report, print_health_dashboard, write_health_json
-            report = generate_health_report(betting_date)
-            write_health_json(report, betting_date)
-            if not args.verbose:
-                print_health_dashboard(report)
-        except Exception as e:
-            out.warning(f"Health report generation failed: {e}")
+            with concurrent.futures.ThreadPoolExecutor(max_workers=args.deep_workers) as executor:
+                futures = {executor.submit(_enrich_and_track, ev): ev for ev in events_to_enrich}
+                for future in concurrent.futures.as_completed(futures):
+                    try:
+                        ev = future.result()
+                        has_data = False
+                        sport = ev.get("sport", "unknown")
+                        
+                        if ev.get("form"):
+                            form = ev["form"]
+                            if isinstance(form, dict) and (form.get("homeTeam") or form.get("awayTeam")):
+                                deep_with_form += 1
+                                has_data = True
+                        if ev.get("h2h"):
+                            h2h = ev["h2h"]
+                            if isinstance(h2h, dict) and h2h.get("teamDuel"):
+                                deep_with_h2h += 1
+                                has_data = True
+                        if ev.get("odds") and len(ev["odds"]) > 0:
+                            deep_with_odds += 1
+                            has_data = True
+                        if ev.get("expected_stats"):
+                            deep_with_stats += 1
+                            has_data = True
+                        
+                        if has_data:
+                            deep_enriched += 1
+                            deep_enriched_by_sport[sport] = deep_enriched_by_sport.get(sport, 0) + 1
+                    except Exception as e:
+                        errors += 1
+                        issues.append(str(e))
+        finally:
+            # Clean up priority field even if exceptions occur (BUG 9)
+            for ev in all_events:
+                ev.pop("_priority", None)
 
-        # Final summary — agent reads this
-        out.summary(
-            verdict="FAILED" if len(failed) == len(results) else ("PARTIAL" if failed else "OK"),
-            metrics={
-                "total_events": total_events,
-                "sports_completed": completed,
-                "sports_failed": failed,
-                "per_sport": {g: r.get("events_found", 0) for g, r in results.items()},
-            },
-        )
-        sys.exit(2 if len(failed) == len(results) else (1 if failed else 0))
+        logger.info(f"Deep enrichment complete: {deep_enriched}/{total_to_enrich} events enriched")
+        logger.info(f"  Form: {deep_with_form} | H2H: {deep_with_h2h} | Odds: {deep_with_odds} | Stats: {deep_with_stats}")
+        logger.info(f"  By sport: {json.dumps(deep_enriched_by_sport)}")
 
-    # Legacy monolithic scan mode
-    urls = []
-    if args.urls_file:
-        urls_data = json.loads(Path(args.urls_file).read_text(encoding="utf-8"))
-        # Support new grouped format: extract flat URL list from _legacy_urls or all sport URLs
-        if isinstance(urls_data, dict):
-            if "_legacy_urls" in urls_data:
-                file_urls = urls_data["_legacy_urls"]
-            elif "urls" in urls_data:
-                file_urls = urls_data["urls"]
-            else:
-                # New format without explicit legacy list — flatten all sport URLs
-                file_urls = []
-                for sport_data in urls_data.get("sports", {}).values():
-                    file_urls.extend(sport_data.get("urls", []))
-        else:
-            file_urls = urls_data
-        urls.extend(file_urls)
-    if args.urls:
-        urls.extend(args.urls)
-    if not urls:
-        parser.error("Either --urls, --urls-file, or --parallel-sport is required")
+    db_fixtures_written = 0
+    db_scan_results = 0
 
-    scan_urls(urls, deep=args.deep, max_deep_links=args.max_deep_links, workers=args.workers)
+    try:
+        with get_db() as db_conn:
+            sport_repo = SportRepo(db_conn)
+            team_repo = TeamRepo(db_conn)
+            comp_repo = CompetitionRepo(db_conn)
+            fix_repo = FixtureRepo(db_conn)
+            scan_repo = ScanResultRepo(db_conn)
+            
+            sport_repo.seed_defaults()
+            
+            scan_results_to_insert = []
+            
+            for ev in all_events:
+                sport_obj = sport_repo.get_by_name(ev["sport"])
+                if not sport_obj:
+                    continue
+                sport_id = sport_obj.id
+                
+                home_team = team_repo.find_or_create(ev["home_team"], sport_id)
+                away_team = team_repo.find_or_create(ev["away_team"], sport_id)
+                comp_id = comp_repo.find_or_create(ev["tournament"], sport_id, country=ev["country"])
+                
+                fix = Fixture(
+                    id=None,
+                    sport_id=sport_id,
+                    competition_id=comp_id,
+                    home_team_id=home_team.id,
+                    away_team_id=away_team.id,
+                    kickoff=ev["start_time"],
+                    status='scheduled',
+                    external_id=str(ev["id"]) if ev.get("id") else "",
+                    source='sofascore-api'
+                )
+                fix_repo.upsert(fix)
+                db_fixtures_written += 1
+                
+                scan_res = ScanResult(
+                    id=None,
+                    betting_date=args.date,
+                    sport=ev["sport"],
+                    source_domain="sofascore.com",
+                    event_key=f"{ev['sport']}:{ev['home_team']}:{ev['away_team']}",
+                    home_team=ev["home_team"],
+                    away_team=ev["away_team"],
+                    competition=ev["tournament"],
+                    kickoff=ev["start_time"],
+                    raw_data=ev,
+                    scan_timestamp=_now()
+                )
+                scan_results_to_insert.append(scan_res)
+                
+            db_scan_results = scan_repo.bulk_insert(scan_results_to_insert)
+            
+    except Exception as e:
+        logger.error(f"Error persisting to DB: {e}")
+        errors += 1
+        issues.append(str(e))
+        verdict = "FAILED"
 
+    output_file = "betting/data/global_events_api.json"
+    if all_events:
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(all_events, f, ensure_ascii=False, indent=2)
+    else:
+        logger.warning("No events scanned — preserving existing output file")
+        verdict = "FAILED" if verdict == "OK" else verdict
+        issues.append("Zero events scanned — output not written")
+        
+    summary = {
+        "verdict": verdict,
+        "events_total": len(all_events),
+        "by_sport": by_sport,
+        "deep_enriched": deep_enriched,
+        "deep_enriched_by_sport": deep_enriched_by_sport,
+        "deep_with_form": deep_with_form,
+        "deep_with_h2h": deep_with_h2h,
+        "deep_with_odds": deep_with_odds,
+        "deep_with_stats": deep_with_stats,
+        "db_fixtures_written": db_fixtures_written,
+        "db_scan_results": db_scan_results,
+        "errors": errors,
+        "issues": issues
+    }
+    
+    # Always print AGENT_SUMMARY before any exit (BUG 4 fix)
+    print(f"AGENT_SUMMARY:{json.dumps(summary)}")
+    
+    if verdict == "FAILED" and args.stop_on_error:
+        sys.exit(2)
 
 if __name__ == "__main__":
     main()

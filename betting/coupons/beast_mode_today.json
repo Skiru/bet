@@ -1,0 +1,33 @@
+{
+  "metadata": {
+    "date": "2026-05-12",
+    "pipeline": "BeastMode-API-AllSports",
+    "matches_analyzed": 53
+  },
+  "value_picks": [
+    {
+      "sport": "FOOTBALL",
+      "match": "Tottenham Hotspur vs Leeds United",
+      "pick": "Leeds United ML (Win)",
+      "odds": 4.33,
+      "reasoning": "Away form [D,W,W,D,W] (0.8) vs Home form [L,L,D,W,W] (0.5)",
+      "tournament": "Premier League"
+    },
+    {
+      "sport": "FOOTBALL",
+      "match": "Aberdeen vs St. Mirren",
+      "pick": "Aberdeen ML (Win)",
+      "odds": 2.15,
+      "reasoning": "Home form [W,D,W] (0.83) vs Away form [L,L,L] (0.0)",
+      "tournament": "Scottish Premiership, Relegation Round"
+    },
+    {
+      "sport": "FOOTBALL",
+      "match": "Machida Zelvia vs Tokyo Verdy",
+      "pick": "Machida Zelvia ML (Win)",
+      "odds": 1.86,
+      "reasoning": "Home form [W,W,L,W,W] (0.8) vs Away form [W,W,W,L,L] (0.6)",
+      "tournament": "J1 League, East"
+    }
+  ]
+}

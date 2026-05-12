@@ -26,7 +26,15 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT_DIR / "src"))
 sys.path.insert(0, str(ROOT_DIR / "scripts"))
 
-from fetch_with_playwright import fetch  # noqa: E402
+import requests as _requests  # noqa: E402
+
+def fetch(url: str) -> str:
+    """Simple HTTP fetch — replaces deleted Playwright fetcher (Beast Mode)."""
+    resp = _requests.get(url, timeout=30, headers={
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    })
+    resp.raise_for_status()
+    return resp.text
 
 from bet.db.connection import get_db  # noqa: E402
 from bet.db.models import TeamForm  # noqa: E402

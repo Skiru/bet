@@ -25,7 +25,7 @@ from urllib.parse import quote
 BASE = Path(__file__).resolve().parent
 sys.path.insert(0, str(BASE))
 
-from fetch_with_playwright import load_selectors, USER_AGENTS, STORAGE_DIR
+from betclic_helpers import load_selectors, USER_AGENTS, STORAGE_DIR
 
 DATA_DIR = BASE.parent / "betting" / "data"
 LEDGER_PATH = BASE.parent / "betting" / "journal" / "picks-ledger.csv"

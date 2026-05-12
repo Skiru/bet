@@ -50,23 +50,22 @@ When a source fails (403/empty/timeout), try the next in chain immediately. All 
 
 ### Stats Sources
 
+**PRIMARY SCAN SOURCE: Sofascore REST API** (`api.sofascore.com/api/v1/sport/{sport}/scheduled-events/{date}`)
+- Used by `scan_events.py` (Beast Mode) to discover ALL events for all 5 sports
+- Deep enrichment via `/event/{id}/pregame-form`, `/event/{id}/h2h`, `/event/{id}/odds/1/all`
+- Covers: football, tennis, basketball, hockey, volleyball — global scope
+- No API key required, 0.3s rate limit between requests
+
+**ENRICHMENT SOURCES** (used by `data_enrichment_agent.py` to fill gaps after scan):
+
 | Sport | Primary | Secondary | Specialist |
 |-------|---------|-----------|------------|
-| Football | SoccerStats, Sofascore | Flashscore, Betaminic | TotalCorner (corners), TransferMarkt (roster) |
-| Tennis | TennisAbstract | TennisExplorer, UTS | TennisPrediction |
-| Basketball (NBA) | Basketball-Reference | NBA.com, DunksAndThrees | ESPN |
+| Football | ESPN API | Flashscore (HTTP) | TotalCorner (corners), TransferMarkt (roster) |
+| Tennis | TennisAbstract | TennisExplorer | TennisPrediction |
+| Basketball (NBA) | Basketball-Reference | ESPN | DunksAndThrees |
 | Basketball (EU) | Eurobasket.com | BetExplorer standings | Flashscore H2H |
 | Hockey | NaturalStatTrick | Hockey-Reference, MoneyPuck | DailyFaceoff (goalies) |
-| Baseball | BaseballSavant | ESPN | — |
-| Volleyball | Flashscore | Sofascore | CEV, PlusLiga |
-| Esports | HLTV (stats only) | Liquipedia | VLR.gg, BO3.gg |
-| Snooker | CueTracker | SnookerOrg | WorldSnooker |
-| Darts | DartsOrakel | DartConnect | PDC.tv |
-| Handball | Flashscore | EHF | Handball-World |
-| Table Tennis | ITTF | Flashscore | tt-series.com |
-| MMA | UFCstats | Tapology | Sherdog |
-| Padel | Sofascore | PremierPadel | PadelFIP |
-| Speedway | SpeedwayEkstraliga | SportoweFakty | — |
+| Volleyball | Sofascore API (scan data) | Flashscore (HTTP) | CEV, PlusLiga |
 
 ### Tipster Sources
 

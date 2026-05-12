@@ -218,41 +218,29 @@ If the file is missing, run: `python3 scripts/parse_betclic_bets.py` (requires H
 
 ## STEP 1: SCAN — Complete Event Discovery
 
-1. Run `python3 scripts/scan_events.py --deep --max-deep-links 30 --workers 8 --date YYYY-MM-DD` (agent-driven — NEVER use `pipeline_orchestrator.py`). Check `scan_errors.json`.
-2. Run `python3 scripts/fetch_odds_api.py` for cross-validation (30 credits/scan, 500/month free).
-3. Browse BetExplorer + Flashscore + OddsPortal for all 5 sports.
-4. **Deep Scan (§1.2):** Click into EVERY active tournament/league. Count matches per tournament.
-5. **Tournament depth (§1.3):** Major tournament active? Analyze FULL daily slate (all matches, not 1-2). ANY tournament with ≥4 matches → screen ALL.
-6. **Cross-validate:** Compare event counts per sport between ≥2 sources. Discrepancy >20% → investigate.
-7. Record per event: sport, competition, event, kickoff, initial odds, source.
+1. Run `.venv/bin/python scripts/scan_events.py --date YYYY-MM-DD --verbose` (Beast Mode — Sofascore REST API scan for all 5 sports with deep enrichment). Parse `AGENT_SUMMARY:{json}`.
+2. Run `.venv/bin/python scripts/ingest_scan_stats.py --date YYYY-MM-DD --verbose` to transform scan data into stats_cache + team_form DB.
+3. Run `.venv/bin/python scripts/fetch_odds_api.py` for cross-validation (30 credits/scan, 500/month free).
+4. **Deep Data Coverage:** Check deep enrichment % from scan (form, H2H, odds). Events without deep data → enrichment fills gaps.
+5. **Tournament depth (§1.3):** Major tournament active? Verify ALL tournament matches present in scan (R7).
+6. **Cross-validate:** Compare Sofascore event counts per sport. All 5 sports must be represented.
+7. Record per event: sport, competition, event, kickoff, source (sofascore-api).
 
 **5-SPORT CHECKLIST (mandatory — check each):**
 - **CORE (deep league scan):** Football, Tennis, Basketball, Volleyball, Hockey.
 
-**Source fallback (BetExplorer returns empty for some sports):**
-Primary: Flashscore (fixtures + odds) → scores24.live (odds + trends) → OddsPortal. BetExplorer is EXPECTED to fail for some sports — use the other sources.
-
 ### §1.5 TIPSTER PRE-FETCH (MANDATORY — runs as part of STEP 1)
 
-Before STEP 2 filtering, fetch TODAY's pages from ALL argument-based tipster sites using Playwright. This ensures tipster arguments are available for STEP 4 analysis.
+Before STEP 2 filtering, fetch TODAY's tipster picks via `tipster_aggregator.py`. This ensures tipster arguments are available for STEP 4 analysis.
 
 **Execution:**
 ```bash
-# Fetch today's tipster pages (zawodtyper uses daily URL pattern)
-python3 scripts/fetch_with_playwright.py "https://zawodtyper.pl/typy-dnia-[DD]-[month-polish]-[weekday-polish]/"
-python3 scripts/fetch_with_playwright.py "https://typersi.pl/"
-python3 scripts/fetch_with_playwright.py "https://www.sportsgambler.com/predictions/today/"
-python3 scripts/fetch_with_playwright.py "https://www.pickswise.com/tennis/"
-python3 scripts/fetch_with_playwright.py "https://www.betideas.com/tips/football"
+.venv/bin/python scripts/tipster_aggregator.py --date YYYY-MM-DD --verbose 2>&1
 ```
-
-**Zawodtyper daily URL pattern:** `/typy-dnia-[DD]-[month]-[weekday]/` where month and weekday are in Polish lowercase (e.g., `kwietnia`, `poniedzialek`). The page is lazy-loaded — Playwright handles this.
-
-**Parse the fetched HTML** to extract ALL tipster entries: sport, event, tipster name, pick, odds, and FULL WRITTEN ARGUMENT. Save structured output to `betting/data/{date}_s1_tipster_prefetch.md`.
 
 **Tipster-sourced candidates:** Any tipster pick that targets a **statistical market** (corners, cards, fouls, totals, games, frames) with argument-backed data (H2H stats, corner counts, historical lines) → add to shortlist even if not found in Tier A stats scan. These picks enter STEP 3+ analysis like any other candidate.
 
-**GATE:** If zawodtyper fetch fails → retry once after 5 min. If still fails → proceed but mark S4 as `TIPSTER-DEGRADED`. Never skip the fetch attempt.
+**GATE:** If tipster fetch fails → proceed but mark S4 as `TIPSTER-DEGRADED`. Never skip the fetch attempt.
 
 **Source fallback chains per sport:** See [source-registry.md](../../betting/sources/source-registry.md).
 
@@ -530,7 +518,7 @@ This passes the gate but signals incomplete validation to the user.
 **Every stat cited in S3 output MUST include ALL THREE:**
 1. **Source name** — the exact website or tool (e.g., "SoccerStats", "TennisAbstract", "Flashscore H2H tab")
 2. **Exact data point** — the specific number with context (e.g., "Liverpool avg 11.2 corners/match at home, L10 games")
-3. **Fetch reference** — how the data was obtained (e.g., "web-fetch", "Playwright scan", "Odds-API snapshot")
+3. **Fetch reference** — how the data was obtained (e.g., "Sofascore API", "web-fetch", "Odds-API snapshot")
 
 **BANNED WORDS in S3 table cells** — if ANY of these appear as the SOLE content of a table cell, it is a STRUCTURAL VIOLATION and the candidate is REJECTED:
 - "checked", "verified", "confirmed", "good", "fine", "OK", "done", "yes", "—", "N/A", "n/a", "see above"

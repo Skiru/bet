@@ -1149,8 +1149,8 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
         key = _dedup_key(c)
         if key in seen:
             # Keep the one with higher safety score
-            existing_safety = (seen[key].get("best_market") or {}).get("safety_score", 0)
-            new_safety = (c.get("best_market") or {}).get("safety_score", 0)
+            existing_safety = (seen[key].get("best_market") or {}).get("safety_score") or 0
+            new_safety = (c.get("best_market") or {}).get("safety_score") or 0
             if new_safety > existing_safety:
                 seen[key] = c
             dedup_count += 1
