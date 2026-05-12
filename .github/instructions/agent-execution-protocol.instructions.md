@@ -337,3 +337,9 @@ After every script: verify output file exists, check DB row counts, spot-check f
 6. **TEST: Read your response. Remove all numbers and metrics. Is anything left? If not, you just reformatted the output — you didn't analyze it.**
 
 <!-- BET:instruction:agent-execution-protocol:v5 -->
+
+
+## ⚡️ V6: UNIFIED API & BEAST MODE FALLBACK (2026-05-12)
+- **UnifiedAPIClient**: Always refer to `bet.api_clients.unified.UnifiedAPIClient`. It wraps Sofascore, Flashscore, ESPN.
+- **Playwright Fallback**: If 403 Forbidden is hit (e.g. Sofascore), the Unified API automatically triggers `StealthPlaywright` (BEAST MODE Fallback). Do not assume 403 means dead end.
+- **Gemini 3.1 Pro**: Execution, reasoning, and context analysis is driven by `Gemini 3.1 Pro (Preview)`. Use asynchronous parsing and `sequentialthinking` aggressively.
