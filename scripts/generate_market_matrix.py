@@ -600,6 +600,7 @@ def generate_market_matrix(
     min_odds: float = 1.10,
     max_odds: float = 10.0,
     evening_only: bool = False,
+    stats_first: bool = False,
 ) -> dict:
     """Generate comprehensive market matrix for all fixtures on date.
 
@@ -727,8 +728,13 @@ def generate_market_matrix(
                             break
 
             if not has_explicit_date and not is_cross_verified:
-                scan_rejected_no_verification += 1
-                continue
+                # STATS-FIRST MODE: When the scan was run explicitly for this date,
+                # trust scan events even without cross-verification. The scan already
+                # filtered by date. Without this, events from sports without fixture
+                # APIs (tennis) or minor leagues are lost entirely.
+                if not stats_first:
+                    scan_rejected_no_verification += 1
+                    continue
 
             # Most garbage already filtered by _is_scan_garbage in load_scan_summary.
             # Additional regex checks for edge cases that slipped through:
@@ -1110,7 +1116,7 @@ def generate_market_matrix(
 
     # Sort: FULL first, then ODDS_RICH, then by sport
     tier_order = {"FULL": 0, "ODDS_RICH": 1, "ODDS_BASIC": 2, "STATS_ONLY": 3, "FIXTURE_ONLY": 4}
-    events.sort(key=lambda e: (tier_order.get(e["data_tier"], 5), e["sport"], e["competition"]))
+    events.sort(key=lambda e: (tier_order.get(e["data_tier"], 5), e.get("sport") or "", e.get("competition") or ""))
 
     matrix = {
         "date": date,
@@ -1723,6 +1729,7 @@ def main():
         min_odds=args.min_odds,
         max_odds=args.max_odds,
         evening_only=args.evening_only,
+        stats_first=stats_first,
     )
 
     write_matrix_json(matrix, date)
