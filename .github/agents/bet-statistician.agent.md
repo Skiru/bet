@@ -150,7 +150,7 @@ FLAG manual computation in output: `⚠️ MANUAL_SAFETY: script failed, compute
 5. **If batch_enrich fails** → DELEGATION REQUEST to orchestrator: `type: ENRICHMENT_NEEDED`
 
 ### web/fetch + browser/*
-- **MUST use for:** Gathering stats from SoccerStats, Flashscore, Sofascore, TennisAbstract, Basketball-Reference (US only), NaturalStatTrick, TransferMarkt, scores24.live
+- **MUST use for:** Gathering stats from SoccerStats, Flashscore, Sofascore, TennisAbstract, Basketball-Reference (US only), MoneyPuck (NHL advanced stats — xG%, Corsi%, Fenwick%), TransferMarkt, scores24.live
 - **RULE:** Collect ALL stats from sport-specific table. Split by home/away. Fetch H2H for the SPECIFIC stat. Check DB `fixtures` + `odds_history` tables (or fallback to `market_matrix_{date}.json`) for pre-loaded scores24 data before web-fetching.
 
 ### sequential-thinking

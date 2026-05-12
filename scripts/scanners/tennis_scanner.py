@@ -37,11 +37,13 @@ class TennisScanner(BaseSportScanner):
             "https://www.betclic.pl/tenis-s2",
             # OddsPortal
             "https://www.oddsportal.com/tennis/",
+            # ATPTour
+            "https://www.atptour.com/en/scores/current",
+            # TennisAbstract
+            "https://www.tennisabstract.com/",
             # TennisExplorer
             "https://www.tennisexplorer.com/",
             "https://www.tennisexplorer.com/matches/",
-            # ATP Tour
-            "https://www.atptour.com/en/scores/current",
             # Forebet
             "https://www.forebet.com/en/tennis/predictions-today",
             # Scores24

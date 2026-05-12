@@ -61,6 +61,23 @@ Read these files. Do NOT proceed until all are loaded:
 3. `.github/instructions/betting-artifacts.instructions.md`
 4. `betting/sources/source-registry.md`
 5. `/memories/repo/pipeline-lessons-learned.md`
+6. `/memories/repo/post-overhaul-audit-2026-05-12.md`
+
+### ⚠️ ADAPTER OVERHAUL (2026-05-12) — ENFORCE IN ALL STEPS
+
+68 files changed, 7193 lines added — all 5 sport adapter chains overhauled. Key changes every agent MUST enforce:
+
+| Sport | Key Change | Agent Impact |
+|-------|-----------|--------------|
+| Hockey | **MoneyPuck = PRIMARY** advanced stats (xG%, Corsi%, Fenwick%). NaturalStatTrick BLOCKED (403). DailyFaceoff for goalie confirmations. | bet-scanner-hockey, bet-statistician |
+| Tennis | TennisAbstract Elo integrated (data_quality_score +1). ATP Tour adapter added. Paired-row parser overhauled. | bet-scanner-tennis, bet-statistician |
+| Basketball | Basketball-Reference adapter enhanced. BallDontLie DISABLED. | bet-scanner-basketball, bet-enricher |
+| Volleyball | Flashscore volleyball adapter enhanced. Deep stats enrichment improved. | bet-scanner-volleyball, bet-enricher |
+| Football | Soccerway, SoccerStats, WhoScored, Covers, Forebet adapters all enhanced. | bet-scanner-football, bet-enricher |
+
+**Disabled clients (removed from CLIENT_REGISTRY):** TheSportsDB, BallDontLie, API-Tennis.
+**New adapters:** atptour, dailyfaceoff, hockey_reference, moneypuck, naturalstattrick (blocked but registered).
+**Protocol:** v5 — heredocs banned (use temp .py files), async patterns verified, all 15 agents have Python env tools.
 
 Print the pre-flight checklist:
 ```

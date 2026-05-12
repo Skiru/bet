@@ -247,7 +247,7 @@ data and 15 with partial. Hockey candidates need extra caution in safety scores.
 | 13 | Run `for` loops / batch loops in terminal | Run ONE command at a time, THINK about result, proceed |
 | 14 | `sleep` / `ps -p` polling / idle waiting | Use `mode=async` + THINK-WHILE-WAITING. Get notified on completion |
 | 15 | Fire-and-forget (`mode=async` then ignore output) | `mode=async` + THINK-WHILE-WAITING + `get_terminal_output` + EXTRACT |
-| 16 | `python3 -c "..."` with complex nested quotes | Use `read_file` for JSON/data inspection. For complex Python, use heredoc: `python3 << 'EOF'` |
+| 16 | `python3 -c "..."` with complex nested quotes | Use `read_file` for JSON/data inspection. For complex Python, create a temp `.py` file and run it |
 | 17 | Running terminal Python to inspect data | DB-FIRST (R2): delegate to `bet-db-analyst` or run simple query script. Fallback: `read_file` on JSON output |
 
 ---
@@ -336,4 +336,4 @@ After every script: verify output file exists, check DB row counts, spot-check f
 5. **Before connecting scripts**, verify data format compatibility — you are the integration layer.
 6. **TEST: Read your response. Remove all numbers and metrics. Is anything left? If not, you just reformatted the output — you didn't analyze it.**
 
-<!-- BET:instruction:agent-execution-protocol:v3 -->
+<!-- BET:instruction:agent-execution-protocol:v5 -->

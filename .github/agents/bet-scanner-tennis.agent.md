@@ -167,7 +167,7 @@ Produce a summary with:
 - ESPN tennis API: only `sets_won`, `games_won`, `total_sets` (3 of 7 keys)
 - Missing from ESPN: aces, double_faults, first_serve_pct, break_points_won
 - H2H: EMPTY from ESPN — Scores24 detail pages have it but inconsistently
-- TennisAbstract Elo: collected but NOT integrated into safety scores pipeline yet
+- TennisAbstract Elo: collected AND integrated into data quality scoring via compute_safety_scores.py (has_elo=True → +1 to data_quality_score, max 10)
 
 ## Error Pattern Recognition
 

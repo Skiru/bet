@@ -17,7 +17,7 @@ description: "S0: Settle previous day's picks/coupons, PnL, CLV, bankroll update
 | Settlement output | Hit rates shown for user information? | Required: R6 — show prominently |
 | Settlement output | Hit rates used to auto-reject markets/sports for future sessions? | FAILURE: R6 violated — advisory ONLY |
 | PnL calculation | Arithmetic verified via `sequentialthinking`? | FAILURE: R11 violated |
-| Script execution | --verbose flag included? Per-script metrics cited? | FAILURE: R17 violated |
+| Script execution | Per-script output read and metrics cited? | FAILURE: R17 violated (note: settle_on_finish.py does not support --verbose) |
 | Output | Contains PnL, win/loss/push counts, bankroll delta, + learning insights? | FAILURE: raw numbers without analysis |
 
 ## MANDATORY: Agent Intelligence Protocol
@@ -68,8 +68,8 @@ Load these skills before starting:
 
 ### 1. Settlement Execution (§0.1)
 
-1. Run: `python3 scripts/settle_on_finish.py --betting-day {yesterday} --no-poll --verbose 2>&1`
-   Parse `AGENT_SUMMARY:{json}` from output for structured settlement metrics.
+1. Run: `python3 scripts/settle_on_finish.py --betting-day {yesterday} --no-poll 2>&1`
+   Note: settle_on_finish.py does NOT support --verbose or AGENT_SUMMARY. Read its stdout directly for settlement results.
 2. For each pending pick: find result (Flashscore → verify Sofascore), resolve market (auto: 1X2/totals/BTTS/DC; manual: corners/cards/HC/MyCombi), update `picks-ledger.csv`
 3. For each pending coupon: all legs win = coupon win; void leg = recalculate odds; update `coupons-ledger.csv`
 4. US sports: `python3 scripts/fetch_odds_api.py --scores hockey 2>&1`

@@ -45,12 +45,13 @@ CLIENT_REGISTRY["api-hockey"] = APIHockeyClient
 from .nba_api_client import NBAAPIClient
 CLIENT_REGISTRY["nba-api"] = NBAAPIClient
 
-from .thesportsdb import TheSportsDBClient
-CLIENT_REGISTRY["thesportsdb"] = TheSportsDBClient
+# TheSportsDB free tier deprecated (2026-05-11) — removed from registry.
+# from .thesportsdb import TheSportsDBClient
+# CLIENT_REGISTRY["thesportsdb"] = TheSportsDBClient
 
-# New sport-specific API clients
-from .api_tennis import APITennisClient
-CLIENT_REGISTRY["api-tennis"] = APITennisClient
+# API-Tennis deprecated (2026-05-11) — v1.tennis.api-sports.io does not resolve.
+# from .api_tennis import APITennisClient
+# CLIENT_REGISTRY["api-tennis"] = APITennisClient
 
 from .api_volleyball import APIVolleyballClient
 CLIENT_REGISTRY["api-volleyball"] = APIVolleyballClient
@@ -68,5 +69,4 @@ from .odds_api_io import OddsAPIioClient
 CLIENT_REGISTRY["odds-api-io"] = OddsAPIioClient
 
 # nba_api — deep NBA stats (pace, ratings, game logs). Free, no key.
-from .nba_api_client import NBAAPIClient
-CLIENT_REGISTRY["nba-api"] = NBAAPIClient
+# Already registered above as "nba-api"

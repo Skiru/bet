@@ -132,7 +132,8 @@ class TestDeepStatsReport(unittest.TestCase):
     def test_extract_team_stats_with_cache(self):
         """Extract L10/L5 stats from mock cache."""
         import scripts.deep_stats_report as dsr
-        with patch.object(dsr, "CACHE_DIR", self.cache_dir):
+        with patch.object(dsr, "CACHE_DIR", self.cache_dir), \
+             patch("db_data_loader.load_team_form_from_db", side_effect=Exception("mock")):
             result = dsr.extract_team_stats("football", "Liverpool")
         self.assertTrue(result["has_data"])
         self.assertIn("corners", result["l10_avg"])
@@ -452,7 +453,8 @@ class TestGateChecker(unittest.TestCase):
             result = check_18_point_gate(candidate, [])
         self.assertIn("17", result["gate_failed"])
 
-    def test_run_gate_classification(self):
+    @patch("scripts.gate_checker._build_fixture_lookup", return_value=(set(), set()))
+    def test_run_gate_classification(self, mock_lookup):
         """Full gate run with mixed candidates — advisory classification."""
         from scripts.gate_checker import run_gate
         candidates = [

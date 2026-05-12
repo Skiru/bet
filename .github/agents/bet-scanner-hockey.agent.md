@@ -129,10 +129,13 @@ If scan still yields <5 events: NHL has off-days. Regular season: ~8 games/night
 |--------|------|---------|---------|-------|
 | flashscore.com | Fixture discovery | `flashscore_adapter` | 30s | NHL + EU leagues |
 | hockey-reference.com | NHL schedule | `hockey_reference_adapter` | 15s | Schedule only |
+| moneypuck.com | **PRIMARY** NHL advanced stats | `moneypuck_adapter` | 15s | xG%, Corsi%, Fenwick%, PDO. Free CSV, no API key. Replaces blocked NaturalStatTrick |
+| dailyfaceoff.com | Goalie confirmations | `dailyfaceoff_adapter` | 15s | Starting goalies, line combos. Check 2-4h before puck drop |
 | betexplorer.com | Odds | `betexplorer_adapter` | 20s | Hockey markets |
 | oddsportal.com | Odds comparison | `oddsportal_adapter` | 20s | NHL + EU |
 | scores24.live | H2H + form | `scores24_adapter` | 30s | Ice hockey data |
 | forebet.com | Predictions | `forebet_adapter` | 15s | Hockey predictions |
+| naturalstattrick.com | ~~Advanced stats~~ | ~~`naturalstattrick_adapter`~~ | - | ⛔ BLOCKED (Cloudflare 403). Use MoneyPuck instead |
 | betclic.pl | Execution odds | `betclic_adapter` | - | ⚠ Always 403 |
 
 ## Validation Criteria
