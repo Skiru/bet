@@ -573,6 +573,82 @@ def build_shortlist(
     print(f"[shortlist] After dedup: {len(deduped)} unique events (removed {len(scored) - len(deduped)} dupes)")
     scored = deduped
 
+    # ── Phantom fixture detection: same team in multiple DIFFERENT matches ──
+    # A team can only play ONE match per day. If it appears in 2+ different
+    # matchups, all but the highest-scored fixture are phantom (scraped from
+    # a different matchday).  Keep the one with the best shortlist score,
+    # mark the rest as phantom-risk.
+    # Exception: tennis players legitimately play singles + doubles.
+    def _normalize_team(name: str) -> str:
+        """Normalize team name for phantom matching (same logic as dedup)."""
+        n = unicodedata.normalize("NFKD", name.lower().strip()).encode("ascii", "ignore").decode()
+        for remove in ["fc ", "sc ", "bc ", "ac ", " fc", " sc", " bc", " cf",
+                       " basket", " basketball", " sk", " sk.",
+                       " s.k.", " fk", " fk."]:
+            n = n.replace(remove, "")
+        for suffix in [" kaunas", " vilnius", " moscow", " kiev",
+                       " london", " paris", " madrid", " berlin"]:
+            n = n.replace(suffix, "")
+        return re.sub(r"\s+", " ", n).strip()
+
+    team_best: dict[str, tuple[float, int]] = {}  # "sport|team" → (best_score, index)
+    team_all: dict[str, list[int]] = {}  # "sport|team" → [indices]
+    for idx, (score, event) in enumerate(scored):
+        sport = event.get("sport", "")
+        # Tennis: skip phantom detection — players legitimately play singles + doubles
+        if sport == "tennis":
+            continue
+        for role in ("home_team", "away_team"):
+            raw = event.get(role, "").strip()
+            if not raw:
+                continue
+            norm = _normalize_team(raw)
+            if len(norm) < 3:
+                continue  # Skip very short names to avoid false positives
+            team_key = f"{sport}|{norm}"
+            if team_key not in team_all:
+                team_all[team_key] = []
+            team_all[team_key].append(idx)
+            if team_key not in team_best or score > team_best[team_key][0]:
+                team_best[team_key] = (score, idx)
+
+    # Find indices to remove: team in >1 different match → keep best, drop rest
+    phantom_indices: set[int] = set()
+    phantom_teams: list[str] = []
+    for team_key, indices in team_all.items():
+        if len(indices) <= 1:
+            continue
+        # Check if these are actually different matchups (not just same match)
+        unique_matchups: set[str] = set()
+        for i in indices:
+            ev = scored[i][1]
+            h = _normalize_team(ev.get("home_team", ""))
+            a = _normalize_team(ev.get("away_team", ""))
+            matchup = f"{h}|{a}"
+            unique_matchups.add(matchup)
+        if len(unique_matchups) <= 1:
+            continue  # Same matchup appearing multiple times = already handled by dedup
+        # Different matchups! This team can't play 2+ matches in one day.
+        best_idx = team_best[team_key][1]
+        best_ev = scored[best_idx][1]
+        for i in indices:
+            if i != best_idx:
+                phantom_indices.add(i)
+        team_name = team_key.split("|", 1)[1]
+        phantom_teams.append(team_name)
+
+    if phantom_indices:
+        pre_count = len(scored)
+        scored = [(s, e) for idx, (s, e) in enumerate(scored) if idx not in phantom_indices]
+        unique_phantom_teams = sorted(set(phantom_teams))
+        print(f"[shortlist] ⛔ PHANTOM FIXTURE FILTER: removed {pre_count - len(scored)} events "
+              f"({len(unique_phantom_teams)} teams in multiple different matches)")
+        if len(unique_phantom_teams) <= 20:
+            for t in unique_phantom_teams:
+                print(f"  phantom team: {t}")
+    else:
+        print("[shortlist] ✅ No phantom fixtures detected (no team in multiple matches)")
+
     # Select top_n with sport diversity enforcement
     # Strategy: 2-phase selection
     #   Phase 1: guarantee minimum slots per sport (ensures ≥min_sports)

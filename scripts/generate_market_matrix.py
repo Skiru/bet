@@ -637,10 +637,31 @@ def generate_market_matrix(
         if home and away:
             fixture_keys.add(f"{_normalize(home)}|{_normalize(away)}")
 
-    # SCAN EXPANSION: Add scan events that have verifiable data (odds + valid names)
-    # but are NOT already in fixtures. Only accept items with a time or date that
-    # falls within the betting window.
+    # SCAN EXPANSION: Add scan events ONLY if cross-verified against an independent source.
+    # FIX: Previously, scan items with just a time (no date) were assigned today's date,
+    # causing phantom fixtures from future matchdays (e.g., Europa League Final on May 20
+    # appearing in May 11 matrix). Now we require cross-verification.
+    #
+    # Cross-verification sources: odds_lookup (Odds API), multi_odds, analysis_pool.
+    # A scan item is promoted to fixture ONLY if it matches one of these sources
+    # OR has an explicit date field matching the target date.
     scan_only_events = 0
+    scan_rejected_no_verification = 0
+
+    # Build cross-verification keys from independent sources
+    verified_keys: set[str] = set()
+    for key in odds_lookup:
+        verified_keys.add(key)
+    for key in multi_odds:
+        verified_keys.add(key)
+    for key in analysis_pool:
+        verified_keys.add(key)
+    # Also use API-sourced fixture keys as verification (different name normalization
+    # might cause scan items to not directly match fixtures, but fuzzy-matching
+    # against known API fixtures is a valid verification)
+    for key in fixture_keys:
+        verified_keys.add(key)
+
     for match_key, scan_items in scan_lookup.items():
         # Skip if already a fixture
         if match_key in fixture_keys:
@@ -660,6 +681,54 @@ def generate_market_matrix(
         if best_item and best_item.get("home") and best_item.get("away"):
             home = best_item["home"]
             away = best_item["away"]
+
+            # CROSS-VERIFICATION GATE: only promote scan items that are
+            # independently verified by an API source OR have an explicit date
+            item_date = best_item.get("date", "")
+            has_explicit_date = bool(item_date and item_date.startswith(date))
+            is_cross_verified = match_key in verified_keys
+
+            # Also check reversed key (home/away might be swapped)
+            parts = match_key.split("|", 1)
+            if not is_cross_verified and len(parts) == 2:
+                reversed_key = f"{parts[1]}|{parts[0]}"
+                is_cross_verified = reversed_key in verified_keys
+
+            # Fuzzy cross-verification: check if any verified key has BOTH teams
+            # matching (not just one). Require minimum token length of 5 to avoid
+            # false positives on short names.
+            if not is_cross_verified:
+                norm_home = parts[0] if len(parts) == 2 else ""
+                norm_away = parts[1] if len(parts) == 2 else ""
+                if norm_home and norm_away and len(norm_home) >= 5 and len(norm_away) >= 5:
+                    for vkey in verified_keys:
+                        vparts = vkey.split("|", 1)
+                        if len(vparts) != 2:
+                            continue
+                        # Require BOTH teams to match (home↔home AND away↔away, or swapped)
+                        home_match_h = (norm_home == vparts[0] or
+                                        (len(norm_home) >= 6 and len(vparts[0]) >= 6 and
+                                         (norm_home in vparts[0] or vparts[0] in norm_home)))
+                        away_match_a = (norm_away == vparts[1] or
+                                        (len(norm_away) >= 6 and len(vparts[1]) >= 6 and
+                                         (norm_away in vparts[1] or vparts[1] in norm_away)))
+                        if home_match_h and away_match_a:
+                            is_cross_verified = True
+                            break
+                        # Swapped check
+                        home_match_a = (norm_home == vparts[1] or
+                                        (len(norm_home) >= 6 and len(vparts[1]) >= 6 and
+                                         (norm_home in vparts[1] or vparts[1] in norm_home)))
+                        away_match_h = (norm_away == vparts[0] or
+                                        (len(norm_away) >= 6 and len(vparts[0]) >= 6 and
+                                         (norm_away in vparts[0] or vparts[0] in norm_away)))
+                        if home_match_a and away_match_h:
+                            is_cross_verified = True
+                            break
+
+            if not has_explicit_date and not is_cross_verified:
+                scan_rejected_no_verification += 1
+                continue
 
             # Most garbage already filtered by _is_scan_garbage in load_scan_summary.
             # Additional regex checks for edge cases that slipped through:
@@ -695,18 +764,22 @@ def generate_market_matrix(
             if any(pat in combined for pat in extra_skip):
                 continue
 
-            # Include scan items WITH time OR with odds — these are valid fixtures.
-            # Items without BOTH are likely stats/ratings data, not fixtures.
+            # Use explicit date if available, otherwise use time with betting date
+            # (only reached for cross-verified items)
             item_time = best_item.get("time", "")
-            if not item_time and not best_odds_count:
-                continue
+            if has_explicit_date:
+                kickoff_value = _normalize_kickoff(item_date, date)
+            elif item_time:
+                kickoff_value = _normalize_kickoff(item_time, date)
+            else:
+                kickoff_value = f"{date}T00:00:00+02:00"
 
             fixture = {
                 "sport": best_item.get("sport", "football"),
                 "home_team": home,
                 "away_team": away,
                 "competition": best_item.get("league", ""),
-                "kickoff": _normalize_kickoff(item_time, date),
+                "kickoff": kickoff_value,
                 "source": "scan-expansion",
             }
             # Skip removed sports
@@ -715,6 +788,9 @@ def generate_market_matrix(
             fixtures.append(fixture)
             fixture_keys.add(match_key)
             scan_only_events += 1
+
+    if scan_rejected_no_verification:
+        print(f"[matrix] Scan-expansion: rejected {scan_rejected_no_verification} items (no cross-verification)")
 
     # Also add Odds API events not in fixtures
     odds_only_events = 0

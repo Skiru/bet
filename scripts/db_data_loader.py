@@ -24,6 +24,8 @@ def _is_garbage_fixture(row: dict) -> bool:
     - T00:00:00 kickoff (no real time = scanner default)
     - Garbage team names (contains 'vs', URLs, tips text, etc.)
     - Team names that are clearly page chrome, not real teams
+    - Duplicate teams playing multiple matches on same date in same competition
+      (indicates league schedule page scrape, not today's actual fixtures)
     """
     source = row.get("source", "")
     kickoff = row.get("kickoff", "")
@@ -96,6 +98,53 @@ def load_fixtures_from_db(date: str, sport: str | None = None, include_unverifie
                     filtered = before - len(rows)
                     if filtered:
                         print(f"[db_loader] Filtered {filtered} phantom fixtures ({before} → {len(rows)})")
+
+                    # PHANTOM DETECTION: Filter playwright-scan fixtures where
+                    # the same team appears in multiple matches on the same date.
+                    # Real teams play at most 1 match per day (except double-headers
+                    # in baseball/basketball). Multiple appearances = schedule page leak.
+                    # Only apply to playwright-scan; API fixtures are authoritative.
+                    scan_rows = [r for r in rows if r.get("source") in ("playwright-scan", "scan-expansion")]
+                    api_rows = [r for r in rows if r.get("source") not in ("playwright-scan", "scan-expansion")]
+                    
+                    if scan_rows:
+                        # Build set of teams from API fixtures (authoritative)
+                        api_teams_by_sport: dict[str, set[str]] = {}
+                        for r in api_rows:
+                            sport_name = r.get("sport", r.get("sport_name", ""))
+                            for t in (r.get("home_team", ""), r.get("away_team", "")):
+                                if t:
+                                    api_teams_by_sport.setdefault(sport_name, set()).add(t.lower())
+
+                        # Count scan team appearances
+                        from collections import Counter
+                        scan_team_counts: Counter = Counter()
+                        for r in scan_rows:
+                            for t in (r.get("home_team", ""), r.get("away_team", "")):
+                                if t:
+                                    scan_team_counts[t.lower()] += 1
+
+                        # Teams appearing in >2 scan fixtures are phantoms
+                        # If team also appears in API, keep only the API fixture(s)
+                        # and remove ALL scan fixtures for that team (schedule page leak)
+                        phantom_teams = set()
+                        for team, count in scan_team_counts.items():
+                            if count > 2:
+                                phantom_teams.add(team)
+
+                        if phantom_teams:
+                            before_phantom = len(scan_rows)
+                            scan_rows = [
+                                r for r in scan_rows
+                                if r.get("home_team", "").lower() not in phantom_teams
+                                and r.get("away_team", "").lower() not in phantom_teams
+                            ]
+                            phantom_filtered = before_phantom - len(scan_rows)
+                            if phantom_filtered:
+                                print(f"[db_loader] Filtered {phantom_filtered} schedule-page phantom fixtures "
+                                      f"({len(phantom_teams)} teams appearing in >2 scan matches)")
+
+                        rows = api_rows + scan_rows
 
                 print(f"[db_loader] Loaded {len(rows)} fixtures from DB for {date}")
                 return rows

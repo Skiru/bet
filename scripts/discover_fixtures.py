@@ -110,16 +110,19 @@ def _load_scan_summary(date: str) -> list:
         event_date = event.get("date", "")
         event_time = event.get("time", "")
 
-        # Include items that either:
-        # 1. Match the target date explicitly
-        # 2. Have no date but DO have a time field (likely today's fixture from daily scan)
+        # STRICT DATE FILTERING (fix: dateless scan items were being assigned
+        # today's date, causing phantom fixtures from future matchdays to appear)
+        # Only include items that EXPLICITLY match the target date.
+        # Items without a date field are EXCLUDED — they cannot be reliably
+        # assigned to any date since scanners scrape multi-matchday schedule pages.
         if event_date:
             if date and not event_date.startswith(date):
                 continue
         else:
-            # No date field — only include if there's a time (indicates fixture, not stats)
-            if not event_time:
-                continue
+            # No date field — SKIP. Cannot reliably assign a date.
+            # These items will still appear in scan_summary.json for the market
+            # matrix cross-verification step, but won't create DB fixtures.
+            continue
 
         home = event.get("home", event.get("home_team", ""))
         away = event.get("away", event.get("away_team", ""))
@@ -137,7 +140,7 @@ def _load_scan_summary(date: str) -> list:
             competition=event.get("league", event.get("competition", "")),
             home_team=home,
             away_team=away,
-            kickoff=event_date or (f"{date}T{event_time}" if event_time else ""),
+            kickoff=event_date,
             status="scheduled",
         )
         fixtures.append(fixture)
@@ -388,13 +391,20 @@ def _persist_fixtures_to_db(fixtures: list, date: str) -> None:
                         )
                     comp_id = _comp_cache[comp_key]
 
+                # Validate kickoff: only persist if it has a proper date
+                # (prevents bare-time values like "21:00" from polluting DB)
+                effective_kickoff = kickoff or f"{date}T00:00:00"
+                if not effective_kickoff.startswith("20"):
+                    # Bare time or invalid — skip DB persistence
+                    continue
+
                 db_fixtures.append(DBFixture(
                     id=None,
                     sport_id=sport_obj.id,
                     competition_id=comp_id,
                     home_team_id=home.id,
                     away_team_id=away.id,
-                    kickoff=kickoff or f"{date}T00:00:00",
+                    kickoff=effective_kickoff,
                     status=status or "scheduled",
                     external_id=str(external_id) if external_id else "",
                     source=source or "discover_fixtures",

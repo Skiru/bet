@@ -26,9 +26,15 @@ STAT_TYPE_MAP = {
 
 
 class APITennisClient(APISportsClient):
-    """Tennis API client using api-sports.io unified platform."""
+    """Tennis API client using api-sports.io unified platform.
+
+    NOTE: As of 2026-05, v1.tennis.api-sports.io does not resolve (NXDOMAIN).
+    The API may have been discontinued or moved. This client will fail fast
+    with is_available() = False until the hostname is corrected.
+    """
 
     _SHARES_FOOTBALL_KEY = True
+    _HOST_BROKEN = True  # DNS NXDOMAIN as of 2026-05-11
 
     def __init__(self, rate_limiter: RateLimiter):
         super().__init__(
@@ -37,11 +43,19 @@ class APITennisClient(APISportsClient):
             rate_limiter=rate_limiter,
         )
 
+    def is_available(self) -> bool:
+        """Disabled — v1.tennis.api-sports.io does not resolve (NXDOMAIN)."""
+        if self._HOST_BROKEN:
+            return False
+        return super().is_available()
+
     def get_fixtures(self, date: str) -> list:
         """Get all tennis matches on a date (YYYY-MM-DD).
 
         Returns list of NormalizedFixture.
         """
+        if self._HOST_BROKEN:
+            return []
         if not self._check_api_key():
             return []
 
