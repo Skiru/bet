@@ -849,3 +849,12 @@ python3 scripts/settle_on_finish.py --betting-day YYYY-MM-DD
 
 SQLite at `betting/data/betting.db`. Connection: `from bet.db.connection import get_db`.
 28 tables across 6 domains: Core (sports/teams/competitions/fixtures/athletes), Stats (team_form/match_stats/league_profiles/standings/power_index), Analysis (analysis_results/analysis_raw_data/gate_results/decision_snapshots/decision_outcomes), Betting (coupons/bets/odds_history), Pipeline (pipeline_runs/scan_results/scan_run_stats/source_health), ESPN (espn_predictions/player_gamelogs/player_splits/team_ats_records/team_ou_records/team_rosters).
+
+
+## STEP S11: KNOWLEDGE TRANSFER & MEMORY UPDATE (CRITICAL)
+
+At the end of the session, or immediately if a critical pipeline break was fixed, you **MUST** save this knowledge to memory using the `memory` tool. This prevents the "amnesia" loop where the same bugs reappear tomorrow.
+
+1. Unresolved Exceptions / Future Work: Use `memory` to write into `/memories/session/{date}-notes.md`.
+2. Permanent Pipeline Fixes / Instructions: Use `memory` tool to create or update files in `/memories/repo/` (e.g., `/memories/repo/pipeline-lessons-learned.md`).
+3. **DO NOT SKIP THIS**. If you found a bug (e.g., a 403 Forbidden, an API attribute missing, a wrong loop, etc.), make sure it is documented!
