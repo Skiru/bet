@@ -111,6 +111,7 @@ def parse(html: str, url: str) -> List[Dict]:
             entry["league"] = f"{country} - {league}" if country else league
         if ev.get("id"):
             entry["sofascore_id"] = ev["id"]
+            entry["match_url"] = f"https://api.sofascore.com/api/v1/event/{ev['id']}/statistics"
 
         results.append(entry)
 

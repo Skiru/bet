@@ -265,6 +265,17 @@ def _heuristic0_event_classes(soup: BeautifulSoup, url: str) -> List[Dict]:
         if match_id and re.match(r'^g_\d+_', match_id):
             match_id = re.sub(r'^g_\d+_', '', match_id)
 
+        # Volleyball set score enrichment
+        volleyball_stats = {}
+        if _detect_sport_from_url(url) == "volleyball" and period_scores:
+            home_sets = sum(1 for h, a in zip(period_scores.get("home", []), period_scores.get("away", [])) if h > a)
+            away_sets = sum(1 for h, a in zip(period_scores.get("home", []), period_scores.get("away", [])) if a > h)
+            volleyball_stats = {
+                "sets_won_home": home_sets,
+                "sets_won_away": away_sets,
+                "total_points": sum(period_scores.get("home", [])) + sum(period_scores.get("away", [])),
+            }
+
         entry = {
             "home": home,
             "away": away,
@@ -286,6 +297,8 @@ def _heuristic0_event_classes(soup: BeautifulSoup, url: str) -> List[Dict]:
             entry["match_id"] = match_id
         if league_val:
             entry["league"] = league_val
+        if volleyball_stats:
+            entry["volleyball"] = volleyball_stats
         results.append(entry)
 
     return results

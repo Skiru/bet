@@ -39,8 +39,11 @@ CLIENT_REGISTRY["api-basketball"] = APIBasketballClient
 from .api_hockey import APIHockeyClient
 CLIENT_REGISTRY["api-hockey"] = APIHockeyClient
 
-from .balldontlie import NBAStatsClient
-CLIENT_REGISTRY["balldontlie"] = NBAStatsClient
+# BallDontLie v1 deprecated (2026-05-11) — removed from registry.
+# File retained for nba_api fallback methods. See balldontlie.py.
+
+from .nba_api_client import NBAAPIClient
+CLIENT_REGISTRY["nba-api"] = NBAAPIClient
 
 from .thesportsdb import TheSportsDBClient
 CLIENT_REGISTRY["thesportsdb"] = TheSportsDBClient

@@ -213,7 +213,8 @@ For team-specific markets (team corners O/U, team shots):
 def compute_data_quality_score(ranking_result: dict, has_injuries: bool = False,
                                 has_league_context: bool = False,
                                 has_tipster: bool = False,
-                                odds_sources: int = 0) -> dict:
+                                odds_sources: int = 0,
+                                has_elo: bool = False) -> dict:
     """Compute data quality score (0-10) based on data availability."""
     score = 0
     breakdown = {}
@@ -252,6 +253,11 @@ def compute_data_quality_score(ranking_result: dict, has_injuries: bool = False,
     if odds_sources >= 2:
         score += 1
     breakdown["odds_validated"] = odds_sources >= 2
+
+    # +1 for Elo ratings available (tennis: surface-specific Elo from TennisAbstract)
+    if has_elo:
+        score += 1
+    breakdown["elo_data"] = has_elo
 
     # +1 for three-way check alignment
     twc = ranking_result.get("three_way_check")
@@ -773,6 +779,52 @@ def generate_three_way_markdown(tw: dict) -> str:
     lines.append(f"ALIGNMENT: {tw['alignment']}")
 
     return "\n".join(lines)
+
+
+def lookup_tennis_elo(player_name: str, surface: str = "") -> dict | None:
+    """Look up Elo rating from tennis_elo cache.
+
+    Returns dict with keys: elo, hard_elo, clay_elo, grass_elo, peak_elo,
+    official_rank, tour — or None if not found.
+    """
+    cache_dir = Path(__file__).parent.parent / "betting" / "data" / "stats_cache" / "tennis_elo"
+    if not cache_dir.exists():
+        return None
+
+    # Try combined summaries first
+    for summary_file in cache_dir.glob("*_summary.json"):
+        try:
+            data = json.loads(summary_file.read_text(encoding="utf-8"))
+            if isinstance(data, list):
+                for entry in data:
+                    if _fuzzy_player_match(player_name, entry.get("player", "")):
+                        result = {"elo": entry.get("elo"), "tour": entry.get("tour")}
+                        for key in ("hard_elo", "clay_elo", "grass_elo", "peak_elo", "official_rank"):
+                            if key in entry:
+                                result[key] = entry[key]
+                        if surface:
+                            result["surface_elo"] = entry.get(f"{surface}_elo")
+                        return result
+        except (json.JSONDecodeError, OSError):
+            continue
+
+    return None
+
+
+def _fuzzy_player_match(query: str, candidate: str) -> bool:
+    """Simple fuzzy match for player names (last name match)."""
+    if not query or not candidate:
+        return False
+    q = query.strip().lower()
+    c = candidate.strip().lower()
+    if q == c:
+        return True
+    # Last name match
+    q_parts = q.split()
+    c_parts = c.split()
+    if q_parts and c_parts and q_parts[-1] == c_parts[-1]:
+        return True
+    return False
 
 
 def main():

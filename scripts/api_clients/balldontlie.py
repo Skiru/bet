@@ -1,6 +1,11 @@
 """BallDontLie + nba_api — deep NBA statistics.
 
-BallDontLie API: https://www.balldontlie.io/home.html (free, no key)
+DEPRECATED (2026-05-11): BallDontLie v1 API is deprecated and returns 100%
+failures. This client is removed from CLIENT_REGISTRY and the basketball
+fallback chain. File retained only for nba_api-based methods which are now
+served by nba_api_client.py.
+
+BallDontLie API: https://www.balldontlie.io/home.html (paid only since v2)
 nba_api: Python package for NBA.com stats (fallback, rate-limited)
 """
 

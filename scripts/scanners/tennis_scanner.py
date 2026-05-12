@@ -40,9 +40,6 @@ class TennisScanner(BaseSportScanner):
             # TennisExplorer
             "https://www.tennisexplorer.com/",
             "https://www.tennisexplorer.com/matches/",
-            # TennisAbstract
-            "https://www.tennisabstract.com/reports/atp_elo_ratings.html",
-            "https://www.tennisabstract.com/reports/wta_elo_ratings.html",
             # ATP Tour
             "https://www.atptour.com/en/scores/current",
             # Forebet
@@ -61,7 +58,15 @@ class TennisScanner(BaseSportScanner):
 
     @property
     def required_stat_keys(self) -> list[str]:
-        return ["aces", "double_faults", "first_serve_pct", "break_points_won", "games_won"]
+        # Core keys reliably produced by ESPN API + enrichment pipeline
+        # aces/double_faults/first_serve_pct come from ESPN match stats (partial coverage)
+        # games_won/sets_won/total_games come from ESPN linescores (high coverage)
+        return ["games_won", "sets_won", "total_games"]
+
+    @property
+    def desired_stat_keys(self) -> list[str]:
+        """Extended keys — present when ESPN has detailed match stats."""
+        return ["aces", "double_faults", "first_serve_pct", "break_points_won"]
 
     @property
     def min_expected_events(self) -> int:
@@ -71,6 +76,42 @@ class TennisScanner(BaseSportScanner):
         return [
             "https://www.sofascore.com/",
         ]
+
+
+    def validate_event(self, event: dict) -> dict:
+        """Tennis-specific event validation with stat-presence reporting."""
+        result = {"valid": True, "warnings": []}
+
+        required = set(self.required_stat_keys)
+        desired = set(self.desired_stat_keys)
+        present = set()
+
+        stats = event.get("stats", {})
+        for key in required | desired:
+            if key in event or key in stats:
+                present.add(key)
+
+        missing_required = required - present
+        missing_desired = desired - present
+
+        if missing_required:
+            result["warnings"].append(
+                f"missing_required_stats: {sorted(missing_required)}"
+            )
+            # Still valid — stats come from enrichment, not scan
+        if missing_desired:
+            result["warnings"].append(
+                f"missing_desired_stats: {sorted(missing_desired)}"
+            )
+
+        result["stat_coverage"] = len(present) / max(len(required | desired), 1)
+        result["stats_present"] = sorted(present)
+
+        # Surface is important for tennis
+        if not event.get("surface"):
+            result["warnings"].append("missing_surface")
+
+        return result
 
 
 register_scanner("tennis", TennisScanner)

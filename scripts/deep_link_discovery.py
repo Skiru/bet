@@ -93,6 +93,69 @@ DOMAIN_PATTERNS = {
             re.compile(r"/venue/"),
         ],
     },
+    "tennisexplorer.com": {
+        "include": [
+            re.compile(r"/match-detail/\?id=\d+"),
+            re.compile(r"/head-to-head/"),
+            re.compile(r"/atp-[a-z0-9-]+/?$"),
+            re.compile(r"/wta-[a-z0-9-]+/?$"),
+            re.compile(r"/challenger-[a-z0-9-]+/?$"),
+            re.compile(r"/itf-[a-z0-9-]+/?$"),
+            re.compile(r"/results/\?year=\d{4}"),
+        ],
+        "exclude": [
+            re.compile(r"/news/"),
+            re.compile(r"/tips/"),
+            re.compile(r"/blog/"),
+            re.compile(r"/user/"),
+            re.compile(r"/betting/"),
+        ],
+    },
+    "hockey-reference.com": {
+        "include": [
+            re.compile(r"/boxscores/\d{9}\w+\.html$"),
+            re.compile(r"/teams/\w+/\d{4}_games\.html$"),
+            re.compile(r"/boxscores/$"),
+        ],
+        "exclude": [
+            re.compile(r"/players/"),
+            re.compile(r"/awards/"),
+            re.compile(r"/about/"),
+            re.compile(r"/blog/"),
+            re.compile(r"/draft/"),
+            re.compile(r"/coaches/"),
+        ],
+    },
+    "naturalstattrick.com": {
+        "include": [
+            re.compile(r"/teamtable\.php"),
+            re.compile(r"/games\.php"),
+            re.compile(r"/playerteams\.php"),
+        ],
+        "exclude": [
+            re.compile(r"/login"),
+            re.compile(r"/register"),
+            re.compile(r"/faq"),
+            re.compile(r"/about"),
+        ],
+    },    "basketball-reference.com": {
+        "include": [
+            # Box score pages: /boxscores/202605120LAL.html
+            re.compile(r"/boxscores/\d{9}\w+\.html$"),
+            # Team season pages: /teams/BOS/2026.html
+            re.compile(r"/teams/\w+/\d{4}\.html$"),
+            # Schedule pages: /leagues/NBA_2026_games-may.html
+            re.compile(r"/leagues/NBA_\d{4}_games-\w+\.html$"),
+        ],
+        "exclude": [
+            re.compile(r"/players/"),
+            re.compile(r"/draft/"),
+            re.compile(r"/awards/"),
+            re.compile(r"/leaders/"),
+            re.compile(r"/about/"),
+            re.compile(r"/friv/"),
+        ],
+    },
     "scores24.live": {
         "include": [
             # Match detail pages: /en/{sport}/m-{DD-MM-YYYY}-{slug}

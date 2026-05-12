@@ -35,7 +35,7 @@ user-invokable: false
 | Domain | Adapter | Expected Output Fields |
 |--------|---------|----------------------|
 | flashscore.com | `flashscore_adapter` | home, away, time, league |
-| basketball-reference.com | `basketball_reference_adapter` | NBA/WNBA schedule listing |
+| basketball-reference.com | `basketball_reference_adapter` | Box scores (12 stat keys), team season averages, schedule + deep links |
 | betexplorer.com | `betexplorer_adapter` | odds[] (1X2, totals, handicap) |
 | oddsportal.com | `oddsportal_adapter` | odds_structured |
 | scores24.live | `scores24_adapter` | H2H, form, trends |
@@ -72,7 +72,7 @@ user-invokable: false
 1. BetExplorer → 2. OddsPortal → 3. The-Odds-API
 
 **Statistical data:**
-1. Basketball-Reference → 2. NBA.com/DunksAndThrees → 3. ESPN
+1. ESPN → 2. nba-api → 3. Basketball-Reference → 4. API-Basketball
 
 **Tipsters:**
 1. PicksWise (US) / Sportsgambler (EU) → 2. ZawodTyper → 3. OLBG
@@ -87,17 +87,21 @@ user-invokable: false
 
 ## Known Issues
 
-- **Basketball-Reference:** Shallow adapter — schedule listing only, no deep stats.
+- **Basketball-Reference:** Deep adapter — box scores (12 stat keys), team season averages, schedule with deep links. Parses `data-stat` attributes and `<tfoot>` totals.
 - **TeamRankings:** Intermittent blocking. Do not rely as sole source.
 - **NBA.com:** JS-heavy, may need Playwright for rendering.
 - **Covers NBA pages:** Often empty. Use other sources.
 - **EU vs US source split:** Different odds chains apply. NBA uses SBR/ESPN, EU uses BetExplorer/OddsPortal.
+- **BallDontLie:** ❌ Deprecated (v1 dead since 2026-05-11). Removed from pipeline. File retained for reference.
 
 ## API Enrichment
 
 | Client | Free? | Keys Returned | Notes |
 |--------|-------|---------------|-------|
-| ESPN | ✅ FREE | 17+ per game | NBA primary |
+| ESPN | ✅ FREE | 25+ per game (rebounds, off/def reb, ast, stl, blk, tov, fouls, fg%, 3pt%, ft%, fast break pts, paint pts) | NBA primary |
+| nba-api | ✅ FREE (1 req/sec) | PTS, REB, AST, STL, BLK, TOV, FG%, 3P%, FT% | Rate-limited, NBA only |
+| API-Basketball | ❌ 100/day shared | points, rebounds, off/def reb, assists, blocks, fg_pct, fast_break_points, points_in_paint, fouls | Shared quota with api-football |
+| BallDontLie | ❌ DEPRECATED | — | v1 dead since 2026-05-11, removed from pipeline |
 
 ## Deep Data Requirements (v4 Pipeline)
 
@@ -115,6 +119,3 @@ After scan completes, validate per fixture:
 - Has team form data for BOTH teams?
 - Has at least 1 statistical data source (API or deep parse)?
 - THINK IN THE MIDDLE: use sequentialthinking to evaluate scan quality
-| BallDontLie | ✅ FREE | Player box scores → team aggregation | H2H fallback |
-| NBA API | ✅ FREE (1 req/sec) | PTS, REB, AST, STL, BLK, TOV | Rate-limited |
-| API-Basketball | ❌ 100/day shared | points, rebounds, assists, blocks, fg_pct | Shared quota |

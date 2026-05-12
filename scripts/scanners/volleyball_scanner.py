@@ -1,4 +1,5 @@
 """Volleyball scanner module."""
+import json
 import sys
 from pathlib import Path
 
@@ -13,9 +14,38 @@ except ImportError:
     from scanners.base_scanner import BaseSportScanner
     from scanners import register_scanner
 
+_CONFIG_PATH = BASE.parent / "config" / "scan_urls.json"
+_FALLBACK_URLS = [
+    # FlashScore
+    "https://www.flashscore.com/volleyball/",
+    "https://www.flashscore.com/volleyball/poland/",
+    "https://www.flashscore.com/volleyball/poland/plusliga/",
+    "https://www.flashscore.com/volleyball/poland/i-liga/",
+    "https://www.flashscore.com/volleyball/poland/tauron-liga-women/",
+    "https://www.flashscore.com/volleyball/poland/i-liga-women/",
+    "https://www.flashscore.com/volleyball/italy/superlega/",
+    "https://www.flashscore.com/volleyball/france/ligue-a/",
+    "https://www.flashscore.com/volleyball/turkey/efeler-ligi/",
+    "https://www.flashscore.com/volleyball/germany/bundesliga/",
+    "https://www.flashscore.com/volleyball/europe/champions-league/",
+    "https://www.flashscore.com/volleyball/brazil/superliga/",
+    # Betclic
+    "https://www.betclic.pl/siatkowka-s18",
+    # OddsPortal
+    "https://www.oddsportal.com/volleyball/",
+    # BetExplorer
+    "https://www.betexplorer.com/volleyball/",
+    # Forebet
+    "https://www.forebet.com/en/volleyball/predictions-today",
+    # Scores24
+    "https://scores24.live/en/volleyball",
+]
+
 
 class VolleyballScanner(BaseSportScanner):
     """Volleyball-specific scanner — Tier 1 sport."""
+    
+    _cached_urls = None
 
     @property
     def sport_name(self) -> str:
@@ -27,31 +57,19 @@ class VolleyballScanner(BaseSportScanner):
 
     @property
     def urls(self) -> list[str]:
-        return [
-            # FlashScore
-            "https://www.flashscore.com/volleyball/",
-            "https://www.flashscore.com/volleyball/poland/",
-            "https://www.flashscore.com/volleyball/poland/plusliga/",
-            "https://www.flashscore.com/volleyball/poland/i-liga/",
-            "https://www.flashscore.com/volleyball/poland/tauron-liga-women/",
-            "https://www.flashscore.com/volleyball/poland/i-liga-women/",
-            "https://www.flashscore.com/volleyball/italy/superlega/",
-            "https://www.flashscore.com/volleyball/france/ligue-a/",
-            "https://www.flashscore.com/volleyball/turkey/efeler-ligi/",
-            "https://www.flashscore.com/volleyball/germany/bundesliga/",
-            "https://www.flashscore.com/volleyball/europe/champions-league/",
-            "https://www.flashscore.com/volleyball/brazil/superliga/",
-            # Betclic
-            "https://www.betclic.pl/siatkowka-s18",
-            # OddsPortal
-            "https://www.oddsportal.com/volleyball/",
-            # BetExplorer
-            "https://www.betexplorer.com/volleyball/",
-            # Forebet
-            "https://www.forebet.com/en/volleyball/predictions-today",
-            # Scores24
-            "https://scores24.live/en/volleyball",
-        ]
+        if VolleyballScanner._cached_urls is None:
+            VolleyballScanner._cached_urls = self._load_config_urls()
+        return VolleyballScanner._cached_urls
+
+    def _load_config_urls(self) -> list[str]:
+        try:
+            data = json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
+            urls = data.get("sports", {}).get("volleyball", {}).get("urls", [])
+            if urls:
+                return urls
+        except Exception:
+            pass
+        return list(_FALLBACK_URLS)
 
     @property
     def timeout_per_page(self) -> int:
@@ -59,6 +77,13 @@ class VolleyballScanner(BaseSportScanner):
 
     @property
     def max_deep_links(self) -> int:
+        try:
+            data = json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
+            limit = data.get("sports", {}).get("volleyball", {}).get("max_deep_links")
+            if isinstance(limit, int):
+                return limit
+        except Exception:
+            pass
         return 15
 
     @property

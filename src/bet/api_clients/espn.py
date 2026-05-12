@@ -699,7 +699,7 @@ class ESPNClient(BaseAPIClient):
             stats.setdefault("sets_won", {})[side] = float(sets_won)
             stats.setdefault("games_won", {})[side] = float(games_won)
             stats.setdefault("total_sets", {})[side] = float(total_sets)
-            # total_games = combined games for BOTH players (key for Total Games O/U market)
+            # total_games = per-player games won; consumer sums home+away for Total Games O/U market
             stats.setdefault("total_games", {})[side] = float(games_won)
             if rank and rank != "NR":
                 try:

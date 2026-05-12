@@ -305,6 +305,87 @@ def _update_player_cache(player_name: str, form_data: dict, force: bool = False)
     return True
 
 
+def _enrich_h2h(player_a: str, player_b: str, player_index: dict) -> dict | None:
+    """Fetch athlete-vs-athlete H2H from ESPN Stats API.
+
+    Uses ESPNStatsClient.get_h2h_athletes() instead of generic team schedule.
+    Returns H2H data dict or None if not available.
+    """
+    # Look up athlete IDs from match index
+    key_a = player_a.lower().strip()
+    key_b = player_b.lower().strip()
+    matches_a = player_index.get(key_a, [])
+
+    athlete_id_a = None
+    athlete_id_b = None
+
+    for m in matches_a:
+        if m["home_name"].lower().strip() == key_a:
+            athlete_id_a = m.get("home_id")
+        elif m["away_name"].lower().strip() == key_a:
+            athlete_id_a = m.get("away_id")
+        if m["home_name"].lower().strip() == key_b:
+            athlete_id_b = m.get("home_id")
+        elif m["away_name"].lower().strip() == key_b:
+            athlete_id_b = m.get("away_id")
+        if athlete_id_a and athlete_id_b:
+            break
+
+    if not athlete_id_a or not athlete_id_b:
+        # Try from player_b matches
+        matches_b = player_index.get(key_b, [])
+        for m in matches_b:
+            if not athlete_id_b:
+                if m["home_name"].lower().strip() == key_b:
+                    athlete_id_b = m.get("home_id")
+                elif m["away_name"].lower().strip() == key_b:
+                    athlete_id_b = m.get("away_id")
+            if not athlete_id_a:
+                if m["home_name"].lower().strip() == key_a:
+                    athlete_id_a = m.get("home_id")
+                elif m["away_name"].lower().strip() == key_a:
+                    athlete_id_a = m.get("away_id")
+            if athlete_id_a and athlete_id_b:
+                break
+
+    if not athlete_id_a or not athlete_id_b:
+        return None
+
+    try:
+        from bet.api_clients.espn_stats import ESPNStatsClient
+        client = ESPNStatsClient()
+        # Try ATP first, then WTA
+        for league in ["atp", "wta"]:
+            h2h = client.get_h2h_athletes("tennis", league, athlete_id_a, athlete_id_b)
+            if h2h:
+                return {
+                    "player_a": player_a,
+                    "player_b": player_b,
+                    "athlete_id_a": athlete_id_a,
+                    "athlete_id_b": athlete_id_b,
+                    "league": league,
+                    "data": h2h,
+                }
+    except Exception as e:
+        print(f"[enrich-tennis] H2H fetch failed for {player_a} vs {player_b}: {e}")
+    return None
+
+
+def _save_h2h_cache(h2h_data: dict) -> None:
+    """Save H2H data to stats cache."""
+    if not h2h_data:
+        return
+    slug_a = slugify(h2h_data["player_a"])
+    slug_b = slugify(h2h_data["player_b"])
+    h2h_dir = CACHE_DIR / "tennis" / "h2h"
+    h2h_dir.mkdir(parents=True, exist_ok=True)
+    h2h_file = h2h_dir / f"{slug_a}_vs_{slug_b}.json"
+    h2h_file.write_text(
+        json.dumps(h2h_data, indent=2, ensure_ascii=False, default=str),
+        encoding="utf-8",
+    )
+
+
 def get_shortlisted_tennis_players(date: str) -> list[str]:
     """Extract all tennis player names from today's shortlist."""
 
@@ -345,6 +426,7 @@ def main():
     parser.add_argument("--players", help="Comma-separated player names (override shortlist)")
     parser.add_argument("--all-indexed", action="store_true",
                         help="Update ALL players found in ESPN data (not just shortlisted)")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Verbose structured output")
     args = parser.parse_args()
 
     # Get target players
@@ -411,12 +493,53 @@ def main():
     print(f"\n[enrich-tennis] DONE: {updated} updated, {insufficient} insufficient data")
     print(f"[enrich-tennis] Players in index: {len(player_index)}")
 
-    # STEP 3: Summary stats
+    # STEP 3: H2H enrichment for shortlisted matchups
+    h2h_enriched = 0
+    if not args.all_indexed:
+        shortlist_data = None
+        for pattern in [
+            DATA_DIR / f"{args.date}_s2_shortlist.json",
+            DATA_DIR / f"{args.date.replace('-', '')}_s2_shortlist.json",
+        ]:
+            if pattern.exists():
+                shortlist_data = json.loads(pattern.read_text(encoding="utf-8"))
+                break
+
+        if shortlist_data:
+            for candidate in shortlist_data.get("candidates", []):
+                if candidate.get("sport") != "tennis":
+                    continue
+                home = candidate.get("home_team", "")
+                away = candidate.get("away_team", "")
+                if home and away:
+                    if args.verbose:
+                        print(f"[enrich-tennis] H2H: {home} vs {away}")
+                    h2h = _enrich_h2h(home, away, player_index)
+                    if h2h:
+                        _save_h2h_cache(h2h)
+                        h2h_enriched += 1
+                        if args.verbose:
+                            print(f"  ✅ H2H cached: {home} vs {away}")
+
+    print(f"[enrich-tennis] H2H pairs enriched: {h2h_enriched}")
+
+    # STEP 4: Summary stats
     good_coverage = sum(
         1 for p in target_players
         if len(player_index.get(p.lower().strip(), [])) >= MIN_MATCHES_TARGET
     )
     print(f"[enrich-tennis] Coverage: {good_coverage}/{len(target_players)} players have ≥{MIN_MATCHES_TARGET} matches")
+
+    # AGENT_SUMMARY (R19)
+    summary = {
+        "verdict": "OK" if updated > 0 else "PARTIAL" if insufficient < len(target_players) else "FAILED",
+        "players_updated": updated,
+        "insufficient_data": insufficient,
+        "h2h_enriched": h2h_enriched,
+        "player_index_size": len(player_index),
+        "coverage": f"{good_coverage}/{len(target_players)}",
+    }
+    print(f"AGENT_SUMMARY:{json.dumps(summary)}")
 
 
 if __name__ == "__main__":

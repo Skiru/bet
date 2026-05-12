@@ -229,7 +229,49 @@ def _parse_detail_page(html: str, url: str) -> List[Dict]:
     # --- Extract trends / betting tips ---
     result["trends"] = _extract_trends(lines, home, away)
 
+    # --- Extract volleyball stats ---
+    if sport == "volleyball":
+        result["volleyball"] = _extract_volleyball_stats(lines)
+
     return [result]
+
+def _extract_volleyball_stats(lines: List[str]) -> Dict:
+    """Extract volleyball-specific stats from Scores24 detail page.
+    
+    Looks for stat rows with patterns like:
+    "Aces" "5" "3" or "Total Points" "87" "92"
+    """
+    stats = {}
+    stat_keywords = {
+        "aces": "aces",
+        "blocks": "blocks",
+        "kills": "kills",
+        "digs": "digs",
+        "assists": "assists",
+        "errors": "errors",
+        "attack": "attack_pct",
+        "hitting": "hitting_pct",
+        "service errors": "service_errors",
+        "total points": "total_points",
+        "points": "total_points",
+    }
+    
+    for i, line in enumerate(lines):
+        line_lower = line.lower().strip()
+        for keyword, stat_key in stat_keywords.items():
+            if line_lower == keyword or line_lower.startswith(keyword):
+                # Look for numeric values in next 1-3 lines
+                for j in range(i + 1, min(i + 4, len(lines))):
+                    try:
+                        val = float(lines[j].strip().replace("%", ""))
+                        if stat_key not in stats:
+                            stats[stat_key] = val
+                        break
+                    except (ValueError, IndexError):
+                        continue
+                break
+    
+    return stats
 
 
 def _extract_match_info(lines: List[str], url: str) -> Dict:

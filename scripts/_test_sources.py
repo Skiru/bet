@@ -104,8 +104,7 @@ TEST_URLS = {
     "TransferMarkt": "https://www.transfermarkt.com/",
     # TheSportsDB API
     "TheSportsDB API": "https://www.thesportsdb.com/api/v1/json/3/eventsday.php?d=2026-05-12",
-    # BallDontLie API
-    "BallDontLie API": "https://api.balldontlie.io/v1/games?dates[]=2026-05-12",
+    # BallDontLie API — v1 deprecated, removed from pipeline
     # API-Tennis DNS
     "API-Tennis DNS": "https://v1.tennis.api-sports.io/",
 }

@@ -33,12 +33,25 @@ TEST_URLS = {
     "soccerway.com": "https://int.soccerway.com/matches/2026/05/12/",
     "whoscored.com": "https://www.whoscored.com/LiveScores",
     "oddsportal.com": "https://www.oddsportal.com/football/",
+    "naturalstattrick.com": "https://www.naturalstattrick.com/teamtable.php?fromseason=20252026&thession=20252026&stype=2&sit=5v5&score=all&rate=n&team=all&loc=B&gpf=410&fd=&td=",
+    "dailyfaceoff.com": "https://www.dailyfaceoff.com/starting-goalies/",
+}
+
+# Volleyball-specific test URLs (used with --sport volleyball)
+VOLLEYBALL_TEST_URLS = {
+    "flashscore.com": "https://www.flashscore.com/volleyball/",
+    "sofascore.com": "https://api.sofascore.com/api/v1/sport/volleyball/scheduled-events/{today}",
+    "oddsportal.com": "https://www.oddsportal.com/volleyball/",
+    "betexplorer.com": "https://www.betexplorer.com/volleyball/",
+    "forebet.com": "https://www.forebet.com/en/volleyball/predictions-today",
+    "scores24.live": "https://scores24.live/en/volleyball",
 }
 
 # Adapters that need Playwright (full browser rendering)
 PLAYWRIGHT_ADAPTERS = {
     "flashscore.com", "totalcorner.com", "forebet.com", "soccerstats.com", "covers.com",
-    "soccerway.com", "whoscored.com", "oddsportal.com",
+    "soccerway.com", "whoscored.com", "oddsportal.com", "naturalstattrick.com", "dailyfaceoff.com",
+    "scores24.live",
 }
 
 # Adapters that can use simple HTTP requests
@@ -54,10 +67,21 @@ EXPECTED_FIELDS = {
     "sofascore.com": ["sport", "source_type"],
     "covers.com": ["source_type", "source_url"],
     "basketball-reference.com": ["source_type"],
-    "hockey-reference.com": ["source_type"],
+    "hockey-reference.com": ["source_type", "sport", "league"],
+    "naturalstattrick.com": ["source_type", "sport", "stats"],
+    "dailyfaceoff.com": ["source_type", "sport"],
     "soccerway.com": ["source_type"],
     "whoscored.com": ["source_type"],
     "oddsportal.com": ["sport", "source_type"],
+}
+
+VOLLEYBALL_EXPECTED_FIELDS = {
+    "flashscore.com": ["sport", "source_type", "match_id"],
+    "sofascore.com": ["sport", "source_type"],
+    "oddsportal.com": ["sport", "source_type"],
+    "betexplorer.com": ["source_type"],
+    "forebet.com": ["sport", "source_type"],
+    "scores24.live": ["sport", "source_type"],
 }
 
 
@@ -97,7 +121,7 @@ def fetch_with_playwright(url: str, timeout: int = 20000) -> str | None:
         return None
 
 
-def test_adapter(name: str, verbose: bool = False) -> dict:
+def test_adapter(name: str, verbose: bool = False, url_override: str | None = None, expected_override: list | None = None) -> dict:
     """Test a single adapter against its test URL."""
     result = {
         "adapter": name,
@@ -113,7 +137,7 @@ def test_adapter(name: str, verbose: bool = False) -> dict:
         result["error"] = f"Adapter '{name}' not in ADAPTERS registry"
         return result
 
-    url = TEST_URLS.get(name)
+    url = url_override or TEST_URLS.get(name)
     if not url:
         result["status"] = "NO_URL"
         result["error"] = f"No test URL configured for '{name}'"
@@ -183,7 +207,7 @@ def test_adapter(name: str, verbose: bool = False) -> dict:
     result["status"] = "OK" if len(enriched) >= 3 else "SPARSE"
 
     # Check expected fields
-    expected = EXPECTED_FIELDS.get(name, [])
+    expected = expected_override or EXPECTED_FIELDS.get(name, [])
     missing = [f for f in expected if f not in enriched]
     if missing:
         result["status"] = "MISSING_EXPECTED"
@@ -255,6 +279,7 @@ def test_api_clients(verbose: bool = False) -> list[dict]:
 def main():
     parser = argparse.ArgumentParser(description="Live test adapters and API clients")
     parser.add_argument("--adapter", help="Test specific adapter only")
+    parser.add_argument("--sport", help="Use sport-specific test URLs (e.g. volleyball)")
     parser.add_argument("--api-only", action="store_true", help="Test only API clients")
     parser.add_argument("--adapters-only", action="store_true", help="Test only adapters")
     parser.add_argument("--verbose", "-v", action="store_true", help="Show detailed output")
@@ -279,10 +304,25 @@ def main():
         print("\n--- SCAN ADAPTERS ---")
         adapter_names = [args.adapter] if args.adapter else sorted(ADAPTERS.keys())
 
+        # Override with sport-specific URLs if requested
+        active_urls = dict(TEST_URLS)
+        active_expected = dict(EXPECTED_FIELDS)
+        if args.sport == "volleyball":
+            active_urls.update(VOLLEYBALL_TEST_URLS)
+            active_expected.update(VOLLEYBALL_EXPECTED_FIELDS)
+            # Replace {today} placeholder in sofascore URL
+            from datetime import date
+            today_str = date.today().isoformat()
+            for domain in active_urls:
+                if type(active_urls[domain]) is str:
+                    active_urls[domain] = active_urls[domain].replace("{today}", today_str)
+
         for name in adapter_names:
             print(f"\n  Testing: {name}...")
             start = time.time()
-            result = test_adapter(name, verbose=args.verbose)
+            result = test_adapter(name, verbose=args.verbose, 
+                                  url_override=active_urls.get(name),
+                                  expected_override=active_expected.get(name))
             elapsed = time.time() - start
 
             status_icon = "✅" if result["status"] == "OK" else "⚠️" if result["status"] in ("SPARSE", "EMPTY") else "❌"

@@ -18,11 +18,14 @@ from .soccerstats_adapter import parse as soccerstats_parse
 from .forebet_adapter import parse as forebet_parse
 from .totalcorner_adapter import parse as totalcorner_parse
 from .tennisabstract_adapter import parse as tennisabstract_parse
+from .atptour_adapter import parse as atptour_parse
 from .scores24_adapter import parse as scores24_parse
 from .whoscored_adapter import parse as whoscored_parse
 from .basketball_reference_adapter import parse as basketball_reference_parse
 from .hockey_reference_adapter import parse as hockey_reference_parse
+from .naturalstattrick_adapter import parse as naturalstattrick_parse
 from .covers_adapter import parse as covers_parse
+from .dailyfaceoff_adapter import parse as dailyfaceoff_parse
 
 
 def dedup_results(results, key_fn=None):
@@ -47,6 +50,7 @@ def dedup_results(results, key_fn=None):
 ADAPTERS = {
     "forebet.com": forebet_parse,
     "protipster.com": raw_parse,
+    "naturalstattrick.com": naturalstattrick_parse,
     "predictz.com": raw_parse,
     "bettingexpert.com": raw_parse,
     "zawodtyper.pl": raw_parse,
@@ -67,10 +71,11 @@ ADAPTERS = {
     "soccerstats.com": soccerstats_parse,
     "totalcorner.com": totalcorner_parse,
     "scores24.live": scores24_parse,
-    "atptour.com": raw_parse,
+    "atptour.com": atptour_parse,
     "betaminic.com": raw_parse,
     "whoscored.com": whoscored_parse,
     "basketball-reference.com": basketball_reference_parse,
+    "dailyfaceoff.com": dailyfaceoff_parse,
     "hockey-reference.com": hockey_reference_parse,
 }
 
@@ -94,6 +99,7 @@ ENRICHED_EVENT_DEFAULTS = {
     "status": None,
     "is_live": False,
     "country": None,
+    "surface": None,
     "predictions": {
         "prob_home": None,
         "prob_draw": None,
@@ -119,6 +125,20 @@ ENRICHED_EVENT_DEFAULTS = {
     "cards": {},
     "fouls": {},
     "shots": {},
+    "volleyball": {
+        "sets_won_home": None,
+        "sets_won_away": None,
+        "total_points": None,
+        "kills": None,
+        "aces": None,
+        "blocks": None,
+        "digs": None,
+        "assists": None,
+        "errors": None,
+        "hitting_pct": None,
+        "attack_pct": None,
+        "service_errors": None,
+    },
     "raw": {}
 }
 
@@ -198,7 +218,7 @@ def normalize_adapter_output(event: dict, source_type: str) -> dict:
         # Copy direct standard fields (only if present and non-None — don't overwrite with empty)
         for field in ["home", "away", "time", "sport", "league", "source_url", "match_id", "match_url", 
                       "form_home", "form_away", "h2h", "cards", "fouls", "shots",
-                      "score_home", "score_away", "period_scores", "status", "is_live", "country"]:
+                      "score_home", "score_away", "period_scores", "status", "is_live", "country", "surface"]:
             if field in event and event[field] is not None:
                 normalized[field] = event[field]
         # Merge predictions dict if adapter provides it
@@ -208,6 +228,12 @@ def normalize_adapter_output(event: dict, source_type: str) -> dict:
                     normalized["predictions"][k] = v
         if "corners" in event and isinstance(event["corners"], dict):
             normalized["corners"].update(event["corners"])
+            
+        # Merge volleyball stats
+        if "volleyball" in event and isinstance(event["volleyball"], dict):
+            for k, v in event["volleyball"].items():
+                if v is not None and k in normalized["volleyball"]:
+                    normalized["volleyball"][k] = v
             
         # Store unmapped fields in raw
         normalized["raw"] = event

@@ -7,9 +7,12 @@ Table structure (table index 5 for ATP, 6 for WTA):
   Columns: Elo Rank, Player, Age, Elo, hElo Rank, hElo, cElo Rank, cElo,
            gElo Rank, gElo, Peak Elo, Peak Month, ATP Rank, Log diff
 """
+import logging
 from typing import List, Dict
 from bs4 import BeautifulSoup
 import re
+
+logger = logging.getLogger(__name__)
 
 
 def parse(html: str, url: str) -> List[Dict]:
@@ -34,6 +37,7 @@ def parse(html: str, url: str) -> List[Dict]:
             break
 
     if not elo_table:
+        logger.warning("[tennisabstract] No Elo table found in %s", url)
         return results
 
     trs = elo_table.find_all("tr")
@@ -116,7 +120,10 @@ def parse(html: str, url: str) -> List[Dict]:
         if atp_rank:
             result["official_rank"] = atp_rank
         result["tour"] = tour
+        result["source"] = "tennisabstract.com"
+        result["_elo_only"] = True
 
         results.append(result)
 
+    logger.info("[tennisabstract] Parsed %d %s Elo ratings from %s", len(results), tour.upper(), url)
     return results

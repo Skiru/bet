@@ -411,12 +411,19 @@
         "https://www.flashscore.com/hockey/latvia/optibet-hokeja-liga/",
         "https://www.flashscore.com/hockey/belarus/extraliga/",
         "https://www.flashscore.com/hockey/kazakhstan/championship/",
-        "https://www.flashscore.com/hockey/world/world-championship-u20/"
+        "https://www.flashscore.com/hockey/world/world-championship-u20/",
+        "https://www.betexplorer.com/hockey/",
+        "https://www.covers.com/nhl/matchups",
+        "https://www.naturalstattrick.com/teamtable.php?fromseason=20252026&thession=20252026&stype=2&sit=5v5&score=all&rate=n&team=all&loc=B&gpf=410&fd=&td=",
+        "https://www.naturalstattrick.com/games.php?fromseason=20252026&thession=20252026&stype=2&sit=5v5&loc=B&team=all&rate=n",
+        "https://www.dailyfaceoff.com/starting-goalies/"
       ],
       "timeout_minutes": 3,
       "max_deep_links": 15,
       "dedicated_sources": [
-        "hockey-reference.com"
+        "hockey-reference.com",
+        "naturalstattrick.com",
+        "dailyfaceoff.com"
       ]
     },
     "tipsters": {

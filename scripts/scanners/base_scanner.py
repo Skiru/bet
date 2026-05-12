@@ -193,7 +193,8 @@ class BaseSportScanner(ABC):
         events_count = self._write_results(betting_date, all_results)
 
         # Validate
-        valid, gaps = self.validate(events_count)
+        flat_results = [event for events in all_results.values() for event in events]
+        valid, gaps = self.validate(events_count, flat_results)
 
         # If validation failed and we have fallbacks, try them
         if not valid:
@@ -216,7 +217,8 @@ class BaseSportScanner(ABC):
             # Re-write and re-validate with fallback data
             if fallback_urls:
                 events_count = self._write_results(betting_date, all_results)
-                valid, gaps = self.validate(events_count)
+                flat_results = [event for events in all_results.values() for event in events]
+                valid, gaps = self.validate(events_count, flat_results)
 
         duration = time.time() - start_time
 
@@ -351,15 +353,33 @@ class BaseSportScanner(ABC):
         except Exception:
             pass  # Health recording is best-effort
 
-    def validate(self, events_found: int) -> tuple[bool, list[str]]:
+    def validate(self, events_found: int, scan_results: list | None = None) -> tuple[bool, list[str]]:
         """Validate scan completeness. Returns (passed, list_of_gap_descriptions)."""
         gaps = []
+        passed = True
         if events_found < self.min_expected_events:
             gaps.append(
                 f"{self.scanner_group}: found {events_found} events, "
                 f"expected >= {self.min_expected_events}"
             )
-        return (len(gaps) == 0, gaps)
+            passed = False
+
+        # Stat coverage check (warning-level, does not affect pass/fail)
+        if scan_results and self.required_stat_keys:
+            stat_count = 0
+            for sr in scan_results:
+                raw = sr.raw_data if hasattr(sr, 'raw_data') else (sr if isinstance(sr, dict) else {})
+                if isinstance(raw, dict):
+                    raw_str = str(raw).lower()
+                    if any(key in raw_str for key in self.required_stat_keys):
+                        stat_count += 1
+            if stat_count == 0 and events_found > 0:
+                gaps.append(
+                    f"{self.scanner_group}: WARNING — 0/{events_found} events have required stats "
+                    f"({', '.join(self.required_stat_keys)})"
+                )
+
+        return (passed, gaps)
 
     def get_fallback_urls(self) -> list[str]:
         """Return fallback URLs when primary sources fail. Override in subclasses."""

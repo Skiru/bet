@@ -56,7 +56,7 @@ except ImportError:
 # Disabled sources (2026-05-11): thesportsdb (97.8% fail), balldontlie (100% fail), api-tennis (100% fail)
 FALLBACK_CHAINS = {
     "football": ["espn-football", "api-football", "football-data-org", "understat", "serpapi"],
-    "basketball": ["espn-basketball", "api-basketball", "serpapi"],
+    "basketball": ["espn-basketball", "nba-api", "api-basketball", "serpapi"],
     "hockey": ["espn-hockey", "api-hockey", "serpapi"],
     "tennis": ["espn-tennis", "serpapi"],
     "volleyball": ["espn-volleyball", "api-volleyball", "serpapi"],

@@ -186,6 +186,24 @@ These API sources provide structured statistical data via REST APIs. They are th
   Coverage: EPL, La Liga, Bundesliga, Serie A, Ligue 1, RFPL.
   Added: 2026-04-28.
 
+- NaturalStatTrick
+  Role: advanced NHL statistics (Corsi, Fenwick, expected goals, high danger chances).
+  URL: naturalstattrick.com
+  Use for: NHL team possession metrics and game flow data.
+  Access: OK (Playwright).
+  Coverage: NHL.
+  Adapter: `scripts/adapters/naturalstattrick_adapter.py`
+  Added: 2026-05-12.
+
+- DailyFaceoff
+  Role: starting NHL goalie confirmations and line combos.
+  URL: dailyfaceoff.com
+  Use for: confirming starting goalies for NHL matches (critical for betting). status: confirmed/expected/unconfirmed.
+  Access: OK (Playwright).
+  Coverage: NHL.
+  Adapter: `scripts/adapters/dailyfaceoff_adapter.py`
+  Added: 2026-05-12.
+
 - API-Tennis (custom client)
   Role: tennis statistics API client — player rankings, match results, H2H, surface-specific form.
   Use for: L10/L5/H2H statistical data for tennis game totals, set totals, and serve/return markets.

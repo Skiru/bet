@@ -16,6 +16,10 @@ user-invokable: false
 | https://www.flashscore.com/hockey/finland/liiga/ | flashscore.com | Fixtures | Finnish Liiga |
 | https://www.flashscore.com/hockey/czech-republic/extraliga/ | flashscore.com | Fixtures | Czech Extraliga |
 | https://www.hockey-reference.com/ | hockey-reference.com | Stats | NHL schedule/stats |
+| https://www.naturalstattrick.com/teamtable.php | naturalstattrick.com | Advanced Stats | Corsi, Fenwick, xG, HDCF (NHL) |
+| https://www.dailyfaceoff.com/starting-goalies/ | dailyfaceoff.com | Goalie Confirmations | Starting goalie status (NHL) |
+| https://www.betexplorer.com/hockey/ | betexplorer.com | Odds + Standings | Hockey odds, standings |
+| https://www.covers.com/nhl/matchups | covers.com | Matchup Data | NHL matchup previews + consensus |
 | https://www.betclic.pl/hokej-na-lodzie-s13 | betclic.pl | Execution | ⚠ Always 403 |
 | https://www.oddsportal.com/hockey/ | oddsportal.com | Odds | Hockey odds |
 | https://www.forebet.com/en/hockey/predictions-today | forebet.com | Predictions | Probabilities |
@@ -26,7 +30,9 @@ user-invokable: false
 | Domain | Adapter | Expected Output Fields |
 |--------|---------|----------------------|
 | flashscore.com | `flashscore_adapter` | home, away, time, league |
-| hockey-reference.com | `hockey_reference_adapter` | NHL schedule listing (shallow) |
+| hockey-reference.com | `hockey_reference_adapter` | schedule + box scores (shots, PIM, PP, hits, blocks, faceoffs, period scores) |
+| naturalstattrick.com | `naturalstattrick_adapter` | stats (corsi_pct, fenwick_pct, xgf, xga, hdcf, hdca) |
+| dailyfaceoff.com | `dailyfaceoff_adapter` | goalie_home, goalie_away (name + status) |
 | betexplorer.com | `betexplorer_adapter` | odds[] |
 | oddsportal.com | `oddsportal_adapter` | odds_structured |
 | scores24.live | `scores24_adapter` | H2H, form, trends |
@@ -45,6 +51,8 @@ user-invokable: false
 
 | Domain | Per-page Timeout | Delay Between Pages | Max Concurrent |
 |--------|-----------------|--------------------:|---------------:|
+| naturalstattrick.com | 30s | 2s | 1 |
+| dailyfaceoff.com | 20s | 1s | 1 |
 | flashscore.com | 30s | 1s | 3 |
 | hockey-reference.com | 20s | 2s | 1 |
 | oddsportal.com | 20s | 1s | 2 |
@@ -74,7 +82,7 @@ user-invokable: false
 
 ## Known Issues
 
-- **Hockey-Reference:** Shallow adapter — schedule listing only.
+- **Hockey-Reference:** Full box score support — schedule, per-period scores, shots, PIM, PP, hits, blocks, faceoffs.
 - **NaturalStatTrick:** Advanced analytics (Corsi, Fenwick, xG) but no dedicated adapter.
 - **MoneyPuck:** Similar to NaturalStatTrick, no adapter.
 - **DailyFaceoff:** Goalie confirmations (critical for hockey betting). Manual check.

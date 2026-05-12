@@ -116,6 +116,11 @@ class APIBasketballClient(APISportsClient):
                 "fg_pct": ["fieldGoalsPercentage", "fgPct"],
                 "three_pct": ["threePointsPercentage", "threePct"],
                 "ft_pct": ["freeThrowsPercentage", "ftPct"],
+                "offensive_rebounds": ["offRebounds", "offensiveRebounds"],
+                "defensive_rebounds": ["defRebounds", "defensiveRebounds"],
+                "fast_break_points": ["fastBreakPoints"],
+                "points_in_paint": ["pointsInPaint"],
+                "fouls": ["personalFouls", "fouls"],
             }
 
             for norm_key, api_keys in stat_mapping.items():
@@ -168,7 +173,9 @@ class APIBasketballClient(APISportsClient):
         """Search for a team by name → return API team ID."""
         if not self._check_api_key():
             return None
-        cache_key = f"basketball/team_search/{team_name.lower().replace(' ', '_')}"
+        import re
+        safe_name = re.sub(r"[^a-z0-9_]", "_", team_name.lower())
+        cache_key = f"basketball/team_search/{safe_name}"
         cached = self._check_cache(cache_key, ttl_hours=168)
         if cached:
             return cached.get("team_id")
@@ -192,9 +199,14 @@ class APIBasketballClient(APISportsClient):
         if cached:
             return cached.get("fixtures", [])
         try:
+            from datetime import datetime
+            now = datetime.now()
+            season_start = now.year if now.month >= 10 else now.year - 1
+            season_str = f"{season_start}-{season_start + 1}"
+
             data = self._request(
                 "/games",
-                params={"team": team_id, "season": "2024-2025"},
+                params={"team": team_id, "season": season_str},
             )
             games = data.get("response", [])
             # Filter to finished games only

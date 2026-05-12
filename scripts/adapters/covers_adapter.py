@@ -2,6 +2,11 @@
 
 Extracts: match lines (home/away/time/competition/sport), odds consensus.
 Covers.com covers NFL, NBA, MLB, NHL, NCAA, and more.
+
+NHL-specific URL patterns:
+- /nhl/matchups — matchup page with game previews
+- /nhl/odds — odds comparison page
+- /nhl/standings — standings context
 """
 from typing import List, Dict
 from bs4 import BeautifulSoup
@@ -96,6 +101,10 @@ def _parse_matchup_cards(soup: BeautifulSoup, url: str, sport: str) -> List[Dict
             if odds:
                 entry["odds"] = odds
 
+        if sport == "hockey":
+            hockey_extras = _extract_hockey_extras(card)
+            entry.update(hockey_extras)
+
         results.append(entry)
 
     return results
@@ -148,5 +157,35 @@ def _extract_consensus(el) -> dict:
     ml_m = re.search(r"(?:moneyline|ml).*?([+-]\d+)", text, re.I)
     if ml_m:
         consensus["moneyline"] = int(ml_m.group(1))
-
+    
     return consensus
+
+
+def _extract_hockey_extras(card) -> dict:
+    """Extract NHL-specific data from a Covers matchup card."""
+    extras = {}
+    text = card.get_text(separator=" ", strip=True).lower()
+    
+    # Goalie names — look for "goalie" label near player names
+    goalie_els = card.find_all(True, class_=re.compile(r"goalie|starter|netminder", re.I))
+    if len(goalie_els) >= 2:
+        extras["goalie_away"] = goalie_els[0].get_text(strip=True)
+        extras["goalie_home"] = goalie_els[1].get_text(strip=True)
+    
+    # PP/PK percentages — look for "PP" and "PK" labels
+    pp_matches = re.findall(r"pp[:\s]*(\d+\.?\d*)%", text)
+    pk_matches = re.findall(r"pk[:\s]*(\d+\.?\d*)%", text)
+    if len(pp_matches) >= 2:
+        extras["pp_pct_away"] = float(pp_matches[0])
+        extras["pp_pct_home"] = float(pp_matches[1])
+    if len(pk_matches) >= 2:
+        extras["pk_pct_away"] = float(pk_matches[0])
+        extras["pk_pct_home"] = float(pk_matches[1])
+    
+    # Record — look for W-L-OTL pattern
+    record_matches = re.findall(r"(\d{1,2}-\d{1,2}-\d{1,2})", text)
+    if len(record_matches) >= 2:
+        extras["record_away"] = record_matches[0]
+        extras["record_home"] = record_matches[1]
+    
+    return extras
