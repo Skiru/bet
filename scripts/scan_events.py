@@ -74,16 +74,14 @@ def fetch_events_for_sport(sport_key: str, date_str: str) -> list:
         
         normalized = []
         for ev in events:
-            dt_val = ev.get("startTimestamp", 0)
-            dt = datetime.fromtimestamp(dt_val, tz=timezone.utc).isoformat() if dt_val else ""
             normalized.append({
-                "id": ev.get("id"),
-                "sport": sport_key,
-                "tournament": ev.get("tournament", {}).get("name", "Unknown"),
-                "country": ev.get("tournament", {}).get("category", {}).get("name", "Unknown"), # Approximation for country
-                "home_team": ev.get("homeTeam", {}).get("name", "Unknown"),
-                "away_team": ev.get("awayTeam", {}).get("name", "Unknown"),
-                "start_time": dt
+                "id": ev.external_id,
+                "sport": ev.sport,
+                "tournament": ev.competition_name,
+                "country": "Unknown", # Fallback for now if APIFixture doesn't guarantee country
+                "home_team": ev.home_team_name,
+                "away_team": ev.away_team_name,
+                "start_time": ev.kickoff
             })
         return normalized
     except Exception as e:
@@ -165,31 +163,38 @@ def _compute_enrichment_priority(ev: dict) -> int:
     return score
 
 
-def fetch_deep_data(event_id: int, session: requests.Session) -> tuple:
-    """Fetch form, H2H, odds, and statistics for an event."""
+def fetch_deep_data(event_id: str) -> tuple:
+    """Fetch form, H2H, odds, and statistics for an event using UnifiedAPIClient."""
+    from bet.api_clients.unified import UnifiedAPIClient
+    client = UnifiedAPIClient()
+    
     form_data, h2h_data, odds_data, stats_data = {}, {}, [], {}
+    
+    # Try fetching with unified client. Usually stats contains all of it or we could directly use
+    # sofascore fallback
+    try:
+        raw_stats = client.sofascore.get_fixture_stats(event_id)
+        if raw_stats:
+            stats_data = raw_stats.get('stats', {})
+    except Exception as e:
+        logger.warning(f"Error fetching stats for {event_id}: {e}")
 
-    base = f"https://api.sofascore.com/api/v1/event/{event_id}"
-
-    # Form
-    r = _rate_limited_get(session, f"{base}/pregame-form")
-    if r and r.status_code == 200:
-        form_data = r.json()
-
-    # H2H
-    r = _rate_limited_get(session, f"{base}/h2h")
-    if r and r.status_code == 200:
-        h2h_data = r.json()
-
-    # Odds — all markets
-    r = _rate_limited_get(session, f"{base}/odds/1/all")
-    if r and r.status_code == 200:
-        odds_data = r.json().get("markets", [])
-
-    # Statistics (pre-match expected stats — corners, shots, etc.)
-    r = _rate_limited_get(session, f"{base}/expected")
-    if r and r.status_code == 200:
-        stats_data = r.json()
+    try:
+        form_data = client.sofascore.client.get(f"/api/v1/event/{event_id}/pregame-form") or {}
+    except:
+        pass
+        
+    try:
+        h2h_data = client.sofascore.client.get(f"/api/v1/event/{event_id}/h2h") or {}
+    except:
+        pass
+        
+    try:
+        odds_json = client.sofascore.client.get(f"/api/v1/event/{event_id}/odds/1/all")
+        if odds_json:
+            odds_data = odds_json.get("markets", [])
+    except:
+        pass
 
     return form_data, h2h_data, odds_data, stats_data
 
@@ -199,9 +204,8 @@ def _enrich_single_event(ev: dict, session: requests.Session, verbose: bool = Fa
         return ev
     if verbose:
         print(json.dumps({"event": "enriching", "id": ev["id"], "match": f"{ev['home_team']} vs {ev['away_team']}"}))
-    # Use per-thread session for thread safety
-    thread_session = _get_thread_session()
-    form, h2h, odds, stats = fetch_deep_data(ev["id"], thread_session)
+        
+    form, h2h, odds, stats = fetch_deep_data(str(ev["id"]))
     ev["form"] = form
     ev["h2h"] = h2h
     ev["odds"] = odds
