@@ -63,18 +63,27 @@ def _parse_match_rows(soup: BeautifulSoup, url: str) -> List[Dict]:
                 continue
 
             entry = {
-                "home_team": home,
-                "away_team": away,
-                "kickoff": kickoff,
-                "competition": current_comp,
+                "home": home,
+                "away": away,
+                "time": kickoff,
+                "league": current_comp,
                 "sport": "football",
-                "source": "whoscored.com",
+                "source_url": url,
+                "source_type": "whoscored",
+                "raw": f"{home} vs {away}"
             }
 
             # Extract visible stats if available
             stats = _extract_stats(el)
             if stats:
-                entry["stats"] = stats
+                if "corners" in stats:
+                    entry.setdefault("corners", {})["home"] = stats["corners"]
+                if "shots" in stats or "shots_on_target" in stats:
+                    entry.setdefault("shots", {})
+                    if "shots" in stats:
+                        entry["shots"]["home"] = stats["shots"]
+                    if "shots_on_target" in stats:
+                        entry["shots"]["on_target_home"] = stats["shots_on_target"]
 
             results.append(entry)
 
@@ -104,12 +113,14 @@ def _parse_table_rows(soup: BeautifulSoup, url: str) -> List[Dict]:
             teams = [t for t in texts if 3 < len(t) < 60 and not _TIME_RE.match(t) and not _SCORE_RE.match(t)]
             if len(teams) >= 2:
                 results.append({
-                    "home_team": teams[0],
-                    "away_team": teams[1],
-                    "kickoff": time_match or "",
-                    "competition": "",
+                    "home": teams[0],
+                    "away": teams[1],
+                    "time": time_match or "",
+                    "league": "",
                     "sport": "football",
-                    "source": "whoscored.com",
+                    "source_url": url,
+                    "source_type": "whoscored",
+                    "raw": f"{teams[0]} vs {teams[1]}"
                 })
 
     return results

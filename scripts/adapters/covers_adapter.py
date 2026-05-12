@@ -69,17 +69,32 @@ def _parse_matchup_cards(soup: BeautifulSoup, url: str, sport: str) -> List[Dict
 
         # Extract odds/spread if visible
         entry = {
-            "home_team": home,
-            "away_team": away,
-            "kickoff": kickoff,
-            "competition": "",
+            "home": home,
+            "away": away,
+            "time": kickoff,
+            "league": "",
             "sport": sport,
-            "source": "covers.com",
+            "source_url": url,
+            "source_type": "covers",
+            "raw": f"{home} vs {away}"
         }
 
         consensus = _extract_consensus(card)
         if consensus:
             entry["consensus"] = consensus
+            odds = {}
+            if "moneyline" in consensus:
+                ml = consensus["moneyline"]
+                if ml > 0:
+                    odds["ml"] = round(1 + ml/100, 3)
+                elif ml < 0:
+                    odds["ml"] = round(1 + 100/abs(ml), 3)
+            if "total" in consensus:
+                odds["total_lines"] = consensus["total"]
+            if "spread" in consensus:
+                odds["handicap_lines"] = consensus["spread"]
+            if odds:
+                entry["odds"] = odds
 
         results.append(entry)
 
@@ -101,13 +116,17 @@ def _parse_odds_table(soup: BeautifulSoup, url: str, sport: str) -> List[Dict]:
             # Look for team names (non-numeric, reasonable length)
             teams = [t for t in texts if 3 < len(t) < 60 and not re.match(r"^[\d.+\-]+$", t)]
             if len(teams) >= 2:
+                home = teams[1] if len(teams) > 1 else teams[0]
+                away = teams[0]
                 results.append({
-                    "home_team": teams[1] if len(teams) > 1 else teams[0],
-                    "away_team": teams[0],
-                    "kickoff": "",
-                    "competition": "",
+                    "home": home,
+                    "away": away,
+                    "time": "",
+                    "league": "",
                     "sport": sport,
-                    "source": "covers.com",
+                    "source_url": url,
+                    "source_type": "covers",
+                    "raw": f"{home} vs {away}"
                 })
 
     return results

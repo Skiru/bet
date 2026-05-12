@@ -65,12 +65,14 @@ def _parse_schedule_table(soup: BeautifulSoup, url: str) -> List[Dict]:
 
         if home and away:
             results.append({
-                "home_team": home,
-                "away_team": away,
-                "kickoff": kickoff or date_text,
-                "competition": "NBA",
+                "home": home,
+                "away": away,
+                "time": kickoff or date_text,
+                "league": "NBA",
                 "sport": "basketball",
-                "source": "basketball-reference.com",
+                "source_url": url,
+                "source_type": "basketball_reference",
+                "raw": f"{home} vs {away}"
             })
 
     return results
@@ -88,12 +90,14 @@ def _parse_game_rows(soup: BeautifulSoup, url: str) -> List[Dict]:
             home = teams[1].get_text(strip=True)
             if home and away and len(home) < 60 and len(away) < 60:
                 results.append({
-                    "home_team": home,
-                    "away_team": away,
-                    "kickoff": "",
-                    "competition": "NBA",
+                    "home": home,
+                    "away": away,
+                    "time": "",
+                    "league": "NBA",
                     "sport": "basketball",
-                    "source": "basketball-reference.com",
+                    "source_url": url,
+                    "source_type": "basketball_reference",
+                    "raw": f"{home} vs {away}"
                 })
 
     return results

@@ -299,6 +299,25 @@ def ingest_event(
     
     h2h_raw = event.get("h2h", {})
 
+    # Enriched adapter fields
+    corners = event.get("corners") or {}
+    cards = event.get("cards") or {}
+    fouls = event.get("fouls") or {}
+    shots = event.get("shots") or {}
+    standings = event.get("standings") or {}
+    predictions = event.get("predictions") or {}
+    dangerous_attacks = event.get("dangerous_attacks") or {}
+
+    enriched = {
+        "corners": corners,
+        "cards": cards,
+        "fouls": fouls,
+        "shots": shots,
+        "standings": standings,
+        "predictions": predictions,
+        "dangerous_attacks": dangerous_attacks,
+    }
+
     # --- Process HOME team ---
     wrote_any |= _ingest_team_side(
         sport=sport,
@@ -310,6 +329,7 @@ def ingest_event(
         source_tag=source_tag,
         is_home=True,
         deep_parse=dp,
+        enriched=enriched,
         dry_run=dry_run,
         summary=summary,
     )
@@ -326,6 +346,7 @@ def ingest_event(
             source_tag=source_tag,
             is_home=False,
             deep_parse=dp,
+            enriched=enriched,
             dry_run=dry_run,
             summary=summary,
         )
@@ -343,6 +364,7 @@ def _ingest_team_side(
     source_tag: str,
     is_home: bool,
     deep_parse: dict | None,
+    enriched: dict | None,
     dry_run: bool,
     summary: dict | None,
 ) -> bool:
@@ -436,6 +458,67 @@ def _ingest_team_side(
             if deep_parse.get(key) is not None:
                 scan_stats[key] = deep_parse[key]
 
+    # --- Stats from enriched adapter output ---
+    if enriched:
+        corners = enriched.get("corners") or {}
+        cards = enriched.get("cards") or {}
+        fouls = enriched.get("fouls") or {}
+        shots = enriched.get("shots") or {}
+        standings = enriched.get("standings") or {}
+        predictions = enriched.get("predictions") or {}
+        dangerous_attacks = enriched.get("dangerous_attacks") or {}
+
+        if is_home:
+            if corners.get("home") is not None:
+                scan_stats["corners_per_game"] = corners["home"]
+            if cards.get("yellow_home") is not None:
+                scan_stats["yellow_cards_per_game"] = cards["yellow_home"]
+            elif cards.get("home") is not None:
+                scan_stats["yellow_cards_per_game"] = cards["home"]
+            if cards.get("red_home") is not None:
+                scan_stats["red_cards_per_game"] = cards["red_home"]
+            if fouls.get("home") is not None:
+                scan_stats["fouls_per_game"] = fouls["home"]
+            if shots.get("home") is not None:
+                scan_stats["shots_per_game"] = shots["home"]
+            if shots.get("on_target_home") is not None:
+                scan_stats["shots_on_target_per_game"] = shots["on_target_home"]
+            if standings.get("home_pos") is not None:
+                scan_stats["league_position"] = standings["home_pos"]
+            if dangerous_attacks.get("home") is not None:
+                scan_stats["dangerous_attacks"] = dangerous_attacks["home"]
+        else:
+            if corners.get("away") is not None:
+                scan_stats["corners_per_game"] = corners["away"]
+            if cards.get("yellow_away") is not None:
+                scan_stats["yellow_cards_per_game"] = cards["yellow_away"]
+            elif cards.get("away") is not None:
+                scan_stats["yellow_cards_per_game"] = cards["away"]
+            if cards.get("red_away") is not None:
+                scan_stats["red_cards_per_game"] = cards["red_away"]
+            if fouls.get("away") is not None:
+                scan_stats["fouls_per_game"] = fouls["away"]
+            if shots.get("away") is not None:
+                scan_stats["shots_per_game"] = shots["away"]
+            if shots.get("on_target_away") is not None:
+                scan_stats["shots_on_target_per_game"] = shots["on_target_away"]
+            if standings.get("away_pos") is not None:
+                scan_stats["league_position"] = standings["away_pos"]
+            if dangerous_attacks.get("away") is not None:
+                scan_stats["dangerous_attacks"] = dangerous_attacks["away"]
+
+        # Predictions (same for both sides — match-level data)
+        if predictions.get("prob_home") is not None:
+            scan_stats["prob_home"] = predictions["prob_home"]
+        if predictions.get("prob_draw") is not None:
+            scan_stats["prob_draw"] = predictions["prob_draw"]
+        if predictions.get("prob_away") is not None:
+            scan_stats["prob_away"] = predictions["prob_away"]
+        if predictions.get("predicted_score") is not None:
+            scan_stats["predicted_score"] = predictions["predicted_score"]
+        if predictions.get("avg_stat") is not None:
+            scan_stats["avg_stat"] = predictions["avg_stat"]
+
     # --- Build sources list ---
     sources = list(set(existing_sources + [source_tag]))
 
@@ -449,6 +532,12 @@ def _ingest_team_side(
         parts.append(f"odds ({len(scan_odds)} keys)")
     if scan_stats:
         parts.append(f"stats ({len(scan_stats)} keys from deep_parse)")
+        
+    enriched_count = sum(1 for k in ["corners_per_game", "yellow_cards_per_game", "fouls_per_game", 
+                                      "shots_per_game", "league_position", "dangerous_attacks"]
+                         if k in scan_stats and k not in (deep_parse or {}))
+    if enriched_count:
+        parts.append(f"enriched ({enriched_count} stat keys)")
 
     if not parts:
         return False

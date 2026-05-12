@@ -22,7 +22,15 @@ except ImportError:
 
 
 class NBAStatsClient(BaseAPIClient):
-    """BallDontLie + nba_api — deep NBA statistics."""
+    """BallDontLie + nba_api — deep NBA statistics.
+
+    NOTE: As of 2026-05-11, BallDontLie v1 API is deprecated and returns
+    100% failures. The service migrated to a paid model requiring a
+    registered API key. Without a valid key in config/api_keys.json
+    under "balldontlie", this client is disabled.
+    """
+
+    _HOST_BROKEN = True  # 100% fail rate as of 2026-05-11, v1 deprecated
 
     def __init__(self, rate_limiter: RateLimiter):
         super().__init__(
@@ -32,12 +40,14 @@ class NBAStatsClient(BaseAPIClient):
         )
 
     def _check_api_key(self) -> bool:
-        """BallDontLie v1 may require an API key. Allow requests regardless — errors handled gracefully."""
-        return True
+        """BallDontLie requires a paid API key since v1 deprecation."""
+        return bool(self.api_key)
 
     def is_available(self) -> bool:
-        """BallDontLie always available — API key optional, errors handled gracefully."""
-        return True
+        """Disabled — BallDontLie v1 deprecated, requires paid key."""
+        if self._HOST_BROKEN:
+            return False
+        return bool(self.api_key)
 
     def _build_headers(self) -> dict:
         """Add Authorization header if API key is available."""

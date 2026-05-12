@@ -167,9 +167,10 @@ These API sources provide structured statistical data via REST APIs. They are th
 - BallDontLie API
   Role: free NBA stats API — game results, player box scores, season averages.
   Use for: NBA statistical analysis as fallback when API-Basketball quota exhausted.
-  Access: free tier (requires key). API key in config/api_keys.json or BALLDONTLIE_KEY env var.
+  Access: **BROKEN** — v1 API deprecated, migrated to paid model. 100% failure rate as of 2026-05-11.
   Coverage: NBA only.
-  Added: 2026-04-28.
+  Status: DISABLED in fallback chains. Client has `_HOST_BROKEN = True`.
+  Added: 2026-04-28. Disabled: 2026-05-11.
 
 - nba_api (Python package)
   Role: unofficial NBA stats from stats.nba.com — most detailed free NBA data source.
@@ -188,9 +189,11 @@ These API sources provide structured statistical data via REST APIs. They are th
 - API-Tennis (custom client)
   Role: tennis statistics API client — player rankings, match results, H2H, surface-specific form.
   Use for: L10/L5/H2H statistical data for tennis game totals, set totals, and serve/return markets.
+  Access: **BROKEN** — v1.tennis.api-sports.io returns NXDOMAIN (host does not resolve). API may have been discontinued.
   Script: `python3 scripts/fetch_api_stats.py --sports tennis` (uses `api_clients/api_tennis.py`)
-  Fallback: TheSportsDB → Playwright (TennisExplorer, TennisAbstract).
-  Added: 2026-04-30.
+  Fallback: ESPN-Tennis → SerpAPI.
+  Status: DISABLED in fallback chains. Client has `_HOST_BROKEN = True`.
+  Added: 2026-04-30. Disabled: 2026-05-11.
 
 - API-Volleyball (custom client)
   Role: volleyball statistics API client — team stats, match results, set scores, point totals.
@@ -202,9 +205,10 @@ These API sources provide structured statistical data via REST APIs. They are th
 - TheSportsDB
   Role: universal sports fixture database — covers ALL sports with basic fixture/result data.
   Use for: fixture discovery for sports without API-Sports.io coverage (volleyball, tennis, etc.). No per-match stats.
-  Access: free tier (~100 req/day). Key "3" for free tier.
+  Access: **BROKEN** — free tier (key "3") has 97.8% failure rate as of 2026-05-11. Deprecated or severely rate-limited.
   Coverage: All sports globally — but basic data only (fixtures, results, team info).
-  Added: 2026-04-28.
+  Status: DISABLED in fallback chains. Client has `_HOST_BROKEN = True`.
+  Added: 2026-04-28. Disabled: 2026-05-11.
 
 - ESPN API (espn_adapter.py)
   Role: FREE, UNLIMITED, NO API KEY — multi-sport statistics via ESPN's public endpoints. Per-match stats: corners, fouls, cards, shots, shots on target, possession, saves, offsides, passes, tackles, interceptions, clearances. 36+ football leagues, NBA, NHL, ATP/WTA.
@@ -241,12 +245,14 @@ These API sources provide structured statistical data via REST APIs. They are th
 ESPN is first for all sports it covers (FREE, unlimited). SerpAPI is last resort for all sports.
 
 ```
-Football:     ESPN → API-Football → Football-Data.org → Understat (xG only) → TheSportsDB → SerpAPI
-Basketball:   ESPN → API-Basketball → BallDontLie → TheSportsDB → SerpAPI
-Hockey:       ESPN → API-Hockey → TheSportsDB → SerpAPI
-Tennis:       ESPN → API-Tennis → TheSportsDB → SerpAPI
-Volleyball:   API-Volleyball → TheSportsDB → SerpAPI
+Football:     ESPN → API-Football → Football-Data.org → Understat (xG only) → SerpAPI
+Basketball:   ESPN → API-Basketball → SerpAPI
+Hockey:       ESPN → API-Hockey → SerpAPI
+Tennis:       ESPN → SerpAPI
+Volleyball:   ESPN-Volleyball → API-Volleyball → SerpAPI
 ```
+
+Disabled sources (2026-05-11): TheSportsDB (97.8% fail), BallDontLie (100% fail), API-Tennis (NXDOMAIN).
 
 ### Daily API Budget (~560 requests)
 
@@ -259,11 +265,12 @@ Volleyball:   API-Volleyball → TheSportsDB → SerpAPI
 | Football-Data.org | ~1000 | 200 | 800 |
 | BallDontLie | ~1000 | 100 | 900 |
 | nba_api | ~1800/hr | 200 | 1600 |
-| TheSportsDB | ~100 | 30 | 70 |
+| TheSportsDB | ~~100~~ | 0 | BROKEN — disabled |
 | Understat | unlimited | 50 | — |
 | The Odds API | ~40/day | 40 | 0 |
 | Odds-API.io | 5000/hr | 200 | 4800 |
 | SerpAPI | 100/mo | 20 | 80 |
+| BallDontLie | ~~1000~~ | 0 | BROKEN — disabled |
 
 ## Weather Data Source
 

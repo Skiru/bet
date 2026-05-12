@@ -22,7 +22,15 @@ SPORT_MAP = {
 
 
 class TheSportsDBClient(BaseAPIClient):
-    """TheSportsDB — universal sports fixture database. Basic data only."""
+    """TheSportsDB — universal sports fixture database. Basic data only.
+
+    NOTE: As of 2026-05-11, TheSportsDB free tier (key "3") has a 97.8%
+    failure rate. The free API appears to be deprecated or severely
+    rate-limited. Premium keys may still work. This client is disabled
+    until a working key or endpoint is confirmed.
+    """
+
+    _HOST_BROKEN = True  # 97.8% fail rate as of 2026-05-11
 
     def __init__(self, rate_limiter: RateLimiter):
         super().__init__(
@@ -30,6 +38,12 @@ class TheSportsDBClient(BaseAPIClient):
             base_url="https://www.thesportsdb.com/api/v1/json",
             rate_limiter=rate_limiter,
         )
+
+    def is_available(self) -> bool:
+        """Disabled — free tier no longer reliable (97.8% fail rate)."""
+        if self._HOST_BROKEN:
+            return False
+        return super().is_available()
 
     def _get_base_url(self) -> str:
         """Build base URL with API key in path."""

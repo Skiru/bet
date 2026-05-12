@@ -71,16 +71,28 @@ def _parse_match_tables(soup: BeautifulSoup, url: str) -> List[Dict]:
                     away = text
 
             if home and away:
-                results.append({
+                match_url = ""
+                for cell in cells:
+                    a = cell.find("a", href=re.compile(r"/matches/"))
+                    if a and a.get("href"):
+                        match_url = a.get("href")
+                        break
+                
+                entry = {
                     "home": home,
                     "away": away,
                     "time": match_time,
-                    "odds": score_text if score_text else "",
+                    "score": score_text if score_text else "",
+                    "odds": None,
                     "league": current_league,
                     "sport": "football",
-                    "source": "soccerway.com",
-                    "url": url,
-                })
+                    "source_url": url,
+                    "source_type": "soccerway",
+                    "raw": f"{home} vs {away}"
+                }
+                if match_url:
+                    entry["match_url"] = match_url
+                results.append(entry)
 
     return results
 
@@ -123,16 +135,28 @@ def _parse_match_blocks(soup: BeautifulSoup, url: str) -> List[Dict]:
             if time_match:
                 match_time = time_match.group()
 
-            results.append({
+            match_url = ""
+            for link in links:
+                href = link.get("href", "")
+                if "/matches/" in href:
+                    match_url = href
+                    break
+            
+            entry = {
                 "home": team_names[0],
                 "away": team_names[1],
                 "time": match_time,
-                "odds": "",
+                "score": "",
+                "odds": None,
                 "league": current_league,
                 "sport": "football",
-                "source": "soccerway.com",
-                "url": url,
-            })
+                "source_url": url,
+                "source_type": "soccerway",
+                "raw": f"{team_names[0]} vs {team_names[1]}"
+            }
+            if match_url:
+                entry["match_url"] = match_url
+            results.append(entry)
 
     return results
 

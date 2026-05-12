@@ -30,16 +30,24 @@ def _build_odds_structured(odds: List[str], two_way: bool) -> Dict:
         return {}
 
     if two_way and len(vals) >= 2:
-        return {"home_win": vals[0], "away_win": vals[1]}
+        return {"w1": vals[0], "w2": vals[1]}
     elif not two_way and len(vals) >= 3:
-        return {"home_win": vals[0], "draw": vals[1], "away_win": vals[2]}
+        return {"w1": vals[0], "x": vals[1], "w2": vals[2]}
     return {}
 
+
+def _detect_sport(url: str) -> str:
+    url_lower = url.lower()
+    for sport in ["tennis", "basketball", "volleyball", "hockey"]:
+        if f"/{sport}/" in url_lower:
+            return sport
+    return "football"
 
 def parse(html: str, url: str) -> List[Dict]:
     soup = BeautifulSoup(html, "html.parser")
     results = []
     two_way = _is_two_way(url)
+    sport = _detect_sport(url)
 
     # OddsPortal renders match data via React/JS — HTML contains league
     # navigation links with "X - Y" patterns that are NOT matches.
@@ -88,19 +96,20 @@ def parse(html: str, url: str) -> List[Dict]:
                     break
                 link_parent = link_parent.parent
             odds_valid = [o for o in odds_texts if ODDS_RE.match(o)]
+            structured = _build_odds_structured(odds_valid, two_way)
+            
             entry = {
                 "home": home,
                 "away": away,
-                "odds": odds_valid,
+                "odds": structured if structured else odds_valid,
                 "market_type": "h2h",
                 "source_url": url,
+                "source_type": "oddsportal",
+                "sport": sport,
                 "raw": f"{home} - {away}",
             }
             if match_url:
                 entry["match_url"] = match_url
-            structured = _build_odds_structured(odds_valid, two_way)
-            if structured:
-                entry["odds_structured"] = structured
             results.append(entry)
 
     # --- Strategy 2: Traditional table rows (pre-SPA pages) ---
@@ -119,17 +128,17 @@ def parse(html: str, url: str) -> List[Dict]:
                         full_text = f"{home} - {away}"
                         if _LEAGUE_NAV_RE.search(full_text):
                             continue
+                        structured = _build_odds_structured(odds, two_way)
                         entry = {
                             "home": home,
                             "away": away,
-                            "odds": odds,
+                            "odds": structured if structured else odds,
                             "market_type": "h2h",
                             "source_url": url,
+                            "source_type": "oddsportal",
+                            "sport": sport,
                             "raw": text,
                         }
-                        structured = _build_odds_structured(odds, two_way)
-                        if structured:
-                            entry["odds_structured"] = structured
                         results.append(entry)
 
     # --- Strategy 3: Link-based extraction ---
@@ -151,18 +160,19 @@ def parse(html: str, url: str) -> List[Dict]:
                     if parent:
                         parent_text = parent.get_text(" ", strip=True)
                         odds = ODDS_RE.findall(parent_text)
+                    structured = {}
+                    if odds:
+                        structured = _build_odds_structured(odds, two_way)
                     entry = {
                         "home": home,
                         "away": away,
-                        "odds": odds,
+                        "odds": structured if structured else odds,
                         "market_type": "h2h",
                         "source_url": url,
+                        "source_type": "oddsportal",
+                        "sport": sport,
                         "raw": text,
                     }
-                    if odds:
-                        structured = _build_odds_structured(odds, two_way)
-                        if structured:
-                            entry["odds_structured"] = structured
                     results.append(entry)
 
     if results:

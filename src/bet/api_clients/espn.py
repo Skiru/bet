@@ -448,11 +448,18 @@ class ESPNClient(BaseAPIClient):
                 if isinstance(type_info, dict):
                     status_name = type_info.get("name", "scheduled")
 
+            season = event.get("season", {})
+            season_type = season.get("type", {})
+            if isinstance(season_type, dict):
+                comp_name = season_type.get("name", self.league)
+            else:
+                comp_name = season.get("slug", self.league)
+
             fixture = APIFixture(
                 external_id=str(event.get("id", "")),
                 source=self.api_name,
                 sport=self.sport,
-                competition_name=event.get("season", {}).get("type", {}).get("name", self.league),
+                competition_name=comp_name,
                 home_team_name=home_name,
                 away_team_name=away_name,
                 kickoff=event.get("date", ""),
