@@ -44,23 +44,61 @@ class SofascoreClient(BaseAPIClient):
 
     def _request(self, endpoint: str, params: dict | None = None) -> dict:
         url = f"{self.base_url}/{endpoint.lstrip('/')}"
+        if hasattr(self.rate_limiter, 'wait'):
+            self.rate_limiter.wait("sofascore")
         
         try:
             resp = requests.get(url, headers=HEADERS, params=params, timeout=self.TIMEOUT)
             
             if resp.status_code == 404:
-                # Silently catch 404s for stats/H2H (common for lower leagues)
                 raise APINotFoundError(f"Resource not found: {url}")
-            if resp.status_code == 429:
-                logger.warning(f"Sofascore Rate limit hit for {url}")
-                raise APIError(f"Rate limited: {url}", status_code=429)
+            if resp.status_code in (403, 429):
+                logger.warning(f"Sofascore blocked HTTP request ({resp.status_code}) for {url}. Falling back to Playwright...")
+                return self._request_playwright(url, params)
                 
             resp.raise_for_status()
             return resp.json()
         except requests.exceptions.RequestException as e:
-            if hasattr(e, "response") and e.response is not None:
-                raise APIError(f"Sofascore API error: {e}", status_code=e.response.status_code)
+            if hasattr(e, "response") and e.response is not None and e.response.status_code in (403, 429):
+                return self._request_playwright(url, params)
             raise APIError(f"Sofascore Network error: {e}")
+
+    def _request_playwright(self, url: str, params: dict | None = None) -> dict:
+        """Fallback method using Playwright for Cloudflare 403 blocks."""
+        from playwright.sync_api import sync_playwright
+        import urllib.parse
+        
+        if params:
+            query = urllib.parse.urlencode(params)
+            full_url = f"{url}?{query}"
+        else:
+            full_url = url
+            
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            context = browser.new_context(
+                user_agent=HEADERS["User-Agent"],
+                viewport={"width": 1280, "height": 720}
+            )
+            page = context.new_page()
+            
+            try:
+                response = page.goto(full_url, wait_until="domcontentloaded", timeout=self.TIMEOUT * 1000)
+                if not response:
+                    raise APIError(f"Playwright received no response for {full_url}")
+                
+                if response.status == 404:
+                    raise APINotFoundError(f"Resource not found via playwright: {full_url}")
+                    
+                import json
+                try:
+                    # Sofascore endpoints usually return pure JSON
+                    json_str = page.evaluate("document.body.innerText")
+                    return json.loads(json_str)
+                except Exception as e:
+                    raise APIError(f"Failed to parse JSON from Playwright response: {e}")
+            finally:
+                browser.close()
 
     # -------- REQUIRED INTERFACE IMPLEMENTATIONS --------
 

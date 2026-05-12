@@ -6,6 +6,8 @@ tools:
     "vscode/askQuestions",
     "vscode/toolSearch",
     "execute/runInTerminal",
+    "sequentialthinking/sequentialthinking",
+    "sequential-thinking/sequentialthinking",
     "execute/getTerminalOutput",
     "execute/sendToTerminal",
     "execute/killTerminal",
@@ -28,7 +30,7 @@ tools:
     "ms-python.python/installPythonPackage",
     "todo",
   ]
-model: "Claude Sonnet 4.6 (Copilot)"
+model: "Gemini 3.1 Pro (Preview)"
 instructions:
   - ../instructions/agent-execution-protocol.instructions.md
   - ../instructions/analysis-methodology.instructions.md
