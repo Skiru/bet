@@ -55,7 +55,7 @@ STAT_MAP = {
     "goalsFor": "goals_for",
     "reboundsFor": "rebounds_for",
     "savedShotsOnGoalFor": "saved_shots_for",
-    "penalityMinutesFor": "pim_for",
+    "penalityMinutesFor": "pim_for",  # NOTE: "penality" is MoneyPuck's CSV typo — intentional match
     "faceOffsWonFor": "faceoffs_won",
     "hitsFor": "hits_for",
     "takeawaysFor": "takeaways_for",
@@ -128,8 +128,7 @@ def fetch_team_stats(season: str | None = None, season_type: str = "regular",
     if _is_cache_fresh(cache):
         try:
             data = json.loads(cache.read_text(encoding="utf-8"))
-            if situation != "all":
-                data = [d for d in data if d.get("_situation") == situation]
+            data = [d for d in data if d.get("_situation") == situation]
             return data
         except (json.JSONDecodeError, OSError):
             pass
@@ -185,9 +184,8 @@ def fetch_team_stats(season: str | None = None, season_type: str = "regular",
     cache.write_text(json.dumps(all_teams, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"[moneypuck] Cached {len(all_teams)} team rows for {season}/{season_type}")
 
-    # Filter by requested situation
-    if situation != "all":
-        all_teams = [d for d in all_teams if d.get("_situation") == situation]
+    # Filter by requested situation ("all" is the aggregate row, not "return everything")
+    all_teams = [d for d in all_teams if d.get("_situation") == situation]
 
     return all_teams
 

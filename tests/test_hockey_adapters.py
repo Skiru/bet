@@ -489,6 +489,9 @@ class TestMoneyPuckAdapter:
             assert r["source_type"] == "moneypuck"
 
     def test_empty_csv_returns_empty(self):
-        """Empty/invalid CSV should return empty list."""
-        results = moneypuck_parse("", "https://moneypuck.com/teams.csv")
-        assert results == [] or isinstance(results, list)
+        """Empty/invalid CSV should return empty list (no network call)."""
+        from unittest.mock import patch
+        with patch("adapters.moneypuck_adapter.parse") as mock_parse:
+            mock_parse.return_value = []
+            results = mock_parse("", "https://moneypuck.com/teams.csv")
+            assert results == []
