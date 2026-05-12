@@ -138,7 +138,8 @@ DOMAIN_PATTERNS = {
             re.compile(r"/faq"),
             re.compile(r"/about"),
         ],
-    },    "basketball-reference.com": {
+    },
+    "basketball-reference.com": {
         "include": [
             # Box score pages: /boxscores/202605120LAL.html
             re.compile(r"/boxscores/\d{9}\w+\.html$"),

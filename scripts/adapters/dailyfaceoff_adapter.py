@@ -179,15 +179,17 @@ def _enrich_confirmation_status(soup: BeautifulSoup, results: List[Dict]) -> Non
             if home_goalie and home_goalie in line:
                 # Look at nearby lines for status
                 nearby = " ".join(lines[max(0, i - 3):i + 4]).lower()
-                for status_text, norm in _STATUS_MAP.items():
+                # Check longer/more-specific patterns first to avoid
+                # "confirmed" matching inside "unconfirmed"
+                for status_text in sorted(_STATUS_MAP, key=len, reverse=True):
                     if status_text in nearby:
-                        result["goalie_home"]["status"] = norm
+                        result["goalie_home"]["status"] = _STATUS_MAP[status_text]
                         break
             if away_goalie and away_goalie in line:
                 nearby = " ".join(lines[max(0, i - 3):i + 4]).lower()
-                for status_text, norm in _STATUS_MAP.items():
+                for status_text in sorted(_STATUS_MAP, key=len, reverse=True):
                     if status_text in nearby:
-                        result["goalie_away"]["status"] = norm
+                        result["goalie_away"]["status"] = _STATUS_MAP[status_text]
                         break
 
 

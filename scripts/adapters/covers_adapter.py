@@ -169,8 +169,8 @@ def _extract_hockey_extras(card) -> dict:
     # Goalie names — look for "goalie" label near player names
     goalie_els = card.find_all(True, class_=re.compile(r"goalie|starter|netminder", re.I))
     if len(goalie_els) >= 2:
-        extras["goalie_away"] = goalie_els[0].get_text(strip=True)
-        extras["goalie_home"] = goalie_els[1].get_text(strip=True)
+        extras["goalie_away"] = {"name": goalie_els[0].get_text(strip=True)}
+        extras["goalie_home"] = {"name": goalie_els[1].get_text(strip=True)}
     
     # PP/PK percentages — look for "PP" and "PK" labels
     pp_matches = re.findall(r"pp[:\s]*(\d+\.?\d*)%", text)

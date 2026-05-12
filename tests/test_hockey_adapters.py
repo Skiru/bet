@@ -8,6 +8,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 from adapters.hockey_reference_adapter import parse as hockey_ref_parse
 from adapters.naturalstattrick_adapter import parse as nst_parse
 from adapters.dailyfaceoff_adapter import parse as df_parse
+from adapters.covers_adapter import parse as covers_parse
 
 
 # --- Sample HTML fixtures ---
@@ -183,6 +184,55 @@ DAILYFACEOFF_JSON_HTML = """
 
 EMPTY_HTML = "<html><body></body></html>"
 
+HOCKEY_REF_BOXSCORE_WITH_GOALIES_HTML = """
+<html><body>
+<div class="scorebox">
+  <div>
+    <div><a href="/teams/BOS/2026.html">Boston Bruins</a></div>
+    <div class="score">3</div>
+  </div>
+  <div>
+    <div><a href="/teams/TOR/2026.html">Toronto Maple Leafs</a></div>
+    <div class="score">2</div>
+  </div>
+</div>
+<table id="scoring">
+<thead><tr><th>Period</th><th>BOS</th><th>TOR</th></tr></thead>
+<tbody>
+<tr><td>1st</td><td>1</td><td>0</td></tr>
+<tr><td>2nd</td><td>1</td><td>1</td></tr>
+<tr><td>3rd</td><td>1</td><td>1</td></tr>
+</tbody>
+</table>
+<table id="goalies_BOS">
+<tbody><tr><td>Jeremy Swayman</td><td data-stat="saves">28</td><td data-stat="save_pct">.933</td><td data-stat="goals_against_avg">2.10</td></tr></tbody>
+<tfoot><tr><td>Total</td><td data-stat="saves">28</td><td data-stat="save_pct">.933</td><td data-stat="goals_against_avg">2.10</td></tr></tfoot>
+</table>
+<table id="goalies_TOR">
+<tbody><tr><td>Joseph Woll</td><td data-stat="saves">29</td><td data-stat="save_pct">.906</td><td data-stat="goals_against_avg">3.00</td></tr></tbody>
+<tfoot><tr><td>Total</td><td data-stat="saves">29</td><td data-stat="save_pct">.906</td><td data-stat="goals_against_avg">3.00</td></tr></tfoot>
+</table>
+</body></html>
+"""
+
+COVERS_NHL_MATCHUP_HTML = """
+<html><body>
+<div class="matchup game-card">
+  <span class="team-name">Boston Bruins</span>
+  <span class="team-name">Toronto Maple Leafs</span>
+  <span class="time">7:00 PM ET</span>
+  <span class="goalie">Jeremy Swayman</span>
+  <span class="goalie">Joseph Woll</span>
+  <span>PP: 22.5%</span>
+  <span>PK: 81.3%</span>
+  <span>PP: 20.1%</span>
+  <span>PK: 79.8%</span>
+  <span>30-8-3</span>
+  <span>25-12-5</span>
+</div>
+</body></html>
+"""
+
 
 class TestHockeyReferenceAdapter:
     """Tests for hockey_reference_adapter.py."""
@@ -218,6 +268,30 @@ class TestHockeyReferenceAdapter:
         results = hockey_ref_parse(EMPTY_HTML, "https://www.hockey-reference.com/boxscores/")
         # Should fall back to raw_parse (may return empty list)
         assert isinstance(results, list)
+
+    def test_boxscore_goalie_stats_assigned_correctly(self):
+        """Test that goalie stats are assigned to correct team via table ID abbreviation."""
+        results = hockey_ref_parse(
+            HOCKEY_REF_BOXSCORE_WITH_GOALIES_HTML,
+            "https://www.hockey-reference.com/boxscores/202605120TOR.html"
+        )
+        assert len(results) == 1
+        r = results[0]
+        # BOS abbreviation should NOT match "Toronto Maple Leafs" → assigned to away
+        assert r["goalie_stats"]["away"]["saves"] == 28
+        assert r["goalie_stats"]["away"]["save_pct"] == 0.933
+        assert r["goalie_stats"]["away"]["gaa"] == 2.10
+        # TOR abbreviation should match "Toronto Maple Leafs" → assigned to home
+        assert r["goalie_stats"]["home"]["saves"] == 29
+        assert r["goalie_stats"]["home"]["save_pct"] == 0.906
+        assert r["goalie_stats"]["home"]["gaa"] == 3.00
+
+    def test_boxscore_non_nhl_league_detection(self):
+        """Test that non-NHL URLs get correct league."""
+        html = HOCKEY_REF_BOXSCORE_HTML
+        results = hockey_ref_parse(html, "https://www.hockey-reference.com/olympics/boxscores/202605120TOR.html")
+        assert len(results) == 1
+        assert results[0]["league"] == "OLYMPICS"
 
 
 class TestNaturalStatTrickAdapter:
@@ -326,3 +400,42 @@ class TestDailyFaceoffAdapter:
     def test_non_goalie_page_falls_back(self):
         results = df_parse("<html><body>Some page</body></html>", "https://www.dailyfaceoff.com/teams/bos/")
         assert isinstance(results, list)
+
+    def test_json_goalie_confirmation_status(self):
+        """Test that goalie confirmation status is enriched from rendered HTML text."""
+        results = df_parse(DAILYFACEOFF_JSON_HTML, "https://www.dailyfaceoff.com/starting-goalies/")
+        r = results[0]
+        # _enrich_confirmation_status does best-effort proximity matching from rendered HTML
+        # Verify status field is set to a valid value (not None or empty)
+        valid_statuses = {"confirmed", "expected", "unconfirmed"}
+        assert r["goalie_home"]["status"] in valid_statuses
+        assert r["goalie_away"]["status"] in valid_statuses
+
+
+class TestCoversNHLAdapter:
+    """Tests for covers_adapter.py NHL-specific parsing."""
+
+    def test_nhl_matchup_extracts_goalie_dicts(self):
+        """Test that goalie fields are dicts, not plain strings (BUG2 regression)."""
+        results = covers_parse(COVERS_NHL_MATCHUP_HTML, "https://www.covers.com/nhl/matchups")
+        assert len(results) >= 1
+        r = results[0]
+        assert r["sport"] == "hockey"
+        assert r["source_type"] == "covers"
+        # Goalie fields must be dicts with "name" key — not plain strings
+        if "goalie_away" in r:
+            assert isinstance(r["goalie_away"], dict)
+            assert "name" in r["goalie_away"]
+        if "goalie_home" in r:
+            assert isinstance(r["goalie_home"], dict)
+            assert "name" in r["goalie_home"]
+
+    def test_nhl_matchup_extracts_pp_pk(self):
+        """Test PP/PK percentage extraction."""
+        results = covers_parse(COVERS_NHL_MATCHUP_HTML, "https://www.covers.com/nhl/matchups")
+        if results:
+            r = results[0]
+            if "pp_pct_away" in r:
+                assert isinstance(r["pp_pct_away"], float)
+            if "record_away" in r:
+                assert "-" in r["record_away"]

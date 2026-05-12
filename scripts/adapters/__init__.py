@@ -139,6 +139,13 @@ ENRICHED_EVENT_DEFAULTS = {
         "attack_pct": None,
         "service_errors": None,
     },
+    "hockey": {
+        "stats": None,
+        "goalie_stats": None,
+        "goalie_home": None,
+        "goalie_away": None,
+        "data_type": None,
+    },
     "raw": {}
 }
 
@@ -234,6 +241,12 @@ def normalize_adapter_output(event: dict, source_type: str) -> dict:
             for k, v in event["volleyball"].items():
                 if v is not None and k in normalized["volleyball"]:
                     normalized["volleyball"][k] = v
+
+        # Merge hockey stats
+        hockey = normalized["hockey"]
+        for hk in ("stats", "goalie_stats", "goalie_home", "goalie_away", "data_type"):
+            if hk in event and event[hk] is not None:
+                hockey[hk] = event[hk]
             
         # Store unmapped fields in raw
         normalized["raw"] = event

@@ -82,11 +82,10 @@ user-invokable: false
 
 ## Known Issues
 
-- **Hockey-Reference:** Full box score support — schedule, per-period scores, shots, PIM, PP, hits, blocks, faceoffs.
-- **NaturalStatTrick:** Advanced analytics (Corsi, Fenwick, xG) but no dedicated adapter.
-- **MoneyPuck:** Similar to NaturalStatTrick, no adapter.
-- **DailyFaceoff:** Goalie confirmations (critical for hockey betting). Manual check.
-- **Covers:** NHL pages sometimes empty.
+- **Hockey-Reference:** Full box score support — schedule, per-period scores, shots, PIM, PP, hits, blocks, faceoffs, goalie stats (saves, SV%, GAA).
+- **NaturalStatTrick:** Dedicated adapter parses Corsi%, Fenwick%, xGF/xGA, HDCF/HDCA, SH%, SV%. ⚠ JS-heavy site — requires Playwright rendering + cookie consent handling. May return 0 events when JS doesn't load.
+- **DailyFaceoff:** Dedicated adapter extracts goalie confirmations via embedded Next.js JSON (primary) with HTML card fallback. Returns: goalie names, W-L-OTL, SV%, GAA, confirmation status, odds (spread/ML).
+- **Covers:** NHL matchup pages extract goalie names (as dicts), PP/PK%, W-L-OTL records. Sometimes empty due to Cloudflare.
 - **EU leagues:** Less data coverage than NHL. BetExplorer standings as fallback.
 
 ## API Enrichment

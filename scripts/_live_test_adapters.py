@@ -33,6 +33,7 @@ TEST_URLS = {
     "soccerway.com": "https://int.soccerway.com/matches/2026/05/12/",
     "whoscored.com": "https://www.whoscored.com/LiveScores",
     "oddsportal.com": "https://www.oddsportal.com/football/",
+    "scores24.live": "https://scores24.live/en/soccer",
     "naturalstattrick.com": "https://www.naturalstattrick.com/teamtable.php?fromseason=20252026&thession=20252026&stype=2&sit=5v5&score=all&rate=n&team=all&loc=B&gpf=410&fd=&td=",
     "dailyfaceoff.com": "https://www.dailyfaceoff.com/starting-goalies/",
 }
@@ -138,6 +139,9 @@ def test_adapter(name: str, verbose: bool = False, url_override: str | None = No
         return result
 
     url = url_override or TEST_URLS.get(name)
+    if url and "{today}" in url:
+        from datetime import date
+        url = url.replace("{today}", date.today().isoformat())
     if not url:
         result["status"] = "NO_URL"
         result["error"] = f"No test URL configured for '{name}'"

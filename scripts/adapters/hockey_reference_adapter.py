@@ -16,7 +16,7 @@ def parse(html: str, url: str) -> List[Dict]:
     """Parse Hockey-Reference HTML for match/schedule data."""
     soup = BeautifulSoup(html, "html.parser")
 
-    if "/boxscores/" in url or re.search(r"/boxscores/\d{9}\w+\.html", url):
+    if re.search(r"/boxscores/\d{9}\w+\.html", url):
         results = _parse_boxscore(soup, url)
         if results:
             return results
@@ -119,8 +119,16 @@ def _parse_boxscore(soup: BeautifulSoup, url: str) -> List[Dict]:
         gaa = tfoot.find("td", attrs={"data-stat": "goals_against_avg"})
         if sv:
             table = tfoot.find_parent("table")
-            team_key = "home" if table and "home" in table.get("id", "").lower() else "away"
-            # It's an approximation, sometimes table ID doesn't have home/away cleanly, but usually standard HR boxscores do
+            table_id = table.get("id", "") if table else ""
+            # Hockey-Reference goalie tables use IDs like "goalies_BOS", "goalies_TOR"
+            # Match abbreviation against extracted team names
+            abbr_match = re.search(r"goalies_([A-Z]+)", table_id, re.I)
+            if abbr_match:
+                abbr = abbr_match.group(1).upper()
+                # Check if abbreviation matches home or away team name
+                team_key = "home" if abbr in home_team.upper() else "away"
+            else:
+                team_key = "away"
             try:
                 goalie_stats[team_key]["saves"] = int(sv.get_text(strip=True))
             except ValueError:
