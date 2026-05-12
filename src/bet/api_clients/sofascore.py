@@ -21,15 +21,8 @@ from .rate_limiter import RateLimiter
 logger = logging.getLogger(__name__)
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-    "Accept": "*/*",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Origin": "https://www.sofascore.com",
-    "Referer": "https://www.sofascore.com/",
-    "Cache-Control": "no-cache",
-    "Sec-Fetch-Site": "same-site",
-    "Sec-Fetch-Mode": "cors",
-    "Sec-Fetch-Dest": "empty",
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/115.0",
+    "Accept": "application/json",
 }
 
 class SofascoreClient(BaseAPIClient):
@@ -41,6 +34,8 @@ class SofascoreClient(BaseAPIClient):
         super().__init__("sofascore", "https://api.sofascore.com/api/v1", rate_limiter)
         # Sofascore doesn't use API keys, it relies on User-Agent + limiting
         self.api_key = "no-key-needed"
+        self.session = requests.Session()
+        self.session.headers.update(HEADERS)
 
     def _request(self, endpoint: str, params: dict | None = None) -> dict:
         url = f"{self.base_url}/{endpoint.lstrip('/')}"
@@ -48,7 +43,7 @@ class SofascoreClient(BaseAPIClient):
             self.rate_limiter.wait("sofascore")
         
         try:
-            resp = requests.get(url, headers=HEADERS, params=params, timeout=self.TIMEOUT)
+            resp = self.session.get(url, params=params, timeout=self.TIMEOUT)
             
             if resp.status_code == 404:
                 raise APINotFoundError(f"Resource not found: {url}")
@@ -87,6 +82,12 @@ class SofascoreClient(BaseAPIClient):
                 if not response:
                     raise APIError(f"Playwright received no response for {full_url}")
                 
+                # Cloudflare check
+                content = page.content()
+                if "Just a moment..." in content or "cf-browser-verification" in content:
+                    logger.warning("Cloudflare challenge detected in Playwright, waiting a bit...")
+                    page.wait_for_timeout(3000)
+                
                 if response.status == 404:
                     raise APINotFoundError(f"Resource not found via playwright: {full_url}")
                     
@@ -94,8 +95,10 @@ class SofascoreClient(BaseAPIClient):
                 try:
                     # Sofascore endpoints usually return pure JSON
                     json_str = page.evaluate("document.body.innerText")
+                    logger.info(f"Playwright raw json_str: {json_str[:200]}")
                     return json.loads(json_str)
                 except Exception as e:
+                    logger.error(f"Failed to parse JSON from Playwright. Raw body: {page.evaluate('document.body.innerHTML')[:200]}")
                     raise APIError(f"Failed to parse JSON from Playwright response: {e}")
             finally:
                 browser.close()

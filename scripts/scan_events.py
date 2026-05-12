@@ -63,38 +63,29 @@ RATE_LIMIT_SECONDS = 0.35  # slightly above 0.3 for safety
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
+from bet.api_clients.unified import UnifiedAPIClient
+
 def fetch_events_for_sport(sport_key: str, date_str: str) -> list:
-    api_sport = SPORT_MAP.get(sport_key)
-    if not api_sport:
-        return []
-    
-    url = f"https://api.sofascore.com/api/v1/sport/{api_sport}/scheduled-events/{date_str}"
-    session = requests.Session()
-    session.headers.update(HEADERS)
-    
+    client = UnifiedAPIClient()
     logger.info(f"Scanning {sport_key.upper()} events for {date_str}...")
     try:
-        resp = session.get(url, timeout=15)
-        if resp.status_code == 200:
-            events = resp.json().get('events', [])
-            logger.info(f"Found {len(events)} {sport_key.upper()} events.")
-            
-            normalized = []
-            for ev in events:
-                dt_val = ev.get("startTimestamp", 0)
-                dt = datetime.fromtimestamp(dt_val, tz=timezone.utc).isoformat() if dt_val else ""
-                normalized.append({
-                    "id": ev.get("id"),
-                    "sport": sport_key,
-                    "tournament": ev.get("tournament", {}).get("name", "Unknown"),
-                    "country": ev.get("tournament", {}).get("category", {}).get("name", "Unknown"), # Approximation for country
-                    "home_team": ev.get("homeTeam", {}).get("name", "Unknown"),
-                    "away_team": ev.get("awayTeam", {}).get("name", "Unknown"),
-                    "start_time": dt
-                })
-            return normalized
-        else:
-            logger.error(f"Failed {sport_key}: HTTP {resp.status_code}")
+        events = client.get_fixtures(date_str, sport=sport_key)
+        logger.info(f"Found {len(events)} {sport_key.upper()} events.")
+        
+        normalized = []
+        for ev in events:
+            dt_val = ev.get("startTimestamp", 0)
+            dt = datetime.fromtimestamp(dt_val, tz=timezone.utc).isoformat() if dt_val else ""
+            normalized.append({
+                "id": ev.get("id"),
+                "sport": sport_key,
+                "tournament": ev.get("tournament", {}).get("name", "Unknown"),
+                "country": ev.get("tournament", {}).get("category", {}).get("name", "Unknown"), # Approximation for country
+                "home_team": ev.get("homeTeam", {}).get("name", "Unknown"),
+                "away_team": ev.get("awayTeam", {}).get("name", "Unknown"),
+                "start_time": dt
+            })
+        return normalized
     except Exception as e:
         logger.error(f"Error fetching {sport_key}: {e}")
         
