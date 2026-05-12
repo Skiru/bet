@@ -62,6 +62,7 @@ Read these files. Do NOT proceed until all are loaded:
 4. `betting/sources/source-registry.md`
 5. `/memories/repo/pipeline-lessons-learned.md`
 6. `/memories/repo/post-overhaul-audit-2026-05-12.md`
+7. `/memories/repo/session-2026-05-12-improvements.md` — **CRITICAL: Previous run failures + fixes**
 
 ### ⚠️ ADAPTER OVERHAUL (2026-05-12) — ENFORCE IN ALL STEPS
 
