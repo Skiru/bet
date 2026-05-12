@@ -7,24 +7,32 @@ from typing import List, Dict
 from bs4 import BeautifulSoup
 import re
 from .raw_adapter import parse as raw_parse
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 _TIME_RE = re.compile(r"\d{1,2}:\d{2}")
 _SCORE_RE = re.compile(r"(\d+)\s*[-:–]\s*(\d+)")
 _STAT_RE = re.compile(r"(\d+\.?\d*)\s*/\s*(\d+\.?\d*)", re.I)
 
-
 def parse(html: str, url: str) -> List[Dict]:
     """Parse SoccerStats HTML for match and statistical data."""
+    logger.info(f"SoccerStats parse start: {url} ({len(html)} bytes)")
     soup = BeautifulSoup(html, "html.parser")
 
     results = _parse_match_tables(soup, url)
+    logger.info(f"soccerstats match_tables strategy: {len(results)} matches")
     if not results:
         results = _parse_stat_tables(soup, url)
+        logger.info(f"soccerstats stat_tables strategy: {len(results)} entries")
     if not results:
-        return raw_parse(html, url)
+        results = raw_parse(html, url)
+        logger.info(f"soccerstats raw fallback: {len(results)} entries")
 
-    return results
+    logger.info(f"SoccerStats parse complete: {len(results)} entries")
+    from adapters import dedup_results
+    return dedup_results(results)
 
 
 def _parse_match_tables(soup: BeautifulSoup, url: str) -> List[Dict]:
@@ -73,18 +81,27 @@ def _parse_match_tables(soup: BeautifulSoup, url: str) -> List[Dict]:
                 if re.search(r"corner", title, re.I):
                     stat_match = _STAT_RE.search(text)
                     if stat_match:
-                        stats["corners_home"] = float(stat_match.group(1))
-                        stats["corners_away"] = float(stat_match.group(2))
+                        try:
+                            stats["corners_home"] = float(stat_match.group(1))
+                            stats["corners_away"] = float(stat_match.group(2))
+                        except (ValueError, TypeError):
+                            pass
                 elif re.search(r"card|yellow", title, re.I):
                     stat_match = _STAT_RE.search(text)
                     if stat_match:
-                        stats["cards_home"] = float(stat_match.group(1))
-                        stats["cards_away"] = float(stat_match.group(2))
+                        try:
+                            stats["cards_home"] = float(stat_match.group(1))
+                            stats["cards_away"] = float(stat_match.group(2))
+                        except (ValueError, TypeError):
+                            pass
                 elif re.search(r"foul", title, re.I):
                     stat_match = _STAT_RE.search(text)
                     if stat_match:
-                        stats["fouls_home"] = float(stat_match.group(1))
-                        stats["fouls_away"] = float(stat_match.group(2))
+                        try:
+                            stats["fouls_home"] = float(stat_match.group(1))
+                            stats["fouls_away"] = float(stat_match.group(2))
+                        except (ValueError, TypeError):
+                            pass
 
             if home and away:
                 result = {
@@ -94,8 +111,6 @@ def _parse_match_tables(soup: BeautifulSoup, url: str) -> List[Dict]:
                     "odds": "",
                     "league": current_league,
                     "sport": "football",
-                    "source": "soccerstats.com",
-                    "url": url,
                     "source_url": url,
                     "source_type": "soccerstats",
                     "raw": f"{home} - {away}"
@@ -159,8 +174,6 @@ def _parse_stat_tables(soup: BeautifulSoup, url: str) -> List[Dict]:
                     "odds": "",
                     "league": "",
                     "sport": "football",
-                    "source": "soccerstats.com",
-                    "url": url,
                     "source_url": url,
                     "source_type": "soccerstats",
                     "data_type": "team_stats",
@@ -185,3 +198,21 @@ def _is_team_name(text: str) -> bool:
     if text in skip_words:
         return False
     return True
+
+
+def get_deep_links(html: str, url: str) -> list[str]:
+    """Extract league/team stat URLs from SoccerStats listing page."""
+    soup = BeautifulSoup(html, "html.parser")
+    links = []
+    for a in soup.find_all("a", href=True):
+        href = a["href"]
+        if re.search(r'/(results|teams|homeaway)\.asp', href, re.I):
+            full_url = href
+            if full_url.startswith("/"):
+                full_url = "https://www.soccerstats.com" + full_url
+            elif not full_url.startswith("http"):
+                full_url = "https://www.soccerstats.com/" + full_url
+            if full_url not in links:
+                links.append(full_url)
+    logger.info(f"SoccerStats: found {len(links)} deep links")
+    return links

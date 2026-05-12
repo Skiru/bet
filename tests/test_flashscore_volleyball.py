@@ -2,6 +2,7 @@
 
 import unittest
 from scripts.adapters.flashscore_adapter import parse
+from scripts.adapters.raw_adapter import parse as raw_parse
 
 
 # Sample HTML simulating Flashscore volleyball page with league headers
@@ -137,6 +138,123 @@ class TestFlashscoreVolleyball(unittest.TestCase):
         for r in results:
             self.assertNotIn("PlusLiga", r["home"])
             self.assertNotIn("Playoffs", r["home"])
+
+
+# =============================================================
+# Tournament round tests (event__round must NOT overwrite league)
+# =============================================================
+
+VOLLEYBALL_TOURNAMENT_HTML = """
+<html><body>
+<div class="headerLeague">
+  <span class="headerLeague__category-text">World</span>
+  <span class="headerLeague__title-text">FIVB World Championship</span>
+</div>
+<div class="event__round">Final</div>
+<div class="event__match" id="g_12_abc123">
+  <div class="event__time">20:30</div>
+  <div class="event__homeParticipant">Poland</div>
+  <div class="event__awayParticipant">Brazil</div>
+  <a class="eventRowLink" href="/match/abc123/#/match-summary"></a>
+</div>
+<div class="event__round">3rd Place</div>
+<div class="event__match" id="g_12_def456">
+  <div class="event__time">17:00</div>
+  <div class="event__homeParticipant">Italy</div>
+  <div class="event__awayParticipant">USA</div>
+  <a class="eventRowLink" href="/match/def456/#/match-summary"></a>
+</div>
+</body></html>
+"""
+
+
+class TestFlashscoreTournamentRound(unittest.TestCase):
+    """Tests that event__round labels go to 'round' field, NOT 'league'."""
+
+    def test_round_not_in_league(self):
+        """Round labels like 'Final' must NOT appear in the league field."""
+        results = parse(VOLLEYBALL_TOURNAMENT_HTML, "https://www.flashscore.com/volleyball/")
+        self.assertEqual(len(results), 2)
+        for r in results:
+            league = r.get("league", "")
+            self.assertNotIn("Final", league)
+            self.assertNotIn("3rd Place", league)
+
+    def test_round_stored_as_metadata(self):
+        """Round labels should be in entry['round']."""
+        results = parse(VOLLEYBALL_TOURNAMENT_HTML, "https://www.flashscore.com/volleyball/")
+        self.assertEqual(results[0].get("round"), "Final")
+        self.assertEqual(results[1].get("round"), "3rd Place")
+
+    def test_league_from_header(self):
+        """League should come from headerLeague, not from event__round."""
+        results = parse(VOLLEYBALL_TOURNAMENT_HTML, "https://www.flashscore.com/volleyball/")
+        for r in results:
+            self.assertEqual(r.get("league"), "FIVB World Championship")
+
+    def test_match_id_from_element_id(self):
+        """match_id should be extracted from the element id attribute."""
+        results = parse(VOLLEYBALL_TOURNAMENT_HTML, "https://www.flashscore.com/volleyball/")
+        ids = [r.get("match_id") for r in results]
+        self.assertIn("abc123", ids)
+        self.assertIn("def456", ids)
+
+
+# =============================================================
+# match_id fallback from eventRowLink URL
+# =============================================================
+
+VOLLEYBALL_NO_ID_HTML = """
+<html><body>
+<div class="headerLeague">
+  <span class="headerLeague__category-text">Belgium</span>
+  <span class="headerLeague__title-text">1st League</span>
+</div>
+<div class="event__match">
+  <div class="event__time">20:30</div>
+  <div class="event__homeParticipant">Maaseik</div>
+  <div class="event__awayParticipant">Roeselare</div>
+  <a class="eventRowLink" href="/match/xyz789/#/match-summary"></a>
+</div>
+</body></html>
+"""
+
+
+class TestFlashscoreMatchIdFallback(unittest.TestCase):
+    """Tests that match_id is extracted from eventRowLink when element id is absent."""
+
+    def test_match_id_from_url(self):
+        """When no element id, match_id should come from the match URL path."""
+        results = parse(VOLLEYBALL_NO_ID_HTML, "https://www.flashscore.com/volleyball/")
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["match_id"], "xyz789")
+
+    def test_match_url_set(self):
+        """match_url should be the full URL from eventRowLink."""
+        results = parse(VOLLEYBALL_NO_ID_HTML, "https://www.flashscore.com/volleyball/")
+        self.assertIn("/match/xyz789/", results[0]["match_url"])
+
+
+# =============================================================
+# raw_parse fallback sport propagation
+# =============================================================
+
+RAW_FALLBACK_HTML = """
+<html><body>
+<div>Maaseik - Roeselare 20:30</div>
+</body></html>
+"""
+
+
+class TestFlashscoreRawFallbackSport(unittest.TestCase):
+    """Tests that sport is propagated when falling back to raw_parse."""
+
+    def test_sport_propagated_in_fallback(self):
+        """raw_parse fallback should still have sport='volleyball' from URL."""
+        results = parse(RAW_FALLBACK_HTML, "https://www.flashscore.com/volleyball/")
+        # raw_parse may or may not find matches, but if it does, sport should be set
+        for r in results:
+            self.assertEqual(r.get("sport"), "volleyball")
 
 
 if __name__ == "__main__":

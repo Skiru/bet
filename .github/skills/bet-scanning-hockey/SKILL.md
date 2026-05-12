@@ -16,7 +16,8 @@ user-invokable: false
 | https://www.flashscore.com/hockey/finland/liiga/ | flashscore.com | Fixtures | Finnish Liiga |
 | https://www.flashscore.com/hockey/czech-republic/extraliga/ | flashscore.com | Fixtures | Czech Extraliga |
 | https://www.hockey-reference.com/ | hockey-reference.com | Stats | NHL schedule/stats |
-| https://www.naturalstattrick.com/teamtable.php | naturalstattrick.com | Advanced Stats | Corsi, Fenwick, xG, HDCF (NHL) |
+| https://www.naturalstattrick.com/teamtable.php | naturalstattrick.com | Advanced Stats | **BLOCKED** — Cloudflare 403. Use MoneyPuck instead. |
+| https://moneypuck.com/moneypuck/playerData/seasonSummary/2025/regular/teams.csv | moneypuck.com | Advanced Stats | **PRIMARY** xG%, Corsi%, Fenwick%, HDC — free CSV, no auth |
 | https://www.dailyfaceoff.com/starting-goalies/ | dailyfaceoff.com | Goalie Confirmations | Starting goalie status (NHL) |
 | https://www.betexplorer.com/hockey/ | betexplorer.com | Odds + Standings | Hockey odds, standings |
 | https://www.covers.com/nhl/matchups | covers.com | Matchup Data | NHL matchup previews + consensus |
@@ -31,7 +32,8 @@ user-invokable: false
 |--------|---------|----------------------|
 | flashscore.com | `flashscore_adapter` | home, away, time, league |
 | hockey-reference.com | `hockey_reference_adapter` | schedule + box scores (shots, PIM, PP, hits, blocks, faceoffs, period scores) |
-| naturalstattrick.com | `naturalstattrick_adapter` | stats (corsi_pct, fenwick_pct, xgf, xga, hdcf, hdca) |
+| naturalstattrick.com | `naturalstattrick_adapter` | stats (corsi_pct, fenwick_pct, xgf, xga, hdcf, hdca) — **BLOCKED by Cloudflare** |
+| moneypuck.com | `moneypuck_adapter` | stats (xg_pct, corsi_pct, fenwick_pct, high_danger_shots_for, pdo, shooting_pct, save_pct + 30 more) — **PRIMARY** |
 | dailyfaceoff.com | `dailyfaceoff_adapter` | goalie_home, goalie_away (name + status) |
 | betexplorer.com | `betexplorer_adapter` | odds[] |
 | oddsportal.com | `oddsportal_adapter` | odds_structured |
@@ -67,7 +69,8 @@ user-invokable: false
 1. SBR → 2. ESPN Odds → 3. ScoresAndOdds
 
 **Statistical data:**
-1. NaturalStatTrick → 2. Hockey-Reference/MoneyPuck → 3. DailyFaceoff (goalies)
+1. **MoneyPuck** (xG%, Corsi%, Fenwick%, HDC, PDO — free CSV, 37 stats/team) → 2. Hockey-Reference (box scores, PP%, PK%) → 3. DailyFaceoff (goalies)
+   - NaturalStatTrick is **BLOCKED** by Cloudflare (403 on all methods). Do NOT attempt to scrape.
 
 **Tipsters:**
 1. PicksWise → 2. Sportsgambler → 3. OLBG
@@ -82,17 +85,19 @@ user-invokable: false
 
 ## Known Issues
 
-- **Hockey-Reference:** Full box score support — schedule, per-period scores, shots, PIM, PP, hits, blocks, faceoffs, goalie stats (saves, SV%, GAA).
-- **NaturalStatTrick:** Dedicated adapter parses Corsi%, Fenwick%, xGF/xGA, HDCF/HDCA, SH%, SV%. ⚠ JS-heavy site — requires Playwright rendering + cookie consent handling. May return 0 events when JS doesn't load.
-- **DailyFaceoff:** Dedicated adapter extracts goalie confirmations via embedded Next.js JSON (primary) with HTML card fallback. Returns: goalie names, W-L-OTL, SV%, GAA, confirmation status, odds (spread/ML).
-- **Covers:** NHL matchup pages extract goalie names (as dicts), PP/PK%, W-L-OTL records. Sometimes empty due to Cloudflare.
+- **Hockey-Reference:** Full box score support — schedule, per-period scores, shots, PIM, PP, hits, blocks, faceoffs.
+- **NaturalStatTrick:** **BLOCKED** — Cloudflare "Under Attack" mode returns 403 on ALL methods. Adapter code exists but source is unreachable. Replaced by MoneyPuck.
+- **MoneyPuck:** **PRIMARY** NHL advanced stats source. Free CSV API (no auth, no Cloudflare). Client: `api_clients/moneypuck_client.py`. Adapter: `adapters/moneypuck_adapter.py`. Integrated in `deep_stats_report.py` enrichment.
+- **DailyFaceoff:** Goalie confirmations (critical for hockey betting). Manual check.
+- **Covers:** NHL pages sometimes empty.
 - **EU leagues:** Less data coverage than NHL. BetExplorer standings as fallback.
 
 ## API Enrichment
 
 | Client | Free? | Keys Returned | Notes |
 |--------|-------|---------------|-------|
-| ESPN | ✅ FREE | 15+ per game | NHL primary |
+| MoneyPuck | ✅ FREE | 37 per team | **PRIMARY** — xG%, Corsi%, Fenwick%, HDC, PDO, shooting%, save%. CSV API, 12h cache. |
+| ESPN | ✅ FREE | 15+ per game | NHL game-level enrichment |
 | API-Hockey | ❌ 100/day shared | goals, shots, hits, blocks, pim | Shared quota |
 
 ## Deep Data Requirements (v4 Pipeline)

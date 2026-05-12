@@ -4,6 +4,9 @@ Extracts: match lines (home/away/time/league), scores, and league context.
 Soccerway covers 1000+ football leagues worldwide.
 """
 from typing import List, Dict
+import logging
+
+logger = logging.getLogger(__name__)
 from bs4 import BeautifulSoup
 import re
 from .raw_adapter import parse as raw_parse
@@ -16,15 +19,25 @@ _TIME_RE = re.compile(r"\d{1,2}:\d{2}")
 
 def parse(html: str, url: str) -> List[Dict]:
     """Parse Soccerway HTML for match data."""
+    logger.info(f"Soccerway parse start: {url} ({len(html)} bytes)")
     soup = BeautifulSoup(html, "html.parser")
 
     results = _parse_match_tables(soup, url)
+    logger.info(f"soccerway tables strategy: {len(results)} matches")
     if not results:
         results = _parse_match_blocks(soup, url)
+        logger.info(f"soccerway blocks strategy: {len(results)} matches")
     if not results:
-        return raw_parse(html, url)
+        results = raw_parse(html, url)
+        logger.info(f"soccerway raw fallback strategy: {len(results)} matches")
+        # Enrich raw results with soccerway context
+        for r in results:
+            r.setdefault("sport", "football")
+            r.setdefault("source_type", "soccerway")
 
-    return results
+    logger.info(f"Soccerway parse complete: {len(results)} matches")
+    from adapters import dedup_results
+    return dedup_results(results)
 
 
 def _parse_match_tables(soup: BeautifulSoup, url: str) -> List[Dict]:
@@ -34,6 +47,45 @@ def _parse_match_tables(soup: BeautifulSoup, url: str) -> List[Dict]:
 
     # Look for table rows with match data
     for table in soup.find_all("table"):
+        # Soccerway specific selectors
+        if "matches" in table.get("class", []):
+            rows = table.find_all("tr")
+            for row in rows:
+                if "group-head" in row.get("class", []):
+                    current_league = row.get_text(strip=True)
+                    continue
+                team_a = row.find(class_="team-a")
+                team_b = row.find(class_="team-b")
+                score_time = row.find(class_="score-time")
+                if team_a and team_b and score_time:
+                    home = team_a.get_text(strip=True)
+                    away = team_b.get_text(strip=True)
+                    time_or_score = score_time.get_text(strip=True)
+                    match_url = ""
+                    a_tag = score_time.find("a", href=True)
+                    if a_tag and "/matches/" in a_tag["href"]:
+                        match_url = "https://int.soccerway.com" + a_tag["href"] if a_tag["href"].startswith("/") else a_tag["href"]
+                    
+                    time_match = _TIME_RE.search(time_or_score)
+                    score_match = _SCORE_RE.search(time_or_score)
+                    
+                    entry = {
+                        "home": home,
+                        "away": away,
+                        "time": time_match.group() if time_match else "",
+                        "score": score_match.group() if score_match else "",
+                        "odds": None,
+                        "league": current_league,
+                        "sport": "football",
+                        "source_url": url,
+                        "source_type": "soccerway",
+                        "raw": f"{home} vs {away}"
+                    }
+                    if match_url:
+                        entry["match_url"] = match_url
+                    results.append(entry)
+                    continue
+
         rows = table.find_all("tr")
         for row in rows:
             # Check if this is a group/league header
@@ -75,7 +127,8 @@ def _parse_match_tables(soup: BeautifulSoup, url: str) -> List[Dict]:
                 for cell in cells:
                     a = cell.find("a", href=re.compile(r"/matches/"))
                     if a and a.get("href"):
-                        match_url = a.get("href")
+                        href = a.get("href")
+                        match_url = "https://int.soccerway.com" + href if href.startswith("/") else href
                         break
                 
                 entry = {
@@ -139,7 +192,7 @@ def _parse_match_blocks(soup: BeautifulSoup, url: str) -> List[Dict]:
             for link in links:
                 href = link.get("href", "")
                 if "/matches/" in href:
-                    match_url = href
+                    match_url = "https://int.soccerway.com" + href if href.startswith("/") else href
                     break
             
             entry = {
@@ -177,3 +230,18 @@ def _is_team_name(text: str) -> bool:
     if text in skip_words:
         return False
     return True
+
+
+def get_deep_links(html: str, url: str) -> list[str]:
+    """Extract match detail URLs from listing page."""
+    soup = BeautifulSoup(html, "html.parser")
+    links = []
+    for a in soup.find_all("a", href=True):
+        if "/matches/" in a["href"]:
+            full_url = a["href"]
+            if full_url.startswith("/"):
+                full_url = "https://int.soccerway.com" + full_url
+            if full_url not in links:
+                links.append(full_url)
+    logger.info(f"Soccerway: found {len(links)} deep links")
+    return links

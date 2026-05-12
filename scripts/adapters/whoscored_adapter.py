@@ -7,7 +7,11 @@ HTML parsing and falls back to raw_adapter.
 from typing import List, Dict
 from bs4 import BeautifulSoup
 import re
+import logging
+import json
 from .raw_adapter import parse as raw_parse
+
+logger = logging.getLogger(__name__)
 
 
 _TIME_RE = re.compile(r"\b(\d{1,2}:\d{2})\b")
@@ -17,14 +21,21 @@ _MATCH_RE = re.compile(r"match-link|match-row|result-row|fixture", re.I)
 
 def parse(html: str, url: str) -> List[Dict]:
     """Parse WhoScored HTML for match data."""
+    logger.info(f"WhoScored parse start: {url} ({len(html)} bytes)")
     soup = BeautifulSoup(html, "html.parser")
 
     results = _parse_match_rows(soup, url)
+    logger.info(f"whoscored match_rows strategy: {len(results)} matches")
     if not results:
         results = _parse_table_rows(soup, url)
+        logger.info(f"whoscored table_rows strategy: {len(results)} matches")
     if not results:
-        return raw_parse(html, url)
-    return results
+        results = raw_parse(html, url)
+        logger.info(f"whoscored raw fallback: {len(results)} matches")
+
+    logger.info(f"WhoScored parse complete: {len(results)} matches")
+    from adapters import dedup_results
+    return dedup_results(results)
 
 
 def _parse_match_rows(soup: BeautifulSoup, url: str) -> List[Dict]:
@@ -77,13 +88,14 @@ def _parse_match_rows(soup: BeautifulSoup, url: str) -> List[Dict]:
             stats = _extract_stats(el)
             if stats:
                 if "corners" in stats:
-                    entry.setdefault("corners", {})["home"] = stats["corners"]
+                    entry["corners"] = {"home": stats["corners"], "away": None}
                 if "shots" in stats or "shots_on_target" in stats:
-                    entry.setdefault("shots", {})
-                    if "shots" in stats:
-                        entry["shots"]["home"] = stats["shots"]
-                    if "shots_on_target" in stats:
-                        entry["shots"]["on_target_home"] = stats["shots_on_target"]
+                    entry["shots"] = {
+                        "home": stats.get("shots"),
+                        "on_target_home": stats.get("shots_on_target"),
+                        "away": None,
+                        "on_target_away": None,
+                    }
 
             results.append(entry)
 
@@ -141,4 +153,36 @@ def _extract_stats(el) -> dict:
         m = pattern.search(text)
         if m:
             stats[stat_name] = int(m.group(1))
+
+    # Parse inline JSON data attributes
+    if hasattr(el, 'attrs') and "data-stats" in el.attrs:
+        try:
+            data = json.loads(el["data-stats"])
+            for k, v in data.items():
+                stats[k] = v
+        except (json.JSONDecodeError, TypeError):
+            pass
+
     return stats
+
+
+def get_deep_links(html: str, url: str) -> list[str]:
+    """Extract match detail URLs from WhoScored listing page."""
+    soup = BeautifulSoup(html, "html.parser")
+    links = []
+    # Match links from <a> elements
+    for a in soup.find_all("a", href=True):
+        if re.search(r'/Matches/\d+/Live/', a["href"], re.I):
+            full_url = a["href"]
+            if full_url.startswith("/"):
+                full_url = "https://www.whoscored.com" + full_url
+            if full_url not in links:
+                links.append(full_url)
+    # Also grab from div.Match data-id attributes
+    for div in soup.find_all("div", class_="Match", attrs={"data-id": True}):
+        match_id = div["data-id"]
+        link = f"https://www.whoscored.com/Matches/{match_id}/Live/"
+        if link not in links:
+            links.append(link)
+    logger.info(f"WhoScored: found {len(links)} deep links")
+    return links

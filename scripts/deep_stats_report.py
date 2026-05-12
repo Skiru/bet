@@ -369,6 +369,19 @@ def extract_team_stats(sport: str, team_name: str) -> dict:
         except Exception:
             pass
 
+    # MoneyPuck enrichment for hockey — xG%, Corsi%, Fenwick% (free CSV, no API key)
+    if sport == "hockey":
+        try:
+            from api_clients.moneypuck_client import get_team_stats as mp_get_team
+            mp_data = mp_get_team(team_name)
+            if mp_data and mp_data.get("stats"):
+                result["moneypuck"] = mp_data["stats"]
+                result["has_data"] = True
+                if "moneypuck" not in result["sources"]:
+                    result["sources"].append("moneypuck")
+        except Exception:
+            pass
+
     # LAST RESORT: Internet enrichment via data_enrichment_agent
     if not result["has_data"] and not os.environ.get("NO_ENRICH"):
         try:

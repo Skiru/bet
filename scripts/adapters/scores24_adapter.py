@@ -253,7 +253,6 @@ def _extract_volleyball_stats(lines: List[str]) -> Dict:
         "hitting": "hitting_pct",
         "service errors": "service_errors",
         "total points": "total_points",
-        "points": "total_points",
     }
     
     for i, line in enumerate(lines):

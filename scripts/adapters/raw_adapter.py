@@ -74,6 +74,46 @@ def parse(html: str, url: str) -> List[Dict]:
             time = time_m.group(1) if time_m else None
             results.append({"home": home, "away": away, "time": time, "source_url": url, "raw": text})
 
+    # Detect sport from URL and enrich entries
+    sport = _detect_sport_from_url(url)
+    source_type = _detect_source_type(url)
+    for r in results:
+        if "sport" not in r or not r["sport"]:
+            r["sport"] = sport
+        if "source_type" not in r or not r["source_type"]:
+            r["source_type"] = source_type
+
     # deduplicate by (home,away,time)
     from adapters import dedup_results
     return dedup_results(results)
+
+
+def _detect_sport_from_url(url: str) -> str:
+    """Detect sport from URL path."""
+    url_lower = url.lower()
+    for sport in ["tennis", "basketball", "volleyball", "hockey", "handball"]:
+        if f"/{sport}" in url_lower:
+            return sport
+    if "/soccer/" in url_lower or "/football/" in url_lower:
+        return "football"
+    return "football"  # Default
+
+
+def _detect_source_type(url: str) -> str:
+    """Detect source type from URL domain."""
+    from urllib.parse import urlparse
+    domain = urlparse(url).netloc.replace("www.", "")
+    # Map common domains to source types
+    domain_map = {
+        "soccerway.com": "soccerway",
+        "int.soccerway.com": "soccerway",
+        "flashscore.com": "flashscore",
+        "whoscored.com": "whoscored",
+        "betexplorer.com": "betexplorer",
+        "oddsportal.com": "oddsportal",
+        "sofascore.com": "sofascore",
+        "totalcorner.com": "totalcorner",
+        "forebet.com": "forebet",
+        "soccerstats.com": "soccerstats",
+    }
+    return domain_map.get(domain, domain)

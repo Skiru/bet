@@ -21,6 +21,9 @@ Forebet HTML structure:
 from typing import List, Dict
 from bs4 import BeautifulSoup
 import re
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Date pattern in Forebet: DD/MM/YYYY HH:MM
 _DATE_RE = re.compile(r"(\d{2})/(\d{2})/(\d{4})\s+(\d{2}:\d{2})")
@@ -153,20 +156,38 @@ def _parse_match_row(link_el, sport: str, source_url: str) -> Dict | None:
 
     return result
 
-
 def parse(html: str, url: str) -> List[Dict]:
     """Parse a Forebet predictions page and extract match predictions."""
+    logger.info(f"Forebet parse start: {url} ({len(html)} bytes)")
     soup = BeautifulSoup(html, "html.parser")
     results = []
     sport = _detect_sport(url)
 
     links = soup.find_all("a", class_="tnmscn")
+    logger.info(f"forebet found {len(links)} tnmscn links")
 
     for link in links:
         match = _parse_match_row(link, sport, url)
         if match:
             results.append(match)
 
+    logger.info(f"Forebet parse complete: {len(results)} matches ({sport})")
     # Deduplicate
     from adapters import dedup_results
     return dedup_results(results)
+
+
+def get_deep_links(html: str, url: str) -> list[str]:
+    """Extract match detail URLs from Forebet listing page."""
+    soup = BeautifulSoup(html, "html.parser")
+    links = []
+    for a in soup.find_all("a", class_="tnmscn"):
+        href = a.get("href", "")
+        if href:
+            full_url = href
+            if full_url.startswith("/"):
+                full_url = "https://www.forebet.com" + full_url
+            if full_url not in links:
+                links.append(full_url)
+    logger.info(f"Forebet: found {len(links)} deep links")
+    return links

@@ -12,9 +12,12 @@ from .raw_adapter import parse as raw_parse
 # Patterns for identifying Flashscore section/league headers
 _HEADER_CLASS_RE = re.compile(
     r"event__header|event__title|league-header|tournament-header|"
-    r"event__round|event__series",
+    r"event__series",
     re.I,
 )
+
+# Round labels ("Final", "3rd Place", "Semifinal") — tracked as metadata, NOT league context
+_ROUND_CLASS_RE = re.compile(r"event__round", re.I)
 
 
 def _detect_sport_from_url(url: str) -> str | None:
@@ -119,6 +122,7 @@ def _heuristic0_event_classes(soup: BeautifulSoup, url: str) -> List[Dict]:
     results = []
     current_league = ""
     current_country = None
+    current_round = ""
     url_league = _competition_from_url(url)
 
     # Regex for home/away participant elements — handles two known class patterns:
@@ -132,7 +136,7 @@ def _heuristic0_event_classes(soup: BeautifulSoup, url: str) -> List[Dict]:
     all_elements = soup.find_all(
         True,
         class_=lambda c: c and re.search(
-            r"event__header|event__title|event__match|league-header|tournament-header|headerLeague",
+            r"event__header|event__title|event__match|event__round|league-header|tournament-header|headerLeague",
             " ".join(c) if isinstance(c, (list, tuple)) else c,
             re.I,
         ),
@@ -152,6 +156,11 @@ def _heuristic0_event_classes(soup: BeautifulSoup, url: str) -> List[Dict]:
                 current_country = (country_el.get_text(separator=" ") or "").strip()
             if title_el:
                 current_league = (title_el.get_text(separator=" ") or "").strip()
+            continue
+
+        # Round labels (Final, 3rd Place, etc.) — track separately, NOT as league
+        if _ROUND_CLASS_RE.search(classes_str) and "event__match" not in classes_str:
+            current_round = (el.get_text(separator=" ") or "").strip()
             continue
 
         # Detect older header — update league context
@@ -265,6 +274,12 @@ def _heuristic0_event_classes(soup: BeautifulSoup, url: str) -> List[Dict]:
         if match_id and re.match(r'^g_\d+_', match_id):
             match_id = re.sub(r'^g_\d+_', '', match_id)
 
+        # Fallback: extract match_id from eventRowLink URL path
+        if not match_id and match_url:
+            mid_match = re.search(r'/match/([A-Za-z0-9]+)/?', match_url)
+            if mid_match:
+                match_id = mid_match.group(1)
+
         # Volleyball set score enrichment
         volleyball_stats = {}
         if _detect_sport_from_url(url) == "volleyball" and period_scores:
@@ -297,6 +312,8 @@ def _heuristic0_event_classes(soup: BeautifulSoup, url: str) -> List[Dict]:
             entry["match_id"] = match_id
         if league_val:
             entry["league"] = league_val
+        if current_round:
+            entry["round"] = current_round
         if volleyball_stats:
             entry["volleyball"] = volleyball_stats
         results.append(entry)
@@ -382,5 +399,11 @@ def parse(html: str, url: str) -> List[Dict]:
         from adapters import dedup_results
         return dedup_results(results)
 
-    # final fallback
-    return raw_parse(html, url)
+    # final fallback — propagate sport from URL
+    fallback_results = raw_parse(html, url)
+    sport = _detect_sport_from_url(url)
+    if sport:
+        for r in fallback_results:
+            if not r.get("sport"):
+                r["sport"] = sport
+    return fallback_results

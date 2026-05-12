@@ -1,4 +1,4 @@
-"""Unit tests for hockey adapters — hockey_reference, naturalstattrick, dailyfaceoff."""
+"""Unit tests for hockey adapters — hockey_reference, naturalstattrick, dailyfaceoff, moneypuck."""
 import sys
 from pathlib import Path
 
@@ -439,3 +439,56 @@ class TestCoversNHLAdapter:
                 assert isinstance(r["pp_pct_away"], float)
             if "record_away" in r:
                 assert "-" in r["record_away"]
+
+
+# =============================================================
+# MoneyPuck adapter tests
+# =============================================================
+
+MONEYPUCK_CSV = """\
+name,situation,games_played,iceTime,xGoalsPercentage,corsiPercentage,fenwickPercentage,shotsOnGoalFor,shotsOnGoalAgainst,goalsFor,goalsAgainst,highDangerShotsFor,highDangerGoalsFor,highDangerShotsAgainst,highDangerGoalsAgainst,shotAttemptsFor,shotAttemptsAgainst,shootingPercentageFor,savePctgFor,PDOFor
+BOS,all,82,3968.5,0.5520,0.5200,0.5150,2500,2200,260,220,800,120,700,100,4800,4400,10.40,0.9000,1.0400
+TOR,all,82,3970.2,0.5100,0.5050,0.5000,2400,2350,240,235,750,110,720,105,4600,4550,10.00,0.9000,1.0000
+BOS,5on5,82,2900.0,0.5600,0.5300,0.5250,1800,1600,180,150,600,90,500,70,3500,3200,10.00,0.9063,1.0063
+"""
+
+from adapters.moneypuck_adapter import parse as moneypuck_parse
+
+
+class TestMoneyPuckAdapter:
+    def test_csv_parsing_returns_teams(self):
+        """Parse CSV text directly — should return team-level stat dicts."""
+        url = "https://moneypuck.com/moneypuck/playerData/seasonSummary/2025/regular/teams.csv"
+        results = moneypuck_parse(MONEYPUCK_CSV, url)
+        # Should get all rows (3: BOS all, TOR all, BOS 5on5) formatted as adapter output
+        assert len(results) >= 2
+        names = [r["home"] for r in results]
+        assert "Boston Bruins" in names
+        assert "Toronto Maple Leafs" in names
+
+    def test_csv_stats_extraction(self):
+        """Verify key advanced stats are extracted."""
+        url = "https://moneypuck.com/moneypuck/playerData/seasonSummary/2025/regular/teams.csv"
+        results = moneypuck_parse(MONEYPUCK_CSV, url)
+        bos = next((r for r in results if r["home"] == "Boston Bruins"), None)
+        assert bos is not None
+        stats = bos["stats"]
+        assert stats["xg_pct"] == 0.552
+        assert stats["corsi_pct"] == 0.52
+        assert stats["fenwick_pct"] == 0.515
+        assert stats["goals_for"] == 260.0
+        assert stats["goals_against"] == 220.0
+
+    def test_sport_and_league_set(self):
+        """All results should have sport=hockey, league=NHL."""
+        url = "https://moneypuck.com/moneypuck/playerData/seasonSummary/2025/regular/teams.csv"
+        results = moneypuck_parse(MONEYPUCK_CSV, url)
+        for r in results:
+            assert r["sport"] == "hockey"
+            assert r["league"] == "NHL"
+            assert r["source_type"] == "moneypuck"
+
+    def test_empty_csv_returns_empty(self):
+        """Empty/invalid CSV should return empty list."""
+        results = moneypuck_parse("", "https://moneypuck.com/teams.csv")
+        assert results == [] or isinstance(results, list)

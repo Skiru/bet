@@ -6,7 +6,10 @@ team names (in links), match time, and 1X2 odds in ``<td>`` cells.
 from typing import List, Dict
 from bs4 import BeautifulSoup
 import re
+import logging
 from .raw_adapter import parse as raw_parse
+
+logger = logging.getLogger(__name__)
 
 ODDS_RE = re.compile(r"^\d+\.\d{2}$")
 TIME_RE = re.compile(r"\b(\d{1,2}:\d{2})\b")
@@ -16,7 +19,16 @@ LEADING_TIME_RE = re.compile(r"^(\d{1,2}:\d{2})\s*(.+)")
 TEAM_SPLIT_RE = re.compile(r"\s+[-–—]\s+|\s+vs\.?\s+", re.I)
 
 
+def _detect_sport(url: str) -> str:
+    """Detect sport from BetExplorer URL."""
+    url_lower = url.lower()
+    for sport in ["tennis", "basketball", "volleyball", "hockey"]:
+        if f"/{sport}/" in url_lower:
+            return sport
+    return "football"
+
 def parse(html: str, url: str) -> List[Dict]:
+    logger.info(f"BetExplorer adapter starting parsing for {url}")
     soup = BeautifulSoup(html, "html.parser")
     results = []
 
@@ -96,6 +108,7 @@ def parse(html: str, url: str) -> List[Dict]:
                 "source_url": url,
                 "raw": f"{home} - {away}",
                 "source_type": "betexplorer",
+                "sport": _detect_sport(url),
             }
             if current_league:
                 entry["league"] = current_league
@@ -117,9 +130,30 @@ def parse(html: str, url: str) -> List[Dict]:
 
     if results:
         from adapters import dedup_results
-        return dedup_results(
+        logger.info(f"BetExplorer adapter found {len(results)} raw items, deduping")
+        final_results = dedup_results(
             results,
             key_fn=lambda r: (r.get("home"), r.get("away"), str(r.get("time"))),
         )
+        logger.info(f"BetExplorer adapter returning {len(final_results)} valid match entries")
+        return final_results
 
+    logger.info(f"BetExplorer adapter found no matches, falling back to raw_parse")
     return raw_parse(html, url)
+
+
+def get_deep_links(html: str, url: str) -> list[str]:
+    """Extract match detail URLs from BetExplorer listing page."""
+    soup = BeautifulSoup(html, "html.parser")
+    links = []
+    for a in soup.find_all("a", href=True):
+        href = a["href"]
+        if "/match/" in href or re.search(r'/soccer/[^/]+/[^/]+/[^/]+', href, re.I):
+            full_url = href
+            if full_url.startswith("/"):
+                full_url = "https://www.betexplorer.com" + full_url
+            if full_url not in links:
+                links.append(full_url)
+    logger.info(f"BetExplorer: found {len(links)} deep links")
+    return links
+

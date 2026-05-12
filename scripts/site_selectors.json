@@ -292,6 +292,11 @@
   ],
 
   "_content_ready": {
+    "flashscore.com": {
+      "selectors": [".event__match", ".event__header", ".sportName"],
+      "timeout": 10000,
+      "wait_after_load": 4000
+    },
     "oddsportal.com": {
       "selectors": [".participant-name", ".eventRow", "[class*='eventRow']"],
       "timeout": 8000,

@@ -46,6 +46,7 @@ class VolleyballScanner(BaseSportScanner):
     """Volleyball-specific scanner — Tier 1 sport."""
     
     _cached_urls = None
+    _cached_max_deep_links: int | None = None
 
     @property
     def sport_name(self) -> str:
@@ -67,8 +68,8 @@ class VolleyballScanner(BaseSportScanner):
             urls = data.get("sports", {}).get("volleyball", {}).get("urls", [])
             if urls:
                 return urls
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[VolleyballScanner] config load failed, using fallback URLs: {e}")
         return list(_FALLBACK_URLS)
 
     @property
@@ -77,14 +78,15 @@ class VolleyballScanner(BaseSportScanner):
 
     @property
     def max_deep_links(self) -> int:
-        try:
-            data = json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
-            limit = data.get("sports", {}).get("volleyball", {}).get("max_deep_links")
-            if isinstance(limit, int):
-                return limit
-        except Exception:
-            pass
-        return 15
+        if VolleyballScanner._cached_max_deep_links is None:
+            try:
+                data = json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
+                limit = data.get("sports", {}).get("volleyball", {}).get("max_deep_links")
+                VolleyballScanner._cached_max_deep_links = limit if isinstance(limit, int) else 15
+            except Exception as e:
+                print(f"[VolleyballScanner] config load failed for max_deep_links, using fallback: {e}")
+                VolleyballScanner._cached_max_deep_links = 15
+        return VolleyballScanner._cached_max_deep_links
 
     @property
     def required_stat_keys(self) -> list[str]:

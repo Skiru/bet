@@ -190,9 +190,21 @@ These API sources provide structured statistical data via REST APIs. They are th
   Role: advanced NHL statistics (Corsi, Fenwick, expected goals, high danger chances).
   URL: naturalstattrick.com
   Use for: NHL team possession metrics and game flow data.
-  Access: OK (Playwright).
+  Access: **BLOCKED** — Cloudflare "Under Attack" mode returns 403 on ALL methods (requests, cloudscraper, Playwright headless/non-headless). NOT fixable without proxy/residential IP.
   Coverage: NHL.
-  Adapter: `scripts/adapters/naturalstattrick_adapter.py`
+  Adapter: `scripts/adapters/naturalstattrick_adapter.py` (code works but source unreachable).
+  Status: L2 fallback only — replaced by MoneyPuck as primary xG/Corsi/Fenwick source.
+  Added: 2026-05-12.
+
+- MoneyPuck
+  Role: advanced NHL team statistics (xG%, Corsi%, Fenwick%, high-danger chances, PDO, shooting%, save%).
+  URL: moneypuck.com/moneypuck/playerData/seasonSummary/{season}/{type}/teams.csv
+  Use for: **PRIMARY** NHL advanced stats — 37 normalized stat keys per team, 5 situations (all/5on5/4on5/5on4/other).
+  Access: FREE, no API key, no Cloudflare. CSV endpoint via requests (Playwright triggers download error).
+  Coverage: NHL (32 teams, 102 raw columns).
+  Client: `scripts/api_clients/moneypuck_client.py` (fetches CSV, 12h cache).
+  Adapter: `scripts/adapters/moneypuck_adapter.py`
+  Enrichment: integrated in `deep_stats_report.py` for hockey candidates.
   Added: 2026-05-12.
 
 - DailyFaceoff
@@ -307,11 +319,12 @@ Disabled sources (2026-05-11): TheSportsDB (97.8% fail), BallDontLie (100% fail)
 These adapters provide structured data extraction from web sources, normalizing raw HTML into fixture/stats JSON format used by the pipeline. They are invoked by `scan_events.py` and `deep_link_discovery.py`.
 
 - soccerway_adapter.py (`scripts/adapters/soccerway_adapter.py`)
-  Role: structured parser for Soccerway pages — extracts fixtures, results, standings, H2H, and squad data.
-  Use for: exotic league fixture discovery and H2H extraction. Covers 200+ countries and 1000+ leagues.
-  Input: Soccerway URLs (e.g., `/football/[country]/[league]/`)
-  Output: normalized fixture/stats JSON for the analysis pool.
-  Added: 2026-04-30.
+  Role: structured parser for Soccerway pages — Soccerway-specific selectors (team-a/team-b/score-time), group-head league detection, and raw fallback with sport/source_type enrichment.
+  Use for: exotic league fixture discovery. Covers 200+ countries and 1000+ leagues. 38+ matches via HTTP (raw fallback), more with Playwright.
+  Input: Soccerway URLs (e.g., `/matches/YYYY/MM/DD/`)
+  Output: normalized fixtures with home/away, league, match_url (absolute), sport, source_type. `get_deep_links()` for /matches/ sub-pages.
+  Features: verbose logging, dedup, absolute match_url (not relative), raw fallback enriches sport/source_type.
+  Updated: 2026-05-12.
 
 - tennisexplorer_adapter.py (`scripts/adapters/tennisexplorer_adapter.py`)
   Role: structured parser for TennisExplorer pages — uses paired-row parsing (two rows per match) to extract player names, match URLs, scores, and tournament context.
@@ -322,11 +335,12 @@ These adapters provide structured data extraction from web sources, normalizing 
   Updated: 2026-05-12.
 
 - soccerstats_adapter.py (`scripts/adapters/soccerstats_adapter.py`)
-  Role: structured parser for SoccerStats pages — extracts league-level corner, card, foul, and BTTS statistics.
+  Role: structured parser for SoccerStats pages — extracts league-level corner, card, foul, and BTTS statistics with safe float parsing.
   Use for: league-level statistical context for football corner/card/foul markets.
   Input: SoccerStats league URLs (e.g., `/latest.asp?league={league}`)
-  Output: normalized league statistics (team averages for corners, cards, fouls, goals).
-  Added: 2026-04-30.
+  Output: normalized league statistics (team averages for corners, cards, fouls, goals). `get_deep_links()` for results/teams/homeaway.asp sub-pages.
+  Features: verbose logging, dedup, try/except float parsing, removed duplicate source/url fields.
+  Updated: 2026-05-12.
 
 - scores24_adapter.py (`scripts/adapters/scores24_adapter.py`)
   Role: structured deep parser for scores24.live — listing pages (fixture discovery) and detail pages (H2H, form, odds, trends).
@@ -345,39 +359,44 @@ These adapters provide structured data extraction from web sources, normalizing 
   Added: 2026-04-30.
 
 - betexplorer_adapter.py (`scripts/adapters/betexplorer_adapter.py`)
-  Role: structured parser for BetExplorer pages — extracts fixtures with odds, results, and competition context across all sports.
-  Use for: fixture discovery with embedded odds data. Covers football, tennis, basketball, hockey, volleyball.
+  Role: structured parser for BetExplorer pages — extracts fixtures with odds, results, and competition context across all sports. Auto-detects sport from URL.
+  Use for: fixture discovery with embedded odds data. Covers football, tennis, basketball, hockey, volleyball. 235+ matches via HTTP.
   Input: BetExplorer sport URLs (e.g., `/football/`, `/volleyball/`)
-  Output: normalized fixture list with odds context (1X2 or ML prices where available).
-  Added: 2026-04-30.
+  Output: normalized fixture list with odds context (1X2 or ML prices), sport, source_type. `get_deep_links()` for /match/ detail pages.
+  Features: verbose logging, dedup, sport auto-detection from URL.
+  Updated: 2026-05-12.
 
 - forebet_adapter.py (`scripts/adapters/forebet_adapter.py`)
-  Role: structured parser for Forebet prediction pages — extracts model predictions, probabilities, and predicted scores.
+  Role: structured parser for Forebet prediction pages — extracts model predictions, probabilities, and predicted scores. 44+ football matches via HTTP (server-rendered).
   Use for: model-backed direction confirmation for football and tennis. Parses 60+ tennis matches and 40+ football matches per page with 2-way/3-way probabilities.
   Input: Forebet tip pages (e.g., `/football-tips-and-predictions-for-today`, `/tennis/predictions-today`)
-  Output: normalized predictions with probability %, predicted score, and value indicators.
-  Added: 2026-04-30.
+  Output: normalized predictions with probability %, predicted score, match_url, and value indicators. `get_deep_links()` extracts tnmscn detail links.
+  Features: verbose logging, dedup.
+  Updated: 2026-05-12.
 
 - oddsportal_adapter.py (`scripts/adapters/oddsportal_adapter.py`)
-  Role: structured parser for OddsPortal pages — extracts odds comparison data, line movements, and dropping odds.
-  Use for: odds cross-validation, price gap detection, and line movement tracking.
+  Role: structured parser for OddsPortal pages — SPA requiring Playwright. 3 parsing strategies: structured divs, table rows, link-based.
+  Use for: odds cross-validation, price gap detection, and line movement tracking. Needs Playwright (0 matches via HTTP).
   Input: OddsPortal sport/league URLs
-  Output: normalized odds data with bookmaker prices and movement indicators.
-  Added: 2026-04-30.
+  Output: normalized odds data with match_url, sport, source_type. `get_deep_links()` extracts match detail URLs.
+  Features: verbose logging, dedup, sport auto-detection, fixed deep link pattern (actual match URLs, not /h2h/).
+  Updated: 2026-05-12.
 
 - sofascore_adapter.py (`scripts/adapters/sofascore_adapter.py`)
-  Role: structured parser for Sofascore pages — extracts fixtures, team form, player ratings, and match statistics.
-  Use for: fixture cross-validation, form context, and pre-match statistics across all sports.
-  Input: Sofascore sport URLs
-  Output: normalized fixture list with form and statistical context.
-  Added: 2026-04-30.
+  Role: API-based adapter for Sofascore — extracts fixtures, team form, player ratings, and match statistics via REST API (no Playwright needed).
+  Use for: fixture cross-validation, form context, and pre-match statistics across all sports. 80+ football matches per day.
+  Input: Sofascore sport URLs (auto-detects sport and date)
+  Output: normalized fixture list with match_url (event stats endpoint), sofascore_id (→ match_id), sport, source_type. `get_deep_links()` extracts per-event API stat URLs.
+  Features: verbose logging, dedup, API-first (HTML fallback).
+  Updated: 2026-05-12.
 
 - totalcorner_adapter.py (`scripts/adapters/totalcorner_adapter.py`)
-  Role: structured parser for TotalCorner pages — extracts 200+ matches per day with corner counts, dangerous attacks, goal handicaps.
+  Role: structured parser for TotalCorner pages — extracts corner counts, dangerous attacks, goal handicaps, cards, standings. Needs Playwright for JS-rendered content.
   Use for: football corner market analysis. Extracts pre-match corner predictions, averages, and handicap lines.
   Input: TotalCorner match list (e.g., `/match/today`)
-  Output: normalized corner prediction data per match (corner avg, corner handicap, dangerous attacks).
-  Added: 2026-04-30.
+  Output: normalized corner prediction data per match (corner avg, corner handicap, dangerous attacks, match_url). `get_deep_links()` for /match/ /corner/ sub-pages.
+  Features: verbose logging, dedup, match_url extraction.
+  Updated: 2026-05-12.
 
 - tennisabstract_adapter.py (`scripts/adapters/tennisabstract_adapter.py`)
   Role: structured parser for TennisAbstract Elo table — uses header-based column mapping to extract player Elo ratings (overall + surface-specific: hElo, cElo, gElo) for 518 ATP + 542 WTA players.
@@ -409,11 +428,11 @@ These adapters provide structured data extraction from web sources, normalizing 
   Added: 2026-04-30.
 
 - raw_adapter.py (`scripts/adapters/raw_adapter.py`)
-  Role: fallback parser for any unrecognized domain — uses regex heuristics to extract "Team A vs Team B" patterns from raw HTML.
-  Use for: catch-all adapter when no domain-specific adapter exists. Applies garbage entry filtering.
+  Role: fallback parser for any unrecognized domain — uses regex heuristics to extract "Team A vs Team B" patterns from raw HTML. Now auto-detects sport from URL and source_type from domain.
+  Use for: catch-all adapter when no domain-specific adapter exists. Applies garbage entry filtering. Enriches results with sport/source_type for pipeline traceability.
   Input: any HTML page
-  Output: normalized fixture list (lower confidence than domain-specific adapters).
-  Added: 2026-04-30.
+  Output: normalized fixture list with sport and source_type (lower confidence than domain-specific adapters).
+  Updated: 2026-05-12.
 
 ### Odds Cross-Validation Sources (Multi-Source System)
 
@@ -750,7 +769,7 @@ These sources provide tips, predictions, and community analysis for exotic footb
   Role: NHL advanced stats — xGF, Corsi, Fenwick, shot quality, 5v5 data, goalie performance.
   URL: naturalstattrick.com
   Use for: shot-quality and expected goals context for NHL totals and moneyline.
-  Access: OK.
+  Access: **BLOCKED** — Cloudflare "Under Attack" mode, returns 403. Replaced by MoneyPuck CSV.
 
 - NHL.com
   Role: official NHL stats — team/player stats, standings, game previews, power play/penalty kill data.
@@ -759,10 +778,12 @@ These sources provide tips, predictions, and community analysis for exotic footb
   Access: OK.
 
 - MoneyPuck
-  Role: NHL expected goals models, win probability, game predictions, player cards.
-  URL: moneypuck.com
-  Use for: model-based NHL game predictions and xG totals context.
-  Access: OK.
+  Role: **PRIMARY** NHL advanced stats source — xG%, Corsi%, Fenwick%, high-danger chances, PDO, shooting%, save%. Free CSV API, no auth.
+  URL: moneypuck.com/moneypuck/playerData/seasonSummary/{season}/{type}/teams.csv
+  Use for: all NHL advanced metrics. 37 normalized stat keys per team, 5 situations. 12h cache. Integrated in deep_stats_report.py enrichment.
+  Access: FREE CSV, no Cloudflare. Must use requests (not Playwright — triggers download error).
+  Client: `scripts/api_clients/moneypuck_client.py`
+  Adapter: `scripts/adapters/moneypuck_adapter.py`
 
 - HockeyDB
   Role: historical hockey stats, player careers, team history.
@@ -942,7 +963,7 @@ Use this table to know WHERE to get odds for each sport. Never give up after one
   Preferred markets: team totals > quarter totals > game totals > spreads > moneyline (LAST RESORT).
 
 - Hockey
-  Minimum stack: Hockey-Reference + **SBR or ESPN or ScoresAndOdds** (totals/puck line) + NaturalStatTrick for xG.
+  Minimum stack: Hockey-Reference + **SBR or ESPN or ScoresAndOdds** (totals/puck line) + **MoneyPuck** for xG/Corsi/Fenwick (NaturalStatTrick BLOCKED by Cloudflare).
   Tipster cross-check: PicksWise.
   European coverage: EliteProspects.com (player profiles, team rosters for SHL, DEL, Liiga, Czech Extraliga, Swiss NL, KHL) + HockeyDB.com (historical stats, player careers) + Eurohockey.com (European league standings, schedules, results).
   Preferred markets: period totals > game totals > puck line > moneyline (LAST RESORT).

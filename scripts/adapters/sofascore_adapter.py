@@ -16,6 +16,10 @@ try:
 except ImportError:
     _requests = None
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 _SOFASCORE_API = "https://api.sofascore.com/api/v1/sport/{sport}/scheduled-events/{date}"
 
 _SPORT_FROM_URL = {
@@ -62,12 +66,15 @@ def parse(html: str, url: str) -> List[Dict]:
     try:
         resp = _requests.get(api_url, headers=_HEADERS, timeout=15)
         if resp.status_code != 200:
+            logger.info(f"Sofascore API error: HTTP {resp.status_code}")
             return _parse_html_fallback(html, url)
         data = resp.json()
-    except Exception:
+    except Exception as e:
+        logger.info(f"Sofascore API exception: {e}")
         return _parse_html_fallback(html, url)
 
     events = data.get("events", [])
+    logger.info(f"Sofascore API returned {len(events)} events")
     results = []
 
     for ev in events:
@@ -117,8 +124,11 @@ def parse(html: str, url: str) -> List[Dict]:
 
     if results:
         from adapters import dedup_results
-        return dedup_results(results)
+        deduped = dedup_results(results)
+        logger.info(f"Sofascore parse complete: {len(deduped)} matches")
+        return deduped
 
+    logger.info("Sofascore parse complete: 0 matches")
     return _parse_html_fallback(html, url)
 
 
@@ -126,3 +136,31 @@ def _parse_html_fallback(html: str, url: str) -> List[Dict]:
     """Fallback HTML parser for when API is not available."""
     from .raw_adapter import parse as raw_parse
     return raw_parse(html, url)
+
+
+def get_deep_links(html: str, url: str) -> list[str]:
+    """Extract Sofascore event detail links.
+    
+    For API-based adapter, this returns event stat URLs discovered from
+    the API response rather than HTML parsing.
+    """
+    if _requests is None:
+        return []
+    sport = _detect_sport_from_url(url)
+    date_str = _detect_date_from_url(url)
+    api_url = _SOFASCORE_API.format(sport=sport, date=date_str)
+    try:
+        resp = _requests.get(api_url, headers=_HEADERS, timeout=15)
+        if resp.status_code != 200:
+            return []
+        data = resp.json()
+    except Exception:
+        return []
+    links = []
+    for ev in data.get("events", []):
+        eid = ev.get("id")
+        if eid:
+            links.append(f"https://api.sofascore.com/api/v1/event/{eid}/statistics")
+    logger.info(f"Sofascore: found {len(links)} event detail links")
+    return links
+

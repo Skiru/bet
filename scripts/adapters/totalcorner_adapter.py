@@ -18,10 +18,14 @@ TotalCorner table structure:
 from typing import List, Dict
 from bs4 import BeautifulSoup
 import re
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def parse(html: str, url: str) -> List[Dict]:
     """Parse TotalCorner match listing page."""
+    logger.info(f"TotalCorner parse start: {url} ({len(html)} bytes)")
     soup = BeautifulSoup(html, "html.parser")
     results = []
 
@@ -181,8 +185,33 @@ def parse(html: str, url: str) -> List[Dict]:
         if total_goals:
             result["total_goals_line"] = total_goals
 
+        # Extract match detail URL from row links
+        match_link = tr.find("a", href=True)
+        if match_link:
+            href = match_link["href"]
+            if href and not href.startswith("javascript"):
+                match_url = href if href.startswith("http") else f"https://www.totalcorner.com{href}"
+                result["match_url"] = match_url
+
         results.append(result)
 
+    logger.info(f"TotalCorner parse complete: {len(results)} matches")
     # Deduplicate
     from adapters import dedup_results
     return dedup_results(results)
+
+
+def get_deep_links(html: str, url: str) -> list[str]:
+    """Extract match detail URLs from TotalCorner listing page."""
+    soup = BeautifulSoup(html, "html.parser")
+    links = []
+    for a in soup.find_all("a", href=True):
+        href = a["href"]
+        if re.search(r'/match/\d+|/corner/', href, re.I):
+            full_url = href
+            if full_url.startswith("/"):
+                full_url = "https://www.totalcorner.com" + full_url
+            if full_url not in links:
+                links.append(full_url)
+    logger.info(f"TotalCorner: found {len(links)} deep links")
+    return links

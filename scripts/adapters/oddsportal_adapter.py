@@ -6,7 +6,10 @@ It extracts simple markets when possible and otherwise falls back to `raw_adapte
 from typing import List, Dict
 from bs4 import BeautifulSoup
 import re
+import logging
 from .raw_adapter import parse as raw_parse
+
+logger = logging.getLogger(__name__)
 
 ODDS_RE = re.compile(r"\b\d+\.\d{2}\b")
 
@@ -43,6 +46,7 @@ def _detect_sport(url: str) -> str:
             return sport
     return "football"
 
+    
 def parse(html: str, url: str) -> List[Dict]:
     soup = BeautifulSoup(html, "html.parser")
     results = []
@@ -114,6 +118,7 @@ def parse(html: str, url: str) -> List[Dict]:
 
     # --- Strategy 2: Traditional table rows (pre-SPA pages) ---
     if not results:
+        logger.info("OddsPortal falling back to Strategy 2")
         for tr in soup.find_all("tr"):
             text = tr.get_text(" ", strip=True)
             if not text:
@@ -143,6 +148,7 @@ def parse(html: str, url: str) -> List[Dict]:
 
     # --- Strategy 3: Link-based extraction ---
     if not results:
+        logger.info("OddsPortal falling back to Strategy 3")
         for link in soup.find_all("a", href=True):
             href = link.get("href", "")
             text = link.get_text(strip=True)
@@ -177,9 +183,30 @@ def parse(html: str, url: str) -> List[Dict]:
 
     if results:
         from adapters import dedup_results
-        return dedup_results(
+        deduped = dedup_results(
             results,
             key_fn=lambda r: (r.get("home"), r.get("away"), tuple(r.get("odds", []))),
         )
+        logger.info(f"OddsPortal parse complete: {len(deduped)} matches")
+        return deduped
 
+    logger.info(f"OddsPortal parse complete: 0 matches")
     return []
+
+
+def get_deep_links(html: str, url: str) -> list[str]:
+    """Extract match detail URLs from OddsPortal listing page."""
+    soup = BeautifulSoup(html, "html.parser")
+    links = []
+    for a in soup.find_all("a", href=True):
+        href = a["href"]
+        # OddsPortal match pages: /football/country/league/team1-team2-XXXXXXXX/
+        if re.search(r'/[a-z-]+/[a-z-]+/[a-z0-9-]+/[a-z0-9-]+-\d{7,}/', href):
+            full_url = href
+            if full_url.startswith("/"):
+                full_url = "https://www.oddsportal.com" + full_url
+            if full_url not in links:
+                links.append(full_url)
+    logger.info(f"OddsPortal: found {len(links)} deep links")
+    return links
+

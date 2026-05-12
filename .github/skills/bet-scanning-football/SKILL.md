@@ -40,20 +40,43 @@ user-invokable: false
 
 ## Adapter Mapping
 
-| Domain | Adapter | Expected Output Fields |
-|--------|---------|----------------------|
-| flashscore.com | `flashscore_adapter` | home, away, time, league (shallow — JS fallback) |
-| soccerstats.com | `soccerstats_adapter` | per-team league averages: corners, cards, fouls |
-| totalcorner.com | `totalcorner_adapter` | corner_count, corner_handicap, total_goals_line |
-| soccerway.com | `soccerway_adapter` | home, away, time, league (shallow listing) |
-| whoscored.com | `whoscored_adapter` | possession, shots, corners (JS SPA regex) |
-| betexplorer.com | `betexplorer_adapter` | home, away, time, odds[] |
-| oddsportal.com | `oddsportal_adapter` | home, away, odds_structured{home_win, draw, away_win} |
-| scores24.com | `scores24_adapter` | match_info, odds, h2h[], form[], trends[] |
-| forebet.com | `forebet_adapter` | forebet_probs{home/draw/away %}, forebet_prediction |
-| sofascore.com | `sofascore_adapter` | sofascore_id, fixtures via REST |
-| betclic.pl | `betclic_adapter` | decimal odds from btn_label elements |
-| covers.com | `covers_adapter` | spread/total/ML, consensus %s |
+| Domain | Adapter | Expected Output Fields | Deep Links | Verbose Logging |
+|--------|---------|----------------------|------------|-----------------|
+| flashscore.com | `flashscore_adapter` | home, away, time, league, sport, source_type | via deep_link_discovery | ✅ |
+| soccerstats.com | `soccerstats_adapter` | per-team averages: corners, cards, fouls + get_deep_links() | ✅ results/teams/homeaway.asp | ✅ |
+| totalcorner.com | `totalcorner_adapter` | corner_count, corner_handicap, total_goals_line, cards, standings, match_url, dangerous_attacks + get_deep_links() | ✅ /match/ /corner/ | ✅ |
+| soccerway.com | `soccerway_adapter` | home, away, time, league, sport, source_type + get_deep_links() (raw fallback enriches sport/source_type) | ✅ /matches/ | ✅ |
+| whoscored.com | `whoscored_adapter` | possession, shots, corners, passes + JSON data-stats parsing + get_deep_links() | ✅ /Matches/ID/Live/ | ✅ (JS SPA — needs Playwright) |
+| betexplorer.com | `betexplorer_adapter` | home, away, time, odds{w1,x,w2}, sport, match_url + get_deep_links() | ✅ /match/ | ✅ |
+| oddsportal.com | `oddsportal_adapter` | home, away, odds_structured{w1,x,w2}, match_url + get_deep_links() | ✅ /h2h/ | ✅ (SPA — needs Playwright) |
+| scores24.live | `scores24_adapter` | match_info, odds, h2h[], form[], trends[] | via deep_link_discovery | ✅ |
+| forebet.com | `forebet_adapter` | forebet_probs{home/draw/away %}, forebet_prediction, predicted_score, avg_stat, match_url + get_deep_links() | ✅ tnmscn links | ✅ |
+| sofascore.com | `sofascore_adapter` | sofascore_id, fixtures via REST API, match_url (stats endpoint) + get_deep_links() | ✅ API event IDs | ✅ |
+| betclic.pl | `betclic_adapter` | decimal odds from btn_label elements | N/A | ⚠ always 403 |
+| covers.com | `covers_adapter` | spread/total/ML, consensus %s | N/A | ✅ |
+
+### Adapter Capabilities (v2 — updated 2026-05-12)
+
+All football adapters now have:
+- **Verbose logging**: logger.info at parse start/end with URL, byte count, strategy used, match count
+- **get_deep_links()**: Extracts sub-page URLs for deep data collection
+- **dedup_results()**: Prevents duplicate entries
+- **sport field**: All output dicts include `"sport": "football"` (or auto-detected from URL)
+- **source_type field**: All output dicts include source_type for traceability
+
+### HTTP vs Playwright Requirements
+
+| Adapter | HTTP Works? | Playwright Needed? | HTTP Match Count |
+|---------|-------------|-------------------|-----------------|
+| betexplorer | ✅ 235 matches | Optional (more data) | 235 |
+| sofascore | ✅ 80 matches (API) | No (uses REST API) | 80 |
+| forebet | ✅ 44 matches | No (server-rendered) | 44 |
+| flashscore | ⚠ 45 raw matches | ✅ for structured data | 45 (raw) |
+| soccerway | ⚠ 38 raw matches | ✅ for structured data | 38 (raw) |
+| oddsportal | ❌ 0 matches | ✅ required (SPA) | 0 |
+| whoscored | ❌ 403 blocked | ✅ required (JS SPA) | 0 |
+| soccerstats | ❌ needs correct URL | ✅ recommended | 0 |
+| totalcorner | ❌ 0 matches | ✅ required (JS) | 0 |
 
 ## Data Quality Standards
 

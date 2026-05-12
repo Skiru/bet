@@ -416,14 +416,16 @@
         "https://www.covers.com/nhl/matchups",
         "https://www.naturalstattrick.com/teamtable.php?fromseason=20252026&thession=20252026&stype=2&sit=5v5&score=all&rate=n&team=all&loc=B&gpf=410&fd=&td=",
         "https://www.naturalstattrick.com/games.php?fromseason=20252026&thession=20252026&stype=2&sit=5v5&loc=B&team=all&rate=n",
-        "https://www.dailyfaceoff.com/starting-goalies/"
+        "https://www.dailyfaceoff.com/starting-goalies/",
+        "https://moneypuck.com/moneypuck/playerData/seasonSummary/2025/regular/teams.csv"
       ],
       "timeout_minutes": 3,
       "max_deep_links": 15,
       "dedicated_sources": [
         "hockey-reference.com",
         "naturalstattrick.com",
-        "dailyfaceoff.com"
+        "dailyfaceoff.com",
+        "moneypuck.com"
       ]
     },
     "tipsters": {

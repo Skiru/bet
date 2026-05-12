@@ -36,6 +36,7 @@ TEST_URLS = {
     "scores24.live": "https://scores24.live/en/soccer",
     "naturalstattrick.com": "https://www.naturalstattrick.com/teamtable.php?fromseason=20252026&thession=20252026&stype=2&sit=5v5&score=all&rate=n&team=all&loc=B&gpf=410&fd=&td=",
     "dailyfaceoff.com": "https://www.dailyfaceoff.com/starting-goalies/",
+    "moneypuck.com": "https://moneypuck.com/moneypuck/playerData/seasonSummary/2025/regular/teams.csv",
 }
 
 # Volleyball-specific test URLs (used with --sport volleyball)
@@ -56,7 +57,7 @@ PLAYWRIGHT_ADAPTERS = {
 }
 
 # Adapters that can use simple HTTP requests
-API_ADAPTERS = {"sofascore.com", "betexplorer.com", "basketball-reference.com", "hockey-reference.com"}
+API_ADAPTERS = {"sofascore.com", "betexplorer.com", "basketball-reference.com", "hockey-reference.com", "moneypuck.com"}
 
 # Expected enriched fields per adapter
 EXPECTED_FIELDS = {
@@ -71,6 +72,7 @@ EXPECTED_FIELDS = {
     "hockey-reference.com": ["source_type", "sport", "league"],
     "naturalstattrick.com": ["source_type", "sport", "stats"],
     "dailyfaceoff.com": ["source_type", "sport"],
+    "moneypuck.com": ["source_type", "sport", "hockey"],
     "soccerway.com": ["source_type"],
     "whoscored.com": ["source_type"],
     "oddsportal.com": ["sport", "source_type"],
@@ -201,6 +203,7 @@ def test_adapter(name: str, verbose: bool = False, url_override: str | None = No
         "corners", "cards", "fouls", "shots", "standings", "predictions",
         "dangerous_attacks", "match_id", "match_url", "odds", "status",
         "is_live", "scores", "period_scores", "country", "raw",
+        "hockey", "volleyball",
     ]
     for key in standard_keys:
         val = sample.get(key)

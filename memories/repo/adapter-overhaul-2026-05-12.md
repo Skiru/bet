@@ -19,24 +19,12 @@ Comprehensive adapter improvements across basketball, hockey, tennis, volleyball
 - **Hockey scanner**: Config-driven URLs from `scan_urls.json` (was 11 hardcoded → 33+ from config)
 - **Tests**: 11 unit tests covering all 3 hockey adapters
 
-## Tennis (completed + verified 2026-05-12)
-- **TennisExplorer**: Complete rewrite with paired-row parser (2 rows per match). Bookmaker link filtering (bet365/1xBet/Unibet/bwin regex), seed stripping, case-insensitive skip set, date/time label filtering. **Live tested: 302 matches from /matches/, 94% match_url coverage.**
-- **ATP Tour adapter** (NEW): Scores page, rankings page, draws page parsing with embedded JSON support. Requires Playwright (403 with requests).
-- **TennisAbstract**: Fixed table detection (now targets `table#reportable` instead of largest table by row count). Header-based column mapping with `_col()` helper. **Live tested: 518 ATP (Sinner Elo=2331.1) + 542 WTA (Sabalenka Elo=2254.2).**
-- **fetch_tennis_elo.py** (NEW): Fetches/caches ATP+WTA Elo ratings to `stats_cache/tennis_elo/`. AGENT_SUMMARY output.
-- **enrich_tennis_stats.py**: H2H enrichment via ESPN athlete-vs-athlete API + `--verbose` + AGENT_SUMMARY. **Live tested: 2560 matches indexed from 640 players.**
-- **compute_safety_scores.py**: `lookup_tennis_elo()` fixed (correct glob `*_elo.json`, unwrap dict `data.get("players", [])`, correct key `entry.get("home")`). `_fuzzy_player_match()` fixed (last name + first initial matching). `has_elo` adds +1 to data quality score.
-- **normalize_adapter_output**: Returns `None` for `_elo_only`/`_ranking_only` records. **All callers fixed to handle None** (scan_events.py, base_scanner.py, normalize_batch).
-- **Tennis scanner**: `required_stat_keys` aligned with ESPN output (`games_won`, `sets_won`, `total_games`). Added `desired_stat_keys` and `validate_event()`.
-- **Deep links**: TennisExplorer patterns registered (`/match-detail/`, `/head-to-head/`, tournament pages). **All 6 test patterns pass.**
-
-### Bugs Found and Fixed During Verification
-- C1: `lookup_tennis_elo` wrong glob (`*_summary.json` → `*_elo.json`), wrong type (expected list → unwrap dict), wrong key (`"player"` → `"home"`)
-- C2: Deep link patterns required `?id=\d+` which gets stripped → removed query string requirement
-- C3: TennisAbstract hardcoded column indices off-by-one → header-based column mapping
-- C4: Fuzzy player match substring `in` operator matched wrong players → word-boundary matching
-- C5: `_elo_only` records flowing into event pipeline → normalization filter gate + caller None handling
-- C6: TennisAbstract table detection picking wrapper table instead of `#reportable` → direct ID selector
+## Tennis (completed)
+- **TennisExplorer**: H2H page parsing, surface/country extraction, match_url deep links, score extraction, source_type field
+- **ATP Tour adapter** (NEW): Scores page, rankings page, draws page parsing with embedded JSON support
+- **TennisAbstract**: `_elo_only` flag, logging, used by `fetch_tennis_elo.py` for safety score Elo data
+- **fetch_tennis_elo.py** (NEW): Fetches/caches ATP+WTA Elo ratings to `stats_cache/tennis_elo/`
+- **enrich_tennis_stats.py**: H2H enrichment via ESPN Stats API + H2H cache
 
 ## Volleyball (completed)
 - **Normalized schema**: `ENRICHED_EVENT_DEFAULTS["volleyball"]` with 12 stat keys
@@ -47,26 +35,63 @@ Comprehensive adapter improvements across basketball, hockey, tennis, volleyball
 - **Volleyball scanner**: Config-driven URLs from `scan_urls.json` (was 17 → 43)
 - **Base scanner**: `validate()` now checks stat coverage (warning-level)
 
-## Football (plan only)
-- Created `betting/plans/football-adapters-overhaul.plan.md` — 16 tasks across 6 phases
+## Football (completed + verified 2026-05-12)
+All 8 football adapters enhanced with verbose logging, deep links, dedup, sport/source_type fields:
+- **BetExplorer**: Sport auto-detection from URL, `get_deep_links()`, verbose logging, dedup. **Live: 235 matches via HTTP.**
+- **Sofascore**: API-first with REST endpoints, `get_deep_links()` for per-event stats. **Live: 80 matches, 160 deep links.**
+- **Forebet**: `get_deep_links()` from tnmscn links, verbose logging. **Live: 44 matches + 44 deep links.**
+- **Flashscore**: Raw fallback (SPA). **Live: 45 matches via HTTP (raw).**
+- **Soccerway**: Soccerway-specific selectors (team-a/team-b/score-time), absolute match_url, raw fallback enriches sport/source_type, `get_deep_links()`. **Live: 38 matches via HTTP (raw fallback).**
+- **WhoScored**: JSON data-stats parsing, explicit away=None stats, `get_deep_links()` from Matches/ID/Live/ + div.Match data-id. **Needs Playwright (HTTP 403).**
+- **OddsPortal**: Fixed deep link pattern (actual match URLs, not /h2h/), verbose logging, `get_deep_links()`. **Needs Playwright (SPA, 0 matches via HTTP).**
+- **SoccerStats**: Safe float parsing (try/except), removed duplicate source/url fields, `get_deep_links()` for results/teams/homeaway. **Needs correct URL or Playwright.**
+- **TotalCorner**: match_url extraction, `get_deep_links()` for /match/ /corner/ sub-pages. **Needs Playwright (JS).**
+- **raw_adapter**: Auto-detects sport from URL and source_type from domain — fallback results now have pipeline traceability.
+
+### Football Live Test Results (HTTP only)
+| Adapter | Matches | Deep Links | Status |
+|---------|---------|------------|--------|
+| BetExplorer | 235 | 0 | ✅ PASS |
+| Sofascore API | 80 | 160 | ✅ PASS |
+| Forebet | 44 | 44 | ✅ PASS |
+| Flashscore | 45 | 0 | ✅ PASS (raw) |
+| Soccerway | 38 | 0 | ✅ PASS (raw fallback) |
+| OddsPortal | 0 | 0 | ✅ Expected (SPA) |
+| TotalCorner | 0 | 0 | ✅ Expected (JS) |
+| WhoScored | 0 | 0 | ❌ HTTP 403 (Playwright needed) |
+| SoccerStats | 0 | 0 | ❌ HTTP 404 (wrong URL/Playwright) |
 
 ## Deep Link Discovery Updates
-Added domain patterns for: basketball-reference.com, hockey-reference.com, naturalstattrick.com, tennisexplorer.com
+Added domain patterns for: basketball-reference.com, hockey-reference.com, naturalstattrick.com, tennisexplorer.com, whoscored.com, totalcorner.com, forebet.com, soccerstats.com, covers.com.
+Fixed: query string preservation (was stripping `?id=` params), relaxed TennisExplorer `/match-detail/` pattern (no longer requires `?id=\d+`).
 
-## Files Created (7)
+## Files Created
 - `scripts/adapters/naturalstattrick_adapter.py`
 - `scripts/adapters/dailyfaceoff_adapter.py`
 - `scripts/adapters/atptour_adapter.py`
-- `scripts/api_clients/nba_api_client.py` (existed before, confirmed working)
+- `scripts/adapters/moneypuck_adapter.py` (NEW — NHL advanced stats from CSV)
+- `scripts/api_clients/moneypuck_client.py` (NEW — MoneyPuck CSV client, 37 stats/team)
+- `scripts/api_clients/nba_api_client.py`
 - `scripts/fetch_tennis_elo.py`
 - `scripts/_live_test_basketball.py`
 - `scripts/_live_test_tennis_adapters.py`
+- `scripts/_live_test_football_adapters.py` (NEW)
+- `scripts/_verify_db_pipeline.py` (NEW — DB save verification)
+
+## Files Modified (football-specific)
+- `scripts/adapters/betexplorer_adapter.py` — sport detection, logging, get_deep_links()
+- `scripts/adapters/forebet_adapter.py` — logging, get_deep_links()
+- `scripts/adapters/oddsportal_adapter.py` — logging, fixed deep link pattern, get_deep_links()
+- `scripts/adapters/sofascore_adapter.py` — logging, get_deep_links() via API
+- `scripts/adapters/soccerway_adapter.py` — Soccerway selectors, absolute match_url, raw fallback enrichment, get_deep_links()
+- `scripts/adapters/soccerstats_adapter.py` — logging, safe float parsing, dedup, get_deep_links()
+- `scripts/adapters/totalcorner_adapter.py` — logging, match_url extraction, get_deep_links()
+- `scripts/adapters/whoscored_adapter.py` — logging, JSON data-stats parsing, explicit away stats, get_deep_links()
+- `scripts/adapters/raw_adapter.py` — sport/source_type auto-detection from URL/domain
+- `scripts/deep_link_discovery.py` — 5 new domain patterns, query string preservation fix
+- `scripts/adapters/__init__.py` — _elo_only/ranking_only filtering in normalize_adapter_output(), normalize_batch() None handling
+- `scripts/scan_events.py` — None handling for normalize_adapter_output()
+- `scripts/scanners/base_scanner.py` — None handling for normalize_adapter_output()
 
 ## Key Data Flow
-Adapters → `normalize_adapter_output()` (filters `_elo_only`/`_ranking_only` → returns None) → scan results JSON → `fetch_api_stats.py` (fallback chains) → `build_stats_cache` → `stats_cache/{sport}/{team}.json` + DB dual-write → `deep_stats_report.py` / `compute_safety_scores.py`
-
-### Tennis-Specific Data Flow
-1. `fetch_tennis_elo.py` → `tennisabstract_adapter.parse()` → cache at `stats_cache/tennis_elo/{tour}_elo.json`
-2. `enrich_tennis_stats.py` → ESPN API → L10 form + H2H data → `stats_cache/tennis/{player}.json`
-3. `compute_safety_scores.py` → `lookup_tennis_elo(player, surface)` → fuzzy match → Elo data → `has_elo=True` → +1 data quality
-4. TennisExplorer → `scan_events.py` → `normalize_adapter_output()` (passes fixtures, blocks Elo) → shortlist
+Adapters → `normalize_adapter_output()` → scan results JSON → `fetch_api_stats.py` (fallback chains) → `build_stats_cache` → `stats_cache/{sport}/{team}.json` + DB dual-write → `deep_stats_report.py` / `compute_safety_scores.py`
