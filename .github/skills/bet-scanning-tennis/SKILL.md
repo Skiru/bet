@@ -26,25 +26,36 @@ user-invokable: false
 
 ## Adapter Mapping
 
-| Domain | Adapter | Expected Output Fields |
-|--------|---------|----------------------|
-| flashscore.com | `flashscore_adapter` | player1, player2, time, tournament |
-| tennisexplorer.com | `tennisexplorer_adapter` | surface (clay/hard/grass), tournament tier |
-| tennisabstract.com | `tennisabstract_adapter` | Elo ratings per-surface (518 players) |
-| oddsportal.com | `oddsportal_adapter` | match_winner odds, set betting |
-| scores24.live | `scores24_adapter` | H2H data, form, trends |
-| forebet.com | `forebet_adapter` | prediction probabilities |
-| betclic.pl | `betclic_adapter` | decimal odds |
+| Domain | Adapter | Expected Output Fields | Live Test |
+|--------|---------|----------------------|-----------|
+| flashscore.com | `flashscore_adapter` | player1, player2, time, tournament | Standard |
+| tennisexplorer.com | `tennisexplorer_adapter` | home, away, match_url, period_scores, source_type="tennisexplorer" | **302 matches/page, 94% match_url coverage** |
+| tennisabstract.com | `tennisabstract_adapter` | Elo ratings per-surface, source_type="tennisabstract_elo", `_elo_only=True` | **518 ATP + 542 WTA** |
+| atptour.com | `atptour_adapter` | scores, rankings, draw brackets, source_type="atptour" | **Needs Playwright (403 with requests)** |
+| oddsportal.com | `oddsportal_adapter` | match_winner odds, set betting | Standard |
+| scores24.live | `scores24_adapter` | H2H data, form, trends | Standard |
+| forebet.com | `forebet_adapter` | prediction probabilities | Standard |
+| betclic.pl | `betclic_adapter` | decimal odds | ⚠ Always 403 |
+
+### Adapter Architecture
+
+- **TennisExplorer** uses **two rows per match** (one row per player) — adapter pairs consecutive player rows
+- **TennisAbstract** returns **Elo records** (not fixtures) — quarantined with `_elo_only=True`, fetched separately via `scripts/fetch_tennis_elo.py`
+- **ATP Tour** requires Playwright for JS-rendered content
+- **Player detection** uses `/player/` href pattern (562 links/page), with bookmaker link filtering and seed number stripping
+- **Deep link patterns** registered in `deep_link_discovery.py` for `/match-detail/`, `/head-to-head/`, tournament pages
 
 ## Data Quality Standards
 
 - **Minimum events per day:** 30
-- **Required stat keys:** games_won, sets_won, total_sets
-- **Missing keys (known gap):** aces, double_faults, first_serve_pct, break_points_won
+- **Required stat keys:** `games_won`, `sets_won`, `total_games` (reliably produced by ESPN linescores)
+- **Desired stat keys:** `aces`, `double_faults`, `first_serve_pct`, `break_points_won` (present when ESPN has detailed match stats)
 - **Multi-source threshold:** ≥2 sources confirming each event
 - **Data freshness:** Same-day data only
-- **Elo data:** 518 ATP+WTA players with per-surface ratings
-- **H2H source:** Scores24 detail pages (ESPN tennis H2H is empty)
+- **Elo data:** 518 ATP + 542 WTA players with per-surface ratings (hard_elo, clay_elo, grass_elo)
+- **H2H sources:** ESPN athlete-vs-athlete API (wired via `enrich_tennis_stats.py`), Scores24 detail pages
+- **Surface normalization:** `surface` field now in normalization whitelist (T2 fix)
+- **Stat validation:** `tennis_scanner.py` `validate_event()` reports stat_coverage ratio and missing keys
 
 ## Timeout Configuration
 
@@ -81,12 +92,14 @@ user-invokable: false
 
 ## Known Issues
 
-- **ESPN tennis gap:** Only returns sets_won/games_won/total_sets (3/7 keys). Missing aces, DFs, first serve %, break points.
-- **H2H empty from ESPN:** Must use Scores24 detail pages for tennis H2H data.
-- **TennisAbstract Elo not integrated:** Collected at `betting/data/tennisabstract.com/` but not yet fed into safety scores or probability engine.
-- **Surface matters:** Clay specialists vs hard court — surface detection via TennisExplorer is critical for analysis.
+- **ESPN tennis gap:** Only returns sets_won/games_won/total_games (3/7 keys) from linescores. Detailed match stats (aces, DFs, serve %) available for ~43% of matches.
+- **H2H via ESPN:** Wired through `enrich_tennis_stats.py` → `ESPNStatsClient.get_h2h_athletes()`. Works when athlete IDs are resolvable.
+- **TennisAbstract Elo integration:** Fetched via `scripts/fetch_tennis_elo.py`, cached at `betting/data/stats_cache/tennis_elo/`. Wired into data quality score via `compute_safety_scores.py` `has_elo` parameter and `lookup_tennis_elo()` function.
+- **Surface detection:** TennisExplorer doesn't embed surface in match table rows — surface comes from tournament detail pages via deep links or enrichment.
+- **ATP Tour 403:** `atptour.com` blocks requests-based fetching. Must use Playwright (browser rendering) for ATP Tour data.
 - **Qualifier rounds:** Many matches feature qualifiers with zero historical data.
-- **Walkovers/retirements:** Tennis has high withdrawal rate — check for WO/RET status.
+- **Walkovers/retirements:** Tennis has high withdrawal rate — check for WO/RET status. `_is_player_name` skips "Retired", "Walkover" labels.
+- **Bookmaker link noise:** TennisExplorer embeds bookmaker links (bet365, 1xBet, Unibet, bwin) in match rows — adapter filters these via regex + skip list.
 
 ## Deep Data Requirements (v4 Pipeline)
 

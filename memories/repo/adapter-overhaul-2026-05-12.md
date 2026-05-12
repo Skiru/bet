@@ -19,12 +19,24 @@ Comprehensive adapter improvements across basketball, hockey, tennis, volleyball
 - **Hockey scanner**: Config-driven URLs from `scan_urls.json` (was 11 hardcoded → 33+ from config)
 - **Tests**: 11 unit tests covering all 3 hockey adapters
 
-## Tennis (completed)
-- **TennisExplorer**: H2H page parsing, surface/country extraction, match_url deep links, score extraction, source_type field
-- **ATP Tour adapter** (NEW): Scores page, rankings page, draws page parsing with embedded JSON support
-- **TennisAbstract**: `_elo_only` flag, logging, used by `fetch_tennis_elo.py` for safety score Elo data
-- **fetch_tennis_elo.py** (NEW): Fetches/caches ATP+WTA Elo ratings to `stats_cache/tennis_elo/`
-- **enrich_tennis_stats.py**: H2H enrichment via ESPN Stats API + H2H cache
+## Tennis (completed + verified 2026-05-12)
+- **TennisExplorer**: Complete rewrite with paired-row parser (2 rows per match). Bookmaker link filtering (bet365/1xBet/Unibet/bwin regex), seed stripping, case-insensitive skip set, date/time label filtering. **Live tested: 302 matches from /matches/, 94% match_url coverage.**
+- **ATP Tour adapter** (NEW): Scores page, rankings page, draws page parsing with embedded JSON support. Requires Playwright (403 with requests).
+- **TennisAbstract**: Fixed table detection (now targets `table#reportable` instead of largest table by row count). Header-based column mapping with `_col()` helper. **Live tested: 518 ATP (Sinner Elo=2331.1) + 542 WTA (Sabalenka Elo=2254.2).**
+- **fetch_tennis_elo.py** (NEW): Fetches/caches ATP+WTA Elo ratings to `stats_cache/tennis_elo/`. AGENT_SUMMARY output.
+- **enrich_tennis_stats.py**: H2H enrichment via ESPN athlete-vs-athlete API + `--verbose` + AGENT_SUMMARY. **Live tested: 2560 matches indexed from 640 players.**
+- **compute_safety_scores.py**: `lookup_tennis_elo()` fixed (correct glob `*_elo.json`, unwrap dict `data.get("players", [])`, correct key `entry.get("home")`). `_fuzzy_player_match()` fixed (last name + first initial matching). `has_elo` adds +1 to data quality score.
+- **normalize_adapter_output**: Returns `None` for `_elo_only`/`_ranking_only` records. **All callers fixed to handle None** (scan_events.py, base_scanner.py, normalize_batch).
+- **Tennis scanner**: `required_stat_keys` aligned with ESPN output (`games_won`, `sets_won`, `total_games`). Added `desired_stat_keys` and `validate_event()`.
+- **Deep links**: TennisExplorer patterns registered (`/match-detail/`, `/head-to-head/`, tournament pages). **All 6 test patterns pass.**
+
+### Bugs Found and Fixed During Verification
+- C1: `lookup_tennis_elo` wrong glob (`*_summary.json` → `*_elo.json`), wrong type (expected list → unwrap dict), wrong key (`"player"` → `"home"`)
+- C2: Deep link patterns required `?id=\d+` which gets stripped → removed query string requirement
+- C3: TennisAbstract hardcoded column indices off-by-one → header-based column mapping
+- C4: Fuzzy player match substring `in` operator matched wrong players → word-boundary matching
+- C5: `_elo_only` records flowing into event pipeline → normalization filter gate + caller None handling
+- C6: TennisAbstract table detection picking wrapper table instead of `#reportable` → direct ID selector
 
 ## Volleyball (completed)
 - **Normalized schema**: `ENRICHED_EVENT_DEFAULTS["volleyball"]` with 12 stat keys
@@ -51,4 +63,10 @@ Added domain patterns for: basketball-reference.com, hockey-reference.com, natur
 - `scripts/_live_test_tennis_adapters.py`
 
 ## Key Data Flow
-Adapters → `normalize_adapter_output()` → scan results JSON → `fetch_api_stats.py` (fallback chains) → `build_stats_cache` → `stats_cache/{sport}/{team}.json` + DB dual-write → `deep_stats_report.py` / `compute_safety_scores.py`
+Adapters → `normalize_adapter_output()` (filters `_elo_only`/`_ranking_only` → returns None) → scan results JSON → `fetch_api_stats.py` (fallback chains) → `build_stats_cache` → `stats_cache/{sport}/{team}.json` + DB dual-write → `deep_stats_report.py` / `compute_safety_scores.py`
+
+### Tennis-Specific Data Flow
+1. `fetch_tennis_elo.py` → `tennisabstract_adapter.parse()` → cache at `stats_cache/tennis_elo/{tour}_elo.json`
+2. `enrich_tennis_stats.py` → ESPN API → L10 form + H2H data → `stats_cache/tennis/{player}.json`
+3. `compute_safety_scores.py` → `lookup_tennis_elo(player, surface)` → fuzzy match → Elo data → `has_elo=True` → +1 data quality
+4. TennisExplorer → `scan_events.py` → `normalize_adapter_output()` (passes fixtures, blocks Elo) → shortlist

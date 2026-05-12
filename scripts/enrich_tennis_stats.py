@@ -456,10 +456,10 @@ def main():
         matches = player_index.get(key, [])
 
         if not matches:
-            # Try fuzzy match (last name only)
+            # Try fuzzy match (last name word-boundary match)
             last_name = key.split()[-1] if " " in key else key
             for idx_key, idx_matches in player_index.items():
-                if last_name in idx_key:
+                if last_name in idx_key.split():
                     matches = idx_matches
                     break
 

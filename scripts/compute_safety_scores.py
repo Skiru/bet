@@ -791,20 +791,19 @@ def lookup_tennis_elo(player_name: str, surface: str = "") -> dict | None:
     if not cache_dir.exists():
         return None
 
-    # Try combined summaries first
-    for summary_file in cache_dir.glob("*_summary.json"):
+    for tour_file in cache_dir.glob("*_elo.json"):
         try:
-            data = json.loads(summary_file.read_text(encoding="utf-8"))
-            if isinstance(data, list):
-                for entry in data:
-                    if _fuzzy_player_match(player_name, entry.get("player", "")):
-                        result = {"elo": entry.get("elo"), "tour": entry.get("tour")}
-                        for key in ("hard_elo", "clay_elo", "grass_elo", "peak_elo", "official_rank"):
-                            if key in entry:
-                                result[key] = entry[key]
-                        if surface:
-                            result["surface_elo"] = entry.get(f"{surface}_elo")
-                        return result
+            data = json.loads(tour_file.read_text(encoding="utf-8"))
+            players = data.get("players", [])
+            for entry in players:
+                if _fuzzy_player_match(player_name, entry.get("home", "")):
+                    result = {"elo": entry.get("elo_rating"), "tour": entry.get("tour")}
+                    for key in ("hard_elo", "clay_elo", "grass_elo", "peak_elo", "official_rank"):
+                        if key in entry:
+                            result[key] = entry[key]
+                    if surface:
+                        result["surface_elo"] = entry.get(f"{surface}_elo")
+                    return result
         except (json.JSONDecodeError, OSError):
             continue
 
@@ -812,19 +811,24 @@ def lookup_tennis_elo(player_name: str, surface: str = "") -> dict | None:
 
 
 def _fuzzy_player_match(query: str, candidate: str) -> bool:
-    """Simple fuzzy match for player names (last name match)."""
+    """Fuzzy match for player names (last name + first initial)."""
     if not query or not candidate:
         return False
     q = query.strip().lower()
     c = candidate.strip().lower()
     if q == c:
         return True
-    # Last name match
     q_parts = q.split()
     c_parts = c.split()
-    if q_parts and c_parts and q_parts[-1] == c_parts[-1]:
-        return True
-    return False
+    if not q_parts or not c_parts:
+        return False
+    # Last name must match
+    if q_parts[-1] != c_parts[-1]:
+        return False
+    # If both have first name/initial, check first letter matches
+    if len(q_parts) >= 2 and len(c_parts) >= 2:
+        return q_parts[0][0] == c_parts[0][0]
+    return True  # single-name fallback
 
 
 def main():

@@ -277,8 +277,13 @@ SELF_HEALING_REGISTRY = {
     },
     "tennis_enrichment": {
         "module": "enrich_tennis_stats",
-        "description": "Deep tennis data from Flashscore — serve %, break points, tiebreak records. Saves to team_form DB.",
-        "use_when": "Tennis candidates missing serve/return stats for ace/double-fault/tiebreak markets",
+        "description": "Deep tennis L10 form + H2H via ESPN API. H2H enrichment via get_h2h_athletes(). Saves to team_form DB.",
+        "use_when": "Tennis candidates missing L10 form, H2H records, or serve/return stats",
+    },
+    "tennis_elo": {
+        "module": "fetch_tennis_elo",
+        "description": "Fetch/cache TennisAbstract Elo ratings (518 ATP + 542 WTA). Cache at stats_cache/tennis_elo/. lookup_tennis_elo() in compute_safety_scores reads this.",
+        "use_when": "Before pipeline — Elo cache stale or missing. Adds +1 data quality score via has_elo.",
     },
     "odds_api": {
         "module": "fetch_odds_api",

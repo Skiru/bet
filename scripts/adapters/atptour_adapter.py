@@ -73,7 +73,6 @@ def _parse_scores_page(soup: BeautifulSoup, url: str) -> List[Dict]:
 
     for el in soup.find_all(True):
         classes = " ".join(el.get("class", []))
-        tag = el.name
 
         # Tournament headers
         if re.search(r"tournament|event-name|tourney", classes, re.I):

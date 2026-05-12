@@ -314,11 +314,12 @@ These adapters provide structured data extraction from web sources, normalizing 
   Added: 2026-04-30.
 
 - tennisexplorer_adapter.py (`scripts/adapters/tennisexplorer_adapter.py`)
-  Role: structured parser for TennisExplorer pages — extracts player H2H, surface form, rankings, and match schedules.
-  Use for: tennis H2H extraction with surface filtering, player ranking verification.
-  Input: TennisExplorer URLs (player pages, H2H pages, tournament draws)
-  Output: normalized player stats and H2H data for tennis analysis.
-  Added: 2026-04-30.
+  Role: structured parser for TennisExplorer pages — uses paired-row parsing (two rows per match) to extract player names, match URLs, scores, and tournament context.
+  Use for: primary tennis fixture discovery. 302+ matches per page with 94% match_url coverage.
+  Input: TennisExplorer URLs (/matches/, main page, tournament pages)
+  Output: normalized match data with home/away, match_url, period_scores, surface, country.
+  Features: bookmaker link filtering (bet365/1xBet/Unibet/bwin), seed number stripping, deep link patterns for /match-detail/ and /head-to-head/.
+  Updated: 2026-05-12.
 
 - soccerstats_adapter.py (`scripts/adapters/soccerstats_adapter.py`)
   Role: structured parser for SoccerStats pages — extracts league-level corner, card, foul, and BTTS statistics.
@@ -379,11 +380,26 @@ These adapters provide structured data extraction from web sources, normalizing 
   Added: 2026-04-30.
 
 - tennisabstract_adapter.py (`scripts/adapters/tennisabstract_adapter.py`)
-  Role: structured parser for TennisAbstract Elo table — extracts player Elo ratings (overall + surface-specific: hElo, cElo, gElo) for 518 ATP + 519 WTA players.
-  Use for: Elo-based tennis analysis. Player-level data with source_type: tennisabstract_elo.
-  Input: TennisAbstract ranking pages
-  Output: player Elo ratings (overall, hard, clay, grass) for ATP and WTA.
-  Added: 2026-04-30.
+  Role: structured parser for TennisAbstract Elo table — uses header-based column mapping to extract player Elo ratings (overall + surface-specific: hElo, cElo, gElo) for 518 ATP + 542 WTA players.
+  Use for: Elo-based tennis analysis via `fetch_tennis_elo.py`. Records are marked `_elo_only=True` and filtered by `normalize_adapter_output()` to prevent entering event pipeline.
+  Input: TennisAbstract ranking pages (table#reportable)
+  Output: player Elo ratings (overall, hard, clay, grass, peak) cached at `betting/data/stats_cache/tennis_elo/`.
+  Integration: `compute_safety_scores.py` `lookup_tennis_elo()` reads cache, `has_elo` adds +1 to data quality score.
+  Updated: 2026-05-12.
+
+- atptour_adapter.py (`scripts/adapters/atptour_adapter.py`)
+  Role: structured parser for atptour.com — extracts scores, rankings, and draw brackets from ATP Tour pages.
+  Use for: ATP-level match data. Requires Playwright for JS-rendered content (403 with requests).
+  Input: atptour.com pages (scores, rankings, draws)
+  Output: normalized match/ranking data with source_type="atptour".
+  Added: 2026-05-12.
+
+- fetch_tennis_elo.py (`scripts/fetch_tennis_elo.py`)
+  Role: standalone script to fetch and cache TennisAbstract Elo ratings.
+  Use for: run BEFORE pipeline to populate Elo cache. Outputs ATP + WTA combined summaries.
+  Output: `betting/data/stats_cache/tennis_elo/{tour}_elo.json` with player_count, players array.
+  Integration: `compute_safety_scores.py` `lookup_tennis_elo()` reads these files.
+  Added: 2026-05-12.
 
 - betclic_adapter.py (`scripts/adapters/betclic_adapter.py`)
   Role: structured parser for Betclic pages — extracts available markets and odds from the execution bookmaker.
@@ -932,8 +948,11 @@ Use this table to know WHERE to get odds for each sport. Never give up after one
   Preferred markets: period totals > game totals > puck line > moneyline (LAST RESORT).
 
 - Tennis
-  Minimum stack: TennisAbstract (Elo) + TennisExplorer (H2H) + BetExplorer or OddsPortal.
+  Minimum stack: TennisAbstract (Elo via `fetch_tennis_elo.py`) + TennisExplorer (fixture discovery, 302+ matches/page) + ESPN (L10 form + H2H via `enrich_tennis_stats.py`) + BetExplorer or OddsPortal.
+  New: ATP Tour adapter (`atptour_adapter.py`) for scores/rankings (requires Playwright).
   Tipster cross-check: Zawod Typer, Tipstrr.
+  Elo integration: `lookup_tennis_elo()` in `compute_safety_scores.py` reads cached Elo data, adds +1 to data quality score.
+  H2H enrichment: `enrich_tennis_stats.py` with `--verbose` fetches ESPN athlete-vs-athlete API data.
   Challenger/ITF coverage: TennisExplorer covers Challenger and ITF Futures draws. UltimateTennisStatistics provides surface-specific Elo for lower-ranked players. Flashscore and Sofascore list all ITF events.
   Preferred markets: game totals O/U (PRIMARY) > set totals O/U > game handicap > set handicap > moneyline (LAST RESORT — only 1.50-2.50 range + STRONG odds ratio + surface + H2H dominance).
   **ABSOLUTE RULE**: NEVER default to ML in tennis. Statistical markets have ~65% hit rate vs ML ~58%. Always prefer games/sets.

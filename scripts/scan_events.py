@@ -222,7 +222,7 @@ def _scan_domain_group(domain: str, urls: list[str], deep: bool, max_deep_links:
             from adapters.raw_adapter import parse as raw_parse
             items = raw_parse(html, url)
             
-        items = [normalize_adapter_output(item, source_type=domain) for item in items]
+        items = [n for n in (normalize_adapter_output(item, source_type=domain) for item in items) if n is not None]
             
         for item in items:
             if not item.get("sport"):
@@ -257,7 +257,7 @@ def _scan_domain_group(domain: str, urls: list[str], deep: bool, max_deep_links:
                             from adapters.raw_adapter import parse as raw_parse
                             sub_extracted = raw_parse(sub_html, sub_url)
                             
-                        sub_extracted = [normalize_adapter_output(item, source_type=domain) for item in sub_extracted]
+                        sub_extracted = [n for n in (normalize_adapter_output(item, source_type=domain) for item in sub_extracted) if n is not None]
                             
                         for item in sub_extracted:
                             if not item.get("sport"):

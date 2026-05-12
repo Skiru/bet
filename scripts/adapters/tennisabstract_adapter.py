@@ -27,14 +27,16 @@ def parse(html: str, url: str) -> List[Dict]:
     # Determine if ATP or WTA from URL
     tour = "atp" if "atp" in url.lower() else "wta"
 
-    # The Elo table is typically the largest table (500+ rows)
-    tables = soup.find_all("table")
-    elo_table = None
-    for t in tables:
-        trs = t.find_all("tr")
-        if len(trs) > 100:
-            elo_table = t
-            break
+    # The Elo table has id="reportable" and class="tablesorter"
+    elo_table = soup.find("table", id="reportable") or soup.find("table", class_="tablesorter")
+    if not elo_table:
+        # Fallback: find largest table by direct row count
+        tables = soup.find_all("table")
+        for t in tables:
+            trs = t.find_all("tr", recursive=False)
+            if len(trs) > 100:
+                elo_table = t
+                break
 
     if not elo_table:
         logger.warning("[tennisabstract] No Elo table found in %s", url)
@@ -53,8 +55,27 @@ def parse(html: str, url: str) -> List[Dict]:
 
     if not header_cells:
         # Fallback: assume header is embedded in data rows
-        # Parse rows that look like player data (rank, name, age, elo)
         data_start = 0
+
+    # Build column index map from headers for robust parsing
+    col_idx = {}
+    for i, h in enumerate(header_cells):
+        h_clean = h.strip()
+        if h_clean:
+            col_idx[h_clean] = i
+
+    def _col(name, cells_list, cast=float):
+        """Safely extract value from cells by column name."""
+        idx = col_idx.get(name)
+        if idx is None or idx >= len(cells_list):
+            return None
+        val = cells_list[idx].strip()
+        if not val:
+            return None
+        try:
+            return cast(val)
+        except (ValueError, TypeError):
+            return None
 
     for tr in trs[data_start:]:
         cells = [c.get_text(strip=True).replace("\xa0", " ") for c in tr.find_all(["td", "th"])]
@@ -72,28 +93,35 @@ def parse(html: str, url: str) -> List[Dict]:
 
         try:
             age = float(cells[2]) if cells[2] else None
-            elo = float(cells[3]) if cells[3] else None
+            elo = _col("Elo", cells) if col_idx else (float(cells[3]) if cells[3] else None)
         except (ValueError, IndexError):
             continue
 
-        # Surface-specific Elo ratings
-        h_elo = None
-        c_elo = None
-        g_elo = None
-        try:
-            h_elo = float(cells[6]) if len(cells) > 6 and cells[6] else None
-            c_elo = float(cells[8]) if len(cells) > 8 and cells[8] else None
-            g_elo = float(cells[10]) if len(cells) > 10 and cells[10] else None
-        except (ValueError, IndexError):
-            pass
-
-        peak_elo = None
-        atp_rank = None
-        try:
-            peak_elo = float(cells[12]) if len(cells) > 12 and cells[12] else None
-            atp_rank = int(cells[15]) if len(cells) > 15 and cells[15] else None
-        except (ValueError, IndexError):
-            pass
+        # Surface-specific Elo ratings (use header map if available)
+        if col_idx:
+            h_elo = _col("hElo", cells)
+            c_elo = _col("cElo", cells)
+            g_elo = _col("gElo", cells)
+            peak_elo = _col("Peak Elo", cells) or _col("Peak", cells)
+            atp_rank = _col("ATP Rank", cells, cast=int) or _col("Rank", cells, cast=int)
+        else:
+            # Fallback hardcoded indices (assumes standard 14-column layout)
+            h_elo = None
+            c_elo = None
+            g_elo = None
+            try:
+                h_elo = float(cells[5]) if len(cells) > 5 and cells[5] else None
+                c_elo = float(cells[7]) if len(cells) > 7 and cells[7] else None
+                g_elo = float(cells[9]) if len(cells) > 9 and cells[9] else None
+            except (ValueError, IndexError):
+                pass
+            peak_elo = None
+            atp_rank = None
+            try:
+                peak_elo = float(cells[10]) if len(cells) > 10 and cells[10] else None
+                atp_rank = int(cells[12]) if len(cells) > 12 and cells[12] else None
+            except (ValueError, IndexError):
+                pass
 
         result = {
             "home": player,

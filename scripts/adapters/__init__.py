@@ -26,6 +26,7 @@ from .hockey_reference_adapter import parse as hockey_reference_parse
 from .naturalstattrick_adapter import parse as naturalstattrick_parse
 from .covers_adapter import parse as covers_parse
 from .dailyfaceoff_adapter import parse as dailyfaceoff_parse
+from .moneypuck_adapter import parse as moneypuck_parse
 
 
 def dedup_results(results, key_fn=None):
@@ -77,6 +78,7 @@ ADAPTERS = {
     "basketball-reference.com": basketball_reference_parse,
     "dailyfaceoff.com": dailyfaceoff_parse,
     "hockey-reference.com": hockey_reference_parse,
+    "moneypuck.com": moneypuck_parse,
 }
 
 
@@ -149,8 +151,16 @@ ENRICHED_EVENT_DEFAULTS = {
     "raw": {}
 }
 
-def normalize_adapter_output(event: dict, source_type: str) -> dict:
-    """Normalize event structure mapping legacy fields to standard schema."""
+def normalize_adapter_output(event: dict, source_type: str) -> dict | None:
+    """Normalize event structure mapping legacy fields to standard schema.
+
+    Returns None for non-fixture records (Elo ratings, rankings) that should
+    not enter the event pipeline.
+    """
+    # Filter non-fixture records
+    if event.get("_elo_only") or event.get("_ranking_only"):
+        return None
+
     try:
         normalized = {k: (copy.copy(v) if isinstance(v, (dict, list)) else v)
                       for k, v in ENRICHED_EVENT_DEFAULTS.items()}
@@ -258,7 +268,7 @@ def normalize_adapter_output(event: dict, source_type: str) -> dict:
         return event
 
 def normalize_batch(events: list[dict], source_type: str) -> list[dict]:
-    """Normalize a batch of events."""
-    return [normalize_adapter_output(event, source_type) for event in events]
+    """Normalize a batch of events, filtering out non-fixture records."""
+    return [n for n in (normalize_adapter_output(event, source_type) for event in events) if n is not None]
 
 

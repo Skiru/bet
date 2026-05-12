@@ -95,13 +95,13 @@ DOMAIN_PATTERNS = {
     },
     "tennisexplorer.com": {
         "include": [
-            re.compile(r"/match-detail/\?id=\d+"),
+            re.compile(r"/match-detail/"),
             re.compile(r"/head-to-head/"),
             re.compile(r"/atp-[a-z0-9-]+/?$"),
             re.compile(r"/wta-[a-z0-9-]+/?$"),
             re.compile(r"/challenger-[a-z0-9-]+/?$"),
             re.compile(r"/itf-[a-z0-9-]+/?$"),
-            re.compile(r"/results/\?year=\d{4}"),
+            re.compile(r"/results/"),
         ],
         "exclude": [
             re.compile(r"/news/"),
@@ -173,6 +173,71 @@ DOMAIN_PATTERNS = {
             re.compile(r"/about"),
         ],
     },
+    "whoscored.com": {
+        "include": [
+            # Match detail pages: /Matches/1234567/Live/
+            re.compile(r"/Matches/\d+/Live/", re.I),
+            # League/tournament pages
+            re.compile(r"/Regions/\d+/Tournaments/\d+", re.I),
+        ],
+        "exclude": [
+            re.compile(r"/Players/"),
+            re.compile(r"/News/"),
+            re.compile(r"/Blog/"),
+            re.compile(r"/Graphics/"),
+            re.compile(r"/Explanations/"),
+        ],
+    },
+    "totalcorner.com": {
+        "include": [
+            # Match detail pages
+            re.compile(r"/match/\d+"),
+            # Corner stats pages
+            re.compile(r"/corner/"),
+            # League pages
+            re.compile(r"/league/[a-z0-9-]+"),
+        ],
+        "exclude": [
+            re.compile(r"/user/"),
+            re.compile(r"/login"),
+            re.compile(r"/register"),
+            re.compile(r"/faq"),
+        ],
+    },
+    "forebet.com": {
+        "include": [
+            # Match prediction pages
+            re.compile(r"/football/[a-z-]+/[a-z0-9-]+/"),
+            re.compile(r"/tennis/[a-z-]+/"),
+            re.compile(r"/basketball/[a-z-]+/"),
+            re.compile(r"/hockey/[a-z-]+/"),
+            re.compile(r"/volleyball/[a-z-]+/"),
+        ],
+        "exclude": [
+            re.compile(r"/news/"),
+            re.compile(r"/blog/"),
+            re.compile(r"/tips/"),
+            re.compile(r"/user/"),
+        ],
+    },
+    "soccerstats.com": {
+        "include": [
+            # League stats pages
+            re.compile(r"/results\.asp"),
+            re.compile(r"/teams\.asp"),
+            re.compile(r"/homeaway\.asp"),
+            re.compile(r"/corners\.asp"),
+            re.compile(r"/cards\.asp"),
+            re.compile(r"/fouls\.asp"),
+            re.compile(r"/shots\.asp"),
+        ],
+        "exclude": [
+            re.compile(r"/login"),
+            re.compile(r"/register"),
+            re.compile(r"/privacy"),
+            re.compile(r"/faq"),
+        ],
+    },
 }
 
 # Non-event page indicators
@@ -196,9 +261,11 @@ def _extract_links_from_html(html: str, base_url: str) -> list[str]:
         base_domain = urlparse(base_url).netloc.replace("www.", "")
         link_domain = urlparse(full_url).netloc.replace("www.", "")
         if base_domain == link_domain:
-            # Clean URL — remove query string and fragment
+            # Clean URL — remove fragment, preserve query string
             parsed = urlparse(full_url)
             clean_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+            if parsed.query:
+                clean_url += f"?{parsed.query}"
             links.add(clean_url)
     return sorted(links)
 
