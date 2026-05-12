@@ -175,10 +175,10 @@ Pick the market with HIGHEST safety score. **For EU leagues**: use BetExplorer P
 
 | Category | Metrics | Source |
 |----------|---------|--------|
-| xG | xGF/game, xGA/game, xG%, xG vs actual delta | NaturalStatTrick, MoneyPuck |
+| xG | xGF/game, xGA/game, xG%, xG vs actual delta | **MoneyPuck** (PRIMARY), NaturalStatTrick (BLOCKED) |
 | Goals | GF/game, GA/game, Combined avg, O/U 5.5/6.5 hit rate | ESPN, Flashscore |
 | PP/PK | PP%, PP opportunities/game, PK%, PIM/game | ESPN, NHL.com |
-| Corsi/Fenwick | CF%, FF% (possession proxy) | NaturalStatTrick |
+| Corsi/Fenwick | CF%, FF% (possession proxy) | **MoneyPuck** (PRIMARY) |
 | Goalie | Save%, GAA, Last 5 starts, vs this opponent (CRITICAL) | DailyFaceoff, ESPN |
 
 **Market decision:** Period totals → Game totals O/U → Puck line → ML (LAST RESORT). Both xGF>3.0 → O-totals. Both goalies sv%<.910 → O-totals. Playoff = 0.5-1.0 fewer goals.
@@ -196,7 +196,7 @@ Before selecting ANY hockey market, calculate ALL of these:
 | PP goals O/U 0.5     |           |           |         |      |         |         |        |
 | Puck line ±1.5       |           |           |         |      |         |         |        |
 ```
-Pick the market with HIGHEST safety score. **For NHL**: use NaturalStatTrick xG + MoneyPuck. **For other leagues** (DEL, SHL, KHL, Liiga): use Flashscore + BetExplorer. GOALIE IDENTITY is critical — re-evaluate ALL markets if goalie changes after analysis.
+Pick the market with HIGHEST safety score. **For NHL**: use **MoneyPuck** xG/Corsi/Fenwick (NaturalStatTrick BLOCKED by Cloudflare). **For other leagues** (DEL, SHL, KHL, Liiga): use Flashscore + BetExplorer. GOALIE IDENTITY is critical — re-evaluate ALL markets if goalie changes after analysis.
 
 ### §3.5 Volleyball
 

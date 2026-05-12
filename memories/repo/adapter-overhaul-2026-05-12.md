@@ -11,13 +11,14 @@ Comprehensive adapter improvements across basketball, hockey, tennis, volleyball
 - **BallDontLie**: Deprecated (`_HOST_BROKEN = True`), removed from CLIENT_REGISTRY
 - **Tests**: 11 unit (api_basketball) + 11 unit (basketball_reference) + 7 live tests
 
-## Hockey (completed)
+## Hockey (completed + MoneyPuck verified 2026-05-12)
 - **Hockey-Reference**: Box score parsing — shots, PIM, PP, hits, blocks, faceoffs, period scores, goalie stats
-- **NaturalStatTrick adapter** (NEW): Team season stats (Corsi, Fenwick, xG, HDCF) + game logs
+- **NaturalStatTrick adapter**: Team season stats (Corsi, Fenwick, xG, HDCF) + game logs. **⚠️ SOURCE BLOCKED by Cloudflare "Under Attack" mode — 403 on ALL methods. Adapter code works but source unreachable.**
+- **MoneyPuck adapter** (NEW — **PRIMARY** NHL advanced stats): Free CSV API, no auth, no Cloudflare. 32 NHL teams, 40 stat keys (37 raw + 3 derived: shooting%, save%, PDO). **Live verified**: 99KB CSV → 160 rows cached (12h TTL) → fuzzy team name matching works (Tampa Bay, Bruins, VGK, etc.). Integrated in `deep_stats_report.py` enrichment for hockey candidates.
 - **DailyFaceoff adapter** (NEW): Starting goalie confirmations with `__NEXT_DATA__` JSON parsing + HTML fallback
 - **Covers adapter**: NHL-specific extraction — goalie names, PP/PK%, records
 - **Hockey scanner**: Config-driven URLs from `scan_urls.json` (was 11 hardcoded → 33+ from config)
-- **Tests**: 11 unit tests covering all 3 hockey adapters
+- **Tests**: 20 unit tests covering all 4 hockey adapters (hockey-reference, naturalstattrick, dailyfaceoff, moneypuck)
 
 ## Tennis (completed)
 - **TennisExplorer**: H2H page parsing, surface/country extraction, match_url deep links, score extraction, source_type field

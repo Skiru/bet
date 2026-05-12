@@ -79,10 +79,7 @@ STAT_MAP = {
     "hitsAgainst": "hits_against",
     "takeawaysAgainst": "takeaways_against",
     "giveawaysAgainst": "giveaways_against",
-    # Percentages
-    "shootingPercentageFor": "shooting_pct",
-    "savePctgFor": "save_pct",
-    "PDOFor": "pdo",
+    # Percentages (removed — not in team CSV, derived below)
 }
 
 
@@ -169,6 +166,18 @@ def fetch_team_stats(season: str | None = None, season_type: str = "regular",
                     stats[stat_key] = float(val)
                 except ValueError:
                     pass
+
+        # Derive percentages from raw stats (not in team CSV)
+        gf = stats.get("goals_for", 0)
+        ga = stats.get("goals_against", 0)
+        sof = stats.get("shots_for", 0)
+        soa = stats.get("shots_against", 0)
+        if sof > 0:
+            stats["shooting_pct"] = round(gf / sof, 4)
+        if soa > 0:
+            stats["save_pct"] = round(1 - (ga / soa), 4)
+        if sof > 0 and soa > 0:
+            stats["pdo"] = round(stats["shooting_pct"] + stats["save_pct"], 4)
 
         all_teams.append({
             "team_abbr": team_abbr,
