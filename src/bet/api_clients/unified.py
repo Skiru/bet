@@ -17,14 +17,14 @@ class UnifiedAPIClient:
         self._limiter = RateLimiter()
         
         self.sofascore = SofascoreClient(rate_limiter=self._limiter)
-        # Delaying ESPN client since it requires sport and league logic specifically
-        # We will wrap it dynamically or just test with sofascore/flashscore for now
-        self.espn = None
+        self.espn = ESPNClient(rate_limiter=self._limiter)
         self.flashscore = FlashscoreClient(rate_limiter=self._limiter)
         
         # Priority order for general fetches
         self.clients = [
-            c for c in [self.sofascore, self.flashscore, self.espn] if c is not None
+            self.sofascore,
+            self.flashscore,
+            self.espn
         ]
         
     def get_fixtures(self, date: str, sport: str = "football") -> list:

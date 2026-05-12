@@ -329,7 +329,7 @@ class ESPNClient(BaseAPIClient):
 
     ESPN_BASE = "http://site.api.espn.com/apis/site/v2/sports"
 
-    def __init__(self, sport: str, league: str, rate_limiter: RateLimiter):
+    def __init__(self, sport: str = "football", league: str = "eng.1", rate_limiter: RateLimiter | None = None):
         """Initialize ESPN client for a specific sport and league.
 
         Args:
@@ -337,6 +337,8 @@ class ESPNClient(BaseAPIClient):
             league: ESPN league code (eng.1, nba, nhl, mlb, etc.)
             rate_limiter: RateLimiter instance (not used for ESPN but required by base)
         """
+        if rate_limiter is None:
+            rate_limiter = RateLimiter()
         self.sport = sport
         self.league = league
         self._espn_sport = ESPN_SPORT_MAP.get(sport, sport)
