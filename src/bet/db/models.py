@@ -12,6 +12,23 @@ class Sport:
 
 
 @dataclass
+class TeamNews:
+    id: int | None
+    team_id: int
+    sport_id: int
+    betting_date: str
+    injuries_json: list = field(default_factory=list)
+    news_json: list = field(default_factory=list)
+    coaching_json: list = field(default_factory=list)
+    morale_json: list = field(default_factory=list)
+    sources_json: list = field(default_factory=list)
+    confidence: float = 0.0
+    fetched_at: str = ""
+    source: str = "gemini"
+
+
+
+@dataclass
 class Competition:
     id: int | None
     sport_id: int

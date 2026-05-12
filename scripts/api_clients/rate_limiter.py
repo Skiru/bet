@@ -36,6 +36,8 @@ API_DAILY_LIMITS = {
     "espn-hockey": 10000,
     "espn-tennis": 10000,
     "espn-volleyball": 10000,
+    "gemini": 1500,        # Daily request limit
+    "gemini-search": 500,  # Search grounding calls (higher cost per call)
 }
 
 USAGE_DIR = Path(__file__).parent.parent.parent / "betting" / "data" / ".api_usage"

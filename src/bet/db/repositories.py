@@ -35,6 +35,7 @@ from bet.db.models import (
     Team,
     TeamATSRecord,
     TeamForm,
+    TeamNews,
     TeamOURecord,
     TeamRoster,
     Transaction,
@@ -2305,4 +2306,75 @@ class PowerIndexRepo:
             rank=row["rank"],
             source=row["source"] or "espn",
             updated_at=row["updated_at"] or "",
+        )
+
+
+# ---------------------------------------------------------------------------
+# TeamNewsRepo
+# ---------------------------------------------------------------------------
+class TeamNewsRepo:
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+
+    def upsert(self, news: TeamNews) -> int:
+        cur = self.conn.execute(
+            """INSERT INTO team_news
+               (team_id, sport_id, betting_date, injuries_json, news_json,
+                coaching_json, morale_json, sources_json, confidence, fetched_at, source)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+               ON CONFLICT(team_id, betting_date) DO UPDATE SET
+                 injuries_json = excluded.injuries_json,
+                 news_json = excluded.news_json,
+                 coaching_json = excluded.coaching_json,
+                 morale_json = excluded.morale_json,
+                 sources_json = excluded.sources_json,
+                 confidence = excluded.confidence,
+                 fetched_at = excluded.fetched_at,
+                 source = excluded.source""",
+            (
+                news.team_id,
+                news.sport_id,
+                news.betting_date,
+                json.dumps(news.injuries_json),
+                json.dumps(news.news_json),
+                json.dumps(news.coaching_json),
+                json.dumps(news.morale_json),
+                json.dumps(news.sources_json),
+                news.confidence,
+                news.fetched_at or _now(),
+                news.source,
+            ),
+        )
+        self.conn.commit()
+        return cur.lastrowid or 0
+
+    def get_for_team_date(self, team_id: int, betting_date: str) -> TeamNews | None:
+        row = self.conn.execute(
+            "SELECT * FROM team_news WHERE team_id = ? AND betting_date = ?",
+            (team_id, betting_date),
+        ).fetchone()
+        return self._row_to_model(row) if row else None
+
+    def get_for_date(self, betting_date: str) -> list[TeamNews]:
+        rows = self.conn.execute(
+            "SELECT * FROM team_news WHERE betting_date = ? ORDER BY fetched_at DESC",
+            (betting_date,),
+        ).fetchall()
+        return [self._row_to_model(r) for r in rows]
+
+    @staticmethod
+    def _row_to_model(row: sqlite3.Row) -> TeamNews:
+        return TeamNews(
+            id=row["id"],
+            team_id=row["team_id"],
+            sport_id=row["sport_id"],
+            betting_date=row["betting_date"],
+            injuries_json=json.loads(row["injuries_json"]) if row["injuries_json"] else [],
+            news_json=json.loads(row["news_json"]) if row["news_json"] else [],
+            coaching_json=json.loads(row["coaching_json"]) if row["coaching_json"] else [],
+            morale_json=json.loads(row["morale_json"]) if row["morale_json"] else [],
+            sources_json=json.loads(row["sources_json"]) if row["sources_json"] else [],
+            confidence=row["confidence"],
+            fetched_at=row["fetched_at"] or "",
+            source=row["source"] or "gemini",
         )

@@ -5,5 +5,6 @@
     "api-hockey": "SAME_API_SPORTS_KEY (same account as api-football)",
     "football-data-org": "YOUR_KEY (register at https://www.football-data.org/client/register)",
     "thesportsdb": "YOUR_KEY (register at https://www.thesportsdb.com/patreon — or use '3' for free tier)",
-    "odds-api": "YOUR_KEY (existing — also in config/odds_api_key.txt)"
+    "odds-api": "YOUR_KEY (existing — also in config/odds_api_key.txt)",
+    "gemini": "YOUR_GEMINI_API_KEY (register at https://aistudio.google.com/apikey)"
 }

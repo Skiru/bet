@@ -371,6 +371,7 @@ def research_missing_data(
     sport: str = "football",
     data_type: str = "h2h",
     db_path=None,
+    use_gemini: bool = True,
 ) -> dict:
     """Search for missing data as L7 fallback.
 
@@ -380,6 +381,7 @@ def research_missing_data(
         sport: Sport identifier.
         data_type: One of 'h2h', 'injuries', 'form', 'coach'.
         db_path: Optional DB path override.
+        use_gemini: Try Gemini Search Grounding first (L7a), then SerpAPI/Playwright (L7b).
 
     Returns:
         {data: {...}, source_url: str, confidence: float, cached: bool}
@@ -399,6 +401,40 @@ def research_missing_data(
         logger.info("Cache hit for %s query: %s", data_type, query_text[:60])
         return cached
 
+    # --- L7a: Try Gemini Search Grounding first (feature flag) ---
+    if use_gemini:
+        try:
+            from gemini_web_research import research_team
+            gemini_results = research_team(
+                team=team1,
+                sport=sport,
+                data_types=[data_type],
+                opponent=team2,
+            )
+            if gemini_results and gemini_results[0].findings:
+                gr = gemini_results[0]
+                parsed = {"findings": gr.findings, "source": "gemini-search"}
+                result = {
+                    "data": parsed,
+                    "source_url": gr.sources[0] if gr.sources else "gemini-search",
+                    "confidence": gr.confidence,
+                    "cached": False,
+                    "method": "gemini",
+                }
+                _save_to_cache(query_text, data_type, parsed,
+                               result["source_url"], gr.confidence, db_path=db_path)
+                logger.info("L7a (Gemini) success: %s %s (confidence=%.2f)",
+                            data_type, team1, gr.confidence)
+                return result
+            else:
+                logger.info("L7a (Gemini): no findings for %s %s — trying L7b",
+                            data_type, team1)
+        except ImportError:
+            logger.debug("gemini_web_research not available — skipping L7a")
+        except Exception as e:
+            logger.warning("L7a (Gemini) failed: %s — falling back to L7b", e)
+
+    # --- L7b: Original SerpAPI + Playwright path ---
     # Load rate counter
     counter = _load_counter()
 

@@ -1,0 +1,17 @@
+{
+  "api_key_env_var": "GEMINI_API_KEY",
+  "default_model": "gemini-2.5-flash",
+  "deep_analysis_model": "gemini-2.5-pro",
+  "daily_request_limit": 1500,
+  "daily_token_budget": 2000000,
+  "rate_limit_rpm": 15,
+  "rate_limit_delay_seconds": 4.0,
+  "timeout_seconds": 60,
+  "max_retries": 3,
+  "search_grounding_enabled": true,
+  "url_context_enabled": true,
+  "cost_tracking": {
+    "enabled": true,
+    "alert_threshold_usd": 5.0
+  }
+}

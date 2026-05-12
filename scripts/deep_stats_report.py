@@ -1380,7 +1380,7 @@ def _load_candidates_from_db(date: str) -> list[dict]:
 # Main entry point
 # ---------------------------------------------------------------------------
 
-def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int | None = None, no_enrich: bool = False, from_db: bool = False) -> dict:
+def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int | None = None, no_enrich: bool = False, from_db: bool = False, gemini: bool = False) -> dict:
     """Generate S3 deep stats report for all candidates.
 
     Args:
@@ -1530,6 +1530,46 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
         "analyses": analyses,
     }
 
+    # --- Gemini deep analysis second opinion (feature flag) ---
+    if gemini and analyses:
+        try:
+            from gemini_deep_analyst import analyze_candidate as gemini_analyze, compute_agreement_score
+            print(f"[deep_stats] Gemini second opinion for {len(analyses)} candidates...")
+            gemini_count = 0
+            for a in analyses:
+                if not a.get("has_data"):
+                    continue
+                candidate_dict = {
+                    "home_team": a.get("home_team", ""),
+                    "away_team": a.get("away_team", ""),
+                    "sport": a.get("sport", ""),
+                    "competition": a.get("competition", ""),
+                    "kickoff": a.get("kickoff", ""),
+                }
+                try:
+                    ga = gemini_analyze(candidate_dict, stats_data=a)
+                    if ga:
+                        python_top = a.get("best_market", "")
+                        python_safety = a.get("data_quality", {}).get("score", 5)
+                        agreement = compute_agreement_score(python_top, python_safety, ga)
+                        a["gemini_analysis"] = {
+                            "recommended_markets": [m.model_dump() for m in ga.recommended_markets] if ga.recommended_markets else [],
+                            "upset_risk_score": ga.upset_risk_score,
+                            "upset_risk_reasoning": ga.upset_risk_reasoning,
+                            "overall_confidence": ga.overall_confidence,
+                            "narrative": ga.narrative,
+                            "agreement_score": agreement,
+                        }
+                        gemini_count += 1
+                except Exception as e:
+                    print(f"[deep_stats] Gemini failed for {candidate_dict.get('home_team')} vs {candidate_dict.get('away_team')}: {e}")
+            print(f"[deep_stats] Gemini analysis complete: {gemini_count}/{len(analyses)} candidates")
+            output["gemini_analyzed"] = gemini_count
+        except ImportError:
+            print("[deep_stats] gemini_deep_analyst not available, skipping Gemini second opinion")
+        except Exception as e:
+            print(f"[deep_stats] Gemini analysis failed (non-fatal): {e}")
+
     # Write markdown first (doesn't need fixture_ids)
     _write_markdown(output, date)
 
@@ -1653,6 +1693,12 @@ def main():
         default=False,
         help="Load candidates from DB fixtures table (R2 DB-FIRST, ignores analysis pool JSON)",
     )
+    parser.add_argument(
+        "--gemini",
+        action="store_true",
+        default=False,
+        help="Enable Gemini deep analysis as second opinion (feature flag P2)",
+    )
     add_agent_args(parser)
 
     args = parser.parse_args()
@@ -1671,6 +1717,7 @@ def main():
     result = generate_deep_stats(
         args.date, args.shortlist, args.top,
         no_enrich=args.no_enrich, from_db=args.from_db,
+        gemini=args.gemini,
     )
 
     if args.verbose:
