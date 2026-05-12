@@ -124,6 +124,34 @@ def run_context_checks(date: str, state: dict) -> tuple[bool, str]:
     else:
         checks_done.append("injuries: unavailable")
 
+    # Gemini news enrichment — read from team_news DB table (feature flag)
+    gemini_news = {}
+    try:
+        from bet.db.connection import get_db
+        from bet.db.repositories import TeamNewsRepo
+        with get_db() as conn:
+            news_repo = TeamNewsRepo(conn)
+            all_news = news_repo.get_for_date(date)
+            for news in all_news:
+                # Resolve team name from team_id for matching
+                row = conn.execute(
+                    "SELECT name FROM teams WHERE id = ?", (news.team_id,)
+                ).fetchone()
+                if row:
+                    team_name = row["name"]
+                    gemini_news[team_name.lower()] = news
+                    # Add injuries from Gemini to injury_summary
+                    for inj in (news.injuries_json or []):
+                        player = inj.get("player_name", inj.get("player", "?"))
+                        status = inj.get("status", "?")
+                        injury_summary.append(f"{news.sport_id}/{team_name}: {player} ({status}) [gemini]")
+        if gemini_news:
+            checks_done.append(f"gemini_news: {len(gemini_news)} teams from team_news table")
+        else:
+            checks_done.append("gemini_news: no data for this date")
+    except Exception as e:
+        checks_done.append(f"gemini_news: error ({e})")
+
     # Enrich S3 candidates with context flags
     if candidates and s3_path.exists():
         enriched = 0
@@ -146,6 +174,17 @@ def run_context_checks(date: str, state: dict) -> tuple[bool, str]:
             for inj_entry in injury_summary:
                 if home.lower() in inj_entry.lower() or away.lower() in inj_entry.lower():
                     c_flags.append(f"INJURY:{inj_entry.split(':')[-1].strip()}")
+            # Check Gemini team news
+            for team_key in [home.lower(), away.lower()]:
+                news = gemini_news.get(team_key)
+                if news:
+                    for item in (news.coaching_json or []):
+                        c_flags.append(f"COACHING:{item.get('change', item) if isinstance(item, dict) else item}")
+                    for item in (news.morale_json or []):
+                        c_flags.append(f"MORALE:{item.get('indicator', item) if isinstance(item, dict) else item}")
+                    for item in (news.news_json or []):
+                        headline = item.get("headline", item) if isinstance(item, dict) else item
+                        c_flags.append(f"NEWS:{headline}")
             if c_flags:
                 c.setdefault("context_flags", []).extend(c_flags)
                 enriched += 1

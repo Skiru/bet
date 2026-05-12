@@ -90,7 +90,7 @@ Pipeline scripts produce raw context flags and mechanical upset scores. Your job
 
 - **Inputs**: `{date}_s4_odds_eval.md` (approved candidates with EV>0), all S3-S4 data
 - **Weather**: `weather_{date}.json` (if available)
-- **DB tables**: `standings`, `espn_predictions`, `player_gamelogs`, `team_form` — via `db_data_loader.py`
+- **DB tables**: `standings`, `espn_predictions`, `player_gamelogs`, `team_form`, `team_news` (Gemini injuries/coaching/morale) — via `db_data_loader.py`
 
 ## Workflow
 

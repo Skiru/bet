@@ -86,9 +86,10 @@ python3 scripts/validate_phase.py --date {date} --phase data --format json 2>&1
 
 - **Inputs**: `{date}_s2_shortlist.json`, stats cache, DB `team_form` table
 - **Script**: `python3 scripts/data_enrichment_agent.py --date {date}`
-- **Sources**: HTML deep parse (L0 — already extracted from saved snapshots), Flashscore (L10 form, H2H), Sofascore (ratings, stats), ESPN (standings, gamelogs)
-- **DB tables used**: `team_form` (read/write), `match_stats` (write), `source_health` (write)
-- **Rate limits**: Thread-safe rate limiting (uniform 1.5s between requests per domain)
+- **With Gemini news**: `python3 scripts/data_enrichment_agent.py --date {date} --news` — adds injury/coaching/morale data to `team_news` DB table via Gemini Search Grounding
+- **Sources**: HTML deep parse (L0 — already extracted from saved snapshots), Flashscore (L10 form, H2H), Sofascore (ratings, stats), ESPN (standings, gamelogs), Gemini Search Grounding (news/injuries)
+- **DB tables used**: `team_form` (read/write), `match_stats` (write), `source_health` (write), `team_news` (write — Gemini news enrichment)
+- **Rate limits**: Thread-safe rate limiting (uniform 1.5s between requests per domain). Gemini uses separate budget from `config/gemini_config.json`.
 - **Timeout**: 15 min (covers ~50 teams across multiple sources)
 
 ## Workflow

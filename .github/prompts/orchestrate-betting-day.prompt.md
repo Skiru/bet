@@ -57,12 +57,13 @@ Where should I start? [S3 / full rerun / specific step]
 
 Read these files. Do NOT proceed until all are loaded:
 1. `config/betting_config.json`
-2. `.github/instructions/analysis-methodology.instructions.md`
-3. `.github/instructions/betting-artifacts.instructions.md`
-4. `betting/sources/source-registry.md`
-5. `/memories/repo/pipeline-lessons-learned.md`
-6. `/memories/repo/post-overhaul-audit-2026-05-12.md`
-7. `/memories/repo/session-2026-05-12-improvements.md` — **CRITICAL: Previous run failures + fixes**
+2. `config/gemini_config.json` — **Gemini feature flags, model selection, daily budget**
+3. `.github/instructions/analysis-methodology.instructions.md`
+4. `.github/instructions/betting-artifacts.instructions.md`
+5. `betting/sources/source-registry.md`
+6. `/memories/repo/pipeline-lessons-learned.md`
+7. `/memories/repo/post-overhaul-audit-2026-05-12.md`
+8. `/memories/repo/session-2026-05-12-improvements.md` — **CRITICAL: Previous run failures + fixes**
 
 ### ⚠️ ADAPTER OVERHAUL (2026-05-12) — ENFORCE IN ALL STEPS
 
@@ -86,7 +87,21 @@ Print the pre-flight checklist:
 [ ] Session: {session} → window: HH:MM → HH:MM
 [ ] Sports: 5 (football, volleyball, basketball, tennis, hockey) | Previous day settled: yes/no
 [ ] Memory loaded: yes/no (mistakes count: ___)
+[ ] Gemini: enabled/disabled | Model: ___ | Daily budget: ___/___  requests
 ```
+
+### ⚡ GEMINI FEATURE FLAGS (read from `config/gemini_config.json`)
+
+Gemini features are ADDITIVE — they enhance the pipeline behind feature flags. The existing pipeline works unchanged without them.
+
+| Flag | Script | Effect |
+|------|--------|--------|
+| `--use-gemini` | `tipster_aggregator.py` | Gemini reads tipster pages natively (replaces BS4 HTML parsing). Falls back per-site if Gemini fails. |
+| `--news` | `data_enrichment_agent.py` | Gemini Search Grounding fetches injuries, coaching changes, morale data → saves to `team_news` DB table → consumed by `context_checks.py` (S5). |
+| `--gemini` | `deep_stats_report.py` | Gemini "second opinion" per candidate: independent market recommendations, upset risk, `agreement_score` tracking Python↔Gemini alignment. |
+| `use_gemini=True` | `web_research_agent.py` | L7a Gemini Search Grounding as primary web research (replaces SerpAPI). Falls back to SerpAPI (L7b) → Playwright (L7c). |
+
+**Decision:** Include ALL Gemini flags by default when `config/gemini_config.json` exists and API key is configured. Skip Gemini gracefully when not configured (all modules have try/except ImportError guards).
 
 ---
 
@@ -290,6 +305,13 @@ python3 scripts/fetch_weather.py --date {date} 2>&1
 python3 scripts/tipster_aggregator.py --date {date} --verbose 2>&1
 ```
 
+**Gemini feature flag:** Add `--use-gemini` to `tipster_aggregator.py` to use Gemini URL reading instead of BS4 HTML parsing. Gemini reads tipster pages natively, extracting structured picks without fragile CSS selectors. Falls back to BS4 if Gemini fails per site.
+
+```bash
+# WITH Gemini (recommended — better extraction, no CSS selector maintenance):
+python3 scripts/tipster_aggregator.py --date {date} --use-gemini --verbose 2>&1
+```
+
 **Note:** `tipster_aggregator.py` FETCHES raw tipster picks from all sites → produces `betting/data/{date}_tipster_consensus.json`. The ANALYSIS of tipster data (cross-reference vs shortlist) happens in S2 via `tipster_xref.py`.
 
 ---
@@ -390,7 +412,9 @@ runSubagent("bet-enricher"):
 - Date: {date}
 - Shortlist: `betting/data/{date}_s2_shortlist.json`
 - Script to run: `PYTHONPATH=src python3 scripts/data_enrichment_agent.py --date {date} --verbose`
-- Parse `AGENT_SUMMARY:` JSON from output for structured metrics (verdict, yield %, gaps)
+- **Gemini feature flag:** Add `--news` to run Gemini news enrichment (injuries, coaching changes, morale) for all shortlisted teams. Data saved to `team_news` DB table, consumed by S5 `context_checks.py`.
+- Script with Gemini: `PYTHONPATH=src python3 scripts/data_enrichment_agent.py --date {date} --news --verbose`
+- Parse `AGENT_SUMMARY:` JSON from output for structured metrics (verdict, yield %, gaps, news_enriched)
 - After script: run `python3 scripts/validate_phase.py --date {date} --phase data --format json`
 - Use sequentialthinking for Enrichment Quality Assessment
 - Load skill: bet-navigating-sources (source fallback chains)
@@ -445,6 +469,8 @@ runSubagent("bet-statistician"):
 - Date: {date}
 - Shortlist file: `betting/data/{date}_s2_shortlist.json`
 - Script to run: `PYTHONPATH=src python3 scripts/deep_stats_report.py --date {date} --shortlist betting/data/{date}_s2_shortlist.json --top 200 --verbose`
+- **Gemini feature flag:** Add `--gemini` for Gemini "second opinion" per candidate — adds `gemini_analysis` section with independent market recommendations, upset risk, and `agreement_score` (0-1) tracking Python↔Gemini alignment.
+- Script with Gemini: `PYTHONPATH=src python3 scripts/deep_stats_report.py --date {date} --shortlist betting/data/{date}_s2_shortlist.json --top 200 --gemini --verbose`
 - Parse `AGENT_SUMMARY:` JSON from output for per-candidate metrics, data quality scores, and issues
 - After script: validate output quality with sequentialthinking (data depth, market coverage, three-way cross-check alignment)
 - Use sequentialthinking for EVERY CANDIDATE (5-part Analytical Reasoning Layer)
@@ -728,7 +754,7 @@ Present to user:
 | R6 BETCLIC ADVISORY | Hit rates shown, never auto-penalize | S0, S3 |
 | R7 TOURNAMENT PROTECTION | Major tournaments present | S1e |
 | R8 MINOR LEAGUE VALUE | No "obscure" penalties | S1e |
-| R9 SELF-HEALING DATA | Missing data → auto-fallback L1→L6, then L7 web research (R15). See `SELF_HEALING_REGISTRY` in agent_protocol.py. | S1, S2.5, S3 |
+| R9 SELF-HEALING DATA | Missing data → auto-fallback L1→L6, then L7a Gemini Search Grounding (primary), L7b SerpAPI, L7c Playwright. See `SELF_HEALING_REGISTRY` in agent_protocol.py. | S1, S2.5, S3 |
 | R10 STATS-FIRST | Events without odds NOT excluded | S4, S7 |
 | R11 SEQUENTIAL THINKING | sequentialthinking per step + per candidate in S3 | ALL |
 | R12 CONDITIONAL | Coupon carries conditional disclaimer | S8 |

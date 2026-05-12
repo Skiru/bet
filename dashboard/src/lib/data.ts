@@ -25,9 +25,9 @@ export function getEventsScanned(date: string): number {
     const db = getDb();
     const row = db
       .prepare(
-        "SELECT COUNT(*) as count FROM events WHERE event_date = ? OR date(created_at) = ?"
+        "SELECT COUNT(DISTINCT event_key) as count FROM scan_results WHERE betting_date = ?"
       )
-      .get(date, date) as { count: number } | undefined;
+      .get(date) as { count: number } | undefined;
     return row?.count ?? 0;
   } catch {
     return 0;
@@ -36,10 +36,24 @@ export function getEventsScanned(date: string): number {
 
 export function getActiveCoupons(): number {
   try {
+    // First try DB coupons table
+    const db = getDb();
+    const row = db
+      .prepare(
+        "SELECT COUNT(*) as count FROM coupons WHERE status = 'pending' OR status = 'active'"
+      )
+      .get() as { count: number } | undefined;
+    if (row && row.count > 0) return row.count;
+    // Fallback to file count
     const files = fs.readdirSync(COUPONS_DIR);
     return files.filter((f) => f.endsWith(".md")).length;
   } catch {
-    return 0;
+    try {
+      const files = fs.readdirSync(COUPONS_DIR);
+      return files.filter((f) => f.endsWith(".md")).length;
+    } catch {
+      return 0;
+    }
   }
 }
 
@@ -86,5 +100,58 @@ export function getCouponContent(filename: string): string | null {
 }
 
 export function getPipelineStatus(): string {
-  return "Idle";
+  try {
+    const db = getDb();
+    const today = new Date().toISOString().slice(0, 10);
+    // Check if pipeline ran today by looking at scan_results
+    const row = db
+      .prepare(
+        "SELECT COUNT(*) as count FROM scan_results WHERE betting_date = ?"
+      )
+      .get(today) as { count: number } | undefined;
+    if (row && row.count > 0) return "Complete";
+    return "Idle";
+  } catch {
+    return "Idle";
+  }
+}
+
+export function getGeminiConfig(): {
+  enabled: boolean;
+  model: string;
+  dailyLimit: number;
+} {
+  try {
+    const geminiPath = path.join(
+      process.cwd(),
+      "..",
+      "config",
+      "gemini_config.json"
+    );
+    const raw = fs.readFileSync(geminiPath, "utf-8");
+    const config = JSON.parse(raw);
+    return {
+      enabled: true,
+      model: config.default_model ?? "gemini-2.5-flash",
+      dailyLimit: config.daily_request_limit ?? 1500,
+    };
+  } catch {
+    return { enabled: false, model: "N/A", dailyLimit: 0 };
+  }
+}
+
+export function getSportBreakdown(
+  date: string
+): { sport: string; count: number }[] {
+  try {
+    const db = getDb();
+    const rows = db
+      .prepare(
+        "SELECT sport, COUNT(DISTINCT event_key) as count FROM scan_results WHERE betting_date = ? GROUP BY sport ORDER BY count DESC"
+      )
+      .all(date) as { sport: string; count: number }[];
+    return rows;
+  } catch {
+    return [];
+  }
 }

@@ -194,6 +194,19 @@ After sections 1-10, write:
 - **Edge hypothesis**: why the market misprices this
 - **Confidence modifier**: +0.5 / 0 / −0.5
 
+### 5. Gemini Second Opinion (feature flag `--gemini`)
+
+When `--gemini` flag is active, each candidate receives a `gemini_analysis` section with:
+- **recommended_markets**: Gemini's independent market rankings (statistical markets prioritized per R5)
+- **upset_risk_score**: 0-100 upset risk from Gemini's perspective
+- **bull/bear cases**: Independent reasoning per market
+- **agreement_score**: 0.0-1.0 alignment between Python safety scores and Gemini recommendations
+  - ≥0.8 = HIGH AGREEMENT → strongest signal
+  - 0.5-0.8 = MODERATE → investigate divergence
+  - <0.5 = LOW → one of Python/Gemini may be wrong — requires manual review
+
+When presenting results with Gemini data, show the agreement_score and flag divergences for user attention.
+
 ## Output Quality Verification (sequentialthinking per candidate)
 
 For EACH candidate analyzed, use `sequentialthinking` to verify:

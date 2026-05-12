@@ -51,6 +51,8 @@ You are the betting pipeline orchestrator — a MANAGER who **delegates ALL anal
 - `seed_espn_data.py` — sport-specific enrichment
 - `generate_market_matrix.py`, `build_shortlist.py` — shortlist building
 - `web_research_agent.py` — L7 web research (last resort for missing data)
+- `gemini_web_research.py` — L7a Gemini Search Grounding (primary web research)
+- `gemini_news_enrichment.py` — standalone news enrichment (team_news table)
 - `settle_on_finish.py`, `analyze_betclic_learning.py`, `data_rotation.py` — settlement
 - `validate_phase.py` — phase validation gates
 - `tipster_xref.py` — tipster data (but review delegated to bet-scout)

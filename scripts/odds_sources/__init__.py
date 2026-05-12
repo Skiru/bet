@@ -121,9 +121,9 @@ PREFERRED_BOOKMAKERS = ["betclic", "bet365", "pinnacle", "unibet", "betfair"]
 
 # Sport → ordered list of source names to try
 SPORT_SOURCE_PRIORITY = {
-    "football": ["the-odds-api", "odds-api-io", "api-football-odds", "oddsportal", "betexplorer", "betclic"],
-    "tennis": ["the-odds-api", "odds-api-io", "oddsportal", "betexplorer", "betclic"],
-    "basketball": ["the-odds-api", "odds-api-io", "oddsportal", "betexplorer", "betclic"],
-    "hockey": ["the-odds-api", "odds-api-io", "oddsportal", "betexplorer", "betclic"],
-    "volleyball": ["odds-api-io", "oddsportal", "betexplorer", "betclic"],
+    "football": ["the-odds-api", "odds-api-io", "api-football-odds", ],
+    "tennis": ["the-odds-api", "odds-api-io", ],
+    "basketball": ["the-odds-api", "odds-api-io", ],
+    "hockey": ["the-odds-api", "odds-api-io", ],
+    "volleyball": ["odds-api-io", ],
 }

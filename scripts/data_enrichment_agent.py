@@ -1861,6 +1861,8 @@ def main():
     parser.add_argument("--date", help="Auto-detect missing teams from shortlist (YYYY-MM-DD)")
     parser.add_argument("--h2h", nargs=2, metavar=("TEAM_A", "TEAM_B"), help="Fetch H2H stats")
     parser.add_argument("--workers", type=int, default=4, help="Max parallel workers")
+    parser.add_argument("--news", action="store_true", default=False,
+                        help="Run Gemini news enrichment after stats enrichment (feature flag)")
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose logging")
     parser.add_argument("--stop-on-error", action="store_true", help="Stop on first critical error")
     args = parser.parse_args()
@@ -1935,8 +1937,40 @@ def main():
         enriched = sum(1 for r in results if r.get("status") == "enriched")
         partial = sum(1 for r in results if r.get("status") == "partial")
         failed = sum(1 for r in results if r.get("status") == "failed")
+
+        # Gemini news enrichment (feature flag --news)
+        news_count = 0
+        if args.news:
+            try:
+                from gemini_news_enrichment import batch_enrich_news, save_news_to_db
+                shortlist_path = DATA_DIR / f"{args.date}_s2_shortlist.json"
+                if shortlist_path.exists():
+                    sl = json.loads(shortlist_path.read_text(encoding="utf-8"))
+                    news_candidates = []
+                    seen = set()
+                    for c in (sl.get("candidates", sl) if isinstance(sl, dict) else sl):
+                        for team_key in ["home_team", "away_team"]:
+                            team = c.get(team_key, "")
+                            sport = c.get("sport", "football")
+                            key = f"{sport}|{team}"
+                            if team and key not in seen:
+                                seen.add(key)
+                                news_candidates.append({"team": team, "sport": sport})
+                    if news_candidates:
+                        print(f"[enrich] Gemini news enrichment for {len(news_candidates)} teams...")
+                        news_results = batch_enrich_news(news_candidates, args.date, max_workers=3)
+                        news_count = save_news_to_db(news_results, args.date)
+                        print(f"[enrich] Gemini news: {news_count} teams saved to team_news table")
+                else:
+                    print(f"[enrich] Shortlist not found — skipping news enrichment")
+            except ImportError:
+                print("[enrich] gemini_news_enrichment not available — skipping")
+            except Exception as e:
+                print(f"[enrich] Gemini news enrichment failed (non-fatal): {e}")
+
         out.summary(verdict="OK" if enriched > 0 else "PARTIAL",
-                     metrics={"enriched": enriched, "partial": partial, "failed": failed, "total": len(results)})
+                     metrics={"enriched": enriched, "partial": partial, "failed": failed,
+                              "total": len(results), "news_enriched": news_count})
 
     else:
         parser.print_help()

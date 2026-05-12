@@ -68,6 +68,11 @@ If file exists and is non-empty → proceed to Step 2. If MISSING or empty → r
 ```bash
 PYTHONPATH=src python3 scripts/tipster_aggregator.py --date {date} --workers 5 --verbose 2>&1
 ```
+
+**Gemini feature flag:** Add `--use-gemini` for Gemini-powered tipster page reading (replaces BS4 HTML parsing). Falls back to BS4 per-site if Gemini fails.
+```bash
+PYTHONPATH=src python3 scripts/tipster_aggregator.py --date {date} --workers 5 --use-gemini --verbose 2>&1
+```
 Parse the `AGENT_SUMMARY:{json}` line from the output for structured metrics (verdict, tip count, source breakdown, errors).
 
 **Step 2: RUN cross-reference vs shortlist:**

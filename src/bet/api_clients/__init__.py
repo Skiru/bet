@@ -53,6 +53,9 @@ CLIENT_REGISTRY["api-hockey"] = APIHockeyClient
 from bet.api_clients.api_volleyball import APIVolleyballClient
 CLIENT_REGISTRY["api-volleyball"] = APIVolleyballClient
 
+from bet.api_clients.sofascore import SofascoreClient
+CLIENT_REGISTRY["sofascore"] = SofascoreClient
+
 from bet.api_clients.espn import ESPNClient
 
 

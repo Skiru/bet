@@ -54,9 +54,9 @@ _SOURCE_MODULES = {
     "the-odds-api": ("odds_sources.the_odds_api", "SOURCE"),
     "odds-api-io": ("odds_sources.odds_api_io_source", "SOURCE"),
     "api-football-odds": ("odds_sources.api_football_odds", "SOURCE"),
-    "oddsportal": ("odds_sources.oddsportal_scraper", "SOURCE"),
-    "betexplorer": ("odds_sources.betexplorer_scraper", "SOURCE"),
-    "betclic": ("odds_sources.betclic_scraper", "SOURCE"),
+    
+    
+    
 }
 
 

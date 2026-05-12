@@ -2,6 +2,8 @@ import { KpiCards } from "@/components/kpi-cards";
 import { CouponViewer } from "@/components/coupon-viewer";
 import { AgentStatus } from "@/components/agent-status";
 import { RunPipelineButton } from "@/components/run-pipeline-button";
+import { SportBreakdown } from "@/components/sport-breakdown";
+import { GeminiStatus } from "@/components/gemini-status";
 
 export default function DashboardPage() {
   return (
@@ -18,8 +20,10 @@ export default function DashboardPage() {
           <div className="lg:col-span-2">
             <CouponViewer />
           </div>
-          <div>
+          <div className="space-y-6">
             <AgentStatus />
+            <GeminiStatus />
+            <SportBreakdown />
           </div>
         </div>
       </div>
