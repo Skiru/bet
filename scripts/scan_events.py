@@ -78,10 +78,11 @@ def fetch_events_for_sport(sport_key: str, date_str: str) -> list:
                 "id": ev.external_id,
                 "sport": ev.sport,
                 "tournament": ev.competition_name,
-                "country": "Unknown", # Fallback for now if APIFixture doesn't guarantee country
+                "country": "Unknown",
                 "home_team": ev.home_team_name,
                 "away_team": ev.away_team_name,
-                "start_time": ev.kickoff
+                "start_time": ev.kickoff,
+                "_source": ev.source,  # Track actual data source
             })
         return normalized
     except Exception as e:
@@ -163,40 +164,24 @@ def _compute_enrichment_priority(ev: dict) -> int:
     return score
 
 
-def fetch_deep_data(event_id: str) -> tuple:
+_enrich_client = None
+_enrich_client_lock = threading.Lock()
+
+def _get_enrich_client():
+    """Get or create a singleton UnifiedAPIClient for enrichment."""
+    global _enrich_client
+    if _enrich_client is None:
+        with _enrich_client_lock:
+            if _enrich_client is None:
+                from bet.api_clients.unified import UnifiedAPIClient
+                _enrich_client = UnifiedAPIClient()
+    return _enrich_client
+
+def fetch_deep_data(event_id: str, source: str | None = None) -> tuple:
     """Fetch form, H2H, odds, and statistics for an event using UnifiedAPIClient."""
-    from bet.api_clients.unified import UnifiedAPIClient
-    client = UnifiedAPIClient()
-    
-    form_data, h2h_data, odds_data, stats_data = {}, {}, [], {}
-    
-    # Try fetching with unified client. Usually stats contains all of it or we could directly use
-    # sofascore fallback
-    try:
-        raw_stats = client.sofascore.get_fixture_stats(event_id)
-        if raw_stats:
-            stats_data = raw_stats.get('stats', {})
-    except Exception as e:
-        logger.warning(f"Error fetching stats for {event_id}: {e}")
-
-    try:
-        form_data = client.sofascore.client.get(f"/api/v1/event/{event_id}/pregame-form") or {}
-    except:
-        pass
-        
-    try:
-        h2h_data = client.sofascore.client.get(f"/api/v1/event/{event_id}/h2h") or {}
-    except:
-        pass
-        
-    try:
-        odds_json = client.sofascore.client.get(f"/api/v1/event/{event_id}/odds/1/all")
-        if odds_json:
-            odds_data = odds_json.get("markets", [])
-    except:
-        pass
-
-    return form_data, h2h_data, odds_data, stats_data
+    client = _get_enrich_client()
+    deep = client.get_deep_data(event_id, source=source)
+    return deep["form"], deep["h2h"], deep["odds"], deep["stats"]
 
 def _enrich_single_event(ev: dict, session: requests.Session, verbose: bool = False) -> dict:
     """Enrich a single event with deep data. Returns the event dict (mutated)."""
@@ -205,7 +190,7 @@ def _enrich_single_event(ev: dict, session: requests.Session, verbose: bool = Fa
     if verbose:
         print(json.dumps({"event": "enriching", "id": ev["id"], "match": f"{ev['home_team']} vs {ev['away_team']}"}))
         
-    form, h2h, odds, stats = fetch_deep_data(str(ev["id"]))
+    form, h2h, odds, stats = fetch_deep_data(str(ev["id"]), source=ev.get("_source"))
     ev["form"] = form
     ev["h2h"] = h2h
     ev["odds"] = odds
@@ -358,7 +343,7 @@ def main():
                     kickoff=ev["start_time"],
                     status='scheduled',
                     external_id=str(ev["id"]) if ev.get("id") else "",
-                    source='sofascore-api'
+                    source=ev.get("_source", "sofascore-api")
                 )
                 fix_repo.upsert(fix)
                 db_fixtures_written += 1
@@ -367,7 +352,7 @@ def main():
                     id=None,
                     betting_date=args.date,
                     sport=ev["sport"],
-                    source_domain="sofascore.com",
+                    source_domain=f"{ev.get('_source', 'sofascore')}.com",
                     event_key=f"{ev['sport']}:{ev['home_team']}:{ev['away_team']}",
                     home_team=ev["home_team"],
                     away_team=ev["away_team"],
