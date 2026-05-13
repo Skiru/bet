@@ -3,10 +3,17 @@ import logging
 from typing import Dict, List, Optional
 
 from .espn import ESPNClient, ESPN_LEAGUES
-from .flashscore import FlashscoreClient
 from .rate_limiter import RateLimiter
 
 logger = logging.getLogger(__name__)
+
+SOURCE_PRIORITY = {
+    "football":   ["flashscore", "betexplorer", "espn"],
+    "tennis":     ["flashscore", "espn"],
+    "basketball": ["flashscore", "betexplorer", "espn"],
+    "hockey":     ["flashscore", "betexplorer", "espn"],
+    "volleyball": ["flashscore", "betexplorer", "espn"],
+}
 
 class UnifiedAPIClient:
     """Composite API client integrating data from ESPN and Flashscore."""
@@ -14,15 +21,40 @@ class UnifiedAPIClient:
     def __init__(self):
         # Shared rate limiter across all clients to prevent IP bans
         self._limiter = RateLimiter()
-        
-        self.flashscore = FlashscoreClient(rate_limiter=self._limiter)
+        self._client_cache = {}
+
+    def _create_client(self, name: str):
+        if name == "flashscore":
+            from .flashscore import FlashscoreClient
+            return FlashscoreClient(rate_limiter=self._limiter)
+        elif name == "espn":
+            # ESPN needs sport+league, handle in get_fixtures directly
+            return None  
+        elif name == "betexplorer":
+            try:
+                from .betexplorer import BetExplorerClient
+                return BetExplorerClient(rate_limiter=self._limiter)
+            except ImportError:
+                logger.debug("[UnifiedAPIClient] BetExplorerClient not available yet")
+                return None
+        return None
+
+    def _get_client(self, name: str):
+        """Lazy-init and cache a client by name."""
+        if name in self._client_cache:
+            return self._client_cache[name]
+        client = self._create_client(name)
+        if client:
+            self._client_cache[name] = client
+        return client
 
     def close(self):
         """Clean up resources from all clients."""
-        try:
-            self.flashscore.close()
-        except Exception:
-            pass
+        for client in self._client_cache.values():
+            try:
+                client.close()
+            except Exception:
+                pass
 
     def __enter__(self):
         return self
@@ -34,48 +66,61 @@ class UnifiedAPIClient:
         self.close()
         
     def get_fixtures(self, date: str, sport: str = "football") -> list:
-        """Fetch fixtures from the best available source.
-        
-        Priority: Flashscore → ESPN (iterates all leagues for sport).
-        All clients return APIFixture objects for consistent downstream handling.
+        """Fetch fixtures from configured sources based on SOURCE_PRIORITY.
         """
-        # 1. Try Flashscore first
-        try:
-            res = self.flashscore.get_fixtures(date, sport=sport)
-            if res:
-                logger.info(f"[UnifiedAPIClient] Flashscore returned {len(res)} {sport} fixtures")
-                return res
-        except Exception as e:
-            logger.warning(f"[UnifiedAPIClient] Flashscore failed for {sport}: {e}")
-        
-        # 2. ESPN fallback — iterate all leagues for this sport
-        leagues = ESPN_LEAGUES.get(sport, [])
-        if not leagues:
-            logger.warning(f"[UnifiedAPIClient] No ESPN leagues configured for {sport}")
-            return []
-        
+        sources = SOURCE_PRIORITY.get(sport, ["flashscore", "espn"])
         all_fixtures = []
-        seen_ids = set()
-        for league in leagues:
-            try:
-                espn = ESPNClient(sport=sport, league=league, rate_limiter=self._limiter)
-                fixtures = espn.get_fixtures(date)
-                for f in fixtures:
-                    if f.external_id not in seen_ids:
-                        seen_ids.add(f.external_id)
-                        all_fixtures.append(f)
-            except Exception as e:
-                logger.debug(f"[UnifiedAPIClient] ESPN {sport}/{league} failed: {e}")
-                continue
-        
-        if all_fixtures:
-            logger.info(f"[UnifiedAPIClient] ESPN returned {len(all_fixtures)} {sport} fixtures from {len(leagues)} leagues")
+        seen_matchups = set()
+
+        for source in sources:
+            if source == "espn":
+                leagues = ESPN_LEAGUES.get(sport, [])
+                if not leagues:
+                    continue
+                fetched_count = 0
+                for league in leagues:
+                    try:
+                        espn = ESPNClient(sport=sport, league=league, rate_limiter=self._limiter)
+                        fixtures = espn.get_fixtures(date)
+                        for f in fixtures:
+                            # Merge + dedup by (home, away)
+                            matchup = (f.home_team_name, f.away_team_name)
+                            if matchup not in seen_matchups:
+                                seen_matchups.add(matchup)
+                                all_fixtures.append(f)
+                                fetched_count += 1
+                    except Exception as e:
+                        logger.debug(f"[UnifiedAPIClient] ESPN {sport}/{league} failed: {e}")
+                        continue
+                if fetched_count > 0:
+                    logger.info(f"[UnifiedAPIClient] ESPN returned {fetched_count} {sport} fixtures")
+            else:
+                client = self._get_client(source)
+                if not client:
+                    continue
+                try:
+                    fixtures = client.get_fixtures(date, sport=sport)
+                    fetched_count = 0
+                    for f in fixtures:
+                        matchup = (f.home_team_name, f.away_team_name)
+                        if matchup not in seen_matchups:
+                            seen_matchups.add(matchup)
+                            all_fixtures.append(f)
+                            fetched_count += 1
+                    if fetched_count > 0:
+                        logger.info(f"[UnifiedAPIClient] {source.capitalize()} returned {fetched_count} {sport} fixtures")
+                except Exception as e:
+                    logger.warning(f"[UnifiedAPIClient] {source.capitalize()} failed for {sport}: {e}")
+                    
         return all_fixtures
 
     def get_fixture_stats(self, event_id: str, source: str | None = None) -> list:
         """Fetch detailed stats from Flashscore."""
+        client = self._get_client("flashscore")
+        if not client:
+            return []
         try:
-            res = self.flashscore.get_fixture_stats(event_id)
+            res = client.get_fixture_stats(event_id)
             if res:
                 return res
         except Exception:
@@ -85,9 +130,12 @@ class UnifiedAPIClient:
     def get_deep_data(self, event_id: str, source: str | None = None) -> dict:
         """Fetch stats + form + H2H + odds from Flashscore."""
         result = {"stats": [], "form": {}, "h2h": {}, "odds": []}
-        
+        client = self._get_client("flashscore")
+        if not client:
+            return result
+            
         try:
-            preview = self.flashscore.get_match_preview(event_id)
+            preview = client.get_match_preview(event_id)
             if preview:
                 result["form"] = {
                     "homeTeam": {"form": preview.get("form_home", [])},
@@ -98,7 +146,7 @@ class UnifiedAPIClient:
             logger.debug(f"Flashscore preview failed for {event_id}: {e}")
         
         try:
-            stats = self.flashscore.get_fixture_stats(event_id)
+            stats = client.get_fixture_stats(event_id)
             if stats:
                 result["stats"] = stats
         except Exception as e:

@@ -1,3 +1,4 @@
+# DEPRECATED 2026-05-13 — v1 API deprecated, 100% failure rate. DO NOT USE.
 """BallDontLie + nba_api — deep NBA statistics.
 
 DEPRECATED (2026-05-11): BallDontLie v1 API is deprecated and returns 100%
@@ -62,8 +63,18 @@ class NBAStatsClient(BaseAPIClient):
         return headers
 
     def get_fixtures(self, date: str) -> list:
+        """DEPRECATED — BallDontLie v1 API is dead. Returns [] immediately."""
+        import logging
+        logging.getLogger(__name__).warning(
+            "[%s] DEPRECATED: v1 API deprecated, 100%% failure rate. Returning [].",
+            self.api_name,
+        )
+        return []
+
+    def _get_fixtures_legacy(self, date: str) -> list:
         """GET /games?dates[]={YYYY-MM-DD} → NBA games on a date.
 
+        LEGACY — kept for reference only. Do not call.
         Returns list of NormalizedFixture.
         """
         cache_key = f"nba/fixtures/{date}"

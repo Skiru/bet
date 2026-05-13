@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# DEPRECATED 2026-05-13 — NXDOMAIN. Host does not resolve. DO NOT USE.
 """API-Sports Tennis client — fixtures, match stats, H2H via api-sports.io.
 
 Endpoint: v1.tennis.api-sports.io
@@ -50,8 +51,18 @@ class APITennisClient(APISportsClient):
         return super().is_available()
 
     def get_fixtures(self, date: str) -> list:
+        """DEPRECATED — v1.tennis.api-sports.io does not resolve. Returns [] immediately."""
+        import logging
+        logging.getLogger(__name__).warning(
+            "[%s] DEPRECATED: NXDOMAIN — host does not resolve. Returning [].",
+            self.api_name,
+        )
+        return []
+
+    def _get_fixtures_legacy(self, date: str) -> list:
         """Get all tennis matches on a date (YYYY-MM-DD).
 
+        LEGACY — kept for reference only. Do not call.
         Returns list of NormalizedFixture.
         """
         if self._HOST_BROKEN:

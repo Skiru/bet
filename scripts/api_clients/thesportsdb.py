@@ -1,3 +1,4 @@
+# DEPRECATED 2026-05-13 — 97.8% failure rate. DO NOT USE.
 """TheSportsDB client — universal sports fixture database.
 
 Docs: https://www.thesportsdb.com/api.php
@@ -110,8 +111,18 @@ class TheSportsDBClient(BaseAPIClient):
         raise APIError(f"[{self.api_name}] Failed after {self.MAX_RETRIES} attempts: {last_error}")
 
     def get_fixtures(self, date: str) -> list:
+        """DEPRECATED — TheSportsDB free tier is dead. Returns [] immediately."""
+        import logging
+        logging.getLogger(__name__).warning(
+            "[%s] DEPRECATED: 97.8%% failure rate. Returning [].",
+            self.api_name,
+        )
+        return []
+
+    def _get_fixtures_legacy(self, date: str) -> list:
         """GET /{key}/eventsday.php?d={YYYY-MM-DD} → events on a date.
 
+        LEGACY — kept for reference only. Do not call.
         Returns list of NormalizedFixture across all sports.
         """
         cache_key = f"thesportsdb/fixtures/{date}"

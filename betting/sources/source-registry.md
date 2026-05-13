@@ -145,7 +145,7 @@ These API sources provide structured statistical data via REST APIs. They are th
   Access: free tier (100 req/day). API key in config/api_keys.json or API_BASKETBALL_KEY env var.
   Coverage: NBA, Euroleague, ACB, NBL, BSL, LNB, and all major+minor leagues.
   Script: `python3 scripts/fetch_api_stats.py --sports basketball`
-  Fallback: BallDontLie → nba_api (NBA only).
+  Fallback: nba_api (NBA only).
   Added: 2026-04-28.
 
 - API-Hockey v1 (api-sports.io)
@@ -165,11 +165,8 @@ These API sources provide structured statistical data via REST APIs. They are th
 
 - BallDontLie API
   Role: free NBA stats API — game results, player box scores, season averages.
-  Use for: NBA statistical analysis as fallback when API-Basketball quota exhausted.
-  Access: **BROKEN** — v1 API deprecated, migrated to paid model. 100% failure rate as of 2026-05-11.
-  Coverage: NBA only.
-  Status: DISABLED in fallback chains. Client has `_HOST_BROKEN = True`.
-  Added: 2026-04-28. Disabled: 2026-05-11.
+  Use for: DEPRECATED — see "Deprecated / Broken Sources" section below.
+  Status: DEPRECATED 2026-05-13. Moved to deprecated section.
 
 - nba_api (Python package)
   Role: unofficial NBA stats from stats.nba.com — most detailed free NBA data source.
@@ -216,28 +213,21 @@ These API sources provide structured statistical data via REST APIs. They are th
   Added: 2026-05-12.
 
 - API-Tennis (custom client)
-  Role: tennis statistics API client — player rankings, match results, H2H, surface-specific form.
-  Use for: L10/L5/H2H statistical data for tennis game totals, set totals, and serve/return markets.
-  Access: **BROKEN** — v1.tennis.api-sports.io returns NXDOMAIN (host does not resolve). API may have been discontinued.
-  Script: `python3 scripts/fetch_api_stats.py --sports tennis` (uses `api_clients/api_tennis.py`)
-  Fallback: ESPN-Tennis → SerpAPI.
-  Status: DISABLED in fallback chains. Client has `_HOST_BROKEN = True`.
-  Added: 2026-04-30. Disabled: 2026-05-11.
+  Role: tennis statistics API client.
+  Use for: DEPRECATED — see "Deprecated / Broken Sources" section below.
+  Status: DEPRECATED 2026-05-13. Moved to deprecated section.
 
 - API-Volleyball (custom client)
   Role: volleyball statistics API client — team stats, match results, set scores, point totals.
   Use for: L10/L5/H2H statistical data for volleyball set totals, point totals, and set handicap markets.
   Script: `python3 scripts/fetch_api_stats.py --sports volleyball` (uses `api_clients/api_volleyball.py`)
-  Fallback: TheSportsDB → Playwright (Flashscore).
+  Fallback: Playwright (Flashscore).
   Added: 2026-04-30.
 
 - TheSportsDB
-  Role: universal sports fixture database — covers ALL sports with basic fixture/result data.
-  Use for: fixture discovery for sports without API-Sports.io coverage (volleyball, tennis, etc.). No per-match stats.
-  Access: **BROKEN** — free tier (key "3") has 97.8% failure rate as of 2026-05-11. Deprecated or severely rate-limited.
-  Coverage: All sports globally — but basic data only (fixtures, results, team info).
-  Status: DISABLED in fallback chains. Client has `_HOST_BROKEN = True`.
-  Added: 2026-04-28. Disabled: 2026-05-11.
+  Role: universal sports fixture database.
+  Use for: DEPRECATED — see "Deprecated / Broken Sources" section below.
+  Status: DEPRECATED 2026-05-13. Moved to deprecated section.
 
 - ESPN API (espn_adapter.py)
   Role: FREE, UNLIMITED, NO API KEY — multi-sport statistics via ESPN's public endpoints. Per-match stats: corners, fouls, cards, shots, shots on target, possession, saves, offsides, passes, tackles, interceptions, clearances. 36+ football leagues, NBA, NHL, ATP/WTA.
@@ -292,14 +282,11 @@ Disabled sources (2026-05-11): TheSportsDB (97.8% fail), BallDontLie (100% fail)
 | API-Basketball | 100 | 60 | 40 |
 | API-Hockey | 100 | 50 | 50 |
 | Football-Data.org | ~1000 | 200 | 800 |
-| BallDontLie | ~1000 | 100 | 900 |
 | nba_api | ~1800/hr | 200 | 1600 |
-| TheSportsDB | ~~100~~ | 0 | BROKEN — disabled |
 | Understat | unlimited | 50 | — |
 | The Odds API | ~40/day | 40 | 0 |
 | Odds-API.io | 5000/hr | 200 | 4800 |
 | SerpAPI | 100/mo | 20 | 80 |
-| BallDontLie | ~~1000~~ | 0 | BROKEN — disabled |
 
 ## Weather Data Source
 
@@ -1049,6 +1036,34 @@ Use this table to know WHERE to get data for exotic football leagues. "Betclic" 
 | Kings League | Spain | ✅ | ✅ | ❓ | ❓ | ❓ |
 
 **Note:** ❓ = verify manually on the source website or Betclic app before analysis. Kings League uses modified rules (shorter halves, special gameplay mechanics) — see §1.7 for protocol.
+
+## Deprecated / Broken Sources
+
+These API clients are formally deprecated and removed from all fallback chains. Files are retained for reference but their `get_fixtures()` methods return `[]` immediately. Do NOT re-enable without verifying the underlying service is restored.
+
+- BallDontLie API
+  Role: free NBA stats API — game results, player box scores, season averages.
+  Client: `scripts/api_clients/balldontlie.py`
+  Status: **DEPRECATED 2026-05-13.** v1 API migrated to paid model. 100% failure rate since 2026-05-11.
+  Reason: BallDontLie v1 API is fully deprecated. Free tier no longer available. Requires paid API key.
+  Replacement: `nba_api` Python package (registered as `nba-api` in CLIENT_REGISTRY) + ESPN Basketball.
+  `_HOST_BROKEN = True`. Removed from CLIENT_REGISTRY. File retained for nba_api fallback methods.
+
+- TheSportsDB
+  Role: universal sports fixture database — fixtures, results, team info across all sports.
+  Client: `scripts/api_clients/thesportsdb.py`
+  Status: **DEPRECATED 2026-05-13.** Free tier (key "3") has 97.8% failure rate since 2026-05-11.
+  Reason: Free API appears deprecated or severely rate-limited. Premium keys may work but are untested.
+  Replacement: ESPN API (free, unlimited) + Flashscore (Playwright) for fixture discovery.
+  `_HOST_BROKEN = True`. Removed from CLIENT_REGISTRY.
+
+- API-Tennis (api-sports.io)
+  Role: tennis statistics API — player rankings, match results, H2H, surface-specific form.
+  Client: `scripts/api_clients/api_tennis.py`
+  Status: **DEPRECATED 2026-05-13.** v1.tennis.api-sports.io returns NXDOMAIN (host does not resolve).
+  Reason: DNS resolution failure. API may have been discontinued or moved to a different host.
+  Replacement: ESPN Tennis + TennisAbstract Elo + TennisExplorer for fixture/H2H/stats.
+  `_HOST_BROKEN = True`. Removed from CLIENT_REGISTRY.
 
 ## Settlement Sources
 

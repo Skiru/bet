@@ -39,17 +39,17 @@ CLIENT_REGISTRY["api-basketball"] = APIBasketballClient
 from .api_hockey import APIHockeyClient
 CLIENT_REGISTRY["api-hockey"] = APIHockeyClient
 
-# BallDontLie v1 deprecated (2026-05-11) — removed from registry.
-# File retained for nba_api fallback methods. See balldontlie.py.
+# BallDontLie — DEPRECATED 2026-05-13: v1 API deprecated, 100% failure rate.
+# File retained for nba_api fallback methods only. See balldontlie.py.
 
 from .nba_api_client import NBAAPIClient
 CLIENT_REGISTRY["nba-api"] = NBAAPIClient
 
-# TheSportsDB free tier deprecated (2026-05-11) — removed from registry.
+# TheSportsDB — DEPRECATED 2026-05-13: 97.8% failure rate on free tier.
 # from .thesportsdb import TheSportsDBClient
 # CLIENT_REGISTRY["thesportsdb"] = TheSportsDBClient
 
-# API-Tennis deprecated (2026-05-11) — v1.tennis.api-sports.io does not resolve.
+# API-Tennis — DEPRECATED 2026-05-13: NXDOMAIN, host does not resolve.
 # from .api_tennis import APITennisClient
 # CLIENT_REGISTRY["api-tennis"] = APITennisClient
 

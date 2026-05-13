@@ -133,11 +133,30 @@ APIFixture / APIMatchStats dataclasses → DB upsert via repositories
   - Common GDPR selectors by site (for reference)
 
 ### Definition of Done
-- [ ] `PlaywrightBaseClient` passes import test — `from bet.api_clients.playwright_base import PlaywrightBaseClient` works
-- [ ] `FlashscoreClient` still extends `BaseAPIClient` (through inheritance chain) — `isinstance(client, BaseAPIClient)` is True
-- [ ] `FlashscoreClient.get_fixtures()` returns same results as before refactor (behavioral equivalence)
-- [ ] No duplicated Playwright boilerplate remains in `flashscore.py`
-- [ ] Circuit breaker is per-subclass: `FlashscoreClient._failures` is independent of `OddsPortalClient._failures`
+- [x] `PlaywrightBaseClient` passes import test — `from bet.api_clients.playwright_base import PlaywrightBaseClient` works
+- [x] `FlashscoreClient` still extends `BaseAPIClient` (through inheritance chain) — `isinstance(client, BaseAPIClient)` is True
+- [x] `FlashscoreClient.get_fixtures()` returns same results as before refactor (behavioral equivalence)
+- [x] No duplicated Playwright boilerplate remains in `flashscore.py`
+- [x] Circuit breaker is per-subclass: `FlashscoreClient._failures` is independent of `OddsPortalClient._failures`
+- [ ] `specifications/playwright-base-selectors.md` created (task was skipped)
+
+### Code Review Findings (2026-05-13)
+
+**BUGS / MUST FIX:**
+
+1. **Unused import `Optional`** — `playwright_base.py` line 5 imports `from typing import Optional` but `Optional` is never used anywhere in the file. Remove it.
+
+2. **Unreachable dead code in `_load_page`** — The final `raise APIError(f"{self.api_name.capitalize()} exhausted retries for {url}")` after the `for` loop (last line of `_load_page`) is unreachable. On the last retry iteration, every failure path either `return`s or `raise`s inside the loop. This line can never execute when `max_retries >= 1`. Remove it or replace it with `assert False, "unreachable"` so it's clearly intentional.
+
+**INCOMPLETE TASKS:**
+
+3. **`specifications/playwright-base-selectors.md` not created** — The plan's Phase 1 task list includes `[CREATE] specifications/playwright-base-selectors.md`. This was skipped. Low priority but DoD is incomplete.
+
+**MINOR SMELLS (no action required unless cleaning up):**
+
+4. **`is_available()` override is redundant** — `PlaywrightBaseClient.__init__` sets `self.api_key = "no-key"`. The base class `is_available()` returns `bool(self.api_key)` which is `True` for `"no-key"`. The override in `playwright_base.py` returns `True` unconditionally — correct but unnecessary.
+
+5. **`scripts.stealth_utils` cross-boundary import** — `playwright_base.py` imports `USER_AGENTS`, `BROWSER_ARGS` from `scripts.stealth_utils` (a `scripts/` module). A `src/` package importing from `scripts/` creates a coupling that will break if `src/` is ever packaged standalone. Graceful fallback with inline defaults mitigates the risk for now.
 
 ### Dependencies
 - None (first phase)
@@ -181,10 +200,20 @@ APIFixture / APIMatchStats dataclasses → DB upsert via repositories
   Add `UnifiedAPIClient` to exports (currently not exported).
 
 ### Definition of Done
-- [ ] `UnifiedAPIClient().get_fixtures(date, "football")` returns fixtures even when Flashscore is down (falls through to ESPN)
-- [ ] `UnifiedAPIClient().get_fixtures(date, "volleyball")` works (currently no ESPN volleyball league configured well)
-- [ ] No crash when BetExplorerClient is not yet available (Phase 3) — graceful import guard
-- [ ] Context manager (`with UnifiedAPIClient() as client:`) cleans up all child clients
+- [x] `UnifiedAPIClient().get_fixtures(date, "football")` returns fixtures even when Flashscore is down (falls through to ESPN)
+- [x] `UnifiedAPIClient().get_fixtures(date, "volleyball")` works (currently no ESPN volleyball league configured well)
+- [x] No crash when BetExplorerClient is not yet available (Phase 3) — graceful import guard
+- [x] Context manager (`with UnifiedAPIClient() as client:`) cleans up all child clients
+
+### Code Review Findings (2026-05-13)
+
+**MINOR SMELLS (no action required unless cleaning up):**
+
+1. **`source` parameter unused in `get_fixture_stats` and `get_deep_data`** — Both methods accept `source: str | None = None` but ignore it entirely, always routing to Flashscore. Either remove the parameter now (cleaner) or add a `# TODO: Phase 3 — route to BetExplorer when source="betexplorer"` comment to signal intent.
+
+2. **ESPN clients not lazy-cached** — `get_fixtures()` creates a new `ESPNClient(sport, league)` instance on every call per league. This is by design (ESPN requires sport+league at construction time, so it can't be keyed by name alone), but worth noting when ESPN adds OAuth or session state.
+
+3. **`get_fixture_stats` BetExplorer fallback missing** — Plan spec says "try Flashscore → BetExplorer → return []". The implementation only tries Flashscore. Acceptable as Phase 3 stub, but the fallback path should be added when `BetExplorerClient` ships.
 
 ### Dependencies
 - Phase 1 (PlaywrightBaseClient for Flashscore)

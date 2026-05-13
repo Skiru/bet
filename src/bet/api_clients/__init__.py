@@ -9,6 +9,8 @@ the registry in sync with the full pipeline.
 
 from bet.api_clients.rate_limiter import RateLimiter
 from bet.api_clients.base_client import BaseAPIClient, APISportsClient, APIError
+from bet.api_clients.playwright_base import PlaywrightBaseClient
+from bet.api_clients.unified import UnifiedAPIClient
 
 # Sport → API client name mappings
 API_SPORTS = {
@@ -52,6 +54,9 @@ CLIENT_REGISTRY["api-hockey"] = APIHockeyClient
 
 from bet.api_clients.api_volleyball import APIVolleyballClient
 CLIENT_REGISTRY["api-volleyball"] = APIVolleyballClient
+
+from bet.api_clients.flashscore import FlashscoreClient
+CLIENT_REGISTRY["flashscore"] = FlashscoreClient
 
 from bet.api_clients.espn import ESPNClient
 
