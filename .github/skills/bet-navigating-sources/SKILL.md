@@ -1,6 +1,6 @@
 ---
 name: bet-navigating-sources
-description: "Navigate the betting source ecosystem — Tier A stats, Tier A markets, Tier B tipsters, Tier C specialists. Provides fallback chains per sport, blocked source lists, access notes, Playwright navigation tips, and URL patterns. Use when scanning events, fetching odds, checking tipster sites, or verifying results across any of the 14 supported sports."
+description: "Navigate the betting source ecosystem — Tier A stats, Tier A markets, Tier B tipsters, Tier C specialists. Provides fallback chains per sport, blocked source lists, access notes, Playwright navigation tips, and URL patterns. Use when scanning events, fetching odds, checking tipster sites, or verifying results across 5 core sports (football, volleyball, basketball, tennis, hockey) plus archived chains for additional sports."
 user-invokable: false
 ---
 
@@ -38,15 +38,15 @@ When a source fails (403/empty/timeout), try the next in chain immediately. All 
 | Basketball (EU) | BetExplorer | OddsPortal | The-Odds-API |
 | Basketball (US) | SBR | ESPN Odds | ScoresAndOdds |
 | Hockey | SBR | ESPN Odds | ScoresAndOdds |
-| Baseball | SBR | ESPN Odds | ScoresAndOdds |
+| Baseball *(archived)* | SBR | ESPN Odds | ScoresAndOdds |
 | Volleyball | BetExplorer | OddsPortal | — |
-| Esports | BetExplorer | GosuGamers | — |
-| Snooker/Darts | BetExplorer | OddsPortal | — |
-| Handball | BetExplorer | OddsPortal | — |
-| Table Tennis | BetExplorer | — | — |
-| Padel | BetExplorer | Sofascore | — |
-| Speedway | BetExplorer | — | — |
-| MMA | BetExplorer | Tapology | — |
+| Esports *(archived)* | BetExplorer | GosuGamers | — |
+| Snooker/Darts *(archived)* | BetExplorer | OddsPortal | — |
+| Handball *(archived)* | BetExplorer | OddsPortal | — |
+| Table Tennis *(archived)* | BetExplorer | — | — |
+| Padel *(archived)* | BetExplorer | Sofascore | — |
+| Speedway *(archived)* | BetExplorer | — | — |
+| MMA *(archived)* | BetExplorer | Tapology | — |
 
 ### Stats Sources
 
@@ -64,7 +64,7 @@ When a source fails (403/empty/timeout), try the next in chain immediately. All 
 | Tennis | TennisAbstract | TennisExplorer | TennisPrediction |
 | Basketball (NBA) | Basketball-Reference | ESPN | DunksAndThrees |
 | Basketball (EU) | Eurobasket.com | BetExplorer standings | Flashscore H2H |
-| Hockey | NaturalStatTrick | Hockey-Reference, MoneyPuck | DailyFaceoff (goalies) |
+| Hockey | NaturalStatTrick (BLOCKED 403, use MoneyPuck as primary) | Hockey-Reference, MoneyPuck | DailyFaceoff (goalies) |
 | Volleyball | Sofascore API (scan data) | Flashscore (HTTP) | CEV, PlusLiga |
 
 ### Tipster Sources
@@ -140,7 +140,8 @@ For SBR, ESPN, ScoresAndOdds:
 ## Multi-Source Odds Aggregation (RECOMMENDED)
 
 - Script: `python3 scripts/fetch_odds_multi.py --date YYYY-MM-DD`
-- Aggregates 5 sources: The-Odds-API + API-Football + OddsPortal + BetExplorer + Betclic
+- Aggregates 4 sources: The-Odds-API + API-Football + OddsPortal + BetExplorer
+- Betclic odds are NEVER scraped (403). User verifies on app (R12).
 - Output: `betting/data/odds_multi_sources.json` (provenance log with per-event source attribution)
 - Uses `SPORT_SOURCE_PRIORITY` chains to select best odds per sport
 - RECOMMENDED over single-source `fetch_odds_api.py` for comprehensive multi-bookmaker comparison

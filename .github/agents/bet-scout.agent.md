@@ -3,10 +3,10 @@ description: "Tipster intelligence analyst — extracts full reasoning from argu
 tools:
   [
     "vscode/memory",
+    "vscode/resolveMemoryFileUri",
     "vscode/askQuestions",
     "vscode/toolSearch",
     "execute/runInTerminal",
-    "sequentialthinking/sequentialthinking",
     "sequential-thinking/sequentialthinking",
     "execute/getTerminalOutput",
     "execute/sendToTerminal",
@@ -23,7 +23,6 @@ tools:
     "web/fetch",
     "browser/*",
     "playwright/*",
-    "sequentialthinking/sequentialthinking",
     "sequential-thinking/sequentialthinking",
     "ms-python.python/configurePythonEnvironment",
     "ms-python.python/getPythonExecutableCommand",
@@ -208,7 +207,7 @@ For ADVISORY requests: flag the issue, continue with available data, include lim
 If any script exits non-zero:
 1. **Read stderr** — identify the error type
 2. **Common fixes:**
-   - `ModuleNotFoundError` → run with `PYTHONPATH=src:. python3 scripts/...`
+   - `ModuleNotFoundError` → run with `PYTHONPATH=src python3 scripts/...`
    - `sqlite3.OperationalError: database is locked` → wait 5s, retry once
    - `JSONDecodeError` → check input file exists and is valid JSON
    - `KeyError` / `TypeError` → input data format changed, check script's expected schema

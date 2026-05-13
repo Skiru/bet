@@ -42,7 +42,7 @@ For EVERY candidate, BEFORE selecting a market:
 6. **PRESENT the ranking table** in analysis. Show WHY chosen market beat alternatives.
 7. **THREE-WAY CHECK per market**: Every ranked market now carries its own three-way cross-check (L10 + H2H + L5 alignment). When the user selects a non-top market, the three-way data is immediately available.
 8. **Deterministic calculation**: Always use `python3 scripts/compute_safety_scores.py stats_input.json` — never manually compute safety scores. The script handles the 0.7 H2H-blind penalty, margin calculation, ranking, and per-market three-way checks.
-9. **API-first data**: Check `betting/data/analysis_pool_{date}.json` for pre-computed rankings from API data before web-fetching. Events with `data_quality: FULL` already have safety scores computed from API-Football/API-Basketball/API-Hockey stats.
+9. **DB-first data**: Check DB `analysis_results` table for pre-computed safety scores, then `stats_cache/{sport}/{team}.json` from Beast Mode scan, then `analysis_pool_{date}.json` as aggregated view. Events with `data_quality: FULL` already have safety scores computed from Sofascore REST API + ESPN + unified API client data.
 
 ### Ranking Table Template
 
@@ -65,15 +65,15 @@ For EVERY candidate, BEFORE selecting a market:
 | **Basketball** | Team points O/U, Quarter totals, Half totals, Total points O/U, Rebounds O/U, Assists O/U, 3-pointers O/U, Spread |
 | **Volleyball** | Total sets O/U, Total points O/U, Set handicap, Points per set O/U |
 | **Hockey** | Period totals O/U, Total goals O/U, Shots O/U, Power play goals O/U, Puck line |
-| **Baseball** | F5 innings total O/U, Team totals, Total runs O/U, Hits O/U, Strikeouts O/U, Run line |
-| **Snooker** | Frame totals O/U, Century breaks O/U, 50+ breaks O/U, Frame handicap |
-| **Darts** | 180s O/U, Total legs O/U, Set totals, Checkout % props |
-| **Handball** | Half totals O/U, Total goals O/U, Team goals O/U, Suspensions O/U |
-| **Esports** | Round totals O/U, Map totals O/U, Kill totals, Map handicap |
-| **Table Tennis** | Set totals O/U, Total points O/U, Set handicap |
-| **MMA** | Total rounds O/U, Method of victory, ITD Y/N |
-| **Padel** | Game totals O/U, Set totals O/U, Set handicap |
-| **Speedway** | Total points O/U, Team handicap |
+| **Baseball *(archived)*** | F5 innings total O/U, Team totals, Total runs O/U, Hits O/U, Strikeouts O/U, Run line |
+| **Snooker *(archived)*** | Frame totals O/U, Century breaks O/U, 50+ breaks O/U, Frame handicap |
+| **Darts *(archived)*** | 180s O/U, Total legs O/U, Set totals, Checkout % props |
+| **Handball *(archived)*** | Half totals O/U, Total goals O/U, Team goals O/U, Suspensions O/U |
+| **Esports (CS2) *(archived)*** | Round totals O/U, Map totals O/U, Kill totals, Map handicap |
+| **Table Tennis *(archived)*** | Set totals O/U, Total points O/U, Set handicap |
+| **MMA *(archived)*** | Total rounds O/U, Method of victory, ITD Y/N |
+| **Padel *(archived)*** | Game totals O/U, Set totals O/U, Set handicap |
+| **Speedway *(archived)*** | Total points O/U, Team handicap |
 
 ## §3.0c H2H Market-Specific Validation (MANDATORY)
 

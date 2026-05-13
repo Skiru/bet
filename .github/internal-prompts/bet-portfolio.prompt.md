@@ -97,7 +97,7 @@ The script handles MECHANICAL construction. Your job is PORTFOLIO STRATEGY:
 
 ### 1. Rank Approved Picks (§8A)
 
-List ALL ✅ picks from S7. Rank by EV → confidence → price gap. Need ≥4 picks total. Sport diversity is informational, never a gate (R4). If <4 picks → NO BET day.
+List ALL ✅ picks from S7. Rank by EV → confidence → price gap. Need ≥4 picks total for combo coupons. Sport diversity is informational, never a gate (R4). If <4 picks → thin day flag. Present as singles + extended pool.
 
 ### 2. Unique Event Per Coupon (§8B — ABSOLUTE)
 

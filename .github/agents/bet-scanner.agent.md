@@ -3,10 +3,10 @@ description: "Orchestrates Beast Mode scanning — Sofascore REST API scan for a
 tools:
   [
     "vscode/memory",
+    "vscode/resolveMemoryFileUri",
     "vscode/askQuestions",
     "vscode/toolSearch",
     "execute/runInTerminal",
-    "sequentialthinking/sequentialthinking",
     "sequential-thinking/sequentialthinking",
     "execute/getTerminalOutput",
     "execute/sendToTerminal",
@@ -22,7 +22,7 @@ tools:
     "search/listDirectory",
     "search/codebase",
     "web/fetch",
-    "sequentialthinking/sequentialthinking",
+    "playwright/*",
     "sequential-thinking/sequentialthinking",
     "ms-python.python/configurePythonEnvironment",
     "ms-python.python/getPythonExecutableCommand",
@@ -78,7 +78,7 @@ Results written to both **DB** (fixtures, scan_results, teams, competitions) and
 ### PHASE 1: SCAN
 
 ```bash
-.venv/bin/python scripts/scan_events.py --date {YYYY-MM-DD} --verbose 2>&1
+python3 scripts/scan_events.py --date {YYYY-MM-DD} --verbose 2>&1
 ```
 
 Expected: 1000-2000 events, 30-40% deep-enriched, ~15 min runtime.
@@ -88,16 +88,16 @@ Expected: 1000-2000 events, 30-40% deep-enriched, ~15 min runtime.
 ### PHASE 2: INGEST + ENRICH
 
 ```bash
-.venv/bin/python scripts/ingest_scan_stats.py --date {YYYY-MM-DD} --verbose 2>&1
-.venv/bin/python scripts/fetch_odds_multi.py --verbose 2>&1
-.venv/bin/python scripts/fetch_weather.py --date {YYYY-MM-DD}
+python3 scripts/ingest_scan_stats.py --date {YYYY-MM-DD} --verbose 2>&1
+python3 scripts/fetch_odds_multi.py --verbose 2>&1
+python3 scripts/fetch_weather.py --date {YYYY-MM-DD}
 ```
 
 ### PHASE 3: SHORTLIST
 
 ```bash
-.venv/bin/python scripts/generate_market_matrix.py --date {YYYY-MM-DD} --stats-first
-.venv/bin/python scripts/build_shortlist.py --date {YYYY-MM-DD} --stats-first --verbose 2>&1
+python3 scripts/generate_market_matrix.py --date {YYYY-MM-DD} --stats-first
+python3 scripts/build_shortlist.py --date {YYYY-MM-DD} --stats-first --verbose 2>&1
 ```
 
 ### PHASE 4: HANDOFF

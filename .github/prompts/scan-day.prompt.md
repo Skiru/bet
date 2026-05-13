@@ -24,7 +24,7 @@ STEP 4: Market matrix + shortlist
 ### Step 1: Beast Mode Scan
 
 ```bash
-.venv/bin/python scripts/scan_events.py --date {{run_date}} --verbose 2>&1
+python3 scripts/scan_events.py --date {{run_date}} --verbose 2>&1
 ```
 
 Scans ALL 5 sports (football, tennis, basketball, hockey, volleyball) via Sofascore REST API.
@@ -36,7 +36,7 @@ Parse `AGENT_SUMMARY:{json}` for per-sport breakdown, deep_enriched count, error
 ### Step 2: Ingest to Stats Cache
 
 ```bash
-.venv/bin/python scripts/ingest_scan_stats.py --date {{run_date}} --verbose 2>&1
+python3 scripts/ingest_scan_stats.py --date {{run_date}} --verbose 2>&1
 ```
 
 Transforms Beast Mode form/H2H/odds into stats_cache + team_form DB.
@@ -44,15 +44,15 @@ Transforms Beast Mode form/H2H/odds into stats_cache + team_form DB.
 ### Step 3: Enrichment
 
 ```bash
-.venv/bin/python scripts/fetch_odds_multi.py --verbose 2>&1
-.venv/bin/python scripts/fetch_weather.py --date {{run_date}}
+python3 scripts/fetch_odds_multi.py --verbose 2>&1
+python3 scripts/fetch_weather.py --date {{run_date}}
 ```
 
 ### Step 4: Shortlist
 
 ```bash
-.venv/bin/python scripts/generate_market_matrix.py --date {{run_date}} --stats-first
-.venv/bin/python scripts/build_shortlist.py --date {{run_date}} --stats-first --verbose 2>&1
+python3 scripts/generate_market_matrix.py --date {{run_date}} --stats-first
+python3 scripts/build_shortlist.py --date {{run_date}} --stats-first --verbose 2>&1
 ```
 
 ## Validation Gates

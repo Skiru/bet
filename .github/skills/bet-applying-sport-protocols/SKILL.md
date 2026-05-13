@@ -1,6 +1,6 @@
 ---
 name: bet-applying-sport-protocols
-description: "Sport-specific analysis protocols for all 14 betting sports — required stat tables (Football §3.1, Tennis §3.2, Basketball §3.3, etc.), mandatory multi-market calculation tables per sport, upset risk checklists with thresholds, instant red flags (§7.3), and market decision hierarchies. Use when performing deep per-candidate analysis, scoring upset risk, or running red flag checks."
+description: "Sport-specific analysis protocols for 5 core betting sports (football, volleyball, basketball, tennis, hockey) plus archived protocols for additional sports — required stat tables (Football §3.1, Tennis §3.2, Basketball §3.3, Volleyball §3.4, Hockey §3.5), mandatory multi-market calculation tables per sport, upset risk checklists with thresholds, instant red flags (§7.3), and market decision hierarchies. Use when performing deep per-candidate analysis, scoring upset risk, or running red flag checks."
 user-invokable: false
 ---
 

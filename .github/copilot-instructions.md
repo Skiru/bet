@@ -11,7 +11,7 @@ You are maintaining a disciplined small-bankroll betting workflow, not writing c
 - Never invent odds, lineups, injuries, results, or source conclusions.
 - **CORE sports:** Football, Volleyball, Basketball, Tennis, Hockey — ALL are Tier 1. Scan ALL leagues/divisions deeply.
 - **Coupon output = core portfolio + COMBO MENU + EXTENDED POOL.** Core = unique event per coupon. Combos = extra combinations remixing picks. Extended = EV>0 but gate-failed. User picks from all.
-- **NO AUTO-REJECTION:** Pipeline NEVER auto-rejects events based on EV, safety scores, or historical hit rates. ALL discovered fixtures shown in market matrix. User decides.
+- **NO AUTO-REJECTION:** Pipeline NEVER auto-rejects events based on positive EV thresholds, safety scores, or historical hit rates. ALL discovered fixtures shown in market matrix. User decides.
 - **NO AGGRESSIVE NARROWING:** When S7 gate rejects picks, emergency expansion MUST analyze ALL remaining shortlist candidates across ALL sports (§2.2 sport-diverse batching). NEVER narrow to 1-2 sports. The scan infrastructure exists for BREADTH — honor it.
 - Follow [analysis-methodology.instructions.md](instructions/analysis-methodology.instructions.md) (STEPS 0-10, V1-V10).
 - Follow [betting-artifacts.instructions.md](instructions/betting-artifacts.instructions.md) (output formats).
@@ -59,13 +59,13 @@ python3 scripts/settle_on_finish.py --betting-day YYYY-MM-DD
 
 ## NON-NEGOTIABLE RULES (APPLY TO EVERY AGENT, EVERY SESSION, EVERY STEP)
 
-These 19 rules are PERMANENT. They override any conflicting logic in scripts, prompts, or agent reasoning. Every agent in the pipeline MUST enforce the subset relevant to its role. Violation of ANY rule = pipeline failure.
+These 20 rules are PERMANENT. They override any conflicting logic in scripts, prompts, or agent reasoning. Every agent in the pipeline MUST enforce the subset relevant to its role. Violation of ANY rule = pipeline failure.
 
 **R1 — AGENT-DRIVEN PIPELINE:** Scripts are DATA TOOLS that produce raw numbers. Agents are ANALYSTS that think, reason, and decide. The orchestrator agent drives the pipeline — NEVER tell the user to run scripts manually. For each step: (1) run script → (2) agent analyzes output → (3) agent provides reasoned recommendations.
 
 **R2 — DB-FIRST:** Always read from `betting/data/betting.db` via `from bet.db.connection import get_db`. Never use raw `sqlite3.connect()`. JSON files are fallback only. Safety input from `normalize_stats.py` (`build_safety_input`, `build_safety_input_from_db`, `build_safety_input_from_cache`). DB has 28 tables across 6 domains — see `agent_protocol.py` `DB_SCHEMA_REFERENCE`.
 
-**R3 — NO AUTO-REJECTION:** The pipeline NEVER auto-rejects events based on EV, safety scores, historical hit rates, or any other metric. ALL analyzed candidates appear in the statistical matrix. ALL gate-failed candidates appear in Extended Pool. The USER decides what to bet. Forbidden language: "rejected due to", "excluded based on", "filtered to", "only X picks survived".
+**R3 — NO AUTO-REJECTION:** The pipeline NEVER auto-rejects events based on positive EV thresholds, safety scores, historical hit rates, or any other metric. ALL analyzed candidates appear in the statistical matrix. ALL gate-failed candidates appear in Extended Pool. The USER decides what to bet. Forbidden language: "rejected due to", "excluded based on", "filtered to", "only X picks survived".
 
 **R4 — NO AGGRESSIVE NARROWING:** Pipeline must scan ALL leagues from ALL 5 sports comprehensively. However, sport diversity is NEVER a gate — if a given day has only football and basketball worth betting, that's fine. Quality over forced diversity. Data quality gate replaces sport diversity gate.
 

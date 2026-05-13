@@ -65,7 +65,8 @@ Produces `{date}_s2_shortlist.md` + `{date}_s2_shortlist.json`.
 ### 2. Review and Refine
 
 Apply removal criteria in order:
-1. Outside window, 2. No Tier A source, 3. <2h to kickoff, 4. Already started, 5. Exhibition, 6. ITF tennis, 7. Unverifiable
+1. Outside window, 2. No Tier A source, 3. Exhibition, 4. ITF tennis, 5. Unverifiable
+(Note: Do NOT remove events <2h to kickoff or already started — flag them as LIVE instead, per R16).
 
 ### 2b. Enrichment Data Check
 
@@ -95,7 +96,7 @@ Assess: statistical market available? Odds in range (1.30-3.50)? Major tournamen
 
 Save to: `betting/data/{date}_s2_shortlist.md`
 
-Sections: Summary, Removal Log, Tier 1 (statistical markets), Tier 2 (ML/basic), Major Tournaments.
+Sections: Summary, Removal Log, Statistical Markets (preferred), Outcome Markets (fallback), Major Tournaments.
 
 ## Self-Verification (V-S1e-01 to V-S1e-11)
 

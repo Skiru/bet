@@ -7,7 +7,6 @@ tools:
     "vscode/askQuestions",
     "vscode/toolSearch",
     "execute/runInTerminal",
-    "sequentialthinking/sequentialthinking",
     "sequential-thinking/sequentialthinking",
     "execute/getTerminalOutput",
     "execute/sendToTerminal",
@@ -27,7 +26,6 @@ tools:
     "browser/*",
     "playwright/*",
     "sequential-thinking/sequentialthinking",
-    "sequentialthinking/sequentialthinking",
     "ms-python.python/configurePythonEnvironment",
     "ms-python.python/getPythonExecutableCommand",
     "ms-python.python/getPythonEnvironmentInfo",
@@ -82,7 +80,7 @@ You add an Enrichment Quality Assessment via sequential-thinking for each batch:
 
 - **`bet-navigating-sources`** — Source hierarchy, fallback chains per sport, Playwright navigation tips, blocked sources, URL patterns
 - **`bet-analyzing-statistics`** — Data quality validation, expected value ranges per stat, cross-source consistency checks
-- **`bet-reading-html`** — HTML deep parser profiles and enrichment data. 20 domain profiles extract rich stats from saved HTML snapshots (corners, Elo ratings, player averages, odds). This data is available as an **enrichment source** — check `{date}_deep_parse_report.json` for what was already extracted before triggering web fetches.
+- **Check `{date}_deep_parse_report.json`** — HTML deep parser profiles extract rich stats from saved HTML snapshots. This pre-extracted HTML data is available as an enrichment source. Always check this file for what was already extracted before triggering web fetches.
 
 ## Database Access
 
@@ -254,7 +252,7 @@ For ADVISORY requests: flag the issue, continue with available data, include lim
 If any script exits non-zero:
 1. **Read stderr** — identify the error type
 2. **Common fixes:**
-   - `ModuleNotFoundError` → run with `PYTHONPATH=src:. python3 scripts/...`
+   - `ModuleNotFoundError` → run with `PYTHONPATH=src python3 scripts/...`
    - `sqlite3.OperationalError: database is locked` → wait 5s, retry once
    - `JSONDecodeError` → check input file exists and is valid JSON
    - `KeyError` / `TypeError` → input data format changed, check script's expected schema

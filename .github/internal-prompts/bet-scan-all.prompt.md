@@ -15,7 +15,7 @@ agent: bet-scanner
 ## PHASE 1: BEAST MODE SCAN
 
 ```bash
-.venv/bin/python scripts/scan_events.py --date {YYYY-MM-DD} --verbose 2>&1
+python3 scripts/scan_events.py --date {YYYY-MM-DD} --verbose 2>&1
 ```
 
 Single script scans ALL 5 sports via Sofascore REST API with deep enrichment.
@@ -30,23 +30,23 @@ Expected: 1000-2000 events, 30-40% deep-enriched, ~15 min runtime.
 ## PHASE 2: INGEST + ENRICH
 
 ```bash
-.venv/bin/python scripts/ingest_scan_stats.py --date {YYYY-MM-DD} --verbose 2>&1
-.venv/bin/python scripts/fetch_odds_multi.py --verbose 2>&1
-.venv/bin/python scripts/fetch_weather.py --date {YYYY-MM-DD}
+python3 scripts/ingest_scan_stats.py --date {YYYY-MM-DD} --verbose 2>&1
+python3 scripts/fetch_odds_multi.py --verbose 2>&1
+python3 scripts/fetch_weather.py --date {YYYY-MM-DD}
 ```
 
 ## PHASE 3: BUILD SHORTLIST
 
 ```bash
-.venv/bin/python scripts/generate_market_matrix.py --date {YYYY-MM-DD} --stats-first
-.venv/bin/python scripts/build_shortlist.py --date {YYYY-MM-DD} --stats-first --verbose 2>&1
+python3 scripts/generate_market_matrix.py --date {YYYY-MM-DD} --stats-first
+python3 scripts/build_shortlist.py --date {YYYY-MM-DD} --stats-first --verbose 2>&1
 ```
 
 ## PHASE 4: VALIDATE + HANDOFF
 
 ```bash
-.venv/bin/python scripts/db_report.py --report scan --date {YYYY-MM-DD}
-.venv/bin/python scripts/db_report.py --report quality
+python3 scripts/db_report.py --report scan --date {YYYY-MM-DD}
+python3 scripts/db_report.py --report quality
 ```
 
 Report aggregate metrics and proceed to next pipeline step.

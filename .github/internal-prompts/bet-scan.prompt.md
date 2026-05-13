@@ -27,7 +27,7 @@ description: "S1-S1e: Beast Mode data engine — Sofascore REST API scan for 5 c
 ### PHASE 1: Beast Mode Scan
 
 ```bash
-.venv/bin/python scripts/scan_events.py --date {date} --verbose 2>&1
+python3 scripts/scan_events.py --date {date} --verbose 2>&1
 ```
 
 Sofascore REST API scans ALL 5 sports. Deep enrichment fetches form/H2H/odds per event.
@@ -39,13 +39,13 @@ Parse `AGENT_SUMMARY:{json}` — per-sport counts, deep_enriched, errors.
 
 ```bash
 # Ingest Beast Mode data into stats_cache + team_form
-.venv/bin/python scripts/ingest_scan_stats.py --date {date} --verbose 2>&1
+python3 scripts/ingest_scan_stats.py --date {date} --verbose 2>&1
 
 # Odds from comparison sources
-.venv/bin/python scripts/fetch_odds_multi.py --verbose 2>&1
+python3 scripts/fetch_odds_multi.py --verbose 2>&1
 
 # Weather for outdoor sports
-.venv/bin/python scripts/fetch_weather.py --date {date}
+python3 scripts/fetch_weather.py --date {date}
 ```
 
 **VALIDATE:** DB `team_form` populated? `stats_cache/` files created? Odds coverage?
@@ -53,8 +53,8 @@ Parse `AGENT_SUMMARY:{json}` — per-sport counts, deep_enriched, errors.
 ### PHASE 3: Build Shortlist
 
 ```bash
-.venv/bin/python scripts/generate_market_matrix.py --date {date} --stats-first
-.venv/bin/python scripts/build_shortlist.py --date {date} --stats-first --verbose 2>&1
+python3 scripts/generate_market_matrix.py --date {date} --stats-first
+python3 scripts/build_shortlist.py --date {date} --stats-first --verbose 2>&1
 ```
 
 Parse `AGENT_SUMMARY:{json}` — candidate count, sport distribution, data quality tiers.

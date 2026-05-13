@@ -218,9 +218,9 @@ If the file is missing, run: `python3 scripts/parse_betclic_bets.py` (requires H
 
 ## STEP 1: SCAN — Complete Event Discovery
 
-1. Run `.venv/bin/python scripts/scan_events.py --date YYYY-MM-DD --verbose` (Beast Mode — Sofascore REST API scan for all 5 sports with deep enrichment). Parse `AGENT_SUMMARY:{json}`.
-2. Run `.venv/bin/python scripts/ingest_scan_stats.py --date YYYY-MM-DD --verbose` to transform scan data into stats_cache + team_form DB.
-3. Run `.venv/bin/python scripts/fetch_odds_api.py` for cross-validation (30 credits/scan, 500/month free).
+1. Run `python3 scripts/scan_events.py --date YYYY-MM-DD --verbose` (Beast Mode — Sofascore REST API scan for all 5 sports with deep enrichment). Parse `AGENT_SUMMARY:{json}`.
+2. Run `python3 scripts/ingest_scan_stats.py --date YYYY-MM-DD --verbose` to transform scan data into stats_cache + team_form DB.
+3. Run `python3 scripts/fetch_odds_api.py` for cross-validation (30 credits/scan, 500/month free).
 4. **Deep Data Coverage:** Check deep enrichment % from scan (form, H2H, odds). Events without deep data → enrichment fills gaps.
 5. **Tournament depth (§1.3):** Major tournament active? Verify ALL tournament matches present in scan (R7).
 6. **Cross-validate:** Compare Sofascore event counts per sport. All 5 sports must be represented.
@@ -235,7 +235,7 @@ Before STEP 2 filtering, fetch TODAY's tipster picks via `tipster_aggregator.py`
 
 **Execution:**
 ```bash
-.venv/bin/python scripts/tipster_aggregator.py --date YYYY-MM-DD --verbose 2>&1
+python3 scripts/tipster_aggregator.py --date YYYY-MM-DD --verbose 2>&1
 ```
 
 **Tipster-sourced candidates:** Any tipster pick that targets a **statistical market** (corners, cards, fouls, totals, games, frames) with argument-backed data (H2H stats, corner counts, historical lines) → add to shortlist even if not found in Tier A stats scan. These picks enter STEP 3+ analysis like any other candidate.
@@ -411,7 +411,7 @@ Tier E3 picks require ALL of: Betclic market confirmed, ≥2 sources with data, 
 
 After automated generation, agent reviews and may adjust:
 
-Remove: outside betting window, no Tier A coverage, <2h to kickoff, already started, exhibitions.
+Remove: outside betting window, no Tier A coverage, exhibitions. Flag events <2h to kickoff or already started as LIVE (do NOT remove).
 Prioritize: events WITH statistical markets (corners, totals, HC) over basic ML-only.
 **Early Betclic market hint:** For less popular sports (volleyball), check Betclic market availability BEFORE deep analysis. If market doesn't exist on Betclic → don't waste analysis time.
 Preferred odds range: 1.30-3.50.
@@ -422,7 +422,7 @@ If after S7 gate fewer than 4 picks survive OR fewer than 5 sports are represent
 1. Identify ALL remaining S2 shortlist candidates that have NOT received S3 analysis — grouped by sport.
 2. Process ALL of them through S3→S7 in sport-diverse batches (see §2.2). Priority: all 5 core sports with highest shortlist scores.
 3. Do NOT cherry-pick only "API-verified" or "easy" events. The shortlist was built from verified fixtures — they ALL deserve analysis.
-4. After expansion: re-check pick count AND sport diversity. If STILL <4 picks AND <5 sports after analyzing ALL shortlisted candidates → declare NO BET day.
+4. After expansion: re-check pick count AND sport diversity. If STILL <4 picks after analyzing ALL shortlisted candidates → flag as THIN DAY, present available picks as singles + extended pool. User decides.
 5. NEVER narrow expansion to a single sport or data source. If the shortlist has 25 football + 5 volleyball + 14 tennis candidates, the expansion MUST cover all three — not just the sport with easiest API data.
 
 **Lesson (v4, 2026-04-29):** v4 had only 3 picks (below minimum 4) because PK-02 (Higgins frames) was dropped for Betclic line mismatch. The pipeline should have triggered expansion rather than producing coupons with only 3 picks.
@@ -924,7 +924,7 @@ Sports in approved picks:           [X]
 1. Rank approved picks: EV (highest) → confidence → price_gap.
 2. **NO SINGLES.** Every pick in a coupon. Min 2 legs per coupon.
 3. **UNIQUE EVENT PER COUPON (ABSOLUTE).** Each pick in ONLY ONE core coupon. Zero sharing.
-4. **Coupon count = f(quality, NOT money).** Target ≥5 core coupons (requires ≥10 approved picks). Scale: 4-5 picks → 2 core, 6-7 → 3 core, 8-9 → 4 core, 10+ → 5+ core. <4 approved picks → NO BET.
+4. **Coupon count = f(quality, NOT money).** Target ≥5 core coupons (requires ≥10 approved picks). Scale: 4-5 picks → 2 core, 6-7 → 3 core, 8-9 → 4 core, 10+ → 5+ core. <4 approved picks → thin day flag. Present as singles + extended pool.
 5. Build diverse coupons: vary sports, markets, risk levels.
 6. **Risk tier labels:** LOW-RISK, MULTI-SPORT, HIGHER-RISK, NIGHT. Target distribution: ≥2 LR, ≥1 MS, ≥1 HR (scale up with approved picks).
 7. **Correlation check:** Same match = FORBIDDEN. Same league ≥2 = FLAG. Same narrative = REMOVE weaker.

@@ -38,7 +38,8 @@ You MUST follow the Agent Intelligence Protocol defined in your agent definition
 Load these skills before starting:
 - `bet-navigating-sources` — source hierarchy, fallback chains, Playwright navigation tips
 - `bet-analyzing-statistics` — data quality assessment, safety score prerequisites
-- `bet-reading-html` — HTML deep parse profiles (20 domains). Check what S1-deep already extracted before triggering web fetches
+
+**Data Source Note:** Check `{date}_deep_parse_report.json` for HTML deep parse data. Review what S1-deep already extracted before triggering web fetches.
 
 ## ⛔ agent-execution-protocol.instructions.md applies — no exceptions
 

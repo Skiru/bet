@@ -15,7 +15,7 @@ agent: bet-scanner
 ## STEP 1: Ingest Beast Mode Data
 
 ```bash
-.venv/bin/python scripts/ingest_scan_stats.py --date {YYYY-MM-DD} --verbose 2>&1
+python3 scripts/ingest_scan_stats.py --date {YYYY-MM-DD} --verbose 2>&1
 ```
 
 Transforms Sofascore API form/H2H/odds data from `global_events_api.json` into `stats_cache/` JSON files + DB `team_form` table. Parse `AGENT_SUMMARY:{json}`.
@@ -24,10 +24,10 @@ Transforms Sofascore API form/H2H/odds data from `global_events_api.json` into `
 
 ```bash
 # Odds from multiple comparison sources
-.venv/bin/python scripts/fetch_odds_multi.py --verbose 2>&1
+python3 scripts/fetch_odds_multi.py --verbose 2>&1
 
 # Weather for outdoor sports
-.venv/bin/python scripts/fetch_weather.py --date {YYYY-MM-DD}
+python3 scripts/fetch_weather.py --date {YYYY-MM-DD}
 ```
 
 **In STATS-FIRST mode:** odds are OPTIONAL. Proceed without them. User checks Betclic app.
@@ -36,10 +36,10 @@ Transforms Sofascore API form/H2H/odds data from `global_events_api.json` into `
 
 ```bash
 # Market matrix
-.venv/bin/python scripts/generate_market_matrix.py --date {YYYY-MM-DD} --stats-first
+python3 scripts/generate_market_matrix.py --date {YYYY-MM-DD} --stats-first
 
 # Build shortlist
-.venv/bin/python scripts/build_shortlist.py --date {YYYY-MM-DD} --stats-first --verbose 2>&1
+python3 scripts/build_shortlist.py --date {YYYY-MM-DD} --stats-first --verbose 2>&1
 ```
 
 Parse `AGENT_SUMMARY:{json}` from `build_shortlist.py`.
@@ -47,8 +47,8 @@ Parse `AGENT_SUMMARY:{json}` from `build_shortlist.py`.
 ## STEP 4: Validate Final Outputs
 
 ```bash
-.venv/bin/python scripts/db_report.py --report scan --date {YYYY-MM-DD}
-.venv/bin/python scripts/db_report.py --report quality
+python3 scripts/db_report.py --report scan --date {YYYY-MM-DD}
+python3 scripts/db_report.py --report quality
 ```
 
 Check: `{YYYY-MM-DD}_s2_shortlist.json` exists, `market_matrix_{YYYY-MM-DD}.json` exists, sport diversity in shortlist.

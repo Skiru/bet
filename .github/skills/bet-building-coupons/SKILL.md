@@ -13,7 +13,7 @@ Rules for constructing coupon portfolios and validating them. This skill covers 
 1. **NO SINGLES.** Every pick in a coupon. Min 2 legs per coupon.
 2. **UNIQUE EVENT PER COUPON (ABSOLUTE)** in core portfolio. Zero sharing.
 3. **Coupon count = f(quality, NOT money).** Scale: 4-5 picks → 2 core, 6-7 → 3, 8-9 → 4, 10+ → 5+.
-4. **<4 approved picks → NO BET.** Don't produce shallow coupons as compromise.
+4. **<4 approved picks → present as singles + extended pool with advisory. Flag thin day. User decides.** Don't produce shallow coupons as compromise.
 5. **Max same-sport legs per coupon: 2.**
 
 ## Pick Ranking

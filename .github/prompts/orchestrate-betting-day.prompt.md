@@ -71,11 +71,11 @@ Read these files. Do NOT proceed until all are loaded:
 
 | Sport | Key Change | Agent Impact |
 |-------|-----------|--------------|
-| Hockey | **MoneyPuck = PRIMARY** advanced stats (xG%, Corsi%, Fenwick%). NaturalStatTrick BLOCKED (403). DailyFaceoff for goalie confirmations. | bet-scanner-hockey, bet-statistician |
-| Tennis | TennisAbstract Elo integrated (data_quality_score +1). ATP Tour adapter added. Paired-row parser overhauled. | bet-scanner-tennis, bet-statistician |
-| Basketball | Basketball-Reference adapter enhanced. BallDontLie DISABLED. | bet-scanner-basketball, bet-enricher |
-| Volleyball | Flashscore volleyball adapter enhanced. Deep stats enrichment improved. | bet-scanner-volleyball, bet-enricher |
-| Football | Soccerway, SoccerStats, WhoScored, Covers, Forebet adapters all enhanced. | bet-scanner-football, bet-enricher |
+| Hockey | **MoneyPuck = PRIMARY** advanced stats (xG%, Corsi%, Fenwick%). NaturalStatTrick BLOCKED (403). DailyFaceoff for goalie confirmations. | bet-scanner, bet-statistician, bet-enricher |
+| Tennis | TennisAbstract Elo integrated (data_quality_score +1). ATP Tour adapter added. Paired-row parser overhauled. | bet-scanner, bet-statistician, bet-enricher |
+| Basketball | Basketball-Reference adapter enhanced. BallDontLie DISABLED. | bet-scanner, bet-statistician, bet-enricher |
+| Volleyball | Flashscore volleyball adapter enhanced. Deep stats enrichment improved. | bet-scanner, bet-statistician, bet-enricher |
+| Football | Soccerway, SoccerStats, WhoScored, Covers, Forebet adapters all enhanced. | bet-scanner, bet-statistician, bet-enricher |
 
 **Disabled clients (removed from CLIENT_REGISTRY):** TheSportsDB, BallDontLie, API-Tennis.
 **New adapters:** atptour, dailyfaceoff, hockey_reference, moneypuck, naturalstattrick (blocked but registered).
@@ -99,7 +99,7 @@ Gemini features are ADDITIVE — they enhance the pipeline behind feature flags.
 | `--use-gemini` | `tipster_aggregator.py` | Gemini reads tipster pages natively (replaces BS4 HTML parsing). Falls back per-site if Gemini fails. |
 | `--news` | `data_enrichment_agent.py` | Gemini Search Grounding fetches injuries, coaching changes, morale data → saves to `team_news` DB table → consumed by `context_checks.py` (S5). |
 | `--gemini` | `deep_stats_report.py` | Gemini "second opinion" per candidate: independent market recommendations, upset risk, `agreement_score` tracking Python↔Gemini alignment. |
-| `use_gemini=True` | `web_research_agent.py` | L7a Gemini Search Grounding as primary web research (replaces SerpAPI). Falls back to SerpAPI (L7b) → Playwright (L7c). |
+| `use_gemini=True` | `web_research_agent.py` | L7a Gemini Search Grounding as primary web research. Falls back to urllib-based web fetch (L7b). MCP tools `browser/*`, `playwright/*` available as L7c for interactive page rendering. Note: SerpAPI client exists but requires API key configuration. |
 
 **Decision:** Include ALL Gemini flags by default when `config/gemini_config.json` exists and API key is configured. Skip Gemini gracefully when not configured (all modules have try/except ImportError guards).
 
@@ -143,7 +143,7 @@ Gemini features are ADDITIVE — they enhance the pipeline behind feature flags.
 
 ## ⛔ TERMINAL EXECUTION RULES
 
-All agents follow `agent-execution-protocol.instructions.md` v5 (loaded via their `instructions:` array). That protocol covers: `--verbose` mandatory, `mode=sync` (fast ≤120s) / `mode=async` + THINK-WHILE-WAITING (≥300s), `AGENT_SUMMARY:{json}` parsing, live monitoring, structured verdicts, **V5: VALIDATE step, REACTION_PATTERNS, input contract pre-checks, `inspect_pipeline.py` for state checks**. **Do not repeat these rules in delegation messages** — the agents already have them.
+All agents follow `agent-execution-protocol.instructions.md` v5 (loaded via their `instructions:` array). That protocol covers: `--verbose` mandatory, `mode=sync` (fast ≤120s) / `mode=async` + THINK-WHILE-WAITING (≥300s), `AGENT_SUMMARY:{json}` parsing, live monitoring, structured verdicts, **V5: VALIDATE step, REACTION_PATTERNS, input contract pre-checks, `inspect_pipeline.py` for state checks**. The protocol file covers terminal rules via agents' `instructions:` array. For scripts ≥300s, ADD to delegation: `Use mode=async, timeout={appropriate}. THINK-WHILE-WAITING: [specific analysis task]. Then get_terminal_output.` R17 async patterns MUST be reinforced in delegation messages for long-running scripts — passive inheritance has proven unreliable.
 
 **V5 pipeline inspector:** Use `python3 scripts/inspect_pipeline.py --step {step} --date {date}` instead of complex inline Python for state checks. Supports: s0/s1/s1e/s2/s3/s7/s8/all.
 
@@ -235,13 +235,23 @@ runSubagent("bet-db-analyst"):
 
 ---
 
+### STEP S0.7: Stealth Cache Warmup (optional — run if odds data stale)
+
+```bash
+python3 scripts/daily_odds_warmup.py --date {date} --verbose
+```
+
+Stealth Playwright warm-up: dumps odds pages from protected bookmakers to `betting/data/html_cache/`. Downstream scripts (`odds_evaluator`, `deep_stats_report`) read from local cache instead of live-scraping. Only needed if `html_cache/` is empty or stale for the target date. Skip if today's cache files already exist.
+
+---
+
 ### STEP S1: Event Scan (longest step — use async)
 
 **You launch the scan, then delegate review to bet-scanner.**
 
 ```bash
 # Beast Mode scan — Sofascore REST API for all 5 sports, ~15 min with deep enrichment
-.venv/bin/python scripts/scan_events.py --date {date} --verbose 2>&1
+python3 scripts/scan_events.py --date {date} --verbose 2>&1
 ```
 
 **WHILE RUNNING:** Use `mode=async` with `timeout=600000`. THINK-WHILE-WAITING: review previous scan stats, check tournament schedules, query DB for source health. Then `get_terminal_output` to read results when done → EXTRACT → THINK → RETURN. R17: LIVE MONITORING.
@@ -279,7 +289,7 @@ runSubagent("bet-scanner"):
 ### STEP S1-ingest: Ingest Scan Stats
 
 ```bash
-.venv/bin/python scripts/ingest_scan_stats.py --date {date} --verbose 2>&1
+python3 scripts/ingest_scan_stats.py --date {date} --verbose 2>&1
 ```
 
 **AFTER:** Parse `AGENT_SUMMARY` from output → verify `verdict=OK`. If PARTIAL/FAILED → check which sports had ingestion errors before proceeding. This step transforms Beast Mode form/H2H/odds data from `global_events_api.json` into `stats_cache/` + DB `team_form`.
@@ -289,8 +299,8 @@ runSubagent("bet-scanner"):
 ### STEP S1a: API Stats + ESPN Enrichment
 
 ```bash
-.venv/bin/python scripts/fetch_api_stats.py --date {date} 2>&1
-.venv/bin/python scripts/seed_espn_data.py --skip-players 2>&1
+python3 scripts/fetch_api_stats.py --date {date} 2>&1
+python3 scripts/seed_espn_data.py --skip-players 2>&1
 ```
 
 **Post-run check**: If `fetch_api_stats.py` reports 0 API responses, proceed in stats-first mode (R10) — API stats are supplemental to Beast Mode scan data.
@@ -396,6 +406,8 @@ runSubagent("bet-scout"):
 ```
 
 ---
+
+> ⚡ **PARALLEL EXECUTION:** S2 (tipster xref) and S2.5 (enrichment) are INDEPENDENT — they both read from the shortlist but neither depends on the other's output. Launch BOTH via separate `runSubagent` calls simultaneously. Collect both verdicts, then merge insights before S3. This halves wall-clock time.
 
 ### STEP S2.5: Data Enrichment
 
@@ -804,14 +816,14 @@ All internal prompts are in `.github/internal-prompts/`. **Read them BEFORE dele
 
 ## SESSION PARITY
 
-ALL sessions execute the SAME pipeline. Only the time window differs. Night/morning sessions get FULL analysis. If <3 picks survive after expansion → declare NO BET.
+ALL sessions execute the SAME pipeline. Only the time window differs. Night/morning sessions get FULL analysis. If <3 picks survive after expansion → flag THIN DAY, present as singles + extended pool.
 
 ## KNOWN FAILURE PATTERNS
 
 1. **PHANTOM GAMES**: ZT/tipster sites list tips for games that already played. Verify on Flashscore before shortlisting.
 2. **BETCLIC LINE MISMATCH**: Do not assume BetExplorer lines = Betclic. When avg ≈ line → zero edge → DROP.
 3. **MARKET UNAVAILABILITY**: Top market not on Betclic → need fallback. Check availability BEFORE deep analysis.
-4. **INSUFFICIENT PICKS**: If <4 picks survive S7 → expand shortlist (§2.1). If <3 survive after expansion → NO BET.
+4. **INSUFFICIENT PICKS**: If <4 picks survive S7 → expand shortlist (§2.1). If <3 survive after expansion → flag THIN DAY, present as singles + extended pool. User decides.
 5. **MISSING TIPSTER PICKS**: Always scan ZT for statistical-market tips with reasoning.
 
 ## §S8.FINAL — MECHANICAL VERIFICATION
