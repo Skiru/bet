@@ -22,6 +22,7 @@ That script is a DUMB automation wrapper. It runs for 1-2 hours, produces zero a
 - **run_date** = {{run_date}} (default: today)
 - **session** = {{session}} (default: `full`). Options: `full` (06:00→05:59), `day` (06:00→21:59), `night` (22:00→05:59), `morning` (06:00→14:59)
 - **rerun** = {{rerun}} (default: `false`)
+- **rescan** = {{rescan}} (default: `false`). Set `true` after infrastructure changes (new API clients, new data sources, pipeline overhauls). Wipes stale scan/analysis data for the date and re-runs the full pipeline with new sources.
 - **version** = {{version}} (default: `v1`)
 - Timezone: Europe/Warsaw (CEST). Bookmaker: Betclic.
 
@@ -143,9 +144,42 @@ Gemini features are ADDITIVE — they enhance the pipeline behind feature flags.
 
 ## ⛔ TERMINAL EXECUTION RULES
 
-All agents follow `agent-execution-protocol.instructions.md` v5 (loaded via their `instructions:` array). That protocol covers: `--verbose` mandatory, `mode=sync` (fast ≤120s) / `mode=async` + THINK-WHILE-WAITING (≥300s), `AGENT_SUMMARY:{json}` parsing, live monitoring, structured verdicts, **V5: VALIDATE step, REACTION_PATTERNS, input contract pre-checks, `inspect_pipeline.py` for state checks**. The protocol file covers terminal rules via agents' `instructions:` array. For scripts ≥300s, ADD to delegation: `Use mode=async, timeout={appropriate}. THINK-WHILE-WAITING: [specific analysis task]. Then get_terminal_output.` R17 async patterns MUST be reinforced in delegation messages for long-running scripts — passive inheritance has proven unreliable.
+All agents follow `agent-execution-protocol.instructions.md` v5 (loaded via their `instructions:` array). That protocol covers: `--verbose` mandatory, `mode=sync` (fast ≤120s) / `mode=async` + THINK-WHILE-WAITING (≥300s), `AGENT_SUMMARY:{json}` parsing, live monitoring, structured verdicts, **V5: VALIDATE step, REACTION_PATTERNS, input contract pre-checks, `inspect_pipeline.py` for state checks**. The protocol file covers terminal rules via agents' `instructions:` array.
 
 **V5 pipeline inspector:** Use `python3 scripts/inspect_pipeline.py --step {step} --date {date}` instead of complex inline Python for state checks. Supports: s0/s1/s1e/s2/s3/s7/s8/all.
+
+---
+
+## §ASYNC DELEGATION ENFORCEMENT
+
+> **Passive inheritance has PROVEN UNRELIABLE.** Agents ignore R17 unless the delegation message contains an explicit, structured async block. Every delegation for a script ≥300s MUST include the block below — copy it verbatim into the `runSubagent` context, filling in the blanks.
+
+### Mandatory Async Block (copy into every delegation for scripts ≥5 min)
+
+```
+### ⛔ ASYNC EXECUTION (R17 — MANDATORY, NOT OPTIONAL)
+Script: {script_command}
+Mode: mode=async, timeout={timeout_ms}
+THINK-WHILE-WAITING: While the script runs, use sequentialthinking to:
+  1. {specific_analysis_task_1}
+  2. {specific_analysis_task_2}
+  3. {specific_analysis_task_3}
+AFTER COMPLETION: get_terminal_output(terminal_id) → EXTRACT metrics → THINK → RETURN verdict.
+FAILURE MODE: If you run this script with mode=sync and block for >3 min doing nothing = R17 VIOLATION.
+```
+
+### Pre-filled Async Blocks Per Step
+
+| Step | Script | Timeout | THINK-WHILE-WAITING Tasks |
+|------|--------|---------|---------------------------|
+| S1 scan | `scan_events.py` | 600000 | Review previous scan stats, check tournament schedules, query DB for source health |
+| S2 tipsters | `tipster_xref.py` | 300000 | Read shortlist JSON, identify tipster coverage gaps, check pre-fetched HTML quality |
+| S2.5 enrich | `data_enrichment_agent.py` | 600000 | Read shortlist, check which teams already have form data in DB, identify gap candidates |
+| S3 deep stats | `deep_stats_report.py` | 600000 | Read enrichment output, assess data quality per candidate, pre-load sport protocols |
+| S4 odds | `odds_evaluator.py` | 300000 | Read S3 deep stats, pre-load safety scores and P(hit), identify strongest stat edges |
+| S5+S6 context | `context_checks.py` + `upset_risk.py` | 300000 | Review deep stats, draft bear cases for borderline candidates |
+| S7 gate | `gate_checker.py` | 300000 | Review S3+S4+S5 verdicts, assess portfolio diversity, prepare coupon strategy |
+| S8 coupons | `coupon_builder.py` | 300000 | Review gate results, check bankroll config, prepare portfolio intelligence |
 
 ---
 
@@ -813,6 +847,41 @@ All internal prompts are in `.github/internal-prompts/`. **Read them BEFORE dele
 3. Ledger: ADD new rows, keep old
 4. Create `betting/coupons/{date}-v{N}.md`
 5. ALL steps run from scratch
+
+## RESCAN PROTOCOL (when rescan=true)
+
+Use after **infrastructure changes** — new API clients deployed, data sources added/removed, client overhauls. This wipes stale data that was collected with OLD infrastructure and re-runs the full pipeline with the NEW sources.
+
+### When to use
+- New API clients added (e.g., BetExplorer, OddsPortal, TotalCorner, Scores24, Soccerway)
+- Existing client fixed (e.g., stealth alignment, new selectors)
+- unified.py routing changed (new fallback chains)
+- Source registry updated
+
+### Execution
+
+```bash
+# 1. Wipe stale scan results for the date
+sqlite3 betting/data/betting.db "DELETE FROM scan_results WHERE date(created_at) >= '{date}' AND date(created_at) < date('{date}', '+1 day');"
+sqlite3 betting/data/betting.db "DELETE FROM scan_run_stats WHERE date(started_at) >= '{date}';"
+
+# 2. Wipe stale analysis results (computed from old data)
+sqlite3 betting/data/betting.db "DELETE FROM analysis_results WHERE betting_date='{date}';"
+sqlite3 betting/data/betting.db "DELETE FROM gate_results WHERE betting_date='{date}';"
+
+# 3. Backup old coupons (will be rebuilt from scratch)
+mv betting/coupons/{date}.md betting/coupons/{date}.md.pre-rescan 2>/dev/null; true
+mv betting/coupons/{date}.json betting/coupons/{date}.json.pre-rescan 2>/dev/null; true
+
+# 4. Clear stale shortlist/matrix artifacts
+rm -f betting/data/{date}_s2_shortlist.json betting/data/market_matrix_{date}.json 2>/dev/null; true
+rm -f betting/data/{date}_s3_deep_stats.json betting/data/{date}_s7_gate_results.json 2>/dev/null; true
+```
+
+Then run the FULL pipeline from S0.5 (skip S0 settlement — that's for the previous day):
+- S0.5 → S0.7 → S1 → S1-ingest → S1a → S1b → S1c → S1d → S1e → S2 ∥ S2.5 → S3 → S4 → S5+S6 → S7 → S8+S9 → S10
+
+**Key difference from rerun:** Rescan wipes stale data FIRST. Rerun just increments version and builds on existing data.
 
 ## SESSION PARITY
 
