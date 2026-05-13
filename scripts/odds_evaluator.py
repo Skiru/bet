@@ -580,6 +580,25 @@ def main():
     else:
         verdict = "FAILED"
 
+    # Phase 6: Dropping odds signal
+    all_dropping_count = 0
+    try:
+        from bet.api_clients.unified import UnifiedAPIClient
+        
+        drop_client = UnifiedAPIClient()
+        all_dropping = []
+        for s in ["football", "tennis", "basketball", "hockey", "volleyball"]:
+            drops = drop_client.get_dropping_odds(s)
+            if drops:
+                all_dropping.extend(drops)
+        drop_client.close()
+        
+        if all_dropping:
+            print(f"  → Phase 6: Found {len(all_dropping)} dropping odds signals")
+            all_dropping_count = len(all_dropping)
+    except Exception as e:
+        print(f"  ⚠ Dropping odds check failed: {e}")
+
     out.summary(
         verdict=verdict,
         metrics={
@@ -587,6 +606,7 @@ def main():
             "with_ev": with_ev,
             "positive_ev": positive_ev,
             "ev_coverage_pct": round(with_ev / max(total, 1) * 100, 1),
+            "dropping_odds_count": all_dropping_count,
         },
         issues=[] if ok else [{"level": "error", "message": msg}],
     )

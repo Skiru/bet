@@ -224,3 +224,36 @@ class UnifiedAPIClient:
             logger.debug(f"Flashscore stats failed for {event_id}: {e}")
         
         return result
+
+    def get_corner_predictions(self, match_id: str) -> dict:
+        """Fetch corner predictions for a football match from TotalCorner."""
+        client = self._get_client("totalcorner")
+        if not client:
+            return {}
+        try:
+            return client.get_corner_predictions(match_id)
+        except Exception as e:
+            logger.warning(f"[UnifiedAPIClient] TotalCorner corner predictions failed: {e}")
+            return {}
+
+    def get_trends(self, detail_url: str) -> list[dict]:
+        """Fetch betting trends from Scores24."""
+        client = self._get_client("scores24")
+        if not client:
+            return []
+        try:
+            return client.get_trends(detail_url)
+        except Exception as e:
+            logger.warning(f"[UnifiedAPIClient] Scores24 trends failed: {e}")
+            return []
+
+    def get_dropping_odds(self, sport: str = "football") -> list:
+        """Fetch dropping odds from OddsPortal."""
+        client = self._get_client("oddsportal")
+        if not client:
+            return []
+        try:
+            return client.get_dropping_odds(sport)
+        except Exception as e:
+            logger.warning(f"[UnifiedAPIClient] Dropping odds failed: {e}")
+            return []

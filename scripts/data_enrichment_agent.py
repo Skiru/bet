@@ -12,6 +12,7 @@ Usage:
 """
 
 import argparse
+import atexit
 import concurrent.futures
 import json
 import logging
@@ -132,6 +133,24 @@ from bet.db.connection import get_db  # noqa: E402
 from bet.db.models import TeamForm  # noqa: E402
 from bet.db.repositories import SportRepo, StatsRepo, TeamRepo  # noqa: E402
 from bet.stats.market_ranking import SPORT_STAT_KEYS  # noqa: E402
+
+# --- UnifiedAPIClient singleton for Phase 1 integration ---
+_unified_client = None
+_unified_client_lock = threading.Lock()
+
+def _get_unified_client():
+    """Get or create a singleton UnifiedAPIClient for client-based enrichment."""
+    global _unified_client
+    if _unified_client is None:
+        with _unified_client_lock:
+            if _unified_client is None:
+                try:
+                    from bet.api_clients.unified import UnifiedAPIClient
+                    _unified_client = UnifiedAPIClient()
+                except Exception as e:
+                    logger.warning(f"UnifiedAPIClient not available: {e}")
+    return _unified_client
+
 
 DATA_DIR = ROOT_DIR / "betting" / "data"
 CACHE_DIR = DATA_DIR / "stats_cache"
@@ -1070,6 +1089,81 @@ def _save_to_db(team_name: str, sport: str, stats: dict, source: str) -> None:
 # Fetch helpers
 # ---------------------------------------------------------------------------
 
+def _try_client_enrichment(team_name: str, sport: str) -> tuple[dict, str | None]:
+    """Try enrichment via UnifiedAPIClient (uses FlashscoreClient/Scores24Client internally).
+    
+    Returns (stats_dict, error_or_None) — same interface as _try_flashscore().
+    The stats_dict maps stat_key → list of values (e.g., {"corners": [7, 5, 8, ...], "fouls": [12, 15, ...]}).
+    """
+    client = _get_unified_client()
+    if client is None:
+        return {}, "UnifiedAPIClient not available"
+    
+    try:
+        # Look up the team's fixtures from DB to get event IDs
+        with get_db() as conn:
+            team_repo = TeamRepo(conn)
+            sport_repo = SportRepo(conn)
+            
+            sport_obj = sport_repo.get_by_name(sport)
+            if not sport_obj:
+                return {}, f"Sport '{sport}' not found in DB"
+            
+            # Use resolve to find team without creating a new one if possible
+            team = team_repo.resolve(team_name, sport_obj.id)
+            if not team:
+                return {}, f"Team '{team_name}' not found in DB"
+            
+            # Get recent fixtures with external_id (needed for client calls)
+            rows = conn.execute(
+                "SELECT external_id FROM fixtures "
+                "WHERE (home_team_id = ? OR away_team_id = ?) "
+                "AND external_id != '' AND external_id IS NOT NULL "
+                "ORDER BY kickoff DESC LIMIT 5",
+                (team.id, team.id)
+            ).fetchall()
+            
+            if not rows:
+                return {}, f"No fixtures with external_id found for '{team_name}'"
+        
+        # Try to get stats from the most recent fixture
+        stats = {}
+        for row in rows:
+            event_id = row["external_id"] if isinstance(row, dict) else row[0]
+            if not event_id:
+                continue
+            
+            try:
+                fixture_stats = client.get_fixture_stats(event_id, sport=sport)
+                if fixture_stats:
+                    # Convert list of stat dicts to aggregated format
+                    # fixture_stats = [{"category": "Corners", "key": "corners", "home": "7", "away": "3"}, ...]
+                    for stat in fixture_stats:
+                        key = stat.get("key", "").lower().replace(" ", "_")
+                        if not key:
+                            continue
+                        
+                        for val_key in ["home", "away"]:
+                            try:
+                                val = float(str(stat.get(val_key, "")).replace(",", "."))
+                                stats.setdefault(key, []).append(val)
+                            except (ValueError, TypeError):
+                                pass
+                    
+                    if stats:
+                        logger.info(f"[Client] Got {len(stats)} stat keys from fixture {event_id}")
+                        break  # Got data from one fixture — enough for enrichment
+            except Exception as e:
+                logger.debug(f"[Client] Stats failed for fixture {event_id}: {e}")
+                continue
+        
+        if stats:
+            return stats, None
+        return {}, "No stats returned from client for any fixture"
+        
+    except Exception as e:
+        return {}, f"Client enrichment error: {e}"
+
 def _try_flashscore(team_name: str, sport: str) -> tuple[dict, str | None]:
     """Fetch stats from Flashscore. Returns (stats_dict, error_or_None)."""
     url = _build_flashscore_url(team_name, sport)
@@ -1139,7 +1233,146 @@ def enrich_team(team_name: str, sport: str, max_retries: int = 2) -> dict:
 
     errors = []
 
-    # Try Flashscore first (most reliable)
+    # Try UnifiedAPIClient first (uses FlashscoreClient/Scores24Client internally)
+    stats, err = _try_client_enrichment(team_name, sport)
+    if stats:
+        source = "client"
+        result["source"] = source
+        found_keys = set(stats.keys())
+        expected_keys = set(stat_keys)
+        if found_keys >= expected_keys:
+            result["status"] = "enriched"
+        elif found_keys:
+            result["status"] = "partial"
+        
+        if result["status"] in ("enriched", "partial"):
+            result["stats_found"] = {
+                k: _safe_avg(v) for k, v in stats.items() if v
+            }
+            _save_to_cache(team_name, sport, stats, source)
+            _save_to_db(team_name, sport, stats, "client-enrichment")
+            return result
+    if err:
+        errors.append(err)
+
+    # Try TotalCorner for football corner predictions
+    # NOTE: Only works for fixtures sourced from TotalCorner (needs TC-specific URLs/IDs).
+    # Flashscore external_ids (e.g., "xkH73jPl") are NOT valid TotalCorner identifiers.
+    if sport == "football":
+        try:
+            tc_client = _get_unified_client()
+            if tc_client:
+                with get_db() as conn:
+                    team_repo = TeamRepo(conn)
+                    sport_repo = SportRepo(conn)
+                    sport_obj = sport_repo.get_by_name(sport)
+                    if sport_obj:
+                        team = team_repo.resolve(team_name, sport_obj.id)
+                        if team:
+                            # Only fetch from fixtures sourced from totalcorner
+                            rows = conn.execute(
+                                "SELECT external_id, source FROM fixtures "
+                                "WHERE (home_team_id = ? OR away_team_id = ?) "
+                                "AND external_id != '' AND external_id IS NOT NULL "
+                                "AND source = 'totalcorner' "
+                                "ORDER BY kickoff DESC LIMIT 1",
+                                (team.id, team.id)
+                            ).fetchall()
+                            for row in rows:
+                                event_id = row["external_id"] if isinstance(row, dict) else row[0]
+                                # TotalCorner IDs from get_fixtures() are valid for get_corner_predictions()
+                                corner_data = tc_client.get_corner_predictions(event_id)
+                                if corner_data:
+                                    corner_vals = []
+                                    for key in ("corners_home", "corners_away", "corners_total", "da_home", "da_away"):
+                                        v = corner_data.get(key)
+                                        if v is not None:
+                                            try:
+                                                corner_vals.append(float(v))
+                                            except (ValueError, TypeError):
+                                                pass
+                                    if corner_vals:
+                                        stats_repo = StatsRepo(conn)
+                                        form = TeamForm(
+                                            id=None,
+                                            team_id=team.id,
+                                            sport_id=sport_obj.id,
+                                            stat_key="corners_predicted",
+                                            l10_values=corner_vals,
+                                            l5_values=corner_vals[:5],
+                                            l10_avg=sum(corner_vals) / len(corner_vals),
+                                            l5_avg=sum(corner_vals[:5]) / len(corner_vals[:5]) if len(corner_vals) >= 5 else sum(corner_vals) / len(corner_vals),
+                                            trend="",
+                                            updated_at=datetime.now(timezone.utc).isoformat(),
+                                            source="totalcorner",
+                                        )
+                                        stats_repo.save_team_form(form)
+                                        conn.commit()
+                                        logger.info(f"[TotalCorner] Saved corner predictions for {team_name}")
+        except Exception as e:
+            logger.debug(f"TotalCorner enrichment failed for {team_name}: {e}")
+
+    # Try Scores24 trends — only for fixtures sourced from Scores24
+    # NOTE: Scores24 get_trends() needs a Scores24 detail URL. Flashscore external_ids
+    # are NOT valid Scores24 URLs. Only fixtures with source='scores24' have valid IDs.
+    try:
+        s24_client = _get_unified_client()
+        if s24_client:
+            with get_db() as conn:
+                team_repo = TeamRepo(conn)
+                sport_repo = SportRepo(conn)
+                sport_obj = sport_repo.get_by_name(sport)
+                if sport_obj:
+                    team = team_repo.resolve(team_name, sport_obj.id)
+                    if team:
+                        # Only fetch from fixtures sourced from scores24
+                        rows = conn.execute(
+                            "SELECT external_id, source FROM fixtures "
+                            "WHERE (home_team_id = ? OR away_team_id = ?) "
+                            "AND external_id != '' AND external_id IS NOT NULL "
+                            "AND source = 'scores24' "
+                            "ORDER BY kickoff DESC LIMIT 1",
+                            (team.id, team.id)
+                        ).fetchall()
+                        for row in rows:
+                            event_id = row["external_id"] if isinstance(row, dict) else row[0]
+                            # Scores24 external_ids from get_fixtures() have format "s24-{slug}"
+                            # Construct detail URL from the slug
+                            slug = event_id.removeprefix("s24-")
+                            detail_url = f"/en/{sport}/match/{slug}"
+                            trends = s24_client.get_trends(detail_url)
+                            if trends:
+                                stats_repo = StatsRepo(conn)
+                                for trend in trends:
+                                    cat = trend.get("category", "").lower().replace(" ", "_")
+                                    if not cat:
+                                        continue
+                                    stat_key = f"trend_{cat}"
+                                    try:
+                                        odds_val = float(trend.get("odds", 0))
+                                    except (ValueError, TypeError):
+                                        odds_val = 0.0
+                                    form = TeamForm(
+                                        id=None,
+                                        team_id=team.id,
+                                        sport_id=sport_obj.id,
+                                        stat_key=stat_key,
+                                        l10_values=[odds_val] if odds_val else [],
+                                        l5_values=[odds_val] if odds_val else [],
+                                        l10_avg=odds_val,
+                                        l5_avg=odds_val,
+                                        trend=trend.get("tip", ""),
+                                        updated_at=datetime.now(timezone.utc).isoformat(),
+                                        source="scores24-trends",
+                                    )
+                                    stats_repo.save_team_form(form)
+                                conn.commit()
+                                logger.info(f"[Scores24] Saved {len(trends)} trends for {team_name}")
+                                break
+    except Exception as e:
+        logger.debug(f"Scores24 trends failed for {team_name}: {e}")
+
+    # Try Flashscore first (most reliable HTML)
     for attempt in range(1, max_retries + 1):
         stats, err = _try_flashscore(team_name, sport)
         if stats:
@@ -1599,6 +1832,17 @@ def main():
     else:
         parser.print_help()
         sys.exit(1)
+
+
+def _cleanup_client():
+    global _unified_client
+    if _unified_client is not None:
+        try:
+            _unified_client.close()
+        except Exception:
+            pass
+
+atexit.register(_cleanup_client)
 
 
 if __name__ == "__main__":

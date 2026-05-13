@@ -12,6 +12,7 @@ import requests
 
 # DB Integration
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).parent))  # scripts/ dir for _helpers
 from bet.db.connection import get_db
 from bet.db.repositories import SportRepo, TeamRepo, CompetitionRepo, FixtureRepo, ScanResultRepo
 from bet.db.models import Fixture, ScanResult
@@ -183,6 +184,37 @@ def fetch_deep_data(event_id: str, source: str | None = None) -> tuple:
     deep = client.get_deep_data(event_id, source=source)
     return deep["form"], deep["h2h"], deep["odds"], deep["stats"]
 
+def _persist_deep_to_db(ev: dict, deep_data: dict) -> int:
+    """Persist deep enrichment data to DB. Returns count of records saved."""
+    try:
+        from _helpers.deep_data_db_writer import persist_deep_data_to_db
+        
+        with get_db() as conn:
+            # Resolve fixture in DB by external_id
+            row = conn.execute(
+                "SELECT f.id, f.home_team_id, f.away_team_id, f.sport_id "
+                "FROM fixtures f WHERE f.external_id = ?",
+                (str(ev.get("id", "")),)
+            ).fetchone()
+            
+            if not row:
+                return 0
+                
+            result = persist_deep_data_to_db(
+                conn=conn,
+                fixture_id=row["id"],
+                home_team_id=row["home_team_id"],
+                away_team_id=row["away_team_id"],
+                sport_id=row["sport_id"],
+                deep_data=deep_data,
+                source="scan-deep",
+            )
+            conn.commit()
+            return result.get("match_stats_saved", 0) + result.get("team_form_saved", 0)
+    except Exception as e:
+        logger.debug(f"DB persist failed for {ev.get('id')}: {e}")
+        return 0
+
 def _enrich_single_event(ev: dict, session: requests.Session, verbose: bool = False) -> dict:
     """Enrich a single event with deep data. Returns the event dict (mutated)."""
     if not ev.get("id"):
@@ -196,6 +228,15 @@ def _enrich_single_event(ev: dict, session: requests.Session, verbose: bool = Fa
     ev["odds"] = odds
     if stats:
         ev["expected_stats"] = stats
+        
+    # Persist to DB (Phase 2 integration)
+    deep_data = {"stats": stats or [], "form": form or {}, "h2h": h2h or {}, "odds": odds or []}
+    db_saved = _persist_deep_to_db(ev, deep_data)
+    if verbose and db_saved:
+        print(json.dumps({"event": "db_persist", "id": ev["id"], "records_saved": db_saved}))
+    
+    ev["_db_saved"] = db_saved
+    
     return ev
 
 
@@ -242,6 +283,47 @@ def main():
     deep_with_h2h = 0
     deep_with_odds = 0
     deep_with_stats = 0
+    deep_db_persisted = 0
+    
+    db_fixtures_written = 0
+    if all_events:
+        try:
+            with get_db() as db_conn:
+                sport_repo = SportRepo(db_conn)
+                team_repo = TeamRepo(db_conn)
+                comp_repo = CompetitionRepo(db_conn)
+                fix_repo = FixtureRepo(db_conn)
+                
+                sport_repo.seed_defaults()
+                
+                for ev in all_events:
+                    sport_obj = sport_repo.get_by_name(ev["sport"])
+                    if not sport_obj:
+                        continue
+                    sport_id = sport_obj.id
+                    
+                    home_team = team_repo.find_or_create(ev["home_team"], sport_id)
+                    away_team = team_repo.find_or_create(ev["away_team"], sport_id)
+                    comp_id = comp_repo.find_or_create(ev["tournament"], sport_id, country=ev["country"])
+                    
+                    fix = Fixture(
+                        id=None,
+                        sport_id=sport_id,
+                        competition_id=comp_id,
+                        home_team_id=home_team.id,
+                        away_team_id=away_team.id,
+                        kickoff=ev["start_time"],
+                        status='scheduled',
+                        external_id=str(ev["id"]) if ev.get("id") else "",
+                        source=ev.get("_source", "flashscore")
+                    )
+                    fix_repo.upsert(fix)
+                    db_fixtures_written += 1
+        except Exception as e:
+            logger.error(f"Error saving fixtures to DB: {e}")
+            errors += 1
+            issues.append(str(e))
+            verdict = "FAILED"
     
     if not args.skip_deep and all_events:
         # Sort events by enrichment priority (highest first)
@@ -293,6 +375,8 @@ def main():
                         if ev.get("expected_stats"):
                             deep_with_stats += 1
                             has_data = True
+                            
+                        deep_db_persisted += ev.get("_db_saved", 0)
                         
                         if has_data:
                             deep_enriched += 1
@@ -309,45 +393,14 @@ def main():
         logger.info(f"  Form: {deep_with_form} | H2H: {deep_with_h2h} | Odds: {deep_with_odds} | Stats: {deep_with_stats}")
         logger.info(f"  By sport: {json.dumps(deep_enriched_by_sport)}")
 
-    db_fixtures_written = 0
     db_scan_results = 0
 
     try:
         with get_db() as db_conn:
-            sport_repo = SportRepo(db_conn)
-            team_repo = TeamRepo(db_conn)
-            comp_repo = CompetitionRepo(db_conn)
-            fix_repo = FixtureRepo(db_conn)
             scan_repo = ScanResultRepo(db_conn)
-            
-            sport_repo.seed_defaults()
-            
             scan_results_to_insert = []
             
             for ev in all_events:
-                sport_obj = sport_repo.get_by_name(ev["sport"])
-                if not sport_obj:
-                    continue
-                sport_id = sport_obj.id
-                
-                home_team = team_repo.find_or_create(ev["home_team"], sport_id)
-                away_team = team_repo.find_or_create(ev["away_team"], sport_id)
-                comp_id = comp_repo.find_or_create(ev["tournament"], sport_id, country=ev["country"])
-                
-                fix = Fixture(
-                    id=None,
-                    sport_id=sport_id,
-                    competition_id=comp_id,
-                    home_team_id=home_team.id,
-                    away_team_id=away_team.id,
-                    kickoff=ev["start_time"],
-                    status='scheduled',
-                    external_id=str(ev["id"]) if ev.get("id") else "",
-                    source=ev.get("_source", "flashscore")
-                )
-                fix_repo.upsert(fix)
-                db_fixtures_written += 1
-                
                 scan_res = ScanResult(
                     id=None,
                     betting_date=args.date,
@@ -366,7 +419,7 @@ def main():
             db_scan_results = scan_repo.bulk_insert(scan_results_to_insert)
             
     except Exception as e:
-        logger.error(f"Error persisting to DB: {e}")
+        logger.error(f"Error persisting scan results to DB: {e}")
         errors += 1
         issues.append(str(e))
         verdict = "FAILED"
@@ -390,6 +443,7 @@ def main():
         "deep_with_h2h": deep_with_h2h,
         "deep_with_odds": deep_with_odds,
         "deep_with_stats": deep_with_stats,
+        "deep_db_persisted": deep_db_persisted,
         "db_fixtures_written": db_fixtures_written,
         "db_scan_results": db_scan_results,
         "errors": errors,
