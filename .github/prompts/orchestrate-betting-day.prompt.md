@@ -63,8 +63,8 @@ Read these files. Do NOT proceed until all are loaded:
 4. `.github/instructions/betting-artifacts.instructions.md`
 5. `betting/sources/source-registry.md`
 6. `/memories/repo/pipeline-lessons-learned.md`
-7. `/memories/repo/post-overhaul-audit-2026-05-12.md`
-8. `/memories/repo/session-2026-05-12-improvements.md` — **CRITICAL: Previous run failures + fixes**
+7. `/memories/repo/api-clients-overhaul-plan.md` — **API client architecture + patterns**
+8. Latest session memory from `/memories/repo/session-*.md` (pick most recent date)
 
 ### ⚠️ ADAPTER OVERHAUL (2026-05-12) — ENFORCE IN ALL STEPS
 
@@ -81,6 +81,27 @@ Read these files. Do NOT proceed until all are loaded:
 **Disabled clients (removed from CLIENT_REGISTRY):** TheSportsDB, BallDontLie, API-Tennis.
 **New adapters:** atptour, dailyfaceoff, hockey_reference, moneypuck, naturalstattrick (blocked but registered).
 **Protocol:** v5 — heredocs banned (use temp .py files), async patterns verified, all 15 agents have Python env tools.
+
+### ⚡ API CLIENT OVERHAUL (2026-05-13) — NEW DATA SOURCES
+
+5 new API clients deployed + `PlaywrightBaseClient` extraction + `unified.py` resilient routing:
+
+| Client | Type | Sports | Data Provided |
+|--------|------|--------|---------------|
+| `BetExplorerClient` | HTTP (BeautifulSoup) | All 5 | Fixtures, odds comparison, results |
+| `OddsPortalClient` | Playwright SPA | All 5 | Multi-bookmaker odds, dropping odds, price gaps |
+| `TotalCornerClient` | Playwright | Football only | Corner predictions, handicaps, dangerous attacks |
+| `Scores24Client` | Playwright | All 5 | H2H, form, odds, **structured betting trends with hit rates** |
+| `SoccerwayClient` | HTTP (BeautifulSoup) | Football only | 200+ countries, 1000+ leagues, exotic fixture discovery |
+
+**unified.py routing (SOURCE_PRIORITY):**
+- Football: Flashscore → BetExplorer → Soccerway → ESPN
+- Tennis: Flashscore → Scores24 → ESPN
+- Basketball/Hockey/Volleyball: Flashscore → BetExplorer → Scores24 → ESPN
+- Odds: OddsPortal → BetExplorer (all sports)
+- Stats: TotalCorner → Flashscore (football corners)
+
+**Key:** `scan_events.py` now discovers fixtures from ALL registered sources via `UnifiedAPIClient`. Enrichment can pull corner data from TotalCorner and structured trends from Scores24.
 
 Print the pre-flight checklist:
 ```
@@ -284,7 +305,7 @@ Stealth Playwright warm-up: dumps odds pages from protected bookmakers to `betti
 **You launch the scan, then delegate review to bet-scanner.**
 
 ```bash
-# Flashscore + ESPN scan for all 5 sports, ~15 min with deep enrichment
+# Unified scan via 7 sources (Flashscore, BetExplorer, Soccerway, ESPN + OddsPortal, TotalCorner, Scores24)
 python3 scripts/scan_events.py --date {date} --verbose 2>&1
 ```
 
@@ -302,7 +323,7 @@ runSubagent("bet-scanner"):
 ### Context
 - Date: {date}, Session: {session}
 - Scan already completed. Review output quality.
-- Check: betting/data/scan_summary.json
+- Check: betting/data/global_events_api.json (Beast Mode scan output)
 - Use sequentialthinking to evaluate coverage
 - Load skill: bet-navigating-sources
 - Key checks:
@@ -426,6 +447,7 @@ runSubagent("bet-scout"):
 - Shortlist: `betting/data/{date}_s2_shortlist.json`
 - Tipster data (from S1b): `betting/data/{date}_tipster_consensus.json`
 - Script to run: `PYTHONPATH=src python3 scripts/tipster_xref.py --date {date} --verbose`
+- **§ASYNC:** Include the Mandatory Async Block from §ASYNC DELEGATION ENFORCEMENT (S2 tipsters row, timeout=300000)
 - Parse `AGENT_SUMMARY:` JSON from output for structured metrics (tips_loaded, matched, total)
 - Use sequentialthinking to evaluate tipster consensus quality
 - Load skill: bet-navigating-sources (Tier B tipster sites)
@@ -458,6 +480,7 @@ runSubagent("bet-enricher"):
 - Date: {date}
 - Shortlist: `betting/data/{date}_s2_shortlist.json`
 - Script to run: `PYTHONPATH=src python3 scripts/data_enrichment_agent.py --date {date} --verbose`
+- **§ASYNC:** Include the Mandatory Async Block from §ASYNC DELEGATION ENFORCEMENT (S2.5 enrich row, timeout=600000)
 - **Gemini feature flag:** Add `--news` to run Gemini news enrichment (injuries, coaching changes, morale) for all shortlisted teams. Data saved to `team_news` DB table, consumed by S5 `context_checks.py`.
 - Script with Gemini: `PYTHONPATH=src python3 scripts/data_enrichment_agent.py --date {date} --news --verbose`
 - Parse `AGENT_SUMMARY:` JSON from output for structured metrics (verdict, yield %, gaps, news_enriched)
@@ -515,6 +538,7 @@ runSubagent("bet-statistician"):
 - Date: {date}
 - Shortlist file: `betting/data/{date}_s2_shortlist.json`
 - Script to run: `PYTHONPATH=src python3 scripts/deep_stats_report.py --date {date} --shortlist betting/data/{date}_s2_shortlist.json --top 200 --verbose`
+- **§ASYNC:** Include the Mandatory Async Block from §ASYNC DELEGATION ENFORCEMENT (S3 deep stats row, timeout=600000)
 - **Gemini feature flag:** Add `--gemini` for Gemini "second opinion" per candidate — adds `gemini_analysis` section with independent market recommendations, upset risk, and `agreement_score` (0-1) tracking Python↔Gemini alignment.
 - Script with Gemini: `PYTHONPATH=src python3 scripts/deep_stats_report.py --date {date} --shortlist betting/data/{date}_s2_shortlist.json --top 200 --gemini --verbose`
 - Parse `AGENT_SUMMARY:` JSON from output for per-candidate metrics, data quality scores, and issues
@@ -627,6 +651,7 @@ runSubagent("bet-challenger"):
 - Date: {date}
 - S3 output: DB `analysis_results` table + `betting/data/{date}_s3_deep_stats.json`
 - Script to run: `PYTHONPATH=src python3 scripts/gate_checker.py --date {date} --verbose`
+- **§ASYNC:** Include the Mandatory Async Block from §ASYNC DELEGATION ENFORCEMENT (S7 gate row, timeout=300000)
 - Parse `AGENT_SUMMARY:` JSON from output for tier distribution, gate scores, and issues
 - Use sequentialthinking for gate quality assessment
 - Key checks:
@@ -821,7 +846,7 @@ Present to user:
 | S0 Settlement | `bet-settle.prompt.md` | bet-settler |
 | S0.5 DB Quality | `bet-db-quality.prompt.md` | bet-db-analyst |
 | S1 Scan | `bet-scan.prompt.md` | bet-scanner |
-| S1 Scan (sport-specific) | `bet-scan-football.prompt.md`, `bet-scan-basketball.prompt.md`, `bet-scan-tennis.prompt.md`, `bet-scan-volleyball.prompt.md`, `bet-scan-hockey.prompt.md` | bet-scanner |
+| S1 Scan (sport-specific) | Use `bet-scan.prompt.md` with `--sport {sport}` filter | bet-scanner |
 | S1 Scan (merge) | `bet-scan-merge.prompt.md` | bet-scanner |
 | S1 Scan (all sports) | `bet-scan-all.prompt.md` | bet-scanner |
 | S1e Shortlist | `bet-shortlist.prompt.md` | bet-scanner |
