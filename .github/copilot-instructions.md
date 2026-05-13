@@ -77,7 +77,7 @@ These 20 rules are PERMANENT. They override any conflicting logic in scripts, pr
 
 **R8 — MINOR LEAGUE VALUE (§SCAN.8):** Less popular leagues = MORE PROFIT (market inefficiency principle). Bookmakers focus on top leagues → minor leagues have weak/static lines. Statistical markets in minor leagues are especially strong. Never penalize events for being "obscure". Events with data + non-top-5 league get +6 VALUE BOOST. Removed youth/women/Africa/Asia from penalty list.
 
-**R9 — SELF-HEALING DATA:** Missing data triggers enrichment sub-agents automatically. 6 fallback layers: L1 scan retry, L2 parallel enrichment (ESPN+weather+tipsters), L3 batch enrichment (Flashscore/Sofascore), L4 pre-analysis enrichment, L5 inline stats extraction, L6 context fetch. See `agent_protocol.py` `SELF_HEALING_REGISTRY` for modules and functions.
+**R9 — SELF-HEALING DATA:** Missing data triggers enrichment sub-agents automatically. 6 fallback layers: L1 scan retry, L2 parallel enrichment (ESPN+weather+tipsters), L3 batch enrichment (Flashscore), L4 pre-analysis enrichment, L5 inline stats extraction, L6 context fetch. See `agent_protocol.py` `SELF_HEALING_REGISTRY` for modules and functions.
 
 **R10 — STATS-FIRST MODE:** Events without API odds are NOT excluded. They appear in the decision matrix with suggested statistical markets. User checks Betclic app for odds and calculates EV mentally: `hit_rate × odds > 1.0 → positive EV → BET`. Minimum acceptable odds = `1 / hit_rate`. All scripts support `--stats-first` flag.
 

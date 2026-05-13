@@ -10,13 +10,13 @@ Reference file for `bet-applying-sport-protocols` skill. Load when performing de
 
 | Category | Metrics | Source |
 |----------|---------|--------|
-| Goals | Scored/match, Conceded/match, O2.5%, BTTS%, Clean sheets% | SoccerStats, Sofascore |
-| xG | xGF/match, xGA/match, xG vs actual delta | Flashscore, Sofascore |
+| Goals | Scored/match, Conceded/match, O2.5%, BTTS%, Clean sheets% | SoccerStats, Flashscore |
+| xG | xGF/match, xGA/match, xG vs actual delta | Flashscore |
 | Corners | Team earned/match, Conceded/match, Total match avg, O9.5/O10.5 hit rate | TotalCorner + SoccerStats |
 | Cards | Team cards/match, Opponent cards/match, O3.5/O4.5 hit rate | SoccerStats, Betaminic |
-| Fouls | Committed/match, Drawn/match, Total match avg | SoccerStats, Sofascore |
-| Shots | Shots/match, SOT/match, Conversion%, O/U team shots hit rates | Sofascore, Flashscore |
-| Possession | Possession%, Throw-ins/match | Sofascore |
+| Fouls | Committed/match, Drawn/match, Total match avg | SoccerStats, Flashscore |
+| Shots | Shots/match, SOT/match, Conversion%, O/U team shots hit rates | Flashscore |
+| Possession | Possession%, Throw-ins/match | Flashscore |
 
 **Corner picks — THREE-SOURCE STACK:**
 1. TotalCorner: match-level corner total predictions + handicaps
@@ -89,7 +89,7 @@ Surface mismatch (0-2), Rising underdog (0-2), Giant-killer history (0-1), Age/t
 | Category | Metrics | Source |
 |----------|---------|--------|
 | Pace | Possessions/game, League rank, Last 10 pace | ESPN/NBA.com (NBA); BetExplorer/Flashscore (EU) |
-| Offense | OFF rating, FG%, 3PT%, FT rate, TO/game | Basketball-Reference (NBA); Flashscore/Sofascore (EU) |
+| Offense | OFF rating, FG%, 3PT%, FT rate, TO/game | Basketball-Reference (NBA); Flashscore (EU) |
 | Defense | DEF rating, Opp FG%, Opp 3PT%, Steals, Blocks | Same |
 | Totals | Team pts/game, Opp pts/game, Combined avg, O/U hit rates | ESPN/Flashscore (NBA); BetExplorer (EU) |
 | Home/Away | Pts scored H/A, Pts allowed H/A, ATS record | Same |
@@ -137,7 +137,7 @@ Backup goalie, B2B, Down 0-3 in series, Goalie unconfirmed, Travel, Playoff desp
 
 ## §3.5 Volleyball
 
-**Required stats:** Sets won/lost, Avg sets/match, O/U 3.5 hit rate, Avg total pts/match, Attack efficiency%, Reception%, Tiebreak (5th set) frequency. Sources: Flashscore, Sofascore, CEV/PlusLiga.
+**Required stats:** Sets won/lost, Avg sets/match, O/U 3.5 hit rate, Avg total pts/match, Attack efficiency%, Reception%, Tiebreak (5th set) frequency. Sources: Flashscore, CEV/PlusLiga.
 
 Both top-6 = O3.5 sets. Big mismatch = U3.5/HC -1.5.
 
@@ -222,7 +222,7 @@ Late opponent change, Failed weight cut, Layoff >1 year, Reach advantage, Chin d
 
 ## §3.12 Padel
 
-**Required stats:** FIP ranking, Partnership duration, Indoor/outdoor surface, Recent form, H2H. Sources: Sofascore, PremierPadel, PadelFIP.
+**Required stats:** FIP ranking, Partnership duration, Indoor/outdoor surface, Recent form, H2H. Sources: PremierPadel, PadelFIP.
 
 **Upset risk factors** (threshold ≥3, max 6):
 New pair <3 events, Indoor vs outdoor switch, FIP gap <500, Travel, Altitude, Surface change.

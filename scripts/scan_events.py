@@ -24,7 +24,7 @@ HEADERS = {
     "Accept": "application/json",
 }
 
-# Unified sport mapping for Sofascore
+# Unified sport mapping
 SPORT_MAP = {
     "football": "football",
     "tennis": "tennis",
@@ -55,7 +55,7 @@ PROTECTED_LEAGUES = [
     "superliga", "v-league", "plusliga",
 ]
 
-# Per-worker rate limiter for Sofascore API
+# Per-worker rate limiter for API requests
 _rate_lock = threading.Lock()
 _last_request_time = 0.0
 RATE_LIMIT_SECONDS = 0.35  # slightly above 0.3 for safety
@@ -149,7 +149,7 @@ def _compute_enrichment_priority(ev: dict) -> int:
             score += 80
             break
 
-    # Football and basketball are data-rich on Sofascore — prioritize
+    # Football and basketball are data-rich — prioritize
     if sport == "football":
         score += 30
     elif sport == "basketball":
@@ -159,7 +159,7 @@ def _compute_enrichment_priority(ev: dict) -> int:
     elif sport == "volleyball":
         score += 15
     elif sport == "tennis":
-        score += 10  # Tennis has less form/H2H on Sofascore
+        score += 10
 
     return score
 
@@ -343,7 +343,7 @@ def main():
                     kickoff=ev["start_time"],
                     status='scheduled',
                     external_id=str(ev["id"]) if ev.get("id") else "",
-                    source=ev.get("_source", "sofascore-api")
+                    source=ev.get("_source", "flashscore")
                 )
                 fix_repo.upsert(fix)
                 db_fixtures_written += 1
@@ -352,7 +352,7 @@ def main():
                     id=None,
                     betting_date=args.date,
                     sport=ev["sport"],
-                    source_domain=f"{ev.get('_source', 'sofascore')}.com",
+                    source_domain=f"{ev.get('_source', 'flashscore')}.com",
                     event_key=f"{ev['sport']}:{ev['home_team']}:{ev['away_team']}",
                     home_team=ev["home_team"],
                     away_team=ev["away_team"],

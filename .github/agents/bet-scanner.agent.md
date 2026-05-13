@@ -1,5 +1,5 @@
 ---
-description: "Orchestrates Beast Mode scanning — Sofascore REST API scan for all 5 core sports, validates coverage, runs enrichment, and delivers an analysis-ready shortlist."
+description: "Orchestrates scanning — Flashscore + ESPN scan for all 5 core sports, validates coverage, runs enrichment, and delivers an analysis-ready shortlist."
 tools:
   [
     "vscode/memory",
@@ -65,9 +65,9 @@ handoffs:
 
 ---
 
-## Architecture: Beast Mode (Sofascore REST API)
+## Architecture: Flashscore + ESPN
 
-Scanning uses a **single unified script** (`scan_events.py`) that fetches ALL events from the Sofascore REST API (`api.sofascore.com/api/v1/sport/{sport}/scheduled-events/{date}`). No HTML scraping, no Playwright, no per-sport scanner classes.
+Scanning uses a **single unified script** (`scan_events.py`) that fetches ALL events via `UnifiedAPIClient` (Flashscore primary, ESPN fallback). Deep enrichment via `get_match_preview()` (form + H2H) and `get_fixture_stats()`.
 
 Deep enrichment is built-in: for each event, the scanner fetches form data (`/event/{id}/pregame-form`), H2H (`/event/{id}/h2h`), and odds (`/event/{id}/odds/1/all`) with 0.3s rate limiting.
 

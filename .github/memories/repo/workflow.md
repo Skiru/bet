@@ -21,8 +21,8 @@
 - Pipeline dual-writes: JSON first (human-readable), then DB (primary source)
 
 ## Tier A stats sources by sport
-- Football: Flashscore, Sofascore, SoccerStats, scores24
-- Tennis: Flashscore, Sofascore, TennisAbstract
+- Football: Flashscore, SoccerStats, scores24
+- Tennis: Flashscore, TennisAbstract
 - Basketball/Hockey: ESPN (auto-loaded: gamelogs, standings, ATS/OU, power index)
 
 ## Market diversity

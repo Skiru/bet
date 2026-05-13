@@ -76,7 +76,7 @@ python3 scripts/validate_phase.py --date {date} --phase data --format json 2>&1
 
 **Step 3: ASSESS enrichment quality** (use sequentialthinking):
 - **Coverage analysis**: Which sports/leagues still have data gaps after enrichment?
-- **Source reliability**: Did Flashscore/Sofascore/ESPN return consistent data?
+- **Source reliability**: Did Flashscore/ESPN return consistent data?
 - **Data freshness**: Are enriched stats from current season or stale?
 - **Fallback chain effectiveness**: Which sources failed? Why?
 - **Gap triage**: Prioritize remaining gaps by impact on S3 analysis
@@ -88,7 +88,7 @@ python3 scripts/validate_phase.py --date {date} --phase data --format json 2>&1
 - **Inputs**: `{date}_s2_shortlist.json`, stats cache, DB `team_form` table
 - **Script**: `python3 scripts/data_enrichment_agent.py --date {date}`
 - **With Gemini news**: `python3 scripts/data_enrichment_agent.py --date {date} --news` — adds injury/coaching/morale data to `team_news` DB table via Gemini Search Grounding
-- **Sources**: HTML deep parse (L0 — already extracted from saved snapshots), Flashscore (L10 form, H2H), Sofascore (ratings, stats), ESPN (standings, gamelogs), Gemini Search Grounding (news/injuries)
+- **Sources**: HTML deep parse (L0 — already extracted from saved snapshots), Flashscore (L10 form, H2H), ESPN (standings, gamelogs), Gemini Search Grounding (news/injuries)
 - **DB tables used**: `team_form` (read/write), `match_stats` (write), `source_health` (write), `team_news` (write — Gemini news enrichment)
 - **Rate limits**: Thread-safe rate limiting (uniform 1.5s between requests per domain). Gemini uses separate budget from `config/gemini_config.json`.
 - **Timeout**: 15 min (covers ~50 teams across multiple sources)
@@ -141,7 +141,7 @@ If values are outside these ranges, the script auto-filters them and logs a warn
 ### 2. Source Cross-Validation
 When multiple sources provide data for the same team:
 - Compare L10 averages across sources. Difference >30% = DATA_CONFLICT → flag in report.
-- Prefer Sofascore API (structured JSON) over Flashscore HTML (regex-parsed).
+- Prefer Flashscore API (structured JSON) for stats.
 - ESPN injury data should always be merged regardless of primary stats source.
 
 ### 3. Completeness Verification

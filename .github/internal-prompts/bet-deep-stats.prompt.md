@@ -125,7 +125,7 @@ The script produces RAW DATA (safety scores, market rankings, probabilities). Yo
 - **Edge mechanisms**: WHY does this trend exist? Sustainable or regressing?
 - **Pattern insights**: Do L10 and H2H tell the same story? If not, WHY?
 - **Anomaly detection**: Numbers look too good? Red flags in the data?
-- **Cross-source verification**: Fetch LIVE stats from ESPN/Flashscore/Sofascore
+- **Cross-source verification**: Fetch LIVE stats from ESPN/Flashscore
 - **Narrative coherence**: Does the edge align with tactics, motivation, context?
 - **ANALYTICAL REASONING** per candidate (PRIMARY output — tables are secondary)
 

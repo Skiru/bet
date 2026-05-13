@@ -1,5 +1,5 @@
 ---
-description: "Beast Mode full scan orchestration: Sofascore API scan → ingest → enrich → shortlist. Single unified script, no per-sport agents needed."
+description: "Full scan orchestration: Flashscore + ESPN scan → ingest → enrich → shortlist. Single unified script, no per-sport agents needed."
 mode: agent
 agent: bet-scanner
 ---
@@ -8,7 +8,7 @@ agent: bet-scanner
 
 # BEAST MODE SCAN ORCHESTRATION
 
-> **YOUR ANALYTICAL VALUE:** You assess SOURCE QUALITY — Sofascore API returns events for all 5 sports but deep enrichment coverage varies. You determine whether form/H2H/odds depth is sufficient for S3 statistical analysis, flag sports with thin data, and ensure enrichment fills gaps.
+> **YOUR ANALYTICAL VALUE:** You assess SOURCE QUALITY — Flashscore + ESPN returns events for all 5 sports but deep enrichment coverage varies. You determine whether form/H2H depth is sufficient for S3 statistical analysis, flag sports with thin data, and ensure enrichment fills gaps.
 
 ## ⛔ Follow `agent-execution-protocol.instructions.md` for EVERY script execution.
 
@@ -18,7 +18,7 @@ agent: bet-scanner
 python3 scripts/scan_events.py --date {YYYY-MM-DD} --verbose 2>&1
 ```
 
-Single script scans ALL 5 sports via Sofascore REST API with deep enrichment.
+Single script scans ALL 5 sports via Flashscore + ESPN with deep enrichment.
 Expected: 1000-2000 events, 30-40% deep-enriched, ~15 min runtime.
 
 **Validation Gates:**

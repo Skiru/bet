@@ -250,7 +250,7 @@ Stealth Playwright warm-up: dumps odds pages from protected bookmakers to `betti
 **You launch the scan, then delegate review to bet-scanner.**
 
 ```bash
-# Beast Mode scan — Sofascore REST API for all 5 sports, ~15 min with deep enrichment
+# Flashscore + ESPN scan for all 5 sports, ~15 min with deep enrichment
 python3 scripts/scan_events.py --date {date} --verbose 2>&1
 ```
 

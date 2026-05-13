@@ -147,7 +147,7 @@ Use `sequentialthinking` to match the user's question to the correct row:
 | **Context / Upset Risk** | upset, risk, injury, weather, motivation, rotation, fatigue, lineup | `bet-challenger` | `.github/internal-prompts/bet-context-upset.prompt.md` | `weather_{date}.json`, `standings` DB, `player_gamelogs` DB |
 | **Gate / Bear Cases** | gate, bear case, red flag, contrarian, 18-point, approval | `bet-challenger` | `.github/internal-prompts/bet-gate.prompt.md` | `gate_results` DB table, `{date}_s7_gate.md` |
 | **Coupons / Portfolio** | coupon, portfolio, combo, validation, placement, MyCombi, V1-V10 | `bet-builder` | `.github/internal-prompts/bet-portfolio.prompt.md` or `bet-validate.prompt.md` | `betting/coupons/`, `coupons-ledger.csv`, `betting_config.json` |
-| **Data Enrichment / Gaps** | enrichment, data gaps, Flashscore, Sofascore, missing data, ESPN | `bet-enricher` | `.github/internal-prompts/bet-enrich.prompt.md` | `team_form` DB, `stats_cache_{date}.json` |
+| **Data Enrichment / Gaps** | enrichment, data gaps, Flashscore, missing data, ESPN | `bet-enricher` | `.github/internal-prompts/bet-enrich.prompt.md` | `team_form` DB, `stats_cache_{date}.json` |
 | **System / Methodology** | pipeline, methodology, how does, explain, rules, R1-R12, config, setup | — (answer directly) | Read `.github/instructions/analysis-methodology.instructions.md` | Config files, instruction files, agent definitions |
 
 ### Multi-Domain Triage

@@ -42,7 +42,7 @@ For EVERY candidate, BEFORE selecting a market:
 6. **PRESENT the ranking table** in analysis. Show WHY chosen market beat alternatives.
 7. **THREE-WAY CHECK per market**: Every ranked market now carries its own three-way cross-check (L10 + H2H + L5 alignment). When the user selects a non-top market, the three-way data is immediately available.
 8. **Deterministic calculation**: Always use `python3 scripts/compute_safety_scores.py stats_input.json` — never manually compute safety scores. The script handles the 0.7 H2H-blind penalty, margin calculation, ranking, and per-market three-way checks.
-9. **DB-first data**: Check DB `analysis_results` table for pre-computed safety scores, then `stats_cache/{sport}/{team}.json` from Beast Mode scan, then `analysis_pool_{date}.json` as aggregated view. Events with `data_quality: FULL` already have safety scores computed from Sofascore REST API + ESPN + unified API client data.
+9. **DB-first data**: Check DB `analysis_results` table for pre-computed safety scores, then `stats_cache/{sport}/{team}.json` from scan, then `analysis_pool_{date}.json` as aggregated view. Events with `data_quality: FULL` already have safety scores computed from Flashscore + ESPN + unified API client data.
 
 ### Ranking Table Template
 

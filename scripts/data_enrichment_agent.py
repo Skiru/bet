@@ -2,7 +2,7 @@
 """Self-healing data enrichment agent — fetches missing team stats via Playwright.
 
 When the deep analysis pipeline encounters teams/events with missing statistics,
-this agent fetches data from internet sources (Flashscore first, Sofascore fallback),
+this agent fetches data from internet sources (Flashscore primary, scores24 fallback),
 parses sport-specific stats, and saves results to both DB and JSON stats cache.
 
 Usage:
@@ -196,11 +196,6 @@ _INDIVIDUAL_SPORTS = {"tennis"}
 _FS_SPORT_SLUGS = {
 }
 
-# Sofascore sport slug overrides
-_SS_SPORT_SLUGS = {
-    "hockey": "ice-hockey",
-}
-
 
 def _build_flashscore_url(team_name: str, sport: str) -> str:
     """Build Flashscore URL from team/player name."""
@@ -211,21 +206,6 @@ def _build_flashscore_url(team_name: str, sport: str) -> str:
 
 
 def _build_flashscore_search_url(team_name: str) -> str:
-    """Build Flashscore search URL as fallback when direct slug fails."""
-    from urllib.parse import quote
-    return f"https://www.flashscore.com/?text={quote(team_name)}"
-
-
-def _build_sofascore_url(team_name: str, sport: str) -> str:
-    """Build Sofascore URL from team/player name (best-effort — ID unknown)."""
-    slug = _slugify(team_name)
-    ss_sport = _SS_SPORT_SLUGS.get(sport, sport)
-    if sport in _INDIVIDUAL_SPORTS:
-        return f"https://www.sofascore.com/player/{slug}/0"
-    return f"https://www.sofascore.com/team/{ss_sport}/{slug}/0"
-
-
-def _build_scores24_url(team_name: str, sport: str) -> str:
     """Build scores24.live URL as third-tier fallback."""
     slug = _slugify(team_name)
     sport_map = {
@@ -312,7 +292,7 @@ def _extract_match_scores(html: str, sport: str) -> list[float]:
     """
     scores: list[float] = []
 
-    # Pattern: "X - Y" or "X:Y" score lines (common across Flashscore/Sofascore/scores24)
+    # Pattern: "X - Y" or "X:Y" score lines (common across Flashscore/scores24)
     score_matches = re.findall(
         r'(?:score|result|final)[^>]*>?\s*(\d+)\s*[-:]\s*(\d+)',
         html, re.IGNORECASE
@@ -498,189 +478,6 @@ def _validate_stat_values(values: list[float], stat_key: str, sport: str) -> lis
     return filtered
 
 
-def _parse_sofascore_stats(html: str, sport: str) -> dict:
-    """Extract stats from Sofascore HTML (fallback parser).
-
-    Sofascore uses React-rendered HTML with JSON-LD blocks, data-testid
-    attributes, and embedded JSON in script tags. This parser tries
-    multiple extraction strategies specific to Sofascore's structure.
-    """
-    stats: dict[str, list[float]] = {}
-    stat_keys = SPORT_STAT_KEYS.get(sport, [])
-
-    if not html or len(html) < 200:
-        return stats
-
-    # Strategy 1: Extract JSON from <script> tags containing statistics data
-    # Sofascore embeds structured data in script tags (JSON-LD or __NEXT_DATA__)
-    script_blocks = re.findall(
-        r'<script[^>]*>\s*({.*?"statistics".*?})\s*</script>',
-        html[:500_000], re.DOTALL | re.IGNORECASE,  # Cap regex scan to 500KB
-    )
-    if not script_blocks:
-        # Try __NEXT_DATA__ pattern — limit to first 2MB to avoid catastrophic backtracking
-        next_data = re.findall(
-            r'<script[^>]*id="__NEXT_DATA__"[^>]*>\s*({.*?})\s*</script>',
-            html[:2_000_000], re.DOTALL,
-        )
-        script_blocks.extend(next_data)
-
-    for block in script_blocks[:5]:  # Process at most 5 script blocks
-        if len(block) > 1_000_000:  # Skip blocks > 1MB — likely not statistics
-            continue
-        try:
-            data = json.loads(block)
-            _extract_sofascore_json_stats(data, stat_keys, stats)
-        except (json.JSONDecodeError, TypeError):
-            continue
-
-    # Strategy 2: Parse data-testid attributes (React-rendered stat cells)
-    # Sofascore uses patterns like: <div data-testid="cell">8</div>
-    for key in stat_keys:
-        if key in stats:
-            continue
-        label_map = {
-            "corners": r"corner", "fouls": r"foul", "yellow_cards": r"yellow",
-            "red_cards": r"red", "shots": r"shot", "shots_on_target": r"on.?target",
-            "possession": r"possession", "goals": r"goal", "offsides": r"offside",
-            "saves": r"save", "points": r"point", "rebounds": r"rebound",
-            "assists": r"assist", "aces": r"ace", "blocks": r"block",
-            "total_games": r"game", "total_points": r"total.?point",
-            "hits": r"hit", "pim": r"penal",
-        }
-        label_re = label_map.get(key, re.escape(key.replace("_", " ")))
-
-        # data-testid rows: label cell followed by value cell
-        testid_pattern = (
-            r'data-testid="[^"]*"[^>]*>[^<]*'
-            + label_re
-            + r'[^<]*<.*?>(\d+(?:\.\d+)?)\s*</'
-        )
-        testid_matches = re.findall(testid_pattern, html, re.IGNORECASE | re.DOTALL)
-        for m in testid_matches:
-            try:
-                stats.setdefault(key, []).append(float(m))
-            except ValueError:
-                continue
-
-    # Strategy 3: Generic stat label + value extraction (non-Flashscore-specific)
-    # Sofascore renders "StatName  value" in React Box/Text components
-    for key in stat_keys:
-        if key in stats:
-            continue
-        label_map = {
-            "corners": r"(?:corners?|corner\s*kicks?)",
-            "fouls": r"(?:fouls?)", "yellow_cards": r"(?:yellow\s*cards?)",
-            "shots": r"(?:shots?|total\s*shots?)",
-            "possession": r"(?:possession)", "goals": r"(?:goals?)",
-            "points": r"(?:points?|pts)", "rebounds": r"(?:rebounds?|reb)",
-            "assists": r"(?:assists?|ast)", "aces": r"(?:aces?)",
-            "blocks": r"(?:blocks?|blk)", "total_games": r"(?:total\s*games?)",
-            "total_points": r"(?:total\s*points?)",
-        }
-        pattern = label_map.get(key, re.escape(key.replace("_", " ")))
-
-        # Look for: <Text/span/div>Label</...><Text/span/div>Value</...>
-        generic_pattern = (
-            r'>[^<]*' + pattern + r'[^<]*</[^>]+>\s*'
-            r'(?:<[^>]+>\s*)*?(\d+(?:\.\d+)?)\s*</'
-        )
-        generic_matches = re.findall(generic_pattern, html, re.IGNORECASE | re.DOTALL)
-        for m in generic_matches:
-            try:
-                v = float(m)
-                stats.setdefault(key, []).append(v)
-            except ValueError:
-                continue
-
-    # Strategy 4: JSON-LD structured data blocks
-    jsonld_blocks = re.findall(
-        r'<script\s+type="application/ld\+json"[^>]*>\s*({.*?})\s*</script>',
-        html[:500_000], re.DOTALL,
-    )
-    for block in jsonld_blocks[:10]:  # Cap to 10 JSON-LD blocks
-        if len(block) > 500_000:
-            continue
-        try:
-            data = json.loads(block)
-            _extract_sofascore_json_stats(data, stat_keys, stats)
-        except (json.JSONDecodeError, TypeError):
-            continue
-
-    # Keep last 10 values per key (no value-based dedup — same stat value
-    # can legitimately occur in multiple matches, e.g., 7 corners twice)
-    for key in stats:
-        stats[key] = stats[key][:10]
-
-    # Validate extracted values
-    validated_stats = {}
-    for key, vals in stats.items():
-        clean = _validate_stat_values(vals, key, sport)
-        if clean:
-            validated_stats[key] = clean
-    return validated_stats
-
-
-def _extract_sofascore_json_stats(
-    data: dict | list, stat_keys: list[str], stats: dict[str, list[float]],
-    _depth: int = 0,
-) -> None:
-    """Recursively extract stat values from parsed Sofascore JSON data."""
-    if _depth > 20:
-        return
-    # Safety: stop if we already have enough data per key (prevent runaway on huge JSON)
-    if all(len(stats.get(k, [])) >= 20 for k in stat_keys if k in stats) and stats:
-        return
-    if isinstance(data, list):
-        for item in data[:200]:  # Cap list iteration to prevent memory issues on huge arrays
-            if isinstance(item, (dict, list)):
-                _extract_sofascore_json_stats(item, stat_keys, stats, _depth + 1)
-        return
-    if not isinstance(data, dict):
-        return
-
-    # Check if this dict has a "name"/"key" + "value" pattern
-    name = data.get("name") or data.get("key") or data.get("statisticName") or ""
-    value = data.get("value")
-    if value is None:
-        value = data.get("home")
-    if value is None:
-        value = data.get("away")
-    if isinstance(name, str) and value is not None:
-        name_lower = name.lower().replace(" ", "_").replace("-", "_")
-        for key in stat_keys:
-            if key in name_lower or name_lower in key:
-                try:
-                    stats.setdefault(key, []).append(float(value))
-                except (ValueError, TypeError):
-                    pass
-                break
-
-    # Check "groups" pattern (Sofascore statistics API format)
-    for group in data.get("groups", []):
-        if isinstance(group, dict):
-            for item in group.get("statisticsItems", []):
-                if isinstance(item, dict):
-                    item_name = (item.get("name") or "").lower().replace(" ", "_")
-                    for key in stat_keys:
-                        if key in item_name or item_name in key:
-                            for side in ("home", "away", "value", "homeValue", "awayValue"):
-                                val = item.get(side)
-                                if val is not None:
-                                    try:
-                                        stats.setdefault(key, []).append(float(str(val).rstrip("%")))
-                                    except (ValueError, TypeError):
-                                        pass
-                            break
-
-    # Recurse into nested dicts (skip "groups" — already processed above)
-    for k, v in data.items():
-        if k == "groups":
-            continue
-        if isinstance(v, (dict, list)):
-            _extract_sofascore_json_stats(v, stat_keys, stats, _depth + 1)
-
-
 # ---------------------------------------------------------------------------
 # Deep extraction — structured data from Flashscore HTML
 # ---------------------------------------------------------------------------
@@ -833,215 +630,6 @@ def _parse_flashscore_deep(html: str, sport: str) -> dict:
                 result["stats_per_match"][score_key] = scores[:10]
 
     return result
-
-
-# ---------------------------------------------------------------------------
-# Deep extraction — Sofascore API (public, no key needed)
-# ---------------------------------------------------------------------------
-
-_SOFASCORE_API_BASE = "https://api.sofascore.com/api/v1"
-_SOFASCORE_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-    "Accept": "application/json",
-    "Referer": "https://www.sofascore.com/",
-}
-_SOFASCORE_SPORT_MAP = {
-    "football": "football",
-    "basketball": "basketball",
-    "hockey": "ice-hockey",
-    "tennis": "tennis",
-    "volleyball": "volleyball",
-}
-
-
-def _sofascore_request(url: str, max_retries: int = 3) -> dict | None:
-    """Make a Sofascore API request with exponential backoff retry."""
-    import urllib.request
-    import urllib.error
-
-    for attempt in range(max_retries):
-        try:
-            req = urllib.request.Request(url, headers=_SOFASCORE_HEADERS)
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                return json.loads(resp.read().decode("utf-8"))
-        except urllib.error.HTTPError as e:
-            if e.code == 429:
-                wait = (2 ** attempt) * 1.5
-                logger.warning("Sofascore rate limited, waiting %.1fs (attempt %d/%d)",
-                               wait, attempt + 1, max_retries)
-                time.sleep(wait)
-            elif e.code in (403, 404):
-                logger.debug("Sofascore %d for %s", e.code, url)
-                return None
-            else:
-                logger.warning("Sofascore HTTP %d for %s", e.code, url)
-                return None
-        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as e:
-            logger.debug("Sofascore request error: %s", e)
-            if attempt < max_retries - 1:
-                time.sleep(2 ** attempt)
-            else:
-                return None
-    return None
-
-
-def _fetch_sofascore_deep(team_name: str, sport: str) -> dict:
-    """Fetch deep structured data from Sofascore public API.
-
-    Returns same structure as _parse_flashscore_deep.
-    """
-    result = {
-        "recent_form": [],
-        "h2h_meetings": [],
-        "injuries": [],
-        "stats_per_match": {},
-    }
-
-    ss_sport = _SOFASCORE_SPORT_MAP.get(sport, sport)
-
-    # Step 1: Search for team
-    from urllib.parse import quote
-    search_url = f"{_SOFASCORE_API_BASE}/search/all?q={quote(team_name)}&page=0"
-    _rate_limit("sofascore.com")
-    search_data = _sofascore_request(search_url)
-    if not search_data:
-        return result
-
-    # Find team ID from search results
-    team_id = None
-    teams = search_data.get("teams", [])
-    for t in teams:
-        t_sport = t.get("sport", {}).get("slug", "")
-        if t_sport == ss_sport:
-            team_id = t.get("id")
-            break
-    # Fallback: take first team result
-    if not team_id and teams:
-        team_id = teams[0].get("id")
-
-    if not team_id:
-        logger.debug("Sofascore: team not found for '%s' (%s)", team_name, sport)
-        return result
-
-    # Step 2: Get last events
-    events_url = f"{_SOFASCORE_API_BASE}/team/{team_id}/events/last/0"
-    _rate_limit("sofascore.com")
-    events_data = _sofascore_request(events_url)
-    if not events_data:
-        return result
-
-    events = events_data.get("events", [])[:10]
-
-    # Step 3: Extract form + per-event stats
-    for event in events:
-        home_team = event.get("homeTeam", {})
-        away_team = event.get("awayTeam", {})
-        home_name = home_team.get("name", "")
-        away_name = away_team.get("name", "")
-        home_score = event.get("homeScore", {})
-        away_score = event.get("awayScore", {})
-
-        is_home = home_name.lower() == team_name.lower() or home_team.get("id") == team_id
-        opponent = away_name if is_home else home_name
-        h_score = home_score.get("current", home_score.get("display", ""))
-        a_score = away_score.get("current", away_score.get("display", ""))
-
-        # Determine result
-        result_str = ""
-        try:
-            hs, as_ = int(h_score), int(a_score)
-            if is_home:
-                result_str = "W" if hs > as_ else ("L" if hs < as_ else "D")
-            else:
-                result_str = "W" if as_ > hs else ("L" if as_ < hs else "D")
-        except (ValueError, TypeError):
-            pass
-
-        tournament = event.get("tournament", {})
-        comp_name = tournament.get("name", "")
-        start_ts = event.get("startTimestamp", 0)
-        date_str = ""
-        if start_ts:
-            try:
-                date_str = datetime.fromtimestamp(start_ts, tz=timezone.utc).strftime("%Y-%m-%d")
-            except (ValueError, TypeError, OSError):
-                pass
-
-        form_entry = {
-            "date": date_str,
-            "opponent": opponent,
-            "result": result_str,
-            "score": f"{h_score}-{a_score}" if h_score != "" and a_score != "" else "",
-            "competition": comp_name,
-            "venue": "H" if is_home else "A",
-        }
-        result["recent_form"].append(form_entry)
-
-        # Step 4: Get per-event statistics
-        event_id = event.get("id")
-        if event_id:
-            stats_url = f"{_SOFASCORE_API_BASE}/event/{event_id}/statistics"
-            _rate_limit("sofascore.com")
-            stats_data = _sofascore_request(stats_url)
-            if stats_data:
-                _extract_sofascore_event_stats(
-                    stats_data, is_home, result["stats_per_match"]
-                )
-
-    return result
-
-
-def _extract_sofascore_event_stats(
-    stats_data: dict, is_home: bool, stats_per_match: dict
-) -> None:
-    """Extract per-match stat values from Sofascore event statistics response."""
-    # Sofascore stats structure: {"statistics": [{"period": "ALL", "groups": [...]}]}
-    stat_name_map = {
-        "corner kicks": "corners",
-        "corners": "corners",
-        "fouls": "fouls",
-        "yellow cards": "yellow_cards",
-        "red cards": "red_cards",
-        "total shots": "shots",
-        "shots on target": "shots_on_target",
-        "shots off target": "shots",
-        "ball possession": "possession",
-        "offsides": "offsides",
-        "goalkeeper saves": "saves",
-        "free kicks": "free_kicks",
-        "total passes": "passes",
-        "tackles": "tackles",
-        "blocked shots": "blocked_shots",
-        "points": "points",
-        "rebounds": "rebounds",
-        "assists": "assists",
-        "steals": "steals",
-        "blocks": "blocks",
-        "turnovers": "turnovers",
-        "aces": "aces",
-        "double faults": "double_faults",
-        "break points won": "break_points_won",
-        "hits": "hits",
-        "penalty minutes": "pim",
-        "faceoffs won": "faceoffs_won",
-    }
-
-    for period_group in stats_data.get("statistics", []):
-        if period_group.get("period") != "ALL":
-            continue
-        for group in period_group.get("groups", []):
-            for item in group.get("statisticsItems", []):
-                stat_name = item.get("name", "").lower()
-                mapped_key = stat_name_map.get(stat_name)
-                if not mapped_key:
-                    continue
-                home_val = item.get("home", "")
-                away_val = item.get("away", "")
-                try:
-                    val = float(str(home_val).rstrip("%")) if is_home else float(str(away_val).rstrip("%"))
-                    stats_per_match.setdefault(mapped_key, []).append(val)
-                except (ValueError, TypeError):
-                    pass
 
 
 # ---------------------------------------------------------------------------
@@ -1504,20 +1092,6 @@ def _try_flashscore(team_name: str, sport: str) -> tuple[dict, str | None]:
         return {}, f"Flashscore fetch error: {exc}"
 
 
-def _try_sofascore(team_name: str, sport: str) -> tuple[dict, str | None]:
-    """Fetch stats from Sofascore (fallback). Returns (stats_dict, error_or_None)."""
-    url = _build_sofascore_url(team_name, sport)
-    _rate_limit("sofascore.com")
-    try:
-        html = fetch(url, save_snapshot=False)
-        if html is None:
-            return {}, "CAPTCHA or empty response from Sofascore"
-        stats = _parse_sofascore_stats(html, sport)
-        return stats, None
-    except Exception as exc:
-        return {}, f"Sofascore fetch error: {exc}"
-
-
 def _try_scores24(team_name: str, sport: str) -> tuple[dict, str | None]:
     """Fetch stats from scores24.live (third-tier fallback). Returns (stats_dict, error_or_None)."""
     url = _build_scores24_url(team_name, sport)
@@ -1595,29 +1169,7 @@ def enrich_team(team_name: str, sport: str, max_retries: int = 2) -> dict:
         if attempt < max_retries:
             time.sleep(1.0)
 
-    # Fallback: try Sofascore
-    for attempt in range(1, max_retries + 1):
-        stats, err = _try_sofascore(team_name, sport)
-        if stats:
-            source = "sofascore"
-            result["source"] = source
-            found_keys = set(stats.keys())
-            if found_keys:
-                result["status"] = "partial" if found_keys < set(stat_keys) else "enriched"
-            result["stats_found"] = {
-                k: _safe_avg(v) for k, v in stats.items() if v
-            }
-
-            _save_to_cache(team_name, sport, stats, source)
-            _save_to_db(team_name, sport, stats, "enrichment-agent")
-            return result
-
-        if err:
-            errors.append(err)
-        if attempt < max_retries:
-            time.sleep(1.0)
-
-    # Third fallback: try scores24.live
+    # Fallback: try scores24.live
     stats, err = _try_scores24(team_name, sport)
     if stats:
         source = "scores24"
@@ -1663,9 +1215,8 @@ def enrich_team_deep(team_name: str, sport: str) -> dict:
     """Run deep extraction for a team from multiple sources.
 
     Tries sources in order of data quality and speed:
-    1. Sofascore API (structured, fast, rich stats)
-    2. ESPN API (free, unlimited, good for injuries/schedule)
-    3. Flashscore deep parse (Playwright-based, slowest)
+    1. ESPN API (free, unlimited, good for injuries/schedule)
+    2. Flashscore deep parse (Playwright-based, rich stats)
 
     Returns deep data dict with quality score.
     """
@@ -1681,20 +1232,7 @@ def enrich_team_deep(team_name: str, sport: str) -> dict:
     best_score = 0
     best_source = None
 
-    # Source 1: Sofascore API
-    try:
-        ss_data = _fetch_sofascore_deep(team_name, sport)
-        ss_quality = _compute_enrichment_quality(ss_data, sport)
-        if ss_quality["score"] > best_score:
-            best_data = ss_data
-            best_score = ss_quality["score"]
-            best_source = "sofascore-api"
-            logger.info("Sofascore deep: %s (%s) quality=%d",
-                        team_name, sport, ss_quality["score"])
-    except Exception as e:
-        logger.warning("Sofascore deep failed for %s: %s", team_name, e)
-
-    # Source 2: ESPN API (always try — free and has injuries)
+    # Source 1: ESPN API (free and has injuries)
     try:
         espn_data = _fetch_espn_deep(team_name, sport)
         espn_quality = _compute_enrichment_quality(espn_data, sport)
@@ -1704,14 +1242,10 @@ def enrich_team_deep(team_name: str, sport: str) -> dict:
             best_source = "espn-api"
             logger.info("ESPN deep: %s (%s) quality=%d",
                         team_name, sport, espn_quality["score"])
-        # Merge injury data from ESPN even if Sofascore had better stats
-        elif best_data and espn_data.get("injuries") and not best_data.get("injuries"):
-            best_data["injuries"] = espn_data["injuries"]
-            logger.info("ESPN injuries merged for %s", team_name)
     except Exception as e:
         logger.warning("ESPN deep failed for %s: %s", team_name, e)
 
-    # Source 3: Flashscore deep parse (only if we don't have good data yet)
+    # Source 2: Flashscore deep parse (only if we don't have good data yet)
     if best_score < 40:
         try:
             url = _build_flashscore_url(team_name, sport)

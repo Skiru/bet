@@ -131,10 +131,14 @@ class FlashscoreClient(BaseAPIClient):
             viewport={"width": 1920, "height": 1080},
             locale="en-GB",
         )
-        page = ctx.new_page()
-        if Stealth:
-            Stealth().apply_stealth_sync(page)
-        return ctx, page
+        try:
+            page = ctx.new_page()
+            if Stealth:
+                Stealth().apply_stealth_sync(page)
+            return ctx, page
+        except Exception:
+            ctx.close()
+            raise
 
     def _dismiss_cookies(self, page):
         """Dismiss cookie consent banner if present."""
@@ -201,6 +205,10 @@ class FlashscoreClient(BaseAPIClient):
                 return ctx, page
 
             except APIError:
+                try:
+                    ctx.close()
+                except Exception:
+                    pass
                 raise
             except Exception as e:
                 logger.warning(f"[Flashscore] Page load attempt {attempt} failed: {e}")
@@ -260,7 +268,7 @@ class FlashscoreClient(BaseAPIClient):
         if (stats.length === 0) {
             const wclRows = document.querySelectorAll('[class*="wcl-statistics"]');
             for (const row of wclRows) {
-                const cells = row.querySelectorAll('div, span');
+                const cells = row.querySelectorAll(':scope > div, :scope > span');
                 if (cells.length >= 3) {
                     stats.push({
                         home: cells[0].textContent.trim(),
@@ -346,13 +354,13 @@ class FlashscoreClient(BaseAPIClient):
         info.home = home ? home.textContent.trim() : '';
         info.away = away ? away.textContent.trim() : '';
 
-        // Try multiple tournament selectors
+        // Try multiple tournament selectors — prefer leaf elements over containers
         let tournament = document.querySelector('.tournamentHeader__country a');
         if (!tournament) tournament = document.querySelector('.tournamentHeader__country');
-        if (!tournament) tournament = document.querySelector('[class*="tournamentHeader"]');
+        if (!tournament) tournament = document.querySelector('[class*="tournamentHeader__title"]');
         if (!tournament) tournament = document.querySelector('.breadcrumb');
         
-        info.tournament = tournament ? tournament.textContent.trim() : (document.title || '');
+        info.tournament = tournament ? tournament.textContent.trim() : '';
 
         const startTime = document.querySelector('.duelParticipant__startTime');
         info.start_time = startTime ? startTime.textContent.trim() : '';
@@ -417,7 +425,8 @@ class FlashscoreClient(BaseAPIClient):
         from .api_football import APIFixture
 
         slug = SPORT_SLUGS.get(sport, sport)
-        url = f"https://www.flashscore.com/{slug}/"
+        # Thread date into URL — without ?d= Flashscore always returns today's fixtures
+        url = f"https://www.flashscore.com/{slug}/?d={date}"
 
         logger.info(f"[Flashscore] Fetching fixtures for {sport} on {date}")
 
@@ -431,6 +440,10 @@ class FlashscoreClient(BaseAPIClient):
             fixtures = []
             for ev in raw:
                 try:
+                    # Skip events with no ID — breaks dedup and stat lookups
+                    if not ev.get("id"):
+                        continue
+
                     # Build competition name from country + league
                     comp = ev.get("league", "")
                     if ev.get("country"):
@@ -626,13 +639,18 @@ class FlashscoreClient(BaseAPIClient):
                         else if (title.includes('draw') || title === 'd') totalForms.push('D');
                         else if (title.includes('loss') || title === 'l') totalForms.push('L');
                     }
-                    if (totalForms.length >= 10) {
+                    // Only split if we have exactly 10 (5+5); other counts are ambiguous
+                    if (totalForms.length === 10) {
                         result.home = totalForms.slice(0, 5);
                         result.away = totalForms.slice(5, 10);
+                        result._fallback = true;
                     }
                 }
                 return result;
             }""")
+
+            if form_data.get("_fallback"):
+                logger.debug(f"[Flashscore] Form data for {event_id} used positional fallback — may be inaccurate")
 
             # Extract venue
             detail_text = page.evaluate("""() => {

@@ -93,7 +93,7 @@ The pipeline has individual scripts for each step. The ORCHESTRATOR AGENT calls 
 1. **WIDE:** ALL 5 sports every run. All sports get league-depth priority. Never say "no events" without exhausting the FULL fallback chain (see source-registry.md) + a Google search.
 2. **DEEP:** Enter EVERY tournament/league for all 5 sports. Landing pages hide 80%. Count matches. Cross-validate counts between ≥2 sources (>20% discrepancy = missed events).
 3. **MULTI-LEVEL:** Per candidate: Tier A stats → Tier A markets → Tier B tipsters (read REASONING) → specialist sources → context.
-4. **AGGRESSIVELY:** Source fails? Log the error, try next in chain immediately. All chain sources fail? Google `"[sport] matches today site:flashscore.com OR site:sofascore.com"` or `"[tournament] schedule [date]"`. After finishing other sports, RETRY failed sources (rate limits often clear in 15-30 min). **Never declare a sport empty without trying ≥3 independent sources + 1 Google search.**
+4. **AGGRESSIVELY:** Source fails? Log the error, try next in chain immediately. All chain sources fail? Google `"[sport] matches today site:flashscore.com"` or `"[tournament] schedule [date]"`. After finishing other sports, RETRY failed sources (rate limits often clear in 15-30 min). **Never declare a sport empty without trying ≥3 independent sources + 1 Google search.**
 5. **COMPARE:** Every data point needs ≥2 independent confirmations.
 6. **RETRY LOOP:** After the first scan pass, review `scan_errors.json` and ALL failed sources. Retry each failed source ONCE. If it works now, add its events. Log final status.
 
@@ -218,13 +218,13 @@ If the file is missing, run: `python3 scripts/parse_betclic_bets.py` (requires H
 
 ## STEP 1: SCAN — Complete Event Discovery
 
-1. Run `python3 scripts/scan_events.py --date YYYY-MM-DD --verbose` (Beast Mode — Sofascore REST API scan for all 5 sports with deep enrichment). Parse `AGENT_SUMMARY:{json}`.
+1. Run `python3 scripts/scan_events.py --date YYYY-MM-DD --verbose` (Flashscore + ESPN scan for all 5 sports with deep enrichment). Parse `AGENT_SUMMARY:{json}`.
 2. Run `python3 scripts/ingest_scan_stats.py --date YYYY-MM-DD --verbose` to transform scan data into stats_cache + team_form DB.
 3. Run `python3 scripts/fetch_odds_api.py` for cross-validation (30 credits/scan, 500/month free).
-4. **Deep Data Coverage:** Check deep enrichment % from scan (form, H2H, odds). Events without deep data → enrichment fills gaps.
+4. **Deep Data Coverage:** Check deep enrichment % from scan (form, H2H). Events without deep data → enrichment fills gaps.
 5. **Tournament depth (§1.3):** Major tournament active? Verify ALL tournament matches present in scan (R7).
-6. **Cross-validate:** Compare Sofascore event counts per sport. All 5 sports must be represented.
-7. Record per event: sport, competition, event, kickoff, source (sofascore-api).
+6. **Cross-validate:** Compare event counts per sport. All 5 sports must be represented.
+7. Record per event: sport, competition, event, kickoff, source.
 
 **5-SPORT CHECKLIST (mandatory — check each):**
 - **CORE (deep league scan):** Football, Tennis, Basketball, Volleyball, Hockey.
@@ -291,7 +291,6 @@ Verification sources (use ≥2 per candidate):
 - **Flashscore** — check sport-specific daily schedule page
 - **BetExplorer** — check competition page for today's matches
 - **Official tournament site** (ATP/WTA draws, EHF schedule, ekstraliga.pl, etc.)
-- **Sofascore** — alternative fixture verification
 
 **Tipster-only candidates (no independent fixture confirmation):**
 - If tipster references an event that appears in ZERO non-tipster sources → **DO NOT SHORTLIST**. Log as `UNVERIFIED-SKIP` in S1 notes.
@@ -356,7 +355,7 @@ Before investing analysis time on ANY candidate (not just exotic — ALL candida
 | Requirement | Mainstream | Exotic |
 |-------------|-----------|--------|
 | H2H meetings minimum | 5 | 3 (flag as EXOTIC-THIN if <5) |
-| Stat sources minimum | 3 | 2 (Flashscore/Sofascore + 1 specialist) |
+| Stat sources minimum | 3 | 2 (Flashscore + 1 specialist) |
 | Tipster sources | ≥2 with reasoning | ≥1 (exotic leagues rarely covered by tipsters) |
 | Corner/card stat source | TotalCorner + SoccerStats + Betclic | Soccerway + Flashscore match stats (fallback) |
 | §3.0 market ranking | ≥3 alternative markets | ≥2 alternative markets (if data allows 3, do 3) |
@@ -369,7 +368,7 @@ Picks with EXOTIC-THIN data flags:
 
 **§1.7c SOURCE FALLBACK CHAIN (exotic football):**
 ```
-Primary: Flashscore (fixture, H2H, match stats) + Sofascore (form, stats)
+Primary: Flashscore (fixture, H2H, match stats, form)
 ├── H2H thin? → Soccerway H2H + AiScore H2H
 ├── Corner/card stats missing? → Flashscore match-level stats (last 10 games, manual count)
 ├── League standings missing? → Soccerway standings + BetExplorer results
@@ -390,7 +389,7 @@ Primary: Flashscore (fixture, H2H, match stats) + Sofascore (form, stats)
 | Time zone mismatch | Kickoff at unusual local time (e.g., 3 AM local = potential integrity concern) | FLAG — investigate reason. Official schedule adjustments for TV are OK; unexplained off-hour matches = caution. |
 
 **§1.7e EXOTIC LEAGUE CLASSIFICATION:**
-- **Tier E1 (established exotic):** Saudi Pro League, Egyptian Premier League, Moroccan Botola, Algerian Ligue 1, UAE Pro League, Indian ISL, Colombian Liga BetPlay, Chilean Primera, Paraguayan Primera, Ecuadorian LigaPro, Peruvian Liga 1, Uzbekistan Super League, Kazakhstan Premier League, Georgian Erovnuli Liga, Kosovo Superliga, North Macedonian First League — reasonable data coverage, Flashscore/Sofascore available, BetExplorer usually has odds.
+- **Tier E1 (established exotic):** Saudi Pro League, Egyptian Premier League, Moroccan Botola, Algerian Ligue 1, UAE Pro League, Indian ISL, Colombian Liga BetPlay, Chilean Primera, Paraguayan Primera, Ecuadorian LigaPro, Peruvian Liga 1, Uzbekistan Super League, Kazakhstan Premier League, Georgian Erovnuli Liga, Kosovo Superliga, North Macedonian First League — reasonable data coverage, Flashscore available, BetExplorer usually has odds.
 - **Tier E2 (thin data):** Bolivian Primera, Costa Rican Primera, Central American leagues, Iranian PGPL, Iraqi Stars League, Jordanian Pro League, Armenian/Azerbaijani leagues, Faroe Islands, Gibraltar, Andorra, San Marino — sparse data, limited H2H, Soccerway may be only reliable source.
 - **Tier E3 (ultra-thin):** Bangladesh, Myanmar, Cambodia, Laos, Mongolia, Turkmenistan, Tajikistan, Kyrgyzstan — minimal data coverage, avoid unless strong reason and Betclic offers markets.
 - **Entertainment:** Kings League — separate protocol, non-standard football rules.
@@ -518,7 +517,7 @@ This passes the gate but signals incomplete validation to the user.
 **Every stat cited in S3 output MUST include ALL THREE:**
 1. **Source name** — the exact website or tool (e.g., "SoccerStats", "TennisAbstract", "Flashscore H2H tab")
 2. **Exact data point** — the specific number with context (e.g., "Liverpool avg 11.2 corners/match at home, L10 games")
-3. **Fetch reference** — how the data was obtained (e.g., "Sofascore API", "web-fetch", "Odds-API snapshot")
+3. **Fetch reference** — how the data was obtained (e.g., "Flashscore API", "web-fetch", "Odds-API snapshot")
 
 **BANNED WORDS in S3 table cells** — if ANY of these appear as the SOLE content of a table cell, it is a STRUCTURAL VIOLATION and the candidate is REJECTED:
 - "checked", "verified", "confirmed", "good", "fine", "OK", "done", "yes", "—", "N/A", "n/a", "see above"

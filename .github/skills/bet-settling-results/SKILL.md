@@ -11,7 +11,7 @@ Procedures for settling picks and coupons, tracking performance, and maintaining
 ## Settlement Execution
 
 ### Auto-Resolve Markets
-Winner/1X2, totals (any line), BTTS, double chance — resolve from Flashscore + verify on Sofascore.
+Winner/1X2, totals (any line), BTTS, double chance — resolve from Flashscore + verify on ESPN.
 
 ### Manual-Resolve Markets
 Corners, cards, handicaps, MyCombi — require manual result lookup.
@@ -109,4 +109,4 @@ For EACH LOSS:
 
 - `bet-formatting-artifacts` — Ledger CSV formats and pick/coupon ID conventions used during settlement
 - `bet-analyzing-statistics` — Historical hit rates from settlement feed back into §3.0 market ranking confidence
-- `bet-navigating-sources` — Result verification sources (Flashscore, Sofascore, ESPN scores)
+- `bet-navigating-sources` — Result verification sources (Flashscore, ESPN scores)

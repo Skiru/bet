@@ -4,22 +4,12 @@ Purpose: document all data sources used by the 5-sport pipeline (football, volle
 
 ## Source Philosophy
 
-The pipeline uses **Beast Mode architecture**: Sofascore REST API as the primary scan source for event discovery and deep data (form, H2H, odds) across all 5 sports. Enrichment sources fill gaps. The workflow must:
-1. Use Sofascore REST API as the event discovery + deep data backbone (`scan_events.py`).
+The pipeline uses **Flashscore + ESPN architecture**: Flashscore as the primary scan source for event discovery and deep data (form, H2H) across all 5 sports, with ESPN as fallback. Enrichment sources fill gaps. The workflow must:
+1. Use Flashscore as the event discovery + deep data backbone (`scan_events.py` via UnifiedAPIClient).
 2. Use Tier A market sources for odds comparison and line shopping.
-3. Use enrichment sources (ESPN, Flashscore HTTP) to fill statistical gaps from the scan.
+3. Use enrichment sources (ESPN API, scores24) to fill statistical gaps from the scan.
 4. Use Tier B tipster/community sites to validate direction, discover angles, and check consensus.
 5. Prioritize lower-division and minor-league coverage — market inefficiency is highest where bookmaker lines are weakest.
-
-## PRIMARY: Sofascore REST API (Beast Mode)
-
-- Sofascore REST API
-  Role: primary event discovery + deep enrichment for ALL 5 sports.
-  Endpoints: `api.sofascore.com/api/v1/sport/{sport}/scheduled-events/{date}`, `/event/{id}/pregame-form`, `/event/{id}/h2h`, `/event/{id}/odds/1/all`
-  Use for: fixture discovery, team form, H2H history, pre-match odds.
-  Access: public API, no key required. Rate limit: 0.3s between requests.
-  Script: `scripts/scan_events.py`
-  Output: `betting/data/global_events_api.json` + DB (fixtures, scan_results, teams, competitions)
 
 ## Tier A Core Market and Price Sources
 
@@ -90,12 +80,10 @@ The pipeline uses **Beast Mode architecture**: Sofascore REST API as the primary
 ## Tier A Core Stats, Fixture, and Verification Sources
 
 - Flashscore
-  Role: schedules, lineups, H2H, live stats, xG and match statistics where available, and results.
-  Use for: fixture confirmation, pre-match context, and settlement verification.
-
-- Sofascore
-  Role: schedules, team form, player ratings, lineups, H2H, dropping or rising odds, and cross-sport stats.
-  Use for: pre-match context, verification, extra stats, and line movement cross-check.
+  Role: PRIMARY scan source — schedules, lineups, H2H, live stats, xG and match statistics, form, and results.
+  Use for: fixture discovery (via UnifiedAPIClient), pre-match context, deep enrichment, and settlement verification.
+  Access: HTTP + Playwright stealth fallback. Rate limit: 2s between requests.
+  Script: `scripts/scan_events.py` (UnifiedAPIClient → FlashscoreClient)
 
 - Covers
   Role: expert-written previews for US sports and big markets.
@@ -240,7 +228,7 @@ These API sources provide structured statistical data via REST APIs. They are th
   Role: volleyball statistics API client — team stats, match results, set scores, point totals.
   Use for: L10/L5/H2H statistical data for volleyball set totals, point totals, and set handicap markets.
   Script: `python3 scripts/fetch_api_stats.py --sports volleyball` (uses `api_clients/api_volleyball.py`)
-  Fallback: TheSportsDB → Playwright (Flashscore, Sofascore).
+  Fallback: TheSportsDB → Playwright (Flashscore).
   Added: 2026-04-30.
 
 - TheSportsDB
@@ -394,12 +382,9 @@ These adapters provide structured data extraction from web sources, normalizing 
   Updated: 2026-05-12.
 
 - sofascore_adapter.py (`scripts/adapters/sofascore_adapter.py`)
-  Role: API-based adapter for Sofascore — extracts fixtures, team form, player ratings, and match statistics via REST API (no Playwright needed).
-  Use for: fixture cross-validation, form context, and pre-match statistics across all sports. 80+ football matches per day.
-  Input: Sofascore sport URLs (auto-detects sport and date)
-  Output: normalized fixture list with match_url (event stats endpoint), sofascore_id (→ match_id), sport, source_type. `get_deep_links()` extracts per-event API stat URLs.
-  Features: verbose logging, dedup, API-first (HTML fallback).
-  Updated: 2026-05-12.
+  Role: ARCHIVED — Sofascore API blocked by Cloudflare WAF (403). Kept as insurance.
+  Status: DISABLED. All scan/enrichment routes through Flashscore + ESPN.
+  Updated: 2026-05-13.
 
 - totalcorner_adapter.py (`scripts/adapters/totalcorner_adapter.py`)
   Role: structured parser for TotalCorner pages — extracts corner counts, dangerous attacks, goal handicaps, cards, standings. Needs Playwright for JS-rendered content.
@@ -699,7 +684,7 @@ These sources provide tips, predictions, and community analysis for exotic footb
 - BetsAPI
   Role: API for live and upcoming events across 100+ football leagues globally — covers fixtures, results, and basic odds.
   URL: betsapi.com
-  Use for: programmatic fixture discovery for exotic leagues. Useful when Flashscore/Sofascore don't list a specific league's fixtures.
+  Use for: programmatic fixture discovery for exotic leagues. Useful when Flashscore doesn't list a specific league's fixtures.
   Access: Free tier available. API-based (JSON).
   Coverage: 100+ leagues including many exotic ones. Good for verifying fixture existence.
 
@@ -836,10 +821,9 @@ These sources provide tips, predictions, and community analysis for exotic footb
   Access: OK.
 
 - Sofascore (Volleyball section)
-  Role: volleyball team form, player stats, match stats.
+  Role: ARCHIVED — blocked by Cloudflare WAF (403).
   URL: sofascore.com/volleyball
-  Use for: form context and match analysis.
-  Access: OK.
+  Status: DISABLED. Use Flashscore volleyball section instead.
 
 - CEV (Confédération Européenne de Volleyball)
   Role: official European volleyball — Champions League, CEV Cup results, team stats, standings.
@@ -890,10 +874,10 @@ These sources help ensure NO tournament or event is missed during the scan phase
   Access: OK.
 
 - Sofascore (All Sports)
-  Role: universal fixture aggregator — ALL sports in one place with form, H2H, stats.
+  Role: ARCHIVED — blocked by Cloudflare WAF (403). All API endpoints return HTTP 403.
   URL: sofascore.com
-  Use for: cross-validating event counts from BetExplorer/Flashscore. Covers all 5 pipeline sports plus many others.
-  Access: OK.
+  Status: DISABLED. Use Flashscore + ESPN for cross-validation.
+  Blocked: 2026-05-13.
 
 - LiveScore
   Role: multi-sport live scores and fixtures — football, tennis, basketball, hockey, cricket.
@@ -961,7 +945,7 @@ Use this table to know WHERE to get odds for each sport. Never give up after one
 ### Sport-Specific Playbooks
 
 - Football
-  Minimum stack: Flashscore or Sofascore + BetExplorer or OddsPortal + SoccerStats (league context) + TotalCorner (match corners).
+  Minimum stack: Flashscore + BetExplorer or OddsPortal + SoccerStats (league context) + TotalCorner (match corners).
   Tipster cross-check: Zawod Typer, Typersi, BetIdeas, PicksWise, Tipstrr.
   Specialist sources: Betaminic (corners/cards tables), Betclic Statystyki (top leagues only), TransferMarkt (coaching changes, transfers).
   Lower-division coverage: Soccerway (200+ countries, 1000+ leagues) + AiScore/Xscores (Asian/African stats) + Goaloo/NowGoal (Asian coverage). Use when SoccerStats/TotalCorner have no data for the league. BetsAPI for programmatic fixture discovery of ultra-exotic leagues.
@@ -985,12 +969,12 @@ Use this table to know WHERE to get odds for each sport. Never give up after one
   Tipster cross-check: Zawod Typer, Tipstrr.
   Elo integration: `lookup_tennis_elo()` in `compute_safety_scores.py` reads cached Elo data, adds +1 to data quality score.
   H2H enrichment: `enrich_tennis_stats.py` with `--verbose` fetches ESPN athlete-vs-athlete API data.
-  Challenger/ITF coverage: TennisExplorer covers Challenger and ITF Futures draws. UltimateTennisStatistics provides surface-specific Elo for lower-ranked players. Flashscore and Sofascore list all ITF events.
+  Challenger/ITF coverage: TennisExplorer covers Challenger and ITF Futures draws. UltimateTennisStatistics provides surface-specific Elo for lower-ranked players. Flashscore lists all ITF events.
   Preferred markets: game totals O/U (PRIMARY) > set totals O/U > game handicap > set handicap > moneyline (LAST RESORT — only 1.50-2.50 range + STRONG odds ratio + surface + H2H dominance).
   **ABSOLUTE RULE**: NEVER default to ML in tennis. Statistical markets have ~65% hit rate vs ML ~58%. Always prefer games/sets.
 
 - Volleyball
-  Minimum stack: BetExplorer volleyball section + Flashscore or Sofascore.
+  Minimum stack: BetExplorer volleyball section + Flashscore.
   Tipster cross-check: Tipstrr.
   Enhanced coverage: VolleyballWorld.com (official FIVB — international competitions, world rankings, team stats) + CEV.eu (European club competitions — Champions League, CEV Cup) + PlusLiga.pl (Polish league).
   Preferred markets: set totals > point totals > set handicap > moneyline (LAST RESORT).
@@ -1068,7 +1052,7 @@ Use this table to know WHERE to get data for exotic football leagues. "Betclic" 
 
 ## Settlement Sources
 
-- Primary settlement sources: Flashscore and Sofascore.
+- Primary settlement sources: Flashscore.
 - Secondary settlement sources: bookmaker settled market plus OddsPortal or BetExplorer archived results.
 - Use two sources whenever possible.
 - If only one reliable source is available, note it explicitly in the daily report and ledger notes.

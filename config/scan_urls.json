@@ -171,7 +171,6 @@
         "https://scores24.live/en/badminton",
         "https://scores24.live/en/boxing",
         "https://scores24.live/en/futsal",
-        "https://www.sofascore.com/",
         "https://www.oddsportal.com/",
         "https://www.betexplorer.com/",
         "https://www.flashscore.com/football/argentina/primera-b-nacional/",
@@ -237,7 +236,6 @@
         "https://www.flashscore.com/tennis/wta-doubles/",
         "https://www.flashscore.com/tennis/davis-cup/",
         "https://www.flashscore.com/tennis/united-cup/",
-        "https://www.sofascore.com/tennis",
         "https://www.flashscore.com/tennis/atp-singles/indian-wells-masters/",
         "https://www.flashscore.com/tennis/atp-singles/miami-open/",
         "https://www.flashscore.com/tennis/atp-singles/madrid-open/",
@@ -304,7 +302,6 @@
         "https://www.flashscore.com/basketball/usa/nba-summer-league/",
         "https://www.flashscore.com/basketball/usa/wnba/",
         "https://www.flashscore.com/basketball/usa/ncaa/",
-        "https://www.sofascore.com/basketball",
         "https://www.flashscore.com/basketball/usa/nba-women/",
         "https://www.flashscore.com/basketball/spain/leb-oro/",
         "https://www.flashscore.com/basketball/turkey/tbl/",
@@ -364,7 +361,6 @@
         "https://www.flashscore.com/volleyball/netherlands/eredivisie/",
         "https://www.flashscore.com/volleyball/spain/superliga/",
         "https://www.flashscore.com/volleyball/belgium/euromillions-volley-league/",
-        "https://www.sofascore.com/volleyball",
         "https://www.flashscore.com/volleyball/italy/serie-a1-women/",
         "https://www.flashscore.com/volleyball/turkey/sultanlar-ligi/",
         "https://www.flashscore.com/volleyball/russia/super-league/",
@@ -374,7 +370,6 @@
       "timeout_minutes": 5,
       "max_deep_links": 20,
       "dedicated_sources": [
-        "sofascore.com"
       ]
     },
     "hockey": {
@@ -403,7 +398,6 @@
         "https://www.flashscore.com/hockey/finland/mestis/",
         "https://www.flashscore.com/hockey/sweden/hockeyallsvenskan/",
         "https://www.flashscore.com/hockey/czech-republic/1-liga/",
-        "https://www.sofascore.com/ice-hockey",
         "https://www.flashscore.com/hockey/slovakia/tipos-extraliga/",
         "https://www.flashscore.com/hockey/germany/del2/",
         "https://www.flashscore.com/hockey/austria/ice-hockey-league/",
@@ -453,9 +447,6 @@
     },
     "flashscore.com": {
       "parallel": 3
-    },
-    "sofascore.com": {
-      "parallel": 2
     },
     "betexplorer.com": {
       "parallel": 2
@@ -617,8 +608,6 @@
     "https://www.flashscore.com/darts/pdc/",
     "https://www.flashscore.com/mma/ufc/",
     "https://www.soccerway.com/",
-    "https://www.sofascore.com/",
-    "https://www.sofascore.com/padel",
     "https://www.betclic.pl/pilka-nozna-s1",
     "https://www.betclic.pl/tenis-s2",
     "https://www.betclic.pl/koszykowka-s4",

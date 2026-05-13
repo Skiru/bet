@@ -243,7 +243,7 @@ def _extract_h2h_matches(h2h_data: dict, sport: str) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 def _parse_odds_val(choice: dict) -> float | None:
-    """Extract decimal odds from a Sofascore choice dict.
+    """Extract decimal odds from a choice dict.
     
     Handles fractional ("5/4" → 2.25) and decimal formats.
     Returns None for invalid or sub-1.0 odds.
@@ -284,7 +284,7 @@ def _normalize_beast_mode_event(event: dict) -> tuple[str, dict]:
     # Key renames
     normalized["home"] = event.get("home_team", event.get("home", ""))
     normalized["away"] = event.get("away_team", event.get("away", ""))
-    normalized["source"] = "sofascore-api"
+    normalized["source"] = "flashscore"
 
     # Form normalization: Beast Mode nested → flat form_home/form_away
     # Preserve ALL data from pregame-form endpoint (position, value, form sequence, matches)
@@ -488,12 +488,12 @@ def _normalize_beast_mode_event(event: dict) -> tuple[str, dict]:
         if odds_dict:
             normalized["odds"] = odds_dict
 
-    # Expected stats from Sofascore (pre-match projections)
+    # Expected stats (pre-match projections)
     expected_stats = event.get("expected_stats") or {}
     if expected_stats:
         normalized["expected_stats"] = expected_stats
 
-    fake_url = f"sofascore-api/{event.get('sport', 'unknown')}/{event.get('id', 0)}"
+    fake_url = f"flashscore/{event.get('sport', 'unknown')}/{event.get('id', 0)}"
     return fake_url, normalized
 
 
@@ -805,7 +805,7 @@ def _ingest_team_side(
         if predictions.get("avg_stat") is not None:
             scan_stats["avg_stat"] = predictions["avg_stat"]
 
-        # Sofascore expected stats (pre-match projections)
+        # Expected stats (pre-match projections)
         expected = enriched.get("expected_stats") or {}
         if expected:
             # Store the full expected stats blob for downstream analysis

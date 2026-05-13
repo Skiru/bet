@@ -341,6 +341,6 @@ After every script: verify output file exists, check DB row counts, spot-check f
 
 
 ## ⚡️ V6: UNIFIED API & BEAST MODE FALLBACK (2026-05-12)
-- **UnifiedAPIClient**: Always refer to `bet.api_clients.unified.UnifiedAPIClient`. It wraps Sofascore, Flashscore, ESPN.
-- **Playwright Fallback**: If 403 Forbidden is hit (e.g. Sofascore), the Unified API automatically triggers `StealthPlaywright` (BEAST MODE Fallback). Do not assume 403 means dead end.
+- **UnifiedAPIClient**: Always refer to `bet.api_clients.unified.UnifiedAPIClient`. It wraps Flashscore, ESPN.
+- **Playwright Fallback**: If 403 Forbidden is hit, the Unified API automatically triggers `StealthPlaywright` (Fallback). Do not assume 403 means dead end.
 - **Gemini 3.1 Pro**: Execution, reasoning, and context analysis is driven by `Gemini 3.1 Pro (Preview)`. Use asynchronous parsing and `sequentialthinking` aggressively.

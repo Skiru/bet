@@ -8,7 +8,7 @@ agent: bet-scanner
 
 # SCAN MERGE + ENRICHMENT — Beast Mode Post-Processing
 
-> **YOUR ANALYTICAL VALUE:** You assess DATA COMPLETENESS after ingestion — which sports have rich form/H2H from the Sofascore API, which are data-thin, and whether enrichment filled the gaps. You ensure the shortlist has enough statistical depth for S3 analysis.
+> **YOUR ANALYTICAL VALUE:** You assess DATA COMPLETENESS after ingestion — which sports have rich form/H2H from Flashscore, which are data-thin, and whether enrichment filled the gaps. You ensure the shortlist has enough statistical depth for S3 analysis.
 
 ## ⛔ Follow `agent-execution-protocol.instructions.md` for EVERY script execution.
 
@@ -18,7 +18,7 @@ agent: bet-scanner
 python3 scripts/ingest_scan_stats.py --date {YYYY-MM-DD} --verbose 2>&1
 ```
 
-Transforms Sofascore API form/H2H/odds data from `global_events_api.json` into `stats_cache/` JSON files + DB `team_form` table. Parse `AGENT_SUMMARY:{json}`.
+Transforms scan form/H2H data from `global_events_api.json` into `stats_cache/` JSON files + DB `team_form` table. Parse `AGENT_SUMMARY:{json}`.
 
 ## STEP 2: Run Enrichment Chain
 

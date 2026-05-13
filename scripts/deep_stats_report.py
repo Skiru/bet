@@ -742,7 +742,7 @@ def _build_s36_injury(stats_a: dict, stats_b: dict) -> str:
         if suspensions:
             lines.append(f"- {team}: {len(suspensions)} suspended — {', '.join(str(s) for s in suspensions[:5])}")
         if not injuries and not suspensions:
-            lines.append(f"- {team}: No injury data in cache — verify on Flashscore/Sofascore before placing bet")
+            lines.append(f"- {team}: No injury data in cache — verify on Flashscore before placing bet")
 
     lines.append("")
     return "\n".join(lines)
@@ -938,7 +938,7 @@ def _build_injuries_section(sport: str, team_a: str, team_b: str) -> str:
                     lines.append(f"**{team}**: No injury records in DB")
     except Exception as e:
         print(f"[deep_stats] Injuries query failed: {e}")
-        lines.append("⚠️ Injuries table not available — check Flashscore/Sofascore")
+        lines.append("⚠️ Injuries table not available — check Flashscore")
     lines.append("")
     return "\n".join(lines)
 

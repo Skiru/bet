@@ -1,6 +1,6 @@
 ---
 agent: "bet-scanner"
-description: "S1-S1e: Beast Mode data engine — Sofascore REST API scan for 5 core sports, ingest, enrich, build shortlist"
+description: "S1-S1e: Scan data engine — Flashscore + ESPN scan for 5 core sports, ingest, enrich, build shortlist"
 ---
 
 > **PERMANENT RULES:** R3 NO AUTO-REJECTION. R7 TOURNAMENT PROTECTION (+15). R8 MINOR LEAGUE VALUE (+6). R10 STATS-FIRST. R13 DOMESTIC LEAGUE PROTECTION.
@@ -18,7 +18,7 @@ description: "S1-S1e: Beast Mode data engine — Sofascore REST API scan for 5 c
 | Protected leagues | Brasileirão/MLS/Liga MX/CSL/KHL present if active? | FAILURE: R13 violated |
 | Script execution | --verbose included? Metrics cited? | FAILURE: R17 violated |
 
-> **YOUR ANALYTICAL VALUE:** You diagnose DATA DEPTH — not just event count but whether form/H2H/odds data from Sofascore API is rich enough for statistical analysis in S3. A scan that returns 1689 events but only 191 with form data means S3 will be data-starved unless enrichment fills the gap.
+> **YOUR ANALYTICAL VALUE:** You diagnose DATA DEPTH — not just event count but whether form/H2H data from Flashscore is rich enough for statistical analysis in S3. A scan that returns 1689 events but only 191 with form data means S3 will be data-starved unless enrichment fills the gap.
 
 ## ⛔ Follow `agent-execution-protocol.instructions.md` for EVERY script execution.
 
@@ -30,7 +30,7 @@ description: "S1-S1e: Beast Mode data engine — Sofascore REST API scan for 5 c
 python3 scripts/scan_events.py --date {date} --verbose 2>&1
 ```
 
-Sofascore REST API scans ALL 5 sports. Deep enrichment fetches form/H2H/odds per event.
+Flashscore + ESPN scans ALL 5 sports. Deep enrichment fetches form/H2H per event.
 Parse `AGENT_SUMMARY:{json}` — per-sport counts, deep_enriched, errors.
 
 **VALIDATE:** 5 sports present? Total > 300? Tournament matches? Zero critical errors?

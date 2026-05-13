@@ -18,15 +18,15 @@ applyTo: ""
 
 | Category | Metrics | Source |
 |----------|---------|--------|
-| Goals | Scored/match, Conceded/match, O2.5%, BTTS%, Clean sheets% | SoccerStats, Sofascore |
-| xG | xGF/match, xGA/match, xG vs actual delta (regression indicator) | Flashscore, Sofascore |
+| Goals | Scored/match, Conceded/match, O2.5%, BTTS%, Clean sheets% | SoccerStats, Flashscore |
+| xG | xGF/match, xGA/match, xG vs actual delta (regression indicator) | Flashscore |
 | Corners | Team earned/match, Conceded/match, Total match avg, O9.5/O10.5 hit rate | TotalCorner + SoccerStats |
 | Cards | Team cards/match, Opponent cards/match, O3.5/O4.5 hit rate | SoccerStats, Betaminic |
-| Fouls | Committed/match, Drawn/match, Total match avg | SoccerStats, Sofascore |
-| Shots | Shots/match, SOT/match, Conversion%, O/U team shots hit rates | Sofascore, Flashscore |
-| Possession | Possession%, Throw-ins/match | Sofascore |
+| Fouls | Committed/match, Drawn/match, Total match avg | SoccerStats, Flashscore |
+| Shots | Shots/match, SOT/match, Conversion%, O/U team shots hit rates | Flashscore |
+| Possession | Possession%, Throw-ins/match | Flashscore |
 
-> **Note:** FootyStats (footystats.org) is 403 blocked on main pages. Use SoccerStats + Betaminic + Sofascore as replacements. Individual FootyStats team pages sometimes work as last-resort fallback.
+> **Note:** FootyStats (footystats.org) is 403 blocked on main pages. Use SoccerStats + Betaminic + Flashscore as replacements. Individual FootyStats team pages sometimes work as last-resort fallback.
 
 **Corner picks — THREE-SOURCE STACK (mandatory):**
 1. TotalCorner: match-level corner total predictions + handicaps
@@ -68,11 +68,11 @@ When analyzing a football match from an exotic league (see §1.7 definition in a
 | Goals | Scored/match, Conceded/match, O2.5%, BTTS% | Flashscore match history (manual count from last 10) | Soccerway standings + results |
 | Corners | Team earned/match, Total match avg | Flashscore per-match stats (if available) | Soccerway match reports (corner counts in match details) |
 | Cards | Team cards/match | Flashscore per-match stats | Soccerway match reports |
-| Fouls | Committed/match, Drawn/match | Sofascore match stats | Flashscore per-match stats |
-| Shots | Shots/match, SOT/match | Sofascore match stats | Flashscore per-match stats |
+| Fouls | Committed/match, Drawn/match | Flashscore per-match stats | Soccerway match reports |
+| Shots | Shots/match, SOT/match | Flashscore per-match stats | Soccerway match reports |
 | H2H | Last 3-5 meetings with stat breakdowns | Flashscore H2H tab | Soccerway H2H |
 
-**CRITICAL:** When manually counting stats from Flashscore/Sofascore match pages, note this in §S3.10 Analysis Depth Proof as "Manual count from [N] match pages on [source]."
+**CRITICAL:** When manually counting stats from Flashscore match pages, note this in §S3.10 Analysis Depth Proof as "Manual count from [N] match pages on [source]."
 
 **Minimum stat thresholds to approve an exotic league pick:**
 
@@ -89,8 +89,7 @@ When analyzing a football match from an exotic league (see §1.7 definition in a
 1. Open Flashscore → league → click into each of the last 10 home matches for both teams
 2. Record corner count per match from match stats tab
 3. Calculate team average corners earned (home) and conceded (away)
-4. If Flashscore has no match stats → try Sofascore match detail page
-5. If neither has match stats → corner market is UNAVAILABLE for this pick. Move to next §3.0 ranked market.
+4. If Flashscore has no match stats → corner market is UNAVAILABLE for this pick. Move to next §3.0 ranked market.
 
 **Kings League exception:** Do NOT use standard football stats for Kings League matches. Kings League uses modified rules (20-minute halves, special mechanics). Use ONLY Kings League-specific historical data from previous Kings League seasons. Standard §3.1 stat requirements do not apply. Treat as EXOTIC-THIN by default.
 
@@ -144,8 +143,8 @@ Pick the market with HIGHEST safety score. **Surface-filter H2H is mandatory** (
 | Category | Metrics | Source |
 |----------|---------|--------|
 | Pace | Possessions/game, League rank, Last 10 pace | ESPN, NBA.com (NBA); BetExplorer, Flashscore (EU) |
-| Offense | OFF rating, FG%, 3PT%, FT rate, TO/game | Basketball-Reference (NBA); Flashscore, Sofascore (EU) |
-| Defense | DEF rating, Opp FG%, Opp 3PT%, Steals, Blocks | Basketball-Reference (NBA); Flashscore, Sofascore (EU) |
+| Offense | OFF rating, FG%, 3PT%, FT rate, TO/game | Basketball-Reference (NBA); Flashscore (EU) |
+| Defense | DEF rating, Opp FG%, Opp 3PT%, Steals, Blocks | Basketball-Reference (NBA); Flashscore (EU) |
 | Totals | Team pts/game, Opp pts/game, Combined avg, O/U hit rates | ESPN, Flashscore (NBA); BetExplorer standings, SportsGambler (EU) |
 | Home/Away | Pts scored H/A, Pts allowed H/A, ATS record | ESPN (NBA); BetExplorer, Flashscore (EU) |
 
@@ -167,7 +166,7 @@ Pick the market with HIGHEST safety score. **For EU leagues**: use BetExplorer P
 
 **Context:** Star player availability (DAY OF check), B2B (−3-5 pts), travel, altitude (Denver), playoff implications.
 
-**EU leagues (BBL, ACB, BSL, VTB, ABA, etc.):** Use BetExplorer standings for PF/PA totals + H/A splits. Use Flashscore/Sofascore for H2H, form, and last 5/10 game scores. Use SportsGambler for written previews where available. Basketball-Reference and NBA.com are NBA-only — do NOT cite them for EU basketball.
+**EU leagues (BBL, ACB, BSL, VTB, ABA, etc.):** Use BetExplorer standings for PF/PA totals + H/A splits. Use Flashscore for H2H, form, and last 5/10 game scores. Use SportsGambler for written previews where available. Basketball-Reference and NBA.com are NBA-only — do NOT cite them for EU basketball.
 
 ### §3.4 Hockey
 
@@ -200,7 +199,7 @@ Pick the market with HIGHEST safety score. **For NHL**: use **MoneyPuck** xG/Cor
 
 ### §3.5 Volleyball
 
-**Required stats:** Sets won/lost, Avg sets/match, O/U 3.5 hit rate, Avg total pts/match, Attack efficiency%, Reception%, Tiebreak (5th set) frequency. Sources: Flashscore, Sofascore, CEV/PlusLiga.
+**Required stats:** Sets won/lost, Avg sets/match, O/U 3.5 hit rate, Avg total pts/match, Attack efficiency%, Reception%, Tiebreak (5th set) frequency. Sources: Flashscore, CEV/PlusLiga.
 
 **Market decision:** Set score O/U → Total pts O/U → Set totals O/U 3.5 → Set HC → ML (LAST RESORT, 1.50-2.50 range). Both top-6 = O3.5 sets. Big mismatch = U3.5/HC -1.5.
 **WHY sets/points > ML:** Sets and points accumulate through rallies (driven by reception% and attack efficiency — structural). A losing team still wins 1-2 sets and scores 80+ points per set. ML depends on clutch 5th-set performance — high variance.

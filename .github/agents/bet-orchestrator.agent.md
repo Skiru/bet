@@ -296,7 +296,7 @@ After EVERY script: read FULL output → extract metrics → `sequentialthinking
 | settlement, PnL, bankroll, won, lost, hit rate, CLV | bet-settler |
 | scan, events, matches, fixtures, sources | bet-scanner |
 | tipster, consensus, prediction, scout | bet-scout |
-| enrichment, data gaps, Flashscore, Sofascore | bet-enricher |
+| enrichment, data gaps, Flashscore | bet-enricher |
 | stats, H2H, form, corners, fouls, safety, Poisson | bet-statistician |
 | EV, odds, Kelly, stake, price gap, drift, value | bet-valuator |
 | upset, risk, bear case, red flag, gate, contrarian | bet-challenger |

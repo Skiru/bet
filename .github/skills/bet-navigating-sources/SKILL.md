@@ -17,7 +17,7 @@ Every sport has dedicated statistical databases, market sources, and prediction 
 | Tier | Role | Examples | Rule |
 |------|------|----------|------|
 | **A — Markets** | Execution price, odds comparison, line shopping | Betclic (execution), BetExplorer, OddsPortal, The-Odds-API, SBR, ESPN Odds, ScoresAndOdds | Backbone for pricing decisions |
-| **A — Stats** | Fixtures, H2H, lineups, live stats, xG, results | Flashscore, Sofascore, TennisAbstract, Basketball-Reference, NaturalStatTrick | Backbone for analysis |
+| **A — Stats** | Fixtures, H2H, lineups, live stats, xG, results | Flashscore, TennisAbstract, Basketball-Reference, NaturalStatTrick | Backbone for analysis |
 | **B — Tipsters** | Argument-based consensus, angle discovery, local knowledge | ZawodTyper, Typersi, OLBG, PicksWise, BetIdeas, Meczyki, Sportsgambler, Tipstrr, GosuGamers | CANNOT create a bet alone — supports/warns |
 | **C — Specialists** | Sport-specific deep dives | TotalCorner, Betaminic, CueTracker, DartsOrakel, BaseballSavant, DailyFaceoff | Deep domain data |
 
@@ -44,28 +44,28 @@ When a source fails (403/empty/timeout), try the next in chain immediately. All 
 | Snooker/Darts *(archived)* | BetExplorer | OddsPortal | — |
 | Handball *(archived)* | BetExplorer | OddsPortal | — |
 | Table Tennis *(archived)* | BetExplorer | — | — |
-| Padel *(archived)* | BetExplorer | Sofascore | — |
+| Padel *(archived)* | BetExplorer | — | — |
 | Speedway *(archived)* | BetExplorer | — | — |
 | MMA *(archived)* | BetExplorer | Tapology | — |
 
 ### Stats Sources
 
-**PRIMARY SCAN SOURCE: Sofascore REST API** (`api.sofascore.com/api/v1/sport/{sport}/scheduled-events/{date}`)
-- Used by `scan_events.py` (Beast Mode) to discover ALL events for all 5 sports
-- Deep enrichment via `/event/{id}/pregame-form`, `/event/{id}/h2h`, `/event/{id}/odds/1/all`
+**PRIMARY SCAN SOURCE: Flashscore** (via `UnifiedAPIClient` in `scan_events.py`)
+- Used by `scan_events.py` to discover ALL events for all 5 sports
+- Deep enrichment via `get_match_preview()` (form + H2H) and `get_fixture_stats()`
 - Covers: football, tennis, basketball, hockey, volleyball — global scope
-- No API key required, 0.3s rate limit between requests
+- HTTP + Playwright stealth fallback, 2s rate limit between requests
 
 **ENRICHMENT SOURCES** (used by `data_enrichment_agent.py` to fill gaps after scan):
 
 | Sport | Primary | Secondary | Specialist |
 |-------|---------|-----------|------------|
-| Football | ESPN API | Flashscore (HTTP) | TotalCorner (corners), TransferMarkt (roster) |
+| Football | ESPN API | scores24 (HTTP) | TotalCorner (corners), TransferMarkt (roster) |
 | Tennis | TennisAbstract | TennisExplorer | TennisPrediction |
 | Basketball (NBA) | Basketball-Reference | ESPN | DunksAndThrees |
 | Basketball (EU) | Eurobasket.com | BetExplorer standings | Flashscore H2H |
 | Hockey | NaturalStatTrick (BLOCKED 403, use MoneyPuck as primary) | Hockey-Reference, MoneyPuck | DailyFaceoff (goalies) |
-| Volleyball | Sofascore API (scan data) | Flashscore (HTTP) | CEV, PlusLiga |
+| Volleyball | Flashscore (scan data) | ESPN | CEV, PlusLiga |
 
 ### Tipster Sources
 
@@ -166,4 +166,4 @@ The aggregator provides the FIRST PASS — structured picks + consensus. The `be
 - `bet-analyzing-statistics` — Consumes the statistical data collected via sources defined here
 - `bet-applying-sport-protocols` — Sport-specific protocols that define which data points to collect from each source
 - `bet-evaluating-odds` — Odds comparison requires the market source chains defined here
-- `bet-settling-results` — Result verification sources (Flashscore, Sofascore, ESPN scores) for settlement
+- `bet-settling-results` — Result verification sources (Flashscore, ESPN scores) for settlement

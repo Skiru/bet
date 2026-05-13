@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 RESEARCH_PROMPTS = {
     "h2h": """Search for head-to-head statistics between {team1} and {team2} ({sport}).
 Find: recent H2H meetings (last 5-10), scores, venue, key stats (corners, cards, goals).
-Prefer data from: flashscore.com, sofascore.com, soccerway.com.
+Prefer data from: flashscore.com, soccerway.com.
 Only include factual information with source URLs. Freshness matters — prefer last 12 months.""",
 
     "injuries": """Search for current injury and squad news for {team} ({sport}).
@@ -45,7 +45,7 @@ Only the most recent reports (last 7 days).""",
     "form": """Search for recent results and current form for {team} ({sport}).
 Find: last 5-10 match results with scores, current league position, recent streaks.
 Include: home/away form split if available, goals scored/conceded trend.
-Prefer data from: flashscore.com, sofascore.com, espn.com.""",
+Prefer data from: flashscore.com, espn.com.""",
 
     "coach": """Search for coaching information about {team} ({sport}).
 Find: current head coach/manager name, tenure, tactical approach, recent changes.

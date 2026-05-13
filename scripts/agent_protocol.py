@@ -247,13 +247,13 @@ SELF_HEALING_REGISTRY = {
     "enrichment_agent": {
         "module": "data_enrichment_agent",
         "functions": {
-            "enrich_team": "Fetch L10/L5 stats for a single team from Flashscore→Sofascore fallback. Args: (team_name, sport). Returns: {status, stats_found, source}. Saves to DB + JSON cache.",
+            "enrich_team": "Fetch L10/L5 stats for a single team from Flashscore→ESPN fallback. Args: (team_name, sport). Returns: {status, stats_found, source}. Saves to DB + JSON cache.",
             "enrich_h2h": "Fetch H2H stats between two teams from Flashscore. Args: (team_a, team_b, sport). Returns: {status, h2h_stats, meetings_found}. Saves to DB.",
             "batch_enrich": "Enrich multiple teams in parallel. Args: (teams=[{team, sport, missing}], max_workers=4). Thread-safe with rate limiting.",
             "_detect_missing_from_shortlist": "Auto-scan shortlist for teams without cached data. Args: (date_str). Returns: [{team, sport, missing}].",
         },
-        "sources": ["Flashscore (primary, 2s rate limit)", "Sofascore (fallback, 3s rate limit)"],
-        "rate_limits": "Thread-safe _rate_lock, per-domain minimum intervals: flashscore=2s, sofascore=3s",
+        "sources": ["Flashscore (primary, 2s rate limit)", "ESPN (fallback)", "scores24 (tertiary)"],
+        "rate_limits": "Thread-safe _rate_lock, per-domain minimum intervals: flashscore=2s",
         "saves_to": ["team_form (DB)", "betting/data/stats_cache/{sport}/{team_slug}.json (file cache)"],
     },
     "playwright_fetcher": {
@@ -330,7 +330,7 @@ SELF_HEALING_REGISTRY = {
     "fallback_layers": [
         "L1: Scan retry with extended timeout (pipeline auto-handles)",
         "L2: Parallel S1b enrichment (ESPN odds + weather + tipsters concurrently)",
-        "L3: S2.5 batch enrichment via data_enrichment_agent (Flashscore/Sofascore)",
+        "L3: S2.5 batch enrichment via data_enrichment_agent (Flashscore/ESPN)",
         "L4: S3 batch enrichment before analysis loop",
         "L5: S3 inline extract_team_stats/extract_h2h_stats fallback (per-candidate)",
         "L6: S5 inline context fetch (weather API + ESPN injury scrape)",
@@ -966,13 +966,13 @@ STEP_AGENT_CONFIG = {
         "detailed_instructions": [
             "1. Review batch_enrich results — break down by sport and source",
             "2. For each failed enrichment: identify WHY (CAPTCHA? 404? empty page? parsing error?)",
-            "3. Check if fallback sources were tried (Flashscore → Sofascore → ESPN)",
+            "3. Check if fallback sources were tried (Flashscore → ESPN)",
             "4. Validate enriched data quality: stat values within sport-normal ranges",
             "5. Cross-reference with DB: are team_form rows actually populated?",
             "6. For persistent gaps: suggest specific alternative URLs from source-registry.md",
         ],
         "recovery_actions": [
-            "If Flashscore blocked → try Sofascore, then ESPN standings for US sports",
+            "If Flashscore blocked → try ESPN standings for US sports",
             "If sport has 0% enrichment → check if stat_keys are defined in SPORT_STAT_KEYS",
         ],
     },
