@@ -263,6 +263,7 @@ These API sources provide structured statistical data via REST APIs. They are th
 
 ESPN is first for all sports it covers (FREE, unlimited). SerpAPI is last resort for all sports.
 
+**Stats API chains:**
 ```
 Football:     ESPN → API-Football → Football-Data.org → Understat (xG only) → SerpAPI
 Basketball:   ESPN → API-Basketball → SerpAPI
@@ -270,6 +271,27 @@ Hockey:       ESPN → API-Hockey → SerpAPI
 Tennis:       ESPN → SerpAPI
 Volleyball:   ESPN-Volleyball → API-Volleyball → SerpAPI
 ```
+
+**Fixture discovery chains (UnifiedAPIClient SOURCE_PRIORITY):**
+```
+Football:     Flashscore → BetExplorer → Soccerway → ESPN
+Tennis:       Flashscore → Scores24 → ESPN
+Basketball:   Flashscore → BetExplorer → Scores24 → ESPN
+Hockey:       Flashscore → BetExplorer → Scores24 → ESPN
+Volleyball:   Flashscore → BetExplorer → Scores24 → ESPN
+```
+
+**Odds comparison chains (ODDS_PRIORITY):**
+```
+All sports:   OddsPortal → BetExplorer
+```
+
+**Stats-specific chains (STATS_PRIORITY):**
+```
+Football corners: TotalCorner → Flashscore
+```
+
+**Trends/hit rates:** Scores24 (all sports)
 
 Disabled sources (2026-05-11): TheSportsDB (97.8% fail), BallDontLie (100% fail), API-Tennis (NXDOMAIN).
 

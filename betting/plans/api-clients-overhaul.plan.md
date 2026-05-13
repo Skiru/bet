@@ -718,12 +718,12 @@ APIFixture / APIMatchStats dataclasses → DB upsert via repositories
   ```
 
 ### Definition of Done
-- [ ] `get_client("betexplorer")` returns a `BetExplorerClient` instance
-- [ ] `get_client("oddsportal")` returns an `OddsPortalClient` instance
-- [ ] All 5 new clients registered in CLIENT_REGISTRY
-- [ ] Rate limiter has entries for all new scraper clients
-- [ ] source-registry.md reflects the new fallback chains
-- [ ] `UnifiedAPIClient` routes through the full priority chain
+- [x] `get_client("betexplorer")` returns a `BetExplorerClient` instance
+- [x] `get_client("oddsportal")` returns an `OddsPortalClient` instance
+- [x] All 5 new clients registered in CLIENT_REGISTRY
+- [x] Rate limiter has entries for all new scraper clients
+- [x] source-registry.md reflects the new fallback chains
+- [x] `UnifiedAPIClient` routes through the full priority chain
 
 ### Dependencies
 - Phases 3-7 (all new clients must exist)
@@ -828,9 +828,9 @@ Each debug script must verify:
 6. For each applicable sport (test all 5 where supported)
 
 ### Definition of Done
-- [ ] All 5 debug scripts exist and run without errors
-- [ ] Each script produces structured output showing: body length, container hierarchy, first match row
-- [ ] Selectors documented in each client's source code match what debug scripts discover
+- [x] All 5 debug scripts exist and run without errors
+- [x] Each script produces structured output showing: body length, container hierarchy, first match row
+- [x] Selectors documented in each client's source code match what debug scripts discover
 
 ### Dependencies
 - Phases 3-7 (run alongside each phase's pre-work)

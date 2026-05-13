@@ -544,6 +544,7 @@ class OddsPortalClient(PlaywrightBaseClient):
         ctx = page = None
         try:
             ctx, page = self._load_page(match_url, wait_ms=5000)
+            self.rate_limiter.record_request("oddsportal-scraper", match_url[:100])
 
             raw = self._evaluate_js(page, self._JS_EXTRACT_H2H)
             if raw:

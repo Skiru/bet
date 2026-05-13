@@ -59,6 +59,11 @@ class Scores24Client(PlaywrightBaseClient):
         Extracts match links and parses body text for team names + kickoff times.
         Returns list of APIFixture objects.
         """
+        # Validate date format
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
+            logger.error(f"[Scores24] Invalid date format: {date} (expected YYYY-MM-DD)")
+            return []
+
         path = self.SPORT_PATHS.get(sport, "/en/soccer")
         url = f"{self.base_url}{path}"
 
@@ -273,6 +278,14 @@ class Scores24Client(PlaywrightBaseClient):
 
         url = self.base_url + detail_url if detail_url.startswith('/') else detail_url
 
+        data = {
+            "match_info": {},
+            "odds": {},
+            "h2h": {"summary": {}, "matches": []},
+            "form_home": [],
+            "form_away": [],
+        }
+
         # SSRF protection: validate domain for absolute URLs
         if url.startswith("http"):
             parsed = urlparse(url)
@@ -285,13 +298,6 @@ class Scores24Client(PlaywrightBaseClient):
             return data
 
         ctx = None
-        data = {
-            "match_info": {},
-            "odds": {},
-            "h2h": {"summary": {}, "matches": []},
-            "form_home": [],
-            "form_away": [],
-        }
 
         try:
             ctx, page = self._load_page(url, wait_ms=6000)
@@ -389,6 +395,7 @@ class Scores24Client(PlaywrightBaseClient):
         trends = []
         try:
             ctx, page = self._load_page(url, wait_ms=6000)
+            self.rate_limiter.record_request("scores24-scraper", url[:100])
 
             # Try clicking Trends tab if hash navigation didn't work
             try:

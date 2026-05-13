@@ -1,6 +1,5 @@
 """Unified API Client integrating ESPN and Flashscore."""
 import logging
-from typing import Dict, List, Optional
 
 from .espn import ESPNClient, ESPN_LEAGUES
 from .rate_limiter import RateLimiter
@@ -13,6 +12,20 @@ SOURCE_PRIORITY = {
     "basketball": ["flashscore", "betexplorer", "scores24", "espn"],
     "hockey":     ["flashscore", "betexplorer", "scores24", "espn"],
     "volleyball": ["flashscore", "betexplorer", "scores24", "espn"],
+}
+
+# Odds-specific routing (separate from fixture discovery)
+ODDS_PRIORITY = {
+    "football":   ["oddsportal", "betexplorer"],
+    "tennis":     ["oddsportal", "betexplorer"],
+    "basketball": ["oddsportal", "betexplorer"],
+    "hockey":     ["oddsportal", "betexplorer"],
+    "volleyball": ["oddsportal", "betexplorer"],
+}
+
+# Stats-specific routing (for corner/card data)
+STATS_PRIORITY = {
+    "football": ["totalcorner", "flashscore"],
 }
 
 class UnifiedAPIClient:
@@ -83,6 +96,7 @@ class UnifiedAPIClient:
                 client.close()
             except Exception:
                 pass
+        self._client_cache.clear()
 
     def __enter__(self):
         return self
@@ -142,18 +156,39 @@ class UnifiedAPIClient:
                     
         return all_fixtures
 
-    def get_fixture_stats(self, event_id: str, source: str | None = None) -> list:
-        """Fetch detailed stats from Flashscore."""
-        client = self._get_client("flashscore")
-        if not client:
-            return []
-        try:
-            res = client.get_fixture_stats(event_id)
-            if res:
-                return res
-        except Exception:
-            pass
+    def get_fixture_stats(self, event_id: str, sport: str = "football", source: str | None = None) -> list:
+        """Fetch detailed stats using STATS_PRIORITY fallback chain."""
+        sources = STATS_PRIORITY.get(sport, ["flashscore"])
+        for src_name in sources:
+            client = self._get_client(src_name)
+            if not client:
+                continue
+            try:
+                res = client.get_fixture_stats(event_id)
+                if res:
+                    logger.debug(f"[UnifiedAPIClient] {src_name} returned stats for {event_id}")
+                    return res
+            except Exception as e:
+                logger.debug(f"[UnifiedAPIClient] {src_name} stats failed for {event_id}: {e}")
         return []
+
+    def get_odds(self, match_identifier: str, sport: str = "football") -> dict:
+        """Fetch odds using ODDS_PRIORITY fallback chain."""
+        sources = ODDS_PRIORITY.get(sport, ["oddsportal", "betexplorer"])
+        for src_name in sources:
+            client = self._get_client(src_name)
+            if not client:
+                continue
+            try:
+                res = client.get_odds(match_identifier)
+                if res:
+                    logger.debug(f"[UnifiedAPIClient] {src_name} returned odds for {match_identifier}")
+                    return res
+            except AttributeError:
+                logger.debug(f"[UnifiedAPIClient] {src_name} does not support get_odds")
+            except Exception as e:
+                logger.debug(f"[UnifiedAPIClient] {src_name} odds failed for {match_identifier}: {e}")
+        return {}
 
     def get_deep_data(self, event_id: str, source: str | None = None) -> dict:
         """Fetch stats + form + H2H + odds from Flashscore."""

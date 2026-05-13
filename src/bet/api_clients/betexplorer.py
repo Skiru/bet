@@ -1,5 +1,7 @@
 import json
 import logging
+import random
+import re
 from bs4 import BeautifulSoup
 import requests
 from typing import List, Dict, Optional
@@ -7,7 +9,15 @@ from datetime import datetime, timedelta
 
 from .base_client import BaseAPIClient
 from .api_football import APIFixture
-from bet.api_clients.rate_limiter import RateLimiter
+from .rate_limiter import RateLimiter
+
+try:
+    from scripts.stealth_utils import USER_AGENTS
+except ImportError:
+    USER_AGENTS = [
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
+    ]
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +43,7 @@ class BetExplorerClient(BaseAPIClient):
 
     def _build_headers(self) -> dict:
         return {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "User-Agent": random.choice(USER_AGENTS),
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
             "Accept-Language": "en-US,en;q=0.9",
             "Referer": "https://www.betexplorer.com/"
@@ -41,6 +51,11 @@ class BetExplorerClient(BaseAPIClient):
 
     def get_fixtures(self, date: str, sport: str = "football") -> list[APIFixture]:
         """Get fixtures for a specific date and sport."""
+        # Validate date format
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
+            logger.error(f"[BetExplorer] Invalid date format: {date} (expected YYYY-MM-DD)")
+            return []
+
         cache_key = f"betexplorer/{sport}/fixtures_{date}"
         cached = self._check_cache(cache_key, 4)
         if cached and "data" in cached:
