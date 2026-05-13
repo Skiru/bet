@@ -58,6 +58,38 @@ CLIENT_REGISTRY["api-volleyball"] = APIVolleyballClient
 from bet.api_clients.flashscore import FlashscoreClient
 CLIENT_REGISTRY["flashscore"] = FlashscoreClient
 
+# New Playwright-based clients
+try:
+    from bet.api_clients.oddsportal import OddsPortalClient
+    CLIENT_REGISTRY["oddsportal"] = OddsPortalClient
+except ImportError:
+    pass
+
+try:
+    from bet.api_clients.totalcorner import TotalCornerClient
+    CLIENT_REGISTRY["totalcorner"] = TotalCornerClient
+except ImportError:
+    pass
+
+try:
+    from bet.api_clients.scores24 import Scores24Client
+    CLIENT_REGISTRY["scores24"] = Scores24Client
+except ImportError:
+    pass
+
+try:
+    from bet.api_clients.soccerway import SoccerwayClient
+    CLIENT_REGISTRY["soccerway"] = SoccerwayClient
+except ImportError:
+    pass
+
+# HTTP-based clients
+try:
+    from bet.api_clients.betexplorer import BetExplorerClient
+    CLIENT_REGISTRY["betexplorer"] = BetExplorerClient
+except ImportError:
+    pass
+
 from bet.api_clients.espn import ESPNClient
 
 

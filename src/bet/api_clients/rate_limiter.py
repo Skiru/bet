@@ -28,10 +28,14 @@ API_DAILY_LIMITS = {
     "oddsportal-scraper": 50,
     "betexplorer-scraper": 50,
     "betclic-scraper": 50,
+    "flashscore-scraper": 200,
+    "soccerway-scraper": 100,
     "serpapi": 8,  # ~250/month ≈ 8/day
     "odds-api-io": 200,  # 5000/hour, cap at 200/day to be safe
     "nba-api": 1800,  # ~30 req/min, cap at 1800/day
     "understat": 10000,  # unlimited, nominal cap
+    "totalcorner-scraper": 50,
+    "scores24-scraper": 100,
     # ESPN clients — free, unlimited, no cap needed but tracked
     "espn-football": 10000,
     "espn-basketball": 10000,

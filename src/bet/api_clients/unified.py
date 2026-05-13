@@ -8,11 +8,11 @@ from .rate_limiter import RateLimiter
 logger = logging.getLogger(__name__)
 
 SOURCE_PRIORITY = {
-    "football":   ["flashscore", "betexplorer", "espn"],
-    "tennis":     ["flashscore", "espn"],
-    "basketball": ["flashscore", "betexplorer", "espn"],
-    "hockey":     ["flashscore", "betexplorer", "espn"],
-    "volleyball": ["flashscore", "betexplorer", "espn"],
+    "football":   ["flashscore", "betexplorer", "soccerway", "espn"],
+    "tennis":     ["flashscore", "scores24", "espn"],
+    "basketball": ["flashscore", "betexplorer", "scores24", "espn"],
+    "hockey":     ["flashscore", "betexplorer", "scores24", "espn"],
+    "volleyball": ["flashscore", "betexplorer", "scores24", "espn"],
 }
 
 class UnifiedAPIClient:
@@ -35,7 +35,35 @@ class UnifiedAPIClient:
                 from .betexplorer import BetExplorerClient
                 return BetExplorerClient(rate_limiter=self._limiter)
             except ImportError:
-                logger.debug("[UnifiedAPIClient] BetExplorerClient not available yet")
+                logger.debug("[UnifiedAPIClient] BetExplorerClient not available")
+                return None
+        elif name == "oddsportal":
+            try:
+                from .oddsportal import OddsPortalClient
+                return OddsPortalClient(rate_limiter=self._limiter)
+            except ImportError:
+                logger.debug("[UnifiedAPIClient] OddsPortalClient not available")
+                return None
+        elif name == "soccerway":
+            try:
+                from .soccerway import SoccerwayClient
+                return SoccerwayClient(rate_limiter=self._limiter)
+            except ImportError:
+                logger.debug("[UnifiedAPIClient] SoccerwayClient not available")
+                return None
+        elif name == "scores24":
+            try:
+                from .scores24 import Scores24Client
+                return Scores24Client(rate_limiter=self._limiter)
+            except ImportError:
+                logger.debug("[UnifiedAPIClient] Scores24Client not available")
+                return None
+        elif name == "totalcorner":
+            try:
+                from .totalcorner import TotalCornerClient
+                return TotalCornerClient(rate_limiter=self._limiter)
+            except ImportError:
+                logger.debug("[UnifiedAPIClient] TotalCornerClient not available")
                 return None
         return None
 

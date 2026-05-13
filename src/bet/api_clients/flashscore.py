@@ -15,6 +15,8 @@ from .playwright_base import PlaywrightBaseClient
 
 logger = logging.getLogger(__name__)
 
+_VALID_EVENT_ID = re.compile(r"^[a-zA-Z0-9_-]+$")
+
 # Flashscore sport URL slugs
 SPORT_SLUGS = {
     "football": "football",
@@ -265,9 +267,14 @@ class FlashscoreClient(PlaywrightBaseClient):
 
         logger.info(f"[Flashscore] Fetching fixtures for {sport} on {date}")
 
+        if not self.rate_limiter.can_request("flashscore-scraper"):
+            logger.warning("[Flashscore] Rate limit exceeded")
+            return []
+
         ctx = page = None
         try:
             ctx, page = self._load_page(url, wait_ms=5000)
+            self.rate_limiter.record_request("flashscore-scraper", url[:100])
 
             raw = page.evaluate(self._JS_EXTRACT_FIXTURES)
             logger.info(f"[Flashscore] Extracted {len(raw)} raw events from DOM")
@@ -347,9 +354,18 @@ class FlashscoreClient(PlaywrightBaseClient):
         url = f"https://www.flashscore.com/match/{event_id}/#/match-summary/match-statistics/0"
         logger.info(f"[Flashscore] Fetching stats for event {event_id}")
 
+        if not _VALID_EVENT_ID.match(event_id):
+            logger.warning(f"[Flashscore] Invalid event_id format: {event_id!r}")
+            return []
+
+        if not self.rate_limiter.can_request("flashscore-scraper"):
+            logger.warning("[Flashscore] Rate limit exceeded for stats")
+            return []
+
         ctx = page = None
         try:
             ctx, page = self._load_page(url, wait_ms=5000)
+            self.rate_limiter.record_request("flashscore-scraper", f"/match/{event_id}/stats")
 
             # Try structured DOM extraction first
             js_stats = page.evaluate(self._JS_EXTRACT_STATS)
@@ -401,8 +417,16 @@ class FlashscoreClient(PlaywrightBaseClient):
                 "score_home": "2", "score_away": "1", "date": "..."}, ...]
         """
         event_id = team1_id  # Use event_id to access H2H
+        if not _VALID_EVENT_ID.match(event_id):
+            logger.warning(f"[Flashscore] Invalid event_id format: {event_id!r}")
+            return []
+
         url = f"https://www.flashscore.com/match/{event_id}/#/h2h/overall"
         logger.info(f"[Flashscore] Fetching H2H for event {event_id}")
+
+        if not self.rate_limiter.can_request("flashscore-scraper"):
+            logger.warning("[Flashscore] Rate limit exceeded for H2H")
+            return []
 
         ctx = page = None
         try:
@@ -432,6 +456,14 @@ class FlashscoreClient(PlaywrightBaseClient):
         """
         url = f"https://www.flashscore.com/match/{event_id}/#/match-summary"
         logger.info(f"[Flashscore] Fetching match preview for {event_id}")
+
+        if not _VALID_EVENT_ID.match(event_id):
+            logger.warning(f"[Flashscore] Invalid event_id format: {event_id!r}")
+            return {}
+
+        if not self.rate_limiter.can_request("flashscore-scraper"):
+            logger.warning("[Flashscore] Rate limit exceeded for preview")
+            return {}
 
         ctx = page = None
         try:
