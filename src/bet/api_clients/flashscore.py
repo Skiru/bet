@@ -30,9 +30,28 @@ class FlashscoreClient(BaseAPIClient):
         """Fallback method using Playwright stealth to bypass Cloudflare/DataDome."""
         from playwright.sync_api import sync_playwright
         from playwright_stealth import Stealth
+        import time
+        import random
 
         logger.info(f"[Flashscore] Using Playwright stealth fallback for: {url}")
         
+        try:
+            from scripts.stealth_utils import USER_AGENTS, BROWSER_ARGS, is_actually_blocked
+        except ImportError:
+            try:
+                from stealth_utils import USER_AGENTS, BROWSER_ARGS, is_actually_blocked
+            except ImportError:
+                USER_AGENTS = ["Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"]
+                BROWSER_ARGS = ['--disable-blink-features=AutomationControlled', '--disable-infobars', '--no-sandbox']
+                def is_actually_blocked(content, status_code):
+                    if status_code in (403, 429) and len(content) < 15_000:
+                        return True
+                    if len(content) < 10_000:
+                        lower = content.lower()
+                        if any(kw in lower for kw in ("zablokowany", "access denied", "you have been blocked")):
+                            return True
+                    return False
+
         # Build URL with params if any
         if params:
             import urllib.parse
@@ -42,41 +61,57 @@ class FlashscoreClient(BaseAPIClient):
         with sync_playwright() as p:
             browser = p.chromium.launch(
                 headless=True,
-                args=['--disable-blink-features=AutomationControlled', '--disable-infobars', '--no-sandbox']
+                args=BROWSER_ARGS
             )
-            context = browser.new_context(
-                user_agent=HEADERS["User-Agent"],
-                viewport={"width": 1920, "height": 1080}
-            )
-            page = context.new_page()
-            Stealth().apply_stealth_sync(page)
             
-            try:
-                page.goto(url, wait_until="domcontentloaded", timeout=30_000)
-                page.wait_for_timeout(2000)  # Let dynamic protections resolve
+            for attempt, backoff in enumerate([3, 10], 1):
+                context = browser.new_context(
+                    user_agent=random.choice(USER_AGENTS),
+                    viewport={"width": 1920, "height": 1080}
+                )
+                page = context.new_page()
+                Stealth().apply_stealth_sync(page)
                 
-                content = page.content()
-                
-                # Cloudflare JS challenge wait
-                if "Just a moment" in content or "cf-browser-verification" in content:
-                    logger.warning("[Flashscore] Cloudflare challenge detected, waiting...")
-                    page.wait_for_timeout(5000)
+                try:
+                    response = page.goto(url, wait_until="domcontentloaded", timeout=30_000)
+                    status_code = response.status if response else 0
+                    page.wait_for_timeout(2000)  # Let dynamic protections resolve
+                    
                     content = page.content()
-                
-                if "cloudflare" in content.lower() or "datadome" in content.lower():
-                    logger.warning("[Flashscore] Playwright also blocked by Cloudflare/DataDome.")
-                    raise APIError(f"Blocked by Cloudflare/DataDome: {url}", status_code=403)
-                
-                # Extract body text — Flashscore feed endpoints return raw text,
-                # not rendered HTML, so inner_text gives us the actual feed content
-                return page.inner_text("body")
-            except APIError:
-                raise
-            except Exception as e:
-                logger.error(f"[Flashscore] Playwright fetch failed: {e}")
-                raise APIError(f"Flashscore Playwright error: {e}")
-            finally:
-                browser.close()
+                    
+                    # Cloudflare JS challenge wait
+                    if "Just a moment" in content or "cf-browser-verification" in content:
+                        logger.warning("[Flashscore] Cloudflare challenge detected, waiting...")
+                        page.wait_for_timeout(5000)
+                        content = page.content()
+                    
+                    if is_actually_blocked(content, status_code):
+                        logger.warning(f"[Flashscore] Playwright blocked by Cloudflare/DataDome on attempt {attempt}.")
+                        context.close()
+                        if attempt < 2:
+                            time.sleep(backoff)
+                            continue
+                        browser.close()
+                        raise APIError(f"Blocked by Cloudflare/DataDome: {url}", status_code=403)
+                    
+                    text = page.inner_text("body")
+                    context.close()
+                    browser.close()
+                    return text
+                except APIError:
+                    raise
+                except Exception as e:
+                    logger.error(f"[Flashscore] Playwright fetch failed on attempt {attempt}: {e}")
+                    context.close()
+                    if attempt < 2:
+                        time.sleep(backoff)
+                        continue
+                    raise APIError(f"Flashscore Playwright error: {e}")
+                finally:
+                    if not context.is_closed():
+                        context.close()
+                        
+            browser.close()
 
     def _request(self, endpoint: str, params: dict | None = None) -> str:
         """Flashscore usually returns a custom delimited format or JSON depending on the endpoint."""

@@ -28,12 +28,18 @@ sys.path.insert(0, str(ROOT_DIR / "scripts"))
 
 import requests as _requests  # noqa: E402
 
+logger = logging.getLogger(__name__)
+
 def fetch(url: str, save_snapshot: bool = False) -> str | None:
     """HTTP fetch with stealth Playwright fallback for 403 blocks."""
     try:
-        resp = _requests.get(url, timeout=30, headers={
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        })
+        from stealth_utils import USER_AGENTS
+        import random as _random
+        ua = _random.choice(USER_AGENTS)
+    except ImportError:
+        ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"
+    try:
+        resp = _requests.get(url, timeout=30, headers={"User-Agent": ua})
         if resp.status_code == 200:
             return resp.text
         if resp.status_code in (403, 429):
@@ -54,37 +60,70 @@ def _fetch_stealth(url: str) -> str | None:
     except ImportError:
         logger.error("playwright or playwright-stealth not installed")
         return None
+
+    try:
+        from scripts.stealth_utils import USER_AGENTS, BROWSER_ARGS, is_actually_blocked
+        import random
+        import time
+    except ImportError:
+        try:
+            from stealth_utils import USER_AGENTS, BROWSER_ARGS, is_actually_blocked
+            import random
+            import time
+        except ImportError:
+            USER_AGENTS = ["Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"]
+            BROWSER_ARGS = ['--disable-blink-features=AutomationControlled', '--disable-infobars', '--no-sandbox']
+            def is_actually_blocked(content, status_code):
+                if status_code in (403, 429) and len(content) < 15_000:
+                    return True
+                if len(content) < 10_000:
+                    lower = content.lower()
+                    if any(kw in lower for kw in ("zablokowany", "access denied", "you have been blocked")):
+                        return True
+                return False
+            import random
+            import time
     
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch(
                 headless=True,
-                args=[
-                    '--disable-blink-features=AutomationControlled',
-                    '--disable-infobars',
-                    '--no-sandbox',
-                ]
+                args=BROWSER_ARGS
             )
-            context = browser.new_context(
-                user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                viewport={"width": 1440, "height": 900},
-            )
-            page = context.new_page()
-            Stealth().apply_stealth_sync(page)
             
-            response = page.goto(url, wait_until="networkidle", timeout=30000)
-            if not response:
-                browser.close()
-                return None
-            
-            # Wait for Cloudflare challenge to resolve
-            content = page.content()
-            if "Just a moment" in content or "cf-browser-verification" in content:
-                page.wait_for_timeout(5000)
+            for attempt, backoff in enumerate([5, 15], 1):
+                context = browser.new_context(
+                    user_agent=random.choice(USER_AGENTS),
+                    viewport={"width": 1440, "height": 900},
+                )
+                page = context.new_page()
+                Stealth().apply_stealth_sync(page)
+                
+                response = page.goto(url, wait_until="networkidle", timeout=30000)
+                if not response:
+                    context.close()
+                    continue
+                
+                # Wait for Cloudflare challenge to resolve
                 content = page.content()
-            
+                status_code = response.status
+                
+                if "Just a moment" in content or "cf-browser-verification" in content:
+                    page.wait_for_timeout(5000)
+                    content = page.content()
+                
+                if is_actually_blocked(content, status_code):
+                    logger.warning(f"Stealth Playwright blocked on attempt {attempt}")
+                    context.close()
+                    time.sleep(backoff)
+                    continue
+                
+                context.close()
+                browser.close()
+                return content
+                
             browser.close()
-            return content
+            return None
     except Exception as e:
         logger.error(f"Stealth Playwright failed for {url}: {e}")
         return None
@@ -93,8 +132,6 @@ from bet.db.connection import get_db  # noqa: E402
 from bet.db.models import TeamForm  # noqa: E402
 from bet.db.repositories import SportRepo, StatsRepo, TeamRepo  # noqa: E402
 from bet.stats.market_ranking import SPORT_STAT_KEYS  # noqa: E402
-
-logger = logging.getLogger(__name__)
 
 DATA_DIR = ROOT_DIR / "betting" / "data"
 CACHE_DIR = DATA_DIR / "stats_cache"

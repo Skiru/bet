@@ -63,6 +63,25 @@ class SofascoreClient(BaseAPIClient):
         from playwright.sync_api import sync_playwright
         from playwright_stealth import Stealth
         import urllib.parse
+        import time
+        import random
+        
+        try:
+            from scripts.stealth_utils import USER_AGENTS, BROWSER_ARGS, is_actually_blocked
+        except ImportError:
+            try:
+                from stealth_utils import USER_AGENTS, BROWSER_ARGS, is_actually_blocked
+            except ImportError:
+                USER_AGENTS = ["Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"]
+                BROWSER_ARGS = ['--disable-blink-features=AutomationControlled', '--disable-infobars', '--no-sandbox']
+                def is_actually_blocked(content, status_code):
+                    if status_code in (403, 429) and len(content) < 15_000:
+                        return True
+                    if len(content) < 10_000:
+                        lower = content.lower()
+                        if any(kw in lower for kw in ("zablokowany", "access denied", "you have been blocked")):
+                            return True
+                    return False
         
         if params:
             query = urllib.parse.urlencode(params)
@@ -73,46 +92,65 @@ class SofascoreClient(BaseAPIClient):
         with sync_playwright() as p:
             browser = p.chromium.launch(
                 headless=True,
-                args=[
-                    '--disable-blink-features=AutomationControlled',
-                    '--disable-infobars',
-                    '--no-sandbox',
-                ]
-            )
-            context = browser.new_context(
-                user_agent=HEADERS["User-Agent"],
-                viewport={"width": 1280, "height": 720}
+                args=BROWSER_ARGS
             )
             
-            page = context.new_page()
-            Stealth().apply_stealth_sync(page)
-            
-            try:
-                response = page.goto(full_url, wait_until="networkidle", timeout=self.TIMEOUT * 1000)
-                if not response:
-                    raise APIError(f"Playwright received no response for {full_url}")
+            for attempt, backoff in enumerate([3, 10], 1):
+                context = browser.new_context(
+                    user_agent=random.choice(USER_AGENTS),
+                    viewport={"width": 1280, "height": 720}
+                )
                 
-                # Cloudflare check
-                content = page.content()
-                if "Just a moment" in content or "cf-browser-verification" in content or "DataDome" in content:
-                    logger.warning("Challenge page detected in Playwright, waiting...")
-                    page.wait_for_timeout(5000)
-                    content = page.content()
+                page = context.new_page()
+                Stealth().apply_stealth_sync(page)
                 
-                if response.status == 404:
-                    raise APINotFoundError(f"Resource not found via playwright: {full_url}")
-                    
-                import json
                 try:
-                    # Sofascore endpoints usually return pure JSON
-                    json_str = page.evaluate("document.body.innerText")
-                    logger.info(f"Playwright raw json_str: {json_str[:200]}")
-                    return json.loads(json_str)
-                except Exception as e:
-                    logger.error(f"Failed to parse JSON from Playwright. Raw body: {page.evaluate('document.body.innerHTML')[:200]}")
-                    raise APIError(f"Failed to parse JSON from Playwright response: {e}")
-            finally:
-                browser.close()
+                    response = page.goto(full_url, wait_until="networkidle", timeout=self.TIMEOUT * 1000)
+                    if not response:
+                        context.close()
+                        if attempt < 2:
+                            time.sleep(backoff)
+                            continue
+                        raise APIError(f"Playwright received no response for {full_url}")
+                    
+                    status_code = response.status
+                    content = page.content()
+                    if "Just a moment" in content or "cf-browser-verification" in content or "DataDome" in content:
+                        logger.warning("Challenge page detected in Playwright, waiting...")
+                        page.wait_for_timeout(5000)
+                        content = page.content()
+                    
+                    if is_actually_blocked(content, status_code):
+                        logger.warning(f"Playwright blocked on attempt {attempt}")
+                        context.close()
+                        if attempt < 2:
+                            time.sleep(backoff)
+                            continue
+                        browser.close()
+                        raise APIError(f"Playwright blocked by protection: {full_url}", status_code=403)
+                    
+                    if status_code == 404:
+                        context.close()
+                        browser.close()
+                        raise APINotFoundError(f"Resource not found via playwright: {full_url}")
+                        
+                    import json
+                    try:
+                        json_str = page.evaluate("document.body.innerText")
+                        logger.info(f"Playwright raw json_str: {json_str[:200]}")
+                        obj = json.loads(json_str)
+                        context.close()
+                        browser.close()
+                        return obj
+                    except Exception as e:
+                        logger.error(f"Failed to parse JSON from Playwright. Raw body: {page.evaluate('document.body.innerHTML')[:200]}")
+                        context.close()
+                        raise APIError(f"Failed to parse JSON from Playwright response: {e}")
+                finally:
+                    if not context.is_closed():
+                        context.close()
+            browser.close()
+            raise APIError(f"Playwright received no unblocked response for {full_url}")
 
     # -------- REQUIRED INTERFACE IMPLEMENTATIONS --------
 

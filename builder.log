@@ -1,0 +1,8 @@
+[db_loader] Loaded 298 gate results from DB for 2026-05-13 (status=approved)
+[db_loader] Loaded 0 gate results from JSON fallback
+[db_loader] Loaded 340 gate results from DB for 2026-05-13 (status=rejected)
+{"ts": "2026-05-13T07:31:28", "step": "s8_coupon", "event": "db_load", "approved": 298, "extended": 0}
+[coupon_builder] Markdown: /Users/mkoziol/projects/bet/betting/coupons/2026-05-13.md
+[coupon_builder] JSON: /Users/mkoziol/projects/bet/betting/coupons/2026-05-13.json
+
+AGENT_SUMMARY:{"step": "s8_coupon", "verdict": "OK", "metrics": {"singles": 26, "core_coupons": 0, "combos": 0, "core_spend": 0, "total_spend": 0.0, "potential_return": 0.0}, "issues": [], "counts": {"errors": 0, "warnings": 0}, "ts": "2026-05-13T07:31:28"}

@@ -229,6 +229,10 @@ def save_html_snapshot(html, pick_id):
     return path
 
 
+def list_to_batches(lst, n):
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
+
 def verify_odds(picks):
     """Navigate Betclic and verify odds for each pick."""
     if not picks:
@@ -248,10 +252,24 @@ def verify_odds(picks):
     except ImportError:
         Stealth = None
 
+    try:
+        from scripts.stealth_utils import USER_AGENTS, BROWSER_ARGS, is_actually_blocked, random_delay_sync
+        import random
+    except ImportError:
+        try:
+            from stealth_utils import USER_AGENTS, BROWSER_ARGS, is_actually_blocked, random_delay_sync
+            import random
+        except ImportError:
+            USER_AGENTS = ["Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"]
+            def random_delay_sync(min_s, max_s):
+                import time; time.sleep(min_s)
+            def is_actually_blocked(content, status_code):
+                return False
+
     with sync_playwright() as p:
         browser = p.chromium.launch(
             headless=True,
-            args=['--disable-blink-features=AutomationControlled', '--disable-infobars', '--no-sandbox']
+            args=BROWSER_ARGS if 'BROWSER_ARGS' in dir() else ['--disable-blink-features=AutomationControlled', '--disable-infobars', '--no-sandbox']
         )
         ctx_kwargs = {
             "user_agent": random.choice(USER_AGENTS),
@@ -281,7 +299,18 @@ def verify_odds(picks):
         except Exception as e:
             print(f"[verify] Homepage warning: {e}")
 
+        pick_count = 0
         for pick in picks:
+            if pick_count > 0 and pick_count % 3 == 0:
+                print("[verify] Rotating context...")
+                ctx.close()
+                ctx_kwargs["user_agent"] = random.choice(USER_AGENTS)
+                ctx = browser.new_context(**ctx_kwargs)
+                page = ctx.new_page()
+                if Stealth:
+                    Stealth().apply_stealth_sync(page)
+
+            pick_count += 1
             pid = pick["pick_id"]
             search = pick["search_term"]
             market = pick["market"]
@@ -362,8 +391,25 @@ def verify_odds(picks):
                     r["match_url"] = match_url
                     print(f"  Found: {match_url}")
 
-                    page.goto(match_url, wait_until="domcontentloaded", timeout=15000)
-                    page.wait_for_timeout(3000)
+                    for backoff in [5, 12, None]:
+                        response = page.goto(match_url, wait_until="domcontentloaded", timeout=15000)
+                        status_code = response.status if response else 0
+                        page.wait_for_timeout(3000)
+                        
+                        content = page.content()
+                        if "cf-browser-verification" in content or "Just a moment" in content:
+                            page.wait_for_timeout(5000)
+                            content = page.content()
+                            
+                        if is_actually_blocked(content, status_code):
+                            print(f"  [verify] Blocked on match page (status {status_code}).")
+                            if backoff:
+                                print(f"  Waiting {backoff}s before retry...")
+                                import time; time.sleep(backoff)
+                                continue
+                            else:
+                                break
+                        break
 
                     tab_keywords = MARKET_TAB_KEYWORDS.get(market, [])
                     for kw in tab_keywords:
@@ -403,7 +449,7 @@ def verify_odds(picks):
                 print(f"  ERROR: {e}")
 
             results.append(r)
-            time.sleep(1.5)
+            random_delay_sync(3, 6)
 
         try:
             ctx.storage_state(path=str(storage_file))
