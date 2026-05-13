@@ -289,11 +289,23 @@ class _FlashscoreBatchFetcher:
 
         try:
             with sync_playwright() as p:
-                browser = p.chromium.launch(headless=True)
-                page = browser.new_page(
-                    user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                               "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+                try:
+                    from playwright_stealth import Stealth
+                except ImportError:
+                    Stealth = None
+                
+                browser = p.chromium.launch(
+                    headless=True,
+                    args=['--disable-blink-features=AutomationControlled', '--disable-infobars', '--no-sandbox']
                 )
+                context = browser.new_context(
+                    user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                               "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+                    viewport={"width": 1920, "height": 1080}
+                )
+                page = context.new_page()
+                if Stealth:
+                    Stealth().apply_stealth_sync(page)
 
                 for sport in sport_slugs:
                     for date_label, url in [

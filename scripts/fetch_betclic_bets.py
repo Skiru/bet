@@ -37,8 +37,16 @@ def login_and_fetch_bets(user: str, password: str, headless: bool = False):
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     storage_file = STORAGE_DIR / f"{DOMAIN}.json"
 
+    try:
+        from playwright_stealth import Stealth
+    except ImportError:
+        Stealth = None
+
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=headless)
+        browser = p.chromium.launch(
+            headless=headless,
+            args=['--disable-blink-features=AutomationControlled', '--disable-infobars', '--no-sandbox']
+        )
         ctx_kwargs = {
             "user_agent": USER_AGENTS[0],
             "viewport": {"width": 1280, "height": 900},
@@ -47,6 +55,8 @@ def login_and_fetch_bets(user: str, password: str, headless: bool = False):
 
         ctx = browser.new_context(**ctx_kwargs)
         page = ctx.new_page()
+        if Stealth:
+            Stealth().apply_stealth_sync(page)
 
         # Step 1: Go directly to /my-bets and check if logged in
         print("[1/5] Navigating to /my-bets to check auth...")

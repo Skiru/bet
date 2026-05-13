@@ -12,6 +12,7 @@ or BeautifulSoup instantly.
 
 import asyncio
 from playwright.async_api import async_playwright
+from playwright_stealth import Stealth
 import datetime
 from pathlib import Path
 
@@ -44,9 +45,8 @@ async def stealth_fetch_and_dump():
         )
         
         # Inject stealth to bypass Datadome/Cloudflare easily on fast dumps
-        await context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-        
         page = await context.new_page()
+        await Stealth().apply_stealth_async(page)
         
         for target in TARGETS:
             print(f"Fetching {target['source']} - {target['sport']} ({target['url']})...")

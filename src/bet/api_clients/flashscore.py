@@ -26,6 +26,58 @@ class FlashscoreClient(BaseAPIClient):
         super().__init__("flashscore", "https://local-global.flashscore.ninja/2/x/feed", rate_limiter)
         self.api_key = "no-key"
 
+    def _request_playwright(self, url: str, params: dict | None = None) -> str:
+        """Fallback method using Playwright stealth to bypass Cloudflare/DataDome."""
+        from playwright.sync_api import sync_playwright
+        from playwright_stealth import Stealth
+
+        logger.info(f"[Flashscore] Using Playwright stealth fallback for: {url}")
+        
+        # Build URL with params if any
+        if params:
+            import urllib.parse
+            query = urllib.parse.urlencode(params)
+            url = f"{url}?{query}"
+
+        with sync_playwright() as p:
+            browser = p.chromium.launch(
+                headless=True,
+                args=['--disable-blink-features=AutomationControlled', '--disable-infobars', '--no-sandbox']
+            )
+            context = browser.new_context(
+                user_agent=HEADERS["User-Agent"],
+                viewport={"width": 1920, "height": 1080}
+            )
+            page = context.new_page()
+            Stealth().apply_stealth_sync(page)
+            
+            try:
+                page.goto(url, wait_until="domcontentloaded", timeout=30_000)
+                page.wait_for_timeout(2000)  # Let dynamic protections resolve
+                
+                content = page.content()
+                
+                # Cloudflare JS challenge wait
+                if "Just a moment" in content or "cf-browser-verification" in content:
+                    logger.warning("[Flashscore] Cloudflare challenge detected, waiting...")
+                    page.wait_for_timeout(5000)
+                    content = page.content()
+                
+                if "cloudflare" in content.lower() or "datadome" in content.lower():
+                    logger.warning("[Flashscore] Playwright also blocked by Cloudflare/DataDome.")
+                    raise APIError(f"Blocked by Cloudflare/DataDome: {url}", status_code=403)
+                
+                # Extract body text — Flashscore feed endpoints return raw text,
+                # not rendered HTML, so inner_text gives us the actual feed content
+                return page.inner_text("body")
+            except APIError:
+                raise
+            except Exception as e:
+                logger.error(f"[Flashscore] Playwright fetch failed: {e}")
+                raise APIError(f"Flashscore Playwright error: {e}")
+            finally:
+                browser.close()
+
     def _request(self, endpoint: str, params: dict | None = None) -> str:
         """Flashscore usually returns a custom delimited format or JSON depending on the endpoint."""
         url = f"{self.base_url}/{endpoint.lstrip('/')}"
@@ -34,14 +86,17 @@ class FlashscoreClient(BaseAPIClient):
             resp = requests.get(url, headers=HEADERS, params=params, timeout=self.TIMEOUT)
             if resp.status_code == 404:
                 raise APINotFoundError(f"Resource not found: {url}")
-            if resp.status_code == 429:
-                logger.warning(f"Flashscore Rate limit hit: {url}")
-                raise APIError(f"Rate limited: {url}", status_code=429)
+            if resp.status_code in (403, 429):
+                logger.warning(f"Flashscore Access denied/Rate limit ({resp.status_code}): {url}. Retrying with Playwright...")
+                return self._request_playwright(url, params)
                 
             resp.raise_for_status()
             # Flashscore feeds are often returning custom text separated by ¬ or ÷
             return resp.text
         except requests.exceptions.RequestException as e:
+            if hasattr(e, "response") and e.response is not None and e.response.status_code in (403, 429):
+                logger.warning(f"Flashscore blocked ({e.response.status_code}): {e}. Retrying with Playwright...")
+                return self._request_playwright(url, params)
             raise APIError(f"Flashscore Network error: {e}")
 
     def get_fixtures(self, date: str) -> list:

@@ -243,8 +243,16 @@ def verify_odds(picks):
 
     results = []
 
+    try:
+        from playwright_stealth import Stealth
+    except ImportError:
+        Stealth = None
+
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = p.chromium.launch(
+            headless=True,
+            args=['--disable-blink-features=AutomationControlled', '--disable-infobars', '--no-sandbox']
+        )
         ctx_kwargs = {
             "user_agent": random.choice(USER_AGENTS),
             "viewport": {"width": 1920, "height": 1080},
@@ -255,6 +263,8 @@ def verify_odds(picks):
 
         ctx = browser.new_context(**ctx_kwargs)
         page = ctx.new_page()
+        if Stealth:
+            Stealth().apply_stealth_sync(page)
 
         print("[verify] Loading Betclic homepage...")
         try:
