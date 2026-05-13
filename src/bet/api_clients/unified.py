@@ -157,7 +157,11 @@ class UnifiedAPIClient:
         return all_fixtures
 
     def get_fixture_stats(self, event_id: str, sport: str = "football", source: str | None = None) -> list:
-        """Fetch detailed stats using STATS_PRIORITY fallback chain."""
+        """Fetch detailed stats using STATS_PRIORITY fallback chain.
+        
+        Args:
+            source: Reserved for future use — route to a specific client.
+        """
         sources = STATS_PRIORITY.get(sport, ["flashscore"])
         for src_name in sources:
             client = self._get_client(src_name)
@@ -191,7 +195,11 @@ class UnifiedAPIClient:
         return {}
 
     def get_deep_data(self, event_id: str, source: str | None = None) -> dict:
-        """Fetch stats + form + H2H + odds from Flashscore."""
+        """Fetch stats + form + H2H + odds from Flashscore.
+        
+        Args:
+            source: Reserved for future use — route to a specific client.
+        """
         result = {"stats": [], "form": {}, "h2h": {}, "odds": []}
         client = self._get_client("flashscore")
         if not client:

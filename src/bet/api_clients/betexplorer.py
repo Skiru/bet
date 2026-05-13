@@ -4,8 +4,7 @@ import random
 import re
 from bs4 import BeautifulSoup
 import requests
-from typing import List, Dict, Optional
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from .base_client import BaseAPIClient
 from .api_football import APIFixture
@@ -38,9 +37,6 @@ class BetExplorerClient(BaseAPIClient):
     def _load_api_key(self) -> str:
         return "no-key"  # No API key needed for HTML scraping
 
-    def is_available(self) -> bool:
-        return True # Always true for HTTP scraping
-
     def _build_headers(self) -> dict:
         return {
             "User-Agent": random.choice(USER_AGENTS),
@@ -69,7 +65,7 @@ class BetExplorerClient(BaseAPIClient):
         
         # Add year, month, day to path if scraping a specific date
         today_str = datetime.now().strftime("%Y-%m-%d")
-        if date > today_str:
+        if date >= today_str:
             url = f"{self.base_url}/next{path}?year={date[:4]}&month={date[5:7]}&day={date[8:10]}"
         else:
             url = f"{self.base_url}/results{path}?year={date[:4]}&month={date[5:7]}&day={date[8:10]}"

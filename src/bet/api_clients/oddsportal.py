@@ -417,6 +417,9 @@ class OddsPortalClient(PlaywrightBaseClient):
             Dict with 'average' odds, 'bookmakers' list, and optional 'payout'.
         """
         if not match_url.startswith("http"):
+            if ".." in match_url:
+                logger.warning(f"[OddsPortal] Refusing URL with path traversal: {match_url}")
+                return {}
             if not match_url.startswith("/"):
                 match_url = "/" + match_url
             match_url = f"{self.base_url}{match_url}"
@@ -492,6 +495,7 @@ class OddsPortalClient(PlaywrightBaseClient):
                 });
                 return results;
             }""")
+            self.rate_limiter.record_request("oddsportal-scraper", url[:100])
             return raw if raw else []
 
         except APIError:
@@ -526,6 +530,9 @@ class OddsPortalClient(PlaywrightBaseClient):
         """
         match_url = team1_id
         if not match_url.startswith("http"):
+            if ".." in match_url:
+                logger.warning(f"[OddsPortal] Refusing URL with path traversal: {match_url}")
+                return []
             if not match_url.startswith("/"):
                 match_url = "/" + match_url
             match_url = f"{self.base_url}{match_url}"

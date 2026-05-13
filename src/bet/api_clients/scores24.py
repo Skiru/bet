@@ -51,6 +51,8 @@ class Scores24Client(PlaywrightBaseClient):
     _COOKIE_SELECTOR = ""
     
     def __init__(self, rate_limiter: "RateLimiter | None" = None):
+        if rate_limiter is None:
+            rate_limiter = RateLimiter()
         super().__init__(api_name="scores24", base_url="https://scores24.live", rate_limiter=rate_limiter)
     
     def get_fixtures(self, date: str, sport: str = "football") -> list:
@@ -270,7 +272,7 @@ class Scores24Client(PlaywrightBaseClient):
         Navigate to match detail page and extract structured data from body text.
         Returns dict with keys: match_info, odds, h2h, form_home, form_away.
         """
-        slug = re.sub(r'[^a-zA-Z0-9_-]', '_', detail_url.split("/")[-1])
+        slug = re.sub(r'[^a-zA-Z0-9_-]', '_', detail_url.lstrip('/').replace('/', '_'))
         cache_key = f"scores24/detail/{slug}"
         cached = self._check_cache(cache_key, ttl_hours=6)
         if cached:
@@ -381,7 +383,7 @@ class Scores24Client(PlaywrightBaseClient):
             logger.error(f"[Scores24] Rejected non-scores24 URL: {url}")
             return []
 
-        slug = re.sub(r'[^a-zA-Z0-9_-]', '_', detail_url.split("/")[-1])
+        slug = re.sub(r'[^a-zA-Z0-9_-]', '_', detail_url.lstrip('/').replace('/', '_'))
         cache_key = f"scores24/trends/{slug}"
         cached = self._check_cache(cache_key, ttl_hours=6)
         if cached:

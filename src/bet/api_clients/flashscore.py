@@ -431,6 +431,7 @@ class FlashscoreClient(PlaywrightBaseClient):
         ctx = page = None
         try:
             ctx, page = self._load_page(url, wait_ms=4000)
+            self.rate_limiter.record_request("flashscore-scraper", f"/match/{event_id}/h2h")
 
             h2h_data = page.evaluate(self._JS_EXTRACT_H2H)
             logger.info(f"[Flashscore] Found {len(h2h_data)} H2H matches")
@@ -468,6 +469,7 @@ class FlashscoreClient(PlaywrightBaseClient):
         ctx = page = None
         try:
             ctx, page = self._load_page(url, wait_ms=5000)
+            self.rate_limiter.record_request("flashscore-scraper", f"/match/{event_id}/preview")
 
             match_info = page.evaluate(self._JS_EXTRACT_MATCH_INFO)
 
@@ -566,12 +568,21 @@ class FlashscoreClient(PlaywrightBaseClient):
 
         Returns list of match result dicts.
         """
+        if not _VALID_EVENT_ID.match(team_id):
+            logger.warning(f"[Flashscore] Invalid team_id format: {team_id!r}")
+            return []
+
         url = f"https://www.flashscore.com/team/{team_id}/results/"
         logger.info(f"[Flashscore] Fetching team results for {team_id}")
+
+        if not self.rate_limiter.can_request("flashscore-scraper"):
+            logger.warning("[Flashscore] Rate limit exceeded for team results")
+            return []
 
         ctx = page = None
         try:
             ctx, page = self._load_page(url, wait_ms=5000)
+            self.rate_limiter.record_request("flashscore-scraper", f"/team/{team_id}/results")
 
             results = page.evaluate("""() => {
                 const results = [];

@@ -43,9 +43,6 @@ class PlaywrightBaseClient(BaseAPIClient):
         self._playwright = None
         self._browser = None
 
-    def is_available(self) -> bool:
-        return True
-
     def _ensure_browser(self):
         """Lazy-init Playwright browser."""
         if self._browser is not None:

@@ -2,7 +2,6 @@
 import logging
 import re
 from datetime import datetime
-from typing import Dict, Any, List
 from urllib.parse import urlparse
 
 from .api_football import APIFixture
@@ -63,6 +62,8 @@ class TotalCornerClient(PlaywrightBaseClient):
     _COOKIE_TIMEOUT = 3000
     
     def __init__(self, rate_limiter: "RateLimiter | None" = None):
+        if rate_limiter is None:
+            rate_limiter = RateLimiter()
         super().__init__(api_name="totalcorner", base_url="https://www.totalcorner.com", rate_limiter=rate_limiter)
         self._corner_cache: dict = {}
         
