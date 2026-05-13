@@ -38,7 +38,7 @@ sys.path.insert(0, str(ROOT_DIR / "src"))
 
 import requests as _requests
 
-def fetch(url: str) -> str:
+def fetch(url: str, **kwargs) -> str:
     """HTTP fetch for tipster pages (Beast Mode — no Playwright)."""
     resp = _requests.get(url, timeout=30, headers={
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "

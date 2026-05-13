@@ -1153,16 +1153,12 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
         deduped_approved.append(c)
     approved = deduped_approved
 
-    # MINIMAL quality candidates → Extended Pool only, not core coupons
+    # MINIMAL quality candidates → Extended Pool only, not core coupons (Disabled to allow stats_first to form AKOs)
     core_eligible = []
     for c in approved:
         dq = c.get("data_quality")
         label = (dq.get("label", "MINIMAL") if isinstance(dq, dict) else dq) if dq else "MINIMAL"
-        if label == "MINIMAL":
-            c["extended_pool_reason"] = "MINIMAL data quality — Extended Pool only"
-            extended_pool.append(c)
-        else:
-            core_eligible.append(c)
+        core_eligible.append(c)
 
     # Build core portfolio (requires ≥2 picks)
     core = assign_picks_to_core(core_eligible, config)
@@ -1367,7 +1363,8 @@ def _compact_description(pick: dict, is_approved: bool) -> str:
 def _market_matrix_rows(approved: list, extended: list) -> list[str]:
     """Build full market matrix rows."""
     rows = []
-    all_picks = list(approved) + list(extended)
+    # Filter out empty entries with no analysis before displaying
+    all_picks = [p for p in (list(approved) + list(extended)) if p.get("best_market") and p.get("best_market").get("name")]
     for i, pick in enumerate(all_picks, 1):
         sport = pick.get("sport", "?")
         emoji = SPORT_EMOJI.get(sport, "❓")
