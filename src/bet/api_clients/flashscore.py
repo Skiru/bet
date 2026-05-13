@@ -45,11 +45,13 @@ class FlashscoreClient(BaseAPIClient):
             raise APIError(f"Flashscore Network error: {e}")
 
     def get_fixtures(self, date: str) -> list:
-        # Simplification for stub
+        logger.warning("FlashscoreClient is a stub. Returning empty list for fixtures.")
         return []
 
     def get_fixture_stats(self, fixture_id: str) -> list:
+        logger.warning("FlashscoreClient is a stub. Returning empty list for fixture stats.")
         return []
 
     def get_h2h(self, team1_id: str, team2_id: str, last_n: int = 10) -> list[dict]:
+        logger.warning("FlashscoreClient is a stub. Returning empty list for h2h.")
         return []

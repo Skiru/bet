@@ -487,7 +487,7 @@ def extract_h2h_stats(sport: str, team_a: str, team_b: str) -> dict:
                         result["averages"][key] = avg_val
 
     # LAST RESORT: Internet H2H enrichment via data_enrichment_agent
-    if not result["has_data"]:
+    if not result["has_data"] and not os.environ.get("NO_ENRICH"):
         try:
             from data_enrichment_agent import enrich_h2h
             h2h_enriched = enrich_h2h(team_a, team_b, sport)

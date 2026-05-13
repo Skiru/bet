@@ -28,13 +28,66 @@ sys.path.insert(0, str(ROOT_DIR / "scripts"))
 
 import requests as _requests  # noqa: E402
 
-def fetch(url: str) -> str:
-    """Simple HTTP fetch — replaces deleted Playwright fetcher (Beast Mode)."""
-    resp = _requests.get(url, timeout=30, headers={
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    })
-    resp.raise_for_status()
-    return resp.text
+def fetch(url: str, save_snapshot: bool = False) -> str | None:
+    """HTTP fetch with stealth Playwright fallback for 403 blocks."""
+    try:
+        resp = _requests.get(url, timeout=30, headers={
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        })
+        if resp.status_code == 200:
+            return resp.text
+        if resp.status_code in (403, 429):
+            logger.warning(f"HTTP {resp.status_code} for {url}, trying stealth Playwright...")
+            return _fetch_stealth(url)
+        resp.raise_for_status()
+        return resp.text
+    except _requests.exceptions.RequestException as e:
+        logger.warning(f"Request failed for {url}: {e}, trying stealth Playwright...")
+        return _fetch_stealth(url)
+
+
+def _fetch_stealth(url: str) -> str | None:
+    """Fetch URL using Playwright with stealth patches to bypass Cloudflare/DataDome."""
+    try:
+        from playwright.sync_api import sync_playwright
+        from playwright_stealth import Stealth
+    except ImportError:
+        logger.error("playwright or playwright-stealth not installed")
+        return None
+    
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(
+                headless=True,
+                args=[
+                    '--disable-blink-features=AutomationControlled',
+                    '--disable-infobars',
+                    '--no-sandbox',
+                ]
+            )
+            context = browser.new_context(
+                user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                viewport={"width": 1440, "height": 900},
+            )
+            page = context.new_page()
+            Stealth().apply_stealth_sync(page)
+            
+            response = page.goto(url, wait_until="networkidle", timeout=30000)
+            if not response:
+                browser.close()
+                return None
+            
+            # Wait for Cloudflare challenge to resolve
+            content = page.content()
+            if "Just a moment" in content or "cf-browser-verification" in content:
+                page.wait_for_timeout(5000)
+                content = page.content()
+            
+            browser.close()
+            return content
+    except Exception as e:
+        logger.error(f"Stealth Playwright failed for {url}: {e}")
+        return None
 
 from bet.db.connection import get_db  # noqa: E402
 from bet.db.models import TeamForm  # noqa: E402

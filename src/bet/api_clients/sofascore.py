@@ -61,6 +61,7 @@ class SofascoreClient(BaseAPIClient):
     def _request_playwright(self, url: str, params: dict | None = None) -> dict:
         """Fallback method using Playwright for Cloudflare 403 blocks."""
         from playwright.sync_api import sync_playwright
+        from playwright_stealth import Stealth
         import urllib.parse
         
         if params:
@@ -70,23 +71,33 @@ class SofascoreClient(BaseAPIClient):
             full_url = url
             
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
+            browser = p.chromium.launch(
+                headless=True,
+                args=[
+                    '--disable-blink-features=AutomationControlled',
+                    '--disable-infobars',
+                    '--no-sandbox',
+                ]
+            )
             context = browser.new_context(
                 user_agent=HEADERS["User-Agent"],
                 viewport={"width": 1280, "height": 720}
             )
+            
             page = context.new_page()
+            Stealth().apply_stealth_sync(page)
             
             try:
-                response = page.goto(full_url, wait_until="domcontentloaded", timeout=self.TIMEOUT * 1000)
+                response = page.goto(full_url, wait_until="networkidle", timeout=self.TIMEOUT * 1000)
                 if not response:
                     raise APIError(f"Playwright received no response for {full_url}")
                 
                 # Cloudflare check
                 content = page.content()
-                if "Just a moment..." in content or "cf-browser-verification" in content:
-                    logger.warning("Cloudflare challenge detected in Playwright, waiting a bit...")
-                    page.wait_for_timeout(3000)
+                if "Just a moment" in content or "cf-browser-verification" in content or "DataDome" in content:
+                    logger.warning("Challenge page detected in Playwright, waiting...")
+                    page.wait_for_timeout(5000)
+                    content = page.content()
                 
                 if response.status == 404:
                     raise APINotFoundError(f"Resource not found via playwright: {full_url}")
