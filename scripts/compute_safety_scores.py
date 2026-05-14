@@ -381,12 +381,12 @@ def compute_margin(avg: float, line: float, direction: str) -> float:
     if line == 0:
         return 0.0
     if avg == 0:
-        # avg=0 with line>0: infinite UNDER margin, cap at 2.0
-        return 2.0 if direction == "UNDER" else 0.0
+        # avg=0 with line>0: infinite UNDER margin, cap at 1.50
+        return 1.50 if direction == "UNDER" else 0.0
     if direction == "OVER":
-        return round(avg / line, 3)
+        return min(round(avg / line, 3), 1.50)
     else:
-        return round(line / avg, 3)
+        return min(round(line / avg, 3), 1.50)
 
 
 def compute_safety_score(hit_rate_l10: float, hit_rate_h2h: float) -> float:
@@ -502,9 +502,13 @@ def rank_markets(data: dict) -> dict:
         hits_h2h, total_h2h, pushes_h2h = compute_hit_rate(h2h_values, line, direction)
         hits_l5, total_l5, pushes_l5 = compute_hit_rate(l5_values, line, direction)
 
-        # Hit rates as fractions
-        rate_l10 = hits_l10 / total_l10 if total_l10 > 0 else 0.0
-        rate_h2h = hits_h2h / total_h2h if total_h2h > 0 else 0.0
+        # Hit rates as fractions (Half-Win model for pushes)
+        rate_l10 = (hits_l10 + (0.5 * pushes_l10)) / total_l10 if total_l10 > 0 else 0.0
+        rate_h2h = (hits_h2h + (0.5 * pushes_h2h)) / total_h2h if total_h2h > 0 else 0.0
+
+        # Sample Size Penalty (L10) - hard scale down if under 8 matches
+        if total_l10 > 0 and total_l10 < 8:
+            rate_l10 = round(rate_l10 * (total_l10 / 10.0), 3)
 
         # Safety score
         if total_h2h > 0:

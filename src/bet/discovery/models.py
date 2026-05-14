@@ -1,21 +1,30 @@
 from datetime import datetime
 from pydantic import BaseModel, Field
-from sqlalchemy import Column, Integer, Text, Float, ForeignKey, UniqueConstraint
-from sqlalchemy.orm import DeclarativeBase
-
-class Base(DeclarativeBase):
-    pass
+from sqlalchemy import Column, Integer, Text, Float, UniqueConstraint
+from bet.scrapers.engine import Base
 
 class FixtureSourceModel(Base):
     __tablename__ = "fixture_sources"
+    # Note: FK enforced by raw SQL schema (schema.sql), not SA — because
+    # the `fixtures` table is not a SA model (managed by sqlite3 repos).
     id = Column(Integer, primary_key=True, autoincrement=True)
-    fixture_id = Column(Integer, ForeignKey("fixtures.id", ondelete="CASCADE"), nullable=False)
+    fixture_id = Column(Integer, nullable=False)
     source = Column(Text, nullable=False)
     external_id = Column(Text, nullable=False)
     confidence = Column(Float, nullable=False, default=1.0)
     raw_data = Column(Text, nullable=True)
     fetched_at = Column(Text, nullable=False)
     __table_args__ = (UniqueConstraint("fixture_id", "source", name="uq_fixture_source"),)
+
+    def __repr__(self):
+        return f"<FixtureSource fixture={self.fixture_id} source={self.source} ext_id={self.external_id}>"
+    
+    def to_dict(self):
+        return {
+            "id": self.id, "fixture_id": self.fixture_id, "source": self.source,
+            "external_id": self.external_id, "confidence": self.confidence,
+            "raw_data": self.raw_data, "fetched_at": self.fetched_at,
+        }
 
 class SourceRunStats(BaseModel):
     source: str

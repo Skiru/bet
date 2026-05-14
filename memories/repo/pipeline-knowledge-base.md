@@ -94,11 +94,40 @@ After S4-S7 gates → 3-4 viable core picks
 
 - ~48K LoC, 153 files, 21 agents, 62 scripts, 28 DB tables
 - SQLite WAL at `betting/data/betting.db`, connection: `from bet.db.connection import get_db`
-- Scripts = DATA TOOLS. Agents = ANALYSTS. `src/bet/` = shared packages (db, api_clients, stats)
+- Scripts = DATA TOOLS. Agents = ANALYSTS. `src/bet/` = shared packages (db, api_clients, stats, discovery)
 - `src/bet/stats/market_ranking.py` = SINGLE SOURCE OF TRUTH for SPORT_MARKETS, STANDARD_MARKET_LINES, MARKET_PL
-- 14 scripts emit `AGENT_SUMMARY:{json}` with `--verbose`. Exit: 0=OK, 1=partial, 2=critical
+- 15 scripts emit `AGENT_SUMMARY:{json}` with `--verbose`. Exit: 0=OK, 1=partial, 2=critical
 - Gate vocabulary: status=APPROVED/EXTENDED/REJECTED, advisory_tier=STRONG/MODERATE/WEAK/FLAGGED, risk_tier=LR/MS/HR/N
 - Config: `max_legs_per_coupon: 4`, `min_safety_score: 0.4`, `max_picks_per_day: 80`
+
+### Event Discovery Module — `src/bet/discovery/` (2026-05-14, REPLACES scan_events.py)
+
+API-first event discovery using 3 structured sources. **Fast** (~30s vs 10-15 min old scan). Live-tested: 1807 raw → 1734 merged events.
+
+| Source | Coverage | Events (typical) |
+|--------|----------|------------------|
+| SofaScore Daily Schedule API | All 5 sports | ~1500 |
+| API-Football | Football only | ~250 |
+| The Odds API | Football (10 leagues) + auto-discovered tennis/hockey | ~17 (with structured odds) |
+
+**Entry point:** `from bet.discovery import discover_events` or CLI `scripts/discover_events.py --date YYYY-MM-DD --verbose`
+
+**Key files:**
+- `coordinator.py` — orchestrates fetch→dedup→persist→JSON (ThreadPoolExecutor, 3 workers)
+- `dedup.py` — exact match by `{sport}|{norm_home}|{norm_away}|{date}` + rapidfuzz fuzzy (threshold 85, ±2h window)
+- `repository.py` — SQLAlchemy ORM for `fixture_sources` table (schema v8)
+- `sources/sofascore.py`, `sources/odds_api.py`, `sources/api_football.py` — SourceAdapter Protocol implementations
+- `models.py` — Pydantic v2 (DiscoveredEvent, MergedFixture, DiscoveryResult) + SA ORM (FixtureSourceModel)
+
+**DB writes:** Same tables as old scan (`fixtures`, `teams`, `competitions`, `scan_results`) via raw SQL `text()` + `fixture_sources` via SA ORM. Backward-compatible JSON: `{date}_s1_events.json`.
+
+**Persistence:** Savepoint-per-fixture (`session.begin_nested()`) — single FK/data error doesn't wipe batch.
+
+**normalize_team_name:** Single source of truth at `src/bet/utils.py`. `scripts/utils.py` re-exports it.
+
+**Integration handoff:** `betting/plans/discovery-integration-handoff.md` — 8 files to update (orchestrator prompt, agents, protocol). 32 tests (tests/discovery/).
+
+**Status:** Module complete + live-tested. NOT yet wired into orchestrator pipeline (still uses scan_events.py). Next step: replace S1 scan_events.py references.
 
 ### API Clients (2026-05-14)
 - **unified.py** routes: Football(Flashscore→BetExplorer→Soccerway→ESPN), Tennis(Flashscore→Scores24→ESPN)

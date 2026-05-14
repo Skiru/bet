@@ -1,53 +1,92 @@
+"""SQLAlchemy ORM repository for fixture source cross-references.
+
+Uses SQLAlchemy session-based operations (not raw sqlite3).
+Compatible with bet.scrapers.engine session factory.
+"""
+
 import json
-import sqlite3
+import logging
 from datetime import datetime, timezone
 
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from .models import FixtureSourceModel
+
+logger = logging.getLogger(__name__)
+
+
 class FixtureSourceRepo:
-    def __init__(self, conn: sqlite3.Connection):
-        self.conn = conn
-    
-    def upsert(self, fixture_id, source, external_id, confidence=1.0, raw_data=None):
+    """Repository for fixture_sources table via SQLAlchemy ORM."""
+
+    def __init__(self, session: Session):
+        self.session = session
+
+    def upsert(
+        self,
+        fixture_id: int,
+        source: str,
+        external_id: str,
+        confidence: float = 1.0,
+        raw_data: dict | None = None,
+    ) -> FixtureSourceModel:
+        """Insert or update a fixture-source mapping. Returns the model instance."""
         now = datetime.now(timezone.utc).isoformat()
         raw_json = json.dumps(raw_data) if raw_data else None
-        self.conn.execute(
-            """INSERT INTO fixture_sources (fixture_id, source, external_id, confidence, raw_data, fetched_at)
-               VALUES (?, ?, ?, ?, ?, ?)
-               ON CONFLICT(fixture_id, source) DO UPDATE SET
-                   external_id = excluded.external_id,
-                   confidence = excluded.confidence,
-                   raw_data = excluded.raw_data,
-                   fetched_at = excluded.fetched_at""",
-            (fixture_id, source, external_id, confidence, raw_json, now)
+
+        existing = self.session.execute(
+            select(FixtureSourceModel).where(
+                FixtureSourceModel.fixture_id == fixture_id,
+                FixtureSourceModel.source == source,
+            )
+        ).scalar_one_or_none()
+
+        if existing:
+            existing.external_id = external_id
+            existing.confidence = confidence
+            existing.raw_data = raw_json
+            existing.fetched_at = now
+            return existing
+
+        obj = FixtureSourceModel(
+            fixture_id=fixture_id,
+            source=source,
+            external_id=external_id,
+            confidence=confidence,
+            raw_data=raw_json,
+            fetched_at=now,
         )
-        return self.conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        self.session.add(obj)
+        self.session.flush()
+        return obj
 
-    def get_by_fixture(self, fixture_id):
-        rows = self.conn.execute(
-            "SELECT * FROM fixture_sources WHERE fixture_id = ?", (fixture_id,)
-        ).fetchall()
-        return [dict(r) for r in rows]
+    def get_by_fixture(self, fixture_id: int) -> list[FixtureSourceModel]:
+        """Get all source references for a fixture."""
+        return list(
+            self.session.execute(
+                select(FixtureSourceModel).where(
+                    FixtureSourceModel.fixture_id == fixture_id
+                )
+            ).scalars().all()
+        )
 
-    def get_by_source_id(self, source, external_id):
-        row = self.conn.execute(
-            "SELECT * FROM fixture_sources WHERE source = ? AND external_id = ?",
-            (source, external_id)
-        ).fetchone()
-        return dict(row) if row else None
+    def get_by_source_id(self, source: str, external_id: str) -> FixtureSourceModel | None:
+        """Look up fixture by source-specific external ID."""
+        return self.session.execute(
+            select(FixtureSourceModel).where(
+                FixtureSourceModel.source == source,
+                FixtureSourceModel.external_id == external_id,
+            )
+        ).scalar_one_or_none()
 
-    def bulk_upsert(self, records):
-        now = datetime.now(timezone.utc).isoformat()
+    def bulk_upsert(self, records: list[tuple]) -> int:
+        """Batch upsert source references.
+
+        Each record: (fixture_id, source, external_id, confidence, raw_data)
+        Returns count written.
+        """
         count = 0
         for fixture_id, source, external_id, confidence, raw_data in records:
-            raw_json = json.dumps(raw_data) if raw_data else None
-            self.conn.execute(
-                """INSERT INTO fixture_sources (fixture_id, source, external_id, confidence, raw_data, fetched_at)
-                   VALUES (?, ?, ?, ?, ?, ?)
-                   ON CONFLICT(fixture_id, source) DO UPDATE SET
-                       external_id = excluded.external_id,
-                       confidence = excluded.confidence,
-                       raw_data = excluded.raw_data,
-                       fetched_at = excluded.fetched_at""",
-                (fixture_id, source, external_id, confidence, raw_json, now)
-            )
+            self.upsert(fixture_id, source, external_id, confidence, raw_data)
             count += 1
         return count

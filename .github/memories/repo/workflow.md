@@ -8,9 +8,10 @@
 - Agent reviews: `betting/data/agent_reviews/{date}/{step}_input.json`
 
 ## Scanning Architecture
-- Parallel per-sport scanning: `python3 scripts/scan_events.py --parallel-sport --urls-file config/scan_urls.json --deep`
+- **NEW (2026-05-14):** API-first discovery module at `src/bet/discovery/`. CLI: `PYTHONPATH=src .venv/bin/python scripts/discover_events.py --date YYYY-MM-DD --verbose`. 3 sources (SofaScore, Odds API, API-Football), ~30s, all 5 sports. Pending integration into orchestrator (still uses scan_events.py).
+- **Legacy:** Parallel per-sport scanning: `python3 scripts/scan_events.py --parallel-sport --urls-file config/scan_urls.json --deep`
 - 5 scanner groups, 5 core sports (football, volleyball, basketball, tennis, hockey). Independent timeouts (football 15min, others 2-5min)
-- DB-first storage: `scan_results` + `scan_run_stats` tables, `ScanResultRepo`
+- DB-first storage: `scan_results` + `scan_run_stats` + `fixture_sources` (new, SA ORM) tables, `ScanResultRepo`
 - Config: `config/scan_urls.json` (sport-grouped URL source of truth)
 
 ## DB-First Architecture

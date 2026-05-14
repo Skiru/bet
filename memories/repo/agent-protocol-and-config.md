@@ -69,7 +69,7 @@ tools: ["execute", "read", "edit", "search", "agent", "todo",
 ### Per-Agent THINK-WHILE-WAITING Work
 | Agent | Long Script | What to do during wait |
 |-------|-------------|----------------------|
-| bet-scanner | scan_events (600s) | Query DB for source health, check fixture counts |
+| bet-scanner | discover_events (120s) or scan_events (600s) | Query DB for source health, check fixture counts |
 | bet-enricher | data_enrichment_agent (600s) | Read shortlist, check team form data |
 | bet-statistician | deep_stats_report (600s) | Review enrichment quality, pre-load sport protocols |
 | bet-challenger | context/upset/gate (300s each) | Review deep stats, draft bear cases |
@@ -95,10 +95,21 @@ All 10 agents include: `ms-python.python/*` (configure, executable, info, instal
 - All verified via `scripts/_verify_ai_audit.py` (14 checks passing)
 
 ## Structured Script Output Protocol
-15 scripts support `--verbose` + `AGENT_SUMMARY:{json}`:
-`scan_events.py`, `html_deep_parser.py`, `ingest_scan_stats.py`, `tipster_aggregator.py`, `tipster_xref.py`, `data_enrichment_agent.py`, `deep_stats_report.py`, `gate_checker.py`, `coupon_builder.py`, `build_shortlist.py`, `odds_evaluator.py`, `context_checks.py`, `upset_risk.py`, `fetch_odds_multi.py`, `validate_coupons.py`
+16 scripts support `--verbose` + `AGENT_SUMMARY:{json}`:
+`scan_events.py`, `discover_events.py`, `html_deep_parser.py`, `ingest_scan_stats.py`, `tipster_aggregator.py`, `tipster_xref.py`, `data_enrichment_agent.py`, `deep_stats_report.py`, `gate_checker.py`, `coupon_builder.py`, `build_shortlist.py`, `odds_evaluator.py`, `context_checks.py`, `upset_risk.py`, `fetch_odds_multi.py`, `validate_coupons.py`
 
 Exit codes: 0=success, 1=partial/degraded, 2=critical failure.
+
+## Event Discovery Module (2026-05-14) — PENDING INTEGRATION
+
+**New module:** `src/bet/discovery/` — API-first replacement for `scan_events.py` event scanning.
+**CLI:** `PYTHONPATH=src .venv/bin/python scripts/discover_events.py --date YYYY-MM-DD --verbose`
+**Sources:** SofaScore (~1500 events) + API-Football (~250) + Odds API (~17 with odds). All 5 sports.
+**Speed:** ~30s (was 10-15 min for scan_events.py). `mode=sync, timeout=120000` is fine.
+**Output:** Same DB tables (`fixtures`, `teams`, `competitions`, `scan_results`) + `fixture_sources` (new, schema v8). JSON: `{date}_s1_events.json`.
+**Tests:** 32 passing in `tests/discovery/`.
+**Integration plan:** `betting/plans/discovery-integration-handoff.md` — 8 files to update.
+**NOT YET WIRED:** Orchestrator still references `scan_events.py` for S1. Next agent must update orchestrate-betting-day.prompt.md, bet-orchestrator.agent.md, bet-scanner.agent.md, bet-scan.prompt.md, agent_protocol.py, copilot-instructions.md.
 
 ## Key Design Lesson
 When agents fail to follow instructions: make instructions SHORTER, add CONCRETE EXAMPLES, reduce DUPLICATION. Don't add more rules or bold text. Per-agent "YOUR VALUE" statements explain WHY the agent exists.
