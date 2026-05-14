@@ -143,6 +143,7 @@ verdict: APPROVED | FLAGGED | REJECTED
 quality_score: 1-10
 script: {script_name}
 exit_code: {0|1|2}
+think_while_waiting: (required — what agent did DURING script execution; blank = R17 violation)
 ```
 ### Metrics        — ≥3 rows, script-grounded facts
 ### Anomalies      — specific anomaly + root cause
@@ -161,7 +162,8 @@ exit_code: {0|1|2}
 - Parse `subagent_verdict` → `Metrics` → `User Summary` → `Data For Orchestrator`
 - Present user update: step header + User Summary + 2-4 key metrics + Next line
 - Maintain quality ledger: step, agent, verdict, quality_score, key handoff fact
-- 5-question quality gate before accepting any verdict (see §SUBAGENT OUTPUT VERIFICATION in orchestrate-betting-day.prompt.md)
+- 6-question quality gate before accepting any verdict (see §SUBAGENT OUTPUT VERIFICATION in orchestrate-betting-day.prompt.md)
+- Q6 specifically checks `think_while_waiting` — blank/vague = R17 violation = REJECT
 
 ---
 

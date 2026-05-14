@@ -222,7 +222,7 @@ For every specialist delegation, append this response contract after the step-sp
 ```
 ### Expected Response Format
 Return the protocol's structured verdict:
-- `subagent_verdict` block with `verdict`, `quality_score`, `script`, `exit_code`
+- `subagent_verdict` block with `verdict`, `quality_score`, `script`, `exit_code`, `think_while_waiting`
 - `### Metrics` with ≥3 rows from script output
 - `### Anomalies` with specific anomaly + root cause
 - `### Analysis` with your original reasoning
@@ -240,12 +240,13 @@ Do NOT return free-form prose and do NOT rename the headers.
 
 ## §SUBAGENT OUTPUT VERIFICATION (after every runSubagent)
 
-**5-question quality gate — if ANY answer is NO, REJECT and re-delegate:**
-1. Does the response contain a `subagent_verdict` block with `verdict`, `quality_score`, `script`, and `exit_code`?
+**6-question quality gate — if ANY answer is NO, REJECT and re-delegate:**
+1. Does the response contain a `subagent_verdict` block with `verdict`, `quality_score`, `script`, `exit_code`, and `think_while_waiting`?
 2. Does `### Metrics` contain ≥3 specific metrics extracted from script output?
 3. Are `### Analysis` and `### User Summary` both present, with `User Summary` clearly plainer and different from `Analysis`?
 4. Do `### Data For Orchestrator` and `### Impact` provide actionable next-step facts, and is there evidence the agent used `pylanceRunCodeSnippet` for INSPECT and VALIDATE?
 5. Does `### Issues` list specific blockers, or explicitly say `None`?
+6. Does `think_while_waiting` cite SPECIFIC productive work done during script execution (sequentialthinking topics, pylanceRunCodeSnippet checks, data files read)? A blank or vague value = R17 violation → REJECT.
 
 **Re-delegation instruction when rejecting:**
 "Your output was rejected — the structured verdict is incomplete or shallow. Read agent-execution-protocol.instructions.md. Return the full format: `subagent_verdict`, `Metrics`, `Anomalies`, `Analysis`, `Impact`, `Issues`, `User Summary`, `Data For Orchestrator`."

@@ -259,6 +259,7 @@ verdict: APPROVED | FLAGGED | REJECTED
 quality_score: 1-10
 script: {script_name}
 exit_code: {0|1|2}
+think_while_waiting: (required — what you did DURING script execution: sequentialthinking topics, pylanceRunCodeSnippet checks, data reviewed. If blank → R17 violation.)
 ```
 
 ### Metrics
@@ -338,6 +339,7 @@ verdict: APPROVED
 quality_score: 8
 script: data_enrichment_agent.py
 exit_code: 0
+think_while_waiting: sequentialthinking on shortlist data quality (88% FIXTURE_ONLY), pylanceRunCodeSnippet to check team_form baseline (12,847 rows), identified 9 hockey teams likely to gap
 ```
 
 ### Metrics
