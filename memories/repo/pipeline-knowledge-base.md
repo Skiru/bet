@@ -220,3 +220,25 @@ execution_model: analysis-only
 - Key: Flashscore(9482), TennisAbstract(1060), TennisExplorer(550), Forebet(251), Basketball-Reference(250)
 - Sofascore = __NEXT_DATA__ JSON, Scores24 = React Query dehydrated, Betclic = JSON script blocks
 - PRIMARY_SCAN_DOMAINS fail at <30% match, others WARN at <15%
+
+---
+
+## Modular Scrapers System (2026-05-14)
+
+New module `src/bet/scrapers/` — 9 scrapers across 5 sports, SQLAlchemy 2.0 ORM, coexists with raw sqlite3.
+
+| Sport | Sources | Data Written |
+|-------|---------|-------------|
+| Football | FBref (soccerdata) | league_profiles, player_season_stats, player_gamelogs |
+| Basketball | NBA API, Basketball-Reference | league_profiles, player_season_stats, player_gamelogs |
+| Tennis | Sackmann CSVs, SofaScore API | league_profiles, player_season_stats, player_gamelogs, fixtures |
+| Hockey | NHL API, Hockey-Reference | league_profiles, player_season_stats, fixtures |
+| Volleyball | Volleybox, SofaScore API | league_profiles, player_season_stats, fixtures |
+
+**CLI:** `scripts/run_scrapers.py` — `--sport all`, `--sport hockey --source nhl-api`, `--list`, `--fixtures YYYY-MM-DD`
+
+**⚠️ CRITICAL GAP:** Scrapers do NOT write to `team_form` table. Downstream (`normalize_stats.py`, `deep_stats_report.py`) reads `team_form` via `build_safety_input()`. An adapter is needed to bridge `player_gamelogs` → L10/L5 rolling averages → `team_form`.
+
+**Status:** 49/49 unit tests passing (all mocked). NO live API tests done. NOT integrated into pipeline yet.
+
+**Full docs:** `betting/plans/scrapers-integration-handoff.md`, `memories/repo/scrapers-module-migration-guide.md`
