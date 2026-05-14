@@ -2,40 +2,23 @@
 description: "Orchestrates scanning — Flashscore + ESPN scan for all 5 core sports, validates coverage, runs enrichment, and delivers an analysis-ready shortlist."
 tools:
   [
+    "execute",
+    "read",
+    "edit",
+    "search",
+    "agent",
+    "todo",
+    "sequential-thinking/*",
+    "pylance-mcp-server/*",
+    "ms-python.python/*",
+    "web/fetch",
+    "browser/*",
+    "playwright/*",
     "vscode/memory",
     "vscode/resolveMemoryFileUri",
     "vscode/askQuestions",
     "vscode/runCommand",
     "vscode/toolSearch",
-    "execute/runInTerminal",
-    "sequential-thinking/sequentialthinking",
-    "execute/getTerminalOutput",
-    "execute/sendToTerminal",
-    "execute/killTerminal",
-    "read/readFile",
-    "read/problems",
-    "read/terminalLastCommand",
-    "read/terminalSelection",
-    "read/viewImage",
-    "read/getNotebookSummary",
-    "agent/runSubagent",
-    "edit/editFiles",
-    "edit/createFile",
-    "search/textSearch",
-    "search/fileSearch",
-    "search/listDirectory",
-    "search/codebase",
-    "search/changes",
-    "search/usages",
-    "web/fetch",
-    "browser/*",
-    "playwright/*",
-    "ms-python.python/configurePythonEnvironment",
-    "ms-python.python/getPythonExecutableCommand",
-    "ms-python.python/getPythonEnvironmentInfo",
-    "ms-python.python/installPythonPackage",
-    "todo",
-    "pylance-mcp-server/*",
   ]
 model: "Claude Opus 4.6 (Copilot)"
 instructions:
@@ -120,12 +103,6 @@ Report aggregate metrics. Proceed to next pipeline step.
 | scan_events.py | 900000 | async | YES |
 | ingest_scan_stats.py | 120000 | sync | YES |
 | build_shortlist.py | 120000 | sync | YES |
-
-### ⛔ BANNED TERMINAL PATTERNS
-- NEVER run `for` loops, `sleep`, `ps -p` polling
-- ALWAYS: ONE command → READ output → THINK → NEXT command
-
----
 
 ## DATA ACCESS: DB-First
 

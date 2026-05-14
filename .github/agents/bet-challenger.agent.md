@@ -2,40 +2,23 @@
 description: "Devil's advocate — context verification, upset risk scoring, bear case construction, 18-point gate, Zero Tolerance Shield, and contrarian thinking."
 tools:
   [
+    "execute",
+    "read",
+    "edit",
+    "search",
+    "agent",
+    "todo",
+    "sequential-thinking/*",
+    "pylance-mcp-server/*",
+    "ms-python.python/*",
+    "web/fetch",
+    "browser/*",
+    "playwright/*",
     "vscode/memory",
     "vscode/resolveMemoryFileUri",
     "vscode/askQuestions",
     "vscode/runCommand",
     "vscode/toolSearch",
-    "execute/runInTerminal",
-    "sequential-thinking/sequentialthinking",
-    "execute/getTerminalOutput",
-    "execute/sendToTerminal",
-    "execute/killTerminal",
-    "read/readFile",
-    "read/problems",
-    "read/terminalLastCommand",
-    "read/terminalSelection",
-    "read/viewImage",
-    "read/getNotebookSummary",
-    "edit/editFiles",
-    "edit/createFile",
-    "search/textSearch",
-    "search/fileSearch",
-    "search/listDirectory",
-    "search/codebase",
-    "search/changes",
-    "search/usages",
-    "web/fetch",
-    "browser/*",
-    "playwright/*",
-    "agent/runSubagent",
-    "ms-python.python/configurePythonEnvironment",
-    "ms-python.python/getPythonExecutableCommand",
-    "ms-python.python/getPythonEnvironmentInfo",
-    "ms-python.python/installPythonPackage",
-    "todo",
-    "pylance-mcp-server/*",
   ]
 model: "Claude Opus 4.6 (Copilot)"
 instructions:
@@ -127,13 +110,6 @@ delta = adjusted_prob - prior_prob
 - **MUST use for:** `PYTHONPATH=src python3 scripts/context_checks.py --date YYYY-MM-DD --verbose` (S5 context — weather, injuries, motivation, `mode=async` timeout=300000, parse `AGENT_SUMMARY:{json}`), `PYTHONPATH=src python3 scripts/upset_risk.py --date YYYY-MM-DD --verbose` (S6 upset risk scoring, `mode=async` timeout=300000, parse `AGENT_SUMMARY:{json}`), `python3 scripts/gate_checker.py --date YYYY-MM-DD --verbose` (S7 programmatic 18-point gate, `mode=async` timeout=300000, parse `AGENT_SUMMARY:{json}`, handles all 18 points + red flags + sport diversity §7.6 + risk tiers + confidence scoring + 48h repeat loss checks)
 - **NOTE:** Run S5 context_checks FIRST, then S6 upset_risk, then S7 gate_checker for structural checks. Then focus agent effort on qualitative bear cases and adversarial reasoning for borderline APPROVED/EXTENDED candidates.
 - **After EVERY script:** THINK-WHILE-WAITING: while S5 runs → review deep stats output, identify candidates with weak data; while S6 runs → study S5 context flags, prepare bear cases; while S7 runs → draft adversarial reasoning for borderline candidates. Then `get_terminal_output` → extract metrics → `sequentialthinking` → verdict.
-
-### ⛔ BANNED TERMINAL PATTERNS
-
-- **NEVER** run `for` loops or batch loops in terminal
-- **NEVER** use `sleep`, `ps -p` polling, or idle waiting
-- **NEVER** chain scripts blindly with `&&`
-- **ALWAYS:** ONE command → READ output → THINK → NEXT command
 
 ### web/fetch
 - **MUST use for:** Verifying injuries/suspensions (ESPN, Flashscore), checking weather (outdoor sports), confirming fixture status, checking referee stats for cards/fouls markets, TransferMarkt for coach/roster changes

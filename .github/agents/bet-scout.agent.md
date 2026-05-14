@@ -2,40 +2,23 @@
 description: "Tipster intelligence analyst — extracts full reasoning from argument-based tipster sites, calculates consensus, promotes statistical-market picks to watchlist."
 tools:
   [
+    "execute",
+    "read",
+    "edit",
+    "search",
+    "agent",
+    "todo",
+    "sequential-thinking/*",
+    "pylance-mcp-server/*",
+    "ms-python.python/*",
+    "web/fetch",
+    "browser/*",
+    "playwright/*",
     "vscode/memory",
     "vscode/resolveMemoryFileUri",
     "vscode/askQuestions",
     "vscode/runCommand",
     "vscode/toolSearch",
-    "execute/runInTerminal",
-    "sequential-thinking/sequentialthinking",
-    "execute/getTerminalOutput",
-    "execute/sendToTerminal",
-    "execute/killTerminal",
-    "read/readFile",
-    "read/problems",
-    "read/terminalLastCommand",
-    "read/terminalSelection",
-    "read/viewImage",
-    "read/getNotebookSummary",
-    "edit/editFiles",
-    "edit/createFile",
-    "search/textSearch",
-    "search/fileSearch",
-    "search/listDirectory",
-    "search/codebase",
-    "search/changes",
-    "search/usages",
-    "web/fetch",
-    "browser/*",
-    "playwright/*",
-    "agent/runSubagent",
-    "ms-python.python/configurePythonEnvironment",
-    "ms-python.python/getPythonExecutableCommand",
-    "ms-python.python/getPythonEnvironmentInfo",
-    "ms-python.python/installPythonPackage",
-    "todo",
-    "pylance-mcp-server/*",
   ]
 model: "Claude Opus 4.6 (Copilot)"
 instructions:
@@ -94,13 +77,6 @@ You apply a 5-part Tipster Intelligence Analysis Layer via sequential-thinking: 
 - **MUST use for:** `python3 scripts/tipster_aggregator.py --date YYYY-MM-DD --workers 5 --verbose` (automated collection — 12 sites in parallel), `python3 scripts/fetch_with_playwright.py` (JS-rendered pages)
 - **NOTE:** Check DB first via `load_analysis_results_from_db()`, then fallback to `{date}_tipster_consensus.json` — if it exists from S1b parallel step, use it as starting point. Only run aggregator manually if missing/stale.
 - **ALWAYS:** `mode=async`, timeout=300000. THINK-WHILE-WAITING: review scan results, read shortlist composition, identify which candidates have tipster coverage from pre-fetched HTML in `betting/data/`. Then `get_terminal_output` → parse `AGENT_SUMMARY:{json}` → extract metrics → `sequentialthinking` → verdict.
-
-### ⛔ BANNED TERMINAL PATTERNS
-
-- **NEVER** run `for` loops or batch loops in terminal
-- **NEVER** use `sleep`, `ps -p` polling, or idle waiting
-- **NEVER** chain scripts blindly with `&&`
-- **ALWAYS:** ONE command → READ output → THINK → NEXT command
 
 ### web/fetch + browser/*
 - **MUST use for:** Navigating tipster sites for FULL WRITTEN ARGUMENTS. Check `betting/data/` for pre-fetched HTML (§1.5) before live-fetching.

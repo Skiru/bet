@@ -2,40 +2,23 @@
 description: "Pricing analyst — multi-source odds comparison, EV calculation with probability engine, Kelly 1/4 staking, drift detection, and market performance tracking."
 tools:
   [
+    "execute",
+    "read",
+    "edit",
+    "search",
+    "agent",
+    "todo",
+    "sequential-thinking/*",
+    "pylance-mcp-server/*",
+    "ms-python.python/*",
+    "web/fetch",
+    "browser/*",
+    "playwright/*",
     "vscode/memory",
     "vscode/resolveMemoryFileUri",
     "vscode/askQuestions",
     "vscode/runCommand",
     "vscode/toolSearch",
-    "execute/runInTerminal",
-    "sequential-thinking/sequentialthinking",
-    "execute/getTerminalOutput",
-    "execute/sendToTerminal",
-    "execute/killTerminal",
-    "read/readFile",
-    "read/problems",
-    "read/terminalLastCommand",
-    "read/terminalSelection",
-    "read/viewImage",
-    "read/getNotebookSummary",
-    "edit/editFiles",
-    "edit/createFile",
-    "search/textSearch",
-    "search/fileSearch",
-    "search/listDirectory",
-    "search/codebase",
-    "search/changes",
-    "search/usages",
-    "web/fetch",
-    "browser/*",
-    "playwright/*",
-    "agent/runSubagent",
-    "ms-python.python/configurePythonEnvironment",
-    "ms-python.python/getPythonExecutableCommand",
-    "ms-python.python/getPythonEnvironmentInfo",
-    "ms-python.python/installPythonPackage",
-    "todo",
-    "pylance-mcp-server/*",
   ]
 model: "Claude Opus 4.6 (Copilot)"
 instructions:
@@ -110,13 +93,6 @@ You add a 5-part Market Intelligence Reasoning Layer via sequential-thinking: ma
 - **MUST use for:** `PYTHONPATH=src python3 scripts/odds_evaluator.py --date YYYY-MM-DD --verbose` (S4 EV calculation — PRIMARY, `mode=async` timeout=300000), `python3 scripts/fetch_odds_multi.py --verbose` (5-source odds aggregation — run before odds_evaluator if fresh odds needed, `mode=async` timeout=300000), `python3 scripts/fetch_odds_api.py` (single-source fallback, `mode=sync` timeout=120000), `python3 scripts/probability_engine.py --line X.5 --direction OVER --values "v1,v2,..."` (direct probability checks, `mode=sync` timeout=120000)
 - **NOTE:** Check DB via `load_analysis_results_from_db()` for pre-computed EV values (fallback: `analysis_pool_{date}.json`). Read S3 deep stats for P(hit), fair odds, λ, CI columns.
 - **After EVERY script:** For async: THINK-WHILE-WAITING → read S3 deep stats output, pre-load safety scores and P(hit) values, identify candidates with strongest statistical edges → `get_terminal_output` → extract metrics (odds count, EV values, source coverage) → `sequentialthinking` → verdict.
-
-### ⛔ BANNED TERMINAL PATTERNS
-
-- **NEVER** run `for` loops or batch loops in terminal
-- **NEVER** use `sleep`, `ps -p` polling, or idle waiting
-- **NEVER** chain scripts blindly with `&&`
-- **ALWAYS:** ONE command → READ output → THINK → NEXT command
 
 ### web/fetch + browser/*
 - **MUST use for:** Fetching odds from BetExplorer, OddsPortal, SBR, ESPN Odds, ScoresAndOdds

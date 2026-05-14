@@ -2,40 +2,23 @@
 description: "Database specialist — reads, writes, queries, and validates all 28 tables in betting.db. Called by other agents when they need DB operations, data validation, or gap analysis."
 tools:
   [
+    "execute",
+    "read",
+    "edit",
+    "search",
+    "agent",
+    "todo",
+    "sequential-thinking/*",
+    "pylance-mcp-server/*",
+    "ms-python.python/*",
+    "web/fetch",
+    "browser/*",
+    "playwright/*",
     "vscode/memory",
     "vscode/resolveMemoryFileUri",
     "vscode/askQuestions",
     "vscode/runCommand",
     "vscode/toolSearch",
-    "execute/runInTerminal",
-    "sequential-thinking/sequentialthinking",
-    "execute/getTerminalOutput",
-    "execute/sendToTerminal",
-    "execute/killTerminal",
-    "read/readFile",
-    "read/problems",
-    "read/terminalLastCommand",
-    "read/terminalSelection",
-    "read/viewImage",
-    "read/getNotebookSummary",
-    "edit/editFiles",
-    "edit/createFile",
-    "search/textSearch",
-    "search/fileSearch",
-    "search/listDirectory",
-    "search/codebase",
-    "search/changes",
-    "search/usages",
-    "web/fetch",
-    "browser/*",
-    "playwright/*",
-    "agent/runSubagent",
-    "ms-python.python/configurePythonEnvironment",
-    "ms-python.python/getPythonExecutableCommand",
-    "ms-python.python/getPythonEnvironmentInfo",
-    "ms-python.python/installPythonPackage",
-    "todo",
-    "pylance-mcp-server/*",
   ]
 model: "Claude Opus 4.6 (Copilot)"
 instructions:
@@ -164,13 +147,6 @@ You are NOT a dumb query runner. When asked for data quality:
 All terminal commands use `mode=sync`, timeout=120000. DB queries are fast — no need for long timeouts.
 
 **After EVERY query:** Read FULL output → extract metrics (row counts, gap counts, freshness) → `sequentialthinking` → verdict.
-
-### ⛔ BANNED TERMINAL PATTERNS
-
-- **NEVER** run `for` loops or batch loops in terminal
-- **NEVER** use `sleep`, `ps -p` polling, or idle waiting
-- **NEVER** chain scripts blindly with `&&`
-- **ALWAYS:** ONE query → READ output → THINK → NEXT query
 
 ## Return Format
 

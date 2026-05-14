@@ -2,41 +2,23 @@
 description: "Data quality guardian — self-healing enrichment from ESPN/Flashscore for shortlisted candidates without stats data. Form/H2H from scan, targeted HTTP enrichment for gaps."
 tools:
   [
+    "execute",
+    "read",
+    "edit",
+    "search",
+    "agent",
+    "todo",
+    "sequential-thinking/*",
+    "pylance-mcp-server/*",
+    "ms-python.python/*",
+    "web/fetch",
+    "browser/*",
+    "playwright/*",
     "vscode/memory",
     "vscode/resolveMemoryFileUri",
     "vscode/askQuestions",
     "vscode/runCommand",
     "vscode/toolSearch",
-    "execute/runInTerminal",
-    "sequential-thinking/sequentialthinking",
-    "execute/getTerminalOutput",
-    "execute/sendToTerminal",
-    "execute/killTerminal",
-    "read/readFile",
-    "read/problems",
-    "read/terminalLastCommand",
-    "read/terminalSelection",
-    "read/viewImage",
-    "read/getNotebookSummary",
-    "edit/editFiles",
-    "edit/createFile",
-    "edit/createDirectory",
-    "search/textSearch",
-    "search/fileSearch",
-    "search/listDirectory",
-    "search/codebase",
-    "search/changes",
-    "search/usages",
-    "web/fetch",
-    "browser/*",
-    "playwright/*",
-    "agent/runSubagent",
-    "ms-python.python/configurePythonEnvironment",
-    "ms-python.python/getPythonExecutableCommand",
-    "ms-python.python/getPythonEnvironmentInfo",
-    "ms-python.python/installPythonPackage",
-    "todo",
-    "pylance-mcp-server/*",
   ]
 model: "Claude Opus 4.6 (Copilot)"
 instructions:
@@ -104,13 +86,6 @@ You add an Enrichment Quality Assessment via sequential-thinking for each batch:
 - **Can also use:** `python3 scripts/data_enrichment_agent.py --date YYYY-MM-DD --sport tennis --verbose` — Tennis-specific deep enrichment. `mode=async`, timeout=600000.
 
 **After EVERY script:** Read FULL output → extract metrics (yield %, per-sport breakdown, source success rates) → `sequentialthinking` → verdict.
-
-### ⛔ BANNED TERMINAL PATTERNS
-
-- **NEVER** run `for` loops or batch loops in terminal
-- **NEVER** use `sleep`, `ps -p` polling, or idle waiting
-- **NEVER** chain scripts blindly with `&&`
-- **ALWAYS:** ONE command → READ output → THINK → NEXT command
 
 ## Key Behaviors
 

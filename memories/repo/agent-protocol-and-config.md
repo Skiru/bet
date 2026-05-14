@@ -1,6 +1,6 @@
 # Agent Protocol & Configuration — Current State
 
-## Protocol Version: v7 (2026-05-14)
+## Protocol Version: v8 (2026-05-14)
 
 ### 21 Rules in copilot-instructions.md (R1-R21)
 - R1-R16: Core pipeline rules (unchanged)
@@ -8,12 +8,39 @@
 - R18: DATA FLOW VERIFICATION — read code before running
 - R19: STRUCTURED SCRIPT OUTPUT — AGENT_SUMMARY:{json}
 - R20: FISH SHELL — no inline Python, no bash syntax
-- R21: PYLANCE-FIRST — pylanceRunCodeSnippet for ALL data inspection (NEW 2026-05-14)
+- R21: PYLANCE-FIRST — pylanceRunCodeSnippet for ALL data inspection
 
-### Streamlined copilot-instructions.md (2026-05-14)
-- R13/R17/R18/R19/R20 compressed to 1-2 lines + protocol reference
-- Core Rules section de-duplicated (was repeating R3/R4/R6)
-- ~120 lines → ~100 lines
+### Agent Organization — copilot-collections pattern (v8, 2026-05-14)
+Bet project now mirrors copilot-collections structure exactly:
+```
+.github/
+  agents/           → bet-{role}.agent.md     (10 agents, bet- prefix like tsh-)
+  instructions/     → *.instructions.md       (4 files, with applyTo patterns)
+  internal-prompts/ → bet-{action}.prompt.md  (15 prompts, agent: frontmatter)
+  prompts/          → *.prompt.md             (4 user-facing prompts)
+  skills/           → bet-{gerund-subject}/   (8 skills, SKILL.md inside)
+  memories/         → (domain extension, not in copilot-collections)
+  plans/            → (domain extension, not in copilot-collections)
+```
+
+### Tool Declarations — Short Aliases (v8, 2026-05-14)
+ALL bet-* agents use short tool aliases (same as tsh-* agents):
+```yaml
+tools: ["execute", "read", "edit", "search", "agent", "todo",
+        "sequential-thinking/*", "pylance-mcp-server/*", "ms-python.python/*",
+        "web/fetch", "browser/*", "playwright/*",
+        "vscode/memory", "vscode/resolveMemoryFileUri", "vscode/askQuestions",
+        "vscode/runCommand", "vscode/toolSearch"]
+```
+- 9 specialist agents: 17 entries each (was 38 verbose entries)
+- bet-orchestrator: 27 entries (was 80+ verbose entries) — includes context7/*, web/github*, vscode/extensions etc.
+- Short aliases expand to full tool sets: `execute` = runInTerminal + getTerminalOutput + sendToTerminal + killTerminal + createAndRunTask + runNotebookCell + runTests
+
+### Rule Deduplication — Single Source of Truth (v8, 2026-05-14)
+- ⛔ BANNED TERMINAL PATTERNS: REMOVED from all 10 agents (was copy-pasted in each)
+- Now lives ONLY in `agent-execution-protocol.instructions.md` (referenced via `instructions:` frontmatter by all agents)
+- Per instruction-design-lessons.md: "R17 block was copy-pasted in 11 files → replaced with 1 reference line in each"
+- This was partially done in v3 but not completed — v8 finishes the cleanup
 
 ### 6-Step Cycle (per pipeline step)
 1. **INSPECT**: Use `pylanceRunCodeSnippet` to verify input data BEFORE running script
@@ -28,32 +55,16 @@
 - `run_in_terminal mode=async` = ALL pipeline scripts (no sync mode, no exceptions)
 - Agent ALWAYS thinks while waiting — even short scripts give time to review data
 
-### ALL 10 Agents — Mandatory Tool Set (2026-05-14)
-Every bet-*.agent.md MUST have ALL of these tools (34 total):
-- `vscode/memory`, `vscode/resolveMemoryFileUri`, `vscode/askQuestions`, `vscode/runCommand`, `vscode/toolSearch`
-- `execute/runInTerminal`, `execute/getTerminalOutput`, `execute/sendToTerminal`, `execute/killTerminal`
-- `read/readFile`, `read/problems`, `read/terminalLastCommand`, `read/terminalSelection`, `read/viewImage`, `read/getNotebookSummary`
-- `edit/editFiles`, `edit/createFile`
-- `search/textSearch`, `search/fileSearch`, `search/listDirectory`, `search/codebase`, `search/changes`, `search/usages`
-- `web/fetch`, `browser/*`, `playwright/*`
-- `agent/runSubagent`
-- `sequential-thinking/sequentialthinking` (EXACTLY ONCE — no duplicates!)
-- `pylance-mcp-server/*`
-- `ms-python.python/configurePythonEnvironment`, `getPythonExecutableCommand`, `getPythonEnvironmentInfo`, `installPythonPackage`
-- `todo`
-
-### Bugs Fixed 2026-05-14
+### Bugs Fixed 2026-05-14 (v7)
 - bet-scout, bet-settler, bet-scanner were MISSING `pylance-mcp-server/*` → added
 - bet-db-analyst was missing: vscode/askQuestions, vscode/runCommand, web/fetch, browser/*, playwright/*, agent/runSubagent → added
-- bet-scanner was missing browser/* → added
-- bet-settler, bet-builder were missing playwright/* → added
-- 7 agents (all except orchestrator, scanner, db-analyst) were missing agent/runSubagent → added
 - 8 agents had DUPLICATE sequential-thinking/sequentialthinking → removed duplicates
-- 9 agents missing: read/viewImage, read/terminalSelection, read/getNotebookSummary → added
-- 9 agents missing: search/usages → added. 8 agents missing: search/changes → added
-- 8 agents missing: vscode/runCommand → added
 - Rule count header said "20" but R21 was added → fixed to "21"
-- R17/R21 async threshold removed — ALL scripts now async, no exceptions
+
+### Agent Cleanup 2026-05-14 (v8 — copilot-collections alignment)
+- Tool declarations: 38→17 entries per specialist agent, 80→27 for orchestrator
+- BANNED TERMINAL PATTERNS: removed from all 10 agents (single source of truth in instructions file)
+- Pattern now identical to copilot-collections tsh-* agents
 
 ### Per-Agent THINK-WHILE-WAITING Work
 | Agent | Long Script | What to do during wait |

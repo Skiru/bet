@@ -2,40 +2,23 @@
 description: "Settlement accountant — resolves previous day's picks/coupons, calculates PnL and CLV, updates bankroll, runs Betclic learning analysis."
 tools:
   [
+    "execute",
+    "read",
+    "edit",
+    "search",
+    "agent",
+    "todo",
+    "sequential-thinking/*",
+    "pylance-mcp-server/*",
+    "ms-python.python/*",
+    "web/fetch",
+    "browser/*",
+    "playwright/*",
     "vscode/memory",
     "vscode/resolveMemoryFileUri",
     "vscode/askQuestions",
     "vscode/runCommand",
     "vscode/toolSearch",
-    "execute/runInTerminal",
-    "sequential-thinking/sequentialthinking",
-    "execute/getTerminalOutput",
-    "execute/sendToTerminal",
-    "execute/killTerminal",
-    "read/readFile",
-    "read/problems",
-    "read/terminalLastCommand",
-    "read/terminalSelection",
-    "read/viewImage",
-    "read/getNotebookSummary",
-    "edit/editFiles",
-    "edit/createFile",
-    "search/textSearch",
-    "search/fileSearch",
-    "search/listDirectory",
-    "search/codebase",
-    "search/changes",
-    "search/usages",
-    "web/fetch",
-    "browser/*",
-    "playwright/*",
-    "agent/runSubagent",
-    "ms-python.python/configurePythonEnvironment",
-    "ms-python.python/getPythonExecutableCommand",
-    "ms-python.python/getPythonEnvironmentInfo",
-    "ms-python.python/installPythonPackage",
-    "todo",
-    "pylance-mcp-server/*",
   ]
 model: "Claude Opus 4.6 (Copilot)"
 instructions:
@@ -106,13 +89,6 @@ Settlement syncs to DB via `_sync_settlement_to_db()` in `settle_on_finish.py`:
 - **MUST use for:** `python3 scripts/settle_on_finish.py --betting-day YYYY-MM-DD` (`mode=async` timeout=300000), `python3 scripts/fetch_odds_api.py --scores` (US sport results, `mode=sync` timeout=120000), `python3 scripts/analyze_betclic_learning.py` (`mode=sync` timeout=120000)
 - **After settle_on_finish (async):** THINK-WHILE-WAITING → read yesterday's coupon files, review Betclic history, prepare PnL context → `get_terminal_output` → extract metrics (PnL, win/loss/push counts, bankroll delta) → `sequentialthinking` → verdict. After fast scripts (sync): read output directly.
 - **SHOULD NOT use for:** Manual calculations — use sequential-thinking instead
-
-### ⛔ BANNED TERMINAL PATTERNS
-
-- **NEVER** run `for` loops or batch loops in terminal
-- **NEVER** use `sleep`, `ps -p` polling, or idle waiting
-- **NEVER** chain scripts blindly with `&&`
-- **ALWAYS:** ONE command → READ output → THINK → NEXT command
 
 ### web/fetch + browser/*
 - **MUST use for:** Verifying results on Flashscore; checking OddsPortal for CLV closing odds

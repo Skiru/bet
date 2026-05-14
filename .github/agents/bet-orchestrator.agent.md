@@ -1,7 +1,34 @@
 ---
 description: "Single entry point for all betting interactions — YOU are the orchestrator loop. Calls individual scripts, thinks between every step, delegates to specialist agents. NEVER runs pipeline_orchestrator.py."
 tools:
-  [vscode/extensions, vscode/installExtension, vscode/memory, vscode/newWorkspace, vscode/resolveMemoryFileUri, vscode/runCommand, vscode/vscodeAPI, vscode/askQuestions, execute/getTerminalOutput, execute/killTerminal, execute/sendToTerminal, execute/createAndRunTask, execute/runNotebookCell, execute/runInTerminal, execute/runTests, read/terminalSelection, read/terminalLastCommand, read/getNotebookSummary, read/problems, read/readFile, read/viewImage, agent/runSubagent, edit/createDirectory, edit/createFile, edit/createJupyterNotebook, edit/editFiles, edit/editNotebook, edit/rename, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/textSearch, search/usages, web/fetch, web/githubRepo, web/githubTextSearch, browser/openBrowserPage, browser/readPage, browser/screenshotPage, browser/navigatePage, browser/clickElement, browser/dragElement, browser/hoverElement, browser/typeInPage, browser/runPlaywrightCode, browser/handleDialog, context7/query-docs, context7/resolve-library-id, playwright/browser_click, playwright/browser_close, playwright/browser_console_messages, playwright/browser_drag, playwright/browser_drop, playwright/browser_evaluate, playwright/browser_file_upload, playwright/browser_fill_form, playwright/browser_handle_dialog, playwright/browser_hover, playwright/browser_navigate, playwright/browser_navigate_back, playwright/browser_network_request, playwright/browser_network_requests, playwright/browser_press_key, playwright/browser_resize, playwright/browser_run_code_unsafe, playwright/browser_select_option, playwright/browser_snapshot, playwright/browser_tabs, playwright/browser_take_screenshot, playwright/browser_type, playwright/browser_wait_for, sequential-thinking/sequentialthinking, pylance-mcp-server/pylanceDocString, pylance-mcp-server/pylanceDocuments, pylance-mcp-server/pylanceFileSyntaxErrors, pylance-mcp-server/pylanceImports, pylance-mcp-server/pylanceInstalledTopLevelModules, pylance-mcp-server/pylanceInvokeRefactoring, pylance-mcp-server/pylancePythonEnvironments, pylance-mcp-server/pylanceRunCodeSnippet, pylance-mcp-server/pylanceSettings, pylance-mcp-server/pylanceSyntaxErrors, pylance-mcp-server/pylanceUpdatePythonEnvironment, pylance-mcp-server/pylanceWorkspaceRoots, pylance-mcp-server/pylanceWorkspaceUserFiles, vscode.mermaid-chat-features/renderMermaidDiagram, ms-azuretools.vscode-containers/containerToolsConfig, ms-python.python/getPythonEnvironmentInfo, ms-python.python/getPythonExecutableCommand, ms-python.python/installPythonPackage, ms-python.python/configurePythonEnvironment, todo]
+  [
+    "execute",
+    "read",
+    "edit",
+    "search",
+    "agent",
+    "todo",
+    "sequential-thinking/*",
+    "pylance-mcp-server/*",
+    "ms-python.python/*",
+    "context7/*",
+    "web/fetch",
+    "web/githubRepo",
+    "web/githubTextSearch",
+    "browser/*",
+    "playwright/*",
+    "vscode/extensions",
+    "vscode/installExtension",
+    "vscode/memory",
+    "vscode/newWorkspace",
+    "vscode/resolveMemoryFileUri",
+    "vscode/runCommand",
+    "vscode/vscodeAPI",
+    "vscode/askQuestions",
+    "vscode/toolSearch",
+    "vscode.mermaid-chat-features/renderMermaidDiagram",
+    "ms-azuretools.vscode-containers/containerToolsConfig",
+  ]
 agents: ["bet-settler", "bet-scanner", "bet-enricher", "bet-statistician", "bet-scout", "bet-valuator", "bet-challenger", "bet-builder", "bet-db-analyst"]
 model: "Claude Opus 4.6 (Copilot)"
 instructions:
@@ -221,15 +248,6 @@ After receiving ANY subagent verdict, run `sequentialthinking` with these 3 yes/
 | analyze_betclic_learning.py | `python3 scripts/analyze_betclic_learning.py` | 120000 | sync |
 
 After EVERY script: read FULL output → extract metrics → `sequentialthinking` → decide next step. For `mode=async`: THINK-WHILE-WAITING (analyze previous step, review data) → `get_terminal_output` → EXTRACT. See `agent-execution-protocol.instructions.md`.
-
-### ⛔ BANNED TERMINAL PATTERNS
-
-- **NEVER** run `for` loops or batch loops in terminal
-- **NEVER** use `sleep`, `ps -p` polling, or idle waiting
-- **NEVER** chain scripts with `&&` blindly (`A.py && B.py && C.py`)
-- **NEVER** fire-and-forget with `mode=async` then ignore output — async requires THINK-WHILE-WAITING + `get_terminal_output`
-- **NEVER** block with `mode=sync` for scripts ≥300s — use `mode=async` and think productively while waiting
-- **ALWAYS:** ONE command → READ output → THINK → NEXT command
 
 ---
 

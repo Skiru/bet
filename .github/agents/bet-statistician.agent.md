@@ -2,40 +2,23 @@
 description: "Deep statistical analyst — sport-specific stat collection, §3.0 market ranking, H2H validation, three-way cross-check, probability engine, and time-sensitive data gathering."
 tools:
   [
+    "execute",
+    "read",
+    "edit",
+    "search",
+    "agent",
+    "todo",
+    "sequential-thinking/*",
+    "pylance-mcp-server/*",
+    "ms-python.python/*",
+    "web/fetch",
+    "browser/*",
+    "playwright/*",
     "vscode/memory",
     "vscode/resolveMemoryFileUri",
     "vscode/askQuestions",
     "vscode/runCommand",
     "vscode/toolSearch",
-    "execute/runInTerminal",
-    "sequential-thinking/sequentialthinking",
-    "execute/getTerminalOutput",
-    "execute/sendToTerminal",
-    "execute/killTerminal",
-    "read/readFile",
-    "read/problems",
-    "read/terminalLastCommand",
-    "read/terminalSelection",
-    "read/viewImage",
-    "read/getNotebookSummary",
-    "edit/editFiles",
-    "edit/createFile",
-    "search/textSearch",
-    "search/fileSearch",
-    "search/listDirectory",
-    "search/codebase",
-    "search/changes",
-    "search/usages",
-    "web/fetch",
-    "browser/*",
-    "playwright/*",
-    "agent/runSubagent",
-    "ms-python.python/configurePythonEnvironment",
-    "ms-python.python/getPythonExecutableCommand",
-    "ms-python.python/getPythonEnvironmentInfo",
-    "ms-python.python/installPythonPackage",
-    "todo",
-    "pylance-mcp-server/*",
   ]
 model: "Claude Opus 4.6 (Copilot)"
 instructions:
@@ -120,13 +103,6 @@ Safety scores are now computed via `build_safety_input()` from `normalize_stats.
 - **MUST use for:** `python3 scripts/deep_stats_report.py --date YYYY-MM-DD --verbose` (batch S3 — run FIRST, `mode=async` timeout=600000, THINK-WHILE-WAITING: review enrichment data quality, analyze shortlist composition, plan per-candidate analysis. Then `get_terminal_output` → parse `AGENT_SUMMARY:{json}`), `python3 scripts/compute_safety_scores.py stats_input.json` (`mode=sync` timeout=120000), `python3 scripts/probability_engine.py --line X.5 --direction OVER --values "v1,v2,..."` (`mode=sync` timeout=120000), `python3 scripts/fetch_api_stats.py --date YYYY-MM-DD` (`mode=async` timeout=300000)
 - **NOTE:** `deep_stats_report.py` automatically runs probability engine enrichment after safety scores. Supplement its output with web-fetched data for incomplete candidates.
 - **After EVERY script:** Read FULL output → extract metrics (candidate count, safety scores, data quality) → `sequentialthinking` → verdict.
-
-### ⛔ BANNED TERMINAL PATTERNS
-
-- **NEVER** run `for` loops or batch loops in terminal
-- **NEVER** use `sleep`, `ps -p` polling, or idle waiting
-- **NEVER** chain scripts blindly with `&&`
-- **ALWAYS:** ONE command → READ output → THINK → NEXT command
 
 ### Safety Score Computation
 

@@ -2,40 +2,23 @@
 description: "Portfolio strategist — builds core coupons and combo menu from approved picks, runs V1-V10 validation and §S8.FINAL verification, produces all final betting artifacts."
 tools:
   [
+    "execute",
+    "read",
+    "edit",
+    "search",
+    "agent",
+    "todo",
+    "sequential-thinking/*",
+    "pylance-mcp-server/*",
+    "ms-python.python/*",
+    "web/fetch",
+    "browser/*",
+    "playwright/*",
     "vscode/memory",
     "vscode/resolveMemoryFileUri",
     "vscode/askQuestions",
     "vscode/runCommand",
     "vscode/toolSearch",
-    "execute/runInTerminal",
-    "sequential-thinking/sequentialthinking",
-    "execute/getTerminalOutput",
-    "execute/sendToTerminal",
-    "execute/killTerminal",
-    "read/readFile",
-    "read/problems",
-    "read/terminalLastCommand",
-    "read/terminalSelection",
-    "read/viewImage",
-    "read/getNotebookSummary",
-    "edit/editFiles",
-    "edit/createFile",
-    "search/textSearch",
-    "search/fileSearch",
-    "search/listDirectory",
-    "search/codebase",
-    "search/changes",
-    "search/usages",
-    "web/fetch",
-    "browser/*",
-    "playwright/*",
-    "agent/runSubagent",
-    "ms-python.python/configurePythonEnvironment",
-    "ms-python.python/getPythonExecutableCommand",
-    "ms-python.python/getPythonEnvironmentInfo",
-    "ms-python.python/installPythonPackage",
-    "todo",
-    "pylance-mcp-server/*",
   ]
 model: "Claude Opus 4.6 (Copilot)"
 instructions:
@@ -105,13 +88,6 @@ Coupons persisted via `persist_coupons_to_db()` in `coupon_builder.py`:
 - **MUST use for:** `python3 scripts/coupon_builder.py --date YYYY-MM-DD --verbose` (automated coupon construction — core + combos + extended, Kelly 1/4, Polish output — run FIRST, `mode=async` timeout=300000, parse `AGENT_SUMMARY:{json}`), `python3 scripts/validate_coupons.py betting/coupons/{date}*.md --format json --verbose` (V1-V10 validation — run AFTER, `mode=sync` timeout=120000, parse `AGENT_SUMMARY:{json}`, fix ALL FAIL results)
 - **NOTE:** Review `coupon_builder.py` output for edge cases: adjust stakes if bankroll changed, verify Polish descriptions, check correlation flags.
 - **After coupon_builder (async):** THINK-WHILE-WAITING → review gate results, check bankroll config, prepare portfolio intelligence analysis, pre-draft correlation checks → `get_terminal_output` → extract metrics (coupon count, leg count) → `sequentialthinking` → verdict. After validate_coupons (sync): read output directly → fix ALL FAIL results.
-
-### ⛔ BANNED TERMINAL PATTERNS
-
-- **NEVER** run `for` loops or batch loops in terminal
-- **NEVER** use `sleep`, `ps -p` polling, or idle waiting
-- **NEVER** chain scripts blindly with `&&`
-- **ALWAYS:** ONE command → READ output → THINK → NEXT command
 
 ### sequential-thinking
 - **MUST use for:** The 4-part Portfolio Intelligence Layer (before coupon assignment), reviewing coupon output arithmetic, §S8.FINAL mechanical verification, coupon optimization decisions.
