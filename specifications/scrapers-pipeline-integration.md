@@ -27,7 +27,7 @@
 ## 1. Executive Summary
 
 ### What Exists Now
-A **modular scraper system** at `src/bet/scrapers/` with 14 scrapers across 5 sports, using SQLAlchemy 2.0 ORM. All scrapers have been **live-tested** (2026-05-14) with real data. The system writes to `league_profiles`, `player_season_stats`, `scraper_runs`, and lookup tables (`sports`, `competitions`, `teams`, `athletes`).
+A **modular scraper system** at `src/bet/scrapers/` with 19 scrapers across 5 sports, using SQLAlchemy 2.0 ORM. All scrapers have been **live-tested** (2026-05-14) with real data. The system writes to `league_profiles`, `player_season_stats`, `scraper_runs`, and lookup tables (`sports`, `competitions`, `teams`, `athletes`). **ESPN is now a first-class scraper** for all 5 sports (not just a fallback in the old enrichment system).
 
 ### What's Missing
 The pipeline's analysis steps (S3–S8) read from `team_form` table via `normalize_stats.py → build_safety_input_from_db()`. Scrapers write to **different tables**. A bridge adapter is needed to convert scraper output into `team_form` format.
@@ -122,31 +122,45 @@ S4+   ... (unchanged)
 
 ## 4. Scraper System — Live Verification Results (2026-05-14)
 
-### 14 Registered Scrapers — Live Test Summary
+### 19 Registered Scrapers — Live Test Summary
 
 | # | Sport | Source | Team Stats | Player Stats | Speed | Status |
 |---|-------|--------|------------|-------------|-------|--------|
 | 1 | Football | `fbref` | **20** teams (EPL) | **574** players | 66s | ✅ PASS |
-| 2 | Football | `flashscore` | **5/5** teams | — | 7s | ✅ PASS |
-| 3 | Basketball | `nba-api` | **21** teams | **569** players | 3.3s | ✅ PASS |
-| 4 | Basketball | `basketball-reference` | **19** teams | **736** players | 10s | ✅ PASS |
-| 5 | Basketball | `flashscore` | **3/3** teams | — | 4.4s | ✅ PASS |
-| 6 | Tennis | `sackmann` | — | **457** players | 1.5s | ✅ PASS (season fix applied) |
-| 7 | Tennis | `sofascore-tennis` | — | 0 (stub) | 0s | ⚠️ STUB (fixtures only) |
-| 8 | Tennis | `flashscore` | **1/3** | — | 4.4s | ⚠️ PARTIAL |
-| 9 | Hockey | `nhl-api` | **15** team stats | **261** players | 5s | ✅ PASS (standings + leaders fixed) |
-| 10 | Hockey | `hockey-reference` | **27** team stats | **1,251** players | 11s | ✅ PASS (comment extraction + table ID fixed) |
-| 11 | Hockey | `flashscore` | **3/3** teams | — | 4.5s | ✅ PASS |
-| 12 | Volleyball | `volleybox` | Error | Error | — | ❌ BLOCKED (Cloudflare 403) |
-| 13 | Volleyball | `sofascore-volleyball` | — | 0 (stub) | 0s | ⚠️ STUB (fixtures only) |
-| 14 | Volleyball | `flashscore` | **3/3** teams | — | 4.5s | ✅ PASS |
+| 2 | Football | `espn` | **29** stat keys (1 team test) | — | 4s | ✅ PASS (live 2026-05-14) |
+| 3 | Football | `flashscore` | **5/5** teams | — | 7s | ✅ PASS |
+| 4 | Basketball | `nba-api` | **21** teams | **569** players | 3.3s | ✅ PASS |
+| 5 | Basketball | `basketball-reference` | **19** teams | **736** players | 10s | ✅ PASS |
+| 6 | Basketball | `espn` | ✅ standings (30 NBA teams) | roster import | ~3s | ✅ PASS (live 2026-05-14) |
+| 7 | Basketball | `flashscore` | **3/3** teams | — | 4.4s | ✅ PASS |
+| 8 | Tennis | `sackmann` | — | **457** players | 1.5s | ✅ PASS (season fix applied) |
+| 9 | Tennis | `espn` | scoreboard scan (ATP/WTA) | — | ~5s | ✅ PASS (live 2026-05-14) |
+| 10 | Tennis | `sofascore-tennis` | — | 0 (stub) | 0s | ⚠️ STUB (fixtures only) |
+| 11 | Tennis | `flashscore` | **1/3** | — | 4.4s | ⚠️ PARTIAL |
+| 12 | Hockey | `nhl-api` | **15** team stats | **261** players | 5s | ✅ PASS (standings + leaders fixed) |
+| 13 | Hockey | `hockey-reference` | **27** team stats | **1,251** players | 11s | ✅ PASS (comment extraction + table ID fixed) |
+| 14 | Hockey | `espn` | ✅ standings (NHL) | roster import | ~3s | ✅ PASS (live 2026-05-14) |
+| 15 | Hockey | `flashscore` | **3/3** teams | — | 4.5s | ✅ PASS |
+| 16 | Volleyball | `volleybox` | Error | Error | — | ❌ BLOCKED (Cloudflare 403) |
+| 17 | Volleyball | `espn` | ✅ standings (FIVB) | — | ~3s | ✅ PASS (live 2026-05-14) |
+| 18 | Volleyball | `sofascore-volleyball` | — | 0 (stub) | 0s | ⚠️ STUB (fixtures only) |
+| 19 | Volleyball | `flashscore` | **3/3** teams | — | 4.5s | ✅ PASS |
+
+### ESPN Scraper Details
+- **Architecture**: `src/bet/scrapers/espn.py` — `BaseESPNScraper` wraps `ESPNClient` from `api_clients/espn.py`
+- **5 sport subclasses**: `FootballESPNScraper`, `BasketballESPNScraper`, `HockeyESPNScraper`, `TennisESPNScraper`, `VolleyballESPNScraper`
+- **Football stats** (29 keys): corners, fouls, yellow_cards, shots, shots_on_target, possession, goals, offsides, saves, passes, crosses, clearances, long_balls, blocked_shots, tackles, interceptions, penalty goals/attempts, accuracy metrics
+- **Basketball/Hockey**: team stats from fixture boxscores + player rosters
+- **Tennis**: custom scoreboard scan (sets_won, games_won, total_games, rankings)
+- **Volleyball**: kills, aces, blocks, digs, assists, errors, hitting_pct
+- **Free API**: no key, no rate limits, HTTPS, caching built-in
 
 ### DB Totals After All Runs
-- **98** `league_profiles` records (team stat averages per competition)
+- **127** `league_profiles` records (98 original + 29 from ESPN football live test)
 - **3,912** `player_season_stats` records (6 sources)
 - **12,360** athletes tracked
-- **80/80** scraper unit tests passing
-- **637/638** full test suite (1 pre-existing failure unrelated to scrapers)
+- **103/103** scraper unit tests passing (13 ESPN + 90 existing)
+- **660/661** full test suite (1 pre-existing failure unrelated to scrapers)
 
 ### Bugs Found & Fixed During Verification (2026-05-14)
 | # | Bug | Fix | File |
@@ -283,22 +297,26 @@ FOR each team in today's shortlist:
 
 The adapter MUST map scraper stat keys to pipeline stat keys that `normalize_stats.py` expects.
 
-| Sport | Pipeline stat_key | FBref source | NBA API source | NHL/Hockey-Ref | Sackmann | Flashscore |
-|-------|------------------|-------------|---------------|----------------|----------|------------|
-| Football | `goals` | `standard_gls` | — | — | — | `goals` (scores) |
-| Football | `corners` | ❌ NOT AVAILABLE | — | — | — | `corners` |
-| Football | `shots_on_target` | `standard_sota` | — | — | — | — |
-| Football | `fouls` | ❌ NOT AVAILABLE | — | — | — | `fouls` |
-| Basketball | `points` | — | `pts` | — | — | `total_points` (scores) |
-| Basketball | `rebounds` | — | `reb` | — | — | — |
-| Basketball | `assists` | — | `ast` | — | — | — |
-| Hockey | `goals` | — | — | `goals` / `gf` | — | `goals` (scores) |
-| Hockey | `shots` | — | — | `s` / `shots` | — | — |
-| Tennis | `aces` | — | — | — | `aces_per_match` | — |
-| Tennis | `total_games` | — | — | — | derived | `total_games` |
-| Volleyball | `total_points` | — | — | — | — | `total_points` (scores) |
+| Sport | Pipeline stat_key | FBref source | ESPN source | NBA API source | NHL/Hockey-Ref | Sackmann | Flashscore |
+|-------|------------------|-------------|-------------|---------------|----------------|----------|------------|
+| Football | `goals` | `standard_gls` | `goals` | — | — | — | `goals` (scores) |
+| Football | `corners` | ❌ NOT IN FBREF | `corners` ✅ | — | — | — | `corners` |
+| Football | `shots_on_target` | `standard_sota` | `shots_on_target` | — | — | — | — |
+| Football | `fouls` | ❌ NOT IN FBREF | `fouls` ✅ | — | — | — | `fouls` |
+| Football | `yellow_cards` | ❌ NOT IN FBREF | `yellow_cards` ✅ | — | — | — | — |
+| Football | `possession` | — | `possession` ✅ | — | — | — | `ball_possession` |
+| Basketball | `points` | — | `points` | `pts` | — | — | `total_points` (scores) |
+| Basketball | `rebounds` | — | `rebounds` | `reb` | — | — | — |
+| Basketball | `assists` | — | `assists` | `ast` | — | — | — |
+| Hockey | `goals` | — | `goals` | — | `goals` / `gf` | — | `goals` (scores) |
+| Hockey | `shots` | — | `shots` | — | `s` / `shots` | — | — |
+| Tennis | `aces` | — | — | — | — | `aces_per_match` | — |
+| Tennis | `total_games` | — | `total_games` ✅ | — | — | derived | `total_games` |
+| Volleyball | `total_points` | — | — | — | — | — | `total_points` (scores) |
+| Volleyball | `kills` | — | `kills` ✅ | — | — | — | — |
+| Volleyball | `aces` | — | `aces` ✅ | — | — | — | — |
 
-> ⚠️ **FOOTBALL DATA GAP:** FBref does NOT provide team-level corners, fouls, or yellow cards in player data. These are match-level stats only available from Flashscore. For football statistical markets (corners, fouls), the old `data_enrichment_agent.py` remains the ONLY source. This is why S2.5 stays as fallback.
+> ✅ **FOOTBALL DATA GAP RESOLVED:** ESPN now provides team-level corners, fouls, yellow cards, possession, shots, crosses, clearances, and 20+ other match-level stat keys across 36+ leagues. FBref still provides deeper player-level data (xG, xA, progressive passes) but ESPN fills the critical gap for team-level statistical markets. The old `data_enrichment_agent.py` fallback (S2.5) is now less critical but still useful for H2H data and edge cases.
 
 #### CLI Interface
 ```bash
@@ -598,7 +616,7 @@ Volleyball                                                                      
 
 | # | Risk | Severity | Mitigation |
 |---|------|----------|-----------|
-| R1 | Football corners/fouls not available from scrapers | HIGH | Keep `data_enrichment_agent.py` as fallback for football statistical markets |
+| R1 | ~~Football corners/fouls not available from scrapers~~ | ~~HIGH~~ **RESOLVED** | ESPN scraper now provides corners, fouls, yellow_cards, shots, possession across 36+ leagues |
 | R2 | Volleybox 403 means no primary volleyball stats source | MEDIUM | Flashscore provides `total_points`; volleyball fixtures from SofaScore API |
 | R3 | Sports-reference sites (hockey-ref, bball-ref) may start blocking | MEDIUM | Flashscore + official APIs (NHL, NBA) as backup |
 | R4 | SofaScore API may change format | LOW | SofaScore scrapers are stubs currently; minimal impact |
@@ -611,7 +629,7 @@ Volleyball                                                                      
 ## CLI Quick Reference
 
 ```bash
-# List all 14 scrapers
+# List all 19 scrapers
 PYTHONPATH=src .venv/bin/python scripts/run_scrapers.py --list
 
 # Run all scrapers for all sports

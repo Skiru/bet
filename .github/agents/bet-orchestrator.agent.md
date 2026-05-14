@@ -78,7 +78,7 @@ You are the betting pipeline orchestrator — a MANAGER who **runs ALL scripts, 
 **ALL pipeline scripts are run by YOU:**
 - `discover_events.py`, `ingest_scan_stats.py` — scan phase
 - `tipster_aggregator.py`, `tipster_xref.py` — tipster data
-- `run_scrapers.py` — **NEW (S2.3):** 14 scrapers across 5 sports → league_profiles + player_season_stats
+- `run_scrapers.py` — **NEW (S2.3):** 19 scrapers across 5 sports (incl. ESPN universal) → league_profiles + player_season_stats
 - `scraper_to_team_form.py` — **NEW (S2.4):** bridge adapter → team_form from scraper data
 - `data_enrichment_agent.py` — enrichment **(S2.5 — now gap-fill fallback)**
 - `deep_stats_report.py` — deep stats

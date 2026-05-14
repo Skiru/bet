@@ -10,7 +10,7 @@ from bet.scrapers.constants import SPORT_SOURCE_MAP
 class TestScraperRegistry:
     def test_all_scrapers_registered(self):
         scrapers = available_scrapers()
-        assert len(scrapers) == 14
+        assert len(scrapers) == 19
 
     def test_sport_source_map_matches_registry(self):
         scrapers = available_scrapers()

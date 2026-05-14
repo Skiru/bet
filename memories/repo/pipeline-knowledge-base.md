@@ -299,20 +299,22 @@ execution_model: analysis-only
 
 ## Modular Scrapers System (2026-05-14)
 
-New module `src/bet/scrapers/` — 9 scrapers across 5 sports, SQLAlchemy 2.0 ORM, coexists with raw sqlite3.
+New module `src/bet/scrapers/` — 19 scrapers across 5 sports, SQLAlchemy 2.0 ORM, coexists with raw sqlite3.
 
 | Sport | Sources | Data Written |
 |-------|---------|-------------|
-| Football | FBref (soccerdata) | league_profiles, player_season_stats, player_gamelogs |
-| Basketball | NBA API, Basketball-Reference | league_profiles, player_season_stats, player_gamelogs |
-| Tennis | Sackmann CSVs, SofaScore API | league_profiles, player_season_stats, player_gamelogs, fixtures |
-| Hockey | NHL API, Hockey-Reference | league_profiles, player_season_stats, fixtures |
-| Volleyball | Volleybox, SofaScore API | league_profiles, player_season_stats, fixtures |
+| Football | FBref, **ESPN**, Flashscore | league_profiles, player_season_stats, player_gamelogs |
+| Basketball | NBA API, Basketball-Reference, **ESPN**, Flashscore | league_profiles, player_season_stats, player_gamelogs |
+| Tennis | Sackmann CSVs, SofaScore API, **ESPN**, Flashscore | league_profiles, player_season_stats, player_gamelogs, fixtures |
+| Hockey | NHL API, Hockey-Reference, **ESPN**, Flashscore | league_profiles, player_season_stats, fixtures |
+| Volleyball | Volleybox, SofaScore API, **ESPN**, Flashscore | league_profiles, player_season_stats, fixtures |
 
-**CLI:** `scripts/run_scrapers.py` — `--sport all`, `--sport hockey --source nhl-api`, `--list`, `--fixtures YYYY-MM-DD`
+**ESPN Scraper** (`src/bet/scrapers/espn.py`): wraps `ESPNClient` from `api_clients/espn.py`. 5 sport subclasses. Football: 29 stat keys (corners, fouls, yellow_cards, shots, possession, goals, crosses, clearances...). Free API, no key, no rate limits. Live-tested 2026-05-14.
 
-**⚠️ CRITICAL GAP:** Scrapers do NOT write to `team_form` table. Downstream (`normalize_stats.py`, `deep_stats_report.py`) reads `team_form` via `build_safety_input()`. An adapter is needed to bridge `player_gamelogs` → L10/L5 rolling averages → `team_form`.
+**CLI:** `scripts/run_scrapers.py` — `--sport all`, `--sport hockey --source espn`, `--list`, `--fixtures YYYY-MM-DD`
 
-**Status:** 49/49 unit tests passing (all mocked). NO live API tests done. NOT integrated into pipeline yet.
+**⚠️ GAP (partially resolved):** Scrapers do NOT yet write to `team_form` table. An adapter (`scraper_to_team_form.py`) is needed to bridge scraper data → L10/L5 → `team_form`. ESPN resolves the FOOTBALL corners/fouls gap that was previously only available via old enrichment.
 
-**Full docs:** `betting/plans/scrapers-integration-handoff.md`, `memories/repo/scrapers-module-migration-guide.md`
+**Status:** 103/103 scraper unit tests passing (all mocked). ESPN live-tested. NOT integrated into pipeline yet (need adapter).
+
+**Full docs:** `specifications/scrapers-pipeline-integration.md`, `memories/repo/scrapers-module-migration-guide.md`

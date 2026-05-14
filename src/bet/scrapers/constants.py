@@ -27,11 +27,11 @@ FBREF_LEAGUES = {
 }
 
 SPORT_SOURCE_MAP = {
-    "football": ["fbref", "flashscore"],
-    "basketball": ["nba-api", "basketball-reference", "flashscore"],
-    "tennis": ["sackmann", "sofascore-tennis", "flashscore"],
-    "hockey": ["nhl-api", "hockey-reference", "flashscore"],
-    "volleyball": ["volleybox", "sofascore-volleyball", "flashscore"],
+    "football": ["fbref", "espn", "flashscore"],
+    "basketball": ["nba-api", "basketball-reference", "espn", "flashscore"],
+    "tennis": ["sackmann", "sofascore-tennis", "espn", "flashscore"],
+    "hockey": ["nhl-api", "hockey-reference", "espn", "flashscore"],
+    "volleyball": ["volleybox", "sofascore-volleyball", "espn", "flashscore"],
 }
 
 DEFAULT_RATE_DELAYS = {
@@ -45,6 +45,7 @@ DEFAULT_RATE_DELAYS = {
     "volleybox": (3.0, 5.0),
     "sofascore-volleyball": (1.5, 3.0),
     "flashscore": (1.5, 3.0),
+    "espn": (0.2, 0.5),
 }
 
 # NBA API season format

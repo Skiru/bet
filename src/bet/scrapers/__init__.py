@@ -17,6 +17,12 @@ _SCRAPER_REGISTRY: dict[tuple[str, str], tuple[str, str]] = {
     ("hockey", "hockey-reference"): ("bet.scrapers.hockey.hockey_ref", "HockeyRefScraper"),
     ("volleyball", "volleybox"): ("bet.scrapers.volleyball.volleybox", "VolleyboxScraper"),
     ("volleyball", "sofascore-volleyball"): ("bet.scrapers.volleyball.sofascore_volley", "VolleySofascoreScraper"),
+    # ESPN — multi-sport universal API (free, no key)
+    ("football", "espn"): ("bet.scrapers.espn", "FootballESPNScraper"),
+    ("basketball", "espn"): ("bet.scrapers.espn", "BasketballESPNScraper"),
+    ("hockey", "espn"): ("bet.scrapers.espn", "HockeyESPNScraper"),
+    ("tennis", "espn"): ("bet.scrapers.espn", "TennisESPNScraper"),
+    ("volleyball", "espn"): ("bet.scrapers.espn", "VolleyballESPNScraper"),
     # Flashscore — multi-sport via curl_cffi
     ("football", "flashscore"): ("bet.scrapers.flashscore", "FootballFlashscoreScraper"),
     ("basketball", "flashscore"): ("bet.scrapers.flashscore", "BasketballFlashscoreScraper"),

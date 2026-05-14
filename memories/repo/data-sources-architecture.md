@@ -5,7 +5,17 @@
 - HTTP + Playwright stealth fallback, 2s rate limit
 - Covers: football (~225/day), tennis (~568), basketball (~75), hockey (~15), volleyball (~7)
 
-## Enrichment Fallback Chains (current)
+## New Scrapers Module (`src/bet/scrapers/`) — 19 scrapers
+ESPN is now a FIRST-CLASS scraper in the new module (not just old fallback):
+```
+Football:     FBref (players+xG) → ESPN (29 team stats: corners,fouls,cards,shots,possession) → Flashscore
+Basketball:   NBA API → Basketball-Reference → ESPN (boxscores+rosters) → Flashscore
+Hockey:       NHL API → Hockey-Reference → ESPN (boxscores+rosters) → Flashscore
+Tennis:       Sackmann (player stats) → ESPN (scoreboard: sets,games,rankings) → SofaScore → Flashscore
+Volleyball:   Volleybox → ESPN (kills,aces,blocks) → SofaScore → Flashscore
+```
+
+## Legacy Enrichment Fallback Chains (old system — `data_enrichment_agent.py`)
 ```
 Football:     ESPN → scores24 (HTTP) → TotalCorner (corners) → TransferMarkt (roster)
 Basketball:   ESPN → Basketball-Reference → nba-api (NBA only)
