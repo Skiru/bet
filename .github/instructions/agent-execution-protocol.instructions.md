@@ -101,8 +101,7 @@ You have THREE execution tools. Choosing the WRONG one wastes time and blocks th
 | Query DB (SELECT COUNT, verify tables) | `pylanceRunCodeSnippet` | Fast — runs in Pylance runtime, no shell quoting issues |
 | Validate input/output formats (R18) | `pylanceRunCodeSnippet` | Perfect for format checks before/after scripts |
 | Quick calculations (EV, safety scores) | `pylanceRunCodeSnippet` | No fish shell issues, pure Python |
-| Run pipeline script ≤120s | `run_in_terminal` + `mode=sync` | Script needs full env, but finishes fast |
-| Run pipeline script >120s | `run_in_terminal` + `mode=async` | Long — MUST THINK while waiting |
+| Run ANY pipeline script | `run_in_terminal` + `mode=async` | ALWAYS async — agent THINKS while waiting, reacts to output |
 | NEVER | `python3 -c "..."` in terminal | Fish shell GARBLES inline Python — ZERO exceptions |
 
 ### `pylanceRunCodeSnippet` — Your PRIMARY inspection tool
@@ -162,15 +161,13 @@ Always `--verbose`. Choose mode by script duration:
 
 | Tier | Timeout | Mode | Why |
 |------|---------|------|-----|
-| fast | ≤120000 | `mode=sync` | Quick — just wait for it |
+| fast | 120000 | `mode=async` | Even short scripts — THINK while waiting |
 | medium | 300000 | `mode=async` | 5 min — THINK while waiting |
 | long | 600000 | `mode=async` | 10 min — THINK while waiting |
 
-**FAST scripts (≤120s):** `mode=sync` — wait for completion, proceed to EXTRACT.
+**ALL scripts: `mode=async`** — launch, then **THINK-WHILE-WAITING** (step 1b below). No exceptions. Even a 30-second script gives you time to review previous data, plan next analysis, or verify assumptions. This is NOT fire-and-forget. You WILL check output.
 
-**MEDIUM/LONG scripts (≥300s):** `mode=async` — launch, then **THINK-WHILE-WAITING** (step 1b below). This is NOT fire-and-forget. You WILL check output.
-
-### 1b. THINK-WHILE-WAITING (async scripts only)
+### 1b. THINK-WHILE-WAITING (EVERY script — no exceptions)
 
 While the script runs, use this time productively:
 - `sequentialthinking` → analyze PREVIOUS step's output deeper
@@ -199,10 +196,10 @@ Then call `get_terminal_output(id)` to check if the script is done:
 #### ⛔ BAD vs ✅ GOOD Async Pattern
 
 ```
-❌ BAD — brain-dead blocking:
-run_in_terminal(command="python3 scripts/deep_stats_report.py ...", mode=sync, timeout=600000)
-# Agent sits idle for 10 minutes doing NOTHING
-# Then reads output
+❌ BAD — brain-dead blocking (even for short scripts!):
+run_in_terminal(command="python3 scripts/build_shortlist.py ...", mode=sync, timeout=120000)
+# Agent sits idle doing NOTHING — not even reviewing previous data
+# Then reads output without context
 
 ✅ GOOD — INSPECT → RUN ASYNC → THINK → VALIDATE:
 # Step 0: INSPECT inputs first
@@ -367,7 +364,7 @@ data and 15 with partial. Hockey candidates need extra caution in safety scores.
 | 17 | Terminal Python for data inspection | Use `pylanceRunCodeSnippet` (PRIMARY) or `read_file` (JSON). NEVER terminal Python |
 | 18 | Skip INSPECT step (run script without checking inputs) | Use `pylanceRunCodeSnippet` to verify inputs BEFORE launching script (R18) |
 | 19 | Skip VALIDATE step (return without checking outputs) | Use `pylanceRunCodeSnippet` to verify outputs BEFORE returning verdict |
-| 20 | `mode=sync` for scripts >120s | MUST use `mode=async` + THINK-WHILE-WAITING — brain-dead blocking = FAILURE |
+| 20 | `mode=sync` for ANY pipeline script | MUST use `mode=async` + THINK-WHILE-WAITING for ALL scripts — brain-dead blocking = FAILURE |
 
 ---
 
@@ -415,19 +412,14 @@ FOR DATES:
 → Always use explicit date: --date 2026-05-13
 → NEVER: $(date +%Y-%m-%d) or `date +%Y-%m-%d`
 
-FOR FAST SCRIPTS (≤120s):
+FOR ALL PIPELINE SCRIPTS (no sync exceptions):
 1. INSPECT: pylanceRunCodeSnippet → verify inputs
-2. RUN: mode=sync, timeout=120000, --verbose
-3. EXTRACT+THINK: Read output → sequentialthinking → verdict
-4. VALIDATE: pylanceRunCodeSnippet → verify outputs
-
-FOR MEDIUM/LONG SCRIPTS (≥300s):
-1. INSPECT: pylanceRunCodeSnippet → verify inputs
-2. RUN: mode=async, --verbose
+2. RUN: mode=async, --verbose (timeout: 120000 fast, 300000 medium, 600000 long)
 3. THINK-WHILE-WAITING: sequentialthinking + pylanceRunCodeSnippet for data review
 4. get_terminal_output → check if done
-5. EXTRACT+THINK: Read output → sequentialthinking → verdict
+5. EXTRACT+THINK: Read output → sequentialthinking → verdict + DECIDE next action
 6. VALIDATE: pylanceRunCodeSnippet → verify outputs
+7. ACT: If issues found → FIX them before proceeding
 ```
 
 **The rule:** ONE command → THINK → NEXT command. Never batch. Never loop. For long scripts: launch async → think productively → check output → analyze.

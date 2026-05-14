@@ -90,7 +90,7 @@ These 21 rules are PERMANENT. They override any conflicting logic in scripts, pr
 
 **R16 — LIVE BETTING WINDOW:** Betting day runs 06:00 today → 05:59 tomorrow (Europe/Warsaw). Events already in progress are VALID targets — Betclic allows live betting. When ≤1h remains before kickoff or match is running, flag as LIVE and include in scan. Never exclude an event just because it's about to start or has started.
 
-**R17 — LIVE SCRIPT MONITORING:** `--verbose` always. Fast scripts (≤120s): `mode=sync`. Long scripts (>120s): `mode=async` + THINK-WHILE-WAITING. BANNED: no-verbose, blocking sync >120s, fire-and-forget async, sleep loops. See `agent-execution-protocol.instructions.md` §6-Step Cycle.
+**R17 — LIVE SCRIPT MONITORING:** `--verbose` always. ALL scripts: `mode=async` + THINK-WHILE-WAITING. No exceptions — agents ALWAYS think and react, even for short scripts. BANNED: no-verbose, `mode=sync` for pipeline scripts, fire-and-forget async, sleep loops. See `agent-execution-protocol.instructions.md` §6-Step Cycle.
 
 **R18 — DATA FLOW VERIFICATION:** Before running ANY script, READ its code to understand inputs/outputs. TRACE connection to next script — verify keys/tables match. NEVER assume "scripts just work." See `agent-execution-protocol.instructions.md` §Data Flow.
 
@@ -98,4 +98,4 @@ These 21 rules are PERMANENT. They override any conflicting logic in scripts, pr
 
 **R20 — FISH SHELL — NO INLINE PYTHON (ZERO EXCEPTIONS):** FORBIDDEN in terminal: (1) `python3 -c "..."` — ANY inline Python hangs/garbles fish. (2) bash loops (`for/do/done`). (3) `$(command)` substitution. (4) Heredocs, `[[ ]]`. Use `pylanceRunCodeSnippet` (R21) or dedicated scripts instead. See `agent-execution-protocol.instructions.md` §FISH SHELL.
 
-**R21 — PYLANCE-FIRST (ZERO TERMINAL PYTHON):** `pylanceRunCodeSnippet` is the PRIMARY tool for ALL data inspection — DB queries, JSON reads, format validation, quick calculations. NEVER use `python3 -c` or `python3 <<` in terminal. For pipeline scripts: `run_in_terminal` with `mode=async` (>120s) or `mode=sync` (≤120s). For everything else: `pylanceRunCodeSnippet`. See `agent-execution-protocol.instructions.md` §Tool Selection Matrix.
+**R21 — PYLANCE-FIRST (ZERO TERMINAL PYTHON):** `pylanceRunCodeSnippet` is the PRIMARY tool for ALL data inspection — DB queries, JSON reads, format validation, quick calculations. NEVER use `python3 -c` or `python3 <<` in terminal. For pipeline scripts: ALWAYS `run_in_terminal` with `mode=async` + THINK-WHILE-WAITING. For everything else: `pylanceRunCodeSnippet`. See `agent-execution-protocol.instructions.md` §Tool Selection Matrix.
