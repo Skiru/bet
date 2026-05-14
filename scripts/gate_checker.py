@@ -12,6 +12,7 @@ Usage:
 
 import argparse
 import json
+import logging
 import re
 import sys
 from datetime import datetime, timezone
@@ -21,6 +22,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from check_48h_repeats import load_recent_losses, normalize_team, normalize_market, find_repeats
 from utils import normalize_kickoff
+
+logger = logging.getLogger(__name__)
 
 DATA_DIR = Path(__file__).parent.parent / "betting" / "data"
 JOURNAL_DIR = Path(__file__).parent.parent / "betting" / "journal"
@@ -578,8 +581,8 @@ def check_red_flags(candidate: dict) -> list[str]:
                             f"{opp_name} (#{row[0]} in standings) — raw L10 averages "
                             f"were earned vs avg opposition, expect suppression"
                         )
-        except Exception:
-            pass  # DB unavailable — skip check
+        except Exception as e:
+            logger.warning(f"ZT#23: standings query failed — opponent quality check skipped: {e}")
 
     return flags
 

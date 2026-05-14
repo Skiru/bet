@@ -90,9 +90,10 @@ If a script fails with `ModuleNotFoundError`, use `ms-python.python/installPytho
 
 ---
 
-## 🛠️ Tool Selection Matrix (DECIDE BEFORE EVERY ACTION)
+## 🛠️ R21: PYLANCE-FIRST — Tool Selection Matrix (DECIDE BEFORE EVERY ACTION)
 
 You have THREE execution tools. Choosing the WRONG one wastes time and blocks thinking.
+**`pylanceRunCodeSnippet` is the PRIMARY tool for ALL data inspection.** NEVER use `python3 -c` or `python3 <<` in terminal — fish shell garbles it. Terminal is ONLY for running pipeline scripts via `python3 scripts/X.py`.
 
 | Need | Tool | Why |
 |------|------|-----|

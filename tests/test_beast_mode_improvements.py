@@ -174,8 +174,8 @@ class TestNormalizeBeastModeEvent:
         url, norm = _normalize_beast_mode_event(ev)
         assert norm["home"] == "Team A"
         assert norm["away"] == "Team B"
-        assert norm["source"] == "sofascore-api"
-        assert "sofascore-api/football/12345" in url
+        assert norm["source"] == "flashscore"
+        assert "flashscore/football/12345" in url
 
     def test_form_data_preserves_position(self):
         """BUG 3 fix: form data should preserve position and points."""

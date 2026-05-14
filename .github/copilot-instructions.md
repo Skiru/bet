@@ -3,20 +3,17 @@
 You are maintaining a disciplined small-bankroll betting workflow, not writing casual tipster content.
 
 ## Core Rules
-- Config source of truth: `config/betting_config.json` (bankroll, daily cap, sports, thresholds).
-- **Betclic history source of truth: `betting/data/betclic_bets_history.json`** — MUST be read during §0.2 before ANY analysis. Contains all real placed bets. Run `python3 scripts/analyze_betclic_learning.py` for full analysis. NEVER skip this file.
-- Execution bookmaker: Betclic. All picks CONDITIONAL — user verifies on app. DO NOT scrape Betclic (403).
+- Config: `config/betting_config.json` (bankroll, daily cap, sports, thresholds).
+- Betclic history: `betting/data/betclic_bets_history.json` — read during §0.2 before ANY analysis (see R6).
+- Bookmaker: Betclic. All picks CONDITIONAL (R12). DO NOT scrape Betclic (403).
 - Timezone: Europe/Warsaw. Betting day: 06:00 today → 05:59 tomorrow.
 - Always settle previous day before generating new picks.
 - Never invent odds, lineups, injuries, results, or source conclusions.
-- **CORE sports:** Football, Volleyball, Basketball, Tennis, Hockey — ALL are Tier 1. Scan ALL leagues/divisions deeply.
-- **Coupon output = core portfolio + COMBO MENU + EXTENDED POOL.** Core = unique event per coupon. Combos = extra combinations remixing picks. Extended = EV>0 but gate-failed. User picks from all.
-- **NO AUTO-REJECTION:** Pipeline NEVER auto-rejects events based on positive EV thresholds, safety scores, or historical hit rates. ALL discovered fixtures shown in market matrix. User decides.
-- **NO AGGRESSIVE NARROWING:** When S7 gate rejects picks, emergency expansion MUST analyze ALL remaining shortlist candidates across ALL sports (§2.2 sport-diverse batching). NEVER narrow to 1-2 sports. The scan infrastructure exists for BREADTH — honor it.
-- Follow [analysis-methodology.instructions.md](instructions/analysis-methodology.instructions.md) (STEPS 0-10, V1-V10).
-- Follow [betting-artifacts.instructions.md](instructions/betting-artifacts.instructions.md) (output formats).
-- Follow [source-registry.md](../betting/sources/source-registry.md) (source hierarchy, fallback chains).
-- Load [sport-analysis-protocols.instructions.md](instructions/sport-analysis-protocols.instructions.md) when doing STEP 3+ analysis.
+- **5 core sports:** Football, Volleyball, Basketball, Tennis, Hockey — ALL Tier 1.
+- **Coupon = core portfolio + COMBO MENU + EXTENDED POOL.** Core = unique event per coupon.
+- NO AUTO-REJECTION (R3). NO AGGRESSIVE NARROWING (R4). User decides.
+- Follow [analysis-methodology.instructions.md](instructions/analysis-methodology.instructions.md), [betting-artifacts.instructions.md](instructions/betting-artifacts.instructions.md), [source-registry.md](../betting/sources/source-registry.md).
+- Load [sport-analysis-protocols.instructions.md](instructions/sport-analysis-protocols.instructions.md) for STEP 3+ analysis.
 
 ## Scripted Workflow
 ```
@@ -59,7 +56,7 @@ python3 scripts/settle_on_finish.py --betting-day YYYY-MM-DD
 
 ## NON-NEGOTIABLE RULES (APPLY TO EVERY AGENT, EVERY SESSION, EVERY STEP)
 
-These 20 rules are PERMANENT. They override any conflicting logic in scripts, prompts, or agent reasoning. Every agent in the pipeline MUST enforce the subset relevant to its role. Violation of ANY rule = pipeline failure.
+These 21 rules are PERMANENT. They override any conflicting logic in scripts, prompts, or agent reasoning. Every agent in the pipeline MUST enforce the subset relevant to its role. Violation of ANY rule = pipeline failure.
 
 **R1 — AGENT-DRIVEN PIPELINE:** Scripts are DATA TOOLS that produce raw numbers. Agents are ANALYSTS that think, reason, and decide. The orchestrator agent drives the pipeline — NEVER tell the user to run scripts manually. For each step: (1) run script → (2) agent analyzes output → (3) agent provides reasoned recommendations.
 
@@ -85,18 +82,20 @@ These 20 rules are PERMANENT. They override any conflicting logic in scripts, pr
 
 **R12 — ALL PICKS CONDITIONAL:** Every pick is CONDITIONAL — user verifies odds and market existence on Betclic app before placing. DO NOT scrape Betclic (403). Coupon files must carry the conditional disclaimer. If Betclic odds differ >8% from analysis odds → mandatory re-evaluation.
 
-**R13 — MAJOR DOMESTIC LEAGUE PROTECTION (§SCAN.9):** Top domestic leagues WORLDWIDE are NEVER skipped, filtered, or deprioritized — regardless of region. Protected leagues include: Brasileirão (A/B), MLS, Liga MX, Argentine Liga Profesional, Liga BetPlay, Chinese Super League, J-League, K League, Saudi Pro League, A-League, Indian Super League, Egyptian Premier League, and equivalents for basketball (CBA, NBB), hockey (KHL), volleyball (Superliga, V-League), tennis (all Grand Slams, Masters 1000). These get +10 score boost, bypass FIXTURE_ONLY filtering, and trigger scan failure if active but missing from matrix. Empty competition fields must be resolved by team-name inference. Americas/Asia leagues are critical for night-session coverage.
+**R13 — MAJOR DOMESTIC LEAGUE PROTECTION (§SCAN.9):** Top domestic leagues WORLDWIDE are NEVER skipped. Protected leagues (Brasileirão, MLS, Liga MX, CBA, KHL, Grand Slams, etc.) get +10 score boost and bypass FIXTURE_ONLY filtering. Missing active leagues → scan FAILED. See analysis-methodology for full list.
 
-**R14 — DATA DEPTH MANDATORY:** Every candidate entering the gate MUST have a data_quality_score computed. FULL (≥7/10), PARTIAL (4-6/10), MINIMAL (<4/10). Core coupons accept only FULL/PARTIAL. MINIMAL goes to Extended Pool. Pipeline must maximize data depth through API+scraping+enrichment fallback chains.
+**R14 — DATA DEPTH MANDATORY:** Every candidate entering the gate MUST have a data_quality_score computed. FULL (≥7/10), PARTIAL (4-6/10), MINIMAL (<4/10). Core coupons accept only FULL/PARTIAL. MINIMAL goes to Extended Pool.
 
 **R15 — WEB RESEARCH AGENT:** When critical data is MISSING after all API/scraping fallback chains (L1-L6), spawn web_research_agent.py to search the open web. This is L7 — last resort. Use for: H2H data, injury reports, coach changes, team form. Rate-limited: max 5 SerpAPI + 10 Playwright searches per run. Agent MUST be spawned automatically — never leave gaps unfilled without trying.
 
 **R16 — LIVE BETTING WINDOW:** Betting day runs 06:00 today → 05:59 tomorrow (Europe/Warsaw). Events already in progress are VALID targets — Betclic allows live betting. When ≤1h remains before kickoff or match is running, flag as LIVE and include in scan. Never exclude an event just because it's about to start or has started.
 
-**R17 — LIVE SCRIPT MONITORING:** Every agent MUST monitor scripts in real-time — scripts are NOT black boxes. (1) ALWAYS run analytical scripts with `--verbose` so output shows progress, errors, and per-item status. (2) Use `mode=sync` for fast scripts (≤120s timeout), `mode=async` + THINK-WHILE-WAITING for medium/long scripts (≥300s timeout). NEVER block the agent for 5-10 min doing nothing — launch async, then use `sequentialthinking` to analyze previous step output, review data, or plan next analysis while waiting. (3) After script completes, IMMEDIATELY read the FULL output — extract progress metrics, error counts, per-sport/per-source breakdowns. (4) For async scripts: use `get_terminal_output` to check completion, then proceed to analysis. (5) Your verdict MUST cite specific metrics from the output ("processed 234 events, 12 errors, 95% success"). (6) BANNED: running scripts WITHOUT `--verbose`, ignoring output after completion, returning "script completed" without metrics, `sleep` loops, `ps -p` loops, fire-and-forget async (launch then ignore), blocking sync for long scripts (brain-dead waiting). Violation = pipeline failure.
+**R17 — LIVE SCRIPT MONITORING:** `--verbose` always. Fast scripts (≤120s): `mode=sync`. Long scripts (>120s): `mode=async` + THINK-WHILE-WAITING. BANNED: no-verbose, blocking sync >120s, fire-and-forget async, sleep loops. See `agent-execution-protocol.instructions.md` §6-Step Cycle.
 
-**R18 — DATA FLOW VERIFICATION:** Before running ANY script, READ its code to understand: (1) what data it READS (JSON keys, DB tables, function params), (2) what data it WRITES (output format, DB inserts, file paths). Then TRACE the connection to the NEXT script in the pipeline: does the consumer read the SAME keys/tables the producer writes? Verify with actual data (check real JSON files, query real DB tables, inspect actual function signatures). NEVER assume "scripts just work" — the #1 source of pipeline failures is data format mismatches between producer and consumer scripts (wrong JSON keys, missing DB tables, mismatched field names). When debugging: READ CODE FIRST → THINK about data flow → CHECK actual data → IDENTIFY breaks → FIX. Never blindly re-run failing scripts.
+**R18 — DATA FLOW VERIFICATION:** Before running ANY script, READ its code to understand inputs/outputs. TRACE connection to next script — verify keys/tables match. NEVER assume "scripts just work." See `agent-execution-protocol.instructions.md` §Data Flow.
 
-**R19 — STRUCTURED SCRIPT OUTPUT:** 15 analytical pipeline scripts support `--verbose` (JSON-line events) and emit `AGENT_SUMMARY:{json}` as the final output line: `scan_events.py`, `html_deep_parser.py`, `ingest_scan_stats.py`, `tipster_aggregator.py`, `tipster_xref.py`, `data_enrichment_agent.py`, `deep_stats_report.py`, `gate_checker.py`, `coupon_builder.py`, `build_shortlist.py`, `odds_evaluator.py`, `context_checks.py`, `upset_risk.py`, `fetch_odds_multi.py`, `validate_coupons.py`. Run these with `--verbose`. Parse the `AGENT_SUMMARY:` line for structured verdict (`OK`/`PARTIAL`/`FAILED`), metrics, and issues. Exit codes: 0=success, 1=partial/degraded, 2=critical failure. `--stop-on-error` halts on first critical error. Scripts with `--sport` filter: `scan_events.py`, `tipster_aggregator.py`. See `STRUCTURED_OUTPUT_PROTOCOL` in `scripts/agent_protocol.py` and `scripts/agent_output.py` for implementation.
+**R19 — STRUCTURED SCRIPT OUTPUT:** 15 pipeline scripts emit `AGENT_SUMMARY:{json}`. Always `--verbose`. Parse for verdict (`OK`/`PARTIAL`/`FAILED`), metrics, issues. Exit codes: 0=success, 1=partial, 2=critical. See `agent_protocol.py` `STRUCTURED_OUTPUT_PROTOCOL`.
 
-**R20 — FISH SHELL — NO INLINE PYTHON (ZERO EXCEPTIONS):** This project uses **fish shell**. The following are **ABSOLUTELY FORBIDDEN** in terminal and WILL HANG/GARBLE the session: (1) `python3 -c "..."` — ANY inline Python, multi-line OR single-line, with ANY quoting style. Fish splits it into fragments producing garbage like `")` repeated hundreds of times, or hangs indefinitely. **ZERO EXCEPTIONS.** (2) `for f in ...; do ...; done` / `while ...; do ...; done` — bash loop syntax, INVALID in fish. (3) `$(command)` — bash command substitution, INVALID in fish. Always use explicit values (e.g., `--date 2026-05-11` not `--date $(date +%Y-%m-%d)`). (4) Heredocs (`<< EOF`), `[[ ]]` conditionals — not supported in fish. **INSTEAD:** Run dedicated scripts (`python3 scripts/X.py --args`), use `read_file` tool for data inspection, delegate DB queries to `bet-db-analyst` or `python3 scripts/db_report.py`, create temporary `.py` files for one-off logic. See `agent-execution-protocol.instructions.md` §FISH SHELL for the full lookup table. Violation = pipeline failure.
+**R20 — FISH SHELL — NO INLINE PYTHON (ZERO EXCEPTIONS):** FORBIDDEN in terminal: (1) `python3 -c "..."` — ANY inline Python hangs/garbles fish. (2) bash loops (`for/do/done`). (3) `$(command)` substitution. (4) Heredocs, `[[ ]]`. Use `pylanceRunCodeSnippet` (R21) or dedicated scripts instead. See `agent-execution-protocol.instructions.md` §FISH SHELL.
+
+**R21 — PYLANCE-FIRST (ZERO TERMINAL PYTHON):** `pylanceRunCodeSnippet` is the PRIMARY tool for ALL data inspection — DB queries, JSON reads, format validation, quick calculations. NEVER use `python3 -c` or `python3 <<` in terminal. For pipeline scripts: `run_in_terminal` with `mode=async` (>120s) or `mode=sync` (≤120s). For everything else: `pylanceRunCodeSnippet`. See `agent-execution-protocol.instructions.md` §Tool Selection Matrix.

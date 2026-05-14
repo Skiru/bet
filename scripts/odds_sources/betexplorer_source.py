@@ -27,7 +27,8 @@ class BetExplorerSource(OddsSource):
         if self._client is None:
             try:
                 from bet.api_clients.betexplorer import BetExplorerClient
-                self._client = BetExplorerClient()
+                from bet.api_clients.rate_limiter import RateLimiter
+                self._client = BetExplorerClient(rate_limiter=RateLimiter())
             except Exception as e:
                 logger.warning(f"BetExplorerClient unavailable: {e}")
         return self._client

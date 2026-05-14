@@ -29,6 +29,7 @@ tools:
     "ms-python.python/getPythonEnvironmentInfo",
     "ms-python.python/installPythonPackage",
     "todo",
+    "pylance-mcp-server/*",
   ]
 model: "Claude Opus 4.6 (Copilot)"
 instructions:

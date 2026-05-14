@@ -189,26 +189,17 @@ class TestSupportedSports:
         assert "volleyball" not in sports
 
     def test_oddsportal_covers_5_sports(self):
-        from scripts.odds_sources.oddsportal_scraper import OddsPortalSource
+        from scripts.odds_sources.oddsportal_source import OddsPortalSource
         src = OddsPortalSource()
         assert len(src.supported_sports()) == 5
         assert "football" in src.supported_sports()
         assert "volleyball" in src.supported_sports()
 
     def test_betexplorer_covers_5_sports(self):
-        from scripts.odds_sources.betexplorer_scraper import BetExplorerSource
+        from scripts.odds_sources.betexplorer_source import BetExplorerSource
         src = BetExplorerSource()
         assert len(src.supported_sports()) == 5
         assert "volleyball" in src.supported_sports()
-
-    def test_betclic_covers_5_sports(self):
-        from scripts.odds_sources.betclic_scraper import BetclicSource
-        src = BetclicSource()
-        sports = src.supported_sports()
-        assert len(sports) == 5
-        assert "padel" not in sports
-        assert "speedway" not in sports
-        assert "football" in sports
 
     def test_api_football_odds_football_only(self):
         with patch("scripts.odds_sources.api_football_odds.APIFootballOddsClient"):
@@ -328,118 +319,111 @@ def _scraper_fetch_test(module_path, source_class_name, source_name, adapter_mod
 
 class TestOddsPortalFetch:
     def test_returns_events_with_source_tag(self):
-        parsed = [
-            {"home": "Team A", "away": "Team B", "odds": ["1.50", "3.80", "5.00"], "time": "18:00"},
-        ]
-        with patch("scripts.odds_sources.oddsportal_scraper.pw_fetch", create=True) as mock_pw, \
-             patch("scripts.odds_sources.oddsportal_scraper.op_parse", create=True) as mock_parse:
-            # Need to patch at import time — use the module's internal fetch call
-            from scripts.odds_sources.oddsportal_scraper import OddsPortalSource
-            src = OddsPortalSource()
-            # Patch the lazy imports inside fetch_odds
-            with patch.dict("sys.modules", {
-                "fetch_with_playwright": MagicMock(fetch=MagicMock(return_value="<html>")),
-                "adapters.oddsportal_adapter": MagicMock(parse=MagicMock(return_value=parsed)),
-            }):
-                src._limiter = MagicMock(can_request=MagicMock(return_value=True))
-                result = src.fetch_odds("football", "2026-04-29", "2026-04-29")
+        from dataclasses import dataclass
+
+        @dataclass
+        class FakeFixture:
+            external_id: str = "ext123"
+            source: str = "oddsportal"
+            sport: str = "football"
+            competition_name: str = "Test League"
+            home_team_name: str = "Team A"
+            away_team_name: str = "Team B"
+            kickoff: str = "2026-04-29T18:00:00Z"
+            status: str = "scheduled"
+
+        mock_client = MagicMock()
+        mock_client.get_fixtures.return_value = [FakeFixture()]
+        mock_client.get_listing_odds.return_value = {}
+
+        from scripts.odds_sources.oddsportal_source import OddsPortalSource
+        src = OddsPortalSource()
+        src._client = mock_client
+
+        result = src.fetch_odds("football", "2026-04-29", "2026-04-29")
 
         assert len(result) == 1
-        assert result[0]["_odds_source"] == "oddsportal"
+        assert result[0]["_source"] == "oddsportal"
         assert result[0]["home_team"] == "Team A"
         assert result[0]["away_team"] == "Team B"
-        assert len(result[0]["bookmakers"]) == 1
 
     def test_unsupported_sport_returns_empty(self):
-        from scripts.odds_sources.oddsportal_scraper import OddsPortalSource
+        from scripts.odds_sources.oddsportal_source import OddsPortalSource
         src = OddsPortalSource()
         # "curling" is not in SPORT_URLS
         assert src.fetch_odds("curling", "2026-04-29", "2026-04-29") == []
 
-    def test_playwright_error_returns_empty(self):
-        from scripts.odds_sources.oddsportal_scraper import OddsPortalSource
+    def test_client_error_returns_empty(self):
+        from scripts.odds_sources.oddsportal_source import OddsPortalSource
         src = OddsPortalSource()
-        src._limiter = MagicMock(can_request=MagicMock(return_value=True))
-        with patch.dict("sys.modules", {
-            "fetch_with_playwright": MagicMock(fetch=MagicMock(side_effect=Exception("browser crash"))),
-            "adapters.oddsportal_adapter": MagicMock(),
-        }):
-            result = src.fetch_odds("football", "2026-04-29", "2026-04-29")
+        mock_client = MagicMock()
+        mock_client.get_fixtures.side_effect = Exception("browser crash")
+        src._client = mock_client
+        result = src.fetch_odds("football", "2026-04-29", "2026-04-29")
         assert result == []
 
 
 class TestBetExplorerFetch:
     def test_returns_events_with_source_tag(self):
-        parsed = [
-            {"home": "Team X", "away": "Team Y", "odds": ["2.00", "3.20", "3.60"], "time": "15:00"},
-        ]
-        from scripts.odds_sources.betexplorer_scraper import BetExplorerSource
+        from dataclasses import dataclass
+
+        @dataclass
+        class FakeFixture:
+            external_id: str = "ext456"
+            source: str = "betexplorer"
+            sport: str = "football"
+            competition_name: str = "Test League"
+            home_team_name: str = "Team X"
+            away_team_name: str = "Team Y"
+            kickoff: str = "2026-04-29T15:00:00Z"
+            status: str = "scheduled"
+
+        mock_client = MagicMock()
+        mock_client.get_fixtures.return_value = [FakeFixture()]
+
+        from scripts.odds_sources.betexplorer_source import BetExplorerSource
         src = BetExplorerSource()
-        src._limiter = MagicMock(can_request=MagicMock(return_value=True))
-        with patch.dict("sys.modules", {
-            "fetch_with_playwright": MagicMock(fetch=MagicMock(return_value="<html>")),
-            "adapters.betexplorer_adapter": MagicMock(parse=MagicMock(return_value=parsed)),
-        }):
-            result = src.fetch_odds("football", "2026-04-29", "2026-04-29")
+        src._client = mock_client
+
+        result = src.fetch_odds("football", "2026-04-29", "2026-04-29")
 
         assert len(result) == 1
-        assert result[0]["_odds_source"] == "betexplorer"
+        assert result[0]["_source"] == "betexplorer"
         assert result[0]["home_team"] == "Team X"
 
-    def test_rate_limited_returns_empty(self):
-        from scripts.odds_sources.betexplorer_scraper import BetExplorerSource
+    def test_no_client_returns_empty(self):
+        from scripts.odds_sources.betexplorer_source import BetExplorerSource
         src = BetExplorerSource()
-        src._limiter = MagicMock(can_request=MagicMock(return_value=False))
-        result = src.fetch_odds("football", "2026-04-29", "2026-04-29")
+        src._client = None
+        # Force _get_client to fail
+        with patch("scripts.odds_sources.betexplorer_source.BetExplorerSource._get_client", return_value=None):
+            result = src.fetch_odds("football", "2026-04-29", "2026-04-29")
         assert result == []
 
-    def test_playwright_error_returns_empty(self):
-        from scripts.odds_sources.betexplorer_scraper import BetExplorerSource
+    def test_client_error_returns_empty(self):
+        from scripts.odds_sources.betexplorer_source import BetExplorerSource
         src = BetExplorerSource()
-        src._limiter = MagicMock(can_request=MagicMock(return_value=True))
-        with patch.dict("sys.modules", {
-            "fetch_with_playwright": MagicMock(fetch=MagicMock(side_effect=Exception("timeout"))),
-            "adapters.betexplorer_adapter": MagicMock(),
-        }):
-            result = src.fetch_odds("football", "2026-04-29", "2026-04-29")
+        mock_client = MagicMock()
+        mock_client.get_fixtures.side_effect = Exception("timeout")
+        src._client = mock_client
+        result = src.fetch_odds("football", "2026-04-29", "2026-04-29")
         assert result == []
 
 
 class TestBetclicFetch:
-    def test_returns_events_with_source_tag(self):
-        parsed = [
-            {"home": "Lech Poznan", "away": "Legia Warszawa", "odds": ["2.50", "3.10", "2.90"], "time": "20:30"},
-        ]
-        from scripts.odds_sources.betclic_scraper import BetclicSource
-        src = BetclicSource()
-        src._limiter = MagicMock(can_request=MagicMock(return_value=True))
-        with patch.dict("sys.modules", {
-            "fetch_with_playwright": MagicMock(fetch=MagicMock(return_value="<html>")),
-            "adapters.betclic_adapter": MagicMock(parse=MagicMock(return_value=parsed)),
-        }):
-            result = src.fetch_odds("football", "2026-04-29", "2026-04-29")
+    """Betclic scraping is banned per R12 — no betclic_scraper module exists.
+    These tests verify the absence of Betclic as a scraped source."""
 
-        assert len(result) == 1
-        assert result[0]["_odds_source"] == "betclic"
-        assert result[0]["home_team"] == "Lech Poznan"
-        assert result[0]["bookmakers"][0]["key"] == "betclic"
+    def test_betclic_scraper_module_does_not_exist(self):
+        """R12: DO NOT scrape Betclic (403). Module should not exist."""
+        import importlib
+        with pytest.raises(ModuleNotFoundError):
+            importlib.import_module("scripts.odds_sources.betclic_scraper")
 
-    def test_unsupported_sport_returns_empty(self):
-        from scripts.odds_sources.betclic_scraper import BetclicSource
-        src = BetclicSource()
-        # padel is not in Betclic's SPORT_URLS
-        assert src.fetch_odds("padel", "2026-04-29", "2026-04-29") == []
-
-    def test_403_error_returns_empty(self):
-        from scripts.odds_sources.betclic_scraper import BetclicSource
-        src = BetclicSource()
-        src._limiter = MagicMock(can_request=MagicMock(return_value=True))
-        with patch.dict("sys.modules", {
-            "fetch_with_playwright": MagicMock(fetch=MagicMock(side_effect=Exception("403 Forbidden"))),
-            "adapters.betclic_adapter": MagicMock(),
-        }):
-            result = src.fetch_odds("football", "2026-04-29", "2026-04-29")
-        assert result == []
+    def test_betclic_not_in_source_priority(self):
+        """R12: Betclic is the execution bookmaker, not a scraped source."""
+        for sport, sources in SPORT_SOURCE_PRIORITY.items():
+            assert "betclic" not in sources, f"betclic should not be in {sport} sources (R12)"
 
 
 # ===========================================================================
@@ -454,7 +438,8 @@ class TestSportSourcePriority:
     def test_football_includes_all_sources(self):
         assert "the-odds-api" in SPORT_SOURCE_PRIORITY["football"]
         assert "api-football-odds" in SPORT_SOURCE_PRIORITY["football"]
-        assert "betclic" in SPORT_SOURCE_PRIORITY["football"]
+        assert "oddsportal" in SPORT_SOURCE_PRIORITY["football"]
+        assert "betexplorer" in SPORT_SOURCE_PRIORITY["football"]
 
     def test_volleyball_no_odds_api(self):
         assert "the-odds-api" not in SPORT_SOURCE_PRIORITY["volleyball"]

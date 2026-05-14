@@ -34,6 +34,7 @@ _NOW = lambda: datetime.now(timezone.utc).isoformat()
 # ---------------------------------------------------------------------------
 
 from bet.stats.market_ranking import MARKET_PL, DIRECTION_PL
+from utils import normalize_team_name as _normalize_team
 
 
 def _bm(pick: dict) -> dict:
@@ -242,9 +243,9 @@ def _build_rich_description(pick: dict) -> str:
 
 
 def _event_key(pick: dict) -> str:
-    """Unique event key — same match = same key."""
-    home = (pick.get("home_team") or "").strip().lower()
-    away = (pick.get("away_team") or "").strip().lower()
+    """Unique event key — same match = same key (accent/suffix normalized)."""
+    home = _normalize_team(pick.get("home_team") or "")
+    away = _normalize_team(pick.get("away_team") or "")
     return f"{home}|{away}"
 
 
