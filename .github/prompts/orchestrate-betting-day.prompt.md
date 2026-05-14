@@ -62,8 +62,8 @@ Read these files. Do NOT proceed until all are loaded:
 3. `.github/instructions/analysis-methodology.instructions.md`
 4. `.github/instructions/betting-artifacts.instructions.md`
 5. `betting/sources/source-registry.md`
-6. `/memories/repo/pipeline-lessons-learned.md`
-7. `/memories/repo/api-clients-overhaul-plan.md` — **API client architecture + patterns**
+6. `/memories/repo/pipeline-knowledge-base.md` — **Consolidated pipeline knowledge: bugs, enrichment, safety patterns, architecture, scraper module**
+7. `/memories/repo/pipeline-bugs-and-fixes.md` — **Post-mortem bugs with rules for all agents**
 8. Latest session memory from `/memories/repo/session-*.md` (pick most recent date)
 
 ### ⚠️ ADAPTER OVERHAUL (2026-05-12) — ENFORCE IN ALL STEPS
