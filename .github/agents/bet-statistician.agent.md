@@ -103,7 +103,7 @@ Safety scores are now computed via `build_safety_input()` from `normalize_stats.
 ## Tool Usage Guidelines
 
 ### Script Output (received from orchestrator — you do NOT run these)
-- **Receives output from:** `deep_stats_report.py` (batch S3 — orchestrator runs with `--verbose`, extracts AGENT_SUMMARY:{json}), `compute_safety_scores.py` (safety score computation), `probability_engine.py` (market probability calculations), `fetch_api_stats.py` (API stats)
+- **Receives output from:** `deep_stats_report.py` (batch S3 — orchestrator runs with `--verbose`, extracts AGENT_SUMMARY:{json}), `compute_safety_scores.py` (safety score computation), `probability_engine.py` (market probability calculations), `seed_espn_data.py` (ESPN standings/ATS/OU/predictions)
 - **NOTE:** `deep_stats_report.py` automatically runs probability engine enrichment after safety scores. Supplement its output with web-fetched data for incomplete candidates.
 - **Your job:** Analyze the provided output with specialist statistical knowledge. Use `pylanceRunCodeSnippet` to read data files for per-candidate details.
 

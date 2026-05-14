@@ -92,7 +92,7 @@ You add an Enrichment Quality Assessment via sequential-thinking for each batch:
 
 - **Receives output from:** `run_scrapers.py` — **NEW (S2.3):** 19 scrapers across 5 sports (ESPN provides football corners/fouls/cards, basketball boxscores, hockey stats, tennis scoreboard, volleyball kills/aces). AGENT_SUMMARY includes per-scraper status, record counts, and errors.
 - **Receives output from:** `data_enrichment_agent.py` — **S2.5 (now fallback):** Self-healing enrichment for gaps scrapers missed. Orchestrator runs this and passes you AGENT_SUMMARY + verbose log.
-- **Receives output from:** `fetch_api_stats.py` — API-based stats fetch as supplementary source.
+- **Receives output from:** `seed_espn_data.py` — ESPN-specific data (standings, ATS/OU, predictions, power index). Supplementary to scrapers + enrichment.
 
 **Your job:** Read provided output → extract metrics (yield %, per-sport breakdown, source success rates) → `sequentialthinking` → verdict.
 

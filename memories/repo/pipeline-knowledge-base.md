@@ -139,6 +139,7 @@ Eval:     odds_evaluator.py reads DB + 2 snapshot JSONs → injects EV into S3 c
 | **7** | `gemini_news_enrichment.py` | 0 results logged without diagnostics | Added success/empty/error counters to batch_enrich_news |
 | **8** | `data_enrichment_agent.py` | Lower-league teams 404 repeatedly every run | `known_missing_teams.json` cache with 7-day TTL |
 | **9** | (legacy, removed) | `db_scan_results=0` on re-run misleading | Log "X skipped as duplicates", add `db_scan_attempted` metric |
+| **10** | `fetch_api_stats.py` | Uses legacy `scripts/api_clients/`, times out on 1500+ fixtures, redundant with S2.3+S2.5 | **Removed from pipeline S1a (2026-05-15).** Script stays in repo. Superseded by `run_scrapers.py` (S2.3) + `data_enrichment_agent.py` (S2.5). `seed_espn_data.py` kept for unique ESPN data. |
 
 ---
 

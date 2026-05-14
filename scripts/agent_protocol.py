@@ -273,8 +273,8 @@ SELF_HEALING_REGISTRY = {
     },
     "api_stats": {
         "module": "fetch_api_stats",
-        "description": "API-Football fixture + team stats. Saves to fixtures + team_form DB tables.",
-        "use_when": "Missing fixture data or team form for football/soccer matches",
+        "description": "LEGACY — superseded by run_scrapers.py (S2.3) + data_enrichment_agent.py (S2.5). Uses old scripts/api_clients/ module. Do NOT call in pipeline.",
+        "use_when": "DEPRECATED — use run_scrapers.py + data_enrichment_agent.py instead",
     },
     "tennis_enrichment": {
         "module": "enrich_tennis_stats",

@@ -323,7 +323,7 @@ See **§SUBAGENT OUTPUT VERIFICATION** in orchestrate-betting-day.prompt.md for 
 | upset_risk.py | `PYTHONPATH=src .venv/bin/python3 scripts/upset_risk.py --date YYYY-MM-DD --verbose` | 300000 | async |
 | gate_checker.py | `PYTHONPATH=src .venv/bin/python3 scripts/gate_checker.py --date YYYY-MM-DD --verbose` | 300000 | async |
 | coupon_builder.py | `PYTHONPATH=src .venv/bin/python3 scripts/coupon_builder.py --date YYYY-MM-DD --verbose` | 300000 | async |
-| fetch_api_stats.py | `python3 scripts/fetch_api_stats.py --date YYYY-MM-DD` | 300000 | async |
+| seed_espn_data.py | `PYTHONPATH=src .venv/bin/python3 scripts/seed_espn_data.py --skip-players` | 300000 | sync |
 | fetch_odds_api.py | `python3 scripts/fetch_odds_api.py` | 120000 | sync |
 | fetch_odds_api_io.py | `python3 scripts/fetch_odds_api_io.py --date YYYY-MM-DD --verbose` | 120000 | sync |
 | settle_on_finish.py | `python3 scripts/settle_on_finish.py --betting-day YYYY-MM-DD` | 300000 | async |

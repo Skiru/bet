@@ -428,14 +428,15 @@ python3 scripts/ingest_scan_stats.py --date {date} --verbose 2>&1
 
 ---
 
-### STEP S1a: API Stats + ESPN Enrichment
+### STEP S1a: ESPN Data Seeding
 
 ```bash
-python3 scripts/fetch_api_stats.py --date {date} 2>&1
-python3 scripts/seed_espn_data.py --skip-players 2>&1
+PYTHONPATH=src .venv/bin/python3 scripts/seed_espn_data.py --skip-players 2>&1
 ```
 
-**Post-run check**: If `fetch_api_stats.py` reports 0 API responses, proceed in stats-first mode (R10) — API stats are supplemental to discovery scan data.
+Seeds unique ESPN data: standings, ATS/OU records, predictions, power index (8-min timeout). This data is NOT covered by S2.3 scrapers or S2.5 enrichment.
+
+**NOTE:** `fetch_api_stats.py` removed from pipeline (2026-05-15) — its per-fixture enrichment via legacy `scripts/api_clients/` is fully superseded by `run_scrapers.py` (S2.3) + `data_enrichment_agent.py` (S2.5) which use the modern `src/bet/api_clients/unified.py` routing.
 
 ---
 
