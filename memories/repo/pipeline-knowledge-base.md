@@ -170,6 +170,8 @@ API-first event discovery using 3 structured sources. **Fast** (~30s). Live-test
 
 **Integration handoff:** `betting/plans/discovery-integration-handoff.md` — 8 files to update (orchestrator prompt, agents, protocol). 32 tests (tests/discovery/).
 
+**Deep integration guide:** `specifications/discovery-module-integration-guide.md` — 19-section reference covering architecture, source adapters, dedup engine, DB schema, JSON output format, CLI, data flow diagrams, integration points for ingest/shortlist/enrichment/scrapers/deep-stats, adding new sources/sports, testing strategy, performance, and troubleshooting.
+
 **Status:** FULLY INTEGRATED. All orchestrator, agent, prompt, and script files updated. No legacy fallback paths.
 
 ### API Clients (2026-05-14)
