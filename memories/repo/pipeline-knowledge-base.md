@@ -12,61 +12,18 @@
 
 ---
 
-## ⛔ KNOWN ISSUES — TO FIX (Priority Order)
+## ⛔ KNOWN ISSUES — ALL FIXED (2026-05-14, Phase 3)
 
-### ISSUE 1: ESPN Football/Volleyball HTTP 400 Flood (HIGH)
-- **File:** `src/bet/api_clients/espn.py`, `unified.py`
-- **Evidence:** Scan logs flooded with `[espn-football] HTTP 400: Failed to get events endpoint` — ~65 football leagues, ~4 volleyball leagues all returning 400.
-- **Impact:** Log noise, wasted API calls (~70 per scan), slows scan by ~5-10s. ESPN football fixtures return 0 events for most leagues.
-- **Fix options:** (a) cache 400 responses per league and skip for 24h, (b) reduce ESPN_LEAGUES football list to only leagues that actually return data, (c) move ESPN below Flashscore in SOURCE_PRIORITY (already is) and skip if Flashscore returned enough
-
-### ISSUE 2: ESPN Creates New Client Per League (MEDIUM)
-- **File:** `src/bet/api_clients/unified.py` line ~125
-- **Evidence:** `get_fixtures()` creates `ESPNClient(sport=sport, league=league)` inside a loop for each of ~65 football leagues. Each instantiation creates new rate_limiter + session.
-- **Impact:** Memory churn, inconsistent rate limiting across leagues.
-- **Fix:** Create one ESPNClient per sport, iterate leagues internally.
-
-### ISSUE 3: Flashscore Fetches Stats for Upcoming Matches (MEDIUM)
-- **File:** `src/bet/api_clients/flashscore.py` → `get_fixture_stats()`, `unified.py` → `get_deep_data()`
-- **Evidence:** `get_fixture_stats` navigates to match-statistics page for SCHEDULED matches → always returns 0 stats. Wastes ~6 seconds per event (Playwright page load).
-- **Impact:** With `--deep-limit 50`, that's ~5 min wasted on guaranteed-empty pages.
-- **Fix:** `get_deep_data()` should skip `get_fixture_stats()` for non-finished matches. Or: pass a `status` parameter and skip stats scraping.
-
-### ISSUE 4: "Advancing to next round" Garbage in Team Names (MEDIUM)
-- **File:** `src/bet/api_clients/flashscore.py` → `_JS_EXTRACT_FIXTURES`
-- **Evidence:** Live test output: `"River PlateAdvancing to next round: River Plate vs Gimnasia L.P."` — Flashscore DOM concatenates "Advancing to next round" with team name.
-- **Impact:** Garbage team names in scan → phantom/junk events enter shortlist.
-- **Fix:** Add to `_JS_EXTRACT_FIXTURES` JS: strip "Advancing to next round" text. Also add to `build_shortlist.py` `_garbage_re` pattern.
-
-### ISSUE 5: Flashscore Tennis Player Pages 404 (MEDIUM)
-- **File:** `data_enrichment_agent.py`
-- **Evidence:** Knowledge base backlog item: ALL Flashscore tennis player pages return 404. Wastes ~10 min per enrichment run.
-- **Impact:** Zero tennis enrichment from Flashscore. Time wasted.
-- **Fix:** Skip Flashscore enrichment for tennis sport. Use ESPN + TennisAbstract Elo instead. Add `if sport == "tennis": skip flashscore` guard.
-
-### ISSUE 6: Flashscore H2H Selector May Be Stale (LOW)
-- **File:** `src/bet/api_clients/flashscore.py` → `_JS_EXTRACT_H2H`
-- **Evidence:** Live test: 2/2 events had form data but only 1/2 had H2H. H2H selector uses `.h2h__row`, `.h2h__homeParticipant` etc. — may be outdated Flashscore DOM.
-- **Impact:** Missing H2H data → safety score lacks H2H cross-check (Pattern G).
-- **Fix:** Debug live Flashscore H2H page, update selectors. May need `[class*="h2h"]` wildcards.
-
-### ISSUE 7: Gemini News (--news) Produces 0 Results (LOW)
-- **File:** `scripts/gemini_news_enrichment.py`
-- **Evidence:** Knowledge base backlog item. Unknown if module actually runs or fails silently.
-- **Impact:** Zero news context for team_news table.
-- **Fix:** Debug `batch_enrich_news()` — check Gemini API key, response parsing, error handling.
-
-### ISSUE 8: Lower-League Teams 404 on Flashscore (LOW)
-- **File:** `data_enrichment_agent.py`
-- **Evidence:** Many minor league teams (Indian state leagues, 4th divisions) consistently 404 on Flashscore.
-- **Impact:** Wasted Playwright time per run. Same teams fail every day.
-- **Fix:** Maintain a `known_missing_teams.json` cache. If a team 404'd in last 7 days, skip Flashscore and go to next source.
-
-### ISSUE 9: scan_events db_scan_results=0 on Re-run (COSMETIC)
-- **File:** `scripts/scan_events.py`
-- **Evidence:** AGENT_SUMMARY shows `db_scan_results: 0` on re-runs — ScanResultRepo.bulk_insert likely deduplicates.
-- **Impact:** Misleading metric. Not a functional bug.
-- **Fix:** Log "X skipped as duplicates" instead of just returning 0.
+| Issue | File(s) | Root Cause | Fix |
+|-------|---------|------------|-----|
+| **1+2** | `unified.py` | ESPN created new client per league + 400 flood for ~65 leagues | Reuse 1 ESPNClient per sport, cache 400/404 failures in-memory |
+| **3** | `unified.py`, `scan_events.py` | `get_fixture_stats()` on scheduled matches → guaranteed empty | Skip stats for `status="scheduled"`, pass status through chain |
+| **4** | `flashscore.py` | "Advancing to next round" concatenated in team name from DOM | JS regex strip in `_JS_EXTRACT_FIXTURES` |
+| **5** | `data_enrichment_agent.py` | Flashscore player pages 404 for all tennis players | Skip `_try_flashscore()` for `sport == "tennis"` |
+| **6** | `flashscore.py` | `.h2h__row` selector stale | Added `[class*="h2h"]` wildcard fallback selectors |
+| **7** | `gemini_news_enrichment.py` | 0 results logged without diagnostics | Added success/empty/error counters to batch_enrich_news |
+| **8** | `data_enrichment_agent.py` | Lower-league teams 404 repeatedly every run | `known_missing_teams.json` cache with 7-day TTL |
+| **9** | `scan_events.py` | `db_scan_results=0` on re-run misleading | Log "X skipped as duplicates", add `db_scan_attempted` metric |
 
 ---
 

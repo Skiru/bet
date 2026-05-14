@@ -120,9 +120,17 @@ class UnifiedAPIClient:
                 if not leagues:
                     continue
                 fetched_count = 0
+                # Reuse one ESPN client per sport (ISSUE 2 fix)
+                espn = ESPNClient(sport=sport, league=leagues[0], rate_limiter=self._limiter)
                 for league in leagues:
+                    # Skip leagues that returned 400 before (cached in memory for this session)
+                    cache_key = f"espn_fail_{sport}_{league}"
+                    if hasattr(self, '_espn_fail_cache') and cache_key in self._espn_fail_cache:
+                        continue
                     try:
-                        espn = ESPNClient(sport=sport, league=league, rate_limiter=self._limiter)
+                        # Repoint the client's base_url for this league
+                        espn.league = league
+                        espn.base_url = f"{espn.ESPN_BASE}/{espn._espn_sport}/{league}"
                         fixtures = espn.get_fixtures(date)
                         for f in fixtures:
                             # Merge + dedup by (home, away)
@@ -132,6 +140,12 @@ class UnifiedAPIClient:
                                 all_fixtures.append(f)
                                 fetched_count += 1
                     except Exception as e:
+                        # Cache 400/404 failures to avoid re-hitting broken leagues (ISSUE 1 fix)
+                        err_str = str(e)
+                        if "400" in err_str or "404" in err_str:
+                            if not hasattr(self, '_espn_fail_cache'):
+                                self._espn_fail_cache = set()
+                            self._espn_fail_cache.add(cache_key)
                         logger.debug(f"[UnifiedAPIClient] ESPN {sport}/{league} failed: {e}")
                         continue
                 if fetched_count > 0:
@@ -194,11 +208,12 @@ class UnifiedAPIClient:
                 logger.debug(f"[UnifiedAPIClient] {src_name} odds failed for {match_identifier}: {e}")
         return {}
 
-    def get_deep_data(self, event_id: str, source: str | None = None) -> dict:
+    def get_deep_data(self, event_id: str, source: str | None = None, status: str = "") -> dict:
         """Fetch stats + form + H2H + odds from Flashscore.
         
         Args:
             source: Reserved for future use — route to a specific client.
+            status: Event status (scheduled/live/finished). Skips match stats for scheduled events.
         """
         result = {"stats": [], "form": {}, "h2h": {}, "odds": []}
         client = self._get_client("flashscore")
@@ -216,12 +231,16 @@ class UnifiedAPIClient:
         except Exception as e:
             logger.debug(f"Flashscore preview failed for {event_id}: {e}")
         
-        try:
-            stats = client.get_fixture_stats(event_id)
-            if stats:
-                result["stats"] = stats
-        except Exception as e:
-            logger.debug(f"Flashscore stats failed for {event_id}: {e}")
+        # Match stats (shots, possession, etc.) only exist for live/finished matches
+        if status not in ("scheduled", ""):
+            try:
+                stats = client.get_fixture_stats(event_id)
+                if stats:
+                    result["stats"] = stats
+            except Exception as e:
+                logger.debug(f"Flashscore stats failed for {event_id}: {e}")
+        elif status == "scheduled":
+            logger.debug(f"Skipping fixture stats for scheduled event {event_id}")
         
         return result
 

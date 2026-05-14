@@ -31,6 +31,53 @@ import requests as _requests  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# Known missing teams cache — skip teams that consistently 404 on Flashscore
+# ---------------------------------------------------------------------------
+_KNOWN_MISSING_PATH = ROOT_DIR / "betting" / "data" / "known_missing_teams.json"
+_known_missing_teams: dict[str, str] = {}  # "team|sport" → ISO timestamp of last 404
+
+
+def _load_known_missing():
+    global _known_missing_teams
+    if _KNOWN_MISSING_PATH.exists():
+        try:
+            _known_missing_teams = json.loads(_KNOWN_MISSING_PATH.read_text())
+        except Exception:
+            _known_missing_teams = {}
+
+
+def _save_known_missing():
+    try:
+        _KNOWN_MISSING_PATH.write_text(json.dumps(_known_missing_teams, indent=2))
+    except Exception as e:
+        logger.debug(f"Failed to save known missing teams: {e}")
+
+
+def _mark_missing(team_name: str, sport: str):
+    key = f"{team_name.lower()}|{sport}"
+    _known_missing_teams[key] = datetime.now(timezone.utc).isoformat()
+
+
+def _is_known_missing(team_name: str, sport: str) -> bool:
+    """Check if a team is known to 404. Entries expire after 7 days."""
+    key = f"{team_name.lower()}|{sport}"
+    ts = _known_missing_teams.get(key)
+    if not ts:
+        return False
+    try:
+        recorded = datetime.fromisoformat(ts)
+        if (datetime.now(timezone.utc) - recorded).days > 7:
+            del _known_missing_teams[key]
+            return False
+        return True
+    except Exception:
+        return False
+
+
+_load_known_missing()
+atexit.register(_save_known_missing)
+
 def fetch(url: str, save_snapshot: bool = False) -> str | None:
     """HTTP fetch with stealth Playwright fallback for 403 blocks."""
     try:
@@ -1246,6 +1293,12 @@ def enrich_team(team_name: str, sport: str, max_retries: int = 2) -> dict:
         result["error"] = f"No stat keys defined for sport: {sport}"
         return result
 
+    # Check known-missing cache (ISSUE 8: avoid re-fetching teams that consistently 404)
+    if _is_known_missing(team_name, sport):
+        result["error"] = f"Known missing team (cached 404): {team_name}"
+        logger.debug(f"Skipping known-missing team: {team_name} ({sport})")
+        return result
+
     errors = []
 
     # Try UnifiedAPIClient first (uses FlashscoreClient/Scores24Client internally)
@@ -1392,35 +1445,38 @@ def enrich_team(team_name: str, sport: str, max_retries: int = 2) -> dict:
         except Exception as e:
             logger.debug(f"Scores24 trends failed for {team_name}: {e}")
 
-    # Try Flashscore first (most reliable HTML)
-    for attempt in range(1, max_retries + 1):
-        stats, err = _try_flashscore(team_name, sport)
-        if stats:
-            source = "flashscore"
-            result["source"] = source
-            # Determine status
-            found_keys = set(stats.keys())
-            expected_keys = set(stat_keys)
-            if found_keys >= expected_keys:
-                result["status"] = "enriched"
-            elif found_keys:
-                result["status"] = "partial"
-            else:
-                continue  # retry
+    # Try Flashscore HTML scraping (skip for tennis — player pages 404)
+    if sport != "tennis":
+        for attempt in range(1, max_retries + 1):
+            stats, err = _try_flashscore(team_name, sport)
+            if stats:
+                source = "flashscore"
+                result["source"] = source
+                # Determine status
+                found_keys = set(stats.keys())
+                expected_keys = set(stat_keys)
+                if found_keys >= expected_keys:
+                    result["status"] = "enriched"
+                elif found_keys:
+                    result["status"] = "partial"
+                else:
+                    continue  # retry
 
-            result["stats_found"] = {
-                k: _safe_avg(v) for k, v in stats.items() if v
-            }
+                result["stats_found"] = {
+                    k: _safe_avg(v) for k, v in stats.items() if v
+                }
 
-            # Save to both cache and DB
-            _save_to_cache(team_name, sport, stats, source)
-            _save_to_db(team_name, sport, stats, "enrichment-agent")
-            return result
+                # Save to both cache and DB
+                _save_to_cache(team_name, sport, stats, source)
+                _save_to_db(team_name, sport, stats, "enrichment-agent")
+                return result
 
-        if err:
-            errors.append(err)
-        if attempt < max_retries:
-            time.sleep(1.0)
+            if err:
+                errors.append(err)
+            if attempt < max_retries:
+                time.sleep(1.0)
+    else:
+        logger.info(f"Skipping Flashscore HTML for tennis player '{team_name}' — player pages 404")
 
     # Fallback: try scores24.live
     stats, err = _try_scores24(team_name, sport)
@@ -1461,6 +1517,8 @@ def enrich_team(team_name: str, sport: str, max_retries: int = 2) -> dict:
         return result
 
     result["error"] = "; ".join(errors) if errors else "No data found from any source"
+    # Mark as known missing for future runs (7-day TTL)
+    _mark_missing(team_name, sport)
     return result
 
 

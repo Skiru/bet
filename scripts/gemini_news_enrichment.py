@@ -124,10 +124,24 @@ def batch_enrich_news(
     logger.info(f"Enriching news for {len(teams_to_enrich)} unique teams")
 
     results = []
+    success_count = 0
+    empty_count = 0
+    error_count = 0
     # Sequential to respect rate limits (Gemini search is expensive)
     for item in teams_to_enrich:
         result = enrich_team_news(item["team"], item["sport"], date)
         results.append(result)
+        if result.injuries or result.recent_news:
+            success_count += 1
+        elif result.confidence == 0:
+            error_count += 1
+        else:
+            empty_count += 1
+
+    logger.info(
+        f"News enrichment complete: {success_count} with data, "
+        f"{empty_count} empty, {error_count} errors out of {len(teams_to_enrich)} teams"
+    )
 
     return results
 

@@ -151,16 +151,21 @@ class FlashscoreClient(PlaywrightBaseClient):
                     const stage = child.querySelector('.event__stage--block');
 
                     // Team name fallbacks: older selectors
-                    const homeName = home
+                    let homeName = home
                         ? home.textContent.trim()
                         : (child.querySelector('.event__homeParticipant')
                             ? child.querySelector('.event__homeParticipant').textContent.trim()
                             : '');
-                    const awayName = away
+                    let awayName = away
                         ? away.textContent.trim()
                         : (child.querySelector('.event__awayParticipant')
                             ? child.querySelector('.event__awayParticipant').textContent.trim()
                             : '');
+
+                    // Strip tournament bracket noise from team names
+                    const bracketNoise = /\\s*(advancing to next round|winner of|loser of|\\(\\d+\\))\\s*/gi;
+                    homeName = homeName.replace(bracketNoise, '').trim();
+                    awayName = awayName.replace(bracketNoise, '').trim();
 
                     if (homeName && awayName) {
                         const rawId = child.id || '';
@@ -212,12 +217,16 @@ class FlashscoreClient(PlaywrightBaseClient):
 
     _JS_EXTRACT_H2H = """() => {
         const matches = [];
-        const rows = document.querySelectorAll('.h2h__row');
+        // Try multiple selectors — Flashscore changes DOM periodically
+        let rows = document.querySelectorAll('.h2h__row');
+        if (!rows.length) rows = document.querySelectorAll('[class*="h2h__row"]');
+        if (!rows.length) rows = document.querySelectorAll('.rows .h2h__section .h2h__row');
+        if (!rows.length) rows = document.querySelectorAll('[class*="h2hRow"]');
         for (const row of rows) {
-            const home = row.querySelector('.h2h__homeParticipant');
-            const away = row.querySelector('.h2h__awayParticipant');
-            const result = row.querySelector('.h2h__result');
-            const date = row.querySelector('.h2h__date');
+            const home = row.querySelector('.h2h__homeParticipant, [class*="homeParticipant"]');
+            const away = row.querySelector('.h2h__awayParticipant, [class*="awayParticipant"]');
+            const result = row.querySelector('.h2h__result, [class*="h2h__result"]');
+            const date = row.querySelector('.h2h__date, [class*="h2h__date"]');
 
             if (home && away) {
                 let scoreH = '', scoreA = '';

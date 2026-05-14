@@ -178,10 +178,10 @@ def _get_enrich_client():
                 _enrich_client = UnifiedAPIClient()
     return _enrich_client
 
-def fetch_deep_data(event_id: str, source: str | None = None) -> tuple:
+def fetch_deep_data(event_id: str, source: str | None = None, status: str = "") -> tuple:
     """Fetch form, H2H, odds, and statistics for an event using UnifiedAPIClient."""
     client = _get_enrich_client()
-    deep = client.get_deep_data(event_id, source=source)
+    deep = client.get_deep_data(event_id, source=source, status=status)
     return deep["form"], deep["h2h"], deep["odds"], deep["stats"]
 
 def _persist_deep_to_db(ev: dict, deep_data: dict) -> int:
@@ -222,7 +222,7 @@ def _enrich_single_event(ev: dict, session: requests.Session, verbose: bool = Fa
     if verbose:
         print(json.dumps({"event": "enriching", "id": ev["id"], "match": f"{ev['home_team']} vs {ev['away_team']}"}))
         
-    form, h2h, odds, stats = fetch_deep_data(str(ev["id"]), source=ev.get("_source"))
+    form, h2h, odds, stats = fetch_deep_data(str(ev["id"]), source=ev.get("_source"), status=ev.get("status", ""))
     ev["form"] = form
     ev["h2h"] = h2h
     ev["odds"] = odds
@@ -436,6 +436,8 @@ def main():
                 scan_results_to_insert.append(scan_res)
                 
             db_scan_results = scan_repo.bulk_insert(scan_results_to_insert)
+            if db_scan_results == 0 and scan_results_to_insert:
+                logger.info(f"All {len(scan_results_to_insert)} scan results already in DB (re-run)")
             
     except Exception as e:
         logger.error(f"Error persisting scan results to DB: {e}")
@@ -465,6 +467,7 @@ def main():
         "deep_db_persisted": deep_db_persisted,
         "db_fixtures_written": db_fixtures_written,
         "db_scan_results": db_scan_results,
+        "db_scan_attempted": len(all_events),
         "errors": errors,
         "issues": issues
     }
