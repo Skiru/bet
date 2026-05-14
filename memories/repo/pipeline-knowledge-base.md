@@ -55,6 +55,7 @@ After S4-S7 gates → 3-4 viable core picks
 
 ### Enrichment Backlog
 - Items moved to "KNOWN ISSUES" section above: tennis 404 (ISSUE 5), Gemini news (ISSUE 7), thread-guarded clients (fixed in BUG B Phase 2), lower-league 404 (ISSUE 8)
+- Standalone Flashscore module details: see `memories/repo/flashscore-enricher-implementation.md`
 
 ---
 
