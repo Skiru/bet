@@ -248,23 +248,45 @@ Before forming ANY verdict, run `sequentialthinking` answering:
 
 ### 4. RETURN — Fill in this MANDATORY template
 
-```
+- `subagent_verdict`, `Metrics`, `Anomalies`, `Issues`, and `Data For Orchestrator` = facts grounded in script output or `pylanceRunCodeSnippet` validation.
+- `Analysis`, `Impact`, and `User Summary` = YOUR reasoning. `User Summary` MUST be plain-language and different from `Analysis`.
+
+````markdown
 ## Verdict: {script_name}
 
-**Result:** APPROVED / FLAGGED / REJECTED
+```subagent_verdict
+verdict: APPROVED | FLAGGED | REJECTED
+quality_score: 1-10
+script: {script_name}
+exit_code: {0|1|2}
+```
 
+### Metrics
 | Metric | Value | Assessment |
 |--------|-------|------------|
 | (fill in ≥3 rows with REAL numbers from output) |
 
-**Anomalies:** (specific anomalies with explanations, or "None")
+### Anomalies
+- (specific anomaly + root cause, or `None`)
 
-**My Analysis:** (3-5 sentences of YOUR reasoning — what the numbers MEAN, not what they ARE)
+### Analysis
+(3-5 sentences of YOUR reasoning — explain what the numbers MEAN, not what they ARE)
 
-**Impact on Next Step:** (what downstream step should know)
+### Impact
+- (what downstream step should know)
 
-**Issues:** (actionable items, or "None")
-```
+### Issues
+- (actionable items, or `None`)
+
+### User Summary
+(2-3 plain-language sentences the orchestrator can present directly to the user)
+
+### Data For Orchestrator
+- next_step_ready: (required — e.g., `42 candidates ready for S3`)
+- quality_flags: (required — e.g., `hockey=PARTIAL, football=FULL`)
+- focus_points: (required — e.g., `re-price 6 partial-data candidates in S4`)
+- (add extra keys only if essential)
+````
 
 ### 5. VALIDATE — Verify outputs with `pylanceRunCodeSnippet` BEFORE returning
 
@@ -308,11 +330,17 @@ Verdict: APPROVED
 ```
 
 ### ✅ GOOD — This is an analyst who THOUGHT about the output:
-```
+````markdown
 ## Verdict: data_enrichment_agent.py
 
-**Result:** APPROVED
+```subagent_verdict
+verdict: APPROVED
+quality_score: 8
+script: data_enrichment_agent.py
+exit_code: 0
+```
 
+### Metrics
 | Metric | Value | Assessment |
 |--------|-------|------------|
 | Yield | 73% (42/57) | OK (above 60% threshold) |
@@ -321,23 +349,30 @@ Verdict: APPROVED
 | Hockey | 4/9 (44%) | WARNING — below sport threshold |
 | L10 form gaps | 15 candidates | WARNING — degraded S3 input |
 
-**Anomalies:** Hockey enrichment at 44% — Flashscore returned stale data for KHL
-teams (season ended). ESPN fallback provided standings but no team form.
-This means hockey candidates will enter S3 with PARTIAL data quality.
+### Anomalies
+- Hockey enrichment yield: 4/9 (44%). Root cause: Flashscore returned stale KHL pages and ESPN fallback had standings only.
+- L10 form gaps: 15 candidates. Root cause: off-season datasets left recent-fixture coverage incomplete.
 
-**My Analysis:** Overall yield of 73% is healthy and above the 60% approval
-threshold. The hockey weakness is structural (off-season) not a pipeline bug.
-15 candidates with missing L10 form will get degraded analysis in S3 — they
-should be flagged as PARTIAL data quality, not rejected. The football enrichment
-at 86% is strong — our core sport has deep data for stat market analysis.
+### Analysis
+Overall yield of 73% is healthy and above the 60% approval threshold. The hockey weakness is structural (off-season), not a pipeline bug. The 15 candidates with missing L10 form will get degraded analysis in S3, so they should be flagged as PARTIAL data quality rather than rejected. Football enrichment at 86% is strong, which keeps our core sport well supplied for stat-market analysis.
 
-**Impact on Next Step:** S3 deep stats should expect 42 candidates with full
-data and 15 with partial. Hockey candidates need extra caution in safety scores.
+### Impact
+- S3 should expect 42 candidates with FULL data and 15 with PARTIAL data.
+- Hockey candidates need extra caution in safety scores.
 
-**Issues:** None blocking. Hockey gap is informational.
-```
+### Issues
+- None blocking. Hockey gap is informational.
 
-**The difference:** The GOOD output has specific numbers, per-category breakdown, anomaly explanation with ROOT CAUSE, impact assessment, and original reasoning. The BAD output has vague summaries that could apply to any script run ever.
+### User Summary
+Enrichment cleared most of the shortlist with strong football coverage and manageable partial-data risk. Hockey remains the weak spot because off-season sources returned incomplete form data, so those candidates need caution rather than rejection.
+
+### Data For Orchestrator
+- next_step_ready: 42 FULL candidates, 15 PARTIAL candidates
+- quality_flags: hockey=PARTIAL, football=FULL, tennis=FULL
+- focus_points: highlight hockey caution in S3 and preserve all candidates in stats-first mode
+````
+
+**The difference:** The GOOD output separates script-grounded facts (`subagent_verdict`, `Metrics`, `Anomalies`, `Data For Orchestrator`) from agent reasoning (`Analysis`, `Impact`, `User Summary`). The BAD output is vague prose that the orchestrator cannot reliably parse or present.
 
 ---
 

@@ -125,6 +125,36 @@ After S4-S7 gates → 3-4 viable core picks
 - Subagent does NOT run scripts — it ANALYZES output orchestrator collected
 - This preserves R1 (agent-driven) + gives user visibility
 
+### Structured Subagent Verdict Format (2026-05-14)
+All specialist agents MUST return verdicts in this exact structured format (defined in `agent-execution-protocol.instructions.md` step 4):
+
+```
+## Verdict: {script_name}
+```subagent_verdict
+verdict: APPROVED | FLAGGED | REJECTED
+quality_score: 1-10
+script: {script_name}
+exit_code: {0|1|2}
+```
+### Metrics        — ≥3 rows, script-grounded facts
+### Anomalies      — specific anomaly + root cause
+### Analysis       — agent's ORIGINAL reasoning (not script restatement)
+### Impact         — what downstream step should know
+### Issues         — actionable blockers or `None`
+### User Summary   — 2-3 plain-language sentences for user presentation
+### Data For Orchestrator — required keys: next_step_ready, quality_flags, focus_points
+```
+
+**Section classification:**
+- Facts-only: `subagent_verdict`, `Metrics`, `Anomalies`, `Issues`, `Data For Orchestrator`
+- Reasoning: `Analysis`, `Impact`, `User Summary`
+
+**Orchestrator duties:**
+- Parse `subagent_verdict` → `Metrics` → `User Summary` → `Data For Orchestrator`
+- Present user update: step header + User Summary + 2-4 key metrics + Next line
+- Maintain quality ledger: step, agent, verdict, quality_score, key handoff fact
+- 5-question quality gate before accepting any verdict (see §SUBAGENT OUTPUT VERIFICATION in orchestrate-betting-day.prompt.md)
+
 ---
 
 ## Betclic Constraints

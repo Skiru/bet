@@ -135,9 +135,9 @@ Gemini features are ADDITIVE — they enhance the pipeline behind feature flags.
 
 **Every step follows this pattern:**
 ```
-1. DELEGATE: runSubagent(specialist_agent) — pass: date, internal prompt content, input files, issues
+1. DELEGATE: runSubagent(specialist_agent) — pass: date, internal prompt content, input files, issues, and the response contract from §DELEGATION TEMPLATE
 2. AGENT WORKS: Specialist runs script + sequentialthinking + loads skills + validates output
-3. RECEIVE: Agent returns APPROVED/FLAGGED/REJECTED + quality_score + specific_issues[]
+3. RECEIVE: Agent returns the structured verdict (see §DELEGATION TEMPLATE for all 8 sections)
 4. DECIDE: PROCEED (if APPROVED) / FIX+RETRY (if FLAGGED) / ESCALATE to user (if REJECTED)
 ```
 
@@ -147,6 +147,8 @@ Gemini features are ADDITIVE — they enhance the pipeline behind feature flags.
 - Check that methodology rules (R1-R20) are respected in the agent's output
 - Verify sport diversity, statistical market coverage, and gate compliance
 - **VERIFY SUBAGENT OUTPUT QUALITY** (see §SUBAGENT OUTPUT VERIFICATION below)
+- Parse the structured verdict in this order: `subagent_verdict` → `Metrics` → `User Summary` → `Data For Orchestrator`, then present a short progress report with step name, verdict, quality score, 2-4 key metrics, and the next-step handoff.
+- Maintain a running quality ledger: `step`, `agent`, `verdict`, `quality_score`, `key handoff fact`.
 
 **What you NEVER do:**
 - Run `deep_stats_report.py`, `data_enrichment_agent.py`, `gate_checker.py`, `coupon_builder.py`, or any analytical script yourself
@@ -213,16 +215,40 @@ FAILURE MODE: If you run this script with mode=sync and block for >3 min doing n
 
 ---
 
+## §DELEGATION TEMPLATE (append to every `runSubagent` context)
+
+For every specialist delegation, append this response contract after the step-specific context:
+
+```
+### Expected Response Format
+Return the protocol's structured verdict:
+- `subagent_verdict` block with `verdict`, `quality_score`, `script`, `exit_code`
+- `### Metrics` with ≥3 rows from script output
+- `### Anomalies` with specific anomaly + root cause
+- `### Analysis` with your original reasoning
+- `### Impact`
+- `### Issues`
+- `### User Summary` with 2-3 plain-language sentences for the user
+- `### Data For Orchestrator` with required keys: `next_step_ready`, `quality_flags`, `focus_points`
+
+Facts-only sections: `subagent_verdict`, `Metrics`, `Anomalies`, `Issues`, `Data For Orchestrator`
+Reasoning sections: `Analysis`, `Impact`, `User Summary`
+Do NOT return free-form prose and do NOT rename the headers.
+```
+
+---
+
 ## §SUBAGENT OUTPUT VERIFICATION (after every runSubagent)
 
-**4-question quality gate — if ANY answer is NO, REJECT and re-delegate:**
-1. Does the response cite ≥3 specific metrics extracted from script output? (not vague summaries)
-2. Does it contain ORIGINAL ANALYSIS beyond what the script computed? (insights, anomalies, reasoning)
-3. Is there a structured verdict with justification? (not just "APPROVED")
-4. Did the agent use `pylanceRunCodeSnippet` for INSPECT (before) and VALIDATE (after) the script? (evidence of R18 compliance)
+**5-question quality gate — if ANY answer is NO, REJECT and re-delegate:**
+1. Does the response contain a `subagent_verdict` block with `verdict`, `quality_score`, `script`, and `exit_code`?
+2. Does `### Metrics` contain ≥3 specific metrics extracted from script output?
+3. Are `### Analysis` and `### User Summary` both present, with `User Summary` clearly plainer and different from `Analysis`?
+4. Do `### Data For Orchestrator` and `### Impact` provide actionable next-step facts, and is there evidence the agent used `pylanceRunCodeSnippet` for INSPECT and VALIDATE?
+5. Does `### Issues` list specific blockers, or explicitly say `None`?
 
 **Re-delegation instruction when rejecting:**
-"Your output was rejected — you returned [raw script paste / verdict without reasoning / no original analysis]. Read agent-execution-protocol.instructions.md. Return: metrics table (≥3 rows), anomaly analysis, YOUR original reasoning, structured verdict with justification."
+"Your output was rejected — the structured verdict is incomplete or shallow. Read agent-execution-protocol.instructions.md. Return the full format: `subagent_verdict`, `Metrics`, `Anomalies`, `Analysis`, `Impact`, `Issues`, `User Summary`, `Data For Orchestrator`."
 
 ## ═══════════════════════════════════════════════
 ## DATA COLLECTION (Steps S0 → S2.5)
