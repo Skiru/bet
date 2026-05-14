@@ -139,7 +139,49 @@ else:
 
 ---
 
-## The 6-Step Cycle (EVERY script execution, no exceptions)
+## Execution Models: RUN-THEN-DELEGATE vs AGENT-RUNS
+
+There are **two execution models** for pipeline scripts. Choose based on WHO runs the script:
+
+### Model A: RUN-THEN-DELEGATE (PREFERRED — orchestrator runs script, subagent analyzes)
+
+```
+ORCHESTRATOR                              SUBAGENT (specialist)
+    │                                          │
+    ├── pylanceRunCodeSnippet (INSPECT inputs)  │
+    ├── run_in_terminal(mode=async, --verbose)  │
+    ├── sequentialthinking (THINK-WHILE-WAITING)│
+    ├── get_terminal_output → AGENT_SUMMARY     │
+    ├── pylanceRunCodeSnippet (VALIDATE outputs) │
+    │                                          │
+    ├── runSubagent(specialist, {              │
+    │     script_output: AGENT_SUMMARY,        │
+    │     raw_metrics: extracted_numbers,      │
+    │     input_context: upstream_data         │
+    │   })                                     │──► ANALYZE ONLY
+    │                                          │    (no script execution)
+    │◄── structured verdict ───────────────────│
+    │                                          │
+    ├── 6-question quality gate                │
+    ├── present to user                        │
+```
+
+**WHY this is preferred:** The orchestrator has DIRECT terminal control — it sees 404 errors, timeout signals, and script failures IN REAL TIME. Subagents focus on what they do best: specialist analysis with a fresh context window. Eliminates the entire class of R17 violations where subagents launch scripts and then sit idle.
+
+**When to use:** ALL analytical steps (S2-S8) where the script is a standard run-once-and-analyze.
+
+### Model B: AGENT-RUNS (legacy — subagent runs script + analyzes)
+
+Use ONLY when the subagent needs iterative script execution (multiple runs, gap analysis, retargeting):
+- Targeted re-enrichment after identifying specific gaps
+- Multiple validation cycles (coupon V1-V10 → fix → re-validate)
+- Interactive data exploration that requires multiple script invocations
+
+**In Model B**, the subagent MUST follow the full 6-Step Cycle below.
+
+---
+
+## The 6-Step Cycle (for Model B — when subagent runs scripts)
 
 ### 0. INSPECT — Verify inputs BEFORE running (pylanceRunCodeSnippet)
 
@@ -246,7 +288,7 @@ Before forming ANY verdict, run `sequentialthinking` answering:
 4. Impact on next pipeline step?
 5. My verdict and WHY?
 
-### 4. RETURN — Fill in this MANDATORY template
+### 4. RETURN — Fill in this MANDATORY template (Model B only — Model A subagents receive output, not run scripts)
 
 - `subagent_verdict`, `Metrics`, `Anomalies`, `Issues`, and `Data For Orchestrator` = facts grounded in script output or `pylanceRunCodeSnippet` validation.
 - `Analysis`, `Impact`, and `User Summary` = YOUR reasoning. `User Summary` MUST be plain-language and different from `Analysis`.
@@ -295,6 +337,56 @@ After forming your verdict, use `pylanceRunCodeSnippet` to verify the script's o
 1. Output files exist and have expected structure (R18)
 2. DB tables were updated with expected row counts
 3. Output format matches what the NEXT pipeline step will read
+
+---
+
+## Model A: Analysis-Only Verdict Template (when orchestrator ran the script)
+
+When the orchestrator passes you script output for analysis, you DO NOT run any script. You receive:
+- `script_output`: The AGENT_SUMMARY JSON + key metrics the orchestrator extracted
+- `raw_log_excerpt`: Relevant warnings/errors from script verbose output
+- `input_context`: Upstream step data and quality flags
+
+Your job: **ANALYZE the output with specialist knowledge** and return the same structured verdict format.
+
+````markdown
+## Verdict: {script_name} (analysis-only)
+
+```subagent_verdict
+verdict: APPROVED | FLAGGED | REJECTED
+quality_score: 1-10
+script: {script_name}
+exit_code: {from orchestrator context}
+execution_model: analysis-only
+```
+
+### Metrics
+| Metric | Value | Assessment |
+|--------|-------|------------|
+| (fill in ≥3 rows from the provided script output) |
+
+### Anomalies
+- (specific anomaly + root cause, or `None`)
+
+### Analysis
+(3-5 sentences of YOUR specialist reasoning — explain what the numbers MEAN for this domain)
+
+### Impact
+- (what downstream step should know)
+
+### Issues
+- (actionable items, or `None`)
+
+### User Summary
+(2-3 plain-language sentences the orchestrator can present directly to the user)
+
+### Data For Orchestrator
+- next_step_ready: (required)
+- quality_flags: (required)
+- focus_points: (required)
+````
+
+**Key difference from Model B:** No `think_while_waiting` field (you didn't run a script). No INSPECT/VALIDATE steps (orchestrator did those). Your ENTIRE value is specialist analysis.
 
 ```python
 # Example: After enrichment, verify outputs before returning verdict

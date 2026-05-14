@@ -57,64 +57,29 @@ Load these skills before starting:
 
 ## Agent-Mandatory Warning
 
-> **YOU run the scripts. YOU read full arguments. YOU assess quality. YOU return a verdict.**
-> The orchestrator pre-fetches tipster data in S1b via `tipster_aggregator.py`. YOUR job is to run `tipster_xref.py` for cross-reference, then perform intelligence analysis.
+> **YOU ANALYZE tipster data. YOU assess argument quality. YOU return a verdict.**
+> The orchestrator runs `tipster_aggregator.py` and `tipster_xref.py` and passes you the output.
+> You do NOT run any scripts. You receive FINISHED output for specialist analysis.
 
-**Step 0: INSPECT inputs (pylanceRunCodeSnippet — BEFORE running scripts):**
-```python
-import json, os, glob
-# Verify tipster consensus from S1b pre-fetch
-files = glob.glob(f"betting/data/{date}_tipster_consensus.*")
-print(f"Tipster files: {files}")
-for f in files:
-    if f.endswith('.json'):
-        data = json.load(open(f))
-        if isinstance(data, dict):
-            print(f"  Keys: {list(data.keys())[:5]}")
-            tips = data.get('all_picks', data.get('tips', []))
-            print(f"  Tips count: {len(tips)}")
-        elif isinstance(data, list):
-            print(f"  Tips count: {len(data)}")
-# Check shortlist for cross-reference
-shortlist = glob.glob(f"betting/data/{date}*shortlist*")
-print(f"Shortlist files: {shortlist}")
-```
+## Execution Model: Analysis-Only (Model A)
 
-**Step 1: VERIFY tipster data from S1b pre-fetch:**
-```bash
-ls -la betting/data/{date}_tipster_consensus.* 2>&1
-```
-If file exists and is non-empty → proceed to Step 2. If MISSING or empty → run aggregator:
-```bash
-PYTHONPATH=src python3 scripts/tipster_aggregator.py --date {date} --workers 5 --verbose 2>&1
-```
+The orchestrator has already:
+1. Run `tipster_aggregator.py --date {date} --use-gemini --verbose`
+2. Run `tipster_xref.py --date {date} --verbose`
+3. Extracted AGENT_SUMMARY:{json} from both scripts
+4. Provided key warnings and tip counts
 
-**Gemini feature flag:** Add `--use-gemini` for Gemini-powered tipster page reading (replaces BS4 HTML parsing). Falls back to BS4 per-site if Gemini fails.
-```bash
-PYTHONPATH=src python3 scripts/tipster_aggregator.py --date {date} --workers 5 --use-gemini --verbose 2>&1
-```
-Parse the `AGENT_SUMMARY:{json}` line from the output for structured metrics (verdict, tip count, source breakdown, errors).
+**Your job:** Analyze tipster data with intelligence specialist knowledge.
 
-**Step 2: RUN cross-reference vs shortlist:**
-```bash
-PYTHONPATH=src python3 scripts/tipster_xref.py --date {date} --verbose 2>&1
-```
-Parse `AGENT_SUMMARY:{json}` for match rate, consensus entries, coverage metrics.
+**What you CAN use:**
+- `pylanceRunCodeSnippet` — read tipster JSON files for per-candidate details
+- `read_file` — read tipster consensus files, shortlist
+- `sequentialthinking` — 5-part Tipster Intelligence Analysis per candidate
+- `browser/*` — read FULL tipster arguments when needed for depth
 
-**Step 3: VALIDATE output exists:**
-```bash
-ls -la betting/data/{date}_tipster_consensus.* 2>&1
-```
-
-**Step 3: INTELLIGENCE ANALYSIS** (use sequentialthinking per candidate):
-The script produces RAW aggregated picks. Your job is to READ actual arguments, assess quality, and discover angles stats missed:
-- **Argument quality**: Does the tipster cite real stats or just guess? (DATA-BACKED / CONTEXTUAL / OPINION)
-- **Independence verification**: Are tipsters copying each other?
-- **Contrarian signals**: When tipsters disagree with stats — investigate WHO has better data
-- **Angle discovery**: Injuries, tactical shifts, local context that stats miss
-- **Watchlist promotions** (§4.3): Statistical-market tips with cited reasoning → promote
-
-**Step 4: RETURN verdict:** APPROVED/FLAGGED/REJECTED + consensus_quality_score + angle_discoveries[]
+**What you MUST NOT do:**
+- Run `tipster_aggregator.py`, `tipster_xref.py`, or any other script
+- Use `run_in_terminal` for anything
 
 ## Context (provided by orchestrator)
 

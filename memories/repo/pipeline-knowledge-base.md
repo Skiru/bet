@@ -117,37 +117,44 @@ After S4-S7 gates → 3-4 viable core picks
 
 ## Execution Protocol (what works)
 
-### Script Monitoring Pattern (user-praised 2026-05-14)
+### Run-Then-Delegate Model (Model A — adopted 2026-05-14)
+The orchestrator runs ALL scripts and delegates analysis-only to specialist subagents.
 ```
-1. LAUNCH: mode=async, timeout=600000
-2. POLL (every 30-60s): get_terminal_output → read last 20-40 lines
-3. SUMMARIZE: current activity, time elapsed, error count, progress estimate
-4. ON ERROR: STOP and diagnose immediately
-5. COMPLETION: When AGENT_SUMMARY seen or shell prompt returns
-6. VALIDATE: pylanceRunCodeSnippet for output verification
+ORCHESTRATOR:
+1. INSPECT: pylanceRunCodeSnippet → verify inputs (R18)
+2. RUN: run_in_terminal(mode=async, --verbose, timeout)
+3. THINK-WHILE-WAITING: sequentialthinking + pylanceRunCodeSnippet
+4. MONITOR: get_terminal_output → watch for 404/403/timeouts → react immediately
+5. EXTRACT: Parse AGENT_SUMMARY:{json} + key warnings
+6. VALIDATE: pylanceRunCodeSnippet → verify outputs (R18)
+7. DELEGATE: runSubagent(specialist) → pass AGENT_SUMMARY + log excerpts
+8. RECEIVE: specialist returns analysis-only verdict (no script execution)
+9. QUALITY GATE: 5-question check
+10. DECIDE: PROCEED / FIX+RETRY / ESCALATE
 ```
 
-### Orchestrator Execution Model (2026-05-14)
-- Orchestrator RUNS + MONITORS scripts (visible to user)
-- Orchestrator DELEGATES INTERPRETATION to specialist agents
-- Subagent does NOT run scripts — it ANALYZES output orchestrator collected
-- This preserves R1 (agent-driven) + gives user visibility
+**Why this replaced the old model (2026-05-14):**
+- Subagents would launch scripts then sit idle at "Preparing" (R17 violation)
+- Orchestrator was blind to 404/403 errors during subagent execution
+- Despite extensive rules (R17, §ASYNC DELEGATION ENFORCEMENT, pre-filled async blocks, think_while_waiting field, Q6 quality gate), subagents still didn't comply
+- Root cause: adding more rules doesn't help (instruction-design-lessons.md)
+- Fix: remove script execution from subagents entirely — they ONLY analyze
 
-### Structured Subagent Verdict Format (2026-05-14)
-All specialist agents MUST return verdicts in this exact structured format (defined in `agent-execution-protocol.instructions.md` step 4):
+### Structured Subagent Verdict Format (Model A — analysis-only)
+Specialist agents receive script output and return verdicts in this format:
 
 ```
-## Verdict: {script_name}
+## Verdict: {script_name} (analysis-only)
 ```subagent_verdict
 verdict: APPROVED | FLAGGED | REJECTED
 quality_score: 1-10
 script: {script_name}
-exit_code: {0|1|2}
-think_while_waiting: (required — what agent did DURING script execution; blank = R17 violation)
+exit_code: {from orchestrator context}
+execution_model: analysis-only
 ```
-### Metrics        — ≥3 rows, script-grounded facts
+### Metrics        — ≥3 rows, from provided script output
 ### Anomalies      — specific anomaly + root cause
-### Analysis       — agent's ORIGINAL reasoning (not script restatement)
+### Analysis       — agent's ORIGINAL specialist reasoning
 ### Impact         — what downstream step should know
 ### Issues         — actionable blockers or `None`
 ### User Summary   — 2-3 plain-language sentences for user presentation
@@ -162,8 +169,7 @@ think_while_waiting: (required — what agent did DURING script execution; blank
 - Parse `subagent_verdict` → `Metrics` → `User Summary` → `Data For Orchestrator`
 - Present user update: step header + User Summary + 2-4 key metrics + Next line
 - Maintain quality ledger: step, agent, verdict, quality_score, key handoff fact
-- 6-question quality gate before accepting any verdict (see §SUBAGENT OUTPUT VERIFICATION in orchestrate-betting-day.prompt.md)
-- Q6 specifically checks `think_while_waiting` — blank/vague = R17 violation = REJECT
+- 5-question quality gate before accepting any verdict (see §SUBAGENT OUTPUT VERIFICATION in orchestrate-betting-day.prompt.md)
 
 ---
 

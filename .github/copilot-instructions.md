@@ -58,7 +58,7 @@ python3 scripts/settle_on_finish.py --betting-day YYYY-MM-DD
 
 These 21 rules are PERMANENT. They override any conflicting logic in scripts, prompts, or agent reasoning. Every agent in the pipeline MUST enforce the subset relevant to its role. Violation of ANY rule = pipeline failure.
 
-**R1 — AGENT-DRIVEN PIPELINE:** Scripts are DATA TOOLS that produce raw numbers. Agents are ANALYSTS that think, reason, and decide. The orchestrator agent drives the pipeline — NEVER tell the user to run scripts manually. For each step: (1) run script → (2) agent analyzes output → (3) agent provides reasoned recommendations.
+**R1 — AGENT-DRIVEN PIPELINE (Run-Then-Delegate):** The orchestrator RUNS all scripts (mode=async, --verbose) and MONITORS for errors. Specialist subagents ONLY ANALYZE finished output — they NEVER run scripts. For each step: (1) orchestrator runs script → (2) orchestrator extracts AGENT_SUMMARY + key metrics → (3) orchestrator delegates analysis to specialist subagent → (4) subagent returns structured verdict. See Model A in agent-execution-protocol.instructions.md.
 
 **R2 — DB-FIRST:** Always read from `betting/data/betting.db` via `from bet.db.connection import get_db`. Never use raw `sqlite3.connect()`. JSON files are fallback only. Safety input from `normalize_stats.py` (`build_safety_input`, `build_safety_input_from_db`, `build_safety_input_from_cache`). DB has 28 tables across 6 domains — see `agent_protocol.py` `DB_SCHEMA_REFERENCE`.
 
@@ -90,7 +90,7 @@ These 21 rules are PERMANENT. They override any conflicting logic in scripts, pr
 
 **R16 — LIVE BETTING WINDOW:** Betting day runs 06:00 today → 05:59 tomorrow (Europe/Warsaw). Events already in progress are VALID targets — Betclic allows live betting. When ≤1h remains before kickoff or match is running, flag as LIVE and include in scan. Never exclude an event just because it's about to start or has started.
 
-**R17 — LIVE SCRIPT MONITORING:** `--verbose` always. ALL scripts: `mode=async` + THINK-WHILE-WAITING. No exceptions — agents ALWAYS think and react, even for short scripts. BANNED: no-verbose, `mode=sync` for pipeline scripts, fire-and-forget async, sleep loops. See `agent-execution-protocol.instructions.md` §6-Step Cycle.
+**R17 — LIVE SCRIPT MONITORING:** `--verbose` always. The ORCHESTRATOR runs ALL scripts with `mode=async` + THINK-WHILE-WAITING + monitors for errors (404/403/timeouts). Specialist subagents are ANALYSIS-ONLY — they receive finished output, not script commands. BANNED: subagents running pipeline scripts, no-verbose, fire-and-forget async, sleep loops. See `agent-execution-protocol.instructions.md` §Execution Models.
 
 **R18 — DATA FLOW VERIFICATION:** Before running ANY script, READ its code to understand inputs/outputs. TRACE connection to next script — verify keys/tables match. NEVER assume "scripts just work." See `agent-execution-protocol.instructions.md` §Data Flow.
 

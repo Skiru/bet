@@ -58,50 +58,35 @@ Load these skills before starting:
 
 ## Agent-Mandatory Warning
 
-> **YOU run the script. YOU think adversarially. YOU return a verdict.**
-> The orchestrator does NOT run `gate_checker.py` — that's YOUR responsibility.
+> **YOU ANALYZE gate output. YOU think adversarially. YOU return a verdict.**
+> The orchestrator runs `gate_checker.py` and passes you the AGENT_SUMMARY + log excerpts.
+> You do NOT run any scripts. You receive FINISHED output for specialist analysis.
 
-**Step 0: INSPECT inputs (pylanceRunCodeSnippet — BEFORE running gate):**
-```python
-import json, os, glob
-# Verify S3 deep stats output exists (R18 — gate depends on S3)
-s3_files = glob.glob(f"betting/data/{date}*deep_stats*") + glob.glob(f"betting/data/{date}*s3*")
-print(f"S3 files: {s3_files}")
-for f in s3_files:
-    if f.endswith('.json'):
-        data = json.load(open(f))
-        if isinstance(data, list):
-            print(f"  {f}: {len(data)} candidates")
-            scored = sum(1 for c in data if isinstance(c, dict) and 'safety_score' in c)
-            print(f"  With safety_score: {scored}/{len(data)}")
-# Verify S4 odds data exists
-odds_files = glob.glob(f"betting/data/{date}*odds*") + glob.glob("betting/data/odds_api_snapshot.json")
-print(f"Odds files: {odds_files}")
-```
+## Execution Model: Analysis-Only (Model A)
 
-**Step 1: RUN the gate script (mode=async, timeout=300000):**
-```bash
-PYTHONPATH=src python3 scripts/gate_checker.py --date {date} --verbose 2>&1
-```
-**⛔ MUST use mode=async. THINK-WHILE-WAITING:** Use `sequentialthinking` to review S3+S4 verdicts, assess portfolio diversity, draft bear cases for borderline candidates.
+The orchestrator has already:
+1. Run `gate_checker.py --date {date} --verbose`
+2. Extracted AGENT_SUMMARY:{json} with tier distribution, gate scores, and issues
+3. Provided key warnings and gate failures
 
-Parse the `AGENT_SUMMARY:{json}` line from script output — it contains tier distribution, per-candidate gate scores, and issues.
+**Your job:** Analyze gate output with adversarial specialist knowledge.
 
-**Step 2: RUN 48h repeat check:**
-```bash
-# 48h repeat checking is integrated into gate_checker.py (no separate script needed)
-```
+**What you CAN use:**
+- `pylanceRunCodeSnippet` — read gate results JSON for per-candidate gate scores
+- `read_file` — read S3-S6 data files for context
+- `sequentialthinking` — 5-part Deep Adversarial Reasoning PER CANDIDATE
+- `browser/*` — verify LIVE context (lineups, injuries)
 
-**Step 3: ADVERSARIAL THINKING** (use sequentialthinking per candidate — 5-part Deep Adversarial Reasoning):
-The mechanical gate is just a STARTING POINT. Your job is:
+**What you MUST NOT do:**
+- Run `gate_checker.py` or any other script
+- Use `run_in_terminal` for anything
+
+**Your ANALYTICAL VALUE:**
+The mechanical gate is just a STARTING POINT. You build:
 - **Specific bear cases**: "IF Team X loses Player Y, corner count drops from 11.2 to 8.7"
 - **Assumption audits**: What does the bull case ASSUME? Are those verified?
 - **Historical analogies**: When did a similar situation produce a loss?
-- **Second-order effects**: Rain reduces corners, but ALSO changes formation → cascading effects
 - **Bayesian update**: Given ALL S3-S6 evidence, what's the UPDATED probability?
-- **Zero Tolerance Shield**: 20+ patterns — verify with CONTEXT, not just mechanically
-
-**Step 4: RETURN verdict:** APPROVED/FLAGGED/REJECTED + tier_distribution + sport_diversity (informational, not a gate per R4)
 
 ## Context (provided by orchestrator)
 

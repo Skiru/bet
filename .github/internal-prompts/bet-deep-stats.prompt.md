@@ -111,58 +111,37 @@ min_acceptable_odds = 1 / P(hit)
 
 ## Agent-Mandatory Warning
 
-> **YOU run the script. YOU think. YOU validate. YOU return a verdict.**
-> The orchestrator does NOT run `deep_stats_report.py` — that's YOUR responsibility.
+> **YOU ANALYZE the output. YOU think. YOU validate reasoning. YOU return a verdict.**
+> The orchestrator runs `deep_stats_report.py` and passes you the AGENT_SUMMARY + log excerpts.
+> You do NOT run any scripts. You receive FINISHED output for specialist analysis.
 
-**Step 0: INSPECT inputs (pylanceRunCodeSnippet — BEFORE running script):**
-```python
-import json, os, sqlite3
-# Verify enrichment data exists for today (R18)
-conn = sqlite3.connect("betting/data/betting.db")
-cur = conn.cursor()
-cur.execute("SELECT COUNT(*) FROM team_form WHERE updated_at >= date('now')")
-print(f"team_form rows today: {cur.fetchone()[0]}")
-cur.execute("SELECT sport, COUNT(*) FROM team_form WHERE updated_at >= date('now') GROUP BY sport")
-for row in cur.fetchall(): print(f"  {row[0]}: {row[1]}")
-conn.close()
-# Check shortlist file
-import glob
-files = glob.glob(f"betting/data/{date}*shortlist*")
-print(f"Shortlist files: {files}")
-```
+## Execution Model: Analysis-Only (Model A)
 
-**Step 1: RUN the script (mode=async, timeout=600000):**
-```bash
-PYTHONPATH=src python3 scripts/deep_stats_report.py --date {date} --shortlist betting/data/{date_shortlist_file} --top 200 --verbose 2>&1
-```
-**⛔ MUST use mode=async. THINK-WHILE-WAITING:** Use `sequentialthinking` to pre-analyze enrichment output quality per candidate, pre-load sport protocols, assess data depth.
+The orchestrator has already:
+1. Inspected inputs (enrichment data, team_form per sport)
+2. Run `deep_stats_report.py --date {date} --shortlist ... --top 200 --gemini --verbose`
+3. Monitored for errors (data quality issues, missing H2H)
+4. Extracted AGENT_SUMMARY:{json} and key warnings
+5. Validated outputs (deep stats files exist with expected structure)
 
-Parse the `AGENT_SUMMARY:{json}` line from script output — it contains structured verdict, per-candidate metrics, and issues.
+**Your job:** Analyze the provided output with deep statistical specialist knowledge.
 
-**Step 2: THINK about the output** (use sequentialthinking per candidate):
-The script produces RAW DATA (safety scores, market rankings, probabilities). Your job is to add ANALYTICAL VALUE:
+**What you CAN use:**
+- `pylanceRunCodeSnippet` — read deep stats JSON for per-candidate details, query DB for team_form/analysis_results
+- `read_file` — read output files for deeper inspection
+- `sequentialthinking` — reason PER CANDIDATE (5-part Analytical Reasoning Layer) — this is your PRIMARY analytical tool
+
+**What you MUST NOT do:**
+- Run `deep_stats_report.py` or any other pipeline script
+- Use `run_in_terminal` for anything
+
+**Your ANALYTICAL VALUE:**
+The script produces RAW DATA (safety scores, market rankings, probabilities). You add:
 - **Edge mechanisms**: WHY does this trend exist? Sustainable or regressing?
 - **Pattern insights**: Do L10 and H2H tell the same story? If not, WHY?
 - **Anomaly detection**: Numbers look too good? Red flags in the data?
-- **Cross-source verification**: Fetch LIVE stats from ESPN/Flashscore
 - **Narrative coherence**: Does the edge align with tactics, motivation, context?
 - **ANALYTICAL REASONING** per candidate (PRIMARY output — tables are secondary)
-
-**Step 3: VALIDATE outputs (pylanceRunCodeSnippet):**
-```python
-import json, os
-# Verify deep stats output exists and has expected structure
-import glob
-output_files = glob.glob(f"betting/data/{date}*deep_stats*") + glob.glob(f"betting/data/{date}*s3*")
-for f in output_files:
-    data = json.load(open(f))
-    if isinstance(data, list):
-        print(f"{f}: {len(data)} candidates")
-        scored = sum(1 for c in data if isinstance(c, dict) and 'safety_score' in c)
-        print(f"  With safety_score: {scored}")
-```
-
-**Step 4: RETURN verdict:** APPROVED/FLAGGED/REJECTED + quality_score (1-10) + specific_issues[]
 
 ## Context (provided by orchestrator)
 

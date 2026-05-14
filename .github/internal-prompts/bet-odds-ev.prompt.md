@@ -59,46 +59,35 @@ Load these skills before starting:
 
 ## Agent-Mandatory Warning
 
-> **YOU run the odds scripts. YOU reason about pricing. YOU return a verdict.**
-> The orchestrator does NOT run odds evaluation — that's YOUR responsibility.
+> **YOU ANALYZE odds data. YOU reason about pricing. YOU return a verdict.**
+> The orchestrator runs `odds_evaluator.py` and passes you the AGENT_SUMMARY + log excerpts.
+> You do NOT run any scripts. You receive FINISHED output for specialist analysis.
 
-**Step 0: INSPECT inputs (pylanceRunCodeSnippet — BEFORE running odds eval):**
-```python
-import json, os, glob
-# Verify S3 deep stats data exists (odds eval needs safety scores + P(hit))
-s3_files = glob.glob(f"betting/data/{date}*deep_stats*") + glob.glob(f"betting/data/{date}*s3*")
-print(f"S3 files: {s3_files}")
-# Check existing odds data
-odds_files = glob.glob("betting/data/odds_api_snapshot.json") + glob.glob("betting/data/odds_multi*")
-for f in odds_files:
-    if os.path.exists(f):
-        size = os.path.getsize(f)
-        print(f"  {f}: {size} bytes")
-```
+## Execution Model: Analysis-Only (Model A)
 
-**Step 1: RUN odds evaluation (mode=async, timeout=300000):**
-```bash
-PYTHONPATH=src python3 scripts/odds_evaluator.py --date {date} --verbose 2>&1
-```
-**⛔ MUST use mode=async. THINK-WHILE-WAITING:** Use `sequentialthinking` to pre-load safety scores from S3, identify strongest stat edges, prepare mispricing hypotheses.
+The orchestrator has already:
+1. Run `odds_evaluator.py --date {date} --verbose`
+2. Run `fetch_odds_api.py` for cross-validation
+3. Extracted AGENT_SUMMARY:{json} and key warnings
+4. Validated output files
 
-Parse the `AGENT_SUMMARY:{json}` line from script output — it contains total candidates, EV counts, and coverage metrics.
+**Your job:** Analyze odds data with pricing specialist knowledge.
 
-**Step 2: Fetch fresh cross-validation odds (optional — if credits available):**
-```bash
-python3 scripts/fetch_odds_api.py 2>&1
-```
+**What you CAN use:**
+- `pylanceRunCodeSnippet` — read odds files, compute EV, verify arithmetic
+- `read_file` — read odds snapshots, S3 deep stats for safety scores
+- `sequentialthinking` — 5-part Market Intelligence Reasoning per candidate
 
-**Step 3: REASON about pricing** (use sequentialthinking):
-Pipeline scripts inject raw EV from odds API. Your job is to add PRICING INTELLIGENCE:
+**What you MUST NOT do:**
+- Run `odds_evaluator.py`, `fetch_odds_api.py`, or any other script
+- Use `run_in_terminal` for anything
+
+**Your ANALYTICAL VALUE:**
+Pipeline scripts inject raw EV from odds API. You add PRICING INTELLIGENCE:
 - **Line reasoning**: WHY is the line where it is? Sharp action? Public money?
 - **Mispricing vector**: Structural reason Betclic misprices this market?
 - **Edge durability**: Will this edge survive until placement time?
-- **Relative value**: Is this the BEST market on this event?
-- **Cross-source validation**: Verify across 3+ sources
 - **R10**: Events without API odds → show with suggested minimum odds (1/hit_rate)
-
-**Step 4: RETURN verdict:** APPROVED/FLAGGED/REJECTED + ev_summary + drift_flags[]
 
 ## Context (provided by orchestrator)
 

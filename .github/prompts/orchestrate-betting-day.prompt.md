@@ -129,40 +129,44 @@ Gemini features are ADDITIVE — they enhance the pipeline behind feature flags.
 
 ## THE EXECUTION PROTOCOL
 
-> **⛔ YOU DO NOT RUN SCRIPTS YOURSELF (except S0 settlement + trivial file checks).**
-> **The specialist agents run scripts, think, analyze, and return verdicts.**
-> **You are a COORDINATOR — you delegate, receive verdicts, and decide next steps.**
+> **⛔ YOU RUN ALL SCRIPTS. Specialist agents ONLY ANALYZE the output.**
+> **This is the "Run-Then-Delegate" model (Model A in agent-execution-protocol.instructions.md).**
+> **You launch scripts, monitor for errors, extract AGENT_SUMMARY, then delegate analysis.**
 
-**Every step follows this pattern:**
+**Every analytical step (S2-S8) follows this pattern:**
 ```
-1. DELEGATE: runSubagent(specialist_agent) — pass: date, internal prompt content, input files, issues, and the response contract from §DELEGATION TEMPLATE
-2. AGENT WORKS: Specialist runs script + sequentialthinking + loads skills + validates output
-3. RECEIVE: Agent returns the structured verdict (see §DELEGATION TEMPLATE for all 8 sections)
-4. DECIDE: PROCEED (if APPROVED) / FIX+RETRY (if FLAGGED) / ESCALATE to user (if REJECTED)
+1. INSPECT: pylanceRunCodeSnippet → verify inputs exist and format matches (R18)
+2. RUN: run_in_terminal(mode=async, --verbose) → you control the terminal
+3. THINK-WHILE-WAITING: sequentialthinking + pylanceRunCodeSnippet (review upstream data, plan next step)
+4. MONITOR: get_terminal_output → watch for errors (404s, 403s, timeouts) → react immediately
+5. EXTRACT: Parse AGENT_SUMMARY:{json} + key metrics + warnings/errors from output
+6. VALIDATE: pylanceRunCodeSnippet → verify output files/DB writes (R18)
+7. DELEGATE ANALYSIS: runSubagent(specialist_agent) — pass extracted output for specialist analysis
+8. RECEIVE VERDICT: Agent returns structured verdict with specialist reasoning
+9. QUALITY GATE: 6-question check on verdict quality
+10. DECIDE: PROCEED / FIX+RETRY / ESCALATE to user
 ```
 
-**What YOU do between steps:**
-- Use `sequentialthinking` to evaluate the agent's verdict — do you agree? Any red flags?
-- Use `pylanceRunCodeSnippet` to VERIFY data between steps (check output files, DB counts, format compatibility)
-- Check that methodology rules (R1-R20) are respected in the agent's output
-- Verify sport diversity, statistical market coverage, and gate compliance
-- **VERIFY SUBAGENT OUTPUT QUALITY** (see §SUBAGENT OUTPUT VERIFICATION below)
-- Parse the structured verdict in this order: `subagent_verdict` → `Metrics` → `User Summary` → `Data For Orchestrator`, then present a short progress report with step name, verdict, quality score, 2-4 key metrics, and the next-step handoff.
-- Maintain a running quality ledger: `step`, `agent`, `verdict`, `quality_score`, `key handoff fact`.
+**Why YOU run scripts (not subagents):**
+- You see 404/403 errors IMMEDIATELY and can react (kill, retry, investigate)
+- You THINK-WHILE-WAITING at the orchestrator level (more reliable than subagent compliance)
+- Subagents get COMPLETED output → focus entirely on specialist analysis (their core value)
+- Eliminates R17 violations where subagents launch scripts and sit idle at "Preparing"
+
+**What specialist agents receive:**
+```
+runSubagent(agent_name):
+  script_output: {AGENT_SUMMARY JSON}
+  raw_log_excerpt: {relevant warnings/errors, max 50 lines}
+  input_context: {upstream step verdicts, quality flags, focus points}
+  → Agent returns: analysis-only verdict (no script execution)
+```
 
 **What you NEVER do:**
-- Run `deep_stats_report.py`, `data_enrichment_agent.py`, `gate_checker.py`, `coupon_builder.py`, or any analytical script yourself
-- Analyze statistical output yourself (that's bet-statistician's job)
-- Build bear cases yourself (that's bet-challenger's job)
-- Evaluate odds yourself (that's bet-valuator's job)
-- **Accept subagent output that is just raw script paste without analysis**
-
-**The ONLY scripts you may run directly:**
-- `settle_on_finish.py` + `analyze_betclic_learning.py` (S0 — lightweight, pre-pipeline)
-- `scan_events.py` (S1 — launches parallel scan, but bet-scanner reviews output)
-- Simple validation one-liners: file existence, line counts, JSON key checks
-- `validate_phase.py` (quick sanity gate between phases)
-- `web_research_agent.py` — L7 fallback for missing H2H/injuries (R15)
+- Let subagents run analytical scripts (they ANALYZE output, not execute scripts)
+- Run `pipeline_orchestrator.py` (BANNED)
+- Present raw script output to user without specialist agent review
+- Ignore errors in script output (404s, timeouts, 0-yield sources)
 
 ---
 
@@ -174,38 +178,65 @@ All agents follow `agent-execution-protocol.instructions.md` v6 (loaded via thei
 
 ---
 
-## §ASYNC DELEGATION ENFORCEMENT
+## §RUN-THEN-DELEGATE PROTOCOL
 
-> **Passive inheritance has PROVEN UNRELIABLE.** Agents ignore R17 unless the delegation message contains an explicit, structured async block. Every delegation for a script ≥300s MUST include the block below — copy it verbatim into the `runSubagent` context, filling in the blanks.
+> **YOU run scripts. Subagents ONLY analyze.** This eliminates R17 violations where subagents sit idle.
 
-### Mandatory Async Block (copy into every delegation for scripts ≥5 min)
+### Orchestrator Script Execution Template (use for EVERY analytical step)
 
 ```
-### ⛔ ASYNC EXECUTION (R17 — MANDATORY, NOT OPTIONAL)
-Script: {script_command}
-Mode: mode=async, timeout={timeout_ms}
-INSPECT-BEFORE: Use pylanceRunCodeSnippet to verify inputs exist and match expected format (R18).
-THINK-WHILE-WAITING: While the script runs, use sequentialthinking + pylanceRunCodeSnippet to:
-  1. {specific_analysis_task_1}
-  2. {specific_analysis_task_2}
-  3. {specific_analysis_task_3}
-AFTER COMPLETION: get_terminal_output(terminal_id) → EXTRACT metrics → THINK → RETURN verdict.
-VALIDATE-AFTER: Use pylanceRunCodeSnippet to verify output files/DB writes match expectations (R18).
-FAILURE MODE: If you run this script with mode=sync and block for >3 min doing nothing = R17 VIOLATION.
+# 1. INSPECT inputs (pylanceRunCodeSnippet)
+pylanceRunCodeSnippet: verify {input_file} exists, format matches script expectations
+
+# 2. RUN script (you, the orchestrator, run this)
+run_in_terminal:
+  command: "PYTHONPATH=src .venv/bin/python3 scripts/{script}.py --date {date} --verbose 2>&1"
+  mode: async
+  timeout: {timeout_ms}
+
+# 3. THINK-WHILE-WAITING (sequentialthinking + pylanceRunCodeSnippet)
+sequentialthinking: {what to analyze while script runs}
+pylanceRunCodeSnippet: {data checks, DB queries, upstream review}
+
+# 4. MONITOR (get_terminal_output — watch for errors)
+get_terminal_output(terminal_id) → check for:
+  - 404/403 errors (source failures)
+  - Timeout signals
+  - 0 results / empty output
+  - AGENT_SUMMARY:{json} line
+→ If critical errors: kill terminal, diagnose, retry or escalate
+
+# 5. EXTRACT metrics from AGENT_SUMMARY + verbose output
+# 6. VALIDATE outputs (pylanceRunCodeSnippet — verify files/DB writes)
+
+# 7. DELEGATE ANALYSIS to specialist
+runSubagent(specialist_agent):
+  ## Task: Analyze {step_name} output for {date}
+  ### Script Output (AGENT_SUMMARY)
+  {paste AGENT_SUMMARY JSON here}
+  ### Key Warnings/Errors from Log
+  {paste relevant warnings, max 50 lines}
+  ### Upstream Context
+  {paste upstream verdicts, quality flags, focus points}
+  ### Your Job
+  Analyze this output with your specialist knowledge.
+  DO NOT run any scripts. Return analysis-only verdict.
+  ### Expected Response
+  Return agent-execution-protocol.instructions.md Model A verdict format.
 ```
 
-### Pre-filled Async Blocks Per Step
+### Pre-filled Run-Then-Delegate Blocks Per Step
 
-| Step | Script | Timeout | INSPECT (pylanceRunCodeSnippet) | THINK-WHILE-WAITING |
-|------|--------|---------|------|---------------------------|
-| S1 scan | `scan_events.py` | 600000 | Check DB fixture counts, source_health table | Review previous scan stats, check tournament schedules |
-| S2 tipsters | `tipster_xref.py` | 300000 | Check tipster consensus JSON keys, shortlist format | Read shortlist, identify tipster coverage gaps |
-| S2.5 enrich | `data_enrichment_agent.py` | 600000 | Check shortlist format, team_form baseline count | Check which teams already have form data in DB |
-| S3 deep stats | `deep_stats_report.py` | 600000 | Check enrichment yield, team_form per sport | Read enrichment output, pre-load sport protocols |
-| S4 odds | `odds_evaluator.py` | 300000 | Check S3 output format, existing odds data | Read S3 deep stats, identify strongest stat edges |
-| S5+S6 context | `context_checks.py` + `upset_risk.py` | 300000 | Review deep stats, draft bear cases for borderline candidates |
-| S7 gate | `gate_checker.py` | 300000 | Review S3+S4+S5 verdicts, assess portfolio diversity, prepare coupon strategy |
-| S8 coupons | `coupon_builder.py` | 300000 | Review gate results, check bankroll config, prepare portfolio intelligence |
+| Step | Script | Timeout | THINK-WHILE-WAITING | Specialist Agent |
+|------|--------|---------|---------------------|------------------|
+| S2 tipsters | `tipster_xref.py` | 300000 | Read shortlist, identify tipster coverage gaps | bet-scout |
+| S2.5 enrich | `data_enrichment_agent.py` | 600000 | Check which teams already have form data in DB | bet-enricher |
+| S3 deep stats | `deep_stats_report.py` | 600000 | Read enrichment output, pre-load sport protocols | bet-statistician |
+| S4 odds | `odds_evaluator.py` | 300000 | Read S3 deep stats, identify strongest stat edges | bet-valuator |
+| S5 context | `context_checks.py` | 300000 | Review deep stats, draft bear cases for borderline | bet-challenger |
+| S6 upset | `upset_risk.py` | 300000 | Review context output, prepare gate criteria | bet-challenger |
+| S7 gate | `gate_checker.py` | 300000 | Review S3+S4+S5 verdicts, assess portfolio diversity | bet-challenger |
+| S8 coupons | `coupon_builder.py` | 300000 | Review gate results, check bankroll config | bet-builder |
 
 ---
 
@@ -215,17 +246,32 @@ FAILURE MODE: If you run this script with mode=sync and block for >3 min doing n
 
 ---
 
-## §DELEGATION TEMPLATE (append to every `runSubagent` context)
+## §DELEGATION TEMPLATE (analysis-only — subagents do NOT run scripts)
 
-For every specialist delegation, append this response contract after the step-specific context:
+For every specialist delegation, the orchestrator has ALREADY run the script. Pass the output and append this response contract:
 
 ```
+### Script Output (already executed by orchestrator)
+AGENT_SUMMARY: {paste AGENT_SUMMARY JSON}
+Exit code: {0|1|2}
+Key warnings/errors: {paste relevant log lines, max 50}
+
+### Upstream Context
+Previous verdicts: {list}
+Quality flags: {list}
+Focus points: {list}
+
+### ⛔ Analysis-Only Mode
+You do NOT run any scripts. Analyze the provided output with specialist knowledge.
+Use pylanceRunCodeSnippet/read_file for deeper data inspection if needed.
+Use sequentialthinking for per-candidate reasoning where required.
+
 ### Expected Response Format
-Return the protocol's structured verdict:
-- `subagent_verdict` block with `verdict`, `quality_score`, `script`, `exit_code`, `think_while_waiting`
-- `### Metrics` with ≥3 rows from script output
+Return Model A analysis-only verdict (agent-execution-protocol.instructions.md):
+- `subagent_verdict` block with `verdict`, `quality_score`, `script`, `exit_code`, `execution_model: analysis-only`
+- `### Metrics` with ≥3 rows from the provided script output
 - `### Anomalies` with specific anomaly + root cause
-- `### Analysis` with your original reasoning
+- `### Analysis` with YOUR original specialist reasoning
 - `### Impact`
 - `### Issues`
 - `### User Summary` with 2-3 plain-language sentences for the user
@@ -240,16 +286,15 @@ Do NOT return free-form prose and do NOT rename the headers.
 
 ## §SUBAGENT OUTPUT VERIFICATION (after every runSubagent)
 
-**6-question quality gate — if ANY answer is NO, REJECT and re-delegate:**
-1. Does the response contain a `subagent_verdict` block with `verdict`, `quality_score`, `script`, `exit_code`, and `think_while_waiting`?
-2. Does `### Metrics` contain ≥3 specific metrics extracted from script output?
+**5-question quality gate — if ANY answer is NO, REJECT and re-delegate:**
+1. Does the response contain a `subagent_verdict` block with `verdict`, `quality_score`, `script`, `exit_code`, and `execution_model: analysis-only`?
+2. Does `### Metrics` contain ≥3 specific metrics extracted from the provided script output?
 3. Are `### Analysis` and `### User Summary` both present, with `User Summary` clearly plainer and different from `Analysis`?
-4. Do `### Data For Orchestrator` and `### Impact` provide actionable next-step facts, and is there evidence the agent used `pylanceRunCodeSnippet` for INSPECT and VALIDATE?
+4. Do `### Data For Orchestrator` and `### Impact` provide actionable next-step facts?
 5. Does `### Issues` list specific blockers, or explicitly say `None`?
-6. Does `think_while_waiting` cite SPECIFIC productive work done during script execution (sequentialthinking topics, pylanceRunCodeSnippet checks, data files read)? A blank or vague value = R17 violation → REJECT.
 
 **Re-delegation instruction when rejecting:**
-"Your output was rejected — the structured verdict is incomplete or shallow. Read agent-execution-protocol.instructions.md. Return the full format: `subagent_verdict`, `Metrics`, `Anomalies`, `Analysis`, `Impact`, `Issues`, `User Summary`, `Data For Orchestrator`."
+"Your output was rejected — the structured verdict is incomplete or shallow. You received script output for analysis — re-read it carefully. Return the full Model A verdict format."
 
 ## ═══════════════════════════════════════════════
 ## DATA COLLECTION (Steps S0 → S2.5)
@@ -498,28 +543,54 @@ runSubagent("bet-scout"):
 
 ### STEP S2.5: Data Enrichment
 
-**Delegate to bet-enricher** — read `.github/internal-prompts/bet-enrich.prompt.md` first, then:
+**Orchestrator runs enrichment script, then delegates analysis to bet-enricher.**
 
+**Step 1: INSPECT inputs (pylanceRunCodeSnippet):**
+Verify shortlist exists: `betting/data/{date}_s2_shortlist.json`
+Check team_form baseline count in DB.
+
+**Step 2: RUN script (you, the orchestrator):**
+```bash
+PYTHONPATH=src .venv/bin/python3 scripts/data_enrichment_agent.py --date {date} --news --verbose 2>&1
+```
+Mode: `async`, timeout: `600000`
+
+**Step 3: THINK-WHILE-WAITING:**
+- Check which teams already have form data in DB
+- Review source health from previous runs
+- Plan S3 approach based on shortlist composition
+
+**Step 4: MONITOR + EXTRACT:**
+- Watch for 404/403 errors from Flashscore/ESPN (react immediately if critical)
+- Extract `AGENT_SUMMARY:{json}` line
+- Note key warnings (source failures, low yield)
+
+**Step 5: VALIDATE outputs (pylanceRunCodeSnippet):**
+Run `python3 scripts/validate_phase.py --date {date} --phase data --format json`
+
+**Step 6: Delegate analysis to bet-enricher:**
 ```
 runSubagent("bet-enricher"):
 ---
-## Task: S2.5 Data Enrichment for {date}
+## Task: Analyze S2.5 Enrichment output for {date}
 
 [Paste content of .github/internal-prompts/bet-enrich.prompt.md]
 
-### Context
-- Date: {date}
-- Shortlist: `betting/data/{date}_s2_shortlist.json`
-- Script to run: `PYTHONPATH=src python3 scripts/data_enrichment_agent.py --date {date} --verbose`
-- **§ASYNC:** Include the Mandatory Async Block from §ASYNC DELEGATION ENFORCEMENT (S2.5 enrich row, timeout=600000)
-- **Gemini feature flag:** Add `--news` to run Gemini news enrichment (injuries, coaching changes, morale) for all shortlisted teams. Data saved to `team_news` DB table, consumed by S5 `context_checks.py`.
-- Script with Gemini: `PYTHONPATH=src python3 scripts/data_enrichment_agent.py --date {date} --news --verbose`
-- Parse `AGENT_SUMMARY:` JSON from output for structured metrics (verdict, yield %, gaps, news_enriched)
-- After script: run `python3 scripts/validate_phase.py --date {date} --phase data --format json`
-- Use sequentialthinking for Enrichment Quality Assessment
-- Load skill: bet-navigating-sources (source fallback chains)
-- Key checks: enrichment yield %, per-sport data quality, gap recoverability
-- Return: APPROVED/FLAGGED/REJECTED + yield_percentage + gaps[]
+### Script Output (already executed by orchestrator)
+AGENT_SUMMARY: {paste extracted JSON}
+Exit code: {0|1|2}
+Key warnings: {paste source failures, 404s, low yield sources}
+
+### Upstream Context
+- Shortlist: {count} candidates across {sports}
+- team_form baseline: {count} rows before enrichment
+
+### ⛔ Analysis-Only Mode
+DO NOT run data_enrichment_agent.py. Analyze the provided output.
+Use pylanceRunCodeSnippet to inspect enrichment results in DB if needed.
+Key assessment: enrichment yield %, per-sport data quality, gap recoverability.
+Load skills: bet-navigating-sources, bet-analyzing-statistics
+Return: Model A analysis-only verdict
 ---
 ```
 
@@ -547,121 +618,145 @@ PYTHONPATH=src python3 scripts/validate_phase.py --date {date} --phase data --fo
 ---
 
 ## ═══════════════════════════════════════════════
-## ANALYSIS (Steps S3 → S7) — FULLY DELEGATED TO SPECIALIST AGENTS
+## ANALYSIS (Steps S3 → S7) — ORCHESTRATOR RUNS SCRIPTS, AGENTS ANALYZE
 ## ═══════════════════════════════════════════════
 
-> **⛔ YOU DO NOT RUN ANY SCRIPTS IN THIS SECTION.**
-> **Each step = one `runSubagent` call. The agent runs scripts, thinks, and returns a verdict.**
+> **⛔ YOU run every script in this section. Then delegate output to specialist agent for analysis.**
+> **Each step = RUN script → EXTRACT output → runSubagent(analysis-only) → receive verdict.**
 > **You evaluate the verdict with `sequentialthinking`, then decide: PROCEED / RETRY / ESCALATE.**
 
 ### STEP S3: Deep Statistical Analysis
 
-**Delegate to bet-statistician** — read `.github/internal-prompts/bet-deep-stats.prompt.md` first, then:
+**Orchestrator runs deep_stats_report.py, then delegates analysis to bet-statistician.**
 
+**Step 1: INSPECT inputs (pylanceRunCodeSnippet):** Verify enrichment output, team_form per sport.
+
+**Step 2: RUN script:**
+```bash
+PYTHONPATH=src .venv/bin/python3 scripts/deep_stats_report.py --date {date} --shortlist betting/data/{date}_s2_shortlist.json --top 200 --gemini --verbose 2>&1
+```
+Mode: `async`, timeout: `600000`
+
+**Step 3: THINK-WHILE-WAITING:** Read enrichment output, pre-load sport protocol requirements, assess data quality per candidate.
+
+**Step 4: MONITOR + EXTRACT:** Parse `AGENT_SUMMARY:{json}`. Note data quality scores, candidate counts.
+
+**Step 5: VALIDATE outputs (pylanceRunCodeSnippet):** Verify output files exist with expected structure.
+
+**Step 6: Delegate analysis to bet-statistician:**
 ```
 runSubagent("bet-statistician"):
 ---
-## Task: S3 Deep Statistical Analysis for {date}
+## Task: Analyze S3 Deep Stats output for {date}
 
 [Paste content of .github/internal-prompts/bet-deep-stats.prompt.md]
 
-### Context
-- Date: {date}
-- Shortlist file: `betting/data/{date}_s2_shortlist.json`
-- Script to run: `PYTHONPATH=src python3 scripts/deep_stats_report.py --date {date} --shortlist betting/data/{date}_s2_shortlist.json --top 200 --verbose`
-- **§ASYNC:** Include the Mandatory Async Block from §ASYNC DELEGATION ENFORCEMENT (S3 deep stats row, timeout=600000)
-- **Gemini feature flag:** Add `--gemini` for Gemini "second opinion" per candidate — adds `gemini_analysis` section with independent market recommendations, upset risk, and `agreement_score` (0-1) tracking Python↔Gemini alignment.
-- Script with Gemini: `PYTHONPATH=src python3 scripts/deep_stats_report.py --date {date} --shortlist betting/data/{date}_s2_shortlist.json --top 200 --gemini --verbose`
-- Parse `AGENT_SUMMARY:` JSON from output for per-candidate metrics, data quality scores, and issues
-- After script: validate output quality with sequentialthinking (data depth, market coverage, three-way cross-check alignment)
-- Use sequentialthinking for EVERY CANDIDATE (5-part Analytical Reasoning Layer)
-- Load skills: bet-analyzing-statistics, bet-applying-sport-protocols, bet-navigating-sources
-- Key checks:
-  - R5: Statistical markets ranked FIRST (corners/fouls/shots before ML)
-  - §3.0c: H2H validation for EXACT stat being bet
-  - Three-way cross-check: L10 + H2H + L5 all support direction
-  - Every football match: ≥1 stat market evaluated
-  - Edge mechanisms articulated (not just numbers)
-- Recovery actions:
-  - If team_form empty for a candidate → call `enrich_team(team_name, sport)` before analysis
-  - If H2H missing → call `enrich_h2h(team_a, team_b, sport)`
-  - If league_profiles empty → run `build_league_profiles.py` first
-  - If <3 data points in any dimension → flag but don't reject (R3)
-- Return: APPROVED/FLAGGED/REJECTED + quality_score (1-10) + candidates_analyzed + avg_safety_score + specific_issues[]
+### Script Output (already executed by orchestrator)
+AGENT_SUMMARY: {paste extracted JSON}
+Exit code: {0|1|2}
+Key warnings: {paste data quality issues, missing H2H, etc.}
+
+### Upstream Context
+- Enrichment verdict: {from S2.5}
+- Quality flags: {from S2.5 — e.g., hockey=PARTIAL}
+- Candidates: {count} total
+
+### ⛔ Analysis-Only Mode
+DO NOT run deep_stats_report.py. Analyze the provided output with specialist knowledge.
+Use pylanceRunCodeSnippet to read deep stats JSON for per-candidate details.
+Use sequentialthinking for EVERY CANDIDATE (5-part Analytical Reasoning Layer).
+Load skills: bet-analyzing-statistics, bet-applying-sport-protocols
+Key checks: R5 (stat markets FIRST), three-way cross-check, edge mechanisms
+Return: Model A analysis-only verdict
 ---
 ```
 
-**Your job after receiving verdict:**
-1. Use `sequentialthinking`: Does the quality_score justify proceeding? Are issues fixable?
-2. If FLAGGED: Send back to bet-statistician with specific fix instructions
-3. If REJECTED: Escalate to user with explanation
-
-> **S3B Trigger**: If earliest kickoff is ≤3h away, delegate `bet-time-sensitive.prompt.md` to bet-statistician BEFORE S4. This fetches live lineups, weather, late injuries, and odds drift. Re-evaluate affected picks' safety scores after S3B returns.
+> **S3B Trigger**: If earliest kickoff is ≤3h away, delegate `bet-time-sensitive.prompt.md` to bet-statistician BEFORE S4.
 
 ---
 
 ### STEP S4: Odds Evaluation
 
-**Delegate to bet-valuator** — read `.github/internal-prompts/bet-odds-ev.prompt.md` first, then:
+**Orchestrator runs odds_evaluator.py, then delegates analysis to bet-valuator.**
 
+**Step 1: INSPECT + RUN:**
+```bash
+PYTHONPATH=src .venv/bin/python3 scripts/odds_evaluator.py --date {date} --verbose 2>&1
+```
+Mode: `async`, timeout: `300000`. Also run `python3 scripts/fetch_odds_api.py` for cross-validation.
+
+**Step 2: THINK-WHILE-WAITING:** Read S3 deep stats, identify strongest stat edges.
+
+**Step 3: EXTRACT + VALIDATE + Delegate:**
 ```
 runSubagent("bet-valuator"):
 ---
-## Task: S4 Odds Evaluation for {date}
+## Task: Analyze S4 Odds output for {date}
 
 [Paste content of .github/internal-prompts/bet-odds-ev.prompt.md]
 
-### Context
-- Date: {date}
-- S3 output: DB `analysis_results` table + `betting/data/{date}_s3_deep_stats.json`
-- Script to run: `PYTHONPATH=src python3 scripts/odds_evaluator.py --date {date} --verbose`
-- Also run: `python3 scripts/fetch_odds_api.py` for cross-validation
-- Parse `AGENT_SUMMARY:` JSON from output for EV metrics and drift detection
-- Use sequentialthinking for EV assessment and drift detection
-- Load skill: bet-evaluating-odds
-- Key checks:
-  - EV calculation per candidate: (true_prob × odds) - 1
-  - R10: Events without API odds NOT excluded — show with suggested min odds
-  - Drift detection: >8% change = mandatory re-evaluation
-  - Kelly 1/4 sizing for each approved pick
-- Recovery: If no odds available → flag for stats-first mode (R10), calculate minimum_acceptable_odds = 1/hit_rate
-- Return: APPROVED/FLAGGED/REJECTED + candidates_with_ev + avg_ev + ev_positive_count + drift_flags[]
+### Script Output (already executed by orchestrator)
+AGENT_SUMMARY: {paste extracted JSON}
+Exit code: {0|1|2}
+Key warnings: {paste drift flags, missing odds sources}
+
+### Upstream Context
+- S3 verdict: {from bet-statistician}
+- Quality flags: {from S3}
+
+### ⛔ Analysis-Only Mode
+DO NOT run odds_evaluator.py. Analyze provided EV data with specialist knowledge.
+Use pylanceRunCodeSnippet to read odds data for deeper inspection.
+Key checks: EV per candidate, drift >8%, R10 stats-first for no-odds events, Kelly 1/4
+Load skill: bet-evaluating-odds
+Return: Model A analysis-only verdict
 ---
 ```
 
 ---
 
-### STEP S5+S6: Context + Upset Risk (combined delegation)
+### STEP S5+S6: Context + Upset Risk (combined)
 
-**Delegate to bet-challenger** — read `.github/internal-prompts/bet-context-upset.prompt.md` first, then:
+**Orchestrator runs both scripts, then delegates combined analysis to bet-challenger.**
 
+**Step 1: RUN context_checks.py:**
+```bash
+PYTHONPATH=src .venv/bin/python3 scripts/context_checks.py --date {date} --verbose 2>&1
+```
+Mode: `async`, timeout: `300000`
+
+**Step 2: THINK-WHILE-WAITING:** Review deep stats, draft bear cases for borderline candidates.
+
+**Step 3: RUN upset_risk.py (after context_checks completes):**
+```bash
+PYTHONPATH=src .venv/bin/python3 scripts/upset_risk.py --date {date} --verbose 2>&1
+```
+Mode: `async`, timeout: `300000`
+
+**Step 4: EXTRACT both AGENT_SUMMARYs + Delegate:**
 ```
 runSubagent("bet-challenger"):
 ---
-## Task: S5+S6 Context Checks + Upset Risk for {date}
+## Task: Analyze S5+S6 Context + Upset Risk output for {date}
 
 [Paste content of .github/internal-prompts/bet-context-upset.prompt.md]
 
-### Context
-- Date: {date}
-- S3 output: DB `analysis_results` table + `betting/data/{date}_s3_deep_stats.json`
-- S4 output: (from bet-valuator's verdict above)
-- Scripts to run:
-  1. `PYTHONPATH=src python3 scripts/context_checks.py --date {date} --verbose`
-  2. `PYTHONPATH=src python3 scripts/upset_risk.py --date {date} --verbose`
-- Parse `AGENT_SUMMARY:` JSON from BOTH script outputs for context flags and risk distribution
-- Use sequentialthinking for 5-part Deep Adversarial Reasoning per candidate
-- Load skill: bet-applying-sport-protocols (upset risk checklists)
-- Key checks:
-  - Context flags with REAL market impact (not generic "weather could matter")
-  - Compounding risk factors identified
-  - Sport-specific upset thresholds applied
-  - Bayesian confidence update formula applied
-- Recovery actions:
-  - If weather data missing → run `python3 scripts/fetch_weather.py --date {date}` for outdoor venues
-  - If injury data missing → scrape ESPN injury report via Playwright (R9 self-healing)
-- Note: S5+S6 combined into one delegation (agent_protocol.py has separate configs s5_context + s6_upset_risk)
-- Return: APPROVED/FLAGGED/REJECTED + weather_flags + injury_flags + high_risk_count + medium_risk_count + low_risk_count + compounding_risks[]
+### Script Output (already executed by orchestrator)
+context_checks AGENT_SUMMARY: {paste JSON}
+upset_risk AGENT_SUMMARY: {paste JSON}
+Exit codes: context={0|1|2}, upset={0|1|2}
+Key warnings: {paste weather flags, injury reports, risk distributions}
+
+### Upstream Context
+- S3 verdict: {from bet-statistician}
+- S4 verdict: {from bet-valuator}
+
+### ⛔ Analysis-Only Mode
+DO NOT run context_checks.py or upset_risk.py. Analyze provided output.
+Use pylanceRunCodeSnippet to inspect context/upset data files for per-candidate details.
+Use sequentialthinking for 5-part Deep Adversarial Reasoning per candidate.
+Load skills: bet-applying-sport-protocols, bet-analyzing-statistics
+Return: Model A analysis-only verdict
 ---
 ```
 
@@ -669,36 +764,45 @@ runSubagent("bet-challenger"):
 
 ### STEP S7: 18-Point Advisory Gate
 
-**Delegate to bet-challenger** — read `.github/internal-prompts/bet-gate.prompt.md` first, then:
+**Orchestrator runs gate_checker.py, then delegates analysis to bet-challenger.**
 
+**Step 1: INSPECT + RUN:**
+```bash
+PYTHONPATH=src .venv/bin/python3 scripts/gate_checker.py --date {date} --verbose 2>&1
+```
+Mode: `async`, timeout: `300000`
+
+**Step 2: THINK-WHILE-WAITING:** Review S3+S4+S5 verdicts, assess portfolio diversity.
+
+**Step 3: EXTRACT + VALIDATE + Delegate:**
 ```
 runSubagent("bet-challenger"):
 ---
-## Task: S7 Gate Check for {date}
+## Task: Analyze S7 Gate output for {date}
 
 [Paste content of .github/internal-prompts/bet-gate.prompt.md]
 
-### Context
-- Date: {date}
-- S3 output: DB `analysis_results` table + `betting/data/{date}_s3_deep_stats.json`
-- Script to run: `PYTHONPATH=src python3 scripts/gate_checker.py --date {date} --verbose`
-- **§ASYNC:** Include the Mandatory Async Block from §ASYNC DELEGATION ENFORCEMENT (S7 gate row, timeout=300000)
-- Parse `AGENT_SUMMARY:` JSON from output for tier distribution, gate scores, and issues
-- Use sequentialthinking for gate quality assessment
-- Key checks:
-  - All 18 points evaluated per candidate (not abbreviated)
-  - Bear cases cite SPECIFIC DATA (not generic "it could go wrong")
-  - R4: Sport coverage is informational — NOT a gate. Quality over forced diversity.
-  - R14: Data quality per candidate (FULL/PARTIAL/MINIMAL). Only FULL/PARTIAL in core coupons.
-  - R3: NO auto-rejection — ALL candidates visible in output
-  - Extended Pool: gate-failed EV>0 candidates documented
-  - Tier distribution: >80% FLAGGED = gate calibration issue
-  - Data quality validation mandatory (data_quality_validation=True in agent_protocol.py)
-- Return: APPROVED/FLAGGED/REJECTED + approved_count + strong_count + moderate_count + weak_count + sport_diversity_check
+### Script Output (already executed by orchestrator)
+AGENT_SUMMARY: {paste JSON}
+Exit code: {0|1|2}
+Key warnings: {paste tier distribution, gate failures, data quality issues}
+
+### Upstream Context
+- S3 verdict: {from bet-statistician}
+- S4 verdict: {from bet-valuator}
+- S5+S6 verdict: {from bet-challenger context/upset}
+
+### ⛔ Analysis-Only Mode
+DO NOT run gate_checker.py. Analyze provided gate output with adversarial specialist knowledge.
+Use pylanceRunCodeSnippet to read gate results for per-candidate details.
+Use sequentialthinking per candidate for bear cases.
+Key checks: R3 (all candidates visible), R14 (data quality), R4 (no forced diversity)
+Load skills: bet-applying-sport-protocols, bet-analyzing-statistics
+Return: Model A analysis-only verdict
 ---
 ```
 
-**GATE:** If >50% candidates have MINIMAL data quality → enrichment failure. Spawn web_research_agent.py (R15) for data gaps. Re-delegate to bet-enricher.
+**GATE:** If >50% candidates have MINIMAL data quality → enrichment failure. Spawn web_research_agent.py (R15).
 
 ---
 
@@ -727,36 +831,45 @@ PYTHONPATH=src python3 scripts/validate_phase.py --date {date} --phase analysis 
 
 ### STEP S8+S9: Build + Validate Coupons
 
-**Delegate to bet-builder** — read `.github/internal-prompts/bet-portfolio.prompt.md` first, then:
+**Orchestrator runs coupon_builder.py, then delegates analysis to bet-builder.**
 
+**Step 1: INSPECT + RUN:**
+```bash
+PYTHONPATH=src .venv/bin/python3 scripts/coupon_builder.py --date {date} --verbose 2>&1
+```
+Mode: `async`, timeout: `300000`
+
+**Step 2: THINK-WHILE-WAITING:** Review gate results, check bankroll config, prepare portfolio strategy.
+
+**Step 3: EXTRACT + VALIDATE:**
+Parse `AGENT_SUMMARY:{json}`. Run: `python3 scripts/validate_phase.py --date {date} --phase build --format json`
+
+**Step 4: Delegate analysis to bet-builder:**
 ```
 runSubagent("bet-builder"):
 ---
-## Task: S8+S9 Build and Validate Coupons for {date}
+## Task: Analyze S8+S9 Coupon Build output for {date}
 
 [Paste content of .github/internal-prompts/bet-portfolio.prompt.md]
 
-### Context
-- Date: {date}
-- Gate output: betting/data/{date}_s7_gate_results.json (or from bet-challenger verdict)
-- Config: config/betting_config.json
-- Scripts to run:
-  1. `PYTHONPATH=src python3 scripts/coupon_builder.py --date {date} --verbose`
-  2. `python3 scripts/validate_phase.py --date {date} --phase build --format json`
-- Parse `AGENT_SUMMARY:` JSON from coupon_builder output for spend/return metrics and issues
-- Use sequentialthinking for 4-part Portfolio Intelligence Layer
-- Load skill: bet-building-coupons
-- Key checks:
-  - Arithmetic: multiply each leg odds step-by-step → combined odds match (±0.02)
-  - Unique events: zero shared events between core coupons
-  - Data quality: Only FULL/PARTIAL picks in core coupons (R14). MINIMAL → Extended Pool.
-  - No event duplication: Each event in at most 1 core coupon.
-  - R5: ≥60% statistical markets
-  - Exposure: total stakes ≤25% bankroll
-  - V1-V10 + §S8.FINAL: ALL mechanical checks PASS
-  - Conditional disclaimer present
-  - R12: All picks marked CONDITIONAL
-- Return: APPROVED/FLAGGED/REJECTED + coupon_count + total_legs + total_stake + discovery_count + arithmetic_verification + coupon_file_path
+### Script Output (already executed by orchestrator)
+coupon_builder AGENT_SUMMARY: {paste JSON}
+validate_phase output: {paste validation results}
+Exit code: {0|1|2}
+Key warnings: {paste arithmetic issues, exposure warnings}
+
+### Upstream Context
+- S7 gate verdict: {from bet-challenger}
+- Config: bankroll={X}, daily_cap={Y}
+- Approved candidates: {count STRONG + MODERATE}
+
+### ⛔ Analysis-Only Mode
+DO NOT run coupon_builder.py or validate_coupons.py. Analyze provided output.
+Use pylanceRunCodeSnippet to read coupon files for per-coupon validation.
+Use sequentialthinking for 4-part Portfolio Intelligence Layer.
+Key checks: arithmetic, unique events, R5 (≥60% stat markets), R14, R12 conditional
+Load skills: bet-building-coupons, bet-formatting-artifacts
+Return: Model A analysis-only verdict
 ---
 ```
 

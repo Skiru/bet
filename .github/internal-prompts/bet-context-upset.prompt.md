@@ -62,47 +62,36 @@ Load these skills before starting:
 
 ## Agent-Mandatory Warning
 
-> **YOU run the scripts. YOU assess real impact. YOU return a verdict.**
-> The orchestrator does NOT run context/upset scripts — that's YOUR responsibility.
+> **YOU ANALYZE context and upset risk data. YOU assess real impact. YOU return a verdict.**
+> The orchestrator runs `context_checks.py` and `upset_risk.py` and passes you the output.
+> You do NOT run any scripts. You receive FINISHED output for specialist analysis.
 
-**Step 0: INSPECT inputs (pylanceRunCodeSnippet — BEFORE running context checks):**
-```python
-import json, os, glob, sqlite3
-# Verify weather data exists
-weather = glob.glob(f"betting/data/weather_{date}*")
-print(f"Weather files: {weather}")
-# Check standings data in DB
-conn = sqlite3.connect("betting/data/betting.db")
-cur = conn.cursor()
-cur.execute("SELECT COUNT(*) FROM standings")
-print(f"Standings rows: {cur.fetchone()[0]}")
-cur.execute("SELECT COUNT(*) FROM team_news")
-print(f"Team news rows: {cur.fetchone()[0]}")
-conn.close()
-```
+## Execution Model: Analysis-Only (Model A)
 
-**Step 1: RUN context checks (mode=async, timeout=300000):**
-```bash
-PYTHONPATH=src python3 scripts/context_checks.py --date {date} --verbose 2>&1
-```
-**⛔ MUST use mode=async. THINK-WHILE-WAITING:** Use `sequentialthinking` to review deep stats output, draft bear cases for borderline candidates.
+The orchestrator has already:
+1. Run `context_checks.py --date {date} --verbose`
+2. Run `upset_risk.py --date {date} --verbose`
+3. Extracted AGENT_SUMMARY:{json} from both scripts
+4. Provided key warnings (weather flags, injury reports, risk distributions)
 
-Parse the `AGENT_SUMMARY:{json}` line from script output — it contains weather, injury, and enrichment metrics.
+**Your job:** Analyze context and upset data with adversarial specialist knowledge.
 
-**Step 2: RUN upset risk scoring:**
-```bash
-PYTHONPATH=src python3 scripts/upset_risk.py --date {date} --verbose 2>&1
-```
-Parse the `AGENT_SUMMARY:{json}` line from script output — it contains risk distribution (low/elevated/high counts).
+**What you CAN use:**
+- `pylanceRunCodeSnippet` — query DB for standings, team_news, weather data
+- `read_file` — read context/upset output files
+- `sequentialthinking` — Deep Adversarial Reasoning per candidate
+- `browser/*` — verify LIVE context (lineups, injuries) when needed
 
-**Step 3: ADVERSARIAL ASSESSMENT** (use sequentialthinking per candidate):
-Pipeline scripts produce raw context flags and mechanical upset scores. Your job is to assess REAL IMPACT on the specific market being bet:
-- **Motivation analysis**: What's at stake? How does motivation affect the SPECIFIC stat?
-- **Context-stat interaction**: Rain affects corners differently than fouls — model SPECIFIC impact
-- **Compounding factors**: Multiple negatives have MULTIPLICATIVE risk
-- **Paradox Rule**: High upset → OVER premium on stats. Low upset → cautious with overs.
+**What you MUST NOT do:**
+- Run `context_checks.py`, `upset_risk.py`, or any other script
+- Use `run_in_terminal` for anything
 
-**Step 4: RETURN verdict:** APPROVED/FLAGGED/REJECTED + risk_summary + compounding_risks[]
+**Your ANALYTICAL VALUE:**
+Pipeline scripts produce raw context flags and mechanical upset scores. You assess REAL IMPACT:
+- **Motivation analysis**: How does motivation affect the SPECIFIC stat being bet?
+- **Context-stat interaction**: Rain affects corners differently than fouls
+- **Compounding factors**: Multiple negatives = MULTIPLICATIVE risk
+- **Paradox Rule**: High upset → OVER premium on stats
 
 ## Context (provided by orchestrator)
 

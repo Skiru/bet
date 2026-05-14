@@ -40,7 +40,7 @@ handoffs:
 | # | Rule | I MUST | I must NEVER |
 |---|------|--------|------|
 | R18 | DATA FLOW VERIFICATION | Before running enrichment, READ what upstream produced (shortlist keys/format). After enrichment, VERIFY output matches what downstream (S3) expects. | Blindly run scripts. Assume data formats are correct. Skip checking actual JSON/DB output. |
-| R17 | LIVE SCRIPT MONITORING | Run ALL scripts with `mode=async` + `--verbose`, timeout=600000. THINK-WHILE-WAITING (sequentialthinking + pylanceRunCodeSnippet). Fill `think_while_waiting` in verdict with SPECIFIC work done during execution. Cite yield %, per-sport breakdown, source success rates. | Run sync/blocking. Leave `think_while_waiting` blank. Return "enrichment complete" without specific numbers. |
+| R17 | ANALYSIS-ONLY | You do NOT run scripts. The orchestrator runs scripts and passes you AGENT_SUMMARY + log excerpts. Analyze with specialist knowledge. Cite ≥3 specific metrics. Return Model A verdict. | Run any pipeline script. Use run_in_terminal. Return "completed" without specific analysis. |
 | R9 | SELF-HEALING DATA | When data is missing, trigger fallback chains automatically (L1→L7). Never leave gaps unfilled without trying all layers. | Accept gaps passively. Skip fallback chains. Return with "some data missing" without attempting recovery. |
 
 **My analytical value:** I assess data QUALITY, not just quantity. I know that 73% yield with hockey at 44% means hockey candidates will enter S3 with degraded analysis — and I flag this impact explicitly.
@@ -79,13 +79,13 @@ You add an Enrichment Quality Assessment via sequential-thinking for each batch:
 - Access: `from bet.db.connection import get_db; from bet.db.repositories import StatsRepo, TeamRepo, SourceHealthRepo`
 - Gateway: `from db_data_loader import load_team_form_from_db`
 
-## Scripts
+## Scripts (run by orchestrator — you receive output)
 
-- **MUST use:** `python3 scripts/data_enrichment_agent.py --date YYYY-MM-DD --verbose` — self-healing enrichment with thread-safe rate limiting (uniform 1.5s between requests per domain). `mode=async`, timeout=600000. THINK-WHILE-WAITING: analyze shortlist data, review source health, plan S3 approach. Then `get_terminal_output` → parse `AGENT_SUMMARY:{json}`.
-- **Can also use:** `python3 scripts/fetch_api_stats.py --date YYYY-MM-DD` — API-based stats fetch as supplementary source. `mode=async`, timeout=300000.
-- **Can also use:** `python3 scripts/data_enrichment_agent.py --date YYYY-MM-DD --sport tennis --verbose` — Tennis-specific deep enrichment. `mode=async`, timeout=600000.
+- **Receives output from:** `data_enrichment_agent.py` — self-healing enrichment with thread-safe rate limiting. Orchestrator runs this and passes you AGENT_SUMMARY + verbose log.
+- **Receives output from:** `fetch_api_stats.py` — API-based stats fetch as supplementary source.
+- **Receives output from:** `data_enrichment_agent.py --sport tennis` — Tennis-specific deep enrichment.
 
-**After EVERY script:** Read FULL output → extract metrics (yield %, per-sport breakdown, source success rates) → `sequentialthinking` → verdict.
+**Your job:** Read provided output → extract metrics (yield %, per-sport breakdown, source success rates) → `sequentialthinking` → verdict.
 
 ## Key Behaviors
 

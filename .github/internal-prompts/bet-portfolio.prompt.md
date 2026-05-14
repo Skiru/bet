@@ -61,49 +61,35 @@ Load these skills before starting:
 
 ## Agent-Mandatory Warning
 
-> **YOU run the scripts. YOU think strategically. YOU validate. YOU return a verdict.**
-> The orchestrator does NOT run `coupon_builder.py` — that's YOUR responsibility.
+> **YOU ANALYZE coupon output. YOU think strategically. YOU validate. YOU return a verdict.**
+> The orchestrator runs `coupon_builder.py` and `validate_phase.py` and passes you the output.
+> You do NOT run any scripts. You receive FINISHED output for specialist analysis.
 
-**Step 0: INSPECT inputs (pylanceRunCodeSnippet — BEFORE running coupon builder):**
-```python
-import json, os, glob
-# Verify gate results exist (portfolio depends on S7)
-gate_files = glob.glob(f"betting/data/{date}*gate*") + glob.glob(f"betting/data/{date}*s7*")
-print(f"Gate files: {gate_files}")
-for f in gate_files:
-    if f.endswith('.json'):
-        data = json.load(open(f))
-        if isinstance(data, list):
-            print(f"  {f}: {len(data)} candidates")
-# Check bankroll config
-config = json.load(open("config/betting_config.json"))
-print(f"Bankroll: {config.get('bankroll')} | Daily cap: {config.get('daily_cap', config.get('daily_budget'))}")
-```
+## Execution Model: Analysis-Only (Model A)
 
-**Step 1: RUN coupon builder (mode=async, timeout=300000):**
-```bash
-PYTHONPATH=src python3 scripts/coupon_builder.py --date {date} --verbose 2>&1
-```
-**⛔ MUST use mode=async. THINK-WHILE-WAITING:** Use `sequentialthinking` to review gate results, check bankroll config, prepare portfolio intelligence.
+The orchestrator has already:
+1. Run `coupon_builder.py --date {date} --verbose`
+2. Run `validate_phase.py --date {date} --phase build --format json`
+3. Extracted AGENT_SUMMARY:{json} with spend/return metrics, coupon count, issues
+4. Validated coupon files exist
 
-Parse the `AGENT_SUMMARY:{json}` line from script output — it contains spend/return metrics, coupon count, and issues.
+**Your job:** Analyze coupon construction with portfolio specialist knowledge.
 
-**Step 2: RUN validation:**
-```bash
-python3 scripts/validate_phase.py --date {date} --phase build --format json 2>&1
-```
+**What you CAN use:**
+- `pylanceRunCodeSnippet` — read coupon files, verify arithmetic, check exposure
+- `read_file` — read coupon markdown files, gate results, bankroll config
+- `sequentialthinking` — 4-part Portfolio Intelligence Layer
 
-**Step 3: STRATEGIC THINKING** (use sequentialthinking — 4-part Portfolio Intelligence Layer):
-The script handles MECHANICAL construction. Your job is PORTFOLIO STRATEGY:
-- **Strategic review**: Does this combination make SENSE given S3-S7 analysis?
-- **Hidden correlation detection**: Weather, league momentum, narrative, temporal clustering
+**What you MUST NOT do:**
+- Run `coupon_builder.py`, `validate_coupons.py`, or any other script
+- Use `run_in_terminal` for anything
+
+**Your ANALYTICAL VALUE:**
+The script handles MECHANICAL construction. You add PORTFOLIO STRATEGY:
+- **Hidden correlation detection**: Weather, league momentum, temporal clustering
 - **Conviction-based adjustment**: Adjust stakes by agent confidence from S7 bear cases
-- **Polish descriptions with REASONING**: Not just stats — explain WHY
 - **Worst-case analysis**: If top pick fails, what survives?
 - **Arithmetic verification**: Multiply each leg odds → combined must match (±0.02)
-- **§S8.FINAL**: All mechanical checks PASS
-
-**Step 4: RETURN verdict:** APPROVED/FLAGGED/REJECTED + arithmetic_verification + coupon_file_path
 
 ## Context (provided by orchestrator)
 

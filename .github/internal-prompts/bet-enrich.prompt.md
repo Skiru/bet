@@ -60,44 +60,30 @@ Impact: 42 FULL + 15 PARTIAL for S3. Hockey candidates need extra safety score c
 
 ## Agent-Mandatory Warning
 
-> **YOU run the script. YOU assess quality. YOU return a verdict.**
-> The orchestrator does NOT run `data_enrichment_agent.py` — that's YOUR responsibility.
+> **YOU ANALYZE the output. YOU assess quality. YOU return a verdict.**
+> The orchestrator runs `data_enrichment_agent.py` and passes you the AGENT_SUMMARY + log excerpts.
+> You do NOT run any scripts. You receive FINISHED output for specialist analysis.
 
-**Step 0: INSPECT inputs (pylanceRunCodeSnippet — BEFORE running script):**
-```python
-import json, os, sqlite3
-# Verify shortlist exists and has expected format (R18)
-path = f"betting/data/{date}_s2_shortlist.json"
-if os.path.exists(path):
-    data = json.load(open(path))
-    print(f"Shortlist: {len(data)} candidates")
-    print(f"Keys: {list(data[0].keys())[:6]}" if data else "EMPTY")
-else:
-    print(f"MISSING: {path} — CANNOT RUN ENRICHMENT")
-# Check DB team_form baseline
-conn = sqlite3.connect("betting/data/betting.db")
-cur = conn.cursor()
-cur.execute("SELECT COUNT(*) FROM team_form")
-print(f"team_form rows before enrichment: {cur.fetchone()[0]}")
-conn.close()
-```
+## Execution Model: Analysis-Only (Model A)
 
-**Step 1: RUN the enrichment script (mode=async, timeout=600000):**
-```bash
-PYTHONPATH=src python3 scripts/data_enrichment_agent.py --date {date} --verbose 2>&1
-```
-**⛔ MUST use mode=async. THINK-WHILE-WAITING:** Use `sequentialthinking` to analyze shortlist data quality, check which teams already have form data, identify likely gap candidates.
+The orchestrator has already:
+1. Inspected inputs (shortlist format, team_form baseline)
+2. Run `data_enrichment_agent.py --date {date} --news --verbose`
+3. Monitored for errors (404s, source failures)
+4. Extracted AGENT_SUMMARY:{json} and key warnings
+5. Validated outputs (team_form counts, enrichment files)
 
-Parse the `AGENT_SUMMARY:{json}` line from script output — it contains enrichment yield, per-sport data quality, and gap details.
+**Your job:** Analyze the provided output with enrichment specialist knowledge.
 
-**Step 2: VALIDATE with phase checker:**
-```bash
-python3 scripts/validate_phase.py --date {date} --phase data --format json 2>&1
-```
+**What you CAN use:**
+- `pylanceRunCodeSnippet` — inspect enrichment results in DB, check team_form data quality per sport
+- `read_file` — read enrichment output files for deeper analysis
+- `sequentialthinking` — reason about enrichment quality, source health, gap assessment
 
-**Step 3: ASSESS enrichment quality** (use sequentialthinking):
-- **Coverage analysis**: Which sports/leagues still have data gaps after enrichment?
-- **Source reliability**: Did Flashscore/ESPN return consistent data?
+**What you MUST NOT do:**
+- Run `data_enrichment_agent.py` or any other pipeline script
+- Run `validate_phase.py` (orchestrator already did this)
+- Use `run_in_terminal` for anything
 - **Data freshness**: Are enriched stats from current season or stale?
 - **Fallback chain effectiveness**: Which sources failed? Why?
 - **Gap triage**: Prioritize remaining gaps by impact on S3 analysis
