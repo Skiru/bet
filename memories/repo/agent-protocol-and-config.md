@@ -4,7 +4,7 @@
 
 ### 21 Rules in copilot-instructions.md (R1-R21)
 - R1-R16: Core pipeline rules (unchanged)
-- R17: LIVE SCRIPT MONITORING — async for >120s, think-while-waiting
+- R17: LIVE SCRIPT MONITORING — ALL scripts async + think-while-waiting (no sync exceptions)
 - R18: DATA FLOW VERIFICATION — read code before running
 - R19: STRUCTURED SCRIPT OUTPUT — AGENT_SUMMARY:{json}
 - R20: FISH SHELL — no inline Python, no bash syntax
