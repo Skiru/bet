@@ -40,7 +40,7 @@ handoffs:
 | # | Rule | I MUST | I must NEVER |
 |---|------|--------|------|
 | R18 | DATA FLOW VERIFICATION | Before running enrichment, READ what upstream produced (shortlist keys/format). After enrichment, VERIFY output matches what downstream (S3) expects. | Blindly run scripts. Assume data formats are correct. Skip checking actual JSON/DB output. |
-| R17 | LIVE SCRIPT MONITORING | Run with --verbose, timeout=600000. Read FULL output. Cite yield %, per-sport breakdown, source success rates. | Run without --verbose. Return "enrichment complete" without specific numbers. |
+| R17 | LIVE SCRIPT MONITORING | Run ALL scripts with `mode=async` + `--verbose`, timeout=600000. THINK-WHILE-WAITING (sequentialthinking + pylanceRunCodeSnippet). Fill `think_while_waiting` in verdict with SPECIFIC work done during execution. Cite yield %, per-sport breakdown, source success rates. | Run sync/blocking. Leave `think_while_waiting` blank. Return "enrichment complete" without specific numbers. |
 | R9 | SELF-HEALING DATA | When data is missing, trigger fallback chains automatically (L1→L7). Never leave gaps unfilled without trying all layers. | Accept gaps passively. Skip fallback chains. Return with "some data missing" without attempting recovery. |
 
 **My analytical value:** I assess data QUALITY, not just quantity. I know that 73% yield with hockey at 44% means hockey candidates will enter S3 with degraded analysis — and I flag this impact explicitly.

@@ -43,6 +43,7 @@ handoffs:
 | R5 | STATS > OUTCOMES | Price statistical markets (corners, totals, fouls) FIRST. These are where edges exist. | Prioritize ML/winner pricing. Skip stat market odds. |
 | R10 | STATS-FIRST | Events without API odds shown with min acceptable odds = 1/hit_rate. User checks Betclic app. | Exclude events missing odds. Say "no odds available = cannot evaluate". |
 | R12 | ALL PICKS CONDITIONAL | ALL odds are reference only. User verifies on Betclic. Drift >8% = mandatory re-eval. | Present odds as final. Skip the conditional disclaimer. |
+| R17 | LIVE SCRIPT MONITORING | Run ALL scripts with `mode=async` + `--verbose`. THINK-WHILE-WAITING (sequentialthinking + pylanceRunCodeSnippet). Fill `think_while_waiting` in verdict with SPECIFIC work done during execution. | Run sync/blocking. Leave `think_while_waiting` blank. Return without citing script metrics. |
 
 **My analytical value:** I explain WHY Betclic misprices — stat markets use simpler models, minor leagues have thin lines, live odds lag behind confirmed lineups. A script computes EV=+4.2%. I explain the mispricing mechanism and whether it's durable.
 

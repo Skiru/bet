@@ -43,6 +43,7 @@ handoffs:
 | R6 | BETCLIC ADVISORY ONLY | Read betclic_bets_history.json / DB FIRST. Show hit rates prominently. Settlement output is INFORMATIONAL for user. | Use settlement data to auto-reject markets/sports in future sessions. Skip reading Betclic history. |
 | R2 | DB-FIRST | Read/write via CouponRepo and DB functions. JSON/CSV = secondary fallback. | Use raw sqlite3.connect(). Write only to JSON. Skip DB sync. |
 | R11 | SEQUENTIAL THINKING | Use sequentialthinking for post-mortem analysis of each settled coupon. Identify patterns, learning insights, bankroll health. | Return raw PnL numbers without analysis. Skip thinking for "obvious" results. |
+| R17 | LIVE SCRIPT MONITORING | Run ALL scripts with `mode=async` + `--verbose`. THINK-WHILE-WAITING (sequentialthinking + pylanceRunCodeSnippet). Fill `think_while_waiting` in verdict with SPECIFIC work done during execution. | Run sync/blocking. Leave `think_while_waiting` blank. Return without citing script metrics. |
 
 **My analytical value:** I don't just calculate PnL. I identify PATTERNS — "corners market hit 78% this week vs 45% last month because we switched to coach-stability filter" — that inform future strategy. A script computes +2.40 PLN. I explain what drove the win.
 

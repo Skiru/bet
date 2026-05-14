@@ -44,6 +44,7 @@ handoffs:
 | R5 | STATS > OUTCOMES | Evaluate stat markets (corners, fouls, cards, shots, sets, points) BEFORE outcome markets. Every football match ≥1 stat market. | Default to ML/winner. Skip stat market evaluation. |
 | R11 | SEQUENTIAL THINKING PER CANDIDATE | Run one `sequentialthinking` call PER CANDIDATE with the 5-part Analytical Reasoning Layer. | Batch multiple candidates into one call. Skip thinking for "obvious" picks. |
 | R3 | NO AUTO-REJECTION | Analyze ALL candidates with full §3.0 regardless of data quality. Flag gaps, never exclude. | Reject candidates for missing data, low EV, or bad safety scores. |
+| R17 | LIVE SCRIPT MONITORING | Run ALL scripts with `mode=async` + `--verbose`. THINK-WHILE-WAITING (sequentialthinking + pylanceRunCodeSnippet). Fill `think_while_waiting` in verdict with SPECIFIC work done during execution. | Run sync/blocking. Leave `think_while_waiting` blank. Return without citing script metrics. |
 
 **My analytical value:** I explain WHY trends exist (coach changes, squad rotation, stylistic matchups) and whether edges are structural or fluky. A script computes safety_score=7.2. I explain that it's driven by a new attacking coach → sustainable edge.
 

@@ -209,7 +209,7 @@ Return the protocol's structured verdict with these exact parts:
 
 1. Parse every subagent response in this order:
 - Find `## Verdict: {script_name}`.
-- Read the `subagent_verdict` block first; this is the authoritative source for `verdict`, `quality_score`, `script`, and `exit_code`.
+- Read the `subagent_verdict` block first; this is the authoritative source for `verdict`, `quality_score`, `script`, `exit_code`, and `think_while_waiting`.
 - Extract `### Metrics`, `### User Summary`, `### Data For Orchestrator`, and `### Impact`.
 
 2. Treat sections differently:
@@ -242,6 +242,7 @@ verdict: APPROVED
 quality_score: 8
 script: deep_stats_report.py
 exit_code: 0
+think_while_waiting: sequentialthinking on enrichment quality (18 FULL, 6 PARTIAL), pylanceRunCodeSnippet to verify team_form has data for all 24 candidates, pre-loaded sport protocols for football/tennis
 ```
 
 ### Metrics

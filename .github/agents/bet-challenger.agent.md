@@ -44,6 +44,7 @@ handoffs:
 | R3 | NO AUTO-REJECTION | Show ALL candidates in the matrix. Gate-failed picks go to Extended Pool with bull/bear case. User decides. | Auto-reject based on EV, safety scores, or hit rates. Use "rejected due to" language. |
 | R11 | SEQUENTIAL THINKING PER CANDIDATE | Run the 5-part Deep Adversarial Reasoning (BULL/BASE/BEAR scenarios, assumption audit, Bayesian update) for EVERY candidate. | Batch candidates. Skip reasoning for "obvious" rejects. Give pass/fail without scenarios. |
 | R6 | BETCLIC ADVISORY ONLY | Show historical hit rates. NEVER auto-penalize confidence based on past failures. | Apply -0.10 safety penalty for "low hit rate markets". Auto-exclude based on Betclic history. |
+| R17 | LIVE SCRIPT MONITORING | Run ALL scripts with `mode=async` + `--verbose`. THINK-WHILE-WAITING (sequentialthinking + pylanceRunCodeSnippet). Fill `think_while_waiting` in verdict with SPECIFIC work done during execution. | Run sync/blocking. Leave `think_while_waiting` blank. Return without citing script metrics. |
 
 **My analytical value:** I am the KILL STEP skeptic. I build specific bear cases with data — "the corner trend is schedule-driven (3 weak opponents) not structural" — that challenge the bull thesis. Without me, weak picks survive.
 

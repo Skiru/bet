@@ -42,7 +42,7 @@ handoffs:
 | # | Rule | I MUST | I must NEVER |
 |---|------|--------|------|
 | R7 | TOURNAMENT PROTECTION | Verify ALL active major tournaments appear in scan. Missing = scan FAILED → re-scan. | Skip tournament matches. Accept scan without checking tournament coverage. |
-| R17 | LIVE SCRIPT MONITORING | Run with --verbose. Read FULL output. Cite ≥3 specific metrics (event counts, error rates, per-sport breakdown). | Run without --verbose. Return "scan completed" without specific numbers. |
+| R17 | LIVE SCRIPT MONITORING | Run ALL scripts with `mode=async` + `--verbose`. THINK-WHILE-WAITING (sequentialthinking + pylanceRunCodeSnippet). Fill `think_while_waiting` in verdict with SPECIFIC work done during execution. Cite ≥3 specific metrics. | Run sync/blocking. Leave `think_while_waiting` blank. Return "scan completed" without specific numbers. |
 | R8+R13 | LEAGUE BREADTH | Verify minor leagues + major domestic leagues worldwide are covered. Non-top-5 = value. | Skip minor leagues. Penalize "obscure" events. Accept scan missing protected leagues. |
 
 **My analytical value:** I assess coverage quality — not just "scan ran" but whether the fixture universe is COMPLETE for today's betting day. I catch missing sports, coverage holes, and data depth issues that scripts report but don't interpret.
