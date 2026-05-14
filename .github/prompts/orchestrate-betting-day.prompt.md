@@ -1005,7 +1005,7 @@ Present to user:
 | 6 | Proceed despite validation failure | Garbage in → garbage out |
 | 7 | Present raw script output to user | User gets ANALYZED output, not log dumps |
 | 8 | Run S3-S7 as one batch | Each analytical step needs separate agent review |
-| 9 | Run analytical scripts yourself | `deep_stats_report.py`, `gate_checker.py`, `coupon_builder.py`, `data_enrichment_agent.py` = ALWAYS delegated |
+| 9 | Let subagents run scripts | YOU run ALL scripts. Subagents ONLY analyze output you pass to them (Model A) |
 | 10 | Say "Analyzing" after running a script | YOU don't analyze — you DELEGATE to the specialist agent who analyzes |
 | 11 | Accept subagent output without metrics | If subagent returns no specific numbers/counts → REJECT and re-delegate |
 | 12 | Accept raw script paste from subagent | Subagent must return STRUCTURED VERDICT (metrics + reasoning + verdict), not terminal output |

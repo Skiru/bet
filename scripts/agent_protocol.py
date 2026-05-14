@@ -200,9 +200,9 @@ DB_SCHEMA_REFERENCE = {
     "stats_tables": {
         "team_form": "id, team_id→teams, sport_id→sports, stat_key, l10_values(JSON), l5_values(JSON), l10_avg, l5_avg, h2h_values(JSON), h2h_opponent_id→teams, trend(up/down/stable), source — PRIMARY STATS SOURCE for L10/H2H/L5 three-way cross-check",
         "match_stats": "id, fixture_id→fixtures, team_id→teams, stat_key, stat_value, source — per-match actuals",
-        "league_profiles": "id, competition_id→competitions, stat_key, season, avg_value, median_value, std_dev, sample_size — league baselines for deviation analysis",
+        "league_profiles": "id, competition_id→competitions, stat_key, season, avg_value, median_value, std_dev, sample_size — league baselines for deviation analysis (also written by scrapers module)",
+        "player_season_stats": "id, athlete_id→athletes, competition_id→competitions, season, games_played, games_started, minutes_played, stats_json, per_game_json, advanced_json, source — per-player season aggregates from scrapers module",
         "standings": "id, competition_id→competitions, team_id→teams, season, rank, wins/draws/losses, goals_for/against, form(last-5-string), home/away splits, streak",
-        "power_index": "id, team_id→teams, sport_id→sports, rating, offensive_rating, defensive_rating, rank, source — ESPN BPI/FPI/SPI",
     },
     "analysis_tables": {
         "analysis_results": "id, fixture_id→fixtures, betting_date, has_data, best_market_name/line/direction, best_safety_score, markets_evaluated, ranking_json(full market ranking), three_way_check_json, warnings_json, stats_summary_json(ENRICHED by S4/S5/S6: ev, odds, context_flags, upset_risk), source",
@@ -219,7 +219,8 @@ DB_SCHEMA_REFERENCE = {
     "pipeline_tables": {
         "pipeline_runs": "id, date, step, status(running/completed/failed), started_at, completed_at, error_message, stats(JSON summary per step)",
         "scan_results": "id, betting_date, sport, source_domain, event_key, home_team, away_team, competition, kickoff, raw_data(JSON) — raw scan output",
-        "scan_run_stats": "id, betting_date, sport, scanner_group, events_found, sources_ok/failed, deep_links_found, duration_seconds, validation_passed, gaps_description",
+        "fixture_sources": "id, fixture_id→fixtures, source(sofascore/odds-api/api-football), external_id, confidence, raw_data(JSON), fetched_at — cross-references from discovery module",
+        "scraper_runs": "id, scraper_name, sport, target, status(running/success/failed), records_scraped/inserted/updated, error_message, started_at, finished_at, duration_seconds — operational tracking for scrapers module",
         "source_health": "id, source_name, last_success/failure, consecutive_failures, total_requests/failures, avg_response_ms — tracks source reliability",
     },
     "espn_tables": {
@@ -363,7 +364,7 @@ AGENT_SKILLS_MAP = {
         "instructions_to_follow": [
             "analysis-methodology.instructions.md (§SCAN.7, §SCAN.8, §SCAN.9, §1.1-§1.8)",
         ],
-        "db_reads": ["scan_results", "scan_run_stats", "source_health", "fixtures", "competitions"],
+        "db_reads": ["scan_results", "fixture_sources", "source_health", "fixtures", "competitions"],
         "db_writes": [],
         "can_trigger_enrichment": False,
     },
@@ -550,7 +551,7 @@ DATA_FLOW_CONTRACTS = {
             "db": [],
         },
         "produces": {
-            "db": ["scan_results", "scan_run_stats", "source_health", "fixtures"],
+            "db": ["scan_results", "fixture_sources", "source_health", "fixtures"],
             "files": [
                 "betting/data/{date}_s1_events.json",
                 "betting/data/market_matrix_{date}.json",
@@ -873,46 +874,23 @@ STRUCTURED_OUTPUT_PROTOCOL = {
 STEP_AGENT_CONFIG = {
     "s1_scan": {
         "agent": "bet-scanner",
-        "task": "Verify 5-sport coverage (Football, Volleyball, Basketball, Tennis, Hockey), cross-validate fixtures ≥2 sources, check deep-link discovery yield, flag source failures, ensure ≥50 unique events",
+        "task": "Verify 5-sport coverage (Football, Volleyball, Basketball, Tennis, Hockey), cross-validate fixtures ≥2 sources, check source diversity, flag source failures, ensure ≥50 unique events",
         "required_input": ["{date}_s1_events.json"],
-        "output_metrics": ["total_events", "sports_covered", "source_failures", "deep_link_yield"],
+        "output_metrics": ["total_events", "sports_covered", "source_failures", "dedup_merges"],
         "think_in_the_middle": True,
         "error_handling": "ERROR_HANDLING_PROTOCOL",
         "validate_output": True,
         "detailed_instructions": [
             "1. Read {date}_s1_events.json — check per-sport event counts",
             "2. Verify all 5 sports scanned: football, tennis, basketball, volleyball, hockey",
-            "3. Check source_health — any source with >3 consecutive failures needs flagging",
-            "4. Verify deep-link discovery yield >20% (deep links found / seed URLs scanned)",
-            "5. Cross-reference scan_results in DB — do fixtures appear from ≥2 sources?",
-            "6. Flag: missing KEY sports, <50 total events, >20% source failure rate",
+            "3. Check source stats — SofaScore, Odds API, API-Football response status",
+            "4. Verify dedup quality: 3-5% merges expected, >10% may indicate matching issues",
+            "5. Cross-reference fixture_sources in DB — do fixtures appear from ≥2 sources?",
+            "6. Flag: missing KEY sports, <50 total events, any source with 0 events",
         ],
         "recovery_actions": [
-            "If sport missing → suggest re-scan with extended timeout for that sport group",
-            "If source dead → check source_health DB table, suggest fallback source from source-registry.md",
-        ],
-    },
-    "s1_html_deep": {
-        "agent": "bet-scanner",
-        "task": "Validate HTML deep parsing: check per-domain verdicts (PASS/WARN/FAIL), verify CSS selectors match current HTML, spot-check extracted values, flag broken profiles needing updates",
-        "required_input": ["{date}_deep_parse_report.json"],
-        "output_metrics": ["total_enrichments", "pass_domains", "warn_domains", "fail_domains", "db_match_rate"],
-        "think_in_the_middle": True,
-        "error_handling": "ERROR_HANDLING_PROTOCOL",
-        "validate_output": True,
-        "detailed_instructions": [
-            "1. Read deep_parse_report.json — check verdicts for each domain",
-            "2. For FAIL domains: inspect an HTML snapshot — check if CSS classes still exist",
-            "3. For WARN domains: review out_of_range samples — real errors vs outliers?",
-            "4. For PASS domains: spot-check 2-3 random enrichments against source HTML",
-            "5. Check field_coverage — are expected fields being extracted per domain?",
-            "6. Check db_cross_reference match rates — low match = stale snapshots or wrong parsing",
-            "7. Report broken profiles with specific CSS selector fixes needed",
-        ],
-        "recovery_actions": [
-            "If profile returns 0 extractions → HTML structure changed, need to update CSS selectors",
-            "If match_rate <30% → snapshots may be from wrong date or domain layout changed",
-            "If out_of_range values → extraction parsing wrong table cells or regex is off",
+            "If sport missing → suggest re-scan with --sports filter for that sport",
+            "If source dead → check API key config, suggest fallback source from source-registry.md",
         ],
     },
     "s1e_shortlist": {

@@ -313,7 +313,8 @@ See **§SUBAGENT OUTPUT VERIFICATION** in orchestrate-betting-day.prompt.md for 
 |--------|---------|---------|------|
 | discover_events.py | `PYTHONPATH=src .venv/bin/python scripts/discover_events.py --date YYYY-MM-DD --verbose` | 120000 | sync |
 | ingest_scan_stats.py | `python3 scripts/ingest_scan_stats.py --date YYYY-MM-DD --verbose` | 120000 | sync |
-| html_deep_parser.py | `python3 scripts/html_deep_parser.py --date YYYY-MM-DD --verbose` | 300000 | async |
+| run_scrapers.py | `PYTHONPATH=src .venv/bin/python scripts/run_scrapers.py --sport all --season 2425 --verbose` | 300000 | async |
+| scraper_to_team_form.py | `PYTHONPATH=src .venv/bin/python scripts/scraper_to_team_form.py --date YYYY-MM-DD --verbose` | 120000 | sync |
 | build_shortlist.py | `python3 scripts/build_shortlist.py --date YYYY-MM-DD --stats-first --verbose` | 120000 | sync |
 | fetch_api_stats.py | `python3 scripts/fetch_api_stats.py --date YYYY-MM-DD` | 300000 | async |
 | fetch_odds_api.py | `python3 scripts/fetch_odds_api.py` | 120000 | sync |
@@ -428,7 +429,7 @@ After EVERY script: read FULL output → extract metrics → `sequentialthinking
 |---|---|---|
 | 1 | Run `pipeline_orchestrator.py` | Dumb 1-2h script, no agent analysis, bypasses YOU |
 | 2 | Run `--phase data/analysis/build` | Bundles steps, removes your control points |
-| 3 | Run analytical script yourself | `deep_stats_report.py`, `gate_checker.py`, `coupon_builder.py`, `data_enrichment_agent.py` = ALWAYS delegated |
+| 3 | Let subagents run scripts | YOU run ALL scripts. Subagents ONLY analyze output you pass to them (Model A) |
 | 4 | Say "Analyzing..." after running a script | YOU don't analyze — DELEGATE to specialist agent |
 | 5 | Skip `runSubagent` for any S2-S10 step | Specialist agents RUN + THINK + VALIDATE |
 | 6 | Skip `sequentialthinking` between delegations | You evaluate agent verdicts with structured thinking |

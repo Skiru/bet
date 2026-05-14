@@ -28,7 +28,7 @@ This project uses **fish shell** (NOT bash/zsh). The following are **ABSOLUTELY 
 | Check scan data | `python3 scripts/db_report.py --report scan --date 2026-05-11` |
 | Check source health | `python3 scripts/db_report.py --report source-health` |
 | Validate pipeline | `python3 scripts/validate_phase.py --date 2026-05-11 --phase data` |
-| Deep parse HTML | `python3 scripts/html_deep_parser.py --date 2026-05-11 --domains X,Y --report` |
+| Run scrapers | `PYTHONPATH=src .venv/bin/python scripts/run_scrapers.py --sport all --season 2425 --verbose` |
 | Warm up odds cache | `python3 scripts/daily_odds_warmup.py --date 2026-05-11 --verbose` (stealth Playwright → html_cache/) |
 | Any other logic | Create a `.py` file in `scripts/`, run it, then delete if temporary |
 | Read data files | Use `read_file` tool (instant, no terminal needed) |
