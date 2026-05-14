@@ -503,7 +503,7 @@ class FlashscoreClient(PlaywrightBaseClient):
                     const allIcons = document.querySelectorAll('[title*="win" i], [title*="draw" i], [title*="loss" i], [class*="win" i], [class*="draw" i], [class*="loss" i]');
                     const totalForms = [];
                     for (const f of allIcons) {
-                        const title = (f.getAttribute('title') || f.textContent.trim() || f.className).toLowerCase();
+                        const title = (f.getAttribute('title') || f.textContent.trim() || String(f.className || '')).toLowerCase();
                         if (title.includes('win') || title === 'w') totalForms.push('W');
                         else if (title.includes('draw') || title === 'd') totalForms.push('D');
                         else if (title.includes('loss') || title === 'l') totalForms.push('L');

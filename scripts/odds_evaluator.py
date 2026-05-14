@@ -21,6 +21,8 @@ DATA_DIR = ROOT_DIR / "betting" / "data"
 sys.path.insert(0, str(SCRIPTS_DIR))
 sys.path.insert(0, str(ROOT_DIR / "src"))
 
+from utils import normalize_team_name as _norm_team
+
 
 # ---------------------------------------------------------------------------
 # ESPN American odds → decimal conversion
@@ -129,8 +131,8 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
             # DB stores totals as interleaved rows: hdp (line), over (price), under (price)
             totals_buffer: dict[str, dict] = {}  # key -> {current_line, entries}
             for home, away, bookmaker, market, selection, odds_val, line_val in db_rows:
-                h = home.strip().lower()
-                a = away.strip().lower()
+                h = _norm_team(home)
+                a = _norm_team(away)
                 key = f"{h}|{a}"
                 entry = _ensure_entry(key)
 
@@ -225,8 +227,8 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
         try:
             odds_data = json.loads(odds_path.read_text(encoding="utf-8"))
             for event in odds_data if isinstance(odds_data, list) else odds_data.get("events", []):
-                home = (event.get("home_team") or "").strip().lower()
-                away = (event.get("away_team") or "").strip().lower()
+                home = _norm_team(event.get("home_team") or "")
+                away = _norm_team(event.get("away_team") or "")
                 if not home or not away:
                     continue
                 key = f"{home}|{away}"
@@ -291,8 +293,8 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
         try:
             io_data = json.loads(io_path.read_text(encoding="utf-8"))
             for event in io_data.get("events", []):
-                home = (event.get("home") or "").strip().lower()
-                away = (event.get("away") or "").strip().lower()
+                home = _norm_team(event.get("home") or "")
+                away = _norm_team(event.get("away") or "")
                 if not home or not away:
                     continue
                 key = f"{home}|{away}"
@@ -313,14 +315,14 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
             # Inject from value bets (pre-calculated EV!)
             for vb in io_data.get("value_bets", []):
                 ev_data = vb.get("event", {})
-                home = (ev_data.get("home") or "").strip().lower()
-                away = (ev_data.get("away") or "").strip().lower()
+                home = _norm_team(ev_data.get("home") or "")
+                away = _norm_team(ev_data.get("away") or "")
                 if home and away:
                     pre_ev = vb.get("expectedValue")
                     if pre_ev is not None:
                         for c in candidates:
-                            ch = (c.get("home_team") or "").strip().lower()
-                            ca = (c.get("away_team") or "").strip().lower()
+                            ch = _norm_team(c.get("home_team") or "")
+                            ca = _norm_team(c.get("away_team") or "")
                             if ch == home and ca == away and c.get("ev") is None:
                                 c["ev"] = round(float(pre_ev), 4)
                                 c["ev_source"] = "odds-api-io-value-bet"
@@ -333,8 +335,8 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
         try:
             espn_data = json.loads(espn_path.read_text(encoding="utf-8"))
             for event in espn_data.get("odds", []):
-                home = (event.get("home") or "").strip().lower()
-                away = (event.get("away") or "").strip().lower()
+                home = _norm_team(event.get("home") or "")
+                away = _norm_team(event.get("away") or "")
                 if not home or not away:
                     continue
                 key = f"{home}|{away}"
@@ -353,10 +355,23 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
     injected = 0
     odds_enriched = 0
     for c in candidates:
-        home = (c.get("home_team") or "").strip().lower()
-        away = (c.get("away_team") or "").strip().lower()
+        home = _norm_team(c.get("home_team") or "")
+        away = _norm_team(c.get("away_team") or "")
         key = f"{home}|{away}"
         entry = odds_lookup.get(key)
+        # Fuzzy fallback: try substring/containment match if exact key not found
+        if not entry:
+            for ok, ov in odds_lookup.items():
+                parts = ok.split("|", 1)
+                if len(parts) != 2:
+                    continue
+                oh, oa = parts
+                # Check containment both ways (e.g. "montreal" in "montreal canadiens")
+                h_match = (home in oh or oh in home) and len(home) >= 4 and len(oh) >= 4
+                a_match = (away in oa or oa in away) and len(away) >= 4 and len(oa) >= 4
+                if h_match and a_match:
+                    entry = ov
+                    break
         if not entry:
             continue
 

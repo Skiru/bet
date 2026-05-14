@@ -248,8 +248,8 @@ def main():
     parser.add_argument("--stats-first", action="store_true", help="Include events without odds")
     parser.add_argument("--skip-deep", action="store_true", help="Skip deep enrichment")
     parser.add_argument("--stop-on-error", action="store_true", help="Halt on first critical error")
-    parser.add_argument("--deep-workers", type=int, default=3, help="Concurrent deep enrichment workers (default: 3)")
-    parser.add_argument("--deep-limit", type=int, default=0, help="Max events to deep-enrich (0=all)")
+    parser.add_argument("--deep-workers", type=int, default=1, help="Concurrent deep enrichment workers (default: 1, use 1 for Playwright safety)")
+    parser.add_argument("--deep-limit", type=int, default=50, help="Max events to deep-enrich (0=all, default: 50 highest priority)")
     args = parser.parse_args()
 
     sports_to_scan = [args.sport] if args.sport and args.sport in SPORT_MAP else list(SPORT_MAP.keys())
@@ -337,53 +337,72 @@ def main():
             logger.info(f"Deep enrichment limited to top {args.deep_limit} priority events")
 
         total_to_enrich = len(events_to_enrich)
-        logger.info(f"Starting concurrent deep enrichment ({args.deep_workers} workers, {total_to_enrich} events)...")
-        
-        enriched_count = [0]  # mutable for thread-safe counter
-        count_lock = threading.Lock()
-        
-        def _enrich_and_track(ev):
-            _enrich_single_event(ev, None, verbose=args.verbose)
-            with count_lock:
-                enriched_count[0] += 1
-                if enriched_count[0] % 50 == 0:
-                    logger.info(f"Deep enrichment progress: {enriched_count[0]}/{total_to_enrich}")
-            return ev
+        logger.info(f"Starting deep enrichment ({args.deep_workers} workers, {total_to_enrich} events)...")
+
+        def _process_enriched_event(ev):
+            """Count enrichment results for a single event."""
+            nonlocal deep_with_form, deep_with_h2h, deep_with_odds, deep_with_stats
+            nonlocal deep_db_persisted, deep_enriched, errors
+            has_data = False
+            sport = ev.get("sport", "unknown")
+            
+            if ev.get("form"):
+                form = ev["form"]
+                if isinstance(form, dict) and (form.get("homeTeam") or form.get("awayTeam")):
+                    deep_with_form += 1
+                    has_data = True
+            if ev.get("h2h"):
+                h2h = ev["h2h"]
+                if isinstance(h2h, dict) and h2h.get("teamDuel"):
+                    deep_with_h2h += 1
+                    has_data = True
+            if ev.get("odds") and len(ev["odds"]) > 0:
+                deep_with_odds += 1
+                has_data = True
+            if ev.get("expected_stats"):
+                deep_with_stats += 1
+                has_data = True
+                
+            deep_db_persisted += ev.get("_db_saved", 0)
+            
+            if has_data:
+                deep_enriched += 1
+                deep_enriched_by_sport[sport] = deep_enriched_by_sport.get(sport, 0) + 1
         
         try:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=args.deep_workers) as executor:
-                futures = {executor.submit(_enrich_and_track, ev): ev for ev in events_to_enrich}
-                for future in concurrent.futures.as_completed(futures):
+            if args.deep_workers <= 1:
+                # Sequential enrichment on main thread — Playwright-safe
+                for idx, ev in enumerate(events_to_enrich, 1):
                     try:
-                        ev = future.result()
-                        has_data = False
-                        sport = ev.get("sport", "unknown")
-                        
-                        if ev.get("form"):
-                            form = ev["form"]
-                            if isinstance(form, dict) and (form.get("homeTeam") or form.get("awayTeam")):
-                                deep_with_form += 1
-                                has_data = True
-                        if ev.get("h2h"):
-                            h2h = ev["h2h"]
-                            if isinstance(h2h, dict) and h2h.get("teamDuel"):
-                                deep_with_h2h += 1
-                                has_data = True
-                        if ev.get("odds") and len(ev["odds"]) > 0:
-                            deep_with_odds += 1
-                            has_data = True
-                        if ev.get("expected_stats"):
-                            deep_with_stats += 1
-                            has_data = True
-                            
-                        deep_db_persisted += ev.get("_db_saved", 0)
-                        
-                        if has_data:
-                            deep_enriched += 1
-                            deep_enriched_by_sport[sport] = deep_enriched_by_sport.get(sport, 0) + 1
+                        _enrich_single_event(ev, None, verbose=args.verbose)
+                        _process_enriched_event(ev)
                     except Exception as e:
                         errors += 1
                         issues.append(str(e))
+                    if idx % 10 == 0:
+                        logger.info(f"Deep enrichment progress: {idx}/{total_to_enrich}")
+            else:
+                # Threaded enrichment — WARNING: Playwright clients may fail in threads
+                enriched_count = [0]
+                count_lock = threading.Lock()
+                
+                def _enrich_and_track(ev):
+                    _enrich_single_event(ev, None, verbose=args.verbose)
+                    with count_lock:
+                        enriched_count[0] += 1
+                        if enriched_count[0] % 50 == 0:
+                            logger.info(f"Deep enrichment progress: {enriched_count[0]}/{total_to_enrich}")
+                    return ev
+                
+                with concurrent.futures.ThreadPoolExecutor(max_workers=args.deep_workers) as executor:
+                    futures = {executor.submit(_enrich_and_track, ev): ev for ev in events_to_enrich}
+                    for future in concurrent.futures.as_completed(futures):
+                        try:
+                            ev = future.result()
+                            _process_enriched_event(ev)
+                        except Exception as e:
+                            errors += 1
+                            issues.append(str(e))
         finally:
             # Clean up priority field even if exceptions occur (BUG 9)
             for ev in all_events:

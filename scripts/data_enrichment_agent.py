@@ -55,6 +55,16 @@ def fetch(url: str, save_snapshot: bool = False) -> str | None:
 
 def _fetch_stealth(url: str) -> str | None:
     """Fetch URL using Playwright with stealth patches to bypass Cloudflare/DataDome."""
+    # Detect running asyncio loop — Playwright Sync API cannot work inside one
+    import asyncio
+    try:
+        loop = asyncio.get_running_loop()
+        if loop is not None:
+            logger.debug(f"Skipping stealth Playwright (asyncio loop active) for {url}")
+            return None
+    except RuntimeError:
+        pass  # No running loop — safe to use sync API
+
     try:
         from playwright.sync_api import sync_playwright
         from playwright_stealth import Stealth
@@ -1095,6 +1105,11 @@ def _try_client_enrichment(team_name: str, sport: str) -> tuple[dict, str | None
     Returns (stats_dict, error_or_None) — same interface as _try_flashscore().
     The stats_dict maps stat_key → list of values (e.g., {"corners": [7, 5, 8, ...], "fouls": [12, 15, ...]}).
     """
+    # Skip Playwright-based clients when called from worker threads (greenlet conflict)
+    import threading
+    if threading.current_thread() is not threading.main_thread():
+        return {}, "Skipped: Playwright clients not thread-safe (greenlet conflict)"
+    
     client = _get_unified_client()
     if client is None:
         return {}, "UnifiedAPIClient not available"
@@ -1258,7 +1273,7 @@ def enrich_team(team_name: str, sport: str, max_retries: int = 2) -> dict:
     # Try TotalCorner for football corner predictions
     # NOTE: Only works for fixtures sourced from TotalCorner (needs TC-specific URLs/IDs).
     # Flashscore external_ids (e.g., "xkH73jPl") are NOT valid TotalCorner identifiers.
-    if sport == "football":
+    if sport == "football" and threading.current_thread() is threading.main_thread():
         try:
             tc_client = _get_unified_client()
             if tc_client:
@@ -1315,66 +1330,67 @@ def enrich_team(team_name: str, sport: str, max_retries: int = 2) -> dict:
     # Try Scores24 trends — only for fixtures sourced from Scores24
     # NOTE: Scores24 get_trends() needs a Scores24 detail URL. Flashscore external_ids
     # are NOT valid Scores24 URLs. Only fixtures with source='scores24' have valid IDs.
-    try:
-        s24_client = _get_unified_client()
-        if s24_client:
-            with get_db() as conn:
-                team_repo = TeamRepo(conn)
-                sport_repo = SportRepo(conn)
-                sport_obj = sport_repo.get_by_name(sport)
-                if sport_obj:
-                    team = team_repo.resolve(team_name, sport_obj.id)
-                    if team:
-                        # Only fetch from fixtures sourced from scores24
-                        rows = conn.execute(
-                            "SELECT external_id, source FROM fixtures "
-                            "WHERE (home_team_id = ? OR away_team_id = ?) "
-                            "AND external_id != '' AND external_id IS NOT NULL "
-                            "AND source = 'scores24' "
-                            "ORDER BY kickoff DESC LIMIT 1",
-                            (team.id, team.id)
-                        ).fetchall()
-                        for row in rows:
-                            event_id = row["external_id"]
-                            # Scores24 external_ids come in two formats:
-                            # 1. Href path: "/en/football/match/123-team1-vs-team2" → use directly
-                            # 2. Synthetic key: "s24-team1_team2" → NOT a valid URL, skip
-                            if event_id.startswith('/'):
-                                detail_url = event_id  # Already a valid Scores24 path
-                            else:
-                                logger.debug(f"[Scores24] Skipping non-URL external_id: {event_id}")
-                                continue
-                            trends = s24_client.get_trends(detail_url)
-                            if trends:
-                                stats_repo = StatsRepo(conn)
-                                for trend in trends:
-                                    cat = trend.get("category", "").lower().replace(" ", "_")
-                                    if not cat:
-                                        continue
-                                    stat_key = f"trend_{cat}"
-                                    try:
-                                        odds_val = float(trend.get("odds", 0))
-                                    except (ValueError, TypeError):
-                                        odds_val = 0.0
-                                    form = TeamForm(
-                                        id=None,
-                                        team_id=team.id,
-                                        sport_id=sport_obj.id,
-                                        stat_key=stat_key,
-                                        l10_values=[odds_val] if odds_val else [],
-                                        l5_values=[odds_val] if odds_val else [],
-                                        l10_avg=odds_val,
-                                        l5_avg=odds_val,
-                                        trend=trend.get("tip", ""),
-                                        updated_at=datetime.now(timezone.utc).isoformat(),
-                                        source="scores24-trends",
-                                    )
-                                    stats_repo.save_team_form(form)
-                                conn.commit()
-                                logger.info(f"[Scores24] Saved {len(trends)} trends for {team_name}")
-                                break
-    except Exception as e:
-        logger.debug(f"Scores24 trends failed for {team_name}: {e}")
+    if threading.current_thread() is threading.main_thread():
+        try:
+            s24_client = _get_unified_client()
+            if s24_client:
+                with get_db() as conn:
+                    team_repo = TeamRepo(conn)
+                    sport_repo = SportRepo(conn)
+                    sport_obj = sport_repo.get_by_name(sport)
+                    if sport_obj:
+                        team = team_repo.resolve(team_name, sport_obj.id)
+                        if team:
+                            # Only fetch from fixtures sourced from scores24
+                            rows = conn.execute(
+                                "SELECT external_id, source FROM fixtures "
+                                "WHERE (home_team_id = ? OR away_team_id = ?) "
+                                "AND external_id != '' AND external_id IS NOT NULL "
+                                "AND source = 'scores24' "
+                                "ORDER BY kickoff DESC LIMIT 1",
+                                (team.id, team.id)
+                            ).fetchall()
+                            for row in rows:
+                                event_id = row["external_id"]
+                                # Scores24 external_ids come in two formats:
+                                # 1. Href path: "/en/football/match/123-team1-vs-team2" → use directly
+                                # 2. Synthetic key: "s24-team1_team2" → NOT a valid URL, skip
+                                if event_id.startswith('/'):
+                                    detail_url = event_id  # Already a valid Scores24 path
+                                else:
+                                    logger.debug(f"[Scores24] Skipping non-URL external_id: {event_id}")
+                                    continue
+                                trends = s24_client.get_trends(detail_url)
+                                if trends:
+                                    stats_repo = StatsRepo(conn)
+                                    for trend in trends:
+                                        cat = trend.get("category", "").lower().replace(" ", "_")
+                                        if not cat:
+                                            continue
+                                        stat_key = f"trend_{cat}"
+                                        try:
+                                            odds_val = float(trend.get("odds", 0))
+                                        except (ValueError, TypeError):
+                                            odds_val = 0.0
+                                        form = TeamForm(
+                                            id=None,
+                                            team_id=team.id,
+                                            sport_id=sport_obj.id,
+                                            stat_key=stat_key,
+                                            l10_values=[odds_val] if odds_val else [],
+                                            l5_values=[odds_val] if odds_val else [],
+                                            l10_avg=odds_val,
+                                            l5_avg=odds_val,
+                                            trend=trend.get("tip", ""),
+                                            updated_at=datetime.now(timezone.utc).isoformat(),
+                                            source="scores24-trends",
+                                        )
+                                        stats_repo.save_team_form(form)
+                                    conn.commit()
+                                    logger.info(f"[Scores24] Saved {len(trends)} trends for {team_name}")
+                                    break
+        except Exception as e:
+            logger.debug(f"Scores24 trends failed for {team_name}: {e}")
 
     # Try Flashscore first (most reliable HTML)
     for attempt in range(1, max_retries + 1):
@@ -1607,14 +1623,15 @@ def _save_h2h_to_db(
 
 
 def batch_enrich(teams: list[dict], max_workers: int = 4) -> list[dict]:
-    """Enrich multiple teams in parallel.
+    """Enrich multiple teams in parallel, with main-thread retry for Playwright-skipped teams.
 
     Input: [{"team": "FC Barcelona", "sport": "football", "missing": ["corners", "fouls"]}]
     Returns: list of enrich_team results
     """
     results = []
 
-    # Use ThreadPoolExecutor but respect rate limits via _rate_limit()
+    # Phase 1: Use ThreadPoolExecutor but respect rate limits via _rate_limit()
+    # NOTE: Playwright-based clients are skipped in worker threads (greenlet conflict).
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = {}
         for entry in teams:
@@ -1647,6 +1664,36 @@ def batch_enrich(teams: list[dict], max_workers: int = 4) -> list[dict]:
                     "source": None,
                     "error": str(exc),
                 })
+
+    # Phase 2: Main-thread retry for teams that got no data in threaded pass.
+    # Playwright-based clients (Flashscore, TotalCorner, Scores24) are only usable
+    # on the main thread. Teams that failed or got empty results deserve a retry.
+    retry_needed = []
+    retry_indices = []
+    for idx, res in enumerate(results):
+        if res.get("status") in ("failed", "no_data"):
+            retry_needed.append(res)
+            retry_indices.append(idx)
+        elif res.get("status") == "enriched" and not res.get("stats_found"):
+            retry_needed.append(res)
+            retry_indices.append(idx)
+
+    if retry_needed and threading.current_thread() is threading.main_thread():
+        logger.info(f"[batch_enrich] Phase 2: retrying {len(retry_needed)} teams on main thread (Playwright-safe)")
+        for i, res in enumerate(retry_needed):
+            team_name = res.get("team", "")
+            sport = res.get("sport", "")
+            if not team_name or not sport:
+                continue
+            try:
+                retry_res = enrich_team(team_name, sport)
+                # Only replace if retry produced better results
+                if retry_res.get("stats_found") or retry_res.get("status") == "enriched":
+                    results[retry_indices[i]] = retry_res
+            except Exception as exc:
+                logger.debug(f"[batch_enrich] Phase 2 retry failed for {team_name}: {exc}")
+            if (i + 1) % 20 == 0:
+                logger.info(f"[batch_enrich] Phase 2 progress: {i + 1}/{len(retry_needed)}")
 
     return results
 

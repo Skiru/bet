@@ -1483,6 +1483,10 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
         }
 
     if top and top > 0:
+        # BUG D fix: prioritize candidates WITH data over FIXTURE_ONLY.
+        # Sort: STATS_ONLY+ first, then FIXTURE_ONLY — so --top N picks data-rich events first.
+        _tier_order = {"FULL": 0, "ODDS_RICH": 1, "ODDS_BASIC": 2, "STATS_ONLY": 3, "FIXTURE_ONLY": 9}
+        candidates.sort(key=lambda c: _tier_order.get(c.get("data_tier", "FIXTURE_ONLY"), 5))
         candidates = candidates[:top]
 
     # ENRICHMENT-FIRST: Collect teams with missing data, attempt enrichment before analysis.

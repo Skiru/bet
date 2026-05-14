@@ -24,6 +24,8 @@ def normalize_team_name(name: str) -> str:
         s,
         flags=re.IGNORECASE,
     )
+    # Normalize hyphens/dashes to spaces (e.g. "Saint-Germain" → "Saint Germain")
+    s = s.replace("-", " ")
     s = re.sub(r"\s+", " ", s).strip()
     return s.lower()
 

@@ -272,7 +272,7 @@ def _score_event(event: dict, tipster_events: set[str]) -> float:
     score = 0.0
 
     # 1. Data tier (odds availability matters but shouldn't dominate)
-    tier_scores = {"FULL": 30, "ODDS_RICH": 25, "ODDS_BASIC": 18, "STATS_ONLY": 12, "FIXTURE_ONLY": 5}
+    tier_scores = {"FULL": 30, "ODDS_RICH": 25, "ODDS_BASIC": 18, "STATS_ONLY": 12, "FIXTURE_ONLY": 0}
     score += tier_scores.get(tier, 0)
 
     # 2. Competition importance (HIGHEST weight — premier league > obscure league)
@@ -337,6 +337,12 @@ def _score_event(event: dict, tipster_events: set[str]) -> float:
                     score += 8  # Rich per-player data = higher analysis confidence
         except Exception:
             pass
+
+    # BUG C fix: FIXTURE_ONLY events with no stats data should sink below data-rich events.
+    # Multiply score by 0.5 so a FIXTURE_ONLY Premier League (was ~50) becomes ~25,
+    # always below a STATS_ONLY minor league (was ~27).
+    if tier == "FIXTURE_ONLY":
+        score *= 0.5
 
     return score
 
