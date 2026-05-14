@@ -50,6 +50,51 @@
 - **Cause**: `removeprefix("s24-")` on href external_ids produced malformed URLs.
 - **Fix**: If `external_id.startswith('/')` → use directly; if `s24-` prefix → skip.
 
+## ⛔ CRITICAL: 2026-05-13 Post-Mortem — 5 Systemic Bugs (ALL FIXED in commit b31a3ca)
+
+**Every agent analyzing picks MUST know these patterns — they caused a full coupon loss (1W/3L, -2.0 PLN).**
+
+### Bug #1: CONTEXT BLINDNESS — No Opponent Quality Adjustment
+- **What happened**: Lens corners avg 7.7 in L10 → pipeline recommended Over 5.5 (safety 0.63). But those 7.7 corners were earned against AVERAGE Ligue 1 opponents. Against PSG (70% possession, total domination → 0-2 loss), Lens couldn't generate attacks.
+- **Root cause**: Safety score treated "corners vs relegation fodder" identically to "corners vs PSG"
+- **Fix**: `gate_checker.py` ZT#23 — flags stat markets (corners/fouls/shots) when opponent is top-5 in standings. Queries DB standings.
+- **Rule for ALL agents**: When evaluating stat markets, ALWAYS check opponent strength. Raw L10 averages are MEANINGLESS without opponent context.
+
+### Bug #2: ONE-SIDED DATA — Missing Opponent Accepted
+- **What happened**: DC United vs Chicago Fire — DC United had `has_data=False` (no form data at all). Pipeline still produced safety=0.56 recommendation using only Chicago Fire's stats.
+- **Root cause**: `one_sided` penalty was only 0.70 multiplier (allowed 0.56 through)
+- **Fix**: `compute_safety_scores.py` — one_sided safety HARD CAPPED at **0.40** (cannot exceed regardless of hit rate)
+- **Rule for ALL agents**: If EITHER team has no data, the pick is LOW CONFIDENCE. Never trust one-sided analysis.
+
+### Bug #3: DUPLICATE FIXTURES — Contradictory Recommendations
+- **What happened**: "RC Lens vs Paris Saint Germain", "Lens vs Paris Saint-Germain", "Lens vs PSG" appeared as 3 separate analysis_results. DC United vs Chicago Fire appeared 2x with OPPOSITE directions (Under 3.5 vs Over 5.5).
+- **Root cause**: No deduplication of fixtures by normalized team names before analysis
+- **Fix**: `deep_stats_report.py` — dedups fixtures by normalized names (accent-stripped, FC/SC/RC removed, substring match) BEFORE analysis loop
+- **Rule for ALL agents**: If you see the same match multiple times with different recommendations, it's a BUG. Report it.
+
+### Bug #4: SMALL SAMPLE BIAS — Early Season Trap
+- **What happened**: WNBA Toronto Tempo had only 7 games in L10 (early season). Pipeline computed safety=0.60 from 7 data points. Toronto scored 86 vs predicted avg 106 (19% miss).
+- **Root cause**: No sample size check — 7 games treated same as 10 games
+- **Fix**: `compute_safety_scores.py` Pattern I — safety CAPPED at **0.50** when L10 has fewer than 8 games
+- **Rule for ALL agents**: Early-season events (WNBA, new leagues, start of season) have UNRELIABLE stats. Flag them as LOW CONFIDENCE.
+
+### Bug #5: ODDS vs SAFETY DISAGREEMENT — Market Knows Something
+- **What happened**: Lens Over 5.5 corners: pipeline safety=0.63 (63% confident) but Betclic odds @2.67 = 37.5% implied probability. A **25.5 percentage point gap** between model and market went UNFLAGGED.
+- **Root cause**: No automated check comparing model confidence vs market pricing
+- **Fix**: `gate_checker.py` Gate #19 `_check_odds_safety_gap()` — flags when gap exceeds 15 percentage points. Labels as OVERCONFIDENT or UNDERCONFIDENT.
+- **Rule for ALL agents**: When your model says 63% but the market says 37% → THE MARKET IS PROBABLY RIGHT. This gap means your model is missing something (opponent quality, context, news).
+
+### Pattern Tags (stored in decision_outcomes DB table for automated detection)
+```
+opponent_quality_mismatch — stat avg earned vs weak opponents, now facing elite
+missing_opponent_data — one-sided analysis, only 1 team has form data  
+small_sample_bias — L10 has <8 games (early season, new team, short tournament)
+duplicate_fixture_conflict — same match appears 2-3x with contradictory recs
+odds_vs_safety_disagreement — >15pt gap between model safety and market implied prob
+```
+
+---
+
 ## Data Flow Verification Protocol (R18)
 Before running ANY script: READ its code, understand what it READS and WRITES. TRACE the connection to the NEXT script. Verify with actual data. The #1 source of pipeline failures is data format mismatches between producer/consumer scripts.
 
@@ -59,3 +104,8 @@ Before running ANY script: READ its code, understand what it READS and WRITES. T
 - Assuming scripts "just work" without reading their code
 - f-strings in SQL queries
 - Fire-and-forget browser contexts without cleanup
+- **Trusting raw L10 averages without opponent context (Bug #1)**
+- **Accepting one-sided analysis as reliable (Bug #2)**
+- **Not checking for duplicate fixture names (Bug #3)**
+- **Treating <8 game samples as reliable (Bug #4)**
+- **Ignoring large model-vs-market probability gaps (Bug #5)**
