@@ -92,6 +92,21 @@ You are the **database specialist** for the betting pipeline. You are the ONLY a
 - `bets` — id, coupon_id, pick_id, fixture_id, market, direction, line, odds, status, result, settled_at
 - `odds_history` — id, fixture_id, bookmaker, market, selection, odds, line, fetched_at, is_closing
 
+### Scraper Domain (NEW — SQLAlchemy ORM, coexists with raw sqlite3)
+- `scraper_runs` — id, scraper_name, sport, target, status (running/success/failed), records_scraped, records_inserted, records_updated, error_message, started_at, finished_at, duration_seconds
+- `player_season_stats` — id, athlete_id (FK→athletes), competition_id (FK→competitions), season, games_played, games_started, minutes_played, stats_json (sport-specific blob), per_game_json, advanced_json, source, updated_at. UNIQUE(athlete_id, competition_id, season, source)
+- `fixture_sources` — Cross-references between discovery sources and scraper fixture data
+
+**Scraper diagnostic queries:**
+```sql
+-- Scraper health check
+SELECT scraper_name, status, records_scraped, duration_seconds FROM scraper_runs ORDER BY started_at DESC LIMIT 20;
+-- Player stats coverage by source
+SELECT source, COUNT(*) as players FROM player_season_stats GROUP BY source;
+-- League profiles from scrapers
+SELECT c.name, lp.stat_key, lp.avg_value, lp.sample_size FROM league_profiles lp JOIN competitions c ON c.id=lp.competition_id ORDER BY c.name;
+```
+
 ### Pipeline Domain
 - `pipeline_runs` — id, betting_date, session_type, step_name, status, started_at, completed_at, metrics_json, error_message
 - `scan_results` — id, betting_date, sport, source_url, events_found, events_parsed, raw_html_path, parse_errors, fetched_at

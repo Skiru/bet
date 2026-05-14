@@ -6,7 +6,25 @@ description: "S2.5: Self-healing data enrichment — fetch missing team stats fr
 > **PERMANENT RULES (from copilot-instructions.md §NON-NEGOTIABLE):**
 > R2 DB-FIRST: Write to `team_form` via `get_db()`. R9 SELF-HEALING: 6 fallback layers — exhaust ALL before returning empty.
 
-# S2.5 — DATA ENRICHMENT
+# S2.3/S2.4/S2.5 — SCRAPER DATA + ENRICHMENT
+
+## SCRAPER-FIRST DATA FLOW (NEW)
+
+The data collection phase now has 3 sub-steps:
+1. **S2.3** — `run_scrapers.py` populates `league_profiles` + `player_season_stats` from 14 scrapers
+2. **S2.4** — `scraper_to_team_form.py` converts scraper data → `team_form` rows
+3. **S2.5** — `data_enrichment_agent.py` fills REMAINING GAPS only
+
+**Your first check:** When analyzing enrichment needs, check `team_form` rows with `source LIKE 'scrapers%'` FIRST. Only flag gaps for teams/stat_keys NOT covered by scrapers. The old enrichment (S2.5) is now a FALLBACK.
+
+**Scraper coverage expectations:**
+- Football: FBref (20+ teams, 574+ players), Flashscore (goals from scores)
+- Basketball: NBA API (21 teams, 569 players), Basketball-Ref (736 players)
+- Tennis: Sackmann (457 players)
+- Hockey: NHL API (15 teams, 261 players), Hockey-Ref (1,251 players)
+- Volleyball: Flashscore only (Volleybox blocked by Cloudflare)
+
+**Known gap:** Football corners/fouls NOT available from scrapers. Old enrichment remains the ONLY source for football statistical markets.
 
 ## ⛔ INLINE GATES (check at each step — violation = FAILURE)
 
@@ -43,7 +61,7 @@ Load these skills before starting:
 
 ## ⛔ agent-execution-protocol.instructions.md applies — no exceptions
 
-> **YOUR ANALYTICAL VALUE:** You don't just run `data_enrichment_agent.py`. You assess WHERE data gaps are, WHY sources failed, and WHICH candidates will suffer in S3 without enrichment. A script can report "73% yield". Only YOU can explain that hockey is at 44% because KHL season ended and Flashscore cache is stale — and that this means hockey candidates need PARTIAL data quality flags.
+> **YOUR ANALYTICAL VALUE:** You don't just run `data_enrichment_agent.py`. You assess WHERE data gaps are, WHY sources failed, and WHICH candidates will suffer in S3 without enrichment. With the new scraper pipeline, you also evaluate scraper data QUALITY: did scrapers cover the right teams? Are `team_form` rows from the adapter usable? What gaps remain that ONLY old enrichment can fill (e.g., football corners/fouls)?
 
 ### What GOOD enrichment analysis looks like:
 ```

@@ -610,49 +610,48 @@ The `team_form` table columns and the `TeamForm` dataclass fields are a **contra
 
 ---
 
-## 11. Testing Status — Honest Assessment
+## 11. Testing Status — Verified (2026-05-14)
 
 | What | Status | Confidence |
 |------|--------|------------|
-| Unit tests (49/49, all mocked) | ✅ PASSING | HIGH — tests verify data flow logic correctly |
-| Code review fixes (C1, C2, M1, M2) | ✅ APPLIED | HIGH — all 4 bugs fixed and verified |
-| Live API calls | ❌ NEVER TESTED | ZERO — no real HTTP request has been made |
-| Rate limiting under real conditions | ❌ NEVER TESTED | LOW — delays exist but untested |
-| SofaScore anti-bot | ❌ NEVER TESTED | LOW — SofaScore is the most likely to 403 |
-| Production data volumes | ❌ NEVER TESTED | LOW — unknown behavior with 30+ teams × 500+ players |
-| team_form adapter | ❌ NOT BUILT | — |
-| JSON cache adapter | ❌ NOT BUILT | — |
-| Pipeline integration | ❌ NOT DONE | — |
-| `--sport all` full run | ❌ NEVER TESTED | ZERO |
+| Unit tests (80/80, all mocked) | ✅ PASSING | HIGH |
+| Code review fixes (C1, C2, M1, M2) | ✅ APPLIED | HIGH |
+| Live API calls (10/14 scrapers) | ✅ VERIFIED | HIGH — 10 scrapers produce real data |
+| Flashscore multi-sport (5 sports) | ✅ VERIFIED | HIGH — 4/5 sports work, tennis partial |
+| NHL API (standings + players) | ✅ FIXED & VERIFIED | HIGH — 15 team stats + 261 players |
+| Hockey-Reference (HTML comments) | ✅ FIXED & VERIFIED | HIGH — 27 team stats + 1,251 players |
+| Sackmann (season code) | ✅ FIXED & VERIFIED | HIGH — 457 players |
+| FBref (full EPL) | ✅ VERIFIED | HIGH — 20 teams + 574 players |
+| NBA API (official) | ✅ VERIFIED | HIGH — 21 teams + 569 players |
+| Basketball Reference | ✅ VERIFIED | HIGH — 19 teams + 736 players |
+| Volleybox | ❌ BLOCKED | Cloudflare 403 — needs curl_cffi or browser |
+| SofaScore (tennis + volleyball) | ⚠️ STUBS | Fixtures only, no season stats |
+| team_form adapter | ❌ NOT BUILT | Critical gap — see Section 6 |
+| Pipeline integration | ❌ NOT DONE | See `specifications/scrapers-pipeline-integration.md` |
+| `--sport all` full run | ✅ VERIFIED | All 14 scrapers run, 10 succeed |
 
-### What the tests DO verify:
-- Each scraper correctly parses mocked API/HTML responses
-- Data is correctly written to in-memory SQLite (league_profiles, player_season_stats, player_gamelogs, scraper_runs)
-- `_upsert_league_profiles()` computes correct averages (post-C1 fix)
-- `_safe_json_dumps()` handles numpy/pandas types without crashing (post-C2 fix)
-- `_track_run()` creates scraper_runs records with correct status transitions (post-M1 fix)
-- Error handling (empty responses, 403s, missing data) returns 0 without crashing
-- Registry + factory patterns work (get_scraper, available_scrapers, init_scraper_db)
-- CLI argument parsing and output format
-
-### What the tests DO NOT verify:
-- Actual HTTP response parsing from real endpoints (HTML structure may differ from mocks)
-- Real rate limiting behavior and retry logic
-- Connection timeouts and network errors under real conditions
-- Data volume handling (memory, speed, DB write performance)
-- Whether the stat_keys produced by each scraper are actually USEFUL for downstream analysis
+### Bugs found and fixed during live verification:
+1. Sackmann season `"2425"` → year `"2025"` (was `"2024"`)
+2. NHL standings endpoint → date-based `/standings/2025-04-15`
+3. NHL player stats → multi-category response parsing
+4. NHL `teamAbbrev` is string not dict
+5. Hockey-Reference → HTML comment extraction
+6. Hockey-Reference → `player_stats` table ID
+7. Volleybox season → `"2024-2025"` format
 
 ---
 
 ## SUMMARY FOR THE NEXT AGENT
 
-**You are inheriting a COMPLETE but UNTESTED scraper module.** The code architecture is solid, tests pass, and the module is cleanly separated from the existing system.
+**You are inheriting a TESTED and VERIFIED scraper module.** 10/14 scrapers produce real data, 80/80 tests pass, and the module is cleanly separated from the existing system.
+
+**See `specifications/scrapers-pipeline-integration.md` for the complete integration plan.**
 
 **Your job is to:**
-1. ✅ Run live smoke tests (Phase A) — this will likely reveal issues with HTML parsing, API response format changes, or rate limiting
-2. ✅ Build the `team_form` adapter (Phase B) — this is the CRITICAL missing piece for pipeline integration
-3. ✅ Add verbose logging (Phase C) — needed for R17 compliance
-4. ✅ Integrate into the pipeline (Phase D)
-5. ✅ Eventually retire the old system (Phase E)
+1. Build the `scraper_to_team_form.py` adapter (Phase 1 — CRITICAL PATH)
+2. Add `run_scrapers.py` as pipeline step S2.3 (Phase 2)
+3. Update agent definitions per Section 9 of the integration spec
+4. Run parallel validation (Phase 3)
+5. Eventually retire old enrichment (Phase 4)
 
-**The single most important thing:** The pipeline reads `team_form`. The scrapers don't write to `team_form`. You must bridge this gap. Everything else is secondary.
+**The single most important thing:** The pipeline reads `team_form`. The scrapers don't write to `team_form`. You must bridge this gap with the adapter. Everything else is secondary.

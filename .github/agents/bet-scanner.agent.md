@@ -64,7 +64,7 @@ Discovery uses `src/bet/discovery/` module with 3 structured API sources:
 
 Sources fetched concurrently (ThreadPoolExecutor, 3 workers). Dedup via exact normalized keys + rapidfuzz fuzzy matching (threshold 85, ±2h kickoff window). ~30s total.
 
-**No deep data at scan time.** Form, H2H, injuries are fetched by enrichment (S2). Discovery only identifies fixtures.
+**No deep data at scan time.** Form, H2H, injuries are fetched by scrapers (S2.3) + enrichment (S2.5). Discovery only identifies fixtures. **Note:** Scraper module at `src/bet/scrapers/` provides supplementary fixture data from NHL API and SofaScore for hockey/tennis/volleyball — cross-referenced via `fixture_sources` table.
 
 Results written to **DB** (fixtures, scan_results, teams, competitions, fixture_sources) and **JSON** (`betting/data/{date}_s1_events.json`).
 

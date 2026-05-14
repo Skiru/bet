@@ -77,8 +77,10 @@ The DB is the richest data source — check BEFORE JSON/web:
 - `match_stats` — per-fixture per-team stat values (corners, fouls, shots, etc.)
 - `analysis_results` — S3 deep stats output: market rankings, safety scores, probability data (replaces `{date}_s3_deep_stats.json`)
 - `gate_results` — S7 gate check output: approved/extended/rejected status (replaces `{date}_s7_gate_results.json`)
-- `fixtures`, `odds_history` (97K+ rows), `league_profiles` (Bayesian priors)
-- **`athletes`** (538+) — NBA/NHL/MLB player profiles (position, age, status)
+- `fixtures`, `odds_history` (97K+ rows), `league_profiles` (Bayesian priors — **now also populated by 14 scrapers** with 98+ profiles from live data)
+- **`player_season_stats`** (3,900+) — **NEW from scrapers:** Per-player season aggregates from 6 sources (FBref, NBA API, Basketball-Ref, Sackmann, NHL API, Hockey-Ref). Use for player prop analysis, team total derivation, and cross-validation of team_form.
+- **`scraper_runs`** — **NEW:** Check scraper execution status/timing. Stale runs = degraded data quality.
+- **`athletes`** (12,360+) — NBA/NHL/Tennis/Football player profiles (position, age, status) — **expanded by scrapers**
 - **`player_gamelogs`** (11.5K+) — game-by-game player stats: points, rebounds, assists, goals, saves, etc. Use for player prop analysis AND team total patterns. `PlayerGamelogRepo.get_last_n(athlete_id, 10)` → L10 individual stats.
 - **`standings`** — enriched standings with form, home/away records, streaks
 - **`team_ats_records`** — Against The Spread betting history (win/loss/push by venue). Use to assess if team consistently beats/misses spread.

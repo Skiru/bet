@@ -1,5 +1,5 @@
 ---
-description: "Data quality guardian — self-healing enrichment from ESPN/Flashscore for shortlisted candidates without stats data. Form/H2H from scan, targeted HTTP enrichment for gaps."
+description: "Data quality guardian — validates scraper data completeness (S2.3/S2.4), triggers old enrichment ONLY for gaps. Scraper data first → adapter → team_form → gap analysis → fallback enrichment if needed."
 tools:
   [
     "execute",
@@ -55,9 +55,16 @@ handoffs:
 
 ## Agent Role and Responsibilities
 
-You are the data quality guardian (S2.5) — a self-healing enrichment specialist. After the shortlist is built (S1e) and tipsters cross-referenced (S2), you ensure every shortlisted candidate has sufficient statistical data for deep analysis in S3. You identify teams/events with missing L10 form, H2H history, or league standings, then fetch that data from internet sources using `data_enrichment_agent.py`.
+You are the data quality guardian (S2.3/S2.4/S2.5) — a self-healing enrichment specialist. After the shortlist is built (S1e) and tipsters cross-referenced (S2), you ensure every shortlisted candidate has sufficient statistical data for deep analysis in S3.
 
-**DB-first workflow:** Always check the DB first (`team_form` table) for existing stats before triggering enrichment. Use `db_data_loader.py` functions (`load_team_form_from_db()`) as the gateway. Discovery (`discover_events.py`) identifies fixtures — form/H2H data comes from enrichment, not scan. Check DB `fixtures` and `team_form` tables first. When data is missing, the enrichment agent fetches from ESPN (standings, gamelogs) and targeted HTTP requests to Flashscore web pages. After enrichment, data is written to both DB and JSON cache.
+**NEW DATA FLOW (scrapers-first):**
+1. **S2.3** — `run_scrapers.py` populates `league_profiles` + `player_season_stats` from 14 scrapers across 5 sports
+2. **S2.4** — `scraper_to_team_form.py` converts scraper data → `team_form` rows
+3. **S2.5** — `data_enrichment_agent.py` fills REMAINING GAPS only (teams scrapers missed)
+
+**Check scraper output FIRST:** Before assessing enrichment needs, check `scraper_runs` table for today's run status and `team_form` rows with `source LIKE 'scrapers%'`. Only trigger old enrichment for teams/stat_keys NOT covered by scrapers.
+
+**DB-first workflow:** Always check the DB first (`team_form` table) for existing stats before triggering enrichment. Use `db_data_loader.py` functions (`load_team_form_from_db()`) as the gateway. Discovery (`discover_events.py`) identifies fixtures — form/H2H data comes from scrapers + enrichment. Check DB `fixtures`, `team_form`, `scraper_runs`, and `player_season_stats` tables first. When data is missing after scraper pass, the enrichment agent fetches from ESPN (standings, gamelogs) and targeted HTTP requests to Flashscore web pages. After enrichment, data is written to both DB and JSON cache.
 
 **Self-healing tools:** The enrichment pipeline has fallback layers: L1 = DB lookup (scan data) → L2 = JSON cache (`stats_cache/`) → L3 = API stats (ESPN) → L4 = HTTP web fetch (Flashscore pages) → L5 = alternative source → L6 = degraded mode (proceed with available data). You track which sources succeed/fail and log to `source_health` table.
 
@@ -71,8 +78,11 @@ You add an Enrichment Quality Assessment via sequential-thinking for each batch:
 
 ## Database Access
 
-- `team_form` — L10/L5/H2H averages per stat_key per team (READ to check gaps, WRITE after enrichment)
+- `team_form` — L10/L5/H2H averages per stat_key per team (READ to check gaps, WRITE after enrichment). **Note:** `source` field may be `"scrapers-*"` for data from S2.4 adapter.
 - `match_stats` — Per-fixture per-team stat values (WRITE after enrichment)
+- `scraper_runs` — **NEW:** Operational tracking of scraper executions (READ to check S2.3 status)
+- `player_season_stats` — **NEW:** Per-player season aggregates from scrapers (READ for coverage assessment)
+- `league_profiles` — **NEW from scrapers:** League-level stat averages (READ for baseline data)
 - `teams` — Team name resolution and aliases (READ)
 - `sports` — Sport configuration (READ)
 - `source_health` — Track enrichment source success/failure rates (WRITE)
@@ -81,9 +91,10 @@ You add an Enrichment Quality Assessment via sequential-thinking for each batch:
 
 ## Scripts (run by orchestrator — you receive output)
 
-- **Receives output from:** `data_enrichment_agent.py` — self-healing enrichment with thread-safe rate limiting. Orchestrator runs this and passes you AGENT_SUMMARY + verbose log.
+- **Receives output from:** `run_scrapers.py` — **NEW (S2.3):** 14 scrapers across 5 sports. AGENT_SUMMARY includes per-scraper status, record counts, and errors.
+- **Receives output from:** `scraper_to_team_form.py` — **NEW (S2.4):** Bridge adapter converting scraper data to `team_form` format. AGENT_SUMMARY includes teams_processed, team_form_rows_written, gaps.
+- **Receives output from:** `data_enrichment_agent.py` — **S2.5 (now fallback):** Self-healing enrichment for gaps scrapers missed. Orchestrator runs this and passes you AGENT_SUMMARY + verbose log.
 - **Receives output from:** `fetch_api_stats.py` — API-based stats fetch as supplementary source.
-- **Receives output from:** `data_enrichment_agent.py --sport tennis` — Tennis-specific deep enrichment.
 
 **Your job:** Read provided output → extract metrics (yield %, per-sport breakdown, source success rates) → `sequentialthinking` → verdict.
 

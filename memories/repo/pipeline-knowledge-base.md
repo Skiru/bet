@@ -1,5 +1,48 @@
 # Pipeline Knowledge Base — Consolidated (May 4-14, 2026, updated 2026-05-14 PM)
 
+## 🆕 SCRAPER MODULE — LIVE-TESTED (2026-05-14)
+
+**Location:** `src/bet/scrapers/` — 14 scrapers across 5 sports, SQLAlchemy 2.0 ORM.
+**CLI:** `scripts/run_scrapers.py --sport all --season 2425 --verbose`
+**Tests:** 80/80 passing. DB: 98 league_profiles, 3,912 player_season_stats, 12,360 athletes.
+
+### Scraper Status (live-verified)
+| Sport | Source | Status | Data Volume |
+|-------|--------|--------|-------------|
+| Football | fbref | ✅ | 20 teams, 574 players |
+| Football | flashscore | ✅ | 5/5 teams |
+| Basketball | nba-api | ✅ | 21 teams, 569 players |
+| Basketball | basketball-reference | ✅ | 19 teams, 736 players |
+| Basketball | flashscore | ✅ | 3/3 teams |
+| Tennis | sackmann | ✅ FIXED | 457 players |
+| Tennis | sofascore-tennis | ⚠️ STUB | Fixtures only |
+| Tennis | flashscore | ⚠️ PARTIAL | 1/3 teams |
+| Hockey | nhl-api | ✅ FIXED | 15 teams, 261 players |
+| Hockey | hockey-reference | ✅ FIXED | 27 teams, 1,251 players |
+| Hockey | flashscore | ✅ | 3/3 teams |
+| Volleyball | volleybox | ❌ 403 | Cloudflare blocked |
+| Volleyball | sofascore-volleyball | ⚠️ STUB | Fixtures only |
+| Volleyball | flashscore | ✅ | 3/3 teams |
+
+### Critical Integration Gap
+- **team_form bridge NOT built yet.** Scrapers write to `league_profiles` + `player_season_stats`. Pipeline reads `team_form`.
+- Need: `scripts/scraper_to_team_form.py` adapter (see `specifications/scrapers-pipeline-integration.md`)
+- **Football corners/fouls:** NOT available from scrapers. Old `data_enrichment_agent.py` remains only source.
+
+### Bugs Fixed During Verification (2026-05-14)
+1. Sackmann season `"2425"` → year `"2025"` (was `"2024"`)
+2. NHL standings → date-based endpoint
+3. NHL player stats → multi-category response parsing
+4. NHL teamAbbrev string vs dict
+5. Hockey-Ref → HTML comment extraction
+6. Hockey-Ref → `player_stats` table ID
+7. Volleybox → `"2024-2025"` season format
+
+### New Pipeline Steps (not yet added to pipeline execution)
+- S2.3: `run_scrapers.py` — 14 scrapers, ~2-3 min total
+- S2.4: `scraper_to_team_form.py` — bridge adapter (TO BE BUILT)
+- S2.5: `data_enrichment_agent.py` — now GAP-FILL FALLBACK only
+
 ## ✅ CRITICAL BUGS — ALL FIXED (2026-05-14)
 
 | Bug | File(s) | Root Cause | Fix |
