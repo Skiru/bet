@@ -141,23 +141,23 @@ class TestMultiScanMerge:
             "oa1", "Barcelona", "Real Madrid", "2026-04-29T20:00:00Z", "the-odds-api",
             bookmakers=[{"key": "pinnacle", "title": "Pinnacle", "markets": []}],
         )
-        ev_oddsportal = _make_event(
-            "op1", "FC Barcelona", "Real Madrid CF", "2026-04-29T20:00:00Z", "oddsportal",
-            bookmakers=[{"key": "oddsportal-avg", "title": "OddsPortal Average", "markets": []}],
+        ev_odds_io = _make_event(
+            "io1", "FC Barcelona", "Real Madrid CF", "2026-04-29T20:00:00Z", "odds-api-io",
+            bookmakers=[{"key": "betclic-pl", "title": "Betclic PL", "markets": []}],
         )
 
         src_api = _build_mock_source("the-odds-api", ["football"], [ev_odds_api])
-        src_op = _build_mock_source("oddsportal", ["football"], [ev_oddsportal])
+        src_io = _build_mock_source("odds-api-io", ["football"], [ev_odds_io])
 
         with patch("scripts.fetch_odds_multi._load_source") as mock_load, \
              patch("scripts.fetch_odds_multi.load_configured_sports", return_value=["football"]):
-            mock_load.side_effect = lambda n: {"the-odds-api": src_api, "oddsportal": src_op}.get(n)
+            mock_load.side_effect = lambda n: {"the-odds-api": src_api, "odds-api-io": src_io}.get(n)
             events = run_multi_scan(sport_filter=["football"])
 
         assert len(events) == 1
         bm_keys = {bm["key"] for bm in events[0]["bookmakers"]}
         assert "pinnacle" in bm_keys
-        assert "oddsportal-avg" in bm_keys
+        assert "betclic-pl" in bm_keys
 
     def test_different_events_not_merged(self, mock_data_dir, mock_config):
         """Different matches from same source remain separate."""

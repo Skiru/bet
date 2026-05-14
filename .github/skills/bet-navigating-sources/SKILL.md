@@ -33,12 +33,12 @@ When a source fails (403/empty/timeout), try the next in chain immediately. All 
 
 | Sport | Primary | Secondary | Tertiary |
 |-------|---------|-----------|----------|
-| Football | BetExplorer | OddsPortal | The-Odds-API |
-| Tennis | BetExplorer | OddsPortal | The-Odds-API |
-| Basketball (EU) | BetExplorer | OddsPortal | The-Odds-API |
+| Football | The-Odds-API | odds-api.io | API-Football-Odds |
+| Tennis | The-Odds-API | odds-api.io | — |
+| Basketball (EU) | The-Odds-API | odds-api.io | — |
 | Basketball (US) | SBR | ESPN Odds | ScoresAndOdds |
-| Hockey | SBR | ESPN Odds | ScoresAndOdds |
-| Volleyball | BetExplorer | OddsPortal | — |
+| Hockey | The-Odds-API | odds-api.io | SBR |
+| Volleyball | odds-api.io | — | — |
 
 ### Stats Sources
 
@@ -116,7 +116,7 @@ Community/tipster sources CANNOT create a bet on their own. Four valid uses:
 |--------|---------|--------|
 | `python3 scripts/fetch_odds_api.py` | The-Odds-API (~30 credits/scan) | `betting/data/odds_api_snapshot.json` |
 | `python3 scripts/fetch_odds_api.py --scores hockey` | Settlement scores | JSON scores |
-| `python3 scripts/fetch_odds_multi.py --date YYYY-MM-DD` | 4-source aggregation | `betting/data/odds_multi_sources.json` |
+| `python3 scripts/fetch_odds_multi.py --date YYYY-MM-DD` | 3-source aggregation (the-odds-api + odds-api-io + api-football-odds) | `betting/data/odds_api_snapshot.json` |
 | `python3 scripts/fetch_odds_api.py --list-sports` | List available sports (free) | stdout |
 
 ## Automated Tipster Aggregation

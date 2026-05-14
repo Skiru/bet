@@ -88,9 +88,8 @@ def _convert_espn_odds_to_decimal(odds_data: dict) -> dict:
 def _inject_ev_from_odds(candidates: list[dict], date: str):
     """Compute and inject EV into candidates using odds API snapshots.
 
-    Sources: SQLite DB (odds_history — 97K+ rows with Betclic PL, Bet365)
-    + the-odds-api (odds_api_snapshot.json) + odds-api.io (odds_api_io_snapshot.json)
-    + ESPN DraftKings (espn_enrichment_{date}.json).
+    Sources: SQLite DB (odds_history — Betclic PL, Bet365, multi-bookmaker)
+    + the-odds-api (odds_api_snapshot.json) + odds-api.io (odds_api_io_snapshot.json).
     EV = (probability × odds) - 1. If no odds snapshot exists, candidates
     keep ev=None and the gate handles it gracefully (stats-first mode).
 
@@ -326,26 +325,6 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
                             if ch == home and ca == away and c.get("ev") is None:
                                 c["ev"] = round(float(pre_ev), 4)
                                 c["ev_source"] = "odds-api-io-value-bet"
-        except (json.JSONDecodeError, OSError):
-            pass
-
-    # Source 3: ESPN DraftKings odds (free, unlimited)
-    espn_path = DATA_DIR / f"espn_enrichment_{date}.json"
-    if espn_path.exists():
-        try:
-            espn_data = json.loads(espn_path.read_text(encoding="utf-8"))
-            for event in espn_data.get("odds", []):
-                home = _norm_team(event.get("home") or "")
-                away = _norm_team(event.get("away") or "")
-                if not home or not away:
-                    continue
-                key = f"{home}|{away}"
-                entry = _ensure_entry(key)
-                dec_odds = event.get("odds_decimal", {}).get("moneyline", {})
-                for side in ("home", "away"):
-                    val = dec_odds.get(side)
-                    if val and val > entry["market_best"]:
-                        entry["market_best"] = val
         except (json.JSONDecodeError, OSError):
             pass
 
@@ -595,24 +574,6 @@ def main():
     else:
         verdict = "FAILED"
 
-    # Phase 6: Dropping odds signal
-    all_dropping_count = 0
-    try:
-        from bet.api_clients.unified import UnifiedAPIClient
-        
-        drop_client = UnifiedAPIClient()
-        all_dropping = []
-        for s in ["football", "tennis", "basketball", "hockey", "volleyball"]:
-            drops = drop_client.get_dropping_odds(s)
-            if drops:
-                all_dropping.extend(drops)
-        drop_client.close()
-        
-        if all_dropping:
-            print(f"  → Phase 6: Found {len(all_dropping)} dropping odds signals")
-            all_dropping_count = len(all_dropping)
-    except Exception as e:
-        print(f"  ⚠ Dropping odds check failed: {e}")
 
     out.summary(
         verdict=verdict,
@@ -621,7 +582,6 @@ def main():
             "with_ev": with_ev,
             "positive_ev": positive_ev,
             "ev_coverage_pct": round(with_ev / max(total, 1) * 100, 1),
-            "dropping_odds_count": all_dropping_count,
         },
         issues=[] if ok else [{"level": "error", "message": msg}],
     )

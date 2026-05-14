@@ -266,10 +266,10 @@ SELF_HEALING_REGISTRY = {
     },
     "espn_data": {
         "modules": {
-            "fetch_espn_odds": "Fetch ESPN odds/predictions for a sport. Saves to odds_history + espn_predictions DB tables.",
+            "fetch_espn_odds": "Fetch ESPN standings, predictions, ATS/OU records. Saves to standings + espn_predictions DB tables. NOTE: ESPN API no longer returns odds data — use for stats/standings only.",
             "fetch_espn_standings": "Fetch ESPN standings, ATS/OU records, rosters. Saves to standings + team_ats_records + team_ou_records DB tables.",
         },
-        "use_when": "Missing odds, predictions, standings, or ATS/OU records for US sports (NFL, NBA, MLB, NHL, NCAA) or football",
+        "use_when": "Missing predictions, standings, or ATS/OU records for US sports (NFL, NBA, MLB, NHL, NCAA) or football. NOT for odds — ESPN odds API returns empty data.",
     },
     "api_stats": {
         "module": "fetch_api_stats",
@@ -330,7 +330,7 @@ SELF_HEALING_REGISTRY = {
     },
     "fallback_layers": [
         "L1: Scan retry with extended timeout (pipeline auto-handles)",
-        "L2: Parallel S1b enrichment (ESPN odds + weather + tipsters concurrently)",
+        "L2: Parallel S1b enrichment (odds-api.io + weather + tipsters concurrently)",
         "L3: S2.5 batch enrichment via data_enrichment_agent (Flashscore/ESPN)",
         "L4: S3 batch enrichment before analysis loop",
         "L5: S3 inline extract_team_stats/extract_h2h_stats fallback (per-candidate)",
@@ -857,7 +857,7 @@ STRUCTURED_OUTPUT_PROTOCOL = {
         "deep_stats_report.py", "gate_checker.py", "coupon_builder.py",
         "build_shortlist.py", "odds_evaluator.py", "context_checks.py",
         "upset_risk.py", "fetch_odds_multi.py", "validate_coupons.py",
-        "run_scrapers.py",
+        "run_scrapers.py", "fetch_odds_api_io.py",
     ],
     "parsing_instructions": (
         "After running a script, find the line starting with 'AGENT_SUMMARY:' "

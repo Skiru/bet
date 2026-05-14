@@ -444,6 +444,7 @@ python3 scripts/seed_espn_data.py --skip-players 2>&1
 
 ```bash
 python3 scripts/fetch_odds_api.py 2>&1
+python3 scripts/fetch_odds_api_io.py --date {date} --verbose 2>&1
 python3 scripts/fetch_weather.py --date {date} 2>&1
 python3 scripts/tipster_aggregator.py --date {date} --verbose 2>&1
 ```
@@ -748,7 +749,7 @@ Return: Model A analysis-only verdict
 ```bash
 PYTHONPATH=src .venv/bin/python3 scripts/odds_evaluator.py --date {date} --verbose 2>&1
 ```
-Mode: `async`, timeout: `300000`. Also run `python3 scripts/fetch_odds_api.py` for cross-validation.
+Mode: `async`, timeout: `300000`. Also run `python3 scripts/fetch_odds_api.py` and `python3 scripts/fetch_odds_api_io.py --date {date} --verbose` for cross-validation.
 
 **Step 2: THINK-WHILE-WAITING:** Read S3 deep stats, identify strongest stat edges.
 

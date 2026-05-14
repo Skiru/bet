@@ -1,7 +1,8 @@
 # Odds Pipeline Cleanup & Unification
 
-**Status:** PROPOSED  
+**Status:** IMPLEMENTED  
 **Created:** 2026-05-14  
+**Implemented:** 2026-05-14  
 **Complements:** `specifications/scrapers-pipeline-integration.md` (stats/enrichment cleanup)
 
 ---
@@ -232,7 +233,7 @@ This plan:
 **Risk:** LOW — removing code that processes empty data.  
 **Dependency:** None.
 
-- [ ] **1.1 [MODIFY] `scripts/odds_evaluator.py` — Remove Source 3 (ESPN) block**
+- [x] **1.1 [MODIFY] `scripts/odds_evaluator.py` — Remove Source 3 (ESPN) block**
   - **File:** `scripts/odds_evaluator.py`
   - **What:** Delete the Source 3 block (lines ~330-350) that reads `espn_enrichment_{date}.json`. This block parses `odds_decimal.moneyline` from ESPN data, but the file always contains `"odds": []`.
   - **Why:** ESPN API no longer returns odds data. Source 3 always produces 0 entries.
@@ -241,7 +242,7 @@ This plan:
   - **Test impact:** None — `test_odds_evaluator.py` only tests `_convert_espn_odds_to_decimal`, not the Source 3 loading path.
   - **Definition of done:** Source 3 block no longer exists in `_inject_ev_from_odds()`. `_convert_espn_odds_to_decimal()` still present and tested.
 
-- [ ] **1.2 [MODIFY] `scripts/odds_evaluator.py` — Remove Phase 6 (dropping odds)**
+- [x] **1.2 [MODIFY] `scripts/odds_evaluator.py` — Remove Phase 6 (dropping odds)**
   - **File:** `scripts/odds_evaluator.py`
   - **What:** Delete the Phase 6 block in `main()` (lines ~600-615) that calls `UnifiedAPIClient().get_dropping_odds(s)` for all 5 sports.
   - **Why:** This calls `OddsPortalClient.get_dropping_odds()` which requires Playwright and returns unreliable data. The `all_dropping_count` metric is always 0 or error.
@@ -249,7 +250,7 @@ This plan:
   - **Test impact:** None — no tests cover Phase 6.
   - **Definition of done:** No `UnifiedAPIClient` import or usage in `odds_evaluator.py`. No `dropping_odds_count` in AGENT_SUMMARY output.
 
-- [ ] **1.3 [MODIFY] `scripts/odds_evaluator.py` — Update docstring**
+- [x] **1.3 [MODIFY] `scripts/odds_evaluator.py` — Update docstring**
   - **File:** `scripts/odds_evaluator.py`
   - **What:** Update the `_inject_ev_from_odds()` docstring to reflect 3 sources (DB, the-odds-api, odds-api-io) instead of 4.
   - **Why:** Docstring currently mentions ESPN DraftKings.
@@ -263,20 +264,20 @@ This plan:
 **Risk:** LOW — these never return data.  
 **Dependency:** Phase 1.2 (evaluator no longer imports UnifiedAPIClient).
 
-- [ ] **2.1 [MODIFY] `src/bet/api_clients/unified.py` — Remove `ODDS_PRIORITY` dict**
+- [x] **2.1 [MODIFY] `src/bet/api_clients/unified.py` — Remove `ODDS_PRIORITY` dict**
   - **File:** `src/bet/api_clients/unified.py`
   - **What:** Delete the `ODDS_PRIORITY` dict (lines ~23-29) that maps all sports to `[oddsportal, betexplorer]`.
   - **Why:** Both sources are broken for odds. Map is misleading.
   - **Definition of done:** `ODDS_PRIORITY` no longer exists in the file.
 
-- [ ] **2.2 [MODIFY] `src/bet/api_clients/unified.py` — Remove `get_odds()` method**
+- [x] **2.2 [MODIFY] `src/bet/api_clients/unified.py` — Remove `get_odds()` method**
   - **File:** `src/bet/api_clients/unified.py`
   - **What:** Delete the `get_odds()` method (~lines 230-245) that uses `ODDS_PRIORITY`.
   - **Why:** Method never returns data because both source clients are broken for odds.
   - **Pre-check:** Verify no callers exist by searching for `\.get_odds\(` across the codebase. Expected: only `unified.py` itself.
   - **Definition of done:** `get_odds()` method no longer exists. No import errors.
 
-- [ ] **2.3 [MODIFY] `src/bet/api_clients/unified.py` — Add comment on `get_dropping_odds()`**
+- [x] **2.3 [MODIFY] `src/bet/api_clients/unified.py` — Add comment on `get_dropping_odds()`**
   - **File:** `src/bet/api_clients/unified.py`
   - **What:** Add a comment to `get_dropping_odds()` noting it depends on OddsPortal Playwright client and may not return data reliably.
   - **Why:** This method is kept (not removed) but the consumer (evaluator Phase 6) is removed. It may still be useful for manual investigation.
@@ -290,7 +291,7 @@ This plan:
 **Risk:** LOW — removing entries that produce empty results.  
 **Dependency:** None (parallel with Phases 1-2).
 
-- [ ] **3.1 [MODIFY] `scripts/odds_sources/__init__.py` — Remove betexplorer/oddsportal from `SPORT_SOURCE_PRIORITY`**
+- [x] **3.1 [MODIFY] `scripts/odds_sources/__init__.py` — Remove betexplorer/oddsportal from `SPORT_SOURCE_PRIORITY`**
   - **File:** `scripts/odds_sources/__init__.py`
   - **What:** Update `SPORT_SOURCE_PRIORITY` to remove `"oddsportal"` and `"betexplorer"` from all sport lists.
   - **Before:**
@@ -317,7 +318,7 @@ This plan:
   - **Test impact:** `test_odds_sources.py::TestSupportedSports` may indirectly reference these via `SPORT_SOURCE_PRIORITY`. Verify.
   - **Definition of done:** `SPORT_SOURCE_PRIORITY` has 3 entries max per sport. No `oddsportal` or `betexplorer` strings.
 
-- [ ] **3.2 [MODIFY] `scripts/fetch_odds_multi.py` — Remove betexplorer/oddsportal from `_SOURCE_MODULES`**
+- [x] **3.2 [MODIFY] `scripts/fetch_odds_multi.py` — Remove betexplorer/oddsportal from `_SOURCE_MODULES`**
   - **File:** `scripts/fetch_odds_multi.py`
   - **What:** Remove `"oddsportal"` and `"betexplorer"` entries from the `_SOURCE_MODULES` dict (lines ~53-57).
   - **Before:**
@@ -342,7 +343,7 @@ This plan:
   - **Test impact:** None directly — `fetch_odds_multi.py` has no dedicated test file.
   - **Definition of done:** 3 sources in `_SOURCE_MODULES`. Script runs without importing Playwright dependencies.
 
-- [ ] **3.3 [NO DELETE] `scripts/odds_sources/betexplorer_source.py` and `oddsportal_source.py`**
+- [x] **3.3 [NO DELETE] `scripts/odds_sources/betexplorer_source.py` and `oddsportal_source.py`**
   - **Action:** Do NOT delete these files. They implement the `OddsSource` ABC and are importable modules. While removed from the odds pipeline, they might be used for fixture discovery via `UnifiedAPIClient.SOURCE_PRIORITY`.
   - **Alternative:** If a future cleanup removes them from fixture discovery too, delete then.
   - **Definition of done:** Files exist but are not referenced from `_SOURCE_MODULES` or `SPORT_SOURCE_PRIORITY`.
@@ -355,7 +356,7 @@ This plan:
 **Risk:** MEDIUM — new pipeline step, needs testing with live API.  
 **Dependency:** Phase 3 (clean registry).
 
-- [ ] **4.1 [MODIFY] `scripts/fetch_odds_api_io.py` — Add AGENT_SUMMARY output (R19)**
+- [x] **4.1 [MODIFY] `scripts/fetch_odds_api_io.py` — Add AGENT_SUMMARY output (R19)**
   - **File:** `scripts/fetch_odds_api_io.py`
   - **What:** Add `--verbose` flag and `AGENT_SUMMARY:{json}` output using `AgentOutput` from `agent_output.py`, matching the pattern in `fetch_odds_api.py`.
   - **Why:** Pipeline requires AGENT_SUMMARY for all scripts (R19). Currently the script has no structured output.
@@ -368,20 +369,20 @@ This plan:
   - **Test impact:** None — new functionality.
   - **Definition of done:** Script emits `AGENT_SUMMARY:{json}` when run with `--verbose`. Verdict is `OK` when events found, `PARTIAL` when some sports fail, `FAILED` when no data.
 
-- [ ] **4.2 [MODIFY] `scripts/fetch_odds_api_io.py` — Ensure snapshot file is produced**
+- [x] **4.2 [MODIFY] `scripts/fetch_odds_api_io.py` — Ensure snapshot file is produced**
   - **File:** `scripts/fetch_odds_api_io.py`
   - **What:** Verify that the main scan path saves to `betting/data/odds_api_io_snapshot.json` (not just value bets file). The `fetch_odds_snapshot()` function should already save this — confirm by reading the `api_clients/odds_api_io.py` code.
   - **Why:** Evaluator Source 2 reads `odds_api_io_snapshot.json`. If the file isn't produced, Source 2 is dead.
   - **Pre-check:** Read `api_clients/odds_api_io.py::fetch_odds_snapshot()` to verify it saves the snapshot file.
   - **Definition of done:** Running `fetch_odds_api_io.py --date YYYY-MM-DD` produces `betting/data/odds_api_io_snapshot.json`.
 
-- [ ] **4.3 [MODIFY] `scripts/agent_protocol.py` — Add fetch_odds_api_io.py to STRUCTURED_OUTPUT_PROTOCOL**
+- [x] **4.3 [MODIFY] `scripts/agent_protocol.py` — Add fetch_odds_api_io.py to STRUCTURED_OUTPUT_PROTOCOL**
   - **File:** `scripts/agent_protocol.py`
   - **What:** Add `"fetch_odds_api_io.py"` to the `scripts_with_verbose` list in `STRUCTURED_OUTPUT_PROTOCOL`.
   - **Why:** Pipeline orchestrator checks this list to know which scripts support `--verbose`.
   - **Definition of done:** `"fetch_odds_api_io.py"` appears in `scripts_with_verbose`.
 
-- [ ] **4.4 [MODIFY] `scripts/agent_protocol.py` — Update espn_data description**
+- [x] **4.4 [MODIFY] `scripts/agent_protocol.py` — Update espn_data description**
   - **File:** `scripts/agent_protocol.py`
   - **What:** Update the `espn_data` entry in `SELF_HEALING_REGISTRY` to clarify ESPN is for stats/standings only, not odds. Change description from "Fetch ESPN odds/predictions" to "Fetch ESPN standings, predictions, ATS/OU records".
   - **Why:** Prevent agents from calling `fetch_espn_odds.py` for odds data when it produces none.
@@ -395,14 +396,14 @@ This plan:
 **Risk:** LOW — most tests mock at client layer.  
 **Dependency:** Phases 1-4.
 
-- [ ] **5.1 [MODIFY] `tests/test_odds_sources.py` — Update `TestSupportedSports` if needed**
+- [x] **5.1 [MODIFY] `tests/test_odds_sources.py` — Update `TestSupportedSports` if needed**
   - **File:** `tests/test_odds_sources.py`
   - **What:** Verify that `test_oddsportal_covers_5_sports` and `test_betexplorer_covers_5_sports` still pass. These test the source wrappers' `.supported_sports()` method, which is unchanged (files not deleted).
   - **Why:** Source files still exist, only removed from registry. Tests should still pass as-is.
   - **Action:** Run tests, fix only if broken.
   - **Definition of done:** All existing `test_odds_sources.py` tests pass.
 
-- [ ] **5.2 [MODIFY] `tests/test_odds_sources.py` — Add test for `SPORT_SOURCE_PRIORITY` content**
+- [x] **5.2 [MODIFY] `tests/test_odds_sources.py` — Add test for `SPORT_SOURCE_PRIORITY` content**
   - **File:** `tests/test_odds_sources.py`
   - **What:** Add a test verifying `SPORT_SOURCE_PRIORITY` contains only working sources:
     ```python
@@ -416,7 +417,7 @@ This plan:
   - **Why:** Prevents re-adding broken sources without updating this test.
   - **Definition of done:** New test exists and passes.
 
-- [ ] **5.3 [CREATE] `tests/test_fetch_odds_api_io.py` — Basic integration test**
+- [x] **5.3 [CREATE] `tests/test_fetch_odds_api_io.py` — Basic integration test**
   - **File:** `tests/test_fetch_odds_api_io.py`
   - **What:** Add a test that verifies `fetch_odds_api_io.py` produces AGENT_SUMMARY output and handles missing API key gracefully:
     ```python
@@ -428,7 +429,7 @@ This plan:
   - **Why:** Validates Phase 4 changes.
   - **Definition of done:** Test exists and passes.
 
-- [ ] **5.4 [VERIFY] Run full odds test suite**
+- [x] **5.4 [VERIFY] Run full odds test suite**
   - **Command:** `PYTHONPATH=src .venv/bin/python -m pytest tests/test_odds_evaluator.py tests/test_odds_sources.py -v`
   - **Expected:** All 83+ tests pass (existing + new).
   - **Definition of done:** 0 failures.
@@ -441,27 +442,27 @@ This plan:
 **Risk:** LOW.  
 **Dependency:** Phases 1-5.
 
-- [ ] **6.1 [MODIFY] `betting/sources/source-registry.md` — Update odds source table**
+- [x] **6.1 [MODIFY] `betting/sources/source-registry.md` — Update odds source table**
   - **File:** `betting/sources/source-registry.md`
   - **What:** Mark ESPN as "stats/standings only (no odds)". Mark BetExplorer as "fixture discovery only (odds stub)". Mark OddsPortal as "fixture discovery only (H2H listing only)". Add odds-api.io as active odds source.
   - **Definition of done:** Source registry accurately reflects working odds sources.
 
-- [ ] **6.2 [MODIFY] `.github/skills/bet-navigating-sources/SKILL.md` — Update odds fetch command**
+- [x] **6.2 [MODIFY] `.github/skills/bet-navigating-sources/SKILL.md` — Update odds fetch command**
   - **File:** `.github/skills/bet-navigating-sources/SKILL.md`
   - **What:** Update the `fetch_odds_multi.py` description to reflect 3 sources instead of 4-5. Add `fetch_odds_api_io.py` as volleyball-capable alternative.
   - **Definition of done:** Skill file matches reality.
 
-- [ ] **6.3 [MODIFY] `.github/skills/bet-evaluating-odds/SKILL.md` — Update source list**
+- [x] **6.3 [MODIFY] `.github/skills/bet-evaluating-odds/SKILL.md` — Update source list**
   - **File:** `.github/skills/bet-evaluating-odds/SKILL.md`
   - **What:** Update odds evaluation skill to reflect 3 evaluator sources (DB, the-odds-api, odds-api-io) instead of 4+.
   - **Definition of done:** Skill file matches reality.
 
-- [ ] **6.4 [MODIFY] `.github/prompts/orchestrate-betting-day.prompt.md` — Add odds-api.io step**
+- [x] **6.4 [MODIFY] `.github/prompts/orchestrate-betting-day.prompt.md` — Add odds-api.io step**
   - **File:** `.github/prompts/orchestrate-betting-day.prompt.md`
   - **What:** In the S0 pre-pipeline section, add `fetch_odds_api_io.py` as a standard step alongside `fetch_odds_api.py`. Or reference `fetch_odds_multi.py` which now calls both.
   - **Definition of done:** Pipeline prompt includes odds-api.io in the workflow.
 
-- [ ] **6.5 [MODIFY] `.github/agents/bet-valuator.agent.md` — Update receives-from**
+- [x] **6.5 [MODIFY] `.github/agents/bet-valuator.agent.md` — Update receives-from**
   - **File:** `.github/agents/bet-valuator.agent.md`
   - **What:** Update the "Receives output from" line to say "3-source odds aggregation" instead of "5-source".
   - **Definition of done:** Agent description matches reality.
@@ -559,43 +560,43 @@ PYTHONPATH=src .venv/bin/python -m pytest tests/ --ignore=tests/scrapers -v --tb
 ## 8. Validation Criteria
 
 ### Phase 1 Complete When:
-- [ ] `grep -c "espn_enrichment" scripts/odds_evaluator.py` returns 0
-- [ ] `grep -c "UnifiedAPIClient" scripts/odds_evaluator.py` returns 0
-- [ ] `grep -c "dropping_odds" scripts/odds_evaluator.py` returns 0
-- [ ] `_convert_espn_odds_to_decimal` function still exists in file
-- [ ] `test_odds_evaluator.py` all pass
+- [x] `grep -c "espn_enrichment" scripts/odds_evaluator.py` returns 0
+- [x] `grep -c "UnifiedAPIClient" scripts/odds_evaluator.py` returns 0
+- [x] `grep -c "dropping_odds" scripts/odds_evaluator.py` returns 0
+- [x] `_convert_espn_odds_to_decimal` function still exists in file
+- [x] `test_odds_evaluator.py` all pass
 
 ### Phase 2 Complete When:
-- [ ] `grep -c "ODDS_PRIORITY" src/bet/api_clients/unified.py` returns 0
-- [ ] `grep -c "def get_odds" src/bet/api_clients/unified.py` returns 0
-- [ ] `get_dropping_odds` still exists (with degraded comment)
-- [ ] `SOURCE_PRIORITY` and `STATS_PRIORITY` unchanged
-- [ ] No import errors: `python -c "from bet.api_clients.unified import UnifiedAPIClient"`
+- [x] `grep -c "ODDS_PRIORITY" src/bet/api_clients/unified.py` returns 0
+- [x] `grep -c "def get_odds" src/bet/api_clients/unified.py` returns 0
+- [x] `get_dropping_odds` still exists (with degraded comment)
+- [x] `SOURCE_PRIORITY` and `STATS_PRIORITY` unchanged
+- [x] No import errors: `python -c "from bet.api_clients.unified import UnifiedAPIClient"`
 
 ### Phase 3 Complete When:
-- [ ] `"oddsportal"` not in any `SPORT_SOURCE_PRIORITY` value
-- [ ] `"betexplorer"` not in any `SPORT_SOURCE_PRIORITY` value
-- [ ] `_SOURCE_MODULES` has exactly 3 entries
-- [ ] `betexplorer_source.py` and `oddsportal_source.py` files still exist (not deleted)
+- [x] `"oddsportal"` not in any `SPORT_SOURCE_PRIORITY` value
+- [x] `"betexplorer"` not in any `SPORT_SOURCE_PRIORITY` value
+- [x] `_SOURCE_MODULES` has exactly 3 entries
+- [x] `betexplorer_source.py` and `oddsportal_source.py` files still exist (not deleted)
 
 ### Phase 4 Complete When:
-- [ ] `fetch_odds_api_io.py --verbose` emits `AGENT_SUMMARY:{json}`
-- [ ] Running the script produces `betting/data/odds_api_io_snapshot.json`
-- [ ] `"fetch_odds_api_io.py"` in `agent_protocol.py` `scripts_with_verbose`
-- [ ] `espn_data` description in agent_protocol no longer says "odds"
+- [x] `fetch_odds_api_io.py --verbose` emits `AGENT_SUMMARY:{json}`
+- [x] Running the script produces `betting/data/odds_api_io_snapshot.json`
+- [x] `"fetch_odds_api_io.py"` in `agent_protocol.py` `scripts_with_verbose`
+- [x] `espn_data` description in agent_protocol no longer says "odds"
 
 ### Phase 5 Complete When:
-- [ ] All tests in `test_odds_evaluator.py` pass
-- [ ] All tests in `test_odds_sources.py` pass
-- [ ] New `test_fetch_odds_api_io.py` test passes
-- [ ] New `test_sport_source_priority_no_broken_sources` passes
-- [ ] Full test suite: 0 new failures
+- [x] All tests in `test_odds_evaluator.py` pass
+- [x] All tests in `test_odds_sources.py` pass
+- [x] New `test_fetch_odds_api_io.py` test passes
+- [x] New `test_sport_source_priority_no_broken_sources` passes
+- [x] Full test suite: 0 new failures
 
 ### Phase 6 Complete When:
-- [ ] `source-registry.md` accurately reflects working odds sources
-- [ ] Orchestrator prompt includes odds-api.io in workflow
-- [ ] Skill files updated
-- [ ] Agent description updated
+- [x] `source-registry.md` accurately reflects working odds sources
+- [x] Orchestrator prompt includes odds-api.io in workflow
+- [x] Skill files updated
+- [x] Agent description updated
 
 ---
 
@@ -611,3 +612,13 @@ PYTHONPATH=src .venv/bin/python -m pytest tests/ --ignore=tests/scrapers -v --tb
 | BetExplorer | ~5 HTTP requests | 0 | Removed from odds pipeline |
 
 **Net:** +50-100 odds-api.io requests (free), -10 broken requests. Credit budget unchanged for The Odds API.
+
+---
+
+## 10. Post-Implementation Fix (2026-05-14 PM)
+
+**DB persistence bug in `fetch_odds_api_io.py`** — discovered during live testing:
+- `event.get("sport")` returned a dict `{name, slug}`, not a string → `.lower()` crash
+- `event.get("kickoff")` field doesn't exist → actual field is `"date"`
+- Both bugs caused **zero** odds-api.io records to persist to DB (JSON snapshot worked fine)
+- Fixed to use `_our_sport` and `date` fields. Live-tested: 1048 records persisted to `odds_history`

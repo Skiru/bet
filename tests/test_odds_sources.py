@@ -432,18 +432,25 @@ class TestBetclicFetch:
 
 
 class TestSportSourcePriority:
-    def test_all_14_sports_have_priority(self):
+    def test_all_5_sports_have_priority(self):
         assert len(SPORT_SOURCE_PRIORITY) == 5
 
-    def test_football_includes_all_sources(self):
+    def test_football_includes_working_sources(self):
         assert "the-odds-api" in SPORT_SOURCE_PRIORITY["football"]
         assert "api-football-odds" in SPORT_SOURCE_PRIORITY["football"]
-        assert "oddsportal" in SPORT_SOURCE_PRIORITY["football"]
-        assert "betexplorer" in SPORT_SOURCE_PRIORITY["football"]
+        assert "odds-api-io" in SPORT_SOURCE_PRIORITY["football"]
 
-    def test_volleyball_no_odds_api(self):
+    def test_volleyball_has_odds_api_io(self):
+        assert "odds-api-io" in SPORT_SOURCE_PRIORITY["volleyball"]
         assert "the-odds-api" not in SPORT_SOURCE_PRIORITY["volleyball"]
 
     def test_every_sport_has_at_least_one_source(self):
         for sport, sources in SPORT_SOURCE_PRIORITY.items():
             assert len(sources) >= 1, f"{sport} has no sources"
+
+    def test_no_broken_sources_in_priority(self):
+        """SPORT_SOURCE_PRIORITY should not reference broken odds sources."""
+        BROKEN = {"oddsportal", "betexplorer"}
+        for sport, sources in SPORT_SOURCE_PRIORITY.items():
+            for src in sources:
+                assert src not in BROKEN, f"{sport} references broken source {src}"

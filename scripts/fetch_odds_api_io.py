@@ -20,6 +20,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 from api_clients.odds_api_io import OddsAPIioClient, SPORT_SLUG_MAP, fetch_odds_snapshot
 from api_clients.rate_limiter import RateLimiter
+from agent_output import AgentOutput, add_agent_args
 
 DATA_DIR = Path(__file__).parent.parent / "betting" / "data"
 
@@ -32,13 +33,21 @@ def main():
     parser.add_argument("--list-sports", action="store_true", help="List available sports")
     parser.add_argument("--bookmakers", default="Betclic PL,Bet365",
                         help="Comma-separated bookmakers (free plan: max 2)")
+    add_agent_args(parser)
     args = parser.parse_args()
+
+    out = AgentOutput("s0_odds_api_io", verbose=getattr(args, 'verbose', False))
 
     rl = RateLimiter()
     client = OddsAPIioClient(rate_limiter=rl)
 
     if not client.is_available():
         print("ERROR: No odds-api-io key in config/api_keys.json")
+        out.summary(
+            verdict="FAILED",
+            metrics={"total_events": 0, "events_with_odds": 0, "total_value_bets": 0, "sports_covered": 0},
+            issues=[{"level": "error", "message": "No odds-api-io API key configured"}],
+        )
         sys.exit(1)
 
     if args.list_sports:
@@ -101,10 +110,31 @@ def main():
     # Persist odds to DB (dual-write alongside JSON)
     _persist_io_odds_to_db(snapshot, date)
 
+    total_events = snapshot.get("total_events_with_odds", 0)
+    total_vb = snapshot.get("total_value_bets", 0)
+    sports_in_snapshot = len({e.get("_our_sport") for e in snapshot.get("events", []) if e.get("_our_sport")})
+
     print(f"\n{'='*80}")
-    print(f"DONE: {snapshot.get('total_events_with_odds', 0)} events with odds")
-    print(f"      {snapshot.get('total_value_bets', 0)} value bets found")
+    print(f"DONE: {total_events} events with odds")
+    print(f"      {total_vb} value bets found")
     print(f"{'='*80}\n")
+
+    if total_events > 0:
+        verdict = "OK"
+    elif sports_in_snapshot > 0:
+        verdict = "PARTIAL"
+    else:
+        verdict = "FAILED"
+
+    out.summary(
+        verdict=verdict,
+        metrics={
+            "total_events": total_events,
+            "events_with_odds": total_events,
+            "total_value_bets": total_vb,
+            "sports_covered": sports_in_snapshot,
+        },
+    )
 
 
 def _persist_io_odds_to_db(snapshot: dict, date: str):
@@ -130,7 +160,8 @@ def _persist_io_odds_to_db(snapshot: dict, date: str):
             for event in events:
                 home = (event.get("home") or "").strip()
                 away = (event.get("away") or "").strip()
-                sport_name = (event.get("sport") or "").lower()
+                # _our_sport is the normalized string; sport is a dict {name, slug}
+                sport_name = (event.get("_our_sport") or "").lower()
                 if not home or not away:
                     continue
 
@@ -148,7 +179,7 @@ def _persist_io_odds_to_db(snapshot: dict, date: str):
                         home_team = team_repo.find_or_create(home, sport.id)
                         away_team = team_repo.find_or_create(away, sport.id)
                         from bet.db.models import Fixture
-                        kickoff = event.get("kickoff", f"{date}T00:00:00")
+                        kickoff = event.get("date", f"{date}T00:00:00")
                         f = Fixture(
                             id=None,
                             sport_id=sport.id,

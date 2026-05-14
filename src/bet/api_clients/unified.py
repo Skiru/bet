@@ -14,15 +14,6 @@ SOURCE_PRIORITY = {
     "volleyball": ["flashscore", "betexplorer", "scores24", "espn"],
 }
 
-# Odds-specific routing (separate from fixture discovery)
-ODDS_PRIORITY = {
-    "football":   ["oddsportal", "betexplorer"],
-    "tennis":     ["oddsportal", "betexplorer"],
-    "basketball": ["oddsportal", "betexplorer"],
-    "hockey":     ["oddsportal", "betexplorer"],
-    "volleyball": ["oddsportal", "betexplorer"],
-}
-
 # Stats-specific routing (for corner/card data)
 STATS_PRIORITY = {
     "football": ["totalcorner", "flashscore"],
@@ -190,24 +181,6 @@ class UnifiedAPIClient:
                 logger.debug(f"[UnifiedAPIClient] {src_name} stats failed for {event_id}: {e}")
         return []
 
-    def get_odds(self, match_identifier: str, sport: str = "football") -> dict:
-        """Fetch odds using ODDS_PRIORITY fallback chain."""
-        sources = ODDS_PRIORITY.get(sport, ["oddsportal", "betexplorer"])
-        for src_name in sources:
-            client = self._get_client(src_name)
-            if not client:
-                continue
-            try:
-                res = client.get_odds(match_identifier)
-                if res:
-                    logger.debug(f"[UnifiedAPIClient] {src_name} returned odds for {match_identifier}")
-                    return res
-            except AttributeError:
-                logger.debug(f"[UnifiedAPIClient] {src_name} does not support get_odds")
-            except Exception as e:
-                logger.debug(f"[UnifiedAPIClient] {src_name} odds failed for {match_identifier}: {e}")
-        return {}
-
     def get_deep_data(self, event_id: str, source: str | None = None, status: str = "") -> dict:
         """Fetch stats + form + H2H + odds from Flashscore.
         
@@ -267,7 +240,12 @@ class UnifiedAPIClient:
             return []
 
     def get_dropping_odds(self, sport: str = "football") -> list:
-        """Fetch dropping odds from OddsPortal."""
+        """Fetch dropping odds from OddsPortal.
+
+        NOTE: Degraded source — depends on OddsPortal Playwright client.
+        May not return data reliably. Evaluator Phase 6 (consumer) has been
+        removed. Kept for potential manual investigation.
+        """
         client = self._get_client("oddsportal")
         if not client:
             return []

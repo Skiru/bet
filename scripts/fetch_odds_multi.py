@@ -8,7 +8,7 @@ output files.
 Usage:
     python3 scripts/fetch_odds_multi.py                        # full scan
     python3 scripts/fetch_odds_multi.py --sports volleyball    # specific sport
-    python3 scripts/fetch_odds_multi.py --sources the-odds-api,oddsportal  # specific sources
+    python3 scripts/fetch_odds_multi.py --sources the-odds-api,odds-api-io  # specific sources
     python3 scripts/fetch_odds_multi.py --dry-run              # show plan, no API calls
     python3 scripts/fetch_odds_multi.py --no-window            # don't filter by time window
 """
@@ -54,8 +54,6 @@ _SOURCE_MODULES = {
     "the-odds-api": ("odds_sources.the_odds_api", "SOURCE"),
     "odds-api-io": ("odds_sources.odds_api_io_source", "SOURCE"),
     "api-football-odds": ("odds_sources.api_football_odds", "SOURCE"),
-    "oddsportal": ("odds_sources.oddsportal_source", "SOURCE"),
-    "betexplorer": ("odds_sources.betexplorer_source", "SOURCE"),
 }
 
 

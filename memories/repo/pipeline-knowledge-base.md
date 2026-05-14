@@ -1,5 +1,37 @@
 # Pipeline Knowledge Base — Consolidated (May 4-14, 2026, updated 2026-05-14 PM)
 
+## 🆕 ODDS PIPELINE CLEANUP — COMPLETED (2026-05-14)
+
+**Plan:** `specifications/odds-pipeline-cleanup.plan.md` — 6 phases, 20 tasks, 8 ADRs.
+
+### What Changed
+- **Evaluator** (`odds_evaluator.py`): Removed dead ESPN Source 3 + Phase 6 dropping odds. Now reads 3 sources: DB + the-odds-api snapshot + odds-api.io snapshot.
+- **UnifiedAPIClient** (`unified.py`): Removed `ODDS_PRIORITY` dict + `get_odds()` method (both broken). `get_dropping_odds()` kept with degraded note.
+- **Odds Source Registry** (`odds_sources/__init__.py`): Removed oddsportal/betexplorer from `SPORT_SOURCE_PRIORITY`. Now 3 sources max per sport.
+- **fetch_odds_multi.py**: Removed oddsportal/betexplorer from `_SOURCE_MODULES`. 3 working sources.
+- **fetch_odds_api_io.py**: Now has `--verbose` + AGENT_SUMMARY (R19 compliant). Volleyball primary source. DB persistence FIXED (2026-05-14 PM).
+- **agent_protocol.py**: Added to `scripts_with_verbose`. ESPN description updated (stats only, no odds).
+
+### DB Persistence Fix (2026-05-14 PM)
+Two bugs in `_persist_io_odds_to_db()` caused **zero** odds-api.io records to reach the DB:
+- Bug A: `event.get("sport")` returns a dict `{name, slug}`, not a string → `.lower()` crash → entire persistence silently failed
+- Bug B: `event.get("kickoff")` doesn't exist in odds-api.io data → always fell back to midnight. Actual field is `"date"`
+- Fix: use `_our_sport` (normalized string) and `date` field. Live-tested: **1048 records persisted** (Betclic PL + Bet365).
+
+### Odds Pipeline Architecture (post-cleanup)
+```
+Sources:  the-odds-api (4 sports, 500 cr/mo) + odds-api.io (5 sports, 5000 req/hr) + api-football-odds (football)
+Scripts:  fetch_odds_api.py | fetch_odds_api_io.py | fetch_odds_multi.py (orchestrates all 3)
+DB:       odds_history table (all sources write here)
+Eval:     odds_evaluator.py reads DB + 2 snapshot JSONs → injects EV into S3 candidates
+```
+
+### Key Decisions
+- BetExplorer/OddsPortal: kept for fixture discovery, removed from odds pipeline
+- ESPN: kept for stats/standings, removed from odds pipeline (API returns empty odds)
+- odds-api.io: activated as primary volleyball odds source + secondary for all 5 sports
+- Betclic HTML parse: unchanged (manual workflow, ADR-7)
+
 ## 🆕 SCRAPER MODULE — LIVE-TESTED (2026-05-14)
 
 **Location:** `src/bet/scrapers/` — 14 scrapers across 5 sports, SQLAlchemy 2.0 ORM.

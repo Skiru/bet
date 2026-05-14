@@ -119,8 +119,9 @@ Get odds from ≥2 sources per candidate. See `bet-navigating-sources` for full 
 
 | Sport Region | Source 1 | Source 2 | Source 3 |
 |-------------|----------|----------|----------|
-| EU sports | BetExplorer | OddsPortal | The-Odds-API |
+| EU sports | The-Odds-API (DB) | odds-api.io (DB + snapshot) | API-Football-Odds (football only) |
 | US sports (NHL/NBA) | SBR | ESPN Odds | ScoresAndOdds |
+| Volleyball | odds-api.io (primary) | — | — |
 
 Cross-validate: odds differ >5% between sources → investigate staleness.
 

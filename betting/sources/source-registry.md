@@ -20,14 +20,16 @@ The pipeline uses **API-first discovery architecture**: SofaScore + Odds API + A
   Access: 403 blocks automated access. All picks CONDITIONAL — user verifies on app.
 
 - OddsPortal
-  Role: market-best price, line shopping, dropping odds, value bets, archived results, standings.
-  Use for: best-market comparison, price_gap_pct, movement context, and result backchecks.
-  Access: OK.
+  Role: fixture discovery, archived results, standings, dropping odds monitoring (manual).
+  Use for: fixture discovery via UnifiedAPIClient, result backchecks, and movement context.
+  Access: OK (Playwright required).
+  NOTE: Removed from automated odds pipeline (H2H listing odds only, no line data). Use for manual investigation only.
 
 - BetExplorer
-  Role: odds comparison, results, streaks, popular bets, and odds movements.
-  Use for: bookmaker comparison, results history, and market heat checks.
+  Role: fixture discovery, results, streaks, popular bets.
+  Use for: fixture discovery via UnifiedAPIClient, results history, and market heat checks.
   Access: OK.
+  NOTE: Removed from automated odds pipeline (odds stub returns empty bookmakers). Use for fixture discovery only.
 
 - SportsbookReview (SBR)
   Role: US-sport odds comparison — NHL, NBA. Moneyline, spread, AND totals tabs with lines from 6+ books.
@@ -45,6 +47,7 @@ The pipeline uses **API-first discovery architecture**: SofaScore + Odds API + A
   Use for: cross-validation of US sport totals and moneylines. Shows team records inline.
   Access: OK from EU/PL IP. No soccer or tennis odds available.
   Coverage: NHL, NBA.
+  NOTE: ESPN API no longer returns odds data programmatically. Use for manual cross-validation only — not as a pipeline odds source.
   Added: 2026-04-23.
 
 - ScoresAndOdds
@@ -61,7 +64,7 @@ The pipeline uses **API-first discovery architecture**: SofaScore + Odds API + A
   Use for: programmatic odds retrieval for ANY sport when manual scraping fails. Supports h2h, spreads, totals.
   Access: free tier (500 credits/month). API key in config/odds_api_key.txt or ODDS_API_KEY env var.
   Coverage: NBA, NHL, EPL, La Liga, Bundesliga, Serie A, Ligue 1, Eredivisie, Ekstraklasa, MLS, tennis Grand Slams, and 70+ more.
-  NOT covered: volleyball (fallback sources — OddsPortal, BetExplorer, Betclic — handle this via the multi-source system).
+  NOT covered: volleyball (fallback sources — odds-api.io handles this as primary volleyball odds source).
   Script: `python3 scripts/fetch_odds_api.py` — fetches all sports, saves to betting/data/odds_api_snapshot.json + odds_api_summary.csv.
   Commands: `--list-sports` (free, 0 credits), `--sports hockey,basketball` (filter), `--scores hockey` (settlement).
   Quota: 1 credit per sport×market×region. Full scan (5 sport groups × h2h+totals × eu) ≈ 12 credits. ~40 full scans/month on free tier.
@@ -76,6 +79,17 @@ The pipeline uses **API-first discovery architecture**: SofaScore + Odds API + A
   Coverage: 1000+ football leagues globally. Odds may lag 15-30 min behind live prices.
   Script: Integrated into `python3 scripts/fetch_odds_multi.py`.
   Added: 2026-04-29.
+
+- odds-api.io
+  Role: universal odds API — 265 bookmakers, 34 sports, value bets with pre-calculated EV.
+  URL: api.odds-api.io
+  Use for: programmatic odds retrieval for ALL 5 sports including volleyball (which The-Odds-API does not cover). Includes Betclic PL and Bet365 among 265 bookmakers. Value bets endpoint provides pre-calculated EV.
+  Access: free tier (5,000 requests/hour — very generous). API key in config/api_keys.json.
+  Coverage: Football, tennis, basketball, hockey, volleyball — PRIMARY volleyball odds source.
+  Script: `python3 scripts/fetch_odds_api_io.py --date YYYY-MM-DD --verbose` — fetches all sports, saves to betting/data/odds_api_io_snapshot.json + persists to DB odds_history table (dual-write).
+  Also: `--value-bets` (value bets only), `--list-sports` (list available sports).
+  Integration: Run in STEP S1b (odds fetch) alongside fetch_odds_api.py. Also integrated into fetch_odds_multi.py as second source.
+  Added: 2026-05-14. Activated: 2026-05-14.
 
 ## Tier A Core Stats, Fixture, and Verification Sources
 
@@ -281,9 +295,13 @@ Hockey:       Flashscore → BetExplorer → Scores24 → ESPN
 Volleyball:   Flashscore → BetExplorer → Scores24 → ESPN
 ```
 
-**Odds comparison chains (ODDS_PRIORITY):**
+**Odds comparison chains (pipeline — via `fetch_odds_multi.py`):**
 ```
-All sports:   OddsPortal → BetExplorer
+Football:     the-odds-api → odds-api.io → api-football-odds
+Tennis:       the-odds-api → odds-api.io
+Basketball:   the-odds-api → odds-api.io
+Hockey:       the-odds-api → odds-api.io
+Volleyball:   odds-api.io
 ```
 
 **Stats-specific chains (STATS_PRIORITY):**
@@ -443,18 +461,18 @@ These adapters provide structured data extraction from web sources, normalizing 
 
 The multi-source odds aggregator (`fetch_odds_multi.py`) tries sources in priority order per sport, merging events and deduplicating bookmakers:
 
-| Sport | Source 1 | Source 2 | Source 3 | Source 4 | Source 5 |
-|-------|----------|----------|----------|----------|----------|
-| football | The Odds API | API-Football /odds | OddsPortal | BetExplorer | Betclic |
-| tennis | The Odds API | OddsPortal | BetExplorer | Betclic | — |
-| basketball | The Odds API | OddsPortal | BetExplorer | Betclic | — |
-| hockey | The Odds API | OddsPortal | BetExplorer | Betclic | — |
-| volleyball | OddsPortal | BetExplorer | Betclic | — | — |
+| Sport | Source 1 | Source 2 | Source 3 |
+|-------|----------|----------|----------|
+| football | The Odds API | odds-api.io | API-Football /odds |
+| tennis | The Odds API | odds-api.io | — |
+| basketball | The Odds API | odds-api.io | — |
+| hockey | The Odds API | odds-api.io | — |
+| volleyball | odds-api.io | — | — |
 
 Script: `python3 scripts/fetch_odds_multi.py`
-Commands: `--sports volleyball` (filter sport), `--sources the-odds-api,oddsportal` (filter sources), `--dry-run` (show plan only), `--no-window` (all events).
+Commands: `--sports volleyball` (filter sport), `--sources the-odds-api,odds-api-io` (filter sources), `--dry-run` (show plan only), `--no-window` (all events).
 Outputs: `betting/data/odds_api_snapshot.json` (backward compatible), `betting/data/odds_api_summary.csv`, `betting/data/odds_multi_sources.json` (provenance log).
-Added: 2026-04-29.
+Added: 2026-04-29. Updated: 2026-05-14 (removed broken BetExplorer/OddsPortal, activated odds-api.io).
 
 ## Tier B Support and Consensus Sources
 
@@ -942,12 +960,12 @@ Use this table to know WHERE to get odds for each sport. Never give up after one
 
 | Sport | Primary Odds | Secondary Odds | Tertiary Odds | Fallback |
 |-------|-------------|----------------|---------------|----------|
-| **Football** (EU) | BetExplorer (1X2/O-U/BTTS/corners) | OddsPortal | — | The-Odds-API |
-| **Football** (Exotic) | BetExplorer | OddsPortal | Soccerway | The-Odds-API |
+| **Football** (EU) | The-Odds-API | odds-api.io | API-Football-Odds | SBR (manual) |
+| **Football** (Exotic) | The-Odds-API | odds-api.io | API-Football-Odds | — |
 | **NHL** | SBR (Totals tab) | ESPN Odds | ScoresAndOdds | The-Odds-API |
 | **NBA** | SBR (Totals tab) | ESPN Odds | ScoresAndOdds | The-Odds-API |
-| **Tennis** | BetExplorer (ML) | OddsPortal | — | The-Odds-API |
-| **Volleyball** | BetExplorer (set/point totals) | OddsPortal | — | The-Odds-API |
+| **Tennis** | The-Odds-API | odds-api.io | — | — |
+| **Volleyball** | odds-api.io (primary) | — | — | — |
 
 **Rule:** If all sources in the row fail for a pick → do NOT skip. Try The-Odds-API or search for a new source. The internet always has odds data somewhere.
 

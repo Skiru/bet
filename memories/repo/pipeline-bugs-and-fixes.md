@@ -84,6 +84,12 @@
 - **Fix**: `gate_checker.py` Gate #19 `_check_odds_safety_gap()` — flags when gap exceeds 15 percentage points. Labels as OVERCONFIDENT or UNDERCONFIDENT.
 - **Rule for ALL agents**: When your model says 63% but the market says 37% → THE MARKET IS PROBABLY RIGHT. This gap means your model is missing something (opponent quality, context, news).
 
+## Bug #11: odds-api.io DB Persistence Silent Failure (2026-05-14)
+- **Cause**: `_persist_io_odds_to_db()` in `fetch_odds_api_io.py` used `event.get("sport")` which returns a dict `{name: ..., slug: ...}` not a string. Calling `.lower()` on a dict crashes. Also used `event.get("kickoff")` which doesn't exist (actual field is `"date"`).
+- **Impact**: **Zero** odds-api.io odds records reached DB since activation. Only JSON snapshot worked. Evaluator's Source 0 (DB) never had odds-api.io data.
+- **Fix**: Use `event.get("_our_sport")` (normalized string) and `event.get("date")`. Live-tested: 1048 records persisted.
+- **Lesson**: R18 (Data Flow Verification) applies to API response structures too — always inspect actual data shapes, not assumed ones. The `sport` field being a dict vs string was invisible without checking real JSON.
+
 ### Pattern Tags (stored in decision_outcomes DB table for automated detection)
 ```
 opponent_quality_mismatch — stat avg earned vs weak opponents, now facing elite
@@ -109,3 +115,4 @@ Before running ANY script: READ its code, understand what it READS and WRITES. T
 - **Not checking for duplicate fixture names (Bug #3)**
 - **Treating <8 game samples as reliable (Bug #4)**
 - **Ignoring large model-vs-market probability gaps (Bug #5)**
+- **Assuming API response field types without inspecting real data (Bug #11)**

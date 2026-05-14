@@ -73,7 +73,7 @@ You add a 5-part Market Intelligence Reasoning Layer via sequential-thinking: ma
 ## Skills Usage Guidelines
 
 - **`bet-evaluating-odds`** — EV formula, Kelly criterion, price gap thresholds, drift detection rules, American odds conversion, line movement interpretation, market performance tracker
-- **`bet-navigating-sources`** — Market source chains (BetExplorer, OddsPortal, SBR, ESPN, ScoresAndOdds, The-Odds-API)
+- **`bet-navigating-sources`** — Market source chains (The-Odds-API, odds-api.io, API-Football-Odds, SBR, ESPN, ScoresAndOdds)
 
 ## Database Access
 
@@ -91,7 +91,7 @@ You add a 5-part Market Intelligence Reasoning Layer via sequential-thinking: ma
 ## Tool Usage Guidelines
 
 ### Script Output (run by orchestrator — you receive output)
-- **Receives output from:** `odds_evaluator.py` (S4 EV calculation), `fetch_odds_multi.py` (5-source odds aggregation), `fetch_odds_api.py` (single-source fallback), `probability_engine.py` (direct probability checks)
+- **Receives output from:** `odds_evaluator.py` (S4 EV calculation), `fetch_odds_multi.py` (3-source odds aggregation: the-odds-api + odds-api-io + api-football-odds), `fetch_odds_api.py` (single-source fallback), `fetch_odds_api_io.py` (volleyball + secondary odds), `probability_engine.py` (direct probability checks)
 - **NOTE:** Check DB via `load_analysis_results_from_db()` for pre-computed EV values (fallback: `analysis_pool_{date}.json`). Read S3 deep stats for P(hit), fair odds, λ, CI columns.
 - **Your job:** Parse provided AGENT_SUMMARY + verbose log → extract metrics (odds count, EV values, source coverage) → `sequentialthinking` → verdict.
 
