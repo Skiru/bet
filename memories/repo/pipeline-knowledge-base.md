@@ -1,4 +1,4 @@
-# Pipeline Knowledge Base — Consolidated (May 4-14, 2026)
+# Pipeline Knowledge Base — Consolidated (May 4-14, 2026, updated 2026-05-14 PM)
 
 ## ✅ CRITICAL BUGS — ALL FIXED (2026-05-14)
 
@@ -99,11 +99,19 @@ After S4-S7 gates → 3-4 viable core picks
 - Gate vocabulary: status=APPROVED/EXTENDED/REJECTED, advisory_tier=STRONG/MODERATE/WEAK/FLAGGED, risk_tier=LR/MS/HR/N
 - Config: `max_legs_per_coupon: 4`, `min_safety_score: 0.4`, `max_picks_per_day: 80`
 
-### API Clients (2026-05-13)
+### API Clients (2026-05-14)
 - **unified.py** routes: Football(Flashscore→BetExplorer→Soccerway→ESPN), Tennis(Flashscore→Scores24→ESPN)
+- **ESPN Site API** now uses **HTTPS** (was HTTP) — all endpoints confirmed working
+- **ESPN `get_espn_league_for_competition()`** now uses **fuzzy substring matching** (was exact only). Matches "PKO BP Ekstraklasa"→pol.1, "La Liga EA Sports"→esp.1, etc. Longest-key-first to avoid ambiguity.
 - **New clients:** BetExplorerClient(HTTP), OddsPortalClient(Playwright), TotalCornerClient(Playwright), Scores24Client(Playwright), SoccerwayClient(HTTP)
+- **BetExplorer/Soccerway** `get_fixture_stats()` and `get_h2h()` are **stubs** (return `[]`, log debug). Only useful for fixture discovery + odds.
+- **Sofascore Playwright fallback** now **reuses shared browser** (`_pw_browser` class-level cache) instead of launching/destroying per 403 request. Call `SofascoreClient.close_playwright()` for cleanup.
 - **Disabled:** TheSportsDB, BallDontLie, API-Tennis
 - **Sport adapters (2026-05-12):** Hockey=MoneyPuck PRIMARY, Tennis=TennisAbstract Elo, Basketball=Basketball-Reference enhanced
+
+### Data Quality Guards (2026-05-14)
+- **TeamRepo.find_or_create()** now **rejects garbage team names** before DB insert: ad text (`"#100 FREE $20"`), odds strings (`"- 1.03 11.00"`), promo text, separators. Raises `ValueError` — callers should catch.
+- **Stat key `_home`/`_away` convention** is BY DESIGN: `build_stats_cache.py` saves venue-split keys (`corners_home`, `corners_away`), `enrichment.py` saves base keys (`corners`). Both consumers (`deep_stats_report.py`, `normalize_stats.py`) handle both conventions correctly.
 
 ---
 

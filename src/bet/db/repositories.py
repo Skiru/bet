@@ -5,6 +5,7 @@ JSON columns are serialized with json.dumps() on write and json.loads() on read.
 """
 
 import json
+import re
 import sqlite3
 from datetime import datetime, timezone
 
@@ -118,16 +119,49 @@ class SportRepo:
 # ---------------------------------------------------------------------------
 
 class TeamRepo:
+    # Reject team names that are clearly scraped garbage (ads, odds, separators)
+    _GARBAGE_PATTERNS = re.compile(
+        r"^\s*$"                     # empty/whitespace
+        r"|^\W+$"                    # only non-word chars ("- -", "---")
+        r"|^#\d+"                    # ad anchors ("#100 FREE $20")
+        r"|\$\d+"                    # dollar amounts
+        r"|FREE|Sign Up|PICKSWISE"   # ad keywords
+        r"|\[VIDEO\]"               # media tags
+        r"|^\d[\d\s.]+$"            # pure numbers/odds ("1.03 11.00 23.00")
+        r"|Bet \$"                   # betting promos
+        r"|Get \$"                   # promo text
+        r"|Bonus Bets"               # promo text
+        , re.IGNORECASE
+    )
+
     def __init__(self, conn: sqlite3.Connection):
         self.conn = conn
+
+    @classmethod
+    def _is_valid_team_name(cls, name: str) -> bool:
+        """Return False for names that are clearly scraped garbage."""
+        if not name or len(name.strip()) < 2:
+            return False
+        if cls._GARBAGE_PATTERNS.search(name):
+            return False
+        return True
 
     def find_or_create(
         self, name: str, sport_id: int, aliases: list[str] | None = None
     ) -> Team:
-        """Find team by name or any alias. Create if not found."""
+        """Find team by name or any alias. Create if not found.
+
+        Rejects clearly invalid names (ads, odds strings, promo text)
+        to prevent polluting the teams table with scraped garbage.
+        """
         existing = self.resolve(name, sport_id)
         if existing:
             return existing
+        if not self._is_valid_team_name(name):
+            raise ValueError(
+                f"Rejected garbage team name: {name!r} — "
+                "likely scraped ad text, odds, or separator"
+            )
         alias_json = json.dumps(aliases or [])
         cur = self.conn.execute(
             "INSERT INTO teams (sport_id, name, aliases) VALUES (?, ?, ?)",

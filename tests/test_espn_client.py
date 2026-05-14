@@ -501,3 +501,25 @@ class TestESPNClientRegistry:
         assert isinstance(client, ESPNClient)
         assert client.sport == "football"
         assert client.league == "eng.1"
+
+class TestCompetitionMapping:
+    """Test ESPN competition mapping."""
+
+    def test_competition_mapping(self):
+        from bet.api_clients.espn import get_espn_league_for_competition
+        
+        # Exact match works
+        assert get_espn_league_for_competition("premier league") == "eng.1"
+        
+        # Fuzzy matches
+        assert get_espn_league_for_competition("PKO BP Ekstraklasa") == "pol.1"
+        assert get_espn_league_for_competition("La Liga EA Sports") == "esp.1"
+        assert get_espn_league_for_competition("English Premier League") == "eng.1"
+        
+        # No match
+        assert get_espn_league_for_competition("Xyzzy League") is None
+        
+        # Empty
+        assert get_espn_league_for_competition("") is None
+        assert get_espn_league_for_competition(None) is None
+

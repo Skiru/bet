@@ -34,6 +34,11 @@ class SofascoreClient(BaseAPIClient):
     _stealth_circuit_open = False
     _STEALTH_FAILURE_THRESHOLD = 2  # After 2 failures, stop trying stealth
 
+    # Shared Playwright browser — reused across fallback requests to avoid
+    # expensive per-request browser launches (~3-5s each).
+    _pw_instance = None
+    _pw_browser = None
+
     @staticmethod
     def _is_sofascore_id(event_id: str) -> bool:
         """Return True only for numeric-only strings (valid Sofascore event IDs)."""
@@ -112,6 +117,14 @@ class SofascoreClient(BaseAPIClient):
             except Exception:
                 pass
         
+        # Reuse shared browser instance to avoid expensive per-request launches
+        if SofascoreClient._pw_browser is None:
+            SofascoreClient._pw_instance = sync_playwright().start()
+            SofascoreClient._pw_browser = SofascoreClient._pw_instance.chromium.launch(
+                headless=True, args=BROWSER_ARGS,
+            )
+        browser = SofascoreClient._pw_browser
+        
         # Build the schedule page URL from the API endpoint
         # /sport/{sport}/scheduled-events/{date} → sofascore.com/{sport}/{date}
         schedule_url = None
@@ -125,147 +138,151 @@ class SofascoreClient(BaseAPIClient):
         event_match = re.match(r"event/(\d+)/", api_path)
         event_id = event_match.group(1) if event_match else None
             
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True, args=BROWSER_ARGS)
+        for attempt, backoff in enumerate([5, 12], 1):
+            captured_data = {}
+            ua = random.choice(USER_AGENTS)
+            context = browser.new_context(
+                user_agent=ua,
+                viewport={"width": 1440, "height": 900},
+                locale="en-US",
+            )
+            page = context.new_page()
+            Stealth().apply_stealth_sync(page)
             
-            for attempt, backoff in enumerate([5, 12], 1):
-                captured_data = {}
-                ua = random.choice(USER_AGENTS)
-                context = browser.new_context(
-                    user_agent=ua,
-                    viewport={"width": 1440, "height": 900},
-                    locale="en-US",
-                )
-                page = context.new_page()
-                Stealth().apply_stealth_sync(page)
-                
-                # Set up response interceptor for API calls
-                all_api_responses = []
-                
-                def handle_response(response):
-                    resp_url = response.url
-                    # Capture ALL Sofascore API responses
-                    if "api.sofascore.com" in resp_url and response.status == 200:
-                        try:
-                            json_data = response.json()
-                            all_api_responses.append({"url": resp_url, "json": json_data})
-                            # Check if this is the one we want
-                            if api_path in resp_url:
-                                captured_data["json"] = json_data
-                                captured_data["url"] = resp_url
-                                logger.info(f"[Sofascore stealth] Captured target: {resp_url[:100]}")
-                            else:
-                                logger.debug(f"[Sofascore stealth] Captured other: {resp_url[:100]}")
-                        except Exception:
-                            pass
-                
-                page.on("response", handle_response)
-                
-                try:
-                    # Navigate to the appropriate Sofascore page
-                    if schedule_url:
-                        nav_url = schedule_url
-                    elif event_id:
-                        nav_url = f"https://www.sofascore.com/event/{event_id}"
-                    else:
-                        raise APIError(f"Sofascore stealth: no valid navigation target for path '{api_path}'")
-                    
-                    logger.info(f"[Sofascore stealth] Attempt {attempt}: navigating to {nav_url}")
-                    page.goto(nav_url, wait_until="domcontentloaded", timeout=25000)
-                    
-                    # Wait for JS hydration + API calls
-                    page.wait_for_timeout(6000)
-                    
-                    # Handle Cloudflare challenge
-                    content = page.content()
-                    if "Just a moment" in content:
-                        logger.info("[Sofascore stealth] Cloudflare challenge, waiting 8s...")
-                        page.wait_for_timeout(8000)
-                    
-                    # Check if we already captured API data during page load
-                    if captured_data.get("json"):
-                        logger.info(f"[Sofascore stealth] Intercepted during load: {captured_data.get('url', '?')[:80]}")
-                        result = captured_data["json"]
-                        _safe_close(context)
-                        browser.close()
-                        return result
-                    
-                    # Wait more — Sofascore may lazy-load after hydration
-                    page.wait_for_timeout(5000)
-                    
-                    if captured_data.get("json"):
-                        logger.info(f"[Sofascore stealth] Intercepted after wait")
-                        result = captured_data["json"]
-                        _safe_close(context)
-                        browser.close()
-                        return result
-                    
-                    # Try scrolling to trigger lazy loading
-                    page.evaluate("window.scrollBy(0, 500)")
-                    page.wait_for_timeout(3000)
-                    
-                    if captured_data.get("json"):
-                        logger.info(f"[Sofascore stealth] Intercepted after scroll")
-                        result = captured_data["json"]
-                        _safe_close(context)
-                        browser.close()
-                        return result
-                    
-                    # Last resort: check all captured API responses
-                    logger.info(f"[Sofascore stealth] No exact match for {api_path}. Captured {len(all_api_responses)} API responses.")
-                    for resp in all_api_responses:
-                        logger.info(f"  - {resp['url'][:120]}")
-                    
-                    # Try to find events in any captured response
-                    for resp in all_api_responses:
-                        if "events" in resp.get("json", {}):
-                            logger.info(f"[Sofascore stealth] Found events in: {resp['url'][:100]}")
-                            result = resp["json"]
-                            _safe_close(context)
-                            browser.close()
-                            return result
-                    
-                    # Fallback: try __NEXT_DATA__ from SSR (has event data on event pages)
+            # Set up response interceptor for API calls
+            all_api_responses = []
+            
+            def handle_response(response):
+                resp_url = response.url
+                # Capture ALL Sofascore API responses
+                if "api.sofascore.com" in resp_url and response.status == 200:
                     try:
-                        next_data = page.evaluate("""() => {
-                            const el = document.getElementById('__NEXT_DATA__');
-                            return el ? JSON.parse(el.textContent) : null;
-                        }""")
-                        if next_data:
-                            logger.info(f"[Sofascore stealth] Extracted __NEXT_DATA__ (keys: {list(next_data.get('props',{}).get('pageProps',{}).keys())[:5]})")
-                            _safe_close(context)
-                            browser.close()
-                            return next_data
+                        json_data = response.json()
+                        all_api_responses.append({"url": resp_url, "json": json_data})
+                        # Check if this is the one we want
+                        if api_path in resp_url:
+                            captured_data["json"] = json_data
+                            captured_data["url"] = resp_url
+                            logger.info(f"[Sofascore stealth] Captured target: {resp_url[:100]}")
+                        else:
+                            logger.debug(f"[Sofascore stealth] Captured other: {resp_url[:100]}")
                     except Exception:
                         pass
-                    
-                    logger.warning(f"[Sofascore stealth] No API response captured on attempt {attempt}")
-                    SofascoreClient._stealth_failures += 1
-                    if SofascoreClient._stealth_failures >= SofascoreClient._STEALTH_FAILURE_THRESHOLD:
-                        SofascoreClient._stealth_circuit_open = True
-                        logger.warning(f"[Sofascore stealth] Circuit breaker OPEN after {SofascoreClient._stealth_failures} failures")
-                    _safe_close(context)
-                    if attempt < 2:
-                        time.sleep(backoff)
-                        continue
-                    browser.close()
-                    raise APIError(f"Sofascore stealth: no data intercepted for {api_path}")
-                    
-                except (APIError, APINotFoundError):
-                    raise
-                except Exception as e:
-                    logger.warning(f"[Sofascore stealth] Attempt {attempt} error: {e}")
-                    _safe_close(context)
-                    if attempt < 2:
-                        time.sleep(backoff)
-                        continue
-                    browser.close()
-                    raise APIError(f"Sofascore stealth failed: {e}")
-                finally:
-                    _safe_close(context)
             
-            browser.close()
-            raise APIError(f"Sofascore stealth exhausted retries for {full_url}")
+            page.on("response", handle_response)
+            
+            try:
+                # Navigate to the appropriate Sofascore page
+                if schedule_url:
+                    nav_url = schedule_url
+                elif event_id:
+                    nav_url = f"https://www.sofascore.com/event/{event_id}"
+                else:
+                    raise APIError(f"Sofascore stealth: no valid navigation target for path '{api_path}'")
+                
+                logger.info(f"[Sofascore stealth] Attempt {attempt}: navigating to {nav_url}")
+                page.goto(nav_url, wait_until="domcontentloaded", timeout=25000)
+                
+                # Wait for JS hydration + API calls
+                page.wait_for_timeout(6000)
+                
+                # Handle Cloudflare challenge
+                content = page.content()
+                if "Just a moment" in content:
+                    logger.info("[Sofascore stealth] Cloudflare challenge, waiting 8s...")
+                    page.wait_for_timeout(8000)
+                
+                # Check if we already captured API data during page load
+                if captured_data.get("json"):
+                    logger.info(f"[Sofascore stealth] Intercepted during load: {captured_data.get('url', '?')[:80]}")
+                    result = captured_data["json"]
+                    _safe_close(context)
+                    return result
+                
+                # Wait more — Sofascore may lazy-load after hydration
+                page.wait_for_timeout(5000)
+                
+                if captured_data.get("json"):
+                    logger.info(f"[Sofascore stealth] Intercepted after wait")
+                    result = captured_data["json"]
+                    _safe_close(context)
+                    return result
+                
+                # Try scrolling to trigger lazy loading
+                page.evaluate("window.scrollBy(0, 500)")
+                page.wait_for_timeout(3000)
+                
+                if captured_data.get("json"):
+                    logger.info(f"[Sofascore stealth] Intercepted after scroll")
+                    result = captured_data["json"]
+                    _safe_close(context)
+                    return result
+                
+                # Last resort: check all captured API responses
+                logger.info(f"[Sofascore stealth] No exact match for {api_path}. Captured {len(all_api_responses)} API responses.")
+                for resp in all_api_responses:
+                    logger.info(f"  - {resp['url'][:120]}")
+                
+                # Try to find events in any captured response
+                for resp in all_api_responses:
+                    if "events" in resp.get("json", {}):
+                        logger.info(f"[Sofascore stealth] Found events in: {resp['url'][:100]}")
+                        result = resp["json"]
+                        _safe_close(context)
+                        return result
+                
+                # Fallback: try __NEXT_DATA__ from SSR (has event data on event pages)
+                try:
+                    next_data = page.evaluate("""() => {
+                        const el = document.getElementById('__NEXT_DATA__');
+                        return el ? JSON.parse(el.textContent) : null;
+                    }""")
+                    if next_data:
+                        logger.info(f"[Sofascore stealth] Extracted __NEXT_DATA__ (keys: {list(next_data.get('props',{}).get('pageProps',{}).keys())[:5]})")
+                        _safe_close(context)
+                        return next_data
+                except Exception:
+                    pass
+                
+                logger.warning(f"[Sofascore stealth] No API response captured on attempt {attempt}")
+                SofascoreClient._stealth_failures += 1
+                if SofascoreClient._stealth_failures >= SofascoreClient._STEALTH_FAILURE_THRESHOLD:
+                    SofascoreClient._stealth_circuit_open = True
+                    logger.warning(f"[Sofascore stealth] Circuit breaker OPEN after {SofascoreClient._stealth_failures} failures")
+                _safe_close(context)
+                if attempt < 2:
+                    time.sleep(backoff)
+                    continue
+                raise APIError(f"Sofascore stealth: no data intercepted for {api_path}")
+                
+            except (APIError, APINotFoundError):
+                _safe_close(context)
+                raise
+            except Exception as e:
+                logger.warning(f"[Sofascore stealth] Attempt {attempt} error: {e}")
+                _safe_close(context)
+                if attempt < 2:
+                    time.sleep(backoff)
+                    continue
+                raise APIError(f"Sofascore stealth failed: {e}")
+
+        raise APIError(f"Sofascore stealth exhausted retries for {full_url}")
+
+    @classmethod
+    def close_playwright(cls):
+        """Clean up shared Playwright browser resources."""
+        if cls._pw_browser:
+            try:
+                cls._pw_browser.close()
+            except Exception:
+                pass
+            cls._pw_browser = None
+        if cls._pw_instance:
+            try:
+                cls._pw_instance.stop()
+            except Exception:
+                pass
+            cls._pw_instance = None
 
     # -------- REQUIRED INTERFACE IMPLEMENTATIONS --------
 

@@ -327,7 +327,7 @@ class ESPNClient(BaseAPIClient):
     hockey (NHL), tennis, and volleyball.
     """
 
-    ESPN_BASE = "http://site.api.espn.com/apis/site/v2/sports"
+    ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports"
 
     def __init__(self, sport: str = "football", league: str = "eng.1", rate_limiter: RateLimiter | None = None):
         """Initialize ESPN client for a specific sport and league.
@@ -1341,4 +1341,20 @@ def get_espn_league_for_competition(competition_name: str) -> str | None:
     if not competition_name:
         return None
     name_lower = competition_name.lower().strip()
-    return COMPETITION_TO_ESPN_LEAGUE.get(name_lower)
+    
+    # 1. Exact match
+    if name_lower in COMPETITION_TO_ESPN_LEAGUE:
+        return COMPETITION_TO_ESPN_LEAGUE[name_lower]
+        
+    # 2 & 3. Substring match
+    matches = []
+    for key, code in COMPETITION_TO_ESPN_LEAGUE.items():
+        if key in name_lower or name_lower in key:
+            matches.append((key, code))
+            
+    if matches:
+        # Sort by length descending, pick the longest match
+        matches.sort(key=lambda x: len(x[0]), reverse=True)
+        return matches[0][1]
+        
+    return None

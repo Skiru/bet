@@ -176,7 +176,11 @@ class BetExplorerClient(BaseAPIClient):
         return []
 
     def get_fixture_stats(self, fixture_id: str) -> list:
+        """Not supported — BetExplorer provides odds, not match stats."""
+        logger.debug(f"[BetExplorer] get_fixture_stats not supported (id={fixture_id})")
         return []
 
     def get_h2h(self, team1_id: str, team2_id: str, last_n: int = 10) -> list[dict]:
+        """Not supported — use Flashscore or ESPN for H2H data."""
+        logger.debug(f"[BetExplorer] get_h2h not supported ({team1_id} vs {team2_id})")
         return []

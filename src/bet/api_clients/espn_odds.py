@@ -171,7 +171,7 @@ class ESPNOddsClient:
         slug = self._sport_slug(sport)
         date_compact = date.replace("-", "")
         scoreboard_url = (
-            f"http://site.api.espn.com/apis/site/v2/sports/{slug}/{league}/scoreboard"
+            f"https://site.api.espn.com/apis/site/v2/sports/{slug}/{league}/scoreboard"
         )
         sb_data = self._request(scoreboard_url, params={"dates": date_compact})
         if not sb_data:
