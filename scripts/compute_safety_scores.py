@@ -514,10 +514,13 @@ def rank_markets(data: dict) -> dict:
             safety = round(rate_l10 * penalty, 2)
 
         # ONE-SIDED penalty: when one team has zero data in a combined market,
-        # the safety score is less reliable — apply 0.70 penalty (same as H2H-missing)
+        # the combined average is unreliable — hard cap at 0.40.
+        # Post-mortem 2026-05-13: 0.70 multiplier was too weak (allowed 0.56
+        # for Lens corners when PSG data was missing → lost bet).
         one_sided = market.get("one_sided", False)
         if one_sided:
-            safety = round(safety * 0.70, 2)
+            ONE_SIDED_SAFETY_CAP = 0.40
+            safety = min(round(safety * 0.70, 2), ONE_SIDED_SAFETY_CAP)
 
         # LINE REASONABLENESS CHECK: flag when line is far from data average.
         # If line < 50% of avg or line > 200% of avg, cap safety at 0.50.
@@ -649,6 +652,26 @@ def rank_markets(data: dict) -> dict:
                 if is_one_sided:
                     reasons.append("one-sided data")
                 r["evidence_cap_reason"] = "; ".join(reasons)
+
+    # --- Pattern I: Small sample cap (May 2026 post-mortem, bug #4) ---
+    # When L10 has < 8 data points, safety is unreliable regardless of computed
+    # value. WNBA Toronto Tempo had 7 games treated as reliable → lost bet.
+    SMALL_SAMPLE_THRESHOLD = 8
+    SMALL_SAMPLE_SAFETY_CAP = 0.50
+    for r in results:
+        l10_str = r.get("hit_rate_l10", "0/0")
+        try:
+            total_l10 = int(l10_str.split("/")[1]) if "/" in str(l10_str) else 0
+        except (ValueError, IndexError):
+            total_l10 = 0
+        if 0 < total_l10 < SMALL_SAMPLE_THRESHOLD and r["safety_score"] > SMALL_SAMPLE_SAFETY_CAP:
+            r.setdefault("original_safety", r["safety_score"])
+            r["safety_score"] = SMALL_SAMPLE_SAFETY_CAP
+            r["small_sample_capped"] = True
+            r["small_sample_reason"] = (
+                f"only {total_l10} L10 games (need ≥{SMALL_SAMPLE_THRESHOLD}) — "
+                f"safety capped {r.get('original_safety', '?'):.2f} → {SMALL_SAMPLE_SAFETY_CAP}"
+            )
 
     # Sort by safety score (desc), margin as tiebreaker (desc)
     results.sort(key=lambda x: (x["safety_score"], x["margin"]), reverse=True)

@@ -1417,6 +1417,60 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
     for c in candidates:
         c["kickoff"] = normalize_kickoff(c.get("kickoff", ""), date)
 
+    # --- Dedup: same match from multiple sources with different name spellings ---
+    # Post-mortem 2026-05-13: "RC Lens vs Paris Saint Germain", "Lens vs Paris Saint-Germain",
+    # "Lens vs PSG" appeared as 3 separate analysis_results with CONTRADICTORY recommendations.
+    # Fix: normalize team names and keep only the first (highest-data) occurrence per matchup.
+    import unicodedata as _ud
+
+    def _dedup_key(name: str) -> str:
+        """Normalize team name for dedup: lowercase, strip accents, remove FC/SC/etc."""
+        s = _ud.normalize("NFKD", name.lower().strip()).encode("ascii", "ignore").decode()
+        for remove in ["fc ", "sc ", "bc ", "ac ", " fc", " sc", " bc", " cf",
+                        "rc ", " rc", " sk", " fk"]:
+            s = s.replace(remove, " ")
+        s = re.sub(r"[^a-z0-9 ]", "", s)
+        s = re.sub(r"\s+", " ", s).strip()
+        return s
+
+    seen_matchups: set[str] = set()
+    deduped_candidates: list[dict] = []
+    dedup_dropped = 0
+    for c in candidates:
+        h = _dedup_key(c.get("home_team", ""))
+        a = _dedup_key(c.get("away_team", ""))
+        sport = c.get("sport", "").lower()
+        key1 = f"{sport}|{h}|{a}"
+        key2 = f"{sport}|{a}|{h}"
+        # Also check substring match (e.g., "lens" in "rc lens")
+        is_dup = key1 in seen_matchups or key2 in seen_matchups
+        if not is_dup:
+            for existing in seen_matchups:
+                ep = existing.split("|", 2)
+                if len(ep) != 3 or ep[0] != sport:
+                    continue
+                eh, ea = ep[1], ep[2]
+                h_match = (h in eh or eh in h) and len(h) >= 4 and len(eh) >= 4
+                a_match = (a in ea or ea in a) and len(a) >= 4 and len(ea) >= 4
+                if h_match and a_match:
+                    is_dup = True
+                    break
+                # Check swapped
+                h_match_r = (h in ea or ea in h) and len(h) >= 4 and len(ea) >= 4
+                a_match_r = (a in eh or eh in a) and len(a) >= 4 and len(eh) >= 4
+                if h_match_r and a_match_r:
+                    is_dup = True
+                    break
+        if is_dup:
+            dedup_dropped += 1
+            continue
+        seen_matchups.add(key1)
+        deduped_candidates.append(c)
+
+    if dedup_dropped:
+        print(f"[deep_stats] Dedup: removed {dedup_dropped} duplicate fixtures (different name spellings)")
+    candidates = deduped_candidates
+
     if not candidates:
         print(f"[deep_stats] No candidates found from {source}")
         return {

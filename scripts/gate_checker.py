@@ -395,6 +395,49 @@ def _check_data_quality(c: dict) -> tuple[bool, str]:
     return True, ""
 
 
+def _check_odds_safety_gap(c: dict) -> tuple[bool, str]:
+    """Gate #19: ODDS vs SAFETY DISAGREEMENT — flag when market-implied prob
+    and model safety diverge by >15 percentage points.
+
+    Post-mortem 2026-05-13: Lens corners @2.67 (37.5% implied) vs safety 0.63
+    (63% model) = 25.5pt gap. Pipeline never flagged this → lost bet.
+    """
+    best = c.get("best_market") or {}
+    safety = best.get("safety_score")
+    if safety is None:
+        return True, "no safety score — skipped"
+
+    # Try to get odds from multiple sources
+    odds_val = None
+    odds_data = c.get("odds", {})
+    if isinstance(odds_data, dict):
+        odds_val = odds_data.get("current") or odds_data.get("market_best") or odds_data.get("betclic")
+    if odds_val is None:
+        odds_val = c.get("best_odds")
+    if odds_val is None:
+        return True, "STATS-FIRST: no odds available, gap not checkable"
+
+    try:
+        odds_val = float(odds_val)
+    except (TypeError, ValueError):
+        return True, f"odds not numeric: {odds_val}"
+
+    if odds_val <= 1.0:
+        return True, f"odds={odds_val} invalid (≤1.0)"
+
+    implied_prob = 1.0 / odds_val
+    gap = abs(safety - implied_prob)
+
+    if gap > 0.15:
+        direction = "OVERCONFIDENT" if safety > implied_prob else "UNDERCONFIDENT"
+        return False, (
+            f"ODDS-SAFETY GAP {gap:.1%}: safety={safety:.2f} ({safety:.0%}) vs "
+            f"odds={odds_val:.2f} (implied {implied_prob:.0%}) — model is {direction}. "
+            f"Verify line/odds alignment on Betclic before placing."
+        )
+    return True, f"gap={gap:.1%} (within 15% threshold)"
+
+
 # Ordered gate check functions
 GATE_CHECKS = {
     "1": _check_identity,
@@ -415,6 +458,7 @@ GATE_CHECKS = {
     "16": _check_h2h_stat_specific,
     "17": _check_three_way,
     "18": _check_data_quality,
+    "19": _check_odds_safety_gap,
 }
 
 # Checks that require repeat_losses parameter
@@ -508,6 +552,34 @@ def check_red_flags(candidate: dict) -> list[str]:
             f"FLAG ZT#20: SYNTHETIC data source (safety {safety:.2f} > 0.50 cap) — "
             f"fabricated L10 values, no real per-match data"
         )
+
+    # ZT#23: Opponent quality adjustment (post-mortem 2026-05-13)
+    # When betting on stat markets (corners, fouls, shots) vs elite opponent,
+    # raw L10 averages are misleading — those were earned against average opposition.
+    # Check standings if available.
+    _stat_market_keywords = ("corner", "foul", "card", "shot", "sot", "attacks")
+    is_stat_market = any(kw in market_name for kw in _stat_market_keywords)
+    if is_stat_market:
+        try:
+            from bet.db.connection import get_db
+            with get_db() as conn:
+                for team_field in ("home_team", "away_team"):
+                    opp_name = candidate.get(team_field, "")
+                    if not opp_name:
+                        continue
+                    row = conn.execute(
+                        "SELECT position FROM standings WHERE LOWER(team_name) LIKE ? "
+                        "ORDER BY position ASC LIMIT 1",
+                        (f"%{opp_name.lower()}%",),
+                    ).fetchone()
+                    if row and row[0] is not None and int(row[0]) <= 5:
+                        flags.append(
+                            f"FLAG ZT#23: stat market ({market_name}) vs elite opponent "
+                            f"{opp_name} (#{row[0]} in standings) — raw L10 averages "
+                            f"were earned vs avg opposition, expect suppression"
+                        )
+        except Exception:
+            pass  # DB unavailable — skip check
 
     return flags
 
