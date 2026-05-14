@@ -114,10 +114,29 @@ min_acceptable_odds = 1 / P(hit)
 > **YOU run the script. YOU think. YOU validate. YOU return a verdict.**
 > The orchestrator does NOT run `deep_stats_report.py` — that's YOUR responsibility.
 
-**Step 1: RUN the script:**
+**Step 0: INSPECT inputs (pylanceRunCodeSnippet — BEFORE running script):**
+```python
+import json, os, sqlite3
+# Verify enrichment data exists for today (R18)
+conn = sqlite3.connect("betting/data/betting.db")
+cur = conn.cursor()
+cur.execute("SELECT COUNT(*) FROM team_form WHERE updated_at >= date('now')")
+print(f"team_form rows today: {cur.fetchone()[0]}")
+cur.execute("SELECT sport, COUNT(*) FROM team_form WHERE updated_at >= date('now') GROUP BY sport")
+for row in cur.fetchall(): print(f"  {row[0]}: {row[1]}")
+conn.close()
+# Check shortlist file
+import glob
+files = glob.glob(f"betting/data/{date}*shortlist*")
+print(f"Shortlist files: {files}")
+```
+
+**Step 1: RUN the script (mode=async, timeout=600000):**
 ```bash
 PYTHONPATH=src python3 scripts/deep_stats_report.py --date {date} --shortlist betting/data/{date_shortlist_file} --top 200 --verbose 2>&1
 ```
+**⛔ MUST use mode=async. THINK-WHILE-WAITING:** Use `sequentialthinking` to pre-analyze enrichment output quality per candidate, pre-load sport protocols, assess data depth.
+
 Parse the `AGENT_SUMMARY:{json}` line from script output — it contains structured verdict, per-candidate metrics, and issues.
 
 **Step 2: THINK about the output** (use sequentialthinking per candidate):
@@ -129,9 +148,18 @@ The script produces RAW DATA (safety scores, market rankings, probabilities). Yo
 - **Narrative coherence**: Does the edge align with tactics, motivation, context?
 - **ANALYTICAL REASONING** per candidate (PRIMARY output — tables are secondary)
 
-**Step 3: VALIDATE:**
-```
-# Validation: Use sequentialthinking to check data depth, market coverage, three-way cross-check alignment
+**Step 3: VALIDATE outputs (pylanceRunCodeSnippet):**
+```python
+import json, os
+# Verify deep stats output exists and has expected structure
+import glob
+output_files = glob.glob(f"betting/data/{date}*deep_stats*") + glob.glob(f"betting/data/{date}*s3*")
+for f in output_files:
+    data = json.load(open(f))
+    if isinstance(data, list):
+        print(f"{f}: {len(data)} candidates")
+        scored = sum(1 for c in data if isinstance(c, dict) and 'safety_score' in c)
+        print(f"  With safety_score: {scored}")
 ```
 
 **Step 4: RETURN verdict:** APPROVED/FLAGGED/REJECTED + quality_score (1-10) + specific_issues[]

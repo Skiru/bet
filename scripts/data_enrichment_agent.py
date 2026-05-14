@@ -1129,7 +1129,7 @@ def _try_client_enrichment(team_name: str, sport: str) -> tuple[dict, str | None
         # Try to get stats from the most recent fixture
         stats = {}
         for row in rows:
-            event_id = row["external_id"] if isinstance(row, dict) else row[0]
+            event_id = row["external_id"]
             if not event_id:
                 continue
             
@@ -1279,7 +1279,7 @@ def enrich_team(team_name: str, sport: str, max_retries: int = 2) -> dict:
                                 (team.id, team.id)
                             ).fetchall()
                             for row in rows:
-                                event_id = row["external_id"] if isinstance(row, dict) else row[0]
+                                event_id = row["external_id"]
                                 # TotalCorner IDs from get_fixtures() are valid for get_corner_predictions()
                                 corner_data = tc_client.get_corner_predictions(event_id)
                                 if corner_data:
@@ -1335,11 +1335,15 @@ def enrich_team(team_name: str, sport: str, max_retries: int = 2) -> dict:
                             (team.id, team.id)
                         ).fetchall()
                         for row in rows:
-                            event_id = row["external_id"] if isinstance(row, dict) else row[0]
-                            # Scores24 external_ids from get_fixtures() have format "s24-{slug}"
-                            # Construct detail URL from the slug
-                            slug = event_id.removeprefix("s24-")
-                            detail_url = f"/en/{sport}/match/{slug}"
+                            event_id = row["external_id"]
+                            # Scores24 external_ids come in two formats:
+                            # 1. Href path: "/en/football/match/123-team1-vs-team2" → use directly
+                            # 2. Synthetic key: "s24-team1_team2" → NOT a valid URL, skip
+                            if event_id.startswith('/'):
+                                detail_url = event_id  # Already a valid Scores24 path
+                            else:
+                                logger.debug(f"[Scores24] Skipping non-URL external_id: {event_id}")
+                                continue
                             trends = s24_client.get_trends(detail_url)
                             if trends:
                                 stats_repo = StatsRepo(conn)

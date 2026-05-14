@@ -62,10 +62,26 @@ Load these skills before starting:
 > **YOU run the odds scripts. YOU reason about pricing. YOU return a verdict.**
 > The orchestrator does NOT run odds evaluation — that's YOUR responsibility.
 
-**Step 1: RUN odds evaluation:**
+**Step 0: INSPECT inputs (pylanceRunCodeSnippet — BEFORE running odds eval):**
+```python
+import json, os, glob
+# Verify S3 deep stats data exists (odds eval needs safety scores + P(hit))
+s3_files = glob.glob(f"betting/data/{date}*deep_stats*") + glob.glob(f"betting/data/{date}*s3*")
+print(f"S3 files: {s3_files}")
+# Check existing odds data
+odds_files = glob.glob("betting/data/odds_api_snapshot.json") + glob.glob("betting/data/odds_multi*")
+for f in odds_files:
+    if os.path.exists(f):
+        size = os.path.getsize(f)
+        print(f"  {f}: {size} bytes")
+```
+
+**Step 1: RUN odds evaluation (mode=async, timeout=300000):**
 ```bash
 PYTHONPATH=src python3 scripts/odds_evaluator.py --date {date} --verbose 2>&1
 ```
+**⛔ MUST use mode=async. THINK-WHILE-WAITING:** Use `sequentialthinking` to pre-load safety scores from S3, identify strongest stat edges, prepare mispricing hypotheses.
+
 Parse the `AGENT_SUMMARY:{json}` line from script output — it contains total candidates, EV counts, and coverage metrics.
 
 **Step 2: Fetch fresh cross-validation odds (optional — if credits available):**

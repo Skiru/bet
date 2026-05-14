@@ -63,10 +63,31 @@ Impact: 42 FULL + 15 PARTIAL for S3. Hockey candidates need extra safety score c
 > **YOU run the script. YOU assess quality. YOU return a verdict.**
 > The orchestrator does NOT run `data_enrichment_agent.py` — that's YOUR responsibility.
 
-**Step 1: RUN the enrichment script:**
+**Step 0: INSPECT inputs (pylanceRunCodeSnippet — BEFORE running script):**
+```python
+import json, os, sqlite3
+# Verify shortlist exists and has expected format (R18)
+path = f"betting/data/{date}_s2_shortlist.json"
+if os.path.exists(path):
+    data = json.load(open(path))
+    print(f"Shortlist: {len(data)} candidates")
+    print(f"Keys: {list(data[0].keys())[:6]}" if data else "EMPTY")
+else:
+    print(f"MISSING: {path} — CANNOT RUN ENRICHMENT")
+# Check DB team_form baseline
+conn = sqlite3.connect("betting/data/betting.db")
+cur = conn.cursor()
+cur.execute("SELECT COUNT(*) FROM team_form")
+print(f"team_form rows before enrichment: {cur.fetchone()[0]}")
+conn.close()
+```
+
+**Step 1: RUN the enrichment script (mode=async, timeout=600000):**
 ```bash
 PYTHONPATH=src python3 scripts/data_enrichment_agent.py --date {date} --verbose 2>&1
 ```
+**⛔ MUST use mode=async. THINK-WHILE-WAITING:** Use `sequentialthinking` to analyze shortlist data quality, check which teams already have form data, identify likely gap candidates.
+
 Parse the `AGENT_SUMMARY:{json}` line from script output — it contains enrichment yield, per-sport data quality, and gap details.
 
 **Step 2: VALIDATE with phase checker:**
@@ -81,7 +102,20 @@ python3 scripts/validate_phase.py --date {date} --phase data --format json 2>&1
 - **Fallback chain effectiveness**: Which sources failed? Why?
 - **Gap triage**: Prioritize remaining gaps by impact on S3 analysis
 
-**Step 4: RETURN verdict:** APPROVED (yield ≥60%) / FLAGGED (40-60%) / REJECTED (<40%) + yield_percentage + gaps[]
+**Step 4: VALIDATE outputs (pylanceRunCodeSnippet — BEFORE returning verdict):**
+```python
+import sqlite3
+conn = sqlite3.connect("betting/data/betting.db")
+cur = conn.cursor()
+cur.execute("SELECT COUNT(*) FROM team_form WHERE updated_at >= date('now')")
+print(f"team_form rows updated today: {cur.fetchone()[0]}")
+cur.execute("SELECT sport, COUNT(*) FROM team_form WHERE updated_at >= date('now') GROUP BY sport")
+for row in cur.fetchall(): print(f"  {row[0]}: {row[1]}")
+conn.close()
+```
+**If DB writes are 0 but script reported success → data flow break (R18). Investigate before returning.**
+
+**Step 5: RETURN verdict:** APPROVED (yield ≥60%) / FLAGGED (40-60%) / REJECTED (<40%) + yield_percentage + gaps[]
 
 ## Context (provided by orchestrator)
 

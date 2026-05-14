@@ -60,6 +60,26 @@ Load these skills before starting:
 > **YOU run the scripts. YOU read full arguments. YOU assess quality. YOU return a verdict.**
 > The orchestrator pre-fetches tipster data in S1b via `tipster_aggregator.py`. YOUR job is to run `tipster_xref.py` for cross-reference, then perform intelligence analysis.
 
+**Step 0: INSPECT inputs (pylanceRunCodeSnippet — BEFORE running scripts):**
+```python
+import json, os, glob
+# Verify tipster consensus from S1b pre-fetch
+files = glob.glob(f"betting/data/{date}_tipster_consensus.*")
+print(f"Tipster files: {files}")
+for f in files:
+    if f.endswith('.json'):
+        data = json.load(open(f))
+        if isinstance(data, dict):
+            print(f"  Keys: {list(data.keys())[:5]}")
+            tips = data.get('all_picks', data.get('tips', []))
+            print(f"  Tips count: {len(tips)}")
+        elif isinstance(data, list):
+            print(f"  Tips count: {len(data)}")
+# Check shortlist for cross-reference
+shortlist = glob.glob(f"betting/data/{date}*shortlist*")
+print(f"Shortlist files: {shortlist}")
+```
+
 **Step 1: VERIFY tipster data from S1b pre-fetch:**
 ```bash
 ls -la betting/data/{date}_tipster_consensus.* 2>&1

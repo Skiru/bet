@@ -64,10 +64,28 @@ Load these skills before starting:
 > **YOU run the scripts. YOU think strategically. YOU validate. YOU return a verdict.**
 > The orchestrator does NOT run `coupon_builder.py` — that's YOUR responsibility.
 
-**Step 1: RUN coupon builder:**
+**Step 0: INSPECT inputs (pylanceRunCodeSnippet — BEFORE running coupon builder):**
+```python
+import json, os, glob
+# Verify gate results exist (portfolio depends on S7)
+gate_files = glob.glob(f"betting/data/{date}*gate*") + glob.glob(f"betting/data/{date}*s7*")
+print(f"Gate files: {gate_files}")
+for f in gate_files:
+    if f.endswith('.json'):
+        data = json.load(open(f))
+        if isinstance(data, list):
+            print(f"  {f}: {len(data)} candidates")
+# Check bankroll config
+config = json.load(open("config/betting_config.json"))
+print(f"Bankroll: {config.get('bankroll')} | Daily cap: {config.get('daily_cap', config.get('daily_budget'))}")
+```
+
+**Step 1: RUN coupon builder (mode=async, timeout=300000):**
 ```bash
 PYTHONPATH=src python3 scripts/coupon_builder.py --date {date} --verbose 2>&1
 ```
+**⛔ MUST use mode=async. THINK-WHILE-WAITING:** Use `sequentialthinking` to review gate results, check bankroll config, prepare portfolio intelligence.
+
 Parse the `AGENT_SUMMARY:{json}` line from script output — it contains spend/return metrics, coupon count, and issues.
 
 **Step 2: RUN validation:**

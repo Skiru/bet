@@ -143,7 +143,8 @@ Gemini features are ADDITIVE — they enhance the pipeline behind feature flags.
 
 **What YOU do between steps:**
 - Use `sequentialthinking` to evaluate the agent's verdict — do you agree? Any red flags?
-- Check that methodology rules (R1-R19) are respected in the agent's output
+- Use `pylanceRunCodeSnippet` to VERIFY data between steps (check output files, DB counts, format compatibility)
+- Check that methodology rules (R1-R20) are respected in the agent's output
 - Verify sport diversity, statistical market coverage, and gate compliance
 - **VERIFY SUBAGENT OUTPUT QUALITY** (see §SUBAGENT OUTPUT VERIFICATION below)
 
@@ -181,23 +182,25 @@ All agents follow `agent-execution-protocol.instructions.md` v5 (loaded via thei
 ### ⛔ ASYNC EXECUTION (R17 — MANDATORY, NOT OPTIONAL)
 Script: {script_command}
 Mode: mode=async, timeout={timeout_ms}
-THINK-WHILE-WAITING: While the script runs, use sequentialthinking to:
+INSPECT-BEFORE: Use pylanceRunCodeSnippet to verify inputs exist and match expected format (R18).
+THINK-WHILE-WAITING: While the script runs, use sequentialthinking + pylanceRunCodeSnippet to:
   1. {specific_analysis_task_1}
   2. {specific_analysis_task_2}
   3. {specific_analysis_task_3}
 AFTER COMPLETION: get_terminal_output(terminal_id) → EXTRACT metrics → THINK → RETURN verdict.
+VALIDATE-AFTER: Use pylanceRunCodeSnippet to verify output files/DB writes match expectations (R18).
 FAILURE MODE: If you run this script with mode=sync and block for >3 min doing nothing = R17 VIOLATION.
 ```
 
 ### Pre-filled Async Blocks Per Step
 
-| Step | Script | Timeout | THINK-WHILE-WAITING Tasks |
-|------|--------|---------|---------------------------|
-| S1 scan | `scan_events.py` | 600000 | Review previous scan stats, check tournament schedules, query DB for source health |
-| S2 tipsters | `tipster_xref.py` | 300000 | Read shortlist JSON, identify tipster coverage gaps, check pre-fetched HTML quality |
-| S2.5 enrich | `data_enrichment_agent.py` | 600000 | Read shortlist, check which teams already have form data in DB, identify gap candidates |
-| S3 deep stats | `deep_stats_report.py` | 600000 | Read enrichment output, assess data quality per candidate, pre-load sport protocols |
-| S4 odds | `odds_evaluator.py` | 300000 | Read S3 deep stats, pre-load safety scores and P(hit), identify strongest stat edges |
+| Step | Script | Timeout | INSPECT (pylanceRunCodeSnippet) | THINK-WHILE-WAITING |
+|------|--------|---------|------|---------------------------|
+| S1 scan | `scan_events.py` | 600000 | Check DB fixture counts, source_health table | Review previous scan stats, check tournament schedules |
+| S2 tipsters | `tipster_xref.py` | 300000 | Check tipster consensus JSON keys, shortlist format | Read shortlist, identify tipster coverage gaps |
+| S2.5 enrich | `data_enrichment_agent.py` | 600000 | Check shortlist format, team_form baseline count | Check which teams already have form data in DB |
+| S3 deep stats | `deep_stats_report.py` | 600000 | Check enrichment yield, team_form per sport | Read enrichment output, pre-load sport protocols |
+| S4 odds | `odds_evaluator.py` | 300000 | Check S3 output format, existing odds data | Read S3 deep stats, identify strongest stat edges |
 | S5+S6 context | `context_checks.py` + `upset_risk.py` | 300000 | Review deep stats, draft bear cases for borderline candidates |
 | S7 gate | `gate_checker.py` | 300000 | Review S3+S4+S5 verdicts, assess portfolio diversity, prepare coupon strategy |
 | S8 coupons | `coupon_builder.py` | 300000 | Review gate results, check bankroll config, prepare portfolio intelligence |
@@ -212,10 +215,11 @@ FAILURE MODE: If you run this script with mode=sync and block for >3 min doing n
 
 ## §SUBAGENT OUTPUT VERIFICATION (after every runSubagent)
 
-**3-question quality gate — if ANY answer is NO, REJECT and re-delegate:**
+**4-question quality gate — if ANY answer is NO, REJECT and re-delegate:**
 1. Does the response cite ≥3 specific metrics extracted from script output? (not vague summaries)
 2. Does it contain ORIGINAL ANALYSIS beyond what the script computed? (insights, anomalies, reasoning)
 3. Is there a structured verdict with justification? (not just "APPROVED")
+4. Did the agent use `pylanceRunCodeSnippet` for INSPECT (before) and VALIDATE (after) the script? (evidence of R18 compliance)
 
 **Re-delegation instruction when rejecting:**
 "Your output was rejected — you returned [raw script paste / verdict without reasoning / no original analysis]. Read agent-execution-protocol.instructions.md. Return: metrics table (≥3 rows), anomaly analysis, YOUR original reasoning, structured verdict with justification."

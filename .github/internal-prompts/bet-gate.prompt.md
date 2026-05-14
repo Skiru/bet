@@ -61,10 +61,30 @@ Load these skills before starting:
 > **YOU run the script. YOU think adversarially. YOU return a verdict.**
 > The orchestrator does NOT run `gate_checker.py` — that's YOUR responsibility.
 
-**Step 1: RUN the gate script:**
+**Step 0: INSPECT inputs (pylanceRunCodeSnippet — BEFORE running gate):**
+```python
+import json, os, glob
+# Verify S3 deep stats output exists (R18 — gate depends on S3)
+s3_files = glob.glob(f"betting/data/{date}*deep_stats*") + glob.glob(f"betting/data/{date}*s3*")
+print(f"S3 files: {s3_files}")
+for f in s3_files:
+    if f.endswith('.json'):
+        data = json.load(open(f))
+        if isinstance(data, list):
+            print(f"  {f}: {len(data)} candidates")
+            scored = sum(1 for c in data if isinstance(c, dict) and 'safety_score' in c)
+            print(f"  With safety_score: {scored}/{len(data)}")
+# Verify S4 odds data exists
+odds_files = glob.glob(f"betting/data/{date}*odds*") + glob.glob("betting/data/odds_api_snapshot.json")
+print(f"Odds files: {odds_files}")
+```
+
+**Step 1: RUN the gate script (mode=async, timeout=300000):**
 ```bash
 PYTHONPATH=src python3 scripts/gate_checker.py --date {date} --verbose 2>&1
 ```
+**⛔ MUST use mode=async. THINK-WHILE-WAITING:** Use `sequentialthinking` to review S3+S4 verdicts, assess portfolio diversity, draft bear cases for borderline candidates.
+
 Parse the `AGENT_SUMMARY:{json}` line from script output — it contains tier distribution, per-candidate gate scores, and issues.
 
 **Step 2: RUN 48h repeat check:**

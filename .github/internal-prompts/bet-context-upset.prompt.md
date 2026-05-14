@@ -65,10 +65,28 @@ Load these skills before starting:
 > **YOU run the scripts. YOU assess real impact. YOU return a verdict.**
 > The orchestrator does NOT run context/upset scripts — that's YOUR responsibility.
 
-**Step 1: RUN context checks:**
+**Step 0: INSPECT inputs (pylanceRunCodeSnippet — BEFORE running context checks):**
+```python
+import json, os, glob, sqlite3
+# Verify weather data exists
+weather = glob.glob(f"betting/data/weather_{date}*")
+print(f"Weather files: {weather}")
+# Check standings data in DB
+conn = sqlite3.connect("betting/data/betting.db")
+cur = conn.cursor()
+cur.execute("SELECT COUNT(*) FROM standings")
+print(f"Standings rows: {cur.fetchone()[0]}")
+cur.execute("SELECT COUNT(*) FROM team_news")
+print(f"Team news rows: {cur.fetchone()[0]}")
+conn.close()
+```
+
+**Step 1: RUN context checks (mode=async, timeout=300000):**
 ```bash
 PYTHONPATH=src python3 scripts/context_checks.py --date {date} --verbose 2>&1
 ```
+**⛔ MUST use mode=async. THINK-WHILE-WAITING:** Use `sequentialthinking` to review deep stats output, draft bear cases for borderline candidates.
+
 Parse the `AGENT_SUMMARY:{json}` line from script output — it contains weather, injury, and enrichment metrics.
 
 **Step 2: RUN upset risk scoring:**

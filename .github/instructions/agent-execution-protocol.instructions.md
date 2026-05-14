@@ -90,7 +90,70 @@ If a script fails with `ModuleNotFoundError`, use `ms-python.python/installPytho
 
 ---
 
-## The 4-Step Cycle (EVERY script execution, no exceptions)
+## 🛠️ Tool Selection Matrix (DECIDE BEFORE EVERY ACTION)
+
+You have THREE execution tools. Choosing the WRONG one wastes time and blocks thinking.
+
+| Need | Tool | Why |
+|------|------|-----|
+| Check JSON structure, read data, count records | `pylanceRunCodeSnippet` | Instant — no terminal overhead, returns Python output directly |
+| Query DB (SELECT COUNT, verify tables) | `pylanceRunCodeSnippet` | Fast — runs in Pylance runtime, no shell quoting issues |
+| Validate input/output formats (R18) | `pylanceRunCodeSnippet` | Perfect for format checks before/after scripts |
+| Quick calculations (EV, safety scores) | `pylanceRunCodeSnippet` | No fish shell issues, pure Python |
+| Run pipeline script ≤120s | `run_in_terminal` + `mode=sync` | Script needs full env, but finishes fast |
+| Run pipeline script >120s | `run_in_terminal` + `mode=async` | Long — MUST THINK while waiting |
+| NEVER | `python3 -c "..."` in terminal | Fish shell GARBLES inline Python — ZERO exceptions |
+
+### `pylanceRunCodeSnippet` — Your PRIMARY inspection tool
+
+Use this for ALL data checks instead of terminal Python. It runs Python code directly through Pylance — no fish shell issues, instant results, perfect for:
+
+```python
+# Check shortlist format before running enrichment (R18):
+import json
+with open("betting/data/2026-05-13_s2_shortlist.json") as f:
+    data = json.load(f)
+print(f"Candidates: {len(data)}")
+print(f"Keys: {list(data[0].keys()) if data else 'EMPTY'}")
+
+# Verify DB state:
+import sqlite3
+conn = sqlite3.connect("betting/data/betting.db")
+cur = conn.cursor()
+cur.execute("SELECT COUNT(*) FROM team_form WHERE date >= '2026-05-13'")
+print(f"team_form rows today: {cur.fetchone()[0]}")
+conn.close()
+
+# Validate enrichment output matches S3 expectations:
+import json, os
+path = "betting/data/2026-05-13_enrichment_results.json"
+if os.path.exists(path):
+    with open(path) as f:
+        data = json.load(f)
+    print(f"Enriched: {len(data)} | Keys: {list(data[0].keys()) if data else 'EMPTY'}")
+else:
+    print(f"MISSING: {path}")
+```
+
+**Rule:** If you can answer the question with <10 lines of Python → use `pylanceRunCodeSnippet`. If you need a full pipeline script → use `run_in_terminal`.
+
+---
+
+## The 6-Step Cycle (EVERY script execution, no exceptions)
+
+### 0. INSPECT — Verify inputs BEFORE running (pylanceRunCodeSnippet)
+
+Before launching ANY pipeline script, use `pylanceRunCodeSnippet` to verify:
+1. Input files exist and have expected format (R18)
+2. DB tables have data the script will read
+3. Previous step's output matches this step's input expectations
+
+```
+❌ BAD: Just run the script and hope inputs are correct
+✅ GOOD: pylanceRunCodeSnippet → check input JSON keys match script expectations → THEN run
+```
+
+**This catches R18 violations BEFORE they waste 10 minutes of script time.**
 
 ### 1. RUN — Launch with `--verbose`, choose execution mode
 
@@ -140,14 +203,36 @@ run_in_terminal(command="python3 scripts/deep_stats_report.py ...", mode=sync, t
 # Agent sits idle for 10 minutes doing NOTHING
 # Then reads output
 
-✅ GOOD — THINK-WHILE-WAITING:
-terminal_id = run_in_terminal(command="python3 scripts/deep_stats_report.py ...", mode=async)
-# Agent immediately starts productive work:
-sequentialthinking("What did enrichment produce? 42/57 yield, hockey weak at 44%...")
-read_file("betting/data/2026-05-11_s2_shortlist.json")  # understand candidates
-run_in_terminal("SELECT COUNT(*) FROM team_form WHERE ...", mode=sync)  # fast DB check
-# Then check if script is done:
-get_terminal_output(terminal_id)  # read results → EXTRACT → THINK → RETURN
+✅ GOOD — INSPECT → RUN ASYNC → THINK → VALIDATE:
+# Step 0: INSPECT inputs first
+pylanceRunCodeSnippet("""
+import json, os
+path = "betting/data/2026-05-13_enrichment_results.json"
+data = json.load(open(path))
+print(f"Input: {len(data)} candidates, keys: {list(data[0].keys())[:5]}")
+# Verify format matches what deep_stats_report.py expects
+assert 'team_home' in data[0], "MISSING team_home key — R18 VIOLATION"
+""")
+
+# Step 1: RUN async — don't block
+terminal_id = run_in_terminal(command="python3 scripts/deep_stats_report.py ...", mode=async, timeout=600000)
+
+# Step 1b: THINK while script runs
+sequentialthinking("Enrichment produced 42/57 yield. Hockey at 44% — those candidates need PARTIAL flags...")
+read_file("betting/data/2026-05-13_s2_shortlist.json")  # understand candidates
+pylanceRunCodeSnippet("import sqlite3; conn = sqlite3.connect('betting/data/betting.db'); ...")  # quick DB check
+
+# Step 2-3: Script done → EXTRACT + THINK
+get_terminal_output(terminal_id)  # read full results
+sequentialthinking("Script produced X candidates, Y anomalies...")
+
+# Step 5: VALIDATE outputs before returning
+pylanceRunCodeSnippet("""
+import json, os
+output = json.load(open("betting/data/2026-05-13_s3_deep_stats.json"))
+print(f"Output: {len(output)} candidates analyzed")
+print(f"Safety scores present: {sum(1 for c in output if 'safety_score' in c)}")
+""")
 ```
 
 ### 2. EXTRACT — Pull specific numbers
@@ -182,6 +267,35 @@ Before forming ANY verdict, run `sequentialthinking` answering:
 
 **Issues:** (actionable items, or "None")
 ```
+
+### 5. VALIDATE — Verify outputs with `pylanceRunCodeSnippet` BEFORE returning
+
+After forming your verdict, use `pylanceRunCodeSnippet` to verify the script's outputs are correct and ready for the next step:
+1. Output files exist and have expected structure (R18)
+2. DB tables were updated with expected row counts
+3. Output format matches what the NEXT pipeline step will read
+
+```python
+# Example: After enrichment, verify outputs before returning verdict
+import json, os, sqlite3
+
+# Check output file
+path = "betting/data/2026-05-13_enrichment_results.json"
+exists = os.path.exists(path)
+if exists:
+    with open(path) as f:
+        data = json.load(f)
+    print(f"Output: {len(data)} records, keys: {list(data[0].keys())[:5]}")
+
+# Verify DB writes
+conn = sqlite3.connect("betting/data/betting.db")
+cur = conn.cursor()
+cur.execute("SELECT COUNT(*) FROM team_form WHERE updated_at >= date('now')")
+print(f"DB writes today: {cur.fetchone()[0]}")
+conn.close()
+```
+
+**If validation fails → FIX the issue before returning. Don't pass broken data downstream.**
 
 ---
 
@@ -248,8 +362,11 @@ data and 15 with partial. Hockey candidates need extra caution in safety scores.
 | 13 | Run `for` loops / batch loops in terminal | Run ONE command at a time, THINK about result, proceed |
 | 14 | `sleep` / `ps -p` polling / idle waiting | Use `mode=async` + THINK-WHILE-WAITING. Get notified on completion |
 | 15 | Fire-and-forget (`mode=async` then ignore output) | `mode=async` + THINK-WHILE-WAITING + `get_terminal_output` + EXTRACT |
-| 16 | `python3 -c "..."` with complex nested quotes | Use `read_file` for JSON/data inspection. For complex Python, create a temp `.py` file and run it |
-| 17 | Running terminal Python to inspect data | DB-FIRST (R2): delegate to `bet-db-analyst` or run simple query script. Fallback: `read_file` on JSON output |
+| 16 | `python3 -c "..."` in terminal | Use `pylanceRunCodeSnippet` for ALL inline Python — instant, no fish issues |
+| 17 | Terminal Python for data inspection | Use `pylanceRunCodeSnippet` (PRIMARY) or `read_file` (JSON). NEVER terminal Python |
+| 18 | Skip INSPECT step (run script without checking inputs) | Use `pylanceRunCodeSnippet` to verify inputs BEFORE launching script (R18) |
+| 19 | Skip VALIDATE step (return without checking outputs) | Use `pylanceRunCodeSnippet` to verify outputs BEFORE returning verdict |
+| 20 | `mode=sync` for scripts >120s | MUST use `mode=async` + THINK-WHILE-WAITING — brain-dead blocking = FAILURE |
 
 ---
 
@@ -282,35 +399,34 @@ python3 scripts/A.py && python3 scripts/B.py && python3 scripts/C.py
 
 ### ✅ INSTEAD DO:
 ```
-FOR DATA INSPECTION (R2 = DB-FIRST):
-→ BEST: python3 scripts/db_report.py --report quality|gaps|scan|source-health
-→ GOOD: Delegate to bet-db-analyst (complex queries)
+FOR DATA INSPECTION — USE pylanceRunCodeSnippet (PRIMARY):
+→ BEST: pylanceRunCodeSnippet with Python code (DB queries, JSON reads, format checks)
+→ GOOD: python3 scripts/db_report.py --report quality|gaps|scan|source-health
 → GOOD: read_file on JSON output files — instant, no quoting issues
-→ NEVER: python3 -c with inline SQL/JSON parsing
+→ NEVER: python3 -c in terminal — ALWAYS use pylanceRunCodeSnippet instead
 
-FOR RUNNING SCANNERS:
-→ python3 scripts/run_scanner.py --sport {sport} --date {YYYY-MM-DD}
-→ NEVER: python3 -c "from scripts.scanners..."
-
-FOR VERIFYING SCANS:
-→ python3 scripts/verify_scan.py --sport {sport} --date {YYYY-MM-DD}
-→ NEVER: python3 -c "from bet.db.connection..."
+FOR INPUT/OUTPUT VALIDATION (R18):
+→ BEFORE script: pylanceRunCodeSnippet to check input format/existence
+→ AFTER script: pylanceRunCodeSnippet to verify output format/counts
+→ NEVER: Skip validation. Never assume scripts "just work".
 
 FOR DATES:
-→ Always use explicit date: --date 2026-05-11
+→ Always use explicit date: --date 2026-05-13
 → NEVER: $(date +%Y-%m-%d) or `date +%Y-%m-%d`
 
 FOR FAST SCRIPTS (≤120s):
-1. Run script: mode=sync, timeout=120000, --verbose
-2. Read output → EXTRACT → THINK → RETURN
+1. INSPECT: pylanceRunCodeSnippet → verify inputs
+2. RUN: mode=sync, timeout=120000, --verbose
+3. EXTRACT+THINK: Read output → sequentialthinking → verdict
+4. VALIDATE: pylanceRunCodeSnippet → verify outputs
 
 FOR MEDIUM/LONG SCRIPTS (≥300s):
-1. Run script: mode=async, --verbose
-2. THINK-WHILE-WAITING: sequentialthinking on PREVIOUS step, review data, plan next
-3. get_terminal_output → check if done
-4. If done: EXTRACT → THINK → RETURN
-5. If still running: more thinking, check again
-6. THEN run next script
+1. INSPECT: pylanceRunCodeSnippet → verify inputs
+2. RUN: mode=async, --verbose
+3. THINK-WHILE-WAITING: sequentialthinking + pylanceRunCodeSnippet for data review
+4. get_terminal_output → check if done
+5. EXTRACT+THINK: Read output → sequentialthinking → verdict
+6. VALIDATE: pylanceRunCodeSnippet → verify outputs
 ```
 
 **The rule:** ONE command → THINK → NEXT command. Never batch. Never loop. For long scripts: launch async → think productively → check output → analyze.
@@ -337,10 +453,16 @@ After every script: verify output file exists, check DB row counts, spot-check f
 5. **Before connecting scripts**, verify data format compatibility — you are the integration layer.
 6. **TEST: Read your response. Remove all numbers and metrics. Is anything left? If not, you just reformatted the output — you didn't analyze it.**
 
-<!-- BET:instruction:agent-execution-protocol:v5 -->
+<!-- BET:instruction:agent-execution-protocol:v6 -->
 
 
 ## ⚡️ V6: UNIFIED API & BEAST MODE FALLBACK (2026-05-12)
 - **UnifiedAPIClient**: Always refer to `bet.api_clients.unified.UnifiedAPIClient`. It wraps Flashscore, ESPN.
 - **Playwright Fallback**: If 403 Forbidden is hit, the Unified API automatically triggers `StealthPlaywright` (Fallback). Do not assume 403 means dead end.
 - **Gemini 3.1 Pro**: Execution, reasoning, and context analysis is driven by `Gemini 3.1 Pro (Preview)`. Use asynchronous parsing and `sequentialthinking` aggressively.
+
+## ⚡️ V7: ACTIVE AGENT PATTERN (2026-05-13)
+- **pylanceRunCodeSnippet = PRIMARY** for all data inspection (DB queries, JSON validation, format checks). Replaces `python3 -c` and simple terminal commands.
+- **6-Step Cycle**: INSPECT → RUN → THINK → EXTRACT+THINK → RETURN → VALIDATE. Steps 0 and 5 use `pylanceRunCodeSnippet`.
+- **Tool Selection Matrix**: Added clear decision rules — pylanceRunCodeSnippet for <10 lines Python, run_in_terminal(sync) for ≤120s scripts, run_in_terminal(async) for >120s scripts.
+- **ZERO blocking allowed**: Scripts >120s MUST use `mode=async`. Agent MUST use `sequentialthinking` + `pylanceRunCodeSnippet` while waiting. Brain-dead sync blocking = PIPELINE FAILURE.

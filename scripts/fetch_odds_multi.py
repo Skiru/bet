@@ -301,6 +301,15 @@ def run_multi_scan(
         all_events.extend(sport_events)
         print(f"  → {len(sport_events)} total events for {sport}")
 
+    # Cleanup Playwright-based sources to prevent browser leaks
+    for source_name in set().union(*scan_plan.values()):
+        source = _load_source(source_name)
+        if source and hasattr(source, 'close'):
+            try:
+                source.close()
+            except Exception:
+                pass
+
     # -----------------------------------------------------------------------
     # Save outputs (backward compatible)
     # -----------------------------------------------------------------------
