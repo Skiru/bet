@@ -29,6 +29,17 @@ class TeamNews:
 
 
 @dataclass
+class FixtureSource:
+    id: int | None
+    fixture_id: int
+    source: str
+    external_id: str
+    confidence: float = 1.0
+    raw_data: str = ""
+    fetched_at: str = ""
+
+
+@dataclass
 class Competition:
     id: int | None
     sport_id: int

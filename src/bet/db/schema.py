@@ -4,7 +4,7 @@ import sqlite3
 from pathlib import Path
 
 SCHEMA_SQL = Path(__file__).parent / "schema.sql"
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 8
 
 
 def init_db(conn: sqlite3.Connection) -> None:
@@ -107,5 +107,50 @@ def migrate(conn: sqlite3.Connection, from_version: int, to_version: int) -> Non
             "CREATE TABLE IF NOT EXISTS schema_meta "
             "(key TEXT PRIMARY KEY, value TEXT)"
         )
+
+    if from_version < 7:
+        # v7: Scraper infrastructure tables
+        migration_path = Path(__file__).parent / "migrations" / "007_scraper_tables.sql"
+        if migration_path.exists():
+            conn.executescript(migration_path.read_text(encoding="utf-8"))
+
+    if from_version < 8:
+        # v8: Multi-source fixture tables and backfill from fixtures.external_id
+        try:
+            conn.execute("SELECT 1 FROM fixtures LIMIT 1")
+            has_fixtures = True
+        except sqlite3.OperationalError:
+            has_fixtures = False
+
+        migration_path = Path(__file__).parent / "migrations" / "008_fixture_sources.sql"
+        if migration_path.exists():
+            conn.executescript(migration_path.read_text(encoding="utf-8"))
+        else:
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS fixture_sources (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    fixture_id INTEGER NOT NULL REFERENCES fixtures(id) ON DELETE CASCADE,
+                    source TEXT NOT NULL,
+                    external_id TEXT NOT NULL,
+                    confidence REAL NOT NULL DEFAULT 1.0,
+                    raw_data TEXT,
+                    fetched_at TEXT NOT NULL,
+                    UNIQUE(fixture_id, source)
+                )
+                """
+            )
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_fixture_sources_fixture ON fixture_sources(fixture_id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_fixture_sources_source_ext ON fixture_sources(source, external_id)")
+            
+            # Backfill
+            if has_fixtures:
+                conn.execute(
+                    """
+                    INSERT OR IGNORE INTO fixture_sources (fixture_id, source, external_id, fetched_at)
+                    SELECT id, source, external_id, fetched_at FROM fixtures
+                    WHERE source IS NOT NULL AND external_id IS NOT NULL
+                    """
+                )
 
     conn.commit()
