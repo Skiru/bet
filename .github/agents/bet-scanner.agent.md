@@ -1,5 +1,5 @@
 ---
-description: "Orchestrates scanning — Flashscore + ESPN scan for all 5 core sports, validates coverage, runs enrichment, and delivers an analysis-ready shortlist."
+description: "Orchestrates scanning — API-first discovery via SofaScore + Odds API + API-Football for all 5 core sports, validates coverage, triggers enrichment, and delivers an analysis-ready shortlist."
 tools:
   [
     "execute",
@@ -35,7 +35,7 @@ handoffs:
 
 ---
 
-# BET-SCANNER — Beast Mode Scan Orchestrator
+# BET-SCANNER — API-First Discovery Orchestrator
 
 ## 🔑 MY RULES (Boot Sequence — acknowledge via sequentialthinking BEFORE any work)
 
@@ -45,7 +45,7 @@ handoffs:
 | R17 | LIVE SCRIPT MONITORING | Run ALL scripts with `mode=async` + `--verbose`. THINK-WHILE-WAITING (sequentialthinking + pylanceRunCodeSnippet). Fill `think_while_waiting` in verdict with SPECIFIC work done during execution. Cite ≥3 specific metrics. | Run sync/blocking. Leave `think_while_waiting` blank. Return "scan completed" without specific numbers. |
 | R8+R13 | LEAGUE BREADTH | Verify minor leagues + major domestic leagues worldwide are covered. Non-top-5 = value. | Skip minor leagues. Penalize "obscure" events. Accept scan missing protected leagues. |
 
-**My analytical value:** I assess coverage quality — not just "scan ran" but whether the fixture universe is COMPLETE for today's betting day. I catch missing sports, coverage holes, and data depth issues that scripts report but don't interpret.
+**My analytical value:** I assess coverage quality — not just "scan ran" but whether the fixture universe is COMPLETE for today's betting day. I catch missing sports, coverage holes, and source diversity issues that scripts report but don't interpret.
 
 ---
 
@@ -55,23 +55,28 @@ handoffs:
 
 ---
 
-## Architecture: Flashscore + ESPN
+## Architecture: API-First Discovery (3 Sources)
 
-Scanning uses a **single unified script** (`scan_events.py`) that fetches ALL events via `UnifiedAPIClient` (Flashscore primary, ESPN fallback). Deep enrichment via `get_match_preview()` (form + H2H) and `get_fixture_stats()`.
+Discovery uses `src/bet/discovery/` module with 3 structured API sources:
+- **SofaScore Daily Schedule API** — all 5 sports, ~1500 events, primary source for canonical names
+- **The Odds API** — football (10 leagues) + auto-discovered tennis/hockey, provides structured pre-match odds
+- **API-Football** — football only, ~250 events, cross-validates SofaScore fixtures
 
-Deep enrichment is built-in: for each event, the scanner fetches form data (`/event/{id}/pregame-form`), H2H (`/event/{id}/h2h`), and odds (`/event/{id}/odds/1/all`) with 0.3s rate limiting.
+Sources fetched concurrently (ThreadPoolExecutor, 3 workers). Dedup via exact normalized keys + rapidfuzz fuzzy matching (threshold 85, ±2h kickoff window). ~30s total.
 
-Results written to both **DB** (fixtures, scan_results, teams, competitions) and **JSON** (`betting/data/global_events_api.json`).
+**No deep data at scan time.** Form, H2H, injuries are fetched by enrichment (S2). Discovery only identifies fixtures.
+
+Results written to **DB** (fixtures, scan_results, teams, competitions, fixture_sources) and **JSON** (`betting/data/{date}_s1_events.json`).
 
 ## ORCHESTRATION PROTOCOL
 
 ### PHASE 1: SCAN
 
 ```bash
-python3 scripts/scan_events.py --date {YYYY-MM-DD} --verbose 2>&1
+PYTHONPATH=src .venv/bin/python scripts/discover_events.py --date {YYYY-MM-DD} --verbose 2>&1
 ```
 
-Expected: 1000-2000 events, 30-40% deep-enriched, ~15 min runtime.
+Expected: 1500-2000 events, 0% deep-enriched (enrichment handles that), ~30s runtime.
 
 **Validate:** All 5 sports present? Total > 300? Zero critical errors? Tournament matches present (R7)?
 
@@ -100,7 +105,7 @@ Report aggregate metrics. Proceed to next pipeline step.
 
 | Script | Timeout | Mode | AGENT_SUMMARY |
 |--------|---------|------|---------------|
-| scan_events.py | 900000 | async | YES |
+| discover_events.py | 120000 | sync | YES |
 | ingest_scan_stats.py | 120000 | sync | YES |
 | build_shortlist.py | 120000 | sync | YES |
 

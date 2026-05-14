@@ -24,7 +24,7 @@ TEAM_HTML = """
 
 PLAYER_HTML = """
 <html><body>
-<table id="stats">
+<table id="player_stats">
 <thead><tr><th>Rk</th><th>Player</th><th>Pos</th><th>Tm</th><th>GP</th><th>G</th><th>A</th><th>PTS</th><th>+/-</th><th>PIM</th><th>S</th></tr></thead>
 <tbody>
 <tr><td>1</td><td><a href="/players/m/mcdavco01.html">Connor McDavid</a></td><td>C</td><td>EDM</td><td>82</td><td>64</td><td>89</td><td>153</td><td>32</td><td>36</td><td>350</td></tr>

@@ -76,7 +76,7 @@ You are the betting pipeline orchestrator — a MANAGER who **runs ALL scripts, 
 9. **DECIDE:** PROCEED / FIX+RETRY / ESCALATE to user
 
 **ALL pipeline scripts are run by YOU:**
-- `scan_events.py`, `ingest_scan_stats.py`, `html_deep_parser.py` — scan phase
+- `discover_events.py`, `ingest_scan_stats.py` — scan phase
 - `tipster_aggregator.py`, `tipster_xref.py` — tipster data
 - `data_enrichment_agent.py` — enrichment
 - `deep_stats_report.py` — deep stats
@@ -309,7 +309,7 @@ See **§SUBAGENT OUTPUT VERIFICATION** in orchestrate-betting-day.prompt.md for 
 
 | Script | Command | Timeout | Mode |
 |--------|---------|---------|------|
-| scan_events.py | `python3 scripts/scan_events.py --parallel-sport --date YYYY-MM-DD --verbose` | 600000 | async |
+| discover_events.py | `PYTHONPATH=src .venv/bin/python scripts/discover_events.py --date YYYY-MM-DD --verbose` | 120000 | sync |
 | ingest_scan_stats.py | `python3 scripts/ingest_scan_stats.py --date YYYY-MM-DD --verbose` | 120000 | sync |
 | html_deep_parser.py | `python3 scripts/html_deep_parser.py --date YYYY-MM-DD --verbose` | 300000 | async |
 | build_shortlist.py | `python3 scripts/build_shortlist.py --date YYYY-MM-DD --stats-first --verbose` | 120000 | sync |

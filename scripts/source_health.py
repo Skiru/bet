@@ -90,7 +90,7 @@ def detect_sport_from_url(url: str) -> str:
 def parse_scan_results(
     summary_path: Path, errors_path: Path
 ) -> list[dict]:
-    """Merge scan_summary.json + scan_errors.json into health records."""
+    """Merge scan results + scan_errors.json into health records."""
     records = []
     today = datetime.now().strftime("%Y-%m-%d")
 
@@ -100,7 +100,7 @@ def parse_scan_results(
             summary = json.loads(summary_path.read_text(encoding="utf-8"))
             source_events = defaultdict(lambda: defaultdict(int))
 
-            # scan_summary.json format: {url: [items]}
+            # Legacy scan_summary format: {url: [items]}
             if isinstance(summary, dict):
                 for url, items in summary.items():
                     if not isinstance(items, list):
@@ -251,7 +251,7 @@ def main():
     parser.add_argument(
         "--summary", type=Path,
         default=Path("betting/data/scan_summary.json"),
-        help="Path to scan_summary.json"
+        help="Path to scan results file"
     )
     parser.add_argument(
         "--errors", type=Path,

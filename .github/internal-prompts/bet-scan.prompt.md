@@ -1,11 +1,11 @@
 ---
 agent: "bet-scanner"
-description: "S1-S1e: Scan data engine — Flashscore + ESPN scan for 5 core sports, ingest, enrich, build shortlist"
+description: "S1-S1e: Scan data engine — API-first discovery (SofaScore + Odds API + API-Football) for 5 core sports, ingest, enrich, build shortlist"
 ---
 
 > **PERMANENT RULES:** R3 NO AUTO-REJECTION. R7 TOURNAMENT PROTECTION (+15). R8 MINOR LEAGUE VALUE (+6). R10 STATS-FIRST. R13 DOMESTIC LEAGUE PROTECTION.
 
-# S1+S2 — BEAST MODE SCAN + ENRICH + SHORTLIST
+# S1+S2 — API-FIRST DISCOVERY + ENRICH + SHORTLIST
 
 ## ⛔ INLINE GATES
 
@@ -18,27 +18,27 @@ description: "S1-S1e: Scan data engine — Flashscore + ESPN scan for 5 core spo
 | Protected leagues | Brasileirão/MLS/Liga MX/CSL/KHL present if active? | FAILURE: R13 violated |
 | Script execution | --verbose included? Metrics cited? | FAILURE: R17 violated |
 
-> **YOUR ANALYTICAL VALUE:** You diagnose DATA DEPTH — not just event count but whether form/H2H data from Flashscore is rich enough for statistical analysis in S3. A scan that returns 1689 events but only 191 with form data means S3 will be data-starved unless enrichment fills the gap.
+> **YOUR ANALYTICAL VALUE:** You diagnose COVERAGE BREADTH — not just event count but whether the fixture universe is COMPLETE across all 5 sports, whether cross-source dedup caught duplicates, and whether source diversity (≥2 sources per event) gives confidence in fixture accuracy. Deep data (form/H2H) is handled by enrichment — your job is fixture completeness.
 
 ## ⛔ Follow `agent-execution-protocol.instructions.md` for EVERY script execution.
 
-## Workflow: SCAN → INGEST → ENRICH → BUILD
+## Workflow: DISCOVER → INGEST → ENRICH → BUILD
 
-### PHASE 1: Beast Mode Scan
+### PHASE 1: API-First Discovery
 
 ```bash
-python3 scripts/scan_events.py --date {date} --verbose 2>&1
+PYTHONPATH=src .venv/bin/python scripts/discover_events.py --date {date} --verbose 2>&1
 ```
 
-Flashscore + ESPN scans ALL 5 sports. Deep enrichment fetches form/H2H per event.
-Parse `AGENT_SUMMARY:{json}` — per-sport counts, deep_enriched, errors.
+API-first discovery from SofaScore + Odds API + API-Football. All 5 sports. No deep data (enrichment handles that).
+Parse `AGENT_SUMMARY:{json}` — per-sport counts, source stats, dedup merges, errors.
 
-**VALIDATE:** 5 sports present? Total > 300? Tournament matches? Zero critical errors?
+**VALIDATE:** 5 sports present? Total > 300? All 3 sources responded? Tournament matches? Dedup reasonable (expect 3-5% merges)?
 
 ### PHASE 2: Ingest + Enrich
 
 ```bash
-# Ingest Beast Mode data into stats_cache + team_form
+# Ingest discovery data into stats_cache + team_form
 python3 scripts/ingest_scan_stats.py --date {date} --verbose 2>&1
 
 # Odds from comparison sources

@@ -4,10 +4,10 @@ Purpose: document all data sources used by the 5-sport pipeline (football, volle
 
 ## Source Philosophy
 
-The pipeline uses **Flashscore + ESPN architecture**: Flashscore as the primary scan source for event discovery and deep data (form, H2H) across all 5 sports, with ESPN as fallback. Enrichment sources fill gaps. The workflow must:
-1. Use Flashscore as the event discovery + deep data backbone (`scan_events.py` via UnifiedAPIClient).
+The pipeline uses **API-first discovery architecture**: SofaScore + Odds API + API-Football as the 3 primary discovery sources for event identification (~30s), with enrichment sources filling in deep data (form, H2H, injuries). The workflow must:
+1. Use the discovery module (`discover_events.py`) for fixture identification from 3 API sources.
 2. Use Tier A market sources for odds comparison and line shopping.
-3. Use enrichment sources (ESPN API, scores24) to fill statistical gaps from the scan.
+3. Use enrichment sources (ESPN API, Flashscore scrapers, scores24) to fill statistical gaps after discovery.
 4. Use Tier B tipster/community sites to validate direction, discover angles, and check consensus.
 5. Prioritize lower-division and minor-league coverage — market inefficiency is highest where bookmaker lines are weakest.
 
@@ -80,10 +80,10 @@ The pipeline uses **Flashscore + ESPN architecture**: Flashscore as the primary 
 ## Tier A Core Stats, Fixture, and Verification Sources
 
 - Flashscore
-  Role: PRIMARY scan source — schedules, lineups, H2H, live stats, xG and match statistics, form, and results.
-  Use for: fixture discovery (via UnifiedAPIClient), pre-match context, deep enrichment, and settlement verification.
+  Role: Deep enrichment source — H2H, live stats, xG and match statistics, form, and results.
+  Use for: deep enrichment (S2), pre-match context, and settlement verification. No longer used for event discovery (replaced by discovery module).
   Access: HTTP + Playwright stealth fallback. Rate limit: 2s between requests.
-  Script: `scripts/scan_events.py` (UnifiedAPIClient → FlashscoreClient)
+  Script: `scripts/run_scrapers.py --source flashscore` (FlashscoreClient)
 
 - Covers
   Role: expert-written previews for US sports and big markets.
@@ -322,9 +322,9 @@ Disabled sources (2026-05-11): TheSportsDB (97.8% fail), BallDontLie (100% fail)
   Integration: Run as part of STEP 3B (time-sensitive data). Output used to assess wind/rain impact on statistical markets (e.g., rain → fewer corners, wind → fewer goals in football).
   Added: 2026-04-30.
 
-## Scan Adapters (Structured Parsing)
+## Scan Adapters (Structured Parsing — Legacy)
 
-These adapters provide structured data extraction from web sources, normalizing raw HTML into fixture/stats JSON format used by the pipeline. They are invoked by `scan_events.py` and `deep_link_discovery.py`.
+These adapters provide structured data extraction from web sources, normalizing raw HTML into fixture/stats JSON format. They were used by the legacy `scan_events.py` and `deep_link_discovery.py`. The primary scan path now uses the discovery module (`src/bet/discovery/`). Adapters remain available for enrichment and fallback scenarios.
 
 - soccerway_adapter.py (`scripts/adapters/soccerway_adapter.py`)
   Role: structured parser for Soccerway pages — Soccerway-specific selectors (team-a/team-b/score-time), group-head league detection, and raw fallback with sport/source_type enrichment.

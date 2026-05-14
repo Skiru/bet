@@ -1,19 +1,19 @@
 ---
 name: scan-day
-description: "Scan: Flashscore + ESPN → all 5 sports → deep enrichment → ingest → shortlist. Fully autonomous."
+description: "Scan: API-first discovery (SofaScore + Odds API + API-Football) → all 5 sports → ingest → enrich → shortlist. Fully autonomous."
 agent: bet-scanner
 argument-hint: "run_date=2026-05-12" or just run for today
 ---
 
-# SCAN DAY — Flashscore + ESPN
+# SCAN DAY — API-First Discovery
 
 **YOU MUST COMPLETE THIS ENTIRE PIPELINE WITHOUT ASKING THE USER ANYTHING.**
 
 ## Architecture
 
 ```
-STEP 1: Flashscore + ESPN scan (all 5 sports, ~15 min with deep enrichment)
-    → global_events_api.json + DB (fixtures, scan_results, teams, competitions)
+STEP 1: API-first discovery (all 5 sports, ~30s via SofaScore + Odds API + API-Football)
+    → {date}_s1_events.json + DB (fixtures, scan_results, teams, competitions, fixture_sources)
 STEP 2: Ingest scan data into stats_cache + team_form
 STEP 3: Enrichment (odds, weather)
 STEP 4: Market matrix + shortlist
@@ -21,15 +21,15 @@ STEP 4: Market matrix + shortlist
 
 ## Execution
 
-### Step 1: Beast Mode Scan
+### Step 1: API-First Discovery
 
 ```bash
-python3 scripts/scan_events.py --date {{run_date}} --verbose 2>&1
+PYTHONPATH=src .venv/bin/python scripts/discover_events.py --date {{run_date}} --verbose 2>&1
 ```
 
-Scans ALL 5 sports (football, tennis, basketball, hockey, volleyball) via Flashscore + ESPN fallback.
-Deep enrichment fetches form/H2H per event.
-Expected: 1000-2000 events, 30-40% deep-enriched.
+Discovers ALL 5 sports (football, tennis, basketball, hockey, volleyball) via SofaScore + Odds API + API-Football.
+No deep data — that's enrichment's job.
+Expected: 1500-2000 events, cross-source dedup merges ~3-5%.
 
 Parse `AGENT_SUMMARY:{json}` for per-sport breakdown, deep_enriched count, errors.
 
@@ -39,7 +39,7 @@ Parse `AGENT_SUMMARY:{json}` for per-sport breakdown, deep_enriched count, error
 python3 scripts/ingest_scan_stats.py --date {{run_date}} --verbose 2>&1
 ```
 
-Transforms Beast Mode form/H2H/odds into stats_cache + team_form DB.
+Transforms discovery data into stats_cache + team_form DB.
 
 ### Step 3: Enrichment
 
@@ -63,4 +63,4 @@ python3 scripts/build_shortlist.py --date {{run_date}} --stats-first --verbose 2
 | Total events > 300 | Required |
 | Tournament matches present (R7) | Required |
 | Protected domestic leagues present (R13) | Required |
-| Deep enrichment > 20% | Advisory |
+| Source diversity (≥2 sources for key events) | Advisory |

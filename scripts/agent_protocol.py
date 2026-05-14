@@ -89,7 +89,7 @@ REACTION_PATTERNS = {
             "If scan: re-run for specific sport with --sport flag",
         ],
         "escalation": "If retry also empty → escalate to user with source health report",
-        "scripts_affected": ["scan_events.py", "build_shortlist.py", "deep_stats_report.py"],
+        "scripts_affected": ["discover_events.py", "build_shortlist.py", "deep_stats_report.py"],
     },
     "low_yield": {
         "trigger": "Enrichment/scan yield < 40% (successful / attempted)",
@@ -100,18 +100,18 @@ REACTION_PATTERNS = {
             "Check if sport season ended (structural cause vs bug)",
         ],
         "escalation": "If yield still < 20% after all fallbacks → escalate to user",
-        "scripts_affected": ["data_enrichment_agent.py", "scan_events.py"],
+        "scripts_affected": ["data_enrichment_agent.py", "discover_events.py"],
     },
     "missing_sport": {
         "trigger": "Expected sport has 0 events in scan/shortlist",
         "severity": "HIGH",
         "recovery": [
-            "Re-scan that sport group only: scan_events.py --sport {sport}",
+            "Re-scan that sport group only: discover_events.py --sports {sport}",
             "Check scan_urls.json for that sport's source URLs",
             "Verify sport season is active (not off-season)",
         ],
         "escalation": "If sport still missing after re-scan → check if season ended, inform user",
-        "scripts_affected": ["scan_events.py", "build_shortlist.py"],
+        "scripts_affected": ["discover_events.py", "build_shortlist.py"],
     },
     "exit_code_2": {
         "trigger": "Script exits with code 2 (critical failure)",
@@ -177,7 +177,7 @@ REACTION_PATTERNS = {
             "If stuck on one item: may need to kill and retry with --sport filter",
         ],
         "escalation": "If hung >2x expected time → kill terminal, escalate to user",
-        "scripts_affected": ["scan_events.py", "data_enrichment_agent.py", "deep_stats_report.py"],
+        "scripts_affected": ["discover_events.py", "data_enrichment_agent.py", "deep_stats_report.py"],
     },
 }
 
@@ -552,12 +552,12 @@ DATA_FLOW_CONTRACTS = {
         "produces": {
             "db": ["scan_results", "scan_run_stats", "source_health", "fixtures"],
             "files": [
-                "betting/data/scan_summary.json",
+                "betting/data/{date}_s1_events.json",
                 "betting/data/market_matrix_{date}.json",
             ],
         },
         "required_output_keys": {
-            "scan_summary.json": ["sports_scanned", "total_events"],
+            "{date}_s1_events.json": ["sports_scanned", "total_events"],
             "market_matrix_{date}.json": ["events"],
         },
     },
@@ -676,7 +676,7 @@ DATA_FLOW_CONTRACTS = {
 # ---------------------------------------------------------------------------
 THINK_WHILE_WAITING_QUERIES = {
     "bet-scanner": {
-        "description": "While scan_events.py runs (~10 min), query previous scan data and source health",
+        "description": "While discover_events.py runs (~30s), review previous scan data and source health",
         "tasks": [
             {
                 "label": "Source health overview",
@@ -835,10 +835,10 @@ STRUCTURED_OUTPUT_PROTOCOL = {
     "flags": {
         "--verbose / -v": "JSON-line events for real-time monitoring (progress, warnings, errors, candidates)",
         "--stop-on-error": "Halt on first critical error (exit code 2) instead of log-and-continue",
-        "--sport SPORT": "Filter to single sport group (scan_events.py, tipster_aggregator.py only)",
+        "--sports SPORT": "Filter to sport list (discover_events.py: comma-separated; tipster_aggregator.py: --sport single)",
     },
     "agent_summary_format": {
-        "step": "Script/step identifier (e.g. 'scan_events', 'gate_checker')",
+        "step": "Script/step identifier (e.g. 'discover_events', 'gate_checker')",
         "verdict": "OK | PARTIAL | FAILED",
         "metrics": "Dict of step-specific counts and rates",
         "issues": "List of {level, message, ...} dicts (level: warning|error|critical)",
@@ -851,11 +851,12 @@ STRUCTURED_OUTPUT_PROTOCOL = {
         2: "Critical failure — stop-on-error triggered, output unreliable",
     },
     "scripts_with_verbose": [
-        "scan_events.py", "html_deep_parser.py", "ingest_scan_stats.py",
+        "discover_events.py", "ingest_scan_stats.py",
         "tipster_aggregator.py", "tipster_xref.py", "data_enrichment_agent.py",
         "deep_stats_report.py", "gate_checker.py", "coupon_builder.py",
         "build_shortlist.py", "odds_evaluator.py", "context_checks.py",
         "upset_risk.py", "fetch_odds_multi.py", "validate_coupons.py",
+        "run_scrapers.py",
     ],
     "parsing_instructions": (
         "After running a script, find the line starting with 'AGENT_SUMMARY:' "
@@ -873,13 +874,13 @@ STEP_AGENT_CONFIG = {
     "s1_scan": {
         "agent": "bet-scanner",
         "task": "Verify 5-sport coverage (Football, Volleyball, Basketball, Tennis, Hockey), cross-validate fixtures ≥2 sources, check deep-link discovery yield, flag source failures, ensure ≥50 unique events",
-        "required_input": ["scan_summary.json"],
+        "required_input": ["{date}_s1_events.json"],
         "output_metrics": ["total_events", "sports_covered", "source_failures", "deep_link_yield"],
         "think_in_the_middle": True,
         "error_handling": "ERROR_HANDLING_PROTOCOL",
         "validate_output": True,
         "detailed_instructions": [
-            "1. Read scan_summary.json — check per-sport event counts",
+            "1. Read {date}_s1_events.json — check per-sport event counts",
             "2. Verify all 5 sports scanned: football, tennis, basketball, volleyball, hockey",
             "3. Check source_health — any source with >3 consecutive failures needs flagging",
             "4. Verify deep-link discovery yield >20% (deep links found / seed URLs scanned)",

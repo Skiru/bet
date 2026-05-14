@@ -4,7 +4,7 @@
 
 | Bug | File(s) | Root Cause | Fix |
 |-----|---------|------------|-----|
-| **A** | `scan_events.py`, `flashscore.py` | Deep enrichment in ThreadPoolExecutor → Playwright greenlet crash. Also `f.className` JS error (DOMTokenList not string). | Sequential main-thread enrichment (`--deep-workers 1`, `--deep-limit 50`). JS: `String(f.className \|\| '')`. |
+| **A** | `flashscore.py` | Deep enrichment in ThreadPoolExecutor → Playwright greenlet crash. Also `f.className` JS error (DOMTokenList not string). | Sequential main-thread enrichment (`--deep-workers 1`, `--deep-limit 50`). JS: `String(f.className \|\| '')`. |
 | **B** | `data_enrichment_agent.py` | Thread guards skipped ALL Playwright clients in workers → 89% teams got nothing. | Phase 2 main-thread retry for failed/empty teams after thread pool pass. |
 | **C** | `build_shortlist.py` | FIXTURE_ONLY scored 75 (same as STATS_ONLY for good leagues). | FIXTURE_ONLY tier score 5→0 + total score ×0.5 multiplier. |
 | **D** | `deep_stats_report.py` | `--top 200` picked 144 dateless candidates first. | Sort by data_tier before applying `--top` (STATS_ONLY+ first, FIXTURE_ONLY last). |
@@ -17,13 +17,13 @@
 | Issue | File(s) | Root Cause | Fix |
 |-------|---------|------------|-----|
 | **1+2** | `unified.py` | ESPN created new client per league + 400 flood for ~65 leagues | Reuse 1 ESPNClient per sport, cache 400/404 failures in-memory |
-| **3** | `unified.py`, `scan_events.py` | `get_fixture_stats()` on scheduled matches → guaranteed empty | Skip stats for `status="scheduled"`, pass status through chain |
+| **3** | `unified.py` | `get_fixture_stats()` on scheduled matches → guaranteed empty | Skip stats for `status="scheduled"`, pass status through chain |
 | **4** | `flashscore.py` | "Advancing to next round" concatenated in team name from DOM | JS regex strip in `_JS_EXTRACT_FIXTURES` |
 | **5** | `data_enrichment_agent.py` | Flashscore player pages 404 for all tennis players | Skip `_try_flashscore()` for `sport == "tennis"` |
 | **6** | `flashscore.py` | `.h2h__row` selector stale | Added `[class*="h2h"]` wildcard fallback selectors |
 | **7** | `gemini_news_enrichment.py` | 0 results logged without diagnostics | Added success/empty/error counters to batch_enrich_news |
 | **8** | `data_enrichment_agent.py` | Lower-league teams 404 repeatedly every run | `known_missing_teams.json` cache with 7-day TTL |
-| **9** | `scan_events.py` | `db_scan_results=0` on re-run misleading | Log "X skipped as duplicates", add `db_scan_attempted` metric |
+| **9** | (legacy, removed) | `db_scan_results=0` on re-run misleading | Log "X skipped as duplicates", add `db_scan_attempted` metric |
 
 ---
 
@@ -100,9 +100,9 @@ After S4-S7 gates → 3-4 viable core picks
 - Gate vocabulary: status=APPROVED/EXTENDED/REJECTED, advisory_tier=STRONG/MODERATE/WEAK/FLAGGED, risk_tier=LR/MS/HR/N
 - Config: `max_legs_per_coupon: 4`, `min_safety_score: 0.4`, `max_picks_per_day: 80`
 
-### Event Discovery Module — `src/bet/discovery/` (2026-05-14, REPLACES scan_events.py)
+### Event Discovery Module — `src/bet/discovery/` (2026-05-14, FULLY INTEGRATED)
 
-API-first event discovery using 3 structured sources. **Fast** (~30s vs 10-15 min old scan). Live-tested: 1807 raw → 1734 merged events.
+API-first event discovery using 3 structured sources. **Fast** (~30s). Live-tested: 1807 raw → 1734 merged events. Legacy `scan_events.py` and `beast_mode_pipeline.py` DELETED.
 
 | Source | Coverage | Events (typical) |
 |--------|----------|------------------|
@@ -127,7 +127,7 @@ API-first event discovery using 3 structured sources. **Fast** (~30s vs 10-15 mi
 
 **Integration handoff:** `betting/plans/discovery-integration-handoff.md` — 8 files to update (orchestrator prompt, agents, protocol). 32 tests (tests/discovery/).
 
-**Status:** Module complete + live-tested. NOT yet wired into orchestrator pipeline (still uses scan_events.py). Next step: replace S1 scan_events.py references.
+**Status:** FULLY INTEGRATED. All orchestrator, agent, prompt, and script files updated. No legacy fallback paths.
 
 ### API Clients (2026-05-14)
 - **unified.py** routes: Football(Flashscore→BetExplorer→Soccerway→ESPN), Tennis(Flashscore→Scores24→ESPN)

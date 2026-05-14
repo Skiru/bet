@@ -26,6 +26,7 @@ python3 scripts/analyze_betclic_learning.py
 # 1. Run pipeline (AGENT-DRIVEN — individual scripts, NOT pipeline_orchestrator.py)
 # ⛔ NEVER run: python3 scripts/pipeline_orchestrator.py
 # Instead: the orchestrator agent calls individual scripts one at a time:
+#   PYTHONPATH=src .venv/bin/python scripts/discover_events.py --date YYYY-MM-DD --verbose
 #   python3 scripts/build_shortlist.py --date YYYY-MM-DD --stats-first
 #   python3 scripts/deep_stats_report.py --date YYYY-MM-DD --shortlist ...
 #   python3 scripts/gate_checker.py --date YYYY-MM-DD

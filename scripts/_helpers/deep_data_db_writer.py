@@ -1,6 +1,6 @@
 """Shared helper: convert UnifiedAPIClient deep data → DB records.
 
-Used by scan_events.py (Phase 2), data_enrichment_agent.py (Phase 1),
+Used by data_enrichment_agent.py (Phase 1),
 and enrichment.py (Phase 7) to persist API client output to DB.
 """
 

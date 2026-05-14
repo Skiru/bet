@@ -163,7 +163,7 @@ def inspect_s1(date: str, out: AgentOutput) -> dict:
     metrics = {}
 
     # Check files
-    metrics["scan_summary_exists"] = _file_exists("betting/data/scan_summary.json", date)
+    metrics["discovery_events_exists"] = _file_exists(f"betting/data/{date}_s1_events.json", date)
     metrics["market_matrix_exists"] = _file_exists(
         "betting/data/market_matrix_{date}.json", date)
 
@@ -181,8 +181,8 @@ def inspect_s1(date: str, out: AgentOutput) -> dict:
             "WHERE betting_date = ? GROUP BY sport ORDER BY COUNT(*) DESC",
             (date,), default=[])
         sport_dist = {r[0]: r[1] for r in rows}
-        metrics["scan_events_by_sport"] = sport_dist
-        metrics["total_scan_events"] = sum(sport_dist.values())
+        metrics["discovery_events_by_sport"] = sport_dist
+        metrics["total_discovery_events"] = sum(sport_dist.values())
 
         # Fixture count
         metrics["fixtures"] = _safe_fetchone(conn,

@@ -122,7 +122,7 @@ def validate_data_phase(date: str) -> list[Check]:
                          "PASS" if state else "FAIL",
                          f"{'Found' if state else 'MISSING'}: pipeline_state/pipeline_{date}.json",
                          gate=True,
-                         recovery=f"Run: PYTHONPATH=src python3 scripts/scan_events.py --date {date} --verbose"))
+                         recovery=f"Run: PYTHONPATH=src .venv/bin/python scripts/discover_events.py --date {date} --verbose"))
 
     if not state:
         return checks  # Can't continue without state
@@ -142,7 +142,7 @@ def validate_data_phase(date: str) -> list[Check]:
                          (f", Failed: {list(failed.keys())}" if failed else "") +
                          (f", Missing: {list(missing)}" if missing else ""),
                          gate=True,
-                         recovery=f"Re-run failed data steps individually (scan_events, build_shortlist, data_enrichment_agent)"))
+                         recovery=f"Re-run failed data steps individually (discover_events, build_shortlist, data_enrichment_agent)"))
 
     # D3: DB populated — scan_results (PRIMARY CHECK)
     try:
@@ -164,7 +164,7 @@ def validate_data_phase(date: str) -> list[Check]:
                          "PASS" if scan_cnt > 0 else "FAIL",
                          f"{scan_cnt} rows, {len(scan_sports)} sports: {scan_sports}",
                          gate=True,
-                         recovery=f"Run: PYTHONPATH=src python3 scripts/scan_events.py --date {date} --verbose"))
+                         recovery=f"Run: PYTHONPATH=src .venv/bin/python scripts/discover_events.py --date {date} --verbose"))
 
     checks.append(Check("D4", "DB: fixtures populated",
                          "PASS" if fix_cnt > 0 else "FAIL",

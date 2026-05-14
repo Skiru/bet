@@ -7,6 +7,8 @@ argument-hint: "Just run it — no arguments needed"
 
 # INTEGRATE DISCOVERY MODULE — Replace scan_events.py Pipeline-Wide
 
+> **STATUS: COMPLETED (2026-05-14).** All legacy files deleted (`scan_events.py`, `beast_mode_pipeline.py`, `beast-mode-architecture.md`). All agent, prompt, script, and config files updated. No backward compatibility. Clean break.
+
 > **Prerequisite:** `src/bet/discovery/` module is COMPLETE and live-tested (1734 events, 3 sources, 29s).
 > **Reference:** `betting/plans/discovery-integration-handoff.md` for full context.
 

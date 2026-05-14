@@ -1,9 +1,14 @@
 # Scrapers Module — Handoff Documentation for Next Agent
 
-> Created: 2026-05-15. Author: Senior Data Engineer agent (Phase 1–4 implementation).
+> Created: 2026-05-14. Updated: 2026-05-14 (live verification complete).
+> Author: Senior Data Engineer agent (Phase 1–4 implementation + live verification).
 > Purpose: COMPLETE specification for the next agent to integrate `bet.scrapers` into the betting pipeline and eventually replace `data_enrichment_agent.py`.
 >
+> **⚠️ THIS DOC IS SUPERSEDED by `specifications/scrapers-pipeline-integration.md` for integration planning.**
+> This file remains as the original handoff with implementation details.
+>
 > **Related docs:**
+> - **`specifications/scrapers-pipeline-integration.md`** — MASTER integration spec (5 phases, agent updates, data flow, cleanup)
 > - `memories/repo/pipeline-knowledge-base.md` — consolidated pipeline architecture, bugs, enrichment flow, safety patterns
 > - `memories/repo/scrapers-module-migration-guide.md` — architecture overview, table mappings, query examples
 > - `memories/repo/pipeline-bugs-and-fixes.md` — post-mortem bugs with rules for all agents
@@ -28,20 +33,26 @@
 
 ## 1. What Was Built
 
-A **modular Python scraper system** at `src/bet/scrapers/` that fetches sports data from 9 different sources across 5 sports (football, basketball, tennis, hockey, volleyball). It is SEPARATE from the existing enrichment script (`scripts/data_enrichment_agent.py`).
+A **modular Python scraper system** at `src/bet/scrapers/` with **14 scrapers** across 5 sports (football, basketball, tennis, hockey, volleyball), using SQLAlchemy 2.0 ORM. It is SEPARATE from the existing enrichment script (`scripts/data_enrichment_agent.py`).
 
 **Key design decisions:**
 - SQLAlchemy 2.0 ORM coexisting with the existing raw `sqlite3` + `get_db()` system
-- Lazy imports via `__getattr__` to avoid requiring optional dependencies at import time
+- Lazy imports via `importlib.import_module()` to avoid requiring optional dependencies at import time
 - `BaseScraper` ABC pattern with shared helpers (rate limiting, UA rotation, DB find-or-create)
 - CLI entry point at `scripts/run_scrapers.py` emitting `AGENT_SUMMARY:{json}` for pipeline integration
-- All HTTP calls use `requests` (lightweight) — NO Playwright dependency
+- All HTTP calls use `requests` + `curl_cffi` (lightweight) — NO Playwright dependency
+- Flashscore multi-sport scraper using `curl_cffi` with browser fingerprinting
 
 **What it does NOT do (yet):**
 - Does NOT write to `team_form` table (the old system's output consumed by the pipeline)
-- Does NOT have verbose mid-run logging (scrapers are silent during execution)
-- Has NOT been tested against live APIs (all tests use mocked responses)
 - Is NOT integrated into `orchestrate-betting-day` pipeline
+
+**LIVE TEST STATUS (2026-05-14):**
+- 10/14 scrapers produce real data from live APIs
+- 6 bugs found and fixed during verification
+- 80/80 scraper unit tests pass
+- 637/638 full test suite pass
+- DB populated: 98 league_profiles, 3,912 player_season_stats, 12,360 athletes
 
 ---
 

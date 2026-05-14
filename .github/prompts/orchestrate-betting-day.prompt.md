@@ -101,7 +101,7 @@ Read these files. Do NOT proceed until all are loaded:
 - Odds: OddsPortal → BetExplorer (all sports)
 - Stats: TotalCorner → Flashscore (football corners)
 
-**Key:** `scan_events.py` now discovers fixtures from ALL registered sources via `UnifiedAPIClient`. Enrichment can pull corner data from TotalCorner and structured trends from Scores24.
+**Key:** `discover_events.py` discovers fixtures from 3 API sources (SofaScore, Odds API, API-Football) in ~30s. Deep data (form, H2H, injuries) is handled by enrichment (S2), not scan.
 
 Print the pre-flight checklist:
 ```
@@ -242,7 +242,7 @@ runSubagent(specialist_agent):
 
 ## §STRUCTURED SCRIPT OUTPUT (R19)
 
-14 analytical scripts emit `AGENT_SUMMARY:{json}`: `scan_events.py`, `ingest_scan_stats.py`, `tipster_aggregator.py`, `tipster_xref.py`, `data_enrichment_agent.py`, `deep_stats_report.py`, `gate_checker.py`, `coupon_builder.py`, `build_shortlist.py`, `odds_evaluator.py`, `context_checks.py`, `upset_risk.py`, `fetch_odds_multi.py`, `validate_coupons.py`. Exit codes: 0=OK, 1=partial, 2=critical. Scripts with `--sport` filter: `scan_events.py`, `tipster_aggregator.py`.
+15 analytical scripts emit `AGENT_SUMMARY:{json}`: `discover_events.py`, `ingest_scan_stats.py`, `tipster_aggregator.py`, `tipster_xref.py`, `data_enrichment_agent.py`, `deep_stats_report.py`, `gate_checker.py`, `coupon_builder.py`, `build_shortlist.py`, `odds_evaluator.py`, `context_checks.py`, `upset_risk.py`, `fetch_odds_multi.py`, `validate_coupons.py`, `run_scrapers.py`. Exit codes: 0=OK, 1=partial, 2=critical. Scripts with `--sport` filter: `discover_events.py`, `tipster_aggregator.py`.
 
 ---
 
@@ -376,16 +376,16 @@ Stealth Playwright warm-up: dumps odds pages from protected bookmakers to `betti
 
 ---
 
-### STEP S1: Event Scan (longest step — use async)
+### STEP S1: Event Discovery (fast — use sync)
 
-**You launch the scan, then delegate review to bet-scanner.**
+**You launch discovery, then delegate review to bet-scanner.**
 
 ```bash
-# Unified scan via 7 sources (Flashscore, BetExplorer, Soccerway, ESPN + OddsPortal, TotalCorner, Scores24)
-python3 scripts/scan_events.py --date {date} --verbose 2>&1
+# API-first discovery via 3 sources (SofaScore, Odds API, API-Football) — ~30s
+PYTHONPATH=src .venv/bin/python scripts/discover_events.py --date {date} --verbose 2>&1
 ```
 
-**WHILE RUNNING:** Use `mode=async` with `timeout=600000`. THINK-WHILE-WAITING: review previous scan stats, check tournament schedules, query DB for source health. Then `get_terminal_output` to read results when done → EXTRACT → THINK → RETURN. R17: LIVE MONITORING.
+**EXECUTION:** Use `mode=sync` with `timeout=120000`. Discovery completes in ~30s. Parse `AGENT_SUMMARY:{json}` from output.
 
 **AFTER scan completes — Delegate to bet-scanner** (read `.github/internal-prompts/bet-scan.prompt.md` first):
 
@@ -399,18 +399,18 @@ runSubagent("bet-scanner"):
 ### Context
 - Date: {date}, Session: {session}
 - Scan already completed. Review output quality.
-- Check: betting/data/global_events_api.json (Beast Mode scan output)
+- Check: betting/data/{date}_s1_events.json (discovery output)
 - Use sequentialthinking to evaluate coverage
 - Load skill: bet-navigating-sources
 - Key checks:
   - 5-sport coverage: football, volleyball, basketball, tennis, hockey
   - Which of the 5 sports had 0 events? (source failure → retry with fallback)
-  - Data quality: How many events have deep data (H2H, form, injuries)?
+  - Source cross-references: How many events confirmed by ≥2 sources?
   - Phantom fixture detection
   - Tournament protection (§SCAN.7) — major tournaments present?
   - Major domestic league protection (§SCAN.9) — Brasileirão, MLS, Liga MX, CSL, J-League, K-League, etc. present?
   - Minor league value (§SCAN.8)
-  - Timeout/error triage
+  - Dedup quality: merges reasonable (expect 3-5%)?
 - Return: APPROVED/FLAGGED/REJECTED + per_sport_counts + issues[]
 ---
 ```
@@ -423,7 +423,7 @@ runSubagent("bet-scanner"):
 python3 scripts/ingest_scan_stats.py --date {date} --verbose 2>&1
 ```
 
-**AFTER:** Parse `AGENT_SUMMARY` from output → verify `verdict=OK`. If PARTIAL/FAILED → check which sports had ingestion errors before proceeding. This step transforms Beast Mode form/H2H/odds data from `global_events_api.json` into `stats_cache/` + DB `team_form`.
+**AFTER:** Parse `AGENT_SUMMARY` from output → verify `verdict=OK`. If PARTIAL/FAILED → check which sports had ingestion errors before proceeding. This step transforms discovery data from `{date}_s1_events.json` into `stats_cache/` + DB `team_form`.
 
 ---
 
@@ -434,7 +434,7 @@ python3 scripts/fetch_api_stats.py --date {date} 2>&1
 python3 scripts/seed_espn_data.py --skip-players 2>&1
 ```
 
-**Post-run check**: If `fetch_api_stats.py` reports 0 API responses, proceed in stats-first mode (R10) — API stats are supplemental to Beast Mode scan data.
+**Post-run check**: If `fetch_api_stats.py` reports 0 API responses, proceed in stats-first mode (R10) — API stats are supplemental to discovery scan data.
 
 ---
 

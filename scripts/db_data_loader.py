@@ -322,10 +322,7 @@ def load_h2h_from_db(
 
 
 def load_scan_summary_from_db() -> dict:
-    """Load scan summary from DB source_health or fallback to JSON."""
-    json_path = DATA_DIR / "scan_summary.json"
-    if json_path.exists():
-        return json.loads(json_path.read_text(encoding="utf-8"))
+    """Load scan summary from DB source_health. Returns empty dict if unavailable."""
     return {}
 
 

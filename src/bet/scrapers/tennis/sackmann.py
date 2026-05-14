@@ -20,7 +20,11 @@ class TennisSackmannScraper(BaseScraper):
     _request_delay = (0.5, 1.0)
 
     def _csv_url(self, competition: str, season: str) -> str:
-        year = season[:4] if len(season) >= 4 else season
+        # Season code "2425" → calendar year "2025" (Sackmann uses end-year)
+        if len(season) == 4 and season.isdigit():
+            year = "20" + season[2:]
+        else:
+            year = season
         if competition.upper() == "WTA":
             return SACKMANN_WTA_URL.format(year=year)
         return SACKMANN_ATP_URL.format(year=year)

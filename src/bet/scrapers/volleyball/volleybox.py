@@ -34,6 +34,9 @@ class VolleyboxScraper(BaseScraper):
 
     def _get_league_url(self, competition: str, season: str) -> str:
         slug = self.LEAGUE_SLUGS.get(competition.lower(), f"/competition/{competition}")
+        # Convert "2425" → "2024-2025"
+        if len(season) == 4 and season.isdigit() and not season.startswith("20"):
+            season = f"20{season[:2]}-20{season[2:]}"
         return f"{self._BASE_URL}{slug}/{season}"
 
     # ------------------------------------------------------------------

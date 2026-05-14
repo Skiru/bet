@@ -5,6 +5,8 @@ import re
 from collections import defaultdict
 from datetime import datetime, timezone
 
+from bs4 import Comment
+
 import requests
 from bs4 import BeautifulSoup
 from sqlalchemy import text
@@ -21,6 +23,24 @@ class HockeyRefScraper(BaseScraper):
     _request_delay = (3.0, 5.0)
 
     _BASE_URL = "https://www.hockey-reference.com"
+
+    @staticmethod
+    def _find_table(soup: BeautifulSoup, table_id: str) -> BeautifulSoup | None:
+        """Find a table by id, searching inside HTML comments if necessary.
+
+        Sports-reference sites hide tables in ``<!-- ... -->`` comment
+        blocks to deter scraping.  The browser renders them via JS.
+        """
+        table = soup.find("table", id=table_id)
+        if table is not None:
+            return table
+        for comment in soup.find_all(string=lambda t: isinstance(t, Comment)):
+            if f'id="{table_id}"' in comment:
+                inner = BeautifulSoup(comment, "html.parser")
+                table = inner.find("table", id=table_id)
+                if table is not None:
+                    return table
+        return None
 
     @staticmethod
     def _season_slug(season: str) -> str:
@@ -41,7 +61,7 @@ class HockeyRefScraper(BaseScraper):
             if resp.status_code != 200:
                 raise ScraperError(f"hockey-ref HTTP {resp.status_code} for {url}")
             soup = BeautifulSoup(resp.text, "html.parser")
-            table = soup.find("table", id="stats")
+            table = self._find_table(soup, "stats")
             if table is None:
                 return 0
 
@@ -108,7 +128,7 @@ class HockeyRefScraper(BaseScraper):
             if resp.status_code != 200:
                 raise ScraperError(f"hockey-ref HTTP {resp.status_code} for {url}")
             soup = BeautifulSoup(resp.text, "html.parser")
-            table = soup.find("table", id="stats")
+            table = self._find_table(soup, "player_stats")
             if table is None:
                 return 0
 

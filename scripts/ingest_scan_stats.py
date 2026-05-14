@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """Ingest scan data into stats_cache.
 
-Reads Beast Mode output (betting/data/global_events_api.json) or legacy
-scan_summary.json, transforms into the standard stats_cache format,
-and writes via build_stats_cache.
+Reads discovery module output (betting/data/{date}_s1_events.json),
+transforms into the standard stats_cache format, and writes via build_stats_cache.
 
-CLI: python3 scripts/ingest_scan_stats.py [--date YYYY-MM-DD] [--dry-run]
+CLI: python3 scripts/ingest_scan_stats.py --date YYYY-MM-DD [--dry-run]
 """
 
 import argparse
@@ -39,8 +38,7 @@ try:
 except ImportError:
     _HAS_DB = False
 
-SCAN_SUMMARY_PATH = Path(__file__).parent.parent / "betting" / "data" / "scan_summary.json"
-BEAST_MODE_PATH = Path(__file__).parent.parent / "betting" / "data" / "global_events_api.json"
+DISCOVERY_DATA_DIR = Path(__file__).parent.parent / "betting" / "data"
 
 # Minimum API-sourced L10 matches before we skip overwriting form with scan data
 API_FORM_THRESHOLD = 5
@@ -207,7 +205,7 @@ def _extract_form_matches(form_list: list, sport: str, team: str) -> list[dict]:
 
 def _extract_h2h_matches(h2h_data: dict, sport: str) -> list[dict]:
     """Convert scan H2H matches into cache-compatible entries."""
-    # Beast Mode format: {"teamDuel": {"homeWins": N, "awayWins": N, "draws": N}}
+    # SofaScore format: {"teamDuel": {"homeWins": N, "awayWins": N, "draws": N}}
     if "teamDuel" in h2h_data:
         td = h2h_data.get("teamDuel") or {}
         if td:
@@ -239,7 +237,7 @@ def _extract_h2h_matches(h2h_data: dict, sport: str) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
-# Beast Mode format normalization
+# Discovery event normalization
 # ---------------------------------------------------------------------------
 
 def _parse_odds_val(choice: dict) -> float | None:
@@ -269,24 +267,22 @@ def _parse_odds_val(choice: dict) -> float | None:
     return result
 
 
-def _normalize_beast_mode_event(event: dict) -> tuple[str, dict]:
-    """Normalize a Beast Mode event (from global_events_api.json) to legacy format.
+def _normalize_discovery_event(event: dict) -> tuple[str, dict]:
+    """Normalize a discovery event to the ingest format.
 
-    Beast Mode format:
+    Discovery format (from {date}_s1_events.json):
       {"id": N, "sport": "football", "home_team": "X", "away_team": "Y",
-       "form": {"homeTeam": {"form": ["W","L"]}, "awayTeam": {"form": ["W","L"]}},
-       "h2h": {"teamDuel": {"homeWins": N, ...}},
-       "odds": [{"marketName": "Full time", "choices": [...]}]}
+       "source": "sofascore", ...}
 
-    Returns (fake_url, normalized_event) in legacy-compatible format.
+    Returns (fake_url, normalized_event).
     """
     normalized = dict(event)
     # Key renames
     normalized["home"] = event.get("home_team", event.get("home", ""))
     normalized["away"] = event.get("away_team", event.get("away", ""))
-    normalized["source"] = "flashscore"
+    normalized.setdefault("source", "sofascore")
 
-    # Form normalization: Beast Mode nested → flat form_home/form_away
+    # Form normalization: SofaScore nested → flat form_home/form_away
     # Preserve ALL data from pregame-form endpoint (position, value, form sequence, matches)
     form = event.get("form") or {}
     if isinstance(form, dict):
@@ -316,8 +312,8 @@ def _normalize_beast_mode_event(event: dict) -> tuple[str, dict]:
         if form.get("label"):
             normalized.setdefault("standings", {})["label"] = form["label"]
 
-    # H2H: pass through — _extract_h2h_matches now handles Beast Mode format
-    # Odds normalization: Beast Mode array → dict (ALL market types)
+    # H2H: pass through — _extract_h2h_matches handles SofaScore format
+    # Odds normalization: SofaScore array → dict (ALL market types)
     odds_raw = event.get("odds") or []
     if isinstance(odds_raw, list) and odds_raw:
         odds_dict = {}
@@ -493,7 +489,7 @@ def _normalize_beast_mode_event(event: dict) -> tuple[str, dict]:
     if expected_stats:
         normalized["expected_stats"] = expected_stats
 
-    fake_url = f"flashscore/{event.get('sport', 'unknown')}/{event.get('id', 0)}"
+    fake_url = f"{normalized.get('source', 'discovery')}/{event.get('sport', 'unknown')}/{event.get('id', 0)}"
     return fake_url, normalized
 
 
@@ -723,7 +719,7 @@ def _ingest_team_side(
             for key in ("w1", "w2", "x", "draw"):
                 if key in odds_raw and odds_raw[key]:
                     scan_odds[key] = odds_raw[key]
-            # Pass through ALL structured market types from Beast Mode
+            # Pass through ALL structured market types
             for market_key in ("handicap_lines", "total_lines", "double_chance",
                                "draw_no_bet", "corners", "cards", "half_time",
                                "half_time_2nd", "set_winner", "period_markets"):
@@ -913,11 +909,9 @@ def _ingest_team_side(
 
 def run(scan_path: Path, dry_run: bool = False, target_date: str | None = None,
         out: "AgentOutput | None" = None) -> dict:
-    """Run full ingestion from scan data.
+    """Run full ingestion from discovery scan data.
 
-    Supports both:
-    - Beast Mode: global_events_api.json (flat list of events)
-    - Legacy: scan_summary.json (dict of URL → events list)
+    Reads {date}_s1_events.json (flat list of events from discovery module).
 
     Returns summary dict: {sport: {teams_ingested, h2h_added, form_added}}.
     """
@@ -944,10 +938,9 @@ def run(scan_path: Path, dry_run: bool = False, target_date: str | None = None,
     ingested_events = 0
     errors = 0
 
-    # Detect format: Beast Mode (list) vs legacy (dict)
+    # Discovery format: flat list of events
     if isinstance(raw, list):
-        # Beast Mode format: flat list of events from global_events_api.json
-        print(f"[ingest] Beast Mode format detected — {len(raw)} events")
+        print(f"[ingest] Discovery format — {len(raw)} events")
         for idx, event in enumerate(raw, 1):
             if not isinstance(event, dict):
                 continue
@@ -960,7 +953,7 @@ def run(scan_path: Path, dry_run: bool = False, target_date: str | None = None,
 
             total_events += 1
             try:
-                fake_url, normalized = _normalize_beast_mode_event(event)
+                fake_url, normalized = _normalize_discovery_event(event)
                 if ingest_event(fake_url, normalized, dry_run=dry_run, summary=summary):
                     ingested_events += 1
             except Exception as exc:
@@ -973,45 +966,10 @@ def run(scan_path: Path, dry_run: bool = False, target_date: str | None = None,
                     print(f"[ingest] ERROR processing {sport}/{home}: {exc}", file=sys.stderr)
 
             if out and idx % 100 == 0:
-                out.progress(idx, len(raw), f"Beast Mode event {idx}")
-
-    elif isinstance(raw, dict):
-        # Legacy format: dict keyed by URL → list of events
-        url_list = list(raw.items())
-        for idx, (url, events) in enumerate(url_list, 1):
-            if not isinstance(events, list):
-                continue
-            for event in events:
-                if not isinstance(event, dict):
-                    continue
-
-                # Optional date filter
-                if target_date:
-                    event_date = (
-                        event.get("match_info", {}).get("date", "")
-                        or event.get("date", "")
-                    )
-                    if event_date and event_date != target_date:
-                        continue
-
-                total_events += 1
-                try:
-                    if ingest_event(url, event, dry_run=dry_run, summary=summary):
-                        ingested_events += 1
-                except Exception as exc:
-                    errors += 1
-                    sport = event.get("sport", "?")
-                    home = event.get("home", "?")
-                    if out:
-                        out.error(f"{sport}/{home} from {url}: {exc}", recoverable=True)
-                    else:
-                        print(f"[ingest] ERROR processing {sport}/{home} from {url}: {exc}", file=sys.stderr)
-
-            if out:
-                out.progress(idx, len(url_list), url[:60])
+                out.progress(idx, len(raw), f"event {idx}")
 
     else:
-        msg = f"expected list or dict in {scan_path}, got {type(raw).__name__}"
+        msg = f"expected list in {scan_path}, got {type(raw).__name__}"
         if out:
             out.error(msg, recoverable=False)
         else:
@@ -1077,7 +1035,7 @@ def main():
     from agent_output import AgentOutput, add_agent_args
 
     parser = argparse.ArgumentParser(
-        description="Ingest scan data into stats_cache (Beast Mode or legacy format)"
+        description="Ingest discovery scan data into stats_cache"
     )
     parser.add_argument(
         "--date",
@@ -1093,24 +1051,25 @@ def main():
         "--scan-file",
         type=Path,
         default=None,
-        help="Path to scan data file. Auto-detects: tries global_events_api.json (Beast Mode) first, falls back to scan_summary.json (legacy)",
+        help="Path to scan data file. Auto-detects {date}_s1_events.json from discovery module.",
     )
     add_agent_args(parser)
     args = parser.parse_args()
 
     out = AgentOutput("s1_ingest", verbose=args.verbose, stop_on_error=args.stop_on_error)
 
-    # Auto-detect scan file: Beast Mode first, then legacy
+    # Auto-detect scan file from discovery module
     scan_file = args.scan_file
     if scan_file is None:
-        if BEAST_MODE_PATH.exists():
-            scan_file = BEAST_MODE_PATH
-            print(f"[ingest] Auto-detected Beast Mode file: {scan_file}")
-        elif SCAN_SUMMARY_PATH.exists():
-            scan_file = SCAN_SUMMARY_PATH
-            print(f"[ingest] Auto-detected legacy file: {scan_file}")
+        if not args.date:
+            out.error("--date is required when --scan-file is not provided.", recoverable=False)
+            sys.exit(1)
+        discovery_path = DISCOVERY_DATA_DIR / f"{args.date}_s1_events.json"
+        if discovery_path.exists():
+            scan_file = discovery_path
+            print(f"[ingest] Auto-detected discovery file: {scan_file}")
         else:
-            out.error("No scan data found. Run scan_events.py first.", recoverable=False)
+            out.error(f"No scan data found at {discovery_path}. Run discover_events.py --date {args.date} first.", recoverable=False)
             sys.exit(1)
 
     # Validate date format

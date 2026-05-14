@@ -73,8 +73,8 @@ try:
 except Exception as e:
     check("Import/Run", False, str(e))
 
-# 2. scan_events.py _persist_deep_to_db import works
-print("\n[2] scan_events.py _helpers import path")
+# 2. deep_data_db_writer import works
+print("\n[2] deep_data_db_writer _helpers import path")
 try:
     import importlib.util
     spec = importlib.util.spec_from_file_location(

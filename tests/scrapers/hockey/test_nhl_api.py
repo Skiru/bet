@@ -37,21 +37,34 @@ STANDINGS_RESPONSE = {
 }
 
 SKATER_LEADERS_RESPONSE = {
-    "data": [
+    "goals": [
         {
-            "playerId": 8478402,
+            "id": 8478402,
             "firstName": {"default": "Connor"},
             "lastName": {"default": "McDavid"},
-            "positionCode": "C",
-            "teamAbbrev": {"default": "EDM"},
-            "gamesPlayed": 82,
-            "goals": 64,
-            "assists": 89,
-            "points": 153,
-            "plusMinus": 32,
-            "penaltyMinutes": 36,
-            "shots": 350,
-            "shootingPctg": 0.183,
+            "position": "C",
+            "teamAbbrev": "EDM",
+            "value": 64,
+        },
+    ],
+    "assists": [
+        {
+            "id": 8478402,
+            "firstName": {"default": "Connor"},
+            "lastName": {"default": "McDavid"},
+            "position": "C",
+            "teamAbbrev": "EDM",
+            "value": 89,
+        },
+    ],
+    "points": [
+        {
+            "id": 8478402,
+            "firstName": {"default": "Connor"},
+            "lastName": {"default": "McDavid"},
+            "position": "C",
+            "teamAbbrev": "EDM",
+            "value": 153,
         },
     ],
 }
