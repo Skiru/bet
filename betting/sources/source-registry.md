@@ -11,6 +11,18 @@ The pipeline uses **API-first discovery architecture**: SofaScore + Odds API + A
 4. Use Tier B tipster/community sites to validate direction, discover angles, and check consensus.
 5. Prioritize lower-division and minor-league coverage — market inefficiency is highest where bookmaker lines are weakest.
 
+## Source Classification Quick Reference
+
+| Category | Sources | Access Method |
+|----------|---------|---------------|
+| **Automated — Discovery** | SofaScore API, The-Odds-API, API-Football | `src/bet/discovery/` module via `discover_events.py` |
+| **Automated — Scrapers** | 19 scrapers: FBref, NBA API, NHL API, Basketball-Reference, Sackmann, ESPN (5 sports), Flashscore (5 sports), Hockey-Reference, Volleybox | `src/bet/scrapers/` module via `run_scrapers.py` |
+| **Automated — Odds** | the-odds-api, odds-api.io, api-football-odds | `fetch_odds_api.py`, `fetch_odds_api_io.py`, `fetch_odds_multi.py` |
+| **Automated — Enrichment** | ESPN API, Flashscore HTTP | `data_enrichment_agent.py` |
+| **Manual/Browser** | OddsPortal, BetExplorer, SBR, ESPN Odds, ScoresAndOdds, Flashscore (results) | Playwright/browser via agents |
+| **Tipster/Community** | ZawodTyper, Typersi, OLBG, PicksWise, WinDrawWin, FootballPredictions | `tipster_aggregator.py` (Gemini extraction) |
+| **Archived/Blocked** | Forebet, FootySupertips, Volleybox (403) | Not available |
+
 ## Tier A Core Market and Price Sources
 
 - Betclic

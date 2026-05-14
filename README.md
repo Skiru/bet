@@ -24,7 +24,7 @@ Podstawowe moduły źródłowe (`src/bet/`):
 - `src/bet/discovery/` — odkrywanie wydarzeń (~30s, tysiące zdarzeń z SofaScore, Odds API, API-Football)
 - `src/bet/scrapers/` — pakiet 19 scraperów dla 5 sportów (FBref, NBA API, NHL API, ESPN, Flashscore, itd.)
 - `src/bet/stats/` — normalizacja statystyk, oceny bezpieczeństwa (safety scores), ranking rynków
-- `src/bet/odds_sources/` — zintegrowane moduły pobierające kursy bukmacherskie
+- `scripts/odds_sources/` — zintegrowane moduły pobierające kursy bukmacherskie (the-odds-api, odds-api.io, api-football)
 
 ## Pipeline (Model A)
 

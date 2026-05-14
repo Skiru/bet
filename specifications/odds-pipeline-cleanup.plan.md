@@ -612,13 +612,3 @@ PYTHONPATH=src .venv/bin/python -m pytest tests/ --ignore=tests/scrapers -v --tb
 | BetExplorer | ~5 HTTP requests | 0 | Removed from odds pipeline |
 
 **Net:** +50-100 odds-api.io requests (free), -10 broken requests. Credit budget unchanged for The Odds API.
-
----
-
-## 10. Post-Implementation Fix (2026-05-14 PM)
-
-**DB persistence bug in `fetch_odds_api_io.py`** — discovered during live testing:
-- `event.get("sport")` returned a dict `{name, slug}`, not a string → `.lower()` crash
-- `event.get("kickoff")` field doesn't exist → actual field is `"date"`
-- Both bugs caused **zero** odds-api.io records to persist to DB (JSON snapshot worked fine)
-- Fixed to use `_our_sport` and `date` fields. Live-tested: 1048 records persisted to `odds_history`

@@ -694,7 +694,7 @@ THINK_WHILE_WAITING_QUERIES = {
             {
                 "label": "Active tournaments in fixtures",
                 "type": "sql",
-                "query": "SELECT DISTINCT competition FROM fixtures WHERE date(kickoff_utc)='{date}' AND (competition LIKE '%Champions%' OR competition LIKE '%World%' OR competition LIKE '%Grand Slam%' OR competition LIKE '%Europa%' OR competition LIKE '%Copa%')",
+                "query": "SELECT DISTINCT competition FROM fixtures WHERE date(kickoff)='{date}' AND (competition LIKE '%Champions%' OR competition LIKE '%World%' OR competition LIKE '%Grand Slam%' OR competition LIKE '%Europa%' OR competition LIKE '%Copa%')",
                 "purpose": "Verify tournament protection (R7) — are major tournaments captured?",
             },
         ],

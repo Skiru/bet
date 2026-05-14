@@ -170,7 +170,7 @@ def validate_data_phase(date: str) -> list[Check]:
                          "PASS" if fix_cnt > 0 else "FAIL",
                          f"{fix_cnt} fixtures for {date}",
                          gate=True,
-                         recovery=f"Run: PYTHONPATH=src python3 scripts/discover_fixtures.py --date {date} --verbose"))
+                         recovery=f"Run: PYTHONPATH=src .venv/bin/python scripts/discover_events.py --date {date} --verbose"))
 
     checks.append(Check("D5", "DB: team_form updated today",
                          "PASS" if tf_cnt > 0 else "WARN",

@@ -227,7 +227,7 @@ Then call `get_terminal_output(id)` to check if the script is done:
 
 | Agent | Script Running | THINK-WHILE-WAITING: Do This |
 |-------|---------------|------------------------------|
-| bet-scanner | `scan_events.py` (10 min) | Query DB for previous scan stats, review source health, check tournament schedules |
+| bet-scanner | `discover_events.py` (~30s) | Query DB for previous scan stats, review source health, check tournament schedules |
 | bet-enricher | `data_enrichment_agent.py` (10 min) | Read shortlist JSON, check which teams already have form data in DB, identify gap candidates |
 | bet-statistician | `deep_stats_report.py` (10 min) | Read enrichment output, assess data quality per candidate, pre-load sport protocols |
 | bet-valuator | `odds_evaluator.py` (5 min) | Read S3 deep stats, pre-load safety scores and P(hit), identify strongest stat edges |

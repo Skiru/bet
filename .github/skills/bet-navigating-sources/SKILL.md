@@ -31,6 +31,8 @@ When a source fails (403/empty/timeout), try the next in chain immediately. All 
 
 ### Market Sources (odds comparison)
 
+*Note: OddsPortal and BetExplorer are for manual/browser-only line shopping (or fixture stubs) and are no longer part of the automated odds fetching pipeline.*
+
 | Sport | Primary | Secondary | Tertiary |
 |-------|---------|-----------|----------|
 | Football | The-Odds-API | odds-api.io | API-Football-Odds |
@@ -42,11 +44,9 @@ When a source fails (403/empty/timeout), try the next in chain immediately. All 
 
 ### Stats Sources
 
-**PRIMARY SCAN SOURCE: Flashscore** (via `UnifiedAPIClient` in `scan_events.py`)
-- Used by `scan_events.py` to discover ALL events for all 5 sports
-- Deep enrichment via `get_match_preview()` (form + H2H) and `get_fixture_stats()`
-- Covers: football, tennis, basketball, hockey, volleyball — global scope
-- HTTP + Playwright stealth fallback, 2s rate limit between requests
+**PRIMARY SCAN SOURCE: Event Discovery Module** (via `src/bet/discovery/` and `discover_events.py`)
+- Discover ALL events for all 5 sports using 3 rapid APIs (SofaScore, API-Football, The Odds API)
+- Deep enrichment (form, H2H, lineups) is handled SEPARATELY by scrapers/enrichment agent.
 
 **ENRICHMENT SOURCES** (used by `data_enrichment_agent.py` to fill gaps after scan):
 

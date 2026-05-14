@@ -1,4 +1,44 @@
-# Pipeline Knowledge Base — Consolidated (May 4-14, 2026, updated 2026-05-14 PM)
+# Pipeline Knowledge Base — Consolidated (May 4-14, 2026, updated 2026-05-14 EVE)
+
+## 🆕 POST-REFACTOR ALIGNMENT — COMPLETED (2026-05-14 EVE)
+
+**Plan:** `specifications/post-refactor-alignment.plan.md` — 7 phases, 20 tasks.
+
+### What Was Fixed (all misalignments from discovery/scrapers/odds refactoring)
+
+**Critical script fixes:**
+- `inspect_pipeline.py`: `kickoff_utc` → `kickoff` (2 SQL sites), metric key `total_scan_events` → `total_discovery_events`
+- `validate_phase.py`: recovery message `discover_fixtures.py` → `discover_events.py`
+- `agent_protocol.py`: `kickoff_utc` → `kickoff` in tournament protection query
+
+**Model A enforcement (3 agents aligned):**
+- `bet-scanner`: Now CONDITIONAL — analysis-only when orchestrator-delegated, script-running when user-invoked directly
+- `bet-settler`: Pure ANALYSIS-ONLY (R17 updated, script execution instructions removed)
+- `bet-db-analyst`: Pure ANALYSIS-ONLY
+
+**Documentation alignment (phantom scraper_to_team_form.py removed from 6 files):**
+- Removed from: orchestrator agent, orchestration prompt (S2.4 step deleted), enricher agent, enricher prompt, pipeline-knowledge-base, orchestrator script table
+- S2.4 remains in specs as BACKLOG (planned feature, not current pipeline)
+- Scraper count updated 14→19 everywhere (matches actual `_SCRAPER_REGISTRY`)
+- `scan_events.py` references replaced with `discover_events.py` in all instructions/skills
+- `ask-betting.prompt.md` updated: memory refs, DB-first context surfaces
+
+**Orchestrator fixes (2026-05-14 EVE):**
+- Behavioral Mandate #1: Fixed critical contradiction — was "NEVER run analytical scripts yourself" (old model), now correctly says "YOU run ALL scripts, specialists ONLY analyze" (Model A)
+- Script Execution Table: Expanded from 8→18 entries — added all S2-S8 analytical scripts with exact commands, PYTHONPATH, timeouts, modes
+- Delegation Reference Table: Removed 2 deleted prompt refs (bet-scan-merge, bet-scan-all)
+- Script count: 15 (corrected from 14)
+
+**Cleanup:**
+- Deleted: `_archive_integrate-discovery-module.prompt.md` (completed migration, 20+ stale refs)
+- `source-registry.md`: Added Source Classification Quick Reference table (automated/manual/tipster/archived)
+
+**Tests added:**
+- `tests/test_inspect_pipeline.py`: regression tests for kickoff column, metric key consistency
+- `tests/test_validate_phase.py`: regression tests for recovery script references
+- 567 tests passing (1 pre-existing unrelated failure)
+
+**README rewritten:** No fake CLI, correct modules, 5 sports, Model A, actual architecture
 
 ## 🆕 ODDS PIPELINE CLEANUP — COMPLETED (2026-05-14)
 
@@ -34,7 +74,7 @@ Eval:     odds_evaluator.py reads DB + 2 snapshot JSONs → injects EV into S3 c
 
 ## 🆕 SCRAPER MODULE — LIVE-TESTED (2026-05-14)
 
-**Location:** `src/bet/scrapers/` — 14 scrapers across 5 sports, SQLAlchemy 2.0 ORM.
+**Location:** `src/bet/scrapers/` — 19 scrapers across 5 sports, SQLAlchemy 2.0 ORM.
 **CLI:** `scripts/run_scrapers.py --sport all --season 2425 --verbose`
 **Tests:** 80/80 passing. DB: 98 league_profiles, 3,912 player_season_stats, 12,360 athletes.
 
@@ -71,8 +111,8 @@ Eval:     odds_evaluator.py reads DB + 2 snapshot JSONs → injects EV into S3 c
 7. Volleybox → `"2024-2025"` season format
 
 ### New Pipeline Steps (not yet added to pipeline execution)
-- S2.3: `run_scrapers.py` — 14 scrapers, ~2-3 min total
-- S2.4: `scraper_to_team_form.py` — bridge adapter (TO BE BUILT)
+- S2.3: `run_scrapers.py` — 19 scrapers, ~2-3 min total
+- S2.4 (BACKLOG): `scraper_to_team_form.py` — bridge adapter (TO BE BUILT, not part of current run)
 - S2.5: `data_enrichment_agent.py` — now GAP-FILL FALLBACK only
 
 ## ✅ CRITICAL BUGS — ALL FIXED (2026-05-14)
@@ -172,6 +212,7 @@ After S4-S7 gates → 3-4 viable core picks
 - Scripts = DATA TOOLS. Agents = ANALYSTS. `src/bet/` = shared packages (db, api_clients, stats, discovery)
 - `src/bet/stats/market_ranking.py` = SINGLE SOURCE OF TRUTH for SPORT_MARKETS, STANDARD_MARKET_LINES, MARKET_PL
 - 15 scripts emit `AGENT_SUMMARY:{json}` with `--verbose`. Exit: 0=OK, 1=partial, 2=critical
+- Orchestrator runs ALL scripts (Model A). Specialists ONLY analyze output — they NEVER run scripts.
 - Gate vocabulary: status=APPROVED/EXTENDED/REJECTED, advisory_tier=STRONG/MODERATE/WEAK/FLAGGED, risk_tier=LR/MS/HR/N
 - Config: `max_legs_per_coupon: 4`, `min_safety_score: 0.4`, `max_picks_per_day: 80`
 

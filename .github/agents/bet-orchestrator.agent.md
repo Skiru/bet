@@ -79,7 +79,6 @@ You are the betting pipeline orchestrator — a MANAGER who **runs ALL scripts, 
 - `discover_events.py`, `ingest_scan_stats.py` — scan phase
 - `tipster_aggregator.py`, `tipster_xref.py` — tipster data
 - `run_scrapers.py` — **NEW (S2.3):** 19 scrapers across 5 sports (incl. ESPN universal) → league_profiles + player_season_stats
-- `scraper_to_team_form.py` — **NEW (S2.4):** bridge adapter → team_form from scraper data
 - `data_enrichment_agent.py` — enrichment **(S2.5 — now gap-fill fallback)**
 - `deep_stats_report.py` — deep stats
 - `odds_evaluator.py`, `fetch_odds_api.py` — odds
@@ -288,7 +287,7 @@ Next: 24 candidates move to S4; hockey and volleyball partial-data flags stay ac
 
 ## Behavioral Mandates
 
-1. **NEVER run analytical scripts yourself.** S2-S10 = `runSubagent`. The specialist runs scripts, thinks, validates, returns structured verdict.
+1. **YOU run ALL scripts. Specialists ONLY analyze output.** S0-S10: run script → extract AGENT_SUMMARY → runSubagent(specialist) with output → receive analysis-only verdict. Specialists NEVER run scripts.
 2. **Between delegations, use `sequentialthinking`.** Evaluate the agent's verdict — agree? Methodology respected?
 3. **NEVER proceed past REJECTED.** Escalate to user via `askQuestions`.
 4. **NEVER bundle analytical steps.** Each step (S2, S2.5, S3, S4, S5+S6, S7, S8+S9) = separate `runSubagent`.
@@ -314,10 +313,19 @@ See **§SUBAGENT OUTPUT VERIFICATION** in orchestrate-betting-day.prompt.md for 
 | discover_events.py | `PYTHONPATH=src .venv/bin/python scripts/discover_events.py --date YYYY-MM-DD --verbose` | 120000 | sync |
 | ingest_scan_stats.py | `python3 scripts/ingest_scan_stats.py --date YYYY-MM-DD --verbose` | 120000 | sync |
 | run_scrapers.py | `PYTHONPATH=src .venv/bin/python scripts/run_scrapers.py --sport all --season 2425 --verbose` | 300000 | async |
-| scraper_to_team_form.py | `PYTHONPATH=src .venv/bin/python scripts/scraper_to_team_form.py --date YYYY-MM-DD --verbose` | 120000 | sync |
 | build_shortlist.py | `python3 scripts/build_shortlist.py --date YYYY-MM-DD --stats-first --verbose` | 120000 | sync |
+| tipster_aggregator.py | `PYTHONPATH=src python3 scripts/tipster_aggregator.py --date YYYY-MM-DD --use-gemini --verbose` | 300000 | async |
+| tipster_xref.py | `PYTHONPATH=src python3 scripts/tipster_xref.py --date YYYY-MM-DD --verbose` | 300000 | async |
+| data_enrichment_agent.py | `PYTHONPATH=src .venv/bin/python3 scripts/data_enrichment_agent.py --date YYYY-MM-DD --news --verbose` | 600000 | async |
+| deep_stats_report.py | `PYTHONPATH=src .venv/bin/python3 scripts/deep_stats_report.py --date YYYY-MM-DD --shortlist betting/data/YYYY-MM-DD_s2_shortlist.json --top 200 --gemini --verbose` | 600000 | async |
+| odds_evaluator.py | `PYTHONPATH=src .venv/bin/python3 scripts/odds_evaluator.py --date YYYY-MM-DD --verbose` | 300000 | async |
+| context_checks.py | `PYTHONPATH=src .venv/bin/python3 scripts/context_checks.py --date YYYY-MM-DD --verbose` | 300000 | async |
+| upset_risk.py | `PYTHONPATH=src .venv/bin/python3 scripts/upset_risk.py --date YYYY-MM-DD --verbose` | 300000 | async |
+| gate_checker.py | `PYTHONPATH=src .venv/bin/python3 scripts/gate_checker.py --date YYYY-MM-DD --verbose` | 300000 | async |
+| coupon_builder.py | `PYTHONPATH=src .venv/bin/python3 scripts/coupon_builder.py --date YYYY-MM-DD --verbose` | 300000 | async |
 | fetch_api_stats.py | `python3 scripts/fetch_api_stats.py --date YYYY-MM-DD` | 300000 | async |
 | fetch_odds_api.py | `python3 scripts/fetch_odds_api.py` | 120000 | sync |
+| fetch_odds_api_io.py | `python3 scripts/fetch_odds_api_io.py --date YYYY-MM-DD --verbose` | 120000 | sync |
 | settle_on_finish.py | `python3 scripts/settle_on_finish.py --betting-day YYYY-MM-DD` | 300000 | async |
 | analyze_betclic_learning.py | `python3 scripts/analyze_betclic_learning.py` | 120000 | sync |
 

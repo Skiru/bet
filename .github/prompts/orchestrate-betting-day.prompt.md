@@ -231,7 +231,6 @@ runSubagent(specialist_agent):
 |------|--------|---------|---------------------|------------------|
 | S2 tipsters | `tipster_xref.py` | 300000 | Read shortlist, identify tipster coverage gaps | bet-scout |
 | S2.3 scrapers | `run_scrapers.py` | 300000 | Check shortlist sports, plan scraper selection | bet-enricher |
-| S2.4 adapter | `scraper_to_team_form.py` | 120000 | Review scraper_runs results, assess data yield | bet-enricher |
 | S2.5 enrich | `data_enrichment_agent.py` | 600000 | Check team_form coverage from scrapers, identify gaps | bet-enricher |
 | S3 deep stats | `deep_stats_report.py` | 600000 | Read enrichment output, pre-load sport protocols | bet-statistician |
 | S4 odds | `odds_evaluator.py` | 300000 | Read S3 deep stats, identify strongest stat edges | bet-valuator |
@@ -244,7 +243,7 @@ runSubagent(specialist_agent):
 
 ## §STRUCTURED SCRIPT OUTPUT (R19)
 
-15 analytical scripts emit `AGENT_SUMMARY:{json}`: `discover_events.py`, `ingest_scan_stats.py`, `tipster_aggregator.py`, `tipster_xref.py`, `run_scrapers.py`, `scraper_to_team_form.py`, `data_enrichment_agent.py`, `deep_stats_report.py`, `gate_checker.py`, `coupon_builder.py`, `build_shortlist.py`, `odds_evaluator.py`, `context_checks.py`, `upset_risk.py`, `fetch_odds_multi.py`, `validate_coupons.py`. Exit codes: 0=OK, 1=partial, 2=critical. Scripts with `--sport` filter: `discover_events.py`, `tipster_aggregator.py`, `run_scrapers.py`.
+15 analytical scripts emit `AGENT_SUMMARY:{json}`: `discover_events.py`, `ingest_scan_stats.py`, `tipster_aggregator.py`, `tipster_xref.py`, `run_scrapers.py`, `data_enrichment_agent.py`, `deep_stats_report.py`, `gate_checker.py`, `coupon_builder.py`, `build_shortlist.py`, `odds_evaluator.py`, `context_checks.py`, `upset_risk.py`, `fetch_odds_multi.py`, `validate_coupons.py`. Exit codes: 0=OK, 1=partial, 2=critical. Scripts with `--sport` filter: `discover_events.py`, `tipster_aggregator.py`, `run_scrapers.py`.
 
 ---
 
@@ -542,7 +541,7 @@ runSubagent("bet-scout"):
 
 ---
 
-> ⚡ **PARALLEL EXECUTION:** S2 (tipster xref) and S2.3 (scrapers) are INDEPENDENT — they both read from the shortlist but neither depends on the other's output. Launch BOTH via separate `runSubagent` calls simultaneously. Collect both verdicts, then proceed to S2.4 → S2.5 sequentially. This halves wall-clock time.
+> ⚡ **PARALLEL EXECUTION:** S2 (tipster xref) and S2.3 (scrapers) are INDEPENDENT — they both read from the shortlist but neither depends on the other's output. Launch BOTH via separate `runSubagent` calls simultaneously. Collect both verdicts, then proceed to S2.5.
 
 ### STEP S2.3: Run Scrapers (NEW — scraper data collection)
 
@@ -561,45 +560,25 @@ Mode: `async`, timeout: `300000` (scrapers take ~2-3 min total, FBref is slowest
 **Step 3: MONITOR + EXTRACT:**
 - Watch for 403 errors (Volleybox known to 403)
 - Extract `AGENT_SUMMARY:{json}` with per-scraper results
-- Note: 10/14 scrapers typically succeed; Volleybox + SofaScore stubs expected to have issues
+- Note: 19 scrapers expected, some stubs may have issues
 
-**Step 4: Note output for S2.4 (DO NOT delegate yet — wait for S2.4 to also complete).**
-
----
-
-### STEP S2.4: Scraper-to-Team-Form Adapter (NEW — bridge scraper data to pipeline)
-
-**Orchestrator runs adapter, then delegates combined S2.3+S2.4 analysis to bet-enricher.**
-
-**Step 1: RUN script (you, the orchestrator):**
-```bash
-PYTHONPATH=src .venv/bin/python scripts/scraper_to_team_form.py --date {date} --verbose 2>&1
-```
-Mode: `sync`, timeout: `120000` (DB-only processing, no HTTP, ~30s)
-
-**Step 2: EXTRACT + VALIDATE:**
-- Parse `AGENT_SUMMARY:{json}` — teams_processed, team_form_rows_written, gaps
-- Check `team_form` table for rows with `source LIKE 'scrapers%'`
-
-**Step 3: Delegate combined S2.3+S2.4 analysis to bet-enricher:**
+**Step 4: Delegate analysis to bet-enricher:**
 ```
 runSubagent("bet-enricher"):
 ---
-## Task: Analyze S2.3 Scrapers + S2.4 Adapter output for {date}
+## Task: Analyze S2.3 Scrapers output for {date}
 
 ### Script Outputs (already executed by orchestrator)
 S2.3 AGENT_SUMMARY (run_scrapers.py): {paste extracted JSON}
-S2.4 AGENT_SUMMARY (scraper_to_team_form.py): {paste extracted JSON}
-Exit codes: S2.3={0|1|2}, S2.4={0|1|2}
+Exit codes: S2.3={0|1|2}
 Key warnings: {paste source failures, 403s, gaps}
 
 ### Upstream Context
 - Shortlist: {count} candidates across {sports}
 - Scraper results: {X} scrapers succeeded, {Y} failed
-- team_form rows from scrapers: {count}
 
 ### ⛔ Analysis-Only Mode
-DO NOT run any scripts. Analyze scraper + adapter output.
+DO NOT run any scripts. Analyze scraper output.
 Key assessment: which sports/teams are covered by scrapers? Which gaps remain for S2.5?
 Return: Model A verdict + explicit gap list for S2.5 enrichment
 ---
@@ -1057,8 +1036,6 @@ Present to user:
 | S0.5 DB Quality | `bet-db-quality.prompt.md` | bet-db-analyst |
 | S1 Scan | `bet-scan.prompt.md` | bet-scanner |
 | S1 Scan (sport-specific) | Use `bet-scan.prompt.md` with `--sport {sport}` filter | bet-scanner |
-| S1 Scan (merge) | `bet-scan-merge.prompt.md` | bet-scanner |
-| S1 Scan (all sports) | `bet-scan-all.prompt.md` | bet-scanner |
 | S1e Shortlist | `bet-shortlist.prompt.md` | bet-scanner |
 | S2 Tipsters | `bet-tipsters.prompt.md` | bet-scout |
 | S2.5 Enrichment | `bet-enrich.prompt.md` | bet-enricher |

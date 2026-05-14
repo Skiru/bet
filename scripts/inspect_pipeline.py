@@ -134,12 +134,12 @@ def inspect_s0(date: str, out: AgentOutput) -> dict:
         date_counts = {}
         for t in ["fixtures", "scan_results", "analysis_results", "gate_results"]:
             if t in table_names:
-                # Try betting_date first, then date(kickoff_utc) for fixtures
+                # Try betting_date first, then date(kickoff) for fixtures
                 count = _safe_fetchone(conn,
                     f"SELECT COUNT(*) FROM {t} WHERE betting_date = ?", (date,), default=None)
                 if count is None and t == "fixtures":
                     count = _safe_fetchone(conn,
-                        f"SELECT COUNT(*) FROM {t} WHERE date(kickoff_utc) = ?", (date,), default=0)
+                        f"SELECT COUNT(*) FROM {t} WHERE date(kickoff) = ?", (date,), default=0)
                 date_counts[t] = count or 0
         metrics["date_counts"] = date_counts
 
@@ -186,7 +186,7 @@ def inspect_s1(date: str, out: AgentOutput) -> dict:
 
         # Fixture count
         metrics["fixtures"] = _safe_fetchone(conn,
-            "SELECT COUNT(*) FROM fixtures WHERE date(kickoff_utc) = ?",
+            "SELECT COUNT(*) FROM fixtures WHERE date(kickoff) = ?",
             (date,), default=0)
 
         # Scan run stats
@@ -212,7 +212,7 @@ def inspect_s1(date: str, out: AgentOutput) -> dict:
         ]
 
     verdict = "OK"
-    if metrics["total_scan_events"] == 0:
+    if metrics["total_discovery_events"] == 0:
         verdict = "FAILED"
     elif len(sport_dist) < 3:
         verdict = "PARTIAL"
