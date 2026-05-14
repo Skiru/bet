@@ -92,15 +92,23 @@ You add an Enrichment Quality Assessment via sequential-thinking for each batch:
 ### Manual Enrichment DB Write (L5/L6 fallback)
 ```python
 from bet.db.connection import get_db
+from bet.db.repositories import TeamRepo, StatsRepo
+
+# ALWAYS use TeamRepo.find_or_create() — it validates team names
+# and rejects garbage (ads, odds strings, promo text) with ValueError.
+# NEVER use raw SQL INSERT into teams table.
+try:
+    team = TeamRepo.find_or_create(team_name, sport)
+except ValueError as e:
+    # Garbage team name detected — skip, don't pollute DB
+    logger.warning(f"Rejected garbage team name: {team_name} — {e}")
+    return
+
 with get_db() as conn:
     conn.execute("""
         INSERT OR REPLACE INTO team_form (team_id, sport_id, form_data, updated_at)
-        VALUES (
-            (SELECT id FROM teams WHERE name = ? OR aliases LIKE ?),
-            (SELECT id FROM sports WHERE name = ?),
-            ?, datetime('now')
-        )
-    """, (team_name, f'%{team_name}%', sport, json.dumps(form_data)))
+        VALUES (?, (SELECT id FROM sports WHERE name = ?), ?, datetime('now'))
+    """, (team.id, sport, json.dumps(form_data)))
 ```
 
 - Review enrichment yield (enriched/attempted × 100) — target ≥60%
@@ -118,7 +126,7 @@ with get_db() as conn:
 | Source | Method | Data Type | Reliability | Common Failures |
 |--------|--------|-----------|-------------|-----------------|
 
-| ESPN API | REST JSON | Schedule, injuries, standings, gamelogs | HIGH — free, unlimited | Team name mismatch, sport/league not supported |
+| ESPN API | REST JSON | Schedule, injuries, standings, gamelogs | HIGH — free, unlimited | Sport/league not supported (fuzzy league matching added 2026-05-14 mitigates old name mismatch issues) |
 | Flashscore HTML | Playwright render | L10 form, H2H, injury list | MEDIUM — regex on rendered JS | CAPTCHA, layout changes, empty response |
 | Flashscore search | Playwright render | Team page redirect | LOW — fallback only | Ambiguous results, wrong team matched |
 | scores24.live HTML | HTTP fetch | Basic stats | LOW — third-tier fallback | Site changes, sparse data |
