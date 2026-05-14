@@ -80,7 +80,7 @@ Read these files. Do NOT proceed until all are loaded:
 
 **Disabled clients (removed from CLIENT_REGISTRY):** TheSportsDB, BallDontLie, API-Tennis.
 **New adapters:** atptour, dailyfaceoff, hockey_reference, moneypuck, naturalstattrick (blocked but registered).
-**Protocol:** v5 — heredocs banned (use temp .py files), async patterns verified, all 15 agents have Python env tools.
+**Protocol:** v6 — 6-step cycle (INSPECT/RUN/THINK/ANALYZE/VALIDATE/VERDICT), pylanceRunCodeSnippet for data inspection, heredocs banned, async mandatory for scripts >120s.
 
 ### ⚡ API CLIENT OVERHAUL (2026-05-13) — NEW DATA SOURCES
 
@@ -166,7 +166,7 @@ Gemini features are ADDITIVE — they enhance the pipeline behind feature flags.
 
 ## ⛔ TERMINAL EXECUTION RULES
 
-All agents follow `agent-execution-protocol.instructions.md` v5 (loaded via their `instructions:` array). That protocol covers: `--verbose` mandatory, `mode=sync` (fast ≤120s) / `mode=async` + THINK-WHILE-WAITING (≥300s), `AGENT_SUMMARY:{json}` parsing, live monitoring, structured verdicts, **V5: VALIDATE step, REACTION_PATTERNS, input contract pre-checks, `inspect_pipeline.py` for state checks**. The protocol file covers terminal rules via agents' `instructions:` array.
+All agents follow `agent-execution-protocol.instructions.md` v6 (loaded via their `instructions:` array). That protocol covers: 6-step cycle (INSPECT→RUN→THINK→ANALYZE→VALIDATE→VERDICT), `pylanceRunCodeSnippet` for data inspection, `--verbose` mandatory, `mode=async` + THINK-WHILE-WAITING (≥120s), `AGENT_SUMMARY:{json}` parsing, structured verdicts, REACTION_PATTERNS, input contract pre-checks. The protocol file covers terminal rules via agents' `instructions:` array.
 
 **V5 pipeline inspector:** Use `python3 scripts/inspect_pipeline.py --step {step} --date {date}` instead of complex inline Python for state checks. Supports: s0/s1/s1e/s2/s3/s7/s8/all.
 
@@ -811,9 +811,9 @@ Present to user:
 ---
 ## §THINK IN THE MIDDLE
 
-> All agents follow `agent-execution-protocol.instructions.md` v5 for the full RUN→EXTRACT→**VALIDATE**→THINK→RETURN cycle.
-> R18 data flow verification: V5 adds `DATA_FLOW_CONTRACTS` in `agent_protocol.py` + `validate_input_contract()` for programmatic enforcement.
-> Reaction patterns: V5 adds `REACTION_PATTERNS` in `agent_protocol.py` for structured failure→recovery guidance.
+> All agents follow `agent-execution-protocol.instructions.md` v6 for the 6-step INSPECT→RUN→THINK→ANALYZE→VALIDATE→VERDICT cycle.
+> V6 adds: `pylanceRunCodeSnippet` for INSPECT (before) and VALIDATE (after) every script. Tool Selection Matrix. Anti-patterns expanded to 20.
+> R18 data flow verification: `DATA_FLOW_CONTRACTS` in `agent_protocol.py` + `validate_input_contract()` for programmatic enforcement.
 > See the protocol for the complete GOOD vs BAD output examples and anti-pattern list.
 
 ---

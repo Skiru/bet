@@ -31,7 +31,7 @@ tools:
     "todo",
     "pylance-mcp-server/*",
   ]
-model: "Gemini 3.1 Pro (Preview)"
+model: "Claude Opus 4.6 (Copilot)"
 instructions:
   - ../instructions/agent-execution-protocol.instructions.md
   - ../instructions/analysis-methodology.instructions.md

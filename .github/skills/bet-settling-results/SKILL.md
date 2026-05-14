@@ -18,7 +18,7 @@ Corners, cards, handicaps, MyCombi — require manual result lookup.
 
 ### US Sports Settlement
 ```bash
-python3 scripts/fetch_odds_api.py --scores baseball,hockey
+python3 scripts/fetch_odds_api.py --scores hockey
 ```
 
 ### Settlement Script
@@ -105,8 +105,37 @@ For EACH LOSS:
 - Per-league ROI: which leagues/sports produced profit vs loss
 - Per-market win rate trends
 
+## DB Queries for Settlement
+
+```sql
+-- Pending bets to settle for a betting day
+SELECT b.id, b.event_name, b.market, b.selection, b.odds, b.status,
+       c.coupon_id, c.stake_pln, f.score_home, f.score_away, f.status as match_status
+FROM bets b
+JOIN coupons c ON b.coupon_id = c.id
+JOIN fixtures f ON b.fixture_id = f.id
+WHERE c.status = 'pending' AND date(f.kickoff) = ?;
+
+-- Performance metrics
+SELECT sport, market, COUNT(*) as total,
+       SUM(CASE WHEN status='win' THEN 1 ELSE 0 END) as wins,
+       ROUND(SUM(CASE WHEN status='win' THEN 1.0 ELSE 0 END)/COUNT(*)*100, 1) as hit_pct,
+       ROUND(SUM(pnl_pln), 2) as total_pnl
+FROM bets WHERE status IN ('win','loss') GROUP BY sport, market;
+
+-- CLV tracking
+SELECT b.event_name, b.odds as placed_odds,
+       oh.odds as closing_odds,
+       ROUND((1.0/oh.odds)/(1.0/b.odds) - 1, 4) as clv
+FROM bets b
+JOIN odds_history oh ON oh.fixture_id = b.fixture_id AND oh.market = b.market AND oh.is_closing = 1
+WHERE b.status IN ('win','loss');
+```
+
 ## Connected Skills
 
-- `bet-formatting-artifacts` — Ledger CSV formats and pick/coupon ID conventions used during settlement
-- `bet-analyzing-statistics` — Historical hit rates from settlement feed back into §3.0 market ranking confidence
-- `bet-navigating-sources` — Result verification sources (Flashscore, ESPN scores)
+| Skill | Load for |
+|-------|----------|
+| `bet-formatting-artifacts` | Ledger CSV headers, pick/coupon status values, PnL field conventions |
+| `bet-analyzing-statistics` | Historical hit rates feed back into §3.0 safety score confidence |
+| `bet-navigating-sources` | Result verification via Flashscore, ESPN scores |

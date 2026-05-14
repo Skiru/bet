@@ -155,5 +155,7 @@ betting_day,source_name,role,sport_scope,availability,used_in_analysis,used_in_f
 
 ## Connected Skills
 
-- `bet-building-coupons` — Coupon construction rules that produce the artifacts formatted by this skill
-- `bet-settling-results` — Settlement outputs (ledger entries, PnL reports) formatted using conventions defined here
+| Skill | Load for |
+|-------|----------|
+| `bet-building-coupons` | Coupon construction rules — what goes INTO the artifacts formatted here |
+| `bet-settling-results` | Settlement PnL entries, ledger status transitions |

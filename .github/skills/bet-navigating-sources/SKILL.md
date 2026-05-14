@@ -10,16 +10,16 @@ Guides agents through the multi-tier source ecosystem for all 5 core sports (foo
 
 ## Source Philosophy
 
-Every sport has dedicated statistical databases, market sources, and prediction communities. Never reject a sport for "lack of sources" — search specialist sources instead. Every data point needs ≥2 independent confirmations.
+Every data point needs ≥2 independent confirmations. Never reject a sport for "lack of sources" — search specialist sources. DB-first: check `team_form` and `stats_cache` before hitting external sources.
 
 ## Source Tiers
 
 | Tier | Role | Examples | Rule |
 |------|------|----------|------|
 | **A — Markets** | Execution price, odds comparison, line shopping | Betclic (execution), BetExplorer, OddsPortal, The-Odds-API, SBR, ESPN Odds, ScoresAndOdds | Backbone for pricing decisions |
-| **A — Stats** | Fixtures, H2H, lineups, live stats, xG, results | Flashscore, TennisAbstract, Basketball-Reference, NaturalStatTrick | Backbone for analysis |
+| **A — Stats** | Fixtures, H2H, lineups, live stats, xG, results | Flashscore, TennisAbstract, Basketball-Reference, MoneyPuck | Backbone for analysis |
 | **B — Tipsters** | Argument-based consensus, angle discovery, local knowledge | ZawodTyper, Typersi, OLBG, PicksWise, BetIdeas, Meczyki, Sportsgambler, Tipstrr, GosuGamers | CANNOT create a bet alone — supports/warns |
-| **C — Specialists** | Sport-specific deep dives | TotalCorner, Betaminic, CueTracker, DartsOrakel, BaseballSavant, DailyFaceoff | Deep domain data |
+| **C — Specialists** | Sport-specific deep dives | TotalCorner, Betaminic, DailyFaceoff, MoneyPuck, TennisAbstract | Deep domain data |
 
 ## Blocked Sources (NEVER attempt)
 
@@ -38,15 +38,7 @@ When a source fails (403/empty/timeout), try the next in chain immediately. All 
 | Basketball (EU) | BetExplorer | OddsPortal | The-Odds-API |
 | Basketball (US) | SBR | ESPN Odds | ScoresAndOdds |
 | Hockey | SBR | ESPN Odds | ScoresAndOdds |
-| Baseball *(archived)* | SBR | ESPN Odds | ScoresAndOdds |
 | Volleyball | BetExplorer | OddsPortal | — |
-| Esports *(archived)* | BetExplorer | GosuGamers | — |
-| Snooker/Darts *(archived)* | BetExplorer | OddsPortal | — |
-| Handball *(archived)* | BetExplorer | OddsPortal | — |
-| Table Tennis *(archived)* | BetExplorer | — | — |
-| Padel *(archived)* | BetExplorer | — | — |
-| Speedway *(archived)* | BetExplorer | — | — |
-| MMA *(archived)* | BetExplorer | Tapology | — |
 
 ### Stats Sources
 
@@ -78,15 +70,6 @@ When a source fails (403/empty/timeout), try the next in chain immediately. All 
 | Basketball (US) | PicksWise | Sportsgambler | OLBG |
 | Volleyball | ZawodTyper → Typersi | Sportsgambler | Meczyki |
 | Hockey | PicksWise | Sportsgambler | OLBG |
-| Baseball | PicksWise | Sportsgambler | OLBG |
-| Esports | GosuGamers | Tipstrr | BO3.gg |
-| Snooker | Sportsgambler → OLBG | Tipstrr | — |
-| Darts | Sportsgambler → OLBG | Tipstrr | — |
-| Handball | Sportsgambler | ZawodTyper | OLBG |
-| Table Tennis | Sportsgambler | OLBG | Tipstrr |
-| MMA | Sportsgambler | PicksWise | Tipstrr |
-| Padel | Google "[event] prediction" | Sportsgambler | — |
-| Speedway | ZawodTyper | Typersi | Google "[event] tips" |
 
 ## Source-Specific Access Notes
 
@@ -125,26 +108,16 @@ Community/tipster sources CANNOT create a bet on their own. Four valid uses:
 
 ## American Odds Conversion
 
-For SBR, ESPN, ScoresAndOdds:
-- Positive +X → decimal = `1 + X/100` (e.g., +150 = 2.50)
-- Negative −X → decimal = `1 + 100/X` (e.g., −150 = 1.667)
+→ See `bet-evaluating-odds` for conversion formulas (American → decimal).
 
-## The-Odds-API Usage
+## Odds Scripts
 
-- Script: `python3 scripts/fetch_odds_api.py`
-- Full scan: `--sports` flag or no args (all sports). ~30 credits.
-- Settlement: `--scores baseball,hockey`
-- List sports (free): `--list-sports`
-- NOT covered: volleyball, esports, snooker, darts, table tennis, handball, padel, speedway
-
-## Multi-Source Odds Aggregation (RECOMMENDED)
-
-- Script: `python3 scripts/fetch_odds_multi.py --date YYYY-MM-DD`
-- Aggregates 4 sources: The-Odds-API + API-Football + OddsPortal + BetExplorer
-- Betclic odds are NEVER scraped (403). User verifies on app (R12).
-- Output: `betting/data/odds_multi_sources.json` (provenance log with per-event source attribution)
-- Uses `SPORT_SOURCE_PRIORITY` chains to select best odds per sport
-- RECOMMENDED over single-source `fetch_odds_api.py` for comprehensive multi-bookmaker comparison
+| Script | Purpose | Output |
+|--------|---------|--------|
+| `python3 scripts/fetch_odds_api.py` | The-Odds-API (~30 credits/scan) | `betting/data/odds_api_snapshot.json` |
+| `python3 scripts/fetch_odds_api.py --scores hockey` | Settlement scores | JSON scores |
+| `python3 scripts/fetch_odds_multi.py --date YYYY-MM-DD` | 4-source aggregation | `betting/data/odds_multi_sources.json` |
+| `python3 scripts/fetch_odds_api.py --list-sports` | List available sports (free) | stdout |
 
 ## Automated Tipster Aggregation
 
@@ -161,9 +134,20 @@ For SBR, ESPN, ScoresAndOdds:
 **Integration with manual deep-dive (S4):**
 The aggregator provides the FIRST PASS — structured picks + consensus. The `bet-scout` agent then performs the DEEP DIVE — reading full written arguments, extracting cited facts, investigating contradictions, and promoting statistical market picks to the watchlist.
 
+## Source Health DB Query
+
+```sql
+SELECT source_name, total_requests, total_failures,
+       ROUND(total_failures*100.0/MAX(total_requests,1),1) as fail_pct,
+       last_success, last_failure
+FROM source_health ORDER BY total_requests DESC;
+```
+
 ## Connected Skills
 
-- `bet-analyzing-statistics` — Consumes the statistical data collected via sources defined here
-- `bet-applying-sport-protocols` — Sport-specific protocols that define which data points to collect from each source
-- `bet-evaluating-odds` — Odds comparison requires the market source chains defined here
-- `bet-settling-results` — Result verification sources (Flashscore, ESPN scores) for settlement
+| Skill | Load for |
+|-------|----------|
+| `bet-analyzing-statistics` | §3.0 ranking protocol that consumes the data collected via these sources |
+| `bet-applying-sport-protocols` | Per-sport data requirements defining WHAT to collect |
+| `bet-evaluating-odds` | American odds conversion, EV from multi-source odds comparison |
+| `bet-settling-results` | Result verification via Flashscore/ESPN scores |

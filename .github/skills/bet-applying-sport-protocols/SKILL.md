@@ -10,10 +10,9 @@ Detailed per-sport analysis requirements. Load this skill when performing STEP 3
 
 ## Sport Tiers
 
-| Tier | Sports | Scanning Depth | Analysis |
-|------|--------|---------------|----------|
-| **KEY (Tier 1)** | Football, Volleyball, Basketball, Tennis | ALL leagues/divisions deeply | Full per candidate |
-| **SUPPORT (Tier 2)** | Hockey, Baseball, Esports, Snooker, Darts, Table Tennis, Handball, MMA, Padel, Speedway | Main leagues/tournaments | Full per candidate (same quality) |
+| Tier | Sports | Scanning Depth |
+|------|--------|---------------|
+| **Tier 1 (CORE)** | Football, Volleyball, Basketball, Tennis, Hockey | ALL leagues/divisions deeply |
 
 ## Per-Sport Protocols
 
@@ -21,24 +20,9 @@ Detailed protocols for each sport are in the reference file. Load when analyzing
 
 → See [references/sport-details.md](references/sport-details.md) for full stat tables, multi-market calculation templates, and red flag checklists per sport.
 
-## Quick Reference: Market Hierarchies
+## Market Hierarchies
 
-| Sport | Priority (→ least preferred) | Key Statistical Markets |
-|-------|------------------------------|------------------------|
-| Football | Fouls → Cards → Corners → Shots → Team totals → BTTS → U2.5 → O2.5 → DC/DNB → 1X2 | Corners, fouls, cards, shots |
-| Tennis | Game totals O/U → Set totals → Game HC → Set HC → ML | Games, sets |
-| Basketball | Team totals → Quarter totals → Game totals → Spreads → ML | Points, team totals |
-| Hockey | Period totals → Game totals → Puck line → ML | Period totals, shots |
-| Baseball | F5 totals → Team totals → Game totals → Run line → ML | F5 innings, team totals |
-| Volleyball | Set score O/U → Point totals → Set totals → Set HC → ML | Sets, total points |
-| Esports | Round totals → Map totals → Map HC → Kill totals → ML | Rounds, maps |
-| Snooker | Century O/U → Frame totals → Frame HC → ML | Frames, centuries |
-| Darts | 180s O/U → Leg totals → Set totals → ML | 180s, legs |
-| Handball | Half totals → Game totals → HC → ML | Half totals, game totals |
-| Table Tennis | Point totals → Set totals → Set HC → ML | Points, sets |
-| MMA | Method → O/U rounds → ITD → ML | Rounds |
-| Padel | Game totals → Set totals → Set HC → ML | Games, sets |
-| Speedway | Total pts → HC → Match winner | Total points |
+→ Full market hierarchy tables are in `bet-analyzing-statistics` §3.0. Load that skill for market ranking protocol and priority order per sport.
 
 ## Quick Reference: Upset Risk Thresholds
 
@@ -48,16 +32,7 @@ Detailed protocols for each sport are in the reference file. Load when analyzing
 | Football | ≥4 | 8 |
 | Basketball | ≥3 | 6 |
 | Hockey | ≥3 | 6 |
-| Baseball | ≥3 | 6 |
 | Volleyball | ≥3 | 6 |
-| Esports | ≥2 | 5 |
-| Snooker | ≥2 | 5 |
-| Darts | ≥2 | 5 |
-| MMA | ≥3 | 6 |
-| Handball | ≥3 | 6 |
-| Table Tennis | ≥2 | 5 |
-| Padel | ≥3 | 6 |
-| Speedway | ≥3 | 6 |
 
 **Paradox Rule:** High upset risk → OVER totals premium (competitive = more play). Low upset risk → OVERS dangerous (blowout).
 
@@ -69,21 +44,14 @@ Detailed protocols for each sport are in the reference file. Load when analyzing
 | Football | Dead rubber? Cup rotation (CL/EL <5d)? Derby? International break? Synthetic pitch? |
 | Basketball | B2B? Load management? Tank mode? Elimination? |
 | Hockey | Backup goalie? B2B? Down 0-3 in series? |
-| Baseball | Bullpen game? MLB debut pitcher? Wind blowing out? |
 | Volleyball | Playoff clinched? 5th set to 15? |
-| Esports | Stand-in? New patch <2wk? Online vs LAN? BO1? |
-| Snooker | Long-format fatigue? Morning session? |
-| Darts | Sets vs legs format? 180s power matchup? |
-| Handball | European week rotation? 7m specialist absent? |
-| Table Tennis | Division gap in cup? BO5 vs BO7? |
-| MMA | Late opponent change? Failed weight cut? Layoff >1yr? |
-| Padel | New pair <3 events? Indoor vs outdoor? |
-| Speedway | Rain/wet? Rider track record? |
 
 **ANY red flag fired → REJECT, DOWNGRADE, or explicitly JUSTIFY with data.**
 
 ## Connected Skills
 
-- `bet-analyzing-statistics` — §3.0 Statistical Market Ranking Protocol that uses the per-sport stat tables defined here
-- `bet-building-coupons` — Sport-specific validations (V3-V4k) that verify compliance with protocols defined here
-- `bet-navigating-sources` — Sport-specific source chains for collecting the data required by each protocol
+| Skill | Load for |
+|-------|----------|
+| `bet-analyzing-statistics` | §3.0 market ranking protocol, safety score formula, probability engine |
+| `bet-building-coupons` | V3-V4k sport-specific validations during coupon construction |
+| `bet-navigating-sources` | Source fallback chains per sport for data collection |

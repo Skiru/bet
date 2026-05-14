@@ -2,7 +2,7 @@
 applyTo: ".github/agents/bet-*.agent.md"
 ---
 
-# Agent Execution Protocol v5
+# Agent Execution Protocol v6
 
 ## ⛔ FISH SHELL — ABSOLUTE TERMINAL RULES (VIOLATION = PIPELINE FAILURE)
 

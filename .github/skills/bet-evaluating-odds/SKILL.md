@@ -68,30 +68,23 @@ Total suggested exposure may exceed daily budget — user decides which coupons 
 
 ## Probability Engine Integration
 
-For count-based statistical markets, the probability engine provides the most accurate true probability:
+For count-based statistical markets, use the probability engine output from S3 (`bet-analyzing-statistics` §3.0-PROB):
 
 ```bash
-# Read from S3 output (already computed):
-# Look for P(hit), Fair Odds, λ columns in the ranking table
-
+# From S3 output: look for P(hit), Fair Odds, λ columns in ranking table
 # Or compute directly:
 python3 scripts/probability_engine.py --line 9.5 --direction OVER --values "11,8,13,9,10"
-
-# Python:
-from probability_engine import compute_probability, compute_ev, compute_kelly_quarter
-result = compute_probability(line=9.5, direction="OVER", l10_values=[...], l5_values=[...], h2h_values=[...])
-prob, fair_odds = result["probability"], result["fair_odds"]
-ev = compute_ev(prob, betclic_odds)
-stake = compute_kelly_quarter(prob, betclic_odds, bankroll)
 ```
 
 **Cross-validation with Pinnacle:**
-- If |Poisson_prob - Pinnacle_prob| < 5% → high confidence, use Poisson
-- If |Poisson_prob - Pinnacle_prob| 5-10% → moderate confidence, average the two
-- If |Poisson_prob - Pinnacle_prob| > 10% → investigate: check for news, injuries, sharp money
-- CI width > 25% → low data confidence, weight Pinnacle higher
 
-**Min Betclic Odds = 1 / P(hit)** — the fair odds. Betclic must offer ABOVE this for EV > 0.
+| |Poisson − Pinnacle| | Confidence | Action |
+|---|---|---|
+| <5% | High | Use Poisson |
+| 5-10% | Moderate | Average both |
+| >10% | Low | Investigate news/injuries |
+
+**Min Betclic Odds = 1 / P(hit)** — Betclic must offer ABOVE this for EV > 0.
 
 ## American Odds Conversion
 
@@ -122,32 +115,39 @@ Before picking any market type, check historical hit rate in `picks-ledger.csv`:
 
 ## Multi-Source Odds Protocol
 
-For EACH candidate, get odds from ≥2 sources:
+Get odds from ≥2 sources per candidate. See `bet-navigating-sources` for full source chains.
 
 | Sport Region | Source 1 | Source 2 | Source 3 |
 |-------------|----------|----------|----------|
 | EU sports | BetExplorer | OddsPortal | The-Odds-API |
-| US sports (NHL/NBA/MLB) | SBR | ESPN Odds | ScoresAndOdds |
+| US sports (NHL/NBA) | SBR | ESPN Odds | ScoresAndOdds |
 
-Cross-validate: if odds differ >5% between sources → investigate which is stale.
+Cross-validate: odds differ >5% between sources → investigate staleness.
 
-## The-Odds-API Integration
+## The-Odds-API & Multi-Source
 
-- Script: `python3 scripts/fetch_odds_api.py`
-- Output: `betting/data/odds_api_snapshot.json` + `odds_api_summary.csv`
-- Quota: 30 credits/full scan, 500/month free (~16 scans/month)
-- Use in S1 (cross-validation) and S5 (market-best prices)
+→ See `bet-navigating-sources` for script commands (`fetch_odds_api.py`, `fetch_odds_multi.py`) and source fallback chains.
 
-## Multi-Source Odds Aggregation (RECOMMENDED)
+Quota: 30 credits/full scan, 500/month free (~16 scans/month). Key: `config/odds_api_key.txt`.
 
-- Script: `python3 scripts/fetch_odds_multi.py --date YYYY-MM-DD`
-- Output: `betting/data/odds_multi_sources.json` (provenance log with source attribution)
-- Sources: The-Odds-API + API-Football + OddsPortal + BetExplorer + Betclic (5 sources)
-- Uses `SPORT_SOURCE_PRIORITY` chains to select best odds per sport
-- RECOMMENDED over single-source `fetch_odds_api.py` for comprehensive price comparison
+## DB Queries for Odds
+
+```sql
+-- Latest odds for a fixture
+SELECT bookmaker, market, selection, odds, fetched_at
+FROM odds_history WHERE fixture_id = ? ORDER BY fetched_at DESC;
+
+-- CLV calculation (closing vs placement)
+SELECT
+  (SELECT odds FROM odds_history WHERE fixture_id = ? AND market = ? AND is_closing = 1) as closing,
+  b.odds as placement
+FROM bets b WHERE b.fixture_id = ? AND b.market = ?;
+```
 
 ## Connected Skills
 
-- `bet-analyzing-statistics` — Safety scores and probability engine outputs used as true probability input for EV calculation
-- `bet-navigating-sources` — Odds source chains (BetExplorer, OddsPortal, The-Odds-API) for multi-source comparison
-- `bet-building-coupons` — Kelly 1/4 staking outputs feed directly into coupon stake sizing
+| Skill | Load for |
+|-------|----------|
+| `bet-analyzing-statistics` | Safety scores and P(hit) from probability engine → input to EV formula |
+| `bet-navigating-sources` | Odds source chains, `fetch_odds_multi.py` script, American odds conversion |
+| `bet-building-coupons` | Kelly 1/4 staking → coupon stake sizing |

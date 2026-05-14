@@ -150,11 +150,34 @@ Include §4.3 tipster-sourced picks with full argument, accuracy %, and promotio
 
 ## Connected Skills
 
-- `bet-formatting-artifacts` — Output format standards for coupon files, ledger entries, Polish descriptions
-- `bet-applying-sport-protocols` — Sport-specific validations (V3 Tennis, V4 Football, V4b-V4k) used in V1-V10 suite
-- `bet-evaluating-odds` — EV and Kelly calculations that feed into portfolio construction and staking
+| Skill | Load for |
+|-------|----------|
+| `bet-formatting-artifacts` | Coupon file structure, Polish descriptions, ID generation, ledger CSV format |
+| `bet-applying-sport-protocols` | V3-V4k sport-specific validations (tennis odds ratio, football corner stack, etc.) |
+| `bet-evaluating-odds` | EV formula, Kelly 1/4 staking, price gap thresholds |
 
-## No Event Duplication (v4 Pipeline — MANDATORY)
+## DB Queries for Coupon Building
+
+```sql
+-- Load gate-approved candidates for today
+SELECT gr.fixture_id, gr.status, gr.gate_score, gr.best_market_name,
+       gr.best_market_line, gr.ev, gr.risk_tier,
+       t1.name as home, t2.name as away, s.name as sport, c.name as competition
+FROM gate_results gr
+JOIN fixtures f ON gr.fixture_id = f.id
+JOIN teams t1 ON f.home_team_id = t1.id
+JOIN teams t2 ON f.away_team_id = t2.id
+JOIN sports s ON f.sport_id = s.id
+LEFT JOIN competitions c ON f.competition_id = c.id
+WHERE gr.betting_date = ? AND gr.status IN ('STRONG','MODERATE')
+ORDER BY gr.gate_score DESC;
+
+-- Check existing coupons for version management
+SELECT coupon_id, version, status FROM coupons
+WHERE coupon_id LIKE 'C-' || ? || '%' ORDER BY version DESC;
+```
+
+## No Event Duplication (MANDATORY)
 
 **Each event appears in AT MOST 1 core coupon.** Combos can remix events from different coupons but each combo must be a unique combination.
 
@@ -164,9 +187,11 @@ Include §4.3 tipster-sourced picks with full argument, accuracy %, and promotio
 - Extended pool: MINIMAL data quality picks (user decides)
 - Sort candidates by data quality (FULL > PARTIAL > MINIMAL) then safety score
 
-## Learn From Failures
+## Learn From Failures (ADVISORY)
 
-Before building coupons, check betclic_bets_history.json:
-- Which market types have worst hit rates? → deprioritize in coupons
-- Which sport×market combos consistently fail? → flag prominently
-- Which coupon structures (2-leg vs 3-leg vs 4-leg) win most? → optimize structure
+Before building, check `betclic_bets_history.json` for advisory patterns:
+- Market types with worst hit rates → show prominently, user decides
+- Sport×market combos consistently failing → flag for user
+- Coupon leg count win rates (2-leg vs 3-leg vs 4-leg) → optimize structure
+
+**NEVER auto-reject or auto-downgrade based on historical rates.**

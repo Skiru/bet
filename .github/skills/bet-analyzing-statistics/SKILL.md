@@ -8,20 +8,20 @@ user-invokable: false
 
 Core statistical methodology for evaluating betting candidates. Every pick must pass through the statistical market ranking protocol before selection.
 
-## PREREQUISITE: Betclic History Data (MANDATORY)
+## PREREQUISITE: Betclic History Data
 
-Before ANY statistical analysis, verify that `betting/data/betclic_bets_history.json` was read during §0.2 and `python3 scripts/analyze_betclic_learning.py` was run. Always use the analyzer's live output for current hit rates — never rely on memorized numbers. The analyzer output provides per-market and per-sport hit rates that inform market selection and safety score calculations. Cross-reference §3.0 safety scores with Betclic history rates for the same market type.
+Before analysis, verify `betting/data/betclic_bets_history.json` was read during §0.2 and `python3 scripts/analyze_betclic_learning.py` was run. Use analyzer's live output for current hit rates — never memorized numbers. Cross-reference §3.0 safety scores with Betclic history rates.
 
-## ULTIMATE RULE: BET STATISTICS, NOT OUTCOMES
+## Core Principle: Statistics > Outcomes
 
-Statistical markets (corners, fouls, shots, games, sets, points, frames, rounds) are **fundamentally more predictable** than outcome markets (ML, winner, goals):
+| Why statistical markets win | Example |
+|---|---|
+| **Accumulate** regardless of score | 5-8 corners/half even in 0-0 |
+| **Style-driven** — persist in upsets | Pressing team → corners, physical → fouls |
+| **Shock-resistant** | Red card destroys ML, barely moves fouls |
+| **Mispriced** — less bookmaker liquidity | Peripheral markets = more edge |
 
-1. **Accumulation**: Pile up throughout the match (5-8 corners per half regardless of score)
-2. **Style-driven**: Pressing team → corners. Physical team → fouls. Structural traits that persist in upsets.
-3. **Shock-resistant**: Red card or freak goal destroys ML but barely moves total corners/fouls/shots
-4. **Mispriced**: Bookmakers focus liquidity on ML/goals. Peripheral markets get less attention = more edge.
-
-**Every pick must be a statistical market unless no statistical market exists for that event.**
+**Every pick must be a statistical market unless none exists for that event.**
 
 ## §3.0 Statistical Market Ranking Protocol (MANDATORY — NEVER SKIP)
 
@@ -65,15 +65,6 @@ For EVERY candidate, BEFORE selecting a market:
 | **Basketball** | Team points O/U, Quarter totals, Half totals, Total points O/U, Rebounds O/U, Assists O/U, 3-pointers O/U, Spread |
 | **Volleyball** | Total sets O/U, Total points O/U, Set handicap, Points per set O/U |
 | **Hockey** | Period totals O/U, Total goals O/U, Shots O/U, Power play goals O/U, Puck line |
-| **Baseball *(archived)*** | F5 innings total O/U, Team totals, Total runs O/U, Hits O/U, Strikeouts O/U, Run line |
-| **Snooker *(archived)*** | Frame totals O/U, Century breaks O/U, 50+ breaks O/U, Frame handicap |
-| **Darts *(archived)*** | 180s O/U, Total legs O/U, Set totals, Checkout % props |
-| **Handball *(archived)*** | Half totals O/U, Total goals O/U, Team goals O/U, Suspensions O/U |
-| **Esports (CS2) *(archived)*** | Round totals O/U, Map totals O/U, Kill totals, Map handicap |
-| **Table Tennis *(archived)*** | Set totals O/U, Total points O/U, Set handicap |
-| **MMA *(archived)*** | Total rounds O/U, Method of victory, ITD Y/N |
-| **Padel *(archived)*** | Game totals O/U, Set totals O/U, Set handicap |
-| **Speedway *(archived)*** | Total points O/U, Team handicap |
 
 ## §3.0c H2H Market-Specific Validation (MANDATORY)
 
@@ -82,7 +73,7 @@ For EVERY selected market, you MUST have H2H data for THAT SPECIFIC STAT:
 - Corners pick → H2H corner totals between these exact teams (last 3-5 meetings)
 - Total games (tennis) → H2H game totals (last 3-5 meetings, surface-filtered)
 - Total points (basketball) → H2H combined scoring (last 3-5 meetings)
-- Frame totals (snooker) → H2H frame counts (last 3-5 meetings)
+- Period totals (hockey) → H2H period scoring (last 3-5 meetings)
 
 **If H2H data for the SPECIFIC stat is unavailable:**
 1. Mark pick as `H2H-STAT-BLIND`
@@ -109,7 +100,7 @@ For EVERY candidate:
 2. **Major transfers, loan returns, or squad changes in last 14 days?** Stats from previous games may not apply.
 3. If either → flag and increase uncertainty margin.
 
-## Market Hierarchy (ALL SPORTS — ML IS LAST RESORT)
+## Market Hierarchy (5 Core Sports)
 
 | Sport | Priority order (→ least preferred) |
 |-------|-----------------------------------|
@@ -117,16 +108,7 @@ For EVERY candidate:
 | Tennis | Game totals O/U → Set totals → Game HC → Set HC → ML |
 | Basketball | Team totals → Quarter totals → Game totals → Spreads → ML |
 | Hockey | Period totals → Game totals → Puck line → ML |
-| Baseball | F5 totals → Team totals → Game totals → Run line → ML |
 | Volleyball | Set score O/U → Point totals → Set totals → Set HC → ML |
-| Esports | Round totals → Map totals → Map HC → Kill totals → ML |
-| Snooker | Century O/U → Frame totals → Frame HC → ML |
-| Darts | 180s O/U → Leg totals → Set totals → ML |
-| Handball | Half totals → Game totals → HC → ML |
-| Table Tennis | Point totals → Set totals → Set HC → ML |
-| MMA | Method → O/U rounds → ITD → ML |
-| Padel | Game totals → Set totals → Set HC → ML |
-| Speedway | Total pts → HC → Match winner |
 
 ## §3.0-PROB Probability Engine (MANDATORY after safety scores)
 
@@ -187,33 +169,34 @@ ev = compute_ev(prob, betclic_odds)
 - **CI width > 30%** → Low confidence — insufficient data, flag for user
 - **NEGBIN model selected** → Data is overdispersed, expect higher variance
 
+## Data Depth Requirements
+
+| Dimension | Minimum | Below minimum |
+|-----------|---------|---------------|
+| L10 | ≥8 actual data points | Flag PARTIAL quality |
+| H2H | ≥3 meetings with per-stat data | Apply H2H-BLIND penalty (×0.7) |
+| L5 | ≥4 actual data points | Flag PARTIAL quality |
+
+## DB Queries for Safety Scores
+
+```sql
+-- Load pre-computed safety scores
+SELECT best_market_name, best_safety_score, ranking_json, three_way_check_json
+FROM analysis_results WHERE fixture_id = ? AND betting_date = ?;
+
+-- Load team form for safety calculation
+SELECT stat_key, l10_values, l5_values, l10_avg, l5_avg, h2h_values, trend
+FROM team_form WHERE team_id = ? AND sport_id = ?;
+
+-- Save analysis result
+-- Use: AnalysisResultRepo(conn).save(AnalysisResult(...))
+```
+
 ## Connected Skills
 
-- `bet-applying-sport-protocols` — Sport-specific stat tables, mandatory multi-market calculation templates, bettable market lists per sport
-- `bet-navigating-sources` — Stats source chains and specialist sources for statistical data collection
-- `bet-evaluating-odds` — Probability engine integration for converting safety scores into EV calculations
-- `bet-settling-results` — Historical hit rates from settlement feed back into §3.0 market ranking confidence
-
-## Structured Adapters for Automated Data Extraction
-
-- `scripts/adapters/soccerway_adapter.py` — normalized football fixtures/standings
-- `scripts/adapters/tennisexplorer_adapter.py` — normalized tennis results/rankings
-- `scripts/adapters/soccerstats_adapter.py` — normalized football statistics
-
-These adapters parse sport-specific web pages into structured JSON data, reducing reliance on manual web-fetch for common stats.
-
-## Data Depth Requirements (v4 Pipeline)
-
-Before computing safety scores, verify data completeness:
-- L10: ≥8 actual match data points (not interpolated)
-- H2H: ≥3 meetings with per-stat data
-- L5: ≥4 actual match data points
-- If any dimension has <minimum → flag as PARTIAL quality
-
-## Reasoning Before Ranking
-
-THINK IN THE MIDDLE — when data arrives:
-1. Is the data source reliable? (API > deep parse > regex)
-2. Are the stat values in expected ranges for this sport/league?
-3. Do recent matches suggest a trend change that averages might hide?
-4. Is H2H relevant? (same teams, similar context, or very different?)
+| Skill | Load for |
+|-------|----------|
+| `bet-applying-sport-protocols` | Per-sport stat tables (§3.1-§3.5), upset risk thresholds, red flag checklists |
+| `bet-navigating-sources` | Stats source fallback chains, specialist sources per sport |
+| `bet-evaluating-odds` | EV formula, Kelly criterion — converts safety scores into stake recommendations |
+| `bet-settling-results` | Historical hit rates feed back into safety score confidence |
