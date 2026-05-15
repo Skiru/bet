@@ -270,7 +270,7 @@ def main():
         print(f"ERROR: {md_path} not found")
         sys.exit(1)
 
-    output_dir = Path(args.output_dir) if args.output_dir else base_dir / "pdf"
+    output_dir = Path(args.output_dir) if args.output_dir else base_dir / "pdf" / args.date
     output_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"=== Generating PDFs for {args.date} ===\n")
