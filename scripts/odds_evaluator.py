@@ -323,7 +323,7 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
                             ch = _norm_team(c.get("home_team") or "")
                             ca = _norm_team(c.get("away_team") or "")
                             if ch == home and ca == away and c.get("ev") is None:
-                                c["ev"] = round(float(pre_ev), 4)
+                                c["ev"] = round(float(pre_ev) / 100 - 1, 4)
                                 c["ev_source"] = "odds-api-io-value-bet"
         except (json.JSONDecodeError, OSError):
             pass

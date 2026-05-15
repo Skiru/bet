@@ -677,6 +677,99 @@ def rank_markets(data: dict) -> dict:
                 f"safety capped {r.get('original_safety', '?'):.2f} → {SMALL_SAMPLE_SAFETY_CAP}"
             )
 
+    # --- Pattern J: Opponent Style Blocker (team-specific OVER markets) ---
+    # For team-specific markets (is_combined=False, direction=OVER):
+    # Check if the match's combined total suggests the team needs an outsized
+    # share of activity to hit the line. If team_avg / combined_avg > 0.60,
+    # the opponent's style may suppress this stat.
+    # Also penalize when L5 trend is declining (below L10 by >15%).
+    OPPONENT_BLOCKER_SHARE_THRESHOLD = 0.60
+    OPPONENT_BLOCKER_SAFETY_CAP = 0.50
+    L5_DECLINE_THRESHOLD = 0.85  # L5 < 85% of L10 → declining
+
+    # Build lookup: stat_category → combined market's combined_avg
+    combined_market_avgs: dict[str, float] = {}
+    for mkt in markets:
+        if mkt.get("is_combined", True):
+            cat = _market_category(mkt["name"])
+            a_vals = mkt.get("team_a_l10", [])
+            b_vals = mkt.get("team_b_l10", [])
+            if a_vals and b_vals:
+                min_len = min(len(a_vals), len(b_vals))
+                combo_avg = statistics.mean(
+                    [a_vals[i] + b_vals[i] for i in range(min_len)]
+                )
+                # Also store by stat keyword for flexible matching
+                name_lower = mkt["name"].lower()
+                for kw in ("corner", "foul", "card", "shot", "goal", "point",
+                           "rebound", "assist", "ace", "game", "set", "hit",
+                           "block", "steal", "turnover", "pim"):
+                    if kw in name_lower:
+                        combined_market_avgs[kw] = combo_avg
+                        break
+                if cat:
+                    combined_market_avgs[cat] = combo_avg
+
+    for r in results:
+        mkt = next((m for m in markets if m["name"] == r["name"]), None)
+        if not mkt:
+            continue
+        is_combined = mkt.get("is_combined", True)
+        if is_combined:
+            continue  # Only applies to team-specific markets
+        if r["direction"].upper() != "OVER":
+            continue  # Only OVER lines can be blocked by defensive opponents
+
+        # Identify stat keyword
+        name_lower = r["name"].lower()
+        stat_kw = None
+        for kw in ("corner", "foul", "card", "shot", "goal", "point",
+                   "rebound", "assist", "ace", "game", "set", "hit",
+                   "block", "steal", "turnover", "pim"):
+            if kw in name_lower:
+                stat_kw = kw
+                break
+
+        if not stat_kw or stat_kw not in combined_market_avgs:
+            continue  # No combined reference available
+
+        combined_avg_ref = combined_market_avgs[stat_kw]
+        team_avg = r["combined_avg"]  # For team-specific, this is the team's own avg
+
+        if combined_avg_ref <= 0:
+            continue
+
+        share = team_avg / combined_avg_ref
+        # Check L5 declining trend
+        l5_vals = compute_combined_l5(mkt)
+        l5_avg = statistics.mean(l5_vals) if l5_vals else team_avg
+        l5_declining = (l5_avg < team_avg * L5_DECLINE_THRESHOLD) if team_avg > 0 else False
+
+        # Blocker triggers: high share requirement OR declining trend with tight margin
+        blocker_detected = False
+        blocker_reasons = []
+
+        if share > OPPONENT_BLOCKER_SHARE_THRESHOLD:
+            blocker_detected = True
+            blocker_reasons.append(
+                f"needs {share:.0%} of match total ({team_avg:.1f}/{combined_avg_ref:.1f})"
+            )
+
+        if l5_declining and r["margin"] < 0.5:
+            blocker_detected = True
+            blocker_reasons.append(
+                f"L5 declining ({l5_avg:.1f} vs L10 {team_avg:.1f})"
+            )
+
+        if blocker_detected:
+            r["opponent_blocker"] = True
+            r["opponent_blocker_reason"] = "; ".join(blocker_reasons)
+            if r["safety_score"] > OPPONENT_BLOCKER_SAFETY_CAP:
+                r.setdefault("original_safety", r["safety_score"])
+                r["safety_score"] = OPPONENT_BLOCKER_SAFETY_CAP
+        else:
+            r["opponent_blocker"] = False
+
     # Sort by safety score (desc), margin as tiebreaker (desc)
     results.sort(key=lambda x: (x["safety_score"], x["margin"]), reverse=True)
 

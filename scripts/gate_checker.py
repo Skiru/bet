@@ -1451,7 +1451,8 @@ def _enrich_best_market(entry: dict) -> None:
     if matched_rank:
         # Copy enrichment fields not already present
         for field in ("rank", "margin", "team_a_avg", "team_b_avg",
-                      "hit_rate_l5", "source", "h2h_blind"):
+                      "hit_rate_l5", "source", "h2h_blind",
+                      "combined_avg", "opponent_blocker", "opponent_blocker_reason"):
             if field not in best or best[field] is None:
                 val = matched_rank.get(field)
                 if val is not None:

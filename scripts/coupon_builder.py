@@ -386,14 +386,28 @@ def assign_picks_to_core(approved: list, config: dict) -> list[dict]:
     # Filter to picks with real odds for multi-bet coupons
     odds_approved = [p for p in approved if ((p.get("odds") or {}).get("market_best") or 0) > 1.0]
     stats_first_mode = len(odds_approved) < 2 and len(approved) >= 2
-    if stats_first_mode:
-        # R10: Stats-first fallback — use all approved picks, compute theoretical odds
-        odds_approved = list(approved)
-        for p in odds_approved:
-            if not ((p.get("odds") or {}).get("market_best") or 0) > 1.0:
-                safety = (_bm(p).get("safety_score") or 0.5)
-                p.setdefault("odds", {})["market_best"] = round(1.0 / max(safety, 0.1), 2)
-                p["_stats_first_odds"] = True
+
+    # Always include top-safety picks even without odds (R10 enhancement)
+    sorted_by_safety = sorted(
+        approved,
+        key=lambda p: (_bm(p).get("safety_score") or 0),
+        reverse=True,
+    )
+    odds_keys = {_event_key(p) for p in odds_approved}
+    for p in sorted_by_safety:
+        if len(odds_approved) >= 30:
+            break
+        ek = _event_key(p)
+        if ek in odds_keys:
+            continue
+        if not _bm(p).get("safety_score"):
+            continue
+        odds_keys.add(ek)
+        safety = (_bm(p).get("safety_score") or 0.5)
+        p.setdefault("odds", {})["market_best"] = round(1.0 / max(safety, 0.1), 2)
+        p["_stats_first_odds"] = True
+        odds_approved.append(p)
+
     if len(odds_approved) < 2:
         return []
 
@@ -530,12 +544,11 @@ def _make_coupon(coupon_id: str, tier: str, legs: list, config: dict) -> dict:
 
     # Stake: use worst probability/safety among legs for Kelly
     min_safety = min(
-        (_bm(leg).get("safety_score", 0.5) for leg in legs),
+        ((_bm(leg).get("safety_score") or 0.5) for leg in legs),
         default=0.5,
     )
     min_prob = min(
-        (_bm(leg).get("probability") if _bm(leg).get("probability") is not None
-         else _bm(leg).get("safety_score", 0.5)
+        ((_bm(leg).get("probability") or _bm(leg).get("safety_score") or 0.5)
          for leg in legs),
         default=None,
     )
@@ -644,7 +657,7 @@ COMBO_THEMES = [
     {
         "name": "safe-totals",
         "thesis_pl": "Najwyższe safety score — minimalne ryzyko",
-        "sort_key": lambda p: -(_bm(p).get("safety_score", 0)),
+        "sort_key": lambda p: -(_bm(p).get("safety_score") or 0),
         "top_n": 3,
         "tier": "LR",
     },
@@ -670,7 +683,7 @@ COMBO_THEMES = [
     {
         "name": "statistical-powerhouse",
         "thesis_pl": "Najwyższe safety score — potwierdzone statystycznie",
-        "sort_key": lambda p: -(_bm(p).get("safety_score", 0)),
+        "sort_key": lambda p: -(_bm(p).get("safety_score") or 0),
         "top_n": 4,
         "tier": "LR",
     },
@@ -691,18 +704,34 @@ COMBO_THEMES = [
 
 def generate_combos(approved: list, config: dict) -> list[dict]:
     """Generate combo coupons by remixing approved picks (theme-based + combinatorial)."""
-    # Only use picks with real odds for combo coupons; stats-first fallback (R10)
+    # Include top-safety picks even without odds (R10 stats-first principle).
+    # Picks with real odds are used directly; picks without get theoretical odds.
     odds_approved = [p for p in approved if ((p.get("odds") or {}).get("market_best") or 0) > 1.0]
-    if len(odds_approved) < 2 and len(approved) >= 2:
-        # Stats-first mode: use all approved (theoretical odds set by assign_picks_to_core)
-        odds_approved = [p for p in approved if ((p.get("odds") or {}).get("market_best") or 0) > 1.0]
-        if len(odds_approved) < 2:
-            odds_approved = list(approved)
-            for p in odds_approved:
-                if not ((p.get("odds") or {}).get("market_best") or 0) > 1.0:
-                    safety = (_bm(p).get("safety_score") or 0.5)
-                    p.setdefault("odds", {})["market_best"] = round(1.0 / max(safety, 0.1), 2)
-                    p["_stats_first_odds"] = True
+
+    # Always include top-safety picks (regardless of odds availability)
+    # Sort all by safety, take top N that aren't already in odds_approved
+    sorted_by_safety = sorted(
+        approved,
+        key=lambda p: (_bm(p).get("safety_score") or 0),
+        reverse=True,
+    )
+    # Merge: all odds picks + top-safety picks (up to 20 total)
+    odds_keys = {_event_key(p) for p in odds_approved}
+    for p in sorted_by_safety:
+        if len(odds_approved) >= 20:
+            break
+        ek = _event_key(p)
+        if ek in odds_keys:
+            continue
+        if not _bm(p).get("safety_score"):
+            continue
+        odds_keys.add(ek)
+        # Assign theoretical odds = 1/safety (R10)
+        safety = (_bm(p).get("safety_score") or 0.5)
+        p.setdefault("odds", {})["market_best"] = round(1.0 / max(safety, 0.1), 2)
+        p["_stats_first_odds"] = True
+        odds_approved.append(p)
+
     if len(odds_approved) < 2:
         return []
 
@@ -828,7 +857,7 @@ def generate_combos(approved: list, config: dict) -> list[dict]:
     # Enrich all combos with richer descriptions
     for coupon in combos:
         legs = coupon["legs"]
-        avg_safety = sum(_bm(l).get("safety_score", 0) for l in legs) / max(len(legs), 1)
+        avg_safety = sum((_bm(l).get("safety_score") or 0) for l in legs) / max(len(legs), 1)
         sports_in_combo = sorted(set(l.get("sport", "?") for l in legs))
         over_count = sum(1 for l in legs if (_bm(l).get("direction", "") or "").upper() == "OVER")
         under_count = sum(1 for l in legs if (_bm(l).get("direction", "") or "").upper() == "UNDER")
@@ -1029,6 +1058,27 @@ def _erf_approx(x: float) -> float:
 # Main builder
 # ---------------------------------------------------------------------------
 
+
+def _filter_past_events(picks: list) -> list:
+    """Remove events whose kickoff has already passed."""
+    now = datetime.now(tz=zoneinfo.ZoneInfo("UTC"))
+    future = []
+    for p in picks:
+        ko = p.get("kickoff", "")
+        if not ko:
+            future.append(p)
+            continue
+        try:
+            dt = datetime.fromisoformat(ko)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=zoneinfo.ZoneInfo("UTC"))
+            if dt > now:
+                future.append(p)
+        except (ValueError, TypeError):
+            future.append(p)
+    return future
+
+
 def build_coupons(gate_results: dict, config: dict) -> dict:
     """Main entry: build coupons from gate results.
 
@@ -1036,9 +1086,20 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
     """
     date = gate_results.get("date", datetime.now().strftime("%Y-%m-%d"))
     gr = gate_results.get("gate_results", {})
-    all_approved = gr.get("approved", [])
-    extended_pool = gr.get("extended_pool", [])
+    all_approved = _filter_past_events(gr.get("approved", []))
+    extended_pool = _filter_past_events(gr.get("extended_pool", []))
     rejected = gr.get("rejected", [])
+
+    # Assign risk_tier from safety if missing (JSON gate results don't always have it)
+    for p in all_approved:
+        if not p.get("risk_tier"):
+            s = (_bm(p).get("safety_score") or 0)
+            if s >= 0.55:
+                p["risk_tier"] = "LR"
+            elif s >= 0.40:
+                p["risk_tier"] = "MS"
+            else:
+                p["risk_tier"] = "HR"
 
     # Split by advisory tier for tiered coupon construction
     strong_picks = [p for p in all_approved if p.get("advisory_tier") == "STRONG"]
@@ -1050,6 +1111,8 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
 
     # Primary coupon construction uses STRONG + MODERATE
     approved = strong_picks + moderate_picks
+    # Sort by safety_score desc so best-analyzed picks come first
+    approved.sort(key=lambda p: (_bm(p).get("safety_score") or 0), reverse=True)
     # VALUE/DISCOVERY picks are shown separately
     discovery_picks = weak_picks
 
@@ -1218,7 +1281,7 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
     total_spend = core_spend + combo_spend + singles_spend
 
     if total_spend > max_daily:
-        # Priority: keep core → trim combos → trim singles
+        # Priority: keep core → keep combos as alternatives (not additive) → trim singles
         budget_remaining = max_daily
         # Keep core coupons (highest priority)
         kept_core = []
@@ -1228,13 +1291,8 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
                 budget_remaining -= c.get("stake", 0)
         core = kept_core
         result["core_coupons"] = core
-        # Keep combos that fit
-        kept_combos = []
-        for c in combos:
-            if budget_remaining >= c.get("stake", 0):
-                kept_combos.append(c)
-                budget_remaining -= c.get("stake", 0)
-        combos = kept_combos
+        # Combos are ALTERNATIVES to core, not additive — always keep them as options
+        # User picks core OR combo, not both. Show all, let user decide.
         result["combos"] = combos
         # Singles: keep those with real stakes that fit
         kept_singles = []
@@ -1358,6 +1416,10 @@ def _compact_description(pick: dict, is_approved: bool) -> str:
     if tier:
         parts.append(tier)
 
+    # Opponent blocker warning
+    if best.get("opponent_blocker"):
+        parts.append("⛔OPP")
+
     return f"{' · '.join(parts)} {status}" if parts else status
 
 
@@ -1380,6 +1442,12 @@ def _market_matrix_rows(approved: list, extended: list) -> list[str]:
         hit_l10 = best.get("hit_rate_l10")
         hit_str = f"{_safe_float(hit_l10):.0%}" if hit_l10 else "-"
         direction = best.get("direction", "")
+        line_val = best.get("line")
+        combined_avg = best.get("combined_avg") or best.get("l10_avg")
+        if line_val is not None and direction:
+            direction = f"{direction} {line_val}"
+        if combined_avg is not None:
+            direction = f"{direction} (śr.{float(combined_avg):.1f})"
 
         is_approved = pick in approved
         uwagi = _compact_description(pick, is_approved)
@@ -1966,42 +2034,50 @@ def main():
         with open(input_path, encoding="utf-8") as f:
             gate_results = json.load(f)
     else:
-        # Try DB first
-        try:
-            from db_data_loader import load_gate_results_from_db
-            approved = load_gate_results_from_db(args.date, status="approved")
-            extended = load_gate_results_from_db(args.date, status="extended")
-            rejected = load_gate_results_from_db(args.date, status="rejected")
-            if approved or extended:
-                gate_results = {
-                    "date": args.date,
-                    "gate_results": {
-                        "approved": approved or [],
-                        "extended_pool": extended or [],
-                        "rejected": rejected or [],
-                    },
-                    "summary": {
-                        "approved_count": len(approved or []),
-                        "extended_count": len(extended or []),
-                        "rejected_count": len(rejected or []),
-                    },
-                }
-                if args.verbose:
-                    out.event("db_load", approved=len(approved or []), extended=len(extended or []))
-                else:
-                    print(f"[coupon_builder] DB: loaded {len(approved or [])} approved, {len(extended or [])} extended")
-        except Exception as e:
-            out.warning(f"DB read failed, using JSON fallback: {e}")
-
-        # JSON fallback
-        if gate_results is None:
-            input_path = DATA_DIR / f"{args.date}_s7_gate_results.json"
-            if not input_path.exists():
-                out.error(f"Gate results not found: {input_path}. Run gate_checker.py first.", recoverable=False)
-                out.summary(verdict="FAILED", metrics={"error": f"Gate results not found: {input_path}"})
-                sys.exit(1)
-            with open(input_path, encoding="utf-8") as f:
+        # Prefer JSON (has full best_market data incl. combined_avg, opponent_blocker)
+        json_path = DATA_DIR / f"{args.date}_s7_gate_results.json"
+        if json_path.exists():
+            with open(json_path, encoding="utf-8") as f:
                 gate_results = json.load(f)
+            if args.verbose:
+                gr = gate_results.get("gate_results", {})
+                out.event("json_load",
+                          approved=len(gr.get("approved", [])),
+                          extended=len(gr.get("extended_pool", [])))
+
+        # Fallback to DB if JSON missing
+        if gate_results is None:
+            try:
+                from db_data_loader import load_gate_results_from_db
+                approved = load_gate_results_from_db(args.date, status="approved")
+                extended = load_gate_results_from_db(args.date, status="extended")
+                rejected = load_gate_results_from_db(args.date, status="rejected")
+                if approved or extended:
+                    gate_results = {
+                        "date": args.date,
+                        "gate_results": {
+                            "approved": approved or [],
+                            "extended_pool": extended or [],
+                            "rejected": rejected or [],
+                        },
+                        "summary": {
+                            "approved_count": len(approved or []),
+                            "extended_count": len(extended or []),
+                            "rejected_count": len(rejected or []),
+                        },
+                    }
+                    if args.verbose:
+                        out.event("db_load", approved=len(approved or []), extended=len(extended or []))
+                    else:
+                        print(f"[coupon_builder] DB: loaded {len(approved or [])} approved, {len(extended or [])} extended")
+            except Exception as e:
+                out.warning(f"DB read failed: {e}")
+
+        # Final fallback — should not reach here if JSON or DB worked
+        if gate_results is None:
+            out.error(f"Gate results not found for {args.date}. Run gate_checker.py first.", recoverable=False)
+            out.summary(verdict="FAILED", metrics={"error": "Gate results not found"})
+            sys.exit(1)
 
     # Load config
     config = load_config()
