@@ -37,20 +37,51 @@ Before starting any work, check what already exists for `run_date`:
 2. Check coupons: `ls betting/coupons/{run_date}*`
 3. Check reports: `ls betting/reports/{run_date}*`
 4. Check DB tables (via bet-db-analyst or quick query): fixtures, scan_results, shortlist_candidates for that date
+5. **Phase validation:** Run ALL three phase gates:
+   ```bash
+   PYTHONPATH=src python3 scripts/validate_phase.py --date {run_date} --phase data --format json 2>&1
+   PYTHONPATH=src python3 scripts/validate_phase.py --date {run_date} --phase analysis --format json 2>&1
+   PYTHONPATH=src python3 scripts/validate_phase.py --date {run_date} --phase build --format json 2>&1
+   ```
+6. **Pipeline errors log:** Check `betting/journal/{run_date}-pipeline-errors.md` — if it exists, read it FIRST. It documents what went wrong in the previous run and what needs fixing.
 
-**Then ASK the user:**
+**Build RECOVERY PLAN from diagnostics:**
+
+Based on the state check and phase validation, classify today into one of:
+
+| Scenario | Detection | Recovery |
+|----------|-----------|----------|
+| **FRESH** — no data for today | inspect_pipeline shows 0 for all steps | Full run S0→S10 |
+| **PARTIAL DATA** — scan done, analysis incomplete | data phase PASS, analysis phase FAIL (specific gates) | Skip S0-S2.5, resume from first missing step |
+| **ANALYSIS GAP** — S3 done but S4/S5/S6 missing | A1 pass, A2-A4 fail in analysis validation | Run S4→S6, re-run S7→S8 |
+| **BAD DATA** — enrichment was poor quality | data phase PASS but team_form quality is PARTIAL/MINIMAL for >80% candidates | Re-run S2.5 enrichment (fixes now deployed), then S3→S8 |
+| **BUILD ONLY** — analysis done, coupons missing | analysis phase PASS, build phase FAIL | Run S8 only |
+| **COMPLETE** — everything exists | All 3 phases PASS | Review quality, present to user |
+
+**Present the recovery plan to user BEFORE executing:**
 ```
-Pipeline progress for {run_date}:
-✅ S0 Settlement — [done/not done]
-✅ S1 Scan — [X events found / not done]
-✅ S2 Enrichment — [Y teams enriched / not done]
-❌ S3 Deep Stats — [not started / partial]
-❌ S4-S10 — not started
+## Recovery Plan for {run_date}
 
-Where should I start? [S3 / full rerun / specific step]
+**Previous run status:** [from pipeline-errors.md or diagnostics]
+**Steps already completed:** S1 ✅, S2 ✅, S3 ✅ (200 candidates)
+**Steps MISSING:** S4 ❌, S5 ❌, S6 ❌
+**Steps to RE-RUN:** S7 ⟳ (had incomplete data), S8 ⟳ (had incomplete data)
+
+**Proposed action:**
+1. [Optional] Re-run enrichment S2.5 — circuit breaker fix deployed, will be faster
+2. Run S4 (odds) → delegate to bet-valuator
+3. Run S5 (context) → delegate to bet-challenger
+4. Run S6 (upset risk) → delegate to bet-challenger
+5. Re-run S7 (gate) → delegate to bet-challenger
+6. Re-run S8 (coupons) → delegate to bet-builder
+7. Present final coupon to user
+
+Proceed? [yes / modify plan / full rerun]
 ```
 
-**NEVER assume** — always ask. Even if rerun=true, confirm which steps to redo.
+**CRITICAL: In recovery mode, maintain the §DELEGATION COMPLIANCE GATE checklist.**
+Pre-fill completed steps from the previous run. Mark new steps as they complete.
+The checklist is your guarantee that EVERY step gets both script execution AND agent analysis.
 
 ---
 
