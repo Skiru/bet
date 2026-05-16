@@ -43,7 +43,10 @@ Before starting any work, check what already exists for `run_date`:
    PYTHONPATH=src python3 scripts/validate_phase.py --date {run_date} --phase analysis --format json 2>&1
    PYTHONPATH=src python3 scripts/validate_phase.py --date {run_date} --phase build --format json 2>&1
    ```
-6. **Pipeline errors log:** Check `betting/journal/{run_date}-pipeline-errors.md` — if it exists, read it FIRST. It documents what went wrong in the previous run and what needs fixing.
+6. **Pipeline errors log (MANDATORY GATE):** Check BOTH:
+   - `betting/journal/{run_date}-pipeline-errors.md` — same-day rerun errors
+   - `betting/journal/{prev_date}-pipeline-errors.md` — previous day errors
+   If EITHER exists, read it FULLY using `read_file`. Extract: (a) errors made, (b) fixes applied, (c) blockers for next run. You MUST acknowledge these lessons in your recovery plan. Failure to read this = repeating the same mistakes.
 
 **Build RECOVERY PLAN from diagnostics:**
 
@@ -96,7 +99,13 @@ Read these files. Do NOT proceed until all are loaded:
 6. `/memories/repo/pipeline-knowledge-base.md` — **Consolidated pipeline knowledge: bugs, enrichment, safety patterns, architecture, scraper module**
 7. `/memories/repo/pipeline-bugs-and-fixes.md` — **Post-mortem bugs with rules for all agents**
 8. Latest session memory from `/memories/repo/session-*.md` (pick most recent date)
-9. Latest pipeline errors log: `betting/journal/{prev_date}-pipeline-errors.md` — **Post-mortem of previous run failures. Apply lessons to THIS run.** If file doesn't exist, skip.
+9. **⛔ MANDATORY — Pipeline errors journal (HARD GATE):**
+   - Read `betting/journal/{run_date}-pipeline-errors.md` if exists (same-day rerun)
+   - Read `betting/journal/{prev_date}-pipeline-errors.md` if exists (yesterday's lessons)
+   - Extract: errors committed, root causes, state of repairs, blockers documented
+   - Print acknowledgment: "Lessons loaded: [list 3-5 key takeaways that change my behavior THIS run]"
+   - If journal says "NEVER do X" → that is a HARD CONSTRAINT for this session
+   - **GATE:** If journal exists and is NOT read → you WILL repeat mistakes → session FAILS
 
 ### ⚠️ ADAPTER OVERHAUL (2026-05-12) — ENFORCE IN ALL STEPS
 

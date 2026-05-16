@@ -141,9 +141,9 @@ The generated coupon (`betting/coupons/2026-05-16.md`) has these issues:
 
 ---
 
-## ROOT CAUSE ANALYSIS
+## ROOT CAUSE ANALYSIS — Session 1 (earlier today)
 
-The orchestrator agent (me) made these systemic mistakes:
+The orchestrator agent made these systemic mistakes:
 
 1. **Rushed to completion** — After the corrective plan said "fix the 10 mistakes", I focused on running scripts to completion but forgot the ANALYSIS layer that gives the pipeline its value.
 
@@ -154,3 +154,78 @@ The orchestrator agent (me) made these systemic mistakes:
 4. **Left enrichment unbounded** — Should have monitored which teams it was enriching and killed it when it moved past the shortlisted candidates.
 
 5. **Flashscore bug known but not fixed** — The "tennis player" routing bug was observed in logs but treated as "known issue" instead of "blocking bug that makes enrichment useless."
+
+---
+
+## ERRORS FROM SESSION 2 (22:30-22:40, same day — "FULL RERUN" attempt)
+
+### ERROR 14: OVERWROTE shortlist with time-filtered subset (197 → only "upcoming")
+- **What happened:** Orchestrator created a Python script that filtered the 1634-candidate shortlist to only 197 "upcoming" events (kickoff > 19:00 UTC) and OVERWROTE the original `2026-05-16_s2_shortlist.json`
+- **Impact:** Lost the full shortlist. Downstream scripts only saw 197 candidates.
+- **Fix applied:** Re-ran `build_shortlist.py` — restored to 1634 candidates ✅
+
+### ERROR 15: Enrichment flooded terminal with 27KB JSON (looked like shell crash)
+- **What happened:** `data_enrichment_agent.py --news --verbose` dumped massive JSON to stdout. ALL enrichment FAILED due to "Playwright clients not thread-safe (greenlet conflict)" — zero data added.
+- **Impact:** No new enrichment data. Terminal appeared frozen (was actually fine, just buffer flooded).
+- **Root cause:** Playwright-based enrichment can't run in threaded mode. This is a KNOWN persistent issue.
+- **Fix for tomorrow:** Either fix the greenlet conflict in enrichment OR use `run_scrapers.py` (S2.3 — HTTP-only scrapers like FBref work fine)
+
+### ERROR 16: Deep stats ran but S3 JSON was misread as "0 candidates"
+- **What happened:** S3 file key is `analyses` (not `candidates` or `results`). The orchestrator checked wrong keys and reported "0 candidates" when there were actually 197.
+- **Impact:** Confused user. Wasted time on panic diagnosis.
+- **Lesson:** ALWAYS read the actual JSON structure before reporting. Use `list(data.keys())` first.
+
+### ERROR 17: DB shows 2,175 upcoming fixtures vs 197 in shortlist
+- **What happened:** The orchestrator's time filter was too aggressive. DB has thousands of fixtures for upcoming days (not just today's betting window), and the shortlist was filtered to a tiny subset.
+- **Impact:** User correctly identified the massive discrepancy — "how many fixtures do you have?"
+- **Lesson:** The build_shortlist.py already handles date filtering properly. Don't manually filter on top of it.
+
+### ERROR 18: Time wasted — session burned 1+ hour trying to "rerun" when data was fine
+- **What happened:** Instead of running S4→S8 on the existing 360 analysis_results (which include both original 200 + 160 new upcoming), the orchestrator tried to rebuild everything from scratch with manual filters.
+- **Root cause:** Didn't check DB state properly at start. The 200 analysis_results from the earlier run + 160 new ones = 360 total = perfectly usable.
+- **Fix for tomorrow:** Check `analysis_results` count and quality FIRST. If sufficient, just run S4→S8.
+
+---
+
+## STATE AFTER FIXES (22:40)
+
+| File | Status | Notes |
+|------|--------|-------|
+| `betting/data/2026-05-16_s2_shortlist.json` | ✅ RESTORED | 1634 candidates |
+| `betting/data/2026-05-16_s3_deep_stats.json` | ✅ RESTORED | 360 analyses (rebuilt from DB) |
+| `betting/data/2026-05-16_s7_gate_results.json` | ✅ Valid | 200 gate results (from earlier run) |
+| `betting/data/market_matrix_2026-05-16.json` | ✅ Untouched | 1465KB (from 12:04) |
+| DB `analysis_results` | ✅ Valid | 360 rows (no duplicates) |
+| DB `gate_results` | ✅ Valid | 200 rows |
+| `betting/coupons/2026-05-16.md` | ⚠️ Stale | From earlier incomplete run |
+
+---
+
+## WHAT TOMORROW'S AGENT MUST DO (2026-05-17)
+
+### Pre-flight
+1. Read THIS file first
+2. Run `python3 scripts/analyze_betclic_learning.py` — R6 advisory
+3. Load `config/betting_config.json` (bankroll 57.23 PLN)
+
+### Pipeline (FULL DAY — morning start)
+1. **S0:** Settle May 16 if any bets were placed
+2. **S1:** `discover_events.py --date 2026-05-17` (fresh scan, morning = maximum events)
+3. **S1e:** `build_shortlist.py --date 2026-05-17 --stats-first` (DO NOT manually filter!)
+4. **S2.3:** `run_scrapers.py --sport all --season 2425` (HTTP scrapers work, Playwright may fail)
+5. **S2.5:** `data_enrichment_agent.py --date 2026-05-17 --news` (expect Playwright failures)
+6. **S3:** `deep_stats_report.py --date 2026-05-17 --shortlist ... --top 200 --gemini`
+7. **S4:** `fetch_odds_api_io.py --date 2026-05-17` THEN `odds_evaluator.py --date 2026-05-17`
+8. **S5+S6:** `context_checks.py` + `upset_risk.py`
+9. **S7:** `gate_checker.py`
+10. **S8:** `coupon_builder.py`
+
+### CRITICAL RULES TO ENFORCE
+- **NEVER manually filter the shortlist** — build_shortlist.py handles everything
+- **NEVER overwrite data files with manual Python** — let scripts manage their own output
+- **Run S2.3 scrapers** — these are the working enrichment path (HTTP-based, not Playwright)
+- **Check S3 JSON key is `analyses`** not `candidates` or `results`
+- **Delegate to subagents** after EVERY analytical step (R1)
+- **Use sequentialthinking** between steps (R11)
+- **The Odds API is EXPIRED (401)** — use `fetch_odds_api_io.py` instead
+- **Playwright greenlet conflict** — known issue, don't rely on Playwright enrichment

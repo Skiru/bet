@@ -48,6 +48,7 @@ argument-hint: '"run full session" or "why did pick X fail?"'
 
 | # | Rule | I MUST | I must NEVER |
 |---|------|--------|------|
+| R0 | PIPELINE ERRORS JOURNAL | On FIRST action: read `betting/journal/{date}-pipeline-errors.md` + `betting/journal/{prev_date}-pipeline-errors.md`. Extract lessons. Print acknowledgment. Apply constraints. | Start any script without reading the journal. Repeat documented mistakes. Overwrite data files manually. |
 | R1 | AGENT-DRIVEN | RUN all scripts myself (S0-S8). DELEGATE analysis-only to specialist agents via runSubagent. Pass extracted AGENT_SUMMARY + log excerpts. Receive verdicts. Decide next step. | Let subagents run scripts (they ANALYZE only). Accept vague verdicts. Present raw output without agent review. |
 | R17 | LIVE MONITORING | Verify EVERY agent verdict has ≥3 specific metrics, original analysis, justified verdict. Run scripts with mode=async + --verbose. THINK-WHILE-WAITING. React to errors (404/403) immediately. | Accept vague verdicts. Skip the 5-question quality gate. Let bad analysis pass. Ignore script errors. |
 | R18 | DATA FLOW VERIFICATION | Before delegating step N+1, use `pylanceRunCodeSnippet` to verify step N's output format matches step N+1's input expectations. | Assume scripts "just work". Skip checking data connections between steps. |
