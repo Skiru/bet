@@ -65,6 +65,7 @@ Read these files. Do NOT proceed until all are loaded:
 6. `/memories/repo/pipeline-knowledge-base.md` — **Consolidated pipeline knowledge: bugs, enrichment, safety patterns, architecture, scraper module**
 7. `/memories/repo/pipeline-bugs-and-fixes.md` — **Post-mortem bugs with rules for all agents**
 8. Latest session memory from `/memories/repo/session-*.md` (pick most recent date)
+9. Latest pipeline errors log: `betting/journal/{prev_date}-pipeline-errors.md` — **Post-mortem of previous run failures. Apply lessons to THIS run.** If file doesn't exist, skip.
 
 ### ⚠️ ADAPTER OVERHAUL (2026-05-12) — ENFORCE IN ALL STEPS
 
@@ -631,12 +632,9 @@ Key warnings: {paste source failures, 404s, low yield sources}
 - Shortlist: {count} candidates across {sports}
 - team_form baseline: {count} rows before enrichment
 
-### ⛔ Analysis-Only Mode
-DO NOT run data_enrichment_agent.py. Analyze the provided output.
-Use pylanceRunCodeSnippet to inspect enrichment results in DB if needed.
+### ⛔ Analysis-Only Mode (see §DELEGATION TEMPLATE)
 Key assessment: enrichment yield %, per-sport data quality, gap recoverability.
-Load skills: bet-navigating-sources, bet-analyzing-statistics
-Return: Model A analysis-only verdict
+Load skills: bet-navigating-sources, bet-analyzing-statistics.
 ---
 ```
 
@@ -707,13 +705,9 @@ Key warnings: {paste data quality issues, missing H2H, etc.}
 - Quality flags: {from S2.5 — e.g., hockey=PARTIAL}
 - Candidates: {count} total
 
-### ⛔ Analysis-Only Mode
-DO NOT run deep_stats_report.py. Analyze the provided output with specialist knowledge.
-Use pylanceRunCodeSnippet to read deep stats JSON for per-candidate details.
-Use sequentialthinking for EVERY CANDIDATE (5-part Analytical Reasoning Layer).
-Load skills: bet-analyzing-statistics, bet-applying-sport-protocols
-Key checks: R5 (stat markets FIRST), three-way cross-check, edge mechanisms
-Return: Model A analysis-only verdict
+### ⛔ Analysis-Only Mode (see §DELEGATION TEMPLATE)
+Key checks: R5 (stat markets FIRST), three-way cross-check, edge mechanisms.
+Load skills: bet-analyzing-statistics, bet-applying-sport-protocols.
 ---
 ```
 
@@ -750,12 +744,9 @@ Key warnings: {paste drift flags, missing odds sources}
 - S3 verdict: {from bet-statistician}
 - Quality flags: {from S3}
 
-### ⛔ Analysis-Only Mode
-DO NOT run odds_evaluator.py. Analyze provided EV data with specialist knowledge.
-Use pylanceRunCodeSnippet to read odds data for deeper inspection.
-Key checks: EV per candidate, drift >8%, R10 stats-first for no-odds events, Kelly 1/4
-Load skill: bet-evaluating-odds
-Return: Model A analysis-only verdict
+### ⛔ Analysis-Only Mode (see §DELEGATION TEMPLATE)
+Key checks: EV per candidate, drift >8%, R10 stats-first, Kelly 1/4.
+Load skill: bet-evaluating-odds.
 ---
 ```
 
@@ -797,12 +788,9 @@ Key warnings: {paste weather flags, injury reports, risk distributions}
 - S3 verdict: {from bet-statistician}
 - S4 verdict: {from bet-valuator}
 
-### ⛔ Analysis-Only Mode
-DO NOT run context_checks.py or upset_risk.py. Analyze provided output.
-Use pylanceRunCodeSnippet to inspect context/upset data files for per-candidate details.
-Use sequentialthinking for 5-part Deep Adversarial Reasoning per candidate.
-Load skills: bet-applying-sport-protocols, bet-analyzing-statistics
-Return: Model A analysis-only verdict
+### ⛔ Analysis-Only Mode (see §DELEGATION TEMPLATE)
+Key checks: 5-part Deep Adversarial Reasoning per candidate, bear cases.
+Load skills: bet-applying-sport-protocols, bet-analyzing-statistics.
 ---
 ```
 
@@ -838,13 +826,9 @@ Key warnings: {paste tier distribution, gate failures, data quality issues}
 - S4 verdict: {from bet-valuator}
 - S5+S6 verdict: {from bet-challenger context/upset}
 
-### ⛔ Analysis-Only Mode
-DO NOT run gate_checker.py. Analyze provided gate output with adversarial specialist knowledge.
-Use pylanceRunCodeSnippet to read gate results for per-candidate details.
-Use sequentialthinking per candidate for bear cases.
-Key checks: R3 (all candidates visible), R14 (data quality), R4 (no forced diversity)
-Load skills: bet-applying-sport-protocols, bet-analyzing-statistics
-Return: Model A analysis-only verdict
+### ⛔ Analysis-Only Mode (see §DELEGATION TEMPLATE)
+Key checks: R3 (all candidates visible), R14 (data quality), R4 (no forced diversity).
+Load skills: bet-applying-sport-protocols, bet-analyzing-statistics.
 ---
 ```
 
@@ -909,13 +893,9 @@ Key warnings: {paste arithmetic issues, exposure warnings}
 - Config: bankroll={X}, daily_cap={Y}
 - Approved candidates: {count STRONG + MODERATE}
 
-### ⛔ Analysis-Only Mode
-DO NOT run coupon_builder.py or validate_coupons.py. Analyze provided output.
-Use pylanceRunCodeSnippet to read coupon files for per-coupon validation.
-Use sequentialthinking for 4-part Portfolio Intelligence Layer.
-Key checks: arithmetic, unique events, R5 (≥60% stat markets), R14, R12 conditional
-Load skills: bet-building-coupons, bet-formatting-artifacts
-Return: Model A analysis-only verdict
+### ⛔ Analysis-Only Mode (see §DELEGATION TEMPLATE)
+Key checks: arithmetic, unique events, R5 (≥60% stat markets), R14, R12 conditional.
+Load skills: bet-building-coupons, bet-formatting-artifacts.
 ---
 ```
 
@@ -993,6 +973,56 @@ Present to user:
 | 13 | Fire-and-forget long scripts | Use `mode=async` + THINK-WHILE-WAITING. Launch async, actively analyze previous step data while waiting. Call `get_terminal_output` when complete → EXTRACT → THINK → RETURN (R17). |
 | 14 | Skip data quality checks | Proceeding without checking data_quality_score. FULL/PARTIAL are core requirements. |
 | 15 | Ignore live betting window | Excluding events ≤1h to kickoff. Betclic allows live betting (R16). |
+| 16 | Use `--no-enrich` or `--exclude` without logging impact | These flags silently degrade data quality. ALWAYS log what was skipped and why. If you don't know what a flag does, READ the script code first (R18). |
+| 17 | Skip steps S4/S5/S6 and jump to S7/S8 | EVERY step S3→S7 is MANDATORY. S4=odds, S5=context, S6=upset risk. Skipping any = coupon with zero EV, zero injuries, zero bear cases. See §STEP COMPLETENESS GATE. |
+| 18 | Use script flags you haven't read the code for | R18: Before using ANY flag (--no-enrich, --exclude, --top, --from-db), READ the script source to understand its effect. Unknown flags = unknown consequences. |
+
+---
+
+## §STEP COMPLETENESS GATE (MANDATORY — verify before S7)
+
+Before running S7 (gate_checker), verify ALL prior analytical steps completed with BOTH script output AND specialist agent analysis:
+
+| Step | Script Output Exists | Specialist Agent Analyzed |
+|------|---------------------|--------------------------|
+| S3 | `{date}_s3_deep_stats.json` exists, >0 candidates | bet-statistician verdict received |
+| S4 | `analysis_results` has EV data for ≥1 candidate | bet-valuator verdict received |
+| S5 | `analysis_results` has injury/weather context | bet-challenger verdict received (context) |
+| S6 | `analysis_results` has upset_risk data | bet-challenger verdict received (upset) |
+
+**If ANY cell is ☐ → STOP. Do NOT proceed to S7.** Run the missing script or delegate to the missing agent first.
+
+Use `inspect_pipeline.py --step all --date {run_date}` to check completeness programmatically.
+
+---
+
+## §DELEGATION COMPLIANCE GATE (MANDATORY — maintain throughout session)
+
+**The pipeline's ENTIRE VALUE is in specialist agent analysis. Without delegation, you are a dumb script runner.**
+
+### Running Checklist (update after EVERY step)
+
+| Step | Script Ran | Agent Delegated | Agent Name | Verdict Received |
+|------|-----------|----------------|------------|-----------------|
+| S0   | ☐         | ☐              | bet-settler | ☐               |
+| S0.5 | ☐         | ☐              | bet-db-analyst | ☐            |
+| S1   | ☐         | ☐              | bet-scanner | ☐               |
+| S1e  | ☐         | ☐              | bet-scanner | ☐               |
+| S2   | ☐         | ☐              | bet-scout   | ☐               |
+| S2.5 | ☐         | ☐              | bet-enricher | ☐              |
+| S3   | ☐         | ☐              | bet-statistician | ☐          |
+| S4   | ☐         | ☐              | bet-valuator | ☐              |
+| S5+6 | ☐         | ☐              | bet-challenger | ☐            |
+| S7   | ☐         | ☐              | bet-challenger | ☐            |
+| S8   | ☐         | ☐              | bet-builder | ☐               |
+
+**RULES:**
+1. **Script Ran + Agent NOT Delegated = VIOLATION.** Do NOT proceed to the next step.
+2. **Before S7:** ALL of S3, S4, S5+6 must have ☑ in "Agent Delegated" column.
+3. **Before S8:** S7 must have ☑ in "Agent Delegated" column.
+4. **Before presenting to user:** ALL steps must have ☑ in both "Script Ran" AND "Agent Delegated."
+
+**If you catch yourself about to skip delegation:** STOP. Read the delegation template for that step (below in this prompt). Run `runSubagent`. This is the pipeline's core value — specialist analysis.
 
 ---
 ## §THINK IN THE MIDDLE

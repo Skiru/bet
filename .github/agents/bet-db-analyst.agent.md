@@ -23,6 +23,7 @@ tools:
 model: "Claude Opus 4.6 (Copilot)"
 instructions:
   - ../instructions/agent-execution-protocol.instructions.md
+  - ../instructions/analysis-methodology.instructions.md
 skills:
   - bet-querying-database
 user-invokable: false

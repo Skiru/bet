@@ -282,6 +282,26 @@ _last_request_time: dict[str, float] = {}
 _rate_lock = threading.Lock()
 _RATE_LIMIT_SECONDS = 1.5
 
+# Per-source circuit breaker (thread-safe)
+_source_failures: dict[str, int] = {}
+_source_cb_lock = threading.Lock()
+CIRCUIT_BREAKER_THRESHOLD = 5
+
+def _source_is_down(domain: str) -> bool:
+    with _source_cb_lock:
+        return _source_failures.get(domain, 0) >= CIRCUIT_BREAKER_THRESHOLD
+
+def _record_source_failure(domain: str) -> None:
+    with _source_cb_lock:
+        _source_failures[domain] = _source_failures.get(domain, 0) + 1
+        if _source_failures[domain] == CIRCUIT_BREAKER_THRESHOLD:
+            logger.warning(f"[Circuit Breaker] {domain} marked DOWN — {CIRCUIT_BREAKER_THRESHOLD} consecutive failures")
+
+def _record_source_success(domain: str) -> None:
+    with _source_cb_lock:
+        _source_failures[domain] = 0
+
+
 
 # ---------------------------------------------------------------------------
 # Slugify
@@ -1104,54 +1124,61 @@ def enrich_team(team_name: str, sport: str, max_retries: int = 2) -> dict:
         except Exception as e:
             logger.debug(f"Scores24 trends failed for {team_name}: {e}")
 
-    # Try Sofascore stats API (JSON)
-    for attempt in range(1, max_retries + 1):
-        stats, err = _try_flashscore(team_name, sport)
+    # Try Sofascore stats API (JSON) (Actually Flashscore)
+    # Try Flashscore (skip if circuit-broken)
+    if not _source_is_down("flashscore.com"):
+        for attempt in range(1, max_retries + 1):
+            stats, err = _try_flashscore(team_name, sport)
+            if stats:
+                _record_source_success("flashscore.com")
+                source = "flashscore"
+                result["source"] = source
+                # Determine status
+                found_keys = set(stats.keys())
+                expected_keys = set(stat_keys)
+                if found_keys >= expected_keys:
+                    result["status"] = "enriched"
+                elif found_keys:
+                    result["status"] = "partial"
+                else:
+                    continue  # retry
+
+                result["stats_found"] = {
+                        k: _safe_avg(v) for k, v in stats.items() if v
+                }
+
+                # Save to both cache and DB
+                _save_to_cache(team_name, sport, stats, source)
+                _save_to_db(team_name, sport, stats, "enrichment-agent")
+                return result
+        else:
+            _record_source_failure("flashscore.com")
+            logger.info(f"Flashscore retry exhausted for {sport} entity '{team_name}' — all {max_retries} attempts returned no data")
+    else:
+        logger.debug(f"Skipping Flashscore for {team_name} — source circuit-broken")
+
+    # Fallback: try scores24.live
+    if not _source_is_down("scores24.live"):
+        stats, err = _try_scores24(team_name, sport)
         if stats:
-            source = "flashscore"
+            _record_source_success("scores24.live")
+            source = "scores24"
             result["source"] = source
-            # Determine status
             found_keys = set(stats.keys())
-            expected_keys = set(stat_keys)
-            if found_keys >= expected_keys:
-                result["status"] = "enriched"
-            elif found_keys:
-                result["status"] = "partial"
-            else:
-                continue  # retry
-
+            if found_keys:
+                result["status"] = "partial" if found_keys < set(stat_keys) else "enriched"
             result["stats_found"] = {
-                    k: _safe_avg(v) for k, v in stats.items() if v
+                k: _safe_avg(v) for k, v in stats.items() if v
             }
-
-            # Save to both cache and DB
             _save_to_cache(team_name, sport, stats, source)
             _save_to_db(team_name, sport, stats, "enrichment-agent")
             return result
-
-            if err:
-                errors.append(err)
-            if attempt < max_retries:
-                time.sleep(1.0)
+        else:
+            _record_source_failure("scores24.live")
+        if err:
+            errors.append(err)
     else:
-        logger.info(f"Skipping Flashscore HTML for tennis player '{team_name}' — player pages 404")
-
-    # Fallback: try scores24.live
-    stats, err = _try_scores24(team_name, sport)
-    if stats:
-        source = "scores24"
-        result["source"] = source
-        found_keys = set(stats.keys())
-        if found_keys:
-            result["status"] = "partial" if found_keys < set(stat_keys) else "enriched"
-        result["stats_found"] = {
-            k: _safe_avg(v) for k, v in stats.items() if v
-        }
-        _save_to_cache(team_name, sport, stats, source)
-        _save_to_db(team_name, sport, stats, "enrichment-agent")
-        return result
-    if err:
-        errors.append(err)
+        logger.debug(f"Skipping scores24 for {team_name} — source circuit-broken")
 
     # L7: Web research agent — last resort for missing data
     try:
@@ -1380,7 +1407,14 @@ def batch_enrich(teams: list[dict], max_workers: int = 4) -> list[dict]:
 
     if retry_needed and threading.current_thread() is threading.main_thread():
         logger.info(f"[batch_enrich] Phase 2: retrying {len(retry_needed)} teams on main thread (Playwright-safe)")
+        consecutive_failures = 0
+        MAX_CONSECUTIVE_FAILURES = 15
         for i, res in enumerate(retry_needed):
+            if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
+                skipped = len(retry_needed) - i
+                logger.warning(f"⚠️ [batch_enrich] Phase 2: Terminating early due to {MAX_CONSECUTIVE_FAILURES} consecutive failures. Skipped {skipped} remaining teams.")
+                break
+                
             team_name = res.get("team", "")
             sport = res.get("sport", "")
             if not team_name or not sport:
@@ -1390,8 +1424,13 @@ def batch_enrich(teams: list[dict], max_workers: int = 4) -> list[dict]:
                 # Only replace if retry produced better results
                 if retry_res.get("stats_found") or retry_res.get("status") == "enriched":
                     results[retry_indices[i]] = retry_res
+                    consecutive_failures = 0  # reset on success
+                else:
+                    consecutive_failures += 1
             except Exception as exc:
                 logger.debug(f"[batch_enrich] Phase 2 retry failed for {team_name}: {exc}")
+                consecutive_failures += 1
+                
             if (i + 1) % 20 == 0:
                 logger.info(f"[batch_enrich] Phase 2 progress: {i + 1}/{len(retry_needed)}")
 

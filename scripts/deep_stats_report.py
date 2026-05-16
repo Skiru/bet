@@ -1772,6 +1772,9 @@ def main():
 
     if args.no_enrich:
         os.environ["NO_ENRICH"] = "1"
+        out.warning("⚠️  --no-enrich ACTIVE: ALL inline enrichment SKIPPED. "
+                       "Candidates without cached/DB data will have MINIMAL quality. "
+                       "Only use this flag when enrichment already ran separately.")
     result = generate_deep_stats(
         args.date, args.shortlist, args.top,
         no_enrich=args.no_enrich, from_db=args.from_db,
@@ -1799,6 +1802,7 @@ def main():
             "without_data": result.get("candidates_without_data", 0),
             "enrichment_attempted": result.get("enrichment_attempted", 0),
             "enrichment_successful": result.get("enrichment_successful", 0),
+            "no_enrich": args.no_enrich,
         },
     )
 

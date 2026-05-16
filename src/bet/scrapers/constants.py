@@ -14,16 +14,12 @@ USER_AGENTS = [
 ]
 
 FBREF_LEAGUES = {
+    "Big 5 European Leagues Combined": ("Europe", "Big 5"),
     "ENG-Premier League": ("England", "Premier League"),
     "ESP-La Liga": ("Spain", "La Liga"),
     "GER-Bundesliga": ("Germany", "Bundesliga"),
     "ITA-Serie A": ("Italy", "Serie A"),
     "FRA-Ligue 1": ("France", "Ligue 1"),
-    "NED-Eredivisie": ("Netherlands", "Eredivisie"),
-    "POR-Primeira Liga": ("Portugal", "Primeira Liga"),
-    "BRA-Serie A": ("Brazil", "Serie A"),
-    "ARG-Primera Division": ("Argentina", "Primera Division"),
-    "TUR-Super Lig": ("Turkey", "Super Lig"),
 }
 
 SPORT_SOURCE_MAP = {

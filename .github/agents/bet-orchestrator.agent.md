@@ -106,6 +106,27 @@ You are the betting pipeline orchestrator — a MANAGER who **runs ALL scripts, 
 
 ---
 
+## Script → DB Table Data Flow Matrix
+
+| Script | Reads | Writes | Notes |
+|--------|-------|--------|-------|
+| `discover_events.py` | scan_urls.json | `fixtures`, `scan_results` | S1 scan |
+| `build_stats_cache.py` | `fixtures`, stats_cache/ | `team_form` | Ingests scan stats |
+| `run_scrapers.py` | — | `league_profiles`, `player_season_stats`, `athletes`, `scraper_runs` | S2.3 — does NOT write team_form |
+| `data_enrichment_agent.py` | `team_form`, `fixtures` | `team_form`, `match_stats`, `source_health` | S2.5 gap-fill |
+| `deep_stats_report.py` | `team_form`, `match_stats` | `analysis_results`, `team_form` (if inline enrich) | S3 — writes team_form ONLY when --no-enrich is NOT set |
+| `compute_safety_scores.py` | JSON arg (stats_input) | — (stdout) | Pure computation, no DB access |
+| `odds_evaluator.py` | `odds_history`, `analysis_results` | `analysis_results` (EV injection) | S4 |
+| `context_checks.py` | `fixtures`, ESPN API | `analysis_results` (context) | S5 |
+| `upset_risk.py` | `analysis_results` | `analysis_results` (upset risk) | S6 |
+| `gate_checker.py` | `analysis_results` | `gate_results` | S7 |
+| `coupon_builder.py` | `gate_results`, `analysis_results` | coupons/*.md, coupons/*.json | S8 |
+| `settle_on_finish.py` | betclic_bets_history.json | `bets`, `coupons` | S0 |
+
+⚠️ **Concurrent write hazard:** `build_stats_cache`, `data_enrichment_agent`, and `deep_stats_report` all write `team_form`. Run sequentially.
+
+---
+
 ## Agent Delegation Guidelines
 
 ### bet-scanner — Scan + Shortlist

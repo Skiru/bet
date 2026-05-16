@@ -102,6 +102,7 @@ You add an Enrichment Quality Assessment via sequential-thinking for each batch:
 ```python
 from bet.db.connection import get_db
 from bet.db.repositories import TeamRepo, StatsRepo
+from bet.db.models import TeamForm
 
 # ALWAYS use TeamRepo.find_or_create() — it validates team names
 # and rejects garbage (ads, odds strings, promo text) with ValueError.
@@ -114,10 +115,26 @@ except ValueError as e:
     return
 
 with get_db() as conn:
-    conn.execute("""
-        INSERT OR REPLACE INTO team_form (team_id, sport_id, form_data, updated_at)
-        VALUES (?, (SELECT id FROM sports WHERE name = ?), ?, datetime('now'))
-    """, (team.id, sport, json.dumps(form_data)))
+    stats_repo = StatsRepo(conn)
+    form = TeamForm(
+        id=None,
+        team_id=team.id,
+        sport_id=sport_id,
+        stat_key=stat_key,       # e.g., "corners", "fouls", "goals"
+        l10_values=l10_values,   # list of last 10 values
+        l5_values=l5_values,     # list of last 5 values
+        l10_avg=l10_avg,
+        l5_avg=l5_avg,
+        h2h_values=[],
+        h2h_opponent_id=None,
+        trend="",
+        updated_at=None,
+        source="enrichment-agent",
+    )
+    stats_repo.save_team_form(form)
+    conn.commit()
+    # ⚠️ save_team_form uses DELETE+INSERT — concurrent writes are last-writer-wins.
+    # Ensure enrichment does NOT run in parallel with build_stats_cache or deep_stats_report.
 ```
 
 - Review enrichment yield (enriched/attempted × 100) — target ≥60%
@@ -238,7 +255,7 @@ If any script exits non-zero:
 1. **Read stderr** — identify the error type
 2. **Common fixes:**
    - `ModuleNotFoundError` → run with `PYTHONPATH=src python3 scripts/...`
-   - `sqlite3.OperationalError: database is locked` → wait 5s, retry once
+   - `sqlite3.OperationalError: database is locked` → concurrent write to `team_form`. Check that enrichment and deep_stats_report are not running simultaneously (see `save_team_form()` docstring in repositories.py). Wait 5s, retry once.
    - `JSONDecodeError` → check input file exists and is valid JSON
    - `KeyError` / `TypeError` → input data format changed, check script's expected schema
 3. **If unfixable** → delegate to orchestrator: `DELEGATION REQUEST: type: SCRIPT_FAILURE, script: {name}, error: {traceback summary}`

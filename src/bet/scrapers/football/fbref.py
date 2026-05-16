@@ -7,6 +7,7 @@ from sqlalchemy import text
 
 import soccerdata as sd
 from bet.scrapers.base import BaseScraper, ScraperError
+from bet.scrapers.constants import FBREF_LEAGUES
 from bet.scrapers.models import PlayerSeasonStat
 
 
@@ -15,10 +16,20 @@ class FootballFBrefScraper(BaseScraper):
     source_name = "fbref"
     _request_delay = (3.0, 6.0)
 
+    # Default leagues when no competition specified
+    DEFAULT_LEAGUES = list(FBREF_LEAGUES.keys())
+
+    def _resolve_leagues(self, competition: str) -> str | list[str]:
+        """Resolve leagues parameter — use defaults if empty."""
+        if competition:
+            return competition
+        return self.DEFAULT_LEAGUES
+
     def scrape_team_season_stats(self, competition: str, season: str) -> int:
         try:
             self._rate_limit()
-            fbref = sd.FBref(leagues=competition, seasons=season)
+            leagues = self._resolve_leagues(competition)
+            fbref = sd.FBref(leagues=leagues, seasons=season)
             df = fbref.read_team_season_stats(stat_type="standard")
             
             with self._get_session() as session:
@@ -52,7 +63,8 @@ class FootballFBrefScraper(BaseScraper):
     def scrape_player_season_stats(self, competition: str, season: str) -> int:
         try:
             self._rate_limit()
-            fbref = sd.FBref(leagues=competition, seasons=season)
+            leagues = self._resolve_leagues(competition)
+            fbref = sd.FBref(leagues=leagues, seasons=season)
             df = fbref.read_player_season_stats(stat_type="standard")
             
             with self._get_session() as session:
@@ -126,7 +138,8 @@ class FootballFBrefScraper(BaseScraper):
     def scrape_player_match_stats(self, competition: str, season: str) -> int:
         try:
             self._rate_limit()
-            fbref = sd.FBref(leagues=competition, seasons=season)
+            leagues = self._resolve_leagues(competition)
+            fbref = sd.FBref(leagues=leagues, seasons=season)
             df = fbref.read_player_match_stats(stat_type="summary")
             
             with self._get_session() as session:

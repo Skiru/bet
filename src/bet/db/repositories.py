@@ -518,6 +518,14 @@ class StatsRepo:
     def save_team_form(self, form: TeamForm) -> None:
         """Upsert team_form row (denormalized cache).
 
+        WARNING: Concurrent Write Hazard!
+        Three scripts write to team_form simultaneously:
+        - build_stats_cache.py (via ingest_scan_stats)
+        - data_enrichment_agent.py (via _save_to_db) 
+        - deep_stats_report.py (inline enrichment when NO_ENRICH is not set)
+        Pipeline must serialize these writes (run sequentially, not in parallel).
+        If parallel execution is needed, use WAL mode + retry on SQLITE_BUSY.
+        
         Uses DELETE+INSERT wrapped in a SAVEPOINT to ensure atomicity.
         SQLite ON CONFLICT doesn't work with expression-based unique indexes
         (NULL h2h_opponent_id).

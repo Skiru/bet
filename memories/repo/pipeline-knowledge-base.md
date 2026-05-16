@@ -1,4 +1,31 @@
-# Pipeline Knowledge Base — Consolidated (May 4-14, 2026, updated 2026-05-14 EVE)
+# Pipeline Knowledge Base — Consolidated (May 4-14, 2026, updated 2026-05-16)
+
+## 🆕 METHODOLOGY FIX — 2026-05-16
+
+**Plan:** `specifications/pipeline-methodology-fixes.plan.md` — 5 phases, 16 tasks.
+
+### Bugs Fixed
+- **data_enrichment_agent.py:** Misleading "tennis player" log (line ~1137) → now shows actual sport. Dead code removed. batch_enrich Phase 2 gets early-break after 15 consecutive failures. Per-source circuit breaker (5 failures → skip source for rest of run).
+- **deep_stats_report.py:** `--no-enrich` now emits prominent WARNING log.
+- **run_scrapers.py:** Scraper failures now correctly set status="partial" instead of masking as "ok". AGENT_SUMMARY reports failure count.
+- **repositories.py:** `save_team_form()` docstring documents concurrent write hazard.
+
+### Documentation Fixed
+- **All 10 bet-*.agent.md:** Consistency audit — R17 analysis-only rule, correct skills, correct instructions array. bet-db-analyst got missing analysis-methodology instruction.
+- **bet-enricher.agent.md:** Raw SQL replaced with `StatsRepo.save_team_form()`. Concurrent write hazard documented.
+- **bet-statistician.agent.md:** match_stats documented as sparsely populated with team_form fallback.
+- **bet-orchestrator.agent.md:** Script→DB data flow matrix added (12 scripts with reads/writes/notes).
+
+### Prompt Fixes
+- **orchestrate-betting-day.prompt.md:** Anti-patterns #16-#18 added. §STEP COMPLETENESS GATE (S3→S7 dependency matrix). §DELEGATION COMPLIANCE GATE (running checklist per step). Delegation blocks simplified with §DELEGATION TEMPLATE references. Pipeline-errors log added to S0 context loading.
+
+### Instruction Updates
+- **analysis-methodology.instructions.md:** Zero Tolerance entries #22-#27 added (step skipping, tennis player log, batch_enrich early-break, --no-enrich flag, delegation enforcement, circuit breaker).
+
+### Key Patterns
+- **Circuit breaker:** `_source_failures` dict + `_source_is_down()` in data_enrichment_agent.py. Threshold=5, module-level, thread-safe with Lock.
+- **Concurrent write hazard:** build_stats_cache, data_enrichment_agent, and deep_stats_report all write team_form. Must run sequentially.
+- **Delegation enforcement:** §DELEGATION COMPLIANCE GATE in orchestration prompt — running checklist that tracks Script+Agent per step.
 
 ## 🆕 POST-REFACTOR ALIGNMENT — COMPLETED (2026-05-14 EVE)
 
