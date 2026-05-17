@@ -137,6 +137,11 @@ def fetch(url: str, save_snapshot: bool = False) -> str | None:
 
 def _fetch_stealth(url: str) -> str | None:
     """Fetch URL using Playwright with stealth patches to bypass Cloudflare/DataDome."""
+    # Guard: Playwright/greenlet cannot run in worker threads
+    if threading.current_thread() is not threading.main_thread():
+        logger.debug(f"Skipping stealth Playwright (worker thread) for {url}")
+        return None
+
     # Detect running asyncio loop — Playwright Sync API cannot work inside one
     import asyncio
     try:
@@ -1124,9 +1129,8 @@ def enrich_team(team_name: str, sport: str, max_retries: int = 2) -> dict:
         except Exception as e:
             logger.debug(f"Scores24 trends failed for {team_name}: {e}")
 
-    # Try Sofascore stats API (JSON) (Actually Flashscore)
-    # Try Flashscore (skip if circuit-broken)
-    if not _source_is_down("flashscore.com"):
+    # Try Flashscore (skip if circuit-broken OR running in worker thread — curl_cffi greenlet conflict)
+    if not _source_is_down("flashscore.com") and threading.current_thread() is threading.main_thread():
         for attempt in range(1, max_retries + 1):
             stats, err = _try_flashscore(team_name, sport)
             if stats:
@@ -1154,8 +1158,10 @@ def enrich_team(team_name: str, sport: str, max_retries: int = 2) -> dict:
         else:
             _record_source_failure("flashscore.com")
             logger.info(f"Flashscore retry exhausted for {sport} entity '{team_name}' — all {max_retries} attempts returned no data")
-    else:
+    elif _source_is_down("flashscore.com"):
         logger.debug(f"Skipping Flashscore for {team_name} — source circuit-broken")
+    else:
+        logger.debug(f"Skipping Flashscore for {team_name} — worker thread (curl_cffi greenlet unsafe)")
 
     # Fallback: try scores24.live
     if not _source_is_down("scores24.live"):
@@ -1406,7 +1412,11 @@ def batch_enrich(teams: list[dict], max_workers: int = 4) -> list[dict]:
             retry_indices.append(idx)
 
     if retry_needed and threading.current_thread() is threading.main_thread():
-        logger.info(f"[batch_enrich] Phase 2: retrying {len(retry_needed)} teams on main thread (Playwright-safe)")
+        # Reset circuit breakers — Phase 1 thread failures are expected (greenlet conflict),
+        # they should NOT prevent Phase 2 main-thread attempts from using these sources.
+        with _source_cb_lock:
+            _source_failures.clear()
+        logger.info(f"[batch_enrich] Phase 2: retrying {len(retry_needed)} teams on main thread (Playwright-safe). Circuit breakers reset.")
         consecutive_failures = 0
         MAX_CONSECUTIVE_FAILURES = 15
         for i, res in enumerate(retry_needed):
