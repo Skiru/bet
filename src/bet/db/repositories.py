@@ -39,6 +39,8 @@ from bet.db.models import (
     TeamNews,
     TeamOURecord,
     TeamRoster,
+    TipsterConsensus,
+    TipsterPick,
     Transaction,
 )
 
@@ -2420,3 +2422,177 @@ class TeamNewsRepo:
             fetched_at=row["fetched_at"] or "",
             source=row["source"] or "gemini",
         )
+
+
+# ---------------------------------------------------------------------------
+# TipsterRepo
+# ---------------------------------------------------------------------------
+
+class TipsterRepo:
+    """Repository for tipster picks and consensus data."""
+
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+
+    def save_picks(self, date: str, picks: list[dict]) -> int:
+        """Bulk insert tipster picks for a date. Clears existing picks first.
+
+        Atomic: DELETE + INSERT wrapped in implicit transaction via with self.conn.
+        """
+        rows = [
+            (
+                date,
+                p.get("source_site", ""),
+                p.get("tipster_name", ""),
+                p.get("sport", ""),
+                p.get("event", ""),
+                p.get("home_team", ""),
+                p.get("away_team", ""),
+                p.get("competition", ""),
+                p.get("market", ""),
+                p.get("market_type", ""),
+                p.get("direction", ""),
+                p.get("odds"),
+                p.get("reasoning", ""),
+                p.get("accuracy_pct"),
+                p.get("confidence", ""),
+                json.dumps(p.get("stats_cited") if isinstance(p.get("stats_cited"), list) else []),
+                p.get("fetch_time", ""),
+            )
+            for p in picks
+        ]
+        with self.conn:
+            self.conn.execute("DELETE FROM tipster_picks WHERE betting_date = ?", (date,))
+            self.conn.executemany("""
+                INSERT INTO tipster_picks (betting_date, source_site, tipster_name, sport, event,
+                    home_team, away_team, competition, market, market_type, direction, odds,
+                    reasoning, accuracy_pct, confidence, stats_cited, fetch_time)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, rows)
+        return len(rows)
+
+    def save_consensus(self, date: str, entries: list[dict]) -> int:
+        """Bulk insert consensus entries for a date. Clears existing entries first.
+
+        Atomic: DELETE + INSERT wrapped in implicit transaction via with self.conn.
+        """
+        rows = [
+            (
+                date,
+                ce.get("event", ""),
+                ce.get("sport", ""),
+                ce.get("competition", ""),
+                ce.get("home_team", ""),
+                ce.get("away_team", ""),
+                ce.get("total_tipsters", 0),
+                ce.get("consensus_market", ""),
+                ce.get("consensus_direction", ""),
+                ce.get("agreement_pct", 0),
+                ce.get("statistical_picks", 0),
+                ce.get("outcome_picks", 0),
+                1 if ce.get("has_reasoning") else 0,
+                json.dumps(ce.get("tipster_sources", [])),
+                ce.get("confidence_adj", 0.0),
+            )
+            for ce in entries
+        ]
+        with self.conn:
+            self.conn.execute("DELETE FROM tipster_consensus WHERE betting_date = ?", (date,))
+            self.conn.executemany("""
+                INSERT INTO tipster_consensus (betting_date, event, sport, competition,
+                    home_team, away_team, total_tipsters, consensus_market, consensus_direction,
+                    agreement_pct, statistical_picks, outcome_picks, has_reasoning,
+                    tipster_sources, confidence_adj)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, rows)
+        return len(rows)
+
+    def get_picks_by_date(self, date: str) -> list:
+        """Get all tipster picks for a betting date."""
+        rows = self.conn.execute(
+            "SELECT id, betting_date, source_site, tipster_name, sport, event, "
+            "home_team, away_team, competition, market, market_type, direction, "
+            "odds, reasoning, accuracy_pct, confidence, stats_cited, fetch_time, created_at "
+            "FROM tipster_picks WHERE betting_date = ? ORDER BY source_site, sport",
+            (date,),
+        ).fetchall()
+        results = []
+        for r in rows:
+            stats_cited = r["stats_cited"]
+            if isinstance(stats_cited, str):
+                try:
+                    stats_cited = json.loads(stats_cited)
+                except (json.JSONDecodeError, TypeError):
+                    stats_cited = []
+            results.append(TipsterPick(
+                id=r["id"], betting_date=r["betting_date"], source_site=r["source_site"],
+                tipster_name=r["tipster_name"], sport=r["sport"], event=r["event"],
+                home_team=r["home_team"], away_team=r["away_team"],
+                competition=r["competition"], market=r["market"], market_type=r["market_type"],
+                direction=r["direction"], odds=r["odds"], reasoning=r["reasoning"],
+                accuracy_pct=r["accuracy_pct"], confidence=r["confidence"],
+                stats_cited=stats_cited if isinstance(stats_cited, list) else [],
+                fetch_time=r["fetch_time"], created_at=r["created_at"] or "",
+            ))
+        return results
+
+    def get_consensus_by_date(self, date: str) -> list:
+        """Get all consensus entries for a betting date."""
+        rows = self.conn.execute(
+            "SELECT id, betting_date, event, sport, competition, home_team, away_team, "
+            "total_tipsters, consensus_market, consensus_direction, agreement_pct, "
+            "statistical_picks, outcome_picks, has_reasoning, tipster_sources, "
+            "confidence_adj, created_at "
+            "FROM tipster_consensus WHERE betting_date = ? ORDER BY agreement_pct DESC",
+            (date,),
+        ).fetchall()
+        results = []
+        for r in rows:
+            sources = r[14]
+            if isinstance(sources, str):
+                try:
+                    sources = json.loads(sources)
+                except (json.JSONDecodeError, TypeError):
+                    sources = []
+            results.append(TipsterConsensus(
+                id=r["id"], betting_date=r["betting_date"], event=r["event"],
+                sport=r["sport"], competition=r["competition"],
+                home_team=r["home_team"], away_team=r["away_team"],
+                total_tipsters=r["total_tipsters"], consensus_market=r["consensus_market"],
+                consensus_direction=r["consensus_direction"],
+                agreement_pct=r["agreement_pct"], statistical_picks=r["statistical_picks"],
+                outcome_picks=r["outcome_picks"], has_reasoning=bool(r["has_reasoning"]),
+                tipster_sources=sources if isinstance(sources, list) else [],
+                confidence_adj=r["confidence_adj"], created_at=r["created_at"] or "",
+            ))
+        return results
+
+    def get_picks_for_event(self, date: str, home_team: str, away_team: str) -> list:
+        """Get tipster picks for a specific event (case-insensitive team match)."""
+        rows = self.conn.execute(
+            "SELECT id, betting_date, source_site, tipster_name, sport, event, "
+            "home_team, away_team, competition, market, market_type, direction, "
+            "odds, reasoning, accuracy_pct, confidence, stats_cited, fetch_time, created_at "
+            "FROM tipster_picks WHERE betting_date = ? "
+            "AND LOWER(home_team) = LOWER(?) AND LOWER(away_team) = LOWER(?)",
+            (date, home_team, away_team),
+        ).fetchall()
+        results = []
+        for r in rows:
+            stats_cited = r["stats_cited"]
+            if isinstance(stats_cited, str):
+                try:
+                    stats_cited = json.loads(stats_cited)
+                except (json.JSONDecodeError, TypeError):
+                    stats_cited = []
+            results.append(TipsterPick(
+                id=r["id"], betting_date=r["betting_date"], source_site=r["source_site"],
+                tipster_name=r["tipster_name"], sport=r["sport"], event=r["event"],
+                home_team=r["home_team"], away_team=r["away_team"],
+                competition=r["competition"], market=r["market"], market_type=r["market_type"],
+                direction=r["direction"], odds=r["odds"], reasoning=r["reasoning"],
+                accuracy_pct=r["accuracy_pct"], confidence=r["confidence"],
+                stats_cited=stats_cited if isinstance(stats_cited, list) else [],
+                fetch_time=r["fetch_time"], created_at=r["created_at"] or "",
+            ))
+        return results

@@ -188,7 +188,7 @@ DB_SCHEMA_REFERENCE = {
     "connection": {
         "how": "from bet.db.connection import get_db; with get_db() as conn: ...",
         "db_path": "betting/data/betting.db (SQLite)",
-        "repositories": "from bet.db.repositories import SportRepo, TeamRepo, FixtureRepo, CompetitionRepo, AnalysisResultRepo, StatsRepo, GateResultRepo, CouponRepo, PipelineRepo, OddsRepo, SourceHealthRepo, ScanResultRepo, AthleteRepo, StandingRepo",
+        "repositories": "from bet.db.repositories import SportRepo, TeamRepo, FixtureRepo, CompetitionRepo, AnalysisResultRepo, StatsRepo, GateResultRepo, CouponRepo, PipelineRepo, OddsRepo, SourceHealthRepo, ScanResultRepo, AthleteRepo, StandingRepo, TipsterRepo",
     },
     "core_tables": {
         "sports": "id, name, tier(1=KEY,2=SUPPORT), stat_keys(JSON list of bettable stat keys per sport)",
@@ -222,6 +222,8 @@ DB_SCHEMA_REFERENCE = {
         "fixture_sources": "id, fixture_id→fixtures, source(sofascore/odds-api/api-football), external_id, confidence, raw_data(JSON), fetched_at — cross-references from discovery module",
         "scraper_runs": "id, scraper_name, sport, target, status(running/success/failed), records_scraped/inserted/updated, error_message, started_at, finished_at, duration_seconds — operational tracking for scrapers module",
         "source_health": "id, source_name, last_success/failure, consecutive_failures, total_requests/failures, avg_response_ms — tracks source reliability",
+        "tipster_picks": "id, betting_date, source_site, tipster_name, sport, event, home_team, away_team, competition, market, market_type, direction, odds, reasoning, accuracy_pct, confidence, stats_cited(JSON), fetch_time — individual tipster picks from Playwright DOM scraping",
+        "tipster_consensus": "id, betting_date, event, sport, competition, home_team, away_team, total_tipsters, consensus_market, consensus_direction, agreement_pct, statistical_picks, outcome_picks, has_reasoning, tipster_sources(JSON), confidence_adj — aggregated consensus per event",
     },
     "espn_tables": {
         "espn_predictions": "id, fixture_id→fixtures, home_win_pct, away_win_pct, tie_pct, predictor_json, power_index_home/away",
@@ -238,6 +240,9 @@ DB_SCHEMA_REFERENCE = {
         "update_s4_s5_s6": "AnalysisResultRepo(conn).update_stats_summary(fixture_id, date, summary_dict) → pure UPDATE to stats_summary_json",
         "load_analysis": "from db_data_loader import load_analysis_results_from_db → returns list of analysis dicts with ev, context_flags, upset_risk",
         "save_gate": "from db_data_loader import save_gate_results_to_db",
+        "load_tipster_picks": "TipsterRepo(conn).get_picks_by_date(date) → list[TipsterPick] with reasoning, stats_cited",
+        "load_tipster_consensus": "TipsterRepo(conn).get_consensus_by_date(date) → list[TipsterConsensus] with agreement_pct, tipster_sources",
+        "load_tipster_for_event": "TipsterRepo(conn).get_picks_for_event(date, home, away) → list[TipsterPick] for specific match",
     },
 }
 
@@ -369,15 +374,16 @@ AGENT_SKILLS_MAP = {
         "can_trigger_enrichment": False,
     },
     "bet-scout": {
-        "role": "Tipster cross-reference & consensus analyst",
+        "role": "Tipster cross-reference & consensus analyst (Playwright-based DOM scraping)",
         "mandatory_behaviors": MANDATORY_BEHAVIORS,
         "responsibilities": [
-            "Read FULL tipster arguments (not just pick summaries)",
+            "Read FULL tipster arguments from DB (reasoning column, stats_cited)",
             "Assess tipster quality: track record, reasoning depth, independence",
             "Discover analytical angles that pure stats might miss",
             "Identify consensus picks (≥2 independent tipsters agree)",
             "Promote watchlist picks with strong tipster backing",
             "Flag tipster picks that contradict statistical analysis",
+            "Cross-reference tipster picks with shortlist via TipsterRepo",
         ],
         "skills_to_load": [
             "bet-navigating-sources (Tier B tipster sites, access patterns)",
@@ -385,7 +391,7 @@ AGENT_SKILLS_MAP = {
         "instructions_to_follow": [
             "analysis-methodology.instructions.md (§2 tipster cross-reference)",
         ],
-        "db_reads": ["analysis_results", "fixtures"],
+        "db_reads": ["tipster_picks", "tipster_consensus", "analysis_results", "fixtures"],
         "db_writes": [],
         "can_trigger_enrichment": False,
     },

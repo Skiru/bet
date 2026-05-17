@@ -389,6 +389,58 @@ CREATE INDEX IF NOT EXISTS idx_coach_history_team ON coach_history(team_id);
 CREATE INDEX IF NOT EXISTS idx_web_research_cache_hash ON web_research_cache(query_hash);
 CREATE INDEX IF NOT EXISTS idx_web_research_cache_expires ON web_research_cache(expires_at);
 
+-- Tipster aggregation tables (v9)
+CREATE TABLE IF NOT EXISTS tipster_picks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    betting_date TEXT NOT NULL,
+    source_site TEXT NOT NULL,
+    tipster_name TEXT,
+    sport TEXT,
+    event TEXT,
+    home_team TEXT NOT NULL,
+    away_team TEXT NOT NULL,
+    competition TEXT,
+    market TEXT,
+    market_type TEXT,
+    direction TEXT,
+    odds REAL,
+    reasoning TEXT,
+    accuracy_pct REAL,
+    confidence TEXT,
+    stats_cited TEXT,
+    fetch_time TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_tipster_picks_date ON tipster_picks(betting_date);
+CREATE INDEX IF NOT EXISTS idx_tipster_picks_teams ON tipster_picks(home_team, away_team);
+CREATE INDEX IF NOT EXISTS idx_tipster_picks_sport ON tipster_picks(betting_date, sport);
+CREATE INDEX IF NOT EXISTS idx_tipster_picks_source ON tipster_picks(source_site);
+
+CREATE TABLE IF NOT EXISTS tipster_consensus (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    betting_date TEXT NOT NULL,
+    event TEXT,
+    sport TEXT,
+    competition TEXT,
+    home_team TEXT NOT NULL,
+    away_team TEXT NOT NULL,
+    total_tipsters INTEGER,
+    consensus_market TEXT,
+    consensus_direction TEXT,
+    agreement_pct REAL,
+    statistical_picks INTEGER,
+    outcome_picks INTEGER,
+    has_reasoning INTEGER DEFAULT 0,
+    tipster_sources TEXT,
+    confidence_adj REAL DEFAULT 0.0,
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_tipster_consensus_date ON tipster_consensus(betting_date);
+CREATE INDEX IF NOT EXISTS idx_tipster_consensus_teams ON tipster_consensus(home_team, away_team);
+CREATE INDEX IF NOT EXISTS idx_tipster_consensus_sport ON tipster_consensus(betting_date, sport);
+
 -- Schema metadata (version tracking, migration log)
 CREATE TABLE IF NOT EXISTS schema_meta (
     key TEXT PRIMARY KEY,

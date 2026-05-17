@@ -38,8 +38,36 @@ sys.path.insert(0, str(ROOT_DIR / "src"))
 
 import requests as _requests
 
+# Playwright-based client for JS-rendered tipster sites
+_pw_client = None
+
+def _get_pw_client():
+    """Lazy-init shared TipsterPlaywrightClient.
+
+    Only called before the sequential Playwright loop — not thread-safe by design.
+    """
+    global _pw_client
+    if _pw_client is None:
+        try:
+            from bet.api_clients.tipster_playwright import TipsterPlaywrightClient
+            _pw_client = TipsterPlaywrightClient()
+            _log("[tipster] Playwright client initialized")
+        except Exception as e:
+            _log(f"[tipster] Playwright unavailable ({e}), falling back to HTTP")
+    return _pw_client
+
+def _cleanup_pw_client():
+    """Clean up Playwright browser resources."""
+    global _pw_client
+    if _pw_client is not None:
+        try:
+            _pw_client.close()
+        except Exception:
+            pass
+        _pw_client = None
+
 def fetch(url: str, **kwargs) -> str:
-    """HTTP fetch for tipster pages (no Playwright)."""
+    """HTTP fetch for tipster pages (fallback when Playwright unavailable)."""
     resp = _requests.get(url, timeout=30, headers={
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
                       "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -1316,10 +1344,11 @@ def _log(msg: str) -> None:
 
 
 def fetch_site(site_config: dict, date: datetime) -> dict:
-    """Fetch a single tipster site and parse its picks.
+    """Fetch a single tipster site — Playwright first, HTTP fallback.
 
     Returns dict with: site_name, url, status, picks, error, fetch_time_ms.
-    For PicksWise: also follows individual prediction page URLs.
+    Uses TipsterPlaywrightClient for JS-rendered DOM extraction.
+    Falls back to HTTP + regex parsing if Playwright unavailable.
     """
     site_name = site_config["name"]
     start = time.time()
@@ -1335,7 +1364,25 @@ def fetch_site(site_config: dict, date: datetime) -> dict:
     }
 
     try:
-        # Build URL(s)
+        date_str = date.strftime("%Y-%m-%d")
+
+        # --- PRIMARY: Playwright DOM extraction ---
+        pw = _get_pw_client()
+        if pw is not None:
+            try:
+                pw_picks = pw.fetch_site(site_config, date_str)
+                if pw_picks:
+                    result["picks"] = pw_picks
+                    result["pick_count"] = len(pw_picks)
+                    result["status"] = "success"
+                    result["fetch_time_ms"] = int((time.time() - start) * 1000)
+                    return result
+                else:
+                    _log(f"  [tipster] {site_name}: Playwright returned 0 picks, trying HTTP fallback")
+            except Exception as e:
+                _log(f"  [tipster] {site_name}: Playwright failed ({e}), trying HTTP fallback")
+
+        # --- FALLBACK: HTTP + regex parsing ---
         urls = []
         if "url_builder" in site_config and site_config["url_builder"] == "zawodtyper":
             urls = [build_zawodtyper_url(date)]
@@ -1346,7 +1393,6 @@ def fetch_site(site_config: dict, date: datetime) -> dict:
 
         all_picks = []
         for url_idx, url in enumerate(urls):
-            # Time budget check — bail out if site is taking too long
             elapsed = time.time() - start
             if elapsed > SITE_FETCH_TIMEOUT - 5:
                 _log(f"  [tipster] {site_name}: time budget exhausted ({elapsed:.0f}s), skipping remaining URLs")
@@ -1355,32 +1401,24 @@ def fetch_site(site_config: dict, date: datetime) -> dict:
                 _log(f"  [tipster] {site_name}: fetching URL {url_idx + 1}/{len(urls)} ({elapsed:.0f}s elapsed)")
             result["url"] = url
             try:
-                # JS-heavy sites need longer settle time for AJAX content
-                wait_ms = site_config.get("wait_after_load", 500)
-                html = fetch(url, timeout=PLAYWRIGHT_TIMEOUT, retries=PLAYWRIGHT_RETRIES,
-                             wait_after_load=wait_ms)
+                html = fetch(url)
                 if not html or len(html) < 100:
                     _log(f"  [tipster] {site_name}: {url} returned {len(html) if html else 0} bytes (skipped)")
                     continue
 
-                # Route to appropriate parser
                 parser = site_config.get("parser", "generic")
                 if parser == "zawodtyper":
                     picks = parse_zawodtyper_html(html)
                 elif parser == "pickswise":
                     picks = parse_pickswise_html(html, url)
-                    # Follow individual prediction page URLs for actual picks
                     pred_urls = _extract_pickswise_pred_urls(html)
-                    for pidx, pred_url in enumerate(pred_urls[:3]):  # Limit to 3 per sport page
-                        # Bail out if site is taking too long
+                    for pidx, pred_url in enumerate(pred_urls[:3]):
                         if time.time() - start > SITE_FETCH_TIMEOUT - 5:
-                            _log(f"  [tipster] {site_name}: time cap reached, stopping pred URL crawl at {pidx}/{len(pred_urls)}")
                             break
                         try:
-                            pred_html = fetch(pred_url, timeout=PLAYWRIGHT_TIMEOUT, retries=PLAYWRIGHT_RETRIES)
+                            pred_html = fetch(pred_url)
                             if pred_html:
-                                pred_picks = parse_pickswise_html(pred_html, pred_url)
-                                picks.extend(pred_picks)
+                                picks.extend(parse_pickswise_html(pred_html, pred_url))
                         except Exception:
                             continue
                 elif parser == "sportsgambler":
@@ -1545,59 +1583,6 @@ def combine_tipster_with_stats(consensus: list[dict], stats_cache_dir: Path | No
 
 
 # ---------------------------------------------------------------------------
-# DB table setup for tipster data (R2)
-# ---------------------------------------------------------------------------
-
-def _ensure_tipster_tables(conn):
-    """Create tipster_picks and tipster_consensus tables if they don't exist."""
-    conn.execute("""CREATE TABLE IF NOT EXISTS tipster_picks (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        betting_date TEXT NOT NULL,
-        source_site TEXT NOT NULL,
-        tipster_name TEXT,
-        sport TEXT,
-        event TEXT,
-        home_team TEXT NOT NULL,
-        away_team TEXT NOT NULL,
-        competition TEXT,
-        market TEXT,
-        market_type TEXT,
-        direction TEXT,
-        odds REAL,
-        reasoning TEXT,
-        accuracy_pct REAL,
-        confidence REAL,
-        stats_cited TEXT,
-        fetch_time TEXT,
-        created_at TEXT DEFAULT (datetime('now'))
-    )""")
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_tipster_picks_date ON tipster_picks(betting_date)")
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_tipster_picks_teams ON tipster_picks(home_team, away_team)")
-
-    conn.execute("""CREATE TABLE IF NOT EXISTS tipster_consensus (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        betting_date TEXT NOT NULL,
-        event TEXT,
-        sport TEXT,
-        competition TEXT,
-        home_team TEXT NOT NULL,
-        away_team TEXT NOT NULL,
-        total_tipsters INTEGER,
-        consensus_market TEXT,
-        consensus_direction TEXT,
-        agreement_pct REAL,
-        statistical_picks INTEGER,
-        outcome_picks INTEGER,
-        has_reasoning INTEGER DEFAULT 0,
-        tipster_sources TEXT,
-        confidence_adj REAL DEFAULT 0.0,
-        created_at TEXT DEFAULT (datetime('now'))
-    )""")
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_tipster_consensus_date ON tipster_consensus(betting_date)")
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_tipster_consensus_teams ON tipster_consensus(home_team, away_team)")
-
-
-# ---------------------------------------------------------------------------
 # Main orchestrator
 # ---------------------------------------------------------------------------
 
@@ -1666,44 +1651,68 @@ def run_tipster_aggregation(
             _log(f"[tipster] Gemini failed: {e} — falling back to BS4")
             use_gemini = False
 
-    # Parallel fetch
+    # Merge Gemini picks and skip sites already fetched by Gemini
     all_results = []
-    all_picks = []
+    all_picks = list(gemini_picks)
     errors = []
+    gemini_sites = {p.get("source_site", "") for p in gemini_picks}
+    sites_to_fetch = [s for s in TIPSTER_SITES if s["name"] not in gemini_sites]
 
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {
-            executor.submit(fetch_site, site, date_obj): site["name"]
-            for site in TIPSTER_SITES
-        }
+    if gemini_sites:
+        _log(f"[tipster] Gemini already fetched {len(gemini_sites)} sites, skipping: {', '.join(gemini_sites)}")
 
-        try:
-            for future in as_completed(futures, timeout=SITE_FETCH_TIMEOUT + 10):
-                site_name = futures[future]
-                try:
-                    result = future.result(timeout=5)  # result should be ready since as_completed returned it
-                    all_results.append(result)
-                    all_picks.extend(result.get("picks", []))
-                    status = result["status"]
-                    count = result["pick_count"]
-                    ms = result["fetch_time_ms"]
-                    _log(f"  [{status}] {site_name}: {count} picks ({ms}ms)")
-                    if result.get("error"):
-                        errors.append(f"{site_name}: {result['error']}")
-                except TimeoutError:
-                    _log(f"  [timeout] {site_name}: exceeded {SITE_FETCH_TIMEOUT}s — skipped")
-                    errors.append(f"{site_name}: timeout after {SITE_FETCH_TIMEOUT}s")
-                except Exception as e:
-                    _log(f"  [error] {site_name}: {e}")
-                    errors.append(f"{site_name}: {str(e)[:200]}")
-        except FuturesTimeoutError:
-            # Overall timeout — cancel remaining futures
-            pending = [f for f in futures if not f.done()]
-            pending_names = [futures[f] for f in pending]
-            _log(f"  [TIMEOUT] Global timeout reached. Pending: {', '.join(pending_names)}")
-            for f in pending:
-                f.cancel()
-            errors.extend(f"{n}: global timeout" for n in pending_names)
+    # Parallel fetch — NOTE: Playwright is NOT thread-safe, so if Playwright is active,
+    # the per-site fetch_site() will use Playwright sequentially (one browser context at a time)
+    # and only fall back to HTTP for parallel fetching when Playwright is unavailable.
+
+    # Check if Playwright is available — if so, fetch sequentially for safety
+    pw = _get_pw_client()
+    if pw is not None:
+        _log(f"[tipster] Playwright active — fetching {len(sites_to_fetch)} sites sequentially")
+        for site in sites_to_fetch:
+            result = fetch_site(site, date_obj)
+            all_results.append(result)
+            all_picks.extend(result.get("picks", []))
+            status = result["status"]
+            count = result["pick_count"]
+            ms = result["fetch_time_ms"]
+            _log(f"  [{status}] {site['name']}: {count} picks ({ms}ms)")
+            if result.get("error"):
+                errors.append(f"{site['name']}: {result['error']}")
+    else:
+        _log(f"[tipster] No Playwright — fetching {len(sites_to_fetch)} sites in parallel ({max_workers} workers)")
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {
+                executor.submit(fetch_site, site, date_obj): site["name"]
+                for site in sites_to_fetch
+            }
+
+            try:
+                for future in as_completed(futures, timeout=SITE_FETCH_TIMEOUT + 10):
+                    site_name = futures[future]
+                    try:
+                        result = future.result(timeout=5)
+                        all_results.append(result)
+                        all_picks.extend(result.get("picks", []))
+                        status = result["status"]
+                        count = result["pick_count"]
+                        ms = result["fetch_time_ms"]
+                        _log(f"  [{status}] {site_name}: {count} picks ({ms}ms)")
+                        if result.get("error"):
+                            errors.append(f"{site_name}: {result['error']}")
+                    except TimeoutError:
+                        _log(f"  [timeout] {site_name}: exceeded {SITE_FETCH_TIMEOUT}s — skipped")
+                        errors.append(f"{site_name}: timeout after {SITE_FETCH_TIMEOUT}s")
+                    except Exception as e:
+                        _log(f"  [error] {site_name}: {e}")
+                        errors.append(f"{site_name}: {str(e)[:200]}")
+            except FuturesTimeoutError:
+                pending = [f for f in futures if not f.done()]
+                pending_names = [futures[f] for f in pending]
+                _log(f"  [TIMEOUT] Global timeout reached. Pending: {', '.join(pending_names)}")
+                for f in pending:
+                    f.cancel()
+                errors.extend(f"{n}: global timeout" for n in pending_names)
 
     # Filter by sport if requested
     if sport_filter:
@@ -1789,69 +1798,14 @@ def run_tipster_aggregation(
     _log(f"\n[tipster] Summary: {total_picks} picks from {sites_ok} sites, "
          f"{len(consensus)} events, {statistical_picks} statistical markets")
 
-    # Save tipster picks, consensus, and pipeline step to DB (R2)
+    # Save tipster picks, consensus, and pipeline step to DB (R2) via TipsterRepo
     try:
         from bet.db.connection import get_db
-        from bet.db.repositories import PipelineRepo
+        from bet.db.repositories import PipelineRepo, TipsterRepo
         with get_db() as conn:
-            _ensure_tipster_tables(conn)
-
-            # Clear old entries for this date
-            conn.execute("DELETE FROM tipster_picks WHERE betting_date = ?", (date,))
-            conn.execute("DELETE FROM tipster_consensus WHERE betting_date = ?", (date,))
-
-            # Insert picks
-            for pick in all_picks:
-                conn.execute("""
-                    INSERT INTO tipster_picks (betting_date, source_site, tipster_name, sport, event,
-                        home_team, away_team, competition, market, market_type, direction, odds,
-                        reasoning, accuracy_pct, confidence, stats_cited, fetch_time)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    date,
-                    pick.get("source_site", ""),
-                    pick.get("tipster_name", ""),
-                    pick.get("sport", ""),
-                    pick.get("event", ""),
-                    pick.get("home_team", ""),
-                    pick.get("away_team", ""),
-                    pick.get("competition", ""),
-                    pick.get("market", ""),
-                    pick.get("market_type", ""),
-                    pick.get("direction", ""),
-                    pick.get("odds"),
-                    pick.get("reasoning", ""),
-                    pick.get("accuracy_pct"),
-                    pick.get("confidence"),
-                    json.dumps(pick.get("stats_cited", [])) if isinstance(pick.get("stats_cited"), list) else pick.get("stats_cited", ""),
-                    pick.get("fetch_time", ""),
-                ))
-
-            # Insert consensus
-            for ce in consensus:
-                conn.execute("""
-                    INSERT INTO tipster_consensus (betting_date, event, sport, competition,
-                        home_team, away_team, total_tipsters, consensus_market, consensus_direction,
-                        agreement_pct, statistical_picks, outcome_picks, has_reasoning,
-                        tipster_sources, confidence_adj)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    date,
-                    ce.get("event", ""),
-                    ce.get("sport", ""),
-                    ce.get("competition", ""),
-                    ce.get("home_team", ""),
-                    ce.get("away_team", ""),
-                    ce.get("total_tipsters", 0),
-                    ce.get("consensus_market", ""),
-                    ce.get("consensus_direction", ""),
-                    ce.get("agreement_pct", 0),
-                    ce.get("statistical_picks", 0),
-                    ce.get("outcome_picks", 0),
-                    1 if ce.get("has_reasoning") else 0,
-                    json.dumps(ce.get("tipster_sources", [])),
-                    ce.get("confidence_adj", 0.0),
-                ))
+            tipster_repo = TipsterRepo(conn)
+            picks_saved = tipster_repo.save_picks(date, all_picks)
+            consensus_saved = tipster_repo.save_consensus(date, consensus)
 
             # Pipeline step tracking
             tipster_stats = {
@@ -1867,9 +1821,11 @@ def run_tipster_aggregation(
             repo.start_step(date, "s2_tipster")
             repo.complete_step(date, "s2_tipster", stats=tipster_stats)
             conn.commit()
-        _log(f"[tipster] DB: saved {len(all_picks)} picks + {len(consensus)} consensus entries")
+        _log(f"[tipster] DB: saved {picks_saved} picks + {consensus_saved} consensus entries")
     except Exception as e:
         print(f"  ⚠ DB tipster save failed (non-fatal): {e}")
+
+    _cleanup_pw_client()
 
     return summary
 

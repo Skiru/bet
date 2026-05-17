@@ -1313,3 +1313,87 @@ def load_player_gamelogs_for_team(team_name: str, sport: str, n: int = 10) -> li
 def load_sport_specific_cache(sport: str, team_or_player: str) -> dict | None:
     """Load sport-specific cache data. No longer used — all niche sports removed."""
     return None
+
+
+# ---------------------------------------------------------------------------
+# Tipster data loaders (DB-first, R2)
+# ---------------------------------------------------------------------------
+
+def load_tipster_picks_from_db(date: str) -> list[dict]:
+    """Load tipster picks for a date from DB via TipsterRepo.
+
+    Returns list of dicts with keys: source_site, tipster_name, sport, event,
+    home_team, away_team, competition, market, market_type, direction, odds,
+    reasoning, accuracy_pct, confidence, stats_cited.
+
+    Falls back to JSON if DB is empty/unavailable.
+    """
+    try:
+        from bet.db.connection import get_db
+        from bet.db.repositories import TipsterRepo
+        with get_db() as conn:
+            repo = TipsterRepo(conn)
+            picks = repo.get_picks_by_date(date)
+            if picks:
+                return [
+                    {
+                        "source_site": p.source_site, "tipster_name": p.tipster_name,
+                        "sport": p.sport, "event": p.event,
+                        "home_team": p.home_team, "away_team": p.away_team,
+                        "competition": p.competition, "market": p.market,
+                        "market_type": p.market_type, "direction": p.direction,
+                        "odds": p.odds, "reasoning": p.reasoning,
+                        "accuracy_pct": p.accuracy_pct, "confidence": p.confidence,
+                        "stats_cited": p.stats_cited,
+                    }
+                    for p in picks
+                ]
+    except Exception as e:
+        logging.getLogger(__name__).debug("TipsterRepo DB load failed: %s", e)
+
+    # JSON fallback
+    for fname in [f"{date}_tipster_consensus.json", f"tipster_aggregation_{date}.json"]:
+        path = DATA_DIR / fname
+        if path.exists():
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+                tips = data if isinstance(data, list) else data.get("all_picks", data.get("tips", []))
+                return tips
+            except (json.JSONDecodeError, OSError):
+                continue
+    return []
+
+
+def load_tipster_consensus_from_db(date: str) -> list[dict]:
+    """Load tipster consensus for a date from DB via TipsterRepo.
+
+    Returns list of dicts with keys: event, sport, competition, home_team,
+    away_team, total_tipsters, consensus_market, consensus_direction,
+    agreement_pct, statistical_picks, outcome_picks, has_reasoning, tipster_sources.
+    """
+    try:
+        from bet.db.connection import get_db
+        from bet.db.repositories import TipsterRepo
+        with get_db() as conn:
+            repo = TipsterRepo(conn)
+            entries = repo.get_consensus_by_date(date)
+            if entries:
+                return [
+                    {
+                        "event": c.event, "sport": c.sport,
+                        "competition": c.competition, "home_team": c.home_team,
+                        "away_team": c.away_team, "total_tipsters": c.total_tipsters,
+                        "consensus_market": c.consensus_market,
+                        "consensus_direction": c.consensus_direction,
+                        "agreement_pct": c.agreement_pct,
+                        "statistical_picks": c.statistical_picks,
+                        "outcome_picks": c.outcome_picks,
+                        "has_reasoning": c.has_reasoning,
+                        "tipster_sources": c.tipster_sources,
+                        "confidence_adj": c.confidence_adj,
+                    }
+                    for c in entries
+                ]
+    except Exception as e:
+        logging.getLogger(__name__).debug("TipsterRepo consensus DB load failed: %s", e)
+    return []

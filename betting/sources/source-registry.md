@@ -20,7 +20,7 @@ The pipeline uses **API-first discovery architecture**: SofaScore + Odds API + A
 | **Automated — Odds** | the-odds-api, odds-api.io, api-football-odds | `fetch_odds_api.py`, `fetch_odds_api_io.py`, `fetch_odds_multi.py` |
 | **Automated — Enrichment** | ESPN API, Flashscore HTTP | `data_enrichment_agent.py` |
 | **Manual/Browser** | OddsPortal, BetExplorer, SBR, ESPN Odds, ScoresAndOdds, Flashscore (results) | Playwright/browser via agents |
-| **Tipster/Community** | ZawodTyper, Typersi, OLBG, PicksWise, WinDrawWin, FootballPredictions | `tipster_aggregator.py` (Gemini extraction) |
+| **Tipster/Community** | ZawodTyper, Typersi, OLBG, PicksWise, WinDrawWin, FootballPredictions | `tipster_aggregator.py` (Playwright DOM scraping → DB `tipster_picks` + `tipster_consensus`) |
 | **Archived/Blocked** | Forebet, FootySupertips, Volleybox (403) | Not available |
 
 ## Tier A Core Market and Price Sources

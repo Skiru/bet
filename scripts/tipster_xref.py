@@ -25,29 +25,29 @@ def run_tipster_xref(date: str, state: dict) -> tuple[bool, str]:
 
     Enriches shortlist candidates with tipster support, consensus %, and arguments.
     """
-    # DB-first (R2) — try tipster_picks table
+    # DB-first (R2) — use TipsterRepo
     tips = []
     try:
         from bet.db.connection import get_db
+        from bet.db.repositories import TipsterRepo
         with get_db() as conn:
-            rows = conn.execute(
-                "SELECT source_site, tipster_name, sport, event, home_team, away_team, "
-                "competition, market, market_type, direction, odds, reasoning "
-                "FROM tipster_picks WHERE betting_date = ?", (date,)
-            ).fetchall()
-            if rows:
+            repo = TipsterRepo(conn)
+            db_picks = repo.get_picks_by_date(date)
+            if db_picks:
                 tips = [
                     {
-                        "source_site": r[0], "tipster_name": r[1], "sport": r[2], "event": r[3],
-                        "home_team": r[4], "away_team": r[5], "competition": r[6],
-                        "market": r[7], "market_type": r[8], "direction": r[9],
-                        "odds": r[10], "reasoning": r[11],
+                        "source_site": p.source_site, "tipster_name": p.tipster_name,
+                        "sport": p.sport, "event": p.event,
+                        "home_team": p.home_team, "away_team": p.away_team,
+                        "competition": p.competition, "market": p.market,
+                        "market_type": p.market_type, "direction": p.direction,
+                        "odds": p.odds, "reasoning": p.reasoning,
                     }
-                    for r in rows
+                    for p in db_picks
                 ]
-                print(f"  → Loaded {len(tips)} tipster picks from DB")
-    except Exception:
-        pass  # DB not available, fall through to JSON
+                print(f"  → Loaded {len(tips)} tipster picks from DB (TipsterRepo)")
+    except Exception as e:
+        print(f"  \u26a0 TipsterRepo DB load failed: {e}")  # fall through to JSON
 
     # JSON fallback if DB had no data
     if not tips:

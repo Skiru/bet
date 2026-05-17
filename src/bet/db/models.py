@@ -499,3 +499,47 @@ class PowerIndex:
     rank: int | None = None
     source: str = "espn"
     updated_at: str = ""
+
+
+@dataclass
+class TipsterPick:
+    id: int | None
+    betting_date: str
+    source_site: str
+    tipster_name: str = ""
+    sport: str = ""
+    event: str = ""
+    home_team: str = ""
+    away_team: str = ""
+    competition: str = ""
+    market: str = ""
+    market_type: str = ""
+    direction: str = ""
+    odds: float | None = None
+    reasoning: str = ""
+    accuracy_pct: float | None = None
+    confidence: str = ""
+    stats_cited: list[str] = field(default_factory=list)
+    fetch_time: str = ""
+    created_at: str = ""
+
+
+@dataclass
+class TipsterConsensus:
+    id: int | None
+    betting_date: str
+    event: str = ""
+    sport: str = ""
+    competition: str = ""
+    home_team: str = ""
+    away_team: str = ""
+    total_tipsters: int = 0
+    consensus_market: str = ""
+    consensus_direction: str = ""
+    agreement_pct: float = 0.0
+    statistical_picks: int = 0
+    outcome_picks: int = 0
+    has_reasoning: bool = False
+    tipster_sources: list[str] = field(default_factory=list)
+    confidence_adj: float = 0.0
+    created_at: str = ""

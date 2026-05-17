@@ -4,7 +4,7 @@ import sqlite3
 from pathlib import Path
 
 SCHEMA_SQL = Path(__file__).parent / "schema.sql"
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 
 
 def init_db(conn: sqlite3.Connection) -> None:
@@ -152,5 +152,15 @@ def migrate(conn: sqlite3.Connection, from_version: int, to_version: int) -> Non
                     WHERE source IS NOT NULL AND external_id IS NOT NULL
                     """
                 )
+
+    if from_version < 9:
+        # v9: Tipster tables (may already exist from dynamic creation)
+        # Just ensure indexes exist — tables are created by schema.sql
+        try:
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_tipster_picks_sport ON tipster_picks(betting_date, sport)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_tipster_picks_source ON tipster_picks(source_site)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_tipster_consensus_sport ON tipster_consensus(betting_date, sport)")
+        except sqlite3.OperationalError:
+            pass  # Tables don't exist yet — schema.sql will create them
 
     conn.commit()
