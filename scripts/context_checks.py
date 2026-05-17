@@ -30,15 +30,31 @@ def run_context_checks(date: str, state: dict) -> tuple[bool, str]:
     checks_done = []
     context_flags = {}
 
-    # Load S3 candidates for enrichment
-    s3_path = DATA_DIR / f"{date}_s3_deep_stats.json"
+    # DB-first: load S3 analysis results from DB (R2)
     candidates = []
-    if s3_path.exists():
-        try:
-            s3_data = json.loads(s3_path.read_text(encoding="utf-8"))
-            candidates = s3_data.get("analyses", [])
-        except (json.JSONDecodeError, OSError):
-            pass
+    s3_data = None
+    try:
+        from db_data_loader import load_analysis_results_from_db
+        db_candidates = load_analysis_results_from_db(date)
+        if db_candidates:
+            candidates = db_candidates
+            s3_data = {"analyses": candidates}  # Maintain s3_data structure for downstream write-back
+            if state.get("verbose"):
+                print(f"    [context_checks] DB: loaded {len(candidates)} candidates")
+    except Exception:
+        pass
+
+    # JSON fallback
+    if not candidates:
+        s3_path = DATA_DIR / f"{date}_s3_deep_stats.json"
+        if s3_path.exists():
+            try:
+                s3_data = json.loads(s3_path.read_text(encoding="utf-8"))
+                candidates = s3_data.get("analyses", [])
+                if state.get("verbose"):
+                    print(f"    [context_checks] JSON fallback: loaded {len(candidates)} candidates")
+            except (json.JSONDecodeError, OSError):
+                pass
 
     # Weather data — flag candidates with weather impact
     weather_path = DATA_DIR / f"weather_{date}.json"

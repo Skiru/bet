@@ -24,9 +24,28 @@ sys.path.insert(0, str(ROOT_DIR / "src"))
 
 def run_upset_risk(date: str, state: dict) -> tuple[bool, str]:
     """S6: Upset risk scoring per candidate with sport-specific heuristics."""
+    # DB-first: load S3 analysis results (R2)
+    analyses = []
+    s3_data = None
+    try:
+        from db_data_loader import load_analysis_results_from_db
+        db_results = load_analysis_results_from_db(date)
+        if db_results:
+            analyses = db_results
+            s3_data = {"analyses": analyses}
+    except Exception:
+        pass
+
+    # JSON fallback
     s3_path = DATA_DIR / f"{date}_s3_deep_stats.json"
-    if not s3_path.exists():
-        return True, "S6: No S3 data — skipping upset risk scoring"
+    if not analyses:
+        if not s3_path.exists():
+            return True, "S6: No S3 data — skipping upset risk scoring"
+        try:
+            s3_data = json.loads(s3_path.read_text(encoding="utf-8"))
+            analyses = s3_data.get("analyses", [])
+        except (json.JSONDecodeError, OSError):
+            return True, "S6: JSON read error — skipping"
 
     # Sport-specific upset risk thresholds
     UPSET_THRESHOLDS = {
@@ -39,8 +58,6 @@ def run_upset_risk(date: str, state: dict) -> tuple[bool, str]:
     DEFAULT_THRESHOLDS = {"safety_low": 0.50, "h2h_min": 2, "form_diverge": 0.15}
 
     try:
-        s3_data = json.loads(s3_path.read_text(encoding="utf-8"))
-        analyses = s3_data.get("analyses", [])
         scored = 0
         elevated = 0
         high_risk = 0

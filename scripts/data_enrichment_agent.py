@@ -18,6 +18,7 @@ import json
 import logging
 import re
 import sys
+import sqlite3
 import threading
 import time
 from datetime import datetime, timezone
@@ -234,6 +235,7 @@ from bet.stats.market_ranking import SPORT_STAT_KEYS  # noqa: E402
 # --- UnifiedAPIClient singleton for Phase 1 integration ---
 _unified_client = None
 _unified_client_lock = threading.Lock()
+_db_write_lock = threading.Lock()
 
 def _get_unified_client():
     """Get or create a singleton UnifiedAPIClient for client-based enrichment."""
@@ -760,52 +762,55 @@ def _save_to_cache(team_name: str, sport: str, stats: dict, source: str) -> None
 
 def _save_to_db(team_name: str, sport: str, stats: dict, source: str) -> None:
     """Save stats to SQLite DB via StatsRepo.save_team_form()."""
-    try:
-        with get_db() as conn:
-            sport_repo = SportRepo(conn)
-            team_repo = TeamRepo(conn)
-            stats_repo = StatsRepo(conn)
+    with _db_write_lock:
+        try:
+            with get_db() as conn:
+                sport_repo = SportRepo(conn)
+                team_repo = TeamRepo(conn)
+                stats_repo = StatsRepo(conn)
 
-            sport_obj = sport_repo.get_by_name(sport)
-            if not sport_obj:
-                # Auto-create sport entry if missing
-                from bet.db.schema import init_db
-                init_db(conn)
-                sport_repo.seed_defaults()
-                conn.commit()
                 sport_obj = sport_repo.get_by_name(sport)
                 if not sport_obj:
-                    logger.warning("Sport '%s' not found in DB even after seeding", sport)
-                    return
+                    # Auto-create sport entry if missing
+                    from bet.db.schema import init_db
+                    init_db(conn)
+                    sport_repo.seed_defaults()
+                    conn.commit()
+                    sport_obj = sport_repo.get_by_name(sport)
+                    if not sport_obj:
+                        logger.warning("Sport '%s' not found in DB even after seeding", sport)
+                        return
 
-            team = team_repo.find_or_create(team_name, sport_obj.id)
+                team = team_repo.find_or_create(team_name, sport_obj.id)
 
-            for stat_key, values in stats.items():
-                l10 = values[:10]
-                l5 = values[:5] if len(values) >= 5 else values
-                trend = _compute_trend(l10, l5)
+                for stat_key, values in stats.items():
+                    l10 = values[:10]
+                    l5 = values[:5] if len(values) >= 5 else values
+                    trend = _compute_trend(l10, l5)
 
-                form = TeamForm(
-                    id=None,
-                    team_id=team.id,
-                    sport_id=sport_obj.id,
-                    stat_key=stat_key,
-                    l10_values=l10,
-                    l5_values=l5,
-                    l10_avg=_safe_avg(l10),
-                    l5_avg=_safe_avg(l5),
-                    h2h_values=[],
-                    h2h_opponent_id=None,
-                    trend=trend,
-                    updated_at=_now_iso(),
-                    source=source,
-                )
-                stats_repo.save_team_form(form)
+                    form = TeamForm(
+                        id=None,
+                        team_id=team.id,
+                        sport_id=sport_obj.id,
+                        stat_key=stat_key,
+                        l10_values=l10,
+                        l5_values=l5,
+                        l10_avg=_safe_avg(l10),
+                        l5_avg=_safe_avg(l5),
+                        h2h_values=[],
+                        h2h_opponent_id=None,
+                        trend=trend,
+                        updated_at=_now_iso(),
+                        source=source,
+                    )
+                    stats_repo.save_team_form(form)
 
-            conn.commit()
-            logger.info("Saved to DB: %s (%s) — %d stat keys", team_name, sport, len(stats))
-    except Exception as exc:
-        logger.error("DB save failed for %s: %s", team_name, exc)
+                conn.commit()
+                logger.info("Saved to DB: %s (%s) — %d stat keys", team_name, sport, len(stats))
+        except sqlite3.OperationalError as exc:
+            logger.critical("DB LOCK ERROR saving %s: %s — DATA LOST", team_name, exc)
+        except Exception as exc:
+            logger.error("DB save failed for %s: %s", team_name, exc)
 
 
 # ---------------------------------------------------------------------------
@@ -1319,40 +1324,43 @@ def _save_h2h_to_db(
     team_a: str, team_b: str, sport: str, stats: dict
 ) -> None:
     """Save H2H stats to DB."""
-    try:
-        with get_db() as conn:
-            sport_repo = SportRepo(conn)
-            team_repo = TeamRepo(conn)
-            stats_repo = StatsRepo(conn)
+    with _db_write_lock:
+        try:
+            with get_db() as conn:
+                sport_repo = SportRepo(conn)
+                team_repo = TeamRepo(conn)
+                stats_repo = StatsRepo(conn)
 
-            sport_obj = sport_repo.get_by_name(sport)
-            if not sport_obj:
-                return
+                sport_obj = sport_repo.get_by_name(sport)
+                if not sport_obj:
+                    return
 
-            t_a = team_repo.find_or_create(team_a, sport_obj.id)
-            t_b = team_repo.find_or_create(team_b, sport_obj.id)
+                t_a = team_repo.find_or_create(team_a, sport_obj.id)
+                t_b = team_repo.find_or_create(team_b, sport_obj.id)
 
-            for stat_key, values in stats.items():
-                form = TeamForm(
-                    id=None,
-                    team_id=t_a.id,
-                    sport_id=sport_obj.id,
-                    stat_key=stat_key,
-                    l10_values=[],
-                    l5_values=[],
-                    l10_avg=None,
-                    l5_avg=None,
-                    h2h_values=values[:10],
-                    h2h_opponent_id=t_b.id,
-                    trend="stable",
-                    updated_at=_now_iso(),
-                    source="enrichment-agent",
-                )
-                stats_repo.save_team_form(form)
+                for stat_key, values in stats.items():
+                    form = TeamForm(
+                        id=None,
+                        team_id=t_a.id,
+                        sport_id=sport_obj.id,
+                        stat_key=stat_key,
+                        l10_values=[],
+                        l5_values=[],
+                        l10_avg=None,
+                        l5_avg=None,
+                        h2h_values=values[:10],
+                        h2h_opponent_id=t_b.id,
+                        trend="stable",
+                        updated_at=_now_iso(),
+                        source="enrichment-agent",
+                    )
+                    stats_repo.save_team_form(form)
 
-            logger.info("Saved H2H to DB: %s vs %s (%s)", team_a, team_b, sport)
-    except Exception as exc:
-        logger.error("H2H DB save failed: %s", exc)
+                logger.info("Saved H2H to DB: %s vs %s (%s)", team_a, team_b, sport)
+        except sqlite3.OperationalError as exc:
+            logger.critical("DB LOCK ERROR saving H2H %s vs %s: %s — DATA LOST", team_a, team_b, exc)
+        except Exception as exc:
+            logger.error("H2H DB save failed: %s", exc)
 
 
 def batch_enrich(teams: list[dict], max_workers: int = 4) -> list[dict]:
@@ -1398,13 +1406,14 @@ def batch_enrich(teams: list[dict], max_workers: int = 4) -> list[dict]:
                     "error": str(exc),
                 })
 
-    # Phase 2: Main-thread retry for teams that got no data in threaded pass.
-    # Playwright-based clients (Flashscore, TotalCorner, Scores24) are only usable
-    # on the main thread. Teams that failed or got empty results deserve a retry.
+    # Phase 2: Main-thread retry for teams that failed due to thread-safety.
+    # Only retry teams whose error indicates greenlet/thread conflict — NOT cached 404s
+    # or other permanent failures (which would just fail again and trigger early termination).
     retry_needed = []
     retry_indices = []
     for idx, res in enumerate(results):
-        if res.get("status") in ("failed", "no_data"):
+        error_msg = (res.get("error") or "").lower()
+        if "greenlet" in error_msg or "thread-safe" in error_msg or "worker thread" in error_msg:
             retry_needed.append(res)
             retry_indices.append(idx)
         elif res.get("status") == "enriched" and not res.get("stats_found"):
@@ -1453,6 +1462,37 @@ def batch_enrich(teams: list[dict], max_workers: int = 4) -> list[dict]:
 
 def _detect_missing_from_shortlist(date_str: str) -> list[dict]:
     """Scan shortlist for candidates with missing stats cache."""
+    # DB-first: load fixtures from DB (R2)
+    teams_from_db = []
+    try:
+        from db_data_loader import load_fixtures_from_db
+        fixtures = load_fixtures_from_db(date_str)
+        if fixtures:
+            seen = set()
+            for f in fixtures:
+                for team_key in ("home_team", "away_team"):
+                    team_name = f.get(team_key, "")
+                    sport = f.get("sport", "")
+                    if team_name and sport and (team_name, sport) not in seen:
+                        seen.add((team_name, sport))
+                        teams_from_db.append({"team": team_name, "sport": sport, "missing": []})
+            if teams_from_db:
+                logger.info(f"[DB] Loaded {len(teams_from_db)} teams from {len(fixtures)} fixtures")
+    except Exception as exc:
+        logger.debug(f"DB fixture load failed: {exc}")
+    
+    if teams_from_db:
+        # Filter to teams missing from cache
+        missing = []
+        for entry in teams_from_db:
+            slug = _slugify(entry["team"])
+            cache_path = CACHE_DIR / entry["sport"] / f"{slug}.json"
+            if not cache_path.exists():
+                missing.append(entry)
+        logger.info(f"[DB] {len(missing)}/{len(teams_from_db)} teams need enrichment")
+        return missing
+
+    # JSON fallback
     # Try both date formats: YYYY-MM-DD (pipeline) and YYYYMMDD (legacy)
     shortlist_path = DATA_DIR / f"{date_str}_s2_shortlist.json"
     if not shortlist_path.exists():

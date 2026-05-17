@@ -2034,44 +2034,44 @@ def main():
         with open(input_path, encoding="utf-8") as f:
             gate_results = json.load(f)
     else:
-        # Prefer JSON (has full best_market data incl. combined_avg, opponent_blocker)
-        json_path = DATA_DIR / f"{args.date}_s7_gate_results.json"
-        if json_path.exists():
-            with open(json_path, encoding="utf-8") as f:
-                gate_results = json.load(f)
-            if args.verbose:
-                gr = gate_results.get("gate_results", {})
-                out.event("json_load",
-                          approved=len(gr.get("approved", [])),
-                          extended=len(gr.get("extended_pool", [])))
+        # DB-first: load gate results from DB (R2)
+        try:
+            from db_data_loader import load_gate_results_from_db
+            approved = load_gate_results_from_db(args.date, status="approved")
+            extended = load_gate_results_from_db(args.date, status="extended")
+            rejected = load_gate_results_from_db(args.date, status="rejected")
+            if approved or extended:
+                gate_results = {
+                    "date": args.date,
+                    "gate_results": {
+                        "approved": approved or [],
+                        "extended_pool": extended or [],
+                        "rejected": rejected or [],
+                    },
+                    "summary": {
+                        "approved_count": len(approved or []),
+                        "extended_count": len(extended or []),
+                        "rejected_count": len(rejected or []),
+                    },
+                }
+                if args.verbose:
+                    out.event("db_load", approved=len(approved or []), extended=len(extended or []))
+                else:
+                    print(f"[coupon_builder] DB: loaded {len(approved or [])} approved, {len(extended or [])} extended")
+        except Exception as e:
+            out.warning(f"DB read failed: {e}")
 
-        # Fallback to DB if JSON missing
+        # Fallback to JSON if DB missing or failed
         if gate_results is None:
-            try:
-                from db_data_loader import load_gate_results_from_db
-                approved = load_gate_results_from_db(args.date, status="approved")
-                extended = load_gate_results_from_db(args.date, status="extended")
-                rejected = load_gate_results_from_db(args.date, status="rejected")
-                if approved or extended:
-                    gate_results = {
-                        "date": args.date,
-                        "gate_results": {
-                            "approved": approved or [],
-                            "extended_pool": extended or [],
-                            "rejected": rejected or [],
-                        },
-                        "summary": {
-                            "approved_count": len(approved or []),
-                            "extended_count": len(extended or []),
-                            "rejected_count": len(rejected or []),
-                        },
-                    }
-                    if args.verbose:
-                        out.event("db_load", approved=len(approved or []), extended=len(extended or []))
-                    else:
-                        print(f"[coupon_builder] DB: loaded {len(approved or [])} approved, {len(extended or [])} extended")
-            except Exception as e:
-                out.warning(f"DB read failed: {e}")
+            json_path = DATA_DIR / f"{args.date}_s7_gate_results.json"
+            if json_path.exists():
+                with open(json_path, encoding="utf-8") as f:
+                    gate_results = json.load(f)
+                if args.verbose:
+                    gr = gate_results.get("gate_results", {})
+                    out.event("json_load",
+                              approved=len(gr.get("approved", [])),
+                              extended=len(gr.get("extended_pool", [])))
 
         # Final fallback — should not reach here if JSON or DB worked
         if gate_results is None:
