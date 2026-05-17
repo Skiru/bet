@@ -1,4 +1,44 @@
-# Pipeline Knowledge Base — Consolidated (May 4-14, 2026, updated 2026-05-16)
+# Pipeline Knowledge Base — Consolidated (May 4-14, 2026, updated 2026-05-17)
+
+## 🆕 DB-FIRST MIGRATION + SQLITE LOCK FIX — 2026-05-17
+
+**Plan:** `specifications/db-first-migration-plan.md` — 3 phases, 10 tasks.
+
+### Phase 0 — SQLite Lock Fix (critical data loss prevention)
+- **connection.py:** `busy_timeout` increased from 5s → 30s. Added `retry_on_lock()` utility with exponential backoff (0.5s → 1s → 2s, 3 retries).
+- **data_enrichment_agent.py:** Added `_db_write_lock = threading.Lock()` to serialize all DB writes across worker threads. `_save_to_db()` and `_save_h2h_to_db()` wrapped with lock. `sqlite3.OperationalError` caught separately (CRITICAL log) — no longer silently swallowed by bare `except Exception`.
+- **Root cause:** 4 worker threads each opened separate sqlite3 connections via `get_db()`, all writing to `team_form` table. With 5s busy_timeout, lock contention caused `OperationalError` that was silently caught = **data lost**.
+
+### Phase 1 — DB-First Read Order
+- **coupon_builder.py:** Flipped from JSON-first to DB-first gate results loading. `load_gate_results_from_db()` is primary, JSON is fallback.
+- **context_checks.py:** DB-first S3 analysis loading via `load_analysis_results_from_db()`, JSON fallback.
+- **upset_risk.py:** DB-first S3 analysis loading via `load_analysis_results_from_db()`, JSON fallback.
+- **data_enrichment_agent.py:** DB-first fixture loading in `_detect_missing_from_shortlist()` via `load_fixtures_from_db()`.
+
+### Phase 2 Bug Fix (found during live test)
+- **batch_enrich Phase 2 retry filter:** Now only retries teams that failed due to thread-safety (greenlet/worker thread errors). Previously retried ALL failed teams including cached-404, which triggered `MAX_CONSECUTIVE_FAILURES=15` early termination before greenlet-skipped teams got a chance.
+- **DB-first loading fix:** `_detect_missing_from_shortlist` no longer returns all teams when none are missing from cache (was `return missing if missing else teams_from_db` → now `return missing`).
+
+### Tests Added
+- `tests/test_db_connection.py` — 6 tests: `retry_on_lock` (success, retry, exhaustion, non-lock errors, backoff) + `busy_timeout=30000` verification.
+- `tests/test_enrichment_thread_safety.py` — 4 tests: `_db_write_lock` exists, used in `_save_to_db` and `_save_h2h_to_db`, lock errors not silently swallowed.
+
+### Live Test Results (2026-05-17)
+- DB-first fixture loading: 3906 teams from 2089 fixtures ✅
+- Single-team enrichment (Barcelona): saved to cache + DB ✅
+- No DB LOCK errors with 4 workers ✅
+- DB health: 207K team_form rows, 6750 unique teams ✅
+- 36 tests pass (26 existing + 10 new) ✅
+
+### Architecture Notes
+- All pipeline scripts are **hybrid dual-write** (DB + JSON). No pure JSON-only scripts in core pipeline.
+- DB layer: custom sqlite3 + dataclasses repos (`src/bet/db/`), NOT SQLAlchemy ORM (except discovery module).
+- `--top` defaults to `None` (all candidates). The 200 limit was user/agent CLI behavior, not hardcoded.
+- `db_data_loader.py` provides all DB-first loaders: `load_fixtures_from_db()`, `load_analysis_results_from_db()`, `load_gate_results_from_db()`, etc.
+- Flashscore blocked by Cloudflare — fallback sources still provide data.
+
+### Previous greenlet fix (same day, earlier commit)
+- **data_enrichment_agent.py:** Guard `_fetch_stealth()` and `_try_flashscore()` with main-thread checks. Reset `_source_failures` before Phase 2 retry.
 
 ## 🆕 METHODOLOGY FIX — 2026-05-16
 
