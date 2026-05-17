@@ -1,4 +1,36 @@
-# Pipeline Knowledge Base — Consolidated (May 4-14, 2026, updated 2026-05-17)
+# Pipeline Knowledge Base — Consolidated (May 4-17, 2026, updated 2026-05-17)
+
+## 🆕 TIPSTER PLAYWRIGHT REWRITE + DB-FIRST — 2026-05-17
+
+**Plan:** `specifications/tipster-playwright-db-migration.plan.md` — 5 phases.
+
+### Tipster Fetching: requests.get() → Playwright DOM Scraping
+- **tipster_aggregator.py:** Replaced plain `requests.get()` (returned garbage HTML from JS-rendered sites) with `TipsterPlaywrightClient` (extends `PlaywrightBaseClient`). Sites now rendered with headless Chromium + stealth mode.
+- **TipsterPlaywrightClient:** `src/bet/api_clients/tipster_playwright.py` — site-specific JavaScript DOM extraction via `page.evaluate()`. Extractors for: ZawodTyper (structural IDs), PicksWise (__NEXT_DATA__), Sportsgambler (prediction links), Generic (semantic selectors). Deep reasoning extraction finds `.analysis`, `.reasoning`, `.expert-analysis` sections.
+- **Sequential fetching:** Playwright is NOT thread-safe — when Playwright is active, sites are fetched sequentially (not ThreadPoolExecutor). HTTP fallback still uses parallel fetching.
+- **HTTP fallback preserved:** If Playwright unavailable, falls back to `requests.get()` + regex parsers (existing behavior).
+
+### Tipster DB Schema (v8 → v9)
+- **schema.sql:** Added `tipster_picks` and `tipster_consensus` tables with proper indexes (date, teams, sport, source). Previously created dynamically via `_ensure_tipster_tables()`.
+- **models.py:** Added `TipsterPick` and `TipsterConsensus` dataclasses.
+- **repositories.py:** Added `TipsterRepo` with `save_picks`, `save_consensus`, `get_picks_by_date`, `get_consensus_by_date`, `get_picks_for_event`. All parameterized queries.
+- **schema.py:** Bumped to v9 with migration for new indexes on existing tables.
+
+### Pipeline DB-First Updates
+- **tipster_aggregator.py:** Uses `TipsterRepo.save_picks()` + `TipsterRepo.save_consensus()` instead of raw SQL. Removed `_ensure_tipster_tables()`. Gemini picks now merged into `all_picks` (was dead variable — C1 fix). Sites already fetched by Gemini are skipped in Playwright pass.
+- **tipster_xref.py:** Uses `TipsterRepo.get_picks_by_date()` instead of raw SQL. Exception logging added (was bare `except: pass`).
+- **db_data_loader.py:** Added `load_tipster_picks_from_db(date)` and `load_tipster_consensus_from_db(date)`. Exception logging via `logging.debug()` (was bare `except: pass`).
+- **agent_protocol.py:** Added `tipster_picks` and `tipster_consensus` to `DB_SCHEMA_REFERENCE`, updated `TipsterRepo` in repositories list, added tipster query patterns.
+- **bet-scout.agent.md:** Updated with DB access patterns via TipsterRepo.
+
+### Code Review Fixes Applied (same commit)
+- **C1 (CRITICAL):** `gemini_picks` was dead variable — Gemini results were collected but never merged into `all_picks`. Fixed: `all_picks = list(gemini_picks)` + skip already-fetched sites.
+- **M1 (MAJOR):** `TipsterRepo` used fragile positional `r[0]..r[18]` index access. Fixed: named `r["column_name"]` dict access (matches all other repos).
+- **M2 (MAJOR):** `save_picks`/`save_consensus` used non-atomic DELETE + loop INSERT. Fixed: `with self.conn:` + `executemany` for rollback-safe bulk operations.
+- **M3 (MAJOR):** `tipster_playwright.py` had entire class duplicated (1310→656 lines after fix).
+- **M5/N3:** Bare `except: pass` in `tipster_xref.py` and `db_data_loader.py` now log the exception.
+- **N1:** `stats_cited` non-list values now always serialized as `json.dumps([])` instead of raw string (was lost on read).
+- **All SQL:** Parameterized queries verified. No string interpolation. JS extraction snippets are hardcoded constants (no injection risk).
 
 ## 🆕 DB-FIRST MIGRATION + SQLITE LOCK FIX — 2026-05-17
 
