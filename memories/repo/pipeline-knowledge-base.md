@@ -1,5 +1,26 @@
 # Pipeline Knowledge Base — Consolidated (May 4-17, 2026, updated 2026-05-17)
 
+## 🆕 AGENT/PROMPT ALIGNMENT AUDIT — 2026-05-17
+
+Cross-cutting audit of 17 `.github/` files + 1 source fix + 1 memory fix to align all agents, prompts, instructions, and skills with 4 recent code changes.
+
+### Changes Applied (19 files total)
+| Category | Files Changed | What |
+|----------|--------------|------|
+| `--top 200` removal | bet-orchestrator.agent.md, orchestrate-betting-day.prompt.md, bet-deep-stats.prompt.md | Removed hardcoded `--top 200`; defaults to all candidates |
+| `scrapers%` heuristic | bet-enricher.agent.md, bet-enrich.prompt.md | Replaced wrong `source LIKE 'scrapers%'` with correct `scraper_runs`+`player_season_stats`/`league_profiles` checks |
+| 28→30 tables / 6→7 domains | copilot-instructions.md, bet-orchestrator.agent.md, bet-db-analyst.agent.md, orchestrate-betting-day.prompt.md, ask-betting.prompt.md, bet-db-quality.prompt.md, bet-querying-database/SKILL.md, project-structure.md | Added Tipster domain (`tipster_picks`, `tipster_consensus`) |
+| sqlite3.connect examples | agent-execution-protocol.instructions.md, bet-enrich.prompt.md, bet-db-quality.prompt.md | All code examples now use `get_db()` pattern |
+| Tipster DB-first | bet-scout.agent.md, orchestrate-betting-day.prompt.md, bet-tipsters.prompt.md, analysis-methodology.instructions.md, bet-navigating-sources/SKILL.md | Playwright sequential (10 sites), TipsterRepo, `--use-gemini` |
+| DB lock docs | bet-enricher.agent.md | Full SQLite Lock-Fix Architecture section (busy_timeout, retry_on_lock, _db_write_lock) |
+| Odds/portfolio | bet-odds-ev.prompt.md, bet-portfolio.prompt.md | DB-first context, removed stale `--input` flag |
+| Code fix | repositories.py | `r[14]` → `r["tipster_sources"]` (named dict access, M1 completion) |
+
+### Verification
+- Final grep: zero remaining stale references (`--top 200`, `28 tables`, `6 domains`, `12 sites`)
+- All `sqlite3.connect` mentions are in "NEVER do this" warnings only
+- Tests: 676 passed, 5 pre-existing failures (unrelated)
+
 ## 🆕 TIPSTER PLAYWRIGHT REWRITE + DB-FIRST — 2026-05-17
 
 **Plan:** `specifications/tipster-playwright-db-migration.plan.md` — 5 phases.

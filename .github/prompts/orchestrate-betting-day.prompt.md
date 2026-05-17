@@ -395,7 +395,7 @@ runSubagent("bet-db-analyst"):
 - Run full table census, date-specific analysis, source health check
 - Load skill: bet-querying-database
 - Key checks:
-  - All 28 tables exist and are populated
+  - All 30 tables exist and are populated
   - team_form has data for all 5 sports
   - fixtures for today's date are loaded
   - source_health shows acceptable success rates
@@ -490,14 +490,14 @@ python3 scripts/fetch_weather.py --date {date} 2>&1
 python3 scripts/tipster_aggregator.py --date {date} --verbose 2>&1
 ```
 
-**Gemini feature flag:** Add `--use-gemini` to `tipster_aggregator.py` to use Gemini URL reading instead of BS4 HTML parsing. Gemini reads tipster pages natively, extracting structured picks without fragile CSS selectors. Falls back to BS4 if Gemini fails per site.
+**Gemini feature flag:** Add `--use-gemini` to `tipster_aggregator.py` to use Gemini + Playwright DOM scraping instead of plain requests.get(). Playwright renders JS-heavy tipster sites with headless Chromium + stealth mode. Sequential fetching (NOT parallel — Playwright is not thread-safe). HTTP fallback preserved.
 
 ```bash
-# WITH Gemini (recommended — better extraction, no CSS selector maintenance):
-python3 scripts/tipster_aggregator.py --date {date} --use-gemini --verbose 2>&1
+# WITH Gemini + Playwright (recommended — renders JS-heavy sites, DB-first storage):
+PYTHONPATH=src python3 scripts/tipster_aggregator.py --date {date} --use-gemini --verbose 2>&1
 ```
 
-**Note:** `tipster_aggregator.py` FETCHES raw tipster picks from all sites → produces `betting/data/{date}_tipster_consensus.json`. The ANALYSIS of tipster data (cross-reference vs shortlist) happens in S2 via `tipster_xref.py`.
+**Note:** `tipster_aggregator.py` FETCHES raw tipster picks from all sites → saves to DB via `TipsterRepo.save_picks()` + `TipsterRepo.save_consensus()` (JSON fallback: `betting/data/{date}_tipster_consensus.json`). The ANALYSIS of tipster data (cross-reference vs shortlist) happens in S2 via `tipster_xref.py` (reads from `TipsterRepo.get_picks_by_date()`).
 
 ---
 
@@ -717,7 +717,7 @@ PYTHONPATH=src python3 scripts/validate_phase.py --date {date} --phase data --fo
 
 **Step 2: RUN script:**
 ```bash
-PYTHONPATH=src .venv/bin/python3 scripts/deep_stats_report.py --date {date} --shortlist betting/data/{date}_s2_shortlist.json --top 200 --gemini --verbose 2>&1
+PYTHONPATH=src .venv/bin/python3 scripts/deep_stats_report.py --date {date} --shortlist betting/data/{date}_s2_shortlist.json --gemini --verbose 2>&1
 ```
 Mode: `async`, timeout: `600000`
 
@@ -1212,7 +1212,7 @@ python3 scripts/settle_on_finish.py --betting-day YYYY-MM-DD
 ## DB REFERENCE
 
 SQLite at `betting/data/betting.db`. Connection: `from bet.db.connection import get_db`.
-28 tables across 6 domains: Core (sports/teams/competitions/fixtures/athletes), Stats (team_form/match_stats/league_profiles/standings/power_index), Analysis (analysis_results/analysis_raw_data/gate_results/decision_snapshots/decision_outcomes), Betting (coupons/bets/odds_history), Pipeline (pipeline_runs/scan_results/scan_run_stats/source_health), ESPN (espn_predictions/player_gamelogs/player_splits/team_ats_records/team_ou_records/team_rosters).
+30 tables across 7 domains: Core (sports/teams/competitions/fixtures/athletes), Stats (team_form/match_stats/league_profiles/standings/power_index), Analysis (analysis_results/analysis_raw_data/gate_results/decision_snapshots/decision_outcomes), Betting (coupons/bets/odds_history), Pipeline (pipeline_runs/scan_results/scan_run_stats/source_health), ESPN (espn_predictions/player_gamelogs/player_splits/team_ats_records/team_ou_records/team_rosters), Tipster (tipster_picks/tipster_consensus).
 
 
 ## STEP S11: KNOWLEDGE TRANSFER & MEMORY UPDATE (CRITICAL)

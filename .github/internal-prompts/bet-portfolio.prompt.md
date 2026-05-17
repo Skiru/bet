@@ -94,7 +94,7 @@ The script handles MECHANICAL construction. You add PORTFOLIO STRATEGY:
 ## Context (provided by orchestrator)
 
 - **Inputs**: `{date}_s7_gate.md` (approved picks), all S1-S7 data, `config/betting_config.json`
-- **Script**: `python3 scripts/coupon_builder.py --date {date} --input {date}_s7_gate_results.json`
+- **Script**: `python3 scripts/coupon_builder.py --date {date}` (loads gate results from DB first, JSON fallback)
 - **Validation**: `python3 scripts/validate_coupons.py betting/coupons/{date}*.md --format json --verbose`
 
 ## Workflow

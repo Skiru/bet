@@ -1,12 +1,12 @@
 ---
 name: bet-querying-database
-description: "Database access patterns for the betting pipeline — connection via get_db(), repository classes, key queries for all pipeline steps (scan, enrichment, analysis, gate, settlement), table schemas across 6 domains, and data quality scoring. Use when querying betting.db for pipeline data, gap analysis, or performance tracking."
+description: "Database access patterns for the betting pipeline — connection via get_db(), repository classes, key queries for all pipeline steps (scan, enrichment, analysis, gate, settlement), table schemas across 7 domains, and data quality scoring. Use when querying betting.db for pipeline data, gap analysis, or performance tracking."
 user-invokable: false
 ---
 
 # Querying the Betting Database
 
-SQLite at `betting/data/betting.db` — 28 tables, 6 domains. Access: `from bet.db.connection import get_db` — NEVER raw `sqlite3.connect()`.
+SQLite at `betting/data/betting.db` — 30 tables, 7 domains. Access: `from bet.db.connection import get_db` — NEVER raw `sqlite3.connect()`.
 
 ## Connection Pattern
 ```python
@@ -137,7 +137,7 @@ AND NOT EXISTS (SELECT 1 FROM team_form tf WHERE tf.team_id = t.id)
 ORDER BY s.name, t.name;
 ```
 
-## Table Schema Reference (6 domains)
+## Table Schema Reference (7 domains)
 
 | Domain | Tables |
 |--------|--------|

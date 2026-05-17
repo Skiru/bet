@@ -114,14 +114,16 @@ You are the betting pipeline orchestrator — a MANAGER who **runs ALL scripts, 
 | `discover_events.py` | scan_urls.json | `fixtures`, `scan_results` | S1 scan |
 | `build_stats_cache.py` | `fixtures`, stats_cache/ | `team_form` | Ingests scan stats |
 | `run_scrapers.py` | — | `league_profiles`, `player_season_stats`, `athletes`, `scraper_runs` | S2.3 — does NOT write team_form |
-| `data_enrichment_agent.py` | `team_form`, `fixtures` | `team_form`, `match_stats`, `source_health` | S2.5 gap-fill |
+| `tipster_aggregator.py` | tipster sites (Playwright) | `tipster_picks`, `tipster_consensus` (via TipsterRepo) | S1b — sequential Playwright, HTTP fallback. JSON fallback: `{date}_tipster_consensus.json` |
+| `tipster_xref.py` | `tipster_picks` (via TipsterRepo) | `analysis_results` (tipster data) | S2 — reads from DB, cross-refs with shortlist |
+| `data_enrichment_agent.py` | `team_form`, `fixtures` | `team_form`, `match_stats`, `source_health` | S2.5 gap-fill. Uses `_db_write_lock` for thread-safe writes. |
 | `deep_stats_report.py` | `team_form`, `match_stats` | `analysis_results`, `team_form` (if inline enrich) | S3 — writes team_form ONLY when --no-enrich is NOT set |
 | `compute_safety_scores.py` | JSON arg (stats_input) | — (stdout) | Pure computation, no DB access |
 | `odds_evaluator.py` | `odds_history`, `analysis_results` | `analysis_results` (EV injection) | S4 |
 | `context_checks.py` | `fixtures`, ESPN API | `analysis_results` (context) | S5 |
 | `upset_risk.py` | `analysis_results` | `analysis_results` (upset risk) | S6 |
 | `gate_checker.py` | `analysis_results` | `gate_results` | S7 |
-| `coupon_builder.py` | `gate_results`, `analysis_results` | coupons/*.md, coupons/*.json | S8 |
+| `coupon_builder.py` | `gate_results`, `analysis_results` | coupons/*.md, coupons/*.json | S8 — DB-first gate loading, JSON fallback |
 | `settle_on_finish.py` | betclic_bets_history.json | `bets`, `coupons` | S0 |
 
 ⚠️ **Concurrent write hazard:** `build_stats_cache`, `data_enrichment_agent`, and `deep_stats_report` all write `team_form`. Run sequentially.
@@ -339,7 +341,7 @@ See **§SUBAGENT OUTPUT VERIFICATION** in orchestrate-betting-day.prompt.md for 
 | tipster_aggregator.py | `PYTHONPATH=src python3 scripts/tipster_aggregator.py --date YYYY-MM-DD --use-gemini --verbose` | 300000 | async |
 | tipster_xref.py | `PYTHONPATH=src python3 scripts/tipster_xref.py --date YYYY-MM-DD --verbose` | 300000 | async |
 | data_enrichment_agent.py | `PYTHONPATH=src .venv/bin/python3 scripts/data_enrichment_agent.py --date YYYY-MM-DD --news --verbose` | 600000 | async |
-| deep_stats_report.py | `PYTHONPATH=src .venv/bin/python3 scripts/deep_stats_report.py --date YYYY-MM-DD --shortlist betting/data/YYYY-MM-DD_s2_shortlist.json --top 200 --gemini --verbose` | 600000 | async |
+| deep_stats_report.py | `PYTHONPATH=src .venv/bin/python3 scripts/deep_stats_report.py --date YYYY-MM-DD --shortlist betting/data/YYYY-MM-DD_s2_shortlist.json --gemini --verbose` | 600000 | async |
 | odds_evaluator.py | `PYTHONPATH=src .venv/bin/python3 scripts/odds_evaluator.py --date YYYY-MM-DD --verbose` | 300000 | async |
 | context_checks.py | `PYTHONPATH=src .venv/bin/python3 scripts/context_checks.py --date YYYY-MM-DD --verbose` | 300000 | async |
 | upset_risk.py | `PYTHONPATH=src .venv/bin/python3 scripts/upset_risk.py --date YYYY-MM-DD --verbose` | 300000 | async |
@@ -487,7 +489,7 @@ After EVERY script: read FULL output → extract metrics → `sequentialthinking
 ## Database
 
 `betting/data/betting.db` (SQLite, WAL). Connection: `from bet.db.connection import get_db`.
-28 tables, 6 domains. Agent loaders in `db_data_loader.py`.
+30 tables, 7 domains. Agent loaders in `db_data_loader.py`.
 
 ---
 

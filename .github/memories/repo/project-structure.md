@@ -2,7 +2,7 @@
 
 ## Architecture
 - **Agent-driven pipeline**: Orchestrator agent calls individual scripts one at a time (S0→S10). ⛔ NEVER use `pipeline_orchestrator.py`. See `orchestrate-betting-day.prompt.md`
-- **Database**: `betting/data/betting.db` (SQLite, WAL mode). Connection: `from bet.db.connection import get_db`. 28-table schema across 6 domains (Core, Stats, Analysis, Betting, Pipeline, ESPN)
+- **Database**: `betting/data/betting.db` (SQLite, WAL mode). Connection: `from bet.db.connection import get_db` (busy_timeout=30000, retry_on_lock()). 30-table schema across 7 domains (Core, Stats, Analysis, Betting, Pipeline, ESPN, Tipster)
 - **Discovery (S1)**: `src/bet/discovery/` module — API-first event discovery via SofaScore + Odds API + API-Football. ~30s, 1700+ events. CLI: `PYTHONPATH=src .venv/bin/python scripts/discover_events.py --date YYYY-MM-DD --verbose`. DB: `fixtures`, `scan_results`, `fixture_sources`
 - **Discovery module only**: No legacy scanning fallback. All event discovery goes through `src/bet/discovery/`
 - Config: `config/betting_config.json` — all thresholds and limits
@@ -18,6 +18,7 @@
 - `fixtures`, `team_form` (43K+), `match_stats`, `odds_history` (97K+), `analysis_results`, `gate_results`
 - `scan_results`, `scan_run_stats`, `source_health`, `fixture_sources` (new, schema v8 — cross-source tracking via SA ORM)
 - `athletes` (538+), `player_gamelogs` (11.5K+), `standings`, `team_ats_records`, `team_ou_records`, `power_index`, `espn_predictions`
+- `tipster_picks`, `tipster_consensus` (schema v9 — via `TipsterRepo` in `repositories.py`)
 - `bets`, `coupons`, `league_profiles`, `pipeline_runs`
 
 ## Extracted Pipeline Modules

@@ -75,7 +75,7 @@ You apply a 5-part Tipster Intelligence Analysis Layer via sequential-thinking: 
 ## Tool Usage Guidelines
 
 ### Script Output (run by orchestrator — you receive output)
-- **Receives output from:** `tipster_aggregator.py` (Playwright DOM scraping — 12 sites sequentially), `tipster_xref.py` (cross-references picks with shortlist)
+- **Receives output from:** `tipster_aggregator.py` (Playwright DOM scraping — 10 sites sequentially), `tipster_xref.py` (cross-references picks with shortlist)
 - **DB access:** `TipsterRepo(conn).get_picks_by_date(date)` for all picks, `.get_consensus_by_date(date)` for aggregated consensus, `.get_picks_for_event(date, home, away)` for per-match deep-dive. Also `load_tipster_picks_from_db(date)` and `load_tipster_consensus_from_db(date)` from `db_data_loader.py`.
 - **Your job:** Parse provided AGENT_SUMMARY + verbose log → extract metrics (tipster count, consensus %, argument quality) → `sequentialthinking` → verdict.
 

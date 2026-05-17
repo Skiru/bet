@@ -2548,7 +2548,7 @@ class TipsterRepo:
         ).fetchall()
         results = []
         for r in rows:
-            sources = r[14]
+            sources = r["tipster_sources"]
             if isinstance(sources, str):
                 try:
                     sources = json.loads(sources)

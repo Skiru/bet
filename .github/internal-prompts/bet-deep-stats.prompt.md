@@ -119,7 +119,7 @@ min_acceptable_odds = 1 / P(hit)
 
 The orchestrator has already:
 1. Inspected inputs (enrichment data, team_form per sport)
-2. Run `deep_stats_report.py --date {date} --shortlist ... --top 200 --gemini --verbose`
+2. Run `deep_stats_report.py --date {date} --shortlist ... --gemini --verbose` (--top defaults to None = all candidates)
 3. Monitored for errors (data quality issues, missing H2H)
 4. Extracted AGENT_SUMMARY:{json} and key warnings
 5. Validated outputs (deep stats files exist with expected structure)

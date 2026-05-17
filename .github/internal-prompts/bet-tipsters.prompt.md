@@ -83,16 +83,16 @@ The orchestrator has already:
 
 ## Context (provided by orchestrator)
 
-- **Inputs**: `{date}_s2_shortlist.md`, `{date}_tipster_consensus.json`
+- **Inputs**: `{date}_s2_shortlist.md`, DB `tipster_picks` + `tipster_consensus` tables (PRIMARY), JSON fallback: `{date}_tipster_consensus.json`
 - **Pre-fetched HTML**: `betting/data/zawodtyper.pl/`, `typersi.pl/`, `sportsgambler.com/`, `pickswise.com/`, `betideas.com/`
-- **Script**: `python3 scripts/tipster_aggregator.py --date {date} --workers 5`
-- **DB tables**: `analysis_results` (previous tipster data for same teams) — via `db_data_loader.py`
+- **Script**: `python3 scripts/tipster_aggregator.py --date {date} --use-gemini` (Playwright sequential + HTTP fallback)
+- **DB tables**: `tipster_picks`, `tipster_consensus` (via `TipsterRepo`) — PRIMARY. JSON fallback: `{date}_tipster_consensus.json`
 
 ## Workflow
 
 ### 1. Pre-Check Aggregator Output
 
-Read `{date}_tipster_consensus.json` and `.md`. Focus manual deep-dive on:
+Query DB first: `TipsterRepo(conn).get_consensus_by_date(date)` for consensus, `TipsterRepo(conn).get_picks_by_date(date)` for all picks. Fall back to `{date}_tipster_consensus.json` and `.md` if DB is empty. Focus manual deep-dive on:
 - High-consensus (>70%) → read FULL arguments
 - Contradictions (tipsters vs stats) → investigate deeply
 - Statistical market picks → §4.3 watchlist promotion

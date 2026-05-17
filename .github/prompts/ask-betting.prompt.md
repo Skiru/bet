@@ -142,7 +142,7 @@ Use `sequentialthinking` to match the user's question to the correct row:
 | **Settlement / PnL / Bankroll** | won, lost, PnL, bankroll, hit rate, CLV, ROI, streak, settled, learning, history, post-mortem | `bet-settler` | `.github/internal-prompts/bet-settle.prompt.md` | `picks-ledger.csv`, `coupons-ledger.csv`, `betclic_bets_history.json`, `betting_config.json` |
 | **Scanning / Fixtures / Events** | scan, events, matches, fixtures, sources, coverage, leagues, shortlist | `bet-scanner` | `.github/internal-prompts/bet-scan.prompt.md` or `bet-shortlist.prompt.md` | `scan_results` DB table, `scan_run_stats` DB table |
 | **Statistics / Safety / H2H** | stats, H2H, form, corners, fouls, safety score, Poisson, trend, L10, analysis | `bet-statistician` | `.github/internal-prompts/bet-deep-stats.prompt.md` | `team_form` DB table, `match_stats` DB table, `analysis_results` DB table |
-| **Tipsters / Consensus** | tipster, prediction, consensus, scout, zawodtyper, pickswise | `bet-scout` | `.github/internal-prompts/bet-tipsters.prompt.md` | `{date}_tipster_consensus.json`, `analysis_results` DB table |
+| **Tipsters / Consensus** | tipster, prediction, consensus, scout, zawodtyper, pickswise | `bet-scout` | `.github/internal-prompts/bet-tipsters.prompt.md` | DB `tipster_picks` + `tipster_consensus` tables (via `TipsterRepo`), `analysis_results` DB table |
 | **Odds / EV / Pricing** | EV, odds, Kelly, stake, price gap, drift, value, mispricing, line | `bet-valuator` | `.github/internal-prompts/bet-odds-ev.prompt.md` | `odds_multi_sources.json`, `odds_api_snapshot.json`, `odds_history` DB table |
 | **Context / Upset Risk** | upset, risk, injury, weather, motivation, rotation, fatigue, lineup | `bet-challenger` | `.github/internal-prompts/bet-context-upset.prompt.md` | `weather_{date}.json`, `standings` DB, `player_gamelogs` DB |
 | **Gate / Bear Cases** | gate, bear case, red flag, contrarian, 18-point, approval | `bet-challenger` | `.github/internal-prompts/bet-gate.prompt.md` | `gate_results` DB table, `{date}_s7_gate.md` |
@@ -167,12 +167,13 @@ When a question spans 2+ domains:
 ### Tier 1: SQLite DB (always prefer — freshest, structured)
 ```python
 from bet.db.connection import get_db
-# 28 tables across 6 domains:
+# 30 tables across 7 domains:
 # Fixtures: fixtures, scan_results, scan_run_stats
 # Bets: bets, coupons, picks, gate_results
 # Stats: team_form, match_stats, h2h_records, standings
 # Odds: odds_history, odds_snapshots
 # Analysis: analysis_results, analysis_pool, espn_predictions
+# Tipster: tipster_picks, tipster_consensus (via TipsterRepo)
 # Meta: pipeline_state, enrichment_log, scan_errors
 ```
 

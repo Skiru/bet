@@ -121,12 +121,12 @@ Community/tipster sources CANNOT create a bet on their own. Four valid uses:
 
 ## Automated Tipster Aggregation
 
-- Script: `python3 scripts/tipster_aggregator.py --date YYYY-MM-DD --workers 5`
-- Fetches 12 tipster sites in parallel (5 concurrent workers):
+- Script: `python3 scripts/tipster_aggregator.py --date YYYY-MM-DD --use-gemini`
+- Fetches 10 tipster sites sequentially via Playwright (NOT parallel — Playwright is not thread-safe). HTTP fallback uses parallel fetching:
   - ZawodTyper, Typersi, Sportsgambler, PicksWise, BetIdeas, OLBG
-  - Tipstrr, Feedinco, BettingClosed, Tips180, GosuGamers
-- Output: `betting/data/{date}_tipster_consensus.json` + `{date}_tipster_consensus.md`
-- Runs automatically in S1b parallel enrichment step (alongside odds API + weather)
+  - Tipstrr, Feedinco, BettingClosed, Tips180
+- DB: `tipster_picks` + `tipster_consensus` tables via `TipsterRepo` (PRIMARY). JSON fallback: `{date}_tipster_consensus.json` + `{date}_tipster_consensus.md`
+- Runs in S2 tipster step
 - Computes per-event consensus: agreement %, confidence adjustment, market classification
 - Classifies tips as "statistical" (corners, totals, cards) vs "outcome" (ML, winner)
 - Statistical market tips with data-backed arguments → §4.3 watchlist promotion candidates

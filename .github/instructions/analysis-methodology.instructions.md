@@ -785,26 +785,26 @@ Over 12.5: P=61.2%, fair_odds=1.63, CI=[48.3%–71.4%]
 - This gives DIFFERENT probabilities for different lines from the same data.
 - Hit rate says "80% over 9.5" — Poisson says "87.6% over 9.5 but only 61.2% over 12.5."
 
-### §5.TIP TIPSTER AGGREGATION ENGINE (automated — runs in S1b)
+### §5.TIP TIPSTER AGGREGATION ENGINE (automated — runs in S2)
 
-**Parallel tipster fetching and consensus scoring from 12+ sites.**
+**Playwright-based tipster fetching and consensus scoring from 10 sites.**
 
-**Script:** `python3 scripts/tipster_aggregator.py --date YYYY-MM-DD --workers 5`
-**Integration:** Runs automatically in S1b (parallel enrichment step) alongside odds and weather.
+**Script:** `python3 scripts/tipster_aggregator.py --date YYYY-MM-DD --use-gemini`
+**Integration:** Runs in S2 tipster step. Uses Playwright DOM scraping (sequential, NOT parallel — Playwright is not thread-safe). HTTP fallback preserved.
 
 **What it does:**
-1. Fetches ALL tipster sites in parallel (5 concurrent workers)
+1. Fetches tipster sites sequentially via Playwright (headless Chromium + stealth mode)
 2. Parses structured picks: sport, event, market, odds, reasoning, accuracy%
 3. Classifies picks as "statistical" (corners, cards, games) or "outcome" (winner, ML)
 4. Computes consensus: groups by event, measures agreement across tipsters
 5. Generates confidence adjustments: ≥70% agreement → +0.5, ≤30% → −1.0
-6. Outputs `{date}_tipster_consensus.json` and `{date}_tipster_consensus.md` (also stored in DB `analysis_results` table)
+6. Saves to DB via `TipsterRepo.save_picks()` + `TipsterRepo.save_consensus()` (JSON fallback preserved)
+7. Outputs `{date}_tipster_consensus.json` and `{date}_tipster_consensus.md` (also stored in DB `tipster_picks` + `tipster_consensus` tables)
 
-**Sites covered (12):**
+**Sites covered (10):**
 - Polish: ZawodTyper, Typersi
 - English: Sportsgambler, PicksWise, BetIdeas, OLBG, Tipstrr
 - Exotic football: Feedinco, BettingClosed, Tips180
-- Esports: GosuGamers
 
 **Integration with S3 analysis:**
 - Tipster picks targeting statistical markets with reasoning → boost shortlist priority

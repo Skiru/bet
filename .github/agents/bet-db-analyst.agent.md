@@ -1,5 +1,5 @@
 ---
-description: "Database specialist — reads, writes, queries, and validates all 28 tables in betting.db. Called by other agents when they need DB operations, data validation, or gap analysis."
+description: "Database specialist — reads, writes, queries, and validates all 30 tables in betting.db. Called by other agents when they need DB operations, data validation, or gap analysis."
 tools:
   [
     "execute",
@@ -65,7 +65,7 @@ You are the **database specialist** for the betting pipeline. You are the ONLY a
 4. **Report specific numbers** — "team_form has 1,247 rows across 5 sports, 89 teams" not "data exists"
 5. **NEVER run `python3 -c "..."`** — Fish shell GARBLES inline Python. Use `python3 scripts/db_report.py --report {type}` or create a temp `.py` file
 
-## DB Schema Reference (28 tables, 6 domains)
+## DB Schema Reference (30 tables, 7 domains)
 
 ### Core Domain
 - `sports` — id, name, tier, stat_keys (JSON array)
@@ -97,6 +97,10 @@ You are the **database specialist** for the betting pipeline. You are the ONLY a
 - `scraper_runs` — id, scraper_name, sport, target, status (running/success/failed), records_scraped, records_inserted, records_updated, error_message, started_at, finished_at, duration_seconds
 - `player_season_stats` — id, athlete_id (FK→athletes), competition_id (FK→competitions), season, games_played, games_started, minutes_played, stats_json (sport-specific blob), per_game_json, advanced_json, source, updated_at. UNIQUE(athlete_id, competition_id, season, source)
 - `fixture_sources` — Cross-references between discovery sources and scraper fixture data
+
+### Tipster Domain (NEW — schema v9, raw sqlite3 + TipsterRepo)
+- `tipster_picks` — id, betting_date, sport, home_team, away_team, competition, source, tipster_name, market, pick, odds, reasoning, stats_cited (JSON), accuracy_pct, confidence, created_at. Indexes: date, teams, sport, source.
+- `tipster_consensus` — id, betting_date, sport, home_team, away_team, competition, market, direction, consensus_pct, tipster_count, sources (JSON), avg_odds, confidence_modifier, created_at. Indexes: date, teams, sport.
 
 **Scraper diagnostic queries:**
 ```sql

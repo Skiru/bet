@@ -117,12 +117,11 @@ print(f"Candidates: {len(data)}")
 print(f"Keys: {list(data[0].keys()) if data else 'EMPTY'}")
 
 # Verify DB state:
-import sqlite3
-conn = sqlite3.connect("betting/data/betting.db")
-cur = conn.cursor()
-cur.execute("SELECT COUNT(*) FROM team_form WHERE date >= '2026-05-13'")
-print(f"team_form rows today: {cur.fetchone()[0]}")
-conn.close()
+from bet.db.connection import get_db
+with get_db() as conn:
+    cur = conn.cursor()
+    cur.execute("SELECT COUNT(*) FROM team_form WHERE date >= '2026-05-13'")
+    print(f"team_form rows today: {cur.fetchone()[0]}")
 
 # Validate enrichment output matches S3 expectations:
 import json, os
@@ -260,7 +259,7 @@ terminal_id = run_in_terminal(command="python3 scripts/deep_stats_report.py ..."
 # Step 1b: THINK while script runs
 sequentialthinking("Enrichment produced 42/57 yield. Hockey at 44% — those candidates need PARTIAL flags...")
 read_file("betting/data/2026-05-13_s2_shortlist.json")  # understand candidates
-pylanceRunCodeSnippet("import sqlite3; conn = sqlite3.connect('betting/data/betting.db'); ...")  # quick DB check
+pylanceRunCodeSnippet("from bet.db.connection import get_db; ...")  # quick DB check
 
 # Step 2-3: Script done → EXTRACT + THINK
 get_terminal_output(terminal_id)  # read full results
@@ -401,11 +400,11 @@ if exists:
     print(f"Output: {len(data)} records, keys: {list(data[0].keys())[:5]}")
 
 # Verify DB writes
-conn = sqlite3.connect("betting/data/betting.db")
-cur = conn.cursor()
-cur.execute("SELECT COUNT(*) FROM team_form WHERE updated_at >= date('now')")
-print(f"DB writes today: {cur.fetchone()[0]}")
-conn.close()
+from bet.db.connection import get_db
+with get_db() as conn:
+    cur = conn.cursor()
+    cur.execute("SELECT COUNT(*) FROM team_form WHERE updated_at >= date('now')")
+    print(f"DB writes today: {cur.fetchone()[0]}")
 ```
 
 **If validation fails → FIX the issue before returning. Don't pass broken data downstream.**

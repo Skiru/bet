@@ -14,7 +14,7 @@ The data collection phase now has 2 sub-steps:
 1. **S2.3** — `run_scrapers.py` populates `league_profiles` + `player_season_stats` from 19 scrapers
 2. **S2.5** — `data_enrichment_agent.py` fills REMAINING GAPS only
 
-**Your first check:** When analyzing enrichment needs, check `team_form` rows with `source LIKE 'scrapers%'` FIRST. Only flag gaps for teams/stat_keys NOT covered by scrapers. The old enrichment (S2.5) is now a FALLBACK.
+**Your first check:** When analyzing enrichment needs, check `scraper_runs` table for today's run status and `player_season_stats` / `league_profiles` tables for coverage. Scrapers write to `league_profiles` + `player_season_stats` (NOT `team_form`). Only flag gaps for teams/sports NOT covered by scrapers. The old enrichment (S2.5) is now a FALLBACK.
 
 **Scraper coverage expectations:**
 - Football: FBref (20+ teams, 574+ players), Flashscore (goals from scores)
@@ -107,14 +107,13 @@ The orchestrator has already:
 
 **Step 4: VALIDATE outputs (pylanceRunCodeSnippet — BEFORE returning verdict):**
 ```python
-import sqlite3
-conn = sqlite3.connect("betting/data/betting.db")
-cur = conn.cursor()
-cur.execute("SELECT COUNT(*) FROM team_form WHERE updated_at >= date('now')")
-print(f"team_form rows updated today: {cur.fetchone()[0]}")
-cur.execute("SELECT sport, COUNT(*) FROM team_form WHERE updated_at >= date('now') GROUP BY sport")
-for row in cur.fetchall(): print(f"  {row[0]}: {row[1]}")
-conn.close()
+from bet.db.connection import get_db
+with get_db() as conn:
+    cur = conn.cursor()
+    cur.execute("SELECT COUNT(*) FROM team_form WHERE updated_at >= date('now')")
+    print(f"team_form rows updated today: {cur.fetchone()[0]}")
+    cur.execute("SELECT sport, COUNT(*) FROM team_form WHERE updated_at >= date('now') GROUP BY sport")
+    for row in cur.fetchall(): print(f"  {row[0]}: {row[1]}")
 ```
 **If DB writes are 0 but script reported success → data flow break (R18). Investigate before returning.**
 
@@ -182,9 +181,13 @@ When multiple sources provide data for the same team:
 - ESPN injury data should always be merged regardless of primary stats source.
 
 ### 3. Completeness Verification
-Run a quick DB check after enrichment:
-```bash
-python3 scripts/db_report.py --report quality
+Run a quick DB check via pylanceRunCodeSnippet (NOT terminal):
+```python
+from bet.db.connection import get_db
+with get_db() as conn:
+    cur = conn.cursor()
+    cur.execute("SELECT sport, COUNT(DISTINCT team_id) FROM team_form WHERE updated_at >= date('now') GROUP BY sport")
+    for r in cur.fetchall(): print(f"  {r[0]}: {r[1]} teams updated today")
 ```
 Compare team counts with shortlist candidate counts. If teams are missing from DB → enrichment didn't write to DB.
 

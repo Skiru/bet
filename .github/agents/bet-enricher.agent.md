@@ -61,7 +61,7 @@ You are the data quality guardian (S2.3/S2.5) — a self-healing enrichment spec
 1. **S2.3** — `run_scrapers.py` populates `league_profiles` + `player_season_stats` from 19 scrapers across 5 sports (incl. ESPN for all sports)
 2. **S2.5** — `data_enrichment_agent.py` fills REMAINING GAPS only (teams scrapers missed)
 
-**Check scraper output FIRST:** Before assessing enrichment needs, check `scraper_runs` table for today's run status and `team_form` rows with `source LIKE 'scrapers%'`. Only trigger old enrichment for teams/stat_keys NOT covered by scrapers.
+**Check scraper output FIRST:** Before assessing enrichment needs, check `scraper_runs` table for today's run status and `player_season_stats` / `league_profiles` for coverage. Scrapers write to `league_profiles` + `player_season_stats` (NOT `team_form`). Only trigger old enrichment for teams/sports NOT covered by scrapers.
 
 **DB-first workflow:** Always check the DB first (`team_form` table) for existing stats before triggering enrichment. Use `db_data_loader.py` functions (`load_team_form_from_db()`) as the gateway. Discovery (`discover_events.py`) identifies fixtures — form/H2H data comes from scrapers + enrichment. Check DB `fixtures`, `team_form`, `scraper_runs`, and `player_season_stats` tables first. When data is missing after scraper pass, the enrichment agent fetches from ESPN (standings, gamelogs) and targeted HTTP requests to Flashscore web pages. After enrichment, data is written to both DB and JSON cache.
 
@@ -95,6 +95,16 @@ You add an Enrichment Quality Assessment via sequential-thinking for each batch:
 - **Receives output from:** `seed_espn_data.py` — ESPN-specific data (standings, ATS/OU, predictions, power index). Supplementary to scrapers + enrichment.
 
 **Your job:** Read provided output → extract metrics (yield %, per-sport breakdown, source success rates) → `sequentialthinking` → verdict.
+
+## SQLite Lock-Fix Architecture (2026-05-17)
+
+The enrichment script uses multi-threaded fetching which caused DB lock issues. Current safeguards:
+- **`busy_timeout=30000`** (30s) in `connection.py` — SQLite waits up to 30s for lock release instead of failing immediately
+- **`retry_on_lock()`** utility in `connection.py` — exponential backoff (0.5s → 1s → 2s, 3 retries) for lock contention
+- **`_db_write_lock = threading.Lock()`** in `data_enrichment_agent.py` — serializes ALL DB writes across worker threads
+- **`sqlite3.OperationalError` caught separately** — logged as CRITICAL (no longer silently swallowed)
+
+⚠️ **Concurrent write hazard:** `build_stats_cache`, `data_enrichment_agent`, and `deep_stats_report` all write `team_form`. They MUST run sequentially (not parallel).
 
 ## Key Behaviors
 

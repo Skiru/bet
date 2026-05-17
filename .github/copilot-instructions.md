@@ -61,7 +61,7 @@ These 21 rules are PERMANENT. They override any conflicting logic in scripts, pr
 
 **R1 — AGENT-DRIVEN PIPELINE (Run-Then-Delegate):** The orchestrator RUNS all scripts (mode=async, --verbose) and MONITORS for errors. Specialist subagents ONLY ANALYZE finished output — they NEVER run scripts. For each step: (1) orchestrator runs script → (2) orchestrator extracts AGENT_SUMMARY + key metrics → (3) orchestrator delegates analysis to specialist subagent → (4) subagent returns structured verdict. See Model A in agent-execution-protocol.instructions.md.
 
-**R2 — DB-FIRST:** Always read from `betting/data/betting.db` via `from bet.db.connection import get_db`. Never use raw `sqlite3.connect()`. JSON files are fallback only. Safety input from `normalize_stats.py` (`build_safety_input`, `build_safety_input_from_db`, `build_safety_input_from_cache`). DB has 28 tables across 6 domains — see `agent_protocol.py` `DB_SCHEMA_REFERENCE`.
+**R2 — DB-FIRST:** Always read from `betting/data/betting.db` via `from bet.db.connection import get_db`. Never use raw `sqlite3.connect()`. JSON files are fallback only. Safety input from `normalize_stats.py` (`build_safety_input`, `build_safety_input_from_db`, `build_safety_input_from_cache`). DB has 30 tables across 7 domains — see `agent_protocol.py` `DB_SCHEMA_REFERENCE`.
 
 **R3 — NO AUTO-REJECTION:** The pipeline NEVER auto-rejects events based on positive EV thresholds, safety scores, historical hit rates, or any other metric. ALL analyzed candidates appear in the statistical matrix. ALL gate-failed candidates appear in Extended Pool. The USER decides what to bet. Forbidden language: "rejected due to", "excluded based on", "filtered to", "only X picks survived".
 
