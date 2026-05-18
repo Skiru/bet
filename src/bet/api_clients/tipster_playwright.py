@@ -19,54 +19,92 @@ logger = logging.getLogger(__name__)
 # Generic: extract all "vs" events with surrounding context from rendered DOM
 _JS_EXTRACT_GENERIC = """() => {
     const results = [];
-    const body = document.body.innerText || '';
+    const seen = new Set();
     
-    // Find all elements that might contain match/event info
-    const allElements = document.querySelectorAll('article, .prediction, .tip, .match, .event, .pick, [class*="prediction"], [class*="match"], [class*="tip"], [class*="pick"], [class*="event"]');
+    // Strategy 1: Find elements with tipster/prediction-related classes or data attributes
+    const selectors = [
+        'article', '.prediction', '.tip', '.match', '.event', '.pick',
+        '[class*="prediction"]', '[class*="match"]', '[class*="tip"]',
+        '[class*="pick"]', '[class*="event"]', '[class*="fixture"]',
+        '[class*="game"]', '[class*="card"]', '[class*="bet"]',
+        '[data-match]', '[data-event]', '[data-fixture]',
+        'li', 'tr', 'section > div', 'main div'
+    ];
+    
+    const allElements = document.querySelectorAll(selectors.join(', '));
     
     for (const el of allElements) {
         const text = el.innerText || '';
-        if (text.length < 20 || text.length > 5000) continue;
+        if (text.length < 15 || text.length > 8000) continue;
         
         // Look for "vs" or " - " patterns indicating a match
-        const vsMatch = text.match(/([A-ZÀ-Ž][A-Za-zÀ-ž.\\s]+?)\\s+(?:vs?\\.?|[-–—]|@)\\s+([A-ZÀ-Ž][A-Za-zÀ-ž.\\s]+)/u);
-        if (!vsMatch) continue;
+        // Support: "Team A vs Team B", "Team A - Team B", "Team A v Team B", "Team A @ Team B"
+        const vsPatterns = [
+            /([A-ZÀ-Ža-zà-ž0-9][A-Za-zÀ-ž0-9.'\\/\\s-]{1,40}?)\\s+(?:vs?\\.?|VS\\.?)\\s+([A-ZÀ-Ža-zà-ž0-9][A-Za-zÀ-ž0-9.'\\/\\s-]{1,40})/u,
+            /([A-ZÀ-Ž][A-Za-zÀ-ž0-9.'\\/\\s-]{1,40}?)\\s+[-–—]\\s+([A-ZÀ-Ž][A-Za-zÀ-ž0-9.'\\/\\s-]{1,40})/u,
+            /([A-ZÀ-Ž][A-Za-zÀ-ž0-9.'\\/\\s-]{1,40}?)\\s+@\\s+([A-ZÀ-Ž][A-Za-zÀ-ž0-9.'\\/\\s-]{1,40})/u,
+        ];
         
-        const home = vsMatch[1].trim();
-        const away = vsMatch[2].trim();
-        if (home.length < 3 || away.length < 3 || home.length > 40 || away.length > 40) continue;
+        let home = '', away = '';
+        for (const pat of vsPatterns) {
+            const m = text.match(pat);
+            if (m) { home = m[1].trim(); away = m[2].trim(); break; }
+        }
+        if (!home || !away) continue;
+        if (home.length < 2 || away.length < 2 || home.length > 45 || away.length > 45) continue;
         
-        // Extract reasoning from nearby elements
+        // Dedup by teams
+        const key = (home + '|' + away).toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        
+        // Extract reasoning from nearby elements or text after team names
         let reasoning = '';
-        const reasoningEl = el.querySelector('.reasoning, .analysis, .description, .content, .tip-content, .prediction-content, .expert-analysis, p');
+        const reasoningSelectors = '.reasoning, .analysis, .description, .content, .tip-content, .prediction-content, .expert-analysis, .comment, .text, p';
+        const reasoningEl = el.querySelector(reasoningSelectors);
         if (reasoningEl) reasoning = (reasoningEl.innerText || '').trim();
-        if (!reasoning) reasoning = text.substring(text.indexOf(away) + away.length).trim();
-        
-        // Extract odds
-        let odds = null;
-        const oddsMatch = text.match(/@\\s*(\\d+\\.\\d+)|odds?\\s*[:=]?\\s*(\\d+\\.\\d+)|(\\d+\\.\\d{2})\\b/i);
-        if (oddsMatch) {
-            const val = parseFloat(oddsMatch[1] || oddsMatch[2] || oddsMatch[3]);
-            if (val >= 1.01 && val <= 100) odds = val;
+        if (!reasoning) {
+            const afterTeams = text.substring(text.indexOf(away) + away.length).trim();
+            if (afterTeams.length > 10) reasoning = afterTeams;
         }
         
-        // Extract market from text
+        // Extract odds (decimal format: 1.50 - 99.00)
+        let odds = null;
+        const oddsPatterns = [
+            /@\\s*(\\d+\\.\\d+)/,
+            /odds?\\s*[:=]?\\s*(\\d+\\.\\d+)/i,
+            /kurs\\s*[:=]?\\s*(\\d+\\.\\d+)/i,
+            /(\\d+\\.\\d{2})\\b/,
+        ];
+        for (const op of oddsPatterns) {
+            const om = text.match(op);
+            if (om) {
+                const val = parseFloat(om[1]);
+                if (val >= 1.01 && val <= 100) { odds = val; break; }
+            }
+        }
+        
+        // Extract market from text (extended patterns)
         let market = 'N/A';
         const marketPatterns = [
-            /(?:corners?|ck)\\s*(?:over|under|o|u)\\s*\\d+\\.?\\d*/i,
-            /(?:over|under)\\s*\\d+\\.?\\d*\\s*(?:goals?|corners?|cards?|fouls?|games?|sets?|points?)?/i,
+            /(?:corners?|ck|rzut[yó]w?\\s*ro[żz]n)/i,
+            /(?:over|under|powyżej|poniżej)\\s*\\d+[.,]?\\d*/i,
+            /(?:kart(?:ki|ek|ka)|cards?|yellow)/i,
+            /(?:fouls?|faul[ei])/i,
             /btts|both\\s*teams?\\s*(?:to\\s*)?score/i,
+            /(?:over|under)\\s*\\d+[.,]?\\d*\\s*(?:goals?|gol|bramk|corners?|cards?|fouls?|games?|gem|sets?|set|points?|punkt)/i,
             /double\\s*chance/i,
             /draw\\s*no\\s*bet/i,
-            /(?:to\\s*win|winner|moneyline)/i,
-            /handicap\\s*[+-]?\\s*\\d+\\.?\\d*/i,
+            /(?:to\\s*win|winner|moneyline|zwycięzca|wygra)/i,
+            /handicap\\s*[+-]?\\s*\\d+[.,]?\\d*/i,
+            /total\\s*(?:over|under|o|u)/i,
         ];
         for (const pat of marketPatterns) {
             const m = text.match(pat);
             if (m) { market = m[0].trim(); break; }
         }
         
-        // Extract accuracy
+        // Extract accuracy/percentage
         let accuracy = null;
         const accMatch = text.match(/(\\d{1,3})\\s*%/);
         if (accMatch) {
@@ -74,14 +112,14 @@ _JS_EXTRACT_GENERIC = """() => {
             if (val > 0 && val <= 100) accuracy = val;
         }
         
-        // Extract tipster name
+        // Extract tipster name from child elements
         let tipster = '';
-        const tipsterEl = el.querySelector('.tipster, .author, .expert, .username, [class*="tipster"], [class*="author"]');
+        const tipsterEl = el.querySelector('.tipster, .author, .expert, .username, .user, [class*="tipster"], [class*="author"], [class*="user"], [class*="expert"]');
         if (tipsterEl) tipster = (tipsterEl.innerText || '').trim();
         
         // Extract competition/league
         let competition = '';
-        const compEl = el.querySelector('.league, .competition, .tournament, [class*="league"], [class*="competition"]');
+        const compEl = el.querySelector('.league, .competition, .tournament, [class*="league"], [class*="competition"], [class*="tournament"], [class*="country"]');
         if (compEl) competition = (compEl.innerText || '').trim();
         
         results.push({
@@ -103,9 +141,10 @@ _JS_EXTRACT_GENERIC = """() => {
 # ZawodTyper: structural HTML with id="match-name{ID}" and id="type{ID}"
 _JS_EXTRACT_ZAWODTYPER = """() => {
     const results = [];
-    const matchIds = [];
+    const seen = new Set();
     
-    // Find all match-name elements
+    // Strategy 1: Find match-name elements (legacy structure)
+    const matchIds = [];
     document.querySelectorAll('[id^="match-name"]').forEach(el => {
         const id = el.id.replace('match-name', '');
         if (id) matchIds.push(id);
@@ -116,14 +155,12 @@ _JS_EXTRACT_ZAWODTYPER = """() => {
         const typeEl = document.querySelector('#type' + mid);
         if (!matchEl) continue;
         
-        // Get the searched-in div inside
         const searchDiv = matchEl.querySelector('.searched-in') || matchEl;
         const matchText = (searchDiv.innerText || searchDiv.textContent || '').trim();
         
         const typeDiv = typeEl ? (typeEl.querySelector('.searched-in') || typeEl) : null;
         const typeText = typeDiv ? (typeDiv.innerText || typeDiv.textContent || '').trim() : '';
         
-        // Parse "Team A - Team B" or "Team A vs Team B"
         let home = '', away = '';
         const dashMatch = matchText.match(/(.+?)\\s*[-–—]\\s*(.+)/);
         const vsMatch = matchText.match(/(.+?)\\s+vs\\.?\\s+(.+)/i);
@@ -132,19 +169,19 @@ _JS_EXTRACT_ZAWODTYPER = """() => {
         else continue;
         
         if (home.length < 3 || away.length < 3) continue;
+        const key = (home + '|' + away).toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
         
-        // Get surrounding block for reasoning and context
         const parentBlock = matchEl.closest('.tip-block, .prediction-block, .row, article, section') || matchEl.parentElement;
         const blockText = parentBlock ? (parentBlock.innerText || '').trim() : '';
         
-        // Extract reasoning from block
         let reasoning = '';
         if (parentBlock) {
             const reasoningEl = parentBlock.querySelector('.argument, .reasoning, .uzasadnienie, .description, p');
             if (reasoningEl) reasoning = (reasoningEl.innerText || '').trim();
         }
         
-        // Extract odds from the block
         let odds = null;
         const oddsMatch = blockText.match(/kurs\\s*[:=]?\\s*(\\d+\\.\\d+)|@\\s*(\\d+\\.\\d+)|(\\d+\\.\\d{2})\\b/i);
         if (oddsMatch) {
@@ -152,30 +189,91 @@ _JS_EXTRACT_ZAWODTYPER = """() => {
             if (val >= 1.01 && val <= 100) odds = val;
         }
         
-        // Extract accuracy from block
         let accuracy = null;
-        const accMatch = blockText.match(/(\\d{1,3})\\s*%/);
+        const accMatch = blockText.match(/(\\d{1,3})\\s*%\\s*\\((\\d+)\\)/);
         if (accMatch) {
             const val = parseInt(accMatch[1]);
             if (val > 0 && val <= 100) accuracy = val;
         }
         
-        // Tipster name
         let tipster = 'ZawodTyper';
         const tipsterMatch = blockText.match(/(?:Typer|Tipster|Autor):\\s*(\\S+)/i);
         if (tipsterMatch) tipster = tipsterMatch[1];
         
+        // Build meaningful reasoning
+        const reasonParts = [];
+        if (accuracy) reasonParts.push('Tipster accuracy: ' + accuracy + '% (tracked)');
+        if (typeText) reasonParts.push('Pick: ' + typeText);
+        if (reasoning && reasoning.length > 20) reasonParts.push(reasoning);
+        const finalReasoning = reasonParts.join(' | ') || blockText.substring(0, 400);
+        
         results.push({
-            home: home,
-            away: away,
+            home, away,
             market: typeText || 'N/A',
-            reasoning: reasoning.substring(0, 800) || blockText.substring(0, 800),
-            odds: odds,
-            accuracy: accuracy,
-            tipster: tipster,
+            reasoning: finalReasoning.substring(0, 800),
+            odds, accuracy, tipster,
             competition: '',
             full_text: blockText.substring(0, 1500),
         });
+    }
+    
+    // Strategy 2: New ZawodTyper structure — find pick blocks by content patterns
+    // The site uses dynamic content with tipster accuracy badges and pick text
+    if (results.length < 3) {
+        // Look for elements containing "vs" or " - " with team-like content
+        const allText = document.body.innerText || '';
+        const lines = allText.split('\\n').map(l => l.trim()).filter(l => l.length > 0);
+        
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            // Match "Team A - Team B" pattern
+            const matchPat = line.match(/^([A-Z\\u00C0-\\u024F][^\\n]{2,35})\\s*[-\\u2013\\u2014]\\s*([A-Z\\u00C0-\\u024F][^\\n]{2,35})$/);
+            if (!matchPat) continue;
+            
+            let home = matchPat[1].trim();
+            let away = matchPat[2].trim();
+            
+            // Skip if contains garbage
+            if (home.length < 3 || away.length < 3 || home.length > 40 || away.length > 40) continue;
+            const key = (home + '|' + away).toLowerCase();
+            if (seen.has(key)) continue;
+            seen.add(key);
+            
+            // Look at surrounding lines for pick details (next 5 lines)
+            const context = lines.slice(Math.max(0, i-2), Math.min(lines.length, i+8)).join(' ');
+            
+            // Extract pick type (next meaningful line after match)
+            let typeText = '';
+            for (let j = i+1; j < Math.min(i+5, lines.length); j++) {
+                const nextLine = lines[j];
+                if (nextLine.match(/^[A-Z0-9]/) && nextLine.length > 3 && nextLine.length < 80 &&
+                    !nextLine.match(/^\\d{1,2}[:.]\\d{2}/)) {
+                    typeText = nextLine;
+                    break;
+                }
+            }
+            
+            // Extract accuracy
+            let accuracy = null;
+            const accMatch = context.match(/(\\d{1,3})\\s*%\\s*\\((\\d+)\\)/);
+            if (accMatch) accuracy = parseInt(accMatch[1]);
+            
+            // Build reasoning
+            const reasonParts = [];
+            if (accuracy) reasonParts.push('Tipster accuracy: ' + accuracy + '% (tracked)');
+            if (typeText) reasonParts.push('Pick: ' + typeText);
+            
+            results.push({
+                home, away,
+                market: typeText || 'N/A',
+                reasoning: reasonParts.join(' | ') || context.substring(0, 400),
+                odds: null,
+                accuracy,
+                tipster: 'ZawodTyper',
+                competition: '',
+                full_text: context.substring(0, 1500),
+            });
+        }
     }
     
     return results;
@@ -335,6 +433,66 @@ _JS_EXTRACT_SPORTSGAMBLER = """() => {
     return results;
 }"""
 
+# BetIdeas: extract match detail page URLs from rendered listing cards
+_JS_EXTRACT_BETIDEAS = r"""() => {
+    const results = [];
+    const seen = new Set();
+    
+    // BetIdeas renders match cards via AJAX with fbbackend plugin
+    // Each card has a link to the detail page with format: /league/team-vs-team-id
+    const links = document.querySelectorAll('a[href*="-vs-"]');
+    for (const link of links) {
+        const href = link.href || link.getAttribute('href') || '';
+        if (!href || !href.includes('-vs-')) continue;
+        
+        // Extract team names from link text or href
+        const text = (link.innerText || '').trim();
+        const hrefParts = href.split('/').filter(p => p);
+        const slug = hrefParts[hrefParts.length - 1] || '';
+        
+        // Extract teams from slug: "team-a-vs-team-b-1234567"
+        const vsMatch = slug.match(/^(.+?)-vs-(.+?)-(\d+)$/);
+        if (!vsMatch) continue;
+        
+        let home = vsMatch[1].replace(/-/g, ' ').trim();
+        let away = vsMatch[2].replace(/-/g, ' ').trim();
+        
+        // Capitalize words
+        home = home.replace(/\\b\\w/g, c => c.toUpperCase());
+        away = away.replace(/\\b\\w/g, c => c.toUpperCase());
+        
+        const key = (home + '|' + away).toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        
+        // Try to find odds from nearby elements
+        let odds = null;
+        const card = link.closest('[class*="card"], [class*="match"], [class*="fixture"], tr, li, article');
+        if (card) {
+            const oddsEl = card.querySelector('[class*="odd"], [class*="decimal"]');
+            if (oddsEl) {
+                const oddsText = oddsEl.innerText || '';
+                const oddsMatch = oddsText.match(/(\\d+\\.\\d+)/);
+                if (oddsMatch) odds = parseFloat(oddsMatch[1]);
+            }
+        }
+        
+        results.push({
+            home: home,
+            away: away,
+            market: 'N/A',
+            reasoning: '',
+            odds: odds,
+            accuracy: null,
+            tipster: 'BetIdeas',
+            competition: '',
+            detail_url: href.startsWith('http') ? href : 'https://betideas.com' + href,
+        });
+    }
+    
+    return results;
+}"""
+
 # Deep reasoning extraction — finds expert analysis, comments, tipster arguments
 _JS_EXTRACT_DEEP_REASONING = """() => {
     const sections = [];
@@ -446,6 +604,16 @@ class TipsterPlaywrightClient(PlaywrightBaseClient):
         for url in urls:
             ctx = None
             try:
+                # ZawodTyper: use XHR interception for structured data with analysis
+                if parser == "zawodtyper":
+                    picks = self._fetch_zawodtyper_via_xhr(url, now_iso)
+                    if picks:
+                        all_picks.extend(picks)
+                        logger.info(f"[Tipster] {site_name}: XHR extracted {len(picks)} picks from {url}")
+                        continue
+                    # Fallback to DOM extraction if XHR capture failed
+                    logger.warning(f"[Tipster] {site_name}: XHR capture empty, falling back to DOM extraction")
+
                 ctx, page = self._load_page(url, wait_ms=wait_ms)
 
                 # Route to appropriate DOM extractor
@@ -455,6 +623,8 @@ class TipsterPlaywrightClient(PlaywrightBaseClient):
                     raw = self._evaluate_js(page, _JS_EXTRACT_PICKSWISE)
                 elif parser == "sportsgambler":
                     raw = self._evaluate_js(page, _JS_EXTRACT_SPORTSGAMBLER)
+                elif parser == "betideas":
+                    raw = self._evaluate_js(page, _JS_EXTRACT_BETIDEAS)
                 else:
                     raw = self._evaluate_js(page, _JS_EXTRACT_GENERIC)
 
@@ -542,6 +712,9 @@ class TipsterPlaywrightClient(PlaywrightBaseClient):
                         reasoning = deep_text
                     break
 
+            # Validate reasoning quality — reject navigation/boilerplate garbage
+            reasoning = self._clean_reasoning(reasoning, home, away)
+
             # Extract stats cited
             stats_cited = self._extract_stats_cited(reasoning + " " + full_text)
 
@@ -566,6 +739,7 @@ class TipsterPlaywrightClient(PlaywrightBaseClient):
                 "confidence": "high" if accuracy and accuracy > 70 else ("medium" if accuracy and accuracy > 55 else "medium"),
                 "stats_cited": stats_cited,
                 "fetch_time": now_iso,
+                "detail_url": item.get("detail_url", ""),
             })
 
         return picks
@@ -596,9 +770,15 @@ class TipsterPlaywrightClient(PlaywrightBaseClient):
     def _classify_market(self, market_text: str, context: str = "") -> str:
         """Classify market as 'statistical' or 'outcome'."""
         market_lower = market_text.lower()
-        outcome_kw = {"winner", "zwycięzca", "1x2", "ml", "moneyline", "draw", "btts", "both teams to score", "double chance"}
+        outcome_kw = {"winner", "zwycięzca", "1x2", "ml", "moneyline", "draw", "btts", "both teams to score", "double chance",
+                      "remis", "wygra", "przegra", "dnb", "draw no bet"}
         stat_kw = {"corners", "corner", "fouls", "foul", "cards", "card", "shots", "games", "sets", "points",
-                    "frames", "over", "under", "handicap", "totals", "total", "aces", "rebounds", "assists"}
+                    "frames", "over", "under", "handicap", "totals", "total", "aces", "rebounds", "assists",
+                    "rzuty rożne", "rzutów rożnych", "kartki", "kartek", "kartka", "żółte kartki",
+                    "faule", "fauli", "strzały", "strzałów", "gole", "bramki", "bramek",
+                    "sety", "setów", "gemy", "gemów", "punkty", "punktów",
+                    "powyżej", "poniżej", "auty", "autów", "spalone", "spalonych",
+                    "o/u", "ov", "un"}
 
         for kw in outcome_kw:
             if kw in market_lower:
@@ -643,6 +823,227 @@ class TipsterPlaywrightClient(PlaywrightBaseClient):
             for m in re.findall(pattern, text, re.IGNORECASE):
                 stats.append(str(m))
         return stats[:10]
+
+    def _clean_reasoning(self, reasoning: str, home: str, away: str) -> str:
+        """Validate and clean reasoning text — reject garbage, keep analysis.
+
+        ZawodTyper and other sites produce navigation/UI text that's NOT analysis.
+        Only keep reasoning that contains meaningful sports commentary.
+        """
+        if not reasoning:
+            return ""
+
+        # Strip common garbage patterns from ZawodTyper page navigation
+        garbage_markers = [
+            "BUKMACHER", "WYDARZENIE", "DYSCYPLINA", "TYP\n",
+            "sign up", "claim now", "no deposit", "free bet",
+            "bonus code", "gold coins", "subscribe",
+            "cookie", "privacy policy", "view prediction",
+            "serwis informacyjno", "społecznościowy",
+        ]
+        lower = reasoning.lower()
+        for marker in garbage_markers:
+            if marker.lower() in lower:
+                return ""
+
+        # If reasoning is mostly short lines (navigation), reject
+        lines = [l.strip() for l in reasoning.split('\n') if l.strip()]
+        if lines and len(lines) > 3:
+            avg_line_len = sum(len(l) for l in lines) / len(lines)
+            if avg_line_len < 15:  # Very short lines = navigation/UI elements
+                return ""
+
+        # Check for actual analytical content
+        signal_words = {
+            "win", "lose", "draw", "goal", "corner", "card",
+            "form", "attack", "defend", "average", "scored", "possession",
+            "expect", "predict", "back", "pick", "over", "under",
+            "last", "recent", "match", "season", "injury", "lineup",
+            # Polish
+            "bramk", "gol", "wynik", "forma", "mecz", "kartek",
+            "strzał", "średni", "sezon", "kontuzj", "atak", "obron",
+            "wygr", "przegr", "trafność", "accuracy",
+        }
+        signal_count = sum(1 for w in signal_words if w in lower)
+
+        # Also accept accuracy-formatted reasoning from ZawodTyper
+        # e.g., "Tipster accuracy: 65% (tracked) | Pick: Under 2.5 seta"
+        if "tipster accuracy:" in lower or "pick:" in lower:
+            return reasoning[:800]
+
+        if signal_count < 1:
+            return ""
+
+        return reasoning[:800]
+
+    def _fetch_zawodtyper_via_xhr(self, url: str, now_iso: str) -> list[dict]:
+        """Fetch ZawodTyper bets by intercepting the NP_ajax.php XHR response.
+
+        ZawodTyper is a Vue.js SPA that loads bets via POST to NP_ajax.php.
+        Instead of fragile DOM scraping, we intercept the structured JSON response
+        which contains: match_name, content (analysis), rate (odds), discipline,
+        type (pick), author_stats (accuracy), etc.
+        """
+        bets_data: list[dict] = []
+
+        self._ensure_browser()
+        ctx, page = self._new_page()
+
+        def _capture_bets(response):
+            if "NP_ajax.php" not in response.url:
+                return
+            if response.request.method != "POST":
+                return
+            try:
+                body = response.json()
+                if not isinstance(body, dict) or not body.get("success"):
+                    return
+                data = body.get("data")
+                if isinstance(data, list) and data and isinstance(data[0], dict):
+                    if "comment_id" in data[0] and "match_name" in data[0]:
+                        bets_data.extend(data)
+            except Exception:
+                pass
+
+        try:
+            page.on("response", _capture_bets)
+            page.goto(url, wait_until="domcontentloaded", timeout=30_000)
+            page.wait_for_timeout(6000)  # Wait for AJAX bets to load
+            self._dismiss_cookies(page)
+
+            # If first batch loaded, scroll to trigger more (lazy-loading)
+            if bets_data:
+                page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                page.wait_for_timeout(3000)
+        except Exception as e:
+            logger.warning(f"[Tipster] ZawodTyper XHR capture failed: {e}")
+        finally:
+            try:
+                ctx.close()
+            except Exception:
+                pass
+
+        if not bets_data:
+            return []
+
+        # Convert structured bet data to standard pick format
+        picks = []
+        seen_events: set[str] = set()
+        _DISCIPLINE_MAP = {
+            "piłka nożna": "football", "tenis": "tennis",
+            "koszykówka": "basketball", "siatkówka": "volleyball",
+            "hokej": "hockey", "piłka ręczna": "handball",
+            "baseball": "baseball", "mma": "mma",
+            "esport": "esport", "boks": "boxing",
+        }
+
+        for bet in bets_data:
+            # Only process actual bets (not ads/bonuses)
+            if bet.get("comment_type") != "bet":
+                continue
+
+            match_name = (bet.get("match_name") or "").strip()
+            if not match_name:
+                continue
+
+            # Parse home - away
+            parts = re.split(r'\s*[-–—]\s*', match_name, maxsplit=1)
+            if len(parts) != 2:
+                parts = re.split(r'\s+vs\.?\s+', match_name, maxsplit=1, flags=re.IGNORECASE)
+            if len(parts) != 2:
+                continue
+
+            home = parts[0].strip()
+            away = parts[1].strip()
+            if len(home) < 2 or len(away) < 2:
+                continue
+
+            event_key = f"{home.lower()}|{away.lower()}"
+            if event_key in seen_events:
+                # Keep the one with longer analysis (better reasoning)
+                existing = next((p for p in picks if f"{p['home_team'].lower()}|{p['away_team'].lower()}" == event_key), None)
+                if existing:
+                    content = self._strip_html(bet.get("content") or "")
+                    if len(content) > len(existing.get("reasoning") or ""):
+                        existing["reasoning"] = content[:800]
+                        # Update tipster if this one has better stats
+                        author_stats = bet.get("author_stats") or {}
+                        ratio_raw = author_stats.get("ratio")
+                        if ratio_raw and float(ratio_raw) > 0:
+                            existing["tipster_name"] = bet.get("author_name", "ZawodTyper")
+                            existing["accuracy_pct"] = int(ratio * 100)
+                continue
+            seen_events.add(event_key)
+
+            # Extract analysis text (strip HTML tags)
+            content = self._strip_html(bet.get("content") or "")
+
+            # Accuracy from author_stats
+            author_stats = bet.get("author_stats") or {}
+            bet_count = int(author_stats.get("bet_count", 0) or 0)
+            ratio_raw = author_stats.get("ratio")
+            ratio = float(ratio_raw) if ratio_raw else 0.0
+            accuracy = int(ratio * 100) if ratio > 0 and bet_count >= 3 else None
+
+            # Odds
+            rate = bet.get("rate")
+            odds = float(rate) if rate is not None else None
+
+            # Sport detection
+            discipline = (bet.get("discipline") or "").lower().strip()
+            sport = _DISCIPLINE_MAP.get(discipline, "football")
+
+            # Market and type
+            pick_type = (bet.get("type") or "").strip()
+            market_type = self._classify_market(pick_type, content)
+            direction = self._extract_direction(pick_type, content)
+
+            # Build rich reasoning: accuracy + pick + analysis
+            reasoning_parts = []
+            if accuracy and bet_count >= 3:
+                reasoning_parts.append(f"Tipster {bet.get('author_name', '')}: {accuracy}% ({bet_count} bets)")
+            if content and len(content) > 30:
+                reasoning_parts.append(content)
+            reasoning = " | ".join(reasoning_parts) if reasoning_parts else ""
+
+            # Confidence based on accuracy and bet count
+            if accuracy and accuracy >= 65 and bet_count >= 10:
+                confidence = "high"
+            elif accuracy and accuracy >= 55 and bet_count >= 5:
+                confidence = "medium"
+            else:
+                confidence = "low"
+
+            picks.append({
+                "source_site": "ZawodTyper",
+                "tipster_name": bet.get("author_name", "ZawodTyper"),
+                "sport": sport,
+                "event": f"{home} vs {away}",
+                "home_team": home,
+                "away_team": away,
+                "competition": "",
+                "market": pick_type or "N/A",
+                "market_type": market_type,
+                "direction": direction,
+                "odds": odds,
+                "reasoning": reasoning[:800],
+                "accuracy_pct": accuracy,
+                "confidence": confidence,
+                "stats_cited": self._extract_stats_cited(content),
+                "fetch_time": now_iso,
+            })
+
+        logger.info(f"[Tipster] ZawodTyper XHR: {len(picks)} picks from {len(bets_data)} bets")
+        return picks
+
+    @staticmethod
+    def _strip_html(text: str) -> str:
+        """Strip HTML tags and decode entities from text."""
+        text = re.sub(r'<[^>]+>', ' ', text)
+        text = text.replace("&nbsp;", " ").replace("&amp;", "&")
+        text = text.replace("&lt;", "<").replace("&gt;", ">")
+        text = re.sub(r'\s+', ' ', text).strip()
+        return text
 
     @staticmethod
     def _build_zawodtyper_url(date: datetime) -> str:

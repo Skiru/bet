@@ -19,6 +19,7 @@ description: "S8: Portfolio construction, coupon building, V1-V10, artifact gene
 | Coupon file | Missing "⚠️ Wszystkie typy są WARUNKOWE" disclaimer? | FAILURE: R12 violated |
 | Hit rates | Used to reorder, exclude, or deprioritize candidates? | FAILURE: R6 violated — advisory only |
 | Script execution | --verbose flag included? Per-script metrics cited? | FAILURE: R17 violated |
+| Tipster insight | Every approved pick has tipster_support checked (gate output or DB fallback)? | WARNING: tipster data missing — coupon insight will be incomplete |
 | sequentialthinking | 4-part Portfolio Intelligence (correlations, worst-case, placement, user support) done? | FAILURE: R11 violated |
 
 ## MANDATORY: Agent Intelligence Protocol

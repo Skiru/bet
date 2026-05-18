@@ -148,6 +148,23 @@ Sum all stakes. Compare to listed total. Verify against 25% bankroll limit.
 
 Include §4.3 tipster-sourced picks with full argument, accuracy %, and promotion criteria.
 
+## Tipster Insight Section
+
+Every coupon leg includes a **🎯 TIPSTER INSIGHT** section when tipster data exists for that event. Rendered by `_build_tipster_insight()` in `coupon_builder.py`.
+
+**Shows:**
+- Source name (with accuracy % when available)
+- Market prediction + odds
+- Truncated reasoning (max 80 chars from tipster's argument)
+
+**Comparison logic:**
+- If tipster market matches our pick → "✓ ZGODNOŚĆ" (agreement)
+- If tipsters recommend different markets → "↔ NASZ WYBÓR" with explanation why our analysis differs (safety score, L10 statistical margin)
+
+**Data source:** `gate_output.tipster_support.tips[]` (primary) or DB fallback via `TipsterRepo.get_picks_by_date()` + fuzzy team name matching.
+
+**Rule:** Even when tipsters COMPLETELY disagree with our pick, show their predictions — the user decides.
+
 ## Connected Skills
 
 | Skill | Load for |

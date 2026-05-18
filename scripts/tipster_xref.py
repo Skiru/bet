@@ -7,6 +7,7 @@ Extracted from pipeline_orchestrator.py (Phase 3.3).
 import json
 import sys
 from pathlib import Path
+from rapidfuzz import fuzz
 
 # ---------------------------------------------------------------------------
 # Paths (same as orchestrator)
@@ -93,6 +94,25 @@ def run_tipster_xref(date: str, state: dict) -> tuple[bool, str]:
                 away = (c.get("away_team") or "").strip().lower()
                 key = f"{home}|{away}"
                 matching_tips = tip_lookup.get(key, [])
+                
+                if not matching_tips:
+                    best_match_tips = []
+                    for tip_key, tips_list in tip_lookup.items():
+                        parts = tip_key.split("|")
+                        if len(parts) == 2:
+                            t_home, t_away = parts
+                            score_home = fuzz.token_sort_ratio(home, t_home)
+                            score_away = fuzz.token_sort_ratio(away, t_away)
+                            score_home_swapped = fuzz.token_sort_ratio(home, t_away)
+                            score_away_swapped = fuzz.token_sort_ratio(away, t_home)
+                            
+                            if (score_home >= 70 and score_away >= 70) or (score_home_swapped >= 70 and score_away_swapped >= 70):
+                                best_match_tips.extend(tips_list)
+                    
+                    if best_match_tips:
+                        matching_tips = best_match_tips
+                        print(f"    ~ Fuzzy matched: {home} vs {away}")
+
                 if matching_tips:
                     matched += 1
                     tipster_names = list({t.get("source_site") or t.get("tipster") or t.get("source") or "unknown" for t in matching_tips})

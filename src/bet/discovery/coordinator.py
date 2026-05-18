@@ -95,6 +95,9 @@ class EventDiscoveryCoordinator:
         verdict = "OK"
         if total_raw == 0:
             verdict = "FAILED"
+        elif persisted == 0 and len(merged) > 0:
+            verdict = "PARTIAL"
+            issues.append(f"Fetched {len(merged)} fixtures but persisted 0 to DB")
         elif any(not s.available for s in source_stats.values()):
             verdict = "PARTIAL"
 

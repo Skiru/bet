@@ -1,5 +1,48 @@
 # Pipeline Knowledge Base — Consolidated (May 4-18, 2026, updated 2026-05-18)
 
+## 🆕 TIPSTER AGGREGATOR: DEAD SITES REMOVED + BUG FIXES — 2026-05-18
+
+### Sites Removed (3)
+- **Tips180** (`tips180.com`) — domain expired, DNS failure
+- **OLBG** (`olbg.com`) — aggressive Cloudflare, 403 on all pages including /tips/
+- **Tipstrr** (`tipstrr.com`) — returns empty HTML shell (JS-only, no useful content via Playwright)
+
+### Current 7 Sites (TIPSTER_SITES)
+| Site | Fetch | Detail Pages | Avg Reasoning Length |
+|------|-------|--------------|---------------------|
+| ZawodTyper | Playwright (JS) | ❌ (inline) | 651 chars |
+| Feedinco | HTTP + detail | /predictions/YYYY-MM-DD/Team-vs-Team-prediction | 457 chars |
+| PicksWise | HTTP + detail | /news/ articles (__NEXT_DATA__ extraction) | 220 chars |
+| Sportsgambler | HTTP + detail | /predictions/league/team-a-vs-team-b | 105 chars |
+| BettingClosed | HTTP + detail | /prediction/{id}/{slug} (1x2, BTTS, O/U, correct score) | 60 chars |
+| BetIdeas | HTTP + detail | /league/team-a-vs-team-b-{id} | 49 chars |
+| Typersi | Playwright (JS) | ❌ (inline) | 0 chars (picks only) |
+
+### Bugs Fixed
+1. **BettingClosed IndexError:** `pred_match.group(2)` crashed when fallback regex (1 group) was used. Fix: check `pred_match.lastindex >= 2` before accessing group(2).
+2. **Dead `playwright_only` code:** Tips180 was the only site using `playwright_only=True` flag. After removal, the conditional was dead code. Removed entirely.
+3. **Formatting artifacts:** Extra blank lines from site removal cleaned up.
+
+### Architecture: Post-Playwright Detail Page Enrichment
+After Playwright returns basic picks (event + market + pick), 5 parsers follow detail page URLs via HTTP to extract reasoning:
+```
+Playwright → list[dict] with detail_url field
+→ HTTP GET detail_url (within SITE_FETCH_TIMEOUT - 3s)
+→ Parser extracts reasoning text → TipsterPick.to_dict() → extends result["picks"]
+```
+**Key:** `detail_url` lives only in Playwright dicts (used during enrichment), not persisted to final output.
+
+### Playwright Client Changes (`tipster_playwright.py`)
+- `_convert_raw_to_picks()` preserves `detail_url` field from raw JS extraction
+- `_JS_EXTRACT_BETIDEAS` uses raw string (r-prefix) for regex — prevents escape issues in `page.evaluate()`
+- BetIdeas JS finds `a[href*="-vs-"]` links and returns `{detail_url, ...}` per pick
+
+### Temp Files Cleaned Up (6 deleted)
+`_check_pw_detail.py`, `_test_zt_bets.py`, `_test_zt_intercept.py`, `_analyze_zt_comments.py`, `_analyze_tipster_html.py`, `_analyze_sg_detail.py`
+
+### Test Results
+637 passed, 6 failed (all pre-existing, unrelated to these changes)
+
 ## 🆕 ENRICHMENT AGENT: COMPLETE REWRITE + TENNIS FIX — 2026-05-18
 
 ### Problem

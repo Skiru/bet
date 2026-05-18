@@ -12,21 +12,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from bet.db.connection import get_db
 
-try:
-    from data_enrichment_agent import SPORT_VALUE_RANGES
-except ImportError:
-    # fallback
-    SPORT_VALUE_RANGES = {
-        "football": {
-            "corners": (0, 20),
-            "fouls": (0, 35),
-            "yellow_cards": (0, 12),
-            "red_cards": (0, 4),
-            "shots": (0, 40),
-            "goals": (0, 12),
-            "possession": (20, 80)
-        }
-    }
+from bet.stats.value_ranges import SPORT_VALUE_RANGES
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)

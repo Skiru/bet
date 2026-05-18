@@ -1101,6 +1101,7 @@ def _normalise_s3_to_gate_input(analysis: dict) -> dict:
             or (analysis.get("tipster_support") or {}).get("count")
             or 0
         ),
+        "tipster_support": analysis.get("tipster_support") or {},
         "ranking": ranking,
         "three_way_check": three_way,
         "warnings": analysis.get("warnings", []),

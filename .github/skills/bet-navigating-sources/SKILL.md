@@ -71,6 +71,17 @@ When a source fails (403/empty/timeout), try the next in chain immediately. All 
 | Volleyball | ZawodTyper → Typersi | Sportsgambler | Meczyki |
 | Hockey | PicksWise | Sportsgambler | OLBG |
 
+## Google Sports / SerpAPI (H2H Enrichment)
+
+**Module:** `scripts/api_clients/google_sports_client.py`
+**Purpose:** H2H data retrieval via SerpAPI (Google search for "Team A vs Team B")
+**Budget:** 15 queries/run, 250/month (shared SerpAPI free tier)
+**Cache:** 48h cache in DB (`team_form.h2h_values` with `h2h_opponent_id`)
+**Position in fallback chains:** After sport-specific APIs (ESPN, API-Football, etc.), before Flashscore curl_cffi last resort
+**Data returned:** H2H scores, dates, competitions, recent form stats
+**Triggered by:** `enrich_h2h()` in `data_enrichment_agent.py` when H2H data missing from DB
+**DB function:** `db_data_loader.load_h2h_from_db(team_a, team_b, sport)` — reads cached H2H
+
 ## Source-Specific Access Notes
 
 | Source | Access | Notes |

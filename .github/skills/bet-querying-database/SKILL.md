@@ -89,9 +89,25 @@ FROM analysis_results WHERE fixture_id = ? AND betting_date = ?;
 SELECT stat_key, l10_values, l5_values, l10_avg, l5_avg, h2h_values, trend
 FROM team_form WHERE team_id = ? AND sport_id = ?;
 
+-- Load H2H data for a specific matchup (§3.0c validation)
+SELECT stat_key, h2h_values, l10_avg, l5_avg
+FROM team_form WHERE team_id = ? AND h2h_opponent_id = ? AND sport_id = ?;
+
 -- League baseline for deviation analysis
 SELECT stat_key, avg_value, median_value, std_dev, sample_size
 FROM league_profiles WHERE competition_id = ? AND season = ?;
+```
+
+**H2H Retrieval Functions:**
+```python
+# Primary — loads H2H from DB (cached from Google Sports / Flashscore)
+from scripts.db_data_loader import load_h2h_from_db
+h2h = load_h2h_from_db("Arsenal", "Chelsea", "football")
+# Returns: dict with meetings, stats per stat_key, or empty dict if not enriched
+
+# Enrichment trigger — when H2H missing, this fills it
+# Called by data_enrichment_agent.py → enrich_h2h() → Google Sports → Flashscore fallback
+# Saves to: team_form table with h2h_opponent_id set
 ```
 
 ### For bet-builder (S8 coupon construction)

@@ -112,6 +112,7 @@ class TestOddsAPIAdapter:
         adapter.supported_sports = ["football", "basketball", "hockey", "tennis"]
         adapter._api_key = "test-key"
         adapter._active_keys = {"football": ["soccer_epl"]}
+        adapter._auth_failed = False
         adapter.logger = MagicMock()
 
         events = adapter._fetch_events_impl("2026-05-14", "football")

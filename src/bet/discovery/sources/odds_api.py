@@ -53,6 +53,7 @@ class OddsAPIAdapter(AbstractSourceAdapter):
     def __init__(self, api_key: str | None = None):
         self._api_key = api_key or self._load_api_key()
         self._active_keys: dict[str, list[str]] | None = None
+        self._auth_failed: bool = False
         super().__init__()
 
     def is_available(self) -> bool:
@@ -65,6 +66,8 @@ class OddsAPIAdapter(AbstractSourceAdapter):
 
         all_events: list[DiscoveredEvent] = []
         for key in sport_keys:
+            if self._auth_failed:
+                break
             events = self._fetch_for_key(key, sport, date)
             all_events.extend(events)
 
@@ -87,6 +90,10 @@ class OddsAPIAdapter(AbstractSourceAdapter):
                 params=params,
                 timeout=15,
             )
+            if resp.status_code == 401:
+                self._auth_failed = True
+                self.logger.warning("Odds API auth failed (401) — key expired or credits exhausted. Skipping remaining.")
+                return []
             if resp.status_code in (404, 422):
                 return []
             resp.raise_for_status()

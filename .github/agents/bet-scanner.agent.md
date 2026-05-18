@@ -13,7 +13,6 @@ tools:
     "ms-python.python/*",
     "web/fetch",
     "browser/*",
-    "playwright/*",
     "vscode/memory",
     "vscode/resolveMemoryFileUri",
     "vscode/askQuestions",

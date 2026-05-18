@@ -53,33 +53,7 @@ SPORT_STAT_KEYS: dict[str, list[str]] = {
     "hockey": ["shots_on_goal", "penalties_in_minutes", "power_play_goals"],
 }
 
-SPORT_VALUE_RANGES: dict[str, dict[str, tuple[float, float]]] = {
-    "football": {
-        "corners": (0, 20), "fouls": (0, 35), "yellow_cards": (0, 12),
-        "red_cards": (0, 4), "shots": (0, 40), "shots_on_target": (0, 20),
-        "possession": (20, 80), "goals": (0, 12), "offsides": (0, 15),
-        "saves": (0, 15), "shots_off_target": (0, 30), "ball_possession": (20, 80),
-    },
-    "basketball": {
-        "points": (50, 180), "rebounds": (15, 70), "assists": (10, 45),
-        "steals": (0, 20), "blocks": (0, 15), "turnovers": (0, 30),
-        "2_pointers": (0, 60), "3_pointers": (0, 30), "free_throws": (0, 40),
-    },
-    "hockey": {
-        "goals": (0, 12), "shots": (10, 60), "shots_on_goal": (0, 60),
-        "penalties_in_minutes": (0, 50), "power_play_goals": (0, 5),
-        "hits": (10, 70),
-    },
-    "tennis": {
-        "aces": (0, 40), "double_faults": (0, 15),
-        "win_1st_serve": (0, 100), "break_points_saved": (0, 100),
-        "total_games": (10, 80),
-    },
-    "volleyball": {
-        "points": (0, 160), "aces": (0, 15), "blocks": (0, 20),
-        "errors": (0, 30), "total_points": (60, 250),
-    },
-}
+from bet.stats.value_ranges import SPORT_VALUE_RANGES
 
 _INDIVIDUAL_SPORTS = {"tennis"}
 

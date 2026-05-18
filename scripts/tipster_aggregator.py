@@ -7,10 +7,9 @@ reasoning, accuracy), computes consensus, and combines tipster arguments
 with statistical calculations.
 
 Sites covered:
-  Polish: ZawodTyper, Typersi, Meczyki
-  English: OLBG, PicksWise, BetIdeas, Sportsgambler, Tipstrr
-  Exotic: Feedinco, BettingClosed, Tips180
-  Esports: GosuGamers
+  Polish: ZawodTyper, Typersi
+  English: PicksWise, BetIdeas, Sportsgambler
+  Exotic: Feedinco, BettingClosed
 
 Usage:
     python3 scripts/tipster_aggregator.py --date 2026-05-04
@@ -19,6 +18,7 @@ Usage:
 """
 
 import argparse
+import html as html_module
 import json
 import re
 import sys
@@ -231,22 +231,7 @@ TIPSTER_SITES = [
         "parser": "betideas",
         "sports": ["football", "tennis", "basketball", "hockey", "volleyball"],
         "accuracy_tracked": True,
-    },
-    {
-        "name": "OLBG",
-        "url": "https://www.olbg.com/tips",
-        "language": "en",
-        "parser": "olbg",
-        "sports": ["football", "tennis", "basketball", "hockey", "volleyball"],
-        "accuracy_tracked": True,
-    },
-    {
-        "name": "Tipstrr",
-        "url": "https://www.tipstrr.com/tips",
-        "language": "en",
-        "parser": "tipstrr",
-        "sports": ["football", "tennis", "basketball", "volleyball", "hockey"],
-        "accuracy_tracked": True,
+        "wait_after_load": 6000,  # AJAX cards need extra time to render
     },
     {
         "name": "Feedinco",
@@ -261,14 +246,6 @@ TIPSTER_SITES = [
         "url": "https://www.bettingclosed.com/",
         "language": "en",
         "parser": "bettingclosed",
-        "sports": ["football", "tennis", "basketball", "volleyball", "hockey"],
-        "accuracy_tracked": False,
-    },
-    {
-        "name": "Tips180",
-        "url": "https://tips180.com/",
-        "language": "en",
-        "parser": "tips180",
         "sports": ["football", "tennis", "basketball", "volleyball", "hockey"],
         "accuracy_tracked": False,
     },
@@ -404,6 +381,76 @@ def _is_garbage_event(home: str, away: str, block: str = "") -> bool:
             return True
 
     return False
+
+
+# Phrases that indicate garbage reasoning (ads, navigation, boilerplate)
+_GARBAGE_REASONING_PHRASES = {
+    "sign up", "claim now", "no deposit", "free bet", "bonus code",
+    "gold coins", "sweeps coins", "sign up now", "join now",
+    "best bets run", "try free", "free for 3 days", "subscribe",
+    "data-driven picks", "delivered daily", "claim now",
+    "promo code", "bonus spins", "bet $20", "get $100",
+    "cookie", "privacy policy", "terms of service",
+    "copyright", "all rights reserved", "telegram channel",
+    "our newsletter", "follow us", "download app",
+    "view prediction", "view tips", "read more",
+    "aktualizacja:", "timestamps", "page not found",
+    "społecznościowy", "serwis informacyjno",
+}
+
+# Minimum meaningful reasoning: must have at least some analytical content
+_REASONING_SIGNAL_WORDS = {
+    "win", "lose", "draw", "goal", "corner", "card", "foul", "shot",
+    "form", "home", "away", "attack", "defend", "h2h", "head-to-head",
+    "average", "scored", "conceded", "possession", "record", "streak",
+    "odds", "value", "underdog", "favourite", "favorite",
+    "expect", "predict", "likely", "confident", "back", "pick",
+    "over", "under", "total", "handicap", "spread",
+    "last", "recent", "previous", "match", "season",
+    "injury", "missing", "suspended", "lineup",
+    "strong", "weak", "dominate", "struggle",
+    # Polish equivalents
+    "bramk", "gol", "wynik", "forma", "mecz", "kartek", "rzut",
+    "faul", "strzał", "średni", "obroni", "posiadan", "sezon",
+    "kontuzj", "zawieszeni", "składu", "dominuj", "silny",
+    "słab", "przewag", "wygr", "przegr", "remis", "bramkarz",
+    "atak", "obron", "strategia", "taktyk", "trener",
+}
+
+
+def _is_garbage_reasoning(text: str) -> bool:
+    """Check if reasoning text is garbage (ads, navigation, boilerplate).
+
+    Returns True if the text should be rejected as non-analytical.
+    """
+    lower = text.lower()
+
+    # Contains garbage phrases
+    for phrase in _GARBAGE_REASONING_PHRASES:
+        if phrase in lower:
+            return True
+
+    # Mostly digits/punctuation (garbled HTML artifacts)
+    alpha_chars = sum(1 for c in text if c.isalpha())
+    if len(text) > 0 and alpha_chars / len(text) < 0.5:
+        return True
+
+    # Starts with a URL or contains mostly URLs
+    if lower.startswith(("http", "www.", "/")):
+        return True
+
+    return False
+
+
+def _has_analytical_content(text: str) -> bool:
+    """Check if reasoning text contains actual analytical content.
+
+    Returns True if the text appears to be genuine sports analysis.
+    """
+    lower = text.lower()
+    signal_count = sum(1 for word in _REASONING_SIGNAL_WORDS if word in lower)
+    # Need at least 2 signal words to qualify as analytical
+    return signal_count >= 2
 
 
 def _clean_team_name(name: str) -> str:
@@ -726,12 +773,16 @@ def parse_generic_tipster_html(html: str, site_name: str, url: str) -> list[Tips
         mtype = classify_market(market, context)
         direction = extract_direction(market, context)
 
-        # Reasoning — text after the event
-        reasoning = after_text[:500].strip()
-        reasoning = re.sub(r'\s+', ' ', reasoning)
-        # Trim reasoning to remove HTML artifacts
-        if reasoning.startswith((",", ".", ";", ":")):
-            reasoning = reasoning[1:].strip()
+        # Reasoning — text after the event, validated for quality
+        reasoning_raw = after_text[:500].strip()
+        reasoning_raw = re.sub(r'\s+', ' ', reasoning_raw)
+        if reasoning_raw.startswith((",", ".", ";", ":")):
+            reasoning_raw = reasoning_raw[1:].strip()
+        # Only keep reasoning if it's genuine analysis, not garbage
+        if _is_garbage_reasoning(reasoning_raw) or not _has_analytical_content(reasoning_raw):
+            reasoning = ""
+        else:
+            reasoning = reasoning_raw[:500]
 
         picks.append(TipsterPick(
             source_site=site_name,
@@ -827,6 +878,21 @@ def parse_zawodtyper_html(html: str) -> list[TipsterPick]:
         sport = detect_sport(match_text + " " + type_text)
         stats = extract_stats_cited(type_text + " " + block_text)
 
+        # Build meaningful reasoning: tipster accuracy + market context
+        reasoning_parts = []
+        if accuracy:
+            reasoning_parts.append(f"Tipster accuracy: {accuracy}% (tracked)")
+        if type_text and type_text != market:
+            reasoning_parts.append(f"Pick: {type_text}")
+        # Look for any analysis text in the block (beyond just accuracy)
+        analysis_match = re.search(
+            r'(?:argument|uzasadnienie|dlaczego|opis|komentarz)[:\s]*(.+?)(?:\n|$)',
+            block_text, re.IGNORECASE
+        )
+        if analysis_match:
+            reasoning_parts.append(analysis_match.group(1).strip()[:300])
+        reasoning = " | ".join(reasoning_parts) if reasoning_parts else type_text[:200]
+
         picks.append(TipsterPick(
             source_site="ZawodTyper",
             tipster_name="ZawodTyper",
@@ -839,7 +905,7 @@ def parse_zawodtyper_html(html: str) -> list[TipsterPick]:
             market_type=classify_market(market, type_text),
             direction=extract_direction(market, type_text),
             odds=odds,
-            reasoning=type_text[:500],
+            reasoning=reasoning[:500],
             accuracy_pct=accuracy,
             confidence="medium" if accuracy and accuracy > 55 else "low",
             stats_cited=stats,
@@ -1143,21 +1209,158 @@ def parse_pickswise_html(html: str, url: str) -> list[TipsterPick]:
     return picks
 
 
-def parse_sportsgambler_html(html: str) -> list[TipsterPick]:
-    """Parse Sportsgambler predictions listing page.
+def _extract_sportsgambler_pred_urls(html: str) -> list[str]:
+    """Extract individual prediction page URLs from Sportsgambler listing."""
+    urls = []
+    seen = set()
+    # Pattern: /betting-tips/sport/team-vs-team-prediction-...-YYYY-MM-DD/
+    for m in re.finditer(r'href="(/betting-tips/[^"]*prediction[^"]*2026[^"]*)"', html):
+        url = m.group(1)
+        if url not in seen:
+            seen.add(url)
+            urls.append(f"https://www.sportsgambler.com{url}")
+    return urls
 
-    Sportsgambler shows match cards with team names, competition, and time.
-    Actual predictions (1X2, Over/Under) are on individual match pages.
-    We extract events + any visible prediction data from the listing.
+
+def parse_sportsgambler_detail_html(html: str, url: str) -> list[TipsterPick]:
+    """Parse a Sportsgambler individual prediction page — rich analysis text.
+
+    These pages have: match preview paragraphs, head-to-head stats, team form,
+    predicted lineups, and explicit prediction with odds.
     """
     picks = []
     now_iso = datetime.now(timezone.utc).isoformat()
 
-    # Pattern: Sportsgambler uses divs with team logos, competition, and "vs"
-    # Structure: competition → time → home team → "vs" → away team → "Predictions"
-    # Extract from the prediction link blocks
+    # Extract team names from URL: .../team1-vs-team2-prediction-...
+    url_match = re.search(r'/betting-tips/(\w+)/([\w-]+)-vs-([\w-]+)-prediction', url)
+    if not url_match:
+        return picks
+
+    sport_slug = url_match.group(1)
+    home_slug = url_match.group(2).replace("-", " ").title()
+    away_slug = url_match.group(3).replace("-", " ").title()
+
+    sport = "football"
+    if sport_slug in ("tennis",):
+        sport = "tennis"
+    elif sport_slug in ("basketball",):
+        sport = "basketball"
+    elif sport_slug in ("hockey", "ice-hockey"):
+        sport = "hockey"
+    elif sport_slug in ("volleyball",):
+        sport = "volleyball"
+
+    # Try extracting from <title> for better team names
+    title_match = re.search(r'<title>([^<]+)</title>', html)
+    if title_match:
+        title = title_match.group(1)
+        t_vs = re.search(r'([A-ZÀ-Ž][A-Za-zÀ-ž\s\.]+?)\s+vs?\s+([A-ZÀ-Ž][A-Za-zÀ-ž\s\.]+?)(?:\s+Prediction|\s+[-|])', title)
+        if t_vs:
+            home_slug = t_vs.group(1).strip()
+            away_slug = t_vs.group(2).strip()
+
+    if _is_garbage_event(home_slug, away_slug):
+        return picks
+
+    # Extract all meaningful paragraphs (analysis text)
+    paras = re.findall(r'<p[^>]*>(.*?)</p>', html, re.DOTALL)
+    analysis_lines = []
+    for p in paras:
+        text = re.sub(r'<[^>]+>', '', p).strip()
+        # Keep paragraphs that look like analysis (>60 chars, not ads/navigation)
+        if len(text) > 60 and not _is_garbage_reasoning(text):
+            analysis_lines.append(text)
+
+    reasoning = " ".join(analysis_lines[:5])[:800] if analysis_lines else ""
+
+    # Extract specific prediction/pick
+    pred_match = re.search(
+        r"(?:our|we)\s+(?:predict|pick|back|tip|select|expect|think)[^.]*\.",
+        reasoning, re.IGNORECASE
+    )
+    main_prediction = pred_match.group(0).strip() if pred_match else ""
+
+    # Extract market picks (over/under, corners, etc.)
+    market_picks = re.findall(
+        r'(?:over|under)\s+\d+\.?\d*\s+(?:goals?|corners?|cards?|fouls?|shots?)',
+        html, re.IGNORECASE
+    )
+    # Odds extraction
+    odds_match = re.search(
+        r'(?:odds?\s+(?:of\s+)?|@\s*|at\s+)(\d+\.\d{1,2})',
+        reasoning, re.IGNORECASE
+    )
+    odds = float(odds_match.group(1)) if odds_match else None
+    if odds and (odds < 1.01 or odds > 50):
+        odds = None
+
+    # Primary pick: the main prediction
+    market = main_prediction[:80] if main_prediction else "N/A"
+    if not main_prediction and market_picks:
+        market = market_picks[0]
+
+    stats = extract_stats_cited(reasoning)
+
+    picks.append(TipsterPick(
+        source_site="Sportsgambler",
+        tipster_name="Sportsgambler",
+        sport=sport,
+        event=f"{home_slug} vs {away_slug}",
+        home_team=home_slug,
+        away_team=away_slug,
+        competition="",
+        market=market,
+        market_type=classify_market(market, reasoning),
+        direction=extract_direction(market, reasoning),
+        odds=odds,
+        reasoning=reasoning,
+        accuracy_pct=None,
+        confidence="high" if main_prediction else "medium",
+        stats_cited=stats,
+        fetch_time=now_iso,
+    ))
+
+    # Additional picks from market_picks (statistical markets)
+    seen_markets = {market.lower()}
+    for mp in market_picks[:3]:
+        if mp.lower() in seen_markets:
+            continue
+        seen_markets.add(mp.lower())
+        picks.append(TipsterPick(
+            source_site="Sportsgambler",
+            tipster_name="Sportsgambler",
+            sport=sport,
+            event=f"{home_slug} vs {away_slug}",
+            home_team=home_slug,
+            away_team=away_slug,
+            competition="",
+            market=mp,
+            market_type="statistical",
+            direction=extract_direction(mp, ""),
+            odds=None,
+            reasoning=f"Market pick from analysis: {mp}",
+            accuracy_pct=None,
+            confidence="medium",
+            stats_cited=[],
+            fetch_time=now_iso,
+        ))
+
+    return picks
+
+
+def parse_sportsgambler_html(html: str) -> list[TipsterPick]:
+    """Parse Sportsgambler predictions listing page.
+
+    Extracts prediction page URLs from the listing. Individual pages are
+    fetched separately in the fetch_site loop for rich analysis text.
+    This function only extracts basic events from the listing as fallback.
+    """
+    picks = []
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    # Extract prediction URLs for follow-up fetching (stored in picks metadata)
     pred_pattern = re.compile(
-        r'<a[^>]*href="(/betting-tips/[^"]+predictions/[^"]+)"[^>]*>'
+        r'<a[^>]*href="(/betting-tips/[^"]+prediction[^"]*2026[^"]*)"[^>]*>'
         r'(.*?)</a>',
         re.DOTALL
     )
@@ -1176,20 +1379,17 @@ def parse_sportsgambler_html(html: str) -> list[TipsterPick]:
             continue
 
         # Look for "vs" or team name patterns
-        # Lines typically: time, competition, team1, "vs", team2
         home = away = competition = ""
         for i, line in enumerate(lines):
             if line.lower() in ("vs", "v", "vs."):
                 if i > 0 and i < len(lines) - 1:
                     home = lines[i - 1]
                     away = lines[i + 1]
-                    # Competition is usually 2 lines before home
                     if i >= 2:
                         competition = lines[i - 2]
                 break
 
         if not home or not away:
-            # Try alternative: team names separated by "vs" in a single line
             for line in lines:
                 vs_match = re.search(
                     r'([A-ZÀ-Ž][A-Za-zÀ-ž\.\s]+?)\s+vs\.?\s+([A-ZÀ-Ž][A-Za-zÀ-ž\.\s]+)',
@@ -1202,18 +1402,14 @@ def parse_sportsgambler_html(html: str) -> list[TipsterPick]:
 
         if not home or not away:
             continue
-
-        # Apply garbage filter
         if _is_garbage_event(home, away):
             continue
 
-        # Deduplicate
         event_key = f"{home.lower()}|{away.lower()}"
         if event_key in seen_events:
             continue
         seen_events.add(event_key)
 
-        # Detect sport from URL
         sport = "football"
         if "/tennis/" in link_url:
             sport = "tennis"
@@ -1230,45 +1426,6 @@ def parse_sportsgambler_html(html: str) -> list[TipsterPick]:
             home_team=home,
             away_team=away,
             competition=competition,
-            market="N/A",
-            market_type="outcome",
-            direction="OTHER",
-            odds=None,
-            reasoning=f"Prediction available: {link_url}",
-            accuracy_pct=None,
-            confidence="medium",
-            stats_cited=[],
-            fetch_time=now_iso,
-        ))
-
-    # Also parse the broader match listing (non-link blocks with "vs")
-    # These are match cards that might not be wrapped in prediction links
-    vs_pattern = re.compile(
-        r'([A-ZÀ-Ž][A-Za-zÀ-ž\.\s\']+?)\s+vs\.?\s+([A-ZÀ-Ž][A-Za-zÀ-ž\.\s\']+)',
-        re.UNICODE
-    )
-    text = re.sub(r'<[^>]+>', '\n', html)
-    for match in vs_pattern.finditer(text):
-        home = match.group(1).strip()
-        away = match.group(2).strip()
-        if _is_garbage_event(home, away):
-            continue
-        event_key = f"{home.lower()}|{away.lower()}"
-        if event_key in seen_events:
-            continue
-        seen_events.add(event_key)
-
-        context = text[max(0, match.start() - 200):match.end() + 300]
-        sport = detect_sport(context)
-
-        picks.append(TipsterPick(
-            source_site="Sportsgambler",
-            tipster_name="Sportsgambler",
-            sport=sport,
-            event=f"{home} vs {away}",
-            home_team=home,
-            away_team=away,
-            competition="",
             market="N/A",
             market_type="outcome",
             direction="OTHER",
@@ -1332,6 +1489,506 @@ def _extract_pickswise_pred_urls(html: str) -> list[str]:
     return urls
 
 
+def _extract_pickswise_news_urls(html: str) -> list[str]:
+    """Extract news article URLs from PicksWise listing page.
+
+    These /news/ articles contain rich per-match analysis text that is
+    server-rendered (unlike /predictions/ pages which need Playwright).
+    """
+    urls: list[str] = []
+    try:
+        nd_match = re.search(
+            r'<script[^>]*id="__NEXT_DATA__"[^>]*>(.*?)</script>',
+            html, re.DOTALL,
+        )
+        if nd_match:
+            nd = json.loads(nd_match.group(1))
+            # News article hrefs appear throughout the JSON
+            raw = nd_match.group(1)
+            for m in re.finditer(r'"href":"(/news/[^"]+)"', raw):
+                href = m.group(1)
+                # Skip category pages like /news/soccer/ or /news/nba/
+                # Real articles have long slugs: /news/premier-league-predictions-...
+                parts = [p for p in href.strip("/").split("/") if p]
+                if len(parts) < 2 or len(parts[1]) < 20:
+                    continue
+                full = f"https://www.pickswise.com{href}"
+                if full not in urls:
+                    urls.append(full)
+    except Exception:
+        pass
+
+    # Also try href attributes in rendered HTML
+    for m in re.finditer(r'href="(/news/[^"]+prediction[^"]+)"', html, re.IGNORECASE):
+        full = f"https://www.pickswise.com{m.group(1)}"
+        if full not in urls:
+            urls.append(full)
+
+    return urls
+
+
+def parse_pickswise_news_html(html: str, url: str) -> list[TipsterPick]:
+    """Parse PicksWise news article pages for per-match analysis.
+
+    These articles have structure:
+      <h2><b>Pick: Team A ML/spread/over over Team B (odds)</b></h2>
+      <p><span>Analysis paragraph 1</span></p>
+      <p><span>Analysis paragraph 2</span></p>
+    """
+    picks: list[TipsterPick] = []
+    now_iso = datetime.now(timezone.utc).isoformat()
+    sport = detect_sport("", url)
+
+    # Split HTML into lines for section parsing
+    # Find all h2 sections that look like picks
+    sections = re.split(r'<h2[^>]*>', html)
+
+    for section in sections[1:]:  # skip content before first h2
+        # Extract pick header
+        header_match = re.match(r'(.*?)</h2>', section, re.DOTALL)
+        if not header_match:
+            continue
+        header_raw = header_match.group(1)
+        header_text = re.sub(r'<[^>]+>', '', header_raw).strip()
+
+        # Must look like a pick: "best bet: X over/vs Y" or "pick: X ..." with odds
+        if not header_text or len(header_text) < 10:
+            continue
+
+        # Extract teams and market from header
+        # Patterns: "EPL best bet: Team A ML over Team B (-120)"
+        #           "Pick: Team A vs Team B Over 2.5 (+110)"
+        team_match = re.search(
+            r'(?:best bet|pick|prediction)[:\s]+(.+?)\s+(?:over|vs\.?|v)\s+(.+?)(?:\s*\(([+-]?\d+)\))?$',
+            header_text, re.IGNORECASE,
+        )
+
+        if not team_match:
+            # Try simpler pattern: "Team A vs Team B - Pick"
+            team_match = re.search(
+                r'(.+?)\s+(?:over|vs\.?|v)\s+(.+?)(?:\s*\(([+-]?\d+)\))?$',
+                header_text, re.IGNORECASE,
+            )
+
+        if not team_match:
+            continue
+
+        market_and_team_a = team_match.group(1).strip()
+        team_b_raw = team_match.group(2).strip()
+        odds_str = team_match.group(3)
+
+        # Parse American odds
+        odds_val = None
+        if odds_str:
+            try:
+                american = int(odds_str)
+                if american > 0:
+                    odds_val = round(1 + american / 100, 2)
+                else:
+                    odds_val = round(1 + 100 / abs(american), 2)
+            except ValueError:
+                pass
+
+        # Extract team names: market_and_team_a might be "Man City ML" or "Over 2.5 goals Man City"
+        # team_b_raw might be "Arsenal (-120)" (already stripped odds) or "Arsenal"
+        team_b = re.sub(r'\s*\([+-]?\d+\)\s*$', '', team_b_raw).strip()
+
+        # Try to separate market from team_a: look for known market keywords at end
+        market_kw = re.search(
+            r'\b(ML|moneyline|spread|over|under|BTTS|draw|win|double chance|'
+            r'total|handicap|goals|points|sets)\b.*$',
+            market_and_team_a, re.IGNORECASE,
+        )
+        if market_kw:
+            market_text = market_kw.group(0).strip()
+            team_a = market_and_team_a[:market_kw.start()].strip()
+        else:
+            market_text = header_text
+            team_a = market_and_team_a
+
+        # Clean team names
+        team_a = re.sub(r'\s+', ' ', team_a).strip()
+        team_b = re.sub(r'\s+', ' ', team_b).strip()
+
+        if not team_a or not team_b or len(team_a) < 2 or len(team_b) < 2:
+            continue
+        if _is_garbage_event(team_a, team_b):
+            continue
+
+        # Extract analysis paragraphs after the h2 until next h2 or end
+        body_section = section[header_match.end():]
+        # Stop at next h2 or at "Read our full" / "Also read" patterns
+        next_section = re.search(r'<h2[^>]*>', body_section)
+        if next_section:
+            body_section = body_section[:next_section.start()]
+
+        # Extract text from <p> and <span> tags
+        paragraphs = re.findall(r'<(?:p|span)[^>]*>(.*?)</(?:p|span)>', body_section, re.DOTALL)
+        reasoning_parts: list[str] = []
+        for p in paragraphs:
+            text = re.sub(r'<[^>]+>', ' ', p).strip()
+            text = re.sub(r'\s+', ' ', text)
+            # Decode HTML entities
+            text = html_module.unescape(text)
+            # Skip short fragments, promo text, "Read our full" links
+            if len(text) < 20:
+                continue
+            if re.search(r'Read our full|Also read|gambling problem|promo|courtesy of .* at the time', text, re.IGNORECASE):
+                continue
+            reasoning_parts.append(text)
+
+        reasoning_text = " ".join(reasoning_parts)[:1200]
+
+        if len(reasoning_text) < 30:
+            continue
+
+        event_name = f"{team_a} vs {team_b}"
+        picks.append(TipsterPick(
+            source_site="PicksWise",
+            tipster_name="PicksWise Expert",
+            sport=sport,
+            event=event_name,
+            home_team=team_a,
+            away_team=team_b,
+            competition="",
+            market=market_text,
+            market_type=classify_market(market_text, reasoning_text),
+            direction=extract_direction(market_text, reasoning_text),
+            odds=odds_val,
+            reasoning=reasoning_text,
+            accuracy_pct=None,
+            confidence="high",
+            stats_cited=extract_stats_cited(reasoning_text),
+            fetch_time=now_iso,
+        ))
+
+    return picks
+
+
+def _extract_betideas_detail_urls(html: str) -> list[str]:
+    """Extract individual match prediction URLs from BetIdeas listing page.
+
+    BetIdeas match pages have pattern: /league/team-a-vs-team-b-1234567
+    These are rendered in listing pages via AJAX (football-backend plugin).
+    """
+    urls: list[str] = []
+    seen = set()
+    for m in re.finditer(r'href="(https?://betideas\.com/[^"]*-vs-[^"]*)"', html):
+        url = m.group(1).rstrip("/")
+        if url not in seen:
+            seen.add(url)
+            urls.append(url)
+    # Also check relative URLs
+    for m in re.finditer(r'href="(/[^"]*-vs-[^"]*)"', html):
+        url = f"https://betideas.com{m.group(1).rstrip('/')}"
+        if url not in seen:
+            seen.add(url)
+            urls.append(url)
+    return urls
+
+
+def parse_betideas_detail_html(html: str, url: str) -> list[TipsterPick]:
+    """Parse BetIdeas individual match prediction page for analysis.
+
+    These pages have rich <p> content with match preview, H2H, form,
+    key players, and betting analysis.
+    """
+    picks: list[TipsterPick] = []
+    now_iso = datetime.now(timezone.utc).isoformat()
+    sport = detect_sport("", url)
+
+    # Extract teams from URL: /league/team-a-vs-team-b-1234567
+    url_parts = url.rstrip("/").split("/")
+    slug = url_parts[-1] if url_parts else ""
+    vs_match = re.match(r'^(.+?)-vs-(.+?)(?:-(\d+))?$', slug)
+    if not vs_match:
+        return picks
+
+    home = vs_match.group(1).replace("-", " ").strip().title()
+    away = vs_match.group(2).replace("-", " ").strip().title()
+
+    # Handle common abbreviations
+    for abbr in ["Fc", "Sc", "Ac", "Utd"]:
+        home = home.replace(f" {abbr}", f" {abbr.upper()}")
+        away = away.replace(f" {abbr}", f" {abbr.upper()}")
+
+    if _is_garbage_event(home, away):
+        return picks
+
+    # Extract paragraphs with analysis text
+    paragraphs = re.findall(r'<p>([^<]+)</p>', html)
+    reasoning_parts: list[str] = []
+    for p in paragraphs:
+        text = html_module.unescape(p).strip()
+        text = re.sub(r'\s+', ' ', text)
+        if len(text) < 30:
+            continue
+        # Skip boilerplate
+        if re.search(
+            r'gambling problem|responsible|18\+|sign up|bonus|cookie|'
+            r'Betting odds description|fractional odds|following are the',
+            text, re.IGNORECASE,
+        ):
+            continue
+        reasoning_parts.append(text)
+
+    reasoning_text = " ".join(reasoning_parts)[:1500]
+    if len(reasoning_text) < 50:
+        return picks
+
+    # Try to extract odds from the page
+    odds_val = None
+    odds_match = re.search(r'class="fbbackend-decimal-odds[^"]*"[^>]*>([^<]+)', html)
+    if odds_match:
+        try:
+            odds_val = float(odds_match.group(1).strip())
+        except ValueError:
+            pass
+
+    event_name = f"{home} vs {away}"
+    picks.append(TipsterPick(
+        source_site="BetIdeas",
+        tipster_name="BetIdeas Expert",
+        sport=sport,
+        event=event_name,
+        home_team=home,
+        away_team=away,
+        competition="",
+        market="Match Preview",
+        market_type="outcome",
+        direction="OTHER",
+        odds=odds_val,
+        reasoning=reasoning_text,
+        accuracy_pct=None,
+        confidence="medium",
+        stats_cited=extract_stats_cited(reasoning_text),
+        fetch_time=now_iso,
+    ))
+
+    return picks
+
+
+def _extract_feedinco_pred_urls(html: str) -> list[str]:
+    """Extract prediction page URLs from Feedinco homepage.
+
+    Feedinco lists today's predictions as /predictions/YYYY-MM-DD/Team-vs-Team-prediction
+    """
+    urls: list[str] = []
+    seen = set()
+    for m in re.finditer(r'href="(/predictions/\d{4}-\d{2}-\d{2}/[^"]+prediction)"', html):
+        path = m.group(1)
+        full = f"https://www.feedinco.com{path}"
+        if full not in seen:
+            seen.add(full)
+            urls.append(full)
+    return urls
+
+
+def parse_feedinco_detail_html(html: str, url: str) -> list[TipsterPick]:
+    """Parse Feedinco individual prediction page — rich match preview.
+
+    These Angular SSR pages have a "Match Preview" section with detailed
+    multi-paragraph analysis including form, H2H, tactical insights, and
+    a predicted score.
+    """
+    picks: list[TipsterPick] = []
+    now_iso = datetime.now(timezone.utc).isoformat()
+    sport = detect_sport("", url)
+
+    # Extract teams from URL: /predictions/2026-05-18/Arsenal-vs-Burnley-prediction
+    url_match = re.search(r'/predictions/[\d-]+/(.+?)-vs-(.+?)-prediction', url)
+    if not url_match:
+        return picks
+
+    home = url_match.group(1).replace("-", " ").strip()
+    away = url_match.group(2).replace("-", " ").strip()
+
+    if _is_garbage_event(home, away):
+        return picks
+
+    # Find the Match Preview section and extract text
+    preview_idx = html.find("Match Preview")
+    if preview_idx < 0:
+        preview_idx = html.find("match preview")
+    if preview_idx < 0:
+        # Try to find any substantial text block
+        preview_idx = 0
+
+    content_section = html[preview_idx:preview_idx + 20000]
+
+    # Extract text from <p> tags (may contain <a> links inside)
+    paragraphs = re.findall(r'<p[^>]*>(.*?)</p>', content_section, re.DOTALL)
+    reasoning_parts: list[str] = []
+    for p in paragraphs:
+        # Strip HTML tags but keep text
+        text = re.sub(r'<[^>]+>', ' ', p).strip()
+        text = re.sub(r'\s+', ' ', text)
+        text = html_module.unescape(text)
+        if len(text) < 30:
+            continue
+        if re.search(r'gambling|cookie|privacy|sign up|18\+|terms', text, re.IGNORECASE):
+            continue
+        reasoning_parts.append(text)
+
+    reasoning_text = " ".join(reasoning_parts)[:1500]
+    if len(reasoning_text) < 50:
+        return picks
+
+    # Try to extract predicted score from the analysis
+    market_text = "Match Preview"
+    score_match = re.search(r'(\d+)[–-](\d+)\s*(?:correct score|in favor|prediction)', reasoning_text)
+    if score_match:
+        market_text = f"Correct Score: {home} {score_match.group(1)}-{score_match.group(2)} {away}"
+
+    event_name = f"{home} vs {away}"
+    picks.append(TipsterPick(
+        source_site="Feedinco",
+        tipster_name="Feedinco Expert",
+        sport=sport,
+        event=event_name,
+        home_team=home,
+        away_team=away,
+        competition="",
+        market=market_text,
+        market_type=classify_market(market_text, reasoning_text),
+        direction=extract_direction(market_text, reasoning_text),
+        odds=None,
+        reasoning=reasoning_text,
+        accuracy_pct=None,
+        confidence="medium",
+        stats_cited=extract_stats_cited(reasoning_text),
+        fetch_time=now_iso,
+    ))
+
+    return picks
+
+
+def _extract_bettingclosed_pred_urls(html: str) -> list[str]:
+    """Extract prediction page URLs from BettingClosed homepage."""
+    urls: list[str] = []
+    seen = set()
+    for m in re.finditer(r'href="(/prediction/\d+/[^"]+)"', html):
+        path = m.group(1)
+        full = f"https://www.bettingclosed.com{path}"
+        if full not in seen:
+            seen.add(full)
+            urls.append(full)
+    return urls
+
+
+def parse_bettingclosed_detail_html(html: str, url: str) -> list[TipsterPick]:
+    """Parse BettingClosed prediction page for structured predictions.
+
+    These pages have: 1x2 prediction, recommended bet, correct score,
+    odds, and team names. No narrative analysis — just formatted prediction data.
+    """
+    picks: list[TipsterPick] = []
+    now_iso = datetime.now(timezone.utc).isoformat()
+    sport = detect_sport("", url)
+
+    # Extract team names from page
+    home_match = re.search(r'class="homeTeamName"[^>]*>([^<]+)', html)
+    away_match = re.search(r'class="awayTeamName"[^>]*>([^<]+)', html)
+    if not home_match or not away_match:
+        # Try URL pattern: /prediction/id/team1-team2
+        url_match = re.search(r'/prediction/\d+/(.+)', url)
+        if url_match:
+            slug = url_match.group(1)
+            parts = slug.split("-", 1) if "-" in slug else [slug, ""]
+            if len(parts) == 2:
+                home = parts[0].replace("-", " ").title()
+                away = parts[1].replace("-", " ").title()
+            else:
+                return picks
+        else:
+            return picks
+    else:
+        home = home_match.group(1).strip()
+        away = away_match.group(1).strip()
+
+    if _is_garbage_event(home, away):
+        return picks
+
+    # Extract predictions
+    reasoning_parts: list[str] = []
+
+    # Main prediction from h2: "Prediction Team1-Team2: 1x (Odd 1)"
+    pred_match = re.search(r'<h2[^>]*>Prediction\s+[^:]+:\s*([^<(]+)\s*\(Odd\s*([\d.]+)\)', html)
+    if not pred_match:
+        # Fallback without odds
+        pred_match = re.search(r'<h2[^>]*>Prediction\s+[^:]+:\s*([^<]+?)\s*</h2>', html)
+    if pred_match:
+        prediction = pred_match.group(1).strip()
+        odds_str = pred_match.group(2) if pred_match.lastindex and pred_match.lastindex >= 2 else None
+        reasoning_parts.append(f"Main prediction: {prediction}")
+        if odds_str:
+            reasoning_parts.append(f"Odds: {odds_str}")
+
+    # Recommended prediction
+    rec_match = re.search(r'Prediction\s+Recommended[^:]*:\s*<strong[^>]*>([^<]+)', html)
+    if rec_match:
+        recommended = rec_match.group(1).strip()
+        reasoning_parts.append(f"Recommended bet: {recommended}")
+
+    # Gol/NoGol prediction
+    gol_match = re.search(r'Prediction\s+Gol/NoGol[^:]*:\s*<strong[^>]*>([^<]+)', html)
+    if gol_match:
+        reasoning_parts.append(f"BTTS prediction: {gol_match.group(1).strip()}")
+
+    # Under/Over prediction
+    ou_match = re.search(r'Prediction\s+Under/Over[^:]*:\s*<strong[^>]*>([^<]+)', html)
+    if ou_match:
+        reasoning_parts.append(f"Over/Under prediction: {ou_match.group(1).strip()}")
+
+    # Correct score
+    score_match = re.search(r'Prediction correct score:\s*</h\d>\s*(\d+)\s*-\s*(\d+)', html, re.DOTALL)
+    if not score_match:
+        score_match = re.search(r'correct score[^<]*<[^>]*>(\d+)\s*-\s*(\d+)', html, re.IGNORECASE)
+    if score_match:
+        reasoning_parts.append(f"Predicted correct score: {home} {score_match.group(1)}-{score_match.group(2)} {away}")
+
+    # Extract competition
+    comp_match = re.search(r'class="titleChampionTxt"[^>]*>.*?<a[^>]*>([^<]+)', html, re.DOTALL)
+    competition = comp_match.group(1).strip() if comp_match else ""
+
+    reasoning_text = ". ".join(reasoning_parts)
+    if not reasoning_text:
+        return picks
+
+    # Try to parse odds from the prediction
+    odds_val = None
+    if pred_match and pred_match.lastindex and pred_match.lastindex >= 2:
+        try:
+            odds_val = float(pred_match.group(2))
+        except (ValueError, IndexError):
+            pass
+
+    # Determine market from prediction
+    market_text = pred_match.group(1).strip() if pred_match else "Match Prediction"
+
+    event_name = f"{home} vs {away}"
+    picks.append(TipsterPick(
+        source_site="BettingClosed",
+        tipster_name="BettingClosed",
+        sport=sport,
+        event=event_name,
+        home_team=home,
+        away_team=away,
+        competition=competition,
+        market=market_text,
+        market_type=classify_market(market_text, reasoning_text),
+        direction=extract_direction(market_text, reasoning_text),
+        odds=odds_val,
+        reasoning=reasoning_text,
+        accuracy_pct=None,
+        confidence="medium",
+        stats_cited=[],
+        fetch_time=now_iso,
+    ))
+
+    return picks
+
+
 # Per-site fetch timeout (seconds) — prevents one slow site from blocking the whole run
 SITE_FETCH_TIMEOUT = 45  # hard cap per site in ThreadPoolExecutor
 PLAYWRIGHT_TIMEOUT = 15  # per-page Playwright navigation timeout
@@ -1375,6 +2032,66 @@ def fetch_site(site_config: dict, date: datetime) -> dict:
                     result["picks"] = pw_picks
                     result["pick_count"] = len(pw_picks)
                     result["status"] = "success"
+
+                    # --- Post-Playwright enrichment: follow detail pages for rich analysis ---
+                    parser = site_config.get("parser", "generic")
+                    elapsed = time.time() - start
+                    remaining = SITE_FETCH_TIMEOUT - elapsed - 2
+
+                    if remaining > 5 and parser in ("sportsgambler", "pickswise", "betideas", "feedinco", "bettingclosed"):
+                        _log(f"  [tipster] {site_name}: enriching with detail pages ({remaining:.0f}s budget)")
+                        try:
+                            detail_urls = []
+                            detail_parser = None
+                            max_pages = 8
+
+                            if parser == "betideas":
+                                # BetIdeas: detail URLs come from Playwright picks (AJAX-rendered)
+                                detail_urls = [p.get("detail_url") for p in pw_picks if p.get("detail_url")]
+                                detail_parser = parse_betideas_detail_html
+                                max_pages = 6
+                            else:
+                                # Other sites: fetch listing page via HTTP to extract detail URLs
+                                if parser == "pickswise":
+                                    listing_url = "https://www.pickswise.com/soccer/"
+                                else:
+                                    listing_url = site_config.get("url", site_config.get("urls", [""])[0] if "urls" in site_config else "")
+                                listing_html = fetch(listing_url) if listing_url else ""
+
+                                if parser == "sportsgambler":
+                                    detail_urls = _extract_sportsgambler_pred_urls(listing_html) if listing_html else []
+                                    detail_parser = parse_sportsgambler_detail_html
+                                elif parser == "pickswise":
+                                    detail_urls = _extract_pickswise_news_urls(listing_html) if listing_html else []
+                                    detail_parser = parse_pickswise_news_html
+                                    max_pages = 5
+                                elif parser == "feedinco":
+                                    detail_urls = _extract_feedinco_pred_urls(listing_html) if listing_html else []
+                                    detail_parser = parse_feedinco_detail_html
+                                elif parser == "bettingclosed":
+                                    detail_urls = _extract_bettingclosed_pred_urls(listing_html) if listing_html else []
+                                    detail_parser = parse_bettingclosed_detail_html
+
+                            _log(f"  [tipster] {site_name}: found {len(detail_urls)} detail pages to follow")
+                            enriched = 0
+                            for detail_url in detail_urls[:max_pages]:
+                                if time.time() - start > SITE_FETCH_TIMEOUT - 3:
+                                    break
+                                try:
+                                    detail_html = fetch(detail_url)
+                                    if detail_html and len(detail_html) > 3000:
+                                        detail_picks = detail_parser(detail_html, detail_url)
+                                        if detail_picks:
+                                            result["picks"].extend([p.to_dict() for p in detail_picks])
+                                            enriched += len(detail_picks)
+                                except Exception:
+                                    continue
+                            if enriched:
+                                result["pick_count"] = len(result["picks"])
+                                _log(f"  [tipster] {site_name}: enriched with {enriched} detail picks (total: {result['pick_count']})")
+                        except Exception as e:
+                            _log(f"  [tipster] {site_name}: detail enrichment failed: {e}")
+
                     result["fetch_time_ms"] = int((time.time() - start) * 1000)
                     return result
                 else:
@@ -1392,6 +2109,7 @@ def fetch_site(site_config: dict, date: datetime) -> dict:
             urls = [site_config["url"]]
 
         all_picks = []
+        fetch_errors = 0
         for url_idx, url in enumerate(urls):
             elapsed = time.time() - start
             if elapsed > SITE_FETCH_TIMEOUT - 5:
@@ -1411,18 +2129,99 @@ def fetch_site(site_config: dict, date: datetime) -> dict:
                     picks = parse_zawodtyper_html(html)
                 elif parser == "pickswise":
                     picks = parse_pickswise_html(html, url)
-                    pred_urls = _extract_pickswise_pred_urls(html)
-                    for pidx, pred_url in enumerate(pred_urls[:3]):
+                    # Follow news article pages (SSR — rich analysis text)
+                    news_urls = _extract_pickswise_news_urls(html)
+                    _log(f"  [tipster] {site_name}: found {len(news_urls)} news articles to follow")
+                    for nidx, news_url in enumerate(news_urls[:5]):
                         if time.time() - start > SITE_FETCH_TIMEOUT - 5:
+                            _log(f"  [tipster] {site_name}: time budget reached at {nidx}/{len(news_urls)} articles")
                             break
                         try:
-                            pred_html = fetch(pred_url)
-                            if pred_html:
-                                picks.extend(parse_pickswise_html(pred_html, pred_url))
-                        except Exception:
+                            news_html = fetch(news_url)
+                            if news_html and len(news_html) > 5000:
+                                news_picks = parse_pickswise_news_html(news_html, news_url)
+                                if news_picks:
+                                    picks.extend(news_picks)
+                                    _log(f"    ✓ {news_url.split('/')[-2][:50]}: {len(news_picks)} picks with analysis")
+                        except Exception as e:
+                            _log(f"    ✗ {news_url.split('/')[-2][:50]}: {str(e)[:60]}")
                             continue
                 elif parser == "sportsgambler":
                     picks = parse_sportsgambler_html(html)
+                    # Follow individual prediction pages for rich analysis
+                    detail_urls = _extract_sportsgambler_pred_urls(html)
+                    _log(f"  [tipster] {site_name}: found {len(detail_urls)} prediction pages to follow")
+                    for didx, detail_url in enumerate(detail_urls[:8]):
+                        if time.time() - start > SITE_FETCH_TIMEOUT - 5:
+                            _log(f"  [tipster] {site_name}: time budget reached, stopping at {didx}/{len(detail_urls)} detail pages")
+                            break
+                        try:
+                            detail_html = fetch(detail_url)
+                            if detail_html and len(detail_html) > 5000:
+                                detail_picks = parse_sportsgambler_detail_html(detail_html, detail_url)
+                                if detail_picks:
+                                    picks.extend(detail_picks)
+                                    _log(f"    ✓ {detail_url.split('/')[-2]}: {len(detail_picks)} picks with analysis")
+                        except Exception as e:
+                            _log(f"    ✗ {detail_url.split('/')[-2]}: {str(e)[:80]}")
+                            continue
+                elif parser == "betideas":
+                    picks = parse_generic_tipster_html(html, site_name, url)
+                    # Follow individual match detail pages for rich analysis
+                    detail_urls = _extract_betideas_detail_urls(html)
+                    _log(f"  [tipster] {site_name}: found {len(detail_urls)} match detail pages")
+                    for didx, detail_url in enumerate(detail_urls[:6]):
+                        if time.time() - start > SITE_FETCH_TIMEOUT - 5:
+                            _log(f"  [tipster] {site_name}: time budget reached at {didx}/{len(detail_urls)} pages")
+                            break
+                        try:
+                            detail_html = fetch(detail_url)
+                            if detail_html and len(detail_html) > 5000:
+                                detail_picks = parse_betideas_detail_html(detail_html, detail_url)
+                                if detail_picks:
+                                    picks.extend(detail_picks)
+                                    _log(f"    ✓ {detail_url.split('/')[-1][:50]}: {len(detail_picks)} picks with analysis")
+                        except Exception as e:
+                            _log(f"    ✗ {detail_url.split('/')[-1][:50]}: {str(e)[:60]}")
+                            continue
+                elif parser == "feedinco":
+                    picks = parse_generic_tipster_html(html, site_name, url)
+                    # Follow individual prediction pages for rich analysis
+                    pred_urls = _extract_feedinco_pred_urls(html)
+                    _log(f"  [tipster] {site_name}: found {len(pred_urls)} prediction pages")
+                    for pidx, pred_url in enumerate(pred_urls[:8]):
+                        if time.time() - start > SITE_FETCH_TIMEOUT - 5:
+                            _log(f"  [tipster] {site_name}: time budget reached at {pidx}/{len(pred_urls)} pages")
+                            break
+                        try:
+                            pred_html = fetch(pred_url)
+                            if pred_html and len(pred_html) > 5000:
+                                pred_picks = parse_feedinco_detail_html(pred_html, pred_url)
+                                if pred_picks:
+                                    picks.extend(pred_picks)
+                                    _log(f"    ✓ {pred_url.split('/')[-1][:50]}: {len(pred_picks)} picks")
+                        except Exception as e:
+                            _log(f"    ✗ {pred_url.split('/')[-1][:50]}: {str(e)[:60]}")
+                            continue
+                elif parser == "bettingclosed":
+                    picks = parse_generic_tipster_html(html, site_name, url)
+                    # Follow individual prediction pages for structured data
+                    pred_urls = _extract_bettingclosed_pred_urls(html)
+                    _log(f"  [tipster] {site_name}: found {len(pred_urls)} prediction pages")
+                    for pidx, pred_url in enumerate(pred_urls[:8]):
+                        if time.time() - start > SITE_FETCH_TIMEOUT - 5:
+                            _log(f"  [tipster] {site_name}: time budget reached at {pidx}/{len(pred_urls)} pages")
+                            break
+                        try:
+                            pred_html = fetch(pred_url)
+                            if pred_html and len(pred_html) > 3000:
+                                pred_picks = parse_bettingclosed_detail_html(pred_html, pred_url)
+                                if pred_picks:
+                                    picks.extend(pred_picks)
+                                    _log(f"    ✓ {pred_url.split('/')[-1][:40]}: {len(pred_picks)} picks")
+                        except Exception as e:
+                            _log(f"    ✗ {pred_url.split('/')[-1][:40]}: {str(e)[:60]}")
+                            continue
                 else:
                     picks = parse_generic_tipster_html(html, site_name, url)
 
@@ -1433,11 +2232,18 @@ def fetch_site(site_config: dict, date: datetime) -> dict:
 
             except Exception as e:
                 result["error"] = f"Fetch failed for {url}: {str(e)[:200]}"
+                fetch_errors += 1
                 continue
 
         result["picks"] = [p.to_dict() for p in all_picks]
         result["pick_count"] = len(all_picks)
-        result["status"] = "success" if all_picks else "empty"
+        # Mark as "error" if all URLs failed with fetch errors, "empty" if fetched but no picks parsed
+        if all_picks:
+            result["status"] = "success"
+        elif fetch_errors > 0 and fetch_errors >= len(urls):
+            result["status"] = "error"
+        else:
+            result["status"] = "empty"
 
     except Exception as e:
         result["status"] = "error"
@@ -1515,8 +2321,9 @@ def compute_consensus(all_picks: list[dict]) -> list[dict]:
             "tipster_sources": list({p.get("source_site", "") for p in picks}),
             "picks": picks,
             # Confidence adjustment based on §4 methodology
+            # Require >=2 unique sources for positive boost (single-source = no consensus)
             "confidence_adj": (
-                +0.5 if agreement_pct >= 70
+                +0.5 if agreement_pct >= 70 and total >= 2
                 else -1.0 if agreement_pct <= 30 and total >= 3
                 else 0.0
             ),

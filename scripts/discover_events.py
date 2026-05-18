@@ -36,6 +36,8 @@ def main():
         print(f"[discover_events] Starting discovery for {args.date}")
         if sports:
             print(f"[discover_events] Sports filter: {sports}")
+        if args.stats_first:
+            print(f"[discover_events] Stats-first mode: events without odds will be included")
 
     result = discover_events(
         date=args.date,

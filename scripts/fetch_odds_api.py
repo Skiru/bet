@@ -19,6 +19,7 @@ import os
 import sys
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
+from agent_output import AgentOutput, add_agent_args
 
 # --- DB support (optional — falls back gracefully) ---
 try:
@@ -537,24 +538,37 @@ def main():
     parser.add_argument("--sports", type=str, help="Comma-separated sports to fetch (e.g., football,hockey)")
     parser.add_argument("--scores", type=str, help="Fetch scores for settlement (e.g., football,hockey)")
     parser.add_argument("--no-window", action="store_true", help="Don't filter by betting day window")
+    add_agent_args(parser)
     args = parser.parse_args()
+
+    out = AgentOutput("s_odds", verbose=getattr(args, 'verbose', False), stop_on_error=getattr(args, 'stop_on_error', False))
 
     api_key = get_api_key()
 
     if args.list_sports:
-        list_sports(api_key)
+        sports = list_sports(api_key)
+        out.summary(verdict="OK", metrics={"mode": "list_sports", "sports_count": len(sports)})
         return
 
     if args.scores:
         sport_filter = [s.strip() for s in args.scores.split(",")]
         run_scores(api_key, sport_filter)
+        out.summary(verdict="OK", metrics={"mode": "scores", "sports": sport_filter})
         return
 
     sport_filter = None
     if args.sports:
         sport_filter = [s.strip() for s in args.sports.split(",")]
 
-    run_full_scan(api_key, sport_filter=sport_filter, betting_day_window=not args.no_window)
+    events = run_full_scan(api_key, sport_filter=sport_filter, betting_day_window=not args.no_window)
+    out.summary(
+        verdict="OK" if events else "PARTIAL",
+        metrics={
+            "mode": "full_scan",
+            "events_fetched": len(events) if events else 0,
+            "sports_scanned": sport_filter or list(SPORT_KEY_MAP.keys()),
+        },
+    )
 
 
 if __name__ == "__main__":

@@ -268,6 +268,7 @@ def main():
     parser.add_argument("--event-id", type=str, help="Fetch specific event by ESPN ID")
     parser.add_argument("--list-sports", action="store_true", help="List available sports/leagues")
     parser.add_argument("--no-persist-db", action="store_true", help="Skip DB persistence")
+    parser.add_argument("--verbose", action="store_true", help="Verbose output (R17 compliance)")
     args = parser.parse_args()
 
     if args.list_sports:
@@ -298,6 +299,21 @@ def main():
     if not args.no_persist_db:
         _persist_to_db(snapshot)
 
+    # AGENT_SUMMARY (R19)
+    import json as _json
+    summary = {
+        "step": "espn_odds",
+        "verdict": "OK" if snapshot.get("total_events", 0) > 0 else "PARTIAL",
+        "metrics": {
+            "total_events": snapshot.get("total_events", 0),
+            "sports_covered": len(snapshot.get("by_sport", {})),
+            "cost": "FREE",
+        },
+        "issues": [],
+        "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S"),
+    }
+    print(f"\nAGENT_SUMMARY:{_json.dumps(summary)}")
+
 
 def _persist_to_db(snapshot: dict) -> None:
     """Persist ESPN odds snapshot to SQLite database."""
@@ -324,10 +340,26 @@ def _persist_to_db(snapshot: dict) -> None:
                 away = event.get("away_team", "")
                 # Try to find fixture by team names
                 fixture_row = conn.execute(
-                    "SELECT id FROM fixtures WHERE home_team = ? AND away_team = ? "
-                    "ORDER BY kickoff DESC LIMIT 1",
+                    "SELECT f.id FROM fixtures f "
+                    "JOIN teams t1 ON f.home_team_id = t1.id "
+                    "JOIN teams t2 ON f.away_team_id = t2.id "
+                    "WHERE t1.name = ? AND t2.name = ? "
+                    "ORDER BY f.kickoff DESC LIMIT 1",
                     (home, away),
                 ).fetchone()
+
+                if not fixture_row and home and away:
+                    home_simpl = f"%{home.split()[0]}%"
+                    away_simpl = f"%{away.split()[0]}%"
+                    fixture_row = conn.execute(
+                        "SELECT f.id FROM fixtures f "
+                        "JOIN teams t1 ON f.home_team_id = t1.id "
+                        "JOIN teams t2 ON f.away_team_id = t2.id "
+                        "WHERE t1.name LIKE ? AND t2.name LIKE ? "
+                        "ORDER BY f.kickoff DESC LIMIT 1",
+                        (home_simpl, away_simpl),
+                    ).fetchone()
+
                 if not fixture_row:
                     continue
                 fixture_id = fixture_row["id"]

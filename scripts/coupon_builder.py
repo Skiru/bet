@@ -239,7 +239,148 @@ def _build_rich_description(pick: dict) -> str:
         lines.append("")
         lines.extend(analysis_parts)
 
+    # Tipster insight section
+    tipster_section = _build_tipster_insight(pick)
+    if tipster_section:
+        lines.append("")
+        lines.append(tipster_section)
+
     return "\n".join(lines)
+
+
+def _build_tipster_insight(pick: dict) -> str:
+    """Build tipster insight section showing tipster predictions for this event.
+
+    Shows what tipsters predicted (source, market, reasoning) and compares
+    with our analysis when they disagree.
+    """
+    tipster_support = pick.get("tipster_support") or {}
+    tips = tipster_support.get("tips", [])
+
+    # DB fallback if tipster_support not present in gate output
+    if not tips:
+        tips = _get_tipster_data_fallback(
+            pick.get("home_team", ""),
+            pick.get("away_team", ""),
+            pick.get("betting_date", ""),
+        )
+
+    if not tips:
+        return ""
+
+    lines = ["🎯 TIPSTER INSIGHT:"]
+
+    our_market = (pick.get("best_market") or {}).get("name", "")
+    our_direction = (pick.get("best_market") or {}).get("direction", "")
+    our_line = (pick.get("best_market") or {}).get("line")
+    our_safety = (pick.get("best_market") or {}).get("safety_score")
+    our_l10_avg = (pick.get("best_market") or {}).get("l10_avg")
+
+    any_agrees = False
+    for tip in tips[:4]:  # Max 4 tipsters shown
+        source = tip.get("source_site") or tip.get("tipster") or tip.get("source") or "?"
+        accuracy = tip.get("accuracy_pct")
+        market = tip.get("market") or tip.get("market_type") or ""
+        direction = tip.get("direction") or ""
+        odds = tip.get("odds")
+        reasoning = tip.get("reasoning") or ""
+
+        # Format source with accuracy
+        source_str = source
+        if accuracy is not None:
+            source_str = f"{source} ({accuracy}% acc)"
+
+        # Format market prediction
+        market_str = f"{market} {direction}" if direction else market
+        if odds:
+            market_str += f" @{_safe_float(odds):.2f}"
+
+        # Truncate reasoning
+        reasoning_str = ""
+        if reasoning:
+            r = reasoning.strip().replace("\n", " ")
+            reasoning_str = f' — "{r[:80]}{"..." if len(r) > 80 else ""}"'
+
+        lines.append(f"• {source_str}: {market_str}{reasoning_str}")
+
+        # Check if tipster agrees with our pick (require >=5 char overlap)
+        if market and our_market and len(market) >= 5:
+            tip_market_lower = market.lower().replace("_", " ").replace("-", " ")
+            our_market_lower = our_market.lower().replace("_", " ").replace("-", " ")
+            if tip_market_lower in our_market_lower or our_market_lower in tip_market_lower:
+                any_agrees = True
+
+    # Show our pick comparison
+    if our_market:
+        our_desc = format_market_polish(our_market, our_direction, our_line)
+        details = []
+        if our_safety:
+            details.append(f"safety {our_safety:.2f}")
+        if our_l10_avg:
+            details.append(f"L10 avg {our_l10_avg:.1f}")
+        detail_str = f" ({', '.join(details)})" if details else ""
+
+        if any_agrees:
+            lines.append(f"✓ ZGODNOŚĆ: Nasz wybór {our_desc}{detail_str} wspierany przez tipsterów")
+        else:
+            lines.append(f"↔ NASZ WYBÓR: {our_desc}{detail_str}")
+            # Brief explanation why our pick differs
+            if our_safety and our_safety >= 0.60:
+                lines.append(f"   Różnica: Nasz rynek ma wyższy safety score — dane statystyczne mocniejsze niż opinia tipsterów")
+            elif our_l10_avg and our_line and our_l10_avg > our_line:
+                margin = round((our_l10_avg / our_line - 1) * 100)
+                lines.append(f"   Różnica: L10 średnia {margin}% powyżej linii — statystyczny margines bezpieczeństwa")
+
+    return "\n".join(lines)
+
+
+def _get_tipster_data_fallback(home: str, away: str, date: str) -> list:
+    """DB fallback: query TipsterRepo when tipster_support not in gate output."""
+    if not home or not away or not date:
+        return []
+    try:
+        from bet.db.connection import get_db
+        from bet.db.repositories import TipsterRepo
+        from rapidfuzz import fuzz
+
+        with get_db() as conn:
+            repo = TipsterRepo(conn)
+            all_picks = repo.get_picks_by_date(date)
+            if not all_picks:
+                return []
+
+            home_lower = home.strip().lower()
+            away_lower = away.strip().lower()
+            matched = []
+            for p in all_picks:
+                p_home = (p.home_team or "").strip().lower()
+                p_away = (p.away_team or "").strip().lower()
+                # Exact match
+                if p_home == home_lower and p_away == away_lower:
+                    matched.append(_tipster_pick_to_dict(p))
+                    continue
+                # Fuzzy match
+                score_h = fuzz.token_sort_ratio(home_lower, p_home)
+                score_a = fuzz.token_sort_ratio(away_lower, p_away)
+                if score_h >= 70 and score_a >= 70:
+                    matched.append(_tipster_pick_to_dict(p))
+            return matched
+    except Exception:
+        return []
+
+
+def _tipster_pick_to_dict(p) -> dict:
+    """Convert TipsterPick model to dict for rendering."""
+    return {
+        "source_site": p.source_site,
+        "tipster_name": p.tipster_name,
+        "market": p.market,
+        "market_type": p.market_type,
+        "direction": p.direction,
+        "odds": p.odds,
+        "reasoning": p.reasoning,
+        "accuracy_pct": p.accuracy_pct,
+    }
 
 
 def _event_key(pick: dict) -> str:

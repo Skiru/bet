@@ -59,6 +59,19 @@ Required sections:
    - 1-2 sentences explaining WHY these specific legs were combined.
    - State P(coupon) estimate: "Szacowane prawdopodobieństwo: ~XX%".
    - State the biggest risk: "Największe ryzyko: [specific scenario]".
+   - **TIPSTER INSIGHT** (per leg, appended to rich description by `coupon_builder.py`):
+     ```
+     🎯 TIPSTER INSIGHT:
+     • [Source] ([accuracy]% acc): [market] [direction] @[odds] — "[reasoning excerpt]"
+     • [Source2]: [market] [direction] @[odds] — "[reasoning excerpt]"
+     ✓ ZGODNOŚĆ: Nasz wybór [opis] wspierany przez tipsterów
+     ```
+     Or when tipsters disagree:
+     ```
+     ↔ NASZ WYBÓR: [opis] (safety X.XX, L10 avg Y.Y)
+        Różnica: [brief explanation why our analysis chose differently]
+     ```
+     Rule: ALWAYS show tipster predictions even when they completely disagree with our pick.
 3. PODSUMOWANIE table:
    - Wydatek (total spend)
    - Bankroll po (bankroll after placing)

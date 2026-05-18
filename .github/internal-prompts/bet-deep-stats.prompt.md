@@ -130,6 +130,13 @@ The orchestrator has already:
 - `pylanceRunCodeSnippet` — read deep stats JSON for per-candidate details, query DB for team_form/analysis_results
 - `read_file` — read output files for deeper inspection
 - `sequentialthinking` — reason PER CANDIDATE (5-part Analytical Reasoning Layer) — this is your PRIMARY analytical tool
+- **H2H retrieval:** If H2H data missing for a candidate, query DB directly:
+  ```python
+  from scripts.db_data_loader import load_h2h_from_db
+  h2h = load_h2h_from_db("Team A", "Team B", "football")
+  # Or via SQL: SELECT stat_key, h2h_values FROM team_form WHERE team_id=? AND h2h_opponent_id=?
+  ```
+  H2H source: Google Sports client (SerpAPI) → Flashscore curl_cffi fallback → `team_form.h2h_values`
 
 **What you MUST NOT do:**
 - Run `deep_stats_report.py` or any other pipeline script

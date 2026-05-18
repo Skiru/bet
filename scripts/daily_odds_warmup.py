@@ -2,15 +2,19 @@
 """S0.1 — Daily Odds Warm-Up (Stealth Dump)
 
 This script runs at the very beginning of the pipeline (or orchestrated daily)
-to safely fetch the HTML from Betclic/OddsPortal using Playwright with stealth 
-injections. It dumps the CSS/HTML to a local cache to prevent getting 403s on 
-frequent programmatic accesses.
+to safely fetch the HTML from Betclic using Playwright with stealth injections.
+It dumps the HTML to a local cache to prevent getting 403s on frequent accesses.
 
-Downstream scripts and DB loaders can then parse these HTML files using local Regex
-or BeautifulSoup instantly.
+Downstream scripts (parse_betclic_html.py) parse these HTML files locally.
+
+Usage:
+    python3 scripts/daily_odds_warmup.py --verbose
+    python3 scripts/daily_odds_warmup.py --date 2026-05-18 --verbose
 """
 
+import argparse
 import asyncio
+import json
 from playwright.async_api import async_playwright
 from playwright_stealth import Stealth
 import datetime
@@ -27,8 +31,8 @@ TARGETS = [
     {"source": "betclic", "sport": "hockey", "url": "https://www.betclic.pl/hokej-na-lodzie-s13"},
 ]
 
-async def stealth_fetch_and_dump():
-    today = datetime.datetime.now().strftime("%Y-%m-%d")
+async def stealth_fetch_and_dump(target_date: str | None = None, verbose: bool = False):
+    today = target_date or datetime.datetime.now().strftime("%Y-%m-%d")
     print(f"Starting Stealth HTML Dump for {today}")
     
     try:
@@ -119,5 +123,20 @@ async def stealth_fetch_and_dump():
         await browser.close()
         print("Warmup complete. HTML dumps ready for local parsing.")
 
+    # AGENT_SUMMARY (R19)
+    cached_files = list(CACHE_DIR.glob(f"{today}_betclic_*.html"))
+    summary = {
+        "step": "s0_warmup",
+        "verdict": "OK" if len(cached_files) >= 4 else ("PARTIAL" if cached_files else "FAILED"),
+        "metrics": {"files_cached": len(cached_files), "target_date": today},
+        "issues": [],
+        "ts": datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+    }
+    print(f"\nAGENT_SUMMARY:{json.dumps(summary)}")
+
 if __name__ == "__main__":
-    asyncio.run(stealth_fetch_and_dump())
+    parser = argparse.ArgumentParser(description="Betclic HTML Warm-Up (Stealth)")
+    parser.add_argument("--date", type=str, default=None, help="Target date YYYY-MM-DD")
+    parser.add_argument("--verbose", action="store_true", help="Verbose output")
+    args = parser.parse_args()
+    asyncio.run(stealth_fetch_and_dump(target_date=args.date, verbose=args.verbose))
