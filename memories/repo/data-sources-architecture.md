@@ -28,7 +28,7 @@ Volleyball:   ESPN → Flashscore scan data → CEV/PlusLiga
 | Client | Status | Notes |
 |--------|--------|-------|
 | ESPN | WORKING, free, no key | Football, basketball, hockey, tennis, volleyball |
-| Flashscore | WORKING (stealth Playwright) | Primary scan source, DOM scraping |
+| Flashscore | WORKING (curl_cffi impersonate=chrome110) | Primary enrichment source, entity resolution + results page HTML |
 | MoneyPuck | WORKING, free CSV API | 32 NHL teams, 40 stat keys, no auth/Cloudflare |
 | The-Odds-API | WORKING, 500/month free | Odds only, 30 credits/scan |
 | API-Football | WORKING | api-sports.io, key required |

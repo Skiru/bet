@@ -1,21 +1,30 @@
 # Pipeline Knowledge Base — Consolidated (May 4-18, 2026, updated 2026-05-18)
 
-## 🆕 FLASHSCORE: PLAYWRIGHT BANNED, CURL_CFFI ONLY — 2026-05-18
+## 🆕 ENRICHMENT: PLAYWRIGHT FULLY REMOVED, CURL_CFFI ONLY — 2026-05-18
 
-### Problem
+### Problem (original)
 `enrich_h2h()` used fake URL pattern `flashscore.com/h2h/{team_a}/{team_b}/` which does NOT exist on Flashscore → 100% 404s. Each 404 triggered Playwright fallback via `fetch()` → saturated rate limiter (10/10) → blocked ALL other Playwright enrichment.
 
 Additionally, `web_research_agent.py` had flashscore.com URLs with guessed slugs (no entity ID) for injuries/form/coach — all guaranteed failures wasting the daily counter.
 
-### Fix Applied
-1. **`_PLAYWRIGHT_BLOCKED_DOMAINS`** added to `data_enrichment_agent.py` — `{"flashscore.com", "www.flashscore.com", "s.flashscore.com"}`. Prevents Playwright fallback for these domains in both `fetch()` and `_fetch_stealth()`.
-2. **`enrich_h2h()`** rewritten — now uses `_get_flashscore_entity()` (curl_cffi search API) to resolve proper entity_type/slug/entity_id, then fetches `/results/` page via curl_cffi directly. Zero Playwright cost.
-3. **`web_research_agent.py`** — ALL flashscore.com URLs removed from `_build_search_urls()` and `PREFERRED_DOMAINS`. Replaced with sofascore/soccerway/transfermarkt.
+### Fix Applied (2 phases)
+**Phase 1:** Flashscore-specific (early 2026-05-18)
+1. `_PLAYWRIGHT_BLOCKED_DOMAINS` added — flashscore.com domains blocked from Playwright fallback
+2. `enrich_h2h()` rewritten with curl_cffi entity resolution
+3. `web_research_agent.py` purged of flashscore URLs
 
-### Rule: Flashscore Access (PERMANENT)
-- **ONLY** `curl_cffi` with `impersonate="chrome110"` — via `flashscore_enricher.py`
-- **NEVER** Playwright, requests, urllib for flashscore.com
-- **Correct URL:** `https://www.flashscore.com/{entity_type}/{slug}/{entity_id}/results/`
+**Phase 2:** Complete Playwright removal from enrichment (2026-05-18)
+4. **`_fetch_stealth()` rewritten** — 70-line Playwright+stealth+greenlet code replaced with 30-line `curl_cffi.requests.get(impersonate="chrome110")` with 2-attempt retry
+5. **`fetch()` fallback** — now uses curl_cffi stealth instead of Playwright browser for 403/429
+6. **Thread safety** — curl_cffi is thread-safe (no greenlet conflicts), enables full parallel enrichment
+7. **Eliminated** — `playwright.sync_api`, `playwright_stealth` imports, all thread/asyncio guards
+
+### Rule: Enrichment Access (PERMANENT)
+- **Flashscore:** ONLY `curl_cffi` with `impersonate="chrome110"` — via `flashscore_enricher.py`
+- **All domains in enrichment:** `_fetch_stealth()` uses `curl_cffi` (NOT Playwright)
+- **NEVER** Playwright for ANY enrichment fetch (data_enrichment_agent.py is Playwright-free)
+- **Playwright still used by:** `daily_odds_warmup.py`, `tipster_aggregator.py`, `SoccerwayClient`, `OddsPortalClient` (separate subsystems)
+- **Correct Flashscore URL:** `https://www.flashscore.com/{entity_type}/{slug}/{entity_id}/results/`
 - **Search API:** `https://s.flashscore.com/search/?q={team}&l=1&sid={sport_id}&pid=1&f=1;1` (header: `x-fsign: SW9D1eZo`)
 - **DOES NOT EXIST:** `/h2h/`, `/team/{guessed-slug}/` (without entity_id)
 

@@ -95,12 +95,127 @@ class SerpAPIClient(BaseAPIClient):
         return []
 
     def get_fixture_stats(self, fixture_id: str) -> NormalizedMatchStats | None:
-        """SerpAPI doesn't provide per-fixture stats — return None."""
+        """SerpAPI doesn't provide per-fixture stats by ID — return None.
+
+        Use get_match_stats(team1, team2) instead for match-level data.
+        """
         return None
 
     def get_h2h(self, team1_id: str, team2_id: str, last_n: int = 10) -> list:
-        """Not supported by SerpAPI."""
-        return []
+        """Get H2H data by querying Google for 'team1 vs team2'.
+
+        Returns list of NormalizedFixture from previous encounters.
+        """
+        match_data = self.get_match_stats(team1_id, team2_id)
+        if not match_data:
+            return []
+
+        fixtures = []
+        for game in match_data.get("previous_encounters", [])[:last_n]:
+            fixtures.append(NormalizedFixture(
+                fixture_id=f"serp-h2h-{team1_id}-{team2_id}-{game.get('date', '')}".replace(" ", "_"),
+                source=self.api_name,
+                sport="",
+                competition=game.get("tournament", ""),
+                home_team=game.get("home_team", team1_id),
+                away_team=game.get("away_team", team2_id),
+                kickoff=game.get("date", ""),
+                status="FT",
+            ))
+        return fixtures
+
+    def get_match_stats(self, team1: str, team2: str) -> dict:
+        """Query Google for 'team1 vs team2' and extract structured match data.
+
+        Returns dict with keys:
+          - game_spotlight: current/next match info (date, teams, scores)
+          - match_stats: per-stat breakdown (corners, shots, possession, etc.)
+          - previous_encounters: list of H2H results
+          - team_form: recent results for each team
+          - raw_sports_results: the full sports_results object for manual inspection
+        """
+        query = f"{team1} vs {team2}"
+        data = self._search(query)
+        if not data:
+            return {}
+
+        result = {}
+        sr = data.get("sports_results", {})
+        if not sr:
+            return {}
+
+        result["raw_sports_results"] = sr
+
+        # Extract game spotlight (upcoming/current match)
+        spotlight = sr.get("game_spotlight", sr.get("match", {}))
+        if spotlight:
+            result["game_spotlight"] = spotlight
+
+        # Extract match statistics (for completed matches)
+        # SerpAPI returns these under various keys depending on sport
+        for stats_key in ["statistics", "match_statistics", "stats"]:
+            if stats_key in sr:
+                result["match_stats"] = self._parse_match_statistics(sr[stats_key])
+                break
+
+        # Extract previous encounters / H2H
+        for h2h_key in ["previous_encounters", "head_to_head", "past_meetings"]:
+            if h2h_key in sr:
+                encounters = sr[h2h_key]
+                if isinstance(encounters, list):
+                    result["previous_encounters"] = encounters
+                break
+
+        # Extract games list (recent results)
+        games = sr.get("games", [])
+        if games:
+            result["team_form"] = games
+
+        return result
+
+    def _parse_match_statistics(self, stats_raw) -> dict:
+        """Parse match statistics into normalized format.
+
+        Input varies: could be list of {"name": "Corners", "home": "5", "away": "3"}
+        or dict of {"corners": {"home": 5, "away": 3}}.
+        Returns: {"corners": {"home": 5, "away": 3}, ...}
+        """
+        parsed = {}
+        if isinstance(stats_raw, list):
+            for item in stats_raw:
+                if isinstance(item, dict):
+                    name = item.get("name", item.get("label", "")).lower()
+                    name = name.replace(" ", "_")
+                    if name:
+                        home_val = item.get("home", item.get("team1", ""))
+                        away_val = item.get("away", item.get("team2", ""))
+                        parsed[name] = {
+                            "home": self._parse_stat_value(home_val),
+                            "away": self._parse_stat_value(away_val),
+                        }
+        elif isinstance(stats_raw, dict):
+            for key, value in stats_raw.items():
+                if isinstance(value, dict) and ("home" in value or "team1" in value):
+                    parsed[key.lower().replace(" ", "_")] = {
+                        "home": self._parse_stat_value(value.get("home", value.get("team1"))),
+                        "away": self._parse_stat_value(value.get("away", value.get("team2"))),
+                    }
+        return parsed
+
+    @staticmethod
+    def _parse_stat_value(val) -> int | float | str:
+        """Try to parse stat value as number."""
+        if val is None:
+            return 0
+        if isinstance(val, (int, float)):
+            return val
+        val_str = str(val).strip().rstrip("%")
+        try:
+            if "." in val_str:
+                return float(val_str)
+            return int(val_str)
+        except (ValueError, TypeError):
+            return val
 
     def resolve_team_id(self, team_name: str, **kwargs) -> str | None:
         """SerpAPI uses team names directly, no ID resolution needed."""

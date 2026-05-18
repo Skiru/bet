@@ -64,6 +64,10 @@ CLIENT_REGISTRY.update(ESPN_FACTORIES)
 from .serpapi_client import SerpAPIClient
 CLIENT_REGISTRY["serpapi"] = SerpAPIClient
 
+# Google Sports — dedicated H2H enrichment via SerpAPI 'Team A vs Team B' queries
+from .google_sports_client import GoogleSportsClient
+CLIENT_REGISTRY["google-sports"] = GoogleSportsClient
+
 # Odds-API.io — 265 bookmakers, 34 sports, value bets (5K req/hour)
 from .odds_api_io import OddsAPIioClient
 CLIENT_REGISTRY["odds-api-io"] = OddsAPIioClient

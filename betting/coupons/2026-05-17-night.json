@@ -1,0 +1,246 @@
+{
+  "date": "2026-05-17",
+  "session": "night",
+  "window": "23:00 Warsaw 17/05 → 05:59 Warsaw 18/05",
+  "stake_per_coupon": 2.0,
+  "currency": "PLN",
+  "status": "PENDING_VERIFICATION",
+  "note": "Betclic 403 — nie postawione, do weryfikacji rano 18/05",
+  "bankroll_before": 57.235,
+  "total_stake": 12.0,
+  "coupons": [
+    {
+      "id": "CP-20260517-NIGHT-1",
+      "name": "Ceará + Lynx (multi-sport)",
+      "legs": [
+        {
+          "sport": "football",
+          "event": "Ceará vs Fortaleza",
+          "competition": "Brasileirão Série B",
+          "kickoff_warsaw": "23:30",
+          "market": "Fortaleza Corners O/U",
+          "direction": "UNDER",
+          "line": 3.5,
+          "odds": 1.79,
+          "safety": 0.56,
+          "gate": "12/18"
+        },
+        {
+          "sport": "basketball",
+          "event": "Minnesota Lynx vs Chicago Sky",
+          "competition": "WNBA",
+          "kickoff_warsaw": "01:00",
+          "market": "Minnesota Lynx Rebounds O/U",
+          "direction": "OVER",
+          "line": 44.5,
+          "odds": 1.79,
+          "safety": 0.56,
+          "gate": "13/18"
+        }
+      ],
+      "combined_odds": 3.2,
+      "stake": 2.0,
+      "potential_return": 6.4
+    },
+    {
+      "id": "CP-20260517-NIGHT-2",
+      "name": "MLS night double",
+      "legs": [
+        {
+          "sport": "football",
+          "event": "Inter Miami CF vs Portland Timbers",
+          "competition": "MLS",
+          "kickoff_warsaw": "00:00",
+          "market": "Portland Timbers Corners O/U",
+          "direction": "OVER",
+          "line": 5.5,
+          "odds": 1.79,
+          "safety": 0.56,
+          "gate": "11/18"
+        },
+        {
+          "sport": "football",
+          "event": "New York Red Bulls II vs New York City FC II",
+          "competition": "MLS Next Pro",
+          "kickoff_warsaw": "01:00",
+          "market": "Fouls Total O/U",
+          "direction": "OVER",
+          "line": 24.5,
+          "odds": 2.0,
+          "safety": 0.5,
+          "gate": "13/18"
+        }
+      ],
+      "combined_odds": 3.58,
+      "stake": 2.0,
+      "potential_return": 7.16
+    },
+    {
+      "id": "CP-20260517-NIGHT-3",
+      "name": "Brasileirão + MLS cornery",
+      "legs": [
+        {
+          "sport": "football",
+          "event": "Ceará vs Fortaleza",
+          "competition": "Brasileirão Série B",
+          "kickoff_warsaw": "23:30",
+          "market": "Fortaleza Corners O/U",
+          "direction": "UNDER",
+          "line": 3.5,
+          "odds": 1.79,
+          "safety": 0.56,
+          "gate": "12/18"
+        },
+        {
+          "sport": "football",
+          "event": "Inter Miami CF vs Portland Timbers",
+          "competition": "MLS",
+          "kickoff_warsaw": "00:00",
+          "market": "Portland Timbers Corners O/U",
+          "direction": "OVER",
+          "line": 5.5,
+          "odds": 1.79,
+          "safety": 0.56,
+          "gate": "11/18"
+        }
+      ],
+      "combined_odds": 3.2,
+      "stake": 2.0,
+      "potential_return": 6.4
+    },
+    {
+      "id": "CP-20260517-NIGHT-4",
+      "name": "3-nogi power (top safety)",
+      "legs": [
+        {
+          "sport": "football",
+          "event": "Ceará vs Fortaleza",
+          "competition": "Brasileirão Série B",
+          "kickoff_warsaw": "23:30",
+          "market": "Fortaleza Corners O/U",
+          "direction": "UNDER",
+          "line": 3.5,
+          "odds": 1.79,
+          "safety": 0.56,
+          "gate": "12/18"
+        },
+        {
+          "sport": "football",
+          "event": "Inter Miami CF vs Portland Timbers",
+          "competition": "MLS",
+          "kickoff_warsaw": "00:00",
+          "market": "Portland Timbers Corners O/U",
+          "direction": "OVER",
+          "line": 5.5,
+          "odds": 1.79,
+          "safety": 0.56,
+          "gate": "11/18"
+        },
+        {
+          "sport": "basketball",
+          "event": "Minnesota Lynx vs Chicago Sky",
+          "competition": "WNBA",
+          "kickoff_warsaw": "01:00",
+          "market": "Minnesota Lynx Rebounds O/U",
+          "direction": "OVER",
+          "line": 44.5,
+          "odds": 1.79,
+          "safety": 0.56,
+          "gate": "13/18"
+        }
+      ],
+      "combined_odds": 5.74,
+      "stake": 2.0,
+      "potential_return": 11.48
+    },
+    {
+      "id": "CP-20260517-NIGHT-5",
+      "name": "Brasileirão Serie A (warunkowy)",
+      "legs": [
+        {
+          "sport": "football",
+          "event": "RB Bragantino vs Vitoria",
+          "competition": "Brasileirão Betano",
+          "kickoff_warsaw": "23:30",
+          "market": "RB Bragantino Corners O/U",
+          "direction": "OVER",
+          "line": 3.5,
+          "odds": null,
+          "odds_estimate": 1.8,
+          "safety": 0.49,
+          "gate": "11/18"
+        },
+        {
+          "sport": "football",
+          "event": "Atletico Paranaense vs Flamengo",
+          "competition": "Brasileirão Betano",
+          "kickoff_warsaw": "00:30",
+          "market": "Flamengo Fouls O/U",
+          "direction": "UNDER",
+          "line": 13.0,
+          "odds": null,
+          "odds_estimate": 1.8,
+          "safety": 0.45,
+          "gate": "11/18"
+        }
+      ],
+      "combined_odds": null,
+      "combined_odds_estimate": 3.24,
+      "stake": 2.0,
+      "potential_return_estimate": 6.48,
+      "conditional": true,
+      "conditional_note": "Kursy TBD — sprawdzić w Betclic"
+    },
+    {
+      "id": "CP-20260517-NIGHT-6",
+      "name": "MLS + WNBA 3-nogi",
+      "legs": [
+        {
+          "sport": "football",
+          "event": "Inter Miami CF vs Portland Timbers",
+          "competition": "MLS",
+          "kickoff_warsaw": "00:00",
+          "market": "Portland Timbers Corners O/U",
+          "direction": "OVER",
+          "line": 5.5,
+          "odds": 1.79,
+          "safety": 0.56,
+          "gate": "11/18"
+        },
+        {
+          "sport": "football",
+          "event": "New York Red Bulls II vs New York City FC II",
+          "competition": "MLS Next Pro",
+          "kickoff_warsaw": "01:00",
+          "market": "Fouls Total O/U",
+          "direction": "OVER",
+          "line": 24.5,
+          "odds": 2.0,
+          "safety": 0.5,
+          "gate": "13/18"
+        },
+        {
+          "sport": "basketball",
+          "event": "Minnesota Lynx vs Chicago Sky",
+          "competition": "WNBA",
+          "kickoff_warsaw": "01:00",
+          "market": "Minnesota Lynx Rebounds O/U",
+          "direction": "OVER",
+          "line": 44.5,
+          "odds": 1.79,
+          "safety": 0.56,
+          "gate": "13/18"
+        }
+      ],
+      "combined_odds": 6.41,
+      "stake": 2.0,
+      "potential_return": 12.82
+    }
+  ],
+  "settlement": {
+    "check_date": "2026-05-18",
+    "check_time_warsaw": "08:00",
+    "total_potential_return_if_all_hit": 50.74,
+    "realistic_scenario": "2-3 kupony trafione = 6-18 PLN zwrotu"
+  }
+}

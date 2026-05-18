@@ -509,6 +509,14 @@ SPORT_IDS_FS = {
     "volleyball": 12 
 }
 
+# Standard browser headers for Flashscore (bypasses Cloudflare with chrome131 impersonation)
+_FS_HEADERS = {
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Referer": "https://www.flashscore.com/",
+}
+_FS_IMPERSONATE = "chrome131"
+
 def _get_flashscore_entity(team_name: str, sport: str) -> tuple:
     """Resolve Flashscore entity metadata via the native search endpoint."""
     sid = SPORT_IDS_FS.get(sport, 1)
@@ -516,7 +524,7 @@ def _get_flashscore_entity(team_name: str, sport: str) -> tuple:
     headers = {"x-fsign": "SW9D1eZo"}
     
     try:
-        resp = c_requests.get(url, impersonate="chrome110", headers=headers, timeout=10)
+        resp = c_requests.get(url, impersonate=_FS_IMPERSONATE, headers=headers, timeout=10)
         if resp.status_code == 200:
             text = resp.text
             start = text.find('({') + 1
@@ -532,7 +540,10 @@ def _get_flashscore_entity(team_name: str, sport: str) -> tuple:
     return None, None, None
 
 def _try_flashscore(team_name: str, sport: str) -> tuple:
-    """Fetch stats from Flashscore using curl_cffi. Returns (stats_dict, error_or_None)."""
+    """Fetch stats from Flashscore using curl_cffi. Returns (stats_dict, error_or_None).
+    
+    Thread-safe: uses curl_cffi only (no Playwright, no asyncio).
+    """
     entity_type, slug, entity_id = _get_flashscore_entity(team_name, sport)
     if not slug or not entity_id:
         return {}, "Could not find team ID via Flashscore Search"
@@ -541,7 +552,7 @@ def _try_flashscore(team_name: str, sport: str) -> tuple:
     _rate_limit("flashscore.com")
     
     try:
-        resp = c_requests.get(url, impersonate="chrome110", timeout=15)
+        resp = c_requests.get(url, impersonate=_FS_IMPERSONATE, headers=_FS_HEADERS, timeout=15)
         if resp.status_code != 200:
             return {}, f"Flashscore returned status {resp.status_code}"
             

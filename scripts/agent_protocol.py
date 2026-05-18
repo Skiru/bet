@@ -333,10 +333,23 @@ SELF_HEALING_REGISTRY = {
         "use_when": "Missing injury reports, coaching changes, morale data. Fills L2.5 gap between scan and deep stats.",
         "saves_to": ["team_news (DB)"],
     },
+    "google_sports": {
+        "module": "api_clients.google_sports_client",
+        "functions": {
+            "get_h2h_enrichment": "Fetch H2H data from Google Sports Knowledge Panel via SerpAPI. Args: (home_team, away_team, sport). Returns: GoogleSportsEnrichment with h2h_matches, team_kgmids, live_match_data.",
+            "get_h2h_enrichment_and_save": "Fetch H2H + persist to DB (fixtures, team_form, teams). Same args + saves automatically.",
+            "get_normalized_h2h": "Pipeline-compatible interface returning NormalizedFixture list. Args: (home_team, away_team, sport). Returns: list[NormalizedFixture].",
+        },
+        "trigger": "L3.5 — H2H enrichment after API-specific sources, before generic web research",
+        "use_when": "Missing H2H data after sport-specific API calls. Works for ALL 5 sports. Budget: 15 queries/run, 250/month.",
+        "saves_to": ["fixtures (DB)", "team_form (DB)", "teams (DB)", "betting/data/stats_cache/google-sports/ (file cache)"],
+        "rate_limit": "250 SerpAPI searches/month, max 15 per pipeline run",
+    },
     "fallback_layers": [
         "L1: Scan retry with extended timeout (pipeline auto-handles)",
         "L2: Parallel S1b enrichment (odds-api.io + weather + tipsters concurrently)",
         "L3: S2.5 batch enrichment via data_enrichment_agent (Flashscore/ESPN)",
+        "L3.5: Google Sports H2H via SerpAPI (google_sports_client — all 5 sports, 15 queries/run)",
         "L4: S3 batch enrichment before analysis loop",
         "L5: S3 inline extract_team_stats/extract_h2h_stats fallback (per-candidate)",
         "L6: S5 inline context fetch (weather API + ESPN injury scrape)",

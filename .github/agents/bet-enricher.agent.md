@@ -13,7 +13,6 @@ tools:
     "ms-python.python/*",
     "web/fetch",
     "browser/*",
-    "playwright/*",
     "vscode/memory",
     "vscode/resolveMemoryFileUri",
     "vscode/askQuestions",
@@ -71,7 +70,7 @@ You add an Enrichment Quality Assessment via sequential-thinking for each batch:
 
 ## Skills Usage Guidelines
 
-- **`bet-navigating-sources`** — Source hierarchy, fallback chains per sport, Playwright navigation tips, blocked sources, URL patterns
+- **`bet-navigating-sources`** — Source hierarchy, fallback chains per sport, curl_cffi access patterns, blocked sources, URL patterns
 - **`bet-analyzing-statistics`** — Data quality validation, expected value ranges per stat, cross-source consistency checks
 - **Check `{date}_deep_parse_report.json`** — HTML deep parser profiles extract rich stats from saved HTML snapshots. This pre-extracted HTML data is available as an enrichment source. Always check this file for what was already extracted before triggering web fetches.
 
@@ -163,8 +162,8 @@ with get_db() as conn:
 |--------|--------|-----------|-------------|-----------------|
 
 | ESPN API | REST JSON | Schedule, injuries, standings, gamelogs | HIGH — free, unlimited | Sport/league not supported (fuzzy league matching added 2026-05-14 mitigates old name mismatch issues) |
-| Flashscore HTML | Playwright render | L10 form, H2H, injury list | MEDIUM — regex on rendered JS | CAPTCHA, layout changes, empty response |
-| Flashscore search | Playwright render | Team page redirect | LOW — fallback only | Ambiguous results, wrong team matched |
+| Flashscore HTML | curl_cffi (impersonate=chrome110) | L10 form, H2H, injury list | MEDIUM — regex on fetched HTML | Cloudflare blocks, layout changes, empty response |
+| Flashscore search API | curl_cffi (x-fsign header) | Entity resolution (type/slug/id) | HIGH — native JSON API | Ambiguous results, wrong team matched |
 | scores24.live HTML | HTTP fetch | Basic stats | LOW — third-tier fallback | Site changes, sparse data |
 
 ### What to Verify After Enrichment
@@ -189,7 +188,7 @@ Free API at `site.api.espn.com`:
 
 **ESPN is BEST for injuries** — always merge injury data.
 
-### Flashscore HTML Parsing (FALLBACK — Playwright-based)
+### Flashscore HTML Parsing (via curl_cffi — NO Playwright)
 
 Flashscore renders via JavaScript. The parser extracts:
 - Stat values from CSS classes: `stat__category`, `stat__homeValue`, `stat__awayValue`
@@ -280,7 +279,7 @@ You are a DATA QUALITY GUARDIAN, not a script runner. Every enrichment batch mus
 - **Memory System**: Read `/memories/repo/pipeline-lessons-learned.md` for known source failures and enrichment patterns. After enrichment, write discovered source reliability changes to session memory (e.g., "Flashscore H2H API returning 403 for tennis today").
 - **Task Tracking**: Use `todo` to track enrichment per sport/batch. Mark candidates as enriched/gap-flagged/failed. Ensures complete coverage tracking.
 - **Ask Questions**: When enrichment yield is critically low (<40%) and all fallback layers exhausted, use `askQuestions` to confirm whether to proceed to S3 with gaps or wait for source recovery.
-- **Playwright**: Use `playwright/*` tools for JS-rendered pages (Flashscore) when fetch/browser tools fail.
+- **curl_cffi**: Flashscore access uses `curl_cffi` with TLS impersonation. Playwright is NOT used for enrichment (banned for flashscore.com via `_PLAYWRIGHT_BLOCKED_DOMAINS`).
 
 ### Self-Validation Before Returning
 1. **Yield Calculation**: Enrichment yield = candidates_with_sufficient_data / total_candidates. Must be ≥60%. If below, list every gap with attempted sources and failure reasons.

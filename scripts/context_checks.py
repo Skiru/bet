@@ -29,6 +29,7 @@ def run_context_checks(date: str, state: dict) -> tuple[bool, str]:
     """
     checks_done = []
     context_flags = {}
+    s3_path = DATA_DIR / f"{date}_s3_deep_stats.json"
 
     # DB-first: load S3 analysis results from DB (R2)
     candidates = []

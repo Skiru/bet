@@ -229,6 +229,22 @@ These API sources provide structured statistical data via REST APIs. They are th
   Enrichment: integrated in `deep_stats_report.py` for hockey candidates.
   Added: 2026-05-12.
 
+- Google Sports (SerpAPI)
+  Role: H2H enrichment via Google Knowledge Graph sports panels — returns structured head-to-head match data, scores, venues, tournaments, red cards, goal scorers, and Knowledge Graph IDs (kgmids).
+  URL: serpapi.com (proxied Google search — "Team A vs Team B" query)
+  Use for: H2H enrichment for ALL 5 sports. Returns 2-10 recent head-to-head matches with full scores, tournament names, venues, red cards (football/hockey), set scores (tennis), and player rankings.
+  Data depth per query:
+    - Football/Hockey/Basketball: H2H matches with home/away scores, tournament, venue, red cards, date, kgmids
+    - Tennis: set scores per set, rankings, tournament stage, winner
+    - Live/Today matches: league, status, stadium, goal scorers (player name, jersey number, minute + stoppage time)
+  Access: SerpAPI free tier (250 searches/month). API key in config/api_keys.json ("serpapi" key). Budget: max 15 queries per pipeline run.
+  Coverage: ALL sports globally — any match Google has a Knowledge Panel for.
+  Client: `scripts/api_clients/google_sports_client.py` (GoogleSportsClient)
+  Cache: 48h file-based cache in betting/data/stats_cache/google-sports/
+  DB integration: Saves fixtures, H2H team_form, team entities with kgmids.
+  Fallback chain position: After sport-specific APIs, before generic SerpAPI. E.g., football: `["espn-football", "api-football", "football-data-org", "understat", "google-sports", "serpapi"]`
+  Added: 2026-05-17.
+
 - DailyFaceoff
   Role: starting NHL goalie confirmations and line combos.
   URL: dailyfaceoff.com

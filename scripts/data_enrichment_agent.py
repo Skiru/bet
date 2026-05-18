@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Self-healing data enrichment agent — fetches missing team stats via Playwright.
+"""Self-healing data enrichment agent — fetches missing team stats via curl_cffi.
 
 When the deep analysis pipeline encounters teams/events with missing statistics,
 this agent fetches data from internet sources (Flashscore primary, scores24 fallback),
@@ -114,7 +114,7 @@ def _is_known_missing(team_name: str, sport: str) -> bool:
 _load_known_missing()
 atexit.register(_save_known_missing)
 
-# Domains that must NEVER trigger Playwright fallback (use curl_cffi instead)
+# Domains that must NEVER trigger stealth fallback (have dedicated curl_cffi modules)
 _PLAYWRIGHT_BLOCKED_DOMAINS = {"flashscore.com", "www.flashscore.com", "s.flashscore.com"}
 
 
@@ -126,9 +126,9 @@ def _is_playwright_blocked(url: str) -> bool:
 
 
 def fetch(url: str, save_snapshot: bool = False) -> str | None:
-    """HTTP fetch with stealth Playwright fallback for 403 blocks.
+    """HTTP fetch with curl_cffi stealth fallback for 403 blocks.
     
-    NOTE: Flashscore domains are BLOCKED from Playwright fallback.
+    NOTE: Flashscore and scores24 domains are BLOCKED from stealth fallback.
     Use curl_cffi via flashscore_enricher.py for Flashscore access.
     """
     try:
@@ -143,114 +143,65 @@ def fetch(url: str, save_snapshot: bool = False) -> str | None:
             return resp.text
         if resp.status_code in (403, 429):
             if _is_playwright_blocked(url):
-                logger.debug(f"HTTP {resp.status_code} for {url} — Playwright blocked for this domain")
+                logger.debug(f"HTTP {resp.status_code} for {url} — stealth fallback blocked for this domain")
                 return None
-            logger.warning(f"HTTP {resp.status_code} for {url}, trying stealth Playwright...")
+            logger.warning(f"HTTP {resp.status_code} for {url}, trying curl_cffi stealth...")
             return _fetch_stealth(url)
         resp.raise_for_status()
         return resp.text
     except _requests.exceptions.RequestException as e:
         if _is_playwright_blocked(url):
-            logger.debug(f"Request failed for {url} — Playwright blocked for this domain")
+            logger.debug(f"Request failed for {url} — stealth fallback blocked for this domain")
             return None
-        logger.warning(f"Request failed for {url}: {e}, trying stealth Playwright...")
+        logger.warning(f"Request failed for {url}: {e}, trying curl_cffi stealth...")
         return _fetch_stealth(url)
 
 
 def _fetch_stealth(url: str) -> str | None:
-    """Fetch URL using Playwright with stealth patches to bypass Cloudflare/DataDome."""
-    # Guard: Never use Playwright for blocked domains (flashscore.com)
+    """Fetch URL using curl_cffi with browser TLS impersonation to bypass 403 blocks.
+
+    Replaces Playwright — handles TLS fingerprint-based blocks without a full browser.
+    Does NOT solve JavaScript challenges (Cloudflare interstitials).
+    """
     if _is_playwright_blocked(url):
-        logger.debug(f"Playwright blocked for domain: {url}")
-        return None
-    # Guard: Playwright/greenlet cannot run in worker threads
-    if threading.current_thread() is not threading.main_thread():
-        logger.debug(f"Skipping stealth Playwright (worker thread) for {url}")
+        logger.debug(f"Stealth fetch blocked for domain: {url}")
         return None
 
-    # Detect running asyncio loop — Playwright Sync API cannot work inside one
-    import asyncio
     try:
-        loop = asyncio.get_running_loop()
-        if loop is not None:
-            logger.debug(f"Skipping stealth Playwright (asyncio loop active) for {url}")
-            return None
-    except RuntimeError:
-        pass  # No running loop — safe to use sync API
-
-    try:
-        from playwright.sync_api import sync_playwright
-        from playwright_stealth import Stealth
+        import curl_cffi.requests as _cffi_req
     except ImportError:
-        logger.error("playwright or playwright-stealth not installed")
+        logger.error("curl_cffi not installed — cannot perform stealth fetch")
         return None
 
     try:
-        from scripts.stealth_utils import USER_AGENTS, BROWSER_ARGS, is_actually_blocked
+        from stealth_utils import USER_AGENTS
         import random
-        import time
+        ua = random.choice(USER_AGENTS)
     except ImportError:
+        ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"
+
+    for attempt in range(1, 3):
         try:
-            from stealth_utils import USER_AGENTS, BROWSER_ARGS, is_actually_blocked
-            import random
-            import time
-        except ImportError:
-            USER_AGENTS = ["Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"]
-            BROWSER_ARGS = ['--disable-blink-features=AutomationControlled', '--disable-infobars', '--no-sandbox']
-            def is_actually_blocked(content, status_code):
-                if status_code in (403, 429) and len(content) < 15_000:
-                    return True
-                if len(content) < 10_000:
-                    lower = content.lower()
-                    if any(kw in lower for kw in ("zablokowany", "access denied", "you have been blocked")):
-                        return True
-                return False
-            import random
-            import time
-    
-    try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch(
-                headless=True,
-                args=BROWSER_ARGS
+            resp = _cffi_req.get(
+                url,
+                impersonate="chrome110",
+                timeout=20,
+                headers={"User-Agent": ua},
             )
-            
-            for attempt, backoff in enumerate([5, 15], 1):
-                context = browser.new_context(
-                    user_agent=random.choice(USER_AGENTS),
-                    viewport={"width": 1440, "height": 900},
-                )
-                page = context.new_page()
-                Stealth().apply_stealth_sync(page)
-                
-                response = page.goto(url, wait_until="networkidle", timeout=30000)
-                if not response:
-                    context.close()
-                    continue
-                
-                # Wait for Cloudflare challenge to resolve
-                content = page.content()
-                status_code = response.status
-                
-                if "Just a moment" in content or "cf-browser-verification" in content:
-                    page.wait_for_timeout(5000)
-                    content = page.content()
-                
-                if is_actually_blocked(content, status_code):
-                    logger.warning(f"Stealth Playwright blocked on attempt {attempt}")
-                    context.close()
-                    time.sleep(backoff)
-                    continue
-                
-                context.close()
-                browser.close()
-                return content
-                
-            browser.close()
-            return None
-    except Exception as e:
-        logger.error(f"Stealth Playwright failed for {url}: {e}")
-        return None
+            if resp.status_code == 200 and len(resp.text) > 500:
+                return resp.text
+            if resp.status_code in (403, 429):
+                logger.warning(f"curl_cffi stealth blocked ({resp.status_code}) on attempt {attempt} for {url}")
+                import time
+                time.sleep(attempt * 3)
+                continue
+            return resp.text if resp.status_code == 200 else None
+        except Exception as e:
+            logger.warning(f"curl_cffi stealth attempt {attempt} failed for {url}: {e}")
+            import time
+            time.sleep(attempt * 2)
+
+    return None
 
 from bet.db.connection import get_db  # noqa: E402
 from bet.db.models import TeamForm  # noqa: E402
@@ -858,11 +809,9 @@ def _try_client_enrichment(team_name: str, sport: str) -> tuple[dict, str | None
     Returns (stats_dict, error_or_None) — same interface as _try_flashscore().
     The stats_dict maps stat_key → list of values (e.g., {"corners": [7, 5, 8, ...], "fouls": [12, 15, ...]}).
     """
-    # Skip Playwright-based clients when called from worker threads (greenlet conflict)
-    import threading
-    if threading.current_thread() is not threading.main_thread():
-        return {}, "Skipped: Playwright clients not thread-safe (greenlet conflict)"
-    
+    # NOTE: Some clients (BetExplorer, ESPN) are HTTP-based and thread-safe.
+    # Playwright-based clients may raise greenlet errors in worker threads —
+    # we catch those gracefully rather than blanket-blocking all threads.
     client = _get_unified_client()
     if client is None:
         return {}, "UnifiedAPIClient not available"
@@ -1169,8 +1118,8 @@ def enrich_team(team_name: str, sport: str, max_retries: int = 2) -> dict:
         except Exception as e:
             logger.debug(f"Scores24 trends failed for {team_name}: {e}")
 
-    # Try Flashscore (skip if circuit-broken OR running in worker thread — curl_cffi greenlet conflict)
-    if not _source_is_down("flashscore.com") and threading.current_thread() is threading.main_thread():
+    # Try Flashscore (skip if circuit-broken) — curl_cffi is thread-safe, no main-thread guard needed
+    if not _source_is_down("flashscore.com"):
         for attempt in range(1, max_retries + 1):
             stats, err = _try_flashscore(team_name, sport)
             if stats:
@@ -1198,10 +1147,8 @@ def enrich_team(team_name: str, sport: str, max_retries: int = 2) -> dict:
         else:
             _record_source_failure("flashscore.com")
             logger.info(f"Flashscore retry exhausted for {sport} entity '{team_name}' — all {max_retries} attempts returned no data")
-    elif _source_is_down("flashscore.com"):
-        logger.debug(f"Skipping Flashscore for {team_name} — source circuit-broken")
     else:
-        logger.debug(f"Skipping Flashscore for {team_name} — worker thread (curl_cffi greenlet unsafe)")
+        logger.debug(f"Skipping Flashscore for {team_name} — source circuit-broken")
 
     # Fallback: try scores24.live
     if not _source_is_down("scores24.live"):
@@ -1339,8 +1286,9 @@ def enrich_h2h(team_a: str, team_b: str, sport: str) -> dict:
     _rate_limit("flashscore.com")
     try:
         import curl_cffi.requests as _cffi_req
+        from flashscore_enricher import _FS_HEADERS, _FS_IMPERSONATE
         url_a = f"https://www.flashscore.com/{entity_type_a}/{slug_a}/{id_a}/results/"
-        resp_a = _cffi_req.get(url_a, impersonate="chrome110", timeout=15)
+        resp_a = _cffi_req.get(url_a, impersonate=_FS_IMPERSONATE, headers=_FS_HEADERS, timeout=15)
         html_a = resp_a.text if resp_a.status_code == 200 else None
     except Exception as exc:
         html_a = None
@@ -1363,7 +1311,7 @@ def enrich_h2h(team_a: str, team_b: str, sport: str) -> dict:
     _rate_limit("flashscore.com")
     try:
         url_b = f"https://www.flashscore.com/{entity_type_b}/{slug_b}/{id_b}/results/"
-        resp_b = _cffi_req.get(url_b, impersonate="chrome110", timeout=15)
+        resp_b = _cffi_req.get(url_b, impersonate=_FS_IMPERSONATE, headers=_FS_HEADERS, timeout=15)
         html_b = resp_b.text if resp_b.status_code == 200 else None
     except Exception as exc:
         html_b = None
