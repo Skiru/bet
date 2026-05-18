@@ -784,6 +784,16 @@ def _save_to_db(team_name: str, sport: str, stats: dict, source: str) -> None:
                 team = team_repo.find_or_create(team_name, sport_obj.id)
 
                 for stat_key, values in stats.items():
+                    # Range validation — reject values outside sport-appropriate bounds
+                    ranges = SPORT_VALUE_RANGES.get(sport, {})
+                    bounds = ranges.get(stat_key)
+                    if bounds:
+                        lo, hi = bounds
+                        values = [v for v in values if lo <= v <= hi]
+                        if not values:
+                            logger.warning("All values for %s/%s filtered by range [%.1f, %.1f]", team_name, stat_key, lo, hi)
+                            continue
+
                     l10 = values[:10]
                     l5 = values[:5] if len(values) >= 5 else values
                     trend = _compute_trend(l10, l5)

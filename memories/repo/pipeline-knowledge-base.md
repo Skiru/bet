@@ -1,4 +1,50 @@
-# Pipeline Knowledge Base — Consolidated (May 4-17, 2026, updated 2026-05-17)
+# Pipeline Knowledge Base — Consolidated (May 4-18, 2026, updated 2026-05-18)
+
+## 🆕 DATA FLOW AUDIT + GARBAGE CLEANUP — 2026-05-18
+
+### Full Pipeline Data Flow (verified):
+```
+S1 discover_events.py → DB: fixtures, fixture_sources, scan_results, teams, competitions, sports
+S2 data_enrichment_agent.py → DB: team_form (L10/L5/H2H), injuries + JSON stats_cache
+S2.5 build_shortlist.py → JSON: {date}_s2_shortlist.json (reads DB fixtures + odds)
+S3 deep_stats_report.py → DB: analysis_results, analysis_raw_data (reads team_form, H2H, injuries, standings, tipsters)
+S7 gate_checker.py → DB: gate_results (reads analysis_results, fixtures, 48h ledger)
+S8 coupon_builder.py → DB: coupons + bets, MD: coupon file (reads gate_results APPROVED)
+```
+
+### Data Quality Issues Found & Fixed:
+**CRITICAL — Garbage values in team_form (source: enrichment-agent):**
+- football/corners max=989 (should be 0-20): 38 garbage rows
+- football/fouls max=989 (should be 0-35): 38 garbage rows
+- football/goals max=211 (should be 0-12): 146 garbage rows
+- football/possession max=989 (should be 0-80): 10 garbage rows
+- football/red_cards max=989 (should be 0-4): 50 garbage rows
+- tennis/total_games with values <10: ~100+ rows (sets, not games)
+- volleyball/aces with values 160-210: ~20 rows (season totals, not per-match)
+- **Total:** 281 rows for deletion, 241 rows for update
+
+**Root cause:** Non-Flashscore enrichment paths (UnifiedAPIClient, ESPN) bypassed `_validate_stat_values()` range check. Season totals saved as per-match values.
+
+**Fixes applied:**
+1. `data_enrichment_agent.py` line 787: Added `SPORT_VALUE_RANGES` validation in `_save_to_db()` BEFORE any DB write
+2. `scripts/clean_garbage_team_form.py`: Cleanup script (--dry-run, --verbose, AGENT_SUMMARY)
+
+### Current Data Volumes (2026-05-18):
+- team_form: 207,876 rows (434 updated today), 47,234 H2H records
+- fixtures: scan today = football:1786, basketball:518, tennis:389, volleyball:50, hockey:34
+- analysis_results: 360, gate_results: 197 APPROVED / 3 REJECTED
+- tipster_consensus: football:583, basketball:99, hockey:94, tennis:88
+- 14 sports in DB (5 core tier-1 + 9 tier-2)
+
+### Agent Analysis Capabilities (DB access):
+- Agents access DB via `from bet.db.connection import get_db` + repository classes
+- Key repos: SportRepo, TeamRepo, StatsRepo, FixtureRepo, OddsRepo, PipelineRepo, TipsterRepo
+- team_form: L10/L5 match-by-match values + H2H stat-specific + trends
+- analysis_results: ranking_json (per-market safety scores), three_way_check_json
+- decision_outcomes: historical results for learning (sport×market patterns)
+- Agents combine quantitative (safety scores, hit rates) with qualitative (tipster reasoning, injuries) — this is their UNIQUE VALUE vs scripts
+
+### Report: `betting/reports/pipeline-data-flow-audit.md`
 
 ## 🆕 AGENT/PROMPT ALIGNMENT AUDIT — 2026-05-17
 
