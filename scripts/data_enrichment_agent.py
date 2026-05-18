@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
-"""Self-healing data enrichment agent — fetches missing team stats via curl_cffi.
+"""Self-healing data enrichment agent — fetches missing team stats via API clients.
 
-When the deep analysis pipeline encounters teams/events with missing statistics,
-this agent fetches data from internet sources (Flashscore primary, scores24 fallback),
-parses sport-specific stats, and saves results to both DB and JSON stats cache.
+Thin orchestrator around scripts/api_clients/ and scripts/fetch_api_stats.py.
+Detects teams missing from stats cache, fetches via proper API fallback chains
+(ESPN → API-Football/Basketball/Hockey → Google Sports → Flashscore curl_cffi last resort).
 
 Usage:
     python3 scripts/data_enrichment_agent.py --team "FC Barcelona" --sport football
     python3 scripts/data_enrichment_agent.py --batch betting/data/missing_teams.json
     python3 scripts/data_enrichment_agent.py --date 2026-05-08
+    python3 scripts/data_enrichment_agent.py --date 2026-05-18 --news --verbose
 """
 
 import argparse
@@ -18,26 +19,39 @@ import json
 import logging
 import re
 import sys
-import sqlite3
 import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from flashscore_enricher import _try_flashscore, _parse_flashscore_deep, _parse_flashscore_stats, _get_flashscore_entity
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT_DIR / "src"))
 sys.path.insert(0, str(ROOT_DIR / "scripts"))
 
-import requests as _requests  # noqa: E402
-
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Known missing teams cache — skip teams that consistently 404 on Flashscore
+# Imports from the proper API client infrastructure
+# ---------------------------------------------------------------------------
+from api_clients import get_client, RateLimiter, CLIENT_REGISTRY
+from api_clients.base_client import APIRateLimitError, APIError
+from fetch_api_stats import (
+    fetch_team_stats,
+    fetch_h2h_stats,
+    FALLBACK_CHAINS,
+    _store_in_cache,
+)
+from flashscore_enricher import _try_flashscore, _get_flashscore_entity
+from bet.db.connection import get_db
+from bet.db.models import TeamForm
+from bet.db.repositories import SportRepo, StatsRepo, TeamRepo
+from bet.stats.market_ranking import SPORT_STAT_KEYS
+
+# ---------------------------------------------------------------------------
+# Known missing teams cache — skip teams that consistently 404
 # ---------------------------------------------------------------------------
 _KNOWN_MISSING_PATH = ROOT_DIR / "betting" / "data" / "known_missing_teams.json"
-_known_missing_teams: dict[str, str] = {}  # "team|sport" → ISO timestamp of last 404
+_known_missing_teams: dict[str, str] = {}  # "team|sport" → ISO timestamp
 
 
 def _load_known_missing():
@@ -49,38 +63,6 @@ def _load_known_missing():
             _known_missing_teams = {}
 
 
-    def _build_scores24_url(team_name: str, sport: str) -> str | None:
-        """Resolve the latest Scores24 detail URL for a team from DB fixtures."""
-        try:
-            with get_db() as conn:
-                sport_repo = SportRepo(conn)
-                team_repo = TeamRepo(conn)
-
-                sport_obj = sport_repo.get_by_name(sport)
-                if not sport_obj:
-                    return None
-
-                team = team_repo.resolve(team_name, sport_obj.id)
-                if not team:
-                    return None
-
-                row = conn.execute(
-                    "SELECT external_id FROM fixtures "
-                    "WHERE (home_team_id = ? OR away_team_id = ?) "
-                    "AND source = 'scores24' "
-                    "AND external_id LIKE '/%' "
-                    "ORDER BY kickoff DESC LIMIT 1",
-                    (team.id, team.id),
-                ).fetchone()
-                if not row:
-                    return None
-
-                return f"https://scores24.live{row['external_id']}"
-        except Exception as exc:
-            logger.debug("Scores24 URL resolution failed for %s (%s): %s", team_name, sport, exc)
-            return None
-
-
 def _save_known_missing():
     try:
         _KNOWN_MISSING_PATH.write_text(json.dumps(_known_missing_teams, indent=2))
@@ -88,149 +70,39 @@ def _save_known_missing():
         logger.debug(f"Failed to save known missing teams: {e}")
 
 
-        if not url:
-            return {}, "No scores24 detail URL available"
 def _mark_missing(team_name: str, sport: str):
     key = f"{team_name.lower()}|{sport}"
-    _known_missing_teams[key] = datetime.now(timezone.utc).isoformat()
+    with _known_missing_lock:
+        _known_missing_teams[key] = datetime.now(timezone.utc).isoformat()
 
 
 def _is_known_missing(team_name: str, sport: str) -> bool:
     """Check if a team is known to 404. Entries expire after 7 days."""
     key = f"{team_name.lower()}|{sport}"
-    ts = _known_missing_teams.get(key)
-    if not ts:
-        return False
-    try:
-        recorded = datetime.fromisoformat(ts)
-        if (datetime.now(timezone.utc) - recorded).days > 7:
-            del _known_missing_teams[key]
+    with _known_missing_lock:
+        ts = _known_missing_teams.get(key)
+        if not ts:
             return False
-        return True
-    except Exception:
-        return False
+        try:
+            recorded = datetime.fromisoformat(ts)
+            if (datetime.now(timezone.utc) - recorded).days > 7:
+                del _known_missing_teams[key]
+                return False
+            return True
+        except Exception:
+            return False
 
 
 _load_known_missing()
 atexit.register(_save_known_missing)
 
-# Domains that must NEVER trigger stealth fallback (have dedicated curl_cffi modules)
-_PLAYWRIGHT_BLOCKED_DOMAINS = {"flashscore.com", "www.flashscore.com", "s.flashscore.com"}
-
-
-def _is_playwright_blocked(url: str) -> bool:
-    """Check if URL domain is blocked from Playwright fallback."""
-    from urllib.parse import urlparse
-    domain = urlparse(url).netloc.lower()
-    return any(blocked in domain for blocked in _PLAYWRIGHT_BLOCKED_DOMAINS)
-
-
-def fetch(url: str, save_snapshot: bool = False) -> str | None:
-    """HTTP fetch with curl_cffi stealth fallback for 403 blocks.
-    
-    NOTE: Flashscore and scores24 domains are BLOCKED from stealth fallback.
-    Use curl_cffi via flashscore_enricher.py for Flashscore access.
-    """
-    try:
-        from stealth_utils import USER_AGENTS
-        import random as _random
-        ua = _random.choice(USER_AGENTS)
-    except ImportError:
-        ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"
-    try:
-        resp = _requests.get(url, timeout=30, headers={"User-Agent": ua})
-        if resp.status_code == 200:
-            return resp.text
-        if resp.status_code in (403, 429):
-            if _is_playwright_blocked(url):
-                logger.debug(f"HTTP {resp.status_code} for {url} — stealth fallback blocked for this domain")
-                return None
-            logger.warning(f"HTTP {resp.status_code} for {url}, trying curl_cffi stealth...")
-            return _fetch_stealth(url)
-        resp.raise_for_status()
-        return resp.text
-    except _requests.exceptions.RequestException as e:
-        if _is_playwright_blocked(url):
-            logger.debug(f"Request failed for {url} — stealth fallback blocked for this domain")
-            return None
-        logger.warning(f"Request failed for {url}: {e}, trying curl_cffi stealth...")
-        return _fetch_stealth(url)
-
-
-def _fetch_stealth(url: str) -> str | None:
-    """Fetch URL using curl_cffi with browser TLS impersonation to bypass 403 blocks.
-
-    Replaces Playwright — handles TLS fingerprint-based blocks without a full browser.
-    Does NOT solve JavaScript challenges (Cloudflare interstitials).
-    """
-    if _is_playwright_blocked(url):
-        logger.debug(f"Stealth fetch blocked for domain: {url}")
-        return None
-
-    try:
-        import curl_cffi.requests as _cffi_req
-    except ImportError:
-        logger.error("curl_cffi not installed — cannot perform stealth fetch")
-        return None
-
-    try:
-        from stealth_utils import USER_AGENTS
-        import random
-        ua = random.choice(USER_AGENTS)
-    except ImportError:
-        ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"
-
-    for attempt in range(1, 3):
-        try:
-            resp = _cffi_req.get(
-                url,
-                impersonate="chrome110",
-                timeout=20,
-                headers={"User-Agent": ua},
-            )
-            if resp.status_code == 200 and len(resp.text) > 500:
-                return resp.text
-            if resp.status_code in (403, 429):
-                logger.warning(f"curl_cffi stealth blocked ({resp.status_code}) on attempt {attempt} for {url}")
-                import time
-                time.sleep(attempt * 3)
-                continue
-            return resp.text if resp.status_code == 200 else None
-        except Exception as e:
-            logger.warning(f"curl_cffi stealth attempt {attempt} failed for {url}: {e}")
-            import time
-            time.sleep(attempt * 2)
-
-    return None
-
-from bet.db.connection import get_db  # noqa: E402
-from bet.db.models import TeamForm  # noqa: E402
-from bet.db.repositories import SportRepo, StatsRepo, TeamRepo  # noqa: E402
-from bet.stats.market_ranking import SPORT_STAT_KEYS  # noqa: E402
-
-# --- UnifiedAPIClient singleton for Phase 1 integration ---
-_unified_client = None
-_unified_client_lock = threading.Lock()
-_db_write_lock = threading.Lock()
-
-def _get_unified_client():
-    """Get or create a singleton UnifiedAPIClient for client-based enrichment."""
-    global _unified_client
-    if _unified_client is None:
-        with _unified_client_lock:
-            if _unified_client is None:
-                try:
-                    from bet.api_clients.unified import UnifiedAPIClient
-                    _unified_client = UnifiedAPIClient()
-                except Exception as e:
-                    logger.warning(f"UnifiedAPIClient not available: {e}")
-    return _unified_client
-
-
+# ---------------------------------------------------------------------------
+# Configuration
+# ---------------------------------------------------------------------------
 DATA_DIR = ROOT_DIR / "betting" / "data"
 CACHE_DIR = DATA_DIR / "stats_cache"
 
-# Per-sport expected stat value ranges for sanity checking parsed data
+# Per-sport expected stat value ranges for sanity checking
 SPORT_VALUE_RANGES: dict[str, dict[str, tuple[float, float]]] = {
     "football": {
         "corners": (0, 20), "fouls": (0, 35), "yellow_cards": (0, 12),
@@ -260,391 +132,54 @@ SPORT_VALUE_RANGES: dict[str, dict[str, tuple[float, float]]] = {
     },
 }
 
-# Rate-limit tracking per domain (thread-safe)
-_last_request_time: dict[str, float] = {}
-_rate_lock = threading.Lock()
-_RATE_LIMIT_SECONDS = 1.5
-
 # Per-source circuit breaker (thread-safe)
 _source_failures: dict[str, int] = {}
+_source_trip_time: dict[str, float] = {}
 _source_cb_lock = threading.Lock()
 CIRCUIT_BREAKER_THRESHOLD = 5
+CIRCUIT_BREAKER_HALF_OPEN_SECS = 60
+_db_write_lock = threading.Lock()
+_known_missing_lock = threading.Lock()
 
-def _source_is_down(domain: str) -> bool:
+# Shared rate limiter instance
+_rate_limiter = RateLimiter()
+
+
+def _source_is_down(source: str) -> bool:
     with _source_cb_lock:
-        return _source_failures.get(domain, 0) >= CIRCUIT_BREAKER_THRESHOLD
+        if _source_failures.get(source, 0) < CIRCUIT_BREAKER_THRESHOLD:
+            return False
+        trip_time = _source_trip_time.get(source, 0)
+        if time.monotonic() - trip_time > CIRCUIT_BREAKER_HALF_OPEN_SECS:
+            # Half-open: allow one probe request
+            _source_failures[source] = CIRCUIT_BREAKER_THRESHOLD - 1
+            return False
+        return True
 
-def _record_source_failure(domain: str) -> None:
+
+def _record_source_failure(source: str) -> None:
     with _source_cb_lock:
-        _source_failures[domain] = _source_failures.get(domain, 0) + 1
-        if _source_failures[domain] == CIRCUIT_BREAKER_THRESHOLD:
-            logger.warning(f"[Circuit Breaker] {domain} marked DOWN — {CIRCUIT_BREAKER_THRESHOLD} consecutive failures")
+        _source_failures[source] = _source_failures.get(source, 0) + 1
+        if _source_failures[source] == CIRCUIT_BREAKER_THRESHOLD:
+            _source_trip_time[source] = time.monotonic()
+            logger.warning(f"[Circuit Breaker] {source} marked DOWN — {CIRCUIT_BREAKER_THRESHOLD} consecutive failures")
 
-def _record_source_success(domain: str) -> None:
+
+def _record_source_success(source: str) -> None:
     with _source_cb_lock:
-        _source_failures[domain] = 0
-
-
-
-# ---------------------------------------------------------------------------
-# Slugify
-# ---------------------------------------------------------------------------
-
-
-
-# ---------------------------------------------------------------------------
-# URL builders
-# ---------------------------------------------------------------------------
-
-# Sports where participants are individuals, not teams
-_INDIVIDUAL_SPORTS = {"tennis"}
-
-# Flashscore sport slug overrides (when URL path differs from internal sport name)
-_FS_SPORT_SLUGS = {
-}
-
-
-
-
-
-
-# ---------------------------------------------------------------------------
-# Rate limiting
-# ---------------------------------------------------------------------------
-
-def _rate_limit(domain: str) -> None:
-    """Enforce per-domain rate limit (thread-safe)."""
-    with _rate_lock:
-        now = time.time()
-        last = _last_request_time.get(domain, 0.0)
-        wait = _RATE_LIMIT_SECONDS - (now - last)
-        if wait > 0:
-            time.sleep(wait)
-        _last_request_time[domain] = time.time()
-
-
-# ---------------------------------------------------------------------------
-# HTML parsers
-# ---------------------------------------------------------------------------
-
-
-
-
-
-
-
-
-
-
-
-# ---------------------------------------------------------------------------
-# Deep extraction — structured data from Flashscore HTML
-# ---------------------------------------------------------------------------
-
-
-
-# ---------------------------------------------------------------------------
-# Deep extraction — ESPN API (free, unlimited)
-# ---------------------------------------------------------------------------
-
-def _fetch_espn_deep(team_name: str, sport: str) -> dict:
-    """Fetch deep structured data from ESPN API.
-
-    Uses existing ESPNStatsClient and ESPN hidden API for:
-    - Game logs with per-match stat breakdowns
-    - Team injuries
-    - Standings
-
-    Returns same structure as _parse_flashscore_deep.
-    """
-    import urllib.request
-    import urllib.error
-
-    result = {
-        "recent_form": [],
-        "h2h_meetings": [],
-        "injuries": [],
-        "stats_per_match": {},
-    }
-
-    # ESPN sport/league mappings
-    espn_sport_map = {
-        "football": ("soccer", ""),
-        "basketball": ("basketball", "nba"),
-        "hockey": ("hockey", "nhl"),
-        "tennis": ("tennis", ""),
-        "volleyball": ("volleyball", ""),
-    }
-    espn_sport, espn_league = espn_sport_map.get(sport, (sport, ""))
-    if not espn_sport:
-        return result
-
-    # Step 1: Search for team via ESPN API
-    from urllib.parse import quote
-    search_url = f"https://site.api.espn.com/apis/site/v2/sports/{espn_sport}/{espn_league}/teams?limit=100"
-    try:
-        req = urllib.request.Request(search_url)
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            teams_data = json.loads(resp.read().decode("utf-8"))
-    except Exception as e:
-        logger.debug("ESPN team search error: %s", e)
-        return result
-
-    # Find team ID
-    team_id = None
-    team_lower = team_name.lower()
-    for group in teams_data.get("sports", [{}]):
-        for league in group.get("leagues", [{}]):
-            for t in league.get("teams", []):
-                team_info = t.get("team", t)
-                names = [
-                    team_info.get("displayName", "").lower(),
-                    team_info.get("shortDisplayName", "").lower(),
-                    team_info.get("name", "").lower(),
-                    team_info.get("abbreviation", "").lower(),
-                ]
-                if any(team_lower in n or n in team_lower for n in names if n):
-                    team_id = team_info.get("id")
-                    break
-
-    if not team_id:
-        logger.debug("ESPN: team not found for '%s' (%s)", team_name, sport)
-        return result
-
-    # Step 2: Get team schedule/results
-    if espn_league:
-        schedule_url = (
-            f"https://site.api.espn.com/apis/site/v2/sports/{espn_sport}/{espn_league}"
-            f"/teams/{team_id}/schedule"
-        )
-    else:
-        schedule_url = (
-            f"https://site.api.espn.com/apis/site/v2/sports/{espn_sport}"
-            f"/teams/{team_id}/schedule"
-        )
-
-    try:
-        req = urllib.request.Request(schedule_url)
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            schedule_data = json.loads(resp.read().decode("utf-8"))
-    except Exception as e:
-        logger.debug("ESPN schedule error: %s", e)
-        schedule_data = {}
-
-    # Extract recent form from schedule events
-    events = schedule_data.get("events", [])
-    # Filter finished games, take last 10
-    finished_events = [
-        ev for ev in events
-        if ev.get("competitions", [{}])[0].get("status", {}).get("type", {}).get("state") == "post"
-    ]
-    for ev in finished_events[-10:]:
-        comps = ev.get("competitions", [{}])
-        if not comps:
-            continue
-        comp = comps[0]
-        competitors = comp.get("competitors", [])
-        if len(competitors) < 2:
-            continue
-
-        is_home = False
-        opponent = ""
-        h_score = ""
-        a_score = ""
-        for c in competitors:
-            c_id = c.get("id", "")
-            if str(c_id) == str(team_id):
-                is_home = c.get("homeAway") == "home"
-                h_score = c.get("score", "")
-            else:
-                opponent = c.get("team", {}).get("displayName", "")
-                a_score = c.get("score", "")
-
-        # Swap scores if our team is away
-        if not is_home:
-            h_score, a_score = a_score, h_score
-
-        result_str = ""
-        try:
-            hs, as_ = int(h_score), int(a_score)
-            if is_home:
-                result_str = "W" if hs > as_ else ("L" if hs < as_ else "D")
-            else:
-                result_str = "W" if as_ > hs else ("L" if as_ < hs else "D")
-        except (ValueError, TypeError):
-            pass
-
-        date_str = ev.get("date", "")[:10]
-        comp_name = ev.get("name", "")
-
-        result["recent_form"].append({
-            "date": date_str,
-            "opponent": opponent,
-            "result": result_str,
-            "score": f"{h_score}-{a_score}",
-            "competition": comp_name,
-            "venue": "H" if is_home else "A",
-        })
-
-    # Step 3: Get injuries
-    if espn_league:
-        injuries_url = (
-            f"https://site.api.espn.com/apis/site/v2/sports/{espn_sport}/{espn_league}"
-            f"/teams/{team_id}/injuries"
-        )
-    else:
-        injuries_url = (
-            f"https://site.api.espn.com/apis/site/v2/sports/{espn_sport}"
-            f"/teams/{team_id}/injuries"
-        )
-    try:
-        req = urllib.request.Request(injuries_url)
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            injuries_data = json.loads(resp.read().decode("utf-8"))
-        for item in injuries_data.get("items", []):
-            athlete = item.get("athlete", {})
-            player_name = athlete.get("displayName", "")
-            status = item.get("status", "")
-            date_of = item.get("date", "")
-            if player_name:
-                mapped_status = "OUT" if status.lower() in ("out", "injured reserve") else "DOUBTFUL"
-                result["injuries"].append({
-                    "player": player_name,
-                    "status": mapped_status,
-                    "since": date_of[:10] if date_of else "",
-                })
-    except Exception as e:
-        logger.debug("ESPN injuries error: %s", e)
-
-    return result
-
-
-# ---------------------------------------------------------------------------
-# Enrichment completeness validation
-# ---------------------------------------------------------------------------
-
-def _compute_enrichment_quality(deep_data: dict, sport: str) -> dict:
-    """Compute a quality score (0-100) for enriched data completeness.
-
-    Checks:
-    - recent_form: has L10 matches with actual results (30 pts)
-    - stats_per_match: at least 2 stat keys with per-match values (30 pts)
-    - h2h_meetings: has H2H data (20 pts)
-    - injuries: has injury data (10 pts)
-    - competition context: form entries have competition info (10 pts)
-    """
-    score = 0
-    details = {}
-
-    # Recent form (0-30)
-    form = deep_data.get("recent_form", [])
-    form_with_results = [f for f in form if f.get("result")]
-    if len(form_with_results) >= 8:
-        score += 30
-        details["recent_form"] = "excellent"
-    elif len(form_with_results) >= 5:
-        score += 20
-        details["recent_form"] = "good"
-    elif len(form_with_results) >= 3:
-        score += 10
-        details["recent_form"] = "partial"
-    else:
-        details["recent_form"] = "missing"
-
-    # Stats per match (0-30)
-    spm = deep_data.get("stats_per_match", {})
-    keys_with_data = sum(1 for v in spm.values() if len(v) >= 3)
-    if keys_with_data >= 4:
-        score += 30
-        details["stats_per_match"] = f"excellent ({keys_with_data} keys)"
-    elif keys_with_data >= 2:
-        score += 20
-        details["stats_per_match"] = f"good ({keys_with_data} keys)"
-    elif keys_with_data >= 1:
-        score += 10
-        details["stats_per_match"] = f"partial ({keys_with_data} keys)"
-    else:
-        details["stats_per_match"] = "missing"
-
-    # H2H (0-20)
-    h2h = deep_data.get("h2h_meetings", [])
-    if len(h2h) >= 3:
-        score += 20
-        details["h2h"] = f"good ({len(h2h)} meetings)"
-    elif len(h2h) >= 1:
-        score += 10
-        details["h2h"] = f"partial ({len(h2h)} meetings)"
-    else:
-        details["h2h"] = "missing"
-
-    # Injuries (0-10)
-    injuries = deep_data.get("injuries", [])
-    if injuries:
-        score += 10
-        details["injuries"] = f"{len(injuries)} players"
-    else:
-        details["injuries"] = "not available"
-
-    # Competition context (0-10)
-    form_with_comp = [f for f in form if f.get("competition")]
-    if len(form_with_comp) >= 3:
-        score += 10
-        details["competition_context"] = "present"
-    else:
-        details["competition_context"] = "missing"
-
-    return {"score": score, "details": details}
-
-
-# ---------------------------------------------------------------------------
-# Deep data save helper
-# ---------------------------------------------------------------------------
-
-
-def _slugify(name: str) -> str:
-    """Convert name to slug structure"""
-    import re
-    s = name.lower()
-    s = re.sub(r'[^a-z0-9\s-]', '', s)
-    s = re.sub(r'[\s-]+', '-', s)
-    return s.strip('-')
-
-def _save_deep_data(
-    team_name: str, sport: str, deep_data: dict, source: str
-) -> None:
-    """Save deep extraction data to cache and DB."""
-    # Save stats_per_match via existing save functions
-    stats = deep_data.get("stats_per_match", {})
-    if stats:
-        _save_to_cache(team_name, sport, stats, source)
-        _save_to_db(team_name, sport, stats, f"deep-{source}")
-
-    # Save deep data JSON to separate cache file
-    slug = _slugify(team_name)
-    deep_dir = CACHE_DIR / sport / "deep"
-    deep_dir.mkdir(parents=True, exist_ok=True)
-    deep_path = deep_dir / f"{slug}.json"
-
-    deep_cache = {
-        "team": team_name,
-        "sport": sport,
-        "source": source,
-        "recent_form": deep_data.get("recent_form", []),
-        "h2h_meetings": deep_data.get("h2h_meetings", []),
-        "injuries": deep_data.get("injuries", []),
-        "stats_per_match_keys": list(stats.keys()),
-        "enriched_at": _now_iso(),
-    }
-    deep_path.write_text(
-        json.dumps(deep_cache, indent=2, ensure_ascii=False),
-        encoding="utf-8",
-    )
-    logger.info("Saved deep data: %s (%s via %s)", team_name, sport, source)
+        _source_failures[source] = 0
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+def _slugify(name: str) -> str:
+    s = name.lower()
+    s = re.sub(r'[^a-z0-9\s-]', '', s)
+    s = re.sub(r'[\s-]+', '-', s)
+    return s.strip('-')
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -657,298 +192,46 @@ def _safe_avg(values: list) -> float | None:
     return round(sum(nums) / len(nums), 2)
 
 
-def _compute_trend(l10_values: list[float], l5_values: list[float]) -> str:
-    """Determine trend: rising, falling, or stable."""
-    l10_avg = _safe_avg(l10_values)
-    l5_avg = _safe_avg(l5_values)
-    if l10_avg is None or l5_avg is None:
-        return "stable"
-    diff = l5_avg - l10_avg
-    if abs(diff) < 0.3:
-        return "stable"
-    return "rising" if diff > 0 else "falling"
-
-
-# ---------------------------------------------------------------------------
-# Save functions
-# ---------------------------------------------------------------------------
-
-def _save_to_cache(team_name: str, sport: str, stats: dict, source: str) -> None:
-    """Save stats to JSON cache file for backward compatibility."""
-    slug = _slugify(team_name)
-    sport_dir = CACHE_DIR / sport
-    sport_dir.mkdir(parents=True, exist_ok=True)
-    cache_path = sport_dir / f"{slug}.json"
-
-    # Load existing cache if present
-    existing = {}
-    if cache_path.exists():
-        try:
-            existing = json.loads(cache_path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            existing = {}
-
-    # Build form data
-    form_data = {}
-    for stat_key, values in stats.items():
-        l10 = values[:10]
-        l5 = values[:5] if len(values) >= 5 else values
-        form_data[stat_key] = {
-            "l10_avg": _safe_avg(l10),
-            "l5_avg": _safe_avg(l5),
-        }
-
-    l10_matches = []
-    if stats:
-        # Build per-match dicts from parallel value lists
-        max_matches = max(len(v) for v in stats.values())
-        for i in range(min(max_matches, 10)):
-            match_stats = {}
-            for key, vals in stats.items():
-                if i < len(vals):
-                    match_stats[key] = vals[i]
-            if match_stats:
-                l10_matches.append(match_stats)
-
-    # Merge sources
-    sources = existing.get("sources", [])
-    if source not in sources:
-        sources.append(source)
-    if "enrichment-agent" not in sources:
-        sources.append("enrichment-agent")
-
-    cache_data = {
-        "team": team_name,
-        "sport": sport,
-        "sources": sources,
-        "form": {
-            "l10_avg": {k: v["l10_avg"] for k, v in form_data.items()},
-            "l5_avg": {k: v["l5_avg"] for k, v in form_data.items()},
-            "l10_matches": l10_matches,
-        },
-        "enriched_at": _now_iso(),
-    }
-
-    cache_path.write_text(
-        json.dumps(cache_data, indent=2, ensure_ascii=False),
-        encoding="utf-8",
-    )
-    logger.info("Saved cache: %s", cache_path)
-
-
-def _save_to_db(team_name: str, sport: str, stats: dict, source: str) -> None:
-    """Save stats to SQLite DB via StatsRepo.save_team_form()."""
-    with _db_write_lock:
-        try:
-            with get_db() as conn:
-                sport_repo = SportRepo(conn)
-                team_repo = TeamRepo(conn)
-                stats_repo = StatsRepo(conn)
-
-                sport_obj = sport_repo.get_by_name(sport)
-                if not sport_obj:
-                    # Auto-create sport entry if missing
-                    from bet.db.schema import init_db
-                    init_db(conn)
-                    sport_repo.seed_defaults()
-                    conn.commit()
-                    sport_obj = sport_repo.get_by_name(sport)
-                    if not sport_obj:
-                        logger.warning("Sport '%s' not found in DB even after seeding", sport)
-                        return
-
-                team = team_repo.find_or_create(team_name, sport_obj.id)
-
-                for stat_key, values in stats.items():
-                    # Range validation — reject values outside sport-appropriate bounds
-                    ranges = SPORT_VALUE_RANGES.get(sport, {})
-                    bounds = ranges.get(stat_key)
-                    if bounds:
-                        lo, hi = bounds
-                        values = [v for v in values if lo <= v <= hi]
-                        if not values:
-                            logger.warning("All values for %s/%s filtered by range [%.1f, %.1f]", team_name, stat_key, lo, hi)
-                            continue
-
-                    l10 = values[:10]
-                    l5 = values[:5] if len(values) >= 5 else values
-                    trend = _compute_trend(l10, l5)
-
-                    form = TeamForm(
-                        id=None,
-                        team_id=team.id,
-                        sport_id=sport_obj.id,
-                        stat_key=stat_key,
-                        l10_values=l10,
-                        l5_values=l5,
-                        l10_avg=_safe_avg(l10),
-                        l5_avg=_safe_avg(l5),
-                        h2h_values=[],
-                        h2h_opponent_id=None,
-                        trend=trend,
-                        updated_at=_now_iso(),
-                        source=source,
-                    )
-                    stats_repo.save_team_form(form)
-
-                conn.commit()
-                logger.info("Saved to DB: %s (%s) — %d stat keys", team_name, sport, len(stats))
-        except sqlite3.OperationalError as exc:
-            logger.critical("DB LOCK ERROR saving %s: %s — DATA LOST", team_name, exc)
-        except Exception as exc:
-            logger.error("DB save failed for %s: %s", team_name, exc)
-
-
-# ---------------------------------------------------------------------------
-# Fetch helpers
-# ---------------------------------------------------------------------------
-
-def _try_client_enrichment(team_name: str, sport: str) -> tuple[dict, str | None]:
-    """Try enrichment via UnifiedAPIClient (uses FlashscoreClient/Scores24Client internally).
-    
-    Returns (stats_dict, error_or_None) — same interface as _try_flashscore().
-    The stats_dict maps stat_key → list of values (e.g., {"corners": [7, 5, 8, ...], "fouls": [12, 15, ...]}).
-    """
-    # NOTE: Some clients (BetExplorer, ESPN) are HTTP-based and thread-safe.
-    # Playwright-based clients may raise greenlet errors in worker threads —
-    # we catch those gracefully rather than blanket-blocking all threads.
-    client = _get_unified_client()
-    if client is None:
-        return {}, "UnifiedAPIClient not available"
-    
-    try:
-        # Look up the team's fixtures from DB to get event IDs
-        with get_db() as conn:
-            team_repo = TeamRepo(conn)
-            sport_repo = SportRepo(conn)
-            
-            sport_obj = sport_repo.get_by_name(sport)
-            if not sport_obj:
-                return {}, f"Sport '{sport}' not found in DB"
-            
-            # Use resolve to find team without creating a new one if possible
-            team = team_repo.resolve(team_name, sport_obj.id)
-            if not team:
-                return {}, f"Team '{team_name}' not found in DB"
-            
-            # Get recent fixtures with external_id (needed for client calls)
-            rows = conn.execute(
-                "SELECT external_id FROM fixtures "
-                "WHERE (home_team_id = ? OR away_team_id = ?) "
-                "AND external_id != '' AND external_id IS NOT NULL "
-                "ORDER BY kickoff DESC LIMIT 5",
-                (team.id, team.id)
-            ).fetchall()
-            
-            if not rows:
-                return {}, f"No fixtures with external_id found for '{team_name}'"
-        
-        # Try to get stats from the most recent fixture
-        stats = {}
-        for row in rows:
-            event_id = row["external_id"]
-            if not event_id:
-                continue
-            
-            try:
-                fixture_stats = client.get_fixture_stats(event_id, sport=sport)
-                if fixture_stats:
-                    # Convert list of stat dicts to aggregated format
-                    # fixture_stats = [{"category": "Corners", "key": "corners", "home": "7", "away": "3"}, ...]
-                    for stat in fixture_stats:
-                        key = stat.get("key", "").lower().replace(" ", "_")
-                        if not key:
-                            continue
-                        
-                        for val_key in ["home", "away"]:
-                            try:
-                                val = float(str(stat.get(val_key, "")).replace(",", "."))
-                                stats.setdefault(key, []).append(val)
-                            except (ValueError, TypeError):
-                                pass
-                    
-                    if stats:
-                        logger.info(f"[Client] Got {len(stats)} stat keys from fixture {event_id}")
-                        break  # Got data from one fixture — enough for enrichment
-            except Exception as e:
-                logger.debug(f"[Client] Stats failed for fixture {event_id}: {e}")
-                continue
-        
-        if stats:
-            return stats, None
-        return {}, "No stats returned from client for any fixture"
-        
-    except Exception as e:
-        return {}, f"Client enrichment error: {e}"
-
-
-def _build_scores24_url(team_name: str, sport: str) -> str | None:
-    """Resolve the latest Scores24 detail URL for a team from DB fixtures."""
+def _get_competition_for_team(team_name: str, sport: str) -> str:
+    """Try to resolve competition name from DB fixtures for better ESPN league matching."""
     try:
         with get_db() as conn:
             sport_repo = SportRepo(conn)
             team_repo = TeamRepo(conn)
-
             sport_obj = sport_repo.get_by_name(sport)
             if not sport_obj:
-                return None
-
+                return ""
             team = team_repo.resolve(team_name, sport_obj.id)
             if not team:
-                return None
-
+                return ""
             row = conn.execute(
-                "SELECT external_id FROM fixtures "
-                "WHERE (home_team_id = ? OR away_team_id = ?) "
-                "AND source = 'scores24' "
-                "AND external_id LIKE '/%' "
-                "ORDER BY kickoff DESC LIMIT 1",
+                "SELECT c.name FROM fixtures f "
+                "JOIN competitions c ON f.competition_id = c.id "
+                "WHERE (f.home_team_id = ? OR f.away_team_id = ?) "
+                "ORDER BY f.kickoff DESC LIMIT 1",
                 (team.id, team.id),
             ).fetchone()
-            if not row:
-                return None
-
-            return f"https://scores24.live{row['external_id']}"
-    except Exception as exc:
-        logger.debug("Scores24 URL resolution failed for %s (%s): %s", team_name, sport, exc)
-        return None
-
-
-
-
-
-
-
-def _try_scores24(team_name: str, sport: str) -> tuple[dict, str | None]:
-    """Fetch stats from scores24.live (third-tier fallback). Returns (stats_dict, error_or_None)."""
-    url = _build_scores24_url(team_name, sport)
-    if not url:
-        return {}, "No scores24 detail URL available"
-    _rate_limit("scores24.live")
-    try:
-        html = fetch(url, save_snapshot=False)
-        if html is None:
-            return {}, "Empty response from scores24"
-        # scores24 uses same stat label patterns as Flashscore
-        stats = _parse_flashscore_stats(html, sport)
-        return stats, None
-    except Exception as exc:
-        return {}, f"scores24 fetch error: {exc}"
+            return row["name"] if row else ""
+    except Exception:
+        return ""
 
 
 # ---------------------------------------------------------------------------
-# Core enrichment functions
+# Core enrichment: uses proper API client fallback chains
 # ---------------------------------------------------------------------------
 
 def enrich_team(team_name: str, sport: str, max_retries: int = 2) -> dict:
-    """Fetch and save stats for a single team.
+    """Fetch and save stats for a single team via API client fallback chains.
+
+    Chain order (per sport): ESPN → sport-specific API → Google Sports → Flashscore curl_cffi
+    All saving (cache + DB) is handled by fetch_api_stats._store_in_cache().
 
     Returns: {
         "team": team_name,
         "sport": sport,
         "status": "enriched" | "partial" | "failed",
         "stats_found": {"corners": 8.5, ...},
-        "source": "flashscore" | "sofascore",
+        "source": "espn-football" | "api-football" | "flashscore" | ...,
         "error": None | "description"
     }
     """
@@ -966,167 +249,91 @@ def enrich_team(team_name: str, sport: str, max_retries: int = 2) -> dict:
         result["error"] = f"No stat keys defined for sport: {sport}"
         return result
 
-    # Check known-missing cache (ISSUE 8: avoid re-fetching teams that consistently 404)
+    # Check known-missing cache
     if _is_known_missing(team_name, sport):
         result["error"] = f"Known missing team (cached 404): {team_name}"
         logger.debug(f"Skipping known-missing team: {team_name} ({sport})")
         return result
 
+    # Resolve competition for better league matching (especially ESPN football)
+    competition = _get_competition_for_team(team_name, sport)
+
+    # Try each API client in the fallback chain
+    chain = FALLBACK_CHAINS.get(sport, [])
     errors = []
 
-    # Try UnifiedAPIClient first (uses FlashscoreClient/Scores24Client internally)
-    stats, err = _try_client_enrichment(team_name, sport)
-    if stats:
-        source = "client"
-        result["source"] = source
-        found_keys = set(stats.keys())
-        expected_keys = set(stat_keys)
-        if found_keys >= expected_keys:
+    for api_name in chain:
+        if _source_is_down(api_name):
+            logger.debug(f"Skipping {api_name} for {team_name} — circuit-broken")
+            continue
+
+        try:
+            client = get_client(api_name, rate_limiter=_rate_limiter)
+            if not client.is_available():
+                logger.debug(f"{api_name} not available (no API key?)")
+                continue
+        except (ValueError, Exception) as e:
+            logger.debug(f"Cannot create client {api_name}: {e}")
+            continue
+
+        try:
+            matches = fetch_team_stats(
+                client, team_name, sport, last_n=10, competition=competition
+            )
+        except APIRateLimitError:
+            logger.info(f"{api_name} rate limited for {team_name}")
+            _record_source_failure(api_name)
+            errors.append(f"{api_name}: rate limited")
+            continue
+        except Exception as e:
+            logger.debug(f"{api_name} failed for {team_name}: {e}")
+            _record_source_failure(api_name)
+            errors.append(f"{api_name}: {e}")
+            continue
+
+        if not matches:
+            errors.append(f"{api_name}: no matches found")
+            continue
+
+        # Check if we actually got stats (not just fixture metadata)
+        matches_with_stats = [m for m in matches if getattr(m, "stats", {})]
+        if not matches_with_stats:
+            errors.append(f"{api_name}: matches found but 0 stat keys")
+            continue
+
+        # SUCCESS — save to cache + DB via established infrastructure
+        _record_source_success(api_name)
+        _store_in_cache(sport, team_name, matches, api_name)
+
+        # Compute what we got
+        all_stat_keys = set()
+        for m in matches_with_stats:
+            all_stat_keys.update(m.stats.keys())
+
+        result["source"] = api_name
+        result["stats_found"] = {k: True for k in all_stat_keys}
+
+        expected = set(stat_keys)
+        if all_stat_keys >= expected:
             result["status"] = "enriched"
-        elif found_keys:
+        elif all_stat_keys:
             result["status"] = "partial"
-        
-        if result["status"] in ("enriched", "partial"):
-            result["stats_found"] = {
-                k: _safe_avg(v) for k, v in stats.items() if v
-            }
-            _save_to_cache(team_name, sport, stats, source)
-            _save_to_db(team_name, sport, stats, "client-enrichment")
-            return result
-    if err:
-        errors.append(err)
+        else:
+            result["status"] = "failed"
 
-    # Try TotalCorner for football corner predictions
-    # NOTE: Only works for fixtures sourced from TotalCorner (needs TC-specific URLs/IDs).
-    # Flashscore external_ids (e.g., "xkH73jPl") are NOT valid TotalCorner identifiers.
-    if sport == "football" and threading.current_thread() is threading.main_thread():
-        try:
-            tc_client = _get_unified_client()
-            if tc_client:
-                with get_db() as conn:
-                    team_repo = TeamRepo(conn)
-                    sport_repo = SportRepo(conn)
-                    sport_obj = sport_repo.get_by_name(sport)
-                    if sport_obj:
-                        team = team_repo.resolve(team_name, sport_obj.id)
-                        if team:
-                            # Only fetch from fixtures sourced from totalcorner
-                            rows = conn.execute(
-                                "SELECT external_id, source FROM fixtures "
-                                "WHERE (home_team_id = ? OR away_team_id = ?) "
-                                "AND external_id != '' AND external_id IS NOT NULL "
-                                "AND source = 'totalcorner' "
-                                "ORDER BY kickoff DESC LIMIT 1",
-                                (team.id, team.id)
-                            ).fetchall()
-                            for row in rows:
-                                event_id = row["external_id"]
-                                # TotalCorner IDs from get_fixtures() are valid for get_corner_predictions()
-                                corner_data = tc_client.get_corner_predictions(event_id)
-                                if corner_data:
-                                    corner_vals = []
-                                    for key in ("corners_home", "corners_away", "corners_total", "da_home", "da_away"):
-                                        v = corner_data.get(key)
-                                        if v is not None:
-                                            try:
-                                                corner_vals.append(float(v))
-                                            except (ValueError, TypeError):
-                                                pass
-                                    if corner_vals:
-                                        stats_repo = StatsRepo(conn)
-                                        form = TeamForm(
-                                            id=None,
-                                            team_id=team.id,
-                                            sport_id=sport_obj.id,
-                                            stat_key="corners_predicted",
-                                            l10_values=corner_vals,
-                                            l5_values=corner_vals[:5],
-                                            l10_avg=sum(corner_vals) / len(corner_vals),
-                                            l5_avg=sum(corner_vals[:5]) / len(corner_vals[:5]) if len(corner_vals) >= 5 else sum(corner_vals) / len(corner_vals),
-                                            trend="",
-                                            updated_at=datetime.now(timezone.utc).isoformat(),
-                                            source="totalcorner",
-                                        )
-                                        stats_repo.save_team_form(form)
-                                        conn.commit()
-                                        logger.info(f"[TotalCorner] Saved corner predictions for {team_name}")
-        except Exception as e:
-            logger.debug(f"TotalCorner enrichment failed for {team_name}: {e}")
+        logger.info(
+            f"[{api_name}] Enriched {team_name} ({sport}): "
+            f"{len(matches_with_stats)} matches, {len(all_stat_keys)} stat keys"
+        )
+        return result
 
-    # Try Scores24 trends — only for fixtures sourced from Scores24
-    # NOTE: Scores24 get_trends() needs a Scores24 detail URL. Flashscore external_ids
-    # are NOT valid Scores24 URLs. Only fixtures with source='scores24' have valid IDs.
-    if threading.current_thread() is threading.main_thread():
-        try:
-            s24_client = _get_unified_client()
-            if s24_client:
-                with get_db() as conn:
-                    team_repo = TeamRepo(conn)
-                    sport_repo = SportRepo(conn)
-                    sport_obj = sport_repo.get_by_name(sport)
-                    if sport_obj:
-                        team = team_repo.resolve(team_name, sport_obj.id)
-                        if team:
-                            # Only fetch from fixtures sourced from scores24
-                            rows = conn.execute(
-                                "SELECT external_id, source FROM fixtures "
-                                "WHERE (home_team_id = ? OR away_team_id = ?) "
-                                "AND external_id != '' AND external_id IS NOT NULL "
-                                "AND source = 'scores24' "
-                                "ORDER BY kickoff DESC LIMIT 1",
-                                (team.id, team.id)
-                            ).fetchall()
-                            for row in rows:
-                                event_id = row["external_id"]
-                                # Scores24 external_ids come in two formats:
-                                # 1. Href path: "/en/football/match/123-team1-vs-team2" → use directly
-                                # 2. Synthetic key: "s24-team1_team2" → NOT a valid URL, skip
-                                if event_id.startswith('/'):
-                                    detail_url = event_id  # Already a valid Scores24 path
-                                else:
-                                    logger.debug(f"[Scores24] Skipping non-URL external_id: {event_id}")
-                                    continue
-                                trends = s24_client.get_trends(detail_url)
-                                if trends:
-                                    stats_repo = StatsRepo(conn)
-                                    for trend in trends:
-                                        cat = trend.get("category", "").lower().replace(" ", "_")
-                                        if not cat:
-                                            continue
-                                        stat_key = f"trend_{cat}"
-                                        try:
-                                            odds_val = float(trend.get("odds", 0))
-                                        except (ValueError, TypeError):
-                                            odds_val = 0.0
-                                        form = TeamForm(
-                                            id=None,
-                                            team_id=team.id,
-                                            sport_id=sport_obj.id,
-                                            stat_key=stat_key,
-                                            l10_values=[odds_val] if odds_val else [],
-                                            l5_values=[odds_val] if odds_val else [],
-                                            l10_avg=odds_val,
-                                            l5_avg=odds_val,
-                                            trend=trend.get("tip", ""),
-                                            updated_at=datetime.now(timezone.utc).isoformat(),
-                                            source="scores24-trends",
-                                        )
-                                        stats_repo.save_team_form(form)
-                                    conn.commit()
-                                    logger.info(f"[Scores24] Saved {len(trends)} trends for {team_name}")
-                                    break
-        except Exception as e:
-            logger.debug(f"Scores24 trends failed for {team_name}: {e}")
-
-    # Try Flashscore (skip if circuit-broken) — curl_cffi is thread-safe, no main-thread guard needed
+    # Last resort: Flashscore via curl_cffi (entity resolution + results page)
     if not _source_is_down("flashscore.com"):
         for attempt in range(1, max_retries + 1):
             stats, err = _try_flashscore(team_name, sport)
             if stats:
                 _record_source_success("flashscore.com")
-                source = "flashscore"
-                result["source"] = source
-                # Determine status
+                result["source"] = "flashscore"
                 found_keys = set(stats.keys())
                 expected_keys = set(stat_keys)
                 if found_keys >= expected_keys:
@@ -1134,131 +341,98 @@ def enrich_team(team_name: str, sport: str, max_retries: int = 2) -> dict:
                 elif found_keys:
                     result["status"] = "partial"
                 else:
-                    continue  # retry
+                    continue
 
-                result["stats_found"] = {
-                        k: _safe_avg(v) for k, v in stats.items() if v
-                }
-
-                # Save to both cache and DB
-                _save_to_cache(team_name, sport, stats, source)
-                _save_to_db(team_name, sport, stats, "enrichment-agent")
+                result["stats_found"] = {k: _safe_avg(v) for k, v in stats.items() if v}
+                _save_flashscore_to_db(team_name, sport, stats)
+                logger.info(f"[flashscore] Enriched {team_name} ({sport}): {len(stats)} stat keys")
                 return result
-        else:
-            _record_source_failure("flashscore.com")
-            logger.info(f"Flashscore retry exhausted for {sport} entity '{team_name}' — all {max_retries} attempts returned no data")
-    else:
-        logger.debug(f"Skipping Flashscore for {team_name} — source circuit-broken")
 
-    # Fallback: try scores24.live
-    if not _source_is_down("scores24.live"):
-        stats, err = _try_scores24(team_name, sport)
-        if stats:
-            _record_source_success("scores24.live")
-            source = "scores24"
-            result["source"] = source
-            found_keys = set(stats.keys())
-            if found_keys:
-                result["status"] = "partial" if found_keys < set(stat_keys) else "enriched"
-            result["stats_found"] = {
-                k: _safe_avg(v) for k, v in stats.items() if v
-            }
-            _save_to_cache(team_name, sport, stats, source)
-            _save_to_db(team_name, sport, stats, "enrichment-agent")
-            return result
-        else:
-            _record_source_failure("scores24.live")
-        if err:
-            errors.append(err)
-    else:
-        logger.debug(f"Skipping scores24 for {team_name} — source circuit-broken")
+            if err:
+                errors.append(f"flashscore: {err}")
+                # Only network failures trip circuit breaker
+                if any(x in err.lower() for x in ("blocked", "403", "429", "timeout")):
+                    _record_source_failure("flashscore.com")
 
-    # L7: Web research agent — last resort for missing data
-    try:
-        from web_research_agent import research_missing_data
-
-        for data_type in ("form", "injuries"):
-            l7_result = research_missing_data(
-                team1=team_name, sport=sport, data_type=data_type,
-            )
-            if l7_result.get("data") and not l7_result.get("error"):
-                result["status"] = "partial"
-                result["source"] = f"web-research-{data_type}"
-                logger.info("L7 web research found %s data for %s", data_type, team_name)
-                break
-    except ImportError:
-        pass
-    except Exception as exc:
-        logger.debug("L7 web research failed for %s: %s", team_name, exc)
-
-    if result["status"] != "failed":
-        return result
-
-    result["error"] = "; ".join(errors) if errors else "No data found from any source"
-    # Mark as known missing for future runs (7-day TTL)
+    # All sources failed
+    result["error"] = "; ".join(errors[-3:]) if errors else "No data from any source"
     _mark_missing(team_name, sport)
     return result
 
 
-def enrich_team_deep(team_name: str, sport: str) -> dict:
-    """Run deep extraction for a team from multiple sources.
+def _save_flashscore_to_db(team_name: str, sport: str, stats: dict) -> None:
+    """Save Flashscore raw stat arrays to DB (fallback path only)."""
+    with _db_write_lock:
+        try:
+            with get_db() as conn:
+                sport_repo = SportRepo(conn)
+                team_repo = TeamRepo(conn)
+                stats_repo = StatsRepo(conn)
 
-    Tries sources in order of data quality and speed:
-    1. ESPN API (free, unlimited, good for injuries/schedule)
-    2. Flashscore via curl_cffi (NO Playwright — entity resolution + results page)
+                sport_obj = sport_repo.get_by_name(sport)
+                if not sport_obj:
+                    return
 
-    Returns deep data dict with quality score.
-    """
-    deep_result = {
-        "team": team_name,
-        "sport": sport,
-        "deep_data": None,
-        "source": None,
-        "quality_score": 0,
-    }
+                team = team_repo.find_or_create(team_name, sport_obj.id)
 
-    best_data = None
-    best_score = 0
-    best_source = None
+                for stat_key, values in stats.items():
+                    # Range validation
+                    ranges = SPORT_VALUE_RANGES.get(sport, {})
+                    bounds = ranges.get(stat_key)
+                    if bounds:
+                        lo, hi = bounds
+                        values = [v for v in values if lo <= v <= hi]
+                        if not values:
+                            continue
 
-    # Source 1: ESPN API (free and has injuries)
-    try:
-        espn_data = _fetch_espn_deep(team_name, sport)
-        espn_quality = _compute_enrichment_quality(espn_data, sport)
-        if espn_quality["score"] > best_score:
-            best_data = espn_data
-            best_score = espn_quality["score"]
-            best_source = "espn-api"
-            logger.info("ESPN deep: %s (%s) quality=%d",
-                        team_name, sport, espn_quality["score"])
-    except Exception as e:
-        logger.warning("ESPN deep failed for %s: %s", team_name, e)
+                    l10 = values[:10]
+                    l5 = values[:5] if len(values) >= 5 else values
+                    l10_avg = _safe_avg(l10)
+                    l5_avg = _safe_avg(l5)
 
-    # Flashscore deep: use _try_flashscore (curl_cffi) — Playwright NEVER used for Flashscore
+                    # Trend
+                    trend = "stable"
+                    if l10_avg and l5_avg:
+                        diff = l5_avg - l10_avg
+                        if abs(diff) >= 0.3:
+                            trend = "rising" if diff > 0 else "falling"
 
-    if best_data and best_source:
-        _save_deep_data(team_name, sport, best_data, best_source)
-        deep_result["deep_data"] = best_data
-        deep_result["source"] = best_source
-        deep_result["quality_score"] = best_score
-    else:
-        logger.warning("No deep data found for %s (%s)", team_name, sport)
+                    form = TeamForm(
+                        id=None,
+                        team_id=team.id,
+                        sport_id=sport_obj.id,
+                        stat_key=stat_key,
+                        l10_values=l10,
+                        l5_values=l5,
+                        l10_avg=l10_avg,
+                        l5_avg=l5_avg,
+                        h2h_values=[],
+                        h2h_opponent_id=None,
+                        trend=trend,
+                        updated_at=_now_iso(),
+                        source="flashscore",
+                    )
+                    stats_repo.save_team_form(form)
 
-    return deep_result
+                conn.commit()
+                logger.info("Saved Flashscore stats to DB: %s (%s)", team_name, sport)
+        except Exception as exc:
+            logger.error("Flashscore DB save failed for %s: %s", team_name, exc)
 
+
+# ---------------------------------------------------------------------------
+# H2H enrichment
+# ---------------------------------------------------------------------------
 
 def enrich_h2h(team_a: str, team_b: str, sport: str) -> dict:
-    """Fetch H2H stats between two teams.
-
-    Uses Flashscore entity resolution (curl_cffi, no Playwright) to find
-    each team's results page, then parses stats from both.
-    Falls back gracefully if entity resolution fails.
+    """Fetch H2H stats between two teams via API client fallback chains.
 
     Returns: {
         "team_a": ..., "team_b": ...,
         "status": "enriched" | "failed",
         "meetings_found": 5,
-        "h2h_stats": {...}
+        "source": "espn-football",
+        "error": None | "description"
     }
     """
     result = {
@@ -1267,76 +441,74 @@ def enrich_h2h(team_a: str, team_b: str, sport: str) -> dict:
         "sport": sport,
         "status": "failed",
         "meetings_found": 0,
-        "h2h_stats": {},
+        "source": None,
         "error": None,
     }
 
-    # Resolve both teams via Flashscore search API (curl_cffi — no Playwright cost)
-    entity_type_a, slug_a, id_a = _get_flashscore_entity(team_a, sport)
-    if not slug_a or not id_a:
-        result["error"] = f"Could not resolve Flashscore entity for '{team_a}'"
+    competition = _get_competition_for_team(team_a, sport)
+    chain = FALLBACK_CHAINS.get(sport, [])
+
+    for api_name in chain:
+        if _source_is_down(api_name):
+            continue
+
+        try:
+            client = get_client(api_name, rate_limiter=_rate_limiter)
+            if not client.is_available():
+                continue
+        except Exception:
+            continue
+
+        try:
+            h2h_matches = fetch_h2h_stats(
+                client, team_a, team_b, sport, last_n=10, competition=competition
+            )
+        except Exception as e:
+            logger.debug(f"{api_name} H2H failed: {e}")
+            continue
+
+        if not h2h_matches:
+            continue
+
+        # Save H2H data
+        _record_source_success(api_name)
+        _store_in_cache(sport, team_a, [], api_name, opponent=team_b, h2h_matches=h2h_matches)
+
+        result["status"] = "enriched"
+        result["meetings_found"] = len(h2h_matches)
+        result["source"] = api_name
+        logger.info(f"[{api_name}] H2H {team_a} vs {team_b}: {len(h2h_matches)} meetings")
         return result
 
-    entity_type_b, slug_b, id_b = _get_flashscore_entity(team_b, sport)
-    if not slug_b or not id_b:
-        result["error"] = f"Could not resolve Flashscore entity for '{team_b}'"
-        return result
-
-    # Fetch results page for team A (uses curl_cffi, not Playwright)
-    _rate_limit("flashscore.com")
+    # Flashscore H2H fallback
     try:
-        import curl_cffi.requests as _cffi_req
-        from flashscore_enricher import _FS_HEADERS, _FS_IMPERSONATE
-        url_a = f"https://www.flashscore.com/{entity_type_a}/{slug_a}/{id_a}/results/"
-        resp_a = _cffi_req.get(url_a, impersonate=_FS_IMPERSONATE, headers=_FS_HEADERS, timeout=15)
-        html_a = resp_a.text if resp_a.status_code == 200 else None
-    except Exception as exc:
-        html_a = None
-        logger.warning("Flashscore H2H fetch failed for %s: %s", team_a, exc)
+        entity_type_a, slug_a, id_a = _get_flashscore_entity(team_a, sport)
+        entity_type_b, slug_b, id_b = _get_flashscore_entity(team_b, sport)
 
-    if html_a and len(html_a) > 500:
-        stats = _parse_flashscore_stats(html_a, sport)
-        if stats:
-            result["status"] = "enriched"
-            result["h2h_stats"] = {
-                k: _safe_avg(v) for k, v in stats.items() if v
-            }
-            if stats:
-                max_vals = max(len(v) for v in stats.values())
-                result["meetings_found"] = max_vals
-            _save_h2h_to_db(team_a, team_b, sport, stats)
-            return result
+        if slug_a and id_a and slug_b and id_b:
+            import curl_cffi.requests as _cffi_req
+            from flashscore_enricher import _FS_HEADERS, _FS_IMPERSONATE
 
-    # Fallback: try team B results page
-    _rate_limit("flashscore.com")
-    try:
-        url_b = f"https://www.flashscore.com/{entity_type_b}/{slug_b}/{id_b}/results/"
-        resp_b = _cffi_req.get(url_b, impersonate=_FS_IMPERSONATE, headers=_FS_HEADERS, timeout=15)
-        html_b = resp_b.text if resp_b.status_code == 200 else None
-    except Exception as exc:
-        html_b = None
-        logger.warning("Flashscore H2H fetch failed for %s: %s", team_b, exc)
+            url_a = f"https://www.flashscore.com/{entity_type_a}/{slug_a}/{id_a}/results/"
+            time.sleep(1.5)
+            resp = _cffi_req.get(url_a, impersonate=_FS_IMPERSONATE, headers=_FS_HEADERS, timeout=15)
+            if resp.status_code == 200 and len(resp.text) > 500:
+                from flashscore_enricher import _parse_flashscore_stats
+                stats = _parse_flashscore_stats(resp.text, sport)
+                if stats:
+                    _save_h2h_to_db(team_a, team_b, sport, stats)
+                    result["status"] = "enriched"
+                    result["source"] = "flashscore"
+                    result["meetings_found"] = max(len(v) for v in stats.values()) if stats else 0
+                    return result
+    except Exception as e:
+        logger.debug(f"Flashscore H2H fallback failed: {e}")
 
-    if html_b and len(html_b) > 500:
-        stats = _parse_flashscore_stats(html_b, sport)
-        if stats:
-            result["status"] = "enriched"
-            result["h2h_stats"] = {
-                k: _safe_avg(v) for k, v in stats.items() if v
-            }
-            if stats:
-                max_vals = max(len(v) for v in stats.values())
-                result["meetings_found"] = max_vals
-            _save_h2h_to_db(team_a, team_b, sport, stats)
-            return result
-
-    result["error"] = "No H2H stats parsed from either team's results page"
+    result["error"] = "No H2H data from any source"
     return result
 
 
-def _save_h2h_to_db(
-    team_a: str, team_b: str, sport: str, stats: dict
-) -> None:
+def _save_h2h_to_db(team_a: str, team_b: str, sport: str, stats: dict) -> None:
     """Save H2H stats to DB."""
     with _db_write_lock:
         try:
@@ -1366,27 +538,28 @@ def _save_h2h_to_db(
                         h2h_opponent_id=t_b.id,
                         trend="stable",
                         updated_at=_now_iso(),
-                        source="enrichment-agent",
+                        source="flashscore-h2h",
                     )
                     stats_repo.save_team_form(form)
 
+                conn.commit()
                 logger.info("Saved H2H to DB: %s vs %s (%s)", team_a, team_b, sport)
-        except sqlite3.OperationalError as exc:
-            logger.critical("DB LOCK ERROR saving H2H %s vs %s: %s — DATA LOST", team_a, team_b, exc)
         except Exception as exc:
             logger.error("H2H DB save failed: %s", exc)
 
 
-def batch_enrich(teams: list[dict], max_workers: int = 4) -> list[dict]:
-    """Enrich multiple teams in parallel, with main-thread retry for Playwright-skipped teams.
+# ---------------------------------------------------------------------------
+# Batch enrichment
+# ---------------------------------------------------------------------------
 
-    Input: [{"team": "FC Barcelona", "sport": "football", "missing": ["corners", "fouls"]}]
+def batch_enrich(teams: list[dict], max_workers: int = 4) -> list[dict]:
+    """Enrich multiple teams in parallel.
+
+    Input: [{"team": "FC Barcelona", "sport": "football"}]
     Returns: list of enrich_team results
     """
     results = []
 
-    # Phase 1: Use ThreadPoolExecutor but respect rate limits via _rate_limit()
-    # NOTE: Playwright-based clients are skipped in worker threads (greenlet conflict).
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = {}
         for entry in teams:
@@ -1394,12 +567,9 @@ def batch_enrich(teams: list[dict], max_workers: int = 4) -> list[dict]:
             sport = entry.get("sport", "")
             if not team_name or not sport:
                 results.append({
-                    "team": team_name,
-                    "sport": sport,
-                    "status": "failed",
-                    "stats_found": {},
-                    "source": None,
-                    "error": "Missing team name or sport",
+                    "team": team_name, "sport": sport,
+                    "status": "failed", "stats_found": {},
+                    "source": None, "error": "Missing team name or sport",
                 })
                 continue
             fut = executor.submit(enrich_team, team_name, sport)
@@ -1412,66 +582,16 @@ def batch_enrich(teams: list[dict], max_workers: int = 4) -> list[dict]:
             except Exception as exc:
                 entry = futures[fut]
                 results.append({
-                    "team": entry.get("team", ""),
-                    "sport": entry.get("sport", ""),
-                    "status": "failed",
-                    "stats_found": {},
-                    "source": None,
-                    "error": str(exc),
+                    "team": entry.get("team", ""), "sport": entry.get("sport", ""),
+                    "status": "failed", "stats_found": {},
+                    "source": None, "error": str(exc),
                 })
-
-    # Phase 2: Main-thread retry for teams that failed due to thread-safety.
-    # Only retry teams whose error indicates greenlet/thread conflict — NOT cached 404s
-    # or other permanent failures (which would just fail again and trigger early termination).
-    retry_needed = []
-    retry_indices = []
-    for idx, res in enumerate(results):
-        error_msg = (res.get("error") or "").lower()
-        if "greenlet" in error_msg or "thread-safe" in error_msg or "worker thread" in error_msg:
-            retry_needed.append(res)
-            retry_indices.append(idx)
-        elif res.get("status") == "enriched" and not res.get("stats_found"):
-            retry_needed.append(res)
-            retry_indices.append(idx)
-
-    if retry_needed and threading.current_thread() is threading.main_thread():
-        # Reset circuit breakers — Phase 1 thread failures are expected (greenlet conflict),
-        # they should NOT prevent Phase 2 main-thread attempts from using these sources.
-        with _source_cb_lock:
-            _source_failures.clear()
-        logger.info(f"[batch_enrich] Phase 2: retrying {len(retry_needed)} teams on main thread (Playwright-safe). Circuit breakers reset.")
-        consecutive_failures = 0
-        MAX_CONSECUTIVE_FAILURES = 15
-        for i, res in enumerate(retry_needed):
-            if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
-                skipped = len(retry_needed) - i
-                logger.warning(f"⚠️ [batch_enrich] Phase 2: Terminating early due to {MAX_CONSECUTIVE_FAILURES} consecutive failures. Skipped {skipped} remaining teams.")
-                break
-                
-            team_name = res.get("team", "")
-            sport = res.get("sport", "")
-            if not team_name or not sport:
-                continue
-            try:
-                retry_res = enrich_team(team_name, sport)
-                # Only replace if retry produced better results
-                if retry_res.get("stats_found") or retry_res.get("status") == "enriched":
-                    results[retry_indices[i]] = retry_res
-                    consecutive_failures = 0  # reset on success
-                else:
-                    consecutive_failures += 1
-            except Exception as exc:
-                logger.debug(f"[batch_enrich] Phase 2 retry failed for {team_name}: {exc}")
-                consecutive_failures += 1
-                
-            if (i + 1) % 20 == 0:
-                logger.info(f"[batch_enrich] Phase 2 progress: {i + 1}/{len(retry_needed)}")
 
     return results
 
 
 # ---------------------------------------------------------------------------
-# Auto-detect missing teams from shortlist
+# Auto-detect missing teams from shortlist / DB fixtures
 # ---------------------------------------------------------------------------
 
 def _detect_missing_from_shortlist(date_str: str) -> list[dict]:
@@ -1489,12 +609,12 @@ def _detect_missing_from_shortlist(date_str: str) -> list[dict]:
                     sport = f.get("sport", "")
                     if team_name and sport and (team_name, sport) not in seen:
                         seen.add((team_name, sport))
-                        teams_from_db.append({"team": team_name, "sport": sport, "missing": []})
+                        teams_from_db.append({"team": team_name, "sport": sport})
             if teams_from_db:
                 logger.info(f"[DB] Loaded {len(teams_from_db)} teams from {len(fixtures)} fixtures")
     except Exception as exc:
         logger.debug(f"DB fixture load failed: {exc}")
-    
+
     if teams_from_db:
         # Filter to teams missing from cache
         missing = []
@@ -1507,7 +627,6 @@ def _detect_missing_from_shortlist(date_str: str) -> list[dict]:
         return missing
 
     # JSON fallback
-    # Try both date formats: YYYY-MM-DD (pipeline) and YYYYMMDD (legacy)
     shortlist_path = DATA_DIR / f"{date_str}_s2_shortlist.json"
     if not shortlist_path.exists():
         shortlist_path = DATA_DIR / f"{date_str.replace('-', '')}_s2_shortlist.json"
@@ -1526,25 +645,18 @@ def _detect_missing_from_shortlist(date_str: str) -> list[dict]:
 
     for c in candidates:
         sport = c.get("sport", "")
-        stat_keys = SPORT_STAT_KEYS.get(sport, [])
-        if not stat_keys:
+        if not SPORT_STAT_KEYS.get(sport):
             continue
-
         for team_field in ("home_team", "away_team", "home", "away", "team_a", "team_b"):
             team_name = c.get(team_field, "")
             if not team_name:
                 continue
-
             slug = _slugify(team_name)
             cache_path = CACHE_DIR / sport / f"{slug}.json"
             if not cache_path.exists():
-                missing.append({
-                    "team": team_name,
-                    "sport": sport,
-                    "missing": stat_keys,
-                })
+                missing.append({"team": team_name, "sport": sport})
 
-    # Deduplicate by (team, sport)
+    # Deduplicate
     seen = set()
     deduped = []
     for entry in missing:
@@ -1563,9 +675,7 @@ def _detect_missing_from_shortlist(date_str: str) -> list[dict]:
 def main():
     from agent_output import AgentOutput
 
-    parser = argparse.ArgumentParser(
-        description="Self-healing data enrichment agent"
-    )
+    parser = argparse.ArgumentParser(description="Self-healing data enrichment agent")
     parser.add_argument("--team", help="Single team name to enrich")
     parser.add_argument("--sport", help="Sport for --team mode")
     parser.add_argument("--batch", help="Path to JSON file with teams to enrich")
@@ -1573,7 +683,7 @@ def main():
     parser.add_argument("--h2h", nargs=2, metavar=("TEAM_A", "TEAM_B"), help="Fetch H2H stats")
     parser.add_argument("--workers", type=int, default=4, help="Max parallel workers")
     parser.add_argument("--news", action="store_true", default=False,
-                        help="Run Gemini news enrichment after stats enrichment (feature flag)")
+                        help="Run Gemini news enrichment after stats enrichment")
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose logging")
     parser.add_argument("--stop-on-error", action="store_true", help="Stop on first critical error")
     args = parser.parse_args()
@@ -1592,8 +702,10 @@ def main():
             sys.exit(1)
         result = enrich_team(args.team, args.sport)
         print(json.dumps(result, indent=2, ensure_ascii=False))
-        out.summary(verdict="OK" if result.get("status") == "enriched" else "PARTIAL",
-                     metrics={"team": args.team, "sport": args.sport, "status": result.get("status", "?")})
+        out.summary(
+            verdict="OK" if result.get("status") == "enriched" else "PARTIAL",
+            metrics={"team": args.team, "sport": args.sport, "status": result.get("status", "?")},
+        )
 
     elif args.h2h:
         if not args.sport:
@@ -1622,11 +734,13 @@ def main():
         enriched = sum(1 for r in results if r.get("status") == "enriched")
         partial = sum(1 for r in results if r.get("status") == "partial")
         failed = sum(1 for r in results if r.get("status") == "failed")
-        out.summary(verdict="OK" if enriched > 0 else "PARTIAL",
-                     metrics={"enriched": enriched, "partial": partial, "failed": failed, "total": len(results)})
+        out.summary(
+            verdict="OK" if enriched > 0 else "PARTIAL",
+            metrics={"enriched": enriched, "partial": partial, "failed": failed, "total": len(results)},
+        )
 
     elif args.date:
-        # V5: Input contract pre-check (warning-only, never blocks)
+        # Input contract pre-check
         _contract = AgentOutput.validate_input_contract("s2_5_enrich", args.date)
         if _contract["status"] != "OK":
             for _w in _contract.get("warnings", []):
@@ -1638,10 +752,12 @@ def main():
         if not missing:
             out.summary(verdict="OK", metrics={"missing": 0, "message": f"No missing teams for {args.date}"})
             sys.exit(0)
+
         if args.verbose:
             out.event("missing_detected", count=len(missing))
         else:
             print(f"Found {len(missing)} teams with missing stats", file=sys.stderr)
+
         results = batch_enrich(missing, max_workers=args.workers)
         print(json.dumps(results, indent=2, ensure_ascii=False))
 
@@ -1673,30 +789,23 @@ def main():
                         news_count = save_news_to_db(news_results, args.date)
                         print(f"[enrich] Gemini news: {news_count} teams saved to team_news table")
                 else:
-                    print(f"[enrich] Shortlist not found — skipping news enrichment")
+                    print("[enrich] Shortlist not found — skipping news enrichment")
             except ImportError:
                 print("[enrich] gemini_news_enrichment not available — skipping")
             except Exception as e:
                 print(f"[enrich] Gemini news enrichment failed (non-fatal): {e}")
 
-        out.summary(verdict="OK" if enriched > 0 else "PARTIAL",
-                     metrics={"enriched": enriched, "partial": partial, "failed": failed,
-                              "total": len(results), "news_enriched": news_count})
+        out.summary(
+            verdict="OK" if enriched > 0 else "PARTIAL",
+            metrics={
+                "enriched": enriched, "partial": partial, "failed": failed,
+                "total": len(results), "news_enriched": news_count,
+            },
+        )
 
     else:
         parser.print_help()
         sys.exit(1)
-
-
-def _cleanup_client():
-    global _unified_client
-    if _unified_client is not None:
-        try:
-            _unified_client.close()
-        except Exception:
-            pass
-
-atexit.register(_cleanup_client)
 
 
 if __name__ == "__main__":

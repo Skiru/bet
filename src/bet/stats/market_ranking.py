@@ -26,7 +26,7 @@ SPORT_STAT_KEYS: dict[str, list[str]] = {
         "goals", "shots", "powerplay_goals", "pim",
         "hits", "blocks", "faceoff_pct",
     ],
-    "tennis": ["aces", "double_faults", "first_serve_pct", "break_points_won", "games_won", "sets_won", "total_games"],
+    "tennis": ["sets_won", "total_sets", "games_won", "total_games", "ranking", "aces", "double_faults", "first_serve_pct", "break_points_won"],
     "volleyball": ["points", "aces", "blocks", "attack_pct", "sets_won", "total_points", "errors"],
 }
 

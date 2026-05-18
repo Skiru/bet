@@ -657,8 +657,10 @@ class ESPNClient(BaseAPIClient):
         from datetime import timedelta
 
         # Search across recent days to find this specific match
+        # Daily resolution for recent week, then every 3 days for history
         today = datetime.now(timezone.utc).date()
-        dates_to_search = [today - timedelta(days=d) for d in range(0, 46, 3)]
+        days = list(range(0, 7)) + list(range(9, 46, 3))
+        dates_to_search = [today - timedelta(days=d) for d in days]
 
         for search_date in dates_to_search:
             date_str = search_date.strftime("%Y%m%d")
@@ -828,23 +830,63 @@ class ESPNClient(BaseAPIClient):
         return None
 
     def _resolve_athlete_id(self, athlete_name: str) -> str | None:
-        """Resolve athlete name to ESPN ID by scanning scoreboard."""
+        """Resolve athlete name to ESPN ID via search API, then scoreboard fallback.
+
+        Uses ESPN's web search API (site.web.api.espn.com/apis/common/v3/search)
+        which works regardless of whether the player is active on today's scoreboard.
+        Falls back to scoreboard scanning if search fails.
+        """
         cache_key = f"espn/{self.sport}/{self.league}/athlete_search/{athlete_name.lower().replace(' ', '_')}"
         cached = self._check_cache(cache_key, ttl_hours=168)
         if cached:
             return cached.get("team_id")
 
+        name_lower = athlete_name.lower().strip()
+
+        # Method 1: ESPN Web Search API (works for ALL players, not just today's matches)
+        try:
+            from urllib.parse import quote
+            search_url = (
+                f"https://site.web.api.espn.com/apis/common/v3/search"
+                f"?query={quote(athlete_name)}&type=player&sport={self.sport}&limit=10"
+            )
+            resp = requests.get(search_url, headers=self._build_headers(), timeout=10)
+            if resp.status_code == 200:
+                search_data = resp.json()
+                items = search_data.get("items", [])
+                for item in items:
+                    item_name = item.get("displayName", "").lower()
+                    item_sport = item.get("sport", "").lower()
+                    item_league = item.get("league", "").lower()
+                    # Match by name AND league (atp/wta)
+                    if (item_name == name_lower or name_lower in item_name or item_name in name_lower) \
+                            and item_sport == self.sport \
+                            and item_league == self.league:
+                        aid = item.get("id", "")
+                        if aid:
+                            self._save_cache(cache_key, {"team_id": aid})
+                            return aid
+                # Try less strict match (just sport, ignore league for doubles etc.)
+                for item in items:
+                    item_name = item.get("displayName", "").lower()
+                    item_sport = item.get("sport", "").lower()
+                    if (item_name == name_lower or name_lower in item_name) \
+                            and item_sport == self.sport:
+                        aid = item.get("id", "")
+                        if aid:
+                            self._save_cache(cache_key, {"team_id": aid})
+                            return aid
+        except Exception as e:
+            print(f"[{self.api_name}] ESPN search API failed for '{athlete_name}': {e}")
+
+        # Method 2: Scoreboard fallback (only finds players active today)
         try:
             data = self._request("/scoreboard")
         except Exception:
             return None
 
-        name_lower = athlete_name.lower().strip()
-
-        # Build athlete list from scoreboard
         athletes = []
         for event in data.get("events", []):
-            # Tennis: groupings→competitions
             for grouping in event.get("groupings", []):
                 for comp in grouping.get("competitions", []):
                     for c in comp.get("competitors", []):
@@ -852,7 +894,6 @@ class ESPNClient(BaseAPIClient):
                         if ath:
                             athletes.append({"id": str(c.get("id", "")), **ath})
 
-        # Fuzzy match
         best_match = None
         for a in athletes:
             display = a.get("displayName", "").lower()
@@ -865,7 +906,6 @@ class ESPNClient(BaseAPIClient):
             if name_lower in display or display in name_lower:
                 best_match = a
                 break
-            # Handle "Sinner" matching "Jannik Sinner"
             if name_lower in full or name_lower.split()[-1] in display:
                 if not best_match:
                     best_match = a
@@ -1081,8 +1121,9 @@ class ESPNClient(BaseAPIClient):
         seen_ids: set[str] = set()
         today = datetime.now(timezone.utc).date()
 
-        # Scan today + past 45 days (every 3 days for efficiency)
-        dates_to_scan = [today - timedelta(days=d) for d in range(0, 46, 3)]
+        # Scan recent 7 days daily + past 45 days every 3 days for history
+        days = list(range(0, 7)) + list(range(9, 46, 3))
+        dates_to_scan = [today - timedelta(days=d) for d in days]
 
         for scan_date in dates_to_scan:
             if len(matches) >= last_n:

@@ -1,5 +1,67 @@
 # Pipeline Knowledge Base — Consolidated (May 4-18, 2026, updated 2026-05-18)
 
+## 🆕 ENRICHMENT AGENT: COMPLETE REWRITE + TENNIS FIX — 2026-05-18
+
+### Problem
+`data_enrichment_agent.py` was 1715 lines of broken monolithic code:
+- Own inline ESPN scraping via urllib (duplicating proper `api_clients/` infrastructure)
+- Regex parsing of JS-rendered HTML (broken for every site)
+- Dead `UnifiedAPIClient` integration (never returned data)
+- The WORKING API client infrastructure (`scripts/api_clients/` + `scripts/fetch_api_stats.py`) existed but sat UNUSED
+
+### Solution: Complete Rewrite (1715 → ~800 lines)
+**Architecture:** Thin orchestrator delegating to established API client fallback chains.
+- Imports `fetch_team_stats()`, `fetch_h2h_stats()`, `_store_in_cache()` from `fetch_api_stats.py`
+- Uses `get_client()` + `RateLimiter` from `scripts/api_clients/`
+- Flashscore via `curl_cffi` as last-resort fallback only
+- Concurrent batch enrichment via `ThreadPoolExecutor(max_workers=4)`
+
+### Key Design Patterns
+1. **Circuit Breaker** — per-source with half-open window (60s). 5 consecutive failures → DOWN. Auto-retries after 60s.
+2. **Known-Missing Cache** — `known_missing_teams.json` with 7-day TTL. Thread-safe (dedicated lock).
+3. **FALLBACK_CHAINS** per sport: ESPN → sport-specific API → Google Sports → SerpAPI → Flashscore (curl_cffi)
+4. **Range Validation** — `SPORT_VALUE_RANGES` dict validates stat values before DB write (prevents garbage)
+
+### Tennis Fix: ESPN Search API for Player Resolution
+**Problem:** `_resolve_athlete_id()` in `src/bet/api_clients/espn.py` only scanned TODAY's scoreboard. If player not playing today → ID resolution fails → 100% enrichment failure for tennis.
+**Fix:** Added ESPN Web Search API as primary resolution method:
+```
+GET https://site.web.api.espn.com/apis/common/v3/search?query=Carlos+Alcaraz&type=player&sport=tennis&limit=10
+```
+Returns player ID regardless of whether they're playing today. Scoreboard scanning kept as fallback.
+
+### Tennis Data Available from ESPN (FREE)
+- ✅ sets_won, total_sets, games_won, total_games, ranking (from linescores)
+- ❌ aces, double_faults, first_serve_pct, break_points_won (requires premium API)
+- For our betting markets (total games, total sets) the available data is sufficient.
+
+### Scoreboard Scan Improvement
+Changed from step-3 (0, 3, 6, 9...) to daily-recent + step-3-historical:
+```python
+days = list(range(0, 7)) + list(range(9, 46, 3))  # days 0-6 daily, then 9-45 step-3
+```
+Prevents missing matches from yesterday/day-before.
+
+### Dead Code Cleaned (7 files deleted)
+- `scripts/sofascore_enricher.py` — zero callers
+- `scripts/generate_coupon_pdf_detailed.py` — hardcoded date, zero callers
+- `scripts/test_google_direct.py`, `test_google_playwright.py`, `test_google_sports_live.py`, `test_serpapi_comprehensive.py`, `test_serpapi_vs_query.py` — dev throwaways
+
+### Still Existing Legacy (tracked, not blocking)
+- `src/bet/api_clients/unified.py` — dead export, zero runtime callers
+- Dual `api_clients/` directories (`src/bet/api_clients/` vs `scripts/api_clients/`) — structural duplicate, needs consolidation plan
+- `fetch_api_stats.py` — marked "LEGACY" in agent_protocol but still imported as library by `data_enrichment_agent.py`
+
+### Live Test Results (2026-05-18)
+| Sport | Test Team | Result | Keys | Time |
+|-------|-----------|--------|------|------|
+| Football | Manchester City | enriched | 29 | 1.1s |
+| Basketball | (from earlier) | enriched | 18 | 1.4s |
+| Hockey | (from earlier) | enriched | 15 | 1.5s |
+| Tennis | Carlos Alcaraz | partial | 5 (sets/games/ranking) | 15s |
+| Tennis | Jannik Sinner | partial | 5 | 5s |
+| Tennis | Novak Djokovic | partial | 5 | 6s |
+
 ## 🆕 ENRICHMENT: PLAYWRIGHT FULLY REMOVED, CURL_CFFI ONLY — 2026-05-18
 
 ### Problem (original)
