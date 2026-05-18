@@ -23,7 +23,7 @@ import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from flashscore_enricher import _try_flashscore, _parse_flashscore_deep, _parse_flashscore_stats
+from flashscore_enricher import _try_flashscore, _parse_flashscore_deep, _parse_flashscore_stats, _get_flashscore_entity
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT_DIR / "src"))
@@ -114,8 +114,23 @@ def _is_known_missing(team_name: str, sport: str) -> bool:
 _load_known_missing()
 atexit.register(_save_known_missing)
 
+# Domains that must NEVER trigger Playwright fallback (use curl_cffi instead)
+_PLAYWRIGHT_BLOCKED_DOMAINS = {"flashscore.com", "www.flashscore.com", "s.flashscore.com"}
+
+
+def _is_playwright_blocked(url: str) -> bool:
+    """Check if URL domain is blocked from Playwright fallback."""
+    from urllib.parse import urlparse
+    domain = urlparse(url).netloc.lower()
+    return any(blocked in domain for blocked in _PLAYWRIGHT_BLOCKED_DOMAINS)
+
+
 def fetch(url: str, save_snapshot: bool = False) -> str | None:
-    """HTTP fetch with stealth Playwright fallback for 403 blocks."""
+    """HTTP fetch with stealth Playwright fallback for 403 blocks.
+    
+    NOTE: Flashscore domains are BLOCKED from Playwright fallback.
+    Use curl_cffi via flashscore_enricher.py for Flashscore access.
+    """
     try:
         from stealth_utils import USER_AGENTS
         import random as _random
@@ -127,17 +142,27 @@ def fetch(url: str, save_snapshot: bool = False) -> str | None:
         if resp.status_code == 200:
             return resp.text
         if resp.status_code in (403, 429):
+            if _is_playwright_blocked(url):
+                logger.debug(f"HTTP {resp.status_code} for {url} — Playwright blocked for this domain")
+                return None
             logger.warning(f"HTTP {resp.status_code} for {url}, trying stealth Playwright...")
             return _fetch_stealth(url)
         resp.raise_for_status()
         return resp.text
     except _requests.exceptions.RequestException as e:
+        if _is_playwright_blocked(url):
+            logger.debug(f"Request failed for {url} — Playwright blocked for this domain")
+            return None
         logger.warning(f"Request failed for {url}: {e}, trying stealth Playwright...")
         return _fetch_stealth(url)
 
 
 def _fetch_stealth(url: str) -> str | None:
     """Fetch URL using Playwright with stealth patches to bypass Cloudflare/DataDome."""
+    # Guard: Never use Playwright for blocked domains (flashscore.com)
+    if _is_playwright_blocked(url):
+        logger.debug(f"Playwright blocked for domain: {url}")
+        return None
     # Guard: Playwright/greenlet cannot run in worker threads
     if threading.current_thread() is not threading.main_thread():
         logger.debug(f"Skipping stealth Playwright (worker thread) for {url}")
@@ -1233,7 +1258,7 @@ def enrich_team_deep(team_name: str, sport: str) -> dict:
 
     Tries sources in order of data quality and speed:
     1. ESPN API (free, unlimited, good for injuries/schedule)
-    2. Flashscore deep parse (Playwright-based, rich stats)
+    2. Flashscore via curl_cffi (NO Playwright — entity resolution + results page)
 
     Returns deep data dict with quality score.
     """
@@ -1262,7 +1287,7 @@ def enrich_team_deep(team_name: str, sport: str) -> dict:
     except Exception as e:
         logger.warning("ESPN deep failed for %s: %s", team_name, e)
 
-    # Flashscore deep parse disabled due to Cloudflare 404s
+    # Flashscore deep: use _try_flashscore (curl_cffi) — Playwright NEVER used for Flashscore
 
     if best_data and best_source:
         _save_deep_data(team_name, sport, best_data, best_source)
@@ -1277,6 +1302,10 @@ def enrich_team_deep(team_name: str, sport: str) -> dict:
 
 def enrich_h2h(team_a: str, team_b: str, sport: str) -> dict:
     """Fetch H2H stats between two teams.
+
+    Uses Flashscore entity resolution (curl_cffi, no Playwright) to find
+    each team's results page, then parses stats from both.
+    Falls back gracefully if entity resolution fails.
 
     Returns: {
         "team_a": ..., "team_b": ...,
@@ -1295,38 +1324,65 @@ def enrich_h2h(team_a: str, team_b: str, sport: str) -> dict:
         "error": None,
     }
 
-    # Build H2H URL — Flashscore pattern
-    slug_a = _slugify(team_a)
-    slug_b = _slugify(team_b)
-    url = f"https://www.flashscore.com/h2h/{slug_a}/{slug_b}/"
+    # Resolve both teams via Flashscore search API (curl_cffi — no Playwright cost)
+    entity_type_a, slug_a, id_a = _get_flashscore_entity(team_a, sport)
+    if not slug_a or not id_a:
+        result["error"] = f"Could not resolve Flashscore entity for '{team_a}'"
+        return result
+
+    entity_type_b, slug_b, id_b = _get_flashscore_entity(team_b, sport)
+    if not slug_b or not id_b:
+        result["error"] = f"Could not resolve Flashscore entity for '{team_b}'"
+        return result
+
+    # Fetch results page for team A (uses curl_cffi, not Playwright)
     _rate_limit("flashscore.com")
-
     try:
-        html = fetch(url, save_snapshot=False)
-        if html is None:
-            result["error"] = "CAPTCHA or empty response for H2H page"
-            return result
+        import curl_cffi.requests as _cffi_req
+        url_a = f"https://www.flashscore.com/{entity_type_a}/{slug_a}/{id_a}/results/"
+        resp_a = _cffi_req.get(url_a, impersonate="chrome110", timeout=15)
+        html_a = resp_a.text if resp_a.status_code == 200 else None
+    except Exception as exc:
+        html_a = None
+        logger.warning("Flashscore H2H fetch failed for %s: %s", team_a, exc)
 
-        # Parse H2H data
-        stats = _parse_flashscore_stats(html, sport)
+    if html_a and len(html_a) > 500:
+        stats = _parse_flashscore_stats(html_a, sport)
         if stats:
             result["status"] = "enriched"
             result["h2h_stats"] = {
                 k: _safe_avg(v) for k, v in stats.items() if v
             }
-            # Count meetings from data density
             if stats:
                 max_vals = max(len(v) for v in stats.values())
                 result["meetings_found"] = max_vals
-
-            # Save H2H to DB
             _save_h2h_to_db(team_a, team_b, sport, stats)
-        else:
-            result["error"] = "No H2H stats parsed from page"
+            return result
 
+    # Fallback: try team B results page
+    _rate_limit("flashscore.com")
+    try:
+        url_b = f"https://www.flashscore.com/{entity_type_b}/{slug_b}/{id_b}/results/"
+        resp_b = _cffi_req.get(url_b, impersonate="chrome110", timeout=15)
+        html_b = resp_b.text if resp_b.status_code == 200 else None
     except Exception as exc:
-        result["error"] = f"H2H fetch error: {exc}"
+        html_b = None
+        logger.warning("Flashscore H2H fetch failed for %s: %s", team_b, exc)
 
+    if html_b and len(html_b) > 500:
+        stats = _parse_flashscore_stats(html_b, sport)
+        if stats:
+            result["status"] = "enriched"
+            result["h2h_stats"] = {
+                k: _safe_avg(v) for k, v in stats.items() if v
+            }
+            if stats:
+                max_vals = max(len(v) for v in stats.values())
+                result["meetings_found"] = max_vals
+            _save_h2h_to_db(team_a, team_b, sport, stats)
+            return result
+
+    result["error"] = "No H2H stats parsed from either team's results page"
     return result
 
 

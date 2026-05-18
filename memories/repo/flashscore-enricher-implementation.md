@@ -148,6 +148,40 @@ Configured extraction keys:
 - Volleyball: `aces`, `blocks`, `errors`
 - Hockey: `shots_on_goal`, `penalties_in_minutes`, `power_play_goals`
 
+## CRITICAL: Flashscore Access Rules (updated 2026-05-18)
+
+### Only curl_cffi — Playwright NEVER for Flashscore
+
+Flashscore is protected by Cloudflare. The ONLY working access method is `curl_cffi`
+with TLS fingerprint impersonation (`impersonate="chrome110"`).
+
+**Playwright is permanently blocked for flashscore.com** via `_PLAYWRIGHT_BLOCKED_DOMAINS`
+in `data_enrichment_agent.py`. This prevents:
+- Wasting Playwright browser tabs on guaranteed 403/404s
+- Saturating the Playwright rate limiter (was 10/10 before fix)
+- Blocking legitimate Playwright use for other domains
+
+### Correct URL patterns
+
+- Search API: `https://s.flashscore.com/search/?q={team}&l=1&sid={sport_id}&pid=1&f=1;1`
+  - Header: `x-fsign: SW9D1eZo`
+- Results page: `https://www.flashscore.com/{entity_type}/{slug}/{entity_id}/results/`
+- **DOES NOT EXIST**: `https://www.flashscore.com/h2h/{team_a}/{team_b}/` ← 100% 404
+
+### What was broken (fixed 2026-05-18)
+
+1. `enrich_h2h()` used fake `/h2h/` URL → 100% 404s → triggered Playwright fallback → saturated rate limit
+2. `web_research_agent.py` had flashscore.com URLs with guessed slugs (no entity ID) → all failed
+3. `fetch()` function had no domain awareness → any flashscore 403 triggered Playwright
+
+### What was fixed
+
+1. `enrich_h2h()` now uses `_get_flashscore_entity()` to resolve proper slugs+IDs via curl_cffi
+2. `fetch()` has `_PLAYWRIGHT_BLOCKED_DOMAINS` set — flashscore never triggers Playwright
+3. `_fetch_stealth()` has a guard at entry — defense in depth
+4. `web_research_agent.py` removed ALL flashscore URLs (replaced with sofascore/soccerway/transfermarkt)
+5. `PREFERRED_DOMAINS` dict purged of flashscore.com entries
+
 Observed live fallback keys from the current results-page parser:
 - Football -> `goals`
 - Basketball -> `points`

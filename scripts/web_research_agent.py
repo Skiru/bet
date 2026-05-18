@@ -53,11 +53,12 @@ SEARCH_TEMPLATES = {
 }
 
 # Preferred domains per data_type (tried in order)
+# NOTE: flashscore.com REMOVED — requires curl_cffi + entity resolution, not urllib
 PREFERRED_DOMAINS = {
-    "h2h": ["flashscore.com", "sofascore.com", "soccerway.com"],
-    "injuries": ["espn.com", "flashscore.com", "transfermarkt.com"],
-    "form": ["flashscore.com", "sofascore.com", "soccerway.com"],
-    "coach": ["transfermarkt.com", "flashscore.com", "soccerway.com"],
+    "h2h": ["sofascore.com", "soccerway.com"],
+    "injuries": ["espn.com", "transfermarkt.com"],
+    "form": ["sofascore.com", "soccerway.com"],
+    "coach": ["transfermarkt.com", "sofascore.com"],
 }
 
 
@@ -332,23 +333,24 @@ def _build_search_urls(data_type: str, sport: str, team1: str, team2: str | None
     if data_type == "h2h" and team2:
         team2_slug = re.sub(r"[^a-z0-9]+", "-", team2.lower()).strip("-")
         urls.extend([
-            f"https://www.flashscore.com/h2h/{team_slug}/{team2_slug}/",
+            # Flashscore /h2h/ path does NOT exist — use sofascore and soccerway instead
             f"https://www.sofascore.com/team/{sport}/{team_slug}/h2h/{team2_slug}",
+            f"https://www.soccerway.com/matches/head2head/{team_slug}/{team2_slug}/",
         ])
     elif data_type == "injuries":
         urls.extend([
             f"https://www.espn.com/{sport}/team/injuries/_/name/{team_slug}",
-            f"https://www.flashscore.com/team/{team_slug}/",
+            f"https://www.transfermarkt.com/{team_slug}/verletzungen/verein/",
         ])
     elif data_type == "form":
         urls.extend([
-            f"https://www.flashscore.com/team/{team_slug}/results/",
             f"https://www.sofascore.com/team/{sport}/{team_slug}",
+            f"https://www.soccerway.com/teams/{sport}/{team_slug}/",
         ])
     elif data_type == "coach":
         urls.extend([
             f"https://www.transfermarkt.com/{team_slug}/startseite/verein/",
-            f"https://www.flashscore.com/team/{team_slug}/",
+            f"https://www.sofascore.com/team/{sport}/{team_slug}",
         ])
 
     return urls
