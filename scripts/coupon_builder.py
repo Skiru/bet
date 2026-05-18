@@ -303,11 +303,14 @@ def _build_tipster_insight(pick: dict) -> str:
 
         lines.append(f"• {source_str}: {market_str}{reasoning_str}")
 
-        # Check if tipster agrees with our pick (require >=5 char overlap)
+        # Check if tipster agrees with our pick (require >=5 char overlap + matching direction)
         if market and our_market and len(market) >= 5:
             tip_market_lower = market.lower().replace("_", " ").replace("-", " ")
             our_market_lower = our_market.lower().replace("_", " ").replace("-", " ")
-            if tip_market_lower in our_market_lower or our_market_lower in tip_market_lower:
+            market_overlap = tip_market_lower in our_market_lower or our_market_lower in tip_market_lower
+            direction_match = (not direction or not our_direction or
+                               direction.lower() == our_direction.lower())
+            if market_overlap and direction_match:
                 any_agrees = True
 
     # Show our pick comparison
@@ -365,7 +368,11 @@ def _get_tipster_data_fallback(home: str, away: str, date: str) -> list:
                 if score_h >= 70 and score_a >= 70:
                     matched.append(_tipster_pick_to_dict(p))
             return matched
-    except Exception:
+    except Exception as exc:
+        import logging as _log
+        _log.getLogger(__name__).warning(
+            "tipster DB fallback failed for %s vs %s: %s", home, away, exc
+        )
         return []
 
 

@@ -300,7 +300,6 @@ def main():
         _persist_to_db(snapshot)
 
     # AGENT_SUMMARY (R19)
-    import json as _json
     summary = {
         "step": "espn_odds",
         "verdict": "OK" if snapshot.get("total_events", 0) > 0 else "PARTIAL",
@@ -312,7 +311,7 @@ def main():
         "issues": [],
         "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S"),
     }
-    print(f"\nAGENT_SUMMARY:{_json.dumps(summary)}")
+    print(f"\nAGENT_SUMMARY:{json.dumps(summary)}")
 
 
 def _persist_to_db(snapshot: dict) -> None:
@@ -348,9 +347,11 @@ def _persist_to_db(snapshot: dict) -> None:
                     (home, away),
                 ).fetchone()
 
-                if not fixture_row and home and away:
-                    home_simpl = f"%{home.split()[0]}%"
-                    away_simpl = f"%{away.split()[0]}%"
+                home_parts = home.split()
+                away_parts = away.split()
+                if not fixture_row and home_parts and away_parts:
+                    home_simpl = f"%{home_parts[0]}%"
+                    away_simpl = f"%{away_parts[0]}%"
                     fixture_row = conn.execute(
                         "SELECT f.id FROM fixtures f "
                         "JOIN teams t1 ON f.home_team_id = t1.id "

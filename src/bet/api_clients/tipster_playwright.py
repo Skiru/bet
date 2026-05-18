@@ -969,9 +969,11 @@ class TipsterPlaywrightClient(PlaywrightBaseClient):
                         # Update tipster if this one has better stats
                         author_stats = bet.get("author_stats") or {}
                         ratio_raw = author_stats.get("ratio")
-                        if ratio_raw and float(ratio_raw) > 0:
-                            existing["tipster_name"] = bet.get("author_name", "ZawodTyper")
-                            existing["accuracy_pct"] = int(ratio * 100)
+                        if ratio_raw:
+                            _ratio = float(ratio_raw)
+                            if _ratio > 0:
+                                existing["tipster_name"] = bet.get("author_name", "ZawodTyper")
+                                existing["accuracy_pct"] = int(_ratio * 100)
                 continue
             seen_events.add(event_key)
 

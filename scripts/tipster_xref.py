@@ -7,7 +7,11 @@ Extracted from pipeline_orchestrator.py (Phase 3.3).
 import json
 import sys
 from pathlib import Path
-from rapidfuzz import fuzz
+try:
+    from rapidfuzz import fuzz
+    _RAPIDFUZZ_AVAILABLE = True
+except ImportError:
+    _RAPIDFUZZ_AVAILABLE = False
 
 # ---------------------------------------------------------------------------
 # Paths (same as orchestrator)
@@ -95,7 +99,7 @@ def run_tipster_xref(date: str, state: dict) -> tuple[bool, str]:
                 key = f"{home}|{away}"
                 matching_tips = tip_lookup.get(key, [])
                 
-                if not matching_tips:
+                if not matching_tips and _RAPIDFUZZ_AVAILABLE:
                     best_match_tips = []
                     for tip_key, tips_list in tip_lookup.items():
                         parts = tip_key.split("|")

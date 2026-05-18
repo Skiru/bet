@@ -1,5 +1,57 @@
 # Pipeline Knowledge Base — Consolidated (May 4-18, 2026, updated 2026-05-18)
 
+## 🆕 CODE REVIEW FIXES (10 issues) — 2026-05-18
+
+### Critical Fixes (4)
+1. **C1 — Stale `ratio` variable** (`tipster_playwright.py:974`): In ZawodTyper XHR dedup branch, `ratio` read from PREVIOUS loop iteration → wrong accuracy. Fix: local `_ratio = float(ratio_raw)`.
+2. **C2 — Hardcoded `2026` year** (`tipster_aggregator.py:1217,1363`): Sportsgambler regex `prediction[^"]*2026` → breaks Jan 2027. Fix: `str(datetime.now().year)` dynamic.
+3. **C3 — `rapidfuzz` hard import** (`tipster_xref.py:10`): No try/except → crash if not installed. Fix: `_RAPIDFUZZ_AVAILABLE` guard.
+4. **C4 — `IndexError` on whitespace** (`fetch_espn_odds.py:351`): `"  ".split()[0]` crashes. Fix: pre-split + check `home_parts` truthy.
+
+### High Fixes (3)
+5. **H1 — AGENT_SUMMARY lost on crash** (`daily_odds_warmup.py`): If Playwright throws, summary never emitted. Fix: crash handler in `__main__` emits FAILED summary + `sys.exit(2)`.
+6. **H2 — Missing EOF newline** (`daily_odds_warmup.py`): Added trailing newline + `sys` import.
+7. **H4 — Bare `except` in DB fallback** (`coupon_builder.py:351`): Swallowed DB errors silently. Fix: `logging.warning()` with exc details.
+
+### Medium/Low Fixes (3)
+8. **M1 — Duplicate `"claim now"`** in `_GARBAGE_REASONING_PHRASES` set + **M5 — redundant `import json as _json`** in fetch_espn_odds. Removed.
+9. **M8 — Detail page errors swallowed** (`tipster_aggregator.py:2088`): Added `_log()` with URL + error.
+10. **L2 — Agreement ignores direction** (`coupon_builder.py:307`): `OVER≠UNDER` now correctly detected — added `direction_match` check.
+
+### Accepted/Deferred
+- **H3 — `_auth_failed` no reset:** OddsAPI circuit breaker has no reset mechanism. Low risk (adapter recreated each pipeline run). Deferred.
+- **M3 — `SPORT_VALUE_RANGES` in flashscore_enricher `__all__`:** Cosmetic, deferred.
+- **M4 — O(n²) dedup in ZawodTyper XHR:** Performance acceptable at current scale (~200 bets). Deferred.
+- **M7 — Fuzzy matching O(n×m):** 200K comparisons but ~200ms total. Deferred.
+- **L3 — Garbage/signal words duplicated:** Between tipster_aggregator + tipster_playwright. Deferred (shared module refactor).
+
+## 🆕 AUDIT FIXES + TIPSTER-TO-COUPON FEATURE — 2026-05-18
+
+### Phase 1: Code Fixes (8 audit findings)
+| Fix | File | Change |
+|-----|------|--------|
+| AGENT_SUMMARY | `fetch_odds_api.py` | Added structured output for R19 |
+| Auto-install removed | `flashscore_enricher.py` | Removed subprocess curl_cffi install |
+| Unified SPORT_VALUE_RANGES | `src/bet/stats/value_ranges.py` (NEW) | Single source of truth, 50 keys across 5 sports |
+| Scanner tools | `bet-scanner.agent.md` | Removed `playwright/*` |
+| Stale API refs | `bet-statistician.agent.md` | Removed basketball_reference, moneypuck |
+| Discovery PARTIAL verdict | `src/bet/discovery/coordinator.py` | Added 0-persisted detection |
+| OddsAPI circuit breaker | `src/bet/discovery/sources/odds_api.py` | `_auth_failed` stops 401 loops |
+| ESPN odds DB query | `fetch_espn_odds.py` | Fixed JOIN via teams table + fuzzy LIKE fallback |
+
+### Phase 2: Documentation (3 tasks)
+- `bet-enricher.agent.md`: Concrete fallback chains per sport (replaced abstract L1-L6)
+- `bet-querying-database/SKILL.md` + `bet-deep-stats.prompt.md`: H2H retrieval docs
+- `bet-navigating-sources/SKILL.md`: Google Sports / SerpAPI section
+
+### Phase 3: Tipster-to-Coupon Feature (3 tasks)
+- `gate_checker.py`: `tipster_support` dict passed through (backward compatible)
+- `coupon_builder.py`: `_build_tipster_insight()` + `_get_tipster_data_fallback()` + `_tipster_pick_to_dict()`
+- Output format: `🎯 TIPSTER INSIGHT:` with per-tipster bullets + `✓ ZGODNOŚĆ` / `↔ NASZ WYBÓR` comparison
+- Direction-aware agreement (OVER≠UNDER), fuzzy DB fallback via rapidfuzz
+
+### Tests: 637 passed, 6 pre-existing failures (unchanged)
+
 ## 🆕 TIPSTER AGGREGATOR: DEAD SITES REMOVED + BUG FIXES — 2026-05-18
 
 ### Sites Removed (3)

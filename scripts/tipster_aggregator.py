@@ -388,7 +388,7 @@ _GARBAGE_REASONING_PHRASES = {
     "sign up", "claim now", "no deposit", "free bet", "bonus code",
     "gold coins", "sweeps coins", "sign up now", "join now",
     "best bets run", "try free", "free for 3 days", "subscribe",
-    "data-driven picks", "delivered daily", "claim now",
+    "data-driven picks", "delivered daily",
     "promo code", "bonus spins", "bet $20", "get $100",
     "cookie", "privacy policy", "terms of service",
     "copyright", "all rights reserved", "telegram channel",
@@ -1359,8 +1359,9 @@ def parse_sportsgambler_html(html: str) -> list[TipsterPick]:
     now_iso = datetime.now(timezone.utc).isoformat()
 
     # Extract prediction URLs for follow-up fetching (stored in picks metadata)
+    _year = str(datetime.now().year)
     pred_pattern = re.compile(
-        r'<a[^>]*href="(/betting-tips/[^"]+prediction[^"]*2026[^"]*)"[^>]*>'
+        rf'<a[^>]*href="(/betting-tips/[^"]+prediction[^"]*{_year}[^"]*)"[^>]*>'
         r'(.*?)</a>',
         re.DOTALL
     )
@@ -2084,7 +2085,8 @@ def fetch_site(site_config: dict, date: datetime) -> dict:
                                         if detail_picks:
                                             result["picks"].extend([p.to_dict() for p in detail_picks])
                                             enriched += len(detail_picks)
-                                except Exception:
+                                except Exception as e:
+                                    _log(f"  [tipster] {site_name}: detail page failed: {detail_url} — {e}")
                                     continue
                             if enriched:
                                 result["pick_count"] = len(result["picks"])

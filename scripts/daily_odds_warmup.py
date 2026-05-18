@@ -15,6 +15,7 @@ Usage:
 import argparse
 import asyncio
 import json
+import sys
 from playwright.async_api import async_playwright
 from playwright_stealth import Stealth
 import datetime
@@ -123,7 +124,7 @@ async def stealth_fetch_and_dump(target_date: str | None = None, verbose: bool =
         await browser.close()
         print("Warmup complete. HTML dumps ready for local parsing.")
 
-    # AGENT_SUMMARY (R19)
+    # AGENT_SUMMARY (R19) — always emitted even on partial failure
     cached_files = list(CACHE_DIR.glob(f"{today}_betclic_*.html"))
     summary = {
         "step": "s0_warmup",
@@ -134,9 +135,25 @@ async def stealth_fetch_and_dump(target_date: str | None = None, verbose: bool =
     }
     print(f"\nAGENT_SUMMARY:{json.dumps(summary)}")
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Betclic HTML Warm-Up (Stealth)")
     parser.add_argument("--date", type=str, default=None, help="Target date YYYY-MM-DD")
     parser.add_argument("--verbose", action="store_true", help="Verbose output")
     args = parser.parse_args()
-    asyncio.run(stealth_fetch_and_dump(target_date=args.date, verbose=args.verbose))
+    try:
+        asyncio.run(stealth_fetch_and_dump(target_date=args.date, verbose=args.verbose))
+    except Exception as exc:
+        import traceback
+        traceback.print_exc()
+        # Emit AGENT_SUMMARY even on crash
+        today = args.date or datetime.datetime.now().strftime("%Y-%m-%d")
+        summary = {
+            "step": "s0_warmup",
+            "verdict": "FAILED",
+            "metrics": {"target_date": today},
+            "issues": [str(exc)[:200]],
+            "ts": datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+        }
+        print(f"\nAGENT_SUMMARY:{json.dumps(summary)}")
+        sys.exit(2)
