@@ -1,5 +1,41 @@
 # Pipeline Knowledge Base — Consolidated (May 4-18, 2026, updated 2026-05-18)
 
+## 🆕 GOOGLE SPORTS H2H CLIENT (SerpAPI) — 2026-05-18
+
+### What
+New dedicated H2H enrichment source: `scripts/api_clients/google_sports_client.py`. Uses SerpAPI to query Google Knowledge Panels via "Team A vs Team B" — returns structured H2H data for ALL 5 sports.
+
+### Data Extracted Per Sport
+- **Football/Hockey/Basketball:** H2H match scores, tournament, venue, red cards, dates, KGMIDs
+- **Tennis:** Set scores per set, player rankings, tournament stage, winner
+- **Live matches:** Goal scorers with player name, jersey #, minute + stoppage time
+
+### DB Integration (3 tables written)
+| Table | Data | Key |
+|-------|------|-----|
+| `fixtures` | Each H2H match (scores, teams, comp) | `(sport_id, home_team_id, away_team_id, kickoff)` |
+| `team_form` | `goals_scored` (team sports) / `sets_won` (tennis) with `h2h_opponent_id` set | `(team_id, stat_key, h2h_opponent_id)` |
+| `match_stats` | Red cards per team per fixture | `(fixture_id, team_id, stat_key)` |
+
+### Pipeline Integration
+- **Fallback chain position:** L3.5 — after sport-specific APIs, before web research
+- **FALLBACK_CHAINS** in `fetch_api_stats.py`: added "google-sports" to all 5 sports
+- **Registry:** `CLIENT_REGISTRY["google-sports"] = GoogleSportsClient` in `api_clients/__init__.py`
+- **agent_protocol.py:** Added to `SELF_HEALING_REGISTRY` + fallback layers list
+
+### Key Design Decisions
+1. **Overwrite protection:** Won't overwrite existing H2H data if existing has ≥ same count of meetings (prevents 2-meeting google data from replacing 5-10 meeting Flashscore data)
+2. **Team-identity tracking:** Goals tracked BY TEAM across meetings, not by home/away slot (critical for correctness when teams swap home/away)
+3. **Budget:** 15 queries per pipeline run, 250/month SerpAPI free tier, 48h file cache
+4. **Source-registry.md:** Full entry added under "Tier A Core Stats — API Sources"
+
+### How Pipeline Reads This Data
+`normalize_stats.py` → `build_safety_input_from_db()` queries:
+```sql
+SELECT * FROM team_form WHERE team_id = ? AND sport_id = ? AND h2h_opponent_id = ?
+```
+Then reads `h2h_values` JSON array for three-way cross-check (L10 + H2H + L5) in safety score computation.
+
 ## 🆕 DATA FLOW AUDIT + GARBAGE CLEANUP — 2026-05-18
 
 ### Full Pipeline Data Flow (verified):
