@@ -639,24 +639,21 @@ If the S2 shortlist has 100 candidates but S3 analysis is context-constrained, a
 
 Check ≥2 ARGUMENT-BASED tipster sites per candidate. Read WRITTEN REASONING, not bare picks.
 
-**Sites:** ZawodTyper (PL), Typersi (PL), Meczyki (PL), OLBG (EN), PicksWise (EN), BetIdeas (EN), Sportsgambler (EN), Tipstrr (EN, verified ROI).
+**Sites:** ZawodTyper (PL), Typersi (PL), PicksWise (EN), BetIdeas (EN), Sportsgambler (EN), Feedinco (INT), BettingClosed (INT).
 
 **Sport-specific tipster fallback chains (try in order until ≥2 sources found):**
 
 | Sport | Primary | Secondary | Tertiary |
 |-------|---------|-----------|----------|
-| Football (PL) | ZawodTyper → Meczyki | Typersi → OLBG | Sportsgambler |
-| Football (INT) | PicksWise → BetIdeas | OLBG → Sportsgambler | Typersi |
-| Football (US/MX) | PicksWise | Sportsgambler | OLBG |
-| Tennis | ZawodTyper → OLBG | Sportsgambler → PicksWise | Typersi |
+| Football (PL) | ZawodTyper | Typersi → Sportsgambler | PicksWise |
+| Football (INT) | PicksWise → BetIdeas | Sportsgambler | ZawodTyper |
+| Football (US/MX) | PicksWise | Sportsgambler | BetIdeas |
+| Tennis | ZawodTyper | Sportsgambler → PicksWise | Typersi |
 | Basketball (EU) | Sportsgambler | ZawodTyper | Typersi |
-| Basketball (US) | PicksWise | Sportsgambler | OLBG |
-| Volleyball | ZawodTyper → Typersi | Sportsgambler | Meczyki |
-| Hockey | PicksWise | Sportsgambler | OLBG |
-| Football (Exotic SA) | Feedinco → Bettingclosed | Sportsgambler | OLBG → Google "[league] tips [date]" |
-| Football (Exotic Africa/ME) | Tips180 → Feedinco | Bettingclosed → Tips180 | Sportsgambler → Google "[league] tips [date]" |
-| Football (Exotic Asia) | AsiaBet → Feedinco | Bettingclosed → Tips180 | Sportsgambler → Google "[league] tips [date]" |
-| Football (Exotic Europe minor) | ZawodTyper → Typersi | Feedinco → Bettingclosed | OLBG → Sportsgambler |
+| Basketball (US) | PicksWise | Sportsgambler | BetIdeas |
+| Volleyball | ZawodTyper → Typersi | Sportsgambler | Feedinco |
+| Hockey | PicksWise | Sportsgambler | BetIdeas |
+| Football (Exotic) | Feedinco → BettingClosed | Sportsgambler | Google "[league] tips [date]" |
 
 **Extract per tipster:** site, tipster name, specific pick, odds, reasoning summary (1-2 sentences with stats/facts cited).
 
@@ -678,7 +675,7 @@ Before proceeding to STEP 5, verify:
 After STEP 4 analysis, review ALL tipster picks from the §1.5 pre-fetch that were NOT in the original shortlist. For each tipster pick that meets ALL of:
 1. Targets a **statistical market** (corners, cards, fouls, totals, games, sets, frames — NOT ML/winner)
 2. Has **argument-backed reasoning** with cited stats (H2H corner counts, historical line coverage, motivation context)
-3. Tipster has **>55% tracked accuracy** on the site (or is a verified tipster on Tipstrr)
+3. Tipster has **>55% tracked accuracy** on the site
 4. The event is within today's betting window
 5. The event is available on Betclic (or likely to be)
 
@@ -801,10 +798,10 @@ Over 12.5: P=61.2%, fair_odds=1.63, CI=[48.3%–71.4%]
 6. Saves to DB via `TipsterRepo.save_picks()` + `TipsterRepo.save_consensus()` (JSON fallback preserved)
 7. Outputs `{date}_tipster_consensus.json` and `{date}_tipster_consensus.md` (also stored in DB `tipster_picks` + `tipster_consensus` tables)
 
-**Sites covered (10):**
+**Sites covered (7):**
 - Polish: ZawodTyper, Typersi
-- English: Sportsgambler, PicksWise, BetIdeas, OLBG, Tipstrr
-- Exotic football: Feedinco, BettingClosed, Tips180
+- English: Sportsgambler, PicksWise, BetIdeas
+- International: Feedinco, BettingClosed
 
 **Integration with S3 analysis:**
 - Tipster picks targeting statistical markets with reasoning → boost shortlist priority

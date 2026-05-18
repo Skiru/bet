@@ -61,7 +61,7 @@ Perform a thorough technical audit of these 3 subsystems. For each one:
 - `scripts/tipster_xref.py` (163 lines) — cross-reference tipster picks with candidates
 - `src/bet/api_clients/tipster_playwright.py` — Playwright DOM extraction client
 
-**Sites configured:** ZawodTyper, Typersi, Sportsgambler, PicksWise, BetIdeas, OLBG, Tipstrr, Feedinco, BettingClosed, Tips180
+**Sites configured:** ZawodTyper, Typersi, Sportsgambler, PicksWise, BetIdeas, Feedinco, BettingClosed
 **DB tables:** `tipster_picks`, `tipster_consensus`
 
 ### Audit checklist:

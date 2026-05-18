@@ -1549,7 +1549,11 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
         kickoff = c["kickoff"]
         sm = c.get("safety_markets", [])
         print(f"[deep_stats] [{i}/{len(valid)}] {home} vs {away} ({sport})")
-        return analyze_candidate(sport, home, away, comp, kickoff, shortlist_safety_markets=sm or None)
+        result = analyze_candidate(sport, home, away, comp, kickoff, shortlist_safety_markets=sm or None)
+        # Pass through shortlist metadata that downstream scripts need
+        if result is not None and c.get("tipster_support"):
+            result["tipster_support"] = c["tipster_support"]
+        return result
 
     analyses = []
     with_data = 0
@@ -1704,6 +1708,9 @@ def _write_json(output: dict, date: str) -> Path:
         # Preserve fixture_id if injected by DB save (needed by S4/S5/S6)
         if a.get("fixture_id"):
             json_entry["fixture_id"] = a["fixture_id"]
+        # Pass through tipster_support from shortlist (for gate → coupon)
+        if a.get("tipster_support"):
+            json_entry["tipster_support"] = a["tipster_support"]
         json_output["analyses"].append(json_entry)
 
     json_path.write_text(
