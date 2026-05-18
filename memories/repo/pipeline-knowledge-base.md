@@ -1,5 +1,46 @@
 # Pipeline Knowledge Base — Consolidated (May 4-18, 2026, updated 2026-05-18)
 
+## 🆕 PRE-FLIGHT VERIFICATION + DATA FLOW FIX — 2026-05-18 (afternoon)
+
+### Critical Fix: tipster_support Data Flow Gap (S2→S3→S7→S8)
+**Problem:** `deep_stats_report.py` (`_analyze_one()`) did NOT pass `tipster_support` from the shortlist candidate dict into its output. Result: S3 JSON had 0/927 candidates with `tipster_support` despite S2 shortlist having 30/927 with the field populated. Gate checker (S7) and coupon builder (S8) read empty `{}` for all.
+
+**Fix (commit 8aea661):**
+- Line ~1553: `result["tipster_support"] = candidate.get("tipster_support", {})` injected after `_analyze_one()` returns
+- Line ~1707: JSON output builder includes `tipster_support` in `json_entry` if present
+
+### Dead Tipster Sites Removed from Methodology Docs
+Removed 4 sites from `.github/instructions/analysis-methodology.instructions.md` and `.github/prompts/audit-scraping-pipeline.prompt.md`:
+- **OLBG** — aggressive Cloudflare 403
+- **Tipstrr** — JS-only empty shell
+- **Tips180** — domain expired
+- **Meczyki** — never existed (hallucinated reference)
+
+### Pipeline Readiness State (verified 2026-05-18 16:00 CET)
+| Component | Status | Detail |
+|-----------|--------|--------|
+| Scripts (13) | ✅ All import | Zero import errors |
+| Database | ✅ 41 tables | 1406 fixtures, 883 team_form, 273 tipster_picks |
+| Config | ✅ Complete | bankroll=57.235 PLN, daily 5-15 PLN, max stake 2 PLN |
+| API Keys | ✅ 7/9 | odds-api, odds-api-io, serpapi, api-football/basketball/hockey, football-data-org |
+| Odds API credits | ✅ 500 remaining | 44 used from S1 scan |
+| Betclic history | ✅ 9435 lines | Ready for S0 |
+| Dependencies | ✅ | playwright, curl_cffi, rapidfuzz |
+| Tests | ✅ 602 pass | 5 pre-existing failures (unrelated) |
+| Git | ✅ Clean | 2 commits pushed (ec41749 code review, 8aea661 verification) |
+
+### Non-blocking Notes
+- `thesportsdb` key = placeholder (3 chars) — not used by core pipeline
+- `gemini` key = empty — optional AI summarization only
+- `odds_api_key.txt` has placeholder text but `api_keys.json` has working key (adapter reads JSON first)
+
+### Sports Distribution for 2026-05-18
+- Tennis: 1031 fixtures
+- Football: 215 fixtures
+- Basketball: 134 fixtures
+- Volleyball: 15 fixtures
+- Hockey: 11 fixtures
+
 ## 🆕 CODE REVIEW FIXES (10 issues) — 2026-05-18
 
 ### Critical Fixes (4)
