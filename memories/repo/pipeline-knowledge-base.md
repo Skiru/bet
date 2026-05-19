@@ -1,4 +1,56 @@
-# Pipeline Knowledge Base — Consolidated (May 4-18, 2026, updated 2026-05-19)
+# Pipeline Knowledge Base — Consolidated (May 4-19, 2026, updated 2026-05-19)
+
+## 🆕 ORCHESTRATOR FILES DEEP REVIEW & FIX — 2026-05-19
+
+### What
+Deep review of `orchestrate-betting-day.prompt.md` and `bet-orchestrator.agent.md` found 13 issues (inconsistencies, Model B remnants, missing scripts, wrong counts). All fixed.
+
+### Files Changed
+| File | Edits | Key Changes |
+|------|-------|-------------|
+| `.github/prompts/orchestrate-betting-day.prompt.md` | 7 | S2 Model A rewrite, S7.5/S7.6/S9 steps added, R19 fixed, Pre-filled table updated, parallel note fixed |
+| `.github/agents/bet-orchestrator.agent.md` | 8 | Execution Loop unified to Model A, PYTHONPATH standardized, 4 scripts added, Data Flow Matrix updated, anti-pattern #5 fixed |
+| `.github/copilot-instructions.md` | 1 | R19: "15 scripts" → "6 scripts" with explicit list |
+| `.github/instructions/agent-execution-protocol.instructions.md` | 1 | Diagram: "6-question" → "5-question" gate |
+
+### Issues Found & Fixed
+1. **S2 followed Model B** — told subagent to run `tipster_xref.py`. Rewritten: orchestrator runs script, passes output to bet-scout for analysis-only.
+2. **Agent.md Execution Loop** had stale Model B text ("subagent runs script + analyzes"). Unified to Model A.
+3. **validate_betclic_markets.py missing** from pipeline. Added as S7.5 pre-coupon gate.
+4. **validate_coupons.py never called** explicitly. Added to S9.
+5. **check_48h_repeats.py not called**. Added as S7.6 loss-repeat detector.
+6. **R19 AGENT_SUMMARY claimed 15 scripts** — only 6 actually emit it. Corrected everywhere (prompt, agent, copilot-instructions).
+7. **Quality gate "5 vs 6"** inconsistency between files. Standardized to "5-question" everywhere.
+8. **S2.3 (scrapers) missing** from compliance gate + delegation reference. Added.
+9. **build_shortlist.py --verbose/--force** — neither flag exists. Removed from commands.
+10. **Parallel execution note** said "launch subagents in parallel" (Model B). Fixed to "run scripts then delegate analyses".
+11. **PYTHONPATH inconsistencies** — mix of `python3`, `.venv/bin/python3`. All standardized to `PYTHONPATH=src .venv/bin/python3`.
+12. **4 scripts missing from agent.md** — validate_betclic_markets, check_48h_repeats, validate_coupons, generate_coupon_pdf. Added to command table + data flow matrix.
+13. **Anti-pattern #5** still said "RUN + THINK + VALIDATE" (Model B). Fixed to analysis-only language.
+
+### AGENT_SUMMARY Reality (verified via grep)
+**DO emit:** discover_events, run_scrapers, odds_evaluator, context_checks, upset_risk, validate_coupons (6 total)
+**DO NOT emit (despite previous claims):** tipster_aggregator, tipster_xref, data_enrichment_agent, deep_stats_report, gate_checker, coupon_builder, build_shortlist, fetch_odds_multi, ingest_scan_stats
+
+### Current Pipeline Steps (complete list)
+```
+S0   — settle_on_finish.py + evaluate_decisions.py + analyze_betclic_learning.py + data_rotation.py
+S1   — discover_events.py (scan)
+S1e  — build_shortlist.py (shortlist)
+S2   — tipster_xref.py (tipster cross-reference)
+S2.3 — run_scrapers.py (Flashscore/Soccerway)
+S2.5 — data_enrichment_agent.py (API enrichment)
+S3   — deep_stats_report.py (statistical analysis)
+S4   — odds_evaluator.py (EV/Kelly)
+S5   — context_checks.py (injuries/weather/form)
+S6   — upset_risk.py (upset probability)
+S7   — gate_checker.py (approval gate)
+S7.5 — validate_betclic_markets.py (market existence check)
+S7.6 — check_48h_repeats.py (48h loss repeat detector)
+S8   — coupon_builder.py (portfolio construction)
+S9   — validate_coupons.py (V1-V10 validation)
+S10  — generate_coupon_pdf.py (PDF output)
+```
 
 ## 🆕 BETCLIC MARKET SCRAPER — FULL IMPLEMENTATION — 2026-05-18/19
 

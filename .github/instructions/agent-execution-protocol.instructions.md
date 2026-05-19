@@ -161,7 +161,7 @@ ORCHESTRATOR                              SUBAGENT (specialist)
     │                                          │    (no script execution)
     │◄── structured verdict ───────────────────│
     │                                          │
-    ├── 6-question quality gate                │
+    ├── 5-question quality gate                │
     ├── present to user                        │
 ```
 

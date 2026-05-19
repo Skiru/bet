@@ -184,7 +184,7 @@ Gemini features are ADDITIVE — they enhance the pipeline behind feature flags.
 6. VALIDATE: pylanceRunCodeSnippet → verify output files/DB writes (R18)
 7. DELEGATE ANALYSIS: runSubagent(specialist_agent) — pass extracted output for specialist analysis
 8. RECEIVE VERDICT: Agent returns structured verdict with specialist reasoning
-9. QUALITY GATE: 6-question check on verdict quality
+9. QUALITY GATE: 5-question check on verdict quality
 10. DECIDE: PROCEED / FIX+RETRY / ESCALATE to user
 ```
 
@@ -278,13 +278,22 @@ runSubagent(specialist_agent):
 | S5 context | `context_checks.py` | 300000 | Review deep stats, draft bear cases for borderline | bet-challenger |
 | S6 upset | `upset_risk.py` | 300000 | Review context output, prepare gate criteria | bet-challenger |
 | S7 gate | `gate_checker.py` | 300000 | Review S3+S4+S5 verdicts, assess portfolio diversity | bet-challenger |
+| S7.5 betclic | `validate_betclic_markets.py` | 300000 | Review gate results, check market availability | — (validation) |
+| S7.6 repeats | `check_48h_repeats.py` | 120000 | Check recent losses for repeat patterns | — (validation) |
 | S8 coupons | `coupon_builder.py` | 300000 | Review gate results, check bankroll config | bet-builder |
+| S9 validate | `validate_coupons.py` | 120000 | Review coupon structure, verify arithmetic | bet-builder |
 
 ---
 
 ## §STRUCTURED SCRIPT OUTPUT (R19)
 
-15 analytical scripts emit `AGENT_SUMMARY:{json}`: `discover_events.py`, `ingest_scan_stats.py`, `tipster_aggregator.py`, `tipster_xref.py`, `run_scrapers.py`, `data_enrichment_agent.py`, `deep_stats_report.py`, `gate_checker.py`, `coupon_builder.py`, `build_shortlist.py`, `odds_evaluator.py`, `context_checks.py`, `upset_risk.py`, `fetch_odds_multi.py`, `validate_coupons.py`. Exit codes: 0=OK, 1=partial, 2=critical. Scripts with `--sport` filter: `discover_events.py`, `tipster_aggregator.py`, `run_scrapers.py`.
+**Scripts with confirmed `AGENT_SUMMARY:{json}` output (6 scripts):** `discover_events.py`, `run_scrapers.py`, `odds_evaluator.py`, `context_checks.py`, `upset_risk.py`, `validate_coupons.py`.
+
+**Scripts with structured verbose output but NO `AGENT_SUMMARY` (parse key metrics from stdout instead):** `ingest_scan_stats.py`, `tipster_aggregator.py`, `tipster_xref.py`, `data_enrichment_agent.py`, `deep_stats_report.py`, `gate_checker.py`, `coupon_builder.py`, `build_shortlist.py`, `fetch_odds_multi.py`.
+
+Exit codes: 0=OK, 1=partial, 2=critical. Scripts with `--sport` filter: `discover_events.py`, `tipster_aggregator.py`, `run_scrapers.py`.
+
+**For scripts without AGENT_SUMMARY:** Read full verbose output, extract key metrics manually (counts, success rates, warnings). Do NOT expect an `AGENT_SUMMARY:` line — parse the human-readable output instead.
 
 ---
 
@@ -553,37 +562,56 @@ runSubagent("bet-scanner"):
 
 ### STEP S2: Tipster Cross-Reference
 
-**Delegate to bet-scout** — read `.github/internal-prompts/bet-tipsters.prompt.md` first, then:
+**Orchestrator runs tipster_xref.py, then delegates analysis to bet-scout.**
 
+**Step 1: RUN script (you, the orchestrator):**
+```bash
+PYTHONPATH=src .venv/bin/python3 scripts/tipster_xref.py --date {date} --verbose 2>&1
+```
+Mode: `async`, timeout: `300000`
+
+**Step 2: THINK-WHILE-WAITING:**
+- Read shortlist, identify tipster coverage gaps
+- Check which tipster sources produced data in S1b
+
+**Step 3: MONITOR + EXTRACT:**
+- Watch for DB read errors or 0 matches
+- Extract key metrics from output (tips_loaded, matched, total)
+
+**Step 4: Delegate analysis to bet-scout:**
 ```
 runSubagent("bet-scout"):
 ---
-## Task: S2 Tipster Cross-Reference for {date}
+## Task: Analyze S2 Tipster Cross-Reference output for {date}
 
 [Paste content of .github/internal-prompts/bet-tipsters.prompt.md]
 
-### Context
-- Date: {date}
+### Script Output (already executed by orchestrator)
+Output metrics: {paste key numbers — tips loaded, matched, coverage %}
+Exit code: {0|1|2}
+Key warnings: {paste any source failures or low match rates}
+
+### Upstream Context
 - Shortlist: `betting/data/{date}_s2_shortlist.json`
-- Tipster data (from S1b): `betting/data/{date}_tipster_consensus.json`
-- Script to run: `PYTHONPATH=src python3 scripts/tipster_xref.py --date {date} --verbose`
-- **§ASYNC:** Include the Mandatory Async Block from §ASYNC DELEGATION ENFORCEMENT (S2 tipsters row, timeout=300000)
-- Parse `AGENT_SUMMARY:` JSON from output for structured metrics (tips_loaded, matched, total)
-- Use sequentialthinking to evaluate tipster consensus quality
-- Load skill: bet-navigating-sources (Tier B tipster sites)
-- Key checks:
+- Tipster data (from S1b): DB `tipster_picks` table + JSON fallback `betting/data/{date}_tipster_consensus.json`
+
+### ⛔ Analysis-Only Mode
+DO NOT run any scripts. Analyze the provided tipster cross-reference output.
+Use sequentialthinking to evaluate tipster consensus quality.
+Load skill: bet-navigating-sources (Tier B tipster sites)
+Key checks:
   - Tipster quality: named expert > anonymous aggregate
   - Independence: ≥2 tipsters from different platforms agreeing = consensus
   - Angles pure stats missed: tactical changes, managerial quotes, team news
   - Watchlist picks with strong tipster backing → promote to shortlist
   - Picks where tipsters strongly disagree with stats → flag for S5
-- Return: APPROVED/FLAGGED/REJECTED + tipster_count + event_coverage + consensus_picks[]
+Return: Model A verdict + tipster_count + event_coverage + consensus_picks[]
 ---
 ```
 
 ---
 
-> ⚡ **PARALLEL EXECUTION:** S2 (tipster xref) and S2.3 (scrapers) are INDEPENDENT — they both read from the shortlist but neither depends on the other's output. Launch BOTH via separate `runSubagent` calls simultaneously. Collect both verdicts, then proceed to S2.5.
+> ⚡ **PARALLEL EXECUTION:** S2 (tipster xref) and S2.3 (scrapers) are INDEPENDENT — they both read from the shortlist but neither depends on the other's output. Run both scripts sequentially (tipster_xref ~30s, scrapers ~2-3 min), then delegate BOTH analyses to separate subagents simultaneously. Collect both verdicts, then proceed to S2.5.
 
 ### STEP S2.3: Run Scrapers (NEW — scraper data collection)
 
@@ -891,7 +919,41 @@ PYTHONPATH=src python3 scripts/validate_phase.py --date {date} --phase analysis 
 - [ ] A3: ≥1 candidate with APPROVED or EXTENDED status
 - [ ] A5: STRONG+MODERATE ≥ 3 candidates (enough for coupons)
 
-**If exit code 1 (gate failure):** Read the JSON output, identify WHICH gate failed. If A5 fails (too few approved picks), trigger emergency expansion: re-run `build_shortlist.py --date {date} --stats-first --force` then re-delegate S3→S7 with expanded pool. Do NOT build coupons from insufficient picks.
+**If exit code 1 (gate failure):** Read the JSON output, identify WHICH gate failed. If A5 fails (too few approved picks), trigger emergency expansion: re-run `build_shortlist.py --date {date} --stats-first` then re-delegate S3→S7 with expanded pool. Do NOT build coupons from insufficient picks.
+
+---
+
+### STEP S7.5: Betclic Market Validation (MANDATORY pre-coupon gate)
+
+**Orchestrator runs validate_betclic_markets.py to confirm markets exist on Betclic.**
+
+```bash
+PYTHONPATH=src .venv/bin/python3 scripts/validate_betclic_markets.py --date {date} --verbose 2>&1
+```
+Mode: `sync`, timeout: `300000`
+
+**Purpose:** Checks which recommended markets ACTUALLY EXIST on Betclic.pl for today's events. Catches picks recommending markets that Betclic doesn't offer (e.g., "corners" unavailable until ≤48h before kickoff).
+
+**After completion:**
+- Parse output for market availability per event
+- Events where recommended market is UNAVAILABLE → flag for coupon builder (suggest alternative market or move to Extended Pool)
+- Output saved to: `betting/data/{date}_betclic_validation.json`
+- This data is consumed by `coupon_builder.py` (renders WALIDACJA RYNKÓW section)
+
+**NOTE:** Do NOT scrape Betclic directly in other steps (R12 — 403 risk). This script uses `BetclicSession` with `curl_cffi` impersonation.
+
+---
+
+### STEP S7.6: 48h Repeat Check
+
+```bash
+PYTHONPATH=src .venv/bin/python3 scripts/check_48h_repeats.py --date {date} 2>&1
+```
+Mode: `sync`, timeout: `120000`
+
+**Purpose:** Implements §7.5 point #14 — detects same team+market combinations that LOST in the last 48h. These are flagged as HARD REJECT for core coupons (can still appear in Extended Pool).
+
+**After completion:** Parse flagged picks. Any pick matching a 48h repeat loss → mark as `repeat_loss_flag=true` for coupon builder.
 
 ---
 
@@ -912,9 +974,18 @@ Mode: `async`, timeout: `300000`
 **Step 2: THINK-WHILE-WAITING:** Review gate results, check bankroll config, prepare portfolio strategy.
 
 **Step 3: EXTRACT + VALIDATE:**
-Parse `AGENT_SUMMARY:{json}`. Run: `python3 scripts/validate_phase.py --date {date} --phase build --format json`
+Parse output. Run coupon validation:
+```bash
+PYTHONPATH=src .venv/bin/python3 scripts/validate_coupons.py --date {date} --verbose 2>&1
+```
+Then run phase validation: `PYTHONPATH=src python3 scripts/validate_phase.py --date {date} --phase build --format json`
 
-**Step 4: Delegate analysis to bet-builder:**
+**Step 4: Generate PDF:**
+```bash
+PYTHONPATH=src .venv/bin/python3 scripts/generate_coupon_pdf.py --date {date} 2>&1
+```
+
+**Step 5: Delegate analysis to bet-builder:**
 ```
 runSubagent("bet-builder"):
 ---
@@ -923,8 +994,9 @@ runSubagent("bet-builder"):
 [Paste content of .github/internal-prompts/bet-portfolio.prompt.md]
 
 ### Script Output (already executed by orchestrator)
-coupon_builder AGENT_SUMMARY: {paste JSON}
-validate_phase output: {paste validation results}
+coupon_builder output: {paste key metrics — coupons built, legs per coupon, total stake}
+validate_coupons output: {paste V1-V10 validation results}
+validate_phase output: {paste build phase validation results}
 Exit code: {0|1|2}
 Key warnings: {paste arithmetic issues, exposure warnings}
 
@@ -1049,12 +1121,14 @@ Use `inspect_pipeline.py --step all --date {run_date}` to check completeness pro
 | S1   | ☐         | ☐              | bet-scanner | ☐               |
 | S1e  | ☐         | ☐              | bet-scanner | ☐               |
 | S2   | ☐         | ☐              | bet-scout   | ☐               |
+| S2.3 | ☐         | ☐              | bet-enricher | ☐              |
 | S2.5 | ☐         | ☐              | bet-enricher | ☐              |
 | S3   | ☐         | ☐              | bet-statistician | ☐          |
 | S4   | ☐         | ☐              | bet-valuator | ☐              |
 | S5+6 | ☐         | ☐              | bet-challenger | ☐            |
 | S7   | ☐         | ☐              | bet-challenger | ☐            |
-| S8   | ☐         | ☐              | bet-builder | ☐               |
+| S7.5 | ☐         | —              | — (validation only) | —        |
+| S8+9 | ☐         | ☐              | bet-builder | ☐               |
 
 **RULES:**
 1. **Script Ran + Agent NOT Delegated = VIOLATION.** Do NOT proceed to the next step.
@@ -1095,7 +1169,7 @@ Use `inspect_pipeline.py --step all --date {run_date}` to check completeness pro
 | R16 LIVE WINDOW | 06:00→05:59 next day. Events ≤1h to kickoff or in-play = LIVE, include in scan | S1, S1e |
 | R17 LIVE SCRIPT MONITORING | ALWAYS --verbose. Read FULL output. Extract metrics. Report specific numbers. React to errors. If timeout: use get_terminal_output to diagnose. | ALL |
 | R18 DATA FLOW VERIFICATION | Before running a script, READ its code to understand inputs/outputs. TRACE producer→consumer: do JSON keys, DB tables, field names match? Verify with actual data. READ CODE → THINK → CHECK → FIX. | ALL |
-| R19 STRUCTURED OUTPUT | 15 analytical scripts support `--verbose` + `AGENT_SUMMARY:{json}` (see §STRUCTURED SCRIPT OUTPUT). Use `--verbose` on those scripts. Parse AGENT_SUMMARY for verdict/metrics/issues. Exit: 0=OK, 1=partial, 2=critical. | ALL |
+| R19 STRUCTURED OUTPUT | 6 scripts emit `AGENT_SUMMARY:{json}` (see §STRUCTURED SCRIPT OUTPUT). Others produce structured verbose output — parse metrics from stdout. Use `--verbose` on all scripts that support it. Exit: 0=OK, 1=partial, 2=critical. | ALL |
 
 ---
 
@@ -1109,6 +1183,7 @@ Use `inspect_pipeline.py --step all --date {run_date}` to check completeness pro
 | S1 Scan (sport-specific) | Use `bet-scan.prompt.md` with `--sport {sport}` filter | bet-scanner |
 | S1e Shortlist | `bet-shortlist.prompt.md` | bet-scanner |
 | S2 Tipsters | `bet-tipsters.prompt.md` | bet-scout |
+| S2.3 Scrapers | `bet-enrich.prompt.md` | bet-enricher |
 | S2.5 Enrichment | `bet-enrich.prompt.md` | bet-enricher |
 | S3 Deep Stats | `bet-deep-stats.prompt.md` | bet-statistician |
 | S3B Time-Sensitive | `bet-time-sensitive.prompt.md` | bet-statistician |
@@ -1116,6 +1191,8 @@ Use `inspect_pipeline.py --step all --date {run_date}` to check completeness pro
 | S5 Context | `bet-context-upset.prompt.md` | bet-challenger |
 | S6 Upset Risk | `bet-context-upset.prompt.md` | bet-challenger |
 | S7 Gate | `bet-gate.prompt.md` | bet-challenger |
+| S7.5 Betclic Validation | — (no agent, validation gate only) | — |
+| S7.6 48h Repeat Check | — (no agent, validation gate only) | — |
 | S8 Portfolio | `bet-portfolio.prompt.md` | bet-builder |
 | S9 Validation | `bet-validate.prompt.md` | bet-builder |
 

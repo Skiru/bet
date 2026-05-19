@@ -95,7 +95,7 @@ These 21 rules are PERMANENT. They override any conflicting logic in scripts, pr
 
 **R18 — DATA FLOW VERIFICATION:** Before running ANY script, READ its code to understand inputs/outputs. TRACE connection to next script — verify keys/tables match. NEVER assume "scripts just work." See `agent-execution-protocol.instructions.md` §Data Flow.
 
-**R19 — STRUCTURED SCRIPT OUTPUT:** 15 pipeline scripts emit `AGENT_SUMMARY:{json}`. Always `--verbose`. Parse for verdict (`OK`/`PARTIAL`/`FAILED`), metrics, issues. Exit codes: 0=success, 1=partial, 2=critical. See `agent_protocol.py` `STRUCTURED_OUTPUT_PROTOCOL`.
+**R19 — STRUCTURED SCRIPT OUTPUT:** 6 scripts emit `AGENT_SUMMARY:{json}` (discover_events, run_scrapers, odds_evaluator, context_checks, upset_risk, validate_coupons). Other scripts produce structured verbose output — parse key metrics from stdout. Always `--verbose`. Exit codes: 0=success, 1=partial, 2=critical. See `agent_protocol.py` `STRUCTURED_OUTPUT_PROTOCOL`.
 
 **R20 — FISH SHELL — NO INLINE PYTHON (ZERO EXCEPTIONS):** FORBIDDEN in terminal: (1) `python3 -c "..."` — ANY inline Python hangs/garbles fish. (2) bash loops (`for/do/done`). (3) `$(command)` substitution. (4) Heredocs, `[[ ]]`. Use `pylanceRunCodeSnippet` (R21) or dedicated scripts instead. See `agent-execution-protocol.instructions.md` §FISH SHELL.
 
