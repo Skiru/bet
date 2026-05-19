@@ -169,9 +169,6 @@ RETRY_BACKOFF = 2.0       # exponential backoff multiplier
 # Cache validity
 CACHE_HOURS = 6  # don't re-fetch same event within this window
 
-# Market count threshold
-STATISTICAL_MARKETS_THRESHOLD = 200
-
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # COMPETITION REGISTRY
@@ -258,6 +255,7 @@ class BetclicMarketInfo:
     has_cards: bool = False
     has_shots: bool = False
     has_fouls: bool = False
+    confirmed_market_types: list[str] = field(default_factory=list)
     fetched_at: str = ""
 
     def to_dict(self) -> dict:
@@ -277,6 +275,7 @@ class BetclicMarketInfo:
             "has_cards": self.has_cards,
             "has_shots": self.has_shots,
             "has_fouls": self.has_fouls,
+            "confirmed_market_types": self.confirmed_market_types,
             "fetched_at": self.fetched_at,
         }
 
@@ -300,29 +299,30 @@ class BetclicMarketInfo:
                 return False, f"❌ {self.sport} never has statistical markets on Betclic"
 
         # Check tab requirement
-        if required_tab == "Statystyki":
-            if not self.has_statistics_tab:
+        if required_tab:
+            if required_tab not in self.tabs and required_tab != "Statystyki":
+                if self.open_market_count == 0:
+                    return None, "⚠️ No market data loaded (event may not be open yet)"
+                return False, f"❌ Tab '{required_tab}' not found"
+            if required_tab == "Statystyki" and not self.has_statistics_tab:
                 return False, f"❌ No 'Statystyki' tab — {market_type} unavailable"
-            # If Statystyki tab IS present, all stat markets are available
-            return True, "✅ Statystyki tab present → market available"
-        elif required_tab and required_tab not in self.tabs:
-            # For non-Statystyki tabs, check if tab exists
-            if self.open_market_count == 0:
-                return None, "⚠️ No market data loaded (event may not be open yet)"
-            return False, f"❌ Tab '{required_tab}' not found"
 
-        # Keyword check in market names
-        market_text = " ".join(self.market_names).lower()
-        if any(kw in market_text for kw in keywords):
-            return True, "✅ Market confirmed in market names"
+        # Keyword check in market names (authoritative source)
+        # For shots markets: exclude player-level "zawodnika" markets
+        if market_type in ("shots_on_target", "shots_total"):
+            if any(
+                any(kw in m.lower() for kw in keywords) and "zawodnika" not in m.lower()
+                for m in self.market_names
+            ):
+                return True, "✅ Market confirmed (team-level shots)"
+        else:
+            market_text = " ".join(self.market_names).lower()
+            if any(kw in market_text for kw in keywords):
+                return True, f"✅ Market confirmed in market names"
 
-        # Tab present → likely available
+        # Tab present but keywords not found — unconfirmed
         if required_tab and required_tab in self.tabs:
-            return True, f"✅ Tab '{required_tab}' present"
-
-        # Fallback: check market count
-        if self.open_market_count >= STATISTICAL_MARKETS_THRESHOLD:
-            return True, f"✅ High market count ({self.open_market_count}) suggests availability"
+            return None, f"⚠️ Tab '{required_tab}' present but market not confirmed in market names"
 
         return None, "⚠️ Cannot confirm availability"
 
@@ -481,18 +481,26 @@ def parse_event_page(html: str) -> Optional[BetclicMarketInfo]:
 
     info.market_names = sorted(market_names)
 
-    # 5. Detect statistical market availability
-    if info.has_statistics_tab:
-        info.has_corners = True
-        info.has_cards = True
-        info.has_shots = True
-        info.has_fouls = True
-    else:
-        all_text = " ".join(info.market_names).lower()
-        info.has_corners = "rożn" in all_text or "corner" in all_text
-        info.has_cards = "kartek" in all_text or "kartk" in all_text or "czerwona" in all_text
-        info.has_shots = "strzał" in all_text or "celny" in all_text
-        info.has_fouls = "faul" in all_text
+    # 5. Detect statistical market availability (keyword-based, never blanket)
+    all_text = " ".join(info.market_names).lower()
+    info.has_corners = "rożn" in all_text or "corner" in all_text
+    info.has_cards = "kartek" in all_text or "kartk" in all_text or "czerwona" in all_text
+    # Shots: exclude player-level "zawodnika" markets — only team-level counts
+    info.has_shots = any(
+        ("strzał" in m.lower() or "celny" in m.lower()) and "zawodnika" not in m.lower()
+        for m in info.market_names
+    )
+    info.has_fouls = "faul" in all_text
+
+    # Build confirmed market types list from actual keyword matches
+    confirmed = []
+    for mtype, rule in MARKET_DETECTION_RULES.items():
+        keywords = rule["keywords"]
+        required_tab = rule["requires_tab"]
+        if any(kw in all_text for kw in keywords):
+            if required_tab is None or required_tab in info.tabs:
+                confirmed.append(mtype)
+    info.confirmed_market_types = confirmed
 
     return info
 

@@ -1240,6 +1240,64 @@ def _filter_past_events(picks: list) -> list:
     return future
 
 
+def _filter_quality(picks: list, tier: str = "core") -> tuple[list, list]:
+    """Filter picks by data quality for coupon construction.
+    
+    Returns (quality_picks, demoted_picks).
+    Demoted picks go to extended pool with quality warnings.
+    
+    Core tier requirements:
+    - source != "db-synthetic" 
+    - markets_evaluated >= 3
+    - hit_rate > 50% (not a coin flip)
+    - line is not solely from STANDARD_MARKET_LINES defaults
+    """
+    quality = []
+    demoted = []
+    
+    for pick in picks:
+        best = pick.get("best_market") or {}
+        source = best.get("source", "")
+        # Only check markets_evaluated when the field EXPLICITLY exists in the pick.
+        # Absent field = legacy data or pre-S3 stage (not yet tracked) → don't penalize.
+        # Explicit 0 = S3 ran but found NOTHING → flag as zero markets.
+        _has_market_count = "market_count" in pick or "markets_evaluated" in pick
+        markets_eval = pick.get("market_count") or pick.get("markets_evaluated", 0) or 0
+        hit_rate_str = best.get("hit_rate_l10", "")
+        line_verified = not pick.get("_stats_first_odds", False)
+        
+        # Parse hit rate using existing _safe_float helper (handles fractions like "5/10")
+        hit_rate_val = _safe_float(hit_rate_str, 0.0)
+        
+        reasons = []
+        
+        # Check synthetic source
+        if source == "db-synthetic":
+            reasons.append("⚠️ SYNTETYCZNE: brak prawdziwych danych per-mecz")
+        
+        # Check minimum markets evaluated — only when field explicitly exists
+        # Sport-specific minimums (tennis=2, volleyball=2, others=3)
+        _sport = (pick.get("sport") or "").lower()
+        _min_mkts = {"football": 3, "basketball": 3, "tennis": 2, "volleyball": 2, "hockey": 3}.get(_sport, 2)
+        if _has_market_count:
+            if markets_eval < _min_mkts and markets_eval > 0:
+                reasons.append(f"⚠️ MAŁO RYNKÓW: {markets_eval}/{_min_mkts} wymagane")
+            elif markets_eval == 0:
+                reasons.append("⚠️ ZERO RYNKÓW: brak analizy statystycznej")
+        
+        # Check coin-flip hit rate
+        if hit_rate_val > 0 and hit_rate_val <= 0.50:
+            reasons.append(f"⚠️ COIN FLIP: {hit_rate_str} (≤50% = brak przewagi)")
+        
+        if reasons and tier == "core":
+            pick["_quality_demoted"] = True
+            pick["_quality_reasons"] = reasons
+            demoted.append(pick)
+        else:
+            quality.append(pick)
+    
+    return quality, demoted
+
 def build_coupons(gate_results: dict, config: dict) -> dict:
     """Main entry: build coupons from gate results.
 
@@ -1257,6 +1315,15 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
     all_approved = _filter_past_events(gr.get("approved", []))
     extended_pool = _filter_past_events(gr.get("extended_pool", []))
     rejected = gr.get("rejected", [])
+
+    # Quality gate: filter synthetic/insufficient data from core coupons (ERROR 6 fix)
+    all_approved, quality_demoted = _filter_quality(all_approved, tier="core")
+    if quality_demoted:
+        for p in quality_demoted:
+            p["extended_pool_reason"] = "; ".join(p.get("_quality_reasons", ["quality filter"]))
+        extended_pool.extend(quality_demoted)
+        out.info(f"Quality filter: {len(quality_demoted)} picks demoted to extended pool "
+                 f"(synthetic/insufficient/coin-flip)")
 
     # Assign risk_tier from safety if missing (JSON gate results don't always have it)
     for p in all_approved:
@@ -2392,6 +2459,37 @@ def main():
                     out.event("betclic_validation",
                               total=len(validation_results),
                               unavailable=len(unavailable))
+                
+                # Hard-reject: remove picks from core that are betclic_unavailable
+                # Track (event, market_type) pairs — not just event name
+                unavailable_pairs = set()
+                for v in validation_results:
+                    if v.get("betclic_available") is False:
+                        unavailable_pairs.add((v.get("event", "").lower(), v.get("market_type", "")))
+
+                if unavailable_pairs and coupons_data.get("singles"):
+                    filtered_singles = []
+                    rejected_by_betclic = []
+                    for s in coupons_data["singles"]:
+                        event_str = f"{s.get('home_team', '')} - {s.get('away_team', '')}".lower()
+                        pick_market = s.get("market_type", "")
+                        is_unavailable = any(
+                            pick_market == up_mt and (ue in event_str or event_str in ue)
+                            for ue, up_mt in unavailable_pairs
+                        )
+                        if is_unavailable:
+                            s["rejection_reason"] = "RYNEK NIEDOSTĘPNY NA BETCLIC"
+                            rejected_by_betclic.append(s)
+                        else:
+                            filtered_singles.append(s)
+                    if rejected_by_betclic:
+                        coupons_data["singles"] = filtered_singles
+                        # Add to extended pool
+                        ext = coupons_data.setdefault("extended_pool", [])
+                        ext.extend(rejected_by_betclic)
+                        if args.verbose:
+                            out.warning(f"Betclic filter: {len(rejected_by_betclic)} singles moved to Extended Pool")
+
         except Exception as e:
             if args.verbose:
                 out.warning(f"Betclic validation load failed: {e}")
