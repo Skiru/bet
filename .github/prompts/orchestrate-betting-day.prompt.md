@@ -404,7 +404,7 @@ runSubagent("bet-db-analyst"):
 - Run full table census, date-specific analysis, source health check
 - Load skill: bet-querying-database
 - Key checks:
-  - All 30 tables exist and are populated
+  - All 41 tables exist and are populated
   - team_form has data for all 5 sports
   - fixtures for today's date are loaded
   - source_health shows acceptable success rates
@@ -486,7 +486,7 @@ PYTHONPATH=src .venv/bin/python3 scripts/seed_espn_data.py --skip-players 2>&1
 
 Seeds unique ESPN data: standings, ATS/OU records, predictions, power index (8-min timeout). This data is NOT covered by S2.3 scrapers or S2.5 enrichment.
 
-**NOTE:** `fetch_api_stats.py` removed from pipeline (2026-05-15) — its per-fixture enrichment via legacy `scripts/api_clients/` is fully superseded by `run_scrapers.py` (S2.3) + `data_enrichment_agent.py` (S2.5) which use the modern `src/bet/api_clients/unified.py` routing.
+**NOTE:** `fetch_api_stats.py` removed from pipeline (2026-05-15) — its per-fixture enrichment via `scripts/api_clients/` (now a shim) is fully superseded by `run_scrapers.py` (S2.3) + `data_enrichment_agent.py` (S2.5) which use the canonical `src/bet/api_clients/` package.
 
 ---
 
@@ -1289,7 +1289,7 @@ python3 scripts/settle_on_finish.py --betting-day YYYY-MM-DD
 ## DB REFERENCE
 
 SQLite at `betting/data/betting.db`. Connection: `from bet.db.connection import get_db`.
-30 tables across 7 domains: Core (sports/teams/competitions/fixtures/athletes), Stats (team_form/match_stats/league_profiles/standings/power_index), Analysis (analysis_results/analysis_raw_data/gate_results/decision_snapshots/decision_outcomes), Betting (coupons/bets/odds_history), Pipeline (pipeline_runs/scan_results/scan_run_stats/source_health), ESPN (espn_predictions/player_gamelogs/player_splits/team_ats_records/team_ou_records/team_rosters), Tipster (tipster_picks/tipster_consensus).
+41 tables across 7 domains: Core (sports/teams/competitions/fixtures/athletes/fixture_sources), Stats (team_form/match_stats/league_profiles/standings/power_index/h2h_stats/injuries/coach_history/player_season_stats), Analysis (analysis_results/analysis_raw_data/gate_results/decision_snapshots/decision_outcomes), Betting (coupons/bets/odds_history/betclic_markets/betclic_competition_profiles), Pipeline (pipeline_runs/scan_results/scan_run_stats/source_health/scraper_runs/web_research_cache/schema_meta), ESPN (espn_predictions/player_gamelogs/player_splits/team_ats_records/team_ou_records/team_rosters/transactions), Tipster (tipster_picks/tipster_consensus).
 
 
 ## STEP S11: KNOWLEDGE TRANSFER & MEMORY UPDATE (CRITICAL)

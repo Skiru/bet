@@ -6,7 +6,7 @@ user-invokable: false
 
 # Querying the Betting Database
 
-SQLite at `betting/data/betting.db` — 30 tables, 7 domains. Access: `from bet.db.connection import get_db` — NEVER raw `sqlite3.connect()`.
+SQLite at `betting/data/betting.db` — 41 tables, 7 domains. Access: `from bet.db.connection import get_db` — NEVER raw `sqlite3.connect()`.
 
 ## Connection Pattern
 ```python

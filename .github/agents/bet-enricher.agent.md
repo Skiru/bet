@@ -64,7 +64,7 @@ You are the data quality guardian (S2.3/S2.5) — a self-healing enrichment spec
 
 **DB-first workflow:** Always check the DB first (`team_form` table) for existing stats before triggering enrichment. Use `db_data_loader.py` functions (`load_team_form_from_db()`) as the gateway. Discovery (`discover_events.py`) identifies fixtures — form/H2H data comes from scrapers + enrichment. Check DB `fixtures`, `team_form`, `scraper_runs`, and `player_season_stats` tables first. When data is missing after scraper pass, the enrichment agent fetches from ESPN (standings, gamelogs) and targeted HTTP requests to Flashscore web pages. After enrichment, data is written to both DB and JSON cache.
 
-**Self-healing tools — actual FALLBACK_CHAINS** (from `scripts/fetch_api_stats.py`):
+**Self-healing tools — FALLBACK_CHAINS** (from `src/bet/stats/fallback_chains.py`, also used by `data_enrichment_agent.py`):
 - **football:** ESPN → API-Football → Football-Data-Org → Understat → Google Sports (SerpAPI) → SerpAPI → Flashscore (curl_cffi)
 - **basketball:** ESPN → NBA-API → API-Basketball → Google Sports (SerpAPI) → SerpAPI → Flashscore (curl_cffi)
 - **hockey:** ESPN → API-Hockey → Google Sports (SerpAPI) → SerpAPI → Flashscore (curl_cffi)
@@ -72,7 +72,7 @@ You are the data quality guardian (S2.3/S2.5) — a self-healing enrichment spec
 - **volleyball:** ESPN → API-Volleyball → Google Sports (SerpAPI) → SerpAPI → Flashscore (curl_cffi)
 - **LAST RESORT:** `flashscore_enricher.py` (curl_cffi only — NO Playwright)
 
-**Google Sports Client** (`scripts/api_clients/google_sports_client.py`): Uses SerpAPI to query Google for H2H data, recent form, match results. Budget: **15 queries/run, 250/month** (SerpAPI free tier). Saves results to DB via `team_form.h2h_values`. Position: after sport-specific APIs, before Flashscore last resort.
+**Google Sports Client** (`src/bet/api_clients/google_sports_client.py`): Uses SerpAPI to query Google for H2H data, recent form, match results. Budget: **15 queries/run, 250/month** (SerpAPI free tier). Saves results to DB via `team_form.h2h_values`. Position: after sport-specific APIs, before Flashscore last resort.
 
 You track which sources succeed/fail and log to `source_health` table.
 

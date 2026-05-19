@@ -2,7 +2,7 @@
 
 ## Architecture
 - **Agent-driven pipeline**: Orchestrator agent calls individual scripts one at a time (S0→S10). ⛔ NEVER use `pipeline_orchestrator.py`. See `orchestrate-betting-day.prompt.md`
-- **Database**: `betting/data/betting.db` (SQLite, WAL mode). Connection: `from bet.db.connection import get_db` (busy_timeout=30000, retry_on_lock()). 30-table schema across 7 domains (Core, Stats, Analysis, Betting, Pipeline, ESPN, Tipster)
+- **Database**: `betting/data/betting.db` (SQLite, WAL mode). Connection: `from bet.db.connection import get_db` (busy_timeout=30000, retry_on_lock()). 41-table schema across 7 domains (Core, Stats, Analysis, Betting, Pipeline, ESPN, Tipster). Schema v10.
 - **Discovery (S1)**: `src/bet/discovery/` module — API-first event discovery via SofaScore + Odds API + API-Football. ~30s, 1700+ events. CLI: `PYTHONPATH=src .venv/bin/python scripts/discover_events.py --date YYYY-MM-DD --verbose`. DB: `fixtures`, `scan_results`, `fixture_sources`
 - **Discovery module only**: No legacy scanning fallback. All event discovery goes through `src/bet/discovery/`
 - Config: `config/betting_config.json` — all thresholds and limits
@@ -12,6 +12,8 @@
 - Gate checker: `scripts/gate_checker.py` — 18-point S7 approval gate (`check_18_point_gate()`)
 - Coupon builder: `scripts/coupon_builder.py` — S8 portfolio + combo construction
 - Safety input: `scripts/normalize_stats.py` — `build_safety_input()` (DB-first, JSON cache fallback)
+- Stats module: `src/bet/stats/` — value_ranges.py (validation), fallback_chains.py (per-sport API order), fetcher.py (orchestration)
+- API clients: `src/bet/api_clients/` (canonical, 35+ clients). `scripts/api_clients/` = shim re-exporting from `bet.api_clients`
 - DB gateway: `scripts/db_data_loader.py` — all DB read/write functions
 
 ## Key DB Tables
@@ -20,6 +22,8 @@
 - `athletes` (538+), `player_gamelogs` (11.5K+), `standings`, `team_ats_records`, `team_ou_records`, `power_index`, `espn_predictions`
 - `tipster_picks`, `tipster_consensus` (schema v9 — via `TipsterRepo` in `repositories.py`)
 - `bets`, `coupons`, `league_profiles`, `pipeline_runs`
+- `betclic_markets`, `betclic_competition_profiles` (schema v10 — market existence validation)
+- `scraper_runs`, `player_season_stats` (schema v9 — scraper operational tracking)
 
 ## Extracted Pipeline Modules
 - `scripts/odds_evaluator.py` — S4 odds evaluation

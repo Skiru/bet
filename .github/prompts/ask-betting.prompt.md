@@ -167,7 +167,7 @@ When a question spans 2+ domains:
 ### Tier 1: SQLite DB (always prefer — freshest, structured)
 ```python
 from bet.db.connection import get_db
-# 30 tables across 7 domains:
+# 41 tables across 7 domains:
 # Fixtures: fixtures, scan_results, scan_run_stats
 # Bets: bets, coupons, picks, gate_results
 # Stats: team_form, match_stats, h2h_records, standings

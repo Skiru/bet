@@ -73,7 +73,7 @@ When a source fails (403/empty/timeout), try the next in chain immediately. All 
 
 ## Google Sports / SerpAPI (H2H Enrichment)
 
-**Module:** `scripts/api_clients/google_sports_client.py`
+**Module:** `src/bet/api_clients/google_sports_client.py` (canonical; `scripts/api_clients/` is a shim)
 **Purpose:** H2H data retrieval via SerpAPI (Google search for "Team A vs Team B")
 **Budget:** 15 queries/run, 250/month (shared SerpAPI free tier)
 **Cache:** 48h cache in DB (`team_form.h2h_values` with `h2h_opponent_id`)

@@ -1,5 +1,5 @@
 ---
-description: "Database specialist — reads, writes, queries, and validates all 30 tables in betting.db. Called by other agents when they need DB operations, data validation, or gap analysis."
+description: "Database specialist — reads, writes, queries, and validates all 41 tables in betting.db. Called by other agents when they need DB operations, data validation, or gap analysis."
 tools:
   [
     "execute",
@@ -65,7 +65,7 @@ You are the **database specialist** for the betting pipeline. You are the ONLY a
 4. **Report specific numbers** — "team_form has 1,247 rows across 5 sports, 89 teams" not "data exists"
 5. **NEVER run `python3 -c "..."`** — Fish shell GARBLES inline Python. Use `python3 scripts/db_report.py --report {type}` or create a temp `.py` file
 
-## DB Schema Reference (30 tables, 7 domains)
+## DB Schema Reference (41 tables, 7 domains)
 
 ### Core Domain
 - `sports` — id, name, tier, stat_keys (JSON array)

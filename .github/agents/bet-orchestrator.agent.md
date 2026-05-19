@@ -490,7 +490,7 @@ After EVERY script: read FULL output → extract metrics → `sequentialthinking
 ## Database
 
 `betting/data/betting.db` (SQLite, WAL). Connection: `from bet.db.connection import get_db`.
-30 tables, 7 domains. Agent loaders in `db_data_loader.py`.
+41 tables, 7 domains. Agent loaders in `db_data_loader.py`.
 
 ---
 

@@ -70,7 +70,7 @@ Load these skills before starting:
 
 1. Run: `python3 scripts/settle_on_finish.py --betting-day {yesterday} --no-poll 2>&1`
    Note: settle_on_finish.py does NOT support --verbose or AGENT_SUMMARY. Read its stdout directly for settlement results.
-2. For each pending pick: find result (Flashscore → verify ESPN), resolve market (auto: 1X2/totals/BTTS/DC; manual: corners/cards/HC/MyCombi), update `picks-ledger.csv`
+2. For each pending pick: find result (Flashscore → verify ESPN), resolve market (auto: 1X2/totals/BTTS/DC; semi-auto via stats: corners/cards/shots/fouls; manual: HC/MyCombi), update `picks-ledger.csv`
 3. For each pending coupon: all legs win = coupon win; void leg = recalculate odds; update `coupons-ledger.csv`
 4. US sports: `python3 scripts/fetch_odds_api.py --scores hockey 2>&1`
 
