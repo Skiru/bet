@@ -415,16 +415,21 @@ def _load_tipster_events(date: str) -> set[str]:
                     break
     return events
 
-# ITF low-tier filter (§SCAN — ERROR 1 prevention)
-# ITF M15/W15/W25 events have ZERO data coverage in any source.
-# Only keep ITF events if competition suggests qualifying for major tournaments.
+# ITF Futures filter (§SCAN — ERROR 1 prevention)
+# ITF M15/W15/M25/W25/W35/W40/W50/W60/W75/M40/M50 etc. have ZERO data coverage.
+# Sackmann covers ATP+WTA+Challengers. Tennis Abstract covers top players.
+# ESPN covers ATP+WTA. So we ONLY block ITF Futures tier events.
+# Challengers, WTA 125, Qualifying = KEEP (have data in Sackmann/TennisAbstract).
 ITF_LOW_TIER_RE = re.compile(
-    r"\b(itf|futures)\b.*\b(m15|w15|m25|w25|w35)\b"
-    r"|\b(m15|w15|m25|w25|w35)\b.*\b(itf|futures)\b"
-    r"|^\s*(m15|w15|m25|w25|w35)\b",  # Bare tier codes at start (e.g. "M25 Szczecin")
+    r"\b(itf|futures)\b"
+    r"|\b[mw]\d{2,3}\b"  # M15, W15, M25, W25, W35, W40, W50, W60, W75, M40 etc.
+    ,
     re.I,
 )
-ITF_QUALIFYING_KEYWORDS = {"qualifying", "roland garros", "french open", "wimbledon", "us open", "australian open"}
+# Events with these keywords are NEVER filtered even if regex matches
+ITF_QUALIFYING_KEYWORDS = {"roland garros", "french open", "wimbledon", "us open", "australian open",
+                           "olympics", "olympic", "davis cup", "billie jean king",
+                           "challenger", "atp", "wta", "masters"}
 
 def build_shortlist(
     date: str,
@@ -718,8 +723,9 @@ def build_shortlist(
             max_per_sport_key = max(top_n // 3, 8)  # KEY sports: max 33%
             max_per_sport_sup = max(top_n // 8, 4)  # SUPPORT sports: max ~12%
         else:
-            # Even uncapped, limit per-sport to 35% of total to prevent tennis flood
-            max_per_sport = max(int(len(scored) * 0.35), 50)
+            # Even uncapped, hard cap per-sport to prevent tennis/basketball flood
+            # 25% max ensures no single sport dominates when sources can't cover them
+            max_per_sport = max(int(len(scored) * 0.25), 30)
 
         for score, event in scored:
             key = f"{event.get('home_team','')}|{event.get('away_team','')}|{event.get('kickoff','')}"
