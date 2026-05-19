@@ -108,6 +108,25 @@ S9   — validate_coupons.py (V1-V10 validation)
 S10  — generate_coupon_pdf.py (PDF output)
 ```
 
+## 🆕 METHODOLOGY ALIGNMENT WITH REMEDIATION — 2026-05-19
+
+### What
+Aligned all methodology/instruction docs with the pipeline remediation changes (13 files, commit `6de74ee`).
+
+### Key Updates
+1. **Settlement categories changed** — corners/cards/shots/fouls upgraded from "Manual" to "Semi-auto via Flashscore stats" (`settle_stat_market()` + `_fetch_flashscore_match_stats()`). Only HC and MyCombi remain fully manual. Updated in 5 files: copilot-instructions, analysis-methodology, bet-settler agent, bet-settling-results SKILL, bet-settle prompt.
+
+2. **API client canonical path** — `src/bet/api_clients/` is canonical (35+ clients). `scripts/api_clients/` = shim that re-exports. Updated references in bet-enricher agent, bet-navigating-sources SKILL, orchestrate-betting-day prompt.
+
+3. **Stats module documented** — `src/bet/stats/` package (value_ranges.py, fallback_chains.py, fetcher.py) added to project-structure. FALLBACK_CHAINS source updated in bet-enricher agent.
+
+4. **DB table count: 30 → 41** — Schema v10 has 31 tables in schema.sql + 10 from migration 005 (ESPN). Updated in 7 files: bet-querying-database SKILL, bet-orchestrator agent, bet-db-analyst agent, orchestrate-betting-day prompt (2 places), ask-betting prompt, project-structure memory.
+
+### Current Settlement Categories
+- **Auto:** winner/1X2, totals (any line), BTTS, double chance — from Flashscore scores
+- **Semi-auto:** corners, cards, shots, fouls — via `settle_stat_market()` reading Flashscore match stats (rate-limited: max 30 requests/run, football only)
+- **Manual:** HC, MyCombi
+
 ## 🆕 BETCLIC MARKET SCRAPER — FULL IMPLEMENTATION — 2026-05-18/19
 
 ### What
