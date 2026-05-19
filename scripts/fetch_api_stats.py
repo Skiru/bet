@@ -86,6 +86,7 @@ EXPECTED_STATS_PER_SPORT = {
         "aces", "double_faults", "first_serve_pct",
         "first_serve_win_pct", "second_serve_win_pct",
         "break_points_saved_pct", "hold_pct", "break_pct",
+        "sets_won", "total_sets", "games_won", "total_games",
     ],
     "volleyball": [
         "kills", "aces", "blocks", "digs", "assists",

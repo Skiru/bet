@@ -41,7 +41,7 @@ class TennisAbstractClient(BaseAPIClient):
                           "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         })
-        self._last_matches_cache: dict[str, dict] = {}
+        self._last_matches_cache: dict[str, tuple[dict, str]] = {}
 
     # ─── BaseAPIClient overrides ─────────────────────────────────────
 
@@ -61,12 +61,10 @@ class TennisAbstractClient(BaseAPIClient):
 
     def get_fixture_stats(self, fixture_id: str) -> NormalizedMatchStats | None:
         """Return stats for a fixture from the internal cache (populated by get_team_last_fixtures)."""
-        match = self._last_matches_cache.get(fixture_id)
-        if not match:
+        cached = self._last_matches_cache.get(fixture_id)
+        if not cached:
             return None
-        # Determine player name from fixture_id: "ta_{player}_{date}_{opp}"
-        parts = fixture_id.split("_", 2)
-        player_name = parts[1] if len(parts) > 1 else ""
+        match, player_name = cached
         return self._match_to_normalized(match, player_name)
 
     def get_h2h(self, team1_id: str, team2_id: str, last_n: int = 10) -> list[dict]:
@@ -115,7 +113,7 @@ class TennisAbstractClient(BaseAPIClient):
 
         # Cache match data for fixture_stats lookup
         self._last_matches_cache = {
-            f"ta_{team_id}_{m.get('date', '')}_{m.get('opp', '')}": m
+            f"ta_{team_id}_{m.get('date', '')}_{m.get('opp', '')}": (m, team_id)
             for m in matches[:last_n]
         }
         return fixtures

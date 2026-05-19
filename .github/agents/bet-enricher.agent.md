@@ -73,9 +73,22 @@ You are the data quality guardian (S2.3/S2.5) — a self-healing enrichment spec
 - **LAST RESORT:** `flashscore_enricher.py` (curl_cffi only — NO Playwright, SKIPS tennis)
 
 **Tennis-specific sources:**
-- **Sackmann** (`src/bet/api_clients/sackmann_adapter.py`): Jeff Sackmann's open CSV data from GitHub. Season aggregates: aces, DFs, 1st/2nd serve %, BP saved %, surface splits. No API key.
-- **Tennis Abstract** (`src/bet/api_clients/tennis_abstract.py`): Scrapes tennisabstract.com for per-match stats (aces, DFs, 1st serve %, hold %, break %, H2H). No API key, 0.6s rate limit.
+- **Sackmann** (`src/bet/api_clients/sackmann_adapter.py`): Jeff Sackmann's open CSV data from GitHub. Per-match serve stats via `get_team_last_fixtures()` → `get_fixture_stats()` cache. Provides: aces, DFs, 1st/2nd serve %, BP saved %. No API key.
+- **Tennis Abstract** (`src/bet/api_clients/tennis_abstract.py`): Scrapes tennisabstract.com for per-match stats. Provides ALL 8 core serve keys including hold_pct and break_pct. Used as supplementary source if Sackmann gives partial. No API key, 0.6s rate limit.
 - **SofaScore Tennis** (`src/bet/api_clients/sofascore_tennis.py`): Per-event stats via SofaScore API (/event/{id}/statistics). 20 stat keys per match. No API key, may 403 under load.
+
+**Tennis enrichment flow:**
+1. ESPN-tennis tries first (game-level: sets_won, total_games, ranking)
+2. Sackmann tries next (per-match serve stats from CSV)  
+3. Tennis Abstract tries next (per-match serve stats + hold_pct/break_pct)
+4. If main chain gives "partial" (missing hold_pct/break_pct), Tennis Abstract runs as **supplementary** (like MoneyPuck for hockey)
+5. Flashscore is SKIPPED for tennis (player pages 404)
+
+**Tennis stat interpretation:**
+- `hold_pct` = % service games held (higher = harder to break)
+- `break_pct` = % return games where player breaks opponent
+- `first_serve_win_pct` / `second_serve_win_pct` = serve effectiveness
+- Status "partial" (66-75% coverage) is NORMAL for tennis — full enrichment requires both game-level AND serve-level sources
 
 **Google Sports Client** (`src/bet/api_clients/google_sports_client.py`): Uses SerpAPI to query Google for H2H data, recent form, match results. Budget: **15 queries/run, 250/month** (SerpAPI free tier). Saves results to DB via `team_form.h2h_values`. Position: after sport-specific APIs, before Flashscore last resort.
 
@@ -191,7 +204,7 @@ with get_db() as conn:
    - Football: Must have corners + fouls + cards (core stat markets). Goals alone is insufficient.
    - Basketball: Must have points + rebounds. Missing assists/steals = PARTIAL.
    - Hockey: Must have goals + shots. Missing PIM/hits = PARTIAL.
-   - Tennis: Must have aces + total_games. Missing break points = PARTIAL.
+   - Tennis: Must have aces + first_serve_pct at minimum. hold_pct + break_pct = FULL. Missing hold/break = PARTIAL (acceptable — use what's available).
    - Volleyball: Must have total_points + sets. Missing aces/blocks = PARTIAL.
 
 ### ESPN API Deep Parsing (PRIMARY — always try for injuries)
