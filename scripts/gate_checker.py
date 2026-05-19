@@ -229,13 +229,24 @@ def _check_qualifier_flags(c: dict) -> tuple[bool, str]:
 
 
 def _check_h2h_count(c: dict) -> tuple[bool, str]:
-    """Gate #3: H2H ≥5 meetings checked."""
+    """Gate #3: H2H ≥5 meetings checked.
+
+    Also sets h2h_depth on candidate:
+      FULL (≥5 meetings), SPARSE (1-4), BLIND (0).
+    """
     h2h_count = c.get("h2h_count", 0)
     if h2h_count is None:
         h2h_count = 0
+    # Set h2h_depth field for downstream consumers (Task 1.7)
     if h2h_count >= 5:
+        c["h2h_depth"] = "FULL"
         return True, ""
-    return False, f"H2H only {h2h_count} meetings (need ≥5)"
+    elif h2h_count >= 1:
+        c["h2h_depth"] = "SPARSE"
+        return False, f"H2H only {h2h_count} meetings (SPARSE, need ≥5)"
+    else:
+        c["h2h_depth"] = "BLIND"
+        return False, "No H2H data — statistical inference only"
 
 
 def _check_injuries(c: dict) -> tuple[bool, str]:

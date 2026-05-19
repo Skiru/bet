@@ -23,6 +23,22 @@ CONFIG_DIR = PROJECT_ROOT / "config"
 CACHE_DIR = PROJECT_ROOT / "betting" / "data" / "stats_cache"
 
 
+def _record_source_health(source_name: str, success: bool) -> None:
+    """Record API source health to DB (best-effort, non-blocking)."""
+    try:
+        from bet.db.connection import get_db
+        from bet.db.repositories import SourceHealthRepo
+        with get_db() as conn:
+            repo = SourceHealthRepo(conn)
+            if success:
+                repo.record_success(source_name, response_ms=0.0)
+            else:
+                repo.record_failure(source_name)
+            conn.commit()
+    except Exception:
+        pass  # Non-critical — don't break API calls
+
+
 class APIError(Exception):
     """General API error."""
 

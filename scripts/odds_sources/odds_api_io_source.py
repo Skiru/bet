@@ -8,8 +8,8 @@ if _SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _SCRIPTS_DIR)
 
 from odds_sources import OddsSource
-from api_clients.odds_api_io import OddsAPIioClient, SPORT_SLUG_MAP
-from api_clients.rate_limiter import RateLimiter
+from bet.api_clients.odds_api_io import OddsAPIioClient, SPORT_SLUG_MAP
+from bet.api_clients.rate_limiter import RateLimiter
 
 
 class OddsAPIioSource(OddsSource):

@@ -19,8 +19,8 @@ from pathlib import Path
 
 # Imports from project
 sys.path.insert(0, str(Path(__file__).parent))
-from api_clients import get_client, RateLimiter, CLIENT_REGISTRY
-from api_clients.base_client import APIRateLimitError, APIError
+from bet.api_clients import get_client, RateLimiter, CLIENT_REGISTRY
+from bet.api_clients.base_client import APIRateLimitError, APIError
 from normalize_stats import NormalizedMatchStats, build_safety_score_input
 from bet.stats.market_ranking import SPORT_MARKETS
 from build_stats_cache import (

@@ -91,11 +91,22 @@ def compute_data_quality(stats_a: dict, stats_b: dict, h2h: dict, sport: str) ->
         score += 2
     breakdown["l10_data"] = l10_ok
 
-    # +2 if H2H has ≥3 meetings
-    h2h_ok = h2h.get("has_data", False) and len(h2h.get("meetings", [])) >= 3
-    if h2h_ok:
+    # +2 if H2H has ≥5 meetings with stat data (Task 3.2: enhanced H2H scoring)
+    # +1 if H2H has 1-4 meetings
+    # +0 if no H2H → set h2h_status flag
+    h2h_meetings = len(h2h.get("meetings", []))
+    h2h_has_data = h2h.get("has_data", False)
+    if h2h_has_data and h2h_meetings >= 5:
         score += 2
-    breakdown["h2h_data"] = h2h_ok
+        breakdown["h2h_data"] = True
+        breakdown["h2h_status"] = "FULL"
+    elif h2h_has_data and h2h_meetings >= 1:
+        score += 1
+        breakdown["h2h_data"] = True
+        breakdown["h2h_status"] = "SPARSE"
+    else:
+        breakdown["h2h_data"] = False
+        breakdown["h2h_status"] = "BLIND"
 
     # +1 if L5 available for at least one team
     l5_ok = bool(stats_a.get("l5_avg")) or bool(stats_b.get("l5_avg"))
@@ -372,7 +383,7 @@ def extract_team_stats(sport: str, team_name: str) -> dict:
     # MoneyPuck enrichment for hockey — xG%, Corsi%, Fenwick% (free CSV, no API key)
     if sport == "hockey":
         try:
-            from api_clients.moneypuck_client import get_team_stats as mp_get_team
+            from bet.api_clients.moneypuck_client import get_team_stats as mp_get_team
             mp_data = mp_get_team(team_name)
             if mp_data and mp_data.get("stats"):
                 result["moneypuck"] = mp_data["stats"]
@@ -1285,11 +1296,18 @@ def analyze_candidate(
             if best_market
             else None
         ),
+        "h2h_status": dq.get("breakdown", {}).get("h2h_status", "BLIND"),
         "markets_evaluated": len(ranking_result.get("ranking", [])),
         "sections": sections,
         "markdown": markdown,
         "raw_data": raw_data,
     }
+
+    # Task 3.2: Apply H2H-BLIND penalty to safety_score (15% reduction)
+    if analysis["h2h_status"] == "BLIND" and analysis.get("best_market"):
+        original = analysis["best_market"]["safety_score"]
+        analysis["best_market"]["safety_score"] = round(original * 0.85, 4)
+        analysis["best_market"]["_h2h_blind_penalty"] = True
 
 
 # ---------------------------------------------------------------------------
@@ -1782,6 +1800,18 @@ def main():
         out.warning("⚠️  --no-enrich ACTIVE: ALL inline enrichment SKIPPED. "
                        "Candidates without cached/DB data will have MINIMAL quality. "
                        "Only use this flag when enrichment already ran separately.")
+
+    if args.gemini:
+        # Check if Gemini is actually configured before running the full pipeline
+        try:
+            import json as _json
+            _gemini_key = _json.loads((Path(__file__).resolve().parent.parent / "config" / "api_keys.json").read_text()).get("gemini", "")
+            if not _gemini_key:
+                out.warning("⚠️  --gemini flag passed but Gemini API key is empty in config/api_keys.json. "
+                           "Gemini features will be disabled. Set a valid key or remove --gemini flag.")
+        except Exception:
+            pass
+
     result = generate_deep_stats(
         args.date, args.shortlist, args.top,
         no_enrich=args.no_enrich, from_db=args.from_db,

@@ -162,9 +162,9 @@ class TestComputeMargin(unittest.TestCase):
         self.assertEqual(result, 0.0)
 
     def test_avg_zero_under(self):
-        """avg=0 with line>0 is a very strong UNDER signal."""
+        """avg=0 with line>0 is a very strong UNDER signal (capped at 1.5)."""
         result = compute_margin(0, 0.5, "UNDER")
-        self.assertEqual(result, 2.0)
+        self.assertEqual(result, 1.5)
 
     def test_avg_zero_over(self):
         """avg=0 with line>0 for OVER should be 0.0 (no margin)."""

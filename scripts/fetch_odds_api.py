@@ -8,7 +8,7 @@ Usage:
     python3 scripts/fetch_odds_api.py --list-sports               # list available sports (FREE, 0 credits)
     python3 scripts/fetch_odds_api.py --scores hockey              # fetch scores for settlement
 
-Requires ODDS_API_KEY env var or config/odds_api_key.txt file.
+Requires ODDS_API_KEY env var or "odds-api" key in config/api_keys.json.
 Free tier: 500 credits/month. Each sport+market+region = 1 credit.
 """
 
@@ -142,15 +142,8 @@ def get_api_key():
         except (json.JSONDecodeError, AttributeError):
             pass
 
-    key_file = CONFIG_DIR / "odds_api_key.txt"
-    if key_file.exists():
-        for line in key_file.read_text().splitlines():
-            line = line.strip()
-            if line and not line.startswith("#"):
-                return line
-
     print("ERROR: No API key found.")
-    print("  Set ODDS_API_KEY env var, or create config/odds_api_key.txt")
+    print("  Set ODDS_API_KEY env var, or add 'odds-api' to config/api_keys.json")
     print("  Get free key at: https://the-odds-api.com/#get-started")
     sys.exit(1)
 
@@ -176,6 +169,7 @@ def list_sports(api_key):
 def fetch_odds(api_key, sport_key, markets="h2h,totals", regions="eu",
                commence_from=None, commence_to=None):
     """Fetch odds for a specific sport key. Returns list of events with odds."""
+    import time as _time
     params = {
         "apiKey": api_key,
         "regions": regions,
@@ -187,7 +181,23 @@ def fetch_odds(api_key, sport_key, markets="h2h,totals", regions="eu",
     if commence_to:
         params["commenceTimeTo"] = commence_to
 
+    t0 = _time.time()
     resp = requests.get(f"{BASE_URL}/sports/{sport_key}/odds", params=params, timeout=15)
+    elapsed_ms = (_time.time() - t0) * 1000
+
+    # Task 3.5: Source health tracking
+    try:
+        from bet.db.connection import get_db
+        from bet.db.repositories import SourceHealthRepo
+        with get_db() as db:
+            repo = SourceHealthRepo(db)
+            if resp.status_code == 200:
+                repo.record_success("odds-api", elapsed_ms)
+            elif resp.status_code >= 400:
+                repo.record_failure("odds-api")
+            db.commit()
+    except Exception:
+        pass
 
     if resp.status_code in (404, 422):
         # Sport not in season, invalid key, or removed — skip silently

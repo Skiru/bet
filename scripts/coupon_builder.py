@@ -37,6 +37,17 @@ from bet.stats.market_ranking import MARKET_PL, DIRECTION_PL
 from utils import normalize_team_name as _normalize_team
 
 
+class _FallbackOutput:
+    """Fallback output that prints when AgentOutput is not available."""
+    def info(self, msg): print(f"[INFO] {msg}")
+    def warning(self, msg): print(f"[WARN] {msg}")
+    def event(self, *a, **kw): pass
+
+
+# Module-level output — overridden in main() with AgentOutput
+out = _FallbackOutput()
+
+
 def _bm(pick: dict) -> dict:
     """Safely get best_market from a pick, handling None values."""
     return pick.get("best_market") or {}
@@ -554,6 +565,7 @@ def assign_picks_to_core(approved: list, config: dict) -> list[dict]:
         safety = (_bm(p).get("safety_score") or 0.5)
         p.setdefault("odds", {})["market_best"] = round(1.0 / max(safety, 0.1), 2)
         p["_stats_first_odds"] = True
+        p["odds_source"] = "estimated"
         odds_approved.append(p)
 
     if len(odds_approved) < 2:
@@ -878,6 +890,7 @@ def generate_combos(approved: list, config: dict) -> list[dict]:
         safety = (_bm(p).get("safety_score") or 0.5)
         p.setdefault("odds", {})["market_best"] = round(1.0 / max(safety, 0.1), 2)
         p["_stats_first_odds"] = True
+        p["odds_source"] = "estimated"
         odds_approved.append(p)
 
     if len(odds_approved) < 2:
@@ -1230,6 +1243,13 @@ def _filter_past_events(picks: list) -> list:
 def build_coupons(gate_results: dict, config: dict) -> dict:
     """Main entry: build coupons from gate results.
 
+    Input: gate_results dict from gate_checker.py with keys:
+        - gate_results.approved: list of candidates that passed full gate
+        - gate_results.extended_pool: candidates with EV>0 but gate-failed
+          (data quality < FULL, ZT rules triggered, etc.). Shown to user as
+          Watch List ("ROZSZERZONY WYBÓR") — never auto-rejected (R3).
+        - gate_results.rejected: negative EV or phantom fixtures
+
     Returns full coupons data structure for output.
     """
     date = gate_results.get("date", datetime.now().strftime("%Y-%m-%d"))
@@ -1324,6 +1344,29 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
             "is_single": True,
         }
         singles.append(single)
+
+    # Task 1.4: Market diversity — max identical thesis (market+direction+line)
+    max_identical = config.get("max_identical_thesis", 3)
+    from collections import Counter
+    thesis_counts: dict[str, list] = {}
+    for s in singles:
+        leg = s["legs"][0] if s.get("legs") else {}
+        bm = _bm(leg)
+        thesis_key = f"{bm.get('name', '')}|{bm.get('direction', '')}|{bm.get('line', '')}"
+        thesis_counts.setdefault(thesis_key, []).append(s)
+    trimmed_singles = []
+    for thesis_key, items in thesis_counts.items():
+        if len(items) > max_identical and thesis_key != "||":
+            trimmed_singles.extend(sorted(items, key=lambda x: -(_bm(x["legs"][0]).get("safety_score", 0)))[:max_identical])
+            excess = sorted(items, key=lambda x: -(_bm(x["legs"][0]).get("safety_score", 0)))[max_identical:]
+            for ex in excess:
+                ex["_trimmed_reason"] = "identical_thesis"
+            extended_pool.extend([ex["legs"][0] for ex in excess])
+            out.warning(f"⚠️ {len(excess)} singles with identical thesis '{thesis_key}' — trimmed to {max_identical}")
+        else:
+            trimmed_singles.extend(items)
+    singles = trimmed_singles
+
     result["singles"] = singles
 
     # BANKER: highest safety score pick (from picks with odds, or any if all stats-first)
@@ -1365,12 +1408,22 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
         deduped_approved.append(c)
     approved = deduped_approved
 
-    # MINIMAL quality candidates → Extended Pool only, not core coupons (Disabled to allow stats_first to form AKOs)
+    # MINIMAL quality candidates → Extended Pool only, not core coupons (Task 1.3)
     core_eligible = []
+    minimal_moved = 0
     for c in approved:
         dq = c.get("data_quality")
-        label = (dq.get("label", "MINIMAL") if isinstance(dq, dict) else dq) if dq else "MINIMAL"
-        core_eligible.append(c)
+        # If data_quality is absent (legacy/test picks), treat as FULL (already gate-approved)
+        label = (dq.get("label", "FULL") if isinstance(dq, dict) else dq) if dq else "FULL"
+        if label == "MINIMAL":
+            minimal_moved += 1
+            extended_pool.append(c)
+        else:
+            core_eligible.append(c)
+    if minimal_moved:
+        out.info(f"📊 {minimal_moved} candidates moved to Extended Pool (MINIMAL data quality)")
+    if not core_eligible:
+        core_eligible = approved  # Fallback: if ALL are MINIMAL, use them anyway (stats-first)
 
     # Build core portfolio (requires ≥2 picks)
     core = assign_picks_to_core(core_eligible, config)
@@ -1429,7 +1482,8 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
     total_spend = core_spend + combo_spend + singles_spend
 
     if total_spend > max_daily:
-        # Priority: keep core → keep combos as alternatives (not additive) → trim singles
+        # Task 1.5: Budget hard cap — trim lowest-priority items to Extended Pool
+        out.warning(f"⚠️ Budget cap {max_daily:.2f} PLN exceeded ({total_spend:.2f}). Trimming...")
         budget_remaining = max_daily
         # Keep core coupons (highest priority)
         kept_core = []
@@ -1437,6 +1491,10 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
             if budget_remaining >= c.get("stake", 0):
                 kept_core.append(c)
                 budget_remaining -= c.get("stake", 0)
+            else:
+                for leg in c.get("legs", []):
+                    leg["_budget_trimmed"] = True
+                    extended_pool.append(leg)
         core = kept_core
         result["core_coupons"] = core
         # Combos are ALTERNATIVES to core, not additive — always keep them as options
@@ -1444,14 +1502,58 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
         result["combos"] = combos
         # Singles: keep those with real stakes that fit
         kept_singles = []
+        trimmed_count = 0
         for s in singles:
             if s.get("stats_first") or s.get("stake", 0) == 0:
                 kept_singles.append(s)  # stats-first singles cost nothing
             elif budget_remaining >= s.get("stake", 0):
                 kept_singles.append(s)
                 budget_remaining -= s.get("stake", 0)
+            else:
+                trimmed_count += 1
+                for leg in s.get("legs", []):
+                    leg["_budget_trimmed"] = True
+                    extended_pool.append(leg)
+        if trimmed_count:
+            out.warning(f"  → Trimmed {trimmed_count} singles to Extended Pool (budget cap)")
         singles = kept_singles
         result["singles"] = singles
+
+    # Task 1.6: Event concentration limit — no single event in >5 coupons
+    max_event_reuse = config.get("max_event_reuse_across_coupons", 5)
+    all_coupons_check = core + combos
+    event_usage: dict[str, int] = {}
+    for coupon in all_coupons_check:
+        for leg in coupon.get("legs", []):
+            ek = _event_key(leg)
+            event_usage[ek] = event_usage.get(ek, 0) + 1
+    concentration_warnings = []
+    for ek, count in event_usage.items():
+        if count > 3:
+            concentration_warnings.append(f"⚠️ KONCENTRACJA: {ek} pojawia się w {count} kuponach")
+        if count > max_event_reuse:
+            out.warning(f"⚠️ Event {ek} in {count} coupons (max {max_event_reuse})")
+    result["_concentration_warnings_extra"] = concentration_warnings
+
+    # Task 1.8: Same-competition correlation check
+    comp_correlation_warnings = []
+    for coupon in all_coupons_check:
+        legs = coupon.get("legs", [])
+        comps = [leg.get("competition") or leg.get("league") or "" for leg in legs]
+        from collections import Counter as _Counter
+        comp_counts = _Counter(c for c in comps if c)
+        for comp, count in comp_counts.items():
+            if count >= 2:
+                comp_correlation_warnings.append({
+                    "type": "same_competition_correlation",
+                    "competition": comp,
+                    "count": count,
+                    "coupon_id": coupon.get("id", "?"),
+                })
+    if comp_correlation_warnings:
+        result["_comp_correlation_warnings"] = comp_correlation_warnings
+        for w in comp_correlation_warnings[:5]:
+            out.warning(f"⚠️ KORELACJA: {w['count']} mecze z {w['competition']} w kuponie {w['coupon_id']}")
 
     # Compute summary metrics
     core_spend = sum(c.get("stake", 0) for c in core)
@@ -1479,6 +1581,17 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
         "best_case": round(best_case, 2),
         "realistic": realistic,
     }
+
+    # Odds source tracking — warn when all odds are estimated
+    all_picks = [leg for c in core + combos for leg in c.get("legs", [])] + singles
+    source_counts = {"estimated": 0, "api": 0, "betclic": 0}
+    for p in all_picks:
+        src = p.get("odds_source", "estimated")
+        source_counts[src] = source_counts.get(src, 0) + 1
+    result["summary"]["odds_sources"] = source_counts
+    total_picks = sum(source_counts.values())
+    if total_picks > 0 and source_counts.get("estimated", 0) == total_picks:
+        result["summary"]["odds_warning"] = "⚠️ ALL odds are estimated (1/safety). Verify on Betclic before placing."
 
     # Placement order: sort by tier safety (LR first)
     all_coupons = core + combos
@@ -2189,6 +2302,7 @@ def main():
     add_agent_args(parser)
 
     args = parser.parse_args()
+    global out
     out = AgentOutput("s8_coupon", verbose=args.verbose, stop_on_error=args.stop_on_error)
 
     # V5: Input contract pre-check (warning-only, never blocks)

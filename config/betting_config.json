@@ -23,5 +23,7 @@
   "max_same_sport_legs_in_coupon": 2,
   "low_risk_price_gap_threshold_pct": -2.0,
   "higher_risk_price_gap_threshold_pct": -5.0,
-  "max_picks_per_day": 80
+  "max_picks_per_day": 80,
+  "max_identical_thesis": 3,
+  "max_event_reuse_across_coupons": 5
 }

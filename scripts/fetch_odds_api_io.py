@@ -18,8 +18,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from api_clients.odds_api_io import OddsAPIioClient, SPORT_SLUG_MAP, fetch_odds_snapshot
-from api_clients.rate_limiter import RateLimiter
+from bet.api_clients.odds_api_io import OddsAPIioClient, SPORT_SLUG_MAP, fetch_odds_snapshot
+from bet.api_clients.rate_limiter import RateLimiter
 from agent_output import AgentOutput, add_agent_args
 
 DATA_DIR = Path(__file__).parent.parent / "betting" / "data"

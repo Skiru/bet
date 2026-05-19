@@ -68,6 +68,8 @@ MOCK_ARSENAL_CACHE = {
 
 def _make_approved_picks(n: int) -> list[dict]:
     """Create N mock approved picks with varied sports."""
+    from datetime import datetime, timedelta
+    tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
     sports = ["football", "tennis", "basketball", "volleyball", "hockey", "handball", "baseball", "snooker"]
     teams = [
         ("Liverpool", "Arsenal", "PL"), ("Djokovic", "Alcaraz", "ATP"),
@@ -85,7 +87,7 @@ def _make_approved_picks(n: int) -> list[dict]:
             "home_team": home,
             "away_team": away,
             "competition": comp,
-            "kickoff": f"2026-05-01T{14 + i}:00:00",
+            "kickoff": f"{tomorrow}T{14 + i}:00:00",
             "best_market": {
                 "name": f"Market-{i}",
                 "direction": "OVER",

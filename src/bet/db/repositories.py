@@ -5,6 +5,7 @@ JSON columns are serialized with json.dumps() on write and json.loads() on read.
 """
 
 import json
+import logging
 import re
 import sqlite3
 from datetime import datetime, timezone
@@ -520,6 +521,9 @@ class StatsRepo:
     def save_team_form(self, form: TeamForm) -> None:
         """Upsert team_form row (denormalized cache).
 
+        Validates stat values against SPORT_VALUE_RANGES before writing.
+        Out-of-range values are filtered. If all values are invalid, the write is skipped.
+
         WARNING: Concurrent Write Hazard!
         Three scripts write to team_form simultaneously:
         - build_stats_cache.py (via ingest_scan_stats)
@@ -532,6 +536,11 @@ class StatsRepo:
         SQLite ON CONFLICT doesn't work with expression-based unique indexes
         (NULL h2h_opponent_id).
         """
+        # --- ADR-2: Centralized stat validation (Task 1.1) ---
+        form = self._validate_form_values(form)
+        if form is None:
+            return
+
         self.conn.execute("SAVEPOINT save_form")
         try:
             # Delete existing row (if any) matching the same logical key
@@ -571,6 +580,74 @@ class StatsRepo:
         except Exception:
             self.conn.execute("ROLLBACK TO save_form")
             raise
+
+    # --- Validation helpers (ADR-2) ---
+    _sport_name_cache: dict[int, str] = {}
+    _logger = logging.getLogger("bet.db.repositories.StatsRepo")
+
+    def _get_sport_name(self, sport_id: int) -> str | None:
+        """Resolve sport_id to sport name (cached)."""
+        if sport_id in self._sport_name_cache:
+            return self._sport_name_cache[sport_id]
+        row = self.conn.execute(
+            "SELECT name FROM sports WHERE id = ?", (sport_id,)
+        ).fetchone()
+        if row:
+            self._sport_name_cache[sport_id] = row["name"]
+            return row["name"]
+        return None
+
+    def _validate_form_values(self, form: TeamForm) -> TeamForm | None:
+        """Filter out-of-range stat values. Returns None if all values invalid."""
+        try:
+            from bet.stats.value_ranges import SPORT_VALUE_RANGES
+        except ImportError:
+            return form  # No validation module — pass through
+
+        sport_name = self._get_sport_name(form.sport_id) if form.sport_id else None
+        if not sport_name:
+            return form  # Unknown sport — pass through
+
+        ranges = SPORT_VALUE_RANGES.get(sport_name, {}).get(form.stat_key)
+        if not ranges:
+            return form  # No range defined for this stat — pass through
+
+        lo, hi = ranges
+
+        def _filter(values: list | None) -> list | None:
+            if not values:
+                return values
+            filtered = [v for v in values if lo <= v <= hi]
+            rejected = len(values) - len(filtered)
+            if rejected:
+                self._logger.warning(
+                    "Rejected %d/%d values for %s/%s (range %.1f-%.1f): %s",
+                    rejected, len(values), sport_name, form.stat_key, lo, hi,
+                    [v for v in values if v < lo or v > hi][:5],
+                )
+            return filtered
+
+        l10 = _filter(form.l10_values)
+        l5 = _filter(form.l5_values)
+        h2h = _filter(form.h2h_values)
+
+        # If all L10 values were invalid, skip this write entirely
+        if form.l10_values and not l10:
+            self._logger.warning(
+                "ALL l10 values out of range for sport=%s stat=%s — write SKIPPED",
+                sport_name, form.stat_key,
+            )
+            return None
+
+        # Rebuild form with filtered values and recomputed averages
+        form.l10_values = l10
+        form.l5_values = l5
+        form.h2h_values = h2h
+        if l10:
+            form.l10_avg = round(sum(l10) / len(l10), 2)
+        if l5:
+            form.l5_avg = round(sum(l5) / len(l5), 2)
+        return form
 
     def get_all_form_for_team(self, team_id: int, sport_id: int) -> list[TeamForm]:
         """All TeamForm rows for a team (all stat_keys, no H2H filter)."""

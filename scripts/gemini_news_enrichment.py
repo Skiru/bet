@@ -26,7 +26,7 @@ sys.path.insert(0, str(ROOT_DIR / "scripts"))
 
 from bet.schemas.gemini_responses import NewsEnrichmentResult, InjuryReport
 from bet.db.connection import get_db
-from api_clients.gemini_client import GeminiClient, GeminiNotConfiguredError, GeminiError
+from bet.api_clients.gemini_client import GeminiClient, GeminiNotConfiguredError, GeminiError
 
 logger = logging.getLogger(__name__)
 

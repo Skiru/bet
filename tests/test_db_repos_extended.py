@@ -639,11 +639,13 @@ class TestTransactionRepo:
         assert txns[0].transaction_type == "sign"
 
     def test_get_recent(self, seeded):
+        from datetime import datetime, timedelta
+        recent_date = (datetime.now() - timedelta(days=2)).strftime("%Y-%m-%d")
         repo = TransactionRepo(seeded["conn"])
         repo.insert(Transaction(
             id=None, team_id=seeded["home"].id, athlete_id=None,
             transaction_type="injury", description="Hamstring",
-            transaction_date="2026-05-07",
+            transaction_date=recent_date,
         ))
         seeded["conn"].commit()
         recent = repo.get_recent(days=7)

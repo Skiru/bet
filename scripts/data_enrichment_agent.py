@@ -33,8 +33,8 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Imports from the proper API client infrastructure
 # ---------------------------------------------------------------------------
-from api_clients import get_client, RateLimiter, CLIENT_REGISTRY
-from api_clients.base_client import APIRateLimitError, APIError
+from bet.api_clients import get_client, RateLimiter, CLIENT_REGISTRY
+from bet.api_clients.base_client import APIRateLimitError, APIError
 from fetch_api_stats import (
     fetch_team_stats,
     fetch_h2h_stats,
@@ -659,6 +659,9 @@ def main():
                         help="Run Gemini news enrichment after stats enrichment")
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose logging")
     parser.add_argument("--stop-on-error", action="store_true", help="Stop on first critical error")
+    parser.add_argument("--all", action="store_true",
+                        help="Enrich ALL teams in DB (not just shortlist). Default: shortlist only.")
+    parser.add_argument("--shortlist", help="Explicit shortlist JSON path to use for --date mode")
     args = parser.parse_args()
 
     out = AgentOutput("s2_enrich", verbose=args.verbose, stop_on_error=args.stop_on_error)
@@ -721,7 +724,37 @@ def main():
             for _m in _contract.get("missing", []):
                 out.warning(f"Missing input: {_m}")
 
-        missing = _detect_missing_from_shortlist(args.date)
+        if args.all:
+            # --all: Enrich ALL teams from DB (not just shortlist)
+            out.info("Mode: --all (enriching ALL teams in DB, not just shortlist)")
+            try:
+                from bet.db.connection import get_db
+                with get_db() as db:
+                    rows = db.execute(
+                        "SELECT t.name, s.name as sport FROM teams t "
+                        "JOIN sports s ON t.sport_id = s.id"
+                    ).fetchall()
+                    missing = [{"team": r["name"], "sport": r["sport"]} for r in rows]
+                    out.info(f"Found {len(missing)} total teams in DB")
+            except Exception as e:
+                out.error(f"Failed to load all teams: {e}", recoverable=False)
+                out.summary(verdict="FAILED", metrics={"error": str(e)})
+                sys.exit(1)
+        else:
+            # Default: shortlist-only enrichment (fast, targeted)
+            if args.shortlist:
+                # Explicit shortlist path override
+                shortlist_path = Path(args.shortlist)
+                if not shortlist_path.exists():
+                    out.error(f"Shortlist not found: {shortlist_path}", recoverable=False)
+                    out.summary(verdict="FAILED", metrics={"error": f"Not found: {shortlist_path}"})
+                    sys.exit(1)
+                # Override DATA_DIR search by patching expected path
+                import shutil
+                target = DATA_DIR / f"{args.date}_s2_shortlist.json"
+                if not target.exists() and shortlist_path != target:
+                    shutil.copy2(shortlist_path, target)
+            missing = _detect_missing_from_shortlist(args.date)
         if not missing:
             out.summary(verdict="OK", metrics={"missing": 0, "message": f"No missing teams for {args.date}"})
             sys.exit(0)

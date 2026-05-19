@@ -104,15 +104,59 @@ def _espn_factory(sport: str, league: str):
 CLIENT_REGISTRY["espn-football"] = _espn_factory("football", "eng.1")
 CLIENT_REGISTRY["espn-basketball"] = _espn_factory("basketball", "nba")
 CLIENT_REGISTRY["espn-hockey"] = _espn_factory("hockey", "nhl")
+CLIENT_REGISTRY["espn-tennis"] = _espn_factory("tennis", "atp")
 CLIENT_REGISTRY["espn-volleyball"] = _espn_factory("volleyball", "fivb.m")
 
-# --- Sync with scripts/api_clients/ for clients not yet in src/ ---
-# This ensures any code importing from bet.api_clients gets the full registry.
+# --- Newly consolidated clients (moved from scripts/api_clients/) ---
 try:
-    import scripts.api_clients as _scripts_clients
-    _SCRIPTS_REGISTRY = getattr(_scripts_clients, "CLIENT_REGISTRY", {})
-    for _name, _cls in _SCRIPTS_REGISTRY.items():
-        if _name not in CLIENT_REGISTRY:
-            CLIENT_REGISTRY[_name] = _cls
+    from bet.api_clients.football_data_org import FootballDataOrgClient
+    CLIENT_REGISTRY["football-data-org"] = FootballDataOrgClient
 except ImportError:
-    pass  # scripts/ not on path — only src/ clients available
+    pass
+
+try:
+    from bet.api_clients.understat_client import UnderstatClient
+    CLIENT_REGISTRY["understat"] = UnderstatClient
+except ImportError:
+    pass
+
+try:
+    from bet.api_clients.nba_api_client import NBAAPIClient
+    CLIENT_REGISTRY["nba-api"] = NBAAPIClient
+except ImportError:
+    pass
+
+try:
+    from bet.api_clients.serpapi_client import SerpAPIClient
+    CLIENT_REGISTRY["serpapi"] = SerpAPIClient
+except ImportError:
+    pass
+
+try:
+    from bet.api_clients.google_sports_client import GoogleSportsClient
+    CLIENT_REGISTRY["google-sports"] = GoogleSportsClient
+except ImportError:
+    pass
+
+try:
+    from bet.api_clients.odds_api_io import OddsAPIioClient
+    CLIENT_REGISTRY["odds-api-io"] = OddsAPIioClient
+except ImportError:
+    pass
+
+try:
+    # ESPNMultiLeagueClient for scripts that need multi-league support
+    # Note: "espn-*" keys already registered via _espn_factory above (ESPNClient)
+    # ESPN_FACTORIES provides "espn-tennis" which _espn_factory doesn't cover
+    from bet.api_clients.espn_adapter import ESPN_FACTORIES
+    for _k, _v in ESPN_FACTORIES.items():
+        if _k not in CLIENT_REGISTRY:
+            CLIENT_REGISTRY[_k] = _v
+except ImportError:
+    pass
+
+try:
+    from bet.api_clients.gemini_client import GeminiClient
+    CLIENT_REGISTRY["gemini"] = GeminiClient
+except ImportError:
+    pass

@@ -247,6 +247,28 @@ DB_SCHEMA_REFERENCE = {
 }
 
 # ---------------------------------------------------------------------------
+# Extended Pool Contract
+# ---------------------------------------------------------------------------
+# The "Extended Pool" is the set of candidates that PASSED basic viability
+# checks but FAILED the full gate (data quality < FULL, safety < threshold,
+# or specific zero-tolerance rule triggered).
+#
+# Source: gate_checker.py → run_gate() returns:
+#   {"approved": [...], "extended_pool": [...], "rejected": [...]}
+#
+# A candidate lands in extended_pool when:
+#   - data_quality_score < 7/10 (MINIMAL quality) but event is real
+#   - gate_score below approval threshold but EV > 0
+#   - specific ZT rule triggered (e.g., ZT#3 over-sets H2H-BLIND)
+#
+# Downstream: coupon_builder.py reads gate_results["extended_pool"]
+# and presents them as "ROZSZERZONY WYBÓR" (Watch List) with minimum
+# acceptable odds (1/safety_score). User decides whether to bet.
+#
+# Extended Pool picks are NEVER auto-rejected (R3). They appear in the
+# coupon file with full analysis for user review.
+
+# ---------------------------------------------------------------------------
 # Self-healing tools registry — data recovery mechanisms available to agents
 # ---------------------------------------------------------------------------
 SELF_HEALING_REGISTRY = {
@@ -885,6 +907,70 @@ STRUCTURED_OUTPUT_PROTOCOL = {
         "Do NOT rely solely on human-readable output — AGENT_SUMMARY is the "
         "authoritative machine-readable verdict."
     ),
+}
+
+# ---------------------------------------------------------------------------
+# Canonical Pipeline Steps — script mapping (single source of truth)
+# ---------------------------------------------------------------------------
+PIPELINE_STEPS = {
+    "S0": {"script": "analyze_betclic_learning.py", "description": "Betclic history analysis (advisory)"},
+    "S1": {"script": "discover_events.py", "description": "Multi-source event discovery"},
+    "S1.5": {"script": "build_shortlist.py", "description": "Shortlist construction + stats-first scoring"},
+    "S2": {"script": "data_enrichment_agent.py", "description": "Team form enrichment (Flashscore→ESPN)"},
+    "S2T": {"script": "tipster_aggregator.py", "description": "Tipster cross-reference aggregation"},
+    "S3": {"script": "deep_stats_report.py", "description": "Deep statistical analysis per candidate"},
+    "S4": {"script": "odds_evaluator.py", "description": "Odds injection + EV calculation"},
+    "S5": {"script": "context_checks.py", "description": "Context factors (weather, venue, rest days)"},
+    "S6": {"script": "upset_risk.py", "description": "Upset risk scoring + red flags"},
+    "S7": {"script": "gate_checker.py", "description": "18-point gate → approved/extended/rejected"},
+    "S7.5": {"script": "validate_betclic_markets.py", "description": "Betclic market availability check"},
+    "S8": {"script": "coupon_builder.py", "description": "Portfolio construction + coupon output"},
+}
+
+# ---------------------------------------------------------------------------
+# Agent Invocation Map — when/what each specialist agent receives (Task 4.4)
+# ---------------------------------------------------------------------------
+AGENT_INVOCATION_MAP = {
+    "bet-scanner": {
+        "trigger": "S1 complete",
+        "receives": "s1_events.json (discovered fixtures)",
+        "produces": "scan verdict: coverage gaps, source failures, fixture count",
+    },
+    "bet-enricher": {
+        "trigger": "S2 complete",
+        "receives": "enrichment logs (teams enriched, failures, sources used)",
+        "produces": "data quality verdict: coverage %, stale teams, source health",
+    },
+    "bet-scout": {
+        "trigger": "S2T complete",
+        "receives": "tipster aggregation (consensus picks, agreement %)",
+        "produces": "tipster analysis: consensus strength, contrarian angles",
+    },
+    "bet-statistician": {
+        "trigger": "S3 complete",
+        "receives": "deep_stats analysis (safety scores, market rankings)",
+        "produces": "market rankings review: best bets, H2H validation, risk flags",
+    },
+    "bet-valuator": {
+        "trigger": "S4 complete",
+        "receives": "odds evaluation (EV, Kelly, price gaps)",
+        "produces": "EV/drift verdict: value bets, line movements, sharp action",
+    },
+    "bet-challenger": {
+        "trigger": "S5+S6 complete",
+        "receives": "context + upset risk data",
+        "produces": "bear cases: why picks might fail, upset scenarios",
+    },
+    "bet-gatekeeper": {
+        "trigger": "S7 complete",
+        "receives": "gate_results (approved/extended/rejected counts)",
+        "produces": "gate audit: borderline decisions, override suggestions",
+    },
+    "bet-portfolio": {
+        "trigger": "S8 complete",
+        "receives": "coupon data (core, combos, singles, budget)",
+        "produces": "portfolio quality: concentration, correlation, diversity",
+    },
 }
 
 # ---------------------------------------------------------------------------

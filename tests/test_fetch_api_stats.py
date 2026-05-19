@@ -9,10 +9,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from normalize_stats import NormalizedFixture, NormalizedMatchStats
-from api_clients.rate_limiter import RateLimiter
-from api_clients.base_client import APIRateLimitError, APIError
+from bet.api_clients.rate_limiter import RateLimiter
+from bet.api_clients.base_client import APIRateLimitError, APIError
 from build_stats_cache import slugify
 
 

@@ -104,8 +104,8 @@ def run_context_checks(date: str, state: dict) -> tuple[bool, str]:
     # Fallback: fetch ESPN enrichment if not already available
     if not espn_path.exists():
         try:
-            from api_clients.espn_adapter import ESPNMultiLeagueClient
-            from api_clients.rate_limiter import RateLimiter
+            from bet.api_clients.espn_adapter import ESPNMultiLeagueClient
+            from bet.api_clients.rate_limiter import RateLimiter
             rl = RateLimiter()
             enrichment = {"date": date, "odds": [], "injuries": {}, "form": {}}
             for sport_name in ["football", "basketball", "hockey", "tennis", "volleyball"]:

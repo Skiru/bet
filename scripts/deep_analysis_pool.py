@@ -419,7 +419,7 @@ def generate_analysis_pool(
     # Load rate limiter for usage summary
     api_usage: dict = {}
     try:
-        from api_clients import RateLimiter
+        from bet.api_clients import RateLimiter
 
         rl = RateLimiter()
         api_usage = rl.get_usage_summary()

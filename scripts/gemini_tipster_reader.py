@@ -23,7 +23,7 @@ sys.path.insert(0, str(ROOT_DIR / "src"))
 sys.path.insert(0, str(ROOT_DIR / "scripts"))
 
 from bet.schemas.gemini_responses import TipsterPageResult, TipsterPickExtracted
-from api_clients.gemini_client import GeminiClient, GeminiNotConfiguredError, GeminiError
+from bet.api_clients.gemini_client import GeminiClient, GeminiNotConfiguredError, GeminiError
 from agent_output import AgentOutput
 
 logger = logging.getLogger(__name__)

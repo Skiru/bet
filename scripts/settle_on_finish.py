@@ -445,6 +445,163 @@ def parse_totals_line(market, selection):
     return None, None
 
 
+# --- Flashscore match stats for statistical market settlement ---
+
+_flashscore_stats_cache: dict[str, dict] = {}  # key = "home vs away" → stats dict
+_FS_STATS_MAX_REQUESTS = 30  # Rate limit per settlement run
+_fs_stats_request_count = 0
+
+
+def _fetch_flashscore_match_stats(home: str, away: str, sport: str = "football") -> dict | None:
+    """Fetch match-level statistics from Flashscore for a finished match.
+
+    Returns dict like {"corners": {"home": 7, "away": 3}, "yellow_cards": {"home": 2, "away": 4}, ...}
+    or None if unavailable.
+    """
+    global _fs_stats_request_count
+    cache_key = f"{home} vs {away}".lower()
+    if cache_key in _flashscore_stats_cache:
+        return _flashscore_stats_cache[cache_key]
+
+    if _fs_stats_request_count >= _FS_STATS_MAX_REQUESTS:
+        return None
+
+    try:
+        from curl_cffi import requests as c_requests
+    except ImportError:
+        return None
+
+    # Search Flashscore for the match
+    search_q = f"{home} {away}"
+    headers = {
+        "Accept": "text/html,application/xhtml+xml",
+        "Accept-Language": "en-US,en;q=0.9",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+    }
+
+    try:
+        # Try Flashscore search API to find match ID
+        search_url = f"https://s.livesport.services/api/v2/search/?q={search_q}&lang=en&sport={sport}&category="
+        resp = c_requests.get(search_url, headers=headers, impersonate="chrome110", timeout=10)
+        _fs_stats_request_count += 1
+
+        if resp.status_code != 200:
+            _flashscore_stats_cache[cache_key] = None
+            return None
+
+        data = resp.json()
+        results = data.get("results", [])
+        if not results:
+            _flashscore_stats_cache[cache_key] = None
+            return None
+
+        # Find the finished match
+        match_id = None
+        for r in results:
+            if r.get("type") == "event":
+                match_id = r.get("id") or r.get("url", "").split("/")[-2]
+                break
+
+        if not match_id:
+            _flashscore_stats_cache[cache_key] = None
+            return None
+
+        # Fetch match statistics page
+        time.sleep(1.5)
+        stats_url = f"https://www.flashscore.com/match/{match_id}/#/match-summary/match-statistics/0"
+        resp = c_requests.get(stats_url, headers=headers, impersonate="chrome110", timeout=15)
+        _fs_stats_request_count += 1
+
+        if resp.status_code != 200 or len(resp.text) < 500:
+            _flashscore_stats_cache[cache_key] = None
+            return None
+
+        # Parse statistics from HTML
+        stats = _parse_match_stats_html(resp.text)
+        _flashscore_stats_cache[cache_key] = stats if stats else None
+        return stats
+
+    except Exception as e:
+        log(f"  [flashscore-stats] Error fetching stats for {home} vs {away}: {e}")
+        _flashscore_stats_cache[cache_key] = None
+        return None
+
+
+def _parse_match_stats_html(html: str) -> dict | None:
+    """Parse Flashscore match statistics HTML into structured dict."""
+    stats = {}
+
+    # Flashscore stats pattern: home_value - Category - away_value
+    # Example in text: "7  Corner Kicks  3" or "2  Yellow Cards  4"
+    stat_patterns = {
+        "corners": r"(\d+)\s*(?:Corner Kicks?|Corners?)\s*(\d+)",
+        "yellow_cards": r"(\d+)\s*(?:Yellow Cards?|Żółte kartki)\s*(\d+)",
+        "red_cards": r"(\d+)\s*(?:Red Cards?|Czerwone kartki)\s*(\d+)",
+        "shots_on_target": r"(\d+)\s*(?:Shots on Target|Strzały celne)\s*(\d+)",
+        "shots": r"(\d+)\s*(?:Total Shots|Shots|Strzały)\s*(\d+)",
+        "fouls": r"(\d+)\s*(?:Fouls?|Faule)\s*(\d+)",
+    }
+
+    for key, pattern in stat_patterns.items():
+        m = re.search(pattern, html, re.IGNORECASE)
+        if m:
+            stats[key] = {"home": int(m.group(1)), "away": int(m.group(2))}
+
+    return stats if stats else None
+
+
+def settle_stat_market(pick, match_stats: dict, home_name: str, away_name: str) -> bool:
+    """Try to settle a statistical market (corners, cards, shots) using match stats.
+
+    Returns True if settled, False otherwise.
+    """
+    market = (pick.get("market") or "").lower()
+    sel = (pick.get("selection") or "").lower()
+
+    # Determine which stat key this market refers to
+    stat_key = None
+    if "corner" in market:
+        stat_key = "corners"
+    elif "card" in market or "booking" in market or "yellow" in market:
+        stat_key = "yellow_cards"
+    elif "red card" in market:
+        stat_key = "red_cards"
+    elif "shot" in market:
+        stat_key = "shots_on_target" if "target" in market else "shots"
+    elif "foul" in market:
+        stat_key = "fouls"
+
+    if not stat_key or stat_key not in match_stats:
+        return False
+
+    stat = match_stats[stat_key]
+    total = stat["home"] + stat["away"]
+
+    # Check for over/under pattern
+    direction, line = parse_totals_line(market, sel)
+    if direction and line is not None:
+        if direction == "under":
+            if total < line:
+                pick["status"] = "win"
+            elif total == line:
+                pick["status"] = "push"
+            else:
+                pick["status"] = "loss"
+        else:  # over
+            if total > line:
+                pick["status"] = "win"
+            elif total == line:
+                pick["status"] = "push"
+            else:
+                pick["status"] = "loss"
+
+        pick["pnl_pln"] = compute_pnl(pick["status"], pick.get("bookmaker_odds"), pick.get("stake_pln"))
+        pick["settlement_source"] = "flashscore_stats"
+        return True
+
+    return False
+
+
 def settle_pick(pick, score_home, score_away, home_name, away_name):
     """Try to settle a single pick given the final score. Returns True if settled."""
     market = (pick.get("market") or "").lower()
@@ -690,6 +847,17 @@ def main():
                     if settle_pick(p, score_home, score_away, home, away):
                         log(f"  Settled {p['pick_id']}: {p['status']} (PnL: {p.get('pnl_pln', 'N/A')})")
                         any_settled = True
+
+                # Try Flashscore stats for remaining stat-market picks
+                still_unsettled = [p for p in event_picks if p.get("status") in ("pending", "placed")]
+                if still_unsettled and sport == "football":
+                    match_stats = _fetch_flashscore_match_stats(home, away, sport=sport)
+                    if match_stats:
+                        for p in still_unsettled:
+                            if settle_stat_market(p, match_stats, home, away):
+                                log(f"  Settled (stats) {p['pick_id']}: {p['status']} "
+                                    f"(PnL: {p.get('pnl_pln', 'N/A')}) [src: flashscore_stats]")
+                                any_settled = True
             else:
                 log(f"  Score not yet available for {event}")
 
@@ -732,6 +900,73 @@ def main():
     settled = [p for p in pending if p.get("status") not in ("pending", "placed")]
     still_pending = [p for p in pending if p.get("status") in ("pending", "placed")]
     log(f"Settlement complete: {len(settled)} settled, {len(still_pending)} still pending")
+
+    # Task 4.2: Auto-append learning log entry
+    if settled:
+        _append_learning_log(settled, betting_day)
+
+
+def _append_learning_log(settled: list[dict], betting_day: str):
+    """Auto-append structured settlement summary to learning-log.md."""
+    log_path = BASE.parent / "betting" / "journal" / "learning-log.md"
+    
+    # Idempotent: check if entry for this date already exists
+    if log_path.exists():
+        content = log_path.read_text(encoding="utf-8")
+        if f"## {betting_day}" in content:
+            log(f"[learning-log] Entry for {betting_day} already exists — skipping")
+            return
+    
+    wins = sum(1 for p in settled if p.get("status") == "win")
+    losses = sum(1 for p in settled if p.get("status") == "loss")
+    voids = sum(1 for p in settled if p.get("status") in ("void", "push"))
+    
+    total_pnl = 0.0
+    for p in settled:
+        try:
+            total_pnl += float(p.get("pnl_pln") or 0)
+        except (ValueError, TypeError):
+            pass
+    
+    # Per-market breakdown
+    from collections import Counter
+    market_wins = Counter()
+    market_total = Counter()
+    for p in settled:
+        market = p.get("market_type") or p.get("market") or "unknown"
+        market_total[market] += 1
+        if p.get("status") == "win":
+            market_wins[market] += 1
+    
+    best_market = max(market_total.keys(), key=lambda m: market_wins[m] / max(market_total[m], 1), default="N/A")
+    worst_market = min(market_total.keys(), key=lambda m: market_wins[m] / max(market_total[m], 1), default="N/A")
+    
+    entry_lines = [
+        f"\n## {betting_day} — Settlement Summary\n",
+        f"- **Settled:** {len(settled)} bets ({wins}W / {losses}L / {voids}V)",
+        f"- **Day PnL:** {total_pnl:.2f} PLN",
+        f"- **Best market:** {best_market} ({market_wins[best_market]}/{market_total[best_market]})",
+        f"- **Worst market:** {worst_market} ({market_wins[worst_market]}/{market_total[worst_market]})",
+        f"- **Rule changes:** None (auto-generated, review manually)",
+    ]
+    
+    # Drawdown alert
+    try:
+        cfg = json.loads((BASE.parent / "config" / "betting_config.json").read_text())
+        bankroll = cfg.get("bankroll_pln") or cfg.get("working_bankroll_pln", 50)
+        if total_pnl < -(bankroll * 0.20):
+            entry_lines.append(f"- ⚠️ **DRAWDOWN ALERT:** {total_pnl:.2f} PLN = {total_pnl/bankroll*100:.1f}% of bankroll")
+    except Exception:
+        pass
+    
+    entry_lines.append("")
+    
+    # Append to file
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(log_path, "a", encoding="utf-8") as f:
+        f.write("\n".join(entry_lines))
+    
+    log(f"[learning-log] Appended entry for {betting_day}")
 
 
 def _sync_settlement_to_db(picks: list[dict], coupons: list[dict]):

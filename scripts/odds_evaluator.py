@@ -325,6 +325,7 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
                             if ch == home and ca == away and c.get("ev") is None:
                                 c["ev"] = round(float(pre_ev) / 100 - 1, 4)
                                 c["ev_source"] = "odds-api-io-value-bet"
+                                c.setdefault("odds_source", "api")
         except (json.JSONDecodeError, OSError):
             pass
 
@@ -368,8 +369,12 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
             c.setdefault("odds", {})["market_best"] = use_odds
             if betclic_odds:
                 c["odds"]["betclic"] = betclic_odds
-            if bet365_odds:
+                c["odds_source"] = "betclic"
+            elif bet365_odds:
                 c["odds"]["bet365"] = bet365_odds
+                c["odds_source"] = "api"
+            else:
+                c["odds_source"] = "api"
             odds_enriched += 1
 
         # Inject totals data for statistical market matching
