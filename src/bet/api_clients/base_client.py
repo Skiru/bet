@@ -204,6 +204,8 @@ class BaseAPIClient(ABC):
 
         try:
             data = json.loads(cache_file.read_text(encoding="utf-8"))
+            if not isinstance(data, dict):
+                return None  # Legacy cache format (raw list) — treat as expired
             last_updated = data.get("last_updated", "")
             if not last_updated:
                 return None

@@ -233,8 +233,11 @@ class SackmannClient(BaseAPIClient):
         """Fetch and parse Sackmann CSV for a tour/year. Cached 12h."""
         cache_key = f"sackmann/csv/{tour.lower()}_{year}"
         cached = self._check_cache(cache_key, ttl_hours=12)
-        if cached and isinstance(cached, list):
-            return cached
+        if cached:
+            # Data stored as {"last_updated": ..., "rows": [...]} or legacy raw list
+            rows = cached.get("rows") if isinstance(cached, dict) else cached
+            if isinstance(rows, list):
+                return rows
 
         url = SACKMANN_WTA_URL.format(year=year) if tour.upper() == "WTA" else SACKMANN_ATP_URL.format(year=year)
 
@@ -339,9 +342,18 @@ class SackmannClient(BaseAPIClient):
             return 0
 
     def _save_to_cache(self, cache_key: str, data) -> None:
-        """Save data to stats_cache."""
+        """Save data to stats_cache. Wraps in dict with last_updated for BaseAPIClient compatibility."""
         import json
+        from datetime import datetime, timezone
+
         self._validate_cache_key(cache_key)
         cache_file = CACHE_DIR / f"{cache_key}.json"
         cache_file.parent.mkdir(parents=True, exist_ok=True)
-        cache_file.write_text(json.dumps(data, default=str), encoding="utf-8")
+        # BaseAPIClient._check_cache expects {"last_updated": ..., ...}
+        # Wrap non-dict data (e.g., list of CSV rows) in a dict
+        if isinstance(data, dict):
+            data["last_updated"] = datetime.now(timezone.utc).isoformat()
+            cache_file.write_text(json.dumps(data, default=str), encoding="utf-8")
+        else:
+            wrapper = {"last_updated": datetime.now(timezone.utc).isoformat(), "rows": data}
+            cache_file.write_text(json.dumps(wrapper, default=str), encoding="utf-8")

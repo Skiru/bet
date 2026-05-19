@@ -58,7 +58,7 @@ FALLBACK_CHAINS = {
     "football": ["espn-football", "api-football", "football-data-org", "understat", "sofascore", "google-sports", "serpapi"],
     "basketball": ["espn-basketball", "nba-api", "api-basketball", "sofascore", "google-sports", "serpapi"],
     "hockey": ["espn-hockey", "api-hockey", "scrapernhl", "moneypuck", "sofascore", "google-sports", "serpapi"],
-    "tennis": ["espn-tennis", "sackmann", "tennis-abstract", "sofascore-tennis", "google-sports", "serpapi"],
+    "tennis": ["tennis-abstract", "sackmann", "espn-tennis", "sofascore-tennis", "google-sports", "serpapi"],
     "volleyball": ["espn-volleyball", "api-volleyball", "sofascore", "google-sports", "serpapi"],
 }
 

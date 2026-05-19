@@ -507,6 +507,7 @@ def _try_flashscore(team_name: str, sport: str) -> tuple:
     """Fetch stats from Flashscore using curl_cffi. Returns (stats_dict, error_or_None).
     
     Thread-safe: uses curl_cffi only (no Playwright, no asyncio).
+    Parses embedded feed data from /results/ page for reliable score extraction.
     """
     # Tennis player pages (/player/{slug}/) consistently 404 on Flashscore.
     # Use Tennis Abstract + Sackmann instead (dedicated tennis sources).
@@ -516,22 +517,274 @@ def _try_flashscore(team_name: str, sport: str) -> tuple:
     entity_type, slug, entity_id = _get_flashscore_entity(team_name, sport)
     if not slug or not entity_id:
         return {}, "Could not find team ID via Flashscore Search"
-        
+    
+    errors = []
+
+    # Fetch /results/ page
     url = f"https://www.flashscore.com/{entity_type}/{slug}/{entity_id}/results/"
     _rate_limit("flashscore.com")
     
     try:
         resp = c_requests.get(url, impersonate=_FS_IMPERSONATE, headers=_FS_HEADERS, timeout=15)
         if resp.status_code != 200:
-            return {}, f"Flashscore returned status {resp.status_code}"
-            
+            return {}, f"Flashscore results returned status {resp.status_code}"
         html = resp.text
         if len(html) < 500 or "just a moment" in html.lower():
             return {}, "Blocked by JavaScript challenge barrier"
-            
-        stats = _parse_flashscore_stats(html, sport)
-        if stats:
-            return stats, None
-        return {}, "No stats parsed from Flashscore HTML"
     except Exception as exc:
-        return {}, f"Flashscore fetch error: {exc}"
+        return {}, f"Flashscore results fetch error: {exc}"
+    
+    # Parse embedded feed data (much more reliable than HTML regex)
+    stats = _parse_embedded_feed(html, sport, entity_id)
+    if stats:
+        return stats, None
+    
+    # Fallback: HTML regex parsing (less reliable)
+    stats = _parse_flashscore_stats(html, sport)
+    if stats:
+        return stats, None
+    
+    return {}, "No stats parsed from Flashscore HTML"
+
+
+def _parse_embedded_feed(html: str, sport: str, team_entity_id: str) -> dict[str, list[float]] | None:
+    """Parse Flashscore embedded feed data from HTML for reliable score extraction.
+    
+    The HTML embeds match results in a feed format:
+    ~AA÷{event_id}¬AD÷{timestamp}¬...AG÷{home_score}¬AH÷{away_score}¬
+    BA÷{p1_home}¬BB÷{p1_away}¬BC÷{p2_home}¬BD÷{p2_away}¬...
+    
+    PY÷{entity_id} identifies "our" team (team we searched for).
+    """
+    if "~AA÷" not in html:
+        return None
+    
+    matches_raw = html.split("~AA÷")[1:]
+    if not matches_raw:
+        return None
+    
+    # Parse up to 10 most recent finished matches
+    our_scores: list[float] = []
+    opp_scores: list[float] = []
+    total_scores: list[float] = []
+    period_scores: dict[str, list[float]] = {}  # "p1", "p2", "p3", "p4" → values
+    
+    for match_block in matches_raw[:15]:
+        fields = {}
+        for field in match_block.split("¬"):
+            if "÷" in field:
+                key, _, val = field.partition("÷")
+                fields[key] = val
+        
+        # Check match is finished (AB÷3 = finished)
+        status = fields.get("AB", "")
+        if status != "3":
+            continue
+        
+        # Get scores
+        home_score_str = fields.get("AG", "")
+        away_score_str = fields.get("AH", fields.get("AU", ""))
+        if not home_score_str or not away_score_str:
+            continue
+        
+        try:
+            home_score = float(home_score_str)
+            away_score = float(away_score_str)
+        except (ValueError, TypeError):
+            continue
+        
+        total = home_score + away_score
+        total_scores.append(total)
+        
+        # Determine if we're home or away (PY÷ = home entity ID, PX÷ = away entity ID)
+        if fields.get("PY") == team_entity_id:
+            our_scores.append(home_score)
+            opp_scores.append(away_score)
+        elif fields.get("PX") == team_entity_id:
+            our_scores.append(away_score)
+            opp_scores.append(home_score)
+        else:
+            # Can't determine, use home as default
+            our_scores.append(home_score)
+            opp_scores.append(away_score)
+        
+        # Period/quarter scores: BA/BB=p1, BC/BD=p2, BE/BF=p3, BG/BH=p4
+        period_keys = [("BA", "BB"), ("BC", "BD"), ("BE", "BF"), ("BG", "BH")]
+        for i, (h_key, a_key) in enumerate(period_keys, 1):
+            h_val = fields.get(h_key, "")
+            a_val = fields.get(a_key, "")
+            if h_val and a_val:
+                try:
+                    p_total = float(h_val) + float(a_val)
+                    period_key = f"p{i}"
+                    if period_key not in period_scores:
+                        period_scores[period_key] = []
+                    period_scores[period_key].append(p_total)
+                except (ValueError, TypeError):
+                    pass
+        
+        if len(total_scores) >= 10:
+            break
+    
+    if not total_scores:
+        return None
+    
+    # Build stats dict based on sport
+    stats: dict[str, list[float]] = {}
+    
+    if sport == "football":
+        stats["goals"] = total_scores
+        # First half goals from period 1
+        if "p1" in period_scores:
+            stats["goals_1st_half"] = period_scores["p1"]
+    elif sport == "basketball":
+        stats["points"] = total_scores
+        # Quarter totals
+        for pk, pv in period_scores.items():
+            stats[f"points_{pk}"] = pv
+    elif sport == "hockey":
+        stats["goals"] = total_scores
+        if "p1" in period_scores:
+            stats["goals_p1"] = period_scores["p1"]
+        if "p2" in period_scores:
+            stats["goals_p2"] = period_scores["p2"]
+        if "p3" in period_scores:
+            stats["goals_p3"] = period_scores["p3"]
+    elif sport == "volleyball":
+        stats["total_points"] = total_scores
+        for pk, pv in period_scores.items():
+            stats[f"set_{pk}_points"] = pv
+    else:
+        score_key = _primary_score_key(sport) or "total_score"
+        stats[score_key] = total_scores
+    
+    # Validate all values
+    validated = {}
+    for key, vals in stats.items():
+        clean = _validate_stat_values(vals, key, sport)
+        if clean:
+            validated[key] = clean
+        elif vals:
+            # If no validator exists for this key (period scores), keep raw
+            validated[key] = vals[:10]
+    
+    if validated:
+        logger.info(f"[flashscore-feed] Parsed {len(total_scores)} matches, {len(validated)} stat keys")
+    return validated if validated else None
+
+
+def _extract_match_ids(html: str) -> list[str]:
+    """Extract Flashscore match/event IDs from results page HTML."""
+    # Flashscore uses data-id or id attributes for match rows
+    # Pattern: id="g_1_XXXXXXXX" or data-id="XXXXXXXX"
+    ids = re.findall(r'id="g_\d+_([A-Za-z0-9]{8,})"', html)
+    if not ids:
+        # Alternative pattern
+        ids = re.findall(r'data-id="([A-Za-z0-9]{8,})"', html)
+    return ids[:10]  # Max 10 matches
+
+
+def _fetch_match_statistics(match_ids: list[str], sport: str) -> dict[str, list[float]]:
+    """Fetch per-match statistics from Flashscore match detail API.
+    
+    Flashscore exposes match stats via internal API:
+    https://d.flashscore.com/x/feed/d_st_{match_id}
+    """
+    stats: dict[str, list[float]] = {}
+    stat_keys = SPORT_STAT_KEYS.get(sport, [])
+    
+    for match_id in match_ids:
+        _rate_limit("flashscore.com")
+        url = f"https://d.flashscore.com/x/feed/d_st_{match_id}"
+        headers = {
+            **_FS_HEADERS,
+            "x-fsign": "SW9D1eZo",
+        }
+        try:
+            resp = c_requests.get(url, impersonate=_FS_IMPERSONATE, headers=headers, timeout=10)
+            if resp.status_code != 200:
+                continue
+            text = resp.text
+            # Parse Flashscore stat feed format:
+            # Lines like: "SA÷stat_name¬SE÷home_value¬SF÷away_value¬"
+            # or "SE÷Corner Kicks¬SF÷7¬SG÷5¬"
+            _parse_stat_feed(text, sport, stat_keys, stats)
+        except Exception:
+            continue
+    
+    return stats
+
+
+def _parse_stat_feed(text: str, sport: str, stat_keys: list[str], stats: dict[str, list[float]]) -> None:
+    """Parse Flashscore stat feed text into stats dict.
+    
+    Feed format uses delimiters: ÷ (separator), ¬ (field end)
+    Lines contain stat category name + home/away values.
+    """
+    # Flashscore stat feed key mapping
+    feed_label_map = {
+        "corner kicks": "corners",
+        "corners": "corners",
+        "fouls": "fouls",
+        "yellow cards": "yellow_cards",
+        "red cards": "red_cards",
+        "shots on target": "shots_on_target",
+        "shots off target": "shots_off_target",
+        "total shots": "shots",
+        "ball possession": "ball_possession",
+        "offsides": "offsides",
+        "goalkeeper saves": "saves",
+        "free kicks": "free_kicks",
+        "blocked shots": "blocked_shots",
+        # Basketball
+        "rebounds": "rebounds",
+        "assists": "assists",
+        "steals": "steals",
+        "turnovers": "turnovers",
+        "2 pointers": "2_pointers",
+        "3 pointers": "3_pointers",
+        "free throws": "free_throws",
+        # Hockey
+        "shots on goal": "shots_on_goal",
+        "penalty minutes": "penalties_in_minutes",
+        "power play goals": "power_play_goals",
+        "hits": "hits",
+        "blocked shots": "blocks",
+        "faceoffs won": "faceoffs_won",
+    }
+    
+    # Parse lines — format: "SA÷Category Name¬SE÷value1¬SF÷value2¬"
+    # Split by stat separators
+    sections = text.split("~")
+    for section in sections:
+        if "÷" not in section:
+            continue
+        fields = section.split("¬")
+        category = ""
+        home_val = None
+        away_val = None
+        for field in fields:
+            if "÷" not in field:
+                continue
+            key, _, value = field.partition("÷")
+            if key == "SA":
+                category = value.lower().strip()
+            elif key == "SE":
+                try:
+                    home_val = float(value.replace("%", ""))
+                except (ValueError, TypeError):
+                    pass
+            elif key == "SF":
+                try:
+                    away_val = float(value.replace("%", ""))
+                except (ValueError, TypeError):
+                    pass
+        
+        if category and home_val is not None:
+            mapped_key = feed_label_map.get(category, "")
+            if mapped_key and mapped_key in stat_keys:
+                if mapped_key not in stats:
+                    stats[mapped_key] = []
+                stats[mapped_key].append(home_val)
+                if away_val is not None:
+                    stats[mapped_key].append(away_val)

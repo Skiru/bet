@@ -338,9 +338,19 @@ class TennisAbstractClient(BaseAPIClient):
 
     @staticmethod
     def _url_name(player_name: str) -> str:
-        """Convert player name to URL format (remove spaces, special chars)."""
-        # Tennis Abstract uses name without spaces
-        return player_name.replace(" ", "").replace("-", "").replace("'", "")
+        """Convert player name to URL format (remove spaces, special chars, transliterate diacritics).
+        
+        Tennis Abstract uses ASCII-only names without spaces:
+        - "Vit Kopřiva" → "VitKopriva"  
+        - "Jiří Lehečka" → "JiriLehecka"
+        - "Carlos Alcaraz" → "CarlosAlcaraz"
+        """
+        import unicodedata
+        # Transliterate diacritics to ASCII (ř→r, á→a, č→c, etc.)
+        nfkd = unicodedata.normalize("NFKD", player_name)
+        ascii_name = nfkd.encode("ascii", "ignore").decode("ascii")
+        # Remove spaces, hyphens, apostrophes
+        return ascii_name.replace(" ", "").replace("-", "").replace("'", "")
 
     @staticmethod
     def _normalize_name(name: str) -> str:
@@ -358,10 +368,12 @@ class TennisAbstractClient(BaseAPIClient):
             return None
 
     def _save_to_cache(self, cache_key: str, data: dict) -> None:
-        """Save data to stats_cache."""
+        """Save data to stats_cache with last_updated for BaseAPIClient compatibility."""
         import json
         from pathlib import Path
+        from datetime import datetime, timezone
         self._validate_cache_key(cache_key)
         cache_file = CACHE_DIR / f"{cache_key}.json"
         cache_file.parent.mkdir(parents=True, exist_ok=True)
+        data["last_updated"] = datetime.now(timezone.utc).isoformat()
         cache_file.write_text(json.dumps(data, default=str), encoding="utf-8")

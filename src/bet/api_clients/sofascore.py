@@ -82,6 +82,15 @@ class SofascoreClient(BaseAPIClient):
 
     def _request_playwright(self, url: str, params: dict | None = None) -> dict:
         """Stealth Playwright — intercept Sofascore's own API calls from schedule page."""
+        import threading
+        # Playwright sync API cannot run inside ThreadPoolExecutor workers (greenlet crash).
+        # If we're NOT in the main thread, skip Playwright and raise immediately.
+        if threading.current_thread() is not threading.main_thread():
+            SofascoreClient._stealth_failures += 1
+            if SofascoreClient._stealth_failures >= SofascoreClient._STEALTH_FAILURE_THRESHOLD:
+                SofascoreClient._stealth_circuit_open = True
+            raise APIError(f"Sofascore Playwright fallback disabled in worker thread (would crash greenlet)")
+
         from playwright.sync_api import sync_playwright
         from playwright_stealth import Stealth
         import urllib.parse

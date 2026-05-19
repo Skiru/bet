@@ -661,13 +661,16 @@ def _detect_missing_from_shortlist(date_str: str, shortlist_override: str | None
     """Scan shortlist for candidates with missing stats cache.
     
     When shortlist_override is provided, reads ONLY from that file (targeted enrichment).
+    Uses cache-file-only check when shortlist_override is used (bypasses stale DB data).
     Otherwise falls back to DB fixtures (broad enrichment — legacy behavior).
     """
     # If explicit shortlist provided, use it directly — do NOT load all fixtures from DB
+    force_cache_check = False  # When True, skip DB team_form check and use cache files only
     shortlist_path = None
     if shortlist_override:
         shortlist_path = Path(shortlist_override)
         if shortlist_path.exists():
+            force_cache_check = True  # Explicit shortlist = always use fresh cache check
             logger.info(f"[shortlist] Using explicit shortlist: {shortlist_path}")
         else:
             logger.warning(f"[shortlist] Override not found: {shortlist_path}, falling back to DB")
@@ -774,39 +777,47 @@ def _detect_missing_from_shortlist(date_str: str, shortlist_override: str | None
 
     # Filter to teams actually missing stats (DB-first, cache fallback)
     truly_missing = []
-    try:
-        with get_db() as conn:
-            for entry in deduped:
-                team_name = entry["team"]
-                sport = entry["sport"]
-                sport_row = conn.execute(
-                    "SELECT id FROM sports WHERE name = ?", (sport,)
-                ).fetchone()
-                if not sport_row:
-                    truly_missing.append(entry)
-                    continue
-                team_row = conn.execute(
-                    "SELECT id FROM teams WHERE sport_id = ? AND (name = ? OR aliases LIKE ?)",
-                    (sport_row["id"], team_name, f'%{team_name}%'),
-                ).fetchone()
-                if not team_row:
-                    truly_missing.append(entry)
-                    continue
-                form_count = conn.execute(
-                    "SELECT COUNT(DISTINCT stat_key) as cnt FROM team_form "
-                    "WHERE team_id = ? AND sport_id = ?",
-                    (team_row["id"], sport_row["id"]),
-                ).fetchone()
-                if not form_count or form_count["cnt"] < 2:
-                    truly_missing.append(entry)
-    except Exception as exc:
-        logger.debug(f"DB check failed, using cache fallback: {exc}")
-        truly_missing = []
+    if force_cache_check:
+        # Explicit shortlist mode: use cache file existence only (avoids stale DB data)
         for entry in deduped:
             slug = _slugify(entry["team"])
             cache_path = CACHE_DIR / entry["sport"] / f"{slug}.json"
             if not cache_path.exists():
                 truly_missing.append(entry)
+    else:
+        try:
+            with get_db() as conn:
+                for entry in deduped:
+                    team_name = entry["team"]
+                    sport = entry["sport"]
+                    sport_row = conn.execute(
+                        "SELECT id FROM sports WHERE name = ?", (sport,)
+                    ).fetchone()
+                    if not sport_row:
+                        truly_missing.append(entry)
+                        continue
+                    team_row = conn.execute(
+                        "SELECT id FROM teams WHERE sport_id = ? AND (name = ? OR aliases LIKE ?)",
+                        (sport_row["id"], team_name, f'%{team_name}%'),
+                    ).fetchone()
+                    if not team_row:
+                        truly_missing.append(entry)
+                        continue
+                    form_count = conn.execute(
+                        "SELECT COUNT(DISTINCT stat_key) as cnt FROM team_form "
+                        "WHERE team_id = ? AND sport_id = ?",
+                        (team_row["id"], sport_row["id"]),
+                    ).fetchone()
+                    if not form_count or form_count["cnt"] < 2:
+                        truly_missing.append(entry)
+        except Exception as exc:
+            logger.debug(f"DB check failed, using cache fallback: {exc}")
+            truly_missing = []
+            for entry in deduped:
+                slug = _slugify(entry["team"])
+                cache_path = CACHE_DIR / entry["sport"] / f"{slug}.json"
+                if not cache_path.exists():
+                    truly_missing.append(entry)
 
     return truly_missing
 
