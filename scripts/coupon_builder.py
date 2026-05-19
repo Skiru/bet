@@ -1903,6 +1903,35 @@ def write_coupon_markdown(coupons_data: dict, date: str) -> Path:
             )
         lines.append("")
 
+    # BETCLIC MARKET AVAILABILITY (if validation data exists)
+    betclic_validation = coupons_data.get("betclic_market_validation")
+    if betclic_validation:
+        lines.append("## ⚠️ WALIDACJA RYNKÓW BETCLIC")
+        lines.append("")
+        lines.append("> Rynki zweryfikowane automatycznie na betclic.pl. "
+                     "Statystyki (rożne, kartki, strzały) dostępne tylko dla meczów z zakładką 'Statystyki'.")
+        lines.append("")
+        unavailable = [v for v in betclic_validation if v.get("betclic_available") is False]
+        available = [v for v in betclic_validation if v.get("betclic_available") is True]
+        unknown = [v for v in betclic_validation if v.get("betclic_available") is None]
+        if unavailable:
+            lines.append("### ❌ RYNKI NIEDOSTĘPNE na Betclic")
+            lines.append("")
+            lines.append("| Wydarzenie | Rynek | Problem |")
+            lines.append("|------------|-------|---------|")
+            for v in unavailable:
+                lines.append(f"| {v.get('event', '?')} | {v.get('market', '?')} | {v.get('betclic_note', '-')} |")
+            lines.append("")
+        if unknown:
+            lines.append(f"### ⚠️ Nieokreślone ({len(unknown)} typów)")
+            lines.append("")
+            lines.append("Nie udało się potwierdzić dostępności — zweryfikuj ręcznie w aplikacji.")
+            lines.append("")
+        if available:
+            lines.append(f"### ✅ Potwierdzone ({len(available)} typów)")
+            lines.append("")
+        lines.append("")
+
     # ODRZUCONE (Top 10)
     rejected = coupons_data.get("rejected", [])
     if rejected:
@@ -2235,6 +2264,23 @@ def main():
 
     # Attach approved for markdown writer (not persisted to JSON)
     coupons_data["_approved"] = gate_results.get("gate_results", {}).get("approved", [])
+
+    # Betclic market validation: load from today's validation file if exists
+    betclic_validation_path = DATA_DIR / f"betclic_market_validation_{args.date}.json"
+    if betclic_validation_path.exists():
+        try:
+            betclic_data = json.loads(betclic_validation_path.read_text(encoding="utf-8"))
+            validation_results = betclic_data.get("validation")
+            if validation_results:
+                coupons_data["betclic_market_validation"] = validation_results
+                unavailable = [v for v in validation_results if v.get("betclic_available") is False]
+                if args.verbose:
+                    out.event("betclic_validation",
+                              total=len(validation_results),
+                              unavailable=len(unavailable))
+        except Exception as e:
+            if args.verbose:
+                out.warning(f"Betclic validation load failed: {e}")
 
     # Write outputs
     write_coupon_markdown(coupons_data, args.date)

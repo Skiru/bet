@@ -1,4 +1,58 @@
-# Pipeline Knowledge Base — Consolidated (May 4-18, 2026, updated 2026-05-18)
+# Pipeline Knowledge Base — Consolidated (May 4-18, 2026, updated 2026-05-19)
+
+## 🆕 BETCLIC MARKET SCRAPER — FULL IMPLEMENTATION — 2026-05-18/19
+
+### What
+Complete production system for detecting which betting markets actually exist on Betclic, so the pipeline stops recommending unavailable markets (corners/cards/shots for minor leagues, hockey, etc.).
+
+### Files Created/Modified
+| File | Action | Purpose |
+|------|--------|---------|
+| `src/bet/scrapers/betclic.py` | REWRITTEN (~600 lines) | BetclicSession + BetclicMarketChecker + parse_event_page() |
+| `scripts/validate_betclic_markets.py` | REWRITTEN | Pre-coupon validation gate (scan + validate picks) |
+| `src/bet/db/migrations/010_betclic_markets.sql` | CREATED | Schema for betclic_markets + betclic_competition_profiles |
+| `src/bet/db/schema.py` | MODIFIED | SCHEMA_VERSION=10, migration handler |
+| `src/bet/db/schema.sql` | MODIFIED | Added betclic tables at end |
+| `scripts/coupon_builder.py` | MODIFIED | Loads validation JSON, renders "⚠️ WALIDACJA RYNKÓW BETCLIC" section |
+
+### Key Architectural Decisions
+1. **curl_cffi (NOT Playwright)** — Chrome impersonation via `impersonate='chrome110'`, session-based, retry logic
+2. **Angular SSR extraction** — Market data in `<script>` tag (~500K chars), regex `"marketId":"X","marketName":"Y"` pairs
+3. **Direct sqlite3 connection** — `BetclicMarketChecker` uses direct `sqlite3.connect()` + `_configure_connection()` (not `get_db()` context manager) for long-lived connections
+4. **Competition registry** — 38 competitions across 5 sports with Betclic URL paths
+5. **Time-dependent markets** — Statystyki tab only ≤48h before kickoff. Validation MUST run on betting day.
+
+### Pipeline Integration Flow
+```
+validate_betclic_markets.py --date X --validate-coupon coupon.md
+  → scans Betclic sport/competition pages
+  → checks each event for Statystyki tab + market count
+  → validates coupon picks against findings
+  → outputs: betting/data/betclic_market_validation_{date}.json
+  → persists to DB: betclic_markets + betclic_competition_profiles
+
+coupon_builder.py --date X
+  → loads betclic_market_validation_{date}.json (if exists)
+  → sets coupons_data["betclic_market_validation"]
+  → write_coupon_markdown() renders unavailable/unknown/available tables
+```
+
+### Market Detection Rules (NEVER_HAS_STATISTICS)
+- **Hockey**: NEVER has statistical markets on Betclic (any competition)
+- **DFB Pokal**: NEVER has them (even match day)
+- **Minor leagues**: Rarely have them (< 200 open markets = no stats)
+- **PL/EL/CL within 48h**: ALWAYS have full statistical markets (300-600 total)
+
+### E2E Results (2026-05-18)
+- 43 events scanned across 5 sports in ~54s
+- 17 coupon picks correctly flagged UNAVAILABLE
+- DB: 26 events stored, 14 competition profiles, Premier League avg_mkt=254
+- Probe scripts cleaned up (3 deleted)
+
+### DB Tables Added (v10)
+- `betclic_markets` (19 cols): sport, competition, event, tabs JSON, market_count, has_statistics_tab, detected_markets JSON, checked_at
+- `betclic_competition_profiles` (15 cols): sport, competition, typically_has_statistics, avg_open_markets, observations_count
+- 5 indexes for efficient lookups
 
 ## 🆕 PRE-FLIGHT VERIFICATION + DATA FLOW FIX — 2026-05-18 (afternoon)
 

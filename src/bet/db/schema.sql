@@ -502,3 +502,56 @@ CREATE TABLE IF NOT EXISTS fixture_sources (
 
 CREATE INDEX IF NOT EXISTS idx_fixture_sources_fixture ON fixture_sources(fixture_id);
 CREATE INDEX IF NOT EXISTS idx_fixture_sources_source_ext ON fixture_sources(source, external_id);
+
+-- =========================================================================
+-- Betclic market availability (schema v10)
+-- =========================================================================
+
+CREATE TABLE IF NOT EXISTS betclic_markets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    fixture_id INTEGER REFERENCES fixtures(id) ON DELETE SET NULL,
+    betclic_event_id TEXT NOT NULL,
+    event_name TEXT NOT NULL,
+    event_url TEXT NOT NULL,
+    sport TEXT NOT NULL,
+    competition_id TEXT NOT NULL,
+    competition_name TEXT NOT NULL,
+    match_date TEXT,
+    open_market_count INTEGER DEFAULT 0,
+    has_statistics_tab INTEGER DEFAULT 0,
+    has_corners INTEGER DEFAULT 0,
+    has_cards INTEGER DEFAULT 0,
+    has_shots INTEGER DEFAULT 0,
+    has_fouls INTEGER DEFAULT 0,
+    tabs_json TEXT DEFAULT '[]',
+    market_names_json TEXT DEFAULT '[]',
+    fetched_at TEXT NOT NULL,
+    betting_date TEXT NOT NULL,
+    UNIQUE(betclic_event_id, betting_date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_betclic_markets_sport ON betclic_markets(sport);
+CREATE INDEX IF NOT EXISTS idx_betclic_markets_comp ON betclic_markets(competition_id);
+CREATE INDEX IF NOT EXISTS idx_betclic_markets_date ON betclic_markets(betting_date);
+CREATE INDEX IF NOT EXISTS idx_betclic_markets_event ON betclic_markets(betclic_event_id);
+
+CREATE TABLE IF NOT EXISTS betclic_competition_profiles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sport TEXT NOT NULL,
+    competition_id TEXT NOT NULL,
+    competition_name TEXT NOT NULL,
+    typically_has_statistics INTEGER DEFAULT 0,
+    typically_has_corners INTEGER DEFAULT 0,
+    typically_has_cards INTEGER DEFAULT 0,
+    typically_has_shots INTEGER DEFAULT 0,
+    typically_has_fouls INTEGER DEFAULT 0,
+    avg_open_markets INTEGER DEFAULT 0,
+    typical_tabs_json TEXT DEFAULT '[]',
+    observations_count INTEGER DEFAULT 0,
+    last_observed_at TEXT,
+    last_betting_date TEXT,
+    competition_url TEXT,
+    UNIQUE(sport, competition_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_betclic_comp_profiles_sport ON betclic_competition_profiles(sport);

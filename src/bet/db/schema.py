@@ -4,7 +4,7 @@ import sqlite3
 from pathlib import Path
 
 SCHEMA_SQL = Path(__file__).parent / "schema.sql"
-SCHEMA_VERSION = 9
+SCHEMA_VERSION = 10
 
 
 def init_db(conn: sqlite3.Connection) -> None:
@@ -162,5 +162,11 @@ def migrate(conn: sqlite3.Connection, from_version: int, to_version: int) -> Non
             conn.execute("CREATE INDEX IF NOT EXISTS idx_tipster_consensus_sport ON tipster_consensus(betting_date, sport)")
         except sqlite3.OperationalError:
             pass  # Tables don't exist yet — schema.sql will create them
+
+    if from_version < 10:
+        # v10: Betclic market availability tables
+        migration_path = Path(__file__).parent / "migrations" / "010_betclic_markets.sql"
+        if migration_path.exists():
+            conn.executescript(migration_path.read_text(encoding="utf-8"))
 
     conn.commit()
