@@ -211,6 +211,37 @@ Despite the terrible shortlist, S3 DID produce ~27 candidates with REAL data (no
   2. Picks at exactly "5/10" = Extended Pool with "⚠️ COIN FLIP" warning
   3. Safety score formula should penalize "5/10" hit rates heavily (currently gives 0.50 which looks "acceptable")
 
+### ERROR 11: BETCLIC SCRAPER FALSE POSITIVE — `has_fouls: true` IS A GUESS, NOT A FACT
+- **Impact:** CRITICAL for S1 ANCHOR pick. User checked Betclic for Qingdao v Beijing Guoan Fouls O/U 24.5 and **THE MARKET DOES NOT EXIST**. The scraper reported `has_fouls: true` — this is WRONG.
+- **Evidence:**
+  - `betclic_market_validation_2026-05-19.json`: `"has_fouls": true` for Qingdao
+  - Reality: User cannot bet on Fouls on Betclic for this match
+  - The `market_names` list shows: Wynik, Gole, Handicap, Rożne (corners), Strzelcy, etc. — **NO "Faule" in market_names!**
+  - Available tabs: `["MyCombi", "Top", "Wynik", "Strzelcy", "Gole", "Metoda gola", "Wynik / Handicap", "Statystyki"]`
+- **Root cause:** `src/bet/scrapers/betclic.py` line 486-489:
+  ```python
+  if info.has_statistics_tab:
+      info.has_corners = True   # ASSUMED
+      info.has_cards = True     # ASSUMED
+      info.has_shots = True     # ASSUMED
+      info.has_fouls = True     # ASSUMED ← BUG
+  ```
+  The scraper assumes that if a "Statystyki" tab exists → ALL four stat markets (corners, cards, shots, fouls) are available for BETTING. This is FALSE. The Statystyki tab shows DISPLAY stats, but Betclic only offers SOME as betting markets (usually corners + cards, rarely fouls).
+- **Impact on coupon v2:** S1 (ANCHOR pick, highest confidence) is UNBETTABLE. The entire coupon's strongest pick cannot be placed.
+- **Fix needed:**
+  1. `src/bet/scrapers/betclic.py` line 486-489: REMOVE blanket `True` assumption
+  2. Instead: parse actual market names from Statystyki tab content for each stat type
+  3. Only set `has_fouls = True` if "faul" appears in actual betting market names (not just stats display)
+  4. Add `"confirmed_betting_markets"` list to validation output (vs just `has_X` booleans)
+  5. **Coupon-level impact:** Any pick on a market with only `has_X: true` (from assumption) must be flagged "⚠️ RYNEK NIEPOTWIERDZONY"
+  6. `coupon_builder.py` should cross-check: if pick market = "Fouls" → verify `"faul"` in `market_names` list, not just `has_fouls` boolean
+
+### IMMEDIATE IMPACT ON COUPON v2
+- **S1 Qingdao Fouls O24.5** — ❌ CANNOT BET (fouls market not on Betclic)
+- **Replacement needed:** Next best market from same match: Qingdao Shots Total OVER 20.5 (but ss=0.49, margin=0.1 → REJECTED by statistician) OR move to S2 Monza as new anchor
+- **Alternative from same match:** Check if Corners/Cards exist → `"1. połowa - Rzuty rożne"` IS in market_names → Corners ARE available. But Qingdao Corners wasn't in our top picks.
+- **Lesson:** Always verify market exists in `market_names` list, not in `has_X` boolean flags
+
 ---
 
 ## ⛔ WHAT SHOULD HAVE HAPPENED (CORRECT PIPELINE EXECUTION)
@@ -392,6 +423,73 @@ if hr_l10 <= 0.5:
 7. ⬜ Fix `compute_safety_scores.py` to penalize 50% hit rates (see Fix 5)
 8. ⬜ Add `validate_coupon_quality.py` pre-presentation sanity check (see GAP 6)
 9. ⬜ Move Betclic validation to S1.5 position in pipeline (see ERROR 2)
+10. ⬜ Fix `betclic.py` L486-489: remove blanket `has_X=True`, parse `market_names` instead (ERROR 11+12)
+11. ⬜ Fix `coupon_builder.py`: cross-check pick market type against `market_names` keywords (ERROR 12)
+12. ⬜ Add bookmaker capability profile to `betting_config.json` — define which market TYPES Betclic PL offers (ERROR 13)
+13. ⬜ Strategy pivot: adapt R4/R5 stat-first to use goals O/U, BTTS, handicap when stat markets unavailable (ERROR 13)
+
+---
+
+### ERROR 12: COUPON v2 — ALL 5 CORE SINGLES ARE UNBETTABLE ON BETCLIC
+- **Impact:** CATASTROPHIC. User manually verified coupon v2 on Betclic. **0 out of 5** core singles can be placed. The "legitimate" coupon is 100% waste paper.
+- **Evidence:**
+
+| # | Pick | On Betclic? | Market exists? | Reason |
+|---|------|-------------|----------------|--------|
+| S1 | Qingdao Fouls O24.5 | ✅ Event exists | ❌ NO fouls market | Scraper `has_fouls=true` is a blanket assumption (ERROR 11) |
+| S2 | Monza vs Juve Stabia SoT O7.5 | ❌ Event NOT on Betclic | ❌ | Serie B match not in Betclic PL offer |
+| S3 | NorthEast United vs Mohammedan SC Corners O5.5 | ❌ Event NOT on Betclic | ❌ | Indian Super League not available on Betclic PL |
+| S4 | Bournemouth vs Man City Corners O5.5 | ✅ Event exists (412 mkts) | ❌ NO corners market | Betclic lists: Wynik, Gole, Handicap, Strzelcy, etc. — zero "Rzuty rożne" |
+| S5 | Cobolli vs Buse Games O23.5 | ❌ Event NOT on Betclic | ❌ | ATP Hamburg tennis not in Betclic PL offer |
+
+- **Root causes (MULTIPLE FAILURES STACKING):**
+  1. **Scraper `has_X` flags are lies** (ERROR 11): `has_corners=true` for Bournemouth, but NO corners market in `market_names` list. The "Statystyki" tab shows display stats, NOT betting markets.
+  2. **Events not on Betclic at all:** Monza (Serie B), NorthEast United (ISL), Cobolli (ATP Hamburg) — these leagues/tournaments are not in Betclic PL's offer at all. Pipeline analyzed them without checking availability.
+  3. **Validation ran too late** (ERROR 2): Only 81 events validated. 3/5 picks were on events OUTSIDE the validated set = guaranteed failure.
+  4. **`market_names` not cross-checked against pick markets**: Even where events ARE validated, the coupon builder never verifies that the SPECIFIC market type (corners, fouls, shots) appears in the `market_names` list.
+
+- **What actually IS available on Betclic for Bournemouth (the one with 412 markets):**
+  - Wynik (1X2), Gole O/U, BTTS, Handicap, Podwójna Szansa
+  - Strzelcy (scorers), Czerwona kartka (red card)
+  - "Liczba celnych strzałów zawodnika (OPTA)" — player-level shots only
+  - **NO:** corners, fouls, team shots total, cards total
+
+- **Fix needed (ALL must be done together):**
+  1. `src/bet/scrapers/betclic.py` L486-489: REMOVE blanket `has_X = True` assumption. Parse ACTUAL market names to determine availability.
+  2. `scripts/validate_betclic_markets.py`: Add market-type detection from `market_names` list:
+     - "rożn" → corners available
+     - "faul" → fouls available  
+     - "strzał" (team-level, not player) → shots available
+     - "kartk" → cards available
+  3. `scripts/coupon_builder.py`: Before including ANY stat-market pick, verify:
+     - Event exists in validation JSON
+     - Specific market keyword exists in `market_names` list (not just `has_X` boolean)
+     - If not → REJECT pick with reason "RYNEK NIEDOSTĘPNY NA BETCLIC"
+  4. Move Betclic validation to S1.5 (ERROR 2 fix) — filter shortlist to only available events
+  5. Add `betclic_available_markets` field to validation output — explicit list of market TYPES confirmed (not just booleans)
+
+- **Permanent rule:** `has_corners/has_fouls/has_shots/has_cards = true` from scraper is UNTRUSTED. Only `market_names` list containing the keyword = CONFIRMED.
+
+### ERROR 13: STAT-MARKET-FIRST STRATEGY IS UNBETTABLE ON BETCLIC PL
+- **Impact:** The entire pipeline philosophy (R4/R5: "statistical markets ALWAYS evaluated BEFORE outcomes") produces picks that CANNOT be placed because Betclic PL does NOT offer corners/fouls/shots/cards totals for most matches.
+- **Evidence:**
+  - Bournemouth vs Man City (Premier League, 412 open markets): NO corners, NO fouls, NO team shots total
+  - Only stat-adjacent market: "Liczba celnych strzałów zawodnika (OPTA)" = player-level, not team total
+  - If PL doesn't have corners, then La Liga, Bundesliga, Ligue 1, Serie A probably don't either
+  - The "Statystyki" tab appears to be a DISPLAY feature (showing live match stats), NOT a section of betting markets
+- **Root cause:** The pipeline was designed assuming Betclic offers stat markets (corners O/U, fouls O/U, cards O/U) like other bookmakers (bet365, Unibet). Betclic PL DOES NOT offer these as standard betting markets for most events.
+- **Fix needed:**
+  1. **IMMEDIATE:** Audit which events on Betclic PL actually have corner/foul/card BETTING markets (not display stats)
+  2. **STRATEGY PIVOT:** For Betclic PL, the viable market types are:
+     - Goals O/U (team + total)
+     - BTTS
+     - Handicap
+     - 1X2 / Double Chance
+     - Player props (scorers, shots on target)
+     - MyCombi (custom combos)
+  3. **Pipeline adjustment:** R4/R5 should adapt to bookmaker reality — if stat markets don't exist, evaluate goals/BTTS/handicap markets with same statistical rigor
+  4. Update `BETTABLE_MARKET_TABLES` in sport-analysis-protocols to reflect Betclic PL's ACTUAL market offer
+  5. Add bookmaker capability profile to `config/betting_config.json`: list which market types the bookmaker actually offers
 
 ---
 
