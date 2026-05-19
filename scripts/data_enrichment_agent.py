@@ -86,7 +86,7 @@ from bet.stats.value_ranges import SPORT_VALUE_RANGES
 _source_failures: dict[str, int] = {}
 _source_trip_time: dict[str, float] = {}
 _source_cb_lock = threading.Lock()
-CIRCUIT_BREAKER_THRESHOLD = 5
+CIRCUIT_BREAKER_THRESHOLD = 3
 CIRCUIT_BREAKER_HALF_OPEN_SECS = 60
 _db_write_lock = threading.Lock()
 _known_missing_lock = threading.Lock()
@@ -170,7 +170,7 @@ def _get_competition_for_team(team_name: str, sport: str) -> str:
 # Core enrichment: uses proper API client fallback chains
 # ---------------------------------------------------------------------------
 
-def enrich_team(team_name: str, sport: str, max_retries: int = 2) -> dict:
+def enrich_team(team_name: str, sport: str, max_retries: int = 2, skip_known_missing: bool = False) -> dict:
     """Fetch and save stats for a single team via API client fallback chains.
 
     Chain order (per sport): ESPN → sport-specific API → Google Sports → Flashscore curl_cffi
@@ -199,8 +199,8 @@ def enrich_team(team_name: str, sport: str, max_retries: int = 2) -> dict:
         result["error"] = f"No stat keys defined for sport: {sport}"
         return result
 
-    # Check known-missing cache
-    if _is_known_missing(team_name, sport):
+    # Check known-missing cache (skip when user explicitly provided shortlist)
+    if not skip_known_missing and _is_known_missing(team_name, sport):
         result["error"] = f"Known missing team (cached 404): {team_name}"
         logger.debug(f"Skipping known-missing team: {team_name} ({sport})")
         return result
@@ -615,7 +615,7 @@ def _save_h2h_to_db(team_a: str, team_b: str, sport: str, stats: dict) -> None:
 # Batch enrichment
 # ---------------------------------------------------------------------------
 
-def batch_enrich(teams: list[dict], max_workers: int = 4) -> list[dict]:
+def batch_enrich(teams: list[dict], max_workers: int = 4, skip_known_missing: bool = False) -> list[dict]:
     """Enrich multiple teams in parallel.
 
     Input: [{"team": "FC Barcelona", "sport": "football"}]
@@ -635,7 +635,7 @@ def batch_enrich(teams: list[dict], max_workers: int = 4) -> list[dict]:
                     "source": None, "error": "Missing team name or sport",
                 })
                 continue
-            fut = executor.submit(enrich_team, team_name, sport)
+            fut = executor.submit(enrich_team, team_name, sport, skip_known_missing=skip_known_missing)
             futures[fut] = entry
 
         for fut in concurrent.futures.as_completed(futures):
@@ -657,40 +657,87 @@ def batch_enrich(teams: list[dict], max_workers: int = 4) -> list[dict]:
 # Auto-detect missing teams from shortlist / DB fixtures
 # ---------------------------------------------------------------------------
 
-def _detect_missing_from_shortlist(date_str: str) -> list[dict]:
-    """Scan shortlist for candidates with missing stats cache."""
-    # DB-first: load fixtures from DB (R2)
-    teams_from_db = []
-    try:
-        from db_data_loader import load_fixtures_from_db
-        fixtures = load_fixtures_from_db(date_str)
-        if fixtures:
-            seen = set()
-            for f in fixtures:
-                for team_key in ("home_team", "away_team"):
-                    team_name = f.get(team_key, "")
-                    sport = f.get("sport", "")
-                    if team_name and sport and (team_name, sport) not in seen:
-                        seen.add((team_name, sport))
-                        teams_from_db.append({"team": team_name, "sport": sport})
-            if teams_from_db:
-                logger.info(f"[DB] Loaded {len(teams_from_db)} teams from {len(fixtures)} fixtures")
-    except Exception as exc:
-        logger.debug(f"DB fixture load failed: {exc}")
+def _detect_missing_from_shortlist(date_str: str, shortlist_override: str | None = None) -> list[dict]:
+    """Scan shortlist for candidates with missing stats cache.
+    
+    When shortlist_override is provided, reads ONLY from that file (targeted enrichment).
+    Otherwise falls back to DB fixtures (broad enrichment — legacy behavior).
+    """
+    # If explicit shortlist provided, use it directly — do NOT load all fixtures from DB
+    shortlist_path = None
+    if shortlist_override:
+        shortlist_path = Path(shortlist_override)
+        if shortlist_path.exists():
+            logger.info(f"[shortlist] Using explicit shortlist: {shortlist_path}")
+        else:
+            logger.warning(f"[shortlist] Override not found: {shortlist_path}, falling back to DB")
+            shortlist_path = None
 
-    if teams_from_db:
-        # Filter to teams missing from cache
-        missing = []
-        for entry in teams_from_db:
-            slug = _slugify(entry["team"])
-            cache_path = CACHE_DIR / entry["sport"] / f"{slug}.json"
-            if not cache_path.exists():
-                missing.append(entry)
-        logger.info(f"[DB] {len(missing)}/{len(teams_from_db)} teams need enrichment")
-        return missing
+    if shortlist_path is None:
+        # DB-first: load fixtures from DB (R2) — broad mode
+        teams_from_db = []
+        try:
+            from db_data_loader import load_fixtures_from_db
+            fixtures = load_fixtures_from_db(date_str)
+            if fixtures:
+                seen = set()
+                for f in fixtures:
+                    for team_key in ("home_team", "away_team"):
+                        team_name = f.get(team_key, "")
+                        sport = f.get("sport", "")
+                        if team_name and sport and (team_name, sport) not in seen:
+                            seen.add((team_name, sport))
+                            teams_from_db.append({"team": team_name, "sport": sport})
+                if teams_from_db:
+                    logger.info(f"[DB] Loaded {len(teams_from_db)} teams from {len(fixtures)} fixtures")
+        except Exception as exc:
+            logger.debug(f"DB fixture load failed: {exc}")
 
-    # JSON fallback
-    shortlist_path = DATA_DIR / f"{date_str}_s2_shortlist.json"
+        if teams_from_db:
+            # Filter to teams missing stats (check DB team_form first, cache file as fallback)
+            missing = []
+            try:
+                with get_db() as conn:
+                    for entry in teams_from_db:
+                        team_name = entry["team"]
+                        sport = entry["sport"]
+                        # Check DB team_form for existing stats
+                        sport_row = conn.execute(
+                            "SELECT id FROM sports WHERE name = ?", (sport,)
+                        ).fetchone()
+                        if not sport_row:
+                            missing.append(entry)
+                            continue
+                        team_row = conn.execute(
+                            "SELECT id FROM teams WHERE sport_id = ? AND (name = ? OR aliases LIKE ?)",
+                            (sport_row["id"], team_name, f'%{team_name}%'),
+                        ).fetchone()
+                        if not team_row:
+                            missing.append(entry)
+                            continue
+                        # Check if team has at least 2 stat keys in team_form
+                        form_count = conn.execute(
+                            "SELECT COUNT(DISTINCT stat_key) as cnt FROM team_form "
+                            "WHERE team_id = ? AND sport_id = ?",
+                            (team_row["id"], sport_row["id"]),
+                        ).fetchone()
+                        if not form_count or form_count["cnt"] < 2:
+                            missing.append(entry)
+            except Exception as exc:
+                logger.debug(f"DB team_form check failed, falling back to cache: {exc}")
+                # Fallback: check cache file existence
+                missing = []
+                for entry in teams_from_db:
+                    slug = _slugify(entry["team"])
+                    cache_path = CACHE_DIR / entry["sport"] / f"{slug}.json"
+                    if not cache_path.exists():
+                        missing.append(entry)
+
+            logger.info(f"[DB] {len(missing)}/{len(teams_from_db)} teams need enrichment")
+            return missing
+
+        # JSON fallback — try standard shortlist path
+        shortlist_path = DATA_DIR / f"{date_str}_s2_shortlist.json"
     if not shortlist_path.exists():
         shortlist_path = DATA_DIR / f"{date_str.replace('-', '')}_s2_shortlist.json"
     if not shortlist_path.exists():
@@ -714,10 +761,7 @@ def _detect_missing_from_shortlist(date_str: str) -> list[dict]:
             team_name = c.get(team_field, "")
             if not team_name:
                 continue
-            slug = _slugify(team_name)
-            cache_path = CACHE_DIR / sport / f"{slug}.json"
-            if not cache_path.exists():
-                missing.append({"team": team_name, "sport": sport})
+            missing.append({"team": team_name, "sport": sport})
 
     # Deduplicate
     seen = set()
@@ -728,7 +772,43 @@ def _detect_missing_from_shortlist(date_str: str) -> list[dict]:
             seen.add(key)
             deduped.append(entry)
 
-    return deduped
+    # Filter to teams actually missing stats (DB-first, cache fallback)
+    truly_missing = []
+    try:
+        with get_db() as conn:
+            for entry in deduped:
+                team_name = entry["team"]
+                sport = entry["sport"]
+                sport_row = conn.execute(
+                    "SELECT id FROM sports WHERE name = ?", (sport,)
+                ).fetchone()
+                if not sport_row:
+                    truly_missing.append(entry)
+                    continue
+                team_row = conn.execute(
+                    "SELECT id FROM teams WHERE sport_id = ? AND (name = ? OR aliases LIKE ?)",
+                    (sport_row["id"], team_name, f'%{team_name}%'),
+                ).fetchone()
+                if not team_row:
+                    truly_missing.append(entry)
+                    continue
+                form_count = conn.execute(
+                    "SELECT COUNT(DISTINCT stat_key) as cnt FROM team_form "
+                    "WHERE team_id = ? AND sport_id = ?",
+                    (team_row["id"], sport_row["id"]),
+                ).fetchone()
+                if not form_count or form_count["cnt"] < 2:
+                    truly_missing.append(entry)
+    except Exception as exc:
+        logger.debug(f"DB check failed, using cache fallback: {exc}")
+        truly_missing = []
+        for entry in deduped:
+            slug = _slugify(entry["team"])
+            cache_path = CACHE_DIR / entry["sport"] / f"{slug}.json"
+            if not cache_path.exists():
+                truly_missing.append(entry)
+
+    return truly_missing
 
 
 # ---------------------------------------------------------------------------
@@ -832,19 +912,7 @@ def main():
                 sys.exit(1)
         else:
             # Default: shortlist-only enrichment (fast, targeted)
-            if args.shortlist:
-                # Explicit shortlist path override
-                shortlist_path = Path(args.shortlist)
-                if not shortlist_path.exists():
-                    out.error(f"Shortlist not found: {shortlist_path}", recoverable=False)
-                    out.summary(verdict="FAILED", metrics={"error": f"Not found: {shortlist_path}"})
-                    sys.exit(1)
-                # Override DATA_DIR search by patching expected path
-                import shutil
-                target = DATA_DIR / f"{args.date}_s2_shortlist.json"
-                if not target.exists() and shortlist_path != target:
-                    shutil.copy2(shortlist_path, target)
-            missing = _detect_missing_from_shortlist(args.date)
+            missing = _detect_missing_from_shortlist(args.date, shortlist_override=args.shortlist)
         if not missing:
             out.summary(verdict="OK", metrics={"missing": 0, "message": f"No missing teams for {args.date}"})
             sys.exit(0)
@@ -854,7 +922,7 @@ def main():
         else:
             print(f"Found {len(missing)} teams with missing stats", file=sys.stderr)
 
-        results = batch_enrich(missing, max_workers=args.workers)
+        results = batch_enrich(missing, max_workers=args.workers, skip_known_missing=bool(args.shortlist))
         print(json.dumps(results, indent=2, ensure_ascii=False))
 
         enriched = sum(1 for r in results if r.get("status") == "enriched")

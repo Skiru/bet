@@ -166,7 +166,9 @@ def load_fixtures_from_db(date: str, sport: str | None = None, include_unverifie
 def load_odds_from_db(date: str) -> dict:
     """Load odds for a date from DB, fallback to JSON snapshot.
 
-    Returns dict keyed by a match identifier with odds data.
+    Returns dict with "events" list in Odds-API-compatible format:
+    Each event has home_team, away_team, sport, and bookmakers as a LIST of dicts
+    (matching the-odds-api JSON structure that extract_markets_from_odds_api expects).
     """
     try:
         from bet.db.connection import get_db
@@ -176,26 +178,58 @@ def load_odds_from_db(date: str) -> dict:
             repo = OddsRepo(conn)
             odds_by_fixture = repo.get_all_for_date(date)
             if odds_by_fixture:
-                # Convert to the format scripts expect
+                # Need fixture details (home/away/sport) for the lookup key
+                fixture_ids = list(odds_by_fixture.keys())
+                placeholders = ",".join("?" for _ in fixture_ids)
+                fixture_rows = conn.execute(
+                    f"SELECT id, home_team, away_team, sport FROM fixtures "
+                    f"WHERE id IN ({placeholders})",
+                    fixture_ids,
+                ).fetchall()
+                fixture_map = {r["id"]: r for r in fixture_rows}
+
                 events = []
                 for fixture_id, records in odds_by_fixture.items():
-                    # Group by bookmaker
-                    bookmakers = {}
+                    fx = fixture_map.get(fixture_id)
+                    if not fx:
+                        continue
+                    # Group by bookmaker → markets → outcomes (Odds-API format)
+                    bm_markets: dict = {}  # bookmaker -> market_key -> outcomes
                     for r in records:
                         bk = r.bookmaker or "unknown"
-                        if bk not in bookmakers:
-                            bookmakers[bk] = []
-                        bookmakers[bk].append({
-                            "market": r.market,
-                            "selection": r.selection,
-                            "odds": r.odds,
-                            "line": r.line,
+                        if bk not in bm_markets:
+                            bm_markets[bk] = {}
+                        mkt = r.market or "h2h"
+                        if mkt not in bm_markets[bk]:
+                            bm_markets[bk][mkt] = []
+                        outcome = {"name": r.selection, "price": r.odds}
+                        if r.line is not None:
+                            outcome["point"] = r.line
+                        bm_markets[bk][mkt].append(outcome)
+
+                    # Build bookmakers list in the-odds-api format
+                    bookmakers_list = []
+                    for bk_name, markets_dict in bm_markets.items():
+                        markets_list = []
+                        for mkt_key, outcomes in markets_dict.items():
+                            markets_list.append({
+                                "key": mkt_key,
+                                "outcomes": outcomes,
+                            })
+                        bookmakers_list.append({
+                            "key": bk_name,
+                            "title": bk_name,
+                            "markets": markets_list,
                         })
+
                     events.append({
                         "fixture_id": fixture_id,
-                        "bookmakers": bookmakers,
+                        "home_team": fx["home_team"],
+                        "away_team": fx["away_team"],
+                        "sport": fx["sport"],
+                        "bookmakers": bookmakers_list,
                     })
-                print(f"[db_loader] Loaded odds for {len(odds_by_fixture)} fixtures from DB")
+                print(f"[db_loader] Loaded odds for {len(events)} fixtures from DB")
                 return {"events": events, "total_events": len(events), "source": "db"}
     except Exception as e:
         print(f"[db_loader] DB read failed for odds: {e}")
@@ -321,9 +355,78 @@ def load_h2h_from_db(
     return None
 
 
-def load_scan_summary_from_db() -> dict:
-    """Load scan summary from DB source_health. Returns empty dict if unavailable."""
-    return {}
+def load_scan_summary_from_db(date: str | None = None) -> dict:
+    """Load scan results from DB scan_results table, grouped by source_domain.
+
+    Returns dict keyed by source_domain URL → list of event dicts,
+    matching the format expected by generate_market_matrix.load_scan_summary().
+    """
+    try:
+        from bet.db.connection import get_db
+
+        with get_db() as conn:
+            if date:
+                rows = conn.execute(
+                    "SELECT source_domain, home_team, away_team, sport, "
+                    "competition, kickoff, raw_data "
+                    "FROM scan_results WHERE betting_date = ? "
+                    "ORDER BY sport, source_domain",
+                    (date,),
+                ).fetchall()
+            else:
+                # Load most recent betting_date
+                latest = conn.execute(
+                    "SELECT DISTINCT betting_date FROM scan_results "
+                    "ORDER BY betting_date DESC LIMIT 1"
+                ).fetchone()
+                if not latest:
+                    return {}
+                rows = conn.execute(
+                    "SELECT source_domain, home_team, away_team, sport, "
+                    "competition, kickoff, raw_data "
+                    "FROM scan_results WHERE betting_date = ? "
+                    "ORDER BY sport, source_domain",
+                    (latest["betting_date"],),
+                ).fetchall()
+
+            if not rows:
+                return {}
+
+            # Group by source_domain (acts as URL key for downstream compatibility)
+            result: dict[str, list] = {}
+            for row in rows:
+                domain = row["source_domain"] or "unknown"
+                item = {
+                    "home": row["home_team"] or "",
+                    "away": row["away_team"] or "",
+                    "home_team": row["home_team"] or "",
+                    "away_team": row["away_team"] or "",
+                    "sport": row["sport"] or "",
+                    "competition": row["competition"] or "",
+                    "league": row["competition"] or "",
+                    "time": row["kickoff"] or "",
+                    "odds": [],
+                }
+                # Parse raw_data JSON if present (may contain odds)
+                if row["raw_data"]:
+                    try:
+                        raw = json.loads(row["raw_data"])
+                        if isinstance(raw, dict):
+                            item["odds"] = raw.get("odds", [])
+                            # Preserve any deep data (h2h, form, etc.)
+                            for key in ("h2h", "form_home", "form_away", "trends", "match_info"):
+                                if key in raw:
+                                    item[key] = raw[key]
+                    except (json.JSONDecodeError, TypeError):
+                        pass
+
+                result.setdefault(domain, []).append(item)
+
+            print(f"[db_loader] Loaded {len(rows)} scan results from DB ({len(result)} sources)")
+            return result
+    except Exception as e:
+        print(f"[db_loader] DB read failed for scan_results: {e}")
+        return {}
 
 
 def load_pipeline_state(date: str) -> dict:

@@ -133,13 +133,29 @@ def load_espn_odds_snapshot(date: str) -> dict:
     """Load ESPN odds snapshot (free, no credit cost) as primary odds source.
 
     Returns lookup by normalized key, same format as load_odds_api_snapshot.
+    Falls back to DB odds_history if ESPN JSON files don't exist.
     """
     # Try date-specific file first, then current
     espn_file = DATA_DIR / f"espn_odds_snapshot_{date}.json"
     if not espn_file.exists():
         espn_file = DATA_DIR / "espn_odds_snapshot.json"
     if not espn_file.exists():
-        return {}
+        # DB fallback: load odds from odds_history table
+        try:
+            data = load_odds_from_db(date)
+            items = data.get("events", []) if isinstance(data, dict) else []
+            lookup = {}
+            for ev in items:
+                home = _normalize(ev.get("home_team", ""))
+                away = _normalize(ev.get("away_team", ""))
+                if home and away:
+                    lookup[f"{home}|{away}"] = ev
+            if lookup:
+                print(f"[market_matrix] ESPN fallback: loaded {len(lookup)} events from DB odds_history")
+            return lookup
+        except Exception as e:
+            print(f"[market_matrix] ESPN DB fallback failed: {e}")
+            return {}
 
     try:
         data = json.loads(espn_file.read_text(encoding="utf-8"))
@@ -187,7 +203,7 @@ def _is_scan_garbage(home: str, away: str) -> bool:
     return False
 
 
-def load_scan_summary() -> dict:
+def load_scan_summary(date: str | None = None) -> dict:
     """Load scan summary items grouped by normalized match key.
 
     Uses DB-first loading via load_scan_summary_from_db for raw data,
@@ -195,7 +211,7 @@ def load_scan_summary() -> dict:
     Pre-filters garbage items early for performance (45K+ items).
     """
     try:
-        data = load_scan_summary_from_db()
+        data = load_scan_summary_from_db(date)
     except Exception:
         data = {}
 
@@ -619,7 +635,7 @@ def generate_market_matrix(
     for key, val in odds_api_lookup.items():
         if key not in odds_lookup:
             odds_lookup[key] = val
-    scan_lookup = load_scan_summary()
+    scan_lookup = load_scan_summary(date)
     multi_odds = load_multi_source_odds()
     picks_suggested = load_picks_suggested()
     analysis_pool = load_analysis_pool(date)

@@ -514,6 +514,18 @@ def build_shortlist(
 
         home = event.get("home_team", "")
         away = event.get("away_team", "")
+
+        # Youth / Reserve / University filter — no data sources cover these
+        _youth_re = re.compile(
+            r"\bU1[2-9]\b|\bU2[0-1]\b|\bReserves?\b|\bRes\.\b|\bJunior[sy]?\b"
+            r"|\bCadete[s]?\b|\bJuvenil\b|\bSub[\s-]?\d{2}\b"
+            r"|\bAcademy\b.*\bU\d{2}\b|\bU\d{2}\b.*\bAcademy\b",
+            re.I,
+        )
+        if _youth_re.search(home) or _youth_re.search(away):
+            garbage_count += 1
+            continue
+
         # Too short — structural artifacts or empty
         if len(home.strip()) < 2 or len(away.strip()) < 2:
             garbage_count += 1
@@ -919,6 +931,104 @@ def write_shortlist_json(selected: list[tuple[float, dict]], date: str) -> Path:
     return output_path
 
 
+def _apply_betclic_filter(selected: list[tuple[float, dict]], date: str, out) -> Path | None:
+    """Filter shortlist to only events confirmed on Betclic.
+
+    Reads betclic_market_validation_{date}.json and produces
+    {date}_s2_shortlist_bettable.json with only matched events.
+    """
+    validation_path = DATA_DIR / f"betclic_market_validation_{date}.json"
+    if not validation_path.exists():
+        out.warning(f"Betclic validation not found: {validation_path} — skipping filter")
+        return None
+
+    try:
+        validation = json.loads(validation_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as e:
+        out.warning(f"Failed to read Betclic validation: {e}")
+        return None
+
+    # Build set of Betclic-confirmed events (normalized)
+    betclic_events: dict[str, dict] = {}
+    events_list = validation.get("events", validation) if isinstance(validation, dict) else validation
+    for ev in events_list:
+        name = ev.get("event_name", "")
+        # Clean up "Obstawianie X | Bukmacher Y | Betclic Polska Bonus" format
+        if "Obstawianie " in name and " | " in name:
+            name = name.replace("Obstawianie ", "").split(" | ")[0]
+        confirmed = ev.get("confirmed_market_types", [])
+        if confirmed:
+            norm = _normalize_team(name)
+            betclic_events[norm] = {
+                "confirmed_market_types": confirmed,
+                "open_market_count": ev.get("open_market_count", 0),
+            }
+
+    # Match shortlist candidates against Betclic events
+    filtered = []
+    rejected_count = 0
+    for score, event in selected:
+        home = event.get("home_team", "")
+        away = event.get("away_team", "")
+        event_key = f"{_normalize_team(home)} v {_normalize_team(away)}"
+        event_key_alt = f"{_normalize_team(away)} v {_normalize_team(home)}"
+
+        match = betclic_events.get(event_key) or betclic_events.get(event_key_alt)
+
+        # Fuzzy match: check if both team name parts appear in any Betclic event
+        if not match:
+            h_norm = _normalize_team(home)
+            a_norm = _normalize_team(away)
+            for bname, binfo in betclic_events.items():
+                if h_norm and a_norm and h_norm in bname and a_norm in bname:
+                    match = binfo
+                    break
+                if h_norm and a_norm and a_norm in bname and h_norm in bname:
+                    match = binfo
+                    break
+
+        if match:
+            event["betclic_confirmed"] = True
+            event["betclic_market_types"] = match["confirmed_market_types"]
+            event["betclic_market_count"] = match["open_market_count"]
+            filtered.append((score, event))
+        else:
+            rejected_count += 1
+
+    # Write bettable shortlist
+    output = {
+        "date": date,
+        "total_candidates": len(filtered),
+        "filter": "betclic_confirmed_only",
+        "sports": sorted(set(e["sport"] for _, e in filtered)),
+        "rejected_not_on_betclic": rejected_count,
+        "candidates": [
+            {
+                "rank": i,
+                "score": round(score, 1),
+                "sport": event["sport"],
+                "home_team": event.get("home_team", ""),
+                "away_team": event.get("away_team", ""),
+                "competition": event.get("competition", ""),
+                "kickoff": normalize_kickoff(event.get("kickoff", ""), date),
+                "data_tier": event.get("data_tier", ""),
+                "betclic_market_types": event.get("betclic_market_types", []),
+                "betclic_market_count": event.get("betclic_market_count", 0),
+                "n_odds_markets": len(event.get("odds_markets", [])),
+                "n_safety_markets": len(event.get("safety_markets", [])),
+            }
+            for i, (score, event) in enumerate(filtered, 1)
+        ],
+    }
+
+    output_path = DATA_DIR / f"{date}_s2_shortlist_bettable.json"
+    output_path.write_text(json.dumps(output, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    print(f"\n[shortlist] BETCLIC FILTER: {len(filtered)} bettable / {rejected_count} rejected")
+    print(f"[shortlist] Bettable shortlist: {output_path}")
+    return output_path
+
+
 def main():
     parser = argparse.ArgumentParser(description="Build ranked S2 shortlist from market matrix")
     parser.add_argument("--date", help="Date YYYY-MM-DD (default: today)")
@@ -926,6 +1036,8 @@ def main():
     parser.add_argument("--stats-first", action="store_true",
                         help="Include FIXTURE_ONLY events from major competitions")
     parser.add_argument("--min-sports", type=int, default=5, help="Minimum sport diversity (default: 5)")
+    parser.add_argument("--betclic-filter", action="store_true",
+                        help="Filter shortlist to only Betclic-confirmed events (reads validation JSON)")
     add_agent_args(parser)
     args = parser.parse_args()
 
@@ -956,6 +1068,12 @@ def main():
 
     write_shortlist_md(selected, date, stats_first=args.stats_first)
     write_shortlist_json(selected, date)
+
+    # Betclic filter: produce a bettable-only shortlist
+    if args.betclic_filter:
+        bettable_path = _apply_betclic_filter(selected, date, out)
+        if bettable_path:
+            out.event("betclic_filter_applied", output=str(bettable_path))
 
     # Save shortlist summary to DB
     try:

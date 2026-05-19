@@ -270,15 +270,16 @@ runSubagent(specialist_agent):
 
 | Step | Script | Timeout | THINK-WHILE-WAITING | Specialist Agent |
 |------|--------|---------|---------------------|------------------|
+| S1.5 betclic | `validate_betclic_markets.py` + `filter_betclic_shortlist.py` | 300000 | Check shortlist size, plan bettable event coverage | — (validation) |
 | S2 tipsters | `tipster_xref.py` | 300000 | Read shortlist, identify tipster coverage gaps | bet-scout |
 | S2.3 scrapers | `run_scrapers.py` | 300000 | Check shortlist sports, plan scraper selection | bet-enricher |
-| S2.5 enrich | `data_enrichment_agent.py` | 600000 | Check team_form coverage from scrapers, identify gaps | bet-enricher |
+| S2.5 enrich | `data_enrichment_agent.py --shortlist {bettable}` | 600000 | Check team_form coverage from scrapers, identify gaps | bet-enricher |
 | S3 deep stats | `deep_stats_report.py` | 600000 | Read enrichment output, pre-load sport protocols | bet-statistician |
 | S4 odds | `odds_evaluator.py` | 300000 | Read S3 deep stats, identify strongest stat edges | bet-valuator |
 | S5 context | `context_checks.py` | 300000 | Review deep stats, draft bear cases for borderline | bet-challenger |
 | S6 upset | `upset_risk.py` | 300000 | Review context output, prepare gate criteria | bet-challenger |
 | S7 gate | `gate_checker.py` | 300000 | Review S3+S4+S5 verdicts, assess portfolio diversity | bet-challenger |
-| S7.5 betclic | `validate_betclic_markets.py` | 300000 | Review gate results, check market availability | — (validation) |
+| S7.5 betclic | _(moved to S1.5 — no longer needed here)_ | — | — | — |
 | S7.6 repeats | `check_48h_repeats.py` | 120000 | Check recent losses for repeat patterns | — (validation) |
 | S8 coupons | `coupon_builder.py` | 300000 | Review gate results, check bankroll config | bet-builder |
 | S9 validate | `validate_coupons.py` | 120000 | Review coupon structure, verify arithmetic | bet-builder |
@@ -560,6 +561,35 @@ runSubagent("bet-scanner"):
 
 ---
 
+### STEP S1.5: Betclic Market Validation + Filter (MANDATORY before enrichment)
+
+**Purpose:** Confirm which shortlist events are actually available on Betclic.pl, then filter the shortlist to bettable-only events. This prevents wasting S2.5-S7 analysis on 800+ events where only 80 are bettable.
+
+**Step 1: Run Betclic validation:**
+```bash
+PYTHONPATH=src .venv/bin/python3 scripts/validate_betclic_markets.py --date {date} --verbose 2>&1
+```
+Mode: `sync`, timeout: `300000`
+
+**Step 2: Run Betclic filter (produces bettable shortlist):**
+```bash
+PYTHONPATH=src .venv/bin/python3 scripts/filter_betclic_shortlist.py --date {date} --verbose 2>&1
+```
+Mode: `sync`, timeout: `120000`
+
+**OR use the integrated `--betclic-filter` flag (recommended — combines S1e+S1.5):**
+```bash
+python3 scripts/build_shortlist.py --date {date} --stats-first --betclic-filter 2>&1
+```
+
+**After completion:**
+- Parse AGENT_SUMMARY → check `matched` count
+- If matched < 10: WARNING — too few bettable events. Consider re-running Betclic validation with expanded event list.
+- Output: `betting/data/{date}_s2_shortlist_bettable.json` — this is the input for ALL downstream steps (S2.5, S3, deep analysis)
+- ALL subsequent `--shortlist` flags should use the `_bettable.json` file, NOT the raw `_s2_shortlist.json`
+
+---
+
 ### STEP S2: Tipster Cross-Reference
 
 **Orchestrator runs tipster_xref.py, then delegates analysis to bet-scout.**
@@ -661,14 +691,17 @@ Return: Model A verdict + explicit gap list for S2.5 enrichment
 **Orchestrator runs enrichment script, then delegates analysis to bet-enricher.**
 
 **Step 1: INSPECT inputs (pylanceRunCodeSnippet):**
-Verify shortlist exists: `betting/data/{date}_s2_shortlist.json`
+Verify bettable shortlist exists: `betting/data/{date}_s2_shortlist_bettable.json`
 Check team_form baseline count in DB.
 
 **Step 2: RUN script (you, the orchestrator):**
 ```bash
-PYTHONPATH=src .venv/bin/python3 scripts/data_enrichment_agent.py --date {date} --news --verbose 2>&1
+PYTHONPATH=src .venv/bin/python3 scripts/data_enrichment_agent.py --date {date} --shortlist betting/data/{date}_s2_shortlist_bettable.json --news --verbose 2>&1
 ```
 Mode: `async`, timeout: `600000`
+
+**IMPORTANT:** Always pass `--shortlist` with the bettable (Betclic-filtered) shortlist.
+Without it, enrichment falls back to ALL DB fixtures (1000+ teams, 90% wasted effort).
 
 **Step 3: THINK-WHILE-WAITING:**
 - Check which teams already have form data in DB
@@ -745,9 +778,12 @@ PYTHONPATH=src python3 scripts/validate_phase.py --date {date} --phase data --fo
 
 **Step 2: RUN script:**
 ```bash
-PYTHONPATH=src .venv/bin/python3 scripts/deep_stats_report.py --date {date} --shortlist betting/data/{date}_s2_shortlist.json --gemini --verbose 2>&1
+PYTHONPATH=src .venv/bin/python3 scripts/deep_stats_report.py --date {date} --shortlist betting/data/{date}_s2_shortlist_bettable.json --gemini --verbose 2>&1
 ```
 Mode: `async`, timeout: `600000`
+
+**IMPORTANT:** Use `_s2_shortlist_bettable.json` (Betclic-filtered), NOT the raw `_s2_shortlist.json`.
+This ensures analysis focuses only on events actually placeable on Betclic.
 
 **Step 3: THINK-WHILE-WAITING:** Read enrichment output, pre-load sport protocol requirements, assess data quality per candidate.
 
@@ -923,21 +959,17 @@ PYTHONPATH=src python3 scripts/validate_phase.py --date {date} --phase analysis 
 
 ---
 
-### STEP S7.5: Betclic Market Validation (MANDATORY pre-coupon gate)
+### STEP S7.5: Betclic Market Validation — MOVED TO S1.5
 
-**Orchestrator runs validate_betclic_markets.py to confirm markets exist on Betclic.**
+> **This step has been moved to S1.5** (after shortlist, before enrichment).
+> Running Betclic validation at S7.5 was too late — it wasted S2.5-S7 analysis effort on non-Betclic events.
+> The `coupon_builder.py` still reads `betclic_market_validation_{date}.json` as a final gate,
+> but the primary filter now happens at S1.5 via `filter_betclic_shortlist.py`.
 
 ```bash
-PYTHONPATH=src .venv/bin/python3 scripts/validate_betclic_markets.py --date {date} --verbose 2>&1
+# Only re-run here if S1.5 was skipped or new events appeared after original scan:
+# PYTHONPATH=src .venv/bin/python3 scripts/validate_betclic_markets.py --date {date} --verbose 2>&1
 ```
-Mode: `sync`, timeout: `300000`
-
-**Purpose:** Checks which recommended markets ACTUALLY EXIST on Betclic.pl for today's events. Catches picks recommending markets that Betclic doesn't offer (e.g., "corners" unavailable until ≤48h before kickoff).
-
-**After completion:**
-- Parse output for market availability per event
-- Events where recommended market is UNAVAILABLE → flag for coupon builder (suggest alternative market or move to Extended Pool)
-- Output saved to: `betting/data/{date}_betclic_validation.json`
 - This data is consumed by `coupon_builder.py` (renders WALIDACJA RYNKÓW section)
 
 **NOTE:** Do NOT scrape Betclic directly in other steps (R12 — 403 risk). This script uses `BetclicSession` with `curl_cffi` impersonation.

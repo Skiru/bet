@@ -34,7 +34,7 @@ def main():
 
     shortlist_path = DATA / f"{args.date}_s2_shortlist.json"
     validation_path = DATA / f"betclic_market_validation_{args.date}.json"
-    output_path = DATA / f"{args.date}_s2_shortlist_betclic.json"
+    output_path = DATA / f"{args.date}_s2_shortlist_bettable.json"
 
     if not shortlist_path.exists():
         print(f"ERROR: Shortlist not found: {shortlist_path}", file=sys.stderr)
@@ -159,6 +159,25 @@ def main():
         print(f"    {s}: {count}")
     print()
     print(f"  Output: {output_path}")
+
+    # Log to DB pipeline_runs
+    try:
+        sys.path.insert(0, str(ROOT / "src"))
+        from bet.db.connection import get_db
+        from bet.db.repositories import PipelineRepo
+        with get_db() as conn:
+            repo = PipelineRepo(conn)
+            repo.start_step(args.date, "s1_5_betclic_filter")
+            repo.complete_step(args.date, "s1_5_betclic_filter", stats={
+                "input": len(shortlist),
+                "matched": len(filtered),
+                "rejected": len(rejected),
+                "sports": sports,
+            })
+            conn.commit()
+    except Exception as e:
+        print(f"  [warn] DB pipeline log failed: {e}")
+
     print(f"\nAGENT_SUMMARY:{{\"verdict\":\"OK\",\"input\":{len(shortlist)},\"matched\":{len(filtered)},\"rejected\":{len(rejected)},\"output\":\"{output_path}\"}}")
 
 
