@@ -334,16 +334,119 @@ class SofascoreClient(BaseAPIClient):
         
         return fixtures
 
-    def get_fixture_stats(self, event_id: str) -> list:
-        """Get match statistics for a specific fixture."""
+    # Mapping SofaScore stat names → normalized stat keys
+    _STAT_NAME_MAP = {
+        "corner kicks": "corners",
+        "total shots": "shots",
+        "shots on target": "shots_on_target",
+        "shots off target": "shots_off_target",
+        "fouls": "fouls",
+        "yellow cards": "yellow_cards",
+        "red cards": "red_cards",
+        "ball possession": "possession",
+        "offsides": "offsides",
+        "free kicks": "free_kicks",
+        "goal kicks": "goal_kicks",
+        "throw-ins": "throw_ins",
+        "big chances": "big_chances",
+        "big chances missed": "big_chances_missed",
+        "saves": "saves",
+        "tackles": "tackles",
+        "passes": "passes",
+        "accurate passes": "accurate_passes",
+        "long balls": "long_balls",
+        "crosses": "crosses",
+        "dribbles": "dribbles",
+        "blocked shots": "blocked_shots",
+        "interceptions": "interceptions",
+        "clearances": "clearances",
+        "total points": "points",
+        "rebounds": "rebounds",
+        "assists": "assists",
+        "turnovers": "turnovers",
+        "steals": "steals",
+        "blocks": "blocks",
+        "aces": "aces",
+        "double faults": "double_faults",
+        "service points won": "service_points_won",
+    }
+
+    def get_fixture_stats(self, event_id: str):
+        """Get match statistics for a specific fixture as NormalizedMatchStats."""
+        from bet.models.normalized import NormalizedMatchStats
+        
         if not self._is_sofascore_id(event_id):
             logger.debug(f"Skipping get_fixture_stats — non-Sofascore ID: {event_id}")
-            return []
+            return None
         try:
             data = self._request(f"/event/{event_id}/statistics")
-            return data.get("statistics", [])
+            statistics = data.get("statistics", [])
+            if not statistics:
+                return None
+            
+            # Get event info for team names
+            try:
+                event_data = self._request(f"/event/{event_id}")
+                event = event_data.get("event", event_data)
+                home_team = event.get("homeTeam", {}).get("name", "")
+                away_team = event.get("awayTeam", {}).get("name", "")
+                start_ts = event.get("startTimestamp", 0)
+                date_str = ""
+                if start_ts:
+                    from datetime import datetime, timezone
+                    date_str = datetime.fromtimestamp(start_ts, tz=timezone.utc).strftime("%Y-%m-%d")
+            except Exception:
+                home_team, away_team, date_str = "", "", ""
+            
+            # Parse stats — take "ALL" period if available
+            all_period = None
+            for period_data in statistics:
+                if period_data.get("period") == "ALL":
+                    all_period = period_data
+                    break
+            if not all_period and statistics:
+                all_period = statistics[0]
+            
+            if not all_period:
+                return None
+            
+            stats_dict = {}
+            for group in all_period.get("groups", []):
+                for item in group.get("statisticsItems", []):
+                    name = item.get("name", "").lower()
+                    stat_key = self._STAT_NAME_MAP.get(name)
+                    if not stat_key:
+                        continue
+                    home_val = self._parse_stat_value(item.get("home", "0"))
+                    away_val = self._parse_stat_value(item.get("away", "0"))
+                    if home_val is not None and away_val is not None:
+                        stats_dict[stat_key] = {"home": home_val, "away": away_val}
+            
+            if not stats_dict:
+                return None
+            
+            return NormalizedMatchStats(
+                fixture_id=str(event_id),
+                source="sofascore",
+                sport="football",  # Will be overridden by caller if needed
+                home_team=home_team,
+                away_team=away_team,
+                date=date_str,
+                stats=stats_dict,
+            )
         except APINotFoundError:
-            return []
+            return None
+
+    @staticmethod
+    def _parse_stat_value(val) -> float | None:
+        """Parse SofaScore stat value (can be '58%', '15', etc.)."""
+        if val is None:
+            return None
+        s = str(val).strip().rstrip("%")
+        try:
+            return float(s)
+        except (ValueError, TypeError):
+            return None
 
     def get_h2h(self, team1_id: str, team2_id: str, last_n: int = 10) -> list[dict]:
         """Sofascore usually provides H2H via the event endpoint.
@@ -352,9 +455,23 @@ class SofascoreClient(BaseAPIClient):
         """
         logger.warning("get_h2h directly via team ids is not supported in Sofascore without event_id. Use get_event_h2h instead.")
         return []
+
+    def resolve_team_id(self, team_name: str, **kwargs) -> str | None:
+        """Search SofaScore for a team and return its numeric ID."""
+        try:
+            data = self._request(f"/search/teams/{team_name}")
+            teams = data.get("teams", [])
+            if not teams:
+                return None
+            # Return first match
+            return str(teams[0].get("id", ""))
+        except (APIError, APINotFoundError):
+            return None
         
     def get_team_last_fixtures(self, team_id: str, last_n: int = 10) -> list:
-        """Get the latest form/results for a team."""
+        """Get the latest form/results for a team as NormalizedFixture objects."""
+        from bet.models.normalized import NormalizedFixture
+        
         if not self._is_sofascore_id(team_id):
             logger.debug(f"Skipping get_team_last_fixtures — non-Sofascore ID: {team_id}")
             return []
@@ -362,7 +479,29 @@ class SofascoreClient(BaseAPIClient):
             # endpoint: /team/{id}/events/last/0 
             data = self._request(f"/team/{team_id}/events/last/0")
             events = data.get("events", [])
-            return events[:last_n]
+            fixtures = []
+            for ev in events[:last_n]:
+                event_id = str(ev.get("id", ""))
+                home = ev.get("homeTeam", {})
+                away = ev.get("awayTeam", {})
+                tournament = ev.get("tournament", {})
+                # Convert unix timestamp to ISO
+                start_ts = ev.get("startTimestamp", 0)
+                kickoff = ""
+                if start_ts:
+                    from datetime import datetime, timezone
+                    kickoff = datetime.fromtimestamp(start_ts, tz=timezone.utc).isoformat()
+                fixtures.append(NormalizedFixture(
+                    fixture_id=event_id,
+                    source="sofascore",
+                    sport=tournament.get("category", {}).get("sport", {}).get("slug", "football"),
+                    competition=tournament.get("name", ""),
+                    home_team=home.get("name", ""),
+                    away_team=away.get("name", ""),
+                    kickoff=kickoff,
+                    status="FINISHED" if ev.get("status", {}).get("type") == "finished" else "scheduled",
+                ))
+            return fixtures
         except APINotFoundError:
             return []
 

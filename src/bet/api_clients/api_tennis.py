@@ -12,7 +12,7 @@ from pathlib import Path
 
 from .base_client import APISportsClient, CACHE_DIR
 from .rate_limiter import RateLimiter
-from normalize_stats import NormalizedFixture, NormalizedMatchStats
+from bet.models.normalized import NormalizedFixture, NormalizedMatchStats
 
 
 STAT_TYPE_MAP = {

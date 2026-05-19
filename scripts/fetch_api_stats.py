@@ -55,11 +55,11 @@ except ImportError:
 # SerpAPI last (250/month limit, supplementary Google search data)
 # Disabled sources (2026-05-11): thesportsdb (97.8% fail), balldontlie (100% fail), api-tennis (100% fail)
 FALLBACK_CHAINS = {
-    "football": ["espn-football", "api-football", "football-data-org", "understat", "google-sports", "serpapi"],
-    "basketball": ["espn-basketball", "nba-api", "api-basketball", "google-sports", "serpapi"],
-    "hockey": ["espn-hockey", "api-hockey", "google-sports", "serpapi"],
-    "tennis": ["espn-tennis", "google-sports", "serpapi"],
-    "volleyball": ["espn-volleyball", "api-volleyball", "google-sports", "serpapi"],
+    "football": ["espn-football", "api-football", "football-data-org", "understat", "sofascore", "google-sports", "serpapi"],
+    "basketball": ["espn-basketball", "nba-api", "api-basketball", "sofascore", "google-sports", "serpapi"],
+    "hockey": ["espn-hockey", "api-hockey", "scrapernhl", "moneypuck", "sofascore", "google-sports", "serpapi"],
+    "tennis": ["espn-tennis", "sackmann", "tennis-abstract", "sofascore-tennis", "google-sports", "serpapi"],
+    "volleyball": ["espn-volleyball", "api-volleyball", "sofascore", "google-sports", "serpapi"],
 }
 
 # Tier 1 sports get enriched first
@@ -84,7 +84,8 @@ EXPECTED_STATS_PER_SPORT = {
     ],
     "tennis": [
         "aces", "double_faults", "first_serve_pct",
-        "break_points_won",
+        "first_serve_win_pct", "second_serve_win_pct",
+        "break_points_saved_pct", "hold_pct", "break_pct",
     ],
     "volleyball": [
         "kills", "aces", "blocks", "digs", "assists",

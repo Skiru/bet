@@ -16,7 +16,7 @@ from pathlib import Path
 
 from .base_client import BaseAPIClient, CACHE_DIR
 from .rate_limiter import RateLimiter
-from normalize_stats import NormalizedFixture, NormalizedMatchStats
+from bet.models.normalized import NormalizedFixture, NormalizedMatchStats
 
 # Optional nba_api import
 try:

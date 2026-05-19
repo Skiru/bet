@@ -9,7 +9,7 @@ from pathlib import Path
 
 from .base_client import BaseAPIClient
 from .rate_limiter import RateLimiter
-from normalize_stats import NormalizedFixture, NormalizedMatchStats
+from bet.models.normalized import NormalizedFixture, NormalizedMatchStats
 
 try:
     import understat as understat_pkg

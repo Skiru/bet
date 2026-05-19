@@ -29,7 +29,7 @@ import requests
 
 from .base_client import BaseAPIClient, CACHE_DIR
 from .rate_limiter import RateLimiter
-from normalize_stats import NormalizedFixture, NormalizedMatchStats
+from bet.models.normalized import NormalizedFixture, NormalizedMatchStats
 
 # Add src to path for DB access
 PROJECT_ROOT = Path(__file__).parent.parent.parent

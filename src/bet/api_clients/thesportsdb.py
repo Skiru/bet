@@ -10,7 +10,7 @@ from pathlib import Path
 
 from .base_client import BaseAPIClient, CACHE_DIR
 from .rate_limiter import RateLimiter
-from normalize_stats import NormalizedFixture
+from bet.models.normalized import NormalizedFixture
 
 # TheSportsDB sport name → our internal sport key
 SPORT_MAP = {

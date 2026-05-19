@@ -13,10 +13,10 @@ Usage:
 """
 
 import argparse
-import atexit
 import concurrent.futures
 import json
 import logging
+import math
 import re
 import sys
 import threading
@@ -44,57 +44,34 @@ from fetch_api_stats import (
 from flashscore_enricher import _try_flashscore, _get_flashscore_entity
 from bet.db.connection import get_db
 from bet.db.models import TeamForm
-from bet.db.repositories import SportRepo, StatsRepo, TeamRepo
+from bet.db.repositories import SportRepo, StatsRepo, TeamRepo, KnownMissingRepo
 from bet.stats.market_ranking import SPORT_STAT_KEYS
 
 # ---------------------------------------------------------------------------
-# Known missing teams cache — skip teams that consistently 404
+# Known missing teams — DB-based (replaces old JSON file)
 # ---------------------------------------------------------------------------
-_KNOWN_MISSING_PATH = ROOT_DIR / "betting" / "data" / "known_missing_teams.json"
-_known_missing_teams: dict[str, str] = {}  # "team|sport" → ISO timestamp
 
 
-def _load_known_missing():
-    global _known_missing_teams
-    if _KNOWN_MISSING_PATH.exists():
-        try:
-            _known_missing_teams = json.loads(_KNOWN_MISSING_PATH.read_text())
-        except Exception:
-            _known_missing_teams = {}
-
-
-def _save_known_missing():
-    try:
-        _KNOWN_MISSING_PATH.write_text(json.dumps(_known_missing_teams, indent=2))
-    except Exception as e:
-        logger.debug(f"Failed to save known missing teams: {e}")
-
-
-def _mark_missing(team_name: str, sport: str):
-    key = f"{team_name.lower()}|{sport}"
+def _mark_missing(team_name: str, sport: str, reason: str = "", source: str = ""):
     with _known_missing_lock:
-        _known_missing_teams[key] = datetime.now(timezone.utc).isoformat()
+        try:
+            with get_db() as conn:
+                repo = KnownMissingRepo(conn)
+                repo.mark_missing(team_name, sport, reason=reason, source=source)
+                conn.commit()
+        except Exception as e:
+            logger.debug(f"Failed to mark missing: {team_name} ({sport}): {e}")
 
 
 def _is_known_missing(team_name: str, sport: str) -> bool:
     """Check if a team is known to 404. Entries expire after 7 days."""
-    key = f"{team_name.lower()}|{sport}"
     with _known_missing_lock:
-        ts = _known_missing_teams.get(key)
-        if not ts:
-            return False
         try:
-            recorded = datetime.fromisoformat(ts)
-            if (datetime.now(timezone.utc) - recorded).days > 7:
-                del _known_missing_teams[key]
-                return False
-            return True
+            with get_db() as conn:
+                repo = KnownMissingRepo(conn)
+                return repo.is_missing(team_name, sport)
         except Exception:
             return False
-
-
-_load_known_missing()
-atexit.register(_save_known_missing)
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -298,6 +275,71 @@ def enrich_team(team_name: str, sport: str, max_retries: int = 2) -> dict:
             f"[{api_name}] Enriched {team_name} ({sport}): "
             f"{len(matches_with_stats)} matches, {len(all_stat_keys)} stat keys"
         )
+        break  # Don't return yet — let supplementary enrichment run for hockey
+
+    # Supplementary: MoneyPuck season aggregates for hockey (adds Corsi/Fenwick/xG)
+    if sport == "hockey" and result["status"] != "enriched":
+        try:
+            from bet.api_clients.moneypuck_client import get_team_stats as mp_get_team_stats
+            mp_stats = mp_get_team_stats(team_name)
+            if mp_stats and mp_stats.get("stats"):
+                _save_supplementary_stats(team_name, sport, mp_stats["stats"], "moneypuck")
+                if not result["stats_found"]:
+                    result["stats_found"] = mp_stats["stats"]
+                    result["source"] = "moneypuck"
+                    result["status"] = "partial"  # Season aggregates = partial
+                else:
+                    # Merge MoneyPuck advanced stats into existing stats
+                    result["stats_found"].update(mp_stats["stats"])
+                logger.info(f"[moneypuck] Supplemented {team_name}: {len(mp_stats['stats'])} advanced stat keys")
+        except Exception as e:
+            logger.debug(f"[moneypuck] supplement failed for {team_name}: {e}")
+
+    # Supplementary: ScraperNHL advanced stats for hockey (Corsi/Fenwick/on-ice)
+    if sport == "hockey" and result["status"] != "enriched":
+        try:
+            from bet.api_clients.scrapernhl_wrapper import ScraperNHLClient
+            nhl_client = ScraperNHLClient()
+            nhl_stats = nhl_client.get_team_advanced_stats(team_name)
+            if nhl_stats:
+                _save_supplementary_stats(team_name, sport, nhl_stats, "scrapernhl")
+                if not result["stats_found"]:
+                    result["stats_found"] = nhl_stats
+                    result["source"] = "scrapernhl"
+                    result["status"] = "partial"
+                else:
+                    result["stats_found"].update(nhl_stats)
+                logger.info(f"[scrapernhl] Supplemented {team_name}: {len(nhl_stats)} advanced stat keys")
+        except Exception as e:
+            logger.debug(f"[scrapernhl] supplement failed for {team_name}: {e}")
+
+    # Supplementary: Tennis Abstract for hold_pct/break_pct (if sackmann gave partial)
+    if sport == "tennis" and result["status"] == "partial":
+        missing_keys = set(stat_keys) - set(result["stats_found"].keys())
+        if missing_keys & {"hold_pct", "break_pct"}:
+            try:
+                from bet.api_clients.tennis_abstract import TennisAbstractClient
+                ta_client = TennisAbstractClient(rate_limiter=_rate_limiter)
+                ta_stats = ta_client.get_fixture_stats_for_player(team_name, last_n=10)
+                if ta_stats:
+                    # Extract hold_pct and break_pct from per-match stats
+                    supplementary = {}
+                    for ms in ta_stats:
+                        for key in ("hold_pct", "break_pct"):
+                            if key in ms.stats:
+                                supplementary[key] = True
+                    if supplementary:
+                        _store_in_cache(sport, team_name, ta_stats, "tennis-abstract")
+                        result["stats_found"].update(supplementary)
+                        # Re-check completeness
+                        if set(result["stats_found"].keys()) >= set(stat_keys):
+                            result["status"] = "enriched"
+                        logger.info(f"[tennis-abstract] Supplemented {team_name}: +{list(supplementary.keys())}")
+            except Exception as e:
+                logger.debug(f"[tennis-abstract] supplement failed for {team_name}: {e}")
+
+    # If main chain already succeeded, return now (supplementary is done)
+    if result["status"] in ("enriched", "partial") and result["source"]:
         return result
 
     # Last resort: Flashscore via curl_cffi (entity resolution + results page)
@@ -316,7 +358,12 @@ def enrich_team(team_name: str, sport: str, max_retries: int = 2) -> dict:
                 else:
                     continue
 
-                result["stats_found"] = {k: _safe_avg(v) for k, v in stats.items() if v}
+                flashscore_stats = {k: _safe_avg(v) for k, v in stats.items() if v}
+                # Merge flashscore into existing stats (don't overwrite supplementary data)
+                if result["stats_found"]:
+                    result["stats_found"].update(flashscore_stats)
+                else:
+                    result["stats_found"] = flashscore_stats
                 _save_flashscore_to_db(team_name, sport, stats)
                 logger.info(f"[flashscore] Enriched {team_name} ({sport}): {len(stats)} stat keys")
                 return result
@@ -332,6 +379,49 @@ def enrich_team(team_name: str, sport: str, max_retries: int = 2) -> dict:
     _mark_missing(team_name, sport)
     return result
 
+
+def _save_supplementary_stats(team_name: str, sport: str, stats: dict, source: str) -> None:
+    """Save supplementary stats (MoneyPuck, scrapernhl) to DB via team_form."""
+    with _db_write_lock:
+        try:
+            with get_db() as conn:
+                sport_repo = SportRepo(conn)
+                team_repo = TeamRepo(conn)
+                stats_repo = StatsRepo(conn)
+
+                sport_obj = sport_repo.get_by_name(sport)
+                if not sport_obj:
+                    return
+
+                team = team_repo.find_or_create(team_name, sport_obj.id)
+                now_iso = _now_iso()
+
+                for stat_key, value in stats.items():
+                    if not isinstance(value, (int, float)):
+                        continue
+                    val = float(value)
+                    if math.isnan(val) or math.isinf(val):
+                        continue
+                    # Season aggregates → single-value arrays
+                    form = TeamForm(
+                        id=None,
+                        team_id=team.id,
+                        sport_id=sport_obj.id,
+                        stat_key=stat_key,
+                        l10_values=[val],
+                        l5_values=[val],
+                        l10_avg=val,
+                        l5_avg=val,
+                        h2h_values=[],
+                        h2h_opponent_id=None,
+                        trend="stable",
+                        updated_at=now_iso,
+                        source=source,
+                    )
+                    stats_repo.save_team_form(form)
+                conn.commit()
+        except Exception as e:
+            logger.debug(f"Failed to save {source} stats for {team_name}: {e}")
 
 def _save_flashscore_to_db(team_name: str, sport: str, stats: dict) -> None:
     """Save Flashscore raw stat arrays to DB (fallback path only)."""

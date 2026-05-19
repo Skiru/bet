@@ -65,15 +65,18 @@ def fetch_team_stats(
             match_stats = []
             for fixture in fixtures:
                 try:
-                    stats = client.get_fixture_stats(fixture.fixture_id)
+                    fid = fixture.fixture_id if hasattr(fixture, 'fixture_id') else fixture.get("id", "")
+                    stats = client.get_fixture_stats(fid)
                 except APIRateLimitError:
                     break
                 except APIError:
                     continue
 
                 if stats:
-                    if not stats.date and fixture.kickoff:
-                        stats.date = fixture.kickoff[:10]
+                    if not stats.date:
+                        kickoff = fixture.kickoff if hasattr(fixture, 'kickoff') else fixture.get("date", "")
+                        if kickoff:
+                            stats.date = kickoff[:10]
                     match_stats.append(stats)
 
             if match_stats:
@@ -144,15 +147,18 @@ def fetch_h2h_stats(
             match_stats = []
             for fixture in h2h_fixtures:
                 try:
-                    stats = client.get_fixture_stats(fixture.fixture_id)
+                    fid = fixture.fixture_id if hasattr(fixture, 'fixture_id') else fixture.get("id", "")
+                    stats = client.get_fixture_stats(fid)
                 except APIRateLimitError:
                     break
                 except APIError:
                     continue
 
                 if stats:
-                    if not stats.date and fixture.kickoff:
-                        stats.date = fixture.kickoff[:10]
+                    if not stats.date:
+                        kickoff = fixture.kickoff if hasattr(fixture, 'kickoff') else fixture.get("date", "")
+                        if kickoff:
+                            stats.date = kickoff[:10]
                     match_stats.append(stats)
 
             if match_stats:

@@ -12,7 +12,7 @@ from pathlib import Path
 
 from .base_client import BaseAPIClient, CACHE_DIR
 from .rate_limiter import RateLimiter
-from normalize_stats import NormalizedFixture, NormalizedMatchStats
+from bet.models.normalized import NormalizedFixture, NormalizedMatchStats
 
 # Import the real ESPN client from src/
 _SRC_ROOT = Path(__file__).parent.parent.parent / "src"

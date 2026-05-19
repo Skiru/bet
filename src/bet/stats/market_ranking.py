@@ -325,3 +325,29 @@ def attach_betclic_history(candidates: list, betclic_data) -> None:
                 c.betclic_hit_rate = history.get(key)
         except Exception:
             pass
+
+# ---------------------------------------------------------------------------
+# Standard line detection helper (ERROR 8 fix — 2026-05-19)
+# ---------------------------------------------------------------------------
+
+# Flat set of ALL standard lines for fast lookup
+_ALL_STANDARD_LINES: set[float] = set()
+for _sport_lines in STANDARD_MARKET_LINES.values():
+    for _mkt in _sport_lines:
+        for _line in _mkt.get("lines", []):
+            _ALL_STANDARD_LINES.add(_line)
+
+
+def is_standard_line(sport: str, market: str, line: float) -> bool:
+    """Check if a line value comes from STANDARD_MARKET_LINES (not a real bookmaker).
+    
+    Returns True if the line matches a default standard line for this sport/market.
+    Picks using standard lines should be flagged as LINE_UNVERIFIED.
+    """
+    sport_lines = STANDARD_MARKET_LINES.get(sport, [])
+    for mkt in sport_lines:
+        mkt_name = mkt.get("market", "").lower()
+        if mkt_name in market.lower() or market.lower() in mkt_name:
+            if line in mkt.get("lines", []):
+                return True
+    return False

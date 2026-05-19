@@ -508,6 +508,11 @@ def _try_flashscore(team_name: str, sport: str) -> tuple:
     
     Thread-safe: uses curl_cffi only (no Playwright, no asyncio).
     """
+    # Tennis player pages (/player/{slug}/) consistently 404 on Flashscore.
+    # Use Tennis Abstract + Sackmann instead (dedicated tennis sources).
+    if sport in _INDIVIDUAL_SPORTS:
+        return {}, f"Flashscore skipped for {sport} (use tennis-abstract/sackmann)"
+
     entity_type, slug, entity_id = _get_flashscore_entity(team_name, sport)
     if not slug or not entity_id:
         return {}, "Could not find team ID via Flashscore Search"

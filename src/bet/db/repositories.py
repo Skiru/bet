@@ -2673,3 +2673,86 @@ class TipsterRepo:
                 fetch_time=r["fetch_time"], created_at=r["created_at"] or "",
             ))
         return results
+
+
+# ---------------------------------------------------------------------------
+# KnownMissingRepo — replaces JSON-based known_missing_teams cache
+# ---------------------------------------------------------------------------
+
+class KnownMissingRepo:
+    """Repository for teams/players that consistently 404 across all enrichment sources."""
+
+    def __init__(self, conn):
+        self.conn = conn
+
+    def _ensure_table(self) -> None:
+        """Create table if not exists (idempotent)."""
+        self.conn.execute("""
+            CREATE TABLE IF NOT EXISTS known_missing (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                team_name TEXT NOT NULL,
+                sport TEXT NOT NULL,
+                marked_at TEXT NOT NULL,
+                reason TEXT DEFAULT '',
+                source TEXT DEFAULT '',
+                UNIQUE(team_name, sport)
+            )
+        """)
+
+    def is_missing(self, team_name: str, sport: str, max_age_days: int = 7) -> bool:
+        """Check if a team is known to 404 (entries expire after max_age_days)."""
+        self._ensure_table()
+        row = self.conn.execute(
+            "SELECT marked_at FROM known_missing WHERE team_name = ? AND sport = ?",
+            (team_name.lower().strip(), sport),
+        ).fetchone()
+        if not row:
+            return False
+        from datetime import datetime, timezone, timedelta
+        try:
+            marked = datetime.fromisoformat(row["marked_at"])
+            if (datetime.now(timezone.utc) - marked).days > max_age_days:
+                self.conn.execute(
+                    "DELETE FROM known_missing WHERE team_name = ? AND sport = ?",
+                    (team_name.lower().strip(), sport),
+                )
+                return False
+            return True
+        except (ValueError, TypeError):
+            return False
+
+    def mark_missing(self, team_name: str, sport: str, reason: str = "", source: str = "") -> None:
+        """Mark a team as known-missing."""
+        self._ensure_table()
+        from datetime import datetime, timezone
+        self.conn.execute(
+            """INSERT OR REPLACE INTO known_missing (team_name, sport, marked_at, reason, source)
+               VALUES (?, ?, ?, ?, ?)""",
+            (team_name.lower().strip(), sport, datetime.now(timezone.utc).isoformat(), reason, source),
+        )
+
+    def clear_sport(self, sport: str) -> int:
+        """Clear all entries for a sport. Returns count deleted."""
+        self._ensure_table()
+        cursor = self.conn.execute(
+            "DELETE FROM known_missing WHERE sport = ?", (sport,)
+        )
+        return cursor.rowcount
+
+    def clear_expired(self, days: int = 7) -> int:
+        """Clear entries older than N days. Returns count deleted."""
+        self._ensure_table()
+        from datetime import datetime, timezone, timedelta
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        cursor = self.conn.execute(
+            "DELETE FROM known_missing WHERE marked_at < ?", (cutoff,)
+        )
+        return cursor.rowcount
+
+    def count_by_sport(self) -> dict:
+        """Count entries per sport."""
+        self._ensure_table()
+        rows = self.conn.execute(
+            "SELECT sport, COUNT(*) as cnt FROM known_missing GROUP BY sport"
+        ).fetchall()
+        return {r["sport"]: r["cnt"] for r in rows}

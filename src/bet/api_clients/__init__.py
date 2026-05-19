@@ -160,3 +160,40 @@ try:
     CLIENT_REGISTRY["gemini"] = GeminiClient
 except ImportError:
     pass
+
+try:
+    from bet.api_clients.tennis_abstract import TennisAbstractClient
+    CLIENT_REGISTRY["tennis-abstract"] = TennisAbstractClient
+except ImportError:
+    pass
+
+try:
+    from bet.api_clients.sackmann_adapter import SackmannClient
+    CLIENT_REGISTRY["sackmann"] = SackmannClient
+except ImportError:
+    pass
+
+try:
+    from bet.api_clients.sofascore_tennis import SofascoreTennisClient
+    CLIENT_REGISTRY["sofascore-tennis"] = SofascoreTennisClient
+except ImportError:
+    pass
+
+try:
+    from bet.api_clients.sofascore import SofascoreClient
+    CLIENT_REGISTRY["sofascore"] = SofascoreClient
+except ImportError:
+    pass
+
+try:
+    from bet.api_clients.moneypuck_wrapper import MoneyPuckClient
+    CLIENT_REGISTRY["moneypuck"] = MoneyPuckClient
+except ImportError:
+    pass
+
+try:
+    from bet.api_clients.scrapernhl_wrapper import ScraperNHLClient
+    CLIENT_REGISTRY["scrapernhl"] = ScraperNHLClient
+except ImportError:
+    pass
+

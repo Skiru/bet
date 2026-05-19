@@ -1412,8 +1412,47 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
                 entry["extended_pool_reason"] = dq_result.get("message", "Minimal data quality")
                 extended_pool.append(entry)
             else:
-                entry["status"] = "APPROVED"
-                approved.append(entry)
+                # SYNTHETIC DATA GATE — db-synthetic source = Extended Pool only
+                source = (c.get("best_market") or {}).get("source", "")
+                markets_evaluated = c.get("market_count") or c.get("markets_evaluated", 0) or 0
+                hit_rate_str = (c.get("best_market") or {}).get("hit_rate_l10", "")
+                
+                # Parse hit rate like "5/10" → 0.5
+                hit_rate_val = 0.0
+                if hit_rate_str and "/" in str(hit_rate_str):
+                    try:
+                        num, den = str(hit_rate_str).split("/", 1)
+                        den_f = float(den)
+                        hit_rate_val = float(num) / den_f if den_f > 0 else 0.0
+                    except (ValueError, TypeError):
+                        pass
+                elif hit_rate_str:
+                    try:
+                        hit_rate_val = float(hit_rate_str)
+                    except (ValueError, TypeError):
+                        pass
+
+                # Route to extended pool if synthetic, insufficient markets, or coin-flip hit rate
+                extended_reasons = []
+                if source == "db-synthetic":
+                    extended_reasons.append(f"SYNTHETIC_DATA: source={source}")
+                # Use sport-specific minimum (tennis=2, volleyball=2, others=3)
+                _sport = (c.get("sport") or "").lower()
+                _min_mkts = {"football": 3, "basketball": 3, "tennis": 2, "volleyball": 2, "hockey": 3}.get(_sport, 2)
+                if markets_evaluated < _min_mkts and markets_evaluated > 0:
+                    extended_reasons.append(f"INSUFFICIENT_MARKETS: {markets_evaluated}/{_min_mkts} required")
+                if hit_rate_val > 0 and hit_rate_val <= 0.50:
+                    extended_reasons.append(f"COIN_FLIP: hit_rate={hit_rate_str} (≤50% = no edge)")
+                
+                if extended_reasons:
+                    entry["status"] = "APPROVED"
+                    entry["advisory_tier"] = "FLAGGED"
+                    entry.setdefault("tier_caps", []).extend(extended_reasons)
+                    entry["extended_pool_reason"] = "; ".join(extended_reasons)
+                    extended_pool.append(entry)
+                else:
+                    entry["status"] = "APPROVED"
+                    approved.append(entry)
 
     diversity = check_sport_diversity(approved)
 

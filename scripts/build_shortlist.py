@@ -415,6 +415,16 @@ def _load_tipster_events(date: str) -> set[str]:
                     break
     return events
 
+# ITF low-tier filter (§SCAN — ERROR 1 prevention)
+# ITF M15/W15/W25 events have ZERO data coverage in any source.
+# Only keep ITF events if competition suggests qualifying for major tournaments.
+ITF_LOW_TIER_RE = re.compile(
+    r"\b(itf|futures)\b.*\b(m15|w15|m25|w25|w35)\b"
+    r"|\b(m15|w15|m25|w25|w35)\b.*\b(itf|futures)\b"
+    r"|^\s*(m15|w15|m25|w25|w35)\b",  # Bare tier codes at start (e.g. "M25 Szczecin")
+    re.I,
+)
+ITF_QUALIFYING_KEYWORDS = {"qualifying", "roland garros", "french open", "wimbledon", "us open", "australian open"}
 
 def build_shortlist(
     date: str,
@@ -484,9 +494,19 @@ def build_shortlist(
         r"marathon\s*bet|william\s+hill|888sport|paddy\s+power|coral|ladbrokes|stake)\b",
         re.I,
     )
+    # ITF low-tier filter moved to module level
+
     filtered = []
     garbage_count = 0
     for score, event in scored:
+        # ITF low-tier filter: skip M15/W15/M25/W25 unless Grand Slam qualifying
+        if event.get("sport") == "tennis":
+            comp = (event.get("competition") or "").lower()
+            if ITF_LOW_TIER_RE.search(comp):
+                if not any(kw in comp for kw in ITF_QUALIFYING_KEYWORDS):
+                    garbage_count += 1
+                    continue
+
         home = event.get("home_team", "")
         away = event.get("away_team", "")
         # Too short — structural artifacts or empty
@@ -695,8 +715,11 @@ def build_shortlist(
 
     if remaining > 0:
         if not uncapped:
-            max_per_sport_key = max(top_n // 4, 8)  # KEY sports: max 25%
+            max_per_sport_key = max(top_n // 3, 8)  # KEY sports: max 33%
             max_per_sport_sup = max(top_n // 8, 4)  # SUPPORT sports: max ~12%
+        else:
+            # Even uncapped, limit per-sport to 35% of total to prevent tennis flood
+            max_per_sport = max(int(len(scored) * 0.35), 50)
 
         for score, event in scored:
             key = f"{event.get('home_team','')}|{event.get('away_team','')}|{event.get('kickoff','')}"
@@ -706,6 +729,9 @@ def build_shortlist(
             if not uncapped:
                 cap = max_per_sport_key if sport in TIER1_SPORTS else max_per_sport_sup
                 if sport_counts[sport] >= cap:
+                    continue
+            else:
+                if sport_counts[sport] >= max_per_sport:
                     continue
             selected.append((score, event))
             selected_keys.add(key)
