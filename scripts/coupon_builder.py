@@ -2452,7 +2452,10 @@ def main():
         try:
             betclic_data = json.loads(betclic_validation_path.read_text(encoding="utf-8"))
             validation_results = betclic_data.get("validation")
+            betclic_events = betclic_data.get("events", [])
+
             if validation_results:
+                # Phase 2 validation available (--validate-coupon was used)
                 coupons_data["betclic_market_validation"] = validation_results
                 unavailable = [v for v in validation_results if v.get("betclic_available") is False]
                 if args.verbose:
@@ -2461,7 +2464,6 @@ def main():
                               unavailable=len(unavailable))
                 
                 # Hard-reject: remove picks from core that are betclic_unavailable
-                # Track (event, market_type) pairs — not just event name
                 unavailable_pairs = set()
                 for v in validation_results:
                     if v.get("betclic_available") is False:
@@ -2484,11 +2486,164 @@ def main():
                             filtered_singles.append(s)
                     if rejected_by_betclic:
                         coupons_data["singles"] = filtered_singles
-                        # Add to extended pool
                         ext = coupons_data.setdefault("extended_pool", [])
                         ext.extend(rejected_by_betclic)
                         if args.verbose:
                             out.warning(f"Betclic filter: {len(rejected_by_betclic)} singles moved to Extended Pool")
+
+            elif betclic_events:
+                # Fallback: use events data to build availability map
+                # Map pick market names → betclic confirmed_market_types slugs
+                MARKET_NAME_TO_SLUG = {
+                    "fouls": ["fouls", "fouls_total"],
+                    "corners": ["corners", "corners_total", "corners_1h"],
+                    "cards": ["cards", "cards_total"],
+                    "shots": ["shots_on_target", "shots_total"],
+                    "goals": ["goals_total", "goals_1h", "goals_2h", "btts", "team_goals"],
+                    "games": ["games_total"],
+                    "sets": ["sets_total"],
+                    "points": ["points_total", "points"],
+                    "double_faults": ["double_faults"],
+                    "aces": ["aces"],
+                }
+
+                def _pick_market_category(market_name: str) -> str:
+                    """Extract market category from pick market name."""
+                    mn = market_name.lower()
+                    if "foul" in mn:
+                        return "fouls"
+                    if "corner" in mn:
+                        return "corners"
+                    if "card" in mn:
+                        return "cards"
+                    if "shot" in mn:
+                        return "shots"
+                    if "goal" in mn or "btts" in mn:
+                        return "goals"
+                    if "game" in mn:
+                        return "games"
+                    if "set" in mn:
+                        return "sets"
+                    if "point" in mn:
+                        return "points"
+                    if "double fault" in mn:
+                        return "double_faults"
+                    if "ace" in mn:
+                        return "aces"
+                    return ""
+
+                def _match_event(event_name: str, home: str, away: str) -> bool:
+                    """Fuzzy match betclic event name to pick teams."""
+                    en = event_name.lower()
+                    h = home.lower().split()[0] if home else ""
+                    a = away.lower().split()[0] if away else ""
+                    return bool(h and a and h in en and a in en)
+
+                # Build event→available_slugs map
+                event_availability = {}
+                for ev in betclic_events:
+                    confirmed = set(ev.get("confirmed_market_types") or [])
+                    event_availability[ev.get("event_name", "")] = confirmed
+
+                if args.verbose:
+                    out.event("betclic_events_fallback",
+                              total_events=len(betclic_events),
+                              with_markets=sum(1 for c in event_availability.values() if c))
+
+                # Filter singles
+                if coupons_data.get("singles"):
+                    filtered_singles = []
+                    rejected_by_betclic = []
+                    for s in coupons_data["singles"]:
+                        legs = s.get("legs", [])
+                        if not legs:
+                            filtered_singles.append(s)
+                            continue
+                        leg = legs[0]
+                        home = leg.get("home_team", "")
+                        away = leg.get("away_team", "")
+                        best_market = leg.get("best_market", {})
+                        market_name = best_market.get("name", "")
+                        category = _pick_market_category(market_name)
+
+                        # Find matching betclic event
+                        matched_event = None
+                        for ev_name, ev_slugs in event_availability.items():
+                            if _match_event(ev_name, home, away):
+                                matched_event = (ev_name, ev_slugs)
+                                break
+
+                        if matched_event and category:
+                            ev_name, ev_slugs = matched_event
+                            # Check if ANY slug for this category is confirmed
+                            category_slugs = MARKET_NAME_TO_SLUG.get(category, [])
+                            is_available = any(slug in ev_slugs for slug in category_slugs)
+                            if not is_available:
+                                s["rejection_reason"] = f"RYNEK NIEDOSTĘPNY NA BETCLIC ({category} not in {sorted(ev_slugs)})"
+                                rejected_by_betclic.append(s)
+                                continue
+                            # Market confirmed available → keep
+                            filtered_singles.append(s)
+                        elif not matched_event and category:
+                            # Event NOT found in Betclic scan → unverified, move to extended
+                            s["rejection_reason"] = "WYDARZENIE NIEZWERYFIKOWANE NA BETCLIC (nie znaleziono w skanie)"
+                            rejected_by_betclic.append(s)
+                        else:
+                            # No category detected (e.g., match winner) → keep
+                            filtered_singles.append(s)
+
+                    if rejected_by_betclic:
+                        coupons_data["singles"] = filtered_singles
+                        ext = coupons_data.setdefault("extended_pool", [])
+                        ext.extend(rejected_by_betclic)
+                        if args.verbose:
+                            out.warning(f"Betclic events filter: {len(rejected_by_betclic)} singles moved to Extended Pool")
+
+                # Also filter multi-leg coupons (core_coupons + combos)
+                def _leg_is_betclic_available(leg: dict) -> bool:
+                    """Check if a coupon leg's market is confirmed available on Betclic."""
+                    home = leg.get("home_team", "")
+                    away = leg.get("away_team", "")
+                    best_market = leg.get("best_market", {})
+                    market_name = best_market.get("name", "")
+                    cat = _pick_market_category(market_name)
+                    if not cat:
+                        return True  # No stat category (match_winner etc.) → allow
+                    # Find matching event
+                    for ev_name, ev_slugs in event_availability.items():
+                        if _match_event(ev_name, home, away):
+                            cat_slugs = MARKET_NAME_TO_SLUG.get(cat, [])
+                            return any(slug in ev_slugs for slug in cat_slugs)
+                    # Event not found in Betclic scan → not available
+                    return False
+
+                for coupon_key in ("core_coupons", "combos"):
+                    coupons_list = coupons_data.get(coupon_key, [])
+                    if not coupons_list:
+                        continue
+                    filtered_coupons = []
+                    removed_count = 0
+                    for coupon in coupons_list:
+                        legs = coupon.get("legs", [])
+                        valid_legs = [lg for lg in legs if _leg_is_betclic_available(lg)]
+                        if len(valid_legs) >= 2:
+                            coupon["legs"] = valid_legs
+                            filtered_coupons.append(coupon)
+                        else:
+                            removed_count += 1
+                    coupons_data[coupon_key] = filtered_coupons
+                    if removed_count and args.verbose:
+                        out.warning(f"Betclic filter: removed {removed_count} {coupon_key} (insufficient valid legs)")
+
+                # Update banker: must be from surviving singles
+                remaining_singles = coupons_data.get("singles", [])
+                if remaining_singles:
+                    def _bm_safe(leg):
+                        return leg.get("best_market") or {}
+                    new_banker = max(remaining_singles, key=lambda s: _bm_safe(s["legs"][0]).get("safety_score", 0) if s.get("legs") else 0)
+                    coupons_data["banker"] = new_banker
+                else:
+                    coupons_data["banker"] = None
 
         except Exception as e:
             if args.verbose:
