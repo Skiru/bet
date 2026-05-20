@@ -42,6 +42,11 @@ from fetch_api_stats import (
     _store_in_cache,
 )
 from flashscore_enricher import _try_flashscore, _get_flashscore_entity
+from _helpers.basketball_rich_completion import (
+    complete_basketball_rich_stats,
+    get_basketball_rich_stat_keys,
+    get_missing_basketball_rich_stat_keys,
+)
 from _helpers.football_flashscore_html_enrichment import (
     complete_football_rich_stats,
     get_football_rich_stat_keys,
@@ -167,6 +172,18 @@ def _set_result_status(result: dict) -> None:
             result["status"] = "failed"
         return
 
+    if sport == "basketball":
+        rich_keys = get_basketball_rich_stat_keys(found_keys)
+        missing_rich = get_missing_basketball_rich_stat_keys(found_keys)
+        result["basketball_rich_keys_found"] = sorted(rich_keys)
+        result["basketball_missing_rich_keys"] = missing_rich
+        result["basketball_rich_complete"] = bool(rich_keys) and not missing_rich
+        if found_keys:
+            result["status"] = "enriched" if result["basketball_rich_complete"] else "partial"
+        else:
+            result["status"] = "failed"
+        return
+
     expected = set(SPORT_STAT_KEYS.get(sport, []))
     if found_keys >= expected:
         result["status"] = "enriched"
@@ -271,6 +288,158 @@ def _apply_football_rich_completion(result: dict, max_fixtures: int = 5) -> dict
     return result
 
 
+def _needs_basketball_rich_completion(result: dict) -> bool:
+    return result.get("sport") == "basketball" and bool(
+        get_missing_basketball_rich_stat_keys(_result_stat_keys(result))
+    )
+
+
+def _apply_basketball_rich_completion(
+    result: dict,
+    max_fixtures: int = 5,
+    allow_basketball_rich_completion: bool = True,
+) -> dict:
+    if result.get("sport") != "basketball":
+        return result
+
+    _set_result_status(result)
+    completion = result.setdefault(
+        "basketball_completion",
+        {
+            "needed": False,
+            "attempted": False,
+            "success": False,
+            "source": "api-basketball",
+            "status": "not_needed",
+            "fixtures_scanned": 0,
+            "matches_persisted": 0,
+            "rich_keys_added": [],
+            "missing_after": [],
+            "error": None,
+            "failure_reason": None,
+        },
+    )
+
+    error_text = (result.get("error") or "").lower()
+    if "known missing team" in error_text or "missing team name" in error_text:
+        completion.update(
+            {
+                "needed": False,
+                "attempted": False,
+                "success": False,
+                "status": "skipped",
+                "error": result.get("error"),
+                "missing_after": result.get("basketball_missing_rich_keys", []),
+            }
+        )
+        return result
+
+    completion["needed"] = _needs_basketball_rich_completion(result)
+    if not completion["needed"]:
+        completion["status"] = "not_needed"
+        completion["missing_after"] = result.get("basketball_missing_rich_keys", [])
+        return result
+
+    if not allow_basketball_rich_completion:
+        completion.update(
+            {
+                "needed": True,
+                "attempted": False,
+                "success": False,
+                "status": "skipped",
+                "error": result.get("error"),
+                "failure_reason": "disabled",
+                "missing_after": result.get("basketball_missing_rich_keys", []),
+            }
+        )
+        return result
+
+    existing_rich = set(result.get("basketball_rich_keys_found", []))
+    helper_result = complete_basketball_rich_stats(result["team"], result["sport"], max_fixtures=max_fixtures)
+    added_rich = [
+        key for key in helper_result.get("rich_keys_found", []) if key not in existing_rich
+    ]
+
+    completion.update(
+        {
+            "needed": True,
+            "attempted": True,
+            "source": helper_result.get("source", "api-basketball"),
+            "status": helper_result.get("status", "failed"),
+            "fixtures_scanned": helper_result.get("fixtures_scanned", 0),
+            "matches_persisted": helper_result.get("matches_persisted", 0),
+            "rich_keys_added": added_rich,
+            "error": helper_result.get("error"),
+            "failure_reason": helper_result.get("failure_reason"),
+        }
+    )
+
+    if helper_result.get("status") in ("enriched", "partial") and helper_result.get("rich_keys_found"):
+        for stat_key in helper_result["rich_keys_found"]:
+            result.setdefault("stats_found", {})[stat_key] = True
+        if result.get("source") and result["source"] != "api-basketball":
+            supplementary_sources = result.setdefault("supplementary_sources", [])
+            if "api-basketball" not in supplementary_sources:
+                supplementary_sources.append("api-basketball")
+        else:
+            result["source"] = "api-basketball"
+        result["error"] = None
+    elif helper_result.get("error"):
+        errors = [
+            message
+            for message in [result.get("error"), f"basketball-completion: {helper_result['error']}" ]
+            if message
+        ]
+        result["error"] = "; ".join(errors[-2:])
+
+    # Success means the helper added at least one rich key; `status` still
+    # carries whether the team reached full 11-key coverage or remains partial.
+    completion["success"] = bool(added_rich)
+    _set_result_status(result)
+    completion["missing_after"] = result.get("basketball_missing_rich_keys", [])
+    return result
+
+
+def _summarize_enrichment_results(results: list[dict], extra_metrics: dict | None = None) -> dict:
+    enriched = sum(1 for r in results if r.get("status") == "enriched")
+    partial = sum(1 for r in results if r.get("status") == "partial")
+    failed = sum(1 for r in results if r.get("status") == "failed")
+    football_eligible = sum(
+        1 for r in results if r.get("sport") == "football" and r.get("football_completion", {}).get("needed")
+    )
+    football_completed_via_flashscore_html = sum(
+        1 for r in results if r.get("sport") == "football" and r.get("football_completion", {}).get("success")
+    )
+    football_still_missing_rich = sum(
+        1 for r in results if r.get("sport") == "football" and r.get("football_missing_rich_keys")
+    )
+    basketball_eligible = sum(
+        1 for r in results if r.get("sport") == "basketball" and r.get("basketball_completion", {}).get("needed")
+    )
+    basketball_completed = sum(
+        1 for r in results if r.get("sport") == "basketball" and r.get("basketball_completion", {}).get("success")
+    )
+    basketball_still_missing = sum(
+        1 for r in results if r.get("sport") == "basketball" and r.get("basketball_missing_rich_keys")
+    )
+
+    metrics = {
+        "enriched": enriched,
+        "partial": partial,
+        "failed": failed,
+        "total": len(results),
+        "football_rich_eligible": football_eligible,
+        "football_completed_via_flashscore_html": football_completed_via_flashscore_html,
+        "football_still_missing_rich": football_still_missing_rich,
+        "basketball_rich_eligible": basketball_eligible,
+        "basketball_completed": basketball_completed,
+        "basketball_still_missing_rich": basketball_still_missing,
+    }
+    if extra_metrics:
+        metrics.update(extra_metrics)
+    return metrics
+
+
 def _get_competition_for_team(team_name: str, sport: str) -> str:
     """Try to resolve competition name from DB fixtures for better ESPN league matching."""
     try:
@@ -305,6 +474,7 @@ def enrich_team(
     max_retries: int = 2,
     skip_known_missing: bool = False,
     allow_football_rich_completion: bool = True,
+    allow_basketball_rich_completion: bool = True,
 ) -> dict:
     """Fetch and save stats for a single team via API client fallback chains.
 
@@ -466,6 +636,11 @@ def enrich_team(
 
     if sport == "football" and allow_football_rich_completion:
         result = _apply_football_rich_completion(result)
+    elif sport == "basketball" and allow_basketball_rich_completion:
+        result = _apply_basketball_rich_completion(
+            result,
+            allow_basketball_rich_completion=allow_basketball_rich_completion,
+        )
     elif result["stats_found"]:
         _set_result_status(result)
 
@@ -503,6 +678,11 @@ def enrich_team(
                     and not result.get("football_completion", {}).get("attempted")
                 ):
                     result = _apply_football_rich_completion(result)
+                elif sport == "basketball" and allow_basketball_rich_completion:
+                    result = _apply_basketball_rich_completion(
+                        result,
+                        allow_basketball_rich_completion=allow_basketball_rich_completion,
+                    )
                 logger.info(f"[flashscore] Enriched {team_name} ({sport}): {len(stats)} stat keys")
                 return result
 
@@ -753,7 +933,12 @@ def _save_h2h_to_db(team_a: str, team_b: str, sport: str, stats: dict) -> None:
 # Batch enrichment
 # ---------------------------------------------------------------------------
 
-def batch_enrich(teams: list[dict], max_workers: int = 4, skip_known_missing: bool = False) -> list[dict]:
+def batch_enrich(
+    teams: list[dict],
+    max_workers: int = 4,
+    skip_known_missing: bool = False,
+    allow_basketball_rich_completion: bool = True,
+) -> list[dict]:
     """Enrich multiple teams in parallel.
 
     Input: [{"team": "FC Barcelona", "sport": "football"}]
@@ -779,6 +964,7 @@ def batch_enrich(teams: list[dict], max_workers: int = 4, skip_known_missing: bo
                 sport,
                 skip_known_missing=skip_known_missing,
                 allow_football_rich_completion=False if sport == "football" else True,
+                allow_basketball_rich_completion=allow_basketball_rich_completion,
             )
             futures[fut] = entry
 
@@ -1033,30 +1219,10 @@ def main():
             sys.exit(1)
         results = batch_enrich(teams, max_workers=args.workers)
         print(json.dumps(results, indent=2, ensure_ascii=False))
-
-        enriched = sum(1 for r in results if r.get("status") == "enriched")
-        partial = sum(1 for r in results if r.get("status") == "partial")
-        failed = sum(1 for r in results if r.get("status") == "failed")
-        football_eligible = sum(
-            1 for r in results if r.get("sport") == "football" and r.get("football_completion", {}).get("needed")
-        )
-        football_completed_via_flashscore_html = sum(
-            1 for r in results if r.get("sport") == "football" and r.get("football_completion", {}).get("success")
-        )
-        football_still_missing_rich = sum(
-            1 for r in results if r.get("sport") == "football" and r.get("football_missing_rich_keys")
-        )
+        summary_metrics = _summarize_enrichment_results(results)
         out.summary(
-            verdict="OK" if enriched > 0 else "PARTIAL",
-            metrics={
-                "enriched": enriched,
-                "partial": partial,
-                "failed": failed,
-                "total": len(results),
-                "football_rich_eligible": football_eligible,
-                "football_completed_via_flashscore_html": football_completed_via_flashscore_html,
-                "football_still_missing_rich": football_still_missing_rich,
-            },
+            verdict="OK" if summary_metrics["enriched"] > 0 else "PARTIAL",
+            metrics=summary_metrics,
         )
 
     elif args.date:
@@ -1099,19 +1265,6 @@ def main():
         results = batch_enrich(missing, max_workers=args.workers, skip_known_missing=bool(args.shortlist))
         print(json.dumps(results, indent=2, ensure_ascii=False))
 
-        enriched = sum(1 for r in results if r.get("status") == "enriched")
-        partial = sum(1 for r in results if r.get("status") == "partial")
-        failed = sum(1 for r in results if r.get("status") == "failed")
-        football_eligible = sum(
-            1 for r in results if r.get("sport") == "football" and r.get("football_completion", {}).get("needed")
-        )
-        football_completed_via_flashscore_html = sum(
-            1 for r in results if r.get("sport") == "football" and r.get("football_completion", {}).get("success")
-        )
-        football_still_missing_rich = sum(
-            1 for r in results if r.get("sport") == "football" and r.get("football_missing_rich_keys")
-        )
-
         # Gemini news enrichment (feature flag --news)
         news_count = 0
         if args.news:
@@ -1142,15 +1295,10 @@ def main():
             except Exception as e:
                 print(f"[enrich] Gemini news enrichment failed (non-fatal): {e}")
 
+        summary_metrics = _summarize_enrichment_results(results, extra_metrics={"news_enriched": news_count})
         out.summary(
-            verdict="OK" if enriched > 0 else "PARTIAL",
-            metrics={
-                "enriched": enriched, "partial": partial, "failed": failed,
-                "total": len(results), "news_enriched": news_count,
-                "football_rich_eligible": football_eligible,
-                "football_completed_via_flashscore_html": football_completed_via_flashscore_html,
-                "football_still_missing_rich": football_still_missing_rich,
-            },
+            verdict="OK" if summary_metrics["enriched"] > 0 else "PARTIAL",
+            metrics=summary_metrics,
         )
 
     else:

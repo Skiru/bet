@@ -18,12 +18,25 @@ Exit codes:
 import argparse
 import json
 import sys
+from collections import Counter
 from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from bet.db.connection import get_db  # noqa: E402
+from bet.stats.rich_coverage import classify_rich_coverage, summarize_rich_coverage  # noqa: E402
+from bet.stats.fallback_chains import RICH_COMPLETION_POLICY  # noqa: E402
+
+FOOTBALL_RICH_KEYS = {
+    "corners",
+    "yellow_cards",
+    "red_cards",
+    "shots",
+    "shots_on_target",
+    "fouls",
+    "possession",
+}
 
 
 def report_quality():
@@ -135,10 +148,96 @@ def report_source_health():
             print(f"  {row[0]:30s}: {row[1]:>5} req, {row[2]:>3} fail ({row[3]}%)")
 
 
+def report_rich_coverage(betting_date: str, sport: str):
+    """Team_form coverage by richness bucket for a single sport."""
+    print(f"=== {sport.upper()} RICH COVERAGE for {betting_date} ===\n")
+
+    if sport == "football":
+        required_keys = sorted(FOOTBALL_RICH_KEYS)
+        allowed_sources = None
+    else:
+        policy = RICH_COMPLETION_POLICY.get(sport)
+        if not policy:
+            print(f"  No rich coverage policy for {sport}")
+            return
+        required_keys = list(policy["required_rich_keys"])
+        allowed_sources = {policy["canonical_source"], *policy["supporting_sources"]}
+
+    with get_db() as conn:
+        sport_row = conn.execute("SELECT id FROM sports WHERE name = ?", (sport,)).fetchone()
+        if not sport_row:
+            print(f"  {sport} sport not found")
+            return
+
+        teams = conn.execute(
+            """SELECT DISTINCT t.id, t.name
+            FROM fixtures f
+            JOIN teams t ON t.id IN (f.home_team_id, f.away_team_id)
+            WHERE date(f.kickoff) = ? AND f.sport_id = ?
+            ORDER BY t.name""",
+            (betting_date, sport_row[0]),
+        ).fetchall()
+
+        if not teams:
+            print(f"  No {sport} teams for this date")
+            return
+
+        team_details = []
+        rich_source_presence = Counter()
+        baseline_source_presence = Counter()
+        failure_reasons = Counter()
+
+        for team_id, team_name in teams:
+            rows = conn.execute(
+                "SELECT stat_key, source FROM team_form WHERE team_id = ? AND sport_id = ?",
+                (team_id, sport_row[0]),
+            ).fetchall()
+            detail = classify_rich_coverage(rows, required_keys, allowed_sources)
+            detail["team"] = team_name
+            team_details.append(detail)
+            for source in detail["sources"]:
+                if not source:
+                    continue
+                if detail["bucket"] == "rich" and source != "league-profile-baseline":
+                    rich_source_presence[source] += 1
+                elif detail["bucket"] == "baseline_only":
+                    baseline_source_presence[source] += 1
+
+            if detail["bucket"] != "rich" and detail["missing_rich_keys"]:
+                failure_reasons[", ".join(detail["missing_rich_keys"][:3])] += 1
+
+        summary = summarize_rich_coverage(team_details)
+        print(f"  Total teams: {summary['total']}")
+        print(f"  Eligible: {summary['eligible']}")
+        print(f"  Rich: {summary['rich']}")
+        print(f"  Baseline only: {summary['baseline_only']}")
+        print(f"  Partial: {summary['partial']}")
+        print(f"  No data: {summary['no_data']}")
+        print(f"  Completion rate: {summary['completion_rate']}%")
+
+        print("\n  Rich source presence:")
+        for source in sorted(rich_source_presence):
+            print(f"    {source:24s}: {rich_source_presence[source]}")
+
+        print("\n  Baseline source presence:")
+        for source in sorted(baseline_source_presence):
+            print(f"    {source:24s}: {baseline_source_presence[source]}")
+
+        if failure_reasons:
+            print("\n  Failure reasons:")
+            for reason in sorted(failure_reasons):
+                print(f"    {reason:24s}: {failure_reasons[reason]}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Quick DB reports")
-    parser.add_argument("--report", required=True, choices=["quality", "gaps", "scan", "source-health"])
+    parser.add_argument(
+        "--report",
+        required=True,
+        choices=["quality", "gaps", "scan", "source-health", "rich-coverage", "football-rich-coverage"],
+    )
     parser.add_argument("--date", default=str(date.today()), help="Betting date (YYYY-MM-DD)")
+    parser.add_argument("--sport", default="football", choices=sorted({"football", *RICH_COMPLETION_POLICY.keys()}))
     args = parser.parse_args()
 
     if args.report == "quality":
@@ -149,6 +248,10 @@ def main():
         report_scan(args.date)
     elif args.report == "source-health":
         report_source_health()
+    elif args.report == "football-rich-coverage":
+        report_rich_coverage(args.date, "football")
+    elif args.report == "rich-coverage":
+        report_rich_coverage(args.date, args.sport)
 
 
 if __name__ == "__main__":

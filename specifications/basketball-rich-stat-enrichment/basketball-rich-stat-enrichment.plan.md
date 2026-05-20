@@ -174,13 +174,13 @@ Project conventions, coding standards, and patterns discovered during planning. 
 
 **Definition of Done**:
 
-- [ ] Basketball declares `required_rich_keys`, `canonical_source`, `supporting_sources`, and any `aggregate_only_sources` in `src/bet/stats/fallback_chains.py::RICH_COMPLETION_POLICY`
-- [ ] Basketball `required_rich_keys` are exactly `rebounds`, `assists`, `steals`, `blocks`, `turnovers`, `fouls`, `fg_pct`, `three_pct`, `ft_pct`, `points_in_paint`, and `fast_break_points`
-- [ ] The shared `scripts/rich_stats_probe.py` supports `--sport basketball` and reports source choice, fixtures scanned, `rich`, `baseline_only`, `partial`, and `no_data` bucket counts, completion rate, and failure reasons
-- [ ] `scripts/db_report.py` supports `--report rich-coverage --sport basketball --date <date>`
-- [ ] The shared contract still writes only through `_store_in_cache()`
-- [ ] Basketball is the first and only child plan that introduces the initial shared registry / probe / generic report surfaces
-- [ ] `football-rich-coverage` remains available as a thin backward-compatible alias to the new generic rich-coverage implementation until callers are migrated
+- [x] Basketball declares `required_rich_keys`, `canonical_source`, `supporting_sources`, and any `aggregate_only_sources` in `src/bet/stats/fallback_chains.py::RICH_COMPLETION_POLICY`
+- [x] Basketball `required_rich_keys` are exactly `rebounds`, `assists`, `steals`, `blocks`, `turnovers`, `fouls`, `fg_pct`, `three_pct`, `ft_pct`, `points_in_paint`, and `fast_break_points`
+- [x] The shared `scripts/rich_stats_probe.py` supports `--sport basketball` and reports source choice, fixtures scanned, `rich`, `baseline_only`, `partial`, and `no_data` bucket counts, completion rate, and failure reasons
+- [x] `scripts/db_report.py` supports `--report rich-coverage --sport basketball --date <date>`
+- [x] The shared contract still writes only through `_store_in_cache()`
+- [x] Basketball is the first and only child plan that introduces the initial shared registry / probe / generic report surfaces
+- [x] `football-rich-coverage` remains available as a thin backward-compatible alias to the new generic rich-coverage implementation until callers are migrated
 
 #### Task 1.2 - [CREATE] Build the bounded basketball completion adapter
 
@@ -188,11 +188,11 @@ Project conventions, coding standards, and patterns discovered during planning. 
 
 **Definition of Done**:
 
-- [ ] `api-basketball` is the canonical completion source
-- [ ] `nba-api` and `espn-basketball` are bounded supporting sources only where the policy allows
-- [ ] Empty `espn-basketball` responses for non-NBA fixtures are treated as unsupported-league skips, not degraded-source failures
-- [ ] Completion success is based on basketball required rich keys rather than any non-empty payload
-- [ ] The adapter returns the base 7-key contract used by the shared enrichment flow: `status` (`str`), `fixtures_scanned` (`int`), `matches_persisted` (`int`), `rich_keys_found` (`list[str]`), `missing_rich_keys` (`list[str]`), `error` (`str | None`), and `failure_reason` (`str | None`)
+- [x] `api-basketball` is the canonical completion source
+- [x] `nba-api` and `espn-basketball` are bounded supporting sources only where the policy allows
+- [x] Empty `espn-basketball` responses for non-NBA fixtures are treated as unsupported-league skips, not degraded-source failures
+- [x] Completion success is based on basketball required rich keys rather than any non-empty payload
+- [x] The adapter returns the base 7-key contract used by the shared enrichment flow: `status` (`str`), `fixtures_scanned` (`int`), `matches_persisted` (`int`), `rich_keys_found` (`list[str]`), `missing_rich_keys` (`list[str]`), `error` (`str | None`), and `failure_reason` (`str | None`)
 
 ### Phase 2: Owner Wiring and Focused Tests
 
@@ -202,10 +202,10 @@ Project conventions, coding standards, and patterns discovered during planning. 
 
 **Definition of Done**:
 
-- [ ] Basketball teams or fixtures that remain partial after baseline enrichment can trigger the rich-completion helper from the owner flow
-- [ ] AGENT_SUMMARY reports basketball `eligible`, `completed`, and `still_missing` counts
-- [ ] Source provenance remains explicit and no new ownership is introduced in `scripts/run_scrapers.py`
-- [ ] Branch B settlement code paths remain untouched
+- [x] Basketball teams or fixtures that remain partial after baseline enrichment can trigger the rich-completion helper from the owner flow
+- [x] AGENT_SUMMARY reports basketball `eligible`, `completed`, and `still_missing` counts
+- [x] Source provenance remains explicit and no new ownership is introduced in `scripts/run_scrapers.py`
+- [x] Branch B settlement code paths remain untouched
 
 #### Task 2.2 - [CREATE] Add focused basketball adapter, routing, and probe tests
 
@@ -213,10 +213,10 @@ Project conventions, coding standards, and patterns discovered during planning. 
 
 **Definition of Done**:
 
-- [ ] Tests cover adapter persistence through `_store_in_cache()`
-- [ ] Tests cover owner routing from `scripts/data_enrichment_agent.py`
-- [ ] Tests cover no-write probe behavior and completion semantics
-- [ ] Existing basketball provider tests remain passing
+- [x] Tests cover adapter persistence through `_store_in_cache()`
+- [x] Tests cover owner routing from `scripts/data_enrichment_agent.py`
+- [x] Tests cover no-write probe behavior and completion semantics
+- [x] Existing basketball provider tests remain passing
 
 ### Phase 3: Live Validation and Review
 
@@ -226,9 +226,9 @@ Project conventions, coding standards, and patterns discovered during planning. 
 
 **Definition of Done**:
 
-- [ ] `scripts/rich_stats_probe.py --sport basketball` runs without mutating DB or cache outside its intended contract
-- [ ] `scripts/db_report.py --report rich-coverage --sport basketball --date <date>` distinguishes `rich`, `baseline_only`, `partial`, and `no_data`
-- [ ] The basketball-focused pytest command passes
+- [x] `scripts/rich_stats_probe.py --sport basketball` runs without mutating DB or cache outside its intended contract
+- [x] `scripts/db_report.py --report rich-coverage --sport basketball --date <date>` distinguishes `rich`, `baseline_only`, `partial`, and `no_data`
+- [x] The basketball-focused pytest command passes
 
 #### Task 3.2 - [REUSE] Final code review by `tsh-code-reviewer`
 
@@ -236,11 +236,11 @@ Project conventions, coding standards, and patterns discovered during planning. 
 
 **Definition of Done**:
 
-- [ ] Review is run after the focused validation suite
-- [ ] Findings are fixed or explicitly tracked in the Changelog
-- [ ] Review confirms `match_stats -> team_form` preservation and no Branch B settlement regressions
-- [ ] Review confirms `scripts/rich_stats_probe.py`, the shared completion registry, and `scripts/db_report.py --report rich-coverage` are sport-agnostic and not hardcoded to basketball
-- [ ] The slice is not closed while review findings remain unresolved and untracked
+- [x] Review is run after the focused validation suite
+- [x] Findings are fixed or explicitly tracked in the Changelog
+- [x] Review confirms `match_stats -> team_form` preservation and no Branch B settlement regressions
+- [x] Review confirms `scripts/rich_stats_probe.py`, the shared completion registry, and `scripts/db_report.py --report rich-coverage` are sport-agnostic and not hardcoded to basketball
+- [x] The slice is not closed while review findings remain unresolved and untracked
 
 ## Security Considerations
 
@@ -253,12 +253,12 @@ Project conventions, coding standards, and patterns discovered during planning. 
 
 Acceptance criteria checklist to verify the implementation meets the defined requirements:
 
-- [ ] Basketball rich completion stays owned by enrichment flows, not `scripts/run_scrapers.py`
-- [ ] Persistence still flows through `_store_in_cache()` into `match_stats` and derived `team_form`
-- [ ] Basketball has explicit canonical and supporting source policy in code and reporting
-- [ ] A generic `rich-coverage` report exists and works for basketball
-- [ ] Basketball-specific probe, adapter, and routing tests pass
-- [ ] **Branch B settlement remains out of scope and unchanged**
+- [x] Basketball rich completion stays owned by enrichment flows, not `scripts/run_scrapers.py`
+- [x] Persistence still flows through `_store_in_cache()` into `match_stats` and derived `team_form`
+- [x] Basketball has explicit canonical and supporting source policy in code and reporting
+- [x] A generic `rich-coverage` report exists and works for basketball
+- [x] Basketball-specific probe, adapter, and routing tests pass
+- [x] **Branch B settlement remains out of scope and unchanged**
 
 ## Improvements (Out of Scope)
 
@@ -268,9 +268,64 @@ Potential improvements identified during planning that are not part of the curre
 - dashboard or UI visualization of cross-sport rich coverage
 - broader normalization cleanup between `normalize_stats` and `bet.models.normalized`
 
+## Code Review Findings
+
+Review performed 2026-05-20 by `tsh-code-reviewer` after all 32 tests passing and live probe/report commands confirmed working.
+
+### MEDIUM — Mixed indentation in `FALLBACK_CHAINS` dict (`src/bet/stats/fallback_chains.py` lines 14–19)
+
+`"basketball"`, `"hockey"`, and `"tennis"` keys use 8-space indent; `"football"` and `"volleyball"` use 4-space indent. Python parses it correctly but it violates project style consistency and will confuse future sport slices adding keys to this dict.
+
+### MEDIUM — `inspect_pipeline.py` not updated despite plan listing it as "To Be Modified"
+
+The plan required keeping `inspect_pipeline.py`'s S2 view aligned with new rich-coverage reporting fields. The S2 report (`inspect_s2`) still shows only per-sport team counts and does not surface `basketball_rich_eligible`, `basketball_completed`, or `basketball_still_missing_rich`. Football's corresponding fields are similarly absent from the S2 view, so this is a pre-existing gap extended rather than a regression. Tracked for a follow-on alignment pass.
+
+### MEDIUM — Probe and report use diverging `allowed_non_baseline_keys` logic
+
+`rich_stats_probe._classify_team` builds `allowed_non_baseline_keys` as all keys from allowed sources (not filtered by `required_keys`), then uses `issubset`. `db_report._rich_coverage_bucket` additionally filters by `row[0] in required_keys` before building the same set. Results are functionally identical for the `rich` classification today, but the two implementations are separately maintained and will drift as the policy evolves. A shared helper would prevent this.
+
+### LOW — No `allow_basketball_rich_completion` flag parallel to `allow_football_rich_completion`
+
+`enrich_team` exposes `allow_football_rich_completion: bool = True` to let callers opt out of the football HTML completion pass (e.g., for fast-path tests). The basketball completion path has no equivalent flag — it is unconditionally applied when `sport == "basketball"`. This asymmetry limits caller control for fast-path enrichment or benchmarking.
+
+### LOW — `completion["success"]` semantics differ between football and basketball
+
+Football: `completion["success"] = bool(added_rich)` — any newly added rich key counts as success.
+Basketball: `completion["success"] = helper_result.get("status") == "enriched"` — only full 11-key coverage counts.
+
+The AGENT_SUMMARY `basketball_completed` metric therefore counts only teams where all 11 basketball rich keys are present, silently under-reporting teams where completion improved partial coverage. Whether this is intentional needs to be confirmed; if it is intentional, add a comment explaining the all-or-nothing completion contract.
+
+### LOW — `--sport` choices in `db_report.py` fragile if `"football"` is ever added to `RICH_COMPLETION_POLICY`
+
+`choices=["football", *sorted(RICH_COMPLETION_POLICY.keys())]` would silently produce a duplicate `"football"` entry once football joins the shared policy. Use `sorted({"football", *RICH_COMPLETION_POLICY.keys()})` to guard against this.
+
+### MISSING TEST — No batch AGENT_SUMMARY metrics test
+
+`test_data_enrichment_agent_routes_basketball_completion_and_summary` tests only the single-team `enrich_team` return value. There is no test exercising the batch path that emits `basketball_rich_eligible`, `basketball_completed`, and `basketball_still_missing_rich` in AGENT_SUMMARY. These are the fields the plan explicitly required in Task 2.1 DoD.
+
+### MISSING TEST — No test for baseline-partial + completion gap-fill = full rich path
+
+All adapter and routing tests mock either full-rich or fully-absent stats from `api-basketball`. There is no test where the baseline enrichment returns several (but not all) basketball rich keys and the completion helper fills the remaining gap. This is the primary production scenario for the completion helper and warrants an explicit test.
+
+### Confirmed OK
+
+- Branch B settlement (`settle_on_finish.py`): untouched — existing `"basketball"` references are pre-existing score-validation thresholds and sport-slug lists.
+- `run_scrapers.py`: no basketball completion logic introduced.
+- `scripts/rich_stats_probe.py`: sport-agnostic interface driven by `RICH_COMPLETION_POLICY.keys()`; `--sport` choices update automatically as new sports are added to the registry.
+- `scripts/db_report.py --report rich-coverage`: generic path confirmed; `football-rich-coverage` alias retained.
+- `RICH_COMPLETION_POLICY` contains only the `"basketball"` key — no placeholder entries for future sports.
+- `_store_in_cache()` is the only write boundary in the basketball adapter.
+- `match_stats → team_form` contract preserved throughout.
+- `api-basketball` is canonical; `espn-basketball` non-NBA empty responses correctly treated as unsupported-league skips, not degraded-source failures.
+- Flashscore is not introduced as a basketball completion source.
+- Task checkboxes in Phases 1–3 accurately reflect implementation state.
+
 ## Changelog
 
 | Date   | Change Description |
 | ------ | ------------------ |
+| 2026-05-20 16:43 CEST | Post-review fix pass: unified rich-coverage classification, aligned `inspect_s2` with basketball rich-completion fields, normalized basketball completion success semantics, added a basketball completion opt-out flag, hardened `db_report.py --sport` choices, and added focused regression tests |
+| 2026-05-20 | Code review performed by `tsh-code-reviewer`; 2 medium findings tracked (indentation, inspect_pipeline gap), 3 low findings tracked (flag asymmetry, success semantics, choices fragility), 2 missing tests identified; all hard guardrails confirmed OK |
+| 2026-05-20 16:18 | Implemented the first basketball rich-stat rollout: added basketball rich-completion policy, generic rich-coverage probe/report surfaces, provider-backed basketball helper, owner routing, and focused tests |
 | 2026-05-20 | Plan split out of the former multisport umbrella artifact so basketball can be implemented independently |
 | 2026-05-20 | Hardened first-rollout ownership, validation preconditions, shared metric vocabulary, and downstream-agent handoff guidance |

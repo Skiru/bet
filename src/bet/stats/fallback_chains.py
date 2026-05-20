@@ -13,10 +13,31 @@ Policy:
 
 FALLBACK_CHAINS: dict[str, list[str]] = {
     "football": ["espn-football", "api-football", "football-data-org", "understat", "google-sports", "serpapi"],
-        "basketball": ["espn-basketball", "nba-api", "api-basketball", "sofascore", "google-sports", "serpapi"],
-        "hockey": ["espn-hockey", "api-hockey", "scrapernhl", "moneypuck", "sofascore", "google-sports", "serpapi"],
-        "tennis": ["tennis-abstract", "sackmann", "espn-tennis", "sofascore-tennis", "google-sports", "serpapi"],
+    "basketball": ["espn-basketball", "nba-api", "api-basketball", "sofascore", "google-sports", "serpapi"],
+    "hockey": ["espn-hockey", "api-hockey", "scrapernhl", "moneypuck", "sofascore", "google-sports", "serpapi"],
+    "tennis": ["tennis-abstract", "sackmann", "espn-tennis", "sofascore-tennis", "google-sports", "serpapi"],
     "volleyball": ["espn-volleyball", "api-volleyball", "google-sports", "serpapi"],
+}
+
+RICH_COMPLETION_POLICY: dict[str, dict[str, list[str] | str]] = {
+    "basketball": {
+        "required_rich_keys": [
+            "rebounds",
+            "assists",
+            "steals",
+            "blocks",
+            "turnovers",
+            "fouls",
+            "fg_pct",
+            "three_pct",
+            "ft_pct",
+            "points_in_paint",
+            "fast_break_points",
+        ],
+        "canonical_source": "api-basketball",
+        "supporting_sources": ["nba-api", "espn-basketball"],
+        "aggregate_only_sources": [],
+    }
 }
 
 # Tier 1 sports: all get equal enrichment priority

@@ -28,6 +28,8 @@ sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from agent_output import AgentOutput, add_agent_args
+from bet.stats.fallback_chains import RICH_COMPLETION_POLICY
+from bet.stats.rich_coverage import classify_rich_coverage, summarize_rich_coverage
 
 DATA_DIR = ROOT / "betting" / "data"
 COUPON_DIR = ROOT / "betting" / "coupons"
@@ -92,6 +94,27 @@ def _load_json(relative_path: str, date: str) -> dict | list | None:
         return json.loads(path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return None
+
+
+def _collect_shortlist_teams_by_sport(shortlist) -> dict[str, set[str]]:
+    teams_by_sport: dict[str, set[str]] = {}
+    if not shortlist:
+        return teams_by_sport
+
+    candidates = shortlist if isinstance(shortlist, list) else shortlist.get("candidates", [])
+    for candidate in candidates:
+        event = candidate[1] if isinstance(candidate, (list, tuple)) and len(candidate) >= 2 else candidate
+        if not isinstance(event, dict):
+            continue
+        sport = event.get("sport", "")
+        if not sport:
+            continue
+        for team_key in ("home_team", "away_team"):
+            team_name = event.get(team_key) or event.get(team_key.replace("_team", ""), "")
+            if team_name:
+                teams_by_sport.setdefault(sport, set()).add(team_name)
+
+    return teams_by_sport
 
 
 # ---------------------------------------------------------------------------
@@ -278,16 +301,8 @@ def inspect_s2(date: str, out: AgentOutput) -> dict:
 
     # Load shortlist to know expected teams
     shortlist = _load_json("betting/data/{date}_s2_shortlist.json", date)
-    shortlist_teams = set()
-    if shortlist:
-        candidates = shortlist if isinstance(shortlist, list) else shortlist.get("candidates", [])
-        for c in candidates:
-            ev = c[1] if isinstance(c, (list, tuple)) and len(c) >= 2 else c
-            if isinstance(ev, dict):
-                shortlist_teams.add(ev.get("home_team") or ev.get("home", ""))
-                shortlist_teams.add(ev.get("away_team") or ev.get("away", ""))
-        shortlist_teams.discard("")
-    metrics["shortlist_teams_count"] = len(shortlist_teams)
+    shortlist_teams_by_sport = _collect_shortlist_teams_by_sport(shortlist)
+    metrics["shortlist_teams_count"] = sum(len(teams) for teams in shortlist_teams_by_sport.values())
 
     conn_ctx = _get_db()
     if conn_ctx is None:
@@ -311,6 +326,33 @@ def inspect_s2(date: str, out: AgentOutput) -> dict:
             "SELECT stat_key, COUNT(*) FROM team_form GROUP BY stat_key ORDER BY COUNT(*) DESC LIMIT 10",
             default=[])
         metrics["top_stat_keys"] = {r[0]: r[1] for r in stat_keys}
+
+        rich_completion_by_sport = {}
+        for sport, policy in RICH_COMPLETION_POLICY.items():
+            sport_id = _safe_fetchone(conn, "SELECT id FROM sports WHERE name = ?", (sport,), default=None)
+            team_names = sorted(shortlist_teams_by_sport.get(sport, set()))
+            team_details = []
+            if sport_id is not None:
+                allowed_sources = {policy["canonical_source"], *policy["supporting_sources"]}
+                for team_name in team_names:
+                    rows = _safe_query(
+                        conn,
+                        "SELECT stat_key, source FROM team_form WHERE team_name = ? AND sport_id = ?",
+                        (team_name, sport_id),
+                        default=[],
+                    )
+                    detail = classify_rich_coverage(rows, policy["required_rich_keys"], allowed_sources)
+                    detail["team"] = team_name
+                    team_details.append(detail)
+
+            summary = summarize_rich_coverage(team_details)
+            rich_completion_by_sport[sport] = summary
+            metrics[f"{sport}_rich_eligible"] = summary["eligible"]
+            metrics[f"{sport}_completed"] = summary["rich"]
+            metrics[f"{sport}_still_missing_rich"] = summary["eligible"] + summary["no_data"]
+            metrics[f"{sport}_team_completeness"] = summary["team_details"]
+
+        metrics["rich_completion_by_sport"] = rich_completion_by_sport
 
     verdict = "OK" if metrics.get("total_teams_with_form", 0) > 0 else "PARTIAL"
     metrics["_verdict"] = verdict
