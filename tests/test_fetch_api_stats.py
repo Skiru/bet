@@ -161,6 +161,64 @@ class TestFetchTeamStats:
         assert len(result) == 1
         assert result[0].date == "2026-04-25"
 
+    def test_handles_dict_fixtures_and_list_stat_payloads(self):
+        from fetch_api_stats import fetch_team_stats
+
+        fixtures = [{"id": "500", "kickoff": "2026-04-25T18:00:00Z"}]
+        stats_payload = [{
+            "external_id": "500",
+            "source": "api-football",
+            "sport": "football",
+            "home_team_name": "Liverpool",
+            "away_team_name": "Arsenal",
+            "stats": {
+                "corners": {"home": 7, "away": 5},
+                "fouls": {"home": 12, "away": 9},
+            },
+        }]
+        client = _mock_client(
+            team_fixtures=fixtures,
+            fixture_stats_map={"500": stats_payload},
+            resolve_ids={"liverpool": "40"},
+        )
+
+        result = fetch_team_stats(client, "Liverpool", "football")
+
+        assert len(result) == 1
+        assert result[0].fixture_id == "500"
+        assert result[0].home_team == "Liverpool"
+        assert result[0].away_team == "Arsenal"
+        assert result[0].date == "2026-04-25"
+
+
+class TestFetchH2HStats:
+    def test_handles_dict_h2h_fixtures_and_list_stat_payloads(self):
+        from fetch_api_stats import fetch_h2h_stats
+
+        client = _mock_client(
+            h2h_fixtures=[{"id": "600", "kickoff": "2026-04-21T20:00:00Z"}],
+            fixture_stats_map={
+                "600": [{
+                    "external_id": "600",
+                    "source": "api-football",
+                    "sport": "football",
+                    "home_team_name": "Liverpool",
+                    "away_team_name": "Arsenal",
+                    "stats": {
+                        "corners": {"home": 8, "away": 4},
+                    },
+                }]
+            },
+            resolve_ids={"liverpool": "40", "arsenal": "42"},
+        )
+
+        result = fetch_h2h_stats(client, "Liverpool", "Arsenal", "football")
+
+        assert len(result) == 1
+        assert result[0].fixture_id == "600"
+        assert result[0].date == "2026-04-21"
+        assert result[0].stats["corners"]["home"] == 8
+
 
 # ---------------------------------------------------------------------------
 # Tests: enrich_fixture
@@ -529,3 +587,173 @@ class TestBuildSafetyInputFromCache:
         assert result["team_a"] == "Liverpool"
         assert result["team_b"] == "Arsenal"
         assert len(result["markets"]) > 0
+
+
+# ---------------------------------------------------------------------------
+# Tests: per-match source provenance in shared persistence (M2 regression)
+# ---------------------------------------------------------------------------
+
+class TestPerMatchSourceProvenance:
+    """Regression tests for M2: mixed-source batches must attribute each stat
+    row/team_form row to its actual match source, not the batch api_source."""
+
+    def _make_mixed_source_matches(self):
+        """Two matches with different sources and non-overlapping stat keys."""
+        m1 = NormalizedMatchStats(
+            fixture_id="501",
+            source="tennis-abstract",
+            sport="tennis",
+            home_team="Iga Swiatek",
+            away_team="Aryna Sabalenka",
+            date="2026-05-18",
+            stats={"aces": 8.0, "double_faults": 2.0},
+        )
+        m2 = NormalizedMatchStats(
+            fixture_id="502",
+            source="sackmann",
+            sport="tennis",
+            home_team="Iga Swiatek",
+            away_team="Elena Rybakina",
+            date="2026-05-16",
+            stats={"aces": 6.0, "hold_pct": 83.3},
+        )
+        return m1, m2
+
+    def test_save_per_match_stat_arrays_uses_per_match_source(self):
+        import fetch_api_stats
+        from types import SimpleNamespace
+        from unittest.mock import patch
+
+        team_form_saves = []
+
+        class FakeSportObj:
+            id = 1
+
+        class FakeTeamObj:
+            id = 101
+
+        class FakeStatsRepo:
+            def __init__(self, conn=None):
+                pass
+            def save_team_form(self, form):
+                team_form_saves.append(form)
+
+        class FakeTeamRepo:
+            def __init__(self, conn=None):
+                pass
+            def find_or_create(self, name, sport_id):
+                return FakeTeamObj()
+
+        class FakeSportRepo:
+            def __init__(self, conn=None):
+                pass
+            def get_by_name(self, name):
+                return FakeSportObj()
+
+        class FakeConn:
+            def commit(self):
+                pass
+
+        class FakeDB:
+            def __enter__(self):
+                return FakeConn()
+            def __exit__(self, *_):
+                return False
+
+        m1, m2 = self._make_mixed_source_matches()
+
+        with patch.object(fetch_api_stats, "_HAS_DB", True), \
+             patch.object(fetch_api_stats, "get_db", return_value=FakeDB()), \
+             patch.object(fetch_api_stats, "SportRepo", FakeSportRepo), \
+             patch.object(fetch_api_stats, "TeamRepo", FakeTeamRepo), \
+             patch.object(fetch_api_stats, "StatsRepo", FakeStatsRepo):
+            fetch_api_stats._save_per_match_stat_arrays(
+                "tennis", "Iga Swiatek", [m1, m2], "tennis-abstract"
+            )
+
+        forms = {f.stat_key: f for f in team_form_saves}
+
+        # "aces" first appears in m1 (tennis-abstract) — even though m2 also
+        # has "aces", the first-contributing source wins.
+        assert forms["aces"].source == "tennis-abstract"
+        # "double_faults" only in m1 → tennis-abstract
+        assert forms["double_faults"].source == "tennis-abstract"
+        # "hold_pct" only in m2 (sackmann) → sackmann, not the batch api_source
+        assert forms["hold_pct"].source == "sackmann"
+
+    def test_persist_match_stats_to_db_uses_per_match_source(self):
+        import fetch_api_stats
+        from types import SimpleNamespace
+        from unittest.mock import patch
+
+        saved_rows = []
+
+        class FakeSportObj:
+            id = 1
+
+        class FakeTeamObj:
+            id = 101
+
+        class FakeFixtureObj:
+            id = 501
+
+        class FakeStatsRepo:
+            def __init__(self, conn=None):
+                pass
+            def bulk_save_match_stats(self, rows):
+                saved_rows.extend(rows)
+
+        class FakeTeamRepo:
+            def __init__(self, conn=None):
+                pass
+            def find_or_create(self, name, sport_id):
+                return FakeTeamObj()
+
+        class FakeSportRepo:
+            def __init__(self, conn=None):
+                pass
+            def get_by_name(self, name):
+                return FakeSportObj()
+
+        class FakeFixtureRepo:
+            def __init__(self, conn=None):
+                pass
+            def get_by_teams_and_date(self, home, away, date, sport_id):
+                return FakeFixtureObj()
+
+        class FakeConn:
+            pass
+
+        class FakeDB:
+            def __enter__(self):
+                return FakeConn()
+            def __exit__(self, *_):
+                return False
+
+        m1, m2 = self._make_mixed_source_matches()
+
+        with patch.object(fetch_api_stats, "_HAS_DB", True), \
+             patch.object(fetch_api_stats, "get_db", return_value=FakeDB()), \
+             patch.object(fetch_api_stats, "SportRepo", FakeSportRepo), \
+             patch.object(fetch_api_stats, "TeamRepo", FakeTeamRepo), \
+             patch.object(fetch_api_stats, "StatsRepo", FakeStatsRepo), \
+             patch.object(fetch_api_stats, "FixtureRepo", FakeFixtureRepo):
+            fetch_api_stats._persist_match_stats_to_db(
+                "tennis", "Iga Swiatek", [m1, m2], "tennis-abstract"
+            )
+
+        # Each row is (fixture_id, team_id, stat_key, value, source)
+        ta_rows = [row for row in saved_rows if row[4] == "tennis-abstract"]
+        sack_rows = [row for row in saved_rows if row[4] == "sackmann"]
+
+        # m1 (tennis-abstract) contributes aces and double_faults
+        assert any(row[2] == "aces" for row in ta_rows), \
+            "aces from m1 (tennis-abstract) must carry tennis-abstract source"
+        assert any(row[2] == "double_faults" for row in ta_rows), \
+            "double_faults only in m1 must carry tennis-abstract source"
+
+        # m2 (sackmann) contributes aces and hold_pct with sackmann source
+        assert any(row[2] == "aces" for row in sack_rows), \
+            "aces from m2 (sackmann) must carry sackmann source"
+        assert any(row[2] == "hold_pct" for row in sack_rows), \
+            "hold_pct only in m2 (sackmann) must carry sackmann source, not the batch api_source"

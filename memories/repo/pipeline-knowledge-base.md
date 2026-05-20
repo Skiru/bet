@@ -1,4 +1,21 @@
-# Pipeline Knowledge Base — Consolidated (May 4-19, 2026, updated 2026-05-19)
+# Pipeline Knowledge Base — Consolidated (May 4-20, 2026, updated 2026-05-20)
+
+## 🆕 FLASHSCORE TOKEN REMEDIATION — FINAL BRANCH B STATE — 2026-05-20
+
+### Final Outcome
+- Tokenized `d.flashscore.com/x/feed/d_st_{event_id}` feed is retired from runtime.
+- Branch B is the final settlement policy. Branch A is superseded and removed from `scripts/settle_on_finish.py`.
+- Football stat-market settlement now reads canonical DB `match_stats` through `_fetch_settlement_db_match_stats()` and `settle_stat_market()`, not Flashscore HTML.
+- When required football stat coverage is missing, picks stay unresolved and are tagged `manual_verification_required`.
+- Shared helper `scripts/_helpers/flashscore_match_page_stats.py` remains in use for shared Flashscore HTML/search/results-page enrichment flows, not for the main settlement path.
+
+### Validation Anchors
+- Live validation passed on real ledger pick `PK-20260507-02` (`Crystal Palace vs Shakhtar Donetsk`) with `db_match_stats_settlement` provenance.
+- Focused cleanup validation passed: `PYTHONPATH=src .venv/bin/pytest -q tests/test_flashscore_token_policy.py tests/test_flashscore_match_page_stats.py tests/test_db_repositories.py` → 47 tests passing.
+
+### Implementation Notes
+- Settlement code no longer carries Branch A Flashscore wrapper delegates, request-budget globals, or settlement-only HTML helper state.
+- Flashscore HTML regression coverage now lives with the owning shared helper tests in `tests/test_flashscore_match_page_stats.py`.
 
 ## 🆕 PIPELINE REMEDIATION COMPLETE + DEEP REVIEW — 2026-05-19
 
@@ -10,7 +27,7 @@ Completed ALL 32 tasks from `specifications/pipeline-remediation.plan.md` (5 pha
 |-------|-------|-------------|
 | 1 — Stats Module Extraction | 1.1-1.5 | `src/bet/stats/` package: fetcher.py, fallback_chains.py, value_ranges.py |
 | 2 — API Client Consolidation | 2.1-2.5 | Moved 8 clients from `scripts/api_clients/` → `src/bet/api_clients/`, shim __init__.py |
-| 3 — Settlement Enhancements | 3.1, 3.3 | Flashscore stats settlement (corners/cards/shots), settle_stat_market() |
+| 3 — Settlement Enhancements | 3.1, 3.3 | Stat-market settlement groundwork via `settle_stat_market()`; later finalized as Branch B DB-backed settlement |
 | 4 — Build & Test Infra | 4.1-4.6 | conftest.py, pyproject.toml paths, test fixtures, CI config |
 | 5 — Dead Code Removal | 5.1-5.3 | unified.py kept (still imported), scripts/api_clients/ now shim-only |
 
@@ -39,10 +56,10 @@ Completed ALL 32 tasks from `specifications/pipeline-remediation.plan.md` (5 pha
 - Individual .py files still exist with their own class defs (legacy, for scripts importing them directly)
 - `isinstance()` checks work correctly ONLY when importing from `bet.api_clients.*` (canonical path)
 
-**Settlement: Flashscore Stats (settle_on_finish.py):**
-- New functions: `_fetch_flashscore_match_stats()`, `_parse_match_stats_html()`, `settle_stat_market()`
-- Rate-limited: max 30 Flashscore requests per settlement run
-- Markets settled: corners over/under, cards over/under, shots over/under, fouls over/under
+**Settlement: DB-backed stat settlement (settle_on_finish.py):**
+- Branch B uses `_fetch_settlement_db_match_stats()` + `settle_stat_market()` for football stat markets.
+- Manual fallback is explicit when canonical DB `match_stats` coverage is missing.
+- Shared Flashscore match-page helper remains available for enrichment/shared HTML use, not as the settlement main path.
 - Only for football picks that remain unsettled after score-based settlement
 
 ### Test Infrastructure State
@@ -114,7 +131,7 @@ S10  — generate_coupon_pdf.py (PDF output)
 Aligned all methodology/instruction docs with the pipeline remediation changes (13 files, commit `6de74ee`).
 
 ### Key Updates
-1. **Settlement categories changed** — corners/cards/shots/fouls upgraded from "Manual" to "Semi-auto via Flashscore stats" (`settle_stat_market()` + `_fetch_flashscore_match_stats()`). Only HC and MyCombi remain fully manual. Updated in 5 files: copilot-instructions, analysis-methodology, bet-settler agent, bet-settling-results SKILL, bet-settle prompt.
+1. **Settlement categories changed** — corners/cards/shots/fouls upgraded from "Manual" to DB-backed semi-auto settlement via `settle_stat_market()` + `_fetch_settlement_db_match_stats()`. Only HC, MyCombi, and unresolved stat markets without DB coverage remain manual. Updated in 5 files: copilot-instructions, analysis-methodology, bet-settler agent, bet-settling-results SKILL, bet-settle prompt.
 
 2. **API client canonical path** — `src/bet/api_clients/` is canonical (35+ clients). `scripts/api_clients/` = shim that re-exports. Updated references in bet-enricher agent, bet-navigating-sources SKILL, orchestrate-betting-day prompt.
 
@@ -123,9 +140,9 @@ Aligned all methodology/instruction docs with the pipeline remediation changes (
 4. **DB table count: 30 → 41** — Schema v10 has 31 tables in schema.sql + 10 from migration 005 (ESPN). Updated in 7 files: bet-querying-database SKILL, bet-orchestrator agent, bet-db-analyst agent, orchestrate-betting-day prompt (2 places), ask-betting prompt, project-structure memory.
 
 ### Current Settlement Categories
-- **Auto:** winner/1X2, totals (any line), BTTS, double chance — from Flashscore scores
-- **Semi-auto:** corners, cards, shots, fouls — via `settle_stat_market()` reading Flashscore match stats (rate-limited: max 30 requests/run, football only)
-- **Manual:** HC, MyCombi
+- **Auto:** winner/1X2, totals (any line), BTTS, double chance — from score/result sources
+- **Semi-auto:** football corners, cards, shots, fouls — via `settle_stat_market()` reading canonical DB `match_stats`
+- **Manual:** HC, MyCombi, unresolved stat markets without DB coverage
 
 ## 🆕 BETCLIC MARKET SCRAPER — FULL IMPLEMENTATION — 2026-05-18/19
 
@@ -696,7 +713,6 @@ Eval:     odds_evaluator.py reads DB + 2 snapshot JSONs → injects EV into S3 c
 | Basketball | basketball-reference | ✅ | 19 teams, 736 players |
 | Basketball | flashscore | ✅ | 3/3 teams |
 | Tennis | sackmann | ✅ FIXED | 457 players |
-| Tennis | sofascore-tennis | ⚠️ STUB | Fixtures only |
 | Tennis | flashscore | ⚠️ PARTIAL | 1/3 teams |
 | Hockey | nhl-api | ✅ FIXED | 15 teams, 261 players |
 | Hockey | hockey-reference | ✅ FIXED | 27 teams, 1,251 players |

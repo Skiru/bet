@@ -18,9 +18,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 # Imports from project
+ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(Path(__file__).parent))
 from bet.api_clients import get_client, RateLimiter, CLIENT_REGISTRY
 from bet.api_clients.base_client import APIRateLimitError, APIError
+from bet.stats.fallback_chains import (
+    EXPECTED_STATS_PER_SPORT,
+    FALLBACK_CHAINS,
+    TIER_1_SPORTS,
+)
 from normalize_stats import NormalizedMatchStats, build_safety_score_input
 from bet.stats.market_ranking import SPORT_MARKETS
 from build_stats_cache import (
@@ -30,11 +37,11 @@ from build_stats_cache import (
     slugify,
 )
 
-DATA_DIR = Path(__file__).parent.parent / "betting" / "data"
+DATA_DIR = ROOT / "betting" / "data"
 
 # --- ESPN Stats client (player gamelogs, splits, leaders) ---
 try:
-    sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+    sys.path.insert(0, str(ROOT / "src"))
     from bet.api_clients.espn_stats import ESPNStatsClient
     _HAS_ESPN_STATS = True
 except ImportError:
@@ -43,56 +50,13 @@ except ImportError:
 # --- DB support (optional — falls back gracefully) ---
 try:
     if "src" not in sys.path[0]:
-        sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+        sys.path.insert(0, str(ROOT / "src"))
     from bet.db.connection import get_db
     from bet.db.repositories import SportRepo, TeamRepo, StatsRepo, FixtureRepo
     from bet.db.models import TeamForm
     _HAS_DB = True
 except ImportError:
     _HAS_DB = False
-
-# Fallback chains per sport — ESPN first (free, unlimited, no API key)
-# SerpAPI last (250/month limit, supplementary Google search data)
-# Disabled sources (2026-05-11): thesportsdb (97.8% fail), balldontlie (100% fail), api-tennis (100% fail)
-FALLBACK_CHAINS = {
-    "football": ["espn-football", "api-football", "football-data-org", "understat", "sofascore", "google-sports", "serpapi"],
-    "basketball": ["espn-basketball", "nba-api", "api-basketball", "sofascore", "google-sports", "serpapi"],
-    "hockey": ["espn-hockey", "api-hockey", "scrapernhl", "moneypuck", "sofascore", "google-sports", "serpapi"],
-    "tennis": ["tennis-abstract", "sackmann", "espn-tennis", "sofascore-tennis", "google-sports", "serpapi"],
-    "volleyball": ["espn-volleyball", "api-volleyball", "sofascore", "google-sports", "serpapi"],
-}
-
-# Tier 1 sports get enriched first
-TIER_1_SPORTS = {"football", "volleyball", "basketball", "tennis", "hockey"}
-
-# Expected stat keys per sport — used to audit extraction completeness
-EXPECTED_STATS_PER_SPORT = {
-    "football": [
-        "corners", "fouls", "yellow_cards", "red_cards", "shots",
-        "shots_on_target", "possession", "offsides", "saves",
-        "total_passes", "pass_accuracy",
-    ],
-    "basketball": [
-        "rebounds", "assists", "steals", "blocks", "turnovers",
-        "fouls", "fg_pct", "three_pct", "ft_pct",
-        "points_in_paint", "fast_break_points",
-    ],
-    "hockey": [
-        "shots", "hits", "blocks", "penalties", "pim",
-        "powerplay_goals", "faceoffs_won", "faceoff_pct",
-        "takeaways", "giveaways",
-    ],
-    "tennis": [
-        "aces", "double_faults", "first_serve_pct",
-        "first_serve_win_pct", "second_serve_win_pct",
-        "break_points_saved_pct", "hold_pct", "break_pct",
-        "sets_won", "total_sets", "games_won", "total_games",
-    ],
-    "volleyball": [
-        "kills", "aces", "blocks", "digs", "assists",
-        "hitting_pct", "points",
-    ],
-}
 
 
 def fetch_league_leaders_for_sport(sport: str, league: str) -> dict | None:
@@ -219,20 +183,22 @@ def fetch_team_stats(
     # Fetch detailed stats per fixture (budget-aware: stop on rate limit)
     match_stats = []
     for fixture in fixtures:
+        fixture_id = _get_fixture_value(fixture, "fixture_id")
+        kickoff = _get_fixture_value(fixture, "kickoff")
+        if not fixture_id:
+            continue
         try:
-            stats = client.get_fixture_stats(fixture.fixture_id)
+            stats = client.get_fixture_stats(fixture_id)
         except APIRateLimitError:
             print(f"[fetch] Rate limited — returning {len(match_stats)} partial stats for '{team_name}'")
             break
         except APIError as e:
-            print(f"[fetch] Error fetching stats for fixture {fixture.fixture_id}: {e}")
+            print(f"[fetch] Error fetching stats for fixture {fixture_id}: {e}")
             continue
 
-        if stats:
-            # Fill in the date from the fixture metadata
-            if not stats.date and fixture.kickoff:
-                stats.date = fixture.kickoff[:10]
-            match_stats.append(stats)
+        normalized = _normalize_match_stats_payload(stats, fixture_id, sport, kickoff)
+        if normalized:
+            match_stats.append(normalized)
 
     return match_stats
 
@@ -264,20 +230,87 @@ def fetch_h2h_stats(
     # Fetch stats for each H2H fixture (budget-aware)
     match_stats = []
     for fixture in h2h_fixtures:
+        fixture_id = _get_fixture_value(fixture, "fixture_id")
+        kickoff = _get_fixture_value(fixture, "kickoff")
+        if not fixture_id:
+            continue
         try:
-            stats = client.get_fixture_stats(fixture.fixture_id)
+            stats = client.get_fixture_stats(fixture_id)
         except APIRateLimitError:
             print(f"[fetch] Rate limited — returning {len(match_stats)} partial H2H stats")
             break
         except APIError:
             continue
 
-        if stats:
-            if not stats.date and fixture.kickoff:
-                stats.date = fixture.kickoff[:10]
-            match_stats.append(stats)
+        normalized = _normalize_match_stats_payload(stats, fixture_id, sport, kickoff)
+        if normalized:
+            match_stats.append(normalized)
 
     return match_stats
+
+
+def _get_fixture_value(fixture, key: str) -> str:
+    """Read fixture metadata from either a dict or dataclass-like object."""
+    key_aliases = {
+        "fixture_id": ("fixture_id", "external_id", "id"),
+        "kickoff": ("kickoff", "date"),
+    }
+    candidates = key_aliases.get(key, (key,))
+
+    if isinstance(fixture, dict):
+        for candidate in candidates:
+            value = fixture.get(candidate)
+            if value:
+                return str(value)
+        return ""
+
+    for candidate in candidates:
+        value = getattr(fixture, candidate, "")
+        if value:
+            return str(value)
+    return ""
+
+
+def _normalize_match_stats_payload(stats, fixture_id: str, sport: str, kickoff: str) -> NormalizedMatchStats | None:
+    """Normalize provider stats payloads to a single NormalizedMatchStats object."""
+    if not stats:
+        return None
+
+    payload = stats[0] if isinstance(stats, list) else stats
+    if not payload:
+        return None
+
+    if isinstance(payload, NormalizedMatchStats):
+        if not payload.date and kickoff:
+            payload.date = kickoff[:10]
+        return payload
+
+    if isinstance(payload, dict):
+        source = payload.get("source", "")
+        payload_sport = payload.get("sport", sport) or sport
+        home_team = payload.get("home_team") or payload.get("home_team_name", "")
+        away_team = payload.get("away_team") or payload.get("away_team_name", "")
+        date = payload.get("date", "") or (kickoff[:10] if kickoff else "")
+        payload_stats = payload.get("stats", {})
+        payload_fixture_id = payload.get("fixture_id") or payload.get("external_id") or fixture_id
+    else:
+        source = getattr(payload, "source", "")
+        payload_sport = getattr(payload, "sport", sport) or sport
+        home_team = getattr(payload, "home_team", "") or getattr(payload, "home_team_name", "")
+        away_team = getattr(payload, "away_team", "") or getattr(payload, "away_team_name", "")
+        date = getattr(payload, "date", "") or (kickoff[:10] if kickoff else "")
+        payload_stats = getattr(payload, "stats", {})
+        payload_fixture_id = getattr(payload, "fixture_id", "") or getattr(payload, "external_id", "") or fixture_id
+
+    return NormalizedMatchStats(
+        fixture_id=str(payload_fixture_id),
+        source=str(source),
+        sport=str(payload_sport),
+        home_team=str(home_team),
+        away_team=str(away_team),
+        date=str(date),
+        stats=payload_stats if isinstance(payload_stats, dict) else {},
+    )
 
 
 def _store_in_cache(
@@ -373,6 +406,10 @@ def _persist_match_stats_to_db(
                     # still saved by build_stats_cache._persist_to_db)
                     continue
 
+                # Use per-match source so mixed-source batches attribute each
+                # stat row to its actual provider rather than the batch default.
+                match_source = getattr(match, "source", None) or api_source
+
                 for stat_key, value in raw_stats.items():
                     if isinstance(value, dict):
                         # home/away sub-keys
@@ -380,12 +417,12 @@ def _persist_match_stats_to_db(
                         away_val = value.get("away")
                         if isinstance(home_val, (int, float)):
                             home_team_obj = team_repo.find_or_create(home, sport_obj.id)
-                            rows.append((fixture.id, home_team_obj.id, stat_key, float(home_val), api_source))
+                            rows.append((fixture.id, home_team_obj.id, stat_key, float(home_val), match_source))
                         if isinstance(away_val, (int, float)):
                             away_team_obj = team_repo.find_or_create(away, sport_obj.id)
-                            rows.append((fixture.id, away_team_obj.id, stat_key, float(away_val), api_source))
+                            rows.append((fixture.id, away_team_obj.id, stat_key, float(away_val), match_source))
                     elif isinstance(value, (int, float)):
-                        rows.append((fixture.id, team_obj.id, stat_key, float(value), api_source))
+                        rows.append((fixture.id, team_obj.id, stat_key, float(value), match_source))
 
             if rows:
                 stats_repo.bulk_save_match_stats(rows)
@@ -422,13 +459,17 @@ def _save_per_match_stat_arrays(
             team_lower = team_name.lower()
             now_ts = datetime.now(timezone.utc).isoformat()
 
-            # Collect per-stat arrays across all matches
+            # Collect per-stat arrays across all matches.
+            # stat_sources tracks the first match source that contributes each
+            # stat_key so team_form rows carry accurate per-key provenance.
             stat_arrays: dict[str, list[float]] = {}
+            stat_sources: dict[str, str] = {}
             for match in matches[:10]:
                 raw_stats = getattr(match, "stats", {})
                 if not raw_stats:
                     continue
 
+                match_source = getattr(match, "source", None) or api_source
                 home_team = getattr(match, "home_team", "")
                 is_away = (
                     team_lower
@@ -447,6 +488,8 @@ def _save_per_match_stat_arrays(
                     if val is not None:
                         try:
                             stat_arrays.setdefault(stat_key, []).append(float(val))
+                            # Record first-contributing source per stat_key.
+                            stat_sources.setdefault(stat_key, match_source)
                         except (ValueError, TypeError):
                             pass
 
@@ -480,7 +523,7 @@ def _save_per_match_stat_arrays(
                     h2h_opponent_id=None,
                     trend=trend,
                     updated_at=now_ts,
-                    source=api_source,
+                    source=stat_sources.get(stat_key, api_source),
                 )
                 stats_repo.save_team_form(form)
 

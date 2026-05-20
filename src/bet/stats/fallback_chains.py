@@ -15,7 +15,7 @@ FALLBACK_CHAINS: dict[str, list[str]] = {
     "football": ["espn-football", "api-football", "football-data-org", "understat", "google-sports", "serpapi"],
     "basketball": ["espn-basketball", "nba-api", "api-basketball", "sofascore", "google-sports", "serpapi"],
     "hockey": ["espn-hockey", "api-hockey", "scrapernhl", "moneypuck", "sofascore", "google-sports", "serpapi"],
-    "tennis": ["tennis-abstract", "sackmann", "espn-tennis", "sofascore-tennis", "google-sports", "serpapi"],
+    "tennis": ["tennis-abstract", "sackmann", "espn-tennis", "google-sports", "serpapi"],
     "volleyball": ["espn-volleyball", "api-volleyball", "google-sports", "serpapi"],
 }
 
@@ -38,6 +38,19 @@ RICH_COMPLETION_POLICY: dict[str, dict[str, list[str] | str]] = {
         "supporting_sources": ["nba-api", "espn-basketball"],
         "aggregate_only_sources": [],
     },
+    "hockey": {
+        "required_rich_keys": [
+            "shots",
+            "hits",
+            "blocks",
+            "pim",
+            "powerplay_goals",
+            "faceoff_pct",
+        ],
+        "canonical_source": "api-hockey",
+        "supporting_sources": ["espn-hockey"],
+        "aggregate_only_sources": ["moneypuck", "scrapernhl"],
+    },
     "tennis": {
         "baseline_keys": [
             "sets_won",
@@ -57,8 +70,19 @@ RICH_COMPLETION_POLICY: dict[str, dict[str, list[str] | str]] = {
         ],
         "baseline_sources": ["espn-tennis-enriched"],
         "canonical_source": "tennis-abstract",
-        "supporting_sources": ["sofascore-tennis", "sackmann"],
+        "supporting_sources": ["sackmann"],
         "aggregate_only_sources": ["sackmann-season-aggregate"],
+    },
+    "volleyball": {
+        "required_rich_keys": [
+            "aces",
+            "blocks",
+            "hitting_pct",
+            "points",
+        ],
+        "canonical_source": "api-volleyball",
+        "supporting_sources": ["espn-volleyball"],
+        "aggregate_only_sources": ["volleybox"],
     },
 }
 
@@ -78,7 +102,7 @@ EXPECTED_STATS_PER_SPORT: dict[str, list[str]] = {
         "points_in_paint", "fast_break_points",
     ],
     "hockey": [
-        "shots", "hits", "blocks", "penalties", "pim",
+           "shots", "hits", "blocks", "pim",
         "powerplay_goals", "faceoffs_won", "faceoff_pct",
         "takeaways", "giveaways",
     ],

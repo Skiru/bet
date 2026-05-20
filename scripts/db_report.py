@@ -25,7 +25,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from bet.db.connection import get_db  # noqa: E402
-from bet.stats.rich_coverage import BASELINE_SOURCE, classify_rich_coverage, summarize_rich_coverage  # noqa: E402
+from bet.stats.rich_coverage import BASELINE_SOURCE, classify_rich_coverage, resolve_fixture_team_scope, summarize_rich_coverage  # noqa: E402
 from bet.stats.fallback_chains import RICH_COMPLETION_POLICY  # noqa: E402
 
 FOOTBALL_RICH_KEYS = {
@@ -171,18 +171,16 @@ def report_rich_coverage(betting_date: str, sport: str):
             print(f"  {sport} sport not found")
             return
 
-        teams = conn.execute(
-            """SELECT DISTINCT t.id, t.name
-            FROM fixtures f
-            JOIN teams t ON t.id IN (f.home_team_id, f.away_team_id)
-            WHERE date(f.kickoff) = ? AND f.sport_id = ?
-            ORDER BY t.name""",
-            (betting_date, sport_row[0]),
-        ).fetchall()
+        scope = resolve_fixture_team_scope(conn, sport_row[0], betting_date)
+        teams = scope["teams"]
 
         if not teams:
             print(f"  No {sport} teams for this date")
             return
+
+        if scope["used_fallback"]:
+            print(f"  No {sport} teams on {betting_date}; using latest available fixture date {scope['scope_date']}")
+            print()
 
         team_details = []
         rich_source_presence = Counter()

@@ -159,41 +159,6 @@ def _copy_match_with_filtered_stats(match: NormalizedMatchStats, stats: dict) ->
     )
 
 
-def _normalize_sofascore_match_for_player(
-    player_name: str,
-    match: NormalizedMatchStats | None,
-) -> NormalizedMatchStats | None:
-    if not match:
-        return None
-
-    stats = getattr(match, "stats", {}) or {}
-    if not isinstance(stats, dict):
-        return None
-
-    player_side = None
-    if _normalize_name(getattr(match, "home_team", "")) == _normalize_name(player_name):
-        player_side = "home"
-    elif _normalize_name(getattr(match, "away_team", "")) == _normalize_name(player_name):
-        player_side = "away"
-    if not player_side:
-        return None
-
-    prefix = f"{player_side}_"
-    filtered: dict[str, float | int] = {}
-    for key, value in stats.items():
-        key_text = str(key)
-        if not key_text.startswith(prefix):
-            continue
-        stat_key = key_text[len(prefix) :]
-        if stat_key not in _TENNIS_RICH_KEYS or not isinstance(value, (int, float)):
-            continue
-        filtered[stat_key] = value
-
-    if not filtered:
-        return None
-    return _copy_match_with_filtered_stats(match, filtered)
-
-
 def _load_source_matches(team_name: str, source_name: str, max_fixtures: int) -> list[NormalizedMatchStats]:
     try:
         client = get_client(source_name, rate_limiter=_RATE_LIMITER)
@@ -243,9 +208,6 @@ def _load_source_matches(team_name: str, source_name: str, max_fixtures: int) ->
         except Exception as exc:
             logger.debug("Tennis completion stats load failed for %s/%s/%s: %s", team_name, source_name, fixture_id, exc)
             continue
-
-        if source_name == "sofascore-tennis":
-            match = _normalize_sofascore_match_for_player(team_name, match)
 
         if not match or _is_aggregate_only_match(match):
             continue

@@ -20,7 +20,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from bet.db.connection import get_db
 from bet.stats.fallback_chains import RICH_COMPLETION_POLICY
-from bet.stats.rich_coverage import classify_rich_coverage, summarize_rich_coverage
+from bet.stats.rich_coverage import classify_rich_coverage, resolve_fixture_team_scope, summarize_rich_coverage
 
 
 def _get_sport_id(sport: str) -> int | None:
@@ -50,16 +50,24 @@ def probe_rich_coverage(sport: str, betting_date: str, limit: int = 10) -> dict:
     required_keys = list(policy["required_rich_keys"])
     allowed_sources = {policy["canonical_source"], *policy["supporting_sources"]}
     baseline_sources = set(policy.get("baseline_sources", []))
-    teams = _get_teams_for_date(sport, betting_date)[:limit]
     source_presence = Counter()
     failure_reasons = Counter()
     team_details = []
+    teams = _get_teams_for_date(sport, betting_date)[:limit]
+    scope = {
+        "teams": teams,
+        "scope_date": betting_date,
+        "used_fallback": False,
+    }
 
     sport_id = _get_sport_id(sport)
     if sport_id is None:
         return {"sport": sport, "status": "failed", "error": f"Sport not found: {sport}"}
 
     with get_db() as conn:
+        if not teams:
+            scope = resolve_fixture_team_scope(conn, sport_id, betting_date, limit=limit)
+            teams = scope["teams"]
         for team_id, team_name in teams:
             rows = conn.execute(
                 "SELECT stat_key, source FROM team_form WHERE team_id = ? AND sport_id = ?",
@@ -85,6 +93,8 @@ def probe_rich_coverage(sport: str, betting_date: str, limit: int = 10) -> dict:
     return {
         "sport": sport,
         "date": betting_date,
+        "scope_date": scope["scope_date"],
+        "used_fallback": scope["used_fallback"],
         "source_choice": policy["canonical_source"],
         "fixtures_scanned": summary["total"],
         "eligible": summary["eligible"],
@@ -114,6 +124,7 @@ def main() -> None:
     else:
         print(
             f"{result['sport']} {result['date']}: source={result['source_choice']} "
+            f"scope={result['scope_date']} fallback={str(result['used_fallback']).lower()} "
             f"fixtures={result['fixtures_scanned']} eligible={result['eligible']} rich={result['rich']} "
             f"baseline_only={result['baseline_only']} partial={result['partial']} no_data={result['no_data']} "
             f"completion={result['completion_rate']}%"

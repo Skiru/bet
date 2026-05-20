@@ -11,6 +11,59 @@ from collections import Counter
 BASELINE_SOURCE = "league-profile-baseline"
 
 
+def _select_fixture_teams_for_date(conn, sport_id: int, fixture_date: str):
+    return conn.execute(
+        "SELECT DISTINCT t.id, t.name FROM fixtures f "
+        "JOIN teams t ON t.id IN (f.home_team_id, f.away_team_id) "
+        "WHERE date(f.kickoff) = ? AND f.sport_id = ? ORDER BY t.name",
+        (fixture_date, sport_id),
+    ).fetchall()
+
+
+def resolve_fixture_team_scope(
+    conn,
+    sport_id: int,
+    betting_date: str,
+    *,
+    limit: int | None = None,
+) -> dict:
+    teams = list(_select_fixture_teams_for_date(conn, sport_id, betting_date))
+    if teams:
+        return {
+            "teams": teams[:limit] if limit is not None else teams,
+            "scope_date": betting_date,
+            "used_fallback": False,
+        }
+
+    row = conn.execute(
+        "SELECT date(f.kickoff) AS fixture_date FROM fixtures f "
+        "WHERE f.sport_id = ? AND date(f.kickoff) <= ? "
+        "ORDER BY datetime(f.kickoff) DESC LIMIT 1",
+        (sport_id, betting_date),
+    ).fetchone()
+    if not row:
+        row = conn.execute(
+            "SELECT date(f.kickoff) AS fixture_date FROM fixtures f "
+            "WHERE f.sport_id = ? "
+            "ORDER BY datetime(f.kickoff) DESC LIMIT 1",
+            (sport_id,),
+        ).fetchone()
+    if not row:
+        return {
+            "teams": [],
+            "scope_date": betting_date,
+            "used_fallback": False,
+        }
+
+    scope_date = str(row[0] or betting_date)
+    fallback_teams = list(_select_fixture_teams_for_date(conn, sport_id, scope_date))
+    return {
+        "teams": fallback_teams[:limit] if limit is not None else fallback_teams,
+        "scope_date": scope_date,
+        "used_fallback": scope_date != betting_date,
+    }
+
+
 def _normalize_baseline_sources(
     baseline_source: str,
     baseline_sources: set[str] | list[str] | tuple[str, ...] | None,

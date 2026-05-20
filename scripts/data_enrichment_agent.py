@@ -47,11 +47,21 @@ from _helpers.basketball_rich_completion import (
     get_basketball_rich_stat_keys,
     get_missing_basketball_rich_stat_keys,
 )
+from _helpers.hockey_rich_completion import (
+    complete_hockey_rich_stats,
+    get_hockey_rich_stat_keys,
+    get_missing_hockey_rich_stat_keys,
+)
 from _helpers.tennis_rich_completion import (
     complete_tennis_rich_stats,
     get_missing_tennis_rich_stat_keys,
     get_tennis_baseline_stat_keys,
     get_tennis_rich_stat_keys,
+)
+from _helpers import (
+    complete_volleyball_rich_stats,
+    get_missing_volleyball_rich_stat_keys,
+    get_volleyball_rich_stat_keys,
 )
 from _helpers.football_flashscore_html_enrichment import (
     complete_football_rich_stats,
@@ -71,6 +81,16 @@ _TENNIS_ALLOWED_SOURCES = {
     *_TENNIS_POLICY["supporting_sources"],
 }
 _TENNIS_BASELINE_SOURCES = set(_TENNIS_POLICY.get("baseline_sources", []))
+_HOCKEY_POLICY = RICH_COMPLETION_POLICY["hockey"]
+_HOCKEY_ALLOWED_SOURCES = {
+    _HOCKEY_POLICY["canonical_source"],
+    *_HOCKEY_POLICY["supporting_sources"],
+}
+_VOLLEYBALL_POLICY = RICH_COMPLETION_POLICY["volleyball"]
+_VOLLEYBALL_ALLOWED_SOURCES = {
+    _VOLLEYBALL_POLICY["canonical_source"],
+    *_VOLLEYBALL_POLICY["supporting_sources"],
+}
 
 # ---------------------------------------------------------------------------
 # Known missing teams — DB-based (replaces old JSON file)
@@ -210,6 +230,30 @@ def _set_result_status(result: dict) -> None:
         result["tennis_rich_complete"] = bool(rich_keys) and not missing_rich
         if found_keys:
             result["status"] = "enriched" if result["tennis_rich_complete"] else "partial"
+        else:
+            result["status"] = "failed"
+        return
+
+    if sport == "hockey":
+        rich_keys = get_hockey_rich_stat_keys(found_keys)
+        missing_rich = get_missing_hockey_rich_stat_keys(found_keys)
+        result["hockey_rich_keys_found"] = sorted(rich_keys)
+        result["hockey_missing_rich_keys"] = missing_rich
+        result["hockey_rich_complete"] = bool(rich_keys) and not missing_rich
+        if found_keys:
+            result["status"] = "enriched" if result["hockey_rich_complete"] else "partial"
+        else:
+            result["status"] = "failed"
+        return
+
+    if sport == "volleyball":
+        rich_keys = get_volleyball_rich_stat_keys(found_keys)
+        missing_rich = get_missing_volleyball_rich_stat_keys(found_keys)
+        result["volleyball_rich_keys_found"] = sorted(rich_keys)
+        result["volleyball_missing_rich_keys"] = missing_rich
+        result["volleyball_rich_complete"] = bool(rich_keys) and not missing_rich
+        if found_keys:
+            result["status"] = "enriched" if result["volleyball_rich_complete"] else "partial"
         else:
             result["status"] = "failed"
         return
@@ -441,6 +485,319 @@ def _default_tennis_coverage_detail() -> dict:
     }
 
 
+def _default_hockey_coverage_detail() -> dict:
+    return {
+        "bucket": "no_data",
+        "eligible": False,
+        "stat_keys": [],
+        "sources": [],
+        "rich_keys_found": [],
+        "missing_rich_keys": list(_HOCKEY_POLICY["required_rich_keys"]),
+    }
+
+
+def _default_volleyball_coverage_detail() -> dict:
+    return {
+        "bucket": "no_data",
+        "eligible": False,
+        "stat_keys": [],
+        "sources": [],
+        "rich_keys_found": [],
+        "missing_rich_keys": list(_VOLLEYBALL_POLICY["required_rich_keys"]),
+    }
+
+
+def _get_hockey_coverage_detail(team_name: str) -> dict:
+    try:
+        with get_db() as conn:
+            sport_repo = SportRepo(conn)
+            team_repo = TeamRepo(conn)
+            sport = sport_repo.get_by_name("hockey")
+            if not sport:
+                return _default_hockey_coverage_detail()
+
+            team = team_repo.resolve(team_name, sport.id)
+            if not team:
+                return _default_hockey_coverage_detail()
+
+            rows = conn.execute(
+                "SELECT stat_key, source FROM team_form WHERE team_id = ? AND sport_id = ?",
+                (team.id, sport.id),
+            ).fetchall()
+    except Exception as exc:
+        logger.debug("Failed to inspect hockey coverage for %s: %s", team_name, exc)
+        return _default_hockey_coverage_detail()
+
+    return classify_rich_coverage(
+        rows,
+        _HOCKEY_POLICY["required_rich_keys"],
+        _HOCKEY_ALLOWED_SOURCES,
+    )
+
+
+def _merge_hockey_coverage_into_result(result: dict, detail: dict) -> None:
+    result["hockey_rich_keys_found"] = list(detail.get("rich_keys_found", []))
+    result["hockey_missing_rich_keys"] = list(detail.get("missing_rich_keys", []))
+    result["hockey_rich_complete"] = detail.get("bucket") == "rich"
+
+    bucket = detail.get("bucket", "no_data")
+    if bucket == "rich":
+        result["status"] = "enriched"
+    elif bucket in {"baseline_only", "partial"}:
+        result["status"] = "partial"
+    else:
+        result["status"] = "partial" if result.get("stats_found") else "failed"
+
+
+def _refresh_hockey_coverage_result(result: dict) -> dict:
+    if result.get("sport") != "hockey":
+        return result
+    detail = _get_hockey_coverage_detail(result["team"])
+    _merge_hockey_coverage_into_result(result, detail)
+    return result
+
+
+def _get_volleyball_coverage_detail(team_name: str) -> dict:
+    try:
+        with get_db() as conn:
+            sport_repo = SportRepo(conn)
+            team_repo = TeamRepo(conn)
+            sport = sport_repo.get_by_name("volleyball")
+            if not sport:
+                return _default_volleyball_coverage_detail()
+
+            team = team_repo.resolve(team_name, sport.id)
+            if not team:
+                return _default_volleyball_coverage_detail()
+
+            rows = conn.execute(
+                "SELECT stat_key, source FROM team_form WHERE team_id = ? AND sport_id = ?",
+                (team.id, sport.id),
+            ).fetchall()
+    except Exception as exc:
+        logger.debug("Failed to inspect volleyball coverage for %s: %s", team_name, exc)
+        return _default_volleyball_coverage_detail()
+
+    return classify_rich_coverage(
+        rows,
+        _VOLLEYBALL_POLICY["required_rich_keys"],
+        _VOLLEYBALL_ALLOWED_SOURCES,
+    )
+
+
+def _merge_volleyball_coverage_into_result(result: dict, detail: dict) -> None:
+    result["volleyball_rich_keys_found"] = list(detail.get("rich_keys_found", []))
+    result["volleyball_missing_rich_keys"] = list(detail.get("missing_rich_keys", []))
+    result["volleyball_rich_complete"] = detail.get("bucket") == "rich"
+
+    bucket = detail.get("bucket", "no_data")
+    if bucket == "rich":
+        result["status"] = "enriched"
+    elif bucket in {"baseline_only", "partial"}:
+        result["status"] = "partial"
+    else:
+        result["status"] = "partial" if result.get("stats_found") else "failed"
+
+
+def _needs_volleyball_rich_completion(result: dict, coverage_detail: dict) -> bool:
+    return result.get("sport") == "volleyball" and bool(result.get("volleyball_missing_rich_keys")) and (
+        coverage_detail.get("bucket") in {"baseline_only", "partial"} or bool(result.get("stats_found"))
+    )
+
+
+def _apply_volleyball_rich_completion(result: dict, max_fixtures: int = 5) -> dict:
+    if result.get("sport") != "volleyball":
+        return result
+
+    coverage_before = _get_volleyball_coverage_detail(result["team"])
+    _merge_volleyball_coverage_into_result(result, coverage_before)
+
+    completion = result.setdefault(
+        "volleyball_completion",
+        {
+            "needed": False,
+            "attempted": False,
+            "success": False,
+            "source": _VOLLEYBALL_POLICY["canonical_source"],
+            "status": "not_needed",
+            "fixtures_scanned": 0,
+            "matches_persisted": 0,
+            "rich_keys_added": [],
+            "missing_after": [],
+            "error": None,
+            "failure_reason": None,
+        },
+    )
+
+    error_text = (result.get("error") or "").lower()
+    if "known missing team" in error_text or "missing team name" in error_text:
+        completion.update(
+            {
+                "needed": False,
+                "attempted": False,
+                "success": False,
+                "status": "skipped",
+                "error": result.get("error"),
+                "missing_after": result.get("volleyball_missing_rich_keys", []),
+            }
+        )
+        return result
+
+    completion["needed"] = _needs_volleyball_rich_completion(result, coverage_before)
+    if not completion["needed"]:
+        completion["status"] = "not_needed"
+        completion["missing_after"] = result.get("volleyball_missing_rich_keys", [])
+        return result
+
+    existing_rich = set(result.get("volleyball_rich_keys_found", []))
+    helper_result = complete_volleyball_rich_stats(result["team"], result["sport"], max_fixtures=max_fixtures)
+    added_rich = [
+        key for key in helper_result.get("rich_keys_found", []) if key not in existing_rich
+    ]
+
+    completion.update(
+        {
+            "needed": True,
+            "attempted": True,
+            "source": helper_result.get("source", _VOLLEYBALL_POLICY["canonical_source"]),
+            "status": helper_result.get("status", "failed"),
+            "fixtures_scanned": helper_result.get("fixtures_scanned", 0),
+            "matches_persisted": helper_result.get("matches_persisted", 0),
+            "rich_keys_added": added_rich,
+            "error": helper_result.get("error"),
+            "failure_reason": helper_result.get("failure_reason"),
+        }
+    )
+
+    if helper_result.get("status") in ("enriched", "partial") and helper_result.get("rich_keys_found"):
+        for stat_key in helper_result["rich_keys_found"]:
+            result.setdefault("stats_found", {})[stat_key] = True
+        helper_source = helper_result.get("source", _VOLLEYBALL_POLICY["canonical_source"])
+        if result.get("source") and result["source"] != helper_source:
+            supplementary_sources = result.setdefault("supplementary_sources", [])
+            if helper_source not in supplementary_sources:
+                supplementary_sources.append(helper_source)
+        else:
+            result["source"] = helper_source
+        result["error"] = None
+    elif helper_result.get("error"):
+        errors = [
+            message
+            for message in [result.get("error"), f"volleyball-completion: {helper_result['error']}"]
+            if message
+        ]
+        result["error"] = "; ".join(errors[-2:])
+
+    coverage_after = _get_volleyball_coverage_detail(result["team"])
+    _merge_volleyball_coverage_into_result(result, coverage_after)
+    completion["success"] = bool(added_rich)
+    completion["missing_after"] = result.get("volleyball_missing_rich_keys", [])
+    return result
+
+
+def _record_hockey_supplementary_source(result: dict, source_name: str) -> None:
+    if result.get("source") == source_name:
+        return
+    supplementary_sources = result.setdefault("supplementary_sources", [])
+    if source_name not in supplementary_sources:
+        supplementary_sources.append(source_name)
+
+
+def _needs_hockey_rich_completion(result: dict, coverage_detail: dict) -> bool:
+    return result.get("sport") == "hockey" and bool(result.get("hockey_missing_rich_keys")) and (
+        coverage_detail.get("bucket") in {"baseline_only", "partial"} or bool(result.get("stats_found"))
+    )
+
+
+def _apply_hockey_rich_completion(result: dict, max_fixtures: int = 5) -> dict:
+    if result.get("sport") != "hockey":
+        return result
+
+    coverage_before = _get_hockey_coverage_detail(result["team"])
+    _merge_hockey_coverage_into_result(result, coverage_before)
+
+    completion = result.setdefault(
+        "hockey_completion",
+        {
+            "needed": False,
+            "attempted": False,
+            "success": False,
+            "source": _HOCKEY_POLICY["canonical_source"],
+            "status": "not_needed",
+            "fixtures_scanned": 0,
+            "matches_persisted": 0,
+            "rich_keys_added": [],
+            "missing_after": [],
+            "error": None,
+            "failure_reason": None,
+        },
+    )
+
+    error_text = (result.get("error") or "").lower()
+    if "known missing team" in error_text or "missing team name" in error_text:
+        completion.update(
+            {
+                "needed": False,
+                "attempted": False,
+                "success": False,
+                "status": "skipped",
+                "error": result.get("error"),
+                "missing_after": result.get("hockey_missing_rich_keys", []),
+            }
+        )
+        return result
+
+    completion["needed"] = _needs_hockey_rich_completion(result, coverage_before)
+    if not completion["needed"]:
+        completion["status"] = "not_needed"
+        completion["missing_after"] = result.get("hockey_missing_rich_keys", [])
+        return result
+
+    existing_rich = set(result.get("hockey_rich_keys_found", []))
+    helper_result = complete_hockey_rich_stats(result["team"], result["sport"], max_fixtures=max_fixtures)
+    added_rich = [
+        key for key in helper_result.get("rich_keys_found", []) if key not in existing_rich
+    ]
+
+    completion.update(
+        {
+            "needed": True,
+            "attempted": True,
+            "source": helper_result.get("source", _HOCKEY_POLICY["canonical_source"]),
+            "status": helper_result.get("status", "failed"),
+            "fixtures_scanned": helper_result.get("fixtures_scanned", 0),
+            "matches_persisted": helper_result.get("matches_persisted", 0),
+            "rich_keys_added": added_rich,
+            "error": helper_result.get("error"),
+            "failure_reason": helper_result.get("failure_reason"),
+        }
+    )
+
+    if helper_result.get("status") in ("enriched", "partial") and helper_result.get("rich_keys_found"):
+        for stat_key in helper_result["rich_keys_found"]:
+            result.setdefault("stats_found", {})[stat_key] = True
+        helper_source = helper_result.get("source", _HOCKEY_POLICY["canonical_source"])
+        if result.get("source") and result["source"] != helper_source:
+            supplementary_sources = result.setdefault("supplementary_sources", [])
+            if helper_source not in supplementary_sources:
+                supplementary_sources.append(helper_source)
+        else:
+            result["source"] = helper_source
+        result["error"] = None
+    elif helper_result.get("error"):
+        errors = [
+            message
+            for message in [result.get("error"), f"hockey-completion: {helper_result['error']}"]
+            if message
+        ]
+        result["error"] = "; ".join(errors[-2:])
+
+    _refresh_hockey_coverage_result(result)
+    completion["success"] = bool(added_rich)
+    completion["missing_after"] = result.get("hockey_missing_rich_keys", [])
+    return result
+
+
 def _get_tennis_coverage_detail(team_name: str) -> dict:
     try:
         with get_db() as conn:
@@ -599,6 +956,24 @@ def _summarize_enrichment_results(results: list[dict], extra_metrics: dict | Non
     basketball_still_missing = sum(
         1 for r in results if r.get("sport") == "basketball" and r.get("basketball_missing_rich_keys")
     )
+    hockey_eligible = sum(
+        1 for r in results if r.get("sport") == "hockey" and r.get("hockey_completion", {}).get("needed")
+    )
+    hockey_completed = sum(
+        1 for r in results if r.get("sport") == "hockey" and r.get("hockey_completion", {}).get("success")
+    )
+    hockey_still_missing = sum(
+        1 for r in results if r.get("sport") == "hockey" and r.get("hockey_missing_rich_keys")
+    )
+    volleyball_eligible = sum(
+        1 for r in results if r.get("sport") == "volleyball" and r.get("volleyball_completion", {}).get("needed")
+    )
+    volleyball_completed = sum(
+        1 for r in results if r.get("sport") == "volleyball" and r.get("volleyball_completion", {}).get("success")
+    )
+    volleyball_still_missing = sum(
+        1 for r in results if r.get("sport") == "volleyball" and r.get("volleyball_missing_rich_keys")
+    )
     tennis_eligible = sum(
         1 for r in results if r.get("sport") == "tennis" and r.get("tennis_completion", {}).get("needed")
     )
@@ -623,6 +998,12 @@ def _summarize_enrichment_results(results: list[dict], extra_metrics: dict | Non
         "basketball_rich_eligible": basketball_eligible,
         "basketball_completed": basketball_completed,
         "basketball_still_missing_rich": basketball_still_missing,
+        "hockey_rich_eligible": hockey_eligible,
+        "hockey_completed": hockey_completed,
+        "hockey_still_missing_rich": hockey_still_missing,
+        "volleyball_rich_eligible": volleyball_eligible,
+        "volleyball_completed": volleyball_completed,
+        "volleyball_still_missing_rich": volleyball_still_missing,
         "tennis_rich_eligible": tennis_eligible,
         "tennis_completed": tennis_completed,
         "tennis_still_missing_rich": tennis_still_missing,
@@ -655,6 +1036,118 @@ def _get_competition_for_team(team_name: str, sport: str) -> str:
             return row["name"] if row else ""
     except Exception:
         return ""
+
+
+def _filter_enrichment_targets(
+    entries: list[dict],
+    *,
+    sport_filter: str | None = None,
+    limit: int | None = None,
+) -> list[dict]:
+    filtered = [
+        entry
+        for entry in entries
+        if entry.get("team") and entry.get("sport") and (not sport_filter or entry.get("sport") == sport_filter)
+    ]
+    if limit is not None:
+        return filtered[:limit]
+    return filtered
+
+
+def _get_existing_team_form_rows(team_name: str, sport: str) -> list[tuple[str, str]]:
+    try:
+        with get_db() as conn:
+            sport_repo = SportRepo(conn)
+            team_repo = TeamRepo(conn)
+            sport_obj = sport_repo.get_by_name(sport)
+            if not sport_obj:
+                return []
+            team = team_repo.resolve(team_name, sport_obj.id)
+            if not team:
+                return []
+            rows = conn.execute(
+                "SELECT stat_key, source FROM team_form WHERE team_id = ? AND sport_id = ?",
+                (team.id, sport_obj.id),
+            ).fetchall()
+            return [(str(row[0] or ""), str(row[1] or "")) for row in rows]
+    except Exception:
+        return []
+
+
+def _build_dry_run_preview_result(entry: dict) -> dict:
+    team_name = entry.get("team", "")
+    sport = entry.get("sport", "")
+    rows = _get_existing_team_form_rows(team_name, sport)
+
+    result = {
+        "team": team_name,
+        "sport": sport,
+        "status": "failed",
+        "stats_found": {stat_key: True for stat_key, _ in rows if stat_key},
+        "source": next((source for _, source in rows if source), None),
+        "error": None,
+    }
+    _set_result_status(result)
+
+    if sport == "football":
+        result["football_completion"] = {
+            "needed": _needs_football_rich_completion(result),
+            "attempted": False,
+            "success": False,
+            "status": "dry_run",
+        }
+    elif sport == "basketball":
+        result["basketball_completion"] = {
+            "needed": _needs_basketball_rich_completion(result),
+            "attempted": False,
+            "success": False,
+            "status": "dry_run",
+        }
+    elif sport == "tennis":
+        coverage_detail = _get_tennis_coverage_detail(team_name)
+        _merge_tennis_coverage_into_result(result, coverage_detail)
+        _set_result_status(result)
+        result["tennis_completion"] = {
+            "needed": _needs_tennis_rich_completion(result, coverage_detail),
+            "attempted": False,
+            "success": False,
+            "status": "dry_run",
+            "baseline_only": coverage_detail.get("bucket") == "baseline_only",
+        }
+    elif sport == "hockey":
+        coverage_detail = classify_rich_coverage(
+            rows,
+            _HOCKEY_POLICY["required_rich_keys"],
+            _HOCKEY_ALLOWED_SOURCES,
+        )
+        _merge_hockey_coverage_into_result(result, coverage_detail)
+        result["hockey_completion"] = {
+            "needed": _needs_hockey_rich_completion(result, coverage_detail),
+            "attempted": False,
+            "success": False,
+            "status": "dry_run",
+            "source": _HOCKEY_POLICY["canonical_source"],
+        }
+    elif sport == "volleyball":
+        coverage_detail = classify_rich_coverage(
+            rows,
+            _VOLLEYBALL_POLICY["required_rich_keys"],
+            _VOLLEYBALL_ALLOWED_SOURCES,
+        )
+        _merge_volleyball_coverage_into_result(result, coverage_detail)
+        result["volleyball_completion"] = {
+            "needed": _needs_volleyball_rich_completion(result, coverage_detail),
+            "attempted": False,
+            "success": False,
+            "status": "dry_run",
+            "source": _VOLLEYBALL_POLICY["canonical_source"],
+        }
+
+    return result
+
+
+def _preview_enrichment_results(entries: list[dict]) -> list[dict]:
+    return [_build_dry_run_preview_result(entry) for entry in entries]
 
 
 # ---------------------------------------------------------------------------
@@ -777,6 +1270,10 @@ def enrich_team(
             result,
             allow_basketball_rich_completion=allow_basketball_rich_completion,
         )
+    elif sport == "hockey":
+        result = _apply_hockey_rich_completion(result)
+    elif sport == "volleyball":
+        result = _apply_volleyball_rich_completion(result)
     elif result["stats_found"]:
         _set_result_status(result)
 
@@ -787,12 +1284,12 @@ def enrich_team(
             mp_stats = mp_get_team_stats(team_name)
             if mp_stats and mp_stats.get("stats"):
                 _save_supplementary_stats(team_name, sport, mp_stats["stats"], "moneypuck")
+                _record_hockey_supplementary_source(result, "moneypuck")
                 if not result["stats_found"]:
                     result["stats_found"] = mp_stats["stats"]
-                    result["source"] = "moneypuck"
                 else:
                     result["stats_found"].update(mp_stats["stats"])
-                _set_result_status(result)
+                _refresh_hockey_coverage_result(result)
                 logger.info(f"[moneypuck] Supplemented {team_name}: {len(mp_stats['stats'])} advanced stat keys")
         except Exception as e:
             logger.debug(f"[moneypuck] supplement failed for {team_name}: {e}")
@@ -805,12 +1302,12 @@ def enrich_team(
             nhl_stats = nhl_client.get_team_advanced_stats(team_name)
             if nhl_stats:
                 _save_supplementary_stats(team_name, sport, nhl_stats, "scrapernhl")
+                _record_hockey_supplementary_source(result, "scrapernhl")
                 if not result["stats_found"]:
                     result["stats_found"] = nhl_stats
-                    result["source"] = "scrapernhl"
                 else:
                     result["stats_found"].update(nhl_stats)
-                _set_result_status(result)
+                _refresh_hockey_coverage_result(result)
                 logger.info(f"[scrapernhl] Supplemented {team_name}: {len(nhl_stats)} advanced stat keys")
         except Exception as e:
             logger.debug(f"[scrapernhl] supplement failed for {team_name}: {e}")
@@ -842,7 +1339,10 @@ def enrich_team(
                 else:
                     result["stats_found"] = flashscore_stats
                 _save_flashscore_to_db(team_name, sport, stats)
-                _set_result_status(result)
+                if sport == "hockey":
+                    _refresh_hockey_coverage_result(result)
+                else:
+                    _set_result_status(result)
                 if (
                     sport == "football"
                     and allow_football_rich_completion
@@ -856,6 +1356,10 @@ def enrich_team(
                     )
                 elif sport == "tennis":
                     result = _apply_tennis_rich_completion(result)
+                elif sport == "hockey":
+                    result = _apply_hockey_rich_completion(result)
+                elif sport == "volleyball":
+                    result = _apply_volleyball_rich_completion(result)
                 logger.info(f"[flashscore] Enriched {team_name} ({sport}): {len(stats)} stat keys")
                 return result
 
@@ -1341,6 +1845,8 @@ def main():
     parser.add_argument("--date", help="Auto-detect missing teams from shortlist (YYYY-MM-DD)")
     parser.add_argument("--h2h", nargs=2, metavar=("TEAM_A", "TEAM_B"), help="Fetch H2H stats")
     parser.add_argument("--workers", type=int, default=4, help="Max parallel workers")
+    parser.add_argument("--limit", type=int, help="Limit teams processed in --date mode after optional sport filtering")
+    parser.add_argument("--dry-run", action="store_true", help="Inspect filtered enrichment targets and emit AGENT_SUMMARY without writing data")
     parser.add_argument("--news", action="store_true", default=False,
                         help="Run Gemini news enrichment after stats enrichment")
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose logging")
@@ -1426,6 +1932,7 @@ def main():
         else:
             # Default: shortlist-only enrichment (fast, targeted)
             missing = _detect_missing_from_shortlist(args.date, shortlist_override=args.shortlist)
+        missing = _filter_enrichment_targets(missing, sport_filter=args.sport, limit=args.limit)
         if not missing:
             out.summary(verdict="OK", metrics={"missing": 0, "message": f"No missing teams for {args.date}"})
             sys.exit(0)
@@ -1434,6 +1941,19 @@ def main():
             out.event("missing_detected", count=len(missing))
         else:
             print(f"Found {len(missing)} teams with missing stats", file=sys.stderr)
+
+        if args.dry_run:
+            results = _preview_enrichment_results(missing)
+            print(json.dumps(results, indent=2, ensure_ascii=False))
+            summary_metrics = _summarize_enrichment_results(
+                results,
+                extra_metrics={
+                    "dry_run_mode": 1,
+                    "dry_run_candidates": len(results),
+                },
+            )
+            out.summary(verdict="OK", metrics=summary_metrics)
+            sys.exit(0)
 
         results = batch_enrich(missing, max_workers=args.workers, skip_known_missing=bool(args.shortlist))
         print(json.dumps(results, indent=2, ensure_ascii=False))

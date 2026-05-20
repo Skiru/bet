@@ -80,7 +80,7 @@ def test_tennis_policy_declares_baseline_and_rich_contract():
         "break_pct",
     ]
     assert policy["canonical_source"] == "tennis-abstract"
-    assert policy["supporting_sources"] == ["sofascore-tennis", "sackmann"]
+    assert policy["supporting_sources"] == ["sackmann"]
     assert policy["aggregate_only_sources"] == ["sackmann-season-aggregate"]
 
 
@@ -142,13 +142,6 @@ def test_tennis_helper_persists_only_rich_keys_via_store_in_cache(monkeypatch):
             api_name="tennis-abstract",
             is_available=lambda: True,
             get_fixture_stats_for_player=lambda team_name, last_n=10: [ta_match],
-        ),
-        "sofascore-tennis": SimpleNamespace(
-            api_name="sofascore-tennis",
-            is_available=lambda: True,
-            resolve_team_id=lambda team_name: "11",
-            get_team_last_fixtures=lambda team_id, last_n=10: [],
-            get_fixture_stats=lambda fixture_id: None,
         ),
         "sackmann": SimpleNamespace(
             api_name="sackmann",
@@ -219,13 +212,6 @@ def test_tennis_helper_uses_supporting_source_without_season_aggregates(monkeypa
             api_name="tennis-abstract",
             is_available=lambda: True,
             get_fixture_stats_for_player=lambda team_name, last_n=10: [ta_match],
-        ),
-        "sofascore-tennis": SimpleNamespace(
-            api_name="sofascore-tennis",
-            is_available=lambda: True,
-            resolve_team_id=lambda team_name: "11",
-            get_team_last_fixtures=lambda team_id, last_n=10: [],
-            get_fixture_stats=lambda fixture_id: None,
         ),
         "sackmann": SimpleNamespace(
             api_name="sackmann",
@@ -380,6 +366,81 @@ def test_set_result_status_marks_fully_rich_tennis_as_enriched():
 
     assert result["tennis_rich_complete"] is True
     assert result["status"] == "enriched"
+
+
+def test_apply_tennis_completion_skips_when_coverage_is_already_rich(monkeypatch):
+    policy = RICH_COMPLETION_POLICY["tennis"]
+    rich_detail = {
+        "bucket": "rich",
+        "eligible": False,
+        "stat_keys": list(policy["required_rich_keys"]),
+        "sources": ["tennis-abstract"],
+        "rich_keys_found": list(policy["required_rich_keys"]),
+        "missing_rich_keys": [],
+    }
+
+    monkeypatch.setattr(data_enrichment_agent, "_get_tennis_coverage_detail", lambda team_name: rich_detail)
+    monkeypatch.setattr(
+        data_enrichment_agent,
+        "complete_tennis_rich_stats",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("helper should not run for rich coverage")),
+    )
+
+    result = data_enrichment_agent._apply_tennis_rich_completion(
+        {
+            "team": "Iga Swiatek",
+            "sport": "tennis",
+            "status": "partial",
+            "stats_found": {},
+            "source": "tennis-abstract",
+            "error": None,
+        }
+    )
+
+    assert result["status"] == "enriched"
+    assert result["tennis_rich_complete"] is True
+    assert result["tennis_completion"]["needed"] is False
+    assert result["tennis_completion"]["attempted"] is False
+    assert result["tennis_completion"]["status"] == "not_needed"
+    assert result["tennis_completion"]["missing_after"] == []
+
+
+def test_apply_tennis_completion_skips_known_missing_team(monkeypatch):
+    policy = RICH_COMPLETION_POLICY["tennis"]
+    baseline_detail = {
+        "bucket": "baseline_only",
+        "eligible": True,
+        "stat_keys": list(policy["baseline_keys"]),
+        "sources": ["espn-tennis-enriched"],
+        "rich_keys_found": [],
+        "missing_rich_keys": list(policy["required_rich_keys"]),
+    }
+
+    monkeypatch.setattr(data_enrichment_agent, "_get_tennis_coverage_detail", lambda team_name: baseline_detail)
+    monkeypatch.setattr(
+        data_enrichment_agent,
+        "complete_tennis_rich_stats",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("helper should not run for known missing team")),
+    )
+
+    result = data_enrichment_agent._apply_tennis_rich_completion(
+        {
+            "team": "Unknown Player",
+            "sport": "tennis",
+            "status": "failed",
+            "stats_found": {},
+            "source": None,
+            "error": "Known missing team (cached 404): Unknown Player",
+        }
+    )
+
+    assert result["status"] == "partial"
+    assert result["tennis_completion"]["needed"] is False
+    assert result["tennis_completion"]["attempted"] is False
+    assert result["tennis_completion"]["success"] is False
+    assert result["tennis_completion"]["status"] == "skipped"
+    assert result["tennis_completion"]["baseline_only"] is True
+    assert result["tennis_completion"]["missing_after"] == list(policy["required_rich_keys"])
 
 
 def test_probe_reports_tennis_rich_coverage_without_writes(monkeypatch):

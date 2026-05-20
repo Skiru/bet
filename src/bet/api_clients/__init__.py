@@ -174,12 +174,6 @@ except ImportError:
     pass
 
 try:
-    from bet.api_clients.sofascore_tennis import SofascoreTennisClient
-    CLIENT_REGISTRY["sofascore-tennis"] = SofascoreTennisClient
-except ImportError:
-    pass
-
-try:
     from bet.api_clients.sofascore import SofascoreClient
     CLIENT_REGISTRY["sofascore"] = SofascoreClient
 except ImportError:

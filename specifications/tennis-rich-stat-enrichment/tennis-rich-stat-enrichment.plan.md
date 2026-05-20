@@ -25,7 +25,7 @@ Tennis-specific source policy:
 
 - baseline coverage stays on the existing scoreboard/ESPN-driven path already used by `scripts/enrich_tennis_stats.py`
 - primary rich completion source: `tennis-abstract`
-- bounded supporting sources in this slice: `sofascore-tennis` and `sackmann` via per-match `NormalizedMatchStats` paths only
+- bounded supporting source in this slice: `sackmann` via per-match `NormalizedMatchStats` paths only
 - excluded from `supporting_sources`: Sackmann season aggregates and any other non-match-level summaries, which remain aggregate-only/advisory surfaces
 - aggregate-only / advisory surfaces: season summaries or player-level aggregates that do not map cleanly to per-match `NormalizedMatchStats`
 
@@ -41,10 +41,10 @@ If the basketball-owned shared foundation is absent, record the blocker in this 
 
 - `PYTHONPATH=src .venv/bin/python scripts/rich_stats_probe.py --date YYYY-MM-DD --sport tennis --limit 10 --verbose`
 - `PYTHONPATH=src .venv/bin/python scripts/db_report.py --report rich-coverage --sport tennis --date YYYY-MM-DD`
-- `PYTHONPATH=src .venv/bin/pytest -q tests/scrapers/tennis/test_sackmann.py tests/scrapers/tennis/test_sofascore_tennis.py tests/test_tennis_rich_completion.py`
+- `PYTHONPATH=src .venv/bin/pytest -q tests/scrapers/tennis/test_sackmann.py tests/test_tennis_rich_completion.py`
 
 These are post-implementation validation commands, not preflight checks against the current branch state.
-They assume the basketball-owned shared foundation (`scripts/rich_stats_probe.py`, the shared completion registry, and the generic `rich-coverage` report path) is already present in the working branch or has been explicitly reassigned by the manager in the same slice. `tests/scrapers/tennis/test_sofascore_tennis.py` and `tests/test_tennis_rich_completion.py` must exist before the final test run.
+They assume the basketball-owned shared foundation (`scripts/rich_stats_probe.py`, the shared completion registry, and the generic `rich-coverage` report path) is already present in the working branch or has been explicitly reassigned by the manager in the same slice. `tests/test_tennis_rich_completion.py` must exist before the final test run.
 
 Use shared report-bucket vocabulary consistently: `rich`, `baseline_only`, `partial`, `no_data`.
 For tennis, `baseline_only` specifically means scoreboard / ESPN baseline coverage exists, but serve/return rich keys are still missing. Keep AGENT_SUMMARY owner metrics separate: `eligible`, `completed`, `still_missing`.
@@ -61,12 +61,6 @@ List of existing components, functions, utilities that will be reused (with file
 - `src/bet/stats/fallback_chains.py` - shared fallback-chain module already listing tennis sources and expected stat keys
 - `src/bet/api_clients/tennis_abstract.py` - existing tennis-specific source returning per-match serve/return stats and normalized fixtures
 - `src/bet/api_clients/sackmann_adapter.py` - existing source for Sackmann-based tennis data, including match/history support and season aggregates
-- `src/bet/api_clients/sofascore_tennis.py` - existing tennis-specific SofaScore adapter
-- `tests/scrapers/tennis/test_sackmann.py` - current focused test around the Sackmann source
-
-### To Be Modified
-
-List of existing code that needs changes or extensions (with file paths and description of changes):
 
 - `scripts/data_enrichment_agent.py` - expand the current partial Tennis Abstract supplementation into a full tennis rich-completion slice with explicit baseline-vs-rich reporting
 - `scripts/enrich_tennis_stats.py` - keep baseline ownership clear and avoid duplicate persistence paths once rich completion is introduced; it currently persists baseline cache entries via `build_stats_cache._persist_to_db()`, so the rich slice must not convert it into a second rich-completion writer or overlap its baseline write surface
@@ -81,7 +75,6 @@ List of new components, functions, utilities that need to be built from scratch:
 - tennis-specific extensions to the basketball-owned shared completion registry / probe / report surfaces
 - do not create `scripts/rich_stats_probe.py`, the shared completion registry, or the generic `rich-coverage` report path from scratch; if they are absent, record the blocker in this plan's Changelog and halt until basketball Task 1.1 is confirmed complete in the working branch or the manager explicitly reassigns ownership
 - `scripts/_helpers/tennis_rich_completion.py` - bounded tennis helper that merges baseline and rich completion results without creating a second independent writer
-- `tests/scrapers/tennis/test_sofascore_tennis.py` - focused tests for the existing `sofascore-tennis` source surface
 - `tests/test_tennis_rich_completion.py` - focused merge, routing, baseline-vs-rich, and no-write probe tests
 
 ## Open Questions
@@ -121,7 +114,7 @@ Project conventions, coding standards, and patterns discovered during planning. 
 ### Code Style & Standards
 
 - Keep tennis-specific parsing and merge rules in a bounded helper under `scripts/_helpers/`
-- Preserve explicit provenance such as `tennis-abstract`, `sofascore-tennis`, `sackmann`, and scoreboard/ESPN baseline sources
+- Preserve explicit provenance such as `tennis-abstract`, `sackmann`, and scoreboard/ESPN baseline sources
 - Do not let season aggregates silently satisfy canonical per-match richness
 - Keep baseline and rich buckets explicit in metrics and reporting
 
@@ -157,7 +150,7 @@ Project conventions, coding standards, and patterns discovered during planning. 
 - [x] Tennis declares baseline keys, rich keys, canonical rich source, supporting sources, and any aggregate-only sources in `src/bet/stats/fallback_chains.py::RICH_COMPLETION_POLICY`
 - [x] Tennis `baseline_keys` are exactly `sets_won`, `total_sets`, `games_won`, and `total_games`
 - [x] Tennis `required_rich_keys` are exactly `aces`, `double_faults`, `first_serve_pct`, `first_serve_win_pct`, `second_serve_win_pct`, `break_points_saved_pct`, `hold_pct`, and `break_pct`
-- [x] Tennis `supporting_sources` are exactly `sofascore-tennis` and `sackmann`, limited to per-match `NormalizedMatchStats` outputs only
+- [x] Tennis `supporting_sources` are exactly `sackmann`, limited to per-match `NormalizedMatchStats` outputs only
 - [x] The shared `scripts/rich_stats_probe.py` supports `--sport tennis` and reports baseline coverage, rich coverage, source choice, and failure reasons
 - [x] `scripts/db_report.py` supports `--report rich-coverage --sport tennis --date <date>` with explicit `baseline_only`, `partial`, `rich`, and `no_data` buckets
 - [x] The shared contract still persists only through `_store_in_cache()`
@@ -169,7 +162,7 @@ Project conventions, coding standards, and patterns discovered during planning. 
 **Definition of Done**:
 
 - [x] `tennis-abstract` is the primary rich-completion source
-- [x] `sofascore-tennis` and `sackmann` are the only supporting sources in this slice, and they are used only through per-match `NormalizedMatchStats` outputs
+- [x] `sackmann` is the only supporting source in this slice, used only through per-match `NormalizedMatchStats` outputs
 - [x] `sackmann_adapter.get_fixture_stats()` is the permitted Sackmann path; `sackmann_adapter.get_player_season_stats()` returns season aggregates wrapped in `NormalizedMatchStats` and is explicitly prohibited in this helper
 - [x] Season-aggregate-only payloads cannot satisfy canonical rich completion by themselves
 - [x] The `NormalizedMatchStats` payload passed to `_store_in_cache()` contains only rich-specific stat keys; baseline keys owned by `scripts/enrich_tennis_stats.py` are excluded so `save_team_form()` does not overwrite baseline rows via DELETE+INSERT
@@ -201,7 +194,7 @@ Project conventions, coding standards, and patterns discovered during planning. 
 - [x] Tests cover owner routing from `scripts/data_enrichment_agent.py`
 - [x] Tests verify that `sackmann_adapter.get_player_season_stats()` is never called by the helper (for example via a mock call-count assertion or a payload guard rejecting `season_aggregate` rows)
 - [x] Tests cover baseline-vs-rich bucket semantics and no-write probes
-- [x] Existing Sackmann and SofaScore tennis tests remain passing
+- [x] Existing Sackmann tennis tests remain passing
 
 ### Phase 3: Live Validation and Review
 
@@ -224,7 +217,7 @@ Project conventions, coding standards, and patterns discovered during planning. 
 - [x] Review is run after the focused validation suite
 - [x] Findings are fixed or explicitly tracked in the Changelog (see Code Review Findings section)
 - [x] Review confirms no duplicate tennis write path was introduced and no Branch B settlement regressions occurred
-- [x] The slice is not closed while review findings remain unresolved and untracked — **M1/L1 fixed post-review; M2/L2–L4 tracked**
+- [x] The slice is not closed while review findings remain unresolved and untracked — **M1/L1 fixed post-review; M2/L2/L3 fixed in the reopened follow-up slice; L4 became obsolete once SofaScore was removed from the tennis slice**
 
 ## Security Considerations
 
@@ -266,6 +259,8 @@ File: `scripts/_helpers/tennis_rich_completion.py`, L366-367; `scripts/fetch_api
 
 `_store_in_cache("tennis", team_name, persisted_matches, persisted_matches[0].source)` passes `persisted_matches[0].source` as the top-level `api_source` for all matches. `_save_per_match_stat_arrays` writes every `team_form` row with `source=api_source`, meaning sackmann-sourced keys on fixture 2 get attributed to `tennis-abstract` in `team_form`. Functionally harmless for classification (all sources are in `allowed_sources`), but per-key provenance is lost. No test covers a multi-fixture, multi-source scenario where sources differ by fixture.
 
+Resolved 2026-05-20: shared persistence now preserves per-match provenance. `_persist_match_stats_to_db()` derives `match_source = getattr(match, "source", None) or api_source` inside the per-match loop, and `_save_per_match_stat_arrays()` tracks `stat_sources` (first contributing source per stat key) and uses that for `TeamForm.source`. Added `TestPerMatchSourceProvenance` coverage in `tests/test_fetch_api_stats.py`.
+
 ### LOW
 
 **L1 — No-write probe test uses a weak mutation guard**
@@ -278,11 +273,15 @@ Resolved 2026-05-20: the probe test now rejects any non-`SELECT` query.
 **L2 — Missing test: `rich` coverage team does not trigger completion**
 The `_needs_tennis_rich_completion` logic is safe (empty `tennis_missing_rich_keys` short-circuits), but no test exercises the `bucket="rich"` → `needed=False` path.
 
+Resolved 2026-05-20: added `test_apply_tennis_completion_skips_when_coverage_is_already_rich`.
+
 **L3 — Missing test: `known_missing_team` skip path for tennis**
 `_apply_tennis_rich_completion` has a `known missing team` early-return branch (consistent with football/basketball), but it is untested in the tennis suite.
 
-**L4 — `test_sofascore_tennis.py` covers only the happy path**
-One fixture, both teams resolved, all stat groups present. Missing coverage for: partial stat group response (e.g., `Return` group absent), `get_team_last_fixtures` path, and mismatched player name resolution.
+Resolved 2026-05-20: added `test_apply_tennis_completion_skips_known_missing_team`.
+
+**L4 — Obsolete after tennis SofaScore removal**
+This gap applied only to the deleted `test_sofascore_tennis.py` path. Once `sofascore-tennis` was removed from the active tennis slice, the remaining partial-group and name-resolution coverage concerns stopped being part of the tennis implementation surface.
 
 ### INFORMATIONAL (no action required)
 
@@ -295,7 +294,7 @@ One fixture, both teams resolved, all stat groups present. Missing coverage for:
 
 Core tennis enrichment contract is correctly implemented: policy declares correct buckets and sources, classification treats `espn-tennis-enriched` as baseline-only, helper persists only rich keys through `_store_in_cache`, `enrich_tennis_stats.py` is not invoked inline, AGENT_SUMMARY metrics are wired and correct, and no Branch B settlement regressions were introduced.
 
-M1 and L1 were fixed post-review in the current branch. M2 remains low operational risk (provenance-only gap). L2–L4 are test hygiene gaps suitable for a follow-up task.
+M1, L1, M2, L2, and L3 are fixed in the current branch. The prior SofaScore-only L4 gap is obsolete because the tennis slice no longer includes SofaScore support.
 
 ## Improvements (Out of Scope)
 
@@ -314,3 +313,7 @@ Potential improvements identified during planning that are not part of the curre
 | 2026-05-20 | Implemented tennis rich completion via shared policy/report extensions, bounded helper wiring in `data_enrichment_agent.py`, focused tennis tests, and live probe/report/pytest validation |
 | 2026-05-20 | Code review complete. M1: `_set_result_status` uses `SPORT_STAT_KEYS` instead of `tennis_rich_complete` for status — fix required before merge. M2: multi-source batch source attribution inaccurate in `team_form` — tracked, low operational risk. L1–L4: test hygiene gaps tracked for follow-up. No duplicate write path; no settlement regressions. |
 | 2026-05-20 | Fixed post-review findings M1 and L1 by aligning tennis status with `tennis_rich_complete`, adding a regression test for the fully-rich owner path, and tightening the no-write probe test guard to reject any non-`SELECT` query. |
+| 2026-05-20 | Fixed M2: per-match source provenance in shared persistence. `_persist_match_stats_to_db` now derives `match_source = getattr(match, "source", None) or api_source` inside the per-match loop; `_save_per_match_stat_arrays` now tracks `stat_sources` (first contributing source per stat_key) and uses it in `TeamForm.source` instead of the batch `api_source`. No change to `rich_coverage.py` required — all tennis sources are already in `allowed_sources`. Added `TestPerMatchSourceProvenance` (2 tests) in `tests/test_fetch_api_stats.py`. All 11 tennis + provenance tests pass; full test_fetch_api_stats suite 19/19 pass. |
+| 2026-05-20 | Reopened tennis follow-up slice completed: added owner-flow regression tests for the already-rich and known-missing branches, added SofaScore tennis `get_team_last_fixtures` coverage, and minimally repaired shared `fallback_chains.py` structure to unblock validation after unrelated in-progress multisport edits. Follow-up review found no new high/medium issues; only L4 remains tracked. |
+| 2026-05-20 | Removed `sofascore-tennis` from the tennis slice entirely (user correction: SofaScore removed from project). `FALLBACK_CHAINS["tennis"]` and `RICH_COMPLETION_POLICY["tennis"]["supporting_sources"]` now list `sackmann` only. Deleted `src/bet/api_clients/sofascore_tennis.py` and `tests/scrapers/tennis/test_sofascore_tennis.py`. Removed `_normalize_sofascore_match_for_player` and its call site from `scripts/_helpers/tennis_rich_completion.py`. Removed `sofascore-tennis` registration block from `src/bet/api_clients/__init__.py`. Updated test mocks. 14/14 tennis tests pass. |
+| 2026-05-20 | Final code review of SofaScore-removal change. No HIGH or MEDIUM findings. L1 (low): stale `sofascore-tennis` row in `memories/repo/pipeline-knowledge-base.md` line 716 — should be removed to prevent agent confusion. All five expected outcomes confirmed clean: `FALLBACK_CHAINS["tennis"]` and `supporting_sources` contain no sofascore-tennis; helper has no sofascore branch; `__init__.py` has no sofascore-tennis key; both deleted files confirmed absent; 14/14 tests pass; `test_tennis_policy_declares_baseline_and_rich_contract` provides permanent regression guard. |
