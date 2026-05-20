@@ -1,0 +1,258 @@
+# hockey-rich-stat-enrichment - Implementation Plan
+
+## Task Details
+
+| Field            | Value |
+| ---------------- | ----- |
+| Jira ID          | N/A |
+| Title            | Hockey rich-stat enrichment |
+| Description      | Extend the post-football rich-stat enrichment architecture to hockey while preserving the stable `match_stats -> team_form` contract, keeping ownership in enrichment flows, and separating canonical per-game completion from the existing aggregate-only MoneyPuck and ScraperNHL supplements already present in the repo. |
+| Priority         | High |
+| Related Research | `specifications/multisport-rich-stat-enrichment/multisport-rich-stat-enrichment.plan.md`, `specifications/football-sofascore-team-form-enrichment/football-sofascore-team-form-enrichment.plan.md`, `specifications/flashscore-match-stats-token/flashscore-match-stats-token.plan.md`, `memories/repo/pipeline-knowledge-base.md` |
+
+## Proposed Solution
+
+Implement hockey rich completion as a provider-backed per-game path centered on `api-hockey`, while keeping MoneyPuck and ScraperNHL as explicitly supplementary aggregate sources.
+
+The implementation should keep the shared architecture already proven elsewhere:
+
+- `scripts/data_enrichment_agent.py` remains the enrichment owner
+- a bounded helper under `scripts/_helpers/` performs hockey-specific completion work
+- persistence still goes through `fetch_api_stats._store_in_cache()` into `match_stats` and derived `team_form`
+- generic probe and rich-coverage reporting should extend the basketball-owned shared foundation; if that foundation is missing in the working branch, escalate sequencing or obtain explicit manager reassignment instead of creating a hockey-only fork
+
+Hockey-specific source policy:
+
+- canonical per-game rich completion: `api-hockey`
+- bounded supporting source: `espn-hockey` when it returns per-game stats that fit the normalized contract
+- `espn-hockey` is registry-scoped to NHL fixtures (`CLIENT_REGISTRY["espn-hockey"] = _espn_factory("hockey", "nhl")`), so empty results outside NHL should be treated as unsupported-league skips rather than degraded-source failures
+- aggregate-only / advisory sources: `moneypuck` and `scrapernhl`
+
+`required_rich_keys` for canonical hockey completion must be derived from stats actually exposed by `api-hockey`. Until `api_hockey.py` maps `takeaways` and `giveaways`, treat those keys as supplementary-only and exclude them from canonical rich-completion success.
+
+This plan must preserve the analytical value of aggregate advanced stats without allowing them to masquerade as canonical `match_stats`-backed richness.
+
+When delegating implementation, use this child plan as the primary execution artifact and pass the multisport plan only as shared-guardrail context.
+This plan is independently usable for hockey-specific logic, but it does not authorize a second shared probe / registry / report implementation path.
+If the basketball-owned shared foundation is absent, record the blocker in this plan's Changelog and halt the slice; do not create `scripts/rich_stats_probe.py`, the shared completion registry, or the generic `rich-coverage` report path from scratch unless the manager explicitly reassigns that ownership.
+
+**Branch B settlement remains out of scope and unchanged.** This plan does not modify `scripts/settle_on_finish.py` or the finalized DB-backed settlement path.
+
+**Live validation commands**:
+
+- `PYTHONPATH=src .venv/bin/python scripts/rich_stats_probe.py --date YYYY-MM-DD --sport hockey --limit 10 --verbose`
+- `PYTHONPATH=src .venv/bin/python scripts/db_report.py --report rich-coverage --sport hockey --date YYYY-MM-DD`
+- `PYTHONPATH=src .venv/bin/pytest -q tests/test_api_season_fixtures.py tests/test_hockey_rich_completion.py`
+
+These are post-implementation validation commands, not preflight checks against the current branch state.
+They assume the basketball-owned shared foundation (`scripts/rich_stats_probe.py`, the shared completion registry, and the generic `rich-coverage` report path) is already present in the working branch or has been explicitly reassigned by the manager in the same slice. `tests/test_hockey_rich_completion.py` must exist before the final pytest run.
+
+Use shared report-bucket vocabulary consistently: `rich`, `baseline_only`, `partial`, `no_data`.
+For hockey, `baseline_only` means usable match-level coverage exists in `match_stats` / `team_form`, but the required hockey rich keys are still missing. Keep AGENT_SUMMARY owner metrics separate: `eligible`, `completed`, `still_missing`.
+
+## Current Implementation Analysis
+
+### Already Implemented
+
+List of existing components, functions, utilities that will be reused (with file paths):
+
+- `scripts/data_enrichment_agent.py` - current owner flow already supplements hockey with MoneyPuck and ScraperNHL aggregate stats when baseline enrichment is incomplete
+- `scripts/fetch_api_stats.py::_store_in_cache()` - established writer into `match_stats` and derived `team_form`
+- `src/bet/stats/fallback_chains.py` - shared fallback-chain module already listing hockey providers and expected stat keys
+- `src/bet/api_clients/api_hockey.py` - existing per-game provider client mapping `goals`, `shots`, `powerplay_goals`, `pim`, `hits`, `blocks`, and `faceoff_pct`
+- `src/bet/api_clients/moneypuck_wrapper.py` and `src/bet/api_clients/moneypuck_client.py` - aggregate NHL advanced-stat surfaces already used for supplementation
+- `src/bet/api_clients/scrapernhl_wrapper.py` - existing ScraperNHL aggregate/advanced surface used in enrichment
+- `src/bet/api_clients/__init__.py` - canonical client registry exposing hockey sources
+- `tests/test_api_season_fixtures.py` - current fixture/provider test coverage that already includes hockey-related paths
+
+### To Be Modified
+
+List of existing code that needs changes or extensions (with file paths and description of changes):
+
+- `scripts/data_enrichment_agent.py` - separate canonical per-game completion from aggregate supplementation, and add hockey completion metrics
+- `scripts/fetch_api_stats.py` - reuse or expose the minimal writer seams needed for a hockey completion helper
+- `src/bet/stats/fallback_chains.py` - encode explicit completion semantics in `RICH_COMPLETION_POLICY`, keep baseline `FALLBACK_CHAINS` order unchanged for non-rich scenarios, and ensure aggregate sources cannot imply canonical `match_stats` richness
+- `scripts/db_report.py` - extend the basketball-owned generic `rich-coverage` report to accept `--sport hockey`; reuse the shared `--sport` CLI argument and `rich-coverage` argparse choice rather than adding a separate hockey-named report path
+
+### To Be Created
+
+List of new components, functions, utilities that need to be built from scratch:
+
+- hockey-specific extensions to the basketball-owned shared completion registry / probe / report surfaces
+- do not create `scripts/rich_stats_probe.py`, the shared completion registry, or the generic `rich-coverage` report path from scratch; if they are absent, record the blocker in this plan's Changelog and halt until basketball Task 1.1 is confirmed complete in the working branch or the manager explicitly reassigns ownership
+- `scripts/_helpers/hockey_rich_completion.py` - bounded helper for per-game provider-backed hockey completion
+- `tests/test_hockey_rich_completion.py` - focused adapter, routing, aggregate-vs-per-game, and no-write probe tests
+
+## Open Questions
+
+| #   | Question | Answer | Status |
+| --- | -------- | ------ | ------ |
+| 1   | Can MoneyPuck or ScraperNHL count as hockey rich completion by themselves? | No. They remain valuable supplementary aggregate sources only. | ✅ Resolved |
+| 2   | Should hockey completion move into `scripts/run_scrapers.py` because hockey scrapers already exist? | No. This remains an enrichment-owner responsibility. | ✅ Resolved |
+| 3   | Should MoneyPuck remain the canonical hockey source because it is analytically valuable? | No for `match_stats` completion. It stays supplementary only; canonical per-game completion should be provider-backed. | ✅ Resolved |
+| 4   | Does this plan change Branch B settlement? | No. Settlement remains DB-backed and unchanged. | ✅ Resolved |
+
+## Technical Context
+
+Project conventions, coding standards, and patterns discovered during planning. Downstream agents MUST read this section instead of re-discovering the same context.
+
+### Project Instructions
+
+- `.github/copilot-instructions.md` - DB-first, verify producer/consumer flow before changes, keep scope narrow
+- workspace memory - fish-safe command examples only
+- `memories/repo/pipeline-knowledge-base.md` - Branch B settlement is final and shared Flashscore HTML helpers are not the settlement main path
+
+### Architecture & Patterns
+
+- `scripts/data_enrichment_agent.py` currently supplements hockey with MoneyPuck and ScraperNHL only when result status is not enriched; the plan should preserve the value of that supplement path while separating it from canonical completion semantics
+- `_store_in_cache()` remains the only intended write boundary for per-game completion
+- `NormalizedMatchStats` is defined in `src/bet/models/normalized.py` (exported via `src/bet/models/__init__.py`) and is the required payload passed to `_store_in_cache()`: `fixture_id`, `source`, `sport`, `home_team`, `away_team`, `date`, and `stats` with per-stat `home` / `away` sub-keys
+- `src/bet/stats/fallback_chains.py` currently lists `espn-hockey`, `api-hockey`, `scrapernhl`, and `moneypuck`; keep that baseline ordering unchanged and express canonical hockey completion in `RICH_COMPLETION_POLICY` instead of changing baseline fallback behavior
+- `scripts/db_report.py` currently exposes only `football-rich-coverage`; hockey rollout requires a generic report
+
+### Tech Stack
+
+- Python `>=3.11`
+- SQLite DB at `betting/data/betting.db`
+- runtime libraries already used in this area: `requests`, `curl_cffi`, `sqlalchemy`, `pydantic`
+- tests run with `pytest`
+
+### Code Style & Standards
+
+- Keep source-specific logic in bounded helpers under `scripts/_helpers/`
+- Preserve explicit provenance labels such as `api-hockey`, `espn-hockey`, `moneypuck`, and `scrapernhl`
+- Do not let aggregate sources silently satisfy canonical `match_stats` completion
+- Do not move this work into `scripts/run_scrapers.py`
+
+### Testing Patterns
+
+- Use narrow pytest modules with mocked provider payloads and source-policy assertions
+- Mirror the football validation shape: helper/adapter test, owner-routing test, and no-write probe/report test
+- `tests/test_flashscore_token_policy.py` is intentionally not part of the hockey validation command because its current assertions are football/volleyball-specific; hockey source-policy regressions should be covered in `tests/test_hockey_rich_completion.py`
+- Keep commands fish-safe and date-scoped
+
+### Database Patterns
+
+- `match_stats` remains the canonical per-fixture truth table
+- `team_form` remains the denormalized analytics surface and may still receive supplementary aggregate stats when explicitly labeled as such
+- Branch B settlement is unchanged and not part of this plan
+
+### Additional Context
+
+- `scripts/data_enrichment_agent.py` currently merges MoneyPuck and ScraperNHL stats into the result surface if baseline enrichment is still incomplete; this is the key ambiguity the hockey plan must resolve
+- `src/bet/api_clients/api_hockey.py` currently maps `goals`, `shots`, `powerplay_goals`, `pim`, `hits`, `blocks`, and `faceoff_pct`; until it also maps `takeaways` / `giveaways`, those keys remain supplementary-only rather than canonical rich-completion requirements
+- `faceoffs_won` appears in `EXPECTED_STATS_PER_SPORT["hockey"]` but is not mapped by `api_hockey.py` and is excluded from `required_rich_keys`; do not add it to the hockey policy in this slice
+- `goals` is intentionally treated as a baseline hockey stat, not a rich-completion requirement, so it stays outside `required_rich_keys` and outside the hockey rich-audit target set in this slice
+- `penalties` in `EXPECTED_STATS_PER_SPORT["hockey"]` is a legacy alias of the canonical `pim` key; align the hockey audit set to `pim` in this slice rather than treating `penalties` as a separate unmapped required stat
+- **Branch B settlement remains out of scope and unchanged throughout this plan**
+
+## Implementation Plan
+
+### Phase 1: Shared Completion Foundation for Hockey
+
+#### Task 1.1 - [MODIFY] Extend shared completion registry and generic reporting for hockey
+
+**Description**: Extend the shared completion policy, no-write probe, and generic rich-coverage reporting for hockey. If the basketball-owned shared foundation is missing in the working branch, record the blocker in this plan's Changelog and halt the slice rather than creating a hockey-only duplicate.
+
+**Definition of Done**:
+
+- [ ] Hockey declares `required_rich_keys`, `canonical_source`, `supporting_sources`, and `aggregate_only_sources` in `src/bet/stats/fallback_chains.py::RICH_COMPLETION_POLICY`
+- [ ] Hockey `required_rich_keys` are exactly `shots`, `hits`, `blocks`, `pim`, `powerplay_goals`, and `faceoff_pct`
+- [ ] Hockey `supporting_sources` are exactly `espn-hockey`
+- [ ] Hockey `aggregate_only_sources` are exactly `moneypuck` and `scrapernhl`
+- [ ] The shared `scripts/rich_stats_probe.py` supports `--sport hockey` and reports source choice, fixture coverage, completion rate, and failure reasons
+- [ ] `scripts/db_report.py` supports `--report rich-coverage --sport hockey --date <date>`
+- [ ] Aggregate-only sources are explicitly excluded from canonical rich-completion buckets in reporting
+- [ ] `takeaways` and `giveaways` stay supplementary-only unless `api_hockey.py` gains canonical mappings for them in the same slice
+
+#### Task 1.2 - [CREATE] Build the bounded hockey completion adapter
+
+**Description**: Add a hockey helper under `scripts/_helpers/` that fetches recent finished fixtures from canonical provider-backed sources, normalizes per-game rich stats, and persists only through `_store_in_cache()`.
+
+**Definition of Done**:
+
+- [ ] `api-hockey` is the canonical completion source
+- [ ] `espn-hockey` is a bounded supporting source only when it returns per-game normalized stats
+- [ ] Empty `espn-hockey` responses for non-NHL fixtures are treated as unsupported-league skips, not degraded-source failures
+- [ ] Completion success is measured against hockey required rich keys rather than any aggregate advanced-stat payload
+- [ ] The adapter returns the base 7-key contract used by the shared enrichment flow: `status` (`str`), `fixtures_scanned` (`int`), `matches_persisted` (`int`), `rich_keys_found` (`list[str]`), `missing_rich_keys` (`list[str]`), `error` (`str | None`), and `failure_reason` (`str | None`)
+
+### Phase 2: Owner Wiring, Supplement Separation, and Tests
+
+#### Task 2.1 - [MODIFY] Separate canonical hockey completion from aggregate supplements in the owner flow
+
+**Description**: Update `scripts/data_enrichment_agent.py` so per-game completion and aggregate supplementation remain distinct in source semantics, metrics, and reporting.
+
+**Definition of Done**:
+
+- [ ] Hockey teams or fixtures that remain partial after baseline enrichment can trigger the hockey completion helper from the owner flow
+- [ ] MoneyPuck and ScraperNHL remain explicitly supplementary in metrics and source provenance; they may still run as an additive analytics layer after canonical completion, but they never satisfy `required_rich_keys`, change the canonical bucket, or replace the canonical source
+- [ ] AGENT_SUMMARY exposes hockey `eligible`, `completed`, and `still_missing` counts without conflating aggregate supplements with canonical completion
+- [ ] Branch B settlement code remains untouched
+
+#### Task 2.2 - [CREATE] Add focused hockey adapter, routing, and aggregate-policy tests
+
+**Description**: Add narrow tests that prevent aggregate-vs-per-game drift and verify the owner-routing path.
+
+**Definition of Done**:
+
+- [ ] Tests cover adapter persistence through `_store_in_cache()`
+- [ ] Tests cover owner routing from `scripts/data_enrichment_agent.py`
+- [ ] Tests verify aggregate-only sources cannot satisfy canonical rich completion by themselves
+- [ ] Tests cover no-write probe behavior and reporting buckets
+
+### Phase 3: Live Validation and Review
+
+#### Task 3.1 - [REUSE] Run the sport-specific live validation commands
+
+**Description**: Validate hockey rollout with the planned probe, report, and narrow test commands only.
+
+**Definition of Done**:
+
+- [ ] `scripts/rich_stats_probe.py --sport hockey` runs with no unintended DB/cache mutations
+- [ ] `scripts/db_report.py --report rich-coverage --sport hockey --date <date>` distinguishes `rich`, `baseline_only`, `partial`, and `no_data`
+- [ ] The hockey-focused pytest command passes
+
+#### Task 3.2 - [REUSE] Final code review by `tsh-code-reviewer`
+
+**Description**: After focused executable validation passes, run the final review to verify helper boundaries and aggregate-source guardrails.
+
+**Definition of Done**:
+
+- [ ] Review is run after the focused validation suite
+- [ ] Findings are fixed or explicitly tracked in the Changelog
+- [ ] Review confirms no canonical-completion regression toward aggregate-only sources and no Branch B settlement regression
+- [ ] The slice is not closed while review findings remain unresolved and untracked
+
+## Security Considerations
+
+- Keep provider calls bounded to recent finished fixtures and date-scoped probes
+- Do not treat aggregate CSV or schedule sources as canonical per-fixture truth
+- Preserve explicit provenance and failure reasons for provider and supplement paths
+- Keep settlement logic untouched while implementing hockey enrichment
+
+## Quality Assurance
+
+Acceptance criteria checklist to verify the implementation meets the defined requirements:
+
+- [ ] Hockey completion remains owned by enrichment flows, not `scripts/run_scrapers.py`
+- [ ] `api-hockey` is the canonical completion source in code and reporting
+- [ ] MoneyPuck and ScraperNHL remain supplementary only and cannot satisfy canonical rich completion by themselves
+- [ ] A generic `rich-coverage` report exists and works for hockey
+- [ ] Hockey adapter, routing, aggregate-policy, and probe tests pass
+- [ ] **Branch B settlement remains out of scope and unchanged**
+
+## Improvements (Out of Scope)
+
+Potential improvements identified during planning that are not part of the current task:
+
+- broader cleanup of legacy hockey aggregate reporting outside the touched slice
+- dashboard visualization for hockey rich-coverage health
+- wider fallback-chain cleanup beyond hockey
+
+## Changelog
+
+| Date   | Change Description |
+| ------ | ------------------ |
+| 2026-05-20 | Plan split out of the former multisport umbrella artifact so hockey can be implemented independently |
+| 2026-05-20 | Hardened shared-foundation sequencing, validation preconditions, shared metric vocabulary, and downstream-agent handoff guidance |
