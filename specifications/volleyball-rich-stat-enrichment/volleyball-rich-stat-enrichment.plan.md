@@ -154,15 +154,15 @@ Project conventions, coding standards, and patterns discovered during planning. 
 
 **Definition of Done**:
 
-- [ ] Volleyball declares `required_rich_keys`, `canonical_source`, `supporting_sources`, and `aggregate_only_sources` in `src/bet/stats/fallback_chains.py::RICH_COMPLETION_POLICY`
-- [ ] Volleyball candidate rich-key set for provider verification is `kills`, `aces`, `blocks`, `digs`, `assists`, `hitting_pct`, and `points`
-- [ ] Task 1.1 is not complete until `RICH_COMPLETION_POLICY["volleyball"]["required_rich_keys"]` is finalized to the exact provider-confirmed subset after `api_volleyball.py` verification of `kills`, `digs`, and `assists`; do not ship an aspirational list
-- [ ] If `kills`, `digs`, or `assists` are not exposed by the provider, the minimum viable fallback `required_rich_keys` for this slice is `aces`, `blocks`, `hitting_pct`, and `points`; unsupported candidate keys are downgraded to supplementary-only and recorded in the Changelog
-- [ ] Volleyball `supporting_sources` are exactly `espn-volleyball` for this slice
-- [ ] Volleyball `aggregate_only_sources` are exactly `volleybox`
-- [ ] The shared `scripts/rich_stats_probe.py` supports `--sport volleyball` and reports source choice, fixture coverage, key completeness, and failure reasons
-- [ ] `scripts/db_report.py` supports `--report rich-coverage --sport volleyball --date <date>`
-- [ ] The shared contract still persists only through `_store_in_cache()`
+- [x] Volleyball declares `required_rich_keys`, `canonical_source`, `supporting_sources`, and `aggregate_only_sources` in `src/bet/stats/fallback_chains.py::RICH_COMPLETION_POLICY`
+- [x] Volleyball candidate rich-key set for provider verification is `kills`, `aces`, `blocks`, `digs`, `assists`, `hitting_pct`, and `points`
+- [x] Task 1.1 is not complete until `RICH_COMPLETION_POLICY["volleyball"]["required_rich_keys"]` is finalized to the exact provider-confirmed subset after `api_volleyball.py` verification of `kills`, `digs`, and `assists`; do not ship an aspirational list
+- [x] If `kills`, `digs`, or `assists` are not exposed by the provider, the minimum viable fallback `required_rich_keys` for this slice is `aces`, `blocks`, `hitting_pct`, and `points`; unsupported candidate keys are downgraded to supplementary-only and recorded in the Changelog
+- [x] Volleyball `supporting_sources` are exactly `espn-volleyball` for this slice
+- [x] Volleyball `aggregate_only_sources` are exactly `volleybox`
+- [x] The shared `scripts/rich_stats_probe.py` supports `--sport volleyball` and reports source choice, fixture coverage, key completeness, and failure reasons
+- [x] `scripts/db_report.py` supports `--report rich-coverage --sport volleyball --date <date>`
+- [x] The shared contract still persists only through `_store_in_cache()`
 
 #### Task 1.2 - [CREATE] Build the bounded volleyball completion adapter
 
@@ -170,11 +170,11 @@ Project conventions, coding standards, and patterns discovered during planning. 
 
 **Definition of Done**:
 
-- [ ] `api-volleyball` is the canonical completion source
-- [ ] `espn-volleyball` is the only supporting source in this slice, and it is used only through per-match normalized stats
-- [ ] Empty `espn-volleyball` responses for non-FIVB-Men's fixtures are treated as unsupported-league skips, not degraded-source failures
-- [ ] Volleybox aggregate team-page data cannot satisfy completion success
-- [ ] The adapter returns the base 7-key contract used by the shared enrichment flow: `status` (`str`), `fixtures_scanned` (`int`), `matches_persisted` (`int`), `rich_keys_found` (`list[str]`), `missing_rich_keys` (`list[str]`), `error` (`str | None`), and `failure_reason` (`str | None`)
+- [x] `api-volleyball` is the canonical completion source
+- [x] `espn-volleyball` is the only supporting source in this slice, and it is used only through per-match normalized stats
+- [x] Empty `espn-volleyball` responses for non-FIVB-Men's fixtures are treated as unsupported-league skips, not degraded-source failures
+- [x] Volleybox aggregate team-page data cannot satisfy completion success
+- [x] The adapter returns the base 7-key contract used by the shared enrichment flow: `status` (`str`), `fixtures_scanned` (`int`), `matches_persisted` (`int`), `rich_keys_found` (`list[str]`), `missing_rich_keys` (`list[str]`), `error` (`str | None`), and `failure_reason` (`str | None`)
 
 ### Phase 2: Policy Alignment, Owner Wiring, and Tests
 
@@ -184,12 +184,12 @@ Project conventions, coding standards, and patterns discovered during planning. 
 
 **Definition of Done**:
 
-- [ ] `scripts/data_enrichment_agent.py` can trigger the volleyball completion helper after baseline enrichment remains partial
-- [ ] AGENT_SUMMARY reports volleyball `eligible`, `completed`, and `still_missing` counts
-- [ ] `src/bet/api_clients/volleyball_data.py` no longer presents Flashscore or Volleybox as the canonical rich-match solution
-- [ ] Remove the unused `FLASHSCORE_SPORT_ID = 12` constant and update the `VolleyballDataClient` class docstring so it no longer describes the client as "using Flashscore + volleybox.net"
-- [ ] Key normalization for `attack_pct` / `hitting_pct` is explicit and test-covered in `src/bet/api_clients/api_volleyball.py::STAT_TYPE_MAP`, with `hitting_pct` as the canonical persisted key and any incoming `attack_pct` normalized before persistence
-- [ ] No ownership is moved into `scripts/run_scrapers.py`
+- [x] `scripts/data_enrichment_agent.py` can trigger the volleyball completion helper after baseline enrichment remains partial
+- [x] AGENT_SUMMARY reports volleyball `eligible`, `completed`, and `still_missing` counts
+- [x] `src/bet/api_clients/volleyball_data.py` no longer presents Flashscore or Volleybox as the canonical rich-match solution
+- [x] Remove the unused `FLASHSCORE_SPORT_ID = 12` constant and update the `VolleyballDataClient` class docstring so it no longer describes the client as "using Flashscore + volleybox.net"
+- [x] Key normalization for `attack_pct` / `hitting_pct` is explicit and test-covered in `src/bet/api_clients/api_volleyball.py::STAT_TYPE_MAP`, with `hitting_pct` as the canonical persisted key and any incoming `attack_pct` normalized before persistence
+- [x] No ownership is moved into `scripts/run_scrapers.py`
 
 #### Task 2.2 - [CREATE] Add focused volleyball adapter, normalization, and probe tests
 
@@ -197,10 +197,10 @@ Project conventions, coding standards, and patterns discovered during planning. 
 
 **Definition of Done**:
 
-- [ ] Tests cover adapter persistence through `_store_in_cache()`
-- [ ] Tests cover owner routing from `scripts/data_enrichment_agent.py`
-- [ ] Tests cover `attack_pct` / `hitting_pct` normalization and no-write probe behavior
-- [ ] Existing source-policy tests remain passing
+- [x] Tests cover adapter persistence through `_store_in_cache()`
+- [x] Tests cover owner routing from `scripts/data_enrichment_agent.py`
+- [x] Tests cover `attack_pct` / `hitting_pct` normalization and no-write probe behavior
+- [x] Existing source-policy tests remain passing
 
 ### Phase 3: Live Validation and Review
 
@@ -210,9 +210,9 @@ Project conventions, coding standards, and patterns discovered during planning. 
 
 **Definition of Done**:
 
-- [ ] `scripts/rich_stats_probe.py --sport volleyball` runs with no unintended DB/cache mutations
-- [ ] `scripts/db_report.py --report rich-coverage --sport volleyball --date <date>` distinguishes `rich`, `baseline_only`, `partial`, and `no_data`
-- [ ] The volleyball-focused pytest command passes
+- [x] `scripts/rich_stats_probe.py --sport volleyball` runs with no unintended DB/cache mutations
+- [x] `scripts/db_report.py --report rich-coverage --sport volleyball --date <date>` distinguishes `rich`, `baseline_only`, `partial`, and `no_data`
+- [x] The volleyball-focused pytest command passes
 
 #### Task 3.2 - [REUSE] Final code review by `tsh-code-reviewer`
 
@@ -220,10 +220,10 @@ Project conventions, coding standards, and patterns discovered during planning. 
 
 **Definition of Done**:
 
-- [ ] Review is run after the focused validation suite
-- [ ] Findings are fixed or explicitly tracked in the Changelog
-- [ ] Review confirms no Branch B settlement regressions and no Flashscore policy backsliding
-- [ ] The slice is not closed while review findings remain unresolved and untracked
+- [x] Review is run after the focused validation suite
+- [x] Findings are fixed or explicitly tracked in the Changelog
+- [x] Review confirms no Branch B settlement regressions and no Flashscore policy backsliding
+- [x] The slice is not closed while review findings remain unresolved and untracked
 
 ## Security Considerations
 
@@ -236,12 +236,12 @@ Project conventions, coding standards, and patterns discovered during planning. 
 
 Acceptance criteria checklist to verify the implementation meets the defined requirements:
 
-- [ ] Volleyball completion remains owned by enrichment flows, not `scripts/run_scrapers.py`
-- [ ] `api-volleyball` is the canonical completion source in code and reporting
-- [ ] Aggregate-only Volleybox data cannot satisfy canonical rich completion by itself
-- [ ] A generic `rich-coverage` report exists and works for volleyball
-- [ ] Volleyball adapter, normalization, routing, and probe tests pass
-- [ ] **Branch B settlement remains out of scope and unchanged**
+- [x] Volleyball completion remains owned by enrichment flows, not `scripts/run_scrapers.py`
+- [x] `api-volleyball` is the canonical completion source in code and reporting
+- [x] Aggregate-only Volleybox data cannot satisfy canonical rich completion by itself
+- [x] A generic `rich-coverage` report exists and works for volleyball
+- [x] Volleyball adapter, normalization, routing, and probe tests pass
+- [x] **Branch B settlement remains out of scope and unchanged**
 
 ## Improvements (Out of Scope)
 
@@ -257,3 +257,9 @@ Potential improvements identified during planning that are not part of the curre
 | ------ | ------------------ |
 | 2026-05-20 | Plan split out of the former multisport umbrella artifact so volleyball can be implemented independently |
 | 2026-05-20 | Hardened shared-foundation sequencing, validation preconditions, shared metric vocabulary, and downstream-agent handoff guidance |
+| 2026-05-20 | Verified `api-volleyball` only proves the minimum rich completion subset (`aces`, `blocks`, `hitting_pct`, `points`); `kills`, `digs`, and `assists` remain supplementary-only until provider support is proven |
+| 2026-05-20 | Initial workspace file-creation workaround placed the bounded volleyball helper in `scripts/_helpers/__init__.py`; superseded by the follow-up boundary fix below. |
+| 2026-05-20 | Follow-up boundary fix: moved the volleyball implementation into `scripts/_helpers/volleyball_rich_completion.py`, kept `scripts/_helpers/__init__.py` as package-safe compatibility glue only, and updated `scripts/data_enrichment_agent.py` plus focused tests to use the dedicated helper boundary. |
+| 2026-05-20 | Focused volleyball validation rerun for the boundary fix: `PYTHONPATH=src .venv/bin/pytest -q tests/test_volleyball_rich_completion.py tests/test_flashscore_token_policy.py tests/test_api_season_fixtures.py` → `40 passed`. |
+| 2026-05-20 | Live validation rerun after the boundary fix: `scripts/rich_stats_probe.py --sport volleyball --date 2026-05-20 --limit 10 --verbose` fell back to scope date `2026-05-19` and reported `eligible=1`, `partial=1`, `no_data=9`; `scripts/db_report.py --report rich-coverage --sport volleyball --date 2026-05-20` fell back to `2026-05-19` and reported `Total teams=26`, `Eligible=8`, `Partial=8`, `No data=18` with zero crashes. |
+| 2026-05-20 | Follow-up cross-sport review confirmed the dedicated helper boundary is now aligned with the umbrella guardrail. Residual risk tracked: `fixture_sources` lookup is still covered by stubbed tests rather than a DB-backed integration test. |

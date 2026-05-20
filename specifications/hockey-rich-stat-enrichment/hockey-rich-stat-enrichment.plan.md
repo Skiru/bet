@@ -317,6 +317,8 @@ Potential improvements identified during planning that are not part of the curre
 | 2026-05-20 | Applied the approved hockey review fixes only: corrected the helper DB fixture SQL, added a real DB-path regression test for `_get_recent_hockey_fixtures`, and kept `moneypuck` / `scrapernhl` supplementary provenance out of the main hockey `result["source"]` field. |
 | 2026-05-20 | **Follow-up review performed** (tsh-code-reviewer). Prior findings #1 and #2 (SQL bugs) verified NOT FIXED in current code. Prior finding #3 (missing real DB-path test) also NOT FIXED. Prior finding #4 (supplement source leak) CONFIRMED FIXED. New blocker: test suite broken by in-progress volleyball import in `data_enrichment_agent.py`. Both `hockey_rich_completion.py` and `test_hockey_rich_completion.py` remain untracked by git. Resolution Status section in plan is inaccurate. See follow-up review section below. |
 | 2026-05-20 | Direct manager fix pass applied to the live hockey files: corrected the real DB fixture SQL in `hockey_rich_completion.py`, added an in-memory SQLite regression test for `_get_recent_hockey_fixtures`, and reran the focused hockey pytest suite successfully. |
+| 2026-05-20 | Follow-up slice completed: the transient volleyball import blocker from the historical follow-up review is resolved by moving volleyball completion into `scripts/_helpers/volleyball_rich_completion.py` and leaving `scripts/_helpers/__init__.py` as glue only. Focused hockey validation rerun: `PYTHONPATH=src .venv/bin/pytest -q tests/test_hockey_rich_completion.py tests/test_api_season_fixtures.py` → `22 passed in 0.89s`. |
+| 2026-05-20 | Final focused hockey validation rerun after the committed SQL/test fix candidate: `PYTHONPATH=src .venv/bin/pytest -q tests/test_hockey_rich_completion.py tests/test_api_season_fixtures.py` → `22 passed in 0.52s`; live shared probe/report reruns no longer fail through the false `team_not_found` path, though current 2026-05-20 hockey rows remain `partial` rather than `rich`. |
 
 ## Follow-up Review Findings (2026-05-20)
 
@@ -357,5 +359,6 @@ Potential improvements identified during planning that are not part of the curre
 
 - Findings #1 and #2 are now fixed in the working tree: `scripts/_helpers/hockey_rich_completion.py` uses `COALESCE(c.name, '')` and `f.status = 'finished'` in the real DB fixture query.
 - Finding #3 is now fixed in the working tree: `tests/test_hockey_rich_completion.py` includes an in-memory SQLite regression test for `_get_recent_hockey_fixtures()`.
-- The focused hockey validation suite was rerun after the direct fix pass: `PYTHONPATH=src .venv/bin/pytest -q tests/test_hockey_rich_completion.py tests/test_api_season_fixtures.py` → `22 passed`.
+- The focused hockey validation suite was rerun after the direct fix pass: `PYTHONPATH=src .venv/bin/pytest -q tests/test_hockey_rich_completion.py tests/test_api_season_fixtures.py` → `22 passed in 0.89s`.
+- The transient volleyball import blocker recorded in the historical follow-up review is now resolved by the dedicated `scripts/_helpers/volleyball_rich_completion.py` helper and the package-safe `_helpers/__init__.py` glue layer.
 - The follow-up review table above remains as a historical pre-fix snapshot of the branch state before this direct fix pass.

@@ -67,13 +67,13 @@ def _get_recent_hockey_fixtures(team_name: str, limit: int) -> tuple[list[dict],
             rows = conn.execute(
                 "SELECT f.id AS fixture_id, f.kickoff, f.status, "
                 "home.name AS home_team, away.name AS away_team, "
-                "COALESCE(c.name, ) AS competition "
+                "COALESCE(c.name, '') AS competition "
                 "FROM fixtures f "
                 "JOIN teams home ON home.id = f.home_team_id "
                 "JOIN teams away ON away.id = f.away_team_id "
                 "LEFT JOIN competitions c ON c.id = f.competition_id "
                 "WHERE f.sport_id = ? "
-                "AND f.status = finished "
+                "AND f.status = 'finished' "
                 "AND (f.home_team_id = ? OR f.away_team_id = ?) "
                 "ORDER BY f.kickoff DESC LIMIT ?",
                 (sport.id, team.id, team.id, limit),

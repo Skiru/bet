@@ -1,5 +1,6 @@
 """Targeted hockey rich-completion tests."""
 
+import sqlite3
 from types import SimpleNamespace
 
 import data_enrichment_agent
@@ -271,6 +272,62 @@ def test_hockey_helper_marks_espn_empty_non_nhl_as_unsupported_skip(monkeypatch)
     assert result["failure_reason"] == "unsupported_league_skip"
     assert result["matches_persisted"] == 0
     assert not store_calls
+
+
+def test_get_recent_hockey_fixtures_queries_real_db_path(monkeypatch):
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("CREATE TABLE teams (id INTEGER PRIMARY KEY, name TEXT NOT NULL)")
+    conn.execute("CREATE TABLE competitions (id INTEGER PRIMARY KEY, name TEXT)")
+    conn.execute("CREATE TABLE fixtures (id INTEGER PRIMARY KEY, sport_id INTEGER NOT NULL, competition_id INTEGER, home_team_id INTEGER NOT NULL, away_team_id INTEGER NOT NULL, kickoff TEXT NOT NULL, status TEXT NOT NULL)")
+    conn.execute("INSERT INTO teams (id, name) VALUES (1, 'Edmonton Oilers')")
+    conn.execute("INSERT INTO teams (id, name) VALUES (2, 'Dallas Stars')")
+    conn.execute("INSERT INTO competitions (id, name) VALUES (10, 'NHL')")
+    conn.execute("INSERT INTO fixtures (id, sport_id, competition_id, home_team_id, away_team_id, kickoff, status) VALUES (701, 55, 10, 1, 2, '2026-05-20T18:00:00Z', 'finished')")
+
+    class FakeDB:
+        def __enter__(self):
+            return conn
+
+        def __exit__(self, exc_type, exc, tb):
+            conn.close()
+            return False
+
+    class FakeSportRepo:
+        def __init__(self, db_conn):
+            self.db_conn = db_conn
+
+        def get_by_name(self, name):
+            assert name == 'hockey'
+            return type('Sport', (), {'id': 55})()
+
+    class FakeTeamRepo:
+        def __init__(self, db_conn):
+            self.db_conn = db_conn
+
+        def resolve(self, team_name, sport_id):
+            row = self.db_conn.execute("SELECT id, name FROM teams WHERE name = ?", (team_name,)).fetchone()
+            if not row:
+                return None
+            return type('Team', (), {'id': row['id'], 'name': row['name']})()
+
+    monkeypatch.setattr(hockey_helper, 'get_db', lambda: FakeDB())
+    monkeypatch.setattr(hockey_helper, 'SportRepo', FakeSportRepo)
+    monkeypatch.setattr(hockey_helper, 'TeamRepo', FakeTeamRepo)
+
+    fixtures, team_id = hockey_helper._get_recent_hockey_fixtures('Edmonton Oilers', limit=3)
+
+    assert team_id == '1'
+    assert fixtures == [
+        {
+            'fixture_id': 701,
+            'kickoff': '2026-05-20T18:00:00Z',
+            'status': 'finished',
+            'competition': 'NHL',
+            'home_team': 'Edmonton Oilers',
+            'away_team': 'Dallas Stars',
+        }
+    ]
 
 
 def test_data_enrichment_agent_routes_hockey_completion_without_promoting_aggregate_source(monkeypatch):

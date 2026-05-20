@@ -58,7 +58,7 @@ from _helpers.tennis_rich_completion import (
     get_tennis_baseline_stat_keys,
     get_tennis_rich_stat_keys,
 )
-from _helpers import (
+from _helpers.volleyball_rich_completion import (
     complete_volleyball_rich_stats,
     get_missing_volleyball_rich_stat_keys,
     get_volleyball_rich_stat_keys,
@@ -673,12 +673,12 @@ def _apply_volleyball_rich_completion(result: dict, max_fixtures: int = 5) -> di
         for stat_key in helper_result["rich_keys_found"]:
             result.setdefault("stats_found", {})[stat_key] = True
         helper_source = helper_result.get("source", _VOLLEYBALL_POLICY["canonical_source"])
-        if result.get("source") and result["source"] != helper_source:
-            supplementary_sources = result.setdefault("supplementary_sources", [])
-            if helper_source not in supplementary_sources:
-                supplementary_sources.append(helper_source)
-        else:
-            result["source"] = helper_source
+        supplementary_sources = result.setdefault("supplementary_sources", [])
+        supplementary_sources[:] = [source for source in supplementary_sources if source != helper_source]
+        current_source = result.get("source")
+        if current_source and current_source != helper_source and current_source not in supplementary_sources:
+            supplementary_sources.append(current_source)
+        result["source"] = helper_source
         result["error"] = None
     elif helper_result.get("error"):
         errors = [
