@@ -12,7 +12,7 @@
 
 **Event Discovery (S1):** `src/bet/discovery/` module with 3 structured API sources (SofaScore, The-Odds-API, API-Football). Entrypoint: `scripts/discover_events.py`. Old `scan_events.py` deleted. ~30s, 1500-2000 events.
 
-**Scrapers (S2.3):** `src/bet/scrapers/` — 19 scrapers (lazy registry in `__init__.py`) across 5 sports via SQLAlchemy 2.0 ORM. Sources: FBref, NBA API, Basketball-Reference, Sackmann, SofaScore (tennis/volleyball stubs), NHL API, Hockey-Reference, Volleybox (blocked), ESPN (5 sports), Flashscore (5 sports). CLI: `scripts/run_scrapers.py`. Writes to `league_profiles` + `player_season_stats` + `athletes`.
+**Scrapers (S2.3):** `src/bet/scrapers/` — 17 scrapers (lazy registry in `__init__.py`) across 5 sports via SQLAlchemy 2.0 ORM. Sources: FBref, NBA API, Basketball-Reference, Sackmann, NHL API, Hockey-Reference, Volleybox (blocked), ESPN (5 sports), Flashscore (5 sports). CLI: `scripts/run_scrapers.py`. Writes to `league_profiles` + `player_season_stats` + `athletes`.
 
 **Scraper-to-Pipeline Bridge (S2.4):** `scripts/scraper_to_team_form.py` — **NOT YET BUILT.** Documented as "TO BE BUILT" in `pipeline-knowledge-base.md` and `specifications/scrapers-pipeline-integration.md`. Currently referenced as if it exists in 7+ agent/prompt/doc files.
 
@@ -338,7 +338,7 @@ Phases 1 and 2 can be done in parallel. Phase 6 can be done in parallel with 3-5
 
 3. **bet-settler edge case.** Settlement involves interactive verification (checking Flashscore, Betclic). When called via orchestrator → analysis-only. When called via `ask-betting` for ad-hoc settlement → may need to run scripts. Same conditional pattern as bet-scanner.
 
-4. **Scraper count will grow.** Currently 19. Using "19 scrapers" is accurate today but will drift. Consider referencing the registry dynamically: "see `src/bet/scrapers/__init__.py` `_SCRAPER_REGISTRY` for current count."
+4. **Scraper count will grow.** Currently 17. Using "17 scrapers" is accurate today but will drift. Consider referencing the registry dynamically: "see `src/bet/scrapers/__init__.py` `_SCRAPER_REGISTRY` for current count."
 
 ---
 

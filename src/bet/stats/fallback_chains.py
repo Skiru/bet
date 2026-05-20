@@ -1,14 +1,21 @@
-"""Fallback chains per sport — ordered list of API clients to try for stats.
+"""Canonical provider policy for match stats and derived team form.
 
-Used by data_enrichment_agent.py and fetch_api_stats.py to determine which
-API sources to query for each sport, in priority order.
+This module is the single source of truth for per-sport match-stat fallback
+chains used by enrichment and cache-building flows.
+
+Policy:
+- Flashscore is not a canonical per-match stats provider.
+- Flashscore remains allowed only for lightweight search/results-page use cases
+    handled outside these chains.
+- Settlement may keep a temporary Flashscore HTML exception, but that exception
+    is isolated outside this module.
 """
 
 FALLBACK_CHAINS: dict[str, list[str]] = {
     "football": ["espn-football", "api-football", "football-data-org", "understat", "google-sports", "serpapi"],
-    "basketball": ["espn-basketball", "nba-api", "api-basketball", "google-sports", "serpapi"],
-    "hockey": ["espn-hockey", "api-hockey", "google-sports", "serpapi"],
-    "tennis": ["espn-tennis", "google-sports", "serpapi"],
+        "basketball": ["espn-basketball", "nba-api", "api-basketball", "sofascore", "google-sports", "serpapi"],
+        "hockey": ["espn-hockey", "api-hockey", "scrapernhl", "moneypuck", "sofascore", "google-sports", "serpapi"],
+        "tennis": ["tennis-abstract", "sackmann", "espn-tennis", "sofascore-tennis", "google-sports", "serpapi"],
     "volleyball": ["espn-volleyball", "api-volleyball", "google-sports", "serpapi"],
 }
 
@@ -34,7 +41,9 @@ EXPECTED_STATS_PER_SPORT: dict[str, list[str]] = {
     ],
     "tennis": [
         "aces", "double_faults", "first_serve_pct",
-        "break_points_won",
+        "first_serve_win_pct", "second_serve_win_pct",
+        "break_points_saved_pct", "hold_pct", "break_pct",
+        "sets_won", "total_sets", "games_won", "total_games",
     ],
     "volleyball": [
         "kills", "aces", "blocks", "digs", "assists",

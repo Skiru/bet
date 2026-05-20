@@ -1,4 +1,4 @@
-"""Integration test: verify all 9 scrapers load, instantiate, and have correct interfaces."""
+"""Integration test: verify all 17 scrapers load, instantiate, and have correct interfaces."""
 from __future__ import annotations
 
 import pytest
@@ -10,7 +10,7 @@ from bet.scrapers.constants import SPORT_SOURCE_MAP
 class TestScraperRegistry:
     def test_all_scrapers_registered(self):
         scrapers = available_scrapers()
-        assert len(scrapers) == 19
+        assert len(scrapers) == 17
 
     def test_sport_source_map_matches_registry(self):
         scrapers = available_scrapers()

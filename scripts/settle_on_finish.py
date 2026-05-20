@@ -8,19 +8,22 @@ Usage:
   python3 scripts/settle_on_finish.py --betting-day 2026-04-21    # settle specific day
 
 Notes:
-- Polls Sofascore and Flashscore for final scores.
+- Polls Flashscore for final scores.
 - Auto-settles: match winner/1X2, totals (any line), BTTS, double chance.
-- Other markets (corners, cards, handicaps, MyCombi) are left as 'pending' for manual verification.
+- Football stat markets (corners, cards, fouls, shots): auto-settled via canonical DB match_stats when
+  coverage exists (Branch B); tagged manual_verification_required when coverage is missing.
+- Other markets (handicaps, MyCombi) are left as 'pending' for manual verification.
 - Does NOT auto-push to git. Run git commands manually after verification.
 """
 import csv
 import json
-import sys
-import time
 import re
 import argparse
-from datetime import datetime
+import sys
+import time
+from datetime import datetime, timedelta
 from pathlib import Path
+from urllib.parse import quote
 
 try:
     import requests
@@ -378,27 +381,8 @@ class _FlashscoreBatchFetcher:
 _flashscore_batch_cache = _FlashscoreBatchFetcher()
 
 
-def search_sofascore(home, away, sport=None):
-    q = f"{home} {away}".replace(" ", "%20")
-    url = f"https://www.sofascore.com/search?q={q}"
-    r = requests.get(url, timeout=15, headers=REQUEST_HEADERS)
-    if r.status_code != 200:
-        return None
-    text = BeautifulSoup(r.text, "html.parser").get_text(separator=" ")
-    for h, a, swap in [(home, away, False), (away, home, True)]:
-        m = re.search(
-            rf"{re.escape(h)}\s+(\d{{1,3}})\s*[:\-–—]\s*(\d{{1,3}})\s+{re.escape(a)}",
-            text, re.IGNORECASE,
-        )
-        if m:
-            s1, s2 = int(m.group(1)), int(m.group(2))
-            if _validate_score(s1, s2, sport=sport):
-                return (s2, s1) if swap else (s1, s2)
-    return None
-
-
 def search_flashscore(home, away, sport=None):
-    q = f"{home} {away}".replace(" ", "%20")
+    q = quote(f"{home} {away}")
     url = f"https://www.flashscore.com/search/?q={q}"
     r = requests.get(url, timeout=15, headers=REQUEST_HEADERS)
     if r.status_code != 200:
@@ -443,114 +427,109 @@ def parse_totals_line(market, selection):
     if m:
         return m.group(1), float(m.group(2))
     return None, None
+_SETTLEMENT_DB_MATCH_STATS_SOURCE = "db_match_stats_settlement"
+_SETTLEMENT_MANUAL_SOURCE = "manual_verification_required"
+_STAT_MARKET_KEYWORDS = (
+    "corner",
+    "card",
+    "foul",
+    "shot",
+    "booking",
+    "yellow",
+    "red",
+    "throw-in",
+    "offside",
+    "free kick",
+)
 
 
-# --- Flashscore match stats for statistical market settlement ---
+def _settlement_date_candidates(betting_day: str | None) -> list[str]:
+    if not betting_day:
+        return []
 
-_flashscore_stats_cache: dict[str, dict] = {}  # key = "home vs away" → stats dict
-_FS_STATS_MAX_REQUESTS = 30  # Rate limit per settlement run
-_fs_stats_request_count = 0
-
-
-def _fetch_flashscore_match_stats(home: str, away: str, sport: str = "football") -> dict | None:
-    """Fetch match-level statistics from Flashscore for a finished match.
-
-    Returns dict like {"corners": {"home": 7, "away": 3}, "yellow_cards": {"home": 2, "away": 4}, ...}
-    or None if unavailable.
-    """
-    global _fs_stats_request_count
-    cache_key = f"{home} vs {away}".lower()
-    if cache_key in _flashscore_stats_cache:
-        return _flashscore_stats_cache[cache_key]
-
-    if _fs_stats_request_count >= _FS_STATS_MAX_REQUESTS:
-        return None
-
+    candidates = [betting_day]
     try:
-        from curl_cffi import requests as c_requests
+        betting_date = datetime.fromisoformat(betting_day).date()
+    except ValueError:
+        return candidates
+
+    for offset in (1, -1):
+        candidate = (betting_date + timedelta(days=offset)).isoformat()
+        if candidate not in candidates:
+            candidates.append(candidate)
+    return candidates
+
+
+def _settlement_is_stat_market(market: str) -> bool:
+    normalized = (market or "").lower()
+    return any(keyword in normalized for keyword in _STAT_MARKET_KEYWORDS)
+
+
+def _fetch_settlement_db_match_stats(
+    home: str,
+    away: str,
+    sport: str,
+    betting_day: str | None,
+) -> dict | None:
+    """Fetch canonical settlement stats from the local match_stats table."""
+    try:
+        src_path = str(BASE.parent / "src")
+        if src_path not in sys.path:
+            sys.path.insert(0, src_path)
+        from bet.db.connection import get_db
+        from bet.db.repositories import FixtureRepo, SportRepo, StatsRepo
     except ImportError:
         return None
 
-    # Search Flashscore for the match
-    search_q = f"{home} {away}"
-    headers = {
-        "Accept": "text/html,application/xhtml+xml",
-        "Accept-Language": "en-US,en;q=0.9",
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-    }
-
     try:
-        # Try Flashscore search API to find match ID
-        search_url = f"https://s.livesport.services/api/v2/search/?q={search_q}&lang=en&sport={sport}&category="
-        resp = c_requests.get(search_url, headers=headers, impersonate="chrome110", timeout=10)
-        _fs_stats_request_count += 1
+        with get_db() as conn:
+            sport_repo = SportRepo(conn)
+            fixture_repo = FixtureRepo(conn)
+            stats_repo = StatsRepo(conn)
+            sport_obj = sport_repo.get_by_name(sport.lower())
+            if not sport_obj:
+                return None
 
-        if resp.status_code != 200:
-            _flashscore_stats_cache[cache_key] = None
-            return None
+            fixture = None
+            for candidate_day in _settlement_date_candidates(betting_day):
+                fixture = fixture_repo.get_by_teams_and_date(home, away, candidate_day, sport_obj.id)
+                if fixture:
+                    break
 
-        data = resp.json()
-        results = data.get("results", [])
-        if not results:
-            _flashscore_stats_cache[cache_key] = None
-            return None
+            if not fixture:
+                return None
 
-        # Find the finished match
-        match_id = None
-        for r in results:
-            if r.get("type") == "event":
-                match_id = r.get("id") or r.get("url", "").split("/")[-2]
-                break
+            rows = stats_repo.get_match_stats(fixture.id)
+            if not rows:
+                return None
 
-        if not match_id:
-            _flashscore_stats_cache[cache_key] = None
-            return None
+            stats: dict[str, dict[str, float]] = {}
+            for row in rows:
+                stat_key = row.stat_key
+                bucket = stats.setdefault(stat_key, {})
+                if row.team_id == fixture.home_team_id:
+                    bucket["home"] = float(row.stat_value)
+                elif row.team_id == fixture.away_team_id:
+                    bucket["away"] = float(row.stat_value)
 
-        # Fetch match statistics page
-        time.sleep(1.5)
-        stats_url = f"https://www.flashscore.com/match/{match_id}/#/match-summary/match-statistics/0"
-        resp = c_requests.get(stats_url, headers=headers, impersonate="chrome110", timeout=15)
-        _fs_stats_request_count += 1
-
-        if resp.status_code != 200 or len(resp.text) < 500:
-            _flashscore_stats_cache[cache_key] = None
-            return None
-
-        # Parse statistics from HTML
-        stats = _parse_match_stats_html(resp.text)
-        _flashscore_stats_cache[cache_key] = stats if stats else None
-        return stats
-
+            normalized = {
+                stat_key: stat_value
+                for stat_key, stat_value in stats.items()
+                if "home" in stat_value and "away" in stat_value
+            }
+            return normalized or None
     except Exception as e:
-        log(f"  [flashscore-stats] Error fetching stats for {home} vs {away}: {e}")
-        _flashscore_stats_cache[cache_key] = None
+        log(f"  [db-settlement] Error fetching stats for {home} vs {away}: {e}")
         return None
 
 
-def _parse_match_stats_html(html: str) -> dict | None:
-    """Parse Flashscore match statistics HTML into structured dict."""
-    stats = {}
-
-    # Flashscore stats pattern: home_value - Category - away_value
-    # Example in text: "7  Corner Kicks  3" or "2  Yellow Cards  4"
-    stat_patterns = {
-        "corners": r"(\d+)\s*(?:Corner Kicks?|Corners?)\s*(\d+)",
-        "yellow_cards": r"(\d+)\s*(?:Yellow Cards?|Żółte kartki)\s*(\d+)",
-        "red_cards": r"(\d+)\s*(?:Red Cards?|Czerwone kartki)\s*(\d+)",
-        "shots_on_target": r"(\d+)\s*(?:Shots on Target|Strzały celne)\s*(\d+)",
-        "shots": r"(\d+)\s*(?:Total Shots|Shots|Strzały)\s*(\d+)",
-        "fouls": r"(\d+)\s*(?:Fouls?|Faule)\s*(\d+)",
-    }
-
-    for key, pattern in stat_patterns.items():
-        m = re.search(pattern, html, re.IGNORECASE)
-        if m:
-            stats[key] = {"home": int(m.group(1)), "away": int(m.group(2))}
-
-    return stats if stats else None
-
-
-def settle_stat_market(pick, match_stats: dict, home_name: str, away_name: str) -> bool:
+def settle_stat_market(
+    pick,
+    match_stats: dict,
+    home_name: str,
+    away_name: str,
+    settlement_source: str = _SETTLEMENT_DB_MATCH_STATS_SOURCE,
+) -> bool:
     """Try to settle a statistical market (corners, cards, shots) using match stats.
 
     Returns True if settled, False otherwise.
@@ -596,10 +575,19 @@ def settle_stat_market(pick, match_stats: dict, home_name: str, away_name: str) 
                 pick["status"] = "loss"
 
         pick["pnl_pln"] = compute_pnl(pick["status"], pick.get("bookmaker_odds"), pick.get("stake_pln"))
-        pick["settlement_source"] = "flashscore_stats"
+        pick["settlement_source"] = settlement_source
         return True
 
     return False
+
+
+def _mark_manual_settlement_source(picks: list[dict]) -> list[dict]:
+    marked = []
+    for pick in picks:
+        if pick.get("status") in ("pending", "placed") and _settlement_is_stat_market(pick.get("market", "")):
+            pick["settlement_source"] = _SETTLEMENT_MANUAL_SOURCE
+            marked.append(pick)
+    return marked
 
 
 def settle_pick(pick, score_home, score_away, home_name, away_name):
@@ -633,9 +621,7 @@ def settle_pick(pick, score_home, score_away, home_name, away_name):
 
     # Totals (goals/points/game totals only — NOT corners, cards, fouls, shots)
     # Markets like corners, cards, fouls need special stat data and must be settled manually.
-    MANUAL_STAT_MARKETS = ("corner", "card", "foul", "shot", "booking", "yellow", "red",
-                           "throw-in", "offside", "free kick")
-    is_stat_market = any(kw in market for kw in MANUAL_STAT_MARKETS)
+    is_stat_market = _settlement_is_stat_market(market)
     direction, line = parse_totals_line(market, sel)
     if direction and line is not None and not is_stat_market:
         total_goals = score_home + score_away
@@ -831,9 +817,7 @@ def main():
             result = fetch_result_from_source(home, away, search_odds_api_snapshot)
             if not result:
                 result = fetch_result_from_source(home, away, lambda h, a: search_cached_html(h, a, sport=sport))
-            # Network fallbacks (Sofascore/Flashscore use JS — requests often fails)
-            if not result:
-                result = fetch_result_from_source(home, away, lambda h, a: search_sofascore(h, a, sport=sport))
+            # Network fallbacks (Flashscore uses JS — requests often fails)
             if not result:
                 result = fetch_result_from_source(home, away, lambda h, a: search_flashscore(h, a, sport=sport))
             # Playwright-based live search (slow but reliable)
@@ -848,16 +832,33 @@ def main():
                         log(f"  Settled {p['pick_id']}: {p['status']} (PnL: {p.get('pnl_pln', 'N/A')})")
                         any_settled = True
 
-                # Try Flashscore stats for remaining stat-market picks
+                # Try canonical DB-backed match stats for remaining football stat-market picks.
                 still_unsettled = [p for p in event_picks if p.get("status") in ("pending", "placed")]
                 if still_unsettled and sport == "football":
-                    match_stats = _fetch_flashscore_match_stats(home, away, sport=sport)
+                    match_stats = _fetch_settlement_db_match_stats(
+                        home,
+                        away,
+                        sport=sport,
+                        betting_day=event_picks[0].get("betting_day"),
+                    )
                     if match_stats:
                         for p in still_unsettled:
-                            if settle_stat_market(p, match_stats, home, away):
+                            if settle_stat_market(
+                                p,
+                                match_stats,
+                                home,
+                                away,
+                                settlement_source=_SETTLEMENT_DB_MATCH_STATS_SOURCE,
+                            ):
                                 log(f"  Settled (stats) {p['pick_id']}: {p['status']} "
-                                    f"(PnL: {p.get('pnl_pln', 'N/A')}) [src: flashscore_stats]")
+                                    f"(PnL: {p.get('pnl_pln', 'N/A')}) [src: db_match_stats]")
                                 any_settled = True
+
+                for p in _mark_manual_settlement_source(still_unsettled):
+                    log(
+                        f"  Manual verification required for {p['pick_id']}: "
+                        f"no canonical match_stats coverage"
+                    )
             else:
                 log(f"  Score not yet available for {event}")
 

@@ -25,9 +25,9 @@ FBREF_LEAGUES = {
 SPORT_SOURCE_MAP = {
     "football": ["fbref", "espn", "flashscore"],
     "basketball": ["nba-api", "basketball-reference", "espn", "flashscore"],
-    "tennis": ["sackmann", "sofascore-tennis", "espn", "flashscore"],
+    "tennis": ["sackmann", "espn", "flashscore"],
     "hockey": ["nhl-api", "hockey-reference", "espn", "flashscore"],
-    "volleyball": ["volleybox", "sofascore-volleyball", "espn", "flashscore"],
+    "volleyball": ["volleybox", "espn", "flashscore"],
 }
 
 DEFAULT_RATE_DELAYS = {
@@ -35,11 +35,9 @@ DEFAULT_RATE_DELAYS = {
     "nba-api": (0.6, 1.5),
     "basketball-reference": (3.0, 5.0),
     "sackmann": (0.5, 1.0),
-    "sofascore-tennis": (2.0, 4.0),
     "nhl-api": (1.0, 2.0),
     "hockey-reference": (3.0, 5.0),
     "volleybox": (3.0, 5.0),
-    "sofascore-volleyball": (1.5, 3.0),
     "flashscore": (1.5, 3.0),
     "espn": (0.2, 0.5),
 }

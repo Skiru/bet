@@ -1,6 +1,6 @@
 """Volleyball data client — fetches team/player stats for volleyball leagues.
 
-Primary source: Flashscore (via curl_cffi) for match-level stats.
+Primary sources: ESPN and api-volleyball for match-level stats.
 Secondary source: volleybox.net for detailed player stats.
 Fallback: Generic web research.
 
@@ -104,19 +104,34 @@ class VolleyballDataClient:
         return stats if stats else None
 
     def fetch_match_stats(self, match_id: str) -> dict | None:
-        """Fetch match-level stats from Flashscore match detail.
+        """Fetch volleyball match-level stats from canonical providers.
 
-        This is typically handled by flashscore_enricher.py but exposed here
-        for volleyball-specific enrichment.
+        Return the first provider-backed stats payload that succeeds.
         """
-        # Delegate to flashscore_enricher for actual implementation
         try:
-            from bet.scrapers.flashscore import FlashscoreClient
-            client = FlashscoreClient()
-            return client.get_match_stats(match_id)
-        except (ImportError, Exception) as e:
-            logger.debug(f"Flashscore match stats unavailable: {e}")
+            from bet.api_clients import get_client
+        except ImportError as e:
+            logger.debug(f"Volleyball stats client registry unavailable: {e}")
             return None
+
+        for client_name in ("espn-volleyball", "api-volleyball"):
+            try:
+                client = get_client(client_name)
+                raw_stats = client.get_fixture_stats(match_id)
+            except Exception as e:
+                logger.debug(f"{client_name} match stats unavailable: {e}")
+                continue
+
+            if not raw_stats:
+                continue
+            payload = raw_stats[0] if isinstance(raw_stats, list) else raw_stats
+            stats = getattr(payload, "stats", None)
+            if stats is None and isinstance(payload, dict):
+                stats = payload.get("stats")
+            if isinstance(stats, dict):
+                return stats
+
+        return None
 
     @staticmethod
     def _slugify(name: str) -> str:
