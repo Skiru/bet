@@ -3,15 +3,48 @@
 Returns APIFixture and APIMatchStats objects.
 """
 
+from dataclasses import asdict
+from datetime import datetime
+import logging
+import re
+
 from .base_client import APISportsClient
 from .rate_limiter import RateLimiter
 from .api_football import APIFixture, APIMatchStats
+
+
+logger = logging.getLogger(__name__)
 
 
 class APIBasketballClient(APISportsClient):
     """API-Basketball v1 — per-game stats for NBA, Euroleague, and 50+ leagues."""
 
     _SHARES_FOOTBALL_KEY = True
+
+    @staticmethod
+    def _season_string(now: datetime | None = None) -> str:
+        now = now or datetime.now()
+        season_start = now.year if now.month >= 10 else now.year - 1
+        return f"{season_start}-{season_start + 1}"
+
+    def _get_game_side_map(self, game_id: str) -> dict[str, str]:
+        try:
+            data = self._request("/games", params={"id": game_id})
+        except Exception:
+            return {}
+
+        response = data.get("response", [])
+        if not response:
+            return {}
+
+        teams = response[0].get("teams", {})
+        side_map: dict[str, str] = {}
+        for side in ("home", "away"):
+            team = teams.get(side, {})
+            team_id = team.get("id")
+            if team_id is not None:
+                side_map[str(team_id)] = side
+        return side_map
 
     def __init__(self, rate_limiter: RateLimiter):
         super().__init__(
@@ -61,7 +94,6 @@ class APIBasketballClient(APISportsClient):
             )
             fixtures.append(fixture)
 
-        from dataclasses import asdict
         self._save_cache(cache_key, {
             "fixtures": [asdict(f) for f in fixtures],
             "count": len(fixtures),
@@ -89,12 +121,19 @@ class APIBasketballClient(APISportsClient):
         if len(response) < 2:
             return []
 
+        side_map = self._get_game_side_map(game_id)
+
         stats: dict[str, dict[str, float]] = {}
         teams: dict[str, str] = {}
+        used_order_fallback = False
         for team_data in response:
             team_info = team_data.get("team", {})
             team_name = team_info.get("name", "")
-            side = "home" if not teams else "away"
+            team_id = team_info.get("id")
+            side = side_map.get(str(team_id))
+            if side is None:
+                side = "home" if not teams else "away"
+                used_order_fallback = True
             teams[side] = team_name
 
             raw_stats = team_data.get("statistics", [])
@@ -142,6 +181,12 @@ class APIBasketballClient(APISportsClient):
         if not teams.get("home") or not teams.get("away"):
             return []
 
+        if used_order_fallback:
+            logger.warning(
+                "[api-basketball] side map unavailable for game %s — assigned home/away by response order",
+                game_id,
+            )
+
         result = [APIMatchStats(
             external_id=game_id,
             source=self.api_name,
@@ -151,7 +196,6 @@ class APIBasketballClient(APISportsClient):
             stats=stats,
         )]
 
-        from dataclasses import asdict
         self._save_cache(cache_key, {"stats": [asdict(ms) for ms in result]})
 
         return result
@@ -173,7 +217,6 @@ class APIBasketballClient(APISportsClient):
         """Search for a team by name → return API team ID."""
         if not self._check_api_key():
             return None
-        import re
         safe_name = re.sub(r"[^a-z0-9_]", "_", team_name.lower())
         cache_key = f"basketball/team_search/{safe_name}"
         cached = self._check_cache(cache_key, ttl_hours=168)
@@ -191,7 +234,7 @@ class APIBasketballClient(APISportsClient):
         return None
 
     def get_team_last_fixtures(self, team_id: str, last_n: int = 10) -> list[dict]:
-        """GET /games?team={id}&season=2024-2025 → filter to last N finished."""
+        """Fetch the last N finished games for a team using the current season."""
         if not self._check_api_key():
             return []
         cache_key = f"basketball/team_fixtures/{team_id}"
@@ -199,10 +242,7 @@ class APIBasketballClient(APISportsClient):
         if cached:
             return cached.get("fixtures", [])
         try:
-            from datetime import datetime
-            now = datetime.now()
-            season_start = now.year if now.month >= 10 else now.year - 1
-            season_str = f"{season_start}-{season_start + 1}"
+            season_str = self._season_string()
 
             data = self._request(
                 "/games",

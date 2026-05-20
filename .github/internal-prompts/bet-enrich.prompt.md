@@ -4,26 +4,21 @@ description: "S2.5: Self-healing data enrichment — fetch missing team stats fr
 ---
 
 > **PERMANENT RULES (from copilot-instructions.md §NON-NEGOTIABLE):**
-> R2 DB-FIRST: Write to `team_form` via `get_db()`. R9 SELF-HEALING: 6 fallback layers — exhaust ALL before returning empty.
+> R2 DB-FIRST: Write to `team_form` via `get_db()`. R9 SELF-HEALING: 7 fallback layers — exhaust ALL before returning empty.
 
-# S2.3/S2.5 — SCRAPER DATA + ENRICHMENT
+# S2.3/S2.5 — BULK ENRICHMENT + FALLBACK
 
-## SCRAPER-FIRST DATA FLOW (NEW)
+## CURRENT ENRICHMENT FLOW (2026-05-20)
 
-The data collection phase now has 2 sub-steps:
-1. **S2.3** — `run_scrapers.py` populates `league_profiles` + `player_season_stats` from 19 scrapers
-2. **S2.5** — `data_enrichment_agent.py` fills REMAINING GAPS only
+The enrichment phase now has multiple sub-steps — ALL write directly to `team_form`:
+1. **S2.3a** — `espn_discover_all.py` discovers fixtures for all 5 sports via ESPN API (free) → `fixtures` table
+2. **S2.3b** — `bulk_league_enrich.py` fetches ESPN league-level stats (standings → all teams in league) → `team_form` (source: `espn-football`, etc.). Provides RICH data: corners, shots, fouls, passes, cards.
+3. **S2.3c** — `flashscore_bulk_enrich.py` fast Flashscore enrichment via curl_cffi → `team_form` (source: `flashscore`). Goals/points only. Skips tennis. 1.5s rate limit.
+4. **S2.5** — `data_enrichment_agent.py` fills REMAINING GAPS via per-team fallback chains → `team_form` (source: `enrichment-agent`)
 
-**Your first check:** When analyzing enrichment needs, check `scraper_runs` table for today's run status and `player_season_stats` / `league_profiles` tables for coverage. Scrapers write to `league_profiles` + `player_season_stats` (NOT `team_form`). Only flag gaps for teams/sports NOT covered by scrapers. The old enrichment (S2.5) is now a FALLBACK.
+**CRITICAL:** `run_scrapers.py` writes to `league_profiles`/`player_season_stats` (NOT `team_form`). Downstream analysis reads `team_form` ONLY. The scripts above are what populate `team_form`.
 
-**Scraper coverage expectations:**
-- Football: FBref (20+ teams, 574+ players), Flashscore (goals from scores)
-- Basketball: NBA API (21 teams, 569 players), Basketball-Ref (736 players)
-- Tennis: Sackmann (457 players)
-- Hockey: NHL API (15 teams, 261 players), Hockey-Ref (1,251 players)
-- Volleyball: Flashscore only (Volleybox blocked by Cloudflare)
-
-**Known gap:** Football corners/fouls NOT available from scrapers. Old enrichment remains the ONLY source for football statistical markets.
+**Your first check:** When analyzing enrichment output, verify `team_form` row counts per sport and source. The key metric is: how many of today's fixture teams have `l5_avg IS NOT NULL` in `team_form`? Target: both teams enriched for ≥500 fixtures (≥70% coverage).
 
 ## ⛔ INLINE GATES (check at each step — violation = FAILURE)
 
@@ -32,7 +27,7 @@ The data collection phase now has 2 sub-steps:
 | Before running script | Verified shortlist format matches enrichment script's expected input? | FAILURE: R18 violated |
 | Script execution | --verbose flag included? timeout=600000? | FAILURE: R17 violated |
 | After script output | Yield %, per-sport breakdown, source success rates extracted? | FAILURE: R17 — no metrics |
-| Low yield detected | ALL 6 fallback layers (L1-L6) attempted before accepting gaps? | FAILURE: R9 violated |
+| Low yield detected | ALL 7 fallback layers (L1-L7) attempted before accepting gaps? | FAILURE: R9 violated |
 | Data writes | Used `get_db()` and repository classes (not raw JSON-only)? | FAILURE: R2 violated |
 | After enrichment | Output format verified to match what S3 deep_stats_report.py expects? | FAILURE: R18 violated |
 
@@ -101,6 +96,8 @@ The orchestrator has already:
 - Run `data_enrichment_agent.py` or any other pipeline script
 - Run `validate_phase.py` (orchestrator already did this)
 - Use `run_in_terminal` for anything
+
+**Quality assessment checklist:**
 - **Data freshness**: Are enriched stats from current season or stale?
 - **Fallback chain effectiveness**: Which sources failed? Why?
 - **Gap triage**: Prioritize remaining gaps by impact on S3 analysis
@@ -112,8 +109,13 @@ with get_db() as conn:
     cur = conn.cursor()
     cur.execute("SELECT COUNT(*) FROM team_form WHERE updated_at >= date('now')")
     print(f"team_form rows updated today: {cur.fetchone()[0]}")
-    cur.execute("SELECT sport, COUNT(*) FROM team_form WHERE updated_at >= date('now') GROUP BY sport")
-    for row in cur.fetchall(): print(f"  {row[0]}: {row[1]}")
+    cur.execute(
+        "SELECT s.name, COUNT(*) "
+        "FROM team_form tf JOIN sports s ON s.id = tf.sport_id "
+        "WHERE tf.updated_at >= date('now') GROUP BY s.name"
+    )
+    for row in cur.fetchall():
+        print(f"  {row[0]}: {row[1]}")
 ```
 **If DB writes are 0 but script reported success → data flow break (R18). Investigate before returning.**
 
@@ -121,13 +123,15 @@ with get_db() as conn:
 
 ## Context (provided by orchestrator)
 
-- **Inputs**: `{date}_s2_shortlist.json`, stats cache, DB `team_form` table
-- **Script**: `python3 scripts/data_enrichment_agent.py --date {date}`
-- **With Gemini news**: `python3 scripts/data_enrichment_agent.py --date {date} --news` — adds injury/coaching/morale data to `team_news` DB table via Gemini Search Grounding
-- **Sources**: HTML deep parse (L0 — already extracted from saved snapshots), Flashscore (L10 form, H2H), ESPN (standings, gamelogs), Gemini Search Grounding (news/injuries)
-- **DB tables used**: `team_form` (read/write), `match_stats` (write), `source_health` (write), `team_news` (write — Gemini news enrichment)
-- **Rate limits**: Thread-safe rate limiting (uniform 1.5s between requests per domain). Gemini uses separate budget from `config/gemini_config.json`.
-- **Timeout**: 15 min (covers ~50 teams across multiple sources)
+- **Inputs**: `fixtures` table (today's events), `team_form` table (existing stats)
+- **Enrichment scripts (run by orchestrator in order):**
+  - `PYTHONPATH=src .venv/bin/python3 scripts/espn_discover_all.py --date {date} --limit 500` — discover fixtures
+  - `PYTHONPATH=src .venv/bin/python3 scripts/bulk_league_enrich.py --date {date} --verbose` — ESPN league-level (RICH data)
+  - `PYTHONPATH=src .venv/bin/python3 scripts/flashscore_bulk_enrich.py --date {date} --limit 400 --verbose` — Flashscore bulk (goals/points)
+  - `PYTHONPATH=src .venv/bin/python3 scripts/data_enrichment_agent.py --date {date} --news --verbose` — fallback per-team enrichment
+- **DB table**: `team_form` (read/write) — ALL enrichment writes here
+- **Rate limits**: Flashscore 1.5s, ESPN unlimited (free API), data_enrichment_agent thread-safe rate limiting
+- **Timeout**: bulk_league_enrich ~3 min, flashscore_bulk_enrich ~10 min (350 teams × 1.5s), data_enrichment_agent ~15 min
 
 ## Workflow
 

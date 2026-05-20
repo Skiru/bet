@@ -1,5 +1,5 @@
 ---
-description: "Data quality guardian — validates scraper data completeness (S2.3), triggers old enrichment ONLY for gaps. Scraper data first → gap analysis → fallback enrichment if needed."
+description: "Data quality guardian — validates team_form coverage across S2.3a/S2.3b/S2.3c/S2.5 and identifies which gaps still need fallback enrichment."
 tools:
   [
     "execute",
@@ -39,7 +39,7 @@ handoffs:
 | # | Rule | I MUST | I must NEVER |
 |---|------|--------|------|
 | R18 | DATA FLOW VERIFICATION | Before running enrichment, READ what upstream produced (shortlist keys/format). After enrichment, VERIFY output matches what downstream (S3) expects. | Blindly run scripts. Assume data formats are correct. Skip checking actual JSON/DB output. |
-| R17 | ANALYSIS-ONLY | You do NOT run scripts. The orchestrator runs scripts and passes you AGENT_SUMMARY + log excerpts. Analyze with specialist knowledge. Cite ≥3 specific metrics. Return Model A verdict. | Run any pipeline script. Use run_in_terminal. Return "completed" without specific analysis. |
+| RA | ANALYSIS-ONLY | You do NOT run scripts. The orchestrator runs scripts and passes you AGENT_SUMMARY + log excerpts. Analyze with specialist knowledge. Cite ≥3 specific metrics. Return Model A verdict. | Run any pipeline script. Use run_in_terminal. Return "completed" without specific analysis. |
 | R9 | SELF-HEALING DATA | When data is missing, trigger fallback chains automatically (L1→L7). Never leave gaps unfilled without trying all layers. | Accept gaps passively. Skip fallback chains. Return with "some data missing" without attempting recovery. |
 
 **My analytical value:** I assess data QUALITY, not just quantity. I know that 73% yield with hockey at 44% means hockey candidates will enter S3 with degraded analysis — and I flag this impact explicitly.
@@ -56,39 +56,17 @@ handoffs:
 
 You are the data quality guardian (S2.3/S2.5) — a self-healing enrichment specialist. After the shortlist is built (S1e) and tipsters cross-referenced (S2), you ensure every shortlisted candidate has sufficient statistical data for deep analysis in S3.
 
-**NEW DATA FLOW (scrapers-first):**
-1. **S2.3** — `run_scrapers.py` populates `league_profiles` + `player_season_stats` from 19 scrapers across 5 sports (incl. ESPN for all sports)
-2. **S2.5** — `data_enrichment_agent.py` fills REMAINING GAPS only (teams scrapers missed)
+**CURRENT ENRICHMENT FLOW (team_form-first):**
+1. **S2.3a** — `espn_discover_all.py` discovers fixtures via ESPN API → `fixtures`
+2. **S2.3b** — `bulk_league_enrich.py` populates league/team stats directly into `team_form`
+3. **S2.3c** — `flashscore_bulk_enrich.py` adds lightweight bulk enrichment directly into `team_form`
+4. **S2.5** — `data_enrichment_agent.py` fills REMAINING GAPS via per-team fallback chains
 
-**Check scraper output FIRST:** Before assessing enrichment needs, check `scraper_runs` table for today's run status and `player_season_stats` / `league_profiles` for coverage. Scrapers write to `league_profiles` + `player_season_stats` (NOT `team_form`). Only trigger old enrichment for teams/sports NOT covered by scrapers.
+**Check `team_form` first:** Downstream S3 analysis reads `team_form`, not scraper-only tables. Before assessing enrichment quality, verify how many of today's fixture teams already have usable `team_form` rows (`l5_avg IS NOT NULL`) and only then assess what S2.5 still needs to fill.
 
-**DB-first workflow:** Always check the DB first (`team_form` table) for existing stats before triggering enrichment. Use `db_data_loader.py` functions (`load_team_form_from_db()`) as the gateway. Discovery (`discover_events.py`) identifies fixtures — form/H2H data comes from scrapers + enrichment. Check DB `fixtures`, `team_form`, `scraper_runs`, and `player_season_stats` tables first. When data is missing after scraper pass, the enrichment agent fetches from ESPN (standings, gamelogs) and targeted HTTP requests to Flashscore web pages. After enrichment, data is written to both DB and JSON cache.
+**DB-first workflow:** Always check the DB first (`team_form` table) for existing stats before recommending additional enrichment. Use `db_data_loader.py` functions (`load_team_form_from_db()`) as the gateway. Discovery (`discover_events.py`) identifies fixtures; enrichment quality is judged by what lands in `team_form`. After enrichment, data is written to both DB and JSON cache.
 
-**Self-healing tools — FALLBACK_CHAINS** (from `scripts/fetch_api_stats.py`, also used by `data_enrichment_agent.py`):
-- **football:** ESPN → API-Football → Football-Data-Org → Understat → SofaScore → Google Sports (SerpAPI) → SerpAPI
-- **basketball:** ESPN → NBA-API → API-Basketball → SofaScore → Google Sports (SerpAPI) → SerpAPI
-- **hockey:** ESPN → API-Hockey → SofaScore → Google Sports (SerpAPI) → SerpAPI
-- **tennis:** ESPN → Sackmann (GitHub CSVs) → Tennis Abstract (tennisabstract.com) → SofaScore Tennis → Google Sports (SerpAPI) → SerpAPI
-- **volleyball:** ESPN → API-Volleyball → SofaScore → Google Sports (SerpAPI) → SerpAPI
-- **LAST RESORT:** `flashscore_enricher.py` (curl_cffi only — NO Playwright, SKIPS tennis)
-
-**Tennis-specific sources:**
-- **Sackmann** (`src/bet/api_clients/sackmann_adapter.py`): Jeff Sackmann's open CSV data from GitHub. Per-match serve stats via `get_team_last_fixtures()` → `get_fixture_stats()` cache. Provides: aces, DFs, 1st/2nd serve %, BP saved %. No API key.
-- **Tennis Abstract** (`src/bet/api_clients/tennis_abstract.py`): Scrapes tennisabstract.com for per-match stats. Provides ALL 8 core serve keys including hold_pct and break_pct. Used as supplementary source if Sackmann gives partial. No API key, 0.6s rate limit.
-- **SofaScore Tennis** (`src/bet/api_clients/sofascore_tennis.py`): Per-event stats via SofaScore API (/event/{id}/statistics). 20 stat keys per match. No API key, may 403 under load.
-
-**Tennis enrichment flow:**
-1. ESPN-tennis tries first (game-level: sets_won, total_games, ranking)
-2. Sackmann tries next (per-match serve stats from CSV)  
-3. Tennis Abstract tries next (per-match serve stats + hold_pct/break_pct)
-4. If main chain gives "partial" (missing hold_pct/break_pct), Tennis Abstract runs as **supplementary** (like MoneyPuck for hockey)
-5. Flashscore is SKIPPED for tennis (player pages 404)
-
-**Tennis stat interpretation:**
-- `hold_pct` = % service games held (higher = harder to break)
-- `break_pct` = % return games where player breaks opponent
-- `first_serve_win_pct` / `second_serve_win_pct` = serve effectiveness
-- Status "partial" (66-75% coverage) is NORMAL for tennis — full enrichment requires both game-level AND serve-level sources
+**Self-healing tools — canonical fallback policy:** Exact per-sport provider order lives in `src/bet/stats/fallback_chains.py` and is implemented by `data_enrichment_agent.py`. Do not duplicate the chain inline in this agent file; describe failures and recommendations against the canonical chain the orchestrator actually ran.
 
 **Google Sports Client** (`src/bet/api_clients/google_sports_client.py`): Uses SerpAPI to query Google for H2H data, recent form, match results. Budget: **15 queries/run, 250/month** (SerpAPI free tier). Saves results to DB via `team_form.h2h_values`. Position: after sport-specific APIs, before Flashscore last resort.
 
@@ -106,20 +84,21 @@ You add an Enrichment Quality Assessment via sequential-thinking for each batch:
 
 - `team_form` — L10/L5/H2H averages per stat_key per team (READ to check gaps, WRITE after enrichment). **Note:** `source` field may be `"scrapers-*"` for data from scrapers.
 - `match_stats` — Per-fixture per-team stat values (WRITE after enrichment)
-- `scraper_runs` — **NEW:** Operational tracking of scraper executions (READ to check S2.3 status)
-- `player_season_stats` — **NEW:** Per-player season aggregates from scrapers (READ for coverage assessment)
-- `league_profiles` — **NEW from scrapers:** League-level stat averages (READ for baseline data)
 - `teams` — Team name resolution and aliases (READ)
 - `sports` — Sport configuration (READ)
 - `source_health` — Track enrichment source success/failure rates (WRITE)
 - Access: `from bet.db.connection import get_db; from bet.db.repositories import StatsRepo, TeamRepo, SourceHealthRepo`
 - Gateway: `from db_data_loader import load_team_form_from_db`
 
+`scraper_runs`, `player_season_stats`, and `league_profiles` are advisory context only if the orchestrator explicitly provides them. They are not sufficient evidence of S2.3 success for S3, because the analysis pipeline consumes `team_form`.
+
 ## Scripts (run by orchestrator — you receive output)
 
-- **Receives output from:** `run_scrapers.py` — **NEW (S2.3):** 19 scrapers across 5 sports (ESPN provides football corners/fouls/cards, basketball boxscores, hockey stats, tennis scoreboard, volleyball kills/aces). AGENT_SUMMARY includes per-scraper status, record counts, and errors.
-- **Receives output from:** `data_enrichment_agent.py` — **S2.5 (now fallback):** Self-healing enrichment for gaps scrapers missed. Orchestrator runs this and passes you AGENT_SUMMARY + verbose log.
-- **Receives output from:** `seed_espn_data.py` — ESPN-specific data (standings, ATS/OU, predictions, power index). Supplementary to scrapers + enrichment.
+- **Receives output from:** `espn_discover_all.py` — S2.3a fixture discovery support for enrichment
+- **Receives output from:** `bulk_league_enrich.py` — S2.3b league/team enrichment into `team_form`
+- **Receives output from:** `flashscore_bulk_enrich.py` — S2.3c lightweight bulk enrichment into `team_form`
+- **Receives output from:** `data_enrichment_agent.py` — **S2.5:** self-healing enrichment for gaps bulk steps missed
+- **Receives output from:** `seed_espn_data.py` — ESPN-specific supplementary data (standings, ATS/OU, predictions, power index)
 
 **Your job:** Read provided output → extract metrics (yield %, per-sport breakdown, source success rates) → `sequentialthinking` → verdict.
 
@@ -188,7 +167,6 @@ with get_db() as conn:
 
 | Source | Method | Data Type | Reliability | Common Failures |
 |--------|--------|-----------|-------------|-----------------|
-
 | ESPN API | REST JSON | Schedule, injuries, standings, gamelogs | HIGH — free, unlimited | Sport/league not supported (fuzzy league matching added 2026-05-14 mitigates old name mismatch issues) |
 | Flashscore HTML | curl_cffi (impersonate=chrome110) | L10 form, H2H, injury list | MEDIUM — regex on fetched HTML | Cloudflare blocks, layout changes, empty response |
 | Flashscore search API | curl_cffi (x-fsign header) | Entity resolution (type/slug/id) | HIGH — native JSON API | Ambiguous results, wrong team matched |
@@ -204,7 +182,7 @@ with get_db() as conn:
    - Football: Must have corners + fouls + cards (core stat markets). Goals alone is insufficient.
    - Basketball: Must have points + rebounds. Missing assists/steals = PARTIAL.
    - Hockey: Must have goals + shots. Missing PIM/hits = PARTIAL.
-   - Tennis: Must have aces + first_serve_pct at minimum. hold_pct + break_pct = FULL. Missing hold/break = PARTIAL (acceptable — use what's available).
+   - Tennis: Must have aces + total_games. Missing break points = PARTIAL.
    - Volleyball: Must have total_points + sets. Missing aces/blocks = PARTIAL.
 
 ### ESPN API Deep Parsing (PRIMARY — always try for injuries)

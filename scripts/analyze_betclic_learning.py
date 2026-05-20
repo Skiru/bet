@@ -11,6 +11,7 @@ Usage:
 import json
 import re
 import sys
+from datetime import datetime
 from pathlib import Path
 from collections import Counter, defaultdict
 
@@ -118,20 +119,31 @@ def analyze():
         from db_data_loader import load_betclic_history_from_db
         db_history = load_betclic_history_from_db()
         if db_history:
-            print(f"[betclic_learning] DB: loaded {len(db_history)} coupons")
+            print(f"[db_loader] Loaded {len(db_history)} coupons from DB")
             bets = db_history
     except Exception as e:
         print(f"[betclic_learning] DB read failed, falling back to JSON: {e}")
 
-    # JSON fallback
+    # JSON: load only as fallback when DB is unavailable or empty
+    json_bets = None
+    if HISTORY_JSON.exists():
+        try:
+            json_bets = json.loads(HISTORY_JSON.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError) as e:
+            print(f"[betclic_learning] JSON file unreadable: {e}")
+            json_bets = None
+        if isinstance(json_bets, list) and not bets:
+            print(f"[betclic_learning] DB empty/unavailable — using JSON fallback with {len(json_bets)} coupons")
+            bets = json_bets
+
     if not bets:
-        if not HISTORY_JSON.exists():
+        if json_bets is None:
             print(f"WARNING: Not found: {HISTORY_JSON}")
             print("Run: python3 scripts/parse_betclic_bets.py first")
             print("Continuing with empty history — no learning data available.")
             summary_path = DATA_DIR / "betclic_learning_summary.json"
             summary = {
-                "analyzed_at": __import__("datetime").datetime.now().isoformat(),
+                "analyzed_at": datetime.now().isoformat(),
                 "total_coupons": 0, "total_legs": 0, "won": 0, "lost": 0,
                 "hit_rate": 0.0, "total_pnl": 0.0, "roi": 0.0,
                 "rules_count": 0, "rules": [],
@@ -141,7 +153,7 @@ def analyze():
                 json.dump(summary, f, ensure_ascii=False, indent=2)
             return [], []
 
-        bets = json.loads(HISTORY_JSON.read_text(encoding="utf-8"))
+        bets = json_bets
     if not isinstance(bets, list):
         print(f"ERROR: Expected a JSON array, got {type(bets).__name__}")
         sys.exit(1)
@@ -465,7 +477,7 @@ def analyze():
     # Write summary artifact for pipeline verification (M8)
     summary_path = DATA_DIR / "betclic_learning_summary.json"
     summary = {
-        "analyzed_at": __import__("datetime").datetime.now().isoformat(),
+        "analyzed_at": datetime.now().isoformat(),
         "total_coupons": total_bets,
         "total_legs": len(all_legs),
         "won": won,

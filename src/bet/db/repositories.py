@@ -79,7 +79,7 @@ class SportRepo:
             ("volleyball", 1),
             ("basketball", 1),
             ("tennis", 1),
-            ("hockey", 2),
+            ("hockey", 1),
         ]
         for name, tier in defaults:
             stat_keys = json.dumps(stat_keys_dict.get(name, []))
@@ -414,7 +414,10 @@ class FixtureRepo:
         return None
 
     def bulk_upsert(self, fixtures: list[Fixture]) -> list[int]:
-        """Batch upsert multiple fixtures in one transaction. Returns row IDs."""
+        """Batch upsert multiple fixtures and return their row IDs.
+
+        The caller owns transaction boundaries and commit behavior.
+        """
         ids = []
         for fixture in fixtures:
             fid = self.upsert(fixture)
@@ -458,6 +461,7 @@ class FixtureRepo:
 class StatsRepo:
     def __init__(self, conn: sqlite3.Connection):
         self.conn = conn
+        self._sport_name_cache: dict[int, str] = {}
 
     def save_match_stats(
         self,
@@ -582,7 +586,6 @@ class StatsRepo:
             raise
 
     # --- Validation helpers (ADR-2) ---
-    _sport_name_cache: dict[int, str] = {}
     _logger = logging.getLogger("bet.db.repositories.StatsRepo")
 
     def _get_sport_name(self, sport_id: int) -> str | None:
@@ -627,6 +630,9 @@ class StatsRepo:
                 )
             return filtered
 
+        had_l10_values = bool(form.l10_values)
+        had_l5_values = bool(form.l5_values)
+
         l10 = _filter(form.l10_values)
         l5 = _filter(form.l5_values)
         h2h = _filter(form.h2h_values)
@@ -645,8 +651,12 @@ class StatsRepo:
         form.h2h_values = h2h
         if l10:
             form.l10_avg = round(sum(l10) / len(l10), 2)
+        elif had_l10_values:
+            form.l10_avg = None
         if l5:
             form.l5_avg = round(sum(l5) / len(l5), 2)
+        elif had_l5_values:
+            form.l5_avg = None
         return form
 
     def get_all_form_for_team(self, team_id: int, sport_id: int) -> list[TeamForm]:
@@ -691,6 +701,14 @@ class StatsRepo:
             [(fid, tid, sk, sv, src, now) for fid, tid, sk, sv, src in rows],
         )
 
+    def get_match_stats(self, fixture_id: int) -> list[MatchStat]:
+        """Return all match_stats rows for a fixture."""
+        rows = self.conn.execute(
+            "SELECT * FROM match_stats WHERE fixture_id = ? ORDER BY team_id, stat_key",
+            (fixture_id,),
+        ).fetchall()
+        return [self._row_to_match_stat(row) for row in rows]
+
     @staticmethod
     def _row_to_team_form(row: sqlite3.Row) -> TeamForm:
         return TeamForm(
@@ -707,6 +725,18 @@ class StatsRepo:
             trend=row["trend"] or "",
             updated_at=row["updated_at"] or "",
             source=row["source"] or "",
+        )
+
+    @staticmethod
+    def _row_to_match_stat(row: sqlite3.Row) -> MatchStat:
+        return MatchStat(
+            id=row["id"],
+            fixture_id=row["fixture_id"],
+            team_id=row["team_id"],
+            stat_key=row["stat_key"],
+            stat_value=row["stat_value"],
+            source=row["source"] or "",
+            fetched_at=row["fetched_at"] or "",
         )
 
     # Public alias for external callers

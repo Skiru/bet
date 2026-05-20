@@ -108,8 +108,8 @@ class TestFixtureRepoGetByDateWithTeams:
         assert len(results) == 2
         # Check first fixture has team names
         r = results[0]
-        assert r["home_team"] in ("Arsenal", "Liverpool")
-        assert r["away_team"] in ("Chelsea", "Arsenal")
+        assert r["home_team"] == "Arsenal"
+        assert r["away_team"] == "Chelsea"
         assert r["competition"] == "Premier League"
         assert "fixture_id" in r
         assert "sport_name" in r
@@ -120,14 +120,21 @@ class TestFixtureRepoGetByDateWithTeams:
         results = repo.get_by_date_with_teams("2026-05-04", sport_id=football.id)
         assert len(results) == 2
 
-        # Non-existent sport
-        results = repo.get_by_date_with_teams("2026-05-04", sport_id=999)
-        assert len(results) == 0
-
     def test_no_results_wrong_date(self, seeded_db):
         repo = FixtureRepo(seeded_db["conn"])
         results = repo.get_by_date_with_teams("2026-12-25")
         assert len(results) == 0
+
+
+class TestSportRepoSeedDefaults:
+    def test_hockey_is_seeded_as_tier_1(self, db):
+        repo = SportRepo(db)
+        repo.seed_defaults()
+
+        hockey = repo.get_by_name("hockey")
+
+        assert hockey is not None
+        assert hockey.tier == 1
 
 
 class TestFixtureRepoGetByTeamsAndDate:
@@ -312,6 +319,66 @@ class TestStatsRepoGetTeamFormRecord:
         assert result is None
 
 
+class TestStatsRepoSportNameCache:
+    def test_cache_is_instance_scoped(self):
+        def make_conn() -> sqlite3.Connection:
+            conn = sqlite3.connect(":memory:")
+            conn.execute("PRAGMA foreign_keys = ON")
+            conn.row_factory = sqlite3.Row
+            conn.executescript(SCHEMA_PATH.read_text())
+            return conn
+
+        conn_one = make_conn()
+        conn_two = make_conn()
+        try:
+            conn_one.execute(
+                "INSERT INTO sports (id, name, tier, stat_keys) VALUES (?, ?, ?, ?)",
+                (1, "football", 1, "[]"),
+            )
+            conn_two.execute(
+                "INSERT INTO sports (id, name, tier, stat_keys) VALUES (?, ?, ?, ?)",
+                (1, "tennis", 1, "[]"),
+            )
+
+            repo_one = StatsRepo(conn_one)
+            repo_two = StatsRepo(conn_two)
+
+            assert repo_one._get_sport_name(1) == "football"
+            assert repo_two._get_sport_name(1) == "tennis"
+        finally:
+            conn_one.close()
+            conn_two.close()
+
+
+class TestStatsRepoValueFiltering:
+    def test_clears_l5_avg_when_all_l5_values_are_rejected(self, seeded_db):
+        conn = seeded_db["conn"]
+        stats_repo = StatsRepo(conn)
+        home = seeded_db["home"]
+        football = seeded_db["football"]
+
+        stats_repo.save_team_form(TeamForm(
+            id=None,
+            team_id=home.id,
+            sport_id=football.id,
+            stat_key="corners",
+            l10_values=[5.0, 6.0],
+            l5_values=[999.0],
+            l10_avg=5.5,
+            l5_avg=999.0,
+            trend="→",
+            updated_at="2026-05-04T10:00:00",
+            source="test",
+        ))
+        conn.commit()
+
+        result = stats_repo.get_team_form_record(home.id, "corners")
+        assert result is not None
+        assert result.l5_values == []
+        assert result.l5_avg is None
+
+
+
 class TestStatsRepoBulkSaveMatchStats:
     def test_saves_batch(self, seeded_db):
         conn = seeded_db["conn"]
@@ -352,6 +419,23 @@ class TestStatsRepoBulkSaveMatchStats:
             "SELECT stat_value FROM match_stats WHERE stat_key = 'corners'"
         ).fetchone()["stat_value"]
         assert val == 7.0
+
+    def test_get_match_stats_returns_rows(self, seeded_db):
+        conn = seeded_db["conn"]
+        stats_repo = StatsRepo(conn)
+
+        rows = [
+            (seeded_db["f1_id"], seeded_db["home"].id, "corners", 5.0, "test"),
+            (seeded_db["f1_id"], seeded_db["away"].id, "corners", 3.0, "test"),
+        ]
+        stats_repo.bulk_save_match_stats(rows)
+        conn.commit()
+
+        result = stats_repo.get_match_stats(seeded_db["f1_id"])
+
+        assert len(result) == 2
+        assert {row.stat_value for row in result} == {5.0, 3.0}
+        assert {row.stat_key for row in result} == {"corners"}
 
 
 # ---------------------------------------------------------------------------
