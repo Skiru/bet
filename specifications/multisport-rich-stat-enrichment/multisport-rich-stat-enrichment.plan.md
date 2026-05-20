@@ -8,7 +8,7 @@
 | Title            | Coordinate rich-stat enrichment rollout across basketball, volleyball, hockey, and tennis |
 | Description      | Maintain the shared cross-sport foundation and rollout guardrails for rich-stat enrichment while delegating implementation detail to four standalone per-sport plans. This umbrella file is a coordination and index artifact, not the primary implementation plan. |
 | Priority         | High |
-| Related Research | `specifications/football-sofascore-team-form-enrichment/football-sofascore-team-form-enrichment.plan.md`, `specifications/flashscore-match-stats-token/flashscore-match-stats-token.plan.md`, `memories/repo/pipeline-knowledge-base.md` |
+| Related Research | `specifications/flashscore-match-stats-token/flashscore-match-stats-token.plan.md`, `memories/repo/pipeline-knowledge-base.md` |
 
 ## Proposed Solution
 
@@ -61,7 +61,8 @@ Shared metric vocabulary for all child plans:
 - `src/bet/stats/fallback_chains.py` - shared fallback-chain module for all core sports
 - `scripts/db_report.py` - current reporting surface, including the football-only `football-rich-coverage` report that should evolve into generic `rich-coverage`
 - `scripts/inspect_pipeline.py` - current coarse S2 coverage view that should stay compatible with richer reporting
-- `specifications/football-sofascore-team-form-enrichment/football-sofascore-team-form-enrichment.plan.md` - completed reference for helper boundaries, owner routing, and writer discipline
+- `scripts/_helpers/football_flashscore_html_enrichment.py` - existing football helper showing the bounded source-helper pattern and owner routing back through `_store_in_cache()`
+- `scripts/_helpers/flashscore_match_page_stats.py` - existing shared match-page parser showing source-specific extraction kept under `scripts/_helpers/`
 - `specifications/flashscore-match-stats-token/flashscore-match-stats-token.plan.md` - finalized source-policy plan that retired tokenized Flashscore usage and locked in Branch B settlement
 - the four child plans linked above - the primary implementation artifacts for basketball, volleyball, hockey, and tennis
 

@@ -6,9 +6,9 @@
 | ---------------- | ----- |
 | Jira ID          | N/A |
 | Title            | Hockey rich-stat enrichment |
-| Description      | Extend the post-football rich-stat enrichment architecture to hockey while preserving the stable `match_stats -> team_form` contract, keeping ownership in enrichment flows, and separating canonical per-game completion from the existing aggregate-only MoneyPuck and ScraperNHL supplements already present in the repo. |
+| Description      | Extend the shared rich-stat enrichment architecture already proven by the existing football implementation to hockey while preserving the stable `match_stats -> team_form` contract, keeping ownership in enrichment flows, and separating canonical per-game completion from the existing aggregate-only MoneyPuck and ScraperNHL supplements already present in the repo. |
 | Priority         | High |
-| Related Research | `specifications/multisport-rich-stat-enrichment/multisport-rich-stat-enrichment.plan.md`, `specifications/football-sofascore-team-form-enrichment/football-sofascore-team-form-enrichment.plan.md`, `specifications/flashscore-match-stats-token/flashscore-match-stats-token.plan.md`, `memories/repo/pipeline-knowledge-base.md` |
+| Related Research | `specifications/multisport-rich-stat-enrichment/multisport-rich-stat-enrichment.plan.md`, `specifications/flashscore-match-stats-token/flashscore-match-stats-token.plan.md`, `memories/repo/pipeline-knowledge-base.md` |
 
 ## Proposed Solution
 

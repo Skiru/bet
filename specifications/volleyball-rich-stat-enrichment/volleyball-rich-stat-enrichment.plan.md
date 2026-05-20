@@ -6,15 +6,15 @@
 | ---------------- | ----- |
 | Jira ID          | N/A |
 | Title            | Volleyball rich-stat enrichment |
-| Description      | Extend the post-football rich-stat enrichment architecture to volleyball while preserving the stable `match_stats -> team_form` contract, keeping ownership in enrichment flows instead of `run_scrapers.py`, and aligning the current mixed provider policy around canonical provider-backed per-match completion rather than legacy Flashscore or Volleybox assumptions. |
+| Description      | Extend the shared rich-stat enrichment architecture already proven by the existing football implementation to volleyball while preserving the stable `match_stats -> team_form` contract, keeping ownership in enrichment flows instead of `run_scrapers.py`, and aligning the current mixed provider policy around canonical provider-backed per-match completion rather than legacy Flashscore or Volleybox assumptions. |
 | Priority         | High |
-| Related Research | `specifications/multisport-rich-stat-enrichment/multisport-rich-stat-enrichment.plan.md`, `specifications/football-sofascore-team-form-enrichment/football-sofascore-team-form-enrichment.plan.md`, `specifications/flashscore-match-stats-token/flashscore-match-stats-token.plan.md`, `memories/repo/pipeline-knowledge-base.md` |
+| Related Research | `specifications/multisport-rich-stat-enrichment/multisport-rich-stat-enrichment.plan.md`, `specifications/flashscore-match-stats-token/flashscore-match-stats-token.plan.md`, `memories/repo/pipeline-knowledge-base.md` |
 
 ## Proposed Solution
 
 Implement volleyball rich completion around `api-volleyball`, not around historical Flashscore or Volleybox assumptions.
 
-The implementation should keep the same shared architecture used by the football pass:
+The implementation should keep the same shared architecture used by the existing football implementation:
 
 - `scripts/data_enrichment_agent.py` remains the enrichment owner
 - source-specific logic lives in a bounded helper under `scripts/_helpers/`

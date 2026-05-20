@@ -6,9 +6,9 @@
 | ---------------- | ----- |
 | Jira ID          | N/A |
 | Title            | Basketball rich-stat enrichment |
-| Description      | Extend the post-football rich-stat enrichment pattern to basketball while keeping ownership in enrichment flows, preserving the stable `match_stats -> team_form` contract, routing all persistence through `fetch_api_stats._store_in_cache()`, and using provider-backed per-game completion instead of any Flashscore HTML carryover. |
+| Description      | Extend the shared rich-stat enrichment pattern already proven by the existing football implementation to basketball while keeping ownership in enrichment flows, preserving the stable `match_stats -> team_form` contract, routing all persistence through `fetch_api_stats._store_in_cache()`, and using provider-backed per-game completion instead of any Flashscore HTML carryover. |
 | Priority         | High |
-| Related Research | `specifications/multisport-rich-stat-enrichment/multisport-rich-stat-enrichment.plan.md`, `specifications/football-sofascore-team-form-enrichment/football-sofascore-team-form-enrichment.plan.md`, `specifications/flashscore-match-stats-token/flashscore-match-stats-token.plan.md`, `memories/repo/pipeline-knowledge-base.md` |
+| Related Research | `specifications/multisport-rich-stat-enrichment/multisport-rich-stat-enrichment.plan.md`, `specifications/flashscore-match-stats-token/flashscore-match-stats-token.plan.md`, `memories/repo/pipeline-knowledge-base.md` |
 
 ## Proposed Solution
 
@@ -82,7 +82,7 @@ List of existing components, functions, utilities that will be reused (with file
 - `src/bet/api_clients/__init__.py` - canonical client registry exposing `api-basketball`, `nba-api`, and ESPN clients
 - `scripts/inspect_pipeline.py` - existing coarse S2 enrichment visibility that should remain compatible with richer reporting
 - `tests/test_api_basketball.py` and `tests/test_api_season_fixtures.py` - focused current tests around basketball provider behavior
-- `specifications/football-sofascore-team-form-enrichment/football-sofascore-team-form-enrichment.plan.md` - reference for helper boundary, owner routing, and `_store_in_cache()` persistence discipline
+- `scripts/_helpers/football_flashscore_html_enrichment.py` - existing football helper that demonstrates the bounded helper boundary, owner routing, and `_store_in_cache()` persistence discipline these sport plans should preserve
 
 ### To Be Modified
 

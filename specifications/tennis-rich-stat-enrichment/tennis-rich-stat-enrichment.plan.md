@@ -6,15 +6,15 @@
 | ---------------- | ----- |
 | Jira ID          | N/A |
 | Title            | Tennis rich-stat enrichment |
-| Description      | Extend the post-football rich-stat enrichment architecture to tennis while preserving the stable `match_stats -> team_form` contract, keeping ownership in enrichment flows, preserving the existing scoreboard-based baseline handled by tennis enrichment scripts, and adding bounded serve/return richness from tennis-specific per-match sources rather than copying football or team-sport assumptions. |
+| Description      | Extend the shared rich-stat enrichment architecture already proven by the existing football implementation to tennis while preserving the stable `match_stats -> team_form` contract, keeping ownership in enrichment flows, preserving the existing scoreboard-based baseline handled by tennis enrichment scripts, and adding bounded serve/return richness from tennis-specific per-match sources rather than copying football or team-sport assumptions. |
 | Priority         | High |
-| Related Research | `specifications/multisport-rich-stat-enrichment/multisport-rich-stat-enrichment.plan.md`, `specifications/football-sofascore-team-form-enrichment/football-sofascore-team-form-enrichment.plan.md`, `specifications/flashscore-match-stats-token/flashscore-match-stats-token.plan.md`, `memories/repo/pipeline-knowledge-base.md` |
+| Related Research | `specifications/multisport-rich-stat-enrichment/multisport-rich-stat-enrichment.plan.md`, `specifications/flashscore-match-stats-token/flashscore-match-stats-token.plan.md`, `memories/repo/pipeline-knowledge-base.md` |
 
 ## Proposed Solution
 
 Implement tennis as a mixed-source completion path that preserves the current scoreboard baseline and adds bounded serve/return richness.
 
-The implementation should keep the same shared architecture used by the football pass:
+The implementation should keep the same shared architecture used by the existing football implementation:
 
 - `scripts/data_enrichment_agent.py` remains the owner of rich completion inside the enrichment flow
 - `scripts/enrich_tennis_stats.py` remains the baseline/backfill path for sets/games coverage rather than becoming a second rich-stat writer
