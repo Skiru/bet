@@ -11,6 +11,16 @@ from collections import Counter
 BASELINE_SOURCE = "league-profile-baseline"
 
 
+def _normalize_baseline_sources(
+    baseline_source: str,
+    baseline_sources: set[str] | list[str] | tuple[str, ...] | None,
+) -> set[str]:
+    sources = {baseline_source}
+    if baseline_sources:
+        sources.update(str(source) for source in baseline_sources if source)
+    return sources
+
+
 def _normalize_required_keys(required_keys) -> list[str]:
     return [str(key) for key in required_keys]
 
@@ -19,7 +29,7 @@ def _rich_keys_found(
     rows,
     required_keys: list[str],
     allowed_sources: set[str] | None,
-    baseline_source: str,
+    baseline_sources: set[str],
 ) -> list[str]:
     required_set = set(required_keys)
     allowed_set = set(allowed_sources) if allowed_sources is not None else None
@@ -33,7 +43,7 @@ def _rich_keys_found(
         source = str(row[1] or "")
         if not stat_key or stat_key in seen or stat_key not in required_set:
             continue
-        if source in {"", baseline_source}:
+        if source in {"", *baseline_sources}:
             continue
         if allowed_set is not None and source not in allowed_set:
             continue
@@ -48,12 +58,14 @@ def classify_rich_coverage(
     required_keys,
     allowed_sources: set[str] | None = None,
     baseline_source: str = BASELINE_SOURCE,
+    baseline_sources: set[str] | list[str] | tuple[str, ...] | None = None,
 ) -> dict:
     required_keys = _normalize_required_keys(required_keys)
     rows = list(rows or [])
     stat_keys = {str(row[0]) for row in rows if row and row[0] is not None}
     sources = {str(row[1] or "") for row in rows if row}
-    rich_keys_found = _rich_keys_found(rows, required_keys, allowed_sources, baseline_source)
+    normalized_baseline_sources = _normalize_baseline_sources(baseline_source, baseline_sources)
+    rich_keys_found = _rich_keys_found(rows, required_keys, allowed_sources, normalized_baseline_sources)
     missing_rich_keys = [key for key in required_keys if key not in rich_keys_found]
 
     if not rows:
@@ -61,7 +73,7 @@ def classify_rich_coverage(
     elif len(rich_keys_found) == len(required_keys):
         bucket = "rich"
     else:
-        non_baseline_sources = {source for source in sources if source not in {"", baseline_source}}
+        non_baseline_sources = {source for source in sources if source not in {"", *normalized_baseline_sources}}
         if not non_baseline_sources:
             bucket = "baseline_only"
         elif stat_keys:

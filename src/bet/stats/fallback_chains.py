@@ -37,7 +37,29 @@ RICH_COMPLETION_POLICY: dict[str, dict[str, list[str] | str]] = {
         "canonical_source": "api-basketball",
         "supporting_sources": ["nba-api", "espn-basketball"],
         "aggregate_only_sources": [],
-    }
+    },
+    "tennis": {
+        "baseline_keys": [
+            "sets_won",
+            "total_sets",
+            "games_won",
+            "total_games",
+        ],
+        "required_rich_keys": [
+            "aces",
+            "double_faults",
+            "first_serve_pct",
+            "first_serve_win_pct",
+            "second_serve_win_pct",
+            "break_points_saved_pct",
+            "hold_pct",
+            "break_pct",
+        ],
+        "baseline_sources": ["espn-tennis-enriched"],
+        "canonical_source": "tennis-abstract",
+        "supporting_sources": ["sofascore-tennis", "sackmann"],
+        "aggregate_only_sources": ["sackmann-season-aggregate"],
+    },
 }
 
 # Tier 1 sports: all get equal enrichment priority

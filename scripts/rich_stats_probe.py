@@ -49,6 +49,7 @@ def probe_rich_coverage(sport: str, betting_date: str, limit: int = 10) -> dict:
 
     required_keys = list(policy["required_rich_keys"])
     allowed_sources = {policy["canonical_source"], *policy["supporting_sources"]}
+    baseline_sources = set(policy.get("baseline_sources", []))
     teams = _get_teams_for_date(sport, betting_date)[:limit]
     source_presence = Counter()
     failure_reasons = Counter()
@@ -64,7 +65,12 @@ def probe_rich_coverage(sport: str, betting_date: str, limit: int = 10) -> dict:
                 "SELECT stat_key, source FROM team_form WHERE team_id = ? AND sport_id = ?",
                 (team_id, sport_id),
             ).fetchall()
-            detail = classify_rich_coverage(rows, required_keys, allowed_sources)
+            detail = classify_rich_coverage(
+                rows,
+                required_keys,
+                allowed_sources,
+                baseline_sources=baseline_sources,
+            )
             detail["team"] = team_name
             detail["team_id"] = team_id
             team_details.append(detail)

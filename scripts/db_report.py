@@ -25,7 +25,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from bet.db.connection import get_db  # noqa: E402
-from bet.stats.rich_coverage import classify_rich_coverage, summarize_rich_coverage  # noqa: E402
+from bet.stats.rich_coverage import BASELINE_SOURCE, classify_rich_coverage, summarize_rich_coverage  # noqa: E402
 from bet.stats.fallback_chains import RICH_COMPLETION_POLICY  # noqa: E402
 
 FOOTBALL_RICH_KEYS = {
@@ -155,6 +155,7 @@ def report_rich_coverage(betting_date: str, sport: str):
     if sport == "football":
         required_keys = sorted(FOOTBALL_RICH_KEYS)
         allowed_sources = None
+        baseline_sources = {BASELINE_SOURCE}
     else:
         policy = RICH_COMPLETION_POLICY.get(sport)
         if not policy:
@@ -162,6 +163,7 @@ def report_rich_coverage(betting_date: str, sport: str):
             return
         required_keys = list(policy["required_rich_keys"])
         allowed_sources = {policy["canonical_source"], *policy["supporting_sources"]}
+        baseline_sources = set(policy.get("baseline_sources", []))
 
     with get_db() as conn:
         sport_row = conn.execute("SELECT id FROM sports WHERE name = ?", (sport,)).fetchone()
@@ -192,15 +194,20 @@ def report_rich_coverage(betting_date: str, sport: str):
                 "SELECT stat_key, source FROM team_form WHERE team_id = ? AND sport_id = ?",
                 (team_id, sport_row[0]),
             ).fetchall()
-            detail = classify_rich_coverage(rows, required_keys, allowed_sources)
+            detail = classify_rich_coverage(
+                rows,
+                required_keys,
+                allowed_sources,
+                baseline_sources=baseline_sources,
+            )
             detail["team"] = team_name
             team_details.append(detail)
             for source in detail["sources"]:
                 if not source:
                     continue
-                if detail["bucket"] == "rich" and source != "league-profile-baseline":
+                if detail["bucket"] == "rich" and source not in baseline_sources:
                     rich_source_presence[source] += 1
-                elif detail["bucket"] == "baseline_only":
+                elif detail["bucket"] == "baseline_only" and source in baseline_sources:
                     baseline_source_presence[source] += 1
 
             if detail["bucket"] != "rich" and detail["missing_rich_keys"]:
