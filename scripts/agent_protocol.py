@@ -265,6 +265,10 @@ DB_SCHEMA_REFERENCE = {
 # and presents them as "ROZSZERZONY WYBÓR" (Watch List) with minimum
 # acceptable odds (1/safety_score). User decides whether to bet.
 #
+# Bucket semantics are authoritative for pipeline flow. Risk/advisory labels
+# (LR/MS/HR/N, STRONG/MODERATE-style commentary, etc.) remain candidate-level
+# metadata and never replace approved / extended_pool / rejected.
+#
 # Extended Pool picks are NEVER auto-rejected (R3). They appear in the
 # coupon file with full analysis for user review.
 
@@ -616,6 +620,10 @@ DATA_FLOW_CONTRACTS = {
         "required_output_keys": {
             "{date}_s2_shortlist.json": ["candidates"],
         },
+        "source_of_truth": {
+            "working_set": "betting/data/{date}_s2_shortlist.json",
+            "ownership": "The shortlist JSON is the canonical candidate universe for S2-S8 until a later step writes a new artifact.",
+        },
     },
     "s2_tipster": {
         "depends_on": "s1e_shortlist",
@@ -627,13 +635,47 @@ DATA_FLOW_CONTRACTS = {
             "db": [],
         },
         "produces": {
+            "db": ["tipster_picks", "tipster_consensus"],
+            "files": [
+                "betting/data/{date}_tipster_consensus.json",
+                "betting/data/{date}_tipster_consensus.md",
+                "betting/data/{date}_s2_shortlist.json",
+            ],
+        },
+        "required_output_keys": {
+            "{date}_tipster_consensus.json": ["all_picks"],
+            "{date}_s2_shortlist.json": ["candidates"],
+        },
+        "source_of_truth": {
+            "working_set": "betting/data/{date}_s2_shortlist.json",
+            "supporting_artifacts": [
+                "betting/data/{date}_tipster_consensus.json",
+                "betting/data/{date}_tipster_consensus.md",
+            ],
+            "ownership": "tipster_xref.py mutates shortlist candidates in place by adding tipster_support and tipster_count. Tipster consensus artifacts remain supporting evidence, not a second shortlist source of truth.",
+        },
+    },
+    "s2_3_scrapers": {
+        "depends_on": "s1e_shortlist",
+        "requires": {
+            "files": [],
             "db": [],
+        },
+        "produces": {
+            "db": ["league_profiles", "player_season_stats", "match_stats", "scraper_runs"],
             "files": [],
         },
         "required_output_keys": {},
+        "source_of_truth": {
+            "working_set": "warehouse tables populated by run_scrapers.py",
+            "ownership": "run_scrapers.py owns warehouse ingestion only. bridge_league_to_team_form.py and scraper_to_team_form.py own any projection from scraper data into team_form.",
+        },
+        "contract_notes": [
+            "S2.3 warehouse success is not S3 readiness by itself; S2.5 must still verify shortlist-scoped team_form availability and rich coverage.",
+        ],
     },
     "s2_5_enrich": {
-        "depends_on": "s1e_shortlist",
+        "depends_on": ["s2_tipster", "s2_3_scrapers"],
         "requires": {
             "files": ["betting/data/{date}_s2_shortlist.json"],
             "db": [],
@@ -643,6 +685,11 @@ DATA_FLOW_CONTRACTS = {
             "files": [],
         },
         "required_output_keys": {},
+        "source_of_truth": {
+            "working_set": "team_form rows for shortlist teams plus shortlist-scoped rich coverage evidence",
+            "supporting_artifacts": ["betting/data/stats_cache/{sport}/{team_slug}.json"],
+            "ownership": "data_enrichment_agent.py owns the S3-ready team_form boundary. Scraper warehouse tables are upstream inputs, not the final readiness boundary.",
+        },
     },
     "s3_deep_stats": {
         "depends_on": "s2_5_enrich",
@@ -660,8 +707,12 @@ DATA_FLOW_CONTRACTS = {
                 "candidates_with_data",
             ],
         },
+        "source_of_truth": {
+            "working_set": "betting/data/{date}_s3_deep_stats.json plus analysis_results/analysis_raw_data keyed by fixture_id",
+            "ownership": "The S3 JSON preserves the full shortlist-derived candidate universe. DB rows may be narrower and must not silently replace the JSON working set downstream.",
+        },
     },
-    "s4_odds": {
+    "s4_odds_eval": {
         "depends_on": "s3_deep_stats",
         "requires": {
             "files": ["betting/data/{date}_s3_deep_stats.json"],
@@ -672,9 +723,45 @@ DATA_FLOW_CONTRACTS = {
             "files": [],
         },
         "required_output_keys": {},
+        "source_of_truth": {
+            "working_set": "analysis_results.stats_summary_json ev / odds / ev_source fields",
+            "ownership": "odds_evaluator.py updates stats_summary_json via update_stats_summary(); it augments S3 output instead of replacing ranking_json or the S3 JSON working set.",
+        },
+    },
+    "s5_context": {
+        "depends_on": "s4_odds_eval",
+        "requires": {
+            "files": ["betting/data/{date}_s3_deep_stats.json"],
+            "db": ["analysis_results"],
+        },
+        "produces": {
+            "db": ["analysis_results"],
+            "files": [],
+        },
+        "required_output_keys": {},
+        "source_of_truth": {
+            "working_set": "analysis_results.stats_summary_json.context_flags",
+            "ownership": "context_checks.py appends context flags via update_stats_summary() without changing the S3 candidate universe.",
+        },
+    },
+    "s6_upset_risk": {
+        "depends_on": "s5_context",
+        "requires": {
+            "files": ["betting/data/{date}_s3_deep_stats.json"],
+            "db": ["analysis_results"],
+        },
+        "produces": {
+            "db": ["analysis_results"],
+            "files": [],
+        },
+        "required_output_keys": {},
+        "source_of_truth": {
+            "working_set": "analysis_results.stats_summary_json.upset_risk",
+            "ownership": "upset_risk.py appends upset-risk fields via update_stats_summary() without changing the S3 candidate universe.",
+        },
     },
     "s5_s6_context_upset": {
-        "depends_on": "s3_deep_stats",
+        "depends_on": "s4_odds_eval",
         "requires": {
             "files": ["betting/data/{date}_s3_deep_stats.json"],
             "db": ["analysis_results"],
@@ -684,9 +771,12 @@ DATA_FLOW_CONTRACTS = {
             "files": [],
         },
         "required_output_keys": {},
+        "contract_notes": [
+            "Legacy combined alias for tooling that still reasons about S5 and S6 together. Canonical per-script contracts are s5_context and s6_upset_risk.",
+        ],
     },
     "s7_gate": {
-        "depends_on": "s3_deep_stats",
+        "depends_on": "s6_upset_risk",
         "requires": {
             "files": ["betting/data/{date}_s3_deep_stats.json"],
             "db": ["analysis_results"],
@@ -698,20 +788,121 @@ DATA_FLOW_CONTRACTS = {
         "required_output_keys": {
             "{date}_s7_gate_results.json": ["gate_results", "summary"],
         },
+        "source_of_truth": {
+            "working_set": "gate_results DB rows and betting/data/{date}_s7_gate_results.json",
+            "buckets": ["approved", "extended_pool", "rejected"],
+            "ownership": "These three buckets are the authoritative S7 handoff to S7.5/S7.6/S8. risk_tier and other advisory labels stay inside candidates as metadata.",
+        },
     },
-    "s8_coupons": {
+    "s7_5_betclic": {
         "depends_on": "s7_gate",
         "requires": {
             "files": ["betting/data/{date}_s7_gate_results.json"],
             "db": ["gate_results"],
         },
         "produces": {
+            "db": ["betclic_markets"],
+            "files": ["betting/data/betclic_market_validation_{date}.json"],
+        },
+        "required_output_keys": {
+            "betclic_market_validation_{date}.json": ["summary", "events"],
+        },
+        "source_of_truth": {
+            "working_set": "betting/data/betclic_market_validation_{date}.json",
+            "ownership": "validate_betclic_markets.py writes the canonical S7.5 sidecar. coupon_builder.py consumes that file and records consumption in pre_coupon_controls.",
+        },
+    },
+    "s7_6_repeats": {
+        "depends_on": "s7_5_betclic",
+        "requires": {
+            "files": ["betting/data/{date}_s7_gate_results.json"],
+            "db": ["gate_results"],
+        },
+        "produces": {
+            "db": ["pipeline_runs"],
+            "files": ["betting/data/repeat_loss_handoff_{date}.json"],
+        },
+        "required_output_keys": {
+            "repeat_loss_handoff_{date}.json": ["date", "step", "repeat_loss_count", "findings", "artifact_path"],
+        },
+        "source_of_truth": {
+            "working_set": "pipeline_runs[s7_6_repeat_loss_check].stats",
+            "supporting_artifacts": ["betting/data/repeat_loss_handoff_{date}.json"],
+            "ownership": "check_48h_repeats.py persists the durable S7.6 handoff in pipeline_runs and mirrors it to a same-day JSON artifact. coupon_builder.py consumes the DB handoff and records consumption in pre_coupon_controls.",
+        },
+    },
+    "s8_coupons": {
+        "depends_on": ["s7_5_betclic", "s7_6_repeats"],
+        "requires": {
+            "files": [
+                "betting/data/{date}_s7_gate_results.json",
+                "betting/data/betclic_market_validation_{date}.json",
+                "betting/data/repeat_loss_handoff_{date}.json",
+            ],
+            "db": ["gate_results"],
+        },
+        "produces": {
             "db": ["coupons", "bets", "decision_snapshots"],
+            "files": [
+                "betting/coupons/{date}.md",
+                "betting/coupons/{date}.json",
+            ],
+        },
+        "required_output_keys": {
+            "{date}.json": ["summary", "pre_coupon_controls"],
+        },
+        "source_of_truth": {
+            "working_set": "betting/coupons/{date}.json + betting/coupons/{date}.md",
+            "ownership": "coupon_builder.py consumes approved/extended_pool/rejected buckets plus S7.5/S7.6 controls, then records pre_coupon_controls and build summary in the coupon JSON.",
+        },
+    },
+    "s9_validate": {
+        "depends_on": "s8_coupons",
+        "requires": {
+            "files": ["betting/coupons/{date}.md"],
+            "db": [],
+        },
+        "produces": {
+            "db": [],
             "files": [],
         },
         "required_output_keys": {},
+        "source_of_truth": {
+            "working_set": "validate_coupons.py AGENT_SUMMARY and exit code",
+            "ownership": "S9 is a validation-only step. No persisted artifact is guaranteed, so downstream checks should consume stdout/AGENT_SUMMARY or rerun validation.",
+        },
+    },
+    "s10_output": {
+        "depends_on": "s9_validate",
+        "requires": {
+            "files": [
+                "betting/coupons/{date}.md",
+                "betting/coupons/{date}.json",
+            ],
+            "db": [],
+        },
+        "produces": {
+            "db": [],
+            "files": ["betting/coupons/pdf/{date}/coupon-{date}-full.pdf"],
+        },
+        "required_output_keys": {},
+        "source_of_truth": {
+            "working_set": "betting/coupons/pdf/{date}/",
+            "ownership": "generate_coupon_pdf.py writes full, section, and quick-reference PDFs under the date-scoped output directory. S10 is file-existence based because the script does not emit AGENT_SUMMARY.",
+        },
     },
 }
+
+# Backward-compatible aliases for older step ids and emitted summary step names.
+DATA_FLOW_CONTRACTS.update({
+    "s2_xref": DATA_FLOW_CONTRACTS["s2_tipster"],
+    "s2_enrich": DATA_FLOW_CONTRACTS["s2_5_enrich"],
+    "s3_deep": DATA_FLOW_CONTRACTS["s3_deep_stats"],
+    "s4_odds": DATA_FLOW_CONTRACTS["s4_odds_eval"],
+    "s7_6_repeat_loss_check": DATA_FLOW_CONTRACTS["s7_6_repeats"],
+    "s8_coupon": DATA_FLOW_CONTRACTS["s8_coupons"],
+    "s8_validate_coupons": DATA_FLOW_CONTRACTS["s9_validate"],
+})
 
 # ---------------------------------------------------------------------------
 # THINK-WHILE-WAITING — concrete queries for productive async work per agent
@@ -870,42 +1061,146 @@ THINK_WHILE_WAITING_QUERIES = {
 # ---------------------------------------------------------------------------
 STRUCTURED_OUTPUT_PROTOCOL = {
     "description": (
-        "ALL pipeline scripts support --verbose (JSON-line events) and emit "
-        "AGENT_SUMMARY:{json} as the final output line. Agents MUST run scripts "
-        "with --verbose and parse AGENT_SUMMARY for structured verdicts."
+        "The readiness flow has three output modes: AgentOutput-backed scripts emit "
+        "the canonical AGENT_SUMMARY payload, manual emitters still print AGENT_SUMMARY "
+        "with script-specific flat fields, and S10 is verified by output files because "
+        "generate_coupon_pdf.py does not emit AGENT_SUMMARY."
     ),
     "flags": {
-        "--verbose / -v": "JSON-line events for real-time monitoring (progress, warnings, errors, candidates)",
+        "--verbose / -v": "JSON-line events for AgentOutput-backed scripts and debug logging for some manual emitters",
         "--stop-on-error": "Halt on first critical error (exit code 2) instead of log-and-continue",
         "--sports SPORT": "Filter to sport list (discover_events.py: comma-separated; tipster_aggregator.py: --sport single)",
     },
     "agent_summary_format": {
+        "_scope": "Applies only to scripts listed under agent_output_scripts",
         "step": "Script/step identifier (e.g. 'discover_events', 'gate_checker')",
-        "verdict": "OK | PARTIAL | FAILED",
+        "verdict": "OK | PARTIAL | FAILED | NO_BET",
         "metrics": "Dict of step-specific counts and rates",
         "issues": "List of {level, message, ...} dicts (level: warning|error|critical)",
         "counts": "Dict with 'errors' and 'warnings' integer counts",
         "ts": "ISO 8601 timestamp of summary generation",
     },
     "exit_codes": {
-        0: "Success — all operations completed normally",
-        1: "Partial/degraded — some operations failed but results are usable",
+        0: "Success — all operations completed normally or a valid NO_BET path was reached",
+        1: "Partial/degraded or business-rule stop — results are usable but require attention",
         2: "Critical failure — stop-on-error triggered, output unreliable",
     },
-    "scripts_with_verbose": [
-        "discover_events.py", "ingest_scan_stats.py",
-        "tipster_aggregator.py", "tipster_xref.py", "data_enrichment_agent.py",
-        "deep_stats_report.py", "gate_checker.py", "coupon_builder.py",
-        "build_shortlist.py", "odds_evaluator.py", "context_checks.py",
-        "upset_risk.py", "fetch_odds_multi.py", "validate_coupons.py",
-        "run_scrapers.py", "fetch_odds_api_io.py",
+    "agent_output_scripts": [
+        "build_shortlist.py", "tipster_aggregator.py", "tipster_xref.py",
+        "data_enrichment_agent.py", "deep_stats_report.py", "odds_evaluator.py",
+        "context_checks.py", "upset_risk.py", "gate_checker.py",
+        "check_48h_repeats.py", "coupon_builder.py", "validate_coupons.py",
+        "inspect_pipeline.py", "fetch_odds_api.py", "fetch_odds_multi.py",
+        "ingest_scan_stats.py", "parse_betclic_html.py",
     ],
+    "scripts_with_verbose": [
+        "build_shortlist.py", "tipster_aggregator.py", "tipster_xref.py",
+        "data_enrichment_agent.py", "deep_stats_report.py", "odds_evaluator.py",
+        "context_checks.py", "upset_risk.py", "gate_checker.py",
+        "check_48h_repeats.py", "coupon_builder.py", "validate_coupons.py",
+        "inspect_pipeline.py", "fetch_odds_api.py", "fetch_odds_multi.py",
+        "ingest_scan_stats.py", "parse_betclic_html.py",
+    ],
+    "manual_summary_scripts": [
+        "discover_events.py", "run_scrapers.py", "validate_betclic_markets.py",
+    ],
+    "no_summary_scripts": [
+        "generate_coupon_pdf.py",
+    ],
+    "script_inventory": {
+        "discover_events.py": {
+            "emitter": "manual_agent_summary",
+            "contract_step": "s1_scan",
+            "summary_step": None,
+            "summary_fields": ["verdict", "total_discovered", "total_after_dedup", "by_sport", "sources", "issues_count"],
+        },
+        "build_shortlist.py": {
+            "emitter": "AgentOutput",
+            "contract_step": "s1e_shortlist",
+            "summary_step": "s1e_shortlist",
+        },
+        "tipster_aggregator.py": {
+            "emitter": "AgentOutput",
+            "contract_step": "s2_tipster",
+            "summary_step": "s2_tipster",
+        },
+        "tipster_xref.py": {
+            "emitter": "AgentOutput",
+            "contract_step": "s2_tipster",
+            "summary_step": "s2_xref",
+            "notes": "Mutates betting/data/{date}_s2_shortlist.json in place with tipster_support and tipster_count.",
+        },
+        "run_scrapers.py": {
+            "emitter": "manual_agent_summary",
+            "contract_step": "s2_3_scrapers",
+            "summary_step": None,
+            "summary_fields": ["verdict", "scrapers_run", "scrapers_failed", "failed_sources", "results"],
+        },
+        "data_enrichment_agent.py": {
+            "emitter": "AgentOutput",
+            "contract_step": "s2_5_enrich",
+            "summary_step": "s2_enrich",
+        },
+        "deep_stats_report.py": {
+            "emitter": "AgentOutput",
+            "contract_step": "s3_deep_stats",
+            "summary_step": "s3_deep",
+        },
+        "odds_evaluator.py": {
+            "emitter": "AgentOutput",
+            "contract_step": "s4_odds_eval",
+            "summary_step": "s4_odds_eval",
+        },
+        "context_checks.py": {
+            "emitter": "AgentOutput",
+            "contract_step": "s5_context",
+            "summary_step": "s5_context",
+        },
+        "upset_risk.py": {
+            "emitter": "AgentOutput",
+            "contract_step": "s6_upset_risk",
+            "summary_step": "s6_upset_risk",
+        },
+        "gate_checker.py": {
+            "emitter": "AgentOutput",
+            "contract_step": "s7_gate",
+            "summary_step": "s7_gate",
+        },
+        "validate_betclic_markets.py": {
+            "emitter": "manual_agent_summary",
+            "contract_step": "s7_5_betclic",
+            "summary_step": None,
+            "summary_fields": ["verdict", "total_events", "with_stats", "without_stats", "unavailable_picks", "output"],
+        },
+        "check_48h_repeats.py": {
+            "emitter": "AgentOutput",
+            "contract_step": "s7_6_repeats",
+            "summary_step": "s7_6_repeats",
+        },
+        "coupon_builder.py": {
+            "emitter": "AgentOutput",
+            "contract_step": "s8_coupons",
+            "summary_step": "s8_coupon",
+            "notes": "NO_BET is a valid verdict when approved picks are exhausted or pre-coupon controls exclude the build universe.",
+        },
+        "validate_coupons.py": {
+            "emitter": "AgentOutput",
+            "contract_step": "s9_validate",
+            "summary_step": "s8_validate_coupons",
+        },
+        "generate_coupon_pdf.py": {
+            "emitter": "none",
+            "contract_step": "s10_output",
+            "summary_step": None,
+            "notes": "Verify file outputs under betting/coupons/pdf/{date}/ instead of waiting for AGENT_SUMMARY.",
+        },
+    },
     "parsing_instructions": (
-        "After running a script, find the line starting with 'AGENT_SUMMARY:' "
-        "in terminal output. Parse the JSON after the prefix. Use verdict, "
-        "metrics, and issues to populate your structured response. "
-        "Do NOT rely solely on human-readable output — AGENT_SUMMARY is the "
-        "authoritative machine-readable verdict."
+        "Use script_inventory to decide how to parse a script's result. For AgentOutput-backed "
+        "scripts, parse the JSON after 'AGENT_SUMMARY:' and read verdict, metrics, issues, and counts. "
+        "Treat NO_BET as a valid business outcome rather than a protocol error. For manual emitters, "
+        "parse the documented flat fields instead of assuming a metrics wrapper. For S10, verify files "
+        "under betting/coupons/pdf/{date}/ because there is no AGENT_SUMMARY contract."
     ),
 }
 
@@ -913,18 +1208,23 @@ STRUCTURED_OUTPUT_PROTOCOL = {
 # Canonical Pipeline Steps — script mapping (single source of truth)
 # ---------------------------------------------------------------------------
 PIPELINE_STEPS = {
-    "S0": {"script": "analyze_betclic_learning.py", "description": "Betclic history analysis (advisory)"},
+    "S0": {"script": "settle_on_finish.py + evaluate_decisions.py + analyze_betclic_learning.py", "description": "Settlement, decision review, and Betclic learning prerequisite"},
     "S1": {"script": "discover_events.py", "description": "Multi-source event discovery"},
     "S1.5": {"script": "build_shortlist.py", "description": "Shortlist construction + stats-first scoring"},
-    "S2": {"script": "data_enrichment_agent.py", "description": "Team form enrichment (Flashscore→ESPN)"},
-    "S2T": {"script": "tipster_aggregator.py", "description": "Tipster cross-reference aggregation"},
+    "S2": {"script": "tipster_aggregator.py + tipster_xref.py", "description": "Tipster consensus plus in-place shortlist mutation"},
+    "S2.3": {"script": "run_scrapers.py", "description": "Warehouse scrapers; bridge scripts own any projection into team_form"},
+    "S2.5": {"script": "data_enrichment_agent.py", "description": "Shortlist-scoped team_form enrichment + rich-coverage readiness"},
+    "S2T": {"script": "tipster_aggregator.py + tipster_xref.py", "description": "Legacy alias for the S2 tipster flow"},
     "S3": {"script": "deep_stats_report.py", "description": "Deep statistical analysis per candidate"},
-    "S4": {"script": "odds_evaluator.py", "description": "Odds injection + EV calculation"},
-    "S5": {"script": "context_checks.py", "description": "Context factors (weather, venue, rest days)"},
-    "S6": {"script": "upset_risk.py", "description": "Upset risk scoring + red flags"},
-    "S7": {"script": "gate_checker.py", "description": "18-point gate → approved/extended/rejected"},
-    "S7.5": {"script": "validate_betclic_markets.py", "description": "Betclic market availability check"},
-    "S8": {"script": "coupon_builder.py", "description": "Portfolio construction + coupon output"},
+    "S4": {"script": "odds_evaluator.py", "description": "Odds injection + EV calculation into stats_summary_json"},
+    "S5": {"script": "context_checks.py", "description": "Context flags appended to stats_summary_json"},
+    "S6": {"script": "upset_risk.py", "description": "Upset-risk scoring appended to stats_summary_json"},
+    "S7": {"script": "gate_checker.py", "description": "18-point gate → approved / extended_pool / rejected"},
+    "S7.5": {"script": "validate_betclic_markets.py", "description": "Betclic market validation sidecar"},
+    "S7.6": {"script": "check_48h_repeats.py", "description": "Repeat-loss durable handoff + same-day artifact"},
+    "S8": {"script": "coupon_builder.py", "description": "Portfolio construction + coupon artifacts + pre_coupon_controls"},
+    "S9": {"script": "validate_coupons.py", "description": "Coupon structural validation"},
+    "S10": {"script": "generate_coupon_pdf.py", "description": "Final PDF output (file-based verification)"},
 }
 
 # ---------------------------------------------------------------------------
@@ -937,14 +1237,14 @@ AGENT_INVOCATION_MAP = {
         "produces": "scan verdict: coverage gaps, source failures, fixture count",
     },
     "bet-enricher": {
-        "trigger": "S2 complete",
-        "receives": "enrichment logs (teams enriched, failures, sources used)",
-        "produces": "data quality verdict: coverage %, stale teams, source health",
+        "trigger": "S2.5 complete (after S2 || S2.3)",
+        "receives": "run_scrapers warehouse summary plus shortlist-scoped team_form/rich-coverage results",
+        "produces": "readiness verdict: warehouse vs team_form coverage, bridge visibility, stale teams, source health",
     },
     "bet-scout": {
-        "trigger": "S2T complete",
-        "receives": "tipster aggregation (consensus picks, agreement %)",
-        "produces": "tipster analysis: consensus strength, contrarian angles",
+        "trigger": "S2 complete",
+        "receives": "tipster consensus plus mutated shortlist tipster_support/tipster_count",
+        "produces": "tipster analysis: consensus strength, shortlist mutations, contrarian angles",
     },
     "bet-statistician": {
         "trigger": "S3 complete",
@@ -967,9 +1267,9 @@ AGENT_INVOCATION_MAP = {
         "produces": "gate audit: borderline decisions, override suggestions",
     },
     "bet-portfolio": {
-        "trigger": "S8 complete",
-        "receives": "coupon data (core, combos, singles, budget)",
-        "produces": "portfolio quality: concentration, correlation, diversity",
+        "trigger": "S8 complete (after S7.5 + S7.6)",
+        "receives": "coupon data (core, combos, singles, budget, pre_coupon_controls)",
+        "produces": "portfolio quality: concentration, correlation, diversity, control-consumption audit",
     },
 }
 
@@ -1024,9 +1324,9 @@ STEP_AGENT_CONFIG = {
     },
     "s2_tipster": {
         "agent": "bet-scout",
-        "task": "Read FULL tipster arguments, assess quality, check independence, discover angles stats missed, promote watchlist picks",
-        "required_input": ["{date}_tipster_consensus.json"],
-        "output_metrics": ["tipster_count", "event_coverage", "consensus_picks"],
+        "task": "Read full tipster arguments, assess quality, and verify how tipster_xref mutated the canonical shortlist without creating a second source of truth",
+        "required_input": ["{date}_tipster_consensus.json", "{date}_s2_shortlist.json"],
+        "output_metrics": ["tips_loaded", "matched", "total"],
         "think_in_the_middle": True,
         "error_handling": "ERROR_HANDLING_PROTOCOL",
         "validate_output": True,
@@ -1035,15 +1335,16 @@ STEP_AGENT_CONFIG = {
             "2. Assess tipster quality: named expert > anonymous aggregate",
             "3. Check independence: ≥2 tipsters from different platforms agreeing = consensus",
             "4. Look for angles pure stats missed: tactical changes, managerial quotes, team news",
-            "5. Identify watchlist picks that have tipster backing → promote to shortlist",
-            "6. Flag picks where tipsters strongly disagree with statistical analysis",
+            "5. Verify tipster_xref.py mutated betting/data/{date}_s2_shortlist.json in place with tipster_support and tipster_count",
+            "6. Treat the mutated shortlist as the working set; tipster_consensus.json remains supporting evidence only",
+            "7. Flag picks where tipsters strongly disagree with statistical analysis",
         ],
     },
     "s2_5_enrich": {
         "agent": "bet-enricher",
-        "task": "Review enrichment yield by sport and source, identify persistent data gaps, suggest alternative sources for failed enrichments, verify enriched data quality",
+        "task": "Review enrichment yield by sport and source, separate warehouse scraper success from team_form readiness, and verify shortlist-scoped rich coverage",
         "required_input": ["{date}_s2_shortlist.json"],
-        "output_metrics": ["teams_attempted", "enriched_count", "partial_count", "failed_count", "source_breakdown"],
+        "output_metrics": ["teams_attempted", "enriched_count", "partial_count", "failed_count", "missing_shortlist_teams"],
         "think_in_the_middle": True,
         "error_handling": "ERROR_HANDLING_PROTOCOL",
         "validate_output": True,
@@ -1052,8 +1353,9 @@ STEP_AGENT_CONFIG = {
             "2. For each failed enrichment: identify WHY (CAPTCHA? 404? empty page? parsing error?)",
             "3. Check if fallback sources were tried (Flashscore → ESPN)",
             "4. Validate enriched data quality: stat values within sport-normal ranges",
-            "5. Cross-reference with DB: are team_form rows actually populated?",
-            "6. For persistent gaps: suggest specific alternative URLs from source-registry.md",
+            "5. Separate S2.3 warehouse output from S3 readiness: run_scrapers.py fills league_profiles/player_season_stats/match_stats, but bridge_league_to_team_form.py and scraper_to_team_form.py own any projection into team_form",
+            "6. Cross-reference with DB: are shortlist teams actually represented in team_form and rich-coverage reporting?",
+            "7. For persistent gaps: suggest specific alternative URLs from source-registry.md",
         ],
         "recovery_actions": [
             "If Flashscore blocked → try ESPN standings for US sports",
@@ -1151,44 +1453,45 @@ STEP_AGENT_CONFIG = {
     },
     "s7_gate": {
         "agent": "bet-challenger",
-        "task": "Review advisory tier assignments, build qualitative bear cases, audit assumptions, find historical analogies, Bayesian-update confidence",
+        "task": "Review approved / extended_pool / rejected bucket assignments, build qualitative bear cases, and keep advisory tiers separate from authoritative gate buckets",
         "required_input": ["{date}_s7_gate_results.json"],
-        "output_metrics": ["approved_count", "strong_count", "moderate_count", "weak_count", "rejected_count"],
+        "output_metrics": ["total", "approved", "extended", "rejected", "sport_diversity"],
         "think_in_the_middle": True,
         "error_handling": "ERROR_HANDLING_PROTOCOL",
         "validate_output": True,
         "detailed_instructions": [
-            "1. Read gate_results — review tier assignments (STRONG/MODERATE/WEAK/FLAGGED)",
-            "2. For STRONG picks: build BEAR CASE — what single event could kill this pick?",
-            "3. For MODERATE picks: identify what would promote them to STRONG",
-            "4. For WEAK/FLAGGED picks: are they unfairly penalized? Check if gate criteria are too strict",
+            "1. Read gate_results — review approved, extended_pool, and rejected buckets as the authoritative S7 handoff",
+            "2. For approved picks: build a BEAR CASE — what single event could kill this pick?",
+            "3. For extended_pool picks: explain what blocks approval and what would move the pick into the approved bucket",
+            "4. For rejected picks: confirm rejection reasons are explicit and not just hidden behind advisory labels",
             "5. Audit assumptions: is sample size adequate? Is H2H relevant? Is trend stable?",
             "6. Historical analogies: similar picks in betclic_bets_history.json — what happened?",
             "7. Bayesian update: combine statistical confidence with context/upset adjustments",
-            "8. IMPORTANT: Advisory tiers are INFORMATIONAL — user decides. No auto-rejection.",
+            "8. IMPORTANT: risk_tier and commentary are informational metadata. Bucket semantics (approved / extended_pool / rejected) are what S7.5, S7.6, and S8 consume.",
             "9. Verify league diversity and data depth in approved picks",
         ],
         "data_quality_validation": True,
     },
     "s8_coupons": {
         "agent": "bet-builder",
-        "task": "Review portfolio strategically, check hidden correlations, adjust stakes by conviction, V1-V10 + §S8.FINAL. Review DISCOVERY tier picks for promotion.",
-        "required_input": ["{date}_s7_gate_results.json"],
-        "output_metrics": ["coupon_count", "total_legs", "total_stake", "discovery_count"],
+        "task": "Review portfolio strategically, build from approved picks after S7.5/S7.6 controls, and preserve extended_pool as a watch-list surface instead of a hidden rejection bucket.",
+        "required_input": ["{date}_s7_gate_results.json", "betclic_market_validation_{date}.json", "repeat_loss_handoff_{date}.json"],
+        "output_metrics": ["gate_approved", "gate_extended", "gate_rejected", "singles", "core_coupons", "combos"],
         "think_in_the_middle": True,
         "error_handling": "ERROR_HANDLING_PROTOCOL",
         "validate_output": True,
         "detailed_instructions": [
-            "1. Build core coupons from STRONG+MODERATE picks — 1 event per coupon, max legs per config",
-            "2. Check hidden correlations: same league (weather/fixture congestion), same surface, same timezone",
-            "3. Create COMBO MENU: 2-3 alternative combinations remixing the best picks",
-            "4. Build EXTENDED POOL (discovery tier): WEAK/FLAGGED picks with EV>0 for user review",
+            "1. Build the core portfolio from approved picks only, after consuming the S7.5 Betclic sidecar and S7.6 repeat-loss handoff",
+            "2. Preserve extended_pool as a separate watch-list surface for user review; do not collapse it into rejection semantics",
+            "3. Check hidden correlations: same league (weather/fixture congestion), same surface, same timezone",
+            "4. Create COMBO MENU: 2-3 alternative combinations remixing the best approved picks",
             "5. Run coupon stress test (§8.2): simulate each leg failing — does coupon still make sense?",
             "6. Apply V1-V10 validation: V1(ID format), V2(no duplicate events), V3(odds check), V4(stake limits), V5(sport diversity), V6(correlation), V7(risk tier), V8(market validity), V9(arithmetic), V10(placement order)",
-            "7. §S8.FINAL mechanical check: verify all arithmetic, cross-check safety scores vs gate results",
+            "7. §S8.FINAL mechanical check: verify all arithmetic, cross-check safety scores vs gate results, and verify pre_coupon_controls are recorded in the coupon JSON",
             "8. Assign risk tiers: LR(low risk), MS(medium safety), HR(high reward), N(neutral)",
             "9. Per-pick concentration: no single pick >25% of total stake",
-            "10. Format output per betting-artifacts.instructions.md (Polish market names, coupon tables)",
+            "10. If approved picks are exhausted after S7.5/S7.6, treat NO_BET as a valid session outcome rather than a protocol failure",
+            "11. Format output per betting-artifacts.instructions.md (Polish market names, coupon tables)",
         ],
     },
 }

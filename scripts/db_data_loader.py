@@ -3,6 +3,7 @@
 Each function tries the SQLite DB first, falls back to JSON files if DB
 is empty or unavailable. Used by all pipeline analysis scripts.
 """
+from copy import deepcopy
 import json
 import re
 import sys
@@ -15,6 +16,122 @@ sys.path.insert(0, str(ROOT_DIR / "src"))
 DATA_DIR = ROOT_DIR / "betting" / "data"
 
 _NOW = lambda: datetime.now(timezone.utc).isoformat()
+
+_GATE_BUCKET_STATUS = {
+    "approved": "APPROVED",
+    "extended_pool": "EXTENDED",
+    "rejected": "REJECTED",
+}
+
+
+def _normalize_gate_bucket(bucket: str | None) -> str | None:
+    if not bucket:
+        return None
+    normalized = str(bucket).strip().lower()
+    if normalized == "extended":
+        return "extended_pool"
+    if normalized in _GATE_BUCKET_STATUS:
+        return normalized
+    return None
+
+
+def _canonicalize_gate_bucket_status(
+    *,
+    status: str | None = None,
+    bucket: str | None = None,
+    extended_pool_reason: str | None = None,
+    rejection_reasons: list[str] | None = None,
+) -> tuple[str, str]:
+    normalized_bucket = _normalize_gate_bucket(bucket)
+    if not normalized_bucket and status:
+        normalized_bucket = {
+            "APPROVED": "approved",
+            "EXTENDED": "extended_pool",
+            "EXTENDED_POOL": "extended_pool",
+            "REJECTED": "rejected",
+        }.get(str(status).strip().upper())
+    if not normalized_bucket:
+        if extended_pool_reason:
+            normalized_bucket = "extended_pool"
+        elif rejection_reasons:
+            normalized_bucket = "rejected"
+        else:
+            normalized_bucket = "approved"
+
+    return normalized_bucket, _GATE_BUCKET_STATUS[normalized_bucket]
+
+
+def _normalize_gate_result_entry(entry: dict) -> dict:
+    normalized = dict(entry)
+
+    gate_details = normalized.get("gate_details") or {}
+    if not isinstance(gate_details, dict):
+        gate_details = {}
+    else:
+        gate_details = dict(gate_details)
+
+    rejection_reasons = normalized.get("rejection_reasons") or []
+    if isinstance(rejection_reasons, str):
+        rejection_reasons = [rejection_reasons]
+    elif not isinstance(rejection_reasons, list):
+        rejection_reasons = []
+    else:
+        rejection_reasons = list(rejection_reasons)
+
+    rejection_reason = normalized.get("rejection_reason") or gate_details.get("rejection_reason")
+    if rejection_reason and rejection_reason not in rejection_reasons:
+        rejection_reasons.append(rejection_reason)
+
+    extended_pool_reason = normalized.get("extended_pool_reason") or gate_details.get("extended_pool_reason")
+    bucket, canonical_status = _canonicalize_gate_bucket_status(
+        status=normalized.get("status"),
+        bucket=normalized.get("bucket") or gate_details.get("bucket"),
+        extended_pool_reason=extended_pool_reason,
+        rejection_reasons=rejection_reasons,
+    )
+
+    normalized["bucket"] = bucket
+    normalized["status"] = canonical_status
+    gate_details["bucket"] = bucket
+
+    if extended_pool_reason:
+        normalized["extended_pool_reason"] = extended_pool_reason
+        gate_details["extended_pool_reason"] = extended_pool_reason
+
+    if rejection_reasons:
+        normalized["rejection_reasons"] = rejection_reasons
+        normalized["rejection_reason"] = rejection_reasons[0]
+        gate_details.setdefault("rejection_reason", rejection_reasons[0])
+
+    normalized["gate_details"] = gate_details
+    return normalized
+
+
+def _extract_gate_results_from_payload(data: dict | list, status_bucket: str | None = None) -> list[dict]:
+    if isinstance(data, list):
+        raw_results = data
+    elif isinstance(data, dict):
+        gate_results = data.get("gate_results")
+        if isinstance(gate_results, dict):
+            if status_bucket:
+                raw_results = list(gate_results.get(status_bucket, []) or [])
+            else:
+                raw_results = []
+                for bucket_name in ("approved", "extended_pool", "rejected"):
+                    raw_results.extend(gate_results.get(bucket_name, []) or [])
+        else:
+            raw_results = data.get("results", []) if isinstance(data.get("results"), list) else []
+    else:
+        raw_results = []
+
+    normalized_results = []
+    for entry in raw_results:
+        normalized = _normalize_gate_result_entry(entry)
+        if status_bucket and normalized.get("bucket") != status_bucket:
+            continue
+        normalized_results.append(normalized)
+
+    return normalized_results
 
 
 def _is_garbage_fixture(row: dict) -> bool:
@@ -63,6 +180,100 @@ def _is_garbage_fixture(row: dict) -> bool:
         return True
 
     return False
+
+
+def _analysis_identity_component(value) -> str:
+    if value is None:
+        return ""
+    text = str(value).strip().lower()
+    text = re.sub(r"\s+", " ", text)
+    return text
+
+
+def _analysis_identity_key(entry: dict) -> str:
+    kickoff = entry.get("kickoff") or entry.get("date") or ""
+    kickoff_date = str(kickoff)[:10]
+    sport = _analysis_identity_component(entry.get("sport"))
+    home = _analysis_identity_component(entry.get("home_team"))
+    away = _analysis_identity_component(entry.get("away_team"))
+    if sport and kickoff_date and home and away:
+        return f"match:{sport}|{kickoff_date}|{home}|{away}"
+
+    fixture_id = entry.get("fixture_id")
+    if fixture_id not in (None, ""):
+        return f"fixture:{fixture_id}"
+
+    return ""
+
+
+def _merge_analysis_candidate(base_entry: dict, overlay_entry: dict) -> dict:
+    merged = deepcopy(base_entry)
+
+    for key, value in overlay_entry.items():
+        if value in (None, "", [], {}):
+            continue
+
+        existing = merged.get(key)
+        if isinstance(existing, dict) and isinstance(value, dict):
+            nested = deepcopy(existing)
+            for nested_key, nested_value in value.items():
+                if nested_value in (None, "", [], {}):
+                    continue
+                nested[nested_key] = deepcopy(nested_value)
+            merged[key] = nested
+            continue
+
+        merged[key] = deepcopy(value)
+
+    return merged
+
+
+def _build_stats_summary_payload(analysis: dict) -> dict:
+    """Persist S3 metadata needed for DB-backed resume paths.
+
+    S4-S6 append EV/context/upset-risk into stats_summary_json, so S3 seeds the
+    base candidate metadata here to keep DB-only and mixed resume paths aligned
+    with the JSON working set used by gate/build.
+    """
+    stats_summary = {}
+
+    if analysis.get("stats_a_summary"):
+        stats_summary["stats_a"] = deepcopy(analysis["stats_a_summary"])
+    if analysis.get("stats_b_summary"):
+        stats_summary["stats_b"] = deepcopy(analysis["stats_b_summary"])
+    if analysis.get("h2h_summary"):
+        stats_summary["h2h"] = deepcopy(analysis["h2h_summary"])
+    if analysis.get("data_quality"):
+        stats_summary["data_quality"] = deepcopy(analysis["data_quality"])
+    if analysis.get("tipster_support"):
+        stats_summary["tipster_support"] = deepcopy(analysis["tipster_support"])
+
+    tipster_count = analysis.get("tipster_count")
+    if tipster_count is None:
+        tipster_count = (analysis.get("tipster_support") or {}).get("count")
+    if tipster_count not in (None, ""):
+        stats_summary["tipster_count"] = tipster_count
+
+    return stats_summary
+
+
+def _build_analysis_index(entries: list[dict]) -> tuple[dict[str, dict], dict[str, int]]:
+    index: dict[str, dict] = {}
+    duplicate_count = 0
+
+    for position, entry in enumerate(entries):
+        key = _analysis_identity_key(entry)
+        if not key:
+            key = f"unkeyed:{position}"
+        if key in index:
+            duplicate_count += 1
+        index[key] = entry
+
+    return index, {
+        "input_count": len(entries),
+        "unique_count": len(index),
+        "duplicate_count": duplicate_count,
+    }
 
 
 def load_fixtures_from_db(date: str, sport: str | None = None, include_unverified: bool = False) -> list[dict]:
@@ -493,6 +704,9 @@ def _create_minimal_fixture(conn, sport: str, home_team: str, away_team: str,
         sr = SportRepo(conn)
         s = sr.get_by_name(sport)
         if not s:
+            sr.seed_defaults()
+            s = sr.get_by_name(sport)
+        if not s:
             return None
 
         tr = TeamRepo(conn)
@@ -522,14 +736,7 @@ def _create_minimal_fixture(conn, sport: str, home_team: str, away_team: str,
         return None
 
 
-def load_analysis_results_from_db(betting_date: str) -> list[dict]:
-    """Load S3 analysis results from DB, fallback to s3_deep_stats JSON.
-
-    Returns list of dicts compatible with gate_checker.py input format:
-    [{sport, home_team, away_team, competition, kickoff, has_data,
-      best_market, markets_evaluated, ranking, three_way_check,
-      warnings, stats_a_summary, stats_b_summary, h2h_summary}]
-    """
+def _load_analysis_results_raw_from_db(betting_date: str) -> list[dict]:
     try:
         from bet.db.connection import get_db
         from bet.db.repositories import AnalysisResultRepo
@@ -579,6 +786,13 @@ def load_analysis_results_from_db(betting_date: str) -> list[dict]:
                         "stats_a_summary": stats_summary.get("stats_a", {}),
                         "stats_b_summary": stats_summary.get("stats_b", {}),
                         "h2h_summary": stats_summary.get("h2h", {}),
+                        "data_quality": stats_summary.get("data_quality"),
+                        "tipster_support": stats_summary.get("tipster_support", {}),
+                        "tipster_count": (
+                            stats_summary.get("tipster_count")
+                            or (stats_summary.get("tipster_support") or {}).get("count")
+                            or 0
+                        ),
                         # S4/S5/S6 enrichment fields from stats_summary_json
                         "ev": stats_summary.get("ev"),
                         "ev_source": stats_summary.get("ev_source"),
@@ -595,15 +809,116 @@ def load_analysis_results_from_db(betting_date: str) -> list[dict]:
     except Exception as e:
         print(f"[db_loader] DB read failed for analysis results: {e}")
 
-    # JSON fallback
+    return []
+
+
+def _load_analysis_results_raw_from_json(betting_date: str) -> list[dict]:
     json_path = DATA_DIR / f"{betting_date}_s3_deep_stats.json"
     if not json_path.exists():
-        # Try alternate naming with date suffix
         json_path = DATA_DIR / f"s3_deep_stats_{betting_date}.json"
-    if json_path.exists():
-        data = json.loads(json_path.read_text(encoding="utf-8"))
-        analyses = data.get("analyses", data if isinstance(data, list) else [])
-        print(f"[db_loader] Loaded {len(analyses)} analysis results from JSON fallback")
+    if not json_path.exists():
+        return []
+
+    data = json.loads(json_path.read_text(encoding="utf-8"))
+    analyses = data.get("analyses", data if isinstance(data, list) else [])
+    print(f"[db_loader] Loaded {len(analyses)} analysis results from JSON fallback")
+    return analyses
+
+
+def load_s3_candidates_with_parity(betting_date: str) -> tuple[list[dict], dict]:
+    """Load the canonical S3 candidate universe with DB/JSON parity metadata.
+
+    JSON is the canonical universe when present because it preserves the full
+    S3 shortlist-derived candidate set. DB data is overlaid onto matching JSON
+    candidates so resume paths keep persisted enrichment fields without letting
+    partial DB persistence silently narrow the universe.
+
+    Returns:
+        (candidates, metadata)
+    """
+    db_entries = _load_analysis_results_raw_from_db(betting_date)
+    json_entries = _load_analysis_results_raw_from_json(betting_date)
+
+    db_index, db_stats = _build_analysis_index(db_entries)
+    json_index, json_stats = _build_analysis_index(json_entries)
+
+    db_keys = set(db_index)
+    json_keys = set(json_index)
+    shared_keys = sorted(db_keys & json_keys)
+    json_only_keys = sorted(json_keys - db_keys)
+    db_only_keys = sorted(db_keys - json_keys)
+
+    metadata = {
+        "source": "none",
+        "counts": {
+            "canonical": 0,
+            "json": len(json_entries),
+            "db": len(db_entries),
+        },
+        "parity": {
+            "status": "missing",
+            "shared_candidates": len(shared_keys),
+            "json_only_candidates": len(json_only_keys),
+            "db_only_candidates": len(db_only_keys),
+            "json_index": json_stats,
+            "db_index": db_stats,
+            "overlay_candidates": 0,
+        },
+    }
+
+    if json_entries:
+        if db_only_keys:
+            metadata["source"] = "parity_error"
+            metadata["parity"]["status"] = "mismatch"
+            metadata["blocking_error"] = {
+                "code": "s3_candidate_parity_mismatch",
+                "message": (
+                    "DB contains candidates not present in S3 JSON; refusing to choose "
+                    "between divergent S3 universes"
+                ),
+            }
+            return [], metadata
+
+        merged_entries: list[dict] = []
+        for entry in json_entries:
+            key = _analysis_identity_key(entry)
+            db_entry = db_index.get(key)
+            merged_entries.append(
+                _merge_analysis_candidate(entry, db_entry) if db_entry else deepcopy(entry)
+            )
+
+        metadata["source"] = "json_with_db_overlay" if shared_keys else "json"
+        metadata["counts"]["canonical"] = len(merged_entries)
+        metadata["parity"]["overlay_candidates"] = len(shared_keys)
+        if not db_entries:
+            metadata["parity"]["status"] = "json_only"
+        else:
+            metadata["parity"]["status"] = "exact" if not json_only_keys else "db_subset_of_json"
+        return merged_entries, metadata
+
+    if db_entries:
+        metadata["source"] = "db"
+        metadata["counts"]["canonical"] = len(db_entries)
+        metadata["parity"]["status"] = "db_only"
+        return deepcopy(db_entries), metadata
+
+    return [], metadata
+
+
+def load_analysis_results_from_db(betting_date: str) -> list[dict]:
+    """Load S3 analysis results from DB, fallback to s3_deep_stats JSON.
+
+    Returns list of dicts compatible with gate_checker.py input format:
+    [{sport, home_team, away_team, competition, kickoff, has_data,
+      best_market, markets_evaluated, ranking, three_way_check,
+      warnings, stats_a_summary, stats_b_summary, h2h_summary}]
+    """
+    db_entries = _load_analysis_results_raw_from_db(betting_date)
+    if db_entries:
+        return db_entries
+
+    analyses = _load_analysis_results_raw_from_json(betting_date)
+    if analyses:
         return analyses
 
     print(f"[db_loader] No analysis results found for {betting_date}")
@@ -663,13 +978,7 @@ def save_analysis_results_to_db(betting_date: str, analyses: list[dict]) -> int:
                 a["fixture_id"] = fixture_id
 
                 best_market = a.get("best_market", {}) or {}
-                stats_summary = {}
-                if a.get("stats_a_summary"):
-                    stats_summary["stats_a"] = a["stats_a_summary"]
-                if a.get("stats_b_summary"):
-                    stats_summary["stats_b"] = a["stats_b_summary"]
-                if a.get("h2h_summary"):
-                    stats_summary["h2h"] = a["h2h_summary"]
+                stats_summary = _build_stats_summary_payload(a)
 
                 result = AnalysisResult(
                     id=None,
@@ -720,8 +1029,8 @@ def save_analysis_results_to_db(betting_date: str, analyses: list[dict]) -> int:
         return 0
 
 
-def load_gate_results_from_db(betting_date: str, status: str | None = None) -> list[dict]:
-    """Load S7 gate results from DB, fallback to s7_gate_results JSON.
+def load_gate_results_from_db_only(betting_date: str, status: str | None = None) -> list[dict]:
+    """Load S7 gate results from DB only.
 
     Args:
         betting_date: YYYY-MM-DD
@@ -729,16 +1038,20 @@ def load_gate_results_from_db(betting_date: str, status: str | None = None) -> l
 
     Returns list of dicts compatible with coupon_builder input format.
     """
+    status_bucket = _normalize_gate_bucket(status)
+
     try:
         from bet.db.connection import get_db
         from bet.db.repositories import GateResultRepo
 
         with get_db() as conn:
             repo = GateResultRepo(conn)
-            if status == "approved":
+            if status_bucket == "approved":
                 results = repo.get_approved(betting_date)
-            elif status == "extended":
+            elif status_bucket == "extended_pool":
                 results = repo.get_extended(betting_date)
+            elif status_bucket == "rejected":
+                results = repo.get_rejected(betting_date)
             else:
                 results = repo.get_by_date(betting_date)
 
@@ -782,7 +1095,7 @@ def load_gate_results_from_db(betting_date: str, status: str | None = None) -> l
                         else:
                             advisory_tier = "FLAGGED"
 
-                    entry = {
+                    entry = _normalize_gate_result_entry({
                         "fixture_id": gr.fixture_id,
                         "sport": row["sport"],
                         "home_team": row["home_team"],
@@ -800,15 +1113,35 @@ def load_gate_results_from_db(betting_date: str, status: str | None = None) -> l
                         },
                         "ev": gr.ev,
                         "risk_tier": gr.risk_tier,
-                        "gate_details": gr.gate_details_json,
+                        "gate_details": details,
                         "rejection_reasons": gr.rejection_reasons_json,
-                    }
+                        "source": gr.source,
+                    })
                     out.append(entry)
-                print(f"[db_loader] Loaded {len(out)} gate results from DB for {betting_date}" +
-                      (f" (status={status})" if status else ""))
-                return out
+
+                if out:
+                    print(f"[db_loader] Loaded {len(out)} gate results from DB for {betting_date}" +
+                          (f" (status={status})" if status else ""))
+                    return out
     except Exception as e:
         print(f"[db_loader] DB read failed for gate results: {e}")
+
+    return []
+
+
+def load_gate_results_from_db(betting_date: str, status: str | None = None) -> list[dict]:
+    """Load S7 gate results from DB, fallback to s7_gate_results JSON.
+
+    Args:
+        betting_date: YYYY-MM-DD
+        status: Optional filter — 'approved', 'extended', 'rejected', or None for all
+
+    Returns list of dicts compatible with coupon_builder input format.
+    """
+    status_bucket = _normalize_gate_bucket(status)
+    results = load_gate_results_from_db_only(betting_date, status)
+    if results:
+        return results
 
     # JSON fallback
     json_path = DATA_DIR / f"{betting_date}_s7_gate_results.json"
@@ -816,9 +1149,7 @@ def load_gate_results_from_db(betting_date: str, status: str | None = None) -> l
         json_path = DATA_DIR / f"s7_gate_results_{betting_date}.json"
     if json_path.exists():
         data = json.loads(json_path.read_text(encoding="utf-8"))
-        results_list = data if isinstance(data, list) else data.get("results", [])
-        if status:
-            results_list = [r for r in results_list if r.get("status") == status]
+        results_list = _extract_gate_results_from_payload(data, status_bucket)
         print(f"[db_loader] Loaded {len(results_list)} gate results from JSON fallback")
         return results_list
 
@@ -848,52 +1179,54 @@ def save_gate_results_to_db(betting_date: str, results: list[dict]) -> int:
         with get_db() as conn:
             repo = GateResultRepo(conn)
             for r in results:
-                fixture_id = r.get("fixture_id")
+                normalized_result = _normalize_gate_result_entry(r)
+
+                fixture_id = normalized_result.get("fixture_id")
                 if not fixture_id:
                     fixture_id = _resolve_fixture_id(
                         conn,
-                        r.get("sport", ""),
-                        r.get("home_team", ""),
-                        r.get("away_team", ""),
-                        r.get("kickoff", betting_date),
+                        normalized_result.get("sport", ""),
+                        normalized_result.get("home_team", ""),
+                        normalized_result.get("away_team", ""),
+                        normalized_result.get("kickoff", betting_date),
                     )
                 if not fixture_id:
                     fixture_id = _create_minimal_fixture(
                         conn,
-                        r.get("sport", ""),
-                        r.get("home_team", ""),
-                        r.get("away_team", ""),
-                        r.get("kickoff", betting_date),
-                        r.get("competition", ""),
+                        normalized_result.get("sport", ""),
+                        normalized_result.get("home_team", ""),
+                        normalized_result.get("away_team", ""),
+                        normalized_result.get("kickoff", betting_date),
+                        normalized_result.get("competition", ""),
                     )
                 if not fixture_id:
                     print(
                         f"[db_loader] WARN: Skipping gate result — no fixture for "
-                        f"{r.get('home_team', '?')} vs {r.get('away_team', '?')} ({r.get('sport', '?')})"
+                        f"{normalized_result.get('home_team', '?')} vs {normalized_result.get('away_team', '?')} ({normalized_result.get('sport', '?')})"
                     )
                     skipped_gate += 1
                     continue
 
-                best_market = r.get("best_market", {}) or {}
+                best_market = normalized_result.get("best_market", {}) or {}
                 # Preserve advisory_tier in gate_details_json for DB round-trip
-                gate_details = r.get("gate_details", {}) or {}
-                if isinstance(gate_details, dict) and r.get("advisory_tier"):
-                    gate_details["advisory_tier"] = r["advisory_tier"]
+                gate_details = normalized_result.get("gate_details", {}) or {}
+                if isinstance(gate_details, dict) and normalized_result.get("advisory_tier"):
+                    gate_details["advisory_tier"] = normalized_result["advisory_tier"]
                 gate_result = GateResult(
                     id=None,
                     fixture_id=fixture_id,
                     betting_date=betting_date,
-                    status=r.get("status", "pending"),
-                    gate_score=r.get("gate_score", 0),
+                    status=normalized_result.get("status", "pending"),
+                    gate_score=normalized_result.get("gate_score", 0),
                     gate_details_json=gate_details,
                     best_market_name=best_market.get("name", ""),
                     best_market_line=best_market.get("line"),
                     best_market_direction=best_market.get("direction", ""),
                     best_safety_score=best_market.get("safety_score"),
-                    ev=r.get("ev"),
-                    risk_tier=r.get("risk_tier", ""),
-                    rejection_reasons_json=r.get("rejection_reasons", []),
-                    source=r.get("source", "gate_checker"),
+                    ev=normalized_result.get("ev"),
+                    risk_tier=normalized_result.get("risk_tier", ""),
+                    rejection_reasons_json=normalized_result.get("rejection_reasons", []),
+                    source=normalized_result.get("source", "gate_checker"),
                     created_at=_NOW(),
                 )
                 repo.save(gate_result)

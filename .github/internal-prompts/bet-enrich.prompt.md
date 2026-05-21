@@ -6,19 +6,19 @@ description: "S2.5: Self-healing data enrichment — fetch missing team stats fr
 > **PERMANENT RULES (from copilot-instructions.md §NON-NEGOTIABLE):**
 > R2 DB-FIRST: Write to `team_form` via `get_db()`. R9 SELF-HEALING: 7 fallback layers — exhaust ALL before returning empty.
 
-# S2.3/S2.5 — BULK ENRICHMENT + FALLBACK
+# S2.3/S2.5 — SCRAPER VISIBILITY + GAP-FILL ENRICHMENT
 
-## CURRENT ENRICHMENT FLOW (2026-05-20)
+## CURRENT ENRICHMENT FLOW (2026-05-21)
 
-The enrichment phase now has multiple sub-steps — ALL write directly to `team_form`:
-1. **S2.3a** — `espn_discover_all.py` discovers fixtures for all 5 sports via ESPN API (free) → `fixtures` table
-2. **S2.3b** — `bulk_league_enrich.py` fetches ESPN league-level stats (standings → all teams in league) → `team_form` (source: `espn-football`, etc.). Provides RICH data: corners, shots, fouls, passes, cards.
-3. **S2.3c** — `flashscore_bulk_enrich.py` fast Flashscore enrichment via curl_cffi → `team_form` (source: `flashscore`). Goals/points only. Skips tennis. 1.5s rate limit.
-4. **S2.5** — `data_enrichment_agent.py` fills REMAINING GAPS via per-team fallback chains → `team_form` (source: `enrichment-agent`)
+The current enrichment story is split across warehouse collection, optional bridge surfaces, and S2.5 gap-fill completion:
+1. **S2.3** — `run_scrapers.py` writes warehouse tables (`league_profiles`, `player_season_stats`, `athletes`, `scraper_runs`) for later reuse.
+2. **Bridge helpers** — `scraper_to_team_form.py` and `bridge_league_to_team_form.py` can surface selected scraper value into `team_form` when the orchestrator explicitly runs them.
+3. **Tennis baseline** — `enrich_tennis_stats.py` remains a standalone tennis baseline/backfill step; it is not a generic S2.3 sub-step.
+4. **S2.5** — `data_enrichment_agent.py` fills remaining same-day gaps and rich-stat coverage via the canonical fallback chains, writing the S3-consumable surfaces (`team_form`, `match_stats`, `source_health`, optional `team_news`).
 
-**CRITICAL:** `run_scrapers.py` writes to `league_profiles`/`player_season_stats` (NOT `team_form`). Downstream analysis reads `team_form` ONLY. The scripts above are what populate `team_form`.
+**CRITICAL:** scraper success is NOT proof of S3 readiness. Downstream analysis reads `team_form` and `match_stats`, so you must verify bridge visibility and rich-coverage buckets before approving enrichment quality.
 
-**Your first check:** When analyzing enrichment output, verify `team_form` row counts per sport and source. The key metric is: how many of today's fixture teams have `l5_avg IS NOT NULL` in `team_form`? Target: both teams enriched for ≥500 fixtures (≥70% coverage).
+**Your first check:** How many of today's shortlist teams are `rich`, `baseline_only`, `partial`, or `no_data`, and how many still lack usable `team_form` rows (`l5_avg IS NOT NULL`)? Use `inspect_pipeline.py`, `db_report.py --report rich-coverage`, and DB row checks together.
 
 ## ⛔ INLINE GATES (check at each step — violation = FAILURE)
 
@@ -55,7 +55,7 @@ Load these skills before starting:
 
 ## ⛔ agent-execution-protocol.instructions.md applies — no exceptions
 
-> **YOUR ANALYTICAL VALUE:** You don't just run `data_enrichment_agent.py`. You assess WHERE data gaps are, WHY sources failed, and WHICH candidates will suffer in S3 without enrichment. With the new scraper pipeline, you also evaluate scraper data QUALITY: did scrapers cover the right teams? Are `team_form` rows usable? What gaps remain that ONLY old enrichment can fill (e.g., football corners/fouls)?
+> **YOUR ANALYTICAL VALUE:** You don't just read `data_enrichment_agent.py` output. You assess WHERE data gaps remain, WHY sources failed, and WHICH candidates will suffer in S3 without bridge visibility or S2.5 completion. With the rich-stat rollout in place, you also evaluate whether today's shortlist teams are actually `rich`/`baseline_only`/`partial`/`no_data` in the S3-consumable surfaces.
 
 ### What GOOD enrichment analysis looks like:
 ```
@@ -124,14 +124,14 @@ with get_db() as conn:
 ## Context (provided by orchestrator)
 
 - **Inputs**: `fixtures` table (today's events), `team_form` table (existing stats)
-- **Enrichment scripts (run by orchestrator in order):**
-  - `PYTHONPATH=src .venv/bin/python3 scripts/espn_discover_all.py --date {date} --limit 500` — discover fixtures
-  - `PYTHONPATH=src .venv/bin/python3 scripts/bulk_league_enrich.py --date {date} --verbose` — ESPN league-level (RICH data)
-  - `PYTHONPATH=src .venv/bin/python3 scripts/flashscore_bulk_enrich.py --date {date} --limit 400 --verbose` — Flashscore bulk (goals/points)
-  - `PYTHONPATH=src .venv/bin/python3 scripts/data_enrichment_agent.py --date {date} --news --verbose` — fallback per-team enrichment
-- **DB table**: `team_form` (read/write) — ALL enrichment writes here
-- **Rate limits**: Flashscore 1.5s, ESPN unlimited (free API), data_enrichment_agent thread-safe rate limiting
-- **Timeout**: bulk_league_enrich ~3 min, flashscore_bulk_enrich ~10 min (350 teams × 1.5s), data_enrichment_agent ~15 min
+- **Enrichment scripts (run by orchestrator as needed):**
+    - `PYTHONPATH=src .venv/bin/python3 scripts/run_scrapers.py --sport all --season 2425 --verbose` — S2.3 warehouse collection only
+    - `PYTHONPATH=src .venv/bin/python3 scripts/scraper_to_team_form.py --date {date}` or `bridge_league_to_team_form.py --date {date}` — optional bridge helpers when the orchestrator explicitly uses them
+    - `PYTHONPATH=src .venv/bin/python3 scripts/data_enrichment_agent.py --date {date} --news --verbose` — S2.5 gap-fill and rich completion
+    - `PYTHONPATH=src .venv/bin/python3 scripts/enrich_tennis_stats.py --date {date}` — standalone tennis baseline/backfill when required
+    - `PYTHONPATH=src .venv/bin/python3 scripts/seed_espn_data.py --skip-players --verbose` — ESPN supplementary tables
+- **DB tables**: `team_form` (read/write for S3-consumable team stats), `match_stats` (read/write for per-match rich completion), `source_health` (read/write), scraper tables (`league_profiles`, `player_season_stats`) as advisory context unless bridged
+- **Timeouts**: `run_scrapers.py` ~2-3 min, bridge helpers date/scope dependent, `data_enrichment_agent.py` ~10-15 min depending on gaps
 
 ## Workflow
 

@@ -580,7 +580,7 @@ After every script: verify output file exists, check DB row counts, spot-check f
 ## ⚡️ V6: UNIFIED API & BEAST MODE FALLBACK (2026-05-12)
 - **UnifiedAPIClient**: Always refer to `bet.api_clients.unified.UnifiedAPIClient`. It wraps Flashscore, ESPN.
 - **curl_cffi Stealth Fallback**: If 403 Forbidden is hit, the enrichment agent uses `curl_cffi` with TLS fingerprint impersonation (`impersonate="chrome110"`) as fallback. Playwright is NOT used for enrichment — only curl_cffi. Do not assume 403 means dead end.
-- **Gemini 3.1 Pro**: Execution, reasoning, and context analysis is driven by `Gemini 3.1 Pro (Preview)`. Use asynchronous parsing and `sequentialthinking` aggressively.
+- **GPT-5.4**: Execution, reasoning, and context analysis in the bet customization layer is driven by `GPT-5.4`. Use asynchronous parsing and `sequentialthinking` aggressively.
 
 ## ⚡️ V7: ACTIVE AGENT PATTERN (2026-05-13)
 - **pylanceRunCodeSnippet = PRIMARY** for all data inspection (DB queries, JSON validation, format checks). Replaces `python3 -c` and simple terminal commands.

@@ -426,33 +426,38 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
 
 def run_odds_eval(date: str, state: dict) -> tuple[bool, str]:
     """S4: Cross-validate odds, compute EV, detect drift."""
-    # Load current candidates from S3 JSON output (primary — has ALL candidates)
-    # IMPORTANT: Do NOT read from DB here — DB only has entries with resolved
-    # fixture_ids (~166), while JSON has the full set (~1440) including
-    # shortlist-fallback candidates.
-    candidates = None
-
+    candidates = []
     s3_path = DATA_DIR / f"{date}_s3_deep_stats.json"
-    if s3_path.exists():
-        try:
-            s3_data = json.loads(s3_path.read_text(encoding="utf-8"))
-            candidates = s3_data.get("analyses", [])
-            if candidates:
-                print(f"  → JSON: loaded {len(candidates)} S3 analyses")
-        except (json.JSONDecodeError, OSError):
-            pass
+    s3_data = None
+
+    try:
+        from db_data_loader import load_s3_candidates_with_parity
+
+        candidates, candidate_load = load_s3_candidates_with_parity(date)
+    except Exception as e:
+        return False, f"S4 candidate load error: {e}"
+
+    if candidate_load.get("blocking_error"):
+        error = candidate_load["blocking_error"]
+        return False, (
+            "S4 candidate parity failure: "
+            f"{error.get('message', 'unknown error')} "
+            f"(json={candidate_load['counts']['json']}, db={candidate_load['counts']['db']})"
+        )
+
+    if candidates:
+        state["candidate_load"] = candidate_load
+        print(
+            "  → Candidate load: "
+            f"source={candidate_load['source']} "
+            f"status={candidate_load['parity']['status']} "
+            f"json={candidate_load['counts']['json']} "
+            f"db={candidate_load['counts']['db']} "
+            f"canonical={candidate_load['counts']['canonical']}"
+        )
 
     if not candidates:
-        try:
-            from db_data_loader import load_analysis_results_from_db
-            db_analyses = load_analysis_results_from_db(date)
-            if db_analyses:
-                candidates = db_analyses
-                print(f"  → DB fallback: loaded {len(candidates)} S3 analysis results")
-        except Exception as e:
-            print(f"  ⚠️ DB read also failed: {e}")
-
-    if not candidates:
+        state["candidate_load"] = candidate_load
         return True, "S4: No S3 data yet — skipping EV injection"
 
     try:
@@ -476,16 +481,20 @@ def run_odds_eval(date: str, state: dict) -> tuple[bool, str]:
         total = len(candidates)
 
         # Save back enriched data to JSON (for downstream consumers)
-        s3_path = DATA_DIR / f"{date}_s3_deep_stats.json"
         if s3_path.exists():
             try:
                 s3_data = json.loads(s3_path.read_text(encoding="utf-8"))
-                s3_data["analyses"] = candidates
-                s3_path.write_text(
-                    json.dumps(s3_data, indent=2, ensure_ascii=False), encoding="utf-8"
-                )
             except (json.JSONDecodeError, OSError):
-                pass
+                s3_data = None
+        if s3_data is None:
+            s3_data = {"analyses": []}
+        s3_data["analyses"] = candidates
+        try:
+            s3_path.write_text(
+                json.dumps(s3_data, indent=2, ensure_ascii=False), encoding="utf-8"
+            )
+        except OSError:
+            pass
 
         # Save EV data back to analysis_results in DB
         try:
@@ -560,7 +569,8 @@ def main():
 
     out = AgentOutput("s4_odds_eval", verbose=args.verbose, stop_on_error=args.stop_on_error)
 
-    ok, msg = run_odds_eval(args.date, {})
+    state = {}
+    ok, msg = run_odds_eval(args.date, state)
 
     # Parse the message for metrics
     import re
@@ -583,6 +593,11 @@ def main():
     out.summary(
         verdict=verdict,
         metrics={
+            "input_source": (state.get("candidate_load") or {}).get("source", "none"),
+            "input_status": (state.get("candidate_load") or {}).get("parity", {}).get("status", "missing"),
+            "input_json_candidates": (state.get("candidate_load") or {}).get("counts", {}).get("json", 0),
+            "input_db_candidates": (state.get("candidate_load") or {}).get("counts", {}).get("db", 0),
+            "input_canonical_candidates": (state.get("candidate_load") or {}).get("counts", {}).get("canonical", 0),
             "total_candidates": total,
             "with_ev": with_ev,
             "positive_ev": positive_ev,

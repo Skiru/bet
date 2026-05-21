@@ -31,31 +31,34 @@ def run_context_checks(date: str, state: dict) -> tuple[bool, str]:
     context_flags = {}
     s3_path = DATA_DIR / f"{date}_s3_deep_stats.json"
 
-    # DB-first: load S3 analysis results from DB (R2)
     candidates = []
     s3_data = None
     try:
-        from db_data_loader import load_analysis_results_from_db
-        db_candidates = load_analysis_results_from_db(date)
-        if db_candidates:
-            candidates = db_candidates
-            s3_data = {"analyses": candidates}  # Maintain s3_data structure for downstream write-back
-            if state.get("verbose"):
-                print(f"    [context_checks] DB: loaded {len(candidates)} candidates")
-    except Exception:
-        pass
+        from db_data_loader import load_s3_candidates_with_parity
 
-    # JSON fallback
-    if not candidates:
-        s3_path = DATA_DIR / f"{date}_s3_deep_stats.json"
-        if s3_path.exists():
-            try:
-                s3_data = json.loads(s3_path.read_text(encoding="utf-8"))
-                candidates = s3_data.get("analyses", [])
-                if state.get("verbose"):
-                    print(f"    [context_checks] JSON fallback: loaded {len(candidates)} candidates")
-            except (json.JSONDecodeError, OSError):
-                pass
+        candidates, candidate_load = load_s3_candidates_with_parity(date)
+        state["candidate_load"] = candidate_load
+        if candidate_load.get("blocking_error"):
+            error = candidate_load["blocking_error"]
+            return False, (
+                "S5 candidate parity failure: "
+                f"{error.get('message', 'unknown error')} "
+                f"(json={candidate_load['counts']['json']}, db={candidate_load['counts']['db']})"
+            )
+
+        if candidates:
+            s3_data = {"analyses": candidates}
+            if state.get("verbose"):
+                print(
+                    "    [context_checks] candidate load: "
+                    f"source={candidate_load['source']} "
+                    f"status={candidate_load['parity']['status']} "
+                    f"json={candidate_load['counts']['json']} "
+                    f"db={candidate_load['counts']['db']} "
+                    f"canonical={candidate_load['counts']['canonical']}"
+                )
+    except Exception as e:
+        return False, f"S5 candidate load error: {e}"
 
     # Weather data — flag candidates with weather impact
     weather_path = DATA_DIR / f"weather_{date}.json"
@@ -269,7 +272,8 @@ def main():
 
     out = AgentOutput("s5_context", verbose=args.verbose, stop_on_error=args.stop_on_error)
 
-    ok, msg = run_context_checks(args.date, {})
+    state = {}
+    ok, msg = run_context_checks(args.date, state)
 
     # Parse checks_done from message
     import re
@@ -287,6 +291,13 @@ def main():
     if enriched_m:
         metrics["enriched_candidates"] = int(enriched_m.group(1))
         metrics["total_candidates"] = int(enriched_m.group(2))
+
+    candidate_load = state.get("candidate_load") or {}
+    metrics["input_source"] = candidate_load.get("source", "none")
+    metrics["input_status"] = candidate_load.get("parity", {}).get("status", "missing")
+    metrics["input_json_candidates"] = candidate_load.get("counts", {}).get("json", 0)
+    metrics["input_db_candidates"] = candidate_load.get("counts", {}).get("db", 0)
+    metrics["input_canonical_candidates"] = candidate_load.get("counts", {}).get("canonical", 0)
 
     verdict = "OK" if ok else "FAILED"
     if "unavailable" in msg or "load_error" in msg:

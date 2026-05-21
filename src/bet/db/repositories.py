@@ -1069,6 +1069,23 @@ class PipelineRepo:
         ).fetchall()
         return [r["step"] for r in rows]
 
+    def get_step(self, date: str, step: str) -> dict | None:
+        row = self.conn.execute(
+            "SELECT step, status, started_at, completed_at, error_message, stats "
+            "FROM pipeline_runs WHERE date = ? AND step = ?",
+            (date, step),
+        ).fetchone()
+        if not row:
+            return None
+        return {
+            "step": row["step"],
+            "status": row["status"],
+            "started_at": row["started_at"] or "",
+            "completed_at": row["completed_at"] or "",
+            "error_message": row["error_message"] or "",
+            "stats": json.loads(row["stats"]) if row["stats"] else None,
+        }
+
     def get_run_status(self, date: str) -> list[dict]:
         rows = self.conn.execute(
             "SELECT step, status, started_at, completed_at, error_message, stats "
@@ -1342,8 +1359,54 @@ class AnalysisResultRepo:
 # ---------------------------------------------------------------------------
 
 class GateResultRepo:
+    _STATUS_TO_BUCKET = {
+        "APPROVED": "approved",
+        "EXTENDED": "extended_pool",
+        "EXTENDED_POOL": "extended_pool",
+        "REJECTED": "rejected",
+    }
+    _BUCKET_TO_STATUS = {
+        "approved": "APPROVED",
+        "extended_pool": "EXTENDED",
+        "rejected": "REJECTED",
+    }
+
     def __init__(self, conn: sqlite3.Connection):
         self.conn = conn
+
+    @classmethod
+    def _normalize_bucket(cls, bucket: str | None) -> str | None:
+        if not bucket:
+            return None
+        normalized = str(bucket).strip().lower()
+        if normalized == "extended":
+            return "extended_pool"
+        if normalized in cls._BUCKET_TO_STATUS:
+            return normalized
+        return None
+
+    @classmethod
+    def _canonicalize_bucket_status(
+        cls,
+        status: str | None,
+        gate_details: dict | None,
+        rejection_reasons: list | None,
+    ) -> tuple[str, str]:
+        details = gate_details if isinstance(gate_details, dict) else {}
+        reasons = rejection_reasons if isinstance(rejection_reasons, list) else []
+
+        bucket = cls._normalize_bucket(details.get("bucket"))
+        if not bucket and status:
+            bucket = cls._STATUS_TO_BUCKET.get(str(status).strip().upper())
+        if not bucket:
+            if details.get("extended_pool_reason"):
+                bucket = "extended_pool"
+            elif reasons or details.get("rejection_reason"):
+                bucket = "rejected"
+            else:
+                bucket = "approved"
+
+        return bucket, cls._BUCKET_TO_STATUS[bucket]
 
     def save(self, result: GateResult) -> None:
         """Insert or replace a gate result."""
@@ -1413,21 +1476,15 @@ class GateResultRepo:
 
     def get_approved(self, betting_date: str) -> list[GateResult]:
         """Get approved gate results for coupon building."""
-        rows = self.conn.execute(
-            "SELECT * FROM gate_results WHERE betting_date = ? AND UPPER(status) = 'APPROVED' "
-            "ORDER BY best_safety_score DESC",
-            (betting_date,),
-        ).fetchall()
-        return [self._row_to_model(r) for r in rows]
+        return [result for result in self.get_by_date(betting_date) if result.status == "APPROVED"]
 
     def get_extended(self, betting_date: str) -> list[GateResult]:
         """Get extended pool gate results."""
-        rows = self.conn.execute(
-            "SELECT * FROM gate_results WHERE betting_date = ? AND UPPER(status) = 'EXTENDED' "
-            "ORDER BY best_safety_score DESC",
-            (betting_date,),
-        ).fetchall()
-        return [self._row_to_model(r) for r in rows]
+        return [result for result in self.get_by_date(betting_date) if result.status == "EXTENDED"]
+
+    def get_rejected(self, betting_date: str) -> list[GateResult]:
+        """Get rejected gate results."""
+        return [result for result in self.get_by_date(betting_date) if result.status == "REJECTED"]
 
     def delete_by_date(self, betting_date: str) -> int:
         """Delete all gate results for a date. Returns count deleted."""
@@ -1436,22 +1493,39 @@ class GateResultRepo:
         )
         return cursor.rowcount
 
-    @staticmethod
-    def _row_to_model(row: sqlite3.Row) -> GateResult:
+    @classmethod
+    def _row_to_model(cls, row: sqlite3.Row) -> GateResult:
+        gate_details = json.loads(row["gate_details_json"]) if row["gate_details_json"] else {}
+        if not isinstance(gate_details, dict):
+            gate_details = {}
+
+        rejection_reasons = json.loads(row["rejection_reasons_json"]) if row["rejection_reasons_json"] else []
+        if isinstance(rejection_reasons, str):
+            rejection_reasons = [rejection_reasons]
+        elif not isinstance(rejection_reasons, list):
+            rejection_reasons = []
+
+        bucket, status = cls._canonicalize_bucket_status(
+            row["status"],
+            gate_details,
+            rejection_reasons,
+        )
+        gate_details.setdefault("bucket", bucket)
+
         return GateResult(
             id=row["id"],
             fixture_id=row["fixture_id"],
             betting_date=row["betting_date"],
-            status=row["status"],
+            status=status,
             gate_score=row["gate_score"],
-            gate_details_json=json.loads(row["gate_details_json"]) if row["gate_details_json"] else {},
+            gate_details_json=gate_details,
             best_market_name=row["best_market_name"] or "",
             best_market_line=row["best_market_line"],
             best_market_direction=row["best_market_direction"] or "",
             best_safety_score=row["best_safety_score"],
             ev=row["ev"],
             risk_tier=row["risk_tier"] or "",
-            rejection_reasons_json=json.loads(row["rejection_reasons_json"]) if row["rejection_reasons_json"] else [],
+            rejection_reasons_json=rejection_reasons,
             source=row["source"] or "",
             created_at=row["created_at"] or "",
         )

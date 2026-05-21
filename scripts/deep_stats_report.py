@@ -1654,12 +1654,20 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
     _write_markdown(output, date)
 
     # Dual-write: save analysis results to DB FIRST (injects fixture_id back)
+    output["analysis_results_persisted"] = 0
     try:
         from db_data_loader import save_analysis_results_to_db
         saved = save_analysis_results_to_db(date, output["analyses"])
+        output["analysis_results_persisted"] = saved
         print(f"[deep_stats] DB: saved {saved} analysis results")
     except Exception as e:
         print(f"[deep_stats] DB write failed (non-fatal): {e}")
+
+    output["fixture_ids_injected"] = sum(1 for analysis in output["analyses"] if analysis.get("fixture_id"))
+    output["analysis_results_not_persisted"] = max(
+        0,
+        len(output["analyses"]) - output["analysis_results_persisted"],
+    )
 
     # Write JSON AFTER DB save so analyses have fixture_id injected
     _write_json(output, date)
@@ -1702,6 +1710,9 @@ def _write_json(output: dict, date: str) -> Path:
         "source": output["source"],
         "total_candidates": output["total_candidates"],
         "candidates_with_data": output["candidates_with_data"],
+        "analysis_results_persisted": output.get("analysis_results_persisted", 0),
+        "analysis_results_not_persisted": output.get("analysis_results_not_persisted", 0),
+        "fixture_ids_injected": output.get("fixture_ids_injected", 0),
         "analyses": [],
     }
 
@@ -1837,6 +1848,9 @@ def main():
             "total_candidates": result["total_candidates"],
             "with_data": result["candidates_with_data"],
             "without_data": result.get("candidates_without_data", 0),
+            "analysis_results_persisted": result.get("analysis_results_persisted", 0),
+            "analysis_results_not_persisted": result.get("analysis_results_not_persisted", 0),
+            "fixture_ids_injected": result.get("fixture_ids_injected", 0),
             "enrichment_attempted": result.get("enrichment_attempted", 0),
             "enrichment_successful": result.get("enrichment_successful", 0),
             "no_enrich": args.no_enrich,

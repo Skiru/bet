@@ -38,6 +38,48 @@ FOOTBALL_RICH_KEYS = {
     "possession",
 }
 
+DATA_DIR = Path(__file__).resolve().parent.parent / "betting" / "data"
+
+
+def _normalize_shortlist_events(shortlist) -> list[dict]:
+    events: list[dict] = []
+    if not shortlist:
+        return events
+
+    candidates = shortlist if isinstance(shortlist, list) else shortlist.get("candidates", [])
+    for candidate in candidates:
+        event = candidate[1] if isinstance(candidate, (list, tuple)) and len(candidate) >= 2 else candidate
+        if isinstance(event, dict):
+            events.append(event)
+
+    return events
+
+
+def _load_shortlist_teams_by_sport(betting_date: str) -> dict[str, list[str]]:
+    shortlist_path = DATA_DIR / f"{betting_date}_s2_shortlist.json"
+    if not shortlist_path.exists():
+        return {}
+
+    try:
+        shortlist = json.loads(shortlist_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+    teams_by_sport: dict[str, set[str]] = {}
+    for event in _normalize_shortlist_events(shortlist):
+        sport = str(event.get("sport", "") or "").strip().lower()
+        if not sport:
+            continue
+        for team_key in ("home_team", "away_team"):
+            team_name = str(event.get(team_key, "") or "").strip()
+            if team_name:
+                teams_by_sport.setdefault(sport, set()).add(team_name)
+
+    return {
+        sport_name: sorted(team_names)
+        for sport_name, team_names in sorted(teams_by_sport.items())
+    }
+
 
 def report_quality():
     """Data quality overview — row counts for all tables."""
@@ -220,6 +262,27 @@ def report_rich_coverage(betting_date: str, sport: str):
         print(f"  No data: {summary['no_data']}")
         print(f"  Completion rate: {summary['completion_rate']}%")
 
+        bucket_members = {
+            bucket: sorted(detail["team"] for detail in team_details if detail["bucket"] == bucket)
+            for bucket in ("rich", "baseline_only", "partial", "no_data")
+        }
+
+        print("\n  Bucket assignments:")
+        for bucket in ("rich", "baseline_only", "partial", "no_data"):
+            members = bucket_members[bucket]
+            label = bucket.replace("_", " ")
+            if members:
+                print(f"    {label:14s}: {', '.join(members)}")
+            else:
+                print(f"    {label:14s}: (none)")
+
+        missing_shortlist_teams = [detail for detail in team_details if detail["bucket"] != "rich"]
+        if missing_shortlist_teams:
+            print("\n  Still-missing shortlist teams:")
+            for detail in missing_shortlist_teams:
+                missing = ", ".join(detail["missing_rich_keys"][:4]) or "no team_form rows"
+                print(f"    [{detail['bucket']}] {detail['team']}: {missing}")
+
         print("\n  Rich source presence:")
         for source in sorted(rich_source_presence):
             print(f"    {source:24s}: {rich_source_presence[source]}")
@@ -232,6 +295,61 @@ def report_rich_coverage(betting_date: str, sport: str):
             print("\n  Failure reasons:")
             for reason in sorted(failure_reasons):
                 print(f"    {reason:24s}: {failure_reasons[reason]}")
+
+        shortlist_teams_by_sport = _load_shortlist_teams_by_sport(betting_date)
+        shortlist_teams = shortlist_teams_by_sport.get(sport, [])
+        if shortlist_teams:
+            fixture_team_names = {team_name for _, team_name in teams}
+            if fixture_team_names and not (set(shortlist_teams) & fixture_team_names):
+                print("\n  Shortlist scope:")
+                print(f"    date: {betting_date}")
+                print(f"    teams: {len(shortlist_teams)}")
+                print("    note: shortlist teams do not overlap current fixture scope")
+                return
+
+            shortlist_team_details = []
+            for team_name in shortlist_teams:
+                rows = conn.execute(
+                    "SELECT stat_key, source FROM team_form WHERE team_name = ? AND sport_id = ?",
+                    (team_name, sport_row[0]),
+                ).fetchall()
+                detail = classify_rich_coverage(
+                    rows,
+                    required_keys,
+                    allowed_sources,
+                    baseline_sources=baseline_sources,
+                )
+                detail["team"] = team_name
+                shortlist_team_details.append(detail)
+
+            shortlist_summary = summarize_rich_coverage(shortlist_team_details)
+            shortlist_bucket_members = {
+                bucket: sorted(detail["team"] for detail in shortlist_team_details if detail["bucket"] == bucket)
+                for bucket in ("rich", "baseline_only", "partial", "no_data")
+            }
+            missing_shortlist_teams = [detail for detail in shortlist_team_details if detail["bucket"] != "rich"]
+
+            print("\n  Shortlist scope:")
+            print(f"    date: {betting_date}")
+            print(f"    teams: {len(shortlist_teams)}")
+            print(f"    rich: {shortlist_summary['rich']}")
+            print(f"    baseline_only: {shortlist_summary['baseline_only']}")
+            print(f"    partial: {shortlist_summary['partial']}")
+            print(f"    no_data: {shortlist_summary['no_data']}")
+            print("\n  Shortlist bucket assignments:")
+            for bucket in ("rich", "baseline_only", "partial", "no_data"):
+                members = shortlist_bucket_members[bucket]
+                label = bucket.replace("_", " ")
+                if members:
+                    print(f"    {label:14s}: {', '.join(members)}")
+                else:
+                    print(f"    {label:14s}: (none)")
+
+            if missing_shortlist_teams:
+                print("\n  Still-missing shortlist teams:")
+                for detail in missing_shortlist_teams:
+                    missing = ", ".join(detail["missing_rich_keys"][:4]) or "no team_form rows"
+                    print(f"    [{detail['bucket']}] {detail['team']}: {missing}")
 
 
 def main():

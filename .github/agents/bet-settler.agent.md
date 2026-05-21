@@ -20,7 +20,7 @@ tools:
     "vscode/runCommand",
     "vscode/toolSearch",
   ]
-model: "Claude Opus 4.6 (Copilot)"
+model: "GPT-5.4"
 instructions:
   - ../instructions/agent-execution-protocol.instructions.md
   - ../instructions/analysis-methodology.instructions.md

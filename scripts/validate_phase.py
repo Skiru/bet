@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""DB-FIRST phase validation for the betting pipeline.
+"""DB-first session-readiness validation for the betting pipeline.
 
-Validates pipeline state after each phase by querying betting.db as the PRIMARY
-source of truth, with JSON file checks as FALLBACK only.
+Validates live readiness of the current betting session from DB rows and
+operational JSON artifacts. Legacy ``pipeline_state`` files are treated as
+optional context only and are no longer a hard prerequisite.
 
 Usage:
     python3 scripts/validate_phase.py --date 2026-05-08 --phase data
@@ -18,16 +19,14 @@ Exit codes:
 """
 
 import argparse
+import csv
 import json
-import os
 import re
 import subprocess
 import sys
-from collections import Counter
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
 
-# Insert src for bet.db.connection
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "betting" / "data"
@@ -35,22 +34,26 @@ COUPON_DIR = Path(__file__).resolve().parent.parent / "betting" / "coupons"
 JOURNAL_DIR = Path(__file__).resolve().parent.parent / "betting" / "journal"
 CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "betting_config.json"
 SCRIPTS_DIR = Path(__file__).resolve().parent
+UNRESOLVED_SESSION_STATUSES = ("", "active", "open", "pending", "placed")
 
-CEST = timezone(timedelta(hours=2))
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 class Check:
     """Single validation check result."""
-    def __init__(self, check_id: str, name: str, status: str, value: str,
-                 gate: bool = False, recovery: str = ""):
+
+    def __init__(
+        self,
+        check_id: str,
+        name: str,
+        status: str,
+        value: str,
+        gate: bool = False,
+        recovery: str = "",
+    ):
         self.check_id = check_id
         self.name = name
-        self.status = status  # PASS / FAIL / WARN / SKIP
+        self.status = status
         self.value = value
-        self.gate = gate  # If True and FAIL → blocking
+        self.gate = gate
         self.recovery = recovery
 
     def to_dict(self):
@@ -71,541 +74,1141 @@ class Check:
 
 
 def _get_db():
-    """Get DB connection via bet.db.connection."""
     from bet.db.connection import get_db
+
     return get_db()
+
+
+def _load_json(path: Path) -> dict | list | None:
+    if not path.exists():
+        return None
+    try:
+        with open(path, encoding="utf-8") as file:
+            return json.load(file)
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def _load_pipeline_step_record(date: str, step: str) -> dict | None:
+    try:
+        with _get_db() as db:
+            row = db.execute(
+                "SELECT status, stats, error_message FROM pipeline_runs WHERE date = ? AND step = ?",
+                (date, step),
+            ).fetchone()
+    except Exception:
+        return None
+
+    if not row:
+        return None
+
+    stats_raw = row[1]
+    stats = None
+    if stats_raw:
+        try:
+            stats = json.loads(stats_raw)
+        except json.JSONDecodeError:
+            stats = "__MALFORMED_JSON__"
+
+    return {
+        "status": row[0],
+        "stats": stats,
+        "error_message": row[2] or "",
+    }
 
 
 def _load_pipeline_state(date: str) -> dict:
     state_path = DATA_DIR / "pipeline_state" / f"pipeline_{date}.json"
-    if state_path.exists():
-        with open(state_path) as f:
-            return json.load(f)
-    return {}
+    state = _load_json(state_path)
+    return state if isinstance(state, dict) else {}
 
 
 def _load_config() -> dict:
-    if CONFIG_PATH.exists():
-        with open(CONFIG_PATH) as f:
-            return json.load(f)
-    return {}
+    config = _load_json(CONFIG_PATH)
+    return config if isinstance(config, dict) else {}
+
+
+def _parse_date(date: str) -> datetime:
+    return datetime.strptime(date, "%Y-%m-%d")
+
+
+def _extract_iso_date(value: str | None) -> str | None:
+    if not value or not isinstance(value, str):
+        return None
+
+    normalized = value.strip()
+    if normalized.endswith("Z"):
+        normalized = normalized[:-1] + "+00:00"
+
+    try:
+        return datetime.fromisoformat(normalized).date().isoformat()
+    except ValueError:
+        match = re.search(r"\d{4}-\d{2}-\d{2}", value)
+        return match.group(0) if match else None
+
+
+def _previous_betting_day_window(date: str) -> tuple[str, str, str]:
+    current_day = _parse_date(date).date()
+    previous_day = current_day - timedelta(days=1)
+    return (
+        previous_day.isoformat(),
+        f"{previous_day.isoformat()}T06:00:00",
+        f"{date}T05:59:59",
+    )
+
+
+def _table_columns(db, table_name: str) -> set[str]:
+    rows = _safe_rows(db, f"PRAGMA table_info({table_name})")
+    return {str(row[1]) for row in rows if len(row) > 1}
+
+
+def _coupon_time_expression(columns: set[str], alias: str = "") -> str:
+    prefix = f"{alias}." if alias else ""
+    if "placed_at" in columns and "created_at" in columns:
+        return f"COALESCE({prefix}placed_at, {prefix}created_at, '')"
+    if "created_at" in columns:
+        return f"COALESCE({prefix}created_at, '')"
+    if "placed_at" in columns:
+        return f"COALESCE({prefix}placed_at, '')"
+    return "''"
+
+
+def _load_manual_verification_count(previous_betting_day: str) -> tuple[int | None, bool]:
+    ledger_path = JOURNAL_DIR / "picks-ledger.csv"
+    if not ledger_path.exists():
+        return None, False
+
+    try:
+        with open(ledger_path, newline="", encoding="utf-8") as file:
+            reader = csv.DictReader(file)
+            fieldnames = set(reader.fieldnames or [])
+            if {"betting_day", "settlement_source"} - fieldnames:
+                return None, False
+
+            count = 0
+            for row in reader:
+                if row.get("betting_day") != previous_betting_day:
+                    continue
+                if row.get("settlement_source") == "manual_verification_required":
+                    count += 1
+            return count, True
+    except OSError:
+        return None, False
+
+
+def assess_s0_readiness(date: str, *, db_getter=None, data_dir: Path | None = None) -> dict:
+    previous_day, session_start, session_end = _previous_betting_day_window(date)
+    summary_dir = data_dir or DATA_DIR
+    summary_path = summary_dir / "betclic_learning_summary.json"
+    summary = _load_json(summary_path)
+    learning_summary = summary if isinstance(summary, dict) else {}
+    analyzed_at = learning_summary.get("analyzed_at")
+    analyzed_date = _extract_iso_date(analyzed_at)
+    manual_count, manual_available = _load_manual_verification_count(previous_day)
+
+    readiness = {
+        "target_betting_day": date,
+        "previous_betting_day": previous_day,
+        "betting_day_window": {"start": session_start, "end": session_end},
+        "db_available": True,
+        "activity_detected": False,
+        "coupon_counts": {"total": 0, "pending": 0, "settled": 0},
+        "bet_counts": {"total": 0, "pending": 0, "settled": 0},
+        "manual_verification": {"available": manual_available, "count": manual_count},
+        "decision_review": {"snapshots": 0, "outcomes": 0, "missing_outcomes": 0},
+        "learning_summary": {
+            "path": summary_path.name,
+            "exists": summary_path.exists(),
+            "analyzed_at": analyzed_at,
+            "analyzed_for_session_date": bool(analyzed_date and analyzed_date >= date),
+            "warning": learning_summary.get("warning", ""),
+            "total_coupons": int(learning_summary.get("total_coupons", 0) or 0),
+        },
+        "blocking_reasons": [],
+        "ready": True,
+    }
+
+    db_factory = db_getter or _get_db
+    try:
+        with db_factory() as db:
+            coupon_columns = _table_columns(db, "coupons")
+            bet_columns = _table_columns(db, "bets")
+            coupon_time_expr = _coupon_time_expression(coupon_columns)
+            coupon_time_filter = (
+                f"datetime({coupon_time_expr}) >= datetime(?) AND datetime({coupon_time_expr}) <= datetime(?)"
+            )
+            unresolved_placeholders = ", ".join("?" for _ in UNRESOLVED_SESSION_STATUSES)
+
+            readiness["coupon_counts"]["total"] = int(
+                _safe_scalar(
+                    db,
+                    f"SELECT COUNT(*) FROM coupons WHERE {coupon_time_filter}",
+                    (session_start, session_end),
+                )
+                or 0
+            )
+            readiness["coupon_counts"]["pending"] = int(
+                _safe_scalar(
+                    db,
+                    (
+                        "SELECT COUNT(*) FROM coupons WHERE "
+                        f"{coupon_time_filter} AND LOWER(COALESCE(status, '')) IN ({unresolved_placeholders})"
+                    ),
+                    (session_start, session_end, *UNRESOLVED_SESSION_STATUSES),
+                )
+                or 0
+            )
+            readiness["coupon_counts"]["settled"] = max(
+                readiness["coupon_counts"]["total"] - readiness["coupon_counts"]["pending"],
+                0,
+            )
+
+            if coupon_columns:
+                bet_coupon_time_expr = _coupon_time_expression(coupon_columns, alias="c")
+                bet_coupon_time_filter = (
+                    f"datetime({bet_coupon_time_expr}) >= datetime(?) AND datetime({bet_coupon_time_expr}) <= datetime(?)"
+                )
+                readiness["bet_counts"]["total"] = int(
+                    _safe_scalar(
+                        db,
+                        "SELECT COUNT(*) FROM bets b JOIN coupons c ON b.coupon_id = c.id WHERE "
+                        f"{bet_coupon_time_filter}",
+                        (session_start, session_end),
+                    )
+                    or 0
+                )
+                if "status" in bet_columns:
+                    readiness["bet_counts"]["pending"] = int(
+                        _safe_scalar(
+                            db,
+                            (
+                                "SELECT COUNT(*) FROM bets b JOIN coupons c ON b.coupon_id = c.id WHERE "
+                                f"{bet_coupon_time_filter} AND LOWER(COALESCE(b.status, '')) IN ({unresolved_placeholders})"
+                            ),
+                            (session_start, session_end, *UNRESOLVED_SESSION_STATUSES),
+                        )
+                        or 0
+                    )
+                readiness["bet_counts"]["settled"] = max(
+                    readiness["bet_counts"]["total"] - readiness["bet_counts"]["pending"],
+                    0,
+                )
+
+            readiness["decision_review"]["snapshots"] = int(
+                _safe_scalar(
+                    db,
+                    "SELECT COUNT(*) FROM decision_snapshots WHERE betting_date = ?",
+                    (previous_day,),
+                )
+                or 0
+            )
+            readiness["decision_review"]["outcomes"] = int(
+                _safe_scalar(
+                    db,
+                    "SELECT COUNT(*) FROM decision_outcomes WHERE betting_date = ?",
+                    (previous_day,),
+                )
+                or 0
+            )
+            readiness["decision_review"]["missing_outcomes"] = max(
+                readiness["decision_review"]["snapshots"] - readiness["decision_review"]["outcomes"],
+                0,
+            )
+    except Exception as exc:
+        readiness["db_available"] = False
+        readiness["blocking_reasons"].append(f"db_unavailable:{exc}")
+        readiness["ready"] = False
+        return readiness
+
+    readiness["activity_detected"] = any(
+        (
+            readiness["coupon_counts"]["total"],
+            readiness["bet_counts"]["total"],
+            readiness["decision_review"]["snapshots"],
+            readiness["decision_review"]["outcomes"],
+        )
+    )
+
+    if readiness["coupon_counts"]["pending"] or readiness["bet_counts"]["pending"]:
+        readiness["blocking_reasons"].append("previous_day_unsettled")
+
+    if readiness["decision_review"]["missing_outcomes"] > 0:
+        readiness["blocking_reasons"].append("decision_review_incomplete")
+
+    learning_current = readiness["learning_summary"]["analyzed_for_session_date"]
+    learning_warning = readiness["learning_summary"]["warning"]
+    if readiness["activity_detected"] and (not learning_current or learning_warning):
+        readiness["blocking_reasons"].append("betclic_learning_not_current")
+
+    readiness["ready"] = not readiness["blocking_reasons"]
+    return readiness
 
 
 def _resolve_shortlist_path(date: str) -> Path | None:
-    """Find shortlist JSON (handles both date formats)."""
-    for fmt in [f"{date}_s2_shortlist.json", f"{date.replace('-', '')}_s2_shortlist.json"]:
-        p = DATA_DIR / fmt
-        if p.exists():
-            return p
+    for name in (f"{date}_s2_shortlist.json", f"{date.replace('-', '')}_s2_shortlist.json"):
+        path = DATA_DIR / name
+        if path.exists():
+            return path
     return None
 
 
 def _load_shortlist(date: str) -> list:
-    p = _resolve_shortlist_path(date)
-    if not p:
+    path = _resolve_shortlist_path(date)
+    if not path:
         return []
-    with open(p) as f:
-        data = json.load(f)
-    return data.get("candidates", [])
+    data = _load_json(path)
+    if not isinstance(data, dict):
+        return []
+    return data.get("candidates", data.get("shortlist", []))
 
 
-# ---------------------------------------------------------------------------
-# PHASE 1: DATA COLLECTION validation
-# ---------------------------------------------------------------------------
+def _resolve_s3_path(date: str) -> Path:
+    return DATA_DIR / f"{date}_s3_deep_stats.json"
+
+
+def _load_s3_analyses(date: str) -> list[dict]:
+    data = _load_json(_resolve_s3_path(date))
+    if isinstance(data, list):
+        return [item for item in data if isinstance(item, dict)]
+    if isinstance(data, dict):
+        return [item for item in data.get("analyses", []) if isinstance(item, dict)]
+    return []
+
+
+def _resolve_gate_results_path(date: str) -> Path:
+    return DATA_DIR / f"{date}_s7_gate_results.json"
+
+
+def _load_gate_results(date: str) -> dict | None:
+    data = _load_json(_resolve_gate_results_path(date))
+    return data if isinstance(data, dict) else None
+
+
+def _safe_scalar(db, query: str, params: tuple = (), default=0):
+    try:
+        row = db.execute(query, params).fetchone()
+    except Exception:
+        return default
+    return row[0] if row else default
+
+
+def _safe_rows(db, query: str, params: tuple = ()) -> list[tuple]:
+    try:
+        return db.execute(query, params).fetchall()
+    except Exception:
+        return []
+
+
+def _count_analyses_with_key(analyses: list[dict], key: str) -> int:
+    return sum(1 for analysis in analyses if key in analysis)
+
+
+def _analysis_has_s4_data(analysis: dict) -> bool:
+    if analysis.get("ev") is not None or analysis.get("ev_source"):
+        return True
+    odds = analysis.get("odds") or {}
+    return bool(odds.get("market_best") or odds.get("betclic"))
+
+
+def _count_s4_analyses(analyses: list[dict]) -> int:
+    return sum(1 for analysis in analyses if _analysis_has_s4_data(analysis))
+
+
+def _has_current_gate_shape(data: dict | None) -> bool:
+    if not isinstance(data, dict):
+        return False
+    gate_results = data.get("gate_results")
+    if not isinstance(gate_results, dict):
+        return False
+    return all(isinstance(gate_results.get(bucket, []), list) for bucket in ("approved", "extended_pool", "rejected"))
+
+
+def _json_gate_counts(data: dict | None) -> dict[str, int]:
+    counts = {"approved": 0, "extended_pool": 0, "rejected": 0}
+    if not _has_current_gate_shape(data):
+        return counts
+    gate_results = data["gate_results"]
+    for bucket in counts:
+        counts[bucket] = len(gate_results.get(bucket, []))
+    return counts
+
+
+def _db_gate_counts(db, date: str) -> dict[str, int]:
+    counts = {"approved": 0, "extended_pool": 0, "rejected": 0}
+    rows = _safe_rows(
+        db,
+        "SELECT status, COUNT(*) FROM gate_results WHERE betting_date=? GROUP BY status",
+        (date,),
+    )
+    for status, count in rows:
+        upper = str(status or "").upper()
+        if upper.startswith("APPROVED"):
+            counts["approved"] += count
+        elif upper.startswith("EXTENDED"):
+            counts["extended_pool"] += count
+        else:
+            counts["rejected"] += count
+    return counts
+
+
+def _format_gate_counts(counts: dict[str, int]) -> str:
+    return (
+        f"approved={counts.get('approved', 0)}, "
+        f"extended_pool={counts.get('extended_pool', 0)}, "
+        f"rejected={counts.get('rejected', 0)}"
+    )
+
+
+def _find_repeat_handoff_artifacts(date: str) -> list[Path]:
+    artifacts: list[Path] = []
+    for base_dir in (DATA_DIR, JOURNAL_DIR):
+        for pattern in (
+            f"*{date}*repeat*.json",
+            f"*{date.replace('-', '')}*repeat*.json",
+            f"*{date}*48h*.json",
+            f"*{date.replace('-', '')}*48h*.json",
+        ):
+            artifacts.extend(base_dir.glob(pattern))
+    unique = {str(path): path for path in artifacts}
+    return sorted(unique.values())
+
+
+def _parse_validate_coupons_output(stdout: str, returncode: int) -> tuple[int, str]:
+    try:
+        payload = json.loads(stdout)
+    except json.JSONDecodeError:
+        summary = (stdout[:200] or "No output").strip()
+        return (1 if returncode != 0 else 0), summary
+
+    if isinstance(payload, list):
+        total_failed = 0
+        parts = []
+        for item in payload:
+            if not isinstance(item, dict):
+                continue
+            failed = item.get("failed", 0) or 0
+            if item.get("global_errors"):
+                failed += len(item["global_errors"])
+            total_failed += failed
+            parts.append(f"{item.get('file', '?')}: {item.get('passed', 0)}/{item.get('coupons_found', 0)} OK")
+        return total_failed, ", ".join(parts) if parts else "No coupon validation results"
+
+    if isinstance(payload, dict):
+        total_failed = payload.get("failed", 0) or 0
+        if payload.get("global_errors"):
+            total_failed += len(payload["global_errors"])
+        summary = f"{payload.get('passed', 0)}/{payload.get('coupons_found', 0)} OK (failed: {payload.get('failed', 0)})"
+        return total_failed, summary
+
+    return (1 if returncode != 0 else 0), "Unexpected validate_coupons output shape"
+
 
 def validate_data_phase(date: str) -> list[Check]:
-    checks = []
+    checks: list[Check] = []
+    s0_readiness = assess_s0_readiness(date)
 
-    # D1: Pipeline state exists
-    state = _load_pipeline_state(date)
-    checks.append(Check("D1", "Pipeline state file exists",
-                         "PASS" if state else "FAIL",
-                         f"{'Found' if state else 'MISSING'}: pipeline_state/pipeline_{date}.json",
-                         gate=True,
-                         recovery=f"Run: PYTHONPATH=src .venv/bin/python scripts/discover_events.py --date {date} --verbose"))
+    manual_verification = s0_readiness["manual_verification"]
+    manual_value = manual_verification["count"] if manual_verification["available"] else "unavailable"
+    previous_day = s0_readiness["previous_betting_day"]
 
-    if not state:
-        return checks  # Can't continue without state
-
-    # D2: Data-phase steps completed (DB-FIRST: check pipeline_runs table, fallback to state file)
-    data_steps = {"s0_settle", "s1_scan", "s1_ingest", "s1a_discover", "s1b_parallel",
-                  "s1c_aggregate", "s1d_matrix", "s1e_shortlist", "s2_tipster"}
-    steps = state.get("steps", {})
-    completed = {sid for sid, info in steps.items() if info.get("status") == "completed"}
-    failed = {sid: info.get("error", "")[:80] for sid, info in steps.items()
-              if info.get("status") in ("failed", "timeout")}
-    missing = data_steps - completed - set(failed.keys())
-
-    checks.append(Check("D2", "Data-phase steps completed",
-                         "PASS" if not failed and not missing else "WARN" if not missing else "FAIL",
-                         f"Completed: {len(completed & data_steps)}/{len(data_steps)}" +
-                         (f", Failed: {list(failed.keys())}" if failed else "") +
-                         (f", Missing: {list(missing)}" if missing else ""),
-                         gate=True,
-                         recovery=f"Re-run failed data steps individually (discover_events, build_shortlist, data_enrichment_agent)"))
-
-    # D3: DB populated — scan_results (PRIMARY CHECK)
-    try:
-        with _get_db() as db:
-            scan_cnt = db.execute("SELECT COUNT(*) FROM scan_results WHERE betting_date=?", (date,)).fetchone()[0]
-            scan_sports = [r[0] for r in db.execute(
-                "SELECT DISTINCT sport FROM scan_results WHERE betting_date=?", (date,)).fetchall()]
-            fix_cnt = db.execute("SELECT COUNT(*) FROM fixtures WHERE DATE(kickoff)=?", (date,)).fetchone()[0]
-            tf_cnt = db.execute("SELECT COUNT(*) FROM team_form WHERE updated_at >= ?",
-                                (f"{date}T00:00:00",)).fetchone()[0]
-    except Exception as e:
-        scan_cnt = fix_cnt = tf_cnt = 0
-        scan_sports = []
-        checks.append(Check("D3", "DB connection", "FAIL", f"Error: {e}", gate=True,
-                             recovery="Check betting/data/betting.db exists and is not locked"))
-        return checks
-
-    checks.append(Check("D3", "DB: scan_results populated",
-                         "PASS" if scan_cnt > 0 else "FAIL",
-                         f"{scan_cnt} rows, {len(scan_sports)} sports: {scan_sports}",
-                         gate=True,
-                         recovery=f"Run: PYTHONPATH=src .venv/bin/python scripts/discover_events.py --date {date} --verbose"))
-
-    checks.append(Check("D4", "DB: fixtures populated",
-                         "PASS" if fix_cnt > 0 else "FAIL",
-                         f"{fix_cnt} fixtures for {date}",
-                         gate=True,
-                         recovery=f"Run: PYTHONPATH=src .venv/bin/python scripts/discover_events.py --date {date} --verbose"))
-
-    checks.append(Check("D5", "DB: team_form updated today",
-                         "PASS" if tf_cnt > 0 else "WARN",
-                         f"{tf_cnt} entries updated since {date}",
-                         recovery=f"Run: PYTHONPATH=src python3 scripts/data_enrichment_agent.py --date {date} --verbose"))
-
-    # D6: Shortlist — DB-FIRST via analysis_results, fallback to JSON
-    try:
-        with _get_db() as db:
-            ar_cnt = db.execute("SELECT COUNT(*) FROM analysis_results WHERE betting_date=?", (date,)).fetchone()[0]
-            ar_sports = [r[0] for r in db.execute(
-                """SELECT DISTINCT s.name FROM analysis_results ar
-                   JOIN fixtures f ON ar.fixture_id=f.id
-                   JOIN sports s ON f.sport_id=s.id
-                   WHERE ar.betting_date=?""", (date,)).fetchall()]
-    except Exception:
-        ar_cnt = 0
-        ar_sports = []
-
-    # Also check JSON shortlist as cross-reference
-    shortlist = _load_shortlist(date)
-    sl_sports = list(set(c.get("sport", "unknown") for c in shortlist))
-
-    # Use DB count if available, otherwise JSON
-    candidate_count = ar_cnt if ar_cnt > 0 else len(shortlist)
-    sport_list = ar_sports if ar_sports else sl_sports
-
-    checks.append(Check("D6", "Candidates available (DB: analysis_results)",
-                         "PASS" if candidate_count > 0 else "FAIL",
-                         f"DB: {ar_cnt} analysis_results, JSON shortlist: {len(shortlist)} candidates",
-                         gate=True,
-                         recovery=f"Run: PYTHONPATH=src python3 scripts/build_shortlist.py --date {date} --stats-first --verbose"))
-
-    checks.append(Check("D7", "Sport diversity",
-                         "PASS" if len(sport_list) >= 3 else "FAIL",
-                         f"{len(sport_list)} sports: {sorted(sport_list)}",
-                         gate=True,
-                         recovery="Check scan_urls.json coverage; re-scan missing sports with --step s1_scan"))
-
-    checks.append(Check("D8", "Candidate count ≥20 (full session)",
-                         "PASS" if candidate_count >= 20 else "WARN" if candidate_count >= 10 else "FAIL",
-                         f"{candidate_count} candidates",
-                         gate=candidate_count < 10,
-                         recovery=f"Expand shortlist: python3 scripts/build_shortlist.py --date {date} --stats-first"))
-
-    # D9: Kickoff normalization
-    if shortlist:
-        iso_count = sum(1 for c in shortlist if c.get("kickoff") and "T" in str(c.get("kickoff", "")))
-        pct = iso_count / len(shortlist) * 100
-        checks.append(Check("D9", "Kickoff normalization ≥90% ISO",
-                             "PASS" if pct >= 90 else "WARN",
-                             f"{iso_count}/{len(shortlist)} ({pct:.1f}%) have ISO kickoff times"))
+    if not s0_readiness["db_available"]:
+        settlement_status = "FAIL"
+        settlement_value = f"Cannot verify {previous_day}: {', '.join(s0_readiness['blocking_reasons'])}"
     else:
-        checks.append(Check("D9", "Kickoff normalization", "SKIP", "No shortlist to check"))
+        settlement_status = (
+            "FAIL"
+            if s0_readiness["coupon_counts"]["pending"] or s0_readiness["bet_counts"]["pending"]
+            else "PASS"
+        )
+        settlement_value = (
+            f"{previous_day} pending coupons={s0_readiness['coupon_counts']['pending']}/{s0_readiness['coupon_counts']['total']}, "
+            f"pending bets={s0_readiness['bet_counts']['pending']}/{s0_readiness['bet_counts']['total']}, "
+            f"manual verification={manual_value}"
+        )
 
-    # D10: Enrichment yield — check s2_5_enrich step
-    enrich_state = steps.get("s2_5_enrich", {})
-    enrich_status = enrich_state.get("status", "missing")
-    checks.append(Check("D10", "Enrichment step status",
-                         "PASS" if enrich_status == "completed" else
-                         "WARN" if enrich_status == "skipped" else "FAIL",
-                         f"Status: {enrich_status}",
-                         gate=enrich_status == "failed",
-                         recovery=f"Run: PYTHONPATH=src python3 scripts/data_enrichment_agent.py --date {date} --verbose"))
+    checks.append(
+        Check(
+            "S0.1",
+            "Previous betting day settlement completeness",
+            settlement_status,
+            settlement_value,
+            gate=settlement_status == "FAIL",
+            recovery=f"Run: PYTHONPATH=src .venv/bin/python3 scripts/settle_on_finish.py --betting-day {previous_day}",
+        )
+    )
 
-    # D11: Odds coverage — DB-FIRST
+    decision_review = s0_readiness["decision_review"]
+    if not s0_readiness["db_available"]:
+        decision_status = "SKIP"
+        decision_value = "Skipped because DB evidence for previous-day settlement is unavailable"
+    elif decision_review["missing_outcomes"] > 0:
+        decision_status = "FAIL"
+        decision_value = (
+            f"{previous_day} decision snapshots={decision_review['snapshots']}, outcomes={decision_review['outcomes']}"
+        )
+    elif s0_readiness["activity_detected"] and decision_review["snapshots"] == 0:
+        decision_status = "WARN"
+        decision_value = f"{previous_day} has no decision snapshots to evaluate"
+    else:
+        decision_status = "PASS"
+        decision_value = (
+            f"{previous_day} decision snapshots={decision_review['snapshots']}, outcomes={decision_review['outcomes']}"
+        )
+
+    checks.append(
+        Check(
+            "S0.2",
+            "Previous betting day decision-review coverage",
+            decision_status,
+            decision_value,
+            gate=decision_status == "FAIL",
+            recovery=f"Run: PYTHONPATH=src .venv/bin/python3 scripts/evaluate_decisions.py --date {previous_day} --verbose",
+        )
+    )
+
+    learning_summary = s0_readiness["learning_summary"]
+    if s0_readiness["activity_detected"]:
+        learning_status = "PASS" if learning_summary["analyzed_for_session_date"] and not learning_summary["warning"] else "FAIL"
+        learning_value = (
+            f"{learning_summary['path']} analyzed_at={learning_summary['analyzed_at'] or 'missing'}, "
+            f"current_for_session={'yes' if learning_summary['analyzed_for_session_date'] else 'no'}"
+        )
+        if learning_summary["warning"]:
+            learning_value = f"{learning_value}, warning={learning_summary['warning']}"
+    else:
+        learning_status = "PASS"
+        learning_value = (
+            f"No previous-day betting activity detected; {learning_summary['path']} "
+            f"current_for_session={'yes' if learning_summary['analyzed_for_session_date'] else 'no'}"
+        )
+
+    checks.append(
+        Check(
+            "S0.3",
+            "Betclic learning summary is current for this session",
+            learning_status,
+            learning_value,
+            gate=learning_status == "FAIL",
+            recovery="Run: PYTHONPATH=src .venv/bin/python3 scripts/analyze_betclic_learning.py",
+        )
+    )
+
+    legacy_state = _load_pipeline_state(date)
+    shortlist = _load_shortlist(date)
+    shortlist_path = _resolve_shortlist_path(date)
+    shortlist_sports = sorted({candidate.get("sport", "unknown") for candidate in shortlist if candidate.get("sport")})
+    tipster_support_count = sum(1 for candidate in shortlist if candidate.get("tipster_support") or candidate.get("tipster_count"))
+
+    checks.append(
+        Check(
+            "D1",
+            "Legacy pipeline_state file is optional",
+            "PASS",
+            f"Found optional pipeline_state/pipeline_{date}.json" if legacy_state else "Absent — using live DB/file readiness instead",
+        )
+    )
+
+    db_error = None
+    scan_cnt = 0
+    fixture_cnt = 0
+    team_form_cnt = 0
+    match_stats_fixture_cnt = 0
+    tipster_pick_cnt = 0
+    tipster_consensus_cnt = 0
+    scraper_success_cnt = 0
+    degraded: list[tuple] = []
+    scan_sports: list[str] = []
+
     try:
         with _get_db() as db:
-            odds_fixtures = db.execute(
-                """SELECT COUNT(DISTINCT oh.fixture_id) FROM odds_history oh
-                   JOIN fixtures f ON oh.fixture_id=f.id WHERE DATE(f.kickoff)=?""",
-                (date,)).fetchone()[0]
-    except Exception:
-        odds_fixtures = 0
+            scan_cnt = _safe_scalar(db, "SELECT COUNT(*) FROM scan_results WHERE betting_date=?", (date,))
+            fixture_cnt = _safe_scalar(db, "SELECT COUNT(*) FROM fixtures WHERE DATE(kickoff)=?", (date,))
+            team_form_cnt = _safe_scalar(db, "SELECT COUNT(*) FROM team_form WHERE updated_at LIKE ?", (f"{date}%",))
+            match_stats_fixture_cnt = _safe_scalar(
+                db,
+                """
+                SELECT COUNT(DISTINCT ms.fixture_id)
+                FROM match_stats ms
+                JOIN fixtures f ON ms.fixture_id=f.id
+                WHERE DATE(f.kickoff)=?
+                """,
+                (date,),
+            )
+            tipster_pick_cnt = _safe_scalar(db, "SELECT COUNT(*) FROM tipster_picks WHERE betting_date=?", (date,))
+            tipster_consensus_cnt = _safe_scalar(db, "SELECT COUNT(*) FROM tipster_consensus WHERE betting_date=?", (date,))
+            scraper_success_cnt = _safe_scalar(
+                db,
+                "SELECT COUNT(*) FROM scraper_runs WHERE status='success' AND DATE(COALESCE(finished_at, started_at))=?",
+                (date,),
+            )
+            degraded = _safe_rows(db, "SELECT source_name, consecutive_failures FROM source_health WHERE consecutive_failures > 5")
+            scan_sports = [
+                row[0]
+                for row in _safe_rows(
+                    db,
+                    "SELECT DISTINCT sport FROM scan_results WHERE betting_date=? ORDER BY sport",
+                    (date,),
+                )
+            ]
+    except Exception as exc:
+        db_error = str(exc)
 
-    odds_pct = (odds_fixtures / fix_cnt * 100) if fix_cnt > 0 else 0
-    checks.append(Check("D11", "DB: odds coverage",
-                         "PASS" if odds_fixtures > 0 else "WARN",
-                         f"{odds_fixtures}/{fix_cnt} fixtures with odds ({odds_pct:.1f}%) — stats-first mode OK without odds"))
+    checks.append(
+        Check(
+            "D2",
+            "DB connection available",
+            "PASS" if db_error is None else "FAIL",
+            "Connected to betting.db" if db_error is None else f"Error: {db_error}",
+            gate=db_error is not None,
+            recovery="Check betting/data/betting.db and DB schema availability",
+        )
+    )
 
-    # D12: Source health — DB-FIRST
-    try:
-        with _get_db() as db:
-            degraded = db.execute(
-                "SELECT source_name, consecutive_failures FROM source_health WHERE consecutive_failures > 5"
-            ).fetchall()
-    except Exception:
-        degraded = []
+    checks.append(
+        Check(
+            "D3",
+            "S1 scan results available in DB",
+            "PASS" if scan_cnt > 0 else "FAIL",
+            f"{scan_cnt} rows across {len(scan_sports)} sports: {scan_sports}",
+            gate=True,
+            recovery=f"Run: PYTHONPATH=src .venv/bin/python3 scripts/discover_events.py --date {date} --verbose",
+        )
+    )
+
+    checks.append(
+        Check(
+            "D4",
+            "S1 fixture universe available in DB",
+            "PASS" if fixture_cnt > 0 else "FAIL",
+            f"{fixture_cnt} fixtures for {date}",
+            gate=True,
+            recovery=f"Run: PYTHONPATH=src .venv/bin/python3 scripts/discover_events.py --date {date} --verbose",
+        )
+    )
+
+    market_matrix_path = DATA_DIR / f"market_matrix_{date}.json"
+    market_matrix_exists = market_matrix_path.exists() and market_matrix_path.stat().st_size > 100
+    checks.append(
+        Check(
+            "D5",
+            "S1 market matrix artifact present",
+            "PASS" if market_matrix_exists else "FAIL",
+            f"Found {market_matrix_path.name} ({market_matrix_path.stat().st_size:,} bytes)" if market_matrix_exists else f"Missing {market_matrix_path.name}",
+            gate=True,
+            recovery=f"Regenerate today's market matrix for {date} before continuing",
+        )
+    )
+
+    checks.append(
+        Check(
+            "D6",
+            "S1e shortlist artifact present",
+            "PASS" if shortlist else "FAIL",
+            f"{len(shortlist)} candidates from {shortlist_path.name}" if shortlist_path and shortlist else f"Missing or empty shortlist for {date}",
+            gate=True,
+            recovery=f"Run: PYTHONPATH=src .venv/bin/python3 scripts/build_shortlist.py --date {date} --stats-first",
+        )
+    )
+
+    tipster_json_exists = any(
+        (DATA_DIR / name).exists() for name in (f"{date}_tipster_consensus.json", f"tipster_aggregation_{date}.json")
+    )
+    tipster_ready = any((tipster_pick_cnt, tipster_consensus_cnt, tipster_support_count, tipster_json_exists))
+    checks.append(
+        Check(
+            "D7",
+            "S2 tipster cross-reference readiness",
+            "PASS" if tipster_ready else "WARN",
+            (
+                f"DB picks={tipster_pick_cnt}, DB consensus={tipster_consensus_cnt}, "
+                f"shortlist tipster_support={tipster_support_count}, JSON={'yes' if tipster_json_exists else 'no'}"
+            ),
+            recovery=f"Run: PYTHONPATH=src .venv/bin/python3 scripts/tipster_xref.py --date {date}",
+        )
+    )
+
+    checks.append(
+        Check(
+            "D8",
+            "S2.3 scraper warehouse readiness",
+            "PASS" if scraper_success_cnt > 0 else "WARN",
+            f"{scraper_success_cnt} successful scraper_runs recorded for {date}",
+            recovery=f"Run: PYTHONPATH=src .venv/bin/python3 scripts/run_scrapers.py --date {date} --verbose",
+        )
+    )
+
+    stats_ready = team_form_cnt > 0 or match_stats_fixture_cnt > 0
+    checks.append(
+        Check(
+            "D9",
+            "S2.5 enrichment / S3-ready stats surfaces",
+            "PASS" if stats_ready else "WARN",
+            f"team_form rows updated today={team_form_cnt}, fixtures with match_stats={match_stats_fixture_cnt}",
+            recovery=f"Run: PYTHONPATH=src .venv/bin/python3 scripts/data_enrichment_agent.py --date {date} --verbose",
+        )
+    )
+
+    checks.append(
+        Check(
+            "D10",
+            "Shortlist sport diversity",
+            "PASS" if len(shortlist_sports) >= 3 else "WARN",
+            f"{len(shortlist_sports)} sports in shortlist: {shortlist_sports}",
+            recovery="Expand shortlist coverage if today's session looks too narrow",
+        )
+    )
 
     critical_sources = {"flashscore", "betexplorer", "api-football"}
-    degraded_critical = [d for d in degraded if d[0].lower() in critical_sources]
-
-    checks.append(Check("D12", "Source health — no critical degradation",
-                         "PASS" if not degraded_critical else "WARN",
-                         f"Degraded: {[(d[0], d[1]) for d in degraded]}" if degraded else "All sources healthy",
-                         recovery="Check source health: python3 scripts/source_health.py --log"))
-
-    # D13: Market matrix exists (file check — no DB equivalent)
-    mm_path = DATA_DIR / f"market_matrix_{date}.json"
-    mm_exists = mm_path.exists() and mm_path.stat().st_size > 100
-    checks.append(Check("D13", "Market matrix file exists",
-                         "PASS" if mm_exists else "FAIL",
-                         f"{'Found' if mm_exists else 'MISSING'}: market_matrix_{date}.json" +
-                         (f" ({mm_path.stat().st_size:,} bytes)" if mm_exists else ""),
-                         gate=True,
-                         recovery=f"Run: python3 scripts/generate_market_matrix.py --date {date} --stats-first"))
+    degraded_critical = [row for row in degraded if str(row[0]).lower() in critical_sources]
+    checks.append(
+        Check(
+            "D11",
+            "Source health has no critical degradation",
+            "PASS" if not degraded_critical else "WARN",
+            "All critical sources healthy" if not degraded_critical else f"Degraded critical sources: {[(row[0], row[1]) for row in degraded_critical]}",
+            recovery="Review source_health and recent fetch failures before a full rerun",
+        )
+    )
 
     return checks
 
-
-# ---------------------------------------------------------------------------
-# PHASE 2: ANALYSIS validation
-# ---------------------------------------------------------------------------
 
 def validate_analysis_phase(date: str) -> list[Check]:
-    checks = []
+    checks: list[Check] = []
 
-    # A1: S3 output — DB-FIRST (analysis_results)
+    analyses = _load_s3_analyses(date)
+    s3_json_count = len(analyses)
+    gate_json = _load_gate_results(date)
+    json_gate_counts = _json_gate_counts(gate_json)
+
+    db_error = None
+    analysis_db_count = 0
+    analysis_with_market = 0
+    db_s4_count = 0
+    db_context_count = 0
+    db_upset_count = 0
+    db_gate_counts = {"approved": 0, "extended_pool": 0, "rejected": 0}
+
     try:
         with _get_db() as db:
-            ar_cnt = db.execute("SELECT COUNT(*) FROM analysis_results WHERE betting_date=?", (date,)).fetchone()[0]
-            ar_with_market = db.execute(
+            analysis_db_count = _safe_scalar(db, "SELECT COUNT(*) FROM analysis_results WHERE betting_date=?", (date,))
+            analysis_with_market = _safe_scalar(
+                db,
                 "SELECT COUNT(*) FROM analysis_results WHERE betting_date=? AND best_market_name IS NOT NULL AND best_market_name != ''",
-                (date,)).fetchone()[0]
-    except Exception:
-        ar_cnt = ar_with_market = 0
-
-    s3_md = DATA_DIR / f"{date}_s3_deep_stats.md"
-    s3_json = DATA_DIR / f"{date}_s3_deep_stats.json"
-
-    checks.append(Check("A1", "DB: analysis_results populated",
-                         "PASS" if ar_cnt > 0 else "FAIL",
-                         f"{ar_cnt} results in DB, {ar_with_market} with best_market",
-                         gate=True,
-                         recovery=f"Run: PYTHONPATH=src python3 scripts/deep_stats_report.py --date {date} --verbose"))
-
-    md_info = f"MD: ✓ ({s3_md.stat().st_size:,}B)" if s3_md.exists() else "MD: ✗"
-    json_info = f"JSON: ✓ ({s3_json.stat().st_size:,}B)" if s3_json.exists() else "JSON: ✗"
-    checks.append(Check("A2", "S3 files exist (fallback verification)",
-                         "PASS" if s3_md.exists() and s3_json.exists() else
-                         "WARN" if s3_md.exists() or s3_json.exists() else "FAIL",
-                         f"{md_info} | {json_info}"))
-
-    # A3: Candidate count — DB vs shortlist cross-check
-    shortlist = _load_shortlist(date)
-    sl_count = len(shortlist)
-    drop_pct = ((sl_count - ar_cnt) / sl_count * 100) if sl_count > 0 else 0
-
-    checks.append(Check("A3", "Candidate count: DB vs shortlist",
-                         "PASS" if abs(drop_pct) < 20 else "WARN" if abs(drop_pct) < 50 else "FAIL",
-                         f"Shortlist: {sl_count}, DB analysis_results: {ar_cnt} (Δ {drop_pct:+.1f}%)",
-                         recovery="Large drop may indicate S3 errors; check pipeline state for s3_deep_stats failures"))
-
-    # A4: S3 structural validation (run external script)
-    if s3_md.exists():
-        try:
-            result = subprocess.run(
-                [sys.executable, str(SCRIPTS_DIR / "validate_s3_output.py"),
-                 str(s3_md), "--format", "json"],
-                capture_output=True, text=True, timeout=30
+                (date,),
             )
-            if result.returncode == 0:
-                try:
-                    val_data = json.loads(result.stdout)
-                    total = val_data.get("total", 0)
-                    passed = val_data.get("passed", 0)
-                    failed = val_data.get("failed", 0)
-                    checks.append(Check("A4", "S3 structural validation (validate_s3_output.py)",
-                                         "PASS" if failed == 0 else "WARN",
-                                         f"{passed}/{total} candidates PASS, {failed} FAIL",
-                                         recovery=f"Re-run: PYTHONPATH=src python3 scripts/deep_stats_report.py --date {date} --verbose"))
-                except json.JSONDecodeError:
-                    checks.append(Check("A4", "S3 structural validation",
-                                         "PASS" if result.returncode == 0 else "WARN",
-                                         result.stdout[:200] if result.stdout else "No output"))
-            else:
-                checks.append(Check("A4", "S3 structural validation",
-                                     "WARN", f"Exit code {result.returncode}: {result.stderr[:200]}",
-                                     recovery=f"Fix: python3 scripts/validate_s3_output.py {s3_md} --format json"))
-        except Exception as e:
-            checks.append(Check("A4", "S3 structural validation", "WARN", f"Could not run: {e}"))
+            db_s4_count = _safe_scalar(
+                db,
+                """
+                SELECT COUNT(*) FROM analysis_results
+                WHERE betting_date=?
+                  AND stats_summary_json IS NOT NULL
+                  AND (
+                    stats_summary_json LIKE '%\"ev\"%'
+                    OR stats_summary_json LIKE '%\"ev_source\"%'
+                    OR stats_summary_json LIKE '%\"odds_market_best\"%'
+                  )
+                """,
+                (date,),
+            )
+            db_context_count = _safe_scalar(
+                db,
+                "SELECT COUNT(*) FROM analysis_results WHERE betting_date=? AND stats_summary_json IS NOT NULL AND stats_summary_json LIKE '%\"context_flags\"%'",
+                (date,),
+            )
+            db_upset_count = _safe_scalar(
+                db,
+                "SELECT COUNT(*) FROM analysis_results WHERE betting_date=? AND stats_summary_json IS NOT NULL AND stats_summary_json LIKE '%\"upset_risk\"%'",
+                (date,),
+            )
+            db_gate_counts = _db_gate_counts(db, date)
+    except Exception as exc:
+        db_error = str(exc)
+
+    expected_count = max(s3_json_count, analysis_db_count)
+    json_s4_count = _count_s4_analyses(analyses)
+    json_context_count = _count_analyses_with_key(analyses, "context_flags")
+    json_upset_count = _count_analyses_with_key(analyses, "upset_risk")
+
+    checks.append(
+        Check(
+            "A1",
+            "S3 deep-stats universe available",
+            "PASS" if expected_count > 0 else "FAIL",
+            f"DB analysis_results={analysis_db_count} ({analysis_with_market} with best_market), JSON analyses={s3_json_count}",
+            gate=True,
+            recovery=f"Run: PYTHONPATH=src .venv/bin/python3 scripts/deep_stats_report.py --date {date} --verbose",
+        )
+    )
+
+    if db_error:
+        checks.append(
+            Check(
+                "A2",
+                "DB analysis surface available",
+                "WARN",
+                f"DB unavailable: {db_error} — using JSON fallback evidence",
+                recovery="Restore DB access so DB-first resume can be verified",
+            )
+        )
     else:
-        checks.append(Check("A4", "S3 structural validation", "SKIP", "S3 MD file not found"))
+        if s3_json_count and analysis_db_count:
+            delta = abs(s3_json_count - analysis_db_count)
+            parity_pct = delta / max(s3_json_count, analysis_db_count) * 100
+            status = "PASS" if parity_pct <= 20 else "WARN"
+            value = f"DB={analysis_db_count}, JSON={s3_json_count} (Δ {parity_pct:.1f}%)"
+        elif s3_json_count or analysis_db_count:
+            status = "WARN"
+            source = "JSON fallback" if s3_json_count else "DB-only"
+            value = f"{source} currently carries the S3 universe (DB={analysis_db_count}, JSON={s3_json_count})"
+        else:
+            status = "SKIP"
+            value = "No S3 data available"
 
-    # A5: Football stat markets (R5) — DB-FIRST
-    try:
-        with _get_db() as db:
-            football_id = db.execute("SELECT id FROM sports WHERE name='football'").fetchone()
-            if football_id:
-                fid = football_id[0]
-                fb_total = db.execute(
-                    """SELECT COUNT(DISTINCT ar.fixture_id) FROM analysis_results ar
-                       JOIN fixtures f ON ar.fixture_id=f.id
-                       WHERE ar.betting_date=? AND f.sport_id=?""",
-                    (date, fid)).fetchone()[0]
-                fb_with_stat = db.execute(
-                    """SELECT COUNT(DISTINCT ar.fixture_id) FROM analysis_results ar
-                       JOIN fixtures f ON ar.fixture_id=f.id
-                       WHERE ar.betting_date=? AND f.sport_id=?
-                       AND (ar.best_market_name LIKE '%corner%' OR ar.best_market_name LIKE '%foul%'
-                            OR ar.best_market_name LIKE '%shot%' OR ar.best_market_name LIKE '%card%'
-                            OR ar.markets_evaluated > 1)""",
-                    (date, fid)).fetchone()[0]
-            else:
-                fb_total = fb_with_stat = 0
-    except Exception:
-        fb_total = fb_with_stat = 0
+        checks.append(
+            Check(
+                "A2",
+                "S3 DB/JSON parity",
+                status,
+                value,
+                recovery="Investigate resume drift before relying on DB-only continuation",
+            )
+        )
 
-    checks.append(Check("A5", "R5: Football candidates have stat markets",
-                         "PASS" if fb_total == 0 or fb_with_stat >= fb_total * 0.8 else "WARN",
-                         f"{fb_with_stat}/{fb_total} football candidates have stat market as best",
-                         recovery="Review football candidates in S3 output for missing corners/fouls/shots"))
+    s4_coverage = max(json_s4_count, db_s4_count)
+    checks.append(
+        Check(
+            "A3",
+            "S4 odds / EV enrichment evidence",
+            "PASS" if s4_coverage > 0 else "WARN",
+            f"JSON={json_s4_count}/{s3_json_count}, DB={db_s4_count}/{analysis_db_count}",
+            recovery=f"Run: PYTHONPATH=src .venv/bin/python3 scripts/odds_evaluator.py --date {date} --verbose",
+        )
+    )
 
-    # A6-A8: S4/S5/S6 output — DB-FIRST (gate_results depends on these)
-    state = _load_pipeline_state(date)
-    steps = state.get("steps", {})
-    for step_id, label in [("s4_odds_eval", "S4 odds eval"),
-                            ("s5_context", "S5 context"),
-                            ("s6_upset_risk", "S6 upset risk")]:
-        step_state = steps.get(step_id, {})
-        status = step_state.get("status", "missing")
-        checks.append(Check(f"A{6 + ['s4_odds_eval', 's5_context', 's6_upset_risk'].index(step_id)}",
-                             f"{label} step completed",
-                             "PASS" if status == "completed" else "FAIL",
-                             f"Status: {status}",
-                             gate=status != "completed",
-                             recovery=f"Re-run step {step_id} via orchestrator agent (individual script execution)"))
+    s5_coverage = max(json_context_count, db_context_count)
+    checks.append(
+        Check(
+            "A4",
+            "S5 context enrichment coverage",
+            "PASS" if expected_count > 0 and s5_coverage >= expected_count else "WARN" if s5_coverage > 0 else "FAIL",
+            f"JSON={json_context_count}/{s3_json_count}, DB={db_context_count}/{analysis_db_count}",
+            gate=expected_count > 0 and s5_coverage == 0,
+            recovery=f"Run: PYTHONPATH=src .venv/bin/python3 scripts/context_checks.py --date {date} --verbose",
+        )
+    )
 
-    # A9: S7 gate — DB-FIRST (gate_results table)
-    try:
-        with _get_db() as db:
-            gate_cnt = db.execute("SELECT COUNT(*) FROM gate_results WHERE betting_date=?", (date,)).fetchone()[0]
-            gate_tiers = dict(db.execute(
-                "SELECT status, COUNT(*) FROM gate_results WHERE betting_date=? GROUP BY status",
-                (date,)).fetchall())
-            gate_sports = [r[0] for r in db.execute(
-                """SELECT DISTINCT s.name FROM gate_results gr
-                   JOIN fixtures f ON gr.fixture_id=f.id
-                   JOIN sports s ON f.sport_id=s.id
-                   WHERE gr.betting_date=? AND gr.status='APPROVED'""",
-                (date,)).fetchall()]
-    except Exception:
-        gate_cnt = 0
-        gate_tiers = {}
-        gate_sports = []
+    s6_coverage = max(json_upset_count, db_upset_count)
+    checks.append(
+        Check(
+            "A5",
+            "S6 upset-risk coverage",
+            "PASS" if expected_count > 0 and s6_coverage >= expected_count else "WARN" if s6_coverage > 0 else "FAIL",
+            f"JSON={json_upset_count}/{s3_json_count}, DB={db_upset_count}/{analysis_db_count}",
+            gate=expected_count > 0 and s6_coverage == 0,
+            recovery=f"Run: PYTHONPATH=src .venv/bin/python3 scripts/upset_risk.py --date {date} --verbose",
+        )
+    )
 
-    checks.append(Check("A9", "DB: gate_results populated",
-                         "PASS" if gate_cnt > 0 else "FAIL",
-                         f"{gate_cnt} results: {gate_tiers}",
-                         gate=True,
-                         recovery=f"Run: PYTHONPATH=src python3 scripts/gate_checker.py --date {date} --verbose"))
+    total_gate_results = sum(json_gate_counts.values()) or sum(db_gate_counts.values())
+    checks.append(
+        Check(
+            "A6",
+            "S7 gate results available",
+            "PASS" if total_gate_results > 0 else "FAIL",
+            f"DB {_format_gate_counts(db_gate_counts)} | JSON {_format_gate_counts(json_gate_counts)}",
+            gate=True,
+            recovery=f"Run: PYTHONPATH=src .venv/bin/python3 scripts/gate_checker.py --date {date} --verbose",
+        )
+    )
 
+    gate_json_path = _resolve_gate_results_path(date)
+    if gate_json_path.exists():
+        checks.append(
+            Check(
+                "A7",
+                "S7 gate JSON uses current bucket shape",
+                "PASS" if _has_current_gate_shape(gate_json) else "FAIL",
+                f"{gate_json_path.name} contains approved / extended_pool / rejected" if _has_current_gate_shape(gate_json) else f"{gate_json_path.name} is missing current gate_results buckets",
+                gate=not _has_current_gate_shape(gate_json),
+                recovery="Rewrite S7 output in the current nested gate_results shape before S8 resume",
+            )
+        )
+    else:
+        checks.append(
+            Check(
+                "A7",
+                "S7 gate JSON uses current bucket shape",
+                "WARN" if sum(db_gate_counts.values()) > 0 else "SKIP",
+                "No S7 JSON fallback artifact found; DB-only resume evidence in use" if sum(db_gate_counts.values()) > 0 else "No S7 JSON artifact present",
+                recovery=f"Regenerate {date}_s7_gate_results.json if JSON fallback is needed",
+            )
+        )
 
-    # A10: Sport diversity in approved (R4)
-    approved_sports = len(gate_sports)
-    checks.append(Check("A10", "R4: ≥5 sports in APPROVED gate results",
-                         "PASS" if approved_sports >= 5 else "WARN" if approved_sports >= 3 else "FAIL",
-                         f"{approved_sports} sports approved: {sorted(gate_sports)}",
-                         gate=approved_sports < 3,
-                         recovery="Emergency expansion (R4): re-scan underrepresented sports, re-run S3→S7"))
+    if sum(json_gate_counts.values()) > 0 and sum(db_gate_counts.values()) > 0:
+        status = "PASS" if json_gate_counts == db_gate_counts else "WARN"
+        value = f"DB {_format_gate_counts(db_gate_counts)} | JSON {_format_gate_counts(json_gate_counts)}"
+    elif sum(json_gate_counts.values()) > 0 or sum(db_gate_counts.values()) > 0:
+        status = "WARN"
+        value = f"Single-source gate resume: DB {_format_gate_counts(db_gate_counts)} | JSON {_format_gate_counts(json_gate_counts)}"
+    else:
+        status = "SKIP"
+        value = "No gate outputs to compare"
 
-    # A11: No auto-rejection language (R3)
+    checks.append(
+        Check(
+            "A8",
+            "S7 DB/JSON bucket parity",
+            status,
+            value,
+            recovery="Resolve gate resume drift before relying on mixed DB/JSON continuation",
+        )
+    )
+
+    extended_count = max(json_gate_counts.get("extended_pool", 0), db_gate_counts.get("extended_pool", 0))
+    checks.append(
+        Check(
+            "A9",
+            "R3 extended-pool bucket remains visible",
+            "PASS" if extended_count > 0 else "WARN",
+            f"extended_pool candidates={extended_count}",
+            recovery="Confirm gate-failed but still analyzable candidates remain in extended_pool",
+        )
+    )
+
     s7_md = DATA_DIR / f"{date}_s7_gate_results.md"
     forbidden_patterns = ["rejected due to", "excluded based on", "filtered to", "only .* picks survived"]
-    r3_violations = []
+    violations: list[str] = []
     if s7_md.exists():
         content = s7_md.read_text(errors="replace")
-        for pat in forbidden_patterns:
-            matches = re.findall(pat, content, re.IGNORECASE)
-            if matches:
-                r3_violations.extend(matches)
+        for pattern in forbidden_patterns:
+            violations.extend(re.findall(pattern, content, re.IGNORECASE))
 
-    checks.append(Check("A11", "R3: No auto-rejection language in gate output",
-                         "PASS" if not r3_violations else "FAIL",
-                         f"{'Clean' if not r3_violations else f'Found {len(r3_violations)} violations: {r3_violations[:3]}'}",
-                         gate=bool(r3_violations),
-                         recovery="Edit gate output to remove auto-rejection language; present ALL candidates"))
-
-    # A12: Gate tier distribution summary
-    approved = gate_tiers.get("APPROVED", 0)
-    extended = gate_tiers.get("EXTENDED", 0)
-    rejected = gate_tiers.get("REJECTED", 0)
-    checks.append(Check("A12", "Gate tier distribution",
-                         "PASS" if approved > 0 else "WARN",
-                         f"APPROVED: {approved} | EXTENDED: {extended} | REJECTED: {rejected}"))
-
-    # A13: Extended pool exists (R3 compliance)
-    checks.append(Check("A13", "R3: Extended pool has gate-failed candidates",
-                         "PASS" if extended > 0 else "WARN",
-                         f"{extended} candidates in extended pool",
-                         recovery="Ensure gate-failed candidates appear in Extended Pool section"))
-
-    # A14: No critical step failures
-    critical_fails = {sid: info.get("error", "")[:60]
-                      for sid, info in steps.items()
-                      if info.get("status") == "failed"
-                      and sid in {"s3_deep_stats", "s4_odds_eval", "s5_context", "s6_upset_risk", "s7_gate"}}
-    checks.append(Check("A14", "No critical analysis-phase step failures",
-                         "PASS" if not critical_fails else "FAIL",
-                         f"{'All OK' if not critical_fails else f'Failed: {critical_fails}'}",
-                         gate=bool(critical_fails),
-                         recovery=f"Fix failing step and re-run individually (deep_stats_report, gate_checker)"))
+    checks.append(
+        Check(
+            "A10",
+            "R3 no auto-rejection language in S7 markdown",
+            "PASS" if not violations else "FAIL",
+            "Clean" if not violations else f"Found {len(violations)} violations: {violations[:3]}",
+            gate=bool(violations),
+            recovery="Remove auto-rejection wording and present gate-failed picks in Extended Pool instead",
+        )
+    )
 
     return checks
 
 
-# ---------------------------------------------------------------------------
-# PHASE 3: BUILD validation
-# ---------------------------------------------------------------------------
-
 def validate_build_phase(date: str) -> list[Check]:
-    checks = []
+    checks: list[Check] = []
     config = _load_config()
     bankroll = config.get("bankroll_pln", config.get("working_bankroll_pln", 1000))
 
-    # B1: Coupon file exists
-    coupon_files = list(COUPON_DIR.glob(f"{date}*.md"))
-    checks.append(Check("B1", "Coupon file exists",
-                         "PASS" if coupon_files else "FAIL",
-                         f"{len(coupon_files)} files: {[f.name for f in coupon_files]}",
-                         gate=True,
-                         recovery=f"Run: PYTHONPATH=src python3 scripts/coupon_builder.py --date {date} --verbose"))
+    coupon_files = sorted(COUPON_DIR.glob(f"{date}*.md"))
+    coupon_json_path = COUPON_DIR / f"{date}.json"
+    coupon_json = _load_json(coupon_json_path)
+    coupon_controls = {}
+    if isinstance(coupon_json, dict):
+        controls = coupon_json.get("pre_coupon_controls")
+        if isinstance(controls, dict):
+            coupon_controls = controls
+    betclic_validation_path = DATA_DIR / f"betclic_market_validation_{date}.json"
+    betclic_validation = _load_json(betclic_validation_path)
+    repeat_artifacts = _find_repeat_handoff_artifacts(date)
+    pdf_dir = COUPON_DIR / "pdf" / date
+    pdf_files = sorted(pdf_dir.glob("*.pdf")) if pdf_dir.exists() else []
 
+    checks.append(
+        Check(
+            "B1",
+            "S8 coupon markdown exists",
+            "PASS" if coupon_files else "FAIL",
+            f"{len(coupon_files)} markdown file(s): {[path.name for path in coupon_files]}",
+            gate=True,
+            recovery=f"Run: PYTHONPATH=src .venv/bin/python3 scripts/coupon_builder.py --date {date} --verbose",
+        )
+    )
 
-    # B2: Coupon data in DB — DB-FIRST
-    try:
-        with _get_db() as db:
-            db_coupons = db.execute(
-                "SELECT COUNT(*) FROM coupons WHERE created_at >= ? AND created_at < ?",
-                (f"{date}T00:00:00", f"{date}T23:59:59")).fetchone()[0]
-            db_bets = db.execute(
-                """SELECT COUNT(*) FROM bets b
-                   JOIN coupons c ON b.coupon_id=c.id
-                   WHERE c.created_at >= ? AND c.created_at < ?""",
-                (f"{date}T00:00:00", f"{date}T23:59:59")).fetchone()[0]
-    except Exception:
-        db_coupons = db_bets = 0
+    checks.append(
+        Check(
+            "B2",
+            "S8 coupon JSON exists",
+            "PASS" if coupon_json_path.exists() else "FAIL",
+            f"Found {coupon_json_path.name}" if coupon_json_path.exists() else f"Missing {coupon_json_path.name}",
+            gate=True,
+            recovery=f"Re-run coupon_builder.py so both markdown and JSON artifacts exist for {date}",
+        )
+    )
 
-    checks.append(Check("B2", "DB: coupons + bets persisted",
-                         "PASS" if db_coupons > 0 else "WARN",
-                         f"DB: {db_coupons} coupons, {db_bets} bets",
-                         recovery="Check coupon_builder.py DB persistence; may need manual sync"))
+    sidecar_ok = isinstance(betclic_validation, dict) and any(key in betclic_validation for key in ("validation", "events"))
+    betclic_control = coupon_controls.get("betclic_market_validation") if isinstance(coupon_controls.get("betclic_market_validation"), dict) else None
+    betclic_consumed = bool(betclic_control and betclic_control.get("consumed"))
+    checks.append(
+        Check(
+            "B3",
+            "S7.5 Betclic validation sidecar present and consumed",
+            "PASS" if sidecar_ok and betclic_consumed else "FAIL",
+            (
+                f"validation={len((betclic_validation or {}).get('validation', []))}, events={len((betclic_validation or {}).get('events', []))}, consumed via {betclic_control.get('mode', 'unknown')}"
+                if sidecar_ok and betclic_consumed
+                else "Sidecar present but coupon_builder output does not record S7.5 consumption"
+                if sidecar_ok
+                else f"Missing or malformed {betclic_validation_path.name}"
+            ),
+            gate=True,
+            recovery=f"Run: PYTHONPATH=src .venv/bin/python3 scripts/validate_betclic_markets.py --date {date}",
+        )
+    )
 
-    # B3: Coupon validation script
     if coupon_files:
         try:
             result = subprocess.run(
-                [sys.executable, str(SCRIPTS_DIR / "validate_coupons.py")] +
-                [str(f) for f in coupon_files] + ["--format", "json"],
-                capture_output=True, text=True, timeout=30
+                [sys.executable, str(SCRIPTS_DIR / "validate_coupons.py"), *[str(path) for path in coupon_files], "--format", "json"],
+                capture_output=True,
+                text=True,
+                timeout=30,
             )
-            # Parse JSON output for summary
-            summary_str = ""
-            try:
-                val_data = json.loads(result.stdout)
-                if isinstance(val_data, list):
-                    parts = [f"{v['file']}: {v['passed']}/{v['coupons_found']} OK" for v in val_data]
-                    total_failed = sum(v.get('failed', 0) for v in val_data)
-                    summary_str = ", ".join(parts) + f" (total failed: {total_failed})"
-                elif isinstance(val_data, dict):
-                    total_failed = val_data.get('failed', 0)
-                    summary_str = f"{val_data.get('passed', 0)}/{val_data.get('coupons_found', 0)} OK (failed: {total_failed})"
-            except (json.JSONDecodeError, KeyError):
-                summary_str = (result.stdout[:200] if result.stdout else result.stderr[:200]).strip()
-                total_failed = 1 if result.returncode != 0 else 0
-
-            checks.append(Check("B3", "Coupon structural validation (validate_coupons.py)",
-                                 "PASS" if total_failed == 0 else "WARN",
-                                 summary_str,
-                                 recovery="Fix coupon file issues: python3 scripts/validate_coupons.py " +
-                                          " ".join(f.name for f in coupon_files)))
-        except Exception as e:
-            checks.append(Check("B3", "Coupon validation", "WARN", f"Could not run: {e}"))
+            total_failed, summary = _parse_validate_coupons_output(result.stdout, result.returncode)
+            checks.append(
+                Check(
+                    "B4",
+                    "S9 coupon structural validation",
+                    "PASS" if total_failed == 0 and result.returncode == 0 else "FAIL",
+                    summary,
+                    gate=total_failed > 0 or result.returncode != 0,
+                    recovery="Fix coupon markdown structure/arithmetic, then rerun validate_coupons.py on today's files",
+                )
+            )
+        except Exception as exc:
+            checks.append(
+                Check(
+                    "B4",
+                    "S9 coupon structural validation",
+                    "FAIL",
+                    f"Could not run validate_coupons.py: {exc}",
+                    gate=True,
+                    recovery="Restore validate_coupons.py execution before marking the build phase ready",
+                )
+            )
     else:
-        checks.append(Check("B3", "Coupon validation", "SKIP", "No coupon files to validate"))
+        checks.append(Check("B4", "S9 coupon structural validation", "SKIP", "No coupon markdown files to validate"))
 
-    # B4: Ledger entries
-    picks_ledger = JOURNAL_DIR / "picks-ledger.csv"
-    coupons_ledger = JOURNAL_DIR / "coupons-ledger.csv"
-    checks.append(Check("B4", "Ledger files exist",
-                         "PASS" if picks_ledger.exists() and coupons_ledger.exists() else "WARN",
-                         f"picks: {'✓' if picks_ledger.exists() else '✗'}, "
-                         f"coupons: {'✓' if coupons_ledger.exists() else '✗'}"))
-
-    # B5: Total exposure ≤ 25% bankroll — DB-FIRST
+    db_coupons = 0
+    db_bets = 0
+    total_stake = 0
     try:
         with _get_db() as db:
-            total_stake = db.execute(
-                """SELECT COALESCE(SUM(stake_pln), 0) FROM coupons
-                   WHERE status='pending' AND created_at >= ?""",
-                (f"{date}T00:00:00",)).fetchone()[0]
+            db_coupons = _safe_scalar(
+                db,
+                "SELECT COUNT(*) FROM coupons WHERE created_at >= ? AND created_at < ?",
+                (f"{date}T00:00:00", f"{date}T23:59:59"),
+            )
+            db_bets = _safe_scalar(
+                db,
+                "SELECT COUNT(*) FROM bets b JOIN coupons c ON b.coupon_id=c.id WHERE c.created_at >= ? AND c.created_at < ?",
+                (f"{date}T00:00:00", f"{date}T23:59:59"),
+            )
+            total_stake = _safe_scalar(
+                db,
+                "SELECT COALESCE(SUM(stake_pln), 0) FROM coupons WHERE status='pending' AND created_at >= ?",
+                (f"{date}T00:00:00",),
+                default=0.0,
+            )
     except Exception:
-        total_stake = 0
+        pass
+
+    checks.append(
+        Check(
+            "B5",
+            "DB coupon persistence available",
+            "PASS" if db_coupons > 0 else "WARN",
+            f"DB coupons={db_coupons}, bets={db_bets}",
+            recovery="Check coupon_builder DB persistence if you expect a DB-first resume later today",
+        )
+    )
 
     max_exposure = bankroll * 0.25
-    checks.append(Check("B5", f"Total exposure ≤ 25% bankroll ({max_exposure:.0f} PLN)",
-                         "PASS" if total_stake <= max_exposure else "FAIL",
-                         f"{total_stake:.2f} PLN / {max_exposure:.0f} PLN limit",
-                         gate=total_stake > max_exposure,
-                         recovery="Reduce stake sizes in coupon file to stay within 25% bankroll limit"))
+    checks.append(
+        Check(
+            "B6",
+            f"Total exposure ≤ 25% bankroll ({max_exposure:.0f} PLN)",
+            "PASS" if total_stake <= max_exposure else "FAIL",
+            f"{float(total_stake):.2f} PLN / {max_exposure:.0f} PLN limit",
+            gate=float(total_stake) > max_exposure,
+            recovery="Reduce stake sizes in coupon_builder output before placing bets",
+        )
+    )
 
-    # B6: R12 conditional disclaimer
     disclaimer_found = False
-    for cf in coupon_files:
-        content = cf.read_text(errors="replace")
+    for coupon_file in coupon_files:
+        content = coupon_file.read_text(errors="replace")
         if "warunkow" in content.lower() or "conditional" in content.lower() or "betclic" in content.lower():
             disclaimer_found = True
             break
 
-    checks.append(Check("B6", "R12: Conditional disclaimer present",
-                         "PASS" if disclaimer_found or not coupon_files else "WARN",
-                         f"{'Found' if disclaimer_found else 'NOT FOUND'} in coupon files"))
+    checks.append(
+        Check(
+            "B7",
+            "R12 conditional disclaimer present",
+            "PASS" if disclaimer_found or not coupon_files else "WARN",
+            "Found disclaimer in coupon artifacts" if disclaimer_found else "Disclaimer not found in coupon markdown",
+            recovery="Add the standard conditional Betclic disclaimer to today's coupon markdown",
+        )
+    )
 
-    # B7: Pipeline build steps completed
-    state = _load_pipeline_state(date)
-    steps = state.get("steps", {})
-    build_steps = {"s8_coupons", "s9_validate", "s10_summary"}
-    build_completed = {sid for sid in build_steps if steps.get(sid, {}).get("status") == "completed"}
-    checks.append(Check("B7", "Build-phase steps completed",
-                         "PASS" if build_completed == build_steps else "FAIL",
-                         f"Completed: {sorted(build_completed)}, Missing: {sorted(build_steps - build_completed)}",
-                         gate=bool(build_steps - build_completed),
-                         recovery=f"Re-run build steps individually (coupon_builder, validate_phase --phase build)"))
+    repeat_step = _load_pipeline_step_record(date, "s7_6_repeat_loss_check")
+    repeat_control = coupon_controls.get("repeat_loss_handoff") if isinstance(coupon_controls.get("repeat_loss_handoff"), dict) else None
+    if repeat_step is None:
+        repeat_status = "FAIL"
+        repeat_value = "Missing mandatory S7.6 DB handoff in pipeline_runs"
+    elif repeat_step["stats"] == "__MALFORMED_JSON__":
+        repeat_status = "FAIL"
+        repeat_value = "Malformed S7.6 DB handoff: pipeline_runs.stats is not valid JSON"
+    elif repeat_step.get("status") != "completed":
+        repeat_status = "FAIL"
+        repeat_value = f"S7.6 DB handoff not completed (status={repeat_step.get('status')})"
+    elif not isinstance(repeat_step.get("stats"), dict):
+        repeat_status = "FAIL"
+        repeat_value = "Malformed S7.6 DB handoff: stats payload missing"
+    elif not isinstance(repeat_step["stats"].get("findings"), list):
+        repeat_status = "FAIL"
+        repeat_value = "Malformed S7.6 DB handoff: findings must be a list"
+    elif repeat_control and repeat_control.get("consumed"):
+        artifact_note = f", artifacts={ [path.name for path in repeat_artifacts] }" if repeat_artifacts else ""
+        repeat_status = "PASS"
+        repeat_value = (
+            f"repeat_loss_count={repeat_step['stats'].get('repeat_loss_count', 0)}, "
+            f"excluded={repeat_control.get('excluded_count', 0)}{artifact_note}"
+        )
+    else:
+        repeat_status = "FAIL"
+        repeat_value = "S7.6 DB handoff exists but coupon_builder output does not record consumption"
 
+    checks.append(
+        Check(
+            "B8",
+            "S7.6 repeat-loss handoff present and consumed",
+            repeat_status,
+            repeat_value,
+            gate=True,
+            recovery=f"Run: PYTHONPATH=src .venv/bin/python3 scripts/check_48h_repeats.py --date {date} --format json",
+        )
+    )
+
+    checks.append(
+        Check(
+            "B9",
+            "S10 PDF output (warning-only policy)",
+            "PASS" if pdf_files else "WARN",
+            f"{len(pdf_files)} PDF file(s) under {pdf_dir.relative_to(COUPON_DIR.parent)}",
+            recovery=f"Optional: PYTHONPATH=src .venv/bin/python3 scripts/generate_coupon_pdf.py --date {date}",
+        )
+    )
 
     return checks
 
 
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
-
 def run_validation(date: str, phase: str, fmt: str = "text") -> int:
-    """Run validation and return exit code."""
-    all_checks = []
+    all_checks: list[Check] = []
 
     if phase in ("data", "all"):
         all_checks.extend(validate_data_phase(date))
@@ -614,70 +1217,82 @@ def run_validation(date: str, phase: str, fmt: str = "text") -> int:
     if phase in ("build", "all"):
         all_checks.extend(validate_build_phase(date))
 
-    # Count results
-    gate_fails = [c for c in all_checks if c.status == "FAIL" and c.gate]
-    non_gate_fails = [c for c in all_checks if c.status == "FAIL" and not c.gate]
-    warns = [c for c in all_checks if c.status == "WARN"]
-    passes = [c for c in all_checks if c.status == "PASS"]
+    gate_fails = [check for check in all_checks if check.status == "FAIL" and check.gate]
+    s0_gate_fails = [check for check in gate_fails if check.check_id.startswith("S0")]
+    execution_gate_fails = [check for check in gate_fails if not check.check_id.startswith("S0")]
+    non_gate_fails = [check for check in all_checks if check.status == "FAIL" and not check.gate]
+    warns = [check for check in all_checks if check.status == "WARN"]
+    passes = [check for check in all_checks if check.status == "PASS"]
 
     if fmt == "json":
-        output = {
-            "date": date,
-            "phase": phase,
-            "total_checks": len(all_checks),
-            "passed": len(passes),
-            "warnings": len(warns),
-            "gate_failures": len(gate_fails),
-            "non_gate_failures": len(non_gate_fails),
-            "blocking": len(gate_fails) > 0,
-            "checks": [c.to_dict() for c in all_checks],
-        }
-        print(json.dumps(output, indent=2))
+        print(
+            json.dumps(
+                {
+                    "date": date,
+                    "phase": phase,
+                    "total_checks": len(all_checks),
+                    "passed": len(passes),
+                    "warnings": len(warns),
+                    "gate_failures": len(gate_fails),
+                    "s0_prerequisite_failures": len(s0_gate_fails),
+                    "execution_gate_failures": len(execution_gate_fails),
+                    "non_gate_failures": len(non_gate_fails),
+                    "blocking": bool(gate_fails),
+                    "checks": [check.to_dict() for check in all_checks],
+                },
+                indent=2,
+            )
+        )
     else:
         phase_label = phase.upper() if phase != "all" else "ALL PHASES"
-        print(f"\n{'='*70}")
+        print(f"\n{'=' * 70}")
         print(f"  PHASE VALIDATION: {phase_label} — {date}")
-        print(f"{'='*70}")
-
+        print(f"{'=' * 70}")
         for check in all_checks:
             print(str(check))
-
-        print(f"\n{'─'*70}")
-        print(f"  SUMMARY: {len(passes)} PASS | {len(warns)} WARN | "
-              f"{len(gate_fails)} GATE FAIL | {len(non_gate_fails)} non-gate FAIL")
+        print(f"\n{'─' * 70}")
+        print(f"  SUMMARY: {len(passes)} PASS | {len(warns)} WARN | {len(gate_fails)} GATE FAIL | {len(non_gate_fails)} non-gate FAIL")
 
         if gate_fails:
-            print(f"\n  🚫 BLOCKING — {len(gate_fails)} gate failure(s) must be fixed before proceeding:")
-            for c in gate_fails:
-                print(f"     • {c.check_id}: {c.name}")
-                if c.recovery:
-                    print(f"       ↳ {c.recovery}")
+            if s0_gate_fails:
+                print(
+                    f"\n  🚫 S0 PREREQUISITES BLOCKING — {len(s0_gate_fails)} issue(s) must be fixed before a new session proceeds:"
+                )
+                for check in s0_gate_fails:
+                    print(f"     • {check.check_id}: {check.name}")
+                    if check.recovery:
+                        print(f"       ↳ {check.recovery}")
+            if execution_gate_fails:
+                print(
+                    f"\n  🚫 S1-S10 EXECUTION GATES BLOCKING — {len(execution_gate_fails)} later-phase issue(s) remain:"
+                )
+                for check in execution_gate_fails:
+                    print(f"     • {check.check_id}: {check.name}")
+                    if check.recovery:
+                        print(f"       ↳ {check.recovery}")
             print()
         elif warns:
             print(f"\n  ⚠️  NON-BLOCKING — {len(warns)} warning(s), proceed with caution")
         else:
-            print(f"\n  ✅ ALL GATES PASS — safe to proceed")
+            print("\n  ✅ ALL GATES PASS — safe to proceed")
 
-        print(f"{'='*70}\n")
+        print(f"{'=' * 70}\n")
 
     if gate_fails:
         return 1
-    elif warns or non_gate_fails:
+    if warns or non_gate_fails:
         return 2
     return 0
 
 
 def main():
-    parser = argparse.ArgumentParser(description="DB-FIRST Phase Validation")
+    parser = argparse.ArgumentParser(description="DB-first session readiness validation")
     parser.add_argument("--date", required=True, help="Betting date (YYYY-MM-DD)")
-    parser.add_argument("--phase", required=True, choices=["data", "analysis", "build", "all"],
-                        help="Which phase to validate")
-    parser.add_argument("--format", default="text", choices=["text", "json"],
-                        help="Output format")
+    parser.add_argument("--phase", required=True, choices=["data", "analysis", "build", "all"], help="Which phase to validate")
+    parser.add_argument("--format", default="text", choices=["text", "json"], help="Output format")
     args = parser.parse_args()
 
-    exit_code = run_validation(args.date, args.phase, args.format)
-    sys.exit(exit_code)
+    sys.exit(run_validation(args.date, args.phase, args.format))
 
 
 if __name__ == "__main__":

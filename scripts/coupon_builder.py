@@ -10,6 +10,7 @@ Usage:
 """
 
 import argparse
+import copy
 import itertools
 import json
 import re
@@ -34,6 +35,12 @@ _NOW = lambda: datetime.now(timezone.utc).isoformat()
 # ---------------------------------------------------------------------------
 
 from bet.stats.market_ranking import MARKET_PL, DIRECTION_PL
+from check_48h_repeats import (
+    REPEAT_LOSS_STEP,
+    fuzzy_match as _repeat_fuzzy_match,
+    load_repeat_loss_handoff,
+    normalize_market as _repeat_normalize_market,
+)
 from utils import normalize_team_name as _normalize_team
 
 
@@ -81,6 +88,19 @@ SPORT_EMOJI = {
 
 TIER_ORDER = {"LR": 0, "MS": 1, "HR": 2, "N": 3}
 
+BETCLIC_MARKET_TYPE_SLUGS = {
+    "fouls": ["fouls", "fouls_total"],
+    "corners": ["corners", "corners_total", "corners_1h"],
+    "cards": ["cards", "cards_total"],
+    "shots": ["shots_on_target", "shots_total"],
+    "goals": ["goals_total", "goals_1h", "goals_2h", "btts", "team_goals"],
+    "games": ["games_total"],
+    "sets": ["sets_total"],
+    "points": ["points_total", "points"],
+    "double_faults": ["double_faults"],
+    "aces": ["aces"],
+}
+
 
 # ---------------------------------------------------------------------------
 # Config
@@ -90,6 +110,453 @@ def load_config() -> dict:
     """Load betting config from JSON."""
     with open(CONFIG_PATH, encoding="utf-8") as f:
         return json.load(f)
+
+
+def _candidate_market_name(candidate: dict) -> str:
+    best_market = candidate.get("best_market") or {}
+    return (
+        best_market.get("name")
+        or candidate.get("market_type")
+        or candidate.get("market")
+        or ""
+    )
+
+
+def _candidate_event_key(candidate: dict) -> str:
+    home = _normalize_team(candidate.get("home_team") or "")
+    away = _normalize_team(candidate.get("away_team") or "")
+    return f"{home}|{away}"
+
+
+def _append_reason(existing: str | None, new_reason: str) -> str:
+    if not existing:
+        return new_reason
+    if new_reason in existing:
+        return existing
+    return f"{existing}; {new_reason}"
+
+
+def _pick_market_category(market_name: str) -> str:
+    market = market_name.lower()
+    if "foul" in market:
+        return "fouls"
+    if "corner" in market:
+        return "corners"
+    if "card" in market:
+        return "cards"
+    if "shot" in market:
+        return "shots"
+    if "goal" in market or "btts" in market:
+        return "goals"
+    if "game" in market:
+        return "games"
+    if "set" in market:
+        return "sets"
+    if "point" in market:
+        return "points"
+    if "double fault" in market:
+        return "double_faults"
+    if "ace" in market:
+        return "aces"
+    return ""
+
+
+def _candidate_market_slugs(candidate: dict) -> set[str]:
+    market_name = _candidate_market_name(candidate)
+    category = _pick_market_category(market_name)
+    slugs = set(BETCLIC_MARKET_TYPE_SLUGS.get(category, []))
+    market_type = candidate.get("market_type")
+    if market_type:
+        slugs.add(market_type)
+    return slugs
+
+
+def _event_name_matches(event_name: str, home: str, away: str) -> bool:
+    normalized_event = _normalize_team(event_name.replace("-", " ").replace("vs.", " ").replace("vs", " "))
+    home_token = _normalize_team(home).split()[0] if home else ""
+    away_token = _normalize_team(away).split()[0] if away else ""
+    return bool(home_token and away_token and home_token in normalized_event and away_token in normalized_event)
+
+
+def _candidate_matches_repeat_finding(candidate: dict, finding: dict) -> bool:
+    candidate_market = _repeat_normalize_market(_candidate_market_name(candidate))
+    finding_market = finding.get("market_normalized") or _repeat_normalize_market(finding.get("market_name", ""))
+    if not candidate_market or not finding_market:
+        return False
+    market_match = (
+        candidate_market == finding_market
+        or _repeat_fuzzy_match(candidate_market, finding_market, 0.6)
+        or candidate_market in finding_market
+        or finding_market in candidate_market
+    )
+    if not market_match:
+        return False
+
+    candidate_fixture_id = candidate.get("fixture_id")
+    finding_fixture_id = finding.get("fixture_id")
+    if candidate_fixture_id and finding_fixture_id and candidate_fixture_id == finding_fixture_id:
+        return True
+
+    return _candidate_event_key(candidate) == finding.get("event_key")
+
+
+def _candidate_betclic_reason_from_validation(candidate: dict, unavailable_entries: list[dict]) -> str | None:
+    home = candidate.get("home_team", "")
+    away = candidate.get("away_team", "")
+    candidate_market = _candidate_market_name(candidate)
+    candidate_market_norm = _repeat_normalize_market(candidate_market)
+    candidate_slugs = _candidate_market_slugs(candidate)
+
+    for entry in unavailable_entries:
+        event_name = entry.get("event") or entry.get("event_name") or ""
+        if not _event_name_matches(event_name, home, away):
+            continue
+
+        entry_market_type = entry.get("market_type") or ""
+        if entry_market_type and candidate_slugs and entry_market_type in candidate_slugs:
+            return entry.get("betclic_note") or f"market type '{entry_market_type}' unavailable on Betclic"
+
+        entry_market = entry.get("market") or ""
+        if entry_market:
+            entry_market_norm = _repeat_normalize_market(entry_market)
+            if candidate_market_norm and (
+                candidate_market_norm == entry_market_norm
+                or _repeat_fuzzy_match(candidate_market_norm, entry_market_norm, 0.6)
+                or candidate_market_norm in entry_market_norm
+                or entry_market_norm in candidate_market_norm
+            ):
+                return entry.get("betclic_note") or f"market '{entry_market}' unavailable on Betclic"
+
+    return None
+
+
+def _candidate_betclic_reason_from_events(candidate: dict, event_availability: dict[str, set[str]]) -> str | None:
+    market_slugs = _candidate_market_slugs(candidate)
+    if not market_slugs:
+        return None
+
+    home = candidate.get("home_team", "")
+    away = candidate.get("away_team", "")
+    for event_name, confirmed_market_types in event_availability.items():
+        if not _event_name_matches(event_name, home, away):
+            continue
+        if any(slug in confirmed_market_types for slug in market_slugs):
+            return None
+        return f"{_candidate_market_name(candidate)} not confirmed in Betclic scan for {event_name}"
+
+    return "event not found in Betclic validation output"
+
+
+def _load_betclic_validation_sidecar(date: str) -> tuple[dict, dict]:
+    betclic_validation_path = DATA_DIR / f"betclic_market_validation_{date}.json"
+    if not betclic_validation_path.exists():
+        raise FileNotFoundError(
+            f"Missing mandatory S7.5 Betclic validation sidecar for {date}: {betclic_validation_path.name}"
+        )
+
+    try:
+        payload = json.loads(betclic_validation_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError(
+            f"Malformed S7.5 Betclic validation sidecar for {date}: {exc.msg}"
+        ) from exc
+
+    if not isinstance(payload, dict):
+        raise ValueError(f"Malformed S7.5 Betclic validation sidecar for {date}: expected JSON object")
+
+    validation_results = payload.get("validation")
+    events = payload.get("events")
+    if validation_results is not None and not isinstance(validation_results, list):
+        raise ValueError(f"Malformed S7.5 Betclic validation sidecar for {date}: validation must be a list")
+    if events is not None and not isinstance(events, list):
+        raise ValueError(f"Malformed S7.5 Betclic validation sidecar for {date}: events must be a list")
+    if validation_results is None and events is None:
+        raise ValueError(
+            f"Malformed S7.5 Betclic validation sidecar for {date}: missing validation/events payload"
+        )
+
+    return payload, {
+        "required": True,
+        "present": True,
+        "consumed": False,
+        "path": betclic_validation_path.name,
+        "validation_count": len(validation_results or []),
+        "event_count": len(events or []),
+    }
+
+
+def _apply_betclic_validation_to_gate_results(date: str, gate_results: dict) -> tuple[dict, dict, dict]:
+    payload, control = _load_betclic_validation_sidecar(date)
+    filtered_gate_results = copy.deepcopy(gate_results)
+    gate_buckets = filtered_gate_results.setdefault("gate_results", {})
+    approved = gate_buckets.get("approved", []) or []
+    extended_pool = gate_buckets.get("extended_pool", []) or []
+    pre_filter_counts = _gate_bucket_counts(filtered_gate_results)
+
+    validation_results = payload.get("validation") if isinstance(payload.get("validation"), list) else None
+    if validation_results is not None:
+        unavailable_entries = [
+            entry for entry in validation_results if isinstance(entry, dict) and entry.get("betclic_available") is False
+        ]
+
+        def block_reason(candidate: dict) -> str | None:
+            return _candidate_betclic_reason_from_validation(candidate, unavailable_entries)
+
+        control["mode"] = "validation"
+        control["unavailable_entries"] = len(unavailable_entries)
+    else:
+        event_availability: dict[str, set[str]] = {}
+        for event in payload.get("events") or []:
+            if not isinstance(event, dict):
+                continue
+            event_name = event.get("event_name") or event.get("event") or ""
+            if not event_name:
+                continue
+            event_availability[event_name] = set(event.get("confirmed_market_types") or [])
+
+        def block_reason(candidate: dict) -> str | None:
+            return _candidate_betclic_reason_from_events(candidate, event_availability)
+
+        control["mode"] = "events"
+        control["unavailable_entries"] = 0
+
+    demoted_approved: list[dict] = []
+    kept_approved: list[dict] = []
+    for candidate in approved:
+        reason = block_reason(candidate)
+        if reason:
+            candidate["betclic_validation_reason"] = reason
+            candidate["extended_pool_reason"] = _append_reason(
+                candidate.get("extended_pool_reason"),
+                f"BETCLIC_VALIDATION: {reason}",
+            )
+            candidate["bucket"] = "extended_pool"
+            candidate["status"] = "EXTENDED"
+            demoted_approved.append(candidate)
+        else:
+            kept_approved.append(candidate)
+
+    flagged_extended = 0
+    updated_extended: list[dict] = []
+    for candidate in extended_pool:
+        reason = block_reason(candidate)
+        if reason:
+            candidate["betclic_validation_reason"] = reason
+            candidate["extended_pool_reason"] = _append_reason(
+                candidate.get("extended_pool_reason"),
+                f"BETCLIC_VALIDATION: {reason}",
+            )
+            flagged_extended += 1
+        updated_extended.append(candidate)
+
+    gate_buckets["approved"] = kept_approved
+    gate_buckets["extended_pool"] = updated_extended + demoted_approved
+    filtered_gate_results["gate_results"] = gate_buckets
+
+    control.update(
+        {
+            "consumed": True,
+            "approved_demoted": len(demoted_approved),
+            "extended_flagged": flagged_extended,
+            "pre_filter_counts": pre_filter_counts,
+            "post_filter_counts": _gate_bucket_counts(filtered_gate_results),
+        }
+    )
+    return filtered_gate_results, payload, control
+
+
+def _apply_repeat_loss_hard_rejects(date: str, gate_results: dict) -> tuple[dict, dict]:
+    handoff = load_repeat_loss_handoff(date)
+    if handoff is None:
+        raise FileNotFoundError(
+            f"Missing mandatory S7.6 repeat-loss handoff for {date}. Run check_48h_repeats.py --date {date} first."
+        )
+
+    filtered_gate_results = copy.deepcopy(gate_results)
+    gate_buckets = filtered_gate_results.setdefault("gate_results", {})
+    pre_filter_counts = _gate_bucket_counts(filtered_gate_results)
+    findings = handoff.get("findings", [])
+    rejected = list(gate_buckets.get("rejected", []) or [])
+    excluded_candidates: list[dict] = []
+
+    for bucket_name in ("approved", "extended_pool"):
+        kept_candidates: list[dict] = []
+        for candidate in gate_buckets.get(bucket_name, []) or []:
+            matches = [finding for finding in findings if _candidate_matches_repeat_finding(candidate, finding)]
+            if matches:
+                candidate["repeat_loss_matches"] = matches
+                candidate["rejection_reason"] = "S7.6 repeat-loss HARD REJECT"
+                candidate["bucket"] = "rejected"
+                candidate["status"] = "REJECTED"
+                rejected.append(candidate)
+                excluded_candidates.append(
+                    {
+                        "event_key": _candidate_event_key(candidate),
+                        "market_name": _candidate_market_name(candidate),
+                        "bucket": bucket_name,
+                    }
+                )
+            else:
+                kept_candidates.append(candidate)
+        gate_buckets[bucket_name] = kept_candidates
+
+    gate_buckets["rejected"] = rejected
+    filtered_gate_results["gate_results"] = gate_buckets
+
+    return filtered_gate_results, {
+        "required": True,
+        "present": True,
+        "consumed": True,
+        "pipeline_step": REPEAT_LOSS_STEP,
+        "artifact": Path(handoff["artifact_path"]).name if handoff.get("artifact_path") else None,
+        "repeat_loss_count": handoff.get("repeat_loss_count", 0),
+        "clear": handoff.get("clear", False),
+        "excluded_count": len(excluded_candidates),
+        "pre_filter_counts": pre_filter_counts,
+        "post_filter_counts": _gate_bucket_counts(filtered_gate_results),
+    }
+
+
+def _gate_bucket_counts(payload: dict | None) -> dict[str, int]:
+    gate_results = payload.get("gate_results", {}) if isinstance(payload, dict) else {}
+    return {
+        "approved": len(gate_results.get("approved", []) or []),
+        "extended": len(gate_results.get("extended_pool", []) or []),
+        "rejected": len(gate_results.get("rejected", []) or []),
+    }
+
+
+def _format_gate_counts(counts: dict[str, int]) -> str:
+    return (
+        f"approved={counts.get('approved', 0)}, "
+        f"extended={counts.get('extended', 0)}, "
+        f"rejected={counts.get('rejected', 0)}"
+    )
+
+
+def _normalize_gate_results_payload(payload: dict | list, date: str) -> dict:
+    if isinstance(payload, list):
+        payload = {
+            "date": date,
+            "gate_results": {
+                "approved": payload,
+                "extended_pool": [],
+                "rejected": [],
+            },
+        }
+    elif not isinstance(payload, dict):
+        raise ValueError("Gate results payload must be a dict or list")
+
+    gate_results = payload.get("gate_results")
+    if not isinstance(gate_results, dict):
+        legacy_results = payload.get("results")
+        if isinstance(legacy_results, list):
+            gate_results = {
+                "approved": legacy_results,
+                "extended_pool": [],
+                "rejected": [],
+            }
+            payload = {**payload, "gate_results": gate_results}
+        else:
+            raise ValueError("Gate results payload missing gate_results buckets")
+
+    gate_results.setdefault("approved", [])
+    gate_results.setdefault("extended_pool", [])
+    gate_results.setdefault("rejected", [])
+    payload["date"] = payload.get("date", date)
+
+    counts = _gate_bucket_counts(payload)
+    summary = payload.setdefault("summary", {})
+    summary["approved_count"] = counts["approved"]
+    summary["extended_count"] = counts["extended"]
+    summary["rejected_count"] = counts["rejected"]
+    return payload
+
+
+def _load_gate_results_json(date: str, input_path: str | None = None) -> dict | None:
+    candidate_paths = [Path(input_path)] if input_path else [
+        DATA_DIR / f"{date}_s7_gate_results.json",
+        DATA_DIR / f"s7_gate_results_{date}.json",
+    ]
+
+    for path in candidate_paths:
+        if path.exists():
+            with open(path, encoding="utf-8") as handle:
+                return _normalize_gate_results_payload(json.load(handle), date)
+
+    return None
+
+
+def _load_gate_results_for_build(date: str, input_path: str | None = None) -> dict:
+    if input_path:
+        payload = _load_gate_results_json(date, input_path)
+        if payload is None:
+            raise FileNotFoundError(f"Gate results not found: {input_path}")
+
+        counts = _gate_bucket_counts(payload)
+        payload["gate_parity"] = {
+            "source": "input_json",
+            "loaded_counts": counts,
+            "db_counts": None,
+            "json_counts": counts,
+            "parity_checked": False,
+            "parity_ok": None,
+        }
+        return payload
+
+    json_payload = _load_gate_results_json(date)
+    json_counts = _gate_bucket_counts(json_payload) if json_payload else None
+
+    from db_data_loader import load_gate_results_from_db_only
+
+    approved = load_gate_results_from_db_only(date, status="approved")
+    extended = load_gate_results_from_db_only(date, status="extended")
+    rejected = load_gate_results_from_db_only(date, status="rejected")
+
+    db_payload = None
+    if approved or extended or rejected:
+        db_payload = _normalize_gate_results_payload(
+            {
+                "date": date,
+                "gate_results": {
+                    "approved": approved or [],
+                    "extended_pool": extended or [],
+                    "rejected": rejected or [],
+                },
+            },
+            date,
+        )
+
+    if db_payload is not None:
+        db_counts = _gate_bucket_counts(db_payload)
+        if json_counts is not None and db_counts != json_counts:
+            raise ValueError(
+                f"Blocking gate parity mismatch for {date}: "
+                f"DB {_format_gate_counts(db_counts)} vs JSON {_format_gate_counts(json_counts)}"
+            )
+
+        db_payload["gate_parity"] = {
+            "source": "db",
+            "loaded_counts": db_counts,
+            "db_counts": db_counts,
+            "json_counts": json_counts,
+            "parity_checked": json_counts is not None,
+            "parity_ok": None if json_counts is None else db_counts == json_counts,
+        }
+        return db_payload
+
+    if json_payload is not None:
+        json_payload["gate_parity"] = {
+            "source": "json",
+            "loaded_counts": json_counts,
+            "db_counts": None,
+            "json_counts": json_counts,
+            "parity_checked": False,
+            "parity_ok": None,
+        }
+        return json_payload
+
+    raise FileNotFoundError(f"Gate results not found for {date}. Run gate_checker.py first.")
 
 
 # ---------------------------------------------------------------------------
@@ -403,9 +870,7 @@ def _tipster_pick_to_dict(p) -> dict:
 
 def _event_key(pick: dict) -> str:
     """Unique event key — same match = same key (accent/suffix normalized)."""
-    home = _normalize_team(pick.get("home_team") or "")
-    away = _normalize_team(pick.get("away_team") or "")
-    return f"{home}|{away}"
+    return _candidate_event_key(pick)
 
 
 # ---------------------------------------------------------------------------
@@ -1312,6 +1777,15 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
     """
     date = gate_results.get("date", datetime.now().strftime("%Y-%m-%d"))
     gr = gate_results.get("gate_results", {})
+    gate_input_counts = _gate_bucket_counts(gate_results)
+    gate_parity = gate_results.get("gate_parity") or {
+        "source": "input",
+        "loaded_counts": gate_input_counts,
+        "db_counts": None,
+        "json_counts": None,
+        "parity_checked": False,
+        "parity_ok": None,
+    }
     all_approved = _filter_past_events(gr.get("approved", []))
     extended_pool = _filter_past_events(gr.get("extended_pool", []))
     rejected = gr.get("rejected", [])
@@ -1370,6 +1844,7 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
         "extended_pool": extended_pool,
         "rejected": rejected,
         "discovery_pool": discovery_picks,
+        "gate_parity": gate_parity,
         "no_bet": False,
         "no_bet_reason": None,
     }
@@ -1447,6 +1922,17 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
     if len(approved) < 1:
         result["no_bet"] = True
         result["no_bet_reason"] = "Brak zatwierdzonych typów."
+        result["summary"] = {
+            "core_spend": 0.0,
+            "singles_spend": 0.0,
+            "total_spend": 0.0,
+            "bankroll_after": round(bankroll, 2),
+            "total_potential_return": 0.0,
+            "best_case": 0.0,
+            "realistic": 0.0,
+            "gate_input_counts": gate_input_counts,
+            "gate_parity": gate_parity,
+        }
         return result
 
     # Store approved for markdown writer (market matrix)
@@ -1647,6 +2133,8 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
         "total_potential_return": round(total_return, 2),
         "best_case": round(best_case, 2),
         "realistic": realistic,
+        "gate_input_counts": gate_input_counts,
+        "gate_parity": gate_parity,
     }
 
     # Odds source tracking — warn when all odds are estimated
@@ -2380,274 +2868,75 @@ def main():
         for _m in _contract.get("missing", []):
             out.warning(f"Missing input: {_m}")
 
-    # Load gate results — DB first, JSON fallback
-    gate_results = None
+    try:
+        gate_results = _load_gate_results_for_build(args.date, args.input)
+    except (FileNotFoundError, ValueError) as exc:
+        out.error(str(exc), recoverable=False)
+        out.summary(verdict="FAILED", metrics={"error": str(exc)})
+        sys.exit(1)
 
-    if args.input:
-        input_path = Path(args.input)
-        if not input_path.exists():
-            out.error(f"Gate results not found: {input_path}", recoverable=False)
-            out.summary(verdict="FAILED", metrics={"error": f"Gate results not found: {input_path}"})
-            sys.exit(1)
-        with open(input_path, encoding="utf-8") as f:
-            gate_results = json.load(f)
+    gate_parity = gate_results.get("gate_parity", {})
+    gate_counts = gate_parity.get("loaded_counts") or _gate_bucket_counts(gate_results)
+    if args.verbose:
+        out.event(
+            "gate_load",
+            source=gate_parity.get("source", "unknown"),
+            approved=gate_counts.get("approved", 0),
+            extended=gate_counts.get("extended", 0),
+            rejected=gate_counts.get("rejected", 0),
+            parity_checked=gate_parity.get("parity_checked", False),
+            parity_ok=gate_parity.get("parity_ok"),
+        )
     else:
-        # DB-first: load gate results from DB (R2)
-        try:
-            from db_data_loader import load_gate_results_from_db
-            approved = load_gate_results_from_db(args.date, status="approved")
-            extended = load_gate_results_from_db(args.date, status="extended")
-            rejected = load_gate_results_from_db(args.date, status="rejected")
-            if approved or extended:
-                gate_results = {
-                    "date": args.date,
-                    "gate_results": {
-                        "approved": approved or [],
-                        "extended_pool": extended or [],
-                        "rejected": rejected or [],
-                    },
-                    "summary": {
-                        "approved_count": len(approved or []),
-                        "extended_count": len(extended or []),
-                        "rejected_count": len(rejected or []),
-                    },
-                }
-                if args.verbose:
-                    out.event("db_load", approved=len(approved or []), extended=len(extended or []))
-                else:
-                    print(f"[coupon_builder] DB: loaded {len(approved or [])} approved, {len(extended or [])} extended")
-        except Exception as e:
-            out.warning(f"DB read failed: {e}")
-
-        # Fallback to JSON if DB missing or failed
-        if gate_results is None:
-            json_path = DATA_DIR / f"{args.date}_s7_gate_results.json"
-            if json_path.exists():
-                with open(json_path, encoding="utf-8") as f:
-                    gate_results = json.load(f)
-                if args.verbose:
-                    gr = gate_results.get("gate_results", {})
-                    out.event("json_load",
-                              approved=len(gr.get("approved", [])),
-                              extended=len(gr.get("extended_pool", [])))
-
-        # Final fallback — should not reach here if JSON or DB worked
-        if gate_results is None:
-            out.error(f"Gate results not found for {args.date}. Run gate_checker.py first.", recoverable=False)
-            out.summary(verdict="FAILED", metrics={"error": "Gate results not found"})
-            sys.exit(1)
+        print(
+            f"[coupon_builder] Gate input ({gate_parity.get('source', 'unknown')}): "
+            f"{_format_gate_counts(gate_counts)}"
+        )
+        if gate_parity.get("parity_checked"):
+            print(f"[coupon_builder] Gate parity OK: {_format_gate_counts(gate_counts)}")
 
     # Load config
     config = load_config()
 
+    try:
+        gate_results, betclic_validation_payload, betclic_validation_control = _apply_betclic_validation_to_gate_results(
+            args.date,
+            gate_results,
+        )
+        gate_results, repeat_loss_control = _apply_repeat_loss_hard_rejects(args.date, gate_results)
+    except (FileNotFoundError, ValueError) as exc:
+        out.error(str(exc), recoverable=False)
+        out.summary(verdict="FAILED", metrics={"error": str(exc)})
+        sys.exit(1)
+
     # Build coupons
     coupons_data = build_coupons(gate_results, config)
+
+    coupons_data["pre_coupon_controls"] = {
+        "betclic_market_validation": betclic_validation_control,
+        "repeat_loss_handoff": repeat_loss_control,
+    }
+    coupons_data.setdefault("summary", {})["pre_coupon_controls"] = {
+        "betclic_market_validation": betclic_validation_control,
+        "repeat_loss_handoff": repeat_loss_control,
+    }
+    validation_results = betclic_validation_payload.get("validation")
+    if isinstance(validation_results, list):
+        coupons_data["betclic_market_validation"] = validation_results
+    if coupons_data.get("no_bet") and repeat_loss_control.get("excluded_count", 0) > 0:
+        coupons_data["no_bet_reason"] = "Wszystkie typy zostały wykluczone przez S7.6 (48h repeat-loss hard reject)."
 
     # Attach approved for markdown writer (not persisted to JSON)
     coupons_data["_approved"] = gate_results.get("gate_results", {}).get("approved", [])
 
-    # Betclic market validation: load from today's validation file if exists
-    betclic_validation_path = DATA_DIR / f"betclic_market_validation_{args.date}.json"
-    if betclic_validation_path.exists():
-        try:
-            betclic_data = json.loads(betclic_validation_path.read_text(encoding="utf-8"))
-            validation_results = betclic_data.get("validation")
-            betclic_events = betclic_data.get("events", [])
-
-            if validation_results:
-                # Phase 2 validation available (--validate-coupon was used)
-                coupons_data["betclic_market_validation"] = validation_results
-                unavailable = [v for v in validation_results if v.get("betclic_available") is False]
-                if args.verbose:
-                    out.event("betclic_validation",
-                              total=len(validation_results),
-                              unavailable=len(unavailable))
-                
-                # Hard-reject: remove picks from core that are betclic_unavailable
-                unavailable_pairs = set()
-                for v in validation_results:
-                    if v.get("betclic_available") is False:
-                        unavailable_pairs.add((v.get("event", "").lower(), v.get("market_type", "")))
-
-                if unavailable_pairs and coupons_data.get("singles"):
-                    filtered_singles = []
-                    rejected_by_betclic = []
-                    for s in coupons_data["singles"]:
-                        event_str = f"{s.get('home_team', '')} - {s.get('away_team', '')}".lower()
-                        pick_market = s.get("market_type", "")
-                        is_unavailable = any(
-                            pick_market == up_mt and (ue in event_str or event_str in ue)
-                            for ue, up_mt in unavailable_pairs
-                        )
-                        if is_unavailable:
-                            s["rejection_reason"] = "RYNEK NIEDOSTĘPNY NA BETCLIC"
-                            rejected_by_betclic.append(s)
-                        else:
-                            filtered_singles.append(s)
-                    if rejected_by_betclic:
-                        coupons_data["singles"] = filtered_singles
-                        ext = coupons_data.setdefault("extended_pool", [])
-                        ext.extend(rejected_by_betclic)
-                        if args.verbose:
-                            out.warning(f"Betclic filter: {len(rejected_by_betclic)} singles moved to Extended Pool")
-
-            elif betclic_events:
-                # Fallback: use events data to build availability map
-                # Map pick market names → betclic confirmed_market_types slugs
-                MARKET_NAME_TO_SLUG = {
-                    "fouls": ["fouls", "fouls_total"],
-                    "corners": ["corners", "corners_total", "corners_1h"],
-                    "cards": ["cards", "cards_total"],
-                    "shots": ["shots_on_target", "shots_total"],
-                    "goals": ["goals_total", "goals_1h", "goals_2h", "btts", "team_goals"],
-                    "games": ["games_total"],
-                    "sets": ["sets_total"],
-                    "points": ["points_total", "points"],
-                    "double_faults": ["double_faults"],
-                    "aces": ["aces"],
-                }
-
-                def _pick_market_category(market_name: str) -> str:
-                    """Extract market category from pick market name."""
-                    mn = market_name.lower()
-                    if "foul" in mn:
-                        return "fouls"
-                    if "corner" in mn:
-                        return "corners"
-                    if "card" in mn:
-                        return "cards"
-                    if "shot" in mn:
-                        return "shots"
-                    if "goal" in mn or "btts" in mn:
-                        return "goals"
-                    if "game" in mn:
-                        return "games"
-                    if "set" in mn:
-                        return "sets"
-                    if "point" in mn:
-                        return "points"
-                    if "double fault" in mn:
-                        return "double_faults"
-                    if "ace" in mn:
-                        return "aces"
-                    return ""
-
-                def _match_event(event_name: str, home: str, away: str) -> bool:
-                    """Fuzzy match betclic event name to pick teams."""
-                    en = event_name.lower()
-                    h = home.lower().split()[0] if home else ""
-                    a = away.lower().split()[0] if away else ""
-                    return bool(h and a and h in en and a in en)
-
-                # Build event→available_slugs map
-                event_availability = {}
-                for ev in betclic_events:
-                    confirmed = set(ev.get("confirmed_market_types") or [])
-                    event_availability[ev.get("event_name", "")] = confirmed
-
-                if args.verbose:
-                    out.event("betclic_events_fallback",
-                              total_events=len(betclic_events),
-                              with_markets=sum(1 for c in event_availability.values() if c))
-
-                # Filter singles
-                if coupons_data.get("singles"):
-                    filtered_singles = []
-                    rejected_by_betclic = []
-                    for s in coupons_data["singles"]:
-                        legs = s.get("legs", [])
-                        if not legs:
-                            filtered_singles.append(s)
-                            continue
-                        leg = legs[0]
-                        home = leg.get("home_team", "")
-                        away = leg.get("away_team", "")
-                        best_market = leg.get("best_market", {})
-                        market_name = best_market.get("name", "")
-                        category = _pick_market_category(market_name)
-
-                        # Find matching betclic event
-                        matched_event = None
-                        for ev_name, ev_slugs in event_availability.items():
-                            if _match_event(ev_name, home, away):
-                                matched_event = (ev_name, ev_slugs)
-                                break
-
-                        if matched_event and category:
-                            ev_name, ev_slugs = matched_event
-                            # Check if ANY slug for this category is confirmed
-                            category_slugs = MARKET_NAME_TO_SLUG.get(category, [])
-                            is_available = any(slug in ev_slugs for slug in category_slugs)
-                            if not is_available:
-                                s["rejection_reason"] = f"RYNEK NIEDOSTĘPNY NA BETCLIC ({category} not in {sorted(ev_slugs)})"
-                                rejected_by_betclic.append(s)
-                                continue
-                            # Market confirmed available → keep
-                            filtered_singles.append(s)
-                        elif not matched_event and category:
-                            # Event NOT found in Betclic scan → unverified, move to extended
-                            s["rejection_reason"] = "WYDARZENIE NIEZWERYFIKOWANE NA BETCLIC (nie znaleziono w skanie)"
-                            rejected_by_betclic.append(s)
-                        else:
-                            # No category detected (e.g., match winner) → keep
-                            filtered_singles.append(s)
-
-                    if rejected_by_betclic:
-                        coupons_data["singles"] = filtered_singles
-                        ext = coupons_data.setdefault("extended_pool", [])
-                        ext.extend(rejected_by_betclic)
-                        if args.verbose:
-                            out.warning(f"Betclic events filter: {len(rejected_by_betclic)} singles moved to Extended Pool")
-
-                # Also filter multi-leg coupons (core_coupons + combos)
-                def _leg_is_betclic_available(leg: dict) -> bool:
-                    """Check if a coupon leg's market is confirmed available on Betclic."""
-                    home = leg.get("home_team", "")
-                    away = leg.get("away_team", "")
-                    best_market = leg.get("best_market", {})
-                    market_name = best_market.get("name", "")
-                    cat = _pick_market_category(market_name)
-                    if not cat:
-                        return True  # No stat category (match_winner etc.) → allow
-                    # Find matching event
-                    for ev_name, ev_slugs in event_availability.items():
-                        if _match_event(ev_name, home, away):
-                            cat_slugs = MARKET_NAME_TO_SLUG.get(cat, [])
-                            return any(slug in ev_slugs for slug in cat_slugs)
-                    # Event not found in Betclic scan → not available
-                    return False
-
-                for coupon_key in ("core_coupons", "combos"):
-                    coupons_list = coupons_data.get(coupon_key, [])
-                    if not coupons_list:
-                        continue
-                    filtered_coupons = []
-                    removed_count = 0
-                    for coupon in coupons_list:
-                        legs = coupon.get("legs", [])
-                        valid_legs = [lg for lg in legs if _leg_is_betclic_available(lg)]
-                        if len(valid_legs) >= 2:
-                            coupon["legs"] = valid_legs
-                            filtered_coupons.append(coupon)
-                        else:
-                            removed_count += 1
-                    coupons_data[coupon_key] = filtered_coupons
-                    if removed_count and args.verbose:
-                        out.warning(f"Betclic filter: removed {removed_count} {coupon_key} (insufficient valid legs)")
-
-                # Update banker: must be from surviving singles
-                remaining_singles = coupons_data.get("singles", [])
-                if remaining_singles:
-                    def _bm_safe(leg):
-                        return leg.get("best_market") or {}
-                    new_banker = max(remaining_singles, key=lambda s: _bm_safe(s["legs"][0]).get("safety_score", 0) if s.get("legs") else 0)
-                    coupons_data["banker"] = new_banker
-                else:
-                    coupons_data["banker"] = None
-
-        except Exception as e:
-            if args.verbose:
-                out.warning(f"Betclic validation load failed: {e}")
+    if args.verbose:
+        out.event(
+            "pre_coupon_controls",
+            betclic_mode=betclic_validation_control.get("mode"),
+            betclic_approved_demoted=betclic_validation_control.get("approved_demoted", 0),
+            repeat_loss_count=repeat_loss_control.get("repeat_loss_count", 0),
+            repeat_loss_excluded=repeat_loss_control.get("excluded_count", 0),
+        )
 
     # Write outputs
     write_coupon_markdown(coupons_data, args.date)
@@ -2657,7 +2946,23 @@ def main():
     if coupons_data.get("no_bet"):
         out.summary(
             verdict="NO_BET",
-            metrics={"reason": coupons_data["no_bet_reason"]},
+            metrics={
+                "reason": coupons_data["no_bet_reason"],
+                "gate_source": gate_parity.get("source", "unknown"),
+                "gate_approved": gate_counts.get("approved", 0),
+                "gate_extended": gate_counts.get("extended", 0),
+                "gate_rejected": gate_counts.get("rejected", 0),
+                "gate_parity_checked": gate_parity.get("parity_checked", False),
+                "gate_parity_ok": gate_parity.get("parity_ok"),
+                "betclic_validation_present": betclic_validation_control.get("present", False),
+                "betclic_validation_consumed": betclic_validation_control.get("consumed", False),
+                "betclic_validation_mode": betclic_validation_control.get("mode", "unknown"),
+                "betclic_demoted": betclic_validation_control.get("approved_demoted", 0),
+                "repeat_loss_present": repeat_loss_control.get("present", False),
+                "repeat_loss_consumed": repeat_loss_control.get("consumed", False),
+                "repeat_loss_count": repeat_loss_control.get("repeat_loss_count", 0),
+                "repeat_loss_excluded": repeat_loss_control.get("excluded_count", 0),
+            },
         )
         if not args.verbose:
             print(f"\n[coupon_builder] NO BET: {coupons_data['no_bet_reason']}")
@@ -2666,6 +2971,20 @@ def main():
         out.summary(
             verdict="OK",
             metrics={
+                "gate_source": gate_parity.get("source", "unknown"),
+                "gate_approved": gate_counts.get("approved", 0),
+                "gate_extended": gate_counts.get("extended", 0),
+                "gate_rejected": gate_counts.get("rejected", 0),
+                "gate_parity_checked": gate_parity.get("parity_checked", False),
+                "gate_parity_ok": gate_parity.get("parity_ok"),
+                "betclic_validation_present": betclic_validation_control.get("present", False),
+                "betclic_validation_consumed": betclic_validation_control.get("consumed", False),
+                "betclic_validation_mode": betclic_validation_control.get("mode", "unknown"),
+                "betclic_demoted": betclic_validation_control.get("approved_demoted", 0),
+                "repeat_loss_present": repeat_loss_control.get("present", False),
+                "repeat_loss_consumed": repeat_loss_control.get("consumed", False),
+                "repeat_loss_count": repeat_loss_control.get("repeat_loss_count", 0),
+                "repeat_loss_excluded": repeat_loss_control.get("excluded_count", 0),
                 "singles": len(coupons_data.get("singles", [])),
                 "core_coupons": len(coupons_data["core_coupons"]),
                 "combos": len(coupons_data["combos"]),

@@ -4,10 +4,13 @@ All tests use mock data — no real API calls, no real cache files.
 Temp directories are used for filesystem isolation.
 """
 import json
+import io
 import shutil
+import sys
 import tempfile
 import unittest
 from collections import Counter
+from contextlib import redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
@@ -230,6 +233,38 @@ class TestDeepStatsReport(unittest.TestCase):
         self.assertEqual(result["total_candidates"], 1)
         self.assertGreater(result["candidates_with_data"], 0)
         self.assertEqual(len(result["analyses"]), 1)
+
+    def test_deep_stats_main_summary_includes_persistence_metrics(self):
+        """AGENT_SUMMARY exposes analyzed vs persisted counts for S3 dual-write audits."""
+        import scripts.deep_stats_report as dsr
+
+        fake_result = {
+            "total_candidates": 3,
+            "candidates_with_data": 2,
+            "candidates_without_data": 1,
+            "analysis_results_persisted": 2,
+            "analysis_results_not_persisted": 1,
+            "fixture_ids_injected": 2,
+            "enrichment_attempted": 1,
+            "enrichment_successful": 1,
+            "analyses": [],
+        }
+
+        stdout = io.StringIO()
+        with patch.object(dsr, "generate_deep_stats", return_value=fake_result), \
+             patch.object(sys, "argv", ["deep_stats_report.py", "--date", "2026-05-01"]), \
+             redirect_stdout(stdout):
+            dsr.main()
+
+        summary_line = next(
+            line for line in stdout.getvalue().splitlines() if line.startswith("AGENT_SUMMARY:")
+        )
+        payload = json.loads(summary_line.split("AGENT_SUMMARY:", 1)[1])
+
+        self.assertEqual(payload["metrics"]["total_candidates"], 3)
+        self.assertEqual(payload["metrics"]["analysis_results_persisted"], 2)
+        self.assertEqual(payload["metrics"]["analysis_results_not_persisted"], 1)
+        self.assertEqual(payload["metrics"]["fixture_ids_injected"], 2)
 
     def test_slugify(self):
         """Team name slugification."""

@@ -55,6 +55,26 @@ GATE_LABELS = {
     "18": "DATA QUALITY: both teams have stat data",
 }
 
+GATE_BUCKET_STATUS = {
+    "approved": "APPROVED",
+    "extended_pool": "EXTENDED",
+    "rejected": "REJECTED",
+}
+
+
+def _set_entry_bucket(entry: dict, bucket: str, reason: str | None = None) -> None:
+    """Attach the canonical S7 bucket/status semantics to one entry."""
+    entry["bucket"] = bucket
+    entry["status"] = GATE_BUCKET_STATUS[bucket]
+
+    if bucket == "extended_pool" and reason:
+        entry["extended_pool_reason"] = reason
+    elif bucket == "rejected" and reason:
+        entry["rejection_reason"] = reason
+        reasons = entry.setdefault("rejection_reasons", [])
+        if reason not in reasons:
+            reasons.append(reason)
+
 
 # ---------------------------------------------------------------------------
 # Ghost fixture filter — cross-reference against known fixtures
@@ -1350,12 +1370,10 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
                 break
 
         if hard_reject:
-            entry["status"] = "REJECTED"
-            entry["rejection_reason"] = hard_reject_reason
+            _set_entry_bucket(entry, "rejected", hard_reject_reason)
             rejected.append(entry)
         elif strict and n_failed > 0:
-            entry["status"] = "REJECTED"
-            entry["rejection_reason"] = f"STRICT mode: {n_failed} gate failures"
+            _set_entry_bucket(entry, "rejected", f"STRICT mode: {n_failed} gate failures")
             rejected.append(entry)
         else:
             # Advisory tier based on EFFECTIVE failures (excluding systemic infrastructure gaps)
@@ -1404,12 +1422,15 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
             dq_result = check_data_quality_gate(c)
             entry["data_quality_check"] = dq_result
             if dq_result["status"] == "FAIL":
-                entry["status"] = "APPROVED"
                 entry["advisory_tier"] = "FLAGGED"
                 entry.setdefault("tier_caps", []).append(
                     f"MINIMAL_DATA: {dq_result.get('message', 'low data quality')}"
                 )
-                entry["extended_pool_reason"] = dq_result.get("message", "Minimal data quality")
+                _set_entry_bucket(
+                    entry,
+                    "extended_pool",
+                    dq_result.get("message", "Minimal data quality"),
+                )
                 extended_pool.append(entry)
             else:
                 # SYNTHETIC DATA GATE — db-synthetic source = Extended Pool only
@@ -1445,13 +1466,12 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
                     extended_reasons.append(f"COIN_FLIP: hit_rate={hit_rate_str} (≤50% = no edge)")
                 
                 if extended_reasons:
-                    entry["status"] = "APPROVED"
                     entry["advisory_tier"] = "FLAGGED"
                     entry.setdefault("tier_caps", []).extend(extended_reasons)
-                    entry["extended_pool_reason"] = "; ".join(extended_reasons)
+                    _set_entry_bucket(entry, "extended_pool", "; ".join(extended_reasons))
                     extended_pool.append(entry)
                 else:
-                    entry["status"] = "APPROVED"
+                    _set_entry_bucket(entry, "approved")
                     approved.append(entry)
 
     diversity = check_sport_diversity(approved)
@@ -1584,10 +1604,18 @@ def _gate_scorecard(entry: dict) -> str:
         f"- **Gate score:** {entry.get('gate_score', '-')}",
         f"- **Risk tier:** {entry.get('risk_tier', '-')}",
         f"- **Confidence:** {entry.get('final_confidence', '-')}",
+    ]
+
+    if entry.get("extended_pool_reason"):
+        lines.append(f"- **Extended Pool reason:** {entry['extended_pool_reason']}")
+    if entry.get("rejection_reason"):
+        lines.append(f"- **Rejection reason:** {entry['rejection_reason']}")
+
+    lines.extend([
         "",
         "| # | Check | Result | Note |",
         "|---|-------|--------|------|",
-    ]
+    ])
 
     details = entry.get("gate_details", {})
     for check_id in sorted(details.keys(), key=int):
@@ -1685,13 +1713,12 @@ def _write_markdown(results: dict, date: str) -> Path:
 # Input loading
 # ---------------------------------------------------------------------------
 
-def _load_s3_output(date: str, input_path: str | None = None) -> list[dict]:
+def _load_s3_output(date: str, input_path: str | None = None) -> tuple[list[dict], dict]:
     """Load S3 deep stats output and normalise to gate input format.
 
     Tries:
       1. Explicit --input path
-      2. DB (analysis_results table)
-      3. {date}_s3_deep_stats.json
+      2. Canonical DB/JSON parity loader
     """
     if input_path:
         path = Path(input_path)
@@ -1702,35 +1729,46 @@ def _load_s3_output(date: str, input_path: str | None = None) -> list[dict]:
         analyses = data.get("analyses", data.get("candidates", []))
         candidates = [_normalise_s3_to_gate_input(a) for a in analyses]
         print(f"[gate_checker] Loaded {len(candidates)} candidates from {path}")
-        return candidates
+        return candidates, {
+            "source": "explicit_input",
+            "counts": {
+                "canonical": len(candidates),
+                "json": len(candidates),
+                "db": 0,
+            },
+            "parity": {
+                "status": "explicit_input",
+                "shared_candidates": 0,
+                "json_only_candidates": len(candidates),
+                "db_only_candidates": 0,
+                "overlay_candidates": 0,
+            },
+        }
 
-    # Try DB first
     try:
-        from db_data_loader import load_analysis_results_from_db
-        db_analyses = load_analysis_results_from_db(date)
-        if db_analyses:
-            candidates = [_normalise_s3_to_gate_input(a) for a in db_analyses]
-            print(f"[gate_checker] DB: loaded {len(candidates)} candidates")
-            return candidates
+        try:
+            from scripts import db_data_loader as db_loader
+        except ImportError:
+            import db_data_loader as db_loader
+
+        analyses, candidate_load = db_loader.load_s3_candidates_with_parity(date)
     except Exception as e:
-        print(f"[gate_checker] DB read failed, using JSON fallback: {e}")
-
-    # JSON fallback
-    path = DATA_DIR / f"{date}_s3_deep_stats.json"
-
-    if not path.exists():
-        print(f"[gate_checker] ERROR: S3 output not found: {path}")
+        print(f"[gate_checker] ERROR: canonical S3 load failed: {e}")
         sys.exit(1)
 
-    data = json.loads(path.read_text(encoding="utf-8"))
-    analyses = data.get("analyses", data.get("candidates", []))
+    if candidate_load.get("blocking_error"):
+        return [], candidate_load
 
-    candidates = []
-    for a in analyses:
-        candidates.append(_normalise_s3_to_gate_input(a))
-
-    print(f"[gate_checker] Loaded {len(candidates)} candidates from {path}")
-    return candidates
+    candidates = [_normalise_s3_to_gate_input(a) for a in analyses]
+    print(
+        "[gate_checker] Candidate load: "
+        f"source={candidate_load.get('source', 'none')} "
+        f"status={candidate_load.get('parity', {}).get('status', 'missing')} "
+        f"json={candidate_load.get('counts', {}).get('json', 0)} "
+        f"db={candidate_load.get('counts', {}).get('db', 0)} "
+        f"canonical={candidate_load.get('counts', {}).get('canonical', 0)}"
+    )
+    return candidates, candidate_load
 
 
 # ---------------------------------------------------------------------------
@@ -1771,11 +1809,43 @@ def main():
         for _m in _contract.get("missing", []):
             out.warning(f"Missing input: {_m}")
 
-    candidates = _load_s3_output(args.date, args.input)
+    candidates, candidate_load = _load_s3_output(args.date, args.input)
+
+    if candidate_load.get("blocking_error"):
+        error = candidate_load["blocking_error"]
+        out.summary(
+            verdict="FAILED",
+            metrics={
+                "total": 0,
+                "approved": 0,
+                "extended": 0,
+                "rejected": 0,
+                "input_source": candidate_load.get("source", "none"),
+                "input_status": candidate_load.get("parity", {}).get("status", "missing"),
+                "input_json_candidates": candidate_load.get("counts", {}).get("json", 0),
+                "input_db_candidates": candidate_load.get("counts", {}).get("db", 0),
+                "input_canonical_candidates": candidate_load.get("counts", {}).get("canonical", 0),
+            },
+            issues=[{"level": "error", "message": error.get("message", "S7 candidate parity failure")}],
+        )
+        sys.exit(1)
 
     if not candidates:
         out.warning("No candidates to gate-check")
-        out.summary(verdict="OK", metrics={"total": 0, "approved": 0, "extended": 0, "rejected": 0})
+        out.summary(
+            verdict="OK",
+            metrics={
+                "total": 0,
+                "approved": 0,
+                "extended": 0,
+                "rejected": 0,
+                "input_source": candidate_load.get("source", "none"),
+                "input_status": candidate_load.get("parity", {}).get("status", "missing"),
+                "input_json_candidates": candidate_load.get("counts", {}).get("json", 0),
+                "input_db_candidates": candidate_load.get("counts", {}).get("db", 0),
+                "input_canonical_candidates": candidate_load.get("counts", {}).get("canonical", 0),
+            },
+        )
         sys.exit(0)
 
     results = run_gate(candidates, args.date, strict=args.strict)
@@ -1819,6 +1889,11 @@ def main():
             "approved": s["approved_count"],
             "extended": s["extended_count"],
             "rejected": s["rejected_count"],
+            "input_source": candidate_load.get("source", "none"),
+            "input_status": candidate_load.get("parity", {}).get("status", "missing"),
+            "input_json_candidates": candidate_load.get("counts", {}).get("json", 0),
+            "input_db_candidates": candidate_load.get("counts", {}).get("db", 0),
+            "input_canonical_candidates": candidate_load.get("counts", {}).get("canonical", 0),
             "sport_diversity": diversity.get("message", "N/A"),
         },
     )

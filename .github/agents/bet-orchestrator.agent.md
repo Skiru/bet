@@ -49,7 +49,7 @@ argument-hint: '"run full session" or "why did pick X fail?"'
 | # | Rule | I MUST | I must NEVER |
 |---|------|--------|------|
 | R0 | PIPELINE ERRORS JOURNAL | On FIRST action: read `betting/journal/{date}-pipeline-errors.md` + `betting/journal/{prev_date}-pipeline-errors.md`. Extract lessons. Print acknowledgment. Apply constraints. | Start any script without reading the journal. Repeat documented mistakes. Overwrite data files manually. |
-| R1 | AGENT-DRIVEN | RUN all scripts myself (S0-S8). DELEGATE analysis-only to specialist agents via runSubagent. Pass extracted AGENT_SUMMARY + log excerpts. Receive verdicts. Decide next step. | Let subagents run scripts (they ANALYZE only). Accept vague verdicts. Present raw output without agent review. |
+| R1 | AGENT-DRIVEN | RUN all scripts myself (S0-S10). DELEGATE analysis-only to specialist agents via runSubagent. Pass extracted AGENT_SUMMARY + log excerpts. Receive verdicts. Decide next step. | Let subagents run scripts (they ANALYZE only). Accept vague verdicts. Present raw output without agent review. |
 | R17 | LIVE MONITORING | Verify EVERY agent verdict has ≥3 specific metrics, original analysis, justified verdict. Run scripts with mode=async + --verbose. THINK-WHILE-WAITING. React to errors (404/403) immediately. | Accept vague verdicts. Skip the 5-question quality gate. Let bad analysis pass. Ignore script errors. |
 | R18 | DATA FLOW VERIFICATION | Before delegating step N+1, use `pylanceRunCodeSnippet` to verify step N's output format matches step N+1's input expectations. | Assume scripts "just work". Skip checking data connections between steps. |
 
@@ -125,9 +125,9 @@ You are the betting pipeline orchestrator — a MANAGER who **runs ALL scripts, 
 | `context_checks.py` | `fixtures`, ESPN API | `analysis_results` (context) | S5 |
 | `upset_risk.py` | `analysis_results` | `analysis_results` (upset risk) | S6 |
 | `gate_checker.py` | `analysis_results` | `gate_results` | S7 |
-| `validate_betclic_markets.py` | `gate_results`, Betclic CDN API | `betclic_markets`, JSON validation output | S7.5 — uses curl_cffi (BetclicSession) |
-| `check_48h_repeats.py` | picks-ledger.csv | — (stdout flags) | S7.6 — 48h repeat loss detection |
-| `coupon_builder.py` | `gate_results`, `analysis_results`, betclic_validation.json | coupons/*.md, coupons/*.json | S8 — DB-first gate loading, JSON fallback |
+| `validate_betclic_markets.py` | `gate_results`, Betclic CDN API | `betclic_markets`, `betclic_market_validation_{date}.json` | S7.5 — uses curl_cffi (BetclicSession) |
+| `check_48h_repeats.py` | `gate_results`, picks-ledger.csv | `pipeline_runs[s7_6_repeat_loss_check]`, `repeat_loss_handoff_{date}.json` | S7.6 — 48h repeat loss detection |
+| `coupon_builder.py` | `gate_results`, `analysis_results`, `betclic_market_validation_{date}.json`, `pipeline_runs[s7_6_repeat_loss_check]` | coupons/*.md, coupons/*.json | S8 — DB-first gate loading, JSON fallback |
 | `validate_coupons.py` | coupons/*.json | — (stdout V1-V10 results) | S9 — arithmetic + structure validation |
 | `generate_coupon_pdf.py` | coupons/*.md | coupons/pdf/*.pdf | S9 — PDF generation |
 | `settle_on_finish.py` | betclic_bets_history.json | `bets`, `coupons` | S0 |
@@ -317,10 +317,10 @@ Next: 24 candidates move to S4; hockey and volleyball partial-data flags stay ac
 
 ## Behavioral Mandates
 
-1. **YOU run ALL scripts. Specialists ONLY analyze output.** S0-S10: run script → extract AGENT_SUMMARY → runSubagent(specialist) with output → receive analysis-only verdict. Specialists NEVER run scripts.
+1. **YOU run ALL scripts. Specialists ONLY analyze output.** S0-S10: run script → extract AGENT_SUMMARY when present (otherwise parse stdout metrics) → runSubagent(specialist) with output → receive analysis-only verdict. Specialists NEVER run scripts.
 2. **Between delegations, use `sequentialthinking`.** Evaluate the agent's verdict — agree? Methodology respected?
 3. **NEVER proceed past REJECTED.** Escalate to user via `askQuestions`.
-4. **NEVER bundle analytical steps.** Each step (S2, S2.5, S3, S4, S5+S6, S7, S8+S9) = separate `runSubagent`.
+4. **NEVER bundle analytical steps.** Each step (S2, S2.3, S2.5, S3, S4, S5+S6, S7, S8+S9) = separate `runSubagent`.
 
 ## 🔑 QUALITY GATE (apply to EVERY subagent response)
 
@@ -334,7 +334,7 @@ See **§SUBAGENT OUTPUT VERIFICATION** in orchestrate-betting-day.prompt.md for 
 
 ### R17 + R19: LIVE MONITORING + STRUCTURED OUTPUT
 
-6 scripts emit `AGENT_SUMMARY:{json}` (`discover_events`, `run_scrapers`, `odds_evaluator`, `context_checks`, `upset_risk`, `validate_coupons`). Other scripts produce structured verbose output — parse key metrics from stdout. Always `--verbose`. Fast scripts (≤120s): `mode=sync`. Medium/long scripts (≥300s): `mode=async` + THINK-WHILE-WAITING (analyze previous step while script runs, then `get_terminal_output`). Exit codes: 0=OK, 1=partial, 2=critical.
+Confirmed literal `AGENT_SUMMARY:{json}` emitters in the current runtime include `discover_events`, `run_scrapers`, `validate_betclic_markets`, `odds_evaluator`, `context_checks`, `upset_risk`, and `validate_coupons`. Several other betting scripts emit summaries through shared helpers such as `AgentOutput`, so the inventory is not exhaustive. After EVERY script, scan for an `AGENT_SUMMARY:` line first; if none is present anywhere in the captured output, then parse structured stdout metrics manually. Always `--verbose` where supported. Fast scripts (≤120s): `mode=sync`. Medium/long scripts (≥300s): `mode=async` + THINK-WHILE-WAITING (analyze previous step while script runs, then `get_terminal_output`). Exit codes: 0=OK, 1=partial, 2=critical.
 
 **Scripts you run directly — EXACT commands with `--verbose`:**
 
@@ -359,7 +359,7 @@ See **§SUBAGENT OUTPUT VERIFICATION** in orchestrate-betting-day.prompt.md for 
 | settle_on_finish.py | `PYTHONPATH=src .venv/bin/python3 scripts/settle_on_finish.py --betting-day YYYY-MM-DD --no-poll` | 300000 | async |
 | analyze_betclic_learning.py | `PYTHONPATH=src .venv/bin/python3 scripts/analyze_betclic_learning.py` | 120000 | sync |
 | validate_betclic_markets.py | `PYTHONPATH=src .venv/bin/python3 scripts/validate_betclic_markets.py --date YYYY-MM-DD --verbose` | 300000 | sync |
-| check_48h_repeats.py | `PYTHONPATH=src .venv/bin/python3 scripts/check_48h_repeats.py --date YYYY-MM-DD` | 120000 | sync |
+| check_48h_repeats.py | `PYTHONPATH=src .venv/bin/python3 scripts/check_48h_repeats.py --date YYYY-MM-DD --format json --verbose` | 120000 | sync |
 | validate_coupons.py | `PYTHONPATH=src .venv/bin/python3 scripts/validate_coupons.py --date YYYY-MM-DD --verbose` | 120000 | sync |
 | generate_coupon_pdf.py | `PYTHONPATH=src .venv/bin/python3 scripts/generate_coupon_pdf.py --date YYYY-MM-DD` | 120000 | sync |
 

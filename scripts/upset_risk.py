@@ -24,19 +24,35 @@ sys.path.insert(0, str(ROOT_DIR / "src"))
 
 def run_upset_risk(date: str, state: dict) -> tuple[bool, str]:
     """S6: Upset risk scoring per candidate with sport-specific heuristics."""
-    # DB-first: load S3 analysis results (R2)
     analyses = []
     s3_data = None
     try:
-        from db_data_loader import load_analysis_results_from_db
-        db_results = load_analysis_results_from_db(date)
-        if db_results:
-            analyses = db_results
-            s3_data = {"analyses": analyses}
-    except Exception:
-        pass
+        from db_data_loader import load_s3_candidates_with_parity
 
-    # JSON fallback
+        analyses, candidate_load = load_s3_candidates_with_parity(date)
+        state["candidate_load"] = candidate_load
+        if candidate_load.get("blocking_error"):
+            error = candidate_load["blocking_error"]
+            return False, (
+                "S6 candidate parity failure: "
+                f"{error.get('message', 'unknown error')} "
+                f"(json={candidate_load['counts']['json']}, db={candidate_load['counts']['db']})"
+            )
+
+        if analyses:
+            s3_data = {"analyses": analyses}
+            if state.get("verbose"):
+                print(
+                    "    [upset_risk] candidate load: "
+                    f"source={candidate_load['source']} "
+                    f"status={candidate_load['parity']['status']} "
+                    f"json={candidate_load['counts']['json']} "
+                    f"db={candidate_load['counts']['db']} "
+                    f"canonical={candidate_load['counts']['canonical']}"
+                )
+    except Exception as e:
+        return False, f"S6 candidate load error: {e}"
+
     s3_path = DATA_DIR / f"{date}_s3_deep_stats.json"
     if not analyses:
         if not s3_path.exists():
@@ -194,7 +210,8 @@ def main():
 
     out = AgentOutput("s6_upset_risk", verbose=args.verbose, stop_on_error=args.stop_on_error)
 
-    ok, msg = run_upset_risk(args.date, {})
+    state = {}
+    ok, msg = run_upset_risk(args.date, state)
 
     # Parse metrics from message
     import re
@@ -216,6 +233,11 @@ def main():
     out.summary(
         verdict=verdict,
         metrics={
+            "input_source": (state.get("candidate_load") or {}).get("source", "none"),
+            "input_status": (state.get("candidate_load") or {}).get("parity", {}).get("status", "missing"),
+            "input_json_candidates": (state.get("candidate_load") or {}).get("counts", {}).get("json", 0),
+            "input_db_candidates": (state.get("candidate_load") or {}).get("counts", {}).get("db", 0),
+            "input_canonical_candidates": (state.get("candidate_load") or {}).get("counts", {}).get("canonical", 0),
             "total_scored": scored,
             "low_risk": scored - elevated - high_risk,
             "elevated_risk": elevated,

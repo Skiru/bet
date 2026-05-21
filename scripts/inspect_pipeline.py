@@ -10,7 +10,7 @@ Usage:
     python3 scripts/inspect_pipeline.py --step s3 --date 2026-05-11 --verbose
     python3 scripts/inspect_pipeline.py --step all --date 2026-05-11
 
-Steps: s0 (DB health), s1 (scan), s1e (shortlist), s2 (enrichment),
+Steps: s0 (settlement/learning readiness + DB health), s1 (scan), s1e (shortlist), s2 (enrichment),
        s3 (deep stats), s7 (gate), s8 (coupons), all
 
 Exit codes: 0 = healthy, 1 = partial/warnings, 2 = critical gaps
@@ -28,12 +28,24 @@ sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from agent_output import AgentOutput, add_agent_args
+from db_data_loader import load_s3_candidates_with_parity
+from validate_phase import assess_s0_readiness
 from bet.stats.fallback_chains import RICH_COMPLETION_POLICY
-from bet.stats.rich_coverage import classify_rich_coverage, summarize_rich_coverage
+from bet.stats.rich_coverage import BASELINE_SOURCE, classify_rich_coverage, summarize_rich_coverage
 
 DATA_DIR = ROOT / "betting" / "data"
 COUPON_DIR = ROOT / "betting" / "coupons"
 CONFIG_DIR = ROOT / "config"
+
+FOOTBALL_RICH_KEYS = {
+    "corners",
+    "yellow_cards",
+    "red_cards",
+    "shots",
+    "shots_on_target",
+    "fouls",
+    "possession",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -96,16 +108,23 @@ def _load_json(relative_path: str, date: str) -> dict | list | None:
         return None
 
 
-def _collect_shortlist_teams_by_sport(shortlist) -> dict[str, set[str]]:
-    teams_by_sport: dict[str, set[str]] = {}
+def _normalize_shortlist_events(shortlist) -> list[dict]:
+    events: list[dict] = []
     if not shortlist:
-        return teams_by_sport
+        return events
 
     candidates = shortlist if isinstance(shortlist, list) else shortlist.get("candidates", [])
     for candidate in candidates:
         event = candidate[1] if isinstance(candidate, (list, tuple)) and len(candidate) >= 2 else candidate
-        if not isinstance(event, dict):
-            continue
+        if isinstance(event, dict):
+            events.append(event)
+
+    return events
+
+
+def _collect_shortlist_teams_by_sport(shortlist) -> dict[str, set[str]]:
+    teams_by_sport: dict[str, set[str]] = {}
+    for event in _normalize_shortlist_events(shortlist):
         sport = event.get("sport", "")
         if not sport:
             continue
@@ -117,17 +136,190 @@ def _collect_shortlist_teams_by_sport(shortlist) -> dict[str, set[str]]:
     return teams_by_sport
 
 
+def _build_count_parity(
+    *,
+    json_counts: dict[str, int] | None,
+    db_counts: dict[str, int] | None,
+    keys: tuple[str, ...],
+    json_available: bool,
+    db_available: bool,
+) -> dict:
+    normalized_json = {key: int((json_counts or {}).get(key, 0) or 0) for key in keys}
+    normalized_db = {key: int((db_counts or {}).get(key, 0) or 0) for key in keys}
+
+    if json_available and db_available:
+        status = "exact" if normalized_json == normalized_db else "mismatch"
+    elif json_available and any(normalized_json.values()):
+        status = "json_only"
+    elif db_available and any(normalized_db.values()):
+        status = "db_only"
+    else:
+        status = "missing"
+
+    return {
+        "status": status,
+        "json_available": json_available,
+        "db_available": db_available,
+        "json_counts": normalized_json,
+        "db_counts": normalized_db,
+        "mismatched_keys": [key for key in keys if normalized_json[key] != normalized_db[key]],
+    }
+
+
+def _summarize_scraper_runs(conn, date: str) -> dict:
+    success_by_sport = {
+        row[0]: row[1]
+        for row in _safe_query(
+            conn,
+            "SELECT sport, COUNT(*) FROM scraper_runs "
+            "WHERE LOWER(status) = 'success' AND DATE(COALESCE(finished_at, started_at)) = ? "
+            "GROUP BY sport ORDER BY sport",
+            (date,),
+            default=[],
+        )
+    }
+    failed_by_sport = {
+        row[0]: row[1]
+        for row in _safe_query(
+            conn,
+            "SELECT sport, COUNT(*) FROM scraper_runs "
+            "WHERE LOWER(status) = 'failed' AND DATE(COALESCE(finished_at, started_at)) = ? "
+            "GROUP BY sport ORDER BY sport",
+            (date,),
+            default=[],
+        )
+    }
+
+    warehouse_rows = _safe_query(
+        conn,
+        "SELECT COALESCE(SUM(records_scraped), 0), COALESCE(SUM(records_inserted), 0), COALESCE(SUM(records_updated), 0) "
+        "FROM scraper_runs WHERE DATE(COALESCE(finished_at, started_at)) = ?",
+        (date,),
+        default=None,
+    )
+    warehouse_metrics_available = bool(warehouse_rows)
+    if warehouse_rows:
+        records_scraped, records_inserted, records_updated = warehouse_rows[0]
+    else:
+        records_scraped = records_inserted = records_updated = 0
+
+    success_runs = sum(success_by_sport.values())
+    failed_runs = sum(failed_by_sport.values())
+    observed_changes = int(records_scraped or 0) + int(records_inserted or 0) + int(records_updated or 0)
+
+    return {
+        "success_runs": success_runs,
+        "failed_runs": failed_runs,
+        "success_by_sport": success_by_sport,
+        "failed_by_sport": failed_by_sport,
+        "records_scraped": int(records_scraped or 0),
+        "records_inserted": int(records_inserted or 0),
+        "records_updated": int(records_updated or 0),
+        "warehouse_metrics_available": warehouse_metrics_available,
+        "warehouse_changes_observed": observed_changes,
+        "warehouse_improved": bool(success_runs and (observed_changes > 0 or not warehouse_metrics_available)),
+    }
+
+
+def _gate_bucket_counts_from_json(payload: dict | None) -> dict[str, int]:
+    gate_results = payload.get("gate_results", {}) if isinstance(payload, dict) else {}
+    return {
+        "approved": len(gate_results.get("approved", []) or []),
+        "extended_pool": len(gate_results.get("extended_pool", []) or []),
+        "rejected": len(gate_results.get("rejected", []) or []),
+    }
+
+
+def _gate_bucket_counts_from_db(conn, date: str) -> tuple[dict[str, int], bool]:
+    rows = _safe_query(
+        conn,
+        "SELECT UPPER(COALESCE(status, '')), COUNT(*) FROM gate_results "
+        "WHERE betting_date = ? GROUP BY UPPER(COALESCE(status, ''))",
+        (date,),
+        default=None,
+    )
+    if rows is None:
+        return {}, False
+
+    counts = {"approved": 0, "extended_pool": 0, "rejected": 0}
+    status_map = {
+        "APPROVED": "approved",
+        "EXTENDED": "extended_pool",
+        "EXTENDED_POOL": "extended_pool",
+        "REJECTED": "rejected",
+    }
+    for status, count in rows:
+        bucket = status_map.get(str(status or "").strip().upper())
+        if bucket:
+            counts[bucket] += int(count or 0)
+
+    return counts, True
+
+
+def _coupon_json_snapshot(payload: dict | None) -> dict:
+    if not isinstance(payload, dict):
+        return {
+            "core_coupons": 0,
+            "combos": 0,
+            "singles": 0,
+            "persisted_coupons": 0,
+            "persisted_legs": 0,
+        }
+
+    core = list(payload.get("core_coupons", []) or [])
+    combos = list(payload.get("combos", []) or [])
+    singles = list(payload.get("singles", []) or [])
+    persisted = core + combos + singles
+
+    return {
+        "core_coupons": len(core),
+        "combos": len(combos),
+        "singles": len(singles),
+        "persisted_coupons": len(persisted),
+        "persisted_legs": sum(len(coupon.get("legs", []) or []) for coupon in persisted),
+    }
+
+
+def _coupon_db_snapshot(conn, date: str) -> tuple[list[tuple], bool]:
+    rows = _safe_query(
+        conn,
+        "SELECT id, coupon_id, coupon_type, total_odds, stake_pln, status "
+        "FROM coupons WHERE coupon_id LIKE ? ORDER BY id",
+        (f"CP-{date}%",),
+        default=None,
+    )
+    if rows:
+        return rows, True
+
+    fallback_rows = _safe_query(
+        conn,
+        "SELECT id, coupon_id, coupon_type, total_odds, stake_pln, status "
+        "FROM coupons WHERE substr(COALESCE(placed_at, created_at, ''), 1, 10) = ? "
+        "OR substr(created_at, 1, 10) = ? ORDER BY id",
+        (date, date),
+        default=None,
+    )
+    if fallback_rows is None:
+        return [], False
+    return fallback_rows, True
+
+
 # ---------------------------------------------------------------------------
 # Step Handlers
 # ---------------------------------------------------------------------------
 
 def inspect_s0(date: str, out: AgentOutput) -> dict:
-    """S0: DB health check — table census and basic integrity."""
-    metrics = {}
+    """S0: previous-day settlement/learning readiness plus DB health census."""
+    metrics = {
+        "session_readiness": assess_s0_readiness(date, db_getter=_get_db, data_dir=DATA_DIR)
+    }
     conn_ctx = _get_db()
     if conn_ctx is None:
         out.error("Cannot connect to betting.db", recoverable=False)
-        return {"db_available": False, "_verdict": "FAILED"}
+        metrics["db_available"] = False
+        metrics["_verdict"] = "FAILED"
+        out.summary(verdict="FAILED", metrics=metrics)
+        return metrics
 
     with conn_ctx as conn:
         # Table census
@@ -157,12 +349,12 @@ def inspect_s0(date: str, out: AgentOutput) -> dict:
         date_counts = {}
         for t in ["fixtures", "scan_results", "analysis_results", "gate_results"]:
             if t in table_names:
-                # Try betting_date first, then date(kickoff) for fixtures
-                count = _safe_fetchone(conn,
-                    f"SELECT COUNT(*) FROM {t} WHERE betting_date = ?", (date,), default=None)
-                if count is None and t == "fixtures":
+                if t == "fixtures":
                     count = _safe_fetchone(conn,
                         f"SELECT COUNT(*) FROM {t} WHERE date(kickoff) = ?", (date,), default=0)
+                else:
+                    count = _safe_fetchone(conn,
+                        f"SELECT COUNT(*) FROM {t} WHERE betting_date = ?", (date,), default=0)
                 date_counts[t] = count or 0
         metrics["date_counts"] = date_counts
 
@@ -175,7 +367,10 @@ def inspect_s0(date: str, out: AgentOutput) -> dict:
             {"source": r[0], "consecutive_failures": r[1]} for r in failing
         ]
 
-    verdict = "OK" if metrics.get("tables_total", 0) >= 15 else "PARTIAL"
+    if not metrics["session_readiness"].get("ready", True):
+        verdict = "FAILED"
+    else:
+        verdict = "OK" if metrics.get("tables_total", 0) >= 15 else "PARTIAL"
     metrics["_verdict"] = verdict
     out.summary(verdict=verdict, metrics=metrics)
     return metrics
@@ -303,6 +498,9 @@ def inspect_s2(date: str, out: AgentOutput) -> dict:
     shortlist = _load_json("betting/data/{date}_s2_shortlist.json", date)
     shortlist_teams_by_sport = _collect_shortlist_teams_by_sport(shortlist)
     metrics["shortlist_teams_count"] = sum(len(teams) for teams in shortlist_teams_by_sport.values())
+    metrics["shortlist_teams_by_sport"] = {
+        sport: len(teams) for sport, teams in sorted(shortlist_teams_by_sport.items())
+    }
 
     conn_ctx = _get_db()
     if conn_ctx is None:
@@ -314,7 +512,7 @@ def inspect_s2(date: str, out: AgentOutput) -> dict:
     with conn_ctx as conn:
         # team_form coverage by sport
         rows = _safe_query(conn,
-            "SELECT s.name as sport, COUNT(DISTINCT tf.team_name) as teams "
+            "SELECT s.name as sport, COUNT(DISTINCT tf.team_id) as teams "
             "FROM team_form tf JOIN sports s ON tf.sport_id = s.id "
             "GROUP BY s.name ORDER BY teams DESC",
             default=[])
@@ -327,23 +525,62 @@ def inspect_s2(date: str, out: AgentOutput) -> dict:
             default=[])
         metrics["top_stat_keys"] = {r[0]: r[1] for r in stat_keys}
 
+        scraper_summary = _summarize_scraper_runs(conn, date)
+        metrics["scraper_success"] = scraper_summary
+
         rich_completion_by_sport = {}
-        for sport, policy in RICH_COMPLETION_POLICY.items():
+        all_team_details = []
+        bucket_counts = Counter()
+        tracked_sports = sorted(set(shortlist_teams_by_sport) | set(RICH_COMPLETION_POLICY))
+        for sport in tracked_sports:
+            policy = RICH_COMPLETION_POLICY.get(sport)
             sport_id = _safe_fetchone(conn, "SELECT id FROM sports WHERE name = ?", (sport,), default=None)
             team_names = sorted(shortlist_teams_by_sport.get(sport, set()))
             team_details = []
             if sport_id is not None:
-                allowed_sources = {policy["canonical_source"], *policy["supporting_sources"]}
+                allowed_sources = None
+                required_keys = []
+                baseline_sources = None
+                if policy:
+                    allowed_sources = {policy["canonical_source"], *policy["supporting_sources"]}
+                    required_keys = policy["required_rich_keys"]
+                    baseline_sources = policy.get("baseline_sources")
+                elif sport == "football":
+                    required_keys = sorted(FOOTBALL_RICH_KEYS)
+                    baseline_sources = {BASELINE_SOURCE}
+
                 for team_name in team_names:
                     rows = _safe_query(
                         conn,
-                        "SELECT stat_key, source FROM team_form WHERE team_name = ? AND sport_id = ?",
+                        "SELECT tf.stat_key, tf.source "
+                        "FROM team_form tf "
+                        "JOIN teams t ON t.id = tf.team_id "
+                        "WHERE t.name = ? AND tf.sport_id = ?",
                         (team_name, sport_id),
                         default=[],
                     )
-                    detail = classify_rich_coverage(rows, policy["required_rich_keys"], allowed_sources)
+                    if required_keys:
+                        detail = classify_rich_coverage(
+                            rows,
+                            required_keys,
+                            allowed_sources,
+                            baseline_sources=baseline_sources,
+                        )
+                    else:
+                        detail = {
+                            "bucket": "partial" if rows else "no_data",
+                            "eligible": bool(rows),
+                            "stat_keys": sorted({str(row[0]) for row in rows if row and row[0]}),
+                            "sources": sorted({str(row[1]) for row in rows if row and row[1]}),
+                            "rich_keys_found": [],
+                            "missing_rich_keys": [],
+                        }
                     detail["team"] = team_name
+                    detail["sport"] = sport
+                    detail["team_form_rows"] = len(rows)
                     team_details.append(detail)
+                    all_team_details.append(detail)
+                    bucket_counts[detail["bucket"]] += 1
 
             summary = summarize_rich_coverage(team_details)
             rich_completion_by_sport[sport] = summary
@@ -354,7 +591,43 @@ def inspect_s2(date: str, out: AgentOutput) -> dict:
 
         metrics["rich_completion_by_sport"] = rich_completion_by_sport
 
-    verdict = "OK" if metrics.get("total_teams_with_form", 0) > 0 else "PARTIAL"
+    teams_with_any_data = sum(1 for detail in all_team_details if detail.get("team_form_rows", 0) > 0)
+    no_data_details = [detail for detail in all_team_details if detail.get("bucket") == "no_data"]
+    still_missing_details = [detail for detail in all_team_details if detail.get("bucket") != "rich"]
+    total_shortlist_teams = metrics["shortlist_teams_count"]
+
+    metrics["shortlist_bucket_counts"] = {
+        "rich": bucket_counts.get("rich", 0),
+        "baseline_only": bucket_counts.get("baseline_only", 0),
+        "partial": bucket_counts.get("partial", 0),
+        "no_data": bucket_counts.get("no_data", 0),
+    }
+    metrics["shortlist_team_details"] = all_team_details
+    metrics["still_missing_shortlist_teams"] = still_missing_details
+    metrics["no_data_shortlist_teams"] = no_data_details
+    metrics["team_form_readiness"] = {
+        "teams_with_any_data": teams_with_any_data,
+        "teams_missing_any_data": max(total_shortlist_teams - teams_with_any_data, 0),
+        "coverage_rate": round((teams_with_any_data / total_shortlist_teams) * 100, 1) if total_shortlist_teams else 0.0,
+    }
+    metrics["s3_readiness"] = {
+        "ready": bool(total_shortlist_teams) and not no_data_details,
+        "ready_teams": total_shortlist_teams - len(no_data_details),
+        "blocked_teams": len(no_data_details),
+    }
+    metrics["readiness_signals"] = {
+        "warehouse_improved": metrics["scraper_success"]["warehouse_improved"],
+        "s3_ready": metrics["s3_readiness"]["ready"],
+        "rich_ready": bool(total_shortlist_teams) and metrics["shortlist_bucket_counts"]["rich"] == total_shortlist_teams,
+    }
+
+    if total_shortlist_teams and metrics["s3_readiness"]["ready"]:
+        verdict = "OK"
+    elif metrics.get("total_teams_with_form", 0) > 0 or metrics["scraper_success"]["success_runs"] > 0:
+        verdict = "PARTIAL"
+    else:
+        verdict = "FAILED"
+
     metrics["_verdict"] = verdict
     out.summary(verdict=verdict, metrics=metrics)
     return metrics
@@ -367,6 +640,15 @@ def inspect_s3(date: str, out: AgentOutput) -> dict:
     # Check file
     stats = _load_json("betting/data/{date}_s3_deep_stats.json", date)
     metrics["output_file_exists"] = stats is not None
+
+    _, parity_metadata = load_s3_candidates_with_parity(date)
+    metrics["canonical_candidate_count"] = parity_metadata.get("counts", {}).get("canonical", 0)
+    metrics["db_json_parity"] = {
+        "source": parity_metadata.get("source", "none"),
+        **parity_metadata.get("parity", {}),
+    }
+    if parity_metadata.get("blocking_error"):
+        metrics["parity_blocking_error"] = parity_metadata["blocking_error"]
 
     if stats:
         analyses = stats.get("analyses", [])
@@ -409,11 +691,15 @@ def inspect_s3(date: str, out: AgentOutput) -> dict:
             metrics["db_analysis_count"] = db_count
 
     verdict = "OK"
-    if not stats:
+    if not stats and metrics["canonical_candidate_count"] == 0:
         verdict = "FAILED"
-    elif metrics.get("with_data", 0) == 0:
+    elif stats and metrics.get("with_data", 0) == 0:
         verdict = "FAILED"
-    elif metrics.get("avg_safety_score", 0) < 4:
+    elif metrics["db_json_parity"].get("status") == "mismatch":
+        verdict = "PARTIAL"
+    elif stats and metrics.get("avg_safety_score", 0) < 4:
+        verdict = "PARTIAL"
+    elif not stats and metrics["canonical_candidate_count"] > 0:
         verdict = "PARTIAL"
 
     metrics["_verdict"] = verdict
@@ -427,10 +713,11 @@ def inspect_s7(date: str, out: AgentOutput) -> dict:
 
     gate = _load_json("betting/data/{date}_s7_gate_results.json", date)
     metrics["output_file_exists"] = gate is not None
+    json_bucket_counts = _gate_bucket_counts_from_json(gate)
+    metrics["json_bucket_counts"] = json_bucket_counts
 
     if gate:
         gr = gate.get("gate_results", {})
-        summary = gate.get("summary", {})
 
         metrics["approved_count"] = len(gr.get("approved", []))
         metrics["extended_count"] = len(gr.get("extended_pool", []))
@@ -462,17 +749,31 @@ def inspect_s7(date: str, out: AgentOutput) -> dict:
 
     # DB check
     conn_ctx = _get_db()
+    db_bucket_counts = {"approved": 0, "extended_pool": 0, "rejected": 0}
+    db_available = False
     if conn_ctx:
         with conn_ctx as conn:
             db_count = _safe_fetchone(conn,
                 "SELECT COUNT(*) FROM gate_results WHERE betting_date = ?",
                 (date,), default=0)
             metrics["db_gate_count"] = db_count
+            db_bucket_counts, db_available = _gate_bucket_counts_from_db(conn, date)
+
+    metrics["db_bucket_counts"] = db_bucket_counts
+    metrics["db_json_parity"] = _build_count_parity(
+        json_counts=json_bucket_counts,
+        db_counts=db_bucket_counts,
+        keys=("approved", "extended_pool", "rejected"),
+        json_available=gate is not None,
+        db_available=db_available,
+    )
 
     verdict = "OK"
-    if not gate:
+    if not gate and not any(db_bucket_counts.values()):
         verdict = "FAILED"
     elif metrics.get("approved_count", 0) == 0:
+        verdict = "PARTIAL"
+    elif metrics["db_json_parity"]["status"] == "mismatch":
         verdict = "PARTIAL"
 
     metrics["_verdict"] = verdict
@@ -488,37 +789,56 @@ def inspect_s8(date: str, out: AgentOutput) -> dict:
     coupon_files = list(COUPON_DIR.glob(f"{date}*.md"))
     metrics["coupon_files"] = len(coupon_files)
     metrics["coupon_filenames"] = [f.name for f in coupon_files]
+    coupon_json = _load_json("betting/coupons/{date}.json", date)
+    metrics["coupon_json_exists"] = coupon_json is not None
+    metrics["json_coupon_counts"] = _coupon_json_snapshot(coupon_json)
 
     # DB check
     conn_ctx = _get_db()
+    db_available = False
     if conn_ctx:
         with conn_ctx as conn:
-            # Coupons
-            coupons = _safe_query(conn,
-                "SELECT coupon_id, coupon_type, total_odds, stake_pln, status "
-                "FROM coupons WHERE coupon_id LIKE ?",
-                (f"C-{date.replace('-', '')}%",), default=[])
+            coupons, db_available = _coupon_db_snapshot(conn, date)
             metrics["db_coupons"] = len(coupons)
             metrics["coupon_details"] = [
                 {
-                    "id": r[0], "type": r[1],
-                    "odds": r[2], "stake": r[3], "status": r[4],
+                    "id": r[1], "type": r[2],
+                    "odds": r[3], "stake": r[4], "status": r[5],
                 }
                 for r in coupons
             ]
+            metrics["db_coupon_type_counts"] = dict(Counter(
+                (r[2] or "unknown") for r in coupons
+            ))
 
             # Bets per coupon
-            bets_count = _safe_fetchone(conn,
-                "SELECT COUNT(*) FROM bets WHERE coupon_id IN "
-                "(SELECT id FROM coupons WHERE coupon_id LIKE ?)",
-                (f"C-{date.replace('-', '')}%",), default=0)
+            coupon_ids = [r[0] for r in coupons]
+            if coupon_ids:
+                placeholders = ",".join("?" for _ in coupon_ids)
+                bets_count = _safe_fetchone(conn,
+                    f"SELECT COUNT(*) FROM bets WHERE coupon_id IN ({placeholders})",
+                    tuple(coupon_ids), default=0)
+            else:
+                bets_count = 0
             metrics["total_legs"] = bets_count
 
             # Total stake
-            total_stake = _safe_fetchone(conn,
-                "SELECT SUM(stake_pln) FROM coupons WHERE coupon_id LIKE ?",
-                (f"C-{date.replace('-', '')}%",), default=0)
+            total_stake = sum(float(r[4] or 0) for r in coupons)
             metrics["total_stake_pln"] = total_stake or 0
+
+    metrics["db_json_parity"] = _build_count_parity(
+        json_counts={
+            "persisted_coupons": metrics["json_coupon_counts"]["persisted_coupons"],
+            "persisted_legs": metrics["json_coupon_counts"]["persisted_legs"],
+        },
+        db_counts={
+            "persisted_coupons": metrics.get("db_coupons", 0),
+            "persisted_legs": metrics.get("total_legs", 0),
+        },
+        keys=("persisted_coupons", "persisted_legs"),
+        json_available=coupon_json is not None,
+        db_available=db_available,
+    )
 
     # Bankroll check
     config = _load_json("config/betting_config.json", date)
@@ -535,6 +855,8 @@ def inspect_s8(date: str, out: AgentOutput) -> dict:
         verdict = "FAILED"
     elif metrics.get("total_legs", 0) == 0:
         verdict = "PARTIAL"
+    elif metrics["db_json_parity"]["status"] == "mismatch":
+        verdict = "PARTIAL"
 
     metrics["_verdict"] = verdict
     out.summary(verdict=verdict, metrics=metrics)
@@ -546,7 +868,7 @@ def inspect_s8(date: str, out: AgentOutput) -> dict:
 # ---------------------------------------------------------------------------
 
 STEP_HANDLERS = {
-    "s0": ("DB Health Check", inspect_s0),
+    "s0": ("Settlement/Learning Readiness + DB Health", inspect_s0),
     "s1": ("Scan Results", inspect_s1),
     "s1e": ("Shortlist", inspect_s1e),
     "s2": ("Enrichment", inspect_s2),

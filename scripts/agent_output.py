@@ -147,7 +147,8 @@ class AgentOutput:
                 issues: list | None = None) -> None:
         """Print final structured summary. ALWAYS JSON, both modes.
 
-        verdict: OK (clean), PARTIAL (>0 warnings/recoverable errors), FAILED (critical)
+        verdict: OK (clean), PARTIAL (>0 warnings/recoverable errors),
+             FAILED (critical), NO_BET (valid no-pick session outcome)
         metrics: key numbers the agent evaluates (counts, rates, scores)
         issues: list of problems found (agent decides severity)
         """
@@ -185,14 +186,15 @@ class AgentOutput:
         """Validate AGENT_SUMMARY structure. Returns list of warning strings (empty = valid).
         
         Checks:
-        - verdict is one of OK, PARTIAL, FAILED
+        - verdict is one of OK, PARTIAL, FAILED, NO_BET
         - metrics is a dict with ≥1 entry
         - issues is a list
         - step is a non-empty string
         """
         warnings = []
         
-        valid_verdicts = {"OK", "PARTIAL", "FAILED"}
+        # coupon_builder.py emits NO_BET for a valid no-pick session path.
+        valid_verdicts = {"OK", "PARTIAL", "FAILED", "NO_BET"}
         verdict = payload.get("verdict")
         if verdict not in valid_verdicts:
             warnings.append(f"Invalid verdict '{verdict}' — expected one of {valid_verdicts}")

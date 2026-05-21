@@ -67,7 +67,7 @@ Load these skills before starting:
 The orchestrator has already:
 1. Run `gate_checker.py --date {date} --verbose`
 2. Extracted AGENT_SUMMARY:{json} with tier distribution, gate scores, and issues
-3. Provided key warnings and gate failures
+3. Provided key warnings, gate failures, and any separate S7.6 repeat-loss findings
 
 **Your job:** Analyze gate output with adversarial specialist knowledge.
 
@@ -92,7 +92,7 @@ The mechanical gate is just a STARTING POINT. You build:
 
 - **Inputs**: `{date}_s5_context.md`, `{date}_s6_upset_risk.md`, all S3-S6 data
 - **Script**: `python3 scripts/gate_checker.py` (mechanical gate — starting point)
-- **48h repeat check**: integrated into `gate_checker.py` (no separate script needed)
+- **48h repeat check**: separate `check_48h_repeats.py` step run by the orchestrator before S8. If repeat-loss findings are provided, treat them as a hard gate input alongside `gate_checker.py` output.
 - **ESPN player gamelogs** (basketball/hockey): Use to CHECK BEAR CASES. If bull case says "Team X scores 110+" but gamelogs show star player inconsistent (5/10 games under 20pts) → FRAGILE.
 - **Standings with streaks**: `standings` table has `streak` and `form` fields — use to verify momentum claims. "5-game win streak" must be verified in DB.
 

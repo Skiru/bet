@@ -287,13 +287,13 @@ runSubagent(specialist_agent):
 
 ## §STRUCTURED SCRIPT OUTPUT (R19)
 
-**Scripts with confirmed `AGENT_SUMMARY:{json}` output (6 scripts):** `discover_events.py`, `run_scrapers.py`, `odds_evaluator.py`, `context_checks.py`, `upset_risk.py`, `validate_coupons.py`.
+**Literal `AGENT_SUMMARY:{json}` emitters confirmed in current runtime include:** `discover_events.py`, `run_scrapers.py`, `validate_betclic_markets.py`, `odds_evaluator.py`, `context_checks.py`, `upset_risk.py`, and `validate_coupons.py`.
 
-**Scripts with structured verbose output but NO `AGENT_SUMMARY` (parse key metrics from stdout instead):** `ingest_scan_stats.py`, `tipster_aggregator.py`, `tipster_xref.py`, `data_enrichment_agent.py`, `deep_stats_report.py`, `gate_checker.py`, `coupon_builder.py`, `build_shortlist.py`, `fetch_odds_multi.py`.
+**Coordinator rule:** after EVERY script, scan the full output for an `AGENT_SUMMARY:` line first. Several betting scripts also emit summaries through shared helpers such as `AgentOutput`, so the hardcoded inventory above is not exhaustive. If a summary line is present, parse it as authoritative. Only fall back to manual stdout metric extraction when no `AGENT_SUMMARY:` line exists anywhere in the captured output.
 
 Exit codes: 0=OK, 1=partial, 2=critical. Scripts with `--sport` filter: `discover_events.py`, `tipster_aggregator.py`, `run_scrapers.py`.
 
-**For scripts without AGENT_SUMMARY:** Read full verbose output, extract key metrics manually (counts, success rates, warnings). Do NOT expect an `AGENT_SUMMARY:` line — parse the human-readable output instead.
+**For scripts without AGENT_SUMMARY:** Read full verbose output, extract key metrics manually (counts, success rates, warnings), and record that the step used stdout parsing rather than summary parsing.
 
 ---
 
@@ -937,8 +937,8 @@ Mode: `sync`, timeout: `300000`
 **After completion:**
 - Parse output for market availability per event
 - Events where recommended market is UNAVAILABLE → flag for coupon builder (suggest alternative market or move to Extended Pool)
-- Output saved to: `betting/data/{date}_betclic_validation.json`
-- This data is consumed by `coupon_builder.py` (renders WALIDACJA RYNKÓW section)
+- Output saved to: `betting/data/betclic_market_validation_{date}.json`
+- This data is consumed by `coupon_builder.py`; S8 fails closed if the sidecar is missing or malformed for today's run
 
 **NOTE:** Do NOT scrape Betclic directly in other steps (R12 — 403 risk). This script uses `BetclicSession` with `curl_cffi` impersonation.
 
@@ -947,13 +947,16 @@ Mode: `sync`, timeout: `300000`
 ### STEP S7.6: 48h Repeat Check
 
 ```bash
-PYTHONPATH=src .venv/bin/python3 scripts/check_48h_repeats.py --date {date} 2>&1
+PYTHONPATH=src .venv/bin/python3 scripts/check_48h_repeats.py --date {date} --format json --verbose 2>&1
 ```
 Mode: `sync`, timeout: `120000`
 
-**Purpose:** Implements §7.5 point #14 — detects same team+market combinations that LOST in the last 48h. These are flagged as HARD REJECT for core coupons (can still appear in Extended Pool).
+**Purpose:** Implements §7.5 point #14 — detects same team+market combinations that LOST in the last 48h across the current S7 build universe.
 
-**After completion:** Parse flagged picks. Any pick matching a 48h repeat loss → mark as `repeat_loss_flag=true` for coupon builder.
+**After completion:**
+- Persisted to DB: `pipeline_runs.step = s7_6_repeat_loss_check` (authoritative S7.6 handoff)
+- Audit artifact: `betting/data/repeat_loss_handoff_{date}.json`
+- `coupon_builder.py` consumes this handoff automatically and applies the existing HARD REJECT rule for matching same team+market losses
 
 ---
 
@@ -1239,7 +1242,7 @@ rm -f betting/data/{date}_s3_deep_stats.json betting/data/{date}_s7_gate_results
 ```
 
 Then run the FULL pipeline from S0.5 (skip S0 settlement — that's for the previous day):
-- S0.5 → S0.7 → S1 → S1-ingest → S1a → S1b → S1c → S1d → S1e → S2 ∥ S2.5 → S3 → S4 → S5+S6 → S7 → S8+S9 → S10
+- S0.5 → S0.7 → S1 → S1-ingest → S1a → S1b → S1c → S1d → S1e → S2 ∥ S2.3 → S2.5 → S3 → S4 → S5+S6 → S7 → S8+S9 → S10
 
 **Key difference from rerun:** Rescan wipes stale data FIRST. Rerun just increments version and builds on existing data.
 
