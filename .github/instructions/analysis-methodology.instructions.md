@@ -486,7 +486,7 @@ Target: ALL sports covered after Batch 1.
 
 > **Full table** in `bet-analyzing-statistics` SKILL.md §3.0b. Per-sport mandatory multi-market calculation tables in sport-analysis-protocols.instructions.md (§3.1M-§3.14M).
 >
-> **Quick reference:** Football (Fouls, Cards, Corners, Shots, Throw-ins, Goal kicks, Offsides, Goals, BTTS) | Tennis (Games, Sets, HC, Tiebreaks, Aces) | Basketball (Team pts, Quarter, Half, Total, Rebounds, 3PT) | Volleyball (Sets, Points, Set HC) | Hockey (Period, Goals, Shots, PP)
+> **Quick reference:** Football (Fouls, Cards, Corners, Shots, Throw-ins, Goal kicks, Offsides, Goals, BTTS) | Tennis (Games, Sets, HC, Tiebreaks, Aces) | Basketball (Team pts, Quarter, Half, Total, Rebounds, 3PT) | Volleyball (Sets, Points, Set HC) | Hockey (Shots, Hits, Blocks, PIM, PP Goals, Goals)
 
 ### §3.0c H2H MARKET-SPECIFIC VALIDATION (MANDATORY — NEVER SKIP)
 
@@ -1000,7 +1000,7 @@ For EACH coupon, before finalizing:
 
 ### V8: Source Completeness
 - Every pick: ≥2 independent sources + ≥1 argument-based tipster.
-- Sport-specific sources checked (football corners: TotalCorner+SoccerStats, tennis: TennisAbstract, hockey: NaturalStatTrick+MoneyPuck).
+- Sport-specific sources checked (football corners: TotalCorner+SoccerStats, tennis: TennisAbstract, hockey: api-hockey+ESPN+MoneyPuck advisory).
 - H2H, injuries verified for EVERY pick.
 - **V8b: H2H STAT-SPECIFIC CHECK:** For EVERY pick, H2H data for the SPECIFIC stat market exists (not just match results). If H2H-STAT-BLIND → pick is flagged, −0.5 confidence, excluded from LR coupons.
 - **V8c: STATISTICAL MARKET RANKING AUDIT:** For EVERY pick, §3.0 ranking table was produced showing ≥3 alternative markets considered. If no ranking table → FAIL.

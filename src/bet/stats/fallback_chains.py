@@ -102,7 +102,7 @@ EXPECTED_STATS_PER_SPORT: dict[str, list[str]] = {
         "points_in_paint", "fast_break_points",
     ],
     "hockey": [
-           "shots", "hits", "blocks", "pim",
+        "shots", "hits", "blocks", "pim",
         "powerplay_goals", "faceoffs_won", "faceoff_pct",
         "takeaways", "giveaways",
     ],

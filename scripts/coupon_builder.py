@@ -1327,7 +1327,7 @@ COMBO_THEMES = [
 ]
 
 
-def generate_combos(approved: list, config: dict) -> list[dict]:
+def generate_combos(approved: list, config: dict, core_coupons: list | None = None) -> list[dict]:
     """Generate combo coupons by remixing approved picks (theme-based + combinatorial)."""
     # Include top-safety picks even without odds (R10 stats-first principle).
     # Picks with real odds are used directly; picks without get theoretical odds.
@@ -1366,14 +1366,41 @@ def generate_combos(approved: list, config: dict) -> list[dict]:
     max_legs = config.get("max_legs_per_coupon", 4)
     max_same_sport = config.get("max_same_sport_legs_in_coupon", 2)
     max_combos = config.get("max_combo_coupons", 20)
+    max_event_reuse = config.get("max_event_reuse_across_coupons", 5)
     combos: list[dict] = []
     combo_num: dict[str, int] = {}
+    # Track signatures from the START to prevent duplicate theme combos
+    existing_signatures: set[frozenset] = set()
+    # Track per-event reuse count to enforce concentration limit
+    # Pre-seed from core coupons so combos respect total portfolio exposure
+    event_reuse_count: dict[str, int] = {}
+    if core_coupons:
+        for coupon in core_coupons:
+            for leg in coupon.get("legs", []):
+                ek = _event_key(leg)
+                event_reuse_count[ek] = event_reuse_count.get(ek, 0) + 1
+            # Also pre-seed signatures to prevent combinatorial duplicating core
+            core_sig = frozenset(_event_key(leg) for leg in coupon.get("legs", []))
+            if core_sig:
+                existing_signatures.add(core_sig)
+
+    # Filter: exclude picks with safety < 0.50 AND failed bear case from combo pool
+    combo_pool = [
+        p for p in odds_approved
+        if not (
+            (_bm(p).get("safety_score") or 0) < 0.50
+            and not (p.get("gate_details", {}).get("12", {}).get("passed", True))
+        )
+    ]
+    # Fallback: if filtering removed too many, use full pool
+    if len(combo_pool) < min_legs:
+        combo_pool = list(odds_approved)
 
     for theme in COMBO_THEMES:
         if len(combos) >= max_combos:
             break
 
-        selected = list(odds_approved)
+        selected = list(combo_pool)
 
         # Apply filter
         if "filter" in theme:
@@ -1389,7 +1416,7 @@ def generate_combos(approved: list, config: dict) -> list[dict]:
         if theme.get("unique_sport"):
             seen_sports: set[str] = set()
             diversified = []
-            for p in sorted(odds_approved, key=lambda x: -(x.get("ev") or 0)):
+            for p in sorted(combo_pool, key=lambda x: -(_bm(x).get("safety_score") or 0)):
                 sport = p.get("sport", "other")
                 if sport not in seen_sports:
                     diversified.append(p)
@@ -1428,6 +1455,23 @@ def generate_combos(approved: list, config: dict) -> list[dict]:
 
         tier = theme.get("tier", "MS")
         tier_key = tier
+
+        # Dedup: skip if this exact leg combination already exists
+        sig = frozenset(_event_key(p) for p in selected)
+        if sig in existing_signatures:
+            continue
+        existing_signatures.add(sig)
+
+        # Enforce event reuse cap
+        reuse_ok = True
+        for p in selected:
+            ek = _event_key(p)
+            if event_reuse_count.get(ek, 0) >= max_event_reuse:
+                reuse_ok = False
+                break
+        if not reuse_ok:
+            continue
+
         combo_num[tier_key] = combo_num.get(tier_key, 0) + 1
         cid = f"CP-{date_str}-COMBO-{tier_key}{combo_num[tier_key]}"
 
@@ -1436,16 +1480,18 @@ def generate_combos(approved: list, config: dict) -> list[dict]:
         coupon["combo_thesis_pl"] = theme["thesis_pl"]
         combos.append(coupon)
 
+        # Update reuse counts
+        for p in selected:
+            ek = _event_key(p)
+            event_reuse_count[ek] = event_reuse_count.get(ek, 0) + 1
+
     # Combinatorial combos — all C(n, k) combinations for k = min_legs..max_legs
-    existing_signatures = {
-        frozenset(_event_key(l) for l in c["legs"])
-        for c in combos
-    }
+    # existing_signatures already populated from theme phase above
 
     for k in range(min_legs, max_legs + 1):  # 2-leg up to max_legs combos
         if len(combos) >= max_combos:
             break
-        for combo_picks in itertools.combinations(odds_approved, k):
+        for combo_picks in itertools.combinations(combo_pool, k):
             if len(combos) >= max_combos:
                 break
             # Check unique events
@@ -1473,12 +1519,27 @@ def generate_combos(approved: list, config: dict) -> list[dict]:
             if any(c > max_same_sport for c in sport_counts_c.values()):
                 continue
 
+            # Enforce event reuse cap for combinatorial combos
+            reuse_ok = True
+            for p in combo_picks:
+                ek = _event_key(p)
+                if event_reuse_count.get(ek, 0) >= max_event_reuse:
+                    reuse_ok = False
+                    break
+            if not reuse_ok:
+                continue
+
             combo_num_total = len(combos) + 1
             cid = f"CP-{date_str}-COMB{k}x{combo_num_total}"
             coupon = _make_coupon(cid, "MS", list(combo_picks), config)
             coupon["combo_theme"] = f"combinatorial-{k}-fold"
             coupon["combo_thesis_pl"] = f"Kombinacja {k}-krotna — automatycznie wygenerowana"
             combos.append(coupon)
+
+            # Update reuse counts
+            for p in combo_picks:
+                ek = _event_key(p)
+                event_reuse_count[ek] = event_reuse_count.get(ek, 0) + 1
 
     # Enrich all combos with richer descriptions
     for coupon in combos:
@@ -1983,7 +2044,7 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
     result["core_coupons"] = core
 
     # Build combo menu (requires ≥2 picks)
-    combos = generate_combos(core_eligible, config)
+    combos = generate_combos(core_eligible, config, core_coupons=core)
     result["combos"] = combos
 
     # DISCOVERY SINGLES — weak/flagged picks with discounted stakes

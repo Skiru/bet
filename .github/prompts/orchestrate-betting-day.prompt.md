@@ -609,6 +609,8 @@ Return: Model A verdict + tipster_count + event_coverage + consensus_picks[]
 ---
 ```
 
+**⛔ DELEGATION GATE (R20):** You MUST have called `runSubagent("bet-scout")` and received a verdict before proceeding past S2. Script ran + no delegation = VIOLATION.
+
 ---
 
 > ⚡ **PARALLEL EXECUTION:** S2 (tipster xref) and S2.3 (scrapers) are INDEPENDENT — they both read from the shortlist but neither depends on the other's output. Run both scripts sequentially (tipster_xref ~30s, scrapers ~2-3 min), then delegate BOTH analyses to separate subagents simultaneously. Collect both verdicts, then proceed to S2.5.
@@ -654,26 +656,36 @@ Return: Model A verdict + explicit gap list for S2.5 enrichment
 ---
 ```
 
+**⛔ DELEGATION GATE (R20):** You MUST have called `runSubagent("bet-enricher")` for S2.3 scrapers output and received a verdict before proceeding to S2.5. Script ran + no delegation = VIOLATION.
+
 ---
 
-### STEP S2.5: Data Enrichment (now GAP-FILL FALLBACK — only fills what scrapers missed)
+### STEP S2.5: Data Enrichment (GAP-FILL ONLY — skip if DB already covers shortlist)
 
-**Orchestrator runs enrichment script, then delegates analysis to bet-enricher.**
+**Enrichment adds ENTITIES (teams/players) to DB, NOT events. Once a team is enriched it stays enriched forever. On a mature DB (9000+ teams), this step takes 2-5 min or is SKIPPED entirely.**
 
-**Step 1: INSPECT inputs (pylanceRunCodeSnippet):**
-Verify shortlist exists: `betting/data/{date}_s2_shortlist.json`
-Check team_form baseline count in DB.
+**Step 1: GAP CHECK (MANDATORY before running script):**
+```sql
+-- Count shortlist teams that have NO team_form data at all:
+SELECT COUNT(DISTINCT t.team) FROM (
+  SELECT home_team AS team FROM shortlist UNION SELECT away_team AS team FROM shortlist
+) t LEFT JOIN (SELECT DISTINCT team_id FROM team_form WHERE l5_avg IS NOT NULL) tf
+ON t.team = tf.team_id WHERE tf.team_id IS NULL
+```
+Run equivalent via `--dry-run` flag or inline DB check.
 
-**Step 2: RUN script (you, the orchestrator):**
+**⛔ SKIP GATE:** If <20 teams are missing from DB → **SKIP S2.5 entirely**. The existing team_form data is sufficient for S3. Log "S2.5 SKIPPED — only N teams missing, DB coverage sufficient" and proceed to S3.
+
+**Step 2: RUN script ONLY if gaps are significant (≥20 missing teams):**
 ```bash
 PYTHONPATH=src .venv/bin/python3 scripts/data_enrichment_agent.py --date {date} --news --verbose 2>&1
 ```
-Mode: `async`, timeout: `600000`
+Mode: `sync`, timeout: `300000` (5 min max — if it takes longer, something is wrong)
 
-**Step 3: THINK-WHILE-WAITING:**
-- Check which teams already have form data in DB
+**Step 3: THINK-WHILE-WAITING (only if script is running):**
 - Review source health from previous runs
 - Plan S3 approach based on shortlist composition
+- Expected: script finds 5-15 new teams, enriches them in 2-5 min
 
 **Step 4: MONITOR + EXTRACT:**
 - Watch for 404/403 errors from Flashscore/ESPN (react immediately if critical)
@@ -707,6 +719,8 @@ Load skills: bet-navigating-sources, bet-analyzing-statistics.
 ```
 
 **GATE:** If bet-enricher returns REJECTED (yield <40%) → STOP, escalate to user.
+
+**⛔ DELEGATION GATE (R20):** You MUST have called `runSubagent("bet-enricher")` and received a verdict before proceeding to S3. If S2.5 was SKIPPED (≤20 teams missing), log the skip and proceed. If S2.5 WAS RUN, delegation is MANDATORY — no exceptions.
 
 ---
 
@@ -779,6 +793,8 @@ Load skills: bet-analyzing-statistics, bet-applying-sport-protocols.
 ---
 ```
 
+**⛔ DELEGATION GATE (R20):** You MUST have called `runSubagent("bet-statistician")` and received a verdict before proceeding to S4. Moving to S4 without S3 verdict = PIPELINE VIOLATION.
+
 > **S3B Trigger**: If earliest kickoff is ≤3h away, delegate `.github/internal-prompts/bet-time-sensitive.prompt.md` to bet-statistician BEFORE S4.
 
 ---
@@ -817,6 +833,8 @@ Key checks: EV per candidate, drift >8%, R10 stats-first, Kelly 1/4.
 Load skill: bet-evaluating-odds.
 ---
 ```
+
+**⛔ DELEGATION GATE (R20):** You MUST have called `runSubagent("bet-valuator")` and received a verdict before proceeding to S5. Moving to S5 without S4 verdict = PIPELINE VIOLATION.
 
 ---
 
@@ -862,6 +880,8 @@ Load skills: bet-applying-sport-protocols, bet-analyzing-statistics.
 ---
 ```
 
+**⛔ DELEGATION GATE (R20):** You MUST have called `runSubagent("bet-challenger")` and received a verdict before proceeding to S7. Moving to S7 without S5+S6 verdict = PIPELINE VIOLATION.
+
 ---
 
 ### STEP S7: 18-Point Advisory Gate
@@ -899,6 +919,8 @@ Key checks: R3 (all candidates visible), R14 (data quality), R4 (no forced diver
 Load skills: bet-applying-sport-protocols, bet-analyzing-statistics.
 ---
 ```
+
+**⛔ DELEGATION GATE (R20):** You MUST have called `runSubagent("bet-challenger")` and received a verdict before proceeding to S7.5/S8. Moving to build phase without S7 verdict = PIPELINE VIOLATION.
 
 **GATE:** If >50% candidates have MINIMAL data quality → enrichment failure. Spawn web_research_agent.py (R15).
 
@@ -1014,6 +1036,8 @@ Load skills: bet-building-coupons, bet-formatting-artifacts.
 ---
 ```
 
+**⛔ DELEGATION GATE (R20):** You MUST have called `runSubagent("bet-builder")` and received a verdict before presenting coupons to user. Coupon built + no specialist review = PIPELINE VIOLATION.
+
 ---
 
 ### STEP S10: Final Summary
@@ -1091,6 +1115,7 @@ Present to user:
 | 16 | Use `--no-enrich` or `--exclude` without logging impact | These flags silently degrade data quality. ALWAYS log what was skipped and why. If you don't know what a flag does, READ the script code first (R18). |
 | 17 | Skip steps S4/S5/S6 and jump to S7/S8 | EVERY step S3→S7 is MANDATORY. S4=odds, S5=context, S6=upset risk. Skipping any = coupon with zero EV, zero injuries, zero bear cases. See §STEP COMPLETENESS GATE. |
 | 18 | Use script flags you haven't read the code for | R18: Before using ANY flag (--no-enrich, --exclude, --top, --from-db), READ the script source to understand its effect. Unknown flags = unknown consequences. |
+| 19 | Run script → "looks good" → next step (NO delegation) | R20 VIOLATION: After EVERY script with a mapped agent, your IMMEDIATE next action is `runSubagent(mapped_agent)`. You are NOT the analyst. Saying "enrichment done, moving to S3" without calling bet-enricher = the pipeline's #1 failure mode. The specialist catches methodology violations, shallow data, edge cases you WILL miss. |
 
 ---
 
@@ -1134,12 +1159,15 @@ Use `inspect_pipeline.py --step all --date {run_date}` to check completeness pro
 | S8+9 | ☐         | ☐              | bet-builder | ☐               |
 
 **RULES:**
-1. **Script Ran + Agent NOT Delegated = VIOLATION.** Do NOT proceed to the next step.
+1. **Script Ran + Agent NOT Delegated = VIOLATION (R20).** Do NOT proceed to the next step. Your next action MUST be `runSubagent`.
 2. **Before S7:** ALL of S3, S4, S5+6 must have ☑ in "Agent Delegated" column.
 3. **Before S8:** S7 must have ☑ in "Agent Delegated" column.
 4. **Before presenting to user:** ALL steps must have ☑ in both "Script Ran" AND "Agent Delegated."
+5. **Self-check trigger:** Before launching ANY new script, look at the previous row in this checklist. If "Agent Delegated" is ☐ — STOP. Delegate FIRST.
 
 **If you catch yourself about to skip delegation:** STOP. Read the delegation template for that step (below in this prompt). Run `runSubagent`. This is the pipeline's core value — specialist analysis.
+
+**Common R20 violation pattern:** "The enrichment output looks straightforward, I'll just note it and move on to S3." — NO. Call `runSubagent("bet-enricher")`. The enricher checks yield %, source health, gap recoverability, per-sport quality — things you WILL miss.
 
 ---
 ## §THINK IN THE MIDDLE

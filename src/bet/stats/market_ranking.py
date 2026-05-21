@@ -68,13 +68,14 @@ BASKETBALL_MARKETS = [
 ]
 
 HOCKEY_MARKETS = [
-    {"name": "Total Goals O/U", "stat_a": "goals", "stat_b": "goals", "is_combined": True},
     {"name": "Total Shots O/U", "stat_a": "shots", "stat_b": "shots", "is_combined": True},
-    {"name": "Total PIM O/U", "stat_a": "pim", "stat_b": "pim", "is_combined": True},
-    {"name": "Team A Shots O/U", "stat_a": "shots", "stat_b": None, "is_combined": False},
-    {"name": "Team B Shots O/U", "stat_a": None, "stat_b": "shots", "is_combined": False},
     {"name": "Total Hits O/U", "stat_a": "hits", "stat_b": "hits", "is_combined": True},
     {"name": "Total Blocks O/U", "stat_a": "blocks", "stat_b": "blocks", "is_combined": True},
+    {"name": "Total PIM O/U", "stat_a": "pim", "stat_b": "pim", "is_combined": True},
+    {"name": "Powerplay Goals O/U", "stat_a": "powerplay_goals", "stat_b": "powerplay_goals", "is_combined": True},
+    {"name": "Team A Shots O/U", "stat_a": "shots", "stat_b": None, "is_combined": False},
+    {"name": "Team B Shots O/U", "stat_a": None, "stat_b": "shots", "is_combined": False},
+    {"name": "Total Goals O/U", "stat_a": "goals", "stat_b": "goals", "is_combined": True},
 ]
 
 TENNIS_MARKETS = [
@@ -140,8 +141,12 @@ STANDARD_MARKET_LINES: dict[str, list[dict]] = {
         {"market": "Total Points", "lines": [150.5, 160.5, 170.5, 180.5], "stat": "total_points", "is_combined": True},
     ],
     "hockey": [
+        {"market": "Total Shots", "lines": [55.5, 58.5, 60.5, 63.5, 65.5], "stat": "shots", "is_combined": True},
+        {"market": "Total Hits", "lines": [40.5, 45.5, 50.5, 55.5], "stat": "hits", "is_combined": True},
+        {"market": "Total Blocks", "lines": [25.5, 28.5, 30.5, 32.5], "stat": "blocks", "is_combined": True},
+        {"market": "Total PIM", "lines": [8.5, 10.5, 12.5, 14.5], "stat": "pim", "is_combined": True},
+        {"market": "Powerplay Goals", "lines": [0.5, 1.5, 2.5], "stat": "powerplay_goals", "is_combined": True},
         {"market": "Total Goals", "lines": [4.5, 5.5, 6.5], "stat": "goals", "is_combined": True},
-        {"market": "Total Shots", "lines": [55.5, 60.5, 65.5], "stat": "shots", "is_combined": True},
     ],
 }
 
@@ -169,6 +174,7 @@ MARKET_PL: dict[str, str] = {
     "Total PIM O/U": "Minuty karne łącznie",
     "Total Hits O/U": "Hity łącznie",
     "Total Blocks O/U": "Bloki łącznie",
+    "Powerplay Goals O/U": "Bramki w przewadze łącznie",
     "Total Double Faults O/U": "Podwójne błędy łącznie",
     "Total Errors O/U": "Błędy łącznie",
     "Break Points Total O/U": "Break pointy łącznie",

@@ -174,28 +174,36 @@ Pick the market with HIGHEST safety score. **For EU leagues**: use BetExplorer P
 
 | Category | Metrics | Source |
 |----------|---------|--------|
-| xG | xGF/game, xGA/game, xG%, xG vs actual delta | **MoneyPuck** (PRIMARY), NaturalStatTrick (BLOCKED) |
-| Goals | GF/game, GA/game, Combined avg, O/U 5.5/6.5 hit rate | ESPN, Flashscore |
-| PP/PK | PP%, PP opportunities/game, PK%, PIM/game | ESPN, NHL.com |
-| Corsi/Fenwick | CF%, FF% (possession proxy) | **MoneyPuck** (PRIMARY) |
+| Shots | Team shots/game, Shots against/game, Combined shots avg | ESPN, api-hockey (CANONICAL) |
+| Hits | Hits/game (home/away), Combined avg | api-hockey, ESPN |
+| Blocks | Blocked shots/game, Combined avg | api-hockey, ESPN |
+| PIM | Penalty minutes/game, Combined avg | api-hockey, ESPN |
+| PP/PK | PP goals/game, PP%, PK%, PP opportunities/game | api-hockey, ESPN |
+| Goals | GF/game, GA/game, Combined avg, O/U 5.5/6.5 hit rate | ESPN, api-hockey |
+| xG (advisory) | xGF/game, xGA/game, xG%, Corsi%, Fenwick% | **MoneyPuck** (supplementary only) |
 | Goalie | Save%, GAA, Last 5 starts, vs this opponent (CRITICAL) | DailyFaceoff, ESPN |
 
-**Market decision:** Period totals → Game totals O/U → Puck line → ML (LAST RESORT). Both xGF>3.0 → O-totals. Both goalies sv%<.910 → O-totals. Playoff = 0.5-1.0 fewer goals.
+**Rich stat enrichment:** Canonical per-game source is `api-hockey`. Required rich keys: `shots`, `hits`, `blocks`, `pim`, `powerplay_goals`, `faceoff_pct`. MoneyPuck and ScraperNHL are aggregate-only — they provide advisory xG/Corsi/Fenwick but NEVER satisfy canonical rich completion.
+
+**Market decision hierarchy:** Shots O/U → Hits O/U → Blocks O/U → PIM O/U → PP Goals O/U → Game totals O/U → Puck line → ML (LAST RESORT). Both xGF>3.0 → O-totals. Both goalies sv%<.910 → O-totals. Playoff = 0.5-1.0 fewer goals.
+
+**WHY shots/hits/blocks > goals:** Shots accumulate reliably (25-35 per team regardless of score). Hits are driven by team STYLE (physical teams hit 25+ per game consistently). Goals depend on goalie performance and finishing luck — highest single-game variance of any hockey stat. Every hockey match MUST have ≥1 shots/hits/blocks market evaluated before goals.
 
 **Context:** GOALIE CONFIRMED? (DailyFaceoff — #1 variable), B2B (+0.3 GA), playoff context, trade deadline.
 
 **§3.4M MANDATORY MULTI-MARKET CALCULATION (HOCKEY):**
 Before selecting ANY hockey market, calculate ALL of these:
 ```
-| Market               | TeamA avg | TeamB avg | H2H avg | Line | Hit L10 | Hit H2H | Safety |
-|----------------------|-----------|-----------|---------|------|---------|---------|--------|
-| Period 1 total O/U   |           |           |         |      |         |         |        |
-| Game total O/U X.5   |           |           |         |      |         |         |        |
-| Shots O/U X.5        |           |           |         |      |         |         |        |
-| PP goals O/U 0.5     |           |           |         |      |         |         |        |
-| Puck line ±1.5       |           |           |         |      |         |         |        |
+| Market               | TeamA avg | TeamB avg | H2H avg | Line  | Hit L10 | Hit H2H | Safety |
+|----------------------|-----------|-----------|---------|-------|---------|---------|--------|
+| Total Shots O/U      |           |           |         | 60.5  |         |         |        |
+| Total Hits O/U       |           |           |         | 45.5  |         |         |        |
+| Total Blocks O/U     |           |           |         | 28.5  |         |         |        |
+| Total PIM O/U        |           |           |         | 10.5  |         |         |        |
+| PP Goals O/U         |           |           |         | 1.5   |         |         |        |
+| Total Goals O/U      |           |           |         | 5.5   |         |         |        |
 ```
-Pick the market with HIGHEST safety score. **For NHL**: use **MoneyPuck** xG/Corsi/Fenwick (NaturalStatTrick BLOCKED by Cloudflare). **For other leagues** (DEL, SHL, KHL, Liiga): use Flashscore + BetExplorer. GOALIE IDENTITY is critical — re-evaluate ALL markets if goalie changes after analysis.
+Pick the market with HIGHEST safety score. **For NHL**: use `api-hockey` (canonical) + **MoneyPuck** xG/Corsi/Fenwick (advisory context). **For other leagues** (DEL, SHL, KHL, Liiga): `api-hockey` + ESPN + BetExplorer. GOALIE IDENTITY is critical — re-evaluate ALL markets if goalie changes after analysis.
 
 ### §3.5 Volleyball
 

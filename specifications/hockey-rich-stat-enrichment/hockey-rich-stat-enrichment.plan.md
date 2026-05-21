@@ -362,3 +362,37 @@ Potential improvements identified during planning that are not part of the curre
 - The focused hockey validation suite was rerun after the direct fix pass: `PYTHONPATH=src .venv/bin/pytest -q tests/test_hockey_rich_completion.py tests/test_api_season_fixtures.py` → `22 passed in 0.89s`.
 - The transient volleyball import blocker recorded in the historical follow-up review is now resolved by the dedicated `scripts/_helpers/volleyball_rich_completion.py` helper and the package-safe `_helpers/__init__.py` glue layer.
 - The follow-up review table above remains as a historical pre-fix snapshot of the branch state before this direct fix pass.
+
+## Methodology & Agent Integration (2026-05-21)
+
+### Problem Identified
+Hockey rich stats (shots, hits, blocks, pim, powerplay_goals, faceoff_pct) were being enriched by the pipeline but **never reaching the coupon** because:
+1. `STANDARD_MARKET_LINES["hockey"]` only had 2 entries (goals, shots) — missing lines for hits, blocks, PIM, PP goals
+2. `HOCKEY_MARKETS` was missing "Powerplay Goals O/U" market definition
+3. Sport-analysis-protocols §3.4M referenced obsolete "Period 1 totals" and "Puck line" which have no code support
+4. The market hierarchy prioritized goals (highest variance stat) over stable stats (shots/hits/blocks)
+
+### Fixes Applied
+
+| File | Change |
+|------|--------|
+| `src/bet/stats/market_ranking.py` — `HOCKEY_MARKETS` | Added "Powerplay Goals O/U", reordered: Shots → Hits → Blocks → PIM → PP Goals → Team Shots → Goals (goals LAST — highest variance) |
+| `src/bet/stats/market_ranking.py` — `STANDARD_MARKET_LINES["hockey"]` | Added lines for: Shots (55.5-65.5), Hits (40.5-55.5), Blocks (25.5-32.5), PIM (8.5-14.5), PP Goals (0.5-2.5) |
+| `src/bet/stats/market_ranking.py` — `MARKET_PL` | Added Polish translation: "Powerplay Goals O/U" → "Bramki w przewadze łącznie" |
+| `src/bet/stats/fallback_chains.py` — `EXPECTED_STATS_PER_SPORT["hockey"]` | Fixed cosmetic indentation |
+| `scripts/normalize_stats.py` — `_MAX_REASONABLE_LINE` | Added hockey caps: shots=90.5, hits=80.5, blocks=50.5, pim=30.5, powerplay_goals=5.5 |
+| `.github/instructions/sport-analysis-protocols.instructions.md` — §3.4 | Complete rewrite: api-hockey canonical, new market hierarchy (Shots→Hits→Blocks→PIM→PP Goals→Goals→ML), §3.4M table with actual lines |
+| `.github/instructions/analysis-methodology.instructions.md` — §3.0b | Updated hockey quick reference |
+| `.github/skills/bet-analyzing-statistics/SKILL.md` | Updated hockey markets table and hierarchy |
+| `.github/skills/bet-navigating-sources/SKILL.md` | Updated hockey stats sources |
+
+### Validation
+- 23 hockey-specific tests: PASS
+- 130 safety/normalization tests: PASS
+- Simulated 6 hockey markets: best safety=0.68 (competitive with other sports)
+
+### Impact
+- Hockey picks will now produce 6 ranked markets (was 2)
+- Best hockey markets (PIM, shots, hits) can reach safety 0.60-0.70
+- Goals market ranked LAST due to 0.60 volatility cap
+- Market decision hierarchy aligned: stats-first methodology enforced for hockey

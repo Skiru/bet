@@ -1562,6 +1562,43 @@ def enrich_h2h(team_a: str, team_b: str, sport: str) -> dict:
     except Exception as e:
         logger.debug(f"Flashscore H2H fallback failed: {e}")
 
+    # SofaScore event-based H2H fallback (tennis: uses event_id from fixtures)
+    if sport == "tennis":
+        try:
+            event_id = _find_sofascore_event_id(team_a, team_b, sport)
+            if event_id:
+                ss_client = get_client("sofascore", rate_limiter=_rate_limiter)
+                time.sleep(1.5)
+                h2h_data = ss_client.get_event_h2h(event_id)
+                if h2h_data:
+                    meetings = _parse_sofascore_h2h_for_tennis(h2h_data)
+                    if meetings:
+                        _save_h2h_meetings_to_db(team_a, team_b, sport, meetings)
+                        result["status"] = "enriched"
+                        result["source"] = "sofascore-event"
+                        result["meetings_found"] = len(meetings)
+                        logger.info(f"[sofascore-event] H2H {team_a} vs {team_b}: {len(meetings)} meetings")
+                        return result
+        except Exception as e:
+            logger.debug(f"SofaScore event H2H fallback failed: {e}")
+
+    # DuckDuckGo web search H2H fallback (no API key needed)
+    if sport == "tennis":
+        try:
+            from bet.stats.ddg_h2h_search import search_tennis_h2h
+            ddg_result = search_tennis_h2h(team_a, team_b)
+            if ddg_result and ddg_result.get("total_meetings", 0) > 0:
+                meetings = ddg_result.get("meetings", [])
+                if meetings:
+                    _save_h2h_meetings_to_db(team_a, team_b, sport, meetings)
+                    result["status"] = "enriched"
+                    result["source"] = "ddg-search"
+                    result["meetings_found"] = ddg_result["total_meetings"]
+                    logger.info(f"[ddg-search] H2H {team_a} vs {team_b}: {ddg_result['total_meetings']} meetings")
+                    return result
+        except Exception as e:
+            logger.debug(f"DDG H2H search fallback failed: {e}")
+
     result["error"] = "No H2H data from any source"
     return result
 
@@ -1604,6 +1641,101 @@ def _save_h2h_to_db(team_a: str, team_b: str, sport: str, stats: dict) -> None:
                 logger.info("Saved H2H to DB: %s vs %s (%s)", team_a, team_b, sport)
         except Exception as exc:
             logger.error("H2H DB save failed: %s", exc)
+
+
+def _find_sofascore_event_id(team_a: str, team_b: str, sport: str) -> str | None:
+    """Find SofaScore event_id for a matchup from the fixtures table."""
+    try:
+        with get_db() as conn:
+            sport_repo = SportRepo(conn)
+            sport_obj = sport_repo.get_by_name(sport)
+            if not sport_obj:
+                return None
+
+            # Look for today's fixture with these teams
+            row = conn.execute(
+                """
+                SELECT f.external_id FROM fixtures f
+                JOIN teams t1 ON f.home_team_id = t1.id
+                JOIN teams t2 ON f.away_team_id = t2.id
+                WHERE f.sport_id = ?
+                AND (t1.name LIKE ? OR t1.name LIKE ?)
+                AND (t2.name LIKE ? OR t2.name LIKE ?)
+                AND f.source = 'sofascore'
+                LIMIT 1
+                """,
+                (
+                    sport_obj.id,
+                    f"%{team_a.split()[-1]}%",
+                    f"%{team_a}%",
+                    f"%{team_b.split()[-1]}%",
+                    f"%{team_b}%",
+                ),
+            ).fetchone()
+
+            if row and row[0]:
+                return row[0]
+    except Exception as e:
+        logger.debug(f"_find_sofascore_event_id failed: {e}")
+    return None
+
+
+def _parse_sofascore_h2h_for_tennis(h2h_data: dict) -> list[dict]:
+    """Parse SofaScore event H2H response into meeting dicts with sets/games."""
+    meetings = []
+
+    events = h2h_data.get("events", [])
+    if not events:
+        # Try teamDuel structure
+        team_duel = h2h_data.get("teamDuel", {})
+        if team_duel:
+            total = (
+                team_duel.get("homeWins", 0)
+                + team_duel.get("awayWins", 0)
+                + team_duel.get("draws", 0)
+            )
+            if total > 0:
+                # No per-match data, but we have the W/L summary
+                return [{"total_meetings_summary": total}]
+        return []
+
+    for event in events[:10]:
+        home_score = event.get("homeScore", {})
+        away_score = event.get("awayScore", {})
+
+        total_sets = 0
+        total_games = 0
+        for i in range(1, 6):
+            h_set = home_score.get(f"period{i}")
+            a_set = away_score.get(f"period{i}")
+            if h_set is not None and a_set is not None:
+                total_sets += 1
+                total_games += int(h_set) + int(a_set)
+
+        if total_sets > 0:
+            meetings.append({
+                "total_sets": total_sets,
+                "total_games": total_games,
+            })
+
+    return meetings
+
+
+def _save_h2h_meetings_to_db(
+    team_a: str, team_b: str, sport: str, meetings: list[dict]
+) -> None:
+    """Save H2H meetings (with total_games/total_sets) to team_form DB."""
+    stats = {}
+    games_values = [m.get("total_games") for m in meetings if m.get("total_games")]
+    sets_values = [m.get("total_sets") for m in meetings if m.get("total_sets")]
+
+    if games_values:
+        stats["total_games"] = [float(v) for v in games_values[:10]]
+    if sets_values:
+        stats["total_sets"] = [float(v) for v in sets_values[:10]]
+
+    if stats:
+        _save_h2h_to_db(team_a, team_b, sport, stats)
 
 
 # ---------------------------------------------------------------------------

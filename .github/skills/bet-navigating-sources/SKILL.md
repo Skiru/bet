@@ -56,7 +56,7 @@ When a source fails (403/empty/timeout), try the next in chain immediately. All 
 | Tennis | TennisAbstract | TennisExplorer | TennisPrediction |
 | Basketball (NBA) | Basketball-Reference | ESPN | DunksAndThrees |
 | Basketball (EU) | Eurobasket.com | BetExplorer standings | Flashscore H2H |
-| Hockey | NaturalStatTrick (BLOCKED 403, use MoneyPuck as primary) | Hockey-Reference, MoneyPuck | DailyFaceoff (goalies) |
+| Hockey | api-hockey (CANONICAL per-game), ESPN | MoneyPuck (xG/Corsi — advisory only), Hockey-Reference | DailyFaceoff (goalies) |
 | Volleyball | Flashscore (scan data) | ESPN | CEV, PlusLiga |
 
 ### Tipster Sources

@@ -64,7 +64,7 @@ For EVERY candidate, BEFORE selecting a market:
 | **Tennis** | Total games O/U, Sets O/U, Game handicap, Set handicap, Tiebreaks O/U, Aces O/U, Double faults O/U |
 | **Basketball** | Team points O/U, Quarter totals, Half totals, Total points O/U, Rebounds O/U, Assists O/U, 3-pointers O/U, Spread |
 | **Volleyball** | Total sets O/U, Total points O/U, Set handicap, Points per set O/U |
-| **Hockey** | Period totals O/U, Total goals O/U, Shots O/U, Power play goals O/U, Puck line |
+| **Hockey** | Shots O/U, Hits O/U, Blocks O/U, PIM O/U, Powerplay goals O/U, Total goals O/U, Puck line |
 
 ## §3.0c H2H Market-Specific Validation (MANDATORY)
 
@@ -73,7 +73,7 @@ For EVERY selected market, you MUST have H2H data for THAT SPECIFIC STAT:
 - Corners pick → H2H corner totals between these exact teams (last 3-5 meetings)
 - Total games (tennis) → H2H game totals (last 3-5 meetings, surface-filtered)
 - Total points (basketball) → H2H combined scoring (last 3-5 meetings)
-- Period totals (hockey) → H2H period scoring (last 3-5 meetings)
+- Shots/Hits/Blocks (hockey) → H2H per-stat totals (last 3-5 meetings)
 
 **If H2H data for the SPECIFIC stat is unavailable:**
 1. Mark pick as `H2H-STAT-BLIND`
@@ -107,7 +107,7 @@ For EVERY candidate:
 | Football | Fouls → Cards → Corners → Shots → Team totals → BTTS → U2.5 → O2.5 → DC/DNB → 1X2 |
 | Tennis | Game totals O/U → Set totals → Game HC → Set HC → ML |
 | Basketball | Team totals → Quarter totals → Game totals → Spreads → ML |
-| Hockey | Period totals → Game totals → Puck line → ML |
+| Hockey | Shots → Hits → Blocks → PIM → PP Goals → Game totals → Puck line → ML |
 | Volleyball | Set score O/U → Point totals → Set totals → Set HC → ML |
 
 ## §3.0-PROB Probability Engine (MANDATORY after safety scores)
