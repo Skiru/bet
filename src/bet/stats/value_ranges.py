@@ -32,7 +32,7 @@ SPORT_VALUE_RANGES: dict[str, dict[str, tuple[float, float]]] = {
     },
     "volleyball": {
         "points": (0, 160), "aces": (0, 15), "blocks": (0, 20),
-        "attack_pct": (20, 70), "sets_won": (0, 5), "total_points": (60, 250),
+        "hitting_pct": (20, 70), "sets_won": (0, 5), "total_points": (60, 250),
         "errors": (0, 30),
     },
 }

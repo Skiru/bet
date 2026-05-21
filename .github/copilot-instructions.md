@@ -40,8 +40,9 @@ python3 scripts/fetch_odds_api.py
 
 # 3. Settle previous day
 python3 scripts/settle_on_finish.py --betting-day YYYY-MM-DD
-# Auto: winner/1X2, totals, BTTS, DC, corners, cards, shots, fouls (via Flashscore stats).
-# Manual: HC, MyCombi.
+# Auto: winner/1X2, totals, BTTS, DC.
+# Semi-auto: football corners, cards, shots, fouls (via canonical DB match_stats when coverage exists).
+# Manual: HC, MyCombi, unresolved stat markets without DB coverage.
 # Supports: --match "Team vs Team", --no-poll
 ```
 - Never auto-push settled results. Verify first, commit manually.

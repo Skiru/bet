@@ -328,7 +328,7 @@ def extract_team_stats(sport: str, team_name: str) -> dict:
 
     # Percentage stats should NOT sum home+away (would yield ~100%)
     PERCENTAGE_STATS = {"possession", "fg_pct", "three_pct", "ft_pct",
-                        "first_serve_pct", "faceoff_pct", "attack_pct",
+                        "first_serve_pct", "faceoff_pct", "hitting_pct",
                         "checkout_pct"}
 
     # Extract L10 and L5 averages, merging _home/_away split keys

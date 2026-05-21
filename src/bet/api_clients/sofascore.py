@@ -164,7 +164,9 @@ class SofascoreClient(BaseAPIClient):
             def handle_response(response):
                 resp_url = response.url
                 # Capture ALL Sofascore API responses
-                if "api.sofascore.com" in resp_url and response.status == 200:
+                if response.status == 200 and (
+                    "api.sofascore.com" in resp_url or "/api/v1/" in resp_url
+                ):
                     try:
                         json_data = response.json()
                         all_api_responses.append({"url": resp_url, "json": json_data})
@@ -182,6 +184,7 @@ class SofascoreClient(BaseAPIClient):
             
             try:
                 # Navigate to the appropriate Sofascore page
+                wants_event_statistics = bool(event_id and api_path.startswith(f"event/{event_id}/statistics"))
                 if schedule_url:
                     nav_url = schedule_url
                 elif event_id:
@@ -226,6 +229,40 @@ class SofascoreClient(BaseAPIClient):
                     result = captured_data["json"]
                     _safe_close(context)
                     return result
+
+                if wants_event_statistics:
+                    redirected_url = page.url.rstrip("/")
+                    if redirected_url and redirected_url != nav_url.rstrip("/") and not redirected_url.endswith("/statistics"):
+                        stats_url = f"{redirected_url}/statistics"
+                        logger.info(f"[Sofascore stealth] Retrying on redirected statistics page: {stats_url}")
+                        page.goto(stats_url, wait_until="domcontentloaded", timeout=25000)
+                        page.wait_for_timeout(6000)
+
+                        content = page.content()
+                        if "Just a moment" in content:
+                            logger.info("[Sofascore stealth] Cloudflare challenge on statistics page, waiting 8s...")
+                            page.wait_for_timeout(8000)
+
+                        if captured_data.get("json"):
+                            logger.info(f"[Sofascore stealth] Intercepted on redirected statistics page")
+                            result = captured_data["json"]
+                            _safe_close(context)
+                            return result
+
+                        page.wait_for_timeout(5000)
+                        if captured_data.get("json"):
+                            logger.info(f"[Sofascore stealth] Intercepted on redirected statistics page after wait")
+                            result = captured_data["json"]
+                            _safe_close(context)
+                            return result
+
+                        page.evaluate("window.scrollBy(0, 500)")
+                        page.wait_for_timeout(3000)
+                        if captured_data.get("json"):
+                            logger.info(f"[Sofascore stealth] Intercepted on redirected statistics page after scroll")
+                            result = captured_data["json"]
+                            _safe_close(context)
+                            return result
                 
                 # Last resort: check all captured API responses
                 logger.info(f"[Sofascore stealth] No exact match for {api_path}. Captured {len(all_api_responses)} API responses.")
@@ -240,6 +277,20 @@ class SofascoreClient(BaseAPIClient):
                         _safe_close(context)
                         return result
                 
+                if wants_event_statistics:
+                    dom_items = self._extract_statistics_from_dom(page)
+                    if dom_items:
+                        logger.info(f"[Sofascore stealth] Extracted {len(dom_items)} statistics items from DOM")
+                        _safe_close(context)
+                        return {
+                            "statistics": [
+                                {
+                                    "period": "ALL",
+                                    "groups": [{"statisticsItems": dom_items}],
+                                }
+                            ]
+                        }
+
                 # Fallback: try __NEXT_DATA__ from SSR (has event data on event pages)
                 try:
                     next_data = page.evaluate("""() => {
@@ -276,6 +327,81 @@ class SofascoreClient(BaseAPIClient):
                 raise APIError(f"Sofascore stealth failed: {e}")
 
         raise APIError(f"Sofascore stealth exhausted retries for {full_url}")
+
+    @staticmethod
+    def _extract_statistics_from_dom(page) -> list[dict[str, str]]:
+        """Extract visible football statistics from the rendered statistics page DOM."""
+        try:
+            return page.evaluate(
+                r"""() => {
+                    const labels = new Map([
+                        ['ball possession', 'Ball possession'],
+                        ['corner kicks', 'Corner kicks'],
+                        ['corners', 'Corner kicks'],
+                        ['fouls', 'Fouls'],
+                        ['yellow cards', 'Yellow Cards'],
+                        ['red cards', 'Red Cards'],
+                        ['total shots', 'Total Shots'],
+                        ['shots on target', 'Shots on Target'],
+                        ['shots on goal', 'Shots on Target'],
+                        ['shots off target', 'Shots Off Target'],
+                    ]);
+
+                    const parseValue = (text) => {
+                        if (!text) return null;
+                        const match = text.replace(/,/g, '.').match(/-?\d+(?:\.\d+)?%?/);
+                        return match ? match[0] : null;
+                    };
+
+                    const seen = new Set();
+                    const items = [];
+                    const nodes = Array.from(document.querySelectorAll('div, span, p, strong, b, li'));
+
+                    for (const el of nodes) {
+                        const text = (el.textContent || '').trim();
+                        const canonical = labels.get(text.toLowerCase());
+                        if (!canonical || seen.has(canonical)) continue;
+
+                        let extracted = null;
+                        let node = el;
+                        for (let depth = 0; depth < 5 && node; depth += 1, node = node.parentElement) {
+                            const childTexts = Array.from(node.children)
+                                .map((child) => (child.innerText || child.textContent || '').trim())
+                                .filter(Boolean);
+                            if (!childTexts.length) continue;
+                            const labelIndex = childTexts.findIndex((value) => value.toLowerCase() === canonical.toLowerCase());
+                            if (labelIndex === -1) continue;
+                            const values = childTexts
+                                .filter((_, index) => index !== labelIndex)
+                                .map(parseValue)
+                                .filter(Boolean);
+                            if (values.length >= 2) {
+                                extracted = {name: canonical, home: values[0], away: values[values.length - 1]};
+                                break;
+                            }
+                        }
+
+                        if (!extracted) {
+                            const rowText = ((el.parentElement && el.parentElement.innerText) || el.innerText || '')
+                                .replace(/\n+/g, ' ')
+                                .trim();
+                            const values = rowText.match(/-?\d+(?:\.\d+)?%?/g) || [];
+                            if (values.length >= 2) {
+                                extracted = {name: canonical, home: values[0], away: values[values.length - 1]};
+                            }
+                        }
+
+                        if (extracted) {
+                            seen.add(canonical);
+                            items.push(extracted);
+                        }
+                    }
+
+                    return items;
+                }"""
+            ) or []
+        except Exception:
+            return []
 
     @classmethod
     def close_playwright(cls):
@@ -346,13 +472,20 @@ class SofascoreClient(BaseAPIClient):
     # Mapping SofaScore stat names → normalized stat keys
     _STAT_NAME_MAP = {
         "corner kicks": "corners",
+        "corners": "corners",
         "total shots": "shots",
+        "shots": "shots",
         "shots on target": "shots_on_target",
+        "shot on target": "shots_on_target",
+        "shots on goal": "shots_on_target",
         "shots off target": "shots_off_target",
         "fouls": "fouls",
         "yellow cards": "yellow_cards",
+        "yellow card": "yellow_cards",
         "red cards": "red_cards",
+        "red card": "red_cards",
         "ball possession": "possession",
+        "possession": "possession",
         "offsides": "offsides",
         "free kicks": "free_kicks",
         "goal kicks": "goal_kicks",
@@ -410,9 +543,14 @@ class SofascoreClient(BaseAPIClient):
             # Parse stats — take "ALL" period if available
             all_period = None
             for period_data in statistics:
-                if period_data.get("period") == "ALL":
+                if str(period_data.get("period", "")).upper() == "ALL":
                     all_period = period_data
                     break
+            if not all_period:
+                for period_data in statistics:
+                    if period_data.get("groups"):
+                        all_period = period_data
+                        break
             if not all_period and statistics:
                 all_period = statistics[0]
             

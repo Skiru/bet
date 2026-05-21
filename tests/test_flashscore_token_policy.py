@@ -17,6 +17,7 @@ sys.path.insert(0, str(ROOT / "src"))
 import flashscore_bulk_enrich
 import flashscore_enricher
 import settle_on_finish
+import data_enrichment_agent
 from bet.api_clients import unified as unified_module
 from bet.api_clients.unified import UnifiedAPIClient
 from bet.api_clients.volleyball_data import VolleyballDataClient
@@ -347,4 +348,38 @@ class TestVolleyballCanonicalFallback:
         result = client.fetch_match_stats("fixture-1")
 
         assert result == {"aces": {"home": 4, "away": 1}}
-        assert called_names == ["espn-volleyball", "api-volleyball"]
+        assert called_names == ["api-volleyball"]
+
+    def test_volleyball_enrichment_never_calls_flashscore_last_resort(self, monkeypatch):
+        client = MagicMock()
+        client.api_name = "google-sports"
+        client.is_available.return_value = True
+
+        monkeypatch.setattr(data_enrichment_agent, "FALLBACK_CHAINS", {"volleyball": ["google-sports"]})
+        monkeypatch.setattr(data_enrichment_agent, "get_client", lambda *args, **kwargs: client)
+        monkeypatch.setattr(data_enrichment_agent, "fetch_team_stats", lambda *args, **kwargs: [])
+        monkeypatch.setattr(data_enrichment_agent, "_source_is_down", lambda *_: False)
+        monkeypatch.setattr(
+            data_enrichment_agent,
+            "complete_volleyball_rich_stats",
+            lambda *args, **kwargs: {
+                "team": "Poland",
+                "sport": "volleyball",
+                "source": "api-volleyball",
+                "status": "failed",
+                "fixtures_scanned": 0,
+                "matches_persisted": 0,
+                "rich_keys_found": [],
+                "missing_rich_keys": ["aces", "blocks", "hitting_pct", "points"],
+                "error": "No rich volleyball stats found",
+                "failure_reason": "stats_missing",
+            },
+        )
+        flashscore_mock = MagicMock(return_value=({"points": [75]}, None))
+        monkeypatch.setattr(data_enrichment_agent, "_try_flashscore", flashscore_mock)
+
+        result = data_enrichment_agent.enrich_team("Poland", "volleyball")
+
+        flashscore_mock.assert_not_called()
+        assert result["source"] is None
+        assert result["status"] == "failed"

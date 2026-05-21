@@ -11,13 +11,13 @@ Procedures for settling picks and coupons, tracking performance, and maintaining
 ## Settlement Execution
 
 ### Auto-Resolve Markets
-Winner/1X2, totals (any line), BTTS, double chance — resolve from Flashscore scores + verify on ESPN.
+Winner/1X2, totals (any line), BTTS, double chance — resolve from score/result sources + verify on ESPN.
 
 ### Semi-Auto Stat Markets (via `settle_stat_market()`)
-Corners, cards, shots, fouls — resolved from Flashscore match stats (`_fetch_flashscore_match_stats()`). Rate-limited: max 30 Flashscore requests per settlement run. Football only.
+Football corners, cards, shots, fouls — resolved from canonical DB `match_stats` via `_fetch_settlement_db_match_stats()` and `settle_stat_market()`. If DB coverage is missing, mark `manual_verification_required`.
 
 ### Manual-Resolve Markets
-Handicaps, MyCombi — require manual result lookup.
+Handicaps, MyCombi, and unresolved stat markets without DB coverage — require manual result lookup.
 
 ### US Sports Settlement
 ```bash

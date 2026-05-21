@@ -1,13 +1,17 @@
 """Targeted tests for basketball rich completion and no-write probing."""
 
+import json
 from types import SimpleNamespace
+
+import agent_output
+import pytest
 
 import data_enrichment_agent
 import db_report
 import rich_stats_probe
 from _helpers import basketball_rich_completion as basketball_helper
 from bet.models.normalized import NormalizedMatchStats
-from bet.stats.rich_coverage import classify_rich_coverage
+from bet.stats.rich_coverage import classify_rich_coverage, resolve_fixture_team_scope
 
 
 def _make_fixture_row(
@@ -421,6 +425,77 @@ def test_probe_reports_rich_coverage_without_writes(monkeypatch):
     assert result["team_details"][0]["bucket"] == "rich"
 
 
+def test_resolve_fixture_team_scope_falls_back_to_latest_finished_date():
+    fallback_rows = [(1, "Lakers"), (2, "Celtics")]
+
+    class FakeConn:
+        def execute(self, query, params=None):
+            if "WHERE date(f.kickoff) = ? AND f.sport_id = ?" in query:
+                fixture_date = params[0]
+                if fixture_date == "2026-05-20":
+                    return SimpleNamespace(fetchall=lambda: [])
+                if fixture_date == "2026-05-19":
+                    return SimpleNamespace(fetchall=lambda: fallback_rows)
+            if "date(f.kickoff) <= ?" in query:
+                return SimpleNamespace(fetchone=lambda: ("2026-05-19",))
+            raise AssertionError(f"Unexpected query: {query}")
+
+    scope = resolve_fixture_team_scope(FakeConn(), 1, "2026-05-20", limit=5)
+
+    assert scope["teams"] == fallback_rows
+    assert scope["scope_date"] == "2026-05-19"
+    assert scope["used_fallback"] is True
+
+
+def test_probe_uses_latest_finished_scope_when_requested_date_has_no_teams(monkeypatch):
+    fallback_rows = [(1, "Lakers")]
+    team_form_rows = {
+        1: [(key, "api-basketball") for key in [
+            "rebounds",
+            "assists",
+            "steals",
+            "blocks",
+            "turnovers",
+            "fouls",
+            "fg_pct",
+            "three_pct",
+            "ft_pct",
+            "points_in_paint",
+            "fast_break_points",
+        ]],
+    }
+
+    class FakeConn:
+        def execute(self, query, params=None):
+            if "date(f.kickoff) <= ?" in query:
+                return SimpleNamespace(fetchone=lambda: ("2026-05-19",))
+            if "WHERE date(f.kickoff) = ? AND f.sport_id = ?" in query:
+                fixture_date = params[0]
+                rows = [] if fixture_date == "2026-05-20" else fallback_rows
+                return SimpleNamespace(fetchall=lambda: rows)
+            if "FROM team_form" in query:
+                team_id = params[0]
+                return SimpleNamespace(fetchall=lambda: team_form_rows[team_id])
+            raise AssertionError(f"Unexpected query: {query}")
+
+    class FakeDB:
+        def __enter__(self):
+            return FakeConn()
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    monkeypatch.setattr(rich_stats_probe, "_get_sport_id", lambda sport: 1)
+    monkeypatch.setattr(rich_stats_probe, "get_db", lambda: FakeDB())
+
+    result = rich_stats_probe.probe_rich_coverage("basketball", "2026-05-20", limit=5)
+
+    assert result["fixtures_scanned"] == 1
+    assert result["rich"] == 1
+    assert result["scope_date"] == "2026-05-19"
+    assert result["used_fallback"] is True
+
+
 def test_db_report_rich_coverage_alias_routes_to_generic_path(monkeypatch):
     captured = []
 
@@ -483,3 +558,147 @@ def test_db_report_rich_coverage_outputs_basketball_buckets(monkeypatch, capsys)
     assert "Baseline only: 1" in output
     assert "Partial: 0" in output
     assert "No data: 0" in output
+
+
+def test_db_report_rich_coverage_falls_back_to_latest_finished_date(monkeypatch, capsys):
+    rows = [(1, "Lakers")]
+    team_form_rows = {
+        1: [(key, "api-basketball") for key in [
+            "rebounds",
+            "assists",
+            "steals",
+            "blocks",
+            "turnovers",
+            "fouls",
+            "fg_pct",
+            "three_pct",
+            "ft_pct",
+            "points_in_paint",
+            "fast_break_points",
+        ]],
+    }
+
+    class FakeConn:
+        def execute(self, query, params=None):
+            if "SELECT id FROM sports" in query:
+                return SimpleNamespace(fetchone=lambda: (1,))
+            if "date(f.kickoff) <= ?" in query:
+                return SimpleNamespace(fetchone=lambda: ("2026-05-19",))
+            if "WHERE date(f.kickoff) = ? AND f.sport_id = ?" in query:
+                fixture_date = params[0]
+                found_rows = [] if fixture_date == "2026-05-20" else rows
+                return SimpleNamespace(fetchall=lambda: found_rows)
+            if "FROM team_form" in query:
+                team_id = params[0]
+                return SimpleNamespace(fetchall=lambda: team_form_rows[team_id])
+            raise AssertionError(f"Unexpected query: {query}")
+
+    class FakeDB:
+        def __enter__(self):
+            return FakeConn()
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    monkeypatch.setattr(db_report, "get_db", lambda: FakeDB())
+
+    db_report.report_rich_coverage("2026-05-20", "basketball")
+    output = capsys.readouterr().out
+
+    assert "using latest available fixture date 2026-05-19" in output
+    assert "Rich: 1" in output
+
+
+def test_data_enrichment_agent_batch_summary_counts_hockey_and_volleyball_completion():
+    results = [
+        {
+            "sport": "hockey",
+            "status": "partial",
+            "hockey_completion": {"needed": True, "success": True},
+            "hockey_missing_rich_keys": ["hits"],
+        },
+        {
+            "sport": "volleyball",
+            "status": "failed",
+            "volleyball_completion": {"needed": True, "success": False},
+            "volleyball_missing_rich_keys": ["blocks"],
+        },
+    ]
+
+    metrics = data_enrichment_agent._summarize_enrichment_results(results)
+
+    assert metrics["hockey_rich_eligible"] == 1
+    assert metrics["hockey_completed"] == 1
+    assert metrics["hockey_still_missing_rich"] == 1
+    assert metrics["volleyball_rich_eligible"] == 1
+    assert metrics["volleyball_completed"] == 0
+    assert metrics["volleyball_still_missing_rich"] == 1
+
+
+def test_data_enrichment_agent_date_mode_dry_run_filters_sport_and_limit(monkeypatch, capsys):
+    detected = [
+        {"team": "Lakers", "sport": "basketball"},
+        {"team": "Celtics", "sport": "basketball"},
+        {"team": "Warriors", "sport": "basketball"},
+        {"team": "Iga Swiatek", "sport": "tennis"},
+    ]
+    captured_entries = []
+    preview_results = [
+        {
+            "team": "Lakers",
+            "sport": "basketball",
+            "status": "partial",
+            "basketball_completion": {"needed": True, "success": False},
+            "basketball_missing_rich_keys": ["assists"],
+        },
+        {
+            "team": "Celtics",
+            "sport": "basketball",
+            "status": "failed",
+            "basketball_completion": {"needed": True, "success": False},
+            "basketball_missing_rich_keys": ["rebounds"],
+        },
+    ]
+
+    monkeypatch.setattr(data_enrichment_agent, "_detect_missing_from_shortlist", lambda date_str, shortlist_override=None: detected)
+    monkeypatch.setattr(
+        data_enrichment_agent,
+        "_preview_enrichment_results",
+        lambda entries: captured_entries.extend(entries) or preview_results,
+    )
+    monkeypatch.setattr(
+        agent_output.AgentOutput,
+        "validate_input_contract",
+        classmethod(lambda cls, step_id, date, contracts=None: {"status": "OK", "found": [], "missing": [], "warnings": []}),
+    )
+    monkeypatch.setattr(
+        data_enrichment_agent.sys,
+        "argv",
+        [
+            "data_enrichment_agent.py",
+            "--date",
+            "2026-05-20",
+            "--sport",
+            "basketball",
+            "--limit",
+            "2",
+            "--dry-run",
+            "--verbose",
+        ],
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        data_enrichment_agent.main()
+
+    assert exc_info.value.code == 0
+    assert captured_entries == detected[:2]
+
+    output = capsys.readouterr().out
+    summary_line = next(line for line in output.splitlines() if line.startswith("AGENT_SUMMARY:"))
+    payload = json.loads(summary_line.split("AGENT_SUMMARY:", 1)[1])
+
+    assert payload["metrics"]["dry_run_mode"] == 1
+    assert payload["metrics"]["dry_run_candidates"] == 2
+    assert payload["metrics"]["basketball_rich_eligible"] == 2
+    assert payload["metrics"]["basketball_completed"] == 0
+    assert payload["metrics"]["basketball_still_missing_rich"] == 2

@@ -685,106 +685,15 @@ def _extract_match_ids(html: str) -> list[str]:
 
 
 def _fetch_match_statistics(match_ids: list[str], sport: str) -> dict[str, list[float]]:
-    """Fetch per-match statistics from Flashscore match detail API.
-    
-    Flashscore exposes match stats via internal API:
-    https://d.flashscore.com/x/feed/d_st_{match_id}
-    """
-    stats: dict[str, list[float]] = {}
-    stat_keys = SPORT_STAT_KEYS.get(sport, [])
-    
-    for match_id in match_ids:
-        _rate_limit("flashscore.com")
-        url = f"https://d.flashscore.com/x/feed/d_st_{match_id}"
-        headers = {
-            **_FS_HEADERS,
-            "x-fsign": "SW9D1eZo",
-        }
-        try:
-            resp = c_requests.get(url, impersonate=_FS_IMPERSONATE, headers=headers, timeout=10)
-            if resp.status_code != 200:
-                continue
-            text = resp.text
-            # Parse Flashscore stat feed format:
-            # Lines like: "SA÷stat_name¬SE÷home_value¬SF÷away_value¬"
-            # or "SE÷Corner Kicks¬SF÷7¬SG÷5¬"
-            _parse_stat_feed(text, sport, stat_keys, stats)
-        except Exception:
-            continue
-    
-    return stats
+    """Deprecated no-op for the retired Flashscore tokenized stats feed.
 
-
-def _parse_stat_feed(text: str, sport: str, stat_keys: list[str], stats: dict[str, list[float]]) -> None:
-    """Parse Flashscore stat feed text into stats dict.
-    
-    Feed format uses delimiters: ÷ (separator), ¬ (field end)
-    Lines contain stat category name + home/away values.
+    The old d_st_ endpoint now requires rotating session/token material and is
+    no longer a supported runtime dependency. Keep this surface as a harmless
+    compatibility shim so callers do not accidentally reintroduce the feed.
     """
-    # Flashscore stat feed key mapping
-    feed_label_map = {
-        "corner kicks": "corners",
-        "corners": "corners",
-        "fouls": "fouls",
-        "yellow cards": "yellow_cards",
-        "red cards": "red_cards",
-        "shots on target": "shots_on_target",
-        "shots off target": "shots_off_target",
-        "total shots": "shots",
-        "ball possession": "ball_possession",
-        "offsides": "offsides",
-        "goalkeeper saves": "saves",
-        "free kicks": "free_kicks",
-        "blocked shots": "blocked_shots",
-        # Basketball
-        "rebounds": "rebounds",
-        "assists": "assists",
-        "steals": "steals",
-        "turnovers": "turnovers",
-        "2 pointers": "2_pointers",
-        "3 pointers": "3_pointers",
-        "free throws": "free_throws",
-        # Hockey
-        "shots on goal": "shots_on_goal",
-        "penalty minutes": "penalties_in_minutes",
-        "power play goals": "power_play_goals",
-        "hits": "hits",
-        "blocked shots": "blocks",
-        "faceoffs won": "faceoffs_won",
-    }
-    
-    # Parse lines — format: "SA÷Category Name¬SE÷value1¬SF÷value2¬"
-    # Split by stat separators
-    sections = text.split("~")
-    for section in sections:
-        if "÷" not in section:
-            continue
-        fields = section.split("¬")
-        category = ""
-        home_val = None
-        away_val = None
-        for field in fields:
-            if "÷" not in field:
-                continue
-            key, _, value = field.partition("÷")
-            if key == "SA":
-                category = value.lower().strip()
-            elif key == "SE":
-                try:
-                    home_val = float(value.replace("%", ""))
-                except (ValueError, TypeError):
-                    pass
-            elif key == "SF":
-                try:
-                    away_val = float(value.replace("%", ""))
-                except (ValueError, TypeError):
-                    pass
-        
-        if category and home_val is not None:
-            mapped_key = feed_label_map.get(category, "")
-            if mapped_key and mapped_key in stat_keys:
-                if mapped_key not in stats:
-                    stats[mapped_key] = []
-                stats[mapped_key].append(home_val)
-                if away_val is not None:
-                    stats[mapped_key].append(away_val)
+    if match_ids:
+        logger.warning(
+            "Flashscore tokenized match-stat feed retired; returning no deep stats for %s",
+            sport,
+        )
+    return {}

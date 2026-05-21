@@ -65,7 +65,7 @@ class SportRepo:
             "basketball": ["points", "rebounds", "assists", "steals", "blocks", "turnovers", "fg_pct", "three_pct", "ft_pct"],
             "hockey": ["goals", "shots", "powerplay_goals", "pim", "hits", "blocks", "faceoff_pct"],
             "tennis": ["aces", "double_faults", "first_serve_pct", "break_points_won", "games_won", "sets_won", "total_games"],
-            "volleyball": ["points", "aces", "blocks", "attack_pct", "sets_won", "total_points", "errors"],
+            "volleyball": ["points", "aces", "blocks", "hitting_pct", "sets_won", "total_points", "errors"],
         }
         try:
             from bet.stats.market_ranking import SPORT_STAT_KEYS

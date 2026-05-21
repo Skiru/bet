@@ -3,6 +3,7 @@ import logging
 
 from .espn import ESPNClient, ESPN_LEAGUES
 from .rate_limiter import RateLimiter
+from bet.stats.fallback_chains import FALLBACK_CHAINS as CANONICAL_STATS_PRIORITY
 
 logger = logging.getLogger(__name__)
 
@@ -14,10 +15,9 @@ SOURCE_PRIORITY = {
     "volleyball": ["flashscore", "betexplorer", "scores24", "espn"],
 }
 
-# Stats-specific routing (for corner/card data)
-STATS_PRIORITY = {
-    "football": ["totalcorner", "flashscore"],
-}
+# Legacy surface kept aligned with the canonical provider policy.
+# Flashscore is not a default deep match-stats source here.
+STATS_PRIORITY = CANONICAL_STATS_PRIORITY
 
 class UnifiedAPIClient:
     """Composite API client integrating data from ESPN and Flashscore."""
@@ -28,6 +28,13 @@ class UnifiedAPIClient:
         self._client_cache = {}
 
     def _create_client(self, name: str):
+        try:
+            # Reuse the package-level registry for canonical stats providers.
+            from bet.api_clients import get_client
+            return get_client(name, rate_limiter=self._limiter)
+        except Exception:
+            pass
+
         if name == "flashscore":
             from .flashscore import FlashscoreClient
             return FlashscoreClient(rate_limiter=self._limiter)
@@ -167,7 +174,7 @@ class UnifiedAPIClient:
         Args:
             source: Reserved for future use — route to a specific client.
         """
-        sources = STATS_PRIORITY.get(sport, ["flashscore"])
+        sources = STATS_PRIORITY.get(sport, [])
         for src_name in sources:
             client = self._get_client(src_name)
             if not client:
@@ -204,16 +211,15 @@ class UnifiedAPIClient:
         except Exception as e:
             logger.debug(f"Flashscore preview failed for {event_id}: {e}")
         
-        # Match stats (shots, possession, etc.) only exist for live/finished matches
-        if status not in ("scheduled", ""):
-            try:
-                stats = client.get_fixture_stats(event_id)
-                if stats:
-                    result["stats"] = stats
-            except Exception as e:
-                logger.debug(f"Flashscore stats failed for {event_id}: {e}")
-        elif status == "scheduled":
+        # Match stats no longer default to Flashscore on this legacy surface.
+        if status == "scheduled":
             logger.debug(f"Skipping fixture stats for scheduled event {event_id}")
+        elif status:
+            logger.debug(
+                "UnifiedAPIClient.get_deep_data no longer defaults to Flashscore "
+                "match stats for %s; use get_fixture_stats() with canonical providers",
+                event_id,
+            )
         
         return result
 

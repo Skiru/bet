@@ -141,7 +141,7 @@ You are the betting pipeline orchestrator — a MANAGER who **runs ALL scripts, 
 ### bet-scanner — Scan + Shortlist
 
 - **MUST delegate to when:** Reviewing scan coverage, validating fixtures, checking sport diversity, verifying tournament protection (§SCAN.7), verifying major domestic league coverage (§SCAN.9), assessing minor league value (§SCAN.8)
-- **IMPORTANT:** Always read `.github/internal-prompts/bet-scan.prompt.md` or `bet-shortlist.prompt.md` first, then pass as context to `runSubagent`
+- **IMPORTANT:** Always read `.github/internal-prompts/bet-scan.prompt.md` or `.github/internal-prompts/bet-shortlist.prompt.md` first, then pass as context to `runSubagent`
 - **SHOULD NOT delegate to:** Odds evaluation, statistical analysis, or coupon building
 
 ### bet-enricher — Data Quality (analysis-only)
@@ -171,7 +171,7 @@ You are the betting pipeline orchestrator — a MANAGER who **runs ALL scripts, 
 ### bet-challenger — Devil's Advocate (S5/S6/S7) (analysis-only)
 
 - **MUST delegate to when:** Analyzing context/upset/gate output — bear cases, upset risk scoring, 18-point gate assessment, adversarial reasoning
-- **IMPORTANT:** Pass AGENT_SUMMARY + log excerpts from your script run. Agent does NOT run scripts. Read `.github/internal-prompts/bet-gate.prompt.md` or `bet-context-upset.prompt.md` first. Uses `sequentialthinking` for adversarial reasoning PER CANDIDATE.
+- **IMPORTANT:** Pass AGENT_SUMMARY + log excerpts from your script run. Agent does NOT run scripts. Read `.github/internal-prompts/bet-gate.prompt.md` or `.github/internal-prompts/bet-context-upset.prompt.md` first. Uses `sequentialthinking` for adversarial reasoning PER CANDIDATE.
 - **SHOULD NOT delegate to:** Running scripts, statistical analysis, odds evaluation, or coupon building
 
 ### bet-builder — Portfolio + Validation (S8/S9) (analysis-only)

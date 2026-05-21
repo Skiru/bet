@@ -1,10 +1,9 @@
-"""Volleyball data client — fetches team/player stats for volleyball leagues.
+"""Volleyball data client with provider-backed match stats and Volleybox aggregates.
 
-Primary sources: ESPN and api-volleyball for match-level stats.
-Secondary source: volleybox.net for detailed player stats.
-Fallback: Generic web research.
-
-Rate limited, curl_cffi based.
+Canonical match-level completion comes from `api-volleyball`, with
+`espn-volleyball` kept as bounded support for its supported scope. Volleybox
+remains aggregate-only team-page support and cannot satisfy rich completion on
+its own.
 """
 
 import logging
@@ -21,17 +20,14 @@ except ImportError:
 
 # Volleyball stat keys we want to extract
 VOLLEYBALL_STATS = [
-    "points", "aces", "blocks", "attack_pct",
+    "points", "aces", "blocks", "hitting_pct",
     "sets_won", "total_points", "errors",
     "service_errors", "reception_pct",
 ]
 
-# Flashscore volleyball sport_id = 12
-FLASHSCORE_SPORT_ID = 12
-
 
 class VolleyballDataClient:
-    """Volleyball statistics client using Flashscore + volleybox.net."""
+    """Volleyball client with provider-backed match stats and aggregate team pages."""
 
     VOLLEYBOX_BASE = "https://volleybox.net"
     HEADERS = {
@@ -54,9 +50,9 @@ class VolleyballDataClient:
         self._last_request = time.time()
 
     def fetch_team_stats(self, team_name: str, competition: str = "") -> dict | None:
-        """Fetch team statistics from volleybox.net.
+        """Fetch aggregate team-page statistics from Volleybox.
 
-        Returns dict with stat keys (aces, blocks, attack_pct, etc.) or None.
+        Returns aggregate-only stats (aces, blocks, hitting_pct, etc.) or None.
         """
         slug = self._slugify(team_name)
         url = f"{self.VOLLEYBOX_BASE}/team/{slug}"
@@ -70,13 +66,13 @@ class VolleyballDataClient:
                 timeout=15,
             )
             if resp.status_code != 200:
-                logger.debug(f"Volleybox {resp.status_code} for {team_name}")
+                logger.debug(f"Volleybox aggregate page {resp.status_code} for {team_name}")
                 return None
 
             return self._parse_team_page(resp.text)
 
         except Exception as e:
-            logger.warning(f"Volleybox fetch failed for {team_name}: {e}")
+            logger.warning(f"Volleybox aggregate fetch failed for {team_name}: {e}")
             return None
 
     def _parse_team_page(self, html: str) -> dict | None:
@@ -88,7 +84,7 @@ class VolleyballDataClient:
         patterns = {
             "aces": r"Aces?\s*(?:per set)?.*?(\d+\.?\d*)",
             "blocks": r"Blocks?\s*(?:per set)?.*?(\d+\.?\d*)",
-            "attack_pct": r"Attack\s*%.*?(\d+\.?\d*)",
+            "hitting_pct": r"Attack\s*%.*?(\d+\.?\d*)",
             "reception_pct": r"Reception\s*%.*?(\d+\.?\d*)",
             "service_errors": r"Service\s*errors?.*?(\d+\.?\d*)",
         }
@@ -104,9 +100,9 @@ class VolleyballDataClient:
         return stats if stats else None
 
     def fetch_match_stats(self, match_id: str) -> dict | None:
-        """Fetch volleyball match-level stats from canonical providers.
+        """Fetch volleyball match-level stats from the canonical provider path.
 
-        Return the first provider-backed stats payload that succeeds.
+        Return the first provider-backed per-match stats payload that succeeds.
         """
         try:
             from bet.api_clients import get_client
@@ -114,7 +110,7 @@ class VolleyballDataClient:
             logger.debug(f"Volleyball stats client registry unavailable: {e}")
             return None
 
-        for client_name in ("espn-volleyball", "api-volleyball"):
+        for client_name in ("api-volleyball", "espn-volleyball"):
             try:
                 client = get_client(client_name)
                 raw_stats = client.get_fixture_stats(match_id)
@@ -129,7 +125,11 @@ class VolleyballDataClient:
             if stats is None and isinstance(payload, dict):
                 stats = payload.get("stats")
             if isinstance(stats, dict):
-                return stats
+                normalized = dict(stats)
+                attack_pct = normalized.pop("attack_pct", None)
+                if attack_pct is not None and "hitting_pct" not in normalized:
+                    normalized["hitting_pct"] = attack_pct
+                return normalized
 
         return None
 

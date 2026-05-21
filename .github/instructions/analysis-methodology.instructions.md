@@ -180,7 +180,7 @@ Major domestic leagues outside Europe are systematically underrepresented in the
 ## STEP 0: SETTLE PREVIOUS DAY + LEARN FROM HISTORY
 
 1. Run `python3 scripts/settle_on_finish.py --betting-day YYYY-MM-DD`.
-2. Auto-resolves: winner/1X2, totals, BTTS, DC, corners, cards, shots, fouls (via Flashscore stats). Manual: HC, MyCombi.
+2. Auto-resolves: winner/1X2, totals, BTTS, DC. Football stat markets (corners, cards, shots, fouls) resolve from canonical DB `match_stats` when coverage exists; otherwise mark `manual_verification_required`. Manual: HC, MyCombi.
 3. Update `picks-ledger.csv` (status, pnl), `coupons-ledger.csv` (status, pnl).
 4. Calculate: day PnL, rolling 7-day PnL, per-market hit rates, per-league ROI.
 5. **Post-mortem each LOSS:** bad thesis or variance? Record in learning log.

@@ -3,6 +3,8 @@
 Returns APIFixture and APIMatchStats objects.
 """
 
+import re
+
 from .base_client import APISportsClient
 from .rate_limiter import RateLimiter
 from .api_football import APIFixture, APIMatchStats
@@ -12,11 +14,18 @@ STAT_TYPE_MAP = {
     "total_points": "total_points",
     "aces": "aces",
     "blocks": "blocks",
-    "attack_pct": "attack_pct",
+    "attack_pct": "hitting_pct",
+    "hitting_pct": "hitting_pct",
     "sets_won": "sets_won",
     "errors": "errors",
     "service_errors": "errors",
 }
+
+
+def _normalize_stat_type(raw_stat_type: str) -> str:
+    normalized = str(raw_stat_type or "").lower().replace("%", " pct ")
+    normalized = normalized.replace("percentage", "pct")
+    return re.sub(r"[^a-z0-9]+", "_", normalized).strip("_")
 
 
 class APIVolleyballClient(APISportsClient):
@@ -108,7 +117,7 @@ class APIVolleyballClient(APISportsClient):
                 teams[side] = team_info.get("name", "")
 
             for stat in entry.get("statistics", []):
-                stat_type = stat.get("type", "").lower().replace(" ", "_")
+                stat_type = _normalize_stat_type(stat.get("type", ""))
                 mapped = STAT_TYPE_MAP.get(stat_type)
                 if mapped:
                     home_val = stat.get("home", 0)
