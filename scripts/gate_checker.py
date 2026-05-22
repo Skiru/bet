@@ -1424,6 +1424,7 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
             entry["data_quality_check"] = dq_result
             if dq_result["status"] == "FAIL":
                 entry["advisory_tier"] = "FLAGGED"
+                entry["data_completeness"] = None  # IMP 3: not evaluated — already failed dq
                 entry.setdefault("tier_caps", []).append(
                     f"MINIMAL_DATA: {dq_result.get('message', 'low data quality')}"
                 )
@@ -1446,7 +1447,7 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
                     _set_entry_bucket(
                         entry,
                         "extended_pool",
-                        f"R19 NO-DEFAULTS: synthetic/estimated data detected — {completeness['max_tier']}",
+                        f"R19 NO-DEFAULTS: {len(reasons)} issue(s) — {reasons[0]}",
                     )
                     extended_pool.append(entry)
                     continue

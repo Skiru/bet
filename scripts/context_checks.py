@@ -217,10 +217,23 @@ def _is_derby(home: str, away: str) -> bool:
 # Data Completeness Validation — NO DEFAULTS rule (R19)
 # ---------------------------------------------------------------------------
 
+# BUG 1 fix: ~\d pulled out of \b...\b group (~ is non-word char, \b never fires before it)
+# BUG 3 fix: 'expected' narrowed to only trigger with numeric/filler context
+# IMP 1 fix: approx\w* catches 'approximately', 'approximation' etc.
 SYNTHETIC_MARKERS = re.compile(
-    r"\b(estimated|~\d|approx|expected|average for|avg for|league avg|"
-    r"assumed|probably|likely around|typically)\b", re.I
+    r"(?:"
+    r"\b(estimated|approx\w*|average for|avg for|league avg|"
+    r"assumed|probably|likely around|typically)\b"
+    r"|(?<!\w)~\d"  # ~5, ~5.0, ~12 — tilde not preceded by word char
+    r"|\bexpected\s+(?:~|to be|around|about|approximately)"
+    r")", re.I
 )
+
+
+def _team_probe(name: str) -> str:
+    """Return a probe string (longest word >=5 chars) for team name matching."""
+    words = [w for w in name.split() if len(w) >= 5]
+    return words[0].lower() if words else name[:6].lower()
 
 
 def validate_data_completeness(candidate: dict) -> dict:
@@ -238,34 +251,42 @@ def validate_data_completeness(candidate: dict) -> dict:
     gaps = []
     synthetic = []
 
-    # Check reasoning/data fields for synthetic language
-    for field in ("reasoning", "data", "edge", "notes"):
-        text = candidate.get(field, "")
+    # Check data/edge/notes fields for synthetic language
+    # NOTE: 'reasoning' excluded — it legitimately contains 'expected value' (EV) terminology
+    for field in ("data", "edge", "notes"):
+        text = candidate.get(field) or ""
         if text and SYNTHETIC_MARKERS.search(text):
             matches = SYNTHETIC_MARKERS.findall(text)
-            synthetic.append(f"{field}: contains synthetic markers {matches}")
+            synthetic.append(f"{field}: contains synthetic markers {[m for m in matches if m]}")
 
     # Check if both teams have measured stats in a combined market
     market = (candidate.get("market") or "").lower()
     is_combined = any(kw in market for kw in ("total", "over", "under", "combined"))
 
-    data_text = candidate.get("data", "")
-    if is_combined and data_text:
-        # Look for "not available", "not directly available", "estimated"
-        if re.search(r"not (directly )?available|no data|N/A|unknown", data_text, re.I):
-            gaps.append("Combined market with missing team data — cannot compute valid total")
+    data_text = candidate.get("data") or ""  # coerce None → ""
 
-        # Check if only ONE team's stats are cited (home OR away, not both)
-        home_team = (candidate.get("home_team") or "").lower()
-        away_team = (candidate.get("away_team") or "").lower()
-        data_lower = data_text.lower()
-        # For combined markets, both teams should have measured stats
-        has_home_stat = bool(home_team and home_team[:4] in data_lower) or "_home" in data_lower
-        has_away_stat = bool(away_team and away_team[:4] in data_lower) or "_away" in data_lower
-        if not has_home_stat and has_away_stat:
-            gaps.append(f"Combined market but only away team stats cited — home team data MISSING")
-        elif has_home_stat and not has_away_stat:
-            gaps.append(f"Combined market but only home team stats cited — away team data MISSING")
+    if is_combined:
+        if not data_text:
+            # BUG 2 fix: empty/None data in combined market = worst case
+            gaps.append("Combined market with NO data field — cannot compute valid total")
+        else:
+            # Look for "not available", "unavailable", "not directly available", etc.
+            if re.search(r"(?:not (directly )?available|unavailable|no data|N/A|unknown)", data_text, re.I):
+                gaps.append("Combined market with missing team data — cannot compute valid total")
+
+            # Check if only ONE team's stats are cited (home OR away, not both)
+            home_team = (candidate.get("home_team") or "").strip()
+            away_team = (candidate.get("away_team") or "").strip()
+            data_lower = data_text.lower()
+            # IMP 2 fix: use longest word (>=5 chars) as probe, not just [:4]
+            home_probe = _team_probe(home_team) if home_team else ""
+            away_probe = _team_probe(away_team) if away_team else ""
+            has_home_stat = bool(home_probe and home_probe in data_lower) or "_home" in data_lower
+            has_away_stat = bool(away_probe and away_probe in data_lower) or "_away" in data_lower
+            if not has_home_stat and has_away_stat:
+                gaps.append("Combined market but only away team stats cited — home team data MISSING")
+            elif has_home_stat and not has_away_stat:
+                gaps.append("Combined market but only home team stats cited — away team data MISSING")
 
     # Check for cross-league data usage without explicit flag
     competition = (candidate.get("competition") or candidate.get("comp") or "").lower()
