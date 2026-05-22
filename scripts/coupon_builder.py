@@ -1775,6 +1775,57 @@ def _filter_past_events(picks: list) -> list:
     return future
 
 
+def _filter_non_playable_fixtures(picks: list, date: str) -> tuple[list, list]:
+    """Remove picks whose fixtures are postponed, cancelled, or abandoned.
+
+    Checks fixture status in DB. Returns (playable, rejected).
+    """
+    NON_PLAYABLE_STATUSES = {"PST", "CANC", "ABD", "AWD", "WO", "SUSP"}
+    try:
+        from bet.db.connection import get_db
+        with get_db() as conn:
+            rows = conn.execute(
+                """SELECT t1.name, t2.name, f.status
+                   FROM fixtures f
+                   JOIN teams t1 ON t1.id = f.home_team_id
+                   JOIN teams t2 ON t2.id = f.away_team_id
+                   WHERE f.kickoff LIKE ? || '%'
+                   AND f.status IN ({})""".format(
+                    ",".join(f"'{s}'" for s in NON_PLAYABLE_STATUSES)
+                ),
+                (date,),
+            ).fetchall()
+        if not rows:
+            return picks, []
+
+        non_playable_names = set()
+        for home, away, status in rows:
+            non_playable_names.add((home.lower().strip(), away.lower().strip(), status))
+
+        playable = []
+        rejected = []
+        for p in picks:
+            h = (p.get("home_team") or "").lower().strip()
+            a = (p.get("away_team") or "").lower().strip()
+            blocked = False
+            for ph, pa, status in non_playable_names:
+                if (h in ph or ph in h) and (a in pa or pa in a):
+                    p["rejection_reason"] = f"FIXTURE {status}: match not playable"
+                    rejected.append(p)
+                    blocked = True
+                    break
+            if not blocked:
+                playable.append(p)
+
+        if rejected:
+            logger.warning(f"Fixture status filter: {len(rejected)} picks rejected "
+                           f"(PST/CANC/ABD)")
+        return playable, rejected
+    except Exception as e:
+        logger.warning(f"Fixture status check failed: {e}")
+        return picks, []
+
+
 def _filter_quality(picks: list, tier: str = "core") -> tuple[list, list]:
     """Filter picks by data quality for coupon construction.
     
@@ -1859,6 +1910,12 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
     all_approved = _filter_past_events(gr.get("approved", []))
     extended_pool = _filter_past_events(gr.get("extended_pool", []))
     rejected = gr.get("rejected", [])
+
+    # FIXTURE STATUS FILTER — reject PST/CANC/ABD fixtures that slipped through gate
+    all_approved, _pst_rejected = _filter_non_playable_fixtures(all_approved, date)
+    extended_pool, _pst_rejected_ext = _filter_non_playable_fixtures(extended_pool, date)
+    rejected.extend(_pst_rejected)
+    rejected.extend(_pst_rejected_ext)
 
     # Quality gate: filter synthetic/insufficient data from core coupons (ERROR 6 fix)
     all_approved, quality_demoted = _filter_quality(all_approved, tier="core")

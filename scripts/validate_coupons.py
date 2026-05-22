@@ -431,6 +431,55 @@ def check_unique_events(coupons: list[dict]) -> list[str]:
     return errors
 
 
+def check_fixture_status(coupons: list[dict], date: str) -> list[str]:
+    """V0: Check that no coupon legs reference postponed/cancelled fixtures.
+
+    Queries the fixtures DB for non-playable statuses (PST, CANC, ABD, AWD, WO, SUSP)
+    and cross-references against team names found in coupon legs.
+    """
+    errors = []
+    NON_PLAYABLE = {"PST", "CANC", "ABD", "AWD", "WO", "SUSP"}
+    try:
+        sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+        from bet.db.connection import get_db
+        with get_db() as conn:
+            rows = conn.execute(
+                """SELECT t1.name, t2.name, f.status
+                   FROM fixtures f
+                   JOIN teams t1 ON t1.id = f.home_team_id
+                   JOIN teams t2 ON t2.id = f.away_team_id
+                   WHERE f.kickoff LIKE ? || '%'
+                   AND f.status IN ({})""".format(
+                    ",".join(f"'{s}'" for s in NON_PLAYABLE)
+                ),
+                (date,),
+            ).fetchall()
+        if not rows:
+            return errors
+
+        non_playable_teams = []
+        for home, away, status in rows:
+            non_playable_teams.append((home.lower(), away.lower(), status))
+
+        # Check each coupon's events against non-playable fixtures
+        for coupon in coupons:
+            for event in coupon.get("events", []):
+                event_lower = event.lower()
+                for home, away, status in non_playable_teams:
+                    # Check if both team names appear in the event string
+                    home_token = home.split()[0] if home else ""
+                    away_token = away.split()[0] if away else ""
+                    if home_token and away_token and home_token in event_lower and away_token in event_lower:
+                        errors.append(
+                            f"FIXTURE_{status}: {coupon['coupon_id']} contains "
+                            f"'{event}' — match is {status} (postponed/cancelled)"
+                        )
+                        break
+    except Exception:
+        pass  # DB not available — skip check gracefully
+    return errors
+
+
 def check_polish_descriptions(legs_text: list[str]) -> list[str]:
     """Check that each leg contains Polish betting terminology."""
     warnings = []
@@ -514,6 +563,12 @@ def validate_file(file_path: Path, ledger_path: Path) -> dict:
     # Global check: unique events across core coupons
     dup_errors = check_unique_events(coupons)
     result["global_errors"].extend(dup_errors)
+
+    # Global check V0: fixture status (PST/CANC/ABD)
+    date_match = re.search(r"(\d{4}-\d{2}-\d{2})", file_path.name)
+    if date_match:
+        status_errors = check_fixture_status(coupons, date_match.group(1))
+        result["global_errors"].extend(status_errors)
 
     # Global check: pick ID cross-reference
     pk_errors = check_pick_ids(coupons, ledger_path)

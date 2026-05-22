@@ -1234,6 +1234,59 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
     else:
         print("[gate_checker] ⚠️ No fixture lookup data — ghost filter skipped")
 
+    # POSTPONED/CANCELLED FIXTURE FILTER — reject fixtures with non-playable status
+    # Statuses: PST=Postponed, CANC=Cancelled, ABD=Abandoned, AWD=Awarded (walkover)
+    NON_PLAYABLE_STATUSES = {"PST", "CANC", "ABD", "AWD", "WO", "SUSP"}
+    try:
+        from bet.db.connection import get_db
+        with get_db() as conn:
+            # Build lookup: fixture_id → status
+            fixture_status_rows = conn.execute(
+                """SELECT f.id, f.status, t1.name, t2.name
+                   FROM fixtures f
+                   JOIN teams t1 ON t1.id = f.home_team_id
+                   JOIN teams t2 ON t2.id = f.away_team_id
+                   WHERE f.kickoff LIKE ? || '%'
+                   AND f.status IN ({})""".format(
+                    ",".join(f"'{s}'" for s in NON_PLAYABLE_STATUSES)
+                ),
+                (date,),
+            ).fetchall()
+            if fixture_status_rows:
+                # Build set of non-playable (home, away) pairs
+                non_playable_pairs = set()
+                for fid, status, home_name, away_name in fixture_status_rows:
+                    non_playable_pairs.add((
+                        _normalize_name_for_match(home_name),
+                        _normalize_name_for_match(away_name),
+                        status,
+                    ))
+                playable_candidates = []
+                postponed_count = 0
+                for c in clean_candidates:
+                    h = _normalize_name_for_match(c.get("home_team", ""))
+                    a = _normalize_name_for_match(c.get("away_team", ""))
+                    blocked = False
+                    for ph, pa, status in non_playable_pairs:
+                        h_match = h in ph or ph in h or _token_overlap(h, ph) >= 0.6
+                        a_match = a in pa or pa in a or _token_overlap(a, pa) >= 0.6
+                        if h_match and a_match:
+                            blocked = True
+                            _set_entry_bucket(c, "rejected", f"FIXTURE {status}: match not playable")
+                            print(f"[gate_checker] ❌ REJECTED {c.get('home_team')} vs "
+                                  f"{c.get('away_team')}: fixture status = {status}")
+                            break
+                    if blocked:
+                        postponed_count += 1
+                    else:
+                        playable_candidates.append(c)
+                if postponed_count:
+                    print(f"[gate_checker] Filtered {postponed_count} non-playable fixtures "
+                          f"(PST/CANC/ABD)")
+                clean_candidates = playable_candidates
+    except Exception as e:
+        print(f"[gate_checker] ⚠️ Fixture status check failed: {e}")
+
     # Normalize kickoff times: bare time strings like "19:00" → full ISO
     for c in clean_candidates:
         c["kickoff"] = normalize_kickoff(c.get("kickoff", ""), date)
