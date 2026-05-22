@@ -114,9 +114,17 @@ def _parse_flashscore_stats(html: str, sport: str) -> dict:
     return validated_stats
 
 def _primary_score_key(sport: str) -> str | None:
-    """Return the primary scoring stat key for a sport."""
+    """Return the game-total scoring stat key for a sport.
+
+    NOTE: This is used by the HTML regex fallback (_extract_match_scores) which
+    cannot distinguish team-specific scores from game totals. Values stored under
+    these keys represent home+away combined. Team-specific stats come from the
+    feed parser (_parse_flashscore_feed_data) or ESPN/API sources.
+    """
     return {
-        "football": "goals", "basketball": "points", "hockey": "goals",
+        "football": "game_total_goals",
+        "basketball": "game_total_points",
+        "hockey": "game_total_goals",
         "volleyball": "total_points",
         "tennis": "total_games",
     }.get(sport)
@@ -633,17 +641,20 @@ def _parse_embedded_feed(html: str, sport: str, team_entity_id: str) -> dict[str
     stats: dict[str, list[float]] = {}
     
     if sport == "football":
-        stats["goals"] = total_scores
+        stats["goals"] = our_scores if our_scores else total_scores
+        stats["game_total_goals"] = total_scores
         # First half goals from period 1
         if "p1" in period_scores:
             stats["goals_1st_half"] = period_scores["p1"]
     elif sport == "basketball":
-        stats["points"] = total_scores
+        stats["points"] = our_scores if our_scores else total_scores
+        stats["game_total_points"] = total_scores
         # Quarter totals
         for pk, pv in period_scores.items():
             stats[f"points_{pk}"] = pv
     elif sport == "hockey":
-        stats["goals"] = total_scores
+        stats["goals"] = our_scores if our_scores else total_scores
+        stats["game_total_goals"] = total_scores
         if "p1" in period_scores:
             stats["goals_p1"] = period_scores["p1"]
         if "p2" in period_scores:

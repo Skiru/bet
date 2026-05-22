@@ -111,10 +111,16 @@ def _fs_rate_limit(domain: str = "flashscore.com") -> None:
 
 
 def _primary_score_key(sport: str) -> str | None:
+    """Return the game-total scoring stat key for HTML regex fallback.
+
+    NOTE: _extract_match_scores sums home+away (game total), so we store under
+    game_total_* keys to avoid polluting team-level stats (points, goals).
+    Team-specific data comes from the feed parser or ESPN/API sources.
+    """
     return {
-        "football": "goals",
-        "basketball": "points",
-        "hockey": "goals",
+        "football": "game_total_goals",
+        "basketball": "game_total_points",
+        "hockey": "game_total_goals",
         "volleyball": "total_points",
         "tennis": "total_games",
     }.get(sport)

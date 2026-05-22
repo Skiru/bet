@@ -466,9 +466,12 @@ def check_fixture_status(coupons: list[dict], date: str) -> list[str]:
             for event in coupon.get("events", []):
                 event_lower = event.lower()
                 for home, away, status in non_playable_teams:
-                    # Check if both team names appear in the event string
-                    home_token = home.split()[0] if home else ""
-                    away_token = away.split()[0] if away else ""
+                    # Use longest word (≥3 chars) from each team for matching
+                    # Avoids false positives from common prefixes like "fc", "sc"
+                    home_words = [w for w in home.split() if len(w) >= 3]
+                    away_words = [w for w in away.split() if len(w) >= 3]
+                    home_token = max(home_words, key=len) if home_words else home
+                    away_token = max(away_words, key=len) if away_words else away
                     if home_token and away_token and home_token in event_lower and away_token in event_lower:
                         errors.append(
                             f"FIXTURE_{status}: {coupon['coupon_id']} contains "

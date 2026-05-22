@@ -1,5 +1,41 @@
 # Pipeline Knowledge Base — Consolidated (May 4-22, 2026, updated 2026-05-22)
 
+## 🆕 FLASHSCORE STAT KEY SEPARATION — 2026-05-22
+
+### Problem
+FlashScore HTML regex fallback (`_extract_match_scores`) sums home+away scores, producing GAME TOTALS. These were stored under team-specific keys (`goals`, `points`) which then polluted per-team L10 analysis in `normalize_stats.py` → `compute_safety_scores.py`. A team averaging 1.2 goals would show 2.8 because game totals were stored.
+
+### Fix (3 files)
+| File | Change |
+|------|--------|
+| `scripts/flashscore_enricher.py` | Feed parser: `stats["goals"] = our_scores` (per-team); `stats["game_total_goals"] = total_scores` (combined). HTML fallback: stores under `game_total_*` only. |
+| `src/bet/scrapers/flashscore.py` | `_primary_score_key()` returns `game_total_goals`/`game_total_points` (not `goals`/`points`) |
+| `src/bet/stats/value_ranges.py` | Added validation ranges for `game_total_goals` (0-15/0-20) and `game_total_points` (100-350) |
+
+### Data Flow After Fix
+- **Feed parser** (`_parse_embedded_feed`): produces BOTH `goals` (team-specific, from `our_scores`) AND `game_total_goals` (combined `total_scores`)
+- **HTML fallback** (`_extract_match_scores`): produces ONLY `game_total_*` (cannot distinguish teams)
+- **normalize_stats.py** → uses `goals`/`points` stat keys (per-team) for market analysis — CORRECT
+- **If only HTML fallback ran**: no `goals` key available → normalize_stats finds nothing → correct (game totals shouldn't masquerade as per-team)
+
+### Basketball range fix
+- `points` range narrowed from (50, 180) → (50, 160) — reflects realistic per-team scoring
+
+## 🆕 SESSION HARDENING (22 May 2026 PM)
+
+### Today's Committed Changes (6 commits)
+1. **Fixture status filter** — PST/CANC/ABD/AWD/WO/SUSP detection in gate_checker, coupon_builder, validate_coupons (3 layers)
+2. **Tipster shortlist boost** — DB tipster consensus (≥2 tipsters or HIGH) gives +25/+40 score in shortlist
+3. **Tennis walkover filter** — `compute_safety_scores.py` rejects values below 12 total games or 6 player games
+4. **Tipster spam filter** — `tipster_aggregator.py` validates picks against actual fixtures
+5. **Tipster pool in coupon** — Advisory section showing high-consensus picks not in pipeline
+6. **Betclic validator fixes** — False demotion prevention + junk event filter
+
+### Code Review Fix Applied
+- `validate_coupons.py` `check_fixture_status`: Changed first-token matching to longest-word matching (≥3 chars) to avoid false positives from common prefixes ("fc", "sc", "as")
+
+### Tests: 800 passed, 0 failures
+
 ## 🆕 BOVADA PUBLIC FEED INTEGRATION (PLANNED) — 2026-05-22
 
 ### Discovery
