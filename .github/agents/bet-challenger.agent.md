@@ -124,6 +124,16 @@ delta = adjusted_prob - prior_prob
 
 ## Tool Usage Guidelines
 
+### brave-search/* (Web Search MCP — USE ACTIVELY for bear case research)
+- **MUST use for:** Finding counter-evidence to build bear cases, checking breaking team news (injuries announced after data cutoff), verifying competition context (is this a dead rubber? relegation fight?), finding tactical previews that contradict the statistical edge, searching for referee assignment and their historical card/foul tendencies
+- **When to prefer over web/fetch:** When you need to DISCOVER counter-arguments (don't know the URL). Use brave-search to find evidence against a pick, then web/fetch to read specific pages.
+- **Query patterns:** `"[Team] injury news today"`, `"[Match] tactical preview"`, `"[Team] motivation [competition context]"`, `"[Referee] average cards [league]"`, `"[Team] away form problems 2026"`
+- **Rate limit:** 2,000 queries/month — max 2-3 searches per candidate (focus on borderline APPROVED picks where bear case matters most)
+
+### sqlite/* (Direct DB queries — USE for evidence verification)
+- **MUST use for:** Quick verification of claims — checking actual L10 stats, confirming data quality scores, verifying gate_results details, cross-checking analysis_results
+- **Example:** `SELECT * FROM gate_results WHERE fixture_id = X` or `SELECT data_quality_score FROM analysis_results WHERE event LIKE '%Team%'`
+
 ### Script Output (run by orchestrator — you receive output)
 - **Receives output from:** `context_checks.py` (S5 context — weather, injuries, motivation), `upset_risk.py` (S6 upset risk scoring), `gate_checker.py` (S7 programmatic 18-point gate — handles all 18 points + red flags + sport diversity §7.6 + risk tiers + confidence scoring + 48h repeat loss checks)
 - **NOTE:** Orchestrator runs S5→S6→S7 in sequence. You receive all three outputs. Focus agent effort on qualitative bear cases and adversarial reasoning for borderline APPROVED/EXTENDED candidates.

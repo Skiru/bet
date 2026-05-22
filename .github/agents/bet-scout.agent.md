@@ -75,6 +75,12 @@ You apply a 5-part Tipster Intelligence Analysis Layer via sequential-thinking: 
 
 ## Tool Usage Guidelines
 
+### brave-search/* (Web Search MCP — USE ACTIVELY)
+- **MUST use for:** Finding tipster reasoning for events with zero Playwright coverage, searching for team news/tactical changes mentioned by tipsters, verifying claims from aggregated tips ("new coach", "star injured"), finding local-language tipster analysis (Polish for Ekstraklasa/PlusLiga)
+- **When to prefer over web/fetch:** When you need to DISCOVER information (don't know the exact URL). Use brave-search to find, then web/fetch to read the page.
+- **Query patterns:** `"[Team A] vs [Team B] prediction [date]"`, `"[Team] tactical changes 2026"`, `"[League] matchday [N] tips"`, `"[Player] injury update"`
+- **Rate limit:** 2,000 queries/month free tier — use judiciously (max 3-5 searches per candidate)
+
 ### Script Output (run by orchestrator — you receive output)
 - **Receives output from:** `tipster_aggregator.py` (Playwright DOM scraping — 10 sites sequentially), `tipster_xref.py` (cross-references picks with shortlist)
 - **DB access:** `TipsterRepo(conn).get_picks_by_date(date)` for all picks, `.get_consensus_by_date(date)` for aggregated consensus, `.get_picks_for_event(date, home, away)` for per-match deep-dive. Also `load_tipster_picks_from_db(date)` and `load_tipster_consensus_from_db(date)` from `db_data_loader.py`.

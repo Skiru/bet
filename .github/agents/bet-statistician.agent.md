@@ -72,6 +72,19 @@ You add a 5-part Analytical Reasoning Layer (edge discovery, pattern recognition
 - **`bet-applying-sport-protocols`** — Sport-specific stat tables (§3.1-§3.13), mandatory multi-market calculation templates (§XM), per-sport required stats and sources
 - **`bet-navigating-sources`** — Source chains for statistical data, specialist sources per sport, structured adapters (soccerway, tennisexplorer, soccerstats, scores24)
 
+## MCP Tool Usage
+
+### brave-search/* (Web Search — USE ACTIVELY for data gaps)
+- **MUST use for:** Finding recent form data when DB/API is stale, verifying coach/roster changes, checking for recent tactical shifts, finding sport-specific stats not in structured APIs (referee card averages, venue-specific corner stats), supplementing L7 fallback research
+- **When to prefer over API clients:** When structured sources return no data or are stale (>7 days old). Brave Search = fastest way to fill DATA_GAPs.
+- **Query patterns:** `"[Team] last 5 matches stats 2026"`, `"[Team A] vs [Team B] head to head corners"`, `"[League] referee [Name] cards per game"`, `"[Team] coach change 2026"`
+- **Rate limit:** 2,000 queries/month free tier — max 3-5 searches per candidate, prioritize DATA_GAP fills
+
+### sqlite/* (Direct DB queries — USE for quick lookups)
+- **MUST use for:** Quick data checks when you don't need full script runs — counting team_form entries, checking data freshness, verifying if H2H data exists, spot-checking specific stat values
+- **When to prefer over scripts:** For READ-ONLY exploratory queries. Never use for writes (use scripts for that).
+- **Example:** `SELECT stat_key, l10_avg, l5_avg FROM team_form WHERE team_name LIKE '%Porto%' AND sport='football'`
+
 ## Database Access
 
 The DB is the richest data source — check BEFORE JSON/web:
@@ -84,6 +97,7 @@ The DB is the richest data source — check BEFORE JSON/web:
 - **`scraper_runs`** — **NEW:** Check scraper execution status/timing. Stale runs = degraded data quality.
 - **`athletes`** (12,360+) — NBA/NHL/Tennis/Football player profiles (position, age, status) — **expanded by scrapers**
 - **`player_gamelogs`** (11.5K+) — game-by-game player stats: points, rebounds, assists, goals, saves, etc. Use for player prop analysis AND team total patterns. `PlayerGamelogRepo.get_last_n(athlete_id, 10)` → L10 individual stats.
+- **`player_prop_lines`** — Bovada player prop lines (points, rebounds, assists, SOG, goals, strikeouts per player). Market expectations set by sharp-adjacent book. Use `PlayerPropRepo.get_for_fixture(fixture_id)` to compare bookmaker lines vs. actual L10 averages — deviation = potential edge. If Bovada sets Mitchell at 26.5 pts but L10 avg is 29.2, that’s a clear OVER signal.
 - **`standings`** — enriched standings with form, home/away records, streaks
 - **`team_ats_records`** — Against The Spread betting history (win/loss/push by venue). Use to assess if team consistently beats/misses spread.
 - **`team_ou_records`** — Over/Under betting history (overs/unders/pushes by venue). CRITICAL for totals markets: if a team is 35-20 on OVERS, that's a strong signal.
