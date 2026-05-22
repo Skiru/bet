@@ -12,6 +12,8 @@ tools:
     "pylance-mcp-server/*",
     "ms-python.python/*",
     "context7/*",
+    "sqlite/*",
+    "brave-search/*",
     "web/fetch",
     "web/githubRepo",
     "web/githubTextSearch",

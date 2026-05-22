@@ -11,6 +11,8 @@ tools:
     "sequential-thinking/*",
     "pylance-mcp-server/*",
     "ms-python.python/*",
+    "sqlite/*",
+    "brave-search/*",
     "web/fetch",
     "browser/*",
     "playwright/*",
