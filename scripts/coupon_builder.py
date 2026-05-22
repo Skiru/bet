@@ -1818,11 +1818,11 @@ def _filter_non_playable_fixtures(picks: list, date: str) -> tuple[list, list]:
                 playable.append(p)
 
         if rejected:
-            logger.warning(f"Fixture status filter: {len(rejected)} picks rejected "
-                           f"(PST/CANC/ABD)")
+            print(f"[coupon_builder] Fixture status filter: {len(rejected)} picks rejected "
+                  f"(PST/CANC/ABD)")
         return playable, rejected
     except Exception as e:
-        logger.warning(f"Fixture status check failed: {e}")
+        print(f"[coupon_builder] ⚠️ Fixture status check failed: {e}")
         return picks, []
 
 
