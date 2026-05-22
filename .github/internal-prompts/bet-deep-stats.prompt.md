@@ -32,17 +32,23 @@ You MUST follow the Agent Intelligence Protocol defined in your agent definition
 
 ## ⛔ agent-execution-protocol.instructions.md applies — no exceptions
 
-> **YOUR ANALYTICAL VALUE:** You don't just run `deep_stats_report.py`. You reason about WHY trends exist, whether edges are sustainable or regressing, and whether L10 and H2H tell the SAME story. A script can compute safety_score=7.2. Only YOU can explain that the corner trend is driven by a new attacking coach hired 8 matches ago, and that the H2H shows this team historically plays open games against this opponent — making overs on corners a STRUCTURAL edge, not a fluke.
+> **YOUR ANALYTICAL VALUE:** You don't just run `deep_stats_report.py`. You reason about WHY trends exist, whether edges are sustainable or regressing, and whether L10 and H2H tell the SAME story. A script can compute safety_score=7.2. Only YOU can explain that the corner trend is driven by a new attacking coach hired 8 matches ago, and that the H2H shows this team historically plays open games against this opponent — making overs on corners a STRUCTURAL edge, not a fluke. And CRUCIALLY — you assess whether today's COMPETITION CONTEXT validates or invalidates the L10 data (a safety of 8.0 built on league games is MISLEADING if today is a cup final where teams play conservatively).
 
 ### What GOOD deep stats analysis looks like (per candidate):
 ```
 FC Porto vs Benfica — Corners Over 10.5
 Safety: 7.8/10 | P(hit): 72% | Fair odds: 1.39
 
+Competition context: Liga Portugal MD34. Both fighting for title (1pt gap).
+  HIGH STAKES → both teams attack aggressively → MORE corners historically.
+  L10 data is ALL from liga (same context) → VALIDATED.
+  
 Edge mechanism: Porto's new coach (appointed matchday 24) plays 4-3-3 wide attack.
 Last 10: avg 12.1 corners/game. H2H last 5: avg 11.4 corners.
+Schedule strength: 6/10 L10 opponents were top-8 → NOT inflated by weak opposition.
 Three-way check: L10=12.1 ✅ H2H=11.4 ✅ L5-trend=12.8 (rising) ✅
-Anomaly: None — trend is consistent and coach-driven, not schedule-driven.
+Anomaly: None — trend is consistent, coach-driven, and validated by competition context.
+Competition-adjusted conviction: 72% × 1.15 (title race) = 83% effective.
 ```
 4. Use `askQuestions` when data is contradictory (L10 vs H2H divergence with no clear explanation)
 5. Use `browser/*` to fetch LIVE stats when DB/cache data is stale (>24h)
@@ -149,6 +155,31 @@ The script produces RAW DATA (safety scores, market rankings, probabilities). Yo
 - **Anomaly detection**: Numbers look too good? Red flags in the data?
 - **Narrative coherence**: Does the edge align with tactics, motivation, context?
 - **ANALYTICAL REASONING** per candidate (PRIMARY output — tables are secondary)
+
+## 🧠 Competition Intelligence (ASSESS BEFORE touching numbers)
+
+**Before analyzing ANY candidate's stats, you MUST understand the competition context.** Numbers without context are meaningless.
+
+### Why This Matters
+- L10 from league games is NOT predictive of cup knockout behavior
+- A team averaging 12 corners in league may average 8 in Champions League knockouts (defensive posture)
+- NBA regular season totals (avg 225) drop to ~215 in playoffs (slower pace, tighter defense)
+- Tennis Grand Slam (best-of-5) has structurally different game/set patterns than ATP 250 (best-of-3)
+- Volleyball Nations League pool stage ≠ knockout stage (rotation vs full strength)
+
+### Per-Candidate: Answer These BEFORE Computing Safety Scores
+1. **What competition?** (League/Cup/Tournament/Playoff/Friendly)
+2. **What stage?** (Regular season/Group/R16/QF/SF/Final/Play-in)
+3. **Is L10 data from the SAME context?** If L10 includes league games but today is a cup QF → L10 is PARTIALLY MISLEADING
+4. **Schedule strength in L10**: Were opponents comparable to today's? (Bottom-table inflation vs genuine edge)
+5. **What's at stake?** (Nothing/Mid-table/Title race/Relegation/Must-win)
+
+### Competition-Adjusted Analysis Rule
+> When you present safety scores and market rankings, ALWAYS note:
+> "L10 context: [4 league + 3 cup + 3 Europa League] — mixed. Today is a CL QF → cup/knockout data more relevant."
+> "Schedule strength: 6/10 opponents were bottom-half → corner averages may be INFLATED by 1.2/game."
+
+This context note is MANDATORY in §S3.10 (Analysis Depth Proof).
 
 ## Context (provided by orchestrator)
 

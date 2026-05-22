@@ -113,10 +113,25 @@ Score each factor 0-1 per sport-specific checklist (see `bet-applying-sport-prot
 
 HIGH upset → competitive → MORE total play → prefer OVER. LOW upset → blowout → UNDER bias.
 
-### 4. Contextual Reasoning (MANDATORY per candidate)
+### 4. Competition Significance Assessment (NEW — from context_checks.py)
+
+Each candidate now has a `fixture_significance` dict from the script output:
+- `competition_type`: league/cup/tournament_knockout/tournament_group/friendly
+- `significance_score`: 1-10
+- `competition_multiplier`: safety adjustment factor (0.70 for friendlies, 0.85 for knockouts)
+- `flags`: HIGH_PRESTIGE, KNOCKOUT_STAGE, DERBY, FRIENDLY, etc.
+
+**YOUR job:** Use this to assess whether the STATISTICAL data (from S3) is REPRESENTATIVE of today's context.
+- If competition_type="tournament_knockout" but L10 includes group stage games → L10 is PARTIALLY MISLEADING
+- If flags contains "DERBY" → H2H is MORE reliable than L10 (emotional, rivalry patterns dominate)
+- If flags contains "FRIENDLY" → ALL stats unreliable (rotation, experimental lineups)
+- **Pass the competition_multiplier to S7** — it must be applied to raw safety scores
+
+### 5. Contextual Reasoning (MANDATORY per candidate)
 
 - **Motivation analysis**: what's REALLY at stake, impact on team behavior
 - **Context-stat interaction**: how context specifically affects the bet market
+- **Competition intelligence**: how the competition type changes statistical expectations
 - **Information asymmetry**: LOCAL INTEL from team media/local press
 - **Compounding factors**: N factors aligned, combined impact
 - **Context verdict**: STRENGTHENS / NEUTRAL / WEAKENS thesis

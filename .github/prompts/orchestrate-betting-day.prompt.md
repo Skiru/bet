@@ -892,9 +892,11 @@ Load skills: bet-applying-sport-protocols, bet-analyzing-statistics.
 
 ---
 
-### STEP S7: 18-Point Advisory Gate
+### STEP S7: Holistic Analysis + Decision Gate
 
-**Orchestrator runs gate_checker.py, then delegates analysis to bet-challenger.**
+**Orchestrator runs gate_checker.py, then delegates to bet-challenger as THE FINAL JUDGE.**
+
+The gate_checker.py is MECHANICAL INPUT. The bet-challenger's verdict is AUTHORITATIVE — it determines what reaches the coupon. The challenger synthesizes ALL upstream evidence (stats + context + odds + competition intelligence) into decisive verdicts with specific mechanisms.
 
 **Step 1: INSPECT + RUN:**
 ```bash
@@ -908,22 +910,26 @@ Mode: `async`, timeout: `300000`
 ```
 runSubagent("bet-challenger"):
 ---
-## Task: Analyze S7 Gate output for {date}
+## Task: FINAL ANALYTICAL JUDGMENT for {date}
 
 [Paste content of .github/internal-prompts/bet-gate.prompt.md]
 
-### Script Output (already executed by orchestrator)
+### Script Output (mechanical gate — INPUT DATA for your analysis)
 AGENT_SUMMARY: {paste JSON}
 Exit code: {0|1|2}
 Key warnings: {paste tier distribution, gate failures, data quality issues}
 
 ### Upstream Context
-- S3 verdict: {from bet-statistician}
-- S4 verdict: {from bet-valuator}
-- S5+S6 verdict: {from bet-challenger context/upset}
+- S3 verdict: {from bet-statistician — edge mechanisms, competition context notes}
+- S4 verdict: {from bet-valuator — EV, pricing intelligence}
+- S5+S6 verdict: {from bet-challenger context/upset — fixture significance, weather/injuries}
+- Competition significance data: {from context_checks.py — fixture_significance per candidate with competition_type, multiplier, flags}
+
+### ⛔ YOUR VERDICT IS AUTHORITATIVE
+The coupon builder (S8) will use YOUR tier assignments (STRONG/MODERATE/WEAK) and YOUR mechanism explanations to build the portfolio. Make decisive calls. Back them with data. Don't hedge.
 
 ### ⛔ Analysis-Only Mode (see §DELEGATION TEMPLATE)
-Key checks: R3 (all candidates visible), R14 (data quality), R4 (no forced diversity).
+Key checks: Competition intelligence per candidate, holistic synthesis with mechanism, R3 (all visible), R14 (data quality).
 Load skills: bet-applying-sport-protocols, bet-analyzing-statistics.
 ---
 ```

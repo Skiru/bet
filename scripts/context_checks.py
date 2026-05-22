@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""S5 Contextual Checks — weather, venue, referee, roster changes.
+"""S5 Contextual Checks — weather, venue, referee, roster changes, competition significance.
 
 Extracted from pipeline_orchestrator.py (Phase 3.2).
 Supports --verbose + AGENT_SUMMARY for agent-driven pipeline (R17/R19).
@@ -7,6 +7,7 @@ Supports --verbose + AGENT_SUMMARY for agent-driven pipeline (R17/R19).
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -20,6 +21,196 @@ DATA_DIR = ROOT_DIR / "betting" / "data"
 # Add scripts/ and src/ to path for imports
 sys.path.insert(0, str(SCRIPTS_DIR))
 sys.path.insert(0, str(ROOT_DIR / "src"))
+
+
+# ---------------------------------------------------------------------------
+# Fixture Significance Scoring — Competition Intelligence for S7 agent
+# ---------------------------------------------------------------------------
+
+# Competition stage keywords → significance multiplier for safety scores
+KNOCKOUT_MARKERS = re.compile(
+    r"\b(playoff|knockout|elimination|final|semifinal|semi-final|quarter.?final|"
+    r"round\s*of\s*\d+|play.?off|postseason)\b", re.I
+)
+GROUP_STAGE_MARKERS = re.compile(
+    r"\b(group\s+(stage|phase|[a-h])|pool\s+(stage|[a-d])|round\s*robin)\b", re.I
+)
+CUP_MARKERS = re.compile(
+    r"\b(cup|copa|coupe|pokal|taça|coppa|puchar|pohár|кубок)\b", re.I
+)
+FRIENDLY_MARKERS = re.compile(
+    r"\b(friendl(?:y|ies)|amistoso|amical|exhibition|preseason|pre-season|club\s*friendly)\b", re.I
+)
+
+# High-prestige tournaments where patterns differ from regular leagues
+PRESTIGE_TOURNAMENTS = {
+    # Football
+    "champions league", "europa league", "conference league", "copa libertadores",
+    "copa sudamericana", "world cup", "euro 202", "african cup", "copa america",
+    "nations league", "fa cup", "copa del rey", "dfb pokal", "coppa italia",
+    "coupe de france", "carabao cup",
+    # Tennis
+    "grand slam", "australian open", "roland garros", "french open", "wimbledon",
+    "us open", "atp finals", "wta finals",
+    # Basketball
+    "nba playoffs", "nba finals", "euroleague", "fiba",
+    # Hockey
+    "stanley cup", "nhl playoffs", "iihf",
+    # Volleyball
+    "nations league", "world championship", "olympic",
+}
+
+# Stakes detection — keywords indicating high-stakes context
+RELEGATION_MARKERS = re.compile(
+    r"\b(relegation|spadek|abstieg|descenso|retrocessão|degradation)\b", re.I
+)
+PROMOTION_MARKERS = re.compile(
+    r"\b(promotion|awans|aufstieg|ascenso|promoção|montée)\b", re.I
+)
+
+
+def compute_fixture_significance(candidate: dict) -> dict:
+    """Compute fixture significance for a candidate.
+
+    Returns a dict with:
+      - competition_type: league|cup|tournament_knockout|tournament_group|friendly|unknown
+      - significance_score: 1-10 (10 = highest stakes)
+      - competition_multiplier: float for safety adjustment (0.70 - 1.20)
+      - flags: list of significance flags
+      - notes: human-readable explanation
+    """
+    competition = (candidate.get("competition") or "").lower()
+    sport = (candidate.get("sport") or "").lower()
+    flags = []
+    notes = []
+
+    # 1. Detect competition type (ORDER MATTERS — most specific first)
+    comp_type = "league"  # default
+    if FRIENDLY_MARKERS.search(competition):
+        comp_type = "friendly"
+        flags.append("FRIENDLY")
+        notes.append("Friendly/exhibition — unpredictable lineups, low motivation")
+    elif KNOCKOUT_MARKERS.search(competition):
+        comp_type = "tournament_knockout"
+        flags.append("KNOCKOUT_STAGE")
+        notes.append("Knockout stage — conservative tactics, fewer open-play stats")
+    elif GROUP_STAGE_MARKERS.search(competition):
+        comp_type = "tournament_group"
+        flags.append("GROUP_STAGE")
+        notes.append("Group stage — teams need points, more aggressive")
+    elif CUP_MARKERS.search(competition):
+        comp_type = "cup"
+        flags.append("CUP")
+        notes.append("Cup competition — may differ from league patterns")
+
+    # 2. Prestige detection — ALSO overrides comp_type for known tournaments
+    is_prestige = any(t in competition for t in PRESTIGE_TOURNAMENTS)
+    if is_prestige:
+        flags.append("HIGH_PRESTIGE")
+        notes.append(f"High-prestige competition: {competition}")
+        # Champions League / Europa League / Cup competitions without "cup" in name
+        # that are clearly not regular leagues
+        if comp_type == "league" and any(
+            t in competition for t in (
+                "champions league", "europa league", "conference league",
+                "copa libertadores", "copa sudamericana", "nations league",
+                "nba playoffs", "nhl playoffs", "stanley cup",
+                "euroleague", "atp finals", "wta finals",
+            )
+        ):
+            # These are cup/tournament competitions even without "cup" keyword
+            if "playoff" in competition or "final" in competition:
+                comp_type = "tournament_knockout"
+                if "KNOCKOUT_STAGE" not in flags:
+                    flags.append("KNOCKOUT_STAGE")
+            else:
+                comp_type = "cup"
+                if "CUP" not in flags:
+                    flags.append("CUP")
+
+    # 3. Stakes detection (from standings/league context)
+    # Check if team positions suggest high stakes
+    home_pos = candidate.get("home_position") or candidate.get("standings", {}).get("home_rank")
+    away_pos = candidate.get("away_position") or candidate.get("standings", {}).get("away_rank")
+
+    # Rivalry detection — same city/region teams
+    home = (candidate.get("home_team") or "").lower()
+    away = (candidate.get("away_team") or "").lower()
+    # Simple city-based derby detection
+    if _is_derby(home, away):
+        flags.append("DERBY")
+        notes.append("Derby/rivalry — H2H more predictive than L10, emotional factor")
+
+    # 4. Compute significance score (1-10)
+    score = 5  # baseline for regular league
+    if comp_type == "friendly":
+        score = 2
+    elif comp_type == "tournament_knockout":
+        score = 8
+        if is_prestige:
+            score = 9
+    elif comp_type == "tournament_group":
+        score = 6
+    elif comp_type == "cup":
+        score = 6
+        if is_prestige:
+            score = 8
+
+    if "DERBY" in flags:
+        score = min(10, score + 1)
+
+    # 5. Compute competition multiplier for safety score adjustment
+    # This tells the S7 agent how to adjust raw safety scores
+    multiplier = 1.0
+    if comp_type == "tournament_knockout":
+        if sport == "football":
+            multiplier = 0.85  # OVER markets less reliable in knockouts
+        elif sport in ("basketball", "hockey"):
+            multiplier = 0.90  # Playoff pace drops
+        elif sport == "tennis":
+            multiplier = 1.15  # Grand Slam best-of-5 = MORE games
+    elif comp_type == "friendly":
+        multiplier = 0.70  # Very unreliable
+    elif "DERBY" in flags:
+        multiplier = 1.0  # Neutral on safety, but H2H weight should double
+
+    return {
+        "competition_type": comp_type,
+        "significance_score": score,
+        "competition_multiplier": multiplier,
+        "flags": flags,
+        "notes": "; ".join(notes) if notes else "Regular league fixture",
+        "is_prestige": is_prestige,
+        "is_derby": "DERBY" in flags,
+    }
+
+
+def _is_derby(home: str, away: str) -> bool:
+    """Simple derby detection based on shared city/region keywords."""
+    # Known derby pairs (partial matches)
+    derby_pairs = [
+        ("real madrid", "atletico"), ("barcelona", "espanyol"),
+        ("milan", "inter"), ("roma", "lazio"), ("juventus", "torino"),
+        ("liverpool", "everton"), ("manchester united", "manchester city"),
+        ("arsenal", "tottenham"), ("celtic", "rangers"),
+        ("benfica", "sporting"), ("porto", "benfica"),
+        ("boca", "river"), ("flamengo", "fluminense"),
+        ("galatasaray", "fenerbahce"), ("besiktas", "galatasaray"),
+        ("dortmund", "schalke"), ("bayern", "dortmund"),
+        ("psg", "marseille"), ("lyon", "saint-etienne"),
+        ("ajax", "feyenoord"), ("psv", "ajax"),
+        ("lakers", "celtics"), ("lakers", "clippers"),
+        ("yankees", "red sox"), ("cubs", "white sox"),
+    ]
+    for a, b in derby_pairs:
+        if (a in home and b in away) or (b in home and a in away):
+            return True
+    # Same city heuristic: first word matches and len > 3
+    home_city = home.split()[0] if home else ""
+    away_city = away.split()[0] if away else ""
+    if home_city and away_city and home_city == away_city and len(home_city) > 3:
+        return True
+    return False
 
 
 def run_context_checks(date: str, state: dict) -> tuple[bool, str]:
@@ -173,6 +364,7 @@ def run_context_checks(date: str, state: dict) -> tuple[bool, str]:
         checks_done.append(f"gemini_news: error ({e})")
 
     # Enrich S3 candidates with context flags
+    significance_scored = 0
     if candidates and s3_path.exists():
         enriched = 0
         for c in candidates:
@@ -180,6 +372,16 @@ def run_context_checks(date: str, state: dict) -> tuple[bool, str]:
             home = c.get("home_team", "")
             away = c.get("away_team", "")
             sport = c.get("sport", "")
+
+            # --- COMPETITION SIGNIFICANCE (new) ---
+            significance = compute_fixture_significance(c)
+            c["fixture_significance"] = significance
+            significance_scored += 1
+            for flag in significance.get("flags", []):
+                c_flags.append(f"SIGNIFICANCE:{flag}")
+            if significance.get("competition_multiplier", 1.0) != 1.0:
+                c_flags.append(f"COMP_MULT:{significance['competition_multiplier']:.2f}")
+
             # Check weather — use substring matching for venue keys like "Liverpool vs Arsenal"
             for venue, flags in context_flags.items():
                 venue_l = venue.lower()
@@ -214,6 +416,8 @@ def run_context_checks(date: str, state: dict) -> tuple[bool, str]:
                 json.dumps(s3_data, indent=2, ensure_ascii=False), encoding="utf-8"
             )
             checks_done.append(f"enriched: {enriched}/{len(candidates)} candidates with context flags")
+        if significance_scored:
+            checks_done.append(f"significance: {significance_scored} candidates scored")
 
     # Save context enrichments to analysis_results in DB
     try:
@@ -276,10 +480,10 @@ def main():
     ok, msg = run_context_checks(args.date, state)
 
     # Parse checks_done from message
-    import re
     weather_m = re.search(r"weather: (\d+) venues checked, (\d+) with impact", msg)
     injury_m = re.search(r"injuries: (\d+) entries across (\d+) sports", msg)
     enriched_m = re.search(r"enriched: (\d+)/(\d+) candidates", msg)
+    significance_m = re.search(r"significance: (\d+) candidates scored", msg)
 
     metrics = {}
     if weather_m:
@@ -291,6 +495,8 @@ def main():
     if enriched_m:
         metrics["enriched_candidates"] = int(enriched_m.group(1))
         metrics["total_candidates"] = int(enriched_m.group(2))
+    if significance_m:
+        metrics["significance_scored"] = int(significance_m.group(1))
 
     candidate_load = state.get("candidate_load") or {}
     metrics["input_source"] = candidate_load.get("source", "none")
