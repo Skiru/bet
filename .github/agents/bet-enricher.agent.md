@@ -84,11 +84,12 @@ You add an Enrichment Quality Assessment via sequential-thinking for each batch:
 
 - `team_form` — L10/L5/H2H averages per stat_key per team (READ to check gaps, WRITE after enrichment). **Note:** `source` field may be `"scrapers-*"` for data from scrapers.
 - `match_stats` — Per-fixture per-team stat values (WRITE after enrichment)
+- `player_gamelogs` — Per-game player stats for basketball/hockey (top 3 scorers per team). Used by S3 for totals market analysis. **Enriched via `--gamelogs` flag.**
 - `teams` — Team name resolution and aliases (READ)
 - `sports` — Sport configuration (READ)
 - `source_health` — Track enrichment source success/failure rates (WRITE)
 - Access: `from bet.db.connection import get_db; from bet.db.repositories import StatsRepo, TeamRepo, SourceHealthRepo`
-- Gateway: `from db_data_loader import load_team_form_from_db`
+- Gateway: `from db_data_loader import load_team_form_from_db, load_player_gamelogs_for_team`
 
 `scraper_runs`, `player_season_stats`, and `league_profiles` are advisory context only if the orchestrator explicitly provides them. They are not sufficient evidence of S2.3 success for S3, because the analysis pipeline consumes `team_form`.
 
@@ -96,7 +97,7 @@ You add an Enrichment Quality Assessment via sequential-thinking for each batch:
 
 - **Receives output from:** `run_scrapers.py` — S2.3 warehouse collection into scraper tables
 - **Receives output from:** `scraper_to_team_form.py` / `bridge_league_to_team_form.py` — optional bridge surfaces that can make scraper data S3-consumable
-- **Receives output from:** `data_enrichment_agent.py` — **S2.5:** self-healing enrichment and rich-stat completion for gaps bridge/scraper coverage did not close
+- **Receives output from:** `data_enrichment_agent.py` — **S2.5:** self-healing enrichment, rich-stat completion for gaps bridge/scraper coverage did not close, AND player gamelogs for basketball/hockey (via `--gamelogs` flag — top 3 scorers per team, used in totals market analysis)
 - **Receives output from:** `enrich_tennis_stats.py` — standalone tennis baseline/backfill when the orchestrator includes it in the same-day flow
 - **Receives output from:** `seed_espn_data.py` — ESPN-specific supplementary data (standings, ATS/OU, predictions, power index)
 

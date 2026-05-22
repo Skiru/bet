@@ -680,13 +680,15 @@ ON t.team = tf.team_id WHERE tf.team_id IS NULL
 ```
 Run equivalent via `--dry-run` flag or inline DB check.
 
-**⛔ SKIP GATE:** If <20 teams are missing from DB → **SKIP S2.5 entirely**. The existing team_form data is sufficient for S3. Log "S2.5 SKIPPED — only N teams missing, DB coverage sufficient" and proceed to S3.
+**⛔ SKIP GATE:** If <15 teams are missing from DB → **SKIP S2.5 entirely**. The existing team_form data is sufficient for S3. Log "S2.5 SKIPPED — only N teams missing, DB coverage sufficient" and proceed to S3.
 
-**Step 2: RUN script ONLY if gaps are significant (≥20 missing teams):**
+**Step 2: RUN script (no hard limit — shortlist filtering already ensures quality):**
 ```bash
-PYTHONPATH=src .venv/bin/python3 scripts/data_enrichment_agent.py --date {date} --news --limit 60 --verbose 2>&1
+PYTHONPATH=src .venv/bin/python3 scripts/data_enrichment_agent.py --date {date} --news --gamelogs --verbose 2>&1
 ```
-Mode: `sync`, timeout: `300000` (5 min max — if it takes longer, something is wrong)
+- `--gamelogs`: fetches player gamelogs for basketball/hockey teams (top 3 scorers per team → better totals analysis)
+- No `--limit`: shortlist already filtered to ~60-100 quality events; enrichment processes all missing teams
+- Mode: `sync`, timeout: `600000` (10 min — gamelogs add time for NBA/NHL teams)
 
 **Step 3: THINK-WHILE-WAITING (only if script is running):**
 - Review source health from previous runs

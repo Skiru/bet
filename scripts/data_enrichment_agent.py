@@ -38,6 +38,7 @@ from bet.api_clients.base_client import APIRateLimitError, APIError
 from fetch_api_stats import (
     fetch_team_stats,
     fetch_h2h_stats,
+    fetch_player_gamelogs,
     FALLBACK_CHAINS,
     _store_in_cache,
 )
@@ -185,6 +186,22 @@ def _safe_avg(values: list) -> float | None:
     if not nums:
         return None
     return round(sum(nums) / len(nums), 2)
+
+
+def _get_db_athlete_ids(team_name: str, sport: str) -> list[str]:
+    """Get top athlete external IDs from DB for a team (for gamelog fetching)."""
+    try:
+        from bet.db.connection import get_db
+        with get_db() as conn:
+            rows = conn.execute("""
+                SELECT a.external_id FROM athletes a
+                JOIN teams t ON a.team_id = t.id
+                WHERE t.name LIKE ? AND a.external_id IS NOT NULL AND a.external_id != ''
+                ORDER BY a.id LIMIT 5
+            """, (f"%{team_name}%",)).fetchall()
+            return [r["external_id"] for r in rows]
+    except Exception:
+        return []
 
 
 def _result_stat_keys(result: dict) -> set[str]:
@@ -1977,7 +1994,9 @@ def main():
     parser.add_argument("--date", help="Auto-detect missing teams from shortlist (YYYY-MM-DD)")
     parser.add_argument("--h2h", nargs=2, metavar=("TEAM_A", "TEAM_B"), help="Fetch H2H stats")
     parser.add_argument("--workers", type=int, default=4, help="Max parallel workers")
-    parser.add_argument("--limit", type=int, help="Limit teams processed in --date mode after optional sport filtering")
+    parser.add_argument("--limit", type=int, help="Limit teams processed in --date mode. Default: no limit (process all shortlisted).")
+    parser.add_argument("--gamelogs", action="store_true", default=False,
+                        help="Fetch player gamelogs for basketball/hockey teams (top 3 scorers per team)")
     parser.add_argument("--dry-run", action="store_true", help="Inspect filtered enrichment targets and emit AGENT_SUMMARY without writing data")
     parser.add_argument("--news", action="store_true", default=False,
                         help="Run Gemini news enrichment after stats enrichment")
@@ -2090,6 +2109,70 @@ def main():
         results = batch_enrich(missing, max_workers=args.workers, skip_known_missing=bool(args.shortlist))
         print(json.dumps(results, indent=2, ensure_ascii=False))
 
+        # Player gamelog enrichment (feature flag --gamelogs)
+        gamelog_count = 0
+        if args.gamelogs:
+            gamelog_teams = [
+                entry for entry in missing
+                if entry.get("sport") in ("basketball", "hockey")
+            ]
+            if gamelog_teams:
+                out.event("gamelogs_start", count=len(gamelog_teams))
+                print(f"[enrich] Fetching player gamelogs for {len(gamelog_teams)} basketball/hockey teams...")
+                for entry in gamelog_teams:
+                    team_name = entry["team"]
+                    sport = entry["sport"]
+                    try:
+                        # DB-first: get athlete IDs from DB (more reliable than ESPN team leaders API)
+                        league = "nba" if sport == "basketball" else "nhl"
+                        athlete_ids = _get_db_athlete_ids(team_name, sport)
+                        if not athlete_ids:
+                            # Fallback: try ESPN team leaders API
+                            client_key = f"espn-{sport}"
+                            espn_client = get_client(client_key)
+                            if espn_client:
+                                team_id = espn_client.resolve_team_id(team_name)
+                                if team_id:
+                                    gl_results = fetch_player_gamelogs(sport, league, str(team_id), team_name)
+                                    if gl_results:
+                                        gamelog_count += len(gl_results)
+                                        if args.verbose:
+                                            out.event("gamelog_ok", team=team_name, players=len(gl_results), source="espn-leaders")
+                                    continue
+                            if args.verbose:
+                                out.event("gamelog_skip", team=team_name, reason="no athletes in DB or ESPN")
+                            continue
+                        # Use DB athlete IDs directly to fetch gamelogs
+                        from bet.api_clients.espn_stats import ESPNStatsClient
+                        stats_client = ESPNStatsClient()
+                        team_gl_count = 0
+                        for athlete_id in athlete_ids[:3]:  # top 3 players
+                            try:
+                                gamelog = stats_client.get_player_gamelog(sport, league, athlete_id)
+                                if gamelog:
+                                    # Cache the gamelog
+                                    cache_dir = DATA_DIR / "stats_cache" / "espn" / sport / "players" / str(athlete_id)
+                                    cache_dir.mkdir(parents=True, exist_ok=True)
+                                    import json as _json
+                                    (cache_dir / "gamelog.json").write_text(
+                                        _json.dumps(gamelog, ensure_ascii=False, indent=2))
+                                    team_gl_count += 1
+                            except Exception:
+                                pass
+                        if team_gl_count:
+                            gamelog_count += team_gl_count
+                            if args.verbose:
+                                out.event("gamelog_ok", team=team_name, players=team_gl_count, source="db-athletes")
+                        else:
+                            if args.verbose:
+                                out.event("gamelog_skip", team=team_name, reason="gamelogs unavailable")
+                    except Exception as e:
+                        out.warning(f"[gamelogs] {team_name} failed: {e}")
+                out.event("gamelogs_done", total_players=gamelog_count, teams=len(gamelog_teams))
+                print(f"[enrich] Player gamelogs: {gamelog_count} player gamelogs fetched from {len(gamelog_teams)} teams")
+            else:
+                print("[enrich] No basketball/hockey teams in shortlist — skipping gamelogs")
+
         # Gemini news enrichment (feature flag --news)
         news_count = 0
         if args.news:
@@ -2120,7 +2203,10 @@ def main():
             except Exception as e:
                 print(f"[enrich] Gemini news enrichment failed (non-fatal): {e}")
 
-        summary_metrics = _summarize_enrichment_results(results, extra_metrics={"news_enriched": news_count})
+        summary_metrics = _summarize_enrichment_results(results, extra_metrics={
+            "news_enriched": news_count,
+            "player_gamelogs_fetched": gamelog_count,
+        })
         out.summary(
             verdict="OK" if summary_metrics["enriched"] > 0 else "PARTIAL",
             metrics=summary_metrics,

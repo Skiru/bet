@@ -127,7 +127,16 @@ with get_db() as conn:
 - **Enrichment scripts (run by orchestrator as needed):**
     - `PYTHONPATH=src .venv/bin/python3 scripts/run_scrapers.py --sport all --season 2425 --verbose` — S2.3 warehouse collection only
     - `PYTHONPATH=src .venv/bin/python3 scripts/scraper_to_team_form.py --date {date}` or `bridge_league_to_team_form.py --date {date}` — optional bridge helpers when the orchestrator explicitly uses them
-    - `PYTHONPATH=src .venv/bin/python3 scripts/data_enrichment_agent.py --date {date} --news --verbose` — S2.5 gap-fill and rich completion
+    - `PYTHONPATH=src .venv/bin/python3 scripts/data_enrichment_agent.py --date {date} --news --gamelogs --verbose` — S2.5 gap-fill, rich completion, AND player gamelogs for basketball/hockey
+
+### Player Gamelogs (basketball/hockey)
+When `--gamelogs` is used, enrichment also fetches per-player game-by-game stats for top 3 scorers on each basketball/hockey team. This data is stored in `player_gamelogs` DB table and cached to `betting/data/stats_cache/espn/{sport}/players/{athlete_id}/gamelog.json`.
+
+**Assessment criteria for gamelogs:**
+- Check `player_gamelogs_fetched` in AGENT_SUMMARY metrics
+- For NBA/NHL teams: expect 2-3 players per team enriched
+- Missing gamelogs = team totals analysis in S3 will rely on team averages only (less precise)
+- Access: `from db_data_loader import load_player_gamelogs_for_team`
     - `PYTHONPATH=src .venv/bin/python3 scripts/enrich_tennis_stats.py --date {date}` — standalone tennis baseline/backfill when required
     - `PYTHONPATH=src .venv/bin/python3 scripts/seed_espn_data.py --skip-players --verbose` — ESPN supplementary tables
 - **DB tables**: `team_form` (read/write for S3-consumable team stats), `match_stats` (read/write for per-match rich completion), `source_health` (read/write), scraper tables (`league_profiles`, `player_season_stats`) as advisory context unless bridged
