@@ -97,7 +97,7 @@ The DB is the richest data source — check BEFORE JSON/web:
 - **`scraper_runs`** — **NEW:** Check scraper execution status/timing. Stale runs = degraded data quality.
 - **`athletes`** (12,360+) — NBA/NHL/Tennis/Football player profiles (position, age, status) — **expanded by scrapers**
 - **`player_gamelogs`** (11.5K+) — game-by-game player stats: points, rebounds, assists, goals, saves, etc. Use for player prop analysis AND team total patterns. `PlayerGamelogRepo.get_last_n(athlete_id, 10)` → L10 individual stats.
-- **`player_prop_lines`** — Bovada player prop lines (points, rebounds, assists, SOG, goals, strikeouts per player). Market expectations set by sharp-adjacent book. Use `PlayerPropRepo.get_for_fixture(fixture_id)` to compare bookmaker lines vs. actual L10 averages — deviation = potential edge. If Bovada sets Mitchell at 26.5 pts but L10 avg is 29.2, that’s a clear OVER signal.
+- **`player_prop_lines`** *(PENDING — table + repo in `betting/plans/bovada-integration.plan.md`)* — Bovada player prop lines (points, rebounds, assists, SOG, goals, strikeouts per player). When implemented: compare bookmaker lines vs. actual L10 averages — deviation = potential edge (e.g., Bovada sets Mitchell at 26.5 pts but L10 avg is 29.2 → OVER signal).
 - **`standings`** — enriched standings with form, home/away records, streaks
 - **`team_ats_records`** — Against The Spread betting history (win/loss/push by venue). Use to assess if team consistently beats/misses spread.
 - **`team_ou_records`** — Over/Under betting history (overs/unders/pushes by venue). CRITICAL for totals markets: if a team is 35-20 on OVERS, that's a strong signal.

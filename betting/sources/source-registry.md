@@ -17,7 +17,7 @@ The pipeline uses **API-first discovery architecture**: Odds-API.io (primary, al
 |----------|---------|---------------|
 | **Automated — Discovery** | Odds-API.io (PRIMARY), The-Odds-API (SECONDARY), API-Football (TERTIARY), SofaScore (disabled) | `src/bet/discovery/` module via `discover_events.py` |
 | **Automated — Scrapers** | 19 scrapers: FBref, NBA API, NHL API, Basketball-Reference, Sackmann, ESPN (5 sports), Flashscore (5 sports), Hockey-Reference, Volleybox | `src/bet/scrapers/` module via `run_scrapers.py` |
-| **Automated — Odds** | the-odds-api, odds-api.io, api-football-odds | `fetch_odds_api.py`, `fetch_odds_api_io.py`, `fetch_odds_multi.py` |
+| **Automated — Odds** | the-odds-api, odds-api.io, Bovada public feed *(PENDING)*, api-football-odds | `fetch_odds_api.py`, `fetch_odds_api_io.py`, `fetch_bovada_odds.py` *(PENDING)*, `fetch_odds_multi.py` |
 | **Automated — Enrichment** | ESPN API, Flashscore HTTP | `data_enrichment_agent.py` |
 | **Manual/Browser** | OddsPortal, BetExplorer, SBR, ESPN Odds, ScoresAndOdds, Flashscore (results) | Playwright/browser via agents |
 | **Tipster/Community** | ZawodTyper, Typersi, OLBG, PicksWise, WinDrawWin, FootballPredictions | `tipster_aggregator.py` (Playwright DOM scraping → DB `tipster_picks` + `tipster_consensus`) |
@@ -91,6 +91,19 @@ The pipeline uses **API-first discovery architecture**: Odds-API.io (primary, al
   Coverage: 1000+ football leagues globally. Odds may lag 15-30 min behind live prices.
   Script: Integrated into `python3 scripts/fetch_odds_multi.py`.
   Added: 2026-04-29.
+
+- Bovada Public Feed
+  Role: richest free odds source — player props, period markets, main odds. No authentication required.
+  URL: https://www.bovada.lv/services/sports/event/v2/events/A/description/{sport}/{league}
+  Use for: player prop lines (NBA points/rebounds/assists, NHL SOG/goalscorers, Tennis game spread/set betting, MLB pitcher props), main market odds cross-validation, period markets (1Q/1H/1P), and volleyball ML+totals.
+  Access: FREE, no API key, no auth. Public JSON endpoint. Rate limit: conservative 1 req/30s. Potential geo-blocking risk (US-focused) — test periodically.
+  Coverage: NBA (510 markets/event), NHL (194 markets/event), ATP/WTA (178 markets/event), Soccer (42MB mega-endpoint, ALL leagues), Volleyball (21 events), MLB (1221 markets/event), NFL, Esports.
+  Odds format: Returns American + Decimal + Fractional. Pipeline converts to decimal on ingest.
+  Script: `python3 scripts/fetch_bovada_odds.py --verbose` *(PENDING implementation — plan: `betting/plans/bovada-integration.plan.md`)*. When ready: fetches all sports, writes DIRECTLY to DB (`odds_history` with bookmaker="bovada" + `player_prop_lines` table).
+  DB tables: `odds_history` (main markets), `player_prop_lines` *(PENDING)* (player props with lines and over/under odds).
+  Pipeline position: Run AFTER `discover_events.py` (needs existing fixtures), BEFORE `odds_evaluator.py` and `deep_stats_report.py`.
+  Soccer note: /soccer endpoint returns 42MB (ALL leagues combined). Uses ijson streaming parser with competition filter to avoid OOM.
+  Added: 2026-05-22.
 
 - odds-api.io
   Role: universal odds API — 265 bookmakers, 34 sports, value bets with pre-calculated EV.
@@ -272,14 +285,26 @@ These API sources provide structured statistical data via REST APIs. They are th
   Status: DEPRECATED 2026-05-13. Moved to deprecated section.
 
 - ESPN API (espn_adapter.py)
-  Role: FREE, UNLIMITED, NO API KEY — multi-sport statistics via ESPN's public endpoints. Per-match stats: corners, fouls, cards, shots, shots on target, possession, saves, offsides, passes, tackles, interceptions, clearances. 36+ football leagues, NBA, NHL, ATP/WTA.
+  Role: FREE, UNLIMITED, NO API KEY — multi-sport statistics, odds, coaching data, play-by-play, news via ESPN's public endpoints. Per-match stats: corners, fouls, cards, shots, shots on target, possession, saves, offsides, passes, tackles, interceptions, clearances. 70+ football leagues, NBA, NHL, ATP/WTA, FIVB volleyball.
   Use for: PRIMARY L10/L5/H2H stats source (first in every applicable fallback chain). Produces ~64KB slug-based cache per team. Feeds safety score computation and market ranking.
   Access: free (no API key, no rate limit). Endpoint: site.api.espn.com/apis/site/v2/sports/{sport}/{league}/.
-  Coverage: Football (36 leagues: eng.1-4, ger.1, esp.1, ita.1, fra.1, ned.1, por.1, usa.1, mex.1, bra.1, arg.1, tur.1, gre.1, rus.1, bel.1, sco.1, chn.1, jpn.1, kor.1, aus.1 + 16 more). Basketball (NBA). Hockey (NHL). Tennis (ATP, WTA).
+  Coverage: Football (70+ leagues: eng.1-3, ger.1-2, esp.1-2, ita.1-2, fra.1-2, ned.1-2, por.1, usa.1, mex.1, bra.1-2, arg.1, tur.1, gre.1, rus.1, bel.1, sco.1, chn.1, jpn.1, kor.1, aus.1 + cups: eng.fa, esp.copa_del_rey, ger.dfb_pokal, ita.coppa_italia, fra.coupe_de_france + qualifiers: uefa.champions_qual, uefa.europa_qual + nations league). Basketball (NBA, WNBA). Hockey (NHL). Tennis (ATP, WTA). Volleyball (FIVB M/W, NCAA).
   Stats per match (football): fouls, yellow_cards, red_cards, offsides, corners, saves, possession, shots, shots_on_target, shot_accuracy, penalty_goals, accurate_passes, total_passes, pass_accuracy, accurate_crosses, long_balls, blocked_shots, tackles_won, interceptions, clearances, goals.
-  Client registry: `espn-football`, `espn-basketball`, `espn-hockey`, `espn-tennis` (4 registered factories).
+  Additional endpoints (2026-05-22):
+    - Coaches: `/seasons/{year}/coaches` + `/coaches/{id}/record/{type}` — coach stability checks (NBA, NHL only — soccer returns 500)
+    - Play-by-play: `/events/{id}/competitions/{id}/plays` — timing data for corners, cards, goals (all sports)
+    - Futures: `/seasons/{year}/futures` — season-long betting markets (NBA, NHL)
+    - Real-time news: `now.core.api.espn.com/v1/sports/news` — injury/transfer news
+    - Multi-provider odds: DraftKings(41), FanDuel(37), Caesars(38), BetMGM(58), ESPN BET(68), Bet365(2000)
+    - Win probabilities + ESPN Predictor + Power Index/BPI
+    - ATS records + O/U records per team
+    - Player gamelogs + splits (NBA, NHL)
+    - H2H athlete stats (tennis)
+    - League/team statistical leaders
+    - Team roster + depth chart + transactions
+  Client registry: `espn-football`, `espn-basketball`, `espn-hockey`, `espn-tennis`, `espn-volleyball` (5 registered factories).
   Script: Integrated into `python3 scripts/fetch_api_stats.py` via fallback chains.
-  Added: 2026-04-30. Promoted to first in chains: 2026-05-04.
+  Added: 2026-04-30. Promoted to first in chains: 2026-05-04. Expanded: 2026-05-22 (coaches, play-by-play, futures, news, 30+ soccer leagues).
 
 - SerpAPI
   Role: Google search API with structured sports data — fixtures, results, standings, odds snippets from Google Knowledge Graph.

@@ -38,6 +38,14 @@ python3 scripts/fetch_odds_api.py
 # → produces: betting/data/odds_api_snapshot.json, odds_api_summary.csv
 # For settlement: python3 scripts/fetch_odds_api.py --scores hockey
 
+# 2b. Bovada odds + player props (FREE, no auth, unlimited)
+python3 scripts/fetch_bovada_odds.py --verbose
+# → writes DIRECTLY to DB: odds_history (bookmaker="bovada") + player_prop_lines table
+# → covers: NBA/NHL/Tennis/Soccer/Volleyball/MLB with 100-1200 markets/event
+# → player props: points, rebounds, assists, SOG, goals, strikeouts per player
+# → run AFTER discover_events.py (needs fixtures), BEFORE odds_evaluator.py
+# ⚠️ IMPLEMENTATION STATUS: Plan ready (betting/plans/bovada-integration.plan.md), code pending.
+
 # 3. Settle previous day
 python3 scripts/settle_on_finish.py --betting-day YYYY-MM-DD
 # Auto: winner/1X2, totals, BTTS, DC.
@@ -49,9 +57,12 @@ python3 scripts/settle_on_finish.py --betting-day YYYY-MM-DD
 - Always prepare backup picks (Watch List) for when Betclic odds are unacceptable.
 
 ## Source Rules
-- American odds: +X → 1 + X/100; −X → 1 + 100/X (for SBR, ESPN, ScoresAndOdds).
-- US sports: SBR Totals + ESPN Odds + ScoresAndOdds (3 sources).
+- American odds: +X → 1 + X/100; −X → 1 + 100/X (for SBR, ESPN, ScoresAndOdds, Bovada).
+- US sports: Bovada (primary, free, richest) + SBR Totals + ESPN Odds + ScoresAndOdds.
 - EU sports: BetExplorer + OddsPortal + Odds-API.io (primary odds cross-validation).
+- Player props: Bovada `player_prop_lines` table (PRIMARY). Compare vs actual L10 averages for edge detection.
+- Bovada: FREE public JSON feed, no API key. Writes to DB only (R2). Client: `src/bet/api_clients/bovada.py`.
+- ⚠️ Bovada integration PENDING implementation — see `betting/plans/bovada-integration.plan.md`.
 
 ## Versioning
 - On reruns: increment version (v5→v6). Mark old pending as `superseded`. Keep all versions.

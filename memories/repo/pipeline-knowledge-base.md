@@ -1,5 +1,105 @@
 # Pipeline Knowledge Base — Consolidated (May 4-22, 2026, updated 2026-05-22)
 
+## 🆕 BOVADA PUBLIC FEED INTEGRATION (PLANNED) — 2026-05-22
+
+### Discovery
+Evaluated multiple free data sources. Rejected SportsDataverse (broken xgboost, wraps ESPN) and WagerWise (empty 0-record DB). Discovered Bovada public JSON API — richest free source found.
+
+### Bovada Public API
+- **URL:** `https://www.bovada.lv/services/sports/event/v2/events/A/description/{sport}/{league}`
+- **Auth:** NONE — completely free, no API key, no rate limit documented
+- **Format:** JSON with American + Decimal + Fractional odds
+- **Live tested 2026-05-22:** All endpoints return 200 from EU IP (no geo-block)
+
+### Confirmed Working Endpoints
+| Endpoint | Events | Markets/event | Key Data |
+|----------|--------|--------------|----------|
+| /basketball/nba | 2 | 268-510 | Player Points/Rebounds/Assists/3PM/Blocks/Steals O/U, PRA combos, quarter/half |
+| /basketball/wnba | 3 | 326 | Same as NBA |
+| /hockey/nhl | 2 | 194 | Goalscorers (anytime/first/last), Player SOG O/U, period markets |
+| /tennis/atp | 6 | 178 | Game spread, set betting, per-player game totals |
+| /tennis/wta | 6 | 157 | Same as ATP |
+| /baseball/mlb | 15 | 1221 | Pitcher props, player HR/hits/RBI/runs/bases |
+| /volleyball | 21 | 119 | ML + totals only (no player props) |
+| /soccer | 42MB mega | ALL leagues | Goal spread, 3-way ML, totals — needs streaming parser |
+| /football/nfl | 20 | 90 | Spread, total, ML |
+| /table-tennis | 86 | 658 | ML + totals, live events |
+| /esports | 84 | 953 | ML + totals + maps |
+
+### Dead Endpoints (404/empty)
+Individual soccer league paths (/soccer/epl, /soccer/bundesliga etc.) return 404 — all soccer combined in one mega-endpoint.
+
+### Integration Architecture (Plan: `betting/plans/bovada-integration.plan.md`)
+- **DB-FIRST:** All data writes to SQLite — NO JSON file primary storage (R2)
+- **Main odds** → existing `odds_history` table with `bookmaker="bovada"` → auto-integrated with `odds_evaluator.py` Source 0
+- **Player props** → NEW `player_prop_lines` table (fixture_id, athlete_name, market_type, line, over/under odds)
+- **Fixture matching:** NEVER creates phantom fixtures — only writes for events already discovered by `discover_events.py`
+- **Pipeline position:** After S1 (discover_events.py), before S3/S4 (deep_stats/odds_evaluator)
+- **Soccer handling:** `ijson` streaming parser for 42MB endpoint with competition filter
+
+### Implementation Status: PENDING
+Files to create:
+- `src/bet/api_clients/bovada.py` — client (no BaseAPIClient inheritance, uses RateLimiter)
+- `scripts/fetch_bovada_odds.py` — fetcher script (writes to DB via OddsRepo + PlayerPropRepo)
+- `src/bet/db/models.py` — add PlayerPropLine dataclass
+- `src/bet/db/repositories.py` — add PlayerPropRepo class
+- `src/bet/db/schema.sql` — add player_prop_lines table + indexes
+
+Files already updated (agent awareness):
+- `.github/copilot-instructions.md` — §2b + Source Rules + PENDING marker
+- `.github/agents/bet-orchestrator.agent.md` — script list + DB matrix + delegation map
+- `.github/agents/bet-valuator.agent.md` — sources + DB access + script output
+- `.github/agents/bet-scanner.agent.md` — source architecture + Phase 2 + DB tables
+- `.github/agents/bet-enricher.agent.md` — DB access (player_prop_lines)
+- `.github/agents/bet-statistician.agent.md` — DB access (L10 vs line comparison)
+- `betting/sources/source-registry.md` — full Bovada entry + classification table
+
+### Key Design Decisions
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| API key | None needed | Public endpoint |
+| Rate limiting | 1 req/30s, 500/day cap | Conservative — no documented limits |
+| Odds format | Convert American→Decimal on ingest | Pipeline uses decimal everywhere |
+| Soccer endpoint | ijson streaming + competition filter | 42MB would OOM without streaming |
+| Inheritance | Standalone class (not BaseAPIClient) | No API key, simpler interface |
+| Retry | 3 attempts, exponential backoff | Match existing pattern |
+
+### Rejected Sources (this session)
+- **SportsDataverse:** Broken xgboost dependency, just wraps ESPN API → uninstalled
+- **WagerWise:** Returns empty database (0 records for any query) → rejected
+
+## 🆕 ESPN CLIENT EXPANSION — 2026-05-22
+
+### Summary
+Full audit of ESPN client against Public-ESPN-API documentation (github.com/pseudo-r/Public-ESPN-API). Added 7 missing high-value endpoints, expanded soccer league coverage from 36→70+ leagues, fixed provider ID mapping.
+
+### New Endpoints Added
+| Module | Method | What It Does | Sports |
+|--------|--------|-------------|--------|
+| `espn.py` | `get_coaches(year)` | League coaching staff list | NBA, NHL (soccer=500) |
+| `espn.py` | `get_coach_record(id, type)` | Coach W/L/T record (type: 0=total, 1=home, 2=away) | NBA, NHL |
+| `espn.py` | `get_play_by_play(event_id)` | Goals/cards/corners/subs with timestamps | All sports |
+| `espn.py` | `get_cdn_game_package(game_id)` | Full boxscore+plays+odds in one call | Unreliable (returns HTML) |
+| `espn_stats.py` | `get_realtime_news(sport, league, team)` | Real-time injury/transfer news | All sports |
+| `espn_odds.py` | `get_futures(sport, league, year)` | Season futures betting markets | NBA, NHL |
+| `espn_odds.py` | Provider IDs updated | Both format 1 (1001-1004) and format 2 (37-68) | All |
+
+### Soccer League Expansion (+34 leagues)
+Added: `eng.fa`, `esp.copa_del_rey`, `ger.dfb_pokal`, `ita.coppa_italia`, `fra.coupe_de_france`, `ned.cup`, `por.taca.portugal`, `uefa.champions_qual`, `uefa.europa_qual`, `uefa.europa.conf_qual`, `fifa.worldq.concacaf`, `fifa.worldq.caf`, `uefa.nations`, `conmebol.recopa`, `concacaf.nations.league`, `concacaf.leagues.cup`, `caf.nations`, `caf.champions`, `arg.copa`, `bra.copa_do_brazil`, `bra.2`, `chi.1`
+
+### Known Limitations (verified live)
+- Soccer coaches endpoint returns HTTP 500 (ESPN limitation)
+- CDN game package (`cdn.espn.com/core/`) returns HTML, not JSON — endpoint locked down
+- Player gamelogs only work for NBA, NHL (not soccer)
+- Tennis injuries returns 500
+
+### Live Test Results (2026-05-22)
+- ✅ Coaches NBA: 25 coaches, records work (Quin Snyder: 292-237-0, 55.2%)
+- ✅ Play-by-play EPL: 161 plays for eng.1 match
+- ✅ Futures NBA: 15 season markets
+- ✅ News: basketball + soccer news working (headlines key)
+- ✅ All 41 existing ESPN tests pass (no regression)
+
 ## 🆕 SHORTLIST + COUPON SCORING OVERHAUL — 2026-05-22
 
 ### Root Cause (21.05 Post-Mortem)

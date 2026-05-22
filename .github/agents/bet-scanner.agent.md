@@ -60,6 +60,7 @@ Discovery uses `src/bet/discovery/` module with 4 source adapters:
 - **Odds-API.io** (PRIMARY) — all 5 sports, 265 bookmakers, 5000 req/hour. Covers football, volleyball, basketball, tennis, hockey.
 - **The Odds API** (SECONDARY) — 4 sports (no volleyball), events with odds attached. 500 credits/month free tier.
 - **API-Football** (TERTIARY) — football only, ~350 events, cross-validates other sources.
+- **Bovada** (ODDS ENRICHMENT, *PENDING implementation*) — free public JSON feed, no auth. NBA/NHL/Tennis/Soccer/Volleyball/MLB. 510+ markets/event for NBA, player props, period markets. When implemented: run via `fetch_bovada_odds.py` after discovery — writes to `odds_history` (bookmaker="bovada") + `player_prop_lines` table. NOT a discovery source (no fixture creation) but provides richest odds data for cross-validation. Plan: `betting/plans/bovada-integration.plan.md`.
 - **SofaScore** (DISABLED) — 403 blocked since 2026-05. Adapter file kept for potential re-enablement.
 
 Sources fetched concurrently (ThreadPoolExecutor). Dedup via exact normalized keys + rapidfuzz fuzzy matching (threshold 85, ±2h kickoff window). ~5s total (cached API responses).
@@ -93,6 +94,7 @@ Expected: 800-1200 events after dedup, 0% deep-enriched (enrichment handles that
 ```bash
 python3 scripts/ingest_scan_stats.py --date {YYYY-MM-DD} --verbose 2>&1
 python3 scripts/fetch_odds_multi.py --verbose 2>&1
+# python3 scripts/fetch_bovada_odds.py --verbose 2>&1  # PENDING implementation
 python3 scripts/fetch_weather.py --date {YYYY-MM-DD}
 ```
 
@@ -121,5 +123,5 @@ Report aggregate metrics. Proceed to next pipeline step.
 
 SQLite DB (`betting/data/betting.db`) is primary. JSON files are fallback.
 
-Key tables: `fixtures`, `scan_results`, `teams`, `competitions`, `odds_history`, `team_form`
+Key tables: `fixtures`, `scan_results`, `teams`, `competitions`, `odds_history`, `team_form`, `player_prop_lines` *(PENDING)*
 Access: `from bet.db.connection import get_db; from bet.db.repositories import FixtureRepo`

@@ -467,7 +467,7 @@ Target: ALL sports covered after Batch 1.
 5. **Present TOP 2-3 markets** per match from §3.0 ranking table BEFORE choosing.
 6. **NEVER default to ML/1X2.** Statistical markets ALWAYS preferred across ALL 5 sports.
 7. ML only when: (1) no statistical market on Betclic AND (2) statistical edge overwhelming AND (3) price acceptable.
-8. **COACH/ROSTER STABILITY CHECK (mandatory):** For EVERY candidate: Did the coach change in the last 5 matches? Any major transfers, loan returns, or squad changes in the last 14 days? New coach bounce = volatile form (first 5 games unreliable). Major roster change = stats from previous games may not apply.
+8. **COACH/ROSTER STABILITY CHECK (mandatory):** For EVERY candidate: Did the coach change in the last 5 matches? Any major transfers, loan returns, or squad changes in the last 14 days? New coach bounce = volatile form (first 5 games unreliable). Major roster change = stats from previous games may not apply. For NBA/NHL: use `ESPNClient.get_coaches()` + `get_coach_record()` for programmatic coach stability data. For football: ESPN coaches endpoint returns 500 — use TransferMarkt or news sources.
 
 ### §3.0 STATISTICAL MARKET RANKING PROTOCOL (MANDATORY — NEVER SKIP)
 
@@ -814,7 +814,7 @@ Over 12.5: P=61.2%, fair_odds=1.63, CI=[48.3%–71.4%]
 
 - [ ] Fixture confirmed (not postponed)?
 - [ ] Key absences (injuries, suspensions, rest)? — check ESPN, Flashscore, team social media.
-- [ ] **Coach change in last 5 matches?** New coach = form data unreliable. Check Flashscore coach section.
+- [ ] **Coach change in last 5 matches?** New coach = form data unreliable. NBA/NHL: `ESPNClient.get_coaches()` + `get_coach_record(type=0)`. Football: TransferMarkt/Flashscore coach section.
 - [ ] **Roster changes in last 14 days?** Transfers, loans, returns. Major signings disrupt chemistry.
 - [ ] Competition context (relegation, dead rubber, cup final)?
 - [ ] Fixture congestion (<72h between games)?

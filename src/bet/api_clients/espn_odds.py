@@ -31,13 +31,21 @@ ESPN_SPORT_SLUGS = {
     "volleyball": "volleyball",
 }
 
-# Known provider IDs from ESPN Core API
+# Known provider IDs from ESPN Core API (varies by response format)
 ESPN_PROVIDERS = {
+    # Format 1 — new-style IDs (responses from /odds endpoint post-2024)
     1001: "Caesars",
     1002: "FanDuel",
     1003: "DraftKings",
     1004: "ESPN BET",
+    # Format 2 — legacy IDs (Public-ESPN-API docs, /competitions/{id}/odds)
+    38: "Caesars",
+    37: "FanDuel",
+    41: "DraftKings",
+    68: "ESPN BET",
+    # Present in both formats
     45: "Bet365",
+    2000: "Bet365",
     58: "BetMGM",
 }
 
@@ -576,3 +584,36 @@ class ESPNOddsClient:
             teams.append(team_entry)
 
         return teams
+
+    def get_futures(self, sport: str, league: str, season_year: int | None = None) -> list[dict]:
+        """Get season futures odds.
+        
+        URL: https://sports.core.api.espn.com/v2/sports/{sport}/leagues/{league}/seasons/{year}/futures
+        
+        Returns list of futures markets with odds per team/player.
+        """
+        slug = self._sport_slug(sport)
+        year = season_year or datetime.now().year
+        cache_key = f"espn_odds/{slug}/{league}/seasons/{year}/futures"
+        cached = self._check_cache(cache_key, ttl_hours=24)
+        if cached is not None:
+            return cached.get("futures", [])
+
+        url = f"{self.CORE_BASE}/{slug}/leagues/{league}/seasons/{year}/futures"
+        data = self._request(url)
+        if not data:
+            return []
+
+        futures = []
+        for item in data.get("items", []):
+            # item may be a $ref link, resolve it
+            market_data = item
+            if "$ref" in market_data and not market_data.get("name"):
+                resolved = self._request(market_data["$ref"])
+                if resolved:
+                    market_data = resolved
+                time.sleep(0.05)
+            futures.append(market_data)
+
+        self._save_cache(cache_key, {"futures": futures})
+        return futures

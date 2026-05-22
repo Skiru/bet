@@ -92,7 +92,8 @@ Pipeline scripts inject raw EV from odds API. You add PRICING INTELLIGENCE:
 ## Context (provided by orchestrator)
 
 - **Inputs**: `{date}_s3_deep_stats.md`, `{date}_s2_tipsters.md`
-- **Odds sources (DB-first)**: `odds_history` DB table (PRIMARY — all sources write here), `odds_api_snapshot.json` (fallback), `odds_api_io_snapshot.json` (fallback)
+- **Odds sources (DB-first)**: `odds_history` DB table (PRIMARY — all sources write here, including Bovada when implemented), `odds_api_snapshot.json` (fallback), `odds_api_io_snapshot.json` (fallback)
+- **Player prop lines** *(PENDING)*: `player_prop_lines` DB table — Bovada player prop O/U lines (points, rebounds, assists, SOG, goals). When available: compare lines vs L10 averages for edge detection. See `betting/plans/bovada-integration.plan.md`.
 - **Analysis data**: DB `analysis_results` table (PRIMARY), `analysis_pool_{date}.json` (fallback — may have pre-computed EV)
 - **Script**: `python3 scripts/odds_evaluator.py --date {date} --verbose` (reads DB + JSON snapshots → injects EV into analysis_results)
 - **ESPN ATS/OU records** (basketball/hockey): use `load_espn_enrichment_for_team()` from `db_data_loader.py`. ATS = historical cover rate per team. OU = overs-unders-pushes per team. These give SHARP PRIORS for totals/spread EV.

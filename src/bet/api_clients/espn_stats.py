@@ -375,3 +375,48 @@ class ESPNStatsClient:
 
         self._save_cache(cache_key, result)
         return result
+
+    def get_realtime_news(self, sport: str | None = None, league: str | None = None, team: str | None = None, limit: int = 25) -> list[dict]:
+        """Get real-time news feed.
+        
+        URL: https://now.core.api.espn.com/v1/sports/news?sport={sport}&limit={limit}
+        Optional: &leagues={league}, &team={team_abbreviation}
+        
+        Returns list of: {headline, description, published, type, link}
+        """
+        cache_key_parts = ["espn_stats/news", f"limit_{limit}"]
+        if sport: cache_key_parts.append(f"sport_{self._sport_slug(sport)}")
+        if league: cache_key_parts.append(f"lg_{league}")
+        if team: cache_key_parts.append(f"tm_{team}")
+        
+        cache_key = "/".join(cache_key_parts)
+        cached = self._check_cache(cache_key, ttl_hours=1)
+        if cached is not None:
+            return cached.get("news", [])
+
+        url = "https://now.core.api.espn.com/v1/sports/news"
+        params = {"limit": limit}
+        if sport:
+            params["sport"] = self._sport_slug(sport)
+        if league:
+            params["leagues"] = league
+        if team:
+            params["team"] = team
+
+        data = self._request(url, params=params)
+        if not data:
+            return []
+
+        news = []
+        # Now API returns 'headlines' array (not 'feed')
+        for item in data.get("headlines", data.get("feed", [])):
+            news.append({
+                "headline": item.get("headline", ""),
+                "description": item.get("description", ""),
+                "published": item.get("published", ""),
+                "type": item.get("type", ""),
+                "link": item.get("links", {}).get("web", {}).get("href", "") if item.get("links") else ""
+            })
+
+        self._save_cache(cache_key, {"news": news})
+        return news

@@ -1,8 +1,24 @@
 # ESPN Public API — Complete Research Report
 
-**Date:** 2026-05-07  
+**Date:** 2026-05-07 (updated 2026-05-22 — live validation)  
 **Source:** https://github.com/pseudo-r/Public-ESPN-API  
 **Scope:** 17 sports · 139 leagues · 370 v2 endpoints · 79 v3 endpoints · 6 API domains
+
+## IMPLEMENTATION STATUS (2026-05-22)
+
+All high-value gaps identified in gap analysis have been implemented and live-tested:
+
+| Endpoint | Status | Notes |
+|----------|--------|-------|
+| Coaches + Coach Record | ✅ Implemented | NBA/NHL only. Soccer returns HTTP 500 |
+| Play-by-Play | ✅ Implemented | Works for all sports. 161 plays verified (EPL) |
+| Futures Markets | ✅ Implemented | 15 NBA futures markets verified |
+| Now API (News) | ✅ Implemented | Uses `headlines` key (not `feed`). Sport/league/team filters |
+| CDN Game Package | ⚠️ Unreliable | Returns HTML not JSON — endpoint locked down. Kept with validation |
+| Provider IDs | ✅ Expanded | Both numeric formats (1001-1004 + 37-68) mapped |
+| Soccer League Coverage | ✅ Expanded | 36→70+ leagues (cups, qualifiers, nations league) |
+
+Tests: 41 passing, no regression.
 
 ---
 

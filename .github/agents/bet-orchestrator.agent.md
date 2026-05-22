@@ -85,7 +85,7 @@ You are the betting pipeline orchestrator — a MANAGER who **runs ALL scripts, 
 - `run_scrapers.py` — **NEW (S2.3):** 19 scrapers across 5 sports (incl. ESPN universal) → league_profiles + player_season_stats
 - `data_enrichment_agent.py` — enrichment **(S2.5 — now gap-fill fallback)**
 - `deep_stats_report.py` — deep stats
-- `odds_evaluator.py`, `fetch_odds_api.py`, `fetch_bovada_odds.py` — odds
+- `odds_evaluator.py`, `fetch_odds_api.py`, `fetch_bovada_odds.py` *(PENDING)* — odds
 - `context_checks.py`, `upset_risk.py` — context + upset risk
 - `gate_checker.py` — gate
 - `coupon_builder.py`, `validate_coupons.py` — build + validate
@@ -124,7 +124,7 @@ You are the betting pipeline orchestrator — a MANAGER who **runs ALL scripts, 
 | `data_enrichment_agent.py` | `team_form`, `fixtures` | `team_form`, `match_stats`, `source_health` | S2.5 gap-fill ONLY. ⛔ SKIP if <20 teams missing. Enriches ENTITIES (teams), not events. Mature DB = 2-5 min max. Uses `_db_write_lock` for thread-safe writes. |
 | `deep_stats_report.py` | `team_form`, `match_stats` | `analysis_results`, `team_form` (if inline enrich) | S3 — writes team_form ONLY when --no-enrich is NOT set |
 | `compute_safety_scores.py` | JSON arg (stats_input) | — (stdout) | Pure computation, no DB access |
-| `fetch_bovada_odds.py` | Bovada public API | `odds_history` (bookmaker="bovada"), `player_prop_lines` | S1c — after discover, before deep stats |
+| `fetch_bovada_odds.py` *(PENDING)* | Bovada public API | `odds_history` (bookmaker="bovada"), `player_prop_lines` | S1c — after discover, before deep stats |
 | `odds_evaluator.py` | `odds_history`, `analysis_results` | `analysis_results` (EV injection) | S4 |
 | `context_checks.py` | `fixtures`, ESPN API | `analysis_results` (context) | S5 |
 | `upset_risk.py` | `analysis_results` | `analysis_results` (upset risk) | S6 |
@@ -354,7 +354,7 @@ Next: 24 candidates move to S4; hockey and volleyball partial-data flags stay ac
 |-----------------|------------------|------|
 | `discover_events.py` | bet-scanner | Cannot start S1-ingest |
 | `build_shortlist.py` | bet-scanner | Cannot start S2 |
-| `fetch_bovada_odds.py` | bet-valuator | Cannot start S2.5 (Bovada odds + player props loaded) |
+| `fetch_bovada_odds.py` *(PENDING)* | bet-valuator | Cannot start S2.5 (Bovada odds + player props loaded) |
 | `tipster_xref.py` | bet-scout | Cannot start S2.3 |
 | `run_scrapers.py` | bet-enricher | Cannot start S2.5 |
 | `data_enrichment_agent.py` | bet-enricher | Cannot start S3 |

@@ -501,6 +501,7 @@ Seeds unique ESPN data: standings, ATS/OU records, predictions, power index (8-m
 ```bash
 python3 scripts/fetch_odds_api.py 2>&1
 python3 scripts/fetch_odds_api_io.py --date {date} --verbose 2>&1
+# python3 scripts/fetch_bovada_odds.py --verbose 2>&1  # PENDING implementation — see betting/plans/bovada-integration.plan.md
 python3 scripts/fetch_weather.py --date {date} 2>&1
 python3 scripts/tipster_aggregator.py --date {date} --verbose 2>&1
 ```
@@ -815,7 +816,7 @@ Load skills: bet-analyzing-statistics, bet-applying-sport-protocols.
 ```bash
 PYTHONPATH=src .venv/bin/python3 scripts/odds_evaluator.py --date {date} --verbose 2>&1
 ```
-Mode: `async`, timeout: `300000`. Also run `python3 scripts/fetch_odds_api.py` and `python3 scripts/fetch_odds_api_io.py --date {date} --verbose` for cross-validation.
+Mode: `async`, timeout: `300000`. Also run `python3 scripts/fetch_odds_api.py` and `python3 scripts/fetch_odds_api_io.py --date {date} --verbose` for cross-validation. When implemented: also run `python3 scripts/fetch_bovada_odds.py --verbose` (writes to DB — auto-integrated via odds_history, see `betting/plans/bovada-integration.plan.md`).
 
 **Step 2: THINK-WHILE-WAITING:** Read S3 deep stats, identify strongest stat edges.
 
@@ -1334,7 +1335,7 @@ python3 scripts/settle_on_finish.py --betting-day YYYY-MM-DD
 ## DB REFERENCE
 
 SQLite at `betting/data/betting.db`. Connection: `from bet.db.connection import get_db`.
-41 tables across 7 domains: Core (sports/teams/competitions/fixtures/athletes/fixture_sources), Stats (team_form/match_stats/league_profiles/standings/power_index/h2h_stats/injuries/coach_history/player_season_stats), Analysis (analysis_results/analysis_raw_data/gate_results/decision_snapshots/decision_outcomes), Betting (coupons/bets/odds_history/betclic_markets/betclic_competition_profiles), Pipeline (pipeline_runs/scan_results/scan_run_stats/source_health/scraper_runs/web_research_cache/schema_meta), ESPN (espn_predictions/player_gamelogs/player_splits/team_ats_records/team_ou_records/team_rosters/transactions), Tipster (tipster_picks/tipster_consensus).
+41 tables across 7 domains: Core (sports/teams/competitions/fixtures/athletes/fixture_sources), Stats (team_form/match_stats/league_profiles/standings/power_index/h2h_stats/injuries/coach_history/player_season_stats), Analysis (analysis_results/analysis_raw_data/gate_results/decision_snapshots/decision_outcomes), Betting (coupons/bets/odds_history/betclic_markets/betclic_competition_profiles), Pipeline (pipeline_runs/scan_results/scan_run_stats/source_health/scraper_runs/web_research_cache/schema_meta), ESPN (espn_predictions/player_gamelogs/player_splits/team_ats_records/team_ou_records/team_rosters/transactions), Tipster (tipster_picks/tipster_consensus). *(PENDING: `player_prop_lines` table for Bovada player props — see `betting/plans/bovada-integration.plan.md`)*
 
 
 ## STEP S11: KNOWLEDGE TRANSFER & MEMORY UPDATE (CRITICAL)

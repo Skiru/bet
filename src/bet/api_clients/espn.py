@@ -40,12 +40,21 @@ ESPN_LEAGUES = {
         "eng.2", "eng.3", "esp.2", "ger.2", "ita.2", "fra.2", "ned.2",
         # European cups
         "uefa.champions", "uefa.europa", "uefa.europa.conf",
+        "uefa.champions_qual", "uefa.europa_qual", "uefa.europa.conf_qual",
+        "uefa.nations",
         # International tournaments
         "fifa.world", "fifa.worldq.uefa", "fifa.worldq.conmebol", "fifa.worldq.afc",
+        "fifa.worldq.concacaf", "fifa.worldq.caf",
         "uefa.euro", "conmebol.copa_america", "concacaf.gold",
+        "concacaf.nations.league", "concacaf.leagues.cup",
+        "caf.nations", "caf.champions",
         # Club tournaments
         "conmebol.libertadores", "conmebol.sudamericana",
-        "afc.champions", "concacaf.champions",
+        "conmebol.recopa", "afc.champions", "concacaf.champions",
+        # Cup competitions
+        "eng.fa", "esp.copa_del_rey", "ger.dfb_pokal", "ita.coppa_italia",
+        "fra.coupe_de_france", "ned.cup", "por.taca.portugal",
+        "arg.copa", "bra.copa_do_brazil",
         # More European first divisions
         "rou.1", "ukr.1", "ser.1", "cro.1", "hun.1", "bul.1",
         "svk.1", "fin.1", "isr.1", "cyp.1", "geo.1",
@@ -54,6 +63,8 @@ ESPN_LEAGUES = {
         "rsa.1", "egy.1", "mor.1", "tun.1", "nga.1",
         # Asian
         "chn.1", "ind.1", "sau.1", "uae.1", "qat.1", "kor.1",
+        # Additional domestic
+        "bra.2", "chi.1",
         # Women's
         "eng.w.1", "usa.w.1", "fra.w.1",
     ],
@@ -103,20 +114,34 @@ COMPETITION_TO_ESPN_LEAGUE = {
     "super league greece": "gre.1",
     "thai league 1": "tha.1",
     "indonesian super league": "idn.1", "liga 1 indonesia": "idn.1",
+    # Domestic Cups
+    "fa cup": "eng.fa",
+    "copa del rey": "esp.copa_del_rey",
+    "dfb pokal": "ger.dfb_pokal", "german cup": "ger.dfb_pokal",
+    "coppa italia": "ita.coppa_italia",
+    "coupe de france": "fra.coupe_de_france",
+    "knvb beker": "ned.cup", "dutch cup": "ned.cup",
+    "copa do brasil": "bra.copa_do_brazil",
+    "copa argentina": "arg.copa",
     # European cups
     "champions league": "uefa.champions", "ucl": "uefa.champions",
     "europa league": "uefa.europa", "uel": "uefa.europa",
     "conference league": "uefa.europa.conf",
+    "nations league": "uefa.nations", "uefa nations league": "uefa.nations",
     # International
     "world cup": "fifa.world",
     "euro": "uefa.euro", "european championship": "uefa.euro",
     "copa america": "conmebol.copa_america",
     "gold cup": "concacaf.gold",
+    "africa cup of nations": "caf.nations", "afcon": "caf.nations",
+    "concacaf nations league": "concacaf.nations.league",
+    "leagues cup": "concacaf.leagues.cup",
     # South American clubs
     "copa libertadores": "conmebol.libertadores", "libertadores": "conmebol.libertadores",
     "copa sudamericana": "conmebol.sudamericana", "sudamericana": "conmebol.sudamericana",
     # Asian clubs
     "afc champions league": "afc.champions",
+    "caf champions league": "caf.champions",
     # More European first divisions
     "romanian liga 1": "rou.1", "liga 1 romania": "rou.1",
     "ukrainian premier league": "ukr.1",
@@ -134,7 +159,7 @@ COMPETITION_TO_ESPN_LEAGUE = {
     "qatar stars league": "qat.1",
     "chinese super league": "chn.1",
     "indian super league": "ind.1", "isl": "ind.1",
-    # Second divisions
+    # Second divisions and others
     "championship": "eng.2",
     "league one": "eng.3",
     "segunda division": "esp.2", "la liga 2": "esp.2",
@@ -142,6 +167,8 @@ COMPETITION_TO_ESPN_LEAGUE = {
     "2. bundesliga": "ger.2",
     "ligue 2": "fra.2",
     "eerste divisie": "ned.2",
+    "serie b brazil": "bra.2",
+    "primera division chile": "chi.1",
     # African
     "south african premier": "rsa.1", "psl": "rsa.1",
     "egyptian premier league": "egy.1",
@@ -1372,6 +1399,206 @@ class ESPNClient(BaseAPIClient):
 
         self._save_cache(cache_key, {"events": events})
         return events
+
+    def get_coaches(self, season_year: int | None = None) -> list[dict]:
+        """Get coaching staff for the league/season.
+        
+        URL: https://sports.core.api.espn.com/v2/sports/{sport}/leagues/{league}/seasons/{year}/coaches
+        
+        Returns list of: {id, name, team, record, experience_years}
+        Note: Only works for US sports (NBA, NHL). Soccer returns HTTP 500.
+        """
+        import time as _time
+
+        year = season_year or datetime.now().year
+        cache_key = f"espn/{self.sport}/{self.league}/seasons/{year}/coaches"
+        try:
+            cached = self._check_cache(cache_key, ttl_hours=24)
+            if cached is not None:
+                return cached.get("coaches", [])
+        except (ValueError, OSError):
+            pass
+
+        url = f"https://sports.core.api.espn.com/v2/sports/{self._espn_sport}/leagues/{self.league}/seasons/{year}/coaches"
+        data = self._core_request(url)
+        if not data:
+            return []
+
+        coaches = []
+        failed = 0
+        for item in data.get("items", []):
+            coach_url = item.get("$ref", "")
+            if not coach_url:
+                continue
+            coach_url = coach_url.replace("http://", "https://")
+            coach_data = self._core_request(coach_url)
+            if coach_data:
+                coaches.append({
+                    "id": coach_data.get("id"),
+                    "name": f"{coach_data.get('firstName', '')} {coach_data.get('lastName', '')}".strip(),
+                    "experience_years": coach_data.get("experience", 0),
+                })
+            else:
+                failed += 1
+            _time.sleep(0.1)  # avoid hammering ESPN
+
+        if failed == 0:
+            self._save_cache(cache_key, {"coaches": coaches})
+        return coaches
+
+    def get_coach_record(self, coach_id: str | int, record_type: int = 0) -> dict:
+        """Get coaching record by type.
+        
+        URL: https://sports.core.api.espn.com/v2/sports/{sport}/leagues/{league}/coaches/{coachId}/record/{type}
+        record_type: 0=Total, 1=Home, 2=Away (numeric IDs)
+        
+        Returns: {name, summary, win_pct, stats: {...}}
+        """
+        coach_id = str(coach_id)
+        cache_key = f"espn/{self.sport}/{self.league}/coaches/{coach_id}/record/{record_type}"
+        try:
+            cached = self._check_cache(cache_key, ttl_hours=24)
+            if cached is not None:
+                return cached.get("record", {})
+        except (ValueError, OSError):
+            pass
+
+        url = f"https://sports.core.api.espn.com/v2/sports/{self._espn_sport}/leagues/{self.league}/coaches/{coach_id}/record/{record_type}"
+        data = self._core_request(url)
+        if not data:
+            return {}
+
+        # Parse stats array into dict
+        stats_dict = {}
+        for stat in data.get("stats", []):
+            name = stat.get("name", "")
+            if name:
+                stats_dict[name] = stat.get("value", stat.get("displayValue", ""))
+
+        record = {
+            "name": data.get("name", ""),
+            "summary": data.get("summary", ""),
+            "win_pct": data.get("value", 0.0),
+            "stats": stats_dict,
+        }
+        
+        self._save_cache(cache_key, {"record": record})
+        return record
+
+    def get_play_by_play(self, event_id: str, limit: int = 300) -> list[dict]:
+        """Get play-by-play data for a match.
+        
+        URL: https://sports.core.api.espn.com/v2/sports/{sport}/leagues/{league}/events/{event_id}/competitions/{event_id}/plays?limit={limit}
+        
+        For soccer: goals, cards, corners, substitutions with timestamps
+        For basketball: shots, rebounds, assists with quarter/time
+        For hockey: goals, penalties, shots with period/time
+        
+        Returns list of: {id, type, text, clock, period, team, athlete}
+        """
+        cache_key = f"espn/{self.sport}/{self.league}/events/{event_id}/plays"
+        try:
+            cached = self._check_cache(cache_key, ttl_hours=168)
+            if cached is not None:
+                return cached.get("plays", [])
+        except (ValueError, OSError):
+            pass
+
+        url = f"https://sports.core.api.espn.com/v2/sports/{self._espn_sport}/leagues/{self.league}/events/{event_id}/competitions/{event_id}/plays"
+        try:
+            response = requests.get(url, params={"limit": limit}, headers=self._build_headers(), timeout=self.TIMEOUT)
+            if response.status_code >= 400:
+                return []
+            data = response.json()
+        except requests.exceptions.RequestException:
+            return []
+
+        plays = []
+        for item in data.get("items", []):
+            plays.append({
+                "id": item.get("id"),
+                "type": item.get("type", {}).get("text", ""),
+                "text": item.get("text", ""),
+                "clock": item.get("clock", {}).get("displayValue", ""),
+                "period": item.get("period", {}).get("number", 0),
+                "team": item.get("team", {}).get("$ref", ""),
+                "athlete": item.get("participants", [{}])[0].get("athlete", {}).get("$ref", "") if item.get("participants") else "",
+            })
+
+        self._save_cache(cache_key, {"plays": plays})
+        return plays
+
+    def get_cdn_game_package(self, game_id: str) -> dict:
+        """Get full game package via CDN (boxscore + plays + odds + matchup in one call).
+        
+        URL: https://cdn.espn.com/core/{sport}/game?xhr=1&gameId={game_id}
+        
+        For soccer, also needs &league={league} parameter.
+        Returns: dict with 'gamepackageJSON' containing boxscore, plays, odds, matchup data.
+        Note: CDN endpoint may be unreliable (redirects/HTML). Falls back gracefully.
+        """
+        cache_key = f"espn/cdn/{self.sport}/{self.league}/game/{game_id}"
+        try:
+            cached = self._check_cache(cache_key, ttl_hours=6)
+            if cached is not None:
+                return cached.get("package", {})
+        except (ValueError, OSError):
+            pass
+
+        # CDN uses league slug (nba, nhl) not sport slug (basketball, hockey)
+        cdn_sport = self.league if self.sport != "football" else self._espn_sport
+        url = f"https://cdn.espn.com/core/{cdn_sport}/game"
+        params = {"xhr": "1", "gameId": game_id}
+        if self._espn_sport == "soccer":
+            params["league"] = self.league
+
+        try:
+            response = requests.get(
+                url, params=params,
+                headers={
+                    "Accept": "application/json",
+                    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+                    "Referer": "https://www.espn.com/",
+                },
+                timeout=self.TIMEOUT,
+                allow_redirects=True,
+            )
+            if response.status_code >= 400:
+                return {}
+            # CDN may return HTML instead of JSON — check content type
+            content_type = response.headers.get("Content-Type", "")
+            if "json" not in content_type and "javascript" not in content_type:
+                return {}
+            data = response.json()
+        except (requests.exceptions.RequestException, ValueError):
+            return {}
+
+        self._save_cache(cache_key, {"package": data})
+        return data
+
+    def _core_request(self, url: str) -> dict:
+        """Make a request to a full URL (Core API) with retry and backoff.
+        
+        Unlike self._request() which prepends base_url, this accepts a complete URL.
+        Used for sports.core.api.espn.com endpoints and $ref resolution.
+        """
+        import time as _time
+
+        for attempt in range(1, self.MAX_RETRIES + 1):
+            try:
+                response = requests.get(url, headers=self._build_headers(), timeout=self.TIMEOUT)
+                if response.status_code == 404:
+                    return {}
+                if response.status_code >= 400:
+                    if attempt < self.MAX_RETRIES:
+                        _time.sleep(self.BACKOFF_BASE * (2 ** (attempt - 1)))
+                        continue
+                    return {}
+                return response.json()
+            except requests.exceptions.RequestException:
+                if attempt < self.MAX_RETRIES:
+                    _time.sleep(self.BACKOFF_BASE * (2 ** (attempt - 1)))
+        return {}
 
 
 def get_espn_league_for_competition(competition_name: str) -> str | None:

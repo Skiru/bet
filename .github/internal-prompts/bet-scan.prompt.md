@@ -43,6 +43,7 @@ python3 scripts/ingest_scan_stats.py --date {date} --verbose 2>&1
 
 # Odds from comparison sources
 python3 scripts/fetch_odds_multi.py --verbose 2>&1
+# python3 scripts/fetch_bovada_odds.py --verbose 2>&1  # PENDING — writes to DB odds_history + player_prop_lines
 
 # Weather for outdoor sports
 python3 scripts/fetch_weather.py --date {date}
