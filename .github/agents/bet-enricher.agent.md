@@ -197,12 +197,18 @@ with get_db() as conn:
 
 ### ESPN API Deep Parsing (PRIMARY — always try for injuries)
 
-Free API at `site.api.espn.com`:
+Free API at `site.api.espn.com` + `sports.core.api.espn.com`:
 1. **Teams**: `/apis/site/v2/sports/{sport}/{league}/teams` → team ID lookup
 2. **Schedule**: `/teams/{id}/schedule` → past results with scores
 3. **Injuries**: `/teams/{id}/injuries` → player name, status (OUT/DOUBTFUL), date
+4. **Coaches** (NBA/NHL only): `ESPNClient.get_coaches()` → coach stability checks, `get_coach_record(id, type)` → W/L/T record (type: 0=Total, 1=Home, 2=Away)
+5. **Play-by-Play**: `ESPNClient.get_play_by_play(event_id)` → goals/cards/corners/subs with timestamps (all sports)
+6. **Real-time News**: `ESPNStatsClient.get_realtime_news(sport, league, team)` → injury/transfer news
+7. **Futures**: `ESPNOddsClient.get_futures(sport, league)` → season futures betting markets (NBA/NHL)
 
 **ESPN is BEST for injuries** — always merge injury data.
+**Coach stability** — for NBA/NHL, use `get_coaches()` to verify coaching changes. Soccer coaches endpoint returns HTTP 500 (not available).
+**Play-by-play** — use for timing analysis: when do corners/cards typically happen in a match? Validates stat market patterns.
 
 ### Flashscore HTML Parsing (via curl_cffi — NO Playwright)
 

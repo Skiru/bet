@@ -75,6 +75,7 @@ You add a 5-part Market Intelligence Reasoning Layer via sequential-thinking: ma
 
 - **`bet-evaluating-odds`** — EV formula, Kelly criterion, price gap thresholds, drift detection rules, American odds conversion, line movement interpretation, market performance tracker
 - **`bet-navigating-sources`** — Market source chains (The-Odds-API, odds-api.io, Bovada public feed, API-Football-Odds, SBR, ESPN, ScoresAndOdds)
+- **ESPN Odds Client** — Direct access to ESPN multi-provider odds: `ESPNOddsClient().get_event_odds(sport, league, event_id)` returns DraftKings/FanDuel/BetMGM/Bet365/ESPN BET odds. `get_win_probabilities()` for ESPN model predictions. `get_futures()` for season markets.
 
 ## Database Access
 

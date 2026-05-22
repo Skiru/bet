@@ -132,6 +132,13 @@ with get_db() as conn:
 ### Player Gamelogs (basketball/hockey)
 When `--gamelogs` is used, enrichment also fetches per-player game-by-game stats for top 3 scorers on each basketball/hockey team. This data is stored in `player_gamelogs` DB table and cached to `betting/data/stats_cache/espn/{sport}/players/{athlete_id}/gamelog.json`.
 
+**Additional ESPN capabilities** (available for manual enrichment or agent analysis):
+- `ESPNClient(sport, league).get_coaches(year)` — coach stability checks (NBA/NHL only; soccer returns 500)
+- `ESPNClient(sport, league).get_coach_record(coach_id, 0)` — coach W/L/T record
+- `ESPNClient(sport, league).get_play_by_play(event_id)` — match events with timestamps (all sports)
+- `ESPNStatsClient().get_realtime_news(sport, league)` — real-time injury/transfer news
+- 70+ soccer leagues now mapped (cups, qualifiers, nations league)
+
 **Assessment criteria for gamelogs:**
 - Check `player_gamelogs_fetched` in AGENT_SUMMARY metrics
 - For NBA/NHL teams: expect 2-3 players per team enriched

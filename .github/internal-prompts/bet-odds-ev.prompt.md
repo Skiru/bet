@@ -97,6 +97,9 @@ Pipeline scripts inject raw EV from odds API. You add PRICING INTELLIGENCE:
 - **Analysis data**: DB `analysis_results` table (PRIMARY), `analysis_pool_{date}.json` (fallback — may have pre-computed EV)
 - **Script**: `python3 scripts/odds_evaluator.py --date {date} --verbose` (reads DB + JSON snapshots → injects EV into analysis_results)
 - **ESPN ATS/OU records** (basketball/hockey): use `load_espn_enrichment_for_team()` from `db_data_loader.py`. ATS = historical cover rate per team. OU = overs-unders-pushes per team. These give SHARP PRIORS for totals/spread EV.
+- **ESPN futures** (NBA/NHL): `ESPNOddsClient().get_futures(sport, league)` — season-long markets give context on team championship probability (affects motivation analysis).
+- **ESPN multi-provider odds**: `ESPNOddsClient().get_event_odds(sport, league, event_id)` — DraftKings(41), FanDuel(37), Caesars(38), BetMGM(58), ESPN BET(68), Bet365(2000). Use for cross-validation against Betclic.
+- **ESPN win probabilities**: `ESPNOddsClient().get_win_probabilities(sport, league, event_id)` — ESPN model predictions. Compare implied probability vs bookmaker odds for mispricing detection.
 - **Player gamelogs** (25.9K+): `load_player_gamelogs_for_team()` provides game-by-game individual stats — use for verifying consistency of totals market probability (e.g., "Player X scored 20+ in 8/10 games" → high confidence in team totals).
 
 ## Workflow

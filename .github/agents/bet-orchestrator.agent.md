@@ -126,7 +126,7 @@ You are the betting pipeline orchestrator — a MANAGER who **runs ALL scripts, 
 | `compute_safety_scores.py` | JSON arg (stats_input) | — (stdout) | Pure computation, no DB access |
 | `fetch_bovada_odds.py` *(PENDING)* | Bovada public API | `odds_history` (bookmaker="bovada"), `player_prop_lines` | S1c — after discover, before deep stats |
 | `odds_evaluator.py` | `odds_history`, `analysis_results` | `analysis_results` (EV injection) | S4 |
-| `context_checks.py` | `fixtures`, ESPN API | `analysis_results` (context) | S5 |
+| `context_checks.py` | `fixtures`, ESPN API (injuries, coaches, play-by-play, news) | `analysis_results` (context) | S5 |
 | `upset_risk.py` | `analysis_results` | `analysis_results` (upset risk) | S6 |
 | `gate_checker.py` | `analysis_results` | `gate_results` | S7 |
 | `validate_betclic_markets.py` | `gate_results`, Betclic CDN API | `betclic_markets`, `betclic_market_validation_{date}.json` | S7.5 — uses curl_cffi (BetclicSession) |

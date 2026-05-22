@@ -98,6 +98,11 @@ Pipeline scripts produce raw context flags and mechanical upset scores. You asse
 - **Inputs**: `{date}_s4_odds_eval.md` (approved candidates with EV>0), all S3-S4 data
 - **Weather**: `weather_{date}.json` (if available)
 - **DB tables**: `standings`, `espn_predictions`, `player_gamelogs`, `team_form`, `team_news` (Gemini injuries/coaching/morale) — via `db_data_loader.py`
+- **New ESPN endpoints** (direct client access for context checks):
+  - `ESPNClient(sport, league).get_coaches(year)` — coach stability verification (NBA/NHL)
+  - `ESPNClient(sport, league).get_coach_record(coach_id, 0)` — coach W/L record
+  - `ESPNStatsClient().get_realtime_news(sport, league)` — real-time injury/transfer news
+  - `ESPNClient(sport, league).get_play_by_play(event_id)` — timing analysis for stat patterns
 
 ## Workflow
 

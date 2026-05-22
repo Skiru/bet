@@ -193,11 +193,15 @@ Read: betting/data/betclic_bets_history.json (48h repeat check)
 
 ### 5. Data Richness for Adversarial Analysis
 
-**ESPN enrichment** is available for basketball/hockey/baseball in S3 output (`espn_enrichment` key). Use it for:
+**ESPN enrichment** is available for basketball/hockey/football in S3 output (`espn_enrichment` key). Use it for:
 - **Bear case precision**: gamelogs show individual player variance — "Star player scored <15pts in 3/10 games" weakens totals confidence
 - **Standings verification**: Don't trust "5-game winning streak" in narrative — check `standings.streak` field
 - **ATS/OU historical rate**: If OU record shows team goes Under 60% of games, bull case for "Over 215.5" is FRAGILE
 - **Player consistency check**: `load_player_gamelogs_for_team(name, sport)` → verify top scorer is actually consistent, not averaging off a few blowouts
+- **Coach stability** (NBA/NHL): `ESPNClient.get_coaches()` + `get_coach_record(id, 0)` → new coach = volatile form, first 5 games unreliable
+- **Play-by-play timing**: `ESPNClient.get_play_by_play(event_id)` → when do corners/cards happen? Validates stat market patterns
+- **Real-time news**: `ESPNStatsClient.get_realtime_news(sport, league)` → latest injury/transfer news for last-minute context
+- **Futures markets**: `ESPNOddsClient.get_futures(sport, league)` → season-long market data for context
 
 **Niche sport caches** for darts/esports/table_tennis:
 - Darts: checkout% variance across matches → if player has 20-50% range, "Over 4.5 legs" is risky on low-checkout nights
@@ -208,6 +212,13 @@ Read: betting/data/betclic_bets_history.json (48h repeat check)
 - `load_espn_enrichment_for_team(name, sport)` — ATS/OU records, standings, power index
 - `load_player_gamelogs_for_team(name, sport, n=10)` — per-player game-by-game stats
 - `load_sport_specific_cache(sport, name)` — niche sport match data
+
+**Direct ESPN client access** (for new endpoints not yet in DB loaders):
+- `ESPNClient(sport, league).get_coaches(year)` — coaching staff (NBA/NHL)
+- `ESPNClient(sport, league).get_coach_record(coach_id, record_type)` — W/L/T
+- `ESPNClient(sport, league).get_play_by_play(event_id)` — match events with timestamps
+- `ESPNStatsClient().get_realtime_news(sport, league)` — real-time injury/transfer news
+- `ESPNOddsClient().get_futures(sport, league)` — season futures markets
 
 ### 6. Gate Integrity Checks
 - [ ] All 18 gate points evaluated for EVERY candidate (no shortcuts)

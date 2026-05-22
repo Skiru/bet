@@ -198,6 +198,12 @@ This context note is MANDATORY in §S3.10 (Analysis Depth Proof).
 - **Script**: `python3 scripts/deep_stats_report.py` (produces raw data as starting point)
 - **ESPN enrichment** (auto-loaded for basketball/hockey): player gamelogs, standings, ATS/OU records. The script outputs `espn_enrichment` in each candidate's analysis.
 - **DB loaders**: `load_espn_enrichment_for_team(name, sport)`, `load_player_gamelogs_for_team(name, sport)` in `db_data_loader.py`
+- **New ESPN endpoints** (direct client access for deeper analysis):
+  - `ESPNClient(sport, league).get_coaches(year)` — coach stability (NBA/NHL only, soccer returns 500)
+  - `ESPNClient(sport, league).get_coach_record(coach_id, 0)` — W/L/T record (0=Total, 1=Home, 2=Away)
+  - `ESPNClient(sport, league).get_play_by_play(event_id)` — goals/cards/corners/subs with timestamps
+  - `ESPNStatsClient().get_realtime_news(sport, league)` — latest injury/transfer news
+  - `ESPNOddsClient().get_futures(sport, league)` — season futures markets (NBA/NHL)
 
 ### Data Richness per Sport (USE THIS)
 

@@ -52,11 +52,11 @@ When a source fails (403/empty/timeout), try the next in chain immediately. All 
 
 | Sport | Primary | Secondary | Specialist |
 |-------|---------|-----------|------------|
-| Football | ESPN API | scores24 (HTTP) | TotalCorner (corners), TransferMarkt (roster) |
+| Football | ESPN API (70+ leagues, play-by-play) | scores24 (HTTP) | TotalCorner (corners), TransferMarkt (roster) |
 | Tennis | TennisAbstract | TennisExplorer | TennisPrediction |
-| Basketball (NBA) | Basketball-Reference | ESPN | DunksAndThrees |
+| Basketball (NBA) | ESPN API (coaches, gamelogs, futures, ATS/OU) | Basketball-Reference | DunksAndThrees |
 | Basketball (EU) | Eurobasket.com | BetExplorer standings | Flashscore H2H |
-| Hockey | api-hockey (CANONICAL per-game), ESPN | MoneyPuck (xG/Corsi — advisory only), Hockey-Reference | DailyFaceoff (goalies) |
+| Hockey | ESPN API (coaches, gamelogs, futures), api-hockey (per-game) | MoneyPuck (xG/Corsi — advisory only), Hockey-Reference | DailyFaceoff (goalies) |
 | Volleyball | Flashscore (scan data) | ESPN | CEV, PlusLiga |
 
 ### Tipster Sources

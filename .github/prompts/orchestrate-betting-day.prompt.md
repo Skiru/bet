@@ -492,6 +492,16 @@ PYTHONPATH=src .venv/bin/python3 scripts/seed_espn_data.py --skip-players 2>&1
 
 Seeds unique ESPN data: standings, ATS/OU records, predictions, power index (8-min timeout). This data is NOT covered by S2.3 scrapers or S2.5 enrichment.
 
+**Additional ESPN capabilities** (available via direct client access during analysis steps S3-S7):
+- `ESPNClient(sport, league).get_coaches(year)` — coach stability (NBA/NHL only)
+- `ESPNClient(sport, league).get_coach_record(coach_id, record_type)` — W/L/T (0=Total, 1=Home, 2=Away)
+- `ESPNClient(sport, league).get_play_by_play(event_id)` — match events with timestamps (all sports)
+- `ESPNStatsClient().get_realtime_news(sport, league)` — real-time injury/transfer news
+- `ESPNOddsClient().get_futures(sport, league)` — season futures betting markets (NBA/NHL)
+- `ESPNOddsClient().get_event_odds(sport, league, event_id)` — multi-provider odds (DraftKings, FanDuel, BetMGM, Bet365)
+- `ESPNOddsClient().get_win_probabilities(sport, league, event_id)` — ESPN model predictions
+- **70+ soccer leagues** now mapped (cups, qualifiers, nations league included)
+
 **NOTE:** `fetch_api_stats.py` removed from pipeline (2026-05-15) — its per-fixture enrichment via `scripts/api_clients/` (now a shim) is fully superseded by `run_scrapers.py` (S2.3) + `data_enrichment_agent.py` (S2.5) which use the canonical `src/bet/api_clients/` package.
 
 ---
