@@ -82,6 +82,7 @@ The `compute_safety_scores.py` script takes structured stats and produces safety
    - Safety = 0.50 for many candidates = synthetic data cap hitting everywhere
    - Safety scores don't match hit rates in the ranking table = a cap was applied — identify which one
    - Margin < 1.0 means average is on the WRONG side of the line — direction should flip
+   - **TIGHT MARGIN (ZT#24):** For foul/card markets, if abs(avg - line) ≤ 1.0 → a −0.10 penalty is applied. For other stat markets, ≤ 0.5 → −0.05. This is COINFLIP territory — flag it loudly. If also P(draw)≥25%, recommend alternative market.
 
 ### How Three-Way Cross-Check Works
 

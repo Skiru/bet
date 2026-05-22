@@ -79,6 +79,7 @@ For EVERY candidate, before issuing verdict, assess:
 | Derby/Rivalry | Historical patterns break, emotions override tactics | H2H WEIGHT INCREASES, L10 weight decreases |
 | Relegation battle | Defensive, low-scoring, few cards (avoid reds) | UNDER bias for goals/corners, cautious play |
 | Title decider | High pressing, aggressive, more fouls and corners | OVER bias for physical stats |
+| Close game (P(draw)≥25%) | Tactical fouling increases 20-30%, tight fouls/cards | **FOUL/CARD UNDER = DANGEROUS** (ZT#24). Flag immediately. |
 | Dead rubber | Rotation, motivation collapse, unpredictable | REDUCE ALL safety scores by 20% |
 | Promotion playoff | Extreme motivation, physical, many fouls | OVER for fouls/cards, UNDER for quality play |
 | Grand Slam (tennis) | Best-of-5 = more games, more breaks, more variance | OVER games is structurally stronger |

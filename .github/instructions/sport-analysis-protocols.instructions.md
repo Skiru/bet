@@ -55,6 +55,8 @@ Before selecting ANY football market, calculate ALL of these for the specific ma
 ```
 Pick the market with HIGHEST safety score. If corners and fouls are both high → pick whichever has better H2H support. **NEVER default to corners without checking fouls/cards/shots first.**
 
+**⚠️ CLOSE GAME RULE (ZT#24 — post-mortem 2026-05-22):** When h2h odds imply P(draw) ≥ 25% AND best market is fouls/cards UNDER AND combined avg is within ±1.5 of line → **DO NOT BET this market.** Tight matches inflate tactical fouls 20-30%. The pipeline WILL flag this via `CLOSE_GAME_DANGER` context flag and ZT#24 red flag. Pick an alternative market (corners, shots) instead.
+
 **Context (MANDATORY):** Coach change (TransferMarkt), injuries/suspensions (ESPN, Flashscore), fixture congestion (<72h), motivation (relegation/title/dead rubber), weather (rain/wind→corners), referee stats (cards/fouls).
 
 **§3.1E EXOTIC LEAGUE FOOTBALL (adjusted for thin data):**
@@ -354,6 +356,7 @@ Run for EVERY candidate BEFORE approving. Score on sport-specific checklist. If 
 | F4 | International break return? → −1 |
 | F5 | Promoted + synthetic pitch? → Adjust totals |
 | F6 | Referee not checked (cards/fouls pick)? → STOP |
+| F7 | CLOSE GAME (P(draw)≥25%) + foul/card UNDER + tight margin (avg±1.5 of line)? → FLAG ZT#24, −1.0 safety. Tight matches inflate fouls/cards, especially Serie A/physical leagues. |
 
 ### Basketball
 | B1 | B2B? → UNDER bias (−3-5 pts) |

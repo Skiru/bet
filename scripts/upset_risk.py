@@ -113,6 +113,30 @@ def run_upset_risk(date: str, state: dict) -> tuple[bool, str]:
             if any("WEATHER" in f for f in context_flags):
                 risk_factors.append("adverse_weather")
 
+            # Factor 4b: Close game detection (post-mortem 2026-05-22)
+            # When context_checks detected P(draw)>=25%, flag stat markets as risky.
+            # Prioritize the MORE SPECIFIC factor (foul/card under) over the generic one.
+            close_game = analysis.get("close_game", {})
+            implied_draw = close_game.get("implied_draw_prob", 0)
+            has_close_game = (
+                any("CLOSE_GAME_DANGER" in f for f in context_flags)
+                or implied_draw >= 0.25
+            )
+            if has_close_game:
+                best_mkt = analysis.get("best_market", {})
+                mkt_name = (best_mkt.get("name") or "").lower()
+                mkt_dir = (best_mkt.get("direction") or "").upper()
+                _foul_card_kw = ("foul", "card", "kartek", "faul")
+                is_foul_card = any(kw in mkt_name for kw in _foul_card_kw)
+                if is_foul_card and mkt_dir == "UNDER":
+                    # Most dangerous combo: close game + foul/card UNDER
+                    risk_factors.append(
+                        f"close_game_foul_card_under (P(draw)={implied_draw:.0%})"
+                    )
+                elif is_foul_card:
+                    # Foul/card OVER in close game — less dangerous but still notable
+                    risk_factors.append("close_game_stat_market_caution")
+
             # Factor 5: No EV data (stats-first mode = higher uncertainty)
             if analysis.get("ev") is None:
                 risk_factors.append("no_ev_data_statsFirst")

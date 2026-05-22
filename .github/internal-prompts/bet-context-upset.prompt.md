@@ -118,6 +118,16 @@ Score each factor 0-1 per sport-specific checklist (see `bet-applying-sport-prot
 
 HIGH upset → competitive → MORE total play → prefer OVER. LOW upset → blowout → UNDER bias.
 
+### 3b. Close Game + Foul/Card UNDER Detection (ZT#24 — 2026-05-22 post-mortem)
+
+**MANDATORY CHECK for EVERY foul/card market:**
+When context_checks output shows `CLOSE_GAME_DANGER` flag OR `close_game.implied_draw_prob ≥ 0.25`:
+- Tight matches (P(draw) ≥ 25%) inflate tactical fouling 20-30%
+- Foul/card UNDER picks in these games are DANGEROUS even with good L10 hit rates
+- If the margin (avg vs line) is ≤ 1.5 → this is a COINFLIP territory
+- **YOUR JOB:** Flag this explicitly in your context verdict. Say: "CLOSE GAME → foul/card under is unreliable despite L10 support. Recommend alternative market (corners, shots)."
+- This applies especially to Serie A, physical leagues, and knockout stages
+
 ### 4. Competition Significance Assessment (NEW — from context_checks.py)
 
 Each candidate now has a `fixture_significance` dict from the script output:

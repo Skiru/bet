@@ -477,6 +477,59 @@ def run_context_checks(date: str, state: dict) -> tuple[bool, str]:
             if significance.get("competition_multiplier", 1.0) != 1.0:
                 c_flags.append(f"COMP_MULT:{significance['competition_multiplier']:.2f}")
 
+            # --- CLOSE GAME DETECTION (post-mortem 2026-05-22: Fiorentina-Atalanta) ---
+            # When h2h odds imply draw probability >25%, flag stat markets
+            # (fouls, cards, corners) as dangerous — tight games inflate fouls/cards.
+            try:
+                from bet.db.connection import get_db
+                with get_db() as conn:
+                    # Find fixture_id
+                    fid = c.get("fixture_id")
+                    if not fid:
+                        from bet.db.repositories import FixtureRepo, SportRepo
+                        sport_repo_cg = SportRepo(conn)
+                        fixture_repo_cg = FixtureRepo(conn)
+                        s_cg = sport_repo_cg.get_by_name(sport) if sport else None
+                        if s_cg:
+                            ko_cg = c.get("kickoff", date)
+                            f_cg = fixture_repo_cg.get_by_teams_and_date(
+                                home, away, ko_cg[:10] if ko_cg else date, s_cg.id
+                            )
+                            fid = f_cg.id if f_cg else None
+                    if fid:
+                        # Check h2h odds for draw probability
+                        draw_row = conn.execute(
+                            "SELECT odds FROM odds_history "
+                            "WHERE fixture_id = ? AND market = 'h2h' AND selection = 'draw' "
+                            "ORDER BY fetched_at DESC LIMIT 1",
+                            (fid,)
+                        ).fetchone()
+                        if draw_row and draw_row[0]:
+                            draw_odds = float(draw_row[0])
+                            implied_draw_prob = 1.0 / draw_odds if draw_odds > 1.0 else 0.0
+                            if implied_draw_prob >= 0.25:
+                                c["close_game"] = {
+                                    "draw_odds": draw_odds,
+                                    "implied_draw_prob": round(implied_draw_prob, 3),
+                                }
+                                # Flag fouls/cards/corners markets as dangerous in close games
+                                best_market = c.get("best_market", {})
+                                market_name_cg = (best_market.get("name") or "").lower()
+                                _close_game_danger_keywords = ("foul", "card", "kartek", "faul")
+                                if any(kw in market_name_cg for kw in _close_game_danger_keywords):
+                                    c_flags.append(
+                                        f"CLOSE_GAME_DANGER: draw@{draw_odds:.2f} "
+                                        f"(P={implied_draw_prob:.0%}) — fouls/cards inflate in tight matches"
+                                    )
+                                    print(f"    ⚠️ {home} vs {away}: CLOSE GAME ({implied_draw_prob:.0%} draw) + foul/card market")
+                                elif any(kw in market_name_cg for kw in ("corner", "rożn")):
+                                    c_flags.append(
+                                        f"CLOSE_GAME_NOTE: draw@{draw_odds:.2f} "
+                                        f"(P={implied_draw_prob:.0%}) — corners may be affected in tight match"
+                                    )
+            except Exception as e:
+                checks_done.append(f"close_game_check: skipped ({type(e).__name__}: {e})")
+
             # Check weather — use substring matching for venue keys like "Liverpool vs Arsenal"
             for venue, flags in context_flags.items():
                 venue_l = venue.lower()

@@ -682,3 +682,48 @@ Roster change (+2), map pool edge (+1), online match (+1), new patch (+1).
 - Individual leg analysis: 3/9 won = variance was NOT catastrophic at pick level
 - But ALL 4 coupons lost = concentration + bad leg selection killed portfolio
 - Bankroll: 61.91 → 53.91 PLN (-13% single day = worst day since tracking began)
+
+## Entry #13 — 2026-05-22: BEST DAY — 3/4 WON (+12.57 PLN, +22% bankroll, 181% ROI)
+
+**Trigger:** 4 coupons placed, 3 WON (including AKO3 @5.35). Bankroll 57.70 → 70.28 PLN. Best single-day performance since tracking began.
+
+### What Worked:
+
+1. **CROSS-SPORT DIVERSIFICATION (Critical):** All 4 coupons had legs from different sports/leagues. AKO3 winner: basketball (EuroLeague) + football (Allsvenskan) + football (Ligue 1 corners). Zero correlation between legs.
+
+2. **STATISTICAL MARKETS DOMINANCE:** 5/8 picks were stat markets (total games, corners, fouls, handicap points). Stat market picks: 4/5 won (80%). Confirms learning: stat > outcome.
+
+3. **AKO2-3 SWEET SPOT VALIDATED:** 3 AKO2 + 1 AKO3. Hit rates: AKO2 = 2/3 (67%), AKO3 = 1/1 (100%). Historical cumulative: AKO2=36%, AKO3=40% — today massively outperformed.
+
+4. **BASKETBALL HANDICAP/TOTALS CRUSH:** Olympiacos -4.5 won by +18, Valencia-Real O172.5 hit by +22.5, Rasta Vechta ML portion of HC covered easily. Basketball handicaps in playoffs/EuroLeague = consistent edge when spread is tight.
+
+5. **UNDER PICKS CONTINUE TO DOMINATE:** Tennis U22.5 games (hit: 20 games). Historical UNDER: 74% hit rate confirmed again.
+
+### What Failed:
+
+1. **SERIE A FOULS UNDER IN DRAWS:** Fiorentina-Atalanta U24.5 fouls lost. Pipeline had this at U21.5 (matrix #10) — user took a softer line at U24.5 and STILL lost. Root cause: 1-1 draw = tight, contested match = more tactical fouls, especially in Serie A where referees allow physicality. LEARNING: Serie A draws are foul-heavy.
+
+### Rules (max 3):
+
+1. **BASKETBALL HC IN EUROCUP/EUROLEAGUE HOME FORTRESS = PREMIUM:** When EuroLeague home team has 65%+ home win rate AND spread is ≤6.5, this is a premium market (Olympiacos -4.5 covered by +18).
+
+2. **SERIE A FOUL UNDERS — CONTEXT DISCOUNT:** If predicted result is close/draw, apply -0.10 safety on fouls under markets. Italian tactical fouling increases in tight games. Don't trust L10 foul averages in expected draw scenarios.
+
+3. **AKO3 CROSS-SPORT WITH ≥2 STAT LEGS = SWEET SPOT:** Today's AKO3 @5.35 had 3 independent events, 2 stat markets. This structure consistently outperforms. Prioritize AKO3 with 2+ stat legs from different sports.
+
+### Performance Data:
+- Placed: 4 coupons (3W 1L = 75% coupon hit rate)
+- Picks: 8 total (7W 1L = 87.5% pick hit rate)
+- Staked: 6.94 PLN | Returned: 19.51 PLN (bez podatku)
+- Net PnL: +12.57 PLN | ROI: 181.1%
+- Bankroll: 57.705 → 70.275 PLN (+21.8%)
+- Coupon killer: PK-20260522-08 (Fiorentina-Atalanta fouls under) — Serie A draw context
+
+### Cumulative Stats (updated):
+- Overall: 165 coupons, 50W/115L → 30.3% coupon hit rate
+- Stat markets: 64% hit rate (confirmed STRONG)
+- UNDER direction: 74% hit rate (confirmed STRONG)
+- team_corners: 87% (BEST market)
+- cards: 77% (TOP3 market)
+- football×totals: 78% (TOP cross-category)
+- AKO2-3 remain sweet spot; AKO5+ remain BANNED

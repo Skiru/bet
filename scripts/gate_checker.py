@@ -616,6 +616,40 @@ def check_red_flags(candidate: dict) -> list[str]:
         except Exception as e:
             logger.warning(f"ZT#23: standings query failed — opponent quality check skipped: {e}")
 
+    # ZT#24: Close Game + Foul/Card Under = DANGEROUS (post-mortem 2026-05-22)
+    # When h2h odds imply P(draw) >= 25% AND market is fouls/cards UNDER
+    # AND line margin is tight (avg within ±1.5 of line), this is a coinflip
+    # that context pushes towards OVER. Tight games = tactical fouling.
+    _foul_card_keywords = ("foul", "card", "kartek", "faul")
+    is_foul_card_market = any(kw in market_name for kw in _foul_card_keywords)
+    if is_foul_card_market:
+        direction = (best.get("direction") or "").upper()
+        close_game_data = candidate.get("close_game", {})
+        context_flags_list = candidate.get("context_flags", [])
+        # Check from context_checks enrichment
+        has_close_game_flag = any("CLOSE_GAME_DANGER" in f for f in context_flags_list)
+        # Check from close_game dict (set by context_checks.py)
+        implied_draw = close_game_data.get("implied_draw_prob", 0)
+
+        if (has_close_game_flag or implied_draw >= 0.25) and direction == "UNDER":
+            # Check margin tightness: avg within ±1.5 of line
+            combined_avg = best.get("combined_avg") or 0
+            line_val = best.get("line") or 0
+            margin_tight = (
+                abs(combined_avg - line_val) <= 1.5
+                if (combined_avg > 0 and line_val > 0)
+                else True  # If data missing, assume tight (safe default)
+            )
+            if margin_tight:
+                draw_odds = close_game_data.get("draw_odds", "?")
+                avg_str = f"{combined_avg:.1f}" if combined_avg > 0 else "?"
+                line_str = f"{line_val}" if line_val > 0 else "?"
+                flags.append(
+                    f"FLAG ZT#24: CLOSE GAME (draw@{draw_odds}, P≥25%) + "
+                    f"foul/card UNDER + tight margin (avg={avg_str} vs line={line_str}) — "
+                    f"tight matches inflate fouls; Serie A/physical leagues especially dangerous"
+                )
+
     return flags
 
 

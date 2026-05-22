@@ -549,6 +549,22 @@ def rank_markets(data: dict) -> dict:
                 line_suspicious = True
                 safety = min(safety, 0.50)
 
+        # TIGHT MARGIN PENALTY (post-mortem 2026-05-22: Fiorentina-Atalanta fouls)
+        # When avg is within ±1.0 of the line for foul/card markets, the bet is
+        # effectively a coinflip. Apply -0.10 safety penalty.
+        # For other stat markets, apply -0.05 when within ±0.5 of line.
+        tight_margin = False
+        _foul_card_names = ("foul", "card", "kartek", "faul")
+        _is_foul_card = any(kw in name.lower() for kw in _foul_card_names)
+        if l10_avg > 0 and line > 0:
+            abs_margin = abs(l10_avg - line)
+            if _is_foul_card and abs_margin <= 1.0:
+                tight_margin = True
+                safety = max(round(safety - 0.10, 2), 0.0)
+            elif abs_margin <= 0.5 and not _is_foul_card:
+                tight_margin = True
+                safety = max(round(safety - 0.05, 2), 0.0)
+
         # Margin
         margin = compute_margin(l10_avg, line, direction)
 
@@ -575,6 +591,7 @@ def rank_markets(data: dict) -> dict:
             "h2h_blind": total_h2h == 0,
             "one_sided": one_sided,
             "line_suspicious": line_suspicious,
+            "tight_margin": tight_margin,
             "three_way_check": per_market_three_way,
         })
 

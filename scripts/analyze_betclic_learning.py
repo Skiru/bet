@@ -132,8 +132,8 @@ def analyze():
         except (json.JSONDecodeError, OSError) as e:
             print(f"[betclic_learning] JSON file unreadable: {e}")
             json_bets = None
-        if isinstance(json_bets, list) and not bets:
-            print(f"[betclic_learning] DB empty/unavailable — using JSON fallback with {len(json_bets)} coupons")
+        if isinstance(json_bets, list) and (not bets or len(json_bets) > len(bets)):
+            print(f"[betclic_learning] Using JSON ({len(json_bets)} coupons) — more complete than DB ({len(bets) if bets else 0})")
             bets = json_bets
 
     if not bets:

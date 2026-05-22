@@ -15,7 +15,8 @@ def _coupon(status: str, stake: float = 10.0, payout: float = 0.0):
     }
 
 
-def test_analyze_prefers_db_over_larger_json(tmp_path, monkeypatch):
+def test_analyze_prefers_larger_source(tmp_path, monkeypatch):
+    """When JSON has more entries than DB, prefer JSON (DB may be incomplete)."""
     db_history = [_coupon("won", payout=18.0)]
     json_history = [_coupon("lost"), _coupon("lost")]
 
@@ -29,6 +30,26 @@ def test_analyze_prefers_db_over_larger_json(tmp_path, monkeypatch):
 
     bets, _rules = learning_mod.analyze()
 
+    # JSON has more entries → should be preferred
+    assert bets == json_history
+
+
+def test_analyze_prefers_db_when_db_has_more(tmp_path, monkeypatch):
+    """When DB has more entries than JSON, prefer DB."""
+    db_history = [_coupon("won", payout=18.0), _coupon("lost"), _coupon("won", payout=15.0)]
+    json_history = [_coupon("lost")]
+
+    history_path = tmp_path / "betclic_bets_history.json"
+    history_path.write_text(learning_mod.json.dumps(json_history), encoding="utf-8")
+
+    dummy_loader = types.SimpleNamespace(load_betclic_history_from_db=lambda: db_history)
+    monkeypatch.setitem(sys.modules, "db_data_loader", dummy_loader)
+    monkeypatch.setattr(learning_mod, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(learning_mod, "HISTORY_JSON", history_path)
+
+    bets, _rules = learning_mod.analyze()
+
+    # DB has more entries → should be preferred
     assert bets == db_history
 
 
