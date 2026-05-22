@@ -1,6 +1,6 @@
 ---
 name: scan-day
-description: "Scan: API-first discovery (SofaScore + Odds API + API-Football) → all 5 sports → ingest → enrich → shortlist. Fully autonomous."
+description: "Scan: API-first discovery (Odds-API.io + API-Football) → all 5 sports → ingest → enrich → shortlist. Fully autonomous."
 agent: bet-scanner
 argument-hint: "run_date=2026-05-12" or just run for today
 ---
@@ -12,7 +12,7 @@ argument-hint: "run_date=2026-05-12" or just run for today
 ## Architecture
 
 ```
-STEP 1: API-first discovery (all 5 sports, ~30s via SofaScore + Odds API + API-Football)
+STEP 1: API-first discovery (all 5 sports, ~5s via Odds-API.io + API-Football)
     → {date}_s1_events.json + DB (fixtures, scan_results, teams, competitions, fixture_sources)
 STEP 2: Ingest scan data into stats_cache + team_form
 STEP 3: Enrichment (odds, weather)
@@ -27,9 +27,9 @@ STEP 4: Market matrix + shortlist
 PYTHONPATH=src .venv/bin/python scripts/discover_events.py --date {{run_date}} --verbose 2>&1
 ```
 
-Discovers ALL 5 sports (football, tennis, basketball, hockey, volleyball) via SofaScore + Odds API + API-Football.
+Discovers ALL 5 sports (football, tennis, basketball, hockey, volleyball) via Odds-API.io (primary) + The-Odds-API (secondary, 4 sports w/ odds) + API-Football (tertiary, football only). SofaScore adapter file exists but is disabled (403).
 No deep data — that's enrichment's job.
-Expected: 1500-2000 events, cross-source dedup merges ~3-5%.
+Expected: 800-1000 events after dedup, cross-source merges ~10-15% for football.
 
 Parse `AGENT_SUMMARY:{json}` for per-sport breakdown, deep_enriched count, errors.
 

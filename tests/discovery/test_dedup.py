@@ -44,7 +44,8 @@ class TestExactMatch:
         merged = engine.merge(events)
         assert len(merged) == 1
         assert len(merged[0].sources) == 2
-        assert merged[0].primary_source == "sofascore"
+        # odds-api is in priority list (index 1), sofascore is not → odds-api wins
+        assert merged[0].primary_source == "odds-api"
 
     def test_different_sports_not_merged(self, engine):
         events = {

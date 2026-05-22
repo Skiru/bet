@@ -1,5 +1,5 @@
 ---
-description: "Orchestrates scanning — API-first discovery via SofaScore + Odds API + API-Football for all 5 core sports, validates coverage, triggers enrichment, and delivers an analysis-ready shortlist."
+description: "Orchestrates scanning — API-first discovery via Odds-API.io (primary, all 5 sports) + The-Odds-API (secondary, 4 sports w/ odds) + API-Football (tertiary, football) for all 5 core sports, validates coverage, triggers enrichment, and delivers an analysis-ready shortlist."
 tools:
   [
     "execute",
@@ -54,14 +54,15 @@ handoffs:
 
 ---
 
-## Architecture: API-First Discovery (3 Sources)
+## Architecture: API-First Discovery (4 Sources, 3 Active)
 
-Discovery uses `src/bet/discovery/` module with 3 structured API sources:
-- **SofaScore Daily Schedule API** — all 5 sports, ~1500 events, primary source for canonical names
-- **The Odds API** — football (10 leagues) + auto-discovered tennis/hockey, provides structured pre-match odds
-- **API-Football** — football only, ~250 events, cross-validates SofaScore fixtures
+Discovery uses `src/bet/discovery/` module with 4 source adapters:
+- **Odds-API.io** (PRIMARY) — all 5 sports, 265 bookmakers, 5000 req/hour. Covers football, volleyball, basketball, tennis, hockey.
+- **The Odds API** (SECONDARY) — 4 sports (no volleyball), events with odds attached. 500 credits/month free tier.
+- **API-Football** (TERTIARY) — football only, ~350 events, cross-validates other sources.
+- **SofaScore** (DISABLED) — 403 blocked since 2026-05. Adapter file kept for potential re-enablement.
 
-Sources fetched concurrently (ThreadPoolExecutor, 3 workers). Dedup via exact normalized keys + rapidfuzz fuzzy matching (threshold 85, ±2h kickoff window). ~30s total.
+Sources fetched concurrently (ThreadPoolExecutor). Dedup via exact normalized keys + rapidfuzz fuzzy matching (threshold 85, ±2h kickoff window). ~5s total (cached API responses).
 
 **No deep data at scan time.** Form, H2H, injuries are fetched by scrapers (S2.3) + enrichment (S2.5). Discovery only identifies fixtures. **Note:** Scraper module at `src/bet/scrapers/` provides supplementary fixture data from NHL API and SofaScore for hockey/tennis/volleyball — cross-referenced via `fixture_sources` table.
 
@@ -83,9 +84,9 @@ When invoked directly by the user, you run the full scan pipeline yourself.
 PYTHONPATH=src .venv/bin/python scripts/discover_events.py --date {YYYY-MM-DD} --verbose 2>&1
 ```
 
-Expected: 1500-2000 events, 0% deep-enriched (enrichment handles that), ~30s runtime.
+Expected: 800-1200 events after dedup, 0% deep-enriched (enrichment handles that), ~5s runtime.
 
-**Validate:** All 5 sports present? Total > 300? Zero critical errors? Tournament matches present (R7)?
+**Validate:** All 5 sports present? Total > 300? odds-api-io responded for all 5 sports? The-Odds-API providing odds data? Tournament matches present (R7)?
 
 ### PHASE 2: INGEST + ENRICH
 

@@ -269,24 +269,23 @@ def build_safety_score_input(
         team_a_l5 = team_a_l10[:5] if team_a_l10 else []
         team_b_l5 = team_b_l10[:5] if team_b_l10 else []
 
-        # Auto-determine line from L10 average — use standard lines when available
-        # to avoid circular reasoning (line = avg → ~50% hit rate by construction)
+        # Auto-determine line PURELY from L10 data average.
+        # Line = _round_to_half(avg) — ALWAYS computed from real data, never from
+        # a static table. Standard lines are only used downstream for multi-line
+        # optimization (available_lines) where bookmaker offerings are known.
         stat_key_for_line = stat_a_key or stat_b_key or ""
         if is_combined and team_a_l10 and team_b_l10:
             min_len = min(len(team_a_l10), len(team_b_l10))
             combined_avg = sum(
                 team_a_l10[i] + team_b_l10[i] for i in range(min_len)
             ) / min_len
-            std_line = _find_closest_standard_line(sport, stat_key_for_line, combined_avg, is_combined=True)
-            line = std_line if std_line is not None else _round_to_half(combined_avg)
+            line = _round_to_half(combined_avg)
         elif team_a_l10:
             avg = sum(team_a_l10) / len(team_a_l10)
-            std_line = _find_closest_standard_line(sport, stat_key_for_line, avg, is_combined=False)
-            line = std_line if std_line is not None else _round_to_half(avg)
+            line = _round_to_half(avg)
         elif team_b_l10:
             avg = sum(team_b_l10) / len(team_b_l10)
-            std_line = _find_closest_standard_line(sport, stat_key_for_line, avg, is_combined=False)
-            line = std_line if std_line is not None else _round_to_half(avg)
+            line = _round_to_half(avg)
         else:
             continue
 
@@ -493,24 +492,21 @@ def _build_markets_from_db_form(
         team_a_l5 = team_a_l10[:5] if team_a_l10 else []
         team_b_l5 = team_b_l10[:5] if team_b_l10 else []
 
-        # Auto-determine line — prefer standard market lines to avoid circular reasoning
+        # Auto-determine line PURELY from L10 data average.
+        # Line = _round_to_half(avg) — computed from real per-match data only.
         stat_key_for_line = stat_a_key or stat_b_key
         if is_combined and team_a_l10 and team_b_l10:
             min_len = min(len(team_a_l10), len(team_b_l10))
             combined_avg = sum(
                 team_a_l10[i] + team_b_l10[i] for i in range(min_len)
             ) / min_len
-            # Use standard line if available (prevents circular reasoning)
-            std_line = _find_closest_standard_line(sport, stat_key_for_line, combined_avg, is_combined=True)
-            line = std_line if std_line is not None else _round_to_half(combined_avg)
+            line = _round_to_half(combined_avg)
         elif team_a_l10:
             avg = sum(team_a_l10) / len(team_a_l10)
-            std_line = _find_closest_standard_line(sport, stat_key_for_line, avg, is_combined=False)
-            line = std_line if std_line is not None else _round_to_half(avg)
+            line = _round_to_half(avg)
         elif team_b_l10:
             avg = sum(team_b_l10) / len(team_b_l10)
-            std_line = _find_closest_standard_line(sport, stat_key_for_line, avg, is_combined=False)
-            line = std_line if std_line is not None else _round_to_half(avg)
+            line = _round_to_half(avg)
         else:
             continue
 

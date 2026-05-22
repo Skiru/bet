@@ -218,7 +218,7 @@ If the file is missing, run: `python3 scripts/parse_betclic_bets.py` (requires H
 
 ## STEP 1: SCAN — Complete Event Discovery
 
-1. Run `PYTHONPATH=src .venv/bin/python scripts/discover_events.py --date YYYY-MM-DD --verbose` (API-first discovery via SofaScore + Odds API + API-Football for all 5 sports, ~30s). Parse `AGENT_SUMMARY:{json}`.
+1. Run `PYTHONPATH=src .venv/bin/python scripts/discover_events.py --date YYYY-MM-DD --verbose` (API-first discovery via Odds-API.io primary + The-Odds-API secondary + API-Football tertiary, all 5 sports, ~5s). Parse `AGENT_SUMMARY:{json}`.
 2. Run `python3 scripts/ingest_scan_stats.py --date YYYY-MM-DD --verbose` to transform scan data into stats_cache + team_form DB.
 3. Run `python3 scripts/fetch_odds_api.py` for cross-validation (30 credits/scan, 500/month free).
 4. **Deep Data Coverage:** Check deep enrichment % from scan (form, H2H). Events without deep data → enrichment fills gaps.

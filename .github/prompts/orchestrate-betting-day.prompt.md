@@ -148,7 +148,7 @@ Read these files. Do NOT proceed until all are loaded:
 - Odds: OddsPortal → BetExplorer (all sports)
 - Stats: TotalCorner → Flashscore (football corners)
 
-**Key:** `discover_events.py` discovers fixtures from 3 API sources (SofaScore, Odds API, API-Football) in ~30s. Deep data (form, H2H, injuries) is handled by enrichment (S2), not scan.
+**Key:** `discover_events.py` discovers fixtures from 3 active API sources (Odds-API.io primary + The-Odds-API secondary + API-Football tertiary) in ~5s. Deep data (form, H2H, injuries) is handled by enrichment (S2), not scan.
 
 Print the pre-flight checklist:
 ```
@@ -438,7 +438,7 @@ Stealth Playwright warm-up: dumps odds pages from protected bookmakers to `betti
 **You launch discovery, then delegate review to bet-scanner.**
 
 ```bash
-# API-first discovery via 3 sources (SofaScore, Odds API, API-Football) — ~30s
+# API-first discovery via Odds-API.io (primary, all 5 sports) + API-Football (secondary, football)
 PYTHONPATH=src .venv/bin/python scripts/discover_events.py --date {date} --verbose 2>&1
 ```
 

@@ -4,8 +4,8 @@ Purpose: document all data sources used by the 5-sport pipeline (football, volle
 
 ## Source Philosophy
 
-The pipeline uses **API-first discovery architecture**: SofaScore + Odds API + API-Football as the 3 primary discovery sources for event identification (~30s), with enrichment sources filling in deep data (form, H2H, injuries). The workflow must:
-1. Use the discovery module (`discover_events.py`) for fixture identification from 3 API sources.
+The pipeline uses **API-first discovery architecture**: Odds-API.io (primary, all 5 sports) + The-Odds-API (secondary, 4 sports w/ odds) + API-Football (tertiary, football only) as the active discovery sources for event identification (~5s), with SofaScore disabled (403). Enrichment sources fill in deep data (form, H2H, injuries). The workflow must:
+1. Use the discovery module (`discover_events.py`) for fixture identification from 3 active API sources.
 2. Use Tier A market sources for odds comparison and line shopping.
 3. Use enrichment sources (ESPN API, Flashscore scrapers, scores24) to fill statistical gaps after discovery.
 4. Use Tier B tipster/community sites to validate direction, discover angles, and check consensus.
@@ -15,7 +15,7 @@ The pipeline uses **API-first discovery architecture**: SofaScore + Odds API + A
 
 | Category | Sources | Access Method |
 |----------|---------|---------------|
-| **Automated — Discovery** | SofaScore API, The-Odds-API, API-Football | `src/bet/discovery/` module via `discover_events.py` |
+| **Automated — Discovery** | Odds-API.io (PRIMARY), The-Odds-API (SECONDARY), API-Football (TERTIARY), SofaScore (disabled) | `src/bet/discovery/` module via `discover_events.py` |
 | **Automated — Scrapers** | 19 scrapers: FBref, NBA API, NHL API, Basketball-Reference, Sackmann, ESPN (5 sports), Flashscore (5 sports), Hockey-Reference, Volleybox | `src/bet/scrapers/` module via `run_scrapers.py` |
 | **Automated — Odds** | the-odds-api, odds-api.io, api-football-odds | `fetch_odds_api.py`, `fetch_odds_api_io.py`, `fetch_odds_multi.py` |
 | **Automated — Enrichment** | ESPN API, Flashscore HTTP | `data_enrichment_agent.py` |

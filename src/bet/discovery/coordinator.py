@@ -24,7 +24,7 @@ from .models import (
 )
 from .repository import FixtureSourceRepo
 from .sources import SourceAdapter
-from .sources.sofascore import SofaScoreAdapter
+from .sources.odds_api_io import OddsAPIioAdapter
 from .sources.odds_api import OddsAPIAdapter
 from .sources.api_football import APIFootballAdapter
 
@@ -49,7 +49,9 @@ class EventDiscoveryCoordinator:
 
     @staticmethod
     def _default_sources() -> list[SourceAdapter]:
-        return [SofaScoreAdapter(), OddsAPIAdapter(), APIFootballAdapter()]
+        # Odds-API.io (primary, all 5 sports) + The-Odds-API (secondary, 4 sports w/ odds) + API-Football (tertiary, football)
+        # Disabled: SofaScore (permanent 403)
+        return [OddsAPIioAdapter(), OddsAPIAdapter(), APIFootballAdapter()]
 
     def discover(
         self,

@@ -22,7 +22,7 @@ Perform a thorough technical audit of these 3 subsystems. For each one:
 
 **Entry point:** `scripts/discover_events.py` → `src/bet/discovery/`
 **Module structure:** `coordinator.py`, `dedup.py`, `models.py`, `repository.py`, `sources/`
-**Sources:** SofaScore API, The-Odds-API, API-Football
+**Sources:** Odds-API.io (primary, all 5 sports), The-Odds-API (secondary, 4 sports w/ odds), API-Football (tertiary, football). SofaScore adapter disabled (403).
 **DB tables written:** `fixtures`, `fixture_sources`, `scan_results`, `teams`, `competitions`, `sports`
 
 ### Audit checklist:
@@ -30,13 +30,13 @@ Perform a thorough technical audit of these 3 subsystems. For each one:
 - [ ] Check each source adapter in `src/bet/discovery/sources/` — are APIs still responding?
 - [ ] Verify deduplication logic — are duplicates between sources properly merged?
 - [ ] Check tournament protection (R7) — do Grand Slams, Champions League etc. always appear?
-- [ ] Verify fixture count sanity: expect 1500-2500+ per day across all sports
+- [ ] Verify fixture count sanity: expect 800-1000+ per day across all sports
 - [ ] Check if any source returns 403/404/empty consistently
 
 ## Subsystem 2: Odds Pipeline
 
 **Scripts:**
-- `scripts/fetch_odds_api.py` — The-Odds-API fetcher (30 credits/scan, 500/month free)
+- `scripts/fetch_odds_api.py` — Odds-API.io fetcher (5000 req/hour, 265 bookmakers)
 - `scripts/daily_odds_warmup.py` — Playwright stealth HTML dump from Betclic.pl
 - `scripts/odds_evaluator.py` — EV computation from DB + JSON snapshots
 - `scripts/fetch_espn_odds.py` — ESPN odds extraction (American → decimal)
@@ -46,7 +46,7 @@ Perform a thorough technical audit of these 3 subsystems. For each one:
 
 ### Audit checklist:
 - [ ] Run `python3 scripts/fetch_odds_api.py` — does it produce valid snapshot?
-- [ ] Check The-Odds-API credit usage — are we within 500/month budget?
+- [ ] Check Odds-API.io rate limits — are we within 5000 req/hour?
 - [ ] Run `daily_odds_warmup.py` — does Playwright stealth still bypass Datadome on Betclic?
 - [ ] Verify `odds_evaluator.py` — does EV computation match formula: `hit_rate × odds - 1`?
 - [ ] Check if odds_history DB table is being populated (not stale/empty)

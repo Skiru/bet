@@ -3,8 +3,8 @@
 ## Architecture
 - **Agent-driven pipeline**: Orchestrator agent calls individual scripts one at a time (S0→S10). ⛔ NEVER use `pipeline_orchestrator.py`. See `orchestrate-betting-day.prompt.md`
 - **Database**: `betting/data/betting.db` (SQLite, WAL mode). Connection: `from bet.db.connection import get_db` (busy_timeout=30000, retry_on_lock()). 41-table schema across 7 domains (Core, Stats, Analysis, Betting, Pipeline, ESPN, Tipster). Schema v10.
-- **Discovery (S1)**: `src/bet/discovery/` module — API-first event discovery via SofaScore + Odds API + API-Football. ~30s, 1700+ events. CLI: `PYTHONPATH=src .venv/bin/python scripts/discover_events.py --date YYYY-MM-DD --verbose`. DB: `fixtures`, `scan_results`, `fixture_sources`
-- **Discovery module only**: No legacy scanning fallback. All event discovery goes through `src/bet/discovery/`
+- **Discovery (S1)**: `src/bet/discovery/` module — API-first event discovery via Odds-API.io (PRIMARY, all 5 sports) + The-Odds-API (secondary, 4 sports w/ odds) + API-Football (tertiary, football). ~5s, 800-1200 events. CLI: `PYTHONPATH=src .venv/bin/python scripts/discover_events.py --date YYYY-MM-DD --verbose`. DB: `fixtures`, `scan_results`, `fixture_sources`
+- **Discovery module only**: No legacy scanning fallback. All event discovery goes through `src/bet/discovery/`. SofaScore adapter disabled (403).
 - Config: `config/betting_config.json` — all thresholds and limits
 - Adapters: `scripts/adapters/` — domain-specific HTML parsers, fallback to raw_adapter
 - Settlement: `scripts/settle_on_finish.py --betting-day YYYY-MM-DD [--match "..."] [--no-poll]`

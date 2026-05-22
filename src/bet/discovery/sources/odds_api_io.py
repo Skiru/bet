@@ -1,0 +1,83 @@
+"""Odds-API.io source adapter — multi-sport fixture discovery with odds.
+
+Covers all 5 core sports (football, volleyball, basketball, tennis, hockey).
+Free tier: 5,000 requests/hour.
+"""
+
+from datetime import datetime, timezone
+
+from bet.api_clients.odds_api_io import OddsAPIioClient, SPORT_SLUG_MAP
+from bet.api_clients.rate_limiter import RateLimiter
+from ..models import DiscoveredEvent
+from .base import AbstractSourceAdapter
+
+
+class OddsAPIioAdapter(AbstractSourceAdapter):
+    """Primary replacement source — all 5 sports, 265 bookmakers, value bets.
+
+    Replaces the expired the-odds-api.com and blocked SofaScore.
+    """
+
+    name = "odds-api-io"
+    priority = 1  # Top priority — most reliable multi-sport source
+    supported_sports = ["football", "volleyball", "basketball", "tennis", "hockey"]
+
+    def __init__(self, rate_limiter: RateLimiter | None = None):
+        self._limiter = rate_limiter or RateLimiter()
+        self._client = OddsAPIioClient(rate_limiter=self._limiter)
+        super().__init__()
+
+    def is_available(self) -> bool:
+        return self._client.is_available()
+
+    def _fetch_events_impl(self, date: str, sport: str) -> list[DiscoveredEvent]:
+        slug = SPORT_SLUG_MAP.get(sport, sport)
+        from_dt = f"{date}T00:00:00Z"
+        to_dt = f"{date}T23:59:59Z"
+
+        raw_events = self._client.get_events(slug, status="pending", from_dt=from_dt, to_dt=to_dt)
+
+        events = []
+        for ev in raw_events:
+            try:
+                home = (ev.get("home") or "").strip()
+                away = (ev.get("away") or "").strip()
+                if not home or not away:
+                    continue
+
+                # Parse kickoff
+                date_str = ev.get("date", "")
+                if date_str:
+                    kickoff = datetime.fromisoformat(
+                        date_str.replace("Z", "+00:00")
+                    )
+                else:
+                    kickoff = datetime(
+                        *map(int, date.split("-")), tzinfo=timezone.utc
+                    )
+
+                if kickoff.tzinfo is None:
+                    kickoff = kickoff.replace(tzinfo=timezone.utc)
+
+                competition = ""
+                league = ev.get("league")
+                if isinstance(league, dict):
+                    competition = league.get("name", "")
+                elif isinstance(league, str):
+                    competition = league
+
+                events.append(DiscoveredEvent(
+                    source="odds-api-io",
+                    external_id=str(ev.get("id", "")),
+                    sport=sport,
+                    competition=competition,
+                    home_team=home,
+                    away_team=away,
+                    kickoff=kickoff,
+                    status=ev.get("status", "scheduled"),
+                ))
+            except Exception as e:
+                self.logger.debug("Skipping odds-api-io event: %s", e)
+                continue
+
+        return events

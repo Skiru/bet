@@ -29,15 +29,22 @@ class DeduplicationEngine:
     ) -> list[MergedFixture]:
         """Merge events from all sources.
 
-        Priority order: sofascore (primary) → odds-api → api-football.
+        Priority order: odds-api-io (primary) → odds-api (secondary) → api-football (tertiary).
         Primary source establishes canonical names.
+        Sources not in the priority list are processed last.
         """
-        source_priority = ["sofascore", "odds-api", "api-football"]
+        source_priority = ["odds-api-io", "odds-api", "api-football"]
         merged: list[MergedFixture] = []
         key_index: dict[str, int] = {}  # match_key → index in merged
         id_to_index: dict[int, int] = {}  # id(fixture) → index in merged
 
-        for source_name in source_priority:
+        # Process in priority order, then any remaining sources
+        ordered_sources = list(source_priority)
+        for name in events_by_source:
+            if name not in ordered_sources:
+                ordered_sources.append(name)
+
+        for source_name in ordered_sources:
             events = events_by_source.get(source_name, [])
             for ev in events:
                 match_key = self._match_key(ev)

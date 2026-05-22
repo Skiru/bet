@@ -1,6 +1,8 @@
 """The Odds API source adapter — fixture discovery with odds attached.
 
-Conservative credit usage: top 10 football leagues only (configurable).
+STATUS: ACTIVE — new key provisioned 2026-05-22.
+Conservative credit usage: top 10 football leagues + basketball/hockey/tennis.
+No volleyball coverage.
 """
 
 import json

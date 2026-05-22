@@ -51,7 +51,7 @@ python3 scripts/settle_on_finish.py --betting-day YYYY-MM-DD
 ## Source Rules
 - American odds: +X → 1 + X/100; −X → 1 + 100/X (for SBR, ESPN, ScoresAndOdds).
 - US sports: SBR Totals + ESPN Odds + ScoresAndOdds (3 sources).
-- EU sports: BetExplorer + OddsPortal + The-Odds-API (fallback).
+- EU sports: BetExplorer + OddsPortal + Odds-API.io (primary odds cross-validation).
 
 ## Versioning
 - On reruns: increment version (v5→v6). Mark old pending as `superseded`. Keep all versions.

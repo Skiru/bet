@@ -1,4 +1,9 @@
-"""SofaScore source adapter — wraps existing SofascoreClient."""
+"""SofaScore source adapter — wraps existing SofascoreClient.
+
+STATUS: DEGRADED — permanently blocked (403). Not registered in coordinator.
+Keep file for potential re-enablement. SofascoreClient is still used for
+enrichment (H2H, statistics) via main-thread Playwright fallback.
+"""
 
 from datetime import datetime, timezone
 
@@ -18,10 +23,10 @@ SPORT_SLUG_MAP = {
 
 
 class SofaScoreAdapter(AbstractSourceAdapter):
-    """Primary source — all 5 sports, worldwide coverage."""
+    """DEGRADED — 403 blocked. Cannot work in ThreadPoolExecutor (Playwright main-thread only)."""
 
     name = "sofascore"
-    priority = 1
+    priority = 99  # degraded — not registered
     supported_sports = ["football", "volleyball", "basketball", "tennis", "hockey"]
 
     def __init__(self, rate_limiter: RateLimiter | None = None):

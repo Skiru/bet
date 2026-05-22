@@ -21,7 +21,7 @@ Nowy system opiera kod w `src/bet/` i wykorzystuje podejście agent-driven (Mode
 
 Podstawowe moduły źródłowe (`src/bet/`):
 - `src/bet/db/` — schemat, połączenie (wzorzec `get_db()`), modele, repozytoria (oparte na SQLite WAL)
-- `src/bet/discovery/` — odkrywanie wydarzeń (~30s, tysiące zdarzeń z SofaScore, Odds API, API-Football)
+- `src/bet/discovery/` — odkrywanie wydarzeń (~5s, setki zdarzeń z Odds-API.io, The-Odds-API, API-Football)
 - `src/bet/scrapers/` — pakiet 19 scraperów dla 5 sportów (FBref, NBA API, NHL API, ESPN, Flashscore, itd.)
 - `src/bet/stats/` — normalizacja statystyk, oceny bezpieczeństwa (safety scores), ranking rynków
 - `scripts/odds_sources/` — zintegrowane moduły pobierające kursy bukmacherskie (the-odds-api, odds-api.io, api-football)

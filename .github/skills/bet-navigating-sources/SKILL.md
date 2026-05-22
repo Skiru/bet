@@ -45,8 +45,8 @@ When a source fails (403/empty/timeout), try the next in chain immediately. All 
 ### Stats Sources
 
 **PRIMARY SCAN SOURCE: Event Discovery Module** (via `src/bet/discovery/` and `discover_events.py`)
-- Discover ALL events for all 5 sports using 3 rapid APIs (SofaScore, API-Football, The Odds API)
-- Deep enrichment (form, H2H, lineups) is handled SEPARATELY by scrapers/enrichment agent.
+- Discover ALL events for all 5 sports using 3 active APIs: Odds-API.io (primary, all 5 sports) + The-Odds-API (secondary, 4 sports w/ odds) + API-Football (tertiary, football)
+- SofaScore adapter disabled (403 blocked). Deep enrichment (form, H2H, lineups) is handled SEPARATELY by scrapers/enrichment agent.
 
 **ENRICHMENT SOURCES** (used by `data_enrichment_agent.py` to fill gaps after scan):
 

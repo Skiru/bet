@@ -1,6 +1,6 @@
 ---
 agent: "bet-scanner"
-description: "S1-S1e: Scan data engine — API-first discovery (SofaScore + Odds API + API-Football) for 5 core sports, ingest, enrich, build shortlist"
+description: "S1-S1e: Scan data engine — API-first discovery (Odds-API.io + API-Football) for 5 core sports, ingest, enrich, build shortlist"
 ---
 
 > **PERMANENT RULES:** R3 NO AUTO-REJECTION. R7 TOURNAMENT PROTECTION (+15). R8 MINOR LEAGUE VALUE (+6). R10 STATS-FIRST. R13 DOMESTIC LEAGUE PROTECTION.
@@ -30,10 +30,10 @@ description: "S1-S1e: Scan data engine — API-first discovery (SofaScore + Odds
 PYTHONPATH=src .venv/bin/python scripts/discover_events.py --date {date} --verbose 2>&1
 ```
 
-API-first discovery from SofaScore + Odds API + API-Football. All 5 sports. No deep data (enrichment handles that).
+API-first discovery from Odds-API.io (primary, all 5 sports) + The-Odds-API (secondary, 4 sports w/ odds) + API-Football (tertiary, football). SofaScore adapter disabled (403). No deep data (enrichment handles that).
 Parse `AGENT_SUMMARY:{json}` — per-sport counts, source stats, dedup merges, errors.
 
-**VALIDATE:** 5 sports present? Total > 300? All 3 sources responded? Tournament matches? Dedup reasonable (expect 3-5% merges)?
+**VALIDATE:** 5 sports present? Total > 300? odds-api-io responded for all sports? Tournament matches? Dedup reasonable (expect 10-15% merges from football overlap)?
 
 ### PHASE 2: Ingest + Enrich
 
