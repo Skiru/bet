@@ -2223,7 +2223,8 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
                 })
 
         if tipster_pool:
-            out.info(f"🎯 TIPSTER POOL: {len(tipster_pool)} picks with consensus but NO pipeline analysis")
+            out.event("tipster_pool", count=len(tipster_pool),
+                      detail=f"🎯 TIPSTER POOL: {len(tipster_pool)} picks with consensus but NO pipeline analysis")
     except Exception as e:
         out.warning(f"⚠ Tipster pool query failed (non-fatal): {e}")
 
