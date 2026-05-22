@@ -94,6 +94,25 @@ For EVERY candidate, before issuing verdict, assess:
 
 If L10 includes 4 games against bottom-table teams and today's match is a QF vs a top-5 team — the L10 is MISLEADING. Say so. Adjust.
 
+### ⛔ NO-DEFAULTS RULE (ABSOLUTE — NO EXCEPTIONS)
+
+**EVERY number in your analysis MUST trace back to a MEASURED statistic.** Never fill gaps with defaults.
+
+| Situation | FORBIDDEN (default) | REQUIRED (statistics) |
+|-----------|---------------------|----------------------|
+| Team stat missing | "Bundesliga avg ~5.0" or "expected ~3.0" | Flag as DATA_GAP → data_quality = MINIMAL → Extended Pool maximum |
+| No H2H data | Assume "neutral" or "similar to league avg" | State explicitly: "H2H: NO DATA — safety capped at 0.70" |
+| Cross-league team | Use stats from lower division as-is | Apply measured cross-league degradation OR flag as unreliable |
+| Competition context | "Playoffs are probably tighter" | Cite SPECIFIC historical data: "BuLi playoffs last 5 years: avg 1.8 goals vs 2.7 regular season" |
+| Missing one team's data | Fill with opponent's mirror stats | REFUSE to approve. "Cannot compute combined stat — one team's data is SYNTHETIC" |
+
+**THE PRINCIPLE:** If you cannot cite a specific measured source (DB query, API response, verified statistic), the number is SYNTHETIC and the pick's data_quality drops to MINIMAL. MINIMAL = Extended Pool only, never core coupon.
+
+**ZERO TOLERANCE for:**
+- "Expected/estimated/assumed/approximately/average for the league"
+- Confidence ratings on picks with synthetic data
+- Combining one team's measured stats with another team's estimated stats
+
 ### D. Competition-Adjusted Conviction Scale
 ```
 RAW safety (from script) × competition_multiplier = ADJUSTED conviction

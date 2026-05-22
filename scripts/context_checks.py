@@ -29,8 +29,8 @@ sys.path.insert(0, str(ROOT_DIR / "src"))
 
 # Competition stage keywords → significance multiplier for safety scores
 KNOCKOUT_MARKERS = re.compile(
-    r"\b(playoff|knockout|elimination|final|semifinal|semi-final|quarter.?final|"
-    r"round\s*of\s*\d+|play.?off|postseason)\b", re.I
+    r"\b(playoffs?|knockouts?|elimination|finals?|semifinals?|semi-finals?|quarter.?finals?|"
+    r"round\s*of\s*\d+|play.?offs?|postseason)\b", re.I
 )
 GROUP_STAGE_MARKERS = re.compile(
     r"\b(group\s+(stage|phase|[a-h])|pool\s+(stage|[a-d])|round\s*robin)\b", re.I
@@ -211,6 +211,80 @@ def _is_derby(home: str, away: str) -> bool:
     if home_city and away_city and home_city == away_city and len(home_city) > 3:
         return True
     return False
+
+
+# ---------------------------------------------------------------------------
+# Data Completeness Validation — NO DEFAULTS rule (R19)
+# ---------------------------------------------------------------------------
+
+SYNTHETIC_MARKERS = re.compile(
+    r"\b(estimated|~\d|approx|expected|average for|avg for|league avg|"
+    r"assumed|probably|likely around|typically)\b", re.I
+)
+
+
+def validate_data_completeness(candidate: dict) -> dict:
+    """Check if a candidate's stats are ALL measured (no defaults/estimates).
+
+    Returns:
+        {
+            "is_complete": bool,
+            "data_gaps": [str],    # list of identified gaps
+            "synthetic_flags": [str],  # detected synthetic/estimated language
+            "data_quality_override": str | None,  # "MINIMAL" if gaps found
+            "max_tier": str,  # "CORE" | "EXTENDED_POOL" based on completeness
+        }
+    """
+    gaps = []
+    synthetic = []
+
+    # Check reasoning/data fields for synthetic language
+    for field in ("reasoning", "data", "edge", "notes"):
+        text = candidate.get(field, "")
+        if text and SYNTHETIC_MARKERS.search(text):
+            matches = SYNTHETIC_MARKERS.findall(text)
+            synthetic.append(f"{field}: contains synthetic markers {matches}")
+
+    # Check if both teams have measured stats in a combined market
+    market = (candidate.get("market") or "").lower()
+    is_combined = any(kw in market for kw in ("total", "over", "under", "combined"))
+
+    data_text = candidate.get("data", "")
+    if is_combined and data_text:
+        # Look for "not available", "not directly available", "estimated"
+        if re.search(r"not (directly )?available|no data|N/A|unknown", data_text, re.I):
+            gaps.append("Combined market with missing team data — cannot compute valid total")
+
+        # Check if only ONE team's stats are cited (home OR away, not both)
+        home_team = (candidate.get("home_team") or "").lower()
+        away_team = (candidate.get("away_team") or "").lower()
+        data_lower = data_text.lower()
+        # For combined markets, both teams should have measured stats
+        has_home_stat = bool(home_team and home_team[:4] in data_lower) or "_home" in data_lower
+        has_away_stat = bool(away_team and away_team[:4] in data_lower) or "_away" in data_lower
+        if not has_home_stat and has_away_stat:
+            gaps.append(f"Combined market but only away team stats cited — home team data MISSING")
+        elif has_home_stat and not has_away_stat:
+            gaps.append(f"Combined market but only home team stats cited — away team data MISSING")
+
+    # Check for cross-league data usage without explicit flag
+    competition = (candidate.get("competition") or candidate.get("comp") or "").lower()
+    if data_text and re.search(r"2\.\s*(bundesliga|division|liga)", data_text, re.I):
+        if "playoff" in competition or "promotion" in competition:
+            gaps.append("Cross-league stats applied to higher-tier playoff — transferability unverified")
+
+    is_complete = len(gaps) == 0 and len(synthetic) == 0
+    quality_override = None if is_complete else "MINIMAL"
+    max_tier = "CORE" if is_complete else "EXTENDED_POOL"
+
+    return {
+        "is_complete": is_complete,
+        "data_gaps": gaps,
+        "synthetic_flags": synthetic,
+        "data_quality_override": quality_override,
+        "max_tier": max_tier,
+    }
+
 
 
 def run_context_checks(date: str, state: dict) -> tuple[bool, str]:

@@ -174,6 +174,16 @@ The script produces RAW DATA (safety scores, market rankings, probabilities). Yo
 4. **Schedule strength in L10**: Were opponents comparable to today's? (Bottom-table inflation vs genuine edge)
 5. **What's at stake?** (Nothing/Mid-table/Title race/Relegation/Must-win)
 
+### ⛔ NO-DEFAULTS RULE (ABSOLUTE)
+
+**NEVER substitute missing data with estimates, league averages, or "expected" values.**
+
+- If Team A's stat is unavailable → mark as `DATA_GAP` in your analysis → data_quality = MINIMAL
+- If you only have data for ONE team in a combined market (total corners = home + away) → you CANNOT compute a valid total → flag explicitly
+- "Bundesliga avg ~5.0 corners" is NOT a valid substitute for Wolfsburg's measured corners
+- Cross-league data (e.g., 2.Bundesliga stats applied to Bundesliga playoff) requires explicit `⚠️ CROSS-LEAGUE` flag and explanation of why it may not transfer
+- EVERY number you cite MUST have a source: `DB team_form`, `ESPN API`, `Flashscore`, `H2H record` — if you can't name the source, it's SYNTHETIC and must be flagged
+
 ### Competition-Adjusted Analysis Rule
 > When you present safety scores and market rankings, ALWAYS note:
 > "L10 context: [4 league + 3 cup + 3 Europa League] — mixed. Today is a CL QF → cup/knockout data more relevant."
