@@ -21,6 +21,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from check_48h_repeats import load_recent_losses, normalize_team, normalize_market, find_repeats
+from context_checks import validate_data_completeness
 from utils import normalize_kickoff
 
 logger = logging.getLogger(__name__)
@@ -1433,6 +1434,23 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
                 )
                 extended_pool.append(entry)
             else:
+                # R19 NO-DEFAULTS GATE — synthetic/estimated data → Extended Pool
+                completeness = validate_data_completeness(c)
+                entry["data_completeness"] = completeness
+                if not completeness["is_complete"]:
+                    reasons = completeness["data_gaps"] + completeness["synthetic_flags"]
+                    entry["advisory_tier"] = "FLAGGED"
+                    entry.setdefault("tier_caps", []).append(
+                        f"R19_NO_DEFAULTS: {'; '.join(reasons[:2])}"
+                    )
+                    _set_entry_bucket(
+                        entry,
+                        "extended_pool",
+                        f"R19 NO-DEFAULTS: synthetic/estimated data detected — {completeness['max_tier']}",
+                    )
+                    extended_pool.append(entry)
+                    continue
+
                 # SYNTHETIC DATA GATE — db-synthetic source = Extended Pool only
                 source = (c.get("best_market") or {}).get("source", "")
                 markets_evaluated = c.get("market_count") or c.get("markets_evaluated", 0) or 0
