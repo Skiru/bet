@@ -231,6 +231,13 @@ def _candidate_betclic_reason_from_validation(candidate: dict, unavailable_entri
 
 
 def _candidate_betclic_reason_from_events(candidate: dict, event_availability: dict[str, set[str]]) -> str | None:
+    """Check if a candidate's market is confirmed unavailable on Betclic.
+
+    Returns a blocking reason ONLY when the event IS found in the scan but the
+    specific market type is NOT among confirmed markets.  When the event is NOT
+    found at all, returns None (no block) because the Betclic scan is limited
+    to ~20 events/sport and absence of evidence ≠ evidence of absence.
+    """
     market_slugs = _candidate_market_slugs(candidate)
     if not market_slugs:
         return None
@@ -242,9 +249,11 @@ def _candidate_betclic_reason_from_events(candidate: dict, event_availability: d
             continue
         if any(slug in confirmed_market_types for slug in market_slugs):
             return None
+        # Event found but market not confirmed — this is a real demotion signal
         return f"{_candidate_market_name(candidate)} not confirmed in Betclic scan for {event_name}"
 
-    return "event not found in Betclic validation output"
+    # Event not found in limited scan — do NOT demote (scan covers only ~20/sport)
+    return None
 
 
 def _load_betclic_validation_sidecar(date: str) -> tuple[dict, dict]:

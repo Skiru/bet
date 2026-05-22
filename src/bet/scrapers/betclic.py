@@ -555,6 +555,11 @@ class BetclicMarketChecker:
 
         info = parse_event_page(html)
         if info:
+            # Filter out junk entries from promo/bonus pages that have
+            # "Obstawianie" prefix and no real market data
+            if info.event_name and info.event_name.startswith("Obstawianie "):
+                logger.debug(f"Skipping promo entry: {info.event_name[:60]}")
+                return None
             info.event_url = event_path
             self._cache[event_path] = info
             self._results.append(info)
