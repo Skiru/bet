@@ -74,7 +74,7 @@ You add a 5-part Market Intelligence Reasoning Layer via sequential-thinking: ma
 ## Skills Usage Guidelines
 
 - **`bet-evaluating-odds`** — EV formula, Kelly criterion, price gap thresholds, drift detection rules, American odds conversion, line movement interpretation, market performance tracker
-- **`bet-navigating-sources`** — Market source chains (The-Odds-API, odds-api.io, API-Football-Odds, SBR, ESPN, ScoresAndOdds)
+- **`bet-navigating-sources`** — Market source chains (The-Odds-API, odds-api.io, Bovada public feed, API-Football-Odds, SBR, ESPN, ScoresAndOdds)
 
 ## Database Access
 
@@ -82,6 +82,7 @@ You add a 5-part Market Intelligence Reasoning Layer via sequential-thinking: ma
 - `OddsRepo.get_best_odds(fixture_id, market, selection)` — best price for a specific pick
 - `OddsRepo.get_odds_history(fixture_id, market)` — full price history for CLV tracking
 - `load_odds_from_db()` — loads all odds for a date (replaces `odds_api_snapshot.json` / `odds_multi_sources.json` reads)
+- **`player_prop_lines`** *(PENDING — table + repo in `betting/plans/bovada-integration.plan.md`)* — Bovada player prop lines (points, rebounds, assists, SOG, goals per player). When implemented: `PlayerPropRepo.get_for_fixture(fixture_id)` for market expectations. Compare Bovada lines with Betclic player markets for edge detection.
 - `analysis_results` table — pre-computed EV, probability, safety scores from S3 (replaces `analysis_pool_{date}.json`)
 - **`team_ats_records`** — Against The Spread: if team is 30-15 ATS, bookmakers may still price them flat. Use for ML/spread value detection.
 - **`team_ou_records`** — Over/Under: if team is 35-20 on OVERS, totals lines may be underpriced. CRITICAL supplementary signal for totals EV.
@@ -91,8 +92,13 @@ You add a 5-part Market Intelligence Reasoning Layer via sequential-thinking: ma
 
 ## Tool Usage Guidelines
 
+### sqlite/* (Direct DB queries — USE for odds verification)
+- **MUST use for:** Checking odds_history for price movements, verifying EV calculations in analysis_results, comparing bookmaker odds across sources, checking historical odds patterns
+- **Example:** `SELECT bookmaker, market, odds, fetched_at FROM odds_history WHERE fixture_id = X ORDER BY fetched_at DESC`
+- **NEVER use for:** Writing odds data (use fetch scripts for that)
+
 ### Script Output (run by orchestrator — you receive output)
-- **Receives output from:** `odds_evaluator.py` (S4 EV calculation), `fetch_odds_multi.py` (3-source odds aggregation: the-odds-api + odds-api-io + api-football-odds), `fetch_odds_api.py` (single-source fallback), `fetch_odds_api_io.py` (volleyball + secondary odds), `probability_engine.py` (direct probability checks)
+- **Receives output from:** `odds_evaluator.py` (S4 EV calculation), `fetch_odds_multi.py` (3-source odds aggregation: the-odds-api + odds-api-io + api-football-odds), `fetch_bovada_odds.py` *(PENDING — Bovada public feed, player props + main odds, writes to DB)*, `fetch_odds_api.py` (single-source fallback), `fetch_odds_api_io.py` (volleyball + secondary odds), `probability_engine.py` (direct probability checks)
 - **NOTE:** Check DB via `load_analysis_results_from_db()` for pre-computed EV values (fallback: `analysis_pool_{date}.json`). Read S3 deep stats for P(hit), fair odds, λ, CI columns.
 - **Your job:** Parse provided AGENT_SUMMARY + verbose log → extract metrics (odds count, EV values, source coverage) → `sequentialthinking` → verdict.
 

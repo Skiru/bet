@@ -59,11 +59,24 @@ You are the **database specialist** for the betting pipeline. You are the ONLY a
 
 ## Critical Rules
 
-1. **ALWAYS use `from bet.db.connection import get_db`** — NEVER use raw `sqlite3.connect()`
+1. **ALWAYS use `from bet.db.connection import get_db`** — NEVER use raw `sqlite3.connect()` in scripts or code snippets
 2. **ALWAYS use parameterized queries** — NEVER string interpolation for SQL values
 3. **Use repository classes when available** — `SportRepo`, `TeamRepo`, `CompetitionRepo`, `FixtureRepo`, `StatsRepo`, `PipelineRepo` from `bet.db.repositories`
 4. **Report specific numbers** — "team_form has 1,247 rows across 5 sports, 89 teams" not "data exists"
 5. **NEVER run `python3 -c "..."`** — Fish shell GARBLES inline Python. Use `python3 scripts/db_report.py --report {type}` or create a temp `.py` file
+
+## sqlite/* MCP Tool (Direct DB Inspection — USE ACTIVELY)
+
+The `sqlite/*` MCP tool gives you **interactive, read-only SQL access** to betting.db without writing Python scripts. This is your PRIMARY tool for quick data checks.
+
+- **MUST use for:** Row counts, freshness checks, gap analysis, schema inspection, verifying pipeline writes, quick lookups by team/fixture/date
+- **Relationship to R2:** R2 ("use get_db()") applies to **application code and scripts**. sqlite/* MCP is an admin inspection tool — like using `sqlite3` CLI. It doesn't violate R2.
+- **NEVER use for:** Data writes/inserts/updates (use scripts with repos for that), running DDL (CREATE/ALTER TABLE)
+- **Examples:**
+  - `SELECT COUNT(*), sport FROM team_form GROUP BY sport` — coverage check
+  - `SELECT * FROM fixtures WHERE event_date = '2026-05-22' LIMIT 5` — verify scan output
+  - `SELECT team_name, stat_key, l10_avg, updated_at FROM team_form WHERE updated_at < datetime('now', '-7 days')` — stale data
+  - `SELECT name FROM sqlite_master WHERE type='table'` — schema discovery
 
 ## DB Schema Reference (41 tables, 7 domains)
 

@@ -87,6 +87,11 @@ Settlement syncs to DB via `_sync_settlement_to_db()` in `settle_on_finish.py`:
 
 ## Tool Usage Guidelines
 
+### sqlite/* (Direct DB queries — USE for settlement verification)
+- **MUST use for:** Checking bet/coupon status in DB, verifying PnL calculations, confirming result data was written correctly, quick lookup of historical settlement data
+- **Example:** `SELECT * FROM bets WHERE betting_day = '2026-05-21' AND status = 'pending'`
+- **NEVER use for:** Writing settlement results (use settle_on_finish.py for that)
+
 ### execute/runInTerminal
 - **Note:** Under Model A, the orchestrator runs settlement scripts. You receive finished output.
 - **MAY use for:** Reading files, running `db_report.py` for supplementary DB queries if needed

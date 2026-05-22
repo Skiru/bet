@@ -83,12 +83,20 @@ You add an Enrichment Quality Assessment via sequential-thinking for each batch:
 
 ## Database Access
 
+### sqlite/* MCP (Direct DB inspection — USE for gap analysis)
+- **MUST use for:** Quick gap analysis (which teams lack team_form?), checking data freshness before enrichment, verifying writes after enrichment completes, counting coverage per sport
+- **Example:** `SELECT sport, COUNT(DISTINCT team_name) as teams, MIN(updated_at) as oldest FROM team_form GROUP BY sport`
+- **Relationship to get_db():** sqlite/* is for READ-ONLY inspection. Enrichment WRITES still go through scripts + repos (get_db() + StatsRepo).
+
+### Python Access (in scripts)
+
 - `team_form` — L10/L5/H2H averages per stat_key per team (READ to check gaps, WRITE after enrichment). **Note:** `source` field may be `"scrapers-*"` for data from scrapers.
 - `match_stats` — Per-fixture per-team stat values (WRITE after enrichment)
 - `player_gamelogs` — Per-game player stats for basketball/hockey (top 3 scorers per team). Used by S3 for totals market analysis. **Enriched via `--gamelogs` flag.**
 - `teams` — Team name resolution and aliases (READ)
 - `sports` — Sport configuration (READ)
 - `source_health` — Track enrichment source success/failure rates (WRITE)
+- **`player_prop_lines`** *(PENDING — table + repo in `betting/plans/bovada-integration.plan.md`)* — Bovada player prop lines (READ). When implemented: market expectations from bookmakers (e.g., Mitchell Points O/U 26.5) as enrichment signal for deep stats.
 - Access: `from bet.db.connection import get_db; from bet.db.repositories import StatsRepo, TeamRepo, SourceHealthRepo`
 - Gateway: `from db_data_loader import load_team_form_from_db, load_player_gamelogs_for_team`
 

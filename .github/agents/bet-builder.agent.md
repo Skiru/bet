@@ -85,6 +85,11 @@ Coupons persisted via `persist_coupons_to_db()` in `coupon_builder.py`:
 
 ## Tool Usage Guidelines
 
+### sqlite/* (Direct DB queries — USE for coupon data checks)
+- **MUST use for:** Verifying gate_results before building coupons, checking analysis_results for safety scores and EV, confirming fixture details (kickoff times, competition), validating that all coupon legs exist in gate_results
+- **Example:** `SELECT event, market, verdict, safety_score FROM gate_results WHERE betting_day = '2026-05-22' AND verdict IN ('APPROVED', 'EXTENDED')`
+- **NEVER use for:** Writing coupon data (use coupon_builder.py for that)
+
 ### Script Output (run by orchestrator — you receive output)
 - **Receives output from:** `coupon_builder.py` (automated coupon construction — core + combos + extended, Kelly 1/4, Polish output), `validate_coupons.py` (V1-V10 validation)
 - **NOTE:** Review coupon output for edge cases: adjust stakes if bankroll changed, verify Polish descriptions, check correlation flags.
