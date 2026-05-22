@@ -298,7 +298,7 @@ def _score_competition(sport: str, competition: str) -> int:
     return 2
 
 
-def _score_event(event: dict, tipster_events: set[str]) -> float:
+def _score_event(event: dict, tipster_events: set[str], tipster_db: dict[str, dict] | None = None) -> float:
     """Score an event for shortlist ranking. Higher = better candidate.
     
     Scoring philosophy: BETTABILITY > data quantity.
@@ -351,6 +351,20 @@ def _score_event(event: dict, tipster_events: set[str]) -> float:
     if has_tipster:
         score += 15
 
+    # 6b. DB tipster consensus boost — events with ≥2 tipsters or HIGH confidence
+    # get a STRONG additional bonus to ensure they make the shortlist
+    if tipster_db:
+        db_tip = tipster_db.get(event_key) or tipster_db.get(home_lower) or tipster_db.get(away_lower)
+        if db_tip:
+            n_tipsters = db_tip.get("n_tipsters", 0)
+            has_high = db_tip.get("has_high_confidence", False)
+            if n_tipsters >= 3:
+                score += 40  # VERY strong consensus — must be shortlisted
+            elif n_tipsters >= 2:
+                score += 25  # Multi-tipster agreement
+            elif has_high:
+                score += 20  # Single tipster with HIGH confidence
+
     # 7. Odds attractiveness (sweet spot: 1.40-3.00)
     if has_odds:
         best_odds = max(
@@ -401,6 +415,65 @@ def _score_event(event: dict, tipster_events: set[str]) -> float:
         score *= 0.4  # harder penalty (was 0.5)
 
     return score
+
+
+def _load_tipster_events_from_db(date: str) -> dict[str, dict]:
+    """Load tipster picks from DB to identify events with high consensus.
+
+    Returns a dict: normalized 'home vs away' → {n_tipsters, agreement_pct, confidence, markets}.
+    Events with ≥2 tipsters or HIGH confidence get STRONG boost in shortlisting.
+    """
+    tipster_data: dict[str, dict] = {}
+    try:
+        from bet.db.connection import get_db
+        with get_db() as conn:
+            # Query real tipster picks (filter spam: require reasoning >50 chars, real odds)
+            rows = conn.execute("""
+                SELECT home_team, away_team, sport, market, tipster_name, confidence, odds
+                FROM tipster_picks
+                WHERE betting_date = ?
+                  AND market != 'N/A' AND market != 'ck'
+                  AND length(reasoning) > 50
+                  AND home_team NOT LIKE '%PICKSWISE%'
+                  AND home_team NOT LIKE '%FREE%'
+                  AND home_team NOT LIKE '%Bonus%'
+                  AND home_team NOT LIKE '%FUKSIARZ%'
+                  AND home_team NOT LIKE '%PLN%'
+                ORDER BY home_team, away_team
+            """, (date,)).fetchall()
+
+            # Group by event
+            from collections import defaultdict
+            event_map: dict[str, list] = defaultdict(list)
+            for row in rows:
+                home = row[0].strip().lower() if row[0] else ""
+                away = row[1].strip().lower() if row[1] else ""
+                if not home or not away or len(home) < 2 or len(away) < 2:
+                    continue
+                key = f"{home} vs {away}"
+                event_map[key].append({
+                    "sport": row[2], "market": row[3],
+                    "tipster": row[4], "confidence": row[5], "odds": row[6],
+                })
+
+            for key, picks in event_map.items():
+                unique_tipsters = set(p["tipster"] for p in picks)
+                has_high = any(p["confidence"] == "high" for p in picks)
+                markets = list(set(p["market"] for p in picks if p["market"]))
+                tipster_data[key] = {
+                    "n_tipsters": len(unique_tipsters),
+                    "has_high_confidence": has_high,
+                    "markets": markets,
+                }
+                # Also add individual team names for fuzzy matching
+                home, away = key.split(" vs ", 1)
+                tipster_data[home] = tipster_data[key]
+                tipster_data[away] = tipster_data[key]
+
+    except Exception as e:
+        print(f"[shortlist] ⚠ DB tipster load failed (non-fatal): {e}")
+
+    return tipster_data
 
 
 def _load_tipster_events(date: str) -> set[str]:
@@ -507,6 +580,15 @@ def build_shortlist(
     tipster_events = _load_tipster_events(date)
     print(f"[shortlist] Tipster events found: {len(tipster_events)}")
 
+    # Load tipster DB data for STRONG boost (≥2 tipsters or HIGH confidence)
+    tipster_db = _load_tipster_events_from_db(date)
+    if tipster_db:
+        # Count unique events (exclude individual team name keys)
+        unique_db_events = sum(1 for k in tipster_db if " vs " in k)
+        print(f"[shortlist] DB tipster consensus: {unique_db_events} events with picks")
+    else:
+        print("[shortlist] DB tipster consensus: unavailable (non-fatal)")
+
     # Score all events
     scored = []
     for event in events:
@@ -519,7 +601,7 @@ def build_shortlist(
         # but are NEVER filtered out. The user decides what to bet.
         # The scoring function already penalizes low-data events.
 
-        score = _score_event(event, tipster_events)
+        score = _score_event(event, tipster_events, tipster_db=tipster_db)
         scored.append((score, event))
 
     scored.sort(key=lambda x: -x[0])

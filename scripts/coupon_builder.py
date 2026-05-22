@@ -2154,6 +2154,81 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
         discovery_singles.append(disc_single)
     result["discovery_singles"] = discovery_singles
 
+    # ── TIPSTER POOL: high-consensus picks NOT covered by pipeline analysis ──
+    # Surfaces picks where ≥2 tipsters agree OR confidence=HIGH, but the event
+    # has no gate_results entry. Shown to user as advisory-only ("TIPSTER POOL").
+    tipster_pool = []
+    try:
+        from bet.db.connection import get_db
+        # Collect all event keys already in gate results (approved + extended + rejected)
+        covered_events: set[str] = set()
+        for pick_list in (all_approved, extended_pool, rejected):
+            for p in pick_list:
+                h = (p.get("home_team") or "").lower().strip()
+                a = (p.get("away_team") or "").lower().strip()
+                if h and a:
+                    covered_events.add(f"{h}|{a}")
+                    # Add individual names for fuzzy matching
+                    for word in h.split():
+                        if len(word) >= 4:
+                            covered_events.add(word)
+                    for word in a.split():
+                        if len(word) >= 4:
+                            covered_events.add(word)
+
+        with get_db() as conn:
+            # Query tipster picks with high consensus
+            rows = conn.execute("""
+                SELECT home_team, away_team, sport, market, odds, confidence,
+                       GROUP_CONCAT(DISTINCT tipster_name) as tipsters,
+                       COUNT(DISTINCT tipster_name) as n_tipsters
+                FROM tipster_picks
+                WHERE betting_date = ?
+                  AND market != 'N/A' AND market != 'ck'
+                  AND length(reasoning) > 50
+                  AND home_team NOT LIKE '%PICKSWISE%'
+                  AND home_team NOT LIKE '%FREE%'
+                  AND home_team NOT LIKE '%Bonus%'
+                  AND odds IS NOT NULL AND odds > 1.0 AND odds < 10.0
+                GROUP BY home_team, away_team, sport, market
+                HAVING n_tipsters >= 2 OR MAX(CASE WHEN confidence = 'high' THEN 1 ELSE 0 END) = 1
+                ORDER BY n_tipsters DESC, odds ASC
+            """, (date,)).fetchall()
+
+            for row in rows:
+                home, away = (row[0] or "").strip(), (row[1] or "").strip()
+                h_lower, a_lower = home.lower(), away.lower()
+                # Skip if already covered by pipeline
+                if f"{h_lower}|{a_lower}" in covered_events:
+                    continue
+                # Fuzzy check: any word match
+                is_covered = False
+                for word in h_lower.split() + a_lower.split():
+                    if len(word) >= 4 and word in covered_events:
+                        is_covered = True
+                        break
+                if is_covered:
+                    continue
+
+                tipster_pool.append({
+                    "home_team": home,
+                    "away_team": away,
+                    "sport": row[2],
+                    "market": row[3],
+                    "odds": row[4],
+                    "confidence": row[5],
+                    "tipsters": row[6],
+                    "n_tipsters": row[7],
+                    "source": "tipster_pool",
+                })
+
+        if tipster_pool:
+            out.info(f"🎯 TIPSTER POOL: {len(tipster_pool)} picks with consensus but NO pipeline analysis")
+    except Exception as e:
+        out.warning(f"⚠ Tipster pool query failed (non-fatal): {e}")
+
+    result["tipster_pool"] = tipster_pool
+
     # ENFORCE DAILY CAP: trim coupons to stay within daily_exposure_range
     max_daily = alloc_range[1] if isinstance(alloc_range, list) and len(alloc_range) > 1 else 15.0
     core_spend = sum(c.get("stake", 0) for c in core)
@@ -2626,6 +2701,33 @@ def write_coupon_markdown(coupons_data: dict, date: str) -> Path:
             lines.append(
                 f"| {i} | {home} vs {away} | {market} | {odds_str} | {ev_str} "
                 f"| {gate} | {pros_str} | {cons_str} |"
+            )
+        lines.append("")
+
+    # Tipster pool — consensus picks without pipeline analysis
+    tipster_pool = coupons_data.get("tipster_pool", [])
+    if tipster_pool:
+        lines.append("## 🎯 TIPSTER POOL (BEZ ANALIZY PIPELINE)")
+        lines.append("")
+        lines.append("> Poniższe typy mają konsensus tipsterów (≥2 źródła lub HIGH confidence)")
+        lines.append("> ale NIE przeszły przez pełną analizę statystyczną pipeline.")
+        lines.append("> Traktuj jako sygnały do własnej weryfikacji na Betclic.")
+        lines.append("")
+        lines.append("| # | Sport | Wydarzenie | Rynek | Kurs | Tipsterzy | Pewność |")
+        lines.append("|---|-------|------------|-------|------|-----------|---------|")
+        for i, tp in enumerate(tipster_pool[:20], 1):
+            home = tp.get("home_team", "?")
+            away = tp.get("away_team", "?")
+            sport = tp.get("sport", "?")
+            market = (tp.get("market") or "-")[:40]
+            odds = tp.get("odds")
+            odds_str = f"{odds:.2f}" if odds else "-"
+            tipsters = tp.get("tipsters", "-")
+            n_tip = tp.get("n_tipsters", 0)
+            conf = tp.get("confidence", "-")
+            lines.append(
+                f"| {i} | {sport} | {home} vs {away} | {market} | {odds_str} "
+                f"| {tipsters} ({n_tip}) | {conf} |"
             )
         lines.append("")
 

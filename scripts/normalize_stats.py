@@ -118,6 +118,7 @@ def _extract_stat_values(
     stat_key: str,
     team_name: str,
     last_n: int = 10,
+    sport: str = "",
 ) -> list[float]:
     """Extract a stat's values from a list of matches.
 
@@ -126,10 +127,18 @@ def _extract_stat_values(
         stat_key: The stat to extract (e.g., "corners")
         team_name: Team name — we determine home/away side per match
         last_n: Max number of values to return
+        sport: Sport name (used for tennis data validation)
 
     Returns:
         List of numeric stat values (up to last_n)
     """
+    # Tennis match validity thresholds:
+    # A completed tennis match has minimum 12 total games (6-0 6-0).
+    # A player wins minimum 6 games in a 2-set match.
+    # Values below these indicate walkovers/retirements/corrupted data.
+    TENNIS_MIN_TOTAL_GAMES = 12
+    TENNIS_MIN_PLAYER_GAMES = 6
+
     values = []
     for match in matches[:last_n]:
         stat = match.stats.get(stat_key, {})
@@ -145,6 +154,12 @@ def _extract_stat_values(
         else:
             val = stat
         if val is not None and isinstance(val, (int, float)):
+            # Tennis data validation: reject walkover/retirement data
+            if sport == "tennis":
+                if stat_key == "total_games" and val < TENNIS_MIN_TOTAL_GAMES:
+                    continue  # Walkover/retirement — invalid
+                if stat_key == "games_won" and val < TENNIS_MIN_PLAYER_GAMES:
+                    continue  # Walkover/retirement — invalid
             values.append(float(val))
     return values
 
@@ -235,9 +250,9 @@ def build_safety_score_input(
         team_b_l10 = []
 
         if stat_a_key:
-            team_a_l10 = _extract_stat_values(team_a_matches, stat_a_key, team_a, last_n=10)
+            team_a_l10 = _extract_stat_values(team_a_matches, stat_a_key, team_a, last_n=10, sport=sport)
         if stat_b_key:
-            team_b_l10 = _extract_stat_values(team_b_matches, stat_b_key, team_b, last_n=10)
+            team_b_l10 = _extract_stat_values(team_b_matches, stat_b_key, team_b, last_n=10, sport=sport)
 
         # For non-combined Team B-only markets, swap into team_a_l10
         # because compute_safety_scores uses team_a_l10 for non-combined
@@ -261,9 +276,9 @@ def build_safety_score_input(
         if is_combined and (stat_a_key or stat_b_key):
             h2h_values = _extract_h2h_combined(h2h_matches, stat_a_key or stat_b_key)
         elif stat_a_key:
-            h2h_values = _extract_stat_values(h2h_matches, stat_a_key, team_a)
+            h2h_values = _extract_stat_values(h2h_matches, stat_a_key, team_a, sport=sport)
         elif stat_b_key:
-            h2h_values = _extract_stat_values(h2h_matches, stat_b_key, team_b)
+            h2h_values = _extract_stat_values(h2h_matches, stat_b_key, team_b, sport=sport)
 
         # L5 = last 5 entries of L10
         team_a_l5 = team_a_l10[:5] if team_a_l10 else []

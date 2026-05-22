@@ -2527,6 +2527,60 @@ def run_tipster_aggregation(
     if sport_filter:
         all_picks = [p for p in all_picks if p.get("sport") == sport_filter]
 
+    # ── SPAM/GARBAGE FILTER: validate picks against actual fixtures ──
+    # Reject picks where teams don't match ANY fixture for the betting_date.
+    # Catches: recycled old-season predictions, ads disguised as picks,
+    # wrong-date content scraped from tipster sites.
+    spam_rejected = 0
+    try:
+        from bet.db.connection import get_db
+        with get_db() as conn:
+            # Load all fixture team names for the date
+            fixture_rows = conn.execute("""
+                SELECT LOWER(ht.name) as home, LOWER(at.name) as away
+                FROM fixtures f
+                JOIN teams ht ON f.home_team_id = ht.id
+                JOIN teams at ON f.away_team_id = at.id
+                WHERE date(f.kickoff) = ?
+            """, (date,)).fetchall()
+
+            # Build set of known team name fragments (first 5+ chars) for fuzzy matching
+            known_teams: set[str] = set()
+            for row in fixture_rows:
+                home, away = row[0], row[1]
+                known_teams.add(home)
+                known_teams.add(away)
+                # Also add fragments for fuzzy matching (first 6 chars of each word)
+                for name in (home, away):
+                    for word in name.split():
+                        if len(word) >= 4:
+                            known_teams.add(word)
+
+            if known_teams:
+                def _matches_fixture(pick: dict) -> bool:
+                    """Check if pick's teams match any known fixture."""
+                    p_home = (pick.get("home_team") or "").lower().strip()
+                    p_away = (pick.get("away_team") or "").lower().strip()
+                    if not p_home or not p_away:
+                        return False
+                    # Direct match
+                    if p_home in known_teams or p_away in known_teams:
+                        return True
+                    # Fuzzy: check if any word ≥4 chars from pick teams is in known_teams
+                    for name in (p_home, p_away):
+                        for word in name.split():
+                            if len(word) >= 4 and word in known_teams:
+                                return True
+                    return False
+
+                pre_filter = len(all_picks)
+                all_picks = [p for p in all_picks if _matches_fixture(p)]
+                spam_rejected = pre_filter - len(all_picks)
+                if spam_rejected > 0:
+                    _log(f"[tipster] ⛔ SPAM FILTER: rejected {spam_rejected} picks with no matching fixture")
+    except Exception as e:
+        _log(f"[tipster] ⚠ Spam filter skipped (non-fatal): {e}")
+
     # Compute consensus
     consensus = compute_consensus(all_picks)
 

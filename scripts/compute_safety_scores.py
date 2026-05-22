@@ -475,6 +475,19 @@ def rank_markets(data: dict) -> dict:
 
         # Compute combined L10 values
         l10_values = compute_combined_values(market)
+
+        # Tennis data validation: reject markets with impossible averages
+        # A completed tennis match has min 12 total games (6-0 6-0) and
+        # a player wins min 6 games. Lower values = walkover/retirement data.
+        if sport == "tennis" and l10_values:
+            name_lower = name.lower()
+            if "total games" in name_lower:
+                l10_values = [v for v in l10_values if v >= 12]
+            elif "games" in name_lower and ("player" in name_lower or team_a.lower() in name_lower or team_b.lower() in name_lower):
+                l10_values = [v for v in l10_values if v >= 6]
+            if not l10_values:
+                continue  # All values were invalid — skip this market
+
         l10_avg = statistics.mean(l10_values) if l10_values else 0.0
 
         # Compute team averages
