@@ -662,11 +662,11 @@ def _build_rich_description(pick: dict) -> str:
 
     # Hit rates
     hit_parts = []
-    if hit_rate_l10:
+    if hit_rate_l10 is not None:
         hit_parts.append(f"L10: {hit_rate_l10}")
-    if hit_rate_h2h and hit_rate_h2h != "N/A":
+    if hit_rate_h2h is not None and hit_rate_h2h != "N/A":
         hit_parts.append(f"H2H: {hit_rate_h2h}")
-    if hit_rate_l5:
+    if hit_rate_l5 is not None:
         hit_parts.append(f"L5: {hit_rate_l5}")
     if hit_parts:
         analysis_parts.append(f"\u2022 Trafienia: {' | '.join(hit_parts)}")
@@ -2347,48 +2347,63 @@ def _coupon_table_row(i: int, coupon: dict) -> str:
 
 
 def _coupon_section(title: str, coupons: list[dict]) -> list[str]:
-    """Build a markdown section for a group of coupons."""
+    """Build a markdown section for a group of coupons with full reasoning."""
     if not coupons:
         return []
 
     lines = [
         f"## {title}",
         "",
-        "| # | Kupon ID | Co obstawić | Kurs | Stawka | Zwrot |",
-        "|---|----------|-------------|------|--------|-------|",
     ]
 
     for i, c in enumerate(coupons, 1):
-        lines.append(_coupon_table_row(i, c))
-
-    lines.append("")
-
-    for c in coupons:
+        legs = c.get("legs", [])
+        n_legs = len(legs)
+        sports = sorted(set(leg.get("sport", "?") for leg in legs))
         st = c.get("stress_test", {})
         thesis = c.get("combo_thesis_pl", "")
 
-        if thesis:
-            lines.append(f"**{c['id']}** — _{thesis}_")
-        else:
-            # Generate logic line from legs
-            sports = set(leg.get("sport", "?") for leg in c["legs"])
-            logic = f"Kupon {c['tier']} z {len(c['legs'])} nogami ({', '.join(sports)})"
-            lines.append(f"**Logika:** {logic}")
+        # Header with coupon ID and combined odds
+        combined = c.get("combined_odds", 0)
+        stake = c.get("stake", 0)
+        ret = c.get("potential_return", 0)
+        stats_first = c.get("stats_first", False)
+        
+        coupon_id = c.get('id', f'COUPON-{i}')
+        lines.append(f"### {coupon_id} — {n_legs}-leg combo ({', '.join(sports)})")
+        lines.append("")
 
-        lines.append(f"**P(kupon):** ~{_safe_float(st.get('p_coupon', 0)):.0%}")
-        lines.append(f"**Największe ryzyko:** {st.get('catastrophe', '-')}")
+        if thesis:
+            lines.append(f"**Teza:** {thesis}")
+            lines.append("")
+
+        # Summary table
+        if stats_first:
+            lines.append(f"| Kurs łączny | Stawka | Zwrot | P(kupon) |")
+            lines.append(f"|-------------|--------|-------|----------|")
+            lines.append(f"| ➜Betclic | ➜Betclic | ➜Betclic | ~{_safe_float(st.get('p_coupon', 0)):.0%} |")
+        else:
+            lines.append(f"| Kurs łączny | Stawka | Zwrot | P(kupon) |")
+            lines.append(f"|-------------|--------|-------|----------|")
+            lines.append(f"| {combined:.2f} | {stake:.2f} PLN | {ret:.2f} PLN | ~{_safe_float(st.get('p_coupon', 0)):.0%} |")
+        lines.append("")
+
+        # Per-leg detailed analysis
+        for leg_idx, leg in enumerate(legs, 1):
+            lines.append(f"**Noga {leg_idx}:**")
+            lines.append(_build_rich_description(leg))
+            lines.append("")
+
+        # Risk assessment
+        if st.get("catastrophe"):
+            lines.append(f"**Największe ryzyko:** {st.get('catastrophe', '-')}")
 
         if c.get("correlation_flags"):
             for flag in c["correlation_flags"]:
-                lines.append(f"⚠️ {flag}")
+                lines.append(f"⚠️ Korelacja: {flag}")
 
-        # Rich analysis per leg
         lines.append("")
-        lines.append("### Analiza szczegółowa")
-        for leg in c.get("legs", []):
-            lines.append("")
-            lines.append(_build_rich_description(leg))
-
+        lines.append("---")
         lines.append("")
 
     return lines
@@ -2420,13 +2435,16 @@ def write_coupon_markdown(coupons_data: dict, date: str) -> Path:
     approved = coupons_data.get("_approved", [])
     extended = coupons_data.get("extended_pool", [])
 
-    # PEŁNA MATRYCA RYNKÓW
+    # PEŁNA MATRYCA RYNKÓW — capped at top 30 to keep output focused
     if approved or extended:
-        lines.append("## PEŁNA MATRYCA RYNKÓW")
+        lines.append("## PEŁNA MATRYCA RYNKÓW (TOP 30)")
         lines.append("")
         lines.append("| # | Sport | Wydarzenie | Rynek | Kurs | Safety | Hit% | Kierunek | Uwagi |")
         lines.append("|---|-------|------------|-------|------|--------|------|----------|-------|")
-        lines.extend(_market_matrix_rows(approved, extended))
+        all_rows = _market_matrix_rows(approved, extended)
+        lines.extend(all_rows[:30])  # Cap at 30 rows — user sees best candidates
+        if len(all_rows) > 30:
+            lines.append(f"| ... | | _{len(all_rows) - 30} więcej w extended pool_ | | | | | | |")
         lines.append("")
 
     # BANKER section

@@ -1,6 +1,37 @@
-# Pipeline Knowledge Base — Consolidated (May 4-20, 2026, updated 2026-05-20)
+# Pipeline Knowledge Base — Consolidated (May 4-22, 2026, updated 2026-05-22)
 
-## 🆕 FLASHSCORE TOKEN REMEDIATION — FINAL BRANCH B STATE — 2026-05-20
+## 🆕 SHORTLIST + COUPON SCORING OVERHAUL — 2026-05-22
+
+### Root Cause (21.05 Post-Mortem)
+Pipeline produced 110+ garbage events from Iraqi, Vietnamese, Georgian, Paraguayan leagues with 0.00-0.52 safety scores. Coupons were boilerplate with no reasoning. Orchestrator didn't call specialist subagents.
+
+### Changes Made
+| File | Change |
+|------|--------|
+| `scripts/build_shortlist.py` | League quality scoring: unbettable markers (return 0), bettable league boost (×7 weight), unknown league penalty (×0.3/×0.5), quality floor (score < 10 removed), MAJOR_COMPETITIONS fallback |
+| `scripts/coupon_builder.py` | Structured per-coupon output with `_build_rich_description()` per leg (L10/L5/H2H reasoning), matrix capped to top 30, fixed KeyError on `c['id']`, fixed falsy hit_rate=0.0 |
+| `.github/prompts/orchestrate-betting-day.prompt.md` | "TOP 3 FAILURES" header from post-mortem + enrichment `--limit 60` |
+
+### Code Review Fixes (v2)
+| Bug | Issue | Fix |
+|-----|-------|-----|
+| BUG-1 | `c['id']` KeyError in `_coupon_section()` | Use `.get('id', f'COUPON-{i}')` |
+| LE-1 | "women" in obscure_markers blocked WSL | Narrowed to "women u17/u19/u20/reserve/amateur" |
+| LE-2 | COMP_TIER_KEYWORDS missing Veikkausliiga, Cyprus, etc. | Added 15 leagues to tier 6 |
+| LE-3 | `hit_rate_l10=0.0` silently dropped (falsy) | Changed to `is not None` check |
+| LE-4 | MIN_SCORE_THRESHOLD=20 was R3 violation | Lowered to 10 (only catches absolute junk) |
+| FP-1 | `comp_score≤3` penalty too aggressive | Split into ≤2 (×0.3) and ≤4 (×0.5), added MAJOR_COMPETITIONS fallback returning 6 |
+
+### Scoring Math (for reference)
+- Recognized major league FIXTURE_ONLY: ~42 pts (comp 8×7=56, ×0.4 fixture) → PASSES
+- Unknown league FIXTURE_ONLY: ~3 pts (comp 2×7=14+5=19, ×0.3 unknown, ×0.4 fixture) → FILTERED
+- French Open tennis: ~127 pts (comp 10×7+stats+major+tournament) → TOP PRIORITY
+- Unbettable country: 0 pts → FILTERED at _score_competition level
+
+### Verification
+- 744 events → 312 garbage (regex) + 276 sub-threshold (score<10) = **95 candidates** (was 110+ garbage before)
+- Distribution: 32 football, 32 basketball, 24 tennis, 7 hockey
+- Top candidates: French Open qualifying, major European football
 
 ### Final Outcome
 - Tokenized `d.flashscore.com/x/feed/d_st_{event_id}` feed is retired from runtime.

@@ -182,7 +182,13 @@ COMP_TIER_KEYWORDS: dict[str, list[tuple[int, list[str]]]] = {
              "serie c", "national league", "league two",
              "usl championship", "nwsl", "mls next pro",
              "division 1", "division 2", "1. liga", "first division b",
-             "eerste divisie", "2nd division", "3rd division"]),
+             "eerste divisie", "2nd division", "3rd division",
+             "veikkausliiga", "finnish", "cyprus", "cypriot",
+             "israeli", "israel premier", "gibraltar",
+             "faroe", "liga 1", "liga i", "romanian",
+             "thai league", "persian gulf", "iran pro",
+             "women super league", "wsl", "frauen bundesliga",
+             "telia", "damallsvenskan"]),
         (5, ["nations league", "qualification", "friendly",
              "regionalliga", "national league north", "national league south",
              "serie d", "4th division"]),
@@ -239,14 +245,44 @@ def _score_competition(sport: str, competition: str) -> int:
     # Normalize: remove ' - ' separators to handle URL-derived names
     comp_lower = competition.lower().replace(" - ", " ").replace("  ", " ")
 
-    # Penalize clearly obscure/minor leagues
+    # Penalize clearly obscure/minor leagues — these are NEVER on Betclic
     obscure_markers = [
-        "amateur", "reserve",
-        "regional", "county", "division 4",
+        "amateur", "reserve", "u19", "u20", "u21", "youth",
+        "regional", "county", "division 4", "division 5",
         "sikkim", "mizoram", "manipur",  # Indian state leagues with zero data
+        "women u17", "women u19", "women u20", "women reserve",
+        "women amateur", "femeni u", "femenin u",  # Only YOUTH/amateur women's
+    ]
+    # Countries/regions whose leagues are NEVER available on Betclic
+    unbettable_markers = [
+        "iraq", "iraqi", "yemen", "myanmar", "cambodia", "laos",
+        "ethiopia", "eritrea", "somalia", "sudan", "south sudan",
+        "nicaragua", "guatemala", "honduras", "el salvador",
+        "bangladesh", "nepal", "bhutan", "sri lanka",
+        "mongolia", "turkmenistan", "tajikistan", "kyrgyzstan",
+        "rwanda", "burundi", "malawi", "zambia", "zimbabwe",
+        "mozambique", "tanzania", "uganda", "kenya",
+        "liberia", "sierra leone", "guinea", "togo", "benin",
+        "lesotho", "eswatini", "botswana", "namibia",
+        "papua new guinea", "fiji", "samoa",
+        "vietnamese", "vietnam", "v.league 2",
+        "georgian", "georgia 2", "erovnuli liga 2",
+        "armenian", "armenia 2",
+        "lebanese", "lebanon 2",
+        "jordanian", "jordan 2",
+        "kuwaiti", "kuwait 2",
+        "bahraini", "bahrain 2",
+        "omani", "oman",
+        "paraguayan 2", "division intermedia",
+        "bolivian", "bolivia",
+        "ecuadorian 2", "serie b ecuador",
+        "venezuelan 2", "segunda division venezuela",
+        "peruvian 2", "segunda division peru",
     ]
     if any(m in comp_lower for m in obscure_markers):
         return 1
+    if any(m in comp_lower for m in unbettable_markers):
+        return 0  # absolute zero — these should never appear in output
 
     tiers = COMP_TIER_KEYWORDS.get(sport, [])
     for score, keywords in tiers:
@@ -256,11 +292,18 @@ def _score_competition(sport: str, competition: str) -> int:
     for score, keywords in tiers:
         if not keywords:
             return score
+    # Fallback: check if it's in MAJOR_COMPETITIONS (broader list)
+    if _is_major_competition(sport, competition):
+        return 6  # recognized in MAJOR_COMPETITIONS but not in tier keywords
     return 2
 
 
 def _score_event(event: dict, tipster_events: set[str]) -> float:
-    """Score an event for shortlist ranking. Higher = better candidate."""
+    """Score an event for shortlist ranking. Higher = better candidate.
+    
+    Scoring philosophy: BETTABILITY > data quantity.
+    Events in recognized leagues on Betclic score 2-3x higher than obscure leagues.
+    """
     sport = event["sport"]
     comp = event.get("competition", "")
     tier = event.get("data_tier", "FIXTURE_ONLY")
@@ -277,17 +320,24 @@ def _score_event(event: dict, tipster_events: set[str]) -> float:
 
     # 2. Competition importance (HIGHEST weight — premier league > obscure league)
     comp_score = _score_competition(sport, comp)
-    score += comp_score * 5  # max 50
+    score += comp_score * 7  # max 70 (was *5=50) — league quality is THE key factor
 
     # 3. Sport tier bonus
     if sport in TIER1_SPORTS:
-        score += 10
+        score += 5  # reduced from 10 — sport alone shouldn't boost garbage leagues
 
     # 4. Number of odds markets (more = better analysis potential)
     score += min(n_odds * 2, 12)  # cap at 12
 
-    # 5. Safety data availability
-    score += min(n_safety * 3, 15)  # cap at 15
+    # 5. Safety data availability — bonus only for high safety scores
+    if has_safety:
+        safety_markets = event.get("safety_markets", [])
+        best_safety = max((m.get("safety_score", 0) for m in safety_markets), default=0)
+        if best_safety >= 0.45:
+            score += min(n_safety * 4, 20)  # strong edge: bonus up to 20
+        elif best_safety >= 0.30:
+            score += min(n_safety * 2, 10)  # moderate edge: bonus up to 10
+        # below 0.30: NO bonus — weak safety = weak candidate
 
     # 6. Tipster coverage bonus
     home_lower = event.get("home_team", "").lower()
@@ -311,38 +361,44 @@ def _score_event(event: dict, tipster_events: set[str]) -> float:
         elif 1.20 <= best_odds <= 4.00:
             score += 4
 
-    # 8. Minor league value edge (§SCAN.8) — less popular leagues have more mispricing
-    if comp_score <= 7 and comp_score >= 3 and (has_safety or n_odds > 0):
-        # Non-top-tier league WITH data coverage = value edge
-        score += 6
+    # 8. BETTABILITY CHECK — is this league likely on Betclic?
+    is_major = _is_major_competition(sport, comp)
+    if is_major:
+        score += 15  # confirmed bettable league
+    elif comp_score <= 2:
+        # Truly unknown league (NOT in any tier or MAJOR_COMPETITIONS) → HARD PENALTY
+        score *= 0.3  # crush score to near-zero
+    elif comp_score <= 4:
+        # Low-tier or unrecognized default (score=3 football default) → moderate penalty
+        score *= 0.5
+    elif comp_score <= 5:
+        # Low-tier recognized league (friendlies, regionalliga, etc.)
+        score *= 0.7  # mild penalty
 
     # 9. Major tournament protection (§SCAN.7) — tournaments always get priority
     if comp_score >= 9:
-        # Major tournament event — ensure it never gets dropped
         score += 15
 
     # 9b. Major domestic league protection (§SCAN.9) — top leagues worldwide
-    # Protected leagues get +10 boost, between tournament (+15) and minor league (+6)
     if comp_score == 8 and _is_protected_domestic_league(sport, comp):
         score += 10
 
     # 10. Deep data richness boost — teams with ESPN gamelogs get better analysis
-    if sport in ("basketball", "hockey"):
+    if sport in ("basketball", "hockey") and comp_score >= 7:
+        # Only boost if in a recognized league (don't boost Iraqi basketball)
         try:
             from db_data_loader import load_player_gamelogs_for_team
             home_team = event.get("home_team", "")
             if home_team:
                 gamelogs = load_player_gamelogs_for_team(home_team, sport, n=1)
                 if gamelogs:
-                    score += 8  # Rich per-player data = higher analysis confidence
+                    score += 8
         except Exception:
             pass
 
     # BUG C fix: FIXTURE_ONLY events with no stats data should sink below data-rich events.
-    # Multiply score by 0.5 so a FIXTURE_ONLY Premier League (was ~50) becomes ~25,
-    # always below a STATS_ONLY minor league (was ~27).
     if tier == "FIXTURE_ONLY":
-        score *= 0.5
+        score *= 0.4  # harder penalty (was 0.5)
 
     return score
 
@@ -696,6 +752,19 @@ def build_shortlist(
     # Strategy: 2-phase selection
     #   Phase 1: guarantee minimum slots per sport (ensures ≥min_sports)
     #   Phase 2: fill remaining slots by global score with per-sport caps
+
+    # QUALITY FLOOR: Remove events with scores too low to be useful.
+    # An event in a recognized league with basic odds data scores ~50+.
+    # An obscure league event with some safety data scores ~15-25.
+    # Below 10 = garbage from unbettable regions after multiplier penalties.
+    # NOTE: R3 compliance — threshold is LOW to avoid auto-rejection of edge cases.
+    # The scoring + multipliers already push garbage down; threshold only catches absolute junk.
+    MIN_SCORE_THRESHOLD = 10.0
+    pre_floor_count = len(scored)
+    scored = [(s, e) for s, e in scored if s >= MIN_SCORE_THRESHOLD]
+    if len(scored) < pre_floor_count:
+        print(f"[shortlist] Quality floor: removed {pre_floor_count - len(scored)} sub-threshold events (score < {MIN_SCORE_THRESHOLD})")
+
     selected = []
     sport_counts: Counter = Counter()
     selected_keys: set[str] = set()

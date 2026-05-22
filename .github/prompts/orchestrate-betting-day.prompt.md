@@ -11,7 +11,13 @@ argument-hint: "run_date=2026-05-08 session=full" or "run_date=2026-05-08 sessio
 
 **NEVER run `python3 scripts/pipeline_orchestrator.py` — not with `--phase`, not with `--step`, not with any flags.**
 
-That script is a DUMB automation wrapper. It runs for 1-2 hours, produces zero agent analysis, enforces zero methodology, and defeats the entire purpose of this system.
+## 🔴 TOP 3 FAILURES TO PREVENT (from 21.05.2026 post-mortem)
+
+1. **DELEGATE TO AGENTS AFTER EVERY SCRIPT (R20).** If you ran a script and your next action is NOT `runSubagent` — STOP. You are violating R20. The ENTIRE value of this pipeline is specialist analysis.
+
+2. **QUALITY OVER QUANTITY.** The shortlist should have 30-50 bettable events from recognized leagues, NOT 200 garbage events from Iraqi/Vietnamese/Georgian amateur leagues. If your shortlist has >80 events and >50% are from unknown leagues — the scan failed. Re-run with `--betclic-filter`.
+
+3. **COUPON OUTPUT = REASONING.** Each 2/3-leg combo MUST have per-leg statistical reasoning (L5/L10 avg vs line, margin %, hit rate). "Kupon HR z 2 nogami (basketball)" is GARBAGE output. Real output: "Espanyol over 5.5 cards: combined L5=7.4 vs line 5.5 (+34% margin), 85% hit rate in L10."
 
 **YOU are the orchestrator.** You call individual scripts ONE AT A TIME. You THINK between every call. You DELEGATE to specialist agents. You FIX issues in real-time. You ENFORCE the methodology.
 
@@ -678,7 +684,7 @@ Run equivalent via `--dry-run` flag or inline DB check.
 
 **Step 2: RUN script ONLY if gaps are significant (≥20 missing teams):**
 ```bash
-PYTHONPATH=src .venv/bin/python3 scripts/data_enrichment_agent.py --date {date} --news --verbose 2>&1
+PYTHONPATH=src .venv/bin/python3 scripts/data_enrichment_agent.py --date {date} --news --limit 60 --verbose 2>&1
 ```
 Mode: `sync`, timeout: `300000` (5 min max — if it takes longer, something is wrong)
 
