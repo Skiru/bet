@@ -217,12 +217,13 @@ COMP_TIER_KEYWORDS: dict[str, list[tuple[int, list[str]]]] = {
     ],
     "volleyball": [
         (10, ["cev champions league", "world championship", "nations league finals", "olympic"]),
-        (9, ["plusliga", "superlega"]),
+        (9, ["plusliga", "superlega", "nations league"]),
         (8, ["serie a", "ligue a", "bundesliga", "cev"]),
         (7, ["efeler", "superliga", "plusliga playoff", "superlega playoff",
              "division 1", "liga a1", "eredivisie", "a1 ethniki"]),
         (6, ["2nd division", "division 2", "serie a2", "1st division",
-             "v-league", "mestaruusliiga"]),
+             "v-league", "mestaruusliiga", "friendly", "international"]),
+        (4, []),  # default for unknown volleyball leagues
     ],
     "hockey": [
         (10, ["nhl playoff", "stanley cup", "iihf world"]),
@@ -230,7 +231,9 @@ COMP_TIER_KEYWORDS: dict[str, list[tuple[int, list[str]]]] = {
         (8, ["shl", "liiga", "del"]),
         (7, ["allsvenskan", "mestis", "1. liga", "ligue magnus",
              "erste liga", "tipsport liga", "echl", "eihl"]),
-        (6, ["division 1", "2nd division", "hockeyettan", "optibet liga"]),
+        (6, ["division 1", "2nd division", "hockeyettan", "optibet liga",
+             "friendly", "international"]),
+        (4, []),  # default for unknown hockey leagues
     ],
 }
 
@@ -381,13 +384,17 @@ def _score_event(event: dict, tipster_events: set[str], tipster_db: dict[str, di
         score += 15  # confirmed bettable league
     elif comp_score <= 2:
         # Truly unknown league (NOT in any tier or MAJOR_COMPETITIONS) → HARD PENALTY
-        score *= 0.3  # crush score to near-zero
+        # But don't penalize events with tipster coverage (someone's betting on them)
+        if not has_tipster:
+            score *= 0.3  # crush score to near-zero
+        else:
+            score *= 0.6  # tipster-backed unknown leagues get lighter penalty
     elif comp_score <= 4:
-        # Low-tier or unrecognized default (score=3 football default) → moderate penalty
-        score *= 0.5
+        # Low-tier or unrecognized default → mild penalty (was 0.5 — too aggressive)
+        score *= 0.7
     elif comp_score <= 5:
         # Low-tier recognized league (friendlies, regionalliga, etc.)
-        score *= 0.7  # mild penalty
+        score *= 0.85  # very mild penalty — these are often on Betclic
 
     # 9. Major tournament protection (§SCAN.7) — tournaments always get priority
     if comp_score >= 9:
@@ -410,9 +417,10 @@ def _score_event(event: dict, tipster_events: set[str], tipster_db: dict[str, di
         except Exception:
             pass
 
-    # BUG C fix: FIXTURE_ONLY events with no stats data should sink below data-rich events.
+    # FIXTURE_ONLY events sink below data-rich events but not crushed entirely.
+    # After enrichment (S2.5), many of these will get data — don't over-penalize pre-enrichment.
     if tier == "FIXTURE_ONLY":
-        score *= 0.4  # harder penalty (was 0.5)
+        score *= 0.6  # moderate penalty (was 0.4 — too aggressive, killed entire sports)
 
     return score
 
@@ -772,13 +780,17 @@ def build_shortlist(
             n = n.replace(suffix, "")
         return re.sub(r"\s+", " ", n).strip()
 
-    team_best: dict[str, tuple[float, int]] = {}  # "sport|team" → (best_score, index)
-    team_all: dict[str, list[int]] = {}  # "sport|team" → [indices]
+    team_best: dict[str, tuple[float, int]] = {}  # "sport|comp_gender|team" → (best_score, index)
+    team_all: dict[str, list[int]] = {}  # "sport|comp_gender|team" → [indices]
     for idx, (score, event) in enumerate(scored):
         sport = event.get("sport", "")
         # Tennis: skip phantom detection — players legitimately play singles + doubles
         if sport == "tennis":
             continue
+        comp = event.get("competition", "").lower()
+        # Distinguish men/women competitions to avoid false phantom detection
+        # (e.g., Poland men's volleyball vs Poland women's volleyball are different teams)
+        gender = "w" if any(w in comp for w in ("women", "woman", "ladies", "female", "w.")) else "m"
         for role in ("home_team", "away_team"):
             raw = event.get(role, "").strip()
             if not raw:
@@ -786,7 +798,7 @@ def build_shortlist(
             norm = _normalize_team(raw)
             if len(norm) < 3:
                 continue  # Skip very short names to avoid false positives
-            team_key = f"{sport}|{norm}"
+            team_key = f"{sport}|{gender}|{norm}"
             if team_key not in team_all:
                 team_all[team_key] = []
             team_all[team_key].append(idx)
@@ -832,38 +844,27 @@ def build_shortlist(
 
     # Select top_n with sport diversity enforcement
     # Strategy: 2-phase selection
-    #   Phase 1: guarantee minimum slots per sport (ensures ≥min_sports)
-    #   Phase 2: fill remaining slots by global score with per-sport caps
-
-    # QUALITY FLOOR: Remove events with scores too low to be useful.
-    # An event in a recognized league with basic odds data scores ~50+.
-    # An obscure league event with some safety data scores ~15-25.
-    # Below 10 = garbage from unbettable regions after multiplier penalties.
-    # NOTE: R3 compliance — threshold is LOW to avoid auto-rejection of edge cases.
-    # The scoring + multipliers already push garbage down; threshold only catches absolute junk.
-    MIN_SCORE_THRESHOLD = 10.0
-    pre_floor_count = len(scored)
-    scored = [(s, e) for s, e in scored if s >= MIN_SCORE_THRESHOLD]
-    if len(scored) < pre_floor_count:
-        print(f"[shortlist] Quality floor: removed {pre_floor_count - len(scored)} sub-threshold events (score < {MIN_SCORE_THRESHOLD})")
+    #   Phase 1: guarantee minimum slots per sport FROM FULL POOL (before quality floor)
+    #   Phase 2: fill remaining slots by global score with per-sport caps (after quality floor)
 
     selected = []
     sport_counts: Counter = Counter()
     selected_keys: set[str] = set()
 
-    total_by_sport = Counter(s[1]["sport"] for s in scored)
-    available_sports = sorted(total_by_sport.keys())
+    # Phase 1 uses FULL scored pool (no quality floor) to guarantee sport diversity
+    total_by_sport_full = Counter(s[1]["sport"] for s in scored)
+    available_sports = sorted(total_by_sport_full.keys())
 
-    # Per-sport minimum guaranteed slots
+    # Per-sport minimum guaranteed slots (R5: all 5 sports must be represented)
     sport_min = {}
     for sport in available_sports:
-        avail = total_by_sport[sport]
+        avail = total_by_sport_full[sport]
         if sport in TIER1_SPORTS:
-            sport_min[sport] = min(3, avail)
+            sport_min[sport] = min(5, avail)  # guarantee 5 per Tier1 sport
         else:
-            sport_min[sport] = min(2, avail)
+            sport_min[sport] = min(3, avail)
 
-    # Phase 1: guarantee minimums for each sport (pick top-scored per sport)
+    # Phase 1: guarantee minimums for each sport (pick top-scored per sport from FULL pool)
     by_sport = defaultdict(list)
     for score, event in scored:
         by_sport[event["sport"]].append((score, event))
@@ -877,20 +878,30 @@ def build_shortlist(
                 selected_keys.add(key)
                 sport_counts[sport] += 1
 
+    # QUALITY FLOOR: Applied ONLY to Phase 2 pool (Phase 1 guarantees are protected)
+    # Lowered from 10→5 to include more borderline events that enrichment can improve.
+    MIN_SCORE_THRESHOLD = 5.0
+    phase2_pool = [(s, e) for s, e in scored if s >= MIN_SCORE_THRESHOLD]
+    pre_floor_count = len(scored)
+    if len(phase2_pool) < pre_floor_count:
+        print(f"[shortlist] Quality floor (Phase 2): {pre_floor_count - len(phase2_pool)} events below threshold (score < {MIN_SCORE_THRESHOLD})")
+
+    total_by_sport = Counter(s[1]["sport"] for s in phase2_pool)
+
     # Phase 2: fill remaining slots by global score, cap per sport
     uncapped = top_n <= 0
-    remaining = len(scored) if uncapped else (top_n - len(selected))
+    remaining = len(phase2_pool) if uncapped else (top_n - len(selected))
 
     if remaining > 0:
         if not uncapped:
             max_per_sport_key = max(top_n // 3, 8)  # KEY sports: max 33%
             max_per_sport_sup = max(top_n // 8, 4)  # SUPPORT sports: max ~12%
         else:
-            # Even uncapped, hard cap per-sport to prevent tennis/basketball flood
-            # 25% max ensures no single sport dominates when sources can't cover them
-            max_per_sport = max(int(len(scored) * 0.25), 30)
+            # Even uncapped, hard cap per-sport to prevent single-sport flood
+            # 40% max (raised from 25%) — allows more football/basketball when quality is there
+            max_per_sport = max(int(len(phase2_pool) * 0.40), 50)
 
-        for score, event in scored:
+        for score, event in phase2_pool:
             key = f"{event.get('home_team','')}|{event.get('away_team','')}|{event.get('kickoff','')}"
             if key in selected_keys:
                 continue

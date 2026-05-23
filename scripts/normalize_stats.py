@@ -432,10 +432,19 @@ def _build_markets_from_db_form(
     b_grouped = _group_form(team_b_form)
 
     # Group H2H rows by bare stat_key (H2H rows typically don't have _home/_away)
+    # Also strip _total suffix for matching (DB stores corners_total, markets use corners)
     h2h_by_stat = {}
     for row in h2h_form:
         bare, _ = _strip_ha_suffix(row.stat_key)
         h2h_by_stat.setdefault(bare, []).append(row)
+        # Also register without _total suffix for market matching
+        if bare.endswith("_total"):
+            canonical = bare[:-6]  # strip "_total"
+            h2h_by_stat.setdefault(canonical, []).append(row)
+        # Handle game_total_ prefix
+        if bare.startswith("game_total_"):
+            canonical = bare[11:]  # strip "game_total_"
+            h2h_by_stat.setdefault(canonical, []).append(row)
 
     built_markets = []
     synthetic_count = 0
@@ -609,13 +618,20 @@ def build_safety_input_from_db(
             if not team_a_form and not team_b_form:
                 return None
 
-            # Fetch H2H form rows
+            # Fetch H2H form rows (try both directions)
             h2h_form = []
             h2h_rows = conn.execute(
                 "SELECT * FROM team_form "
                 "WHERE team_id = ? AND sport_id = ? AND h2h_opponent_id = ?",
                 (team_a_obj.id, sport_obj.id, team_b_obj.id),
             ).fetchall()
+            if not h2h_rows:
+                # Try reverse direction
+                h2h_rows = conn.execute(
+                    "SELECT * FROM team_form "
+                    "WHERE team_id = ? AND sport_id = ? AND h2h_opponent_id = ?",
+                    (team_b_obj.id, sport_obj.id, team_a_obj.id),
+                ).fetchall()
             for row in h2h_rows:
                 h2h_form.append(StatsRepo.row_to_team_form(row))
 

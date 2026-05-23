@@ -428,7 +428,7 @@ def extract_team_stats(sport: str, team_name: str) -> dict:
 
 
 def extract_h2h_stats(sport: str, team_a: str, team_b: str) -> dict:
-    """Extract H2H stats from team_a's cache looking up team_b.
+    """Extract H2H stats from DB first, then cache files.
 
     Returns dict with keys: meetings (list), averages (dict per stat),
     has_data (bool).
@@ -444,6 +444,37 @@ def extract_h2h_stats(sport: str, team_a: str, team_b: str) -> dict:
         "averages": {},
         "has_data": False,
     }
+
+    # R2 DB-FIRST: Try team_form H2H from database
+    try:
+        from db_data_loader import load_h2h_from_db
+        db_h2h = load_h2h_from_db(team_a, team_b, sport)
+        if db_h2h and db_h2h.get("h2h_records"):
+            result["has_data"] = True
+            stat_keys = SPORT_STAT_KEYS.get(sport, [])
+            for rec in db_h2h["h2h_records"]:
+                sk = rec["stat_key"]
+                vals = rec["h2h_values"]
+                if isinstance(vals, list) and vals:
+                    avg_val = _safe_avg(vals)
+                    if avg_val is not None:
+                        # Normalize _total suffix to canonical key (e.g. corners_total → corners)
+                        canonical = sk.removesuffix("_total") if sk.endswith("_total") else sk
+                        # Also handle game_total_ prefix (e.g. game_total_goals → goals)
+                        if canonical.startswith("game_total_"):
+                            canonical = canonical[len("game_total_"):]
+                        result["averages"][canonical] = avg_val
+                        # Keep original key too for broader matching
+                        if canonical != sk:
+                            result["averages"][sk] = avg_val
+            # Build meetings list from H2H values
+            if result["averages"]:
+                first_rec = db_h2h["h2h_records"][0]
+                n_meetings = len(first_rec.get("h2h_values", []))
+                result["meetings"] = [{"source": "db", "index": i} for i in range(n_meetings)]
+            return result
+    except Exception:
+        pass
 
     # Try cache/DB sources first
     h2h_data = None

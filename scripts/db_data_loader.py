@@ -542,11 +542,17 @@ def load_h2h_from_db(
             if not ta or not tb:
                 return None
 
-            # Get H2H form records for team_a vs team_b
+            # Get H2H form records for team_a vs team_b (try both directions)
             rows = conn.execute(
                 "SELECT * FROM team_form WHERE team_id = ? AND h2h_opponent_id = ?",
                 (ta.id, tb.id),
             ).fetchall()
+            if not rows:
+                # Try reverse direction
+                rows = conn.execute(
+                    "SELECT * FROM team_form WHERE team_id = ? AND h2h_opponent_id = ?",
+                    (tb.id, ta.id),
+                ).fetchall()
             if rows:
                 return {
                     "team_a": team_a,
