@@ -720,7 +720,10 @@ def _build_s34_threeway(ranking_result: dict, best_market: dict | None) -> str:
 
     l5_avg = tw.get("l5_avg", 0)
     l5_trend = tw.get("l5_trend", "N/A")
-    l5_dir = "OVER" if l5_avg > line else "UNDER" if line != 0 else "N/A"
+    if isinstance(l5_avg, (int, float)) and isinstance(line, (int, float)) and line != 0:
+        l5_dir = "OVER" if l5_avg > line else "UNDER"
+    else:
+        l5_dir = "N/A"
     l5_support = "✅" if l5_dir == direction else "❌"
     lines.append(f"| L5 trend | {l5_avg} | {line} | {l5_support} {l5_dir} ({l5_trend}) |")
 
@@ -1316,9 +1319,11 @@ def analyze_candidate(
                 "line": best_market["line"],
                 "direction": best_market["direction"],
                 "safety_score": best_market["safety_score"],
+                "probability": best_market.get("probability"),
                 "combined_avg": best_market["combined_avg"],
                 "h2h_avg": best_market.get("h2h_avg"),
                 "hit_rate_l10": best_market["hit_rate_l10"],
+                "hit_rate_l5": best_market.get("hit_rate_l5", "N/A"),
                 "hit_rate_h2h": best_market["hit_rate_h2h"],
                 "source": best_market.get("source", ""),
                 "one_sided": best_market.get("one_sided", False),

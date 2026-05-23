@@ -158,7 +158,8 @@ class TestDeepStatsReport(unittest.TestCase):
     def test_extract_h2h_stats(self):
         """H2H extraction from cache."""
         import scripts.deep_stats_report as dsr
-        with patch.object(dsr, "CACHE_DIR", self.cache_dir):
+        with patch.object(dsr, "CACHE_DIR", self.cache_dir), \
+             patch("db_data_loader.load_h2h_from_db", return_value=None):
             result = dsr.extract_h2h_stats("football", "Liverpool", "Arsenal")
         self.assertTrue(result["has_data"])
         self.assertEqual(len(result["meetings"]), 5)
@@ -404,7 +405,7 @@ class TestGateChecker(unittest.TestCase):
         import scripts.gate_checker as gc
         return patch.object(gc, "LEDGER_PATH", self._journal_dir / "picks-ledger.csv")
 
-    def test_17_point_gate_all_pass(self):
+    def test_18_point_gate_all_pass(self):
         """Gate with a well-formed candidate that should pass all 18 checks."""
         from scripts.gate_checker import check_18_point_gate
         candidate = _base_candidate()

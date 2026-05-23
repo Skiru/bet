@@ -76,7 +76,7 @@ Impact: 42 FULL + 15 PARTIAL for S3. Hockey candidates need extra safety score c
 > The orchestrator runs `data_enrichment_agent.py` and passes you the AGENT_SUMMARY + log excerpts.
 > You do NOT run any scripts. You receive FINISHED output for specialist analysis.
 
-## Execution Model: Analysis-Only (Model A)
+## Execution Model: Analysis-Only
 
 The orchestrator has already:
 1. Inspected inputs (shortlist format, team_form baseline)

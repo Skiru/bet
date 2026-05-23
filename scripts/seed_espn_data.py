@@ -537,7 +537,7 @@ class ESPNSeeder:
     def _seed_player_stats(self, conn, sport, league, sport_id, gamelog_repo, split_repo):
         """Phase 6: Fetch player gamelogs and splits."""
         athletes = conn.execute(
-            "SELECT id, external_id FROM athletes WHERE sport_id = ? LIMIT 200",
+            "SELECT id, external_id FROM athletes WHERE sport_id = ?",
             (sport_id,),
         ).fetchall()
 
@@ -707,6 +707,8 @@ class ESPNSeeder:
 
 
 def main():
+    from agent_output import AgentOutput, add_agent_args
+
     parser = argparse.ArgumentParser(description="Seed database with ESPN data")
     parser.add_argument("--sports", default="", help="Comma-separated sports (default: all)")
     parser.add_argument("--leagues", default="", help="Comma-separated leagues (default: all for sport)")
@@ -715,8 +717,10 @@ def main():
     parser.add_argument("--skip-players", action="store_true", help="Skip player gamelogs/splits")
     parser.add_argument("--date", default="", help="Target date YYYY-MM-DD (default: today)")
     parser.add_argument("--db", default=str(ROOT / "betting" / "data" / "betting.db"), help="DB path")
-    parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
+    add_agent_args(parser)
     args = parser.parse_args()
+
+    out = AgentOutput("s1a_espn_seed", verbose=args.verbose, stop_on_error=args.stop_on_error)
 
     if args.sports:
         sports = [s.strip() for s in args.sports.split(",")]
@@ -729,14 +733,44 @@ def main():
         leagues = {s: league_list for s in sports}
 
     seeder = ESPNSeeder(db_path=args.db, verbose=args.verbose)
-    seeder.run(
-        sports=sports,
-        leagues=leagues,
-        date=args.date,
-        skip_rosters=args.skip_rosters,
-        skip_odds=args.skip_odds,
-        skip_players=args.skip_players,
+    try:
+        counts = seeder.run(
+            sports=sports,
+            leagues=leagues,
+            date=args.date,
+            skip_rosters=args.skip_rosters,
+            skip_odds=args.skip_odds,
+            skip_players=args.skip_players,
+        )
+    except Exception as e:
+        out.summary(
+            verdict="FAILED",
+            metrics={"error": str(e)},
+            issues=[{"level": "error", "message": str(e)}],
+        )
+        sys.exit(2)
+
+    total_records = sum(counts.values())
+    errors = counts.get("errors", 0)
+
+    if errors > total_records * 0.5:
+        verdict = "FAILED"
+    elif errors > 0:
+        verdict = "PARTIAL"
+    else:
+        verdict = "OK"
+
+    out.summary(
+        verdict=verdict,
+        metrics={
+            "total_records": total_records,
+            "sports_processed": len(sports),
+            **{k: v for k, v in counts.items() if v > 0},
+        },
+        issues=[{"level": "warning", "message": f"{errors} ESPN API errors"}] if errors else [],
     )
+
+    sys.exit(0 if verdict != "FAILED" else 2)
 
 
 if __name__ == "__main__":

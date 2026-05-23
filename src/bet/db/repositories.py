@@ -180,7 +180,12 @@ class TeamRepo:
     def resolve(self, name: str, sport_id: int) -> Team | None:
         """Resolve a name (possibly variant) to a canonical Team.
 
-        Searches the canonical name first, then aliases using json_each().
+        Searches the canonical name first, then aliases using json_each(),
+        then falls back to normalized (diacritics-stripped) comparison.
+
+        Note: On diacritics match, auto-adds the ASCII variant as alias
+        (write side-effect) to prevent future O(n) table scans for the
+        same variant.
         """
         # Check canonical name
         row = self.conn.execute(
@@ -200,6 +205,26 @@ class TeamRepo:
         ).fetchone()
         if row:
             return self._row_to_team(row)
+
+        # Normalized fallback: strip diacritics + common suffixes
+        import unicodedata
+        normalized_input = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode("ascii").lower().strip()
+        if not normalized_input or len(normalized_input) < 3:
+            return None
+        rows = self.conn.execute(
+            "SELECT id, sport_id, name, aliases, country, venue, style_tags "
+            "FROM teams WHERE sport_id = ?",
+            (sport_id,),
+        ).fetchall()
+        for row in rows:
+            canonical_norm = unicodedata.normalize("NFKD", row["name"]).encode("ascii", "ignore").decode("ascii").lower().strip()
+            if canonical_norm == normalized_input:
+                # Auto-add the ASCII variant as alias to prevent future misses
+                team = self._row_to_team(row)
+                if name not in (team.aliases or []):
+                    updated_aliases = list(team.aliases or []) + [name]
+                    self.update_aliases(team.id, updated_aliases)
+                return team
 
         return None
 

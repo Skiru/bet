@@ -50,7 +50,8 @@ def _split_table_cells(line: str) -> list[str] | None:
 
 def _is_separator_row(cells: list[str]) -> bool:
     """Check if cells form a markdown table separator row (|---|---|)."""
-    return all(re.match(r"^-+$", c.strip()) for c in cells if c.strip())
+    stripped = [c.strip() for c in cells if c.strip()]
+    return bool(stripped) and all(re.match(r"^-+$", c) for c in stripped)
 
 
 def _is_header_row(cells: list[str]) -> bool:
@@ -134,8 +135,8 @@ def _extract_leg(coupon: dict, cells: list[str]):
         if c.startswith("\u2705") or c.upper().startswith("SPRAWDŹ"):
             continue
 
-        # Multi-leg cell: split on " + " when surrounded by event-like content
-        if " + " in c and re.search(r"\svs\.?\s", c, re.I):
+        # Multi-leg cell: split on " + " (combo descriptions may not contain "vs")
+        if " + " in c and len(c) > 20:
             sub_legs = re.split(r"\s\+\s", c)
             for sub_leg in sub_legs:
                 sub_leg = sub_leg.strip()
@@ -349,6 +350,7 @@ def parse_coupon_tables(md_text: str) -> list[dict]:
             coupon_id = id_match.group(1)
             current = _new_coupon(idx, coupon_id)
             current["is_single"] = bool(re.search(r"SINGLE", coupon_id, re.I))
+            current["_from_table_row"] = True
             _extract_leg(current, cells)
             # For single-row format: extract combined odds, stake, return from remaining cells
             _extract_single_row_meta(current, cells)
@@ -368,6 +370,13 @@ def parse_coupon_tables(md_text: str) -> list[dict]:
     # Finalize pending coupon
     if current and current["legs_text"]:
         coupons.append(current)
+
+    # Post-processing: mark table-row single-leg coupons as singles
+    for c in coupons:
+        if (c.get("_from_table_row") and len(c["legs_text"]) == 1
+                and not c["is_combo"] and not c.get("is_single")):
+            c["is_single"] = True
+        c.pop("_from_table_row", None)
 
     # Legacy fallback
     if not coupons:
@@ -443,16 +452,15 @@ def check_fixture_status(coupons: list[dict], date: str) -> list[str]:
         sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
         from bet.db.connection import get_db
         with get_db() as conn:
+            status_placeholders = ",".join("?" for _ in NON_PLAYABLE)
             rows = conn.execute(
-                """SELECT t1.name, t2.name, f.status
+                f"""SELECT t1.name, t2.name, f.status
                    FROM fixtures f
                    JOIN teams t1 ON t1.id = f.home_team_id
                    JOIN teams t2 ON t2.id = f.away_team_id
                    WHERE f.kickoff LIKE ? || '%'
-                   AND f.status IN ({})""".format(
-                    ",".join(f"'{s}'" for s in NON_PLAYABLE)
-                ),
-                (date,),
+                   AND f.status IN ({status_placeholders})""",
+                (date, *sorted(NON_PLAYABLE)),
             ).fetchall()
         if not rows:
             return errors
@@ -614,11 +622,14 @@ def validate_file(file_path: Path, ledger_path: Path) -> dict:
         polish_warnings = check_polish_descriptions(coupon["legs_text"])
         check["warnings"].extend(polish_warnings)
 
-        # 4. Minimum legs check (skip for singles — 1-leg is valid)
-        if len(coupon["legs_text"]) < 2 and not coupon.get("is_single"):
-            check["errors"].append(
-                f"MIN_LEGS: Coupon has {len(coupon['legs_text'])} leg(s), minimum is 2"
-            )
+        # 4. Minimum legs check (skip for singles and combos — 1-leg valid for singles,
+        #    combo legs are tracked separately via the is_combo flag)
+        if len(coupon["legs_text"]) < 2 and not coupon.get("is_single") and not coupon.get("is_combo"):
+            # Also exempt table-row coupons that are individual lines in a multi-row coupon
+            if not coupon.get("_from_table_row"):
+                check["errors"].append(
+                    f"MIN_LEGS: Coupon has {len(coupon['legs_text'])} leg(s), minimum is 2"
+                )
 
         # Determine status
         check["status"] = "FAIL" if check["errors"] else "PASS"

@@ -1,5 +1,39 @@
 # Pipeline Errors Journal — 2026-05-23
 
+## Session 3 (22:00) — STRUCTURAL OVERHAUL
+
+### ✅ ROOT CAUSE FIX: Cognitive Overload → Agent Takes Shortcuts
+
+**Diagnosis:** The orchestrator prompt (1357 lines) + agent (558 lines) + execution protocol (589 lines) = 2504 lines of instructions. The agent's context window filled with meta-rules and the actual steps got minimal attention. Steps were buried under 350 lines of preamble. Delegation templates repeated 10x created noise.
+
+**Fix applied — complete rewrite of 3 files:**
+
+| File | Before | After | Key Change |
+|------|--------|-------|------------|
+| orchestrate-betting-day.prompt.md | 1357 lines | ~350 lines | STEPS FIRST (line 30), rules INLINE, templates ONCE |
+| bet-orchestrator.agent.md | 558 lines | ~180 lines | Identity + rules + script table. NO procedure duplication |
+| agent-execution-protocol.instructions.md | 589 lines | ~200 lines | Boot + terminal rules + verdict template + examples |
+
+**Structural changes:**
+1. "WHAT A GOOD SESSION LOOKS LIKE" example at TOP of prompt (15 lines showing the pattern)
+2. "TOP 3 FAILURE MODES" from today's session immediately after
+3. EXECUTION SPINE: compact per-step blocks (command + agent + gate = 5-7 lines each)
+4. Rules as inline checks at enforcement points, NOT as preamble to memorize
+5. Delegation template: ONE compact version, referenced everywhere
+6. Removed ALL massive duplication (30-line delegation blocks per step → reference once)
+
+**Principle:** SHORTER = BETTER. EXAMPLES > RULES. STEPS FIRST.
+
+### 📋 HARD CONSTRAINTS FOR NEXT RUN (v8 enforced)
+
+1. EXECUTION SPINE is the FIRST thing agent sees — follow it IN ORDER
+2. After EVERY script → runSubagent is the NEXT action (R20 in 3-rule table)
+3. Every pick in final coupon MUST have: WHY + L10/H2H data + mechanism + bear case
+4. validate_phase.py gates are HARD STOPS — not optional checks
+5. S1a (ESPN), S1b (odds+weather+tipsters), S2.3 (scrapers) marked "DO NOT SKIP"
+
+---
+
 ## Session 1 (07:00-12:00) — FAILED RUN
 
 ### ⛔ CRITICAL ERRORS COMMITTED

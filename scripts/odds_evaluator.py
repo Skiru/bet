@@ -83,6 +83,47 @@ def _convert_espn_odds_to_decimal(odds_data: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Market name → DB market key mapping (for statistical market EV matching)
+# ---------------------------------------------------------------------------
+def _relevant_market_keys(market_name: str) -> set[str]:
+    """Map analysis best_market.name → set of DB market_key values to search for odds."""
+    lower = market_name.lower()
+    if "corner" in lower:
+        return {"corners_totals", "total_corners", "alternative_corners",
+                "team_corners_home", "team_corners_away", "corners_totals_ht"}
+    if "shot" in lower:
+        if "on target" in lower or "on_target" in lower:
+            return {"match_shots_on_target", "team_shots_on_target_home",
+                    "team_shots_on_target_away"}
+        return {"team_shots_home", "team_shots_away", "match_shots",
+                "match_shots_on_target", "team_shots_on_target_home",
+                "team_shots_on_target_away"}
+    if "card" in lower or "booking" in lower:
+        return {"bookings_totals", "number_of_cards_in_match"}
+    if "goal" in lower:
+        return {"totals", "goals_over/under", "alternative_total_goals",
+                "team_total_goals_home", "team_total_goals_away"}
+    if "point" in lower:
+        return {"totals", "points_o/u", "total_points"}
+    if "rebound" in lower:
+        return {"rebounds_o/u"}
+    if "assist" in lower:
+        return {"assists_o/u"}
+    if "block" in lower:
+        return {"blocks_o/u"}
+    if "steal" in lower:
+        return {"steals_o/u"}
+    if "three" in lower or "3pm" in lower:
+        return {"threes_made_o/u"}
+    if "game" in lower or "set" in lower:
+        return {"totals_(games)", "spread_(games)", "totals"}
+    if "foul" in lower:
+        return {"fouls_totals", "total_fouls"}
+    # Generic fallback
+    return {"totals"}
+
+
+# ---------------------------------------------------------------------------
 # EV injection from odds API
 # ---------------------------------------------------------------------------
 def _inject_ev_from_odds(candidates: list[dict], date: str):
@@ -106,6 +147,19 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
         if key not in odds_lookup:
             odds_lookup[key] = {"market_best": 0, "betclic": None, "bet365": None, "totals": []}
         return odds_lookup[key]
+
+    # Market keys that represent totals/over-under data (loaded into entry["totals"])
+    _TOTALS_MARKET_KEYS = frozenset({
+        "totals", "goals_over/under", "alternative_total_goals", "alternative_totals",
+        "total_corners", "corners_totals", "corners_totals_ht", "alternative_corners",
+        "team_corners_home", "team_corners_away",
+        "bookings_totals", "number_of_cards_in_match",
+        "team_shots_home", "team_shots_away", "match_shots", "match_shots_on_target",
+        "team_shots_on_target_home", "team_shots_on_target_away",
+        "totals_(games)", "spread_(games)",
+        "points_o/u", "rebounds_o/u", "assists_o/u", "blocks_o/u", "steals_o/u",
+        "threes_made_o/u", "total_points",
+    })
 
     # Source 0: SQLite DB (richest source — Betclic PL + Bet365 + 10+ bookmakers)
     db_path = DATA_DIR / "betting.db"
@@ -155,28 +209,32 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
                         if odds_val and odds_val > prev_bet365:
                             entry["bet365"] = float(odds_val)
 
-                elif market == "totals":
+                elif market in _TOTALS_MARKET_KEYS or "totals" in (market or "") or "over" in (market or "") or "under" in (market or ""):
+                    # ALL totals-style markets: goals, corners, cards, shots, points, etc.
                     sel_lower = (selection or "").lower()
                     # Format 1: standard Over/Under with line in `line` column
                     if line_val is not None and sel_lower in ("over", "under"):
                         line_f = float(line_val)
-                        # Find existing entry for this line+bookmaker, or create
+                        # Find existing entry for this line+bookmaker+market, or create
                         found = False
                         for tl in entry["totals"]:
-                            if abs(tl.get("line", 0) - line_f) < 0.01 and tl.get("bookmaker") == bookmaker:
+                            if (abs(tl.get("line", 0) - line_f) < 0.01
+                                    and tl.get("bookmaker") == bookmaker
+                                    and tl.get("market_key", "totals") == market):
                                 tl[sel_lower] = float(odds_val)
                                 found = True
                                 break
                         if not found:
-                            new_tl = {"line": line_f, "bookmaker": bookmaker, "over": None, "under": None}
+                            new_tl = {"line": line_f, "bookmaker": bookmaker,
+                                      "over": None, "under": None, "market_key": market}
                             new_tl[sel_lower] = float(odds_val)
                             entry["totals"].append(new_tl)
 
                     # Format 2: Betclic/Bet365 interleaved hdp/over/under (no line column)
                     else:
-                        buf_key = f"{key}|{bookmaker}"
+                        buf_key = f"{key}|{bookmaker}|{market}"
                         if buf_key not in totals_buffer:
-                            totals_buffer[buf_key] = {"line": None, "over": None, "under": None}
+                            totals_buffer[buf_key] = {"line": None, "over": None, "under": None, "market_key": market}
                         buf = totals_buffer[buf_key]
 
                         if sel_lower == "hdp":
@@ -186,6 +244,7 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
                                 entry["totals"].append({
                                     "line": buf["line"], "over": buf["over"],
                                     "under": buf["under"], "bookmaker": bookmaker,
+                                    "market_key": market,
                                 })
                             buf["line"] = float(odds_val)
                             buf["over"] = None
@@ -200,19 +259,22 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
                             entry["totals"].append({
                                 "line": buf["line"], "over": buf["over"],
                                 "under": buf["under"], "bookmaker": bookmaker,
+                                "market_key": market,
                             })
-                            totals_buffer[buf_key] = {"line": None, "over": None, "under": None}
+                            totals_buffer[buf_key] = {"line": None, "over": None, "under": None, "market_key": market}
 
             # Flush any remaining incomplete totals buffers (line+over without under)
             for buf_key, buf in totals_buffer.items():
                 if buf["line"] is not None and buf["over"] is not None:
                     parts = buf_key.split("|")
                     bk = parts[2] if len(parts) > 2 else "unknown"
+                    mkt_key = parts[3] if len(parts) > 3 else "totals"
                     match_key = f"{parts[0]}|{parts[1]}" if len(parts) > 1 else buf_key
                     if match_key in odds_lookup:
                         odds_lookup[match_key]["totals"].append({
                             "line": buf["line"], "over": buf["over"],
                             "under": buf.get("under"), "bookmaker": bk,
+                            "market_key": mkt_key,
                         })
 
             if db_rows:
@@ -391,6 +453,7 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
 
         prob = best_market.get("probability")
         safety = best_market.get("safety_score")
+        hit_rate = best_market.get("hit_rate_l10")
         
         # For totals/statistical markets, try to find matching line in DB totals
         matched_odds = None
@@ -398,7 +461,13 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
             line = best_market.get("line")
             direction = (best_market.get("direction") or "").upper()
             if line is not None:
+                # Determine which DB market_keys are relevant for this analysis market
+                relevant_keys = _relevant_market_keys(market_name)
+                # First pass: try to match line from relevant market_key
                 for tl in entry["totals"]:
+                    tl_key = tl.get("market_key", "totals")
+                    if relevant_keys and tl_key not in relevant_keys:
+                        continue
                     if abs(tl.get("line", 0) - float(line)) < 0.01:
                         if "OVER" in direction and tl.get("over"):
                             if matched_odds is None or tl["over"] > matched_odds:
@@ -406,15 +475,41 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
                         elif "UNDER" in direction and tl.get("under"):
                             if matched_odds is None or tl["under"] > matched_odds:
                                 matched_odds = tl["under"]
+                # Fallback: if no relevant-key match, try any totals line
+                if matched_odds is None:
+                    for tl in entry["totals"]:
+                        if abs(tl.get("line", 0) - float(line)) < 0.01:
+                            if "OVER" in direction and tl.get("over"):
+                                if matched_odds is None or tl["over"] > matched_odds:
+                                    matched_odds = tl["over"]
+                            elif "UNDER" in direction and tl.get("under"):
+                                if matched_odds is None or tl["under"] > matched_odds:
+                                    matched_odds = tl["under"]
         elif is_ml_market:
             # ML market — use ML odds directly
             matched_odds = use_odds
         
         # Only calculate EV when odds match the analyzed market
-        p = prob or safety
+        # Priority: probability model > hit_rate_l10 (safety_score is NOT a probability)
+        p = prob or hit_rate
         odds_for_ev = matched_odds or (use_odds if is_ml_market else None)
         if p and odds_for_ev:
-            ev = round(float(p) * float(odds_for_ev) - 1, 4)
+            # Parse probability value — handles multiple formats:
+            # - fraction string "5/10" → 0.5
+            # - percentage "75" or "75%" → 0.75
+            # - decimal 0.65 → 0.65
+            try:
+                p_str = str(p).strip().rstrip("%")
+                if "/" in p_str:
+                    num, den = p_str.split("/", 1)
+                    p_val = float(num) / float(den)
+                else:
+                    p_val = float(p_str)
+                    if p_val > 1.0:
+                        p_val = p_val / 100.0
+            except (ValueError, ZeroDivisionError):
+                continue
+            ev = round(p_val * float(odds_for_ev) - 1, 4)
             c["ev"] = ev
             c["ev_source"] = "db+api-composite"
             injected += 1
@@ -551,7 +646,7 @@ def run_odds_eval(date: str, state: dict) -> tuple[bool, str]:
 
         return True, f"S4 completed: {with_ev}/{total} with EV data ({positive_ev} positive EV)"
     except Exception as e:
-        return True, f"S4 odds evaluation error: {e} — continuing without"
+        return False, f"S4 odds evaluation error: {e}"
 
 
 # ---------------------------------------------------------------------------

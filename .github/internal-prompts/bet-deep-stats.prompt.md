@@ -122,7 +122,7 @@ min_acceptable_odds = 1 / P(hit)
 > The orchestrator runs `deep_stats_report.py` and passes you the AGENT_SUMMARY + log excerpts.
 > You do NOT run any scripts. You receive FINISHED output for specialist analysis.
 
-## Execution Model: Analysis-Only (Model A)
+## Execution Model: Analysis-Only
 
 The orchestrator has already:
 1. Inspected inputs (enrichment data, team_form per sport)

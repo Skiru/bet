@@ -61,7 +61,7 @@ Load these skills before starting:
 > The orchestrator runs `tipster_aggregator.py` and `tipster_xref.py` and passes you the output.
 > You do NOT run any scripts. You receive FINISHED output for specialist analysis.
 
-## Execution Model: Analysis-Only (Model A)
+## Execution Model: Analysis-Only
 
 The orchestrator has already:
 1. Run `tipster_aggregator.py --date {date} --use-gemini --verbose`

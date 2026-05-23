@@ -327,20 +327,26 @@ def load_fixtures_from_db(date: str, sport: str | None = None, include_unverifie
                                 if t:
                                     api_teams_by_sport.setdefault(sport_name, set()).add(t.lower())
 
-                        # Count scan team appearances
+                        # Count scan team appearances (with sport context)
                         from collections import Counter
                         scan_team_counts: Counter = Counter()
+                        team_sport_map: dict[str, str] = {}
                         for r in scan_rows:
+                            sport_name = r.get("sport", r.get("sport_name", "")).lower()
                             for t in (r.get("home_team", ""), r.get("away_team", "")):
                                 if t:
-                                    scan_team_counts[t.lower()] += 1
+                                    t_lower = t.lower()
+                                    scan_team_counts[t_lower] += 1
+                                    team_sport_map[t_lower] = sport_name
 
-                        # Teams appearing in >2 scan fixtures are phantoms
-                        # If team also appears in API, keep only the API fixture(s)
-                        # and remove ALL scan fixtures for that team (schedule page leak)
+                        # Teams appearing beyond threshold are phantoms.
+                        # Basketball/volleyball/baseball legitimately have double-headers.
+                        DOUBLE_HEADER_SPORTS = {"basketball", "volleyball", "baseball"}
                         phantom_teams = set()
                         for team, count in scan_team_counts.items():
-                            if count > 2:
+                            sport = team_sport_map.get(team, "")
+                            threshold = 3 if sport in DOUBLE_HEADER_SPORTS else 2
+                            if count > threshold:
                                 phantom_teams.add(team)
 
                         if phantom_teams:
@@ -393,8 +399,12 @@ def load_odds_from_db(date: str) -> dict:
                 fixture_ids = list(odds_by_fixture.keys())
                 placeholders = ",".join("?" for _ in fixture_ids)
                 fixture_rows = conn.execute(
-                    f"SELECT id, home_team, away_team, sport FROM fixtures "
-                    f"WHERE id IN ({placeholders})",
+                    f"SELECT f.id, ht.name AS home_team, at.name AS away_team, s.name AS sport "
+                    f"FROM fixtures f "
+                    f"JOIN teams ht ON f.home_team_id = ht.id "
+                    f"JOIN teams at ON f.away_team_id = at.id "
+                    f"JOIN sports s ON f.sport_id = s.id "
+                    f"WHERE f.id IN ({placeholders})",
                     fixture_ids,
                 ).fetchall()
                 fixture_map = {r["id"]: r for r in fixture_rows}
@@ -784,6 +794,17 @@ def _load_analysis_results_raw_from_db(betting_date: str) -> list[dict]:
                             "line": ar.best_market_line,
                             "direction": ar.best_market_direction,
                             "safety_score": ar.best_safety_score,
+                            **(
+                                {
+                                    "hit_rate_l10": ar.ranking_json[0].get("hit_rate_l10", "N/A"),
+                                    "hit_rate_l5": ar.ranking_json[0].get("hit_rate_l5", "N/A"),
+                                    "hit_rate_h2h": ar.ranking_json[0].get("hit_rate_h2h", "N/A"),
+                                    "source": ar.ranking_json[0].get("source", ""),
+                                    "h2h_blind": ar.ranking_json[0].get("h2h_blind", True),
+                                }
+                                if ar.ranking_json and isinstance(ar.ranking_json, list) and len(ar.ranking_json) > 0
+                                else {}
+                            ),
                         },
                         "markets_evaluated": ar.markets_evaluated,
                         "ranking": ar.ranking_json,
