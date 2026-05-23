@@ -33,6 +33,17 @@
 2. **validate_coupons.py parser**: Mis-parses narrative headings as 1-leg coupons. 14 false MIN_LEGS fails (ISSUE 10 in knowledge base).
 3. **ESPN resolution for non-English teams**: Can't match "Jagiellonia Białystok" → "Jagiellonia Bialystok" (diacritics).
 
+### ✅ CODE BUGS FIXED (2026-05-23 Session 2)
+
+| Bug | Root Cause | Fix Applied | Files Changed |
+|-----|-----------|-------------|---------------|
+| **db-synthetic cap hides strong picks** | `SYNTHETIC_SAFETY_CAP=0.50` capped ALL synthetic regardless of hit rate (8/10+5/5 → 0.50) | Tiered caps: strong (≥7/10+4/5)→0.65, weak (<7/10)→0.50. Flag field added. | `compute_safety_scores.py` |
+| **Gate auto-rejects ALL synthetic** | `gate_checker.py` Gate#18 returned False for ANY `source=="db-synthetic"` | Strong patterns (≥7/10+L5≥4/5) now pass Gate#18 with advisory | `gate_checker.py` (3 locations) |
+| **Coupon builder demotes ALL synthetic** | `_filter_quality()` demoted ANY synthetic to extended pool | Only weak synthetic (<7/10) demoted. Strong patterns stay in core. | `coupon_builder.py` |
+| **Ranking ignores raw hit rate** | Sort key = EV→confidence→safety (capped). 8/10 pick at 0.50 ranks below 6/10 at 0.55 | Added `_composite_score()` with +0.10 boost for ≥7/10+4/5 patterns | `coupon_builder.py` |
+| **H2H avg=0.0 ambiguity** | Empty H2H list AND real-data-with-zeros both → 0.0. `compute_three_way_check` treated both as "no data" | `h2h_avg=None` for no data, `h2h_avg=0.0` for real zeros. Proper `Optional` typing. | `compute_safety_scores.py` |
+| **No rescue for buried gems** | Strong picks demoted by gate/quality filters had NO path back to core coupons | Added "Deep Mining" phase: ≥8/10+4/5 picks rescued from extended pool → approved | `coupon_builder.py` |
+
 ### ✅ WHAT WORKED
 
 - Scan: 1587 events discovered across 5 sports ✅

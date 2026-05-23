@@ -1053,13 +1053,37 @@ def assign_picks_to_core(approved: list, config: dict) -> list[dict]:
     max_same_sport = config.get("max_same_sport_legs_in_coupon", 2)
     bankroll = config.get("bankroll_pln", config.get("working_bankroll_pln", 50.0))
 
-    # Sort: EV desc → confidence desc → safety desc
+    # Sort: EV desc → confidence desc → composite_score desc
+    # Composite score = safety_score BOOSTED by raw hit rate strength (2026-05-23 fix).
+    # This prevents strong patterns (8/10 + 5/5 L5) from being buried below weaker
+    # picks that happen to have uncapped safety scores from "real" sources.
+    def _composite_score(p):
+        bm = _bm(p)
+        safety = bm.get("safety_score") or 0
+        # Parse hit rates for boost calculation
+        hit_str = bm.get("hit_rate_l10", "")
+        l5_str = bm.get("hit_rate_l5", "")
+        hit_n, l5_n = 0, 0
+        if "/" in str(hit_str):
+            try:
+                hit_n = int(str(hit_str).split("/")[0])
+            except (ValueError, IndexError):
+                pass
+        if "/" in str(l5_str):
+            try:
+                l5_n = int(str(l5_str).split("/")[0])
+            except (ValueError, IndexError):
+                pass
+        # Boost: strong patterns (≥7/10 AND L5≥4/5) get +0.10 bonus to ranking
+        boost = 0.10 if (hit_n >= 7 and l5_n >= 4) else 0.0
+        return safety + boost
+
     sorted_picks = sorted(
         odds_approved,
         key=lambda p: (
             -(p.get("ev") or 0),
             -(p.get("final_confidence") or 0),
-            -(_bm(p).get("safety_score") or 0),
+            -_composite_score(p),
         ),
     )
 
@@ -1832,8 +1856,8 @@ def _filter_quality(picks: list, tier: str = "core") -> tuple[list, list]:
     Returns (quality_picks, demoted_picks).
     Demoted picks go to extended pool with quality warnings.
     
-    Core tier requirements:
-    - source != "db-synthetic" 
+    Core tier requirements (REVISED 2026-05-23):
+    - source != "db-synthetic" UNLESS hit_rate ≥ 7/10 AND L5 ≥ 4/5 (strong pattern)
     - markets_evaluated >= 3
     - hit_rate > 50% (not a coin flip)
     - line is not solely from STANDARD_MARKET_LINES defaults
@@ -1855,11 +1879,33 @@ def _filter_quality(picks: list, tier: str = "core") -> tuple[list, list]:
         # Parse hit rate using existing _safe_float helper (handles fractions like "5/10")
         hit_rate_val = _safe_float(hit_rate_str, 0.0)
         
+        # Also parse as fraction to get numerator for strong-pattern check
+        _hit_num = 0
+        _l5_num = 0
+        if "/" in str(hit_rate_str):
+            try:
+                _hit_num = int(str(hit_rate_str).split("/")[0])
+            except (ValueError, IndexError):
+                pass
+        l5_str = best.get("hit_rate_l5", "")
+        if "/" in str(l5_str):
+            try:
+                _l5_num = int(str(l5_str).split("/")[0])
+            except (ValueError, IndexError):
+                pass
+        _synthetic_strong = (_hit_num >= 7 and _l5_num >= 4)
+        
         reasons = []
         
-        # Check synthetic source
-        if source == "db-synthetic":
-            reasons.append("⚠️ SYNTETYCZNE: brak prawdziwych danych per-mecz")
+        # Check synthetic source — REVISED 2026-05-23
+        # Only demote WEAK synthetic (hit<7/10). Strong patterns are proven.
+        if source == "db-synthetic" and not _synthetic_strong:
+            reasons.append("⚠️ SYNTETYCZNE SŁABE: brak per-mecz + hit_rate < 7/10")
+        elif source == "db-synthetic" and _synthetic_strong:
+            # Flag for awareness but DON'T demote
+            pick.setdefault("_advisory_notes", []).append(
+                f"ℹ️ Synthetic source ale SILNY wzorzec: {hit_rate_str} L10 + {l5_str} L5"
+            )
         
         # Check minimum markets evaluated — only when field explicitly exists
         # Sport-specific minimums (tennis=2, volleyball=2, others=3)
@@ -1925,6 +1971,42 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
         extended_pool.extend(quality_demoted)
         out.info(f"Quality filter: {len(quality_demoted)} picks demoted to extended pool "
                  f"(synthetic/insufficient/coin-flip)")
+
+    # --- DEEP MINING: Rescue hidden gems from extended pool (2026-05-23 fix) ---
+    # Some picks in extended_pool have EXTREME hit rates (≥8/10 + 5/5 L5) but were
+    # demoted due to synthetic source or other soft reasons. Rescue them to approved.
+    _rescued = []
+    _rescued_keys = set()
+    for p in extended_pool[:]:
+        bm = p.get("best_market") or {}
+        hit_str = bm.get("hit_rate_l10", "")
+        l5_str = bm.get("hit_rate_l5", "")
+        _h_num, _l5_num = 0, 0
+        if "/" in str(hit_str):
+            try:
+                _h_num = int(str(hit_str).split("/")[0])
+            except (ValueError, IndexError):
+                pass
+        if "/" in str(l5_str):
+            try:
+                _l5_num = int(str(l5_str).split("/")[0])
+            except (ValueError, IndexError):
+                pass
+        # Rescue criteria: hit≥8/10 AND L5≥4/5 — overwhelmingly strong pattern
+        if _h_num >= 8 and _l5_num >= 4:
+            ek = _event_key(p)
+            if ek not in _rescued_keys:
+                _rescued_keys.add(ek)
+                p["_deep_mined"] = True
+                p.setdefault("_advisory_notes", []).append(
+                    f"🏆 DEEP MINED: {hit_str} L10 + {l5_str} L5 — rescued from extended pool"
+                )
+                _rescued.append(p)
+                extended_pool.remove(p)
+    if _rescued:
+        all_approved.extend(_rescued)
+        out.info(f"Deep mining: {len(_rescued)} hidden gems rescued to approved "
+                 f"(hit≥8/10 + L5≥4/5)")
 
     # Assign risk_tier from safety if missing (JSON gate results don't always have it)
     for p in all_approved:

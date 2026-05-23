@@ -419,14 +419,35 @@ def _check_three_way(c: dict) -> tuple[bool, str]:
 
 
 def _check_data_quality(c: dict) -> tuple[bool, str]:
-    """Gate #18: DATA QUALITY — both teams have stat data, not one-sided."""
+    """Gate #18: DATA QUALITY — both teams have stat data, not one-sided.
+    
+    REVISED 2026-05-23: Synthetic source with strong hit rate (≥7/10 + L5≥4/5)
+    passes this gate with an advisory flag instead of hard rejection.
+    """
     best = c.get("best_market") or {}
     one_sided = best.get("one_sided", False)
     source = best.get("source", "")
     if one_sided:
         return False, "ONE-SIDED: opponent has zero stat data"
     if source == "db-synthetic":
-        return False, f"SYNTHETIC data — fabricated L10 values, no real per-match stats (source={source})"
+        # Check if strong pattern exempts this from rejection
+        hit_str = best.get("hit_rate_l10", "")
+        l5_str = best.get("hit_rate_l5", "")
+        _h_n, _l5_n = 0, 0
+        if "/" in str(hit_str):
+            try:
+                _h_n = int(str(hit_str).split("/")[0])
+            except (ValueError, IndexError):
+                pass
+        if "/" in str(l5_str):
+            try:
+                _l5_n = int(str(l5_str).split("/")[0])
+            except (ValueError, IndexError):
+                pass
+        if _h_n >= 7 and _l5_n >= 4:
+            # Strong pattern — pass with advisory
+            return True, ""
+        return False, f"SYNTHETIC data — weak hit_rate={hit_str}, no real per-match stats (source={source})"
     return True, ""
 
 
@@ -580,13 +601,27 @@ def check_red_flags(candidate: dict) -> list[str]:
     if h2h_blind and safety < 0.60:
         flags.append(f"FLAG: H2H-BLIND + safety {safety:.2f} < 0.60")
 
-    # ZT#20: Synthetic data source — safety should never exceed 0.50
+    # ZT#20: Synthetic data source — REVISED 2026-05-23
+    # Only flag weak synthetic (hit_rate < 7/10). Strong patterns are real despite synthetic source.
     best_source = best.get("source", "")
     if best_source == "db-synthetic" and safety > 0.50:
-        flags.append(
-            f"FLAG ZT#20: SYNTHETIC data source (safety {safety:.2f} > 0.50 cap) — "
-            f"fabricated L10 values, no real per-match data"
-        )
+        hit_str = best.get("hit_rate_l10", "")
+        _zt20_hit_num = 0
+        if "/" in str(hit_str):
+            try:
+                _zt20_hit_num = int(str(hit_str).split("/")[0])
+            except (ValueError, IndexError):
+                pass
+        if _zt20_hit_num < 7:
+            flags.append(
+                f"FLAG ZT#20: SYNTHETIC data source (safety {safety:.2f} > 0.50 cap) — "
+                f"hit_rate={hit_str} < 7/10, synthetic L10 unreliable"
+            )
+        else:
+            flags.append(
+                f"INFO ZT#20: SYNTHETIC source but STRONG pattern (hit={hit_str}) — "
+                f"verify availability on Betclic"
+            )
 
     # ZT#23: Opponent quality adjustment (post-mortem 2026-05-13)
     # When betting on stat markets (corners, fouls, shots) vs elite opponent,
@@ -1539,30 +1574,52 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
                     extended_pool.append(entry)
                     continue
 
-                # SYNTHETIC DATA GATE — db-synthetic source = Extended Pool only
+                # SYNTHETIC DATA GATE — REVISED 2026-05-23
+                # db-synthetic source WITH strong hit rate (≥7/10 + L5≥4/5) = APPROVED with flag.
+                # Only weak synthetic picks (hit<7/10) go to Extended Pool.
                 source = (c.get("best_market") or {}).get("source", "")
                 markets_evaluated = c.get("market_count") or c.get("markets_evaluated", 0) or 0
                 hit_rate_str = (c.get("best_market") or {}).get("hit_rate_l10", "")
+                hit_rate_l5_str = (c.get("best_market") or {}).get("hit_rate_l5", "")
                 
                 # Parse hit rate like "5/10" → 0.5
                 hit_rate_val = 0.0
+                hit_num = 0
                 if hit_rate_str and "/" in str(hit_rate_str):
                     try:
                         num, den = str(hit_rate_str).split("/", 1)
                         den_f = float(den)
                         hit_rate_val = float(num) / den_f if den_f > 0 else 0.0
+                        hit_num = int(num)
                     except (ValueError, TypeError):
                         pass
                 elif hit_rate_str:
                     try:
                         hit_rate_val = float(hit_rate_str)
+                        hit_num = int(hit_rate_val * 10)
                     except (ValueError, TypeError):
                         pass
 
-                # Route to extended pool if synthetic, insufficient markets, or coin-flip hit rate
+                # Parse L5 hit rate
+                l5_num = 0
+                if hit_rate_l5_str and "/" in str(hit_rate_l5_str):
+                    try:
+                        l5_num = int(str(hit_rate_l5_str).split("/")[0])
+                    except (ValueError, IndexError):
+                        pass
+
+                # Determine if synthetic pick has PROVEN pattern
+                _synthetic_strong = (hit_num >= 7 and l5_num >= 4)
+
+                # Route to extended pool if synthetic (WEAK only), insufficient markets, or coin-flip
                 extended_reasons = []
-                if source == "db-synthetic":
-                    extended_reasons.append(f"SYNTHETIC_DATA: source={source}")
+                if source == "db-synthetic" and not _synthetic_strong:
+                    extended_reasons.append(f"SYNTHETIC_DATA_WEAK: source={source}, hit={hit_rate_str}")
+                elif source == "db-synthetic" and _synthetic_strong:
+                    # Strong synthetic = APPROVE but flag for user awareness
+                    entry.setdefault("advisory_notes", []).append(
+                        f"⚠️ SYNTHETIC but STRONG: {hit_rate_str} L10 + {hit_rate_l5_str} L5 — verify on Betclic"
+                    )
                 # Use sport-specific minimum (tennis=2, volleyball=2, others=3)
                 _sport = (c.get("sport") or "").lower()
                 _min_mkts = {"football": 3, "basketball": 3, "tennis": 2, "volleyball": 2, "hockey": 3}.get(_sport, 2)

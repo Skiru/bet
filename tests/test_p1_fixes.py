@@ -240,8 +240,8 @@ class TestH2HMissingTransparency(unittest.TestCase):
         """2/2 SUPPORT with missing H2H must include '(H2H N/A)' marker."""
         from compute_safety_scores import compute_three_way_check
 
-        # L10=OVER, L5=OVER, H2H=missing (0) → was "2/2 SUPPORT", now "2/2 SUPPORT (H2H N/A)"
-        result = compute_three_way_check(12.0, 0.0, 13.0, 9.5)
+        # L10=OVER, L5=OVER, H2H=missing (None) → was "2/2 SUPPORT", now "2/2 SUPPORT (H2H N/A)"
+        result = compute_three_way_check(12.0, None, 13.0, 9.5)
         self.assertIn("H2H N/A", result["alignment"])
         self.assertIn("SUPPORT", result["alignment"])
         self.assertEqual(result["h2h_direction"], "N/A")
@@ -258,15 +258,15 @@ class TestH2HMissingTransparency(unittest.TestCase):
         """Even in CONFLICT scenarios with missing H2H, marker should appear."""
         from compute_safety_scores import compute_three_way_check
 
-        # L10=OVER (10>9.5), L5=UNDER (8<9.5), H2H=missing
-        result = compute_three_way_check(10.0, 0.0, 8.0, 9.5)
+        # L10=OVER (10>9.5), L5=UNDER (8<9.5), H2H=missing (None)
+        result = compute_three_way_check(10.0, None, 8.0, 9.5)
         self.assertIn("H2H N/A", result["alignment"])
 
     def test_h2h_missing_distinguishable_from_full_support(self):
         """'2/2 SUPPORT (H2H N/A)' must be distinguishable from '3/3 SUPPORT'."""
         from compute_safety_scores import compute_three_way_check
 
-        result_missing = compute_three_way_check(12.0, 0.0, 13.0, 9.5)
+        result_missing = compute_three_way_check(12.0, None, 13.0, 9.5)
         result_full = compute_three_way_check(12.0, 11.0, 13.0, 9.5)
 
         self.assertNotEqual(result_missing["alignment"], result_full["alignment"])

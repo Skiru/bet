@@ -395,11 +395,17 @@ def compute_safety_score(hit_rate_l10: float, hit_rate_h2h: float) -> float:
 
 
 def compute_three_way_check(
-    l10_avg: float, h2h_avg: float, l5_avg: float, line: float
+    l10_avg: float, h2h_avg: float | None, l5_avg: float, line: float
 ) -> dict:
-    """Compute three-way cross-check alignment."""
+    """Compute three-way cross-check alignment.
+    
+    h2h_avg=None means NO H2H data available.
+    h2h_avg=0.0 means real data where stat was zero in all H2H meetings.
+    """
     l10_dir = infer_direction(l10_avg, line)
-    h2h_dir = infer_direction(h2h_avg, line) if h2h_avg > 0 else "N/A"
+    # Distinguish "no data" (None) from "real zero avg" (0.0)
+    h2h_missing = h2h_avg is None
+    h2h_dir = "N/A" if h2h_missing else infer_direction(h2h_avg, line)
     l5_dir = infer_direction(l5_avg, line)
 
     # Determine trend from L5 vs L10
@@ -417,7 +423,6 @@ def compute_three_way_check(
     # Count support
     primary_dir = l10_dir
     support_count = 1  # L10 always supports itself
-    h2h_missing = h2h_dir == "N/A"
 
     directions = [l10_dir]
     if h2h_dir != "N/A":
@@ -448,7 +453,7 @@ def compute_three_way_check(
 
     return {
         "l10_avg": round(l10_avg, 2),
-        "h2h_avg": round(h2h_avg, 2) if h2h_avg > 0 else None,
+        "h2h_avg": round(h2h_avg, 2) if h2h_avg is not None else None,
         "l5_avg": round(l5_avg, 2),
         "line": line,
         "l10_direction": l10_dir,
@@ -570,7 +575,7 @@ def rank_markets(data: dict) -> dict:
 
         # Compute three-way check per market
         tw_l10_a = statistics.mean(l10_values) if l10_values else 0.0
-        tw_h2h_a = statistics.mean(h2h_values) if h2h_values else 0.0
+        tw_h2h_a = statistics.mean(h2h_values) if h2h_values else None
         tw_l5_a = statistics.mean(l5_values) if l5_values else 0.0
         per_market_three_way = compute_three_way_check(tw_l10_a, tw_h2h_a, tw_l5_a, line)
 
@@ -629,18 +634,56 @@ def rank_markets(data: dict) -> dict:
                     r["line"] = opt["best_line"]
                     r["direction"] = opt["direction"].upper()
 
-    # --- Pattern F: Synthetic data cap (May 2026 post-mortem) ---
-    # db-synthetic source = fabricated L10 values from aggregates, NOT real per-match data.
-    # Safety MUST be capped at 0.50 — cannot trust synthetic distributions for probability.
-    SYNTHETIC_SAFETY_CAP = 0.50
+    # --- Pattern F: Synthetic data flag (May 2026 post-mortem, REVISED 2026-05-23) ---
+    # db-synthetic source = L10 values derived from aggregates (l10_avg/l5_avg), NOT real per-match data.
+    # OLD behavior (removed): hard cap at 0.50 regardless of hit rate — this BURIED picks with
+    # 8/10 hit rates + 5/5 L5 (e.g. Halmstad corners capped 0.58→0.50, missed from core coupon).
+    # NEW behavior: Flag synthetic picks but only SOFT-CAP weak ones. Strong hit rates (≥7/10)
+    # prove the underlying pattern is real even if data came from aggregates.
+    SYNTHETIC_SAFETY_CAP_WEAK = 0.50  # Cap only when hit_rate < 7/10
+    SYNTHETIC_SAFETY_CAP_STRONG = 0.65  # Higher cap for proven patterns (hit≥7/10 + L5≥4/5)
     for r in results:
-        if r.get("source") == "db-synthetic" and r["safety_score"] > SYNTHETIC_SAFETY_CAP:
-            r.setdefault("original_safety", r["safety_score"])
-            r["safety_score"] = SYNTHETIC_SAFETY_CAP
-            r["synthetic_capped"] = True
-            r["synthetic_cap_reason"] = (
-                f"db-synthetic source: safety capped {r['original_safety']:.2f} → {SYNTHETIC_SAFETY_CAP}"
-            )
+        if r.get("source") == "db-synthetic":
+            r["synthetic_source"] = True
+            # Parse hit rate to determine if pattern is proven
+            hit_str = r.get("hit_rate_l10", "")
+            hit_num = 0
+            hit_den = 10
+            if "/" in str(hit_str):
+                try:
+                    parts = str(hit_str).split("/")
+                    hit_num = int(parts[0])
+                    hit_den = int(parts[1]) if len(parts) > 1 else 10
+                except (ValueError, IndexError):
+                    pass
+            
+            l5_str = r.get("hit_rate_l5", "")
+            l5_num = 0
+            l5_den = 5
+            if "/" in str(l5_str):
+                try:
+                    parts = str(l5_str).split("/")
+                    l5_num = int(parts[0])
+                    l5_den = int(parts[1]) if len(parts) > 1 else 5
+                except (ValueError, IndexError):
+                    pass
+            
+            # Strong pattern: hit≥70% with ≥8 sample AND L5≥80% with ≥5 sample → use higher cap
+            hit_rate_pct = hit_num / hit_den if hit_den > 0 else 0
+            l5_rate_pct = l5_num / l5_den if l5_den > 0 else 0
+            is_strong = (hit_rate_pct >= 0.70 and hit_den >= 8 and l5_rate_pct >= 0.80 and l5_den >= 5)
+            cap = SYNTHETIC_SAFETY_CAP_STRONG if is_strong else SYNTHETIC_SAFETY_CAP_WEAK
+            
+            if r["safety_score"] > cap:
+                r.setdefault("original_safety", r["safety_score"])
+                r["safety_score"] = cap
+                r["synthetic_capped"] = True
+                r["synthetic_cap_reason"] = (
+                    f"db-synthetic source: safety capped {r['original_safety']:.2f} → {cap}"
+                    f" ({'STRONG pattern ≥7/10+4/5' if is_strong else 'weak pattern <7/10'})"
+                )
+            else:
+                r["synthetic_capped"] = False
 
     # --- Pattern C: Sport-specific volatility caps ---
     # Baseball, hockey, etc. have high single-game variance that inflates safety
@@ -822,7 +865,7 @@ def rank_markets(data: dict) -> dict:
             h2h_vals = best_market.get("h2h_values", [])
 
             l10_a = statistics.mean(l10_vals) if l10_vals else 0.0
-            h2h_a = statistics.mean(h2h_vals) if h2h_vals else 0.0
+            h2h_a = statistics.mean(h2h_vals) if h2h_vals else None
             l5_a = statistics.mean(l5_vals) if l5_vals else 0.0
 
             three_way = compute_three_way_check(l10_a, h2h_a, l5_a, best["line"])
