@@ -7,11 +7,60 @@ Extracted from pipeline_orchestrator.py (Phase 3.3).
 import json
 import sys
 from pathlib import Path
+import re as _re
 try:
     from rapidfuzz import fuzz
     _RAPIDFUZZ_AVAILABLE = True
 except ImportError:
     _RAPIDFUZZ_AVAILABLE = False
+
+
+# Patterns that indicate garbage lines in scraped team names
+_GARBAGE_PATTERNS = [
+    _re.compile(r'^\d+\s*-\s*\d+\s+\w+', _re.IGNORECASE),  # "00 - 24 May"
+    _re.compile(r'^(view\s+)?prediction', _re.IGNORECASE),       # "Predictions", "View Prediction"
+    _re.compile(r'^\d+$'),                                       # bare numbers like "15"
+]
+_KNOWN_LEAGUES = {
+    'premier league', 'la liga', 'serie a', 'serie b', 'bundesliga', 'ligue 1',
+    'eredivisie', 'liga acb', 'euroleague', 'mls', 'wnba', 'nba', 'nhl',
+    'allsvenskan', 'eliteserien', 'league one', 'league two', 'championship',
+    'laliga 2', 'brazil série a', 'brazil série b', 'liga mx', 'liga 1',
+    'england', 'spain', 'italy', 'germany', 'france', 'netherlands', 'norway',
+    'sweden', 'portugal', 'turkey', 'greece', 'scotland', 'belgium',
+}
+
+
+def _clean_team_name(raw: str) -> str:
+    """Extract actual team name from potentially dirty scraper data.
+
+    Dirty examples:
+      'West Ham\n\nEngland' → 'West Ham'
+      '00 - 24 May\nPremier League\nBrighton' → 'Brighton'
+      'Manchester United\nPredictions' → 'Manchester United'
+    """
+    if not raw:
+        return ""
+    # Fast path: no newlines = already clean
+    if '\n' not in raw and 'Predictions' not in raw:
+        return raw.strip()
+
+    lines = [ln.strip() for ln in raw.split('\n') if ln.strip()]
+    clean_lines = []
+    for ln in lines:
+        # Skip known garbage patterns
+        if any(p.match(ln) for p in _GARBAGE_PATTERNS):
+            continue
+        # Skip known league names
+        if ln.lower() in _KNOWN_LEAGUES:
+            continue
+        # Skip single-word country names (England, Spain, etc.)
+        if ln.lower() in _KNOWN_LEAGUES:
+            continue
+        clean_lines.append(ln)
+
+    # Return first clean line (typically the team name)
+    return clean_lines[0] if clean_lines else raw.strip()
 
 # ---------------------------------------------------------------------------
 # Paths (same as orchestrator)
@@ -72,12 +121,21 @@ def run_tipster_xref(date: str, state: dict) -> tuple[bool, str]:
         if tipster_data is None:
             return True, "No tipster data available — skipping cross-reference"
 
-        # Parse tips — use "all_picks" key (written by tipster_aggregator.py)
-        tips = tipster_data if isinstance(tipster_data, list) else tipster_data.get("all_picks", tipster_data.get("tips", []))
+        # Parse tips — try multiple key locations
+        if isinstance(tipster_data, list):
+            tips = tipster_data
+        else:
+            tips = tipster_data.get("all_picks", tipster_data.get("tips", []))
+            # Fallback: flatten site_results[].picks (tipster_aggregator --use-gemini format)
+            if not tips:
+                for site_result in tipster_data.get("site_results", []):
+                    tips.extend(site_result.get("picks", []))
     tip_lookup: dict[str, list[dict]] = {}
     for tip in tips:
-        home = (tip.get("home") or tip.get("home_team") or "").strip().lower()
-        away = (tip.get("away") or tip.get("away_team") or "").strip().lower()
+        raw_home = tip.get("home") or tip.get("home_team") or ""
+        raw_away = tip.get("away") or tip.get("away_team") or ""
+        home = _clean_team_name(raw_home).lower()
+        away = _clean_team_name(raw_away).lower()
         if home and away:
             key = f"{home}|{away}"
             tip_lookup.setdefault(key, []).append(tip)

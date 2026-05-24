@@ -30,6 +30,8 @@ def normalize_team_name(name: str) -> str:
         s,
         flags=re.IGNORECASE,
     )
+    # Remove esports org suffixes
+    s = re.sub(r"\b(Gaming|Esports|eSports|e-Sports|Clan|Organization)\b", "", s, flags=re.IGNORECASE)
     s = s.replace("-", " ")
     s = re.sub(r"\s+", " ", s).strip()
     return s.lower()

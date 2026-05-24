@@ -1599,6 +1599,33 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
         # Explicit shortlist file overrides everything
         candidates = _load_candidates_from_shortlist(shortlist_path)
         source = f"shortlist:{shortlist_path}"
+
+        # ⛔ CRITICAL VALIDATION (post-mortem 2026-05-24): deep_stats was run with
+        # esports_shortlist.json (3 events) instead of s2_shortlist.json (552).
+        # This caused 549 events to NEVER be analyzed. NEVER REPEAT THIS.
+        MIN_CANDIDATES_SHORTLIST = 10
+        if len(candidates) < MIN_CANDIDATES_SHORTLIST:
+            expected_path = f"betting/data/{date}_s2_shortlist.json"
+            print(f"\n{'='*70}")
+            print(f"⛔ SHORTLIST SANITY CHECK FAILED!")
+            print(f"   Loaded only {len(candidates)} candidates from: {shortlist_path}")
+            print(f"   Expected minimum: {MIN_CANDIDATES_SHORTLIST}")
+            print(f"   Did you mean to use: {expected_path} ?")
+            print(f"{'='*70}\n")
+            # Check if the real shortlist exists and is bigger
+            real_shortlist = Path(expected_path)
+            if real_shortlist.exists():
+                try:
+                    real_data = json.loads(real_shortlist.read_text(encoding="utf-8"))
+                    real_count = len(real_data.get("candidates", real_data.get("events", [])))
+                    if real_count > len(candidates):
+                        print(f"   ⚠️  FOUND REAL SHORTLIST: {expected_path} has {real_count} candidates!")
+                        print(f"   ⚠️  SWITCHING to real shortlist automatically.")
+                        print(f"{'='*70}\n")
+                        candidates = _load_candidates_from_shortlist(expected_path)
+                        source = f"shortlist:{expected_path} (auto-corrected from {shortlist_path})"
+                except Exception:
+                    pass
     elif from_db:
         # Explicit DB-first mode
         candidates = _load_candidates_from_db(date)

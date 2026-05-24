@@ -6,7 +6,7 @@ applyTo: ""
 
 > **This file is loaded ON DEMAND, not auto-loaded.** It contains detailed per-sport statistical protocols, upset risk checklists, and instant red flag tables. The agent loads it when performing deep analysis (STEP 3+).
 >
-> **Sports:** Football, Volleyball, Basketball, Tennis, Hockey — all Tier 1. Scan ALL leagues/divisions deeply. Analysis depth is identical for all candidates.
+> **Sports:** Football, Volleyball, Basketball, Tennis, Hockey, Esports (CS2, Valorant, Dota 2) — all Tier 1. Scan ALL leagues/divisions deeply. Analysis depth is identical for all candidates.
 
 ---
 
@@ -226,7 +226,46 @@ Before selecting ANY volleyball market, calculate ALL of these:
 ```
 Pick the market with HIGHEST safety score.
 
-### §3.6 Esports — ARCHIVED (removed from pipeline v4)
+### §3.6 Esports (CS2, Valorant, Dota 2)
+
+**Required stats:**
+
+| Category | Metrics | Source |
+|----------|---------|--------|
+| Map Win Rate | Overall WR%, L10 WR%, per-map WR% (home team pool) | bo3.gg, VLR.gg, HLTV |
+| H2H | Last 5 meetings, map scores, date recency | bo3.gg (Playwright detail page) |
+| Map Pool | Per-map WR for both teams, map bans/picks history | bo3.gg |
+| Lineups | Confirmed 5-player roster, stand-ins flagged | bo3.gg, VLR.gg, Liquipedia |
+| Form | L5/L10 match results (W/L), streak | VLR.gg (team stats), bo3.gg |
+| Ranking | Team ranking (VLR for Valorant, HLTV for CS2) | VLR.gg, HLTV.org |
+| Round Stats | Avg rounds won/lost per map, pistol round WR | bo3.gg |
+| Format | Bo1/Bo3/Bo5 — affects volatility significantly | Match page |
+
+**Odds source:** bo3.gg (Playwright-rendered, `fetch_esports_odds.py`). Stores in DB `odds_history` with `bookmaker='bo3gg'`.
+
+**Market decision process:**
+1. ML (Match Winner) — primary market, use H2H + form + ranking
+2. Map Handicap (+/-1.5) — available on detail pages, strong for Bo3/Bo5 mismatches
+3. Total Maps O/U — correlates with team strength gap
+4. Esports hierarchy: ML → Map HC → Total Maps → Round HC (if available)
+
+**Key differences from traditional sports:**
+- **No home/away advantage** — online matches are neutral. Ignore H/A splits.
+- **Bo1 = high variance** — ML risky, prefer handicap or skip.
+- **Roster changes** are CRITICAL — one stand-in can drop team WR by 20%+.
+- **Map pool overlap** — if teams share 2+ strong maps, expect close series.
+- **Patch/meta shifts** — recent game patches can invalidate historical stats.
+
+**§3.6M MANDATORY MULTI-MARKET CALCULATION (ESPORTS):**
+
+```
+| Market              | Home L10  | Away L10  | H2H (5m) | Line | Hit% | Safety |
+|---------------------|-----------|-----------|-----------|------|------|--------|
+| ML (Match Winner)   |           |           |           |      |      |        |
+| Map HC ±1.5         |           |           |           |      |      |        |
+| Total Maps O/U 2.5  |           |           |           |      |      |        |
+```
+Pick the market with HIGHEST safety score.
 
 ### §3.7 Snooker — ARCHIVED (removed from pipeline v4)
 
@@ -375,7 +414,13 @@ Run for EVERY candidate BEFORE approving. Score on sport-specific checklist. If 
 | VB2 | 5th set to 15? → Verify line |
 | VB3 | Home crowd >70%? → Factor into ML/spread |
 
-### Esports — ARCHIVED (removed from pipeline v4)
+### Esports (CS2, Valorant, Dota 2)
+| E1 | Stand-in/sub in lineup? → −2, ML risky |
+| E2 | Bo1 format? → High variance, prefer HC or SKIP ML |
+| E3 | Roster change <2 weeks? → −1, stats unreliable |
+| E4 | Online vs LAN? → LAN favors higher-ranked teams |
+| E5 | Major patch <1 week? → Meta shift, historical stats degraded |
+| E6 | Map pool overlap ≥3 maps? → Close series likely, OVER maps |
 
 ### Snooker — ARCHIVED (removed from pipeline v4)
 

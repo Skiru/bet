@@ -276,7 +276,15 @@ class EventDiscoveryCoordinator:
         return count
 
     def _resolve_team(self, sport_id: int, name: str) -> int:
-        """Find or create a team, return its ID."""
+        """Find or create a team, return its ID.
+
+        Resolution order:
+        1. Exact name match (fast, indexed)
+        2. Alias match via json_each
+        3. Normalized diacritics match (strips accents, compares ASCII)
+        4. Only if all fail: create new team entry
+        """
+        # 1. Exact match
         row = self.session.execute(
             text("SELECT id FROM teams WHERE sport_id = :sid AND name = :name"),
             {"sid": sport_id, "name": name},
@@ -284,6 +292,75 @@ class EventDiscoveryCoordinator:
         if row:
             return row[0]
 
+        # 2. Alias match
+        row = self.session.execute(
+            text(
+                "SELECT t.id FROM teams t, json_each(t.aliases) AS a "
+                "WHERE t.sport_id = :sid AND a.value = :name"
+            ),
+            {"sid": sport_id, "name": name},
+        ).fetchone()
+        if row:
+            return row[0]
+
+        # 3. Normalized diacritics match + suffix-stripping
+        import re
+        import unicodedata
+        from bet.utils import normalize_team_name
+
+        normalized_input = (
+            unicodedata.normalize("NFKD", name)
+            .encode("ascii", "ignore")
+            .decode("ascii")
+            .lower()
+            .strip()
+        )
+        suffix_stripped_input = normalize_team_name(name)
+        # Guard: don't suffix-match if name has identity markers (reserves/youth/women)
+        _identity_re = re.compile(r"\b(U2[0-9]|U1[7-9]|II|III|IV|B|W|Reserves?|Youth|Women|Juniors?)\b", re.IGNORECASE)
+        has_identity_marker = bool(_identity_re.search(name))
+
+        if normalized_input and len(normalized_input) >= 3:
+            rows = self.session.execute(
+                text("SELECT id, name FROM teams WHERE sport_id = :sid"),
+                {"sid": sport_id},
+            ).fetchall()
+            for r in rows:
+                canonical_norm = (
+                    unicodedata.normalize("NFKD", r[1])
+                    .encode("ascii", "ignore")
+                    .decode("ascii")
+                    .lower()
+                    .strip()
+                )
+                if canonical_norm == normalized_input:
+                    # Auto-add as alias to prevent future table scans
+                    self.session.execute(
+                        text(
+                            "UPDATE teams SET aliases = json_insert("
+                            "COALESCE(aliases, '[]'), '$[#]', :alias"
+                            ") WHERE id = :tid"
+                        ),
+                        {"alias": name, "tid": r[0]},
+                    )
+                    return r[0]
+                # Suffix-stripped comparison (FC, SC, United, etc.) — skip if identity markers differ
+                if suffix_stripped_input and len(suffix_stripped_input) >= 3 and not has_identity_marker:
+                    candidate_has_marker = bool(_identity_re.search(r[1]))
+                    if not candidate_has_marker:
+                        canonical_suffix_stripped = normalize_team_name(r[1])
+                        if canonical_suffix_stripped == suffix_stripped_input:
+                            self.session.execute(
+                                text(
+                                    "UPDATE teams SET aliases = json_insert("
+                                    "COALESCE(aliases, '[]'), '$[#]', :alias"
+                                    ") WHERE id = :tid"
+                                ),
+                                {"alias": name, "tid": r[0]},
+                            )
+                            return r[0]
+
+        # 4. Create new team
         result = self.session.execute(
             text("INSERT INTO teams (sport_id, name) VALUES (:sid, :name)"),
             {"sid": sport_id, "name": name},

@@ -30,9 +30,10 @@ DATA_DIR = Path(__file__).parent.parent / "betting" / "data"
 JOURNAL_DIR = Path(__file__).parent.parent / "betting" / "journal"
 LEDGER_PATH = JOURNAL_DIR / "picks-ledger.csv"
 
-KEY_SPORTS = {"football", "volleyball", "basketball", "tennis", "hockey"}
+KEY_SPORTS = {"football", "volleyball", "basketball", "tennis", "hockey", "cs2", "dota2", "valorant"}
 ALL_SPORTS = {
     "football", "volleyball", "basketball", "tennis", "hockey",
+    "cs2", "dota2", "valorant",
 }
 
 GATE_LABELS = {
@@ -563,16 +564,16 @@ def check_red_flags(candidate: dict) -> list[str]:
                 if is_over_sets_games:
                     flags.append(f"HARD REJECT ZT#3: {candidate.get(field)} qualifier/LL + Over {market_name}")
 
-        # ZT#3 extended: Over sets with H2H-BLIND + single source = structurally unsafe
-        # Even without explicit (Q)/(LL) markers, thin data on Over sets is high risk
+        # ZT#3 extended: Over sets with H2H-BLIND + single source = thin evidence
+        # R3 compliance: route to Extended Pool (FLAG), NOT hard reject — user decides
         if is_over_sets_games and h2h_blind:
             sources = candidate.get("sources", [])
             if isinstance(sources, str):
                 sources = [s.strip() for s in sources.split("|") if s.strip()]
             if len(sources) <= 1:
                 flags.append(
-                    f"HARD REJECT ZT#3-EXT: Over {market_name} with H2H-BLIND + single source "
-                    f"({sources}) — insufficient evidence for sets/games direction"
+                    f"FLAG ZT#3-EXT: Over {market_name} with H2H-BLIND + single source "
+                    f"({sources}) — thin evidence for sets/games direction"
                 )
 
         # ZT#22: Ranking-ghost favorite — entry_method or form-based detection
@@ -1622,7 +1623,7 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
                     )
                 # Use sport-specific minimum (tennis=2, volleyball=2, others=3)
                 _sport = (c.get("sport") or "").lower()
-                _min_mkts = {"football": 3, "basketball": 3, "tennis": 2, "volleyball": 2, "hockey": 3}.get(_sport, 2)
+                _min_mkts = {"football": 3, "basketball": 3, "tennis": 2, "volleyball": 2, "hockey": 3, "cs2": 1, "dota2": 1, "valorant": 1}.get(_sport, 2)
                 if markets_evaluated < _min_mkts and markets_evaluated > 0:
                     extended_reasons.append(f"INSUFFICIENT_MARKETS: {markets_evaluated}/{_min_mkts} required")
                 if hit_rate_val > 0 and hit_rate_val <= 0.50:
@@ -1973,6 +1974,17 @@ def main():
             out.warning(f"Missing input: {_m}")
 
     candidates, candidate_load = _load_s3_output(args.date, args.input)
+
+    # ⛔ SANITY CHECK (post-mortem 2026-05-24): Gate processed only 3 of 552 candidates
+    # because deep_stats was fed wrong shortlist. Gate MUST alert when input is suspiciously small.
+    MIN_GATE_CANDIDATES = 10
+    if len(candidates) < MIN_GATE_CANDIDATES and len(candidates) > 0:
+        print(f"\n{'='*70}")
+        print(f"⚠️  GATE SANITY WARNING: Only {len(candidates)} candidates loaded!")
+        print(f"   Source: {candidate_load.get('source', 'unknown')}")
+        print(f"   This is suspiciously low. Expected 50+ for a normal betting day.")
+        print(f"   Check that deep_stats_report.py used the correct shortlist.")
+        print(f"{'='*70}\n")
 
     if candidate_load.get("blocking_error"):
         error = candidate_load["blocking_error"]

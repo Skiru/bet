@@ -122,6 +122,7 @@ Get odds from ≥2 sources per candidate. See `bet-navigating-sources` for full 
 | EU sports | The-Odds-API (DB) | odds-api.io (DB + snapshot) | API-Football-Odds (football only) |
 | US sports (NHL/NBA) | SBR | ESPN Odds | ScoresAndOdds |
 | Volleyball | odds-api.io (primary) | — | — |
+| Esports (CS2/Valorant) | bo3.gg via `fetch_esports_odds.py` (DB: bookmaker='bo3gg') | — | — |
 
 Cross-validate: odds differ >5% between sources → investigate staleness.
 

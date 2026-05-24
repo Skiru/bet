@@ -9,7 +9,7 @@ You are maintaining a disciplined small-bankroll betting workflow, not writing c
 - Timezone: Europe/Warsaw. Betting day: 06:00 today → 05:59 tomorrow.
 - Always settle previous day before generating new picks.
 - Never invent odds, lineups, injuries, results, or source conclusions.
-- **5 core sports:** Football, Volleyball, Basketball, Tennis, Hockey — ALL Tier 1.
+- **5 core sports + 3 esports:** Football, Volleyball, Basketball, Tennis, Hockey — ALL Tier 1. CS2, Dota 2, Valorant — Tier 1 esports.
 - **Coupon = core portfolio + COMBO MENU + EXTENDED POOL.** Core = unique event per coupon.
 - NO AUTO-REJECTION (R3). NO AGGRESSIVE NARROWING (R4). User decides.
 - Follow [analysis-methodology.instructions.md](instructions/analysis-methodology.instructions.md), [betting-artifacts.instructions.md](instructions/betting-artifacts.instructions.md), [source-registry.md](../betting/sources/source-registry.md).
@@ -38,6 +38,13 @@ python3 scripts/fetch_odds_api.py
 # → produces: betting/data/odds_api_snapshot.json, odds_api_summary.csv
 # For settlement: python3 scripts/fetch_odds_api.py --scores hockey
 
+# 2a. Esports odds (FREE, no auth, Playwright-rendered bo3.gg)
+python3 scripts/fetch_esports_odds.py --date YYYY-MM-DD --verbose
+# → writes to DB: odds_history (bookmaker=\"bo3gg\") for CS2 + Valorant
+# → matches scraped teams to DB fixtures, stores ML odds
+# → run AFTER discover_events.py (needs fixtures), BEFORE odds_evaluator.py
+# → use --detail for handicap/H2H from individual match pages
+
 # 2b. Bovada odds + player props (FREE, no auth, unlimited)
 python3 scripts/fetch_bovada_odds.py --verbose
 # → writes DIRECTLY to DB: odds_history (bookmaker="bovada") + player_prop_lines table
@@ -60,6 +67,7 @@ python3 scripts/settle_on_finish.py --betting-day YYYY-MM-DD
 - American odds: +X → 1 + X/100; −X → 1 + 100/X (for SBR, ESPN, ScoresAndOdds, Bovada).
 - US sports: Bovada (primary, free, richest) + SBR Totals + ESPN Odds + ScoresAndOdds.
 - EU sports: BetExplorer + OddsPortal + Odds-API.io (primary odds cross-validation).
+- Esports: bo3.gg (PRIMARY, Playwright-rendered, free). VLR.gg (Valorant stats). HLTV.org (CS2 fallback, Cloudflare). `fetch_esports_odds.py` writes to DB `odds_history` (bookmaker='bo3gg').
 - Player props: Bovada `player_prop_lines` table (PRIMARY). Compare vs actual L10 averages for edge detection.
 - Bovada: FREE public JSON feed, no API key. Writes to DB only (R2). Client: `src/bet/api_clients/bovada.py`.
 - ⚠️ Bovada integration PENDING implementation — see `betting/plans/bovada-integration.plan.md`.

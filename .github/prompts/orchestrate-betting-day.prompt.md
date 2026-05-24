@@ -21,7 +21,7 @@ argument-hint: "run_date=2026-05-08 session=full" or "run_date=2026-05-08 sessio
  5. S1:   discover_events.py → delegate to bet-scanner
  6. S1▸   ingest_scan_stats.py (stats ingestion — no delegation needed)
  7. S1a:  seed_espn_data.py (ESPN seeding — DO NOT SKIP)
- 8. S1b:  fetch_odds_api.py + fetch_odds_api_io.py + fetch_weather.py + tipster_aggregator.py (DO NOT SKIP)
+ 8. S1b:  fetch_odds_api.py + fetch_odds_api_io.py + fetch_esports_odds.py + fetch_weather.py + tipster_aggregator.py (DO NOT SKIP)
  9. S1e:  build_shortlist.py → delegate to bet-scanner
 10. S2:   tipster_xref.py → delegate to bet-scout
 11. S2.3: run_scrapers.py → delegate to bet-enricher
@@ -138,10 +138,11 @@ Timeout: 300000. Seeds: standings, ATS/OU records, predictions, power index. Thi
 ```bash
 PYTHONPATH=src .venv/bin/python3 scripts/fetch_odds_api.py --verbose
 PYTHONPATH=src .venv/bin/python3 scripts/fetch_odds_api_io.py --date {date} --verbose
+PYTHONPATH=src .venv/bin/python3 scripts/fetch_esports_odds.py --date {date} --verbose
 PYTHONPATH=src .venv/bin/python3 scripts/fetch_weather.py --date {date} --verbose
 PYTHONPATH=src .venv/bin/python3 scripts/tipster_aggregator.py --date {date} --use-gemini --verbose
 ```
-These provide: cross-validated odds (for S4), weather context for outdoor events (for S5), raw tipster picks (for S2). Without them, downstream steps lack critical inputs.
+These provide: cross-validated odds (for S4), esports odds from bo3.gg (CS2/Valorant), weather context for outdoor events (for S5), raw tipster picks (for S2). Without them, downstream steps lack critical inputs.
 
 ---
 

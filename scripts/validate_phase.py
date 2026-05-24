@@ -778,6 +778,23 @@ def validate_analysis_phase(date: str) -> list[Check]:
 
     analyses = _load_s3_analyses(date)
     s3_json_count = len(analyses)
+
+    # ⛔ CRITICAL CHECK (post-mortem 2026-05-24): S3 analyzed only 3/552 candidates.
+    # If S3 analyzed <20% of shortlist, something went catastrophically wrong.
+    shortlist_for_s3 = _load_shortlist(date)
+    if shortlist_for_s3 and s3_json_count > 0:
+        coverage_pct = s3_json_count / len(shortlist_for_s3) * 100
+        if coverage_pct < 20 and len(shortlist_for_s3) > 20:
+            checks.append(PhaseCheck(
+                "S3→S2 coverage sanity",
+                "FAIL",
+                f"S3 analyzed {s3_json_count}/{len(shortlist_for_s3)} candidates ({coverage_pct:.0f}%) — "
+                f"CATASTROPHIC LOSS! deep_stats likely used wrong shortlist file.",
+                severity="critical",
+                recovery=f"Re-run: PYTHONPATH=src .venv/bin/python3 scripts/deep_stats_report.py --date {date} "
+                         f"--shortlist betting/data/{date}_s2_shortlist.json --gemini --verbose",
+            ))
+
     gate_json = _load_gate_results(date)
     json_gate_counts = _json_gate_counts(gate_json)
 

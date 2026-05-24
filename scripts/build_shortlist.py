@@ -140,6 +140,15 @@ PROTECTED_DOMESTIC_LEAGUES: dict[str, list[str]] = {
     "hockey": [
         "khl",
     ],
+    "cs2": [
+        "esl pro league", "blast premier", "iem", "pgl major",
+    ],
+    "dota2": [
+        "the international", "dpc", "esl one",
+    ],
+    "valorant": [
+        "vct", "champions tour", "challengers", "game changers",
+    ],
 }
 
 
@@ -235,10 +244,34 @@ COMP_TIER_KEYWORDS: dict[str, list[tuple[int, list[str]]]] = {
              "friendly", "international"]),
         (4, []),  # default for unknown hockey leagues
     ],
+    "cs2": [
+        (10, ["major", "blast premier", "esl pro league", "iem katowice", "iem cologne"]),
+        (9, ["blast", "esl", "iem", "pgl"]),
+        (8, ["cct", "thunderpick", "betboom", "yalla", "perfect world", "esea premier"]),
+        (7, ["ccgs", "esea advanced", "insomnia", "dreamhack"]),
+        (5, ["open qualifier", "closed qualifier", "regional"]),
+        (3, []),  # default for unknown CS2 leagues
+    ],
+    "dota2": [
+        (10, ["the international", "ti1", "esl one"]),
+        (9, ["dpc", "esl", "dreamleague", "riyadh masters"]),
+        (8, ["bts pro", "betboom", "lima major", "bali major"]),
+        (7, ["dpc division", "elite league", "fissure"]),
+        (5, ["open qualifier", "closed qualifier", "regional"]),
+        (3, []),  # default for unknown Dota2 leagues
+    ],
+    "valorant": [
+        (10, ["vct masters", "vct champions", "champions tour"]),
+        (9, ["vct", "challengers", "ascension"]),
+        (8, ["game changers", "gc", "red bull", "kickoff"]),
+        (7, ["premier", "open qualifier"]),
+        (5, ["qualifier", "minor"]),
+        (3, []),  # default for unknown Valorant leagues
+    ],
 }
 
 # Tier 1 = KEY sports (always prioritize); Tier 2 = support
-TIER1_SPORTS = {"football", "volleyball", "basketball", "tennis", "hockey"}
+TIER1_SPORTS = {"football", "volleyball", "basketball", "tennis", "hockey", "cs2", "dota2", "valorant"}
 
 
 def _score_competition(sport: str, competition: str) -> int:

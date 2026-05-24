@@ -39,15 +39,16 @@ DATA_DIR = Path(__file__).parent.parent / "betting" / "data"
 
 def normalize_team_name(name: str) -> str:
     """Normalize team name for fuzzy matching."""
-    return (
-        name.lower()
-        .strip()
-        .replace(" esports", "")
-        .replace(" gaming", "")
-        .replace(" 1", "")
-        .replace("é", "e")
-        .replace("á", "a")
-    )
+    import re
+    n = name.lower().strip()
+    # Remove common suffixes
+    n = n.replace(" esports", "").replace(" gaming", "")
+    # Strip live score artifacts (e.g., "2 1 -" at the end)
+    n = re.sub(r'\s+\d+\s+\d+\s*-?\s*$', '', n)
+    # Only strip trailing " 1" (academy/B team marker), not mid-name
+    n = re.sub(r'\s+1$', '', n)
+    n = n.replace("é", "e").replace("á", "a")
+    return n
 
 
 def match_fixture(home: str, away: str, fixtures: list[dict]) -> dict | None:
@@ -99,9 +100,22 @@ def fetch_fixtures_for_date(date_str: str, sport_ids: list[int]) -> list[dict]:
         ]
 
 
-def store_odds(fixture_id: int, market: str, selection: str, odds: float, line: float | None = None):
-    """Store odds record in DB."""
-    with get_db() as db:
+def store_odds_batch(db, records: list[tuple]):
+    """Store odds records in DB, skipping duplicates from the same fetch window (1 hour)."""
+    stored = 0
+    for fixture_id, market, selection, odds, line in records:
+        # Dedup: skip if identical record exists within last hour
+        existing = db.execute(
+            """
+            SELECT 1 FROM odds_history
+            WHERE fixture_id = ? AND bookmaker = ? AND market = ? AND selection = ?
+            AND fetched_at > datetime('now', '-1 hour')
+            LIMIT 1
+            """,
+            [fixture_id, BOOKMAKER, market, selection],
+        ).fetchone()
+        if existing:
+            continue
         db.execute(
             """
             INSERT INTO odds_history (fixture_id, bookmaker, market, selection, odds, line, fetched_at, is_closing)
@@ -109,7 +123,9 @@ def store_odds(fixture_id: int, market: str, selection: str, odds: float, line: 
             """,
             [fixture_id, BOOKMAKER, market, selection, odds, line, datetime.now(timezone.utc).isoformat()],
         )
-        db.commit()
+        stored += 1
+    db.commit()
+    return stored
 
 
 def main():
@@ -143,6 +159,7 @@ def main():
     total_stored = 0
     total_matched = 0
     all_scraped: list[dict] = []
+    pending_records: list[tuple] = []  # (fixture_id, market, selection, odds, line)
 
     with Bo3GGScraper() as scraper:
         for game in games:
@@ -186,20 +203,19 @@ def main():
                     print(f"  DRY-RUN: {home} vs {away} → fixture {fixture['fixture_id']} | ML {odds_home}/{odds_away}")
                     continue
 
-                # Store ML odds (both selections)
-                store_odds(fixture["fixture_id"], "h2h", "home", odds_home)
-                store_odds(fixture["fixture_id"], "h2h", "away", odds_away)
-                total_stored += 2
+                # Queue ML odds (both selections)
+                pending_records.append((fixture["fixture_id"], "h2h", "home", odds_home, None))
+                pending_records.append((fixture["fixture_id"], "h2h", "away", odds_away, None))
 
                 if args.verbose:
-                    logger.info("  STORED: %s vs %s → %d | @%.2f/%.2f",
+                    logger.info("  QUEUED: %s vs %s → %d | @%.2f/%.2f",
                                 home, away, fixture["fixture_id"], odds_home, odds_away)
 
             # Optional: fetch detail pages for extra markets
-            if args.detail and game == "valorant":
-                print(f"  Fetching detail pages for matched Valorant matches...")
+            if args.detail:
+                print(f"  Fetching detail pages for matched {game} matches...")
                 for entry in all_scraped:
-                    if not entry.get("matched") or entry.get("game") != "valorant":
+                    if not entry.get("matched") or entry.get("game") != game:
                         continue
                     detail = scraper.get_valorant_match_detail(entry["match_url"])
                     if detail and detail.get("ml_odds"):
@@ -207,16 +223,20 @@ def main():
                         ml = detail["ml_odds"]
                         if ml.get("home") and ml.get("away"):
                             if not args.dry_run:
-                                store_odds(entry["fixture_id"], "h2h", "home", ml["home"])
-                                store_odds(entry["fixture_id"], "h2h", "away", ml["away"])
-                                total_stored += 2
+                                pending_records.append((entry["fixture_id"], "h2h", "home", ml["home"], None))
+                                pending_records.append((entry["fixture_id"], "h2h", "away", ml["away"], None))
                     if detail and detail.get("handicap"):
                         hc = detail["handicap"]
                         if hc.get("odds") and hc.get("line"):
                             if not args.dry_run:
-                                store_odds(entry["fixture_id"], "spreads", hc.get("team", "home"),
-                                           hc["odds"], hc["line"])
-                                total_stored += 1
+                                pending_records.append((entry["fixture_id"], "spreads", hc.get("team", "home"),
+                                                        hc["odds"], hc["line"]))
+
+    # Batch write all odds to DB in single transaction
+    if pending_records and not args.dry_run:
+        with get_db() as db:
+            total_stored = store_odds_batch(db, pending_records)
+        print(f"  Stored {total_stored} new records ({len(pending_records) - total_stored} duplicates skipped)")
 
     # Save JSON snapshot
     snapshot_path = DATA_DIR / f"{args.date}_esports_odds_snapshot.json"

@@ -178,13 +178,86 @@ class BaseScraper(ABC):
         ).fetchone()[0]
 
     def _find_or_create_team(self, session, sport_id: int, name: str, country: str = "") -> int:
+        import unicodedata
+
+        # 1. Exact match
         res = session.execute(
             text("SELECT id FROM teams WHERE sport_id = :sid AND name = :n"),
             {"sid": sport_id, "n": name}
         ).fetchone()
         if res:
             return res[0]
-            
+
+        # 2. Alias match
+        res = session.execute(
+            text(
+                "SELECT t.id FROM teams t, json_each(t.aliases) AS a "
+                "WHERE t.sport_id = :sid AND a.value = :n"
+            ),
+            {"sid": sport_id, "n": name}
+        ).fetchone()
+        if res:
+            return res[0]
+
+        # 3. Normalized diacritics match + suffix stripping
+        import re
+        from bet.utils import normalize_team_name
+
+        normalized_input = (
+            unicodedata.normalize("NFKD", name)
+            .encode("ascii", "ignore")
+            .decode("ascii")
+            .lower()
+            .strip()
+        )
+        suffix_stripped_input = normalize_team_name(name)
+        # Guard: don't suffix-match if name has identity markers (reserves/youth/women)
+        _identity_re = re.compile(r"\b(U2[0-9]|U1[7-9]|II|III|IV|B|W|Reserves?|Youth|Women|Juniors?)\b", re.IGNORECASE)
+        has_identity_marker = bool(_identity_re.search(name))
+
+        if normalized_input and len(normalized_input) >= 3:
+            rows = session.execute(
+                text("SELECT id, name FROM teams WHERE sport_id = :sid"),
+                {"sid": sport_id}
+            ).fetchall()
+            for r in rows:
+                canonical_norm = (
+                    unicodedata.normalize("NFKD", r[1])
+                    .encode("ascii", "ignore")
+                    .decode("ascii")
+                    .lower()
+                    .strip()
+                )
+                if canonical_norm == normalized_input:
+                    # Auto-add as alias
+                    session.execute(
+                        text(
+                            "UPDATE teams SET aliases = json_insert("
+                            "COALESCE(aliases, '[]'), '$[#]', :alias"
+                            ") WHERE id = :tid"
+                        ),
+                        {"alias": name, "tid": r[0]},
+                    )
+                    session.commit()
+                    return r[0]
+                # Suffix-stripped comparison — skip if identity markers differ
+                if suffix_stripped_input and len(suffix_stripped_input) >= 3 and not has_identity_marker:
+                    candidate_has_marker = bool(_identity_re.search(r[1]))
+                    if not candidate_has_marker:
+                        canonical_suffix_stripped = normalize_team_name(r[1])
+                        if canonical_suffix_stripped == suffix_stripped_input:
+                            session.execute(
+                                text(
+                                    "UPDATE teams SET aliases = json_insert("
+                                    "COALESCE(aliases, '[]'), '$[#]', :alias"
+                                    ") WHERE id = :tid"
+                                ),
+                                {"alias": name, "tid": r[0]},
+                            )
+                            session.commit()
+                            return r[0]
+
+        # 4. Create new
         session.execute(
             text("INSERT OR IGNORE INTO teams (sport_id, name, country) VALUES (:sid, :n, :c)"),
             {"sid": sport_id, "n": name, "c": country}

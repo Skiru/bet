@@ -923,6 +923,36 @@ These sources provide tips, predictions, and community analysis for exotic footb
   Use for: international competition context (Nations League, World Championship, Olympic qualifiers), team world rankings, and official match stats.
   Access: OK.
 
+### Esports (CS2, Valorant, Dota 2)
+
+- bo3.gg (PRIMARY — CS2 + Valorant)
+  Role: esports match listings, ML odds, handicap odds, H2H, map pool win rates, lineups, team stats.
+  URL: bo3.gg, bo3.gg/valorant/
+  Access: Nuxt 3 SPA — requires Playwright rendering. Plain HTTP returns 11KB shell without data.
+  Client: `src/bet/scrapers/bo3gg.py` (HTTP for team stats, Playwright for odds/matches).
+  Pipeline script: `scripts/fetch_esports_odds.py` — writes to DB `odds_history` (bookmaker='bo3gg').
+  Rate limit: 3s self-imposed between requests.
+  Coverage: CS2 (matches/current) + Valorant (valorant/matches/current). Match detail pages have H2H, map pool, lineups, handicap.
+  API: `api.bo3.gg/api/v1` exists but is BROKEN — always returns 10 oldest results from 2020 regardless of filters. DO NOT USE API.
+
+- VLR.gg (Valorant stats)
+  Role: Valorant team statistics — win rate L10, rounds won avg, team ranking, match history.
+  URL: vlr.gg
+  Access: Plain HTTP + BeautifulSoup (no Cloudflare issues).
+  Client: `src/bet/scrapers/vlr.py`
+  Use for: Valorant team form data (WR, rounds, ranking) to supplement bo3.gg odds.
+
+- HLTV.org (CS2 fallback)
+  Role: CS2 team rankings, match results, player stats.
+  URL: hltv.org
+  Access: Cloudflare-protected — intermittent blocks. Use bo3.gg as primary.
+  Client: `src/bet/scrapers/hltv.py`
+
+- Liquipedia
+  Role: esports wiki — rosters, tournament brackets, patch notes, team history.
+  URL: liquipedia.net
+  Access: OK (plain HTTP). Use for roster verification and tournament context.
+
 ### Multi-Sport Odds and Analytics
 
 - Covers

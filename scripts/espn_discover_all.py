@@ -23,6 +23,95 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from sqlalchemy import create_engine, event as sa_event, text
 from sqlalchemy.orm import sessionmaker
+import unicodedata
+from bet.utils import normalize_team_name
+
+
+def _resolve_team_normalized(session, name: str, sport_id: int) -> int | None:
+    """Resolve team with diacritics normalization + suffix stripping fallback. Returns team_id or None."""
+    # 1. Exact match
+    row = session.execute(
+        text("SELECT id FROM teams WHERE name = :name AND sport_id = :sid"),
+        {"name": name, "sid": sport_id},
+    ).fetchone()
+    if row:
+        return row[0]
+
+    # 2. Alias match
+    row = session.execute(
+        text(
+            "SELECT t.id FROM teams t, json_each(t.aliases) AS a "
+            "WHERE t.sport_id = :sid AND a.value = :name"
+        ),
+        {"sid": sport_id, "name": name},
+    ).fetchone()
+    if row:
+        return row[0]
+
+    # 3. Normalized diacritics match + suffix stripping
+    import re
+    normalized_input = (
+        unicodedata.normalize("NFKD", name)
+        .encode("ascii", "ignore")
+        .decode("ascii")
+        .lower()
+        .strip()
+    )
+    suffix_stripped_input = normalize_team_name(name)
+    # Guard: don't suffix-match if name has identity markers (reserves/youth/women)
+    _identity_re = re.compile(r"\b(U2[0-9]|U1[7-9]|II|III|IV|B|W|Reserves?|Youth|Women|Juniors?)\b", re.IGNORECASE)
+    has_identity_marker = bool(_identity_re.search(name))
+
+    if normalized_input and len(normalized_input) >= 3:
+        rows = session.execute(
+            text("SELECT id, name FROM teams WHERE sport_id = :sid"),
+            {"sid": sport_id},
+        ).fetchall()
+        for r in rows:
+            canonical_norm = (
+                unicodedata.normalize("NFKD", r[1])
+                .encode("ascii", "ignore")
+                .decode("ascii")
+                .lower()
+                .strip()
+            )
+            if canonical_norm == normalized_input:
+                # Auto-add as alias
+                session.execute(
+                    text(
+                        "UPDATE teams SET aliases = json_insert("
+                        "COALESCE(aliases, '[]'), '$[#]', :alias"
+                        ") WHERE id = :tid"
+                    ),
+                    {"alias": name, "tid": r[0]},
+                )
+                return r[0]
+            # Suffix-stripped comparison — skip if identity markers differ
+            if suffix_stripped_input and len(suffix_stripped_input) >= 3 and not has_identity_marker:
+                candidate_has_marker = bool(_identity_re.search(r[1]))
+                if not candidate_has_marker:
+                    canonical_suffix_stripped = normalize_team_name(r[1])
+                    if canonical_suffix_stripped == suffix_stripped_input:
+                        session.execute(
+                            text(
+                                "UPDATE teams SET aliases = json_insert("
+                                "COALESCE(aliases, '[]'), '$[#]', :alias"
+                                ") WHERE id = :tid"
+                            ),
+                            {"alias": name, "tid": r[0]},
+                        )
+                        return r[0]
+
+    # 4. Create new
+    session.execute(
+        text("INSERT OR IGNORE INTO teams (name, sport_id) VALUES (:name, :sid)"),
+        {"name": name, "sid": sport_id},
+    )
+    row = session.execute(
+        text("SELECT id FROM teams WHERE name = :name AND sport_id = :sid"),
+        {"name": name, "sid": sport_id},
+    ).fetchone()
+    return row[0] if row else None
 from sqlalchemy.pool import StaticPool
 
 from bet.scrapers.engine import Base
@@ -118,27 +207,13 @@ def persist_to_db(date: str, fixtures: list[dict]) -> int:
                 ).fetchone()
             sport_id = sport_row[0]
 
-            # Resolve teams
-            for team_name in [f["home_team"], f["away_team"]]:
-                session.execute(
-                    text("INSERT OR IGNORE INTO teams (name, sport_id) VALUES (:name, :sid)"),
-                    {"name": team_name, "sid": sport_id},
-                )
+            # Resolve teams (with diacritics normalization)
+            home_id = _resolve_team_normalized(session, f["home_team"], sport_id)
+            away_id = _resolve_team_normalized(session, f["away_team"], sport_id)
 
-            home_row = session.execute(
-                text("SELECT id FROM teams WHERE name = :name AND sport_id = :sid"),
-                {"name": f["home_team"], "sid": sport_id},
-            ).fetchone()
-            away_row = session.execute(
-                text("SELECT id FROM teams WHERE name = :name AND sport_id = :sid"),
-                {"name": f["away_team"], "sid": sport_id},
-            ).fetchone()
-
-            if not home_row or not away_row:
+            if not home_id or not away_id:
                 nested.rollback()
                 continue
-
-            home_id, away_id = home_row[0], away_row[0]
 
             # Resolve competition
             comp_name = f.get("competition", "Unknown")

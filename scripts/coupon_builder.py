@@ -83,7 +83,9 @@ SPORT_EMOJI = {
     "tennis": "🎾",
     "volleyball": "🏐",
     "hockey": "🏒",
-
+    "cs2": "🎮",
+    "dota2": "🎮",
+    "valorant": "🎮",
 }
 
 TIER_ORDER = {"LR": 0, "MS": 1, "HR": 2, "N": 3}
@@ -1354,7 +1356,7 @@ COMBO_THEMES = [
     {
         "name": "key-sports-only",
         "thesis_pl": "Tylko sporty kluczowe (Tier 1) — najlepiej pokryte danymi",
-        "filter": lambda p: p.get("sport") in ("football", "volleyball", "basketball", "tennis"),
+        "filter": lambda p: p.get("sport") in ("football", "volleyball", "basketball", "tennis", "hockey", "cs2", "dota2", "valorant"),
         "tier": "LR",
     },
 ]
@@ -1969,8 +1971,7 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
         for p in quality_demoted:
             p["extended_pool_reason"] = "; ".join(p.get("_quality_reasons", ["quality filter"]))
         extended_pool.extend(quality_demoted)
-        out.info(f"Quality filter: {len(quality_demoted)} picks demoted to extended pool "
-                 f"(synthetic/insufficient/coin-flip)")
+        out.event("quality_filter", detail=f"{len(quality_demoted)} picks demoted to extended pool (synthetic/insufficient/coin-flip)")
 
     # --- DEEP MINING: Rescue hidden gems from extended pool (2026-05-23 fix) ---
     # Some picks in extended_pool have EXTREME hit rates (≥8/10 + 5/5 L5) but were
@@ -2005,8 +2006,7 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
                 extended_pool.remove(p)
     if _rescued:
         all_approved.extend(_rescued)
-        out.info(f"Deep mining: {len(_rescued)} hidden gems rescued to approved "
-                 f"(hit≥8/10 + L5≥4/5)")
+        out.event("deep_mining", detail=f"{len(_rescued)} hidden gems rescued to approved (hit≥8/10 + L5≥4/5)")
 
     # Assign risk_tier from safety if missing (JSON gate results don't always have it)
     for p in all_approved:
@@ -2183,7 +2183,7 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
         else:
             core_eligible.append(c)
     if minimal_moved:
-        out.info(f"📊 {minimal_moved} candidates moved to Extended Pool (MINIMAL data quality)")
+        out.event("minimal_moved", detail=f"{minimal_moved} candidates moved to Extended Pool (MINIMAL data quality)")
     if not core_eligible:
         core_eligible = approved  # Fallback: if ALL are MINIMAL, use them anyway (stats-first)
 

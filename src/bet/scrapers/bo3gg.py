@@ -255,7 +255,7 @@ class Bo3GGScraper:
             self._browser = None
             return False
 
-    def _get_rendered(self, url: str, wait_selector: str = "a[href*='/matches/']", timeout_ms: int = 12000) -> BeautifulSoup | None:
+    def _get_rendered(self, url: str, wait_selector: str = "a[href*='/matches/']", timeout_ms: int = 12000, use_networkidle: bool = False) -> BeautifulSoup | None:
         """Fetch a JS-rendered page via Playwright with rate limiting."""
         elapsed = time.monotonic() - self._last_request_time
         if elapsed < RATE_LIMIT_SECONDS:
@@ -264,31 +264,42 @@ class Bo3GGScraper:
         if not self._ensure_browser():
             return None
 
+        page = None
         try:
             page = self._browser.new_page(
                 user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36"
             )
-            page.goto(url, wait_until="domcontentloaded", timeout=15000)
+            wait_until = "networkidle" if use_networkidle else "domcontentloaded"
+            page.goto(url, wait_until=wait_until, timeout=15000)
             page.wait_for_selector(wait_selector, timeout=timeout_ms)
-            time.sleep(1)  # Let odds load
+            time.sleep(4 if use_networkidle else 1)  # Longer sleep for detail pages
             html = page.content()
-            page.close()
-            self._last_request_time = time.monotonic()
             return BeautifulSoup(html, "html.parser")
         except Exception as e:
             logger.warning("bo3.gg rendered fetch failed: %s — %s", url, e)
-            self._last_request_time = time.monotonic()
             return None
+        finally:
+            if page:
+                try:
+                    page.close()
+                except Exception:
+                    pass
+            self._last_request_time = time.monotonic()
 
     def close_browser(self):
         """Close Playwright browser."""
         if hasattr(self, "_browser") and self._browser:
             try:
                 self._browser.close()
-                self._pw.stop()
             except Exception:
                 pass
             self._browser = None
+        if hasattr(self, "_pw") and self._pw:
+            try:
+                self._pw.stop()
+            except Exception:
+                pass
+            self._pw = None
 
     def __enter__(self):
         return self
@@ -403,7 +414,7 @@ class Bo3GGScraper:
         Returns dict with ml_odds, handicap, h2h, map_pool_home/away,
         form_home/away, lineups_home/away, format, tournament, stage.
         """
-        soup = self._get_rendered(match_url, wait_selector="body", timeout_ms=15000)
+        soup = self._get_rendered(match_url, wait_selector="body", timeout_ms=15000, use_networkidle=True)
         if not soup:
             return {}
 
@@ -467,8 +478,6 @@ class Bo3GGScraper:
             })
 
         # Form: W/L sequences
-        form_matches = re.findall(r"\b([WL])\b", text)
-        # Find form section — typically pairs of 5 W/L for each team
         form_section = re.search(r"TEAM\s+FORM(.*?)(?:HEAD TO HEAD|LINEUPS|$)", text, re.IGNORECASE | re.DOTALL)
         if form_section:
             wl = re.findall(r"\b([WL])\b", form_section.group(1))

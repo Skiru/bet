@@ -1,12 +1,12 @@
 ---
 name: bet-navigating-sources
-description: "Navigate the betting source ecosystem — Tier A stats, Tier A markets, Tier B tipsters, Tier C specialists. Provides fallback chains per sport, blocked source lists, access notes, Playwright navigation tips, and URL patterns. Use when scanning events, fetching odds, checking tipster sites, or verifying results across 5 core sports (football, volleyball, basketball, tennis, hockey) plus archived chains for additional sports."
+description: "Navigate the betting source ecosystem — Tier A stats, Tier A markets, Tier B tipsters, Tier C specialists. Provides fallback chains per sport, blocked source lists, access notes, Playwright navigation tips, and URL patterns. Use when scanning events, fetching odds, checking tipster sites, or verifying results across 5 core sports (football, volleyball, basketball, tennis, hockey) plus 3 esports (CS2, Dota 2, Valorant)."
 user-invokable: false
 ---
 
 # Navigating Betting Sources
 
-Guides agents through the multi-tier source ecosystem for all 5 core sports (football, volleyball, basketball, tennis, hockey). Ensures fallback chains are followed, blocked sources are avoided, and source-specific quirks are handled.
+Guides agents through the multi-tier source ecosystem for all 5 core sports + 3 esports (football, volleyball, basketball, tennis, hockey, CS2, Dota 2, Valorant). Ensures fallback chains are followed, blocked sources are avoided, and source-specific quirks are handled.
 
 ## Source Philosophy
 
@@ -41,6 +41,8 @@ When a source fails (403/empty/timeout), try the next in chain immediately. All 
 | Basketball (US) | SBR | ESPN Odds | ScoresAndOdds |
 | Hockey | The-Odds-API | odds-api.io | SBR |
 | Volleyball | odds-api.io | — | — |
+| CS2 | bo3.gg (Playwright) | — | — |
+| Valorant | bo3.gg (Playwright) | — | — |
 
 ### Stats Sources
 
@@ -58,6 +60,9 @@ When a source fails (403/empty/timeout), try the next in chain immediately. All 
 | Basketball (EU) | Eurobasket.com | BetExplorer standings | Flashscore H2H |
 | Hockey | ESPN API (coaches, gamelogs, futures), api-hockey (per-game) | MoneyPuck (xG/Corsi — advisory only), Hockey-Reference | DailyFaceoff (goalies) |
 | Volleyball | Flashscore (scan data) | ESPN | CEV, PlusLiga |
+| CS2 | bo3.gg (Playwright — H2H, map pool) | HLTV.org (Cloudflare fallback) | Liquipedia (rosters) |
+| Valorant | bo3.gg (Playwright) + VLR.gg (stats) | — | Liquipedia (rosters) |
+| Dota 2 | OpenDota API | Dotabuff | Liquipedia (rosters) |
 
 ### Tipster Sources
 
@@ -70,6 +75,7 @@ When a source fails (403/empty/timeout), try the next in chain immediately. All 
 | Basketball (US) | PicksWise | Sportsgambler | OLBG |
 | Volleyball | ZawodTyper → Typersi | Sportsgambler | Meczyki |
 | Hockey | PicksWise | Sportsgambler | OLBG |
+| Esports | GosuGamers | — | — |
 
 ## Google Sports / SerpAPI (H2H Enrichment)
 

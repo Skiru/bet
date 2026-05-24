@@ -207,8 +207,16 @@ class TeamRepo:
             return self._row_to_team(row)
 
         # Normalized fallback: strip diacritics + common suffixes
+        import re
         import unicodedata
+        from bet.utils import normalize_team_name
+
         normalized_input = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode("ascii").lower().strip()
+        suffix_stripped_input = normalize_team_name(name)
+        # Guard: don't suffix-match if name has identity markers (reserves/youth/women)
+        _identity_re = re.compile(r"\b(U2[0-9]|U1[7-9]|II|III|IV|B|W|Reserves?|Youth|Women|Juniors?)\b", re.IGNORECASE)
+        has_identity_marker = bool(_identity_re.search(name))
+
         if not normalized_input or len(normalized_input) < 3:
             return None
         rows = self.conn.execute(
@@ -218,6 +226,7 @@ class TeamRepo:
         ).fetchall()
         for row in rows:
             canonical_norm = unicodedata.normalize("NFKD", row["name"]).encode("ascii", "ignore").decode("ascii").lower().strip()
+            # Match on stripped diacritics
             if canonical_norm == normalized_input:
                 # Auto-add the ASCII variant as alias to prevent future misses
                 team = self._row_to_team(row)
@@ -225,6 +234,17 @@ class TeamRepo:
                     updated_aliases = list(team.aliases or []) + [name]
                     self.update_aliases(team.id, updated_aliases)
                 return team
+            # Match on fully normalized (suffix-stripped) — skip if identity markers differ
+            if suffix_stripped_input and len(suffix_stripped_input) >= 3 and not has_identity_marker:
+                candidate_has_marker = bool(_identity_re.search(row["name"]))
+                if not candidate_has_marker:
+                    canonical_suffix_stripped = normalize_team_name(row["name"])
+                    if canonical_suffix_stripped == suffix_stripped_input:
+                        team = self._row_to_team(row)
+                        if name not in (team.aliases or []):
+                            updated_aliases = list(team.aliases or []) + [name]
+                            self.update_aliases(team.id, updated_aliases)
+                        return team
 
         return None
 
