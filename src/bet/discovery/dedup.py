@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from rapidfuzz import fuzz
 
 from bet.utils import normalize_team_name
+from .esports_aliases import resolve_alias
 from .models import DiscoveredEvent, MergedFixture, SourceRef
 
 logger = logging.getLogger(__name__)
@@ -95,10 +96,16 @@ class DeduplicationEngine:
         )
         return merged
 
+    ESPORTS_SPORTS = {"cs2", "dota2", "valorant"}
+
     def _match_key(self, event: DiscoveredEvent) -> str:
         """Exact dedup key: sport|norm_home|norm_away|kickoff_date."""
         norm_home = normalize_team_name(event.home_team)
         norm_away = normalize_team_name(event.away_team)
+        # For esports, also resolve aliases (NaVi → natus vincere)
+        if event.sport in self.ESPORTS_SPORTS:
+            norm_home = resolve_alias(norm_home)
+            norm_away = resolve_alias(norm_away)
         kickoff_date = event.kickoff.strftime("%Y-%m-%d")
         return f"{event.sport}|{norm_home}|{norm_away}|{kickoff_date}"
 
@@ -111,6 +118,10 @@ class DeduplicationEngine:
 
         ev_home = normalize_team_name(event.home_team)
         ev_away = normalize_team_name(event.away_team)
+        # For esports, resolve aliases before fuzzy comparison
+        if event.sport in self.ESPORTS_SPORTS:
+            ev_home = resolve_alias(ev_home)
+            ev_away = resolve_alias(ev_away)
         best_match = None
         best_score = 0.0
 
@@ -125,6 +136,9 @@ class DeduplicationEngine:
 
             cand_home = normalize_team_name(fixture.home_team)
             cand_away = normalize_team_name(fixture.away_team)
+            if event.sport in self.ESPORTS_SPORTS:
+                cand_home = resolve_alias(cand_home)
+                cand_away = resolve_alias(cand_away)
 
             home_score = fuzz.token_sort_ratio(ev_home, cand_home)
             away_score = fuzz.token_sort_ratio(ev_away, cand_away)

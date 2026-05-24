@@ -36,4 +36,18 @@ SPORT_VALUE_RANGES: dict[str, dict[str, tuple[float, float]]] = {
         "hitting_pct": (20, 70), "sets_won": (0, 5), "total_points": (60, 250),
         "errors": (0, 30),
     },
+    "cs2": {
+        "maps_played": (0, 5), "maps_won": (0, 3), "map_win_rate": (0, 100),
+        "rounds_won_avg": (10, 30), "kd_ratio": (0.60, 1.60),
+        "rating_2_0": (0.70, 1.50), "kills": (0, 40), "deaths": (0, 40),
+    },
+    "dota2": {
+        "kills_avg": (10, 60), "deaths_avg": (10, 60),
+        "duration_avg_min": (15, 70), "first_blood_rate": (0, 100),
+        "win_rate_l10": (0, 100), "hero_pool_size": (5, 130),
+    },
+    "valorant": {
+        "maps_played": (0, 5), "maps_won": (0, 3), "map_win_rate": (0, 100),
+        "rounds_won_avg": (10, 26), "win_rate_l10": (0, 100),
+    },
 }

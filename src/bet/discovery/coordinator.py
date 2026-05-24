@@ -31,7 +31,7 @@ from .sources.api_football import APIFootballAdapter
 logger = logging.getLogger(__name__)
 
 DATA_DIR = Path(__file__).parent.parent.parent.parent / "betting" / "data"
-SPORTS = ["football", "volleyball", "basketball", "tennis", "hockey"]
+SPORTS = ["football", "volleyball", "basketball", "tennis", "hockey", "cs2", "dota2", "valorant"]
 
 
 class EventDiscoveryCoordinator:

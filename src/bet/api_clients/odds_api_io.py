@@ -35,6 +35,9 @@ SPORT_SLUG_MAP = {
     "tennis": "tennis",
     "hockey": "ice-hockey",
     "volleyball": "volleyball",
+    "cs2": "esports",
+    "dota2": "esports",
+    "valorant": "esports",
 }
 
 # Default bookmakers (free plan: max 2 selected via /bookmakers/selected/select)

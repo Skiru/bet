@@ -11,7 +11,10 @@
     "volleyball",
     "basketball",
     "tennis",
-    "hockey"
+    "hockey",
+    "cs2",
+    "dota2",
+    "valorant"
   ],
   "db_path": "betting/data/betting.db",
   "max_core_coupons": 6,

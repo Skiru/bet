@@ -28,6 +28,19 @@ SPORT_STAT_KEYS: dict[str, list[str]] = {
     ],
     "tennis": ["sets_won", "total_sets", "games_won", "total_games", "ranking", "aces", "double_faults", "first_serve_pct", "first_serve_win_pct", "second_serve_win_pct", "break_points_saved_pct", "hold_pct", "break_pct"],
     "volleyball": ["points", "aces", "blocks", "hitting_pct", "sets_won", "total_points", "errors"],
+    "cs2": [
+        "kills", "deaths", "kd_ratio", "rating_2_0",
+        "maps_played", "maps_won", "map_win_rate",
+        "rounds_won_avg",
+    ],
+    "dota2": [
+        "kills_avg", "deaths_avg", "duration_avg_min",
+        "win_rate_l10", "hero_pool_size",
+    ],
+    "valorant": [
+        "maps_played", "maps_won", "map_win_rate",
+        "win_rate_l10", "rounds_won_avg",
+    ],
 }
 
 # ---------------------------------------------------------------------------
@@ -100,12 +113,43 @@ VOLLEYBALL_MARKETS = [
     {"name": "Total Errors O/U", "stat_a": "errors", "stat_b": "errors", "is_combined": True},
 ]
 
+# ---------------------------------------------------------------------------
+# Esports market definitions (CS2, Dota 2, Valorant)
+# ---------------------------------------------------------------------------
+
+CS2_MARKETS = [
+    {"name": "Total Maps O/U", "stat_a": "maps_played", "stat_b": "maps_played", "is_combined": True},
+    {"name": "Total Rounds O/U", "stat_a": "rounds_won_avg", "stat_b": "rounds_won_avg", "is_combined": True},
+    {"name": "Map Handicap", "stat_a": "map_win_rate", "stat_b": "map_win_rate", "is_combined": False},
+    {"name": "Team A Maps O/U", "stat_a": "maps_won", "stat_b": None, "is_combined": False},
+    {"name": "Team B Maps O/U", "stat_a": None, "stat_b": "maps_won", "is_combined": False},
+]
+
+DOTA2_MARKETS = [
+    {"name": "Total Kills O/U", "stat_a": "kills_avg", "stat_b": "kills_avg", "is_combined": True},
+    {"name": "Match Duration O/U", "stat_a": "duration_avg_min", "stat_b": "duration_avg_min", "is_combined": True},
+    {"name": "Team A Kills O/U", "stat_a": "kills_avg", "stat_b": None, "is_combined": False},
+    {"name": "Team B Kills O/U", "stat_a": None, "stat_b": "kills_avg", "is_combined": False},
+    {"name": "Map Handicap", "stat_a": "win_rate_l10", "stat_b": "win_rate_l10", "is_combined": False},
+]
+
+VALORANT_MARKETS = [
+    {"name": "Total Maps O/U", "stat_a": "maps_played", "stat_b": "maps_played", "is_combined": True},
+    {"name": "Total Rounds O/U", "stat_a": "rounds_won_avg", "stat_b": "rounds_won_avg", "is_combined": True},
+    {"name": "Map Handicap", "stat_a": "map_win_rate", "stat_b": "map_win_rate", "is_combined": False},
+    {"name": "Team A Maps O/U", "stat_a": "maps_won", "stat_b": None, "is_combined": False},
+    {"name": "Team B Maps O/U", "stat_a": None, "stat_b": "maps_won", "is_combined": False},
+]
+
 SPORT_MARKETS: dict[str, list[dict]] = {
     "football": FOOTBALL_MARKETS,
     "basketball": BASKETBALL_MARKETS,
     "hockey": HOCKEY_MARKETS,
     "tennis": TENNIS_MARKETS,
     "volleyball": VOLLEYBALL_MARKETS,
+    "cs2": CS2_MARKETS,
+    "dota2": DOTA2_MARKETS,
+    "valorant": VALORANT_MARKETS,
 }
 
 # ---------------------------------------------------------------------------
@@ -147,6 +191,21 @@ STANDARD_MARKET_LINES: dict[str, list[dict]] = {
         {"market": "Total PIM", "lines": [8.5, 10.5, 12.5, 14.5], "stat": "pim", "is_combined": True},
         {"market": "Powerplay Goals", "lines": [0.5, 1.5, 2.5], "stat": "powerplay_goals", "is_combined": True},
         {"market": "Total Goals", "lines": [4.5, 5.5, 6.5], "stat": "goals", "is_combined": True},
+    ],
+    "cs2": [
+        {"market": "Total Rounds", "lines": [24.5, 25.5, 26.5], "stat": "rounds_won_avg", "is_combined": True},
+        {"market": "Total Maps", "lines": [2.5], "stat": "maps_played", "is_combined": True},
+        {"market": "Map Handicap", "lines": [-1.5, 1.5], "stat": "map_win_rate", "is_combined": False},
+    ],
+    "dota2": [
+        {"market": "Total Kills", "lines": [44.5, 48.5, 52.5], "stat": "kills_avg", "is_combined": True},
+        {"market": "Match Duration", "lines": [32.5, 35.5, 38.5], "stat": "duration_avg_min", "is_combined": True},
+        {"market": "Map Handicap", "lines": [-1.5, 1.5], "stat": "win_rate_l10", "is_combined": False},
+    ],
+    "valorant": [
+        {"market": "Total Rounds", "lines": [24.5, 25.5, 26.5], "stat": "rounds_won_avg", "is_combined": True},
+        {"market": "Total Maps", "lines": [2.5], "stat": "maps_played", "is_combined": True},
+        {"market": "Map Handicap", "lines": [-1.5, 1.5], "stat": "map_win_rate", "is_combined": False},
     ],
 }
 
@@ -211,6 +270,16 @@ MARKET_PL: dict[str, str] = {
     "Handicap": "Handicap",
     "Set Handicap": "Handicap setowy",
     "Game Handicap": "Handicap gemowy",
+    # Esports
+    "Total Maps O/U": "Mapy łącznie",
+    "Total Rounds O/U": "Rundy łącznie",
+    "Map Handicap": "Handicap mapowy",
+    "Team A Maps O/U": "Mapy drużyny",
+    "Team B Maps O/U": "Mapy drużyny",
+    "Total Kills O/U": "Zabójstwa łącznie",
+    "Match Duration O/U": "Czas gry",
+    "Team A Kills O/U": "Zabójstwa drużyny",
+    "Team B Kills O/U": "Zabójstwa drużyny",
 }
 
 DIRECTION_PL: dict[str, str] = {

@@ -52,7 +52,7 @@ from utils import normalize_team_name as _normalize
 from db_data_loader import load_fixtures_from_db, load_odds_from_db, load_scan_summary_from_db
 
 # Allowed sports — filter out legacy data for removed sports
-_ALLOWED_SPORTS = {"football", "basketball", "hockey", "tennis", "volleyball"}
+_ALLOWED_SPORTS = {"football", "basketball", "hockey", "tennis", "volleyball", "cs2", "dota2", "valorant"}
 
 
 # ---------------------------------------------------------------------------

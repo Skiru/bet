@@ -15,9 +15,11 @@ Usage:
 import argparse
 import concurrent.futures
 import json
+import logging
 import os
 import re
 import sys
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -257,6 +259,145 @@ def _ranking_from_shortlist_markets(safety_markets: list) -> dict:
 # Data extraction
 # ---------------------------------------------------------------------------
 
+# Per-sport semaphores to control concurrency for esports scrapers.
+# VLR/HLTV/bo3.gg: serialize (rate-limited); OpenDota: allow 2 concurrent.
+_esports_semaphores: dict[str, threading.Semaphore] = {
+    "cs2": threading.Semaphore(1),
+    "dota2": threading.Semaphore(2),
+    "valorant": threading.Semaphore(1),
+}
+
+_logger = logging.getLogger(__name__)
+
+def _extract_esports_stats(sport: str, team_name: str, result: dict) -> dict:
+    """Fetch esports stats from dedicated clients (OpenDota, HLTV/bo3.gg, VLR).
+
+    Populates result dict with l10_avg from live API/scraper data.
+    Uses per-sport semaphores to prevent concurrent rate-limit violations.
+    """
+    sem = _esports_semaphores.get(sport)
+    if not sem:
+        return result
+
+    with sem:
+        try:
+            if sport == "dota2":
+                from bet.api_clients.opendota import OpenDotaClient
+                client = OpenDotaClient()
+                stats = client.get_team_stats(team_name)
+                if stats and stats.get("matches_found", 0) > 0:
+                    result["l10_avg"] = {
+                        k: v for k, v in stats.items()
+                        if k != "matches_found"
+                    }
+                    result["has_data"] = True
+                    result["sources"] = ["opendota"]
+                    return result
+
+            elif sport == "cs2":
+                # Try HLTV first, fallback to bo3.gg
+                try:
+                    from bet.scrapers.hltv import HLTVScraper
+                    with HLTVScraper() as scraper:
+                        stats = scraper.get_team_stats(team_name)
+                        if stats:
+                            result["l10_avg"] = stats
+                            result["has_data"] = True
+                            result["sources"] = ["hltv"]
+                            return result
+                except Exception as e:
+                    _logger.info("HLTV unavailable for '%s', falling back to bo3.gg: %s", team_name, e)
+
+                # Fallback: bo3.gg (HTTP, no Cloudflare)
+                from bet.scrapers.bo3gg import Bo3GGScraper
+                scraper = Bo3GGScraper()
+                stats = scraper.get_team_stats(team_name)
+                if stats and stats.get("matches_found", 0) > 0:
+                    result["l10_avg"] = stats
+                    result["has_data"] = True
+                    result["sources"] = ["bo3gg"]
+                    return result
+
+            elif sport == "valorant":
+                from bet.scrapers.vlr import VLRScraper
+                scraper = VLRScraper()
+                stats = scraper.get_team_stats(team_name)
+                if stats:
+                    result["l10_avg"] = stats
+                    result["has_data"] = True
+                    result["sources"] = ["vlr"]
+                    return result
+
+        except Exception as e:
+            _logger.warning("Esports stats failed for %s/%s: %s", sport, team_name, e)
+
+    return result
+
+
+def _extract_esports_h2h(sport: str, team_a: str, team_b: str, result: dict) -> dict:
+    """Fetch esports H2H from dedicated clients."""
+    sem = _esports_semaphores.get(sport)
+    if not sem:
+        return result
+
+    with sem:
+        try:
+            if sport == "dota2":
+                from bet.api_clients.opendota import OpenDotaClient
+                client = OpenDotaClient()
+                h2h = client.get_h2h(team_a, team_b)
+                if h2h and h2h.get("matches_found", 0) > 0:
+                    result["has_data"] = True
+                    result["averages"] = {
+                        "total_kills": h2h.get("avg_total_kills", 0),
+                        "duration_min": h2h.get("avg_duration_min", 0),
+                    }
+                    result["meetings"] = [{"source": "opendota", "index": i}
+                                           for i in range(h2h["matches_found"])]
+                    result["h2h_record"] = f"{h2h['team_a_wins']}-{h2h['team_b_wins']}"
+                    return result
+
+            elif sport == "cs2":
+                try:
+                    from bet.scrapers.hltv import HLTVScraper
+                    with HLTVScraper() as scraper:
+                        h2h = scraper.get_h2h(team_a, team_b)
+                        if h2h and h2h.get("matches_found", 0) > 0:
+                            result["has_data"] = True
+                            result["meetings"] = [{"source": "hltv", "index": i}
+                                                   for i in range(h2h["matches_found"])]
+                            result["h2h_record"] = f"{h2h['team_a_wins']}-{h2h['team_b_wins']}"
+                            return result
+                except Exception as e:
+                    _logger.info("HLTV H2H unavailable for '%s vs %s', falling back: %s", team_a, team_b, e)
+
+                from bet.scrapers.bo3gg import Bo3GGScraper
+                scraper = Bo3GGScraper()
+                h2h = scraper.get_h2h(team_a, team_b)
+                if h2h and h2h.get("matches_found", 0) > 0:
+                    result["has_data"] = True
+                    result["meetings"] = [{"source": "bo3gg", "index": i}
+                                           for i in range(h2h["matches_found"])]
+                    result["h2h_record"] = f"{h2h['team_a_wins']}-{h2h['team_b_wins']}"
+                    return result
+
+            elif sport == "valorant":
+                from bet.scrapers.vlr import VLRScraper
+                scraper = VLRScraper()
+                h2h = scraper.get_h2h(team_a, team_b)
+                if h2h and h2h.get("matches_found", 0) > 0:
+                    result["has_data"] = True
+                    result["meetings"] = [{"source": "vlr", "index": i}
+                                           for i in range(h2h["matches_found"])]
+                    result["h2h_record"] = f"{h2h['team_a_wins']}-{h2h['team_b_wins']}"
+                    return result
+
+        except Exception as e:
+            _logger.warning("Esports H2H failed for %s/%s vs %s: %s", sport, team_a, team_b, e)
+
+    return result
+
+
 def extract_team_stats(sport: str, team_name: str) -> dict:
     """Read stats cache for a single team. DB-first with JSON cache fallback.
 
@@ -276,6 +417,10 @@ def extract_team_stats(sport: str, team_name: str) -> dict:
         "has_data": False,
         "raw_cache": None,
     }
+
+    # --- ESPORTS: use dedicated clients (OpenDota, HLTV/bo3.gg, VLR) ---
+    if sport in ("cs2", "dota2", "valorant"):
+        return _extract_esports_stats(sport, team_name, result)
 
     # Try DB first (team_form table)
     try:
@@ -421,8 +566,7 @@ def extract_team_stats(sport: str, team_name: str) -> dict:
                     except (json.JSONDecodeError, OSError):
                         pass
         except Exception as e:
-            import logging
-            logging.getLogger(__name__).debug("Inline enrichment failed for %s: %s", team_name, e)
+            _logger.debug("Inline enrichment failed for %s: %s", team_name, e)
 
     return result
 
@@ -444,6 +588,10 @@ def extract_h2h_stats(sport: str, team_a: str, team_b: str) -> dict:
         "averages": {},
         "has_data": False,
     }
+
+    # --- ESPORTS: use dedicated clients for H2H ---
+    if sport in ("cs2", "dota2", "valorant"):
+        return _extract_esports_h2h(sport, team_a, team_b, result)
 
     # R2 DB-FIRST: Try team_form H2H from database
     try:

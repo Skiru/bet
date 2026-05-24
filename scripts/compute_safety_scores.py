@@ -31,7 +31,9 @@ MIN_MARKETS = {
     "basketball": 3,
     "volleyball": 3,
     "hockey": 3,
-
+    "cs2": 2,
+    "dota2": 2,
+    "valorant": 2,
 }
 
 # Sport-specific H2H penalty — niche sports rarely have H2H data
@@ -41,7 +43,9 @@ H2H_MISSING_PENALTY = {
     "basketball": 0.70,   # 30% penalty — H2H expected
     "volleyball": 0.75,   # 25% penalty — H2H common but not universal
     "hockey": 0.75,       # 25% penalty
-
+    "cs2": 0.80,          # 20% penalty — H2H less common in esports
+    "dota2": 0.80,        # 20% penalty
+    "valorant": 0.80,     # 20% penalty
 }
 
 # ---------------------------------------------------------------------------
@@ -63,6 +67,16 @@ SPORT_VOLATILITY_CAPS: dict[str, dict[str, float]] = {
         "team_goals": 0.65,
         "total_goals": 0.65,
         # Corners, cards, fouls are MORE predictable — no cap (standard)
+    },
+    "cs2": {
+        "total_rounds": 0.75,  # Rounds relatively stable in CS2
+    },
+    "dota2": {
+        "total_kills": 0.60,       # Kill variance is high
+        "match_duration": 0.65,    # Duration variance moderate
+    },
+    "valorant": {
+        "total_rounds": 0.75,  # Similar to CS2
     },
 }
 
