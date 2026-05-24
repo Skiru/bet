@@ -1,12 +1,27 @@
 """Aggressive data mining for coupon expansion — find ALL statistical edges today."""
+import json
+import re
 import sqlite3
 from collections import defaultdict
+from pathlib import Path
 
 conn = sqlite3.connect('betting/data/betting.db')
 
-results = conn.execute("""
+# Load excluded competition IDs from config
+config_path = Path('config/betting_config.json')
+config = json.loads(config_path.read_text())
+excluded_ids = config.get('excluded_competition_ids', [])
+excluded_kw = config.get('excluded_competition_keywords', [])
+
+# Team name pattern for reserves (e.g. "Columbus Crew II", "Juventus U23")
+_RESERVE_TEAM_RE = re.compile(
+    r'\bII\b|\bU1[2-9]\b|\bU2[0-3]\b|\bReserves?\b|\bB$|\bNext Pro\b', re.I
+)
+
+results = conn.execute(f"""
     SELECT f.id, t1.name, t2.name, c.name, s.name,
-           tf.stat_key, tf.l5_avg, tf.team_id, t1.id, t2.id
+           tf.stat_key, tf.l5_avg, tf.team_id, t1.id, t2.id,
+           f.kickoff
     FROM fixtures f
     JOIN teams t1 ON f.home_team_id = t1.id
     JOIN teams t2 ON f.away_team_id = t2.id
@@ -16,10 +31,18 @@ results = conn.execute("""
     WHERE f.kickoff LIKE '2026-05-24%'
       AND tf.stat_key IN ('goals','corners','fouls','yellow_cards','shots_on_target')
       AND tf.l5_avg > 0
-""").fetchall()
+      AND f.competition_id NOT IN ({','.join('?' * len(excluded_ids))})
+""", excluded_ids).fetchall()
 
 fixtures = defaultdict(lambda: defaultdict(float))
-for fid, home, away, league, sport, stat, l5, tid, hid, aid in results:
+for fid, home, away, league, sport, stat, l5, tid, hid, aid, ko in results:
+    # Skip reserve/youth teams by name
+    if _RESERVE_TEAM_RE.search(home) or _RESERVE_TEAM_RE.search(away):
+        continue
+    # Skip if competition name matches excluded keywords
+    league_lower = league.lower()
+    if any(kw in league_lower for kw in excluded_kw):
+        continue
     side = 'h' if tid == hid else 'a'
     fixtures[(fid, home, away, league, sport)][f'{side}_{stat}'] = l5
 

@@ -31,6 +31,7 @@ Your FIRST action: `sequentialthinking` answering:
 1. What are MY 3 critical rules? (from "MY RULES" in your agent.md)
 2. What is my analytical value — what can I produce that a script cannot?
 3. What lessons from pipeline-errors journal apply today?
+4. **MANDATORY**: Read `betting-mistakes-rules.instructions.md` — apply HARD REJECT rules (TENNIS_SETS_001, HANDBALL_001, GOALS_001, UNDER_GOALS_001, LOWER_LEAGUE_001, SOT_001, CORRELATION_001, CORNERS_CONTEXT_001, BTTS_CONTEXT_001) to EVERY candidate.
 
 ---
 

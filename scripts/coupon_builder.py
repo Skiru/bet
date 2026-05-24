@@ -2019,6 +2019,36 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
             else:
                 p["risk_tier"] = "HR"
 
+    # --- CORRELATION_001 + ZT#25-30: Filter picks with gate hard-reject flags ---
+    # Post-mortem 2026-05-24: Gate produces "HARD REJECT ZT#26" etc. in gate_warnings.
+    # These must be excluded from core coupons (moved to extended pool).
+    _zt_hard_rejected = []
+    _zt_kept = []
+    for p in all_approved:
+        gate_warnings = p.get("gate_warnings", [])
+        gate_details = p.get("gate_details", {})
+        has_hard_reject_flag = False
+        for w in gate_warnings:
+            if "HARD REJECT" in str(w):
+                has_hard_reject_flag = True
+                break
+        if not has_hard_reject_flag:
+            # Also check gate_details messages
+            for gid, gd in gate_details.items():
+                msg = gd.get("message", "")
+                if "HARD REJECT" in msg:
+                    has_hard_reject_flag = True
+                    break
+        if has_hard_reject_flag:
+            p["extended_pool_reason"] = "ZT hard-reject flag from gate (2026-05-24 rules)"
+            _zt_hard_rejected.append(p)
+        else:
+            _zt_kept.append(p)
+    if _zt_hard_rejected:
+        extended_pool.extend(_zt_hard_rejected)
+        out.event("zt_hard_reject_filter", detail=f"{len(_zt_hard_rejected)} picks excluded from core (ZT hard-reject flags)")
+    all_approved = _zt_kept
+
     # Split by advisory tier for tiered coupon construction
     strong_picks = [p for p in all_approved if p.get("advisory_tier") == "STRONG"]
     moderate_picks = [p for p in all_approved if p.get("advisory_tier") == "MODERATE"]

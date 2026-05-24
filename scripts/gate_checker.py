@@ -686,6 +686,110 @@ def check_red_flags(candidate: dict) -> list[str]:
                     f"tight matches inflate fouls; Serie A/physical leagues especially dangerous"
                 )
 
+    # =========================================================================
+    # ZT#25-30: Post-mortem 2026-05-24 rules (CATASTROPHIC DAY: -9.06 PLN)
+    # These produce FLAGS (not HARD REJECT) to maintain R3 compliance.
+    # The coupon_builder will treat these flags as EXCLUDE from core coupons.
+    # =========================================================================
+
+    # ZT#25 (GOALS_001): Over goals when combined L5 < line
+    _goals_keywords = ("goal", "gole", "btts")
+    is_goals_market = any(kw in market_name for kw in _goals_keywords)
+    if is_goals_market:
+        direction = (best.get("direction") or "").upper()
+        combined_avg = best.get("combined_avg") or 0
+        line_val = best.get("line") or 0
+        if direction == "OVER" and combined_avg > 0 and line_val > 0:
+            if combined_avg < line_val:
+                flags.append(
+                    f"FLAG ZT#25 GOALS_001: OVER {line_val} goals but combined L5 avg "
+                    f"= {combined_avg:.1f} is BELOW line — stats say UNDER, not OVER"
+                )
+
+    # ZT#26 (SOT_001): Over SOT when combined L5 < line (INSTANT REJECT level)
+    _sot_keywords = ("shot", "sot", "strzał", "celny")
+    is_sot_market = any(kw in market_name for kw in _sot_keywords)
+    if is_sot_market and not is_foul_card_market:
+        direction = (best.get("direction") or "").upper()
+        combined_avg = best.get("combined_avg") or 0
+        line_val = best.get("line") or 0
+        if direction == "OVER" and combined_avg > 0 and line_val > 0:
+            if combined_avg < line_val:
+                flags.append(
+                    f"HARD REJECT ZT#26 SOT_001: OVER {line_val} SOT but combined L5 "
+                    f"= {combined_avg:.1f} is BELOW line — statistically impossible"
+                )
+            elif combined_avg < line_val + 1.5:
+                flags.append(
+                    f"FLAG ZT#26 SOT_001: OVER {line_val} SOT with combined L5 "
+                    f"= {combined_avg:.1f} — buffer < 1.5, risky"
+                )
+
+    # ZT#27 (LOWER_LEAGUE_001): Match winner in lower leagues at high odds
+    _ml_keywords = ("winner", "wynik", "1x2", "match winner", "przewaga")
+    is_ml_market = any(kw in market_name for kw in _ml_keywords)
+    if is_ml_market and sport == "football":
+        comp = (candidate.get("competition") or "").lower()
+        _lower_league_kw = (
+            "3. liga", "4. liga", "klasa", "okręgowa", "a-klasa", "b-klasa",
+            "regional", "amateur", "county", "isthmian", "northern premier",
+            "southern", "7th", "8th", "6th", "5th division",
+        )
+        is_lower = any(kw in comp for kw in _lower_league_kw)
+        if not is_lower:
+            # Check league tier from candidate data
+            tier = candidate.get("league_tier") or candidate.get("tier") or 0
+            if isinstance(tier, (int, float)) and tier >= 4:
+                is_lower = True
+        if is_lower:
+            odds_val = (candidate.get("odds") or {}).get("market_best") or 0
+            if odds_val > 1.40:
+                flags.append(
+                    f"FLAG ZT#27 LOWER_LEAGUE_001: ML in lower league ({comp[:40]}) "
+                    f"at odds {odds_val:.2f} > 1.40 — high variance, prefer stat markets"
+                )
+
+    # ZT#28 (HANDBALL_001): Handball ML at odds > 1.43
+    if sport == "handball" and is_ml_market:
+        odds_val = (candidate.get("odds") or {}).get("market_best") or 0
+        if odds_val > 1.43:
+            flags.append(
+                f"FLAG ZT#28 HANDBALL_001: Handball ML at odds {odds_val:.2f} > 1.43 "
+                f"— insufficient implied probability for AKO leg (need ≥70%)"
+            )
+
+    # ZT#29 (UNDER_GOALS_001): Under 2.5 at odds ≥ 2.00
+    if is_goals_market:
+        direction = (best.get("direction") or "").upper()
+        odds_val = (candidate.get("odds") or {}).get("market_best") or 0
+        line_val = best.get("line") or 0
+        if direction == "UNDER" and line_val and line_val <= 2.5 and odds_val >= 2.00:
+            flags.append(
+                f"FLAG ZT#29 UNDER_GOALS_001: Under {line_val} goals at odds "
+                f"{odds_val:.2f} ≥ 2.00 — coin flip, no statistical edge"
+            )
+
+    # ZT#30 (CORNERS_CONTEXT_001): Check for dead rubber context on corners
+    _corner_keywords = ("corner", "rożne", "róg")
+    is_corner_market = any(kw in market_name for kw in _corner_keywords)
+    if is_corner_market:
+        context_flags_list = candidate.get("context_flags", [])
+        is_dead_rubber = any(
+            "dead rubber" in f.lower() or "nothing to play" in f.lower()
+            for f in context_flags_list
+        )
+        if is_dead_rubber:
+            combined_avg = best.get("combined_avg") or 0
+            line_val = best.get("line") or 0
+            if combined_avg > 0 and line_val > 0:
+                adjusted = combined_avg - 2.5
+                if adjusted < line_val:
+                    flags.append(
+                        f"FLAG ZT#30 CORNERS_CONTEXT_001: Dead rubber corners — "
+                        f"combined {combined_avg:.1f} - 2.5 penalty = {adjusted:.1f} "
+                        f"< line {line_val} — REJECT"
+                    )
+
     return flags
 
 

@@ -727,3 +727,32 @@ Roster change (+2), map pool edge (+1), online match (+1), new patch (+1).
 - cards: 77% (TOP3 market)
 - football×totals: 78% (TOP cross-category)
 - AKO2-3 remain sweet spot; AKO5+ remain BANNED
+
+## 2026-05-24
+- Settlement summary: 12 coupons placed, 1W/11L. PnL: **-9.06 PLN**. Catastrophic day.
+- What worked:
+  - AKO3 (esports + corners) @3.44 won (+2.44 PLN)
+  - Individual STAT picks that were backed by data: Tottenham fouls O12.5 (L5=13.6 ✅), Man Utd SOT O3.5 (L5=4.6 ✅), Arsenal SOT O3.5 (L5=4.6 ✅), Man City corners O8.5 (L5=9.4 ✅), Burnley/Wolves U2.5 (combined goals L5=1.2 ✅)
+- What failed:
+  - Tennis O3.5 sets on MISMATCHED players (×3 — killed 3 coupons)
+  - Handball ML @1.70 (×2 — killed 2 coupons)
+  - U2.5 goals on last-day PL motivated matches (×5 picks across 3 coupons)
+  - Lower-league ML at high odds: Ruch Chorzów, Śląsk Wrocław, Pcimianka Pcim (×3)
+  - SOT O9.5 when combined L5 was 7.4 (2.1 BELOW line!)
+  - Same losing pick in multiple coupons (×4 unique picks caused 9 losses)
+- Rule changes for future runs:
+  1. **TENNIS_SETS_001**: O3.5 sets requires players within 15 ranking spots + competitive H2H + <60% straight-set wins in L5. If ANY fails → REJECT.
+  2. **HANDBALL_001**: Handball ML in AKO requires implied prob ≥70% (odds ≤1.43). Never duplicate same handball pick.
+  3. **GOALS_001**: Over X goals needs combined L5 > line + 0.5 buffer. If combined L5 < line → FLIP to UNDER.
+  4. **UNDER_GOALS_001**: U2.5 FORBIDDEN on PL last-day when team needs win for title/relegation/CL. FORBIDDEN at odds ≥2.00 (coin flip = no edge).
+  5. **LOWER_LEAGUE_001**: No ML below 3rd tier. Lower leagues = stat markets ONLY. "Przewaga 2+" needs odds ≤1.43.
+  6. **SOT_001**: SOT Over needs combined L5 > line + 1.5 buffer. If combined < line → INSTANT REJECT.
+  7. **CORRELATION_001**: MAX 1 coupon per unique pick. NEVER repeat same losing-risk pick across coupons.
+  8. **CORNERS_CONTEXT_001**: Dead rubber penalty = subtract 2.5 from expected corners. Post-penalty < line → REJECT.
+  9. **BTTS_CONTEXT_001**: Relegation matches → NO BTTS default. Never BTTS live at 0-0 30'+ in defensive match.
+- Source notes: DB team_form data was AVAILABLE and CORRECT but was IGNORED when placing bets. The stat-backed picks (Tottenham fouls, Man Utd SOT, corners) ALL WON. The opinion-based picks without data backing ALL LOST.
+
+### Cumulative Stats (updated):
+- Overall: 177 coupons, 51W/126L → 28.8% coupon hit rate (FALLING)
+- Day of worst loss: -9.06 PLN in single session
+- KEY LESSON: Stat-backed picks hit. Opinion/gut picks lose. NEVER bet against your own data.

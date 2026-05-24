@@ -167,6 +167,30 @@ def _is_protected_domestic_league(sport: str, competition: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# EXCLUDED competitions — reserve/youth/amateur leagues that pollute analysis
+# These are NEVER included in the shortlist regardless of data quality.
+# ---------------------------------------------------------------------------
+EXCLUDED_COMPETITION_KEYWORDS: list[str] = [
+    "mls next pro", "next pro",
+    "u19", "u20", "u21", "u23",
+    "junior", "juvenil", "cadete",
+    "reserve", "reserves",
+    "nb iii",  # Hungary 3rd tier amateur
+    "utr men", "utr women",  # UTR amateur tennis
+    "division 2, promotion",  # Sweden amateur playoffs
+    "2. liga, division b",  # Russia amateur
+]
+
+
+def _is_excluded_competition(competition: str) -> bool:
+    """Return True if competition matches any excluded reserve/youth/amateur pattern."""
+    if not competition:
+        return False
+    comp_lower = competition.lower().replace(" - ", " ")
+    return any(kw in comp_lower for kw in EXCLUDED_COMPETITION_KEYWORDS)
+
+
+# ---------------------------------------------------------------------------
 # Competition tiers (higher = more important)
 # ---------------------------------------------------------------------------
 COMP_TIER_KEYWORDS: dict[str, list[tuple[int, list[str]]]] = {
@@ -189,7 +213,7 @@ COMP_TIER_KEYWORDS: dict[str, list[tuple[int, list[str]]]] = {
              "primera division chile", "primera a colombia"]),
         (6, ["2. bundesliga", "serie b", "ligue 2", "segunda", "3. liga",
              "serie c", "national league", "league two",
-             "usl championship", "nwsl", "mls next pro",
+             "usl championship", "nwsl",
              "division 1", "division 2", "1. liga", "first division b",
              "eerste divisie", "2nd division", "3rd division",
              "veikkausliiga", "finnish", "cyprus", "cypriot",
@@ -694,10 +718,16 @@ def build_shortlist(
         home = event.get("home_team", "")
         away = event.get("away_team", "")
 
+        # Competition-level exclusion (MLS Next Pro, U20 leagues, etc.)
+        comp = event.get("competition", event.get("league", ""))
+        if _is_excluded_competition(comp):
+            garbage_count += 1
+            continue
+
         # Youth / Reserve / University filter — no data sources cover these
         _youth_re = re.compile(
             r"\bU1[2-9]\b|\bU2[0-1]\b|\bReserves?\b|\bRes\.\b|\bJunior[sy]?\b"
-            r"|\bCadete[s]?\b|\bJuvenil\b|\bSub[\s-]?\d{2}\b"
+            r"|\bCadete[s]?\b|\bJuvenil\b|\bSub[\s-]?\d{2}\b|\bII\b"
             r"|\bAcademy\b.*\bU\d{2}\b|\bU\d{2}\b.*\bAcademy\b",
             re.I,
         )

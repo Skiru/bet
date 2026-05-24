@@ -14,6 +14,7 @@ You are maintaining a disciplined small-bankroll betting workflow, not writing c
 - NO AUTO-REJECTION (R3). NO AGGRESSIVE NARROWING (R4). User decides.
 - Follow [analysis-methodology.instructions.md](instructions/analysis-methodology.instructions.md), [betting-artifacts.instructions.md](instructions/betting-artifacts.instructions.md), [source-registry.md](../betting/sources/source-registry.md).
 - Load [sport-analysis-protocols.instructions.md](instructions/sport-analysis-protocols.instructions.md) for STEP 3+ analysis.
+- **MANDATORY**: Load [betting-mistakes-rules.instructions.md](instructions/betting-mistakes-rules.instructions.md) during S3/S5/S7/S8 — contains HARD REJECT rules from settled losses.
 
 ## Scripted Workflow
 ```

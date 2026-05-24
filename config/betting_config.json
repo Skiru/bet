@@ -28,5 +28,7 @@
   "higher_risk_price_gap_threshold_pct": -5.0,
   "max_picks_per_day": 80,
   "max_identical_thesis": 3,
-  "max_event_reuse_across_coupons": 5
+  "max_event_reuse_across_coupons": 2,
+  "excluded_competition_ids": [468, 765, 900, 1199, 1200, 1265, 1324, 1325, 1326, 1327, 3123, 4800, 4832, 4833, 4851, 4857, 4910, 4925, 4926, 4927, 4928, 4929, 4930, 4952, 5004, 5005, 5006, 5007, 5008, 5009, 5010, 5042, 5078, 5079, 5080, 5081, 5082, 5122, 5300, 5339, 5358, 5365],
+  "excluded_competition_keywords": ["mls next pro", "next pro", "u19", "u20", "u21", "u23", "junior", "juvenil", "cadete", "reserve", "reserves", "nb iii", "utr men", "utr women"]
 }
