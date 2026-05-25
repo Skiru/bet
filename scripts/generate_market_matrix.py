@@ -48,6 +48,7 @@ except ImportError:
     rank_markets = None
 
 from utils import normalize_team_name as _normalize
+from bet.utils import is_same_event, names_match
 
 from db_data_loader import load_fixtures_from_db, load_odds_from_db, load_scan_summary_from_db
 
@@ -1094,34 +1095,23 @@ def generate_market_matrix(
 
     n_exact_deduped = len(events) - len(deduped_events)
 
-    # Pass 2: fuzzy substring dedup (catches "Dnipro" vs "Dnipro-1", "FK Ventspils" vs "Ventspils")
+    # Pass 2: fuzzy dedup using is_same_event (catches "Dnipro" vs "Dnipro-1", "FK Ventspils" vs "Ventspils")
     fuzzy_deduped = []
-    fuzzy_keys: list[tuple[str, str, str]] = []  # (sport, home, away)
     fuzzy_removed = 0
     for event in deduped_events:
-        h = _normalize(event.get("home_team", "")).lower().strip()
-        a = _normalize(event.get("away_team", "")).lower().strip()
+        h = event.get("home_team", "")
+        a = event.get("away_team", "")
         sport = event.get("sport", "")
         is_fuzzy_dup = False
-        for (ex_sport, ex_h, ex_a) in fuzzy_keys:
-            if ex_sport != sport:
+        for existing in fuzzy_deduped:
+            if existing.get("sport", "") != sport:
                 continue
-            # Substring match: both home and away are substrings of existing (or vice versa)
-            home_match = (h in ex_h or ex_h in h) and len(h) >= 4 and len(ex_h) >= 4
-            away_match = (a in ex_a or ex_a in a) and len(a) >= 4 and len(ex_a) >= 4
-            if home_match and away_match:
-                is_fuzzy_dup = True
-                break
-            # Crossed order check
-            home_cross = (h in ex_a or ex_a in h) and len(h) >= 4 and len(ex_a) >= 4
-            away_cross = (a in ex_h or ex_h in a) and len(a) >= 4 and len(ex_h) >= 4
-            if home_cross and away_cross:
+            if is_same_event(h, a, existing.get("home_team", ""), existing.get("away_team", "")):
                 is_fuzzy_dup = True
                 break
         if is_fuzzy_dup:
             fuzzy_removed += 1
             continue
-        fuzzy_keys.append((sport, h, a))
         fuzzy_deduped.append(event)
 
     total_deduped = n_exact_deduped + fuzzy_removed
@@ -1178,8 +1168,7 @@ def _fuzzy_match(key: str, lookup: dict):
         if len(lparts) != 2:
             continue
         lhome, laway = lparts
-        if ((home in lhome or lhome in home) and len(home) >= 3 and
-                (away in laway or laway in away) and len(away) >= 3):
+        if names_match(home, lhome, threshold=70) >= 70 and names_match(away, laway, threshold=70) >= 70:
             return lv
     return None
 

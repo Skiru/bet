@@ -28,6 +28,7 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 from generate_market_matrix import MAJOR_COMPETITIONS, _is_major_competition
 from bet.stats.market_ranking import STANDARD_MARKET_LINES
+from bet.utils import names_match, is_same_event
 
 from utils import normalize_team_name as _normalize_team, normalize_kickoff
 from agent_output import AgentOutput, add_agent_args
@@ -92,15 +93,15 @@ def _verify_fixture(
     if key in fixtures_keys or key_rev in fixtures_keys:
         sources.append("fixtures-api")
 
-    # Also check fuzzy (substring match for when names differ slightly)
+    # Also check fuzzy using names_match for when names differ slightly
     if not sources:
         for ok in odds_keys:
             parts = ok.split("|", 1)
             if len(parts) == 2:
-                if (h in parts[0] or parts[0] in h) and (a in parts[1] or parts[1] in a):
+                if names_match(h, parts[0], threshold=70) >= 70 and names_match(a, parts[1], threshold=70) >= 70:
                     sources.append("odds-api-fuzzy")
                     break
-                if (h in parts[1] or parts[1] in h) and (a in parts[0] or parts[0] in a):
+                if names_match(h, parts[1], threshold=70) >= 70 and names_match(a, parts[0], threshold=70) >= 70:
                     sources.append("odds-api-fuzzy")
                     break
 
@@ -399,15 +400,25 @@ def _score_event(event: dict, tipster_events: set[str], tipster_db: dict[str, di
             score += min(n_safety * 2, 10)  # moderate edge: bonus up to 10
         # below 0.30: NO bonus — weak safety = weak candidate
 
-    # 6. Tipster coverage bonus
+    # 6. Tipster coverage bonus — use fuzzy matching
     home_lower = event.get("home_team", "").lower()
     away_lower = event.get("away_team", "").lower()
     event_key = f"{home_lower} vs {away_lower}"
-    has_tipster = (
-        event_key in tipster_events
-        or home_lower in tipster_events
-        or away_lower in tipster_events
-    )
+    has_tipster = event_key in tipster_events  # fast path: exact match
+    if not has_tipster:
+        # Fuzzy: check if any tipster event matches this fixture
+        for tip_ev in tipster_events:
+            if " vs " in tip_ev:
+                parts = tip_ev.split(" vs ", 1)
+                if len(parts) == 2:
+                    score_h = names_match(home_lower, parts[0], threshold=70)
+                    score_a = names_match(away_lower, parts[1], threshold=70)
+                    if score_h >= 70 and score_a >= 70:
+                        has_tipster = True
+                        break
+            elif names_match(home_lower, tip_ev, threshold=75) >= 75 or names_match(away_lower, tip_ev, threshold=75) >= 75:
+                has_tipster = True
+                break
     if has_tipster:
         score += 15
 
@@ -796,25 +807,14 @@ def build_shortlist(
         dedup_key_rev = f"{sport}|{away}|{home}"
         if dedup_key in seen_matchups or dedup_key_rev in seen_matchups:
             continue
-        # Fuzzy substring dedup: check if either team name is a substring of an existing entry
-        # Minimum length threshold of 5 to avoid false positives with short names
-        # (e.g., "PSG" matching "APSG", "Bar" matching "Barca")
-        MIN_FUZZY_LEN = 5
+        # Fuzzy dedup using is_same_event (handles aliases, diacritics, short names)
         is_dup = False
         for existing_key in seen_matchups:
             ex_parts = existing_key.split("|", 2)
             if len(ex_parts) != 3 or ex_parts[0] != sport:
                 continue
             ex_home, ex_away = ex_parts[1], ex_parts[2]
-            home_match = (home in ex_home or ex_home in home) and len(home) >= MIN_FUZZY_LEN and len(ex_home) >= MIN_FUZZY_LEN
-            away_match = (away in ex_away or ex_away in away) and len(away) >= MIN_FUZZY_LEN and len(ex_away) >= MIN_FUZZY_LEN
-            if home_match and away_match:
-                is_dup = True
-                break
-            # Also check crossed: home↔away
-            home_match_rev = (home in ex_away or ex_away in home) and len(home) >= MIN_FUZZY_LEN and len(ex_home) >= MIN_FUZZY_LEN
-            away_match_rev = (away in ex_home or ex_home in away) and len(away) >= MIN_FUZZY_LEN and len(ex_away) >= MIN_FUZZY_LEN
-            if home_match_rev and away_match_rev:
+            if is_same_event(home, away, ex_home, ex_away):
                 is_dup = True
                 break
         if is_dup:

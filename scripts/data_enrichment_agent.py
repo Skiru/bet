@@ -275,6 +275,23 @@ def _set_result_status(result: dict) -> None:
             result["status"] = "failed"
         return
 
+    if sport in ("cs2", "valorant", "dota2"):
+        esports_required = {
+            "cs2": {"win_rate_l10", "map_win_rate"},
+            "valorant": {"win_rate_l10", "rounds_won_avg"},
+            "dota2": {"win_rate_l10"},
+        }
+        required = esports_required.get(sport, {"win_rate_l10"})
+        has_required = required <= found_keys
+        result["esports_keys_found"] = sorted(found_keys)
+        result["esports_missing_keys"] = sorted(required - found_keys)
+        result["esports_rich_complete"] = has_required
+        if found_keys:
+            result["status"] = "enriched" if has_required else "partial"
+        else:
+            result["status"] = "failed"
+        return
+
     expected = set(SPORT_STAT_KEYS.get(sport, []))
     if found_keys >= expected:
         result["status"] = "enriched"
@@ -718,6 +735,39 @@ def _record_hockey_supplementary_source(result: dict, source_name: str) -> None:
     supplementary_sources = result.setdefault("supplementary_sources", [])
     if source_name not in supplementary_sources:
         supplementary_sources.append(source_name)
+
+
+def _apply_esports_status(result: dict) -> dict:
+    """Check team_form DB for existing esports enrichment data."""
+    sport = result.get("sport", "")
+    if sport not in ("cs2", "valorant", "dota2"):
+        return result
+
+    team_name = result.get("team", "")
+    sport_id_map = {"cs2": 498, "valorant": 500, "dota2": 499}
+    sport_id = sport_id_map[sport]
+
+    try:
+        with get_db() as db:
+            rows = db.execute(
+                """SELECT stat_key, l10_avg, source FROM team_form
+                   WHERE team_id = (SELECT id FROM teams WHERE name = ? LIMIT 1)
+                   AND sport_id = ?""",
+                (team_name, sport_id),
+            ).fetchall()
+            if rows:
+                stats = {r["stat_key"]: r["l10_avg"] for r in rows}
+                result["stats_found"] = stats
+                result["source"] = rows[0]["source"] if rows[0]["source"] else "esports-enricher"
+                _set_result_status(result)
+            else:
+                result["status"] = "failed"
+                result["error"] = f"No team_form data for {team_name} ({sport}). Run enrich_esports_stats.py first."
+    except Exception as e:
+        result["status"] = "failed"
+        result["error"] = f"DB lookup failed: {e}"
+
+    return result
 
 
 def _needs_hockey_rich_completion(result: dict, coverage_detail: dict) -> bool:
@@ -1291,6 +1341,10 @@ def enrich_team(
         result = _apply_hockey_rich_completion(result)
     elif sport == "volleyball":
         result = _apply_volleyball_rich_completion(result)
+    elif sport in ("cs2", "valorant", "dota2"):
+        # Esports enrichment is handled by enrich_esports_stats.py
+        # Here we just check if team_form already has data from that script
+        result = _apply_esports_status(result)
     elif result["stats_found"]:
         _set_result_status(result)
 

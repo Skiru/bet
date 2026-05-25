@@ -51,10 +51,7 @@ def _clean_team_name(raw: str) -> str:
         # Skip known garbage patterns
         if any(p.match(ln) for p in _GARBAGE_PATTERNS):
             continue
-        # Skip known league names
-        if ln.lower() in _KNOWN_LEAGUES:
-            continue
-        # Skip single-word country names (England, Spain, etc.)
+        # Skip known league names or country names
         if ln.lower() in _KNOWN_LEAGUES:
             continue
         clean_lines.append(ln)

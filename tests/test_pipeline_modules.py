@@ -409,7 +409,8 @@ class TestGateChecker(unittest.TestCase):
         """Gate with a well-formed candidate that should pass all 18 checks."""
         from scripts.gate_checker import check_18_point_gate
         candidate = _base_candidate()
-        with self._patch_ledger():
+        with self._patch_ledger(), \
+             patch("bet.db.connection.get_db", side_effect=Exception("no DB in test")):
             result = check_18_point_gate(candidate, [])
         self.assertEqual(result["gate_score"], "18/18")
         self.assertEqual(len(result["gate_failed"]), 0)
@@ -555,7 +556,8 @@ class TestGateChecker(unittest.TestCase):
         high_safety = _base_candidate()
         high_safety["best_market"]["safety_score"] = 0.85
         gate = {"gate_passed": list(map(str, range(1, 18))), "gate_failed": []}
-        conf, adj = compute_confidence(high_safety, gate)
+        with patch("bet.db.connection.get_db", side_effect=Exception("no DB in test")):
+            conf, adj = compute_confidence(high_safety, gate)
         self.assertGreaterEqual(conf, 4.5)
         self.assertTrue(any("safety" in a for a in adj))
 
@@ -563,7 +565,8 @@ class TestGateChecker(unittest.TestCase):
         blind = _base_candidate(tipster_count=0)
         gate_blind = {"gate_passed": [str(i) for i in range(1, 18) if i != 6],
                       "gate_failed": ["6"]}
-        conf_b, adj_b = compute_confidence(blind, gate_blind)
+        with patch("bet.db.connection.get_db", side_effect=Exception("no DB in test")):
+            conf_b, adj_b = compute_confidence(blind, gate_blind)
         self.assertTrue(any("TIPSTER-BLIND" in a for a in adj_b))
 
 
@@ -846,7 +849,9 @@ class TestPipelineIntegration(unittest.TestCase):
             gate_results = gc.run_gate(gate_inputs, "2026-05-01")
             gr = gate_results["gate_results"]
             total_processed = len(gr["approved"]) + len(gr["extended_pool"]) + len(gr["rejected"])
-            self.assertEqual(total_processed, len(gate_inputs))
+            # Liverpool vs Arsenal and Arsenal vs Liverpool are the same event
+            # — dedup correctly merges them, leaving 1 unique candidate.
+            self.assertEqual(total_processed, 1)
 
             # S8: build coupons (may be NO BET if not enough approved)
             config = {

@@ -29,6 +29,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from bet.db.connection import get_db
 from bet.scrapers.bo3gg import Bo3GGScraper
+from bet.utils import names_match, is_same_event
 
 logger = logging.getLogger(__name__)
 
@@ -37,40 +38,35 @@ BOOKMAKER = "bo3gg"
 DATA_DIR = Path(__file__).parent.parent / "betting" / "data"
 
 
-def normalize_team_name(name: str) -> str:
-    """Normalize team name for fuzzy matching."""
-    import re
-    from bet.utils import strip_emoji
-    n = strip_emoji(name).lower().strip()
-    # Remove common suffixes
-    n = n.replace(" esports", "").replace(" gaming", "")
-    # Strip live score artifacts (e.g., "2 1 -" at the end)
-    n = re.sub(r'\s+\d+\s+\d+\s*-?\s*$', '', n)
-    # Only strip trailing " 1" (academy/B team marker), not mid-name
-    n = re.sub(r'\s+1$', '', n)
-    # Normalize all diacritics to ASCII
-    import unicodedata
-    n = unicodedata.normalize("NFKD", n).encode("ascii", "ignore").decode("ascii")
-    return n
-
-
 def match_fixture(home: str, away: str, fixtures: list[dict]) -> dict | None:
-    """Find best matching fixture from DB by team names."""
-    h_norm = normalize_team_name(home)
-    a_norm = normalize_team_name(away)
-
+    """Find best matching fixture from DB by team names using smart fuzzy matching."""
+    best_match = None
+    best_score = 0.0
+    
     for f in fixtures:
-        fh = normalize_team_name(f["home_team"])
-        fa = normalize_team_name(f["away_team"])
-
-        # Direct match (either direction)
-        if (h_norm in fh or fh in h_norm) and (a_norm in fa or fa in a_norm):
-            return f
-        if (h_norm in fa or fa in h_norm) and (a_norm in fh or fh in a_norm):
-            # Swapped home/away
-            return f
-
-    return None
+        fh = f["home_team"]
+        fa = f["away_team"]
+        
+        # Try normal order
+        score_h = names_match(home, fh, threshold=65)
+        score_a = names_match(away, fa, threshold=65)
+        if score_h >= 65 and score_a >= 65:
+            score = score_h + score_a
+            if score > best_score:
+                best_score = score
+                best_match = f
+                continue
+        
+        # Try swapped order (home/away reversed)
+        score_h = names_match(home, fa, threshold=65)
+        score_a = names_match(away, fh, threshold=65)
+        if score_h >= 65 and score_a >= 65:
+            score = score_h + score_a
+            if score > best_score:
+                best_score = score
+                best_match = f
+    
+    return best_match
 
 
 def fetch_fixtures_for_date(date_str: str, sport_ids: list[int]) -> list[dict]:

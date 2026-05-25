@@ -22,6 +22,7 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 sys.path.insert(0, str(ROOT_DIR / "src"))
 
 from utils import normalize_team_name as _norm_team
+from bet.utils import names_match
 
 
 # ---------------------------------------------------------------------------
@@ -401,19 +402,21 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
         away = _norm_team(c.get("away_team") or "")
         key = f"{home}|{away}"
         entry = odds_lookup.get(key)
-        # Fuzzy fallback: try substring/containment match if exact key not found
+        # Fuzzy fallback: use names_match() for robust team matching
         if not entry:
+            best_score = 0
             for ok, ov in odds_lookup.items():
                 parts = ok.split("|", 1)
                 if len(parts) != 2:
                     continue
                 oh, oa = parts
-                # Check containment both ways (e.g. "montreal" in "montreal canadiens")
-                h_match = (home in oh or oh in home) and len(home) >= 4 and len(oh) >= 4
-                a_match = (away in oa or oa in away) and len(away) >= 4 and len(oa) >= 4
-                if h_match and a_match:
-                    entry = ov
-                    break
+                score_h = names_match(home, oh, threshold=70)
+                score_a = names_match(away, oa, threshold=70)
+                if score_h >= 70 and score_a >= 70:
+                    combined = score_h + score_a
+                    if combined > best_score:
+                        best_score = combined
+                        entry = ov
         if not entry:
             continue
 

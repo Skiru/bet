@@ -54,12 +54,17 @@ class Bo3GGScraper:
         return BeautifulSoup(resp.text, "html.parser")
 
     def search_team(self, name: str) -> str | None:
-        """Resolve team name → bo3.gg team URL path."""
+        """Resolve team name → bo3.gg team URL path (Playwright required — SPA)."""
         lower = name.lower().strip()
         if lower in self._team_url_cache:
             return self._team_url_cache[lower]
 
-        soup = self._get(f"{BASE_URL}/search?q={requests.utils.quote(name)}")
+        # bo3.gg is a JS-rendered SPA — must use Playwright
+        soup = self._get_rendered(
+            f"{BASE_URL}/search?q={requests.utils.quote(name)}",
+            wait_selector="a[href*='/team']",
+            timeout_ms=10000,
+        )
         if not soup:
             self._team_url_cache[lower] = None
             return None
@@ -75,7 +80,7 @@ class Bo3GGScraper:
         return None
 
     def get_team_stats(self, team_name: str) -> dict:
-        """Scrape team statistics from bo3.gg.
+        """Scrape team statistics from bo3.gg (Playwright required — SPA).
 
         Returns:
             {
@@ -92,7 +97,12 @@ class Bo3GGScraper:
             logger.warning("bo3.gg: could not find team '%s'", team_name)
             return {}
 
-        soup = self._get(f"{BASE_URL}{team_url}")
+        # bo3.gg is fully JS-rendered — must use Playwright
+        soup = self._get_rendered(
+            f"{BASE_URL}{team_url}",
+            wait_selector="body",
+            timeout_ms=12000,
+        )
         if not soup:
             return {}
 
@@ -114,8 +124,23 @@ class Bo3GGScraper:
             if rate_match:
                 stats["map_win_rate"] = float(rate_match.group(1))
 
+        # Also try to parse from full page text (SPA often uses different selectors)
+        page_text = soup.get_text(" ", strip=True)
+        if "maps_played" not in stats:
+            mp = re.search(r"(\d+)\s*maps?\s*played", page_text, re.IGNORECASE)
+            if mp:
+                stats["maps_played"] = int(mp.group(1))
+        if "map_win_rate" not in stats:
+            wr = re.search(r"win\s*rate[:\s]*([\d.]+)\s*%", page_text, re.IGNORECASE)
+            if wr:
+                stats["map_win_rate"] = float(wr.group(1))
+
         # Recent matches for L10
-        matches_soup = self._get(f"{BASE_URL}{team_url}/matches")
+        matches_soup = self._get_rendered(
+            f"{BASE_URL}{team_url}/matches",
+            wait_selector="body",
+            timeout_ms=12000,
+        )
         if matches_soup:
             match_rows = matches_soup.select(".match-row, .result-row")[:10]
             wins = 0
@@ -143,7 +168,7 @@ class Bo3GGScraper:
         return stats
 
     def get_team_map_pool(self, team_name: str) -> dict:
-        """Scrape map-specific stats.
+        """Scrape map-specific stats (Playwright required — SPA).
 
         Returns:
             {"map_name": {"played": int, "won": int, "win_rate": float}, ...}
@@ -152,7 +177,11 @@ class Bo3GGScraper:
         if not team_url:
             return {}
 
-        soup = self._get(f"{BASE_URL}{team_url}/maps")
+        soup = self._get_rendered(
+            f"{BASE_URL}{team_url}/maps",
+            wait_selector="body",
+            timeout_ms=12000,
+        )
         if not soup:
             return {}
 
@@ -185,7 +214,7 @@ class Bo3GGScraper:
         return map_pool
 
     def get_h2h(self, team_a: str, team_b: str) -> dict:
-        """Head-to-head between two teams.
+        """Head-to-head between two teams (Playwright required — SPA).
 
         Returns:
             {
@@ -199,7 +228,11 @@ class Bo3GGScraper:
             return {"matches_found": 0, "team_a_wins": 0, "team_b_wins": 0}
 
         # Try team A's matches page and filter for team B
-        soup = self._get(f"{BASE_URL}{team_a_url}/matches")
+        soup = self._get_rendered(
+            f"{BASE_URL}{team_a_url}/matches",
+            wait_selector="body",
+            timeout_ms=12000,
+        )
         if not soup:
             return {"matches_found": 0, "team_a_wins": 0, "team_b_wins": 0}
 
@@ -407,6 +440,176 @@ class Bo3GGScraper:
             })
 
         return matches
+
+    def get_cs2_match_detail(self, match_url: str) -> dict:
+        """Fetch CS2 match page with team form, map winrates, H2H (Playwright).
+
+        Extracts structured data from bo3.gg match pages including:
+        - Team form (last 5 matches with scores)
+        - Historical map winrate per map (6 months)
+        - Head to head results
+        - ML odds
+        - Lineups
+        - Analytics insights (text)
+
+        Returns dict with per-team stats suitable for team_form enrichment.
+        """
+        soup = self._get_rendered(match_url, wait_selector="body", timeout_ms=15000, use_networkidle=True)
+        if not soup:
+            return {}
+
+        text = soup.get_text(" ", strip=True)
+        details: dict[str, Any] = {
+            "home_team": "",
+            "away_team": "",
+            "ml_odds": {},
+            "format": "Bo3",
+            "h2h": [],
+            "form_home": [],
+            "form_away": [],
+            "map_winrate_home": {},
+            "map_winrate_away": {},
+            "lineups_home": [],
+            "lineups_away": [],
+            "insights": [],
+        }
+
+        # Format
+        fmt_match = re.search(r"\b(Bo[135])\b", text)
+        if fmt_match:
+            details["format"] = fmt_match.group(1)
+
+        # ML odds: "1 X.XX 2 X.XX"
+        ml_match = re.search(r"\b1\s+(\d+\.\d+)\s+2\s+(\d+\.\d+)\b", text)
+        if ml_match:
+            details["ml_odds"] = {
+                "home": float(ml_match.group(1)),
+                "away": float(ml_match.group(2)),
+            }
+
+        # Team names from h1 heading: "TeamA vs TeamB at Tournament"
+        h1 = soup.select_one("h1")
+        if h1:
+            h1_text = h1.get_text(strip=True)
+            vs_match = re.match(r"(.+?)\s+vs\s+(.+?)\s+at\s+", h1_text)
+            if vs_match:
+                details["home_team"] = vs_match.group(1).strip()
+                details["away_team"] = vs_match.group(2).strip()
+
+        # Team Form: Parse match results (W/L from score lines)
+        # Look for patterns like "BIG Academy\nBERG\n2\n0" or with odds
+        form_sections = soup.find_all(string=re.compile(r"TEAM FORM", re.IGNORECASE))
+        if form_sections:
+            # Get the parent container
+            form_container = form_sections[0].find_parent()
+            if form_container:
+                # Find all score patterns: number pairs like "2 0", "2 1", "1 2"
+                # Parse by looking at elements after TEAM FORM
+                pass
+
+        # Parse form from text - look for consecutive match scores
+        # Pattern: Team won if first score > second score in each match
+        form_pattern = re.findall(
+            r"(\d+)\s+days?\s+ago.*?(\d)\s+(\d)",
+            text, re.DOTALL
+        )
+
+        # Lineups from player links
+        player_links = soup.find_all("a", href=lambda h: h and "/players/" in h)
+        player_names = []
+        seen_players: set[str] = set()
+        for pl in player_links:
+            name = pl.get_text(strip=True)
+            if name and name not in seen_players and len(name) < 20:
+                seen_players.add(name)
+                player_names.append(name)
+        if len(player_names) >= 10:
+            details["lineups_home"] = player_names[:5]
+            details["lineups_away"] = player_names[5:10]
+        elif len(player_names) >= 5:
+            details["lineups_home"] = player_names[:5]
+
+        # Map winrate: Parse percentages per map
+        # Pattern: "Anubis 50% ... Overpass 85%" etc.
+        map_names = ["Anubis", "Overpass", "Nuke", "Mirage", "Inferno", "Ancient", "Dust II", "Vertigo", "Train"]
+        # Find "HISTORICAL MAPS WINRATE" section
+        maps_section = re.search(
+            r"(?:Historical|HISTORICAL)\s+Maps?\s+(?:winrate|WINRATE)(.+?)(?:HEAD TO HEAD|Head to head|COMMENTS|Comments)",
+            text, re.IGNORECASE | re.DOTALL
+        )
+        if maps_section:
+            maps_text = maps_section.group(1)
+            # Parse map winrates - look for "MapName XX%" patterns
+            # Structure is usually: MapName | HomeWR% | AwayWR%
+            for map_name in map_names:
+                # Try to find all percentages after the map name
+                pct_matches = re.findall(
+                    rf"{map_name}.*?(\d+)%.*?(\d+)%",
+                    maps_text, re.DOTALL
+                )
+                if pct_matches:
+                    details["map_winrate_home"][map_name] = int(pct_matches[0][0])
+                    details["map_winrate_away"][map_name] = int(pct_matches[0][1])
+
+        # H2H section
+        h2h_section = re.search(
+            r"(?:HEAD TO HEAD|Head to head)(.+?)(?:COMMENTS|Comments|$)",
+            text, re.IGNORECASE | re.DOTALL
+        )
+        if h2h_section:
+            # Look for score patterns: "TeamA X - Y TeamB" or "X : Y"
+            h2h_matches = re.findall(
+                r"(\d+)\s*[-–:]\s*(\d+)",
+                h2h_section.group(1)
+            )
+            for m in h2h_matches:
+                details["h2h"].append({
+                    "home_score": int(m[0]),
+                    "away_score": int(m[1]),
+                })
+
+        # Analytics insights
+        insights_section = re.search(
+            r"(?:ANALYTICS INSIGHTS|Analytics Insights)(.+?)(?:TEAM FORM|Team Form)",
+            text, re.IGNORECASE | re.DOTALL
+        )
+        if insights_section:
+            # Extract bullet points
+            sentences = [s.strip() for s in insights_section.group(1).split(".")
+                        if len(s.strip()) > 20]
+            details["insights"] = sentences[:8]
+
+        # Calculate win_rate from form (if available from page structure)
+        # Use score pattern: look for "SCORE" columns in team form tables
+        score_cells = soup.select("[class*='score'], [class*='Score']")
+        if score_cells:
+            # Try to parse home/away form from score columns
+            scores = []
+            for cell in score_cells:
+                t = cell.get_text(strip=True)
+                if re.match(r"^\d+$", t):
+                    scores.append(int(t))
+
+            # Scores come in pairs (home_score, away_score per match)
+            if len(scores) >= 4:
+                # First half = home team matches, second half = away team matches
+                mid = len(scores) // 2
+                home_scores = list(zip(scores[:mid:2], scores[1:mid:2]))
+                away_scores = list(zip(scores[mid::2], scores[mid + 1::2]))
+
+                home_wins = sum(1 for s1, s2 in home_scores if s1 > s2)
+                away_wins = sum(1 for s1, s2 in away_scores if s1 > s2)
+
+                if home_scores:
+                    details["form_home"] = [
+                        "W" if s1 > s2 else "L" for s1, s2 in home_scores
+                    ]
+                if away_scores:
+                    details["form_away"] = [
+                        "W" if s1 > s2 else "L" for s1, s2 in away_scores
+                    ]
+
+        return details
 
     def get_valorant_match_detail(self, match_url: str) -> dict:
         """Fetch detailed match page: odds, H2H, map pool, lineups (Playwright).

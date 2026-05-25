@@ -30,6 +30,8 @@ from compute_safety_scores import rank_markets
 
 from bet.stats.market_ranking import SPORT_STAT_KEYS
 
+from bet.utils import is_same_event
+
 from utils import normalize_kickoff
 
 DATA_DIR = Path(__file__).parent.parent / "betting" / "data"
@@ -270,11 +272,56 @@ _esports_semaphores: dict[str, threading.Semaphore] = {
 _logger = logging.getLogger(__name__)
 
 def _extract_esports_stats(sport: str, team_name: str, result: dict) -> dict:
-    """Fetch esports stats from dedicated clients (OpenDota, HLTV/bo3.gg, VLR).
+    """Fetch esports stats from DB team_form first, then dedicated clients as fallback.
 
-    Populates result dict with l10_avg from live API/scraper data.
+    Populates result dict with l10_avg from enriched DB data or live API/scraper data.
     Uses per-sport semaphores to prevent concurrent rate-limit violations.
     """
+    # --- DB FIRST: check team_form for pre-enriched esports data ---
+    sport_id_map = {"cs2": 498, "valorant": 500, "dota2": 499}
+    sport_id = sport_id_map.get(sport)
+    if sport_id:
+        try:
+            from bet.db.connection import get_db
+            from bet.db.repositories import TeamRepo
+            with get_db() as db:
+                # Use TeamRepo.resolve() for fuzzy name resolution (handles aliases, diacritics)
+                team_repo = TeamRepo(db)
+                team = team_repo.resolve(team_name, sport_id)
+                team_id = team.id if team else None
+                if not team_id:
+                    # Fallback: exact name match (original behavior)
+                    row = db.execute(
+                        "SELECT id FROM teams WHERE name = ? AND sport_id = ? LIMIT 1",
+                        (team_name, sport_id),
+                    ).fetchone()
+                    team_id = row["id"] if row else None
+                if not team_id:
+                    _logger.debug("No team found for %s/%s in DB", sport, team_name)
+                    # Skip DB, fall through to live fallback
+                    raise LookupError(f"Team not found: {team_name}")
+                rows = db.execute(
+                    """SELECT stat_key, l10_avg, source FROM team_form
+                       WHERE team_id = ? AND sport_id = ?""",
+                    (team_id, sport_id),
+                ).fetchall()
+                if rows:
+                    stats = {}
+                    source = "esports-enricher"
+                    for r in rows:
+                        stats[r["stat_key"]] = r["l10_avg"]
+                        if r["source"]:
+                            source = r["source"]
+                    result["l10_avg"] = stats
+                    result["has_data"] = True
+                    result["sources"] = [source]
+                    return result
+        except Exception as e:
+            _logger.debug("DB team_form lookup failed for %s/%s: %s", sport, team_name, e)
+
+    # --- LIVE FALLBACK: only for Valorant (VLR HTTP works) and Dota2 (OpenDota) ---
+    # CS2: HLTV search blocked by Cloudflare, bo3.gg search returns 404
+    # Data should come from DB (enriched by enrich_esports_stats.py)
     sem = _esports_semaphores.get(sport)
     if not sem:
         return result
@@ -294,30 +341,6 @@ def _extract_esports_stats(sport: str, team_name: str, result: dict) -> dict:
                     result["sources"] = ["opendota"]
                     return result
 
-            elif sport == "cs2":
-                # Try HLTV first, fallback to bo3.gg
-                try:
-                    from bet.scrapers.hltv import HLTVScraper
-                    with HLTVScraper() as scraper:
-                        stats = scraper.get_team_stats(team_name)
-                        if stats:
-                            result["l10_avg"] = stats
-                            result["has_data"] = True
-                            result["sources"] = ["hltv"]
-                            return result
-                except Exception as e:
-                    _logger.info("HLTV unavailable for '%s', falling back to bo3.gg: %s", team_name, e)
-
-                # Fallback: bo3.gg (HTTP, no Cloudflare)
-                from bet.scrapers.bo3gg import Bo3GGScraper
-                scraper = Bo3GGScraper()
-                stats = scraper.get_team_stats(team_name)
-                if stats and stats.get("matches_found", 0) > 0:
-                    result["l10_avg"] = stats
-                    result["has_data"] = True
-                    result["sources"] = ["bo3gg"]
-                    return result
-
             elif sport == "valorant":
                 from bet.scrapers.vlr import VLRScraper
                 scraper = VLRScraper()
@@ -328,6 +351,9 @@ def _extract_esports_stats(sport: str, team_name: str, result: dict) -> dict:
                     result["sources"] = ["vlr"]
                     return result
 
+            # CS2: skip live scraping (HLTV blocked, bo3.gg search 404)
+            # Teams without DB data will show has_data=False
+
         except Exception as e:
             _logger.warning("Esports stats failed for %s/%s: %s", sport, team_name, e)
 
@@ -335,65 +361,60 @@ def _extract_esports_stats(sport: str, team_name: str, result: dict) -> dict:
 
 
 def _extract_esports_h2h(sport: str, team_a: str, team_b: str, result: dict) -> dict:
-    """Fetch esports H2H from dedicated clients."""
-    sem = _esports_semaphores.get(sport)
-    if not sem:
-        return result
-
-    with sem:
+    """Fetch esports H2H — DB first, then live scrapers (Valorant only)."""
+    # --- DB FIRST: check team_form for pre-enriched H2H data ---
+    sport_id_map = {"cs2": 498, "valorant": 500, "dota2": 499}
+    sport_id = sport_id_map.get(sport)
+    if sport_id:
         try:
-            if sport == "dota2":
-                from bet.api_clients.opendota import OpenDotaClient
-                client = OpenDotaClient()
-                h2h = client.get_h2h(team_a, team_b)
-                if h2h and h2h.get("matches_found", 0) > 0:
+            from bet.db.connection import get_db
+            from bet.db.repositories import TeamRepo
+            with get_db() as db:
+                # Use TeamRepo.resolve() for fuzzy name resolution
+                team_repo = TeamRepo(db)
+                team_a_obj = team_repo.resolve(team_a, sport_id)
+                team_b_obj = team_repo.resolve(team_b, sport_id)
+                team_a_id = team_a_obj.id if team_a_obj else None
+                team_b_id = team_b_obj.id if team_b_obj else None
+                if not team_a_id or not team_b_id:
+                    raise LookupError(f"Team not found: {team_a} or {team_b}")
+                row = db.execute(
+                    """SELECT h2h_values, l10_avg, l5_avg FROM team_form
+                       WHERE team_id = ?
+                       AND sport_id = ? AND stat_key = 'h2h'
+                       AND h2h_opponent_id = ?""",
+                    (team_a_id, sport_id, team_b_id),
+                ).fetchone()
+                if row and row["h2h_values"] and row["h2h_values"] != "[]":
+                    import json as _json
+                    h2h_data = _json.loads(row["h2h_values"])
                     result["has_data"] = True
-                    result["averages"] = {
-                        "total_kills": h2h.get("avg_total_kills", 0),
-                        "duration_min": h2h.get("avg_duration_min", 0),
-                    }
-                    result["meetings"] = [{"source": "opendota", "index": i}
-                                           for i in range(h2h["matches_found"])]
-                    result["h2h_record"] = f"{h2h['team_a_wins']}-{h2h['team_b_wins']}"
+                    result["h2h_record"] = f"{int(row['l10_avg'] or 0)}-{int(row['l5_avg'] or 0)}"
+                    result["meetings"] = [{"source": "db", "index": i}
+                                           for i in range(h2h_data.get("matches_found", 1))]
                     return result
-
-            elif sport == "cs2":
-                try:
-                    from bet.scrapers.hltv import HLTVScraper
-                    with HLTVScraper() as scraper:
-                        h2h = scraper.get_h2h(team_a, team_b)
-                        if h2h and h2h.get("matches_found", 0) > 0:
-                            result["has_data"] = True
-                            result["meetings"] = [{"source": "hltv", "index": i}
-                                                   for i in range(h2h["matches_found"])]
-                            result["h2h_record"] = f"{h2h['team_a_wins']}-{h2h['team_b_wins']}"
-                            return result
-                except Exception as e:
-                    _logger.info("HLTV H2H unavailable for '%s vs %s', falling back: %s", team_a, team_b, e)
-
-                from bet.scrapers.bo3gg import Bo3GGScraper
-                scraper = Bo3GGScraper()
-                h2h = scraper.get_h2h(team_a, team_b)
-                if h2h and h2h.get("matches_found", 0) > 0:
-                    result["has_data"] = True
-                    result["meetings"] = [{"source": "bo3gg", "index": i}
-                                           for i in range(h2h["matches_found"])]
-                    result["h2h_record"] = f"{h2h['team_a_wins']}-{h2h['team_b_wins']}"
-                    return result
-
-            elif sport == "valorant":
-                from bet.scrapers.vlr import VLRScraper
-                scraper = VLRScraper()
-                h2h = scraper.get_h2h(team_a, team_b)
-                if h2h and h2h.get("matches_found", 0) > 0:
-                    result["has_data"] = True
-                    result["meetings"] = [{"source": "vlr", "index": i}
-                                           for i in range(h2h["matches_found"])]
-                    result["h2h_record"] = f"{h2h['team_a_wins']}-{h2h['team_b_wins']}"
-                    return result
-
         except Exception as e:
-            _logger.warning("Esports H2H failed for %s/%s vs %s: %s", sport, team_a, team_b, e)
+            _logger.debug("Esports H2H DB lookup failed for %s vs %s/%s: %s", team_a, team_b, sport, e)
+
+    # --- LIVE FALLBACK: only for Valorant (VLR works via HTTP) ---
+    # CS2: HLTV search blocked by Cloudflare, bo3.gg search returns 404 — skip
+    # Dota2: OpenDota H2H requires team IDs we don't have — skip
+    if sport == "valorant":
+        sem = _esports_semaphores.get(sport)
+        if sem:
+            with sem:
+                try:
+                    from bet.scrapers.vlr import VLRScraper
+                    scraper = VLRScraper()
+                    h2h = scraper.get_h2h(team_a, team_b)
+                    if h2h and h2h.get("matches_found", 0) > 0:
+                        result["has_data"] = True
+                        result["meetings"] = [{"source": "vlr", "index": i}
+                                               for i in range(h2h["matches_found"])]
+                        result["h2h_record"] = f"{h2h['team_a_wins']}-{h2h['team_b_wins']}"
+                        return result
+                except Exception as e:
+                    _logger.warning("VLR H2H failed for %s vs %s: %s", team_a, team_b, e)
 
     return result
 
@@ -1650,50 +1671,23 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
     # Post-mortem 2026-05-13: "RC Lens vs Paris Saint Germain", "Lens vs Paris Saint-Germain",
     # "Lens vs PSG" appeared as 3 separate analysis_results with CONTRADICTORY recommendations.
     # Fix: normalize team names and keep only the first (highest-data) occurrence per matchup.
-    import unicodedata as _ud
-
-    def _dedup_key(name: str) -> str:
-        """Normalize team name for dedup: lowercase, strip accents, remove FC/SC/etc."""
-        s = _ud.normalize("NFKD", name.lower().strip()).encode("ascii", "ignore").decode()
-        for remove in ["fc ", "sc ", "bc ", "ac ", " fc", " sc", " bc", " cf",
-                        "rc ", " rc", " sk", " fk"]:
-            s = s.replace(remove, " ")
-        s = re.sub(r"[^a-z0-9 ]", "", s)
-        s = re.sub(r"\s+", " ", s).strip()
-        return s
-
-    seen_matchups: set[str] = set()
     deduped_candidates: list[dict] = []
     dedup_dropped = 0
     for c in candidates:
-        h = _dedup_key(c.get("home_team", ""))
-        a = _dedup_key(c.get("away_team", ""))
+        h = c.get("home_team", "")
+        a = c.get("away_team", "")
         sport = c.get("sport", "").lower()
-        key1 = f"{sport}|{h}|{a}"
-        key2 = f"{sport}|{a}|{h}"
-        # Also check substring match (e.g., "lens" in "rc lens")
-        is_dup = key1 in seen_matchups or key2 in seen_matchups
-        if not is_dup:
-            for existing in seen_matchups:
-                ep = existing.split("|", 2)
-                if len(ep) != 3 or ep[0] != sport:
-                    continue
-                eh, ea = ep[1], ep[2]
-                h_match = (h in eh or eh in h) and len(h) >= 4 and len(eh) >= 4
-                a_match = (a in ea or ea in a) and len(a) >= 4 and len(ea) >= 4
-                if h_match and a_match:
-                    is_dup = True
-                    break
-                # Check swapped
-                h_match_r = (h in ea or ea in h) and len(h) >= 4 and len(ea) >= 4
-                a_match_r = (a in eh or eh in a) and len(a) >= 4 and len(eh) >= 4
-                if h_match_r and a_match_r:
-                    is_dup = True
-                    break
+        # Check against all already-seen events using robust matching
+        is_dup = False
+        for existing_c in deduped_candidates:
+            if existing_c.get("sport", "").lower() != sport:
+                continue
+            if is_same_event(h, a, existing_c.get("home_team", ""), existing_c.get("away_team", "")):
+                is_dup = True
+                break
         if is_dup:
             dedup_dropped += 1
             continue
-        seen_matchups.add(key1)
         deduped_candidates.append(c)
 
     if dedup_dropped:
@@ -1746,7 +1740,11 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
             if key not in unique_teams:
                 unique_teams[key] = item
         
-        enrichment_list = [{"team": v["team"], "sport": v["sport"]} for v in unique_teams.values()]
+        enrichment_list = [{"team": v["team"], "sport": v["sport"]} for v in unique_teams.values()
+                           if v["sport"] not in ("cs2", "valorant", "dota2")]
+        esports_skipped = sum(1 for v in unique_teams.values() if v["sport"] in ("cs2", "valorant", "dota2"))
+        if esports_skipped:
+            print(f"[deep_stats] Skipping {esports_skipped} esports teams (pre-enriched via enrich_esports_stats.py)")
         print(f"[deep_stats] Enrichment needed for {len(enrichment_list)} teams ({total_candidates - len([c for c in candidates if c.get('safety_markets') or c.get('n_odds_markets', 0) > 0 or c.get('fixture_verified')])} events without data)")
         
         try:

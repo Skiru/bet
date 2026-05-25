@@ -17,6 +17,9 @@ FALLBACK_CHAINS: dict[str, list[str]] = {
     "hockey": ["espn-hockey", "api-hockey", "scrapernhl", "moneypuck", "sofascore", "google-sports", "serpapi"],
     "tennis": ["tennis-abstract", "sackmann", "espn-tennis", "google-sports", "serpapi"],
     "volleyball": ["espn-volleyball", "api-volleyball", "google-sports", "serpapi"],
+    "cs2": ["bo3gg", "hltv", "liquipedia", "serpapi"],
+    "valorant": ["vlr", "bo3gg", "liquipedia", "serpapi"],
+    "dota2": ["liquipedia", "bo3gg", "serpapi"],
 }
 
 RICH_COMPLETION_POLICY: dict[str, dict[str, list[str] | str]] = {
@@ -84,10 +87,44 @@ RICH_COMPLETION_POLICY: dict[str, dict[str, list[str] | str]] = {
         "supporting_sources": ["espn-volleyball"],
         "aggregate_only_sources": ["volleybox"],
     },
+    "cs2": {
+        "required_rich_keys": [
+            "win_rate_l10",
+            "map_win_rate",
+            "maps_played",
+            "roster_size",
+        ],
+        "canonical_source": "bo3gg",
+        "supporting_sources": ["hltv"],
+        "aggregate_only_sources": ["liquipedia"],
+    },
+    "valorant": {
+        "required_rich_keys": [
+            "win_rate_l10",
+            "matches_found",
+            "rounds_won_avg",
+            "ranking",
+        ],
+        "canonical_source": "vlr",
+        "supporting_sources": ["bo3gg"],
+        "aggregate_only_sources": ["liquipedia"],
+    },
+    "dota2": {
+        "required_rich_keys": [
+            "win_rate_l10",
+            "matches_found",
+        ],
+        "canonical_source": "liquipedia",
+        "supporting_sources": [],
+        "aggregate_only_sources": [],
+    },
 }
 
 # Tier 1 sports: all get equal enrichment priority
 TIER_1_SPORTS = {"football", "volleyball", "basketball", "tennis", "hockey"}
+
+# Tier 1 esports: equal enrichment priority
+TIER_1_ESPORTS = {"cs2", "valorant", "dota2"}
 
 # Expected stat keys per sport — used to audit extraction completeness
 EXPECTED_STATS_PER_SPORT: dict[str, list[str]] = {
@@ -115,5 +152,16 @@ EXPECTED_STATS_PER_SPORT: dict[str, list[str]] = {
     "volleyball": [
         "kills", "aces", "blocks", "digs", "assists",
         "hitting_pct", "points",
+    ],
+    "cs2": [
+        "win_rate_l10", "map_win_rate", "maps_played",
+        "roster_size", "form",
+    ],
+    "valorant": [
+        "win_rate_l10", "matches_found", "rounds_won_avg",
+        "ranking",
+    ],
+    "dota2": [
+        "win_rate_l10", "matches_found",
     ],
 }

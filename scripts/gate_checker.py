@@ -19,10 +19,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from check_48h_repeats import load_recent_losses, normalize_team, normalize_market, find_repeats
 from context_checks import validate_data_completeness
 from utils import normalize_kickoff
+from bet.utils import names_match, is_same_event
 
 logger = logging.getLogger(__name__)
 
@@ -162,11 +164,8 @@ def _is_fixture_ghost(
 ) -> bool:
     """Check if a candidate matchup is a ghost (not in real fixtures).
 
-    Uses a two-level check:
-    1. Exact pair match (home, away) in fixture_pairs → NOT ghost
-    2. Both team names individually found in known_names → NOT ghost
-       (covers cases where team names are slightly different between sources)
-    3. Neither team name found in known_names → GHOST
+    Uses names_match() for robust fuzzy matching that handles aliases,
+    diacritics, and abbreviations.
 
     Returns True if the fixture appears to be a ghost.
     """
@@ -177,25 +176,23 @@ def _is_fixture_ghost(
     if (h, a) in fixture_pairs:
         return False
 
-    # Level 2: substring match on pairs (handles slight name differences)
+    # Level 2: fuzzy match on pairs using names_match
     for fh, fa in fixture_pairs:
-        # Check if candidate teams are substrings of fixture teams or vice versa
-        h_match = h in fh or fh in h or _token_overlap(h, fh) >= 0.6
-        a_match = a in fa or fa in a or _token_overlap(a, fa) >= 0.6
-        if h_match and a_match:
+        score_h = names_match(h, fh, threshold=65)
+        score_a = names_match(a, fa, threshold=65)
+        if score_h >= 65 and score_a >= 65:
             return False
 
     # Level 3: if NEITHER team appears anywhere in known fixtures → ghost
-    h_found = h in known_names or any(h in n or n in h for n in known_names if len(n) > 3)
-    a_found = a in known_names or any(a in n or n in a for n in known_names if len(n) > 3)
+    h_found = h in known_names or any(names_match(h, n, threshold=70) >= 70 for n in known_names if len(n) > 3)
+    a_found = a in known_names or any(names_match(a, n, threshold=70) >= 70 for n in known_names if len(n) > 3)
 
     # If both teams are completely unknown in fixtures data, it's a ghost
     if not h_found and not a_found:
         return True
 
     # If we have fixture data but this specific pairing doesn't exist, it's likely a ghost
-    # (the teams may exist but in different matchups = this is a historical form game)
-    if len(fixture_pairs) > 50:  # only flag if we have substantial fixture data
+    if len(fixture_pairs) > 50:
         return True
 
     return False
@@ -639,8 +636,10 @@ def check_red_flags(candidate: dict) -> list[str]:
                     if not opp_name:
                         continue
                     row = conn.execute(
-                        "SELECT position FROM standings WHERE LOWER(team_name) LIKE ? "
-                        "ORDER BY position ASC LIMIT 1",
+                        "SELECT s.rank FROM standings s "
+                        "JOIN teams t ON s.team_id = t.id "
+                        "WHERE LOWER(t.name) LIKE ? "
+                        "ORDER BY s.rank ASC LIMIT 1",
                         (f"%{opp_name.lower()}%",),
                     ).fetchone()
                     if row and row[0] is not None and int(row[0]) <= 5:
@@ -1466,34 +1465,29 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
         c["kickoff"] = normalize_kickoff(c.get("kickoff", ""), date)
 
     # Deduplicate events (keep highest safety_score version)
-    def _dedup_key(c: dict) -> str:
-        """Normalize team names for dedup: lowercase, strip common prefixes."""
-        h = re.sub(r"^(fc|sc|sk|ac|as|fk|cd|cf)\s+", "", (c.get("home_team") or "").strip().lower())
-        a = re.sub(r"^(fc|sc|sk|ac|as|fk|cd|cf)\s+", "", (c.get("away_team") or "").strip().lower())
-        # Normalize common abbreviations (order matters — expand shorter forms first)
-        for short, full in [("man utd", "manchester united"), ("man city", "manchester city"),
-                            ("nottm", "nottingham"), ("sheff", "sheffield"),
-                            ("wolves", "wolverhampton"), ("newcastle utd", "newcastle united")]:
-            h = h.replace(short, full)
-            a = a.replace(short, full)
-        return f"{h}|{a}"
-
-    seen: dict[str, dict] = {}
+    seen: list[tuple[str, str, dict]] = []  # (home, away, candidate)
     dedup_count = 0
     for c in clean_candidates:
-        key = _dedup_key(c)
-        if key in seen:
-            # Keep the one with higher safety score
-            existing_safety = (seen[key].get("best_market") or {}).get("safety_score") or 0
-            new_safety = (c.get("best_market") or {}).get("safety_score") or 0
-            if new_safety > existing_safety:
-                seen[key] = c
-            dedup_count += 1
-        else:
-            seen[key] = c
+        home = (c.get("home_team") or "").strip().lower()
+        away = (c.get("away_team") or "").strip().lower()
+        is_dup = False
+        for sh, sa, existing in seen:
+            if is_same_event(home, away, sh, sa, threshold=75):
+                # Keep the one with higher safety score
+                existing_safety = (existing.get("best_market") or {}).get("safety_score") or 0
+                new_safety = (c.get("best_market") or {}).get("safety_score") or 0
+                if new_safety > existing_safety:
+                    # Replace with better candidate
+                    seen.remove((sh, sa, existing))
+                    seen.append((home, away, c))
+                is_dup = True
+                dedup_count += 1
+                break
+        if not is_dup:
+            seen.append((home, away, c))
     if dedup_count:
         print(f"[gate_checker] Deduped {dedup_count} duplicate events")
-    candidates = list(seen.values())
+    candidates = [c for _, _, c in seen]
 
     # --- Pattern A: Detect directional conflicts across same-game picks ---
     directional_conflicts = check_directional_conflicts(candidates)

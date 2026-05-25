@@ -117,6 +117,67 @@ def _surname_tokens(normalized_name: str) -> set[str]:
     return {tokens[-1]}
 
 
+# Common abbreviation/nickname aliases across sports and esports.
+# Maps lowercase alias → lowercase canonical form.
+_COMMON_ALIASES: dict[str, str] = {
+    # Football abbreviations
+    "man utd": "manchester united", "man united": "manchester united",
+    "man city": "manchester city",
+    "spurs": "tottenham hotspur", "tottenham": "tottenham hotspur",
+    "wolves": "wolverhampton wanderers", "wolverhampton": "wolverhampton wanderers",
+    "villa": "aston villa",
+    "newcastle": "newcastle united",
+    "west ham": "west ham united",
+    "forest": "nottingham forest", "nott forest": "nottingham forest",
+    "brighton": "brighton hove albion",
+    "palace": "crystal palace",
+    "atletico": "atletico madrid", "atleti": "atletico madrid",
+    "barca": "barcelona", "fcb": "barcelona",
+    "psg": "paris saint germain", "paris sg": "paris saint germain",
+    "bayern": "bayern munich", "bayern munchen": "bayern munich",
+    "dortmund": "borussia dortmund", "bvb": "borussia dortmund",
+    "inter milano": "inter milan",
+    "juve": "juventus",
+    "napoli": "ssc napoli",
+    "benfica": "sl benfica",
+    "sporting lisbon": "sporting cp",
+    "porto": "fc porto",
+    "ajax": "ajax amsterdam",
+    "psv": "psv eindhoven",
+    "feyenoord": "feyenoord rotterdam",
+    "legia": "legia warsaw", "legia warszawa": "legia warsaw",
+    "lech": "lech poznan",
+    # Esports abbreviations
+    "navi": "natus vincere", "na'vi": "natus vincere",
+    "g2": "g2 esports",
+
+    "faze": "faze clan",
+    "c9": "cloud9", "cloud 9": "cloud9",
+    "og": "og esports",
+    "t1": "t1 esports",
+    "vitality": "team vitality",
+    "liquid": "team liquid",
+    "spirit": "team spirit",
+    "vp": "virtus pro", "virtus.pro": "virtus pro",
+    "mouz": "mousesports",
+    "col": "complexity", "complexity gaming": "complexity",
+    "eg": "evil geniuses",
+    "sen": "sentinels",
+    "100t": "100 thieves",
+    "nrg": "nrg esports",
+    "loud": "loud esports",
+    # Tennis nicknames (rare but useful)
+    "djoko": "novak djokovic", "nole": "novak djokovic",
+    "rafa": "rafael nadal",
+    "federer": "roger federer",
+}
+
+
+def _resolve_alias(normalized_name: str) -> str:
+    """Check if a normalized name is a known alias and return canonical form."""
+    return _COMMON_ALIASES.get(normalized_name, normalized_name)
+
+
 def names_match(name_a: str, name_b: str, threshold: int = 70) -> float:
     """Smart name matching that handles partial names, diacritics, emoji.
 
@@ -139,6 +200,9 @@ def names_match(name_a: str, name_b: str, threshold: int = 70) -> float:
         nb = normalize_for_matching(name_b)
         if na == nb:
             return 100.0
+        # Check alias resolution
+        if _resolve_alias(na) == _resolve_alias(nb):
+            return 95.0
         if na in nb or nb in na:
             return 85.0
         return 0.0
@@ -149,9 +213,22 @@ def names_match(name_a: str, name_b: str, threshold: int = 70) -> float:
     if not na or not nb:
         return 0.0
 
-    # Strategy 1: exact match after normalization
-    if na == nb:
+    # Strategy 0: alias resolution (handles abbreviations like "NAVI"→"Natus Vincere")
+    na_resolved = _resolve_alias(na)
+    nb_resolved = _resolve_alias(nb)
+
+    # Strategy 1: exact match after normalization (including alias resolution)
+    if na == nb or na_resolved == nb_resolved:
         return 100.0
+    # Cross-check: one is alias of the other's resolved form
+    if na == nb_resolved or nb == na_resolved:
+        return 95.0
+    # Check if resolved forms are similar enough
+    if na_resolved != na or nb_resolved != nb:
+        # At least one was aliased — compare resolved forms with rapidfuzz
+        resolved_score = fuzz.token_sort_ratio(na_resolved, nb_resolved)
+        if resolved_score >= 80:
+            return resolved_score
 
     # Strategy 2: token_sort_ratio (handles word reordering)
     score_sort = fuzz.token_sort_ratio(na, nb)
@@ -160,19 +237,51 @@ def names_match(name_a: str, name_b: str, threshold: int = 70) -> float:
 
     # Strategy 3: token_set_ratio (handles extra tokens gracefully)
     # "jones" vs "emerson jones" → high score because "jones" is subset
+    # BUT: guard against short names like "g2" giving 100 for "g2 junior"
     score_set = fuzz.token_set_ratio(na, nb)
+    shorter_name = na if len(na) <= len(nb) else nb
+    longer_name = nb if len(na) <= len(nb) else na
+    shorter_tokens = shorter_name.split()
+    longer_tokens = longer_name.split()
     if score_set >= 85:
-        return score_set
+        # Short name guard: if shorter is <=3 chars and names differ in length significantly,
+        # cap the score — "g2" should not get 100 for "g2 junior"
+        if len(shorter_name) <= 3 and len(longer_name) > len(shorter_name) + 3:
+            score_set = min(score_set, 60)  # Penalize — likely different entity
+        # Single-token guard: "inter" (1 token) vs "inter miami" (2 tokens)
+        # where the extra token is the distinguishing part → cap score
+        elif len(shorter_tokens) == 1 and len(longer_tokens) >= 2 and shorter_tokens[0] in longer_tokens:
+            # The shorter is just a common prefix/word — not enough to confirm identity
+            # Exception: if shorter resolves via alias to the longer, skip this guard
+            if _resolve_alias(shorter_name) != longer_name:
+                score_set = min(score_set, 70)  # Conservative — might still match but risky
+        else:
+            return score_set
 
     # Strategy 4: Containment — one name is fully contained in the other
     # Handles: "swiatek" is in "iga swiatek", "jones" is in "emerson jones"
+    # BUT: prevent false positives for very short names (e.g., "G2" matching "G2 Junior")
     tokens_a = set(na.split())
     tokens_b = set(nb.split())
     if tokens_a and tokens_b:
         # Check if the shorter set of tokens is a subset of the longer
         shorter, longer = (tokens_a, tokens_b) if len(tokens_a) <= len(tokens_b) else (tokens_b, tokens_a)
-        if shorter.issubset(longer) and len(shorter) >= 1:
-            # Surname-only match — award 85 if the surname token matches
+        # Short name guard: if the shorter name is <=3 chars total, require exact match
+        shorter_text = " ".join(sorted(shorter))
+        if len(shorter_text) <= 3 and shorter != longer:
+            # Very short name (e.g., "g2", "og", "t1") — don't grant subset bonus
+            # unless it resolves via alias
+            pass
+        elif len(shorter) == 1 and len(longer) >= 2 and shorter.issubset(longer):
+            # Single common word in a multi-word name (e.g., "inter" in "inter miami")
+            # Ambiguous — could refer to multiple entities sharing the word.
+            # Only grant full 85 if shorter resolves to longer via alias.
+            if _resolve_alias(shorter_text) == " ".join(sorted(longer)):
+                return 85.0
+            # Otherwise cap: high enough to signal "related" but below typical threshold
+            pass  # fall through to surname check or final max
+        elif shorter.issubset(longer) and len(shorter) >= 1:
+            # Multi-token subset match — award 85 (e.g., "man utd" subset of something)
             return 85.0
 
     # Strategy 5: surname-based matching for tennis

@@ -28,6 +28,8 @@ CONFIG_PATH = ROOT_DIR / "config" / "betting_config.json"
 # Ensure src/ is importable
 sys.path.insert(0, str(ROOT_DIR / "src"))
 
+from bet.utils import is_same_event, names_match, normalize_for_matching  # noqa: E402
+
 _NOW = lambda: datetime.now(timezone.utc).isoformat()
 
 # ---------------------------------------------------------------------------
@@ -656,11 +658,32 @@ def _build_rich_description(pick: dict) -> str:
         markets_text = f" z {total_markets}" if total_markets else ""
         analysis_parts.append(f"\U0001f4ca {rank_text} wg safety score ({safety:.2f}){markets_text}")
 
-    # L10 average vs line
+    # L10 average vs line — with hit rate reality check
     if l10_avg is not None and line is not None and line > 0:
         margin_pct = round((l10_avg / line - 1) * 100)
         sign = "+" if margin_pct > 0 else ""
-        analysis_parts.append(f"\u2022 L10 \u015brednia: {l10_avg:.1f} vs linia {line} ({sign}{margin_pct}% margines)")
+        # Parse hit_rate_l10 to validate: avg margin alone can be misleading
+        hit_count, hit_total = 0, 10
+        if hit_rate_l10 and "/" in str(hit_rate_l10):
+            try:
+                parts = str(hit_rate_l10).split("/")
+                hit_count = int(parts[0])
+                hit_total = int(parts[1])
+            except (ValueError, IndexError):
+                pass
+        elif isinstance(hit_rate_l10, (int, float)) and 0 < hit_rate_l10 <= 1.0:
+            # Float form: 0.70 → 7/10
+            hit_count = int(round(hit_rate_l10 * 10))
+            hit_total = 10
+        actual_hit_pct = round(hit_count / hit_total * 100) if hit_total > 0 else 0
+        if actual_hit_pct >= 70:
+            analysis_parts.append(f"\u2022 L10 \u015brednia: {l10_avg:.1f} vs linia {line} ({sign}{margin_pct}% margines) \u2014 trafienia: {hit_count}/{hit_total} ({actual_hit_pct}%) \u2705")
+        elif actual_hit_pct >= 50:
+            analysis_parts.append(f"\u2022 L10 \u015brednia: {l10_avg:.1f} vs linia {line} ({sign}{margin_pct}% margines) \u2014 trafienia: {hit_count}/{hit_total} ({actual_hit_pct}%) \u26a0\ufe0f")
+        elif hit_rate_l10 and hit_count > 0:
+            analysis_parts.append(f"\u2022 \u26a0\ufe0f L10 \u015brednia: {l10_avg:.1f} vs linia {line} ({sign}{margin_pct}% margines) \u2014 UWAGA: tylko {hit_count}/{hit_total} trafień ({actual_hit_pct}%) \u274c")
+        else:
+            analysis_parts.append(f"\u2022 L10 \u015brednia: {l10_avg:.1f} vs linia {line} ({sign}{margin_pct}% margines)")
 
     # H2H average
     if h2h_avg is not None:
@@ -794,9 +817,27 @@ def _build_tipster_insight(pick: dict) -> str:
 
         # Check if tipster agrees with our pick (require >=5 char overlap + matching direction)
         if market and our_market and len(market) >= 5:
+            # Check if tipster agrees with our pick — require matching market category
             tip_market_lower = market.lower().replace("_", " ").replace("-", " ")
             our_market_lower = our_market.lower().replace("_", " ").replace("-", " ")
-            market_overlap = tip_market_lower in our_market_lower or our_market_lower in tip_market_lower
+            
+            # Extract market categories (goals, corners, fouls, cards, etc.)
+            market_categories = ["goals", "corners", "fouls", "cards", "yellow", "shots",
+                                 "points", "rebounds", "assists", "maps", "rounds", "sets", "games",
+                                 "aces", "double faults", "kills", "winner", "match winner",
+                                 "totals", "handicap", "spread", "moneyline", "btts"]
+            tip_category = next((cat for cat in market_categories if cat in tip_market_lower), None)
+            our_category = next((cat for cat in market_categories if cat in our_market_lower), None)
+            
+            # Market overlap requires matching category OR one contains the other fully
+            if tip_category and our_category:
+                market_overlap = tip_category == our_category
+            else:
+                # Fallback: require substantial overlap (not just "over" in "corners over")
+                tip_words = set(tip_market_lower.split())
+                our_words = set(our_market_lower.split())
+                common = tip_words & our_words - {"over", "under", "total", "the", "to", "and"}
+                market_overlap = len(common) >= 1 and len(common) / max(len(tip_words), 1) >= 0.3
             direction_match = (not direction or not our_direction or
                                direction.lower() == our_direction.lower())
             if market_overlap and direction_match:
@@ -833,7 +874,6 @@ def _get_tipster_data_fallback(home: str, away: str, date: str) -> list:
     try:
         from bet.db.connection import get_db
         from bet.db.repositories import TipsterRepo
-        from bet.utils import names_match, normalize_for_matching
 
         with get_db() as conn:
             repo = TipsterRepo(conn)
@@ -1841,7 +1881,7 @@ def _filter_non_playable_fixtures(picks: list, date: str) -> tuple[list, list]:
             a = (p.get("away_team") or "").lower().strip()
             blocked = False
             for ph, pa, status in non_playable_names:
-                if (h in ph or ph in h) and (a in pa or pa in a):
+                if names_match(h, ph, threshold=70) >= 70 and names_match(a, pa, threshold=70) >= 70:
                     p["rejection_reason"] = f"FIXTURE {status}: match not playable"
                     rejected.append(p)
                     blocked = True
@@ -1928,6 +1968,24 @@ def _filter_quality(picks: list, tier: str = "core") -> tuple[list, list]:
         # Check coin-flip hit rate
         if hit_rate_val > 0 and hit_rate_val <= 0.50:
             reasons.append(f"⚠️ COIN FLIP: {hit_rate_str} (≤50% = brak przewagi)")
+        
+        # Check misleading margin: average looks good but hit rate is poor
+        # e.g., L10 avg=5.2 vs line 4.5 (+16%) but only 5/10 actually hit
+        _l10_avg = best.get("l10_avg") or best.get("combined_avg")
+        _line = best.get("line")
+        # Parse hit total from the fraction (default 10)
+        _hit_total = 10
+        if "/" in str(hit_rate_str):
+            try:
+                _hit_total = int(str(hit_rate_str).split("/")[1])
+            except (ValueError, IndexError):
+                pass
+        if _l10_avg and _line and _line > 0 and _hit_num > 0 and _hit_total > 0:
+            avg_margin = (_l10_avg / _line - 1) * 100
+            hit_pct = _hit_num / _hit_total * 100
+            # Flag: big margin (>10%) but low hit rate (<60%) = misleading average
+            if avg_margin > 10 and hit_pct < 60 and _hit_num < (_hit_total * 0.6):
+                reasons.append(f"⚠️ MISLEADING AVG: margines +{avg_margin:.0f}% ale trafienia tylko {_hit_num}/{_hit_total} ({hit_pct:.0f}%)")
         
         if reasons and tier == "core":
             pick["_quality_demoted"] = True
@@ -2282,20 +2340,13 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
     try:
         from bet.db.connection import get_db
         # Collect all event keys already in gate results (approved + extended + rejected)
-        covered_events: set[str] = set()
+        covered_event_pairs: list[tuple[str, str]] = []
         for pick_list in (all_approved, extended_pool, rejected):
             for p in pick_list:
                 h = (p.get("home_team") or "").lower().strip()
                 a = (p.get("away_team") or "").lower().strip()
                 if h and a:
-                    covered_events.add(f"{h}|{a}")
-                    # Add individual names for fuzzy matching
-                    for word in h.split():
-                        if len(word) >= 4:
-                            covered_events.add(word)
-                    for word in a.split():
-                        if len(word) >= 4:
-                            covered_events.add(word)
+                    covered_event_pairs.append((h, a))
 
         with get_db() as conn:
             # Query tipster picks with high consensus
@@ -2319,15 +2370,14 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
             for row in rows:
                 home, away = (row[0] or "").strip(), (row[1] or "").strip()
                 h_lower, a_lower = home.lower(), away.lower()
-                # Skip if already covered by pipeline
-                if f"{h_lower}|{a_lower}" in covered_events:
-                    continue
-                # Fuzzy check: any word match
+                
+                # Check if this tipster event is already covered by gate results
                 is_covered = False
-                for word in h_lower.split() + a_lower.split():
-                    if len(word) >= 4 and word in covered_events:
+                for covered_home, covered_away in covered_event_pairs:
+                    if is_same_event(h_lower, a_lower, covered_home, covered_away, threshold=75):
                         is_covered = True
                         break
+                
                 if is_covered:
                     continue
 

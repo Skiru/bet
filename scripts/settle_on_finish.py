@@ -32,6 +32,10 @@ except ImportError:
     print("Missing dependencies. Run: pip install requests beautifulsoup4")
     sys.exit(1)
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from bet.utils import names_match
+
 BASE = Path(__file__).resolve().parent
 LEDGER = BASE.parent / "betting" / "journal" / "picks-ledger.csv"
 COUPONS_LEDGER = BASE.parent / "betting" / "journal" / "coupons-ledger.csv"
@@ -100,9 +104,13 @@ def search_odds_api_snapshot(home, away):
             for event in odds_data["events"]:
                 eh = (event.get("home_team") or "").lower()
                 ea = (event.get("away_team") or "").lower()
-                if not ((home_lower in eh or eh in home_lower) and (away_lower in ea or ea in away_lower)):
-                    if not ((home_lower in ea or ea in home_lower) and (away_lower in eh or eh in home_lower)):
-                        continue
+                # Use names_match for robust matching (handles aliases, diacritics)
+                h_match = names_match(home_lower, eh, threshold=70) >= 70
+                a_match = names_match(away_lower, ea, threshold=70) >= 70
+                h_match_swapped = names_match(home_lower, ea, threshold=70) >= 70
+                a_match_swapped = names_match(away_lower, eh, threshold=70) >= 70
+                if not (h_match and a_match) and not (h_match_swapped and a_match_swapped):
+                    continue
                 if not event.get("completed"):
                     continue
                 scores = event.get("scores")
@@ -110,9 +118,11 @@ def search_odds_api_snapshot(home, away):
                     continue
                 score_map = {s["name"].lower(): int(s["score"]) for s in scores if s.get("score") and s["score"].isdigit()}
                 if eh in score_map and ea in score_map:
-                    if home_lower in eh or eh in home_lower:
+                    if h_match and a_match:
+                        # Direct: our home = event home
                         return score_map[eh], score_map[ea]
                     else:
+                        # Swapped: our home = event away
                         return score_map[ea], score_map[eh]
     except Exception as e:
         print(f"[settle] DB odds lookup failed, falling back to JSON: {e}")
@@ -134,22 +144,26 @@ def search_odds_api_snapshot(home, away):
         for event in events:
             eh = (event.get("home_team") or "").lower()
             ea = (event.get("away_team") or "").lower()
-            if not ((home_lower in eh or eh in home_lower) and (away_lower in ea or ea in away_lower)):
-                # Try reversed order
-                if not ((home_lower in ea or ea in home_lower) and (away_lower in eh or eh in away_lower)):
-                    continue
+            # Use names_match for robust matching
+            h_match = names_match(home_lower, eh, threshold=70) >= 70
+            a_match = names_match(away_lower, ea, threshold=70) >= 70
+            h_match_swapped = names_match(home_lower, ea, threshold=70) >= 70
+            a_match_swapped = names_match(away_lower, eh, threshold=70) >= 70
+            if not (h_match and a_match) and not (h_match_swapped and a_match_swapped):
+                continue
             if not event.get("completed"):
                 continue
             scores = event.get("scores")
             if not scores or len(scores) < 2:
                 continue
-            # scores is [{"name": "Team", "score": "3"}, ...]
             score_map = {s["name"].lower(): int(s["score"]) for s in scores if s.get("score") and s["score"].isdigit()}
             if eh in score_map and ea in score_map:
                 # Return in home/away order as requested
-                if home_lower in eh or eh in home_lower:
+                if h_match and a_match:
+                    # Direct: our home = event home
                     return score_map[eh], score_map[ea]
                 else:
+                    # Swapped: our home = event away
                     return score_map[ea], score_map[eh]
     return None
 
@@ -235,18 +249,11 @@ class _FlashscoreBatchFetcher:
         home_lower = home.lower().strip()
         away_lower = away.lower().strip()
 
-        # Extract key words for fuzzy matching (handles abbreviations, suffixes)
-        home_words = set(self._normalize(home_lower))
-        away_words = set(self._normalize(away_lower))
-
         for (h, a), score in self._cache.items():
-            h_words = set(self._normalize(h))
-            a_words = set(self._normalize(a))
-
-            # Try both orderings: (home→h, away→a) and (home→a, away→h)
-            if self._fuzzy_match(home_words, h_words) and self._fuzzy_match(away_words, a_words):
+            # Use names_match for robust matching
+            if names_match(home_lower, h, threshold=70) >= 70 and names_match(away_lower, a, threshold=70) >= 70:
                 return score
-            if self._fuzzy_match(home_words, a_words) and self._fuzzy_match(away_words, h_words):
+            if names_match(home_lower, a, threshold=70) >= 70 and names_match(away_lower, h, threshold=70) >= 70:
                 return score[1], score[0]  # swap scores
         return None
 
