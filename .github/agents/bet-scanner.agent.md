@@ -63,7 +63,7 @@ Discovery uses `src/bet/discovery/` module with 4 source adapters:
 - **Bovada** (ODDS ENRICHMENT, *PENDING implementation*) — free public JSON feed, no auth. NBA/NHL/Tennis/Soccer/Volleyball/MLB. 510+ markets/event for NBA, player props, period markets. When implemented: run via `fetch_bovada_odds.py` after discovery — writes to `odds_history` (bookmaker="bovada") + `player_prop_lines` table. NOT a discovery source (no fixture creation) but provides richest odds data for cross-validation. Plan: `betting/plans/bovada-integration.plan.md`.
 - **SofaScore** (DISABLED) — 403 blocked since 2026-05. Adapter file kept for potential re-enablement.
 
-Sources fetched concurrently (ThreadPoolExecutor). Dedup via exact normalized keys + rapidfuzz fuzzy matching (threshold 85, ±2h kickoff window). ~5s total (cached API responses).
+Sources fetched concurrently (ThreadPoolExecutor). Discovery dedup via `src/bet/discovery/dedup.py` — exact normalized keys + rapidfuzz (threshold 85, ±2h kickoff window). ~5s total (cached API responses). **Note:** Downstream pipeline scripts (shortlist, deep_stats, gate, coupon) use `is_same_event()`/`names_match()` from `src/bet/utils.py` (threshold 70, multi-strategy with alias resolution) for their own dedup/matching.
 
 **No deep data at scan time.** Form, H2H, injuries are fetched by scrapers (S2.3) + enrichment (S2.5). Discovery only identifies fixtures. **Note:** Scraper module at `src/bet/scrapers/` provides supplementary fixture data from NHL API and SofaScore for hockey/tennis/volleyball — cross-referenced via `fixture_sources` table.
 

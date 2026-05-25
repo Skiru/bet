@@ -1,4 +1,39 @@
-# Pipeline Knowledge Base — Consolidated (May 4-22, 2026, updated 2026-05-22)
+# Pipeline Knowledge Base — Consolidated (May 4-25, 2026, updated 2026-05-25)
+
+## 🆕 UNIFIED NAME MATCHING AUDIT — 2026-05-25
+
+### Problem
+8 pipeline scripts each had BESPOKE substring/dedup matching logic — different approaches to deciding if two events are the same match. This caused:
+- Inconsistent dedup results across scripts
+- gate_checker used non-existent `position` column in standings query
+- settle_on_finish used unreliable substring check for score attribution after team swap
+- coupon_builder, deep_stats_report, generate_market_matrix, build_shortlist all had fragmented dedup
+
+### Solution: Centralized `src/bet/utils.py`
+Two canonical functions now used by ALL scripts:
+- **`names_match(name_a, name_b, threshold=70) → float`** — Smart multi-strategy name matching (0-100 score). Handles diacritics, emoji, aliases, partial names, surname-only tennis, esports abbreviations (NAVI→Natus Vincere).
+- **`is_same_event(home_a, away_a, home_b, away_b, threshold=70) → bool`** — Event dedup using `names_match` on both teams, including swapped home/away order check.
+
+### Scripts Updated (8 total)
+| Script | Old Pattern | New Pattern |
+|--------|------------|-------------|
+| `deep_stats_report.py` | Bespoke substring dedup | `is_same_event()` |
+| `generate_market_matrix.py` | Custom `fuzzy_match()` + substring | `is_same_event()` + `names_match()` |
+| `build_shortlist.py` | Custom verification + dedup | `names_match()` + `is_same_event()` |
+| `coupon_builder.py` | Fixture status substring check | `names_match()` |
+| `gate_checker.py` | `position` column (non-existent) | `s.rank` + `JOIN teams t ON s.team_id = t.id` |
+| `settle_on_finish.py` | Substring check after team swap | Match type direct (no substring) |
+| `odds_evaluator.py` | Already used `names_match()` | Unchanged (was the model) |
+| `tipster_xref.py` | Already used `names_match()` | Unchanged (was the model) |
+
+### Key Design Decisions
+- Threshold 70 (default) — permissive enough for "Świątek" vs "Swiatek, Iga" but won't confuse "Inter" with "Inter Miami"
+- Alias table in utils.py covers football, esports, and tennis nicknames
+- `is_same_event` tries BOTH normal AND swapped home/away — handles source disagreements on home team
+
+### Tests
+- 851 tests passing (3 tests fixed for new dedup behavior + gate DB mocking)
+- Commit: `4524dc3` on main
 
 ## 🆕 FLASHSCORE STAT KEY SEPARATION — 2026-05-22
 

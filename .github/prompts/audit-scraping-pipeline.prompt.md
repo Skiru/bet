@@ -22,6 +22,7 @@ Perform a thorough technical audit of these 3 subsystems. For each one:
 
 **Entry point:** `scripts/discover_events.py` → `src/bet/discovery/`
 **Module structure:** `coordinator.py`, `dedup.py`, `models.py`, `repository.py`, `sources/`
+**Dedup:** Discovery uses `DeduplicationEngine` (threshold 85, ±2h kickoff window) for cross-source merging. Downstream pipeline scripts use `is_same_event()`/`names_match()` from `src/bet/utils.py` (threshold 70, multi-strategy).
 **Sources:** Odds-API.io (primary, all 5 sports), The-Odds-API (secondary, 4 sports w/ odds), API-Football (tertiary, football). SofaScore adapter disabled (403).
 **DB tables written:** `fixtures`, `fixture_sources`, `scan_results`, `teams`, `competitions`, `sports`
 

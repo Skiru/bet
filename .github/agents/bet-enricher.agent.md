@@ -177,7 +177,7 @@ with get_db() as conn:
 
 | Source | Method | Data Type | Reliability | Common Failures |
 |--------|--------|-----------|-------------|-----------------|
-| ESPN API | REST JSON | Schedule, injuries, standings, gamelogs | HIGH — free, unlimited | Sport/league not supported (fuzzy league matching added 2026-05-14 mitigates old name mismatch issues) |
+| ESPN API | REST JSON | Schedule, injuries, standings, gamelogs | HIGH — free, unlimited | Sport/league not supported (uses `names_match()` from `src/bet/utils.py` for cross-source team resolution) |
 | Flashscore HTML | curl_cffi (impersonate=chrome110) | L10 form, H2H, injury list | MEDIUM — regex on fetched HTML | Cloudflare blocks, layout changes, empty response |
 | Flashscore search API | curl_cffi (x-fsign header) | Entity resolution (type/slug/id) | HIGH — native JSON API | Ambiguous results, wrong team matched |
 | scores24.live HTML | HTTP fetch | Basic stats | LOW — third-tier fallback | Site changes, sparse data |

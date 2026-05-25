@@ -182,6 +182,19 @@ REACTION_PATTERNS = {
 }
 
 # ---------------------------------------------------------------------------
+# Shared Utilities — canonical name matching for ALL pipeline scripts
+# ---------------------------------------------------------------------------
+SHARED_UTILITIES = {
+    "name_matching": {
+        "module": "from bet.utils import names_match, is_same_event",
+        "names_match": "names_match(name_a, name_b, threshold=70) → float (0-100). Multi-strategy: alias resolution, token_sort_ratio, token_set_ratio, surname matching. Handles diacritics, emoji, abbreviations (NAVI→Natus Vincere, Spurs→Tottenham).",
+        "is_same_event": "is_same_event(home_a, away_a, home_b, away_b, threshold=70) → bool. Uses names_match on both teams, tries normal + swapped home/away order.",
+        "used_by": ["build_shortlist.py", "deep_stats_report.py", "generate_market_matrix.py", "coupon_builder.py", "gate_checker.py", "settle_on_finish.py", "odds_evaluator.py", "tipster_xref.py"],
+        "note": "Discovery module (src/bet/discovery/dedup.py) uses its own DeduplicationEngine with threshold 85 + ±2h kickoff window for cross-source merging at scan time. Downstream pipeline scripts use is_same_event/names_match from bet.utils.",
+    },
+}
+
+# ---------------------------------------------------------------------------
 # Database Schema Reference — compact map for agent awareness
 # ---------------------------------------------------------------------------
 DB_SCHEMA_REFERENCE = {

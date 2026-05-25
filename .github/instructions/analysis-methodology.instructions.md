@@ -278,7 +278,7 @@ This produces:
 
 **The matrix is the PRIMARY input for STEP 2 shortlisting.** Events at ANY data tier can be shortlisted — FIXTURE_ONLY events just need manual odds lookup on Betclic. The user sees the full landscape of what's available.
 
-**Deduplication:** The matrix generator automatically deduplicates events where the same teams appear in the same sport from multiple sources (e.g., fixtures API + scan). The entry with the best data tier is kept, and odds/safety markets from duplicates are merged in.
+**Deduplication:** The matrix generator uses `is_same_event()` from `src/bet/utils.py` to deduplicate events where the same teams appear in the same sport from multiple sources (e.g., fixtures API + scan). This handles diacritics, aliases, and reversed home/away. The entry with the best data tier is kept, and odds/safety markets from duplicates are merged in.
 
 ### §1.8 FIXTURE VERIFICATION GATE (MANDATORY — before shortlisting)
 
@@ -403,7 +403,7 @@ Tier E3 picks require ALL of: Betclic market confirmed, ≥2 sources with data, 
 **Automated shortlist generation:** `python3 scripts/build_shortlist.py --date YYYY-MM-DD --stats-first`
 - Reads from DB `fixtures` + `odds_history` + `team_form` tables (fallback: `market_matrix_{date}.json`) and scores all events by: data tier, competition importance, sport tier, odds quality, tipster coverage
 - Assesses sport coverage (informational per R4, never a gate). Data quality gate (R14) replaces sport diversity gate.
-- Deduplicates same-team events across sources
+- Deduplicates same-team events across sources (via `is_same_event()` from `src/bet/utils.py`)
 - Produces `{date}_s2_shortlist.md` + `{date}_s2_shortlist.json` (also stored in DB; use `--top N` to cap)
 - **§1.8 Fixture verification:** Each candidate is cross-referenced against DB `odds_history` table (fallback: odds_api_snapshot.json) and fixtures. Verified candidates get ✅, unverified get ⚠️. Unverified events should be manually confirmed before S3 analysis to avoid phantom fixtures.
 - In STATS-FIRST mode, includes major competition FIXTURE_ONLY events for manual Betclic check
