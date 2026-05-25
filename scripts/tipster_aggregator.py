@@ -2269,15 +2269,37 @@ def compute_consensus(all_picks: list[dict]) -> list[dict]:
     - Statistical vs outcome market split
     """
     from collections import defaultdict
+    from bet.utils import normalize_for_matching, names_match
 
     event_groups = defaultdict(list)
+    # Key → canonical normalized key
+    canonical_keys: dict[str, str] = {}
+
     for pick in all_picks:
-        # Normalize event key
-        home = pick.get("home_team", "").strip().lower()
-        away = pick.get("away_team", "").strip().lower()
+        # Normalize event key using smart normalization
+        home = normalize_for_matching(pick.get("home_team", ""))
+        away = normalize_for_matching(pick.get("away_team", ""))
         if home and away:
             key = f"{home}|{away}"
-            event_groups[key].append(pick)
+            # Check if this key matches an existing group
+            matched_key = None
+            for existing_key in list(canonical_keys.keys()):
+                e_parts = existing_key.split("|")
+                if len(e_parts) == 2:
+                    eh, ea = e_parts
+                    # Normal order
+                    if names_match(home, eh) >= 70 and names_match(away, ea) >= 70:
+                        matched_key = existing_key
+                        break
+                    # Swapped order
+                    if names_match(home, ea) >= 70 and names_match(away, eh) >= 70:
+                        matched_key = existing_key
+                        break
+            if matched_key:
+                event_groups[matched_key].append(pick)
+            else:
+                canonical_keys[key] = key
+                event_groups[key].append(pick)
 
     consensus_list = []
     for key, picks in event_groups.items():

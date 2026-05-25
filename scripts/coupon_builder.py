@@ -833,7 +833,7 @@ def _get_tipster_data_fallback(home: str, away: str, date: str) -> list:
     try:
         from bet.db.connection import get_db
         from bet.db.repositories import TipsterRepo
-        from rapidfuzz import fuzz
+        from bet.utils import names_match, normalize_for_matching
 
         with get_db() as conn:
             repo = TipsterRepo(conn)
@@ -841,20 +841,26 @@ def _get_tipster_data_fallback(home: str, away: str, date: str) -> list:
             if not all_picks:
                 return []
 
-            home_lower = home.strip().lower()
-            away_lower = away.strip().lower()
+            home_norm = normalize_for_matching(home)
+            away_norm = normalize_for_matching(away)
             matched = []
             for p in all_picks:
-                p_home = (p.home_team or "").strip().lower()
-                p_away = (p.away_team or "").strip().lower()
-                # Exact match
-                if p_home == home_lower and p_away == away_lower:
+                p_home = normalize_for_matching(p.home_team or "")
+                p_away = normalize_for_matching(p.away_team or "")
+                # Exact normalized match
+                if p_home == home_norm and p_away == away_norm:
                     matched.append(_tipster_pick_to_dict(p))
                     continue
-                # Fuzzy match
-                score_h = fuzz.token_sort_ratio(home_lower, p_home)
-                score_a = fuzz.token_sort_ratio(away_lower, p_away)
+                # Smart match (handles diacritics, emoji, surname-only)
+                score_h = names_match(home_norm, p_home)
+                score_a = names_match(away_norm, p_away)
                 if score_h >= 70 and score_a >= 70:
+                    matched.append(_tipster_pick_to_dict(p))
+                    continue
+                # Try swapped order
+                score_h_swap = names_match(home_norm, p_away)
+                score_a_swap = names_match(away_norm, p_home)
+                if score_h_swap >= 70 and score_a_swap >= 70:
                     matched.append(_tipster_pick_to_dict(p))
             return matched
     except Exception as exc:
@@ -2035,7 +2041,10 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
         if not has_hard_reject_flag:
             # Also check gate_details messages
             for gid, gd in gate_details.items():
-                msg = gd.get("message", "")
+                if isinstance(gd, str):
+                    msg = gd
+                else:
+                    msg = gd.get("message", "") if isinstance(gd, dict) else str(gd)
                 if "HARD REJECT" in msg:
                     has_hard_reject_flag = True
                     break

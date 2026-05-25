@@ -37,8 +37,8 @@ class TestNormalizeTeamName:
 
     def test_unicode_normalization(self):
         result = normalize_team_name("Łódź")
-        # NFKD + ascii ignore strips diacritics; Ł has no ASCII decomposition so is dropped
-        assert result == "odz"
+        # Ł → L via _SPECIAL_CHAR_MAP, ó → o and ź → z via NFKD
+        assert result == "lodz"
 
     def test_lowercases(self):
         assert normalize_team_name("BORUSSIA DORTMUND") == "borussia dortmund"

@@ -130,12 +130,15 @@ def run_tipster_xref(date: str, state: dict) -> tuple[bool, str]:
             if not tips:
                 for site_result in tipster_data.get("site_results", []):
                     tips.extend(site_result.get("picks", []))
+    # Import smart matching from shared utils
+    from bet.utils import normalize_for_matching, names_match
+
     tip_lookup: dict[str, list[dict]] = {}
     for tip in tips:
         raw_home = tip.get("home") or tip.get("home_team") or ""
         raw_away = tip.get("away") or tip.get("away_team") or ""
-        home = _clean_team_name(raw_home).lower()
-        away = _clean_team_name(raw_away).lower()
+        home = normalize_for_matching(_clean_team_name(raw_home))
+        away = normalize_for_matching(_clean_team_name(raw_away))
         if home and away:
             key = f"{home}|{away}"
             tip_lookup.setdefault(key, []).append(tip)
@@ -152,28 +155,31 @@ def run_tipster_xref(date: str, state: dict) -> tuple[bool, str]:
             total = len(candidates)
 
             for c in candidates:
-                home = (c.get("home_team") or "").strip().lower()
-                away = (c.get("away_team") or "").strip().lower()
+                raw_home = (c.get("home_team") or "").strip()
+                raw_away = (c.get("away_team") or "").strip()
+                home = normalize_for_matching(raw_home)
+                away = normalize_for_matching(raw_away)
                 key = f"{home}|{away}"
                 matching_tips = tip_lookup.get(key, [])
-                
-                if not matching_tips and _RAPIDFUZZ_AVAILABLE:
+
+                # Smart fuzzy matching with names_match (handles diacritics, emoji, surname-only)
+                if not matching_tips:
                     best_match_tips = []
                     for tip_key, tips_list in tip_lookup.items():
                         parts = tip_key.split("|")
                         if len(parts) == 2:
                             t_home, t_away = parts
-                            score_home = fuzz.token_sort_ratio(home, t_home)
-                            score_away = fuzz.token_sort_ratio(away, t_away)
-                            score_home_swapped = fuzz.token_sort_ratio(home, t_away)
-                            score_away_swapped = fuzz.token_sort_ratio(away, t_home)
-                            
+                            score_home = names_match(home, t_home)
+                            score_away = names_match(away, t_away)
+                            score_home_swapped = names_match(home, t_away)
+                            score_away_swapped = names_match(away, t_home)
+
                             if (score_home >= 70 and score_away >= 70) or (score_home_swapped >= 70 and score_away_swapped >= 70):
                                 best_match_tips.extend(tips_list)
-                    
+
                     if best_match_tips:
                         matching_tips = best_match_tips
-                        print(f"    ~ Fuzzy matched: {home} vs {away}")
+                        print(f"    ~ Smart matched: {raw_home} vs {raw_away}")
 
                 if matching_tips:
                     matched += 1

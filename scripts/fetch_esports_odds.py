@@ -40,14 +40,17 @@ DATA_DIR = Path(__file__).parent.parent / "betting" / "data"
 def normalize_team_name(name: str) -> str:
     """Normalize team name for fuzzy matching."""
     import re
-    n = name.lower().strip()
+    from bet.utils import strip_emoji
+    n = strip_emoji(name).lower().strip()
     # Remove common suffixes
     n = n.replace(" esports", "").replace(" gaming", "")
     # Strip live score artifacts (e.g., "2 1 -" at the end)
     n = re.sub(r'\s+\d+\s+\d+\s*-?\s*$', '', n)
     # Only strip trailing " 1" (academy/B team marker), not mid-name
     n = re.sub(r'\s+1$', '', n)
-    n = n.replace("é", "e").replace("á", "a")
+    # Normalize all diacritics to ASCII
+    import unicodedata
+    n = unicodedata.normalize("NFKD", n).encode("ascii", "ignore").decode("ascii")
     return n
 
 
