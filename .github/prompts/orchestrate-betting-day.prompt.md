@@ -255,8 +255,9 @@ PYTHONPATH=src python3 scripts/validate_phase.py --date {date} --phase data --fo
 ### S3: Deep Statistical Analysis
 
 ```bash
-PYTHONPATH=src .venv/bin/python3 scripts/deep_stats_report.py --date {date} --shortlist betting/data/{date}_s2_shortlist.json --gemini --verbose
+PYTHONPATH=src .venv/bin/python3 scripts/deep_stats_report.py --date {date} --gemini --verbose
 ```
+> Note: `--shortlist` is no longer required. deep_stats reads from `pipeline_candidates` DB table (DB-first). Use `--shortlist path.json` only as manual override.
 Mode: async, timeout: 600000.
 **→ `runSubagent("bet-statistician")`** — read `bet-deep-stats.prompt.md`. Key: R5 compliance, three-way cross-check, edge mechanisms, competition context.
 
@@ -446,21 +447,25 @@ Your response MUST have: subagent_verdict block + Metrics (≥3) + Analysis + Us
 | Script | Reads | Writes |
 |--------|-------|--------|
 | discover_events.py | scan_urls.json | fixtures, scan_results |
+| generate_market_matrix.py | fixtures, odds_history, team_form | **market_matrix_events**, market_matrix_runs, JSON (debug) |
+| build_shortlist.py | **market_matrix_events** (DB-first), JSON fallback | **pipeline_candidates**, JSON (debug) |
 | ingest_scan_stats.py | fixtures, stats_cache/ | team_form |
 | run_scrapers.py | — | league_profiles, player_season_stats, athletes, scraper_runs |
 | tipster_aggregator.py | tipster sites | tipster_picks, tipster_consensus |
-| tipster_xref.py | tipster_picks | analysis_results (tipster) |
+| tipster_xref.py | tipster_picks, **pipeline_candidates** | **pipeline_candidates** (tipster enrichment) |
 | data_enrichment_agent.py | team_form, fixtures | team_form, match_stats, source_health |
 | fetch_tennis_elo.py | tennisabstract.com | stats_cache/tennis_elo/ |
 | enrich_tennis_flashscore.py | fixtures, flashscore.com | team_form (source=flashscore-tennis) |
 | tennis_h2h_warmup.py | team_form, tennis-abstract | team_form (h2h_values) |
-| deep_stats_report.py | team_form, match_stats | analysis_results, team_form |
+| deep_stats_report.py | **pipeline_candidates** (DB-first), team_form | analysis_results |
 | odds_evaluator.py | odds_history, analysis_results | analysis_results (EV) |
 | context_checks.py | fixtures, ESPN API | analysis_results (context) |
 | upset_risk.py | analysis_results | analysis_results (upset) |
-| gate_checker.py | analysis_results | gate_results |
+| gate_checker.py | **analysis_results** (DB-first) | gate_results |
 | validate_betclic_markets.py | gate_results, Betclic API | betclic_markets |
-| coupon_builder.py | gate_results, analysis_results | coupons/*.md, *.json |
+| coupon_builder.py | **gate_results** (DB-first) | coupons/*.md, *.json |
+
+> **DB-first architecture (2026-05-26):** All inter-step data flows through DB tables. JSON is kept as debug/fallback only. Key tables: `pipeline_candidates` (shortlist), `market_matrix_events` (matrix), `analysis_results` (S3), `gate_results` (S7).
 
 ⚠️ Write hazard: ingest_scan_stats, data_enrichment_agent, deep_stats_report all write team_form → run sequentially.
 
@@ -498,6 +503,18 @@ C. CROSS-CHECK: no orphans, max 2 same-sport per coupon
 D. EV: (true_prob × odds) − 1
 E. EXPOSURE: stakes ≤ 25% bankroll
 F. MATRIX: ALL analyzed events shown
+
+### Infrastructure Modules (2026-05-26)
+
+| Module | Purpose |
+|--------|---------|
+| `src/bet/fuzzy_match.py` | Unified team/player name matching with `name_mappings` DB cache |
+| `src/bet/stats/stat_validation.py` | Cross-sport stat key validation (prevents contamination) |
+| `src/bet/stats/value_ranges.py` | Canonical value ranges per sport per stat |
+| `scripts/audit_data_quality.py` | Data quality audit: fake L10, contamination, stale data, coverage |
+| `scripts/source_health.py` | Source reliability tracker (CSV log + fallback suggestions) |
+| `scripts/migrate_pipeline_tables.py` | Creates pipeline_candidates table |
+| `scripts/migrate_market_matrix.py` | Creates market_matrix_events/runs tables |
 
 ### Known Bugs (2026-05-23)
 

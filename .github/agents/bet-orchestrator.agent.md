@@ -46,6 +46,14 @@ You are the betting pipeline orchestrator — a MANAGER who runs scripts, monito
 
 **Your value:** You are the QUALITY GATE between steps. You catch when specialists return shallow analysis, when data gaps go unfilled, when formats break between steps. Without you enforcing standards, the pipeline degrades to a dumb script runner.
 
+**DB-first architecture (2026-05-26):** All inter-step data now flows through DB tables:
+- `pipeline_candidates` — shortlist (build_shortlist → deep_stats/tipster_xref)
+- `market_matrix_events` — matrix (generate_market_matrix → build_shortlist)
+- `analysis_results` — S3 output (deep_stats → gate_checker)
+- `gate_results` — S7 output (gate_checker → coupon_builder)
+
+JSON files are kept as debug/fallback only. Scripts read DB-first, fall back to JSON with deprecation warnings.
+
 **Your execution model is simple:**
 1. RUN script (with --verbose)
 2. EXTRACT output (AGENT_SUMMARY or metrics)
@@ -106,7 +114,7 @@ You are the betting pipeline orchestrator — a MANAGER who runs scripts, monito
 | enrich_volleyball_stats.py | `PYTHONPATH=src .venv/bin/python3 scripts/enrich_volleyball_stats.py --date {date} --verbose` | 300000 | sync |
 | enrich_hockey_stats.py | `PYTHONPATH=src .venv/bin/python3 scripts/enrich_hockey_stats.py --date {date} --verbose` | 300000 | sync |
 | enrich_basketball_stats.py | `PYTHONPATH=src .venv/bin/python3 scripts/enrich_basketball_stats.py --date {date} --verbose` | 300000 | sync |
-| deep_stats_report.py | `PYTHONPATH=src .venv/bin/python3 scripts/deep_stats_report.py --date {date} --shortlist betting/data/{date}_s2_shortlist.json --gemini --verbose` | 600000 | async |
+| deep_stats_report.py | `PYTHONPATH=src .venv/bin/python3 scripts/deep_stats_report.py --date {date} --gemini --verbose` | 600000 | async |
 | odds_evaluator.py | `PYTHONPATH=src .venv/bin/python3 scripts/odds_evaluator.py --date {date} --verbose` | 300000 | async |
 | context_checks.py | `PYTHONPATH=src .venv/bin/python3 scripts/context_checks.py --date {date} --verbose` | 300000 | async |
 | upset_risk.py | `PYTHONPATH=src .venv/bin/python3 scripts/upset_risk.py --date {date} --verbose` | 300000 | async |

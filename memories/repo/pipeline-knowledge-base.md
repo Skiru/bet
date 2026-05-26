@@ -1219,3 +1219,56 @@ New module `src/bet/scrapers/` — 19 scrapers across 5 sports, SQLAlchemy 2.0 O
 **Status:** 103/103 scraper unit tests passing (all mocked). ESPN live-tested. NOT integrated into pipeline yet (need adapter).
 
 **Full docs:** `specifications/scrapers-pipeline-integration.md`, `memories/repo/scrapers-module-migration-guide.md`
+
+## 🆕 DB-FIRST MIGRATION (Phases 1-4) + CODE REVIEW FIXES — 2026-05-26
+
+### What
+Complete DB-first architecture migration: all inter-step data flows through DB tables instead of JSON files. JSON kept as debug/fallback only. Commit: `aa5e24d`.
+
+### New DB Tables
+| Table | Created By | Read By | Purpose |
+|-------|-----------|---------|---------|
+| `pipeline_candidates` | build_shortlist.py | deep_stats_report.py, tipster_xref.py | Shortlist candidates with scores, tipster data |
+| `market_matrix_events` | generate_market_matrix.py | build_shortlist.py | Event-level matrix data (sport, competition, source scores) |
+| `market_matrix_runs` | generate_market_matrix.py | — | Matrix generation metadata (date, counts) |
+
+### New Repository Classes (src/bet/db/repositories.py)
+- **PipelineCandidateRepo** — CRUD for pipeline_candidates table, includes `enrich_tipster()` for tipster_xref
+- **MarketMatrixRepo** — CRUD for market_matrix_events/runs, includes `get_events_for_date()`
+
+### New Infrastructure Modules
+| Module | Purpose |
+|--------|---------|
+| `src/bet/fuzzy_match.py` | Unified team/player matching with `name_mappings` DB cache (O(1) lookup before fuzzy) |
+| `src/bet/stats/stat_validation.py` | Cross-sport stat contamination prevention (validates stat keys against sport) |
+| `scripts/audit_data_quality.py` | Data quality audit: fake L10, contamination, stale data, coverage gaps (--force for CI) |
+| `scripts/source_health.py` | Persistent source reliability tracker (CSV log with sanitization) |
+| `scripts/migrate_pipeline_tables.py` | Creates pipeline_candidates table |
+| `scripts/migrate_market_matrix.py` | Creates market_matrix_events/runs tables |
+
+### Script Changes (DB-first pattern)
+| Script | Before | After |
+|--------|--------|-------|
+| build_shortlist.py | Reads JSON matrix → writes JSON shortlist | Reads `market_matrix_events` DB → writes `pipeline_candidates` DB (JSON = debug) |
+| deep_stats_report.py | Requires `--shortlist file.json` | Reads `pipeline_candidates` DB (default); `--shortlist` = optional override |
+| tipster_xref.py | Reads JSON shortlist | Reads `pipeline_candidates` DB → enriches via `PipelineCandidateRepo.enrich_tipster()` |
+| gate_checker.py | Reads JSON analysis_results | Reads `analysis_results` DB (JSON fallback with deprecation warning) |
+| generate_market_matrix.py | Writes JSON only | Writes to `market_matrix_events` + `market_matrix_runs` DB + JSON (debug) |
+
+### Code Review Fixes (5 bugs)
+| # | Script | Issue | Fix |
+|---|--------|-------|-----|
+| 1 | gate_checker.py | gate_score_val could exceed total_checks | Added `min(gate_score_val, total_checks)` cap |
+| 2 | source_health.py | CSV injection sanitization only on error records | Applied to ALL records |
+| 3 | stat_validation.py | Dead import of SPORT_STAT_KEYS | Removed |
+| 4 | audit_data_quality.py | `input()` hangs in non-interactive mode | Added `--force` flag + `sys.stdin.isatty()` check |
+| 5 | fuzzy_match.py | O(n) full-table scan every call | Added name_mappings cache lookup first (O(1)) |
+
+### Agent Knowledge Updated
+- `orchestrate-betting-day.prompt.md` — Script→DB Data Flow table updated, S3 command fixed, infrastructure modules added
+- `bet-orchestrator.agent.md` — S3 command fixed, DB-first architecture note added
+- `copilot-instructions.md` — Scripted workflow S3 command updated (--shortlist now optional)
+
+### Tests
+- 940 tests passing (36 new tests added for DB-first + code review fixes)
+- DB table count: 41 → 44 (pipeline_candidates, market_matrix_events, market_matrix_runs)

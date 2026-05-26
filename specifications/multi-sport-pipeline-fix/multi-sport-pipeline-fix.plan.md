@@ -75,7 +75,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
 - **Fuzzy matching:** Use rapidfuzz to match DB team names → Flashscore entity names (threshold 75)
 - **Acceptance:** Running script produces ≥10 teams with L10 arrays of length ≥5
 
-### Task 1.2: API-Volleyball Per-Match Extraction
+### [x] Task 1.2: API-Volleyball Per-Match Extraction
 - **Type:** `[MODIFY]`
 - **File:** `src/bet/api_clients/api_volleyball.py`
 - **Agent:** `tsh-software-engineer`
@@ -84,7 +84,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
 - **Depends on:** API-Sports volleyball key being configured in `config/api_keys.json`
 - **Acceptance:** `get_match_stats()` returns structured dict for a real volleyball match
 
-### Task 1.3: Volleyball Enrichment Pipeline Script
+### [x] Task 1.3: Volleyball Enrichment Pipeline Script
 - **Type:** `[CREATE]`
 - **File:** `scripts/enrich_volleyball_stats.py`  
 - **Agent:** `tsh-software-engineer`
@@ -97,7 +97,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
   - Follows fallback chain: api-volleyball → flashscore-volleyball → sofascore → enrichment-agent
 - **Acceptance:** Script enriches ≥30 teams with ≥3 stat keys each
 
-### Task 1.4: Volleyball Market Ranking Weights
+### [x] Task 1.4: Volleyball Market Ranking Weights
 - **Type:** `[MODIFY]`
 - **File:** `src/bet/stats/market_ranking.py`
 - **Agent:** `tsh-software-engineer`
@@ -110,7 +110,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
 - **Betclic market reference:** "Suma Setów" (60% hit), "Wynik meczu" (67% hit)
 - **Acceptance:** `compute_safety_scores.py` produces different rankings for volleyball than before
 
-### Task 1.5: Volleyball Safety Score Integration
+### [x] Task 1.5: Volleyball Safety Score Integration
 - **Type:** `[MODIFY]`
 - **File:** `scripts/compute_safety_scores.py`
 - **Agent:** `tsh-software-engineer`
@@ -121,7 +121,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
   - H2H availability boost
 - **Acceptance:** Volleyball events with real L10 data score higher than fake n=1 events
 
-### Task 1.6: Wire Volleyball into Orchestration
+### [x] Task 1.6: Wire Volleyball into Orchestration
 - **Type:** `[MODIFY]`
 - **Files:** `orchestrate-betting-day.prompt.md`, `bet-enricher.agent.md`, `bet-orchestrator.agent.md`
 - **Agent:** `tsh-software-engineer`
@@ -133,7 +133,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
   - Update orchestrator script table + delegation map
 - **Acceptance:** Orchestrator prompt includes volleyball enrichment step
 
-### Task 1.7: Volleyball Hallucination Prevention in deep_stats_report
+### [x] Task 1.7: Volleyball Hallucination Prevention in deep_stats_report
 - **Type:** `[MODIFY]`
 - **File:** `scripts/deep_stats_report.py`
 - **Agent:** `tsh-software-engineer`
@@ -147,7 +147,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
 - **Pattern:** Follow exact tennis implementation in `analyze_candidate()` function
 - **Acceptance:** Volleyball candidates with n=1 data show THIN DATA warning
 
-### Task 1.8: Volleyball Rich Completion Helper
+### [x] Task 1.8: Volleyball Rich Completion Helper
 - **Type:** `[CREATE]`
 - **File:** `scripts/_helpers/volleyball_rich_completion.py`
 - **Agent:** `tsh-software-engineer`
@@ -160,7 +160,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
   - Store in team_form with source='volleyball-rich-completion'
 - **Acceptance:** Helper produces L10 arrays with n≥5 for known teams
 
-### Task 1.9: Volleyball Competition Tiers in build_shortlist
+### [x] Task 1.9: Volleyball Competition Tiers in build_shortlist
 - **Type:** `[MODIFY]`
 - **File:** `scripts/build_shortlist.py`
 - **Agent:** `tsh-software-engineer`
@@ -176,7 +176,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
   ```
 - **Acceptance:** Polish PlusLiga, Italian SuperLega score 9, minor leagues score ≤6
 
-### Task 1.10: Volleyball Unit Tests
+### [x] Task 1.10: Volleyball Unit Tests
 - **Type:** `[CREATE]`
 - **File:** `tests/test_volleyball_enrichment.py`
 - **Agent:** `tsh-software-engineer`
@@ -189,7 +189,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
   - Rich completion fallback chain
 - **Acceptance:** ≥10 test cases, all passing
 
-### Task 1.11: Analysis Methodology — Volleyball Hallucination Rule
+### [x] Task 1.11: Analysis Methodology — Volleyball Hallucination Rule
 - **Type:** `[MODIFY]`
 - **File:** `.github/instructions/analysis-methodology.instructions.md`
 - **Agent:** `tsh-software-engineer`
@@ -200,7 +200,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
   - "If only total_points exists, limit to: Total Points O/U, Sets O/U, Match Winner"
 - **Acceptance:** Instruction file contains volleyball-specific guidance
 
-### Task 1.12: Live Test — Volleyball Pipeline
+### [x] Task 1.12: Live Test — Volleyball Pipeline
 - **Type:** `[REUSE]`
 - **Agent:** Manual (run scripts, verify DB)
 - **Complexity:** M
@@ -218,7 +218,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
 
 **Goal:** From 23% coverage (NHL-only) → 50%+ coverage (include European leagues)
 
-### Task 2.1: Hockey Flashscore Embedded Feed Enrichment
+### [x] Task 2.1: Hockey Flashscore Embedded Feed Enrichment
 - **Type:** `[CREATE]`
 - **File:** `scripts/enrich_hockey_flashscore.py`
 - **Agent:** `tsh-software-engineer`
@@ -231,7 +231,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
 - **Fuzzy matching:** rapidfuzz for team name resolution (threshold 75)
 - **Acceptance:** ≥30 European hockey teams enriched with L10 goal arrays
 
-### Task 2.2: Fix Hockey Data Contamination
+### [x] Task 2.2: Fix Hockey Data Contamination
 - **Type:** `[MODIFY]`
 - **File:** `scripts/data_enrichment_agent.py` (or dedicated cleanup script)
 - **Agent:** `tsh-software-engineer`
@@ -245,7 +245,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
   - Volleyball: reject corners, shots_on_target, possession
 - **Acceptance:** No hockey teams have football-only stats in team_form
 
-### Task 2.3: Hockey MoneyPuck Integration Enhancement
+### [x] Task 2.3: Hockey MoneyPuck Integration Enhancement
 - **Type:** `[MODIFY]`
 - **File:** `src/bet/api_clients/moneypuck_client.py`
 - **Agent:** `tsh-software-engineer`
@@ -256,7 +256,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
   - Add season game log fetching for all 32 NHL teams
 - **Acceptance:** All 32 NHL teams have MoneyPuck L10 arrays for shots, xG, corsi
 
-### Task 2.4: Hockey Market Ranking + Safety Adjustments
+### [x] Task 2.4: Hockey Market Ranking + Safety Adjustments
 - **Type:** `[MODIFY]`
 - **Files:** `src/bet/stats/market_ranking.py`, `scripts/compute_safety_scores.py`
 - **Agent:** `tsh-software-engineer`
@@ -267,7 +267,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
   - Betclic reference: "Liczba goli" (67% hit rate)
 - **Acceptance:** Hockey events get differentiated market rankings
 
-### Task 2.5: Wire Hockey into Orchestration
+### [x] Task 2.5: Wire Hockey into Orchestration
 - **Type:** `[MODIFY]`
 - **Files:** `orchestrate-betting-day.prompt.md`, `bet-enricher.agent.md`, `bet-orchestrator.agent.md`
 - **Agent:** `tsh-software-engineer`
@@ -278,7 +278,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
   - Orchestrator delegates hockey enrichment to bet-enricher
 - **Acceptance:** Orchestrator prompt includes hockey enrichment step
 
-### Task 2.6: Hockey Hallucination Prevention + Rich Completion
+### [x] Task 2.6: Hockey Hallucination Prevention + Rich Completion
 - **Type:** `[MODIFY]` + `[CREATE]`
 - **Files:** `scripts/deep_stats_report.py`, `scripts/_helpers/hockey_rich_completion.py`
 - **Agent:** `tsh-software-engineer`
@@ -290,7 +290,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
   - When data thin: limit analysis to Total Goals O/U, Shots O/U
 - **Acceptance:** Hockey candidates with thin data show appropriate warnings
 
-### Task 2.7: Hockey Competition Tiers in build_shortlist
+### [x] Task 2.7: Hockey Competition Tiers in build_shortlist
 - **Type:** `[MODIFY]`
 - **File:** `scripts/build_shortlist.py`
 - **Agent:** `tsh-software-engineer`
@@ -306,7 +306,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
   ```
 - **Acceptance:** NHL/KHL score 9, European top leagues score 8
 
-### Task 2.8: Hockey Unit Tests
+### [x] Task 2.8: Hockey Unit Tests
 - **Type:** `[CREATE]`
 - **File:** `tests/test_hockey_enrichment.py`
 - **Agent:** `tsh-software-engineer`
@@ -314,7 +314,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
 - **What:** Unit tests: Flashscore embedded feed parsing for hockey, contamination detection, L10 building, value range validation, MoneyPuck data mapping
 - **Acceptance:** ≥8 test cases, all passing
 
-### Task 2.9: Analysis Methodology — Hockey Hallucination Rule
+### [x] Task 2.9: Analysis Methodology — Hockey Hallucination Rule
 - **Type:** `[MODIFY]`
 - **File:** `.github/instructions/analysis-methodology.instructions.md`
 - **Agent:** `tsh-software-engineer`
@@ -322,7 +322,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
 - **What:** Add hockey hallucination prevention (like tennis/volleyball sections)
 - **Acceptance:** Instruction file contains hockey-specific thin-data guidance
 
-### Task 2.10: Live Test — Hockey Pipeline
+### [x] Task 2.10: Live Test — Hockey Pipeline
 - **Type:** `[REUSE]`
 - **Agent:** Manual
 - **Complexity:** M
@@ -340,7 +340,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
 
 **Goal:** From 31% → 60%+ enrichment coverage, especially for European leagues
 
-### Task 3.1: Basketball Flashscore Embedded Feed Enrichment
+### [x] Task 3.1: Basketball Flashscore Embedded Feed Enrichment
 - **Type:** `[CREATE]`
 - **File:** `scripts/enrich_basketball_flashscore.py`
 - **Agent:** `tsh-software-engineer`
@@ -353,7 +353,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
 - **Fuzzy matching:** rapidfuzz for team name matching (threshold 75)
 - **Acceptance:** ≥50 European basketball teams with L10 point arrays
 
-### Task 3.2: Sofascore Basketball Enhancement
+### [x] Task 3.2: Sofascore Basketball Enhancement
 - **Type:** `[MODIFY]`
 - **File:** `src/bet/api_clients/sofascore.py`
 - **Agent:** `tsh-software-engineer`
@@ -364,7 +364,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
   - Coverage for top European leagues (Euroleague, Liga ACB, Serie A basket, BBL)
 - **Acceptance:** Sofascore-sourced basketball entries have L10 arrays with n≥5
 
-### Task 3.3: Basketball Market Ranking + Safety
+### [x] Task 3.3: Basketball Market Ranking + Safety
 - **Type:** `[MODIFY]`
 - **Files:** `src/bet/stats/market_ranking.py`, `scripts/compute_safety_scores.py`
 - **Agent:** `tsh-software-engineer`
@@ -375,7 +375,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
   - Betclic reference: "Suma punktów" (50% hit), "Przewaga 18pkt" (100% hit)
 - **Acceptance:** Basketball market ranking reflects stat market priority
 
-### Task 3.4: Wire Basketball into Orchestration
+### [x] Task 3.4: Wire Basketball into Orchestration
 - **Type:** `[MODIFY]`
 - **Files:** `orchestrate-betting-day.prompt.md`, `bet-enricher.agent.md`
 - **Agent:** `tsh-software-engineer`
@@ -383,7 +383,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
 - **What:** Add S2.9 step for basketball deep enrichment (Flashscore EU + Sofascore)
 - **Acceptance:** Orchestrator includes basketball enrichment step
 
-### Task 3.5: Basketball Hallucination Prevention + Rich Completion
+### [x] Task 3.5: Basketball Hallucination Prevention + Rich Completion
 - **Type:** `[MODIFY]` + `[CREATE]`
 - **Files:** `scripts/deep_stats_report.py`, `scripts/_helpers/basketball_rich_completion.py`
 - **Agent:** `tsh-software-engineer`
@@ -395,7 +395,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
   - League-specific ranges (NBA scoring ~110avg vs Euroleague ~80avg)
 - **Acceptance:** Basketball candidates with thin data get appropriate warnings
 
-### Task 3.6: Basketball Competition Tiers in build_shortlist
+### [x] Task 3.6: Basketball Competition Tiers in build_shortlist
 - **Type:** `[MODIFY]`
 - **File:** `scripts/build_shortlist.py`
 - **Agent:** `tsh-software-engineer`
@@ -411,7 +411,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
   ```
 - **Acceptance:** NBA/Euroleague score 9, national leagues score 7-8
 
-### Task 3.7: Basketball Unit Tests
+### [x] Task 3.7: Basketball Unit Tests
 - **Type:** `[CREATE]`
 - **File:** `tests/test_basketball_enrichment.py`
 - **Agent:** `tsh-software-engineer`
@@ -419,7 +419,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
 - **What:** Unit tests: Flashscore embedded feed parsing for basketball, quarter score extraction, L10 building, value ranges, Sofascore integration
 - **Acceptance:** ≥8 test cases, all passing
 
-### Task 3.8: Analysis Methodology — Basketball Hallucination Rule
+### [x] Task 3.8: Analysis Methodology — Basketball Hallucination Rule
 - **Type:** `[MODIFY]`
 - **File:** `.github/instructions/analysis-methodology.instructions.md`
 - **Agent:** `tsh-software-engineer`
@@ -427,7 +427,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
 - **What:** Basketball thin-data rule: "If only total_points available, limit to Total Points O/U and Handicap"
 - **Acceptance:** Instruction file contains basketball-specific guidance
 
-### Task 3.9: Live Test — Basketball Pipeline
+### [x] Task 3.9: Live Test — Basketball Pipeline
 - **Type:** `[REUSE]`
 - **Agent:** Manual
 - **Complexity:** M
@@ -440,7 +440,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
 
 **Goal:** Add map-level data for CS2/Valorant, improve match history depth
 
-### Task 4.1: CS2 Match History Deep Extraction
+### [x] Task 4.1: CS2 Match History Deep Extraction
 - **Type:** `[MODIFY]`
 - **File:** `src/bet/scrapers/bo3gg.py`
 - **Agent:** `tsh-software-engineer`
@@ -452,7 +452,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
   - Build L10 arrays: `total_rounds`, `maps_won`, `rounds_won_avg` per match
 - **Acceptance:** CS2 teams have L10 arrays with ≥5 match entries
 
-### Task 4.2: Valorant VLR.gg Deep Stats
+### [x] Task 4.2: Valorant VLR.gg Deep Stats
 - **Type:** `[MODIFY]`
 - **File:** `src/bet/scrapers/vlr.py`
 - **Agent:** `tsh-software-engineer`
@@ -464,7 +464,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
   - Round differentials per match
 - **Acceptance:** Valorant teams have match-level L10 arrays
 
-### Task 4.3: Esports Market Ranking + Safety
+### [x] Task 4.3: Esports Market Ranking + Safety
 - **Type:** `[MODIFY]`
 - **Files:** `src/bet/stats/market_ranking.py`, `scripts/compute_safety_scores.py`
 - **Agent:** `tsh-software-engineer`
@@ -475,7 +475,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
   - Flag: 0% CS2 hit rate → investigate whether market selection is wrong (not data quality)
 - **Acceptance:** Esports events get meaningful market differentiation
 
-### Task 4.4: Esports Enrichment Script Update
+### [x] Task 4.4: Esports Enrichment Script Update
 - **Type:** `[MODIFY]`
 - **File:** `scripts/enrich_esports_stats.py`
 - **Agent:** `tsh-software-engineer`
@@ -483,7 +483,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
 - **What:** Update to use enhanced bo3gg/vlr scrapers. Store per-match L10 arrays instead of aggregate-only stats. Add map-pool data to team_form as JSON stat_keys.
 - **Acceptance:** Running script produces per-match L10 data for CS2+Valorant teams
 
-### Task 4.5: Esports Hallucination Prevention + Competition Tiers
+### [x] Task 4.5: Esports Hallucination Prevention + Competition Tiers
 - **Type:** `[MODIFY]`
 - **Files:** `scripts/deep_stats_report.py`, `scripts/build_shortlist.py`, `.github/instructions/analysis-methodology.instructions.md`
 - **Agent:** `tsh-software-engineer`
@@ -498,7 +498,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
   - analysis-methodology: "Esports with only win_rate: limit to Match Winner only. DO NOT invent round/map numbers."
 - **Acceptance:** Esports candidates correctly flagged when data is thin
 
-### Task 4.6: Esports Unit Tests
+### [x] Task 4.6: Esports Unit Tests
 - **Type:** `[CREATE]`
 - **File:** `tests/test_esports_enrichment.py`
 - **Agent:** `tsh-software-engineer`
@@ -506,7 +506,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
 - **What:** Unit tests: bo3.gg per-match parsing, VLR.gg match extraction, L10 building for esports, map pool data structure
 - **Acceptance:** ≥6 test cases, all passing
 
-### Task 4.7: Live Test — Esports Pipeline
+### [x] Task 4.7: Live Test — Esports Pipeline
 - **Type:** `[REUSE]`
 - **Agent:** Manual
 - **Complexity:** S
@@ -640,7 +640,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
 
 **Goal:** All agents aware of new enrichment capabilities, pipeline wired end-to-end
 
-### Task 6.1: Update bet-statistician Agent
+### [x] Task 6.1: Update bet-statistician Agent
 - **Type:** `[MODIFY]`
 - **File:** `.github/agents/bet-statistician.agent.md`
 - **Agent:** `tsh-software-engineer`
@@ -653,7 +653,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
   - Add hallucination prevention rules: "If L10 has n<3 values → flag INSUFFICIENT DATA"
 - **Acceptance:** Agent md contains sport-specific guidance for all 6 sports
 
-### Task 6.2: Update bet-enricher Agent
+### [x] Task 6.2: Update bet-enricher Agent
 - **Type:** `[MODIFY]`
 - **File:** `.github/agents/bet-enricher.agent.md`
 - **Agent:** `tsh-software-engineer`
@@ -663,7 +663,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
   - "NEVER store n=1 as L10 — minimum 3 matches for team_form write"
 - **Acceptance:** Agent lists all per-sport enrichment scripts
 
-### Task 6.3: Update bet-orchestrator Agent
+### [x] Task 6.3: Update bet-orchestrator Agent
 - **Type:** `[MODIFY]`
 - **File:** `.github/agents/bet-orchestrator.agent.md`
 - **Agent:** `tsh-software-engineer`
@@ -675,7 +675,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
   - enrich_basketball_flashscore.py → bet-enricher → S2.9
 - **Acceptance:** All new scripts in orchestrator script table
 
-### Task 6.4: Update Orchestration Prompt
+### [x] Task 6.4: Update Orchestration Prompt
 - **Type:** `[MODIFY]`
 - **File:** `.github/prompts/orchestrate-betting-day.prompt.md`
 - **Agent:** `tsh-software-engineer`
@@ -688,7 +688,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
   - Add to step list with item numbers
 - **Acceptance:** Full pipeline prompt includes all sport enrichment steps
 
-### Task 6.5: Update Fallback Chains
+### [x] Task 6.5: Update Fallback Chains
 - **Type:** `[MODIFY]`
 - **File:** `src/bet/stats/fallback_chains.py`
 - **Agent:** `tsh-software-engineer`

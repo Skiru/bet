@@ -29,9 +29,10 @@ python3 scripts/analyze_betclic_learning.py
 # Instead: the orchestrator agent calls individual scripts one at a time:
 #   PYTHONPATH=src .venv/bin/python scripts/discover_events.py --date YYYY-MM-DD --verbose
 #   python3 scripts/build_shortlist.py --date YYYY-MM-DD --stats-first
-#   python3 scripts/deep_stats_report.py --date YYYY-MM-DD --shortlist ...
+#   python3 scripts/deep_stats_report.py --date YYYY-MM-DD --gemini --verbose
 #   python3 scripts/gate_checker.py --date YYYY-MM-DD
 #   python3 scripts/coupon_builder.py --date YYYY-MM-DD
+# Note: --shortlist is no longer required for deep_stats (reads from pipeline_candidates DB).
 # See orchestrate-betting-day.prompt.md for the full step-by-step protocol.
 
 # 2. Cross-validation odds (30 credits/scan, 500/month free)
