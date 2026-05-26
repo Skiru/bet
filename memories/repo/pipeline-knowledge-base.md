@@ -1,4 +1,79 @@
-# Pipeline Knowledge Base — Consolidated (May 4-25, 2026, updated 2026-05-25)
+# Pipeline Knowledge Base — Consolidated (May 4-26, 2026, updated 2026-05-26)
+
+## 🆕 MULTI-SPORT PIPELINE DEEP FIX — COMPLETE — 2026-05-26
+
+### Summary
+51-task, 7-phase plan (`specifications/multi-sport-pipeline-fix/multi-sport-pipeline-fix.plan.md`) executed and completed. All phases committed, 987 tests passing.
+
+### What Was Delivered
+| Phase | Scope | Key Deliverables |
+|-------|-------|-----------------|
+| Phase 5 | Infrastructure | `src/bet/fuzzy_match.py`, `src/bet/stats/stat_validation.py`, `name_mappings` table, `audit_data_quality.py`, generic hallucination framework in `deep_stats_report.py` |
+| Phase 1 | Volleyball | `enrich_volleyball_stats.py` (Flashscore + API-Volleyball), `volleyball_rich_completion.py`, market ranking weights, COMP_TIER_KEYWORDS, live-tested with Perugia L10 |
+| Phase 2 | Hockey | `enrich_hockey_stats.py` (Flashscore EU + MoneyPuck), `hockey_rich_completion.py`, contamination cleanup, market ranking |
+| Phase 3 | Basketball | `enrich_basketball_stats.py` (Flashscore EU + Sofascore), `basketball_rich_completion.py`, league-specific ranges (NBA vs Euroleague) |
+| Phase 4 | Esports | `enrich_esports_stats.py` updated for per-match L10 (bo3.gg maps, VLR rounds), map pool data |
+| Phase 6 | Agents | bet-statistician, bet-enricher, bet-orchestrator agents updated; fallback chains extended; orchestrate-betting-day.prompt.md has S2.7/S2.8/S2.9 |
+| Phase 7 | Validation | 987 tests pass, live volleyball API test confirmed, code review fixes applied |
+
+### Critical Fixes Discovered During Implementation
+1. **Rate limiter shared quota bug**: All api-sports.io clients (football, volleyball, hockey, basketball) shared a single 100/day pool. Football used 87/day → volleyball blocked. **Fix:** Each sport now has INDEPENDENT 100/day quota in `rate_limiter.py` (matches actual api-sports.io platform behavior).
+2. **API-Volleyball has NO /statistics endpoint**: Unlike other api-sports.io services, volleyball doesn't have a separate statistics endpoint. **Fix:** `get_match_stats()` extracts scores/periods from the `/games?id={id}` response itself (total_points, sets_won, sets_played, points_home, points_away).
+3. **API-Volleyball season is "2024" not "2025"**: Current active season for volleyball data returns 0 results with season=2025. Must use season=2024.
+4. **resolve_team_id returns women's teams**: "Perugia" search returned "Pallavolo Perugia W" (id=3520) before the men's team. **Fix:** Prefer teams whose name does NOT end with " W".
+5. **Fuzzy match module lives at `src/bet/fuzzy_match.py`** (not `src/bet/utils/fuzzy_match.py` as plan specified).
+
+### New Pipeline Steps (for orchestrator awareness)
+| Step | Script | Condition | Agent |
+|------|--------|-----------|-------|
+| S2.7 | `enrich_volleyball_stats.py --date {date} --verbose` | ≥1 volleyball fixture | bet-enricher |
+| S2.8 | `enrich_hockey_stats.py --date {date} --verbose` | ≥1 hockey fixture | bet-enricher |
+| S2.9 | `enrich_basketball_stats.py --date {date} --verbose` | ≥1 basketball fixture | bet-enricher |
+
+### Enrichment Fallback Chains (updated)
+- **Volleyball:** api-volleyball → flashscore-volleyball → sofascore → enrichment-agent
+- **Hockey:** espn-hockey → moneypuck → flashscore-hockey → api-hockey → sofascore
+- **Basketball:** espn-basketball → nba-api → flashscore-basketball → sofascore → api-basketball
+- **Esports:** bo3.gg (CS2/Valorant primary) → vlr.gg (Valorant) → HLTV (CS2 fallback)
+
+### API-Sports Quota (IMPORTANT for daily sessions)
+- Each sport has independent 100 requests/day: football, volleyball, basketball, hockey, tennis
+- All share the SAME API key (`d2040a4b...`) but quotas are counted SEPARATELY per sport endpoint
+- Dashboard: https://dashboard.api-football.com/ (shows all sport quotas)
+- Football typically uses 60-90/day from discover_events; leave room for enrichment
+
+### Files Created/Modified (key new files)
+```
+scripts/enrich_volleyball_stats.py      # S2.7 pipeline script
+scripts/enrich_hockey_stats.py          # S2.8 pipeline script  
+scripts/enrich_basketball_stats.py      # S2.9 pipeline script
+scripts/enrich_esports_stats.py         # Updated for per-match L10
+scripts/audit_data_quality.py           # Per-sport health scoring
+scripts/_helpers/volleyball_rich_completion.py
+scripts/_helpers/hockey_rich_completion.py
+scripts/_helpers/basketball_rich_completion.py
+src/bet/fuzzy_match.py                  # Unified team/player matching
+src/bet/stats/stat_validation.py        # Per-sport allowed stat keys
+src/bet/stats/fallback_chains.py        # Extended with flashscore-* sources
+src/bet/api_clients/rate_limiter.py     # Fixed: no shared quota groups
+src/bet/api_clients/api_volleyball.py   # get_match_stats + get_team_l10_stats
+tests/test_volleyball_enrichment.py
+tests/test_hockey_enrichment.py
+tests/test_basketball_enrichment.py
+tests/test_esports_enrichment.py
+```
+
+### Commits (chronological)
+```
+ab2a6c9  Phase 5 — infrastructure foundations
+43dca18  Phase 1 — volleyball enrichment
+98b6970  Phases 2-4 — hockey/basketball/esports
+baf23b1  Phase 6 — agent + orchestration wiring
+aa5e24d  DB-first migration + code review fixes
+da39b46  Task 1.2 — volleyball API live fix + rate limiter fix
+```
+
+---
 
 ## 🆕 UNIFIED NAME MATCHING AUDIT — 2026-05-25
 

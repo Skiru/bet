@@ -705,14 +705,14 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
 
 **Goal:** End-to-end validation of all sport pipelines
 
-### Task 7.1: Full Test Suite
+### [x] Task 7.1: Full Test Suite
 - **Type:** `[REUSE]`
 - **Agent:** Manual
 - **Complexity:** M
 - **What:** `pytest tests/ -q --tb=short` — ensure no regressions from all changes
 - **Acceptance:** All tests pass
 
-### Task 7.2: Live Integration Test — All Sports
+### [x] Task 7.2: Live Integration Test — All Sports
 - **Type:** `[REUSE]`
 - **Agent:** Manual  
 - **Complexity:** L
@@ -726,7 +726,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
   7. Run `compute_safety_scores.py` for fixture from each sport → produces scores
 - **Acceptance:** All sports produce real L10 data, no fake entries detected
 
-### Task 7.3: Gate Checker Validation
+### [x] Task 7.3: Gate Checker Validation
 - **Type:** `[REUSE]`
 - **Agent:** Manual
 - **Complexity:** S
@@ -736,7 +736,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
   - Basketball maintains or improves pass rate
 - **Acceptance:** Volleyball has ≥5 APPROVED gate results
 
-### Task 7.4: Code Review
+### [x] Task 7.4: Code Review
 - **Type:** `[REUSE]`
 - **Agent:** `tsh-code-reviewer`
 - **Complexity:** M
@@ -747,7 +747,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
   - Test coverage for new code
 - **Acceptance:** No critical issues, all suggestions addressed
 
-### Task 7.5: Fix Cycle + Final Validation
+### [x] Task 7.5: Fix Cycle + Final Validation
 - **Type:** `[REUSE]`
 - **Agent:** `tsh-software-engineer`
 - **Complexity:** M
