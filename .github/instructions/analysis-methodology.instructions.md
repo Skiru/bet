@@ -81,6 +81,37 @@ When a tennis candidate has `hallucination_risk=HIGH` in the S3 deep stats repor
 - If only baseline keys exist (sets_won, total_sets, games_won, total_games), limit analysis to: Total Games O/U, Total Sets O/U, Player Games O/U
 - NEVER cite a stat value that isn't explicitly provided in the S3 report data
 
+### Volleyball Hallucination Prevention Rule
+
+When a volleyball candidate has `hallucination_risk=HIGH`:
+- ONLY analyze **Total Points O/U** and **Sets O/U** (the two markets with highest Betclic hit rates)
+- DO NOT invent aces, blocks, or hitting % numbers without L10 backing
+- If only `total_points` exists in team_form, limit to: Total Points O/U, Sets O/U, Match Winner
+- Value ranges: total_points per match typically 140-220 (3-set) to 200-280 (5-set)
+- Aces per team per match: 2-10 typical. Blocks per team: 5-15 typical.
+
+### Hockey Hallucination Prevention Rule
+
+When a hockey candidate has `hallucination_risk=HIGH`:
+- ONLY analyze **Total Goals O/U** and **Total Shots O/U**
+- DO NOT invent PIM, hits, or blocks numbers without L10 backing
+- If only `goals` exist, limit to: Total Goals O/U, Match Winner
+- NHL goals per game: typically 2-4 per team. European leagues: 2-5. Shots: 25-40 per team.
+
+### Basketball Hallucination Prevention Rule
+
+When a basketball candidate has `hallucination_risk=HIGH`:
+- If only `total_points` available, limit to **Total Points O/U** and **Handicap**
+- DO NOT invent rebounds, assists, or steals numbers without L10 backing
+- NBA points per team: 100-130 typical. Euroleague: 70-95. Total points (game): 190-240 NBA, 140-180 EU.
+
+### Esports Hallucination Prevention Rule (CS2, Valorant, Dota 2)
+
+When an esports candidate has `hallucination_risk=HIGH`:
+- Esports with only `win_rate_l10`: limit to **Match Winner** only
+- DO NOT invent round/map numbers without match-level L10 backing
+- If `map_win_rate` exists: Map Handicap allowed. Otherwise: Match Winner only.
+
 ---
 
 ## AUTOMATED PIPELINE MODULES
