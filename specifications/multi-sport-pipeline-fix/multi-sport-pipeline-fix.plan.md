@@ -532,7 +532,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
   - Caching: store resolved mappings in DB table `name_mappings`
 - **Acceptance:** All enrichment scripts import from this module; no duplicated fuzzy logic
 
-### Task 5.2: Data Quality Audit Script
+### [x] Task 5.2: Data Quality Audit Script
 - **Type:** `[CREATE]`
 - **File:** `scripts/audit_data_quality.py`
 - **Agent:** `tsh-software-engineer`
