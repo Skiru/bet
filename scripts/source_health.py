@@ -228,6 +228,51 @@ def suggest_fallbacks(days: int = 7) -> dict:
     return suggestions
 
 
+def report_enrichment_coverage() -> dict[str, dict]:
+    """Report per-sport enrichment coverage: teams with real L10 data vs total fixture teams."""
+    sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+    from bet.db.connection import get_db
+    
+    coverage = {}
+    with get_db() as conn:
+        # Teams with upcoming fixtures (next 7 days)
+        fixture_teams = conn.execute("""
+            SELECT s.name as sport, COUNT(DISTINCT t.id) as cnt
+            FROM fixtures f
+            JOIN sports s ON f.sport_id = s.id
+            JOIN teams t ON (t.id = f.home_team_id OR t.id = f.away_team_id)
+            WHERE f.kickoff > datetime('now') AND f.kickoff < datetime('now', '+7 days')
+            GROUP BY s.name
+        """).fetchall()
+        
+        # Teams with real L10 data (arrays with 3+ values)
+        enriched_teams = conn.execute("""
+            SELECT s.name as sport, COUNT(DISTINCT tf.team_id) as cnt
+            FROM team_form tf
+            JOIN sports s ON tf.sport_id = s.id
+            WHERE json_array_length(tf.l10_values) >= 3
+            AND tf.updated_at > datetime('now', '-7 days')
+            GROUP BY s.name
+        """).fetchall()
+        
+        fixture_map = {r["sport"]: r["cnt"] for r in fixture_teams}
+        enriched_map = {r["sport"]: r["cnt"] for r in enriched_teams}
+        
+        for sport in fixture_map:
+            total = fixture_map[sport]
+            with_data = enriched_map.get(sport, 0)
+            pct = round(100 * with_data / total, 1) if total > 0 else 0.0
+            status = "CRITICAL" if pct < 10 else "WARNING" if pct < 30 else "OK"
+            coverage[sport] = {
+                "teams_with_fixtures": total,
+                "teams_enriched": with_data,
+                "coverage_pct": pct,
+                "status": status,
+            }
+    
+    return coverage
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Track source health over time for adaptive fallback chains."
@@ -293,6 +338,12 @@ def main():
                         f"{s['events_total']} events | "
                         f"Sports: {', '.join(s['sports']) or 'N/A'}"
                     )
+            
+            print("\n── ENRICHMENT COVERAGE ──")
+            coverage = report_enrichment_coverage()
+            for sport, data in sorted(coverage.items()):
+                print(f"  {sport:<12} {data['teams_enriched']:>4}/{data['teams_with_fixtures']:<4} "
+                      f"({data['coverage_pct']:>5.1f}%) [{data['status']}]")
 
     elif args.suggest_fallbacks:
         suggestions = suggest_fallbacks(args.days)

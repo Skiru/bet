@@ -1058,7 +1058,7 @@ def compute_risk_tier(candidate: dict, gate_result: dict) -> str:
     best = candidate.get("best_market") or {}
     safety = best.get("safety_score", 0) or 0
     gate_passed = gate_result.get("gate_passed", [])
-    gate_score = len(gate_passed)
+    gate_score = gate_result.get("raw_gate_score", len(gate_passed))
     gate_failed = gate_result.get("gate_failed", [])
 
     is_tipster_blind = "6" in gate_failed
@@ -1192,11 +1192,22 @@ def check_18_point_gate(candidate: dict, repeat_losses: list) -> dict:
             warnings.append(msg)
 
     total_checks = len(GATE_LABELS)
+    gate_score_val = len(passed)
+    
+    # Per-sport gate threshold awareness
+    # Sports with historically thin data get a boost when they have FULL data tier
+    THIN_DATA_SPORTS = {"volleyball", "cs2", "valorant", "dota2"}
+    sport = candidate.get("sport", "").lower()
+    data_tier = candidate.get("data_tier", "")
+    if sport in THIN_DATA_SPORTS and data_tier == "FULL":
+        gate_score_val += 1  # Boost for having full coverage in a thin-data sport
+
     return {
         "gate_passed": passed,
         "gate_failed": failed,
         "gate_warnings": [w for w in warnings if w],
-        "gate_score": f"{len(passed)}/{total_checks}",
+        "gate_score": f"{gate_score_val}/{total_checks}",
+        "raw_gate_score": gate_score_val,
         "gate_details": details,
     }
 
@@ -1848,6 +1859,8 @@ def _candidate_row(entry: dict) -> str:
     return (
         f"| {entry.get('sport', '')} "
         f"| {entry.get('home_team', '')} vs {entry.get('away_team', '')} "
+        f"| {entry.get('data_tier', '-')} "
+        f"| {entry.get('comp_score', '-')} "
         f"| {best.get('name', '-')} "
         f"| {best.get('safety_score', '-')} "
         f"| {entry.get('gate_score', '-')} "
@@ -1925,8 +1938,8 @@ def _write_markdown(results: dict, date: str) -> Path:
         "",
         "## Summary Table",
         "",
-        "| Sport | Event | Market | Safety | Gate | Tier | Conf | Status |",
-        "|-------|-------|--------|--------|------|------|------|--------|",
+        "| Sport | Event | Data Tier | Comp | Market | Safety | Gate | Risk Tier | Conf | Status |",
+        "|-------|-------|-----------|------|--------|--------|------|-----------|------|--------|",
     ]
 
     for bucket in ("approved", "extended_pool", "rejected"):
@@ -1984,7 +1997,8 @@ def _load_s3_output(date: str, input_path: str | None = None) -> tuple[list[dict
 
     Tries:
       1. Explicit --input path
-      2. Canonical DB/JSON parity loader
+      2. DB (analysis_results table) — canonical source
+      3. JSON fallback (deprecated)
     """
     if input_path:
         path = Path(input_path)
@@ -1997,18 +2011,8 @@ def _load_s3_output(date: str, input_path: str | None = None) -> tuple[list[dict
         print(f"[gate_checker] Loaded {len(candidates)} candidates from {path}")
         return candidates, {
             "source": "explicit_input",
-            "counts": {
-                "canonical": len(candidates),
-                "json": len(candidates),
-                "db": 0,
-            },
-            "parity": {
-                "status": "explicit_input",
-                "shared_candidates": 0,
-                "json_only_candidates": len(candidates),
-                "db_only_candidates": 0,
-                "overlay_candidates": 0,
-            },
+            "counts": {"canonical": len(candidates), "json": len(candidates), "db": 0},
+            "parity": {"status": "explicit_input"},
         }
 
     try:
@@ -2017,24 +2021,38 @@ def _load_s3_output(date: str, input_path: str | None = None) -> tuple[list[dict
         except ImportError:
             import db_data_loader as db_loader
 
-        analyses, candidate_load = db_loader.load_s3_candidates_with_parity(date)
+        # DB-first: try analysis_results table
+        db_entries = db_loader.load_analysis_results_from_db(date)
+        if db_entries:
+            candidates = [_normalise_s3_to_gate_input(a) for a in db_entries]
+            metadata = {
+                "source": "db",
+                "counts": {"canonical": len(candidates), "db": len(db_entries), "json": 0},
+                "parity": {"status": "db_canonical"},
+            }
+            print(f"[gate_checker] Loaded {len(candidates)} candidates from DB (canonical)")
+            return candidates, metadata
+
+        # JSON fallback (deprecated)
+        json_entries = db_loader._load_analysis_results_raw_from_json(date)
+        if json_entries:
+            candidates = [_normalise_s3_to_gate_input(a) for a in json_entries]
+            metadata = {
+                "source": "json_fallback",
+                "counts": {"canonical": len(candidates), "db": 0, "json": len(json_entries)},
+                "parity": {"status": "json_fallback_deprecated"},
+            }
+            print(f"[gate_checker] WARNING: Using deprecated JSON fallback "
+                  f"({len(candidates)} candidates). Run deep_stats_report.py to populate DB.")
+            return candidates, metadata
+
     except Exception as e:
         print(f"[gate_checker] ERROR: canonical S3 load failed: {e}")
         sys.exit(1)
 
-    if candidate_load.get("blocking_error"):
-        return [], candidate_load
-
-    candidates = [_normalise_s3_to_gate_input(a) for a in analyses]
-    print(
-        "[gate_checker] Candidate load: "
-        f"source={candidate_load.get('source', 'none')} "
-        f"status={candidate_load.get('parity', {}).get('status', 'missing')} "
-        f"json={candidate_load.get('counts', {}).get('json', 0)} "
-        f"db={candidate_load.get('counts', {}).get('db', 0)} "
-        f"canonical={candidate_load.get('counts', {}).get('canonical', 0)}"
-    )
-    return candidates, candidate_load
+    print(f"[gate_checker] ERROR: No S3 analysis data found for {date}")
+    return [], {"source": "none", "counts": {"canonical": 0, "db": 0, "json": 0},
+                "parity": {"status": "missing"}}
 
 
 # ---------------------------------------------------------------------------
@@ -2137,10 +2155,10 @@ def main():
         for bucket in ("approved", "extended_pool", "rejected"):
             all_results.extend(results.get("gate_results", {}).get(bucket, []))
         saved = save_gate_results_to_db(args.date, all_results)
-        if args.verbose:
-            out.event("db_write", saved=saved)
-        else:
-            print(f"[gate_checker] DB: saved {saved} gate results")
+        total = len(all_results)
+        print(f"[gate_checker] DB: persisted {saved}/{total} gate results")
+        if saved < total:
+            print(f"[gate_checker] WARNING: {total - saved} gate results NOT persisted to DB")
     except Exception as e:
         out.error(f"DB write failed: {e}", recoverable=True)
 

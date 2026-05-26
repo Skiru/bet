@@ -585,7 +585,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
   ```
 - **Acceptance:** Contaminated writes are blocked; audit script shows 0 violations
 
-### Task 5.5: Enrichment Coverage Monitor
+### [x] Task 5.5: Enrichment Coverage Monitor
 - **Type:** `[MODIFY]`
 - **File:** `scripts/source_health.py`
 - **Agent:** `tsh-software-engineer`
@@ -596,7 +596,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
   - Include in AGENT_SUMMARY for orchestrator visibility
 - **Acceptance:** source_health.py reports per-sport coverage percentages
 
-### Task 5.6: Flashscore Bulk Enrich — Per-Sport Validation
+### [x] Task 5.6: Flashscore Bulk Enrich — Per-Sport Validation
 - **Type:** `[MODIFY]`
 - **File:** `scripts/flashscore_bulk_enrich.py`
 - **Agent:** `tsh-software-engineer`
@@ -608,7 +608,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
   - Ensure sport-specific stat keys are filtered through stat_validation
 - **Acceptance:** Bulk enrichment produces only validated data
 
-### Task 5.7: Gate Checker — Per-Sport Data Tier Awareness
+### [x] Task 5.7: Gate Checker — Per-Sport Data Tier Awareness
 - **Type:** `[MODIFY]`
 - **File:** `scripts/gate_checker.py`
 - **Agent:** `tsh-software-engineer`

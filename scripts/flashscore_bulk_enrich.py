@@ -24,6 +24,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 sys.path.insert(0, str(Path(__file__).parent))
 
 from bet.db.connection import get_db
+from bet.stats.stat_validation import is_valid_stat_key
+from bet.stats.value_ranges import SPORT_VALUE_RANGES
 from flashscore_enricher import (_try_flashscore,)
 from _helpers.football_flashscore_html_enrichment import (
     complete_football_rich_stats,
@@ -109,6 +111,23 @@ def enrich_and_write(teams: list[dict], verbose: bool = False, deep: bool = True
                 for stat_key, values in stats.items():
                     if not values:
                         continue
+                    
+                    # Stat key validation — prevent cross-sport contamination
+                    if not is_valid_stat_key(sport, stat_key):
+                        if verbose:
+                            log.debug("  REJECTED stat_key=%s for sport=%s (contamination)", stat_key, sport)
+                        continue
+                    
+                    # Value range validation
+                    ranges = SPORT_VALUE_RANGES.get(sport, {}).get(stat_key)
+                    if ranges:
+                        lo, hi = ranges
+                        values = [v for v in values if lo <= v <= hi]
+                        if not values:
+                            if verbose:
+                                log.debug("  REJECTED stat_key=%s: all values outside range [%s, %s]", stat_key, lo, hi)
+                            continue
+                    
                     avg = round(sum(values) / len(values), 2)
                     vals_json = json.dumps(values[:10])
                     l5_vals = values[:5]
