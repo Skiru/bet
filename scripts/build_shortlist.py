@@ -1410,6 +1410,24 @@ def main():
             repo = PipelineRepo(conn)
             repo.start_step(date, "s1e_shortlist")
             repo.complete_step(date, "s1e_shortlist", stats=shortlist_stats)
+
+            # Sync comp_score → competitions.importance (R2 DB-FIRST)
+            # Agents querying DB need league importance without reading JSON files.
+            comp_scores_to_update = {}
+            for _, e in selected:
+                comp_name = e.get("competition", "")
+                if comp_name and comp_name not in comp_scores_to_update:
+                    comp_scores_to_update[comp_name] = _score_competition(
+                        e["sport"], comp_name
+                    )
+            if comp_scores_to_update:
+                for comp_name, importance in comp_scores_to_update.items():
+                    conn.execute(
+                        "UPDATE competitions SET importance = ? WHERE name = ? AND (importance IS NULL OR importance < ?)",
+                        (importance, comp_name, importance),
+                    )
+                out.event("comp_importance_synced", count=len(comp_scores_to_update))
+
             conn.commit()
             out.event("db_saved", candidates=len(selected))
     except Exception as e:

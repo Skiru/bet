@@ -103,6 +103,12 @@ def _normalize_gate_result_entry(entry: dict) -> dict:
         normalized["rejection_reason"] = rejection_reasons[0]
         gate_details.setdefault("rejection_reason", rejection_reasons[0])
 
+    # Propagate pipeline metadata into gate_details_json for DB agent visibility
+    if normalized.get("data_tier"):
+        gate_details["data_tier"] = normalized["data_tier"]
+    if normalized.get("comp_score") is not None:
+        gate_details["comp_score"] = normalized["comp_score"]
+
     normalized["gate_details"] = gate_details
     return normalized
 
