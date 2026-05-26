@@ -62,7 +62,13 @@ You are the data quality guardian (S2.3/S2.5) — a self-healing enrichment spec
 2. **Bridge helpers** — `scraper_to_team_form.py` and `bridge_league_to_team_form.py` can surface selected scraper value into `team_form` when the orchestrator explicitly runs them
 3. **Tennis baseline** — `enrich_tennis_stats.py` remains a standalone tennis baseline/backfill step
 4. **Tennis deep enrichment (S2.6)** — `fetch_tennis_elo.py` (Elo ratings), `enrich_tennis_flashscore.py` (Flashscore per-match L10 serve stats), `tennis_h2h_warmup.py` (H2H cache with serve-specific stats). These provide surface-aware arrays and Elo for `compute_safety_scores.py`.
-5. **S2.5** — `data_enrichment_agent.py` fills remaining gaps and rich-stat coverage via per-team fallback chains
+5. **Volleyball deep enrichment (S2.7)** — `enrich_volleyball_flashscore.py` (per-match L10: total_points, aces, blocks, errors) + `enrich_volleyball_stats.py` (combo: Flashscore + API-Volleyball rich completion). Source: `flashscore-volleyball`.
+6. **Hockey deep enrichment (S2.8)** — `enrich_hockey_flashscore.py` (per-match L10: goals, shots_on_goal, PIM, power_play_goals) + `enrich_hockey_stats.py` (combo: Flashscore EU + MoneyPuck/ESPN). Source: `flashscore-hockey`.
+7. **Basketball deep enrichment (S2.9)** — `enrich_basketball_flashscore.py` (per-match L10: points, rebounds, assists, steals, blocks) + `enrich_basketball_stats.py` (combo: Flashscore EU + Sofascore/BDL). Source: `flashscore-basketball`.
+8. **Esports enrichment** — `fetch_esports_odds.py` (bo3.gg odds), existing `enrich_esports_stats.py` for per-team win_rate/map_win_rate.
+9. **S2.5** — `data_enrichment_agent.py` fills remaining gaps and rich-stat coverage via per-team fallback chains
+
+**NEVER store n=1 as L10 — minimum 3 matches required for team_form write.** If a source returns fewer than 3 match values, log it and skip the write.
 
 **Check S3-consumable surfaces first:** Downstream S3 analysis reads `team_form` and `match_stats`, not raw scraper tables. Before assessing enrichment quality, verify bridge visibility, rich-coverage buckets, and how many shortlist teams already have usable `team_form` rows (`l5_avg IS NOT NULL`).
 

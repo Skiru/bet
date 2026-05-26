@@ -292,10 +292,12 @@ class TestSettlementStatMarkets:
 
 
 class TestVolleyballCanonicalFallback:
-    def test_shared_volleyball_fallback_chain_excludes_sofascore(self):
+    def test_shared_volleyball_fallback_chain(self):
         assert FALLBACK_CHAINS["volleyball"] == [
             "espn-volleyball",
             "api-volleyball",
+            "flashscore-volleyball",
+            "sofascore",
             "google-sports",
             "serpapi",
         ]

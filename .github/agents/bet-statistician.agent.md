@@ -357,6 +357,27 @@ When reviewing `deep_stats_report.py` output, verify values are within expected 
 | Total points | 60-250 | 150-180 (5 sets) | avg >220 or <80 |
 | Sets | 3-5 | 3.2-3.8 | avg >5 (impossible) |
 | Aces | 0-15 per team | 3-7 | avg >12 or <1 |
+| Blocks | 0-20 per team | 5-10 | avg >15 or <2 |
+| Errors | 0-40 per team | 15-25 | avg >35 or <5 |
+
+**Volleyball-specific data sources (S2.7 enrichment):**
+- **Flashscore L10** — `team_form` with `source='flashscore-volleyball'`. Per-match stats (total_points, aces, blocks, errors).
+- **Hallucination prevention** — If only total_points available (n<3 other keys), limit to Total Points O/U and Handicap. NEVER invent set stats from totals.
+
+### Esports (CS2 / Valorant / Dota 2)
+| Stat | Range | Typical | Red Flag |
+|------|-------|---------|----------|
+| CS2: Rounds won avg | 10-30 | 12-14 | avg >20 or <8 |
+| CS2: Map win rate | 0-100% | 40-65% (top teams) | >85% or <20% |
+| CS2: K/D ratio | 0.60-1.60 | 0.95-1.15 | >1.40 or <0.70 |
+| Valorant: Rounds won avg | 10-26 | 12-14 | avg >20 or <8 |
+| Dota 2: Duration avg | 15-70 min | 30-40 | avg >55 or <20 |
+| Dota 2: Win rate L10 | 0-100% | 40-70% | >90% (dominant) |
+
+**Esports-specific data sources:**
+- **bo3.gg** — Primary source for CS2/Valorant odds and match results. `team_form` with `source='bo3gg'`.
+- **VLR.gg** — Valorant team stats, map preferences.
+- **Hallucination prevention** — With only win_rate: limit to Match Winner and Map Handicap. DO NOT invent round/map numbers. If L10 has <3 values → INSUFFICIENT DATA flag.
 
 ## Verbose Output Monitoring Guide
 

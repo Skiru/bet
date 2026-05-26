@@ -13,10 +13,10 @@ Policy:
 
 FALLBACK_CHAINS: dict[str, list[str]] = {
     "football": ["espn-football", "api-football", "football-data-org", "understat", "google-sports", "serpapi"],
-    "basketball": ["espn-basketball", "nba-api", "api-basketball", "sofascore", "google-sports", "serpapi"],
-    "hockey": ["espn-hockey", "api-hockey", "scrapernhl", "moneypuck", "sofascore", "google-sports", "serpapi"],
+    "basketball": ["espn-basketball", "nba-api", "api-basketball", "flashscore-basketball", "sofascore", "google-sports", "serpapi"],
+    "hockey": ["espn-hockey", "api-hockey", "flashscore-hockey", "scrapernhl", "moneypuck", "sofascore", "google-sports", "serpapi"],
     "tennis": ["tennis-abstract", "flashscore-tennis", "sackmann", "espn-tennis", "google-sports", "serpapi"],
-    "volleyball": ["espn-volleyball", "api-volleyball", "google-sports", "serpapi"],
+    "volleyball": ["espn-volleyball", "api-volleyball", "flashscore-volleyball", "sofascore", "google-sports", "serpapi"],
     "cs2": ["bo3gg", "hltv", "liquipedia", "serpapi"],
     "valorant": ["vlr", "bo3gg", "liquipedia", "serpapi"],
     "dota2": ["liquipedia", "bo3gg", "serpapi"],

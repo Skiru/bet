@@ -27,6 +27,9 @@ argument-hint: "run_date=2026-05-08 session=full" or "run_date=2026-05-08 sessio
 11. S2.3: run_scrapers.py → delegate to bet-enricher
 12. S2.5: data_enrichment_agent.py → delegate to bet-enricher
 12b. S2.6: fetch_tennis_elo.py + enrich_tennis_flashscore.py + tennis_h2h_warmup.py → delegate to bet-enricher
+12c. S2.7: enrich_volleyball_stats.py → delegate to bet-enricher (Flashscore + API-Volleyball)
+12d. S2.8: enrich_hockey_stats.py → delegate to bet-enricher (Flashscore EU + MoneyPuck/ESPN)
+12e. S2.9: enrich_basketball_stats.py → delegate to bet-enricher (Flashscore EU + Sofascore/BDL)
 13. ⛔    validate_phase.py --phase data (GATE — exit 1 = STOP)
 14. S3:   deep_stats_report.py → delegate to bet-statistician
 15. S4:   odds_evaluator.py → delegate to bet-valuator
@@ -204,6 +207,39 @@ PYTHONPATH=src .venv/bin/python3 scripts/tennis_h2h_warmup.py --date {date} --ve
 ```
 Order matters: Elo first (used by safety scores), then Flashscore L10 (per-match arrays), then H2H warmup (uses both).
 **→ `runSubagent("bet-enricher")`** — Check: tennis player coverage %, Flashscore match yield, H2H cache hit rate. Flag players with MINIMAL data (<4 keys).
+
+---
+
+### S2.7: Volleyball Deep Enrichment (DO NOT SKIP for volleyball events)
+
+**Condition:** Run if shortlist contains ≥1 volleyball event. Provides per-match L10 arrays (total_points, aces, blocks, errors) via Flashscore + API-Volleyball rich completion.
+
+```bash
+PYTHONPATH=src .venv/bin/python3 scripts/enrich_volleyball_stats.py --date {date} --verbose
+```
+**→ `runSubagent("bet-enricher")`** — Check: coverage before/after %, teams enriched, Flashscore yield. Flag teams with <3 L10 values.
+
+---
+
+### S2.8: Hockey Deep Enrichment (DO NOT SKIP for hockey events)
+
+**Condition:** Run if shortlist contains ≥1 hockey event. Provides per-match L10 arrays (goals, shots_on_goal, PIM, power_play_goals) via Flashscore (EU leagues) + MoneyPuck/ESPN (NHL).
+
+```bash
+PYTHONPATH=src .venv/bin/python3 scripts/enrich_hockey_stats.py --date {date} --verbose
+```
+**→ `runSubagent("bet-enricher")`** — Check: coverage before/after %, EU vs NHL split, source reliability.
+
+---
+
+### S2.9: Basketball Deep Enrichment (DO NOT SKIP for basketball events)
+
+**Condition:** Run if shortlist contains ≥1 basketball event. Provides per-match L10 arrays (points, rebounds, assists, steals, blocks) via Flashscore (EU leagues) + Sofascore/BDL (NBA).
+
+```bash
+PYTHONPATH=src .venv/bin/python3 scripts/enrich_basketball_stats.py --date {date} --verbose
+```
+**→ `runSubagent("bet-enricher")`** — Check: coverage before/after %, EU vs NBA split, rich key completion rate.
 
 ---
 
