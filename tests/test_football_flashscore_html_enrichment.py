@@ -203,7 +203,9 @@ def test_data_enrichment_agent_uses_flashscore_html_completion_and_preserves_sou
 def test_flashscore_bulk_enrich_invokes_flashscore_html_completion_when_rich_keys_missing(monkeypatch):
     mock_conn = MagicMock()
     mock_conn.execute.return_value = MagicMock()
-    monkeypatch.setattr(flashscore_bulk_enrich.sqlite3, "connect", lambda *args, **kwargs: mock_conn)
+    mock_conn.__enter__ = lambda self: mock_conn
+    mock_conn.__exit__ = lambda self, *args: None
+    monkeypatch.setattr(flashscore_bulk_enrich, "get_db", lambda: mock_conn)
     monkeypatch.setattr(
         flashscore_bulk_enrich,
         "_try_flashscore_results_page",

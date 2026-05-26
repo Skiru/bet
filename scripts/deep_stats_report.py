@@ -1569,11 +1569,13 @@ def analyze_candidate(
         "raw_data": raw_data,
     }
 
-    # Task 3.2: Apply H2H-BLIND penalty to safety_score (15% reduction)
+    # Task 3.2: H2H-BLIND flag (informational only).
+    # NOTE: The safety penalty is already applied in compute_safety_scores.py
+    # via H2H_MISSING_PENALTY (×0.70-0.80). Applying a second ×0.85 here caused
+    # double-penalization making approval mathematically impossible for H2H-blind candidates.
     if analysis["h2h_status"] == "BLIND" and analysis.get("best_market"):
-        original = analysis["best_market"]["safety_score"]
-        analysis["best_market"]["safety_score"] = round(original * 0.85, 4)
-        analysis["best_market"]["_h2h_blind_penalty"] = True
+        analysis["best_market"]["_h2h_blind_penalty"] = False
+        analysis["best_market"]["_h2h_blind_note"] = "penalty applied in compute_safety_scores only"
 
 
 # ---------------------------------------------------------------------------
@@ -1624,6 +1626,8 @@ def _load_candidates_from_shortlist(path: str) -> list[dict]:
             "away_team": e.get("away_team", e.get("away", "")),
             "competition": e.get("competition", ""),
             "kickoff": e.get("kickoff", e.get("kickoff_cest", "")),
+            "data_tier": e.get("data_tier", ""),
+            "comp_score": e.get("comp_score", 3),
             "safety_markets": e.get("safety_markets", []),
             "odds_markets": e.get("odds_markets", []),
             "n_odds_markets": e.get("n_odds_markets", 0),
@@ -1840,8 +1844,11 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
         print(f"[deep_stats] [{i}/{len(valid)}] {home} vs {away} ({sport})")
         result = analyze_candidate(sport, home, away, comp, kickoff, shortlist_safety_markets=sm or None)
         # Pass through shortlist metadata that downstream scripts need
-        if result is not None and c.get("tipster_support"):
-            result["tipster_support"] = c["tipster_support"]
+        if result is not None:
+            result["data_tier"] = c.get("data_tier", "")
+            result["comp_score"] = c.get("comp_score", 3)
+            if c.get("tipster_support"):
+                result["tipster_support"] = c["tipster_support"]
         return result
 
     analyses = []

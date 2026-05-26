@@ -57,6 +57,7 @@ GATE_LABELS = {
     "16": "H2H STAT-SPECIFIC: H2H for exact stat exists",
     "17": "THREE-WAY ALIGNMENT: L10+H2H+L5 all support",
     "18": "DATA QUALITY: both teams have stat data",
+    "19": "ODDS-SAFETY GAP: model vs market <25pp",
 }
 
 GATE_BUCKET_STATUS = {
@@ -1190,11 +1191,12 @@ def check_18_point_gate(candidate: dict, repeat_losses: list) -> dict:
         if msg:
             warnings.append(msg)
 
+    total_checks = len(GATE_LABELS)
     return {
         "gate_passed": passed,
         "gate_failed": failed,
         "gate_warnings": [w for w in warnings if w],
-        "gate_score": f"{len(passed)}/18",
+        "gate_score": f"{len(passed)}/{total_checks}",
         "gate_details": details,
     }
 
@@ -1284,6 +1286,8 @@ def _normalise_s3_to_gate_input(analysis: dict) -> dict:
         "away_team": analysis.get("away_team", ""),
         "competition": analysis.get("competition", ""),
         "kickoff": analysis.get("kickoff", ""),
+        "data_tier": analysis.get("data_tier", ""),
+        "comp_score": analysis.get("comp_score", 3),
         "best_market": best,
         "all_markets": ranking,
         "market_count": analysis.get("markets_evaluated", len(ranking)),

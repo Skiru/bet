@@ -15,7 +15,6 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import sqlite3
 import sys
 import time
 from datetime import datetime, timezone
@@ -42,8 +41,6 @@ def _try_flashscore_results_page(team_name: str, sport: str) -> tuple[dict, str 
     """
     return _try_flashscore(team_name, sport)
 
-DB_PATH = Path(__file__).parent.parent / "betting" / "data" / "betting.db"
-
 
 def get_teams_needing_enrichment(date: str, sport: str | None = None, min_stats: int = 3, limit: int = 0) -> list[dict]:
     """Get teams from today's fixtures missing stats."""
@@ -66,7 +63,8 @@ def get_teams_needing_enrichment(date: str, sport: str | None = None, min_stats:
     params.append(f"{date}%")
     
     if limit:
-        query += f" LIMIT {limit}"
+        query += " LIMIT ?"
+        params.append(limit)
     
     with get_db() as conn:
         rows = conn.execute(query, params).fetchall()

@@ -200,7 +200,7 @@ COMP_TIER_KEYWORDS: dict[str, list[tuple[int, list[str]]]] = {
               "euro 202", "copa america", "club world cup"]),
         (9, ["england premier league", "english premier league",
              "la liga", "laliga", "bundesliga",
-             "italy serie a", "serie a tim", "serie a",
+             "italy serie a", "serie a tim",
              "france ligue 1", "ligue 1 uber eats", "ligue 1 mcdonald"]),
         (8, ["eredivisie", "primeira liga", "ekstraklasa", "super lig", "championship",
              "copa libertadores", "copa sudamericana", "fa cup", "coppa italia",
@@ -483,7 +483,8 @@ def _score_event(event: dict, tipster_events: set[str], tipster_db: dict[str, di
     if sport in ("basketball", "hockey") and comp_score >= 7:
         # Only boost if in a recognized league (don't boost Iraqi basketball)
         home_team = event.get("home_team", "").lower()
-        if home_team and _GAMELOG_TEAMS and home_team in _GAMELOG_TEAMS:
+        away_team = event.get("away_team", "").lower()
+        if _GAMELOG_TEAMS and (home_team in _GAMELOG_TEAMS or away_team in _GAMELOG_TEAMS):
             score += 8
             
     # FIXTURE_ONLY events sink below data-rich events but not crushed entirely.
@@ -509,7 +510,7 @@ def _preload_gamelog_teams() -> None:
         with get_db() as conn:
             cur = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='player_gamelogs'")
             if cur.fetchone():
-                rows = conn.execute("SELECT DISTINCT team_name FROM player_gamelogs LIMIT 1000")
+                rows = conn.execute("SELECT DISTINCT team_name FROM player_gamelogs LIMIT 10000")
                 for row in rows:
                     if row[0]:
                         _GAMELOG_TEAMS.add(row[0].lower())
@@ -816,7 +817,7 @@ def build_shortlist(
             sport = event.get("sport", "")
             comp = event.get("competition", "")
             comp_tier = _score_competition(sport, comp)
-            if comp_tier < 7:
+            if comp_tier < 6:
                 fo_dropped += 1
                 continue
         fo_filtered.append((score, event))
@@ -890,7 +891,8 @@ def build_shortlist(
     for idx, (score, event) in enumerate(scored):
         sport = event.get("sport", "")
         # Tennis: skip phantom detection — players legitimately play singles + doubles
-        if sport == "tennis":
+        # Esports: skip phantom detection — teams play multiple BO3s per tournament day
+        if sport in ("tennis", "cs2", "valorant", "dota2"):
             continue
         comp = event.get("competition", "").lower()
         # Distinguish men/women competitions to avoid false phantom detection
@@ -1216,6 +1218,7 @@ def write_shortlist_json(selected: list[tuple[float, dict]], date: str) -> Path:
             "competition": event.get("competition", ""),
             "kickoff": normalize_kickoff(event.get("kickoff", ""), date),
             "data_tier": event.get("data_tier", ""),
+            "comp_score": _score_competition(event["sport"], event.get("competition", "")),
             "n_odds_markets": len(event.get("odds_markets", [])),
             "n_safety_markets": len(event.get("safety_markets", [])),
             "odds_markets": event.get("odds_markets", []),
@@ -1415,6 +1418,10 @@ def main():
     # Summary metrics
     sport_counts = Counter(e["sport"] for _, e in selected)
     tier_counts = Counter(e["data_tier"] for _, e in selected)
+    comp_score_counts = Counter(
+        _score_competition(e["sport"], e.get("competition", ""))
+        for _, e in selected
+    )
 
     print(f"\n{'='*60}")
     print(f"SHORTLIST SUMMARY — {date}")
@@ -1441,6 +1448,8 @@ def main():
             "sports_count": len(sport_counts),
             "sport_distribution": dict(sport_counts),
             "tier_distribution": dict(tier_counts),
+            "comp_score_distribution": dict(comp_score_counts),
+            "major_league_candidates": sum(v for k, v in comp_score_counts.items() if k >= 7),
             "full_data": tier_counts.get("FULL", 0),
             "partial_data": tier_counts.get("PARTIAL", 0),
             "minimal_data": tier_counts.get("MINIMAL", 0) + tier_counts.get("FIXTURE_ONLY", 0),

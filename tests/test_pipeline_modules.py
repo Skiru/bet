@@ -381,7 +381,7 @@ def _base_candidate(**overrides) -> dict:
         "three_way_alignment": "ALIGNED",
         "data_quality": "FULL",
         "ev": 0.12,
-        "odds": {"market_best": 1.85},
+        "odds": {"market_best": 1.30},
         "sources": ["api-football", "flashscore"],
         "tipster_count": 1,
     }
@@ -412,7 +412,7 @@ class TestGateChecker(unittest.TestCase):
         with self._patch_ledger(), \
              patch("bet.db.connection.get_db", side_effect=Exception("no DB in test")):
             result = check_18_point_gate(candidate, [])
-        self.assertEqual(result["gate_score"], "18/18")
+        self.assertEqual(result["gate_score"], "19/19")
         self.assertEqual(len(result["gate_failed"]), 0)
 
     def test_gate_identity_slash_rejects(self):
