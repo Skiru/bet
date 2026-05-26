@@ -1202,6 +1202,9 @@ def check_18_point_gate(candidate: dict, repeat_losses: list) -> dict:
     if sport in THIN_DATA_SPORTS and data_tier == "FULL":
         gate_score_val += 1  # Boost for having full coverage in a thin-data sport
 
+    # Cap at total_checks to avoid misleading scores like "20/19"
+    gate_score_val = min(gate_score_val, total_checks)
+
     return {
         "gate_passed": passed,
         "gate_failed": failed,

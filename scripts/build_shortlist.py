@@ -668,13 +668,32 @@ def build_shortlist(
 ) -> list[dict]:
     """Build a ranked shortlist of top_n events from the market matrix."""
     matrix_path = DATA_DIR / f"market_matrix_{date}.json"
-    if not matrix_path.exists():
-        print(f"[shortlist] ERROR: {matrix_path} not found. Run generate_market_matrix.py first.")
-        sys.exit(1)
 
-    matrix = json.loads(matrix_path.read_text(encoding="utf-8"))
-    events = matrix["events"]
-    print(f"[shortlist] Loaded {len(events)} events from market matrix")
+    # DB-first (R2): try market_matrix_events table
+    events = []
+    matrix_source = "none"
+    try:
+        from bet.db.connection import get_db
+        from bet.db.repositories import MarketMatrixRepo
+        with get_db() as conn:
+            repo = MarketMatrixRepo(conn)
+            db_events = repo.get_events_by_date(date)
+            if db_events:
+                events = db_events
+                matrix_source = "db:market_matrix_events"
+                print(f"[shortlist] Loaded {len(events)} events from market_matrix_events DB")
+    except Exception:
+        pass
+
+    # JSON fallback
+    if not events:
+        if not matrix_path.exists():
+            print(f"[shortlist] ERROR: {matrix_path} not found and DB empty. Run generate_market_matrix.py first.")
+            sys.exit(1)
+        matrix = json.loads(matrix_path.read_text(encoding="utf-8"))
+        events = matrix["events"]
+        matrix_source = "json"
+        print(f"[shortlist] Loaded {len(events)} events from market matrix JSON (fallback)")
 
     # Load tipster data for bonus scoring
     tipster_events = _load_tipster_events(date)
@@ -1391,7 +1410,7 @@ def main():
     # Save shortlist summary to DB
     try:
         from bet.db.connection import get_db
-        from bet.db.repositories import PipelineRepo
+        from bet.db.repositories import PipelineCandidateRepo, PipelineRepo
         from collections import Counter as _Counter
         shortlist_stats = {
             "total_candidates": len(selected),
@@ -1410,6 +1429,39 @@ def main():
             repo = PipelineRepo(conn)
             repo.start_step(date, "s1e_shortlist")
             repo.complete_step(date, "s1e_shortlist", stats=shortlist_stats)
+
+            # Persist candidates to pipeline_candidates table (DB-first)
+            candidate_repo = PipelineCandidateRepo(conn)
+            # Read the JSON we just wrote to get the enriched candidate list
+            shortlist_json = DATA_DIR / f"{date}_s2_shortlist.json"
+            if shortlist_json.exists():
+                import json as _json
+                sl_data = _json.loads(shortlist_json.read_text(encoding="utf-8"))
+                candidates_for_db = sl_data.get("candidates", [])
+                # Resolve fixture_ids
+                from db_data_loader import _resolve_fixture_id, _create_minimal_fixture
+                resolved = []
+                for c in candidates_for_db:
+                    fid = _resolve_fixture_id(
+                        conn,
+                        c.get("sport", ""),
+                        c.get("home_team", ""),
+                        c.get("away_team", ""),
+                        c.get("kickoff", date),
+                    )
+                    if not fid:
+                        fid = _create_minimal_fixture(
+                            conn, c.get("sport", ""), c.get("home_team", ""),
+                            c.get("away_team", ""), c.get("kickoff", date),
+                            c.get("competition", ""),
+                        )
+                    if fid:
+                        c["fixture_id"] = fid
+                        resolved.append(c)
+                if resolved:
+                    saved_candidates = candidate_repo.save_candidates(date, resolved)
+                    print(f"[shortlist] DB: persisted {saved_candidates}/{len(candidates_for_db)} "
+                          f"candidates to pipeline_candidates table")
 
             # Sync comp_score → competitions.importance (R2 DB-FIRST)
             # Agents querying DB need league importance without reading JSON files.

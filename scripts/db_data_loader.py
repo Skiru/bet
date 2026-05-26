@@ -371,19 +371,13 @@ def load_fixtures_from_db(date: str, sport: str | None = None, include_unverifie
 
                 print(f"[db_loader] Loaded {len(rows)} fixtures from DB for {date}")
                 return rows
+            else:
+                print(f"[db_loader] WARNING: No fixtures found in DB for {date}. "
+                      f"Run discover_events.py first.")
+                return []
     except Exception as e:
         print(f"[db_loader] DB read failed for fixtures: {e}")
-
-    # JSON fallback
-    json_path = DATA_DIR / f"fixtures_{date}.json"
-    if json_path.exists():
-        data = json.loads(json_path.read_text(encoding="utf-8"))
-        fixtures = data.get("fixtures", [])
-        print(f"[db_loader] Loaded {len(fixtures)} fixtures from JSON fallback")
-        return fixtures
-
-    print(f"[db_loader] No fixtures found for {date} (DB empty, no JSON)")
-    return []
+        return []
 
 
 def load_odds_from_db(date: str) -> dict:
@@ -458,18 +452,13 @@ def load_odds_from_db(date: str) -> dict:
                     })
                 print(f"[db_loader] Loaded odds for {len(events)} fixtures from DB")
                 return {"events": events, "total_events": len(events), "source": "db"}
+            else:
+                print(f"[db_loader] WARNING: No odds found in DB for {date}. "
+                      f"Run fetch_odds_api.py or fetch_esports_odds.py first.")
+                return {"events": [], "total_events": 0, "source": "db_empty"}
     except Exception as e:
         print(f"[db_loader] DB read failed for odds: {e}")
-
-    # JSON fallback
-    json_path = DATA_DIR / "odds_api_snapshot.json"
-    if json_path.exists():
-        data = json.loads(json_path.read_text(encoding="utf-8"))
-        print(f"[db_loader] Loaded odds from JSON fallback ({data.get('total_events', 0)} events)")
-        return data
-
-    print("[db_loader] No odds data found (DB empty, no JSON)")
-    return {"events": [], "total_events": 0}
+        return {"events": [], "total_events": 0, "source": "db_error"}
 
 
 def load_team_form_from_db(team_name: str, sport: str) -> dict | None:
@@ -586,6 +575,30 @@ def load_h2h_from_db(
         print(f"[db_loader] DB read failed for H2H {team_a} vs {team_b}: {e}")
 
     return None
+
+
+def load_shortlist_from_db(date: str) -> list[dict]:
+    """Load shortlist candidates from pipeline_candidates table.
+
+    Returns list of dicts compatible with existing shortlist JSON format.
+    Used by deep_stats_report.py and tipster_xref.py as primary input.
+    """
+    try:
+        from bet.db.connection import get_db
+        from bet.db.repositories import PipelineCandidateRepo
+
+        with get_db() as conn:
+            repo = PipelineCandidateRepo(conn)
+            candidates = repo.get_by_date(date)
+            if candidates:
+                print(f"[db_loader] Loaded {len(candidates)} candidates from pipeline_candidates table")
+                return candidates
+            else:
+                print(f"[db_loader] No candidates in pipeline_candidates for {date}")
+                return []
+    except Exception as e:
+        print(f"[db_loader] pipeline_candidates read failed: {e}")
+        return []
 
 
 def load_scan_summary_from_db(date: str | None = None) -> dict:

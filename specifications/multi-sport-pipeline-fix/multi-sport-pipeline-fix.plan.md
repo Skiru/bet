@@ -56,7 +56,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
 
 **Goal:** From 5% coverage / 0 gate passes → 50%+ coverage / volleyball appearing in coupons
 
-### Task 1.1: Volleyball Flashscore Embedded Feed Enrichment
+### [x] Task 1.1: Volleyball Flashscore Embedded Feed Enrichment
 - **Type:** `[CREATE]`
 - **File:** `scripts/enrich_volleyball_flashscore.py`
 - **Agent:** `tsh-software-engineer`

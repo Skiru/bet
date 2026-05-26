@@ -25,6 +25,7 @@ from bet.db.models import (
     LeagueProfile,
     MatchStat,
     OddsRecord,
+    PipelineCandidate,
     PipelineRun,
     PlayerGamelog,
     PlayerSplit,
@@ -2905,3 +2906,265 @@ class KnownMissingRepo:
             "SELECT sport, COUNT(*) as cnt FROM known_missing GROUP BY sport"
         ).fetchall()
         return {r["sport"]: r["cnt"] for r in rows}
+
+
+class PipelineCandidateRepo:
+    """Repository for pipeline_candidates table (replaces s2_shortlist JSON)."""
+
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+
+    def save_candidates(self, date: str, candidates: list[dict]) -> int:
+        """Bulk insert candidates for a date, replacing any existing."""
+        self.delete_by_date(date)
+        now = _now()
+        saved = 0
+        for c in candidates:
+            self.conn.execute(
+                "INSERT INTO pipeline_candidates "
+                "(fixture_id, betting_date, rank, score, sport, competition, "
+                "home_team, away_team, kickoff, data_tier, comp_score, "
+                "n_odds_markets, n_safety_markets, odds_markets_json, safety_markets_json, "
+                "fixture_verified, verification_sources_json, "
+                "tipster_count, tipster_support_json, source, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    c["fixture_id"],
+                    date,
+                    c.get("rank", saved + 1),
+                    c.get("score", 0.0),
+                    c.get("sport", ""),
+                    c.get("competition", ""),
+                    c.get("home_team", ""),
+                    c.get("away_team", ""),
+                    c.get("kickoff", ""),
+                    c.get("data_tier", "FIXTURE_ONLY"),
+                    c.get("comp_score", 3),
+                    c.get("n_odds_markets", 0),
+                    c.get("n_safety_markets", 0),
+                    json.dumps(c.get("odds_markets", [])),
+                    json.dumps(c.get("safety_markets", [])),
+                    1 if c.get("fixture_verified") else 0,
+                    json.dumps(c.get("verification_sources", [])),
+                    c.get("tipster_count", 0),
+                    json.dumps(c.get("tipster_support")) if c.get("tipster_support") else None,
+                    c.get("source", "build_shortlist"),
+                    now,
+                ),
+            )
+            saved += 1
+        self.conn.commit()
+        return saved
+
+    def get_by_date(self, date: str) -> list[dict]:
+        """Get all candidates for a date, sorted by rank."""
+        rows = self.conn.execute(
+            "SELECT * FROM pipeline_candidates WHERE betting_date = ? ORDER BY rank",
+            (date,),
+        ).fetchall()
+        return [self._row_to_dict(r) for r in rows]
+
+    def get_by_date_and_sport(self, date: str, sport: str) -> list[dict]:
+        """Get candidates for a date filtered by sport."""
+        rows = self.conn.execute(
+            "SELECT * FROM pipeline_candidates WHERE betting_date = ? AND sport = ? ORDER BY rank",
+            (date, sport),
+        ).fetchall()
+        return [self._row_to_dict(r) for r in rows]
+
+    def enrich_tipster(self, fixture_id: int, date: str, tipster_count: int, tipster_support_json: dict | None) -> None:
+        """Update tipster enrichment fields for a candidate."""
+        self.conn.execute(
+            "UPDATE pipeline_candidates SET tipster_count = ?, tipster_support_json = ? "
+            "WHERE fixture_id = ? AND betting_date = ?",
+            (
+                tipster_count,
+                json.dumps(tipster_support_json) if tipster_support_json else None,
+                fixture_id,
+                date,
+            ),
+        )
+        self.conn.commit()
+
+    def get_count(self, date: str) -> int:
+        """Count candidates for a date."""
+        row = self.conn.execute(
+            "SELECT COUNT(*) as cnt FROM pipeline_candidates WHERE betting_date = ?",
+            (date,),
+        ).fetchone()
+        return row["cnt"] if row else 0
+
+    def delete_by_date(self, date: str) -> int:
+        """Delete all candidates for a date. Returns count deleted."""
+        cursor = self.conn.execute(
+            "DELETE FROM pipeline_candidates WHERE betting_date = ?", (date,)
+        )
+        self.conn.commit()
+        return cursor.rowcount
+
+    def _row_to_dict(self, row: sqlite3.Row) -> dict:
+        """Convert a DB row to a dict matching shortlist JSON format."""
+        return {
+            "fixture_id": row["fixture_id"],
+            "rank": row["rank"],
+            "score": row["score"],
+            "sport": row["sport"],
+            "competition": row["competition"],
+            "home_team": row["home_team"],
+            "away_team": row["away_team"],
+            "kickoff": row["kickoff"],
+            "data_tier": row["data_tier"],
+            "comp_score": row["comp_score"],
+            "n_odds_markets": row["n_odds_markets"],
+            "n_safety_markets": row["n_safety_markets"],
+            "odds_markets": json.loads(row["odds_markets_json"]),
+            "safety_markets": json.loads(row["safety_markets_json"]),
+            "fixture_verified": bool(row["fixture_verified"]),
+            "verification_sources": json.loads(row["verification_sources_json"]),
+            "tipster_count": row["tipster_count"] or 0,
+            "tipster_support": json.loads(row["tipster_support_json"]) if row["tipster_support_json"] else None,
+            "source": row["source"],
+        }
+
+
+class MarketMatrixRepo:
+    """Repository for market_matrix_events + market_matrix_runs tables."""
+
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+
+    def save_run(self, date: str, metadata: dict) -> int:
+        """Insert or replace run metadata for a date."""
+        now = _now()
+        self.conn.execute(
+            "INSERT OR REPLACE INTO market_matrix_runs "
+            "(betting_date, generated_at, total_fixtures, total_events_in_matrix, "
+            "events_with_odds, events_with_safety_data, "
+            "sport_breakdown_json, market_type_counts_json, data_tier_breakdown_json) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                date,
+                now,
+                metadata.get("total_fixtures", 0),
+                metadata.get("total_events_in_matrix", 0),
+                metadata.get("events_with_odds", 0),
+                metadata.get("events_with_safety_data", 0),
+                json.dumps(metadata.get("sport_breakdown", {})),
+                json.dumps(metadata.get("market_type_counts", {})),
+                json.dumps(metadata.get("data_tier_breakdown", {})),
+            ),
+        )
+        self.conn.commit()
+        row = self.conn.execute(
+            "SELECT id FROM market_matrix_runs WHERE betting_date = ?", (date,)
+        ).fetchone()
+        return row["id"] if row else 0
+
+    def save_events(self, date: str, events: list[dict]) -> int:
+        """Bulk insert matrix events for a date, replacing any existing."""
+        self.delete_by_date(date)
+        now = _now()
+        saved = 0
+        for e in events:
+            self.conn.execute(
+                "INSERT INTO market_matrix_events "
+                "(fixture_id, betting_date, sport, competition, home_team, away_team, "
+                "kickoff, data_tier, fixture_source, odds_markets_json, safety_markets_json, "
+                "suggested_json, total_markets_available, "
+                "scores24_h2h_json, scores24_form_json, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    e["fixture_id"],
+                    date,
+                    e.get("sport", ""),
+                    e.get("competition", ""),
+                    e.get("home_team", ""),
+                    e.get("away_team", ""),
+                    e.get("kickoff", ""),
+                    e.get("data_tier", "FIXTURE_ONLY"),
+                    e.get("fixture_source", ""),
+                    json.dumps(e.get("odds_markets", [])),
+                    json.dumps(e.get("safety_markets", [])),
+                    json.dumps(e.get("suggested")) if e.get("suggested") else None,
+                    e.get("total_markets_available", 0),
+                    json.dumps(e.get("scores24_h2h")) if e.get("scores24_h2h") else None,
+                    json.dumps(e.get("scores24_form")) if e.get("scores24_form") else None,
+                    now,
+                ),
+            )
+            saved += 1
+        self.conn.commit()
+        return saved
+
+    def get_events_by_date(self, date: str) -> list[dict]:
+        """Get all matrix events for a date."""
+        rows = self.conn.execute(
+            "SELECT * FROM market_matrix_events WHERE betting_date = ? ORDER BY sport, competition, home_team",
+            (date,),
+        ).fetchall()
+        return [self._event_to_dict(r) for r in rows]
+
+    def get_events_by_tier(self, date: str, tier: str) -> list[dict]:
+        """Get matrix events filtered by data_tier."""
+        rows = self.conn.execute(
+            "SELECT * FROM market_matrix_events WHERE betting_date = ? AND data_tier = ? ORDER BY sport, competition",
+            (date, tier),
+        ).fetchall()
+        return [self._event_to_dict(r) for r in rows]
+
+    def get_run_metadata(self, date: str) -> dict | None:
+        """Get run metadata for a date."""
+        row = self.conn.execute(
+            "SELECT * FROM market_matrix_runs WHERE betting_date = ?", (date,)
+        ).fetchone()
+        if not row:
+            return None
+        return {
+            "betting_date": row["betting_date"],
+            "generated_at": row["generated_at"],
+            "total_fixtures": row["total_fixtures"],
+            "total_events_in_matrix": row["total_events_in_matrix"],
+            "events_with_odds": row["events_with_odds"],
+            "events_with_safety_data": row["events_with_safety_data"],
+            "sport_breakdown": json.loads(row["sport_breakdown_json"]),
+            "market_type_counts": json.loads(row["market_type_counts_json"]),
+            "data_tier_breakdown": json.loads(row["data_tier_breakdown_json"]),
+        }
+
+    def get_count(self, date: str) -> int:
+        """Count events for a date."""
+        row = self.conn.execute(
+            "SELECT COUNT(*) as cnt FROM market_matrix_events WHERE betting_date = ?",
+            (date,),
+        ).fetchone()
+        return row["cnt"] if row else 0
+
+    def delete_by_date(self, date: str) -> int:
+        """Delete all events for a date. Returns count deleted."""
+        cursor = self.conn.execute(
+            "DELETE FROM market_matrix_events WHERE betting_date = ?", (date,)
+        )
+        self.conn.execute(
+            "DELETE FROM market_matrix_runs WHERE betting_date = ?", (date,)
+        )
+        self.conn.commit()
+        return cursor.rowcount
+
+    def _event_to_dict(self, row: sqlite3.Row) -> dict:
+        """Convert a DB row to a dict matching matrix JSON format."""
+        return {
+            "fixture_id": row["fixture_id"],
+            "sport": row["sport"],
+            "competition": row["competition"],
+            "home_team": row["home_team"],
+            "away_team": row["away_team"],
+            "kickoff": row["kickoff"],
+            "data_tier": row["data_tier"],
+            "fixture_source": row["fixture_source"],
+            "odds_markets": json.loads(row["odds_markets_json"]),
+            "safety_markets": json.loads(row["safety_markets_json"]),
+            "suggested": json.loads(row["suggested_json"]) if row["suggested_json"] else None,
+            "total_markets_available": row["total_markets_available"],
+            "scores24_h2h": json.loads(row["scores24_h2h_json"]) if row["scores24_h2h_json"] else None,
+            "scores24_form": json.loads(row["scores24_form_json"]) if row["scores24_form_json"] else None,
+        }

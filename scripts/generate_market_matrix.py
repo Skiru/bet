@@ -1308,6 +1308,72 @@ def write_matrix_json(matrix: dict, date: str) -> Path:
     return output_path
 
 
+def persist_matrix_to_db(matrix: dict, date: str) -> int:
+    """Persist market matrix events to DB (R2 DB-first).
+
+    Resolves fixture_ids for each event, then bulk-inserts into market_matrix_events.
+    Returns count of events persisted.
+    """
+    try:
+        from bet.db.connection import get_db
+        from bet.db.repositories import MarketMatrixRepo
+
+        events = matrix.get("events", [])
+        if not events:
+            return 0
+
+        with get_db() as conn:
+            repo = MarketMatrixRepo(conn)
+
+            # Resolve fixture_ids
+            resolved = []
+            for ev in events:
+                home = ev.get("home_team", "")
+                away = ev.get("away_team", "")
+                sport = ev.get("sport", "")
+                kickoff = ev.get("kickoff", "")
+
+                # Try to find existing fixture
+                row = conn.execute(
+                    "SELECT id FROM fixtures WHERE sport=? AND home_team=? AND away_team=? AND betting_date=?",
+                    (sport, home, away, date),
+                ).fetchone()
+
+                if row:
+                    fixture_id = row["id"]
+                else:
+                    # Create minimal fixture
+                    cursor = conn.execute(
+                        "INSERT INTO fixtures (sport, home_team, away_team, kickoff, betting_date) VALUES (?, ?, ?, ?, ?)",
+                        (sport, home, away, kickoff, date),
+                    )
+                    fixture_id = cursor.lastrowid
+
+                ev_copy = dict(ev)
+                ev_copy["fixture_id"] = fixture_id
+                resolved.append(ev_copy)
+
+            saved = repo.save_events(date, resolved)
+
+            # Save run metadata
+            meta = {
+                "total_fixtures": matrix.get("total_fixtures", 0),
+                "total_events_in_matrix": matrix.get("total_events_in_matrix", 0),
+                "events_with_odds": matrix.get("events_with_odds", 0),
+                "events_with_safety_data": matrix.get("events_with_safety_data", 0),
+                "sport_breakdown": matrix.get("sport_breakdown", {}),
+                "market_type_counts": matrix.get("market_type_counts", {}),
+                "data_tier_breakdown": matrix.get("data_tier_breakdown", {}),
+            }
+            repo.save_run(date, meta)
+
+            print(f"[matrix] DB: persisted {saved}/{len(events)} events to market_matrix_events")
+            return saved
+    except Exception as e:
+        print(f"[matrix] ⚠ DB persistence failed: {e}")
+        return 0
+
+
 # ---------------------------------------------------------------------------
 # Compact decision matrix for coupon building
 # ---------------------------------------------------------------------------
@@ -1738,6 +1804,7 @@ def main():
     )
 
     write_matrix_json(matrix, date)
+    persist_matrix_to_db(matrix, date)
     write_matrix_markdown(matrix, date)
 
     opportunities = generate_decision_matrix(

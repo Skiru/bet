@@ -138,6 +138,8 @@ def main():
     parser.add_argument("--verbose", action="store_true")
     parser.add_argument("--dry-run", action="store_true",
                         help="Don't write to DB, just show what would be stored")
+    parser.add_argument("--debug", action="store_true",
+                        help="Write JSON snapshot file (diagnostic only)")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
@@ -237,24 +239,25 @@ def main():
             total_stored = store_odds_batch(db, pending_records)
         print(f"  Stored {total_stored} new records ({len(pending_records) - total_stored} duplicates skipped)")
 
-    # Save JSON snapshot
-    snapshot_path = DATA_DIR / f"{args.date}_esports_odds_snapshot.json"
-    with open(snapshot_path, "w") as f:
-        json.dump({
-            "date": args.date,
-            "games": games,
-            "fetched_at": datetime.now(timezone.utc).isoformat(),
-            "matches": all_scraped,
-            "stats": {
-                "total_scraped": len(all_scraped),
-                "matched_to_db": total_matched,
-                "odds_records_stored": total_stored,
-            },
-        }, f, indent=2, default=str)
+    # Save JSON snapshot (debug only)
+    if args.debug:
+        snapshot_path = DATA_DIR / f"{args.date}_esports_odds_snapshot.json"
+        with open(snapshot_path, "w") as f:
+            json.dump({
+                "date": args.date,
+                "games": games,
+                "fetched_at": datetime.now(timezone.utc).isoformat(),
+                "matches": all_scraped,
+                "stats": {
+                    "total_scraped": len(all_scraped),
+                    "matched_to_db": total_matched,
+                    "odds_records_stored": total_stored,
+                },
+            }, f, indent=2, default=str)
+        print(f"Debug snapshot: {snapshot_path}")
 
     # Summary
     print(f"\nDone! Scraped {len(all_scraped)} matches, matched {total_matched} to DB, stored {total_stored} odds records.")
-    print(f"Snapshot: {snapshot_path}")
 
     # AGENT_SUMMARY for pipeline integration
     summary = {

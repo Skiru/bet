@@ -510,23 +510,17 @@ def _load_gate_results_for_build(date: str, input_path: str | None = None) -> di
         payload["gate_parity"] = {
             "source": "input_json",
             "loaded_counts": counts,
-            "db_counts": None,
-            "json_counts": counts,
             "parity_checked": False,
-            "parity_ok": None,
         }
         return payload
 
-    json_payload = _load_gate_results_json(date)
-    json_counts = _gate_bucket_counts(json_payload) if json_payload else None
-
+    # DB-first: canonical source
     from db_data_loader import load_gate_results_from_db_only
 
     approved = load_gate_results_from_db_only(date, status="approved")
     extended = load_gate_results_from_db_only(date, status="extended")
     rejected = load_gate_results_from_db_only(date, status="rejected")
 
-    db_payload = None
     if approved or extended or rejected:
         db_payload = _normalize_gate_results_payload(
             {
@@ -539,34 +533,29 @@ def _load_gate_results_for_build(date: str, input_path: str | None = None) -> di
             },
             date,
         )
-
-    if db_payload is not None:
         db_counts = _gate_bucket_counts(db_payload)
-        if json_counts is not None and db_counts != json_counts:
-            raise ValueError(
-                f"Blocking gate parity mismatch for {date}: "
-                f"DB {_format_gate_counts(db_counts)} vs JSON {_format_gate_counts(json_counts)}"
-            )
-
         db_payload["gate_parity"] = {
             "source": "db",
             "loaded_counts": db_counts,
-            "db_counts": db_counts,
-            "json_counts": json_counts,
-            "parity_checked": json_counts is not None,
-            "parity_ok": None if json_counts is None else db_counts == json_counts,
+            "parity_checked": False,
         }
+        print(f"[coupon_builder] Loaded gate results from DB: "
+              f"approved={db_counts.get('approved', 0)}, "
+              f"extended={db_counts.get('extended_pool', 0)}, "
+              f"rejected={db_counts.get('rejected', 0)}")
         return db_payload
 
+    # JSON fallback (deprecated)
+    json_payload = _load_gate_results_json(date)
     if json_payload is not None:
+        json_counts = _gate_bucket_counts(json_payload)
         json_payload["gate_parity"] = {
-            "source": "json",
+            "source": "json_fallback",
             "loaded_counts": json_counts,
-            "db_counts": None,
-            "json_counts": json_counts,
             "parity_checked": False,
-            "parity_ok": None,
         }
+        print(f"[coupon_builder] WARNING: Using deprecated JSON fallback for gate results. "
+              f"Run gate_checker.py to populate DB.")
         return json_payload
 
     raise FileNotFoundError(f"Gate results not found for {date}. Run gate_checker.py first.")

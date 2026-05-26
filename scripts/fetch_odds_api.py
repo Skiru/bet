@@ -282,7 +282,7 @@ def format_event_summary(event, sport_key):
     return " | ".join(parts)
 
 
-def run_full_scan(api_key, sport_filter=None, betting_day_window=True):
+def run_full_scan(api_key, sport_filter=None, betting_day_window=True, debug=False):
     """Run a full odds scan across all configured sports."""
     now = datetime.now(timezone.utc)
 
@@ -348,63 +348,65 @@ def run_full_scan(api_key, sport_filter=None, betting_day_window=True):
 
         all_events.extend(sport_events)
 
-    # Save raw data
+    # Save raw data (debug only)
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-    output_file = DATA_DIR / "odds_api_snapshot.json"
-    snapshot = {
-        "timestamp": now.isoformat(),
-        "credits_used_this_scan": total_credits_used,
-        "credits_remaining": credits_remaining,
-        "total_events": len(all_events),
-        "events": all_events,
-    }
-    output_file.write_text(json.dumps(snapshot, indent=2, ensure_ascii=False))
+    if debug:
+        output_file = DATA_DIR / "odds_api_snapshot.json"
+        snapshot = {
+            "timestamp": now.isoformat(),
+            "credits_used_this_scan": total_credits_used,
+            "credits_remaining": credits_remaining,
+            "total_events": len(all_events),
+            "events": all_events,
+        }
+        output_file.write_text(json.dumps(snapshot, indent=2, ensure_ascii=False))
 
-    # Save summary CSV for easy parsing (proper quoting for team names with commas)
-    summary_file = DATA_DIR / "odds_api_summary.csv"
-    with open(summary_file, "w", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow(["sport", "sport_key", "home", "away", "commence_time",
-                         "h2h_home", "h2h_away", "total_line", "over_price",
-                         "over_book", "under_price", "under_book"])
-        for ev in all_events:
-            best = extract_best_odds(ev)
-            h2h = best["markets"].get("h2h", {})
-            totals = best["markets"].get("totals", {})
+        # Save summary CSV for easy parsing (proper quoting for team names with commas)
+        summary_file = DATA_DIR / "odds_api_summary.csv"
+        with open(summary_file, "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["sport", "sport_key", "home", "away", "commence_time",
+                             "h2h_home", "h2h_away", "total_line", "over_price",
+                             "over_book", "under_price", "under_book"])
+            for ev in all_events:
+                best = extract_best_odds(ev)
+                h2h = best["markets"].get("h2h", {})
+                totals = best["markets"].get("totals", {})
 
-            h2h_home = h2h.get(ev["home_team"], {}).get("price", "")
-            h2h_away = h2h.get(ev["away_team"], {}).get("price", "")
+                h2h_home = h2h.get(ev["home_team"], {}).get("price", "")
+                h2h_away = h2h.get(ev["away_team"], {}).get("price", "")
 
-            over_keys = [k for k in totals if k.startswith("Over")]
-            under_keys = [k for k in totals if k.startswith("Under")]
+                over_keys = [k for k in totals if k.startswith("Over")]
+                under_keys = [k for k in totals if k.startswith("Under")]
 
-            total_line = ""
-            over_price = ""
-            over_book = ""
-            under_price = ""
-            under_book = ""
+                total_line = ""
+                over_price = ""
+                over_book = ""
+                under_price = ""
+                under_book = ""
 
-            if over_keys:
-                ok = sorted(over_keys)[0]
-                over_price = totals[ok]["price"]
-                over_book = totals[ok]["bookmaker"]
-                total_line = totals[ok].get("point", "")
-            if under_keys:
-                uk = sorted(under_keys)[0]
-                under_price = totals[uk]["price"]
-                under_book = totals[uk]["bookmaker"]
+                if over_keys:
+                    ok = sorted(over_keys)[0]
+                    over_price = totals[ok]["price"]
+                    over_book = totals[ok]["bookmaker"]
+                    total_line = totals[ok].get("point", "")
+                if under_keys:
+                    uk = sorted(under_keys)[0]
+                    under_price = totals[uk]["price"]
+                    under_book = totals[uk]["bookmaker"]
 
-            writer.writerow([ev.get("_our_sport", ""), ev["_sport_key"],
-                             ev["home_team"], ev["away_team"],
-                             ev["commence_time"], h2h_home, h2h_away,
-                             total_line, over_price, over_book,
-                             under_price, under_book])
+                writer.writerow([ev.get("_our_sport", ""), ev["_sport_key"],
+                                 ev["home_team"], ev["away_team"],
+                                 ev["commence_time"], h2h_home, h2h_away,
+                                 total_line, over_price, over_book,
+                                 under_price, under_book])
+
+        print(f"Debug: JSON saved to {output_file}")
+        print(f"Debug: CSV saved to {summary_file}")
 
     print(f"\n{'='*80}")
     print(f"SUMMARY: {len(all_events)} events across {len(sports_to_scan)} sports")
     print(f"Credits used: {total_credits_used} | Remaining: {credits_remaining}")
-    print(f"Data saved: {output_file}")
-    print(f"CSV saved:  {summary_file}")
     print(f"{'='*80}\n")
 
     # --- DB persistence ---
@@ -548,6 +550,7 @@ def main():
     parser.add_argument("--sports", type=str, help="Comma-separated sports to fetch (e.g., football,hockey)")
     parser.add_argument("--scores", type=str, help="Fetch scores for settlement (e.g., football,hockey)")
     parser.add_argument("--no-window", action="store_true", help="Don't filter by betting day window")
+    parser.add_argument("--debug", action="store_true", help="Write JSON snapshot and CSV (diagnostic only)")
     add_agent_args(parser)
     args = parser.parse_args()
 
@@ -570,7 +573,7 @@ def main():
     if args.sports:
         sport_filter = [s.strip() for s in args.sports.split(",")]
 
-    events = run_full_scan(api_key, sport_filter=sport_filter, betting_day_window=not args.no_window)
+    events = run_full_scan(api_key, sport_filter=sport_filter, betting_day_window=not args.no_window, debug=args.debug)
     out.summary(
         verdict="OK" if events else "PARTIAL",
         metrics={

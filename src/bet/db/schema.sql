@@ -555,3 +555,75 @@ CREATE TABLE IF NOT EXISTS betclic_competition_profiles (
 );
 
 CREATE INDEX IF NOT EXISTS idx_betclic_comp_profiles_sport ON betclic_competition_profiles(sport);
+
+-- Pipeline candidates (replaces s2_shortlist JSON)
+CREATE TABLE IF NOT EXISTS pipeline_candidates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    fixture_id INTEGER NOT NULL REFERENCES fixtures(id),
+    betting_date TEXT NOT NULL,
+    rank INTEGER NOT NULL,
+    score REAL NOT NULL DEFAULT 0.0,
+    sport TEXT NOT NULL,
+    competition TEXT,
+    home_team TEXT NOT NULL,
+    away_team TEXT NOT NULL,
+    kickoff TEXT,
+    data_tier TEXT NOT NULL DEFAULT 'FIXTURE_ONLY',
+    comp_score INTEGER NOT NULL DEFAULT 3,
+    n_odds_markets INTEGER NOT NULL DEFAULT 0,
+    n_safety_markets INTEGER NOT NULL DEFAULT 0,
+    odds_markets_json TEXT NOT NULL DEFAULT '[]',
+    safety_markets_json TEXT NOT NULL DEFAULT '[]',
+    fixture_verified INTEGER NOT NULL DEFAULT 0,
+    verification_sources_json TEXT NOT NULL DEFAULT '[]',
+    tipster_count INTEGER DEFAULT 0,
+    tipster_support_json TEXT,
+    source TEXT NOT NULL DEFAULT 'build_shortlist',
+    created_at TEXT NOT NULL,
+    UNIQUE(fixture_id, betting_date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_pipeline_candidates_date ON pipeline_candidates(betting_date);
+CREATE INDEX IF NOT EXISTS idx_pipeline_candidates_date_rank ON pipeline_candidates(betting_date, rank);
+CREATE INDEX IF NOT EXISTS idx_pipeline_candidates_sport ON pipeline_candidates(betting_date, sport);
+
+-- Market matrix events (replaces market_matrix JSON)
+CREATE TABLE IF NOT EXISTS market_matrix_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    fixture_id INTEGER NOT NULL REFERENCES fixtures(id),
+    betting_date TEXT NOT NULL,
+    sport TEXT NOT NULL,
+    competition TEXT,
+    home_team TEXT NOT NULL,
+    away_team TEXT NOT NULL,
+    kickoff TEXT,
+    data_tier TEXT NOT NULL DEFAULT 'FIXTURE_ONLY',
+    fixture_source TEXT,
+    odds_markets_json TEXT NOT NULL DEFAULT '[]',
+    safety_markets_json TEXT NOT NULL DEFAULT '[]',
+    suggested_json TEXT,
+    total_markets_available INTEGER NOT NULL DEFAULT 0,
+    scores24_h2h_json TEXT,
+    scores24_form_json TEXT,
+    created_at TEXT NOT NULL,
+    UNIQUE(fixture_id, betting_date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_market_matrix_date ON market_matrix_events(betting_date);
+CREATE INDEX IF NOT EXISTS idx_market_matrix_sport ON market_matrix_events(betting_date, sport);
+CREATE INDEX IF NOT EXISTS idx_market_matrix_tier ON market_matrix_events(betting_date, data_tier);
+
+-- Market matrix run metadata
+CREATE TABLE IF NOT EXISTS market_matrix_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    betting_date TEXT NOT NULL,
+    generated_at TEXT NOT NULL,
+    total_fixtures INTEGER NOT NULL DEFAULT 0,
+    total_events_in_matrix INTEGER NOT NULL DEFAULT 0,
+    events_with_odds INTEGER NOT NULL DEFAULT 0,
+    events_with_safety_data INTEGER NOT NULL DEFAULT 0,
+    sport_breakdown_json TEXT NOT NULL DEFAULT '{}',
+    market_type_counts_json TEXT NOT NULL DEFAULT '{}',
+    data_tier_breakdown_json TEXT NOT NULL DEFAULT '{}',
+    UNIQUE(betting_date)
+);

@@ -184,6 +184,7 @@ def main():
     parser = argparse.ArgumentParser(description="Data Quality Audit")
     parser.add_argument("--verbose", action="store_true")
     parser.add_argument("--fix", action="store_true", help="Delete contaminated entries")
+    parser.add_argument("--force", action="store_true", help="Auto-delete without confirmation (for non-interactive use)")
     args = parser.parse_args()
 
     with get_db() as conn:
@@ -273,13 +274,22 @@ def main():
     print(f"\nAGENT_SUMMARY:{json.dumps(agent_summary, separators=(',', ':'))}")
     
     if args.fix and contaminated_ids:
-        ans = input(f"\nFound {len(contaminated_ids)} contaminated entries. Delete them? (y/N): ")
-        if ans.lower() == 'y':
+        if not sys.stdin.isatty():
+            print(f"\n[audit] Non-interactive mode: use --force to auto-delete {len(contaminated_ids)} contaminated entries.")
+        elif args.force:
             with get_db() as conn:
-                placeholder = ','.join(['?']*len(contaminated_ids))
+                placeholder = ','.join(['?'] * len(contaminated_ids))
                 conn.execute(f"DELETE FROM team_form WHERE id IN ({placeholder})", contaminated_ids)
                 conn.commit()
-            print("Deleted contaminated entries.")
+            print(f"Deleted {len(contaminated_ids)} contaminated entries.")
+        else:
+            ans = input(f"\nFound {len(contaminated_ids)} contaminated entries. Delete them? (y/N): ")
+            if ans.lower() == 'y':
+                with get_db() as conn:
+                    placeholder = ','.join(['?'] * len(contaminated_ids))
+                    conn.execute(f"DELETE FROM team_form WHERE id IN ({placeholder})", contaminated_ids)
+                    conn.commit()
+                print(f"Deleted {len(contaminated_ids)} contaminated entries.")
 
 if __name__ == "__main__":
     main()

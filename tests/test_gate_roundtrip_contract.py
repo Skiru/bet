@@ -555,8 +555,8 @@ def test_gate_checker_uses_canonical_s3_loader_and_preserves_tipster_metadata(mo
         encoding="utf-8",
     )
 
-    saved = loader.save_analysis_results_to_db(DATE, json_analyses[:2])
-    assert saved == 2
+    saved = loader.save_analysis_results_to_db(DATE, json_analyses)
+    assert saved == 3
 
     with _db_context(db_path) as conn:
         repo = AnalysisResultRepo(conn)
@@ -581,11 +581,10 @@ def test_gate_checker_uses_canonical_s3_loader_and_preserves_tipster_metadata(mo
     candidates, metadata = gate_checker._load_s3_output(DATE)
 
     assert len(candidates) == 3
-    assert metadata["source"] == "json_with_db_overlay"
-    assert metadata["parity"]["status"] == "db_subset_of_json"
+    assert metadata["source"] == "db"
+    assert metadata["parity"]["status"] == "db_canonical"
     assert metadata["counts"]["canonical"] == 3
-    assert metadata["counts"]["db"] == 2
-    assert metadata["counts"]["json"] == 3
+    assert metadata["counts"]["db"] == 3
 
     by_home = {candidate["home_team"]: candidate for candidate in candidates}
     assert by_home["Liverpool"]["tipster_support"]["count"] == 2
@@ -744,7 +743,7 @@ def test_coupon_builder_uses_json_fallback_when_db_is_empty(monkeypatch, tmp_pat
     (data_dir / f"{DATE}_s7_gate_results.json").write_text(json.dumps(payload), encoding="utf-8")
 
     gate_results = coupon_builder._load_gate_results_for_build(DATE)
-    assert gate_results["gate_parity"]["source"] == "json"
+    assert gate_results["gate_parity"]["source"] == "json_fallback"
 
     coupons = coupon_builder.build_coupons(gate_results, coupon_builder.load_config())
     assert coupons["summary"]["gate_input_counts"] == {
@@ -755,7 +754,8 @@ def test_coupon_builder_uses_json_fallback_when_db_is_empty(monkeypatch, tmp_pat
     assert any(pick["home_team"] == "Rangers" for pick in coupons["extended_pool"])
 
 
-def test_coupon_builder_blocks_on_gate_parity_mismatch(monkeypatch, tmp_path, capsys):
+def test_coupon_builder_uses_db_over_mismatched_json(monkeypatch, tmp_path, capsys):
+    """DB-first: coupon builder uses DB gate results even when JSON has different content."""
     import scripts.coupon_builder as coupon_builder
     import scripts.db_data_loader as loader
 
@@ -811,6 +811,7 @@ def test_coupon_builder_blocks_on_gate_parity_mismatch(monkeypatch, tmp_path, ca
         ],
     )
 
+    # Write a DIFFERENT (mismatched) JSON — DB-first should ignore it
     mismatched_payload = {
         "date": DATE,
         "gate_results": {
@@ -831,13 +832,12 @@ def test_coupon_builder_blocks_on_gate_parity_mismatch(monkeypatch, tmp_path, ca
     }
     (data_dir / f"{DATE}_s7_gate_results.json").write_text(json.dumps(mismatched_payload), encoding="utf-8")
 
-    with pytest.raises(SystemExit) as exc_info:
-        with patch("sys.argv", ["coupon_builder.py", "--date", DATE]):
-            coupon_builder.main()
-
-    assert exc_info.value.code == 1
-    captured = capsys.readouterr()
-    assert "Blocking gate parity mismatch" in f"{captured.out}\n{captured.err}"
+    # DB-first: should load from DB (2 results: 1 approved + 1 extended) — JSON ignored
+    gate_results = coupon_builder._load_gate_results_for_build(DATE)
+    assert gate_results["gate_parity"]["source"] == "db"
+    # Verify DB counts (approved=1, extended=1) not JSON counts (approved=1, extended=0)
+    assert len(gate_results["gate_results"]["approved"]) == 1
+    assert len(gate_results["gate_results"]["extended_pool"]) == 1
 
 
 def test_check_48h_repeats_persists_clear_db_handoff(monkeypatch, tmp_path):

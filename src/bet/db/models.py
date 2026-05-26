@@ -543,3 +543,29 @@ class TipsterConsensus:
     tipster_sources: list[str] = field(default_factory=list)
     confidence_adj: float = 0.0
     created_at: str = ""
+
+
+@dataclass
+class PipelineCandidate:
+    id: int | None
+    fixture_id: int
+    betting_date: str
+    rank: int
+    score: float = 0.0
+    sport: str = ""
+    competition: str = ""
+    home_team: str = ""
+    away_team: str = ""
+    kickoff: str = ""
+    data_tier: str = "FIXTURE_ONLY"
+    comp_score: int = 3
+    n_odds_markets: int = 0
+    n_safety_markets: int = 0
+    odds_markets_json: list = field(default_factory=list)
+    safety_markets_json: list = field(default_factory=list)
+    fixture_verified: bool = False
+    verification_sources_json: list = field(default_factory=list)
+    tipster_count: int = 0
+    tipster_support_json: dict | None = None
+    source: str = "build_shortlist"
+    created_at: str = ""

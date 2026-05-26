@@ -98,35 +98,10 @@ def run_tipster_xref(date: str, state: dict) -> tuple[bool, str]:
                 ]
                 print(f"  → Loaded {len(tips)} tipster picks from DB (TipsterRepo)")
     except Exception as e:
-        print(f"  \u26a0 TipsterRepo DB load failed: {e}")  # fall through to JSON
+        print(f"  ⚠ TipsterRepo DB load failed: {e}")
 
-    # JSON fallback if DB had no data
     if not tips:
-        consensus_path = DATA_DIR / f"{date}_tipster_consensus.json"
-        tipster_path = DATA_DIR / f"tipster_aggregation_{date}.json"
-
-        tipster_data = None
-        for tpath in [consensus_path, tipster_path]:
-            if tpath.exists():
-                try:
-                    tipster_data = json.loads(tpath.read_text(encoding="utf-8"))
-                    print(f"  → Loaded tipster data from {tpath.name}")
-                    break
-                except (json.JSONDecodeError, OSError):
-                    continue
-
-        if tipster_data is None:
-            return True, "No tipster data available — skipping cross-reference"
-
-        # Parse tips — try multiple key locations
-        if isinstance(tipster_data, list):
-            tips = tipster_data
-        else:
-            tips = tipster_data.get("all_picks", tipster_data.get("tips", []))
-            # Fallback: flatten site_results[].picks (tipster_aggregator --use-gemini format)
-            if not tips:
-                for site_result in tipster_data.get("site_results", []):
-                    tips.extend(site_result.get("picks", []))
+        return True, "No tipster data in DB — skipping cross-reference"
     # Import smart matching from shared utils
     from bet.utils import normalize_for_matching, names_match
 
@@ -140,17 +115,39 @@ def run_tipster_xref(date: str, state: dict) -> tuple[bool, str]:
             key = f"{home}|{away}"
             tip_lookup.setdefault(key, []).append(tip)
 
-    # Load shortlist and cross-reference
+    # Load shortlist — DB-first (R2), JSON fallback
     shortlist_path = DATA_DIR / f"{date}_s2_shortlist.json"
 
     matched = 0
     total = 0
-    if shortlist_path.exists():
+    candidates = []
+    shortlist_source = "none"
+    shortlist = {}
+
+    # Try pipeline_candidates DB table first
+    try:
+        from db_data_loader import load_shortlist_from_db
+        db_candidates = load_shortlist_from_db(date)
+        if db_candidates:
+            candidates = db_candidates
+            shortlist_source = "db:pipeline_candidates"
+            print(f"  → Loaded {len(candidates)} candidates from pipeline_candidates DB")
+    except Exception:
+        pass
+
+    # Fallback to JSON
+    if not candidates and shortlist_path.exists():
         try:
             shortlist = json.loads(shortlist_path.read_text(encoding="utf-8"))
             candidates = shortlist.get("candidates", shortlist.get("shortlist", []))
-            total = len(candidates)
+            shortlist_source = "json"
+            print(f"  → Loaded {len(candidates)} candidates from JSON (fallback)")
+        except (json.JSONDecodeError, OSError):
+            pass
 
+    total = len(candidates)
+    if candidates:
+        try:
             for c in candidates:
                 raw_home = (c.get("home_team") or "").strip()
                 raw_away = (c.get("away_team") or "").strip()
@@ -193,10 +190,32 @@ def run_tipster_xref(date: str, state: dict) -> tuple[bool, str]:
                     away_disp = c.get("away_team", "?")
                     print(f"    ✓ {home_disp} vs {away_disp}: {consensus} tips from {', '.join(tipster_names[:3])}")
 
-            # Save enriched shortlist
-            shortlist_path.write_text(
-                json.dumps(shortlist, indent=2, ensure_ascii=False), encoding="utf-8"
-            )
+            # Save enriched shortlist — DB + JSON
+            # DB: enrich pipeline_candidates with tipster data
+            try:
+                from bet.db.connection import get_db
+                from bet.db.repositories import PipelineCandidateRepo
+                with get_db() as conn:
+                    repo = PipelineCandidateRepo(conn)
+                    enriched_count = 0
+                    for c in candidates:
+                        ts = c.get("tipster_support")
+                        if ts and ts.get("count", 0) > 0:
+                            home = c.get("home_team", "")
+                            away = c.get("away_team", "")
+                            repo.enrich_tipster(date, home, away, ts["count"], ts["tipsters"])
+                            enriched_count += 1
+                    conn.commit()
+                    if enriched_count:
+                        print(f"  → Enriched {enriched_count} pipeline_candidates with tipster data in DB")
+            except Exception as e:
+                print(f"  ⚠ DB tipster enrichment failed: {e}")
+
+            # JSON: write back for backward compatibility
+            if shortlist_source == "json" and shortlist:
+                shortlist_path.write_text(
+                    json.dumps(shortlist, indent=2, ensure_ascii=False), encoding="utf-8"
+                )
         except (json.JSONDecodeError, OSError) as e:
             print(f"  ⚠ Shortlist enrichment error: {e}")
 

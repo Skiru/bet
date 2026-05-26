@@ -214,3 +214,70 @@ class APIVolleyballClient(APISportsClient):
             return result
         except Exception:
             return []
+
+    def get_match_stats(self, game_id: str) -> dict[str, float] | None:
+        """GET /games/statistics?id={game_id} → per-match stat dict.
+
+        Returns dict like {"aces": 5, "blocks": 8, "total_points": 87, "errors": 12}
+        for one game, or None if stats unavailable.
+        """
+        if not self._check_api_key():
+            return None
+
+        cache_key = f"volleyball/match_stats/{game_id}"
+        cached = self._check_cache(cache_key, ttl_hours=168)
+        if cached:
+            return cached.get("stats")
+
+        try:
+            data = self._request("/games/statistics", params={"id": game_id})
+        except Exception as e:
+            print(f"[{self.api_name}] Error fetching match stats for {game_id}: {e}")
+            return None
+
+        match_stats: dict[str, float] = {}
+        for entry in data.get("response", []):
+            for stat in entry.get("statistics", []):
+                stat_type = _normalize_stat_type(stat.get("type", ""))
+                mapped = STAT_TYPE_MAP.get(stat_type)
+                if mapped:
+                    # Sum home+away for team-agnostic per-match totals
+                    home_val = stat.get("home")
+                    away_val = stat.get("away")
+                    if home_val is not None:
+                        match_stats[mapped] = match_stats.get(mapped, 0) + float(home_val)
+                    if away_val is not None:
+                        match_stats[mapped] = match_stats.get(mapped, 0) + float(away_val)
+
+        if not match_stats:
+            return None
+
+        self._save_cache(cache_key, {"stats": match_stats})
+        return match_stats
+
+    def get_team_l10_stats(self, team_name: str) -> dict[str, list[float]] | None:
+        """Build L10 per-match stat arrays for a team.
+
+        Resolves team → ID, fetches last 10 finished games, gets stats per game.
+        Returns dict like {"aces": [5,3,7,...], "blocks": [8,6,9,...], ...}
+        """
+        team_id = self.resolve_team_id(team_name)
+        if not team_id:
+            return None
+
+        fixtures = self.get_team_last_fixtures(team_id, last_n=10)
+        if not fixtures:
+            return None
+
+        l10: dict[str, list[float]] = {}
+        for fix in fixtures:
+            game_id = str(fix.get("id", ""))
+            if not game_id:
+                continue
+            stats = self.get_match_stats(game_id)
+            if not stats:
+                continue
+            for key, val in stats.items():
+                l10.setdefault(key, []).append(val)
+
+        return l10 if l10 else None

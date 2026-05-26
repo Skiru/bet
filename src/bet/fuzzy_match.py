@@ -49,10 +49,28 @@ def resolve_team_in_db(source_name: str, sport: str, threshold: float | None = N
     Returns {"team_id": int, "db_name": str, "score": float} or None if below threshold.
     Uses get_db() to query teams table filtered by sport.
     Default thresholds per sport: tennis=80, football=75, esports=85, default=75.
+    
+    Optimization: checks name_mappings cache first (O(1) lookup) before falling
+    back to expensive full-table fuzzy scan.
     """
     if threshold is None:
         threshold = SPORT_THRESHOLDS.get(sport.lower(), 75.0)
 
+    # Fast path: check name_mappings cache first
+    with get_db() as conn:
+        cached = conn.execute(
+            "SELECT db_team_id, db_name, match_score FROM name_mappings "
+            "WHERE sport = ? AND source_name = ? LIMIT 1",
+            (sport.lower(), source_name),
+        ).fetchone()
+        if cached and cached["match_score"] and cached["match_score"] >= threshold:
+            return {
+                "team_id": cached["db_team_id"],
+                "db_name": cached["db_name"],
+                "score": cached["match_score"],
+            }
+
+    # Slow path: full-table fuzzy scan
     best_match = None
     best_score = -1.0
 
@@ -80,6 +98,20 @@ def resolve_team_in_db(source_name: str, sport: str, threshold: float | None = N
                 
                 if score == 100.0:
                     break
+
+    # Cache the result for future lookups
+    if best_match:
+        try:
+            with get_db() as conn:
+                conn.execute(
+                    "INSERT OR IGNORE INTO name_mappings (sport, source, db_team_id, source_name, db_name, match_score) "
+                    "VALUES (?, ?, ?, ?, ?, ?)",
+                    (sport.lower(), "fuzzy_match", best_match["team_id"],
+                     source_name, best_match["db_name"], best_match["score"]),
+                )
+                conn.commit()
+        except Exception:
+            pass  # Cache write failure is non-fatal
 
     return best_match
 

@@ -122,8 +122,8 @@ def parse_scan_results(
                 for sport, count in sports.items():
                     records.append({
                         "date": today,
-                        "source_name": source_name,
-                        "sport": sport,
+                        "source_name": sanitize_csv_field(source_name),
+                        "sport": sanitize_csv_field(sport),
                         "status": "ok",
                         "events_extracted": count,
                         "error_message": "",

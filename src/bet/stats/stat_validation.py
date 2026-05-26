@@ -4,8 +4,6 @@ Defines allowed stat_keys per sport. Any enrichment write with an invalid
 stat_key for the sport is rejected.
 """
 
-from bet.stats.market_ranking import SPORT_STAT_KEYS
-
 # Extended valid stats per sport (superset of SPORT_STAT_KEYS — includes 
 # intermediate/raw keys that may appear in enrichment but aren't market-ranked)
 VALID_STATS: dict[str, set[str]] = {
