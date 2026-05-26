@@ -2,6 +2,8 @@
 applyTo: "betting/**/*"
 ---
 
+This file is the canonical formatting owner for active betting artifacts. The companion skill [bet-formatting-artifacts](../skills/bet-formatting-artifacts/SKILL.md) provides activation guidance only and must not restate this rule set.
+
 Write betting artifacts in a strict, reusable format.
 
 General rules:

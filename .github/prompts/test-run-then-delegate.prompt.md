@@ -1,5 +1,5 @@
 ---
-mode: bet-orchestrator
+agent: bet-orchestrator
 description: "Test Run-Then-Delegate (Model A) on the enrichment step"
 ---
 

@@ -1,103 +1,71 @@
-# Betting Workflow
+# Betting Workspace Constitution
 
-You are maintaining a disciplined small-bankroll betting workflow, not writing casual tipster content.
+This repository uses Copilot customizations to run a disciplined small-bankroll betting workflow. It is not a casual tipster workspace.
 
-## Core Rules
-- Config: `config/betting_config.json` (bankroll, daily cap, sports, thresholds).
-- Betclic history: `betting/data/betclic_bets_history.json` — read during §0.2 before ANY analysis (see R6).
-- Bookmaker: Betclic. All picks CONDITIONAL (R12). DO NOT scrape Betclic (403).
-- Timezone: Europe/Warsaw. Betting day: 06:00 today → 05:59 tomorrow.
-- Always settle previous day before generating new picks.
-- Never invent odds, lineups, injuries, results, or source conclusions.
-- **5 core sports + 3 esports:** Football, Volleyball, Basketball, Tennis, Hockey — ALL Tier 1. CS2, Dota 2, Valorant — Tier 1 esports.
-- **Coupon = core portfolio + COMBO MENU + EXTENDED POOL.** Core = unique event per coupon.
-- NO AUTO-REJECTION (R3). NO AGGRESSIVE NARROWING (R4). User decides.
-- Follow [analysis-methodology.instructions.md](instructions/analysis-methodology.instructions.md), [betting-artifacts.instructions.md](instructions/betting-artifacts.instructions.md), [source-registry.md](../betting/sources/source-registry.md).
-- Load [sport-analysis-protocols.instructions.md](instructions/sport-analysis-protocols.instructions.md) for STEP 3+ analysis.
-- **MANDATORY**: Load [betting-mistakes-rules.instructions.md](instructions/betting-mistakes-rules.instructions.md) during S3/S5/S7/S8 — contains HARD REJECT rules from settled losses.
+## Ownership Model
 
-## Scripted Workflow
-```
-# 0. Betclic History Analysis (MANDATORY — run BEFORE any analysis)
-python3 scripts/analyze_betclic_learning.py
-# → reads: betting/data/betclic_bets_history.json (ground truth of ALL placed bets)
-# → outputs: 10-section analysis with market/sport hit rates, coupon killer data, actionable rules
-# GATE: If this file is not read, §0.2 is INCOMPLETE. Do NOT start scanning.
+- agent = WHO owns the task, delegation boundary, and tool use.
+- skill = HOW reusable workflow mechanics or domain methods are applied.
+- prompt = WHAT workflow entry point or task framing is being requested.
+- instructions = RULES that apply consistently across the active surface.
 
-# 1. Run pipeline (AGENT-DRIVEN — individual scripts, NOT pipeline_orchestrator.py)
-# ⛔ NEVER run: python3 scripts/pipeline_orchestrator.py
-# Instead: the orchestrator agent calls individual scripts one at a time:
-#   PYTHONPATH=src .venv/bin/python scripts/discover_events.py --date YYYY-MM-DD --verbose
-#   python3 scripts/build_shortlist.py --date YYYY-MM-DD --stats-first
-#   python3 scripts/deep_stats_report.py --date YYYY-MM-DD --gemini --verbose
-#   python3 scripts/gate_checker.py --date YYYY-MM-DD
-#   python3 scripts/coupon_builder.py --date YYYY-MM-DD
-# Note: --shortlist is no longer required for deep_stats (reads from pipeline_candidates DB).
-# See orchestrate-betting-day.prompt.md for the full step-by-step protocol.
+## Canonical Owners
 
-# 2. Cross-validation odds (30 credits/scan, 500/month free)
-python3 scripts/fetch_odds_api.py
-# → produces: betting/data/odds_api_snapshot.json, odds_api_summary.csv
-# For settlement: python3 scripts/fetch_odds_api.py --scores hockey
+| Concern | Canonical owner |
+| --- | --- |
+| Project constitution, repo-wide constraints, model standard, memory boundary | this file |
+| Always-on execution behavior for bet agents | [agent-execution-protocol.instructions.md](instructions/agent-execution-protocol.instructions.md) |
+| Reusable workflow mechanics, delegation flow, routing, resume/stop gates | [bet-orchestrating-workflows/SKILL.md](skills/bet-orchestrating-workflows/SKILL.md) |
+| Betting analysis methodology | [analysis-methodology.instructions.md](instructions/analysis-methodology.instructions.md) |
+| Sport-specific analysis rules | [sport-analysis-protocols.instructions.md](instructions/sport-analysis-protocols.instructions.md) |
+| Hard reject lessons from settled losses | [betting-mistakes-rules.instructions.md](instructions/betting-mistakes-rules.instructions.md) |
+| Formatting rules for reports, coupons, ledgers, and artifact wording | [betting-artifacts.instructions.md](instructions/betting-artifacts.instructions.md) |
+| Domain HOW layers for statistics, sources, odds, coupons, settlement, and DB work | `bet/.github/skills/bet-*/SKILL.md` |
+| Primary repo memory | `/memories/repo/` and `/memories/session/` |
 
-# 2a. Esports odds (FREE, no auth, Playwright-rendered bo3.gg)
-python3 scripts/fetch_esports_odds.py --date YYYY-MM-DD --verbose
-# → writes to DB: odds_history (bookmaker=\"bo3gg\") for CS2 + Valorant
-# → matches scraped teams to DB fixtures, stores ML odds
-# → run AFTER discover_events.py (needs fixtures), BEFORE odds_evaluator.py
-# → use --detail for handicap/H2H from individual match pages
+## Active Model Standard
 
-# 2b. Bovada odds + player props (FREE, no auth, unlimited)
-python3 scripts/fetch_bovada_odds.py --verbose
-# → writes DIRECTLY to DB: odds_history (bookmaker="bovada") + player_prop_lines table
-# → covers: NBA/NHL/Tennis/Soccer/Volleyball/MLB with 100-1200 markets/event
-# → player props: points, rebounds, assists, SOG, goals, strikeouts per player
-# → run AFTER discover_events.py (needs fixtures), BEFORE odds_evaluator.py
-# ⚠️ IMPLEMENTATION STATUS: Plan ready (betting/plans/bovada-integration.plan.md), code pending.
+- Every active bet agent must use the exact literal `GPT-5.4`.
+- Stale model literals are invalid in the active `.github` tree.
 
-# 3. Settle previous day
-python3 scripts/settle_on_finish.py --betting-day YYYY-MM-DD
-# Auto: winner/1X2, totals, BTTS, DC.
-# Semi-auto: football corners, cards, shots, fouls (via canonical DB match_stats when coverage exists).
-# Manual: HC, MyCombi, unresolved stat markets without DB coverage.
-# Supports: --match "Team vs Team", --no-poll
-```
-- Never auto-push settled results. Verify first, commit manually.
-- Always prepare backup picks (Watch List) for when Betclic odds are unacceptable.
+## Repo-Wide Constraints
 
-## Source Rules
-- American odds: +X → 1 + X/100; −X → 1 + 100/X (for SBR, ESPN, ScoresAndOdds, Bovada).
-- US sports: Bovada (primary, free, richest) + SBR Totals + ESPN Odds + ScoresAndOdds.
-- EU sports: BetExplorer + OddsPortal + Odds-API.io (primary odds cross-validation).
-- Esports: bo3.gg (PRIMARY, Playwright-rendered, free). VLR.gg (Valorant stats). HLTV.org (CS2 fallback, Cloudflare). `fetch_esports_odds.py` writes to DB `odds_history` (bookmaker='bo3gg').
-- Player props: Bovada `player_prop_lines` table (PRIMARY). Compare vs actual L10 averages for edge detection.
-- Bovada: FREE public JSON feed, no API key. Writes to DB only (R2). Client: `src/bet/api_clients/bovada.py`.
-- ⚠️ Bovada integration PENDING implementation — see `betting/plans/bovada-integration.plan.md`.
+- Bookmaker: Betclic. All picks are conditional until the user verifies the market and odds in the Betclic app.
+- Do not scrape Betclic.
+- Timezone: Europe/Warsaw. Betting day runs from 06:00 to 05:59 local time.
+- Always settle the previous betting day before generating new picks.
+- Never invent odds, lineups, injuries, results, source conclusions, or statistical values.
+- Coverage scope: Football, Volleyball, Basketball, Tennis, Hockey, CS2, Dota 2, Valorant.
+- Coupon model: core portfolio + combination menu + extended pool. Core coupons use unique events.
+- No auto-rejection or aggressive narrowing based on hit rates, safety scores, or historical performance. The user decides. Only invalid fixtures, wrong dates, and negative-EV positions may be auto-removed.
+- Statistical markets come before outcome markets. Missing bookmaker odds do not cancel analysis.
+- Use the DB-first architecture: `from bet.db.connection import get_db` and repository layers. JSON, CSV, and Markdown outputs are secondary artifacts.
+- The orchestrator is the pipeline. Do not run `python3 scripts/pipeline_orchestrator.py`.
+- Reruns create new versions. Preserve history and mark superseded pending artifacts instead of overwriting them.
 
-## Versioning
-- On reruns: increment version (v5→v6). Mark old pending as `superseded`. Keep all versions.
-- Learning log: process changes only, tied to settled results. Max 3 rule changes per entry.
+## Workflow Boundary
 
-## NON-NEGOTIABLE RULES (APPLY TO EVERY AGENT, EVERY SESSION, EVERY STEP)
+- Prompts keep only the entry-point-specific flow, inputs, and output expectations for their workflow.
+- Agents keep role identity, collaboration boundaries, and canonical references.
+- Skills keep reusable execution mechanics or domain methodology.
+- Instructions keep rules that must stay always-on across activations.
 
-These 10 rules are PERMANENT. They override any conflicting logic in scripts, prompts, or agent reasoning. Violation = pipeline failure. Detailed specifics in [agent-execution-protocol.instructions.md](instructions/agent-execution-protocol.instructions.md).
+If a workflow detail is shared across more than one prompt or agent and is not a repo-wide rule, it belongs in the workflow skill rather than in this file.
 
-**R1 — AGENT-DRIVEN PIPELINE:** Orchestrator RUNS scripts (async, --verbose), MONITORS via AGENT_SUMMARY, DELEGATES analysis to specialist subagents. Subagents NEVER run scripts. Always parse structured output. See `agent_protocol.py` STRUCTURED_OUTPUT_PROTOCOL.
+## Memory Boundary
 
-**R2 — DB-FIRST:** Always `from bet.db.connection import get_db`. Never raw `sqlite3.connect()`. JSON = fallback only. DB has 40+ tables across 7 domains — see `agent_protocol.py` DB_SCHEMA_REFERENCE.
+- Root memory under `/memories/repo/` and `/memories/session/` is the primary persistent memory system.
+- `.github/memories/` may contain only short repo-local facts that help customizations route work. It must not duplicate rulebooks, full workflow manuals, or policy surfaces already owned elsewhere.
 
-**R3 — NO AUTO-REJECTION:** Pipeline NEVER auto-rejects based on EV thresholds, safety scores, or hit rates. ALL candidates appear in matrix. ALL gate-failed → Extended Pool. User decides. Betclic learning = advisory only (show hit rates, never penalize). Only valid auto-rejections: phantom fixtures, wrong dates, negative EV.
+## Required Canonical Loads
 
-**R4 — STATS-FIRST:** Statistical markets (corners, fouls, cards, shots, games, sets) ALWAYS evaluated BEFORE outcomes (ML, winner). Events without API odds still analyzed. User checks Betclic: `hit_rate × odds > 1.0 → BET`.
+- Load [analysis-methodology.instructions.md](instructions/analysis-methodology.instructions.md) for betting analysis.
+- Load [sport-analysis-protocols.instructions.md](instructions/sport-analysis-protocols.instructions.md) for sport-specific analysis work.
+- Load [betting-mistakes-rules.instructions.md](instructions/betting-mistakes-rules.instructions.md) during S3, S5, S7, and S8 work.
+- Load [betting-artifacts.instructions.md](instructions/betting-artifacts.instructions.md) when producing coupons, reports, ledgers, or settlement artifacts.
 
-**R5 — LEAGUE PROTECTION:** Tournaments +15 boost, protected domestic leagues +10, minor leagues +6 VALUE BOOST. NEVER skip/deprioritize active tournaments, major leagues, or minor leagues with data. Missing protected leagues → scan FAILED.
+## Session Expectations
 
-**R6 — SELF-HEALING DATA:** 7 fallback layers (L1-L7). Missing data triggers enrichment automatically. L7 = web_research_agent.py (max 5 SerpAPI + 10 searches). Never leave data gaps unfilled without trying all layers.
-
-**R7 — SEQUENTIAL THINKING:** Use `sequentialthinking` MCP tool for EVERY pipeline step. THINK IN THE MIDDLE: when script runs (5-10 min), analyze data quality, identify anomalies, plan next action. One call per candidate for S3-S7.
-
-**R8 — CONDITIONAL PICKS + LIVE:** All picks CONDITIONAL — user verifies on Betclic app. DO NOT scrape Betclic (403). Odds >8% drift → re-evaluate. Live betting valid (06:00 today → 05:59 tomorrow Europe/Warsaw).
-
-**R9 — DATA QUALITY + FLOW VERIFICATION:** Every candidate needs `data_quality_score` (FULL≥7, PARTIAL 4-6, MINIMAL<4). MINIMAL → Extended Pool. Before running ANY script: READ code, TRACE data flow, VERIFY keys/tables match next script.
-
-**R10 — FISH SHELL + NO INLINE PYTHON:** FORBIDDEN: `python3 -c`, bash loops, heredocs. Use `run_in_terminal` for pipeline scripts (mode=async). For data inspection: use notebook cells or dedicated scripts. See `agent-execution-protocol.instructions.md` §FISH SHELL.
+- The orchestrator runs individual scripts, monitors outputs, and delegates interpretation to specialist agents.
+- Specialists analyze finished outputs and domain evidence unless the active prompt explicitly makes them the direct operator.
+- Output quality is measured by evidence, reasoning, and traceability, not by terminal completion alone.

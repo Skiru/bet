@@ -2,7 +2,7 @@
 applyTo: ".github/agents/bet-*.agent.md"
 ---
 
-# Agent Execution Protocol v8
+# Agent Execution Protocol v9
 
 ## ⛔ FISH SHELL — TERMINAL RULES
 
@@ -28,10 +28,10 @@ This project uses **fish shell**. The following are FORBIDDEN:
 ## BOOT SEQUENCE (first action every session)
 
 Your FIRST action: `sequentialthinking` answering:
-1. What are MY 3 critical rules? (from "MY RULES" in your agent.md)
+1. What are my 3 critical rules from the active agent or prompt?
 2. What is my analytical value — what can I produce that a script cannot?
-3. What lessons from pipeline-errors journal apply today?
-4. **MANDATORY**: Read `betting-mistakes-rules.instructions.md` — apply HARD REJECT rules (TENNIS_SETS_001, HANDBALL_001, GOALS_001, UNDER_GOALS_001, LOWER_LEAGUE_001, SOT_001, CORRELATION_001, CORNERS_CONTEXT_001, BTTS_CONTEXT_001) to EVERY candidate.
+3. Which execution or data-flow lessons from past failures apply today?
+4. **MANDATORY:** load `betting-mistakes-rules.instructions.md` when the current task involves S3, S5, S7, or S8 decisions.
 
 ---
 
@@ -39,7 +39,7 @@ Your FIRST action: `sequentialthinking` answering:
 
 Your LAST action: `sequentialthinking` verifying:
 1. Did I follow my 3 rules? Evidence for each.
-2. Does my output contain ≥3 specific metrics from script output?
+2. Does my output contain ≥3 specific metrics from the finished output or DB read?
 3. Does my output contain ORIGINAL ANALYSIS (not restated numbers)?
 
 ---
@@ -65,12 +65,12 @@ Before FIRST script: use `ms-python.python/configurePythonEnvironment` + `ms-pyt
 Every analytical step follows this pattern:
 
 ```
-1. INSPECT: pylanceRunCodeSnippet → verify inputs exist, format matches
-2. RUN: run_in_terminal(--verbose) → you control the terminal
-3. THINK: sequentialthinking → what does the output MEAN?
-4. EXTRACT: Parse AGENT_SUMMARY:{json} or key metrics from stdout
-5. VALIDATE: pylanceRunCodeSnippet → verify outputs exist, format correct
-6. RETURN: Structured verdict (see template below)
+1. INSPECT: use the cheapest available read to verify inputs exist and formats match.
+2. RUN: if the active role is a direct operator, use `run_in_terminal` with `--verbose`; if the role is analysis-only, the orchestrator will supply finished output.
+3. THINK: `sequentialthinking` → what does the output MEAN?
+4. EXTRACT: parse `AGENT_SUMMARY:{json}` or key metrics from stdout.
+5. VALIDATE: verify outputs exist and match the expected shape.
+6. RETURN: structured verdict (see template below).
 ```
 
 For scripts >120s: use `mode=async`. While waiting: sequentialthinking + pylanceRunCodeSnippet (review data, plan next step). Then `get_terminal_output`.
@@ -177,10 +177,10 @@ Data For Orchestrator:
 ## Data Flow Verification (R18)
 
 Before running script B after script A:
-1. READ script A's output format (JSON keys, DB tables)
-2. READ script B's input expectations
-3. VERIFY they match
-4. If mismatch → FIX before running B
+1. READ script A's output format (JSON keys, DB tables).
+2. READ script B's input expectations.
+3. VERIFY they match.
+4. If mismatch → FIX before running B.
 
 **Real failure:** `tipster_aggregator.py` saved under `"all_picks"` → `tipster_xref.py` read `"tips"` → 0 matches. Pipeline ran for DAYS broken because nobody READ THE CODE.
 
@@ -203,6 +203,18 @@ Exit codes: 0=OK, 1=partial, 2=critical.
 - `pylanceRunCodeSnippet` — Run Python code (data inspection, format checks)
 - `browser/*`, `playwright/*` — Web page interaction
 - `sequential-thinking/*` — Structured reasoning
+
+## Scope Boundary
+
+This protocol owns always-on execution behavior only. It does not own:
+- workflow phase order
+- script inventories
+- prompt routing matrices
+- delegated handoff contracts
+- domain methodology summaries
+- project constitution or memory policy
+
+Those concerns belong to prompts, the workflow skill, domain instructions, or the root constitution.
 
 ---
 

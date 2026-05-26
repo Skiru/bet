@@ -1,5 +1,5 @@
 ---
-mode: "ask"
+agent: bet-orchestrator
 description: "Audit and improve scan, odds scraping, and tipster pipeline scripts for reliability"
 ---
 
@@ -99,10 +99,8 @@ For each subsystem, provide:
 
 ## Rules
 
-- R18: READ CODE FIRST — understand what each script reads/writes before running
-- R17: Always use `--verbose` when running scripts
-- R20: NO inline python in terminal (fish shell)
-- R2: DB-FIRST — check `betting.db` tables, not just JSON files
+Follow R2, R17, R18, R20 from `agent-execution-protocol.instructions.md` strictly.
+
 - Do NOT auto-reject any site just because it returned few picks — tipster sites vary by day
 - If a site returns 403/captcha, report it but don't delete the parser (sites come back)
 - Focus on DATA QUALITY over code style — we need REAL picks reaching the DB

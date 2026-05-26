@@ -2,6 +2,8 @@
 name: scan-day
 description: "Scan: API-first discovery (Odds-API.io + API-Football) → all 5 sports → ingest → enrich → shortlist. Fully autonomous."
 agent: bet-scanner
+skills:
+    - bet-orchestrating-workflows
 argument-hint: "run_date=2026-05-12" or just run for today
 ---
 

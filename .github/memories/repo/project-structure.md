@@ -1,53 +1,13 @@
 # Bet Project — Key Facts
 
 ## Architecture
-- **Agent-driven pipeline**: Orchestrator agent calls individual scripts one at a time (S0→S10). ⛔ NEVER use `pipeline_orchestrator.py`. See `orchestrate-betting-day.prompt.md`
-- **Database**: `betting/data/betting.db` (SQLite, WAL mode). Connection: `from bet.db.connection import get_db` (busy_timeout=30000, retry_on_lock()). 41-table schema across 7 domains (Core, Stats, Analysis, Betting, Pipeline, ESPN, Tipster). Schema v10.
-- **Discovery (S1)**: `src/bet/discovery/` module — API-first event discovery via Odds-API.io (PRIMARY, all 5 sports) + The-Odds-API (secondary, 4 sports w/ odds) + API-Football (tertiary, football). ~5s, 800-1200 events. CLI: `PYTHONPATH=src .venv/bin/python scripts/discover_events.py --date YYYY-MM-DD --verbose`. DB: `fixtures`, `scan_results`, `fixture_sources`
-- **Discovery module only**: No legacy scanning fallback. All event discovery goes through `src/bet/discovery/`. SofaScore adapter disabled (403).
-- Config: `config/betting_config.json` — all thresholds and limits
-- Adapters: `scripts/adapters/` — domain-specific HTML parsers, fallback to raw_adapter
-- Settlement: `scripts/settle_on_finish.py --betting-day YYYY-MM-DD [--match "..."] [--no-poll]`
-- Deep stats: `scripts/deep_stats_report.py` — per-candidate S3 analysis with Poisson/NegBin probability enrichment
-- Gate checker: `scripts/gate_checker.py` — 18-point S7 approval gate (`check_18_point_gate()`)
-- Coupon builder: `scripts/coupon_builder.py` — S8 portfolio + combo construction
-- Safety input: `scripts/normalize_stats.py` — `build_safety_input()` (DB-first, JSON cache fallback)
-- Stats module: `src/bet/stats/` — value_ranges.py (validation), fallback_chains.py (per-sport API order), fetcher.py (orchestration)
-- API clients: `src/bet/api_clients/` (canonical, 35+ clients). `scripts/api_clients/` = shim re-exporting from `bet.api_clients`
-- DB gateway: `scripts/db_data_loader.py` — all DB read/write functions
+- Agent-driven pipeline: the orchestrator calls individual scripts one at a time; `pipeline_orchestrator.py` stays banned.
+- Database-first: `betting/data/betting.db` is the primary store and `get_db()` is the canonical connection layer.
+- Discovery lives in `src/bet/discovery/` and remains API-first for the 5 core sports.
+- Existing `bet-` agents, prompts, skills, and instructions are the active customization surface.
 
-## Key DB Tables
-- `fixtures`, `team_form` (43K+), `match_stats`, `odds_history` (97K+), `analysis_results`, `gate_results`
-- `scan_results`, `scan_run_stats`, `source_health`, `fixture_sources` (new, schema v8 — cross-source tracking via SA ORM)
-- `athletes` (538+), `player_gamelogs` (11.5K+), `standings`, `team_ats_records`, `team_ou_records`, `power_index`, `espn_predictions`
-- `tipster_picks`, `tipster_consensus` (schema v9 — via `TipsterRepo` in `repositories.py`)
-- `bets`, `coupons`, `league_profiles`, `pipeline_runs`
-- `betclic_markets`, `betclic_competition_profiles` (schema v10 — market existence validation)
-- `scraper_runs`, `player_season_stats` (schema v9 — scraper operational tracking)
-
-## Extracted Pipeline Modules
-- `scripts/odds_evaluator.py` — S4 odds evaluation
-- `scripts/context_checks.py` — S5 context verification
-- `scripts/upset_risk.py` — S6 upset risk scoring
-- `scripts/tipster_xref.py` — S2 tipster cross-reference
-- S10 summary built by orchestrator agent from collected verdicts (no dedicated script)
-- `scripts/agent_protocol.py` — agent JSON I/O for agent reviews
-- `scripts/data_rotation.py` — artifact cleanup
-
-## Agent Architecture
-- `bet-orchestrator` → routes to 8 specialist agents via `runSubagent`
-- 11 per-sport scanner agents: `bet-scanner-{football,tennis,basketball,...}`
-- Agent reviews: `betting/data/agent_reviews/{date}/{step}_input.json` → `{step}_review.json`
-
-## Outputs
-- DB tables (primary) + JSON/MD dual-write (human-readable fallback)
-- `betting/data/{date}_s2_shortlist.json/md` — ranked shortlist (YYYY-MM-DD format)
-- `betting/data/market_matrix_{date}.json/md` — full event × market matrix
-- `betting/coupons/{date}*.md` — final coupon artifacts
-
-## Conventions
-- Timezone: Europe/Warsaw, betting day 06:00–05:59
-- IDs: PK-YYYYMMDD-##, CP-YYYYMMDD-LR/HR
-- CSV pipe-separated multi-values
-- All amounts in PLN with dot decimals
-- Date format for files: YYYY-MM-DD (not YYYYMMDD)
+## Core Facts
+- Key output folders: `betting/data/`, `betting/coupons/`, `betting/reports/`, `betting/journal/`.
+- Root memory is the long-lived memory layer; `.github/memories/` is only for short repo-local facts.
+- Timezone is Europe/Warsaw and betting-day runs 06:00–05:59.
+- All active bet agent models must be `GPT-5.4`.

@@ -2,6 +2,8 @@
 name: settle-day
 description: "Quick settlement — settle previous day without running full pipeline"
 agent: "bet-settler"
+skills:
+  - bet-orchestrating-workflows
 ---
 
 # Quick Settlement
