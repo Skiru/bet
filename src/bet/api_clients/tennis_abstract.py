@@ -73,17 +73,45 @@ class TennisAbstractClient(BaseAPIClient):
         if matches is None:
             return []
 
-        # Filter for matches against opponent
-        opponent_norm = self._normalize_name(team2_id)
+        # Filter for matches against opponent — FUZZY MATCHING
         h2h_matches = []
         for m in matches:
             opp = m.get("opp", "")
-            if self._normalize_name(opp) == opponent_norm:
+            if self._fuzzy_opponent_match(opp, team2_id):
                 h2h_matches.append(m)
             if len(h2h_matches) >= last_n:
                 break
 
         return h2h_matches
+
+    def _fuzzy_opponent_match(self, opp_name: str, target_name: str) -> bool:
+        """Fuzzy match opponent name (handles abbreviations, diacritics)."""
+        opp_norm = self._normalize_name(opp_name)
+        target_norm = self._normalize_name(target_name)
+        
+        if opp_norm == target_norm:
+            return True
+        
+        # Try rapidfuzz
+        try:
+            from rapidfuzz import fuzz
+            if fuzz.ratio(opp_norm, target_norm) >= 85:
+                return True
+            if fuzz.token_sort_ratio(opp_norm, target_norm) >= 85:
+                return True
+        except ImportError:
+            pass
+        
+        # Last-name fallback
+        opp_parts = opp_name.strip().split()
+        target_parts = target_name.strip().split()
+        if opp_parts and target_parts:
+            opp_last = self._normalize_name(opp_parts[-1])
+            target_last = self._normalize_name(target_parts[-1])
+            if len(opp_last) > 3 and opp_last == target_last:
+                return True
+        
+        return False
 
     def resolve_team_id(self, team_name: str, **kwargs) -> str | None:
         """For tennis, team_name IS the player name — return as-is."""

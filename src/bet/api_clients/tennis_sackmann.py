@@ -156,6 +156,146 @@ class SackmannTennisClient:
         stats.recent_matches = recent
         return stats
 
+    def get_player_match_history(self, player_name: str, last_n: int = 10) -> list[dict]:
+        """Get per-match serve stats for a player (last N matches).
+        
+        Unlike get_player_stats() which returns averages, this returns individual
+        match rows for L10 array construction in the safety score pipeline.
+        
+        Returns list of dicts, each with: date, opponent, surface, aces, 
+        double_faults, first_serve_pct, first_serve_win_pct, second_serve_win_pct,
+        break_points_saved_pct, result ('W'/'L'), tourney_name.
+        """
+        import datetime
+        current_year = datetime.date.today().year
+        
+        all_matches = []
+        for year in [current_year, current_year - 1]:
+            data = self._get_year_data(year)
+            for row in data:
+                winner = row.get("winner_name", "")
+                loser = row.get("loser_name", "")
+                
+                match_entry = None
+                if self._fuzzy_match(player_name, winner):
+                    match_entry = self._build_match_entry(row, is_winner=True)
+                elif self._fuzzy_match(player_name, loser):
+                    match_entry = self._build_match_entry(row, is_winner=False)
+                
+                if match_entry:
+                    all_matches.append(match_entry)
+        
+        if not all_matches:
+            return []
+        
+        # Sort by date descending and take last_n
+        all_matches.sort(key=lambda m: m.get("date", ""), reverse=True)
+        return all_matches[:last_n]
+
+    def _build_match_entry(self, row: dict, is_winner: bool) -> dict:
+        """Build a normalized match entry from a Sackmann CSV row."""
+        prefix = "w_" if is_winner else "l_"
+        
+        aces = self._safe_int(row.get(f"{prefix}ace"))
+        double_faults = self._safe_int(row.get(f"{prefix}df"))
+        first_in = self._safe_int(row.get(f"{prefix}1stIn"))
+        sv_points = self._safe_int(row.get(f"{prefix}svpt"))
+        first_won = self._safe_int(row.get(f"{prefix}1stWon"))
+        second_won = self._safe_int(row.get(f"{prefix}2ndWon"))
+        bp_saved = self._safe_int(row.get(f"{prefix}bpSaved"))
+        bp_faced = self._safe_int(row.get(f"{prefix}bpFaced"))
+        
+        # Calculate percentages
+        first_serve_pct = round(first_in / sv_points * 100, 1) if sv_points > 0 else 0.0
+        first_serve_win_pct = round(first_won / first_in * 100, 1) if first_in > 0 else 0.0
+        second_serve_points = sv_points - first_in
+        second_serve_win_pct = round(second_won / second_serve_points * 100, 1) if second_serve_points > 0 else 0.0
+        bp_saved_pct = round(bp_saved / bp_faced * 100, 1) if bp_faced > 0 else 0.0
+        
+        # Calculate games won and total games from score
+        score = row.get("score", "")
+        games_won, total_games, sets_won, total_sets = self._parse_score(score, is_winner)
+        
+        return {
+            "date": row.get("tourney_date", "")[:8],  # YYYYMMDD format in Sackmann
+            "opponent": row.get("loser_name" if is_winner else "winner_name", ""),
+            "surface": row.get("surface", "").lower(),
+            "tourney_name": row.get("tourney_name", ""),
+            "aces": aces,
+            "double_faults": double_faults,
+            "first_serve_pct": first_serve_pct,
+            "first_serve_win_pct": first_serve_win_pct,
+            "second_serve_win_pct": second_serve_win_pct,
+            "break_points_saved_pct": bp_saved_pct,
+            "games_won": games_won,
+            "total_games": total_games,
+            "sets_won": sets_won,
+            "total_sets": total_sets,
+            "result": "W" if is_winner else "L",
+        }
+
+    def _parse_score(self, score: str, is_winner: bool) -> tuple[int, int, int, int]:
+        """Parse tennis score string into games_won, total_games, sets_won, total_sets."""
+        games_won = 0
+        total_games = 0
+        sets_won = 0
+        total_sets = 0
+        
+        if not score:
+            return games_won, total_games, sets_won, total_sets
+        
+        import re
+        sets = score.strip().split()
+        for s in sets:
+            # Remove tiebreak indicators like (4), (7)
+            clean = re.sub(r'\(\d+\)', '', s)
+            parts = clean.split('-')
+            if len(parts) == 2:
+                try:
+                    w_games = int(parts[0])
+                    l_games = int(parts[1])
+                    total_sets += 1
+                    total_games += w_games + l_games
+                    
+                    if is_winner:
+                        games_won += w_games
+                        if w_games > l_games:
+                            sets_won += 1
+                    else:
+                        games_won += l_games
+                        if l_games > w_games:
+                            sets_won += 1
+                except ValueError:
+                    continue
+        
+        return games_won, total_games, sets_won, total_sets
+
+    def _fuzzy_match(self, search_name: str, csv_name: str) -> bool:
+        """Check if search_name matches csv_name using fuzzy comparison."""
+        if not search_name or not csv_name:
+            return False
+        
+        search_lower = search_name.lower().strip()
+        csv_lower = csv_name.lower().strip()
+        
+        if len(search_lower) >= 4 and (search_lower in csv_lower or csv_lower in search_lower):
+            return True
+        
+        try:
+            from rapidfuzz import fuzz
+            if fuzz.ratio(search_lower, csv_lower) >= 85:
+                return True
+            if fuzz.token_sort_ratio(search_lower, csv_lower) >= 85:
+                return True
+        except ImportError:
+            search_parts = search_lower.split()
+            csv_parts = csv_lower.split()
+            if search_parts and csv_parts:
+                if search_parts[-1] == csv_parts[-1]:
+                    return True
+        
+        return False
+
     def _extract_winner_stats(self, row: dict) -> dict:
         """Extract serve stats for the winner."""
         return {

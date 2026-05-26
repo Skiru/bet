@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
-MAX_DDG_SEARCHES = 20  # Conservative to avoid DDG rate-limiting
+MAX_DDG_SEARCHES = 50  # Increased for tennis (many events per day)
 SOFASCORE_DELAY = 1.5
 TENNIS_ABSTRACT_DELAY = 0.8
 
@@ -268,6 +268,13 @@ def save_h2h_to_db(
 
             stat_entries = {"total_games": [], "total_sets": []}
 
+            # Extended H2H stats from tennis-abstract (serve-specific)
+            extended_stat_entries = {
+                "h2h_aces": [],
+                "h2h_double_faults": [],
+                "h2h_first_serve_pct": [],
+            }
+
             for meeting in meetings:
                 if isinstance(meeting, dict):
                     tg = meeting.get("total_games")
@@ -276,6 +283,20 @@ def save_h2h_to_db(
                         stat_entries["total_games"].append(float(tg))
                     if ts is not None:
                         stat_entries["total_sets"].append(float(ts))
+                        
+                    # Extended serve stats (from tennis-abstract H2H)
+                    if meeting.get("aces") is not None:
+                        extended_stat_entries["h2h_aces"].append(float(meeting["aces"]))
+                    if meeting.get("double_faults") is not None or meeting.get("df") is not None:
+                        val = meeting.get("double_faults") or meeting.get("df")
+                        extended_stat_entries["h2h_double_faults"].append(float(val))
+                    if meeting.get("first_serve_pct") is not None:
+                        extended_stat_entries["h2h_first_serve_pct"].append(float(meeting["first_serve_pct"]))
+
+            # Merge for processing
+            for k, v in extended_stat_entries.items():
+                if v:
+                    stat_entries[k] = v
 
             saved_any = False
             for stat_key, values in stat_entries.items():

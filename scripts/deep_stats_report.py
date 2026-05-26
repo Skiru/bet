@@ -1370,6 +1370,38 @@ def analyze_candidate(
         dq["score"] += 1
         dq["label"] = "FULL" if dq["score"] >= 7 else "PARTIAL" if dq["score"] >= 4 else "MINIMAL"
 
+    hallucination_risk = "LOW"
+    real_data_keys = []
+    empty_keys = []
+    if sport == "tennis":
+        hallucination_risk = "HIGH" if dq["score"] < 5 else "MEDIUM" if dq["score"] < 7 else "LOW"
+        from bet.stats.market_ranking import SPORT_STAT_KEYS
+        all_tennis_keys = SPORT_STAT_KEYS.get("tennis", [])
+        real_keys_a = [k for k in all_tennis_keys if stats_a.get("l10_avg", {}) and stats_a.get("l10_avg", {}).get(k) is not None]
+        real_keys_b = [k for k in all_tennis_keys if stats_b.get("l10_avg", {}) and stats_b.get("l10_avg", {}).get(k) is not None]
+        real_data_keys = list(set(real_keys_a + real_keys_b))
+        empty_keys = [k for k in all_tennis_keys if k not in real_data_keys]
+
+    fixture_surface = None
+    if sport == "tennis":
+        try:
+            from bet.db.connection import get_db
+            with get_db() as conn:
+                row = conn.execute(
+                    """SELECT f.surface FROM fixtures f
+                       JOIN teams t1 ON f.home_team_id = t1.id
+                       JOIN teams t2 ON f.away_team_id = t2.id
+                       WHERE (LOWER(t1.name) LIKE ? OR LOWER(t2.name) LIKE ?)
+                       AND date(f.kickoff) = ?
+                       AND f.surface IS NOT NULL
+                       LIMIT 1""",
+                    (f"%{home.lower()[:10]}%", f"%{away.lower()[:10]}%", kickoff[:10]),
+                ).fetchone()
+                if row:
+                    fixture_surface = row[0]
+        except Exception:
+            pass
+
     # Build all 10+ sections
     sections = {
         "s31": _build_s31_h2h(sport, h2h),
@@ -1394,6 +1426,31 @@ def analyze_candidate(
         f"| {sport.upper()} | Data: {dq['label']} ({dq['score']}/10) ══"
     )
     md_parts = [header, ""]
+
+    if sport == "tennis" and fixture_surface:
+        md_parts.append(f"**Surface:** {fixture_surface.title()}")
+        
+        same_surface_count = 0
+        total_with_surface = 0
+        for match in stats_a.get("l10_matches", []):
+            m_surface = match.get("surface", "")
+            if m_surface:
+                total_with_surface += 1
+                if m_surface.lower() == fixture_surface.lower():
+                    same_surface_count += 1
+        
+        surface_familiarity = same_surface_count / total_with_surface if total_with_surface > 0 else None
+        if surface_familiarity is not None:
+            md_parts.append(f"**Surface familiarity (Player A):** {same_surface_count}/{total_with_surface} L10 on {fixture_surface}")
+    
+    if sport == "tennis" and hallucination_risk == "HIGH":
+        md_parts.append(
+            f"⚠️ THIN DATA — hallucination_risk=HIGH\n"
+            f"Real data keys: {', '.join(real_data_keys)}\n"
+            f"Empty keys (DO NOT ANALYZE): {', '.join(empty_keys)}\n"
+            f"Only analyze markets backed by real L10 data. DO NOT invent serve/return numbers.\n"
+        )
+
     for key in ["s31", "s32", "s33", "s34", "s35", "s36", "s37", "s38", "s39", "s310",
                 "s311", "s312", "s313", "s314"]:
         md_parts.append(sections[key])
@@ -1411,6 +1468,7 @@ def analyze_candidate(
 
     # Build raw data for decision learning
     raw_data = {
+        "fixture_surface": fixture_surface if sport == "tennis" else None,
         "team_a_l10": {
             "team": stats_a["team"],
             "l10_avg": stats_a["l10_avg"],
@@ -1458,6 +1516,9 @@ def analyze_candidate(
         "kickoff": kickoff,
         "has_data": has_data,
         "data_quality": dq,
+        "hallucination_risk": hallucination_risk,
+        "real_data_keys": real_data_keys,
+        "empty_keys": empty_keys,
         "ranking_result": ranking_result,
         "stats_a_summary": {
             "team": stats_a["team"],
@@ -1564,6 +1625,7 @@ def _load_candidates_from_shortlist(path: str) -> list[dict]:
             "competition": e.get("competition", ""),
             "kickoff": e.get("kickoff", e.get("kickoff_cest", "")),
             "safety_markets": e.get("safety_markets", []),
+            "odds_markets": e.get("odds_markets", []),
             "n_odds_markets": e.get("n_odds_markets", 0),
             "fixture_verified": e.get("fixture_verified", False),
         })

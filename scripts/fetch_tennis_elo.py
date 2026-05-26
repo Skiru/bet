@@ -90,6 +90,7 @@ def tennisabstract_parse(html: str, url: str) -> list[dict]:
             "sport": "tennis",
             "source_type": "tennisabstract_elo",
             "elo_rank": rank,
+            "official_rank": rank,
             "elo_rating": elo,
             "tour": tour,
         }

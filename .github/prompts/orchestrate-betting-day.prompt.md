@@ -26,6 +26,7 @@ argument-hint: "run_date=2026-05-08 session=full" or "run_date=2026-05-08 sessio
 10. S2:   tipster_xref.py → delegate to bet-scout
 11. S2.3: run_scrapers.py → delegate to bet-enricher
 12. S2.5: data_enrichment_agent.py → delegate to bet-enricher
+12b. S2.6: fetch_tennis_elo.py + enrich_tennis_flashscore.py + tennis_h2h_warmup.py → delegate to bet-enricher
 13. ⛔    validate_phase.py --phase data (GATE — exit 1 = STOP)
 14. S3:   deep_stats_report.py → delegate to bet-statistician
 15. S4:   odds_evaluator.py → delegate to bet-valuator
@@ -189,6 +190,20 @@ Mode: sync, timeout: 600000.
 **GATE:** If REJECTED (yield <40%) → escalate to user.
 
 **H2H Self-Healing (R9):** After enrichment, check `h2h_status`. If >50% candidates are SPARSE → run `web_research_agent.py` for top 20 candidates.
+
+---
+
+### S2.6: Tennis Deep Enrichment (DO NOT SKIP for tennis events)
+
+**Condition:** Run if shortlist contains ≥1 tennis event. These scripts provide surface-aware L10 arrays, H2H serve stats, and Elo ratings that `deep_stats_report.py` and `compute_safety_scores.py` consume for tennis.
+
+```bash
+PYTHONPATH=src .venv/bin/python3 scripts/fetch_tennis_elo.py --verbose
+PYTHONPATH=src .venv/bin/python3 scripts/enrich_tennis_flashscore.py --date {date} --verbose
+PYTHONPATH=src .venv/bin/python3 scripts/tennis_h2h_warmup.py --date {date} --verbose
+```
+Order matters: Elo first (used by safety scores), then Flashscore L10 (per-match arrays), then H2H warmup (uses both).
+**→ `runSubagent("bet-enricher")`** — Check: tennis player coverage %, Flashscore match yield, H2H cache hit rate. Flag players with MINIMAL data (<4 keys).
 
 ---
 
@@ -400,6 +415,9 @@ Your response MUST have: subagent_verdict block + Metrics (≥3) + Analysis + Us
 | tipster_aggregator.py | tipster sites | tipster_picks, tipster_consensus |
 | tipster_xref.py | tipster_picks | analysis_results (tipster) |
 | data_enrichment_agent.py | team_form, fixtures | team_form, match_stats, source_health |
+| fetch_tennis_elo.py | tennisabstract.com | stats_cache/tennis_elo/ |
+| enrich_tennis_flashscore.py | fixtures, flashscore.com | team_form (source=flashscore-tennis) |
+| tennis_h2h_warmup.py | team_form, tennis-abstract | team_form (h2h_values) |
 | deep_stats_report.py | team_form, match_stats | analysis_results, team_form |
 | odds_evaluator.py | odds_history, analysis_results | analysis_results (EV) |
 | context_checks.py | fixtures, ESPN API | analysis_results (context) |

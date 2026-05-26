@@ -28,6 +28,79 @@ from fetch_api_stats import _store_in_cache
 
 logger = logging.getLogger(__name__)
 
+# Well-known tournament → surface mapping
+_TOURNAMENT_SURFACE_MAP = {
+    "roland garros": "clay",
+    "french open": "clay",
+    "wimbledon": "grass",
+    "australian open": "hard",
+    "us open": "hard",
+    "madrid": "clay",
+    "rome": "clay",
+    "monte carlo": "clay",
+    "barcelona": "clay",
+    "geneva": "clay",
+    "lyon": "clay",
+    "hamburg": "clay",
+    "bastad": "clay",
+    "kitzbuhel": "clay",
+    "umag": "clay",
+    "bucharest": "clay",
+    "gstaad": "clay",
+    "indian wells": "hard",
+    "miami": "hard",
+    "shanghai": "hard",
+    "cincinnati": "hard",
+    "toronto": "hard",
+    "montreal": "hard",
+    "dubai": "hard",
+    "doha": "hard",
+    "brisbane": "hard",
+    "adelaide": "hard",
+    "auckland": "hard",
+    "halle": "grass",
+    "queens": "grass",
+    "s-hertogenbosch": "grass",
+    "eastbourne": "grass",
+    "mallorca": "grass",
+    "stuttgart": "clay",
+    "beijing": "hard",
+    "tokyo": "hard",
+    "vienna": "hard",
+    "basel": "hard",
+    "paris": "hard",  # Paris Masters (indoor hard)
+}
+
+
+def _infer_surface_from_league(league_name: str) -> str | None:
+    """Infer surface from tournament/league name."""
+    if not league_name:
+        return None
+    league_lower = league_name.lower()
+    for key, surface in _TOURNAMENT_SURFACE_MAP.items():
+        if key in league_lower:
+            return surface
+    return None
+
+
+def _update_fixture_surface(fixture_id: int, surface: str) -> None:
+    """Update the surface column of a fixture if not already set."""
+    if not surface or not fixture_id:
+        return
+    valid_surfaces = {"hard", "clay", "grass", "carpet"}
+    surface_lower = surface.lower().strip()
+    if surface_lower not in valid_surfaces:
+        return
+    try:
+        with get_db() as conn:
+            conn.execute(
+                "UPDATE fixtures SET surface = ? WHERE id = ? AND (surface IS NULL OR surface = '')",
+                (surface_lower, fixture_id),
+            )
+            conn.commit()
+    except Exception as e:
+        logger.debug(f"Failed to update fixture surface: {e}")
+
 _TENNIS_POLICY = RICH_COMPLETION_POLICY["tennis"]
 _TENNIS_RICH_KEYS = list(_TENNIS_POLICY["required_rich_keys"])
 _TENNIS_BASELINE_KEYS = set(_TENNIS_POLICY["baseline_keys"])
@@ -61,6 +134,35 @@ def _normalize_name(name: str) -> str:
     normalized = unicodedata.normalize("NFKD", str(name or ""))
     ascii_name = normalized.encode("ascii", "ignore").decode("ascii")
     return "".join(ch.lower() for ch in ascii_name if ch.isalnum())
+
+
+def _fuzzy_names_match(name_a: str, name_b: str, threshold: int = 80) -> bool:
+    """Fuzzy compare two player names (handles diacritics, abbreviations, order)."""
+    a_norm = _normalize_name(name_a)
+    b_norm = _normalize_name(name_b)
+    
+    # Exact normalized match
+    if a_norm == b_norm:
+        return True
+    
+    # Try rapidfuzz if available
+    try:
+        from rapidfuzz import fuzz
+        if fuzz.ratio(a_norm, b_norm) >= threshold:
+            return True
+        if fuzz.token_sort_ratio(a_norm, b_norm) >= threshold:
+            return True
+    except ImportError:
+        pass
+    
+    # Last-name fallback (most identifying part of tennis player names)
+    parts_a = name_a.strip().split()
+    parts_b = name_b.strip().split()
+    if parts_a and parts_b and len(parts_a[-1]) > 3 and len(parts_b[-1]) > 3:
+        if _normalize_name(parts_a[-1]) == _normalize_name(parts_b[-1]):
+            return True
+    
+    return False
 
 
 def _extract_opponent(team_name: str, home_team: str, away_team: str) -> str | None:
@@ -287,6 +389,18 @@ def complete_tennis_rich_stats(team_name: str, sport: str, max_fixtures: int = 5
 
         for source_name in _TENNIS_SOURCE_ORDER:
             candidates = source_indexes.get(source_name, {}).get(key, [])
+            
+            # Fallback to fuzzy match if exact key not found
+            if not candidates and opponent:
+                source_dict = source_indexes.get(source_name, {})
+                for (d_key, o_key), matches in source_dict.items():
+                    if d_key == key[0]:  # match date exactly
+                        for m in matches:
+                            m_opp = _extract_opponent(team_name, getattr(m, "home_team", ""), getattr(m, "away_team", ""))
+                            if m_opp and _fuzzy_names_match(m_opp, opponent):
+                                candidates.append(m)
+                                break  # only need to match it once
+
             if not candidates:
                 continue
 
@@ -319,6 +433,35 @@ def complete_tennis_rich_stats(team_name: str, sport: str, max_fixtures: int = 5
 
             if not get_missing_tennis_rich_stat_keys(rich_keys_found):
                 break
+
+    # Fallback: direct player lookup from tennis-abstract if we have < 5 matches
+    if len(persisted_matches) < 5:
+        try:
+            ta_client = get_client("tennis-abstract", rate_limiter=_RATE_LIMITER)
+            if ta_client.is_available():
+                player_fixtures = ta_client.get_team_last_fixtures(team_name, last_n=10)
+                if player_fixtures:
+                    existing_ids = {m.fixture_id for m in persisted_matches}
+                    for match in player_fixtures:
+                        if len(persisted_matches) >= 5:
+                            break
+                        if _is_aggregate_only_match(match):
+                            continue
+                        rich_stats = _filter_rich_only_stats(getattr(match, "stats", {}) or {})
+                        if rich_stats and match.fixture_id not in existing_ids:
+                            # Try to update fixture surface if we have a fixture ID and surface from source
+                            m_surface = getattr(match, "surface", None) or (getattr(match, "stats", {}) or {}).get("surface")
+                            if m_surface and match.fixture_id:
+                                try:
+                                    _update_fixture_surface(int(match.fixture_id), m_surface)
+                                except ValueError:
+                                    pass
+                                
+                            persisted_matches.append(_copy_match_with_filtered_stats(match, rich_stats))
+                            rich_keys_found.update(get_tennis_rich_stat_keys(rich_stats))
+                            existing_ids.add(match.fixture_id)
+        except Exception as e:
+            logger.debug("Fallback tennis-abstract direct lookup failed: %s", e)
 
     result["rich_keys_found"] = [key for key in _TENNIS_RICH_KEYS if key in rich_keys_found]
     result["missing_rich_keys"] = get_missing_tennis_rich_stat_keys(rich_keys_found)

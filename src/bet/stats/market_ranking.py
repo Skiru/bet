@@ -100,7 +100,7 @@ TENNIS_MARKETS = [
     {"name": "Total Sets O/U", "stat_a": "sets_won", "stat_b": "sets_won", "is_combined": True},
     {"name": "Player A Aces O/U", "stat_a": "aces", "stat_b": None, "is_combined": False},
     {"name": "Player B Aces O/U", "stat_a": None, "stat_b": "aces", "is_combined": False},
-    {"name": "Break Points Total O/U", "stat_a": "break_points_won", "stat_b": "break_points_won", "is_combined": True},
+    {"name": "Break Points Total O/U", "stat_a": "break_pct", "stat_b": "break_pct", "is_combined": True},
 ]
 
 VOLLEYBALL_MARKETS = [

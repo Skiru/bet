@@ -61,7 +61,8 @@ You are the data quality guardian (S2.3/S2.5) — a self-healing enrichment spec
 1. **S2.3** — `run_scrapers.py` writes warehouse tables (`league_profiles`, `player_season_stats`, `athletes`, `scraper_runs`)
 2. **Bridge helpers** — `scraper_to_team_form.py` and `bridge_league_to_team_form.py` can surface selected scraper value into `team_form` when the orchestrator explicitly runs them
 3. **Tennis baseline** — `enrich_tennis_stats.py` remains a standalone tennis baseline/backfill step
-4. **S2.5** — `data_enrichment_agent.py` fills remaining gaps and rich-stat coverage via per-team fallback chains
+4. **Tennis deep enrichment (S2.6)** — `fetch_tennis_elo.py` (Elo ratings), `enrich_tennis_flashscore.py` (Flashscore per-match L10 serve stats), `tennis_h2h_warmup.py` (H2H cache with serve-specific stats). These provide surface-aware arrays and Elo for `compute_safety_scores.py`.
+5. **S2.5** — `data_enrichment_agent.py` fills remaining gaps and rich-stat coverage via per-team fallback chains
 
 **Check S3-consumable surfaces first:** Downstream S3 analysis reads `team_form` and `match_stats`, not raw scraper tables. Before assessing enrichment quality, verify bridge visibility, rich-coverage buckets, and how many shortlist teams already have usable `team_form` rows (`l5_avg IS NOT NULL`).
 

@@ -487,6 +487,18 @@ def rank_markets(data: dict) -> dict:
 
     results = []
 
+    # Get Elo data once for tennis candidate
+    player_a_elo_data = None
+    player_b_elo_data = None
+    elo_info = None
+    blowout = None
+    if sport == "tennis":
+        surface = data.get("surface", "")
+        player_a_elo_data = lookup_tennis_elo(team_a, surface)
+        player_b_elo_data = lookup_tennis_elo(team_b, surface)
+        elo_info = compute_tennis_elo_adjustment(player_a_elo_data, player_b_elo_data, surface)
+        blowout = detect_wildcard_blowout_risk(player_a_elo_data, player_b_elo_data, competition)
+
     for market in markets:
         name = market["name"]
         line = market["line"]
@@ -593,7 +605,8 @@ def rank_markets(data: dict) -> dict:
         tw_l5_a = statistics.mean(l5_values) if l5_values else 0.0
         per_market_three_way = compute_three_way_check(tw_l10_a, tw_h2h_a, tw_l5_a, line)
 
-        results.append({
+        # Tennis Elo adjustment & Blowout risk
+        market_entry = {
             "name": name,
             "team_a_avg": round(display_a_avg, 2),
             "team_b_avg": round(display_b_avg, 2),
@@ -612,7 +625,18 @@ def rank_markets(data: dict) -> dict:
             "line_suspicious": line_suspicious,
             "tight_margin": tight_margin,
             "three_way_check": per_market_three_way,
-        })
+        }
+
+        if sport == "tennis" and elo_info:
+            if elo_info["is_mismatch"] and "games" in name.lower():
+                market_entry["safety_score"] = max(round(market_entry["safety_score"] + elo_info["adjustment"], 2), 0.0)
+            
+            if blowout and blowout["blowout_risk"]:
+                market_entry["wildcard_blowout_risk"] = True
+                market_entry["max_safe_games_line"] = blowout["max_safe_games_line"]
+                market_entry["blowout_reason"] = blowout["reason"]
+
+        results.append(market_entry)
 
     # --- Multi-line optimization (Task 7.1) ---
     # If a market has available_lines data, optimize to find best line
@@ -988,6 +1012,111 @@ def generate_three_way_markdown(tw: dict) -> str:
     return "\n".join(lines)
 
 
+def compute_tennis_elo_adjustment(player_a_elo: dict | None, player_b_elo: dict | None, 
+                                   surface: str = "") -> dict:
+    """Compute Elo-based safety adjustment for tennis markets.
+    
+    Returns dict with:
+        - elo_gap: absolute Elo difference
+        - favorite: 'A' or 'B'
+        - adjustment: float to add to safety score
+        - is_mismatch: bool (gap > 200)
+        - wildcard_risk: bool (gap > 300, possibly WC/Q/LL)
+    """
+    result = {
+        "elo_gap": 0,
+        "favorite": None,
+        "adjustment": 0.0,
+        "is_mismatch": False,
+        "wildcard_risk": False,
+    }
+    
+    if not player_a_elo or not player_b_elo:
+        return result
+    
+    # Use surface-specific Elo if available
+    elo_a = None
+    elo_b = None
+    if surface:
+        surface_key = f"{surface}_elo"
+        elo_a = player_a_elo.get(surface_key) or player_a_elo.get("elo")
+        elo_b = player_b_elo.get(surface_key) or player_b_elo.get("elo")
+    else:
+        elo_a = player_a_elo.get("elo")
+        elo_b = player_b_elo.get("elo")
+    
+    if not elo_a or not elo_b:
+        return result
+    
+    gap = abs(elo_a - elo_b)
+    result["elo_gap"] = gap
+    result["favorite"] = "A" if elo_a > elo_b else "B"
+    
+    # Safety adjustment based on gap
+    if gap > 300:
+        result["adjustment"] = -1.0  # Strong mismatch → game totals risky (blowout potential)
+        result["is_mismatch"] = True
+        result["wildcard_risk"] = True
+    elif gap > 200:
+        result["adjustment"] = -0.5  # Moderate mismatch 
+        result["is_mismatch"] = True
+    elif gap > 100:
+        result["adjustment"] = 0.0  # Expected favorite, no adjustment
+    else:
+        result["adjustment"] = 0.5  # Competitive match → game totals more predictable
+    
+    return result
+
+
+def detect_wildcard_blowout_risk(player_a_elo: dict | None, player_b_elo: dict | None,
+                                  league_name: str = "") -> dict:
+    """§3.2G: Detect WC/Q/LL vs seeded player in Grand Slam R1/R2.
+    
+    Returns risk assessment for over-games markets.
+    """
+    result = {
+        "is_grand_slam": False,
+        "blowout_risk": False,
+        "max_safe_games_line": None,
+        "reason": None,
+    }
+    
+    # Check if this is a Grand Slam
+    gs_indicators = ["australian open", "roland garros", "french open", "wimbledon", "us open"]
+    if league_name:
+        league_lower = league_name.lower()
+        result["is_grand_slam"] = any(gs in league_lower for gs in gs_indicators)
+    
+    if not result["is_grand_slam"]:
+        return result
+    
+    # Check ranking differential
+    rank_a = None
+    rank_b = None
+    if player_a_elo:
+        rank_a = player_a_elo.get("official_rank") or player_a_elo.get("elo_rank")
+    if player_b_elo:
+        rank_b = player_b_elo.get("official_rank") or player_b_elo.get("elo_rank")
+    
+    if not rank_a or not rank_b:
+        return result
+    
+    # Detect WC/Q/LL vs seeded (top 32)
+    # WC/Q/LL typically have rank > 100, seeded = top 32
+    higher_rank = min(rank_a, rank_b)
+    lower_rank = max(rank_a, rank_b)
+    
+    if higher_rank <= 32 and lower_rank > 100:
+        result["blowout_risk"] = True
+        result["max_safe_games_line"] = 20.5  # O22.5 = HARD REJECT per §3.2G
+        result["reason"] = f"WC/Q/LL (rank {lower_rank}) vs seeded (rank {higher_rank}) in GS — blowout risk 55-65%"
+    elif higher_rank <= 32 and lower_rank > 50:
+        result["max_safe_games_line"] = 21.5  # O22.5 reject, O21.5 cautious
+        result["reason"] = f"Significant rank gap ({higher_rank} vs {lower_rank}) in GS"
+    
+    return result
+
+
 def lookup_tennis_elo(player_name: str, surface: str = "") -> dict | None:
     """Look up Elo rating from tennis_elo cache.
 
@@ -1032,9 +1161,9 @@ def _fuzzy_player_match(query: str, candidate: str) -> bool:
     # Last name must match
     if q_parts[-1] != c_parts[-1]:
         return False
-    # If both have first name/initial, check first letter matches
+    # If both have first name/initial, check first 2 chars match
     if len(q_parts) >= 2 and len(c_parts) >= 2:
-        return q_parts[0][0] == c_parts[0][0]
+        return q_parts[0][:2] == c_parts[0][:2]
     return True  # single-name fallback
 
 

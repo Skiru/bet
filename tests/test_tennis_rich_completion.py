@@ -80,7 +80,7 @@ def test_tennis_policy_declares_baseline_and_rich_contract():
         "break_pct",
     ]
     assert policy["canonical_source"] == "tennis-abstract"
-    assert policy["supporting_sources"] == ["sackmann"]
+    assert policy["supporting_sources"] == ["flashscore-tennis", "sackmann"]
     assert policy["aggregate_only_sources"] == ["sackmann-season-aggregate"]
 
 

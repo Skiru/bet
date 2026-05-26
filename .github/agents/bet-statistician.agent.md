@@ -342,6 +342,14 @@ When reviewing `deep_stats_report.py` output, verify values are within expected 
 | Aces | 0-40 per player | 5-12 (hard court) | avg >25 or <1 |
 | Total games | 10-80 | 22-30 (Bo3), 35-48 (Bo5) | avg >50 or <18 |
 | Double faults | 0-15 per player | 2-5 | avg >10 or <0.5 |
+| First serve % | 45-80% | 58-68% | avg >78 or <50 |
+| Break pct | 0-100% | 30-50% | avg >70 or <15 |
+
+**Tennis-specific data sources (S2.6 enrichment):**
+- **Elo ratings** — `stats_cache/tennis_elo/` (from `fetch_tennis_elo.py`). Surface-specific: `hard_elo`, `clay_elo`, `grass_elo`. Gap >300 = mismatch (blowout risk). Gap <100 = competitive match.
+- **Flashscore L10** — `team_form` with `source='flashscore-tennis'`. Per-match serve stats (aces, DFs, 1st serve %, break_pct).
+- **Surface awareness** — `fixtures.surface` column + inference from tournament name. Check surface familiarity (how many of L10 matches were on same surface).
+- **Hallucination prevention** — If `data_quality_score < 5`, flag `hallucination_risk=HIGH`. List which stat keys have REAL data vs which are empty. NEVER invent tennis stats.
 
 ### Volleyball
 | Stat | Per-match Range | Typical Avg | Red Flag |

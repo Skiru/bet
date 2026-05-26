@@ -198,7 +198,10 @@ COMP_TIER_KEYWORDS: dict[str, list[tuple[int, list[str]]]] = {
     "football": [
         (10, ["champions league", "europa league", "conference league", "world cup",
               "euro 202", "copa america", "club world cup"]),
-        (9, ["english premier league", "la liga", "laliga", "bundesliga", "serie a", "ligue 1"]),
+        (9, ["england premier league", "english premier league",
+             "la liga", "laliga", "bundesliga",
+             "italy serie a", "serie a tim", "serie a",
+             "france ligue 1", "ligue 1 uber eats", "ligue 1 mcdonald"]),
         (8, ["eredivisie", "primeira liga", "ekstraklasa", "super lig", "championship",
              "copa libertadores", "copa sudamericana", "fa cup", "coppa italia",
              "dfb pokal", "copa del rey", "coupe de france",
@@ -450,6 +453,10 @@ def _score_event(event: dict, tipster_events: set[str], tipster_db: dict[str, di
     is_major = _is_major_competition(sport, comp)
     if is_major:
         score += 15  # confirmed bettable league
+    elif comp_score == 0:
+        # Unbettable country/league (Iraq, Yemen, etc.) — force to zero regardless
+        score = 0.0
+        return score
     elif comp_score <= 2:
         # Truly unknown league (NOT in any tier or MAJOR_COMPETITIONS) → HARD PENALTY
         # But don't penalize events with tipster coverage (someone's betting on them)
@@ -475,23 +482,39 @@ def _score_event(event: dict, tipster_events: set[str], tipster_db: dict[str, di
     # 10. Deep data richness boost — teams with ESPN gamelogs get better analysis
     if sport in ("basketball", "hockey") and comp_score >= 7:
         # Only boost if in a recognized league (don't boost Iraqi basketball)
-        try:
-            from db_data_loader import load_player_gamelogs_for_team
-            home_team = event.get("home_team", "")
-            if home_team:
-                gamelogs = load_player_gamelogs_for_team(home_team, sport, n=1)
-                if gamelogs:
-                    score += 8
-        except Exception:
-            pass
-
+        home_team = event.get("home_team", "").lower()
+        if home_team and _GAMELOG_TEAMS and home_team in _GAMELOG_TEAMS:
+            score += 8
+            
     # FIXTURE_ONLY events sink below data-rich events but not crushed entirely.
-    # After enrichment (S2.5), many of these will get data — don't over-penalize pre-enrichment.
+    # Major leagues (comp_score >= 7) get lighter penalty — enrichment will fill them.
     if tier == "FIXTURE_ONLY":
-        score *= 0.6  # moderate penalty (was 0.4 — too aggressive, killed entire sports)
+        if comp_score >= 7:
+            score *= 0.8  # light penalty for major leagues — easiest to enrich
+        else:
+            score *= 0.6  # moderate penalty for minor leagues
 
     return score
 
+
+_GAMELOG_TEAMS: set[str] | None = None
+
+def _preload_gamelog_teams() -> None:
+    global _GAMELOG_TEAMS
+    if _GAMELOG_TEAMS is not None:
+        return
+    _GAMELOG_TEAMS = set()
+    try:
+        from bet.db.connection import get_db
+        with get_db() as conn:
+            cur = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='player_gamelogs'")
+            if cur.fetchone():
+                rows = conn.execute("SELECT DISTINCT team_name FROM player_gamelogs LIMIT 1000")
+                for row in rows:
+                    if row[0]:
+                        _GAMELOG_TEAMS.add(row[0].lower())
+    except Exception:
+        pass
 
 def _load_tipster_events_from_db(date: str) -> dict[str, dict]:
     """Load tipster picks from DB to identify events with high consensus.
@@ -665,6 +688,9 @@ def build_shortlist(
     else:
         print("[shortlist] DB tipster consensus: unavailable (non-fatal)")
 
+    # Pre-load gamelog teams cache DB queries inside the inner scoring loop
+    _preload_gamelog_teams()
+
     # Score all events
     scored = []
     for event in events:
@@ -779,6 +805,25 @@ def build_shortlist(
         print(f"[shortlist] Filtered {garbage_count} garbage entries")
     scored = filtered
 
+    # FIXTURE_ONLY FILTER: Remove events with NO odds AND NO stats UNLESS they're
+    # from a major league (comp_score >= 7). Minor league FIXTURE_ONLY events have
+    # zero analytical value — no L10, no H2H, no safety, no odds, Betclic won't
+    # have them either. Major league FIXTURE_ONLY = enrichment bug signal (keep them).
+    fo_filtered = []
+    fo_dropped = 0
+    for score, event in scored:
+        if event.get("data_tier") == "FIXTURE_ONLY":
+            sport = event.get("sport", "")
+            comp = event.get("competition", "")
+            comp_tier = _score_competition(sport, comp)
+            if comp_tier < 7:
+                fo_dropped += 1
+                continue
+        fo_filtered.append((score, event))
+    if fo_dropped:
+        print(f"[shortlist] FIXTURE_ONLY filter: dropped {fo_dropped} minor league events (no data, not bettable)")
+    scored = fo_filtered
+
     # Dedup: same teams in same sport = likely same event from different sources
     deduped = []
     seen_matchups: set[str] = set()
@@ -786,7 +831,9 @@ def build_shortlist(
         home = event.get("home_team", "").lower().strip()
         away = event.get("away_team", "").lower().strip()
         sport = event.get("sport", "")
-        # Normalize: remove accents, common suffixes/prefixes
+        # Normalize: remove accents, common prefixes/suffixes ONLY
+        # DO NOT strip city names — they distinguish different teams
+        # (e.g., "Lokomotiv Moscow" ≠ "Lokomotiv Kuban", "Zalgiris Kaunas" ≠ "Zalgiris Vilnius")
         home = unicodedata.normalize("NFKD", home).encode("ascii", "ignore").decode()
         away = unicodedata.normalize("NFKD", away).encode("ascii", "ignore").decode()
         for remove in ["fc ", "sc ", "bc ", "ac ", " fc", " sc", " bc", " cf",
@@ -794,12 +841,6 @@ def build_shortlist(
                        " s.k.", " fk", " fk."]:
             home = home.replace(remove, "")
             away = away.replace(remove, "")
-        # Remove city qualifiers often appended (e.g., "Zalgiris Kaunas" -> "Zalgiris")
-        # and common short suffixes
-        for suffix in [" kaunas", " vilnius", " moscow", " kiev",
-                       " london", " paris", " madrid", " berlin"]:
-            home = home.replace(suffix, "")
-            away = away.replace(suffix, "")
         home = re.sub(r"\s+", " ", home).strip()
         away = re.sub(r"\s+", " ", away).strip()
         dedup_key = f"{sport}|{home}|{away}"
@@ -832,15 +873,16 @@ def build_shortlist(
     # mark the rest as phantom-risk.
     # Exception: tennis players legitimately play singles + doubles.
     def _normalize_team(name: str) -> str:
-        """Normalize team name for phantom matching (same logic as dedup)."""
+        """Normalize team name for phantom matching.
+        
+        Only strip generic club prefixes/suffixes (FC, SC, etc.).
+        DO NOT strip city names — they distinguish different teams.
+        """
         n = unicodedata.normalize("NFKD", name.lower().strip()).encode("ascii", "ignore").decode()
         for remove in ["fc ", "sc ", "bc ", "ac ", " fc", " sc", " bc", " cf",
                        " basket", " basketball", " sk", " sk.",
                        " s.k.", " fk", " fk."]:
             n = n.replace(remove, "")
-        for suffix in [" kaunas", " vilnius", " moscow", " kiev",
-                       " london", " paris", " madrid", " berlin"]:
-            n = n.replace(suffix, "")
         return re.sub(r"\s+", " ", n).strip()
 
     team_best: dict[str, tuple[float, int]] = {}  # "sport|comp_gender|team" → (best_score, index)
@@ -869,6 +911,8 @@ def build_shortlist(
                 team_best[team_key] = (score, idx)
 
     # Find indices to remove: team in >1 different match → keep best, drop rest
+    # FIX: Protect opponents — if removing a match would kill the opponent's ONLY
+    # fixture, keep the match (mark as phantom-risk but don't remove).
     phantom_indices: set[int] = set()
     phantom_teams: list[str] = []
     for team_key, indices in team_all.items():
@@ -886,12 +930,40 @@ def build_shortlist(
             continue  # Same matchup appearing multiple times = already handled by dedup
         # Different matchups! This team can't play 2+ matches in one day.
         best_idx = team_best[team_key][1]
-        best_ev = scored[best_idx][1]
         for i in indices:
             if i != best_idx:
                 phantom_indices.add(i)
-        team_name = team_key.split("|", 1)[1]
+        team_name = team_key.split("|", 2)[2] if len(team_key.split("|", 2)) == 3 else team_key
         phantom_teams.append(team_name)
+
+    # Second pass: protect opponents whose ONLY fixture would be killed
+    # Also protect major league events (comp_score >= 7) from phantom removal
+    protected_from_phantom: set[int] = set()
+    for idx in list(phantom_indices):
+        ev = scored[idx][1]
+        # Protection 1: major league events should not be phantom-killed
+        ev_comp_score = _score_competition(ev.get("sport", ""), ev.get("competition", ""))
+        if ev_comp_score >= 7:
+            protected_from_phantom.add(idx)
+            continue
+        # Protection 2: check if opponent has no other fixture
+        home_norm = _normalize_team(ev.get("home_team", ""))
+        away_norm = _normalize_team(ev.get("away_team", ""))
+        sport = ev.get("sport", "")
+        comp = ev.get("competition", "").lower()
+        gender = "w" if any(w in comp for w in ("women", "woman", "ladies", "female", "w.")) else "m"
+        for team_norm in [home_norm, away_norm]:
+            if len(team_norm) < 3:
+                continue
+            opp_key = f"{sport}|{gender}|{team_norm}"
+            # If this team appears ONLY in the phantom-marked match, protect it
+            opp_indices = team_all.get(opp_key, [])
+            non_phantom_appearances = [i for i in opp_indices if i not in phantom_indices]
+            if not non_phantom_appearances:
+                protected_from_phantom.add(idx)
+                break
+
+    phantom_indices -= protected_from_phantom
 
     if phantom_indices:
         pre_count = len(scored)
@@ -899,6 +971,8 @@ def build_shortlist(
         unique_phantom_teams = sorted(set(phantom_teams))
         print(f"[shortlist] ⛔ PHANTOM FIXTURE FILTER: removed {pre_count - len(scored)} events "
               f"({len(unique_phantom_teams)} teams in multiple different matches)")
+        if protected_from_phantom:
+            print(f"[shortlist] 🛡️ Protected {len(protected_from_phantom)} events (major league or opponent-only fixture)")
         if len(unique_phantom_teams) <= 20:
             for t in unique_phantom_teams:
                 print(f"  phantom team: {t}")
@@ -942,12 +1016,23 @@ def build_shortlist(
                 sport_counts[sport] += 1
 
     # QUALITY FLOOR: Applied ONLY to Phase 2 pool (Phase 1 guarantees are protected)
-    # Lowered from 10→5 to include more borderline events that enrichment can improve.
+    # Major league events (comp_score >= 7) BYPASS the quality floor — they're always
+    # bettable on Betclic and easiest to enrich, so never drop them.
     MIN_SCORE_THRESHOLD = 5.0
-    phase2_pool = [(s, e) for s, e in scored if s >= MIN_SCORE_THRESHOLD]
-    pre_floor_count = len(scored)
-    if len(phase2_pool) < pre_floor_count:
-        print(f"[shortlist] Quality floor (Phase 2): {pre_floor_count - len(phase2_pool)} events below threshold (score < {MIN_SCORE_THRESHOLD})")
+    phase2_pool = []
+    floor_dropped = 0
+    for s, e in scored:
+        if s >= MIN_SCORE_THRESHOLD:
+            phase2_pool.append((s, e))
+        else:
+            # Major leagues bypass quality floor — they're most enrichable
+            comp_tier = _score_competition(e.get("sport", ""), e.get("competition", ""))
+            if comp_tier >= 7:
+                phase2_pool.append((s, e))
+            else:
+                floor_dropped += 1
+    if floor_dropped:
+        print(f"[shortlist] Quality floor (Phase 2): {floor_dropped} events below threshold (score < {MIN_SCORE_THRESHOLD})")
 
     total_by_sport = Counter(s[1]["sport"] for s in phase2_pool)
 

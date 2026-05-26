@@ -46,6 +46,7 @@ class EventDiscoveryCoordinator:
         self.session = session
         self.sources = sources or self._default_sources()
         self.dedup = dedup_engine or DeduplicationEngine()
+        self._team_cache: dict[str, int] = {}
 
     @staticmethod
     def _default_sources() -> list[SourceAdapter]:
@@ -284,12 +285,17 @@ class EventDiscoveryCoordinator:
         3. Normalized diacritics match (strips accents, compares ASCII)
         4. Only if all fail: create new team entry
         """
+        cache_key = f"{sport_id}|{name}"
+        if cache_key in self._team_cache:
+            return self._team_cache[cache_key]
+
         # 1. Exact match
         row = self.session.execute(
             text("SELECT id FROM teams WHERE sport_id = :sid AND name = :name"),
             {"sid": sport_id, "name": name},
         ).fetchone()
         if row:
+            self._team_cache[cache_key] = row[0]
             return row[0]
 
         # 2. Alias match
@@ -301,6 +307,7 @@ class EventDiscoveryCoordinator:
             {"sid": sport_id, "name": name},
         ).fetchone()
         if row:
+            self._team_cache[cache_key] = row[0]
             return row[0]
 
         # 3. Normalized diacritics match + suffix-stripping
@@ -343,6 +350,7 @@ class EventDiscoveryCoordinator:
                         ),
                         {"alias": name, "tid": r[0]},
                     )
+                    self._team_cache[cache_key] = r[0]
                     return r[0]
                 # Suffix-stripped comparison (FC, SC, United, etc.) — skip if identity markers differ
                 if suffix_stripped_input and len(suffix_stripped_input) >= 3 and not has_identity_marker:
@@ -358,6 +366,7 @@ class EventDiscoveryCoordinator:
                                 ),
                                 {"alias": name, "tid": r[0]},
                             )
+                            self._team_cache[cache_key] = r[0]
                             return r[0]
 
         # 4. Create new team
@@ -365,6 +374,7 @@ class EventDiscoveryCoordinator:
             text("INSERT INTO teams (sport_id, name) VALUES (:sid, :name)"),
             {"sid": sport_id, "name": name},
         )
+        self._team_cache[cache_key] = result.lastrowid
         return result.lastrowid
 
     def _resolve_competition(self, sport_id: int, name: str, country: str = "") -> int | None:

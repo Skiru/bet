@@ -24,6 +24,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 sys.path.insert(0, str(Path(__file__).parent))
 
+from bet.db.connection import get_db
 from flashscore_enricher import (_try_flashscore,)
 from _helpers.football_flashscore_html_enrichment import (
     complete_football_rich_stats,
@@ -46,9 +47,6 @@ DB_PATH = Path(__file__).parent.parent / "betting" / "data" / "betting.db"
 
 def get_teams_needing_enrichment(date: str, sport: str | None = None, min_stats: int = 3, limit: int = 0) -> list[dict]:
     """Get teams from today's fixtures missing stats."""
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.row_factory = sqlite3.Row
-    
     query = """
         SELECT DISTINCT t.id as team_id, t.name as team_name, s.name as sport, s.id as sport_id
         FROM fixtures f
@@ -56,7 +54,7 @@ def get_teams_needing_enrichment(date: str, sport: str | None = None, min_stats:
         JOIN teams t ON (t.id = f.home_team_id OR t.id = f.away_team_id)
         WHERE f.kickoff LIKE ?
         AND s.name != 'tennis'
-        AND (SELECT COUNT(*) FROM team_form tf WHERE tf.team_id = t.id AND tf.l5_avg IS NOT NULL) < ?
+        AND (SELECT COUNT(*) FROM team_form tf WHERE tf.team_id = t.id AND tf.sport_id = s.id AND tf.l5_avg IS NOT NULL) < ?
     """
     params: list = [f"{date}%", min_stats]
     
@@ -70,8 +68,8 @@ def get_teams_needing_enrichment(date: str, sport: str | None = None, min_stats:
     if limit:
         query += f" LIMIT {limit}"
     
-    rows = conn.execute(query, params).fetchall()
-    conn.close()
+    with get_db() as conn:
+        rows = conn.execute(query, params).fetchall()
     return [dict(r) for r in rows]
 
 
@@ -82,11 +80,6 @@ def enrich_and_write(teams: list[dict], verbose: bool = False, deep: bool = True
         deep: Deprecated compatibility flag. Results-page enrichment is always
               used; canonical deep stats belong to provider-backed flows.
     """
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA busy_timeout=5000")
-    now = datetime.now(timezone.utc).isoformat()
-    
     enriched = 0
     failed = 0
     skipped = 0
@@ -96,72 +89,76 @@ def enrich_and_write(teams: list[dict], verbose: bool = False, deep: bool = True
     unresolved_misses = 0
     flashscore_html_matches_persisted = 0
     start_time = time.time()
-    
-    for i, team in enumerate(teams):
-        team_name = team["team_name"]
-        sport = team["sport"]
-        team_id = team["team_id"]
-        sport_id = team["sport_id"]
 
-        stats, error = _try_flashscore_results_page(team_name, sport)
-        flashscore_rich_keys = get_football_rich_stat_keys(stats) if sport == "football" else set()
-        flashscore_success = bool(stats)
-        flashscore_missed = not flashscore_success and not (error and "skipped" in error.lower())
+    with get_db() as conn:
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=5000")
+        now = datetime.now(timezone.utc).isoformat()
         
-        if stats:
-            # Write each stat key to team_form
-            for stat_key, values in stats.items():
-                if not values:
-                    continue
-                avg = round(sum(values) / len(values), 2)
-                vals_json = json.dumps(values[:10])
-                l5_vals = values[:5]
-                l5_avg = round(sum(l5_vals) / len(l5_vals), 2) if l5_vals else avg
-                
-                conn.execute("""
-                    INSERT OR REPLACE INTO team_form (team_id, sport_id, stat_key, l5_avg, l5_values, l10_avg, l10_values, updated_at, source)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (team_id, sport_id, stat_key, l5_avg, json.dumps(l5_vals), avg, vals_json, now, "flashscore"))
-                stats_written += 1
+        for i, team in enumerate(teams):
+            team_name = team["team_name"]
+            sport = team["sport"]
+            team_id = team["team_id"]
+            sport_id = team["sport_id"]
+
+            stats, error = _try_flashscore_results_page(team_name, sport)
+            flashscore_rich_keys = get_football_rich_stat_keys(stats) if sport == "football" else set()
+            flashscore_success = bool(stats)
+            flashscore_missed = not flashscore_success and not (error and "skipped" in error.lower())
             
-            enriched += 1
-            flashscore_successes += 1
-            if enriched % 10 == 0:
-                conn.commit()
-        elif error and "skipped" in error.lower():
-            skipped += 1
-        else:
-            if verbose:
-                log.debug("  [%d/%d] MISS %s: %s", i+1, len(teams), team_name, error)
-
-        flashscore_html_result = None
-        if sport == "football" and not flashscore_rich_keys:
-            flashscore_html_result = complete_football_rich_stats(team_name, sport, max_fixtures=5)
-            if flashscore_html_result.get("rich_keys_found"):
-                flashscore_html_fallback_successes += 1
-                flashscore_html_matches_persisted += flashscore_html_result.get("matches_persisted", 0)
-                if not flashscore_success:
-                    enriched += 1
+            if stats:
+                # Write each stat key to team_form
+                for stat_key, values in stats.items():
+                    if not values:
+                        continue
+                    avg = round(sum(values) / len(values), 2)
+                    vals_json = json.dumps(values[:10])
+                    l5_vals = values[:5]
+                    l5_avg = round(sum(l5_vals) / len(l5_vals), 2) if l5_vals else avg
+                    
+                    conn.execute("""
+                        INSERT OR REPLACE INTO team_form (team_id, sport_id, stat_key, l5_avg, l5_values, l10_avg, l10_values, updated_at, source)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (team_id, sport_id, stat_key, l5_avg, json.dumps(l5_vals), avg, vals_json, now, "flashscore"))
+                    stats_written += 1
+                
+                enriched += 1
+                flashscore_successes += 1
+                if enriched % 10 == 0:
+                    conn.commit()
+            elif error and "skipped" in error.lower():
+                skipped += 1
             else:
-                unresolved_misses += 1
+                if verbose:
+                    log.debug("  [%d/%d] MISS %s: %s", i+1, len(teams), team_name, error)
 
-        if flashscore_missed and not (flashscore_html_result and flashscore_html_result.get("rich_keys_found")):
-            failed += 1
+            flashscore_html_result = None
+            if sport == "football" and not flashscore_rich_keys:
+                flashscore_html_result = complete_football_rich_stats(team_name, sport, max_fixtures=5)
+                if flashscore_html_result.get("rich_keys_found"):
+                    flashscore_html_fallback_successes += 1
+                    flashscore_html_matches_persisted += flashscore_html_result.get("matches_persisted", 0)
+                    if not flashscore_success:
+                        enriched += 1
+                else:
+                    unresolved_misses += 1
 
-        if sport == "football" and flashscore_success and not flashscore_rich_keys and flashscore_html_result and flashscore_html_result.get("rich_keys_found"):
-            log.debug("  [%d/%d] Flashscore HTML fallback added rich keys for %s: %s", i + 1, len(teams), team_name, flashscore_html_result.get("rich_keys_found"))
+            if flashscore_missed and not (flashscore_html_result and flashscore_html_result.get("rich_keys_found")):
+                failed += 1
+
+            if sport == "football" and flashscore_success and not flashscore_rich_keys and flashscore_html_result and flashscore_html_result.get("rich_keys_found"):
+                log.debug("  [%d/%d] Flashscore HTML fallback added rich keys for %s: %s", i + 1, len(teams), team_name, flashscore_html_result.get("rich_keys_found"))
+            
+            if (i + 1) % 20 == 0:
+                elapsed = time.time() - start_time
+                rate = (i + 1) / elapsed if elapsed > 0 else 0
+                eta = (len(teams) - i - 1) / rate if rate > 0 else 0
+                log.info(
+                    "[%d/%d] enriched=%d failed=%d (%.1f/min, ETA %.0fs)",
+                    i + 1, len(teams), enriched, failed, rate * 60, eta
+                )
         
-        if (i + 1) % 20 == 0:
-            elapsed = time.time() - start_time
-            rate = (i + 1) / elapsed if elapsed > 0 else 0
-            eta = (len(teams) - i - 1) / rate if rate > 0 else 0
-            log.info(
-                "[%d/%d] enriched=%d failed=%d (%.1f/min, ETA %.0fs)",
-                i + 1, len(teams), enriched, failed, rate * 60, eta
-            )
-    
-    conn.commit()
-    conn.close()
+        conn.commit()
     
     elapsed = time.time() - start_time
     return {

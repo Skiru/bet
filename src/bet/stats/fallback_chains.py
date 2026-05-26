@@ -15,7 +15,7 @@ FALLBACK_CHAINS: dict[str, list[str]] = {
     "football": ["espn-football", "api-football", "football-data-org", "understat", "google-sports", "serpapi"],
     "basketball": ["espn-basketball", "nba-api", "api-basketball", "sofascore", "google-sports", "serpapi"],
     "hockey": ["espn-hockey", "api-hockey", "scrapernhl", "moneypuck", "sofascore", "google-sports", "serpapi"],
-    "tennis": ["tennis-abstract", "sackmann", "espn-tennis", "google-sports", "serpapi"],
+    "tennis": ["tennis-abstract", "flashscore-tennis", "sackmann", "espn-tennis", "google-sports", "serpapi"],
     "volleyball": ["espn-volleyball", "api-volleyball", "google-sports", "serpapi"],
     "cs2": ["bo3gg", "hltv", "liquipedia", "serpapi"],
     "valorant": ["vlr", "bo3gg", "liquipedia", "serpapi"],
@@ -73,7 +73,7 @@ RICH_COMPLETION_POLICY: dict[str, dict[str, list[str] | str]] = {
         ],
         "baseline_sources": ["espn-tennis-enriched"],
         "canonical_source": "tennis-abstract",
-        "supporting_sources": ["sackmann"],
+        "supporting_sources": ["flashscore-tennis", "sackmann"],
         "aggregate_only_sources": ["sackmann-season-aggregate"],
     },
     "volleyball": {

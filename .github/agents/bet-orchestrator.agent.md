@@ -100,6 +100,9 @@ You are the betting pipeline orchestrator — a MANAGER who runs scripts, monito
 | tipster_xref.py | `PYTHONPATH=src .venv/bin/python3 scripts/tipster_xref.py --date {date} --verbose` | 300000 | async |
 | run_scrapers.py | `PYTHONPATH=src .venv/bin/python scripts/run_scrapers.py --sport all --season 2425 --verbose` | 300000 | async |
 | data_enrichment_agent.py | `PYTHONPATH=src .venv/bin/python3 scripts/data_enrichment_agent.py --date {date} --news --gamelogs --verbose` | 600000 | sync |
+| fetch_tennis_elo.py | `PYTHONPATH=src .venv/bin/python3 scripts/fetch_tennis_elo.py --verbose` | 120000 | sync |
+| enrich_tennis_flashscore.py | `PYTHONPATH=src .venv/bin/python3 scripts/enrich_tennis_flashscore.py --date {date} --verbose` | 300000 | sync |
+| tennis_h2h_warmup.py | `PYTHONPATH=src .venv/bin/python3 scripts/tennis_h2h_warmup.py --date {date} --verbose` | 300000 | sync |
 | deep_stats_report.py | `PYTHONPATH=src .venv/bin/python3 scripts/deep_stats_report.py --date {date} --shortlist betting/data/{date}_s2_shortlist.json --gemini --verbose` | 600000 | async |
 | odds_evaluator.py | `PYTHONPATH=src .venv/bin/python3 scripts/odds_evaluator.py --date {date} --verbose` | 300000 | async |
 | context_checks.py | `PYTHONPATH=src .venv/bin/python3 scripts/context_checks.py --date {date} --verbose` | 300000 | async |
@@ -125,7 +128,8 @@ You are the betting pipeline orchestrator — a MANAGER who runs scripts, monito
 | build_shortlist.py | bet-scanner | S2 |
 | tipster_xref.py | bet-scout | S2.3 |
 | run_scrapers.py | bet-enricher | S2.5 |
-| data_enrichment_agent.py | bet-enricher | S3 |
+| data_enrichment_agent.py | bet-enricher | S2.6 |
+| fetch_tennis_elo.py + enrich_tennis_flashscore.py + tennis_h2h_warmup.py | bet-enricher | S3 |
 | deep_stats_report.py | bet-statistician | S4 |
 | odds_evaluator.py | bet-valuator | S5 |
 | context_checks.py + upset_risk.py | bet-challenger | S7 |

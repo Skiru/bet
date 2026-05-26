@@ -72,6 +72,15 @@ All 5 sports are Tier 1. There is no Tier 2.
 
 **Data quality requirement (R14):** Every candidate MUST have data_quality_score computed. FULL ≥7/10, PARTIAL 4-6/10, MINIMAL <4/10. Only FULL/PARTIAL in core coupons. MINIMAL goes to Extended Pool.
 
+### Tennis Hallucination Prevention Rule
+
+When a tennis candidate has `hallucination_risk=HIGH` in the S3 deep stats report:
+- ONLY analyze markets backed by real L10 data (listed in `real_data_keys`)
+- DO NOT invent serve/return numbers (aces, double faults, first serve %, etc.)
+- Markets with empty keys are SKIP — mark as "NO DATA" with reason "insufficient enrichment"
+- If only baseline keys exist (sets_won, total_sets, games_won, total_games), limit analysis to: Total Games O/U, Total Sets O/U, Player Games O/U
+- NEVER cite a stat value that isn't explicitly provided in the S3 report data
+
 ---
 
 ## AUTOMATED PIPELINE MODULES

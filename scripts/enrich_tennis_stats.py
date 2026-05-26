@@ -419,6 +419,32 @@ def get_shortlisted_tennis_players(date: str) -> list[str]:
     return sorted(players)
 
 
+def _update_surfaces_for_date(date: str) -> None:
+    """Infer and update surface for all tennis fixtures on a given date."""
+    try:
+        from bet.db.connection import get_db
+        # Import the helper from tennis_rich_completion
+        from _helpers.tennis_rich_completion import _infer_surface_from_league, _update_fixture_surface
+        
+        with get_db() as conn:
+            fixtures = conn.execute(
+                "SELECT id, league_name FROM fixtures WHERE sport = 'tennis' AND date(kickoff) = ?",
+                (date,)
+            ).fetchall()
+            
+            updated = 0
+            for row in fixtures:
+                fixture_id, league_name = row
+                inferred_surface = _infer_surface_from_league(league_name)
+                if inferred_surface:
+                    _update_fixture_surface(fixture_id, inferred_surface)
+                    updated += 1
+            if updated:
+                print(f"[enrich-tennis] Updated inferred surface for {updated} fixtures")
+    except Exception as e:
+        print(f"[enrich-tennis] Failed to update fixture surfaces: {e}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Enrich tennis stats cache with deep historical data")
     parser.add_argument("--date", required=True, help="Target date (YYYY-MM-DD)")
@@ -440,6 +466,10 @@ def main():
         return
 
     print(f"[enrich-tennis] Target: {len(target_players)} players from shortlist")
+    
+    # Update surface for today's fixtures based on league inferrence
+    _update_surfaces_for_date(args.date)
+
     print(f"[enrich-tennis] Building 60-day match index from ESPN...")
 
     # STEP 1: Build complete player index from ESPN (one-time bulk fetch)
