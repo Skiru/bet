@@ -1300,6 +1300,49 @@ def _build_s314_espn(stats_a: dict, stats_b: dict) -> str:
 # Core analysis
 # ---------------------------------------------------------------------------
 
+HALLUCINATION_CONFIG: dict[str, dict] = {
+    "tennis": {
+        "thin_data_threshold": 3,
+        "thin_data_markets_allowed": ["Total Games O/U", "Total Sets O/U", "Match Winner"],
+        "warning_msg": "Only analyze markets backed by real L10 data. DO NOT invent serve/return numbers.",
+    },
+    "volleyball": {
+        "thin_data_threshold": 3,
+        "thin_data_markets_allowed": ["Total Points O/U", "Sets O/U", "Match Winner"],
+        "warning_msg": "Only analyze total_points O/U and sets O/U. DO NOT invent aces/blocks numbers.",
+    },
+    "hockey": {
+        "thin_data_threshold": 3,
+        "thin_data_markets_allowed": ["Total Goals O/U", "Total Shots O/U", "Match Winner"],
+        "warning_msg": "Only analyze Total Goals O/U and Shots O/U. DO NOT invent PIM/hits numbers.",
+    },
+    "basketball": {
+        "thin_data_threshold": 3,
+        "thin_data_markets_allowed": ["Total Points O/U", "Handicap", "Match Winner"],
+        "warning_msg": "If only total_points available, limit to Total Points O/U and Handicap.",
+    },
+    "cs2": {
+        "thin_data_threshold": 3,
+        "thin_data_markets_allowed": ["Match Winner", "Map Handicap"],
+        "warning_msg": "Esports with only win_rate: limit to Match Winner. DO NOT invent round/map numbers.",
+    },
+    "valorant": {
+        "thin_data_threshold": 3,
+        "thin_data_markets_allowed": ["Match Winner", "Map Handicap"],
+        "warning_msg": "Esports with only win_rate: limit to Match Winner. DO NOT invent round/map numbers.",
+    },
+    "dota2": {
+        "thin_data_threshold": 3,
+        "thin_data_markets_allowed": ["Match Winner", "Map Handicap"],
+        "warning_msg": "Esports with only win_rate: limit to Match Winner. DO NOT invent duration/kill numbers.",
+    },
+    "football": {
+        "thin_data_threshold": 3,
+        "thin_data_markets_allowed": ["Goals Total O/U", "Match Winner", "Corners Total O/U"],
+        "warning_msg": "Thin data — limit to Goals O/U, Corners O/U, Match Winner.",
+    },
+}
+
 def analyze_candidate(
     sport: str,
     home: str,
@@ -1370,17 +1413,37 @@ def analyze_candidate(
         dq["score"] += 1
         dq["label"] = "FULL" if dq["score"] >= 7 else "PARTIAL" if dq["score"] >= 4 else "MINIMAL"
 
+    # Generic hallucination risk detection — all sports
     hallucination_risk = "LOW"
     real_data_keys = []
     empty_keys = []
-    if sport == "tennis":
-        hallucination_risk = "HIGH" if dq["score"] < 5 else "MEDIUM" if dq["score"] < 7 else "LOW"
-        from bet.stats.market_ranking import SPORT_STAT_KEYS
-        all_tennis_keys = SPORT_STAT_KEYS.get("tennis", [])
-        real_keys_a = [k for k in all_tennis_keys if stats_a.get("l10_avg", {}) and stats_a.get("l10_avg", {}).get(k) is not None]
-        real_keys_b = [k for k in all_tennis_keys if stats_b.get("l10_avg", {}) and stats_b.get("l10_avg", {}).get(k) is not None]
+    
+    from bet.stats.market_ranking import SPORT_STAT_KEYS
+    all_sport_keys = SPORT_STAT_KEYS.get(sport, [])
+    
+    if all_sport_keys:
+        # Check which keys have REAL L10 data
+        real_keys_a = [k for k in all_sport_keys if stats_a.get("l10_avg", {}) and stats_a.get("l10_avg", {}).get(k) is not None]
+        real_keys_b = [k for k in all_sport_keys if stats_b.get("l10_avg", {}) and stats_b.get("l10_avg", {}).get(k) is not None]
         real_data_keys = list(set(real_keys_a + real_keys_b))
-        empty_keys = [k for k in all_tennis_keys if k not in real_data_keys]
+        empty_keys = [k for k in all_sport_keys if k not in real_data_keys]
+        
+        # Determine risk level
+        hallucination_risk = "HIGH" if dq["score"] < 5 else "MEDIUM" if dq["score"] < 7 else "LOW"
+        
+        # Additional check: if L10 values have fewer than threshold entries → HIGH
+        config = HALLUCINATION_CONFIG.get(sport, {})
+        threshold = config.get("thin_data_threshold", 3)
+        # Check actual L10 array lengths
+        for key in real_data_keys[:]:
+            l10_a = stats_a.get("l10_values", {}).get(key, [])
+            l10_b = stats_b.get("l10_values", {}).get(key, [])
+            max_len = max(len(l10_a) if isinstance(l10_a, list) else 0,
+                         len(l10_b) if isinstance(l10_b, list) else 0)
+            if max_len < threshold:
+                # This key exists but has insufficient data points
+                if hallucination_risk == "LOW":
+                    hallucination_risk = "MEDIUM"
 
     fixture_surface = None
     if sport == "tennis":
@@ -1443,12 +1506,20 @@ def analyze_candidate(
         if surface_familiarity is not None:
             md_parts.append(f"**Surface familiarity (Player A):** {same_surface_count}/{total_with_surface} L10 on {fixture_surface}")
     
-    if sport == "tennis" and hallucination_risk == "HIGH":
+    if hallucination_risk == "HIGH" and sport in HALLUCINATION_CONFIG:
+        config = HALLUCINATION_CONFIG[sport]
         md_parts.append(
             f"⚠️ THIN DATA — hallucination_risk=HIGH\n"
+            f"Real data keys: {', '.join(real_data_keys) if real_data_keys else 'NONE'}\n"
+            f"Empty keys (DO NOT ANALYZE): {', '.join(empty_keys) if empty_keys else 'all present'}\n"
+            f"Allowed markets: {', '.join(config['thin_data_markets_allowed'])}\n"
+            f"{config['warning_msg']}\n"
+        )
+    elif hallucination_risk == "MEDIUM":
+        md_parts.append(
+            f"⚠️ PARTIAL DATA — hallucination_risk=MEDIUM\n"
             f"Real data keys: {', '.join(real_data_keys)}\n"
-            f"Empty keys (DO NOT ANALYZE): {', '.join(empty_keys)}\n"
-            f"Only analyze markets backed by real L10 data. DO NOT invent serve/return numbers.\n"
+            f"Empty keys (use with caution): {', '.join(empty_keys)}\n"
         )
 
     for key in ["s31", "s32", "s33", "s34", "s35", "s36", "s37", "s38", "s39", "s310",
@@ -1937,9 +2008,15 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
         from db_data_loader import save_analysis_results_to_db
         saved = save_analysis_results_to_db(date, output["analyses"])
         output["analysis_results_persisted"] = saved
-        print(f"[deep_stats] DB: saved {saved} analysis results")
+        total = len(output["analyses"])
+        print(f"[deep_stats] DB: persisted {saved}/{total} analysis results")
+        if saved < total:
+            print(f"[deep_stats] WARNING: {total - saved} candidates NOT persisted to DB "
+                  f"(missing fixture_id or DB error)")
     except Exception as e:
-        print(f"[deep_stats] DB write failed (non-fatal): {e}")
+        print(f"[deep_stats] ERROR: DB write failed: {e}")
+        print(f"[deep_stats] WARNING: 0/{len(output['analyses'])} persisted — "
+              f"gate_checker will fall back to JSON")
 
     output["fixture_ids_injected"] = sum(1 for analysis in output["analyses"] if analysis.get("fixture_id"))
     output["analysis_results_not_persisted"] = max(

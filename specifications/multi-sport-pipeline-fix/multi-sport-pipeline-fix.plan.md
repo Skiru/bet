@@ -519,7 +519,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
 
 **Goal:** Prevent future data quality regressions, unify shared logic
 
-### Task 5.1: Unified Fuzzy Matching Module
+### [x] Task 5.1: Unified Fuzzy Matching Module
 - **Type:** `[CREATE]`
 - **File:** `src/bet/utils/fuzzy_match.py`
 - **Agent:** `tsh-software-engineer`
@@ -546,7 +546,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
   - Outputs: AGENT_SUMMARY with per-sport health score
 - **Acceptance:** Running script identifies all known issues from assessment
 
-### Task 5.3: Name Mappings DB Table
+### [x] Task 5.3: Name Mappings DB Table
 - **Type:** `[CREATE]`
 - **File:** `scripts/db_migrations/add_name_mappings.py`
 - **Agent:** `tsh-software-engineer`
@@ -568,7 +568,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
   ```
 - **Acceptance:** Migration runs without errors, table created
 
-### Task 5.4: Stat Key Validation Layer
+### [x] Task 5.4: Stat Key Validation Layer
 - **Type:** `[CREATE]`
 - **File:** `src/bet/stats/stat_validation.py`
 - **Agent:** `tsh-software-engineer`
@@ -620,7 +620,7 @@ team_form: id, team_id, sport_id, stat_key, l10_values (JSON array), l5_values,
   - Output in gate_results: data_tier, comp_score columns
 - **Acceptance:** Gate results table shows data_tier for all candidates
 
-### Task 5.8: Deep Stats Report — Generic Per-Sport Hallucination Framework
+### [x] Task 5.8: Deep Stats Report — Generic Per-Sport Hallucination Framework
 - **Type:** `[MODIFY]`
 - **File:** `scripts/deep_stats_report.py`
 - **Agent:** `tsh-software-engineer`
