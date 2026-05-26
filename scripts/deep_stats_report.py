@@ -1793,9 +1793,18 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
             candidates = _load_candidates_from_pool(date)
             source = f"analysis_pool_{date}.json (DB fallback)"
     else:
-        # Default: try DB first (R2), fall back to JSON pool
-        candidates = _load_candidates_from_db(date)
-        source = f"db:fixtures:{date}"
+        # Default: try pipeline_candidates table first (R2 DB-first)
+        try:
+            from db_data_loader import load_shortlist_from_db
+            candidates = load_shortlist_from_db(date)
+            if candidates:
+                source = f"db:pipeline_candidates:{date}"
+            else:
+                candidates = _load_candidates_from_db(date)
+                source = f"db:fixtures:{date}"
+        except Exception:
+            candidates = _load_candidates_from_db(date)
+            source = f"db:fixtures:{date}"
         if not candidates:
             candidates = _load_candidates_from_pool(date)
             source = f"analysis_pool_{date}.json (DB empty)"
