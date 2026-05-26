@@ -159,7 +159,10 @@ class APIVolleyballClient(APISportsClient):
             return []
 
     def resolve_team_id(self, team_name: str) -> str | None:
-        """Search for a team by name → return API team ID."""
+        """Search for a team by name → return API team ID.
+
+        Prefers men's teams (excludes names ending in ' W') for ambiguous searches.
+        """
         if not self._check_api_key():
             return None
         cache_key = f"volleyball/team_search/{team_name.lower().replace(' ', '_')}"
@@ -170,7 +173,18 @@ class APIVolleyballClient(APISportsClient):
             data = self._request("/teams", params={"search": team_name})
             results = data.get("response", [])
             if results:
-                tid = str(results[0].get("id", ""))
+                # Prefer exact match or men's team (not ending in " W")
+                best = None
+                for r in results:
+                    name = r.get("name", "")
+                    if name.lower() == team_name.lower():
+                        best = r
+                        break
+                    if not name.endswith(" W") and best is None:
+                        best = r
+                if best is None:
+                    best = results[0]
+                tid = str(best.get("id", ""))
                 self._save_cache(cache_key, {"team_id": tid})
                 return tid
         except Exception:
@@ -208,18 +222,20 @@ class APIVolleyballClient(APISportsClient):
                 key=lambda g: g.get("date", ""),
                 reverse=True,
             )
-            # Take first last_n
-            result = [{"id": g.get("id")} for g in finished[:last_n]]
+            # Take first last_n — store ID as string for get_match_stats
+            result = [{"id": str(g.get("id", ""))} for g in finished[:last_n]]
             self._save_cache(cache_key, {"fixtures": result})
             return result
         except Exception:
             return []
 
     def get_match_stats(self, game_id: str) -> dict[str, float] | None:
-        """GET /games/statistics?id={game_id} → per-match stat dict.
+        """GET /games?id={game_id} → per-match stat dict from scores/periods.
 
-        Returns dict like {"aces": 5, "blocks": 8, "total_points": 87, "errors": 12}
-        for one game, or None if stats unavailable.
+        The volleyball API does NOT have a separate statistics endpoint.
+        Stats are extracted from the game response: sets won, total points per set.
+        Returns dict like {"sets_won_home": 3, "sets_won_away": 2, "total_points": 186}
+        for one game, or None if game not finished.
         """
         if not self._check_api_key():
             return None
@@ -230,27 +246,43 @@ class APIVolleyballClient(APISportsClient):
             return cached.get("stats")
 
         try:
-            data = self._request("/games/statistics", params={"id": game_id})
+            data = self._request("/games", params={"id": game_id})
         except Exception as e:
-            print(f"[{self.api_name}] Error fetching match stats for {game_id}: {e}")
+            print(f"[{self.api_name}] Error fetching match {game_id}: {e}")
             return None
 
-        match_stats: dict[str, float] = {}
-        for entry in data.get("response", []):
-            for stat in entry.get("statistics", []):
-                stat_type = _normalize_stat_type(stat.get("type", ""))
-                mapped = STAT_TYPE_MAP.get(stat_type)
-                if mapped:
-                    # Sum home+away for team-agnostic per-match totals
-                    home_val = stat.get("home")
-                    away_val = stat.get("away")
-                    if home_val is not None:
-                        match_stats[mapped] = match_stats.get(mapped, 0) + float(home_val)
-                    if away_val is not None:
-                        match_stats[mapped] = match_stats.get(mapped, 0) + float(away_val)
-
-        if not match_stats:
+        games = data.get("response", [])
+        if not games:
             return None
+
+        game = games[0]
+        status = game.get("status", {})
+        if isinstance(status, dict) and status.get("short") != "FT":
+            return None
+
+        scores = game.get("scores", {})
+        periods = game.get("periods", {})
+
+        if not scores or not periods:
+            return None
+
+        home_points = 0
+        away_points = 0
+        sets_played = 0
+        for period_name in ("first", "second", "third", "fourth", "fifth"):
+            period = periods.get(period_name, {})
+            if period and period.get("home") is not None:
+                home_points += int(period["home"])
+                away_points += int(period["away"])
+                sets_played += 1
+
+        match_stats: dict[str, float] = {
+            "total_points": float(home_points + away_points),
+            "sets_won": float(max(scores.get("home", 0), scores.get("away", 0))),
+            "sets_played": float(sets_played),
+            "points_home": float(home_points),
+            "points_away": float(away_points),
+        }
 
         self._save_cache(cache_key, {"stats": match_stats})
         return match_stats

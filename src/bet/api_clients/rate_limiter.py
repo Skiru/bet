@@ -44,13 +44,10 @@ API_DAILY_LIMITS = {
     "espn-volleyball": 10000,
 }
 
-# APIs sharing the same api-sports.io key → shared daily quota of 100
-SHARED_QUOTA_GROUPS: dict[str, list[str]] = {
-    "api-sports": ["api-football", "api-basketball", "api-hockey", "api-tennis", "api-volleyball"],
-}
-SHARED_QUOTA_LIMITS: dict[str, int] = {
-    "api-sports": 100,
-}
+# APIs on the api-sports.io platform — each has its OWN 100/day limit per sport endpoint.
+# No shared quota: football=100, basketball=100, hockey=100, tennis=100, volleyball=100 independently.
+SHARED_QUOTA_GROUPS: dict[str, list[str]] = {}
+SHARED_QUOTA_LIMITS: dict[str, int] = {}
 # Reverse lookup: api_name → group_name
 _API_TO_GROUP: dict[str, str] = {}
 for _group, _apis in SHARED_QUOTA_GROUPS.items():
