@@ -756,3 +756,88 @@ Roster change (+2), map pool edge (+1), online match (+1), new patch (+1).
 - Overall: 177 coupons, 51W/126L → 28.8% coupon hit rate (FALLING)
 - Day of worst loss: -9.06 PLN in single session
 - KEY LESSON: Stat-backed picks hit. Opinion/gut picks lose. NEVER bet against your own data.
+
+---
+
+## 2026-05-26 — Settlement of 25.05.2026 (breakeven: 1W/5L, PnL: ±0.00 zł)
+
+### Results:
+| # | Type | Odds | Stake | Result | Net | Killer |
+|---|------|------|-------|--------|-----|--------|
+| 1 | AKO(2) Football | 3.08 | 0.50 | LOST | -0.50 | Wolfsburg Przewaga @2.00 + Iceland O2.5 |
+| 2 | AKO(5) Tennis | 7.15 | 0.50 | LOST | -0.50 | Fernandez ML + Monfils ML |
+| 3 | AKO(3) Mixed | 3.74 | 1.00 | LOST | -1.00 | Brescia/Trieste O165.5 (missed by 0.5!) |
+| 4 | AKO(3) Norway stat | 4.50 | 1.00 | WON | +3.50 | — |
+| 5 | AKO(2) Corners+Cards | 2.44 | 0.50 | LOST | -0.50 | Lillestrøm U4.5 corners |
+| 6 | AKO(3) Tennis games | 3.87 | 1.00 | LOST | -1.00 | Munar/Hurkacz O36.5 games |
+| **TOTAL** | | | **4.50** | 1W/5L | **±0.00** | |
+
+### Pattern Recognition — what WON vs what LOST:
+
+**✅ WHAT WON (Coupon 4):**
+- ALL 3 picks were DATA-BACKED STAT MARKETS in Norwegian Eliteserien
+- Fouls U24.5, Corners O9.5, Team corners U4.5
+- Same league, same kickoff time, same data methodology
+- LESSON CONFIRMED: stat-backed picks in well-studied leagues WIN
+
+**❌ WHAT LOST — 7 DISTINCT ERRORS:**
+
+1. **RULE VIOLATION — Wolfsburg Przewaga @2.00** (LOWER_LEAGUE_001 says ≤1.43!)
+   - Existing rule was EXPLICITLY VIOLATED. Odds 2.00 >> 1.43 threshold.
+   - Bundesliga relegation playoff, away team. Paderborn fighting for life.
+   - This was NOT a data decision — it was a gut/opinion bet.
+
+2. **Iceland O2.5 — structural low-scoring league**
+   - Icelandic football averages ~2.1 goals/game
+   - Cup match (K. = Keppni) between different-tier teams = extra low scoring
+   - Result: 0-1 (1 total goal). Odds 1.54 weren't justified.
+   - NEW RULE: ICELAND_GOALS_001
+
+3. **Monfils ML @1.81 — 39-year-old in 5-set Grand Slam**
+   - Won first 2 sets 6-2, 6-3 then COLLAPSED: 3-6, 2-6, 0-6
+   - Classic aging pattern: strong start, physical collapse in later sets
+   - Hugo Gaston = French player at home at Roland Garros = crowd boost
+   - Odds 1.81 = only 55% implied — NOT a safe favorite!
+   - NEW RULE: TENNIS_ML_AGE_001
+
+4. **Fernandez ML @1.24 in 5-pick combo**
+   - Parks won 6-4, 6-4 — Fernandez was upset
+   - In isolation @1.24 is "safe" but in 5-pick combo, 2 such picks failing = coupon dead
+   - Combined probability of 5-pick combo was only 14% (1/7.15)
+   - NEW RULE: TENNIS_ML_COMBO_001 (max 2 ML picks per 4+ leg combo)
+
+5. **Brescia/Trieste O165.5 — Italian basketball PLAYOFF**
+   - Total: 165 points — MISSED BY 0.5!
+   - Regular season averages don't apply to playoff defense intensity
+   - Should have applied -5 to -8 point adjustment for playoff
+   - NEW RULE: BASKETBALL_PLAYOFF_001
+
+6. **Lillestrøm U4.5 corners — CONTRADICTED own winning pick**
+   - Ham-Kam U4.5 corners WON in Coupon 4 (Ham-Kam dominated 2-0)
+   - But if Ham-Kam dominates, Lillestrøm CHASES = MORE corners
+   - Betting UNDER for both teams = logical contradiction
+   - Odds 2.05 = bookmaker saw ~49% = coin flip
+   - NEW RULE: CORNERS_CONTRADICTION_001
+
+7. **Munar/Hurkacz O36.5 games — dominant favorite scenario**
+   - Hurkacz won 6-3, 6-3, 2-6, 6-3 = 35 games (missed by 1.5)
+   - When ranking gap >30 spots and favorite wins 3-1, games are LOW
+   - Three dominant sets at just 9 games each
+   - NEW RULE: TENNIS_GAMES_002
+
+### Root Cause Analysis:
+- **5 of 7 errors were NON-STAT picks** (ML, goals, total points, "przewaga")
+- **The ONLY winning coupon was 100% stat markets** (corners + fouls)
+- **Pattern CONFIRMED for 3rd time:** stat-backed picks = WIN. Opinion/outcome = LOSE.
+- **Existing rule was VIOLATED** (LOWER_LEAGUE_001 on Wolfsburg)
+- **Same match used 3x** (Paderborn/Wolfsburg) and **2x** (Ham-Kam/Lillestrøm)
+
+### New Rules Added:
+1. TENNIS_ML_AGE_001, 2. TENNIS_ML_COMBO_001, 3. TENNIS_GAMES_002
+4. BASKETBALL_PLAYOFF_001, 5. ICELAND_GOALS_001, 6. CORNERS_CONTRADICTION_001, 7. PRZEWAGA_AWAY_001
+
+### Cumulative Stats (updated):
+- Overall: 185 coupons, 52W/133L → 28.1% coupon hit rate
+- Stat-market-only coupons hit rate: ~45%
+- Opinion/outcome coupons hit rate: ~18%
+- KEY META-LESSON: Build coupons ONLY from stat markets with data backing. STOP mixing in outcome/ML/goals picks.
