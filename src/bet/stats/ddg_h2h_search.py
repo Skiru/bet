@@ -36,9 +36,9 @@ def search_tennis_h2h(
         or None if no H2H data found.
     """
     try:
-        from duckduckgo_search import DDGS
+        from ddgs import DDGS
     except ImportError:
-        logger.error("duckduckgo_search not installed")
+        logger.error("ddgs not installed — run: pip install ddgs")
         return None
 
     queries = [

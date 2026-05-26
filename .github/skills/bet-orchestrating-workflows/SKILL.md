@@ -39,6 +39,7 @@ Load this skill when an entry point needs shared execution mechanics that recur 
 - [routing-matrix.md](resources/routing-matrix.md) — intent-to-agent routing and the canonical delegation targets.
 - [resume-stop-gates.md](resources/resume-stop-gates.md) — pause, continue, and stop conditions for long workflows.
 - [handoff-contracts.md](resources/handoff-contracts.md) — the standard payload shape for subagent delegation.
+- [async-wait-overlap.md](resources/async-wait-overlap.md) — an opt-in add-on for orchestrator entry points that want bounded read-only overlap during qualifying async waits.
 
 ## Companion Loads
 
@@ -50,6 +51,8 @@ Load this skill when an entry point needs shared execution mechanics that recur 
 ## Operating Rule
 
 If a detail is shared across two or more prompts or agents and is not a permanent rule, place it in the matching resource here instead of duplicating it in each artifact.
+
+If an orchestrator entry point wants proactive wait-window overlap, load [async-wait-overlap.md](resources/async-wait-overlap.md). That resource owns the wait-policy details; [execution-spine.md](resources/execution-spine.md), [resume-stop-gates.md](resources/resume-stop-gates.md), and [handoff-contracts.md](resources/handoff-contracts.md) remain generic baselines rather than secondary policy owners.
 
 ## Progressive Disclosure
 

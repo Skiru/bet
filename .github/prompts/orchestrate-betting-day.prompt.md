@@ -25,6 +25,7 @@ Use this prompt for the daily betting workflow. Do not run `python3 scripts/pipe
 - Use `bet-orchestrating-workflows/resources/routing-matrix.md` for the specialist map.
 - Use `bet-orchestrating-workflows/resources/resume-stop-gates.md` for pause/continue decisions.
 - Use `bet-orchestrating-workflows/resources/handoff-contracts.md` for every delegation payload.
+- Use `bet-orchestrating-workflows/resources/async-wait-overlap.md` for orchestrator-only async-wait overlap policy.
 
 ## Day-Specific Phase Order
 1. Pre-flight: load journals, config, source registry, and recovery context.
@@ -39,6 +40,7 @@ Use this prompt for the daily betting workflow. Do not run `python3 scripts/pipe
 10. S10: present the matrix, coupons, extended pool, and reasoning.
 
 ## Orchestrator Rules
+- During qualifying async waits, use proactive read-only overlap from the canonical async-wait resource to close active-stage context gaps, then return to finished-output-first delegation.
 - After every finished script output, delegate to the mapped specialist before moving on.
 - Stop when a validation gate fails, upstream data is incomplete, or the next stage requires a user decision.
 - Keep the final synthesis concise and user-facing; do not paste raw script output.

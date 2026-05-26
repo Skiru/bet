@@ -7,7 +7,7 @@ description: "Hard reject rules derived from settled losses. MANDATORY during S3
 > **When to read:** Every agent during S3 (deep stats), S5 (odds evaluation), S7 (gate), and S8 (coupon building).
 > **R3 Compliance:** These rules do NOT auto-reject from the pipeline matrix. Candidates ALWAYS appear in the matrix and Extended Pool. These rules apply when BUILDING COUPONS — the coupon_builder and bet-builder agent must enforce them. In the gate, they produce FLAGS (not auto-rejections) so the user can see WHY a pick is risky.
 > **Source:** Settled results from `betting/journal/learning-log.md` and `betting/journal/{date}-pipeline-errors.md`.
-> **Last updated:** 2026-05-26 after 25.05 session (breakeven: 1W/5L, +0.00 PLN). New rules: TENNIS_ML_AGE, TENNIS_GAMES_002, BASKETBALL_PLAYOFF, ICELAND_001, CORNERS_CONTRADICTION_001.
+> **Last updated:** 2026-05-24 after -9.06 PLN catastrophic day.
 
 ---
 
@@ -126,9 +126,71 @@ Evidence: Crystal Palace vs Arsenal U2.5 in 3 coupons, Wisła Płock in 2, Etche
 
 ---
 
+### SAFETY_FLOOR_001 — Minimum Safety Score
+
+1. safety_score < 0.15 → **INSTANT REJECT** from any coupon
+2. safety_score < 0.30 → **NEVER in core coupon**; extended pool ONLY
+3. Gate APPROVED status does NOT override this (gate uses 19 criteria, safety is just 1)
+
+Evidence: 2026-05-26 Bologna/Trento Points U73.5 safety=0.0, gate_score 11/19 → APPROVED. Zero statistical edge. Should never have been on coupon.
+
+---
+
+### DIRECTION_CONTEXT_001 — Direction Override for Must-Win
+
+When margin ≤ 0.5 (avg ≈ line) AND match has relegation/promotion/must-win context:
+1. **VERIFY direction manually** — pure statistical direction may be wrong
+2. If team MUST attack (trailing in playoff series, relegation playoff) → shots/goals OVER bias
+3. If l5_avg CONTRADICTS the chosen direction → **REJECT or FLIP**
+4. avg = line (exactly) is NOT an edge — it's a coin flip
+
+Evidence: 2026-05-26 Fürth Shots U13.5. Avg=13.5=line (zero margin). L5_avg=13.8 > line (contradicts UNDER). Team lost 0-1 first leg, playing at home, MUST attack. UNDER is wrong direction.
+
+---
+
+### SYNTHETIC_RESCUE_001 — Do Not Penalize High-Consistency Picks
+
+When a pick has L5 ≥ 4/5 (80%+) hit rate:
+1. **NEVER auto-demote** regardless of data source (synthetic/real)
+2. L5 consistency > data completeness in predictive value
+3. If gate says EXTENDED but L5 ≥ 4/5: **RESCUE to coupon consideration**
+4. Compare hit_rate as PERCENTAGE, not absolute numerator (6/8=75% > 7/10=70%)
+
+Evidence: 2026-05-26 Waltert vs Siniakova, L5 5/5 (100%!) demoted to EXTENDED because hit_num=6 < 7 threshold (designed for /10 denominator). Best pick of the day missed.
+
+---
+
+### KICKOFF_GUARD_001 — Time Validation at Presentation
+
+1. **EVERY pick presented to user MUST have kickoff > NOW**
+2. Orchestrator checks `kickoff > current_time` AFTER gate, AFTER coupon build, BEFORE presentation
+3. Matryca/matrix is informational only — NEVER present started events as bettable
+4. If >30 min until kickoff: OK. If <30 min: FLAG as TIME-CRITICAL.
+
+Evidence: 2026-05-26 coupon v1 matrix led with 4 tennis picks (13:00 UTC) already LIVE when user saw the coupon (13:38 UTC). Misleading presentation.
+
+---
+
 ## 📋 Quick Decision Matrix for Agents
 
-See **Updated Quick Decision Matrix** below (includes all original + new rules from 2026-05-26).
+| Situation | Action |
+|-----------|--------|
+| safety_score < 0.15 | INSTANT REJECT |
+| safety_score < 0.30, in core coupon | REJECT (extend only) |
+| Tennis O3.5 sets, ranking gap >15 | REJECT |
+| Handball ML odds >1.43 | REJECT from AKO |
+| Over goals, combined L5 < line | REJECT (or flip to UNDER) |
+| Under 2.5, PL last day, team needs win | REJECT |
+| Lower league ML, odds >1.40 | REJECT |
+| SOT Over, combined L5 < line | INSTANT REJECT |
+| Same pick already in another coupon | REJECT from 2nd coupon |
+| Dead rubber + stat market | Apply -2.5 penalty, re-evaluate |
+| BTTS in relegation playoff | REJECT |
+| Any bet below 3rd tier league | REJECT unless stat market with data |
+| margin ≤ 0.5 + must-win context | VERIFY direction manually |
+| l5_avg contradicts direction | FLAG CONFLICTED, likely REJECT |
+| L5 ≥ 4/5 in EXTENDED pool | RESCUE — consider for coupon |
+| kickoff < NOW | INSTANT REJECT from presentation |
 
 ---
 
@@ -143,126 +205,3 @@ See **Updated Quick Decision Matrix** below (includes all original + new rules f
 | Team corners (specific) | L5 > line + 1.0 | 87% |
 
 **Pattern: DATA-BACKED stat markets win. Opinion/gut/context-ignored picks lose.**
-
----
-
-## ⛔ NEW RULES — Added 2026-05-26 (from 25.05.2026 settlement)
-
-### TENNIS_ML_AGE_001 — Aging Players in Grand Slam 5-Set Matches
-
-**NEVER** bet ML on players aged **≥35** in Grand Slam (5-set) matches when:
-1. Opponent is **<30 years old** (fitness advantage in 5th set)
-2. Opponent is playing **at home** (crowd energy in deciding set)
-3. Odds are **>1.60** (implied <63% — bookmaker already prices in the risk)
-4. Player has shown **physical decline** in recent matches (retirements, 5-setters lost)
-
-**Specific ban: Monfils ML in Grand Slams** — at 39, he CANNOT sustain 5-set intensity.
-
-Evidence: 2026-05-25 Monfils @1.81 vs Hugo Gaston (French, home crowd at RG). Won first 2 sets 6-2, 6-3 then COLLAPSED: 3-6, 2-6, 0-6 in last 3 sets. Classic aging pattern — dominates early, fades physically.
-
----
-
-### TENNIS_ML_COMBO_001 — Tennis Match Winners in Large AKO (≥4 legs)
-
-Tennis match winner picks in combos with **≥4 legs** require:
-1. **Max 2 ML picks** per combo (each adds 15-20% failure probability)
-2. Each ML pick must have odds **≤1.30** (implied ≥77%)
-3. If ANY ML pick has odds >1.50 → that pick CANNOT be in a ≥4-leg combo
-4. **WTA is more volatile than ATP** — apply extra caution for WTA ML in combos
-
-**Math:** Two "80% picks" = 64% combined probability. Three = 51%. Four = 41%. You're BELOW coinflip with 4 "safe" favorites!
-
-Evidence: 2026-05-25 AKO(5) with Fernandez @1.24 + Monfils @1.81 — both lost. The combo had combined implied prob of only 7.15⁻¹ = 14%. You need ALL 5 to hit.
-
----
-
-### TENNIS_GAMES_002 — Over Total Games vs Dominant Favorites
-
-Over total games **REJECT** when:
-1. One player is ranked **≥30 spots higher** than opponent
-2. Favorite's recent sets have been **dominant** (avg <4 games conceded per set in L5)
-3. Ranking gap **≥50 spots** → REJECT on ANY surface (including clay). Gap 30-49 on hard/grass → REJECT. Gap 30-49 on clay → CAUTION (clay adds ~2 games but cannot save a mismatch)
-4. Odds **>1.50** for Over = bookmaker sees dominant favorite scenario as likely
-
-**Key insight:** When a top player wins 3-1 in sets, total games are often LOW because 3 of 4 sets are one-sided (e.g., 6-3, 6-3, 2-6, 6-3 = only 35 games). Clay provides partial protection but NOT for massive ranking gaps.
-
-Evidence: 2026-05-25 Munar vs Hurkacz O36.5 @1.55. Hurkacz won 6-3, 6-3, 2-6, 6-3 = 35 games. Three dominant sets at 9 games each. Munar could only compete in one set.
-
----
-
-### BASKETBALL_PLAYOFF_001 — Playoff Over/Under Points Adjustment
-
-For **playoff** basketball games (any league):
-1. Apply **-5 to -8 points** to regular season combined averages (defense intensifies)
-2. If line is within **3 points** of adjusted average → **SKIP** (edge too thin)
-3. Series game number matters: Game 1-2 = -5, Game 3+ = -8 (teams learn each other's plays)
-4. **NEVER** bet Over in playoff with regular-season data without adjustment
-
-Evidence: 2026-05-25 Brescia vs Trieste O165.5 @1.84 (Italian basketball playoff). Result: 165 total — MISSED BY 0.5 POINTS. Playoff defense made the difference. No adjustment was applied.
-
----
-
-### ICELAND_GOALS_001 — Icelandic Football Over Goals
-
-**NEVER** bet Over 2.5 goals in Icelandic football (Úrvalsdeild, 1. deild, cups) unless:
-1. Combined L5 goals for BOTH teams exceeds **3.5** (not just 2.5!)
-2. Match is NOT a cup game (K. = Keppni = Cup → extra conservative)
-3. Both teams are from the **same division** (cross-division = unpredictable)
-4. Odds are **≤1.40** (bookmaker must strongly agree)
-
-**Structural fact:** Icelandic football averages ~2.1 goals/game. Weather (cold, wind), short season, and defensive tactics make Over 2.5 a LOSING proposition by default.
-
-Evidence: 2026-05-25 Throttur Reykjavik K. vs Stjarnan K. O2.5 @1.54. Result: 0-1 (1 goal total). Icelandic cup match between teams from different tiers. Only 1 goal scored.
-
----
-
-### CORNERS_CONTRADICTION_001 — Contradictory Picks in Same Match
-
-**HARD RULE:** You cannot bet UNDER team corners for **BOTH teams** in the same match across different coupons:
-1. If Team A dominates → Team B chases → Team B gets MORE corners
-2. If the match is close → BOTH teams get corners
-3. The ONLY scenario where both teams get few corners is a dead, boring 0-0 with no attacks
-
-**Before placing any team corner UNDER:** Check if the OTHER team from same match already has a pick. If yes:
-- Same direction (both UNDER) → REJECT the second one
-- Opposite direction (one UNDER, one OVER) → OK (they complement each other)
-
-Evidence: 2026-05-25 Ham-Kam U4.5 corners WON ✅ but Lillestrøm U4.5 corners LOST ❌ in the SAME match. Ham-Kam won 2-0, dominating → Lillestrøm was chasing and taking corners.
-
----
-
-### PRZEWAGA_AWAY_001 — "Win by 2+ OR Win" Market for Away Teams
-
-"Przewaga dwoma bramkami lub wygrana" (Double Chance Win variant) for **away teams**:
-1. Odds MUST be **≤1.43** (existing LOWER_LEAGUE_001 rule was IGNORED)
-2. **NEVER** in relegation playoffs/decisive matches (home team fights desperately)
-3. **NEVER** when home team has scored in **>80% of home L5 games** (will at least get 1 goal)
-4. This market requires winning OR winning by 2+ — a draw = LOSS. It's riskier than ML!
-
-**Key:** This market is effectively just ML (moneyline) — "win by 2+ OR win" = "win." A draw = LOSS. Odds @2.00 for an away team in a relegation playoff = pure coin flip with ZERO edge. If you wouldn't bet standard ML at those odds, don't bet this.
-
-Evidence: 2026-05-25 Wolfsburg "Przewaga 2+" @2.00 AWAY at Paderborn (Bundesliga relegation playoff). Paderborn won 2-1. Rule LOWER_LEAGUE_001 explicitly says max odds 1.43 for this market. THE RULE WAS VIOLATED.
-
----
-
-## 📋 Updated Quick Decision Matrix
-
-| Situation | Action |
-|-----------|--------|
-| Tennis ML player ≥35 in Grand Slam | REJECT |
-| Tennis ML in combo ≥4 legs with odds >1.50 | REJECT |
-| Tennis Over games, ranking gap >30 spots | REJECT |
-| Basketball playoff Over, line within 3 of adjusted avg | REJECT |
-| Icelandic football Over 2.5 | REJECT (unless combined L5 > 3.5) |
-| Both teams UNDER corners in same match | REJECT second pick |
-| Przewaga/win by 2+ away, odds >1.43 | REJECT |
-| Tennis O3.5 sets, ranking gap >15 | REJECT |
-| Handball ML odds >1.43 | REJECT from AKO |
-| Over goals, combined L5 < line | REJECT (or flip to UNDER) |
-| Under 2.5, PL last day, team needs win | REJECT |
-| Lower league ML, odds >1.40 | REJECT |
-| SOT Over, combined L5 < line | INSTANT REJECT |
-| Same pick already in another coupon | REJECT from 2nd coupon |
-| Dead rubber + stat market | Apply -2.5 penalty, re-evaluate |
-| BTTS in relegation playoff | REJECT |
-| Any bet below 3rd tier league | REJECT unless stat market with data |

@@ -20,7 +20,7 @@ tools:
     "vscode/runCommand",
     "vscode/toolSearch",
   ]
-model: "GPT-5.4"
+model: "Claude Opus 4.6"
 instructions:
   - ../instructions/agent-execution-protocol.instructions.md
   - ../instructions/analysis-methodology.instructions.md
