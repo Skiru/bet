@@ -1,6 +1,9 @@
 .venv/
 .vscode/mcp.json
 .roo/mcp.json
+.kilocode/mcp.json
+.kilocode/node_modules/
+.env
 betting/data/
 betting/data/betting.db
 scripts/playwright_storage/
