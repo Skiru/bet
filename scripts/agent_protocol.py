@@ -849,10 +849,12 @@ DATA_FLOW_CONTRACTS = {
         "requires": {
             "files": [
                 "betting/data/{date}_s7_gate_results.json",
+                # Optional with --skip-betclic-validation flag:
                 "betting/data/betclic_market_validation_{date}.json",
                 "betting/data/repeat_loss_handoff_{date}.json",
             ],
             "db": ["gate_results"],
+            "skip_flag": "--skip-betclic-validation skips both S7.5/S7.6 sidecars (all picks remain CONDITIONAL per R8)",
         },
         "produces": {
             "db": ["coupons", "bets", "decision_snapshots"],
@@ -1488,7 +1490,9 @@ STEP_AGENT_CONFIG = {
     "s8_coupons": {
         "agent": "bet-builder",
         "task": "Review portfolio strategically, build from approved picks after S7.5/S7.6 controls, and preserve extended_pool as a watch-list surface instead of a hidden rejection bucket.",
-        "required_input": ["{date}_s7_gate_results.json", "betclic_market_validation_{date}.json", "repeat_loss_handoff_{date}.json"],
+        "required_input": ["{date}_s7_gate_results.json"],
+        "optional_input": ["betclic_market_validation_{date}.json", "repeat_loss_handoff_{date}.json"],
+        "skip_flag": "--skip-betclic-validation (skips S7.5+S7.6, all picks CONDITIONAL per R8)",
         "output_metrics": ["gate_approved", "gate_extended", "gate_rejected", "singles", "core_coupons", "combos"],
         "think_in_the_middle": True,
         "error_handling": "ERROR_HANDLING_PROTOCOL",
