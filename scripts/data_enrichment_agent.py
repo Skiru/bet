@@ -2231,7 +2231,7 @@ def main():
         news_count = 0
         if args.news:
             try:
-                from gemini_news_enrichment import batch_enrich_news, save_news_to_db
+                from lmstudio_news_enrichment import batch_enrich_news, save_news_to_db
                 shortlist_path = DATA_DIR / f"{args.date}_s2_shortlist.json"
                 if shortlist_path.exists():
                     sl = json.loads(shortlist_path.read_text(encoding="utf-8"))
@@ -2246,16 +2246,16 @@ def main():
                                 seen.add(key)
                                 news_candidates.append({"team": team, "sport": sport})
                     if news_candidates:
-                        print(f"[enrich] Gemini news enrichment for {len(news_candidates)} teams...")
-                        news_results = batch_enrich_news(news_candidates, args.date, max_workers=3)
+                        print(f"[enrich] LM Studio news enrichment for {len(news_candidates)} teams...")
+                        news_results = batch_enrich_news(news_candidates, args.date)
                         news_count = save_news_to_db(news_results, args.date)
-                        print(f"[enrich] Gemini news: {news_count} teams saved to team_news table")
+                        print(f"[enrich] LM Studio news: {news_count} teams saved to team_news table")
                 else:
                     print("[enrich] Shortlist not found — skipping news enrichment")
             except ImportError:
-                print("[enrich] gemini_news_enrichment not available — skipping")
+                print("[enrich] lmstudio_news_enrichment not available — skipping")
             except Exception as e:
-                print(f"[enrich] Gemini news enrichment failed (non-fatal): {e}")
+                print(f"[enrich] LM Studio news enrichment failed (non-fatal): {e}")
 
         summary_metrics = _summarize_enrichment_results(results, extra_metrics={
             "news_enriched": news_count,

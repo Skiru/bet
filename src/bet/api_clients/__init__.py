@@ -156,8 +156,8 @@ except ImportError:
     pass
 
 try:
-    from bet.api_clients.gemini_client import GeminiClient
-    CLIENT_REGISTRY["gemini"] = GeminiClient
+    from bet.api_clients.lmstudio_client import LMStudioClient
+    CLIENT_REGISTRY["lmstudio"] = LMStudioClient
 except ImportError:
     pass
 

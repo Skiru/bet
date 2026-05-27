@@ -57,6 +57,7 @@ GATE_LABELS = {
     "16": "H2H STAT-SPECIFIC: H2H for exact stat exists",
     "17": "THREE-WAY ALIGNMENT: L10+H2H+L5 all support",
     "18": "DATA QUALITY: both teams have stat data",
+    "19": "ODDS-SAFETY GAP: model vs market <25pp",
 }
 
 GATE_BUCKET_STATUS = {
@@ -1036,21 +1037,14 @@ def compute_upset_risk(candidate: dict) -> dict:
 # Risk tier assignment
 # ---------------------------------------------------------------------------
 
-def compute_risk_tier(candidate: dict, gate_result: dict, systemic_points: set | None = None) -> str:
+def compute_risk_tier(candidate: dict, gate_result: dict) -> str:
     """Assign LR/MS/HR/N based on safety, gate score, sport, kickoff.
 
-    Uses EFFECTIVE gate score (excluding systemic infrastructure gaps) so that
-    universally-unavailable data (H2H, tipsters, expired APIs) doesn't push
-    every candidate to HR.
-
     - N (Night): kickoff after 20:00 local time
-    - LR (Low-Risk): safety ≥ 0.65, effective_gate ≥ 85%, strong hit rate
-    - MS (Multi-Sport): safety ≥ 0.45, effective_gate ≥ 70%
-    - HR (Higher-Risk): everything else
+    - LR (Low-Risk): safety ≥ 0.75, gate ≥ 16/18, not blind, EV > 0
+    - MS (Multi-Sport): safety ≥ 0.60, gate ≥ 13/18
+    - HR (Higher-Risk): everything else with EV > 0
     """
-    if systemic_points is None:
-        systemic_points = set()
-
     # Check night first
     kickoff = candidate.get("kickoff", "")
     if kickoff:
@@ -1064,33 +1058,24 @@ def compute_risk_tier(candidate: dict, gate_result: dict, systemic_points: set |
     best = candidate.get("best_market") or {}
     safety = best.get("safety_score", 0) or 0
     gate_passed = gate_result.get("gate_passed", [])
+    gate_score = gate_result.get("raw_gate_score", len(gate_passed))
     gate_failed = gate_result.get("gate_failed", [])
 
-    # Effective gate: exclude systemic failures (infrastructure gaps affecting >80%)
-    effective_total = 18 - len(systemic_points)
-    effective_passed = len([p for p in gate_passed if p not in systemic_points])
-    effective_pct = effective_passed / effective_total if effective_total > 0 else 0
-
+    is_tipster_blind = "6" in gate_failed
+    is_h2h_stat_blind = "16" in gate_failed
     ev = candidate.get("ev")
+    # Stats-first mode: ev=None means odds not yet available (user checks Betclic)
+    # Allow LR classification when ev is None (undetermined) or positive
     has_positive_ev = ev is None or ev > 0
 
-    # Parse hit rate for LR qualification
-    hit_rate_str = best.get("hit_rate_l10", "")
-    hit_rate_val = 0.0
-    if hit_rate_str and "/" in str(hit_rate_str):
-        try:
-            num, den = str(hit_rate_str).split("/", 1)
-            hit_rate_val = float(num) / float(den) if float(den) > 0 else 0
-        except (ValueError, TypeError):
-            pass
-
-    if (safety >= 0.65
-            and effective_pct >= 0.85
-            and hit_rate_val >= 0.60
+    if (safety >= 0.75
+            and gate_score >= 16
+            and not is_tipster_blind
+            and not is_h2h_stat_blind
             and has_positive_ev):
         return "LR"
 
-    if safety >= 0.45 and effective_pct >= 0.70:
+    if safety >= 0.60 and gate_score >= 13:
         return "MS"
 
     return "HR"
@@ -1206,11 +1191,26 @@ def check_18_point_gate(candidate: dict, repeat_losses: list) -> dict:
         if msg:
             warnings.append(msg)
 
+    total_checks = len(GATE_LABELS)
+    gate_score_val = len(passed)
+    
+    # Per-sport gate threshold awareness
+    # Sports with historically thin data get a boost when they have FULL data tier
+    THIN_DATA_SPORTS = {"volleyball", "cs2", "valorant", "dota2"}
+    sport = candidate.get("sport", "").lower()
+    data_tier = candidate.get("data_tier", "")
+    if sport in THIN_DATA_SPORTS and data_tier == "FULL":
+        gate_score_val += 1  # Boost for having full coverage in a thin-data sport
+
+    # Cap at total_checks to avoid misleading scores like "20/19"
+    gate_score_val = min(gate_score_val, total_checks)
+
     return {
         "gate_passed": passed,
         "gate_failed": failed,
         "gate_warnings": [w for w in warnings if w],
-        "gate_score": f"{len(passed)}/18",
+        "gate_score": f"{gate_score_val}/{total_checks}",
+        "raw_gate_score": gate_score_val,
         "gate_details": details,
     }
 
@@ -1300,6 +1300,8 @@ def _normalise_s3_to_gate_input(analysis: dict) -> dict:
         "away_team": analysis.get("away_team", ""),
         "competition": analysis.get("competition", ""),
         "kickoff": analysis.get("kickoff", ""),
+        "data_tier": analysis.get("data_tier", ""),
+        "comp_score": analysis.get("comp_score", 3),
         "best_market": best,
         "all_markets": ranking,
         "market_count": analysis.get("markets_evaluated", len(ranking)),
@@ -1571,7 +1573,7 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
             gate_result["gate_warnings"].extend(conflict_msgs)
             c["directional_conflict"] = True
 
-        risk_tier = compute_risk_tier(c, gate_result, systemic_points=systemic_points)
+        risk_tier = compute_risk_tier(c, gate_result)
         conf, conf_adj = compute_confidence(c, gate_result)
 
         entry = {
@@ -1740,20 +1742,8 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
                 _min_mkts = {"football": 3, "basketball": 3, "tennis": 2, "volleyball": 2, "hockey": 3, "cs2": 1, "dota2": 1, "valorant": 1}.get(_sport, 2)
                 if markets_evaluated < _min_mkts and markets_evaluated > 0:
                     extended_reasons.append(f"INSUFFICIENT_MARKETS: {markets_evaluated}/{_min_mkts} required")
-                if hit_rate_val > 0 and hit_rate_val < 0.50:
-                    # Allow 50% hits — at odds >2.00 they're EV+. Only reject <50%.
-                    # Also: if H2H strongly supports direction, exempt from coin flip
-                    h2h_hit = (c.get("best_market") or {}).get("hit_rate_h2h", "N/A")
-                    h2h_exempt = False
-                    if h2h_hit and h2h_hit != "N/A" and "/" in str(h2h_hit):
-                        try:
-                            h2h_n, h2h_d = str(h2h_hit).split("/", 1)
-                            if int(h2h_d) >= 2 and int(h2h_n) / int(h2h_d) >= 0.70:
-                                h2h_exempt = True
-                        except (ValueError, ZeroDivisionError):
-                            pass
-                    if not h2h_exempt:
-                        extended_reasons.append(f"COIN_FLIP: hit_rate={hit_rate_str} (<50% = no edge)")
+                if hit_rate_val > 0 and hit_rate_val <= 0.50:
+                    extended_reasons.append(f"COIN_FLIP: hit_rate={hit_rate_str} (≤50% = no edge)")
                 
                 if extended_reasons:
                     entry["advisory_tier"] = "FLAGGED"
@@ -1872,6 +1862,8 @@ def _candidate_row(entry: dict) -> str:
     return (
         f"| {entry.get('sport', '')} "
         f"| {entry.get('home_team', '')} vs {entry.get('away_team', '')} "
+        f"| {entry.get('data_tier', '-')} "
+        f"| {entry.get('comp_score', '-')} "
         f"| {best.get('name', '-')} "
         f"| {best.get('safety_score', '-')} "
         f"| {entry.get('gate_score', '-')} "
@@ -1949,8 +1941,8 @@ def _write_markdown(results: dict, date: str) -> Path:
         "",
         "## Summary Table",
         "",
-        "| Sport | Event | Market | Safety | Gate | Tier | Conf | Status |",
-        "|-------|-------|--------|--------|------|------|------|--------|",
+        "| Sport | Event | Data Tier | Comp | Market | Safety | Gate | Risk Tier | Conf | Status |",
+        "|-------|-------|-----------|------|--------|--------|------|-----------|------|--------|",
     ]
 
     for bucket in ("approved", "extended_pool", "rejected"):
@@ -2008,7 +2000,8 @@ def _load_s3_output(date: str, input_path: str | None = None) -> tuple[list[dict
 
     Tries:
       1. Explicit --input path
-      2. Canonical DB/JSON parity loader
+      2. DB (analysis_results table) — canonical source
+      3. JSON fallback (deprecated)
     """
     if input_path:
         path = Path(input_path)
@@ -2021,18 +2014,8 @@ def _load_s3_output(date: str, input_path: str | None = None) -> tuple[list[dict
         print(f"[gate_checker] Loaded {len(candidates)} candidates from {path}")
         return candidates, {
             "source": "explicit_input",
-            "counts": {
-                "canonical": len(candidates),
-                "json": len(candidates),
-                "db": 0,
-            },
-            "parity": {
-                "status": "explicit_input",
-                "shared_candidates": 0,
-                "json_only_candidates": len(candidates),
-                "db_only_candidates": 0,
-                "overlay_candidates": 0,
-            },
+            "counts": {"canonical": len(candidates), "json": len(candidates), "db": 0},
+            "parity": {"status": "explicit_input"},
         }
 
     try:
@@ -2041,24 +2024,38 @@ def _load_s3_output(date: str, input_path: str | None = None) -> tuple[list[dict
         except ImportError:
             import db_data_loader as db_loader
 
-        analyses, candidate_load = db_loader.load_s3_candidates_with_parity(date)
+        # DB-first: try analysis_results table
+        db_entries = db_loader.load_analysis_results_from_db(date)
+        if db_entries:
+            candidates = [_normalise_s3_to_gate_input(a) for a in db_entries]
+            metadata = {
+                "source": "db",
+                "counts": {"canonical": len(candidates), "db": len(db_entries), "json": 0},
+                "parity": {"status": "db_canonical"},
+            }
+            print(f"[gate_checker] Loaded {len(candidates)} candidates from DB (canonical)")
+            return candidates, metadata
+
+        # JSON fallback (deprecated)
+        json_entries = db_loader._load_analysis_results_raw_from_json(date)
+        if json_entries:
+            candidates = [_normalise_s3_to_gate_input(a) for a in json_entries]
+            metadata = {
+                "source": "json_fallback",
+                "counts": {"canonical": len(candidates), "db": 0, "json": len(json_entries)},
+                "parity": {"status": "json_fallback_deprecated"},
+            }
+            print(f"[gate_checker] WARNING: Using deprecated JSON fallback "
+                  f"({len(candidates)} candidates). Run deep_stats_report.py to populate DB.")
+            return candidates, metadata
+
     except Exception as e:
         print(f"[gate_checker] ERROR: canonical S3 load failed: {e}")
         sys.exit(1)
 
-    if candidate_load.get("blocking_error"):
-        return [], candidate_load
-
-    candidates = [_normalise_s3_to_gate_input(a) for a in analyses]
-    print(
-        "[gate_checker] Candidate load: "
-        f"source={candidate_load.get('source', 'none')} "
-        f"status={candidate_load.get('parity', {}).get('status', 'missing')} "
-        f"json={candidate_load.get('counts', {}).get('json', 0)} "
-        f"db={candidate_load.get('counts', {}).get('db', 0)} "
-        f"canonical={candidate_load.get('counts', {}).get('canonical', 0)}"
-    )
-    return candidates, candidate_load
+    print(f"[gate_checker] ERROR: No S3 analysis data found for {date}")
+    return [], {"source": "none", "counts": {"canonical": 0, "db": 0, "json": 0},
+                "parity": {"status": "missing"}}
 
 
 # ---------------------------------------------------------------------------
@@ -2161,10 +2158,10 @@ def main():
         for bucket in ("approved", "extended_pool", "rejected"):
             all_results.extend(results.get("gate_results", {}).get(bucket, []))
         saved = save_gate_results_to_db(args.date, all_results)
-        if args.verbose:
-            out.event("db_write", saved=saved)
-        else:
-            print(f"[gate_checker] DB: saved {saved} gate results")
+        total = len(all_results)
+        print(f"[gate_checker] DB: persisted {saved}/{total} gate results")
+        if saved < total:
+            print(f"[gate_checker] WARNING: {total - saved} gate results NOT persisted to DB")
     except Exception as e:
         out.error(f"DB write failed: {e}", recoverable=True)
 

@@ -3262,11 +3262,6 @@ def main():
         default=None,
         help="Path to S7 gate results JSON (overrides default path)",
     )
-    parser.add_argument(
-        "--skip-betclic-validation",
-        action="store_true",
-        help="Skip S7.5 Betclic validation sidecar requirement (all picks remain CONDITIONAL)",
-    )
     add_agent_args(parser)
 
     args = parser.parse_args()
@@ -3312,17 +3307,11 @@ def main():
     config = load_config()
 
     try:
-        if args.skip_betclic_validation:
-            betclic_validation_payload = {}
-            betclic_validation_control = {"mode": "skipped", "reason": "--skip-betclic-validation flag"}
-            out.warning("Betclic validation skipped — all picks remain CONDITIONAL (R8)")
-            repeat_loss_control = {"mode": "skipped", "reason": "--skip-betclic-validation flag"}
-        else:
-            gate_results, betclic_validation_payload, betclic_validation_control = _apply_betclic_validation_to_gate_results(
-                args.date,
-                gate_results,
-            )
-            gate_results, repeat_loss_control = _apply_repeat_loss_hard_rejects(args.date, gate_results)
+        gate_results, betclic_validation_payload, betclic_validation_control = _apply_betclic_validation_to_gate_results(
+            args.date,
+            gate_results,
+        )
+        gate_results, repeat_loss_control = _apply_repeat_loss_hard_rejects(args.date, gate_results)
     except (FileNotFoundError, ValueError) as exc:
         out.error(str(exc), recoverable=False)
         out.summary(verdict="FAILED", metrics={"error": str(exc)})

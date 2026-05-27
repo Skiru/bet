@@ -1,0 +1,16 @@
+{
+  "base_url": "http://localhost:1234/v1",
+  "model": "gemma-4-31b-Q4_K_M",
+  "max_tokens": 4096,
+  "temperature": 0.3,
+  "timeout_seconds": 180,
+  "max_retries": 3,
+  "retry_delay_seconds": 5.0,
+  "max_context_tokens": 65536,
+  "structured_output": true,
+  "health_check_on_init": true,
+  "usage_tracking": {
+    "enabled": true,
+    "log_dir": "betting/data/.api_usage"
+  }
+}

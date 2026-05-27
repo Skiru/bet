@@ -116,27 +116,27 @@ export function getPipelineStatus(): string {
   }
 }
 
-export function getGeminiConfig(): {
+export function getLMStudioConfig(): {
   enabled: boolean;
   model: string;
-  dailyLimit: number;
+  baseUrl: string;
 } {
   try {
-    const geminiPath = path.join(
+    const configPath = path.join(
       process.cwd(),
       "..",
       "config",
-      "gemini_config.json"
+      "lmstudio_config.json"
     );
-    const raw = fs.readFileSync(geminiPath, "utf-8");
+    const raw = fs.readFileSync(configPath, "utf-8");
     const config = JSON.parse(raw);
     return {
       enabled: true,
-      model: config.default_model ?? "gemini-2.5-flash",
-      dailyLimit: config.daily_request_limit ?? 1500,
+      model: config.model ?? "gemma-4-31b-Q4_K_M",
+      baseUrl: config.base_url ?? "http://localhost:1234/v1",
     };
   } catch {
-    return { enabled: false, model: "N/A", dailyLimit: 0 };
+    return { enabled: false, model: "N/A", baseUrl: "N/A" };
   }
 }
 

@@ -403,38 +403,38 @@ def research_missing_data(
         logger.info("Cache hit for %s query: %s", data_type, query_text[:60])
         return cached
 
-    # --- L7a: Try Gemini Search Grounding first (feature flag) ---
+    # --- L7a: Try LM Studio + Brave Search first (feature flag) ---
     if use_gemini:
         try:
-            from gemini_web_research import research_team
-            gemini_results = research_team(
+            from lmstudio_web_research import research_team
+            lmstudio_results = research_team(
                 team=team1,
                 sport=sport,
                 data_types=[data_type],
                 opponent=team2,
             )
-            if gemini_results and gemini_results[0].findings:
-                gr = gemini_results[0]
-                parsed = {"findings": gr.findings, "source": "gemini-search"}
+            if lmstudio_results and lmstudio_results[0].findings:
+                gr = lmstudio_results[0]
+                parsed = {"findings": gr.findings, "source": "lmstudio+brave"}
                 result = {
                     "data": parsed,
-                    "source_url": gr.sources[0] if gr.sources else "gemini-search",
+                    "source_url": gr.sources[0] if gr.sources else "lmstudio+brave",
                     "confidence": gr.confidence,
                     "cached": False,
-                    "method": "gemini",
+                    "method": "lmstudio",
                 }
                 _save_to_cache(query_text, data_type, parsed,
                                result["source_url"], gr.confidence, db_path=db_path)
-                logger.info("L7a (Gemini) success: %s %s (confidence=%.2f)",
+                logger.info("L7a (LMStudio) success: %s %s (confidence=%.2f)",
                             data_type, team1, gr.confidence)
                 return result
             else:
-                logger.info("L7a (Gemini): no findings for %s %s — trying L7b",
+                logger.info("L7a (LMStudio): no findings for %s %s — trying L7b",
                             data_type, team1)
         except ImportError:
-            logger.debug("gemini_web_research not available — skipping L7a")
+            logger.debug("lmstudio_web_research not available — skipping L7a")
         except Exception as e:
-            logger.warning("L7a (Gemini) failed: %s — falling back to L7b", e)
+            logger.warning("L7a (LMStudio) failed: %s — falling back to L7b", e)
 
     # --- L7b: Original SerpAPI + Playwright path ---
     # Load rate counter

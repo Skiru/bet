@@ -339,33 +339,33 @@ SELF_HEALING_REGISTRY = {
         "module": "scripts.web_research_agent",
         "function": "research_missing_data",
         "trigger": "All L1-L6 fallbacks exhausted, data still missing",
-        "description": "Search open web for missing H2H, injury, form, coach data. Tries Gemini Search Grounding (L7a) first, then SerpAPI+Playwright (L7b).",
-        "rate_limit": "5 SerpAPI + 10 Playwright per run (Gemini uses separate budget via gemini_config.json)",
+        "description": "Search open web for missing H2H, injury, form, coach data. Uses Brave Search + LM Studio (L7a) first, then SerpAPI+Playwright (L7b).",
+        "rate_limit": "5 SerpAPI + 10 Playwright per run (LM Studio is local, no budget)",
     },
-    "gemini_research": {
-        "module": "gemini_web_research",
+    "lmstudio_research": {
+        "module": "lmstudio_web_research",
         "functions": {
-            "research_team": "Gemini Search Grounding for team data (H2H, injuries, form, coach). Args: (team, sport, data_types, opponent). Returns: list[WebResearchResult].",
-            "research_event_context": "Full event context via Gemini. Args: (home_team, away_team, sport, competition). Returns: EventContextResult.",
+            "research_team": "Brave Search + LM Studio for team data (H2H, injuries, form, coach). Args: (team, sport, data_types, opponent). Returns: list[WebResearchResult].",
+            "research_event_context": "Full event context via Brave + LM Studio. Args: (home_team, away_team, sport, competition). Returns: EventContextResult.",
         },
         "trigger": "L7a — primary web research before SerpAPI/Playwright",
-        "use_when": "Missing team data after L1-L6 enrichment. Replaces SerpAPI as first-choice web search.",
-        "rate_limit": "Shared daily_request_limit from config/gemini_config.json",
+        "use_when": "Missing team data after L1-L6 enrichment. Brave Search + local LM Studio as first-choice.",
+        "rate_limit": "Brave API: 2000 queries/month free tier. LM Studio: unlimited (local).",
     },
-    "gemini_tipster": {
-        "module": "gemini_tipster_reader",
+    "lmstudio_tipster": {
+        "module": "lmstudio_tipster_reader",
         "functions": {
-            "read_tipster_page": "Read tipster URL via Gemini and extract structured picks. Args: (url, source_site, sport_filter, date_filter). Returns: TipsterPageResult.",
+            "read_tipster_page": "Fetch tipster HTML via httpx, extract picks via LM Studio. Args: (url, source_site, sport_filter, date_filter). Returns: TipsterPageResult.",
             "batch_read_tipster_sites": "Read multiple tipster sites. Args: (sites, date_str, sport_filter). Returns: list[TipsterPageResult].",
         },
         "trigger": "S1 tipster aggregation when --use-gemini flag is set",
         "use_when": "Tipster HTML parsing fails or returns low yield. Feature-flagged via --use-gemini on tipster_aggregator.py.",
     },
-    "gemini_news": {
-        "module": "gemini_news_enrichment",
+    "lmstudio_news": {
+        "module": "lmstudio_news_enrichment",
         "functions": {
-            "enrich_team_news": "Injury/news/coaching enrichment for a team. Args: (team, sport, date). Returns: NewsEnrichmentResult.",
-            "batch_enrich_news": "Batch enrichment for multiple candidates. Args: (candidates, date, max_workers). Returns: list[NewsEnrichmentResult].",
+            "enrich_team_news": "Injury/news/coaching enrichment via Brave Search + LM Studio. Args: (team, sport, date). Returns: NewsEnrichmentResult.",
+            "batch_enrich_news": "Batch enrichment for multiple candidates. Args: (candidates, date). Returns: list[NewsEnrichmentResult].",
             "save_news_to_db": "Persist enrichment results to team_news table. Args: (results, date). Returns: int (count saved).",
         },
         "trigger": "S2.5 news enrichment step or --news flag on data_enrichment_agent.py",
@@ -392,7 +392,7 @@ SELF_HEALING_REGISTRY = {
         "L4: S3 batch enrichment before analysis loop",
         "L5: S3 inline extract_team_stats/extract_h2h_stats fallback (per-candidate)",
         "L6: S5 inline context fetch (weather API + ESPN injury scrape)",
-        "L7a: Gemini Search Grounding — web research via gemini_web_research (primary)",
+        "L7a: Brave Search + LM Studio — web research via lmstudio_web_research (primary)",
         "L7b: SerpAPI search — fallback when Gemini budget exhausted or fails",
         "L7c: Playwright direct URL fetch — last resort for specific data sources",
     ],

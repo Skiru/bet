@@ -827,7 +827,7 @@ Over 12.5: P=61.2%, fair_odds=1.63, CI=[48.3%–71.4%]
 **Playwright-based tipster fetching and consensus scoring from 10 sites.**
 
 **Script:** `python3 scripts/tipster_aggregator.py --date YYYY-MM-DD --use-gemini`
-**Integration:** Runs in S2 tipster step. Uses Playwright DOM scraping (sequential, NOT parallel — Playwright is not thread-safe). HTTP fallback preserved.
+**Integration:** Runs in S2 tipster step. Uses Playwright DOM scraping (sequential) or `--use-gemini` for httpx + LM Studio extraction. HTTP fallback preserved.
 
 **What it does:**
 1. Fetches tipster sites sequentially via Playwright (headless Chromium + stealth mode)

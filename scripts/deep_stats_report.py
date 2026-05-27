@@ -1350,7 +1350,6 @@ def analyze_candidate(
     competition: str,
     kickoff: str,
     shortlist_safety_markets: list | None = None,
-    fixture_id: int | None = None,
 ) -> dict:
     """Perform full S3 deep statistical analysis for one candidate.
 
@@ -1369,7 +1368,7 @@ def analyze_candidate(
 
     # Build safety input and rank markets
     ranking_result = None
-    safety_input = build_safety_input(sport, home, away, competition, fixture_id=fixture_id)
+    safety_input = build_safety_input(sport, home, away, competition)
     if safety_input and safety_input.get("markets"):
         ranking_result = rank_markets(safety_input)
     else:
@@ -1380,7 +1379,7 @@ def analyze_candidate(
                 enrich_team(home, sport)
                 enrich_team(away, sport)
                 # Retry safety input after enrichment
-                safety_input = build_safety_input(sport, home, away, competition, fixture_id=fixture_id)
+                safety_input = build_safety_input(sport, home, away, competition)
                 if safety_input and safety_input.get("markets"):
                     ranking_result = rank_markets(safety_input)
             except Exception:
@@ -1672,7 +1671,6 @@ def _load_candidates_from_pool(date: str) -> list[dict]:
             "away_team": e.get("away_team", ""),
             "competition": e.get("competition", ""),
             "kickoff": e.get("kickoff", ""),
-            "fixture_id": e.get("fixture_id"),
             "safety_markets": e.get("safety_markets"),
             "n_odds_markets": e.get("n_odds_markets", 0),
             "fixture_verified": e.get("fixture_verified", False),
@@ -1699,7 +1697,6 @@ def _load_candidates_from_shortlist(path: str) -> list[dict]:
             "away_team": e.get("away_team", e.get("away", "")),
             "competition": e.get("competition", ""),
             "kickoff": e.get("kickoff", e.get("kickoff_cest", "")),
-            "fixture_id": e.get("fixture_id"),
             "data_tier": e.get("data_tier", ""),
             "comp_score": e.get("comp_score", 3),
             "safety_markets": e.get("safety_markets", []),
@@ -1728,7 +1725,6 @@ def _load_candidates_from_db(date: str) -> list[dict]:
                 "away_team": f.get("away_team", ""),
                 "competition": f.get("competition", f.get("competition_name", "")),
                 "kickoff": f.get("kickoff", f.get("kickoff_utc", "")),
-                "fixture_id": f.get("fixture_id"),
                 "safety_markets": None,
                 "n_odds_markets": 0,
                 "fixture_verified": True,  # DB fixtures are verified
@@ -1925,9 +1921,8 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
         comp = c["competition"]
         kickoff = c["kickoff"]
         sm = c.get("safety_markets", [])
-        fid = c.get("fixture_id")
         print(f"[deep_stats] [{i}/{len(valid)}] {home} vs {away} ({sport})")
-        result = analyze_candidate(sport, home, away, comp, kickoff, shortlist_safety_markets=sm or None, fixture_id=fid)
+        result = analyze_candidate(sport, home, away, comp, kickoff, shortlist_safety_markets=sm or None)
         # Pass through shortlist metadata that downstream scripts need
         if result is not None:
             result["data_tier"] = c.get("data_tier", "")
@@ -1973,11 +1968,11 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
         "analyses": analyses,
     }
 
-    # --- Gemini deep analysis second opinion (feature flag) ---
+    # --- LM Studio deep analysis second opinion (feature flag) ---
     if gemini and analyses:
         try:
-            from gemini_deep_analyst import analyze_candidate as gemini_analyze, compute_agreement_score
-            print(f"[deep_stats] Gemini second opinion for {len(analyses)} candidates...")
+            from lmstudio_deep_analyst import analyze_candidate as gemini_analyze, compute_agreement_score
+            print(f"[deep_stats] LM Studio second opinion for {len(analyses)} candidates...")
             gemini_count = 0
             for a in analyses:
                 if not a.get("has_data"):
@@ -2006,12 +2001,12 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
                         gemini_count += 1
                 except Exception as e:
                     print(f"[deep_stats] Gemini failed for {candidate_dict.get('home_team')} vs {candidate_dict.get('away_team')}: {e}")
-            print(f"[deep_stats] Gemini analysis complete: {gemini_count}/{len(analyses)} candidates")
+            print(f"[deep_stats] LM Studio analysis complete: {gemini_count}/{len(analyses)} candidates")
             output["gemini_analyzed"] = gemini_count
         except ImportError:
-            print("[deep_stats] gemini_deep_analyst not available, skipping Gemini second opinion")
+            print("[deep_stats] lmstudio_deep_analyst not available, skipping LM Studio second opinion")
         except Exception as e:
-            print(f"[deep_stats] Gemini analysis failed (non-fatal): {e}")
+            print(f"[deep_stats] LM Studio analysis failed (non-fatal): {e}")
 
     # Write markdown first (doesn't need fixture_ids)
     _write_markdown(output, date)
@@ -2160,7 +2155,7 @@ def main():
         "--gemini",
         action="store_true",
         default=False,
-        help="Enable Gemini deep analysis as second opinion (feature flag P2)",
+        help="Enable LM Studio deep analysis as second opinion (feature flag P2)",
     )
     add_agent_args(parser)
 
@@ -2182,13 +2177,12 @@ def main():
                        "Only use this flag when enrichment already ran separately.")
 
     if args.gemini:
-        # Check if Gemini is actually configured before running the full pipeline
+        # Check if LM Studio is reachable before running the full pipeline
         try:
-            import json as _json
-            _gemini_key = _json.loads((Path(__file__).resolve().parent.parent / "config" / "api_keys.json").read_text()).get("gemini", "")
-            if not _gemini_key:
-                out.warning("⚠️  --gemini flag passed but Gemini API key is empty in config/api_keys.json. "
-                           "Gemini features will be disabled. Set a valid key or remove --gemini flag.")
+            from bet.api_clients.lmstudio_client import LMStudioClient
+            if not LMStudioClient().health_check():
+                out.warning("⚠️  --gemini flag passed but LM Studio is not reachable at localhost:1234. "
+                           "LLM features will be disabled. Ensure LM Studio is running.")
         except Exception:
             pass
 

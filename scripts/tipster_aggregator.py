@@ -2453,14 +2453,14 @@ def run_tipster_aggregation(
     _log(f"[tipster] Gemini mode: {'ON' if use_gemini else 'OFF'}")
     _log(f"[tipster] Per-site timeout: {SITE_FETCH_TIMEOUT}s, Playwright: {PLAYWRIGHT_TIMEOUT}s")
 
-    # --- Gemini path (feature flag) ---
+    # --- LM Studio path (feature flag) ---
     gemini_picks = []
     gemini_success = 0
     gemini_fallback = 0
     if use_gemini:
         try:
-            from gemini_tipster_reader import read_tipster_page, convert_to_tipster_pick
-            _log("[tipster] Gemini tipster reader loaded — will try Gemini first per site")
+            from lmstudio_tipster_reader import read_tipster_page, convert_to_tipster_pick
+            _log("[tipster] LM Studio tipster reader loaded — will try LM Studio first per site")
             for site in TIPSTER_SITES:
                 site_url = site.get("url", "")
                 if not site_url:
@@ -2471,15 +2471,15 @@ def run_tipster_aggregation(
                     for p in result.picks:
                         pick_dict = convert_to_tipster_pick(p, site["name"], date)
                         gemini_picks.append(pick_dict)
-                    _log(f"  [gemini] {site['name']}: {len(result.picks)} picks extracted")
+                    _log(f"  [lmstudio] {site['name']}: {len(result.picks)} picks extracted")
                 else:
                     gemini_fallback += 1
-                    _log(f"  [gemini-fallback] {site['name']}: no picks, will use BS4")
+                    _log(f"  [lmstudio-fallback] {site['name']}: no picks, will use BS4")
         except ImportError:
-            _log("[tipster] gemini_tipster_reader not available — falling back to BS4")
+            _log("[tipster] lmstudio_tipster_reader not available — falling back to BS4")
             use_gemini = False
         except Exception as e:
-            _log(f"[tipster] Gemini failed: {e} — falling back to BS4")
+            _log(f"[tipster] LM Studio failed: {e} — falling back to BS4")
             use_gemini = False
 
     # Merge Gemini picks and skip sites already fetched by Gemini
@@ -2728,7 +2728,7 @@ def main():
     parser.add_argument("--workers", type=int, default=5, help="Max parallel workers (default: 5)")
     parser.add_argument("--sport", help="Filter by sport (e.g., football)")
     parser.add_argument("--use-gemini", action="store_true",
-                        help="Use Gemini URL reading instead of BS4 HTML parsing (feature flag)")
+                        help="Use LM Studio + httpx instead of BS4 HTML parsing (feature flag)")
     parser.add_argument("--site-timeout", type=int, default=None,
                         help=f"Per-site timeout in seconds (default: {SITE_FETCH_TIMEOUT})")
     add_agent_args(parser)

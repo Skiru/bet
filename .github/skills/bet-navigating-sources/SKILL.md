@@ -139,7 +139,7 @@ Community/tipster sources CANNOT create a bet on their own. Four valid uses:
 ## Automated Tipster Aggregation
 
 - Script: `python3 scripts/tipster_aggregator.py --date YYYY-MM-DD --use-gemini`
-- Fetches 10 tipster sites sequentially via Playwright (NOT parallel — Playwright is not thread-safe). HTTP fallback uses parallel fetching:
+- Fetches 10 tipster sites sequentially via Playwright (NOT parallel — Playwright is not thread-safe). With `--use-gemini` flag: uses httpx + LM Studio extraction. HTTP fallback uses parallel fetching:
   - ZawodTyper, Typersi, Sportsgambler, PicksWise, BetIdeas, OLBG
   - Tipstrr, Feedinco, BettingClosed, Tips180
 - DB: `tipster_picks` + `tipster_consensus` tables via `TipsterRepo` (PRIMARY). JSON fallback: `{date}_tipster_consensus.json` + `{date}_tipster_consensus.md`

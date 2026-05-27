@@ -2,132 +2,40 @@
 applyTo: "betting/**/*"
 ---
 
-This file is the canonical formatting owner for active betting artifacts. The companion skill [bet-formatting-artifacts](../skills/bet-formatting-artifacts/SKILL.md) provides activation guidance only and must not restate this rule set.
+# Betting Artifacts Format (Canonical)
 
-Write betting artifacts in a strict, reusable format.
+Companion skill [bet-formatting-artifacts](../skills/bet-formatting-artifacts/SKILL.md) provides activation guidance only.
 
-General rules:
-- Use the Europe/Warsaw betting-day convention defined in the repo instructions.
-- Use dot decimals for odds and PLN amounts.
-- Use YYYY-MM-DD for dates and YYYY-MM-DD HH:MM for local timestamps.
-- Use | as the separator inside CSV cells that contain multiple source names.
-- On reruns for the same betting day, PRESERVE old versions and ADD new ones. Increment the version suffix (v5 → v6). Mark old pending picks/coupons as `superseded`. Add new picks and coupons with the new version. Create a new versioned coupon file. The previous version files are kept for history. The user compares all versions to decide which to place.
+## General Rules
 
-DB-first data storage:
-- All pipeline data is stored in SQLite DB (`betting/data/betting.db`) as the primary source.
-- JSON/MD files are maintained as human-readable fallbacks and debug output (dual-write).
-- Scripts use `db_data_loader.py` functions which try DB first, then JSON fallback.
-- Key DB tables for artifacts: `analysis_results` (S3 output), `gate_results` (S7 output), `coupons` + `bets` (placed bets), `fixtures`, `odds_history`, `team_form`.
-- Gateway functions: `save_analysis_results_to_db()`, `save_gate_results_to_db()`, `load_betclic_history_from_db()`.
-- When producing output, always write to BOTH DB and JSON/MD. The DB record is the authoritative source; JSON/MD files are for human review.
+- Timezone: Europe/Warsaw. Dot decimals for odds/PLN. YYYY-MM-DD dates. `|` separator in CSV multi-value cells.
+- Reruns: PRESERVE old versions, ADD new (v5 → v6). Mark old pending as `superseded`.
+- DB-first: SQLite primary, JSON/MD dual-write for human readability.
+- Key DB tables: `analysis_results` (S3), `gate_results` (S7), `coupons` + `bets`, `fixtures`, `odds_history`, `team_form`.
 
-Daily report path:
-- betting/reports/YYYY-MM-DD.md
+## Daily Report
 
-Daily report required sections and order:
-1. # Betting Day YYYY-MM-DD
-2. ## Run Metadata
-3. ## Previous Day Settlement
-4. ## Learning Update
-5. ## Source Availability
-6. ## Candidate Board
-7. ## Final Coupons
-8. ## Rejected Picks
-9. ## Exposure Summary
+**Path:** `betting/reports/YYYY-MM-DD.md`
 
-Daily report required content:
-- Run Metadata must include betting_day, run_timestamp_local, bookmaker, sports_focus, and bankroll_cap_pln.
-- Previous Day Settlement must include settled picks summary, settled coupons summary, previous day pnl, and rolling 7-day pnl when available.
-- Learning Update must contain at most 3 process-level changes.
-- Source Availability must log each important source with role, availability, and a short note.
-- Candidate Board must show the shortlist with verdict values approved, rejected, or watch.
-- Final Coupons has TWO parts:
-  1. **Core Portfolio:** Coupons where each event appears in exactly ONE coupon. Subsections by risk tier: Low-Risk, Multi-Sport, Higher-Risk, and/or Night. Target: ≥2 LR, ≥1 MS, ≥1 HR (scale up with picks). Each coupon must include coupon_id, leg list (minimum 2 legs), combined_odds, stake_pln, correlation check, and main logic. **UNIQUE EVENT PER COUPON.** No singles allowed.
-  2. **Combination Menu (COMBO):** Additional coupons that remix approved picks into new groupings. 4-8 extra combos. Picks MAY be reused from core. Each combo prefixed "COMBO-" and has a distinct thesis. This gives the user more choice on top of the core list.
-- Rejected Picks must state the event or market, the rejection reason, and which gate/check failed. Show at least 10 near-misses. Group by rejection category: EV≤0, source gap, bear>bull, market unavailable, stale odds.
-- Exposure Summary must include total_core_exposure_pln (core portfolio sum), total_menu_exposure_pln (core + combos sum), suggested_budget_pln (daily cap), and a note: "Core portfolio = primary bets. Combo menu = extra options. Pick your favorites from both."
-- If no bet is made, still write every section and state NO BET TODAY where appropriate.
+**Sections (in order):** Run Metadata → Previous Day Settlement → Learning Update (max 3 changes) → Source Availability → Candidate Board → Final Coupons → Rejected Picks → Exposure Summary
 
-Chat + file output format (PRIMARY deliverable):
-The main deliverable is a compact Markdown summary. It MUST be:
-1. Shown directly in chat, AND
-2. Saved to betting/coupons/YYYY-MM-DD.md with IDENTICAL formatting.
-Required sections:
-1. Per-coupon table with columns: #, Coupon ID, What to bet (Polish, specific market description), Combined odds, Stake, Potential return.
-   - Group by type: LOW-RISK, MULTI-SPORT, HIGHER RISK, NIGHT.
-   - Market descriptions must be in plain Polish (e.g. "poniżej 2.5 bramek", "powyżej 22.5 gemów").
-   - Include opponent/event name so user can find it in Betclic.
-2. **PER-COUPON REASONING (mandatory under each coupon table):**
-   - 1-2 sentences explaining WHY these specific legs were combined.
-   - State P(coupon) estimate: "Szacowane prawdopodobieństwo: ~XX%".
-   - State the biggest risk: "Największe ryzyko: [specific scenario]".
-   - **TIPSTER INSIGHT** (per leg, appended to rich description by `coupon_builder.py`):
-     ```
-     🎯 TIPSTER INSIGHT:
-     • [Source] ([accuracy]% acc): [market] [direction] @[odds] — "[reasoning excerpt]"
-     • [Source2]: [market] [direction] @[odds] — "[reasoning excerpt]"
-     ✓ ZGODNOŚĆ: Nasz wybór [opis] wspierany przez tipsterów
-     ```
-     Or when tipsters disagree:
-     ```
-     ↔ NASZ WYBÓR: [opis] (safety X.XX, L10 avg Y.Y)
-        Różnica: [brief explanation why our analysis chose differently]
-     ```
-     Rule: ALWAYS show tipster predictions even when they completely disagree with our pick.
-3. PODSUMOWANIE table:
-   - Wydatek (total spend)
-   - Bankroll po (bankroll after placing)
-   - Łączny pot. zwrot (total potential return)
-   - Stan konta po zwrocie (bankroll after + total potential return)
-   - Najlepszy scenariusz (all win)
-   - Realistyczny (expected hit rate)
-4. **LISTA OBSERWACYJNA (WATCHLIST) — 2-5 backup picks:**
-   - For each: event, market, odds, and promotion criteria ("Wstaw jeśli Betclic ≥ X.XX").
-   - Why it didn't make final: "Odrzucone bo: [reason]".
-   - **TIPSTER-SOURCED PICKS (§4.3):** If a tipster with >55% accuracy argues for a statistical market (corners, cards, games, frames) with specific data backing, it MUST appear here with:
-     - Tipster name and accuracy % from site
-     - Full tipster argument (translated to Polish if from Polish site)
-     - The specific stats cited (e.g., "Liège: śr. 6.2 rzutów rożnych/mecz w domu, 6/10 meczów >4.5 CK")
-     - Promotion criteria: "Wstaw jeśli: kurs Betclic ≥X.XX + potwierdzone przez ≥1 źródło statystyczne"
-   - **NOTE:** With the Extended Pool section now capturing EV>0 watchlist picks directly, LISTA OBSERWACYJNA is reserved for picks WITHOUT calculated EV or awaiting a specific trigger (e.g., lineup confirmation). EV>0 picks move to Extended Pool.
-5. **ODRZUCONE (DECLINED) — Top 10 near-misses:**
-   - For each: event, market considered, and specific rejection reason (1 sentence).
-   - Grouped: "Brak wartości" (EV≤0), "Słabe źródła" (source gap), "Zbyt ryzykowne" (bear>bull), "Rynek niedostępny" (no Betclic market).
-6. Placement order recommendation.
-Keep coupon tables SHORT for fast clicking. Reasoning and watchlist/declined sections follow AFTER all coupon tables.
+## Coupon File (PRIMARY DELIVERABLE)
 
-Daily coupon file path:
-- betting/coupons/YYYY-MM-DD.md
+**Path:** `betting/coupons/YYYY-MM-DD.md` — identical to chat output.
 
-The .md file MUST be identical to what is shown in chat — visual Markdown tables with Polish descriptions.
-Structure of the .md file:
-1. H1 header with date, bankroll, budget.
-2. Conditional notice (all picks are CONDITIONAL — verify on Betclic).
-2b. **PEŁNA MATRYCA RYNKÓW (FULL MARKET MATRIX)** — Placed BEFORE coupons for quick scanning. Reference link to `betting/data/market_matrix_{date}.md` and `decision_matrix_{date}.md` (see §1.9 in analysis-methodology). Inline in the coupon file, include a COMPACT matrix of the top 30-50 bettable opportunities:
-   - Table: | # | Sport | Event | Market | Odds | Safety | Hit% | Direction | Uwagi | — sorted by safety score desc, then by sport.
-   - **Multiple rows per event**: When an event has multiple statistical markets analyzed (e.g., corners, cards, fouls, totals), show ALL markets as separate rows. This lets the user compare markets and pick the strongest one per event. Group by event visually (indent or blank row between events).
-   - **Safety**: safety score from §3.0 ranking (0.00-1.00). Shows how statistically reliable the market is.
-   - **Hit%**: Combined L10 + H2H hit rate (e.g., "8/10 L10, 4/5 H2H = 80%"). Shows probability of the pick landing.
-   - **Direction**: OVER/UNDER + margin (e.g., "OVER +17.9%") — how far the average is from the line.
-   - **WHY this is shown**: The matrix is a decision tool. Probability data lets the user do quick mental EV: `hit% × odds > 1.0 → bet`. Without it, the user must open market_matrix.md separately.
-   - This is the PRIMARY decision tool for the user.
-   - NO events are filtered out based on EV — show everything with available data.
-   - For events with API odds: show odds + safety + hit%. For STATS-FIRST events (no API odds): show "SPRAWDŹ" + safety + hit% + min odds for EV>0.
-3. Per-type coupon tables (LOW-RISK, MULTI-SPORT, HIGHER RISK, NIGHT) — each with columns: #, Coupon ID, Co obstawić, Kurs, Stawka, Zwrot. UNIQUE EVENT PER COUPON.
-3b. **COMBINATION MENU** — additional combos (COMBO-LR1, COMBO-MS1, etc.) that remix approved picks. Same table format. Prefixed "COMBO-" for clarity.
-3c. **ROZSZERZONY WYBÓR (EXTENDED POOL)** — EV > 0 picks that did NOT fully pass the 18-point gate but have positive expected value. These are optional higher-risk plays the user may choose to add. See §EXTENDED-POOL below for structure.
-4. **Per-coupon reasoning block** (under each table): logic, P(coupon), biggest risk.
-5. PODSUMOWANIE table (Wydatek, Bankroll po, Łączny pot. zwrot, Stan konta po zwrocie, Najlepszy scenariusz, Realistyczny).
-6. KOLEJNOŚĆ STAWIANIA — placement priority list.
-7. **LISTA OBSERWACYJNA** — 2-3 backup picks with promotion criteria.
-8. **ODRZUCONE** — Top 10 near-misses with specific rejection reasons, grouped by rejection category.
-9. Pominięte coupons note (which coupons were skipped and why, one line).
-10. Time-sensitive warnings if any matches may have already started.
+**Structure:**
+1. H1 header (date, bankroll, budget) + conditional notice
+2. **PEŁNA MATRYCA RYNKÓW** — top 30-50 opportunities sorted by safety desc. Columns: `# | Sport | Event | Market | Odds | Safety | Hit% | Direction | Uwagi`. Multiple rows per event (all analyzed markets). NO filtering by EV.
+3. Per-type coupon tables (LOW-RISK, MULTI-SPORT, HIGHER RISK, NIGHT). Columns: `# | Coupon ID | Co obstawić | Kurs | Stawka | Zwrot`. UNIQUE EVENT PER COUPON.
+4. **COMBINATION MENU** — 4-8 COMBO- prefixed coupons remixing approved picks.
+5. **ROZSZERZONY WYBÓR (Extended Pool)** — EV>0 picks that failed some gate checks.
+6. Per-coupon reasoning: logic + P(coupon) + biggest risk + tipster insight.
+7. PODSUMOWANIE table (Wydatek, Bankroll po, Łączny pot. zwrot, Stan konta po zwrocie, Najlepszy/Realistyczny scenariusz).
+8. KOLEJNOŚĆ STAWIANIA — placement priority.
+9. LISTA OBSERWACYJNA — 2-3 backup picks with promotion criteria.
+10. ODRZUCONE — Top 10 near-misses grouped by rejection category.
 
-No old-style plain-text metadata blocks (BETTING DAY:, RUN TIME LOCAL:, etc.) — that data lives in the ledger CSVs.
-Coupon count = f(quality events, deep statistics), NOT f(bankroll). No singles. No maximum legs per coupon.
-Core portfolio: unique event per coupon. Combo menu: reuse allowed. Extended pool: optional extras. Together they give the user maximum choice.
-Total suggested stakes (core + combos + extended) WILL exceed daily budget — user picks favorites. NEVER reduce coupon count because of money constraints.
+Total suggested stakes WILL exceed budget — user picks favorites.
 
 ### §EXTENDED-POOL — Extended Pool (ROZSZERZONY WYBÓR)
 

@@ -2647,7 +2647,7 @@ class TeamNewsRepo:
             sources_json=json.loads(row["sources_json"]) if row["sources_json"] else [],
             confidence=row["confidence"],
             fetched_at=row["fetched_at"] or "",
-            source=row["source"] or "gemini",
+            source=row["source"] or "unknown",
         )
 
 

@@ -792,7 +792,7 @@ def validate_analysis_phase(date: str) -> list[Check]:
                 f"CATASTROPHIC LOSS! deep_stats likely used wrong shortlist file.",
                 severity="critical",
                 recovery=f"Re-run: PYTHONPATH=src .venv/bin/python3 scripts/deep_stats_report.py --date {date} "
-                         f"--shortlist betting/data/{date}_s2_shortlist.json --gemini --verbose",
+                         f"--shortlist betting/data/{date}_s2_shortlist.json --verbose",
             ))
 
     gate_json = _load_gate_results(date)

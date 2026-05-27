@@ -19,7 +19,7 @@ tools:
     "vscode/runCommand",
     "vscode/toolSearch",
   ]
-model: "Claude Opus 4.6"
+model: "gemma-4-31b"
 instructions:
   - ../instructions/agent-execution-protocol.instructions.md
   - ../instructions/analysis-methodology.instructions.md

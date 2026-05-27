@@ -24,7 +24,7 @@ class TeamNews:
     sources_json: list = field(default_factory=list)
     confidence: float = 0.0
     fetched_at: str = ""
-    source: str = "gemini"
+    source: str = "lmstudio+brave"
 
 
 
