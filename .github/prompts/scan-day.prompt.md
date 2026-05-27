@@ -54,7 +54,7 @@ python3 scripts/fetch_weather.py --date {{run_date}}
 
 ```bash
 python3 scripts/generate_market_matrix.py --date {{run_date}} --stats-first
-python3 scripts/build_shortlist.py --date {{run_date}} --stats-first --verbose 2>&1
+python3 scripts/build_shortlist.py --date {{run_date}} --stats-first --all-fixtures --verbose 2>&1
 ```
 
 ## Validation Gates

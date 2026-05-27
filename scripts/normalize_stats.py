@@ -420,12 +420,27 @@ def _build_markets_from_db_form(
     market_definitions: list[dict],
 ) -> tuple[list[dict], int]:
     """Convert DB TeamForm rows into market dicts matching build_safety_score_input() output."""
+
+    # Stat key aliases: DB stores these variant keys, but markets reference canonical names.
+    # E.g. flashscore writes "game_total_goals" but market def uses "goals".
+    _STAT_ALIASES = {
+        "game_total_goals": "goals",
+        "game_total_points": "points",
+        "game_total_sets": "total_sets",
+        "game_total_games": "total_games",
+        "total_score": "points",
+    }
+
     # Group form rows by bare stat_key and side
     def _group_form(form_rows):
         grouped = {}
         for row in form_rows:
             bare, side = _strip_ha_suffix(row.stat_key)
             grouped.setdefault(bare, {})[side] = row
+            # Also register under canonical alias if one exists
+            canonical = _STAT_ALIASES.get(bare)
+            if canonical and canonical not in grouped:
+                grouped.setdefault(canonical, {})[side] = row
         return grouped
 
     a_grouped = _group_form(team_a_form)
@@ -437,6 +452,10 @@ def _build_markets_from_db_form(
     for row in h2h_form:
         bare, _ = _strip_ha_suffix(row.stat_key)
         h2h_by_stat.setdefault(bare, []).append(row)
+        # Also register under canonical alias
+        canonical = _STAT_ALIASES.get(bare)
+        if canonical:
+            h2h_by_stat.setdefault(canonical, []).append(row)
         # Also register without _total suffix for market matching
         if bare.endswith("_total"):
             canonical = bare[:-6]  # strip "_total"
@@ -492,9 +511,10 @@ def _build_markets_from_db_form(
             team_swapped = True
 
         # Skip market if insufficient stat data
-        # Individual sports use lower threshold (3 vs 5)
-        _INDIVIDUAL = {"tennis"}
-        _min_stat = 3 if sport in _INDIVIDUAL else 5
+        # Lowered to 3 for all sports — hit_rate logic downstream handles quality.
+        # Previous threshold of 5 for non-individual sports was cutting too many
+        # events that had 3-4 L10 entries from ESPN/Flashscore enrichment.
+        _min_stat = 3
         if stat_a_key and len(team_a_l10) < _min_stat:
             continue
         if stat_b_key and not stat_a_key and len(team_a_l10) < _min_stat:
@@ -582,11 +602,15 @@ def build_safety_input_from_db(
     team_a: str,
     team_b: str,
     competition: str,
+    fixture_id: int | None = None,
 ) -> dict | None:
     """Build safety score input from the SQLite DB (team_form rows).
 
     Returns dict matching build_safety_score_input() output format, or None
     on any DB error or missing data.
+
+    If fixture_id is provided and name-based resolution yields no form data,
+    falls back to using the fixture's actual home_team_id/away_team_id.
     """
     try:
         from bet.db.connection import get_db
@@ -605,7 +629,7 @@ def build_safety_input_from_db(
             if not sport_obj or sport_obj.id is None:
                 return None
 
-            # Resolve teams
+            # Resolve teams by name first
             team_a_obj = team_repo.resolve(team_a, sport_obj.id)
             team_b_obj = team_repo.resolve(team_b, sport_obj.id)
             if not team_a_obj or not team_b_obj:
@@ -614,6 +638,28 @@ def build_safety_input_from_db(
             # Fetch team_form rows (non-H2H)
             team_a_form = stats_repo.get_all_form_for_team(team_a_obj.id, sport_obj.id)
             team_b_form = stats_repo.get_all_form_for_team(team_b_obj.id, sport_obj.id)
+
+            # Bug 4 fix: if name-based resolution yields no form but fixture_id
+            # is available, try using the fixture's actual team IDs directly.
+            # This handles cases where scrapers stored form under a different
+            # team entry (e.g. "CA Lanús" vs "Lanus") than what resolve() finds.
+            if fixture_id and (not team_a_form or not team_b_form):
+                fix_row = conn.execute(
+                    "SELECT home_team_id, away_team_id FROM fixtures WHERE id = ?",
+                    (fixture_id,),
+                ).fetchone()
+                if fix_row:
+                    fix_home_id = fix_row["home_team_id"]
+                    fix_away_id = fix_row["away_team_id"]
+                    # Only override teams that have no form AND fixture ID differs
+                    if not team_a_form and fix_home_id and fix_home_id != team_a_obj.id:
+                        team_a_form = stats_repo.get_all_form_for_team(fix_home_id, sport_obj.id)
+                        if team_a_form:
+                            print(f"[normalize] fixture_id fallback: {team_a} resolved id={team_a_obj.id}→fixture id={fix_home_id} ({len(team_a_form)} form rows)")
+                    if not team_b_form and fix_away_id and fix_away_id != team_b_obj.id:
+                        team_b_form = stats_repo.get_all_form_for_team(fix_away_id, sport_obj.id)
+                        if team_b_form:
+                            print(f"[normalize] fixture_id fallback: {team_b} resolved id={team_b_obj.id}→fixture id={fix_away_id} ({len(team_b_form)} form rows)")
 
             if not team_a_form and not team_b_form:
                 return None
@@ -669,9 +715,10 @@ def build_safety_input(
     team_b: str,
     competition: str,
     cache_dir: Path | None = None,
+    fixture_id: int | None = None,
 ) -> dict | None:
     """DB-first wrapper with JSON cache fallback."""
-    result = build_safety_input_from_db(sport, team_a, team_b, competition)
+    result = build_safety_input_from_db(sport, team_a, team_b, competition, fixture_id=fixture_id)
     if result and result.get("markets"):
         return result
     return build_safety_input_from_cache(sport, team_a, team_b, competition, cache_dir)

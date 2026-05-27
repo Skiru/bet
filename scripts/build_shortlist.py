@@ -665,6 +665,7 @@ def build_shortlist(
     top_n: int = 0,
     stats_first: bool = False,
     min_sports: int = 5,
+    all_fixtures: bool = False,
 ) -> list[dict]:
     """Build a ranked shortlist of top_n events from the market matrix."""
     matrix_path = DATA_DIR / f"market_matrix_{date}.json"
@@ -834,20 +835,24 @@ def build_shortlist(
     # from a major league (comp_score >= 7). Minor league FIXTURE_ONLY events have
     # zero analytical value — no L10, no H2H, no safety, no odds, Betclic won't
     # have them either. Major league FIXTURE_ONLY = enrichment bug signal (keep them).
-    fo_filtered = []
-    fo_dropped = 0
-    for score, event in scored:
-        if event.get("data_tier") == "FIXTURE_ONLY":
-            sport = event.get("sport", "")
-            comp = event.get("competition", "")
-            comp_tier = _score_competition(sport, comp)
-            if comp_tier < 6:
-                fo_dropped += 1
-                continue
-        fo_filtered.append((score, event))
-    if fo_dropped:
-        print(f"[shortlist] FIXTURE_ONLY filter: dropped {fo_dropped} minor league events (no data, not bettable)")
-    scored = fo_filtered
+    # --all-fixtures mode: skip this filter entirely (user wants full coverage).
+    if not all_fixtures:
+        fo_filtered = []
+        fo_dropped = 0
+        for score, event in scored:
+            if event.get("data_tier") == "FIXTURE_ONLY":
+                sport = event.get("sport", "")
+                comp = event.get("competition", "")
+                comp_tier = _score_competition(sport, comp)
+                if comp_tier < 6:
+                    fo_dropped += 1
+                    continue
+            fo_filtered.append((score, event))
+        if fo_dropped:
+            print(f"[shortlist] FIXTURE_ONLY filter: dropped {fo_dropped} minor league events (no data, not bettable)")
+        scored = fo_filtered
+    else:
+        print(f"[shortlist] --all-fixtures: FIXTURE_ONLY filter DISABLED (keeping all {len(scored)} events)")
 
     # Dedup: same teams in same sport = likely same event from different sources
     deduped = []
@@ -1044,21 +1049,27 @@ def build_shortlist(
     # QUALITY FLOOR: Applied ONLY to Phase 2 pool (Phase 1 guarantees are protected)
     # Major league events (comp_score >= 7) BYPASS the quality floor — they're always
     # bettable on Betclic and easiest to enrich, so never drop them.
+    # --all-fixtures mode: disable quality floor entirely.
     MIN_SCORE_THRESHOLD = 5.0
-    phase2_pool = []
-    floor_dropped = 0
-    for s, e in scored:
-        if s >= MIN_SCORE_THRESHOLD:
-            phase2_pool.append((s, e))
-        else:
-            # Major leagues bypass quality floor — they're most enrichable
-            comp_tier = _score_competition(e.get("sport", ""), e.get("competition", ""))
-            if comp_tier >= 7:
+    if all_fixtures:
+        phase2_pool = list(scored)
+        floor_dropped = 0
+        print(f"[shortlist] --all-fixtures: quality floor DISABLED (keeping all {len(phase2_pool)} events)")
+    else:
+        phase2_pool = []
+        floor_dropped = 0
+        for s, e in scored:
+            if s >= MIN_SCORE_THRESHOLD:
                 phase2_pool.append((s, e))
             else:
-                floor_dropped += 1
-    if floor_dropped:
-        print(f"[shortlist] Quality floor (Phase 2): {floor_dropped} events below threshold (score < {MIN_SCORE_THRESHOLD})")
+                # Major leagues bypass quality floor — they're most enrichable
+                comp_tier = _score_competition(e.get("sport", ""), e.get("competition", ""))
+                if comp_tier >= 7:
+                    phase2_pool.append((s, e))
+                else:
+                    floor_dropped += 1
+        if floor_dropped:
+            print(f"[shortlist] Quality floor (Phase 2): {floor_dropped} events below threshold (score < {MIN_SCORE_THRESHOLD})")
 
     total_by_sport = Counter(s[1]["sport"] for s in phase2_pool)
 
@@ -1070,7 +1081,7 @@ def build_shortlist(
         if not uncapped:
             max_per_sport_key = max(top_n // 3, 8)  # KEY sports: max 33%
             max_per_sport_sup = max(top_n // 8, 4)  # SUPPORT sports: max ~12%
-        else:
+        elif not all_fixtures:
             # Even uncapped, hard cap per-sport to prevent single-sport flood
             # 40% max (raised from 25%) — allows more football/basketball when quality is there
             max_per_sport = max(int(len(phase2_pool) * 0.40), 50)
@@ -1084,9 +1095,10 @@ def build_shortlist(
                 cap = max_per_sport_key if sport in TIER1_SPORTS else max_per_sport_sup
                 if sport_counts[sport] >= cap:
                     continue
-            else:
+            elif not all_fixtures:
                 if sport_counts[sport] >= max_per_sport:
                     continue
+            # --all-fixtures: no per-sport cap
             selected.append((score, event))
             selected_keys.add(key)
             sport_counts[sport] += 1
@@ -1241,6 +1253,7 @@ def write_shortlist_json(selected: list[tuple[float, dict]], date: str) -> Path:
             "away_team": away,
             "competition": event.get("competition", ""),
             "kickoff": normalize_kickoff(event.get("kickoff", ""), date),
+            "fixture_id": event.get("fixture_id"),
             "data_tier": event.get("data_tier", ""),
             "comp_score": _score_competition(event["sport"], event.get("competition", "")),
             "n_odds_markets": len(event.get("odds_markets", [])),
@@ -1372,6 +1385,8 @@ def main():
     parser.add_argument("--top", type=int, default=0, help="Number of candidates to select (0 = all, default: 0)")
     parser.add_argument("--stats-first", action="store_true",
                         help="Include FIXTURE_ONLY events from major competitions")
+    parser.add_argument("--all-fixtures", action="store_true",
+                        help="Bypass FIXTURE_ONLY filter and quality floor — analyze ALL events with form data")
     parser.add_argument("--min-sports", type=int, default=5, help="Minimum sport diversity (default: 5)")
     parser.add_argument("--betclic-filter", action="store_true",
                         help="Filter shortlist to only Betclic-confirmed events (reads validation JSON)")
@@ -1401,6 +1416,7 @@ def main():
         top_n=args.top,
         stats_first=args.stats_first,
         min_sports=args.min_sports,
+        all_fixtures=args.all_fixtures,
     )
 
     write_shortlist_md(selected, date, stats_first=args.stats_first)

@@ -137,7 +137,7 @@ The pipeline has individual scripts for each step. The ORCHESTRATOR AGENT calls 
 5. **COMPARE:** Every data point needs ≥2 independent confirmations.
 6. **RETRY LOOP:** After the first scan pass, review `scan_errors.json` and ALL failed sources. Retry each failed source ONCE. If it works now, add its events. Log final status.
 
-**Minimums:** ≥50 events scanned, ≥80% scan completeness, shortlist across ≥3 sports (via `build_shortlist.py --stats-first`), final picks from ≥3 sports, core coupons scale with picks (target ≥5 when 10+ approved) + ≥4 combo coupons. **Target ≥30 picks in final market matrix for user to choose from.**
+**Minimums:** ≥50 events scanned, ≥80% scan completeness, shortlist across ≥3 sports (via `build_shortlist.py --stats-first --all-fixtures`), final picks from ≥3 sports, core coupons scale with picks (target ≥5 when 10+ approved) + ≥4 combo coupons. **Target ≥30 picks in final market matrix for user to choose from.**
 
 **SESSION PARITY:** Session type (full/day/night) controls ONLY the event time window. Analysis depth, coupon count, all steps, all validation = IDENTICAL regardless of session.
 
@@ -300,7 +300,7 @@ This produces THREE files (+ DB records):
 
 **Then build the ranked shortlist:**
 ```bash
-python3 scripts/build_shortlist.py --date YYYY-MM-DD --stats-first
+python3 scripts/build_shortlist.py --date YYYY-MM-DD --stats-first --all-fixtures
 ```
 
 This produces:
@@ -440,7 +440,7 @@ Tier E3 picks require ALL of: Betclic market confirmed, ≥2 sources with data, 
 
 ## STEP 2: FILTER — Shortlist
 
-**Automated shortlist generation:** `python3 scripts/build_shortlist.py --date YYYY-MM-DD --stats-first`
+**Automated shortlist generation:** `python3 scripts/build_shortlist.py --date YYYY-MM-DD --stats-first --all-fixtures`
 - Reads from DB `fixtures` + `odds_history` + `team_form` tables (fallback: `market_matrix_{date}.json`) and scores all events by: data tier, competition importance, sport tier, odds quality, tipster coverage
 - Assesses sport coverage (informational per R4, never a gate). Data quality gate (R14) replaces sport diversity gate.
 - Deduplicates same-team events across sources (via `is_same_event()` from `src/bet/utils.py`)

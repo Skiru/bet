@@ -1350,6 +1350,7 @@ def analyze_candidate(
     competition: str,
     kickoff: str,
     shortlist_safety_markets: list | None = None,
+    fixture_id: int | None = None,
 ) -> dict:
     """Perform full S3 deep statistical analysis for one candidate.
 
@@ -1368,7 +1369,7 @@ def analyze_candidate(
 
     # Build safety input and rank markets
     ranking_result = None
-    safety_input = build_safety_input(sport, home, away, competition)
+    safety_input = build_safety_input(sport, home, away, competition, fixture_id=fixture_id)
     if safety_input and safety_input.get("markets"):
         ranking_result = rank_markets(safety_input)
     else:
@@ -1379,7 +1380,7 @@ def analyze_candidate(
                 enrich_team(home, sport)
                 enrich_team(away, sport)
                 # Retry safety input after enrichment
-                safety_input = build_safety_input(sport, home, away, competition)
+                safety_input = build_safety_input(sport, home, away, competition, fixture_id=fixture_id)
                 if safety_input and safety_input.get("markets"):
                     ranking_result = rank_markets(safety_input)
             except Exception:
@@ -1671,6 +1672,7 @@ def _load_candidates_from_pool(date: str) -> list[dict]:
             "away_team": e.get("away_team", ""),
             "competition": e.get("competition", ""),
             "kickoff": e.get("kickoff", ""),
+            "fixture_id": e.get("fixture_id"),
             "safety_markets": e.get("safety_markets"),
             "n_odds_markets": e.get("n_odds_markets", 0),
             "fixture_verified": e.get("fixture_verified", False),
@@ -1697,6 +1699,7 @@ def _load_candidates_from_shortlist(path: str) -> list[dict]:
             "away_team": e.get("away_team", e.get("away", "")),
             "competition": e.get("competition", ""),
             "kickoff": e.get("kickoff", e.get("kickoff_cest", "")),
+            "fixture_id": e.get("fixture_id"),
             "data_tier": e.get("data_tier", ""),
             "comp_score": e.get("comp_score", 3),
             "safety_markets": e.get("safety_markets", []),
@@ -1725,6 +1728,7 @@ def _load_candidates_from_db(date: str) -> list[dict]:
                 "away_team": f.get("away_team", ""),
                 "competition": f.get("competition", f.get("competition_name", "")),
                 "kickoff": f.get("kickoff", f.get("kickoff_utc", "")),
+                "fixture_id": f.get("fixture_id"),
                 "safety_markets": None,
                 "n_odds_markets": 0,
                 "fixture_verified": True,  # DB fixtures are verified
@@ -1921,8 +1925,9 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
         comp = c["competition"]
         kickoff = c["kickoff"]
         sm = c.get("safety_markets", [])
+        fid = c.get("fixture_id")
         print(f"[deep_stats] [{i}/{len(valid)}] {home} vs {away} ({sport})")
-        result = analyze_candidate(sport, home, away, comp, kickoff, shortlist_safety_markets=sm or None)
+        result = analyze_candidate(sport, home, away, comp, kickoff, shortlist_safety_markets=sm or None, fixture_id=fid)
         # Pass through shortlist metadata that downstream scripts need
         if result is not None:
             result["data_tier"] = c.get("data_tier", "")

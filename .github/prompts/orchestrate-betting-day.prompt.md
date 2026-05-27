@@ -44,8 +44,10 @@ Use this prompt for the daily betting workflow. Do not run `python3 scripts/pipe
 - After every finished script output, delegate to the mapped specialist before moving on.
 - Stop when a validation gate fails, upstream data is incomplete, or the next stage requires a user decision.
 - Keep the final synthesis concise and user-facing; do not paste raw script output.
+- **FULL COVERAGE**: Always use `--all-fixtures` flag with `build_shortlist.py` to ensure ALL fixtures pass to deep_stats (no quality floor filtering, no per-sport caps). Expected: 300-500+ candidates.
+- **COVERAGE GATE**: After deep_stats completes, verify `with_data` count ≥ 20% of input candidates. If not, investigate and re-run.
 
 ## Output
 Present the current stage verdict, the next action, and the final user-facing artifacts once the day flow is complete.
 
-<!-- BET:prompt:orchestrate-betting-day:v10 -->
+<!-- BET:prompt:orchestrate-betting-day:v11 -->
