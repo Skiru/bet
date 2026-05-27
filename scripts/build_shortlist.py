@@ -796,6 +796,11 @@ def build_shortlist(
         if len(home.strip()) < 2 or len(away.strip()) < 2:
             garbage_count += 1
             continue
+        # TBD/TBA placeholders — unresolved draws
+        if home.strip().upper() in ("TBD", "TBA", "WINNER", "LOSER", "???") or \
+           away.strip().upper() in ("TBD", "TBA", "WINNER", "LOSER", "???"):
+            garbage_count += 1
+            continue
         if len(home) > 60 or len(away) > 60:
             garbage_count += 1
             continue

@@ -171,13 +171,15 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
 
             with get_db() as conn:
                 cur = conn.cursor()
+                # Query odds by FIXTURE date (kickoff), not fetch date.
+                # Odds for tomorrow's games are fetched today — fetched_at != target date.
                 cur.execute('''
                     SELECT t1.name, t2.name, o.bookmaker, o.market, o.selection, o.odds, o.line
                     FROM odds_history o
                     JOIN fixtures f ON o.fixture_id = f.id
                     JOIN teams t1 ON f.home_team_id = t1.id
                     JOIN teams t2 ON f.away_team_id = t2.id
-                    WHERE date(o.fetched_at) = ?
+                    WHERE date(f.kickoff) = ?
                 ''', (date,))
                 db_rows = cur.fetchall()
 
@@ -496,6 +498,14 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
         # Priority: probability model > hit_rate_l10 (safety_score is NOT a probability)
         p = prob or hit_rate
         odds_for_ev = matched_odds or (use_odds if is_ml_market else None)
+
+        # Fallback: for totals markets without API odds, estimate using standard
+        # bookmaker pricing. Betclic/Bet365 typically offer 1.80-1.95 for O/U near
+        # the balanced line. Use 1.87 as midpoint estimate (5% vig on each side).
+        if not odds_for_ev and is_totals_market and p:
+            odds_for_ev = 1.87  # Standard balanced O/U pricing
+            c["ev_source_note"] = "estimated_odds_1.87 (no API match for this market)"
+
         if p and odds_for_ev:
             # Parse probability value — handles multiple formats:
             # - fraction string "5/10" → 0.5
@@ -514,7 +524,7 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
                 continue
             ev = round(p_val * float(odds_for_ev) - 1, 4)
             c["ev"] = ev
-            c["ev_source"] = "db+api-composite"
+            c["ev_source"] = c.get("ev_source") or ("db+api-composite" if matched_odds else "estimated")
             injected += 1
 
     print(f"  → Odds enriched: {odds_enriched}/{len(candidates)} candidates")

@@ -203,7 +203,9 @@ def _persist_io_odds_to_db(snapshot: dict, date: str):
                         continue
                     for market_data in markets:
                         market_name = market_data.get("name", "")
+                        market_key = market_name.lower().replace("match winner", "h2h").replace("ml", "h2h")
                         for odds_entry in market_data.get("odds", []):
+                            # Handle ML/h2h markets (home/away/draw)
                             for side in ("home", "away", "draw"):
                                 val = odds_entry.get(side)
                                 if val is not None:
@@ -212,7 +214,7 @@ def _persist_io_odds_to_db(snapshot: dict, date: str):
                                             id=None,
                                             fixture_id=fixture_id,
                                             bookmaker=bookie_name,
-                                            market=market_name.lower().replace("match winner", "h2h").replace("ml", "h2h"),
+                                            market=market_key,
                                             selection=side,
                                             odds=float(val),
                                             fetched_at=datetime.now(timezone.utc).isoformat(),
@@ -221,6 +223,41 @@ def _persist_io_odds_to_db(snapshot: dict, date: str):
                                         persisted += 1
                                     except Exception:
                                         pass
+                            # Handle totals/over-under markets (line + over/under)
+                            # odds-api.io uses "hdp" for the line value
+                            line_val = odds_entry.get("line") or odds_entry.get("hdp")
+                            over_val = odds_entry.get("over")
+                            under_val = odds_entry.get("under")
+                            if line_val is not None and (over_val is not None or under_val is not None):
+                                try:
+                                    if over_val is not None:
+                                        record = OddsRecord(
+                                            id=None,
+                                            fixture_id=fixture_id,
+                                            bookmaker=bookie_name,
+                                            market=market_key,
+                                            selection="over",
+                                            odds=float(over_val),
+                                            line=float(line_val),
+                                            fetched_at=datetime.now(timezone.utc).isoformat(),
+                                        )
+                                        odds_repo.upsert(record)
+                                        persisted += 1
+                                    if under_val is not None:
+                                        record = OddsRecord(
+                                            id=None,
+                                            fixture_id=fixture_id,
+                                            bookmaker=bookie_name,
+                                            market=market_key,
+                                            selection="under",
+                                            odds=float(under_val),
+                                            line=float(line_val),
+                                            fetched_at=datetime.now(timezone.utc).isoformat(),
+                                        )
+                                        odds_repo.upsert(record)
+                                        persisted += 1
+                                except Exception:
+                                    pass
 
             conn.commit()
             if persisted:

@@ -1325,7 +1325,7 @@ def persist_matrix_to_db(matrix: dict, date: str) -> int:
         with get_db() as conn:
             repo = MarketMatrixRepo(conn)
 
-            # Resolve fixture_ids
+            # Resolve fixture_ids via sport_id + team name joins
             resolved = []
             for ev in events:
                 home = ev.get("home_team", "")
@@ -1333,25 +1333,35 @@ def persist_matrix_to_db(matrix: dict, date: str) -> int:
                 sport = ev.get("sport", "")
                 kickoff = ev.get("kickoff", "")
 
-                # Try to find existing fixture
+                # Resolve sport_id from sport name
+                sport_row = conn.execute(
+                    "SELECT id FROM sports WHERE name = ?", (sport,)
+                ).fetchone()
+                if not sport_row:
+                    # Skip events for unknown sports
+                    continue
+                sport_id = sport_row["id"]
+
+                # Try to find existing fixture by sport_id + team names + date
                 row = conn.execute(
-                    "SELECT id FROM fixtures WHERE sport=? AND home_team=? AND away_team=? AND betting_date=?",
-                    (sport, home, away, date),
+                    """SELECT f.id FROM fixtures f
+                       JOIN teams ht ON f.home_team_id = ht.id
+                       JOIN teams at2 ON f.away_team_id = at2.id
+                       WHERE f.sport_id = ? AND ht.name = ? AND at2.name = ?
+                       AND date(f.kickoff) = ?""",
+                    (sport_id, home, away, date),
                 ).fetchone()
 
                 if row:
                     fixture_id = row["id"]
                 else:
-                    # Create minimal fixture
-                    cursor = conn.execute(
-                        "INSERT INTO fixtures (sport, home_team, away_team, kickoff, betting_date) VALUES (?, ?, ?, ?, ?)",
-                        (sport, home, away, kickoff, date),
-                    )
-                    fixture_id = cursor.lastrowid
+                    # No fixture found — skip (don't create broken FK entries)
+                    fixture_id = None
 
-                ev_copy = dict(ev)
-                ev_copy["fixture_id"] = fixture_id
-                resolved.append(ev_copy)
+                if fixture_id:
+                    ev_copy = dict(ev)
+                    ev_copy["fixture_id"] = fixture_id
+                    resolved.append(ev_copy)
 
             saved = repo.save_events(date, resolved)
 
