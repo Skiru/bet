@@ -40,6 +40,7 @@ Load this skill when an entry point needs shared execution mechanics that recur 
 - [resume-stop-gates.md](resources/resume-stop-gates.md) — pause, continue, and stop conditions for long workflows.
 - [handoff-contracts.md](resources/handoff-contracts.md) — the standard payload shape for subagent delegation.
 - [async-wait-overlap.md](resources/async-wait-overlap.md) — an opt-in add-on for orchestrator entry points that want bounded read-only overlap during qualifying async waits.
+- [stage-context-packs.md](resources/stage-context-packs.md) — the canonical pre-handoff `Stage Context Pack` policy for eligible finished-output stages.
 
 ## Companion Loads
 
@@ -53,6 +54,8 @@ Load this skill when an entry point needs shared execution mechanics that recur 
 If a detail is shared across two or more prompts or agents and is not a permanent rule, place it in the matching resource here instead of duplicating it in each artifact.
 
 If an orchestrator entry point wants proactive wait-window overlap, load [async-wait-overlap.md](resources/async-wait-overlap.md). That resource owns the wait-policy details; [execution-spine.md](resources/execution-spine.md), [resume-stop-gates.md](resources/resume-stop-gates.md), and [handoff-contracts.md](resources/handoff-contracts.md) remain generic baselines rather than secondary policy owners.
+
+If an orchestrator entry point needs mandatory post-output stage context packs for eligible handoffs, load [stage-context-packs.md](resources/stage-context-packs.md). That resource owns the stage-level pack trigger, matrix, and boundary rules; the sibling workflow resources stay generic.
 
 ## Progressive Disclosure
 

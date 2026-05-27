@@ -9,6 +9,7 @@ This is a thin handoff prompt. Shared execution law, analytical methodology, and
 
 ## Orchestrator Must Provide
 - finished output from `deep_stats_report.py`
+- the pre-handoff stage context pack for this stage when required by `stage-context-packs.md`
 - `AGENT_SUMMARY` or equivalent metrics and warnings
 - candidate set, relevant DB artifacts, and any flagged data gaps
 - any time-sensitive context that should affect S3B follow-up

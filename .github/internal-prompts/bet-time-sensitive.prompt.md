@@ -9,6 +9,7 @@ This prompt is intentionally more than a thin router because it owns the late-br
 
 ## Orchestrator Must Provide
 - the affected candidate set and current preferred markets
+- the pre-handoff stage context pack for this stage when required by `stage-context-packs.md`
 - latest injury, lineup, weather, drift, or start-time changes
 - the prior S3/S4/S5 verdicts that may need to be updated
 - the betting day and cutoff window

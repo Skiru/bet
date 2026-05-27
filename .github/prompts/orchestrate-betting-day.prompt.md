@@ -26,6 +26,7 @@ Use this prompt for the daily betting workflow. Do not run `python3 scripts/pipe
 - Use `bet-orchestrating-workflows/resources/resume-stop-gates.md` for pause/continue decisions.
 - Use `bet-orchestrating-workflows/resources/handoff-contracts.md` for every delegation payload.
 - Use `bet-orchestrating-workflows/resources/async-wait-overlap.md` for orchestrator-only async-wait overlap policy.
+- Use `bet-orchestrating-workflows/resources/stage-context-packs.md` for mandatory post-output stage context packs on eligible handoffs.
 
 ## Day-Specific Phase Order
 1. Pre-flight: load journals, config, source registry, and recovery context.
@@ -41,7 +42,7 @@ Use this prompt for the daily betting workflow. Do not run `python3 scripts/pipe
 
 ## Orchestrator Rules
 - During qualifying async waits, use proactive read-only overlap from the canonical async-wait resource to close active-stage context gaps, then return to finished-output-first delegation.
-- After every finished script output, delegate to the mapped specialist before moving on.
+- After every finished script output, attach the mandatory pre-handoff stage context pack when the canonical stage-pack resource requires it, then delegate to the mapped specialist before moving on.
 - Stop when a validation gate fails, upstream data is incomplete, or the next stage requires a user decision.
 - Keep the final synthesis concise and user-facing; do not paste raw script output.
 - **FULL COVERAGE**: Always use `--all-fixtures` flag with `build_shortlist.py` to ensure ALL fixtures pass to deep_stats (no quality floor filtering, no per-sport caps). Expected: 300-500+ candidates.

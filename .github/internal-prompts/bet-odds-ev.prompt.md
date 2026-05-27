@@ -9,6 +9,7 @@ Use the canonical execution protocol and odds-evaluation skill. This prompt owns
 
 ## Orchestrator Must Provide
 - finished output from `odds_evaluator.py`
+- the pre-handoff stage context pack for this stage when required by `stage-context-packs.md`
 - `AGENT_SUMMARY` or pricing metrics, line movement, and warnings
 - relevant odds artifacts or DB records when deeper verification is needed
 - current date and candidate set

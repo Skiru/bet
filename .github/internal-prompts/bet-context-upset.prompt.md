@@ -9,6 +9,7 @@ Use the canonical execution protocol and sport-protocol skills. This prompt owns
 
 ## Orchestrator Must Provide
 - finished output from `context_checks.py` and `upset_risk.py`
+- the pre-handoff stage context pack for this stage when required by `stage-context-packs.md`
 - key warnings, injury or weather notes, and upset-risk metrics
 - relevant standings or player context if it materially changes the thesis
 - candidate set or flagged borderline picks

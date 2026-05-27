@@ -9,7 +9,8 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent.parent
-RESOURCE = ROOT / ".github/skills/bet-orchestrating-workflows/resources/async-wait-overlap.md"
+WAIT_RESOURCE = ROOT / ".github/skills/bet-orchestrating-workflows/resources/async-wait-overlap.md"
+STAGE_RESOURCE = ROOT / ".github/skills/bet-orchestrating-workflows/resources/stage-context-packs.md"
 SKILL = ROOT / ".github/skills/bet-orchestrating-workflows/SKILL.md"
 PROMPT = ROOT / ".github/prompts/orchestrate-betting-day.prompt.md"
 ORCHESTRATOR_AGENT = ROOT / ".github/agents/bet-orchestrator.agent.md"
@@ -26,39 +27,83 @@ SECOND_OWNER_MARKERS = [
     "## Prohibited Overlap Work",
     "## Async Wait Addendum",
 ]
+STAGE_PROMPT_BULLET = "the pre-handoff stage context pack for this stage when required by `stage-context-packs.md`"
+ELIGIBLE_PROMPTS = [
+    ROOT / ".github/internal-prompts/bet-enrich.prompt.md",
+    ROOT / ".github/internal-prompts/bet-deep-stats.prompt.md",
+    ROOT / ".github/internal-prompts/bet-odds-ev.prompt.md",
+    ROOT / ".github/internal-prompts/bet-context-upset.prompt.md",
+    ROOT / ".github/internal-prompts/bet-gate.prompt.md",
+    ROOT / ".github/internal-prompts/bet-time-sensitive.prompt.md",
+]
+EXCLUDED_PROMPTS = [
+    ROOT / ".github/internal-prompts/bet-tipsters.prompt.md",
+    ROOT / ".github/internal-prompts/bet-portfolio.prompt.md",
+    ROOT / ".github/internal-prompts/bet-validate.prompt.md",
+]
+STAGE_MATRIX_ROWS = [
+    "| S2 tipsters | Excluded | No mandatory stage pack. |",
+    "| S2.3 / S2.5 enrichment | Required when the finished output exposes material gaps, stale coverage, or blocked bridges. | Only the surfaced gaps or blocked-source questions. |",
+    "| S3 deep stats | Required when the finished output flags anomalies, thin context, or advancement candidates. | Only the flagged candidates or one surfaced topic. |",
+    "| S4 odds and EV | Required when drift, stale lines, or bookmaker divergence needs explanation. | Only the surfaced pricing conflicts. |",
+    "| S5 / S6 context and upset | Required by default for flagged or advancing picks. | Only the advancing or flagged frontier. |",
+    "| S7 gate | Required for borderline, escalated, or evidence-thin picks. | Only the unresolved final-judgment subset. |",
+    "| S3B time-sensitive recheck | Required by default. | Only the late-breaking changes tied to the affected picks. |",
+    "| S8 portfolio | Excluded | No mandatory stage pack. |",
+    "| Final validation | Excluded | No mandatory stage pack. |",
+]
+STAGE_OWNER_MARKERS = [
+    "Named trigger: `Finished Output Read`.",
+    "Named consequence: `Handoff Incomplete`.",
+    "Max one `Stage Context Pack` per eligible handoff.",
+    "One pack may cover up to two frontier targets or one stage-level topic.",
+    "Each target may use up to three Brave queries (`web`, `news`, `llm-context`) plus read-only local checks.",
+]
 
 
 def _read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def test_canonical_resource_exists_and_is_referenced_by_skill_and_prompt():
-    assert RESOURCE.exists(), "Missing canonical async-wait overlap resource"
+def test_canonical_resources_exist_and_are_referenced_by_skill_and_prompt():
+    assert WAIT_RESOURCE.exists(), "Missing canonical async-wait overlap resource"
+    assert STAGE_RESOURCE.exists(), "Missing canonical stage-context-pack resource"
 
     skill_text = _read(SKILL)
     prompt_text = _read(PROMPT)
 
     assert "[async-wait-overlap.md](resources/async-wait-overlap.md)" in skill_text
+    assert "[stage-context-packs.md](resources/stage-context-packs.md)" in skill_text
     assert "bet-orchestrating-workflows/resources/async-wait-overlap.md" in prompt_text
+    assert "bet-orchestrating-workflows/resources/stage-context-packs.md" in prompt_text
 
 
 def test_touched_workflow_references_resolve_correctly():
-    resource_text = _read(RESOURCE)
+    wait_resource_text = _read(WAIT_RESOURCE)
+    stage_resource_text = _read(STAGE_RESOURCE)
 
     assert (SKILL.parent / "resources/async-wait-overlap.md").exists()
-    assert (RESOURCE.parent / "../../../instructions/agent-execution-protocol.instructions.md").resolve().exists()
-    assert (RESOURCE.parent / "../../bet-navigating-sources/SKILL.md").resolve().exists()
-    assert (RESOURCE.parent / "handoff-contracts.md").resolve().exists()
-    assert (RESOURCE.parent / "resume-stop-gates.md").resolve().exists()
+    assert (SKILL.parent / "resources/stage-context-packs.md").exists()
+    assert (WAIT_RESOURCE.parent / "../../../instructions/agent-execution-protocol.instructions.md").resolve().exists()
+    assert (WAIT_RESOURCE.parent / "../../bet-navigating-sources/SKILL.md").resolve().exists()
+    assert (WAIT_RESOURCE.parent / "handoff-contracts.md").resolve().exists()
+    assert (WAIT_RESOURCE.parent / "resume-stop-gates.md").resolve().exists()
+    assert (STAGE_RESOURCE.parent / "../../bet-navigating-sources/SKILL.md").resolve().exists()
+    assert (STAGE_RESOURCE.parent / "async-wait-overlap.md").resolve().exists()
+    assert (STAGE_RESOURCE.parent / "handoff-contracts.md").resolve().exists()
 
-    assert "[agent-execution-protocol.instructions.md](../../../instructions/agent-execution-protocol.instructions.md)" in resource_text
-    assert "[bet-navigating-sources](../../bet-navigating-sources/SKILL.md)" in resource_text
-    assert "[handoff-contracts.md](handoff-contracts.md)" in resource_text
-    assert "[resume-stop-gates.md](resume-stop-gates.md)" in resource_text
+    assert "[agent-execution-protocol.instructions.md](../../../instructions/agent-execution-protocol.instructions.md)" in wait_resource_text
+    assert "[bet-navigating-sources](../../bet-navigating-sources/SKILL.md)" in wait_resource_text
+    assert "[handoff-contracts.md](handoff-contracts.md)" in wait_resource_text
+    assert "[resume-stop-gates.md](resume-stop-gates.md)" in wait_resource_text
+
+    assert "[async-wait-overlap.md](async-wait-overlap.md)" in stage_resource_text
+    assert "[handoff-contracts.md](handoff-contracts.md)" in stage_resource_text
+    assert "[bet-navigating-sources](../../bet-navigating-sources/SKILL.md)" in stage_resource_text
 
 
 def test_canonical_resource_defines_explicit_trigger_scope_and_budget():
-    text = _read(RESOURCE)
+    text = _read(WAIT_RESOURCE)
 
     assert "`>120s`" in text
     assert "Mandatory whenever the orchestrator launches a step in async mode" in text
@@ -76,7 +121,7 @@ def test_canonical_resource_defines_explicit_trigger_scope_and_budget():
 
 
 def test_canonical_resource_lists_allowed_and_prohibited_overlap_cases():
-    text = _read(RESOURCE)
+    text = _read(WAIT_RESOURCE)
 
     assert "## Allowed Overlap Work" in text
     assert "Brave web/news/llm-context research packs on the active-stage frontier." in text
@@ -91,13 +136,44 @@ def test_canonical_resource_lists_allowed_and_prohibited_overlap_cases():
 
 
 def test_async_wait_addendum_stays_supplemental_to_finished_output_analysis():
-    text = _read(RESOURCE)
+    text = _read(WAIT_RESOURCE)
 
     assert "## Async Wait Addendum" in text
     assert "Use this optional addendum only when wait-window research produces evidence" in text
     assert "Append it by reference to the generic payload from [handoff-contracts.md](handoff-contracts.md)" in text
     assert "Specialist verdicts on finished outputs remain authoritative." in text
     assert "never replaces the finished-output-first delegation rule" in text
+
+
+def test_stage_context_resource_defines_owner_trigger_matrix_and_pack_shape():
+    text = _read(STAGE_RESOURCE)
+
+    assert "This file owns mandatory post-output, pre-handoff `Stage Context Pack` policy for eligible stages." in text
+    assert "This file does not own in-flight wait behavior, generic handoff payloads, or source-selection rules." in text
+    assert "Mandatory after the orchestrator reads finished output for an eligible stage and before it delegates to the next specialist." in text
+    assert "If the required pack is missing, the handoff is incomplete." in text
+    assert "A `Stage Context Pack` is a bounded artifact, not an open-ended research activity." in text
+    assert "The pack may be assembled from evidence gathered during async waits or after script completion." in text
+    assert "The pack requirement is independent from the wait-window policy" in text
+
+    for row in STAGE_MATRIX_ROWS:
+        assert row in text
+
+    for marker in STAGE_OWNER_MARKERS:
+        assert marker in text
+
+    assert "### Stage Context Pack (when required)" in text
+    assert "findings for specialist verification: <supplemental evidence, not final truth>" in text
+    assert "The pack never authorizes early delegation, dependent script execution, or shared-state mutation." in text
+
+
+def test_eligible_and_excluded_prompts_respect_stage_context_pack_boundary():
+    for path in ELIGIBLE_PROMPTS:
+        assert STAGE_PROMPT_BULLET in _read(path), f"{path.relative_to(ROOT)} should require the stage context pack"
+
+    for path in EXCLUDED_PROMPTS:
+        assert STAGE_PROMPT_BULLET not in _read(path), f"{path.relative_to(ROOT)} should stay quiet for stage packs"
+
 
 
 def test_skill_and_prompt_stay_thin_and_keep_shared_baselines_generic():
@@ -110,6 +186,17 @@ def test_skill_and_prompt_stay_thin_and_keep_shared_baselines_generic():
     for text in (skill_text, prompt_text):
         for marker in SECOND_OWNER_MARKERS:
             assert marker not in text
+        for marker in STAGE_OWNER_MARKERS:
+            assert marker not in text
+
+
+def test_async_wait_resource_remains_the_wait_policy_owner_only():
+    text = _read(WAIT_RESOURCE)
+
+    for marker in STAGE_OWNER_MARKERS:
+        assert marker not in text
+    assert "### Stage Context Pack (when required)" not in text
+    assert "| S2.3 / S2.5 enrichment |" not in text
 
 
 def test_shared_baselines_and_agent_do_not_become_second_policy_owners():
@@ -117,6 +204,10 @@ def test_shared_baselines_and_agent_do_not_become_second_policy_owners():
         text = _read(path)
         for marker in SECOND_OWNER_MARKERS:
             assert marker not in text, f"{path.relative_to(ROOT)} should not own async-wait policy details"
+        for marker in STAGE_OWNER_MARKERS:
+            assert marker not in text, f"{path.relative_to(ROOT)} should not own stage-pack policy details"
+        assert "### Stage Context Pack (when required)" not in text, f"{path.relative_to(ROOT)} should not own the stage pack schema"
+        assert "| S2.3 / S2.5 enrichment |" not in text, f"{path.relative_to(ROOT)} should not own the stage matrix"
 
 
 def test_touched_prompt_frontmatter_integrity():

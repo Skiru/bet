@@ -9,6 +9,7 @@ Use the canonical execution protocol, source-navigation skill, and enrichment ag
 
 ## Orchestrator Must Provide
 - finished output from `run_scrapers.py`, `data_enrichment_agent.py`, or sport-specific enrichment steps
+- the pre-handoff stage context pack for this stage when required by `stage-context-packs.md`
 - yield metrics, source-health metrics, and gap counts
 - affected sports, competitions, or candidate sets
 - any known stale or blocked sources

@@ -9,6 +9,7 @@ This is a thin handoff prompt. The execution protocol, sport rules, and analytic
 
 ## Orchestrator Must Provide
 - finished output from `gate_checker.py`
+- the pre-handoff stage context pack for this stage when required by `stage-context-packs.md`
 - `AGENT_SUMMARY` or tier metrics, warnings, and any repeat-loss findings
 - upstream S3-S6 artifacts needed to verify the final thesis
 - the candidate set or the subset that needs the final judgment
