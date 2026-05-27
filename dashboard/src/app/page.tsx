@@ -3,7 +3,7 @@ import { CouponViewer } from "@/components/coupon-viewer";
 import { AgentStatus } from "@/components/agent-status";
 import { RunPipelineButton } from "@/components/run-pipeline-button";
 import { SportBreakdown } from "@/components/sport-breakdown";
-import { GeminiStatus } from "@/components/gemini-status";
+import { LMStudioStatus } from "@/components/lmstudio-status";
 
 export default function DashboardPage() {
   return (
@@ -22,7 +22,7 @@ export default function DashboardPage() {
           </div>
           <div className="space-y-6">
             <AgentStatus />
-            <GeminiStatus />
+            <LMStudioStatus />
             <SportBreakdown />
           </div>
         </div>

@@ -1,7 +1,7 @@
 import { Sparkles } from "lucide-react";
 import { getLMStudioConfig } from "@/lib/data";
 
-export function GeminiStatus() {
+export function LMStudioStatus() {
   const config = getLMStudioConfig();
 
   return (
@@ -39,7 +39,7 @@ export function GeminiStatus() {
             </div>
             <div className="mt-3 pt-3 border-t border-border-card">
               <p className="text-xs text-text-secondary">
-                Feature flags: --use-gemini, --news, --gemini (routes to LM Studio)
+                Roo Code + Continue.dev connect to this endpoint for agentic chat and autocomplete.
               </p>
             </div>
           </>

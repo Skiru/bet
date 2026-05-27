@@ -21,7 +21,7 @@ tools:
     "vscode/runCommand",
     "vscode/toolSearch",
   ]
-model: "gemma-4-31b"
+model: "qwen/qwen3.6-27b"
 instructions:
   - ../instructions/agent-execution-protocol.instructions.md
   - ../instructions/analysis-methodology.instructions.md

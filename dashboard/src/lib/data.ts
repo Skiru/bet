@@ -132,7 +132,7 @@ export function getLMStudioConfig(): {
     const config = JSON.parse(raw);
     return {
       enabled: true,
-      model: config.model ?? "gemma-4-31b-Q4_K_M",
+      model: config.model ?? "qwen/qwen3.6-27b",
       baseUrl: config.base_url ?? "http://localhost:1234/v1",
     };
   } catch {

@@ -1,0 +1,15 @@
+{
+  "tabAutocompleteModel": {
+    "title": "Codestral 22B (Local)",
+    "provider": "lmstudio",
+    "model": "mistralai/codestral-22b-v0.1",
+    "apiBase": "http://localhost:1234/v1"
+  },
+  "tabAutocompleteOptions": {
+    "maxPromptTokens": 4096,
+    "debounceDelay": 400,
+    "multilineCompletions": "always"
+  },
+  "models": [],
+  "allowAnonymousTelemetry": false
+}

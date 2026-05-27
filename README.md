@@ -73,14 +73,15 @@ Wszystkie zasady limitów, portfeli oraz obsługiwanych dyscyplin można dopasow
 
 ## Jak Uruchamiać
 
-System **NIE** uruchamia się na raz ślepym skryptem `pipeline_orchestrator.py`. Działa interaktywnie jako proces Agent-Driven. Przejść do panelu Copilot w VS Code:
+System **NIE** uruchamia się na raz ślepym skryptem `pipeline_orchestrator.py`. Działa interaktywnie jako proces Agent-Driven. Otwórz Roo Code w VS Code:
 
-Dzienny przebieg inicjuje komenda skierowana w chat do narzędzi agentowych:
+Dzienny przebieg inicjujesz w trybie `bet-orchestrator` w Roo Code:
 ```
-@workspace /prompt orchestrate-betting-day run_date=2026-05-14 session=full version=v1
+Switch to mode: bet-orchestrator
+"Uruchom pełny pipeline na dzień 2026-05-14, sesja=full, wersja=v1"
 ```
 
-Następnie współpracujesz z modelem, który uruchamia skrypty jako narzędzia w shellu i prosi agentów dziedzinowych o analizę wyjść ze skryptów.
+Następnie współpracujesz z agentem, który uruchamia skrypty jako narzędzia w shellu i deleguje (Boomerang) analizę wyjść do specjalistycznych trybów.
 
 ## Co Powstaje Po Uruchomieniu
 

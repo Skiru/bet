@@ -1,5 +1,6 @@
 .venv/
 .vscode/mcp.json
+.roo/mcp.json
 betting/data/
 betting/data/betting.db
 scripts/playwright_storage/

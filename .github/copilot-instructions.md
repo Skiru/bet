@@ -25,9 +25,10 @@ This repository uses Copilot customizations to run a disciplined small-bankroll 
 
 ## Active Model Standard
 
-- Every active bet agent must use the exact literal `gemma-4-31b`.
-- The pipeline runs on a local LM Studio instance (Gemma 4 31B, Q4_K_M quantization).
-- Stale model literals (GPT-5.4, Claude Opus 4.6) are invalid in the active `.github` tree.
+- Primary pipeline model: Qwen 3.6 27B via LM Studio (`qwen/qwen3.6-27b`).
+- Autocomplete: Codestral 22B via Continue.dev (`mistralai/codestral-22b-v0.1`).
+- The pipeline runs on a local LM Studio instance at localhost:1234.
+- Stale model literals (GPT-5.4, Claude Opus 4.6, gemma-4-31b) are invalid in the active `.github` tree.
 
 ## Repo-Wide Constraints
 

@@ -2,13 +2,13 @@
 """Agent communication protocol for pipeline steps.
 
 Each pipeline step that requires agent review writes a structured JSON
-input file. Agents (via Copilot) read the input, perform qualitative
+input file. Agents (via Roo Code) read the input, perform qualitative
 analysis, and write a review JSON response. The orchestrator reads
 agent responses and merges enrichments into the pipeline state.
 
 All files are written to: betting/data/agent_reviews/{date}/
 - {step_id}_input.json  — written by pipeline after step completes
-- {step_id}_review.json — written by agent (manually or via Copilot)
+- {step_id}_review.json — written by agent (manually or via Roo Code)
 """
 
 import json

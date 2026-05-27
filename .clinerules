@@ -1,0 +1,38 @@
+# Betting Workspace — Global Rules
+
+## Architecture
+- Agent-driven pipeline: orchestrator calls individual scripts, delegates analysis to specialists.
+- Database-first: `betting/data/betting.db` via `get_db()`. JSON/CSV/MD are secondary artifacts.
+- Discovery: `src/bet/discovery/` — API-first for 5 core sports.
+- Scripts produce data; agents interpret output and return structured verdicts.
+- `pipeline_orchestrator.py` is BANNED — orchestrator mode IS the loop.
+
+## Model & Hardware
+- Agentic/thinking: Qwen 3.6 27B via LM Studio on localhost:1234.
+- Autocomplete: Codestral 22B via Continue.dev (localhost:1234).
+- Hardware: MacBook Pro M4 Pro, 48GB RAM.
+- Context: 32K tokens. Keep prompts short; use Boomerang for fresh context.
+
+## Constraints
+- Bookmaker: Betclic. All picks conditional until user verifies in app.
+- Do NOT scrape Betclic.
+- Timezone: Europe/Warsaw. Betting day: 06:00–05:59. Events in progress are VALID (live betting).
+- Always settle previous day before generating new picks.
+- Never invent odds, lineups, injuries, results, or statistics.
+- Coverage: Football, Volleyball, Basketball, Tennis, Hockey, CS2, Dota 2, Valorant.
+- Statistical markets FIRST (corners, fouls, cards, shots, games, sets, frames). ML is last resort.
+- No auto-rejection based on hit rates or safety scores. User decides.
+- Coupon model: core portfolio + combination menu + extended pool. Core uses unique events.
+- Reruns create new versions. Preserve history; mark superseded pending artifacts.
+- Use `sequentialthinking` MCP for EVERY pipeline step. Per-candidate calls in S3-S7.
+- Before running scripts: read code to understand data flow (inputs/outputs/keys). Never assume scripts work.
+
+## Terminal
+- Fish shell. No bash syntax, no `export`, no heredocs, no `python3 -c "..."`.
+- Use `set -x VAR value` for env vars. Keep commands simple.
+
+## Data Paths
+- Output: `betting/data/`, `betting/coupons/`, `betting/reports/`, `betting/journal/`
+- DB: `betting/data/betting.db`
+- Stats cache: `betting/data/stats_cache/`
+- Memory: `.roo/memory-bank/`
