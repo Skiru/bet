@@ -507,6 +507,24 @@ def rank_markets(data: dict) -> dict:
         # Compute combined L10 values
         l10_values = compute_combined_values(market)
 
+        # FABRICATION DETECTION: reject markets with zero-variance L10 data.
+        # Pattern: enrichment-agent sometimes fills l10_values with N copies of l10_avg
+        # (e.g., [9.0, 9.0, 9.0, 9.0, 9.0, 9.0, 9.0, 9.0, 9.0, 9.0]).
+        # Real match data ALWAYS has variance. Zero variance = synthetic fabrication.
+        # Also detect near-zero variance: only 2 distinct values in 8+ samples
+        # (alternating pattern from synthetic generation).
+        # Also reject if sample size < 5 from synthetic source.
+        if l10_values and len(l10_values) >= 2:
+            unique_count = len(set(l10_values))
+            if unique_count == 1:
+                continue  # All identical values — fabricated
+            if unique_count <= 2 and len(l10_values) >= 8:
+                # Only 2 distinct values in 8+ samples — highly suspicious
+                # Mark as synthetic but don't reject — let synthetic cap handle it
+                source = "db-synthetic"
+        if l10_values and len(l10_values) < 5 and source in ("enrichment-agent", "db-synthetic"):
+            continue  # Too few samples from synthetic source — unreliable
+
         # Tennis data validation: reject markets with impossible averages
         # A completed tennis match has min 12 total games (6-0 6-0) and
         # a player wins min 6 games. Lower values = walkover/retirement data.
@@ -536,6 +554,17 @@ def rank_markets(data: dict) -> dict:
 
         # L5 values
         l5_values = compute_combined_l5(market)
+
+        # Tennis L5 walkover/retirement filter (same as L10 filter above)
+        # Post-mortem 2026-05-28: L5 zeros produced uniform 2/5 hit rates across
+        # 8/13 approved picks. Zeros = walkover data, not real match results.
+        if sport == "tennis" and l5_values:
+            name_lower = name.lower()
+            if "total games" in name_lower:
+                l5_values = [v for v in l5_values if v >= 12]
+            elif "games" in name_lower:
+                l5_values = [v for v in l5_values if v >= 6]
+
         l5_avg = statistics.mean(l5_values) if l5_values else 0.0
 
         # Infer direction
@@ -936,6 +965,7 @@ def rank_markets(data: dict) -> dict:
         "markets_evaluated": len(results),
         "min_required": min_required,
         "ranking": results,
+        "_markets_input": markets,  # Raw input for probability_engine enrichment
         "three_way_check": three_way,
         "recommended_market": (
             f"{best['name']} {best['line']} ({best['direction']})"

@@ -639,6 +639,46 @@ def build_safety_input_from_db(
             team_a_form = stats_repo.get_all_form_for_team(team_a_obj.id, sport_obj.id)
             team_b_form = stats_repo.get_all_form_for_team(team_b_obj.id, sport_obj.id)
 
+            # DEDUP FIX: If primary team_id has sparse form (≤3 rows), look for
+            # alternative team_ids with the same surname that have MORE data.
+            # Post-mortem 2026-05-28: "Cerundolo F." (id=13143, 2 fabricated rows)
+            # was used instead of "Francisco Cerundolo" (id=2623, 13 real rows).
+            def _find_best_form(team_name, primary_id, primary_form, sport_id):
+                """Find richest form data across duplicate team entries."""
+                if primary_form and len(primary_form) > 3:
+                    return primary_form  # Already have good data
+                # Extract surname for fuzzy matching
+                parts = team_name.replace(",", " ").split()
+                # Use longest word as surname key (handles "F. Cerundolo", "Cerundolo F.", etc.)
+                surname = max(parts, key=len) if parts else team_name
+                if len(surname) < 3:
+                    return primary_form
+                # Find all teams with matching surname in same sport
+                alt_rows = conn.execute(
+                    "SELECT id FROM teams WHERE sport_id = ? AND id != ? AND name LIKE ?",
+                    (sport_id, primary_id, f"%{surname}%"),
+                ).fetchall()
+                best_form = primary_form
+                best_count = len(primary_form) if primary_form else 0
+                for alt in alt_rows:
+                    alt_form = stats_repo.get_all_form_for_team(alt["id"], sport_id)
+                    if alt_form and len(alt_form) > best_count:
+                        # Verify it has real L10 values (not all-synthetic)
+                        has_real = any(
+                            f.l10_values and isinstance(f.l10_values, list) and len(f.l10_values) >= 5
+                            and len(set(f.l10_values)) > 1
+                            for f in alt_form
+                        )
+                        if has_real:
+                            best_form = alt_form
+                            best_count = len(alt_form)
+                if best_form is not primary_form and best_form:
+                    print(f"[normalize] dedup: {team_name} id={primary_id} ({len(primary_form) if primary_form else 0} rows) → alt ({best_count} rows)")
+                return best_form
+
+            team_a_form = _find_best_form(team_a, team_a_obj.id, team_a_form, sport_obj.id)
+            team_b_form = _find_best_form(team_b, team_b_obj.id, team_b_form, sport_obj.id)
+
             # Bug 4 fix: if name-based resolution yields no form but fixture_id
             # is available, try using the fixture's actual team IDs directly.
             # This handles cases where scrapers stored form under a different

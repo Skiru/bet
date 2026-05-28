@@ -1404,6 +1404,19 @@ def analyze_candidate(
 
     best_market = ranking_result["ranking"][0] if ranking_result.get("ranking") else None
 
+    # Enrich ranking with probability data from probability_engine (Poisson/NegBin models)
+    # This adds probability, fair_odds, lambda, model_used to each ranked market.
+    if ranking_result.get("ranking") and ranking_result.get("_markets_input"):
+        try:
+            from probability_engine import enrich_ranking_with_probabilities
+            ranking_result = enrich_ranking_with_probabilities(ranking_result)
+            # Update best_market reference after enrichment
+            best_market = ranking_result["ranking"][0] if ranking_result.get("ranking") else best_market
+        except ImportError:
+            pass  # probability_engine not available — skip enrichment
+        except Exception:
+            pass  # Probability calculation error — continue without it
+
     # Compute data quality
     dq = compute_data_quality(stats_a, stats_b, h2h, sport)
     # Update three_way_check in data quality if ranking has it
@@ -1856,7 +1869,31 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
         # Sort: STATS_ONLY+ first, then FIXTURE_ONLY — so --top N picks data-rich events first.
         _tier_order = {"FULL": 0, "ODDS_RICH": 1, "ODDS_BASIC": 2, "STATS_ONLY": 3, "FIXTURE_ONLY": 9}
         candidates.sort(key=lambda c: _tier_order.get(c.get("data_tier", "FIXTURE_ONLY"), 5))
-        candidates = candidates[:top]
+
+        # SPORT DIVERSITY FIX (post-mortem 2026-05-28): --top N was silently dropping
+        # entire sports (esports, football, volleyball) because they had FIXTURE_ONLY tier.
+        # Fix: guarantee minimum 2 candidates per sport present in the original pool.
+        sports_in_pool = {}
+        for c in candidates:
+            sp = c.get("sport", "unknown").lower()
+            sports_in_pool.setdefault(sp, []).append(c)
+
+        top_slice = candidates[:top]
+        sports_in_slice = {c.get("sport", "").lower() for c in top_slice}
+        missing_sports = [sp for sp in sports_in_pool if sp not in sports_in_slice]
+
+        if missing_sports:
+            # Force-include up to 2 candidates per missing sport
+            forced = []
+            for sp in missing_sports:
+                forced.extend(sports_in_pool[sp][:2])
+            if forced:
+                # Replace lowest-tier items at the end of the slice
+                n_replace = min(len(forced), len(top_slice))
+                top_slice = top_slice[:top - n_replace] + forced[:n_replace]
+                print(f"[deep_stats] --top diversity fix: forced {len(forced)} candidates from {missing_sports}")
+
+        candidates = top_slice
 
     # ENRICHMENT-FIRST: Collect teams with missing data, attempt enrichment before analysis.
     # Previously a "SMART FILTER" dropped ~95% of candidates here. Now ALL candidates

@@ -1436,34 +1436,36 @@ def generate_combos(approved: list, config: dict, core_coupons: list | None = No
     max_legs = config.get("max_legs_per_coupon", 4)
     max_same_sport = config.get("max_same_sport_legs_in_coupon", 2)
     max_combos = config.get("max_combo_coupons", 20)
-    max_event_reuse = config.get("max_event_reuse_across_coupons", 5)
+    max_event_reuse = min(config.get("max_event_reuse_across_coupons", 3), 3)
     combos: list[dict] = []
     combo_num: dict[str, int] = {}
-    # Track signatures from the START to prevent duplicate theme combos
+    # Track signatures to prevent duplicate theme combos (between THEMES only)
     existing_signatures: set[frozenset] = set()
-    # Track per-event reuse count to enforce concentration limit
-    # Pre-seed from core coupons so combos respect total portfolio exposure
+    # Track per-event reuse count to enforce concentration limit within combos
+    # NOTE: Do NOT pre-seed from core coupons — combo menu is an ALTERNATIVE
+    # menu for the user (they choose core OR combos), not additive.
     event_reuse_count: dict[str, int] = {}
-    if core_coupons:
-        for coupon in core_coupons:
-            for leg in coupon.get("legs", []):
-                ek = _event_key(leg)
-                event_reuse_count[ek] = event_reuse_count.get(ek, 0) + 1
-            # Also pre-seed signatures to prevent combinatorial duplicating core
-            core_sig = frozenset(_event_key(leg) for leg in coupon.get("legs", []))
-            if core_sig:
-                existing_signatures.add(core_sig)
 
-    # Filter: exclude picks with safety < 0.50 AND failed bear case from combo pool
+    # Filter: exclude picks with very low safety from combo pool.
+    # Two-tier filter:
+    # 1) Hard floor: safety < 0.30 is NEVER included in combos (too risky for multi-leg)
+    # 2) Soft floor: safety 0.30-0.39 excluded if also failed bear case (gate 12)
+    # Post-mortem 2026-05-28: pick with safety=0.21 was included in combos.
+    MIN_COMBO_SAFETY_HARD = 0.30
+    MIN_COMBO_SAFETY_SOFT = 0.40
     combo_pool = [
         p for p in odds_approved
-        if not (
-            (_bm(p).get("safety_score") or 0) < 0.50
+        if (_bm(p).get("safety_score") or 0) >= MIN_COMBO_SAFETY_HARD
+        and not (
+            (_bm(p).get("safety_score") or 0) < MIN_COMBO_SAFETY_SOFT
             and not (p.get("gate_details", {}).get("12", {}).get("passed", True))
         )
     ]
-    # Fallback: if filtering removed too many, use full pool
-    if len(combo_pool) < min_legs:
+    # Fallback: if filtering removed too many, use full pool but still enforce hard floor
+    if len(combo_pool) < max(min_legs + 1, 4):
+        combo_pool = [p for p in odds_approved if (_bm(p).get("safety_score") or 0) >= MIN_COMBO_SAFETY_HARD]
+    # Last resort: if still not enough, use all (shouldn't happen with 13+ approved)
+    if len(combo_pool) < max(min_legs + 1, 4):
         combo_pool = list(odds_approved)
 
     for theme in COMBO_THEMES:
@@ -1519,6 +1521,18 @@ def generate_combos(approved: list, config: dict, core_coupons: list | None = No
                 filtered_legs.append(p)
                 sport_counts[s] = sport_counts.get(s, 0) + 1
         selected = filtered_legs
+
+        # Competition concentration: max 2 from same competition (correlated risk)
+        comp_counts_theme: dict[str, int] = {}
+        comp_filtered = []
+        for p in selected:
+            comp = p.get("competition") or p.get("league") or ""
+            if comp and comp_counts_theme.get(comp, 0) >= 2:
+                continue
+            comp_filtered.append(p)
+            if comp:
+                comp_counts_theme[comp] = comp_counts_theme.get(comp, 0) + 1
+        selected = comp_filtered
 
         if len(selected) < min_legs:
             continue
@@ -1587,6 +1601,17 @@ def generate_combos(approved: list, config: dict, core_coupons: list | None = No
                 s = p.get("sport", "other")
                 sport_counts_c[s] = sport_counts_c.get(s, 0) + 1
             if any(c > max_same_sport for c in sport_counts_c.values()):
+                continue
+
+            # Check competition concentration — max 2 legs from same competition
+            # Post-mortem 2026-05-28: 3 ATP French Open legs in one combo = correlated risk
+            comp_counts_c: dict[str, int] = {}
+            for p in combo_picks:
+                comp = p.get("competition") or p.get("league") or ""
+                if comp:
+                    comp_counts_c[comp] = comp_counts_c.get(comp, 0) + 1
+            max_same_comp = 2
+            if any(c > max_same_comp for c in comp_counts_c.values()):
                 continue
 
             # Enforce event reuse cap for combinatorial combos
@@ -2153,18 +2178,22 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
         safety = (pick.get("best_market") or {}).get("safety_score", 0.5)
         prob = (pick.get("best_market") or {}).get("probability")
         if odds_val <= 1.0:
-            # Stats-first mode: no odds available — include with placeholder
+            # Stats-first mode: compute estimated odds from safety score
+            # Same formula as assign_picks_to_core uses for estimated odds
+            estimated_odds = round(1.0 / max(safety, 0.1), 2)
+            estimated_stake = compute_stake(estimated_odds, safety, bankroll, pick.get("risk_tier", "MS"), probability=prob)
             single = {
                 "id": f"CP-{date_str}-SINGLE{i}",
                 "tier": pick.get("risk_tier", "MS"),
                 "legs": [pick],
-                "combined_odds": 0.0,
-                "stake": 0.0,
-                "potential_return": 0.0,
+                "combined_odds": estimated_odds,
+                "stake": estimated_stake,
+                "potential_return": round(estimated_stake * estimated_odds, 2),
                 "stress_test": stress_test_coupon({"legs": [pick]}),
                 "correlation_flags": [],
                 "is_single": True,
                 "stats_first": True,
+                "odds_source": "estimated",
             }
             singles.append(single)
             continue
@@ -2179,6 +2208,7 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
             "stress_test": stress_test_coupon({"legs": [pick]}),
             "correlation_flags": [],
             "is_single": True,
+            "odds_source": pick.get("odds_source", "api"),
         }
         singles.append(single)
 
@@ -2289,18 +2319,20 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
         safety = (pick.get("best_market") or {}).get("safety_score", 0.5)
         prob = (pick.get("best_market") or {}).get("probability")
         if odds_val <= 1.0:
+            estimated_odds = round(1.0 / max(safety, 0.1), 2)
             disc_single = {
                 "id": f"CP-{date_str}-DISC{i}",
                 "tier": "DISCOVERY",
                 "advisory_tier": pick.get("advisory_tier", "WEAK"),
                 "legs": [pick],
-                "combined_odds": 0.0,
+                "combined_odds": estimated_odds,
                 "stake": 0.0,
                 "potential_return": 0.0,
                 "stress_test": stress_test_coupon({"legs": [pick]}),
                 "correlation_flags": [],
                 "is_single": True,
                 "stats_first": True,
+                "odds_source": "estimated",
             }
         else:
             # Discounted stake: 0.25× for WEAK, 0× for FLAGGED (show only)
@@ -2391,11 +2423,16 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
     result["tipster_pool"] = tipster_pool
 
     # ENFORCE DAILY CAP: trim coupons to stay within daily_exposure_range
+    # NOTE: Combos are ALTERNATIVES to core (user picks one or the other), so
+    # they are NOT counted toward the budget cap.
+    # Stats-first singles have suggested stakes but need Betclic verification
+    # first — only count confirmed (non-stats-first) singles toward the cap.
     max_daily = alloc_range[1] if isinstance(alloc_range, list) and len(alloc_range) > 1 else 15.0
     core_spend = sum(c.get("stake", 0) for c in core)
     combo_spend = sum(c.get("stake", 0) for c in combos)
+    confirmed_singles_spend = sum(c.get("stake", 0) for c in singles if not c.get("stats_first"))
     singles_spend = sum(c.get("stake", 0) for c in singles)
-    total_spend = core_spend + combo_spend + singles_spend
+    total_spend = core_spend + confirmed_singles_spend  # combos + stats-first excluded
 
     if total_spend > max_daily:
         # Task 1.5: Budget hard cap — trim lowest-priority items to Extended Pool
@@ -2421,7 +2458,7 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
         trimmed_count = 0
         for s in singles:
             if s.get("stats_first") or s.get("stake", 0) == 0:
-                kept_singles.append(s)  # stats-first singles cost nothing
+                kept_singles.append(s)  # stats-first: suggested stake, needs Betclic verification first
             elif budget_remaining >= s.get("stake", 0):
                 kept_singles.append(s)
                 budget_remaining -= s.get("stake", 0)
@@ -2435,25 +2472,27 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
         singles = kept_singles
         result["singles"] = singles
 
-    # Task 1.6: Event concentration limit — no single event in >5 coupons
-    max_event_reuse = config.get("max_event_reuse_across_coupons", 5)
-    all_coupons_check = core + combos
-    event_usage: dict[str, int] = {}
-    for coupon in all_coupons_check:
+    # Task 1.6: Event concentration limit
+    # Since combos are alternatives to core, count reuse WITHIN each category separately.
+    # Warn if an event appears too often within combos alone (user picks multiple combos).
+    # Post-mortem 2026-05-28: max_event_reuse=5 allowed 47% concentration. Cap at 3.
+    max_event_reuse = min(config.get("max_event_reuse_across_coupons", 3), 3)
+    combo_event_usage: dict[str, int] = {}
+    for coupon in combos:
         for leg in coupon.get("legs", []):
             ek = _event_key(leg)
-            event_usage[ek] = event_usage.get(ek, 0) + 1
+            combo_event_usage[ek] = combo_event_usage.get(ek, 0) + 1
     concentration_warnings = []
-    for ek, count in event_usage.items():
-        if count > 3:
-            concentration_warnings.append(f"⚠️ KONCENTRACJA: {ek} pojawia się w {count} kuponach")
+    for ek, count in combo_event_usage.items():
+        if count > 2:
+            concentration_warnings.append(f"⚠️ KONCENTRACJA: {ek} pojawia się w {count} kombo kuponach")
         if count > max_event_reuse:
-            out.warning(f"⚠️ Event {ek} in {count} coupons (max {max_event_reuse})")
+            out.warning(f"⚠️ Event {ek} in {count} combos (max {max_event_reuse})")
     result["_concentration_warnings_extra"] = concentration_warnings
 
     # Task 1.8: Same-competition correlation check
     comp_correlation_warnings = []
-    for coupon in all_coupons_check:
+    for coupon in core + combos:
         legs = coupon.get("legs", [])
         comps = [leg.get("competition") or leg.get("league") or "" for leg in legs]
         from collections import Counter as _Counter
@@ -2475,6 +2514,8 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
     core_spend = sum(c.get("stake", 0) for c in core)
     combo_spend = sum(c.get("stake", 0) for c in combos)
     singles_spend = sum(c.get("stake", 0) for c in singles)
+    confirmed_singles_spend = sum(c.get("stake", 0) for c in singles if not c.get("stats_first"))
+    stats_first_singles_spend = sum(c.get("stake", 0) for c in singles if c.get("stats_first"))
     total_return = (
         sum(c.get("potential_return", 0) for c in core)
         + sum(c.get("potential_return", 0) for c in combos)
@@ -2491,8 +2532,11 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
     result["summary"] = {
         "core_spend": round(core_spend, 2),
         "singles_spend": round(singles_spend, 2),
-        "total_spend": round(core_spend + combo_spend + singles_spend, 2),
-        "bankroll_after": round(bankroll - core_spend - combo_spend - singles_spend, 2),
+        "confirmed_spend": round(core_spend + confirmed_singles_spend, 2),
+        "suggested_spend_if_verified": round(stats_first_singles_spend, 2),
+        "combo_spend_if_used": round(combo_spend, 2),
+        "total_spend": round(core_spend + singles_spend, 2),  # max if all placed
+        "bankroll_after": round(bankroll - core_spend - confirmed_singles_spend, 2),
         "total_potential_return": round(total_return, 2),
         "best_case": round(best_case, 2),
         "realistic": realistic,
@@ -2683,7 +2727,7 @@ def _coupon_section(title: str, coupons: list[dict]) -> list[str]:
         if stats_first:
             lines.append(f"| Kurs łączny | Stawka | Zwrot | P(kupon) |")
             lines.append(f"|-------------|--------|-------|----------|")
-            lines.append(f"| ➜Betclic | ➜Betclic | ➜Betclic | ~{_safe_float(st.get('p_coupon', 0)):.0%} |")
+            lines.append(f"| ~{c.get('combined_odds', 0):.2f}* | ~{c.get('stake', 0):.2f} PLN* | ~{c.get('potential_return', 0):.2f} PLN* | ~{_safe_float(st.get('p_coupon', 0)):.0%} |")
         else:
             lines.append(f"| Kurs łączny | Stawka | Zwrot | P(kupon) |")
             lines.append(f"|-------------|--------|-------|----------|")
@@ -2758,7 +2802,7 @@ def write_coupon_markdown(coupons_data: dict, date: str) -> Path:
         lines.append(_build_rich_description(leg))
         lines.append("")
         if banker.get("stats_first"):
-            lines.append(f"**Stawka:** ➜Betclic | **Kurs:** ➜Betclic | **Zwrot:** ➜Betclic")
+            lines.append(f"**Stawka:** ~{banker['stake']:.2f} PLN* | **Kurs:** ~{banker['combined_odds']:.2f}* | **Zwrot:** ~{banker['potential_return']:.2f} PLN*")
         else:
             lines.append(f"**Stawka:** {banker['stake']:.2f} PLN | **Kurs:** {banker['combined_odds']:.2f} | **Zwrot:** {banker['potential_return']:.2f} PLN")
         lines.append("")
@@ -2777,8 +2821,8 @@ def write_coupon_markdown(coupons_data: dict, date: str) -> Path:
             if s.get("stats_first"):
                 lines.append(
                     f"| {i} | {s['id']}{banker_mark} | {desc} "
-                    f"| ➜Betclic | ➜Betclic "
-                    f"| ➜Betclic | {s['tier']} |"
+                    f"| ~{s['combined_odds']:.2f}* | ~{s['stake']:.2f} PLN* "
+                    f"| ~{s['potential_return']:.2f} PLN* | {s['tier']} |"
                 )
             else:
                 lines.append(
@@ -2935,15 +2979,23 @@ def write_coupon_markdown(coupons_data: dict, date: str) -> Path:
 
     # PODSUMOWANIE
     summary = coupons_data.get("summary", {})
+    stats_first_spend = summary.get("suggested_spend_if_verified", 0)
+    confirmed_spend = summary.get("confirmed_spend", summary.get("core_spend", 0))
+    singles_label = f"{len(singles)} typów"
+    if stats_first_spend > 0:
+        singles_label += f", ~{summary.get('singles_spend', 0):.2f} PLN (➜Betclic)"
+    else:
+        singles_label += f", {summary.get('singles_spend', 0):.2f} PLN"
     lines.extend([
         "## PODSUMOWANIE",
         "",
         "| Metryka | Wartość |",
         "|---------|--------|",
-        f"| Singles | {len(singles)} typów, {summary.get('singles_spend', 0):.2f} PLN |",
+        f"| Singles | {singles_label} |",
         f"| Wydatek (core) | {summary.get('core_spend', 0):.2f} PLN |",
-        f"| Wydatek (łącznie) | {summary.get('total_spend', 0):.2f} PLN |",
-        f"| Bankroll po | {summary.get('bankroll_after', 0):.2f} PLN |",
+        f"| Wydatek potwierdzony | {confirmed_spend:.2f} PLN |",
+        f"| Wydatek max (jeśli wszystko postawione) | {summary.get('total_spend', 0):.2f} PLN |",
+        f"| Bankroll po (potwierdzony) | {summary.get('bankroll_after', 0):.2f} PLN |",
         f"| Łączny pot. zwrot | {summary.get('total_potential_return', 0):.2f} PLN |",
         f"| Najlepszy scenariusz | {summary.get('best_case', 0):.2f} PLN |",
         f"| Realistyczny | {summary.get('realistic', 0):.2f} PLN |",
@@ -3028,6 +3080,14 @@ def write_coupon_markdown(coupons_data: dict, date: str) -> Path:
                     failed_gates.append(msg)
             reason = "; ".join(failed_gates[:3]) if failed_gates else pick.get("rejection_reason", "-")
             lines.append(f"| {home} vs {away} | {market} | {reason} |")
+        lines.append("")
+
+    # Footnote for estimated values
+    odds_sources = summary.get("odds_sources", {})
+    if odds_sources.get("estimated", 0) > 0:
+        lines.append("---")
+        lines.append("")
+        lines.append("\\* Kursy szacunkowe (1/safety_score). Zweryfikuj na Betclic przed postawieniem.")
         lines.append("")
 
     out_path.write_text("\n".join(lines), encoding="utf-8")
@@ -3397,6 +3457,7 @@ def main():
                 "core_coupons": len(coupons_data["core_coupons"]),
                 "combos": len(coupons_data["combos"]),
                 "core_spend": round(s["core_spend"], 2),
+                "confirmed_spend": round(s.get("confirmed_spend", s["total_spend"]), 2),
                 "total_spend": round(s["total_spend"], 2),
                 "potential_return": round(s["total_potential_return"], 2),
             },

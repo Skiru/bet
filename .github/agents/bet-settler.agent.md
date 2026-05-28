@@ -21,7 +21,7 @@ tools:
     "vscode/runCommand",
     "vscode/toolSearch",
   ]
-model: "qwen/qwen3.6-27b"
+model: "google/gemini-3.5-flash"
 instructions:
   - ../instructions/agent-execution-protocol.instructions.md
   - ../instructions/analysis-methodology.instructions.md

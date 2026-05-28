@@ -58,6 +58,7 @@ GATE_LABELS = {
     "17": "THREE-WAY ALIGNMENT: L10+H2H+L5 all support",
     "18": "DATA QUALITY: both teams have stat data",
     "19": "ODDS-SAFETY GAP: model vs market <25pp",
+    "20": "L5 TREND: recent form not deteriorating (L5≥60% of L10)",
 }
 
 GATE_BUCKET_STATUS = {
@@ -493,6 +494,50 @@ def _check_odds_safety_gap(c: dict) -> tuple[bool, str]:
     return True, f"gap={gap:.1%} (within 15% threshold)"
 
 
+def _check_l5_trend(c: dict) -> tuple[bool, str]:
+    """Gate #20: L5 TREND — recent form not deteriorating.
+
+    PASS if L5 hit rate >= 60% of L10 hit rate.
+    FAIL if L5 < 60% of L10 (form is falling off sharply).
+    Auto-PASS if L5 data is unavailable (don't penalize missing data).
+
+    Post-mortem 2026-05-28: 8/13 approved picks had L5=2/5 (40%) with L10=6/8+ (75%+).
+    This means recent form is MUCH worse than overall — a strong sell signal that
+    no gate caught. Result: all 8 were HR tier with deteriorating trends.
+    """
+    best = c.get("best_market") or {}
+    l10_str = best.get("hit_rate_l10", "")
+    l5_str = best.get("hit_rate_l5", "")
+
+    if not l10_str or "/" not in str(l10_str):
+        return True, "L10 unavailable — skipped"
+    if not l5_str or "/" not in str(l5_str) or l5_str == "N/A":
+        return True, "L5 unavailable — skipped"
+
+    try:
+        l10_num = int(str(l10_str).split("/")[0])
+        l10_den = int(str(l10_str).split("/")[1])
+        l5_num = int(str(l5_str).split("/")[0])
+        l5_den = int(str(l5_str).split("/")[1])
+    except (ValueError, IndexError):
+        return True, "L5/L10 parse error — skipped"
+
+    if l10_den == 0 or l5_den == 0:
+        return True, "Zero denominator — skipped"
+
+    l10_pct = l10_num / l10_den
+    l5_pct = l5_num / l5_den
+
+    # Threshold: L5 must be at least 60% of L10 hit rate
+    if l10_pct > 0 and l5_pct < l10_pct * 0.60:
+        return False, (
+            f"L5 DETERIORATING: L10={l10_str} ({l10_pct:.0%}) → L5={l5_str} ({l5_pct:.0%}). "
+            f"Recent form is {(1 - l5_pct / l10_pct):.0%} worse than L10."
+        )
+
+    return True, f"L5={l5_str} ({l5_pct:.0%}) vs L10={l10_str} ({l10_pct:.0%}) — stable"
+
+
 # Ordered gate check functions
 GATE_CHECKS = {
     "1": _check_identity,
@@ -514,6 +559,7 @@ GATE_CHECKS = {
     "17": _check_three_way,
     "18": _check_data_quality,
     "19": _check_odds_safety_gap,
+    "20": _check_l5_trend,
 }
 
 # Checks that require repeat_losses parameter

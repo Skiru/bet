@@ -4,7 +4,7 @@
 
 - Agent-driven pipeline: orchestrator calls individual scripts; `pipeline_orchestrator.py` is BANNED.
 - DB-first: `betting/data/betting.db` via `from bet.db.connection import get_db`. JSON/MD are secondary.
-- Model: Gemini 2.5 Flash via Google AI Studio API (free tier, 1M context, 1500 RPD).
+- Model: Google Gemini 3.5 Flash (1M context, free tier via direct API key). All 10 agents.
 - MCP servers: `sequentialthinking`, `sqlite` (betting.db), `brave-search`.
 - Terminal: Fish shell. No bash syntax, no `export`, no heredocs. Use `set -x VAR value`.
 

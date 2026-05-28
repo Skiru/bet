@@ -25,10 +25,10 @@ This repository uses Copilot customizations to run a disciplined small-bankroll 
 
 ## Active Model Standard
 
-- Primary pipeline model: Qwen 3.6 27B via LM Studio (`qwen/qwen3.6-27b`).
+- Primary pipeline model: Google Gemini 3.5 Flash via Kilo Code (`google/gemini-3.5-flash`).
+- Context: 1M tokens, free tier (1,500 RPD, 15 RPM via direct Google Gemini provider).
 - Autocomplete: Codestral 22B via Continue.dev (`mistralai/codestral-22b-v0.1`).
-- The pipeline runs on a local LM Studio instance at localhost:1234.
-- Stale model literals (GPT-5.4, Claude Opus 4.6, gemma-4-31b) are invalid in the active `.github` tree.
+- Stale model literals (GPT-5.4, Claude Opus 4.6, gemma-4-31b, qwen3.6-27b, laguna-m.1) are invalid in the active `.github` tree.
 
 ## Repo-Wide Constraints
 
