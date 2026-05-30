@@ -19,7 +19,7 @@ tools:
     "vscode/runCommand",
     "vscode/toolSearch",
   ]
-model: "google/gemini-3.5-flash"
+model: "gemini/gemini-2.5-flash"
 instructions:
   - ../instructions/agent-execution-protocol.instructions.md
   - ../instructions/analysis-methodology.instructions.md

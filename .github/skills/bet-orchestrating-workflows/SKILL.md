@@ -41,6 +41,7 @@ Load this skill when an entry point needs shared execution mechanics that recur 
 - [handoff-contracts.md](resources/handoff-contracts.md) — the standard payload shape for subagent delegation.
 - [async-wait-overlap.md](resources/async-wait-overlap.md) — an opt-in add-on for orchestrator entry points that want bounded read-only overlap during qualifying async waits.
 - [stage-context-packs.md](resources/stage-context-packs.md) — the canonical pre-handoff `Stage Context Pack` policy for eligible finished-output stages.
+- [pipeline-state-protocol.md](resources/pipeline-state-protocol.md) — mandatory checkpoint-based state persistence to prevent context drift in MoE models.
 
 ## Companion Loads
 

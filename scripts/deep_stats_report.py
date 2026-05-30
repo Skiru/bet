@@ -2214,12 +2214,12 @@ def main():
                        "Only use this flag when enrichment already ran separately.")
 
     if args.gemini:
-        # Check if LM Studio is reachable before running the full pipeline
+        # Check if local model server is reachable before running the full pipeline
         try:
             from bet.api_clients.lmstudio_client import LMStudioClient
             if not LMStudioClient().health_check():
-                out.warning("⚠️  --gemini flag passed but LM Studio is not reachable at localhost:1234. "
-                           "LLM features will be disabled. Ensure LM Studio is running.")
+                out.warning("⚠️  --gemini flag passed but local model server is not reachable at localhost:8000. "
+                           "LLM features will be disabled. Ensure Rapid-MLX is running.")
         except Exception:
             pass
 

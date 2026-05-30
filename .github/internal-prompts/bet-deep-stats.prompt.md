@@ -8,6 +8,11 @@ description: "S3: Deep statistical analysis per candidate — YOU ARE THE ANALYS
 
 # S3 — DEEP STATISTICAL ANALYSIS
 
+## ⛔ ANTI-DRIFT (MoE Model — 3B active params)
+- **CITE-OR-DELETE:** Every number you write MUST come from a `sqlite_read_query` result. No query = no number.
+- **RE-GROUND:** If you've written >1500 tokens without a DB query → STOP, you're hallucinating. Query now.
+- **VERIFY TEAMS:** Before analyzing ANY candidate, confirm fixture team IDs via `sqlite_read_query`.
+
 ## ⛔ INLINE GATES (check at each step — violation = FAILURE)
 
 | Step | Gate | Violation = |

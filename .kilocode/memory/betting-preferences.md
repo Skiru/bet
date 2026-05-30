@@ -28,7 +28,10 @@
 - Deep source fusion: tipsters + DB stats + web search
 
 ## Model Configuration
-- Primary: Gemini 2.5 Flash (Google AI Studio free tier)
-- 1,500 RPD, 15 RPM, 250K TPM, 1M context
-- Fallback: DeepSeek V3 (~$0.27/1M input)
+- Primary: Qwen3.6-35B-A3B MoE 4-bit (local via Rapid-MLX on localhost:8000)
+- Architecture: MoE 35B total, 3B active per token, hybrid attention/Mamba, 131K context, 4-bit quantization
+- Thinking mode: ALWAYS ON (<think> blocks, qwen3 parser). NEVER --no-thinking.
+- Tool calling: qwen3_coder_xml parser
+- ~45-70 tok/s on M4 Pro 48GB, ~19GB VRAM (21GB headroom for KV cache)
+- No rate limits, no API costs, fully local
 - MCP: sequentialthinking, sqlite, brave-search

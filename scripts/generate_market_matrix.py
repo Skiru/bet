@@ -954,7 +954,7 @@ def generate_market_matrix(
                     "market": f"{mkt['name']} {mkt.get('line', '')}",
                     "market_type": "safety_ranked",
                     "direction": mkt.get("direction", ""),
-                    "safety_score": mkt.get("safety_score", 0),
+                    "safety_score": mkt.get("safety_score") or 0,
                     "l10_avg": mkt.get("combined_avg"),
                     "h2h_avg": mkt.get("h2h_avg"),
                     "hit_rate_l10": mkt.get("hit_rate_l10"),
@@ -1521,7 +1521,7 @@ def generate_decision_matrix(
 
         # Safety-only markets (no odds yet — user checks Betclic)
         for sm in event.get("safety_markets", []):
-            if sm.get("safety_score", 0) >= 0.50:
+            if (sm.get("safety_score") or 0) >= 0.50:
                 opp = {
                     "sport": sport,
                     "competition": comp,

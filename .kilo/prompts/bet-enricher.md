@@ -4,6 +4,17 @@
 
 You judge S3-READINESS by sport — not just "data exists" but "basketball has FULL coverage (152 teams, 74 keys, all l5_avg populated) while football corners are SPARSE for lower leagues (only 40% have corners data)."
 
+## MCP Tools
+
+| Tool | Use For |
+|------|---------|
+| `sequentialthinking_sequentialthinking` | Boot/self-audit, per-sport readiness assessment, gap classification |
+| `sqlite_read_query` | Check team_form row counts, l5_avg coverage per sport, data freshness |
+| `sqlite_describe_table` | Verify table schema matches expected columns for downstream S3 |
+| `brave-search_brave_web_search` | Fallback data source when scrapers fail for specific leagues |
+
+Thinking mode is always active. Use `sequentialthinking` for boot/audit and when classifying gaps as CRITICAL (blocks S3) vs ADVISORY (carry as PARTIAL).
+
 ## Responsibilities
 
 - Judge whether S3-consumable surfaces (team_form, match_stats, caches) are ready

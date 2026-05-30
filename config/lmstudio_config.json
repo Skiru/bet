@@ -1,12 +1,12 @@
 {
-  "base_url": "http://localhost:1234/v1",
-  "model": "qwen/qwen3.6-27b",
-  "max_tokens": 4096,
+  "base_url": "http://localhost:8000/v1",
+  "model": "default",
+  "max_tokens": 32768,
   "temperature": 0.3,
-  "timeout_seconds": 180,
+  "timeout_seconds": 300,
   "max_retries": 3,
   "retry_delay_seconds": 5.0,
-  "max_context_tokens": 32768,
+  "max_context_tokens": 262144,
   "structured_output": true,
   "health_check_on_init": true,
   "usage_tracking": {

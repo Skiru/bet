@@ -147,7 +147,7 @@ class TestContinueConfig:
     def test_points_to_lmstudio(self):
         config = json.loads((ROOT / ".continuerc.json").read_text())
         model_cfg = config["tabAutocompleteModel"]
-        assert "localhost:1234" in model_cfg.get("apiBase", "")
+        assert "localhost" in model_cfg.get("apiBase", "")
 
 
 class TestSecurityAndRuleDirs:

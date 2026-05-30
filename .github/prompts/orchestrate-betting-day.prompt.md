@@ -21,6 +21,7 @@ Use the shared workflow skill for reusable routing and handoff mechanics. Keep t
  1. Read pipeline-errors journal → acknowledge lessons
  2. Read config + methodology files → present recovery plan → user confirms
  3. S0:   settle_on_finish.py + analyze_betclic_learning.py → delegate to bet-settler
+ 3b. S0-SCAN: scan_coupon.py + learn_from_coupons.py (if screenshots available) → include in bet-settler delegation
  4. S0.5: delegate to bet-db-analyst (DB quality check)
  5. S1:   discover_events.py → delegate to bet-scanner
  6. S1▸   ingest_scan_stats.py (stats ingestion — no delegation needed)
@@ -78,18 +79,20 @@ Use the shared workflow skill for reusable routing and handoff mechanics. Keep t
 
 ### PRE-FLIGHT: Detect Progress + Load Context
 
-1. **Check state:** `python3 scripts/inspect_pipeline.py --step all --date {run_date} --verbose`
-2. **Read errors journal (HARD GATE):**
+1. **Initialize checkpoint:** Create `betting/data/.pipeline_checkpoint.md` with date + position PRE-FLIGHT
+2. **Check state:** `python3 scripts/inspect_pipeline.py --step all --date {run_date} --verbose`
+3. **Read errors journal (HARD GATE):**
    - `betting/journal/{run_date}-pipeline-errors.md` (if exists)
    - `betting/journal/{prev_date}-pipeline-errors.md` (if exists)
    - Print: "Lessons loaded: [3-5 key takeaways]"
-3. **Read config files:**
+4. **Read config files:**
    - `config/betting_config.json`, `config/lmstudio_config.json`
    - `.github/instructions/analysis-methodology.instructions.md`
    - `.github/instructions/betting-artifacts.instructions.md`
    - `betting/sources/source-registry.md`
    - `/memories/repo/pipeline-knowledge-base.md`
-4. **Present recovery plan** to user. Wait for confirmation.
+5. **Present recovery plan** to user. Wait for confirmation.
+6. **Update checkpoint:** CURRENT_STEP=S0, NEXT_ACTION=settle previous day
 
 ---
 
@@ -102,7 +105,29 @@ PYTHONPATH=src .venv/bin/python3 scripts/evaluate_decisions.py --date {prev_date
 PYTHONPATH=src .venv/bin/python3 scripts/data_rotation.py --execute --days 30
 PYTHONPATH=src .venv/bin/python3 scripts/build_league_profiles.py
 ```
-**→ `runSubagent("bet-settler")`** — read `bet-settle.prompt.md` first. Pass settlement output + betclic learning summary.
+
+#### S0-SCAN: Coupon Screenshot Scanning (if screenshots available)
+
+If the user provides coupon screenshots (placed bets from Betclic app), scan and learn:
+
+```bash
+# Single screenshot:
+PYTHONPATH=src .venv/bin/python3 scripts/scan_coupon.py <screenshot.png> --save
+# Batch (directory of screenshots):
+PYTHONPATH=src .venv/bin/python3 scripts/scan_coupon.py --batch <screenshots_dir> --save
+# Learning comparison (after scanning):
+PYTHONPATH=src .venv/bin/python3 scripts/learn_from_coupons.py --dir betting/coupons/ --date {prev_date} --save
+```
+
+**How it works:**
+1. `scan_coupon.py` uses local VLM (Qwen2.5-VL-3B-4bit) to extract events, markets, odds, and status from Betclic screenshots
+2. `learn_from_coupons.py` matches scanned picks against pipeline predictions (bets + analysis_results tables)
+3. Produces learning signals: HIGH_CONFIDENCE_LOSS (investigate model), LOW_CONFIDENCE_WIN (model undervalued), CONFIRMED_EDGE
+4. The bet-settler agent should analyze these signals as part of settlement
+
+**When to use:** Ask user "Do you have Betclic coupon screenshots to scan?" at start of S0. If yes → scan first, then settle with learning context.
+
+**→ `runSubagent("bet-settler")`** — read `bet-settle.prompt.md` first. Pass settlement output + betclic learning summary + coupon scan learning report (if generated).
 
 ---
 
@@ -253,6 +278,7 @@ PYTHONPATH=src .venv/bin/python3 scripts/enrich_basketball_stats.py --date {date
 PYTHONPATH=src python3 scripts/validate_phase.py --date {date} --phase data --format json
 ```
 **Exit code 1 = STOP. Fix before proceeding to S3.**
+**CHECKPOINT:** Update `betting/data/.pipeline_checkpoint.md` → PHASE=analysis, record team_form_coverage %
 
 ---
 
@@ -290,12 +316,13 @@ Both async, timeout: 300000. Run context first, then upset.
 
 ### ⛔ STEP COMPLETENESS GATE (before S7)
 
-Verify ALL completed:
+Verify ALL completed (read checkpoint to confirm):
 - [ ] S3 → bet-statistician verdict received
 - [ ] S4 → bet-valuator verdict received
 - [ ] S5+S6 → bet-challenger verdict received
 
 **ANY missing → STOP. Run the missing step.**
+**CHECKPOINT:** Update with all three verdicts. If any missing, CURRENT_STEP stays at the missing step.
 
 ---
 
@@ -315,6 +342,7 @@ Mode: async, timeout: 300000.
 PYTHONPATH=src python3 scripts/validate_phase.py --date {date} --phase analysis --format json
 ```
 Verify: gate_results exist, ≥3 STRONG+MODERATE candidates. If <3 → emergency expansion.
+**CHECKPOINT:** Update → PHASE=build, record approved_count + extended_count
 
 ---
 
@@ -468,6 +496,8 @@ Your response MUST have: subagent_verdict block + Metrics (≥3) + Analysis + Us
 | gate_checker.py | **analysis_results** (DB-first) | gate_results |
 | validate_betclic_markets.py | gate_results, Betclic API | betclic_markets |
 | coupon_builder.py | **gate_results** (DB-first) | coupons/*.md, *.json |
+| scan_coupon.py | screenshot images (VLM) | betting/coupons/scan_*.json |
+| learn_from_coupons.py | scan JSONs, bets, analysis_results | journal/{date}-coupon-learning.json |
 
 > **DB-first architecture (2026-05-26):** All inter-step data flows through DB tables. JSON is kept as debug/fallback only. Key tables: `pipeline_candidates` (shortlist), `market_matrix_events` (matrix), `analysis_results` (S3), `gate_results` (S7).
 

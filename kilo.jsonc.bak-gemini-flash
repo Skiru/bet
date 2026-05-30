@@ -1,0 +1,234 @@
+{
+  "$schema": "https://app.kilo.ai/config.json",
+  // Kilo Code Agent Configuration — Betting Pipeline
+  // ═══════════════════════════════════════════════════
+  // Model: Google Gemini 2.5 Flash (1M context, free tier via direct API key)
+  // Highest coding index of all free models + designed for agentic workflows
+  // Setup: Settings → API Provider → Custom "gemini" (OpenAI-compatible)
+  //   Base URL: https://generativelanguage.googleapis.com/v1beta/openai
+  //   API key from https://aistudio.google.com/apikey
+  // Free tier: 1500 req/day, 15 RPM, 250K input tokens/min
+  //
+  // CRITICAL: Use Custom provider "gemini" (NOT Kilo Gateway or built-in "Google Gemini")
+  // to access Google's free tier directly. Both Gateway and built-in proxy through api.kilo.ai.
+  //
+  // MCP tools: sequentialthinking, sqlite (betting.db), brave-search
+  //
+  // AGENT HIERARCHY:
+  // - bet-orchestrator (PRIMARY): runs S0→S8, delegates to subagents
+  // - Subagents (9): specialists delegated to by orchestrator
+  //   Settlement: bet-settler (S0) | DB Health: bet-db-analyst (S0.5)
+  //   Discovery: bet-scanner (S1/S1e) | Intelligence: bet-scout (S2)
+  //   Enrichment: bet-enricher (S2.3-S2.9) | Statistics: bet-statistician (S3)
+  //   Pricing: bet-valuator (S4) | Gate Judge: bet-challenger (S5-S7)
+  //   Portfolio: bet-builder (S8)
+
+  // Global instructions — MINIMAL set for all agents (saves tokens for rate limit)
+  // Heavy methodology files are loaded per-agent where needed
+  "instructions": [
+    ".github/instructions/agent-execution-protocol.instructions.md",
+    ".kilocode/rules/tool-names.md"
+  ],
+
+  "agent": {
+    "bet-orchestrator": {
+      "description": "Pipeline coordinator — runs scripts, delegates analysis, synthesizes decisions. Use when running the full betting day pipeline, settling results, or coordinating multi-step betting workflows.",
+      "mode": "primary",
+      "model": "gemini/gemini-2.5-flash",
+      "steps": 150,
+      "temperature": 0.3,
+      "instructions": [
+        ".github/instructions/analysis-methodology.instructions.md",
+        ".github/instructions/betting-mistakes-rules.instructions.md",
+        ".github/instructions/betting-artifacts.instructions.md"
+      ],
+      "prompt": "{file:.kilo/prompts/bet-orchestrator.md}",
+      "permission": {
+        "read": "allow",
+        "edit": "allow",
+        "browser": "allow",
+        "bash": "allow",
+        "mcp": "allow",
+        "task": {
+          "*": "deny",
+          "bet-settler": "allow",
+          "bet-scanner": "allow",
+          "bet-enricher": "allow",
+          "bet-statistician": "allow",
+          "bet-scout": "allow",
+          "bet-valuator": "allow",
+          "bet-challenger": "allow",
+          "bet-builder": "allow",
+          "bet-db-analyst": "allow"
+        }
+      }
+    },
+
+    "bet-statistician": {
+      "description": "Deep statistical analyst — S3/S3B specialist for market ranking, safety scores, H2H validation, three-way alignment. Use when the pipeline needs deep statistical analysis of S3/S3B output.",
+      "model": "gemini/gemini-2.5-flash",
+      "mode": "subagent",
+      "steps": 40,
+      "temperature": 0.2,
+      "instructions": [
+        ".github/instructions/analysis-methodology.instructions.md",
+        ".github/instructions/sport-analysis-protocols.instructions.md",
+        ".github/instructions/betting-mistakes-rules.instructions.md"
+      ],
+      "prompt": "{file:.kilo/prompts/bet-statistician.md}",
+      "permission": {
+        "read": "allow",
+        "edit": "allow",
+        "bash": "allow",
+        "browser": "allow",
+        "mcp": "allow",
+        "task": "deny"
+      }
+    },
+
+    "bet-challenger": {
+      "description": "Final analytical judge — synthesizes stats, context, upset risk into decisive advisory verdicts with specific bear cases. Use for S5 context, S6 upset risk, and S7 gate review.",
+      "model": "gemini/gemini-2.5-flash",
+      "mode": "subagent",
+      "steps": 40,
+      "temperature": 0.2,
+      "instructions": [
+        ".github/instructions/analysis-methodology.instructions.md",
+        ".github/instructions/sport-analysis-protocols.instructions.md",
+        ".github/instructions/betting-mistakes-rules.instructions.md"
+      ],
+      "prompt": "{file:.kilo/prompts/bet-challenger.md}",
+      "permission": {
+        "read": "allow",
+        "edit": "allow",
+        "bash": "allow",
+        "browser": "allow",
+        "mcp": "allow",
+        "task": "deny"
+      }
+    },
+
+    "bet-builder": {
+      "description": "Portfolio strategist — builds core coupons, combination menu, and final betting artifacts with mandatory validation checks. Use when approved picks are ready for S8 coupon construction.",
+      "model": "gemini/gemini-2.5-flash",
+      "mode": "subagent",
+      "steps": 50,
+      "temperature": 0.3,
+      "instructions": [
+        ".github/instructions/betting-mistakes-rules.instructions.md",
+        ".github/instructions/betting-artifacts.instructions.md"
+      ],
+      "prompt": "{file:.kilo/prompts/bet-builder.md}",
+      "permission": {
+        "read": "allow",
+        "edit": "allow",
+        "bash": "allow",
+        "browser": "allow",
+        "mcp": "allow",
+        "task": "deny"
+      }
+    },
+
+    "bet-scanner": {
+      "description": "Discovery and shortlist specialist — evaluates scan coverage, fixture validity, shortlist readiness with specific metrics. Use for S1 discovery and S1e shortlist building.",
+      "model": "gemini/gemini-2.5-flash",
+      "mode": "subagent",
+      "steps": 25,
+      "temperature": 0.3,
+      "prompt": "{file:.kilo/prompts/bet-scanner.md}",
+      "permission": {
+        "read": "allow",
+        "edit": "allow",
+        "bash": "allow",
+        "browser": "allow",
+        "mcp": "allow",
+        "task": "deny"
+      }
+    },
+
+    "bet-settler": {
+      "description": "Settlement accountant — analyzes settled picks for PnL, bankroll impact, and learning signals. Use for S0 settlement and learning extraction.",
+      "model": "gemini/gemini-2.5-flash",
+      "mode": "subagent",
+      "steps": 25,
+      "temperature": 0.2,
+      "prompt": "{file:.kilo/prompts/bet-settler.md}",
+      "permission": {
+        "read": "allow",
+        "edit": "allow",
+        "bash": "allow",
+        "browser": "allow",
+        "mcp": "allow",
+        "task": "deny"
+      }
+    },
+
+    "bet-scout": {
+      "description": "Tipster intelligence analyst — evaluates argument quality, independence, consensus, and contrarian signals. Use for S2 tipster cross-reference analysis.",
+      "model": "gemini/gemini-2.5-flash",
+      "mode": "subagent",
+      "steps": 30,
+      "temperature": 0.4,
+      "prompt": "{file:.kilo/prompts/bet-scout.md}",
+      "permission": {
+        "read": "allow",
+        "edit": "allow",
+        "bash": "allow",
+        "browser": "allow",
+        "mcp": "allow",
+        "task": "deny"
+      }
+    },
+
+    "bet-enricher": {
+      "description": "Data quality guardian — validates enrichment readiness, coverage gaps, and source health before S3. Use for S2.3-S2.9 data quality assessment.",
+      "model": "gemini/gemini-2.5-flash",
+      "mode": "subagent",
+      "steps": 25,
+      "temperature": 0.2,
+      "prompt": "{file:.kilo/prompts/bet-enricher.md}",
+      "permission": {
+        "read": "allow",
+        "edit": "allow",
+        "bash": "allow",
+        "browser": "allow",
+        "mcp": "allow",
+        "task": "deny"
+      }
+    },
+
+    "bet-valuator": {
+      "description": "Pricing analyst — evaluates odds, EV, drift detection, and market mispricing. Use for S4 fair-odds vs offered-odds and value analysis.",
+      "model": "gemini/gemini-2.5-flash",
+      "mode": "subagent",
+      "steps": 25,
+      "temperature": 0.2,
+      "prompt": "{file:.kilo/prompts/bet-valuator.md}",
+      "permission": {
+        "read": "allow",
+        "edit": "allow",
+        "bash": "allow",
+        "browser": "allow",
+        "mcp": "allow",
+        "task": "deny"
+      }
+    },
+
+    "bet-db-analyst": {
+      "description": "Database specialist — audits table readiness, coverage, freshness, and pipeline blockers. Use for pre-flight checks and table freshness validation.",
+      "model": "gemini/gemini-2.5-flash",
+      "mode": "subagent",
+      "steps": 20,
+      "temperature": 0.1,
+      "prompt": "{file:.kilo/prompts/bet-db-analyst.md}",
+      "permission": {
+        "read": "allow",
+        "edit": "allow",
+        "bash": "allow",
+        "browser": "allow",
+        "mcp": "allow",
+        "task": "deny"
+      }
+    }
+  }
+}

@@ -1310,12 +1310,12 @@ def _try_insert_into_coupon(pick: dict, coupons: list, max_same_sport: int, bank
         coupon["stress_test"] = stress_test_coupon({"legs": coupon["legs"]})
         # Recalculate stake with worst probability/safety among legs
         min_safety = min(
-            (_bm(l).get("safety_score", 0.5) for l in coupon["legs"]),
+            (_bm(l).get("safety_score") or 0.5 for l in coupon["legs"]),
             default=0.5,
         )
         min_prob = min(
             (_bm(l).get("probability") if _bm(l).get("probability") is not None
-             else _bm(l).get("safety_score", 0.5)
+             else (_bm(l).get("safety_score") or 0.5)
              for l in coupon["legs"]),
             default=None,
         )
@@ -1751,7 +1751,7 @@ def compute_line_sensitivity_tables(approved: list[dict]) -> list[dict]:
 
         best = pick.get("best_market") or {}
         line = best.get("line")
-        safety = best.get("safety_score", 0)
+        safety = best.get("safety_score") or 0
         l10_avg = best.get("l10_avg") or best.get("combined_avg")
         direction = (best.get("direction") or "").upper()
         probability = best.get("probability")
@@ -2175,7 +2175,7 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
     singles = []
     for i, pick in enumerate(approved[:max_singles], 1):
         odds_val = (pick.get("odds") or {}).get("market_best", 0) or 0
-        safety = (pick.get("best_market") or {}).get("safety_score", 0.5)
+        safety = (pick.get("best_market") or {}).get("safety_score") or 0.5
         prob = (pick.get("best_market") or {}).get("probability")
         if odds_val <= 1.0:
             # Stats-first mode: compute estimated odds from safety score
@@ -2224,8 +2224,8 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
     trimmed_singles = []
     for thesis_key, items in thesis_counts.items():
         if len(items) > max_identical and thesis_key != "||":
-            trimmed_singles.extend(sorted(items, key=lambda x: -(_bm(x["legs"][0]).get("safety_score", 0)))[:max_identical])
-            excess = sorted(items, key=lambda x: -(_bm(x["legs"][0]).get("safety_score", 0)))[max_identical:]
+            trimmed_singles.extend(sorted(items, key=lambda x: -(_bm(x["legs"][0]).get("safety_score") or 0))[:max_identical])
+            excess = sorted(items, key=lambda x: -(_bm(x["legs"][0]).get("safety_score") or 0))[max_identical:]
             for ex in excess:
                 ex["_trimmed_reason"] = "identical_thesis"
             extended_pool.extend([ex["legs"][0] for ex in excess])
@@ -2240,7 +2240,7 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
     if singles:
         with_odds = [s for s in singles if not s.get("stats_first")]
         banker_pool = with_odds if with_odds else singles
-        banker = max(banker_pool, key=lambda s: (_bm(s["legs"][0])).get("safety_score", 0))
+        banker = max(banker_pool, key=lambda s: (_bm(s["legs"][0])).get("safety_score") or 0)
         banker["is_banker"] = True
         result["banker"] = banker
 
@@ -2272,7 +2272,7 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
             else c.get("data_quality", "MINIMAL"),
             2,
         ),
-        -(_bm(c).get("safety_score", 0)),
+        -(_bm(c).get("safety_score") or 0),
     ))
 
     # Event deduplication — ensure unique events across core coupons
@@ -2316,7 +2316,7 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
     discovery_singles = []
     for i, pick in enumerate(discovery_picks[:30], 1):
         odds_val = (pick.get("odds") or {}).get("market_best", 0) or 0
-        safety = (pick.get("best_market") or {}).get("safety_score", 0.5)
+        safety = (pick.get("best_market") or {}).get("safety_score") or 0.5
         prob = (pick.get("best_market") or {}).get("probability")
         if odds_val <= 1.0:
             estimated_odds = round(1.0 / max(safety, 0.1), 2)
@@ -3113,11 +3113,13 @@ def write_coupon_json(coupons_data: dict, date: str) -> Path:
     return out_path
 
 
-def persist_coupons_to_db(coupons_data: dict, date: str) -> int:
+def persist_coupons_to_db(coupons_data: dict, date: str, config: dict | None = None) -> int:
     """Persist coupons and bets to SQLite DB (dual-write alongside JSON).
 
     Returns count of coupons persisted. Fails gracefully with 0 on error.
     """
+    if config is None:
+        config = {}
     try:
         import sys as _sys
         _sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -3409,6 +3411,12 @@ def main():
     # Write outputs
     write_coupon_markdown(coupons_data, args.date)
     write_coupon_json(coupons_data, args.date)
+
+    # Persist to DB (dual-write)
+    if not coupons_data.get("no_bet"):
+        db_count = persist_coupons_to_db(coupons_data, args.date, config)
+        if args.verbose:
+            out.event("db_persist", coupons_persisted=db_count)
 
     # Structured summary
     if coupons_data.get("no_bet"):

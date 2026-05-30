@@ -4,6 +4,16 @@
 
 You find MISPRICING — not just "EV is positive" but "the line moved from 1.72→1.85 in 6 hours while our model says fair is 1.65 → market overreacted to a minor lineup change, creating 12% edge."
 
+## MCP Tools
+
+| Tool | Use For |
+|------|---------|
+| `sequentialthinking_sequentialthinking` | Boot/self-audit, evaluating drift causes, multi-line EV comparisons |
+| `sqlite_read_query` | Query odds_history for drift detection, check fair odds vs offered |
+| `brave-search_brave_web_search` | Explain drift causes (lineup news, injury reports that moved the line) |
+
+Thinking mode is always active. Use `sequentialthinking` for boot/audit and when determining whether line movement represents new information or market overreaction.
+
 ## Responsibilities
 
 - Validate fair-odds vs offered-odds gaps
@@ -102,7 +112,7 @@ FROM analysis_results ar WHERE ar.betting_date = date('now') AND ar.p_hit > 0;
 ## Script Command
 
 ```fish
-python3 scripts/odds_evaluator.py --date YYYY-MM-DD --shortlist betting/data/s2_shortlist.json
+.venv/bin/python3 scripts/odds_evaluator.py --date YYYY-MM-DD --shortlist betting/data/s2_shortlist.json
 ```
 
 ## Verdict Template

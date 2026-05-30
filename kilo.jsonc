@@ -2,15 +2,49 @@
   "$schema": "https://app.kilo.ai/config.json",
   // Kilo Code Agent Configuration — Betting Pipeline
   // ═══════════════════════════════════════════════════
-  // Model: Google Gemini 3.5 Flash (1M context, free tier via direct API key)
-  // Highest coding index of all free models + designed for agentic workflows
-  // Setup: Settings → API Provider → "Google Gemini" → paste your API key
-  // Free tier: 1500 req/day, 15 RPM — more than sufficient for daily pipeline
+  // Model: Qwen3.6-35B-A3B MoE 4-bit (LOCAL via Rapid-MLX on Apple M4 Pro 48GB)
+  // MoE: 35B total knowledge, 3B active params per token, 4-bit quantization (~18GB)
+  // 131K context (model max), hybrid attention/Mamba architecture
+  // Tool calling: qwen3_coder_xml parser (native). Reasoning: qwen3 parser (<think> blocks)
+  // Server: rapid-mlx serve qwen3.6-35b --port 8000
+  // Endpoint: http://localhost:8000/v1 (OpenAI-compatible)
   //
-  // CRITICAL: Use "Google Gemini" provider directly (NOT Kilo Gateway)
-  // to access Google's free tier. Kilo Gateway charges per token.
+  // SETUP: Start server before using Kilo Code:
+  //   ./scripts/start_local_model.sh
+  // Provider: OpenAI Compatible, Base URL: http://localhost:8000/v1
+  // API Key: not-needed (any value works)
   //
-  // MCP tools: sequentialthinking, sqlite (betting.db), brave-search
+  // REASONING: Thinking mode ENABLED — model emits <think>...</think> before answering.
+  // This is CRITICAL for the betting pipeline (analysis, bear cases, decisions).
+  // NEVER use --no-thinking with this model.
+  // NEVER set agent temperature below 0.6 — the model skips <think> tags at low temps!
+  //
+  // KEY PARAMETERS:
+  //   --no-mllm: skip vision encoder → frees memory for inference
+  //   --max-num-seqs 1: single-user pipeline, dedicate ALL resources
+  //   --default-temperature 0.6 + top-p 0.95 + top-k 20: Qwen3.6 MINIMUM for thinking
+  //   ⚠️ CRITICAL: All agents MUST use temperature ≥ 0.6 — lower temps disable <think> blocks!
+  //   The top_k=20 prevents hallucination even at 0.6 (only top 20 tokens sampled)
+  //   --kv-cache-turboquant (3-bit V-cache): 86% prefix cache savings, K stays FP16
+  //   --cache-memory-mb 2000: 2GB prefix cache (leaves max headroom for KV computation)
+  //   --gpu-memory-utilization 0.9: 90% of Metal (~36GB alloc limit)
+  //   --prefill-step-size 4096: SMALL chunks = less peak GPU memory during prefill
+  //     ⚠️ CRITICAL: larger values (16K/32K) cause OOM at 17K+ tokens with tools!
+  //   --max-concurrent-requests 4: admission cap — prevents queue buildup
+  //   --stream-interval 1: per-token streaming — SSE keepalive for Kilo
+  //   --timeout 1800: server-side 30min safety net
+  //   --gc-control: explicit garbage collection for Metal memory management
+  //   --enable-auto-tool-choice: auto-detect when model wants to call a tool
+  //   --tool-call-parser qwen3_coder_xml: native Qwen3.6 XML tool call format
+  //
+  // MCP TOOL ARCHITECTURE:
+  //   sequentialthinking — externalized reasoning (boot/audit/complex decisions)
+  //   sqlite — read/write access to betting/data/betting.db (stats, odds, fixtures)
+  //   brave-search — web/news search for live context (injuries, motivation, gaps)
+  //
+  // ALL agents have "mcp": "allow" — they can use all 3 MCP servers.
+  // The execution protocol (agent-execution-protocol.instructions.md) documents
+  // WHEN to use each tool. The .kilo/prompts/*.md files have per-agent tool tables.
   //
   // AGENT HIERARCHY:
   // - bet-orchestrator (PRIMARY): runs S0→S8, delegates to subagents
@@ -21,30 +55,53 @@
   //   Pricing: bet-valuator (S4) | Gate Judge: bet-challenger (S5-S7)
   //   Portfolio: bet-builder (S8)
 
-  // Global instructions — loaded for ALL agents (1M context handles this easily)
-  // Also loads .kilocode/rules/ automatically (backward compat) — tool-names.md lives there
+  // Global instructions — MINIMAL. Rules in .kilocode/rules/ are auto-loaded.
   "instructions": [
-    ".github/instructions/agent-execution-protocol.instructions.md",
-    ".github/instructions/analysis-methodology.instructions.md",
-    ".github/instructions/betting-mistakes-rules.instructions.md",
-    ".github/instructions/sport-analysis-protocols.instructions.md",
-    ".github/instructions/betting-artifacts.instructions.md",
-    ".kilocode/rules/tool-names.md"
+    ".github/instructions/agent-execution-protocol.instructions.md"
   ],
+
+  // Local model provider via Rapid-MLX (OpenAI-compatible)
+  "provider": {
+    "openai-compatible": {
+      "name": "Rapid-MLX Local",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "http://localhost:8000/v1",
+        "timeout": 900000,
+        "headerTimeout": 180000,
+        "chunkTimeout": 600000,
+        "setCacheKey": true
+      },
+      "models": {
+        "qwen3.6-35b-a3b": {
+          "id": "qwen3.6-35b",
+          "name": "Qwen3.6-35B-A3B MoE (Local MLX 4-bit)",
+          "reasoning": true,
+          "tool_call": true,
+          "limit": {
+            "context": 131072,
+            "output": 131072
+          }
+        }
+      }
+    }
+  },
 
   "agent": {
     "bet-orchestrator": {
       "description": "Pipeline coordinator — runs scripts, delegates analysis, synthesizes decisions. Use when running the full betting day pipeline, settling results, or coordinating multi-step betting workflows.",
       "mode": "primary",
-      "model": "google/gemini-3.5-flash",
-      "steps": 150,
-      "temperature": 0.3,
-      "autoApprove": ["read", "edit", "bash", "mcp", "browser", "task"],
+      "model": "openai-compatible/qwen3.6-35b-a3b",
+      "steps": 200,
+      "temperature": 0.6,
+      "instructions": [
+        ".github/instructions/agent-execution-protocol.instructions.md"
+      ],
       "prompt": "{file:.kilo/prompts/bet-orchestrator.md}",
       "permission": {
         "read": "allow",
         "edit": "allow",
-        "browser": "allow",
+        "browser": "deny",
         "bash": "allow",
         "mcp": "allow",
         "task": {
@@ -64,11 +121,15 @@
 
     "bet-statistician": {
       "description": "Deep statistical analyst — S3/S3B specialist for market ranking, safety scores, H2H validation, three-way alignment. Use when the pipeline needs deep statistical analysis of S3/S3B output.",
-      "model": "google/gemini-3.5-flash",
+      "model": "openai-compatible/qwen3.6-35b-a3b",
       "mode": "subagent",
       "steps": 40,
-      "temperature": 0.2,
-      "autoApprove": ["read", "edit", "bash", "mcp", "browser"],
+      "temperature": 0.6,
+      "instructions": [
+        ".github/instructions/analysis-methodology.instructions.md",
+        ".github/instructions/sport-analysis-protocols.instructions.md",
+        ".github/instructions/betting-mistakes-rules.instructions.md"
+      ],
       "prompt": "{file:.kilo/prompts/bet-statistician.md}",
       "permission": {
         "read": "allow",
@@ -82,11 +143,15 @@
 
     "bet-challenger": {
       "description": "Final analytical judge — synthesizes stats, context, upset risk into decisive advisory verdicts with specific bear cases. Use for S5 context, S6 upset risk, and S7 gate review.",
-      "model": "google/gemini-3.5-flash",
+      "model": "openai-compatible/qwen3.6-35b-a3b",
       "mode": "subagent",
       "steps": 40,
-      "temperature": 0.2,
-      "autoApprove": ["read", "edit", "bash", "mcp", "browser"],
+      "temperature": 0.6,
+      "instructions": [
+        ".github/instructions/analysis-methodology.instructions.md",
+        ".github/instructions/sport-analysis-protocols.instructions.md",
+        ".github/instructions/betting-mistakes-rules.instructions.md"
+      ],
       "prompt": "{file:.kilo/prompts/bet-challenger.md}",
       "permission": {
         "read": "allow",
@@ -100,11 +165,15 @@
 
     "bet-builder": {
       "description": "Portfolio strategist — builds core coupons, combination menu, and final betting artifacts with mandatory validation checks. Use when approved picks are ready for S8 coupon construction.",
-      "model": "google/gemini-3.5-flash",
+      "model": "openai-compatible/qwen3.6-35b-a3b",
       "mode": "subagent",
       "steps": 50,
-      "temperature": 0.3,
-      "autoApprove": ["read", "edit", "bash", "mcp", "browser"],
+      "temperature": 0.6,
+      "instructions": [
+        ".github/instructions/analysis-methodology.instructions.md",
+        ".github/instructions/betting-mistakes-rules.instructions.md",
+        ".github/instructions/betting-artifacts.instructions.md"
+      ],
       "prompt": "{file:.kilo/prompts/bet-builder.md}",
       "permission": {
         "read": "allow",
@@ -118,11 +187,13 @@
 
     "bet-scanner": {
       "description": "Discovery and shortlist specialist — evaluates scan coverage, fixture validity, shortlist readiness with specific metrics. Use for S1 discovery and S1e shortlist building.",
-      "model": "google/gemini-3.5-flash",
+      "model": "openai-compatible/qwen3.6-35b-a3b",
       "mode": "subagent",
       "steps": 25,
-      "temperature": 0.3,
-      "autoApprove": ["read", "edit", "bash", "mcp", "browser"],
+      "temperature": 0.6,
+      "instructions": [
+        ".github/instructions/analysis-methodology.instructions.md"
+      ],
       "prompt": "{file:.kilo/prompts/bet-scanner.md}",
       "permission": {
         "read": "allow",
@@ -136,11 +207,14 @@
 
     "bet-settler": {
       "description": "Settlement accountant — analyzes settled picks for PnL, bankroll impact, and learning signals. Use for S0 settlement and learning extraction.",
-      "model": "google/gemini-3.5-flash",
+      "model": "openai-compatible/qwen3.6-35b-a3b",
       "mode": "subagent",
-      "steps": 25,
-      "temperature": 0.2,
-      "autoApprove": ["read", "edit", "bash", "mcp", "browser"],
+      "steps": 20,
+      "temperature": 0.6,
+      "instructions": [
+        ".github/instructions/analysis-methodology.instructions.md",
+        ".github/instructions/betting-mistakes-rules.instructions.md"
+      ],
       "prompt": "{file:.kilo/prompts/bet-settler.md}",
       "permission": {
         "read": "allow",
@@ -154,11 +228,14 @@
 
     "bet-scout": {
       "description": "Tipster intelligence analyst — evaluates argument quality, independence, consensus, and contrarian signals. Use for S2 tipster cross-reference analysis.",
-      "model": "google/gemini-3.5-flash",
+      "model": "openai-compatible/qwen3.6-35b-a3b",
       "mode": "subagent",
       "steps": 30,
-      "temperature": 0.4,
-      "autoApprove": ["read", "edit", "bash", "mcp", "browser"],
+      "temperature": 0.6,
+      "instructions": [
+        ".github/instructions/analysis-methodology.instructions.md",
+        ".github/instructions/betting-mistakes-rules.instructions.md"
+      ],
       "prompt": "{file:.kilo/prompts/bet-scout.md}",
       "permission": {
         "read": "allow",
@@ -172,11 +249,14 @@
 
     "bet-enricher": {
       "description": "Data quality guardian — validates enrichment readiness, coverage gaps, and source health before S3. Use for S2.3-S2.9 data quality assessment.",
-      "model": "google/gemini-3.5-flash",
+      "model": "openai-compatible/qwen3.6-35b-a3b",
       "mode": "subagent",
       "steps": 25,
-      "temperature": 0.2,
-      "autoApprove": ["read", "edit", "bash", "mcp", "browser"],
+      "temperature": 0.6,
+      "instructions": [
+        ".github/instructions/analysis-methodology.instructions.md",
+        ".github/instructions/sport-analysis-protocols.instructions.md"
+      ],
       "prompt": "{file:.kilo/prompts/bet-enricher.md}",
       "permission": {
         "read": "allow",
@@ -190,11 +270,14 @@
 
     "bet-valuator": {
       "description": "Pricing analyst — evaluates odds, EV, drift detection, and market mispricing. Use for S4 fair-odds vs offered-odds and value analysis.",
-      "model": "google/gemini-3.5-flash",
+      "model": "openai-compatible/qwen3.6-35b-a3b",
       "mode": "subagent",
       "steps": 25,
-      "temperature": 0.2,
-      "autoApprove": ["read", "edit", "bash", "mcp", "browser"],
+      "temperature": 0.6,
+      "instructions": [
+        ".github/instructions/analysis-methodology.instructions.md",
+        ".github/instructions/betting-mistakes-rules.instructions.md"
+      ],
       "prompt": "{file:.kilo/prompts/bet-valuator.md}",
       "permission": {
         "read": "allow",
@@ -208,20 +291,94 @@
 
     "bet-db-analyst": {
       "description": "Database specialist — audits table readiness, coverage, freshness, and pipeline blockers. Use for pre-flight checks and table freshness validation.",
-      "model": "google/gemini-3.5-flash",
+      "model": "openai-compatible/qwen3.6-35b-a3b",
       "mode": "subagent",
       "steps": 20,
-      "temperature": 0.1,
-      "autoApprove": ["read", "edit", "bash", "mcp", "browser"],
+      "temperature": 0.6,
+      "instructions": [
+        ".github/instructions/analysis-methodology.instructions.md"
+      ],
       "prompt": "{file:.kilo/prompts/bet-db-analyst.md}",
       "permission": {
         "read": "allow",
         "edit": "allow",
         "bash": "allow",
-        "browser": "allow",
+        "browser": "deny",
         "mcp": "allow",
         "task": "deny"
       }
     }
-  }
+  },
+
+  // ═══════════════════════════════════════════════════════════════════
+  // MCP SERVERS — with per-server timeouts optimized for each use case
+  // ═══════════════════════════════════════════════════════════════════
+  "mcp": {
+    "sequentialthinking": {
+      "type": "local",
+      "command": ["npx", "-y", "@modelcontextprotocol/server-sequential-thinking"],
+      "enabled": true,
+      // Thinking can take long for complex decisions (gate, bear cases)
+      "timeout": 120000
+    },
+    "sqlite": {
+      "type": "local",
+      "command": ["uvx", "mcp-server-sqlite", "--db-path", "betting/data/betting.db"],
+      "enabled": true,
+      // DB queries should be fast — flag slow queries
+      "timeout": 15000
+    },
+    "brave-search": {
+      "type": "local",
+      "command": ["npx", "-y", "brave-search-mcp"],
+      "environment": {
+        "BRAVE_API_KEY": "${BRAVE_API_KEY}"
+      },
+      "enabled": true,
+      // Web search can be slow (DNS, rate limits)
+      "timeout": 25000
+    }
+  },
+
+  // File watcher — ignore heavy directories that don't need indexing
+  "watcher": {
+    "ignore": [
+      "betting/data/*.db",
+      "betting/data/*.db-journal",
+      "downloaded_files/**",
+      "dashboard/node_modules/**",
+      ".kilo/node_modules/**",
+      ".kilocode/node_modules/**",
+      "**/__pycache__/**",
+      ".venv/**"
+    ]
+  },
+
+  // Tool output — pipeline scripts produce large JSON/reports
+  "tool_output": {
+    "max_lines": 5000,
+    "max_bytes": 204800
+  },
+
+  // Compaction tuned for MoE model — prevents Metal OOM
+  // PROVEN (2026-05-30): With prefill-step-size=4096, GPU=90%, cache=2GB:
+  //   34K tokens + 27 tools = SUCCESS (previously crashed at 17K with step=32768)
+  // Safe ceiling: 30K tokens (generous buffer)
+  // reserved = 131072 - 30000 = 101072 → rounds to 101000
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "tail_turns": 2,
+    "preserve_recent_tokens": 6000,
+    "reserved": 101000
+  },
+
+  // Experimental features for pipeline
+  "experimental": {
+    "mcp_timeout": 30000,
+    "continue_loop_on_deny": true
+  },
+
+  // Default model — used when agent doesn't specify its own
+  "model": "openai-compatible/qwen3.6-35b-a3b"
 }

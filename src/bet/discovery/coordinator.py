@@ -165,6 +165,26 @@ class EventDiscoveryCoordinator:
 
         return events_by_source, source_stats
 
+    @staticmethod
+    def _normalize_status(raw: str) -> str:
+        """Normalize source status values to canonical set."""
+        r = raw.strip().lower()
+        if r in ("scheduled", "ns", "not started", "pending", "timed"):
+            return "scheduled"
+        if r in ("ft", "ended", "finished", "aet", "ap", "pen", "aot", "awt",
+                 "awarded", "bt", "ot", "status_final"):
+            return "completed"
+        if r in ("canc", "canceled", "cancelled", "abd"):
+            return "cancelled"
+        if r in ("pst", "post", "postponed", "interrupted", "susp", "suspended"):
+            return "postponed"
+        if r in ("walkover", "retired", "status_retired", "wo"):
+            return "walkover"
+        if r in ("live", "1h", "2h", "ht", "halftime", "1st set", "2nd set",
+                 "3rd set", "1st half", "2nd half"):
+            return "live"
+        return "scheduled"  # default for unknown
+
     def _persist(self, date: str, fixtures: list[MergedFixture]) -> int:
         """Write merged fixtures to DB using SQLAlchemy ORM.
 
@@ -227,7 +247,7 @@ class EventDiscoveryCoordinator:
                         {
                             "sid": sport_id, "cid": comp_id,
                             "hid": home_id, "aid": away_id,
-                            "ko": kickoff_str, "st": mf.status,
+                            "ko": kickoff_str, "st": self._normalize_status(mf.status),
                             "eid": mf.primary_external_id,
                             "src": mf.primary_source,
                             "fa": now,

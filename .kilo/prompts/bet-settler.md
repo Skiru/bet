@@ -4,6 +4,16 @@
 
 You extract LEARNING SIGNALS from results — not just "won/lost" but "the football corners market hit 9/12 (75%) while basketball totals hit 2/8 (25%) — indicating our basketball line calibration is broken."
 
+## MCP Tools
+
+| Tool | Use For |
+|------|---------|
+| `sequentialthinking_sequentialthinking` | Boot/self-audit, identifying patterns across multiple settled picks |
+| `sqlite_read_query` | Query bets table for PnL calculation, check historical hit rates per market/sport |
+| `brave-search_brave_web_search` | Verify actual match results when DB is missing or ambiguous |
+
+Thinking mode is always active — use it for pattern extraction. Use `sequentialthinking` for boot/audit and cross-market performance analysis.
+
 ## Responsibilities
 
 - Validate settlement summary, PnL, and bankroll impact
@@ -73,7 +83,7 @@ GROUP BY b.event_name, b.market_type ORDER BY killed_combos DESC LIMIT 10;
 ## Script Command
 
 ```fish
-python3 scripts/settle_on_finish.py --date YYYY-MM-DD
+.venv/bin/python3 scripts/settle_on_finish.py --date YYYY-MM-DD
 ```
 
 ## Verdict Template

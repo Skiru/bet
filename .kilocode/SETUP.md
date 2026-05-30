@@ -3,7 +3,7 @@
 ## Prerequisites
 
 1. **VS Code** with Kilo Code extension installed (`kilocode.Kilo-Code` v7.3+)
-2. **Google AI Studio API key** (free, no credit card): https://aistudio.google.com/apikey
+2. **Rapid-MLX** installed: `pipx install rapid-mlx`
 3. **Node.js 18+** (for MCP servers)
 4. **Python 3.11+** with project virtualenv
 5. **Fish shell** as default terminal
@@ -16,25 +16,52 @@ code --install-extension kilocode.Kilo-Code
 
 Or search "Kilo Code" in VS Code Extensions marketplace.
 
-## Step 2: Configure Google Gemini API Provider
+## Step 2: Pull Model (First Time Only)
+
+```fish
+~/.local/bin/rapid-mlx pull qwen3.6-35b
+```
+
+Downloads `mlx-community/Qwen3.6-35B-A3B-4bit` (~18 GiB). Requires ~35GB free disk space.
+
+## Step 3: Start Local Model Server
+
+```fish
+# Use the optimized start script:
+./scripts/start_local_model.sh
+
+# Or run manually with full flags:
+~/.local/bin/rapid-mlx serve qwen3.6-35b --port 8000 \
+  --no-mllm --max-num-seqs 1 --reasoning-parser qwen3 \
+  --default-temperature 0.6 --default-top-p 0.95 --default-top-k 20 \
+  --max-tokens 32768 --pin-system-prompt --enable-prefix-cache \
+  --kv-cache-turboquant --kv-cache-turboquant-bits 3 \
+  --cache-memory-mb 12000 --gpu-memory-utilization 0.88 \
+  --prefill-step-size 8192 --gc-control \
+  --enable-auto-tool-choice --tool-call-parser qwen3_coder_xml
+```
+
+Wait for `Ready: http://localhost:8000/v1` before proceeding.
+
+## Step 4: Configure OpenAI-Compatible Provider in Kilo Code
 
 1. Open Kilo Code Settings
-2. Go to **API Provider** → select **"Google Gemini"**
-3. Paste your API key from https://aistudio.google.com/apikey
-4. Model: `gemini-3.5-flash` (auto-detected from kilo.jsonc)
+2. Go to **API Provider** → select **"OpenAI Compatible"**
+3. Base URL: `http://localhost:8000/v1`
+4. API Key: `not-needed` (any value works)
+5. Model: `default` (auto-detected from kilo.jsonc)
 
 ### Model Details
-- **google/gemini-3.5-flash** — all 10 agents use this model
-- 1M token context window
-- Free tier: 1,500 requests/day, 15 requests/minute
-- Highest coding index of all free models
-- Designed for agentic workflows
+- **openai-compatible/qwen3.6-35b-a3b** — all 10 agents use this model
+- Qwen3.6-35B-A3B MoE, 4-bit quantization, hybrid attention/Mamba architecture
+- MoE: 35B total knowledge, 3B active params per token
+- 131K token context window (model maximum)
+- ~45-70 tok/s on M4 Pro 48GB, ~19GB VRAM usage (21GB headroom for KV cache)
+- Tool calling (qwen3_coder_xml parser), reasoning (qwen3 parser, `<think>` blocks)
+- Thinking mode: ALWAYS ON — NEVER use --no-thinking
+- No rate limits, no API costs, fully local
 
-### CRITICAL: Use "Google Gemini" Provider Directly
-Do NOT use "Kilo Gateway" — it charges per token.
-The free tier is accessed only through the direct Google Gemini provider.
-
-## Step 3: Configure MCP Servers
+## Step 5: Configure MCP Servers
 
 MCP configuration is in `.kilocode/mcp.json`. Set up:
 
@@ -56,21 +83,38 @@ uvx mcp-server-sqlite --db-path ./betting/data/betting.db
 npx -y brave-search-mcp
 ```
 
-## Step 4: Verify Agent Discovery
+## Step 6: Verify Agent Discovery
 
 1. Open Kilo Code chat
 2. Type `@` — should show all 10 agents (bet-orchestrator, bet-statistician, etc.)
 3. Select `bet-orchestrator` — should show "Pipeline coordinator" description
 4. Start pipeline: `@bet-orchestrator Run today's betting pipeline`
-5. All agents auto-use `google/gemini-3.5-flash` via the configured provider
+5. All agents auto-use `openai-compatible/qwen3.6-35b-a3b` via the configured provider
 
-## Step 5: Verify Model Settings
+## Step 7: Auto-Start (Optional)
 
-The model is set per-agent in `kilo.jsonc` (`google/gemini-3.5-flash` for all 10 agents).
-No manual model selection needed in the UI — agents auto-use their configured model.
+Set up launchd to auto-start the server on login:
+
+```fish
+cp config/com.rapid-mlx.server.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.rapid-mlx.server.plist
+```
+
+To stop: `launchctl unload ~/Library/LaunchAgents/com.rapid-mlx.server.plist`
+
+## Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| Port 8000 in use | `lsof -ti :8000 \| xargs kill` then restart |
+| Model not found | `~/.local/bin/rapid-mlx pull qwen3.6-35b` |
+| OOM / Metal crash | Use `--safe` mode: `./scripts/start_local_model.sh --safe` |
+| Slow TTFT | Expected ~15-30s for 20K+ token prompts (hybrid arch) |
+| No tool calls | Verify `qwen3_coder_xml` in kilo.jsonc tool_format |
+| Thinking not working | Check `--reasoning-parser qwen3` flag is set |
 - **Autocomplete:** Codestral (default, free with Mistral BYOK via Continue.dev)
 
-## Step 5: First Pipeline Run
+## Step 6: First Pipeline Run
 
 ```
 @bet-orchestrator settle and run today's pipeline
@@ -92,7 +136,9 @@ bet/
 │   ├── mcp.json           # MCP server configuration
 │   ├── rules/             # Auto-loaded by all agents
 │   │   ├── tool-names.md  # Correct MCP tool name mappings
-│   │   └── gemini-rate-limits.md
+│   │   ├── model-configuration.md  # Model specs and performance
+│   │   ├── delegation-protocol.md  # Orchestrator delegation rules
+│   │   └── terminal-environment.md # Fish shell + Python venv rules
 │   └── memory/            # Persistent memory (survives across sessions)
 │       ├── session-state.md
 │       ├── pipeline-knowledge-base.md
@@ -119,7 +165,7 @@ If free models are unavailable or too throttled:
 ### Option B: Google AI Studio (Original Setup)
 1. Get API key from https://aistudio.google.com/apikey
 2. Add as BYOK in Kilo Gateway
-3. Select: `google/gemini-3.5-flash`
+3. Select: `gemini/gemini-2.5-flash`
 4. Limits: 1,500 RPD, 15 RPM, 250K TPM, 1M context
 
 ### Option C: VS Code LM API (Use Your Copilot Subscription!)
@@ -135,5 +181,5 @@ If free models are unavailable or too throttled:
 - Kilo Code auto-reads `AGENTS.md` and `kilo.jsonc` from project root
 - `.kilocode/rules/` files are loaded on-demand by agents when needed
 - Permission key is `bash` (not `command`) in the new CLI-based extension
-- Models use `provider/model-id` format (e.g., `google/gemini-3.5-flash`)
+- Models use `provider/model-id` format (e.g., `gemini/gemini-2.5-flash`)
 - See `.kilocode/OPTIMAL-MODELS-GUIDE.md` for model configuration details

@@ -88,7 +88,7 @@ def run_upset_risk(date: str, state: dict) -> tuple[bool, str]:
 
             ranking = analysis.get("ranking", analysis.get("ranking_result", {}).get("ranking", []))
             top_market = ranking[0] if ranking else {}
-            safety = top_market.get("safety_score", 0)
+            safety = top_market.get("safety_score") or 0
 
             # Factor 1: Low safety score (sport-specific threshold)
             if safety < thresholds["safety_low"]:

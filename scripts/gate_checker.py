@@ -351,9 +351,7 @@ def _check_contrarian(_c: dict) -> tuple[bool, str]:
 def _check_bear_vs_bull(c: dict) -> tuple[bool, str]:
     """Gate #12: Bear case < bull case — safety vs risk factors."""
     best = c.get("best_market") or {}
-    safety = best.get("safety_score", 0)
-    if safety is None:
-        safety = 0
+    safety = best.get("safety_score") or 0
     # Simple proxy: safety > 0.50 means bull > bear
     if safety >= 0.50:
         return True, f"safety={safety:.2f} (bull>bear)"
@@ -1567,7 +1565,7 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
         cap, cap_reasons = compute_context_safety_cap(c)
         if cap < 1.0:
             best = c.get("best_market") or {}
-            original_safety = best.get("safety_score", 0)
+            original_safety = best.get("safety_score") or 0
             if original_safety and original_safety > cap:
                 best["safety_score"] = round(cap, 2)
                 best["safety_capped"] = True
@@ -1643,7 +1641,7 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
         n_failed = len(gate_result["gate_failed"])
         ev = c.get("ev")
         best = c.get("best_market") or {}
-        safety = best.get("safety_score", 0)
+        safety = best.get("safety_score") or 0
 
         # Hard reject: ONLY for structural issues (phantoms, 48h repeats, ZT red flags)
         hard_reject = False

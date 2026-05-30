@@ -25,10 +25,14 @@ This repository uses Copilot customizations to run a disciplined small-bankroll 
 
 ## Active Model Standard
 
-- Primary pipeline model: Google Gemini 3.5 Flash via Kilo Code (`google/gemini-3.5-flash`).
-- Context: 1M tokens, free tier (1,500 RPD, 15 RPM via direct Google Gemini provider).
+- Primary pipeline model: Qwen3.6-35B-A3B MoE 4-bit local via Rapid-MLX + Kilo Code (`openai-compatible/qwen3.6-35b-a3b`).
+- Context: 131K tokens (model max), local inference on M4 Pro 48GB, no rate limits.
+- Architecture: MoE 35B total, 3B active per token, hybrid attention/Mamba, 4-bit quantization (~19GB VRAM).
+- Server: `rapid-mlx serve qwen3.6-35b --port 8000 --no-mllm --max-num-seqs 1 --max-concurrent-requests 4 --stream-interval 1 --timeout 1800 --reasoning-parser qwen3 --default-temperature 0.6 --default-top-p 0.95 --default-top-k 20 --max-tokens 131072 --pin-system-prompt --enable-prefix-cache --kv-cache-turboquant --kv-cache-turboquant-bits 3 --cache-memory-mb 2000 --gpu-memory-utilization 0.9 --prefill-step-size 4096 --gc-control --enable-auto-tool-choice --tool-call-parser qwen3_coder_xml` → `http://localhost:8000/v1`.
+- Tool calling: qwen3_coder_xml parser. Reasoning: qwen3 parser (`<think>` blocks — ALWAYS enabled).
+- Thinking mode is CRITICAL for this pipeline — NEVER use `--no-thinking`.
 - Autocomplete: Codestral 22B via Continue.dev (`mistralai/codestral-22b-v0.1`).
-- Stale model literals (GPT-5.4, Claude Opus 4.6, gemma-4-31b, qwen3.6-27b, laguna-m.1) are invalid in the active `.github` tree.
+- Stale model literals (GPT-5.4, Claude Opus 4.6, Gemma-4-31B, Qwen3.6-27B-Dense, qwopus-27b, laguna-m.1) are invalid in the active `.github` tree.
 
 ## Repo-Wide Constraints
 

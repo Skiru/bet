@@ -132,8 +132,8 @@ export function getLMStudioConfig(): {
     const config = JSON.parse(raw);
     return {
       enabled: true,
-      model: config.model ?? "qwen/qwen3.6-27b",
-      baseUrl: config.base_url ?? "http://localhost:1234/v1",
+      model: config.model ?? "default",
+      baseUrl: config.base_url ?? "http://localhost:8000/v1",
     };
   } catch {
     return { enabled: false, model: "N/A", baseUrl: "N/A" };

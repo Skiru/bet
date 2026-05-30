@@ -396,7 +396,7 @@ def _score_event(event: dict, tipster_events: set[str], tipster_db: dict[str, di
     # 5. Safety data availability — bonus only for high safety scores
     if has_safety:
         safety_markets = event.get("safety_markets", [])
-        best_safety = max((m.get("safety_score", 0) for m in safety_markets), default=0)
+        best_safety = max((m.get("safety_score") or 0 for m in safety_markets), default=0)
         if best_safety >= 0.45:
             score += min(n_safety * 4, 20)  # strong edge: bonus up to 20
         elif best_safety >= 0.30:

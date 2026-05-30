@@ -1,0 +1,126 @@
+#!/usr/bin/env fish
+# Start Rapid-MLX local model server for the betting pipeline
+# Run this before starting Kilo Code sessions
+#
+# Model: Qwen3.6-27B Dense 8-bit
+#   ~30GB VRAM, all 27B params active, hybrid attention/Mamba
+#   262K context, reasoning ALWAYS ON (<think> blocks)
+#   Optimal for: deep analysis, bear cases, multi-market scoring
+#
+# Usage:
+#   ./scripts/start_local_model.sh              # default: full optimized config
+#   ./scripts/start_local_model.sh --safe       # reduced GPU utilization (80%)
+#   ./scripts/start_local_model.sh --minimal    # bare minimum flags (debugging)
+#
+# Hardware: Apple M4 Pro 48GB unified memory, 273 GB/s bandwidth
+# Endpoint: http://localhost:8000/v1 (OpenAI-compatible)
+
+set -l MODEL "qwen3.6-27b-8bit"
+set -l PORT (test -n "$RAPID_MLX_PORT"; and echo $RAPID_MLX_PORT; or echo "8000")
+set -l RAPID_MLX "$HOME/.local/bin/rapid-mlx"
+
+# Check if rapid-mlx is installed
+if not test -f "$RAPID_MLX"
+    echo "❌ rapid-mlx not found at $RAPID_MLX"
+    echo "   Install: pipx install rapid-mlx"
+    exit 1
+end
+
+# Check if port is already in use
+if lsof -i ":$PORT" -sTCP:LISTEN >/dev/null 2>&1
+    echo "⚠️  Port $PORT already in use (model server may be running)"
+    echo "   Test: curl http://localhost:$PORT/v1/models"
+    echo "   Kill: lsof -ti :$PORT | xargs kill"
+    exit 0
+end
+
+# ═══════════════════════════════════════════════════════════════════
+# OPTIMIZED FLAGS for Qwen3.6-27B Dense 8-bit on M4 Pro 48GB
+# ═══════════════════════════════════════════════════════════════════
+# --no-mllm:                  Skip vision encoder → frees ~2-3GB for reasoning context
+# --max-num-seqs 1:           Single-user pipeline → ALL resources to active analysis
+# --reasoning-parser qwen3:   Parse <think>...</think> blocks (CRITICAL for pipeline)
+# --default-temperature 0.6:  Qwen optimal — explores hypotheses without chaos
+# --default-top-p 0.95:       Qwen optimal — diverse but controlled token selection
+# --default-top-k 20:         Qwen optimal — prevents unlikely tokens in reasoning
+# --max-tokens 32768:         Deep thinking can use 5-10K + structured output 5-8K
+# --pin-system-prompt:        Agent instructions (~15K tokens) stay cached
+# --enable-prefix-cache:      Reuse computed KV for repeated prompt prefixes
+# --kv-cache-quantization:    4-bit KV cache → 4x savings, proven reliable
+# --kv-cache-quantization-bits 4: Specific quantization level
+# --cache-memory-mb 4000:     4GB for cache (keeps headroom for 22K+ token Kilo prompts)
+# --gpu-memory-utilization 0.92: Use 92% of Metal unified memory
+# --prefill-step-size 4096:   2x faster prefill for 10-30K token prompts
+# --gc-control:               No GC during generation → no latency spikes
+# --enable-auto-tool-choice:   Auto-detect when model wants to call a tool
+# --tool-call-parser qwen3_coder_xml: Parse Qwen3 XML-format tool calls
+# ═══════════════════════════════════════════════════════════════════
+
+set -l FLAGS \
+    --no-mllm \
+    --max-num-seqs 1 \
+    --reasoning-parser qwen3 \
+    --default-temperature 0.6 \
+    --default-top-p 0.95 \
+    --default-top-k 20 \
+    --max-tokens 32768 \
+    --pin-system-prompt \
+    --enable-prefix-cache \
+    --kv-cache-quantization \
+    --kv-cache-quantization-bits 4 \
+    --cache-memory-mb 500 \
+    --gpu-memory-utilization 0.88 \
+    --prefill-step-size 2048 \
+    --gc-control \
+    --enable-auto-tool-choice \
+    --tool-call-parser qwen3_coder_xml
+
+# Mode overrides
+if contains -- --safe $argv
+    # Reduced GPU utilization for multitasking (browser, other apps)
+    set FLAGS \
+        --no-mllm \
+        --max-num-seqs 1 \
+        --reasoning-parser qwen3 \
+        --default-temperature 0.6 \
+        --default-top-p 0.95 \
+        --default-top-k 20 \
+        --max-tokens 32768 \
+        --pin-system-prompt \
+        --enable-prefix-cache \
+        --kv-cache-quantization \
+        --kv-cache-quantization-bits 4 \
+        --cache-memory-mb 3000 \
+        --gpu-memory-utilization 0.80 \
+        --prefill-step-size 4096 \
+        --gc-control \
+        --enable-auto-tool-choice \
+        --tool-call-parser qwen3_coder_xml
+    echo "🛡️  Safe mode: GPU utilization 80%, cache 8GB"
+else if contains -- --minimal $argv
+    # Bare minimum for debugging server issues
+    set FLAGS \
+        --no-mllm \
+        --max-num-seqs 1 \
+        --reasoning-parser qwen3 \
+        --max-tokens 32768 \
+        --enable-auto-tool-choice \
+        --tool-call-parser qwen3_coder_xml
+    echo "🔧 Minimal mode: basic flags only (debugging)"
+end
+
+echo "🚀 Starting Rapid-MLX server..."
+echo "   Model:    $MODEL"
+echo "   Port:     $PORT"
+echo "   Endpoint: http://localhost:$PORT/v1"
+echo "   Thinking: ENABLED (qwen3 parser)"
+echo "   Context:  262K tokens"
+echo "   VRAM:     ~30GB (8-bit quantization)"
+echo ""
+echo "   Press Ctrl+C to stop"
+echo ""
+
+# Disable telemetry
+set -x RAPID_MLX_TELEMETRY 0
+
+exec $RAPID_MLX serve $MODEL --port $PORT $FLAGS

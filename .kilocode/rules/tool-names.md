@@ -6,7 +6,8 @@
 
 | Purpose | Correct Tool Name | WRONG (do NOT use) |
 |---------|------------------|--------------------|
-| Web search | `websearch` | ~~brave_search_brave_web_search~~, ~~brave_web_search~~ |
+| Web search | `brave-search_brave_web_search` | ~~websearch~~, ~~brave_web_search~~ |
+| News search | `brave-search_brave_news_search` | ~~brave_news_search~~, ~~news_search~~ |
 | Sequential thinking | `sequentialthinking_sequentialthinking` | ~~sequentialthinking~~ |
 | SQLite read | `sqlite_read_query` | ~~sqlite_read~~, ~~read_query~~ |
 | SQLite write | `sqlite_write_query` | ~~sqlite_write~~ |
@@ -27,8 +28,8 @@
 
 ## Rules
 
-1. When prompts say "use brave-search MCP" → use `websearch`
+1. When prompts say "use brave-search MCP" → use `brave-search_brave_web_search`
 2. When prompts say "use sequentialthinking" → use `sequentialthinking_sequentialthinking`
 3. When prompts say "query sqlite MCP" → use `sqlite_read_query`
-4. NEVER prefix tool names with `mcp_` or `brave_search_`
-5. If unsure about a tool name → use `websearch` for web, `sqlite_read_query` for DB
+4. NEVER prefix tool names with `mcp_` (that's Copilot syntax, not Kilo)
+5. If unsure about a tool name → use `brave-search_brave_web_search` for web, `sqlite_read_query` for DB

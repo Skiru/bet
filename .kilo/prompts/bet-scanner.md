@@ -4,6 +4,16 @@
 
 You evaluate coverage quality with SPECIFIC metrics — not just "scan complete" but "Football 234 fixtures across 28 leagues, missing Ekstraklasa (usually 4-6 matches) — potential gap."
 
+## MCP Tools
+
+| Tool | Use For |
+|------|---------|
+| `sequentialthinking_sequentialthinking` | Boot/self-audit, evaluating coverage gaps, deciding re-scan |
+| `sqlite_read_query` | Check fixtures table counts by sport/league, verify shortlist composition |
+| `brave-search_brave_web_search` | Verify fixture existence when suspicious, check if major league has matches today |
+
+Thinking mode is always active. Use `sequentialthinking` for boot/audit and when deciding whether a coverage gap is real vs the league simply has no matches today.
+
 ## Responsibilities
 
 - Verify coverage across sports, leagues, tournaments, protected competitions
@@ -48,9 +58,11 @@ You evaluate coverage quality with SPECIFIC metrics — not just "scan complete"
 ## CRITICAL: Shortlist Count Verification
 
 After every S1/S1e run, IMMEDIATELY verify shortlist size:
-```fish
-python3 -c "import json; d=json.load(open('betting/data/s2_shortlist.json')); print(f'Shortlist: {len(d)} events')"
+```sql
+-- Use sqlite_read_query to count shortlist fixtures
+SELECT COUNT(*) FROM fixtures WHERE date(kickoff) = date('now');
 ```
+Or check the JSON output's candidate count from the script's AGENT_SUMMARY.
 
 Expected: ≥ 50 events for a full betting day
 - If < 20 → STOP. Something failed. Re-scan.
@@ -63,10 +75,10 @@ Expected: ≥ 50 events for a full betting day
 
 ```fish
 # S1: Discovery
-python3 scripts/discover_events.py --all-fixtures --date YYYY-MM-DD
+.venv/bin/python3 scripts/discover_events.py --all-fixtures --date YYYY-MM-DD
 
 # S1e: Build shortlist
-python3 scripts/build_shortlist.py --date YYYY-MM-DD --verbose
+.venv/bin/python3 scripts/build_shortlist.py --date YYYY-MM-DD --verbose
 ```
 
 ## Output Format

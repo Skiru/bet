@@ -3,30 +3,27 @@
 > Updated by orchestrator after EVERY major step. Read by ALL agents before analysis.
 
 ## Current Session
-- **Date:** 2026-05-28
-- **Phase:** COMPLETE (S0→S8)
-- **Last Step:** Gate results persisted to DB (50 total: 13 approved, 37 extended, 0 rejected)
-- **Key Metrics:** 13 approved, 37 extended, 6 core coupons (all HR), 10 singles, 12.00 PLN core spend, 85.04 PLN potential return
-- **Blockers:** None (stats-first mode active, odds estimated)
+- **Date:** 2026-05-30
+- **Phase:** PRE-BOOT (manual fixes applied by user before pipeline run)
+- **Last Step:** Fixtures DB cleaned, server restarted with 65K output tokens
+- **Key Metrics:** 1788 fixtures for May 30, DB status normalized to 5 values, 31,561 stale expired
+- **Blockers:** None — pipeline ready to run S0→S8
 
-## Previous Step Summary
-S0: No pending picks to settle for 2026-05-27.
-S1: Discovery completed - 675 events discovered, 615 after dedup.
-S1e: Shortlist built - 90 candidates across 7 sports.
-S2: Tipster xref skipped (no tipster data in DB).
-S3: Deep stats completed - 50 candidates analyzed with full statistical breakdown.
-S4: Odds evaluation - 1 candidate with EV data (negative), stats-first mode active.
-S7: Gate check completed - 13 approved, 37 extended pool, 0 rejected.
-S7.5: Betclic validation stub created (curl_cffi unavailable).
-S7.6: Repeat loss check - 0 repeats found in 48h window.
-S8: Coupon builder completed - 6 core coupons (HR tier), 10 singles, all stats-first mode.
+## Pre-Boot Fixes Applied (2026-05-30)
+- Server: --max-tokens 65536 (was 32768), --cache-memory-mb 12000 (was 4000), --gpu-memory-utilization 0.88 (was 0.75)
+- DB: Deleted 1,714 time-only kickoff rows + 111 empty kickoff rows
+- DB: Normalized 60+ status values → {scheduled, completed, cancelled, postponed, walkover, expired}
+- DB: Expired 31,561 stale "scheduled" fixtures from before 2026-05-30
+- DB: S1 discover_events.py populated 1,788 fixtures for 2026-05-30
+- Code: Fixed persist_coupons_to_db() — was never called in coupon_builder.py main()
+- Config: kilo.jsonc output limit updated to 65536
+- Orchestrator prompt: Added OUTPUT BUDGET PROTECTION section (anti-reasoning-spiral)
 
 ## Active Flags
-- Stats-first mode active: all odds estimated from safety scores (1/safety_score)
-- All picks are HR tier due to systemic data gaps (single source, H2H-blind, no tipster)
-- Correlation warning: HR1 and HR2 both contain ATP French Open legs
-- DB data quality CRITICAL: 282,299 issues (fake L10, contamination, stale data)
-- Coupon validation passed but warnings: missing odds extraction, Polish descriptions
+- Coupon DB persistence was broken since May 14 — NOW FIXED
+- May 29 session produced coupons but never persisted to DB (only JSON/MD artifacts exist)
+- Previous day (May 29) NOT YET SETTLED — S0 must settle first
+- Tipster pipeline (S2) has been failing/skipped in recent sessions — HIGH PRIORITY to fix
 
 ## Recovery Instructions
 If resuming after interruption:

@@ -5,6 +5,12 @@ description: "S8 handoff frame for coupon, portfolio, and extended-pool construc
 
 # S8 — Portfolio Handoff
 
+## ⛔ ANTI-DRIFT (MoE Model — 3B active params)
+- **CITE-OR-DELETE:** Every stat in the coupon MUST be verified via `sqlite_read_query`. Delete unverifiable claims.
+- **V1-V5 MANDATORY:** Run ALL 5 validation checks with actual DB queries BEFORE returning the coupon.
+- **HIT RATE ≠ AVERAGE:** Always compute: count(values > line) / count(total). avg > line does NOT mean it hits.
+- **TEAM IDENTITY:** Query fixture to confirm which team is home/away before citing stats.
+
 Use the canonical execution protocol, coupon-building skill, and formatting instruction. This prompt owns only the handoff framing for finished build output.
 
 ## Orchestrator Must Provide

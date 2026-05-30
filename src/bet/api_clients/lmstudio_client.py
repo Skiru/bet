@@ -1,7 +1,7 @@
-"""LM Studio Client — local inference via OpenAI-compatible API.
+"""Local LLM Client — inference via OpenAI-compatible API (Rapid-MLX).
 
-Drop-in replacement for GeminiClient. Connects to LM Studio server at
-localhost:1234 (configurable). Supports structured output via json_schema
+Connects to Rapid-MLX server at localhost:8000 (configurable via
+config/lmstudio_config.json). Supports structured output via json_schema
 response format.
 
 Usage:
@@ -58,11 +58,11 @@ class LMStudioClient:
         if config_file.exists():
             self.config = json.loads(config_file.read_text(encoding="utf-8"))
 
-        self.base_url = self.config.get("base_url", "http://localhost:1234/v1")
-        self.model = self.config.get("model", "gemma-4-31b-Q4_K_M")
-        self.max_tokens = self.config.get("max_tokens", 4096)
+        self.base_url = self.config.get("base_url", "http://localhost:8000/v1")
+        self.model = self.config.get("model", "default")
+        self.max_tokens = self.config.get("max_tokens", 32768)
         self.temperature = self.config.get("temperature", 0.3)
-        self.timeout = self.config.get("timeout_seconds", 180)
+        self.timeout = self.config.get("timeout_seconds", 300)
         self.max_retries = self.config.get("max_retries", 3)
         self.retry_delay = self.config.get("retry_delay_seconds", 5.0)
         self.structured_output = self.config.get("structured_output", True)

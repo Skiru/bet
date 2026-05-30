@@ -5,6 +5,12 @@ description: "S7 handoff frame for final gate reasoning, bear cases, and advisor
 
 # S7 — Gate Handoff
 
+## ⛔ ANTI-DRIFT (MoE Model — 3B active params)
+- **CITE-OR-DELETE:** Bull and bear cases MUST cite actual L10/L5/H2H values from DB. No guessing.
+- **MECHANISM REQUIRED:** "Risky" is NOT a bear case. Name the SPECIFIC mechanism: dead rubber penalty, L5 declining trend, H2H contradicts, coach rotation confirmed via web search.
+- **USE TOOLS:** `sqlite_read_query` for stats verification, `brave-search_brave_web_search` for motivation/injuries/context.
+- **SAFETY FLOORS ARE MECHANICAL:** safety < 0.15 = REJECT, safety < 0.30 = EXTENDED only. No exceptions, no analysis needed.
+
 This is a thin handoff prompt. The execution protocol, sport rules, and analytical methodology stay in the canonical instructions and skills.
 
 ## Orchestrator Must Provide

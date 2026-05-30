@@ -142,3 +142,30 @@ WHERE b.status IN ('win','loss');
 | `bet-formatting-artifacts` | Ledger CSV headers, pick/coupon status values, PnL field conventions |
 | `bet-analyzing-statistics` | Historical hit rates feed back into §3.0 safety score confidence |
 | `bet-navigating-sources` | Result verification via Flashscore, ESPN scores |
+
+## §0.2b Coupon Scan Learning (S0-SCAN)
+
+When Betclic coupon screenshots are available, the orchestrator runs VLM-based scanning before delegating to the settler:
+
+```bash
+# Scan screenshots (local VLM: Qwen2.5-VL-3B-4bit via mlx-vlm)
+PYTHONPATH=src .venv/bin/python3 scripts/scan_coupon.py --batch <screenshots_dir> --save
+
+# Match scanned results against pipeline predictions
+PYTHONPATH=src .venv/bin/python3 scripts/learn_from_coupons.py --dir betting/coupons/ --date YYYY-MM-DD --save
+```
+
+### Learning Report Structure (`{date}-coupon-learning.json`)
+- `matched_picks[]`: each VLM-scanned pick matched to pipeline bets/analysis
+  - `learning_signal`: HIGH_CONFIDENCE_LOSS, LOW_CONFIDENCE_WIN, EXPECTED_WIN, EXPECTED_LOSS, NO_PREDICTION
+  - `stats_detail`: safety_score, hit_rate, market data from analysis_results
+- `safety_score_accuracy`: calibration bins (high ≥7, mid 5-7, low <5) with actual hit rates
+- `market_breakdown`: per-market win/loss counts from scanned coupons
+- `estimated_pnl`: estimated PnL from scanned coupon outcomes
+
+### Settler's Analysis Protocol
+1. Report safety_score_accuracy bins — high-safety picks should hit >70%
+2. Flag all HIGH_CONFIDENCE_LOSS entries — model failures for investigation
+3. Highlight LOW_CONFIDENCE_WIN entries — undervalued edges the model missed
+4. Compare market_breakdown to historical Betclic norms
+5. Conclude: are there actionable recalibration signals for S3 scoring?
