@@ -49,10 +49,11 @@ All 10 agents use: `openai-compatible/qwen3.6-35b-a3b`
 ~/.local/bin/rapid-mlx serve qwen3.6-35b --port 8000 \
   --no-mllm --max-num-seqs 1 --reasoning-parser qwen3 \
   --default-temperature 0.6 --default-top-p 0.95 --default-top-k 20 \
-  --max-tokens 32768 --pin-system-prompt --enable-prefix-cache \
+  --default-repetition-penalty 1.05 \
+  --max-tokens 16384 --pin-system-prompt --enable-prefix-cache \
   --kv-cache-turboquant --kv-cache-turboquant-bits 3 \
-  --cache-memory-mb 12000 --gpu-memory-utilization 0.88 \
-  --prefill-step-size 8192 --gc-control \
+  --cache-memory-mb 2000 --gpu-memory-utilization 0.9 \
+  --prefill-step-size 4096 --gc-control \
   --enable-auto-tool-choice --tool-call-parser qwen3_coder_xml
 ```
 
@@ -73,13 +74,14 @@ All 10 agents use: `openai-compatible/qwen3.6-35b-a3b`
 | `--reasoning-parser qwen3` | `<think>` blocks | CORE VALUE — model reasons through evidence first |
 | `--temperature 0.6` | MINIMUM | **CRITICAL** — below 0.6, model skips `<think>` blocks entirely. All agents must use ≥ 0.6 |
 | `--top-p 0.95 + top-k 20` | Qwen optimal | Diverse but controlled token selection |
-| `--max-tokens 32768` | generous | Deep thinking 5-10K + structured output 5-8K |
-| `--pin-system-prompt` | cached | Agent instructions (~23K tokens) stay in Metal — sub-100ms TTFT on repeat |
+| `--default-repetition-penalty 1.05` | anti-loop | Penalizes repeated tokens 5% — breaks degenerate enumeration loops |
+| `--max-tokens 16384` | controlled | Server-side safety cap. Client (kilo.jsonc) further limits to 8192. |
+| `--pin-system-prompt` | cached | Agent instructions stay in Metal — sub-100ms TTFT on repeat |
 | `--enable-prefix-cache` | reuse KV | Multi-step orchestrator reuses common prompt prefix = instant |
 | `--kv-cache-turboquant` | 3-bit V-cache | 86% savings on prefix cache. K stays FP16 for accuracy |
-| `--cache-memory-mb 12000` | 12GB | MoE leaves 21GB headroom; 12GB fits ~64K tokens quantized |
-| `--gpu-memory-utilization 0.88` | 88% Metal | 19GB model + 12GB cache + 4GB OS = 35GB of 40GB Metal |
-| `--prefill-step-size 8192` | large chunks | MoE only activates 3B per chunk — prefill is lightweight |
+| `--cache-memory-mb 2000` | 2GB | Conservative — prevents Metal OOM with 4096 prefill chunks |
+| `--gpu-memory-utilization 0.9` | 90% Metal | 19GB model + 2GB cache + overhead = safe within 40GB Metal |
+| `--prefill-step-size 4096` | small chunks | **CRITICAL** — larger values (8K/16K) cause OOM at 17K+ token prompts with tools |
 | `--gc-control` | no GC during gen | No latency spikes during reasoning chains |
 | `--tool-call-parser qwen3_coder_xml` | native | Qwen3.6's built-in XML tool format — highest accuracy |
 

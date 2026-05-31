@@ -92,7 +92,7 @@
       "description": "Pipeline coordinator — runs scripts, delegates analysis, synthesizes decisions. Use when running the full betting day pipeline, settling results, or coordinating multi-step betting workflows.",
       "mode": "primary",
       "model": "openai-compatible/qwen3.6-35b-a3b",
-      "steps": 200,
+      "steps": 80,
       "temperature": 0.6,
       "instructions": [
         ".github/instructions/agent-execution-protocol.instructions.md"
@@ -123,7 +123,7 @@
       "description": "Deep statistical analyst — S3/S3B specialist for market ranking, safety scores, H2H validation, three-way alignment. Use when the pipeline needs deep statistical analysis of S3/S3B output.",
       "model": "openai-compatible/qwen3.6-35b-a3b",
       "mode": "subagent",
-      "steps": 40,
+      "steps": 15,
       "temperature": 0.6,
       "instructions": [
         ".github/instructions/agent-execution-protocol.instructions.md",
@@ -146,7 +146,7 @@
       "description": "Final analytical judge — synthesizes stats, context, upset risk into decisive advisory verdicts with specific bear cases. Use for S5 context, S6 upset risk, and S7 gate review.",
       "model": "openai-compatible/qwen3.6-35b-a3b",
       "mode": "subagent",
-      "steps": 40,
+      "steps": 15,
       "temperature": 0.6,
       "instructions": [
         ".github/instructions/agent-execution-protocol.instructions.md",
@@ -169,7 +169,7 @@
       "description": "Portfolio strategist — builds core coupons, combination menu, and final betting artifacts with mandatory validation checks. Use when approved picks are ready for S8 coupon construction.",
       "model": "openai-compatible/qwen3.6-35b-a3b",
       "mode": "subagent",
-      "steps": 50,
+      "steps": 15,
       "temperature": 0.6,
       "instructions": [
         ".github/instructions/agent-execution-protocol.instructions.md",
@@ -192,7 +192,7 @@
       "description": "Discovery and shortlist specialist — evaluates scan coverage, fixture validity, shortlist readiness with specific metrics. Use for S1 discovery and S1e shortlist building.",
       "model": "openai-compatible/qwen3.6-35b-a3b",
       "mode": "subagent",
-      "steps": 25,
+      "steps": 15,
       "temperature": 0.6,
       "instructions": [
         ".github/instructions/agent-execution-protocol.instructions.md",
@@ -213,7 +213,7 @@
       "description": "Settlement accountant — analyzes settled picks for PnL, bankroll impact, and learning signals. Use for S0 settlement and learning extraction.",
       "model": "openai-compatible/qwen3.6-35b-a3b",
       "mode": "subagent",
-      "steps": 20,
+      "steps": 15,
       "temperature": 0.6,
       "instructions": [
         ".github/instructions/agent-execution-protocol.instructions.md",
@@ -235,7 +235,7 @@
       "description": "Tipster intelligence analyst — evaluates argument quality, independence, consensus, and contrarian signals. Use for S2 tipster cross-reference analysis.",
       "model": "openai-compatible/qwen3.6-35b-a3b",
       "mode": "subagent",
-      "steps": 30,
+      "steps": 15,
       "temperature": 0.6,
       "instructions": [
         ".github/instructions/agent-execution-protocol.instructions.md",
@@ -257,7 +257,7 @@
       "description": "Data quality guardian — validates enrichment readiness, coverage gaps, and source health before S3. Use for S2.3-S2.9 data quality assessment.",
       "model": "openai-compatible/qwen3.6-35b-a3b",
       "mode": "subagent",
-      "steps": 25,
+      "steps": 15,
       "temperature": 0.6,
       "instructions": [
         ".github/instructions/agent-execution-protocol.instructions.md",
@@ -279,7 +279,7 @@
       "description": "Pricing analyst — evaluates odds, EV, drift detection, and market mispricing. Use for S4 fair-odds vs offered-odds and value analysis.",
       "model": "openai-compatible/qwen3.6-35b-a3b",
       "mode": "subagent",
-      "steps": 25,
+      "steps": 15,
       "temperature": 0.6,
       "instructions": [
         ".github/instructions/agent-execution-protocol.instructions.md",
@@ -301,7 +301,7 @@
       "description": "Database specialist — audits table readiness, coverage, freshness, and pipeline blockers. Use for pre-flight checks and table freshness validation.",
       "model": "openai-compatible/qwen3.6-35b-a3b",
       "mode": "subagent",
-      "steps": 20,
+      "steps": 15,
       "temperature": 0.6,
       "instructions": [
         ".github/instructions/agent-execution-protocol.instructions.md",
@@ -363,25 +363,23 @@
     ]
   },
 
-  // Tool output — pipeline scripts produce large JSON/reports
+  // Tool output — STRICT limits prevent context flooding
+  // Scripts redirect to /tmp/sN.txt; model reads via tail -20
   "tool_output": {
-    "max_lines": 5000,
-    "max_bytes": 204800
+    "max_lines": 100,
+    "max_bytes": 16384
   },
 
   // Compaction tuned for MoE model — prevents Metal OOM
-  // PROVEN (2026-05-30): With prefill-step-size=4096, GPU=90%, cache=2GB:
-  //   34K tokens + 27 tools = SUCCESS (previously crashed at 17K with step=32768)
-  // Output limit: 32K (--max-tokens 32768). Context capacity: 131K.
-  // reserved = output budget + safety buffer = 32K + 6K = 38K
-  // → compaction triggers at 131072 - 38000 = 93072 tokens of input context
-  // → leaves enough room for full 32K output generation
+  // Output limit: 8K (kilo.jsonc) / 16K (server). Context capacity: 131K.
+  // reserved = output budget + safety buffer = 8K + 6K = 14K
+  // → compaction triggers at 131072 - 14000 = 117072 tokens of input context
   "compaction": {
     "auto": true,
     "prune": true,
     "tail_turns": 2,
     "preserve_recent_tokens": 6000,
-    "reserved": 38000
+    "reserved": 14000
   },
 
   // Experimental features for pipeline

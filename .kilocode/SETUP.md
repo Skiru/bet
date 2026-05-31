@@ -34,10 +34,11 @@ Downloads `mlx-community/Qwen3.6-35B-A3B-4bit` (~18 GiB). Requires ~35GB free di
 ~/.local/bin/rapid-mlx serve qwen3.6-35b --port 8000 \
   --no-mllm --max-num-seqs 1 --reasoning-parser qwen3 \
   --default-temperature 0.6 --default-top-p 0.95 --default-top-k 20 \
-  --max-tokens 32768 --pin-system-prompt --enable-prefix-cache \
+  --default-repetition-penalty 1.05 \
+  --max-tokens 16384 --pin-system-prompt --enable-prefix-cache \
   --kv-cache-turboquant --kv-cache-turboquant-bits 3 \
-  --cache-memory-mb 12000 --gpu-memory-utilization 0.88 \
-  --prefill-step-size 8192 --gc-control \
+  --cache-memory-mb 2000 --gpu-memory-utilization 0.9 \
+  --prefill-step-size 4096 --gc-control \
   --enable-auto-tool-choice --tool-call-parser qwen3_coder_xml
 ```
 

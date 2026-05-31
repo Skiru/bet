@@ -120,7 +120,7 @@ set -x DATE (TZ=Europe/Warsaw date +%Y-%m-%d)
 - First tool call of EVERY turn = `sequentialthinking_sequentialthinking`. No exceptions.
 - If a tool call errors → DO NOT retry. Think about WHY first.
 
-## COMMON QUERIES (copy-paste these — don't improvise)
+## COMMON QUERIES (use only the ONE you need — NEVER run all 4)
 
 ```sql
 -- Today's event count (replace DATE with actual date)
@@ -136,4 +136,4 @@ SELECT SUM(CASE WHEN result='win' THEN profit WHEN result='loss' THEN -stake ELS
 SELECT COUNT(*) as pending FROM picks WHERE status = 'pending' AND betting_day = '$DATE';
 ```
 
-Use these EXACT patterns. Set DATE with `(TZ=Europe/Warsaw date +%Y-%m-%d)`. Do NOT enumerate all tables to find data.
+Pick ONE query that answers the question. Set DATE with `(TZ=Europe/Warsaw date +%Y-%m-%d)`. Do NOT enumerate all tables.
