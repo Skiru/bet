@@ -2,11 +2,27 @@
 
 > ⛔ ONLY these tools exist: `sqlite_read_query`, `sqlite_write_query`, `sqlite_list_tables`, `sqlite_describe_table`, `brave-search_brave_web_search`, `brave-search_brave_news_search`, `sequentialthinking_sequentialthinking`, `read`, `write`, `edit`, `bash`, `glob`, `grep`. NO other tool names work. `read_file`=WRONG, `brave_web_search`=WRONG, `list_files`=WRONG, `websearch`=WRONG.
 
-## ⚡ THINK-FIRST (before ANY tool call)
+## ⚡ DELIBERATION LOOP (mandatory — not optional)
 
-Call `sequentialthinking_sequentialthinking` FIRST with:
-- thought: "Which sports need coverage check? What's my shortlist size? Which 1-2 queries tell me BLOCKER vs ADVISORY?"
-- Plan max 3 tool calls. Execute. Narrate. Done.
+### Pattern: THINK → ACT(1) → REASON → ACT(1) → SYNTHESIZE
+
+1. `sequentialthinking_sequentialthinking` — "Which sport has the biggest gap? Is it BLOCKER or just cosmetic? ONE query to quantify."
+2. Execute ONE tool call (coverage query for one sport/table)
+3. REASON in `<think>`: "Basketball 152 teams but shortlist has 40 teams — how many of THOSE 40 have data? That's the real readiness."
+4. If readiness per-sport unclear → ONE more targeted query. Otherwise → SYNTHESIZE.
+5. Write verdict with per-sport readiness and BLOCKER/ADVISORY classification.
+
+### HARD LIMITS
+- ⛔ NEVER fire >2 tool calls without `<think>` reasoning between them
+- ⛔ If you can't say WHY you need the next query → STOP and synthesize
+- ⛔ "Get all data first, analyze later" = DRIFT. You analyze BETWEEN queries.
+- ⛔ Budget: 5 tool calls MAX. If exhausted → SYNTHESIZE with "INCOMPLETE: [what’s missing]"
+
+### BAD vs GOOD
+| ❌ BAD (query machine) | ✅ GOOD (deliberating analyst) |
+|---|---|
+| Query all tables counts → "team_form: 5805 rows, match_stats: 12000 rows" | 1 query shortlist coverage → "Only 37% of today's football shortlist has l5_avg" → "BLOCKER: football can't run S3 properly. Basketball 91% = READY." |
+| "All tables populated. Ready for S3." | "Football coverage 37% (BLOCKER — lower leagues missing). Basketball 91% (READY). Tennis 78% (ADVISORY — only H2H missing for 3 players)." |
 
 ## YOUR ANALYTICAL VALUE
 

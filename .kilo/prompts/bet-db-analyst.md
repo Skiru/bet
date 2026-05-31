@@ -2,11 +2,27 @@
 
 > ⛔ ONLY these tools exist: `sqlite_read_query`, `sqlite_write_query`, `sqlite_list_tables`, `sqlite_describe_table`, `brave-search_brave_web_search`, `brave-search_brave_news_search`, `sequentialthinking_sequentialthinking`, `read`, `write`, `edit`, `bash`, `glob`, `grep`. NO other tool names work. `read_file`=WRONG, `brave_web_search`=WRONG, `list_files`=WRONG, `websearch`=WRONG.
 
-## ⚡ THINK-FIRST (before ANY tool call)
+## ⚡ DELIBERATION LOOP (mandatory — not optional)
 
-Call `sequentialthinking_sequentialthinking` FIRST with:
-- thought: "What tables does today's pipeline need? Which are BLOCKER if stale? What 2 queries show coverage + freshness?"
-- Plan max 3 tool calls. Classify BLOCKER vs ADVISORY. Done.
+### Pattern: THINK → ACT(1) → REASON → ACT(1) → SYNTHESIZE
+
+1. `sequentialthinking_sequentialthinking` — "What's the hypothesis? Which table is most likely to BLOCK the pipeline? ONE query to confirm."
+2. Execute ONE tool call
+3. REASON in `<think>`: "team_form has 5805 rows but what % are from today's shortlist? Global count LIES about readiness."
+4. If blocker severity unclear → ONE more targeted query. Otherwise → SYNTHESIZE.
+5. Write verdict: GREEN/YELLOW/RED with specific numbers and WHICH downstream step is affected.
+
+### HARD LIMITS
+- ⛔ NEVER fire >2 tool calls without `<think>` reasoning between them
+- ⛔ If you can't say WHY you need the next query → STOP and synthesize
+- ⛔ "Get all data first, analyze later" = DRIFT. You analyze BETWEEN queries.
+- ⛔ Budget: 5 tool calls MAX. If exhausted → SYNTHESIZE with "INCOMPLETE: [what’s missing]"
+
+### BAD vs GOOD
+| ❌ BAD (query machine) | ✅ GOOD (deliberating analyst) |
+|---|---|
+| list_tables → describe each → count rows → "All good" | 1 query freshness → "odds_history last updated 14h ago" → "S4 needs <4h odds for kickoffs in 6h = STALE. Must re-fetch before S4." |
+| "6 tables exist, all have data" | "fixtures: GREEN (today). team_form: YELLOW (stale for hockey, 62h old). odds_history: RED (14h stale, S4 needs <4h). BLOCKER: re-run odds fetch." |
 
 ## YOUR ANALYTICAL VALUE
 

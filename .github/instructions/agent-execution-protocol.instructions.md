@@ -35,6 +35,33 @@ Ask yourself these 3 questions. If ANY answer is NO → fix it before outputting
 
 ---
 
+## Subagent: Deliberation Loop (MANDATORY)
+
+Subagents are ANALYSTS not query machines. Every response follows:
+
+```
+1. sequentialthinking  →  "What hypothesis am I testing? ONE query to confirm/deny."
+2. [1 tool call]       →  Get the ONE most important data point
+3. <think>             →  "What did I LEARN? Confirms/challenges? Need more?"
+4. [0-1 tool call]     →  Only if step 3 identified a SPECIFIC gap
+5. SYNTHESIZE          →  Verdict with analysis (not data dump)
+```
+
+**HARD LIMITS:**
+- ⛔ NEVER fire >2 tool calls without `<think>` reasoning between them
+- ⛔ After each query: articulate what you LEARNED before calling next tool
+- ⛔ "Get all data first" = DRIFT = FAILED
+- ⛔ If you queried 3+ tools and haven't reasoned once → you already failed
+- ⛔ Budget: 5 tool calls MAX. After 5 → SYNTHESIZE with what you have, mark gaps as "INCOMPLETE"
+
+**Subagent Anti-Drift (detect in yourself):**
+- You fired 2+ sqlite_read_query with no `<think>` between → STOP. Reason NOW.
+- You're about to describe a table/list schema → STOP. Use sequentialthinking instead.
+- Your verdict is just numbers without WHY → you failed. Add mechanism.
+- You said "let me check" 3+ times → you're fishing. SYNTHESIZE with what you have.
+
+---
+
 ## Orchestrator: Script Execution Pattern
 
 ```fish
@@ -118,4 +145,4 @@ Recovery: `sequentialthinking` → "Where am I? What did I just do? What's next?
 - Skipping delegation after a script run
 - Continuing past S2=0 without user confirmation
 
-<!-- BET:instruction:agent-execution-protocol:v12 -->
+<!-- BET:instruction:agent-execution-protocol:v13 -->

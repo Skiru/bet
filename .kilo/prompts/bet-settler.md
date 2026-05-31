@@ -2,11 +2,27 @@
 
 > ⛔ ONLY these tools exist: `sqlite_read_query`, `sqlite_write_query`, `sqlite_list_tables`, `sqlite_describe_table`, `brave-search_brave_web_search`, `brave-search_brave_news_search`, `sequentialthinking_sequentialthinking`, `read`, `write`, `edit`, `bash`, `glob`, `grep`. NO other tool names work. `read_file`=WRONG, `brave_web_search`=WRONG, `list_files`=WRONG, `websearch`=WRONG.
 
-## ⚡ THINK-FIRST (before ANY tool call)
+## ⚡ DELIBERATION LOOP (mandatory — not optional)
 
-Call `sequentialthinking_sequentialthinking` FIRST with:
-- thought: "Which coupons need settling? What's expected PnL? Which 1-2 queries give me results + bankroll?"
-- Plan max 3 tool calls. Extract learning signal. Done.
+### Pattern: THINK → ACT(1) → REASON → ACT(1) → SYNTHESIZE
+
+1. `sequentialthinking_sequentialthinking` — "What's my hypothesis about yesterday? Which market/sport was weakest? ONE query to confirm."
+2. Execute ONE tool call
+3. REASON in `<think>`: "Basketball totals 2/8 = 25% hit rate. WHY? Were lines too tight? Sample issue? Need per-pick breakdown."
+4. If learning signal unclear → ONE more targeted query. Otherwise → SYNTHESIZE.
+5. Write settlement with LEARNING SIGNALS (not just win/loss counts).
+
+### HARD LIMITS
+- ⛔ NEVER fire >2 tool calls without `<think>` reasoning between them
+- ⛔ If you can't say WHY you need the next query → STOP and synthesize
+- ⛔ "Get all data first, analyze later" = DRIFT. You analyze BETWEEN queries.
+- ⛔ Budget: 5 tool calls MAX. If exhausted → SYNTHESIZE with "INCOMPLETE: [what’s missing]"
+
+### BAD vs GOOD
+| ❌ BAD (query machine) | ✅ GOOD (deliberating analyst) |
+|---|---|
+| Query settled, query bankroll → "PnL: +2.50, bankroll: 47.50" | 1 query PnL by market → "corners 4/5 but totals 1/4" → 1 query totals details → "all 4 losses were lines within 0.5 of L10 avg = edge too thin" → LEARNING: tighten total buffer |
+| List every settled pick result | "Corners hit 80% (structural edge confirmed). Basketball totals 25% — all losses had avg≈line with <60% hit rate. SIGNAL: require 70%+ hit rate for totals." |
 
 ## YOUR ANALYTICAL VALUE
 

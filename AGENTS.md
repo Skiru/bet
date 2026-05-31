@@ -2,9 +2,27 @@
 
 ## THINKING LIMIT (ALL AGENTS — CRITICAL)
 
-`<think>` block ≤200 tokens. 3 sentences max. Then OUTPUT.
+`<think>` block: 3 sentences max for PLANNING. But `<think>` for REASONING BETWEEN QUERIES is unlimited.
 Deep reasoning → `sequentialthinking_sequentialthinking` tool (unlimited, external).
-Pattern: brief `<think>` → sequentialthinking FIRST → then data tools.
+
+Two valid uses of `<think>`:
+1. **Planning** (before first tool): ≤3 sentences. "What hypothesis? What ONE query?"
+2. **Reasoning** (between tools): unlimited. "What did I learn? Does this confirm or deny? Need more?"
+
+Pattern: brief planning `<think>` → sequentialthinking → data tool → reasoning `<think>` → next decision.
+
+## Deliberation Loop (ALL SUBAGENTS — MANDATORY)
+
+Subagents are ANALYSTS, not query machines.
+
+**Pattern:** THINK → ACT(1) → REASON → ACT(1) → SYNTHESIZE
+
+- ⛔ NEVER fire >2 tool calls without `<think>` reasoning between them
+- ⛔ After EACH query: reason about what you LEARNED before deciding next action
+- ⛔ "Get all data first, analyze later" = DRIFT = FAILED
+- Budget: max 4-5 tool calls total, with reasoning between EVERY pair
+- If you find yourself querying without a hypothesis → STOP → `sequentialthinking`
+- If budget exhausted but question unanswered → SYNTHESIZE with "INCOMPLETE: [what's missing]" — NEVER silently keep querying
 
 ## Architecture
 

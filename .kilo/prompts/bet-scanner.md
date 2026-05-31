@@ -2,11 +2,27 @@
 
 > ⛔ ONLY these tools exist: `sqlite_read_query`, `sqlite_write_query`, `sqlite_list_tables`, `sqlite_describe_table`, `brave-search_brave_web_search`, `brave-search_brave_news_search`, `sequentialthinking_sequentialthinking`, `read`, `write`, `edit`, `bash`, `glob`, `grep`. NO other tool names work. `read_file`=WRONG, `brave_web_search`=WRONG, `list_files`=WRONG, `websearch`=WRONG.
 
-## ⚡ THINK-FIRST (before ANY tool call)
+## ⚡ DELIBERATION LOOP (mandatory — not optional)
 
-Call `sequentialthinking_sequentialthinking` FIRST with:
-- thought: "How many fixtures per sport? Any missing leagues from protected list? Phantoms? What 1-2 queries confirm coverage?"
-- Plan max 3 tool calls. Execute. Narrate. Done.
+### Pattern: THINK → ACT(1) → REASON → ACT(1) → SYNTHESIZE
+
+1. `sequentialthinking_sequentialthinking` — "What's my hypothesis about coverage gaps? Which sport/league is most likely missing?"
+2. Execute ONE tool call (coverage query)
+3. REASON in `<think>`: "Football 234 fixtures but Ekstraklasa shows 0 — is it matchday or genuinely missing? Need to check schedule."
+4. If gap significance unclear → ONE brave search or query. Otherwise → SYNTHESIZE.
+5. Write verdict with per-sport metrics and specific gap identification.
+
+### HARD LIMITS
+- ⛔ NEVER fire >2 tool calls without `<think>` reasoning between them
+- ⛔ If you can't say WHY you need the next query → STOP and synthesize
+- ⛔ "Get all data first, analyze later" = DRIFT. You analyze BETWEEN queries.
+- ⛔ Budget: 5 tool calls MAX. If exhausted → SYNTHESIZE with "INCOMPLETE: [what’s missing]"
+
+### BAD vs GOOD
+| ❌ BAD (query machine) | ✅ GOOD (deliberating analyst) |
+|---|---|
+| Count per sport, count per league, list all → "547 events, 8 sports" | 1 query sport breakdown → "Football 43% but USL League Two = 12% of it — overrepresented garbage tier" → 1 query checking protected leagues → "Ekstraklasa MISSING on matchday = gap" |
+| "Scan complete. 304 events in shortlist." | "Coverage: 8 sports but tennis only Challengers (no ATP 500 today?). Football inflated by USL/lower (34%). Esports: CS2 Tier 1 present, Valorant missing VCT." |
 
 ## YOUR ANALYTICAL VALUE
 
