@@ -505,6 +505,57 @@ def _load_gate_results_json(date: str, input_path: str | None = None) -> dict | 
     return None
 
 
+def _enrich_db_payload_from_json(db_payload: dict, json_payload: dict) -> None:
+    """Merge full best_market/odds data from JSON into DB-loaded entries.
+
+    DB gate_results only stores (name, line, direction, safety_score).
+    JSON sidecar has the complete best_market dict with hit rates, averages,
+    odds, and other fields needed for coupon rendering.
+    Matching is done by fixture_id.
+    """
+    # Build lookup: fixture_id → full entry from JSON
+    json_lookup: dict[int, dict] = {}
+    for bucket in ("approved", "extended_pool", "rejected"):
+        for entry in json_payload.get("gate_results", {}).get(bucket, []):
+            fid = entry.get("fixture_id")
+            if fid is not None:
+                json_lookup[fid] = entry
+
+    if not json_lookup:
+        return
+
+    enriched = 0
+    for bucket in ("approved", "extended_pool", "rejected"):
+        for entry in db_payload.get("gate_results", {}).get(bucket, []):
+            fid = entry.get("fixture_id")
+            json_entry = json_lookup.get(fid) if fid else None
+            if not json_entry:
+                continue
+
+            # Enrich best_market — keep DB safety_score as authoritative,
+            # but merge all other fields from JSON
+            db_bm = entry.get("best_market") or {}
+            json_bm = json_entry.get("best_market") or {}
+            if json_bm:
+                # DB overrides JSON only for non-empty values (safety_score is authoritative from DB)
+                merged_bm = {**json_bm, **{k: v for k, v in db_bm.items() if v is not None and v != ""}}
+                entry["best_market"] = merged_bm
+
+            # Enrich odds if missing
+            if not entry.get("odds") and json_entry.get("odds"):
+                entry["odds"] = json_entry["odds"]
+
+            # Enrich tipster fields if missing
+            for key in ("tipster_count", "tipster_names", "tipster_consensus"):
+                if not entry.get(key) and json_entry.get(key):
+                    entry[key] = json_entry[key]
+
+            enriched += 1
+
+    if enriched:
+        print(f"[coupon_builder] Enriched {enriched}/{sum(len(db_payload.get('gate_results', {}).get(b, [])) for b in ('approved', 'extended_pool', 'rejected'))} entries from JSON sidecar")
+
+
 def _load_gate_results_for_build(date: str, input_path: str | None = None) -> dict:
     if input_path:
         payload = _load_gate_results_json(date, input_path)
@@ -538,16 +589,25 @@ def _load_gate_results_for_build(date: str, input_path: str | None = None) -> di
             },
             date,
         )
+
+        # Enrich DB-loaded entries with full best_market/odds from JSON sidecar.
+        # DB stores only (name, line, direction, safety_score) — JSON has hit rates,
+        # averages, odds, and other fields needed for coupon matrix rendering.
+        json_enrichment = _load_gate_results_json(date)
+        if json_enrichment:
+            _enrich_db_payload_from_json(db_payload, json_enrichment)
+
         db_counts = _gate_bucket_counts(db_payload)
         db_payload["gate_parity"] = {
-            "source": "db",
+            "source": "db+json_enriched" if json_enrichment else "db",
             "loaded_counts": db_counts,
             "parity_checked": False,
         }
         print(f"[coupon_builder] Loaded gate results from DB: "
               f"approved={db_counts.get('approved', 0)}, "
               f"extended={db_counts.get('extended_pool', 0)}, "
-              f"rejected={db_counts.get('rejected', 0)}")
+              f"rejected={db_counts.get('rejected', 0)}"
+              f"{' (enriched from JSON)' if json_enrichment else ''}")
         return db_payload
 
     # JSON fallback (deprecated)

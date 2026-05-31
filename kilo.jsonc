@@ -316,6 +316,26 @@
         "mcp": "allow",
         "task": "deny"
       }
+    },
+
+    "bet-engineer": {
+      "description": "Senior full-stack engineer — writes scripts (Python/TS/shell), builds infrastructure, debugs any system, queries DB & web for research, verifies correctness end-to-end. Use for ANY coding, scripting, infrastructure, debugging, or problem-solving task.",
+      "model": "openai-compatible/qwen3.6-35b-a3b",
+      "mode": "primary",
+      "steps": 50,
+      "temperature": 0.6,
+      "instructions": [
+        ".github/instructions/agent-execution-protocol.instructions.md"
+      ],
+      "prompt": "{file:.kilo/prompts/bet-engineer.md}",
+      "permission": {
+        "read": "allow",
+        "edit": "allow",
+        "bash": "allow",
+        "browser": "allow",
+        "mcp": "allow",
+        "task": "deny"
+      }
     }
   },
 

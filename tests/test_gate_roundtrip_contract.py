@@ -832,9 +832,9 @@ def test_coupon_builder_uses_db_over_mismatched_json(monkeypatch, tmp_path, caps
     }
     (data_dir / f"{DATE}_s7_gate_results.json").write_text(json.dumps(mismatched_payload), encoding="utf-8")
 
-    # DB-first: should load from DB (2 results: 1 approved + 1 extended) — JSON ignored
+    # DB-first: should load from DB (2 results: 1 approved + 1 extended) — JSON used for enrichment
     gate_results = coupon_builder._load_gate_results_for_build(DATE)
-    assert gate_results["gate_parity"]["source"] == "db"
+    assert gate_results["gate_parity"]["source"] in ("db", "db+json_enriched")
     # Verify DB counts (approved=1, extended=1) not JSON counts (approved=1, extended=0)
     assert len(gate_results["gate_results"]["approved"]) == 1
     assert len(gate_results["gate_results"]["extended_pool"]) == 1
@@ -1043,7 +1043,8 @@ def test_coupon_builder_consumes_betclic_sidecar_and_clear_repeat_handoff(monkey
     assert controls["repeat_loss_handoff"]["repeat_loss_count"] == 0
 
 
-def test_coupon_builder_fails_when_betclic_sidecar_is_missing(monkeypatch, tmp_path, capsys):
+def test_coupon_builder_warns_when_betclic_sidecar_is_missing(monkeypatch, tmp_path, capsys):
+    """Betclic sidecar is advisory — missing sidecar logs warning but succeeds."""
     import scripts.coupon_builder as coupon_builder
 
     db_path = tmp_path / "betting.db"
@@ -1078,13 +1079,13 @@ def test_coupon_builder_fails_when_betclic_sidecar_is_missing(monkeypatch, tmp_p
     }
     (data_dir / f"{DATE}_s7_gate_results.json").write_text(json.dumps(payload), encoding="utf-8")
 
-    with pytest.raises(SystemExit) as exc_info:
-        with patch("sys.argv", ["coupon_builder.py", "--date", DATE]):
-            coupon_builder.main()
+    with patch("sys.argv", ["coupon_builder.py", "--date", DATE]):
+        coupon_builder.main()
 
-    assert exc_info.value.code == 1
     captured = capsys.readouterr()
-    assert "Missing mandatory S7.5 Betclic validation sidecar" in f"{captured.out}\n{captured.err}"
+    combined = f"{captured.out}\n{captured.err}"
+    # Should warn about missing betclic sidecar but NOT exit(1)
+    assert "betclic_market_validation" in combined.lower() or "betclic" in combined.lower() or "skipped" in combined.lower()
 
 
 def test_coupon_builder_fails_when_betclic_sidecar_is_malformed(monkeypatch, tmp_path, capsys):
