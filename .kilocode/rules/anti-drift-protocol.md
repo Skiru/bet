@@ -1,46 +1,32 @@
-# Anti-Drift Rules (MoE Model Robustness)
+# Anti-Drift Rules (3B Active Params — Drifts in Long Sessions)
 
-> These rules exist because Qwen3.6-35B-A3B (3B active params) drifts in long sessions.
+## 5 Behaviors (memorize — break ANY and you drift)
 
-## 6 Mandatory Behaviors
+| # | Rule | Violation = |
+|---|------|------------|
+| 0 | First tool call = `sequentialthinking` | Blind query spam |
+| 1 | Every stat has a query behind it | Hallucination |
+| 2 | After every script → delegate via `task` | Script runner |
+| 3 | All scripts → `/tmp/sN.txt 2>&1` | Output flood |
+| 4 | >2000 tokens without tool call → STOP | Untethered generation |
 
-0. **THINK-BEFORE-ACT** — Your FIRST tool call in EVERY turn MUST be `sequentialthinking_sequentialthinking`. Classify the request (simple question vs pipeline command), plan which 1-2 queries you need, then execute. NEVER open with `sqlite_read_query` or `sqlite_list_tables` blindly.
+## Drift Detection (if true → you're drifting, STOP NOW)
 
-1. **CITE-OR-DELETE** — Every statistic needs a `sqlite_read_query` verification. If you can't query it, write "UNVERIFIED" or delete it. NEVER guess a number.
+- Stat without query → **hallucination** → delete it
+- >10 lines of terminal/JSON in your response → **raw dump** → replace with 1-line summary
+- About to run next script without delegating → **skipping** → delegate first
+- Can't recall current step → **state loss** → read checkpoint
+- >3 tool calls without narrating → **blind spam** → narrate findings
+- Explaining methodology instead of showing data → **filler** → cut it
 
-2. **RUN-DELEGATE-PROCEED** — (Orchestrator only) After every script: use `task` tool to delegate to specialist. NEVER skip delegation.
+## Recovery (always the same)
 
-3. **CHECK-BEFORE-RUN** — (Orchestrator only) Read `betting/data/.pipeline_checkpoint.md` before every step. Verify you're at the correct position.
+```
+sequentialthinking: "Where am I? What did I just do? What's next?"
+→ read checkpoint
+→ resume from verified state
+```
 
-4. **WRITE-AFTER-DONE** — (Orchestrator only) Update checkpoint after every step completion with key metrics.
+## Tool Budget
 
-5. **RE-GROUND AT 2000 TOKENS** — If you've generated >2000 tokens without a tool call, STOP. You are drifting. Call `sequentialthinking_sequentialthinking` to recenter.
-
-## What Drift Looks Like (detect these in yourself)
-
-- You wrote "L10 avg = 13.6" but didn't run a query → DRIFT (hallucination)
-- You ran a script and are about to write the next command without delegating → DRIFT (skipping)
-- You can't remember which step you completed last → DRIFT (state loss)
-- You're explaining methodology instead of analyzing data → DRIFT (filler)
-- Your output has 0 tool calls in the last 5 paragraphs → DRIFT (untethered generation)
-- **You fired >3 `sqlite_read_query` without narrating results → DRIFT (blind query spam)**
-- **Your first tool call was NOT `sequentialthinking` → DRIFT (no reasoning gate)**
-- **You got a JSON parse error from a tool → STOP, simplify query, try once more only**
-
-## Recovery
-
-1. STOP generating text immediately
-2. Call `sequentialthinking_sequentialthinking` with thought: "What step am I at? What did I just complete? What's next?"
-3. Read the checkpoint file or relevant DB data
-4. Resume from verified state
-
-## Tool Budget (ALL agents)
-
-**Per turn: 1 sequentialthinking + 2 data tools = 3 max.**
-
-- `sequentialthinking_sequentialthinking` = planning call (always first, always free)
-- `sqlite_read_query` / `brave-search_*` = data calls (max 2 before narrating)
-- After 3 total → you MUST produce user-visible text before calling more tools
-- If you need >3 → narrate partial findings, end turn, continue next turn
-
-This budget prevents the #1 failure mode: firing 10+ blind queries until JSON breaks.
+**3 per turn: 1 sequentialthinking + 2 data tools. Then NARRATE.**

@@ -2,101 +2,119 @@
 applyTo: ".github/agents/bet-*.agent.md"
 ---
 
-# Agent Execution Protocol v11
+# Agent Execution Protocol v12
 
-## Terminal: Fish Shell
+## SELF-CHECK (before every response)
 
-No inline Python (`python3 -c "..."`), no bash syntax, no `export`. Use `set -x VAR value` for env vars.
-Always use `.venv/bin/python3` — never bare `python3`.
+Ask yourself these 3 questions. If ANY answer is NO → fix it before outputting.
 
----
-
-## MCP Tools
-
-| Tool | When |
-|------|------|
-| `sequentialthinking_sequentialthinking` | **FIRST call of EVERY turn** — classify request, plan queries |
-| `sqlite_read_query` | DB stats, row counts, verification — MAX 2 per turn without narrating |
-| `sqlite_write_query` | DB fixes (DELETE orphans, UPDATE flags) |
-| `brave-search_brave_web_search` | Live context when DB lacks data |
-
-- **MANDATORY SEQUENCE: think → query (1-2 max) → narrate → (continue if needed)**
-- **TOOL BUDGET: 1 sequentialthinking + 2 data tools = 3 total per turn.** After 3 → STOP, narrate, continue next turn.
-- NEVER open a turn with `sqlite_read_query` or `sqlite_list_tables` — think FIRST
-- DB operations → use sqlite MCP tools (NOT inline `python3 -c`)
-- Complex fixes → write `/tmp/fix.py`, then run it
-- NEVER use `python3 -c "..."` — quoting breaks in fish
-- DB → scraper files → brave-search (fallback order)
-- NEVER return "insufficient data" without trying all three
-- **ERROR RECOVERY**: If a tool call returns error → DO NOT retry blindly. Call `sequentialthinking` to diagnose: "Why did it fail? Wrong table? Bad SQL? Simplify."
+1. **Does my response contain ≥3 specific numbers from queries/files?** (not invented)
+2. **Would a user learn something they couldn't get from `cat /tmp/sN.txt`?**
+3. **Is my response <40 lines?** (if longer → you're dumping, not analyzing)
 
 ---
 
-## THE ONE RULE
+## Terminal
 
-> Your response MUST contain ORIGINAL ANALYSIS with specific metrics — not paraphrased script output.
-
----
-
-## NARRATE (visibility for user)
-
-- FIRST thing in every response: 1-line status of what you found/what you're doing next.
-- MAX 3 tool calls per turn. If you need more, respond with partial findings first, then continue.
-- NEVER go silent for >60 seconds. If a query takes time, narrate BEFORE calling it.
-- Every response MUST have user-visible text (even if it's just "Querying L10 values for 12 teams...").
+- **Fish shell ONLY.** No `export`, no `$(...)`, no heredocs, no bash.
+- **`.venv/bin/python3`** always. Never bare `python3`.
+- **ALL scripts redirect:** `> /tmp/sN.txt 2>&1` then `tail -20 /tmp/sN.txt`.
+- **NEVER** run a script without redirect. NEVER paste raw stdout to chat.
 
 ---
 
-## IF STUCK
+## Turn Structure (every single turn)
 
-1. Call `sequentialthinking_sequentialthinking`: "What am I trying to do? What failed? 3 options?"
-2. Pick simplest action. Never repeat same failed approach.
+```
+1. sequentialthinking  →  "What do I need? Which 1-2 queries?"
+2. [1-2 data tools]    →  sqlite_read_query / bash / brave-search
+3. NARRATE             →  user-visible text with findings
+```
 
----
-
-## Execution Pattern
-
-1. Verify inputs exist (sqlite or ls)
-2. Run script: `.venv/bin/python3 scripts/{name}.py`
-3. Extract `AGENT_SUMMARY:{json}` metrics from output
-4. Verify outputs were written
-5. Return verdict with metrics
+**Budget: 3 tool calls max per turn.** After 3 → STOP, write findings, continue next turn.
 
 ---
 
-## Verdict Format (subagents)
+## Orchestrator: Script Execution Pattern
+
+```fish
+# 1. Run with redirect
+.venv/bin/python3 scripts/{name}.py --date $DATE -v > /tmp/sN.txt 2>&1
+
+# 2. Check result
+echo $status; tail -20 /tmp/sN.txt
+
+# 3. Narrate ONE line: "✅ S1 complete — 547 events, 8 sports"
+
+# 4. Delegate via task tool to specialist
+
+# 5. Present verdict (3-5 lines of ANALYSIS)
+
+# 6. Update checkpoint → advance
+```
+
+**Skipping steps 4-5 = FAILED.** You are NOT a script runner.
+
+---
+
+## Subagent: Verdict Pattern
 
 ```
 verdict: APPROVED | FLAGGED | REJECTED
-Metrics: (≥3 specific numbers from output)
-Analysis: (what numbers MEAN, 2-3 sentences)
-Impact: (what downstream step needs to know)
+metrics: [≥3 numbers from actual data]
+analysis: [what the numbers MEAN — 2-3 sentences]
+impact: [what downstream step must know]
 ```
 
----
-
-## BAD vs GOOD
-
-❌ `"Script completed. 57 candidates. APPROVED."`
-✅ `"Yield 73% (42/57). Football 86% strong. Hockey 44% WARNING — off-season gap."`
+Then **STOP.** No recommendations, no filler, no "let me know."
 
 ---
 
-## STOP SIGNAL (subagents — MANDATORY)
+## BAD vs GOOD (memorize these patterns)
 
-When you've produced your verdict template → **STOP GENERATING.** Do not:
-- Explain what you did (the verdict shows it)
-- Offer "next steps" or "recommendations for the orchestrator"
-- Repeat the template in different words
-- Add filler like "Let me know if you need anything else"
-
-Fill your Verdict Template → final sentence of analysis → **END.**
+| Situation | ❌ BAD (script runner) | ✅ GOOD (analyst) |
+|-----------|----------------------|-------------------|
+| S1 done | Paste 547 event lines | "547 events. Football 43%, Tennis 16%. USL League Two overrepresented (12%)." |
+| S3 done | "304 candidates analyzed" | "73% yield. Basketball L10 data 91% complete. Hockey gap: only 44% have team_form." |
+| S7 gate | "65 approved, 233 extended" | "65 approved (21%). Tennis strongest: 8/12 passed. Football corners weak: 3/18 gate_score<10." |
+| Stuck | Retry same command 3x | `sequentialthinking`: "Failed because X. Options: A, B, C. Picking A." |
+| S2 = 0 tips | Continue blindly to S3 | **HARD STOP.** Web search tipsters → if still 0 → ask user. |
 
 ---
 
-## SUBAGENT SCOPE
+## Circuit Breakers (orchestrator MUST enforce)
 
-Subagents do NOT have `task` or `todowrite` tools. Ignore any references to them.
-Your only tools: `sequentialthinking`, `sqlite_*`, `brave-search_*`, `read`, `write`, `edit`, `bash`, `glob`, `grep`.
+| Condition | Action |
+|-----------|--------|
+| S2 returns 0 tips | **STOP.** Brave-search tipster sites. If still 0 → ask user before continuing. |
+| S3 < 20 analyses | Wrong shortlist input. Verify file path. Re-run. |
+| S7 < 5 approved | Re-run gate without `--strict`. |
+| S8 = empty | Read gate_results — likely S7 rejected everything. |
+| Any script timeout | `tail -20 /tmp/sN.txt`. If >50% done → proceed with partial. |
+
+---
+
+## Anti-Drift (detect in yourself → immediately stop and recover)
+
+You are drifting if:
+- You wrote a stat without a query to back it → **DELETE IT**
+- Your output has >10 lines that look like terminal/JSON/logs → **STOP, summarize**
+- You ran a script and are about to run the next without delegating → **STOP, delegate**
+- You can't remember which step you're at → **read checkpoint**
+- You ran `> /tmp/sN.txt` but then also piped output to chat → **FAILED**
+
+Recovery: `sequentialthinking` → "Where am I? What did I just do? What's next?"
+
+---
+
+## Forbidden Actions
+
+- `python3 -c "..."` (quoting breaks in fish)
+- Running `--help` on any script
+- `sqlite_list_tables` + describe loop (use sequentialthinking to recall schema)
+- Bare `python3` or `pip`
+- Pasting >10 lines of any tool output to the user
+- Skipping delegation after a script run
+- Continuing past S2=0 without user confirmation
 
 <!-- BET:instruction:agent-execution-protocol:v12 -->

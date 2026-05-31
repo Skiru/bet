@@ -52,31 +52,39 @@ set -x DATE (TZ=Europe/Warsaw date +%Y-%m-%d)
 
 ## COMMANDS
 
+**ALL commands pipe to /tmp/. NEVER let stdout flood the chat.**
+
 | Step | Command | Output |
 |------|---------|--------|
-| S0 | `.venv/bin/python3 scripts/settle_on_finish.py --betting-day $DATE --no-poll` | DB: settled_picks |
-| S1 | `.venv/bin/python3 scripts/discover_events.py --date $DATE --verbose` | `{DATE}_s1_events.json` |
-| S1a | `.venv/bin/python3 scripts/seed_espn_data.py` | DB: espn tables |
-| S1b | `.venv/bin/python3 scripts/fetch_odds_api_io.py --date $DATE` | DB: odds_api |
-| S1e | `.venv/bin/python3 scripts/build_shortlist.py --date $DATE` | `{DATE}_s2_shortlist.json` |
-| S2 | `.venv/bin/python3 scripts/tipster_xref.py --date $DATE -v` | DB: tipster_picks |
-| S2.3 | `.venv/bin/python3 scripts/run_scrapers.py --sport all --verbose` | DB: team stats |
-| S2.5 | `.venv/bin/python3 scripts/data_enrichment_agent.py --date $DATE -v` | DB: team_form |
-| S3 | `.venv/bin/python3 scripts/deep_stats_report.py --date $DATE -v` | `{DATE}_s3_deep_stats.json` |
-| S4 | `.venv/bin/python3 scripts/odds_evaluator.py --date $DATE -v` | DB: analysis_results |
-| S5 | `.venv/bin/python3 scripts/context_checks.py --date $DATE -v` | DB: context_flags |
-| S6 | `.venv/bin/python3 scripts/upset_risk.py --date $DATE -v` | DB: upset_scores |
-| S7 | `.venv/bin/python3 scripts/gate_checker.py --date $DATE -v` | `{DATE}_s7_gate_results.json` |
-| S7.5 | `.venv/bin/python3 scripts/check_48h_repeats.py --date $DATE` | `betting/data/repeat_loss_handoff_{DATE}.json` |
-| S8 | `.venv/bin/python3 scripts/coupon_builder.py --date $DATE -v` | `betting/coupons/{DATE}.md` |
+| S0 | `.venv/bin/python3 scripts/settle_on_finish.py --betting-day $DATE --no-poll > /tmp/s0.txt 2>&1` | DB: settled_picks |
+| S1 | `.venv/bin/python3 scripts/discover_events.py --date $DATE --verbose > /tmp/s1.txt 2>&1` | `{DATE}_s1_events.json` |
+| S1a | `.venv/bin/python3 scripts/seed_espn_data.py > /tmp/s1a.txt 2>&1` | DB: espn tables |
+| S1b | `.venv/bin/python3 scripts/fetch_odds_api_io.py --date $DATE > /tmp/s1b.txt 2>&1` | DB: odds_api |
+| S1e | `.venv/bin/python3 scripts/build_shortlist.py --date $DATE > /tmp/s1e.txt 2>&1` | `{DATE}_s2_shortlist.json` |
+| S2 | `.venv/bin/python3 scripts/tipster_xref.py --date $DATE -v > /tmp/s2.txt 2>&1` | DB: tipster_picks |
+| S2.3 | `.venv/bin/python3 scripts/run_scrapers.py --sport all --verbose > /tmp/s23.txt 2>&1` | DB: team stats |
+| S2.5 | `.venv/bin/python3 scripts/data_enrichment_agent.py --date $DATE -v > /tmp/s25.txt 2>&1` | DB: team_form |
+| S3 | `.venv/bin/python3 scripts/deep_stats_report.py --date $DATE -v > /tmp/s3.txt 2>&1` | `{DATE}_s3_deep_stats.json` |
+| S4 | `.venv/bin/python3 scripts/odds_evaluator.py --date $DATE -v > /tmp/s4.txt 2>&1` | DB: analysis_results |
+| S5 | `.venv/bin/python3 scripts/context_checks.py --date $DATE -v > /tmp/s5.txt 2>&1` | DB: context_flags |
+| S6 | `.venv/bin/python3 scripts/upset_risk.py --date $DATE -v > /tmp/s6.txt 2>&1` | DB: upset_scores |
+| S7 | `.venv/bin/python3 scripts/gate_checker.py --date $DATE -v > /tmp/s7.txt 2>&1` | `{DATE}_s7_gate_results.json` |
+| S7.5 | `.venv/bin/python3 scripts/check_48h_repeats.py --date $DATE > /tmp/s75.txt 2>&1` | `betting/data/repeat_loss_handoff_{DATE}.json` |
+| S8 | `.venv/bin/python3 scripts/coupon_builder.py --date $DATE -v > /tmp/s8.txt 2>&1` | `betting/coupons/{DATE}.md` |
+
+**After EVERY command:** `tail -20 /tmp/sN.txt` to get summary. NEVER read full output.
 
 ## AFTER EACH SCRIPT
 
-1. Narrate: `✅ S{N} complete — {metric}` or `❌ S{N} failed — {error}`
-2. Think: `sequentialthinking` — "Did it succeed? Who assesses?"
-3. Delegate to specialist (see routing)
-4. Present specialist's verdict (3-5 lines)
-5. Update checkpoint → advance
+1. Check exit code: `echo $status` — if non-zero, read last 10 lines of /tmp/sN.txt for error
+2. Read summary: `tail -20 /tmp/sN.txt` — extract key metric (count, status)
+3. Narrate to user: `✅ S{N} complete — {metric}` (ONE LINE, not the whole output)
+4. Think: `sequentialthinking` — "Did it succeed? Who assesses? What's the key number?"
+5. Delegate to specialist via `task` tool (NEVER skip this)
+6. Present specialist's verdict (3-5 lines of ANALYSIS, not output)
+7. Update checkpoint → advance
+
+**⛔ NEVER DO:** paste raw script output (even 10 lines). Summarize into 1 sentence with numbers.
 
 ## DELEGATION ROUTING
 
@@ -97,21 +105,20 @@ set -x DATE (TZ=Europe/Warsaw date +%Y-%m-%d)
 
 ## CIRCUIT BREAKERS
 
-- S2 returns 0 tips → web search tipster sites → continue
-- S3 < 20 analyses → wrong shortlist → verify file → re-run
+- S2 returns 0 tips → **HARD STOP.** Use `brave-search_brave_web_search` to check tipster sites (Sportsgambler, BettingExpert, OddsPortal). If still 0 tips → narrate to user: "No tipster data available. Coupons will lack argumentative reasoning. Proceed?" Wait for user response.
+- S3 < 20 analyses → wrong shortlist → verify file → re-run with correct input
 - S7 < 5 approved → re-run without --strict
 - S8 empty coupon → check gate_results
+- **ANY script timeout** → check partial output with `tail -20 /tmp/sN.txt`, narrate what completed, proceed with partial data if >50% done
 
 ## RULES
 
-- `.venv/bin/python3` always. Never bare python3.
-- Fish shell. No bash syntax.
-- Never run `--help`. Commands above are definitive.
+- Fish shell. No bash syntax. `.venv/bin/python3` always.
+- Never run `--help`. Commands table above is definitive.
 - Never skip S2 (tipster data = core value).
 - Max 2 retries per step. After 2 → skip, log, continue.
-- **TOOL BUDGET: 1 sequentialthinking + 2 data tools = MAX 3 per turn. After 3 → STOP, narrate, continue.**
-- **First tool call of EVERY turn = `sequentialthinking_sequentialthinking`.** No exceptions.
-- If a tool call returns an error → DO NOT retry immediately. Think about WHY it failed first.
+- First tool call of EVERY turn = `sequentialthinking_sequentialthinking`. No exceptions.
+- If a tool call errors → DO NOT retry. Think about WHY first.
 
 ## COMMON QUERIES (copy-paste these — don't improvise)
 
