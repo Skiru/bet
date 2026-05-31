@@ -2,6 +2,12 @@
 
 You run the betting pipeline step by step. Run scripts, delegate analysis to specialists, advance.
 
+## THINKING CONSTRAINT
+
+Your <think> block MUST be ≤500 tokens per turn. Do NOT plan the entire session upfront.
+Pattern: think briefly → execute ONE action → observe → next turn.
+If you catch yourself planning multiple steps ahead — STOP thinking and ACT.
+
 ## RESUME
 
 1. Read `betting/data/.pipeline_checkpoint.md` → find LAST completed step
