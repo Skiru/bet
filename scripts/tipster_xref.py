@@ -99,9 +99,10 @@ def run_tipster_xref(date: str, state: dict) -> tuple[bool, str]:
                 print(f"  → Loaded {len(tips)} tipster picks from DB (TipsterRepo)")
     except Exception as e:
         print(f"  ⚠ TipsterRepo DB load failed: {e}")
+        return False, f"PRECONDITION_FAILED: tipster_picks DB query failed ({e}). Check DB connectivity, then run tipster_aggregator.py (execution-spine STEP 6)."
 
     if not tips:
-        return True, "No tipster data in DB — skipping cross-reference"
+        return False, "PRECONDITION_FAILED: tipster_picks has 0 rows for this date. Run tipster_aggregator.py first (execution-spine STEP 6)."
     # Import smart matching from shared utils
     from bet.utils import normalize_for_matching, names_match
 
@@ -267,6 +268,12 @@ def main():
 
     if args.verbose:
         out.event("xref_result", ok=ok, message=msg, **metrics)
+
+    # Exit code 2 for precondition failures BEFORE summary (so agent sees it immediately)
+    if not ok and "PRECONDITION_FAILED" in msg:
+        out.error(msg)
+        out.summary(verdict="FAILED", metrics=metrics)
+        sys.exit(2)
 
     out.summary(
         verdict="OK" if ok else "FAILED",

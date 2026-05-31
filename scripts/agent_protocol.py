@@ -640,25 +640,37 @@ DATA_FLOW_CONTRACTS = {
             "ownership": "The shortlist JSON is the canonical candidate universe for S2-S8 until a later step writes a new artifact.",
         },
     },
-    "s2_tipster": {
-        "depends_on": "s1e_shortlist",
+    "s1b_fetch": {
+        "depends_on": "s1_scan",
         "requires": {
-            "files": [
-                "betting/data/{date}_s2_shortlist.json",
-                "betting/data/{date}_tipster_consensus.json",
-            ],
-            "db": [],
+            "files": [],
+            "db": ["fixtures"],
         },
         "produces": {
-            "db": ["tipster_picks", "tipster_consensus"],
+            "db": ["odds_history", "tipster_picks", "tipster_consensus"],
             "files": [
                 "betting/data/{date}_tipster_consensus.json",
-                "betting/data/{date}_tipster_consensus.md",
-                "betting/data/{date}_s2_shortlist.json",
             ],
         },
         "required_output_keys": {
             "{date}_tipster_consensus.json": ["all_picks"],
+        },
+    },
+    "s2_tipster": {
+        "depends_on": ["s1e_shortlist", "s1b_fetch"],
+        "requires": {
+            "files": [
+                "betting/data/{date}_s2_shortlist.json",
+            ],
+            "db": ["tipster_picks", "pipeline_candidates"],
+        },
+        "produces": {
+            "db": [],
+            "files": [
+                "betting/data/{date}_s2_shortlist.json",
+            ],
+        },
+        "required_output_keys": {
             "{date}_s2_shortlist.json": ["candidates"],
         },
         "source_of_truth": {
@@ -1225,23 +1237,146 @@ STRUCTURED_OUTPUT_PROTOCOL = {
 # Canonical Pipeline Steps — script mapping (single source of truth)
 # ---------------------------------------------------------------------------
 PIPELINE_STEPS = {
-    "S0": {"script": "settle_on_finish.py + evaluate_decisions.py + analyze_betclic_learning.py", "description": "Settlement, decision review, and Betclic learning prerequisite"},
-    "S1": {"script": "discover_events.py", "description": "Multi-source event discovery"},
-    "S1.5": {"script": "build_shortlist.py", "description": "Shortlist construction + stats-first scoring"},
-    "S2": {"script": "tipster_aggregator.py + tipster_xref.py", "description": "Tipster consensus plus in-place shortlist mutation"},
-    "S2.3": {"script": "run_scrapers.py", "description": "Warehouse scrapers; bridge scripts own any projection into team_form"},
-    "S2.5": {"script": "data_enrichment_agent.py", "description": "Shortlist-scoped team_form enrichment + rich-coverage readiness"},
-    "S2T": {"script": "tipster_aggregator.py + tipster_xref.py", "description": "Legacy alias for the S2 tipster flow"},
-    "S3": {"script": "deep_stats_report.py", "description": "Deep statistical analysis per candidate"},
-    "S4": {"script": "odds_evaluator.py", "description": "Odds injection + EV calculation into stats_summary_json"},
-    "S5": {"script": "context_checks.py", "description": "Context flags appended to stats_summary_json"},
-    "S6": {"script": "upset_risk.py", "description": "Upset-risk scoring appended to stats_summary_json"},
-    "S7": {"script": "gate_checker.py", "description": "18-point gate → approved / extended_pool / rejected"},
-    "S7.5": {"script": "validate_betclic_markets.py", "description": "Betclic market validation sidecar"},
-    "S7.6": {"script": "check_48h_repeats.py", "description": "Repeat-loss durable handoff + same-day artifact"},
-    "S8": {"script": "coupon_builder.py", "description": "Portfolio construction + coupon artifacts + pre_coupon_controls"},
-    "S9": {"script": "validate_coupons.py", "description": "Coupon structural validation"},
-    "S10": {"script": "generate_coupon_pdf.py", "description": "Final PDF output (file-based verification)"},
+    "S0": {
+        "script": "settle_on_finish.py + evaluate_decisions.py + analyze_betclic_learning.py",
+        "description": "Settlement, decision review, and Betclic learning prerequisite",
+        "preconditions": ["pending picks in DB for prev_date"],
+        "produces": ["settlement records", "bankroll update", "learning signals"],
+        "verify": "tail -5 /tmp/s0.txt — no errors",
+    },
+    "S0.5": {
+        "script": None,
+        "description": "DB quality check — delegation only, no script",
+        "preconditions": ["S0 complete"],
+        "produces": ["DB health verdict"],
+        "verify": "bet-db-analyst verdict received",
+    },
+    "S1": {
+        "script": "discover_events.py",
+        "description": "Multi-source event discovery",
+        "preconditions": ["S0 complete or fresh start"],
+        "produces": ["DB: fixtures"],
+        "verify": "AGENT_SUMMARY with ≥50 events",
+    },
+    "S1a": {
+        "script": "seed_espn_data.py",
+        "description": "ESPN seeding — standings, ATS/OU records",
+        "preconditions": ["S1 complete"],
+        "produces": ["DB: standings", "DB: espn_predictions"],
+        "verify": "standings seeded",
+    },
+    "S1b": {
+        "script": "fetch_odds_api.py + fetch_odds_api_io.py + fetch_esports_odds.py + fetch_weather.py + tipster_aggregator.py",
+        "description": "Odds, weather, and tipster fetch — ALL 5 scripts required",
+        "preconditions": ["S1 complete", "fixtures in DB"],
+        "produces": ["DB: odds_history", "DB: tipster_picks", "DB: tipster_consensus"],
+        "verify": "tipster_picks has >0 rows for date",
+    },
+    "S1e": {
+        "script": "build_shortlist.py",
+        "description": "Shortlist construction + stats-first scoring",
+        "preconditions": ["S1 + S1-ingest complete", "fixtures + team_form in DB"],
+        "produces": ["DB: pipeline_candidates"],
+        "verify": "AGENT_SUMMARY with ≥20 candidates",
+    },
+    "S2": {
+        "script": "tipster_xref.py",
+        "description": "Tipster cross-reference — matches tips to shortlist candidates",
+        "preconditions": ["DB: tipster_picks >0 (from S1b)", "DB: pipeline_candidates >0 (from S1e)"],
+        "produces": ["tipster_support added to pipeline_candidates"],
+        "verify": "matched >0 tips; exit code 2 = PRECONDITION_FAILED",
+    },
+    "S2.3": {
+        "script": "run_scrapers.py",
+        "description": "Warehouse scrapers; bridge scripts own any projection into team_form",
+        "preconditions": ["S1e complete (shortlist exists)"],
+        "produces": ["DB: league_profiles"],
+        "verify": "league_profiles populated",
+    },
+    "S2.5": {
+        "script": "data_enrichment_agent.py",
+        "description": "Shortlist-scoped team_form enrichment + rich-coverage readiness",
+        "preconditions": ["S2 + S2.3 both complete"],
+        "produces": ["enriched team_form rows"],
+        "verify": "enrichment yield >40%",
+    },
+    "S2.6": {
+        "script": "fetch_tennis_elo.py + enrich_tennis_flashscore.py + tennis_h2h_warmup.py + enrich_volleyball_stats.py + enrich_hockey_stats.py + enrich_basketball_stats.py",
+        "description": "Sport-specific deep enrichment (tennis, volleyball, hockey, basketball)",
+        "preconditions": ["S2.5 complete"],
+        "produces": ["sport-specific enrichment in team_form/stats_cache"],
+        "verify": "coverage improved for target sports",
+    },
+    "S3": {
+        "script": "deep_stats_report.py",
+        "description": "Deep statistical analysis per candidate",
+        "preconditions": ["DATA GATE passed", "DB: pipeline_candidates >0"],
+        "produces": ["DB: analysis_results"],
+        "verify": "candidates_analyzed ≥20% of shortlist; exit code 2 = PRECONDITION_FAILED",
+    },
+    "S4": {
+        "script": "odds_evaluator.py",
+        "description": "Odds injection + EV calculation into stats_summary_json",
+        "preconditions": ["S3 complete", "DB: analysis_results exists"],
+        "produces": ["EV scores per candidate"],
+        "verify": "EV calculated for candidates",
+    },
+    "S5": {
+        "script": "context_checks.py",
+        "description": "Context flags appended to stats_summary_json",
+        "preconditions": ["S3 + S4 complete"],
+        "produces": ["context flags per candidate"],
+        "verify": "context flags assigned",
+    },
+    "S6": {
+        "script": "upset_risk.py",
+        "description": "Upset-risk scoring appended to stats_summary_json",
+        "preconditions": ["S3 + S4 complete"],
+        "produces": ["upset risk scores"],
+        "verify": "upset scores assigned",
+    },
+    "S7": {
+        "script": "gate_checker.py",
+        "description": "18-point gate → approved / extended_pool / rejected",
+        "preconditions": ["S3 + S4 + S5 + S6 complete", "DB: analysis_results >0"],
+        "produces": ["DB: gate_results"],
+        "verify": "≥10 candidates processed; exit code 2 = PRECONDITION_FAILED",
+    },
+    "S7.5": {
+        "script": "validate_betclic_markets.py",
+        "description": "Betclic market validation sidecar",
+        "preconditions": ["S7 complete", "gate_results in DB"],
+        "produces": ["market availability flags"],
+        "verify": "markets validated",
+    },
+    "S7.6": {
+        "script": "check_48h_repeats.py",
+        "description": "Repeat-loss durable handoff + same-day artifact",
+        "preconditions": ["S7 complete"],
+        "produces": ["repeat-loss flags"],
+        "verify": "repeat flags noted",
+    },
+    "S8": {
+        "script": "coupon_builder.py",
+        "description": "Portfolio construction + coupon artifacts + pre_coupon_controls",
+        "preconditions": ["ANALYSIS GATE passed", "DB: gate_results >0"],
+        "produces": ["coupon files", "DB: coupons"],
+        "verify": "coupons built; exit code 2 = PRECONDITION_FAILED",
+    },
+    "S9": {
+        "script": "validate_coupons.py",
+        "description": "Coupon structural validation",
+        "preconditions": ["S8 complete"],
+        "produces": ["validation pass/fail"],
+        "verify": "exit code 0",
+    },
+    "S10": {
+        "script": "generate_coupon_pdf.py",
+        "description": "Final PDF output (file-based verification)",
+        "preconditions": ["S9 complete"],
+        "produces": ["PDF coupon file"],
+        "verify": "PDF generated",
+    },
 }
 
 # ---------------------------------------------------------------------------

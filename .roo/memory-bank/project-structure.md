@@ -23,8 +23,7 @@
 - `athletes`, `player_gamelogs`, `player_splits` — player data
 - `standings`, `power_index`, `espn_predictions` — team context
 
-## Pipeline Steps (S0-S10)
-S0: Settlement → S1: Scan/Discovery → S1.5: Tipster pre-fetch → S1.8: Fixture verification →
-S1.9: Market matrix → S2: Shortlist → S2.3-S2.9: Enrichment → S3: Deep stats →
-S3B: Time-sensitive → S4: Tipster deep-dive → S5: Odds/EV → S6: Context →
-S7: Gate/Challenge → S8: Coupons → S9: Validation → S10: Artifacts
+## Pipeline Steps (S0-S10) — see execution-spine.md for canonical order
+S0: Settlement → S1: Scan/Discovery → S1b: Odds+Tipster fetch → S1e: Build shortlist →
+S2: Tipster cross-reference → S2.3-S2.9: Enrichment → S3: Deep stats →
+S4: Odds/EV → S5+S6: Context+Upset → S7: Gate/Challenge → S8: Coupons → S9: Validation → S10: Artifacts

@@ -1226,6 +1226,22 @@ def assign_picks_to_core(approved: list, config: dict) -> list[dict]:
     for p in unassigned:
         _try_insert_into_coupon(p, coupons, max_same_sport, bankroll, max_legs)
 
+    # --- POST-BUILD: MS sport diversity enforcement (Task 1.3) ---
+    # Any coupon labeled MS must have max 2 legs from any single sport.
+    # If violated, relabel as HR.
+    max_same_in_ms = config.get("max_same_sport_in_ms", 2)
+    from collections import Counter as _Counter
+    for c in coupons:
+        if c.get("tier") == "MS":
+            sport_counts = _Counter(leg.get("sport", "other") for leg in c.get("legs", []))
+            if any(count > max_same_in_ms for count in sport_counts.values()):
+                c["tier"] = "HR"
+                c["_ms_relabeled"] = True
+                out.warning(
+                    f"⚠️ Coupon {c.get('id')} relabeled MS→HR: "
+                    f"sport distribution {dict(sport_counts)} violates max {max_same_in_ms}/sport"
+                )
+
     return coupons
 
 
@@ -2153,6 +2169,37 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
     bankroll = config.get("bankroll_pln", config.get("working_bankroll_pln", 50.0))
     alloc_range = config.get("daily_exposure_range", config.get("suggested_daily_allocation_range_pln", [5.0, 15.0]))
 
+    # --- SAFETY FLOOR FILTER (Task 1.2) ---
+    # Hard floor: never include picks with safety < hard_safety_floor in ANY coupon
+    # Core floor: picks between hard floor and core min go to HR/NIGHT only (not LR/MS)
+    hard_safety_floor = config.get("hard_safety_floor", 0.30)
+    core_min_safety = config.get("core_coupon_min_safety", 0.40)
+    _safety_excluded = []
+    _safety_kept = []
+    for p in approved:
+        safety = (_bm(p).get("safety_score") or 0)
+        if safety < hard_safety_floor:
+            p["extended_pool_reason"] = f"SAFETY_FLOOR: {safety:.2f} < {hard_safety_floor} (absolute minimum)"
+            _safety_excluded.append(p)
+        elif safety < core_min_safety:
+            # Below core threshold: force to HR tier (not excluded, but demoted)
+            p["risk_tier"] = "HR"
+            p.setdefault("tier_caps", []).append(
+                f"SAFETY_DEMOTED: {safety:.2f} < {core_min_safety} core minimum → forced HR"
+            )
+            _safety_kept.append(p)
+        else:
+            _safety_kept.append(p)
+    if _safety_excluded:
+        extended_pool.extend(_safety_excluded)
+        out.warning(f"⚠️ {len(_safety_excluded)} picks excluded from ALL coupons (safety < {hard_safety_floor})")
+    approved = _safety_kept
+
+    # --- TIPSTER-BLIND WARNING (Task 1.4 Part C) ---
+    tipster_count_total = sum(1 for p in all_approved if (p.get("tipster_count") or 0) > 0)
+    is_tipster_blind = tipster_count_total == 0
+    pipeline_warnings = gate_results.get("pipeline_warnings", [])
+
     result = {
         "date": date,
         "bankroll": bankroll,
@@ -2172,6 +2219,8 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
         "gate_parity": gate_parity,
         "no_bet": False,
         "no_bet_reason": None,
+        "is_tipster_blind": is_tipster_blind,
+        "pipeline_warnings": pipeline_warnings,
     }
 
     # SINGLES — always generate for every approved pick
@@ -2668,7 +2717,17 @@ def _market_matrix_rows(approved: list, extended: list) -> list[str]:
         safety = best.get("safety_score")
         safety_str = f"{_safe_float(safety):.2f}" if safety is not None else "-"
         hit_l10 = best.get("hit_rate_l10")
-        hit_str = f"{_safe_float(hit_l10):.0%}" if hit_l10 else "-"
+        hit_str = "-"
+        if hit_l10:
+            # Handle fraction strings like "7/10" or "8/10"
+            if isinstance(hit_l10, str) and "/" in hit_l10:
+                try:
+                    num, den = hit_l10.split("/")
+                    hit_str = f"{int(num)}/{int(den)} ({int(num)/int(den):.0%})"
+                except (ValueError, ZeroDivisionError):
+                    hit_str = hit_l10
+            else:
+                hit_str = f"{_safe_float(hit_l10):.0%}"
         direction = best.get("direction", "")
         line_val = best.get("line")
         combined_avg = best.get("combined_avg") or best.get("l10_avg")
@@ -2721,7 +2780,11 @@ def _coupon_section(title: str, coupons: list[dict]) -> list[str]:
         stats_first = c.get("stats_first", False)
         
         coupon_id = c.get('id', f'COUPON-{i}')
-        lines.append(f"### {coupon_id} — {n_legs}-leg combo ({', '.join(sports)})")
+        is_single = c.get("is_single", False) or n_legs == 1
+        if is_single:
+            lines.append(f"### {coupon_id} — single ({', '.join(sports)})")
+        else:
+            lines.append(f"### {coupon_id} — {n_legs}-leg combo ({', '.join(sports)})")
         lines.append("")
 
         if thesis:
@@ -2763,7 +2826,22 @@ def _coupon_section(title: str, coupons: list[dict]) -> list[str]:
 def write_coupon_markdown(coupons_data: dict, date: str) -> Path:
     """Write the full coupon markdown file."""
     COUPON_DIR.mkdir(parents=True, exist_ok=True)
-    out_path = COUPON_DIR / f"{date}.md"
+
+    # Determine version: if file already exists, create new version (Task 2.4)
+    base_path = COUPON_DIR / f"{date}.md"
+    version = 1
+    if base_path.exists():
+        # Count existing versioned files (base + _v2, _v3, ...)
+        existing = [base_path] + list(COUPON_DIR.glob(f"{date}_v*.md"))
+        version = len(existing) + 1
+    out_path = base_path if version == 1 else COUPON_DIR / f"{date}_v{version}.md"
+
+    # Inject version into all coupon IDs
+    for key in ("core_coupons", "combos", "singles", "discovery_singles"):
+        for c in coupons_data.get(key, []):
+            cid = c.get("id", "")
+            if cid and not cid.endswith(f"v{version}"):
+                c["id"] = f"{cid}v{version}"
 
     bankroll = coupons_data.get("bankroll", 0)
     alloc = coupons_data.get("daily_allocation_range", [5, 15])
@@ -2773,6 +2851,28 @@ def write_coupon_markdown(coupons_data: dict, date: str) -> Path:
         "> Wszystkie typy są WARUNKOWE — zweryfikuj kursy w aplikacji Betclic przed postawieniem.",
         "",
     ]
+
+    # TIPSTER-BLIND warning (Task 1.4 Part C)
+    if coupons_data.get("is_tipster_blind"):
+        lines.extend([
+            "## ⚠️ KUPONY BEZ DANYCH TIPSTERÓW",
+            "",
+            "> **UWAGA:** Pipeline nie ma danych tipsterów (S2 failed lub pominięty).",
+            "> Kupony oparte WYŁĄCZNIE na statystykach — brak fuzji źródeł.",
+            "> Rozważ uruchomienie `tipster_aggregator.py` przed postawieniem.",
+            "",
+        ])
+
+    # Pipeline warnings (if any)
+    pipeline_warnings = coupons_data.get("pipeline_warnings", [])
+    if pipeline_warnings:
+        lines.extend([
+            "## ⚠️ OSTRZEŻENIA PIPELINE",
+            "",
+        ])
+        for w in pipeline_warnings:
+            lines.append(f"- {w}")
+        lines.append("")
 
     if coupons_data.get("no_bet"):
         lines.append(f"## ⚠️ NO BET")
@@ -2798,44 +2898,9 @@ def write_coupon_markdown(coupons_data: dict, date: str) -> Path:
             lines.append(f"| ... | | _{len(all_rows) - 30} więcej w extended pool_ | | | | | | |")
         lines.append("")
 
-    # BANKER section
-    banker = coupons_data.get("banker")
-    if banker:
-        lines.append("## 🏆 BANKER (Główny typ dnia)")
-        lines.append("")
-        leg = banker["legs"][0]
-        lines.append(_build_rich_description(leg))
-        lines.append("")
-        if banker.get("stats_first"):
-            lines.append(f"**Stawka:** ~{banker['stake']:.2f} PLN* | **Kurs:** ~{banker['combined_odds']:.2f}* | **Zwrot:** ~{banker['potential_return']:.2f} PLN*")
-        else:
-            lines.append(f"**Stawka:** {banker['stake']:.2f} PLN | **Kurs:** {banker['combined_odds']:.2f} | **Zwrot:** {banker['potential_return']:.2f} PLN")
-        lines.append("")
-
-    # SINGLES section
+    # SINGLES merged into tier structure (Task 2.1)
+    # Instead of separate BANKER/SINGLES sections, singles go into their respective tier.
     singles = coupons_data.get("singles", [])
-    if singles:
-        lines.append("## SINGLE BETS")
-        lines.append("")
-        lines.append("| # | ID | Co obstawić | Kurs | Stawka | Zwrot | Tier |")
-        lines.append("|---|-----|-------------|------|--------|-------|------|")
-        for i, s in enumerate(singles, 1):
-            leg = s["legs"][0]
-            desc = _pick_description_pl(leg)
-            banker_mark = " 🏆" if s.get("is_banker") else ""
-            if s.get("stats_first"):
-                lines.append(
-                    f"| {i} | {s['id']}{banker_mark} | {desc} "
-                    f"| ~{s['combined_odds']:.2f}* | ~{s['stake']:.2f} PLN* "
-                    f"| ~{s['potential_return']:.2f} PLN* | {s['tier']} |"
-                )
-            else:
-                lines.append(
-                    f"| {i} | {s['id']}{banker_mark} | {desc} "
-                    f"| {s['combined_odds']:.2f} | {s['stake']:.2f} PLN "
-                    f"| {s['potential_return']:.2f} PLN | {s['tier']} |"
-                )
-        lines.append("")
 
     # Core coupons by tier
     core = coupons_data.get("core_coupons", [])
@@ -2844,6 +2909,12 @@ def write_coupon_markdown(coupons_data: dict, date: str) -> Path:
         tier = c.get("tier", "MS")
         bucket = tier if tier in tier_groups else "MS"
         tier_groups[bucket].append(c)
+
+    # Merge singles into tier groups
+    for s in singles:
+        tier = s.get("tier", "MS")
+        bucket = tier if tier in tier_groups else "MS"
+        tier_groups[bucket].append(s)
 
     tier_titles = {
         "LR": "LOW-RISK",
@@ -3017,22 +3088,32 @@ def write_coupon_markdown(coupons_data: dict, date: str) -> Path:
             lines.append(f"{i}. {cid}" + (f" ({label})" if label else ""))
         lines.append("")
 
-    # LISTA OBSERWACYJNA — extended pool picks with min odds
-    if extended:
+    # LISTA OBSERWACYJNA — extended pool picks with min odds (Task 2.2: filter empty)
+    # Filter out entries without market name or meaningful analysis
+    # Also exclude picks that will appear in ODRZUCONE (safety floor / negative EV)
+    _odrzucone_reasons = ("SAFETY_FLOOR", "NEGATIVE_EV", "ZT hard-reject")
+    extended_filtered = [
+        p for p in (extended or [])
+        if _bm(p).get("name") and (p.get("home_team") or p.get("away_team"))
+        and not any(tag in (p.get("extended_pool_reason") or "") for tag in _odrzucone_reasons)
+    ]
+    if extended_filtered:
         lines.append("## LISTA OBSERWACYJNA")
         lines.append("")
-        lines.append("| Wydarzenie | Rynek | Min kurs | Warunek |")
-        lines.append("|------------|-------|----------|---------|")
-        for pick in extended[:10]:
+        lines.append("| Wydarzenie | Rynek | Min kurs | Warunek | Powód |")
+        lines.append("|------------|-------|----------|---------|-------|")
+        for pick in extended_filtered[:10]:
             home = pick.get("home_team", "?")
             away = pick.get("away_team", "?")
             best = _bm(pick)
             market = best.get("name", "-")
             safety = _safe_float(best.get("safety_score", 0.5), 0.5)
             min_odds = round(1.0 / safety, 2) if safety > 0 else "-"
+            # Task 2.3: Bull/bear reasoning
+            reason = pick.get("extended_pool_reason", "-")
             lines.append(
                 f"| {home} vs {away} | {market} | {min_odds} | "
-                f"EV>0 przy kursie ≥{min_odds} |"
+                f"EV>0 przy kursie ≥{min_odds} | {reason} |"
             )
         lines.append("")
 
@@ -3065,25 +3146,40 @@ def write_coupon_markdown(coupons_data: dict, date: str) -> Path:
             lines.append("")
         lines.append("")
 
-    # ODRZUCONE (Top 10)
+    # ODRZUCONE (Top 10) — Task 2.5: populated from hard rejects + safety floor + negative EV
     rejected = coupons_data.get("rejected", [])
-    if rejected:
+    # Also include hard-rejected picks from extended pool that have clear rejection reasons
+    # (these are excluded from LISTA OBSERWACYJNA since they have disqualifying issues)
+    safety_rejected = [p for p in (extended or []) if "SAFETY_FLOOR" in (p.get("extended_pool_reason") or "")
+                       or "NEGATIVE_EV" in (p.get("extended_pool_reason") or "")
+                       or "ZT hard-reject" in (p.get("extended_pool_reason") or "")]
+    # Deduplicate: use event+market as key
+    seen_keys = set()
+    all_rejected = []
+    for p in list(rejected) + safety_rejected:
+        key = f"{p.get('home_team', '')}|{p.get('away_team', '')}|{(_bm(p).get('name', ''))}"
+        if key not in seen_keys:
+            seen_keys.add(key)
+            all_rejected.append(p)
+    if all_rejected:
         lines.append("## ODRZUCONE (Top 10)")
         lines.append("")
         lines.append("| Wydarzenie | Rynek | Powód odrzucenia |")
         lines.append("|------------|-------|------------------|")
-        for pick in rejected[:10]:
+        for pick in all_rejected[:10]:
             home = pick.get("home_team", "?")
             away = pick.get("away_team", "?")
             best = _bm(pick)
             market = best.get("name", "-")
-            # Extract rejection reason
-            failed_gates = []
-            for gid, gd in (pick.get("gate_details") or {}).items():
-                if isinstance(gd, dict) and not gd.get("passed"):
-                    msg = gd.get("message", gd.get("label", f"Gate {gid}"))
-                    failed_gates.append(msg)
-            reason = "; ".join(failed_gates[:3]) if failed_gates else pick.get("rejection_reason", "-")
+            # Extract rejection reason from gate_details or extended_pool_reason
+            reason = pick.get("extended_pool_reason") or ""
+            if not reason:
+                failed_gates = []
+                for gid, gd in (pick.get("gate_details") or {}).items():
+                    if isinstance(gd, dict) and not gd.get("passed"):
+                        msg = gd.get("message", gd.get("label", f"Gate {gid}"))
+                        failed_gates.append(msg)
+                reason = "; ".join(failed_gates[:3]) if failed_gates else pick.get("rejection_reason", "-")
             lines.append(f"| {home} vs {away} | {market} | {reason} |")
         lines.append("")
 
@@ -3346,9 +3442,10 @@ def main():
     try:
         gate_results = _load_gate_results_for_build(args.date, args.input)
     except (FileNotFoundError, ValueError) as exc:
-        out.error(str(exc), recoverable=False)
+        out.error(f"PRECONDITION_FAILED: {exc}. Run gate_checker.py first (execution-spine STEP 17).",
+                  recoverable=False)
         out.summary(verdict="FAILED", metrics={"error": str(exc)})
-        sys.exit(1)
+        sys.exit(2)
 
     gate_parity = gate_results.get("gate_parity", {})
     gate_counts = gate_parity.get("loaded_counts") or _gate_bucket_counts(gate_results)

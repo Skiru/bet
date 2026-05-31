@@ -1598,15 +1598,30 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
             point_failure_counts[pt] = point_failure_counts.get(pt, 0) + 1
 
     # Systemic points: fail for >80% of candidates (infrastructure gap, not candidate weakness)
+    # NON-DISCOUNTABLE GATES: These represent pipeline prerequisites, not infrastructure quality.
+    # When they fail systemically, the pipeline has a real problem — don't hide it.
+    NON_DISCOUNTABLE_GATES = {"6", "8"}  # Gate #6: tipster data, Gate #8: EV calculation
     systemic_threshold = 0.80
     systemic_points = set()
+    pipeline_warnings = []
     if total_count > 0:
         for pt, cnt in point_failure_counts.items():
             if cnt / total_count > systemic_threshold:
-                systemic_points.add(pt)
+                if pt in NON_DISCOUNTABLE_GATES:
+                    # Don't discount — emit pipeline warning instead
+                    pct = cnt / total_count * 100
+                    pipeline_warnings.append(
+                        f"PIPELINE_PREREQUISITE_FAILED: Gate #{pt} ({GATE_LABELS.get(pt, '?')}) "
+                        f"failed for {pct:.0f}% of candidates. Pipeline input may be missing."
+                    )
+                else:
+                    systemic_points.add(pt)
     if systemic_points:
         print(f"[gate_checker] Systemic gate failures (>{systemic_threshold*100:.0f}%): "
               f"points {sorted(systemic_points)} — discounted for tier assignment")
+    if pipeline_warnings:
+        for w in pipeline_warnings:
+            print(f"[gate_checker] ⚠️ {w}")
 
     for c, gate_result in gate_results_per_candidate:
         # --- Pattern A: Flag directional conflicts ---
@@ -1640,8 +1655,8 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
         # Only phantom fixtures and 48h repeat losses are hard-rejected.
         # Everything else passes through with an advisory tier label.
         n_failed = len(gate_result["gate_failed"])
-        ev = c.get("ev")
         best = c.get("best_market") or {}
+        ev = c.get("ev") if c.get("ev") is not None else best.get("ev")
         safety = best.get("safety_score") or 0
 
         # Hard reject: ONLY for structural issues (phantoms, 48h repeats, ZT red flags)
@@ -1653,6 +1668,11 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
                 hard_reject = True
                 hard_reject_reason = msg
                 break
+
+        # Hard reject: Calculated negative EV (when odds are known)
+        if not hard_reject and ev is not None and ev < 0:
+            hard_reject = True
+            hard_reject_reason = f"NEGATIVE_EV: EV={ev:.3f} — calculated negative expected value"
 
         if hard_reject:
             _set_entry_bucket(entry, "rejected", hard_reject_reason)
@@ -1815,6 +1835,7 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
             "extended_count": len(extended_pool),
             "rejected_count": len(rejected),
         },
+        "pipeline_warnings": pipeline_warnings,
     }
 
 
@@ -2174,22 +2195,24 @@ def main():
         sys.exit(1)
 
     if not candidates:
-        out.warning("No candidates to gate-check")
+        source = candidate_load.get("source", "none")
+        out.error(f"PRECONDITION_FAILED: 0 candidates loaded from {source} for "
+                  f"{args.date}. Run deep_stats_report.py first (execution-spine STEP 13).")
         out.summary(
-            verdict="OK",
+            verdict="FAILED",
             metrics={
                 "total": 0,
                 "approved": 0,
                 "extended": 0,
                 "rejected": 0,
-                "input_source": candidate_load.get("source", "none"),
+                "input_source": source,
                 "input_status": candidate_load.get("parity", {}).get("status", "missing"),
                 "input_json_candidates": candidate_load.get("counts", {}).get("json", 0),
                 "input_db_candidates": candidate_load.get("counts", {}).get("db", 0),
                 "input_canonical_candidates": candidate_load.get("counts", {}).get("canonical", 0),
             },
         )
-        sys.exit(0)
+        sys.exit(2)
 
     results = run_gate(candidates, args.date, strict=args.strict)
 

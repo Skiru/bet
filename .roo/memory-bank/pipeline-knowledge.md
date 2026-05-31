@@ -18,8 +18,9 @@
 - `analyze_betclic_learning.py` — historical learning patterns (S0.2)
 - `discover_events.py` — fixture discovery (S1)
 - `ingest_scan_stats.py` — transform scan data into DB (S1.2)
-- `tipster_aggregator.py` — tipster consensus (S1.5)
-- `build_shortlist.py` — ranked shortlist (S2)
+- `tipster_aggregator.py` — tipster fetch (S1b, STEP 6 — MUST run before tipster_xref)
+- `tipster_xref.py` — tipster cross-reference (S2, STEP 8 — requires tipster_picks in DB)
+- `build_shortlist.py` — ranked shortlist (S1e, STEP 7)
 - `deep_stats_report.py` — S3 analysis
 - `gate_checker.py` — S7 18-point gate
 - `coupon_builder.py` — S8 portfolio

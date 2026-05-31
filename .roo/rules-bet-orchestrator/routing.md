@@ -5,8 +5,8 @@
 | Mode Slug | Specialist For | Delegate When |
 |-----------|---------------|---------------|
 | bet-settler | Settlement + learning | S0 output needs PnL validation, bankroll impact, learning extraction |
-| bet-scanner | Scan + shortlist | S1/S2 output needs coverage assessment, fixture verification |
-| bet-scout | Tipster intelligence | S1.5 output needs argument quality assessment, consensus evaluation |
+| bet-scanner | Scan + shortlist | S1 (STEP 3) discovery output + S1e (STEP 7) shortlist needs coverage assessment, fixture verification |
+| bet-scout | Tipster intelligence | S2 output (tipster_xref.py STEP 8) needs argument quality assessment, consensus evaluation |
 | bet-enricher | Data quality | S2.3-S2.9 output needs readiness assessment for S3 |
 | bet-statistician | Deep stats | S3/S3B output needs market ranking validation, safety scores |
 | bet-valuator | Odds + EV | S4 output needs fair-odds evaluation, drift detection |

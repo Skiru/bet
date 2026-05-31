@@ -2228,6 +2228,23 @@ def main():
                        "Candidates without cached/DB data will have MINIMAL quality. "
                        "Only use this flag when enrichment already ran separately.")
 
+    # PRECONDITION GUARD: pipeline_candidates must have rows for this date
+    # Skip guard when --shortlist is explicitly provided (user overrides DB source)
+    if not args.shortlist:
+        try:
+            from bet.db.connection import get_db
+            with get_db() as conn:
+                row = conn.execute(
+                    "SELECT COUNT(*) FROM pipeline_candidates WHERE betting_date=?",
+                    (args.date,),
+                ).fetchone()
+                if row and row[0] == 0:
+                    out.error("PRECONDITION_FAILED: pipeline_candidates has 0 rows for "
+                              f"{args.date}. Run build_shortlist.py first (execution-spine STEP 7).")
+                    sys.exit(2)
+        except Exception as e:
+            out.warning(f"Precondition check skipped (DB error): {e}")
+
     if args.gemini:
         # Check if local model server is reachable before running the full pipeline
         try:

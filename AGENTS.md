@@ -48,7 +48,13 @@ Mandatory delegations (cannot skip):
 ## S2 is NEVER OPTIONAL
 
 Source fusion (tipsters + stats + web) is the CORE VALUE.
-If S2 returns 0 tips → brave-search tipster sites → if still 0 → **ASK USER** before continuing.
+
+**Two-script sequence (BOTH required, IN ORDER):**
+1. `tipster_aggregator.py` (STEP 6 in execution-spine) → produces DB: tipster_picks
+2. `tipster_xref.py` (STEP 8 in execution-spine) → cross-references tips against shortlist
+
+If tipster_xref.py exits with code 2 → tipster_aggregator.py was NOT run. Go back to STEP 6.
+If S2 returns 0 tips matched → brave-search tipster sites → if still 0 → **ASK USER** before continuing.
 Without tipster data → coupons are worthless pure math.
 
 ## Anti-Hallucination
