@@ -114,6 +114,7 @@ Recovery: `sequentialthinking` → "Where am I? What did I just do? What's next?
 - `sqlite_list_tables` + describe loop (use sequentialthinking to recall schema)
 - Bare `python3` or `pip`
 - Pasting >10 lines of any tool output to the user
+- **Enumerating items** (listing events/picks/risks one-by-one). AGGREGATE: "147 events, 23 high-risk" — NEVER list them individually
 - Skipping delegation after a script run
 - Continuing past S2=0 without user confirmation
 

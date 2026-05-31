@@ -24,8 +24,10 @@
         <string>0.95</string>
         <string>--default-top-k</string>
         <string>20</string>
+        <string>--default-repetition-penalty</string>
+        <string>1.05</string>
         <string>--max-tokens</string>
-        <string>32768</string>
+        <string>16384</string>
         <string>--stream-interval</string>
         <string>1</string>
         <string>--pin-system-prompt</string>
