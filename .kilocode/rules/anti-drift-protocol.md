@@ -2,7 +2,9 @@
 
 > These rules exist because Qwen3.6-35B-A3B (3B active params) drifts in long sessions.
 
-## 5 Mandatory Behaviors
+## 6 Mandatory Behaviors
+
+0. **THINK-BEFORE-ACT** — Your FIRST tool call in EVERY turn MUST be `sequentialthinking_sequentialthinking`. Classify the request (simple question vs pipeline command), plan which 1-2 queries you need, then execute. NEVER open with `sqlite_read_query` or `sqlite_list_tables` blindly.
 
 1. **CITE-OR-DELETE** — Every statistic needs a `sqlite_read_query` verification. If you can't query it, write "UNVERIFIED" or delete it. NEVER guess a number.
 
@@ -21,6 +23,9 @@
 - You can't remember which step you completed last → DRIFT (state loss)
 - You're explaining methodology instead of analyzing data → DRIFT (filler)
 - Your output has 0 tool calls in the last 5 paragraphs → DRIFT (untethered generation)
+- **You fired >3 `sqlite_read_query` without narrating results → DRIFT (blind query spam)**
+- **Your first tool call was NOT `sequentialthinking` → DRIFT (no reasoning gate)**
+- **You got a JSON parse error from a tool → STOP, simplify query, try once more only**
 
 ## Recovery
 
@@ -28,3 +33,14 @@
 2. Call `sequentialthinking_sequentialthinking` with thought: "What step am I at? What did I just complete? What's next?"
 3. Read the checkpoint file or relevant DB data
 4. Resume from verified state
+
+## Tool Budget (ALL agents)
+
+**Per turn: 1 sequentialthinking + 2 data tools = 3 max.**
+
+- `sequentialthinking_sequentialthinking` = planning call (always first, always free)
+- `sqlite_read_query` / `brave-search_*` = data calls (max 2 before narrating)
+- After 3 total → you MUST produce user-visible text before calling more tools
+- If you need >3 → narrate partial findings, end turn, continue next turn
+
+This budget prevents the #1 failure mode: firing 10+ blind queries until JSON breaks.

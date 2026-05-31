@@ -2,9 +2,13 @@
 
 ## THINKING LIMIT (ALL AGENTS — CRITICAL)
 
-Your <think> block MUST be ≤200 tokens. Max 3 sentences. Then OUTPUT immediately.
+Your `<think>` block MUST be ≤200 tokens. Max 3 sentences. Then OUTPUT immediately.
 Server max_tokens=32768. Thinking tokens subtract from your response budget.
-If you think too long → empty response → FAILED turn. Think briefly, act immediately.
+If you think too long → empty response → FAILED turn.
+
+**Deep reasoning goes in `sequentialthinking_sequentialthinking` tool (unlimited, external).**
+`<think>` = quick classification only. `sequentialthinking` = full analysis planning.
+Pattern: brief `<think>` → call sequentialthinking FIRST → then data tools.
 
 ## Architecture
 

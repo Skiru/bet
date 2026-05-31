@@ -126,6 +126,7 @@
       "steps": 40,
       "temperature": 0.6,
       "instructions": [
+        ".github/instructions/agent-execution-protocol.instructions.md",
         ".github/instructions/analysis-methodology.instructions.md",
         ".github/instructions/sport-analysis-protocols.instructions.md",
         ".github/instructions/betting-mistakes-rules.instructions.md"
@@ -148,6 +149,7 @@
       "steps": 40,
       "temperature": 0.6,
       "instructions": [
+        ".github/instructions/agent-execution-protocol.instructions.md",
         ".github/instructions/analysis-methodology.instructions.md",
         ".github/instructions/sport-analysis-protocols.instructions.md",
         ".github/instructions/betting-mistakes-rules.instructions.md"
@@ -170,6 +172,7 @@
       "steps": 50,
       "temperature": 0.6,
       "instructions": [
+        ".github/instructions/agent-execution-protocol.instructions.md",
         ".github/instructions/analysis-methodology.instructions.md",
         ".github/instructions/betting-mistakes-rules.instructions.md",
         ".github/instructions/betting-artifacts.instructions.md"
@@ -192,6 +195,7 @@
       "steps": 25,
       "temperature": 0.6,
       "instructions": [
+        ".github/instructions/agent-execution-protocol.instructions.md",
         ".github/instructions/analysis-methodology.instructions.md"
       ],
       "prompt": "{file:.kilo/prompts/bet-scanner.md}",
@@ -212,6 +216,7 @@
       "steps": 20,
       "temperature": 0.6,
       "instructions": [
+        ".github/instructions/agent-execution-protocol.instructions.md",
         ".github/instructions/analysis-methodology.instructions.md",
         ".github/instructions/betting-mistakes-rules.instructions.md"
       ],
@@ -233,6 +238,7 @@
       "steps": 30,
       "temperature": 0.6,
       "instructions": [
+        ".github/instructions/agent-execution-protocol.instructions.md",
         ".github/instructions/analysis-methodology.instructions.md",
         ".github/instructions/betting-mistakes-rules.instructions.md"
       ],
@@ -254,6 +260,7 @@
       "steps": 25,
       "temperature": 0.6,
       "instructions": [
+        ".github/instructions/agent-execution-protocol.instructions.md",
         ".github/instructions/analysis-methodology.instructions.md",
         ".github/instructions/sport-analysis-protocols.instructions.md"
       ],
@@ -275,6 +282,7 @@
       "steps": 25,
       "temperature": 0.6,
       "instructions": [
+        ".github/instructions/agent-execution-protocol.instructions.md",
         ".github/instructions/analysis-methodology.instructions.md",
         ".github/instructions/betting-mistakes-rules.instructions.md"
       ],
@@ -296,6 +304,7 @@
       "steps": 20,
       "temperature": 0.6,
       "instructions": [
+        ".github/instructions/agent-execution-protocol.instructions.md",
         ".github/instructions/analysis-methodology.instructions.md"
       ],
       "prompt": "{file:.kilo/prompts/bet-db-analyst.md}",

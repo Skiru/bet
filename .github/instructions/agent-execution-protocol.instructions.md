@@ -4,12 +4,6 @@ applyTo: ".github/agents/bet-*.agent.md"
 
 # Agent Execution Protocol v11
 
-## THINKING LIMIT (applies to ALL agents)
-
-Your <think> block MUST be ≤200 tokens. After 3 sentences of thinking, STOP and produce output.
-The server has a 32K output cap. Every thinking token steals from your visible response.
-If you plan the whole session in <think>, you will produce ZERO visible output and FAIL.
-
 ## Terminal: Fish Shell
 
 No inline Python (`python3 -c "..."`), no bash syntax, no `export`. Use `set -x VAR value` for env vars.
@@ -21,16 +15,20 @@ Always use `.venv/bin/python3` — never bare `python3`.
 
 | Tool | When |
 |------|------|
-| `sequentialthinking_sequentialthinking` | Complex decisions (≥3 factors), when stuck |
-| `sqlite_read_query` | DB stats, row counts, verification |
+| `sequentialthinking_sequentialthinking` | **FIRST call of EVERY turn** — classify request, plan queries |
+| `sqlite_read_query` | DB stats, row counts, verification — MAX 2 per turn without narrating |
 | `sqlite_write_query` | DB fixes (DELETE orphans, UPDATE flags) |
 | `brave-search_brave_web_search` | Live context when DB lacks data |
 
+- **MANDATORY SEQUENCE: think → query (1-2 max) → narrate → (continue if needed)**
+- **TOOL BUDGET: 1 sequentialthinking + 2 data tools = 3 total per turn.** After 3 → STOP, narrate, continue next turn.
+- NEVER open a turn with `sqlite_read_query` or `sqlite_list_tables` — think FIRST
 - DB operations → use sqlite MCP tools (NOT inline `python3 -c`)
 - Complex fixes → write `/tmp/fix.py`, then run it
 - NEVER use `python3 -c "..."` — quoting breaks in fish
 - DB → scraper files → brave-search (fallback order)
 - NEVER return "insufficient data" without trying all three
+- **ERROR RECOVERY**: If a tool call returns error → DO NOT retry blindly. Call `sequentialthinking` to diagnose: "Why did it fail? Wrong table? Bad SQL? Simplify."
 
 ---
 
@@ -82,4 +80,23 @@ Impact: (what downstream step needs to know)
 ❌ `"Script completed. 57 candidates. APPROVED."`
 ✅ `"Yield 73% (42/57). Football 86% strong. Hockey 44% WARNING — off-season gap."`
 
-<!-- BET:instruction:agent-execution-protocol:v11 -->
+---
+
+## STOP SIGNAL (subagents — MANDATORY)
+
+When you've produced your verdict template → **STOP GENERATING.** Do not:
+- Explain what you did (the verdict shows it)
+- Offer "next steps" or "recommendations for the orchestrator"
+- Repeat the template in different words
+- Add filler like "Let me know if you need anything else"
+
+Fill your Verdict Template → final sentence of analysis → **END.**
+
+---
+
+## SUBAGENT SCOPE
+
+Subagents do NOT have `task` or `todowrite` tools. Ignore any references to them.
+Your only tools: `sequentialthinking`, `sqlite_*`, `brave-search_*`, `read`, `write`, `edit`, `bash`, `glob`, `grep`.
+
+<!-- BET:instruction:agent-execution-protocol:v12 -->

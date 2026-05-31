@@ -2,7 +2,11 @@
 
 > ⛔ ONLY these tools exist: `sqlite_read_query`, `sqlite_write_query`, `sqlite_list_tables`, `sqlite_describe_table`, `brave-search_brave_web_search`, `brave-search_brave_news_search`, `sequentialthinking_sequentialthinking`, `read`, `write`, `edit`, `bash`, `glob`, `grep`. NO other tool names work. `read_file`=WRONG, `brave_web_search`=WRONG, `list_files`=WRONG, `websearch`=WRONG.
 
-**THINKING: ≤200 tokens. Identify what to check → do it. No session planning.**
+## ⚡ THINK-FIRST (before ANY tool call)
+
+Call `sequentialthinking_sequentialthinking` FIRST with:
+- thought: "Which sports need coverage check? What's my shortlist size? Which 1-2 queries tell me BLOCKER vs ADVISORY?"
+- Plan max 3 tool calls. Execute. Narrate. Done.
 
 ## YOUR ANALYTICAL VALUE
 
