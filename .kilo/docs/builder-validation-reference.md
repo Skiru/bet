@@ -33,8 +33,10 @@ ORDER BY tf.match_date DESC LIMIT 10;
 
 ## V3 — HIT RATE vs AVERAGE CHECK (compute from actual L10)
 
+**For OVER picks:**
 ```sql
 -- Count how many L10 values ACTUALLY exceed the line
+-- Replace {line} with the numeric line value (e.g., 87.5)
 SELECT
   COUNT(*) as total,
   SUM(CASE WHEN CAST(value AS REAL) > {line} THEN 1 ELSE 0 END) as hits
@@ -45,22 +47,37 @@ FROM (
 );
 ```
 
+**For UNDER picks:**
+```sql
+-- For UNDER direction: count values BELOW the line
+SELECT
+  COUNT(*) as total,
+  SUM(CASE WHEN CAST(value AS REAL) < {line} THEN 1 ELSE 0 END) as hits
+FROM (
+  SELECT tf.value FROM team_form tf
+  WHERE tf.team_id = ? AND tf.stat_key = ?
+  ORDER BY tf.match_date DESC LIMIT 10
+);
+```
+
 - If hits/total < 6/10 (60%) → the pick is MARGINAL, not strong
 - NEVER say "strong edge" when hit rate < 60%
 - Example: avg=87.7 but only 6/10 > 87.5 → MARGINAL (60%), not "consistently hitting over"
+- **CRITICAL:** Use the correct direction! OVER → count > line. UNDER → count < line.
 
 ## V4 — LINE vs BETCLIC REALITY
 
 ```sql
 -- Check what line Betclic actually offers
-SELECT oh.line, oh.over_odds, oh.under_odds FROM odds_history oh
-JOIN fixtures f ON oh.fixture_id = f.id
+SELECT oh.line, oh.over_odds, oh.under_odds
+FROM odds_history oh
 WHERE oh.fixture_id = ? AND oh.market_type = ? AND oh.source LIKE '%betclic%'
 ORDER BY oh.fetched_at DESC LIMIT 1;
 ```
 
 - If Betclic's line differs >20% from our analysis line → REJECT the pick
 - If no Betclic odds found → mark as "VERIFY ON APP"
+- **Edge case:** If Betclic offers a DIFFERENT line that's still favorable (e.g., we analyzed O9.5, Betclic offers O8.5) → the pick is STRONGER, re-calculate hit rate at Betclic's line
 
 ## V5 — HARD REJECT RULES (from betting-mistakes-rules.instructions.md)
 
@@ -211,21 +228,27 @@ For EACH coupon, answer:
 ## Key DB Queries for Coupon Building
 
 ```sql
--- Load gate-approved picks
-SELECT * FROM gate_results WHERE betting_date = ? AND status IN ('APPROVED', 'EXTENDED');
+-- Load gate-approved picks (batch all at once)
+SELECT fixture_id, status, best_market_name, safety_score, hit_rate_l10,
+       advisory_tier, rejection_reason
+FROM gate_results WHERE betting_date = ? AND status IN ('APPROVED', 'EXTENDED');
 
--- Verify Betclic availability for a market
-SELECT confirmed_available, market_type FROM betclic_market_validation
-WHERE fixture_id = ? AND market_type = ?;
+-- Verify Betclic availability for multiple markets (batch)
+SELECT fixture_id, confirmed_available, market_type
+FROM betclic_market_validation
+WHERE fixture_id IN (?, ?, ?) AND market_type IN (?, ?, ?);
 
 -- Get probability engine output
-SELECT market_name, p_hit, fair_odds, ev_at_offered, model_type
-FROM analysis_results WHERE fixture_id = ? AND betting_date = ?;
+SELECT fixture_id, market_name, p_hit, fair_odds, ev_at_offered, model_type
+FROM analysis_results WHERE fixture_id IN (?, ?, ?) AND betting_date = ?;
 
--- Check if event is started
-SELECT kickoff FROM fixtures WHERE id = ? AND kickoff > datetime('now');
+-- Check if events are started (batch)
+SELECT id, kickoff FROM fixtures
+WHERE id IN (?, ?, ?) AND kickoff > datetime('now');
 
--- Tipster support for a pick
-SELECT source, market, reasoning FROM tipster_picks
-WHERE betting_date = ? AND team_name LIKE ?;
+-- Tipster support for picks
+SELECT fixture_id, source, market, reasoning FROM tipster_picks
+WHERE betting_date = ? AND fixture_id IN (?, ?, ?);
 ```
+
+**Batching rule:** Use `WHERE id IN (...)` to check multiple picks in a single query. Never run one query per pick — that wastes tool call budget.

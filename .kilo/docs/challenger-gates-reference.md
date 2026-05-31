@@ -24,10 +24,12 @@ When the average is CLOSE to the line (within ±0.5):
 2. Check context — is there a reason intensity changes? (must-win, dead rubber, rotation)
 3. If L5 CONTRADICTS the chosen direction → **REJECT or FLIP the direction**
 4. If context suggests intensity change (dead rubber → reduce expected stats by 2.5)
+5. **COMBINED check:** If both teams' averages are marginal → even MORE uncertain → default REJECT
 
 Example:
 - Fürth Shots U13.5 — avg=13.5 (ZERO margin), L5=13.8 (contradicts UNDER), must-win at home → WRONG DIRECTION
 - Correct action: REJECT this Under pick, or flip to Shots O13.5 if data supports
+- Counter-example: Team avg=2.3, line=2.5, L5=2.0 (SUPPORTS Under), dead rubber → KEEP Under
 
 ---
 
@@ -53,7 +55,13 @@ When H2H odds imply P(draw) ≥ 25%:
 
 ---
 
-## The 19-Point Gate Criteria
+## The 20-Point Gate Criteria
+
+Scoring: count PASS/FAIL for each criterion. Thresholds:
+- ≥15/20 pass = **STRONG** candidate
+- 10-14/20 pass = **MODERATE** candidate  
+- <10/20 pass = **WEAK** or **FLAGGED** (context decides which)
+- Any INSTANT REJECT gate fails = **REJECTED** regardless of score
 
 | # | Criterion | What It Checks |
 |---|-----------|----------------|
@@ -136,22 +144,39 @@ Use brave web search when:
 ## Key DB Queries for Gate Analysis
 
 ```sql
--- Get safety score and hit rates for a candidate
-SELECT best_market_name, safety_score, hit_rate_l10, hit_rate_l5,
+-- Get safety score and hit rates for candidates (batch)
+SELECT fixture_id, best_market_name, safety_score, hit_rate_l10, hit_rate_l5,
        l10_avg, l5_avg, h2h_avg, market_line
-FROM analysis_results WHERE fixture_id = ? AND betting_date = ?;
+FROM analysis_results WHERE fixture_id IN (?, ?, ?) AND betting_date = ?;
 
--- Check if dead rubber (both teams mid-table, nothing to play for)
-SELECT team_name, position, form FROM standings
-WHERE sport_id = ? ORDER BY position;
+-- KICKOFF_EXPIRED gate check (batch)
+SELECT id, kickoff FROM fixtures
+WHERE id IN (?, ?, ?) AND kickoff <= datetime('now');
 
--- Get H2H history for specific stat
-SELECT stat_key, value FROM match_stats ms
+-- L5 DETERIORATION detection (bear case trigger: L5 < L10 by >10%)
+SELECT fixture_id, best_market_name, l10_avg, l5_avg,
+       ROUND((l10_avg - l5_avg) / l10_avg * 100, 1) as deterioration_pct
+FROM analysis_results
+WHERE fixture_id IN (?, ?, ?) AND betting_date = ?
+  AND l5_avg < l10_avg * 0.9;
+
+-- Dead rubber detection: check if teams have nothing to play for
+-- Look at points gap to promotion/relegation zones
+SELECT s.team_name, s.position, s.points, s.form,
+       (SELECT MAX(points) FROM standings s2 WHERE s2.sport_id = s.sport_id AND s2.position = s.position - 1) as pos_above_pts
+FROM standings s
+WHERE s.team_id IN (?, ?) AND s.sport_id = ?;
+-- Dead rubber signal: >6 pts from both promotion AND relegation zone with <3 games left
+
+-- Get H2H history for specific stat (covers both home/away arrangements)
+SELECT stat_key, value, f.kickoff FROM match_stats ms
 JOIN fixtures f ON ms.fixture_id = f.id
-WHERE f.home_team_id IN (?, ?) AND f.away_team_id IN (?, ?)
-AND ms.stat_key = ? ORDER BY f.kickoff DESC LIMIT 5;
+WHERE ((f.home_team_id = ? AND f.away_team_id = ?) OR (f.home_team_id = ? AND f.away_team_id = ?))
+AND ms.stat_key = ? ORDER BY f.kickoff DESC LIMIT 6;
 
 -- Probability engine confirmation
-SELECT p_hit, fair_odds, model_type FROM analysis_results
-WHERE fixture_id = ? AND market_name = ?;
+SELECT fixture_id, p_hit, fair_odds, model_type FROM analysis_results
+WHERE fixture_id IN (?, ?, ?) AND betting_date = ?;
 ```
+
+**Batching rule:** Use `WHERE fixture_id IN (...)` to check multiple candidates in a single query. Never run one query per candidate.

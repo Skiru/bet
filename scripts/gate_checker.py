@@ -2248,6 +2248,19 @@ def main():
         )
         print(f"[gate_checker] Sport diversity: {diversity.get('message', 'N/A')}")
 
+    # State integration — advance pipeline position
+    try:
+        from bet.pipeline import PipelineState
+        state = PipelineState.load(args.date)
+        state.advance("S7", summary={
+            "total": s["total_candidates"],
+            "approved": s["approved_count"],
+            "extended": s["extended_count"],
+            "rejected": s["rejected_count"],
+        })
+    except Exception:
+        pass  # State tracking is non-blocking
+
     sys.exit(0 if s["approved_count"] > 0 else 1)
 
 

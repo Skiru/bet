@@ -6,58 +6,74 @@ user-invocable: false
 
 # Bet Orchestrating Workflows
 
-This skill provides reusable workflow mechanics that are shared across bet prompts and agents. It is an on-demand HOW layer, not a constitution or always-on ruleset.
+Shared execution mechanics for multi-step betting pipeline workflows.
 
-Load this skill when an entry point needs shared execution mechanics that recur across more than one artifact. Keep the prompt or agent body thin and let the resources below carry the reusable coordination detail.
+## Execution Spine
 
-## Use When
+```
+LOOP per step in STEP_ORDER:
+  1. RUN script → capture exit code + AGENT_SUMMARY
+  2. DELEGATE to specialist (routing table below)
+  3. RECEIVE verdict (APPROVED/FLAGGED/REJECTED)
+  4. IF REJECTED and retries < 2: fix → re-run → re-delegate
+  5. UPDATE state.advance(step, summary)
+  6. PRESENT verdict to user (3-5 lines)
+  7. ADVANCE to next step
+```
 
-- You need a shared orchestration spine for a bet workflow entry point.
-- You need routing rules for deciding which specialist agent should handle a task.
-- You need resume, stop, or handoff semantics that appear in more than one prompt.
-- You need a common validation flow that coordinates several steps without restating domain rules.
+## Routing Matrix
 
-## What This Skill Owns
+| Step | Specialist | Focus |
+|------|-----------|-------|
+| S0 | bet-settler | PnL, learning signals |
+| S1/S1e | bet-scanner | Coverage, shortlist quality |
+| S2 | bet-scout | Tipster arguments, consensus |
+| S2.3-S2.9 | bet-enricher | Data quality, S3 readiness |
+| S3 | bet-statistician | Edge validation, safety scores |
+| S4 | bet-valuator | EV, drift, Kelly |
+| S5/S6/S7 | bet-challenger | Bear cases, gate verdicts |
+| S8 | bet-builder | Coupon validation, correlation |
+| DB error | bet-db-analyst | Diagnosis + repair |
 
-- execution spines for multi-step bet workflows
-- delegation matrices for routing work to specialist agents
-- resume and stop gates for long-running workflows
-- shared handoff contracts between prompts and agents
-- thin framing for autonomous workflow prompts that need reusable orchestration mechanics
+## Resume Protocol
 
-## What This Skill Does Not Own
+1. Load `PipelineState.load(today)` → read `current_step`
+2. If step output exists from today → skip to next
+3. If no state file → fresh start from S0/S1
 
-- repo-wide constitution rules
-- always-on execution law from the agent execution protocol
-- betting methodology or sport-specific analysis rules
-- artifact formatting schema tables
-- domain memory or permanent rulebooks
+## Stop Gates
 
-## Resource Map
+| Condition | Action |
+|-----------|--------|
+| Drawdown ≥ 20% | STOP, consult user |
+| S2 returns 0 tips | Web search fallback, then continue |
+| S3 < 20 analyses | Verify shortlist file, re-run |
+| S7 < 5 approved | Re-run without --strict |
+| 2 consecutive failures same step | Skip, log, continue |
 
-- [execution-spine.md](resources/execution-spine.md) — the reusable multi-step loop for coordinated workflow entry points.
-- [routing-matrix.md](resources/routing-matrix.md) — intent-to-agent routing and the canonical delegation targets.
-- [resume-stop-gates.md](resources/resume-stop-gates.md) — pause, continue, and stop conditions for long workflows.
-- [handoff-contracts.md](resources/handoff-contracts.md) — the standard payload shape for subagent delegation.
-- [async-wait-overlap.md](resources/async-wait-overlap.md) — an opt-in add-on for orchestrator entry points that want bounded read-only overlap during qualifying async waits.
-- [stage-context-packs.md](resources/stage-context-packs.md) — the canonical pre-handoff `Stage Context Pack` policy for eligible finished-output stages.
-- [pipeline-state-protocol.md](resources/pipeline-state-protocol.md) — mandatory checkpoint-based state persistence to prevent context drift in MoE models.
+## Delegation Payload
 
-## Companion Loads
+```json
+{
+  "step": "S3",
+  "date": "2026-05-30",
+  "exit_code": 0,
+  "summary": {"total": 45, "with_data": 32},
+  "request": "Assess output quality and return verdict."
+}
+```
 
-- For analysis doctrine, load [analysis-methodology.instructions.md](../../instructions/analysis-methodology.instructions.md).
-- For sport-specific rules, load [sport-analysis-protocols.instructions.md](../../instructions/sport-analysis-protocols.instructions.md).
-- For artifact formatting, load [betting-artifacts.instructions.md](../../instructions/betting-artifacts.instructions.md).
-- For execution law, load [agent-execution-protocol.instructions.md](../../instructions/agent-execution-protocol.instructions.md).
+## State Persistence
 
-## Operating Rule
+Pipeline state lives in `betting/data/{date}_state.json` via `bet.pipeline.PipelineState`.
+- `state.advance(step, summary)` after each successful script
+- `state.can_proceed(next_step)` before running next script
+- Orchestrator reads state on activation to know position
 
-If a detail is shared across two or more prompts or agents and is not a permanent rule, place it in the matching resource here instead of duplicating it in each artifact.
+## Rules
 
-If an orchestrator entry point wants proactive wait-window overlap, load [async-wait-overlap.md](resources/async-wait-overlap.md). That resource owns the wait-policy details; [execution-spine.md](resources/execution-spine.md), [resume-stop-gates.md](resources/resume-stop-gates.md), and [handoff-contracts.md](resources/handoff-contracts.md) remain generic baselines rather than secondary policy owners.
-
-If an orchestrator entry point needs mandatory post-output stage context packs for eligible handoffs, load [stage-context-packs.md](resources/stage-context-packs.md). That resource owns the stage-level pack trigger, matrix, and boundary rules; the sibling workflow resources stay generic.
-
-## Progressive Disclosure
-
-Keep this skill concise. If a workflow entry point needs a larger step list, split that detail into a referenced resource file under this package rather than expanding the activation body.
+- Skipping delegation = FAILED SESSION
+- Never skip S2 (tipster = core value)
+- Statistical markets before outcome markets
+- All commands use `.venv/bin/python3`
+- Fish shell only (no bash syntax)

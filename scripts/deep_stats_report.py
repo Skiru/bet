@@ -2257,6 +2257,18 @@ def main():
         },
     )
 
+    # State integration — advance pipeline position
+    try:
+        from bet.pipeline import PipelineState
+        state = PipelineState.load(args.date)
+        state.advance("S3", summary={
+            "total": result["total_candidates"],
+            "with_data": result["candidates_with_data"],
+            "persisted": result.get("analysis_results_persisted", 0),
+        })
+    except Exception:
+        pass  # State tracking is non-blocking
+
 
 if __name__ == "__main__":
     main()

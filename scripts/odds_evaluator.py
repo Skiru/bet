@@ -714,6 +714,13 @@ def main():
         issues=[] if ok else [{"level": "error", "message": msg}],
     )
 
+    try:
+        from bet.pipeline import PipelineState
+        ps = PipelineState.load(args.date)
+        ps.advance("S4", summary={"total": total, "positive_ev": positive_ev})
+    except Exception:
+        pass
+
     sys.exit(0 if ok else 1)
 
 

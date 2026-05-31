@@ -659,6 +659,13 @@ def main():
 
     out.summary(verdict=verdict, metrics=metrics)
 
+    try:
+        from bet.pipeline import PipelineState
+        ps = PipelineState.load(args.date)
+        ps.advance("S5", summary={"checked": metrics.get("total_candidates", 0)})
+    except Exception:
+        pass
+
     sys.exit(0 if ok else 1)
 
 

@@ -1526,6 +1526,13 @@ def main():
         },
     )
 
+    try:
+        from bet.pipeline import PipelineState
+        state = PipelineState.load(args.date)
+        state.advance("S1e", summary={"candidates": len(selected), "sports": len(sport_counts)})
+    except Exception:
+        pass
+
     sys.exit(0 if selected else 1)
 
 

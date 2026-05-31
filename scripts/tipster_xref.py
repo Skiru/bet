@@ -260,6 +260,13 @@ def main():
         metrics=metrics,
     )
 
+    try:
+        from bet.pipeline import PipelineState
+        state = PipelineState.load(args.date)
+        state.advance("S2", summary={"tips": metrics.get("total_tips", 0), "matches": metrics.get("matches", 0)})
+    except Exception:
+        pass
+
     sys.exit(0 if ok else 1)
 
 

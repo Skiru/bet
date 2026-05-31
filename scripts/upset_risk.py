@@ -272,6 +272,12 @@ def main():
             "high_risk_pct": round(high_risk / max(scored, 1) * 100, 1),
         },
     )
+    try:
+        from bet.pipeline import PipelineState
+        ps = PipelineState.load(args.date)
+        ps.advance("S6", summary={"scored": scored, "high_risk": high_risk})
+    except Exception:
+        pass
 
     sys.exit(0 if ok else 1)
 

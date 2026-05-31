@@ -3484,6 +3484,17 @@ def main():
             print(f"  Total spend: {s['total_spend']:.2f} PLN")
             print(f"  Potential return: {s['total_potential_return']:.2f} PLN")
 
+    try:
+        from bet.pipeline import PipelineState
+        ps = PipelineState.load(args.date)
+        ps.advance("S8", summary={
+            "coupons": len(coupons_data.get("core_coupons", [])),
+            "combos": len(coupons_data.get("combos", [])),
+            "no_bet": coupons_data.get("no_bet", False),
+        })
+    except Exception:
+        pass
+
 
 if __name__ == "__main__":
     main()
