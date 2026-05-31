@@ -203,7 +203,20 @@ def run_tipster_xref(date: str, state: dict) -> tuple[bool, str]:
                         if ts and ts.get("count", 0) > 0:
                             home = c.get("home_team", "")
                             away = c.get("away_team", "")
-                            repo.enrich_tipster(date, home, away, ts["count"], ts["tipsters"])
+                            fixture_id = c.get("fixture_id")
+                            if fixture_id:
+                                repo.enrich_tipster(fixture_id, date, ts["count"], ts)
+                            else:
+                                # Resolve fixture_id from team names
+                                row = conn.execute(
+                                    "SELECT fixture_id FROM pipeline_candidates "
+                                    "WHERE betting_date = ? AND home_team = ? AND away_team = ? LIMIT 1",
+                                    (date, home, away),
+                                ).fetchone()
+                                if row:
+                                    repo.enrich_tipster(row["fixture_id"], date, ts["count"], ts)
+                                    enriched_count += 1
+                                continue
                             enriched_count += 1
                     conn.commit()
                     if enriched_count:
@@ -263,7 +276,7 @@ def main():
     try:
         from bet.pipeline import PipelineState
         state = PipelineState.load(args.date)
-        state.advance("S2", summary={"tips": metrics.get("total_tips", 0), "matches": metrics.get("matches", 0)})
+        state.advance("S2", summary={"tips": metrics.get("tips_loaded", 0), "matches": metrics.get("matched", 0)})
     except Exception:
         pass
 

@@ -22,6 +22,8 @@ DATA_DIR = ROOT_DIR / "betting" / "data"
 sys.path.insert(0, str(SCRIPTS_DIR))
 sys.path.insert(0, str(ROOT_DIR / "src"))
 
+from bet.resilience import atomic_json_write
+
 
 # ---------------------------------------------------------------------------
 # Fixture Significance Scoring — Competition Intelligence for S7 agent
@@ -353,8 +355,9 @@ def run_context_checks(date: str, state: dict) -> tuple[bool, str]:
     if not weather_path.exists():
         try:
             import subprocess
+            import sys as _sys
             subprocess.run(
-                ["python3", str(Path(__file__).parent / "fetch_weather.py"), "--date", date],
+                [_sys.executable, str(Path(__file__).parent / "fetch_weather.py"), "--date", date],
                 timeout=60, capture_output=True,
             )
         except Exception:
@@ -406,7 +409,7 @@ def run_context_checks(date: str, state: dict) -> tuple[bool, str]:
                 except Exception:
                     pass
             if enrichment["injuries"]:
-                espn_path.write_text(json.dumps(enrichment, indent=2, ensure_ascii=False), encoding="utf-8")
+                atomic_json_write(espn_path, enrichment)
         except Exception:
             pass
     if espn_path.exists():

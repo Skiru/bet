@@ -7,7 +7,11 @@ Free, no API key needed. Rate limit: ~1 req/sec.
 import json
 import time
 from datetime import datetime
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
+from bet.resilience import atomic_json_write
 
 from .base_client import BaseAPIClient, CACHE_DIR
 from .rate_limiter import RateLimiter
@@ -205,7 +209,7 @@ class NBAAPIClient(BaseAPIClient):
         """NBAAPIClient-specific cache save."""
         path = self._cache_dir / f"{key}.json"
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        atomic_json_write(path, data)
 
     def get_team_id(self, name: str) -> int | None:
         """Resolve team name to NBA team ID."""

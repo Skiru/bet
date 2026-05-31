@@ -21,9 +21,11 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from agent_output import AgentOutput, add_agent_args
 
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+from bet.resilience import resilient_request, atomic_json_write
+
 # --- DB support (optional — falls back gracefully) ---
 try:
-    sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
     from bet.db.connection import get_db
     from bet.db.repositories import SportRepo, TeamRepo, FixtureRepo, OddsRepo
     from bet.db.models import OddsRecord
@@ -92,12 +94,10 @@ def discover_active_sport_keys(api_key: str) -> dict:
     tennis_*, soccer_*, etc. keys that aren't already in the map.
     Returns the merged map without modifying the global.
     """
-    try:
-        resp = requests.get(f"{BASE_URL}/sports", params={"apiKey": api_key}, timeout=15)
-        resp.raise_for_status()
-        live_sports = resp.json()
-    except Exception:
+    result = resilient_request("GET", f"{BASE_URL}/sports", params={"apiKey": api_key}, timeout=15.0)
+    if not result.success:
         return dict(SPORT_KEY_MAP)
+    live_sports = result.data
 
     merged = {k: list(v) for k, v in SPORT_KEY_MAP.items()}
 
@@ -150,12 +150,15 @@ def get_api_key():
 
 def list_sports(api_key):
     """List all available in-season sports (FREE — 0 credits)."""
-    resp = requests.get(f"{BASE_URL}/sports", params={"apiKey": api_key}, timeout=15)
-    resp.raise_for_status()
+    result = resilient_request("GET", f"{BASE_URL}/sports", params={"apiKey": api_key}, timeout=15.0)
+    if not result.success:
+        print(f"Error listing sports: {result.error}")
+        return []
 
-    sports = resp.json()
-    remaining = resp.headers.get("x-requests-remaining", "?")
-    used = resp.headers.get("x-requests-used", "?")
+    sports = result.data
+    headers = result.headers or {}
+    remaining = headers.get("x-requests-remaining", "?")
+    used = headers.get("x-requests-used", "?")
 
     print(f"\n{'Key':<45} {'Group':<25} {'Title':<30} {'Active'}")
     print("-" * 110)
@@ -181,9 +184,7 @@ def fetch_odds(api_key, sport_key, markets="h2h,totals", regions="eu",
     if commence_to:
         params["commenceTimeTo"] = commence_to
 
-    t0 = _time.time()
-    resp = requests.get(f"{BASE_URL}/sports/{sport_key}/odds", params=params, timeout=15)
-    elapsed_ms = (_time.time() - t0) * 1000
+    result = resilient_request("GET", f"{BASE_URL}/sports/{sport_key}/odds", params=params, timeout=15.0)
 
     # Task 3.5: Source health tracking
     try:
@@ -191,20 +192,24 @@ def fetch_odds(api_key, sport_key, markets="h2h,totals", regions="eu",
         from bet.db.repositories import SourceHealthRepo
         with get_db() as db:
             repo = SourceHealthRepo(db)
-            if resp.status_code == 200:
-                repo.record_success("odds-api", elapsed_ms)
-            elif resp.status_code >= 400:
+            if result.success:
+                repo.record_success("odds-api", result.elapsed_ms)
+            else:
                 repo.record_failure("odds-api")
             db.commit()
     except Exception:
         pass
 
-    if resp.status_code in (404, 422):
-        # Sport not in season, invalid key, or removed — skip silently
-        return [], resp.headers
-    resp.raise_for_status()
+    headers = result.headers or {}
 
-    return resp.json(), resp.headers
+    if result.status_code in (404, 422):
+        # Sport not in season, invalid key, or removed — skip silently
+        return [], headers
+
+    if not result.success:
+        return [], headers
+
+    return result.data, headers
 
 
 def fetch_scores(api_key, sport_key, days_from=1):
@@ -213,11 +218,13 @@ def fetch_scores(api_key, sport_key, days_from=1):
         "apiKey": api_key,
         "daysFrom": days_from,
     }
-    resp = requests.get(f"{BASE_URL}/sports/{sport_key}/scores", params=params, timeout=15)
-    if resp.status_code == 422:
-        return [], resp.headers
-    resp.raise_for_status()
-    return resp.json(), resp.headers
+    result = resilient_request("GET", f"{BASE_URL}/sports/{sport_key}/scores", params=params, timeout=15.0)
+    headers = result.headers or {}
+    if result.status_code == 422:
+        return [], headers
+    if not result.success:
+        return [], headers
+    return result.data, headers
 
 
 def extract_best_odds(event):
@@ -359,7 +366,7 @@ def run_full_scan(api_key, sport_filter=None, betting_day_window=True, debug=Fal
             "total_events": len(all_events),
             "events": all_events,
         }
-        output_file.write_text(json.dumps(snapshot, indent=2, ensure_ascii=False))
+        atomic_json_write(output_file, snapshot)
 
         # Save summary CSV for easy parsing (proper quoting for team names with commas)
         summary_file = DATA_DIR / "odds_api_summary.csv"
@@ -539,7 +546,7 @@ def run_scores(api_key, sport_filter, days_from=2):
         "total_games": len(all_scores),
         "events": all_scores,
     }
-    scores_file.write_text(json.dumps(scores_data, indent=2, ensure_ascii=False))
+    atomic_json_write(scores_file, scores_data)
     completed = sum(1 for g in all_scores if g.get("completed"))
     print(f"\nScores saved: {scores_file} ({len(all_scores)} games, {completed} completed)")
 

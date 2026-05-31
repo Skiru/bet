@@ -1124,14 +1124,17 @@ def load_gate_results_from_db_only(betting_date: str, status: str | None = None)
                     details = gr.gate_details_json or {}
                     advisory_tier = details.get("advisory_tier")
                     if not advisory_tier and gr.status == "APPROVED":
-                        # Reconstruct from gate_score (18-point gate, n_failed = 18 - score)
-                        # gate_score may be int or string like "14/18"
+                        # Reconstruct from gate_score (N-point gate, n_failed = total - score)
+                        # gate_score may be int or string like "16/20"
                         score_val = gr.gate_score
+                        total = 20  # default matches current GATE_LABELS count
                         if isinstance(score_val, str) and "/" in score_val:
-                            score_val = int(score_val.split("/")[0])
+                            parts = score_val.split("/")
+                            score_val = int(parts[0])
+                            total = int(parts[1])
                         elif isinstance(score_val, str):
                             score_val = int(score_val) if score_val.isdigit() else 0
-                        n_failed = 18 - int(score_val)
+                        n_failed = total - int(score_val)
                         if n_failed <= 2:
                             advisory_tier = "STRONG"
                         elif n_failed <= 5:

@@ -12,6 +12,8 @@ Usage:
     python3 scripts/deep_stats_report.py --date 2026-05-01 --top 50
 """
 
+import logging
+logger = logging.getLogger("bet.deep_stats")
 import argparse
 import concurrent.futures
 import json
@@ -178,7 +180,8 @@ def compute_data_quality(stats_a: dict, stats_b: dict, h2h: dict, sport: str) ->
                 ).fetchone()
                 if row and row[0] > 0:
                     tipster_ok = True
-            except Exception:
+            except Exception as e:
+                logger.debug("Non-critical failure in tipster_picks lookup: %s", e)
                 pass
             # Fallback: web_research_cache
             if not tipster_ok:
@@ -188,7 +191,8 @@ def compute_data_quality(stats_a: dict, stats_b: dict, h2h: dict, sport: str) ->
                 ).fetchone()
                 if row and row[0] > 0:
                     tipster_ok = True
-    except Exception:
+    except Exception as e:
+        logger.debug("Non-critical failure in web_research_cache check: %s", e)
         pass
     if tipster_ok:
         score += 1
@@ -460,7 +464,8 @@ def extract_team_stats(sport: str, team_name: str) -> dict:
             if result["l10_avg"]:
                 result["has_data"] = True
                 return result
-    except Exception:
+    except Exception as e:
+        logger.debug("Non-critical failure in cache read / DB lookup: %s", e)
         pass
 
     # JSON cache fallback
@@ -476,7 +481,8 @@ def extract_team_stats(sport: str, team_name: str) -> dict:
                     result["has_data"] = True
                     if "espn_db" not in result["sources"]:
                         result["sources"].append("espn_db")
-            except Exception:
+            except Exception as e:
+                logger.debug("Non-critical failure in cache read / DB lookup: %s", e)
                 pass
 
         return result
@@ -543,7 +549,8 @@ def extract_team_stats(sport: str, team_name: str) -> dict:
                 result["has_data"] = True
                 if "espn_db" not in result["sources"]:
                     result["sources"].append("espn_db")
-        except Exception:
+        except Exception as e:
+            logger.debug("Non-critical failure in cache read / DB lookup: %s", e)
             pass
 
     # MoneyPuck enrichment for hockey — xG%, Corsi%, Fenwick% (free CSV, no API key)
@@ -556,7 +563,8 @@ def extract_team_stats(sport: str, team_name: str) -> dict:
                 result["has_data"] = True
                 if "moneypuck" not in result["sources"]:
                     result["sources"].append("moneypuck")
-        except Exception:
+        except Exception as e:
+            logger.debug("Non-critical failure in cache read / DB lookup: %s", e)
             pass
 
     # LAST RESORT: Internet enrichment via data_enrichment_agent
@@ -642,7 +650,8 @@ def extract_h2h_stats(sport: str, team_a: str, team_b: str) -> dict:
                 n_meetings = len(first_rec.get("h2h_values", []))
                 result["meetings"] = [{"source": "db", "index": i} for i in range(n_meetings)]
             return result
-    except Exception:
+    except Exception as e:
+        logger.debug("Non-critical failure in cache read / DB lookup: %s", e)
         pass
 
     # Try cache/DB sources first
@@ -706,7 +715,8 @@ def extract_h2h_stats(sport: str, team_a: str, team_b: str) -> dict:
                 result["has_data"] = True
                 result["averages"] = h2h_enriched.get("h2h_stats", {})
                 result["meetings"] = [{"source": "enrichment-agent", "meeting_count": h2h_enriched.get("meetings_found", 0)}]
-        except Exception:
+        except Exception as e:
+            logger.debug("Non-critical failure in cache read / DB lookup: %s", e)
             pass
 
     return result
@@ -1183,7 +1193,8 @@ def _build_expert_sentiment(sport: str, team_a: str, team_b: str) -> str:
                         stat_picks = row[4] or 0
                         signal = "🟢" if agreement >= 70 else ("🟡" if agreement >= 50 else "🔴")
                         lines.append(f"- {signal} {market} → {direction} ({agreement:.0f}% agreement, {tipsters} tipsters, {stat_picks} statistical)")
-            except Exception:
+            except Exception as e:
+                logger.debug("Non-critical failure checking table: %s", e)
                 pass  # table may not exist yet
 
             # Supplementary: web_research_cache
@@ -1199,7 +1210,8 @@ def _build_expert_sentiment(sport: str, team_a: str, team_b: str) -> str:
                         summary = (row[1] or "")[:200]
                         source = row[2] or "unknown"
                         lines.append(f"- [{source}] {summary}")
-            except Exception:
+            except Exception as e:
+                logger.debug("Non-critical failure in cache read / DB lookup: %s", e)
                 pass
 
             if not found_tipster:
@@ -1382,7 +1394,8 @@ def analyze_candidate(
                 safety_input = build_safety_input(sport, home, away, competition)
                 if safety_input and safety_input.get("markets"):
                     ranking_result = rank_markets(safety_input)
-            except Exception:
+            except Exception as e:
+                logger.debug("Non-critical failure in cache read / DB lookup: %s", e)
                 pass
 
     if not ranking_result and shortlist_safety_markets:
@@ -1475,7 +1488,8 @@ def analyze_candidate(
                 ).fetchone()
                 if row:
                     fixture_surface = row[0]
-        except Exception:
+        except Exception as e:
+            logger.debug("Non-critical failure in cache read / DB lookup: %s", e)
             pass
 
     # Build all 10+ sections
@@ -1795,7 +1809,8 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
                         print(f"{'='*70}\n")
                         candidates = _load_candidates_from_shortlist(expected_path)
                         source = f"shortlist:{expected_path} (auto-corrected from {shortlist_path})"
-                except Exception:
+                except Exception as e:
+                    logger.debug("Non-critical failure in cache read / DB lookup: %s", e)
                     pass
     elif from_db:
         # Explicit DB-first mode
@@ -2220,7 +2235,8 @@ def main():
             if not LMStudioClient().health_check():
                 out.warning("⚠️  --gemini flag passed but local model server is not reachable at localhost:8000. "
                            "LLM features will be disabled. Ensure Rapid-MLX is running.")
-        except Exception:
+        except Exception as e:
+            logger.debug("Non-critical failure in cache read / DB lookup: %s", e)
             pass
 
     result = generate_deep_stats(

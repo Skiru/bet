@@ -24,6 +24,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 sys.path.insert(0, str(Path(__file__).parent))
 
+from bet.resilience import atomic_json_write
 from bet.api_clients.espn_odds import ESPNOddsClient, ESPN_SPORT_SLUGS
 from bet.api_clients.espn import ESPNClient, ESPN_LEAGUES, ESPN_SPORT_MAP
 from bet.api_clients.rate_limiter import RateLimiter
@@ -287,12 +288,12 @@ def main():
     # Save output
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     output_file = DATA_DIR / f"espn_odds_snapshot_{args.date}.json"
-    output_file.write_text(json.dumps(snapshot, indent=2, ensure_ascii=False), encoding="utf-8")
+    atomic_json_write(output_file, snapshot)
     print(f"Data saved: {output_file}")
 
     # Also save as current (for pipeline compatibility)
     current_file = DATA_DIR / "espn_odds_snapshot.json"
-    current_file.write_text(json.dumps(snapshot, indent=2, ensure_ascii=False), encoding="utf-8")
+    atomic_json_write(current_file, snapshot)
     print(f"Current link: {current_file}")
 
     # Persist to DB

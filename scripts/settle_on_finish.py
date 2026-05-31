@@ -15,6 +15,8 @@ Notes:
 - Other markets (handicaps, MyCombi) are left as 'pending' for manual verification.
 - Does NOT auto-push to git. Run git commands manually after verification.
 """
+import logging
+logger = logging.getLogger("bet.settlement")
 import csv
 import json
 import re
@@ -35,6 +37,7 @@ except ImportError:
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from bet.utils import names_match
+from bet.resilience import resilient_request
 
 BASE = Path(__file__).resolve().parent
 LEDGER = BASE.parent / "betting" / "journal" / "picks-ledger.csv"
@@ -206,7 +209,8 @@ def search_cached_html(home, away, sport=None):
                         s1, s2 = int(m.group(1)), int(m.group(2))
                         if _validate_score(s1, s2, sport=sport):
                             return (s2, s1) if swap else (s1, s2)
-            except Exception:
+            except Exception as e:
+                logger.debug("Non-critical failure: %s", e)
                 continue
     return None
 
@@ -331,7 +335,8 @@ class _FlashscoreBatchFetcher:
                             try:
                                 page.click("text=FINISHED", timeout=3000)
                                 page.wait_for_timeout(2000)
-                            except Exception:
+                            except Exception as e:
+                                logger.debug("Score parse attempt failed: %s", e)
                                 pass
 
                             # For yesterday, click the left arrow button
@@ -391,10 +396,10 @@ _flashscore_batch_cache = _FlashscoreBatchFetcher()
 def search_flashscore(home, away, sport=None):
     q = quote(f"{home} {away}")
     url = f"https://www.flashscore.com/search/?q={q}"
-    r = requests.get(url, timeout=15, headers=REQUEST_HEADERS)
-    if r.status_code != 200:
+    result = resilient_request("GET", url, timeout=15.0, headers=REQUEST_HEADERS)
+    if not result.success:
         return None
-    text = BeautifulSoup(r.text, "html.parser").get_text(separator=" ")
+    text = BeautifulSoup(result.data, "html.parser").get_text(separator=" ")
     for h, a, swap in [(home, away, False), (away, home, True)]:
         m = re.search(
             rf"{re.escape(h)}\s+(\d{{1,3}})\s*[:\-–—]\s*(\d{{1,3}})\s+{re.escape(a)}",
@@ -964,7 +969,8 @@ def _append_learning_log(settled: list[dict], betting_day: str):
         bankroll = cfg.get("bankroll_pln") or cfg.get("working_bankroll_pln", 50)
         if total_pnl < -(bankroll * 0.20):
             entry_lines.append(f"- ⚠️ **DRAWDOWN ALERT:** {total_pnl:.2f} PLN = {total_pnl/bankroll*100:.1f}% of bankroll")
-    except Exception:
+    except Exception as e:
+        logger.debug("Non-critical failure: %s", e)
         pass
     
     entry_lines.append("")

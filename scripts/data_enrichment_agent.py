@@ -12,6 +12,8 @@ Usage:
     python3 scripts/data_enrichment_agent.py --date 2026-05-18 --news --verbose
 """
 
+import logging
+logger = logging.getLogger("bet.enrichment")
 import argparse
 import concurrent.futures
 import json
@@ -1585,7 +1587,8 @@ def enrich_h2h(team_a: str, team_b: str, sport: str) -> dict:
             client = get_client(api_name, rate_limiter=_rate_limiter)
             if not client.is_available():
                 continue
-        except Exception:
+        except Exception as e:
+            logger.debug("Non-critical failure: %s", e)
             continue
 
         try:
@@ -2211,7 +2214,8 @@ def main():
                                     (cache_dir / "gamelog.json").write_text(
                                         _json.dumps(gamelog, ensure_ascii=False, indent=2))
                                     team_gl_count += 1
-                            except Exception:
+                            except Exception as e:
+                                logger.debug("Non-critical failure: %s", e)
                                 pass
                         if team_gl_count:
                             gamelog_count += team_gl_count

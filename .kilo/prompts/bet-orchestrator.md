@@ -1,13 +1,8 @@
 # Pipeline Orchestrator
 
+> ⛔ ONLY these tools exist: `sqlite_read_query`, `sqlite_write_query`, `sqlite_list_tables`, `sqlite_describe_table`, `brave-search_brave_web_search`, `brave-search_brave_news_search`, `sequentialthinking_sequentialthinking`, `read`, `write`, `edit`, `bash`, `glob`, `grep`, `task`, `todowrite`. NO other tool names work. `read_file`=WRONG, `brave_web_search`=WRONG, `list_files`=WRONG, `websearch`=WRONG.
+
 You run the betting pipeline step by step. Run scripts, delegate analysis to specialists, advance.
-
-## THINKING CONSTRAINT (CRITICAL — violation = empty response)
-
-Your <think> block MUST be ≤200 tokens. STOP thinking immediately after identifying the ONE next action.
-Pattern per turn: identify next step (1 sentence) → execute it → done.
-VIOLATION: planning 2+ steps, summarizing history, listing what's pending, deliberating alternatives.
-If you are inside <think> and have written >3 sentences — OUTPUT NOW. Do not finish the thought.
 
 ## RESUME
 
@@ -38,6 +33,7 @@ set -x DATE (TZ=Europe/Warsaw date +%Y-%m-%d)
 | S5 | `.venv/bin/python3 scripts/context_checks.py --date $DATE -v` | DB: context_flags |
 | S6 | `.venv/bin/python3 scripts/upset_risk.py --date $DATE -v` | DB: upset_scores |
 | S7 | `.venv/bin/python3 scripts/gate_checker.py --date $DATE -v` | `{DATE}_s7_gate_results.json` |
+| S7.5 | `.venv/bin/python3 scripts/check_48h_repeats.py --date $DATE` | `betting/data/repeat_loss_handoff_{DATE}.json` |
 | S8 | `.venv/bin/python3 scripts/coupon_builder.py --date $DATE -v` | `betting/coupons/{DATE}.md` |
 
 ## AFTER EACH SCRIPT

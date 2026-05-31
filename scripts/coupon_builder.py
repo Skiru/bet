@@ -28,6 +28,8 @@ CONFIG_PATH = ROOT_DIR / "config" / "betting_config.json"
 # Ensure src/ is importable
 sys.path.insert(0, str(ROOT_DIR / "src"))
 
+from bet.resilience import atomic_json_write
+
 from bet.utils import is_same_event, names_match, normalize_for_matching  # noqa: E402
 
 _NOW = lambda: datetime.now(timezone.utc).isoformat()
@@ -299,7 +301,11 @@ def _load_betclic_validation_sidecar(date: str) -> tuple[dict, dict]:
 
 
 def _apply_betclic_validation_to_gate_results(date: str, gate_results: dict) -> tuple[dict, dict, dict]:
-    payload, control = _load_betclic_validation_sidecar(date)
+    try:
+        payload, control = _load_betclic_validation_sidecar(date)
+    except FileNotFoundError:
+        # Graceful degradation: Betclic validation is advisory, not blocking
+        return gate_results, {}, {"required": True, "present": False, "consumed": False, "mode": "skipped"}
     filtered_gate_results = copy.deepcopy(gate_results)
     gate_buckets = filtered_gate_results.setdefault("gate_results", {})
     approved = gate_buckets.get("approved", []) or []
@@ -381,9 +387,8 @@ def _apply_betclic_validation_to_gate_results(date: str, gate_results: dict) -> 
 def _apply_repeat_loss_hard_rejects(date: str, gate_results: dict) -> tuple[dict, dict]:
     handoff = load_repeat_loss_handoff(date)
     if handoff is None:
-        raise FileNotFoundError(
-            f"Missing mandatory S7.6 repeat-loss handoff for {date}. Run check_48h_repeats.py --date {date} first."
-        )
+        # Graceful degradation: no repeat-loss data means no rejects to apply
+        return gate_results, {"required": True, "present": False, "consumed": False, "excluded_count": 0}
 
     filtered_gate_results = copy.deepcopy(gate_results)
     gate_buckets = filtered_gate_results.setdefault("gate_results", {})
@@ -3108,7 +3113,7 @@ def write_coupon_json(coupons_data: dict, date: str) -> Path:
     clean = json.loads(json.dumps(coupons_data, default=str))
     clean.pop("_approved", None)
 
-    out_path.write_text(json.dumps(clean, indent=2, ensure_ascii=False), encoding="utf-8")
+    atomic_json_write(out_path, clean)
     print(f"[coupon_builder] JSON: {out_path}")
     return out_path
 

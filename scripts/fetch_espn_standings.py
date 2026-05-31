@@ -20,6 +20,8 @@ import requests
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+from bet.resilience import atomic_json_write
+
 CACHE_DIR = Path(__file__).parent.parent / "betting" / "data" / "stats_cache"
 
 # Standings endpoint differs per sport type
@@ -206,7 +208,7 @@ def save_standings(sport: str, league: str, teams: list[dict], date: str) -> Pat
         "source": "espn-standings",
         "teams": teams,
     }
-    out_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    atomic_json_write(out_path, payload)
     return out_path
 
 

@@ -25,6 +25,7 @@ sys.path.insert(0, str(ROOT_DIR / "scripts"))
 
 from bet.schemas.llm_responses import CandidateDeepAnalysis
 from bet.api_clients.lmstudio_client import LMStudioClient, LMStudioNotAvailableError, LMStudioError
+from bet.resilience import atomic_json_write
 
 logger = logging.getLogger(__name__)
 
@@ -274,7 +275,7 @@ def main():
             entry["analysis"] = None
         output_data.append(entry)
 
-    output_file.write_text(json.dumps(output_data, indent=2, ensure_ascii=False), encoding="utf-8")
+    atomic_json_write(output_file, output_data)
 
     summary = {
         "verdict": "OK" if analyzed > 0 else "PARTIAL",

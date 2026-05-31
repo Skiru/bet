@@ -7,6 +7,8 @@ transforms into the standard stats_cache format, and writes via build_stats_cach
 CLI: python3 scripts/ingest_scan_stats.py --date YYYY-MM-DD [--dry-run]
 """
 
+import logging
+logger = logging.getLogger("bet.ingest_scan")
 import argparse
 import json
 import re
@@ -879,7 +881,8 @@ def _ingest_team_side(
             try:
                 from build_stats_cache import _persist_to_db
                 _persist_to_db(sport, team, entry)
-            except Exception:
+            except Exception as e:
+                logger.debug("Non-critical failure: %s", e)
                 pass
 
         print(f"[ingest] {sport}/{slugify(team)}: {log_detail} → cached")

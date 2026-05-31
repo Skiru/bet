@@ -5,6 +5,8 @@ Extracted from pipeline_orchestrator.py (Phase 3.3).
 Supports --verbose + AGENT_SUMMARY for agent-driven pipeline (R17/R19).
 """
 
+import logging
+logger = logging.getLogger("bet.upset_risk")
 import argparse
 import json
 import sys
@@ -276,7 +278,8 @@ def main():
         from bet.pipeline import PipelineState
         ps = PipelineState.load(args.date)
         ps.advance("S6", summary={"scored": scored, "high_risk": high_risk})
-    except Exception:
+    except Exception as e:
+        logger.debug("Upset risk calc failed for candidate: %s", e)
         pass
 
     sys.exit(0 if ok else 1)

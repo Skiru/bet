@@ -23,6 +23,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 import requests
 from bs4 import BeautifulSoup
+from bet.resilience import resilient_request, atomic_json_write
 
 def tennisabstract_parse(html: str, url: str) -> list[dict]:
     """Parse TennisAbstract Elo ratings HTML table (inlined from deleted adapter)."""
@@ -128,13 +129,11 @@ def fetch_and_cache(tour: str, verbose: bool = False) -> dict:
     if verbose:
         print(f"[fetch-elo] Fetching {tour.upper()} Elo ratings from {url}")
 
-    try:
-        resp = requests.get(url, headers=HEADERS, timeout=30)
-        resp.raise_for_status()
-        html = resp.text
-    except Exception as e:
-        print(f"[fetch-elo] FAILED to fetch {url}: {e}")
+    result = resilient_request("GET", url, headers=HEADERS, timeout=30.0)
+    if not result.success:
+        print(f"[fetch-elo] FAILED to fetch {url}: {result.error}")
         return {"tour": tour, "players": 0, "errors": 1}
+    html = result.data
 
     # Parse with existing adapter
     results = tennisabstract_parse(html, url)
@@ -153,10 +152,7 @@ def fetch_and_cache(tour: str, verbose: bool = False) -> dict:
             continue
         slug = slugify(name)
         player_file = tour_dir / f"{slug}.json"
-        player_file.write_text(
-            json.dumps(player, indent=2, ensure_ascii=False),
-            encoding="utf-8",
-        )
+        atomic_json_write(player_file, player)
         stored += 1
 
     # Store combined tour summary
@@ -167,10 +163,7 @@ def fetch_and_cache(tour: str, verbose: bool = False) -> dict:
         "players": results,
         "source_url": url,
     }
-    summary_file.write_text(
-        json.dumps(summary, indent=2, ensure_ascii=False),
-        encoding="utf-8",
-    )
+    atomic_json_write(summary_file, summary)
 
     if verbose:
         print(f"[fetch-elo] Stored {stored} player files + {tour}_elo.json summary")

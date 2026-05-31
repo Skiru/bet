@@ -36,6 +36,8 @@ try:
 except ImportError:
     _HAS_DB = False
 
+from bet.resilience import atomic_json_write
+
 # Ensure scripts/ is importable
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
@@ -322,7 +324,7 @@ def run_multi_scan(
         "events": all_events,
     }
     snapshot_file = DATA_DIR / "odds_api_snapshot.json"
-    snapshot_file.write_text(json.dumps(snapshot, indent=2, ensure_ascii=False))
+    atomic_json_write(snapshot_file, snapshot)
 
     # 2) odds_api_summary.csv — SAME columns as fetch_odds_api.py
     summary_file = DATA_DIR / "odds_api_summary.csv"
@@ -382,7 +384,7 @@ def run_multi_scan(
     if errors:
         provenance_data["errors"] = errors
     provenance_file = DATA_DIR / "odds_multi_sources.json"
-    provenance_file.write_text(json.dumps(provenance_data, indent=2, ensure_ascii=False))
+    atomic_json_write(provenance_file, provenance_data)
 
     # Dual-write to DB (non-blocking)
     try:

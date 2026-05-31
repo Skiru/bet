@@ -29,6 +29,8 @@ from urllib.parse import quote_plus
 _ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_ROOT / "src"))
 
+from bet.resilience import atomic_json_write
+
 from bet.db.connection import get_db  # noqa: E402
 
 logger = logging.getLogger(__name__)
@@ -81,7 +83,7 @@ def _load_counter() -> dict:
 def _save_counter(counter: dict) -> None:
     """Save counter to file."""
     COUNTER_FILE.parent.mkdir(parents=True, exist_ok=True)
-    COUNTER_FILE.write_text(json.dumps(counter, indent=2), encoding="utf-8")
+    atomic_json_write(COUNTER_FILE, counter)
 
 
 def _can_use_serp(counter: dict) -> bool:

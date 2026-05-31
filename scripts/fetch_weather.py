@@ -23,6 +23,9 @@ except ImportError:
     print("[weather] requests not installed — run: pip install requests")
     sys.exit(1)
 
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+from bet.resilience import resilient_request, safe_json_load, atomic_json_write
+
 DATA_DIR = Path(__file__).parent.parent / "betting" / "data"
 
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
@@ -96,13 +99,11 @@ def fetch_weather(lat: float, lon: float, date: str) -> dict | None:
         "timezone": "Europe/Warsaw",
     }
 
-    try:
-        resp = requests.get(OPEN_METEO_URL, params=params, timeout=10)
-        resp.raise_for_status()
-        data = resp.json()
-    except Exception as e:
-        print(f"[weather] Error fetching weather for ({lat}, {lon}): {e}")
+    result = resilient_request("GET", OPEN_METEO_URL, params=params, timeout=10.0)
+    if not result.success:
+        print(f"[weather] Error fetching weather for ({lat}, {lon}): {result.error}")
         return None
+    data = result.data
 
     daily = data.get("daily", {})
     hourly = data.get("hourly", {})
@@ -260,7 +261,7 @@ def main():
             # Try default fixtures path
             fixtures_path = DATA_DIR / f"fixtures_{args.date}.json"
         if fixtures_path.exists():
-            data = json.loads(fixtures_path.read_text(encoding="utf-8"))
+            data = safe_json_load(fixtures_path, default={})
             fixtures = data.get("fixtures", data) if isinstance(data, dict) else data
         else:
             print(f"[weather] Fixtures file not found: {fixtures_path}")
@@ -268,7 +269,7 @@ def main():
         if fixtures:
             results = fetch_weather_for_fixtures(fixtures, args.date)
             out_path = DATA_DIR / f"weather_{args.date}.json"
-            out_path.write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
+            atomic_json_write(out_path, results)
             print(f"[weather] Fetched weather for {len(results)} venues → {out_path}")
     else:
         # Default: DB-first, then JSON fallback
@@ -285,7 +286,7 @@ def main():
         if not fixtures:
             fixtures_path = DATA_DIR / f"fixtures_{args.date}.json"
             if fixtures_path.exists():
-                data = json.loads(fixtures_path.read_text(encoding="utf-8"))
+                data = safe_json_load(fixtures_path, default={})
                 fixtures = data.get("fixtures", [])
             else:
                 print(f"[weather] No fixtures file found for {args.date}")
@@ -294,7 +295,7 @@ def main():
         if fixtures:
             results = fetch_weather_for_fixtures(fixtures, args.date)
             out_path = DATA_DIR / f"weather_{args.date}.json"
-            out_path.write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
+            atomic_json_write(out_path, results)
             print(f"[weather] Fetched weather for {len(results)} venues → {out_path}")
 
 

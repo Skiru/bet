@@ -21,6 +21,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+from bet.resilience import atomic_json_write
 from check_48h_repeats import load_recent_losses, normalize_team, normalize_market, find_repeats
 from context_checks import validate_data_completeness
 from utils import normalize_kickoff
@@ -1895,7 +1896,7 @@ def _write_json(results: dict, date: str) -> Path:
             entry.pop("three_way_check", None)
             entry.pop("warnings", None)
 
-    out_path.write_text(json.dumps(clean, indent=2, ensure_ascii=False), encoding="utf-8")
+    atomic_json_write(out_path, clean)
     print(f"[gate_checker] JSON: {out_path}")
     return out_path
 

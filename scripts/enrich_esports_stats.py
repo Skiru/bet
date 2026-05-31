@@ -32,6 +32,7 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT_DIR / "src"))
 
 from bet.db.connection import get_db
+from bet.resilience import resilient_request
 
 logger = logging.getLogger(__name__)
 
@@ -316,9 +317,9 @@ def enrich_dota2_teams(teams: list[dict], verbose: bool = False) -> dict:
         try:
             # Try Liquipedia API for Dota2 team data
             search_url = f"https://liquipedia.net/dota2/api.php?action=opensearch&search={team_name}&limit=1&format=json"
-            resp = requests.get(search_url, headers=headers, timeout=10)
-            if resp.status_code == 200:
-                data = resp.json()
+            result = resilient_request("GET", search_url, headers=headers, timeout=10.0)
+            if result.success:
+                data = result.data
                 if data and len(data) >= 4 and data[3]:
                     # Found on Liquipedia — but do NOT store fake 50% win rate.
                     # Only store a presence marker without fabricated stats.

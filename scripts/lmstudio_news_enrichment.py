@@ -20,6 +20,7 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT_DIR / "src"))
 sys.path.insert(0, str(ROOT_DIR / "scripts"))
 
+from bet.resilience import atomic_json_write
 from bet.schemas.gemini_responses import NewsEnrichmentResult, InjuryReport
 from bet.db.connection import get_db
 from bet.api_clients.lmstudio_client import LMStudioClient, LMStudioNotAvailableError, LMStudioError
@@ -290,7 +291,7 @@ def main():
     # Save JSON output
     output_file = DATA_DIR / f"{args.date}_news_enrichment.json"
     output_data = [r.model_dump() for r in results if r.injuries or r.recent_news]
-    output_file.write_text(json.dumps(output_data, indent=2, ensure_ascii=False), encoding="utf-8")
+    atomic_json_write(output_file, output_data)
 
     with_data = sum(1 for r in results if r.injuries or r.recent_news)
     summary = {

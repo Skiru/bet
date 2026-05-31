@@ -23,6 +23,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+from bet.resilience import atomic_json_write, resilient_request
 import requests
 from build_stats_cache import (
     CACHE_DIR,
@@ -48,12 +49,10 @@ MIN_MATCHES_TARGET = 10
 def _fetch_scoreboard(league: str, date_str: str) -> dict:
     """Fetch ESPN tennis scoreboard for a date (YYYYMMDD format)."""
     url = f"{ESPN_BASE}/{league}/scoreboard"
-    try:
-        r = requests.get(url, params={"dates": date_str}, headers=HEADERS, timeout=15)
-        r.raise_for_status()
-        return r.json()
-    except Exception:
+    result = resilient_request("GET", url, params={"dates": date_str}, headers=HEADERS, timeout=15.0)
+    if not result.success:
         return {}
+    return result.data
 
 
 def _build_all_matches_index(leagues: list[str] = None) -> dict[str, list[dict]]:
@@ -292,8 +291,7 @@ def _update_player_cache(player_name: str, form_data: dict, force: bool = False)
         "form": form_data,
         "api_source": "espn-tennis-enriched",
     }
-
-    cache_file.write_text(json.dumps(cache_entry, indent=2, ensure_ascii=False), encoding="utf-8")
+    atomic_json_write(cache_file, cache_entry)
 
     # Persist to DB
     try:

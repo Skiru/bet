@@ -18,6 +18,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+from bet.resilience import atomic_json_write
 from bet.api_clients.odds_api_io import OddsAPIioClient, SPORT_SLUG_MAP, fetch_odds_snapshot
 from bet.api_clients.rate_limiter import RateLimiter
 from agent_output import AgentOutput, add_agent_args
@@ -89,11 +92,11 @@ def main():
                 all_vb.extend(vb)
 
         output = DATA_DIR / "odds_api_io_value_bets.json"
-        output.write_text(json.dumps({
+        atomic_json_write(output, {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "count": len(all_vb),
             "value_bets": all_vb,
-        }, indent=2, ensure_ascii=False))
+        })
         print(f"\nSaved {len(all_vb)} value bets → {output}")
         return
 

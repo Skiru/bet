@@ -21,6 +21,8 @@ from pathlib import Path
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(Path(__file__).parent))
+
+from bet.resilience import atomic_json_write
 from bet.api_clients import get_client, RateLimiter, CLIENT_REGISTRY
 from bet.api_clients.base_client import APIRateLimitError, APIError
 from bet.stats.fallback_chains import (
@@ -84,7 +86,7 @@ def fetch_league_leaders_for_sport(sport: str, league: str) -> dict | None:
         leaders = client.get_league_leaders(sport, league)
         if leaders:
             cache_path.parent.mkdir(parents=True, exist_ok=True)
-            cache_path.write_text(json.dumps(leaders, ensure_ascii=False, indent=2))
+            atomic_json_write(cache_path, leaders)
             print(f"[leaders] Fetched {len(leaders)} leader entries for {sport}/{league}")
             return leaders
     except Exception as e:
@@ -140,7 +142,7 @@ def fetch_player_gamelogs(sport: str, league: str, team_id: str, team_name: str)
                 # Cache the gamelog
                 cache_dir = DATA_DIR / "stats_cache" / "espn" / sport / "players" / str(athlete_id)
                 cache_dir.mkdir(parents=True, exist_ok=True)
-                (cache_dir / "gamelog.json").write_text(json.dumps(gamelog, ensure_ascii=False, indent=2))
+                atomic_json_write(cache_dir / "gamelog.json", gamelog)
                 results.append({"athlete_id": athlete_id, "games": len(gamelog)})
                 print(f"[gamelogs] Fetched {len(gamelog)} games for athlete {athlete_id}")
         except Exception as e:

@@ -19,6 +19,8 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT_DIR / "src"))
 
+from bet.resilience import atomic_json_write
+
 try:
     from bet.config import get_tz
 except ImportError:
@@ -1583,7 +1585,7 @@ def write_step_output(date: str, step_id: str, metrics: dict, artifacts: list[st
         "written_at": datetime.now(get_tz()).isoformat(),
     }
     out_path = _reviews_dir(date) / f"{step_id}_input.json"
-    out_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+    atomic_json_write(out_path, payload)
     return str(out_path)
 
 

@@ -12,9 +12,13 @@ import csv
 import io
 import json
 import time
+import sys
 from pathlib import Path
 
 import requests
+
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
+from bet.resilience import atomic_json_write
 
 CACHE_DIR = Path(__file__).resolve().parent.parent.parent / "betting" / "data" / "moneypuck.com"
 BASE_URL = "https://moneypuck.com/moneypuck/playerData/seasonSummary"
@@ -190,7 +194,7 @@ def fetch_team_stats(season: str | None = None, season_type: str = "regular",
 
     # Cache all situations
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    cache.write_text(json.dumps(all_teams, indent=2, ensure_ascii=False), encoding="utf-8")
+    atomic_json_write(cache, all_teams)
     print(f"[moneypuck] Cached {len(all_teams)} team rows for {season}/{season_type}")
 
     # Filter by requested situation ("all" is the aggregate row, not "return everything")

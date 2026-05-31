@@ -26,6 +26,9 @@ DATA_DIR = PROJECT_DIR / "betting" / "data"
 # Add scripts dir for sibling imports
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
+if str(PROJECT_DIR / "src") not in sys.path:
+    sys.path.insert(0, str(PROJECT_DIR / "src"))
+from bet.resilience import atomic_json_write
 from generate_market_matrix import MAJOR_COMPETITIONS, _is_major_competition
 from bet.stats.market_ranking import STANDARD_MARKET_LINES
 from bet.utils import names_match, is_same_event
@@ -1354,7 +1357,7 @@ def _apply_betclic_filter(selected: list[tuple[float, dict]], date: str, out) ->
     }
 
     output_path = DATA_DIR / f"{date}_s2_shortlist_bettable.json"
-    output_path.write_text(json.dumps(output, indent=2, ensure_ascii=False), encoding="utf-8")
+    atomic_json_write(output_path, output)
 
     print(f"\n[shortlist] BETCLIC FILTER: {len(filtered)} bettable / {rejected_count} rejected")
     print(f"[shortlist] Bettable shortlist: {output_path}")
