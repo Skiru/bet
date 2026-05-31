@@ -1,5 +1,11 @@
 # Betting Pipeline — Project Rules
 
+## THINKING LIMIT (ALL AGENTS — CRITICAL)
+
+Your <think> block MUST be ≤200 tokens. Max 3 sentences. Then OUTPUT immediately.
+Server max_tokens=32768. Thinking tokens subtract from your response budget.
+If you think too long → empty response → FAILED turn. Think briefly, act immediately.
+
 ## Architecture
 
 - Agent-driven pipeline: orchestrator calls individual scripts; `pipeline_orchestrator.py` is BANNED.

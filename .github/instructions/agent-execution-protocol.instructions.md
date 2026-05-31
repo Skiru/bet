@@ -4,6 +4,12 @@ applyTo: ".github/agents/bet-*.agent.md"
 
 # Agent Execution Protocol v11
 
+## THINKING LIMIT (applies to ALL agents)
+
+Your <think> block MUST be ≤200 tokens. After 3 sentences of thinking, STOP and produce output.
+The server has a 32K output cap. Every thinking token steals from your visible response.
+If you plan the whole session in <think>, you will produce ZERO visible output and FAIL.
+
 ## Terminal: Fish Shell
 
 No inline Python (`python3 -c "..."`), no bash syntax, no `export`. Use `set -x VAR value` for env vars.

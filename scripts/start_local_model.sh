@@ -40,18 +40,22 @@ end
 # ═══════════════════════════════════════════════════════════════════
 # --no-mllm:                  Skip vision encoder → frees memory for inference
 # --max-num-seqs 1:           Single-user pipeline → ALL resources to active request
+# --max-concurrent-requests 4: Admission cap — prevents queue buildup
 # --reasoning-parser qwen3:   Parse <think>...</think> blocks (CRITICAL for pipeline)
 # --default-temperature 0.6:  Qwen optimal — explores hypotheses without chaos
 # --default-top-p 0.95:       Qwen optimal — diverse but controlled token selection
 # --default-top-k 20:         Qwen optimal — prevents unlikely tokens in reasoning
-# --max-tokens 32768:         Deep thinking can use 5-10K + structured output 5-8K
+# --max-tokens 32768:         Hard cap on output (thinking+content). Prevents infinite loops.
+# --stream-interval 1:        Per-token streaming — SSE keepalive for Kilo
 # --pin-system-prompt:        Agent instructions (~23K tokens) stay cached in memory
 # --enable-prefix-cache:      Reuse computed KV for repeated prompt prefixes
 # --kv-cache-turboquant:      3-bit V-cache compression (86% savings, K stays FP16)
-# --cache-memory-mb 12000:    12GB for prefix cache (MoE leaves 21GB headroom)
-# --gpu-memory-utilization 0.88: 88% of Metal (19GB model + 12GB cache = safe)
-# --prefill-step-size 8192:   Fast prefill — MoE only activates 3B per chunk
+# --cache-memory-mb 2000:     2GB prefix cache (proven safe with 0.9 GPU util)
+# --gpu-memory-utilization 0.9: 90% of Metal (~36GB alloc) — proven stable
+# --prefill-step-size 4096:   Safe chunks — prevents OOM at high token counts
+# --chunked-prefill-tokens 4096: Matches prefill-step-size for consistency
 # --gc-control:               No GC during generation → no latency spikes
+# --timeout 1800:             Server-side 30min safety net per request
 # --enable-auto-tool-choice:  Auto-detect when model wants to call a tool
 # --tool-call-parser qwen3_coder_xml:  Parse Qwen3.6 XML tool calls (native format)
 # ═══════════════════════════════════════════════════════════════════
@@ -59,19 +63,23 @@ end
 set -l FLAGS \
     --no-mllm \
     --max-num-seqs 1 \
+    --max-concurrent-requests 4 \
     --reasoning-parser qwen3 \
     --default-temperature 0.6 \
     --default-top-p 0.95 \
     --default-top-k 20 \
     --max-tokens 32768 \
+    --stream-interval 1 \
     --pin-system-prompt \
     --enable-prefix-cache \
     --kv-cache-turboquant \
     --kv-cache-turboquant-bits 3 \
-    --cache-memory-mb 4000 \
-    --gpu-memory-utilization 0.75 \
-    --prefill-step-size 8192 \
+    --cache-memory-mb 2000 \
+    --gpu-memory-utilization 0.9 \
+    --prefill-step-size 4096 \
+    --chunked-prefill-tokens 4096 \
     --gc-control \
+    --timeout 1800 \
     --enable-auto-tool-choice \
     --tool-call-parser qwen3_coder_xml
 
@@ -80,22 +88,26 @@ if contains -- --safe $argv
     set FLAGS \
         --no-mllm \
         --max-num-seqs 1 \
+        --max-concurrent-requests 2 \
         --reasoning-parser qwen3 \
         --default-temperature 0.6 \
         --default-top-p 0.95 \
         --default-top-k 20 \
         --max-tokens 32768 \
+        --stream-interval 1 \
         --pin-system-prompt \
         --enable-prefix-cache \
         --kv-cache-turboquant \
         --kv-cache-turboquant-bits 3 \
-        --cache-memory-mb 2000 \
-        --gpu-memory-utilization 0.70 \
+        --cache-memory-mb 1500 \
+        --gpu-memory-utilization 0.75 \
         --prefill-step-size 4096 \
+        --chunked-prefill-tokens 4096 \
         --gc-control \
+        --timeout 1800 \
         --enable-auto-tool-choice \
         --tool-call-parser qwen3_coder_xml
-    echo "🛡️  Safe mode: GPU utilization 70%, cache 2GB"
+    echo "🛡️  Safe mode: GPU utilization 75%, cache 1.5GB"
 else if contains -- --minimal $argv
     set FLAGS \
         --no-mllm \

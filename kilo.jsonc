@@ -363,14 +363,16 @@
   // Compaction tuned for MoE model — prevents Metal OOM
   // PROVEN (2026-05-30): With prefill-step-size=4096, GPU=90%, cache=2GB:
   //   34K tokens + 27 tools = SUCCESS (previously crashed at 17K with step=32768)
-  // Safe ceiling: 30K tokens (generous buffer)
-  // reserved = 131072 - 30000 = 101072 → rounds to 101000
+  // Output limit: 32K (--max-tokens 32768). Context capacity: 131K.
+  // reserved = output budget + safety buffer = 32K + 6K = 38K
+  // → compaction triggers at 131072 - 38000 = 93072 tokens of input context
+  // → leaves enough room for full 32K output generation
   "compaction": {
     "auto": true,
     "prune": true,
     "tail_turns": 2,
     "preserve_recent_tokens": 6000,
-    "reserved": 101000
+    "reserved": 38000
   },
 
   // Experimental features for pipeline
