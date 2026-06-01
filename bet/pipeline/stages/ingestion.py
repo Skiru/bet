@@ -5,7 +5,7 @@ raw payloads, wraps them in RawEvent dataclasses and returns the list.
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List
 
 from ..contracts import RawEvent
@@ -21,6 +21,8 @@ def ingest_events(date, adapter: BookmakerAdapterProtocol, source_name: str = "b
     raw = adapter.fetch_events(date)
     events: List[RawEvent] = []
     for payload in raw:
-        evt = RawEvent(source=source_name, external_id=str(payload.get("id") or payload.get("external_id", "")), data=payload, fetched_at=datetime.utcnow())
+        external_id = str(payload.get("id") or payload.get("external_id", ""))
+        fetched_at = datetime.now(timezone.utc)
+        evt = RawEvent(source=source_name, external_id=external_id, data=payload, fetched_at=fetched_at)
         events.append(evt)
     return events

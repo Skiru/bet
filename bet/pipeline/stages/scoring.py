@@ -6,12 +6,16 @@ in future iterations.
 """
 from __future__ import annotations
 
-from typing import List
+from typing import Optional, List
 
 from ..contracts import FixtureFeatures, Signal
 
 
-def score_candidates(features: List[FixtureFeatures], model_meta: dict | None = None) -> List[Signal]:
+def _clamp(v: float) -> float:
+    return max(0.0, min(1.0, v))
+
+
+def score_candidates(features: List[FixtureFeatures], model_meta: Optional[dict] = None) -> List[Signal]:
     signals: List[Signal] = []
     for f in features:
         # naive rule: prefer home if home_len > away_len
@@ -26,5 +30,5 @@ def score_candidates(features: List[FixtureFeatures], model_meta: dict | None = 
         else:
             pick = "draw"
             confidence = 0.5
-        signals.append(Signal(external_id=f.external_id, pick=pick, confidence=float(confidence), score_details={"rule": "length_based"}))
+        signals.append(Signal(external_id=f.external_id, pick=pick, confidence=_clamp(float(confidence)), score_details={"rule": "length_based"}))
     return signals
