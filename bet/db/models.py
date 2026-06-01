@@ -10,8 +10,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Column, String, Integer, DateTime, Text, JSON
-from sqlalchemy.dialects.sqlite import BLOB
+from sqlalchemy import Column, String, Integer, DateTime, JSON
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
@@ -51,4 +50,5 @@ class Artifact(Base):
     schema_version = Column(String, nullable=False, default="v1")
     status = Column(String, nullable=False, default="pending")
     created_at = Column(DateTime, default=datetime.utcnow)
-    supersedes_uuid = Column(String, nullable=True)
+    # Reference to the uuid of the artifact that superseded THIS artifact (if any)
+    superseded_by_uuid = Column(String, nullable=True)

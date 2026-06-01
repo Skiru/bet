@@ -7,7 +7,7 @@ structures suitable for tests.
 from __future__ import annotations
 
 from typing import Optional, List
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -37,8 +37,8 @@ def insert_market_odds(db: Session, market_id: str, fixture_id: int, odds_payloa
     return mo
 
 
-def insert_artifact(db: Session, artifact_type: str, payload: dict, schema_version: str = "v1", supersedes_uuid: Optional[str] = None) -> Artifact:
-    art = Artifact(artifact_type=artifact_type, payload=payload, schema_version=schema_version, supersedes_uuid=supersedes_uuid)
+def insert_artifact(db: Session, artifact_type: str, payload: dict, schema_version: str = "v1", superseded_by_uuid: Optional[str] = None) -> Artifact:
+    art = Artifact(artifact_type=artifact_type, payload=payload, schema_version=schema_version, superseded_by_uuid=superseded_by_uuid)
     db.add(art)
     db.flush()
     return art
@@ -50,7 +50,7 @@ def mark_artifact_superseded(db: Session, uuid: str, superseded_by_uuid: str) ->
     if not art:
         return None
     art.status = "superseded"
-    art.supersedes_uuid = superseded_by_uuid
+    art.superseded_by_uuid = superseded_by_uuid
     db.add(art)
     db.flush()
     return art

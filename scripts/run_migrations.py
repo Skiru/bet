@@ -11,7 +11,19 @@ from pathlib import Path
 import sqlite3
 
 MIGRATIONS_DIR = Path(__file__).resolve().parents[1] / "migrations"
-DB_PATH = os.getenv("DATABASE_URL", "sqlite:///./bet.db").replace("sqlite:///", "")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./bet.db")
+
+
+def _sqlite_db_path(url: str) -> str:
+    if url.startswith("sqlite:///"):
+        return url.replace("sqlite:///", "", 1)
+    if url.startswith("sqlite://"):
+        # sqlite://:memory: or other forms - only support file-based for migrations
+        raise RuntimeError("Unsupported sqlite URL for migrations: use sqlite:///path/to/file.db")
+    raise RuntimeError("Migration runner only supports sqlite file DB via DATABASE_URL env var")
+
+
+DB_PATH = _sqlite_db_path(DATABASE_URL)
 
 
 def run_migrations():

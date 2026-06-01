@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS artifacts (
   schema_version TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'pending',
   created_at DATETIME DEFAULT (datetime('now')),
-  supersedes_uuid TEXT
+  superseded_by_uuid TEXT
 );
 
 COMMIT;
