@@ -115,7 +115,7 @@
           "bet-challenger": "allow",
           "bet-builder": "allow",
           "bet-db-analyst": "allow"
-        }
+        },
 
         // Canonical pipeline step mapping for scripts (S0..S8). Agents can use this
         // mapping to run specific pipeline steps. Each entry includes the wrapper
@@ -361,7 +361,7 @@
     "sequentialthinking": {
       "type": "local",
       "command": ["npx", "-y", "@modelcontextprotocol/server-sequential-thinking"],
-      "enabled": true,
+      "enabled": false,
       // Thinking can take long for complex decisions (gate, bear cases)
       "timeout": 120000
     },

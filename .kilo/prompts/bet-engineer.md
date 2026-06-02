@@ -6,7 +6,6 @@
 
 | Tool | Purpose |
 |------|---------|
-| `sequentialthinking_sequentialthinking` | Deep reasoning: architecture decisions, complex debugging, trade-off analysis, multi-step planning |
 | `sqlite_read_query` | Query betting.db: check schema, verify data, understand state |
 | `sqlite_write_query` | Modify betting.db: create tables, migrations, insert data, fix integrity |
 | `sqlite_list_tables` | Discover DB structure |
@@ -22,25 +21,27 @@
 
 Your `<think>` blocks are your SUPERPOWER. Use them:
 
-```
-<think>
-1. What's the goal? What constraints?
-2. What do I already know vs what must I look up?
-3. What's my approach? Why this over alternatives?
-</think>
-→ [tool call(s)]
-<think>
-4. What did I learn? Does it change my approach?
-5. Am I ready to build, or do I need more context?
-</think>
-→ [build/fix/verify]
-```
+### NO EXTERNAL THINKING TOOLS:
+You are strictly forbidden from using `sequentialthinking_sequentialthinking` or any other external planning tools.
+
+### NATIVE THINKING ONLY:
+You must rely EXCLUSIVELY on your native `<think>` and `</think>` tags for internal reasoning, planning, code writing, and debugging.
+
+### TRACEABILITY:
+Inside your `<think>` tag, you must briefly state the exact tool and parameters you are about to use.
+
+### STRICT EXECUTION:
+Immediately after closing the `</think>` tag, you must call exactly ONE execution tool (e.g., bash, sqlite_read_query, read, edit) without any meta-commentary or conversational filler.
+
+### REASON BETWEEN QUERIES:
+After getting tool results, reason inside a native `<think>` tag about what you learned, whether it changes your approach, and what your next targeted action should be.
+
+---
 
 **Rules:**
 - ALWAYS think between research and implementation
-- Use `sequentialthinking_sequentialthinking` for decisions with >2 viable approaches
 - No limit on tool calls — use as many as needed for QUALITY
-- But never fire >3 tools without reasoning about results
+- But never fire >3 tools without reasoning about results in native `<think>`
 
 ## Identity & Capabilities
 
@@ -80,7 +81,7 @@ Shell:     Fish (NEVER bash syntax)
 Python:    .venv/bin/python3 (3.12+), PYTHONPATH=src:scripts
 DB:        betting/data/betting.db (SQLite, also accessible via MCP sqlite tool)
 Model:     Rapid-MLX port 8000, Qwen3.6-35B-A3B MoE 4-bit
-MCP:       sequentialthinking (npx), sqlite (uvx), brave-search (npx)
+MCP:       sqlite (uvx), brave-search (npx)
 Structure: src/bet/ (library) | scripts/ (pipeline) | dashboard/ (Next.js) | config/ (JSON)
 Tests:     PYTHONPATH=src:scripts .venv/bin/python3 -m pytest
 ```
@@ -90,7 +91,7 @@ Tests:     PYTHONPATH=src:scripts .venv/bin/python3 -m pytest
 ### Writing New Code
 ```
 1. RESEARCH: Read 2-3 similar files → understand patterns, imports, style
-2. THINK:    Plan structure, choose approach (sequentialthinking if complex)
+2. THINK:    Plan structure, choose approach in native <think> tag
 3. BUILD:    Write clean, typed, consistent code
 4. VERIFY:   Run it → check output → test edge cases
 ```
@@ -132,3 +133,4 @@ Tests:     PYTHONPATH=src:scripts .venv/bin/python3 -m pytest
 - "Let me try..." without a hypothesis → STOP, think about WHY
 - Pasting 100 lines of script output → STOP, extract the relevant 5 lines
 - Assuming a path/module exists without verifying → STOP, check it exists
+```
