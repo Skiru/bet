@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Live test: Bovada/Bodog public JSON feed — all sports discovery.
+"""Archived Bovada feed probe (2026-06-02)
 
-Public endpoint: https://www.bovada.lv/services/sports/event/v2/events/A/description/{sport}/{league}
-No API key. No auth. American + Decimal + Fractional odds. Player props.
+Moved from top-level scripts during archive sweep. This is an ad-hoc live
+probe and not required by the main pipeline.
 """
 
 import json
@@ -15,13 +15,10 @@ BASE = "https://www.bovada.lv/services/sports/event/v2/events/A/description"
 
 # Known sport/league paths to test
 ENDPOINTS = {
-    # US Sports
     "basketball/nba": "NBA",
     "basketball/wnba": "WNBA",
     "basketball/ncaab": "NCAA Basketball",
-    # Hockey
     "hockey/nhl": "NHL",
-    # Football (soccer)
     "soccer/uefa-champions-league": "UEFA Champions League",
     "soccer/england-premier-league": "EPL",
     "soccer/spain-la-liga": "La Liga",
@@ -32,15 +29,11 @@ ENDPOINTS = {
     "soccer/copa-america": "Copa America",
     "soccer/world-cup": "World Cup",
     "soccer/poland-ekstraklasa": "Ekstraklasa",
-    # Tennis
     "tennis/atp": "ATP",
     "tennis/wta": "WTA",
     "tennis/roland-garros": "Roland Garros",
-    # American Football
     "football/nfl": "NFL",
-    # Baseball
     "baseball/mlb": "MLB",
-    # Other
     "hockey/international": "Intl Hockey",
     "volleyball": "Volleyball",
     "handball": "Handball",
@@ -52,7 +45,6 @@ ENDPOINTS = {
 
 
 def test_endpoint(path: str, label: str) -> dict | None:
-    """Test a single Bovada endpoint."""
     url = f"{BASE}/{path}"
     try:
         r = requests.get(url, timeout=10, headers={
@@ -62,7 +54,6 @@ def test_endpoint(path: str, label: str) -> dict | None:
         if r.status_code == 200:
             data = r.json()
             if isinstance(data, list) and len(data) > 0:
-                # Count events
                 events = []
                 for group in data:
                     events.extend(group.get("events", []))
@@ -78,7 +69,6 @@ def test_endpoint(path: str, label: str) -> dict | None:
 
 
 def analyze_markets(data: list) -> dict:
-    """Analyze available markets in a response."""
     market_types = set()
     total_markets = 0
     total_outcomes = 0
@@ -143,26 +133,7 @@ def main():
     
     working = {k: v for k, v in results.items() if v.get("events", 0) > 0}
     print(f"\nWorking endpoints: {len(working)}/{len(ENDPOINTS)}")
-    
-    print("\n--- PIPELINE RELEVANCE (5 sports) ---")
-    relevance = {
-        "Football (Soccer)": [k for k in working if "soccer" in k],
-        "Basketball": [k for k in working if "basketball" in k],
-        "Hockey": [k for k in working if "hockey" in k],
-        "Tennis": [k for k in working if "tennis" in k],
-        "Volleyball": [k for k in working if "volleyball" in k],
-    }
-    
-    for sport, endpoints in relevance.items():
-        if endpoints:
-            total_events = sum(results[e]["events"] for e in endpoints)
-            total_markets = sum(results[e].get("total_markets", 0) for e in endpoints)
-            has_props = any(results[e].get("has_player_props", False) for e in endpoints)
-            print(f"  {sport:20s}: {len(endpoints)} leagues, {total_events} events, {total_markets} markets, props={has_props}")
-        else:
-            print(f"  {sport:20s}: ✗ NOT FOUND")
-    
-    # Market depth example for best sport
+
     if working:
         best = max(working.items(), key=lambda x: x[1].get("total_markets", 0))
         print(f"\n--- DEEPEST MARKET ({best[1]['label']}) ---")
@@ -171,14 +142,6 @@ def main():
     print("\n--- VALUE PROPOSITION vs CURRENT PIPELINE ---")
     print("  + FREE (no API key, no credits, no rate limits documented)")
     print("  + American + Decimal + Fractional odds in SAME response")
-    print("  + Player props depth (every player, multiple lines)")
-    print("  + Period/Quarter/Half markets")
-    print("  + SGP availability flags")
-    print("  + Competitive sharp-adjacent odds (Bovada = high-volume book)")
-    print("  + Alternative spreads/totals in single call")
-    print("  - US-focused book (may not have all EU leagues)")
-    print("  - No Betclic comparison directly (but great cross-reference)")
-    print("  - May block non-US IPs or add Cloudflare challenges")
 
 
 if __name__ == "__main__":

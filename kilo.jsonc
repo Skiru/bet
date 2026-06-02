@@ -116,6 +116,21 @@
           "bet-builder": "allow",
           "bet-db-analyst": "allow"
         }
+
+        // Canonical pipeline step mapping for scripts (S0..S8). Agents can use this
+        // mapping to run specific pipeline steps. Each entry includes the wrapper
+        // script path (relative to repo root) and a short description.
+        "pipeline_steps": {
+          "S0": { "script": "scripts/pipeline_steps/s0_settler.py", "desc": "Settlement / S0" },
+          "S1": { "script": "scripts/pipeline_steps/s1_discover.py", "desc": "Discovery / S1" },
+          "S2": { "script": "scripts/pipeline_steps/s2_tipsters.py", "desc": "Tipsters aggregation / S2" },
+          "S3": { "script": "scripts/pipeline_steps/s3_stats.py", "desc": "Feature derivation / S3" },
+          "S4": { "script": "scripts/pipeline_steps/s4_valuator.py", "desc": "Odds valuation / S4" },
+          "S5": { "script": "scripts/pipeline_steps/s5_gate.py", "desc": "Gate checking / S5" },
+          "S6": { "script": "scripts/pipeline_steps/s6_repeats.py", "desc": "48h repeats check / S6" },
+          "S7": { "script": "scripts/pipeline_steps/s7_validate.py", "desc": "Market validation / S7" },
+          "S8": { "script": "scripts/pipeline_steps/s8_build_coupons.py", "desc": "Coupon builder / S8" }
+        },
       }
     },
 

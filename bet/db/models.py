@@ -7,7 +7,7 @@ bet.db.repository to centralize business rules.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import Column, String, Integer, DateTime, JSON
@@ -25,9 +25,9 @@ class Fixture(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     external_id = Column(String, unique=True, index=True, nullable=False)
-    event_time = Column(DateTime, index=True, nullable=False)
+    event_time = Column(DateTime(timezone=True), index=True, nullable=False)
     payload = Column(JSON, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
 class MarketOdds(Base):
@@ -37,7 +37,7 @@ class MarketOdds(Base):
     market_id = Column(String, index=True, nullable=False)
     fixture_id = Column(Integer, nullable=False)
     odds_payload = Column(JSON, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
 class Artifact(Base):
@@ -49,6 +49,6 @@ class Artifact(Base):
     payload = Column(JSON, nullable=False)
     schema_version = Column(String, nullable=False, default="v1")
     status = Column(String, nullable=False, default="pending")
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     # Reference to the uuid of the artifact that superseded THIS artifact (if any)
     superseded_by_uuid = Column(String, nullable=True)

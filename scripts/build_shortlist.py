@@ -688,15 +688,89 @@ def build_shortlist(
     except Exception:
         pass
 
-    # JSON fallback
+    # JSON fallback — if missing, attempt to generate a minimal market matrix
     if not events:
         if not matrix_path.exists():
-            print(f"[shortlist] ERROR: {matrix_path} not found and DB empty. Run generate_market_matrix.py first.")
-            sys.exit(1)
-        matrix = json.loads(matrix_path.read_text(encoding="utf-8"))
-        events = matrix["events"]
-        matrix_source = "json"
-        print(f"[shortlist] Loaded {len(events)} events from market matrix JSON (fallback)")
+            print(f"[shortlist] WARNING: {matrix_path} not found and DB empty. Attempting minimal fallback generation.")
+
+            # 1) Try to generate from DB fixtures
+            try:
+                fixtures = load_fixtures_from_db(date)
+            except Exception:
+                fixtures = []
+
+            events = []
+            if fixtures:
+                for f in fixtures:
+                    ev = {
+                        "sport": f.get("sport") or f.get("sport_name") or "",
+                        "competition": f.get("competition") or f.get("league") or "",
+                        "home_team": f.get("home_team") or f.get("home") or "",
+                        "away_team": f.get("away_team") or f.get("away") or "",
+                        "kickoff": f.get("kickoff") or f.get("commence_time") or "",
+                        "data_tier": "FIXTURE_ONLY",
+                        "odds_markets": [],
+                        "safety_markets": [],
+                    }
+                    events.append(ev)
+                print(f"[shortlist] Generated minimal market_matrix with {len(events)} events from DB fixtures")
+
+            # 2) If no DB fixtures, try odds_api_snapshot.json produced by fetch_odds_multi
+            if not events:
+                snapshot_path = DATA_DIR / "odds_api_snapshot.json"
+                if snapshot_path.exists():
+                    try:
+                        snap = json.loads(snapshot_path.read_text(encoding="utf-8"))
+                        raw_events = snap.get("events", []) if isinstance(snap, dict) else []
+                        for e in raw_events:
+                            ev = {
+                                "sport": e.get("_our_sport") or e.get("sport") or e.get("_sport_key", ""),
+                                "competition": e.get("competition") or "",
+                                "home_team": e.get("home_team", ""),
+                                "away_team": e.get("away_team", ""),
+                                "kickoff": e.get("commence_time", ""),
+                                "data_tier": "ODDS_BASIC" if e.get("bookmakers") else "FIXTURE_ONLY",
+                                "odds_markets": [],
+                                "safety_markets": [],
+                            }
+                            # Populate a lightweight odds_markets list from available bookmakers
+                            try:
+                                markets = {}
+                                for bm in e.get("bookmakers", []):
+                                    for m in bm.get("markets", []):
+                                        key = m.get("key")
+                                        if not key:
+                                            continue
+                                        best = max((o.get("price", 0) for o in m.get("outcomes", [])), default=0)
+                                        if best:
+                                            markets[key] = max(markets.get(key, 0), best)
+                                ev["odds_markets"] = [
+                                    {"market": k, "best_odds": v} for k, v in markets.items()
+                                ]
+                            except Exception:
+                                ev["odds_markets"] = []
+                            events.append(ev)
+                        print(f"[shortlist] Generated minimal market_matrix with {len(events)} events from odds_api_snapshot.json")
+                    except Exception as _e:
+                        print(f"[shortlist] Snapshot parse failed: {_e}")
+
+            # If we now have events, persist a minimal market_matrix JSON for downstream scripts
+            if events:
+                matrix = {"date": date, "generated": True, "source": "fallback", "events": events}
+                try:
+                    atomic_json_write(matrix_path, matrix)
+                    matrix_source = "fallback"
+                    print(f"[shortlist] Written fallback market matrix: {matrix_path}")
+                except Exception as _e:
+                    print(f"[shortlist] Failed to write fallback market matrix: {_e}")
+            else:
+                print(f"[shortlist] ERROR: {matrix_path} not found and DB empty. Run generate_market_matrix.py first.")
+                sys.exit(1)
+        else:
+            matrix = json.loads(matrix_path.read_text(encoding="utf-8"))
+            events = matrix["events"]
+            matrix_source = "json"
+            print(f"[shortlist] Loaded {len(events)} events from market matrix JSON (fallback)")
 
     # Load tipster data for bonus scoring
     tipster_events = _load_tipster_events(date)

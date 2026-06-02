@@ -116,120 +116,213 @@ def run_tipster_xref(date: str, state: dict) -> tuple[bool, str]:
             key = f"{home}|{away}"
             tip_lookup.setdefault(key, []).append(tip)
 
-    # Load shortlist — DB-first (R2), JSON fallback
+    # Load shortlist — prefer DB `pipeline_candidates` (R2), then legacy loader, then JSON fallback
     shortlist_path = DATA_DIR / f"{date}_s2_shortlist.json"
 
     matched = 0
     total = 0
-    candidates = []
+    candidates: list[dict] = []
     shortlist_source = "none"
     shortlist = {}
 
-    # Try pipeline_candidates DB table first
+    # Try modern PipelineCandidateRepo first (DB-first)
+    repo = None
+    db_ctx = None
     try:
-        from db_data_loader import load_shortlist_from_db
-        db_candidates = load_shortlist_from_db(date)
+        from bet.db.connection import get_db
+        from bet.db.repositories import PipelineCandidateRepo
+        db_ctx = get_db()
+        conn = db_ctx.__enter__()
+        repo = PipelineCandidateRepo(conn)
+        try:
+            db_candidates = repo.get_by_date(date)
+        except Exception:
+            db_candidates = []
         if db_candidates:
             candidates = db_candidates
             shortlist_source = "db:pipeline_candidates"
             print(f"  → Loaded {len(candidates)} candidates from pipeline_candidates DB")
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"  ⚠ PipelineCandidateRepo load failed: {e}")
 
-    # Fallback to JSON
+    # Fallback to legacy loader if present
+    if not candidates:
+        try:
+            from db_data_loader import load_shortlist_from_db
+            db_candidates = load_shortlist_from_db(date)
+            if db_candidates:
+                candidates = db_candidates
+                shortlist_source = "db:legacy_loader"
+                print(f"  → Loaded {len(candidates)} candidates from legacy DB loader")
+        except Exception:
+            pass
+
+    # Final fallback to JSON file
     if not candidates and shortlist_path.exists():
         try:
             shortlist = json.loads(shortlist_path.read_text(encoding="utf-8"))
             candidates = shortlist.get("candidates", shortlist.get("shortlist", []))
             shortlist_source = "json"
             print(f"  → Loaded {len(candidates)} candidates from JSON (fallback)")
-        except (json.JSONDecodeError, OSError):
-            pass
+        except (json.JSONDecodeError, OSError) as e:
+            print(f"  ⚠ Shortlist JSON load failed: {e}")
 
     total = len(candidates)
+
+    # Enrich candidates by robust matching (direct keys, swapped, fuzzy) and persist to DB
     if candidates:
         try:
+            # Precompute tip keys for fuzzy matching
+            tip_keys = list(tip_lookup.keys())
+            enriched_count = 0
+
+            # If we have a live PipelineCandidateRepo (from earlier), reuse it; otherwise open a DB context
+            repo_ctx2 = None
+            repo_obj = None
+            try:
+                if shortlist_source.startswith("db") and repo is not None:
+                    # repo already available in the context above
+                    repo_obj = repo
+                else:
+                    from bet.db.connection import get_db as _get_db
+                    from bet.db.repositories import PipelineCandidateRepo as _PCR
+                    repo_ctx2 = _get_db()
+                    conn2 = repo_ctx2.__enter__()
+                    repo_obj = _PCR(conn2)
+            except Exception:
+                repo_ctx2 = None
+                repo_obj = None
+
             for c in candidates:
                 raw_home = (c.get("home_team") or "").strip()
                 raw_away = (c.get("away_team") or "").strip()
-                home = normalize_for_matching(raw_home)
-                away = normalize_for_matching(raw_away)
-                key = f"{home}|{away}"
-                matching_tips = tip_lookup.get(key, [])
+                home_norm = normalize_for_matching(_clean_team_name(raw_home))
+                away_norm = normalize_for_matching(_clean_team_name(raw_away))
 
-                # Smart fuzzy matching with names_match (handles diacritics, emoji, surname-only)
-                if not matching_tips:
-                    best_match_tips = []
-                    for tip_key, tips_list in tip_lookup.items():
+                found_tips = []
+
+                # Try exact normalized key
+                key = f"{home_norm}|{away_norm}"
+                if key in tip_lookup:
+                    found_tips = tip_lookup[key]
+                else:
+                    # Try swapped key
+                    swapped = f"{away_norm}|{home_norm}"
+                    if swapped in tip_lookup:
+                        found_tips = tip_lookup[swapped]
+
+                # Fuzzy fallback: pick best matching tip_key by names_match score
+                if not found_tips and tip_keys:
+                    best_score = 0
+                    best_tips = []
+                    best_parts = None
+                    for tip_key in tip_keys:
                         parts = tip_key.split("|")
-                        if len(parts) == 2:
-                            t_home, t_away = parts
-                            score_home = names_match(home, t_home)
-                            score_away = names_match(away, t_away)
-                            score_home_swapped = names_match(home, t_away)
-                            score_away_swapped = names_match(away, t_home)
+                        if len(parts) != 2:
+                            continue
+                        t_home, t_away = parts
+                        # Compute pairwise similarity (consider swapped order)
+                        score_direct = min(names_match(home_norm, t_home), names_match(away_norm, t_away))
+                        score_swapped = min(names_match(home_norm, t_away), names_match(away_norm, t_home))
+                        score = max(score_direct, score_swapped)
+                        if score > best_score:
+                            best_score = score
+                            best_tips = tip_lookup[tip_key]
+                            best_parts = (t_home, t_away)
 
-                            if (score_home >= 70 and score_away >= 70) or (score_home_swapped >= 70 and score_away_swapped >= 70):
-                                best_match_tips.extend(tips_list)
+                    # Accept fuzzy match if confidence is reasonable
+                    accepted = False
+                    if best_score >= 60:
+                        accepted = True
+                    else:
+                        # token-overlap heuristic for near-misses
+                        try:
+                            import re as _re_local
+                            def _tokens(s):
+                                return {t for t in _re_local.split(r"\W+", s) if t}
+                            if best_parts:
+                                bt_home, bt_away = best_parts
+                                h_tokens = _tokens(home_norm)
+                                a_tokens = _tokens(away_norm)
+                                th_tokens = _tokens(bt_home)
+                                ta_tokens = _tokens(bt_away)
+                                overlap_home = len(h_tokens & th_tokens) / max(1, len(h_tokens)) if h_tokens else 0
+                                overlap_away = len(a_tokens & ta_tokens) / max(1, len(a_tokens)) if a_tokens else 0
+                                if max(overlap_home, overlap_away) >= 0.6:
+                                    accepted = True
+                        except Exception:
+                            accepted = False
 
-                    if best_match_tips:
-                        matching_tips = best_match_tips
-                        print(f"    ~ Smart matched: {raw_home} vs {raw_away}")
+                    if accepted:
+                        found_tips = best_tips
+                        print(f"    ~ Smart fuzzy matched: {raw_home} vs {raw_away} → score={best_score}")
 
-                if matching_tips:
+                if found_tips:
                     matched += 1
-                    tipster_names = list({t.get("source_site") or t.get("tipster") or t.get("source") or "unknown" for t in matching_tips})
-                    consensus = len(matching_tips)
+                    tipster_names = list({t.get("source_site") or t.get("tipster_name") or t.get("source") or "unknown" for t in found_tips})
+                    consensus = len(found_tips)
                     c["tipster_support"] = {
                         "count": consensus,
                         "tipsters": tipster_names,
-                        "tips": matching_tips,
+                        "tips": found_tips,
                     }
-                    # Also set tipster_count directly for gate_checker compatibility
                     c["tipster_count"] = consensus
                     home_disp = c.get("home_team", "?")
                     away_disp = c.get("away_team", "?")
                     print(f"    ✓ {home_disp} vs {away_disp}: {consensus} tips from {', '.join(tipster_names[:3])}")
 
-            # Save enriched shortlist — DB + JSON
-            # DB: enrich pipeline_candidates with tipster data
-            try:
-                from bet.db.connection import get_db
-                from bet.db.repositories import PipelineCandidateRepo
-                with get_db() as conn:
-                    repo = PipelineCandidateRepo(conn)
-                    enriched_count = 0
-                    for c in candidates:
-                        ts = c.get("tipster_support")
-                        if ts and ts.get("count", 0) > 0:
-                            home = c.get("home_team", "")
-                            away = c.get("away_team", "")
+                    # Persist to DB using fixture_id when available, otherwise try to resolve by fuzzy match
+                    try:
+                        if repo_obj:
                             fixture_id = c.get("fixture_id")
                             if fixture_id:
-                                repo.enrich_tipster(fixture_id, date, ts["count"], ts)
+                                repo_obj.enrich_tipster(fixture_id, date, consensus, c["tipster_support"])
+                                enriched_count += 1
                             else:
-                                # Resolve fixture_id from team names
-                                row = conn.execute(
-                                    "SELECT fixture_id FROM pipeline_candidates "
-                                    "WHERE betting_date = ? AND home_team = ? AND away_team = ? LIMIT 1",
-                                    (date, home, away),
-                                ).fetchone()
-                                if row:
-                                    repo.enrich_tipster(row["fixture_id"], date, ts["count"], ts)
+                                # Resolve fixture by fuzzy matching against pipeline_candidates rows
+                                rows = repo_obj.get_by_date(date)
+                                best_row = None
+                                best_row_score = 0
+                                for r in rows:
+                                    rh = normalize_for_matching(r.get("home_team", ""))
+                                    ra = normalize_for_matching(r.get("away_team", ""))
+                                    score_direct = min(names_match(home_norm, rh), names_match(away_norm, ra))
+                                    score_swapped = min(names_match(home_norm, ra), names_match(away_norm, rh))
+                                    row_score = max(score_direct, score_swapped)
+                                    if row_score > best_row_score:
+                                        best_row_score = row_score
+                                        best_row = r
+                                if best_row and best_row_score >= 60:
+                                    repo_obj.enrich_tipster(best_row.get("fixture_id"), date, consensus, c["tipster_support"])
                                     enriched_count += 1
-                                continue
-                            enriched_count += 1
-                    conn.commit()
-                    if enriched_count:
-                        print(f"  → Enriched {enriched_count} pipeline_candidates with tipster data in DB")
-            except Exception as e:
-                print(f"  ⚠ DB tipster enrichment failed: {e}")
+                    except Exception as e:
+                        print(f"  ⚠ DB enrich attempt failed for {raw_home} vs {raw_away}: {e}")
 
-            # JSON: write back for backward compatibility
+            # Close any DB contexts we opened
+            try:
+                if repo_ctx2:
+                    repo_ctx2.__exit__(None, None, None)
+            except Exception:
+                pass
+            try:
+                if db_ctx:
+                    db_ctx.__exit__(None, None, None)
+            except Exception:
+                pass
+
+            if enriched_count:
+                print(f"  → Enriched {enriched_count} pipeline_candidates with tipster data in DB")
+
+            # JSON: write back for backward compatibility if we originally loaded JSON
             if shortlist_source == "json" and shortlist:
-                shortlist_path.write_text(
-                    json.dumps(shortlist, indent=2, ensure_ascii=False), encoding="utf-8"
-                )
+                try:
+                    shortlist_path.write_text(
+                        json.dumps(shortlist, indent=2, ensure_ascii=False), encoding="utf-8"
+                    )
+                    print(f"  → Updated shortlist JSON with tipster support: {shortlist_path}")
+                except Exception as e:
+                    print(f"  ⚠ Failed to update shortlist JSON: {e}")
+
         except (json.JSONDecodeError, OSError) as e:
             print(f"  ⚠ Shortlist enrichment error: {e}")
 

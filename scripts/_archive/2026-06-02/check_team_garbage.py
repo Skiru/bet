@@ -1,4 +1,6 @@
-"""Check live/upcoming events and team name issues."""
+"""Check live/upcoming events and team name issues.
+Archived from top-level `scripts/` on 2026-06-02.
+"""
 from bet.db.connection import get_db
 import unicodedata
 import json

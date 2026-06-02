@@ -1059,13 +1059,17 @@ def validate_build_phase(date: str) -> list[Check]:
     sidecar_ok = isinstance(betclic_validation, dict) and any(key in betclic_validation for key in ("validation", "events"))
     betclic_control = coupon_controls.get("betclic_market_validation") if isinstance(coupon_controls.get("betclic_market_validation"), dict) else None
     betclic_consumed = bool(betclic_control and betclic_control.get("consumed"))
+    # Safely compute counts even if JSON fields are null
+    validation_count = len(((betclic_validation or {}).get("validation")) or [])
+    events_count = len(((betclic_validation or {}).get("events")) or [])
+    consumed_mode = betclic_control.get("mode", "unknown") if isinstance(betclic_control, dict) else "unknown"
     checks.append(
         Check(
             "B3",
             "S7.5 Betclic validation sidecar present and consumed",
             "PASS" if sidecar_ok and betclic_consumed else "FAIL",
             (
-                f"validation={len((betclic_validation or {}).get('validation', []))}, events={len((betclic_validation or {}).get('events', []))}, consumed via {betclic_control.get('mode', 'unknown')}"
+                f"validation={validation_count}, events={events_count}, consumed via {consumed_mode}"
                 if sidecar_ok and betclic_consumed
                 else "Sidecar present but coupon_builder output does not record S7.5 consumption"
                 if sidecar_ok
