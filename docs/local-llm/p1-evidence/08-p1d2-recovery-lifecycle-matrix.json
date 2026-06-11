@@ -1,0 +1,399 @@
+{
+  "schema_version": "1.0",
+  "test": "p1d2_recovery_lifecycle_matrix",
+  "timestamp": "2026-06-11T14:09:52.181571+00:00",
+  "runtime_fingerprint": {
+    "executable": "/Users/mkoziol/.venvs/rapid-mlx-0.7.0/bin/rapid-mlx",
+    "version": "0.7.0",
+    "model_alias": "qwen3.6-35b-4bit",
+    "model_resolved": "mlx-community/Qwen3.6-35B-A3B-4bit",
+    "host": "127.0.0.1",
+    "port": 8000,
+    "max_tokens": 8192,
+    "prefill_step": 2048,
+    "gpu_memory_utilization": 0.7,
+    "prefix_cache": "enabled",
+    "multimodal": "disabled",
+    "telemetry": "disabled"
+  },
+  "startup_args": [
+    "/opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python",
+    "/Users/mkoziol/.venvs/rapid-mlx-0.7.0/bin/rapid-mlx",
+    "--no-telemetry",
+    "serve",
+    "qwen3.6-35b-4bit",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "8000",
+    "--max-tokens",
+    "8192",
+    "--prefill-step-size",
+    "2048",
+    "--gpu-memory-utilization",
+    "0.7",
+    "--enable-prefix-cache",
+    "--no-mllm"
+  ],
+  "primary_pid": 1191,
+  "restarted_pid": 4710,
+  "readiness_duration_s": 11.086898803710938,
+  "tests": [
+    {
+      "test": "streaming_client_disconnect",
+      "pass": true,
+      "cycles": [
+        {
+          "cycle": 1,
+          "disconnect_success": true,
+          "events_before_disconnect": 5,
+          "disconnect_time": 1781187003.6832378,
+          "server_alive_after_disconnect": true,
+          "listener_present_after_disconnect": true,
+          "recovery_request_success": true,
+          "recovery_latency_s": 0.49908995628356934,
+          "recovery_content_correct": true,
+          "rss_before_mb": 2782.984375,
+          "rss_after_mb": 2871.8125,
+          "recovery_content": "DISCONNECT_RECOVERY_OK"
+        },
+        {
+          "cycle": 2,
+          "disconnect_success": true,
+          "events_before_disconnect": 5,
+          "disconnect_time": 1781187009.464594,
+          "server_alive_after_disconnect": true,
+          "listener_present_after_disconnect": true,
+          "recovery_request_success": true,
+          "recovery_latency_s": 0.519118070602417,
+          "recovery_content_correct": true,
+          "rss_before_mb": 2935.640625,
+          "rss_after_mb": 2967.21875,
+          "recovery_content": "DISCONNECT_RECOVERY_OK"
+        },
+        {
+          "cycle": 3,
+          "disconnect_success": true,
+          "events_before_disconnect": 5,
+          "disconnect_time": 1781187015.276076,
+          "server_alive_after_disconnect": true,
+          "listener_present_after_disconnect": true,
+          "recovery_request_success": true,
+          "recovery_latency_s": 0.5709228515625,
+          "recovery_content_correct": true,
+          "rss_before_mb": 2967.234375,
+          "rss_after_mb": 2997.78125,
+          "recovery_content": "DISCONNECT_RECOVERY_OK"
+        }
+      ],
+      "server_crashed": false,
+      "listener_disappeared": false,
+      "recovery_blocked": false
+    },
+    {
+      "test": "non_streaming_early_close",
+      "pass": true,
+      "early_close_success": true,
+      "server_alive_after": true,
+      "listener_present_after": true,
+      "recovery_request_success": true,
+      "recovery_content_correct": true,
+      "pid_unchanged": true,
+      "early_close_message": "request_sent_and_socket_closed",
+      "recovery_http_status": 200,
+      "recovery_content": "EARLY_CLOSE_RECOVERY_OK"
+    },
+    {
+      "test": "post_disconnect_tool_recovery",
+      "pass": true,
+      "tool_call_emitted": true,
+      "tool_call_structured": true,
+      "tool_name": "add_numbers",
+      "arguments_valid": true,
+      "arguments": {
+        "a": 17,
+        "b": 25
+      },
+      "mock_executed": true,
+      "mock_result": {
+        "sum": 42
+      },
+      "final_answer_contains_result": true,
+      "execution_count": 1,
+      "pid_unchanged": true,
+      "no_duplicate_calls": true,
+      "no_state_contamination": true,
+      "http_status": 200
+    },
+    {
+      "test": "port_conflict_handling",
+      "pass": true,
+      "secondary_startup_failed": true,
+      "secondary_exit_code": 1,
+      "primary_pid_unchanged": true,
+      "primary_health_ok": true,
+      "primary_chat_ok": true,
+      "no_additional_listener": true,
+      "primary_chat_content": "PORT_CONFLICT_OK"
+    },
+    {
+      "test": "controlled_interruption",
+      "pass": true,
+      "stream_started": true,
+      "pid_verified": true,
+      "graceful_termination_sent": true,
+      "process_exited": true,
+      "port_freed": true,
+      "no_orphan_process": true,
+      "interrupted_stream_classification": "ABRUPTLY_TERMINATED_BY_SERVER_SHUTDOWN"
+    },
+    {
+      "test": "restart_recovery",
+      "pass": true,
+      "new_pid_differs": true,
+      "readiness_succeeded": true,
+      "localhost_only_binding": true,
+      "forbidden_flags_absent": true,
+      "health_ok": true,
+      "chat_ok": true,
+      "tool_call_ok": true,
+      "no_duplicate_process": true,
+      "new_pid": 4710,
+      "readiness_duration_s": 9.047574996948242,
+      "chat_content": "RESTART_RECOVERY_OK",
+      "rapid_mlx_process_count": 1,
+      "old_pid_still_exists": false,
+      "running_pids": [
+        4710
+      ]
+    },
+    {
+      "test": "stale_state_safety",
+      "pass": true,
+      "stale_pid_file_created": true,
+      "stale_pid_verified_exited": true,
+      "harness_did_not_signal_stale_pid": true,
+      "harness_did_not_signal_unrelated_pid": true,
+      "stale_file_removed": true,
+      "server_healthy_after": true,
+      "scope_limitation": "This validates test-harness stale-state safety. Production launcher stale-PID behavior remains a P2 certification requirement."
+    },
+    {
+      "test": "final_cleanup",
+      "pass": true,
+      "graceful_exit_or_forced": true,
+      "no_surviving_child": true,
+      "no_orphan_rapid_mlx": true,
+      "no_listen_socket": true,
+      "connection_refused": true,
+      "temp_files_removed": true,
+      "unrelated_untouched": true,
+      "stop_message": "Cleanup verified"
+    }
+  ],
+  "runtime_snapshots": {
+    "pre_start": {
+      "memory": {
+        "timestamp": "2026-06-11T14:09:52.181608+00:00",
+        "memory_total_mb": 49152.0,
+        "memory_available_mb": 26997.28125,
+        "memory_used_mb": 17098.984375,
+        "memory_percent": 45.1,
+        "swap_total_mb": 13312.0,
+        "swap_used_mb": 11669.5625,
+        "swap_percent": 87.7
+      },
+      "process": {
+        "pid": null,
+        "alive": false,
+        "rss_mb": null,
+        "cmdline": null
+      }
+    },
+    "after_ready": {
+      "memory": {
+        "timestamp": "2026-06-11T14:10:03.300814+00:00",
+        "memory_total_mb": 49152.0,
+        "memory_available_mb": 9654.59375,
+        "memory_used_mb": 31714.0,
+        "memory_percent": 80.4,
+        "swap_total_mb": 13312.0,
+        "swap_used_mb": 11669.5625,
+        "swap_percent": 87.7
+      },
+      "process": {
+        "pid": 1191,
+        "alive": true,
+        "rss_mb": 2782.984375,
+        "cmdline": [
+          "/opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python",
+          "/Users/mkoziol/.venvs/rapid-mlx-0.7.0/bin/rapid-mlx",
+          "--no-telemetry",
+          "serve",
+          "qwen3.6-35b-4bit",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "8000",
+          "--max-tokens",
+          "8192",
+          "--prefill-step-size",
+          "2048",
+          "--gpu-memory-utilization",
+          "0.7",
+          "--enable-prefix-cache",
+          "--no-mllm"
+        ]
+      }
+    },
+    "after_disconnect_cycles": {
+      "memory": {
+        "timestamp": "2026-06-11T14:10:20.967546+00:00",
+        "memory_total_mb": 49152.0,
+        "memory_available_mb": 9896.265625,
+        "memory_used_mb": 31837.625,
+        "memory_percent": 79.9,
+        "swap_total_mb": 13312.0,
+        "swap_used_mb": 11669.5625,
+        "swap_percent": 87.7
+      },
+      "process": {
+        "pid": 1191,
+        "alive": true,
+        "rss_mb": 2999.859375,
+        "cmdline": [
+          "/opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python",
+          "/Users/mkoziol/.venvs/rapid-mlx-0.7.0/bin/rapid-mlx",
+          "--no-telemetry",
+          "serve",
+          "qwen3.6-35b-4bit",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "8000",
+          "--max-tokens",
+          "8192",
+          "--prefill-step-size",
+          "2048",
+          "--gpu-memory-utilization",
+          "0.7",
+          "--enable-prefix-cache",
+          "--no-mllm"
+        ]
+      }
+    },
+    "after_port_conflict": {
+      "memory": {
+        "timestamp": "2026-06-11T14:10:25.895888+00:00",
+        "memory_total_mb": 49152.0,
+        "memory_available_mb": 9548.390625,
+        "memory_used_mb": 32188.875,
+        "memory_percent": 80.6,
+        "swap_total_mb": 13312.0,
+        "swap_used_mb": 11669.5625,
+        "swap_percent": 87.7
+      },
+      "process": {
+        "pid": 1191,
+        "alive": true,
+        "rss_mb": 3325.625,
+        "cmdline": [
+          "/opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python",
+          "/Users/mkoziol/.venvs/rapid-mlx-0.7.0/bin/rapid-mlx",
+          "--no-telemetry",
+          "serve",
+          "qwen3.6-35b-4bit",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "8000",
+          "--max-tokens",
+          "8192",
+          "--prefill-step-size",
+          "2048",
+          "--gpu-memory-utilization",
+          "0.7",
+          "--enable-prefix-cache",
+          "--no-mllm"
+        ]
+      }
+    },
+    "after_interruption": {
+      "memory": {
+        "timestamp": "2026-06-11T14:10:56.450973+00:00",
+        "memory_total_mb": 49152.0,
+        "memory_available_mb": 30802.890625,
+        "memory_used_mb": 11379.984375,
+        "memory_percent": 37.3,
+        "swap_total_mb": 13312.0,
+        "swap_used_mb": 11669.5625,
+        "swap_percent": 87.7
+      },
+      "process": {
+        "pid": null,
+        "alive": false,
+        "rss_mb": null,
+        "cmdline": null
+      }
+    },
+    "after_restart": {
+      "memory": {
+        "timestamp": "2026-06-11T14:11:17.434215+00:00",
+        "memory_total_mb": 49152.0,
+        "memory_available_mb": 9225.21875,
+        "memory_used_mb": 31222.375,
+        "memory_percent": 81.2,
+        "swap_total_mb": 13312.0,
+        "swap_used_mb": 11669.5625,
+        "swap_percent": 87.7
+      },
+      "process": {
+        "pid": 4710,
+        "alive": true,
+        "rss_mb": 5871.625,
+        "cmdline": [
+          "/opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python",
+          "/Users/mkoziol/.venvs/rapid-mlx-0.7.0/bin/rapid-mlx",
+          "--no-telemetry",
+          "serve",
+          "qwen3.6-35b-4bit",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "8000",
+          "--max-tokens",
+          "8192",
+          "--prefill-step-size",
+          "2048",
+          "--gpu-memory-utilization",
+          "0.7",
+          "--enable-prefix-cache",
+          "--no-mllm"
+        ]
+      }
+    },
+    "after_cleanup": {
+      "memory": {
+        "timestamp": "2026-06-11T14:11:21.956462+00:00",
+        "memory_total_mb": 49152.0,
+        "memory_available_mb": 29700.03125,
+        "memory_used_mb": 9772.921875,
+        "memory_percent": 39.6,
+        "swap_total_mb": 13312.0,
+        "swap_used_mb": 11669.5625,
+        "swap_percent": 87.7
+      },
+      "process": {
+        "pid": null,
+        "alive": false,
+        "rss_mb": null,
+        "cmdline": null
+      }
+    }
+  },
+  "cleanup": {
+    "final_listener_exists": false,
+    "final_connection_refused": true
+  },
+  "overall_result": "PASS"
+}

@@ -23,3 +23,15 @@ settle_log.txt
 /betting/backups/
 /backups/langgraph-migration/
 /src/bet/db/*.bak
+
+# Kilo generated tool-output artifacts (runtime evidence)
+.kilo/artifacts/tool-output/
+
+# Local LLM runtime state (P2 lifecycle)
+.kilo/runtime/
+.kilo/logs/
+var/local-llm/
+
+# Local LLM PID files (legacy location)
+/tmp/rapid-mlx.pid
+/tmp/rapid-mlx.log

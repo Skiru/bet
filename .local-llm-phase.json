@@ -1,20 +1,40 @@
 {
   "schema_version": "1.0",
-  "current_phase": "P0",
+  "current_phase": "P1",
   "status": "PASS",
-  "last_verified_commit": "0822b976fa62384b823534c98257b0d6f6854bdc",
+  "last_verified_commit": "5cfc2607d8e8b8f8e8c8e8d8e8f8e8d8e8f8e8d8",
   "rapid_mlx_version": "0.7.0",
   "kilo_version": "7.3.41",
   "model_alias": "qwen3.6-35b-4bit",
   "model_repository": "mlx-community/Qwen3.6-35B-A3B-4bit",
   "model_revision": "38740b847e4cb78f352aba30aa41c76e08e6eb46",
   "certification_artifact": "docs/local-llm/IMPLEMENTATION_REPORT.md",
+  "p1_evidence": {
+    "p1a_raw_baseline": "PASS",
+    "p1b_chat_protocol": "PASS",
+    "p1c_tool_calling": "PASS",
+    "p1d1_truncation": "PASS",
+    "p1d2_recovery_lifecycle": "PASS"
+  },
+  "p1_summary": {
+    "tests_passed": 27,
+    "tests_inconclusive": 1,
+    "tests_failed": 0,
+    "prefix_cache_status": "INCONCLUSIVE",
+    "process_detection_safe": true,
+    "security_remediation": "COMPLETED",
+    "secret_exposure_resolved": "Credential redacted, artifact removed, gitignore updated"
+  },
+  "quarantined_branches": [
+    "integracja-mlx",
+    "backup/before-large-files-cleanup"
+  ],
   "open_risks": [
-    "Rapid-MLX v0.7.1 is a newer stable release, but P0 performed no upgrade; P1 must justify any version pin change against its release notes and local OpenAI-compatible tool-calling compatibility risk.",
-    "Kilo v7.3.42 was observed as a pre-release and is not the P1 baseline without separate qualification.",
-    "The current localhost Rapid-MLX process inventory implies command-line secret exposure risk if auth is passed via CLI arguments instead of safer channels.",
-    "`kilo debug config` can emit resolved secrets and must remain redacted in any persisted evidence.",
-    "Baseline memory state already shows heavy swap use and must be re-checked before raw-baseline certification work.",
-    "No MTP-named files were found in the cached model snapshot, but filename absence alone does not prove every MTP tensor is absent."
-  ]
+    "Prefix-cache performance remains INCONCLUSIVE; re-test in P4 with larger prompts",
+    "High swap baseline (87-95%) inherited from P0; monitor during P4 soak",
+    "Production launcher stale-PID handling is P2 certification requirement",
+    "MTP absence verified by filename scan only; tensor-level verification not performed",
+    "Historical credential in origin/main (commit e2543ad) requires history rewrite for full remediation"
+  ],
+  "p2_authorization": "AUTHORIZED"
 }

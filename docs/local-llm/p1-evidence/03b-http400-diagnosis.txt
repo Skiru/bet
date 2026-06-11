@@ -1,0 +1,101 @@
+=== P1 HTTP 400 Diagnosis ===
+Timestamp: 2026-06-11T13:41:00Z
+Status: PROTOCOL-DIAGNOSTIC ONLY (server has --kv-cache-quantization, not P1-certifiable)
+
+=== ROOT CAUSE ===
+HTTP 400 Bad Request caused by duplicate system messages in conversation array.
+
+The soak harness line 109:
+  conversation = [conversation[0], *conversation[-10:]]
+
+This slice operation includes conversation[0] (the system message) AND then
+includes conversation[-10:] which also includes the system message when the
+conversation has fewer than 11 messages.
+
+For round 1:
+- conversation starts as: [system_msg]
+- after append: [system_msg, user_msg]
+- after slice: [system_msg, system_msg, user_msg]  # DUPLICATE SYSTEM!
+
+Rapid-MLX server log shows:
+  roles=['system', 'system', 'user']
+
+Server error response:
+  {"error":{"message":"Chat template error: System message must be at the beginning.","type":"invalid_request_error","code":null,"param":null}}
+
+=== CONTROL REQUEST (HTTP 200) ===
+Request:
+  POST http://127.0.0.1:8000/v1/chat/completions
+  Authorization: Bearer [REDACTED]
+  Content-Type: application/json
+  
+  {
+    "model": "default",
+    "messages": [
+      {"role": "system", "content": "You are a deterministic reliability probe."},
+      {"role": "user", "content": "Return exactly ROUND-1-OK."}
+    ],
+    "temperature": 0,
+    "max_tokens": 128,
+    "stream": false
+  }
+
+Response: HTTP 200
+  finish_reason: length
+  (Valid OpenAI-compatible response structure)
+
+=== FAILING REQUEST (HTTP 400) ===
+Request:
+  POST http://127.0.0.1:8000/v1/chat/completions
+  Authorization: Bearer [REDACTED]
+  Content-Type: application/json
+  
+  {
+    "model": "default",
+    "messages": [
+      {"role": "system", "content": "You are a deterministic reliability probe."},
+      {"role": "system", "content": "You are a deterministic reliability probe."},
+      {"role": "user", "content": "Return exactly ROUND-1-OK."}
+    ],
+    "temperature": 0,
+    "max_tokens": 128,
+    "stream": false
+  }
+
+Response: HTTP 400
+  {"error":{"message":"Chat template error: System message must be at the beginning.","type":"invalid_request_error","code":null,"param":null}}
+
+=== FIX ===
+Change line 109 from:
+  conversation = [conversation[0], *conversation[-10:]]
+
+To:
+  conversation = [conversation[0], *conversation[-10:]][1:]  # Skip first in slice
+
+Or better, preserve system and take last 10 non-system messages:
+  conversation = [conversation[0]] + [m for m in conversation[-10:] if m != conversation[0]]
+
+Or simplest fix - just take last 10 messages without duplicating:
+  conversation = conversation[-11:]  # Keep system + last 10
+
+Actually, the intent is: keep system message + last 10 messages.
+The bug is that conversation[-10:] includes the system message when len < 11.
+
+Correct fix:
+  conversation = [conversation[0]] + conversation[-10:]
+  
+But this still duplicates when len(conversation) <= 10.
+
+Best fix - ensure no duplicate system:
+  conversation = [conversation[0]] + [m for m in conversation[1:]][-10:]
+
+This keeps the system message at position 0, then the last 10 non-system messages.
+
+=== SERVER LOG EVIDENCE ===
+INFO:vllm_mlx.routes.chat:[REQUEST] POST /v1/chat/completions stream=False model='default' max_tokens=128 temp=0.0 msgs=3 roles=['system', 'system', 'user'] total_chars=110 tools=0 response_format=None
+INFO:     127.0.0.1:55990 - "POST /v1/chat/completions HTTP/1.1" 400 Bad Request
+
+=== SECURITY CHECK ===
+- No API key in this file
+- No Authorization header values persisted
+- Server binds to 127.0.0.1 only

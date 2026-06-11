@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import statistics
 import subprocess
 import time
@@ -26,16 +27,24 @@ class Sample:
 
 def request_json(url: str, payload: dict[str, Any] | None = None, timeout: int = 900) -> dict[str, Any]:
     data = None if payload is None else json.dumps(payload).encode()
-    req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
+    headers = {"Content-Type": "application/json"}
+    api_key = os.environ.get("RAPID_MLX_API_KEY")
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    req = urllib.request.Request(url, data=data, headers=headers)
     with urllib.request.urlopen(req, timeout=timeout) as response:
         return json.loads(response.read())
 
 
 def request_stream(url: str, payload: dict[str, Any], timeout: int = 900) -> str:
+    headers = {"Content-Type": "application/json"}
+    api_key = os.environ.get("RAPID_MLX_API_KEY")
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
     req = urllib.request.Request(
         url,
         data=json.dumps(payload).encode(),
-        headers={"Content-Type": "application/json"},
+        headers=headers,
     )
     chunks: list[str] = []
     with urllib.request.urlopen(req, timeout=timeout) as response:
@@ -97,7 +106,8 @@ def main() -> int:
 
         if kind == "chat":
             conversation.append({"role": "user", "content": f"Return exactly {marker}."})
-            conversation = [conversation[0], *conversation[-10:]]
+            # Keep system message at position 0, then last 10 non-system messages
+            conversation = [conversation[0]] + [m for m in conversation[1:]][-10:]
             payload: dict[str, Any] = {
                 "model": "default",
                 "messages": conversation,
