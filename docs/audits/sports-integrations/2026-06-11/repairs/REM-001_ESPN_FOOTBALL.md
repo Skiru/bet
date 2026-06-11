@@ -1,149 +1,3 @@
-# Remediation Backlog (Reconciled)
-
-**Audit Run:** SPORTS-AUDIT-20260611T093602Z-b6a3ced  
-**Reconciled:** 2026-06-11T11:24:19Z
-
----
-
-## Priority Order
-
-Items are ordered by contract severity, then risk reduction, then information gain.
-
----
-
-## Item: REM-001
-
-### espn-football live NameError fix
-
-| Field | Value |
-|---|---|
-| **Item ID** | REM-001 |
-| **Integration Key** | `espn-football::football::ENRICHMENT_ONLY::default` |
-| **Severity** | RESOLVED-HIGH |
-| **Status** | REPAIRED — direct `get_fixtures()` NameError removed; recertified from `LIVE_BROKEN` to `LIVE_PARTIAL` |
-| **Defect** | `_request()` in `src/bet/api_clients/espn.py` called `json.loads(...)` without importing `json`; the same slice also fabricated empty fixture identities and coerced missing values to zero in direct/fallback flows. |
-| **Evidence IDs** | `cmd-live-003`, `cmd-rem001-001`, `cmd-rem001-003`, `cmd-rem001-004`, `cmd-rem001-005`, `ev-rem001-001`, `ev-rem001-003`, `ev-rem001-005`, `ev-rem001-006` |
-| **Affected Capabilities** | football fixture lookup, fallback enrichment, source observation ingestion |
-| **Affected Consumers** | `bet.stats.fetcher.StatFetcher`, football fallback chain |
-| **Smallest Safe Repair** | import `json`; reject fixtures without provider event IDs; preserve missing stat values as missing in both direct parsing and fallback aggregation; add deterministic + live replay/idempotency coverage |
-| **Required Live Proof** | satisfied via `tests/scrapers/test_espn_football_live.py` using ESPN football `eng.1` event `740968` plus disposable-DB fallback replay |
-| **Acceptance Gates** | `G1 PASS`, `G4 PASS`, `G7 PASS`, `G8 PASS`, `G10 PASS`, `G12 PASS`; still below contract `PASS` because fallback team resolution is names-based and `team_form` does not persist source event IDs |
-| **Dependencies** | none |
-| **Complexity** | S |
-| **Recommended Reasoning** | high |
-| **Follow-up** | production-readiness work should address provider-ID resolution ambiguity and evidence/source-ID linkage in the persisted enrichment projection |
-
----
-
-## Item: REM-002
-
-### Portfolio-wide E4 evidence/replay/rerun gap
-
-| Field | Value |
-|---|---|
-| **Item ID** | REM-002 |
-| **Integration Key** | multiple current-live integrations |
-| **Severity** | HIGH |
-| **Defect** | No integration had retained raw evidence, deterministic no-network replay, or idempotent rerun proof sufficient for `E4_CURRENT_REPLAY_RERUN`; this invalidated every original `PRODUCTION_READY` claim. |
-| **Evidence IDs** | corrected matrix + corrected manifest gate summaries |
-| **Affected Capabilities** | readiness certification, replay safety, provenance, persistence verification |
-| **Affected Consumers** | all production-readiness decisions; especially `api-football`, `api-basketball`, `api-volleyball`, `api-hockey`, `tennis-abstract`, `sackmann::atp`, `opendota`, `vlr` |
-| **Smallest Safe Repair** | add sanitized raw-evidence retention and deterministic replay harness for one current-live integration first, then extend to the remaining live integrations |
-| **Required Live Proof** | one current live capture + one no-network replay + one idempotent rerun where persistence applies |
-| **Acceptance Gates** | `G7`, `G8`, `G10`, `G11`, `G12` |
-| **Dependencies** | none |
-| **Complexity** | L |
-| **Recommended Reasoning** | high |
-
----
-
-## Item: REM-003
-
-### Missing current proof for odds-api-io discovery portfolio
-
-| Field | Value |
-|---|---|
-| **Item ID** | REM-003 |
-| **Integration Key** | `odds-api-io::*::EVENT_DISCOVERY::*` (8 rows) |
-| **Severity** | MEDIUM |
-| **Defect** | Eight atomic discovery integrations were claimed as production-ready/source-ready in the original audit without preserved role-appropriate current proof. |
-| **Evidence IDs** | corrected matrix; corrected manifest inventory |
-| **Affected Capabilities** | event discovery across football, basketball, volleyball, tennis, hockey, cs2, dota2, valorant |
-| **Affected Consumers** | `EventDiscoveryCoordinator` primary discovery path |
-| **Smallest Safe Repair** | execute one deterministic current discovery proof per sport/variant with evidence retention and source identity capture |
-| **Required Live Proof** | one date/window-scoped discovery request per audited `odds-api-io` integration key |
-| **Acceptance Gates** | `G1`, `G2`, `G4`, `G6`, `G7`, `G10`, `G12` |
-| **Dependencies** | REM-002 recommended before any renewed production-ready claim |
-| **Complexity** | M |
-| **Recommended Reasoning** | high |
-
----
-
-## Item: REM-004
-
-### Browser-integration proof gap and access-method correction
-
-| Field | Value |
-|---|---|
-| **Item ID** | REM-004 |
-| **Integration Key** | `betclic::football::ODDS_ONLY::default`, `hltv::cs2::EVENT_AND_ENRICHMENT::default`, `bo3gg::cs2::EVENT_AND_ENRICHMENT::default`, `bo3gg::valorant::EVENT_AND_ENRICHMENT::default` |
-| **Severity** | MEDIUM |
-| **Defect** | Browser integrations remained `NOT_EXECUTED`; `bo3gg` was also misclassified as `STATIC_HTML` despite active `_get_rendered(...)` browser dependence. |
-| **Evidence IDs** | `ev-rcl-002`, `ev-rcl-003`, corrected matrix |
-| **Affected Capabilities** | CS2/Valorant team stats and H2H; football odds proof |
-| **Affected Consumers** | esports enrichment flows; odds verification flows |
-| **Smallest Safe Repair** | first correct access-method metadata and proof policy, then add one permitted repeatable proof strategy or explicitly freeze these integrations below certification states |
-| **Required Live Proof** | repeatable sanitized browser proof or sanctioned alternative non-browser proof where allowed |
-| **Acceptance Gates** | `G1`, `G4`, `G7`, `G9`, `G10`, `G12` |
-| **Dependencies** | REM-002 recommended for replay/evidence framework |
-| **Complexity** | M |
-| **Recommended Reasoning** | high |
-
----
-
-## Item: REM-005
-
-### Direct deterministic source-test gap for 29 integrations
-
-| Field | Value |
-|---|---|
-| **Item ID** | REM-005 |
-| **Integration Key** | 29 uncovered keys listed in `AUDIT_RECONCILIATION.md` |
-| **Severity** | MEDIUM |
-| **Defect** | 186 deterministic tests exist, but 29/45 integration keys still have no direct source-specific deterministic proof. Shared sport-level and persistence tests do not replace source-level verification. |
-| **Evidence IDs** | `cmd-rcl-001`, `ev-rcl-005`, `AUDIT_RECONCILIATION.md` |
-| **Affected Capabilities** | source adapters, live-path parser semantics, source-specific failure isolation |
-| **Affected Consumers** | all portfolio consumers that rely on unproven sources |
-| **Smallest Safe Repair** | add focused source-specific golden/mock tests first for all current-live integrations lacking direct coverage, then for remaining discovery-only and historical integrations |
-| **Required Live Proof** | none for deterministic test addition itself; live proof remains separate |
-| **Acceptance Gates** | `G4`, `G5`, `G10` |
-| **Dependencies** | none |
-| **Complexity** | L |
-| **Recommended Reasoning** | high |
-
----
-
-## Summary
-
-| Severity | Count |
-|---|---:|
-| CRITICAL | 0 |
-| HIGH | 1 |
-| MEDIUM | 3 |
-| LOW | 0 |
-| **Total** | **4** |
-
----
-
-## First Repair Recommendation
-
-**REM-002: Portfolio-wide E4 evidence/replay/rerun gap**
-
-- **Risk Reduction:** HIGH — still blocks every production-ready claim after REM-001 repair
-- **Information Gain:** HIGH — adds the missing replay/rerun contract evidence to current-live integrations
-- **Complexity:** L
-- **Reasoning Level:** high
-*** Add File: /Users/mkoziol/projects/bet/docs/audits/sports-integrations/2026-06-11/repairs/REM-001_ESPN_FOOTBALL.md
 # REM-001 — ESPN Football
 
 ## Target
@@ -193,6 +47,8 @@ Additional verified defects in the same slice:
   - Outcome: `27 passed`
 - `env PYTHONPATH=src:scripts .venv/bin/python3 -m ruff check tests/scrapers/test_espn_client.py tests/scrapers/test_espn_football_live.py`
   - Outcome: `All checks passed!`
+- `.venv/bin/pytest tests/ -v --tb=short` (full regression suite)
+  - Outcome: `640 passed, 5 skipped` (2026-06-11T15:42:10Z)
 
 Deterministic regression coverage added:
 - exact former `get_fixtures()` path,
@@ -202,6 +58,11 @@ Deterministic regression coverage added:
 - no fabricated fixture identity,
 - no missing-value-to-zero conversion,
 - fallback orchestration idempotency.
+
+### Test fixes (2026-06-11T15:42:10Z)
+- `test_enrich_fixtures_espn_fallback_is_idempotent_and_preserves_missing_values`: Added missing `isolated_cache_dir` fixture to prevent production cache pollution; fixed mock to properly respect `exclude_event_ids` parameter using correct event ID format (`"740968"`).
+- `test_enrich_fixtures_espn_skips_neither_side_and_both_side_matches`: Added missing `isolated_cache_dir` fixture; added mock for API-Sports fallback client to prevent false positives when ESPN fails.
+- Ruff linting fixes: Reformatted list comprehensions, lambda functions, and monkeypatch calls in `tests/scrapers/test_espn_client.py` and `tests/scrapers/test_espn_football_live.py` for E501 compliance.
 
 ## Direct live proof
 - Command: `env BET_RUN_LIVE_ESPN=1 PYTHONPATH=src:scripts .venv/bin/python3 -m pytest tests/scrapers/test_espn_football_live.py -q`
@@ -254,7 +115,7 @@ Deterministic regression coverage added:
 | 14. One capability failure preserves successful results | PASS | deterministic fallback test kept successful stats when one fixture returned empty |
 | 15. Live tests separate from deterministic CI | PASS | `espn_live` marker + `BET_RUN_LIVE_ESPN=1` opt-in |
 | 16. Secrets absent from logs/evidence/diff | PASS | only public ESPN endpoints and sanitized JSON retained |
-| 17. All changed deterministic tests pass | PASS | `27 passed` |
+| 17. All changed deterministic tests pass | PASS | `640 passed, 5 skipped` (full regression suite) |
 | 18. Final diff contains no unrelated refactor | PASS | changes limited to espn-football slice, tests, and audit artifacts |
 
 ## Remaining limitations
