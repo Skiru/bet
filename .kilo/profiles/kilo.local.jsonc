@@ -751,7 +751,6 @@
       "description": "Primary local coding agent for bounded implementation, debugging and repository work with Qwen on Rapid-MLX. Use for routine/private tasks and keep context lean.",
       "mode": "primary",
       "model": "openai-compatible/qwen36-local-35b",
-      "steps": 22,
       "temperature": 0.08,
       "prompt": "{file:.kilo/prompts/code-local.md}",
       "permission": {
@@ -841,7 +840,6 @@
       "description": "Primary local coding agent for bounded implementation, debugging and repository work with Qwen on Rapid-MLX. Use for routine/private tasks and keep context lean.",
       "mode": "primary",
       "model": "openai-compatible/qwen36-local-35b",
-      "steps": 22,
       "temperature": 0.08,
       "prompt": "{file:.kilo/prompts/code-local.md}",
       "permission": {

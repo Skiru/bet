@@ -79,7 +79,6 @@
       "description": "Read-only single-response health check for Kilo-to-Rapid-MLX connectivity, streaming and context accounting.",
       "mode": "primary",
       "model": "openai-compatible/qwen36-local-35b",
-      "steps": 4,
       "temperature": 0,
       "prompt": "{file:.kilo/prompts/rapid-smoke.md}",
       "permission": {
@@ -106,7 +105,6 @@
       "description": "Single-MCP-call health check for Brave Search or Context7; never calls multiple tools in one assistant turn.",
       "mode": "primary",
       "model": "openai-compatible/qwen36-local-35b",
-      "steps": 6,
       "temperature": 0,
       "prompt": "{file:.kilo/prompts/mcp-smoke.md}",
       "permission": {
@@ -135,7 +133,6 @@
       "description": "Throwaway agent that validates bounded terminal output and recovery without project access.",
       "mode": "primary",
       "model": "openai-compatible/qwen36-local-35b",
-      "steps": 4,
       "temperature": 0,
       "prompt": "{file:.kilo/prompts/context-guard-smoke.md}",
       "permission": {
@@ -171,7 +168,6 @@
       "description": "Phase-bounded betting-pipeline controller. It plans, delegates one specialist at a time, enforces gates, and writes compact phase handoffs; it does not perform specialist analysis itself.",
       "mode": "primary",
       "model": "openai-compatible/qwen36-local-35b",
-      "steps": 28,
       "temperature": 0.15,
       "prompt": "{file:.kilo/prompts/bet-orchestrator-v2.md}",
       "permission": {
@@ -273,7 +269,6 @@
       "mode": "subagent",
       "hidden": true,
       "model": "openai-compatible/qwen36-local-35b",
-      "steps": 7,
       "temperature": 0.1,
       "prompt": "{file:.kilo/prompts/bet-settler.md}",
       "permission": {
@@ -301,7 +296,6 @@
       "mode": "subagent",
       "hidden": true,
       "model": "openai-compatible/qwen36-local-35b",
-      "steps": 6,
       "temperature": 0.05,
       "prompt": "{file:.kilo/prompts/bet-db-analyst.md}",
       "permission": {
@@ -329,7 +323,6 @@
       "mode": "subagent",
       "hidden": true,
       "model": "openai-compatible/qwen36-local-35b",
-      "steps": 10,
       "temperature": 0.15,
       "prompt": "{file:.kilo/prompts/bet-scanner.md}",
       "permission": {
@@ -359,7 +352,6 @@
       "mode": "subagent",
       "hidden": true,
       "model": "openai-compatible/qwen36-local-35b",
-      "steps": 9,
       "temperature": 0.15,
       "prompt": "{file:.kilo/prompts/bet-scout.md}",
       "permission": {
@@ -389,7 +381,6 @@
       "mode": "subagent",
       "hidden": true,
       "model": "openai-compatible/qwen36-local-35b",
-      "steps": 10,
       "temperature": 0.12,
       "prompt": "{file:.kilo/prompts/bet-enricher.md}",
       "permission": {
@@ -419,7 +410,6 @@
       "mode": "subagent",
       "hidden": true,
       "model": "openai-compatible/qwen36-local-35b",
-      "steps": 10,
       "temperature": 0.12,
       "prompt": "{file:.kilo/prompts/bet-statistician.md}",
       "permission": {
@@ -447,7 +437,6 @@
       "mode": "subagent",
       "hidden": true,
       "model": "openai-compatible/qwen36-local-35b",
-      "steps": 9,
       "temperature": 0.1,
       "prompt": "{file:.kilo/prompts/bet-valuator.md}",
       "permission": {
@@ -751,7 +740,6 @@
       "description": "Primary local coding agent for bounded implementation, debugging and repository work with Qwen on Rapid-MLX. Use for routine/private tasks and keep context lean.",
       "mode": "primary",
       "model": "openai-compatible/qwen36-local-35b",
-      "steps": 22,
       "temperature": 0.08,
       "prompt": "{file:.kilo/prompts/code-local.md}",
       "permission": {
@@ -841,7 +829,6 @@
       "description": "Primary local coding agent for bounded implementation, debugging and repository work with Qwen on Rapid-MLX. Use for routine/private tasks and keep context lean.",
       "mode": "primary",
       "model": "openai-compatible/qwen36-local-35b",
-      "steps": 22,
       "temperature": 0.08,
       "prompt": "{file:.kilo/prompts/code-local.md}",
       "permission": {
@@ -931,7 +918,6 @@
       "description": "Primary heavy-coding agent using the ChatGPT Plus/Pro Codex provider with GPT-5.4 at medium reasoning. Use for architecture, difficult refactors, complex debugging and final implementation review.",
       "mode": "primary",
       "model": "openai-codex/gpt-5.4",
-      "steps": 48,
       "reasoningEffort": "medium",
       "prompt": "{file:.kilo/prompts/code-gpt54.md}",
       "permission": {
@@ -1061,7 +1047,6 @@
       "mode": "subagent",
       "hidden": true,
       "model": "openai-compatible/qwen36-local-35b",
-      "steps": 10,
       "temperature": 0.02,
       "prompt": "{file:.kilo/prompts/repo-explorer-local.md}",
       "permission": {
@@ -1099,7 +1084,6 @@
       "mode": "subagent",
       "hidden": true,
       "model": "openai-compatible/qwen36-local-35b",
-      "steps": 12,
       "temperature": 0.04,
       "prompt": "{file:.kilo/prompts/code-reviewer-local.md}",
       "permission": {
@@ -1143,7 +1127,6 @@
       "mode": "subagent",
       "hidden": true,
       "model": "openai-compatible/qwen36-local-35b",
-      "steps": 12,
       "temperature": 0,
       "prompt": "{file:.kilo/prompts/test-runner-local.md}",
       "permission": {
@@ -1201,7 +1184,6 @@
       "description": "GPT-5.4-only Playwright MCP smoke agent. It may open one public page and inspect it, but cannot edit files or execute shell commands.",
       "mode": "primary",
       "model": "openai-codex/gpt-5.4",
-      "steps": 8,
       "reasoningEffort": "medium",
       "prompt": "{file:.kilo/prompts/browser-smoke.md}",
       "permission": {
