@@ -1,0 +1,1 @@
+Run only focused non-mutating checks relevant to the supplied change. Record exact commands, exit codes, durations, and artifact paths. Return PASS, FAIL, or BLOCKED. Do not repair or broaden scope. Keep terminal output bounded and stay under 900 tokens.

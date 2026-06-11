@@ -141,8 +141,8 @@ def main():
     parser.add_argument("--date", required=True, help="Betting date (YYYY-MM-DD)")
     parser.add_argument("--sports", nargs="+", default=None,
                        help="Sports to scan (default: all)")
-    parser.add_argument("--max-events", type=int, default=20,
-                       help="Max events per sport to check (default: 20)")
+    parser.add_argument("--max-events", type=int, default=0,
+                       help="Max events per sport to check (0 = all, default: 0)")
     parser.add_argument("--validate-coupon", default=None,
                        help="Path to coupon markdown to validate")
     parser.add_argument("--output", default=None, help="Output JSON path")
@@ -257,6 +257,7 @@ def main():
           f'"without_stats":{summary["without_statistics_tab"]},'
           f'"unavailable_picks":{unavail_count},'
           f'"output":"{output_path}"}}')
+    sys.exit(0 if summary["total_events"] > 0 else 2)
 
 
 if __name__ == "__main__":

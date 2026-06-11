@@ -29,7 +29,7 @@ if str(SCRIPT_DIR) not in sys.path:
 if str(PROJECT_DIR / "src") not in sys.path:
     sys.path.insert(0, str(PROJECT_DIR / "src"))
 from bet.resilience import atomic_json_write
-from generate_market_matrix import MAJOR_COMPETITIONS, _is_major_competition
+from generate_market_matrix import MAJOR_COMPETITIONS, _is_major_competition, canonicalize_sport_name
 from bet.stats.market_ranking import STANDARD_MARKET_LINES
 from bet.utils import names_match, is_same_event
 
@@ -37,6 +37,13 @@ from utils import normalize_team_name as _normalize_team, normalize_kickoff
 from agent_output import AgentOutput, add_agent_args
 
 from db_data_loader import load_fixtures_from_db, load_odds_from_db
+
+
+PLACEHOLDER_TEAM_RE = re.compile(r"\b(TBD|TBA|WINNER|LOSER|QUALIFIER|R\d+P\d+)\b", re.IGNORECASE)
+
+
+def _is_placeholder_team(name: str) -> bool:
+    return bool(PLACEHOLDER_TEAM_RE.search(str(name or "").strip()))
 
 
 # ---------------------------------------------------------------------------
@@ -284,8 +291,8 @@ COMP_TIER_KEYWORDS: dict[str, list[tuple[int, list[str]]]] = {
         (3, []),  # default for unknown CS2 leagues
     ],
     "dota2": [
-        (10, ["the international", "ti1", "esl one"]),
-        (9, ["dpc", "esl", "dreamleague", "riyadh masters"]),
+        (10, ["the international", "ti1", "esl one", "esports world cup", "world cup"]),
+        (9, ["dpc", "esl", "dreamleague", "riyadh masters", "blast slam"]),
         (8, ["bts pro", "betboom", "lima major", "bali major"]),
         (7, ["dpc division", "elite league", "fissure"]),
         (5, ["open qualifier", "closed qualifier", "regional"]),
@@ -303,6 +310,8 @@ COMP_TIER_KEYWORDS: dict[str, list[tuple[int, list[str]]]] = {
 
 # Tier 1 = KEY sports (always prioritize); Tier 2 = support
 TIER1_SPORTS = {"football", "volleyball", "basketball", "tennis", "hockey", "cs2", "dota2", "valorant"}
+
+_LAST_SHORTLIST_TELEMETRY: dict[str, object] = {}
 
 
 def _score_competition(sport: str, competition: str) -> int:
@@ -371,7 +380,7 @@ def _score_event(event: dict, tipster_events: set[str], tipster_db: dict[str, di
     Scoring philosophy: BETTABILITY > data quantity.
     Events in recognized leagues on Betclic score 2-3x higher than obscure leagues.
     """
-    sport = event["sport"]
+    sport = canonicalize_sport_name(event["sport"])
     comp = event.get("competition", "")
     tier = event.get("data_tier", "FIXTURE_ONLY")
     has_odds = bool(event.get("odds_markets"))
@@ -670,6 +679,8 @@ def build_shortlist(
     min_sports: int = 5,
 ) -> list[dict]:
     """Build a ranked shortlist of top_n events from the market matrix."""
+    global _LAST_SHORTLIST_TELEMETRY
+
     matrix_path = DATA_DIR / f"market_matrix_{date}.json"
 
     # DB-first (R2): try market_matrix_events table
@@ -772,6 +783,10 @@ def build_shortlist(
             matrix_source = "json"
             print(f"[shortlist] Loaded {len(events)} events from market matrix JSON (fallback)")
 
+    for event in events:
+        event["sport"] = canonicalize_sport_name(event.get("sport", ""))
+    input_sports = sorted({event.get("sport", "") for event in events if event.get("sport")})
+
     # Load tipster data for bonus scoring
     tipster_events = _load_tipster_events(date)
     print(f"[shortlist] Tipster events found: {len(tipster_events)}")
@@ -840,6 +855,7 @@ def build_shortlist(
 
     filtered = []
     garbage_count = 0
+    garbage_by_sport: Counter = Counter()
     for score, event in scored:
         # ITF low-tier filter: skip M15/W15/M25/W25 unless Grand Slam qualifying
         if event.get("sport") == "tennis":
@@ -847,6 +863,7 @@ def build_shortlist(
             if ITF_LOW_TIER_RE.search(comp):
                 if not any(kw in comp for kw in ITF_QUALIFYING_KEYWORDS):
                     garbage_count += 1
+                    garbage_by_sport[event.get("sport", "")] += 1
                     continue
 
         home = event.get("home_team", "")
@@ -856,6 +873,7 @@ def build_shortlist(
         comp = event.get("competition", event.get("league", ""))
         if _is_excluded_competition(comp):
             garbage_count += 1
+            garbage_by_sport[event.get("sport", "")] += 1
             continue
 
         # Youth / Reserve / University filter — no data sources cover these
@@ -867,35 +885,49 @@ def build_shortlist(
         )
         if _youth_re.search(home) or _youth_re.search(away):
             garbage_count += 1
+            garbage_by_sport[event.get("sport", "")] += 1
             continue
 
         # Too short — structural artifacts or empty
         if len(home.strip()) < 2 or len(away.strip()) < 2:
             garbage_count += 1
+            garbage_by_sport[event.get("sport", "")] += 1
             continue
         if len(home) > 60 or len(away) > 60:
             garbage_count += 1
+            garbage_by_sport[event.get("sport", "")] += 1
             continue
         if _garbage_re.search(home) or _garbage_re.search(away):
             garbage_count += 1
+            garbage_by_sport[event.get("sport", "")] += 1
             continue
         # Both home and away match bookmaker names → "1xBet vs bet365" garbage
         if _bookmaker_vs_re.fullmatch(home.strip()) or _bookmaker_vs_re.fullmatch(away.strip()):
             garbage_count += 1
+            garbage_by_sport[event.get("sport", "")] += 1
             continue
         if " / " in home or " / " in away:
             garbage_count += 1
+            garbage_by_sport[event.get("sport", "")] += 1
             continue
         if re.search(r" : .+\d{1,2}:\d{2}", home) or re.search(r" : .+\d{1,2}:\d{2}", away):
             garbage_count += 1
+            garbage_by_sport[event.get("sport", "")] += 1
             continue
         # Date-prefixed team names (e.g., "CZW 30.04.2026 20:30 Northampton")
         if re.match(r"^[A-Z]{2,4}\s+\d{2}\.\d{2}\.\d{4}", home) or re.match(r"^[A-Z]{2,4}\s+\d{2}\.\d{2}\.\d{4}", away):
             garbage_count += 1
+            garbage_by_sport[event.get("sport", "")] += 1
             continue
         # All-digit team names (e.g., "123") — not valid
         if re.fullmatch(r"\d+", home.strip()) or re.fullmatch(r"\d+", away.strip()):
             garbage_count += 1
+            garbage_by_sport[event.get("sport", "")] += 1
+            continue
+        # Placeholder bracket slots are not real, actionable fixtures.
+        if _is_placeholder_team(home) or _is_placeholder_team(away):
+            garbage_count += 1
+            garbage_by_sport[event.get("sport", "")] += 1
             continue
         filtered.append((score, event))
     if garbage_count:
@@ -908,6 +940,7 @@ def build_shortlist(
     # have them either. Major league FIXTURE_ONLY = enrichment bug signal (keep them).
     fo_filtered = []
     fo_dropped = 0
+    fo_dropped_by_sport: Counter = Counter()
     for score, event in scored:
         if event.get("data_tier") == "FIXTURE_ONLY":
             sport = event.get("sport", "")
@@ -915,6 +948,7 @@ def build_shortlist(
             comp_tier = _score_competition(sport, comp)
             if comp_tier < 6:
                 fo_dropped += 1
+                fo_dropped_by_sport[sport] += 1
                 continue
         fo_filtered.append((score, event))
     if fo_dropped:
@@ -1169,10 +1203,29 @@ def build_shortlist(
     selected.sort(key=lambda x: -x[0])
 
     n_sports_selected = len(set(e["sport"] for _, e in selected))
+    selected_by_sport = Counter(e["sport"] for _, e in selected)
+    zeroed_active_sports = [
+        sport for sport in input_sports
+        if selected_by_sport.get(sport, 0) == 0
+    ]
     print(f"[shortlist] Selected {len(selected)} events across {n_sports_selected} sports")
     if n_sports_selected < min_sports:
         print(f"[shortlist] WARNING: Only {n_sports_selected} sports (need ≥{min_sports}). "
               f"Available sports with events: {len(total_by_sport)}")
+    if zeroed_active_sports:
+        print(f"[shortlist] WARNING: Active sports reduced to 0 candidates: {', '.join(sorted(zeroed_active_sports))}")
+
+    _LAST_SHORTLIST_TELEMETRY = {
+        "matrix_source": matrix_source,
+        "input_events": len(events),
+        "available_sports": input_sports,
+        "selected_by_sport": dict(selected_by_sport),
+        "garbage_filtered": garbage_count,
+        "garbage_filtered_by_sport": dict(garbage_by_sport),
+        "fixture_only_dropped": fo_dropped,
+        "fixture_only_dropped_by_sport": dict(fo_dropped_by_sport),
+        "active_sports_zeroed": zeroed_active_sports,
+    }
 
     return selected
 
@@ -1294,6 +1347,7 @@ def write_shortlist_json(selected: list[tuple[float, dict]], date: str) -> Path:
         "date": date,
         "total_candidates": len(selected),
         "sports": sorted(set(e["sport"] for _, e in selected)),
+        "selection_telemetry": dict(_LAST_SHORTLIST_TELEMETRY),
         "candidates": [],
     }
     for i, (score, event) in enumerate(selected, 1):
@@ -1447,6 +1501,8 @@ def main():
     parser.add_argument("--min-sports", type=int, default=5, help="Minimum sport diversity (default: 5)")
     parser.add_argument("--betclic-filter", action="store_true",
                         help="Filter shortlist to only Betclic-confirmed events (reads validation JSON)")
+    parser.add_argument("--allow-fixture-only-fallback", action="store_true",
+                        help="Allow fixture-only fallback when market matrix is missing (degraded mode)")
     add_agent_args(parser)
     args = parser.parse_args()
 
@@ -1457,6 +1513,18 @@ def main():
         out.error(f"Invalid date format '{date}'. Use YYYY-MM-DD.")
         out.summary(verdict="FAILED", metrics={"error": "invalid_date"})
         sys.exit(2)
+
+    # Precondition: market matrix must exist (unless fallback is explicitly allowed)
+    matrix_path = DATA_DIR / f"market_matrix_{date}.json"
+    if not args.allow_fixture_only_fallback:
+        if not matrix_path.exists():
+            out.error(
+                "PRECONDITION_FAILED: market_matrix_{date}.json not found. "
+                "Run generate_market_matrix.py first. "
+                "Use --allow-fixture-only-fallback to bypass in degraded mode."
+            )
+            out.summary(verdict="FAILED", metrics={"error": "missing_market_matrix"})
+            sys.exit(2)
 
     # V5: Input contract pre-check (warning-only, never blocks)
     _contract = AgentOutput.validate_input_contract("s1e_shortlist", date)
@@ -1516,8 +1584,9 @@ def main():
                 sl_data = _json.loads(shortlist_json.read_text(encoding="utf-8"))
                 candidates_for_db = sl_data.get("candidates", [])
                 # Resolve fixture_ids
-                from db_data_loader import _resolve_fixture_id, _create_minimal_fixture
+                from db_data_loader import _resolve_fixture_id
                 resolved = []
+                unresolved = 0
                 for c in candidates_for_db:
                     fid = _resolve_fixture_id(
                         conn,
@@ -1526,19 +1595,19 @@ def main():
                         c.get("away_team", ""),
                         c.get("kickoff", date),
                     )
-                    if not fid:
-                        fid = _create_minimal_fixture(
-                            conn, c.get("sport", ""), c.get("home_team", ""),
-                            c.get("away_team", ""), c.get("kickoff", date),
-                            c.get("competition", ""),
-                        )
                     if fid:
                         c["fixture_id"] = fid
                         resolved.append(c)
+                    else:
+                        unresolved += 1
                 if resolved:
                     saved_candidates = candidate_repo.save_candidates(date, resolved)
                     print(f"[shortlist] DB: persisted {saved_candidates}/{len(candidates_for_db)} "
                           f"candidates to pipeline_candidates table")
+                if unresolved:
+                    out.warning(
+                        f"Left {unresolved} shortlist candidates unresolved in DB persistence; no synthetic fixtures were created"
+                    )
 
             # Sync comp_score → competitions.importance (R2 DB-FIRST)
             # Agents querying DB need league importance without reading JSON files.

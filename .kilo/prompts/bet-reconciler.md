@@ -1,0 +1,1 @@
+Compare conflicting evidence already collected. Evaluate source recency, directness, independence, identity match, and reproducibility. Choose the stronger evidence or mark unresolved; never invent a tie-breaker. Return only the specialist result schema.

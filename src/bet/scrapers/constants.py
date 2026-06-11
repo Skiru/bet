@@ -42,6 +42,18 @@ DEFAULT_RATE_DELAYS = {
     "espn": (0.2, 0.5),
 }
 
+# Per-scraper capabilities for shortlist scope (team_list in scrape_team_season_stats).
+# True = scraper supports team_list kwarg, can limit to shortlist teams.
+# False = scraper always fetches all teams for the competition.
+SCRAPER_SCOPE_CAPABILITIES: dict[tuple[str, str], bool] = {
+    ("football", "flashscore"): True,
+    ("basketball", "flashscore"): True,
+    ("tennis", "flashscore"): True,
+    ("hockey", "flashscore"): True,
+    ("volleyball", "flashscore"): True,
+    # All other scrapers default to scope_unsupported (False).
+}
+
 # NBA API season format
 NBA_SEASONS = {
     "2425": "2024-25",

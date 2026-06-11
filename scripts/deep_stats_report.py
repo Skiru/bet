@@ -36,6 +36,15 @@ from bet.utils import is_same_event
 
 from utils import normalize_kickoff
 
+# Progress tracking for background execution
+try:
+    from _background_runner import ProgressTracker
+except ImportError:
+    try:
+        from scripts._background_runner import ProgressTracker
+    except ImportError:
+        ProgressTracker = None  # type: ignore
+
 DATA_DIR = Path(__file__).parent.parent / "betting" / "data"
 CACHE_DIR = Path(__file__).parent.parent / "betting" / "data" / "stats_cache"
 
@@ -80,6 +89,27 @@ def _resolve_team_ids(conn, team_a: str, team_b: str, sport: str) -> tuple[int |
     ta = tr.resolve(team_a, s.id)
     tb = tr.resolve(team_b, s.id)
     return (ta.id if ta else None), (tb.id if tb else None)
+
+
+def _check_pipeline_candidates_precondition(date: str, shortlist: str | None = None) -> None:
+    """Check pipeline_candidates has rows for the given date.
+
+    Raises ValueError if precondition fails.
+    Patch this function in tests to bypass production DB dependency.
+    """
+    if shortlist:
+        return
+    from bet.db.connection import get_db
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) FROM pipeline_candidates WHERE betting_date=?",
+            (date,),
+        ).fetchone()
+        if row and row[0] == 0:
+            raise ValueError(
+                f"pipeline_candidates has 0 rows for {date}. "
+                "Run build_shortlist.py first (execution-spine STEP 7)."
+            )
 
 
 def compute_data_quality(stats_a: dict, stats_b: dict, h2h: dict, sport: str) -> dict:
@@ -394,8 +424,9 @@ def _extract_esports_h2h(sport: str, team_a: str, team_b: str, result: dict) -> 
                     h2h_data = _json.loads(row["h2h_values"])
                     result["has_data"] = True
                     result["h2h_record"] = f"{int(row['l10_avg'] or 0)}-{int(row['l5_avg'] or 0)}"
+                    meeting_count = len(h2h_data) if isinstance(h2h_data, list) else int(h2h_data.get("matches_found", 1))
                     result["meetings"] = [{"source": "db", "index": i}
-                                           for i in range(h2h_data.get("matches_found", 1))]
+                                           for i in range(meeting_count)]
                     return result
         except Exception as e:
             _logger.debug("Esports H2H DB lookup failed for %s vs %s/%s: %s", team_a, team_b, sport, e)
@@ -1965,6 +1996,10 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
 
     print(f"[deep_stats] Analyzing {len(valid)} candidates from {source}")
 
+    tracker = ProgressTracker("s3") if ProgressTracker else None
+    if tracker:
+        tracker.start(len(valid), f"Deep stats analysis for {date}")
+
     def _analyze_one(idx_candidate: tuple[int, dict]) -> dict | None:
         i, c = idx_candidate
         home = c["home_team"]
@@ -1979,7 +2014,8 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
         if result is not None:
             result["data_tier"] = c.get("data_tier", "")
             result["comp_score"] = c.get("comp_score", 3)
-            if c.get("tipster_support"):
+            result["tipster_count"] = int(c.get("tipster_count") or 0)
+            if (c.get("tipster_count") or 0) > 0 and c.get("tipster_support"):
                 result["tipster_support"] = c["tipster_support"]
         return result
 
@@ -1989,24 +2025,31 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
         futures = {executor.submit(_analyze_one, item): item for item in valid}
         # Collect results maintaining original order
         results_map: dict[int, dict] = {}
+        completed = 0
+        update_every = max(1, len(valid) // 20)
         for future in concurrent.futures.as_completed(futures):
             item = futures[future]
             idx = item[0]
+            completed += 1
             try:
                 result = future.result()
+                if result is not None:
+                    results_map[idx] = result
             except Exception as e:
                 home = item[1].get("home_team", "?")
                 away = item[1].get("away_team", "?")
                 print(f"[deep_stats] [ERROR] {home} vs {away} analysis failed: {e}")
-                continue
-            if result is not None:
-                results_map[idx] = result
+            if tracker and (completed == 1 or completed == len(valid) or completed % update_every == 0):
+                tracker.update(completed, f"{item[1].get('home_team','')} vs {item[1].get('away_team','')}")
 
         for idx, _ in valid:
             if idx in results_map:
                 analyses.append(results_map[idx])
                 if results_map[idx]["has_data"]:
                     with_data += 1
+
+    if tracker:
+        tracker.done({"total_candidates": len(valid), "with_data": with_data, "analyses_count": len(analyses)})
 
     output = {
         "date": date,
@@ -2020,11 +2063,10 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
         "analyses": analyses,
     }
 
-    # --- LM Studio deep analysis second opinion (feature flag) ---
+    # --- Rapid-MLX deep analysis second opinion (feature flag) ---
     if gemini and analyses:
         try:
-            from lmstudio_deep_analyst import analyze_candidate as gemini_analyze, compute_agreement_score
-            print(f"[deep_stats] LM Studio second opinion for {len(analyses)} candidates...")
+            print(f"[deep_stats] Rapid-MLX second opinion for {len(analyses)} candidates...")
             gemini_count = 0
             for a in analyses:
                 if not a.get("has_data"):
@@ -2053,12 +2095,12 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
                         gemini_count += 1
                 except Exception as e:
                     print(f"[deep_stats] Gemini failed for {candidate_dict.get('home_team')} vs {candidate_dict.get('away_team')}: {e}")
-            print(f"[deep_stats] LM Studio analysis complete: {gemini_count}/{len(analyses)} candidates")
+            print(f"[deep_stats] Rapid-MLX analysis complete: {gemini_count}/{len(analyses)} candidates")
             output["gemini_analyzed"] = gemini_count
         except ImportError:
-            print("[deep_stats] lmstudio_deep_analyst not available, skipping LM Studio second opinion")
+            pass
         except Exception as e:
-            print(f"[deep_stats] LM Studio analysis failed (non-fatal): {e}")
+            print(f"[deep_stats] Rapid-MLX analysis failed (non-fatal): {e}")
 
     # Write markdown first (doesn't need fixture_ids)
     _write_markdown(output, date)
@@ -2153,8 +2195,9 @@ def _write_json(output: dict, date: str) -> Path:
         # Preserve fixture_id if injected by DB save (needed by S4/S5/S6)
         if a.get("fixture_id"):
             json_entry["fixture_id"] = a["fixture_id"]
+        json_entry["tipster_count"] = int(a.get("tipster_count") or 0)
         # Pass through tipster_support from shortlist (for gate → coupon)
-        if a.get("tipster_support"):
+        if (a.get("tipster_count") or 0) > 0 and a.get("tipster_support"):
             json_entry["tipster_support"] = a["tipster_support"]
         json_output["analyses"].append(json_entry)
 
@@ -2207,7 +2250,7 @@ def main():
         "--gemini",
         action="store_true",
         default=False,
-        help="Enable LM Studio deep analysis as second opinion (feature flag P2)",
+        help="Enable Rapid-MLX deep analysis as second opinion (feature flag P2)",
     )
     add_agent_args(parser)
 
@@ -2232,23 +2275,16 @@ def main():
     # Skip guard when --shortlist is explicitly provided (user overrides DB source)
     if not args.shortlist:
         try:
-            from bet.db.connection import get_db
-            with get_db() as conn:
-                row = conn.execute(
-                    "SELECT COUNT(*) FROM pipeline_candidates WHERE betting_date=?",
-                    (args.date,),
-                ).fetchone()
-                if row and row[0] == 0:
-                    out.error("PRECONDITION_FAILED: pipeline_candidates has 0 rows for "
-                              f"{args.date}. Run build_shortlist.py first (execution-spine STEP 7).")
-                    sys.exit(2)
+            _check_pipeline_candidates_precondition(args.date, args.shortlist)
+        except ValueError as e:
+            out.error(f"PRECONDITION_FAILED: {e}")
+            sys.exit(2)
         except Exception as e:
             out.warning(f"Precondition check skipped (DB error): {e}")
 
     if args.gemini:
         # Check if local model server is reachable before running the full pipeline
         try:
-            from bet.api_clients.lmstudio_client import LMStudioClient
             if not LMStudioClient().health_check():
                 out.warning("⚠️  --gemini flag passed but local model server is not reachable at localhost:8000. "
                            "LLM features will be disabled. Ensure Rapid-MLX is running.")

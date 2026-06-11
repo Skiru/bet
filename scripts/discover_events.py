@@ -31,6 +31,8 @@ def main():
     args = parser.parse_args()
 
     sports = args.sports.split(",") if args.sports else None
+    if sports and any(s.lower() == "all" for s in sports):
+        sports = None
 
     if args.verbose:
         print(f"[discover_events] Starting discovery for {args.date}")

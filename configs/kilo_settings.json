@@ -1,0 +1,23 @@
+{
+  "kilo.ai.contextWindow": 32768,
+  "kilo.ai.maxTokens": 4096,
+  "kilo.ai.maxHistoryMessages": 8,
+  "kilo.ai.provider": "openai-compatible",
+  "kilo.ai.baseUrl": "http://127.0.0.1:8000/v1",
+  "kilo.ai.model": "Qwen3.6-35B-A3B-OptiQ-4bit",
+  "kilo.agent.enableReasoning": true,
+  "kilo.agent.indexingLimit": 300,
+  "kilo.agent.maxFileReadLines": 250,
+  "kilo.agent.useSmartContext": true,
+  "kilo.ai.stream": true,
+  "kilo.ai.includeProjectRules": true,
+  "kilo.files.exclude": {
+    "**/.git": true,
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/large_dump_*.sql": true,
+    "**/market_matrix_*.json": true,
+    "**/*.db": true,
+    "**/*.sqlite": true
+  }
+}

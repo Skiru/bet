@@ -272,9 +272,18 @@ def _get_flashscore_entity(team_name: str, sport: str) -> tuple[str | None, str 
     headers = {"x-fsign": "SW9D1eZo"}
 
     try:
-        resp = c_requests.get(url, impersonate="chrome110", headers=headers, timeout=10)
-        if resp.status_code == 200:
-            txt = resp.text
+        from bet.integration.telemetry_wrapper import wrap_request
+        result = wrap_request(
+            provider="flashscore-scraper",
+            request_fn=c_requests.get,
+            url=url,
+            impersonate="chrome110",
+            headers=headers,
+            timeout=10,
+            scope_id=f"search/{sport}/{team_name}",
+        )
+        if result.success and result.status_code == 200:
+            txt = result.body.decode("utf-8", errors="replace")
             start = txt.find("({") + 1
             end = txt.rfind("})") + 1
             if start > 0 and end > 0:
@@ -301,11 +310,19 @@ def _try_flashscore(team_name: str, sport: str) -> tuple[dict[str, list[float]],
     _fs_rate_limit("flashscore.com")
 
     try:
-        resp = c_requests.get(url, impersonate="chrome110", timeout=15)
-        if resp.status_code != 200:
-            return {}, f"Flashscore returned status {resp.status_code}"
+        from bet.integration.telemetry_wrapper import wrap_request
+        result = wrap_request(
+            provider="flashscore-scraper",
+            request_fn=c_requests.get,
+            url=url,
+            impersonate="chrome110",
+            timeout=15,
+            scope_id=f"results/{sport}/{team_name}",
+        )
+        if not result.success or result.status_code != 200:
+            return {}, f"Flashscore returned status {result.status_code}"
 
-        html = resp.text
+        html = result.body.decode("utf-8", errors="replace")
         if len(html) < 500 or "just a moment" in html.lower():
             return {}, "Blocked by JavaScript challenge barrier"
 
@@ -499,12 +516,21 @@ class TennisFlashscoreScraper(FlashscoreScraper):
         _fs_rate_limit("flashscore.com")
         
         try:
-            resp = c_requests.get(url, impersonate="chrome110", headers=headers, timeout=12)
-            if resp.status_code != 200:
-                logger.debug("Flashscore match stats %s: HTTP %d", match_id, resp.status_code)
+            from bet.integration.telemetry_wrapper import wrap_request
+            result = wrap_request(
+                provider="flashscore-scraper",
+                request_fn=c_requests.get,
+                url=url,
+                impersonate="chrome110",
+                headers=headers,
+                timeout=12,
+                scope_id=f"match_stats/{match_id}",
+            )
+            if not result.success or result.status_code != 200:
+                logger.debug("Flashscore match stats %s: HTTP %d", match_id, result.status_code)
                 return None
-            
-            return self._parse_match_stats_feed(resp.text)
+
+            return self._parse_match_stats_feed(result.body.decode("utf-8", errors="replace"))
         except Exception as e:
             logger.debug("Flashscore match stats error for %s: %s", match_id, e)
             return None
@@ -637,16 +663,24 @@ class TennisFlashscoreScraper(FlashscoreScraper):
         _fs_rate_limit("flashscore.com")
         
         try:
-            resp = c_requests.get(results_url, impersonate="chrome110", timeout=15)
-            if resp.status_code != 200:
+            from bet.integration.telemetry_wrapper import wrap_request
+            result = wrap_request(
+                provider="flashscore-scraper",
+                request_fn=c_requests.get,
+                url=results_url,
+                impersonate="chrome110",
+                timeout=15,
+                scope_id=f"player_results/tennis/{player_name}",
+            )
+            if not result.success or result.status_code != 200:
                 return []
-            
-            html = resp.text
+
+            html = result.body.decode("utf-8", errors="replace")
             if len(html) < 500 or "just a moment" in html.lower():
                 return []
-            
+
             return self._parse_embedded_results(html, entity_id, player_name, last_n)
-            
+
         except Exception as e:
             logger.debug("Flashscore results page error for %s: %s", player_name, e)
             return []

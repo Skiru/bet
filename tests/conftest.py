@@ -3,9 +3,39 @@
 All fixtures are function-scoped (fresh per test). DB is in-memory SQLite.
 """
 
+import os
+import sys
+
+# The incomplete root bet/ package shadows src/bet/. Insert src/ first so that
+# all modules under src/bet/ (api_clients, discovery, scrapers, etc.) are
+# resolvable. Tests under tests/pipeline/ use a separate conftest.
+_src = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src"))
+if _src in sys.path:
+    sys.path.remove(_src)
+sys.path.insert(0, _src)
+
 import sqlite3
 
 import pytest
+
+
+@pytest.fixture(autouse=True, scope="session")
+def isolate_production_db(tmp_path_factory):
+    """Prevent tests from writing to the production domain DB.
+
+    Sets BET_DB_PATH to a session-scoped temp path so that any code path
+    using get_db() without an explicit db_path argument resolves to a
+    throwaway DB instead of betting/data/betting.db.
+    """
+    test_db = tmp_path_factory.mktemp("test_isolation_db") / "test_betting.db"
+    old = os.environ.get("BET_DB_PATH")
+    os.environ["BET_DB_PATH"] = str(test_db)
+    yield test_db
+    if old is not None:
+        os.environ["BET_DB_PATH"] = old
+    else:
+        os.environ.pop("BET_DB_PATH", None)
+
 
 from bet.config import BettingConfig
 from bet.db.models import Fixture, MarketCandidate, Team

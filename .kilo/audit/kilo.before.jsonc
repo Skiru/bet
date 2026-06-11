@@ -1,0 +1,307 @@
+{
+  "$schema": "https://app.kilo.ai/config.json",
+  
+  "provider": {
+    "openai-compatible": {
+      "options": {
+        "baseURL": "http://127.0.0.1:8000/v1",
+        "apiKey": "not-needed",
+        "timeout": 300000
+      },
+      "models": {
+        "Qwen3.6-35B-A3B-OptiQ-4bit": { "name": "Qwen 3.6 35B OptiQ" }
+      },
+      "whitelist": ["Qwen3.6-35B-A3B-OptiQ-4bit"]
+    }
+  },
+  "agent": {
+    "bet-orchestrator": {
+      "description": "Pipeline coordinator — runs scripts, delegates analysis, synthesizes decisions.",
+      "mode": "primary",
+      "model": "openai-compatible/Qwen3.6-35B-A3B-OptiQ-4bit",
+      "steps": 16,
+      "temperature": 0.4,
+      "prompt": "{file:.kilo/prompts/bet-orchestrator.md}",
+      "permission": {
+        "read": "allow",
+        "edit": "allow",
+        "browser": "deny",
+        "bash": "allow",
+        "mcp": "allow",
+        "task": {
+          "*": "deny",
+          "bet-settler": "allow",
+          "bet-scanner": "allow",
+          "bet-enricher": "allow",
+          "bet-statistician": "allow",
+          "bet-scout": "allow",
+          "bet-valuator": "allow",
+          "bet-challenger": "allow",
+          "bet-builder": "allow",
+          "bet-db-analyst": "allow",
+          "bet-engineer": "allow",
+          "bet-reconciler": "allow",
+          "bet-test-engineer": "allow"
+        },
+        "pipeline_steps": { "*": "allow" }
+      },
+      "pipeline_steps": {
+        "S0": { "script": "scripts/pipeline_steps/s0_settler.py", "desc": "Settlement / S0" },
+        "S1": { "script": "scripts/pipeline_steps/s1_discover.py", "desc": "Discovery / S1" },
+        "S2": { "script": "scripts/pipeline_steps/s2_tipsters.py", "desc": "Tipsters aggregation / S2" },
+        "S3": { "script": "scripts/pipeline_steps/s3_stats.py", "desc": "Feature derivation / S3" },
+        "S4": { "script": "scripts/pipeline_steps/s4_valuator.py", "desc": "Odds valuation / S4" },
+        "S5": { "script": "scripts/pipeline_steps/s5_gate.py", "desc": "Gate checking / S5" },
+        "S6": { "script": "scripts/pipeline_steps/s6_repeats.py", "desc": "48h repeats check / S6" },
+        "S7": { "script": "scripts/pipeline_steps/s7_validate.py", "desc": "Market validation / S7" },
+        "S8": { "script": "scripts/pipeline_steps/s8_build_coupons.py", "desc": "Coupon builder / S8" }
+      }
+    },
+    // bet-reconciler: low temp for precise conflict resolution, SQL-only
+    "bet-reconciler": {
+      "description": "Conflict Resolution Specialist — resolves cross-domain contradictions.",
+      "mode": "subagent",
+      "model": "openai-compatible/Qwen3.6-35B-A3B-OptiQ-4bit",
+      "steps": 5,
+      "temperature": 0.2,
+      "prompt": "{file:.kilo/prompts/bet-reconciler.md}",
+      "permission": {
+        "read": "allow",    // all tables for conflict resolution
+        "edit": "deny",
+        "browser": "deny",
+        "bash": "deny",     // SQL-only agent, no shell needed
+        "mcp": "allow"      // sqlite + sequentialthinking
+      }
+    },
+    // bet-engineer: lowest temp for precise debugging, needs write for fixes
+    "bet-engineer": {
+      "description": "Full-stack engineer — fixes broken scripts, diagnoses errors, repairs pipeline.",
+      "mode": "subagent",
+      "model": "openai-compatible/Qwen3.6-35B-A3B-OptiQ-4bit",
+      "steps": 7,
+      "temperature": 0.2,
+      "prompt": "{file:.kilo/prompts/bet-engineer.md}",
+      "permission": {
+        "read": "allow",
+        "edit": "allow",    // needs write for script fixes
+        "browser": "deny",
+        "bash": "allow",    // needs shell for re-run tests
+        "mcp": "allow"      // sqlite + sequentialthinking
+      }
+    },
+    // bet-settler: moderate temp, math-only, no shell needed
+    "bet-settler": {
+      "description": "Settlement Accountant — extracts learning signals from settled bets.",
+      "mode": "subagent",
+      "model": "openai-compatible/Qwen3.6-35B-A3B-OptiQ-4bit",
+      "steps": 4,
+      "temperature": 0.3,
+      "prompt": "{file:.kilo/prompts/bet-settler.md}",
+      "permission": {
+        "read": "allow",
+        "edit": "deny",
+        "browser": "deny",
+        "bash": "deny",     // SQL-only, no shell needed
+        "mcp": "allow"
+      }
+    },
+    // bet-scanner: moderate temp, data-driven coverage counting, no shell needed
+    "bet-scanner": {
+      "description": "Discovery & Shortlist Specialist — evaluates coverage quality and gaps.",
+      "mode": "subagent",
+      "model": "openai-compatible/Qwen3.6-35B-A3B-OptiQ-4bit",
+      "steps": 5,
+      "temperature": 0.3,
+      "prompt": "{file:.kilo/prompts/bet-scanner.md}",
+      "permission": {
+        "read": "allow",
+        "edit": "deny",
+        "browser": "deny",
+        "bash": "deny",     // SQL + brave-search only
+        "mcp": "allow"
+      }
+    },
+    // bet-enricher: moderate temp, chain-following, no shell needed
+    "bet-enricher": {
+      "description": "Data Quality Guardian — evaluates enrichment readiness by sport.",
+      "mode": "subagent",
+      "model": "openai-compatible/Qwen3.6-35B-A3B-OptiQ-4bit",
+      "steps": 5,
+      "temperature": 0.3,
+      "prompt": "{file:.kilo/prompts/bet-enricher.md}",
+      "permission": {
+        "read": "allow",
+        "edit": "deny",
+        "browser": "deny",
+        "bash": "deny",     // SQL-only
+        "mcp": "allow"
+      }
+    },
+    // bet-scout: moderate temp, needs web search, no shell
+    "bet-scout": {
+      "description": "Tipster Intelligence Analyst — evaluates tipster consensus quality.",
+      "mode": "subagent",
+      "model": "openai-compatible/Qwen3.6-35B-A3B-OptiQ-4bit",
+      "steps": 7,
+      "temperature": 0.4,
+      "prompt": "{file:.kilo/prompts/bet-scout.md}",
+      "permission": {
+        "read": "allow",
+        "edit": "deny",
+        "browser": "deny",
+        "bash": "deny",     // brave-search + sqlite only
+        "mcp": "allow"
+      }
+    },
+    // bet-statistician: higher budget for multi-round self-validation, no shell
+    "bet-statistician": {
+      "description": "Deep Statistical Analyst — finds structural edges from style matchups.",
+      "mode": "subagent",
+      "model": "openai-compatible/Qwen3.6-35B-A3B-OptiQ-4bit",
+      "steps": 8,
+      "temperature": 0.4,
+      "prompt": "{file:.kilo/prompts/bet-statistician.md}",
+      "permission": {
+        "read": "allow",
+        "edit": "deny",
+        "browser": "deny",
+        "bash": "deny",     // SQL + sequentialthinking only
+        "mcp": "allow"
+      }
+    },
+    // bet-valuator: moderate temp, precision needed for EV math, no shell
+    "bet-valuator": {
+      "description": "Pricing Analyst — finds mispricing via EV, drift, Kelly sizing.",
+      "mode": "subagent",
+      "model": "openai-compatible/Qwen3.6-35B-A3B-OptiQ-4bit",
+      "steps": 6,
+      "temperature": 0.3,
+      "prompt": "{file:.kilo/prompts/bet-valuator.md}",
+      "permission": {
+        "read": "allow",
+        "edit": "deny",
+        "browser": "deny",
+        "bash": "deny",     // SQL + brave-search only
+        "mcp": "allow"
+      }
+    },
+    // bet-challenger: higher budget for multi-round bear case validation, no shell
+    "bet-challenger": {
+      "description": "Final Analytical Judge — builds bear cases, enforces safety gates.",
+      "mode": "subagent",
+      "model": "openai-compatible/Qwen3.6-35B-A3B-OptiQ-4bit",
+      "steps": 8,
+      "temperature": 0.4,
+      "prompt": "{file:.kilo/prompts/bet-challenger.md}",
+      "permission": {
+        "read": "allow",
+        "edit": "deny",
+        "browser": "deny",
+        "bash": "deny",     // SQL + brave-search only
+        "mcp": "allow"
+      }
+    },
+    // bet-builder: moderate temp, needs write for coupon file creation
+    "bet-builder": {
+      "description": "Portfolio Strategist — constructs coupons from approved picks.",
+      "mode": "subagent",
+      "model": "openai-compatible/Qwen3.6-35B-A3B-OptiQ-4bit",
+      "steps": 7,
+      "temperature": 0.4,
+      "prompt": "{file:.kilo/prompts/bet-builder.md}",
+      "permission": {
+        "read": "allow",
+        "edit": "allow",    // needs write for coupon .md files
+        "browser": "deny",
+        "bash": "allow",
+        "mcp": "allow"
+      }
+    },
+    // bet-db-analyst: low temp for precise table counts, reads all tables, no shell
+    "bet-db-analyst": {
+      "description": "Database Readiness Specialist — checks table health and coverage.",
+      "mode": "subagent",
+      "model": "openai-compatible/Qwen3.6-35B-A3B-OptiQ-4bit",
+      "steps": 4,
+      "temperature": 0.2,
+      "prompt": "{file:.kilo/prompts/bet-db-analyst.md}",
+      "permission": {
+        "read": "allow",
+        "edit": "deny",
+        "browser": "deny",
+        "bash": "deny",
+        "mcp": "allow"
+      }
+    },
+    // bet-test-engineer: self-contained evaluation agent, moderate creativity
+    "bet-test-engineer": {
+      "description": "Production Readiness Validator — runs multi-dimensional tests for linguistic quality + agentic robustness.",
+      "mode": "subagent",
+      "model": "openai-compatible/Qwen3.6-35B-A3B-OptiQ-4bit",
+      "steps": 6,
+      "temperature": 0.4,
+      "prompt": "{file:.kilo/prompts/bet-test-engineer.md}",
+      "permission": {
+        "read": "allow",
+        "edit": "deny",
+        "browser": "deny",
+        "bash": "deny",
+        "mcp": "allow"
+      }
+    }
+  },
+  "mcp": {
+    "sequentialthinking": {
+      "type": "local",
+      "command": ["npx","-y","@modelcontextprotocol/server-sequential-thinking"],
+      "enabled": true,
+      "timeout": 600000
+    },
+    "sqlite": {
+      "type": "local",
+      "command": ["uvx","mcp-server-sqlite","--db-path","/Users/mkoziol/projects/bet/betting/data/betting.db"],
+      "enabled": true,
+      "timeout": 15000
+    },
+    "brave-search": {
+      "type": "local",
+      "command": ["npx","-y","brave-search-mcp"],
+      "environment": { "BRAVE_API_KEY": "${BRAVE_API_KEY}" },
+      "enabled": true,
+      "timeout": 25000
+    }
+  },
+  "watcher": {
+    "ignore": [
+      "betting/data/*.db",
+      "betting/data/*.db-journal",
+      "downloaded_files/**",
+      "dashboard/node_modules/**",
+      ".kilo/node_modules/**",
+      ".kilocode/node_modules/**",
+      "**/__pycache__/**",
+      ".venv/**"
+    ]
+  },
+  "tool_output": {
+    "max_lines": 120,
+    "max_bytes": 16384
+  },
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "tail_turns": 3,
+    "preserve_recent_tokens": 8000,
+    "reserved": 3072
+  },
+  "experimental": {
+    "mcp_timeout": 30000,
+    "continue_loop_on_deny": true,
+    "disable_paste_summary": true,
+    "batch_tool": false,
+    "codebase_search": true,
+    "semantic_indexing": false,
+    "openTelemetry": false
+  },
+  "model": "openai-compatible/Qwen3.6-35B-A3B-OptiQ-4bit"
+}

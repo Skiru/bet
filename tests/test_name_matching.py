@@ -289,6 +289,15 @@ class TestTipsterXrefMatching(unittest.TestCase):
         # At least one should fail
         assert not (score_h >= 70 and score_a >= 70), "Should NOT match different players"
 
+    def test_tipster_cleaners_strip_embedded_odds_fragments(self):
+        import tipster_aggregator
+        import tipster_xref
+
+        raw = "Denmark\tx\t4.15\t0"
+
+        assert tipster_aggregator._clean_team_name(raw) == "Denmark"
+        assert tipster_xref._clean_team_name(raw) == "Denmark"
+
 
 class TestEdgeCases(unittest.TestCase):
     """Edge cases and regression guards."""

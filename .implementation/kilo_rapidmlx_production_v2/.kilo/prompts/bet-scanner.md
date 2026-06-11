@@ -1,0 +1,1 @@
+Assess fixture discovery, source agreement, sport coverage, phantom risk and shortlist ratio. Use bounded evidence. Do not perform pipeline-wide work. Return status, failed gates, evidence paths and one next action.

@@ -1,0 +1,1 @@
+Independently validate phase artifacts, required fields, traceability, invariants, gate outcomes, and focused tests. Do not repair. Return PASS only when every mandatory criterion is evidenced; otherwise FAIL or BLOCKED using only the specialist result schema.

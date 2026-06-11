@@ -30,6 +30,9 @@ _KNOWN_LEAGUES = {
     'sweden', 'portugal', 'turkey', 'greece', 'scotland', 'belgium',
 }
 
+from bet.utils import strip_team_noise
+from bet.tipster_registry import get_tipster_source_status
+
 
 def _clean_team_name(raw: str) -> str:
     """Extract actual team name from potentially dirty scraper data.
@@ -43,7 +46,7 @@ def _clean_team_name(raw: str) -> str:
         return ""
     # Fast path: no newlines = already clean
     if '\n' not in raw and 'Predictions' not in raw:
-        return raw.strip()
+        return strip_team_noise(raw)
 
     lines = [ln.strip() for ln in raw.split('\n') if ln.strip()]
     clean_lines = []
@@ -57,7 +60,7 @@ def _clean_team_name(raw: str) -> str:
         clean_lines.append(ln)
 
     # Return first clean line (typically the team name)
-    return clean_lines[0] if clean_lines else raw.strip()
+    return strip_team_noise(clean_lines[0] if clean_lines else raw.strip())
 
 # ---------------------------------------------------------------------------
 # Paths (same as orchestrator)
@@ -106,7 +109,8 @@ def run_tipster_xref(date: str, state: dict) -> tuple[bool, str]:
     # Import smart matching from shared utils
     from bet.utils import normalize_for_matching, names_match
 
-    tip_lookup: dict[str, list[dict]] = {}
+    tip_lookup_by_sport: dict[str, dict[str, list[dict]]] = {}
+    global_tip_lookup: dict[str, list[dict]] = {}
     for tip in tips:
         raw_home = tip.get("home") or tip.get("home_team") or ""
         raw_away = tip.get("away") or tip.get("away_team") or ""
@@ -114,7 +118,10 @@ def run_tipster_xref(date: str, state: dict) -> tuple[bool, str]:
         away = normalize_for_matching(_clean_team_name(raw_away))
         if home and away:
             key = f"{home}|{away}"
-            tip_lookup.setdefault(key, []).append(tip)
+            sport_key = str(tip.get("sport") or "").strip().lower()
+            global_tip_lookup.setdefault(key, []).append(tip)
+            if sport_key:
+                tip_lookup_by_sport.setdefault(sport_key, {}).setdefault(key, []).append(tip)
 
     # Load shortlist — prefer DB `pipeline_candidates` (R2), then legacy loader, then JSON fallback
     shortlist_path = DATA_DIR / f"{date}_s2_shortlist.json"
@@ -168,13 +175,11 @@ def run_tipster_xref(date: str, state: dict) -> tuple[bool, str]:
             print(f"  ⚠ Shortlist JSON load failed: {e}")
 
     total = len(candidates)
+    enriched_count = 0
 
     # Enrich candidates by robust matching (direct keys, swapped, fuzzy) and persist to DB
     if candidates:
         try:
-            # Precompute tip keys for fuzzy matching
-            tip_keys = list(tip_lookup.keys())
-            enriched_count = 0
 
             # If we have a live PipelineCandidateRepo (from earlier), reuse it; otherwise open a DB context
             repo_ctx2 = None
@@ -193,29 +198,40 @@ def run_tipster_xref(date: str, state: dict) -> tuple[bool, str]:
                 repo_ctx2 = None
                 repo_obj = None
 
+            if repo_obj:
+                repo_obj.clear_tipster_enrichment(date)
+
+            match_modes = {"exact": 0, "swapped": 0, "fuzzy": 0}
+            unmatched_by_sport: dict[str, int] = {}
+
             for c in candidates:
                 raw_home = (c.get("home_team") or "").strip()
                 raw_away = (c.get("away_team") or "").strip()
+                candidate_sport = str(c.get("sport") or "").strip().lower()
                 home_norm = normalize_for_matching(_clean_team_name(raw_home))
                 away_norm = normalize_for_matching(_clean_team_name(raw_away))
 
                 found_tips = []
+                match_mode = None
+                tip_lookup = tip_lookup_by_sport.get(candidate_sport) or global_tip_lookup
+                tip_keys = list(tip_lookup.keys())
 
                 # Try exact normalized key
                 key = f"{home_norm}|{away_norm}"
                 if key in tip_lookup:
                     found_tips = tip_lookup[key]
+                    match_mode = "exact"
                 else:
                     # Try swapped key
                     swapped = f"{away_norm}|{home_norm}"
                     if swapped in tip_lookup:
                         found_tips = tip_lookup[swapped]
+                        match_mode = "swapped"
 
                 # Fuzzy fallback: pick best matching tip_key by names_match score
                 if not found_tips and tip_keys:
                     best_score = 0
                     best_tips = []
-                    best_parts = None
                     for tip_key in tip_keys:
                         parts = tip_key.split("|")
                         if len(parts) != 2:
@@ -228,37 +244,17 @@ def run_tipster_xref(date: str, state: dict) -> tuple[bool, str]:
                         if score > best_score:
                             best_score = score
                             best_tips = tip_lookup[tip_key]
-                            best_parts = (t_home, t_away)
 
-                    # Accept fuzzy match if confidence is reasonable
-                    accepted = False
-                    if best_score >= 60:
-                        accepted = True
-                    else:
-                        # token-overlap heuristic for near-misses
-                        try:
-                            import re as _re_local
-                            def _tokens(s):
-                                return {t for t in _re_local.split(r"\W+", s) if t}
-                            if best_parts:
-                                bt_home, bt_away = best_parts
-                                h_tokens = _tokens(home_norm)
-                                a_tokens = _tokens(away_norm)
-                                th_tokens = _tokens(bt_home)
-                                ta_tokens = _tokens(bt_away)
-                                overlap_home = len(h_tokens & th_tokens) / max(1, len(h_tokens)) if h_tokens else 0
-                                overlap_away = len(a_tokens & ta_tokens) / max(1, len(a_tokens)) if a_tokens else 0
-                                if max(overlap_home, overlap_away) >= 0.6:
-                                    accepted = True
-                        except Exception:
-                            accepted = False
-
-                    if accepted:
+                    # Require stronger fuzzy agreement once sport filtering is applied.
+                    if best_score >= 70:
                         found_tips = best_tips
+                        match_mode = "fuzzy"
                         print(f"    ~ Smart fuzzy matched: {raw_home} vs {raw_away} → score={best_score}")
 
                 if found_tips:
                     matched += 1
+                    if match_mode:
+                        match_modes[match_mode] += 1
                     tipster_names = list({t.get("source_site") or t.get("tipster_name") or t.get("source") or "unknown" for t in found_tips})
                     consensus = len(found_tips)
                     c["tipster_support"] = {
@@ -284,6 +280,8 @@ def run_tipster_xref(date: str, state: dict) -> tuple[bool, str]:
                                 best_row = None
                                 best_row_score = 0
                                 for r in rows:
+                                    if str(r.get("sport") or "").strip().lower() != candidate_sport:
+                                        continue
                                     rh = normalize_for_matching(r.get("home_team", ""))
                                     ra = normalize_for_matching(r.get("away_team", ""))
                                     score_direct = min(names_match(home_norm, rh), names_match(away_norm, ra))
@@ -292,11 +290,17 @@ def run_tipster_xref(date: str, state: dict) -> tuple[bool, str]:
                                     if row_score > best_row_score:
                                         best_row_score = row_score
                                         best_row = r
-                                if best_row and best_row_score >= 60:
+                                if best_row and best_row_score >= 70:
                                     repo_obj.enrich_tipster(best_row.get("fixture_id"), date, consensus, c["tipster_support"])
                                     enriched_count += 1
                     except Exception as e:
                         print(f"  ⚠ DB enrich attempt failed for {raw_home} vs {raw_away}: {e}")
+                else:
+                    sport_key = candidate_sport or "unknown"
+                    unmatched_by_sport[sport_key] = unmatched_by_sport.get(sport_key, 0) + 1
+                    # Unmatched candidates stay at tipster_count=0 / tipster_support_json=NULL
+                    # (set by clear_tipster_enrichment before each S2 rerun).
+                    # Per-sport status metadata lives in tipster_registry — not on candidate rows.
 
             # Close any DB contexts we opened
             try:
@@ -312,6 +316,13 @@ def run_tipster_xref(date: str, state: dict) -> tuple[bool, str]:
 
             if enriched_count:
                 print(f"  → Enriched {enriched_count} pipeline_candidates with tipster data in DB")
+            print(
+                "  → Match modes: "
+                f"exact={match_modes['exact']}, swapped={match_modes['swapped']}, fuzzy={match_modes['fuzzy']}"
+            )
+            if unmatched_by_sport:
+                details = ", ".join(f"{sport}={count}" for sport, count in sorted(unmatched_by_sport.items()))
+                print(f"  → Unmatched candidates by sport: {details}")
 
             # JSON: write back for backward compatibility if we originally loaded JSON
             if shortlist_source == "json" and shortlist:
@@ -327,7 +338,13 @@ def run_tipster_xref(date: str, state: dict) -> tuple[bool, str]:
             print(f"  ⚠ Shortlist enrichment error: {e}")
 
     n_tips = len(tips)
-    return True, f"Tipster cross-reference: {n_tips} tips loaded, {matched}/{total} shortlist candidates matched"
+    return True, (
+        f"Tipster cross-reference: {n_tips} tips loaded, "
+        f"{matched}/{total} shortlist candidates matched, "
+        f"db_enriched={enriched_count}, "
+        f"json_updated={'yes' if shortlist_source == 'json' and shortlist else 'no'}, "
+        f"source={shortlist_source}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -350,14 +367,23 @@ def main():
     ok, msg = run_tipster_xref(args.date, {})
 
     # Parse metrics from message for structured summary
-    # Message format: "Tipster cross-reference: N tips loaded, M/T shortlist candidates matched"
     import re
-    m = re.search(r"(\d+) tips loaded, (\d+)/(\d+)", msg)
+    m = re.search(
+        r"(\d+) tips loaded, (\d+)/(\d+) shortlist candidates matched, db_enriched=(\d+), json_updated=(\w+), source=([^\s,]+)",
+        msg,
+    )
     metrics = {}
     if m:
-        metrics = {"tips_loaded": int(m.group(1)), "matched": int(m.group(2)), "total": int(m.group(3))}
+        metrics = {
+            "tips_loaded": int(m.group(1)),
+            "matched": int(m.group(2)),
+            "total": int(m.group(3)),
+            "db_enriched_count": int(m.group(4)),
+            "json_updated": m.group(5),
+            "shortlist_source": m.group(6),
+        }
     else:
-        metrics = {"tips_loaded": 0, "matched": 0, "total": 0, "skipped": True}
+        metrics = {"tips_loaded": 0, "matched": 0, "total": 0, "skipped": True, "db_enriched_count": 0}
 
     if args.verbose:
         out.event("xref_result", ok=ok, message=msg, **metrics)

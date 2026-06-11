@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""S7 Pick Approval Gate — 18-point programmatic gate checker.
+"""S7 Pick Approval Gate — 20-point programmatic gate checker.
 
 Implements the full §7.5 pick approval gate, §7.3 red flag checks,
 §7.6 sport diversity check, and §6.5 upset risk assessment.
@@ -26,6 +26,15 @@ from check_48h_repeats import load_recent_losses, normalize_team, normalize_mark
 from context_checks import validate_data_completeness
 from utils import normalize_kickoff
 from bet.utils import names_match, is_same_event
+
+# Progress tracking for background execution
+try:
+    from _background_runner import ProgressTracker
+except ImportError:
+    try:
+        from scripts._background_runner import ProgressTracker
+    except ImportError:
+        ProgressTracker = None  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -430,23 +439,28 @@ def _check_data_quality(c: dict) -> tuple[bool, str]:
         return False, "ONE-SIDED: opponent has zero stat data"
     if source == "db-synthetic":
         # Check if strong pattern exempts this from rejection
+        # BUG 2 FIX: Parse hit_rate as percentage, not absolute count
         hit_str = best.get("hit_rate_l10", "")
         l5_str = best.get("hit_rate_l5", "")
-        _h_n, _l5_n = 0, 0
+        _hit_rate_val = 0.0
+        _l5_num = 0
         if "/" in str(hit_str):
             try:
-                _h_n = int(str(hit_str).split("/")[0])
-            except (ValueError, IndexError):
+                num, den = str(hit_str).split("/", 1)
+                den_f = float(den)
+                _hit_rate_val = float(num) / den_f if den_f > 0 else 0.0
+            except (ValueError, TypeError):
                 pass
         if "/" in str(l5_str):
             try:
-                _l5_n = int(str(l5_str).split("/")[0])
+                _l5_num = int(str(l5_str).split("/")[0])
             except (ValueError, IndexError):
                 pass
-        if _h_n >= 7 and _l5_n >= 4:
+        # Strong pattern: hit rate >= 70% AND L5 >= 4 hits
+        if _hit_rate_val >= 0.70 and _l5_num >= 4:
             # Strong pattern — pass with advisory
             return True, ""
-        return False, f"SYNTHETIC data — weak hit_rate={hit_str}, no real per-match stats (source={source})"
+        return False, f"SYNTHETIC data — weak hit_rate={hit_str} (need ≥70%), no real per-match stats (source={source})"
     return True, ""
 
 
@@ -1086,8 +1100,8 @@ def compute_risk_tier(candidate: dict, gate_result: dict) -> str:
     """Assign LR/MS/HR/N based on safety, gate score, sport, kickoff.
 
     - N (Night): kickoff after 20:00 local time
-    - LR (Low-Risk): safety ≥ 0.75, gate ≥ 16/18, not blind, EV > 0
-    - MS (Multi-Sport): safety ≥ 0.60, gate ≥ 13/18
+    - LR (Low-Risk): safety ≥ 0.75, gate ≥ 16/20, not blind, EV > 0
+    - MS (Multi-Sport): safety ≥ 0.60, gate ≥ 13/20
     - HR (Higher-Risk): everything else with EV > 0
     """
     # Check night first
@@ -1202,17 +1216,17 @@ def check_data_quality_gate(candidate: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# 18-point gate runner
+# 20-point gate runner
 # ---------------------------------------------------------------------------
 
-def check_18_point_gate(candidate: dict, repeat_losses: list) -> dict:
-    """Run all 18 gate checks on one candidate.
+def check_20_point_gate(candidate: dict, repeat_losses: list) -> dict:
+    """Run all 20 gate checks on one candidate.
 
     Returns dict with:
       gate_passed: list of check IDs that passed
       gate_failed: list of check IDs that failed
       gate_warnings: list of warning strings
-      gate_score: str like "15/18"
+      gate_score: str like "15/20"
       gate_details: dict mapping check ID → {passed, message}
     """
     passed = []
@@ -1392,6 +1406,10 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
 
     Returns gate_results dict.
     """
+    tracker = ProgressTracker("s7") if ProgressTracker else None
+    if tracker:
+        tracker.start(5, f"Gate checking for {date}")
+
     # Filter garbage event names before processing
     _garbage_re = re.compile(
         r"picks\s*&\s*odds|epl\s+picks|odds\s+for\s+(saturday|friday|monday|sunday|tuesday|wednesday|thursday)|"
@@ -1484,9 +1502,9 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
                    JOIN teams t2 ON t2.id = f.away_team_id
                    WHERE f.kickoff LIKE ? || '%'
                    AND f.status IN ({})""".format(
-                    ",".join(f"'{s}'" for s in NON_PLAYABLE_STATUSES)
+                    ",".join("?" for _ in NON_PLAYABLE_STATUSES)
                 ),
-                (date,),
+                [date] + list(NON_PLAYABLE_STATUSES),
             ).fetchall()
             if fixture_status_rows:
                 # Build set of non-playable (home, away) pairs
@@ -1579,6 +1597,9 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
     if context_capped:
         print(f"[gate_checker] Context caps applied: {context_capped} candidates")
 
+    if tracker:
+        tracker.update(1, f"Filtered to {len(candidates)} candidates after garbage/phantom/context checks")
+
     repeat_losses = load_48h_repeats(date)
     approved = []
     extended_pool = []
@@ -1592,10 +1613,13 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
     total_count = len(candidates)
 
     for c in candidates:
-        gate_result = check_18_point_gate(c, repeat_losses)
+        gate_result = check_20_point_gate(c, repeat_losses)
         gate_results_per_candidate.append((c, gate_result))
         for pt in gate_result.get("gate_failed", []):
             point_failure_counts[pt] = point_failure_counts.get(pt, 0) + 1
+
+    if tracker:
+        tracker.update(2, f"Gate evaluated for {total_count} candidates")
 
     # Systemic points: fail for >80% of candidates (infrastructure gap, not candidate weakness)
     # NON-DISCOUNTABLE GATES: These represent pipeline prerequisites, not infrastructure quality.
@@ -1622,6 +1646,9 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
     if pipeline_warnings:
         for w in pipeline_warnings:
             print(f"[gate_checker] ⚠️ {w}")
+
+    if tracker:
+        tracker.update(3, f"Classifying {len(candidates)} candidates into buckets")
 
     for c, gate_result in gate_results_per_candidate:
         # --- Pattern A: Flag directional conflicts ---
@@ -1662,12 +1689,22 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
         # Hard reject: ONLY for structural issues (phantoms, 48h repeats, ZT red flags)
         hard_reject = False
         hard_reject_reason = ""
-        for detail in gate_result["gate_details"].values():
-            msg = detail.get("message", "")
-            if "HARD REJECT" in msg:
-                hard_reject = True
-                hard_reject_reason = msg
-                break
+        
+        # SAFETY FLOOR (BUG 1 FIX): Hard reject below 0.15, extend below 0.30
+        MINIMUM_SAFETY_FLOOR = 0.15
+        SOFT_SAFETY_FLOOR = 0.30
+        
+        if safety < MINIMUM_SAFETY_FLOOR:
+            hard_reject = True
+            hard_reject_reason = f"MINIMUM_SAFETY_FLOOR: safety={safety:.2f} < {MINIMUM_SAFETY_FLOOR:.2f} — hard reject"
+        
+        if not hard_reject:
+            for detail in gate_result["gate_details"].values():
+                msg = detail.get("message", "")
+                if "HARD REJECT" in msg:
+                    hard_reject = True
+                    hard_reject_reason = msg
+                    break
 
         # Hard reject: Calculated negative EV (when odds are known)
         if not hard_reject and ev is not None and ev < 0:
@@ -1680,6 +1717,14 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
         elif strict and n_failed > 0:
             _set_entry_bucket(entry, "rejected", f"STRICT mode: {n_failed} gate failures")
             rejected.append(entry)
+        elif safety >= MINIMUM_SAFETY_FLOOR and safety < SOFT_SAFETY_FLOOR and not ev_ready:
+            # SOFT SAFETY FLOOR: Route to Extended Pool when safety is between floors
+            entry["advisory_tier"] = "FLAGGED"
+            entry.setdefault("tier_caps", []).append(
+                f"SOFT_SAFETY_FLOOR: safety={safety:.2f} < {SOFT_SAFETY_FLOOR:.2f} (extended unless EV override)"
+            )
+            _set_entry_bucket(entry, "extended_pool", f"SOFT_SAFETY_FLOOR: safety={safety:.2f} < {SOFT_SAFETY_FLOOR:.2f}")
+            extended_pool.append(entry)
         else:
             # Advisory tier based on EFFECTIVE failures (excluding systemic infrastructure gaps)
             # Systemic failures affect >80% of candidates equally — they're not candidate-specific
@@ -1763,6 +1808,11 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
                 markets_evaluated = c.get("market_count") or c.get("markets_evaluated", 0) or 0
                 hit_rate_str = (c.get("best_market") or {}).get("hit_rate_l10", "")
                 hit_rate_l5_str = (c.get("best_market") or {}).get("hit_rate_l5", "")
+                tipster_count = int(c.get("tipster_count") or 0)
+                data_tier = (c.get("data_tier") or "").upper()
+                has_real_odds = ((c.get("odds") or {}).get("market_best") or 0) > 1.0
+                ev_ready = ev is not None and ev > 0 and has_real_odds and safety >= 0.30
+                has_actionable_market = bool((c.get("best_market") or {}).get("name")) and markets_evaluated > 0
                 
                 # Parse hit rate like "5/10" → 0.5
                 hit_rate_val = 0.0
@@ -1791,7 +1841,8 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
                         pass
 
                 # Determine if synthetic pick has PROVEN pattern
-                _synthetic_strong = (hit_num >= 7 and l5_num >= 4)
+                # BUG 2 FIX: Use hit_rate percentage instead of absolute count
+                _synthetic_strong = (hit_rate_val >= 0.70 and l5_num >= 4)
 
                 # Route to extended pool if synthetic (WEAK only), insufficient markets, or coin-flip
                 extended_reasons = []
@@ -1805,10 +1856,24 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
                 # Use sport-specific minimum (tennis=2, volleyball=2, others=3)
                 _sport = (c.get("sport") or "").lower()
                 _min_mkts = {"football": 3, "basketball": 3, "tennis": 2, "volleyball": 2, "hockey": 3, "cs2": 1, "dota2": 1, "valorant": 1}.get(_sport, 2)
-                if markets_evaluated < _min_mkts and markets_evaluated > 0:
+                if not has_actionable_market:
+                    extended_reasons.append("NO_ACTIONABLE_MARKET: no ranked market survived S3 analysis")
+                if markets_evaluated < _min_mkts:
                     extended_reasons.append(f"INSUFFICIENT_MARKETS: {markets_evaluated}/{_min_mkts} required")
-                if hit_rate_val > 0 and hit_rate_val <= 0.50:
+                if data_tier == "FIXTURE_ONLY":
+                    extended_reasons.append("DEGRADED_TIER: FIXTURE_ONLY candidates stay in extended pool")
+                if not has_real_odds:
+                    extended_reasons.append("NO_VERIFIED_ODDS: active approval requires a real market price")
+                if safety < 0.30:
+                    extended_reasons.append(f"SAFETY_FLOOR: safety={safety:.2f} < 0.30 requires extended-only")
+                if tipster_count <= 0 and not ev_ready:
+                    extended_reasons.append("TIPSTER_BLIND: zero tipster support without positive-EV override")
+                if hit_rate_val > 0 and hit_rate_val <= 0.50 and not ev_ready:
                     extended_reasons.append(f"COIN_FLIP: hit_rate={hit_rate_str} (≤50% = no edge)")
+                if ev_ready:
+                    entry.setdefault("advisory_notes", []).append(
+                        f"EV_OVERRIDE: positive EV {ev:+.1%} with real odds keeps candidate eligible for APPROVED"
+                    )
                 
                 if extended_reasons:
                     entry["advisory_tier"] = "FLAGGED"
@@ -1820,6 +1885,35 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
                     approved.append(entry)
 
     diversity = check_sport_diversity(approved)
+    
+    # BUG 4 FIX: Correlation pre-check — reject duplicate picks BEFORE S8
+    # Track approved picks and reject duplicates at gate level
+    approved_picks_set: set[tuple[str, str, str, str]] = set()
+    deduplicated_approved = []
+    correlation_rejected = 0
+    for entry in approved:
+        home = (entry.get("home_team") or "").strip().lower()
+        away = (entry.get("away_team") or "").strip().lower()
+        best = entry.get("best_market") or {}
+        market_name = (best.get("name") or "").lower()
+        direction = (best.get("direction") or "").upper()
+        pick_key = (home, away, market_name, direction)
+        
+        if pick_key in approved_picks_set:
+            correlation_rejected += 1
+            _set_entry_bucket(entry, "rejected", "DUPLICATE_PICK: same bet already approved in this session")
+            rejected.append(entry)
+        else:
+            approved_picks_set.add(pick_key)
+            deduplicated_approved.append(entry)
+    
+    if correlation_rejected:
+        print(f"[gate_checker] Correlation pre-check: rejected {correlation_rejected} duplicate picks")
+        approved = deduplicated_approved
+
+    if tracker:
+        tracker.update(4, f"Diversity check: {diversity['sports_count']}/5 sports, approved={len(approved)}, extended={len(extended_pool)}, rejected={len(rejected)}")
+        tracker.done({"approved": len(approved), "extended": len(extended_pool), "rejected": len(rejected), "total": len(candidates)})
 
     return {
         "date": date,
@@ -2132,7 +2226,7 @@ def main():
     from agent_output import AgentOutput, add_agent_args
 
     parser = argparse.ArgumentParser(
-        description="S7 Pick Approval Gate — 18-point programmatic gate checker"
+        description="S7 Pick Approval Gate — 20-point programmatic gate checker"
     )
     parser.add_argument(
         "--date",
@@ -2244,7 +2338,7 @@ def main():
                     f"{r.get('home_team', '?')} vs {r.get('away_team', '?')}",
                     sport=r.get("sport", "?"),
                     bucket=bucket,
-                    gate_score=r.get("gate_score", "0/18"),
+                    gate_score=r.get("gate_score", "0/20"),
                     tier=r.get("risk_tier", "?"),
                 )
 

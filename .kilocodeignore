@@ -1,0 +1,19 @@
+# Generated and high-volume content excluded from indexing/context
+.git/
+.venv/
+.venv-*/
+**/__pycache__/
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/node_modules/
+.kilo/artifacts/
+.kilo/logs/
+.kilo/runtime/
+reports/
+downloaded_files/
+betting/data/*.db
+betting/data/*.db-*
+betting/data/*.db-journal
+betting/data/*.db-wal
+betting/data/*.db-shm

@@ -1,0 +1,1 @@
+Resolve a specific evidence conflict. Compare provenance, timestamps, identities and calculation inputs. Prefer primary/current evidence. Return the chosen resolution, confidence, rejected interpretation and exact paths.

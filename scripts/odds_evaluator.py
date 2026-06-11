@@ -24,6 +24,116 @@ sys.path.insert(0, str(ROOT_DIR / "src"))
 from utils import normalize_team_name as _norm_team
 from bet.utils import names_match
 
+# ---------------------------------------------------------------------------
+# GAP 1 FIX: Uncertainty-Adjusted Kelly Criterion
+# Research shows 10-20% fractional Kelly optimal when probability estimates
+# are uncertain (synthetic/incomplete data). Kelly formula assumes known p.
+# When using synthetic data, reduce Kelly fraction proportionally.
+# ---------------------------------------------------------------------------
+
+KELLY_FRACTIONS = {
+    "poor": 0.10,       # Data quality < 0.50 (synthetic/estimated)
+    "moderate": 0.15,   # Data quality 0.50-0.75 (partial data)
+    "good": 0.25,       # Data quality > 0.75 (real match data)
+    "default": 0.25,    # Default when quality unknown
+}
+
+
+def compute_adjusted_kelly(hit_rate: float, odds: float, data_quality_score: float,
+                           h2h_blind: bool = False, sample_size: int = 10) -> dict:
+    """Compute Kelly fraction adjusted for data uncertainty.
+    
+    Args:
+        hit_rate: Estimated probability (0.0-1.0)
+        odds: Decimal odds
+        data_quality_score: Data quality metric (0.0-1.0)
+        h2h_blind: True if no H2H data available
+        sample_size: Number of data points in L10
+    
+    Returns dict with:
+        kelly_fraction: Recommended fraction of bankroll
+        base_kelly: Unadjusted Kelly value
+        quality_tier: "poor" | "moderate" | "good"
+        adjustment_reason: Explanation
+    """
+    if odds <= 1.0 or hit_rate <= 0:
+        return {
+            "kelly_fraction": 0.0,
+            "base_kelly": 0.0,
+            "quality_tier": "poor",
+            "adjustment_reason": "Invalid odds or hit_rate",
+        }
+    
+    # Base Kelly: f = (b*p - q) / b where b = odds-1, p = prob, q = 1-p
+    b = odds - 1.0
+    p = hit_rate
+    q = 1.0 - p
+    base_kelly = (b * p - q) / b if b > 0 else 0.0
+    
+    # Negative edge = no bet
+    if base_kelly <= 0:
+        return {
+            "kelly_fraction": 0.0,
+            "base_kelly": base_kelly,
+            "quality_tier": "none",
+            "adjustment_reason": f"Negative edge: base_kelly={base_kelly:.3f}",
+        }
+    
+    # Determine quality tier
+    # Additional penalties for data gaps
+    effective_quality = data_quality_score
+    
+    # H2H blind reduces quality
+    if h2h_blind:
+        effective_quality = min(effective_quality, 0.60)
+    
+    # Small sample size reduces quality
+    if sample_size < 8:
+        effective_quality = min(effective_quality, 0.50)
+    
+    # Select Kelly fraction based on quality
+    if effective_quality < 0.50:
+        quality_tier = "poor"
+        kelly_frac = KELLY_FRACTIONS["poor"]
+        reason = f"Poor data quality ({effective_quality:.2f}) → {kelly_frac*100:.0f}% Kelly"
+    elif effective_quality < 0.75:
+        quality_tier = "moderate"
+        kelly_frac = KELLY_FRACTIONS["moderate"]
+        reason = f"Moderate data quality ({effective_quality:.2f}) → {kelly_frac*100:.0f}% Kelly"
+    else:
+        quality_tier = "good"
+        kelly_frac = KELLY_FRACTIONS["good"]
+        reason = f"Good data quality ({effective_quality:.2f}) → {kelly_frac*100:.0f}% Kelly"
+    
+    # Add penalty notations
+    penalties = []
+    if h2h_blind:
+        penalties.append("H2H-blind")
+    if sample_size < 8:
+        penalties.append(f"sample={sample_size}")
+    if penalties:
+        reason += f" (penalties: {', '.join(penalties)})"
+    
+    adjusted_kelly = base_kelly * kelly_frac
+    
+    return {
+        "kelly_fraction": round(adjusted_kelly, 4),
+        "base_kelly": round(base_kelly, 4),
+        "quality_tier": quality_tier,
+        "adjustment_reason": reason,
+        "effective_quality": round(effective_quality, 2),
+        "kelly_frac_used": kelly_frac,
+    }
+
+# Progress tracking for background execution
+try:
+    from _background_runner import ProgressTracker
+except ImportError:
+    try:
+        from scripts._background_runner import ProgressTracker
+    except ImportError:
+        ProgressTracker = None  # type: ignore
+
 
 # ---------------------------------------------------------------------------
 # ESPN American odds → decimal conversion
@@ -534,6 +644,10 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
 
 def run_odds_eval(date: str, state: dict) -> tuple[bool, str]:
     """S4: Cross-validate odds, compute EV, detect drift."""
+    tracker = ProgressTracker("s4") if ProgressTracker else None
+    if tracker:
+        tracker.start(3, f"Odds evaluation for {date}")
+
     candidates = []
     s3_path = DATA_DIR / f"{date}_s3_deep_stats.json"
     s3_data = None
@@ -566,10 +680,18 @@ def run_odds_eval(date: str, state: dict) -> tuple[bool, str]:
 
     if not candidates:
         state["candidate_load"] = candidate_load
+        if tracker:
+            tracker.done({"candidates": 0, "note": "no S3 data"})
         return True, "S4: No S3 data yet — skipping EV injection"
+
+    if tracker:
+        tracker.update(1, f"Loaded {len(candidates)} candidates")
 
     try:
         _inject_ev_from_odds(candidates, date)
+
+        if tracker:
+            tracker.update(2, f"EV injected for {len(candidates)} candidates")
 
         # Count how many have EV and log details
         with_ev = 0
@@ -656,6 +778,9 @@ def run_odds_eval(date: str, state: dict) -> tuple[bool, str]:
                     print(f"  → DB: updated {updated} analysis_results with EV data")
         except Exception as e:
             print(f"  ⚠ DB EV update failed (non-fatal): {e}")
+
+        if tracker:
+            tracker.done({"candidates": total, "with_ev": with_ev, "positive_ev": positive_ev})
 
         return True, f"S4 completed: {with_ev}/{total} with EV data ({positive_ev} positive EV)"
     except Exception as e:

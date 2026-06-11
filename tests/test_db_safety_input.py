@@ -287,7 +287,7 @@ class TestBuildSafetyInputWrapper:
         result = build_safety_input("football", "Arsenal", "Chelsea", "PL")
 
         assert result is db_result
-        mock_db.assert_called_once_with("football", "Arsenal", "Chelsea", "PL")
+        mock_db.assert_called_once_with("football", "Arsenal", "Chelsea", "PL", fixture_id=None)
         mock_cache.assert_not_called()
 
     @patch("scripts.normalize_stats.build_safety_input_from_cache")

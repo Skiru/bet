@@ -5,7 +5,9 @@ Uses SQLAlchemy ORM for all database operations.
 
 import json
 import logging
+import re
 import time
+import unicodedata
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
@@ -24,6 +26,8 @@ from .models import (
 )
 from .repository import FixtureSourceRepo
 from .sources import SourceAdapter
+from .sources.api_hockey import APIHockeyAdapter
+from .sources.api_volleyball import APIVolleyballAdapter
 from .sources.odds_api_io import OddsAPIioAdapter
 from .sources.odds_api import OddsAPIAdapter
 from .sources.api_football import APIFootballAdapter
@@ -32,6 +36,7 @@ logger = logging.getLogger(__name__)
 
 DATA_DIR = Path(__file__).parent.parent.parent.parent / "betting" / "data"
 SPORTS = ["football", "volleyball", "basketball", "tennis", "hockey", "cs2", "dota2", "valorant"]
+CORE_SPORTS = ["football", "volleyball", "basketball", "tennis", "hockey"]
 
 
 class EventDiscoveryCoordinator:
@@ -50,9 +55,15 @@ class EventDiscoveryCoordinator:
 
     @staticmethod
     def _default_sources() -> list[SourceAdapter]:
-        # Odds-API.io (primary, all 5 sports) + The-Odds-API (secondary, 4 sports w/ odds) + API-Football (tertiary, football)
+        # Odds-API.io (primary) + APISports sport-specific expansion + bookmaker and football supplements.
         # Disabled: SofaScore (permanent 403)
-        return [OddsAPIioAdapter(), OddsAPIAdapter(), APIFootballAdapter()]
+        return [
+            OddsAPIioAdapter(),
+            APIVolleyballAdapter(),
+            APIHockeyAdapter(),
+            OddsAPIAdapter(),
+            APIFootballAdapter(),
+        ]
 
     def discover(
         self,
@@ -95,13 +106,19 @@ class EventDiscoveryCoordinator:
             if stats.errors:
                 issues.extend(stats.errors)
 
+        source_health_issue = bool(issues) or any(not s.available for s in source_stats.values())
+
+        missing_requested = [sport for sport in target_sports if by_sport.get(sport, 0) == 0]
+        for sport in missing_requested:
+            issues.append(f"No fixtures discovered for requested sport: {sport}")
+
         verdict = "OK"
         if total_raw == 0:
-            verdict = "FAILED"
+            verdict = "PARTIAL" if source_health_issue else "FAILED"
         elif persisted == 0 and len(merged) > 0:
             verdict = "PARTIAL"
             issues.append(f"Fetched {len(merged)} fixtures but persisted 0 to DB")
-        elif any(not s.available for s in source_stats.values()):
+        elif any(not s.available for s in source_stats.values()) or issues:
             verdict = "PARTIAL"
 
         return DiscoveryResult(
@@ -136,6 +153,8 @@ class EventDiscoveryCoordinator:
                 try:
                     events = source.fetch_events(date, sport)
                     all_events.extend(events)
+                    for err in getattr(source, "last_errors", []):
+                        stats.errors.append(f"{source.name}/{sport}: {err}")
                     if events:
                         stats.sports_covered.append(sport)
                 except Exception as e:
@@ -194,6 +213,13 @@ class EventDiscoveryCoordinator:
         now = datetime.now(timezone.utc).isoformat()
         fs_repo = FixtureSourceRepo(self.session)
         count = 0
+
+        # scan_results is a date-scoped discovery snapshot. Clear the prior run first
+        # so bet-scanner audits reflect the current scan instead of stale leftovers.
+        self.session.execute(
+            text("DELETE FROM scan_results WHERE betting_date = :bd"),
+            {"bd": date},
+        )
 
         for mf in fixtures:
             try:
@@ -266,12 +292,20 @@ class EventDiscoveryCoordinator:
                     )
 
                 # Write scan_result
+                scan_payload = {
+                    "primary_source": mf.primary_source,
+                    "source_count": len(mf.sources),
+                    "sources": [s.source for s in mf.sources],
+                    "placeholder": self._has_placeholder_participant(mf),
+                    "status": self._normalize_status(mf.status),
+                    "competition": mf.competition,
+                }
                 self.session.execute(
                     text(
                         "INSERT OR IGNORE INTO scan_results "
                         "(betting_date, sport, source_domain, event_key, "
-                        "home_team, away_team, competition, kickoff, scan_timestamp) "
-                        "VALUES (:bd, :sp, :sd, :ek, :ht, :at, :comp, :ko, :ts)"
+                        "home_team, away_team, competition, kickoff, raw_data, scan_timestamp) "
+                        "VALUES (:bd, :sp, :sd, :ek, :ht, :at, :comp, :ko, :raw, :ts)"
                     ),
                     {
                         "bd": date, "sp": mf.sport,
@@ -279,7 +313,7 @@ class EventDiscoveryCoordinator:
                         "ek": f"{mf.home_team} vs {mf.away_team}",
                         "ht": mf.home_team, "at": mf.away_team,
                         "comp": mf.competition,
-                        "ko": kickoff_str, "ts": now,
+                        "ko": kickoff_str, "raw": json.dumps(scan_payload), "ts": now,
                     },
                 )
 
@@ -295,6 +329,17 @@ class EventDiscoveryCoordinator:
 
         self.session.commit()
         return count
+
+    @staticmethod
+    def _is_placeholder_name(name: str) -> bool:
+        raw = (name or "").strip()
+        if not raw:
+            return True
+        return bool(re.search(r"\b(TBD|TBA|WINNER|LOSER|QUALIFIER|QUALIFIER\s*\d*|R\d+P\d+)\b", raw, re.IGNORECASE))
+
+    @classmethod
+    def _has_placeholder_participant(cls, fixture: MergedFixture) -> bool:
+        return cls._is_placeholder_name(fixture.home_team) or cls._is_placeholder_name(fixture.away_team)
 
     def _resolve_team(self, sport_id: int, name: str) -> int:
         """Find or create a team, return its ID.
@@ -331,8 +376,6 @@ class EventDiscoveryCoordinator:
             return row[0]
 
         # 3. Normalized diacritics match + suffix-stripping
-        import re
-        import unicodedata
         from bet.utils import normalize_team_name
 
         normalized_input = (
@@ -436,9 +479,11 @@ class EventDiscoveryCoordinator:
         DATA_DIR.mkdir(parents=True, exist_ok=True)
         out_path = DATA_DIR / f"{date}_s1_events.json"
 
-        data = []
+        events = []
+        by_sport: dict[str, int] = {}
         for mf in fixtures:
-            data.append({
+            by_sport[mf.sport] = by_sport.get(mf.sport, 0) + 1
+            events.append({
                 "sport": mf.sport,
                 "competition": mf.competition,
                 "country": mf.country,
@@ -454,6 +499,14 @@ class EventDiscoveryCoordinator:
                     for s in mf.sources
                 ],
             })
+
+        data = {
+            "date": date,
+            "sports_scanned": sorted(by_sport.keys()),
+            "total_events": len(events),
+            "by_sport": by_sport,
+            "events": events,
+        }
 
         out_path.write_text(
             json.dumps(data, indent=2, ensure_ascii=False),

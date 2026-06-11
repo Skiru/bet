@@ -86,20 +86,38 @@ class OddsAPIAdapter(AbstractSourceAdapter):
             "oddsFormat": "decimal",
         }
 
+        from bet.integration.telemetry_wrapper import wrap_request
+
         try:
-            resp = requests.get(
-                f"{BASE_URL}/sports/{sport_key}/odds",
+            result = wrap_request(
+                provider="the-odds-api",
+                request_fn=requests.get,
+                url=f"{BASE_URL}/sports/{sport_key}/odds",
                 params=params,
                 timeout=15,
+                scope_id=sport_key,
             )
+            if result.error:
+                raise requests.RequestException(result.error.message)
+
+            import json as _json
+            resp = type("_Response", (), {
+                "status_code": result.status_code,
+                "text": result.body.decode("utf-8", errors="replace"),
+                "headers": result.headers,
+                "json": lambda self: _json.loads(self.text),
+            })()
             if resp.status_code == 401:
                 self._auth_failed = True
+                self._record_error("auth failed (401) — key expired or credits exhausted")
                 self.logger.warning("Odds API auth failed (401) — key expired or credits exhausted. Skipping remaining.")
                 return []
             if resp.status_code in (404, 422):
                 return []
-            resp.raise_for_status()
+            if resp.status_code >= 400:
+                raise requests.HTTPError(f"HTTP {resp.status_code}")
         except requests.RequestException as e:
+            self._record_error(f"request failed for {sport_key}: {e}")
             self.logger.warning("Odds API %s failed: %s", sport_key, e)
             return []
 

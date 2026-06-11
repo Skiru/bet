@@ -40,6 +40,30 @@ SPORT_SLUG_MAP = {
     "valorant": "esports",
 }
 
+
+# Classification rules for shared provider slugs (e.g., "esports" -> cs2/dota2/valorant)
+# Order matters: first match wins.  Keep keywords sport-specific to avoid false positives.
+_ESPORTS_CLASSIFIERS = [
+    ("valorant", ["valorant", "vct", "lock/in", "ascension", "vct masters", "vct champions"]),
+    ("dota2", ["dota2", "dota 2", "the international", "esl one dota", "dreamleague", "betboom dota", "weplay dota"]),
+    ("cs2", ["cs2", "counter-strike", "cs:go", "csgo", "blast premier", "iem", "esl pro league", "cs2 major", "perfect world"]),
+]
+
+
+def _classify_esports_subsport(league_name: str, event_title: str, candidates: list[str]) -> str:
+    """Classify an esports event into cs2/dota2/valorant based on metadata.
+
+    Returns the first candidate if no heuristic matches.
+    """
+    text = f"{league_name} {event_title}".lower()
+    for sport, keywords in _ESPORTS_CLASSIFIERS:
+        if sport not in candidates:
+            continue
+        if any(kw in text for kw in keywords):
+            return sport
+    return candidates[0]
+
+
 # Default bookmakers (free plan: max 2 selected via /bookmakers/selected/select)
 DEFAULT_BOOKMAKERS = "Betclic PL,Bet365"
 
@@ -81,13 +105,14 @@ class OddsAPIioClient(BaseAPIClient):
 
         url = f"{self.base_url}{endpoint}"
 
-        # Check cache
-        cache_key = f"odds-api-io/{endpoint.strip('/')}/{json.dumps(params or {}, sort_keys=True)[:60]}"
-        cache_key = cache_key.replace("/", "_").replace("?", "_").replace("&", "_")
-        cache_key = cache_key.replace("{", "").replace("}", "").replace('"', "")
-        # Sanitize for filesystem
-        cache_key = "".join(c for c in cache_key if c.isalnum() or c in "-_")[:120]
-        cache_key = f"odds-api-io/{cache_key}"
+        # Check cache — deterministic SHA-256 to avoid collision risk
+        import hashlib
+        canonical = json.dumps({
+            "method": "GET",
+            "endpoint": endpoint,
+            "params": params,
+        }, sort_keys=True, separators=(",", ":"))
+        cache_key = f"odds-api-io/{endpoint.strip('/')}/{hashlib.sha256(canonical.encode()).hexdigest()[:32]}"
         cached = self._check_cache(cache_key, ttl_hours=1)
         if cached:
             return cached.get("data", cached)
@@ -186,18 +211,34 @@ class OddsAPIioClient(BaseAPIClient):
     # ─── BaseAPIClient interface (for CLIENT_REGISTRY) ───────────────
 
     def get_fixtures(self, date: str) -> list[NormalizedFixture]:
-        """Fetch pending events across all supported sports for a date."""
+        """Fetch pending events across all supported sports for a date.
+
+        Deduplicates esports slugs so that cs2/dota2/valorant all share
+        one "esports" fetch, then classifies events back into sub-sports
+        using league name / event metadata heuristics.
+        """
         all_fixtures = []
         from_dt = f"{date}T00:00:00Z"
         to_dt = f"{date}T23:59:59Z"
 
+        # Inverted map: provider_slug -> list of our_sports
+        slug_to_sports: dict[str, list[str]] = {}
         for our_sport, slug in SPORT_SLUG_MAP.items():
+            slug_to_sports.setdefault(slug, []).append(our_sport)
+
+        for slug, our_sports in slug_to_sports.items():
             events = self.get_events(slug, status="pending", from_dt=from_dt, to_dt=to_dt)
             for ev in events:
+                league_name = ev.get("league", {}).get("name", "").lower()
+                event_title = f"{ev.get('home', '')} {ev.get('away', '')}".lower()
+                # Classify into sub-sport for shared slugs (e.g., esports)
+                assigned_sport = our_sports[0]
+                if len(our_sports) > 1:
+                    assigned_sport = _classify_esports_subsport(league_name, event_title, our_sports)
                 nf = NormalizedFixture(
                     fixture_id=str(ev.get("id", "")),
                     source=self.api_name,
-                    sport=our_sport,
+                    sport=assigned_sport,
                     competition=ev.get("league", {}).get("name", ""),
                     home_team=ev.get("home", ""),
                     away_team=ev.get("away", ""),
@@ -260,25 +301,53 @@ def fetch_odds_snapshot(date: str, sports: list[str] | None = None,
 
     sports_to_scan = sports or list(SPORT_SLUG_MAP.keys())
 
+    # Inverted map: provider_slug -> list of our_sports (same dedup logic as get_fixtures)
+    slug_to_sports: dict[str, list[str]] = {}
     for our_sport in sports_to_scan:
         slug = SPORT_SLUG_MAP.get(our_sport)
         if not slug:
             continue
+        slug_to_sports.setdefault(slug, []).append(our_sport)
 
+    for slug, our_sports in slug_to_sports.items():
         events = client.get_events(slug, status="pending", from_dt=from_dt, to_dt=to_dt)
         if not events:
             continue
 
-        print(f"[odds-api-io] {our_sport}: {len(events)} events")
+        # Assign each event to the correct subsport (e.g., esports -> cs2/dota2/valorant)
+        sport_counts: dict[str, int] = {}
+        event_ids = []
+        for ev in events:
+            ev_id = ev.get("id")
+            if not ev_id:
+                continue
+            event_ids.append(ev_id)
+
+            league_name = ev.get("league", {}).get("name", "").lower()
+            event_title = f"{ev.get('home', '')} {ev.get('away', '')}".lower()
+            assigned_sport = our_sports[0]
+            if len(our_sports) > 1:
+                assigned_sport = _classify_esports_subsport(league_name, event_title, our_sports)
+            sport_counts[assigned_sport] = sport_counts.get(assigned_sport, 0) + 1
+            ev["_assigned_sport"] = assigned_sport
+
+        for sport, count in sport_counts.items():
+            print(f"[odds-api-io] {sport}: {count} events")
 
         # Fetch odds in batches of 10 (multi endpoint = 1 API call per batch)
-        event_ids = [ev.get("id") for ev in events if ev.get("id")]
         for i in range(0, len(event_ids), 10):
             batch = event_ids[i:i + 10]
             odds_data = client.get_odds_multi(batch, bookmakers=bookmakers)
             if odds_data:
                 for od in odds_data:
-                    od["_our_sport"] = our_sport
+                    # Find the assigned sport from the original event list
+                    event_id = str(od.get("id", ""))
+                    assigned = our_sports[0]
+                    for ev in events:
+                        if str(ev.get("id", "")) == event_id and ev.get("_assigned_sport"):
+                            assigned = ev["_assigned_sport"]
+                            break
+                    od["_our_sport"] = assigned
                     od["_source"] = "odds-api-io"
                 all_events.extend(odds_data)
 

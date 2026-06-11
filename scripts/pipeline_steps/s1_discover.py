@@ -17,11 +17,12 @@ except Exception:
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--date", help="YYYY-MM-DD", default=None)
+    p.add_argument("--date", "--betting-day", dest="date", help="YYYY-MM-DD", default=None)
     p.add_argument("--dry-run", dest="dry_run", action="store_true", default=True)
     p.add_argument("--allow-write", dest="allow_write", action="store_true", default=False)
     args = p.parse_args()
-    rc = run_scripts(["discover_events.py", "build_shortlist.py"], date=args.date, dry_run=args.dry_run, allow_write=args.allow_write)
+    # Allow PARTIAL (exit 1) from discover_events.py to continue to build_shortlist.py
+    rc = run_scripts(["discover_events.py", "build_shortlist.py"], date=args.date, dry_run=args.dry_run, allow_write=args.allow_write, continue_on_codes=[0, 1])
     raise SystemExit(rc)
 
 

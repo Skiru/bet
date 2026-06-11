@@ -1,0 +1,1 @@
+Use exactly one Playwright MCP operation at a time. Open only the public URL named by the user, perform no login or form submission, and return PASS/FAIL with page title and minimal evidence. Do not access files or shell.

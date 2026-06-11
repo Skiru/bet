@@ -15,6 +15,7 @@ from bet.db.repositories import (
     CompetitionRepo,
     FixtureRepo,
     OddsRepo,
+    PipelineRepo,
     SportRepo,
     StatsRepo,
     TeamRepo,
@@ -124,6 +125,84 @@ class TestFixtureRepoGetByDateWithTeams:
         repo = FixtureRepo(seeded_db["conn"])
         results = repo.get_by_date_with_teams("2026-12-25")
         assert len(results) == 0
+
+
+class TestPipelineRepoPhaseReceipts:
+    def test_roundtrip_validated_phase_receipt(self, db):
+        repo = PipelineRepo(db)
+
+        repo.start_phase(
+            "2026-06-05",
+            "PHASE_B",
+            {"completed_steps": ["S1", "S1e"], "artifacts": []},
+        )
+        repo.complete_phase(
+            "2026-06-05",
+            "PHASE_B",
+            {
+                "completed_steps": ["S1", "S1e", "P1", "P2"],
+                "gate_verdict": "passed",
+                "artifacts": [{"path": "betting/data/2026-06-05_s2_shortlist.json", "exists": False}],
+            },
+        )
+
+        receipt = repo.get_phase_receipt("2026-06-05", "PHASE_B")
+
+        assert receipt is not None
+        assert receipt["status"] == "completed"
+        assert receipt["receipt"]["status"] == "validated"
+        assert receipt["receipt"]["next_phase"] == "PHASE_C"
+        assert receipt["receipt"]["completed_steps"][-1] == "P2"
+
+    def test_get_next_resume_phase_uses_first_non_validated_phase(self, db):
+        repo = PipelineRepo(db)
+
+        repo.start_phase("2026-06-05", "PHASE_A")
+        repo.complete_phase("2026-06-05", "PHASE_A", {"completed_steps": ["S0", "P0"]})
+        repo.start_phase("2026-06-05", "PHASE_B")
+        repo.fail_phase("2026-06-05", "PHASE_B", "matrix drift")
+
+        assert repo.get_next_resume_phase("2026-06-05") == "PHASE_B"
+
+    def test_complete_phase_upserts_without_prior_start(self, db):
+        repo = PipelineRepo(db)
+
+        repo.complete_phase("2026-06-05", "PHASE_C", {"completed_steps": ["S2", "P3"]})
+
+        receipt = repo.get_phase_receipt("2026-06-05", "PHASE_C")
+
+        assert receipt is not None
+        assert receipt["status"] == "completed"
+        assert receipt["receipt"]["status"] == "validated"
+
+    def test_get_next_resume_phase_requires_contiguous_prefix(self, db):
+        repo = PipelineRepo(db)
+
+        repo.complete_phase("2026-06-05", "PHASE_B", {"completed_steps": ["S1", "S1e"]})
+
+        assert repo.get_next_resume_phase("2026-06-05") == "PHASE_A"
+
+    def test_get_last_validated_phase_skips_failed_and_malformed_receipts(self, db):
+        repo = PipelineRepo(db)
+
+        repo.start_phase("2026-06-05", "PHASE_A")
+        repo.complete_phase("2026-06-05", "PHASE_A", {"completed_steps": ["S0"]})
+        db.execute(
+            "INSERT INTO pipeline_runs (date, step, status, started_at, completed_at, stats) VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                "2026-06-05",
+                "PHASE_B",
+                "completed",
+                "2026-06-05T10:00:00+00:00",
+                "2026-06-05T10:05:00+00:00",
+                "{bad json",
+            ),
+        )
+
+        last_validated = repo.get_last_validated_phase("2026-06-05")
+
+        assert last_validated is not None
+        assert last_validated["phase_id"] == "PHASE_A"
 
 
 class TestSportRepoSeedDefaults:

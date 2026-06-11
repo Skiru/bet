@@ -1,0 +1,31 @@
+{
+  "$schema": "https://app.kilo.ai/config.json",
+  "model": "openai-compatible/qwen36-local-35b",
+  "provider": {
+    "openai-compatible": {
+      "options": {
+        "apiKey": "{env:RAPID_MLX_API_KEY}",
+        "baseURL": "http://127.0.0.1:8000/v1",
+        "timeout": 1800000
+      },
+      "models": {
+        "qwen36-local-35b": {
+          "id": "mlx-community/Qwen3.6-35B-A3B-4bit",
+          "name": "Qwen3.6-35B Local (Validated)",
+          "tool_call": true,
+          "reasoning": true,
+          "temperature": true,
+          "modalities": {
+            "input": ["text"],
+            "output": ["text"]
+          },
+          "limit": {
+            "context": 32768,
+            "input": 24576,
+            "output": 8192
+          }
+        }
+      }
+    }
+  }
+}

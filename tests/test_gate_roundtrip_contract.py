@@ -137,7 +137,7 @@ def _gate_entry(
         "kickoff": kickoff or f"{DATE}T18:00:00+00:00",
         "bucket": bucket,
         "status": status,
-        "gate_score": "15/18",
+        "gate_score": "15/20",
         "advisory_tier": "STRONG" if bucket == "approved" else "FLAGGED",
         "best_market": {
             "name": "Fouls Total O/U 22.5",
@@ -230,7 +230,7 @@ def _seed_repeat_handoff(db_path: Path, *, repeat_loss_count: int = 0, findings:
         ({"data_quality": {"score": 1, "label": "MINIMAL"}}, "Minimal data"),
         ({"best_market": {"source": "db-synthetic"}}, "SYNTHETIC_DATA"),
         ({"market_count": 2}, "INSUFFICIENT_MARKETS"),
-        ({"best_market": {"hit_rate_l10": "5/10"}}, "COIN_FLIP"),
+        ({"best_market": {"hit_rate_l10": "5/10", "ev": None}, "ev": None, "odds": {}, "tipster_count": 0}, "COIN_FLIP"),
     ],
 )
 def test_gate_checker_routes_current_watch_list_paths_to_extended_pool(overrides, reason_fragment, monkeypatch, tmp_path):

@@ -23,8 +23,9 @@ def discover_events(
 ) -> DiscoveryResult:
     """Run full event discovery pipeline.
 
-    Creates a SQLAlchemy session, instantiates default sources,
-    and returns a DiscoveryResult with all merged fixtures.
+    Creates a SQLAlchemy session backed by canonical DB bootstrap,
+    instantiates default sources, and returns a DiscoveryResult
+    with all merged fixtures.
     """
     from sqlalchemy import create_engine, event as sa_event
     from sqlalchemy.orm import sessionmaker
@@ -32,11 +33,17 @@ def discover_events(
     from pathlib import Path
 
     from bet.scrapers.engine import Base
+    from bet.db.connection import get_db
+    from bet.db.schema import init_db
 
     if db_path is None:
         db_path = str(
             Path(__file__).parent.parent.parent.parent / "betting" / "data" / "betting.db"
         )
+
+    # Bootstrap the full betting schema via canonical path (WAL, FK, busy_timeout)
+    with get_db(db_path) as conn:
+        init_db(conn)
 
     engine = create_engine(
         f"sqlite:///{db_path}",
@@ -52,7 +59,7 @@ def discover_events(
         cur.execute("PRAGMA busy_timeout=5000")
         cur.close()
 
-    # Ensure fixture_sources table exists
+    # Ensure scraper ORM tables also exist (idempotent)
     Base.metadata.create_all(engine)
 
     Session = sessionmaker(bind=engine, expire_on_commit=False)

@@ -152,6 +152,29 @@ def test_load_s3_candidates_with_parity_uses_json_when_db_empty(monkeypatch):
     assert metadata["parity"]["status"] == "json_only"
 
 
+def test_load_s3_candidates_with_parity_ignores_db_only_stale_rows(monkeypatch):
+    json_candidates = [
+        _candidate("Alpha", "Beta", fixture_id=1),
+        _candidate("Gamma", "Delta", fixture_id=2),
+    ]
+    db_candidates = [
+        _candidate("Alpha", "Beta", fixture_id=1, ev=0.12),
+        _candidate("Gamma", "Delta", fixture_id=2, ev=0.08),
+        _candidate("Stale", "Row", fixture_id=999, ev=0.50),
+    ]
+
+    monkeypatch.setattr(db_data_loader, "_load_analysis_results_raw_from_db", lambda _: db_candidates)
+    monkeypatch.setattr(db_data_loader, "_load_analysis_results_raw_from_json", lambda _: json_candidates)
+
+    candidates, metadata = load_s3_candidates_with_parity("2099-01-01")
+
+    assert len(candidates) == 2
+    assert metadata["source"] == "json_with_db_overlay"
+    assert metadata["parity"]["status"] == "db_superset_of_json"
+    assert metadata["parity"]["warning"]["code"] == "s3_db_superset_ignored"
+    assert all(c["home_team"] != "Stale" for c in candidates)
+
+
 def test_build_analysis_index_keeps_unkeyed_entries_distinct():
     index, stats = db_data_loader._build_analysis_index([
         {"ranking": [{"name": "Corners"}]},

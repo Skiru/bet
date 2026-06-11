@@ -144,6 +144,24 @@ class TestPipelineCandidateRepo:
         assert result[0]["tipster_count"] == 3
         assert result[0]["tipster_support"]["sources"] == ["tipster-a", "tipster-b", "tipster-c"]
 
+    def test_clear_tipster_enrichment(self, seeded_db):
+        repo = PipelineCandidateRepo(seeded_db["conn"])
+        candidates = [
+            {"fixture_id": seeded_db["f1_id"], "rank": 1, "sport": "football",
+             "home_team": "Arsenal", "away_team": "Chelsea"},
+            {"fixture_id": seeded_db["f2_id"], "rank": 2, "sport": "hockey",
+             "home_team": "Rangers", "away_team": "Bruins"},
+        ]
+        repo.save_candidates("2026-06-01", candidates)
+        repo.enrich_tipster(seeded_db["f1_id"], "2026-06-01", 2, {"sources": ["tipster-a"]})
+        repo.enrich_tipster(seeded_db["f2_id"], "2026-06-01", 1, {"sources": ["tipster-b"]})
+
+        repo.clear_tipster_enrichment("2026-06-01")
+
+        result = repo.get_by_date("2026-06-01")
+        assert [entry["tipster_count"] for entry in result] == [0, 0]
+        assert [entry["tipster_support"] for entry in result] == [None, None]
+
     def test_get_count(self, seeded_db):
         repo = PipelineCandidateRepo(seeded_db["conn"])
         assert repo.get_count("2026-06-01") == 0

@@ -408,6 +408,76 @@ def compute_safety_score(hit_rate_l10: float, hit_rate_h2h: float) -> float:
     return round(min(hit_rate_l10, hit_rate_h2h), 2)
 
 
+def validate_direction_context(market_entry: dict, context_flags: list[str] | None = None) -> dict:
+    """BUG 3 FIX: Check if direction aligns with L5 trend and motivation context.
+    
+    Validates that the recommended direction doesn't conflict with:
+    1. L5 trend (if L5 contradicts direction with tight margin)
+    2. Motivation context (attacking situation with UNDER, defensive with OVER)
+    
+    Returns dict with:
+        - direction_flag: OK | CONFLICTED | CONFLICTED_MOTIVATION
+        - confidence_penalty: 0 to -0.25
+        - details: explanation string
+    """
+    direction = (market_entry.get("direction") or "").upper()
+    line = market_entry.get("line", 0)
+    l5_avg = market_entry.get("l5_avg") or market_entry.get("combined_avg", 0)
+    l10_avg = market_entry.get("combined_avg", 0)
+    margin = abs(l10_avg - line)
+    
+    result = {
+        "direction_flag": "OK",
+        "confidence_penalty": 0.0,
+        "details": "",
+    }
+    
+    # Check L5 contradicts direction
+    l5_contradicts = False
+    if l5_avg > 0 and line > 0:
+        if direction == "OVER" and l5_avg < line:
+            l5_contradicts = True
+            result["details"] = f"L5 avg ({l5_avg:.1f}) < line ({line}) contradicts OVER"
+        elif direction == "UNDER" and l5_avg > line:
+            l5_contradicts = True
+            result["details"] = f"L5 avg ({l5_avg:.1f}) > line ({line}) contradicts UNDER"
+    
+    # Check motivation context conflicts
+    motivation_conflict = False
+    if context_flags:
+        for flag in context_flags:
+            flag_lower = (flag or "").lower()
+            # Attacking context (must attack, trailing, must-win) + UNDER = conflict
+            if any(kw in flag_lower for kw in ("must attack", "trailing", "must-win", "relegation")):
+                if direction == "UNDER":
+                    motivation_conflict = True
+                    if result["details"]:
+                        result["details"] += "; "
+                    result["details"] += f"Motivation requires attack but direction is UNDER"
+            # Defensive context (defending lead, safe lead) + OVER = conflict
+            if any(kw in flag_lower for kw in ("defending", "safe lead", "comfortable")):
+                if direction == "OVER":
+                    motivation_conflict = True
+                    if result["details"]:
+                        result["details"] += "; "
+                    result["details"] += f"Motivation requires defense but direction is OVER"
+    
+    # Apply penalties for conflicts
+    if l5_contradicts and margin <= 0.5:
+        result["direction_flag"] = "CONFLICTED"
+        result["confidence_penalty"] = -0.15
+    
+    if motivation_conflict and margin <= 1.0:
+        result["direction_flag"] = "CONFLICTED_MOTIVATION"
+        result["confidence_penalty"] = -0.20
+    
+    if l5_contradicts and motivation_conflict:
+        result["direction_flag"] = "CONFLICTED_MULTI"
+        result["confidence_penalty"] = -0.25
+    
+    return result
+
+
 def compute_three_way_check(
     l10_avg: float, h2h_avg: float | None, l5_avg: float, line: float
 ) -> dict:
@@ -587,8 +657,8 @@ def rank_markets(data: dict) -> dict:
         if total_h2h > 0:
             safety = compute_safety_score(rate_l10, rate_h2h)
         else:
-            penalty = H2H_MISSING_PENALTY.get(sport, 0.75)
-            safety = round(rate_l10 * penalty, 2)
+            # H2H penalty deferred to final step (after all caps)
+            safety = rate_l10
 
         # ONE-SIDED penalty: when one team has zero data in a combined market,
         # the combined average is unreliable — hard cap at 0.40.
@@ -664,6 +734,20 @@ def rank_markets(data: dict) -> dict:
                 market_entry["wildcard_blowout_risk"] = True
                 market_entry["max_safe_games_line"] = blowout["max_safe_games_line"]
                 market_entry["blowout_reason"] = blowout["reason"]
+
+        # BUG 3 FIX: Validate direction against L5 trend and motivation context
+        data_context_flags = data.get("context_flags", [])
+        direction_validation = validate_direction_context(market_entry, data_context_flags)
+        if direction_validation["direction_flag"] != "OK":
+            market_entry["direction_flag"] = direction_validation["direction_flag"]
+            market_entry["confidence_penalty"] = direction_validation["confidence_penalty"]
+            market_entry["direction_conflict_details"] = direction_validation["details"]
+            # Apply confidence penalty as safety penalty
+            if direction_validation["confidence_penalty"] < 0:
+                penalty = abs(direction_validation["confidence_penalty"])
+                market_entry["original_safety"] = market_entry["safety_score"]
+                market_entry["safety_score"] = max(0.0, round(market_entry["safety_score"] - penalty, 2))
+                market_entry["direction_penalty_applied"] = True
 
         results.append(market_entry)
 
@@ -946,6 +1030,18 @@ def rank_markets(data: dict) -> dict:
             f"INSUFFICIENT_MARKETS: {len(results)} markets evaluated, "
             f"minimum {min_required} required for {sport}"
         )
+
+    # --- H2H-blind final penalty (Phase 7.3) ---
+    # After ALL caps, ensure H2H-blind markets are strictly lower than
+    # the same profile with H2H support. Penalty applied at end so caps
+    # cannot equalize H2H-blind and H2H-backed scores.
+    for r in results:
+        if r.get("h2h_blind", False):
+            sport_penalty = H2H_MISSING_PENALTY.get(sport, 0.75)
+            r.setdefault("original_safety", r["safety_score"])
+            r["safety_score"] = round(r["safety_score"] * sport_penalty, 2)
+            r["h2h_penalty_applied"] = True
+            r["h2h_penalty_factor"] = sport_penalty
 
     # --- Pattern H: High-stakes context warning ---
     high_stakes = _detect_high_stakes_context(competition)

@@ -1,0 +1,52 @@
+-- Migration 014: Add CLV (Closing Line Value) tracking fields
+-- GAP 3 FIX: Track closing odds to measure true edge vs market
+-- 
+-- SQLite ALTER TABLE ADD COLUMN doesn't support IF NOT EXISTS.
+-- Use Python migration runner for idempotent application.
+--
+-- Python migration script:
+-- ```python
+-- from bet.db.connection import get_db
+-- 
+-- def migrate():
+--     with get_db() as conn:
+--         # Get existing columns
+--         existing = {r[1] for r in conn.execute("PRAGMA table_info(bets)").fetchall()}
+--         existing_analysis = {r[1] for r in conn.execute("PRAGMA table_info(analysis_results)").fetchall()}
+--         existing_gate = {r[1] for r in conn.execute("PRAGMA table_info(gate_results)").fetchall()}
+--         
+--         # Add CLV columns to bets if missing
+--         bets_cols = [
+--             ("closing_odds", "REAL DEFAULT NULL"),
+--             ("odds_at_placement", "REAL DEFAULT NULL"),
+--             ("clv_percentage", "REAL DEFAULT NULL"),
+--             ("beat_close", "INTEGER DEFAULT NULL"),
+--             ("edge_quality", "TEXT DEFAULT NULL"),
+--             ("placed_at", "TEXT DEFAULT NULL"),
+--             ("ev_calculated_at", "TEXT DEFAULT NULL"),
+--         ]
+--         for col, dtype in bets_cols:
+--             if col not in existing:
+--                 conn.execute(f"ALTER TABLE bets ADD COLUMN {col} {dtype}")
+--         
+--         # Add timing columns to analysis_results if missing
+--         analysis_cols = [
+--             ("ev_calculated_at", "TEXT DEFAULT NULL"),
+--             ("odds_at_calculation", "REAL DEFAULT NULL"),
+--         ]
+--         for col, dtype in analysis_cols:
+--             if col not in existing_analysis:
+--                 conn.execute(f"ALTER TABLE analysis_results ADD COLUMN {col} {dtype}")
+--         
+--         # Add timing column to gate_results if missing
+--         if "gate_evaluated_at" not in existing_gate:
+--             conn.execute("ALTER TABLE gate_results ADD COLUMN gate_evaluated_at TEXT DEFAULT NULL")
+--         
+--         conn.commit()
+-- ```
+
+-- Indices (idempotent with IF NOT EXISTS)
+CREATE INDEX IF NOT EXISTS idx_bets_clv ON bets(clv_percentage);
+CREATE INDEX IF NOT EXISTS idx_bets_edge_quality ON bets(edge_quality);
+CREATE INDEX IF NOT EXISTS idx_bets_placed_at ON bets(placed_at);
+CREATE INDEX IF NOT EXISTS idx_odds_history_closing ON odds_history(fixture_id, is_closing);

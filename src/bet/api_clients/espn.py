@@ -387,17 +387,32 @@ class ESPNClient(BaseAPIClient):
 
     def _request(self, endpoint: str, params: dict | None = None, cost: int = 0) -> dict:
         """Make ESPN request — skip rate limiter, still handle retries/errors."""
+        from bet.integration.telemetry_wrapper import wrap_request
+
         url = f"{self.base_url}{endpoint}"
         last_error = None
 
         for attempt in range(1, self.MAX_RETRIES + 1):
             try:
-                response = requests.get(
-                    url,
+                result = wrap_request(
+                    provider=self.api_name,
+                    request_fn=requests.get,
+                    url=url,
                     params=params,
                     headers=self._build_headers(),
                     timeout=self.TIMEOUT,
+                    scope_id=endpoint,
                 )
+
+                if result.error and result.error.retryable:
+                    raise requests.exceptions.RequestException(result.error.message)
+
+                # Reconstruct a response-like object from TransportResult
+                response = type("_Response", (), {
+                    "status_code": result.status_code,
+                    "text": result.body.decode("utf-8", errors="replace"),
+                    "headers": result.headers,
+                })()
 
                 if response.status_code == 404:
                     raise APINotFoundError(
@@ -410,7 +425,7 @@ class ESPNClient(BaseAPIClient):
                         status_code=response.status_code,
                     )
 
-                return response.json()
+                return json.loads(response.text)
 
             except APINotFoundError:
                 raise
@@ -1148,8 +1163,9 @@ class ESPNClient(BaseAPIClient):
         seen_ids: set[str] = set()
         today = datetime.now(timezone.utc).date()
 
-        # Scan recent 7 days daily + past 45 days every 3 days for history
-        days = list(range(0, 7)) + list(range(9, 46, 3))
+        # Scan recent 4 days daily + past 21 days every 4 days for history
+        # Reduced from 20->9 dates per player to avoid ESPN budget bleed
+        days = list(range(0, 4)) + list(range(6, 22, 4))
         dates_to_scan = [today - timedelta(days=d) for d in days]
 
         for scan_date in dates_to_scan:

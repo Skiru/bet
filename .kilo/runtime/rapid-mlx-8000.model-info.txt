@@ -1,0 +1,23 @@
+  Alias: qwen3.6-35b-4bit → mlx-community/Qwen3.6-35B-A3B-4bit
+
+┌──────────────────────────────────────────────────────────────┐
+│ Model: mlx-community/Qwen3.6-35B-A3B-4bit                    │
+│ ──────────────────────────────────────────────────────────── │
+│ Tool format      : qwen3_coder_xml                           │
+│ Reasoning parser : qwen3                                     │
+│ Architecture     : hybrid (linear-attention/Mamba)           │
+│ Spec decode      : ✗ disabled (hybrid arch)                  │
+│ Throttle         : ✓ 200ms gap                               │
+│ Suffix tier      : n/a (hybrid arch — spec decode off)       │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│ DFlash eligibility: ✗ ineligible                             │
+│ ──────────────────────────────────────────────────────────── │
+│ Declared support  : ✗ no                                     │
+│ Not MoE           : ✗ no (MoE)                               │
+│ Precision ≥8-bit  : ✗ no (4-bit/mxfp4/nvfp4)                 │
+│ Drafter declared  : ✗ no (dflash_draft_model unset)          │
+│ mlx-vlm 0.5.0+    : ✗ missing (need rapid-mlx[dflash])       │
+└──────────────────────────────────────────────────────────────┘
+

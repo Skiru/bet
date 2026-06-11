@@ -1,0 +1,389 @@
+// Production configuration: Kilo Code 7.3.41 + Rapid-MLX 0.7.0.
+// Install as <project-root>/kilo.jsonc and remove/rename competing project opencode.json(c) files during validation.
+{
+  "$schema": "https://app.kilo.ai/config.json",
+
+  "provider": {
+    "openai-compatible": {
+      "options": {
+        "apiKey": "not-needed",
+        "baseURL": "http://127.0.0.1:8000/v1",
+        "timeout": 1800000
+      },
+      "models": {
+        "qwen36-local-35b": {
+          "id": "default",
+          "name": "Rapid-MLX Qwen3.6-35B-A3B 4-bit (Production 28K/4K)",
+          "tool_call": true,
+          "reasoning": true,
+          "temperature": true,
+          "modalities": {
+            "input": ["text"],
+            "output": ["text"]
+          },
+          "limit": {
+            "context": 28672,
+            "input": 24576,
+            "output": 4096
+          }
+        }
+      },
+      "whitelist": ["qwen36-local-35b"]
+    }
+  },
+
+  "model": "openai-compatible/qwen36-local-35b",
+
+  "instructions": [
+    "AGENTS.md",
+    ".kilo/CONTEXT_POLICY.md"
+  ],
+
+  "permission": {
+    "list": "allow",
+    "read": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "lsp": "allow",
+    "skill": "allow",
+    "codesearch": "allow",
+    "semantic_search": "allow",
+    "todowrite": "allow",
+    "todoread": "allow",
+    "question": "ask",
+    "websearch": "ask",
+    "external_directory": "deny",
+    "doom_loop": "ask"
+  },
+
+  "agent": {
+    "compaction": {
+      "model": "openai-compatible/qwen36-local-35b"
+    },
+
+    "rapid-smoke": {
+      "description": "Minimal no-write agent for Kilo-to-Rapid-MLX connectivity and context tests.",
+      "mode": "primary",
+      "model": "openai-compatible/qwen36-local-35b",
+      "steps": 4,
+      "temperature": 0,
+      "prompt": "{file:.kilo/prompts/rapid-smoke.md}",
+      "permission": {
+        "read": "allow",
+        "list": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "edit": "deny",
+        "write": "deny",
+        "bash": "deny",
+        "task": "deny",
+        "webfetch": "deny",
+        "question": "deny",
+        "bet_sqlite_query": "deny",
+        "brave-search_*": "deny",
+        "playwright_*": "deny"
+      }
+    },
+
+    "context-guard-smoke": {
+      "description": "Throwaway agent that validates oversized Bash output truncation and recovery.",
+      "mode": "primary",
+      "model": "openai-compatible/qwen36-local-35b",
+      "steps": 4,
+      "temperature": 0,
+      "prompt": "{file:.kilo/prompts/context-guard-smoke.md}",
+      "permission": {
+        "read": "deny",
+        "list": "deny",
+        "glob": "deny",
+        "grep": "deny",
+        "edit": "deny",
+        "write": "deny",
+        "bash": "allow",
+        "task": "deny",
+        "webfetch": "deny",
+        "question": "deny",
+        "bet_sqlite_query": "deny",
+        "brave-search_*": "deny",
+        "playwright_*": "deny"
+      }
+    },
+
+    "bet-orchestrator": {
+      "description": "Phase-bounded betting pipeline coordinator; delegates analysis and persists compact handoffs.",
+      "mode": "primary",
+      "model": "openai-compatible/qwen36-local-35b",
+      "steps": 20,
+      "temperature": 0.25,
+      "prompt": "{file:.kilo/prompts/bet-orchestrator-v2.md}",
+      "permission": {
+        "read": "allow",
+        "list": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "edit": "allow",
+        "write": "allow",
+        "bash": "allow",
+        "webfetch": "ask",
+        "question": "ask",
+        "task": {
+          "*": "deny",
+          "bet-settler": "allow",
+          "bet-db-analyst": "allow",
+          "bet-scanner": "allow",
+          "bet-scout": "allow",
+          "bet-enricher": "allow",
+          "bet-statistician": "allow",
+          "bet-valuator": "allow",
+          "bet-challenger": "allow",
+          "bet-builder": "allow",
+          "bet-engineer": "allow",
+          "bet-reconciler": "allow",
+          "bet-test-engineer": "allow"
+        },
+        "bet_sqlite_query": "allow",
+        "brave-search_brave_web_search": "ask",
+        "brave-search_brave_news_search": "ask",
+        "context7_*": "ask",
+        "playwright_*": "deny"
+      }
+    },
+
+    "bet-settler": {
+      "description": "Settlement accountant and historical-learning analyst.",
+      "mode": "subagent",
+      "model": "openai-compatible/qwen36-local-35b",
+      "steps": 6,
+      "temperature": 0.15,
+      "prompt": "{file:.kilo/prompts/bet-settler.md}",
+      "permission": {
+        "read": "allow", "list": "allow", "glob": "allow", "grep": "allow",
+        "edit": "deny", "write": "deny", "bash": "deny", "task": "deny", "webfetch": "deny",
+        "bet_sqlite_query": "allow",
+        "brave-search_*": "deny", "playwright_*": "deny"
+      }
+    },
+
+    "bet-db-analyst": {
+      "description": "Read-only database readiness, integrity and coverage analyst.",
+      "mode": "subagent",
+      "model": "openai-compatible/qwen36-local-35b",
+      "steps": 5,
+      "temperature": 0.1,
+      "prompt": "{file:.kilo/prompts/bet-db-analyst.md}",
+      "permission": {
+        "read": "allow", "list": "allow", "glob": "deny", "grep": "deny",
+        "edit": "deny", "write": "deny", "bash": "deny", "task": "deny", "webfetch": "deny",
+        "bet_sqlite_query": "allow",
+        "brave-search_*": "deny", "playwright_*": "deny"
+      }
+    },
+
+    "bet-scanner": {
+      "description": "Event discovery, fixture verification and shortlist coverage specialist.",
+      "mode": "subagent",
+      "model": "openai-compatible/qwen36-local-35b",
+      "steps": 8,
+      "temperature": 0.2,
+      "prompt": "{file:.kilo/prompts/bet-scanner.md}",
+      "permission": {
+        "read": "allow", "list": "allow", "glob": "allow", "grep": "allow",
+        "edit": "deny", "write": "deny", "bash": "deny", "task": "deny", "webfetch": "allow",
+        "bet_sqlite_query": "allow",
+        "brave-search_brave_web_search": "allow", "brave-search_brave_news_search": "ask", "playwright_*": "ask"
+      }
+    },
+
+    "bet-scout": {
+      "description": "Tipster consensus and argument-quality analyst.",
+      "mode": "subagent",
+      "model": "openai-compatible/qwen36-local-35b",
+      "steps": 6,
+      "temperature": 0.18,
+      "prompt": "{file:.kilo/prompts/bet-scout.md}",
+      "permission": {
+        "read": "allow", "list": "allow", "glob": "allow", "grep": "allow",
+        "edit": "deny", "write": "deny", "bash": "deny", "task": "deny", "webfetch": "ask",
+        "bet_sqlite_query": "allow",
+        "brave-search_brave_web_search": "ask", "brave-search_brave_news_search": "ask", "playwright_*": "ask"
+      }
+    },
+
+    "bet-enricher": {
+      "description": "Data-quality guardian and bounded fallback coordinator.",
+      "mode": "subagent",
+      "model": "openai-compatible/qwen36-local-35b",
+      "steps": 8,
+      "temperature": 0.2,
+      "prompt": "{file:.kilo/prompts/bet-enricher.md}",
+      "permission": {
+        "read": "allow", "list": "allow", "glob": "allow", "grep": "allow",
+        "edit": "deny", "write": "deny", "bash": "deny", "task": "deny", "webfetch": "allow",
+        "bet_sqlite_query": "allow",
+        "brave-search_brave_web_search": "allow", "brave-search_brave_news_search": "ask", "playwright_*": "ask"
+      }
+    },
+
+    "bet-statistician": {
+      "description": "Deep statistical market-ranking and probability-model analyst.",
+      "mode": "subagent",
+      "model": "openai-compatible/qwen36-local-35b",
+      "steps": 8,
+      "temperature": 0.18,
+      "prompt": "{file:.kilo/prompts/bet-statistician.md}",
+      "permission": {
+        "read": "allow", "list": "allow", "glob": "allow", "grep": "allow",
+        "edit": "deny", "write": "deny", "bash": "deny", "task": "deny", "webfetch": "ask",
+        "bet_sqlite_query": "allow",
+        "brave-search_brave_web_search": "ask", "brave-search_brave_news_search": "deny", "playwright_*": "deny"
+      }
+    },
+
+    "bet-valuator": {
+      "description": "Odds, EV, drift, CLV and Kelly sizing analyst.",
+      "mode": "subagent",
+      "model": "openai-compatible/qwen36-local-35b",
+      "steps": 7,
+      "temperature": 0.16,
+      "prompt": "{file:.kilo/prompts/bet-valuator.md}",
+      "permission": {
+        "read": "allow", "list": "allow", "glob": "allow", "grep": "allow",
+        "edit": "deny", "write": "deny", "bash": "deny", "task": "deny", "webfetch": "ask",
+        "bet_sqlite_query": "allow",
+        "brave-search_brave_web_search": "ask", "brave-search_brave_news_search": "ask", "playwright_*": "deny"
+      }
+    },
+
+    "bet-challenger": {
+      "description": "Devil's advocate, context-risk and gate-verdict analyst.",
+      "mode": "subagent",
+      "model": "openai-compatible/qwen36-local-35b",
+      "steps": 8,
+      "temperature": 0.25,
+      "prompt": "{file:.kilo/prompts/bet-challenger.md}",
+      "permission": {
+        "read": "allow", "list": "allow", "glob": "allow", "grep": "allow",
+        "edit": "deny", "write": "deny", "bash": "deny", "task": "deny", "webfetch": "allow",
+        "bet_sqlite_query": "allow",
+        "brave-search_brave_web_search": "allow", "brave-search_brave_news_search": "allow", "playwright_*": "ask"
+      }
+    },
+
+    "bet-builder": {
+      "description": "Coupon portfolio constructor and final mechanical validator.",
+      "mode": "subagent",
+      "model": "openai-compatible/qwen36-local-35b",
+      "steps": 9,
+      "temperature": 0.2,
+      "prompt": "{file:.kilo/prompts/bet-builder.md}",
+      "permission": {
+        "read": "allow", "list": "allow", "glob": "allow", "grep": "allow",
+        "edit": "allow", "write": "allow", "bash": "deny", "task": "deny", "webfetch": "ask",
+        "bet_sqlite_query": "allow",
+        "brave-search_brave_web_search": "ask", "brave-search_brave_news_search": "ask", "playwright_*": "deny"
+      }
+    },
+
+    "bet-engineer": {
+      "description": "Pipeline repair engineer for scripts, tests and runtime failures.",
+      "mode": "subagent",
+      "model": "openai-compatible/qwen36-local-35b",
+      "steps": 10,
+      "temperature": 0.15,
+      "prompt": "{file:.kilo/prompts/bet-engineer.md}",
+      "permission": {
+        "read": "allow", "list": "allow", "glob": "allow", "grep": "allow",
+        "edit": "allow", "write": "allow", "bash": "allow", "task": "deny", "webfetch": "ask",
+        "bet_sqlite_query": "allow",
+        "brave-search_brave_web_search": "ask", "context7_*": "allow", "playwright_*": "ask"
+      }
+    },
+
+    "bet-reconciler": {
+      "description": "Cross-agent evidence conflict resolver.",
+      "mode": "subagent",
+      "model": "openai-compatible/qwen36-local-35b",
+      "steps": 6,
+      "temperature": 0.12,
+      "prompt": "{file:.kilo/prompts/bet-reconciler.md}",
+      "permission": {
+        "read": "allow", "list": "allow", "glob": "allow", "grep": "allow",
+        "edit": "deny", "write": "deny", "bash": "deny", "task": "deny", "webfetch": "deny",
+        "bet_sqlite_query": "allow",
+        "brave-search_*": "deny", "playwright_*": "deny"
+      }
+    },
+
+    "bet-test-engineer": {
+      "description": "Read-only production-readiness and regression-test validator.",
+      "mode": "subagent",
+      "model": "openai-compatible/qwen36-local-35b",
+      "steps": 8,
+      "temperature": 0.1,
+      "prompt": "{file:.kilo/prompts/bet-test-engineer.md}",
+      "permission": {
+        "read": "allow", "list": "allow", "glob": "allow", "grep": "allow",
+        "edit": "deny", "write": "deny", "bash": "allow", "task": "deny", "webfetch": "deny",
+        "bet_sqlite_query": "allow",
+        "brave-search_*": "deny", "playwright_*": "deny"
+      }
+    }
+  },
+
+  "mcp": {
+    "brave-search": {
+      "type": "local",
+      "command": [
+        "npx", "-y", "@brave/brave-search-mcp-server@2.0.83", "--transport", "stdio"
+      ],
+      "enabled": true,
+      "timeout": 25000
+    },
+    "context7": {
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp",
+      "enabled": false,
+      "timeout": 15000
+    },
+    "playwright": {
+      "type": "local",
+      "command": [
+        "npx", "-y", "@playwright/mcp@0.0.76", "--headless"
+      ],
+      "enabled": false,
+      "timeout": 30000
+    }
+  },
+
+  "watcher": {
+    "ignore": [
+      ".git/**",
+      ".venv/**",
+      ".venv-*/**",
+      "**/__pycache__/**",
+      "**/.pytest_cache/**",
+      "**/.mypy_cache/**",
+      "**/.ruff_cache/**",
+      "**/node_modules/**",
+      ".kilo/artifacts/**",
+      ".kilo/logs/**",
+      ".kilo/runtime/**",
+      "reports/**",
+      "downloaded_files/**",
+      "betting/data/*.db",
+      "betting/data/*.db-*",
+      "betting/data/*.db-journal",
+      "betting/data/*.db-wal",
+      "betting/data/*.db-shm"
+    ]
+  },
+
+  "compaction": {
+    "auto": true,
+    "threshold_percent": 65,
+    "prune": true,
+    "tail_turns": 1,
+    "preserve_recent_tokens": 2000,
+    "reserved": 6144
+  }
+}

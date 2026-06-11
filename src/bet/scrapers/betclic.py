@@ -604,6 +604,7 @@ class BetclicMarketChecker:
         """Scan a single sport: discover events from listing + registered competitions."""
         results = []
         event_paths = set()
+        effective_limit = max_events if max_events and max_events > 0 else None
 
         # From sport listing page (shows live + imminent matches)
         slug = SPORT_LISTING_SLUGS.get(sport)
@@ -618,27 +619,28 @@ class BetclicMarketChecker:
         for comp_name, comp_url in COMPETITION_REGISTRY.get(sport, []):
             comp_events = self.discover_competition_events(comp_url)
             event_paths.update(comp_events)
-            if len(event_paths) >= max_events * 2:
+            if effective_limit and len(event_paths) >= effective_limit * 2:
                 break
 
         logger.info(f"  {sport}: {len(event_paths)} unique events discovered")
 
         # Check each event
         checked = 0
-        for path in list(event_paths)[:max_events]:
+        paths_to_check = list(event_paths)[:effective_limit] if effective_limit else list(event_paths)
+        for path in paths_to_check:
             info = self.check_event(path)
             if info:
                 results.append(info)
             checked += 1
             if checked % 10 == 0:
-                logger.info(f"    checked {checked}/{min(len(event_paths), max_events)}")
+                logger.info(f"    checked {checked}/{len(paths_to_check)}")
 
         return results
 
     def scan_all_sports(
         self,
         sports: list[str] | None = None,
-        max_events_per_sport: int = 25,
+        max_events_per_sport: int = 0,
     ) -> list[BetclicMarketInfo]:
         """Full scan across all (or specified) sports."""
         if sports is None:

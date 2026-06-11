@@ -99,7 +99,7 @@ class DeduplicationEngine:
     ESPORTS_SPORTS = {"cs2", "dota2", "valorant"}
 
     def _match_key(self, event: DiscoveredEvent) -> str:
-        """Exact dedup key: sport|norm_home|norm_away|kickoff_date."""
+        """Exact dedup key with 2-hour kickoff bucket to avoid same-day false merges."""
         norm_home = normalize_team_name(event.home_team)
         norm_away = normalize_team_name(event.away_team)
         # For esports, also resolve aliases (NaVi → natus vincere)
@@ -107,7 +107,8 @@ class DeduplicationEngine:
             norm_home = resolve_alias(norm_home)
             norm_away = resolve_alias(norm_away)
         kickoff_date = event.kickoff.strftime("%Y-%m-%d")
-        return f"{event.sport}|{norm_home}|{norm_away}|{kickoff_date}"
+        kickoff_bucket = event.kickoff.hour // self.KICKOFF_WINDOW_HOURS
+        return f"{event.sport}|{norm_home}|{norm_away}|{kickoff_date}|{kickoff_bucket}"
 
     def _fuzzy_match(
         self, event: DiscoveredEvent, candidates: list[MergedFixture]

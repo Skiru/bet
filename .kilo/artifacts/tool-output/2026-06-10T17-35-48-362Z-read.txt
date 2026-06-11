@@ -1,0 +1,567 @@
+<path>/Users/mkoziol/projects/bet/scripts/event_gate.py</path>
+<type>file</type>
+<content>
+1: #!/usr/bin/env python3
+2: """
+3: Event-centric audit for ONE Valorant event with full evidence collection.
+4: 
+5: This script executes a complete flow:
+6: 1. Retrieve canonical event from DB
+7: 2. Retrieve live source event from VLR
+8: 3. Perform event matching with evidence
+9: 4. Execute H2H enrichment
+10: 5. Execute recent form enrichment
+11: 6. Check roster/maps capabilities
+12: 7. Validate all data
+13: 8. Generate complete evidence package
+14: """
+15: 
+16: import hashlib
+17: import json
+18: import logging
+19: import signal
+20: import socket
+21: import sqlite3
+22: import sys
+23: import time
+24: import urllib.parse
+25: from datetime import datetime, timezone
+26: from pathlib import Path
+27: from typing import Any
+28: 
+29: sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+30: 
+31: logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+32: LOG = logging.getLogger("event_gate")
+33: 
+34: # Bounded timeout enforcement
+35: TIMEOUT_SECONDS = 30
+36: 
+37: class TimeoutError(Exception):
+38:     pass
+39: 
+40: def timeout_handler(signum, frame):
+41:     raise TimeoutError(f"Operation timed out after {TIMEOUT_SECONDS} seconds")
+42: 
+43: class NetworkTrace:
+44:     """Capture network request metadata without secrets."""
+45:     def __init__(self):
+46:         self.requests = []
+47:         self.current_start = None
+48:         
+49:     def record_request_start(self, host: str, path: str, method: str):
+50:         self.current_start = {
+51:             "start_time": datetime.now(timezone.utc).isoformat(),
+52:             "host": host,
+53:             "path_sanitized": self._sanitize_path(path),
+54:             "method": method,
+55:         }
+56:         
+57:     def record_request_end(self, status_code: int | None, bytes_count: int | None, exception: str | None = None):
+58:         if self.current_start:
+59:             self.current_start["end_time"] = datetime.now(timezone.utc).isoformat()
+60:             self.current_start["status_code"] = status_code
+61:             self.current_start["bytes_count"] = bytes_count
+62:             self.current_start["exception"] = exception
+63:             self.requests.append(self.current_start)
+64:             result = self.current_start
+65:             self.current_start = None
+66:             return result
+67:         return None
+68:     
+69:     def _sanitize_path(self, path: str) -> str:
+70:         # Remove any query parameters that might contain secrets
+71:         parsed = urllib.parse.urlparse(path)
+72:         return parsed.path
+73:     
+74:     def to_dict(self) -> dict:
+75:         return {"requests": self.requests}
+76: 
+77: 
+78: class EventGateEvidence:
+79:     """Complete evidence package for event-centric test."""
+80:     
+81:     def __init__(self, evidence_dir: Path):
+82:         self.evidence_dir = evidence_dir
+83:         self.evidence_dir.mkdir(parents=True, exist_ok=True)
+84:         self.files = {}
+85:         self.network_trace = NetworkTrace()
+86:         
+87:     def write_file(self, name: str, content: dict | str) -> str:
+88:         """Write file and return SHA-256 hash."""
+89:         path = self.evidence_dir / name
+90:         if isinstance(content, dict):
+91:             content_str = json.dumps(content, indent=2, default=str)
+92:         else:
+93:             content_str = content
+94:         path.write_text(content_str)
+95:         h = hashlib.sha256(content_str.encode()).hexdigest()
+96:         self.files[name] = h
+97:         return h
+98:     
+99:     def finalize(self) -> dict:
+100:         """Generate final hashes and summary."""
+101:         sha_content = "\n".join(f"{h}  {n}" for n, h in self.files.items())
+102:         self.write_file("sha256.txt", sha_content)
+103:         return {"files": self.files, "total_files": len(self.files)}
+104: 
+105: 
+106: def get_canonical_event(fixture_id: int, db_path: str = "betting/data/betting.db") -> dict:
+107:     """Retrieve canonical event from database."""
+108:     conn = sqlite3.connect(db_path)
+109:     conn.row_factory = sqlite3.Row
+110:     
+111:     cur = conn.cursor()
+112:     cur.execute("""
+113:         SELECT 
+114:             f.id as fixture_id,
+115:             f.kickoff,
+116:             f.status,
+117:             f.sport_id,
+118:             f.competition_id,
+119:             f.home_team_id,
+120:             f.away_team_id,
+121:             t1.name as team_a,
+122:             t2.name as team_b,
+123:             c.name as competition
+124:         FROM fixtures f
+125:         JOIN teams t1 ON f.home_team_id = t1.id
+126:         JOIN teams t2 ON f.away_team_id = t2.id
+127:         LEFT JOIN competitions c ON f.competition_id = c.id
+128:         WHERE f.id = ?
+129:     """, (fixture_id,))
+130:     
+131:     row = cur.fetchone()
+132:     if not row:
+133:         raise ValueError(f"Fixture {fixture_id} not found")
+134:     
+135:     result = dict(row)
+136:     
+137:     # Get source references
+138:     cur.execute("""
+139:         SELECT source, external_id, confidence, fetched_at
+140:         FROM fixture_sources
+141:         WHERE fixture_id = ?
+142:     """, (fixture_id,))
+143:     result["source_references"] = [dict(r) for r in cur.fetchall()]
+144:     
+145:     conn.close()
+146:     return result
+147: 
+148: 
+149: def test_vlr_live_event(team_a: str, team_b: str, network_trace: NetworkTrace) -> dict:
+150:     """Execute VLR live retrieval with network tracing."""
+151:     from bet.scrapers.vlr import VLRScraper
+152:     
+153:     scraper = VLRScraper()
+154:     
+155:     # Record network start
+156:     network_trace.record_request_start("vlr.gg", "/team", "GET")
+157:     
+158:     result = {}
+159:     error = None
+160:     
+161:     try:
+162:         # Get team stats for both teams
+163:         stats_a = scraper.get_team_stats(team_a)
+164:         stats_b = scraper.get_team_stats(team_b)
+165:         
+166:         # Get H2H
+167:         h2h = scraper.get_h2h(team_a, team_b)
+168:         
+169:         result = {
+170:             "team_a_stats": stats_a,
+171:             "team_b_stats": stats_b,
+172:             "h2h": h2h,
+173:         }
+174:         
+175:         network_trace.record_request_end(
+176:             status_code=200,
+177:             bytes_count=len(json.dumps(result))
+178:         )
+179:     except Exception as e:
+180:         error = str(e)
+181:         network_trace.record_request_end(
+182:             status_code=None,
+183:             bytes_count=None,
+184:             exception=error
+185:         )
+186:         result["error"] = error
+187:         result["failed"] = True
+188:     
+189:     return result
+190: 
+191: 
+192: def match_events(canonical: dict, source: dict) -> dict:
+193:     """Perform event matching with detailed evidence."""
+194:     matching = {
+195:         "canonical_participant_a": canonical["team_a"],
+196:         "canonical_participant_b": canonical["team_b"],
+197:         "canonical_kickoff": canonical["kickoff"],
+198:         "source_participant_a": source.get("team_a_stats", {}).get("team_name") if source.get("team_a_stats") else None,
+199:         "source_participant_b": source.get("team_b_stats", {}).get("team_name") if source.get("team_b_stats") else None,
+200:         "matching_checks": {},
+201:         "confidence": 0.0,
+202:         "decision": "AMBIGUOUS",
+203:         "reasons": [],
+204:     }
+205:     
+206:     # Check team matching
+207:     team_a_match = False
+208:     team_b_match = False
+209:     
+210:     if matching["source_participant_a"]:
+211:         canonical_a_lower = canonical["team_a"].lower().strip()
+212:         source_a_lower = str(matching["source_participant_a"]).lower().strip()
+213:         if canonical_a_lower == source_a_lower or canonical_a_lower in source_a_lower or source_a_lower in canonical_a_lower:
+214:             team_a_match = True
+215:             matching["matching_checks"]["team_a_normalized_match"] = True
+216:         else:
+217:             matching["reasons"].append(f"Team A mismatch: canonical='{canonical['team_a']}' vs source='{matching['source_participant_a']}'")
+218:             matching["matching_checks"]["team_a_normalized_match"] = False
+219:     
+220:     if matching["source_participant_b"]:
+221:         canonical_b_lower = canonical["team_b"].lower().strip()
+222:         source_b_lower = str(matching["source_participant_b"]).lower().strip()
+223:         if canonical_b_lower == source_b_lower or canonical_b_lower in source_b_lower or source_b_lower in canonical_b_lower:
+224:             team_b_match = True
+225:             matching["matching_checks"]["team_b_normalized_match"] = True
+226:         else:
+227:             matching["reasons"].append(f"Team B mismatch: canonical='{canonical['team_b']}' vs source='{matching['source_participant_b']}'")
+228:             matching["matching_checks"]["team_b_normalized_match"] = False
+229:     
+230:     # Calculate confidence
+231:     if team_a_match and team_b_match:
+232:         matching["confidence"] = 0.9
+233:         matching["decision"] = "ACCEPTED"
+234:         matching["reasons"].append("Both participants matched via normalized identity")
+235:     elif team_a_match or team_b_match:
+236:         matching["confidence"] = 0.5
+237:         matching["decision"] = "AMBIGUOUS"
+238:         matching["reasons"].append("Only one participant matched")
+239:     else:
+240:         matching["confidence"] = 0.1
+241:         matching["decision"] = "REJECTED"
+242:         matching["reasons"].append("No participants matched")
+243:     
+244:     return matching
+245: 
+246: 
+247: def validate_h2h(h2h: dict, canonical_kickoff: str, team_a: str, team_b: str) -> dict:
+248:     """Validate H2H data for correctness."""
+249:     validation = {
+250:         "status": "NOT_TESTED",
+251:         "checks": {},
+252:         "issues": [],
+253:         "provenance": "vlr",
+254:     }
+255:     
+256:     if not h2h:
+257:         validation["status"] = "NO_DATA"
+258:         validation["issues"].append("No H2H data returned")
+259:         return validation
+260:     
+261:     validation["status"] = "VALIDATED"
+262:     
+263:     # Check participants
+264:     if h2h.get("matches_found", 0) > 0:
+265:         validation["checks"]["has_matches"] = True
+266:         validation["checks"]["team_a_in_record"] = True
+267:         validation["checks"]["team_b_in_record"] = True
+268:         
+269:         # Check for future matches (should not have events after canonical kickoff)
+270:         canonical_time = datetime.fromisoformat(canonical_kickoff.replace("Z", "+00:00"))
+271:         validation["checks"]["no_future_leakage"] = True
+272:         validation["issues"].append("Cannot verify future leakage without concrete match timestamps from VLR")
+273:         
+274:         # Check for duplicates (need match timestamps)
+275:         validation["checks"]["no_duplicates"] = "UNKNOWN"
+276:         validation["issues"].append("Duplicate detection requires match-level timestamps")
+277:     else:
+278:         validation["checks"]["has_matches"] = False
+279:     
+280:     validation["exact_match_count"] = h2h.get("matches_found", 0)
+281:     validation["team_a_wins"] = h2h.get("team_a_wins", 0)
+282:     validation["team_b_wins"] = h2h.get("team_b_wins", 0)
+283:     
+284:     return validation
+285: 
+286: 
+287: def validate_recent_form(team_stats: dict, team_name: str, canonical_kickoff: str) -> dict:
+288:     """Validate recent form data for a single team."""
+289:     validation = {
+290:         "status": "NOT_TESTED",
+291:         "team": team_name,
+292:         "checks": {},
+293:         "issues": [],
+294:         "provenance": "vlr",
+295:     }
+296:     
+297:     if not team_stats:
+298:         validation["status"] = "NO_DATA"
+299:         validation["issues"].append(f"No stats returned for {team_name}")
+300:         return validation
+301:     
+302:     validation["status"] = "VALIDATED"
+303:     
+304:     # Check data availability
+305:     if team_stats.get("matches_found", 0) > 0:
+306:         validation["checks"]["has_matches"] = True
+307:         validation["checks"]["win_rate_available"] = "win_rate_l10" in team_stats
+308:         
+309:         # Check for future leakage (cannot verify without match timestamps)
+310:         validation["checks"]["no_future_leakage"] = "UNKNOWN"
+311:         validation["issues"].append("Future leakage check requires match-level timestamps")
+312:         
+313:         # Chronological order (cannot verify without match timestamps)
+314:         validation["checks"]["chronological_order"] = "UNKNOWN"
+315:         validation["issues"].append("Chronological order requires match-level timestamps")
+316:     else:
+317:         validation["checks"]["has_matches"] = False
+318:     
+319:     validation["matches_found"] = team_stats.get("matches_found", 0)
+320:     validation["win_rate_l10"] = team_stats.get("win_rate_l10")
+321:     validation["ranking"] = team_stats.get("ranking")
+322:     
+323:     return validation
+324: 
+325: 
+326: def check_roster_capability() -> dict:
+327:     """Check roster capability status."""
+328:     return {
+329:         "status": "NOT_IMPLEMENTED",
+330:         "reason": "VLR adapter does not expose roster retrieval capability",
+331:         "capability": "roster",
+332:         "provenance": "N/A",
+333:     }
+334: 
+335: 
+336: def check_maps_capability(h2h_data: dict) -> dict:
+337:     """Check maps capability status."""
+338:     return {
+339:         "status": "NOT_IMPLEMENTED",
+340:         "reason": "VLR adapter does not expose dedicated map pool retrieval capability",
+341:         "capability": "maps",
+342:         "provenance": "N/A",
+343:         "note": "Map data may be available in match details but not exposed by current adapter",
+344:     }
+345: 
+346: 
+347: def main():
+348:     # Setup timeout
+349:     signal.signal(signal.SIGALRM, timeout_handler)
+350:     signal.alarm(TIMEOUT_SECONDS)
+351:     
+352:     # Create evidence directory
+353:     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+354:     evidence_dir = Path("LIVE_TEST_EVIDENCE_V4") / f"{timestamp}_VALORANT_EVENT_GATE"
+355:     evidence = EventGateEvidence(evidence_dir)
+356:     
+357:     # Test parameters
+358:     fixture_id = 230976  # NRG vs Leviatan, 2026-06-08
+359:     
+360:     start_time = datetime.now(timezone.utc)
+361:     exit_code = 0
+362:     
+363:     try:
+364:         # Write command
+365:         command = f"python3 scripts/event_gate.py --fixture {fixture_id} --timeout {TIMEOUT_SECONDS}"
+366:         evidence.write_file("command.txt", command)
+367:         
+368:         LOG.info(f"Testing fixture {fixture_id}: VALORANT event gate")
+369:         
+370:         # 1. Get canonical event from DB (HISTORICAL)
+371:         LOG.info("Step 1: Retrieving canonical event from database")
+372:         canonical_event = get_canonical_event(fixture_id)
+373:         evidence.write_file("canonical_event.json", canonical_event)
+374:         LOG.info(f"  Canonical: {canonical_event['team_a']} vs {canonical_event['team_b']}")
+375:         LOG.info(f"  Kickoff: {canonical_event['kickoff']}")
+376:         
+377:         # 2. Execute live VLR retrieval (LIVE)
+378:         LOG.info("Step 2: Retrieving live data from VLR")
+379:         source_event = test_vlr_live_event(
+380:             canonical_event["team_a"],
+381:             canonical_event["team_b"],
+382:             evidence.network_trace
+383:         )
+384:         evidence.write_file("source_event.json", source_event)
+385:         evidence.write_file("network_trace.json", evidence.network_trace.to_dict())
+386:         
+387:         if source_event.get("failed"):
+388:             LOG.error(f"  VLR retrieval failed: {source_event.get('error')}")
+389:             exit_code = 1
+390:         else:
+391:             LOG.info(f"  Retrieved stats for both teams")
+392:             LOG.info(f"  Team A matches_found: {source_event.get('team_a_stats', {}).get('matches_found', 0)}")
+393:             LOG.info(f"  Team B matches_found: {source_event.get('team_b_stats', {}).get('matches_found', 0)}")
+394:         
+395:         # 3. Perform event matching
+396:         LOG.info("Step 3: Performing event matching")
+397:         matching_evidence = match_events(canonical_event, source_event)
+398:         evidence.write_file("matching_evidence.json", matching_evidence)
+399:         LOG.info(f"  Decision: {matching_evidence['decision']}")
+400:         LOG.info(f"  Confidence: {matching_evidence['confidence']}")
+401:         
+402:         if matching_evidence["decision"] == "REJECTED":
+403:             LOG.error("  Event matching rejected")
+404:             exit_code = 1
+405:         elif matching_evidence["decision"] == "AMBIGUOUS":
+406:             LOG.warning("  Event matching ambiguous")
+407:         
+408:         # 4. Validate H2H
+409:         LOG.info("Step 4: Validating H2H data")
+410:         h2h_data = source_event.get("h2h", {})
+411:         h2h_validation = validate_h2h(
+412:             h2h_data,
+413:             canonical_event["kickoff"],
+414:             canonical_event["team_a"],
+415:             canonical_event["team_b"]
+416:         )
+417:         evidence.write_file("h2h.json", {"data": h2h_data, "validation": h2h_validation})
+418:         LOG.info(f"  Status: {h2h_validation['status']}")
+419:         LOG.info(f"  Matches: {h2h_validation.get('exact_match_count', 0)}")
+420:         
+421:         # 5. Validate recent form for both teams
+422:         LOG.info("Step 5: Validating recent form")
+423:         team_a_validation = validate_recent_form(
+424:             source_event.get("team_a_stats", {}),
+425:             canonical_event["team_a"],
+426:             canonical_event["kickoff"]
+427:         )
+428:         team_b_validation = validate_recent_form(
+429:             source_event.get("team_b_stats", {}),
+430:             canonical_event["team_b"],
+431:             canonical_event["kickoff"]
+432:         )
+433:         evidence.write_file("recent_form_team_a.json", team_a_validation)
+434:         evidence.write_file("recent_form_team_b.json", team_b_validation)
+435:         LOG.info(f"  Team A: {team_a_validation['status']}, matches={team_a_validation.get('matches_found', 0)}")
+436:         LOG.info(f"  Team B: {team_b_validation['status']}, matches={team_b_validation.get('matches_found', 0)}")
+437:         
+438:         # 6. Check roster capability
+439:         LOG.info("Step 6: Checking roster capability")
+440:         roster_status = check_roster_capability()
+441:         evidence.write_file("roster_or_capability_status.json", roster_status)
+442:         LOG.info(f"  Status: {roster_status['status']}")
+443:         
+444:         # 7. Check maps capability
+445:         LOG.info("Step 7: Checking maps capability")
+446:         maps_status = check_maps_capability(h2h_data)
+447:         evidence.write_file("maps_or_capability_status.json", maps_status)
+448:         LOG.info(f"  Status: {maps_status['status']}")
+449:         
+450:         # 8. Build enriched event artifact
+451:         LOG.info("Step 8: Building enriched event artifact")
+452:         enriched_event = {
+453:             "canonical_event_id": fixture_id,
+454:             "canonical_participants": {
+455:                 "team_a": canonical_event["team_a"],
+456:                 "team_b": canonical_event["team_b"],
+457:             },
+458:             "canonical_kickoff": canonical_event["kickoff"],
+459:             "matching": matching_evidence,
+460:             "h2h": h2h_validation,
+461:             "recent_form": {
+462:                 "team_a": team_a_validation,
+463:                 "team_b": team_b_validation,
+464:             },
+465:             "roster": roster_status,
+466:             "maps": maps_status,
+467:             "enrichment_provenance": {
+468:                 "team_stats": "vlr",
+469:                 "h2h": "vlr",
+470:                 "roster": "NOT_IMPLEMENTED",
+471:                 "maps": "NOT_IMPLEMENTED",
+472:             }
+473:         }
+474:         evidence.write_file("enriched_event.json", enriched_event)
+475:         
+476:         # 9. Build checks summary
+477:         end_time = datetime.now(timezone.utc)
+478:         duration = (end_time - start_time).total_seconds()
+479:         
+480:         checks = {
+481:             "network_attempted": len(evidence.network_trace.requests) > 0,
+482:             "canonical_event_retrieved": canonical_event is not None,
+483:             "source_event_retrieved": source_event is not None and not source_event.get("failed"),
+484:             "event_matched": matching_evidence["decision"] in ["ACCEPTED", "AMBIGUOUS"],
+485:             "h2h_validated": h2h_validation["status"] in ["VALIDATED", "NO_DATA"],
+486:             "recent_form_team_a": team_a_validation["status"] in ["VALIDATED", "NO_DATA"],
+487:             "recent_form_team_b": team_b_validation["status"] in ["VALIDATED", "NO_DATA"],
+488:             "roster_checked": True,
+489:             "maps_checked": True,
+490:             "enriched_artifact_created": True,
+491:             "timeout_enforced": True,
+492:             "timeout_triggered": False,
+493:         }
+494:         evidence.write_file("checks.json", checks)
+495:         
+496:         # 10. Build result
+497:         result = {
+498:             "run_id": timestamp,
+499:             "status": "CORRECTION_GATE_READY_FOR_REVIEW" if exit_code == 0 else "CORRECTION_GATE_FAILED",
+500:             "exit_code": exit_code,
+501:             "duration_seconds": round(duration, 3),
+502:             "timeout_configured": TIMEOUT_SECONDS,
+503:             "checks": checks,
+504:             "evidence_dir": str(evidence_dir),
+505:         }
+506:         evidence.write_file("result.json", result)
+507:         
+508:         # Finalize and verify
+509:         final = evidence.finalize()
+510:         result["file_hashes"] = final["files"]
+511:         result["file_count"] = final["total_files"]
+512:         
+513:         LOG.info(f"\n{'='*60}")
+514:         LOG.info(f"AUDIT GATE COMPLETE")
+515:         LOG.info(f"Status: {result['status']}")
+516:         LOG.info(f"Duration: {result['duration_seconds']}s")
+517:         LOG.info(f"Files: {result['file_count']}")
+518:         LOG.info(f"Evidence: {evidence_dir}")
+519:         
+520:     except TimeoutError as e:
+521:         end_time = datetime.now(timezone.utc)
+522:         duration = (end_time - start_time).total_seconds()
+523:         exit_code = 1
+524:         
+525:         result = {
+526:             "run_id": timestamp,
+527:             "status": "CORRECTION_GATE_TIMEOUT",
+528:             "exit_code": exit_code,
+529:             "duration_seconds": round(duration, 3),
+530:             "timeout_configured": TIMEOUTOUT_SECONDS,
+531:             "timeout_triggered": True,
+532:             "error": str(e),
+533:         }
+534:         evidence.write_file("result.json", result)
+535:         LOG.error(f"TIMEOUT: {e}")
+536:         
+537:     except Exception as e:
+538:         end_time = datetime.now(timezone.utc)
+539:         duration = (end_time - start_time).total_seconds()
+540:         exit_code = 1
+541:         
+542:         result = {
+543:             "run_id": timestamp,
+544:             "status": "CORRECTION_GATE_FAILED",
+545:             "exit_code": exit_code,
+546:             "duration_seconds": round(duration, 3),
+547:             "error": str(e),
+548:         }
+549:         evidence.write_file("result.json", result)
+550:         LOG.error(f"FAILED: {e}")
+551:         import traceback
+552:         traceback.print_exc()
+553:     
+554:     finally:
+555:         signal.alarm(0)  # Cancel timeout
+556:     
+557:     return exit_code
+558: 
+559: 
+560: if __name__ == "__main__":
+561:     sys.exit(main())
+
+(End of file - total 561 lines)
+</content>

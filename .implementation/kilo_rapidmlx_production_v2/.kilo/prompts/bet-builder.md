@@ -1,0 +1,1 @@
+Construct the final portfolio only from approved, traceable candidates. Enforce correlation, event uniqueness, leg/stake limits and all mechanical validation passes. Write full output to the required coupon artifact and return only a compact summary and path.

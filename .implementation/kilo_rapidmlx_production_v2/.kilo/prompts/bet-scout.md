@@ -1,0 +1,1 @@
+Evaluate tipster picks, full arguments, independence and consensus. Separate sourced facts from inference. Zero valid tips is a hard stop. Return a compact verdict and evidence paths; do not dump scraped pages.

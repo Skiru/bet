@@ -254,6 +254,7 @@ class TestDeepStatsReport(unittest.TestCase):
         stdout = io.StringIO()
         with patch.object(dsr, "generate_deep_stats", return_value=fake_result), \
              patch.object(sys, "argv", ["deep_stats_report.py", "--date", "2026-05-01"]), \
+             patch.object(dsr, "_check_pipeline_candidates_precondition", return_value=None), \
              redirect_stdout(stdout):
             dsr.main()
 
@@ -405,32 +406,32 @@ class TestGateChecker(unittest.TestCase):
         import scripts.gate_checker as gc
         return patch.object(gc, "LEDGER_PATH", self._journal_dir / "picks-ledger.csv")
 
-    def test_18_point_gate_all_pass(self):
-        """Gate with a well-formed candidate that should pass all 18 checks."""
-        from scripts.gate_checker import check_18_point_gate
+    def test_20_point_gate_all_pass(self):
+        """Gate with a well-formed candidate that should pass all 20 checks."""
+        from scripts.gate_checker import check_20_point_gate
         candidate = _base_candidate()
         with self._patch_ledger(), \
              patch("bet.db.connection.get_db", side_effect=Exception("no DB in test")):
-            result = check_18_point_gate(candidate, [])
-        self.assertEqual(result["gate_score"], "19/19")
+            result = check_20_point_gate(candidate, [])
+        self.assertEqual(result["gate_score"], "20/20")
         self.assertEqual(len(result["gate_failed"]), 0)
 
     def test_gate_identity_slash_rejects(self):
         """Gate #1: slash in name fails."""
-        from scripts.gate_checker import check_18_point_gate
+        from scripts.gate_checker import check_20_point_gate
         candidate = _base_candidate(home_team="Jodar/Lopez")
         with self._patch_ledger():
-            result = check_18_point_gate(candidate, [])
+            result = check_20_point_gate(candidate, [])
         self.assertIn("1", result["gate_failed"])
 
     def test_gate_tennis_wc_warning(self):
         """Gate #2: WC in tennis produces a warning."""
-        from scripts.gate_checker import check_18_point_gate
+        from scripts.gate_checker import check_20_point_gate
         candidate = _base_candidate(
             sport="tennis", home_team="Doe (WC)", away_team="Smith"
         )
         with self._patch_ledger():
-            result = check_18_point_gate(candidate, [])
+            result = check_20_point_gate(candidate, [])
         # Gate #2 passes but with warnings
         self.assertIn("2", result["gate_passed"])
         has_wc_warning = any("WILD CARD" in w for w in result["gate_warnings"])
@@ -438,23 +439,23 @@ class TestGateChecker(unittest.TestCase):
 
     def test_gate_h2h_less_than_5(self):
         """Gate #3: H2H < 5 meetings fails."""
-        from scripts.gate_checker import check_18_point_gate
+        from scripts.gate_checker import check_20_point_gate
         candidate = _base_candidate(h2h_count=2)
         with self._patch_ledger():
-            result = check_18_point_gate(candidate, [])
+            result = check_20_point_gate(candidate, [])
         self.assertIn("3", result["gate_failed"])
 
     def test_gate_ev_zero_or_negative(self):
         """Gate #8: EV <= 0 fails."""
-        from scripts.gate_checker import check_18_point_gate
+        from scripts.gate_checker import check_20_point_gate
         candidate = _base_candidate(ev=-0.05)
         with self._patch_ledger():
-            result = check_18_point_gate(candidate, [])
+            result = check_20_point_gate(candidate, [])
         self.assertIn("8", result["gate_failed"])
 
     def test_gate_48h_repeat(self):
         """Gate #14: 48h repeat loss triggers HARD REJECT."""
-        from scripts.gate_checker import check_18_point_gate
+        from scripts.gate_checker import check_20_point_gate
         candidate = _base_candidate()
         repeat_losses = [{
             "team": "Liverpool",
@@ -471,45 +472,44 @@ class TestGateChecker(unittest.TestCase):
             "days_ago": 0,
         }]
         with self._patch_ledger():
-            result = check_18_point_gate(candidate, repeat_losses)
+            result = check_20_point_gate(candidate, repeat_losses)
         self.assertIn("14", result["gate_failed"])
         has_hard = any("HARD REJECT" in w for w in result["gate_warnings"])
         self.assertTrue(has_hard, "Expected HARD REJECT in warnings")
 
     def test_gate_multi_market_less_than_3(self):
         """Gate #15: < 3 markets calculated fails."""
-        from scripts.gate_checker import check_18_point_gate
+        from scripts.gate_checker import check_20_point_gate
         candidate = _base_candidate(market_count=2)
         with self._patch_ledger():
-            result = check_18_point_gate(candidate, [])
+            result = check_20_point_gate(candidate, [])
         self.assertIn("15", result["gate_failed"])
 
     def test_gate_three_way_conflict(self):
         """Gate #17: three-way not aligned fails."""
-        from scripts.gate_checker import check_18_point_gate
+        from scripts.gate_checker import check_20_point_gate
         candidate = _base_candidate(three_way_alignment="2/3 CONFLICT")
         with self._patch_ledger():
-            result = check_18_point_gate(candidate, [])
+            result = check_20_point_gate(candidate, [])
         self.assertIn("17", result["gate_failed"])
 
     @patch("scripts.gate_checker._build_fixture_lookup", return_value=(set(), set()))
     def test_run_gate_classification(self, mock_lookup):
-        """Full gate run with mixed candidates — advisory classification."""
+        """Full gate run with mixed candidates — negative EV hard-rejected."""
         from scripts.gate_checker import run_gate
         candidates = [
-            # Strong candidate → approved
             _base_candidate(ev=0.12),
-            # EV ≤ 0 → also approved (advisory mode, NOT rejected per NO AUTO-REJECTION)
             _base_candidate(ev=-0.03, home_team="TeamC", away_team="TeamD"),
         ]
         with self._patch_ledger():
             result = run_gate(candidates, "2026-05-01")
         gr = result["gate_results"]
-        # Advisory mode: ALL non-hard-rejected events go to approved
         self.assertGreater(len(gr["approved"]), 0)
-        # Negative EV events are now approved with advisory tier (not in extended_pool)
+        # Negative EV is hard-rejected for coupon safety
         neg_ev_approved = [c for c in gr["approved"] if (c.get("ev") or 0) < 0]
-        self.assertGreater(len(neg_ev_approved), 0, "Negative EV should be in approved with advisory tier")
+        self.assertEqual(len(neg_ev_approved), 0, "Negative EV must not be in approved (hard reject)")
+        neg_ev_rejected = [c for c in gr["rejected"] if (c.get("ev") or 0) < 0]
+        self.assertGreater(len(neg_ev_rejected), 0, "Negative EV must be in rejected bucket")
         # Each approved pick should have an advisory_tier
         for pick in gr["approved"]:
             self.assertIn(pick.get("advisory_tier"), ("STRONG", "MODERATE", "WEAK", "FLAGGED"),
@@ -789,7 +789,7 @@ class TestPipelineIntegration(unittest.TestCase):
             gate_input["odds"] = {"market_best": 1.85}
             gate_input["tipster_count"] = 1
 
-            result = gc.check_18_point_gate(gate_input, [])
+            result = gc.check_20_point_gate(gate_input, [])
             self.assertIn("gate_score", result)
             # Should not crash and should produce a parseable score
             score_parts = result["gate_score"].split("/")
@@ -886,7 +886,7 @@ class TestPipelineIntegration(unittest.TestCase):
             self.assertIsNone(gi.get("ev"))
             self.assertEqual(gi.get("odds"), {})
 
-            result = gc.check_18_point_gate(gi, [])
+            result = gc.check_20_point_gate(gi, [])
             # Gate #8 (EV) should PASS in stats-first mode (user verifies manually)
             # It no longer fails when ev is None — this was fixed to support stats-first workflow
             self.assertNotIn("8", result["gate_failed"])

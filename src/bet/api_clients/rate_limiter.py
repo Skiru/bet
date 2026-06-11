@@ -14,7 +14,7 @@ import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
-# Daily request limits per API
+# Daily request limits per API (legacy — kept for backward compatibility)
 API_DAILY_LIMITS = {
     "api-football": 100,
     "api-basketball": 100,
@@ -31,8 +31,9 @@ API_DAILY_LIMITS = {
     "flashscore-scraper": 200,
     "soccerway-scraper": 100,
     "serpapi": 8,  # ~250/month ≈ 8/day
-    "odds-api-io": 200,  # 5000/hour, cap at 200/day to be safe
-    "nba-api": 1800,  # ~30 req/min, cap at 1800/day
+    # "odds-api-io" and "nba-api" are window-capped (hourly/minute) via API_RATE_LIMITS
+    # and no longer need a conservative daily backstop.  Removing them prevents
+    # premature throttling while the window-aware limiter is in transition.
     "understat": 10000,  # unlimited, nominal cap
     "totalcorner-scraper": 50,
     "scores24-scraper": 100,
@@ -42,6 +43,15 @@ API_DAILY_LIMITS = {
     "espn-hockey": 10000,
     "espn-tennis": 10000,
     "espn-volleyball": 10000,
+}
+
+# Window-aware rate limits: {api_name: {type: "hourly"|"daily"|"minute", limit: int, burst: int}}
+# Prefer these when available. The RateLimiter consults this first and falls
+# back to API_DAILY_LIMITS for APIs without an entry here.
+API_RATE_LIMITS = {
+    "odds-api-io": {"type": "hourly", "limit": 5000, "burst": 100},
+    "nba-api": {"type": "minute", "limit": 30, "burst": 10},
+    "odds-api": {"type": "daily", "limit": 16, "burst": 4},
 }
 
 # APIs on the api-sports.io platform — each has its OWN 100/day limit per sport endpoint.
@@ -75,16 +85,34 @@ def _today_str() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
 
+def _window_str(window_type: str) -> str:
+    """Return the current time bucket string for a rate-limit window.
+
+    hourly → "YYYY-MM-DD_HH"
+    minute → "YYYY-MM-DD_HH_MM"
+    daily  → "YYYY-MM-DD"
+    """
+    now = datetime.now(timezone.utc)
+    if window_type == "hourly":
+        return now.strftime("%Y-%m-%d_%H")
+    if window_type == "minute":
+        return now.strftime("%Y-%m-%d_%H_%M")
+    return now.strftime("%Y-%m-%d")
+
+
 class RateLimiter:
-    """File-based daily API request counter.
+    """File-based window-aware API request counter.
 
     Thread-safe: uses per-API locks to prevent TOCTOU races on
     read-increment-write cycles in can_request() and record_request().
+    Supports daily, hourly, and minute-level windows via API_RATE_LIMITS.
     """
 
-    def __init__(self, usage_dir: Path | None = None, limits: dict | None = None):
+    def __init__(self, usage_dir: Path | None = None, limits: dict | None = None,
+                 rate_limits: dict | None = None):
         self.usage_dir = usage_dir or USAGE_DIR
         self.limits = limits or API_DAILY_LIMITS
+        self.rate_limits = rate_limits or API_RATE_LIMITS
         self._locks: dict[str, threading.Lock] = {}
         self._global_lock = threading.Lock()
 
@@ -95,26 +123,28 @@ class RateLimiter:
                 self._locks[api_name] = threading.Lock()
             return self._locks[api_name]
 
-    def _usage_file(self, api_name: str, date: str | None = None) -> Path:
-        """Get path to usage file for an API on a given date."""
+    def _usage_file(self, api_name: str, date: str | None = None,
+                    window_type: str = "daily") -> Path:
+        """Get path to usage file for an API on a given window."""
         _validate_api_name(api_name)
-        date = date or _today_str()
-        return self.usage_dir / f"{api_name}_{date}.json"
+        bucket = date or _window_str(window_type)
+        return self.usage_dir / f"{api_name}_{bucket}.json"
 
-    def _read_usage(self, api_name: str, date: str | None = None) -> dict:
+    def _read_usage(self, api_name: str, date: str | None = None,
+                    window_type: str = "daily") -> dict:
         """Read current usage data for an API."""
-        path = self._usage_file(api_name, date)
+        path = self._usage_file(api_name, date, window_type)
         if not path.exists():
-            return {"api_name": api_name, "date": date or _today_str(), "count": 0, "requests": []}
+            return {"api_name": api_name, "date": date or _window_str(window_type), "count": 0, "requests": []}
         try:
             return json.loads(path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
-            return {"api_name": api_name, "date": date or _today_str(), "count": 0, "requests": []}
+            return {"api_name": api_name, "date": date or _window_str(window_type), "count": 0, "requests": []}
 
-    def _write_usage(self, api_name: str, data: dict) -> None:
+    def _write_usage(self, api_name: str, data: dict, window_type: str = "daily") -> None:
         """Atomically write usage data."""
         self.usage_dir.mkdir(parents=True, exist_ok=True)
-        path = self._usage_file(api_name, data.get("date"))
+        path = self._usage_file(api_name, data.get("date"), window_type)
 
         fd, tmp_path = tempfile.mkstemp(
             dir=str(self.usage_dir), suffix=".tmp", prefix=f"{api_name}_"
@@ -130,19 +160,37 @@ class RateLimiter:
                 pass
             raise
 
-    def can_request(self, api_name: str, cost: int = 1) -> bool:
-        """Check if we have remaining quota for this API today.
+    def _effective_limit(self, api_name: str) -> tuple[int | None, str]:
+        """Return (limit, window_type) for an API.
 
-        Checks both per-API limit AND shared group limit (e.g., api-sports).
+        Prefers API_RATE_LIMITS (window-aware) over API_DAILY_LIMITS.
+        """
+        if api_name in self.rate_limits:
+            cfg = self.rate_limits[api_name]
+            return cfg.get("limit"), cfg.get("type", "daily")
+        return self.limits.get(api_name), "daily"
+
+    def can_request(self, api_name: str, cost: int = 1) -> bool:
+        """Check if we have remaining quota for this API.
+
+        Checks both window-aware limit (if defined) AND legacy daily limit.
         """
         _validate_api_name(api_name)
-        limit = self.limits.get(api_name)
+        limit, window_type = self._effective_limit(api_name)
         if limit is None:
             return True
+
         with self._get_lock(api_name):
-            usage = self._read_usage(api_name)
+            usage = self._read_usage(api_name, window_type=window_type)
             if usage["count"] + cost > limit:
                 return False
+
+            # Also enforce legacy daily cap as a backstop
+            daily_limit = self.limits.get(api_name)
+            if daily_limit is not None:
+                daily_usage = self._read_usage(api_name, window_type="daily")
+                if daily_usage["count"] + cost > daily_limit:
+                    return False
 
         # Also check shared group quota
         group = _API_TO_GROUP.get(api_name)
@@ -157,27 +205,46 @@ class RateLimiter:
     def record_request(self, api_name: str, endpoint: str, cost: int = 1) -> None:
         """Record a completed API request."""
         _validate_api_name(api_name)
-        today = _today_str()
+        limit, window_type = self._effective_limit(api_name)
+
         with self._get_lock(api_name):
-            usage = self._read_usage(api_name, today)
+            # Write to window-specific file
+            bucket = _window_str(window_type)
+            usage = self._read_usage(api_name, bucket, window_type)
             usage["count"] = usage.get("count", 0) + cost
-            usage["date"] = today
+            usage["date"] = bucket
             usage["api_name"] = api_name
             usage.setdefault("requests", []).append({
                 "endpoint": endpoint,
                 "cost": cost,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             })
-            self._write_usage(api_name, usage)
+            self._write_usage(api_name, usage, window_type)
+
+            # Also record to legacy daily file for backward compatibility
+            if window_type != "daily":
+                today = _today_str()
+                daily_usage = self._read_usage(api_name, today, "daily")
+                daily_usage["count"] = daily_usage.get("count", 0) + cost
+                daily_usage["date"] = today
+                daily_usage["api_name"] = api_name
+                daily_usage.setdefault("requests", []).append({
+                    "endpoint": endpoint,
+                    "cost": cost,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                })
+                self._write_usage(api_name, daily_usage, "daily")
 
     def get_remaining(self, api_name: str) -> int:
-        """Get remaining requests for this API today.
+        """Get remaining requests for this API in the current window.
 
         Returns the minimum of per-API remaining and shared group remaining.
         """
         _validate_api_name(api_name)
-        limit = self.limits.get(api_name, 0)
-        usage = self._read_usage(api_name)
+        limit, window_type = self._effective_limit(api_name)
+        if limit is None:
+            limit = 0
+        usage = self._read_usage(api_name, window_type=window_type)
         per_api_remaining = max(0, limit - usage["count"])
 
         group = _API_TO_GROUP.get(api_name)
@@ -193,19 +260,29 @@ class RateLimiter:
         """Sum usage counts across all APIs in a shared quota group."""
         total = 0
         for api_name in SHARED_QUOTA_GROUPS.get(group, []):
-            usage = self._read_usage(api_name)
+            usage = self._read_usage(api_name, window_type="daily")
             total += usage.get("count", 0)
         return total
 
     def get_usage_summary(self) -> dict:
-        """Get summary of today's usage across all configured APIs."""
+        """Get summary of today's usage across all configured APIs.
+
+        Includes both legacy daily-limited APIs and window-aware APIs.
+        """
         today = _today_str()
         summary = {}
-        for api_name, limit in self.limits.items():
-            usage = self._read_usage(api_name, today)
+        # Collect all known API names from both limit registries
+        all_apis = set(self.limits.keys()) | set(self.rate_limits.keys())
+        for api_name in sorted(all_apis):
+            limit, window_type = self._effective_limit(api_name)
+            if limit is None:
+                limit = 0
+            usage = self._read_usage(api_name, today, window_type)
+            remaining = max(0, limit - usage["count"])
             summary[api_name] = {
                 "used": usage["count"],
                 "limit": limit,
-                "remaining": max(0, limit - usage["count"]),
+                "remaining": remaining,
+                "window_type": window_type,
             }
         return summary

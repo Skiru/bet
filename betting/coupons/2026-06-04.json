@@ -1,0 +1,3580 @@
+{
+  "date": "2026-06-04",
+  "bankroll": 78.34,
+  "daily_allocation_range": [
+    5.0,
+    15.0
+  ],
+  "approved_count": 1,
+  "strong_count": 1,
+  "moderate_count": 0,
+  "discovery_count": 0,
+  "core_coupons": [],
+  "combos": [],
+  "singles": [
+    {
+      "id": "CP-20260604-SINGLE1v6",
+      "tier": "N",
+      "legs": [
+        {
+          "fixture_id": 227665,
+          "sport": "basketball",
+          "home_team": "Indiana Fever",
+          "away_team": "Atlanta Dream",
+          "competition": "WNBA",
+          "kickoff": "2026-06-04T23:00:00+00:00",
+          "status": "APPROVED",
+          "advisory_tier": "STRONG",
+          "gate_score": "13/20",
+          "best_market": {
+            "name": "Total Points O/U",
+            "line": 166.0,
+            "direction": "UNDER",
+            "safety_score": 0.45,
+            "hit_rate_l10": "5/10",
+            "hit_rate_l5": "3/5",
+            "hit_rate_h2h": "2/2",
+            "source": "db",
+            "h2h_blind": false,
+            "rank": 1,
+            "margin": 1.001,
+            "team_a_avg": 86.4,
+            "team_b_avg": 79.4,
+            "combined_avg": 165.8,
+            "total_markets_evaluated": 4,
+            "l10_avg": 165.8,
+            "l5_avg": 161.8
+          },
+          "ev": 0.3834,
+          "risk_tier": "N",
+          "gate_details": {
+            "1": {
+              "passed": true,
+              "message": "",
+              "label": "Identity verified (full name, no slashes)"
+            },
+            "2": {
+              "passed": true,
+              "message": "",
+              "label": "WC/Q/LL / debut / stand-in checked"
+            },
+            "3": {
+              "passed": false,
+              "message": "H2H only 1 meetings (SPARSE, need ≥5)",
+              "label": "H2H ≥5 meetings checked"
+            },
+            "4": {
+              "passed": false,
+              "message": "NO injury/suspension data available",
+              "label": "Injuries/suspensions checked"
+            },
+            "5": {
+              "passed": false,
+              "message": "Only 1 source(s): ['db']",
+              "label": "≥2 independent sources"
+            },
+            "6": {
+              "passed": false,
+              "message": "TIPSTER-BLIND: no tipster source",
+              "label": "≥1 tipster argument READ"
+            },
+            "7": {
+              "passed": true,
+              "message": "upset_risk=0.55",
+              "label": "Upset risk scored"
+            },
+            "8": {
+              "passed": true,
+              "message": "EV=0.383",
+              "label": "EV > 0 calculated"
+            },
+            "9": {
+              "passed": true,
+              "message": "Drift not checkable (missing opening/current)",
+              "label": "Odds drift <8% verified"
+            },
+            "10": {
+              "passed": false,
+              "message": "FLAG: H2H-BLIND + safety 0.45 < 0.60",
+              "label": "Red flags checked"
+            },
+            "11": {
+              "passed": true,
+              "message": "",
+              "label": "Contrarian thinking done"
+            },
+            "12": {
+              "passed": false,
+              "message": "safety=0.45 (bear≥bull)",
+              "label": "Bear case < bull case"
+            },
+            "13": {
+              "passed": true,
+              "message": "",
+              "label": "Not anchored"
+            },
+            "14": {
+              "passed": true,
+              "message": "",
+              "label": "48h repeat check"
+            },
+            "15": {
+              "passed": true,
+              "message": "4 markets evaluated",
+              "label": "MULTI-MARKET: ≥3 alternative markets"
+            },
+            "16": {
+              "passed": false,
+              "message": "H2H-STAT-BLIND: no H2H for Total Points O/U",
+              "label": "H2H STAT-SPECIFIC: H2H for exact stat exists"
+            },
+            "17": {
+              "passed": true,
+              "message": "THREE-WAY 3/3 SUPPORT",
+              "label": "THREE-WAY ALIGNMENT: L10+H2H+L5 all support"
+            },
+            "18": {
+              "passed": true,
+              "message": "",
+              "label": "DATA QUALITY: both teams have stat data"
+            },
+            "19": {
+              "passed": true,
+              "message": "gap=5.0% (within 15% threshold)",
+              "label": "ODDS-SAFETY GAP: model vs market <25pp"
+            },
+            "20": {
+              "passed": true,
+              "message": "L5=3/5 (60%) vs L10=5/10 (50%) — stable",
+              "label": "L5 TREND: recent form not deteriorating (L5≥60% of L10)"
+            },
+            "bucket": "approved",
+            "comp_score": 3,
+            "advisory_tier": "STRONG"
+          },
+          "rejection_reasons": [],
+          "source": "gate_checker",
+          "bucket": "approved",
+          "odds": {
+            "market_best": 2.0,
+            "betclic": null
+          }
+        }
+      ],
+      "combined_odds": 2.0,
+      "stake": 1.0,
+      "potential_return": 2.0,
+      "stress_test": {
+        "p_coupon": 0.45,
+        "weakest_leg": {
+          "event": "Indiana Fever vs Atlanta Dream",
+          "market": "Total Points O/U",
+          "probability": 0.45
+        },
+        "catastrophe": "Przegrywa jeśli Indiana Fever vs Atlanta Dream — Total Points O/U nie trafi (p=45%)"
+      },
+      "correlation_flags": [],
+      "is_single": true,
+      "odds_source": "api",
+      "is_banker": true
+    }
+  ],
+  "discovery_singles": [],
+  "banker": {
+    "id": "CP-20260604-SINGLE1v6",
+    "tier": "N",
+    "legs": [
+      {
+        "fixture_id": 227665,
+        "sport": "basketball",
+        "home_team": "Indiana Fever",
+        "away_team": "Atlanta Dream",
+        "competition": "WNBA",
+        "kickoff": "2026-06-04T23:00:00+00:00",
+        "status": "APPROVED",
+        "advisory_tier": "STRONG",
+        "gate_score": "13/20",
+        "best_market": {
+          "name": "Total Points O/U",
+          "line": 166.0,
+          "direction": "UNDER",
+          "safety_score": 0.45,
+          "hit_rate_l10": "5/10",
+          "hit_rate_l5": "3/5",
+          "hit_rate_h2h": "2/2",
+          "source": "db",
+          "h2h_blind": false,
+          "rank": 1,
+          "margin": 1.001,
+          "team_a_avg": 86.4,
+          "team_b_avg": 79.4,
+          "combined_avg": 165.8,
+          "total_markets_evaluated": 4,
+          "l10_avg": 165.8,
+          "l5_avg": 161.8
+        },
+        "ev": 0.3834,
+        "risk_tier": "N",
+        "gate_details": {
+          "1": {
+            "passed": true,
+            "message": "",
+            "label": "Identity verified (full name, no slashes)"
+          },
+          "2": {
+            "passed": true,
+            "message": "",
+            "label": "WC/Q/LL / debut / stand-in checked"
+          },
+          "3": {
+            "passed": false,
+            "message": "H2H only 1 meetings (SPARSE, need ≥5)",
+            "label": "H2H ≥5 meetings checked"
+          },
+          "4": {
+            "passed": false,
+            "message": "NO injury/suspension data available",
+            "label": "Injuries/suspensions checked"
+          },
+          "5": {
+            "passed": false,
+            "message": "Only 1 source(s): ['db']",
+            "label": "≥2 independent sources"
+          },
+          "6": {
+            "passed": false,
+            "message": "TIPSTER-BLIND: no tipster source",
+            "label": "≥1 tipster argument READ"
+          },
+          "7": {
+            "passed": true,
+            "message": "upset_risk=0.55",
+            "label": "Upset risk scored"
+          },
+          "8": {
+            "passed": true,
+            "message": "EV=0.383",
+            "label": "EV > 0 calculated"
+          },
+          "9": {
+            "passed": true,
+            "message": "Drift not checkable (missing opening/current)",
+            "label": "Odds drift <8% verified"
+          },
+          "10": {
+            "passed": false,
+            "message": "FLAG: H2H-BLIND + safety 0.45 < 0.60",
+            "label": "Red flags checked"
+          },
+          "11": {
+            "passed": true,
+            "message": "",
+            "label": "Contrarian thinking done"
+          },
+          "12": {
+            "passed": false,
+            "message": "safety=0.45 (bear≥bull)",
+            "label": "Bear case < bull case"
+          },
+          "13": {
+            "passed": true,
+            "message": "",
+            "label": "Not anchored"
+          },
+          "14": {
+            "passed": true,
+            "message": "",
+            "label": "48h repeat check"
+          },
+          "15": {
+            "passed": true,
+            "message": "4 markets evaluated",
+            "label": "MULTI-MARKET: ≥3 alternative markets"
+          },
+          "16": {
+            "passed": false,
+            "message": "H2H-STAT-BLIND: no H2H for Total Points O/U",
+            "label": "H2H STAT-SPECIFIC: H2H for exact stat exists"
+          },
+          "17": {
+            "passed": true,
+            "message": "THREE-WAY 3/3 SUPPORT",
+            "label": "THREE-WAY ALIGNMENT: L10+H2H+L5 all support"
+          },
+          "18": {
+            "passed": true,
+            "message": "",
+            "label": "DATA QUALITY: both teams have stat data"
+          },
+          "19": {
+            "passed": true,
+            "message": "gap=5.0% (within 15% threshold)",
+            "label": "ODDS-SAFETY GAP: model vs market <25pp"
+          },
+          "20": {
+            "passed": true,
+            "message": "L5=3/5 (60%) vs L10=5/10 (50%) — stable",
+            "label": "L5 TREND: recent form not deteriorating (L5≥60% of L10)"
+          },
+          "bucket": "approved",
+          "comp_score": 3,
+          "advisory_tier": "STRONG"
+        },
+        "rejection_reasons": [],
+        "source": "gate_checker",
+        "bucket": "approved",
+        "odds": {
+          "market_best": 2.0,
+          "betclic": null
+        }
+      }
+    ],
+    "combined_odds": 2.0,
+    "stake": 1.0,
+    "potential_return": 2.0,
+    "stress_test": {
+      "p_coupon": 0.45,
+      "weakest_leg": {
+        "event": "Indiana Fever vs Atlanta Dream",
+        "market": "Total Points O/U",
+        "probability": 0.45
+      },
+      "catastrophe": "Przegrywa jeśli Indiana Fever vs Atlanta Dream — Total Points O/U nie trafi (p=45%)"
+    },
+    "correlation_flags": [],
+    "is_single": true,
+    "odds_source": "api",
+    "is_banker": true
+  },
+  "extended_pool": [
+    {
+      "fixture_id": 227941,
+      "sport": "basketball",
+      "home_team": "Brose Bamberg",
+      "away_team": "Alba Berlin",
+      "competition": "Germany - BBL",
+      "kickoff": "2026-06-04T18:30:00+00:00",
+      "status": "EXTENDED",
+      "advisory_tier": "FLAGGED",
+      "gate_score": "15/20",
+      "best_market": {
+        "name": "Brose Bamberg Points O/U",
+        "line": 79.5,
+        "direction": "OVER",
+        "safety_score": 0.55,
+        "hit_rate_l10": "6/10",
+        "hit_rate_l5": "4/5",
+        "hit_rate_h2h": "2/2",
+        "source": "db",
+        "h2h_blind": false,
+        "rank": 1,
+        "margin": 1.003,
+        "team_a_avg": 79.7,
+        "team_b_avg": 0.0,
+        "combined_avg": 79.7,
+        "opponent_blocker": false,
+        "total_markets_evaluated": 5,
+        "l10_avg": 79.7,
+        "l5_avg": 87.6
+      },
+      "ev": null,
+      "risk_tier": "HR",
+      "gate_details": {
+        "1": {
+          "passed": true,
+          "message": "",
+          "label": "Identity verified (full name, no slashes)"
+        },
+        "2": {
+          "passed": true,
+          "message": "",
+          "label": "WC/Q/LL / debut / stand-in checked"
+        },
+        "3": {
+          "passed": false,
+          "message": "H2H only 1 meetings (SPARSE, need ≥5)",
+          "label": "H2H ≥5 meetings checked"
+        },
+        "4": {
+          "passed": false,
+          "message": "NO injury/suspension data available",
+          "label": "Injuries/suspensions checked"
+        },
+        "5": {
+          "passed": false,
+          "message": "Only 1 source(s): ['db']",
+          "label": "≥2 independent sources"
+        },
+        "6": {
+          "passed": true,
+          "message": "",
+          "label": "≥1 tipster argument READ"
+        },
+        "7": {
+          "passed": true,
+          "message": "upset_risk=0.25",
+          "label": "Upset risk scored"
+        },
+        "8": {
+          "passed": true,
+          "message": "STATS-FIRST: EV not calculable, user verifies manually",
+          "label": "EV > 0 calculated"
+        },
+        "9": {
+          "passed": true,
+          "message": "NO_ODDS: stats-first mode, drift not checkable",
+          "label": "Odds drift <8% verified"
+        },
+        "10": {
+          "passed": false,
+          "message": "FLAG: H2H-BLIND + safety 0.55 < 0.60",
+          "label": "Red flags checked"
+        },
+        "11": {
+          "passed": true,
+          "message": "",
+          "label": "Contrarian thinking done"
+        },
+        "12": {
+          "passed": true,
+          "message": "safety=0.55 (bull>bear)",
+          "label": "Bear case < bull case"
+        },
+        "13": {
+          "passed": true,
+          "message": "",
+          "label": "Not anchored"
+        },
+        "14": {
+          "passed": true,
+          "message": "",
+          "label": "48h repeat check"
+        },
+        "15": {
+          "passed": true,
+          "message": "5 markets evaluated",
+          "label": "MULTI-MARKET: ≥3 alternative markets"
+        },
+        "16": {
+          "passed": false,
+          "message": "H2H-STAT-BLIND: no H2H for Brose Bamberg Points O/U",
+          "label": "H2H STAT-SPECIFIC: H2H for exact stat exists"
+        },
+        "17": {
+          "passed": true,
+          "message": "THREE-WAY 3/3 SUPPORT",
+          "label": "THREE-WAY ALIGNMENT: L10+H2H+L5 all support"
+        },
+        "18": {
+          "passed": true,
+          "message": "",
+          "label": "DATA QUALITY: both teams have stat data"
+        },
+        "19": {
+          "passed": true,
+          "message": "STATS-FIRST: no odds available, gap not checkable",
+          "label": "ODDS-SAFETY GAP: model vs market <25pp"
+        },
+        "20": {
+          "passed": true,
+          "message": "L5=4/5 (80%) vs L10=6/10 (60%) — stable",
+          "label": "L5 TREND: recent form not deteriorating (L5≥60% of L10)"
+        },
+        "bucket": "extended_pool",
+        "extended_pool_reason": "NO_VERIFIED_ODDS: active approval requires a real market price",
+        "comp_score": 3,
+        "advisory_tier": "FLAGGED"
+      },
+      "rejection_reasons": [],
+      "source": "gate_checker",
+      "bucket": "extended_pool",
+      "extended_pool_reason": "NO_VERIFIED_ODDS: active approval requires a real market price",
+      "tipster_count": 1
+    },
+    {
+      "fixture_id": 227915,
+      "sport": "volleyball",
+      "home_team": "Brazil",
+      "away_team": "Dominican Republic",
+      "competition": "International - Nations League, Women",
+      "kickoff": "2026-06-04T23:00:00+00:00",
+      "status": "EXTENDED",
+      "advisory_tier": "FLAGGED",
+      "gate_score": "10/20",
+      "best_market": {
+        "name": "Brazil Points O/U",
+        "line": 78.0,
+        "direction": "UNDER",
+        "safety_score": 0.45,
+        "hit_rate_l10": "5/10",
+        "hit_rate_l5": "2/5",
+        "hit_rate_h2h": "1/2",
+        "source": "db-synthetic",
+        "h2h_blind": false,
+        "rank": 1,
+        "margin": 1.0,
+        "team_a_avg": 77.97,
+        "team_b_avg": 0.0,
+        "combined_avg": 77.97,
+        "total_markets_evaluated": 1,
+        "l10_avg": 77.97,
+        "l5_avg": 78.48
+      },
+      "ev": null,
+      "risk_tier": "N",
+      "gate_details": {
+        "1": {
+          "passed": true,
+          "message": "",
+          "label": "Identity verified (full name, no slashes)"
+        },
+        "2": {
+          "passed": true,
+          "message": "",
+          "label": "WC/Q/LL / debut / stand-in checked"
+        },
+        "3": {
+          "passed": false,
+          "message": "H2H only 2 meetings (SPARSE, need ≥5)",
+          "label": "H2H ≥5 meetings checked"
+        },
+        "4": {
+          "passed": false,
+          "message": "NO injury/suspension data available",
+          "label": "Injuries/suspensions checked"
+        },
+        "5": {
+          "passed": false,
+          "message": "Only 1 source(s): ['db']",
+          "label": "≥2 independent sources"
+        },
+        "6": {
+          "passed": false,
+          "message": "TIPSTER-BLIND: no tipster source",
+          "label": "≥1 tipster argument READ"
+        },
+        "7": {
+          "passed": true,
+          "message": "upset_risk=0.65",
+          "label": "Upset risk scored"
+        },
+        "8": {
+          "passed": true,
+          "message": "STATS-FIRST: EV not calculable, user verifies manually",
+          "label": "EV > 0 calculated"
+        },
+        "9": {
+          "passed": true,
+          "message": "NO_ODDS: stats-first mode, drift not checkable",
+          "label": "Odds drift <8% verified"
+        },
+        "10": {
+          "passed": false,
+          "message": "FLAG: H2H-BLIND + safety 0.45 < 0.60",
+          "label": "Red flags checked"
+        },
+        "11": {
+          "passed": true,
+          "message": "",
+          "label": "Contrarian thinking done"
+        },
+        "12": {
+          "passed": false,
+          "message": "safety=0.45 (bear≥bull)",
+          "label": "Bear case < bull case"
+        },
+        "13": {
+          "passed": true,
+          "message": "",
+          "label": "Not anchored"
+        },
+        "14": {
+          "passed": true,
+          "message": "",
+          "label": "48h repeat check"
+        },
+        "15": {
+          "passed": false,
+          "message": "Only 1 markets (need ≥3)",
+          "label": "MULTI-MARKET: ≥3 alternative markets"
+        },
+        "16": {
+          "passed": false,
+          "message": "H2H-STAT-BLIND: no H2H for Brazil Points O/U",
+          "label": "H2H STAT-SPECIFIC: H2H for exact stat exists"
+        },
+        "17": {
+          "passed": false,
+          "message": "THREE-WAY 1/3 CONFLICT → DOWNGRADE",
+          "label": "THREE-WAY ALIGNMENT: L10+H2H+L5 all support"
+        },
+        "18": {
+          "passed": false,
+          "message": "SYNTHETIC data — weak hit_rate=5/10, no real per-match stats (source=db-synthetic)",
+          "label": "DATA QUALITY: both teams have stat data"
+        },
+        "19": {
+          "passed": true,
+          "message": "STATS-FIRST: no odds available, gap not checkable",
+          "label": "ODDS-SAFETY GAP: model vs market <25pp"
+        },
+        "20": {
+          "passed": true,
+          "message": "L5=2/5 (40%) vs L10=5/10 (50%) — stable",
+          "label": "L5 TREND: recent form not deteriorating (L5≥60% of L10)"
+        },
+        "bucket": "extended_pool",
+        "extended_pool_reason": "Minimal data — only basic stats available. Extended Pool only.",
+        "comp_score": 3,
+        "advisory_tier": "FLAGGED"
+      },
+      "rejection_reasons": [],
+      "source": "gate_checker",
+      "bucket": "extended_pool",
+      "extended_pool_reason": "Minimal data — only basic stats available. Extended Pool only."
+    },
+    {
+      "fixture_id": 227788,
+      "sport": "football",
+      "home_team": "Albion Colorado",
+      "away_team": "Utah United",
+      "competition": "USL League Two",
+      "kickoff": "2026-06-04T22:00:00+00:00",
+      "status": "EXTENDED",
+      "advisory_tier": "FLAGGED",
+      "gate_score": "13/20",
+      "best_market": {
+        "name": "Albion Colorado Fouls O/U",
+        "line": 14.5,
+        "direction": "UNDER",
+        "safety_score": 0.42,
+        "hit_rate_l10": "7/10",
+        "hit_rate_l5": "4/5",
+        "hit_rate_h2h": "N/A",
+        "source": "db",
+        "h2h_blind": true,
+        "rank": 1,
+        "margin": 1.014,
+        "team_a_avg": 14.3,
+        "team_b_avg": 0.0,
+        "combined_avg": 14.3,
+        "total_markets_evaluated": 16,
+        "l10_avg": 14.3,
+        "l5_avg": 12.0
+      },
+      "ev": null,
+      "risk_tier": "N",
+      "gate_details": {
+        "1": {
+          "passed": true,
+          "message": "",
+          "label": "Identity verified (full name, no slashes)"
+        },
+        "2": {
+          "passed": true,
+          "message": "",
+          "label": "WC/Q/LL / debut / stand-in checked"
+        },
+        "3": {
+          "passed": false,
+          "message": "H2H only 1 meetings (SPARSE, need ≥5)",
+          "label": "H2H ≥5 meetings checked"
+        },
+        "4": {
+          "passed": false,
+          "message": "NO injury/suspension data available",
+          "label": "Injuries/suspensions checked"
+        },
+        "5": {
+          "passed": false,
+          "message": "Only 1 source(s): ['db']",
+          "label": "≥2 independent sources"
+        },
+        "6": {
+          "passed": false,
+          "message": "TIPSTER-BLIND: no tipster source",
+          "label": "≥1 tipster argument READ"
+        },
+        "7": {
+          "passed": true,
+          "message": "upset_risk=0.45",
+          "label": "Upset risk scored"
+        },
+        "8": {
+          "passed": true,
+          "message": "STATS-FIRST: EV not calculable, user verifies manually",
+          "label": "EV > 0 calculated"
+        },
+        "9": {
+          "passed": true,
+          "message": "NO_ODDS: stats-first mode, drift not checkable",
+          "label": "Odds drift <8% verified"
+        },
+        "10": {
+          "passed": false,
+          "message": "FLAG: H2H-BLIND + safety 0.42 < 0.60",
+          "label": "Red flags checked"
+        },
+        "11": {
+          "passed": true,
+          "message": "",
+          "label": "Contrarian thinking done"
+        },
+        "12": {
+          "passed": false,
+          "message": "safety=0.42 (bear≥bull)",
+          "label": "Bear case < bull case"
+        },
+        "13": {
+          "passed": true,
+          "message": "",
+          "label": "Not anchored"
+        },
+        "14": {
+          "passed": true,
+          "message": "",
+          "label": "48h repeat check"
+        },
+        "15": {
+          "passed": true,
+          "message": "16 markets evaluated",
+          "label": "MULTI-MARKET: ≥3 alternative markets"
+        },
+        "16": {
+          "passed": false,
+          "message": "H2H-STAT-BLIND: no H2H for Albion Colorado Fouls O/U",
+          "label": "H2H STAT-SPECIFIC: H2H for exact stat exists"
+        },
+        "17": {
+          "passed": true,
+          "message": "THREE-WAY 2/2 SUPPORT (H2H N/A)",
+          "label": "THREE-WAY ALIGNMENT: L10+H2H+L5 all support"
+        },
+        "18": {
+          "passed": true,
+          "message": "",
+          "label": "DATA QUALITY: both teams have stat data"
+        },
+        "19": {
+          "passed": true,
+          "message": "STATS-FIRST: no odds available, gap not checkable",
+          "label": "ODDS-SAFETY GAP: model vs market <25pp"
+        },
+        "20": {
+          "passed": true,
+          "message": "L5=4/5 (80%) vs L10=7/10 (70%) — stable",
+          "label": "L5 TREND: recent form not deteriorating (L5≥60% of L10)"
+        },
+        "bucket": "extended_pool",
+        "extended_pool_reason": "NO_VERIFIED_ODDS: active approval requires a real market price; TIPSTER_BLIND: zero tipster support without positive-EV override",
+        "comp_score": 3,
+        "advisory_tier": "FLAGGED"
+      },
+      "rejection_reasons": [],
+      "source": "gate_checker",
+      "bucket": "extended_pool",
+      "extended_pool_reason": "NO_VERIFIED_ODDS: active approval requires a real market price; TIPSTER_BLIND: zero tipster support without positive-EV override"
+    },
+    {
+      "fixture_id": 227939,
+      "sport": "basketball",
+      "home_team": "Paris Basketball",
+      "away_team": "Cholet Basket",
+      "competition": "France - Pro A",
+      "kickoff": "2026-06-04T18:00:00+00:00",
+      "status": "EXTENDED",
+      "advisory_tier": "FLAGGED",
+      "gate_score": "13/20",
+      "best_market": {
+        "name": "Paris Basketball Rebounds O/U",
+        "line": 53.5,
+        "direction": "UNDER",
+        "safety_score": 0.4,
+        "hit_rate_l10": "5/8",
+        "hit_rate_l5": "3/5",
+        "hit_rate_h2h": "N/A",
+        "source": "db",
+        "h2h_blind": true,
+        "rank": 1,
+        "margin": 1.0,
+        "team_a_avg": 53.5,
+        "team_b_avg": 0.0,
+        "combined_avg": 53.5,
+        "total_markets_evaluated": 3,
+        "l10_avg": 53.5,
+        "l5_avg": 55.6
+      },
+      "ev": null,
+      "risk_tier": "HR",
+      "gate_details": {
+        "1": {
+          "passed": true,
+          "message": "",
+          "label": "Identity verified (full name, no slashes)"
+        },
+        "2": {
+          "passed": true,
+          "message": "",
+          "label": "WC/Q/LL / debut / stand-in checked"
+        },
+        "3": {
+          "passed": false,
+          "message": "H2H only 1 meetings (SPARSE, need ≥5)",
+          "label": "H2H ≥5 meetings checked"
+        },
+        "4": {
+          "passed": false,
+          "message": "NO injury/suspension data available",
+          "label": "Injuries/suspensions checked"
+        },
+        "5": {
+          "passed": false,
+          "message": "Only 1 source(s): ['db']",
+          "label": "≥2 independent sources"
+        },
+        "6": {
+          "passed": true,
+          "message": "",
+          "label": "≥1 tipster argument READ"
+        },
+        "7": {
+          "passed": true,
+          "message": "upset_risk=0.65",
+          "label": "Upset risk scored"
+        },
+        "8": {
+          "passed": true,
+          "message": "STATS-FIRST: EV not calculable, user verifies manually",
+          "label": "EV > 0 calculated"
+        },
+        "9": {
+          "passed": true,
+          "message": "NO_ODDS: stats-first mode, drift not checkable",
+          "label": "Odds drift <8% verified"
+        },
+        "10": {
+          "passed": false,
+          "message": "FLAG: H2H-BLIND + safety 0.40 < 0.60",
+          "label": "Red flags checked"
+        },
+        "11": {
+          "passed": true,
+          "message": "",
+          "label": "Contrarian thinking done"
+        },
+        "12": {
+          "passed": false,
+          "message": "safety=0.40 (bear≥bull)",
+          "label": "Bear case < bull case"
+        },
+        "13": {
+          "passed": true,
+          "message": "",
+          "label": "Not anchored"
+        },
+        "14": {
+          "passed": true,
+          "message": "",
+          "label": "48h repeat check"
+        },
+        "15": {
+          "passed": true,
+          "message": "3 markets evaluated",
+          "label": "MULTI-MARKET: ≥3 alternative markets"
+        },
+        "16": {
+          "passed": false,
+          "message": "H2H-STAT-BLIND: no H2H for Paris Basketball Rebounds O/U",
+          "label": "H2H STAT-SPECIFIC: H2H for exact stat exists"
+        },
+        "17": {
+          "passed": false,
+          "message": "THREE-WAY 1/2 CONFLICT → DOWNGRADE (H2H N/A)",
+          "label": "THREE-WAY ALIGNMENT: L10+H2H+L5 all support"
+        },
+        "18": {
+          "passed": true,
+          "message": "",
+          "label": "DATA QUALITY: both teams have stat data"
+        },
+        "19": {
+          "passed": true,
+          "message": "STATS-FIRST: no odds available, gap not checkable",
+          "label": "ODDS-SAFETY GAP: model vs market <25pp"
+        },
+        "20": {
+          "passed": true,
+          "message": "L5=3/5 (60%) vs L10=5/8 (62%) — stable",
+          "label": "L5 TREND: recent form not deteriorating (L5≥60% of L10)"
+        },
+        "bucket": "extended_pool",
+        "extended_pool_reason": "NO_VERIFIED_ODDS: active approval requires a real market price",
+        "comp_score": 3,
+        "advisory_tier": "FLAGGED"
+      },
+      "rejection_reasons": [],
+      "source": "gate_checker",
+      "bucket": "extended_pool",
+      "extended_pool_reason": "NO_VERIFIED_ODDS: active approval requires a real market price",
+      "tipster_count": 1
+    },
+    {
+      "fixture_id": 227944,
+      "sport": "basketball",
+      "home_team": "CB 1939 Canarias",
+      "away_team": "Real Madrid",
+      "competition": "Spain - Liga ACB",
+      "kickoff": "2026-06-04T19:00:00+00:00",
+      "status": "EXTENDED",
+      "advisory_tier": "FLAGGED",
+      "gate_score": "13/20",
+      "best_market": {
+        "name": "CB 1939 Canarias Rebounds O/U",
+        "line": 31.5,
+        "direction": "OVER",
+        "safety_score": 0.39,
+        "hit_rate_l10": "6/10",
+        "hit_rate_l5": "2/5",
+        "hit_rate_h2h": "N/A",
+        "source": "db",
+        "h2h_blind": true,
+        "rank": 1,
+        "margin": 1.006,
+        "team_a_avg": 31.7,
+        "team_b_avg": 0.0,
+        "combined_avg": 31.7,
+        "opponent_blocker": false,
+        "total_markets_evaluated": 9,
+        "l10_avg": 31.7,
+        "l5_avg": 32.8
+      },
+      "ev": null,
+      "risk_tier": "HR",
+      "gate_details": {
+        "1": {
+          "passed": true,
+          "message": "",
+          "label": "Identity verified (full name, no slashes)"
+        },
+        "2": {
+          "passed": true,
+          "message": "",
+          "label": "WC/Q/LL / debut / stand-in checked"
+        },
+        "3": {
+          "passed": false,
+          "message": "H2H only 1 meetings (SPARSE, need ≥5)",
+          "label": "H2H ≥5 meetings checked"
+        },
+        "4": {
+          "passed": false,
+          "message": "NO injury/suspension data available",
+          "label": "Injuries/suspensions checked"
+        },
+        "5": {
+          "passed": false,
+          "message": "Only 1 source(s): ['db']",
+          "label": "≥2 independent sources"
+        },
+        "6": {
+          "passed": false,
+          "message": "TIPSTER-BLIND: no tipster source",
+          "label": "≥1 tipster argument READ"
+        },
+        "7": {
+          "passed": true,
+          "message": "upset_risk=0.45",
+          "label": "Upset risk scored"
+        },
+        "8": {
+          "passed": true,
+          "message": "STATS-FIRST: EV not calculable, user verifies manually",
+          "label": "EV > 0 calculated"
+        },
+        "9": {
+          "passed": true,
+          "message": "NO_ODDS: stats-first mode, drift not checkable",
+          "label": "Odds drift <8% verified"
+        },
+        "10": {
+          "passed": false,
+          "message": "FLAG: safety 0.39 < 0.40; FLAG: H2H-BLIND + safety 0.39 < 0.60",
+          "label": "Red flags checked"
+        },
+        "11": {
+          "passed": true,
+          "message": "",
+          "label": "Contrarian thinking done"
+        },
+        "12": {
+          "passed": false,
+          "message": "safety=0.39 (bear≥bull)",
+          "label": "Bear case < bull case"
+        },
+        "13": {
+          "passed": true,
+          "message": "",
+          "label": "Not anchored"
+        },
+        "14": {
+          "passed": true,
+          "message": "",
+          "label": "48h repeat check"
+        },
+        "15": {
+          "passed": true,
+          "message": "9 markets evaluated",
+          "label": "MULTI-MARKET: ≥3 alternative markets"
+        },
+        "16": {
+          "passed": false,
+          "message": "H2H-STAT-BLIND: no H2H for CB 1939 Canarias Rebounds O/U",
+          "label": "H2H STAT-SPECIFIC: H2H for exact stat exists"
+        },
+        "17": {
+          "passed": true,
+          "message": "THREE-WAY 2/2 SUPPORT (H2H N/A)",
+          "label": "THREE-WAY ALIGNMENT: L10+H2H+L5 all support"
+        },
+        "18": {
+          "passed": true,
+          "message": "",
+          "label": "DATA QUALITY: both teams have stat data"
+        },
+        "19": {
+          "passed": true,
+          "message": "STATS-FIRST: no odds available, gap not checkable",
+          "label": "ODDS-SAFETY GAP: model vs market <25pp"
+        },
+        "20": {
+          "passed": true,
+          "message": "L5=2/5 (40%) vs L10=6/10 (60%) — stable",
+          "label": "L5 TREND: recent form not deteriorating (L5≥60% of L10)"
+        },
+        "bucket": "extended_pool",
+        "extended_pool_reason": "NO_VERIFIED_ODDS: active approval requires a real market price; TIPSTER_BLIND: zero tipster support without positive-EV override",
+        "comp_score": 3,
+        "advisory_tier": "FLAGGED"
+      },
+      "rejection_reasons": [],
+      "source": "gate_checker",
+      "bucket": "extended_pool",
+      "extended_pool_reason": "NO_VERIFIED_ODDS: active approval requires a real market price; TIPSTER_BLIND: zero tipster support without positive-EV override"
+    },
+    {
+      "fixture_id": 227940,
+      "sport": "basketball",
+      "home_team": "Reyer Venezia",
+      "away_team": "Virtus Bologna",
+      "competition": "Italy - Serie A",
+      "kickoff": "2026-06-04T18:00:00+00:00",
+      "status": "EXTENDED",
+      "advisory_tier": "FLAGGED",
+      "gate_score": "13/20",
+      "best_market": {
+        "name": "Total Points O/U",
+        "line": 169.5,
+        "direction": "UNDER",
+        "safety_score": 0.35,
+        "hit_rate_l10": "4/10",
+        "hit_rate_l5": "0/5",
+        "hit_rate_h2h": "2/2",
+        "source": "db",
+        "h2h_blind": false,
+        "rank": 1,
+        "margin": 1.001,
+        "team_a_avg": 84.8,
+        "team_b_avg": 84.5,
+        "combined_avg": 169.3,
+        "total_markets_evaluated": 3,
+        "l10_avg": 169.3,
+        "l5_avg": 176.6
+      },
+      "ev": null,
+      "risk_tier": "HR",
+      "gate_details": {
+        "1": {
+          "passed": true,
+          "message": "",
+          "label": "Identity verified (full name, no slashes)"
+        },
+        "2": {
+          "passed": true,
+          "message": "",
+          "label": "WC/Q/LL / debut / stand-in checked"
+        },
+        "3": {
+          "passed": false,
+          "message": "H2H only 1 meetings (SPARSE, need ≥5)",
+          "label": "H2H ≥5 meetings checked"
+        },
+        "4": {
+          "passed": false,
+          "message": "NO injury/suspension data available",
+          "label": "Injuries/suspensions checked"
+        },
+        "5": {
+          "passed": false,
+          "message": "Only 1 source(s): ['db']",
+          "label": "≥2 independent sources"
+        },
+        "6": {
+          "passed": true,
+          "message": "",
+          "label": "≥1 tipster argument READ"
+        },
+        "7": {
+          "passed": true,
+          "message": "upset_risk=0.45",
+          "label": "Upset risk scored"
+        },
+        "8": {
+          "passed": true,
+          "message": "STATS-FIRST: EV not calculable, user verifies manually",
+          "label": "EV > 0 calculated"
+        },
+        "9": {
+          "passed": true,
+          "message": "NO_ODDS: stats-first mode, drift not checkable",
+          "label": "Odds drift <8% verified"
+        },
+        "10": {
+          "passed": false,
+          "message": "FLAG: safety 0.35 < 0.40; FLAG: H2H-BLIND + safety 0.35 < 0.60",
+          "label": "Red flags checked"
+        },
+        "11": {
+          "passed": true,
+          "message": "",
+          "label": "Contrarian thinking done"
+        },
+        "12": {
+          "passed": false,
+          "message": "safety=0.35 (bear≥bull)",
+          "label": "Bear case < bull case"
+        },
+        "13": {
+          "passed": true,
+          "message": "",
+          "label": "Not anchored"
+        },
+        "14": {
+          "passed": true,
+          "message": "",
+          "label": "48h repeat check"
+        },
+        "15": {
+          "passed": true,
+          "message": "3 markets evaluated",
+          "label": "MULTI-MARKET: ≥3 alternative markets"
+        },
+        "16": {
+          "passed": false,
+          "message": "H2H-STAT-BLIND: no H2H for Total Points O/U",
+          "label": "H2H STAT-SPECIFIC: H2H for exact stat exists"
+        },
+        "17": {
+          "passed": true,
+          "message": "THREE-WAY 2/3 SUPPORT",
+          "label": "THREE-WAY ALIGNMENT: L10+H2H+L5 all support"
+        },
+        "18": {
+          "passed": true,
+          "message": "",
+          "label": "DATA QUALITY: both teams have stat data"
+        },
+        "19": {
+          "passed": true,
+          "message": "STATS-FIRST: no odds available, gap not checkable",
+          "label": "ODDS-SAFETY GAP: model vs market <25pp"
+        },
+        "20": {
+          "passed": false,
+          "message": "L5 DETERIORATING: L10=4/10 (40%) → L5=0/5 (0%). Recent form is 100% worse than L10.",
+          "label": "L5 TREND: recent form not deteriorating (L5≥60% of L10)"
+        },
+        "bucket": "extended_pool",
+        "extended_pool_reason": "NO_VERIFIED_ODDS: active approval requires a real market price; COIN_FLIP: hit_rate=4/10 (≤50% = no edge)",
+        "comp_score": 3,
+        "advisory_tier": "FLAGGED"
+      },
+      "rejection_reasons": [],
+      "source": "gate_checker",
+      "bucket": "extended_pool",
+      "extended_pool_reason": "NO_VERIFIED_ODDS: active approval requires a real market price; COIN_FLIP: hit_rate=4/10 (≤50% = no edge)",
+      "tipster_count": 1
+    },
+    {
+      "fixture_id": 227955,
+      "sport": "basketball",
+      "home_team": "Canada",
+      "away_team": "Puerto Rico",
+      "competition": "International - U18 FIBA Americup",
+      "kickoff": "2026-06-04T23:30:00+00:00",
+      "status": "EXTENDED",
+      "advisory_tier": "FLAGGED",
+      "gate_score": "10/20",
+      "best_market": {
+        "name": "Puerto Rico Points O/U",
+        "line": 79.0,
+        "direction": "UNDER",
+        "safety_score": 0.32,
+        "hit_rate_l10": "5/10",
+        "hit_rate_l5": "1/5",
+        "hit_rate_h2h": "N/A",
+        "source": "db",
+        "h2h_blind": true,
+        "rank": 1,
+        "margin": 1.001,
+        "team_a_avg": 0.0,
+        "team_b_avg": 78.9,
+        "combined_avg": 78.9,
+        "total_markets_evaluated": 1,
+        "l10_avg": 78.9,
+        "l5_avg": 86.6
+      },
+      "ev": null,
+      "risk_tier": "N",
+      "gate_details": {
+        "1": {
+          "passed": true,
+          "message": "",
+          "label": "Identity verified (full name, no slashes)"
+        },
+        "2": {
+          "passed": true,
+          "message": "",
+          "label": "WC/Q/LL / debut / stand-in checked"
+        },
+        "3": {
+          "passed": false,
+          "message": "No H2H data — statistical inference only",
+          "label": "H2H ≥5 meetings checked"
+        },
+        "4": {
+          "passed": false,
+          "message": "NO injury/suspension data available",
+          "label": "Injuries/suspensions checked"
+        },
+        "5": {
+          "passed": false,
+          "message": "Only 1 source(s): ['db']",
+          "label": "≥2 independent sources"
+        },
+        "6": {
+          "passed": false,
+          "message": "TIPSTER-BLIND: no tipster source",
+          "label": "≥1 tipster argument READ"
+        },
+        "7": {
+          "passed": true,
+          "message": "upset_risk=0.65",
+          "label": "Upset risk scored"
+        },
+        "8": {
+          "passed": true,
+          "message": "STATS-FIRST: EV not calculable, user verifies manually",
+          "label": "EV > 0 calculated"
+        },
+        "9": {
+          "passed": true,
+          "message": "NO_ODDS: stats-first mode, drift not checkable",
+          "label": "Odds drift <8% verified"
+        },
+        "10": {
+          "passed": false,
+          "message": "FLAG: safety 0.32 < 0.40; FLAG: H2H-BLIND + safety 0.32 < 0.60",
+          "label": "Red flags checked"
+        },
+        "11": {
+          "passed": true,
+          "message": "",
+          "label": "Contrarian thinking done"
+        },
+        "12": {
+          "passed": false,
+          "message": "safety=0.32 (bear≥bull)",
+          "label": "Bear case < bull case"
+        },
+        "13": {
+          "passed": true,
+          "message": "",
+          "label": "Not anchored"
+        },
+        "14": {
+          "passed": true,
+          "message": "",
+          "label": "48h repeat check"
+        },
+        "15": {
+          "passed": false,
+          "message": "Only 1 markets (need ≥3)",
+          "label": "MULTI-MARKET: ≥3 alternative markets"
+        },
+        "16": {
+          "passed": false,
+          "message": "H2H-STAT-BLIND: no H2H for Puerto Rico Points O/U",
+          "label": "H2H STAT-SPECIFIC: H2H for exact stat exists"
+        },
+        "17": {
+          "passed": false,
+          "message": "THREE-WAY 1/2 CONFLICT → DOWNGRADE (H2H N/A)",
+          "label": "THREE-WAY ALIGNMENT: L10+H2H+L5 all support"
+        },
+        "18": {
+          "passed": true,
+          "message": "",
+          "label": "DATA QUALITY: both teams have stat data"
+        },
+        "19": {
+          "passed": true,
+          "message": "STATS-FIRST: no odds available, gap not checkable",
+          "label": "ODDS-SAFETY GAP: model vs market <25pp"
+        },
+        "20": {
+          "passed": false,
+          "message": "L5 DETERIORATING: L10=5/10 (50%) → L5=1/5 (20%). Recent form is 60% worse than L10.",
+          "label": "L5 TREND: recent form not deteriorating (L5≥60% of L10)"
+        },
+        "bucket": "extended_pool",
+        "extended_pool_reason": "INSUFFICIENT_MARKETS: 1/3 required; NO_VERIFIED_ODDS: active approval requires a real market price; TIPSTER_BLIND: zero tipster support without positive-EV override; COIN_FLIP: hit_rate=5/10 (≤50% = no edge)",
+        "comp_score": 3,
+        "advisory_tier": "FLAGGED"
+      },
+      "rejection_reasons": [],
+      "source": "gate_checker",
+      "bucket": "extended_pool",
+      "extended_pool_reason": "INSUFFICIENT_MARKETS: 1/3 required; NO_VERIFIED_ODDS: active approval requires a real market price; TIPSTER_BLIND: zero tipster support without positive-EV override; COIN_FLIP: hit_rate=5/10 (≤50% = no edge)"
+    },
+    {
+      "fixture_id": 227943,
+      "sport": "basketball",
+      "home_team": "Dominican Republic",
+      "away_team": "Venezuela",
+      "competition": "International - U18 FIBA Americup",
+      "kickoff": "2026-06-04T18:30:00+00:00",
+      "status": "EXTENDED",
+      "advisory_tier": "FLAGGED",
+      "gate_score": "10/20",
+      "best_market": {
+        "name": "Dominican Republic Points O/U",
+        "line": 77.0,
+        "direction": "UNDER",
+        "safety_score": 0.32,
+        "hit_rate_l10": "5/10",
+        "hit_rate_l5": "1/5",
+        "hit_rate_h2h": "N/A",
+        "source": "db",
+        "h2h_blind": true,
+        "rank": 1,
+        "margin": 1.003,
+        "team_a_avg": 76.8,
+        "team_b_avg": 0.0,
+        "combined_avg": 76.8,
+        "total_markets_evaluated": 1,
+        "l10_avg": 76.8,
+        "l5_avg": 87.8
+      },
+      "ev": null,
+      "risk_tier": "HR",
+      "gate_details": {
+        "1": {
+          "passed": true,
+          "message": "",
+          "label": "Identity verified (full name, no slashes)"
+        },
+        "2": {
+          "passed": true,
+          "message": "",
+          "label": "WC/Q/LL / debut / stand-in checked"
+        },
+        "3": {
+          "passed": false,
+          "message": "No H2H data — statistical inference only",
+          "label": "H2H ≥5 meetings checked"
+        },
+        "4": {
+          "passed": false,
+          "message": "NO injury/suspension data available",
+          "label": "Injuries/suspensions checked"
+        },
+        "5": {
+          "passed": false,
+          "message": "Only 1 source(s): ['db']",
+          "label": "≥2 independent sources"
+        },
+        "6": {
+          "passed": false,
+          "message": "TIPSTER-BLIND: no tipster source",
+          "label": "≥1 tipster argument READ"
+        },
+        "7": {
+          "passed": true,
+          "message": "upset_risk=0.65",
+          "label": "Upset risk scored"
+        },
+        "8": {
+          "passed": true,
+          "message": "STATS-FIRST: EV not calculable, user verifies manually",
+          "label": "EV > 0 calculated"
+        },
+        "9": {
+          "passed": true,
+          "message": "NO_ODDS: stats-first mode, drift not checkable",
+          "label": "Odds drift <8% verified"
+        },
+        "10": {
+          "passed": false,
+          "message": "FLAG: safety 0.32 < 0.40; FLAG: H2H-BLIND + safety 0.32 < 0.60",
+          "label": "Red flags checked"
+        },
+        "11": {
+          "passed": true,
+          "message": "",
+          "label": "Contrarian thinking done"
+        },
+        "12": {
+          "passed": false,
+          "message": "safety=0.32 (bear≥bull)",
+          "label": "Bear case < bull case"
+        },
+        "13": {
+          "passed": true,
+          "message": "",
+          "label": "Not anchored"
+        },
+        "14": {
+          "passed": true,
+          "message": "",
+          "label": "48h repeat check"
+        },
+        "15": {
+          "passed": false,
+          "message": "Only 1 markets (need ≥3)",
+          "label": "MULTI-MARKET: ≥3 alternative markets"
+        },
+        "16": {
+          "passed": false,
+          "message": "H2H-STAT-BLIND: no H2H for Dominican Republic Points O/U",
+          "label": "H2H STAT-SPECIFIC: H2H for exact stat exists"
+        },
+        "17": {
+          "passed": false,
+          "message": "THREE-WAY 1/2 CONFLICT → DOWNGRADE (H2H N/A)",
+          "label": "THREE-WAY ALIGNMENT: L10+H2H+L5 all support"
+        },
+        "18": {
+          "passed": true,
+          "message": "",
+          "label": "DATA QUALITY: both teams have stat data"
+        },
+        "19": {
+          "passed": true,
+          "message": "STATS-FIRST: no odds available, gap not checkable",
+          "label": "ODDS-SAFETY GAP: model vs market <25pp"
+        },
+        "20": {
+          "passed": false,
+          "message": "L5 DETERIORATING: L10=5/10 (50%) → L5=1/5 (20%). Recent form is 60% worse than L10.",
+          "label": "L5 TREND: recent form not deteriorating (L5≥60% of L10)"
+        },
+        "bucket": "extended_pool",
+        "extended_pool_reason": "INSUFFICIENT_MARKETS: 1/3 required; NO_VERIFIED_ODDS: active approval requires a real market price; TIPSTER_BLIND: zero tipster support without positive-EV override; COIN_FLIP: hit_rate=5/10 (≤50% = no edge)",
+        "comp_score": 3,
+        "advisory_tier": "FLAGGED"
+      },
+      "rejection_reasons": [],
+      "source": "gate_checker",
+      "bucket": "extended_pool",
+      "extended_pool_reason": "INSUFFICIENT_MARKETS: 1/3 required; NO_VERIFIED_ODDS: active approval requires a real market price; TIPSTER_BLIND: zero tipster support without positive-EV override; COIN_FLIP: hit_rate=5/10 (≤50% = no edge)"
+    },
+    {
+      "fixture_id": 227889,
+      "sport": "football",
+      "home_team": "Paraguari AC",
+      "away_team": "CA Tembetary Ypane",
+      "competition": "Paraguay - Segunda Division",
+      "kickoff": "2026-06-04T19:00:00+00:00",
+      "status": "EXTENDED",
+      "advisory_tier": "FLAGGED",
+      "gate_score": "11/20",
+      "best_market": {
+        "name": "Goals Total O/U",
+        "line": 2.5,
+        "direction": "UNDER",
+        "safety_score": 0.32,
+        "hit_rate_l10": "5/10",
+        "hit_rate_l5": "2/5",
+        "hit_rate_h2h": "N/A",
+        "source": "db",
+        "h2h_blind": true,
+        "rank": 1,
+        "margin": 1.0,
+        "team_a_avg": 1.3,
+        "team_b_avg": 1.2,
+        "combined_avg": 2.5,
+        "total_markets_evaluated": 1,
+        "l10_avg": 2.5,
+        "l5_avg": 2.8
+      },
+      "ev": null,
+      "risk_tier": "HR",
+      "gate_details": {
+        "1": {
+          "passed": true,
+          "message": "",
+          "label": "Identity verified (full name, no slashes)"
+        },
+        "2": {
+          "passed": true,
+          "message": "",
+          "label": "WC/Q/LL / debut / stand-in checked"
+        },
+        "3": {
+          "passed": false,
+          "message": "No H2H data — statistical inference only",
+          "label": "H2H ≥5 meetings checked"
+        },
+        "4": {
+          "passed": false,
+          "message": "NO injury/suspension data available",
+          "label": "Injuries/suspensions checked"
+        },
+        "5": {
+          "passed": false,
+          "message": "Only 1 source(s): ['db']",
+          "label": "≥2 independent sources"
+        },
+        "6": {
+          "passed": false,
+          "message": "TIPSTER-BLIND: no tipster source",
+          "label": "≥1 tipster argument READ"
+        },
+        "7": {
+          "passed": true,
+          "message": "upset_risk=0.65",
+          "label": "Upset risk scored"
+        },
+        "8": {
+          "passed": true,
+          "message": "STATS-FIRST: EV not calculable, user verifies manually",
+          "label": "EV > 0 calculated"
+        },
+        "9": {
+          "passed": true,
+          "message": "NO_ODDS: stats-first mode, drift not checkable",
+          "label": "Odds drift <8% verified"
+        },
+        "10": {
+          "passed": false,
+          "message": "FLAG: safety 0.32 < 0.40; FLAG: H2H-BLIND + safety 0.32 < 0.60",
+          "label": "Red flags checked"
+        },
+        "11": {
+          "passed": true,
+          "message": "",
+          "label": "Contrarian thinking done"
+        },
+        "12": {
+          "passed": false,
+          "message": "safety=0.32 (bear≥bull)",
+          "label": "Bear case < bull case"
+        },
+        "13": {
+          "passed": true,
+          "message": "",
+          "label": "Not anchored"
+        },
+        "14": {
+          "passed": true,
+          "message": "",
+          "label": "48h repeat check"
+        },
+        "15": {
+          "passed": false,
+          "message": "Only 1 markets (need ≥3)",
+          "label": "MULTI-MARKET: ≥3 alternative markets"
+        },
+        "16": {
+          "passed": false,
+          "message": "H2H-STAT-BLIND: no H2H for Goals Total O/U",
+          "label": "H2H STAT-SPECIFIC: H2H for exact stat exists"
+        },
+        "17": {
+          "passed": false,
+          "message": "THREE-WAY 1/2 CONFLICT → DOWNGRADE (H2H N/A)",
+          "label": "THREE-WAY ALIGNMENT: L10+H2H+L5 all support"
+        },
+        "18": {
+          "passed": true,
+          "message": "",
+          "label": "DATA QUALITY: both teams have stat data"
+        },
+        "19": {
+          "passed": true,
+          "message": "STATS-FIRST: no odds available, gap not checkable",
+          "label": "ODDS-SAFETY GAP: model vs market <25pp"
+        },
+        "20": {
+          "passed": true,
+          "message": "L5=2/5 (40%) vs L10=5/10 (50%) — stable",
+          "label": "L5 TREND: recent form not deteriorating (L5≥60% of L10)"
+        },
+        "bucket": "extended_pool",
+        "extended_pool_reason": "INSUFFICIENT_MARKETS: 1/3 required; NO_VERIFIED_ODDS: active approval requires a real market price; TIPSTER_BLIND: zero tipster support without positive-EV override; COIN_FLIP: hit_rate=5/10 (≤50% = no edge)",
+        "comp_score": 3,
+        "advisory_tier": "FLAGGED"
+      },
+      "rejection_reasons": [],
+      "source": "gate_checker",
+      "bucket": "extended_pool",
+      "extended_pool_reason": "INSUFFICIENT_MARKETS: 1/3 required; NO_VERIFIED_ODDS: active approval requires a real market price; TIPSTER_BLIND: zero tipster support without positive-EV override; COIN_FLIP: hit_rate=5/10 (≤50% = no edge)"
+    },
+    {
+      "fixture_id": 227945,
+      "sport": "basketball",
+      "home_team": "EC Pinheiros SP",
+      "away_team": "Sesi/Franca BC SP",
+      "competition": "Brazil - NBB",
+      "kickoff": "2026-06-04T20:00:00+00:00",
+      "status": "EXTENDED",
+      "advisory_tier": "FLAGGED",
+      "gate_score": "12/20",
+      "best_market": {
+        "name": "EC Pinheiros SP Assists O/U",
+        "line": 17.0,
+        "direction": "UNDER",
+        "safety_score": 0.28,
+        "hit_rate_l10": "3/10",
+        "hit_rate_l5": "2/5",
+        "hit_rate_h2h": "N/A",
+        "source": "db",
+        "h2h_blind": true,
+        "rank": 1,
+        "margin": 1.006,
+        "team_a_avg": 16.9,
+        "team_b_avg": 0.0,
+        "combined_avg": 16.9,
+        "total_markets_evaluated": 2,
+        "l10_avg": 16.9,
+        "l5_avg": 15.4
+      },
+      "ev": null,
+      "risk_tier": "N",
+      "gate_details": {
+        "1": {
+          "passed": false,
+          "message": "SLASH in away_team: Sesi/Franca BC SP",
+          "label": "Identity verified (full name, no slashes)"
+        },
+        "2": {
+          "passed": true,
+          "message": "",
+          "label": "WC/Q/LL / debut / stand-in checked"
+        },
+        "3": {
+          "passed": false,
+          "message": "No H2H data — statistical inference only",
+          "label": "H2H ≥5 meetings checked"
+        },
+        "4": {
+          "passed": false,
+          "message": "NO injury/suspension data available",
+          "label": "Injuries/suspensions checked"
+        },
+        "5": {
+          "passed": false,
+          "message": "Only 1 source(s): ['db']",
+          "label": "≥2 independent sources"
+        },
+        "6": {
+          "passed": true,
+          "message": "",
+          "label": "≥1 tipster argument READ"
+        },
+        "7": {
+          "passed": true,
+          "message": "upset_risk=0.45",
+          "label": "Upset risk scored"
+        },
+        "8": {
+          "passed": true,
+          "message": "STATS-FIRST: EV not calculable, user verifies manually",
+          "label": "EV > 0 calculated"
+        },
+        "9": {
+          "passed": true,
+          "message": "NO_ODDS: stats-first mode, drift not checkable",
+          "label": "Odds drift <8% verified"
+        },
+        "10": {
+          "passed": false,
+          "message": "FLAG: safety 0.28 < 0.40; FLAG: H2H-BLIND + safety 0.28 < 0.60",
+          "label": "Red flags checked"
+        },
+        "11": {
+          "passed": true,
+          "message": "",
+          "label": "Contrarian thinking done"
+        },
+        "12": {
+          "passed": false,
+          "message": "safety=0.28 (bear≥bull)",
+          "label": "Bear case < bull case"
+        },
+        "13": {
+          "passed": true,
+          "message": "",
+          "label": "Not anchored"
+        },
+        "14": {
+          "passed": true,
+          "message": "",
+          "label": "48h repeat check"
+        },
+        "15": {
+          "passed": false,
+          "message": "Only 2 markets (need ≥3)",
+          "label": "MULTI-MARKET: ≥3 alternative markets"
+        },
+        "16": {
+          "passed": false,
+          "message": "H2H-STAT-BLIND: no H2H for EC Pinheiros SP Assists O/U",
+          "label": "H2H STAT-SPECIFIC: H2H for exact stat exists"
+        },
+        "17": {
+          "passed": true,
+          "message": "THREE-WAY 2/2 SUPPORT (H2H N/A)",
+          "label": "THREE-WAY ALIGNMENT: L10+H2H+L5 all support"
+        },
+        "18": {
+          "passed": true,
+          "message": "",
+          "label": "DATA QUALITY: both teams have stat data"
+        },
+        "19": {
+          "passed": true,
+          "message": "STATS-FIRST: no odds available, gap not checkable",
+          "label": "ODDS-SAFETY GAP: model vs market <25pp"
+        },
+        "20": {
+          "passed": true,
+          "message": "L5=2/5 (40%) vs L10=3/10 (30%) — stable",
+          "label": "L5 TREND: recent form not deteriorating (L5≥60% of L10)"
+        },
+        "bucket": "extended_pool",
+        "extended_pool_reason": "INSUFFICIENT_MARKETS: 2/3 required; NO_VERIFIED_ODDS: active approval requires a real market price; COIN_FLIP: hit_rate=3/10 (≤50% = no edge)",
+        "comp_score": 3,
+        "advisory_tier": "FLAGGED"
+      },
+      "rejection_reasons": [],
+      "source": "gate_checker",
+      "bucket": "extended_pool",
+      "extended_pool_reason": "INSUFFICIENT_MARKETS: 2/3 required; NO_VERIFIED_ODDS: active approval requires a real market price; COIN_FLIP: hit_rate=3/10 (≤50% = no edge)",
+      "tipster_count": 1
+    },
+    {
+      "fixture_id": 227947,
+      "sport": "basketball",
+      "home_team": "Colonias Gold",
+      "away_team": "Deportivo San Jose",
+      "competition": "Paraguay - LNB",
+      "kickoff": "2026-06-04T22:30:00+00:00",
+      "status": "EXTENDED",
+      "advisory_tier": "FLAGGED",
+      "gate_score": "13/20",
+      "best_market": {
+        "name": "Colonias Gold Rebounds O/U",
+        "line": 44.0,
+        "direction": "UNDER",
+        "safety_score": 0.24,
+        "hit_rate_l10": "4/7",
+        "hit_rate_l5": "3/5",
+        "hit_rate_h2h": "N/A",
+        "source": "db",
+        "h2h_blind": true,
+        "rank": 1,
+        "margin": 1.003,
+        "team_a_avg": 43.86,
+        "team_b_avg": 0.0,
+        "combined_avg": 43.86,
+        "total_markets_evaluated": 3,
+        "l10_avg": 43.86,
+        "l5_avg": 42.8
+      },
+      "ev": null,
+      "risk_tier": "N",
+      "gate_details": {
+        "1": {
+          "passed": true,
+          "message": "",
+          "label": "Identity verified (full name, no slashes)"
+        },
+        "2": {
+          "passed": true,
+          "message": "",
+          "label": "WC/Q/LL / debut / stand-in checked"
+        },
+        "3": {
+          "passed": false,
+          "message": "H2H only 1 meetings (SPARSE, need ≥5)",
+          "label": "H2H ≥5 meetings checked"
+        },
+        "4": {
+          "passed": false,
+          "message": "NO injury/suspension data available",
+          "label": "Injuries/suspensions checked"
+        },
+        "5": {
+          "passed": false,
+          "message": "Only 1 source(s): ['db']",
+          "label": "≥2 independent sources"
+        },
+        "6": {
+          "passed": false,
+          "message": "TIPSTER-BLIND: no tipster source",
+          "label": "≥1 tipster argument READ"
+        },
+        "7": {
+          "passed": true,
+          "message": "upset_risk=0.45",
+          "label": "Upset risk scored"
+        },
+        "8": {
+          "passed": true,
+          "message": "STATS-FIRST: EV not calculable, user verifies manually",
+          "label": "EV > 0 calculated"
+        },
+        "9": {
+          "passed": true,
+          "message": "NO_ODDS: stats-first mode, drift not checkable",
+          "label": "Odds drift <8% verified"
+        },
+        "10": {
+          "passed": false,
+          "message": "FLAG: safety 0.24 < 0.40; FLAG: H2H-BLIND + safety 0.24 < 0.60",
+          "label": "Red flags checked"
+        },
+        "11": {
+          "passed": true,
+          "message": "",
+          "label": "Contrarian thinking done"
+        },
+        "12": {
+          "passed": false,
+          "message": "safety=0.24 (bear≥bull)",
+          "label": "Bear case < bull case"
+        },
+        "13": {
+          "passed": true,
+          "message": "",
+          "label": "Not anchored"
+        },
+        "14": {
+          "passed": true,
+          "message": "",
+          "label": "48h repeat check"
+        },
+        "15": {
+          "passed": true,
+          "message": "3 markets evaluated",
+          "label": "MULTI-MARKET: ≥3 alternative markets"
+        },
+        "16": {
+          "passed": false,
+          "message": "H2H-STAT-BLIND: no H2H for Colonias Gold Rebounds O/U",
+          "label": "H2H STAT-SPECIFIC: H2H for exact stat exists"
+        },
+        "17": {
+          "passed": true,
+          "message": "THREE-WAY 2/2 SUPPORT (H2H N/A)",
+          "label": "THREE-WAY ALIGNMENT: L10+H2H+L5 all support"
+        },
+        "18": {
+          "passed": true,
+          "message": "",
+          "label": "DATA QUALITY: both teams have stat data"
+        },
+        "19": {
+          "passed": true,
+          "message": "STATS-FIRST: no odds available, gap not checkable",
+          "label": "ODDS-SAFETY GAP: model vs market <25pp"
+        },
+        "20": {
+          "passed": true,
+          "message": "L5=3/5 (60%) vs L10=4/7 (57%) — stable",
+          "label": "L5 TREND: recent form not deteriorating (L5≥60% of L10)"
+        },
+        "bucket": "extended_pool",
+        "extended_pool_reason": "NO_VERIFIED_ODDS: active approval requires a real market price; TIPSTER_BLIND: zero tipster support without positive-EV override",
+        "comp_score": 3,
+        "advisory_tier": "FLAGGED"
+      },
+      "rejection_reasons": [],
+      "source": "gate_checker",
+      "bucket": "extended_pool",
+      "extended_pool_reason": "NO_VERIFIED_ODDS: active approval requires a real market price; TIPSTER_BLIND: zero tipster support without positive-EV override"
+    },
+    {
+      "fixture_id": 227913,
+      "sport": "volleyball",
+      "home_team": "Turkiye",
+      "away_team": "Netherlands",
+      "competition": "International - Nations League, Women",
+      "kickoff": "2026-06-04T19:30:00+00:00",
+      "status": "EXTENDED",
+      "advisory_tier": "FLAGGED",
+      "gate_score": "11/20",
+      "best_market": {
+        "name": "",
+        "line": null,
+        "direction": "",
+        "safety_score": 0.0,
+        "total_markets_evaluated": 0
+      },
+      "ev": null,
+      "risk_tier": "HR",
+      "gate_details": {
+        "1": {
+          "passed": true,
+          "message": "",
+          "label": "Identity verified (full name, no slashes)"
+        },
+        "2": {
+          "passed": true,
+          "message": "",
+          "label": "WC/Q/LL / debut / stand-in checked"
+        },
+        "3": {
+          "passed": false,
+          "message": "No H2H data — statistical inference only",
+          "label": "H2H ≥5 meetings checked"
+        },
+        "4": {
+          "passed": false,
+          "message": "NO injury/suspension data available",
+          "label": "Injuries/suspensions checked"
+        },
+        "5": {
+          "passed": false,
+          "message": "Only 0 source(s): []",
+          "label": "≥2 independent sources"
+        },
+        "6": {
+          "passed": false,
+          "message": "TIPSTER-BLIND: no tipster source",
+          "label": "≥1 tipster argument READ"
+        },
+        "7": {
+          "passed": true,
+          "message": "upset_risk=0.45",
+          "label": "Upset risk scored"
+        },
+        "8": {
+          "passed": true,
+          "message": "STATS-FIRST: EV not calculable, user verifies manually",
+          "label": "EV > 0 calculated"
+        },
+        "9": {
+          "passed": true,
+          "message": "NO_ODDS: stats-first mode, drift not checkable",
+          "label": "Odds drift <8% verified"
+        },
+        "10": {
+          "passed": false,
+          "message": "FLAG: safety 0.00 < 0.40; FLAG: H2H-BLIND + safety 0.00 < 0.60",
+          "label": "Red flags checked"
+        },
+        "11": {
+          "passed": true,
+          "message": "",
+          "label": "Contrarian thinking done"
+        },
+        "12": {
+          "passed": false,
+          "message": "safety=0.00 (bear≥bull)",
+          "label": "Bear case < bull case"
+        },
+        "13": {
+          "passed": true,
+          "message": "",
+          "label": "Not anchored"
+        },
+        "14": {
+          "passed": true,
+          "message": "",
+          "label": "48h repeat check"
+        },
+        "15": {
+          "passed": false,
+          "message": "Only 0 markets (need ≥3)",
+          "label": "MULTI-MARKET: ≥3 alternative markets"
+        },
+        "16": {
+          "passed": false,
+          "message": "H2H-STAT-BLIND: no H2H for ",
+          "label": "H2H STAT-SPECIFIC: H2H for exact stat exists"
+        },
+        "17": {
+          "passed": false,
+          "message": "THREE-WAY not checked",
+          "label": "THREE-WAY ALIGNMENT: L10+H2H+L5 all support"
+        },
+        "18": {
+          "passed": true,
+          "message": "",
+          "label": "DATA QUALITY: both teams have stat data"
+        },
+        "19": {
+          "passed": true,
+          "message": "STATS-FIRST: no odds available, gap not checkable",
+          "label": "ODDS-SAFETY GAP: model vs market <25pp"
+        },
+        "20": {
+          "passed": true,
+          "message": "L10 unavailable — skipped",
+          "label": "L5 TREND: recent form not deteriorating (L5≥60% of L10)"
+        },
+        "bucket": "extended_pool",
+        "extended_pool_reason": "Minimal data — only basic stats available. Extended Pool only.",
+        "comp_score": 3,
+        "advisory_tier": "FLAGGED"
+      },
+      "rejection_reasons": [],
+      "source": "gate_checker",
+      "bucket": "extended_pool",
+      "extended_pool_reason": "Minimal data — only basic stats available. Extended Pool only."
+    },
+    {
+      "fixture_id": 227914,
+      "sport": "volleyball",
+      "home_team": "Ukraine",
+      "away_team": "Germany",
+      "competition": "International - Nations League, Women",
+      "kickoff": "2026-06-04T20:30:00+00:00",
+      "status": "EXTENDED",
+      "advisory_tier": "FLAGGED",
+      "gate_score": "11/20",
+      "best_market": {
+        "name": "",
+        "line": null,
+        "direction": "",
+        "safety_score": 0.0,
+        "total_markets_evaluated": 0
+      },
+      "ev": null,
+      "risk_tier": "N",
+      "gate_details": {
+        "1": {
+          "passed": true,
+          "message": "",
+          "label": "Identity verified (full name, no slashes)"
+        },
+        "2": {
+          "passed": true,
+          "message": "",
+          "label": "WC/Q/LL / debut / stand-in checked"
+        },
+        "3": {
+          "passed": false,
+          "message": "No H2H data — statistical inference only",
+          "label": "H2H ≥5 meetings checked"
+        },
+        "4": {
+          "passed": false,
+          "message": "NO injury/suspension data available",
+          "label": "Injuries/suspensions checked"
+        },
+        "5": {
+          "passed": false,
+          "message": "Only 0 source(s): []",
+          "label": "≥2 independent sources"
+        },
+        "6": {
+          "passed": false,
+          "message": "TIPSTER-BLIND: no tipster source",
+          "label": "≥1 tipster argument READ"
+        },
+        "7": {
+          "passed": true,
+          "message": "upset_risk=0.45",
+          "label": "Upset risk scored"
+        },
+        "8": {
+          "passed": true,
+          "message": "STATS-FIRST: EV not calculable, user verifies manually",
+          "label": "EV > 0 calculated"
+        },
+        "9": {
+          "passed": true,
+          "message": "NO_ODDS: stats-first mode, drift not checkable",
+          "label": "Odds drift <8% verified"
+        },
+        "10": {
+          "passed": false,
+          "message": "FLAG: safety 0.00 < 0.40; FLAG: H2H-BLIND + safety 0.00 < 0.60",
+          "label": "Red flags checked"
+        },
+        "11": {
+          "passed": true,
+          "message": "",
+          "label": "Contrarian thinking done"
+        },
+        "12": {
+          "passed": false,
+          "message": "safety=0.00 (bear≥bull)",
+          "label": "Bear case < bull case"
+        },
+        "13": {
+          "passed": true,
+          "message": "",
+          "label": "Not anchored"
+        },
+        "14": {
+          "passed": true,
+          "message": "",
+          "label": "48h repeat check"
+        },
+        "15": {
+          "passed": false,
+          "message": "Only 0 markets (need ≥3)",
+          "label": "MULTI-MARKET: ≥3 alternative markets"
+        },
+        "16": {
+          "passed": false,
+          "message": "H2H-STAT-BLIND: no H2H for ",
+          "label": "H2H STAT-SPECIFIC: H2H for exact stat exists"
+        },
+        "17": {
+          "passed": false,
+          "message": "THREE-WAY not checked",
+          "label": "THREE-WAY ALIGNMENT: L10+H2H+L5 all support"
+        },
+        "18": {
+          "passed": true,
+          "message": "",
+          "label": "DATA QUALITY: both teams have stat data"
+        },
+        "19": {
+          "passed": true,
+          "message": "STATS-FIRST: no odds available, gap not checkable",
+          "label": "ODDS-SAFETY GAP: model vs market <25pp"
+        },
+        "20": {
+          "passed": true,
+          "message": "L10 unavailable — skipped",
+          "label": "L5 TREND: recent form not deteriorating (L5≥60% of L10)"
+        },
+        "bucket": "extended_pool",
+        "extended_pool_reason": "Minimal data — only basic stats available. Extended Pool only.",
+        "comp_score": 3,
+        "advisory_tier": "FLAGGED"
+      },
+      "rejection_reasons": [],
+      "source": "gate_checker",
+      "bucket": "extended_pool",
+      "extended_pool_reason": "Minimal data — only basic stats available. Extended Pool only."
+    },
+    {
+      "fixture_id": 227946,
+      "sport": "basketball",
+      "home_team": "USA",
+      "away_team": "Brazil",
+      "competition": "International - U18 FIBA Americup",
+      "kickoff": "2026-06-04T21:00:00+00:00",
+      "status": "EXTENDED",
+      "advisory_tier": "FLAGGED",
+      "gate_score": "11/20",
+      "best_market": {
+        "name": "",
+        "line": null,
+        "direction": "",
+        "safety_score": 0.0,
+        "total_markets_evaluated": 0
+      },
+      "ev": null,
+      "risk_tier": "N",
+      "gate_details": {
+        "1": {
+          "passed": true,
+          "message": "",
+          "label": "Identity verified (full name, no slashes)"
+        },
+        "2": {
+          "passed": true,
+          "message": "",
+          "label": "WC/Q/LL / debut / stand-in checked"
+        },
+        "3": {
+          "passed": false,
+          "message": "No H2H data — statistical inference only",
+          "label": "H2H ≥5 meetings checked"
+        },
+        "4": {
+          "passed": false,
+          "message": "NO injury/suspension data available",
+          "label": "Injuries/suspensions checked"
+        },
+        "5": {
+          "passed": false,
+          "message": "Only 1 source(s): ['db']",
+          "label": "≥2 independent sources"
+        },
+        "6": {
+          "passed": false,
+          "message": "TIPSTER-BLIND: no tipster source",
+          "label": "≥1 tipster argument READ"
+        },
+        "7": {
+          "passed": true,
+          "message": "upset_risk=0.45",
+          "label": "Upset risk scored"
+        },
+        "8": {
+          "passed": true,
+          "message": "STATS-FIRST: EV not calculable, user verifies manually",
+          "label": "EV > 0 calculated"
+        },
+        "9": {
+          "passed": true,
+          "message": "NO_ODDS: stats-first mode, drift not checkable",
+          "label": "Odds drift <8% verified"
+        },
+        "10": {
+          "passed": false,
+          "message": "FLAG: safety 0.00 < 0.40; FLAG: H2H-BLIND + safety 0.00 < 0.60",
+          "label": "Red flags checked"
+        },
+        "11": {
+          "passed": true,
+          "message": "",
+          "label": "Contrarian thinking done"
+        },
+        "12": {
+          "passed": false,
+          "message": "safety=0.00 (bear≥bull)",
+          "label": "Bear case < bull case"
+        },
+        "13": {
+          "passed": true,
+          "message": "",
+          "label": "Not anchored"
+        },
+        "14": {
+          "passed": true,
+          "message": "",
+          "label": "48h repeat check"
+        },
+        "15": {
+          "passed": false,
+          "message": "Only 0 markets (need ≥3)",
+          "label": "MULTI-MARKET: ≥3 alternative markets"
+        },
+        "16": {
+          "passed": false,
+          "message": "H2H-STAT-BLIND: no H2H for ",
+          "label": "H2H STAT-SPECIFIC: H2H for exact stat exists"
+        },
+        "17": {
+          "passed": false,
+          "message": "THREE-WAY not checked",
+          "label": "THREE-WAY ALIGNMENT: L10+H2H+L5 all support"
+        },
+        "18": {
+          "passed": true,
+          "message": "",
+          "label": "DATA QUALITY: both teams have stat data"
+        },
+        "19": {
+          "passed": true,
+          "message": "STATS-FIRST: no odds available, gap not checkable",
+          "label": "ODDS-SAFETY GAP: model vs market <25pp"
+        },
+        "20": {
+          "passed": true,
+          "message": "L10 unavailable — skipped",
+          "label": "L5 TREND: recent form not deteriorating (L5≥60% of L10)"
+        },
+        "bucket": "extended_pool",
+        "extended_pool_reason": "Minimal data — only basic stats available. Extended Pool only.",
+        "comp_score": 3,
+        "advisory_tier": "FLAGGED"
+      },
+      "rejection_reasons": [],
+      "source": "gate_checker",
+      "bucket": "extended_pool",
+      "extended_pool_reason": "Minimal data — only basic stats available. Extended Pool only."
+    },
+    {
+      "fixture_id": 227895,
+      "sport": "football",
+      "home_team": "Vinotinto FC Ecuador",
+      "away_team": "Cumbaya FC",
+      "competition": "Ecuador - Serie B",
+      "kickoff": "2026-06-04T20:30:00+00:00",
+      "status": "EXTENDED",
+      "advisory_tier": "FLAGGED",
+      "gate_score": "11/20",
+      "best_market": {
+        "name": "",
+        "line": null,
+        "direction": "",
+        "safety_score": 0.0,
+        "total_markets_evaluated": 0
+      },
+      "ev": null,
+      "risk_tier": "N",
+      "gate_details": {
+        "1": {
+          "passed": true,
+          "message": "",
+          "label": "Identity verified (full name, no slashes)"
+        },
+        "2": {
+          "passed": true,
+          "message": "",
+          "label": "WC/Q/LL / debut / stand-in checked"
+        },
+        "3": {
+          "passed": false,
+          "message": "No H2H data — statistical inference only",
+          "label": "H2H ≥5 meetings checked"
+        },
+        "4": {
+          "passed": false,
+          "message": "NO injury/suspension data available",
+          "label": "Injuries/suspensions checked"
+        },
+        "5": {
+          "passed": false,
+          "message": "Only 1 source(s): ['db']",
+          "label": "≥2 independent sources"
+        },
+        "6": {
+          "passed": false,
+          "message": "TIPSTER-BLIND: no tipster source",
+          "label": "≥1 tipster argument READ"
+        },
+        "7": {
+          "passed": true,
+          "message": "upset_risk=0.45",
+          "label": "Upset risk scored"
+        },
+        "8": {
+          "passed": true,
+          "message": "STATS-FIRST: EV not calculable, user verifies manually",
+          "label": "EV > 0 calculated"
+        },
+        "9": {
+          "passed": true,
+          "message": "NO_ODDS: stats-first mode, drift not checkable",
+          "label": "Odds drift <8% verified"
+        },
+        "10": {
+          "passed": false,
+          "message": "FLAG: safety 0.00 < 0.40; FLAG: H2H-BLIND + safety 0.00 < 0.60",
+          "label": "Red flags checked"
+        },
+        "11": {
+          "passed": true,
+          "message": "",
+          "label": "Contrarian thinking done"
+        },
+        "12": {
+          "passed": false,
+          "message": "safety=0.00 (bear≥bull)",
+          "label": "Bear case < bull case"
+        },
+        "13": {
+          "passed": true,
+          "message": "",
+          "label": "Not anchored"
+        },
+        "14": {
+          "passed": true,
+          "message": "",
+          "label": "48h repeat check"
+        },
+        "15": {
+          "passed": false,
+          "message": "Only 0 markets (need ≥3)",
+          "label": "MULTI-MARKET: ≥3 alternative markets"
+        },
+        "16": {
+          "passed": false,
+          "message": "H2H-STAT-BLIND: no H2H for ",
+          "label": "H2H STAT-SPECIFIC: H2H for exact stat exists"
+        },
+        "17": {
+          "passed": false,
+          "message": "THREE-WAY not checked",
+          "label": "THREE-WAY ALIGNMENT: L10+H2H+L5 all support"
+        },
+        "18": {
+          "passed": true,
+          "message": "",
+          "label": "DATA QUALITY: both teams have stat data"
+        },
+        "19": {
+          "passed": true,
+          "message": "STATS-FIRST: no odds available, gap not checkable",
+          "label": "ODDS-SAFETY GAP: model vs market <25pp"
+        },
+        "20": {
+          "passed": true,
+          "message": "L10 unavailable — skipped",
+          "label": "L5 TREND: recent form not deteriorating (L5≥60% of L10)"
+        },
+        "bucket": "extended_pool",
+        "extended_pool_reason": "Minimal data — only basic stats available. Extended Pool only.",
+        "comp_score": 3,
+        "advisory_tier": "FLAGGED"
+      },
+      "rejection_reasons": [],
+      "source": "gate_checker",
+      "bucket": "extended_pool",
+      "extended_pool_reason": "Minimal data — only basic stats available. Extended Pool only."
+    },
+    {
+      "fixture_id": 227784,
+      "sport": "football",
+      "home_team": "Cuniburo",
+      "away_team": "Cumbayá",
+      "competition": "Liga Pro Serie B",
+      "kickoff": "2026-06-04T20:30:00+00:00",
+      "status": "EXTENDED",
+      "advisory_tier": "FLAGGED",
+      "gate_score": "11/20",
+      "best_market": {
+        "name": "",
+        "line": null,
+        "direction": "",
+        "safety_score": 0.0,
+        "total_markets_evaluated": 0
+      },
+      "ev": null,
+      "risk_tier": "N",
+      "gate_details": {
+        "1": {
+          "passed": true,
+          "message": "",
+          "label": "Identity verified (full name, no slashes)"
+        },
+        "2": {
+          "passed": true,
+          "message": "",
+          "label": "WC/Q/LL / debut / stand-in checked"
+        },
+        "3": {
+          "passed": false,
+          "message": "No H2H data — statistical inference only",
+          "label": "H2H ≥5 meetings checked"
+        },
+        "4": {
+          "passed": false,
+          "message": "NO injury/suspension data available",
+          "label": "Injuries/suspensions checked"
+        },
+        "5": {
+          "passed": false,
+          "message": "Only 1 source(s): ['db']",
+          "label": "≥2 independent sources"
+        },
+        "6": {
+          "passed": false,
+          "message": "TIPSTER-BLIND: no tipster source",
+          "label": "≥1 tipster argument READ"
+        },
+        "7": {
+          "passed": true,
+          "message": "upset_risk=0.45",
+          "label": "Upset risk scored"
+        },
+        "8": {
+          "passed": true,
+          "message": "STATS-FIRST: EV not calculable, user verifies manually",
+          "label": "EV > 0 calculated"
+        },
+        "9": {
+          "passed": true,
+          "message": "NO_ODDS: stats-first mode, drift not checkable",
+          "label": "Odds drift <8% verified"
+        },
+        "10": {
+          "passed": false,
+          "message": "FLAG: safety 0.00 < 0.40; FLAG: H2H-BLIND + safety 0.00 < 0.60",
+          "label": "Red flags checked"
+        },
+        "11": {
+          "passed": true,
+          "message": "",
+          "label": "Contrarian thinking done"
+        },
+        "12": {
+          "passed": false,
+          "message": "safety=0.00 (bear≥bull)",
+          "label": "Bear case < bull case"
+        },
+        "13": {
+          "passed": true,
+          "message": "",
+          "label": "Not anchored"
+        },
+        "14": {
+          "passed": true,
+          "message": "",
+          "label": "48h repeat check"
+        },
+        "15": {
+          "passed": false,
+          "message": "Only 0 markets (need ≥3)",
+          "label": "MULTI-MARKET: ≥3 alternative markets"
+        },
+        "16": {
+          "passed": false,
+          "message": "H2H-STAT-BLIND: no H2H for ",
+          "label": "H2H STAT-SPECIFIC: H2H for exact stat exists"
+        },
+        "17": {
+          "passed": false,
+          "message": "THREE-WAY not checked",
+          "label": "THREE-WAY ALIGNMENT: L10+H2H+L5 all support"
+        },
+        "18": {
+          "passed": true,
+          "message": "",
+          "label": "DATA QUALITY: both teams have stat data"
+        },
+        "19": {
+          "passed": true,
+          "message": "STATS-FIRST: no odds available, gap not checkable",
+          "label": "ODDS-SAFETY GAP: model vs market <25pp"
+        },
+        "20": {
+          "passed": true,
+          "message": "L10 unavailable — skipped",
+          "label": "L5 TREND: recent form not deteriorating (L5≥60% of L10)"
+        },
+        "bucket": "extended_pool",
+        "extended_pool_reason": "Minimal data — only basic stats available. Extended Pool only.",
+        "comp_score": 3,
+        "advisory_tier": "FLAGGED"
+      },
+      "rejection_reasons": [],
+      "source": "gate_checker",
+      "bucket": "extended_pool",
+      "extended_pool_reason": "Minimal data — only basic stats available. Extended Pool only."
+    }
+  ],
+  "rejected": [
+    {
+      "fixture_id": 227657,
+      "sport": "tennis",
+      "home_team": "Marta Kostyuk",
+      "away_team": "Mirra Andreeva",
+      "competition": "",
+      "kickoff": "2026-06-04T13:00:00Z",
+      "status": "REJECTED",
+      "advisory_tier": null,
+      "gate_score": "14/20",
+      "best_market": {
+        "name": "Marta Kostyuk Games O/U",
+        "line": 8.5,
+        "direction": "OVER",
+        "safety_score": 0.52,
+        "hit_rate_l10": "6/8",
+        "hit_rate_l5": "3/4",
+        "hit_rate_h2h": "N/A",
+        "source": "db",
+        "h2h_blind": true,
+        "rank": 1,
+        "margin": 1.147,
+        "team_a_avg": 8.6,
+        "team_b_avg": 0.0,
+        "combined_avg": 9.75,
+        "opponent_blocker": false,
+        "total_markets_evaluated": 9,
+        "l10_avg": 9.75,
+        "l5_avg": 10.0
+      },
+      "ev": -0.0269,
+      "risk_tier": "HR",
+      "gate_details": {
+        "1": {
+          "passed": true,
+          "message": "",
+          "label": "Identity verified (full name, no slashes)"
+        },
+        "2": {
+          "passed": true,
+          "message": "",
+          "label": "WC/Q/LL / debut / stand-in checked"
+        },
+        "3": {
+          "passed": false,
+          "message": "H2H only 2 meetings (SPARSE, need ≥5)",
+          "label": "H2H ≥5 meetings checked"
+        },
+        "4": {
+          "passed": false,
+          "message": "NO injury/suspension data available",
+          "label": "Injuries/suspensions checked"
+        },
+        "5": {
+          "passed": false,
+          "message": "Only 1 source(s): ['db']",
+          "label": "≥2 independent sources"
+        },
+        "6": {
+          "passed": true,
+          "message": "",
+          "label": "≥1 tipster argument READ"
+        },
+        "7": {
+          "passed": true,
+          "message": "upset_risk=0.35",
+          "label": "Upset risk scored"
+        },
+        "8": {
+          "passed": false,
+          "message": "EV=-0.027 (≤0)",
+          "label": "EV > 0 calculated"
+        },
+        "9": {
+          "passed": true,
+          "message": "Drift not checkable (missing opening/current)",
+          "label": "Odds drift <8% verified"
+        },
+        "10": {
+          "passed": false,
+          "message": "FLAG ZT#3-EXT: Over marta kostyuk games o/u with H2H-BLIND + single source (['db']) — thin evidence for sets/games direction; FLAG: H2H-BLIND + safety 0.52 < 0.60",
+          "label": "Red flags checked"
+        },
+        "11": {
+          "passed": true,
+          "message": "",
+          "label": "Contrarian thinking done"
+        },
+        "12": {
+          "passed": true,
+          "message": "safety=0.52 (bull>bear)",
+          "label": "Bear case < bull case"
+        },
+        "13": {
+          "passed": true,
+          "message": "",
+          "label": "Not anchored"
+        },
+        "14": {
+          "passed": true,
+          "message": "",
+          "label": "48h repeat check"
+        },
+        "15": {
+          "passed": true,
+          "message": "9 markets evaluated",
+          "label": "MULTI-MARKET: ≥3 alternative markets"
+        },
+        "16": {
+          "passed": false,
+          "message": "H2H-STAT-BLIND: no H2H for Marta Kostyuk Games O/U",
+          "label": "H2H STAT-SPECIFIC: H2H for exact stat exists"
+        },
+        "17": {
+          "passed": true,
+          "message": "THREE-WAY 2/2 SUPPORT (H2H N/A)",
+          "label": "THREE-WAY ALIGNMENT: L10+H2H+L5 all support"
+        },
+        "18": {
+          "passed": true,
+          "message": "",
+          "label": "DATA QUALITY: both teams have stat data"
+        },
+        "19": {
+          "passed": true,
+          "message": "gap=5.1% (within 15% threshold)",
+          "label": "ODDS-SAFETY GAP: model vs market <25pp"
+        },
+        "20": {
+          "passed": true,
+          "message": "L5=3/4 (75%) vs L10=6/8 (75%) — stable",
+          "label": "L5 TREND: recent form not deteriorating (L5≥60% of L10)"
+        },
+        "bucket": "rejected",
+        "rejection_reason": "NEGATIVE_EV: EV=-0.027 — calculated negative expected value",
+        "comp_score": 3
+      },
+      "rejection_reasons": [
+        "NEGATIVE_EV: EV=-0.027 — calculated negative expected value"
+      ],
+      "source": "gate_checker",
+      "bucket": "rejected",
+      "rejection_reason": "NEGATIVE_EV: EV=-0.027 — calculated negative expected value",
+      "odds": {
+        "market_best": 2.13,
+        "betclic": 2.13
+      },
+      "tipster_count": 1
+    },
+    {
+      "fixture_id": 223905,
+      "sport": "basketball",
+      "home_team": "San Antonio Spurs",
+      "away_team": "New York Knicks",
+      "competition": "",
+      "kickoff": "2026-06-04T00:40:00Z",
+      "status": "REJECTED",
+      "advisory_tier": null,
+      "gate_score": "12/20",
+      "best_market": {
+        "name": "New York Knicks Assists O/U",
+        "line": 20.0,
+        "direction": "OVER",
+        "safety_score": 0.42,
+        "hit_rate_l10": "6/10",
+        "hit_rate_l5": "3/5",
+        "hit_rate_h2h": "N/A",
+        "source": "db",
+        "h2h_blind": true,
+        "rank": 1,
+        "margin": 1.005,
+        "team_a_avg": 0.0,
+        "team_b_avg": 20.1,
+        "combined_avg": 20.1,
+        "opponent_blocker": false,
+        "total_markets_evaluated": 11,
+        "l10_avg": 20.1,
+        "l5_avg": 19.4
+      },
+      "ev": -0.2228,
+      "risk_tier": "HR",
+      "gate_details": {
+        "1": {
+          "passed": true,
+          "message": "",
+          "label": "Identity verified (full name, no slashes)"
+        },
+        "2": {
+          "passed": true,
+          "message": "",
+          "label": "WC/Q/LL / debut / stand-in checked"
+        },
+        "3": {
+          "passed": false,
+          "message": "H2H only 1 meetings (SPARSE, need ≥5)",
+          "label": "H2H ≥5 meetings checked"
+        },
+        "4": {
+          "passed": false,
+          "message": "NO injury/suspension data available",
+          "label": "Injuries/suspensions checked"
+        },
+        "5": {
+          "passed": false,
+          "message": "Only 1 source(s): ['db']",
+          "label": "≥2 independent sources"
+        },
+        "6": {
+          "passed": true,
+          "message": "",
+          "label": "≥1 tipster argument READ"
+        },
+        "7": {
+          "passed": true,
+          "message": "upset_risk=0.95",
+          "label": "Upset risk scored"
+        },
+        "8": {
+          "passed": false,
+          "message": "EV=-0.223 (≤0)",
+          "label": "EV > 0 calculated"
+        },
+        "9": {
+          "passed": true,
+          "message": "Drift not checkable (missing opening/current)",
+          "label": "Odds drift <8% verified"
+        },
+        "10": {
+          "passed": false,
+          "message": "FLAG: H2H-BLIND + safety 0.42 < 0.60",
+          "label": "Red flags checked"
+        },
+        "11": {
+          "passed": true,
+          "message": "",
+          "label": "Contrarian thinking done"
+        },
+        "12": {
+          "passed": false,
+          "message": "safety=0.42 (bear≥bull)",
+          "label": "Bear case < bull case"
+        },
+        "13": {
+          "passed": true,
+          "message": "",
+          "label": "Not anchored"
+        },
+        "14": {
+          "passed": true,
+          "message": "",
+          "label": "48h repeat check"
+        },
+        "15": {
+          "passed": true,
+          "message": "11 markets evaluated",
+          "label": "MULTI-MARKET: ≥3 alternative markets"
+        },
+        "16": {
+          "passed": false,
+          "message": "H2H-STAT-BLIND: no H2H for New York Knicks Assists O/U",
+          "label": "H2H STAT-SPECIFIC: H2H for exact stat exists"
+        },
+        "17": {
+          "passed": false,
+          "message": "THREE-WAY 1/2 CONFLICT → DOWNGRADE (H2H N/A)",
+          "label": "THREE-WAY ALIGNMENT: L10+H2H+L5 all support"
+        },
+        "18": {
+          "passed": true,
+          "message": "",
+          "label": "DATA QUALITY: both teams have stat data"
+        },
+        "19": {
+          "passed": true,
+          "message": "gap=3.8% (within 15% threshold)",
+          "label": "ODDS-SAFETY GAP: model vs market <25pp"
+        },
+        "20": {
+          "passed": true,
+          "message": "L5=3/5 (60%) vs L10=6/10 (60%) — stable",
+          "label": "L5 TREND: recent form not deteriorating (L5≥60% of L10)"
+        },
+        "bucket": "rejected",
+        "rejection_reason": "NEGATIVE_EV: EV=-0.223 — calculated negative expected value",
+        "comp_score": 3
+      },
+      "rejection_reasons": [
+        "NEGATIVE_EV: EV=-0.223 — calculated negative expected value"
+      ],
+      "source": "gate_checker",
+      "bucket": "rejected",
+      "rejection_reason": "NEGATIVE_EV: EV=-0.223 — calculated negative expected value",
+      "odds": {
+        "market_best": 2.62,
+        "betclic": 2.62
+      },
+      "tipster_count": 1
+    },
+    {
+      "fixture_id": 228031,
+      "sport": "tennis",
+      "home_team": "Radivojevic, Lola",
+      "away_team": "Ristic, Mia",
+      "competition": "WTA 125K - WTA 125K Makarska, Croatia Women Singles",
+      "kickoff": "2026-06-04T09:00:00+00:00",
+      "status": "REJECTED",
+      "advisory_tier": null,
+      "gate_score": "12/20",
+      "best_market": {
+        "name": "Ristic, Mia Games O/U",
+        "line": 12.0,
+        "direction": "OVER",
+        "safety_score": 0.42,
+        "hit_rate_l10": "4/9",
+        "hit_rate_l5": "2/4",
+        "hit_rate_h2h": "N/A",
+        "source": "db",
+        "h2h_blind": true,
+        "rank": 1,
+        "margin": 1.093,
+        "team_a_avg": 0.0,
+        "team_b_avg": 11.9,
+        "combined_avg": 13.11,
+        "opponent_blocker": false,
+        "total_markets_evaluated": 4,
+        "l10_avg": 13.11,
+        "l5_avg": 13.75
+      },
+      "ev": -0.289,
+      "risk_tier": "HR",
+      "gate_details": {
+        "1": {
+          "passed": true,
+          "message": "",
+          "label": "Identity verified (full name, no slashes)"
+        },
+        "2": {
+          "passed": true,
+          "message": "",
+          "label": "WC/Q/LL / debut / stand-in checked"
+        },
+        "3": {
+          "passed": false,
+          "message": "H2H only 1 meetings (SPARSE, need ≥5)",
+          "label": "H2H ≥5 meetings checked"
+        },
+        "4": {
+          "passed": false,
+          "message": "NO injury/suspension data available",
+          "label": "Injuries/suspensions checked"
+        },
+        "5": {
+          "passed": false,
+          "message": "Only 1 source(s): ['db']",
+          "label": "≥2 independent sources"
+        },
+        "6": {
+          "passed": false,
+          "message": "TIPSTER-BLIND: no tipster source",
+          "label": "≥1 tipster argument READ"
+        },
+        "7": {
+          "passed": true,
+          "message": "upset_risk=0.75",
+          "label": "Upset risk scored"
+        },
+        "8": {
+          "passed": false,
+          "message": "EV=-0.289 (≤0)",
+          "label": "EV > 0 calculated"
+        },
+        "9": {
+          "passed": true,
+          "message": "Drift not checkable (missing opening/current)",
+          "label": "Odds drift <8% verified"
+        },
+        "10": {
+          "passed": false,
+          "message": "FLAG ZT#3-EXT: Over ristic, mia games o/u with H2H-BLIND + single source (['db']) — thin evidence for sets/games direction; FLAG: H2H-BLIND + safety 0.42 < 0.60",
+          "label": "Red flags checked"
+        },
+        "11": {
+          "passed": true,
+          "message": "",
+          "label": "Contrarian thinking done"
+        },
+        "12": {
+          "passed": false,
+          "message": "safety=0.42 (bear≥bull)",
+          "label": "Bear case < bull case"
+        },
+        "13": {
+          "passed": true,
+          "message": "",
+          "label": "Not anchored"
+        },
+        "14": {
+          "passed": true,
+          "message": "",
+          "label": "48h repeat check"
+        },
+        "15": {
+          "passed": true,
+          "message": "4 markets evaluated",
+          "label": "MULTI-MARKET: ≥3 alternative markets"
+        },
+        "16": {
+          "passed": false,
+          "message": "H2H-STAT-BLIND: no H2H for Ristic, Mia Games O/U",
+          "label": "H2H STAT-SPECIFIC: H2H for exact stat exists"
+        },
+        "17": {
+          "passed": true,
+          "message": "THREE-WAY 2/2 SUPPORT (H2H N/A)",
+          "label": "THREE-WAY ALIGNMENT: L10+H2H+L5 all support"
+        },
+        "18": {
+          "passed": true,
+          "message": "",
+          "label": "DATA QUALITY: both teams have stat data"
+        },
+        "19": {
+          "passed": true,
+          "message": "gap=3.8% (within 15% threshold)",
+          "label": "ODDS-SAFETY GAP: model vs market <25pp"
+        },
+        "20": {
+          "passed": true,
+          "message": "L5=2/4 (50%) vs L10=4/9 (44%) — stable",
+          "label": "L5 TREND: recent form not deteriorating (L5≥60% of L10)"
+        },
+        "bucket": "rejected",
+        "rejection_reason": "NEGATIVE_EV: EV=-0.289 — calculated negative expected value",
+        "comp_score": 3
+      },
+      "rejection_reasons": [
+        "NEGATIVE_EV: EV=-0.289 — calculated negative expected value"
+      ],
+      "source": "gate_checker",
+      "bucket": "rejected",
+      "rejection_reason": "NEGATIVE_EV: EV=-0.289 — calculated negative expected value",
+      "odds": {
+        "market_best": 2.62,
+        "betclic": null
+      }
+    },
+    {
+      "fixture_id": 223904,
+      "sport": "basketball",
+      "home_team": "Oklahoma City Thunder",
+      "away_team": "New York Knicks",
+      "competition": "",
+      "kickoff": "2026-06-04T00:40:00Z",
+      "status": "REJECTED",
+      "advisory_tier": null,
+      "gate_score": "11/20",
+      "best_market": {
+        "name": "New York Knicks Assists O/U",
+        "line": 20.0,
+        "direction": "OVER",
+        "safety_score": 0.42,
+        "hit_rate_l10": "6/10",
+        "hit_rate_l5": "3/5",
+        "hit_rate_h2h": "N/A",
+        "source": "db",
+        "h2h_blind": true,
+        "rank": 1,
+        "margin": 1.005,
+        "team_a_avg": 0.0,
+        "team_b_avg": 20.1,
+        "combined_avg": 20.1,
+        "opponent_blocker": false,
+        "total_markets_evaluated": 11,
+        "l10_avg": 20.1,
+        "l5_avg": 19.4
+      },
+      "ev": -0.2228,
+      "risk_tier": "HR",
+      "gate_details": {
+        "1": {
+          "passed": true,
+          "message": "",
+          "label": "Identity verified (full name, no slashes)"
+        },
+        "2": {
+          "passed": true,
+          "message": "",
+          "label": "WC/Q/LL / debut / stand-in checked"
+        },
+        "3": {
+          "passed": false,
+          "message": "H2H only 1 meetings (SPARSE, need ≥5)",
+          "label": "H2H ≥5 meetings checked"
+        },
+        "4": {
+          "passed": false,
+          "message": "NO injury/suspension data available",
+          "label": "Injuries/suspensions checked"
+        },
+        "5": {
+          "passed": false,
+          "message": "Only 1 source(s): ['db']",
+          "label": "≥2 independent sources"
+        },
+        "6": {
+          "passed": false,
+          "message": "TIPSTER-BLIND: no tipster source",
+          "label": "≥1 tipster argument READ"
+        },
+        "7": {
+          "passed": true,
+          "message": "upset_risk=0.95",
+          "label": "Upset risk scored"
+        },
+        "8": {
+          "passed": false,
+          "message": "EV=-0.223 (≤0)",
+          "label": "EV > 0 calculated"
+        },
+        "9": {
+          "passed": true,
+          "message": "Drift not checkable (missing opening/current)",
+          "label": "Odds drift <8% verified"
+        },
+        "10": {
+          "passed": false,
+          "message": "FLAG: H2H-BLIND + safety 0.42 < 0.60",
+          "label": "Red flags checked"
+        },
+        "11": {
+          "passed": true,
+          "message": "",
+          "label": "Contrarian thinking done"
+        },
+        "12": {
+          "passed": false,
+          "message": "safety=0.42 (bear≥bull)",
+          "label": "Bear case < bull case"
+        },
+        "13": {
+          "passed": true,
+          "message": "",
+          "label": "Not anchored"
+        },
+        "14": {
+          "passed": true,
+          "message": "",
+          "label": "48h repeat check"
+        },
+        "15": {
+          "passed": true,
+          "message": "11 markets evaluated",
+          "label": "MULTI-MARKET: ≥3 alternative markets"
+        },
+        "16": {
+          "passed": false,
+          "message": "H2H-STAT-BLIND: no H2H for New York Knicks Assists O/U",
+          "label": "H2H STAT-SPECIFIC: H2H for exact stat exists"
+        },
+        "17": {
+          "passed": false,
+          "message": "THREE-WAY 1/2 CONFLICT → DOWNGRADE (H2H N/A)",
+          "label": "THREE-WAY ALIGNMENT: L10+H2H+L5 all support"
+        },
+        "18": {
+          "passed": true,
+          "message": "",
+          "label": "DATA QUALITY: both teams have stat data"
+        },
+        "19": {
+          "passed": true,
+          "message": "gap=11.2% (within 15% threshold)",
+          "label": "ODDS-SAFETY GAP: model vs market <25pp"
+        },
+        "20": {
+          "passed": true,
+          "message": "L5=3/5 (60%) vs L10=6/10 (60%) — stable",
+          "label": "L5 TREND: recent form not deteriorating (L5≥60% of L10)"
+        },
+        "bucket": "rejected",
+        "rejection_reason": "NEGATIVE_EV: EV=-0.223 — calculated negative expected value",
+        "comp_score": 3
+      },
+      "rejection_reasons": [
+        "NEGATIVE_EV: EV=-0.223 — calculated negative expected value"
+      ],
+      "source": "gate_checker",
+      "bucket": "rejected",
+      "rejection_reason": "NEGATIVE_EV: EV=-0.223 — calculated negative expected value",
+      "odds": {
+        "market_best": 3.25,
+        "betclic": null
+      }
+    },
+    {
+      "fixture_id": 227660,
+      "sport": "basketball",
+      "home_team": "Seattle Storm",
+      "away_team": "Phoenix Mercury",
+      "competition": "",
+      "kickoff": "2026-06-04T02:00:00Z",
+      "status": "REJECTED",
+      "advisory_tier": null,
+      "gate_score": "11/20",
+      "best_market": {
+        "name": "Total Rebounds O/U",
+        "line": 79.0,
+        "direction": "OVER",
+        "safety_score": 0.1,
+        "hit_rate_l10": "2/4",
+        "hit_rate_l5": "2/4",
+        "hit_rate_h2h": "N/A",
+        "source": "db",
+        "h2h_blind": true,
+        "rank": 1,
+        "margin": 1.003,
+        "team_a_avg": 36.5,
+        "team_b_avg": 42.75,
+        "combined_avg": 79.25,
+        "total_markets_evaluated": 11,
+        "l10_avg": 79.25,
+        "l5_avg": 79.25
+      },
+      "ev": -0.1,
+      "risk_tier": "HR",
+      "gate_details": {
+        "1": {
+          "passed": true,
+          "message": "",
+          "label": "Identity verified (full name, no slashes)"
+        },
+        "2": {
+          "passed": true,
+          "message": "",
+          "label": "WC/Q/LL / debut / stand-in checked"
+        },
+        "3": {
+          "passed": false,
+          "message": "H2H only 1 meetings (SPARSE, need ≥5)",
+          "label": "H2H ≥5 meetings checked"
+        },
+        "4": {
+          "passed": false,
+          "message": "NO injury/suspension data available",
+          "label": "Injuries/suspensions checked"
+        },
+        "5": {
+          "passed": false,
+          "message": "Only 1 source(s): ['db']",
+          "label": "≥2 independent sources"
+        },
+        "6": {
+          "passed": false,
+          "message": "TIPSTER-BLIND: no tipster source",
+          "label": "≥1 tipster argument READ"
+        },
+        "7": {
+          "passed": true,
+          "message": "upset_risk=0.75",
+          "label": "Upset risk scored"
+        },
+        "8": {
+          "passed": false,
+          "message": "EV=-0.100 (≤0)",
+          "label": "EV > 0 calculated"
+        },
+        "9": {
+          "passed": true,
+          "message": "Drift not checkable (missing opening/current)",
+          "label": "Odds drift <8% verified"
+        },
+        "10": {
+          "passed": false,
+          "message": "FLAG: safety 0.10 < 0.40; FLAG: H2H-BLIND + safety 0.10 < 0.60",
+          "label": "Red flags checked"
+        },
+        "11": {
+          "passed": true,
+          "message": "",
+          "label": "Contrarian thinking done"
+        },
+        "12": {
+          "passed": false,
+          "message": "safety=0.10 (bear≥bull)",
+          "label": "Bear case < bull case"
+        },
+        "13": {
+          "passed": true,
+          "message": "",
+          "label": "Not anchored"
+        },
+        "14": {
+          "passed": true,
+          "message": "",
+          "label": "48h repeat check"
+        },
+        "15": {
+          "passed": true,
+          "message": "11 markets evaluated",
+          "label": "MULTI-MARKET: ≥3 alternative markets"
+        },
+        "16": {
+          "passed": false,
+          "message": "H2H-STAT-BLIND: no H2H for Total Rebounds O/U",
+          "label": "H2H STAT-SPECIFIC: H2H for exact stat exists"
+        },
+        "17": {
+          "passed": true,
+          "message": "THREE-WAY 2/2 SUPPORT (H2H N/A)",
+          "label": "THREE-WAY ALIGNMENT: L10+H2H+L5 all support"
+        },
+        "18": {
+          "passed": true,
+          "message": "",
+          "label": "DATA QUALITY: both teams have stat data"
+        },
+        "19": {
+          "passed": false,
+          "message": "ODDS-SAFETY GAP 19.9%: safety=0.10 (10%) vs odds=3.35 (implied 30%) — model is UNDERCONFIDENT. Verify line/odds alignment on Betclic before placing.",
+          "label": "ODDS-SAFETY GAP: model vs market <25pp"
+        },
+        "20": {
+          "passed": true,
+          "message": "L5=2/4 (50%) vs L10=2/4 (50%) — stable",
+          "label": "L5 TREND: recent form not deteriorating (L5≥60% of L10)"
+        },
+        "bucket": "rejected",
+        "rejection_reason": "NEGATIVE_EV: EV=-0.100 — calculated negative expected value",
+        "comp_score": 3
+      },
+      "rejection_reasons": [
+        "NEGATIVE_EV: EV=-0.100 — calculated negative expected value"
+      ],
+      "source": "gate_checker",
+      "bucket": "rejected",
+      "rejection_reason": "NEGATIVE_EV: EV=-0.100 — calculated negative expected value",
+      "odds": {
+        "market_best": 3.35,
+        "betclic": null
+      }
+    }
+  ],
+  "discovery_pool": [],
+  "gate_parity": {
+    "source": "db+json_enriched",
+    "loaded_counts": {
+      "approved": 3,
+      "extended": 84,
+      "rejected": 5
+    },
+    "parity_checked": false
+  },
+  "no_bet": false,
+  "no_bet_reason": null,
+  "is_tipster_blind": true,
+  "pipeline_warnings": [],
+  "tipster_pool": [
+    {
+      "home_team": "Andora",
+      "away_team": "Liechtenstein",
+      "sport": "football",
+      "market": "+1,5 gola w meczu",
+      "odds": 1.53,
+      "confidence": "high",
+      "tipsters": "Jan Kowalski",
+      "n_tipsters": 1,
+      "source": "tipster_pool"
+    },
+    {
+      "home_team": "Laholms FK",
+      "away_team": "Hassleholms IF",
+      "sport": "football",
+      "market": "Btts",
+      "odds": 1.68,
+      "confidence": "high",
+      "tipsters": "Tomasz Kowalewski",
+      "n_tipsters": 1,
+      "source": "tipster_pool"
+    },
+    {
+      "home_team": "Bonn",
+      "away_team": "Bayern Munich",
+      "sport": "basketball",
+      "market": "Our pick is that Bayern Munich will gain the upper hand in this BBL showdown.",
+      "odds": 1.89,
+      "confidence": "high",
+      "tipsters": "Sportsgambler",
+      "n_tipsters": 1,
+      "source": "tipster_pool"
+    },
+    {
+      "home_team": "Barcelona",
+      "away_team": "UCAM Murcia",
+      "sport": "basketball",
+      "market": "We think a bet on the totals provides value after finding that the line is set a",
+      "odds": 1.9,
+      "confidence": "high",
+      "tipsters": "Sportsgambler",
+      "n_tipsters": 1,
+      "source": "tipster_pool"
+    },
+    {
+      "home_team": "Pinheiros",
+      "away_team": "Franca",
+      "sport": "basketball",
+      "market": "We think Franca can be beaten in this NBB showdown, so this is our pick.",
+      "odds": 1.96,
+      "confidence": "high",
+      "tipsters": "Sportsgambler",
+      "n_tipsters": 1,
+      "source": "tipster_pool"
+    }
+  ],
+  "_concentration_warnings_extra": [],
+  "summary": {
+    "core_spend": 0,
+    "singles_spend": 1.0,
+    "confirmed_spend": 1.0,
+    "suggested_spend_if_verified": 0,
+    "combo_spend_if_used": 0,
+    "total_spend": 1.0,
+    "bankroll_after": 77.34,
+    "total_potential_return": 2.0,
+    "best_case": 2.0,
+    "realistic": 0.9,
+    "gate_input_counts": {
+      "approved": 3,
+      "extended": 84,
+      "rejected": 5
+    },
+    "gate_parity": {
+      "source": "db+json_enriched",
+      "loaded_counts": {
+        "approved": 3,
+        "extended": 84,
+        "rejected": 5
+      },
+      "parity_checked": false
+    },
+    "odds_sources": {
+      "estimated": 0,
+      "api": 1,
+      "betclic": 0
+    },
+    "pre_coupon_controls": {
+      "betclic_market_validation": {
+        "required": true,
+        "present": true,
+        "consumed": true,
+        "path": "betclic_market_validation_2026-06-04.json",
+        "validation_count": 0,
+        "event_count": 11,
+        "mode": "events",
+        "unavailable_entries": 0,
+        "approved_demoted": 0,
+        "extended_flagged": 0,
+        "pre_filter_counts": {
+          "approved": 3,
+          "extended": 84,
+          "rejected": 5
+        },
+        "post_filter_counts": {
+          "approved": 3,
+          "extended": 84,
+          "rejected": 5
+        }
+      },
+      "repeat_loss_handoff": {
+        "required": true,
+        "present": true,
+        "consumed": true,
+        "pipeline_step": "s7_6_repeat_loss_check",
+        "artifact": "repeat_loss_handoff_2026-06-04.json",
+        "repeat_loss_count": 0,
+        "clear": true,
+        "excluded_count": 0,
+        "pre_filter_counts": {
+          "approved": 3,
+          "extended": 84,
+          "rejected": 5
+        },
+        "post_filter_counts": {
+          "approved": 3,
+          "extended": 84,
+          "rejected": 5
+        }
+      }
+    }
+  },
+  "placement_order": [],
+  "concentration_warnings": [],
+  "line_sensitivity": [
+    {
+      "event": "Indiana Fever vs Atlanta Dream",
+      "sport": "basketball",
+      "market": "Total Points O/U",
+      "direction": "UNDER",
+      "pipeline_line": 166.0,
+      "l10_avg": 165.8,
+      "alternatives": [
+        {
+          "line": 164.0,
+          "p_hit": 0.483,
+          "min_odds": 2.07,
+          "recommendation": "❌ NIE STAWIAJ",
+          "is_pipeline_line": false
+        },
+        {
+          "line": 164.5,
+          "p_hit": 0.487,
+          "min_odds": 2.05,
+          "recommendation": "❌ NIE STAWIAJ",
+          "is_pipeline_line": false
+        },
+        {
+          "line": 165.0,
+          "p_hit": 0.492,
+          "min_odds": 2.03,
+          "recommendation": "❌ NIE STAWIAJ",
+          "is_pipeline_line": false
+        },
+        {
+          "line": 165.5,
+          "p_hit": 0.497,
+          "min_odds": 2.01,
+          "recommendation": "❌ NIE STAWIAJ",
+          "is_pipeline_line": false
+        },
+        {
+          "line": 166.0,
+          "p_hit": 0.502,
+          "min_odds": 1.99,
+          "recommendation": "⚠️ MARGINALNY",
+          "is_pipeline_line": true
+        },
+        {
+          "line": 166.5,
+          "p_hit": 0.507,
+          "min_odds": 1.97,
+          "recommendation": "⚠️ MARGINALNY",
+          "is_pipeline_line": false
+        },
+        {
+          "line": 167.0,
+          "p_hit": 0.512,
+          "min_odds": 1.95,
+          "recommendation": "⚠️ MARGINALNY",
+          "is_pipeline_line": false
+        },
+        {
+          "line": 167.5,
+          "p_hit": 0.516,
+          "min_odds": 1.94,
+          "recommendation": "⚠️ MARGINALNY",
+          "is_pipeline_line": false
+        },
+        {
+          "line": 168.0,
+          "p_hit": 0.521,
+          "min_odds": 1.92,
+          "recommendation": "⚠️ MARGINALNY",
+          "is_pipeline_line": false
+        }
+      ]
+    }
+  ],
+  "pre_coupon_controls": {
+    "betclic_market_validation": {
+      "required": true,
+      "present": true,
+      "consumed": true,
+      "path": "betclic_market_validation_2026-06-04.json",
+      "validation_count": 0,
+      "event_count": 11,
+      "mode": "events",
+      "unavailable_entries": 0,
+      "approved_demoted": 0,
+      "extended_flagged": 0,
+      "pre_filter_counts": {
+        "approved": 3,
+        "extended": 84,
+        "rejected": 5
+      },
+      "post_filter_counts": {
+        "approved": 3,
+        "extended": 84,
+        "rejected": 5
+      }
+    },
+    "repeat_loss_handoff": {
+      "required": true,
+      "present": true,
+      "consumed": true,
+      "pipeline_step": "s7_6_repeat_loss_check",
+      "artifact": "repeat_loss_handoff_2026-06-04.json",
+      "repeat_loss_count": 0,
+      "clear": true,
+      "excluded_count": 0,
+      "pre_filter_counts": {
+        "approved": 3,
+        "extended": 84,
+        "rejected": 5
+      },
+      "post_filter_counts": {
+        "approved": 3,
+        "extended": 84,
+        "rejected": 5
+      }
+    }
+  }
+}

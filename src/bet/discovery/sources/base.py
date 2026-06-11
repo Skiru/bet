@@ -16,6 +16,7 @@ class AbstractSourceAdapter(ABC):
 
     def __init__(self):
         self.logger = logging.getLogger(f"bet.discovery.sources.{self.name}")
+        self.last_errors: list[str] = []
 
     @abstractmethod
     def _fetch_events_impl(self, date: str, sport: str) -> list[DiscoveredEvent]:
@@ -29,6 +30,7 @@ class AbstractSourceAdapter(ABC):
 
     def fetch_events(self, date: str, sport: str) -> list[DiscoveredEvent]:
         """Fetch events with error handling and timing."""
+        self.last_errors = []
         if sport not in self.supported_sports:
             return []
 
@@ -47,8 +49,13 @@ class AbstractSourceAdapter(ABC):
             return events
         except Exception as e:
             elapsed = time.monotonic() - start
+            self.last_errors.append(str(e))
             self.logger.warning(
                 "%s failed for %s after %.1fs: %s",
                 self.name, sport, elapsed, e,
             )
             return []
+
+    def _record_error(self, message: str) -> None:
+        """Store recoverable adapter diagnostics for coordinator summaries."""
+        self.last_errors.append(message)

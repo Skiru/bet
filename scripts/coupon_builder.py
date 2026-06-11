@@ -32,6 +32,15 @@ from bet.resilience import atomic_json_write
 
 from bet.utils import is_same_event, names_match, normalize_for_matching  # noqa: E402
 
+# Progress tracking for background execution
+try:
+    from _background_runner import ProgressTracker
+except ImportError:
+    try:
+        from scripts._background_runner import ProgressTracker
+    except ImportError:
+        ProgressTracker = None  # type: ignore
+
 _NOW = lambda: datetime.now(timezone.utc).isoformat()
 
 # ---------------------------------------------------------------------------
@@ -40,8 +49,11 @@ _NOW = lambda: datetime.now(timezone.utc).isoformat()
 
 from bet.stats.market_ranking import MARKET_PL, DIRECTION_PL
 from check_48h_repeats import (
+    DEFAULT_LEDGER_PATH,
     REPEAT_LOSS_STEP,
+    find_repeat_loss_candidates,
     fuzzy_match as _repeat_fuzzy_match,
+    load_recent_losses,
     load_repeat_loss_handoff,
     normalize_market as _repeat_normalize_market,
 )
@@ -203,7 +215,18 @@ def _candidate_matches_repeat_finding(candidate: dict, finding: dict) -> bool:
     if candidate_fixture_id and finding_fixture_id and candidate_fixture_id == finding_fixture_id:
         return True
 
-    return _candidate_event_key(candidate) == finding.get("event_key")
+    finding_event_key = finding.get("event_key")
+    if finding_event_key:
+        return _candidate_event_key(candidate) == finding_event_key
+
+    finding_home = _normalize_team(finding.get("home_team", ""))
+    finding_away = _normalize_team(finding.get("away_team", ""))
+    candidate_home = _normalize_team(candidate.get("home_team", ""))
+    candidate_away = _normalize_team(candidate.get("away_team", ""))
+    return bool(
+        candidate_home and candidate_away and finding_home and finding_away
+        and candidate_home == finding_home and candidate_away == finding_away
+    )
 
 
 def _candidate_betclic_reason_from_validation(candidate: dict, unavailable_entries: list[dict]) -> str | None:
@@ -300,12 +323,133 @@ def _load_betclic_validation_sidecar(date: str) -> tuple[dict, dict]:
     }
 
 
+def _infer_betclic_market_slugs(sport: str, market_names: list[str], flags: dict[str, bool]) -> list[str]:
+    """Infer confirmed market slugs from stored Betclic event data.
+
+    Conservative by default, but wide enough to avoid false demotions when the
+    sidecar file is missing and DB observations are available.
+    """
+    slugs: set[str] = {"match_winner", "handicap"}
+    sport = (sport or "").lower()
+
+    if flags.get("has_corners"):
+        slugs.update(BETCLIC_MARKET_TYPE_SLUGS["corners"])
+    if flags.get("has_cards"):
+        slugs.update(BETCLIC_MARKET_TYPE_SLUGS["cards"])
+    if flags.get("has_shots"):
+        slugs.update(BETCLIC_MARKET_TYPE_SLUGS["shots"])
+    if flags.get("has_fouls"):
+        slugs.update(BETCLIC_MARKET_TYPE_SLUGS["fouls"])
+
+    joined = " \n".join(market_names).lower()
+    keyword_map = {
+        "corners": ("corner", "rożn"),
+        "cards": ("card", "kart"),
+        "shots": ("shot", "strza"),
+        "fouls": ("foul", "faul"),
+        "goals": ("goal", "gole", "bram"),
+        "games": ("game", "gem"),
+        "sets": ("set",),
+        "points": ("point", "punk"),
+        "double_faults": ("double fault", "podwójn"),
+        "aces": ("ace", "as"),
+    }
+    for group, keywords in keyword_map.items():
+        if any(keyword in joined for keyword in keywords):
+            slugs.update(BETCLIC_MARKET_TYPE_SLUGS[group])
+
+    if flags.get("has_statistics_tab"):
+        if sport == "football":
+            slugs.update(BETCLIC_MARKET_TYPE_SLUGS["goals"])
+        elif sport == "tennis":
+            slugs.update(BETCLIC_MARKET_TYPE_SLUGS["games"])
+            slugs.update(BETCLIC_MARKET_TYPE_SLUGS["sets"])
+            slugs.update(BETCLIC_MARKET_TYPE_SLUGS["double_faults"])
+            slugs.update(BETCLIC_MARKET_TYPE_SLUGS["aces"])
+        elif sport in {"basketball", "volleyball"}:
+            slugs.update(BETCLIC_MARKET_TYPE_SLUGS["points"])
+        elif sport == "hockey":
+            slugs.update(BETCLIC_MARKET_TYPE_SLUGS["goals"])
+            slugs.update(BETCLIC_MARKET_TYPE_SLUGS["shots"])
+
+    return sorted(slugs)
+
+
+def _load_betclic_validation_from_db(date: str) -> tuple[dict, dict] | None:
+    """Fallback when S7.5 JSON sidecar is missing but DB observations exist."""
+    try:
+        from bet.db.connection import get_db
+
+        with get_db() as conn:
+            rows = conn.execute(
+                """SELECT event_name, sport, competition_name, open_market_count,
+                          has_statistics_tab, has_corners, has_cards, has_shots,
+                          has_fouls, market_names_json, fetched_at
+                   FROM betclic_markets
+                   WHERE betting_date = ?
+                   ORDER BY fetched_at DESC""",
+                (date,),
+            ).fetchall()
+    except Exception:
+        return None
+
+    if not rows:
+        return None
+
+    events = []
+    for row in rows:
+        market_names = []
+        if row[9]:
+            try:
+                market_names = json.loads(row[9])
+            except (TypeError, json.JSONDecodeError):
+                market_names = []
+        flags = {
+            "has_statistics_tab": bool(row[4]),
+            "has_corners": bool(row[5]),
+            "has_cards": bool(row[6]),
+            "has_shots": bool(row[7]),
+            "has_fouls": bool(row[8]),
+        }
+        events.append(
+            {
+                "event_name": row[0],
+                "sport": row[1],
+                "competition_name": row[2],
+                "open_market_count": row[3],
+                "confirmed_market_types": _infer_betclic_market_slugs(row[1], market_names, flags),
+                "fetched_at": row[10],
+            }
+        )
+
+    payload = {
+        "date": date,
+        "scanned_at": _NOW(),
+        "summary": {"total_events": len(events)},
+        "validation": None,
+        "events": events,
+    }
+    control = {
+        "required": True,
+        "present": True,
+        "consumed": False,
+        "mode": "db_fallback",
+        "path": None,
+        "validation_count": 0,
+        "event_count": len(events),
+    }
+    return payload, control
+
+
 def _apply_betclic_validation_to_gate_results(date: str, gate_results: dict) -> tuple[dict, dict, dict]:
     try:
         payload, control = _load_betclic_validation_sidecar(date)
     except FileNotFoundError:
-        # Graceful degradation: Betclic validation is advisory, not blocking
-        return gate_results, {}, {"required": True, "present": False, "consumed": False, "mode": "skipped"}
+        db_fallback = _load_betclic_validation_from_db(date)
+        if db_fallback is None:
+            # Graceful degradation: Betclic validation is advisory, not blocking
+            return gate_results, {}, {"required": True, "present": False, "consumed": False, "mode": "skipped"}
+        payload, control = db_fallback
     filtered_gate_results = copy.deepcopy(gate_results)
     gate_buckets = filtered_gate_results.setdefault("gate_results", {})
     approved = gate_buckets.get("approved", []) or []
@@ -321,7 +465,7 @@ def _apply_betclic_validation_to_gate_results(date: str, gate_results: dict) -> 
         def block_reason(candidate: dict) -> str | None:
             return _candidate_betclic_reason_from_validation(candidate, unavailable_entries)
 
-        control["mode"] = "validation"
+        control["mode"] = control.get("mode") or "validation"
         control["unavailable_entries"] = len(unavailable_entries)
     else:
         event_availability: dict[str, set[str]] = {}
@@ -336,7 +480,7 @@ def _apply_betclic_validation_to_gate_results(date: str, gate_results: dict) -> 
         def block_reason(candidate: dict) -> str | None:
             return _candidate_betclic_reason_from_events(candidate, event_availability)
 
-        control["mode"] = "events"
+        control["mode"] = control.get("mode") or "events"
         control["unavailable_entries"] = 0
 
     demoted_approved: list[dict] = []
@@ -387,8 +531,21 @@ def _apply_betclic_validation_to_gate_results(date: str, gate_results: dict) -> 
 def _apply_repeat_loss_hard_rejects(date: str, gate_results: dict) -> tuple[dict, dict]:
     handoff = load_repeat_loss_handoff(date)
     if handoff is None:
-        # Graceful degradation: no repeat-loss data means no rejects to apply
-        return gate_results, {"required": True, "present": False, "consumed": False, "excluded_count": 0}
+        # Fallback: compute repeat-loss signals directly from the ledger.
+        recent_losses = load_recent_losses(DEFAULT_LEDGER_PATH, hours=48)
+        candidates = []
+        gate_buckets = gate_results.get("gate_results", {}) if isinstance(gate_results, dict) else {}
+        for bucket_name in ("approved", "extended_pool"):
+            candidates.extend(gate_buckets.get(bucket_name, []) or [])
+        findings = find_repeat_loss_candidates(candidates, recent_losses) if candidates else []
+        handoff = {
+            "date": date,
+            "clear": len(findings) == 0,
+            "repeat_loss_count": len(findings),
+            "findings": findings,
+            "artifact_path": None,
+            "computed_from": "ledger_fallback",
+        }
 
     filtered_gate_results = copy.deepcopy(gate_results)
     gate_buckets = filtered_gate_results.setdefault("gate_results", {})
@@ -605,7 +762,7 @@ def _load_gate_results_for_build(date: str, input_path: str | None = None) -> di
         }
         print(f"[coupon_builder] Loaded gate results from DB: "
               f"approved={db_counts.get('approved', 0)}, "
-              f"extended={db_counts.get('extended_pool', 0)}, "
+              f"extended={db_counts.get('extended', 0)}, "
               f"rejected={db_counts.get('rejected', 0)}"
               f"{' (enriched from JSON)' if json_enrichment else ''}")
         return db_payload
@@ -1118,31 +1275,8 @@ def assign_picks_to_core(approved: list, config: dict) -> list[dict]:
     Picks with real odds preferred; in stats-first mode (R10), picks without
     odds are included using min_acceptable_odds = 1/safety_score.
     """
-    # Filter to picks with real odds for multi-bet coupons
+    # Production-ready mode: active multi-leg coupons require real odds.
     odds_approved = [p for p in approved if ((p.get("odds") or {}).get("market_best") or 0) > 1.0]
-    stats_first_mode = len(odds_approved) < 2 and len(approved) >= 2
-
-    # Always include top-safety picks even without odds (R10 enhancement)
-    sorted_by_safety = sorted(
-        approved,
-        key=lambda p: (_bm(p).get("safety_score") or 0),
-        reverse=True,
-    )
-    odds_keys = {_event_key(p) for p in odds_approved}
-    for p in sorted_by_safety:
-        if len(odds_approved) >= 30:
-            break
-        ek = _event_key(p)
-        if ek in odds_keys:
-            continue
-        if not _bm(p).get("safety_score"):
-            continue
-        odds_keys.add(ek)
-        safety = (_bm(p).get("safety_score") or 0.5)
-        p.setdefault("odds", {})["market_best"] = round(1.0 / max(safety, 0.1), 2)
-        p["_stats_first_odds"] = True
-        p["odds_source"] = "estimated"
-        odds_approved.append(p)
 
     if len(odds_approved) < 2:
         return []
@@ -1480,34 +1614,8 @@ COMBO_THEMES = [
 
 def generate_combos(approved: list, config: dict, core_coupons: list | None = None) -> list[dict]:
     """Generate combo coupons by remixing approved picks (theme-based + combinatorial)."""
-    # Include top-safety picks even without odds (R10 stats-first principle).
-    # Picks with real odds are used directly; picks without get theoretical odds.
+    # Production-ready mode: combo coupons require real odds.
     odds_approved = [p for p in approved if ((p.get("odds") or {}).get("market_best") or 0) > 1.0]
-
-    # Always include top-safety picks (regardless of odds availability)
-    # Sort all by safety, take top N that aren't already in odds_approved
-    sorted_by_safety = sorted(
-        approved,
-        key=lambda p: (_bm(p).get("safety_score") or 0),
-        reverse=True,
-    )
-    # Merge: all odds picks + top-safety picks (up to 20 total)
-    odds_keys = {_event_key(p) for p in odds_approved}
-    for p in sorted_by_safety:
-        if len(odds_approved) >= 20:
-            break
-        ek = _event_key(p)
-        if ek in odds_keys:
-            continue
-        if not _bm(p).get("safety_score"):
-            continue
-        odds_keys.add(ek)
-        # Assign theoretical odds = 1/safety (R10)
-        safety = (_bm(p).get("safety_score") or 0.5)
-        p.setdefault("odds", {})["market_best"] = round(1.0 / max(safety, 0.1), 2)
-        p["_stats_first_odds"] = True
-        p["odds_source"] = "estimated"
-        odds_approved.append(p)
 
     if len(odds_approved) < 2:
         return []
@@ -1517,7 +1625,7 @@ def generate_combos(approved: list, config: dict, core_coupons: list | None = No
     max_legs = config.get("max_legs_per_coupon", 4)
     max_same_sport = config.get("max_same_sport_legs_in_coupon", 2)
     max_combos = config.get("max_combo_coupons", 20)
-    max_event_reuse = min(config.get("max_event_reuse_across_coupons", 3), 3)
+    max_event_reuse = 1
     combos: list[dict] = []
     combo_num: dict[str, int] = {}
     # Track signatures to prevent duplicate theme combos (between THEMES only)
@@ -1958,9 +2066,9 @@ def _filter_non_playable_fixtures(picks: list, date: str) -> tuple[list, list]:
                    JOIN teams t2 ON t2.id = f.away_team_id
                    WHERE f.kickoff LIKE ? || '%'
                    AND f.status IN ({})""".format(
-                    ",".join(f"'{s}'" for s in NON_PLAYABLE_STATUSES)
+                    ",".join("?" for _ in NON_PLAYABLE_STATUSES)
                 ),
-                (date,),
+                [date] + list(NON_PLAYABLE_STATUSES),
             ).fetchall()
         if not rows:
             return picks, []
@@ -2018,6 +2126,9 @@ def _filter_quality(picks: list, tier: str = "core") -> tuple[list, list]:
         markets_eval = pick.get("market_count") or pick.get("markets_evaluated", 0) or 0
         hit_rate_str = best.get("hit_rate_l10", "")
         line_verified = not pick.get("_stats_first_odds", False)
+        ev = pick.get("ev")
+        safety = best.get("safety_score") or 0
+        ev_ready = ev is not None and ev > 0 and line_verified and safety >= 0.30
         
         # Parse hit rate using existing _safe_float helper (handles fractions like "5/10")
         hit_rate_val = _safe_float(hit_rate_str, 0.0)
@@ -2061,7 +2172,7 @@ def _filter_quality(picks: list, tier: str = "core") -> tuple[list, list]:
                 reasons.append("⚠️ ZERO RYNKÓW: brak analizy statystycznej")
         
         # Check coin-flip hit rate
-        if hit_rate_val > 0 and hit_rate_val <= 0.50:
+        if hit_rate_val > 0 and hit_rate_val <= 0.50 and not ev_ready:
             reasons.append(f"⚠️ COIN FLIP: {hit_rate_str} (≤50% = brak przewagi)")
         
         # Check misleading margin: average looks good but hit rate is poor
@@ -2105,6 +2216,11 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
     """
     date = gate_results.get("date", datetime.now().strftime("%Y-%m-%d"))
     gr = gate_results.get("gate_results", {})
+
+    tracker = ProgressTracker("s8") if ProgressTracker else None
+    if tracker:
+        tracker.start(4, "Building coupons")  # 4 phases: filter, core, combo, output
+
     gate_input_counts = _gate_bucket_counts(gate_results)
     gate_parity = gate_results.get("gate_parity") or {
         "source": "input",
@@ -2287,29 +2403,13 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
     date_str = _extract_date(approved) if approved else datetime.now().strftime("%Y%m%d")
     max_singles = config.get("max_singles", 50)
     singles = []
+    deferred_unpriced_approved = []
     for i, pick in enumerate(approved[:max_singles], 1):
         odds_val = (pick.get("odds") or {}).get("market_best", 0) or 0
         safety = (pick.get("best_market") or {}).get("safety_score") or 0.5
         prob = (pick.get("best_market") or {}).get("probability")
         if odds_val <= 1.0:
-            # Stats-first mode: compute estimated odds from safety score
-            # Same formula as assign_picks_to_core uses for estimated odds
-            estimated_odds = round(1.0 / max(safety, 0.1), 2)
-            estimated_stake = compute_stake(estimated_odds, safety, bankroll, pick.get("risk_tier", "MS"), probability=prob)
-            single = {
-                "id": f"CP-{date_str}-SINGLE{i}",
-                "tier": pick.get("risk_tier", "MS"),
-                "legs": [pick],
-                "combined_odds": estimated_odds,
-                "stake": estimated_stake,
-                "potential_return": round(estimated_stake * estimated_odds, 2),
-                "stress_test": stress_test_coupon({"legs": [pick]}),
-                "correlation_flags": [],
-                "is_single": True,
-                "stats_first": True,
-                "odds_source": "estimated",
-            }
-            singles.append(single)
+            deferred_unpriced_approved.append(pick)
             continue
         stake = compute_stake(odds_val, safety, bankroll, pick.get("risk_tier", "MS"), probability=prob)
         single = {
@@ -2417,18 +2517,64 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
     if not core_eligible:
         core_eligible = approved  # Fallback: if ALL are MINIMAL, use them anyway (stats-first)
 
+    if tracker:
+        tracker.update(1, f"Filtered: {len(core_eligible)} core-eligible, {len(extended_pool)} extended, {len(rejected)} rejected")
+
     # Build core portfolio (requires ≥2 picks)
     core = assign_picks_to_core(core_eligible, config)
     result["core_coupons"] = core
+    if tracker:
+        tracker.update(2, f"Core coupons: {len(core)} built")
 
     # Build combo menu (requires ≥2 picks)
     combos = generate_combos(core_eligible, config, core_coupons=core)
     result["combos"] = combos
+    if tracker:
+        tracker.update(3, f"Combos: {len(combos)} built")
+
+    # Active coupons must be mutually non-overlapping by event.
+    used_in_active_coupons = {
+        _event_key(leg)
+        for coupon in (core + combos)
+        for leg in coupon.get("legs", [])
+    }
+    if used_in_active_coupons:
+        singles = [
+            s for s in singles
+            if _event_key((s.get("legs") or [{}])[0]) not in used_in_active_coupons
+        ]
+        result["singles"] = singles
+        if singles:
+            with_odds = [s for s in singles if not s.get("stats_first")]
+            banker_pool = with_odds if with_odds else singles
+            banker = max(banker_pool, key=lambda s: (_bm(s["legs"][0])).get("safety_score") or 0)
+            banker["is_banker"] = True
+            result["banker"] = banker
+        elif core:
+            banker_leg = max(
+                [leg for coupon in core for leg in coupon.get("legs", [])],
+                key=lambda leg: (_bm(leg).get("safety_score") or 0),
+            )
+            result["banker"] = {
+                "id": f"BANKER-{date_str}",
+                "tier": banker_leg.get("risk_tier", "MS"),
+                "legs": [banker_leg],
+                "is_single": True,
+                "is_banker": True,
+                "combined_odds": round(((banker_leg.get("odds") or {}).get("market_best") or 0), 2),
+                "stake": 0.0,
+                "potential_return": 0.0,
+                "stress_test": stress_test_coupon({"legs": [banker_leg]}),
+                "correlation_flags": [],
+                "odds_source": banker_leg.get("odds_source", "api"),
+            }
 
     # DISCOVERY SINGLES — weak/flagged picks with discounted stakes
     # These are shown to the user for manual evaluation
     discovery_singles = []
-    for i, pick in enumerate(discovery_picks[:30], 1):
+    discovery_input = list(discovery_picks)
+    discovery_input.extend(deferred_unpriced_approved)
+    for i, pick in enumerate(discovery_input[:30], 1):
         odds_val = (pick.get("odds") or {}).get("market_best", 0) or 0
         safety = (pick.get("best_market") or {}).get("safety_score") or 0.5
         prob = (pick.get("best_market") or {}).get("probability")
@@ -2467,6 +2613,10 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
             }
         discovery_singles.append(disc_single)
     result["discovery_singles"] = discovery_singles
+
+    if not result.get("core_coupons") and not result.get("combos") and not result.get("singles"):
+        result["no_bet"] = True
+        result["no_bet_reason"] = "Brak zatwierdzonych picków z realnymi kursami po walidacji S5/S6."
 
     # ── TIPSTER POOL: high-consensus picks NOT covered by pipeline analysis ──
     # Surfaces picks where ≥2 tipsters agree OR confidence=HIGH, but the event
@@ -2590,7 +2740,7 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
     # Since combos are alternatives to core, count reuse WITHIN each category separately.
     # Warn if an event appears too often within combos alone (user picks multiple combos).
     # Post-mortem 2026-05-28: max_event_reuse=5 allowed 47% concentration. Cap at 3.
-    max_event_reuse = min(config.get("max_event_reuse_across_coupons", 3), 3)
+    max_event_reuse = 1
     combo_event_usage: dict[str, int] = {}
     for coupon in combos:
         for leg in coupon.get("legs", []):
@@ -2598,7 +2748,7 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
             combo_event_usage[ek] = combo_event_usage.get(ek, 0) + 1
     concentration_warnings = []
     for ek, count in combo_event_usage.items():
-        if count > 2:
+        if count > 1:
             concentration_warnings.append(f"⚠️ KONCENTRACJA: {ek} pojawia się w {count} kombo kuponach")
         if count > max_event_reuse:
             out.warning(f"⚠️ Event {ek} in {count} combos (max {max_event_reuse})")
@@ -2681,6 +2831,14 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
 
     # --- Pattern F: Line sensitivity tables ---
     result["line_sensitivity"] = compute_line_sensitivity_tables(approved)
+
+    if tracker:
+        tracker.done({
+            "core_coupons": len(core),
+            "combos": len(combos),
+            "singles": len(singles),
+            "discovery": len(discovery_singles),
+        })
 
     return result
 
@@ -3497,7 +3655,7 @@ def main():
         for _w in _contract.get("warnings", []):
             out.warning(f"Input contract: {_w}")
         for _m in _contract.get("missing", []):
-            out.warning(f"Missing input: {_m}")
+            out.event("input_contract_missing", detail=f"Expected pre-coupon input not preloaded: {_m}")
 
     try:
         gate_results = _load_gate_results_for_build(args.date, args.input)

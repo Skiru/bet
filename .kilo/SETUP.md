@@ -1,20 +1,20 @@
-# Kilo Code Setup: Qwen3.6-35B-A3B MoE 4-bit (Local via Rapid-MLX)
+# Kilo Code Setup: Qwen3.6-35B-A3B-OptiQ-4bit (Local via oMLX)
 
 ## One-Time Setup (5 minutes + download)
 
-### 1. Install Rapid-MLX
+### 1. Install oMLX
 
 ```fish
-pipx install rapid-mlx
+curl -fsSL https://omlx.ai/install.sh | sh
 ```
 
-### 2. Pull the Model
+### 2. Download the Model
 
 ```fish
-~/.local/bin/rapid-mlx pull qwen3.6-35b
+~/.omlx/bin/omlx download mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit
 ```
 
-Downloads `mlx-community/Qwen3.6-35B-A3B-4bit` (~18 GiB).
+Downloads `mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit` (OptiQ mixed-precision quant).
 
 ### 3. Start the Server
 
@@ -22,35 +22,34 @@ Downloads `mlx-community/Qwen3.6-35B-A3B-4bit` (~18 GiB).
 ./scripts/start_local_model.sh
 ```
 
-Or manually:
+Or foreground mode:
 ```fish
-~/.local/bin/rapid-mlx serve qwen3.6-35b --port 8000 \
-  --no-mllm --max-num-seqs 1 --reasoning-parser qwen3 \
-  --default-temperature 0.6 --default-top-p 0.95 --default-top-k 20 \
-  --max-tokens 32768 --pin-system-prompt --enable-prefix-cache \
-  --kv-cache-turboquant --kv-cache-turboquant-bits 3 \
-  --cache-memory-mb 12000 --gpu-memory-utilization 0.88 \
-  --prefill-step-size 8192 --gc-control \
-  --enable-auto-tool-choice --tool-call-parser qwen3_coder_xml
+./scripts/start_local_model.sh --foreground
 ```
 
-Wait for `Ready: http://localhost:8000/v1`.
+Or directly:
+```fish
+~/.omlx/bin/omlx serve
+```
+
+Wait for `✅ omlx is online: http://127.0.0.1:8000/v1`.
 
 ### 4. Configure Kilo Code Extension
 
 1. Open Kilo Code panel → click gear icon (⚙️)
 2. **API Provider:** select **"OpenAI Compatible"**
-3. **Base URL:** `http://localhost:8000/v1`
-4. **API Key:** `not-needed` (any value works)
-5. **Model:** auto-reads from `kilo.jsonc` → `openai-compatible/qwen3.6-35b-a3b`
+3. **Base URL:** `http://127.0.0.1:8000/v1`
+4. **API Key:** leave empty (no auth for localhost)
+5. **Model:** auto-reads from `kilo.jsonc` → `openai-compatible/Qwen3.6-35B-A3B-OptiQ-4bit`
 6. Done!
 
 ### 5. Verify
 
-Switch to `bet-orchestrator` agent and test tool calling:
 ```fish
-curl http://localhost:8000/v1/models
+curl http://127.0.0.1:8000/v1/models
 ```
+
+Expected: `{"data":[{"id":"Qwen3.6-35B-A3B-OptiQ-4bit",...}]}`
 
 ---
 
@@ -58,33 +57,37 @@ curl http://localhost:8000/v1/models
 
 | Property | Value |
 |----------|-------|
-| Model | Qwen3.6-35B-A3B MoE 4-bit (hybrid attention/Mamba) |
-| Architecture | MoE 35B total, 3B active per token |
-| VRAM | ~19-20GB (4-bit quantization) |
-| Context | 131K tokens (model maximum) |
-| Speed | ~45-70 tok/s on M4 Pro 48GB |
-| Tool calling | qwen3_coder_xml parser |
-| Reasoning | qwen3 parser (`<think>` blocks — ALWAYS ON) |
+| Model | Qwen3.6-35B-A3B-OptiQ-4bit (MLX OptiQ mixed-precision quant via oMLX) |
+| Architecture | MoE 35B total, 3B active per token, 256 experts, 8 active |
+| Hybrid | 40 layers: 75% Mamba2 linear attention + 25% full attention |
+| VRAM | ~19-20GB (4-bit OptiQ quantization) |
+| Context | 262,144 tokens advertised by the model; active oMLX runtime cap is controlled separately in `~/.omlx/settings.json` |
+| Speed | ~30-45 tok/s on M4 Pro 48GB |
+| KV Cache | TurboQuant 3-bit (~75% reduction) |
+| Tool calling | qwen3_coder_xml parser (native) |
+| Reasoning | Enabled in model settings; production reliability still depends on checkpoints and prompt discipline |
 | Cost | $0 (fully local) |
 | Rate limits | None |
-| HuggingFace | `mlx-community/Qwen3.6-35B-A3B-4bit` |
+| Server | oMLX v0.4.0+ (`~/.omlx/bin/omlx`) |
+| Config | `~/.omlx/settings.json` + `~/.omlx/model_settings.json` |
 
-## Why Qwen3.6-35B-A3B MoE 4-bit
+## Why Qwen3.6-35B-A3B MoE + oMLX
 
-- MoE 35B → 35B total knowledge, only 3B params active per token → fast generation
-- 4-bit precision → fits comfortably in 48GB unified memory with 21GB headroom
-- Thinking mode → `<think>` blocks before every answer (critical for betting analysis)
-- 131K context → entire pipeline state fits in one call
-- Hybrid attention/Mamba → Mamba layers don't use KV cache → more context capacity
-- TurboQuant V-cache → 86% prefix cache savings
+- **oMLX**: production-ready LLM server for Apple Silicon with LRU memory management, SSD-paged KV cache, hot cache, multi-model support
+- **MoE 35B**: 35B total knowledge, only 3B params active per token → fast generation
+- **OptiQ 4-bit**: mixed-precision quant preserves reasoning and tool-calling subspaces
+- **Hybrid Mamba2**: 75% linear attention layers use no KV cache → more context fits
+- **Thinking mode**: `<think>` blocks before every answer (critical for betting analysis)
+- **Long context support**: the model advertises 262K, but the production runtime may use a lower safety cap to stay within RAM/Metal limits
+- **TurboQuant V-cache**: 3-bit KV cache → ~75% prefix cache savings
 - No API costs, no rate limits, full privacy, deterministic
-- No OOM risk — old 27B Dense 8-bit saturated Metal → 1 tok/s, kernel panic risk
+- Automatic memory management with hot/SSD cache tiers
 
 ## Auto-Start (Optional)
 
 ```fish
-cp config/com.rapid-mlx.server.plist ~/Library/LaunchAgents/
-launchctl load ~/Library/LaunchAgents/com.rapid-mlx.server.plist
+cp config/com.omlx.server.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.omlx.server.plist
 ```
 
 ## Context Budget
@@ -92,12 +95,12 @@ launchctl load ~/Library/LaunchAgents/com.rapid-mlx.server.plist
 - Agent system prompt: ~3-5K tokens
 - Instructions (loaded per agent): ~2-8K tokens
 - External prompt files: ~1-3K tokens each
-- Working context for analysis: ~100-120K tokens available
-- Total usable per request: ~125K tokens (sufficient for full pipeline state)
+- Working context for analysis: bounded by the active `sampling.max_context_window` in `~/.omlx/settings.json`
+- Total usable per request: treat `session-state.md` and file artifacts as the persistence layer, not the raw prompt window
 
 ## CRITICAL: Thinking Mode
 
-- NEVER use `--no-thinking` — this destroys pipeline value
-- The `<think>` blocks are where the model reasons through evidence
+- NEVER disable thinking — this destroys pipeline value
+- The model is configured for reasoning, but you should not assume infinite hidden-thought budget or raw-context persistence
 - Betting decisions require: weighing stats, considering context, challenging assumptions
 - Without thinking: model produces surface-level script-like output = WORTHLESS

@@ -222,8 +222,18 @@ class APIVolleyballClient(APISportsClient):
                 key=lambda g: g.get("date", ""),
                 reverse=True,
             )
-            # Take first last_n — store ID as string for get_match_stats
-            result = [{"id": str(g.get("id", ""))} for g in finished[:last_n]]
+            # Take first last_n and preserve enough identity to backfill fixture_sources.
+            result = []
+            for g in finished[:last_n]:
+                teams = g.get("teams", {})
+                result.append(
+                    {
+                        "id": str(g.get("id", "")),
+                        "date": g.get("date", ""),
+                        "home_team": teams.get("home", {}).get("name", ""),
+                        "away_team": teams.get("away", {}).get("name", ""),
+                    }
+                )
             self._save_cache(cache_key, {"fixtures": result})
             return result
         except Exception:

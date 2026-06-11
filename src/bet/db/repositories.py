@@ -9,6 +9,7 @@ import logging
 import re
 import sqlite3
 from datetime import datetime, timezone
+from pathlib import Path
 
 from bet.db.models import (
     AnalysisRawData,
@@ -273,6 +274,213 @@ class TeamRepo:
             country=row["country"] or "",
             venue=row["venue"] or "",
             style_tags=json.loads(row["style_tags"]),
+        )
+
+
+class TeamSourceAliasRepo:
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+        self._ensure_table()
+
+    def _ensure_table(self) -> None:
+        table_sql_row = self.conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'team_source_aliases'"
+        ).fetchone()
+        table_sql = (table_sql_row["sql"] if table_sql_row and table_sql_row["sql"] else "")
+        if table_sql and "UNIQUE(team_id, source, provider_team_name, provider_competition_hint)" not in table_sql:
+            self._migrate_table()
+
+        self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS team_source_aliases (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                team_id INTEGER NOT NULL REFERENCES teams(id),
+                sport_id INTEGER NOT NULL REFERENCES sports(id),
+                source TEXT NOT NULL,
+                provider_team_name TEXT NOT NULL,
+                provider_team_id TEXT,
+                provider_slug TEXT,
+                provider_competition_hint TEXT NOT NULL DEFAULT '',
+                confidence REAL NOT NULL DEFAULT 0.0,
+                verified_at TEXT,
+                last_used_at TEXT,
+                status TEXT NOT NULL DEFAULT 'candidate',
+                UNIQUE(team_id, source, provider_team_name, provider_competition_hint)
+            )
+            """
+        )
+        self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_team_source_aliases_lookup "
+            "ON team_source_aliases(team_id, source, status, provider_competition_hint)"
+        )
+
+    def _migrate_table(self) -> None:
+        self.conn.execute("ALTER TABLE team_source_aliases RENAME TO team_source_aliases_legacy")
+        self.conn.execute(
+            """
+            CREATE TABLE team_source_aliases (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                team_id INTEGER NOT NULL REFERENCES teams(id),
+                sport_id INTEGER NOT NULL REFERENCES sports(id),
+                source TEXT NOT NULL,
+                provider_team_name TEXT NOT NULL,
+                provider_team_id TEXT,
+                provider_slug TEXT,
+                provider_competition_hint TEXT NOT NULL DEFAULT '',
+                confidence REAL NOT NULL DEFAULT 0.0,
+                verified_at TEXT,
+                last_used_at TEXT,
+                status TEXT NOT NULL DEFAULT 'candidate',
+                UNIQUE(team_id, source, provider_team_name, provider_competition_hint)
+            )
+            """
+        )
+        self.conn.execute(
+            """
+            INSERT INTO team_source_aliases (
+                team_id, sport_id, source, provider_team_name, provider_team_id,
+                provider_slug, provider_competition_hint, confidence,
+                verified_at, last_used_at, status
+            )
+            SELECT team_id, sport_id, source, provider_team_name, provider_team_id,
+                   provider_slug, COALESCE(provider_competition_hint, ''), confidence,
+                   verified_at, last_used_at, status
+            FROM team_source_aliases_legacy
+            """
+        )
+        self.conn.execute("DROP TABLE team_source_aliases_legacy")
+
+    def get_verified_provider_team_id(
+        self,
+        team_id: int,
+        source: str,
+        provider_competition_hint: str = "",
+    ) -> str | None:
+        row = self.conn.execute(
+            """
+            SELECT id, provider_team_id
+            FROM team_source_aliases
+            WHERE team_id = ?
+              AND source = ?
+              AND status = 'verified'
+              AND COALESCE(provider_team_id, '') != ''
+              AND (provider_competition_hint = ? OR provider_competition_hint = '')
+            ORDER BY
+              CASE WHEN provider_competition_hint = ? THEN 0 ELSE 1 END,
+              confidence DESC,
+              COALESCE(last_used_at, verified_at, '') DESC
+            LIMIT 1
+            """,
+            (team_id, source, provider_competition_hint or "", provider_competition_hint or ""),
+        ).fetchone()
+        if not row:
+            return None
+        self.conn.execute(
+            "UPDATE team_source_aliases SET last_used_at = ? WHERE id = ?",
+            (_now(), row["id"]),
+        )
+        return str(row["provider_team_id"])
+
+    def get_candidate_provider_names(
+        self,
+        team_id: int,
+        source: str,
+        provider_competition_hint: str = "",
+    ) -> list[str]:
+        rows = self.conn.execute(
+            """
+            SELECT provider_team_name
+            FROM team_source_aliases
+            WHERE team_id = ?
+              AND source = ?
+              AND status IN ('verified', 'candidate', 'stale')
+              AND COALESCE(provider_team_name, '') != ''
+              AND (provider_competition_hint = ? OR provider_competition_hint = '')
+            ORDER BY
+              CASE status
+                WHEN 'verified' THEN 0
+                WHEN 'candidate' THEN 1
+                ELSE 2
+              END,
+              CASE WHEN provider_competition_hint = ? THEN 0 ELSE 1 END,
+              confidence DESC,
+              COALESCE(last_used_at, verified_at, '') DESC
+            """,
+            (team_id, source, provider_competition_hint or "", provider_competition_hint or ""),
+        ).fetchall()
+        return [str(row["provider_team_name"]) for row in rows if row["provider_team_name"]]
+
+    def get_failed_provider_names(
+        self,
+        team_id: int,
+        source: str,
+        provider_competition_hint: str = "",
+    ) -> set[str]:
+        rows = self.conn.execute(
+            """
+            SELECT provider_team_name
+            FROM team_source_aliases
+            WHERE team_id = ?
+              AND source = ?
+              AND status = 'failed'
+              AND COALESCE(provider_team_name, '') != ''
+              AND (provider_competition_hint = ? OR provider_competition_hint = '')
+            """,
+            (team_id, source, provider_competition_hint or ""),
+        ).fetchall()
+        return {str(row["provider_team_name"]) for row in rows if row["provider_team_name"]}
+
+    def upsert_alias(
+        self,
+        *,
+        team_id: int,
+        sport_id: int,
+        source: str,
+        provider_team_name: str,
+        provider_team_id: str | None = None,
+        provider_slug: str = "",
+        provider_competition_hint: str = "",
+        confidence: float = 1.0,
+        status: str = "verified",
+    ) -> None:
+        timestamp = _now()
+        verified_at = timestamp if status == "verified" else None
+        self.conn.execute(
+            """
+            INSERT INTO team_source_aliases (
+                team_id, sport_id, source, provider_team_name, provider_team_id,
+                provider_slug, provider_competition_hint, confidence,
+                verified_at, last_used_at, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(team_id, source, provider_team_name, provider_competition_hint) DO UPDATE SET
+                sport_id = excluded.sport_id,
+                provider_team_id = COALESCE(excluded.provider_team_id, team_source_aliases.provider_team_id),
+                provider_slug = COALESCE(NULLIF(excluded.provider_slug, ''), team_source_aliases.provider_slug),
+                confidence = CASE
+                    WHEN excluded.confidence > team_source_aliases.confidence THEN excluded.confidence
+                    ELSE team_source_aliases.confidence
+                END,
+                verified_at = COALESCE(excluded.verified_at, team_source_aliases.verified_at),
+                last_used_at = excluded.last_used_at,
+                status = CASE
+                    WHEN excluded.status = 'verified' THEN 'verified'
+                    WHEN team_source_aliases.status = 'verified' THEN team_source_aliases.status
+                    ELSE excluded.status
+                END
+            """,
+            (
+                team_id,
+                sport_id,
+                source,
+                provider_team_name,
+                None if provider_team_id in (None, "") else str(provider_team_id),
+                provider_slug,
+                provider_competition_hint or "",
+                confidence,
+                verified_at,
+                timestamp,
+                status,
+            ),
         )
 
 
@@ -1081,8 +1289,89 @@ class CouponRepo:
 # ---------------------------------------------------------------------------
 
 class PipelineRepo:
+    PHASE_ORDER = ("PHASE_A", "PHASE_B", "PHASE_C", "PHASE_D", "PHASE_E")
+
     def __init__(self, conn: sqlite3.Connection):
         self.conn = conn
+
+    @classmethod
+    def _is_phase_step(cls, step: str) -> bool:
+        return step in cls.PHASE_ORDER
+
+    @staticmethod
+    def _safe_load_stats(stats_raw: str | None):
+        if not stats_raw:
+            return None
+        try:
+            return json.loads(stats_raw)
+        except json.JSONDecodeError:
+            return "__MALFORMED_JSON__"
+
+    @classmethod
+    def _phase_index(cls, phase_id: str) -> int | None:
+        try:
+            return cls.PHASE_ORDER.index(phase_id)
+        except ValueError:
+            return None
+
+    @classmethod
+    def _base_phase_receipt(cls, date: str, phase_id: str, **overrides) -> dict:
+        if not cls._is_phase_step(phase_id):
+            raise ValueError(f"Unsupported phase receipt id: {phase_id}")
+        receipt = {
+            "run_date": date,
+            "phase_id": phase_id,
+            "status": "running",
+            "completed_steps": [],
+            "delegation_receipts": [],
+            "artifacts": [],
+            "db_receipts": [],
+            "gate_verdict": "pending",
+            "fallback_modes": [],
+            "retry_count": 0,
+            "resume_from": phase_id,
+            "invalidate_if": [],
+            "next_phase": None,
+            "notes": "",
+        }
+        receipt.update(overrides)
+        return receipt
+
+    @staticmethod
+    def _artifact_receipts_valid(receipt: dict) -> bool:
+        artifacts = receipt.get("artifacts")
+        if not isinstance(artifacts, list):
+            return True
+        for artifact in artifacts:
+            if not isinstance(artifact, dict):
+                return False
+            raw_path = artifact.get("path")
+            if not raw_path:
+                return False
+            path = Path(raw_path)
+            expected_exists = artifact.get("exists", True)
+            if expected_exists and not path.exists():
+                return False
+            if not expected_exists:
+                continue
+            expected_size = artifact.get("size")
+            if expected_size is not None:
+                try:
+                    observed_size = path.stat().st_size
+                except OSError:
+                    return False
+                if int(observed_size) != int(expected_size):
+                    return False
+        return True
+
+    @classmethod
+    def _receipt_is_validated(cls, receipt: dict | None, row_status: str) -> bool:
+        return (
+            isinstance(receipt, dict)
+            and row_status == "completed"
+            and receipt.get("status") == "validated"
+            and cls._artifact_receipts_valid(receipt)
+        )
 
     def start_step(self, date: str, step: str) -> None:
         self.conn.execute(
@@ -1094,18 +1383,70 @@ class PipelineRepo:
             (date, step, _now()),
         )
 
-    def complete_step(self, date: str, step: str, stats: dict | None = None) -> None:
+    def start_phase(self, date: str, phase_id: str, stats: dict | None = None) -> None:
+        payload = self._base_phase_receipt(date, phase_id)
+        if stats:
+            payload.update(stats)
         self.conn.execute(
-            "UPDATE pipeline_runs SET status = 'completed', completed_at = ?, stats = ? "
-            "WHERE date = ? AND step = ?",
-            (_now(), json.dumps(stats) if stats else None, date, step),
+            "INSERT INTO pipeline_runs (date, step, status, started_at, stats) "
+            "VALUES (?, ?, 'running', ?, ?) "
+            "ON CONFLICT(date, step) DO UPDATE SET "
+            "status = 'running', started_at = excluded.started_at, "
+            "completed_at = NULL, error_message = NULL, stats = excluded.stats",
+            (date, phase_id, _now(), json.dumps(payload)),
         )
 
-    def fail_step(self, date: str, step: str, error: str) -> None:
+    def complete_step(self, date: str, step: str, stats: dict | None = None) -> None:
+        completed_at = _now()
         self.conn.execute(
-            "UPDATE pipeline_runs SET status = 'failed', completed_at = ?, error_message = ? "
+            "INSERT INTO pipeline_runs (date, step, status, started_at, completed_at, stats) "
+            "VALUES (?, ?, 'completed', ?, ?, ?) "
+            "ON CONFLICT(date, step) DO UPDATE SET "
+            "status = 'completed', completed_at = excluded.completed_at, stats = excluded.stats, error_message = NULL",
+            (date, step, completed_at, completed_at, json.dumps(stats) if stats else None),
+        )
+
+    def complete_phase(self, date: str, phase_id: str, stats: dict | None = None) -> None:
+        payload = self._base_phase_receipt(
+            date,
+            phase_id,
+            status="validated",
+            resume_from=phase_id,
+        )
+        if stats:
+            payload.update(stats)
+        phase_idx = self._phase_index(phase_id)
+        payload["next_phase"] = (
+            self.PHASE_ORDER[phase_idx + 1]
+            if phase_idx is not None and phase_idx + 1 < len(self.PHASE_ORDER)
+            else None
+        )
+        self.complete_step(date, phase_id, payload)
+
+    def fail_step(self, date: str, step: str, error: str) -> None:
+        completed_at = _now()
+        self.conn.execute(
+            "INSERT INTO pipeline_runs (date, step, status, started_at, completed_at, error_message) "
+            "VALUES (?, ?, 'failed', ?, ?, ?) "
+            "ON CONFLICT(date, step) DO UPDATE SET "
+            "status = 'failed', completed_at = excluded.completed_at, error_message = excluded.error_message",
+            (date, step, completed_at, completed_at, error),
+        )
+
+    def fail_phase(self, date: str, phase_id: str, error: str, stats: dict | None = None) -> None:
+        payload = self._base_phase_receipt(
+            date,
+            phase_id,
+            status="failed",
+            resume_from=phase_id,
+            notes=error,
+        )
+        if stats:
+            payload.update(stats)
+        self.conn.execute(
+            "UPDATE pipeline_runs SET status = 'failed', completed_at = ?, error_message = ?, stats = ? "
             "WHERE date = ? AND step = ?",
-            (_now(), error, date, step),
+            (_now(), error, json.dumps(payload), date, phase_id),
         )
 
     def get_completed_steps(self, date: str) -> list[str]:
@@ -1129,8 +1470,50 @@ class PipelineRepo:
             "started_at": row["started_at"] or "",
             "completed_at": row["completed_at"] or "",
             "error_message": row["error_message"] or "",
-            "stats": json.loads(row["stats"]) if row["stats"] else None,
+            "stats": self._safe_load_stats(row["stats"]),
         }
+
+    def get_phase_receipt(self, date: str, phase_id: str) -> dict | None:
+        record = self.get_step(date, phase_id)
+        if not record:
+            return None
+        stats = record.get("stats")
+        if isinstance(stats, dict):
+            return {
+                **record,
+                "phase_id": phase_id,
+                "receipt": stats,
+            }
+        return {
+            **record,
+            "phase_id": phase_id,
+            "receipt": stats,
+        }
+
+    def get_last_validated_phase(self, date: str) -> dict | None:
+        validated: list[dict] = []
+        for phase_id in self.PHASE_ORDER:
+            receipt = self.get_phase_receipt(date, phase_id)
+            if not receipt:
+                break
+            payload = receipt.get("receipt")
+            if self._receipt_is_validated(payload, receipt.get("status")):
+                validated.append(receipt)
+                continue
+            break
+        if not validated:
+            return None
+        return validated[-1]
+
+    def get_next_resume_phase(self, date: str) -> str | None:
+        for phase_id in self.PHASE_ORDER:
+            receipt = self.get_phase_receipt(date, phase_id)
+            if not receipt:
+                return phase_id
+            payload = receipt.get("receipt")
+            if not self._receipt_is_validated(payload, receipt.get("status")):
+                return phase_id
+        return None
 
     def get_run_status(self, date: str) -> list[dict]:
         rows = self.conn.execute(
@@ -1145,7 +1528,7 @@ class PipelineRepo:
                 "started_at": r["started_at"] or "",
                 "completed_at": r["completed_at"] or "",
                 "error_message": r["error_message"] or "",
-                "stats": json.loads(r["stats"]) if r["stats"] else None,
+                "stats": self._safe_load_stats(r["stats"]),
             }
             for r in rows
         ]
@@ -2983,6 +3366,19 @@ class PipelineCandidateRepo:
                 fixture_id,
                 date,
             ),
+        )
+        self.conn.commit()
+
+    def clear_tipster_enrichment(self, date: str) -> None:
+        """Reset tipster enrichment for a betting date before re-running S2.
+
+        S2 reruns must not leave stale `tipster_count` / `tipster_support_json`
+        from earlier runs on candidates that no longer match.
+        """
+        self.conn.execute(
+            "UPDATE pipeline_candidates SET tipster_count = 0, tipster_support_json = NULL "
+            "WHERE betting_date = ?",
+            (date,),
         )
         self.conn.commit()
 

@@ -10,7 +10,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from build_shortlist import build_shortlist, write_shortlist_json, _score_event
+from build_shortlist import build_shortlist, write_shortlist_json, _score_event, _score_competition
 
 
 # ---------------------------------------------------------------------------
@@ -169,6 +169,15 @@ class TestFixtureOnlyFilter:
         # comp_score is low but has odds, so data_tier != FIXTURE_ONLY → not filtered
         assert score >= 0  # scoring doesn't matter; FO filter won't touch it
 
+    def test_fixture_only_dota2_major_event_kept(self):
+        """Major Dota2 events should not be zeroed by the fixture-only filter."""
+        assert _score_competition("dota2", "BLAST Slam") >= 6
+        assert _score_competition("dota2", "Esports World Cup") >= 6
+
+        event = self._make_event("dota2", "BLAST Slam", "FIXTURE_ONLY", home="Team Liquid", away="Team Falcons")
+        score = _score_event(event, set())
+        assert score > 30
+
     def test_full_pipeline_fixture_only_removal(self):
         """Integration: build_shortlist drops minor-league FIXTURE_ONLY from output."""
         import tempfile
@@ -244,6 +253,93 @@ class TestFixtureOnlyFilter:
         # Minor league FIXTURE_ONLY DROPPED (Tanzania comp_score=0, Armenia comp_score=3)
         assert "FC Ararat" not in teams_in_result
         assert "Simba SC" not in teams_in_result
+
+        shutil.rmtree(tmp)
+
+    def test_placeholder_fixture_removed_from_pipeline(self):
+        """Bracket placeholders like TBD/R16P* should never survive shortlist filtering."""
+        import tempfile
+        import shutil
+
+        tmp = tempfile.mkdtemp()
+        data_dir = Path(tmp)
+
+        matrix = {
+            "events": [
+                {
+                    "sport": "tennis",
+                    "competition": "Roland Garros - Women's Singles",
+                    "home_team": "TBD",
+                    "away_team": "R16P7",
+                    "kickoff": "2099-01-01T15:00:00",
+                    "data_tier": "FIXTURE_ONLY",
+                    "odds_markets": [],
+                    "safety_markets": [],
+                },
+                {
+                    "sport": "tennis",
+                    "competition": "WTA French Open",
+                    "home_team": "Iga Swiatek",
+                    "away_team": "Aryna Sabalenka",
+                    "kickoff": "2099-01-01T17:00:00",
+                    "data_tier": "ODDS_BASIC",
+                    "odds_markets": [{"market": "ML:Home", "best_odds": 1.90}],
+                    "safety_markets": [],
+                },
+            ],
+        }
+        (data_dir / "market_matrix_2099-01-01.json").write_text(
+            json.dumps(matrix), encoding="utf-8"
+        )
+
+        with patch("build_shortlist.DATA_DIR", data_dir):
+            result = build_shortlist("2099-01-01", top_n=0, stats_first=True)
+
+        teams_in_result = { (item[1] if isinstance(item, tuple) else item)["home_team"] for item in result }
+        assert "TBD" not in teams_in_result
+        assert "Iga Swiatek" in teams_in_result
+
+        shutil.rmtree(tmp)
+
+    def test_shortlist_json_emits_zeroed_active_sport_telemetry(self):
+        """If an active sport is fully cut, telemetry should expose it explicitly."""
+        import shutil
+
+        tmp = tempfile.mkdtemp()
+        data_dir = Path(tmp)
+
+        matrix = {
+            "events": [
+                {
+                    "sport": "dota2",
+                    "competition": "Regional Open Qualifier",
+                    "home_team": "Alpha",
+                    "away_team": "Beta",
+                    "kickoff": "2099-01-01T18:00:00",
+                    "data_tier": "FIXTURE_ONLY",
+                    "odds_markets": [],
+                    "safety_markets": [],
+                },
+                {
+                    "sport": "football",
+                    "competition": "England - Premier League",
+                    "home_team": "Liverpool",
+                    "away_team": "Arsenal",
+                    "kickoff": "2099-01-01T20:00:00",
+                    "data_tier": "ODDS_BASIC",
+                    "odds_markets": [{"market": "ML:Home", "best_odds": 1.8}],
+                    "safety_markets": [],
+                },
+            ],
+        }
+        (data_dir / "market_matrix_2099-01-01.json").write_text(json.dumps(matrix), encoding="utf-8")
+
+        with patch("build_shortlist.DATA_DIR", data_dir):
+            selected = build_shortlist("2099-01-01", top_n=0, stats_first=True)
+            out_path = write_shortlist_json(selected, "2099-01-01")
+
+        payload = json.loads(Path(out_path).read_text(encoding="utf-8"))
+        assert "dota2" in payload["selection_telemetry"]["active_sports_zeroed"]
 
         shutil.rmtree(tmp)
 

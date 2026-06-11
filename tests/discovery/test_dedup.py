@@ -130,12 +130,8 @@ class TestTemporalMatch:
             "odds-api": [_make_event(source="odds-api", external_id="o1",
                                       kickoff_str="2026-05-14T20:00:00+00:00")],
         }
-        # Same date but >2h apart — exact key matches on date but
-        # when testing purely fuzzy, they'd be too far apart
         merged = engine.merge(events)
-        # Exact key matches because same date → will merge via exact key
-        # This is by design — exact key uses DATE not time
-        assert len(merged) == 1
+        assert len(merged) == 2
 
 
 class TestThreeSourceMerge:

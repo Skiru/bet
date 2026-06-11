@@ -410,6 +410,28 @@ def _synthesize_l10(
     return values
 
 
+def _get_min_stat_for_competition(sport: str, competition: str = "") -> int:
+    """Return minimum L10 values required based on competition tier.
+
+    Obscure/minor leagues often have sparse data; lowering the threshold
+    allows safety scores to be computed (with LOW_SAMPLE flag).
+    """
+    comp_lower = (competition or "").lower()
+    obscure_markers = [
+        "usl", "npsl", "regionalliga", "oberliga", "landesliga",
+        "verbandsliga", "serie d", "primera c", "primera d",
+        "campeonato estadual", "state league", "county league",
+        "u17", "u19", "u20", "u21", "u23", "youth",
+        "friendly", "club friendly", "exhibition",
+        "challenger", "itf", "futures", "qualifier",
+        "2. liga", "3. liga", "fourth division", "fifth division",
+    ]
+    for marker in obscure_markers:
+        if marker in comp_lower:
+            return 2
+    return 3
+
+
 def _build_markets_from_db_form(
     sport: str,
     team_a: str,
@@ -418,6 +440,7 @@ def _build_markets_from_db_form(
     team_b_form: list,
     h2h_form: list,
     market_definitions: list[dict],
+    competition: str = "",
 ) -> tuple[list[dict], int]:
     """Convert DB TeamForm rows into market dicts matching build_safety_score_input() output."""
 
@@ -514,7 +537,8 @@ def _build_markets_from_db_form(
         # Lowered to 3 for all sports — hit_rate logic downstream handles quality.
         # Previous threshold of 5 for non-individual sports was cutting too many
         # events that had 3-4 L10 entries from ESPN/Flashscore enrichment.
-        _min_stat = 3
+        # Obscure/minor leagues: allow 2 values with LOW_SAMPLE annotation.
+        _min_stat = _get_min_stat_for_competition(sport, competition)
         if stat_a_key and len(team_a_l10) < _min_stat:
             continue
         if stat_b_key and not stat_a_key and len(team_a_l10) < _min_stat:
@@ -730,6 +754,7 @@ def build_safety_input_from_db(
                 sport, team_a, team_b,
                 team_a_form, team_b_form, h2h_form,
                 market_definitions,
+                competition=competition,
             )
 
             if not built_markets:

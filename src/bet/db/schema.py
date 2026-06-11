@@ -4,7 +4,7 @@ import sqlite3
 from pathlib import Path
 
 SCHEMA_SQL = Path(__file__).parent / "schema.sql"
-SCHEMA_VERSION = 10
+SCHEMA_VERSION = 13
 
 
 def init_db(conn: sqlite3.Connection) -> None:
@@ -166,6 +166,24 @@ def migrate(conn: sqlite3.Connection, from_version: int, to_version: int) -> Non
     if from_version < 10:
         # v10: Betclic market availability tables
         migration_path = Path(__file__).parent / "migrations" / "010_betclic_markets.sql"
+        if migration_path.exists():
+            conn.executescript(migration_path.read_text(encoding="utf-8"))
+
+    if from_version < 11:
+        # v11: scan_run_stats table
+        migration_path = Path(__file__).parent / "migrations" / "011_scan_run_stats.sql"
+        if migration_path.exists():
+            conn.executescript(migration_path.read_text(encoding="utf-8"))
+
+    if from_version < 12:
+        # v12: known_missing table
+        migration_path = Path(__file__).parent / "migrations" / "012_known_missing.sql"
+        if migration_path.exists():
+            conn.executescript(migration_path.read_text(encoding="utf-8"))
+
+    if from_version < 13:
+        # v13: canonical market matrix tables
+        migration_path = Path(__file__).parent / "migrations" / "013_market_matrix_tables.sql"
         if migration_path.exists():
             conn.executescript(migration_path.read_text(encoding="utf-8"))
 

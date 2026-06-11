@@ -194,7 +194,8 @@ class AgentOutput:
         warnings = []
         
         # coupon_builder.py emits NO_BET for a valid no-pick session path.
-        valid_verdicts = {"OK", "PARTIAL", "FAILED", "NO_BET"}
+        # PRECONDITION_FAILED is used by data_enrichment_agent when shortlist is missing.
+        valid_verdicts = {"OK", "PARTIAL", "FAILED", "NO_BET", "PRECONDITION_FAILED"}
         verdict = payload.get("verdict")
         if verdict not in valid_verdicts:
             warnings.append(f"Invalid verdict '{verdict}' — expected one of {valid_verdicts}")

@@ -36,8 +36,18 @@ DATA_DIR = ROOT_DIR / "betting" / "data"
 sys.path.insert(0, str(SCRIPTS_DIR))
 sys.path.insert(0, str(ROOT_DIR / "src"))
 
+# Progress tracking for background execution
+try:
+    from scripts._background_runner import ProgressTracker
+except ImportError:
+    try:
+        from _background_runner import ProgressTracker  # noqa: F811
+    except ImportError:
+        ProgressTracker = None  # type: ignore
+
 import requests as _requests
 from bet.resilience import resilient_request
+from bet.tipster_registry import TIPSTER_SOURCE_REGISTRY, get_tipster_source_status
 
 # Playwright-based client for JS-rendered tipster sites
 _pw_client = None
@@ -292,6 +302,8 @@ TEAM_NAME_STRIP_WORDS = [
     "bet",
 ]
 
+from bet.utils import strip_team_noise
+
 # League abbreviation prefixes to strip
 LEAGUE_PREFIXES = {
     "epl", "fra", "ita", "esp", "ger", "neth", "por", "sco",
@@ -461,7 +473,7 @@ def _clean_team_name(name: str) -> str:
     Strips league abbreviation prefixes (EPL, FRA, etc.) and
     navigation suffixes (Tips, Bet tip on, etc.).
     """
-    cleaned = name.strip()
+    cleaned = name.replace("\t", " ").strip()
 
     # Strip trailing prediction codes (e.g., "Aston Villa X2" → "Aston Villa")
     cleaned = _PRED_CODE_RE.sub('', cleaned).strip()
@@ -502,7 +514,7 @@ def _clean_team_name(name: str) -> str:
     if cleaned.lower().endswith(" odds"):
         cleaned = cleaned[:-5].strip()
 
-    return cleaned
+    return strip_team_noise(cleaned)
 
 
 # ---------------------------------------------------------------------------
@@ -645,6 +657,9 @@ def detect_sport(text: str, url: str = "") -> str:
                         "mestaruusliiga", "eredivisie volley", "bundesliga volley"],
         "hockey": ["hockey", "hokej", "nhl", "khl",
                     "shl", "liiga", "extraliga", "allsvenskan", "mestis", "eihl", "del"],
+        "cs2": ["cs2", "counter-strike 2", "counter strike 2", "counter-strike", "bo3", "blast premier", "iem", "esl pro league", "cct"],
+        "dota2": ["dota2", "dota 2", "blast slam", "esports world cup", "dreamleague", "riyadh masters", "the international"],
+        "valorant": ["valorant", "vct", "challengers", "game changers", "masters toronto"],
     }
     for sport, keywords in sport_keywords.items():
         for kw in keywords:
@@ -659,6 +674,12 @@ def detect_sport(text: str, url: str = "") -> str:
         return "basketball"
     if "/nhl/" in url or "/hockey/" in url:
         return "hockey"
+    if "/cs2/" in url or "bo3.gg" in url:
+        return "cs2"
+    if "/dota2/" in url or "dota 2" in combined:
+        return "dota2"
+    if "/valorant/" in url or "vlr.gg" in url:
+        return "valorant"
     return "football"
 
 
@@ -2279,16 +2300,17 @@ def compute_consensus(all_picks: list[dict]) -> list[dict]:
 
     for pick in all_picks:
         # Normalize event key using smart normalization
+        sport = str(pick.get("sport") or "").strip().lower() or "unknown"
         home = normalize_for_matching(pick.get("home_team", ""))
         away = normalize_for_matching(pick.get("away_team", ""))
         if home and away:
-            key = f"{home}|{away}"
+            key = f"{sport}|{home}|{away}"
             # Check if this key matches an existing group
             matched_key = None
             for existing_key in list(canonical_keys.keys()):
-                e_parts = existing_key.split("|")
-                if len(e_parts) == 2:
-                    eh, ea = e_parts
+                e_parts = existing_key.split("|", 2)
+                if len(e_parts) == 3 and e_parts[0] == sport:
+                    eh, ea = e_parts[1], e_parts[2]
                     # Normal order
                     if names_match(home, eh) >= 70 and names_match(away, ea) >= 70:
                         matched_key = existing_key
@@ -2455,13 +2477,18 @@ def run_tipster_aggregation(
     _log(f"[tipster] Gemini mode: {'ON' if use_gemini else 'OFF'}")
     _log(f"[tipster] Per-site timeout: {SITE_FETCH_TIMEOUT}s, Playwright: {PLAYWRIGHT_TIMEOUT}s")
 
+    # Progress tracking for background execution
+    tracker = ProgressTracker("s1b_tipster") if ProgressTracker else None
+    sites_completed = 0
+    if tracker:
+        tracker.start(len(TIPSTER_SITES), f"Aggregating tipster picks for {date}")
+
     # --- LM Studio path (feature flag) ---
     gemini_picks = []
     gemini_success = 0
     gemini_fallback = 0
     if use_gemini:
         try:
-            from lmstudio_tipster_reader import read_tipster_page, convert_to_tipster_pick
             _log("[tipster] LM Studio tipster reader loaded — will try LM Studio first per site")
             for site in TIPSTER_SITES:
                 site_url = site.get("url", "")
@@ -2473,12 +2500,11 @@ def run_tipster_aggregation(
                     for p in result.picks:
                         pick_dict = convert_to_tipster_pick(p, site["name"], date)
                         gemini_picks.append(pick_dict)
-                    _log(f"  [lmstudio] {site['name']}: {len(result.picks)} picks extracted")
+                    _log(f"  [rapid-mlx] {site['name']}: {len(result.picks)} picks extracted")
                 else:
                     gemini_fallback += 1
-                    _log(f"  [lmstudio-fallback] {site['name']}: no picks, will use BS4")
+                    _log(f"  [fallback] {site['name']}: no picks, will use BS4")
         except ImportError:
-            _log("[tipster] lmstudio_tipster_reader not available — falling back to BS4")
             use_gemini = False
         except Exception as e:
             _log(f"[tipster] LM Studio failed: {e} — falling back to BS4")
@@ -2512,6 +2538,9 @@ def run_tipster_aggregation(
             _log(f"  [{status}] {site['name']}: {count} picks ({ms}ms)")
             if result.get("error"):
                 errors.append(f"{site['name']}: {result['error']}")
+            if tracker:
+                sites_completed += 1
+                tracker.update(sites_completed, site['name'], {"picks": count, "status": status})
     else:
         _log(f"[tipster] No Playwright — fetching {len(sites_to_fetch)} sites in parallel ({max_workers} workers)")
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -2533,6 +2562,9 @@ def run_tipster_aggregation(
                         _log(f"  [{status}] {site_name}: {count} picks ({ms}ms)")
                         if result.get("error"):
                             errors.append(f"{site_name}: {result['error']}")
+                        if tracker:
+                            sites_completed += 1
+                            tracker.update(sites_completed, site_name, {"picks": count, "status": status})
                     except TimeoutError:
                         _log(f"  [timeout] {site_name}: exceeded {SITE_FETCH_TIMEOUT}s — skipped")
                         errors.append(f"{site_name}: timeout after {SITE_FETCH_TIMEOUT}s")
@@ -2557,44 +2589,43 @@ def run_tipster_aggregation(
     # wrong-date content scraped from tipster sites.
     spam_rejected = 0
     try:
+        from bet.utils import normalize_for_matching, names_match
         from bet.db.connection import get_db
+        from bet.utils.time import betting_day_range
         with get_db() as conn:
-            # Load all fixture team names for the date
+            betting_start_utc, betting_end_utc = betting_day_range(datetime.strptime(date, "%Y-%m-%d"))
+            # Load all fixture pairs for the betting day and validate picks against real matchups.
             fixture_rows = conn.execute("""
-                SELECT LOWER(ht.name) as home, LOWER(at.name) as away
+                SELECT s.name AS sport, ht.name AS home, at.name AS away
                 FROM fixtures f
+                JOIN sports s ON f.sport_id = s.id
                 JOIN teams ht ON f.home_team_id = ht.id
                 JOIN teams at ON f.away_team_id = at.id
-                WHERE date(f.kickoff) = ?
-            """, (date,)).fetchall()
+                WHERE f.kickoff >= ? AND f.kickoff < ?
+            """, (betting_start_utc.isoformat(), betting_end_utc.isoformat())).fetchall()
 
-            # Build set of known team name fragments (first 5+ chars) for fuzzy matching
-            known_teams: set[str] = set()
+            fixture_pairs_by_sport: dict[str, list[tuple[str, str]]] = {}
             for row in fixture_rows:
-                home, away = row[0], row[1]
-                known_teams.add(home)
-                known_teams.add(away)
-                # Also add fragments for fuzzy matching (first 6 chars of each word)
-                for name in (home, away):
-                    for word in name.split():
-                        if len(word) >= 4:
-                            known_teams.add(word)
+                sport = str(row[0] or "").strip().lower()
+                home = normalize_for_matching(row[1])
+                away = normalize_for_matching(row[2])
+                if sport and home and away:
+                    fixture_pairs_by_sport.setdefault(sport, []).append((home, away))
 
-            if known_teams:
+            if fixture_pairs_by_sport:
                 def _matches_fixture(pick: dict) -> bool:
-                    """Check if pick's teams match any known fixture."""
-                    p_home = (pick.get("home_team") or "").lower().strip()
-                    p_away = (pick.get("away_team") or "").lower().strip()
+                    """Check if pick matches a real fixture pair in the same sport."""
+                    p_sport = str(pick.get("sport") or "").strip().lower()
+                    p_home = normalize_for_matching(pick.get("home_team") or "")
+                    p_away = normalize_for_matching(pick.get("away_team") or "")
                     if not p_home or not p_away:
                         return False
-                    # Direct match
-                    if p_home in known_teams or p_away in known_teams:
-                        return True
-                    # Fuzzy: check if any word ≥4 chars from pick teams is in known_teams
-                    for name in (p_home, p_away):
-                        for word in name.split():
-                            if len(word) >= 4 and word in known_teams:
-                                return True
+                    pairs = fixture_pairs_by_sport.get(p_sport, [])
+                    for home, away in pairs:
+                        direct_score = min(names_match(p_home, home), names_match(p_away, away))
+                        swapped_score = min(names_match(p_home, away), names_match(p_away, home))
+                        if max(direct_score, swapped_score) >= 70:
+                            return True
                     return False
 
                 pre_filter = len(all_picks)
@@ -2618,6 +2649,17 @@ def run_tipster_aggregation(
     sites_empty = sum(1 for r in all_results if r["status"] == "empty")
     sites_error = sum(1 for r in all_results if r["status"] == "error")
 
+    picks_by_sport: dict[str, int] = {}
+    for pick in all_picks:
+        sport = str(pick.get("sport") or "").strip().lower()
+        if sport:
+            picks_by_sport[sport] = picks_by_sport.get(sport, 0) + 1
+
+    source_status_by_sport = {
+        sport: get_tipster_source_status(sport, picks_by_sport.get(sport, 0))
+        for sport in TIPSTER_SOURCE_REGISTRY.keys()
+    }
+
     summary = {
         "date": date,
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -2631,6 +2673,8 @@ def run_tipster_aggregation(
         "events_covered": len(consensus),
         "events_with_consensus": sum(1 for c in consensus if c["agreement_pct"] >= 60),
         "errors": errors,
+        "picks_by_sport": picks_by_sport,
+        "source_status_by_sport": source_status_by_sport,
         "site_results": all_results,
         "consensus": consensus,
         "enhanced_entries": enhanced,
@@ -2713,6 +2757,9 @@ def run_tipster_aggregation(
         print(f"  ⚠ DB tipster save failed (non-fatal): {e}")
 
     _cleanup_pw_client()
+
+    if tracker:
+        tracker.done({"total_picks": total_picks, "sites_ok": sites_ok, "consensus_events": len(consensus)})
 
     return summary
 

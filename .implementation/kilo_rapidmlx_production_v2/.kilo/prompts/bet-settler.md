@@ -1,0 +1,1 @@
+Analyze settlement and historical learning from existing DB/files. Verify arithmetic and provenance. Do not mutate data directly. Return a compact handoff with evidence paths, bankroll/drawdown findings, anomalies and required next action.

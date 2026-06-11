@@ -251,12 +251,9 @@ def _build_stats_summary_payload(analysis: dict) -> dict:
         stats_summary["h2h"] = deepcopy(analysis["h2h_summary"])
     if analysis.get("data_quality"):
         stats_summary["data_quality"] = deepcopy(analysis["data_quality"])
-    if analysis.get("tipster_support"):
+    tipster_count = analysis.get("tipster_count") or 0
+    if tipster_count > 0 and analysis.get("tipster_support"):
         stats_summary["tipster_support"] = deepcopy(analysis["tipster_support"])
-
-    tipster_count = analysis.get("tipster_count")
-    if tipster_count is None:
-        tipster_count = (analysis.get("tipster_support") or {}).get("count")
     if tipster_count not in (None, ""):
         stats_summary["tipster_count"] = tipster_count
 
@@ -913,18 +910,6 @@ def load_s3_candidates_with_parity(betting_date: str) -> tuple[list[dict], dict]
     }
 
     if json_entries:
-        if db_only_keys:
-            metadata["source"] = "parity_error"
-            metadata["parity"]["status"] = "mismatch"
-            metadata["blocking_error"] = {
-                "code": "s3_candidate_parity_mismatch",
-                "message": (
-                    "DB contains candidates not present in S3 JSON; refusing to choose "
-                    "between divergent S3 universes"
-                ),
-            }
-            return [], metadata
-
         merged_entries: list[dict] = []
         for entry in json_entries:
             key = _analysis_identity_key(entry)
@@ -939,7 +924,18 @@ def load_s3_candidates_with_parity(betting_date: str) -> tuple[list[dict], dict]
         if not db_entries:
             metadata["parity"]["status"] = "json_only"
         else:
-            metadata["parity"]["status"] = "exact" if not json_only_keys else "db_subset_of_json"
+            if db_only_keys:
+                metadata["parity"]["status"] = "db_superset_of_json"
+                metadata["parity"]["warning"] = {
+                    "code": "s3_db_superset_ignored",
+                    "message": (
+                        "DB contains extra S3 rows not present in canonical JSON; "
+                        "ignoring stale DB-only rows"
+                    ),
+                    "db_only_candidates": len(db_only_keys),
+                }
+            else:
+                metadata["parity"]["status"] = "exact" if not json_only_keys else "db_subset_of_json"
         return merged_entries, metadata
 
     if db_entries:
@@ -992,6 +988,9 @@ def save_analysis_results_to_db(betting_date: str, analyses: list[dict]) -> int:
         skipped = 0
         with get_db() as conn:
             repo = AnalysisResultRepo(conn)
+            prepared_analyses: list[dict] = []
+            fixture_ids_to_keep: set[int] = set()
+
             for a in analyses:
                 # Resolve fixture_id
                 fixture_id = a.get("fixture_id")
@@ -1022,7 +1021,26 @@ def save_analysis_results_to_db(betting_date: str, analyses: list[dict]) -> int:
                     continue
                 # Inject fixture_id back so downstream steps (S4/S5/S6) have it
                 a["fixture_id"] = fixture_id
+                fixture_ids_to_keep.add(int(fixture_id))
+                prepared_analyses.append(a)
 
+            if fixture_ids_to_keep:
+                placeholders = ",".join("?" for _ in fixture_ids_to_keep)
+                params = [betting_date, *sorted(fixture_ids_to_keep)]
+                conn.execute(
+                    f"DELETE FROM analysis_results WHERE betting_date = ? AND fixture_id NOT IN ({placeholders})",
+                    params,
+                )
+                conn.execute(
+                    f"DELETE FROM analysis_raw_data WHERE betting_date = ? AND fixture_id NOT IN ({placeholders})",
+                    params,
+                )
+            else:
+                conn.execute("DELETE FROM analysis_results WHERE betting_date = ?", (betting_date,))
+                conn.execute("DELETE FROM analysis_raw_data WHERE betting_date = ?", (betting_date,))
+
+            for a in prepared_analyses:
+                fixture_id = a["fixture_id"]
                 best_market = a.get("best_market", {}) or {}
                 stats_summary = _build_stats_summary_payload(a)
 

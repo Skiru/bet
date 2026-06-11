@@ -8,6 +8,8 @@ Coverage: All VCT regions, Champions Tour, Challengers, Game Changers.
 import logging
 import re
 import time
+import unicodedata
+import urllib.parse
 from typing import Any
 
 import requests
@@ -52,23 +54,65 @@ class VLRScraper:
     def search_team(self, name: str) -> str | None:
         """Resolve team name → VLR team URL path (e.g., '/team/123/sentinels').
 
-        Uses VLR search and caches results.
+        Uses VLR search and caches results. Prefers exact matches.
         """
         lower = name.lower().strip()
         if lower in self._team_url_cache:
             return self._team_url_cache[lower]
+        
+        # Normalize name for comparison (remove diacritics)
+        def normalize_for_match(s):
+            n = unicodedata.normalize('NFKD', s)
+            return ''.join(c for c in n if not unicodedata.combining(c)).lower().strip()
+        
+        normalized_query = normalize_for_match(name)
 
         soup = self._get(f"{BASE_URL}/search/?q={requests.utils.quote(name)}&type=teams")
         if not soup:
             self._team_url_cache[lower] = None
             return None
 
-        # Find first team result
-        team_link = soup.select_one("a[href*='/team/']")
-        if team_link:
-            href = team_link.get("href", "")
-            self._team_url_cache[lower] = href
-            return href
+        # Find all team results
+        team_items = soup.select("a.search-item[href*='/search/r/team/']")
+        best_match = None
+        best_score = 0
+        
+        for item in team_items:
+            title_el = item.select_one(".search-item-title")
+            if not title_el:
+                continue
+            title = title_el.get_text().strip()
+            href = item.get("href", "")
+            title_normalized = normalize_for_match(title)
+            
+            # Score the match: exact = 100, starts_with = 50, contains = 25
+            if title_normalized == normalized_query:
+                score = 100
+            elif title_normalized.startswith(normalized_query) or normalized_query.startswith(title_normalized):
+                score = 50
+            elif title_normalized in normalized_query or normalized_query in title_normalized:
+                score = 25
+            else:
+                score = 0
+            
+            if score > best_score:
+                best_score = score
+                best_match = href
+
+        if best_match:
+            # Follow redirect to get final URL
+            try:
+                resp = self._session.head(f"{BASE_URL}{best_match}", allow_redirects=True, timeout=10)
+                final_url = resp.url
+                # Extract path from final URL
+                parsed = urllib.parse.urlparse(final_url)
+                href = parsed.path
+                self._team_url_cache[lower] = href
+                return href
+            except Exception:
+                # Fallback: use the redirect path
+                self._team_url_cache[lower] = best_match
+                return best_match
 
         self._team_url_cache[lower] = None
         return None
@@ -78,6 +122,8 @@ class VLRScraper:
 
         Returns:
             {
+                "team_name": str,
+                "team_tag": str | None,
                 "maps_played": int,
                 "maps_won": int,
                 "map_win_rate": float,
@@ -98,6 +144,15 @@ class VLRScraper:
             return {}
 
         stats: dict[str, Any] = {}
+
+        # Parse team name from team-header-name section
+        team_name_el = soup.select_one(".team-header-name h1.wf-title")
+        if team_name_el:
+            stats["team_name"] = team_name_el.get_text().strip()
+        
+        team_tag_el = soup.select_one(".team-header-tag")
+        if team_tag_el:
+            stats["team_tag"] = team_tag_el.get_text().strip()
 
         # Parse record from team header (e.g., "Record: 45W - 12L")
         record_el = soup.select_one(".team-summary-container-2")

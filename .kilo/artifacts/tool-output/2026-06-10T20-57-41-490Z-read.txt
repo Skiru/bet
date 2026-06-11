@@ -1,0 +1,395 @@
+<path>/Users/mkoziol/projects/bet/kilo.jsonc</path>
+<type>file</type>
+<content>
+1: // Production configuration: Kilo Code 7.3.41 + Rapid-MLX 0.7.0.
+2: // Install as <project-root>/kilo.jsonc and remove/rename competing project opencode.json(c) files during validation.
+3: {
+4:   "$schema": "https://app.kilo.ai/config.json",
+5: 
+6:   "provider": {
+7:     "openai-compatible": {
+8:       "options": {
+9:         "apiKey": "bb2c5c92afddd427bbede6807920fe63ac12ea3af4c3a9cb473373d20e8514c7",
+10:         "baseURL": "http://127.0.0.1:8000/v1",
+11:         "timeout": 1800000
+12:       },
+13:       "models": {
+14:         "qwen36-local-35b": {
+15:           "id": "default",
+16:           "name": "Rapid-MLX Qwen3.6-35B-A3B 4-bit (Production 28K/4K)",
+17:           "tool_call": true,
+18:           "reasoning": true,
+19:           "temperature": true,
+20:           "modalities": {
+21:             "input": ["text"],
+22:             "output": ["text"]
+23:           },
+24:           "limit": {
+25:             "context": 28672,
+26:             "input": 24576,
+27:             "output": 4096
+28:           }
+29:         }
+30:       },
+31:       "whitelist": ["qwen36-local-35b"]
+32:     }
+33:   },
+34: 
+35:   "model": "qwen36-local-35b",
+36: 
+37:   "instructions": [
+38:     "AGENTS.md",
+39:     ".kilo/CONTEXT_POLICY.md"
+40:   ],
+41: 
+42:   "permission": {
+43:     "list": "allow",
+44:     "read": "allow",
+45:     "glob": "allow",
+46:     "grep": "allow",
+47:     "lsp": "allow",
+48:     "skill": "allow",
+49:     "codesearch": "allow",
+50:     "semantic_search": "allow",
+51:     "todowrite": "allow",
+52:     "todoread": "allow",
+53:     "question": "ask",
+54:     "websearch": "ask",
+55:     "external_directory": "deny",
+56:     "doom_loop": "ask"
+57:   },
+58: 
+59:   "agent": {
+60:     "compaction": {
+61:       "model": "openai-compatible/qwen36-local-35b"
+62:     },
+63: 
+64:     "rapid-smoke": {
+65:       "description": "Minimal no-write agent for Kilo-to-Rapid-MLX connectivity and context tests.",
+66:       "mode": "primary",
+67:       "model": "openai-compatible/qwen36-local-35b",
+68:       "steps": 4,
+69:       "temperature": 0,
+70:       "prompt": "{file:.kilo/prompts/rapid-smoke.md}",
+71:       "permission": {
+72:         "read": "allow",
+73:         "list": "allow",
+74:         "glob": "allow",
+75:         "grep": "allow",
+76:         "edit": "deny",
+77:         "write": "deny",
+78:         "bash": "deny",
+79:         "task": "deny",
+80:         "webfetch": "deny",
+81:         "question": "deny",
+82:         "bet_sqlite_query": "deny",
+83:         "brave-search_*": "deny",
+84:         "playwright_*": "deny"
+85:       }
+86:     },
+87: 
+88:     "context-guard-smoke": {
+89:       "description": "Throwaway agent that validates oversized Bash output truncation and recovery.",
+90:       "mode": "primary",
+91:       "model": "openai-compatible/qwen36-local-35b",
+92:       "steps": 4,
+93:       "temperature": 0,
+94:       "prompt": "{file:.kilo/prompts/context-guard-smoke.md}",
+95:       "permission": {
+96:         "read": "deny",
+97:         "list": "deny",
+98:         "glob": "deny",
+99:         "grep": "deny",
+100:         "edit": "deny",
+101:         "write": "deny",
+102:         "bash": "allow",
+103:         "task": "deny",
+104:         "webfetch": "deny",
+105:         "question": "deny",
+106:         "bet_sqlite_query": "deny",
+107:         "brave-search_*": "deny",
+108:         "playwright_*": "deny"
+109:       }
+110:     },
+111: 
+112:     "bet-orchestrator": {
+113:       "description": "Phase-bounded betting pipeline coordinator; delegates analysis and persists compact handoffs.",
+114:       "mode": "primary",
+115:       "model": "openai-compatible/qwen36-local-35b",
+116:       "steps": 20,
+117:       "temperature": 0.25,
+118:       "prompt": "{file:.kilo/prompts/bet-orchestrator-v2.md}",
+119:       "permission": {
+120:         "read": "allow",
+121:         "list": "allow",
+122:         "glob": "allow",
+123:         "grep": "allow",
+124:         "edit": "allow",
+125:         "write": "allow",
+126:         "bash": "allow",
+127:         "webfetch": "ask",
+128:         "question": "ask",
+129:         "task": {
+130:           "*": "deny",
+131:           "bet-settler": "allow",
+132:           "bet-db-analyst": "allow",
+133:           "bet-scanner": "allow",
+134:           "bet-scout": "allow",
+135:           "bet-enricher": "allow",
+136:           "bet-statistician": "allow",
+137:           "bet-valuator": "allow",
+138:           "bet-challenger": "allow",
+139:           "bet-builder": "allow",
+140:           "bet-engineer": "allow",
+141:           "bet-reconciler": "allow",
+142:           "bet-test-engineer": "allow"
+143:         },
+144:         "bet_sqlite_query": "allow",
+145:         "brave-search_brave_web_search": "ask",
+146:         "brave-search_brave_news_search": "ask",
+147:         "context7_*": "ask",
+148:         "playwright_*": "deny"
+149:       }
+150:     },
+151: 
+152:     "bet-settler": {
+153:       "description": "Settlement accountant and historical-learning analyst.",
+154:       "mode": "subagent",
+155:       "model": "openai-compatible/qwen36-local-35b",
+156:       "steps": 6,
+157:       "temperature": 0.15,
+158:       "prompt": "{file:.kilo/prompts/bet-settler.md}",
+159:       "permission": {
+160:         "read": "allow", "list": "allow", "glob": "allow", "grep": "allow",
+161:         "edit": "deny", "write": "deny", "bash": "deny", "task": "deny", "webfetch": "deny",
+162:         "bet_sqlite_query": "allow",
+163:         "brave-search_*": "deny", "playwright_*": "deny"
+164:       }
+165:     },
+166: 
+167:     "bet-db-analyst": {
+168:       "description": "Read-only database readiness, integrity and coverage analyst.",
+169:       "mode": "subagent",
+170:       "model": "openai-compatible/qwen36-local-35b",
+171:       "steps": 5,
+172:       "temperature": 0.1,
+173:       "prompt": "{file:.kilo/prompts/bet-db-analyst.md}",
+174:       "permission": {
+175:         "read": "allow", "list": "allow", "glob": "deny", "grep": "deny",
+176:         "edit": "deny", "write": "deny", "bash": "deny", "task": "deny", "webfetch": "deny",
+177:         "bet_sqlite_query": "allow",
+178:         "brave-search_*": "deny", "playwright_*": "deny"
+179:       }
+180:     },
+181: 
+182:     "bet-scanner": {
+183:       "description": "Event discovery, fixture verification and shortlist coverage specialist.",
+184:       "mode": "subagent",
+185:       "model": "openai-compatible/qwen36-local-35b",
+186:       "steps": 8,
+187:       "temperature": 0.2,
+188:       "prompt": "{file:.kilo/prompts/bet-scanner.md}",
+189:       "permission": {
+190:         "read": "allow", "list": "allow", "glob": "allow", "grep": "allow",
+191:         "edit": "deny", "write": "deny", "bash": "deny", "task": "deny", "webfetch": "allow",
+192:         "bet_sqlite_query": "allow",
+193:         "brave-search_brave_web_search": "allow", "brave-search_brave_news_search": "ask", "playwright_*": "ask"
+194:       }
+195:     },
+196: 
+197:     "bet-scout": {
+198:       "description": "Tipster consensus and argument-quality analyst.",
+199:       "mode": "subagent",
+200:       "model": "openai-compatible/qwen36-local-35b",
+201:       "steps": 6,
+202:       "temperature": 0.18,
+203:       "prompt": "{file:.kilo/prompts/bet-scout.md}",
+204:       "permission": {
+205:         "read": "allow", "list": "allow", "glob": "allow", "grep": "allow",
+206:         "edit": "deny", "write": "deny", "bash": "deny", "task": "deny", "webfetch": "ask",
+207:         "bet_sqlite_query": "allow",
+208:         "brave-search_brave_web_search": "ask", "brave-search_brave_news_search": "ask", "playwright_*": "ask"
+209:       }
+210:     },
+211: 
+212:     "bet-enricher": {
+213:       "description": "Data-quality guardian and bounded fallback coordinator.",
+214:       "mode": "subagent",
+215:       "model": "openai-compatible/qwen36-local-35b",
+216:       "steps": 8,
+217:       "temperature": 0.2,
+218:       "prompt": "{file:.kilo/prompts/bet-enricher.md}",
+219:       "permission": {
+220:         "read": "allow", "list": "allow", "glob": "allow", "grep": "allow",
+221:         "edit": "deny", "write": "deny", "bash": "deny", "task": "deny", "webfetch": "allow",
+222:         "bet_sqlite_query": "allow",
+223:         "brave-search_brave_web_search": "allow", "brave-search_brave_news_search": "ask", "playwright_*": "ask"
+224:       }
+225:     },
+226: 
+227:     "bet-statistician": {
+228:       "description": "Deep statistical market-ranking and probability-model analyst.",
+229:       "mode": "subagent",
+230:       "model": "openai-compatible/qwen36-local-35b",
+231:       "steps": 8,
+232:       "temperature": 0.18,
+233:       "prompt": "{file:.kilo/prompts/bet-statistician.md}",
+234:       "permission": {
+235:         "read": "allow", "list": "allow", "glob": "allow", "grep": "allow",
+236:         "edit": "deny", "write": "deny", "bash": "deny", "task": "deny", "webfetch": "ask",
+237:         "bet_sqlite_query": "allow",
+238:         "brave-search_brave_web_search": "ask", "brave-search_brave_news_search": "deny", "playwright_*": "deny"
+239:       }
+240:     },
+241: 
+242:     "bet-valuator": {
+243:       "description": "Odds, EV, drift, CLV and Kelly sizing analyst.",
+244:       "mode": "subagent",
+245:       "model": "openai-compatible/qwen36-local-35b",
+246:       "steps": 7,
+247:       "temperature": 0.16,
+248:       "prompt": "{file:.kilo/prompts/bet-valuator.md}",
+249:       "permission": {
+250:         "read": "allow", "list": "allow", "glob": "allow", "grep": "allow",
+251:         "edit": "deny", "write": "deny", "bash": "deny", "task": "deny", "webfetch": "ask",
+252:         "bet_sqlite_query": "allow",
+253:         "brave-search_brave_web_search": "ask", "brave-search_brave_news_search": "ask", "playwright_*": "deny"
+254:       }
+255:     },
+256: 
+257:     "bet-challenger": {
+258:       "description": "Devil's advocate, context-risk and gate-verdict analyst.",
+259:       "mode": "subagent",
+260:       "model": "openai-compatible/qwen36-local-35b",
+261:       "steps": 8,
+262:       "temperature": 0.25,
+263:       "prompt": "{file:.kilo/prompts/bet-challenger.md}",
+264:       "permission": {
+265:         "read": "allow", "list": "allow", "glob": "allow", "grep": "allow",
+266:         "edit": "deny", "write": "deny", "bash": "deny", "task": "deny", "webfetch": "allow",
+267:         "bet_sqlite_query": "allow",
+268:         "brave-search_brave_web_search": "allow", "brave-search_brave_news_search": "allow", "playwright_*": "ask"
+269:       }
+270:     },
+271: 
+272:     "bet-builder": {
+273:       "description": "Coupon portfolio constructor and final mechanical validator.",
+274:       "mode": "subagent",
+275:       "model": "openai-compatible/qwen36-local-35b",
+276:       "steps": 9,
+277:       "temperature": 0.2,
+278:       "prompt": "{file:.kilo/prompts/bet-builder.md}",
+279:       "permission": {
+280:         "read": "allow", "list": "allow", "glob": "allow", "grep": "allow",
+281:         "edit": "allow", "write": "allow", "bash": "deny", "task": "deny", "webfetch": "ask",
+282:         "bet_sqlite_query": "allow",
+283:         "brave-search_brave_web_search": "ask", "brave-search_brave_news_search": "ask", "playwright_*": "deny"
+284:       }
+285:     },
+286: 
+287:     "bet-engineer": {
+288:       "description": "Pipeline repair engineer for scripts, tests and runtime failures.",
+289:       "mode": "subagent",
+290:       "model": "openai-compatible/qwen36-local-35b",
+291:       "steps": 10,
+292:       "temperature": 0.15,
+293:       "prompt": "{file:.kilo/prompts/bet-engineer.md}",
+294:       "permission": {
+295:         "read": "allow", "list": "allow", "glob": "allow", "grep": "allow",
+296:         "edit": "allow", "write": "allow", "bash": "allow", "task": "deny", "webfetch": "ask",
+297:         "bet_sqlite_query": "allow",
+298:         "brave-search_brave_web_search": "ask", "context7_*": "allow", "playwright_*": "ask"
+299:       }
+300:     },
+301: 
+302:     "bet-reconciler": {
+303:       "description": "Cross-agent evidence conflict resolver.",
+304:       "mode": "subagent",
+305:       "model": "openai-compatible/qwen36-local-35b",
+306:       "steps": 6,
+307:       "temperature": 0.12,
+308:       "prompt": "{file:.kilo/prompts/bet-reconciler.md}",
+309:       "permission": {
+310:         "read": "allow", "list": "allow", "glob": "allow", "grep": "allow",
+311:         "edit": "deny", "write": "deny", "bash": "deny", "task": "deny", "webfetch": "deny",
+312:         "bet_sqlite_query": "allow",
+313:         "brave-search_*": "deny", "playwright_*": "deny"
+314:       }
+315:     },
+316: 
+317:     "bet-test-engineer": {
+318:       "description": "Read-only production-readiness and regression-test validator.",
+319:       "mode": "subagent",
+320:       "model": "openai-compatible/qwen36-local-35b",
+321:       "steps": 8,
+322:       "temperature": 0.1,
+323:       "prompt": "{file:.kilo/prompts/bet-test-engineer.md}",
+324:       "permission": {
+325:         "read": "allow", "list": "allow", "glob": "allow", "grep": "allow",
+326:         "edit": "deny", "write": "deny", "bash": "allow", "task": "deny", "webfetch": "deny",
+327:         "bet_sqlite_query": "allow",
+328:         "brave-search_*": "deny", "playwright_*": "deny"
+329:       }
+330:     }
+331:   },
+332: 
+333:   "mcp": {
+334:     "brave-search": {
+335:       "type": "local",
+336:       "command": [
+337:         "npx", "-y", "@brave/brave-search-mcp-server@2.0.83", "--transport", "stdio"
+338:       ],
+339:       "enabled": true,
+340:       "timeout": 25000
+341:     },
+342:     "context7": {
+343:       "type": "remote",
+344:       "url": "https://mcp.context7.com/mcp",
+345:       "enabled": false,
+346:       "timeout": 15000
+347:     },
+348:     "playwright": {
+349:       "type": "local",
+350:       "command": [
+351:         "npx", "-y", "@playwright/mcp@0.0.76", "--headless"
+352:       ],
+353:       "enabled": false,
+354:       "timeout": 30000
+355:     }
+356:   },
+357: 
+358:   "watcher": {
+359:     "ignore": [
+360:       ".git/**",
+361:       ".venv/**",
+362:       ".venv-*/**",
+363:       "**/__pycache__/**",
+364:       "**/.pytest_cache/**",
+365:       "**/.mypy_cache/**",
+366:       "**/.ruff_cache/**",
+367:       "**/node_modules/**",
+368:       ".kilo/artifacts/**",
+369:       ".kilo/logs/**",
+370:       ".kilo/runtime/**",
+371:       "reports/**",
+372:       "downloaded_files/**",
+373:       "betting/data/*.db",
+374:       "betting/data/*.db-*",
+375:       "betting/data/*.db-journal",
+376:       "betting/data/*.db-wal",
+377:       "betting/data/*.db-shm"
+378:     ]
+379:   },
+380: 
+381:   "compaction": {
+382:     "auto": true,
+383:     "threshold_percent": 65,
+384:     "prune": true,
+385:     "tail_turns": 1,
+386:     "preserve_recent_tokens": 2000,
+387:     "reserved": 6144
+388:   }
+389: }
+
+(End of file - total 389 lines)
+</content>

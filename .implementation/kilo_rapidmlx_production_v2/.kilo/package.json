@@ -1,0 +1,10 @@
+{
+  "name": "bet-kilo-production-config",
+  "private": true,
+  "engines": {
+    "opencode": "7.3.41"
+  },
+  "dependencies": {
+    "@kilocode/plugin": "7.3.41"
+  }
+}

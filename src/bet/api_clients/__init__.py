@@ -10,7 +10,6 @@ the registry in sync with the full pipeline.
 from bet.api_clients.rate_limiter import RateLimiter
 from bet.api_clients.base_client import BaseAPIClient, APISportsClient, APIError
 from bet.api_clients.playwright_base import PlaywrightBaseClient
-from bet.api_clients.unified import UnifiedAPIClient
 
 # Sport → API client name mappings
 API_SPORTS = {
@@ -152,12 +151,6 @@ try:
     for _k, _v in ESPN_FACTORIES.items():
         if _k not in CLIENT_REGISTRY:
             CLIENT_REGISTRY[_k] = _v
-except ImportError:
-    pass
-
-try:
-    from bet.api_clients.lmstudio_client import LMStudioClient
-    CLIENT_REGISTRY["lmstudio"] = LMStudioClient
 except ImportError:
     pass
 

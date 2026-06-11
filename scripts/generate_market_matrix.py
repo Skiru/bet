@@ -37,6 +37,7 @@ DATA_DIR = ROOT_DIR / "betting" / "data"
 CACHE_DIR = DATA_DIR / "stats_cache"
 
 sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(ROOT_DIR))
 
 try:
     from normalize_stats import build_safety_input, build_safety_input_from_cache
@@ -51,32 +52,60 @@ from utils import normalize_team_name as _normalize
 from bet.utils import is_same_event, names_match
 
 from db_data_loader import load_fixtures_from_db, load_odds_from_db, load_scan_summary_from_db
+from bet.utils.time import betting_day_range
 
 # Allowed sports — filter out legacy data for removed sports
 _ALLOWED_SPORTS = {"football", "basketball", "hockey", "tennis", "volleyball", "cs2", "dota2", "valorant"}
+
+_SPORT_ALIAS_PATTERNS: tuple[tuple[str, str], ...] = (
+    ("esports counterstrike", "cs2"),
+    ("esportscounterstrike", "cs2"),
+    ("counter strike", "cs2"),
+    ("counter-strike", "cs2"),
+    ("csgo", "cs2"),
+    ("cs2", "cs2"),
+    ("esports dota2", "dota2"),
+    ("esportsdota2", "dota2"),
+    ("dota 2", "dota2"),
+    ("dota2", "dota2"),
+    ("esports valorant", "valorant"),
+    ("esportsvalorant", "valorant"),
+    ("valorant", "valorant"),
+    ("ice hockey", "hockey"),
+    ("ice-hockey", "hockey"),
+    ("hockey", "hockey"),
+    ("volley", "volleyball"),
+    ("basketball", "basketball"),
+    ("tennis", "tennis"),
+    ("soccer", "football"),
+    ("football", "football"),
+)
+
+
+def canonicalize_sport_name(raw_sport: str | None) -> str:
+    """Map upstream sport labels and aliases to canonical pipeline keys."""
+    text = str(raw_sport or "").strip().lower().replace("_", " ")
+    if not text:
+        return ""
+    if text in _ALLOWED_SPORTS:
+        return text
+    for marker, canonical in _SPORT_ALIAS_PATTERNS:
+        if marker in text:
+            return canonical
+    return text.replace(" ", "")
 
 
 # ---------------------------------------------------------------------------
 # Sport key mapping
 # ---------------------------------------------------------------------------
 
-def _sport_from_odds_key(sport_key: str) -> str:
-    """Convert Odds API sport key to our sport name."""
-    if not sport_key:
-        return "football"
-    sk = sport_key.lower()
-    if "soccer" in sk:
-        return "football"
-    if "basketball" in sk:
-        return "basketball"
-    if "hockey" in sk or "icehockey" in sk:
-        return "hockey"
-    if "tennis" in sk:
-        return "tennis"
-    if "volleyball" in sk:
-        return "volleyball"
-    # Unknown sport — return as-is instead of defaulting to football
-    return sk or "other"
+def _sport_from_odds_key(sport_key: str, sport_title: str = "") -> str:
+    """Convert upstream odds sport labels to canonical pipeline sport names."""
+    for candidate in (sport_key, sport_title):
+        canonical = canonicalize_sport_name(candidate)
+        if canonical:
+            return canonical
+    return ""
 
 
 # ---------------------------------------------------------------------------
@@ -582,20 +611,15 @@ def _build_cache_index() -> set:
 
 
 def try_safety_analysis(sport: str, home: str, away: str, competition: str) -> dict | None:
-    """Try to build safety analysis from cache. Return None on cache miss.
+    """Try to build safety analysis from DB (team_form) then cache fallback.
 
-    Uses pre-built cache index for O(1) miss detection — avoids expensive
-    file system lookups for 15K+ events where most won't have cached data.
+    NOTE: Previously had a fast-path cache index check that returned None
+    when no cache files existed. This blocked DB-only data (e.g. enrichment
+    agent writes to team_form but not to JSON cache). Removed fast-path
+    so DB-first enrichment is always attempted.
     """
     if not build_safety_input or not rank_markets:
         return None
-    # Fast-path: check cache index before expensive file I/O
-    cache_index = _build_cache_index()
-    if cache_index:
-        slug_home = _normalize(home).replace(" ", "-")
-        slug_away = _normalize(away).replace(" ", "-")
-        if (sport, slug_home) not in cache_index and (sport, slug_away) not in cache_index:
-            return None
     try:
         safety_input = build_safety_input(sport, home, away, competition)
         if safety_input is None:
@@ -628,8 +652,18 @@ def generate_market_matrix(
     print(f"[matrix] Loading data for {date}...")
 
     fixtures = load_fixtures(date)
-    # Filter to supported sports only (DB may contain legacy data for removed sports)
-    fixtures = [f for f in fixtures if f.get("sport", "football") in _ALLOWED_SPORTS]
+    # Normalize source sport labels before any support filtering.
+    normalized_fixtures = []
+    dropped_unsupported_fixtures = 0
+    for fixture in fixtures:
+        canonical_sport = canonicalize_sport_name(fixture.get("sport", fixture.get("sport_name", "")))
+        if canonical_sport not in _ALLOWED_SPORTS:
+            dropped_unsupported_fixtures += 1
+            continue
+        fixture_copy = dict(fixture)
+        fixture_copy["sport"] = canonical_sport
+        normalized_fixtures.append(fixture_copy)
+    fixtures = normalized_fixtures
     odds_lookup = load_espn_odds_snapshot(date)  # ESPN first (free, primary)
     odds_api_lookup = load_odds_api_snapshot(date)  # the-odds-api (supplement)
     # Merge: odds_api supplements ESPN (ESPN is primary, don't overwrite)
@@ -665,6 +699,7 @@ def generate_market_matrix(
     # OR has an explicit date field matching the target date.
     scan_only_events = 0
     scan_rejected_no_verification = 0
+    scan_rejected_unsupported_sport = 0
 
     # Build cross-verification keys from independent sources
     verified_keys: set[str] = set()
@@ -798,7 +833,7 @@ def generate_market_matrix(
                 kickoff_value = f"{date}T00:00:00+02:00"
 
             fixture = {
-                "sport": best_item.get("sport", "football"),
+                "sport": canonicalize_sport_name(best_item.get("sport", "")),
                 "home_team": home,
                 "away_team": away,
                 "competition": best_item.get("league", ""),
@@ -807,6 +842,7 @@ def generate_market_matrix(
             }
             # Skip removed sports
             if fixture["sport"] not in _ALLOWED_SPORTS:
+                scan_rejected_unsupported_sport += 1
                 continue
             fixtures.append(fixture)
             fixture_keys.add(match_key)
@@ -822,7 +858,7 @@ def generate_market_matrix(
             home = oev.get("home_team", "")
             away = oev.get("away_team", "")
             if home and away:
-                sport = _sport_from_odds_key(oev.get("sport_key", ""))
+                sport = _sport_from_odds_key(oev.get("sport_key", ""), oev.get("sport_title", ""))
                 if sport not in _ALLOWED_SPORTS:
                     continue
                 fixture = {
@@ -849,10 +885,13 @@ def generate_market_matrix(
     # Only filter events whose kickoff date doesn't match the target date
     # AND the kickoff is >2h in the past (defense against phantom fixtures)
     now_utc = datetime.now(timezone.utc)
+    betting_start_utc, betting_end_utc = betting_day_range(datetime.strptime(date, "%Y-%m-%d"))
     already_played_count = 0
+    already_played_by_sport = defaultdict(int)
+    date_mismatch_by_sport = defaultdict(int)
 
     for fixture in fixtures:
-        sport = fixture.get("sport", "football")
+        sport = canonicalize_sport_name(fixture.get("sport", "football"))
         if sport not in _ALLOWED_SPORTS:
             continue
         home = fixture.get("home_team", fixture.get("home", ""))
@@ -889,17 +928,21 @@ def generate_market_matrix(
             except (ValueError, TypeError, IndexError):
                 pass
 
-            if ko_date_str:
-                # Strict date filter: only include events ON the target date
-                if ko_date_str != date:
-                    already_played_count += 1
-                    continue
-                # Also reject events >2h in the past on the same date
                 if ko_dt:
-                    elapsed_hours = (now_utc - ko_dt.astimezone(timezone.utc)).total_seconds() / 3600
+                    ko_utc = ko_dt.astimezone(timezone.utc)
+                    if not (betting_start_utc <= ko_utc < betting_end_utc):
+                        already_played_count += 1
+                        date_mismatch_by_sport[sport] += 1
+                        continue
+                    elapsed_hours = (now_utc - ko_utc).total_seconds() / 3600
                     if elapsed_hours > 2:
                         already_played_count += 1
+                        already_played_by_sport[sport] += 1
                         continue
+                elif ko_date_str and ko_date_str != date:
+                    already_played_count += 1
+                    date_mismatch_by_sport[sport] += 1
+                    continue
 
         # Evening filter
         if evening_only and kickoff:
@@ -1051,6 +1094,10 @@ def generate_market_matrix(
 
     if already_played_count:
         print(f"[matrix] Filtered {already_played_count} already-played events (kickoff >2h ago)")
+        if already_played_by_sport:
+            print("[matrix] Already-played by sport: " + ", ".join(f"{sport}={count}" for sport, count in sorted(already_played_by_sport.items())))
+        if date_mismatch_by_sport:
+            print("[matrix] Date-mismatch by sport: " + ", ".join(f"{sport}={count}" for sport, count in sorted(date_mismatch_by_sport.items())))
 
     # Deduplicate events: same teams in same sport = likely same event
     # Pass 1: exact normalized matching with merge
@@ -1136,6 +1183,16 @@ def generate_market_matrix(
         ),
         "sport_breakdown": dict(sport_counts),
         "market_type_counts": dict(market_type_counts),
+        "generation_stats": {
+            "dropped_unsupported_fixture_sports": dropped_unsupported_fixtures,
+            "scan_rejected_no_verification": scan_rejected_no_verification,
+            "scan_rejected_unsupported_sport": scan_rejected_unsupported_sport,
+            "already_played_filtered": already_played_count,
+            "already_played_filtered_by_sport": dict(already_played_by_sport),
+            "date_mismatch_filtered_by_sport": dict(date_mismatch_by_sport),
+            "scan_only_events_added": scan_only_events,
+            "odds_only_events_added": odds_only_events,
+        },
         "data_tier_breakdown": {
             tier: sum(1 for e in events if e["data_tier"] == tier)
             for tier in ["FULL", "ODDS_RICH", "ODDS_BASIC", "STATS_ONLY", "FIXTURE_ONLY"]
@@ -1317,43 +1374,60 @@ def persist_matrix_to_db(matrix: dict, date: str) -> int:
     try:
         from bet.db.connection import get_db
         from bet.db.repositories import MarketMatrixRepo
+        from db_data_loader import _resolve_fixture_id
 
         events = matrix.get("events", [])
         if not events:
             return 0
 
         with get_db() as conn:
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS market_matrix_events ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                "fixture_id INTEGER NOT NULL REFERENCES fixtures(id), "
+                "betting_date TEXT NOT NULL, "
+                "sport TEXT NOT NULL, competition TEXT, "
+                "home_team TEXT NOT NULL, away_team TEXT NOT NULL, kickoff TEXT, "
+                "data_tier TEXT NOT NULL DEFAULT 'FIXTURE_ONLY', fixture_source TEXT, "
+                "odds_markets_json TEXT NOT NULL DEFAULT '[]', "
+                "safety_markets_json TEXT NOT NULL DEFAULT '[]', suggested_json TEXT, "
+                "total_markets_available INTEGER NOT NULL DEFAULT 0, "
+                "scores24_h2h_json TEXT, scores24_form_json TEXT, created_at TEXT NOT NULL, "
+                "UNIQUE(fixture_id, betting_date))"
+            )
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS market_matrix_runs ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                "betting_date TEXT NOT NULL UNIQUE, generated_at TEXT NOT NULL, "
+                "total_fixtures INTEGER NOT NULL DEFAULT 0, total_events_in_matrix INTEGER NOT NULL DEFAULT 0, "
+                "events_with_odds INTEGER NOT NULL DEFAULT 0, events_with_safety_data INTEGER NOT NULL DEFAULT 0, "
+                "sport_breakdown_json TEXT NOT NULL DEFAULT '{}', "
+                "market_type_counts_json TEXT NOT NULL DEFAULT '{}', "
+                "data_tier_breakdown_json TEXT NOT NULL DEFAULT '{}')"
+            )
             repo = MarketMatrixRepo(conn)
 
             # Resolve fixture_ids
             resolved = []
+            unresolved = 0
             for ev in events:
                 home = ev.get("home_team", "")
                 away = ev.get("away_team", "")
                 sport = ev.get("sport", "")
                 kickoff = ev.get("kickoff", "")
 
-                # Try to find existing fixture
-                row = conn.execute(
-                    "SELECT id FROM fixtures WHERE sport=? AND home_team=? AND away_team=? AND betting_date=?",
-                    (sport, home, away, date),
-                ).fetchone()
-
-                if row:
-                    fixture_id = row["id"]
-                else:
-                    # Create minimal fixture
-                    cursor = conn.execute(
-                        "INSERT INTO fixtures (sport, home_team, away_team, kickoff, betting_date) VALUES (?, ?, ?, ?, ?)",
-                        (sport, home, away, kickoff, date),
-                    )
-                    fixture_id = cursor.lastrowid
+                fixture_id = _resolve_fixture_id(conn, sport, home, away, kickoff)
+                if not fixture_id:
+                    unresolved += 1
+                    continue
 
                 ev_copy = dict(ev)
                 ev_copy["fixture_id"] = fixture_id
                 resolved.append(ev_copy)
 
             saved = repo.save_events(date, resolved)
+            if unresolved:
+                print(f"[matrix] DB: skipped {unresolved} unresolved events; no synthetic fixtures were created")
 
             # Save run metadata
             meta = {

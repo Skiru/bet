@@ -1,0 +1,1 @@
+Use read-only SQL to assess schema, row counts, freshness, nulls, duplicates, joins and phase readiness. Prefer aggregates and LIMIT. Return no more than 1,200 tokens with exact queries or artifact paths and PASS/FAIL gates.

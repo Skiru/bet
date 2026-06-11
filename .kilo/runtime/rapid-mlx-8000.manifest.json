@@ -1,0 +1,46 @@
+{
+  "started_at": "2026-06-10T13:38:38Z",
+  "pid": 4886,
+  "requested_model": "qwen3.6-35b-4bit",
+  "served_models": {
+    "object": "list",
+    "data": [
+      {
+        "id": "mlx-community/Qwen3.6-35B-A3B-4bit",
+        "object": "model",
+        "created": 1781098718,
+        "owned_by": "rapid-mlx"
+      },
+      {
+        "id": "qwen3.6-35b-4bit",
+        "object": "model",
+        "created": 1781098718,
+        "owned_by": "rapid-mlx"
+      }
+    ]
+  },
+  "endpoint": "http://127.0.0.1:8000/v1",
+  "profile": "production",
+  "rapid_mlx": {
+    "binary": "/Users/mkoziol/.venvs/rapid-mlx-0.7.0/bin/rapid-mlx",
+    "version": "0.7.0",
+    "model_info_file": "/Users/mkoziol/projects/bet/.kilo/runtime/rapid-mlx-8000.model-info.txt",
+    "served_models_file": "/Users/mkoziol/projects/bet/.kilo/runtime/rapid-mlx-8000.models.json"
+  },
+  "host": {
+    "chip": "Apple M4 Pro",
+    "memory_bytes": "51539607552",
+    "macos": "26.5",
+    "python": "Python 3.14.5",
+    "kilo": "7.3.41"
+  },
+  "settings": {
+    "max_tokens": 4096,
+    "prefill_step_size": 2048,
+    "gpu_memory_utilization": 0.70,
+    "kv_cache_quantization": true,
+    "multimodal": false,
+    "telemetry": false
+  },
+  "log": "/Users/mkoziol/projects/bet/.kilo/logs/rapid-mlx-8000-20260610-153828.log"
+}

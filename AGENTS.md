@@ -1,87 +1,83 @@
-# Betting Pipeline — Project Rules
+# Betting Pipeline and Engineering — Hybrid Production Agent Contract
 
-## THINKING LIMIT (ALL AGENTS — CRITICAL)
+## Model routing
 
-`<think>` block: 3 sentences max for PLANNING. But `<think>` for REASONING BETWEEN QUERIES is unlimited.
-Deep reasoning → `sequentialthinking_sequentialthinking` tool (unlimited, external).
+- `code-gpt54`: **OpenAI – ChatGPT Plus/Pro**, model `openai-codex/gpt-5.4`, reasoning effort `medium`. Use for difficult architecture, large refactors, complex debugging, migrations, security-sensitive implementation, and final review.
+- `code-local`: Rapid-MLX local Qwen (`openai-compatible/qwen36-local-35b`). Use for routine/private coding, repository exploration, bounded fixes, summaries, and low-cost iterations.
+- `bet-orchestrator` and all `bet-*` specialists always use the local Qwen profile unless the user explicitly approves a model-routing change.
+- Never use `gpt-5.4-codex`; the ChatGPT subscription provider model ID is `gpt-5.4`.
+- Do not define OpenAI API keys in project files. ChatGPT Plus/Pro authentication is OAuth-managed by Kilo.
 
-Two valid uses of `<think>`:
-1. **Planning** (before first tool): ≤3 sentences. "What hypothesis? What ONE query?"
-2. **Reasoning** (between tools): unlimited. "What did I learn? Does this confirm or deny? Need more?"
+## Runtime
 
-Pattern: brief planning `<think>` → sequentialthinking → data tool → reasoning `<think>` → next decision.
+- Kilo Code baseline: **7.3.41 stable or newer stable**. Do not deploy a pre-release as the production default.
+- Local inference: Rapid-MLX 0.7.0, API model ID `default`, endpoint `http://127.0.0.1:8000/v1`.
+- Local Kilo budget: **28,672 context / 24,576 input / 4,096 output** on Apple M4 Pro with 48 GB unified memory.
+- Local profile is text-only: no vision, DFlash, MTP, speculative decoding, or concurrent local generations.
+- Never print or request private chain-of-thought, `<think>` blocks, hidden scratchpads, or sequential-thinking traces.
 
-## Deliberation Loop (ALL SUBAGENTS — MANDATORY)
+## Execution rules
 
-Subagents are ANALYSTS, not query machines.
+1. Never run more than one request against the local Rapid-MLX server at once.
+2. Local Qwen agents issue exactly one tool call per assistant turn and wait for the result.
+3. `code-gpt54` may group independent read-only operations, but mutations and delegated tasks remain sequential.
+4. A primary agent delegates matching specialist work instead of imitating a specialist. Subagents never delegate recursively.
+5. Maximum two attempts for the same failing operation; then change strategy or delegate.
+6. Never claim success without a concrete diff, artifact, query result, test result, or current cited source.
+7. Inspect the current diff before and after edits. Do not overwrite unrelated user changes.
 
-**Pattern:** THINK → ACT(1) → REASON → ACT(1) → SYNTHESIZE
+## Engineering workflow
 
-- ⛔ NEVER fire >2 tool calls without `<think>` reasoning between them
-- ⛔ After EACH query: reason about what you LEARNED before deciding next action
-- ⛔ "Get all data first, analyze later" = DRIFT = FAILED
-- Budget: max 4-5 tool calls total, with reasoning between EVERY pair
-- If you find yourself querying without a hypothesis → STOP → `sequentialthinking`
-- If budget exhausted but question unanswered → SYNTHESIZE with "INCOMPLETE: [what's missing]" — NEVER silently keep querying
+For non-trivial coding, use this sequence:
 
-## Architecture
+1. inspect the exact task and repository state;
+2. delegate bounded discovery to `repo-explorer-local` when useful;
+3. write an acceptance checklist and smallest reversible implementation plan;
+4. implement through `code-gpt54` for heavy work or `code-local` for bounded work;
+5. run focused tests through `test-runner-local`;
+6. request adversarial review from `code-reviewer-local`;
+7. repair only verified findings and rerun focused tests;
+8. summarize changed files, commands, evidence, remaining risks, and rollback.
 
-- Agent-driven pipeline: orchestrator calls individual scripts; `pipeline_orchestrator.py` is BANNED.
-- DB-first: `betting/data/betting.db` via `from bet.db.connection import get_db`.
-- Model: Qwen3.6-35B-A3B MoE 4-bit local (131K context, thinking ALWAYS ON).
-- MCP: `sequentialthinking`, `sqlite` (betting.db), `brave-search`.
-- Terminal: Fish shell. No bash. Use `set -x VAR value`.
-- **OUTPUT RULE: ALL scripts → `/tmp/sN.txt 2>&1` then `tail -20`. >10 lines of terminal in chat = FAILED.**
+Do not use Playwright from local Qwen agents. Browser automation is available only in the GPT profile and requires approval. Context7 is for library/framework documentation. Brave is for current public information.
 
-## The ONE RULE
+## Session and context discipline
 
-> If your response could be produced by piping terminal output to a file, you have FAILED.
-> Your response MUST contain ORIGINAL ANALYSIS — insights, patterns, anomalies that NO script can produce.
+- Start a new session after switching profile, provider, model, primary agent, or betting phase.
+- Read only the files required by the current task; do not recursively ingest the whole repository.
+- Keep every displayed tool result below **8 KiB** and save verbose output under `.kilo/artifacts/`.
+- Local subagent output must stay below **900 tokens**. Betting handoffs must stay below **1,000 tokens**.
+- Local automatic compaction is disabled. Save a checkpoint before manual `/compact`; after one compaction failure, continue in a fresh session.
 
-## Constraints
+## Betting phase contract
 
-- Bookmaker: Betclic. Picks CONDITIONAL until user verifies. Never scrape Betclic.
-- Timezone: Europe/Warsaw. Betting day: 06:00–05:59.
-- Settle previous day BEFORE generating new picks.
-- NEVER invent odds, lineups, injuries, results, or stats.
-- Coverage: Football, Volleyball, Basketball, Tennis, Hockey, CS2, Dota 2, Valorant.
-- Statistical markets BEFORE outcome markets.
-- Reruns create new versions. Never overwrite pending artifacts.
+| Phase | Scope | Mandatory specialists | Exit artifact |
+|---|---|---|---|
+| A | S0 settlement and historical learning | `bet-settler`, `bet-db-analyst`, `bet-test-engineer` | `.kilo/state/phase-A-handoff.md` |
+| B | S1–S1e discovery and shortlist | `bet-scanner`, `bet-test-engineer` | `.kilo/state/phase-B-handoff.md` |
+| C | S2 tipster aggregation | `bet-scout`, `bet-test-engineer` | `.kilo/state/phase-C-handoff.md` |
+| D | S2.3–S7 enrichment, modelling and gates | `bet-enricher`, `bet-statistician`, `bet-valuator`, `bet-challenger`, `bet-test-engineer` | `.kilo/state/phase-D-handoff.md` |
+| E | S8–S10 construction and final validation | `bet-builder`, `bet-test-engineer` | `.kilo/state/phase-E-handoff.md` |
 
-## Delegation Protocol (orchestrator only)
+Conflicting evidence goes to `bet-reconciler`. Script/runtime failure after two bounded attempts goes to `bet-engineer`. Zero valid tips in Phase C is a hard stop. Run one phase per session.
 
-Pattern: `RUN script > /tmp/ → tail -20 → DELEGATE via task → PRESENT verdict → advance`
+## Specialist result schema
 
-**Skipping delegation = FAILED SESSION.**
+Every betting specialist returns only: `STATUS`, `DECISION`, `EVIDENCE`, `CALCULATIONS`, `UNCERTAINTY`, `RISKS`, `NEXT_ACTION`.
 
-Mandatory delegations (cannot skip):
-| After | Delegate To | Expect |
-|-------|-------------|--------|
-| S1e | bet-scanner | Coverage verdict |
-| S2 | bet-scout | Tipster consensus — **NEVER SKIP** |
-| S3 | bet-statistician | Edge validation |
-| S7 | bet-challenger | Bear cases |
-| S8 | bet-builder | Coupon validation |
+## Evidence and data
 
-## S2 is NEVER OPTIONAL
+- Direct database reads use only `bet_sqlite_query`; never open SQLite through shell, Python, editor, or another MCP tool.
+- Database mutations use reviewed repository scripts and focused tests.
+- Every factual betting claim traces to a DB row, generated artifact, or current external source with `as_of`.
+- Never invent odds, fixtures, teams, markets, injuries, statistics, lineups, consensus, or model outputs.
+- Material external facts should use two independent current sources when available; unresolved conflicts invoke `bet-reconciler`.
+- `bet-test-engineer` must return `PASS` before a phase completes.
+- All picks remain conditional until the user verifies the exact market and odds in Betclic.
 
-Source fusion (tipsters + stats + web) is the CORE VALUE.
+## Repository and command safety
 
-**Two-script sequence (BOTH required, IN ORDER):**
-1. `tipster_aggregator.py` (STEP 6 in execution-spine) → produces DB: tipster_picks
-2. `tipster_xref.py` (STEP 8 in execution-spine) → cross-references tips against shortlist
-
-If tipster_xref.py exits with code 2 → tipster_aggregator.py was NOT run. Go back to STEP 6.
-If S2 returns 0 tips matched → brave-search tipster sites → if still 0 → **ASK USER** before continuing.
-Without tipster data → coupons are worthless pure math.
-
-## Anti-Hallucination
-
-1. After every step → 3-line summary to `.kilocode/memory/session-state.md`
-2. Before every analysis → re-read session-state.md
-3. Cite numbers from DB/files only — never from memory
-4. When in doubt → `sqlite_read_query` — don't guess
-
-## Data Flow (R18)
-
-Before running script B after A: verify A's output format matches B's input. Read code first. NEVER assume scripts "just work."
+- Never read, echo, log, commit, or copy credentials, `.env` values, tokens, cookies, private keys, or OAuth state.
+- Never use `sudo`, destructive recursive deletion, `git reset --hard`, `git clean`, force push, or unreviewed database mutation.
+- A repair is the smallest reversible change and includes a focused regression test.
+- Bash scripts with a Bash shebang may be launched from Fish.

@@ -72,6 +72,64 @@ class TestNegativeEVHardReject:
             assert "NEGATIVE_EV" not in (r.get("rejection_reason") or "")
 
 
+class TestGateApprovalPolicy:
+    """S5 approval should prefer real-odds positive EV and block degraded picks."""
+
+    def _base_candidate(self):
+        return {
+            "home_team": "Team A",
+            "away_team": "Team B",
+            "sport": "basketball",
+            "competition": "WNBA",
+            "data_quality": {"label": "FULL", "score": 8},
+            "market_count": 4,
+            "tipster_count": 0,
+            "best_market": {
+                "name": "Total Points O/U",
+                "safety_score": 0.45,
+                "ev": 0.20,
+                "direction": "UNDER",
+                "line": 166.0,
+                "hit_rate_l10": "5/10",
+                "hit_rate_l5": "3/5",
+                "hit_rate_h2h": "2/2",
+                "source": "db",
+            },
+            "odds": {"market_best": 2.0},
+            "ev": 0.20,
+        }
+
+    @patch("scripts.gate_checker._build_fixture_lookup")
+    def test_positive_ev_with_real_odds_can_stay_approved(self, mock_lookup):
+        from scripts.gate_checker import run_gate
+
+        candidate = self._base_candidate()
+        mock_lookup.return_value = (set(), set())
+        result = run_gate([candidate], "2026-05-31")
+
+        approved = result["gate_results"]["approved"]
+        assert len(approved) == 1
+        assert approved[0]["status"] == "APPROVED"
+
+    @patch("scripts.gate_checker._build_fixture_lookup")
+    def test_fixture_only_without_odds_stays_extended(self, mock_lookup):
+        from scripts.gate_checker import run_gate
+
+        candidate = self._base_candidate()
+        candidate["data_tier"] = "FIXTURE_ONLY"
+        candidate["odds"] = {}
+        candidate["ev"] = None
+        candidate["best_market"]["ev"] = None
+        mock_lookup.return_value = (set(), set())
+        result = run_gate([candidate], "2026-05-31")
+
+        approved = result["gate_results"]["approved"]
+        extended = result["gate_results"]["extended_pool"]
+        assert approved == []
+        assert len(extended) == 1
+        assert "DEGRADED_TIER" in (extended[0].get("extended_pool_reason") or "")
+
+
 # ---------------------------------------------------------------------------
 # Task 1.2: Safety floor filter in coupon_builder
 # ---------------------------------------------------------------------------
@@ -113,6 +171,105 @@ class TestSafetyFloorFilter:
         extended = result.get("extended_pool", [])
         safety_reasons = [p.get("extended_pool_reason", "") for p in extended]
         assert any("SAFETY_FLOOR" in r for r in safety_reasons)
+
+    def test_active_singles_do_not_use_estimated_odds(self):
+        """Approved picks without real odds should go to discovery, not active singles."""
+        from scripts.coupon_builder import build_coupons
+
+        gate_results = {
+            "date": "2099-01-01",
+            "gate_results": {
+                "approved": [
+                    {
+                        "home_team": "Home A",
+                        "away_team": "Away A",
+                        "sport": "basketball",
+                        "kickoff": "2099-01-01T20:00:00+00:00",
+                        "best_market": {"name": "Points", "safety_score": 0.45, "probability": 0.45},
+                        "odds": {"market_best": 2.0},
+                        "risk_tier": "N",
+                        "advisory_tier": "STRONG",
+                        "data_quality": {"label": "FULL", "score": 8},
+                    },
+                    {
+                        "home_team": "Home B",
+                        "away_team": "Away B",
+                        "sport": "basketball",
+                        "kickoff": "2099-01-01T21:00:00+00:00",
+                        "best_market": {"name": "Points", "safety_score": 0.55, "probability": 0.55},
+                        "odds": {},
+                        "risk_tier": "HR",
+                        "advisory_tier": "STRONG",
+                        "data_quality": {"label": "FULL", "score": 8},
+                    },
+                ],
+                "extended_pool": [],
+                "rejected": [],
+            },
+        }
+        config = {"hard_safety_floor": 0.30, "bankroll_pln": 50.0}
+        result = build_coupons(gate_results, config)
+
+        assert len(result["singles"]) == 1
+        assert result["singles"][0]["combined_odds"] == 2.0
+        assert result["singles"][0].get("stats_first") is not True
+        assert any(d["legs"][0]["home_team"] == "Home B" for d in result["discovery_singles"])
+
+
+class TestPreCouponFallbacks:
+    """Coupon builder should degrade gracefully when sidecar files are absent."""
+
+    def test_betclic_validation_uses_db_fallback_when_file_missing(self, monkeypatch):
+        from scripts import coupon_builder
+
+        payload = {
+            "date": "2099-01-01",
+            "events": [{"event_name": "Indiana Fever - Atlanta Dream", "confirmed_market_types": ["points_total"]}],
+            "validation": None,
+        }
+
+        monkeypatch.setattr(coupon_builder, "_load_betclic_validation_sidecar", lambda _: (_ for _ in ()).throw(FileNotFoundError()))
+        monkeypatch.setattr(coupon_builder, "_load_betclic_validation_from_db", lambda _: (payload, {"required": True, "present": True, "consumed": False, "mode": "db_fallback", "event_count": 1, "validation_count": 0}))
+
+        gate_results = {
+            "gate_results": {
+                "approved": [{"home_team": "Indiana Fever", "away_team": "Atlanta Dream", "best_market": {"name": "Total Points O/U"}}],
+                "extended_pool": [],
+                "rejected": [],
+            }
+        }
+        filtered, loaded_payload, control = coupon_builder._apply_betclic_validation_to_gate_results("2099-01-01", gate_results)
+
+        assert filtered["gate_results"]["approved"]
+        assert loaded_payload["events"][0]["event_name"] == "Indiana Fever - Atlanta Dream"
+        assert control["mode"] == "db_fallback"
+        assert control["present"] is True
+
+    def test_repeat_loss_uses_ledger_fallback_when_db_handoff_missing(self, monkeypatch):
+        from scripts import coupon_builder
+
+        candidate = {
+            "home_team": "Liverpool",
+            "away_team": "Arsenal",
+            "sport": "football",
+            "best_market": {"name": "Fouls Total O/U 22.5"},
+            "status": "APPROVED",
+            "bucket": "approved",
+        }
+        gate_results = {"gate_results": {"approved": [candidate], "extended_pool": [], "rejected": []}}
+        finding = {"home_team": "Liverpool", "away_team": "Arsenal", "market_name": "Fouls Total O/U 22.5"}
+
+        monkeypatch.setattr(coupon_builder, "load_repeat_loss_handoff", lambda _: None)
+        monkeypatch.setattr(coupon_builder, "load_recent_losses", lambda *_args, **_kwargs: [{"pick_id": "PK-1"}])
+        monkeypatch.setattr(coupon_builder, "find_repeat_loss_candidates", lambda candidates, losses: [finding] if candidates and losses else [])
+
+        filtered, control = coupon_builder._apply_repeat_loss_hard_rejects("2099-01-01", gate_results)
+
+        assert filtered["gate_results"]["approved"] == []
+        assert len(filtered["gate_results"]["rejected"]) == 1
+        assert control["present"] is True
+        assert control["consumed"] is True
+        assert control["repeat_loss_count"] == 1
 
 
 # ---------------------------------------------------------------------------

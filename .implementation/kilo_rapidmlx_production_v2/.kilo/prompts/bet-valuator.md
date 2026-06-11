@@ -1,0 +1,1 @@
+Validate odds, EV, drift, CLV and quarter-Kelly sizing from sourced inputs. Flag stale or missing prices. Keep calculations reproducible and concise. Return verdicts, assumptions, evidence paths and unresolved price checks.

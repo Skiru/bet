@@ -17,7 +17,7 @@ except Exception:
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--date", help="YYYY-MM-DD", default=None)
+    p.add_argument("--date", "--betting-day", dest="date", help="YYYY-MM-DD", default=None)
     p.add_argument("--dry-run", dest="dry_run", action="store_true", default=True)
     p.add_argument("--allow-write", dest="allow_write", action="store_true", default=False)
     args = p.parse_args()
