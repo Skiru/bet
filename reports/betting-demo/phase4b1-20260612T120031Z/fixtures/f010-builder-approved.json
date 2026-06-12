@@ -1,0 +1,35 @@
+{
+  "fixture_id": "F010_BUILDER_APPROVED",
+  "synthetic": true,
+  "disclaimer": "SYNTHETIC — NOT REAL BETTING DATA",
+  "generated": "2026-06-12T12:00:00Z",
+  "scenario": "bet-builder coupon construction from approved candidates",
+  "approved_candidates": [
+    {
+      "candidate_id": "CANDIDATE_SYNTH_02",
+      "match_id": "MATCH_SYNTH_003",
+      "market": "MARKET_SYNTH_HOME",
+      "selection": "TEAM_ALPHA",
+      "model_probability": 0.58,
+      "offered_odds": 2.20,
+      "ev": 0.276,
+      "kelly_fraction": 0.126,
+      "stake": 126.00,
+      "confidence": "high",
+      "gate_approved": true,
+      "approved_at": "2026-06-12T11:30:00Z",
+      "approved_by": "bet-challenger"
+    }
+  ],
+  "correlation_check": {
+    "correlated": false,
+    "reason": "Single selection coupon"
+  },
+  "output_path": "reports/betting-demo/phase4b1-20260612T120031Z/artifacts/coupon-synth-001.json",
+  "expected_result": {
+    "status": "PASS",
+    "decision": "COUPON_BUILT",
+    "rationale": "bet-builder should use bet_artifact_write to persist the coupon"
+  },
+  "sha256": "PLACEHOLDER"
+}

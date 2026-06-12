@@ -1,0 +1,45 @@
+{
+  "fixture_id": "F005_ENRICHER_GAPS",
+  "synthetic": true,
+  "disclaimer": "SYNTHETIC — NOT REAL BETTING DATA",
+  "generated": "2026-06-12T12:00:00Z",
+  "scenario": "bet-enricher evidence gap filling",
+  "handoff_data": {
+    "match_id": "MATCH_SYNTH_003",
+    "home_team": "TEAM_ALPHA",
+    "away_team": "TEAM_BETA",
+    "kickoff": "2026-06-13T18:30:00Z",
+    "missing_fields": [
+      "home_team_form",
+      "away_team_injuries",
+      "head_to_head"
+    ]
+  },
+  "supplementary_pack": {
+    "source_id": "SOURCE_SYNTH_F",
+    "source_class": "official",
+    "as_of": "2026-06-12T11:30:00Z",
+    "provenance": "synthetic_supplementary_v1",
+    "confidence": 0.95,
+    "data": {
+      "home_team_form": {
+        "team": "TEAM_ALPHA",
+        "last_5_matches": ["W", "W", "D", "W", "W"],
+        "home_last_5": ["W", "W", "W", "W", "W"]
+      },
+      "head_to_head": {
+        "total_meetings": 10,
+        "home_wins": 6,
+        "draws": 2,
+        "away_wins": 2
+      }
+    },
+    "unavailable_fields": ["away_team_injuries"]
+  },
+  "expected_result": {
+    "status": "PASS",
+    "decision": "PARTIAL_ENRICHMENT",
+    "rationale": "bet-enricher should fill available gaps and mark away_team_injuries as UNKNOWN"
+  },
+  "sha256": "PLACEHOLDER"
+}

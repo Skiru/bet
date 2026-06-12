@@ -1,0 +1,39 @@
+{
+  "fixture_id": "F009_RECONCILER_CONFLICT",
+  "synthetic": true,
+  "disclaimer": "SYNTHETIC — NOT REAL BETTING DATA",
+  "generated": "2026-06-12T12:00:00Z",
+  "scenario": "bet-reconciler evidence conflict resolution",
+  "conflicting_records": [
+    {
+      "record_id": "REC_SYNTH_001",
+      "field": "kickoff",
+      "value": "2026-06-13T18:30:00Z",
+      "source_id": "SOURCE_SYNTH_A",
+      "source_class": "official",
+      "as_of": "2026-06-12T11:00:00Z",
+      "provenance": "official_fixture_list",
+      "confidence": 0.95
+    },
+    {
+      "record_id": "REC_SYNTH_002",
+      "field": "kickoff",
+      "value": "2026-06-13T20:00:00Z",
+      "source_id": "SOURCE_SYNTH_H",
+      "source_class": "aggregator",
+      "as_of": "2026-06-12T10:00:00Z",
+      "provenance": "third_party_aggregator",
+      "confidence": 0.80
+    }
+  ],
+  "conflict_type": "material",
+  "field": "kickoff",
+  "delta": "1.5 hours",
+  "authorized_tie_breaker": null,
+  "expected_result": {
+    "status": "BLOCKED",
+    "decision": "UNRESOLVED_CONFLICT",
+    "rationale": "bet-reconciler should identify conflict and mark as unresolved without authorized tie-breaker"
+  },
+  "sha256": "PLACEHOLDER"
+}

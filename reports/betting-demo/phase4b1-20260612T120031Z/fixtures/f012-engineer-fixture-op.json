@@ -1,0 +1,24 @@
+{
+  "fixture_id": "F012_ENGINEER_FIXTURE_OP",
+  "synthetic": true,
+  "disclaimer": "SYNTHETIC — NOT REAL BETTING DATA",
+  "generated": "2026-06-12T12:00:00Z",
+  "scenario": "bet-engineer certified fixture operation",
+  "operation": {
+    "operation_id": "fixture_echo",
+    "description": "Echo test fixture operation",
+    "input": {
+      "message": "SYNTHETIC_TEST_MESSAGE_001"
+    },
+    "expected_output": {
+      "status": "success",
+      "echo": "SYNTHETIC_TEST_MESSAGE_001"
+    }
+  },
+  "expected_result": {
+    "status": "PASS",
+    "decision": "FIXTURE_OPERATION_SUCCESS",
+    "rationale": "bet-engineer should execute certified fixture operation via bet_script_run"
+  },
+  "sha256": "PLACEHOLDER"
+}

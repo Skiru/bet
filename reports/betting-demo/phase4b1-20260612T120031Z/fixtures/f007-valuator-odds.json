@@ -1,0 +1,41 @@
+{
+  "fixture_id": "F007_VALUATOR_ODDS",
+  "synthetic": true,
+  "disclaimer": "SYNTHETIC — NOT REAL BETTING DATA",
+  "generated": "2026-06-12T12:00:00Z",
+  "scenario": "bet-valuator odds valuation",
+  "odds_data": {
+    "match_id": "MATCH_SYNTH_003",
+    "market": "MARKET_SYNTH_HOME",
+    "bookmaker": "BOOKMAKER_SYNTH_A",
+    "odds": {
+      "home": 2.10,
+      "draw": 3.40,
+      "away": 3.50
+    },
+    "timestamp": "2026-06-12T11:00:00Z",
+    "source": "SOURCE_SYNTH_G",
+    "as_of": "2026-06-12T11:00:00Z"
+  },
+  "model_probability": {
+    "source": "MODEL_SYNTH_ALPHA",
+    "probabilities": {
+      "home": 0.52,
+      "draw": 0.26,
+      "away": 0.22
+    },
+    "calibrated": true,
+    "as_of": "2026-06-12T10:00:00Z"
+  },
+  "bankroll": {
+    "total": 1000.00,
+    "currency": "EUR",
+    "fractional_kelly_max": 0.25
+  },
+  "expected_result": {
+    "status": "PASS",
+    "decision": "EDGE_FOUND",
+    "rationale": "bet-valuator should compute implied probability, margin, EV, and Kelly sizing"
+  },
+  "sha256": "PLACEHOLDER"
+}

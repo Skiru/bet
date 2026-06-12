@@ -1,0 +1,47 @@
+{
+  "fixture_id": "F008_CHALLENGER_WEAK",
+  "synthetic": true,
+  "disclaimer": "SYNTHETIC — NOT REAL BETTING DATA",
+  "generated": "2026-06-12T12:00:00Z",
+  "scenario": "bet-challenger adversarial review of weak candidate",
+  "candidate": {
+    "candidate_id": "CANDIDATE_SYNTH_01",
+    "match_id": "MATCH_SYNTH_003",
+    "market": "MARKET_SYNTH_HOME",
+    "selection": "TEAM_ALPHA",
+    "model_probability": 0.52,
+    "offered_odds": 2.10,
+    "ev": 0.092,
+    "kelly_fraction": 0.0438,
+    "stake": 43.80,
+    "confidence": "medium"
+  },
+  "weaknesses": [
+    {
+      "type": "stale_context",
+      "description": "Model probability based on data older than 24 hours",
+      "evidence": "model_probability.as_of = 2026-06-12T10:00:00Z, current = 2026-06-12T12:00:00Z"
+    },
+    {
+      "type": "thin_edge",
+      "description": "EV of 9.2% is below typical 10% threshold",
+      "evidence": "ev = 0.092 < 0.10"
+    },
+    {
+      "type": "model_uncertainty",
+      "description": "Model confidence marked as medium, not high",
+      "evidence": "confidence = medium"
+    },
+    {
+      "type": "single_source",
+      "description": "Odds from single bookmaker, no line shopping",
+      "evidence": "Only BOOKMAKER_SYNTH_A quoted"
+    }
+  ],
+  "expected_result": {
+    "status": "FAIL",
+    "decision": "CANDIDATE_REJECTED",
+    "rationale": "bet-challenger should identify weaknesses and reject the weak candidate"
+  },
+  "sha256": "PLACEHOLDER"
+}
