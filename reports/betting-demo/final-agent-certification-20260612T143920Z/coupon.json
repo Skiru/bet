@@ -1,0 +1,50 @@
+{
+  "coupon_id": "COUPON_SYNTH_001",
+  "generated": "2026-06-12T15:13:28Z",
+  "generated_by": "bet-builder",
+  "synthetic": true,
+  "disclaimer": "SYNTHETIC — NOT REAL BETTING DATA",
+  "source_fixture": "F010_BUILDER_APPROVED",
+  "source_phase": "phase4b1-20260612T120031Z",
+  "certification_dir": "reports/betting-demo/final-agent-certification-20260612T143920Z",
+  "coupons": [
+    {
+      "coupon_id": "COUPON_SYNTH_001",
+      "type": "single",
+      "selections": [
+        {
+          "candidate_id": "CANDIDATE_SYNTH_02",
+          "match_id": "MATCH_SYNTH_003",
+          "market": "MARKET_SYNTH_HOME",
+          "selection": "TEAM_ALPHA",
+          "model_probability": 0.58,
+          "offered_odds": 2.20,
+          "expected_value": 0.276,
+          "kelly_fraction": 0.126,
+          "stake": 126.00,
+          "confidence": "high",
+          "gate_approved": true,
+          "approved_by": "bet-challenger",
+          "approved_at": "2026-06-12T11:30:00Z"
+        }
+      ],
+      "total_stake": 126.00,
+      "total_expected_value": 0.276,
+      "potential_return": 277.20,
+      "correlation_check": {
+        "correlated": false,
+        "reason": "Single selection coupon"
+      }
+    }
+  ],
+  "summary": {
+    "total_coupons": 1,
+    "total_selections": 1,
+    "total_stake": 126.00,
+    "total_potential_return": 277.20,
+    "total_expected_value": 0.276,
+    "all_gate_approved": true,
+    "status": "PASS",
+    "decision": "COUPON_BUILT"
+  }
+}

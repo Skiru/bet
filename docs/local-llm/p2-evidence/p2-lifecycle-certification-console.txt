@@ -1,0 +1,46 @@
+P2 LIFECYCLE CERTIFICATION
+===========================
+Started: 2026-06-11T17:28:10.205958+00:00
+Completed: 2026-06-11T17:29:08.996155+00:00
+Status: FAIL
+
+TESTS
+-----
+01_initial_state: PASS
+02_start: FAIL
+03_health: FAIL
+04_status: PASS
+05_smoke: FAIL
+06_logs: PASS
+07_duplicate_start: PASS
+08_restart: PASS
+09_health_after_restart: FAIL
+10_stop: PASS
+11_duplicate_stop: PASS
+12_stale_pid: PASS
+13_unrelated_pid: PASS
+14_port_conflict: PASS
+15_failed_start_cleanup: PASS
+16_final_cleanup: PASS
+17_secret_scan: PASS
+
+SUMMARY
+-------
+Passed: 13/17
+Overall: FAIL
+
+FINGERPRINT
+-----------
+Version: 0.7.0
+Model: qwen3.6-35b-4bit
+Host: 127.0.0.1
+Port: 8000
+Max tokens: 8192
+Prefill step: 2048
+GPU memory: 0.7
+
+FINAL STATE
+-----------
+Port free: True
+No listener: True
+Connection refused: True

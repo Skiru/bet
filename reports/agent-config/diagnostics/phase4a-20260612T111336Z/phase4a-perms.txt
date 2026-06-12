@@ -1,0 +1,225 @@
+================================================================================
+PHASE 4A UNATTENDED PERMISSION VALIDATOR
+================================================================================
+
+## bet-orchestrator
+  [PASS] question_denied: question=deny
+  [PASS] zero_ask_permissions: ask_tools=none
+  [PASS] unknown_tools_fail_closed: all web/MCP tools denied
+  [PASS] bash_denied: bash=deny
+  [PASS] edit_denied: edit=deny
+  [PASS] write_denied: write=deny
+  [PASS] apply_patch_denied: apply_patch=deny
+  [PASS] sqlite_denied: bet_sqlite_query=deny
+  [PASS] fail_closed_extras: extras={tool: resolved_permission(permissions.get(tool)) for tool in FAIL_CLOSED_TOOLS}
+  [PASS] task_allowlist_exact: allowed=['bet-builder', 'bet-challenger', 'bet-db-analyst', 'bet-engineer', 'bet-enricher', 'bet-reconciler', 'bet-scanner', 'bet-scout', 'bet-settler', 'bet-statistician', 'bet-test-engineer', 'bet-valuator']
+  [PASS] artifact_writer_allowed: bet_artifact_write=allow
+  [PASS] script_runner_denied: bet_script_run=deny
+  [PASS] todowrite_allowed: todowrite=allow
+  [PASS] todoread_allowed: todoread=allow
+  [PASS] fixture_executor_not_broadened: bet_script_run=deny
+
+## bet-settler
+  [PASS] question_denied: question=deny
+  [PASS] zero_ask_permissions: ask_tools=none
+  [PASS] unknown_tools_fail_closed: all web/MCP tools denied
+  [PASS] bash_denied: bash=deny
+  [PASS] edit_denied: edit=deny
+  [PASS] write_denied: write=deny
+  [PASS] apply_patch_denied: apply_patch=deny
+  [PASS] sqlite_denied: bet_sqlite_query=deny
+  [PASS] fail_closed_extras: extras={tool: resolved_permission(permissions.get(tool)) for tool in FAIL_CLOSED_TOOLS}
+  [PASS] task_denied: task=deny
+  [PASS] todowrite_denied: todowrite=deny
+  [PASS] todoread_denied: todoread=deny
+  [PASS] artifact_writer_absent_or_denied: bet_artifact_write=deny
+  [PASS] fixture_executor_not_broadened: bet_script_run=deny
+
+## bet-db-analyst
+  [PASS] question_denied: question=deny
+  [PASS] zero_ask_permissions: ask_tools=none
+  [PASS] unknown_tools_fail_closed: all web/MCP tools denied
+  [PASS] bash_denied: bash=deny
+  [PASS] edit_denied: edit=deny
+  [PASS] write_denied: write=deny
+  [PASS] apply_patch_denied: apply_patch=deny
+  [PASS] sqlite_denied: bet_sqlite_query=deny
+  [PASS] fail_closed_extras: extras={tool: resolved_permission(permissions.get(tool)) for tool in FAIL_CLOSED_TOOLS}
+  [PASS] task_denied: task=deny
+  [PASS] todowrite_denied: todowrite=deny
+  [PASS] todoread_denied: todoread=deny
+  [PASS] artifact_writer_absent_or_denied: bet_artifact_write=deny
+  [PASS] fixture_executor_not_broadened: bet_script_run=deny
+
+## bet-scanner
+  [PASS] question_denied: question=deny
+  [PASS] zero_ask_permissions: ask_tools=none
+  [PASS] unknown_tools_fail_closed: all web/MCP tools denied
+  [PASS] bash_denied: bash=deny
+  [PASS] edit_denied: edit=deny
+  [PASS] write_denied: write=deny
+  [PASS] apply_patch_denied: apply_patch=deny
+  [PASS] sqlite_denied: bet_sqlite_query=deny
+  [PASS] fail_closed_extras: extras={tool: resolved_permission(permissions.get(tool)) for tool in FAIL_CLOSED_TOOLS}
+  [PASS] task_denied: task=deny
+  [PASS] todowrite_denied: todowrite=deny
+  [PASS] todoread_denied: todoread=deny
+  [PASS] artifact_writer_absent_or_denied: bet_artifact_write=deny
+  [PASS] fixture_executor_not_broadened: bet_script_run=deny
+
+## bet-scout
+  [PASS] question_denied: question=deny
+  [PASS] zero_ask_permissions: ask_tools=none
+  [PASS] unknown_tools_fail_closed: all web/MCP tools denied
+  [PASS] bash_denied: bash=deny
+  [PASS] edit_denied: edit=deny
+  [PASS] write_denied: write=deny
+  [PASS] apply_patch_denied: apply_patch=deny
+  [PASS] sqlite_denied: bet_sqlite_query=deny
+  [PASS] fail_closed_extras: extras={tool: resolved_permission(permissions.get(tool)) for tool in FAIL_CLOSED_TOOLS}
+  [PASS] task_denied: task=deny
+  [PASS] todowrite_denied: todowrite=deny
+  [PASS] todoread_denied: todoread=deny
+  [PASS] artifact_writer_absent_or_denied: bet_artifact_write=deny
+  [PASS] fixture_executor_not_broadened: bet_script_run=deny
+
+## bet-enricher
+  [PASS] question_denied: question=deny
+  [PASS] zero_ask_permissions: ask_tools=none
+  [PASS] unknown_tools_fail_closed: all web/MCP tools denied
+  [PASS] bash_denied: bash=deny
+  [PASS] edit_denied: edit=deny
+  [PASS] write_denied: write=deny
+  [PASS] apply_patch_denied: apply_patch=deny
+  [PASS] sqlite_denied: bet_sqlite_query=deny
+  [PASS] fail_closed_extras: extras={tool: resolved_permission(permissions.get(tool)) for tool in FAIL_CLOSED_TOOLS}
+  [PASS] task_denied: task=deny
+  [PASS] todowrite_denied: todowrite=deny
+  [PASS] todoread_denied: todoread=deny
+  [PASS] artifact_writer_absent_or_denied: bet_artifact_write=deny
+  [PASS] fixture_executor_not_broadened: bet_script_run=deny
+
+## bet-statistician
+  [PASS] question_denied: question=deny
+  [PASS] zero_ask_permissions: ask_tools=none
+  [PASS] unknown_tools_fail_closed: all web/MCP tools denied
+  [PASS] bash_denied: bash=deny
+  [PASS] edit_denied: edit=deny
+  [PASS] write_denied: write=deny
+  [PASS] apply_patch_denied: apply_patch=deny
+  [PASS] sqlite_denied: bet_sqlite_query=deny
+  [PASS] fail_closed_extras: extras={tool: resolved_permission(permissions.get(tool)) for tool in FAIL_CLOSED_TOOLS}
+  [PASS] task_denied: task=deny
+  [PASS] todowrite_denied: todowrite=deny
+  [PASS] todoread_denied: todoread=deny
+  [PASS] artifact_writer_absent_or_denied: bet_artifact_write=deny
+  [PASS] fixture_executor_not_broadened: bet_script_run=deny
+
+## bet-valuator
+  [PASS] question_denied: question=deny
+  [PASS] zero_ask_permissions: ask_tools=none
+  [PASS] unknown_tools_fail_closed: all web/MCP tools denied
+  [PASS] bash_denied: bash=deny
+  [PASS] edit_denied: edit=deny
+  [PASS] write_denied: write=deny
+  [PASS] apply_patch_denied: apply_patch=deny
+  [PASS] sqlite_denied: bet_sqlite_query=deny
+  [PASS] fail_closed_extras: extras={tool: resolved_permission(permissions.get(tool)) for tool in FAIL_CLOSED_TOOLS}
+  [PASS] task_denied: task=deny
+  [PASS] todowrite_denied: todowrite=deny
+  [PASS] todoread_denied: todoread=deny
+  [PASS] artifact_writer_absent_or_denied: bet_artifact_write=deny
+  [PASS] fixture_executor_not_broadened: bet_script_run=deny
+
+## bet-challenger
+  [PASS] question_denied: question=deny
+  [PASS] zero_ask_permissions: ask_tools=none
+  [PASS] unknown_tools_fail_closed: all web/MCP tools denied
+  [PASS] bash_denied: bash=deny
+  [PASS] edit_denied: edit=deny
+  [PASS] write_denied: write=deny
+  [PASS] apply_patch_denied: apply_patch=deny
+  [PASS] sqlite_denied: bet_sqlite_query=deny
+  [PASS] fail_closed_extras: extras={tool: resolved_permission(permissions.get(tool)) for tool in FAIL_CLOSED_TOOLS}
+  [PASS] task_denied: task=deny
+  [PASS] todowrite_denied: todowrite=deny
+  [PASS] todoread_denied: todoread=deny
+  [PASS] artifact_writer_absent_or_denied: bet_artifact_write=deny
+  [PASS] fixture_executor_not_broadened: bet_script_run=deny
+
+## bet-reconciler
+  [PASS] question_denied: question=deny
+  [PASS] zero_ask_permissions: ask_tools=none
+  [PASS] unknown_tools_fail_closed: all web/MCP tools denied
+  [PASS] bash_denied: bash=deny
+  [PASS] edit_denied: edit=deny
+  [PASS] write_denied: write=deny
+  [PASS] apply_patch_denied: apply_patch=deny
+  [PASS] sqlite_denied: bet_sqlite_query=deny
+  [PASS] fail_closed_extras: extras={tool: resolved_permission(permissions.get(tool)) for tool in FAIL_CLOSED_TOOLS}
+  [PASS] task_denied: task=deny
+  [PASS] todowrite_denied: todowrite=deny
+  [PASS] todoread_denied: todoread=deny
+  [PASS] artifact_writer_absent_or_denied: bet_artifact_write=deny
+  [PASS] fixture_executor_not_broadened: bet_script_run=deny
+
+## bet-builder
+  [PASS] question_denied: question=deny
+  [PASS] zero_ask_permissions: ask_tools=none
+  [PASS] unknown_tools_fail_closed: all web/MCP tools denied
+  [PASS] bash_denied: bash=deny
+  [PASS] edit_denied: edit=deny
+  [PASS] write_denied: write=deny
+  [PASS] apply_patch_denied: apply_patch=deny
+  [PASS] sqlite_denied: bet_sqlite_query=deny
+  [PASS] fail_closed_extras: extras={tool: resolved_permission(permissions.get(tool)) for tool in FAIL_CLOSED_TOOLS}
+  [PASS] task_denied: task=deny
+  [PASS] todowrite_denied: todowrite=deny
+  [PASS] todoread_denied: todoread=deny
+  [PASS] artifact_writer_allowed: bet_artifact_write=allow
+  [PASS] fixture_executor_not_broadened: bet_script_run=deny
+
+## bet-engineer
+  [PASS] question_denied: question=deny
+  [PASS] zero_ask_permissions: ask_tools=none
+  [PASS] unknown_tools_fail_closed: all web/MCP tools denied
+  [PASS] bash_denied: bash=deny
+  [PASS] edit_denied: edit=deny
+  [PASS] write_denied: write=deny
+  [PASS] apply_patch_denied: apply_patch=deny
+  [PASS] sqlite_denied: bet_sqlite_query=deny
+  [PASS] fail_closed_extras: extras={tool: resolved_permission(permissions.get(tool)) for tool in FAIL_CLOSED_TOOLS}
+  [PASS] task_denied: task=deny
+  [PASS] todowrite_denied: todowrite=deny
+  [PASS] todoread_denied: todoread=deny
+  [PASS] artifact_writer_absent_or_denied: bet_artifact_write=deny
+  [PASS] fixture_executor_allowed: bet_script_run=allow
+
+## bet-test-engineer
+  [PASS] question_denied: question=deny
+  [PASS] zero_ask_permissions: ask_tools=none
+  [PASS] unknown_tools_fail_closed: all web/MCP tools denied
+  [PASS] bash_denied: bash=deny
+  [PASS] edit_denied: edit=deny
+  [PASS] write_denied: write=deny
+  [PASS] apply_patch_denied: apply_patch=deny
+  [PASS] sqlite_denied: bet_sqlite_query=deny
+  [PASS] fail_closed_extras: extras={tool: resolved_permission(permissions.get(tool)) for tool in FAIL_CLOSED_TOOLS}
+  [PASS] task_denied: task=deny
+  [PASS] todowrite_denied: todowrite=deny
+  [PASS] todoread_denied: todoread=deny
+  [PASS] artifact_writer_absent_or_denied: bet_artifact_write=deny
+  [PASS] fixture_executor_not_broadened: bet_script_run=deny
+
+## negative-mutation-tests
+  [PASS] negative_question_ask: mutation must be detected
+  [PASS] negative_bash_allow: mutation must be detected
+  [PASS] negative_sqlite_allow: mutation must be detected
+  [PASS] negative_webfetch_allow: mutation must be detected
+  [PASS] negative_builder_write_allow: mutation must be detected
+  [PASS] negative_specialist_task_allow: mutation must be detected
+
+================================================================================
+PASS: 189
+FAIL: 0
+VERDICT: PASS

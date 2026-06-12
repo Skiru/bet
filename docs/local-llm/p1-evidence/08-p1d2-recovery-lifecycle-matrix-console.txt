@@ -1,0 +1,24 @@
+[2026-06-11T14:09:52.181373+00:00] P1D2 Recovery Lifecycle Matrix - Starting
+[2026-06-11T14:10:03.300412+00:00] Primary server start: Server ready in 11.1s (PID 1191)
+[2026-06-11T14:10:03.301104+00:00] Fingerprint verified: PID 1191, RSS 2783.0 MB
+[2026-06-11T14:10:03.301130+00:00] Running Test 1: Streaming client disconnect
+[2026-06-11T14:10:20.966572+00:00] Test 1: PASS - cycles=3
+[2026-06-11T14:10:20.967754+00:00] Running Test 2: Non-streaming early close
+[2026-06-11T14:10:23.289816+00:00] Test 2: PASS
+[2026-06-11T14:10:23.289863+00:00] Running Test 3: Post-disconnect tool recovery
+[2026-06-11T14:10:24.230804+00:00] Test 3: PASS - tool_executed=True
+[2026-06-11T14:10:24.230836+00:00] Running Test 4: Port conflict handling
+[2026-06-11T14:10:25.892043+00:00] Test 4: PASS - secondary_failed=True
+[2026-06-11T14:10:25.896039+00:00] Running Test 5: Controlled interruption during generation
+[2026-06-11T14:10:56.450706+00:00] Test 5: PASS - process_exited=True
+[2026-06-11T14:10:56.450983+00:00] Waiting for port to be fully free before restart
+[2026-06-11T14:10:56.536983+00:00] Waiting for all Rapid-MLX processes to exit
+[2026-06-11T14:11:06.717995+00:00] Running Test 6: Restart recovery
+[2026-06-11T14:11:17.433924+00:00] Test 6: PASS - new_pid=4710
+[2026-06-11T14:11:17.434357+00:00] Running Test 7: Stale state safety
+[2026-06-11T14:11:17.434712+00:00] Test 7: PASS
+[2026-06-11T14:11:17.434726+00:00] Running Test 8: Final owned-process cleanup
+[2026-06-11T14:11:21.955491+00:00] Test 8: PASS - cleanup=Cleanup verified
+[2026-06-11T14:11:21.956562+00:00] Emergency cleanup: stopping primary server
+[2026-06-11T14:11:24.054921+00:00] Final verification
+[2026-06-11T14:11:24.127610+00:00] Port 8000: listener=False, refused=True

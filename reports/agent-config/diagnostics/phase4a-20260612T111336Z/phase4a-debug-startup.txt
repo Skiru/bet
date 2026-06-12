@@ -1,0 +1,108 @@
+INFO  2026-06-12T11:15:25 +49ms service=default version=7.3.41 args=["--print-logs","--log-level","DEBUG","config","check"] process_role=main run_id=57447a78-2b92-4020-8ba6-54d67a487396 opencode
+INFO  2026-06-12T11:15:25 +5ms service=file init
+INFO  2026-06-12T11:15:25 +261ms service=config path=/Users/mkoziol/.config/kilo/config.json loading
+INFO  2026-06-12T11:15:25 +0ms service=config path=/Users/mkoziol/.config/kilo/kilo.json loading
+INFO  2026-06-12T11:15:25 +12ms service=config path=/Users/mkoziol/.config/kilo/kilo.jsonc loading
+INFO  2026-06-12T11:15:25 +1ms service=config path=/Users/mkoziol/.config/kilo/opencode.json loading
+INFO  2026-06-12T11:15:25 +0ms service=config path=/Users/mkoziol/.config/kilo/opencode.jsonc loading
+INFO  2026-06-12T11:15:25 +196ms service=default creating instance [object Object]
+INFO  2026-06-12T11:15:25 +1ms service=project directory=/Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice fromDirectory
+INFO  2026-06-12T11:15:25 +46ms service=db path=/Users/mkoziol/.local/share/kilo/kilo.db opening database
+INFO  2026-06-12T11:15:25 +7ms service=db count=19 mode=bundled applying migrations
+DEBUG 2026-06-12T11:15:25 +11ms service=kilocode.config count=9 files=["/Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice/.kilo/rules/betting-anti-hallucination.md","/Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice/.kilo/rules/fish-shell.md","/Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice/.kilo/rules/context-management.md","/Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice/.kilo/rules/local-llm.md","/Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice/.kilo/rules/model-locked.md","/Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice/.kilo/rules/betclic-boundary.md","/Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice/.kilo/rules/pipeline-state.md","/Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice/.kilo/rules/tool-names.md","/Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice/.kilo/rules/tool-output.md"] loaded kilocode rules
+DEBUG 2026-06-12T11:15:25 +0ms service=kilocode.ignore-migrator count=18 loaded project .kilocodeignore
+INFO  2026-06-12T11:15:25 +0ms service=kilocode.ignore-migrator count=18 loaded .kilocodeignore patterns
+DEBUG 2026-06-12T11:15:25 +1ms service=kilocode.config hasRead=true hasEdit=true loaded kilocode ignore patterns
+INFO  2026-06-12T11:15:25 +1ms service=config path=/Users/mkoziol/projects/bet/kilo.jsonc loading
+INFO  2026-06-12T11:15:25 +8ms service=config path=/Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice/kilo.jsonc loading
+DEBUG 2026-06-12T11:15:25 +17ms service=config loading config from /Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice/.kilocode/kilo.jsonc
+INFO  2026-06-12T11:15:25 +0ms service=config path=/Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice/.kilocode/kilo.jsonc loading
+DEBUG 2026-06-12T11:15:25 +0ms service=config loading config from /Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice/.kilocode/kilo.json
+INFO  2026-06-12T11:15:25 +0ms service=config path=/Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice/.kilocode/kilo.json loading
+DEBUG 2026-06-12T11:15:25 +0ms service=config loading config from /Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice/.kilocode/opencode.jsonc
+INFO  2026-06-12T11:15:25 +0ms service=config path=/Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice/.kilocode/opencode.jsonc loading
+DEBUG 2026-06-12T11:15:25 +0ms service=config loading config from /Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice/.kilocode/opencode.json
+INFO  2026-06-12T11:15:25 +0ms service=config path=/Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice/.kilocode/opencode.json loading
+DEBUG 2026-06-12T11:15:25 +2ms service=config loading config from /Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice/.kilo/kilo.jsonc
+INFO  2026-06-12T11:15:25 +0ms service=config path=/Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice/.kilo/kilo.jsonc loading
+DEBUG 2026-06-12T11:15:25 +0ms service=config loading config from /Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice/.kilo/kilo.json
+INFO  2026-06-12T11:15:25 +0ms service=config path=/Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice/.kilo/kilo.json loading
+DEBUG 2026-06-12T11:15:25 +0ms service=config loading config from /Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice/.kilo/opencode.jsonc
+INFO  2026-06-12T11:15:25 +0ms service=config path=/Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice/.kilo/opencode.jsonc loading
+DEBUG 2026-06-12T11:15:25 +0ms service=config loading config from /Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice/.kilo/opencode.json
+INFO  2026-06-12T11:15:25 +0ms service=config path=/Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice/.kilo/opencode.json loading
+DEBUG 2026-06-12T11:15:25 +6ms service=config loading config from /Users/mkoziol/projects/bet/.kilocode/kilo.jsonc
+INFO  2026-06-12T11:15:25 +0ms service=config path=/Users/mkoziol/projects/bet/.kilocode/kilo.jsonc loading
+DEBUG 2026-06-12T11:15:25 +0ms service=config loading config from /Users/mkoziol/projects/bet/.kilocode/kilo.json
+INFO  2026-06-12T11:15:25 +0ms service=config path=/Users/mkoziol/projects/bet/.kilocode/kilo.json loading
+DEBUG 2026-06-12T11:15:25 +0ms service=config loading config from /Users/mkoziol/projects/bet/.kilocode/opencode.jsonc
+INFO  2026-06-12T11:15:25 +0ms service=config path=/Users/mkoziol/projects/bet/.kilocode/opencode.jsonc loading
+DEBUG 2026-06-12T11:15:25 +1ms service=config loading config from /Users/mkoziol/projects/bet/.kilocode/opencode.json
+INFO  2026-06-12T11:15:25 +0ms service=config path=/Users/mkoziol/projects/bet/.kilocode/opencode.json loading
+DEBUG 2026-06-12T11:15:25 +0ms service=config loading config from /Users/mkoziol/projects/bet/.kilo/kilo.jsonc
+INFO  2026-06-12T11:15:25 +0ms service=config path=/Users/mkoziol/projects/bet/.kilo/kilo.jsonc loading
+DEBUG 2026-06-12T11:15:25 +1ms service=config loading config from /Users/mkoziol/projects/bet/.kilo/kilo.json
+INFO  2026-06-12T11:15:25 +0ms service=config path=/Users/mkoziol/projects/bet/.kilo/kilo.json loading
+DEBUG 2026-06-12T11:15:25 +2ms service=config loading config from /Users/mkoziol/projects/bet/.kilo/opencode.jsonc
+INFO  2026-06-12T11:15:25 +0ms service=config path=/Users/mkoziol/projects/bet/.kilo/opencode.jsonc loading
+DEBUG 2026-06-12T11:15:25 +0ms service=config loading config from /Users/mkoziol/projects/bet/.kilo/opencode.json
+INFO  2026-06-12T11:15:25 +0ms service=config path=/Users/mkoziol/projects/bet/.kilo/opencode.json loading
+DEBUG 2026-06-12T11:15:25 +2ms service=config loading config from /Users/mkoziol/.kilo/kilo.jsonc
+INFO  2026-06-12T11:15:25 +0ms service=config path=/Users/mkoziol/.kilo/kilo.jsonc loading
+DEBUG 2026-06-12T11:15:25 +0ms service=config loading config from /Users/mkoziol/.kilo/kilo.json
+INFO  2026-06-12T11:15:25 +0ms service=config path=/Users/mkoziol/.kilo/kilo.json loading
+DEBUG 2026-06-12T11:15:25 +0ms service=config loading config from /Users/mkoziol/.kilo/opencode.jsonc
+INFO  2026-06-12T11:15:25 +0ms service=config path=/Users/mkoziol/.kilo/opencode.jsonc loading
+DEBUG 2026-06-12T11:15:25 +1ms service=config loading config from /Users/mkoziol/.kilo/opencode.json
+INFO  2026-06-12T11:15:25 +0ms service=config path=/Users/mkoziol/.kilo/opencode.json loading
+DEBUG 2026-06-12T11:15:25 +1ms service=config error=ResolveMessage: Cannot find module '@kilocode/kilo-indexing' from '/$bunfs/root/src/index.js' failed to resolve indexing plugin package, using package marker
+DEBUG 2026-06-12T11:15:25 +0ms service=config error=ResolveMessage: Cannot find module '@kilocode/plugin-atomic-chat' from '/$bunfs/root/src/index.js' failed to resolve atomic chat plugin package, using package marker
+INFO  2026-06-12T11:15:25 +1ms service=plugin name=u86 loading internal plugin
+INFO  2026-06-12T11:15:25 +1ms service=plugin name=UAq loading internal plugin
+INFO  2026-06-12T11:15:25 +0ms service=plugin name=YAq loading internal plugin
+INFO  2026-06-12T11:15:25 +0ms service=plugin name=$2q loading internal plugin
+INFO  2026-06-12T11:15:25 +0ms service=plugin name=sKj loading internal plugin
+INFO  2026-06-12T11:15:25 +0ms service=plugin name=C2q loading internal plugin
+INFO  2026-06-12T11:15:25 +0ms service=plugin name=I2q loading internal plugin
+INFO  2026-06-12T11:15:25 +0ms service=plugin name=z2q loading internal plugin
+INFO  2026-06-12T11:15:25 +0ms service=plugin name=y2q loading internal plugin
+INFO  2026-06-12T11:15:25 +0ms service=bus type=* subscribing
+INFO  2026-06-12T11:15:25 +1ms service=bus type=session.created subscribing
+INFO  2026-06-12T11:15:25 +0ms service=bus type=session.updated subscribing
+INFO  2026-06-12T11:15:25 +0ms service=bus type=message.updated subscribing
+INFO  2026-06-12T11:15:25 +0ms service=bus type=message.part.updated subscribing
+INFO  2026-06-12T11:15:25 +0ms service=bus type=session.diff subscribing
+INFO  2026-06-12T11:15:25 +0ms service=bus type=session.turn.open subscribing
+INFO  2026-06-12T11:15:25 +0ms service=bus type=session.turn.close subscribing
+INFO  2026-06-12T11:15:25 +0ms service=bus type=session.status subscribing
+INFO  2026-06-12T11:15:25 +0ms service=bus type=question.asked subscribing
+INFO  2026-06-12T11:15:25 +0ms service=bus type=question.replied subscribing
+INFO  2026-06-12T11:15:25 +0ms service=bus type=question.rejected subscribing
+INFO  2026-06-12T11:15:25 +0ms service=bus type=permission.asked subscribing
+INFO  2026-06-12T11:15:25 +0ms service=bus type=permission.replied subscribing
+INFO  2026-06-12T11:15:25 +2ms service=file.watcher directory=/Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice init
+INFO  2026-06-12T11:15:25 +231ms service=file.watcher directory=/Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice platform=darwin backend=fs-events watcher backend
+INFO  2026-06-12T11:15:25 +3ms service=bus type=command.executed subscribing
+INFO  2026-06-12T11:15:25 +0ms service=lsp all LSPs are disabled
+INFO  2026-06-12T11:15:25 +1ms service=format all formatters are disabled
+INFO  2026-06-12T11:15:25 +0ms service=format init
+No config warnings.
+INFO  2026-06-12T11:15:25 +37ms service=default disposing instance [object Object]
+INFO  2026-06-12T11:15:25 +1ms service=bus type=* unsubscribing
+INFO  2026-06-12T11:15:25 +0ms service=bus type=session.created unsubscribing
+INFO  2026-06-12T11:15:25 +0ms service=bus type=session.updated unsubscribing
+INFO  2026-06-12T11:15:25 +0ms service=bus type=message.updated unsubscribing
+INFO  2026-06-12T11:15:25 +0ms service=bus type=message.part.updated unsubscribing
+INFO  2026-06-12T11:15:25 +1ms service=bus type=session.diff unsubscribing
+INFO  2026-06-12T11:15:25 +0ms service=bus type=session.turn.open unsubscribing
+INFO  2026-06-12T11:15:25 +0ms service=bus type=session.turn.close unsubscribing
+INFO  2026-06-12T11:15:25 +0ms service=bus type=session.status unsubscribing
+INFO  2026-06-12T11:15:25 +0ms service=bus type=question.asked unsubscribing
+INFO  2026-06-12T11:15:25 +0ms service=bus type=question.replied unsubscribing
+INFO  2026-06-12T11:15:25 +0ms service=bus type=question.rejected unsubscribing
+INFO  2026-06-12T11:15:25 +0ms service=bus type=permission.asked unsubscribing
+INFO  2026-06-12T11:15:25 +0ms service=bus type=permission.replied unsubscribing
+INFO  2026-06-12T11:15:25 +0ms service=bus type=command.executed unsubscribing
+INFO  2026-06-12T11:15:25 +39ms service=vcs branch=cherry-juice default_branch=main initialized
+INFO  2026-06-12T11:15:25 +0ms service=bus type=file.watcher.updated subscribing
+INFO  2026-06-12T11:15:26 +482ms service=default disposing all instances

@@ -1,0 +1,34 @@
+{
+  "base_url": "http://127.0.0.1:8000/v1",
+  "rounds": 1,
+  "passed": 0,
+  "failed": 1,
+  "success_rate": 0.0,
+  "latency_s": {
+    "mean": null,
+    "p50": null,
+    "p95": null,
+    "max": null
+  },
+  "rss_mb": {
+    "first": 2486.61,
+    "last": 2486.61,
+    "max": 2486.61
+  },
+  "swap_used_mb": {
+    "first": 9578.31,
+    "last": 9578.31,
+    "max": 9578.31
+  },
+  "samples": [
+    {
+      "round": 1,
+      "kind": "chat",
+      "ok": false,
+      "latency_s": 0.033,
+      "error": "HTTPError: HTTP Error 400: Bad Request",
+      "rss_mb": 2486.61,
+      "swap_used_mb": 9578.31
+    }
+  ]
+}

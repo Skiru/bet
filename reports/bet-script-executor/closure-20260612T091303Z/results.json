@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "phase": "P3_CLOSURE",
+  "status": "SCRIPT_EXECUTOR_PASS",
+  "timestamp": "2026-06-12T09:28:00Z",
+  "fingerprint": "a7f3c2d8e9b1a4f5",
+  "previous_phase_3_fingerprint": "cdb7894041543f84",
+  "summary": {
+    "total_tests": 83,
+    "passed": 83,
+    "failed": 0,
+    "blocked": 0
+  },
+  "gates": {
+    "duplicate_tests": "10/10",
+    "cancellation_tests": "6/6",
+    "timeout_output_tests": "10/10",
+    "kilo_e2e_tests": "31/31",
+    "redaction_tests": "14/14",
+    "continuation_tests": "12/12"
+  },
+  "changes": {
+    "permissions_hardened": true,
+    "deduplication_implemented": true,
+    "subprocesses_started_field_added": true
+  },
+  "resolved_permissions": {
+    "bet_script_run": "allow",
+    "bash": "ask",
+    "edit": "ask",
+    "write": "ask",
+    "mcp_servers": "disabled"
+  },
+  "components": {
+    "custom_tool": ".kilo/tool/bet_script_run.ts",
+    "manifest": "config/bet-script-operations.json",
+    "fixtures": [
+      "scripts/fixtures/bet-script-success.py",
+      "scripts/fixtures/bet-script-failure.py",
+      "scripts/fixtures/bet-script-slow.py",
+      "scripts/fixtures/bet-script-large-output.py",
+      "scripts/fixtures/bet-script-injection.py"
+    ],
+    "test_suites": [
+      "scripts/test-closure-duplicate.py",
+      "scripts/test-closure-cancellation.py",
+      "scripts/test-closure-timeout-output.py",
+      "scripts/test-closure-kilo-e2e.py",
+      "scripts/test-closure-redaction.py",
+      "scripts/test-closure-continuation.py"
+    ]
+  },
+  "evidence_paths": [
+    "reports/bet-script-executor/closure-20260612T091303Z/duplicate-tests.json",
+    "reports/bet-script-executor/closure-20260612T091303Z/cancellation-tests.json",
+    "reports/bet-script-executor/closure-20260612T091303Z/timeout-output-tests.json",
+    "reports/bet-script-executor/closure-20260612T091303Z/kilo-e2e-tests.json",
+    "reports/bet-script-executor/closure-20260612T091303Z/redaction-tests.json",
+    "reports/bet-script-executor/closure-20260612T091303Z/continuation-tests.json",
+    "reports/bet-script-executor/closure-20260612T091303Z/fingerprint.json",
+    "reports/bet-script-executor/closure-20260612T091303Z/REPORT.md",
+    "reports/bet-script-executor/closure-20260612T091303Z/SCRIPT_EXECUTOR_CLOSURE_MATRIX.md"
+  ]
+}

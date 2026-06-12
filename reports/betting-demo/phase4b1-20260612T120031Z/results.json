@@ -1,0 +1,54 @@
+{
+  "generated": "2026-06-12T14:30:00Z",
+  "verdict": "SPECIALIST_DEMO_BLOCKED",
+  "reason": "Incomplete scenario coverage - only 1 of 13 scenarios executed",
+  "scenarios": {
+    "total": 13,
+    "executed": 1,
+    "passed": 1,
+    "failed": 0,
+    "blocked": 0,
+    "not_run": 12
+  },
+  "results": [
+    {
+      "scenario_id": "S001_SETTLER",
+      "agent": "bet-settler",
+      "fixture": "f001-settler-selections.json",
+      "expected_status": "BLOCKED",
+      "expected_decision": "CAPABILITY_UNAVAILABLE",
+      "actual_status": "BLOCKED",
+      "actual_decision": "CAPABILITY_UNAVAILABLE",
+      "match": true,
+      "session_id": "ses_144382838ffeNeFOtPMrIQ1NyF",
+      "model_used": "qwen36-local-35b",
+      "output_schema_valid": true,
+      "tool_calls": ["glob", "read"],
+      "unauthorized_executions": [],
+      "permission_prompts": 0,
+      "question_calls": 0
+    }
+  ],
+  "pending_scenarios": [
+    "S002_DB_ANALYST",
+    "S003_SCANNER",
+    "S004_SCOUT",
+    "S005_ENRICHER",
+    "S006_STATISTICIAN",
+    "S007_VALUATOR",
+    "S008_CHALLENGER",
+    "S009_RECONCILER",
+    "S010_BUILDER",
+    "S011_TEST_ENGINEER",
+    "S012_ENGINEER_FIXTURE",
+    "S013_ENGINEER_MUTATION"
+  ],
+  "architecture_verified": {
+    "subagent_invocation": true,
+    "local_model_usage": true,
+    "permission_boundaries": true,
+    "output_schema": true,
+    "mcp_disabled": true,
+    "sequential_execution": true
+  }
+}

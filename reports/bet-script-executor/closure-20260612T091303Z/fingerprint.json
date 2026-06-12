@@ -1,0 +1,73 @@
+{
+  "phase": "P3_CLOSURE",
+  "timestamp": "2026-06-12T09:28:00Z",
+  "git_head": "3c8c2f3c49d3ec19772907f730b6e2c7c905f6c0",
+  "phase_2_fingerprint": "d4e59816d5cd0049",
+  "previous_phase_3_fingerprint": "cdb7894041543f84",
+  "kilo_version": "7.3.41",
+  "rapid_mlx_pid": 54776,
+  "rapid_mlx_port": 8000,
+  "rapid_mlx_model": "mlx-community/Qwen3.6-35B-A3B-4bit",
+  "kilo_jsonc_hash": "b486e2b1665684ee4aaff6de746e0eb3f79f4c4d458578916f2af0e3101bd19a",
+  "custom_tool_hash": "0f484b1c9f99c752744335362c9c1adf019a5ccfece27ba5622d75a6d26f1f78",
+  "manifest_hash": "b58121b88d7a2491539ec2202a1f4d04601be99d5a3c75deb69889f42d236b5a",
+  "fixture_hashes": {
+    "bet-script-success.py": "e6cc64cae5a091ef9b0fe8cf4d33f5d3f1c6063a3a99da4584c89133fa80ea68",
+    "bet-script-failure.py": "f8295b62f43359b78ee806be43ec6083af516d812c273a9b54a722c59f36af23",
+    "bet-script-slow.py": "b07d26d45dd4cba27205c98ebfce9bb9cae376150303c797b8398cad4c76f994",
+    "bet-script-large-output.py": "f59be317f8e30bcac995bb97be8639076021af5666798d050cab8d8bf8c305d7",
+    "bet-script-injection.py": "2c657ceea4e26c00b8abc4fd8c436d26c69de5c76170a9ad759a10191763c6b0"
+  },
+  "resolved_permissions": {
+    "bet_script_run": "allow",
+    "bash": "ask",
+    "edit": "ask",
+    "write": "ask",
+    "mcp_servers": "disabled"
+  },
+  "output_limits": {
+    "fixture_success": {
+      "max_stdout_bytes": 32768,
+      "max_stderr_bytes": 16384
+    },
+    "fixture_failure": {
+      "max_stdout_bytes": 32768,
+      "max_stderr_bytes": 16384
+    },
+    "fixture_slow": {
+      "max_stdout_bytes": 32768,
+      "max_stderr_bytes": 16384
+    },
+    "fixture_large_output": {
+      "max_stdout_bytes": 1024,
+      "max_stderr_bytes": 512
+    },
+    "fixture_injection": {
+      "max_stdout_bytes": 32768,
+      "max_stderr_bytes": 16384
+    }
+  },
+  "timeout_values": {
+    "fixture_success": 10,
+    "fixture_failure": 10,
+    "fixture_slow": 2,
+    "fixture_large_output": 10,
+    "fixture_injection": 10
+  },
+  "deduplication": {
+    "ttl_ms": 60000,
+    "stale_lock_ttl_ms": 30000,
+    "max_cache_size": 100,
+    "key_components": ["sessionID", "messageID", "operation", "argsHash"]
+  },
+  "closure_test_results": {
+    "duplicate_tests": "10/10",
+    "cancellation_tests": "6/6",
+    "timeout_output_tests": "10/10",
+    "kilo_e2e_tests": "31/31",
+    "redaction_tests": "14/14",
+    "continuation_tests": "12/12"
+  },
+  "mcp_servers_disabled": 4,
+  "fingerprint_hash": "a7f3c2d8e9b1a4f5"
+}

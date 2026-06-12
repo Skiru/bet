@@ -1,0 +1,17 @@
+[0m
+┌  MCP Servers
+│
+●  ○ memory [90mdisabled
+│      [90mnpx -y @modelcontextprotocol/server-memory
+│
+●  ○ brave-search [90mdisabled
+│      [90mnpx -y @brave/brave-search-mcp-server@2.0.75 --transport stdio
+│
+●  ○ context7 [90mdisabled
+│      [90mhttps://mcp.context7.com/mcp
+│
+●  ○ playwright [90mdisabled
+│      [90mnpx -y @playwright/mcp@0.0.76 --headless
+│
+└  4 server(s)
+

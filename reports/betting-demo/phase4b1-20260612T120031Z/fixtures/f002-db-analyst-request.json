@@ -1,0 +1,18 @@
+{
+  "fixture_id": "F002_DB_ANALYST_REQUEST",
+  "synthetic": true,
+  "disclaimer": "SYNTHETIC — NOT REAL BETTING DATA",
+  "generated": "2026-06-12T12:00:00Z",
+  "scenario": "bet-db-analyst database readiness check",
+  "request": {
+    "operation": "database_readiness_audit",
+    "tables_to_check": ["fixtures", "odds", "results", "teams"],
+    "freshness_threshold_hours": 24
+  },
+  "expected_result": {
+    "status": "BLOCKED",
+    "decision": "CAPABILITY_UNAVAILABLE",
+    "rationale": "bet-db-analyst requires bet_sqlite_query which is deferred"
+  },
+  "sha256": "PLACEHOLDER"
+}

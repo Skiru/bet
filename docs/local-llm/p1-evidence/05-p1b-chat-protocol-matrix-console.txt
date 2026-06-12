@@ -1,0 +1,15 @@
+[2026-06-11T12:26:17.119853+00:00] P1B Chat Protocol Matrix - Starting
+[2026-06-11T12:26:28.200518+00:00] Server start: Server ready in 11.1s (PID 99005)
+[2026-06-11T12:26:28.200999+00:00] Fingerprint verified: PID 99005, RSS 1887.5 MB
+[2026-06-11T12:26:28.201009+00:00] Running Test 1: Non-thinking chat
+[2026-06-11T12:26:28.499979+00:00] Test 1: PASS
+[2026-06-11T12:26:28.499994+00:00] Running Test 2: Thinking chat
+[2026-06-11T12:26:28.923911+00:00] Test 2: PASS
+[2026-06-11T12:26:28.923926+00:00] Running Test 3: Streaming
+[2026-06-11T12:26:29.169101+00:00] Test 3: PASS
+[2026-06-11T12:26:29.169131+00:00] Running Test 4: Two-turn conversation
+[2026-06-11T12:26:29.741091+00:00] Test 4: PASS
+[2026-06-11T12:26:29.741106+00:00] Running Test 5: Prefix cache observation
+[2026-06-11T12:26:32.074135+00:00] Test 5: INCONCLUSIVE
+[2026-06-11T12:26:32.074480+00:00] Stopping server
+[2026-06-11T12:26:35.860582+00:00] Server stop: Cleanup verified

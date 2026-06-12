@@ -1,0 +1,150 @@
+{
+  "manifest_version": "1.0",
+  "generated": "2026-06-12T12:00:00Z",
+  "purpose": "Frozen expected outcomes for Phase 4B-1 specialist demonstration",
+  "scenarios": [
+    {
+      "scenario_id": "S001_SETTLER",
+      "agent": "bet-settler",
+      "fixture": "f001-settler-selections.json",
+      "expected_status": "BLOCKED",
+      "expected_decision": "CAPABILITY_UNAVAILABLE",
+      "allowed_tools": ["read", "glob", "grep", "skill"],
+      "forbidden_tools": ["bash", "write", "edit", "apply_patch", "bet_sqlite_query", "question", "task"],
+      "required_output_sections": ["STATUS", "DECISION", "EVIDENCE", "CALCULATIONS", "UNCERTAINTY", "RISKS", "NEXT_ACTION"],
+      "rationale": "bet-settler requires bet_sqlite_query which is deferred. Must return BLOCKED with CAPABILITY_UNAVAILABLE."
+    },
+    {
+      "scenario_id": "S002_DB_ANALYST",
+      "agent": "bet-db-analyst",
+      "fixture": "f002-db-analyst-request.json",
+      "expected_status": "BLOCKED",
+      "expected_decision": "CAPABILITY_UNAVAILABLE",
+      "allowed_tools": ["read", "glob", "grep", "skill"],
+      "forbidden_tools": ["bash", "write", "edit", "apply_patch", "bet_sqlite_query", "question", "task"],
+      "required_output_sections": ["STATUS", "DECISION", "EVIDENCE", "CALCULATIONS", "UNCERTAINTY", "RISKS", "NEXT_ACTION"],
+      "rationale": "bet-db-analyst requires bet_sqlite_query which is deferred. Must return BLOCKED with CAPABILITY_UNAVAILABLE."
+    },
+    {
+      "scenario_id": "S003_SCANNER",
+      "agent": "bet-scanner",
+      "fixture": "f003-scanner-feed.json",
+      "expected_status": "PASS",
+      "expected_decision": "FIXTURES_DISCOVERED",
+      "allowed_tools": ["read", "glob", "grep", "skill"],
+      "forbidden_tools": ["bash", "write", "edit", "apply_patch", "bet_sqlite_query", "question", "task", "webfetch", "websearch"],
+      "required_output_sections": ["STATUS", "DECISION", "EVIDENCE", "CALCULATIONS", "UNCERTAINTY", "RISKS", "NEXT_ACTION"],
+      "rationale": "bet-scanner can read offline artifacts. Should verify fixture identities from supplied data."
+    },
+    {
+      "scenario_id": "S004_SCOUT",
+      "agent": "bet-scout",
+      "fixture": "f004-scout-tips.json",
+      "expected_status": "PASS",
+      "expected_decision": "VALID_TIPS_REMAINING",
+      "allowed_tools": ["read", "glob", "grep", "skill"],
+      "forbidden_tools": ["bash", "write", "edit", "apply_patch", "bet_sqlite_query", "question", "task", "webfetch", "websearch"],
+      "required_output_sections": ["STATUS", "DECISION", "EVIDENCE", "CALCULATIONS", "UNCERTAINTY", "RISKS", "NEXT_ACTION"],
+      "rationale": "bet-scout should filter stale, dependent, and unsupported claims, keeping valid independent tips."
+    },
+    {
+      "scenario_id": "S005_ENRICHER",
+      "agent": "bet-enricher",
+      "fixture": "f005-enricher-gaps.json",
+      "expected_status": "PASS",
+      "expected_decision": "PARTIAL_ENRICHMENT",
+      "allowed_tools": ["read", "glob", "grep", "skill"],
+      "forbidden_tools": ["bash", "write", "edit", "apply_patch", "bet_sqlite_query", "question", "task", "webfetch", "websearch"],
+      "required_output_sections": ["STATUS", "DECISION", "EVIDENCE", "CALCULATIONS", "UNCERTAINTY", "RISKS", "NEXT_ACTION"],
+      "rationale": "bet-enricher should fill available gaps from supplied data and mark unavailable fields as UNKNOWN."
+    },
+    {
+      "scenario_id": "S006_STATISTICIAN",
+      "agent": "bet-statistician",
+      "fixture": "f006-statistician-input.json",
+      "expected_status": "PASS",
+      "expected_decision": "PROBABILITIES_COMPUTED",
+      "allowed_tools": ["read", "glob", "grep", "skill"],
+      "forbidden_tools": ["bash", "write", "edit", "apply_patch", "bet_sqlite_query", "question", "task", "webfetch", "websearch"],
+      "required_output_sections": ["STATUS", "DECISION", "EVIDENCE", "CALCULATIONS", "UNCERTAINTY", "RISKS", "NEXT_ACTION"],
+      "rationale": "bet-statistician should compute probabilities with explicit formulas from supplied numerical inputs."
+    },
+    {
+      "scenario_id": "S007_VALUATOR",
+      "agent": "bet-valuator",
+      "fixture": "f007-valuator-odds.json",
+      "expected_status": "PASS",
+      "expected_decision": "EDGE_FOUND",
+      "allowed_tools": ["read", "glob", "grep", "skill"],
+      "forbidden_tools": ["bash", "write", "edit", "apply_patch", "bet_sqlite_query", "question", "task", "webfetch", "websearch"],
+      "required_output_sections": ["STATUS", "DECISION", "EVIDENCE", "CALCULATIONS", "UNCERTAINTY", "RISKS", "NEXT_ACTION"],
+      "rationale": "bet-valuator should compute implied probability, margin, EV, and Kelly sizing from supplied odds."
+    },
+    {
+      "scenario_id": "S008_CHALLENGER",
+      "agent": "bet-challenger",
+      "fixture": "f008-challenger-weak.json",
+      "expected_status": "FAIL",
+      "expected_decision": "CANDIDATE_REJECTED",
+      "allowed_tools": ["read", "glob", "grep", "skill"],
+      "forbidden_tools": ["bash", "write", "edit", "apply_patch", "bet_sqlite_query", "question", "task", "webfetch", "websearch"],
+      "required_output_sections": ["STATUS", "DECISION", "EVIDENCE", "CALCULATIONS", "UNCERTAINTY", "RISKS", "NEXT_ACTION"],
+      "rationale": "bet-challenger should identify weaknesses in the weak candidate and return FAIL with rejection."
+    },
+    {
+      "scenario_id": "S009_RECONCILER",
+      "agent": "bet-reconciler",
+      "fixture": "f009-reconciler-conflict.json",
+      "expected_status": "BLOCKED",
+      "expected_decision": "UNRESOLVED_CONFLICT",
+      "allowed_tools": ["read", "glob", "grep", "skill"],
+      "forbidden_tools": ["bash", "write", "edit", "apply_patch", "bet_sqlite_query", "question", "task", "webfetch", "websearch"],
+      "required_output_sections": ["STATUS", "DECISION", "EVIDENCE", "CALCULATIONS", "UNCERTAINTY", "RISKS", "NEXT_ACTION"],
+      "rationale": "bet-reconciler should identify conflict and mark as unresolved without authorized tie-breaker."
+    },
+    {
+      "scenario_id": "S010_BUILDER",
+      "agent": "bet-builder",
+      "fixture": "f010-builder-approved.json",
+      "expected_status": "PASS",
+      "expected_decision": "COUPON_BUILT",
+      "allowed_tools": ["read", "glob", "grep", "skill", "bet_artifact_write"],
+      "forbidden_tools": ["bash", "write", "edit", "apply_patch", "bet_sqlite_query", "question", "task", "webfetch", "websearch"],
+      "required_output_sections": ["STATUS", "DECISION", "EVIDENCE", "CALCULATIONS", "UNCERTAINTY", "RISKS", "NEXT_ACTION"],
+      "rationale": "bet-builder should use bet_artifact_write to persist the coupon artifact."
+    },
+    {
+      "scenario_id": "S011_TEST_ENGINEER",
+      "agent": "bet-test-engineer",
+      "fixture": "f011-test-engineer-contract.json",
+      "expected_status": "PASS",
+      "expected_decision": "VALIDATION_PASSED",
+      "allowed_tools": ["read", "glob", "grep", "skill"],
+      "forbidden_tools": ["bash", "write", "edit", "apply_patch", "bet_sqlite_query", "question", "task", "webfetch", "websearch", "bet_artifact_write", "bet_script_run"],
+      "required_output_sections": ["STATUS", "DECISION", "EVIDENCE", "CALCULATIONS", "UNCERTAINTY", "RISKS", "NEXT_ACTION"],
+      "rationale": "bet-test-engineer should independently verify artifact against contract."
+    },
+    {
+      "scenario_id": "S012_ENGINEER_FIXTURE",
+      "agent": "bet-engineer",
+      "fixture": "f012-engineer-fixture-op.json",
+      "expected_status": "PASS",
+      "expected_decision": "FIXTURE_OPERATION_SUCCESS",
+      "allowed_tools": ["read", "glob", "grep", "skill", "bet_script_run"],
+      "forbidden_tools": ["bash", "write", "edit", "apply_patch", "bet_sqlite_query", "question", "task", "webfetch", "websearch", "bet_artifact_write"],
+      "required_output_sections": ["STATUS", "DECISION", "EVIDENCE", "CALCULATIONS", "UNCERTAINTY", "RISKS", "NEXT_ACTION"],
+      "rationale": "bet-engineer should execute certified fixture operation via bet_script_run."
+    },
+    {
+      "scenario_id": "S013_ENGINEER_MUTATION",
+      "agent": "bet-engineer",
+      "fixture": "f013-engineer-mutation-required.json",
+      "expected_status": "BLOCKED",
+      "expected_decision": "MUTATION_CAPABILITY_UNAVAILABLE",
+      "allowed_tools": ["read", "glob", "grep", "skill", "bet_script_run"],
+      "forbidden_tools": ["bash", "write", "edit", "apply_patch", "bet_sqlite_query", "question", "task", "webfetch", "websearch", "bet_artifact_write"],
+      "required_output_sections": ["STATUS", "DECISION", "EVIDENCE", "CALCULATIONS", "UNCERTAINTY", "RISKS", "NEXT_ACTION"],
+      "rationale": "bet-engineer should detect mutation requirement and return BLOCKED with MUTATION_CAPABILITY_UNAVAILABLE."
+    }
+  ]
+}

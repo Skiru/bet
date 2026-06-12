@@ -8,14 +8,6 @@
 - Never use `gpt-5.4-codex`; the ChatGPT subscription provider model ID is `gpt-5.4`.
 - Do not define OpenAI API keys in project files. ChatGPT Plus/Pro authentication is OAuth-managed by Kilo.
 
-## Runtime
-
-- Kilo Code baseline: **7.3.41 stable or newer stable**. Do not deploy a pre-release as the production default.
-- Local inference: Rapid-MLX 0.7.0, API model ID `default`, endpoint `http://127.0.0.1:8000/v1`.
-- Local Kilo budget: **28,672 context / 24,576 input / 4,096 output** on Apple M4 Pro with 48 GB unified memory.
-- Local profile is text-only: no vision, DFlash, MTP, speculative decoding, or concurrent local generations.
-- Never print or request private chain-of-thought, `<think>` blocks, hidden scratchpads, or sequential-thinking traces.
-
 ## Execution rules
 
 1. Never run more than one request against the local Rapid-MLX server at once.
@@ -48,22 +40,6 @@ Do not use Playwright from local Qwen agents. Browser automation is available on
 - Keep every displayed tool result below **8 KiB** and save verbose output under `.kilo/artifacts/`.
 - Local subagent output must stay below **900 tokens**. Betting handoffs must stay below **1,000 tokens**.
 - Local automatic compaction is disabled. Save a checkpoint before manual `/compact`; after one compaction failure, continue in a fresh session.
-
-## Betting phase contract
-
-| Phase | Scope | Mandatory specialists | Exit artifact |
-|---|---|---|---|
-| A | S0 settlement and historical learning | `bet-settler`, `bet-db-analyst`, `bet-test-engineer` | `.kilo/state/phase-A-handoff.md` |
-| B | S1–S1e discovery and shortlist | `bet-scanner`, `bet-test-engineer` | `.kilo/state/phase-B-handoff.md` |
-| C | S2 tipster aggregation | `bet-scout`, `bet-test-engineer` | `.kilo/state/phase-C-handoff.md` |
-| D | S2.3–S7 enrichment, modelling and gates | `bet-enricher`, `bet-statistician`, `bet-valuator`, `bet-challenger`, `bet-test-engineer` | `.kilo/state/phase-D-handoff.md` |
-| E | S8–S10 construction and final validation | `bet-builder`, `bet-test-engineer` | `.kilo/state/phase-E-handoff.md` |
-
-Conflicting evidence goes to `bet-reconciler`. Script/runtime failure after two bounded attempts goes to `bet-engineer`. Zero valid tips in Phase C is a hard stop. Run one phase per session.
-
-## Specialist result schema
-
-Every betting specialist returns only: `STATUS`, `DECISION`, `EVIDENCE`, `CALCULATIONS`, `UNCERTAINTY`, `RISKS`, `NEXT_ACTION`.
 
 ## Evidence and data
 

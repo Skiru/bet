@@ -1,0 +1,28 @@
+=== P1 Localhost Bind Verification ===
+Timestamp: 2026-06-11T09:05:28Z
+
+=== lsof -i :8000 ===
+COMMAND  PID    USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+Python  4173 mkoziol   43u  IPv4 0x2fa5ee5be44f52d6      0t0  TCP localhost:irdmi (LISTEN)
+
+=== netstat -an | grep 8000 ===
+tcp4       0      0  127.0.0.1.8000         *.*                    LISTEN     
+8b5c3772f397ce29 stream      0      0 59bcc376e4a24b6e                0                0                0 /var/folders/y6/c0sq10zj4vqdcpz_y3b802c80000gn/T/mcp-JLJCpg/mcp.sock
+be197d86a1da386b stream      0      0  78eabfb139f8337                0                0                0 /var/folders/y6/c0sq10zj4vqdcpz_y3b802c80000gn/T/vscode-git-39adbbea22.sock
+ed321ef7fa6406c4 stream      0      0                0 cd88173e3a524389                0                0 /var/folders/y6/c0sq10zj4vqdcpz_y3b802c80000gn/T/jetbrainsd-efa81e21fd817a37fd12eb5f3f12afbf
+c385057c64ac391c stream      0      0                0 2bdf21e3a360a9ae                0                0 /var/folders/y6/c0sq10zj4vqdcpz_y3b802c80000gn/T/jb.station.mkoziol.sock
+738e9f1682495978 stream      0      0                0 6e00199d22eb3438                0                0 /var/folders/y6/c0sq10zj4vqdcpz_y3b802c80000gn/T/jb.station.mkoziol.sock
+ca8ba0f684cb76f2 stream      0      0 a71215723dff8c44                0                0                0 /var/folders/y6/c0sq10zj4vqdcpz_y3b802c80000gn/T/jb.station.ij.86789.sock
+bbd4baaeb904f911 stream      0      0 c8c8aadb321711b4                0                0                0 /var/folders/y6/c0sq10zj4vqdcpz_y3b802c80000gn/T/scoped_dirCyHhY9/SingletonSocket
+adea054e9fff2f2f stream      0      0                0 bbccb5e21c8c5ae2                0                0 /var/folders/y6/c0sq10zj4vqdcpz_y3b802c80000gn/T/jetbrainsd-efa81e21fd817a37fd12eb5f3f12afbf
+78b96c429f7b22ca stream      0      0                0 94b8d6f65849e8a0                0                0 /var/folders/y6/c0sq10zj4vqdcpz_y3b802c80000gn/T/jetbrainsd-efa81e21fd817a37fd12eb5f3f12afbf
+ 3f9169a43b3bcc0 stream      0      0 ae60a9206cd96f36                0                0                0 /var/folders/y6/c0sq10zj4vqdcpz_y3b802c80000gn/T/jetbrainsd-efa81e21fd817a37fd12eb5f3f12afbf
+f1bccf257fd4430b stream      0      0 4618bbf78e04c08d                0                0                0 /var/folders/y6/c0sq10zj4vqdcpz_y3b802c80000gn/T/jb.station.mkoziol.sock
+3b44c0a068eec2df stream      0      0 fe04f8e206a4f8fc                0                0                0 /var/folders/y6/c0sq10zj4vqdcpz_y3b802c80000gn/T/com.spotify.client.HR96XH/SingletonSocket
+75fa56a2bed17d22 stream      0      0 52857b81cf86c5b2                0                0                0 /var/folders/y6/c0sq10zj4vqdcpz_y3b802c80000gn/T/scoped_dir4KCnIn/SingletonSocket
+3e9f526fbd0827d4 stream      0      0 29a9ce2c5a08f6c7                0                0                0 /var/folders/y6/c0sq10zj4vqdcpz_y3b802c80000gn/T/com.google.Chrome.3AUNsS/SingletonSocket
+
+=== Process details ===
+mkoziol           4173   0.2  0.1 457084928  25472   ??  S    10:43PM   4:58.51 /opt/homebrew/Cellar/python@3.12/3.12.4/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python .venv-rapid/bin/rapid-mlx serve mlx-community/Qwen3.6-35B-A3B-4bit --host 127.0.0.1 --port 8000 --api-key <REDACTED> --max-tokens 8192 --prefill-step-size 4096 --gpu-memory-utilization 0.82 --enable-prefix-cache --continuous-batching --text-only --timeout 1800
+
+Sensitive command-line credential was redacted during P1 final security remediation. The exposed credential was invalidated and replaced before P2 authorization.
