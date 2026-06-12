@@ -1,0 +1,58 @@
+{
+  "run_id": "run-20260612T072856Z",
+  "timestamp": "2026-06-12T07:28:56.847992+00:00",
+  "base_url": "http://127.0.0.1:8000/v1",
+  "model": "default",
+  "results": [
+    {
+      "test": "brave_search_tool_call",
+      "passed": true,
+      "http_status": 200,
+      "duration_ms": 2740.1717500033556,
+      "tool_calls_count": 1,
+      "tool_name": "brave-search_brave_web_search"
+    },
+    {
+      "test": "context7_tool_call",
+      "passed": true,
+      "http_status": 200,
+      "duration_ms": 2496.2744579970604,
+      "tool_calls_count": 1,
+      "tool_name": "context7_resolve-library-id",
+      "arguments_valid": true
+    },
+    {
+      "test": "tool_call_parsing",
+      "passed": true,
+      "http_status": 200,
+      "duration_ms": 2052.884709002683,
+      "parsing_valid": true,
+      "arguments_parsed": true,
+      "tool_call_id": "call_cdd9ece4"
+    },
+    {
+      "test": "streaming_tool_call",
+      "passed": true,
+      "duration_ms": 2895.206834000419,
+      "chunks_received": 135,
+      "tool_call_chunks": 4,
+      "finish_reason": "tool_calls"
+    },
+    {
+      "test": "multi_tool_call",
+      "passed": true,
+      "http_status": 200,
+      "duration_ms": 2832.1078340086387,
+      "tool_calls_count": 2,
+      "unique_tools": [
+        "get_date",
+        "get_time"
+      ]
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "total": 5,
+    "pass_rate": 1.0
+  }
+}

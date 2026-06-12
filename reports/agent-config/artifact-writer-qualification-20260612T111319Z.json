@@ -1,0 +1,339 @@
+{
+  "timestamp": "2026-06-12T11:13:20.186Z",
+  "status": "FAIL",
+  "total": 21,
+  "passed": 20,
+  "failed": 1,
+  "results": [
+    {
+      "name": "schema_stable",
+      "status": "PASS",
+      "detail": "content_type enum parsed"
+    },
+    {
+      "name": "valid_phase_a_markdown_handoff",
+      "status": "PASS",
+      "detail": {
+        "schema_version": 1,
+        "status": "success",
+        "error_code": "NONE",
+        "request_id": "art-b503105e-60aa-4f55-a3f8-794022747a7e",
+        "path": ".kilo/state/phase-A-handoff.md",
+        "bytes_written": 24,
+        "sha256": "4a6dc46515ad456b0528a7543eb7238b2943662a05c7ebd5c142c4835424fe5d",
+        "created": true,
+        "overwritten": false,
+        "error": null
+      }
+    },
+    {
+      "name": "valid_phase_e_markdown_handoff",
+      "status": "PASS",
+      "detail": {
+        "schema_version": 1,
+        "status": "success",
+        "error_code": "NONE",
+        "request_id": "art-6eda00f9-0c56-4c0f-b630-67a6a6d409d6",
+        "path": ".kilo/state/phase-E-handoff.md",
+        "bytes_written": 24,
+        "sha256": "ce9def818e9f4635e62bedf49f056923b827ecde2169dab82a45d6181344f1eb",
+        "created": true,
+        "overwritten": false,
+        "error": null
+      }
+    },
+    {
+      "name": "valid_markdown_report",
+      "status": "PASS",
+      "detail": {
+        "schema_version": 1,
+        "status": "success",
+        "error_code": "NONE",
+        "request_id": "art-fa624c4c-b856-4542-9fed-dea8dde351c0",
+        "path": "reports/betting-demo/report.md",
+        "bytes_written": 19,
+        "sha256": "0a73625f41a90b253b8abd49caa5d896258d36f3b0ff1ac1ce3b12227b7337f9",
+        "created": true,
+        "overwritten": false,
+        "error": null
+      }
+    },
+    {
+      "name": "valid_json_report",
+      "status": "PASS",
+      "detail": {
+        "schema_version": 1,
+        "status": "success",
+        "error_code": "NONE",
+        "request_id": "art-eae6f9e0-1ba9-4fae-adc9-8b4420e163a7",
+        "path": "reports/betting-demo/report.json",
+        "bytes_written": 41,
+        "sha256": "1523287d839ccadc4f72d8942f77cd2a05021aa25bf82486fa5a9fea1379888b",
+        "created": true,
+        "overwritten": false,
+        "error": null
+      }
+    },
+    {
+      "name": "invalid_phase",
+      "status": "PASS",
+      "detail": {
+        "schema_version": 1,
+        "status": "blocked",
+        "error_code": "PATH_NOT_ALLOWED",
+        "request_id": "art-3f25a8c2-4974-4596-a5b4-5696fd559f21",
+        "path": null,
+        "bytes_written": 0,
+        "sha256": null,
+        "created": false,
+        "overwritten": false,
+        "error": "Path is outside approved artifact roots"
+      }
+    },
+    {
+      "name": "absolute_path",
+      "status": "PASS",
+      "detail": {
+        "schema_version": 1,
+        "status": "blocked",
+        "error_code": "PATH_ABSOLUTE",
+        "request_id": "art-d4344808-b0ef-4dfc-893d-2371c76fe69f",
+        "path": null,
+        "bytes_written": 0,
+        "sha256": null,
+        "created": false,
+        "overwritten": false,
+        "error": "Absolute paths are not allowed"
+      }
+    },
+    {
+      "name": "traversal",
+      "status": "PASS",
+      "detail": {
+        "schema_version": 1,
+        "status": "blocked",
+        "error_code": "PATH_TRAVERSAL",
+        "request_id": "art-38777b14-e6ed-41d5-a93e-75c12b3e071f",
+        "path": null,
+        "bytes_written": 0,
+        "sha256": null,
+        "created": false,
+        "overwritten": false,
+        "error": "Path traversal is not allowed"
+      }
+    },
+    {
+      "name": "normalized_or_encoded_traversal",
+      "status": "PASS",
+      "detail": {
+        "schema_version": 1,
+        "status": "blocked",
+        "error_code": "PATH_ENCODED_TRAVERSAL",
+        "request_id": "art-acd63082-10ca-4b0a-9a98-f37529812b29",
+        "path": null,
+        "bytes_written": 0,
+        "sha256": null,
+        "created": false,
+        "overwritten": false,
+        "error": "Path traversal is not allowed"
+      }
+    },
+    {
+      "name": "symlink_escape",
+      "status": "PASS",
+      "detail": {
+        "schema_version": 1,
+        "status": "blocked",
+        "error_code": "PATH_SYMLINK_ESCAPE",
+        "request_id": "art-a7310afa-ffb5-49b1-9870-d99b537f440b",
+        "path": null,
+        "bytes_written": 0,
+        "sha256": null,
+        "created": false,
+        "overwritten": false,
+        "error": "Broken symlink detected"
+      }
+    },
+    {
+      "name": "unsupported_extension",
+      "status": "PASS",
+      "detail": {
+        "schema_version": 1,
+        "status": "blocked",
+        "error_code": "EXTENSION_MISMATCH",
+        "request_id": "art-02f667f3-fdd4-49aa-a60b-7b0e85eeb0e6",
+        "path": null,
+        "bytes_written": 0,
+        "sha256": null,
+        "created": false,
+        "overwritten": false,
+        "error": "Expected .md for markdown"
+      }
+    },
+    {
+      "name": "invalid_or_binary_content",
+      "status": "PASS",
+      "detail": {
+        "schema_version": 1,
+        "status": "invalid_request",
+        "error_code": "CONTENT_BINARY",
+        "request_id": "art-aebc3a8a-1c24-4f5c-b22b-9048583205dd",
+        "path": null,
+        "bytes_written": 0,
+        "sha256": null,
+        "created": false,
+        "overwritten": false,
+        "error": "Binary or control-character content is not allowed"
+      }
+    },
+    {
+      "name": "oversized_content",
+      "status": "PASS",
+      "detail": {
+        "schema_version": 1,
+        "status": "invalid_request",
+        "error_code": "CONTENT_TOO_LARGE",
+        "request_id": "art-8cabf543-1a33-4e92-991c-85347dd3c9cb",
+        "path": null,
+        "bytes_written": 0,
+        "sha256": null,
+        "created": false,
+        "overwritten": false,
+        "error": "Content exceeds 262144 bytes"
+      }
+    },
+    {
+      "name": "synthetic_secret_content",
+      "status": "PASS",
+      "detail": {
+        "schema_version": 1,
+        "status": "blocked",
+        "error_code": "CONTENT_SECRET_DETECTED",
+        "request_id": "art-331d0ff2-ed3a-4a06-a694-3b3e485fd480",
+        "path": null,
+        "bytes_written": 0,
+        "sha256": null,
+        "created": false,
+        "overwritten": false,
+        "error": "Secret-like content detected"
+      }
+    },
+    {
+      "name": "create_over_existing_without_expected_hash",
+      "status": "PASS",
+      "detail": {
+        "schema_version": 1,
+        "status": "failed",
+        "error_code": "EXISTS_CREATE_ONLY",
+        "request_id": "art-a81fb0da-9df8-435b-b4c6-9657d35785fb",
+        "path": null,
+        "bytes_written": 0,
+        "sha256": "9989caa595dc36ea899fe426e52ccc28f878102bf53d80d7f9b9bad760b1342d",
+        "created": false,
+        "overwritten": false,
+        "error": "File already exists and create_only is true"
+      }
+    },
+    {
+      "name": "overwrite_missing_hash",
+      "status": "PASS",
+      "detail": {
+        "schema_version": 1,
+        "status": "failed",
+        "error_code": "EXPECTED_HASH_REQUIRED",
+        "request_id": "art-10b1b60a-5134-466e-8ed8-f8e86bcbec18",
+        "path": null,
+        "bytes_written": 0,
+        "sha256": "9989caa595dc36ea899fe426e52ccc28f878102bf53d80d7f9b9bad760b1342d",
+        "created": false,
+        "overwritten": false,
+        "error": "expected_sha256 is required for overwrite"
+      }
+    },
+    {
+      "name": "overwrite_wrong_hash",
+      "status": "PASS",
+      "detail": {
+        "schema_version": 1,
+        "status": "failed",
+        "error_code": "EXPECTED_HASH_MISMATCH",
+        "request_id": "art-9285bb44-deef-407f-8f65-7cb1cdaf9e26",
+        "path": null,
+        "bytes_written": 0,
+        "sha256": "9989caa595dc36ea899fe426e52ccc28f878102bf53d80d7f9b9bad760b1342d",
+        "created": false,
+        "overwritten": false,
+        "error": "expected_sha256 does not match existing content"
+      }
+    },
+    {
+      "name": "overwrite_correct_hash",
+      "status": "PASS",
+      "detail": {
+        "schema_version": 1,
+        "status": "success",
+        "error_code": "NONE",
+        "request_id": "art-344d775c-5d46-44e0-93d9-61512d3ed604",
+        "path": "reports/betting-demo/report.md",
+        "bytes_written": 12,
+        "sha256": "9989caa595dc36ea899fe426e52ccc28f878102bf53d80d7f9b9bad760b1342d",
+        "created": false,
+        "overwritten": true,
+        "error": null
+      }
+    },
+    {
+      "name": "cancellation",
+      "status": "PASS",
+      "detail": {
+        "schema_version": 1,
+        "status": "cancelled",
+        "error_code": "CAPABILITY_CANCELLED",
+        "request_id": "art-88faa532-4302-44fa-97ae-32ebb109d13d",
+        "path": null,
+        "bytes_written": 0,
+        "sha256": null,
+        "created": false,
+        "overwritten": false,
+        "error": "Request cancelled before execution"
+      }
+    },
+    {
+      "name": "concurrent_creation_same_path",
+      "status": "PASS",
+      "detail": {
+        "a": {
+          "schema_version": 1,
+          "status": "success",
+          "error_code": "NONE",
+          "request_id": "art-7abff39f-e417-4abd-88f7-7a5a7df25477",
+          "path": "reports/betting-demo/concurrent.md",
+          "bytes_written": 3,
+          "sha256": "7692c3ad3540bb803c020b3aee66cd8887123234ea0c6e7143c0add73ff431ed",
+          "created": true,
+          "overwritten": false,
+          "error": null
+        },
+        "b": {
+          "schema_version": 1,
+          "status": "failed",
+          "error_code": "LOCK_CONFLICT",
+          "request_id": "art-aeac879e-8625-4714-893a-90e05544f184",
+          "path": null,
+          "bytes_written": 0,
+          "sha256": "3fc4ccfe745870e2c0d99f71f30ff0656c8dedd41cc1d7d3d376b0dbe685e2f3",
+          "created": false,
+          "overwritten": false,
+          "error": "Another write is already in progress for this path"
+        }
+      }
+    },
+    {
+      "name": "audit_log_completeness",
+      "status": "FAIL",
+      "detail": "expected >=21 audit lines, got 20"
+    }
+  ],
+  "synthetic_repo": "/var/folders/y6/c0sq10zj4vqdcpz_y3b802c80000gn/T/bet-artifact-write-1781262800098",
+  "audit_file": "/var/folders/y6/c0sq10zj4vqdcpz_y3b802c80000gn/T/bet-artifact-write-1781262800098/reports/agent-config/artifact-writer-audit/audit-2026-06-12.jsonl"
+}

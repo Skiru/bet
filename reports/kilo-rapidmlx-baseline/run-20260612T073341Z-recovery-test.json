@@ -1,0 +1,50 @@
+{
+  "run_id": "run-20260612T073341Z",
+  "timestamp": "2026-06-12T07:33:41.225920+00:00",
+  "base_url": "http://127.0.0.1:8000/v1",
+  "model": "default",
+  "results": [
+    {
+      "test": "request_timeout",
+      "passed": true,
+      "timeout_occurred": true,
+      "status": 408,
+      "duration_ms": 1012.8978330030804
+    },
+    {
+      "test": "server_recovery",
+      "passed": true,
+      "http_status": 200,
+      "duration_ms": 386.22470801055897
+    },
+    {
+      "test": "error_handling",
+      "passed": true,
+      "http_status": 400,
+      "error_present": true
+    },
+    {
+      "test": "server_stability_after_errors",
+      "passed": true,
+      "http_status": 200,
+      "duration_ms": 354.21179101103917
+    },
+    {
+      "test": "malformed_request",
+      "passed": true,
+      "http_status": 422
+    },
+    {
+      "test": "rapid_requests",
+      "passed": true,
+      "success_count": 5,
+      "error_count": 0,
+      "avg_duration_ms": 285.23831659695134
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "total": 6,
+    "pass_rate": 1.0
+  }
+}

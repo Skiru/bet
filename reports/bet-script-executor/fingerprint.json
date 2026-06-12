@@ -1,0 +1,27 @@
+{
+  "phase": "P3",
+  "timestamp": "2026-06-12T09:02:41.869724+00:00",
+  "git_head": "3c8c2f3c49d3ec19772907f730b6e2c7c905f6c0",
+  "phase_2_fingerprint": "d4e59816d5cd0049",
+  "kilo_version": "7.3.41",
+  "rapid_mlx_fingerprint": "b985d252463e3823",
+  "kilo_jsonc_hash": "9b2db2e46b0e5d0a",
+  "custom_tool_hash": "d09e5656ccb0fde0",
+  "manifest_hash": "b58121b88d7a2491",
+  "fixture_hashes": {
+    "scripts/fixtures/bet-script-success.py": "e6cc64cae5a091ef",
+    "scripts/fixtures/bet-script-failure.py": "f8295b62f43359b7",
+    "scripts/fixtures/bet-script-slow.py": "b07d26d45dd4cba2",
+    "scripts/fixtures/bet-script-large-output.py": "f59be317f8e30bca",
+    "scripts/fixtures/bet-script-injection.py": "2c657ceea4e26c00"
+  },
+  "test_harness_hash": "28d8384ca5ddfdc9",
+  "resolved_permissions": {
+    "bet_script_run": "allow",
+    "bash": "allow",
+    "edit": "allow",
+    "write": "allow"
+  },
+  "mcp_servers_disabled": 4,
+  "fingerprint_hash": "cdb7894041543f84"
+}

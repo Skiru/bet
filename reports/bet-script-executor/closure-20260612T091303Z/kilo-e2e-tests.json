@@ -1,0 +1,16 @@
+{
+  "test_suite": "closure-kilo-e2e",
+  "timestamp": "2026-06-12T09:24:23.135356+00:00",
+  "total_tests": 31,
+  "passed": 31,
+  "failed": 0,
+  "categories": {
+    "success": "10/10",
+    "failure": "5/5",
+    "invalid_request": "5/5",
+    "timeout": "3/3",
+    "output_limit": "3/3",
+    "prompt_injection": "5/5"
+  },
+  "status": "PASS"
+}

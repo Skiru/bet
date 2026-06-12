@@ -1,0 +1,4 @@
+ .kilo/tool/bet_sqlite_query.ts |  74 ----------------
+ AGENTS.md                      |  24 ------
+ kilo.jsonc                     | 192 ++++++++---------------------------------
+ 3 files changed, 35 insertions(+), 255 deletions(-)

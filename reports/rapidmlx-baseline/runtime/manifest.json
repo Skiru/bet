@@ -1,0 +1,11 @@
+{
+  "timestamp": "2026-06-12T06:44:03Z",
+  "pid": 54776,
+  "model_alias": "qwen3.6-35b-4bit",
+  "host": "127.0.0.1",
+  "port": 8000,
+  "binary": "/Users/mkoziol/.venvs/rapid-mlx-0.7.1/bin/rapid-mlx",
+  "command": "RAPID_MLX_TELEMETRY=0 /Users/mkoziol/.venvs/rapid-mlx-0.7.1/bin/rapid-mlx serve qwen3.6-35b-4bit \   --host 127.0.0.1 \   --port 8000 \   --max-tokens 4096 \   --gpu-memory-utilization 0.70 \   --no-mllm ",
+  "max_tokens": 4096,
+  "gpu_memory_utilization": 0.70
+}

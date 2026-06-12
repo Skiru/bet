@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "phase": "P3",
+  "status": "SCRIPT_EXECUTOR_PASS",
+  "timestamp": "2026-06-12T09:02:41Z",
+  "fingerprint": "cdb7894041543f84",
+  "summary": {
+    "total_tests": 22,
+    "passed": 22,
+    "failed": 0,
+    "blocked": 0
+  },
+  "gates": {
+    "valid_executions": "20/20",
+    "validation_failures": "8/8",
+    "script_failure": "PASS",
+    "timeout": "PASS",
+    "output_limit": "PASS",
+    "secret_redaction": "PASS",
+    "prompt_injection": "5/5",
+    "idempotency": "14/14",
+    "kilo_qualification": "5/5",
+    "p2_regression": "6/6"
+  },
+  "components": {
+    "custom_tool": ".kilo/tool/bet_script_run.ts",
+    "manifest": "config/bet-script-operations.json",
+    "fixtures": [
+      "scripts/fixtures/bet-script-success.py",
+      "scripts/fixtures/bet-script-failure.py",
+      "scripts/fixtures/bet-script-slow.py",
+      "scripts/fixtures/bet-script-large-output.py",
+      "scripts/fixtures/bet-script-injection.py"
+    ],
+    "test_suite": "scripts/test-bet-script-executor.py"
+  },
+  "allowed_operations": [
+    "fixture_success",
+    "fixture_failure",
+    "fixture_slow",
+    "fixture_large_output",
+    "fixture_injection"
+  ],
+  "permissions": {
+    "bet_script_run": "allow",
+    "bash": "allow",
+    "edit": "allow",
+    "write": "allow"
+  },
+  "mcp_servers_disabled": 4,
+  "evidence_paths": [
+    "reports/bet-script-executor/runs/test-run-20260612T105227Z.json",
+    "reports/bet-script-executor/runs/kilo-qualification-20260612T105343Z.json",
+    "reports/bet-script-executor/runs/injection-test-20260612T105646Z.json",
+    "reports/bet-script-executor/runs/idempotency-test-20260612T105857Z.json",
+    "reports/bet-script-executor/runs/p2-regression-20260612T110129Z.json",
+    "reports/bet-script-executor/fingerprint.json",
+    "reports/bet-script-executor/SCRIPT_EXECUTOR_ACCEPTANCE_MATRIX.md"
+  ]
+}

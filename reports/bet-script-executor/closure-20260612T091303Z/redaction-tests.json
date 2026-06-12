@@ -1,0 +1,9 @@
+{
+  "test_suite": "closure-redaction",
+  "timestamp": "2026-06-12T09:25:31.701012+00:00",
+  "total_tests": 14,
+  "passed": 14,
+  "failed": 0,
+  "synthetic_secrets_tested": 5,
+  "status": "PASS"
+}

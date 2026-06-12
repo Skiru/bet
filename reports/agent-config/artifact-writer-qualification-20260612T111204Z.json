@@ -1,0 +1,215 @@
+{
+  "timestamp": "2026-06-12T11:12:05.501Z",
+  "status": "FAIL",
+  "total": 21,
+  "passed": 10,
+  "failed": 11,
+  "results": [
+    {
+      "name": "schema_stable",
+      "status": "PASS",
+      "detail": "content_type enum parsed"
+    },
+    {
+      "name": "valid_phase_a_markdown_handoff",
+      "status": "FAIL",
+      "detail": "{\"schema_version\":1,\"status\":\"blocked\",\"error_code\":\"PATH_TRAVERSAL\",\"request_id\":\"art-406c5649-ad10-4754-bbca-6b28623346a5\",\"path\":null,\"bytes_written\":0,\"sha256\":null,\"created\":false,\"overwritten\":false,\"error\":\"Resolved path escapes repository\"}"
+    },
+    {
+      "name": "valid_phase_e_markdown_handoff",
+      "status": "FAIL",
+      "detail": "{\"schema_version\":1,\"status\":\"blocked\",\"error_code\":\"PATH_TRAVERSAL\",\"request_id\":\"art-ce29ce66-46e7-4e3b-b486-fca3b8fa26bc\",\"path\":null,\"bytes_written\":0,\"sha256\":null,\"created\":false,\"overwritten\":false,\"error\":\"Resolved path escapes repository\"}"
+    },
+    {
+      "name": "valid_markdown_report",
+      "status": "FAIL",
+      "detail": "{\"schema_version\":1,\"status\":\"blocked\",\"error_code\":\"PATH_TRAVERSAL\",\"request_id\":\"art-783e0785-2993-4b79-8571-fafd7f1b4c89\",\"path\":null,\"bytes_written\":0,\"sha256\":null,\"created\":false,\"overwritten\":false,\"error\":\"Resolved path escapes repository\"}"
+    },
+    {
+      "name": "valid_json_report",
+      "status": "FAIL",
+      "detail": "{\"schema_version\":1,\"status\":\"blocked\",\"error_code\":\"PATH_TRAVERSAL\",\"request_id\":\"art-29a738f5-029f-4b1e-89b0-368c20071751\",\"path\":null,\"bytes_written\":0,\"sha256\":null,\"created\":false,\"overwritten\":false,\"error\":\"Resolved path escapes repository\"}"
+    },
+    {
+      "name": "invalid_phase",
+      "status": "PASS",
+      "detail": {
+        "schema_version": 1,
+        "status": "blocked",
+        "error_code": "PATH_NOT_ALLOWED",
+        "request_id": "art-b12138fa-a4ea-428b-bc1a-a1cff4e4d2a2",
+        "path": null,
+        "bytes_written": 0,
+        "sha256": null,
+        "created": false,
+        "overwritten": false,
+        "error": "Path is outside approved artifact roots"
+      }
+    },
+    {
+      "name": "absolute_path",
+      "status": "PASS",
+      "detail": {
+        "schema_version": 1,
+        "status": "blocked",
+        "error_code": "PATH_ABSOLUTE",
+        "request_id": "art-0facf6bc-ad46-4f52-a2fc-3da97be69e8f",
+        "path": null,
+        "bytes_written": 0,
+        "sha256": null,
+        "created": false,
+        "overwritten": false,
+        "error": "Absolute paths are not allowed"
+      }
+    },
+    {
+      "name": "traversal",
+      "status": "PASS",
+      "detail": {
+        "schema_version": 1,
+        "status": "blocked",
+        "error_code": "PATH_TRAVERSAL",
+        "request_id": "art-3c509ff6-1dc5-4bf0-a9a1-6f8fc6bebb5e",
+        "path": null,
+        "bytes_written": 0,
+        "sha256": null,
+        "created": false,
+        "overwritten": false,
+        "error": "Path traversal is not allowed"
+      }
+    },
+    {
+      "name": "normalized_or_encoded_traversal",
+      "status": "PASS",
+      "detail": {
+        "schema_version": 1,
+        "status": "blocked",
+        "error_code": "PATH_ENCODED_TRAVERSAL",
+        "request_id": "art-de8f1c0d-1eb7-4da0-bc85-bed0dff07b8d",
+        "path": null,
+        "bytes_written": 0,
+        "sha256": null,
+        "created": false,
+        "overwritten": false,
+        "error": "Path traversal is not allowed"
+      }
+    },
+    {
+      "name": "symlink_escape",
+      "status": "FAIL",
+      "detail": "{\"schema_version\":1,\"status\":\"blocked\",\"error_code\":\"PATH_TRAVERSAL\",\"request_id\":\"art-cdb0533c-d33a-4e53-b5e0-7f00a58c5d23\",\"path\":null,\"bytes_written\":0,\"sha256\":null,\"created\":false,\"overwritten\":false,\"error\":\"Resolved path escapes repository\"}"
+    },
+    {
+      "name": "unsupported_extension",
+      "status": "PASS",
+      "detail": {
+        "schema_version": 1,
+        "status": "blocked",
+        "error_code": "EXTENSION_MISMATCH",
+        "request_id": "art-2a297a16-5db4-4a6a-a714-000f7e34f859",
+        "path": null,
+        "bytes_written": 0,
+        "sha256": null,
+        "created": false,
+        "overwritten": false,
+        "error": "Expected .md for markdown"
+      }
+    },
+    {
+      "name": "invalid_or_binary_content",
+      "status": "PASS",
+      "detail": {
+        "schema_version": 1,
+        "status": "invalid_request",
+        "error_code": "CONTENT_BINARY",
+        "request_id": "art-9f999beb-29df-4240-ac2e-af53187fa84c",
+        "path": null,
+        "bytes_written": 0,
+        "sha256": null,
+        "created": false,
+        "overwritten": false,
+        "error": "Binary or control-character content is not allowed"
+      }
+    },
+    {
+      "name": "oversized_content",
+      "status": "PASS",
+      "detail": {
+        "schema_version": 1,
+        "status": "invalid_request",
+        "error_code": "CONTENT_TOO_LARGE",
+        "request_id": "art-a7e41966-390e-45e0-b190-024230aa033c",
+        "path": null,
+        "bytes_written": 0,
+        "sha256": null,
+        "created": false,
+        "overwritten": false,
+        "error": "Content exceeds 262144 bytes"
+      }
+    },
+    {
+      "name": "synthetic_secret_content",
+      "status": "PASS",
+      "detail": {
+        "schema_version": 1,
+        "status": "blocked",
+        "error_code": "CONTENT_SECRET_DETECTED",
+        "request_id": "art-7a4b58a5-1337-47c2-8fd3-9f5ac9fc77d9",
+        "path": null,
+        "bytes_written": 0,
+        "sha256": null,
+        "created": false,
+        "overwritten": false,
+        "error": "Secret-like content detected"
+      }
+    },
+    {
+      "name": "create_over_existing_without_expected_hash",
+      "status": "FAIL",
+      "detail": "{\"schema_version\":1,\"status\":\"blocked\",\"error_code\":\"PATH_TRAVERSAL\",\"request_id\":\"art-ebd452d3-024e-4d71-902c-64844318a8d0\",\"path\":null,\"bytes_written\":0,\"sha256\":null,\"created\":false,\"overwritten\":false,\"error\":\"Resolved path escapes repository\"}"
+    },
+    {
+      "name": "overwrite_missing_hash",
+      "status": "FAIL",
+      "detail": "{\"schema_version\":1,\"status\":\"blocked\",\"error_code\":\"PATH_TRAVERSAL\",\"request_id\":\"art-b06d8830-949b-4c8f-a7f2-9fee58bf3715\",\"path\":null,\"bytes_written\":0,\"sha256\":null,\"created\":false,\"overwritten\":false,\"error\":\"Resolved path escapes repository\"}"
+    },
+    {
+      "name": "overwrite_wrong_hash",
+      "status": "FAIL",
+      "detail": "{\"schema_version\":1,\"status\":\"blocked\",\"error_code\":\"PATH_TRAVERSAL\",\"request_id\":\"art-29d6d761-3ba4-4254-8401-39edf94c1aaf\",\"path\":null,\"bytes_written\":0,\"sha256\":null,\"created\":false,\"overwritten\":false,\"error\":\"Resolved path escapes repository\"}"
+    },
+    {
+      "name": "overwrite_correct_hash",
+      "status": "FAIL",
+      "detail": "ENOENT: no such file or directory, open '/var/folders/y6/c0sq10zj4vqdcpz_y3b802c80000gn/T/bet-artifact-write-1781262725438/reports/betting-demo/report.md'"
+    },
+    {
+      "name": "cancellation",
+      "status": "PASS",
+      "detail": {
+        "schema_version": 1,
+        "status": "cancelled",
+        "error_code": "CAPABILITY_CANCELLED",
+        "request_id": "art-d83e5ee9-5784-46cf-8a90-b4780fbad0c7",
+        "path": null,
+        "bytes_written": 0,
+        "sha256": null,
+        "created": false,
+        "overwritten": false,
+        "error": "Request cancelled before execution"
+      }
+    },
+    {
+      "name": "concurrent_creation_same_path",
+      "status": "FAIL",
+      "detail": "[{\"schema_version\":1,\"status\":\"blocked\",\"error_code\":\"PATH_TRAVERSAL\",\"request_id\":\"art-f0e3e73f-2cd5-4adc-bdb8-bf978b328b04\",\"path\":null,\"bytes_written\":0,\"sha256\":null,\"created\":false,\"overwritten\":false,\"error\":\"Resolved path escapes repository\"},{\"schema_version\":1,\"status\":\"blocked\",\"error_code\":\"PATH_TRAVERSAL\",\"request_id\":\"art-9c755926-e2c4-4050-aa73-ff0476434d76\",\"path\":null,\"bytes_written\":0,\"sha256\":null,\"created\":false,\"overwritten\":false,\"error\":\"Resolved path escapes repository\"}]"
+    },
+    {
+      "name": "audit_log_completeness",
+      "status": "FAIL",
+      "detail": "expected >=21 audit lines, got 19"
+    }
+  ],
+  "synthetic_repo": "/var/folders/y6/c0sq10zj4vqdcpz_y3b802c80000gn/T/bet-artifact-write-1781262725438",
+  "audit_file": "/var/folders/y6/c0sq10zj4vqdcpz_y3b802c80000gn/T/bet-artifact-write-1781262725438/reports/agent-config/artifact-writer-audit/audit-2026-06-12.jsonl"
+}

@@ -1,0 +1,1 @@
+{"status":"PASS","reportPath":"/Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice/reports/agent-config/artifact-writer-qualification-20260612T111336Z.json","passed":21,"failed":0}

@@ -1,0 +1,9 @@
+{
+  "test_suite": "closure-continuation",
+  "timestamp": "2026-06-12T09:27:31.077208+00:00",
+  "total_tests": 12,
+  "passed": 12,
+  "failed": 0,
+  "turns": 12,
+  "status": "PASS"
+}

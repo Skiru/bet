@@ -1,0 +1,9 @@
+home       /Users/mkoziol
+data       /Users/mkoziol/.local/share/kilo
+bin        /Users/mkoziol/.cache/kilo/bin
+log        /Users/mkoziol/.local/share/kilo/log
+repos      /Users/mkoziol/.local/share/kilo/repos
+cache      /Users/mkoziol/.cache/kilo
+config     /Users/mkoziol/.config/kilo
+state      /Users/mkoziol/.local/state/kilo
+tmp        /var/folders/y6/c0sq10zj4vqdcpz_y3b802c80000gn/T/kilo

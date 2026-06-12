@@ -1,0 +1,217 @@
+{
+  "schema_version": "1.0.0",
+  "run_id": "run-20260611T195018Z-5703a841",
+  "suite_version": "1.0.0",
+  "timestamp": "2026-06-11T19:50:24.500030+00:00",
+  "base_url": "http://127.0.0.1:8000",
+  "model": "mlx-community/Qwen3.6-35B-A3B-4bit",
+  "configuration_fingerprint": {
+    "repository_head": "515927c9e966dd886b171b70b1651d83c880f473",
+    "suite_version": "1.0.0",
+    "base_url": "http://127.0.0.1:8000",
+    "model": "mlx-community/Qwen3.6-35B-A3B-4bit",
+    "timeout": 120,
+    "timestamp": "2026-06-11T19:50:24.499945+00:00"
+  },
+  "smoke_results": [
+    {
+      "suite": "smoke_non_thinking",
+      "attempt_id": "run-20260611T195018Z-5703a841-attempt-0001",
+      "mode": "chat",
+      "streaming": false,
+      "thinking": false,
+      "tool_choice": null,
+      "start_time": "2026-06-11T19:50:18.872543+00:00",
+      "duration_ms": 604.151833,
+      "ttft_ms": null,
+      "http_status": 200,
+      "finish_reason": "stop",
+      "prompt_tokens": 20,
+      "completion_tokens": 2,
+      "reasoning_tokens": null,
+      "tool_call_count": 0,
+      "final_content_present": true,
+      "error_category": null,
+      "error_detail": null,
+      "passed": true,
+      "failure_reasons": []
+    },
+    {
+      "suite": "smoke_thinking",
+      "attempt_id": "run-20260611T195018Z-5703a841-attempt-0002",
+      "mode": "chat",
+      "streaming": false,
+      "thinking": true,
+      "tool_choice": null,
+      "start_time": "2026-06-11T19:50:19.476723+00:00",
+      "duration_ms": 2280.313125,
+      "ttft_ms": null,
+      "http_status": 200,
+      "finish_reason": "stop",
+      "prompt_tokens": 22,
+      "completion_tokens": 157,
+      "reasoning_tokens": null,
+      "tool_call_count": 0,
+      "final_content_present": true,
+      "error_category": null,
+      "error_detail": null,
+      "passed": true,
+      "failure_reasons": []
+    },
+    {
+      "suite": "smoke_forced_tool",
+      "attempt_id": "run-20260611T195018Z-5703a841-attempt-0003",
+      "mode": "chat",
+      "streaming": false,
+      "thinking": false,
+      "tool_choice": {
+        "type": "function",
+        "function": {
+          "name": "get_test_value"
+        }
+      },
+      "start_time": "2026-06-11T19:50:21.757048+00:00",
+      "duration_ms": 1176.526583,
+      "ttft_ms": null,
+      "http_status": 200,
+      "finish_reason": "tool_calls",
+      "prompt_tokens": 363,
+      "completion_tokens": 26,
+      "reasoning_tokens": null,
+      "tool_call_count": 1,
+      "final_content_present": false,
+      "error_category": null,
+      "error_detail": null,
+      "passed": true,
+      "failure_reasons": []
+    },
+    {
+      "suite": "smoke_auto_tool_stream",
+      "attempt_id": "run-20260611T195018Z-5703a841-attempt-0004",
+      "mode": "chat",
+      "streaming": true,
+      "thinking": false,
+      "tool_choice": "auto",
+      "start_time": "2026-06-11T19:50:22.933587+00:00",
+      "duration_ms": 1217.548875,
+      "ttft_ms": 1217.541125,
+      "http_status": 200,
+      "finish_reason": "tool_calls",
+      "prompt_tokens": null,
+      "completion_tokens": null,
+      "reasoning_tokens": null,
+      "tool_call_count": 1,
+      "final_content_present": false,
+      "error_category": null,
+      "error_detail": null,
+      "passed": true,
+      "failure_reasons": []
+    },
+    {
+      "suite": "smoke_no_tool",
+      "attempt_id": "run-20260611T195018Z-5703a841-attempt-0005",
+      "mode": "chat",
+      "streaming": false,
+      "thinking": false,
+      "tool_choice": "auto",
+      "start_time": "2026-06-11T19:50:24.151149+00:00",
+      "duration_ms": 328.420459,
+      "ttft_ms": null,
+      "http_status": 200,
+      "finish_reason": "stop",
+      "prompt_tokens": 386,
+      "completion_tokens": 8,
+      "reasoning_tokens": null,
+      "tool_call_count": 0,
+      "final_content_present": true,
+      "error_category": null,
+      "error_detail": null,
+      "passed": true,
+      "failure_reasons": []
+    }
+  ],
+  "qualification_results": [],
+  "aggregate_metrics": [
+    {
+      "group": "smoke",
+      "attempts": 5,
+      "passed": 5,
+      "failed": 0,
+      "p50_latency_ms": 1176.526583,
+      "p95_latency_ms": 2280.313125,
+      "max_latency_ms": 2280.313125,
+      "p50_ttft_ms": 1217.541125,
+      "p95_ttft_ms": 1217.541125,
+      "output_tokens_per_second": 34.42149932961678
+    },
+    {
+      "group": "qualification",
+      "attempts": 0,
+      "passed": 0,
+      "failed": 0,
+      "p50_latency_ms": 0,
+      "p95_latency_ms": 0,
+      "max_latency_ms": 0,
+      "p50_ttft_ms": null,
+      "p95_ttft_ms": null,
+      "output_tokens_per_second": null
+    }
+  ],
+  "mandatory_gates": {
+    "non_thinking_chat": [
+      0,
+      0
+    ],
+    "thinking_chat": [
+      0,
+      0
+    ],
+    "forced_tool_non_stream": [
+      0,
+      0
+    ],
+    "auto_tool_non_stream": [
+      0,
+      0
+    ],
+    "auto_tool_stream": [
+      0,
+      0
+    ],
+    "no_tool_control": [
+      0,
+      0
+    ],
+    "seq_workflow_non_stream": [
+      0,
+      0
+    ],
+    "seq_workflow_stream": [
+      0,
+      0
+    ],
+    "stream_non_thinking": [
+      0,
+      0
+    ],
+    "stream_thinking": [
+      0,
+      0
+    ],
+    "cancellation_recovery": [
+      0,
+      0
+    ],
+    "multi_turn": [
+      0,
+      0
+    ],
+    "malformed_tool_calls": 0,
+    "duplicated_tool_calls": 0,
+    "unexpected_parallel_calls": 0,
+    "repetition_collapse": 0,
+    "oom_crash_restart": 0
+  },
+  "diagnostic_results": {},
+  "final_status": "UNKNOWN"
+}

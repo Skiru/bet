@@ -1,0 +1,5 @@
+kilo version: 7.3.41
+os: Darwin 25.5.0 arm64
+terminal: unknown
+plugins:
+none
