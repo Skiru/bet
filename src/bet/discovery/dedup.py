@@ -5,11 +5,12 @@ and a ±2h kickoff window for temporal matching.
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from rapidfuzz import fuzz
 
 from bet.utils import normalize_team_name
+
 from .esports_aliases import resolve_alias
 from .models import DiscoveredEvent, MergedFixture, SourceRef
 
@@ -30,11 +31,19 @@ class DeduplicationEngine:
     ) -> list[MergedFixture]:
         """Merge events from all sources.
 
-        Priority order: odds-api-io (primary) → odds-api (secondary) → api-football (tertiary).
+        Priority order: odds-api-io (primary) → odds-api (secondary)
+        → api-football (tertiary).
         Primary source establishes canonical names.
         Sources not in the priority list are processed last.
         """
-        source_priority = ["odds-api-io", "odds-api", "api-football"]
+        source_priority = [
+            "odds-api-io",
+            "odds-api",
+            "api-football",
+            "api-basketball",
+            "api-volleyball",
+            "api-hockey",
+        ]
         merged: list[MergedFixture] = []
         key_index: dict[str, int] = {}  # match_key → index in merged
         id_to_index: dict[int, int] = {}  # id(fixture) → index in merged
@@ -53,16 +62,20 @@ class DeduplicationEngine:
                 # Exact match
                 if match_key in key_index:
                     idx = key_index[match_key]
-                    self._attach_source(merged[idx], ev)
-                    continue
+                    if not self._can_attach_source(merged[idx], ev):
+                        key_index.pop(match_key, None)
+                    else:
+                        self._attach_source(merged[idx], ev)
+                        continue
 
                 # Fuzzy match against existing merged fixtures
                 best_match, confidence = self._fuzzy_match(ev, merged)
                 if best_match is not None:
-                    self._attach_source(best_match, ev, confidence)
-                    # Also register exact key for future lookups
-                    key_index[match_key] = id_to_index[id(best_match)]
-                    continue
+                    if self._can_attach_source(best_match, ev):
+                        self._attach_source(best_match, ev, confidence)
+                        # Also register exact key for future lookups
+                        key_index[match_key] = id_to_index[id(best_match)]
+                        continue
 
                 # New fixture
                 fixture = MergedFixture(
@@ -158,6 +171,14 @@ class DeduplicationEngine:
         """Check if two kickoff times are within ±KICKOFF_WINDOW_HOURS."""
         delta = abs((t1 - t2).total_seconds())
         return delta <= self.KICKOFF_WINDOW_HOURS * 3600
+
+    @staticmethod
+    def _can_attach_source(fixture: MergedFixture, event: DiscoveredEvent) -> bool:
+        for src in fixture.sources:
+            if src.source != event.source:
+                continue
+            return src.external_id == event.external_id
+        return True
 
     @staticmethod
     def _attach_source(

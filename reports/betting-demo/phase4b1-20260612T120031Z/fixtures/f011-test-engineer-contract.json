@@ -1,0 +1,30 @@
+{
+  "fixture_id": "F011_TEST_ENGINEER_CONTRACT",
+  "synthetic": true,
+  "disclaimer": "SYNTHETIC — NOT REAL BETTING DATA",
+  "generated": "2026-06-12T12:00:00Z",
+  "scenario": "bet-test-engineer validation contract",
+  "artifact_to_validate": {
+    "path": "reports/betting-demo/phase4b1-20260612T120031Z/artifacts/coupon-synth-001.json",
+    "expected_schema": {
+      "coupon_id": "string",
+      "selections": "array",
+      "total_stake": "number",
+      "potential_return": "number",
+      "synthetic": "boolean",
+      "disclaimer": "string"
+    },
+    "invariants": [
+      "total_stake > 0",
+      "potential_return > total_stake",
+      "synthetic == true",
+      "disclaimer contains 'SYNTHETIC'"
+    ]
+  },
+  "expected_result": {
+    "status": "PASS",
+    "decision": "VALIDATION_PASSED",
+    "rationale": "bet-test-engineer should independently verify artifact against contract"
+  },
+  "sha256": "PLACEHOLDER"
+}

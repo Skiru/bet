@@ -1,0 +1,53 @@
+{
+  "run_id": "run-20260612T073702Z",
+  "timestamp": "2026-06-12T07:37:02.161554+00:00",
+  "base_url": "http://127.0.0.1:8000/v1",
+  "model": "default",
+  "results": [
+    {
+      "test": "memory_tracking",
+      "passed": true,
+      "rss_mb": 257.765625,
+      "vsz_mb": 446989.25,
+      "cpu_pct": 0.0
+    },
+    {
+      "test": "memory_stability",
+      "passed": true,
+      "initial_rss_kb": 263952,
+      "final_rss_kb": 260352,
+      "growth_pct": -1.3638843426077467
+    },
+    {
+      "test": "resource_cleanup",
+      "passed": true,
+      "initial_rss_kb": 260352,
+      "final_rss_kb": 273552,
+      "rss_diff_kb": 13200
+    },
+    {
+      "test": "server_health",
+      "passed": true,
+      "http_status": 200,
+      "response": "{\"status\":\"healthy\",\"ready\":true,\"model_loaded\":true,\"model_name\":\"mlx-community/Qwen3.6-35B-A3B-4bi"
+    },
+    {
+      "test": "process_alive",
+      "passed": true,
+      "process_alive": true,
+      "port_ok": true,
+      "pid": 54776
+    },
+    {
+      "test": "thermal_status",
+      "passed": false,
+      "thermal_warning": true,
+      "output": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n"
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "total": 6,
+    "pass_rate": 0.8333333333333334
+  }
+}

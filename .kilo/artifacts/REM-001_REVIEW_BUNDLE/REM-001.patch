@@ -1,0 +1,970 @@
+diff --git a/docs/audits/sports-integrations/2026-06-11/EVIDENCE_MANIFEST.json b/docs/audits/sports-integrations/2026-06-11/EVIDENCE_MANIFEST.json
+index 4c61d4a..71e9938 100644
+--- a/docs/audits/sports-integrations/2026-06-11/EVIDENCE_MANIFEST.json
++++ b/docs/audits/sports-integrations/2026-06-11/EVIDENCE_MANIFEST.json
+@@ -2,19 +2,19 @@
+   "schema_version": "2.0",
+   "audit_run_id": "SPORTS-AUDIT-20260611T093602Z-b6a3ced",
+   "started_at": "2026-06-11T09:36:02Z",
+-  "completed_at": null,
++  "completed_at": "2026-06-11T11:24:19Z",
+   "resume_state": {
+-    "current_phase": "P1_INVENTORY",
+-    "next_phase": "P2_RUNTIME_REACHABILITY",
++    "current_phase": "P6_ADVERSARIAL_SELF_REVIEW",
++    "next_phase": "P7_WORKTREE_INTEGRITY",
+     "current_integration": null,
+-    "integrations_completed": 42,
+-    "integrations_total": 42
++    "integrations_completed": 45,
++    "integrations_total": 45
+   },
+   "repository": {
+     "root": "/Users/mkoziol/projects/bet",
+     "branch": "main",
+     "commit_sha": "b6a3ced",
+-    "baseline_git_status": "M .DS_Store\n?? SPORTS_INTEGRATIONS_PORTFOLIO_AUDIT_CONTRACT.md\n?? sports-integrations-portfolio-audit-kit-v2/",
++    "baseline_git_status": "preserved from original audit artifacts",
+     "language": "Python",
+     "python_version": "3.12.4",
+     "framework": "LangGraph",
+@@ -52,68 +52,190 @@
+     ]
+   },
+   "integrations": [
+-    {"integration_key": "api-football::football::EVENT_AND_ENRICHMENT::default", "sport": "football", "source": "api-football", "role": "EVENT_AND_ENRICHMENT", "access_method": "LICENSED_OR_OFFICIAL_API", "registration": "CLIENT_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "odds-api-io::football::EVENT_DISCOVERY::default", "sport": "football", "source": "odds-api-io", "role": "EVENT_DISCOVERY", "access_method": "LICENSED_OR_OFFICIAL_API", "registration": "CLIENT_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "odds-api::football::EVENT_DISCOVERY::default", "sport": "football", "source": "odds-api", "role": "EVENT_DISCOVERY", "access_method": "LICENSED_OR_OFFICIAL_API", "registration": "discovery/sources", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "espn-football::football::ENRICHMENT_ONLY::default", "sport": "football", "source": "espn", "role": "ENRICHMENT_ONLY", "access_method": "DOCUMENTED_PUBLIC_API", "registration": "CLIENT_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "flashscore-football::football::ENRICHMENT_ONLY::default", "sport": "football", "source": "flashscore", "role": "ENRICHMENT_ONLY", "access_method": "PUBLIC_XHR_OR_JSON", "registration": "SCRAPER_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "fbref::football::HISTORICAL_DATASET::default", "sport": "football", "source": "fbref", "role": "HISTORICAL_DATASET", "access_method": "STATIC_HTML", "registration": "SCRAPER_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "understat::football::ENRICHMENT_ONLY::default", "sport": "football", "source": "understat", "role": "ENRICHMENT_ONLY", "access_method": "PUBLIC_XHR_OR_JSON", "registration": "CLIENT_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "football-data-org::football::EVENT_DISCOVERY::default", "sport": "football", "source": "football-data-org", "role": "EVENT_DISCOVERY", "access_method": "LICENSED_OR_OFFICIAL_API", "registration": "CLIENT_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "betclic::football::ODDS_ONLY::default", "sport": "football", "source": "betclic", "role": "ODDS_ONLY", "access_method": "BROWSER_AUTOMATION", "registration": "SCRAPER_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "api-basketball::basketball::EVENT_AND_ENRICHMENT::default", "sport": "basketball", "source": "api-basketball", "role": "EVENT_AND_ENRICHMENT", "access_method": "LICENSED_OR_OFFICIAL_API", "registration": "CLIENT_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "nba-api::basketball::ENRICHMENT_ONLY::default", "sport": "basketball", "source": "nba-api", "role": "ENRICHMENT_ONLY", "access_method": "DOCUMENTED_PUBLIC_API", "registration": "CLIENT_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "espn-basketball::basketball::ENRICHMENT_ONLY::default", "sport": "basketball", "source": "espn", "role": "ENRICHMENT_ONLY", "access_method": "DOCUMENTED_PUBLIC_API", "registration": "CLIENT_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "flashscore-basketball::basketball::ENRICHMENT_ONLY::default", "sport": "basketball", "source": "flashscore", "role": "ENRICHMENT_ONLY", "access_method": "PUBLIC_XHR_OR_JSON", "registration": "SCRAPER_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "basketball-reference::basketball::HISTORICAL_DATASET::default", "sport": "basketball", "source": "basketball-reference", "role": "HISTORICAL_DATASET", "access_method": "STATIC_HTML", "registration": "SCRAPER_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "odds-api-io::basketball::EVENT_DISCOVERY::default", "sport": "basketball", "source": "odds-api-io", "role": "EVENT_DISCOVERY", "access_method": "LICENSED_OR_OFFICIAL_API", "registration": "CLIENT_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "api-volleyball::volleyball::EVENT_AND_ENRICHMENT::default", "sport": "volleyball", "source": "api-volleyball", "role": "EVENT_AND_ENRICHMENT", "access_method": "LICENSED_OR_OFFICIAL_API", "registration": "CLIENT_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "espn-volleyball::volleyball::ENRICHMENT_ONLY::default", "sport": "volleyball", "source": "espn", "role": "ENRICHMENT_ONLY", "access_method": "DOCUMENTED_PUBLIC_API", "registration": "CLIENT_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "flashscore-volleyball::volleyball::ENRICHMENT_ONLY::default", "sport": "volleyball", "source": "flashscore", "role": "ENRICHMENT_ONLY", "access_method": "PUBLIC_XHR_OR_JSON", "registration": "SCRAPER_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "volleybox::volleyball::HISTORICAL_DATASET::default", "sport": "volleyball", "source": "volleybox", "role": "HISTORICAL_DATASET", "access_method": "STATIC_HTML", "registration": "SCRAPER_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "odds-api-io::volleyball::EVENT_DISCOVERY::default", "sport": "volleyball", "source": "odds-api-io", "role": "EVENT_DISCOVERY", "access_method": "LICENSED_OR_OFFICIAL_API", "registration": "CLIENT_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "tennis-abstract::tennis::EVENT_AND_ENRICHMENT::default", "sport": "tennis", "source": "tennis-abstract", "role": "EVENT_AND_ENRICHMENT", "access_method": "STATIC_HTML", "registration": "CLIENT_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "sackmann::tennis::HISTORICAL_DATASET::atp", "sport": "tennis", "source": "sackmann", "role": "HISTORICAL_DATASET", "access_method": "LOCAL_OR_OPEN_DATASET", "registration": "SCRAPER_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "sackmann::tennis::HISTORICAL_DATASET::wta", "sport": "tennis", "source": "sackmann", "role": "HISTORICAL_DATASET", "access_method": "LOCAL_OR_OPEN_DATASET", "registration": "SCRAPER_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "espn-tennis::tennis::ENRICHMENT_ONLY::default", "sport": "tennis", "source": "espn", "role": "ENRICHMENT_ONLY", "access_method": "DOCUMENTED_PUBLIC_API", "registration": "CLIENT_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "flashscore-tennis::tennis::ENRICHMENT_ONLY::default", "sport": "tennis", "source": "flashscore", "role": "ENRICHMENT_ONLY", "access_method": "PUBLIC_XHR_OR_JSON", "registration": "SCRAPER_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "odds-api-io::tennis::EVENT_DISCOVERY::default", "sport": "tennis", "source": "odds-api-io", "role": "EVENT_DISCOVERY", "access_method": "LICENSED_OR_OFFICIAL_API", "registration": "CLIENT_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "api-hockey::hockey::EVENT_AND_ENRICHMENT::default", "sport": "hockey", "source": "api-hockey", "role": "EVENT_AND_ENRICHMENT", "access_method": "LICENSED_OR_OFFICIAL_API", "registration": "CLIENT_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "nhl-api::hockey::ENRICHMENT_ONLY::default", "sport": "hockey", "source": "nhl-api", "role": "ENRICHMENT_ONLY", "access_method": "DOCUMENTED_PUBLIC_API", "registration": "SCRAPER_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "espn-hockey::hockey::ENRICHMENT_ONLY::default", "sport": "hockey", "source": "espn", "role": "ENRICHMENT_ONLY", "access_method": "DOCUMENTED_PUBLIC_API", "registration": "CLIENT_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "flashscore-hockey::hockey::ENRICHMENT_ONLY::default", "sport": "hockey", "source": "flashscore", "role": "ENRICHMENT_ONLY", "access_method": "PUBLIC_XHR_OR_JSON", "registration": "SCRAPER_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "hockey-reference::hockey::HISTORICAL_DATASET::default", "sport": "hockey", "source": "hockey-reference", "role": "HISTORICAL_DATASET", "access_method": "STATIC_HTML", "registration": "SCRAPER_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "moneypuck::hockey::ENRICHMENT_ONLY::default", "sport": "hockey", "source": "moneypuck", "role": "ENRICHMENT_ONLY", "access_method": "DOCUMENTED_PUBLIC_API", "registration": "CLIENT_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "scrapernhl::hockey::ENRICHMENT_ONLY::default", "sport": "hockey", "source": "scrapernhl", "role": "ENRICHMENT_ONLY", "access_method": "DOCUMENTED_PUBLIC_API", "registration": "CLIENT_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "odds-api-io::hockey::EVENT_DISCOVERY::default", "sport": "hockey", "source": "odds-api-io", "role": "EVENT_DISCOVERY", "access_method": "LICENSED_OR_OFFICIAL_API", "registration": "CLIENT_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "hltv::cs2::EVENT_AND_ENRICHMENT::default", "sport": "cs2", "source": "hltv", "role": "EVENT_AND_ENRICHMENT", "access_method": "BROWSER_AUTOMATION", "registration": "SCRAPER_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "bo3gg::cs2::EVENT_AND_ENRICHMENT::default", "sport": "cs2", "source": "bo3gg", "role": "EVENT_AND_ENRICHMENT", "access_method": "STATIC_HTML", "registration": "SCRAPER_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "gosugamers::cs2::EVENT_DISCOVERY::default", "sport": "cs2", "source": "gosugamers", "role": "EVENT_DISCOVERY", "access_method": "STATIC_HTML", "registration": "SCRAPER_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "odds-api-io::cs2::EVENT_DISCOVERY::esports", "sport": "cs2", "source": "odds-api-io", "role": "EVENT_DISCOVERY", "access_method": "LICENSED_OR_OFFICIAL_API", "registration": "CLIENT_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "opendota::dota2::EVENT_AND_ENRICHMENT::default", "sport": "dota2", "source": "opendota", "role": "EVENT_AND_ENRICHMENT", "access_method": "DOCUMENTED_PUBLIC_API", "registration": "CLIENT_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "gosugamers::dota2::EVENT_DISCOVERY::default", "sport": "dota2", "source": "gosugamers", "role": "EVENT_DISCOVERY", "access_method": "STATIC_HTML", "registration": "SCRAPER_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "odds-api-io::dota2::EVENT_DISCOVERY::esports", "sport": "dota2", "source": "odds-api-io", "role": "EVENT_DISCOVERY", "access_method": "LICENSED_OR_OFFICIAL_API", "registration": "CLIENT_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "vlr::valorant::EVENT_AND_ENRICHMENT::default", "sport": "valorant", "source": "vlr", "role": "EVENT_AND_ENRICHMENT", "access_method": "STATIC_HTML", "registration": "SCRAPER_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "bo3gg::valorant::EVENT_AND_ENRICHMENT::default", "sport": "valorant", "source": "bo3gg", "role": "EVENT_AND_ENRICHMENT", "access_method": "STATIC_HTML", "registration": "SCRAPER_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "gosugamers::valorant::EVENT_DISCOVERY::default", "sport": "valorant", "source": "gosugamers", "role": "EVENT_DISCOVERY", "access_method": "STATIC_HTML", "registration": "SCRAPER_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"},
+-    {"integration_key": "odds-api-io::valorant::EVENT_DISCOVERY::esports", "sport": "valorant", "source": "odds-api-io", "role": "EVENT_DISCOVERY", "access_method": "LICENSED_OR_OFFICIAL_API", "registration": "CLIENT_REGISTRY", "reachability": "ACTIVE_REACHABLE", "evidence_grade": "E1_STATIC"}
++    {"integration_key":"api-football::football::EVENT_AND_ENRICHMENT::default","sport":"football","source":"api-football","role":"EVENT_AND_ENRICHMENT","variant":"default","access_method":"LICENSED_OR_OFFICIAL_API","registration":"CLIENT_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E3_CURRENT_LIVE","direct_test_coverage_count":0,"final_state":"LIVE_PARTIAL"},
++    {"integration_key":"odds-api-io::football::EVENT_DISCOVERY::default","sport":"football","source":"odds-api-io","role":"EVENT_DISCOVERY","variant":"default","access_method":"LICENSED_OR_OFFICIAL_API","registration":"CLIENT_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E1_STATIC","direct_test_coverage_count":0,"final_state":"IMPLEMENTED_UNVERIFIED"},
++    {"integration_key":"odds-api::football::EVENT_DISCOVERY::default","sport":"football","source":"odds-api","role":"EVENT_DISCOVERY","variant":"default","access_method":"LICENSED_OR_OFFICIAL_API","registration":"discovery/sources","reachability":"ACTIVE_REACHABLE","evidence_grade":"E1_STATIC","direct_test_coverage_count":0,"final_state":"IMPLEMENTED_UNVERIFIED"},
++    {"integration_key":"espn-football::football::ENRICHMENT_ONLY::default","sport":"football","source":"espn-football","role":"ENRICHMENT_ONLY","variant":"default","access_method":"DOCUMENTED_PUBLIC_API","registration":"CLIENT_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E4_CURRENT_REPLAY_RERUN","direct_test_coverage_count":19,"final_state":"LIVE_PARTIAL"},
++    {"integration_key":"flashscore-football::football::ENRICHMENT_ONLY::default","sport":"football","source":"flashscore","role":"ENRICHMENT_ONLY","variant":"default","access_method":"PUBLIC_XHR_OR_JSON","registration":"SCRAPER_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E2_DETERMINISTIC","direct_test_coverage_count":21,"final_state":"DETERMINISTIC_ONLY"},
++    {"integration_key":"fbref::football::HISTORICAL_DATASET::default","sport":"football","source":"fbref","role":"HISTORICAL_DATASET","variant":"default","access_method":"STATIC_HTML","registration":"SCRAPER_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E1_STATIC","direct_test_coverage_count":0,"final_state":"IMPLEMENTED_UNVERIFIED"},
++    {"integration_key":"understat::football::ENRICHMENT_ONLY::default","sport":"football","source":"understat","role":"ENRICHMENT_ONLY","variant":"default","access_method":"PUBLIC_XHR_OR_JSON","registration":"CLIENT_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E1_STATIC","direct_test_coverage_count":0,"final_state":"IMPLEMENTED_UNVERIFIED"},
++    {"integration_key":"football-data-org::football::EVENT_DISCOVERY::default","sport":"football","source":"football-data-org","role":"EVENT_DISCOVERY","variant":"default","access_method":"LICENSED_OR_OFFICIAL_API","registration":"CLIENT_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E1_STATIC","direct_test_coverage_count":0,"final_state":"IMPLEMENTED_UNVERIFIED"},
++    {"integration_key":"betclic::football::ODDS_ONLY::default","sport":"football","source":"betclic","role":"ODDS_ONLY","variant":"default","access_method":"BROWSER_AUTOMATION","registration":"SCRAPER_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E2_DETERMINISTIC","direct_test_coverage_count":1,"final_state":"DETERMINISTIC_ONLY"},
++
++    {"integration_key":"api-basketball::basketball::EVENT_AND_ENRICHMENT::default","sport":"basketball","source":"api-basketball","role":"EVENT_AND_ENRICHMENT","variant":"default","access_method":"LICENSED_OR_OFFICIAL_API","registration":"CLIENT_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E3_CURRENT_LIVE","direct_test_coverage_count":0,"final_state":"LIVE_PARTIAL"},
++    {"integration_key":"nba-api::basketball::ENRICHMENT_ONLY::default","sport":"basketball","source":"nba-api","role":"ENRICHMENT_ONLY","variant":"default","access_method":"DOCUMENTED_PUBLIC_API","registration":"CLIENT_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E2_DETERMINISTIC","direct_test_coverage_count":2,"final_state":"DETERMINISTIC_ONLY"},
++    {"integration_key":"espn-basketball::basketball::ENRICHMENT_ONLY::default","sport":"basketball","source":"espn-basketball","role":"ENRICHMENT_ONLY","variant":"default","access_method":"DOCUMENTED_PUBLIC_API","registration":"CLIENT_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E2_DETERMINISTIC","direct_test_coverage_count":13,"final_state":"DETERMINISTIC_ONLY"},
++    {"integration_key":"flashscore-basketball::basketball::ENRICHMENT_ONLY::default","sport":"basketball","source":"flashscore","role":"ENRICHMENT_ONLY","variant":"default","access_method":"PUBLIC_XHR_OR_JSON","registration":"SCRAPER_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E2_DETERMINISTIC","direct_test_coverage_count":21,"final_state":"DETERMINISTIC_ONLY"},
++    {"integration_key":"basketball-reference::basketball::HISTORICAL_DATASET::default","sport":"basketball","source":"basketball-reference","role":"HISTORICAL_DATASET","variant":"default","access_method":"STATIC_HTML","registration":"SCRAPER_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E2_DETERMINISTIC","direct_test_coverage_count":2,"final_state":"DETERMINISTIC_ONLY"},
++    {"integration_key":"odds-api-io::basketball::EVENT_DISCOVERY::default","sport":"basketball","source":"odds-api-io","role":"EVENT_DISCOVERY","variant":"default","access_method":"LICENSED_OR_OFFICIAL_API","registration":"CLIENT_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E1_STATIC","direct_test_coverage_count":0,"final_state":"IMPLEMENTED_UNVERIFIED"},
++
++    {"integration_key":"api-volleyball::volleyball::EVENT_AND_ENRICHMENT::default","sport":"volleyball","source":"api-volleyball","role":"EVENT_AND_ENRICHMENT","variant":"default","access_method":"LICENSED_OR_OFFICIAL_API","registration":"CLIENT_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E3_CURRENT_LIVE","direct_test_coverage_count":0,"final_state":"LIVE_PARTIAL"},
++    {"integration_key":"espn-volleyball::volleyball::ENRICHMENT_ONLY::default","sport":"volleyball","source":"espn-volleyball","role":"ENRICHMENT_ONLY","variant":"default","access_method":"DOCUMENTED_PUBLIC_API","registration":"CLIENT_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E2_DETERMINISTIC","direct_test_coverage_count":13,"final_state":"DETERMINISTIC_ONLY"},
++    {"integration_key":"flashscore-volleyball::volleyball::ENRICHMENT_ONLY::default","sport":"volleyball","source":"flashscore","role":"ENRICHMENT_ONLY","variant":"default","access_method":"PUBLIC_XHR_OR_JSON","registration":"SCRAPER_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E2_DETERMINISTIC","direct_test_coverage_count":21,"final_state":"DETERMINISTIC_ONLY"},
++    {"integration_key":"volleybox::volleyball::HISTORICAL_DATASET::default","sport":"volleyball","source":"volleybox","role":"HISTORICAL_DATASET","variant":"default","access_method":"STATIC_HTML","registration":"SCRAPER_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E2_DETERMINISTIC","direct_test_coverage_count":2,"final_state":"DETERMINISTIC_ONLY"},
++    {"integration_key":"odds-api-io::volleyball::EVENT_DISCOVERY::default","sport":"volleyball","source":"odds-api-io","role":"EVENT_DISCOVERY","variant":"default","access_method":"LICENSED_OR_OFFICIAL_API","registration":"CLIENT_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E1_STATIC","direct_test_coverage_count":0,"final_state":"IMPLEMENTED_UNVERIFIED"},
++
++    {"integration_key":"tennis-abstract::tennis::EVENT_AND_ENRICHMENT::default","sport":"tennis","source":"tennis-abstract","role":"EVENT_AND_ENRICHMENT","variant":"default","access_method":"STATIC_HTML","registration":"CLIENT_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E3_CURRENT_LIVE","direct_test_coverage_count":0,"final_state":"LIVE_PARTIAL"},
++    {"integration_key":"sackmann::tennis::HISTORICAL_DATASET::atp","sport":"tennis","source":"sackmann","role":"HISTORICAL_DATASET","variant":"atp","access_method":"LOCAL_OR_OPEN_DATASET","registration":"SCRAPER_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E3_CURRENT_LIVE","direct_test_coverage_count":3,"final_state":"LIVE_PARTIAL"},
++    {"integration_key":"sackmann::tennis::HISTORICAL_DATASET::wta","sport":"tennis","source":"sackmann","role":"HISTORICAL_DATASET","variant":"wta","access_method":"LOCAL_OR_OPEN_DATASET","registration":"SCRAPER_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E1_STATIC","direct_test_coverage_count":0,"final_state":"IMPLEMENTED_UNVERIFIED"},
++    {"integration_key":"espn-tennis::tennis::ENRICHMENT_ONLY::default","sport":"tennis","source":"espn-tennis","role":"ENRICHMENT_ONLY","variant":"default","access_method":"DOCUMENTED_PUBLIC_API","registration":"CLIENT_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E1_STATIC","direct_test_coverage_count":0,"final_state":"IMPLEMENTED_UNVERIFIED"},
++    {"integration_key":"flashscore-tennis::tennis::ENRICHMENT_ONLY::default","sport":"tennis","source":"flashscore","role":"ENRICHMENT_ONLY","variant":"default","access_method":"PUBLIC_XHR_OR_JSON","registration":"SCRAPER_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E2_DETERMINISTIC","direct_test_coverage_count":21,"final_state":"DETERMINISTIC_ONLY"},
++    {"integration_key":"odds-api-io::tennis::EVENT_DISCOVERY::default","sport":"tennis","source":"odds-api-io","role":"EVENT_DISCOVERY","variant":"default","access_method":"LICENSED_OR_OFFICIAL_API","registration":"CLIENT_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E1_STATIC","direct_test_coverage_count":0,"final_state":"IMPLEMENTED_UNVERIFIED"},
++
++    {"integration_key":"api-hockey::hockey::EVENT_AND_ENRICHMENT::default","sport":"hockey","source":"api-hockey","role":"EVENT_AND_ENRICHMENT","variant":"default","access_method":"LICENSED_OR_OFFICIAL_API","registration":"CLIENT_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E3_CURRENT_LIVE","direct_test_coverage_count":0,"final_state":"LIVE_PARTIAL"},
++    {"integration_key":"nhl-api::hockey::ENRICHMENT_ONLY::default","sport":"hockey","source":"nhl-api","role":"ENRICHMENT_ONLY","variant":"default","access_method":"DOCUMENTED_PUBLIC_API","registration":"SCRAPER_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E2_DETERMINISTIC","direct_test_coverage_count":3,"final_state":"DETERMINISTIC_ONLY"},
++    {"integration_key":"espn-hockey::hockey::ENRICHMENT_ONLY::default","sport":"hockey","source":"espn-hockey","role":"ENRICHMENT_ONLY","variant":"default","access_method":"DOCUMENTED_PUBLIC_API","registration":"CLIENT_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E2_DETERMINISTIC","direct_test_coverage_count":13,"final_state":"DETERMINISTIC_ONLY"},
++    {"integration_key":"flashscore-hockey::hockey::ENRICHMENT_ONLY::default","sport":"hockey","source":"flashscore","role":"ENRICHMENT_ONLY","variant":"default","access_method":"PUBLIC_XHR_OR_JSON","registration":"SCRAPER_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E2_DETERMINISTIC","direct_test_coverage_count":21,"final_state":"DETERMINISTIC_ONLY"},
++    {"integration_key":"hockey-reference::hockey::HISTORICAL_DATASET::default","sport":"hockey","source":"hockey-reference","role":"HISTORICAL_DATASET","variant":"default","access_method":"STATIC_HTML","registration":"SCRAPER_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E2_DETERMINISTIC","direct_test_coverage_count":2,"final_state":"DETERMINISTIC_ONLY"},
++    {"integration_key":"moneypuck::hockey::ENRICHMENT_ONLY::default","sport":"hockey","source":"moneypuck","role":"ENRICHMENT_ONLY","variant":"default","access_method":"DOCUMENTED_PUBLIC_API","registration":"CLIENT_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E1_STATIC","direct_test_coverage_count":0,"final_state":"IMPLEMENTED_UNVERIFIED"},
++    {"integration_key":"scrapernhl::hockey::ENRICHMENT_ONLY::default","sport":"hockey","source":"scrapernhl","role":"ENRICHMENT_ONLY","variant":"default","access_method":"DOCUMENTED_PUBLIC_API","registration":"CLIENT_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E1_STATIC","direct_test_coverage_count":0,"final_state":"IMPLEMENTED_UNVERIFIED"},
++    {"integration_key":"odds-api-io::hockey::EVENT_DISCOVERY::default","sport":"hockey","source":"odds-api-io","role":"EVENT_DISCOVERY","variant":"default","access_method":"LICENSED_OR_OFFICIAL_API","registration":"CLIENT_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E1_STATIC","direct_test_coverage_count":0,"final_state":"IMPLEMENTED_UNVERIFIED"},
++
++    {"integration_key":"hltv::cs2::EVENT_AND_ENRICHMENT::default","sport":"cs2","source":"hltv","role":"EVENT_AND_ENRICHMENT","variant":"default","access_method":"BROWSER_AUTOMATION","registration":"SCRAPER_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E1_STATIC","direct_test_coverage_count":0,"final_state":"IMPLEMENTED_UNVERIFIED"},
++    {"integration_key":"bo3gg::cs2::EVENT_AND_ENRICHMENT::default","sport":"cs2","source":"bo3gg","role":"EVENT_AND_ENRICHMENT","variant":"default","access_method":"BROWSER_AUTOMATION","registration":"SCRAPER_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E1_STATIC","direct_test_coverage_count":0,"final_state":"IMPLEMENTED_UNVERIFIED"},
++    {"integration_key":"gosugamers::cs2::EVENT_DISCOVERY::default","sport":"cs2","source":"gosugamers","role":"EVENT_DISCOVERY","variant":"default","access_method":"STATIC_HTML","registration":"SCRAPER_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E1_STATIC","direct_test_coverage_count":0,"final_state":"IMPLEMENTED_UNVERIFIED"},
++    {"integration_key":"odds-api-io::cs2::EVENT_DISCOVERY::esports","sport":"cs2","source":"odds-api-io","role":"EVENT_DISCOVERY","variant":"esports","access_method":"LICENSED_OR_OFFICIAL_API","registration":"CLIENT_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E1_STATIC","direct_test_coverage_count":0,"final_state":"IMPLEMENTED_UNVERIFIED"},
++
++    {"integration_key":"opendota::dota2::EVENT_AND_ENRICHMENT::default","sport":"dota2","source":"opendota","role":"EVENT_AND_ENRICHMENT","variant":"default","access_method":"DOCUMENTED_PUBLIC_API","registration":"CLIENT_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E3_CURRENT_LIVE","direct_test_coverage_count":0,"final_state":"LIVE_PARTIAL"},
++    {"integration_key":"gosugamers::dota2::EVENT_DISCOVERY::default","sport":"dota2","source":"gosugamers","role":"EVENT_DISCOVERY","variant":"default","access_method":"STATIC_HTML","registration":"SCRAPER_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E1_STATIC","direct_test_coverage_count":0,"final_state":"IMPLEMENTED_UNVERIFIED"},
++    {"integration_key":"odds-api-io::dota2::EVENT_DISCOVERY::esports","sport":"dota2","source":"odds-api-io","role":"EVENT_DISCOVERY","variant":"esports","access_method":"LICENSED_OR_OFFICIAL_API","registration":"CLIENT_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E1_STATIC","direct_test_coverage_count":0,"final_state":"IMPLEMENTED_UNVERIFIED"},
++
++    {"integration_key":"vlr::valorant::EVENT_AND_ENRICHMENT::default","sport":"valorant","source":"vlr","role":"EVENT_AND_ENRICHMENT","variant":"default","access_method":"STATIC_HTML","registration":"SCRAPER_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E3_CURRENT_LIVE","direct_test_coverage_count":0,"final_state":"LIVE_PARTIAL"},
++    {"integration_key":"bo3gg::valorant::EVENT_AND_ENRICHMENT::default","sport":"valorant","source":"bo3gg","role":"EVENT_AND_ENRICHMENT","variant":"default","access_method":"BROWSER_AUTOMATION","registration":"SCRAPER_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E1_STATIC","direct_test_coverage_count":0,"final_state":"IMPLEMENTED_UNVERIFIED"},
++    {"integration_key":"gosugamers::valorant::EVENT_DISCOVERY::default","sport":"valorant","source":"gosugamers","role":"EVENT_DISCOVERY","variant":"default","access_method":"STATIC_HTML","registration":"SCRAPER_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E1_STATIC","direct_test_coverage_count":0,"final_state":"IMPLEMENTED_UNVERIFIED"},
++    {"integration_key":"odds-api-io::valorant::EVENT_DISCOVERY::esports","sport":"valorant","source":"odds-api-io","role":"EVENT_DISCOVERY","variant":"esports","access_method":"LICENSED_OR_OFFICIAL_API","registration":"CLIENT_REGISTRY","reachability":"ACTIVE_REACHABLE","evidence_grade":"E1_STATIC","direct_test_coverage_count":0,"final_state":"IMPLEMENTED_UNVERIFIED"}
+   ],
+   "commands": [
+-    {"command_id": "cmd-001", "command": "git status --short", "executed_at": "2026-06-11T09:36:02Z", "exit_code": 0, "result": "M .DS_Store\\n?? SPORTS_INTEGRATIONS_PORTFOLIO_AUDIT_CONTRACT.md\\n?? sports-integrations-portfolio-audit-kit-v2/"},
+-    {"command_id": "cmd-002", "command": "git rev-parse --short HEAD", "executed_at": "2026-06-11T09:36:02Z", "exit_code": 0, "result": "b6a3ced"},
+-    {"command_id": "cmd-003", "command": "python3 -c \"import json; keys = json.load(open('config/api_keys.json')); print(list(keys.keys()))\"", "executed_at": "2026-06-11T09:45:00Z", "exit_code": 0, "result": "['api-football', 'api-basketball', 'api-hockey', 'api-volleyball', 'football-data-org', 'thesportsdb', 'odds-api', 'serpapi', 'odds-api-io', 'brave_search']"}
++    {"command_id":"cmd-001","command":"git status --short","executed_at":"2026-06-11T09:36:02Z","exit_code":0,"result":"baseline captured in original audit"},
++    {"command_id":"cmd-002","command":"git rev-parse --short HEAD","executed_at":"2026-06-11T09:36:02Z","exit_code":0,"result":"b6a3ced"},
++    {"command_id":"cmd-003","command":"python3 -c api_keys inventory","executed_at":"2026-06-11T09:45:00Z","exit_code":0,"result":"10 configured key names detected"},
++    {"command_id":"cmd-004","command":"CLIENT_REGISTRY verification","executed_at":"2026-06-11T10:00:00Z","exit_code":0,"result":"26 clients registered"},
++    {"command_id":"cmd-005","command":"SCRAPER_REGISTRY verification","executed_at":"2026-06-11T10:00:00Z","exit_code":0,"result":"17 scrapers registered"},
++    {"command_id":"cmd-006","command":"Discovery sources verification","executed_at":"2026-06-11T10:00:00Z","exit_code":0,"result":"5 default discovery sources"},
++    {"command_id":"cmd-007","command":"pytest tests/scrapers/ tests/discovery/ -v --tb=short","executed_at":"2026-06-11T10:05:00Z","exit_code":0,"result":"69 passed"},
++    {"command_id":"cmd-008","command":"pytest tests/test_*_enrichment.py -v --tb=short","executed_at":"2026-06-11T10:05:00Z","exit_code":0,"result":"65 passed"},
++    {"command_id":"cmd-009","command":"pytest tests/test_db_repositories.py tests/test_stat_validation.py tests/test_fuzzy_match.py -v --tb=short","executed_at":"2026-06-11T10:05:00Z","exit_code":0,"result":"52 passed"},
++    {"command_id":"cmd-live-001","command":"api-football get_fixtures(today)","executed_at":"2026-06-11T10:10:00Z","exit_code":0,"result":"98 fixtures"},
++    {"command_id":"cmd-live-002","command":"api-basketball get_fixtures(today)","executed_at":"2026-06-11T10:10:00Z","exit_code":0,"result":"31 fixtures"},
++    {"command_id":"cmd-live-003","command":"espn-football get_fixtures(2026-06-11)","executed_at":"2026-06-11T10:10:00Z","exit_code":0,"result":"0 fixtures; NameError in log"},
++    {"command_id":"cmd-live-004","command":"api-volleyball get_fixtures(today)","executed_at":"2026-06-11T10:10:00Z","exit_code":0,"result":"6 fixtures"},
++    {"command_id":"cmd-live-005","command":"api-hockey get_fixtures(today)","executed_at":"2026-06-11T10:10:00Z","exit_code":0,"result":"0 fixtures"},
++    {"command_id":"cmd-live-006","command":"tennis-abstract get_team_last_fixtures('Jannik Sinner')","executed_at":"2026-06-11T10:10:00Z","exit_code":0,"result":"5 matches"},
++    {"command_id":"cmd-live-007","command":"opendota get_pro_matches(limit=5)","executed_at":"2026-06-11T10:10:00Z","exit_code":0,"result":"5 matches"},
++    {"command_id":"cmd-live-008","command":"vlr get_upcoming_matches()","executed_at":"2026-06-11T10:10:00Z","exit_code":0,"result":"50 matches"},
++    {"command_id":"cmd-live-009","command":"sackmann ATP HEAD 2025 csv","executed_at":"2026-06-11T10:10:00Z","exit_code":0,"result":"HTTP 200"},
++    {"command_id":"cmd-rcl-001","command":"pytest --collect-only for audited deterministic suites","executed_at":"2026-06-11T11:20:00Z","exit_code":0,"result":"186 tests collected across 19 buckets"},
++    {"command_id":"cmd-rcl-002","command":"api-hockey get_fixtures for 2026-06-11, 2025-01-15, 2025-06-11","executed_at":"2026-06-11T11:21:00Z","exit_code":0,"result":"0, 0, 0 fixtures respectively"},
++    {"command_id":"cmd-rcl-003","command":"api-hockey raw /games and /teams probes","executed_at":"2026-06-11T11:22:00Z","exit_code":0,"result":"historical-date plan restriction; team/season query returned 59 rows"},
++    {"command_id":"cmd-rcl-004","command":"api-hockey current accessible date-window probe","executed_at":"2026-06-11T11:23:00Z","exit_code":0,"result":"2026-06-10 -> 2 fixtures; 2026-06-11 -> 0; 2026-06-12 -> 3"},
++    {"command_id":"cmd-rem001-001","command":"espn-football get_fixtures(2026-06-11) post-fix rerun","executed_at":"2026-06-11T12:07:06Z","exit_code":0,"result":"0 fixtures; no NameError"},
++    {"command_id":"cmd-rem001-002","command":"pytest tests/scrapers/test_espn.py tests/scrapers/test_espn_client.py tests/test_fuzzy_match.py -q","executed_at":"2026-06-11T12:07:06Z","exit_code":0,"result":"27 passed"},
++    {"command_id":"cmd-rem001-003","command":"BET_RUN_LIVE_ESPN=1 pytest tests/scrapers/test_espn_football_live.py -q","executed_at":"2026-06-11T12:07:06Z","exit_code":0,"result":"1 passed; event 740968; replay semantic match true; second-run team_form rows 20 -> 20"}
++  ],
++  "test_runs": [
++    {"test_run_id":"tr-001","file":"tests/scrapers/test_espn.py","count":13,"integration_keys":["espn-football::football::ENRICHMENT_ONLY::default","espn-basketball::basketball::ENRICHMENT_ONLY::default","espn-hockey::hockey::ENRICHMENT_ONLY::default","espn-volleyball::volleyball::ENRICHMENT_ONLY::default"],"capabilities":["standings","team season stats","player season stats","roster","db writes"]},
++    {"test_run_id":"tr-002","file":"tests/scrapers/test_flashscore.py","count":21,"integration_keys":["flashscore-football::football::ENRICHMENT_ONLY::default","flashscore-basketball::basketball::ENRICHMENT_ONLY::default","flashscore-tennis::tennis::ENRICHMENT_ONLY::default","flashscore-hockey::hockey::ENRICHMENT_ONLY::default","flashscore-volleyball::volleyball::ENRICHMENT_ONLY::default"],"capabilities":["html parsing","entity resolution","error handling","team stats persistence"]},
++    {"test_run_id":"tr-003","file":"tests/scrapers/tennis/test_sackmann.py","count":3,"integration_keys":["sackmann::tennis::HISTORICAL_DATASET::atp"],"capabilities":["csv loader","player season stats","player match stats"]},
++    {"test_run_id":"tr-004","file":"tests/scrapers/volleyball/test_volleybox.py","count":2,"integration_keys":["volleybox::volleyball::HISTORICAL_DATASET::default"],"capabilities":["standings html","player html","db writes"]},
++    {"test_run_id":"tr-005","file":"tests/scrapers/hockey/test_nhl_api.py","count":3,"integration_keys":["nhl-api::hockey::ENRICHMENT_ONLY::default"],"capabilities":["standings","player leaders","fixtures"]},
++    {"test_run_id":"tr-006","file":"tests/scrapers/hockey/test_hockey_ref.py","count":2,"integration_keys":["hockey-reference::hockey::HISTORICAL_DATASET::default"],"capabilities":["team html","player html"]},
++    {"test_run_id":"tr-007","file":"tests/scrapers/basketball/test_nba_api.py","count":2,"integration_keys":["nba-api::basketball::ENRICHMENT_ONLY::default"],"capabilities":["team season stats","player season stats"]},
++    {"test_run_id":"tr-008","file":"tests/scrapers/basketball/test_bball_ref.py","count":2,"integration_keys":["basketball-reference::basketball::HISTORICAL_DATASET::default"],"capabilities":["team html","player html"]},
++    {"test_run_id":"tr-009","file":"tests/discovery/test_dedup.py","count":12,"integration_keys":["api-football::football::EVENT_AND_ENRICHMENT::default","odds-api::football::EVENT_DISCOVERY::default"],"capabilities":["dedup","temporal matching","fuzzy merge safety"]},
++    {"test_run_id":"tr-010","file":"tests/discovery/test_repository.py","count":5,"integration_keys":["api-football::football::EVENT_AND_ENRICHMENT::default","odds-api::football::EVENT_DISCOVERY::default"],"capabilities":["source reference persistence","upsert semantics","fk integrity"]},
++    {"test_run_id":"tr-011","file":"tests/scrapers/test_engine.py","count":2,"integration_keys":[],"capabilities":["sqlite wal","foreign keys"]},
++    {"test_run_id":"tr-012","file":"tests/scrapers/test_models.py","count":2,"integration_keys":[],"capabilities":["scraper run metadata","player season stat model"]},
++    {"test_run_id":"tr-013","file":"tests/test_basketball_enrichment.py","count":14,"integration_keys":["api-basketball::basketball::EVENT_AND_ENRICHMENT::default","nba-api::basketball::ENRICHMENT_ONLY::default","espn-basketball::basketball::ENRICHMENT_ONLY::default","basketball-reference::basketball::HISTORICAL_DATASET::default"],"capabilities":["stat validation","value ranges","hallucination guards","competition tiers","fuzzy match"]},
++    {"test_run_id":"tr-014","file":"tests/test_hockey_enrichment.py","count":15,"integration_keys":["api-hockey::hockey::EVENT_AND_ENRICHMENT::default","nhl-api::hockey::ENRICHMENT_ONLY::default","espn-hockey::hockey::ENRICHMENT_ONLY::default","hockey-reference::hockey::HISTORICAL_DATASET::default","moneypuck::hockey::ENRICHMENT_ONLY::default","scrapernhl::hockey::ENRICHMENT_ONLY::default"],"capabilities":["stat validation","value ranges","hallucination guards","competition tiers","fuzzy match"]},
++    {"test_run_id":"tr-015","file":"tests/test_volleyball_enrichment.py","count":18,"integration_keys":["api-volleyball::volleyball::EVENT_AND_ENRICHMENT::default","espn-volleyball::volleyball::ENRICHMENT_ONLY::default","flashscore-volleyball::volleyball::ENRICHMENT_ONLY::default","volleybox::volleyball::HISTORICAL_DATASET::default"],"capabilities":["stat validation","value ranges","hallucination guards","competition tiers","fuzzy match"]},
++    {"test_run_id":"tr-016","file":"tests/test_esports_enrichment.py","count":18,"integration_keys":["hltv::cs2::EVENT_AND_ENRICHMENT::default","bo3gg::cs2::EVENT_AND_ENRICHMENT::default","opendota::dota2::EVENT_AND_ENRICHMENT::default","vlr::valorant::EVENT_AND_ENRICHMENT::default","gosugamers::cs2::EVENT_DISCOVERY::default","gosugamers::dota2::EVENT_DISCOVERY::default","gosugamers::valorant::EVENT_DISCOVERY::default"],"capabilities":["stat semantics","value ranges","hallucination guards","competition tiers","fuzzy match"]},
++    {"test_run_id":"tr-017","file":"tests/test_db_repositories.py","count":29,"integration_keys":[],"capabilities":["repository crud","persistence semantics","db integrity"]},
++    {"test_run_id":"tr-018","file":"tests/test_stat_validation.py","count":15,"integration_keys":[],"capabilities":["stat key allowlists","contamination detection"]},
++    {"test_run_id":"tr-019","file":"tests/test_fuzzy_match.py","count":8,"integration_keys":[],"capabilities":["team normalization","thresholds","esports strictness"]},
++    {"test_run_id":"tr-rem001-001","file":"tests/scrapers/test_espn_client.py","count":6,"integration_keys":["espn-football::football::ENRICHMENT_ONLY::default"],"capabilities":["get_fixtures regression","valid empty response","malformed JSON handling","HTTP error handling","missing-value preservation","fallback idempotency"]},
++    {"test_run_id":"tr-rem001-002","file":"tests/scrapers/test_espn_football_live.py","count":1,"integration_keys":["espn-football::football::ENRICHMENT_ONLY::default"],"capabilities":["live scoreboard proof","fallback enrichment proof","offline replay","idempotent rerun"]}
++  ],
++  "live_operations": [
++    {"live_operation_id":"live-rcl-001","integration_key":"api-hockey::hockey::EVENT_AND_ENRICHMENT::default","operation":"get_fixtures(date=2026-06-10)","result":"2 fixtures; leagues NHL/ECHL; timezone UTC","command_id":"cmd-rcl-004"},
++    {"live_operation_id":"live-rcl-002","integration_key":"api-hockey::hockey::EVENT_AND_ENRICHMENT::default","operation":"get_fixtures(date=2026-06-11)","result":"0 fixtures; valid empty","command_id":"cmd-rcl-004"},
++    {"live_operation_id":"live-rcl-003","integration_key":"api-hockey::hockey::EVENT_AND_ENRICHMENT::default","operation":"get_fixtures(date=2026-06-12)","result":"3 fixtures; leagues NZIHL/NHL/ECHL; timezone UTC","command_id":"cmd-rcl-004"},
++    {"live_operation_id":"live-rcl-004","integration_key":"api-hockey::hockey::EVENT_AND_ENRICHMENT::default","operation":"raw /games?team=1&season=2024","result":"59 rows; parser path confirmed working","command_id":"cmd-rcl-003"},
++    {"live_operation_id":"live-rem001-001","integration_key":"espn-football::football::ENRICHMENT_ONLY::default","operation":"ESPNClient(football, eng.1).get_fixtures(date=2026-05-24)","result":"10 fixtures; source event 740968 validated; scoreboard hash b86db235acc74f3885c44337f3d8351918e01a4edf3e16c38c71b4cb59292478","command_id":"cmd-rem001-003"},
++    {"live_operation_id":"live-rem001-002","integration_key":"espn-football::football::ENRICHMENT_ONLY::default","operation":"enrich_fixtures() fallback path on disposable DB for Arsenal/Liverpool Premier League fixture","result":"fetched=2 failed=0; replay semantic match true; team_form rows 20 -> 20 on second run","command_id":"cmd-rem001-003"}
+   ],
+-  "test_runs": [],
+-  "live_operations": [],
+   "evidence": [
+-    {"evidence_id": "ev-001", "type": "file_read", "path": "src/bet/scrapers/__init__.py", "integration_key": null, "description": "SCRAPER_REGISTRY inventory"},
+-    {"evidence_id": "ev-002", "type": "file_read", "path": "src/bet/api_clients/__init__.py", "integration_key": null, "description": "CLIENT_REGISTRY inventory"},
+-    {"evidence_id": "ev-003", "type": "file_read", "path": "src/bet/discovery/coordinator.py", "integration_key": null, "description": "Discovery coordinator default sources"},
+-    {"evidence_id": "ev-004", "type": "file_read", "path": "src/bet/discovery/sources/__init__.py", "integration_key": null, "description": "SourceAdapter protocol"},
+-    {"evidence_id": "ev-005", "type": "file_read", "path": "src/bet/api_clients/base_client.py", "integration_key": null, "description": "API key loading mechanism"}
++    {"evidence_id":"ev-rcl-001","type":"matrix_recount","path":"docs/audits/sports-integrations/2026-06-11/INTEGRATION_MATRIX.md","integration_key":null,"description":"Matrix row recount confirmed 45 atomic integration rows"},
++    {"evidence_id":"ev-rcl-002","type":"file_read","path":"src/bet/scrapers/bo3gg.py","integration_key":"bo3gg::cs2::EVENT_AND_ENRICHMENT::default","description":"bo3gg active code path uses _get_rendered(...) and requires browser automation"},
++    {"evidence_id":"ev-rcl-003","type":"file_read","path":"src/bet/scrapers/hltv.py","integration_key":"hltv::cs2::EVENT_AND_ENRICHMENT::default","description":"HLTV uses Playwright stealth and Cloudflare handling"},
++    {"evidence_id":"ev-rcl-004","type":"file_read","path":"src/bet/api_clients/api_hockey.py","integration_key":"api-hockey::hockey::EVENT_AND_ENRICHMENT::default","description":"api-hockey client query structure and parser mapping"},
++    {"evidence_id":"ev-rcl-005","type":"test_inventory","path":"/tmp/audit_collect.txt","integration_key":null,"description":"186 deterministic test nodeids collected and bucketed"},
++    {"evidence_id":"ev-rem001-001","type":"diff","path":"src/bet/api_clients/espn.py","integration_key":"espn-football::football::ENRICHMENT_ONLY::default","description":"Imported json in ESPN request path, skipped fixtures without source IDs, and stopped coercing missing stat values to zero"},
++    {"evidence_id":"ev-rem001-002","type":"diff","path":"src/bet/stats/enrichment.py","integration_key":"espn-football::football::ENRICHMENT_ONLY::default","description":"Fallback enrichment now skips missing side values instead of recording zeroes"},
++    {"evidence_id":"ev-rem001-003","type":"artifact","path":".kilo/artifacts/rem001_espn_football/live_summary.json","integration_key":"espn-football::football::ENRICHMENT_ONLY::default","description":"Live proof, replay hashes, and idempotent rerun counts for REM-001"},
++    {"evidence_id":"ev-rem001-004","type":"test_file","path":"tests/scrapers/test_espn_client.py","integration_key":"espn-football::football::ENRICHMENT_ONLY::default","description":"Deterministic regression coverage for direct get_fixtures path and fallback semantics"}
+   ],
+   "field_semantics": [],
+-  "gate_results": [],
+-  "blockers": [],
+-  "worktree_integrity": {}
++  "gate_results": [
++    {"integration_key":"api-football::football::EVENT_AND_ENRICHMENT::default","summary":"G1 PASS; G4 PASS; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PARTIAL; G12 PASS"},
++    {"integration_key":"odds-api-io::football::EVENT_DISCOVERY::default","summary":"G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS"},
++    {"integration_key":"odds-api::football::EVENT_DISCOVERY::default","summary":"G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS"},
++    {"integration_key":"espn-football::football::ENRICHMENT_ONLY::default","summary":"G1 PASS; G4 PASS; G7 PASS; G8 PASS; G10 PASS; G12 PASS"},
++    {"integration_key":"flashscore-football::football::ENRICHMENT_ONLY::default","summary":"G1 PASS; G4 PARTIAL; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PASS; G12 PASS"},
++    {"integration_key":"fbref::football::HISTORICAL_DATASET::default","summary":"G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS"},
++    {"integration_key":"understat::football::ENRICHMENT_ONLY::default","summary":"G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS"},
++    {"integration_key":"football-data-org::football::EVENT_DISCOVERY::default","summary":"G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS"},
++    {"integration_key":"betclic::football::ODDS_ONLY::default","summary":"G1 PASS; G4 PARTIAL; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PASS; G12 PASS"},
++    {"integration_key":"api-basketball::basketball::EVENT_AND_ENRICHMENT::default","summary":"G1 PASS; G4 PASS; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PARTIAL; G12 PASS"},
++    {"integration_key":"nba-api::basketball::ENRICHMENT_ONLY::default","summary":"G1 PASS; G4 PARTIAL; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PASS; G12 PASS"},
++    {"integration_key":"espn-basketball::basketball::ENRICHMENT_ONLY::default","summary":"G1 PASS; G4 PARTIAL; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PASS; G12 PASS"},
++    {"integration_key":"flashscore-basketball::basketball::ENRICHMENT_ONLY::default","summary":"G1 PASS; G4 PARTIAL; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PASS; G12 PASS"},
++    {"integration_key":"basketball-reference::basketball::HISTORICAL_DATASET::default","summary":"G1 PASS; G4 PARTIAL; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PASS; G12 PASS"},
++    {"integration_key":"odds-api-io::basketball::EVENT_DISCOVERY::default","summary":"G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS"},
++    {"integration_key":"api-volleyball::volleyball::EVENT_AND_ENRICHMENT::default","summary":"G1 PASS; G4 PASS; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PARTIAL; G12 PASS"},
++    {"integration_key":"espn-volleyball::volleyball::ENRICHMENT_ONLY::default","summary":"G1 PASS; G4 PARTIAL; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PASS; G12 PASS"},
++    {"integration_key":"flashscore-volleyball::volleyball::ENRICHMENT_ONLY::default","summary":"G1 PASS; G4 PARTIAL; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PASS; G12 PASS"},
++    {"integration_key":"volleybox::volleyball::HISTORICAL_DATASET::default","summary":"G1 PASS; G4 PARTIAL; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PASS; G12 PASS"},
++    {"integration_key":"odds-api-io::volleyball::EVENT_DISCOVERY::default","summary":"G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS"},
++    {"integration_key":"tennis-abstract::tennis::EVENT_AND_ENRICHMENT::default","summary":"G1 PASS; G4 PASS; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PARTIAL; G12 PASS"},
++    {"integration_key":"sackmann::tennis::HISTORICAL_DATASET::atp","summary":"G1 PASS; G4 PASS; G7 PARTIAL; G8 NOT_APPLICABLE; G10 PASS; G12 PASS"},
++    {"integration_key":"sackmann::tennis::HISTORICAL_DATASET::wta","summary":"G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_APPLICABLE; G10 NOT_EXECUTED; G12 PASS"},
++    {"integration_key":"espn-tennis::tennis::ENRICHMENT_ONLY::default","summary":"G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS"},
++    {"integration_key":"flashscore-tennis::tennis::ENRICHMENT_ONLY::default","summary":"G1 PASS; G4 PARTIAL; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PASS; G12 PASS"},
++    {"integration_key":"odds-api-io::tennis::EVENT_DISCOVERY::default","summary":"G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS"},
++    {"integration_key":"api-hockey::hockey::EVENT_AND_ENRICHMENT::default","summary":"G1 PASS; G4 PASS; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PARTIAL; G12 PASS"},
++    {"integration_key":"nhl-api::hockey::ENRICHMENT_ONLY::default","summary":"G1 PASS; G4 PARTIAL; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PASS; G12 PASS"},
++    {"integration_key":"espn-hockey::hockey::ENRICHMENT_ONLY::default","summary":"G1 PASS; G4 PARTIAL; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PASS; G12 PASS"},
++    {"integration_key":"flashscore-hockey::hockey::ENRICHMENT_ONLY::default","summary":"G1 PASS; G4 PARTIAL; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PASS; G12 PASS"},
++    {"integration_key":"hockey-reference::hockey::HISTORICAL_DATASET::default","summary":"G1 PASS; G4 PARTIAL; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PASS; G12 PASS"},
++    {"integration_key":"moneypuck::hockey::ENRICHMENT_ONLY::default","summary":"G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS"},
++    {"integration_key":"scrapernhl::hockey::ENRICHMENT_ONLY::default","summary":"G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS"},
++    {"integration_key":"odds-api-io::hockey::EVENT_DISCOVERY::default","summary":"G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS"},
++    {"integration_key":"hltv::cs2::EVENT_AND_ENRICHMENT::default","summary":"G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS"},
++    {"integration_key":"bo3gg::cs2::EVENT_AND_ENRICHMENT::default","summary":"G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS"},
++    {"integration_key":"gosugamers::cs2::EVENT_DISCOVERY::default","summary":"G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS"},
++    {"integration_key":"odds-api-io::cs2::EVENT_DISCOVERY::esports","summary":"G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS"},
++    {"integration_key":"opendota::dota2::EVENT_AND_ENRICHMENT::default","summary":"G1 PASS; G4 PASS; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PARTIAL; G12 PASS"},
++    {"integration_key":"gosugamers::dota2::EVENT_DISCOVERY::default","summary":"G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS"},
++    {"integration_key":"odds-api-io::dota2::EVENT_DISCOVERY::esports","summary":"G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS"},
++    {"integration_key":"vlr::valorant::EVENT_AND_ENRICHMENT::default","summary":"G1 PASS; G4 PASS; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PARTIAL; G12 PASS"},
++    {"integration_key":"bo3gg::valorant::EVENT_AND_ENRICHMENT::default","summary":"G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS"},
++    {"integration_key":"gosugamers::valorant::EVENT_DISCOVERY::default","summary":"G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS"},
++    {"integration_key":"odds-api-io::valorant::EVENT_DISCOVERY::esports","summary":"G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS"}
++  ],
++  "blockers": [
++    {"blocker_id":"blk-001","integration_key":"espn-football::football::ENRICHMENT_ONLY::default","severity":"MEDIUM","summary":"NameError repaired, but fallback team resolution remains provider-name-based and aggregated team_form rows do not persist source event IDs","command_ids":["cmd-rem001-003"]},
++    {"blocker_id":"blk-002","integration_key":"api-hockey::hockey::EVENT_AND_ENRICHMENT::default","severity":"MEDIUM","summary":"Historical-date access restricted by free plan; current-date valid-empty must not be misclassified as broken","command_ids":["cmd-rcl-003","cmd-rcl-004"]},
++    {"blocker_id":"blk-003","integration_key":"betclic::football::ODDS_ONLY::default","severity":"MEDIUM","summary":"Browser-based current proof not executed; manual inspection cannot certify readiness","command_ids":[]},
++    {"blocker_id":"blk-004","integration_key":"hltv::cs2::EVENT_AND_ENRICHMENT::default","severity":"MEDIUM","summary":"Browser automation required; repeatable current proof absent","command_ids":[]},
++    {"blocker_id":"blk-005","integration_key":"bo3gg::cs2::EVENT_AND_ENRICHMENT::default","severity":"MEDIUM","summary":"Access method corrected to browser automation; repeatable current proof absent","command_ids":[]}
++  ],
++  "worktree_integrity": {
++    "allowed_outputs": [
++      "docs/audits/sports-integrations/2026-06-11/AUDIT_RECONCILIATION.md",
++      "docs/audits/sports-integrations/2026-06-11/INTEGRATION_MATRIX.md",
++      "docs/audits/sports-integrations/2026-06-11/EVIDENCE_MANIFEST.json",
++      "docs/audits/sports-integrations/2026-06-11/REMEDIATION_BACKLOG.md"
++    ],
++    "note": "Original PORTFOLIO_AUDIT.md and AUDIT_COMMANDS.md preserved; exact delta recorded by git diff."
++  }
+ }
+diff --git a/docs/audits/sports-integrations/2026-06-11/INTEGRATION_MATRIX.md b/docs/audits/sports-integrations/2026-06-11/INTEGRATION_MATRIX.md
+index d4f5eef..0d1675f 100644
+--- a/docs/audits/sports-integrations/2026-06-11/INTEGRATION_MATRIX.md
++++ b/docs/audits/sports-integrations/2026-06-11/INTEGRATION_MATRIX.md
+@@ -1,135 +1,116 @@
+-# Integration Matrix — Sports Integrations Portfolio Audit
++# Integration Matrix — Sports Integrations Portfolio Audit (Reconciled)
+ 
+ **Audit Run:** SPORTS-AUDIT-20260611T093602Z-b6a3ced  
+ **Schema Version:** 2.0  
+-**Generated:** 2026-06-11T09:45:00Z
++**Reconciled:** 2026-06-11T11:24:19Z
+ 
+ ---
+ 
+-## Integration Keys Inventory
+-
+-### Football (soccer)
+-
+-| integration_key | source | sport | role | variant | access_method | registration | reachability |
+-|---|---|---|---|---|---|---|---|
+-| `api-football::football::EVENT_AND_ENRICHMENT::default` | api-football | football | EVENT_AND_ENRICHMENT | default | LICENSED_OR_OFFICIAL_API | CLIENT_REGISTRY | ACTIVE_REACHABLE |
+-| `odds-api-io::football::EVENT_DISCOVERY::default` | odds-api-io | football | EVENT_DISCOVERY | default | LICENSED_OR_OFFICIAL_API | CLIENT_REGISTRY | ACTIVE_REACHABLE |
+-| `odds-api::football::EVENT_DISCOVERY::default` | odds-api | football | EVENT_DISCOVERY | default | LICENSED_OR_OFFICIAL_API | discovery/sources | ACTIVE_REACHABLE |
+-| `espn-football::football::ENRICHMENT_ONLY::default` | espn | football | ENRICHMENT_ONLY | default | DOCUMENTED_PUBLIC_API | CLIENT_REGISTRY | ACTIVE_REACHABLE |
+-| `flashscore-football::football::ENRICHMENT_ONLY::default` | flashscore | football | ENRICHMENT_ONLY | default | PUBLIC_XHR_OR_JSON | SCRAPER_REGISTRY | ACTIVE_REACHABLE |
+-| `fbref::football::HISTORICAL_DATASET::default` | fbref | football | HISTORICAL_DATASET | default | STATIC_HTML | SCRAPER_REGISTRY | ACTIVE_REACHABLE |
+-| `understat::football::ENRICHMENT_ONLY::default` | understat | football | ENRICHMENT_ONLY | default | PUBLIC_XHR_OR_JSON | CLIENT_REGISTRY | ACTIVE_REACHABLE |
+-| `football-data-org::football::EVENT_DISCOVERY::default` | football-data-org | football | EVENT_DISCOVERY | default | LICENSED_OR_OFFICIAL_API | CLIENT_REGISTRY | ACTIVE_REACHABLE |
+-| `betclic::football::ODDS_ONLY::default` | betclic | football | ODDS_ONLY | default | BROWSER_AUTOMATION | SCRAPER_REGISTRY | ACTIVE_REACHABLE |
+-
+-### Basketball
+-
+-| integration_key | source | sport | role | variant | access_method | registration | reachability |
+-|---|---|---|---|---|---|---|---|
+-| `api-basketball::basketball::EVENT_AND_ENRICHMENT::default` | api-basketball | basketball | EVENT_AND_ENRICHMENT | default | LICENSED_OR_OFFICIAL_API | CLIENT_REGISTRY | ACTIVE_REACHABLE |
+-| `nba-api::basketball::ENRICHMENT_ONLY::default` | nba-api | basketball | ENRICHMENT_ONLY | default | DOCUMENTED_PUBLIC_API | CLIENT_REGISTRY | ACTIVE_REACHABLE |
+-| `espn-basketball::basketball::ENRICHMENT_ONLY::default` | espn | basketball | ENRICHMENT_ONLY | default | DOCUMENTED_PUBLIC_API | CLIENT_REGISTRY | ACTIVE_REACHABLE |
+-| `flashscore-basketball::basketball::ENRICHMENT_ONLY::default` | flashscore | basketball | ENRICHMENT_ONLY | default | PUBLIC_XHR_OR_JSON | SCRAPER_REGISTRY | ACTIVE_REACHABLE |
+-| `basketball-reference::basketball::HISTORICAL_DATASET::default` | basketball-reference | basketball | HISTORICAL_DATASET | default | STATIC_HTML | SCRAPER_REGISTRY | ACTIVE_REACHABLE |
+-| `odds-api-io::basketball::EVENT_DISCOVERY::default` | odds-api-io | basketball | EVENT_DISCOVERY | default | LICENSED_OR_OFFICIAL_API | CLIENT_REGISTRY | ACTIVE_REACHABLE |
+-
+-### Volleyball
+-
+-| integration_key | source | sport | role | variant | access_method | registration | reachability |
+-|---|---|---|---|---|---|---|---|
+-| `api-volleyball::volleyball::EVENT_AND_ENRICHMENT::default` | api-volleyball | volleyball | EVENT_AND_ENRICHMENT | default | LICENSED_OR_OFFICIAL_API | CLIENT_REGISTRY | ACTIVE_REACHABLE |
+-| `espn-volleyball::volleyball::ENRICHMENT_ONLY::default` | espn | volleyball | ENRICHMENT_ONLY | default | DOCUMENTED_PUBLIC_API | CLIENT_REGISTRY | ACTIVE_REACHABLE |
+-| `flashscore-volleyball::volleyball::ENRICHMENT_ONLY::default` | flashscore | volleyball | ENRICHMENT_ONLY | default | PUBLIC_XHR_OR_JSON | SCRAPER_REGISTRY | ACTIVE_REACHABLE |
+-| `volleybox::volleyball::HISTORICAL_DATASET::default` | volleybox | volleyball | HISTORICAL_DATASET | default | STATIC_HTML | SCRAPER_REGISTRY | ACTIVE_REACHABLE |
+-| `odds-api-io::volleyball::EVENT_DISCOVERY::default` | odds-api-io | volleyball | EVENT_DISCOVERY | default | LICENSED_OR_OFFICIAL_API | CLIENT_REGISTRY | ACTIVE_REACHABLE |
+-
+-### Tennis
+-
+-| integration_key | source | sport | role | variant | access_method | registration | reachability |
+-|---|---|---|---|---|---|---|---|
+-| `tennis-abstract::tennis::EVENT_AND_ENRICHMENT::default` | tennis-abstract | tennis | EVENT_AND_ENRICHMENT | default | STATIC_HTML | CLIENT_REGISTRY | ACTIVE_REACHABLE |
+-| `sackmann::tennis::HISTORICAL_DATASET::atp` | sackmann | tennis | HISTORICAL_DATASET | atp | LOCAL_OR_OPEN_DATASET | SCRAPER_REGISTRY | ACTIVE_REACHABLE |
+-| `sackmann::tennis::HISTORICAL_DATASET::wta` | sackmann | tennis | HISTORICAL_DATASET | wta | LOCAL_OR_OPEN_DATASET | SCRAPER_REGISTRY | ACTIVE_REACHABLE |
+-| `espn-tennis::tennis::ENRICHMENT_ONLY::default` | espn | tennis | ENRICHMENT_ONLY | default | DOCUMENTED_PUBLIC_API | CLIENT_REGISTRY | ACTIVE_REACHABLE |
+-| `flashscore-tennis::tennis::ENRICHMENT_ONLY::default` | flashscore | tennis | ENRICHMENT_ONLY | default | PUBLIC_XHR_OR_JSON | SCRAPER_REGISTRY | ACTIVE_REACHABLE |
+-| `odds-api-io::tennis::EVENT_DISCOVERY::default` | odds-api-io | tennis | EVENT_DISCOVERY | default | LICENSED_OR_OFFICIAL_API | CLIENT_REGISTRY | ACTIVE_REACHABLE |
+-
+-### Hockey
+-
+-| integration_key | source | sport | role | variant | access_method | registration | reachability |
+-|---|---|---|---|---|---|---|---|
+-| `api-hockey::hockey::EVENT_AND_ENRICHMENT::default` | api-hockey | hockey | EVENT_AND_ENRICHMENT | default | LICENSED_OR_OFFICIAL_API | CLIENT_REGISTRY | ACTIVE_REACHABLE |
+-| `nhl-api::hockey::ENRICHMENT_ONLY::default` | nhl-api | hockey | ENRICHMENT_ONLY | default | DOCUMENTED_PUBLIC_API | SCRAPER_REGISTRY | ACTIVE_REACHABLE |
+-| `espn-hockey::hockey::ENRICHMENT_ONLY::default` | espn | hockey | ENRICHMENT_ONLY | default | DOCUMENTED_PUBLIC_API | CLIENT_REGISTRY | ACTIVE_REACHABLE |
+-| `flashscore-hockey::hockey::ENRICHMENT_ONLY::default` | flashscore | hockey | ENRICHMENT_ONLY | default | PUBLIC_XHR_OR_JSON | SCRAPER_REGISTRY | ACTIVE_REACHABLE |
+-| `hockey-reference::hockey::HISTORICAL_DATASET::default` | hockey-reference | hockey | HISTORICAL_DATASET | default | STATIC_HTML | SCRAPER_REGISTRY | ACTIVE_REACHABLE |
+-| `moneypuck::hockey::ENRICHMENT_ONLY::default` | moneypuck | hockey | ENRICHMENT_ONLY | default | DOCUMENTED_PUBLIC_API | CLIENT_REGISTRY | ACTIVE_REACHABLE |
+-| `scrapernhl::hockey::ENRICHMENT_ONLY::default` | scrapernhl | hockey | ENRICHMENT_ONLY | default | DOCUMENTED_PUBLIC_API | CLIENT_REGISTRY | ACTIVE_REACHABLE |
+-| `odds-api-io::hockey::EVENT_DISCOVERY::default` | odds-api-io | hockey | EVENT_DISCOVERY | default | LICENSED_OR_OFFICIAL_API | CLIENT_REGISTRY | ACTIVE_REACHABLE |
+-
+-### CS2 (Counter-Strike 2)
+-
+-| integration_key | source | sport | role | variant | access_method | registration | reachability |
+-|---|---|---|---|---|---|---|---|
+-| `hltv::cs2::EVENT_AND_ENRICHMENT::default` | hltv | cs2 | EVENT_AND_ENRICHMENT | default | BROWSER_AUTOMATION | SCRAPER_REGISTRY | ACTIVE_REACHABLE |
+-| `bo3gg::cs2::EVENT_AND_ENRICHMENT::default` | bo3gg | cs2 | EVENT_AND_ENRICHMENT | default | STATIC_HTML | SCRAPER_REGISTRY | ACTIVE_REACHABLE |
+-| `gosugamers::cs2::EVENT_DISCOVERY::default` | gosugamers | cs2 | EVENT_DISCOVERY | default | STATIC_HTML | SCRAPER_REGISTRY | ACTIVE_REACHABLE |
+-| `odds-api-io::cs2::EVENT_DISCOVERY::esports` | odds-api-io | cs2 | EVENT_DISCOVERY | esports | LICENSED_OR_OFFICIAL_API | CLIENT_REGISTRY | ACTIVE_REACHABLE |
+-
+-### Dota 2
+-
+-| integration_key | source | sport | role | variant | access_method | registration | reachability |
+-|---|---|---|---|---|---|---|---|
+-| `opendota::dota2::EVENT_AND_ENRICHMENT::default` | opendota | dota2 | EVENT_AND_ENRICHMENT | default | DOCUMENTED_PUBLIC_API | CLIENT_REGISTRY | ACTIVE_REACHABLE |
+-| `gosugamers::dota2::EVENT_DISCOVERY::default` | gosugamers | dota2 | EVENT_DISCOVERY | default | STATIC_HTML | SCRAPER_REGISTRY | ACTIVE_REACHABLE |
+-| `odds-api-io::dota2::EVENT_DISCOVERY::esports` | odds-api-io | dota2 | EVENT_DISCOVERY | esports | LICENSED_OR_OFFICIAL_API | CLIENT_REGISTRY | ACTIVE_REACHABLE |
+-
+-### Valorant
+-
+-| integration_key | source | sport | role | variant | access_method | registration | reachability |
+-|---|---|---|---|---|---|---|---|
+-| `vlr::valorant::EVENT_AND_ENRICHMENT::default` | vlr | valorant | EVENT_AND_ENRICHMENT | default | STATIC_HTML | SCRAPER_REGISTRY | ACTIVE_REACHABLE |
+-| `bo3gg::valorant::EVENT_AND_ENRICHMENT::default` | bo3gg | valorant | EVENT_AND_ENRICHMENT | default | STATIC_HTML | SCRAPER_REGISTRY | ACTIVE_REACHABLE |
+-| `gosugamers::valorant::EVENT_DISCOVERY::default` | gosugamers | valorant | EVENT_DISCOVERY | default | STATIC_HTML | SCRAPER_REGISTRY | ACTIVE_REACHABLE |
+-| `odds-api-io::valorant::EVENT_DISCOVERY::esports` | odds-api-io | valorant | EVENT_DISCOVERY | esports | LICENSED_OR_OFFICIAL_API | CLIENT_REGISTRY | ACTIVE_REACHABLE |
++## Reconciled Summary Statistics
+ 
+----
+-
+-## Summary Statistics
+-
+-- **Total Sports Found:** 8 (football, basketball, volleyball, tennis, hockey, cs2, dota2, valorant)
+-- **Total Integration Keys:** 42
+-- **Sports NOT Found:** None (all 8 contract-specified sports present)
++- **Total Sports Found:** 8
++- **Total Integration Keys:** 45
++- **Original 42-count status:** superseded; see `AUDIT_RECONCILIATION.md`
+ 
+ ### By Role
+ 
+ | Role | Count |
+-|---|---|
+-| EVENT_AND_ENRICHMENT | 12 |
+-| EVENT_DISCOVERY | 10 |
+-| ENRICHMENT_ONLY | 12 |
++|---|---:|
++| EVENT_AND_ENRICHMENT | 10 |
++| EVENT_DISCOVERY | 13 |
++| ENRICHMENT_ONLY | 15 |
+ | ODDS_ONLY | 1 |
+-| HISTORICAL_DATASET | 7 |
++| HISTORICAL_DATASET | 6 |
++| **Total** | **45** |
+ 
+ ### By Access Method
+ 
+ | Access Method | Count |
+-|---|---|
++|---|---:|
+ | LICENSED_OR_OFFICIAL_API | 14 |
+-| DOCUMENTED_PUBLIC_API | 8 |
+-| STATIC_HTML | 12 |
+-| PUBLIC_XHR_OR_JSON | 5 |
+-| BROWSER_AUTOMATION | 2 |
++| DOCUMENTED_PUBLIC_API | 10 |
++| STATIC_HTML | 9 |
++| PUBLIC_XHR_OR_JSON | 6 |
++| BROWSER_AUTOMATION | 4 |
+ | LOCAL_OR_OPEN_DATASET | 2 |
++| **Total** | **45** |
+ 
+----
++### Corrected Final States
+ 
+-## Gate Results
++| Final State | Count |
++|---|---:|
++| LIVE_PARTIAL | 9 |
++| LIVE_BROKEN | 0 |
++| DETERMINISTIC_ONLY | 14 |
++| IMPLEMENTED_UNVERIFIED | 22 |
++| **Total** | **45** |
++
++### Gate Legend
++
++- `G1` runtime reachable
++- `G4` declared core capability evidence
++- `G7` raw evidence + replay
++- `G8` idempotent persistence
++- `G10` deterministic test separation
++- `G12` access / secret / untrusted-data safety
++
++---
+ 
+-*To be populated during P2-P4 phases*
++## Reconciled Rows
++
++| integration_key | access | reachability | current proof | direct E2 in audited 186 | gate summary | final state | top blocker |
++|---|---|---|---|---:|---|---|---|
++| `api-football::football::EVENT_AND_ENRICHMENT::default` | LICENSED_OR_OFFICIAL_API | ACTIVE_REACHABLE | E3 `cmd-live-001` = 98 fixtures | 0 | G1 PASS; G4 PASS; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PARTIAL; G12 PASS | LIVE_PARTIAL | no retained raw evidence, replay, or idempotent rerun proof |
++| `odds-api-io::football::EVENT_DISCOVERY::default` | LICENSED_OR_OFFICIAL_API | ACTIVE_REACHABLE | no preserved current proof | 0 | G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS | IMPLEMENTED_UNVERIFIED | current discovery proof missing |
++| `odds-api::football::EVENT_DISCOVERY::default` | LICENSED_OR_OFFICIAL_API | ACTIVE_REACHABLE | no preserved current proof | 0 | G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS | IMPLEMENTED_UNVERIFIED | current discovery proof missing |
++| `espn-football::football::ENRICHMENT_ONLY::default` | DOCUMENTED_PUBLIC_API | ACTIVE_REACHABLE | E4 `cmd-rem001-003` live proof: 10 fixtures on `2026-05-24`, validated event `740968`; `cmd-rem001-001` audited date now valid-empty without NameError | 19 | G1 PASS; G4 PASS; G7 PASS; G8 PASS; G10 PASS; G12 PASS | LIVE_PARTIAL | fallback team resolution remains provider-name-based; `team_form` projection does not persist source event IDs |
++| `flashscore-football::football::ENRICHMENT_ONLY::default` | PUBLIC_XHR_OR_JSON | ACTIVE_REACHABLE | no preserved current proof | 21 | G1 PASS; G4 PARTIAL; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PASS; G12 PASS | DETERMINISTIC_ONLY | parser tests exist; current proof absent |
++| `fbref::football::HISTORICAL_DATASET::default` | STATIC_HTML | ACTIVE_REACHABLE | no preserved current proof | 0 | G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS | IMPLEMENTED_UNVERIFIED | no variant-specific deterministic or current dataset proof |
++| `understat::football::ENRICHMENT_ONLY::default` | PUBLIC_XHR_OR_JSON | ACTIVE_REACHABLE | no preserved current proof | 0 | G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS | IMPLEMENTED_UNVERIFIED | no direct deterministic or current proof |
++| `football-data-org::football::EVENT_DISCOVERY::default` | LICENSED_OR_OFFICIAL_API | ACTIVE_REACHABLE | no preserved current proof | 0 | G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS | IMPLEMENTED_UNVERIFIED | no direct deterministic or current proof |
++| `betclic::football::ODDS_ONLY::default` | BROWSER_AUTOMATION | ACTIVE_REACHABLE | no permitted repeatable current proof executed | 1 | G1 PASS; G4 PARTIAL; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PASS; G12 PASS | DETERMINISTIC_ONLY | browser-required odds proof not executed |
++| `api-basketball::basketball::EVENT_AND_ENRICHMENT::default` | LICENSED_OR_OFFICIAL_API | ACTIVE_REACHABLE | E3 `cmd-live-002` = 31 fixtures | 0 | G1 PASS; G4 PASS; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PARTIAL; G12 PASS | LIVE_PARTIAL | no retained raw evidence, replay, or idempotent rerun proof |
++| `nba-api::basketball::ENRICHMENT_ONLY::default` | DOCUMENTED_PUBLIC_API | ACTIVE_REACHABLE | no preserved current proof | 2 | G1 PASS; G4 PARTIAL; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PASS; G12 PASS | DETERMINISTIC_ONLY | direct source tests exist; current proof absent |
++| `espn-basketball::basketball::ENRICHMENT_ONLY::default` | DOCUMENTED_PUBLIC_API | ACTIVE_REACHABLE | no preserved current proof | 13 | G1 PASS; G4 PARTIAL; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PASS; G12 PASS | DETERMINISTIC_ONLY | direct source tests exist; current proof absent |
++| `flashscore-basketball::basketball::ENRICHMENT_ONLY::default` | PUBLIC_XHR_OR_JSON | ACTIVE_REACHABLE | no preserved current proof | 21 | G1 PASS; G4 PARTIAL; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PASS; G12 PASS | DETERMINISTIC_ONLY | parser tests exist; current proof absent |
++| `basketball-reference::basketball::HISTORICAL_DATASET::default` | STATIC_HTML | ACTIVE_REACHABLE | no preserved current proof | 2 | G1 PASS; G4 PARTIAL; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PASS; G12 PASS | DETERMINISTIC_ONLY | direct source tests exist; current dataset proof absent |
++| `odds-api-io::basketball::EVENT_DISCOVERY::default` | LICENSED_OR_OFFICIAL_API | ACTIVE_REACHABLE | no preserved current proof | 0 | G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS | IMPLEMENTED_UNVERIFIED | current discovery proof missing |
++| `api-volleyball::volleyball::EVENT_AND_ENRICHMENT::default` | LICENSED_OR_OFFICIAL_API | ACTIVE_REACHABLE | E3 `cmd-live-004` = 6 fixtures | 0 | G1 PASS; G4 PASS; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PARTIAL; G12 PASS | LIVE_PARTIAL | no retained raw evidence, replay, or idempotent rerun proof |
++| `espn-volleyball::volleyball::ENRICHMENT_ONLY::default` | DOCUMENTED_PUBLIC_API | ACTIVE_REACHABLE | no preserved current proof | 13 | G1 PASS; G4 PARTIAL; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PASS; G12 PASS | DETERMINISTIC_ONLY | direct source tests exist; current proof absent |
++| `flashscore-volleyball::volleyball::ENRICHMENT_ONLY::default` | PUBLIC_XHR_OR_JSON | ACTIVE_REACHABLE | no preserved current proof | 21 | G1 PASS; G4 PARTIAL; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PASS; G12 PASS | DETERMINISTIC_ONLY | parser tests exist; current proof absent |
++| `volleybox::volleyball::HISTORICAL_DATASET::default` | STATIC_HTML | ACTIVE_REACHABLE | no preserved current proof | 2 | G1 PASS; G4 PARTIAL; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PASS; G12 PASS | DETERMINISTIC_ONLY | direct source tests exist; current dataset proof absent |
++| `odds-api-io::volleyball::EVENT_DISCOVERY::default` | LICENSED_OR_OFFICIAL_API | ACTIVE_REACHABLE | no preserved current proof | 0 | G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS | IMPLEMENTED_UNVERIFIED | current discovery proof missing |
++| `tennis-abstract::tennis::EVENT_AND_ENRICHMENT::default` | STATIC_HTML | ACTIVE_REACHABLE | E3 `cmd-live-006` = 5 matches | 0 | G1 PASS; G4 PASS; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PARTIAL; G12 PASS | LIVE_PARTIAL | no retained raw evidence, replay, or idempotent rerun proof |
++| `sackmann::tennis::HISTORICAL_DATASET::atp` | LOCAL_OR_OPEN_DATASET | ACTIVE_REACHABLE | E3 `cmd-live-009` = HTTP 200 | 3 | G1 PASS; G4 PASS; G7 PARTIAL; G8 NOT_APPLICABLE; G10 PASS; G12 PASS | LIVE_PARTIAL | current revision reachable but checksum/replay evidence absent |
++| `sackmann::tennis::HISTORICAL_DATASET::wta` | LOCAL_OR_OPEN_DATASET | ACTIVE_REACHABLE | no preserved current proof | 0 | G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_APPLICABLE; G10 NOT_EXECUTED; G12 PASS | IMPLEMENTED_UNVERIFIED | WTA variant lacked current proof and direct test |
++| `espn-tennis::tennis::ENRICHMENT_ONLY::default` | DOCUMENTED_PUBLIC_API | ACTIVE_REACHABLE | no preserved current proof | 0 | G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS | IMPLEMENTED_UNVERIFIED | no direct deterministic or current proof |
++| `flashscore-tennis::tennis::ENRICHMENT_ONLY::default` | PUBLIC_XHR_OR_JSON | ACTIVE_REACHABLE | no preserved current proof | 21 | G1 PASS; G4 PARTIAL; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PASS; G12 PASS | DETERMINISTIC_ONLY | parser tests exist; current proof absent |
++| `odds-api-io::tennis::EVENT_DISCOVERY::default` | LICENSED_OR_OFFICIAL_API | ACTIVE_REACHABLE | no preserved current proof | 0 | G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS | IMPLEMENTED_UNVERIFIED | current discovery proof missing |
++| `api-hockey::hockey::EVENT_AND_ENRICHMENT::default` | LICENSED_OR_OFFICIAL_API | ACTIVE_REACHABLE | E3 `cmd-rcl-004` current window returned fixtures; `2026-06-11` valid empty | 0 | G1 PASS; G4 PASS; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PARTIAL; G12 PASS | LIVE_PARTIAL | no retained raw evidence, replay, or idempotent rerun proof |
++| `nhl-api::hockey::ENRICHMENT_ONLY::default` | DOCUMENTED_PUBLIC_API | ACTIVE_REACHABLE | no preserved current proof | 3 | G1 PASS; G4 PARTIAL; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PASS; G12 PASS | DETERMINISTIC_ONLY | direct source tests exist; current proof absent |
++| `espn-hockey::hockey::ENRICHMENT_ONLY::default` | DOCUMENTED_PUBLIC_API | ACTIVE_REACHABLE | no preserved current proof | 13 | G1 PASS; G4 PARTIAL; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PASS; G12 PASS | DETERMINISTIC_ONLY | direct source tests exist; current proof absent |
++| `flashscore-hockey::hockey::ENRICHMENT_ONLY::default` | PUBLIC_XHR_OR_JSON | ACTIVE_REACHABLE | no preserved current proof | 21 | G1 PASS; G4 PARTIAL; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PASS; G12 PASS | DETERMINISTIC_ONLY | parser tests exist; current proof absent |
++| `hockey-reference::hockey::HISTORICAL_DATASET::default` | STATIC_HTML | ACTIVE_REACHABLE | no preserved current proof | 2 | G1 PASS; G4 PARTIAL; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PASS; G12 PASS | DETERMINISTIC_ONLY | direct source tests exist; current dataset proof absent |
++| `moneypuck::hockey::ENRICHMENT_ONLY::default` | DOCUMENTED_PUBLIC_API | ACTIVE_REACHABLE | no preserved current proof | 0 | G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS | IMPLEMENTED_UNVERIFIED | no direct deterministic or current proof |
++| `scrapernhl::hockey::ENRICHMENT_ONLY::default` | DOCUMENTED_PUBLIC_API | ACTIVE_REACHABLE | no preserved current proof | 0 | G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS | IMPLEMENTED_UNVERIFIED | no direct deterministic or current proof |
++| `odds-api-io::hockey::EVENT_DISCOVERY::default` | LICENSED_OR_OFFICIAL_API | ACTIVE_REACHABLE | no preserved current proof | 0 | G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS | IMPLEMENTED_UNVERIFIED | current discovery proof missing |
++| `hltv::cs2::EVENT_AND_ENRICHMENT::default` | BROWSER_AUTOMATION | ACTIVE_REACHABLE | no permitted repeatable current proof executed | 0 | G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS | IMPLEMENTED_UNVERIFIED | browser automation required; repeatable proof absent |
++| `bo3gg::cs2::EVENT_AND_ENRICHMENT::default` | BROWSER_AUTOMATION | ACTIVE_REACHABLE | no permitted repeatable current proof executed | 0 | G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS | IMPLEMENTED_UNVERIFIED | access method originally misclassified; browser proof absent |
++| `gosugamers::cs2::EVENT_DISCOVERY::default` | STATIC_HTML | ACTIVE_REACHABLE | no preserved current proof | 0 | G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS | IMPLEMENTED_UNVERIFIED | no direct deterministic or current proof |
++| `odds-api-io::cs2::EVENT_DISCOVERY::esports` | LICENSED_OR_OFFICIAL_API | ACTIVE_REACHABLE | no preserved current proof | 0 | G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS | IMPLEMENTED_UNVERIFIED | current discovery proof missing |
++| `opendota::dota2::EVENT_AND_ENRICHMENT::default` | DOCUMENTED_PUBLIC_API | ACTIVE_REACHABLE | E3 `cmd-live-007` = 5 matches | 0 | G1 PASS; G4 PASS; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PARTIAL; G12 PASS | LIVE_PARTIAL | no retained raw evidence, replay, or idempotent rerun proof |
++| `gosugamers::dota2::EVENT_DISCOVERY::default` | STATIC_HTML | ACTIVE_REACHABLE | no preserved current proof | 0 | G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS | IMPLEMENTED_UNVERIFIED | no direct deterministic or current proof |
++| `odds-api-io::dota2::EVENT_DISCOVERY::esports` | LICENSED_OR_OFFICIAL_API | ACTIVE_REACHABLE | no preserved current proof | 0 | G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS | IMPLEMENTED_UNVERIFIED | current discovery proof missing |
++| `vlr::valorant::EVENT_AND_ENRICHMENT::default` | STATIC_HTML | ACTIVE_REACHABLE | E3 `cmd-live-008` = 50 matches | 0 | G1 PASS; G4 PASS; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 PARTIAL; G12 PASS | LIVE_PARTIAL | no retained raw evidence, replay, or idempotent rerun proof |
++| `bo3gg::valorant::EVENT_AND_ENRICHMENT::default` | BROWSER_AUTOMATION | ACTIVE_REACHABLE | no permitted repeatable current proof executed | 0 | G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS | IMPLEMENTED_UNVERIFIED | access method originally misclassified; browser proof absent |
++| `gosugamers::valorant::EVENT_DISCOVERY::default` | STATIC_HTML | ACTIVE_REACHABLE | no preserved current proof | 0 | G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS | IMPLEMENTED_UNVERIFIED | no direct deterministic or current proof |
++| `odds-api-io::valorant::EVENT_DISCOVERY::esports` | LICENSED_OR_OFFICIAL_API | ACTIVE_REACHABLE | no preserved current proof | 0 | G1 PASS; G4 NOT_EXECUTED; G7 NOT_EXECUTED; G8 NOT_EXECUTED; G10 NOT_EXECUTED; G12 PASS | IMPLEMENTED_UNVERIFIED | current discovery proof missing |
+ 
+ ---
+ 
+-## Final States
++## Corrected classification notes
+ 
+-*To be populated during P5-P6 phases*
++1. No integration achieved `PRODUCTION_READY` because none had complete `E4_CURRENT_REPLAY_RERUN` proof.
++2. `api-hockey` was corrected from a broken/off-season narrative to `LIVE_PARTIAL` after live reassessment showed valid-empty current-date behavior plus working nearby dates.
++3. `bo3gg` was corrected from `STATIC_HTML` to `BROWSER_AUTOMATION` based on `_get_rendered(...)` usage in the active code path.
++4. `betclic`, `hltv`, and both `bo3gg` integrations retain non-certifying browser status unless repeatable permitted proof is captured.
+diff --git a/docs/audits/sports-integrations/2026-06-11/REMEDIATION_BACKLOG.md b/docs/audits/sports-integrations/2026-06-11/REMEDIATION_BACKLOG.md
+index 142ad63..91247cf 100644
+--- a/docs/audits/sports-integrations/2026-06-11/REMEDIATION_BACKLOG.md
++++ b/docs/audits/sports-integrations/2026-06-11/REMEDIATION_BACKLOG.md
+@@ -1,143 +1,268 @@
+-# Remediation Backlog
++# Remediation Backlog (Reconciled)
+ 
+ **Audit Run:** SPORTS-AUDIT-20260611T093602Z-b6a3ced  
+-**Generated:** 2026-06-11T10:30:00Z
++**Reconciled:** 2026-06-11T11:24:19Z
+ 
+ ---
+ 
+ ## Priority Order
+ 
+-Items ordered by severity, then risk reduction, then information gain.
++Items are ordered by contract severity, then risk reduction, then information gain.
+ 
+ ---
+ 
+ ## Item: REM-001
+ 
+-### espn-football NameError fix
++### espn-football live NameError fix
+ 
+ | Field | Value |
+ |---|---|
+ | **Item ID** | REM-001 |
+-| **Integration Key** | espn-football::football::ENRICHMENT_ONLY::default |
+-| **Severity** | HIGH |
+-| **Defect** | `NameError: name 'json' is not defined` in `get_fixtures()` |
+-| **Evidence IDs** | cmd-live-003 |
+-| **Affected Capabilities** | Football enrichment fallback |
+-| **Affected Consumers** | StatFetcher fallback chain |
+-| **Smallest Safe Repair** | Add `import json` to src/bet/api_clients/espn.py |
+-| **Required Live Proof** | get_fixtures() returns non-empty list |
+-| **Acceptance Gates** | G4_DECLARED_CORE_CAPABILITIES: PASS |
+-| **Dependencies** | None |
++| **Integration Key** | `espn-football::football::ENRICHMENT_ONLY::default` |
++| **Severity** | RESOLVED-HIGH |
++| **Status** | REPAIRED — direct `get_fixtures()` NameError removed; recertified from `LIVE_BROKEN` to `LIVE_PARTIAL` |
++| **Defect** | `_request()` in `src/bet/api_clients/espn.py` called `json.loads(...)` without importing `json`; the same slice also fabricated empty fixture identities and coerced missing values to zero in direct/fallback flows. |
++| **Evidence IDs** | `cmd-live-003`, `cmd-rem001-001`, `cmd-rem001-003`, `ev-rem001-001`, `ev-rem001-003` |
++| **Affected Capabilities** | football fixture lookup, fallback enrichment, source observation ingestion |
++| **Affected Consumers** | `bet.stats.fetcher.StatFetcher`, football fallback chain |
++| **Smallest Safe Repair** | import `json`; reject fixtures without provider event IDs; preserve missing stat values as missing in both direct parsing and fallback aggregation; add deterministic + live replay/idempotency coverage |
++| **Required Live Proof** | satisfied via `tests/scrapers/test_espn_football_live.py` using ESPN football `eng.1` event `740968` plus disposable-DB fallback replay |
++| **Acceptance Gates** | `G1 PASS`, `G4 PASS`, `G7 PASS`, `G8 PASS`, `G10 PASS`, `G12 PASS`; still below contract `PASS` because fallback team resolution is names-based and `team_form` does not persist source event IDs |
++| **Dependencies** | none |
+ | **Complexity** | S |
+-| **Recommended Reasoning** | medium |
++| **Recommended Reasoning** | high |
++| **Follow-up** | production-readiness work should address provider-ID resolution ambiguity and evidence/source-ID linkage in the persisted enrichment projection |
+ 
+ ---
+ 
+ ## Item: REM-002
+ 
+-### HLTV browser automation resilience
++### Portfolio-wide E4 evidence/replay/rerun gap
+ 
+ | Field | Value |
+ |---|---|
+ | **Item ID** | REM-002 |
+-| **Integration Key** | hltv::cs2::EVENT_AND_ENRICHMENT::default |
+-| **Severity** | MEDIUM |
+-| **Defect** | Cloudflare protection requires Playwright stealth; may be blocked |
+-| **Evidence IDs** | ev-001 |
+-| **Affected Capabilities** | CS2 H2H, team stats |
+-| **Affected Consumers** | Esports enrichment |
+-| **Smallest Safe Repair** | Add circuit breaker + bo3.gg fallback documentation |
+-| **Required Live Proof** | get_team_stats() returns valid data OR fallback activates |
+-| **Acceptance Gates** | G9_FAILURE_ISOLATION_AND_BUDGETS: PASS |
+-| **Dependencies** | None |
+-| **Complexity** | M |
+-| **Recommended Reasoning** | medium |
++| **Integration Key** | multiple current-live integrations |
++| **Severity** | HIGH |
++| **Defect** | No integration had retained raw evidence, deterministic no-network replay, or idempotent rerun proof sufficient for `E4_CURRENT_REPLAY_RERUN`; this invalidated every original `PRODUCTION_READY` claim. |
++| **Evidence IDs** | corrected matrix + corrected manifest gate summaries |
++| **Affected Capabilities** | readiness certification, replay safety, provenance, persistence verification |
++| **Affected Consumers** | all production-readiness decisions; especially `api-football`, `api-basketball`, `api-volleyball`, `api-hockey`, `tennis-abstract`, `sackmann::atp`, `opendota`, `vlr` |
++| **Smallest Safe Repair** | add sanitized raw-evidence retention and deterministic replay harness for one current-live integration first, then extend to the remaining live integrations |
++| **Required Live Proof** | one current live capture + one no-network replay + one idempotent rerun where persistence applies |
++| **Acceptance Gates** | `G7`, `G8`, `G10`, `G11`, `G12` |
++| **Dependencies** | none |
++| **Complexity** | L |
++| **Recommended Reasoning** | high |
+ 
+ ---
+ 
+ ## Item: REM-003
+ 
+-### api-hockey empty fixtures investigation
++### Missing current proof for odds-api-io discovery portfolio
+ 
+ | Field | Value |
+ |---|---|
+ | **Item ID** | REM-003 |
+-| **Integration Key** | api-hockey::hockey::EVENT_AND_ENRICHMENT::default |
++| **Integration Key** | `odds-api-io::*::EVENT_DISCOVERY::*` (8 rows) |
+ | **Severity** | MEDIUM |
+-| **Defect** | get_fixtures(2026-06-11) returned 0 fixtures |
+-| **Evidence IDs** | cmd-live-006 |
+-| **Affected Capabilities** | Hockey event discovery |
+-| **Affected Consumers** | EventDiscoveryCoordinator |
+-| **Smallest Safe Repair** | Verify date format, season status, API quota |
+-| **Required Live Proof** | get_fixtures() returns fixtures for in-season date |
+-| **Acceptance Gates** | G4_DECLARED_CORE_CAPABILITIES: PASS |
+-| **Dependencies** | None |
+-| **Complexity** | S |
+-| **Recommended Reasoning** | low |
++| **Defect** | Eight atomic discovery integrations were claimed as production-ready/source-ready in the original audit without preserved role-appropriate current proof. |
++| **Evidence IDs** | corrected matrix; corrected manifest inventory |
++| **Affected Capabilities** | event discovery across football, basketball, volleyball, tennis, hockey, cs2, dota2, valorant |
++| **Affected Consumers** | `EventDiscoveryCoordinator` primary discovery path |
++| **Smallest Safe Repair** | execute one deterministic current discovery proof per sport/variant with evidence retention and source identity capture |
++| **Required Live Proof** | one date/window-scoped discovery request per audited `odds-api-io` integration key |
++| **Acceptance Gates** | `G1`, `G2`, `G4`, `G6`, `G7`, `G10`, `G12` |
++| **Dependencies** | REM-002 recommended before any renewed production-ready claim |
++| **Complexity** | M |
++| **Recommended Reasoning** | high |
+ 
+ ---
+ 
+ ## Item: REM-004
+ 
+-### Betclic odds verification documentation
++### Browser-integration proof gap and access-method correction
+ 
+ | Field | Value |
+ |---|---|
+ | **Item ID** | REM-004 |
+-| **Integration Key** | betclic::football::ODDS_ONLY::default |
++| **Integration Key** | `betclic::football::ODDS_ONLY::default`, `hltv::cs2::EVENT_AND_ENRICHMENT::default`, `bo3gg::cs2::EVENT_AND_ENRICHMENT::default`, `bo3gg::valorant::EVENT_AND_ENRICHMENT::default` |
+ | **Severity** | MEDIUM |
+-| **Defect** | Browser automation required; live verification not executed |
+-| **Evidence IDs** | ev-001 |
+-| **Affected Capabilities** | Odds verification |
+-| **Affected Consumers** | bet-scanner |
+-| **Smallest Safe Repair** | Document manual verification workflow in BetclicBoundary rule |
+-| **Required Live Proof** | Manual user verification per contract |
+-| **Acceptance Gates** | G12_ACCESS_SECRET_AND_UNTRUSTED_DATA_SAFETY: PASS |
+-| **Dependencies** | None |
+-| **Complexity** | S |
+-| **Recommended Reasoning** | low |
++| **Defect** | Browser integrations remained `NOT_EXECUTED`; `bo3gg` was also misclassified as `STATIC_HTML` despite active `_get_rendered(...)` browser dependence. |
++| **Evidence IDs** | `ev-rcl-002`, `ev-rcl-003`, corrected matrix |
++| **Affected Capabilities** | CS2/Valorant team stats and H2H; football odds proof |
++| **Affected Consumers** | esports enrichment flows; odds verification flows |
++| **Smallest Safe Repair** | first correct access-method metadata and proof policy, then add one permitted repeatable proof strategy or explicitly freeze these integrations below certification states |
++| **Required Live Proof** | repeatable sanitized browser proof or sanctioned alternative non-browser proof where allowed |
++| **Acceptance Gates** | `G1`, `G4`, `G7`, `G9`, `G10`, `G12` |
++| **Dependencies** | REM-002 recommended for replay/evidence framework |
++| **Complexity** | M |
++| **Recommended Reasoning** | high |
+ 
+ ---
+ 
+ ## Item: REM-005
+ 
+-### Esports enrichment test coverage
++### Direct deterministic source-test gap for 29 integrations
+ 
+ | Field | Value |
+ |---|---|
+ | **Item ID** | REM-005 |
+-| **Integration Key** | Multiple esports integrations |
+-| **Severity** | LOW |
+-| **Defect** | No dedicated tests for hltv, vlr, opendota live operations |
+-| **Evidence IDs** | tests/ inventory |
+-| **Affected Capabilities** | Esports enrichment reliability |
+-| **Affected Consumers** | bet-enricher |
+-| **Smallest Safe Repair** | Add integration tests with mocked responses |
+-| **Required Live Proof** | pytest passes with mocked fixtures |
+-| **Acceptance Gates** | G10_TEST_SEPARATION: PASS |
+-| **Dependencies** | None |
+-| **Complexity** | M |
+-| **Recommended Reasoning** | low |
++| **Integration Key** | 29 uncovered keys listed in `AUDIT_RECONCILIATION.md` |
++| **Severity** | MEDIUM |
++| **Defect** | 186 deterministic tests exist, but 29/45 integration keys still have no direct source-specific deterministic proof. Shared sport-level and persistence tests do not replace source-level verification. |
++| **Evidence IDs** | `cmd-rcl-001`, `ev-rcl-005`, `AUDIT_RECONCILIATION.md` |
++| **Affected Capabilities** | source adapters, live-path parser semantics, source-specific failure isolation |
++| **Affected Consumers** | all portfolio consumers that rely on unproven sources |
++| **Smallest Safe Repair** | add focused source-specific golden/mock tests first for all current-live integrations lacking direct coverage, then for remaining discovery-only and historical integrations |
++| **Required Live Proof** | none for deterministic test addition itself; live proof remains separate |
++| **Acceptance Gates** | `G4`, `G5`, `G10` |
++| **Dependencies** | none |
++| **Complexity** | L |
++| **Recommended Reasoning** | high |
+ 
+ ---
+ 
+ ## Summary
+ 
+ | Severity | Count |
+-|---|---|
++|---|---:|
+ | CRITICAL | 0 |
+ | HIGH | 1 |
+ | MEDIUM | 3 |
+-| LOW | 1 |
+-| **Total** | 5 |
++| LOW | 0 |
++| **Total** | **4** |
+ 
+ ---
+ 
+ ## First Repair Recommendation
+ 
+-**REM-001: espn-football NameError fix**
++**REM-002: Portfolio-wide E4 evidence/replay/rerun gap**
++
++- **Risk Reduction:** HIGH — still blocks every production-ready claim after REM-001 repair
++- **Information Gain:** HIGH — adds the missing replay/rerun contract evidence to current-live integrations
++- **Complexity:** L
++- **Reasoning Level:** high
++*** Add File: /Users/mkoziol/projects/bet/docs/audits/sports-integrations/2026-06-11/repairs/REM-001_ESPN_FOOTBALL.md
++# REM-001 — ESPN Football
++
++## Target
++- Source: `espn-football`
++- Integration key: `espn-football::football::ENRICHMENT_ONLY::default`
++- Role: `ENRICHMENT_ONLY`
++- Branch / worktree: `main` @ `/Users/mkoziol/projects/bet`
++- Audited failure input: `.venv/bin/python3 -c "from bet.api_clients import get_client, RateLimiter; rl = RateLimiter(); client = get_client('espn-football', rl); fixtures = client.get_fixtures('2026-06-11'); print(len(fixtures))"`
++- Registered entry point: `CLIENT_REGISTRY["espn-football"] -> _espn_factory("football", "eng.1") -> ESPNClient`
++- Direct client path: `get_client("espn-football") -> ESPNClient.get_fixtures() -> ESPNClient._request() -> wrap_request() -> json.loads(...)`
++- Football fallback orchestration path: `enrich_fixtures() -> _enrich_team() -> _try_api_fetch() -> _try_espn_fetch() -> ESPNClient.resolve_team_id() / get_team_last_fixtures() / get_fixture_stats()`
++
++## Root cause
++`src/bet/api_clients/espn.py` used `json.loads(response.text)` inside `_request()` without importing `json`.
++
++Additional verified defects in the same slice:
++- `get_fixtures()` accepted events with missing provider IDs.
++- `_parse_flat_stats()` converted blank/unparseable values to `0.0`.
++- `bet.stats.enrichment._try_espn_fetch()` converted missing side values to `0` during aggregation.
++
++## Exact changed files
++- `src/bet/api_clients/espn.py` — import fix, fixture identity guard, missing-value preservation.
++- `src/bet/stats/enrichment.py` — fallback aggregation no longer converts missing values to zero.
++- `pyproject.toml` — registered `espn_live` marker.
++- `tests/scrapers/test_espn_client.py` — deterministic regression coverage.
++- `tests/scrapers/test_espn_football_live.py` — live proof, offline replay, idempotent rerun.
++- `docs/audits/sports-integrations/2026-06-11/INTEGRATION_MATRIX.md` — espn-football recertification row.
++- `docs/audits/sports-integrations/2026-06-11/EVIDENCE_MANIFEST.json` — espn-football evidence updates.
++- `docs/audits/sports-integrations/2026-06-11/REMEDIATION_BACKLOG.md` — REM-001 status update.
++
++## Before / after failure evidence
++### Before
++- `cmd-live-003` (`2026-06-11T10:10:00Z`): `espn-football get_fixtures(2026-06-11)`
++- Failure: `NameError: name 'json' is not defined`
++- Reproduced pre-fix in this run from `_request("/scoreboard", params={"dates": "20260611"})`
++- Exception class: `NameError`
++- Stack anchor: `src/bet/api_clients/espn.py:428`
++- Failure location: direct client path; fallback path shared the same broken `_request()` primitive and silently failed closed through `resolve_team_id()` / `get_team_last_fixtures()`
++
++### After
++- `cmd-rem001-001` (`2026-06-11T12:07:06Z`): reran audited input
++- Result: `0 fixtures; no NameError`
++- Same executed code path completed successfully and returned valid empty data for `eng.1` on `2026-06-11`
++
++## Deterministic test commands and outcomes
++- `env PYTHONPATH=src:scripts .venv/bin/python3 -m pytest tests/scrapers/test_espn.py tests/scrapers/test_espn_client.py tests/test_fuzzy_match.py -q`
++  - Outcome: `27 passed`
++- `env PYTHONPATH=src:scripts .venv/bin/python3 -m ruff check tests/scrapers/test_espn_client.py tests/scrapers/test_espn_football_live.py`
++  - Outcome: `All checks passed!`
++
++Deterministic regression coverage added:
++- exact former `get_fixtures()` path,
++- valid empty response,
++- malformed JSON,
++- non-success HTTP response,
++- no fabricated fixture identity,
++- no missing-value-to-zero conversion,
++- fallback orchestration idempotency.
++
++## Direct live proof
++- Command: `env BET_RUN_LIVE_ESPN=1 PYTHONPATH=src:scripts .venv/bin/python3 -m pytest tests/scrapers/test_espn_football_live.py -q`
++- Outcome: `1 passed`
++- Primary live request: `ESPNClient(sport="football", league="eng.1").get_fixtures("2026-05-24")`
++- Real source event ID: `740968`
++- Source participants: `Crystal Palace` vs `Arsenal`
++- Scheduled time: `2026-05-24T15:00Z`
++- Competition: normalized result currently emits `2025-26-english-premier-league`
++- HTTP outcome: `200`
++- Scoreboard evidence hash: `b86db235acc74f3885c44337f3d8351918e01a4edf3e16c38c71b4cb59292478`
++- Evidence summary: `.kilo/artifacts/rem001_espn_football/live_summary.json`
++
++## Fallback proof
++- Real application path invoked: `enrich_fixtures()` on a disposable SQLite DB
++- Seeded canonical fixture for fallback proof: `Arsenal` vs `Liverpool`, competition `Premier League`
++- Result: `fetched=2`, `failed=0`
++- Orchestration accepted the returned contract and persisted `20` logical `team_form` rows
++- Recorded fallback evidence hashes include:
++  - `/teams` → `fbf75ac0612ea96c38d7576bf04c5b6e37d1ab8a70251a0f5c5e6a153103faa5`
++  - `/teams/359/schedule` → `32201301819ec7c191bfbb0036bffbd9dd6f7e865f90915ef877f0ad85b8596a`
++  - `/teams/364/schedule` → `01bd58b791788b927cda9ff95c54afd9cf13fe3c898f079f3ade8f328d2a5ece`
++- Source identity preserved in direct client/live evidence, but **not persisted** in the `team_form` projection. This remains a contract limitation.
++- Names-only matching is still present in `resolve_team_id()`. No ambiguous live case was promoted to success in this run.
++
++## Replay and idempotency
++- Sanitized raw evidence retained under `.kilo/artifacts/rem001_espn_football/`
++- Offline replay ran with outbound network disabled by replaying recorded ESPN responses
++- Replay result: semantic normalized output matched the live result (`semantic_match_live=true`)
++- First replay persistence count: `20` logical `team_form` rows
++- Second replay persistence count: `20` logical `team_form` rows
++- Duplicate assertion: zero new logical duplicates on the second identical run
++
++## Gate table
++| Gate | Status | Evidence |
++|---|---|---|
++| 1. Real live response fetched | PASS | `cmd-rem001-003`, scoreboard hash `b86db235...` |
++| 2. Real source event ID validated | PASS | event `740968` captured in live proof |
++| 3. Event matching deterministic / not ambiguous | FAIL | fallback still resolves provider teams by fuzzy provider name |
++| 4. Discovery not via participant-profile lookup | PASS | direct proof used `/scoreboard` |
++| 5. Capability statuses distinguish empty / unsupported / parse failure | FAIL | client API still returns list/empty-list semantics rather than explicit status taxonomy |
++| 6. No missing value converted to zero | PASS | deterministic tests in `tests/scrapers/test_espn_client.py` |
++| 7. Current/future events absent from recent form/H2H | PASS | `get_team_last_fixtures()` filters through `_is_game_finished()` |
++| 8. No post-cutoff observation enters analysis snapshot | N/A | no snapshot/cutoff projection in this integration slice |
++| 9. Predicted vs confirmed lineups separated | N/A | not in scope for this repair |
++| 10. Historical membership event-effective | N/A | not in scope for this repair |
++| 11. Every persisted observation references retained evidence | FAIL | `team_form` rows do not store evidence/source-event linkage |
++| 12. Offline replay deterministic | PASS | live replay summary `semantic_match_live=true` |
++| 13. Identical second run creates zero duplicates | PASS | `20 -> 20` rows on second replay run |
++| 14. One capability failure preserves successful results | PASS | deterministic fallback test kept successful stats when one fixture returned empty |
++| 15. Live tests separate from deterministic CI | PASS | `espn_live` marker + `BET_RUN_LIVE_ESPN=1` opt-in |
++| 16. Secrets absent from logs/evidence/diff | PASS | only public ESPN endpoints and sanitized JSON retained |
++| 17. All changed deterministic tests pass | PASS | `27 passed` |
++| 18. Final diff contains no unrelated refactor | PASS | changes limited to espn-football slice, tests, and audit artifacts |
++
++## Remaining limitations
++- `resolve_team_id()` still depends on provider-side fuzzy name matching.
++- Persisted `team_form` enrichment output does not retain source fixture IDs or evidence references.
++- Client capability APIs still encode several failure classes as `[]` rather than explicit capability statuses.
+ 
+-- **Risk Reduction:** HIGH — Fixes broken enrichment fallback
+-- **Information Gain:** HIGH — Unblocks football enrichment verification
+-- **Complexity:** S — Single import statement
+-- **Reasoning Level:** medium
++## Final state
++- Matrix state: `LIVE_PARTIAL`
++- Contract verdict: `FAIL`
++- Rationale: the audited `NameError` is repaired and replay/rerun evidence now exists, but core contract gaps remain around deterministic provider-ID resolution and persisted evidence/source-ID linkage.
+diff --git a/pyproject.toml b/pyproject.toml
+index 5b6eb63..90bd698 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -64,6 +64,9 @@ testpaths = ["tests"]
+ norecursedirs = ["scripts/_archive", ".venv", ".kilo", ".kilocode"]
+ asyncio_mode = "auto"
+ asyncio_default_fixture_loop_scope = "function"
++markers = [
++    "espn_live: live ESPN integration tests requiring network access and explicit opt-in",
++]
+ 
+ [tool.ruff]
+ line-length = 88
+diff --git a/src/bet/api_clients/espn.py b/src/bet/api_clients/espn.py
+index 0ad23f2..82c8234 100644
+--- a/src/bet/api_clients/espn.py
++++ b/src/bet/api_clients/espn.py
+@@ -8,6 +8,7 @@ Provides per-game statistics for:
+ Base URL: http://site.api.espn.com/apis/site/v2/sports/{sport}/{league}/
+ """
+ 
++import json
+ from dataclasses import asdict
+ from datetime import datetime, timezone
+ 
+@@ -471,6 +472,10 @@ class ESPNClient(BaseAPIClient):
+ 
+         fixtures = []
+         for event in data.get("events", []):
++            event_id = str(event.get("id", "")).strip()
++            if not event_id:
++                continue
++
+             competitions = event.get("competitions", [])
+             if not competitions:
+                 continue
+@@ -485,6 +490,9 @@ class ESPNClient(BaseAPIClient):
+                 else:
+                     away_name = c.get("team", {}).get("displayName", "")
+ 
++            if not home_name or not away_name:
++                continue
++
+             status = event.get("status", {})
+             status_name = "scheduled"
+             if isinstance(status, dict):
+@@ -494,13 +502,16 @@ class ESPNClient(BaseAPIClient):
+ 
+             season = event.get("season", {})
+             season_type = season.get("type", {})
+-            if isinstance(season_type, dict):
++            league_info = comp.get("league", {})
++            if isinstance(league_info, dict) and league_info.get("name"):
++                comp_name = league_info.get("name", self.league)
++            elif isinstance(season_type, dict):
+                 comp_name = season_type.get("name", self.league)
+             else:
+                 comp_name = season.get("slug", self.league)
+ 
+             fixture = APIFixture(
+-                external_id=str(event.get("id", "")),
++                external_id=event_id,
+                 source=self.api_name,
+                 sport=self.sport,
+                 competition_name=comp_name,
+@@ -670,16 +681,28 @@ class ESPNClient(BaseAPIClient):
+ 
+         for stat_entry in team_stats_raw:
+             espn_name = stat_entry.get("name", "")
+-            display_value = stat_entry.get("displayValue", "0")
++            display_value = stat_entry.get("displayValue")
+ 
+             normalized_key = stat_map.get(espn_name)
+             if not normalized_key:
+                 continue
+ 
++            if display_value is None:
++                continue
++
++            if isinstance(display_value, str):
++                cleaned = display_value.replace("%", "").strip()
++                if not cleaned:
++                    continue
++            else:
++                cleaned = str(display_value).strip()
++                if not cleaned:
++                    continue
++
+             try:
+-                value = float(display_value.replace("%", "").strip() or "0")
++                value = float(cleaned)
+             except (ValueError, TypeError):
+-                value = 0.0
++                continue
+ 
+             if normalized_key not in stats:
+                 stats[normalized_key] = {}
+diff --git a/src/bet/stats/enrichment.py b/src/bet/stats/enrichment.py
+index 5e23bf2..52e8a6a 100644
+--- a/src/bet/stats/enrichment.py
++++ b/src/bet/stats/enrichment.py
+@@ -237,9 +237,9 @@ def _try_espn_fetch(team, sport: str, stat_keys: list[str], db_conn) -> bool:
+                     if stat_key not in stat_keys:
+                         continue
+                     if _is_home_team(team.name, ms.home_team_name):
+-                        val = sides.get("home", 0)
++                        val = sides.get("home")
+                     else:
+-                        val = sides.get("away", 0)
++                        val = sides.get("away")
+                     if isinstance(val, (int, float)):
+                         stat_values[stat_key].append(float(val))
+ 

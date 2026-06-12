@@ -1,0 +1,42 @@
+{
+  "recovered_at": "2026-06-12T14:18:00+02:00",
+  "completed": [
+    "Discovery identity and replay (bundle de648d03, 98 fixtures)",
+    "Request-identity normalization tests (5 passed)",
+    "API-Sports family tests (16 passed)",
+    "Schema v14/v15 migrations for evidence history",
+    "team_form_evidence_history table with indexes",
+    "Mismatch rejection test verified",
+    "Evidence versioning test verified",
+    "Root cause analysis: PLAN_LIMITATION identified"
+  ],
+  "critical_finding": {
+    "issue": "API-Football enrichment broken for current-season fixtures on free plan",
+    "evidence": "Free plan only supports seasons 2022-2024; production fixtures use season 2026",
+    "api_response": "Free plans do not have access to this season, try from 2022 to 2024",
+    "affected_endpoint": "/fixtures?league=72&season=2026&team=123",
+    "production_flow": "season_id derived from source_fixture.season_id (line 900) -> passed to get_team_last_fixtures_result (line 462)"
+  },
+  "root_cause_classification": {
+    "fixture_stats": "STALE_EVIDENCE - bundle 2b0ed4ba uses fixture 1520718 (season 2026), but free plan cannot access",
+    "team_fixtures": "PLAN_LIMITATION - production needs season 2026, free plan restricted to 2022-2024"
+  },
+  "espn_fallback": {
+    "status": "PRODUCTION_READY",
+    "role": "Primary enrichment source for football",
+    "evidence": "bundle 32f075eb, 20 tests passed, no-network replay verified"
+  },
+  "api_football_actual_state": {
+    "discovery": "WORKING - 98 fixtures captured",
+    "enrichment_current_season": "BROKEN - plan limitation",
+    "enrichment_historical_season": "WORKING - season 2024 verified",
+    "final_state": "LIVE_PARTIAL",
+    "blocker": "Free plan cannot access current season (2026) for enrichment"
+  },
+  "tests_passed": {
+    "request_identity": "5 passed",
+    "api_sports_family": "16 passed",
+    "total_focused": "21 passed"
+  },
+  "required_action": "Either upgrade API-Football plan or accept ESPN-only enrichment for football"
+}

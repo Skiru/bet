@@ -1,0 +1,693 @@
+{
+  "name": "bet-orchestrator",
+  "mode": "primary",
+  "permission": [
+    {
+      "permission": "*",
+      "action": "allow",
+      "pattern": "*"
+    },
+    {
+      "permission": "doom_loop",
+      "action": "ask",
+      "pattern": "*"
+    },
+    {
+      "permission": "external_directory",
+      "pattern": "*",
+      "action": "ask"
+    },
+    {
+      "permission": "external_directory",
+      "pattern": "/Users/mkoziol/.local/share/kilo/tool-output/*",
+      "action": "allow"
+    },
+    {
+      "permission": "external_directory",
+      "pattern": "/var/folders/y6/c0sq10zj4vqdcpz_y3b802c80000gn/T/kilo/*",
+      "action": "allow"
+    },
+    {
+      "permission": "external_directory",
+      "pattern": "/Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice/.kilo/skills/betting-evidence-contract/*",
+      "action": "allow"
+    },
+    {
+      "permission": "external_directory",
+      "pattern": "/Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice/.kilo/skills/context-safe-agentics/*",
+      "action": "allow"
+    },
+    {
+      "permission": "external_directory",
+      "pattern": "/Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice/.kilo/skills/betting-pipeline-contract/*",
+      "action": "allow"
+    },
+    {
+      "permission": "external_directory",
+      "pattern": "/Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice/.kilo/skills/betting-pipeline-runtime/*",
+      "action": "allow"
+    },
+    {
+      "permission": "external_directory",
+      "pattern": "/Users/mkoziol/projects/bet/.kilo/skills/betting-pipeline-runtime/*",
+      "action": "allow"
+    },
+    {
+      "permission": "external_directory",
+      "pattern": "/Users/mkoziol/projects/bet/.kilo/skills/context-safe-agentics/*",
+      "action": "allow"
+    },
+    {
+      "permission": "external_directory",
+      "pattern": "/Users/mkoziol/.kilo/skills/agent-md-refactor/*",
+      "action": "allow"
+    },
+    {
+      "permission": "external_directory",
+      "pattern": "/Users/mkoziol/.config/kilo/*",
+      "action": "allow"
+    },
+    {
+      "permission": "external_directory",
+      "pattern": "/Users/mkoziol/.kilocode/*",
+      "action": "allow"
+    },
+    {
+      "permission": "external_directory",
+      "pattern": "/Users/mkoziol/.kilo/*",
+      "action": "allow"
+    },
+    {
+      "permission": "suggest",
+      "action": "deny",
+      "pattern": "*"
+    },
+    {
+      "permission": "question",
+      "action": "deny",
+      "pattern": "*"
+    },
+    {
+      "permission": "plan_enter",
+      "action": "deny",
+      "pattern": "*"
+    },
+    {
+      "permission": "plan_exit",
+      "action": "deny",
+      "pattern": "*"
+    },
+    {
+      "permission": "repo_clone",
+      "action": "deny",
+      "pattern": "*"
+    },
+    {
+      "permission": "repo_overview",
+      "action": "deny",
+      "pattern": "*"
+    },
+    {
+      "permission": "read",
+      "pattern": "*",
+      "action": "allow"
+    },
+    {
+      "permission": "read",
+      "pattern": "*.env",
+      "action": "ask"
+    },
+    {
+      "permission": "read",
+      "pattern": "*.env.*",
+      "action": "ask"
+    },
+    {
+      "permission": "read",
+      "pattern": "*.env.example",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "*",
+      "action": "ask"
+    },
+    {
+      "permission": "bash",
+      "pattern": "cat *",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "head *",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "tail *",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "less *",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "ls *",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "tree *",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "pwd *",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "echo *",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "wc *",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "which *",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "type *",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "file *",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "diff *",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "du *",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "df *",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "date *",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "uname *",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "whoami *",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "printenv *",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "man *",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "grep *",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "rg *",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "ag *",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "sort *",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "uniq *",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "cut *",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "tr *",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "jq *",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "touch *",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "mkdir *",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "cp *",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "mv *",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "tsc *",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "tsgo *",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "tar *",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "unzip *",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "gzip *",
+      "action": "allow"
+    },
+    {
+      "permission": "bash",
+      "pattern": "gunzip *",
+      "action": "allow"
+    },
+    {
+      "permission": "recall",
+      "action": "ask",
+      "pattern": "*"
+    },
+    {
+      "permission": "read",
+      "action": "allow",
+      "pattern": "*"
+    },
+    {
+      "permission": "edit",
+      "action": "ask",
+      "pattern": "*"
+    },
+    {
+      "permission": "bash",
+      "action": "ask",
+      "pattern": "*"
+    },
+    {
+      "permission": "list",
+      "action": "allow",
+      "pattern": "*"
+    },
+    {
+      "permission": "glob",
+      "action": "allow",
+      "pattern": "*"
+    },
+    {
+      "permission": "grep",
+      "action": "allow",
+      "pattern": "*"
+    },
+    {
+      "permission": "lsp",
+      "action": "allow",
+      "pattern": "*"
+    },
+    {
+      "permission": "skill",
+      "action": "allow",
+      "pattern": "*"
+    },
+    {
+      "permission": "codesearch",
+      "action": "allow",
+      "pattern": "*"
+    },
+    {
+      "permission": "semantic_search",
+      "action": "allow",
+      "pattern": "*"
+    },
+    {
+      "permission": "todowrite",
+      "action": "allow",
+      "pattern": "*"
+    },
+    {
+      "permission": "todoread",
+      "action": "allow",
+      "pattern": "*"
+    },
+    {
+      "permission": "question",
+      "action": "allow",
+      "pattern": "*"
+    },
+    {
+      "permission": "write",
+      "action": "ask",
+      "pattern": "*"
+    },
+    {
+      "permission": "apply_patch",
+      "action": "ask",
+      "pattern": "*"
+    },
+    {
+      "permission": "task",
+      "action": "allow",
+      "pattern": "*"
+    },
+    {
+      "permission": "webfetch",
+      "action": "allow",
+      "pattern": "*"
+    },
+    {
+      "permission": "websearch",
+      "action": "allow",
+      "pattern": "*"
+    },
+    {
+      "permission": "bet_sqlite_query",
+      "action": "allow",
+      "pattern": "*"
+    },
+    {
+      "permission": "brave-search_*",
+      "action": "allow",
+      "pattern": "*"
+    },
+    {
+      "permission": "context7_*",
+      "action": "allow",
+      "pattern": "*"
+    },
+    {
+      "permission": "playwright_*",
+      "action": "deny",
+      "pattern": "*"
+    },
+    {
+      "permission": "kilo-playwright_*",
+      "action": "deny",
+      "pattern": "*"
+    },
+    {
+      "permission": "agent_manager",
+      "action": "allow",
+      "pattern": "*"
+    },
+    {
+      "permission": "external_directory",
+      "action": "allow",
+      "pattern": "*"
+    },
+    {
+      "permission": "doom_loop",
+      "action": "ask",
+      "pattern": "*"
+    },
+    {
+      "permission": "plan",
+      "action": "allow",
+      "pattern": "*"
+    },
+    {
+      "permission": "bet_script_run",
+      "action": "allow",
+      "pattern": "*"
+    },
+    {
+      "permission": "read",
+      "action": "allow",
+      "pattern": "*"
+    },
+    {
+      "permission": "list",
+      "action": "allow",
+      "pattern": "*"
+    },
+    {
+      "permission": "glob",
+      "action": "allow",
+      "pattern": "*"
+    },
+    {
+      "permission": "grep",
+      "action": "allow",
+      "pattern": "*"
+    },
+    {
+      "permission": "todowrite",
+      "action": "allow",
+      "pattern": "*"
+    },
+    {
+      "permission": "todoread",
+      "action": "allow",
+      "pattern": "*"
+    },
+    {
+      "permission": "question",
+      "action": "deny",
+      "pattern": "*"
+    },
+    {
+      "permission": "edit",
+      "action": "deny",
+      "pattern": "*"
+    },
+    {
+      "permission": "write",
+      "action": "deny",
+      "pattern": "*"
+    },
+    {
+      "permission": "apply_patch",
+      "action": "deny",
+      "pattern": "*"
+    },
+    {
+      "permission": "bash",
+      "action": "deny",
+      "pattern": "*"
+    },
+    {
+      "permission": "webfetch",
+      "action": "deny",
+      "pattern": "*"
+    },
+    {
+      "permission": "websearch",
+      "action": "deny",
+      "pattern": "*"
+    },
+    {
+      "permission": "bet_sqlite_query",
+      "action": "deny",
+      "pattern": "*"
+    },
+    {
+      "permission": "brave-search_*",
+      "action": "deny",
+      "pattern": "*"
+    },
+    {
+      "permission": "context7_*",
+      "action": "deny",
+      "pattern": "*"
+    },
+    {
+      "permission": "playwright_*",
+      "action": "deny",
+      "pattern": "*"
+    },
+    {
+      "permission": "kilo-playwright_*",
+      "action": "deny",
+      "pattern": "*"
+    },
+    {
+      "permission": "task",
+      "pattern": "*",
+      "action": "deny"
+    },
+    {
+      "permission": "task",
+      "pattern": "bet-settler",
+      "action": "allow"
+    },
+    {
+      "permission": "task",
+      "pattern": "bet-db-analyst",
+      "action": "allow"
+    },
+    {
+      "permission": "task",
+      "pattern": "bet-scanner",
+      "action": "allow"
+    },
+    {
+      "permission": "task",
+      "pattern": "bet-scout",
+      "action": "allow"
+    },
+    {
+      "permission": "task",
+      "pattern": "bet-enricher",
+      "action": "allow"
+    },
+    {
+      "permission": "task",
+      "pattern": "bet-statistician",
+      "action": "allow"
+    },
+    {
+      "permission": "task",
+      "pattern": "bet-valuator",
+      "action": "allow"
+    },
+    {
+      "permission": "task",
+      "pattern": "bet-challenger",
+      "action": "allow"
+    },
+    {
+      "permission": "task",
+      "pattern": "bet-builder",
+      "action": "allow"
+    },
+    {
+      "permission": "task",
+      "pattern": "bet-engineer",
+      "action": "allow"
+    },
+    {
+      "permission": "task",
+      "pattern": "bet-reconciler",
+      "action": "allow"
+    },
+    {
+      "permission": "task",
+      "pattern": "bet-test-engineer",
+      "action": "allow"
+    },
+    {
+      "permission": "bet_artifact_write",
+      "action": "allow",
+      "pattern": "*"
+    },
+    {
+      "permission": "skill",
+      "action": "allow",
+      "pattern": "*"
+    },
+    {
+      "permission": "kilo_local_recall",
+      "action": "deny",
+      "pattern": "*"
+    },
+    {
+      "permission": "background_process",
+      "action": "deny",
+      "pattern": "*"
+    },
+    {
+      "permission": "agent_manager",
+      "action": "deny",
+      "pattern": "*"
+    },
+    {
+      "permission": "bet_script_run",
+      "action": "deny",
+      "pattern": "*"
+    },
+    {
+      "permission": "external_directory",
+      "pattern": "/Users/mkoziol/.local/share/kilo/tool-output/*",
+      "action": "allow"
+    }
+  ],
+  "options": {},
+  "native": false,
+  "model": {
+    "providerID": "openai-compatible",
+    "modelID": "qwen36-local-35b"
+  },
+  "prompt": "You are the phase-bounded betting pipeline controller.\n\n## Role\n\nLoad the pipeline contract, read only the current phase handoff and named artifacts, create a short checklist, invoke specialists sequentially, enforce hard stops, persist one compact phase handoff through `bet_artifact_write`, and return exactly one next action.\n\n## Constraints\n\n- Never perform specialist analysis yourself\n- Never run more than one specialist at a time\n- Never skip mandatory specialists\n- Never proceed past a hard stop\n- Never enable MCP tools\n- Persist artifacts only through `bet_artifact_write`\n- Never use Bash, question, edit, write, apply_patch, webfetch, websearch, or bet_sqlite_query\n- Maximum 24 steps per session\n- One tool call per turn\n\n## Hard Stops\n\n- Zero valid tips in Phase C: return `NO_DATA`, do not proceed\n- `bet-test-engineer` FAIL: block phase, do not proceed\n- Two bounded failures: escalate to `bet-engineer`\n\n## Specialist Invocation\n\nInvoke specialists in phase order:\n1. Phase A: `bet-settler`, `bet-db-analyst`, `bet-test-engineer`\n2. Phase B: `bet-scanner`, `bet-test-engineer`\n3. Phase C: `bet-scout`, `bet-test-engineer`\n4. Phase D: `bet-enricher`, `bet-statistician`, `bet-valuator`, `bet-challenger`, `bet-test-engineer`\n5. Phase E: `bet-builder`, `bet-test-engineer`\n\nInvoke `bet-reconciler` only on material evidence conflict.\nInvoke `bet-engineer` only after two bounded technical failures.\n\n## Output Schema\n\nReturn exactly:\n```\nSTATUS: PASS | FAIL | BLOCKED | NO_DATA\nDECISION: <phase verdict>\nEVIDENCE: <handoff path>\nCALCULATIONS: <none>\nUNCERTAINTY: <confidence>\nRISKS: <identified risks>\nNEXT_ACTION: <exactly one action>\n```\n\n## Handoff Format\n\nPersist to `.kilo/state/phase-X-handoff.md`:\n- Phase identifier\n- Status\n- Evidence paths\n- Key metrics\n- Risks\n- Next action\n\nMaximum 1,000 tokens.",
+  "description": "Phase-bounded betting-pipeline controller. Plans, delegates one specialist at a time, enforces gates, and writes compact phase handoffs. Does not perform specialist analysis itself.",
+  "temperature": 0.15,
+  "steps": 24,
+  "tools": {
+    "invalid": true,
+    "question": false,
+    "bash": false,
+    "read": true,
+    "glob": true,
+    "grep": true,
+    "edit": false,
+    "write": false,
+    "task": true,
+    "webfetch": false,
+    "todowrite": true,
+    "skill": true,
+    "plan_exit": false,
+    "suggest": false,
+    "kilo_local_recall": false,
+    "background_process": false,
+    "agent_manager": false,
+    "bet_script_run": false,
+    "bet_artifact_write": true,
+    "bet_sqlite_query": false
+  }
+}

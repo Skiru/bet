@@ -1,0 +1,93 @@
+{
+  "timestamp": "2026-06-12T08:58:57.805348+00:00",
+  "total": 14,
+  "passed": 14,
+  "failed": 0,
+  "gate": "14/14",
+  "results": [
+    {
+      "test": "idempotent_exec_1",
+      "passed": true,
+      "expected": "status=success, match_id=idempotent_test_0",
+      "actual": "status=success, match_id=idempotent_test_0"
+    },
+    {
+      "test": "idempotent_exec_2",
+      "passed": true,
+      "expected": "status=success, match_id=idempotent_test_1",
+      "actual": "status=success, match_id=idempotent_test_1"
+    },
+    {
+      "test": "idempotent_exec_3",
+      "passed": true,
+      "expected": "status=success, match_id=idempotent_test_2",
+      "actual": "status=success, match_id=idempotent_test_2"
+    },
+    {
+      "test": "idempotent_exec_4",
+      "passed": true,
+      "expected": "status=success, match_id=idempotent_test_3",
+      "actual": "status=success, match_id=idempotent_test_3"
+    },
+    {
+      "test": "idempotent_exec_5",
+      "passed": true,
+      "expected": "status=success, match_id=idempotent_test_4",
+      "actual": "status=success, match_id=idempotent_test_4"
+    },
+    {
+      "test": "same_request_id_exec",
+      "passed": true,
+      "expected": "Both executions succeed",
+      "actual": "result1=success, result2=success"
+    },
+    {
+      "test": "no_auto_retry_failure",
+      "passed": true,
+      "expected": "status=failed, exit_code=99",
+      "actual": "status=failed, exit_code=99"
+    },
+    {
+      "test": "no_auto_retry_timeout",
+      "passed": true,
+      "expected": "status=timeout",
+      "actual": "status=timeout"
+    },
+    {
+      "test": "request_id_unique_1",
+      "passed": true,
+      "expected": "req-unique-0-313b63e1-99f5-4e82-aa7a-b1bbce47d81d",
+      "actual": "req-unique-0-313b63e1-99f5-4e82-aa7a-b1bbce47d81d"
+    },
+    {
+      "test": "request_id_unique_2",
+      "passed": true,
+      "expected": "req-unique-1-a8dcf0d9-41ee-4672-baf5-0326b1c48100",
+      "actual": "req-unique-1-a8dcf0d9-41ee-4672-baf5-0326b1c48100"
+    },
+    {
+      "test": "request_id_unique_3",
+      "passed": true,
+      "expected": "req-unique-2-ce85fa6b-1370-40ac-879b-9b0e28e3f3e2",
+      "actual": "req-unique-2-ce85fa6b-1370-40ac-879b-9b0e28e3f3e2"
+    },
+    {
+      "test": "request_id_unique_4",
+      "passed": true,
+      "expected": "req-unique-3-4e902918-57a5-4093-a3ee-03f2dbde7d37",
+      "actual": "req-unique-3-4e902918-57a5-4093-a3ee-03f2dbde7d37"
+    },
+    {
+      "test": "request_id_unique_5",
+      "passed": true,
+      "expected": "req-unique-4-78de0c14-fae1-4b13-9269-368551299cda",
+      "actual": "req-unique-4-78de0c14-fae1-4b13-9269-368551299cda"
+    },
+    {
+      "test": "all_request_ids_unique",
+      "passed": true,
+      "expected": "5 unique request IDs",
+      "actual": "5 unique request IDs"
+    }
+  ]
+}

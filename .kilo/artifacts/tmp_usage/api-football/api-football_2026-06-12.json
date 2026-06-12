@@ -1,0 +1,12 @@
+{
+  "api_name": "api-football",
+  "date": "2026-06-12",
+  "count": 1,
+  "requests": [
+    {
+      "endpoint": "/fixtures",
+      "cost": 1,
+      "timestamp": "2026-06-12T07:20:53.446148+00:00"
+    }
+  ]
+}

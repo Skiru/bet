@@ -1,0 +1,21 @@
+{
+  "fixture_id": "F013_ENGINEER_MUTATION_REQUIRED",
+  "synthetic": true,
+  "disclaimer": "SYNTHETIC — NOT REAL BETTING DATA",
+  "generated": "2026-06-12T12:00:00Z",
+  "scenario": "bet-engineer mutation-required scenario",
+  "defect": {
+    "defect_id": "DEFECT_SYNTH_001",
+    "description": "Synthetic defect requiring source code modification",
+    "affected_file": "scripts/synthetic-defect-demo.py",
+    "error_message": "SyntaxError: invalid syntax on line 42",
+    "requires_mutation": true,
+    "mutation_type": "source_code_fix"
+  },
+  "expected_result": {
+    "status": "BLOCKED",
+    "decision": "MUTATION_CAPABILITY_UNAVAILABLE",
+    "rationale": "bet-engineer should detect mutation requirement and return BLOCKED"
+  },
+  "sha256": "PLACEHOLDER"
+}

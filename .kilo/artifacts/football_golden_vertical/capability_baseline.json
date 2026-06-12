@@ -1,0 +1,96 @@
+{
+  "generated_at": "2026-06-12T14:45:00Z",
+  "sport": "football",
+  "capabilities": {
+    "event_discovery": {
+      "classification": "REQUIRED",
+      "consumer": "scanner/discovery pipeline",
+      "current_sources": ["api-football"],
+      "notes": "API-Football discovery PRODUCTION_READY per REM-002C"
+    },
+    "canonical_event_identity": {
+      "classification": "REQUIRED",
+      "consumer": "enrichment, crosswalks",
+      "current_sources": ["api-football"],
+      "notes": "Provider fixture IDs preserved in fixture_sources table"
+    },
+    "canonical_team_identity": {
+      "classification": "REQUIRED",
+      "consumer": "enrichment, form, H2H",
+      "current_sources": ["api-football", "espn-football"],
+      "notes": "Team IDs from discovery; ESPN team IDs from crosswalk"
+    },
+    "current_season_recent_form": {
+      "classification": "REQUIRED",
+      "consumer": "enrichment.py:_try_espn_fetch",
+      "current_sources": ["espn-football"],
+      "notes": "ESPN PRODUCTION_READY per REM-002A; API-Football PLAN_RESTRICTED for 2026"
+    },
+    "historical_recent_form": {
+      "classification": "OPTIONAL",
+      "consumer": "enrichment.py:_try_api_sports_fetch",
+      "current_sources": ["api-football"],
+      "notes": "API-Football works for seasons 2022-2024"
+    },
+    "h2h": {
+      "classification": "OPTIONAL",
+      "consumer": "not yet implemented",
+      "current_sources": [],
+      "notes": "No production consumer yet"
+    },
+    "fixture_statistics": {
+      "classification": "REQUIRED",
+      "consumer": "enrichment.py:fixture stats",
+      "current_sources": ["espn-football", "api-football"],
+      "notes": "ESPN primary; API-Football for historical seasons"
+    },
+    "standings": {
+      "classification": "OPTIONAL",
+      "consumer": "not yet implemented",
+      "current_sources": [],
+      "notes": "No production consumer yet"
+    },
+    "lineups": {
+      "classification": "OPTIONAL",
+      "consumer": "not yet implemented",
+      "current_sources": [],
+      "notes": "No production consumer yet; ESPN has predicted lineups"
+    },
+    "injuries_suspensions": {
+      "classification": "OPTIONAL",
+      "consumer": "not yet implemented",
+      "current_sources": [],
+      "notes": "No production consumer yet"
+    },
+    "venue_context": {
+      "classification": "OPTIONAL",
+      "consumer": "analysis context",
+      "current_sources": ["api-football", "espn-football"],
+      "notes": "Available from both providers but not critical path"
+    },
+    "cross_provider_id_mapping": {
+      "classification": "REQUIRED",
+      "consumer": "fixture_sources crosswalk",
+      "current_sources": ["internal"],
+      "notes": "fixture_sources table maps canonical fixture to provider IDs"
+    }
+  },
+  "required_capabilities": [
+    "event_discovery",
+    "canonical_event_identity",
+    "canonical_team_identity",
+    "current_season_recent_form",
+    "fixture_statistics",
+    "cross_provider_id_mapping"
+  ],
+  "optional_capabilities": [
+    "historical_recent_form",
+    "h2h",
+    "standings",
+    "lineups",
+    "injuries_suspensions",
+    "venue_context"
+  ],
+  "unused_capabilities": [],
+  "out_of_scope_capabilities": ["odds", "weather", "browser_scraping"]
+}

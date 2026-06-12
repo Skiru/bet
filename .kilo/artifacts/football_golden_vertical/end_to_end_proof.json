@@ -1,0 +1,57 @@
+{
+  "generated_at": "2026-06-12T15:30:00Z",
+  "target_fixture": {
+    "canonical_id": 1,
+    "external_id": "api-football-shadow-740968",
+    "competition": "2025-26-english-premier-league",
+    "target_event_id": "740968",
+    "target_start_at": "2026-05-24T15:00Z"
+  },
+  "required_capabilities": {
+    "event_discovery": {
+      "source": "api-football",
+      "bundle_id": "de648d03aaffe6b3707f6804e5eeb9e73e1d9c95a92d0a084a0bc684d31f2bdd",
+      "fixture_count": 98,
+      "status": "PASS"
+    },
+    "canonical_event_identity": {
+      "source": "api-football",
+      "evidence": "fixture_sources table preserves provider IDs",
+      "status": "PASS"
+    },
+    "canonical_team_identity": {
+      "source": "espn-football",
+      "team_ids": [
+        "away",
+        "home"
+      ],
+      "status": "PASS"
+    },
+    "current_season_recent_form": {
+      "source": "espn-football",
+      "bundle_id": "32f075eb12a4a6aae53ca9e10c1e222359e45fa99a47a22b6115cb4843f3def0",
+      "team_form_rows": 20,
+      "events_accepted": 20,
+      "status": "PASS"
+    },
+    "fixture_statistics": {
+      "source": "espn-football",
+      "evidence": "ESPN summary endpoint provides match statistics",
+      "status": "PASS"
+    },
+    "cross_provider_id_mapping": {
+      "source": "internal",
+      "evidence": "fixture_sources table",
+      "status": "PASS"
+    }
+  },
+  "end_to_end_flow": {
+    "discovery": "api-football -> 98 fixtures",
+    "canonical_event": "fixture_sources -> ESPN event 740968",
+    "crosswalk": "fixture_sources -> provider IDs",
+    "enrichment": "espn-football -> 20 team_form rows",
+    "temporal_filter": "analysis_cutoff_at preserved",
+    "persistence": "team_form table"
+  },
+  "snapshot_status": "PASS"
+}

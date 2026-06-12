@@ -1,0 +1,61 @@
+{
+  "run_id": "run-20260612T072549Z",
+  "timestamp": "2026-06-12T07:25:49.953537+00:00",
+  "base_url": "http://127.0.0.1:8000/v1",
+  "model": "default",
+  "results": [
+    {
+      "test": "cold_start_with_prefix",
+      "passed": true,
+      "http_status": 200,
+      "duration_ms": 4975.170584002626,
+      "prompt_tokens": 1284,
+      "error": null
+    },
+    {
+      "test": "warm_cache_benefit",
+      "passed": true,
+      "cold_duration_ms": 359.33833400486037,
+      "warm_duration_ms": 199.62704098725226,
+      "cache_benefit_ms": 159.7112930176081,
+      "cache_benefit_pct": 44.445937965373844
+    },
+    {
+      "test": "context_accounting",
+      "passed": true,
+      "prompt_tokens": 1371,
+      "completion_tokens": 10,
+      "total_tokens": 1381,
+      "accounting_valid": true
+    },
+    {
+      "test": "token_limit_enforcement",
+      "passed": true,
+      "finish_reason": "length",
+      "completion_tokens": 20,
+      "max_tokens": 20,
+      "truncated": true
+    },
+    {
+      "test": "multi_turn_stability",
+      "passed": true,
+      "turns_passed": 5,
+      "total_turns": 5,
+      "total_tokens": 7233,
+      "errors": []
+    },
+    {
+      "test": "context_boundary",
+      "passed": true,
+      "http_status": 200,
+      "prompt_tokens": 6271,
+      "duration_ms": 7133.882833993994,
+      "error": null
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "total": 6,
+    "pass_rate": 1.0
+  }
+}

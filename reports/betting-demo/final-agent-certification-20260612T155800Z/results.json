@@ -1,0 +1,176 @@
+{
+  "schema_version": 1,
+  "certification_id": "CERT-20260612T155800Z",
+  "generated": "2026-06-12T15:58:00Z",
+  "generated_by": "runtime-repair-controller",
+  "repair_session": "ses_143dfde6dffe6CmYI0DuWWvlKa",
+  "original_session": "ses_1442814d3ffeD3xwnS5pXzl1KX",
+  "scenarios_rerun": false,
+  "scenarios_preserved": true,
+  "scenarios": [
+    {
+      "scenario_id": "C01",
+      "agent": "bet-settler",
+      "child_session_id": "ses_14425edc6ffewxnxkyKuiKrC2m",
+      "terminal_status": "BLOCKED",
+      "decision": "CAPABILITY_UNAVAILABLE",
+      "expected_outcome_matched": true,
+      "retry_count": 0
+    },
+    {
+      "scenario_id": "C02",
+      "agent": "bet-db-analyst",
+      "child_session_id": "ses_1442374c1ffecLo2jDkl7tojoN",
+      "terminal_status": "BLOCKED",
+      "decision": "CAPABILITY_UNAVAILABLE",
+      "expected_outcome_matched": true,
+      "retry_count": 0
+    },
+    {
+      "scenario_id": "C03",
+      "agent": "bet-scanner",
+      "child_session_id": "ses_1442113acffeSYF9ImDUnpBeF0",
+      "terminal_status": "PASS",
+      "decision": "FIXTURES_DISCOVERED",
+      "expected_outcome_matched": true,
+      "retry_count": 0
+    },
+    {
+      "scenario_id": "C04",
+      "agent": "bet-scout",
+      "child_session_id": "ses_1441ea917ffeQTK3C7Eiskt4E3",
+      "terminal_status": "PASS",
+      "decision": "VALID_TIPS_REMAINING",
+      "expected_outcome_matched": true,
+      "retry_count": 0
+    },
+    {
+      "scenario_id": "C05",
+      "agent": "bet-enricher",
+      "child_session_id": "ses_1441b238dffegWtBHHLqPNE0B8",
+      "terminal_status": "PASS",
+      "decision": "PARTIAL_ENRICHMENT",
+      "expected_outcome_matched": true,
+      "retry_count": 0
+    },
+    {
+      "scenario_id": "C06",
+      "agent": "bet-statistician",
+      "child_session_id": "ses_1441871d9ffeFMHAsRjNfWE9xg",
+      "terminal_status": "PASS",
+      "decision": "PROBABILITIES_COMPUTED",
+      "expected_outcome_matched": true,
+      "retry_count": 0
+    },
+    {
+      "scenario_id": "C07",
+      "agent": "bet-valuator",
+      "child_session_id": "ses_144147741fferObTvDLAIcJZcb",
+      "terminal_status": "PASS",
+      "decision": "HOME_BET_BOUNDED_KELLY",
+      "expected_outcome_matched": true,
+      "retry_count": 0
+    },
+    {
+      "scenario_id": "C08",
+      "agent": "bet-challenger",
+      "child_session_id": "ses_144112f23ffeBJvpyYNS0BGWQH",
+      "terminal_status": "FAIL",
+      "decision": "CANDIDATE_REJECTED",
+      "expected_outcome_matched": true,
+      "retry_count": 0
+    },
+    {
+      "scenario_id": "C09",
+      "agent": "bet-reconciler",
+      "child_session_id": "ses_1440e52beffe2iv6WDAm6ivaz5",
+      "terminal_status": "BLOCKED",
+      "decision": "UNRESOLVED_CONFLICT",
+      "expected_outcome_matched": true,
+      "retry_count": 1
+    },
+    {
+      "scenario_id": "C10",
+      "agent": "bet-builder",
+      "child_session_id": "ses_14408ade7ffehLZta5r4tvfstx",
+      "terminal_status": "PASS",
+      "decision": "COUPON_BUILT",
+      "expected_outcome_matched": true,
+      "retry_count": 0,
+      "artifact_path": "reports/betting-demo/final-agent-certification-20260612T143920Z/coupon.json",
+      "artifact_bytes": 1468,
+      "artifact_sha256": "3301c13b797a3f11c0f270bffae3a9923b9bd121518255a83c376056815c4927"
+    },
+    {
+      "scenario_id": "C11",
+      "agent": "bet-test-engineer",
+      "child_session_id": "ses_144056436ffe1KFPq2HHgxdGEB",
+      "terminal_status": "PASS",
+      "decision": "PASS",
+      "expected_outcome_matched": true,
+      "retry_count": 0
+    },
+    {
+      "scenario_id": "C12",
+      "agent": "bet-engineer",
+      "child_session_id": "ses_14401f7b2ffe9A3Ew5o74fIHlN",
+      "terminal_status": "PASS",
+      "decision": "FIXTURE_OPERATION_SUCCESS",
+      "expected_outcome_matched": true,
+      "retry_count": 0
+    },
+    {
+      "scenario_id": "C13",
+      "agent": "bet-engineer",
+      "child_session_id": "ses_143ff010cffeTUKXV2mNWeBTL0",
+      "terminal_status": "BLOCKED",
+      "decision": "MUTATION_CAPABILITY_UNAVAILABLE",
+      "expected_outcome_matched": true,
+      "retry_count": 0
+    }
+  ],
+  "summary": {
+    "required_scenarios": 13,
+    "completed_scenarios": 13,
+    "expected_pass_outcomes": 8,
+    "expected_fail_outcomes": 1,
+    "expected_blocked_outcomes": 4,
+    "all_expected_matched": true,
+    "permission_prompts": 0,
+    "question_calls": 0,
+    "bash_calls": 0,
+    "direct_write_edit_patch": 0,
+    "db_bypass": 0,
+    "web_calls": 0,
+    "mcp_calls": 0,
+    "real_scripts": 0,
+    "recursive_delegation": 0,
+    "unknown_tools": 0,
+    "context_errors": 0,
+    "compaction_failures": 0,
+    "stalled_sessions": 0,
+    "runtime_health": "HEALTHY",
+    "max_active_child_tasks": 1,
+    "parallel_task_calls": 0
+  },
+  "original_failure": {
+    "cause_1": "bet_artifact_write not in orchestrator tool catalog",
+    "cause_2": "OUTPUT_LIMIT_DURING_REASONING",
+    "diagnosis_1": "Tool file in .kilo/tool/ not auto-loaded; Kilo expects .kilo/plugin/",
+    "diagnosis_2": "Qwen3.6 reasoning mode exhausted 4096-token output budget"
+  },
+  "repair_applied": {
+    "repair_1": "Copied tools to .kilo/plugin/ directory for auto-loading",
+    "repair_2": "Created qwen36-orchestrator model with reasoning=false and output=8192",
+    "repair_3": "Updated bet-orchestrator to use qwen36-orchestrator model",
+    "repair_4": "Updated orchestrator prompt to discourage extended reasoning"
+  },
+  "deferred_capabilities": [
+    "bet_sqlite_query (database)",
+    "real scripts (fixture-only)",
+    "web search (MCP disabled)",
+    "Brave Search (MCP disabled)",
+    "Context7 (MCP disabled)",
+    "Playwright (MCP disabled)"
+  ]
+}

@@ -1,0 +1,1555 @@
+{
+  "schema_version": "1.0.0",
+  "suite_version": "1.0.0",
+  "timestamp": "2026-06-12T08:52:27.799901+00:00",
+  "total_tests": 32,
+  "passed": 32,
+  "failed": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "test_id": "valid_exec_000",
+      "test_name": "Valid execution #1",
+      "category": "valid_execution",
+      "passed": true,
+      "expected": "status=success, exit_code=0, correct match_id",
+      "actual": "status=success, exit_code=0",
+      "duration_ms": 38,
+      "error": null,
+      "evidence": {
+        "match_id": "test_match_000",
+        "result": {
+          "schema_version": 1,
+          "status": "success",
+          "request_id": "req-a99e2120-a690-40fe-a643-1dc9690fd0a6",
+          "operation": "fixture_success",
+          "started_at": "2026-06-12T08:52:25.990905+00:00",
+          "duration_ms": 38,
+          "exit_code": 0,
+          "timed_out": false,
+          "cancelled": false,
+          "stdout": {
+            "summary": "{\n  \"status\": \"success\",\n  \"match_id\": \"test_match_000\",\n  \"timestamp\": \"2026-06-12T08:52:26.025909+00:00\",\n  \"data\": {\n    \"home_team\": \"Team Alpha\",\n    \"away_team\": \"Team Beta\",\n    \"competition\": \"Test League\",\n    \"kickoff\": \"2026-06-15T18:00:00Z\",\n    \"markets\": [\n      {\n        \"name\": \"Match Winner\",\n        \"options\": [\n          \"Home\",\n          \"Draw\",\n          \"Away\"\n        ]\n      },\n      {\n        \"name\": \"Over/Under 2.5\",\n        \"options\": [\n          \"Over\",\n          \"Unde",
+            "bytes_captured": 624,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "stderr": {
+            "summary": "",
+            "bytes_captured": 0,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "parsed_result": {
+            "status": "success",
+            "match_id": "test_match_000",
+            "timestamp": "2026-06-12T08:52:26.025909+00:00",
+            "data": {
+              "home_team": "Team Alpha",
+              "away_team": "Team Beta",
+              "competition": "Test League",
+              "kickoff": "2026-06-15T18:00:00Z",
+              "markets": [
+                {
+                  "name": "Match Winner",
+                  "options": [
+                    "Home",
+                    "Draw",
+                    "Away"
+                  ]
+                },
+                {
+                  "name": "Over/Under 2.5",
+                  "options": [
+                    "Over",
+                    "Under"
+                  ]
+                }
+              ]
+            },
+            "metadata": {
+              "fixture_version": "1.0.0",
+              "source": "deterministic_fixture"
+            }
+          },
+          "warnings": [],
+          "error": null
+        }
+      }
+    },
+    {
+      "test_id": "valid_exec_001",
+      "test_name": "Valid execution #2",
+      "category": "valid_execution",
+      "passed": true,
+      "expected": "status=success, exit_code=0, correct match_id",
+      "actual": "status=success, exit_code=0",
+      "duration_ms": 34,
+      "error": null,
+      "evidence": {
+        "match_id": "test_match_001",
+        "result": {
+          "schema_version": 1,
+          "status": "success",
+          "request_id": "req-35f7fe62-913c-4c63-b928-c166bb7ebe44",
+          "operation": "fixture_success",
+          "started_at": "2026-06-12T08:52:26.030322+00:00",
+          "duration_ms": 34,
+          "exit_code": 0,
+          "timed_out": false,
+          "cancelled": false,
+          "stdout": {
+            "summary": "{\n  \"status\": \"success\",\n  \"match_id\": \"test_match_001\",\n  \"timestamp\": \"2026-06-12T08:52:26.060842+00:00\",\n  \"data\": {\n    \"home_team\": \"Team Alpha\",\n    \"away_team\": \"Team Beta\",\n    \"competition\": \"Test League\",\n    \"kickoff\": \"2026-06-15T18:00:00Z\",\n    \"markets\": [\n      {\n        \"name\": \"Match Winner\",\n        \"options\": [\n          \"Home\",\n          \"Draw\",\n          \"Away\"\n        ]\n      },\n      {\n        \"name\": \"Over/Under 2.5\",\n        \"options\": [\n          \"Over\",\n          \"Unde",
+            "bytes_captured": 624,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "stderr": {
+            "summary": "",
+            "bytes_captured": 0,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "parsed_result": {
+            "status": "success",
+            "match_id": "test_match_001",
+            "timestamp": "2026-06-12T08:52:26.060842+00:00",
+            "data": {
+              "home_team": "Team Alpha",
+              "away_team": "Team Beta",
+              "competition": "Test League",
+              "kickoff": "2026-06-15T18:00:00Z",
+              "markets": [
+                {
+                  "name": "Match Winner",
+                  "options": [
+                    "Home",
+                    "Draw",
+                    "Away"
+                  ]
+                },
+                {
+                  "name": "Over/Under 2.5",
+                  "options": [
+                    "Over",
+                    "Under"
+                  ]
+                }
+              ]
+            },
+            "metadata": {
+              "fixture_version": "1.0.0",
+              "source": "deterministic_fixture"
+            }
+          },
+          "warnings": [],
+          "error": null
+        }
+      }
+    },
+    {
+      "test_id": "valid_exec_002",
+      "test_name": "Valid execution #3",
+      "category": "valid_execution",
+      "passed": true,
+      "expected": "status=success, exit_code=0, correct match_id",
+      "actual": "status=success, exit_code=0",
+      "duration_ms": 33,
+      "error": null,
+      "evidence": {
+        "match_id": "test_match_002",
+        "result": {
+          "schema_version": 1,
+          "status": "success",
+          "request_id": "req-4e8d7316-4e06-4c09-841e-fcd8fec0428b",
+          "operation": "fixture_success",
+          "started_at": "2026-06-12T08:52:26.065372+00:00",
+          "duration_ms": 33,
+          "exit_code": 0,
+          "timed_out": false,
+          "cancelled": false,
+          "stdout": {
+            "summary": "{\n  \"status\": \"success\",\n  \"match_id\": \"test_match_002\",\n  \"timestamp\": \"2026-06-12T08:52:26.094912+00:00\",\n  \"data\": {\n    \"home_team\": \"Team Alpha\",\n    \"away_team\": \"Team Beta\",\n    \"competition\": \"Test League\",\n    \"kickoff\": \"2026-06-15T18:00:00Z\",\n    \"markets\": [\n      {\n        \"name\": \"Match Winner\",\n        \"options\": [\n          \"Home\",\n          \"Draw\",\n          \"Away\"\n        ]\n      },\n      {\n        \"name\": \"Over/Under 2.5\",\n        \"options\": [\n          \"Over\",\n          \"Unde",
+            "bytes_captured": 624,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "stderr": {
+            "summary": "",
+            "bytes_captured": 0,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "parsed_result": {
+            "status": "success",
+            "match_id": "test_match_002",
+            "timestamp": "2026-06-12T08:52:26.094912+00:00",
+            "data": {
+              "home_team": "Team Alpha",
+              "away_team": "Team Beta",
+              "competition": "Test League",
+              "kickoff": "2026-06-15T18:00:00Z",
+              "markets": [
+                {
+                  "name": "Match Winner",
+                  "options": [
+                    "Home",
+                    "Draw",
+                    "Away"
+                  ]
+                },
+                {
+                  "name": "Over/Under 2.5",
+                  "options": [
+                    "Over",
+                    "Under"
+                  ]
+                }
+              ]
+            },
+            "metadata": {
+              "fixture_version": "1.0.0",
+              "source": "deterministic_fixture"
+            }
+          },
+          "warnings": [],
+          "error": null
+        }
+      }
+    },
+    {
+      "test_id": "valid_exec_003",
+      "test_name": "Valid execution #4",
+      "category": "valid_execution",
+      "passed": true,
+      "expected": "status=success, exit_code=0, correct match_id",
+      "actual": "status=success, exit_code=0",
+      "duration_ms": 33,
+      "error": null,
+      "evidence": {
+        "match_id": "test_match_003",
+        "result": {
+          "schema_version": 1,
+          "status": "success",
+          "request_id": "req-985b5abf-d74b-483c-b6a7-b47c4254cd3c",
+          "operation": "fixture_success",
+          "started_at": "2026-06-12T08:52:26.098971+00:00",
+          "duration_ms": 33,
+          "exit_code": 0,
+          "timed_out": false,
+          "cancelled": false,
+          "stdout": {
+            "summary": "{\n  \"status\": \"success\",\n  \"match_id\": \"test_match_003\",\n  \"timestamp\": \"2026-06-12T08:52:26.128937+00:00\",\n  \"data\": {\n    \"home_team\": \"Team Alpha\",\n    \"away_team\": \"Team Beta\",\n    \"competition\": \"Test League\",\n    \"kickoff\": \"2026-06-15T18:00:00Z\",\n    \"markets\": [\n      {\n        \"name\": \"Match Winner\",\n        \"options\": [\n          \"Home\",\n          \"Draw\",\n          \"Away\"\n        ]\n      },\n      {\n        \"name\": \"Over/Under 2.5\",\n        \"options\": [\n          \"Over\",\n          \"Unde",
+            "bytes_captured": 624,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "stderr": {
+            "summary": "",
+            "bytes_captured": 0,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "parsed_result": {
+            "status": "success",
+            "match_id": "test_match_003",
+            "timestamp": "2026-06-12T08:52:26.128937+00:00",
+            "data": {
+              "home_team": "Team Alpha",
+              "away_team": "Team Beta",
+              "competition": "Test League",
+              "kickoff": "2026-06-15T18:00:00Z",
+              "markets": [
+                {
+                  "name": "Match Winner",
+                  "options": [
+                    "Home",
+                    "Draw",
+                    "Away"
+                  ]
+                },
+                {
+                  "name": "Over/Under 2.5",
+                  "options": [
+                    "Over",
+                    "Under"
+                  ]
+                }
+              ]
+            },
+            "metadata": {
+              "fixture_version": "1.0.0",
+              "source": "deterministic_fixture"
+            }
+          },
+          "warnings": [],
+          "error": null
+        }
+      }
+    },
+    {
+      "test_id": "valid_exec_004",
+      "test_name": "Valid execution #5",
+      "category": "valid_execution",
+      "passed": true,
+      "expected": "status=success, exit_code=0, correct match_id",
+      "actual": "status=success, exit_code=0",
+      "duration_ms": 47,
+      "error": null,
+      "evidence": {
+        "match_id": "test_match_004",
+        "result": {
+          "schema_version": 1,
+          "status": "success",
+          "request_id": "req-c8354203-0fb7-417a-8095-6f6e0ab81732",
+          "operation": "fixture_success",
+          "started_at": "2026-06-12T08:52:26.133121+00:00",
+          "duration_ms": 47,
+          "exit_code": 0,
+          "timed_out": false,
+          "cancelled": false,
+          "stdout": {
+            "summary": "{\n  \"status\": \"success\",\n  \"match_id\": \"test_match_004\",\n  \"timestamp\": \"2026-06-12T08:52:26.176638+00:00\",\n  \"data\": {\n    \"home_team\": \"Team Alpha\",\n    \"away_team\": \"Team Beta\",\n    \"competition\": \"Test League\",\n    \"kickoff\": \"2026-06-15T18:00:00Z\",\n    \"markets\": [\n      {\n        \"name\": \"Match Winner\",\n        \"options\": [\n          \"Home\",\n          \"Draw\",\n          \"Away\"\n        ]\n      },\n      {\n        \"name\": \"Over/Under 2.5\",\n        \"options\": [\n          \"Over\",\n          \"Unde",
+            "bytes_captured": 624,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "stderr": {
+            "summary": "",
+            "bytes_captured": 0,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "parsed_result": {
+            "status": "success",
+            "match_id": "test_match_004",
+            "timestamp": "2026-06-12T08:52:26.176638+00:00",
+            "data": {
+              "home_team": "Team Alpha",
+              "away_team": "Team Beta",
+              "competition": "Test League",
+              "kickoff": "2026-06-15T18:00:00Z",
+              "markets": [
+                {
+                  "name": "Match Winner",
+                  "options": [
+                    "Home",
+                    "Draw",
+                    "Away"
+                  ]
+                },
+                {
+                  "name": "Over/Under 2.5",
+                  "options": [
+                    "Over",
+                    "Under"
+                  ]
+                }
+              ]
+            },
+            "metadata": {
+              "fixture_version": "1.0.0",
+              "source": "deterministic_fixture"
+            }
+          },
+          "warnings": [],
+          "error": null
+        }
+      }
+    },
+    {
+      "test_id": "valid_exec_005",
+      "test_name": "Valid execution #6",
+      "category": "valid_execution",
+      "passed": true,
+      "expected": "status=success, exit_code=0, correct match_id",
+      "actual": "status=success, exit_code=0",
+      "duration_ms": 34,
+      "error": null,
+      "evidence": {
+        "match_id": "test_match_005",
+        "result": {
+          "schema_version": 1,
+          "status": "success",
+          "request_id": "req-ae59751b-b458-495d-af63-8b2303c46c28",
+          "operation": "fixture_success",
+          "started_at": "2026-06-12T08:52:26.181021+00:00",
+          "duration_ms": 34,
+          "exit_code": 0,
+          "timed_out": false,
+          "cancelled": false,
+          "stdout": {
+            "summary": "{\n  \"status\": \"success\",\n  \"match_id\": \"test_match_005\",\n  \"timestamp\": \"2026-06-12T08:52:26.211809+00:00\",\n  \"data\": {\n    \"home_team\": \"Team Alpha\",\n    \"away_team\": \"Team Beta\",\n    \"competition\": \"Test League\",\n    \"kickoff\": \"2026-06-15T18:00:00Z\",\n    \"markets\": [\n      {\n        \"name\": \"Match Winner\",\n        \"options\": [\n          \"Home\",\n          \"Draw\",\n          \"Away\"\n        ]\n      },\n      {\n        \"name\": \"Over/Under 2.5\",\n        \"options\": [\n          \"Over\",\n          \"Unde",
+            "bytes_captured": 624,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "stderr": {
+            "summary": "",
+            "bytes_captured": 0,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "parsed_result": {
+            "status": "success",
+            "match_id": "test_match_005",
+            "timestamp": "2026-06-12T08:52:26.211809+00:00",
+            "data": {
+              "home_team": "Team Alpha",
+              "away_team": "Team Beta",
+              "competition": "Test League",
+              "kickoff": "2026-06-15T18:00:00Z",
+              "markets": [
+                {
+                  "name": "Match Winner",
+                  "options": [
+                    "Home",
+                    "Draw",
+                    "Away"
+                  ]
+                },
+                {
+                  "name": "Over/Under 2.5",
+                  "options": [
+                    "Over",
+                    "Under"
+                  ]
+                }
+              ]
+            },
+            "metadata": {
+              "fixture_version": "1.0.0",
+              "source": "deterministic_fixture"
+            }
+          },
+          "warnings": [],
+          "error": null
+        }
+      }
+    },
+    {
+      "test_id": "valid_exec_006",
+      "test_name": "Valid execution #7",
+      "category": "valid_execution",
+      "passed": true,
+      "expected": "status=success, exit_code=0, correct match_id",
+      "actual": "status=success, exit_code=0",
+      "duration_ms": 34,
+      "error": null,
+      "evidence": {
+        "match_id": "test_match_006",
+        "result": {
+          "schema_version": 1,
+          "status": "success",
+          "request_id": "req-e38b9e7e-1667-47ff-b5de-d5a318391825",
+          "operation": "fixture_success",
+          "started_at": "2026-06-12T08:52:26.215692+00:00",
+          "duration_ms": 34,
+          "exit_code": 0,
+          "timed_out": false,
+          "cancelled": false,
+          "stdout": {
+            "summary": "{\n  \"status\": \"success\",\n  \"match_id\": \"test_match_006\",\n  \"timestamp\": \"2026-06-12T08:52:26.246545+00:00\",\n  \"data\": {\n    \"home_team\": \"Team Alpha\",\n    \"away_team\": \"Team Beta\",\n    \"competition\": \"Test League\",\n    \"kickoff\": \"2026-06-15T18:00:00Z\",\n    \"markets\": [\n      {\n        \"name\": \"Match Winner\",\n        \"options\": [\n          \"Home\",\n          \"Draw\",\n          \"Away\"\n        ]\n      },\n      {\n        \"name\": \"Over/Under 2.5\",\n        \"options\": [\n          \"Over\",\n          \"Unde",
+            "bytes_captured": 624,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "stderr": {
+            "summary": "",
+            "bytes_captured": 0,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "parsed_result": {
+            "status": "success",
+            "match_id": "test_match_006",
+            "timestamp": "2026-06-12T08:52:26.246545+00:00",
+            "data": {
+              "home_team": "Team Alpha",
+              "away_team": "Team Beta",
+              "competition": "Test League",
+              "kickoff": "2026-06-15T18:00:00Z",
+              "markets": [
+                {
+                  "name": "Match Winner",
+                  "options": [
+                    "Home",
+                    "Draw",
+                    "Away"
+                  ]
+                },
+                {
+                  "name": "Over/Under 2.5",
+                  "options": [
+                    "Over",
+                    "Under"
+                  ]
+                }
+              ]
+            },
+            "metadata": {
+              "fixture_version": "1.0.0",
+              "source": "deterministic_fixture"
+            }
+          },
+          "warnings": [],
+          "error": null
+        }
+      }
+    },
+    {
+      "test_id": "valid_exec_007",
+      "test_name": "Valid execution #8",
+      "category": "valid_execution",
+      "passed": true,
+      "expected": "status=success, exit_code=0, correct match_id",
+      "actual": "status=success, exit_code=0",
+      "duration_ms": 35,
+      "error": null,
+      "evidence": {
+        "match_id": "test_match_007",
+        "result": {
+          "schema_version": 1,
+          "status": "success",
+          "request_id": "req-4ce97b37-cceb-483f-9043-843810da19f1",
+          "operation": "fixture_success",
+          "started_at": "2026-06-12T08:52:26.250646+00:00",
+          "duration_ms": 35,
+          "exit_code": 0,
+          "timed_out": false,
+          "cancelled": false,
+          "stdout": {
+            "summary": "{\n  \"status\": \"success\",\n  \"match_id\": \"test_match_007\",\n  \"timestamp\": \"2026-06-12T08:52:26.282542+00:00\",\n  \"data\": {\n    \"home_team\": \"Team Alpha\",\n    \"away_team\": \"Team Beta\",\n    \"competition\": \"Test League\",\n    \"kickoff\": \"2026-06-15T18:00:00Z\",\n    \"markets\": [\n      {\n        \"name\": \"Match Winner\",\n        \"options\": [\n          \"Home\",\n          \"Draw\",\n          \"Away\"\n        ]\n      },\n      {\n        \"name\": \"Over/Under 2.5\",\n        \"options\": [\n          \"Over\",\n          \"Unde",
+            "bytes_captured": 624,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "stderr": {
+            "summary": "",
+            "bytes_captured": 0,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "parsed_result": {
+            "status": "success",
+            "match_id": "test_match_007",
+            "timestamp": "2026-06-12T08:52:26.282542+00:00",
+            "data": {
+              "home_team": "Team Alpha",
+              "away_team": "Team Beta",
+              "competition": "Test League",
+              "kickoff": "2026-06-15T18:00:00Z",
+              "markets": [
+                {
+                  "name": "Match Winner",
+                  "options": [
+                    "Home",
+                    "Draw",
+                    "Away"
+                  ]
+                },
+                {
+                  "name": "Over/Under 2.5",
+                  "options": [
+                    "Over",
+                    "Under"
+                  ]
+                }
+              ]
+            },
+            "metadata": {
+              "fixture_version": "1.0.0",
+              "source": "deterministic_fixture"
+            }
+          },
+          "warnings": [],
+          "error": null
+        }
+      }
+    },
+    {
+      "test_id": "valid_exec_008",
+      "test_name": "Valid execution #9",
+      "category": "valid_execution",
+      "passed": true,
+      "expected": "status=success, exit_code=0, correct match_id",
+      "actual": "status=success, exit_code=0",
+      "duration_ms": 36,
+      "error": null,
+      "evidence": {
+        "match_id": "test_match_008",
+        "result": {
+          "schema_version": 1,
+          "status": "success",
+          "request_id": "req-fe391642-d984-46d9-ae35-fe22c4ffd53b",
+          "operation": "fixture_success",
+          "started_at": "2026-06-12T08:52:26.286635+00:00",
+          "duration_ms": 36,
+          "exit_code": 0,
+          "timed_out": false,
+          "cancelled": false,
+          "stdout": {
+            "summary": "{\n  \"status\": \"success\",\n  \"match_id\": \"test_match_008\",\n  \"timestamp\": \"2026-06-12T08:52:26.318709+00:00\",\n  \"data\": {\n    \"home_team\": \"Team Alpha\",\n    \"away_team\": \"Team Beta\",\n    \"competition\": \"Test League\",\n    \"kickoff\": \"2026-06-15T18:00:00Z\",\n    \"markets\": [\n      {\n        \"name\": \"Match Winner\",\n        \"options\": [\n          \"Home\",\n          \"Draw\",\n          \"Away\"\n        ]\n      },\n      {\n        \"name\": \"Over/Under 2.5\",\n        \"options\": [\n          \"Over\",\n          \"Unde",
+            "bytes_captured": 624,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "stderr": {
+            "summary": "",
+            "bytes_captured": 0,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "parsed_result": {
+            "status": "success",
+            "match_id": "test_match_008",
+            "timestamp": "2026-06-12T08:52:26.318709+00:00",
+            "data": {
+              "home_team": "Team Alpha",
+              "away_team": "Team Beta",
+              "competition": "Test League",
+              "kickoff": "2026-06-15T18:00:00Z",
+              "markets": [
+                {
+                  "name": "Match Winner",
+                  "options": [
+                    "Home",
+                    "Draw",
+                    "Away"
+                  ]
+                },
+                {
+                  "name": "Over/Under 2.5",
+                  "options": [
+                    "Over",
+                    "Under"
+                  ]
+                }
+              ]
+            },
+            "metadata": {
+              "fixture_version": "1.0.0",
+              "source": "deterministic_fixture"
+            }
+          },
+          "warnings": [],
+          "error": null
+        }
+      }
+    },
+    {
+      "test_id": "valid_exec_009",
+      "test_name": "Valid execution #10",
+      "category": "valid_execution",
+      "passed": true,
+      "expected": "status=success, exit_code=0, correct match_id",
+      "actual": "status=success, exit_code=0",
+      "duration_ms": 35,
+      "error": null,
+      "evidence": {
+        "match_id": "test_match_009",
+        "result": {
+          "schema_version": 1,
+          "status": "success",
+          "request_id": "req-00c37192-2968-4a9f-be66-967f6a134a49",
+          "operation": "fixture_success",
+          "started_at": "2026-06-12T08:52:26.323075+00:00",
+          "duration_ms": 35,
+          "exit_code": 0,
+          "timed_out": false,
+          "cancelled": false,
+          "stdout": {
+            "summary": "{\n  \"status\": \"success\",\n  \"match_id\": \"test_match_009\",\n  \"timestamp\": \"2026-06-12T08:52:26.353921+00:00\",\n  \"data\": {\n    \"home_team\": \"Team Alpha\",\n    \"away_team\": \"Team Beta\",\n    \"competition\": \"Test League\",\n    \"kickoff\": \"2026-06-15T18:00:00Z\",\n    \"markets\": [\n      {\n        \"name\": \"Match Winner\",\n        \"options\": [\n          \"Home\",\n          \"Draw\",\n          \"Away\"\n        ]\n      },\n      {\n        \"name\": \"Over/Under 2.5\",\n        \"options\": [\n          \"Over\",\n          \"Unde",
+            "bytes_captured": 624,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "stderr": {
+            "summary": "",
+            "bytes_captured": 0,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "parsed_result": {
+            "status": "success",
+            "match_id": "test_match_009",
+            "timestamp": "2026-06-12T08:52:26.353921+00:00",
+            "data": {
+              "home_team": "Team Alpha",
+              "away_team": "Team Beta",
+              "competition": "Test League",
+              "kickoff": "2026-06-15T18:00:00Z",
+              "markets": [
+                {
+                  "name": "Match Winner",
+                  "options": [
+                    "Home",
+                    "Draw",
+                    "Away"
+                  ]
+                },
+                {
+                  "name": "Over/Under 2.5",
+                  "options": [
+                    "Over",
+                    "Under"
+                  ]
+                }
+              ]
+            },
+            "metadata": {
+              "fixture_version": "1.0.0",
+              "source": "deterministic_fixture"
+            }
+          },
+          "warnings": [],
+          "error": null
+        }
+      }
+    },
+    {
+      "test_id": "valid_exec_010",
+      "test_name": "Valid execution #11",
+      "category": "valid_execution",
+      "passed": true,
+      "expected": "status=success, exit_code=0, correct match_id",
+      "actual": "status=success, exit_code=0",
+      "duration_ms": 34,
+      "error": null,
+      "evidence": {
+        "match_id": "test_match_010",
+        "result": {
+          "schema_version": 1,
+          "status": "success",
+          "request_id": "req-6de583a0-b0eb-420f-adfd-400ee0f3f6a4",
+          "operation": "fixture_success",
+          "started_at": "2026-06-12T08:52:26.358487+00:00",
+          "duration_ms": 34,
+          "exit_code": 0,
+          "timed_out": false,
+          "cancelled": false,
+          "stdout": {
+            "summary": "{\n  \"status\": \"success\",\n  \"match_id\": \"test_match_010\",\n  \"timestamp\": \"2026-06-12T08:52:26.388655+00:00\",\n  \"data\": {\n    \"home_team\": \"Team Alpha\",\n    \"away_team\": \"Team Beta\",\n    \"competition\": \"Test League\",\n    \"kickoff\": \"2026-06-15T18:00:00Z\",\n    \"markets\": [\n      {\n        \"name\": \"Match Winner\",\n        \"options\": [\n          \"Home\",\n          \"Draw\",\n          \"Away\"\n        ]\n      },\n      {\n        \"name\": \"Over/Under 2.5\",\n        \"options\": [\n          \"Over\",\n          \"Unde",
+            "bytes_captured": 624,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "stderr": {
+            "summary": "",
+            "bytes_captured": 0,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "parsed_result": {
+            "status": "success",
+            "match_id": "test_match_010",
+            "timestamp": "2026-06-12T08:52:26.388655+00:00",
+            "data": {
+              "home_team": "Team Alpha",
+              "away_team": "Team Beta",
+              "competition": "Test League",
+              "kickoff": "2026-06-15T18:00:00Z",
+              "markets": [
+                {
+                  "name": "Match Winner",
+                  "options": [
+                    "Home",
+                    "Draw",
+                    "Away"
+                  ]
+                },
+                {
+                  "name": "Over/Under 2.5",
+                  "options": [
+                    "Over",
+                    "Under"
+                  ]
+                }
+              ]
+            },
+            "metadata": {
+              "fixture_version": "1.0.0",
+              "source": "deterministic_fixture"
+            }
+          },
+          "warnings": [],
+          "error": null
+        }
+      }
+    },
+    {
+      "test_id": "valid_exec_011",
+      "test_name": "Valid execution #12",
+      "category": "valid_execution",
+      "passed": true,
+      "expected": "status=success, exit_code=0, correct match_id",
+      "actual": "status=success, exit_code=0",
+      "duration_ms": 35,
+      "error": null,
+      "evidence": {
+        "match_id": "test_match_011",
+        "result": {
+          "schema_version": 1,
+          "status": "success",
+          "request_id": "req-9ebb510e-f99c-456e-8730-2a8a311e3a3d",
+          "operation": "fixture_success",
+          "started_at": "2026-06-12T08:52:26.392948+00:00",
+          "duration_ms": 35,
+          "exit_code": 0,
+          "timed_out": false,
+          "cancelled": false,
+          "stdout": {
+            "summary": "{\n  \"status\": \"success\",\n  \"match_id\": \"test_match_011\",\n  \"timestamp\": \"2026-06-12T08:52:26.424836+00:00\",\n  \"data\": {\n    \"home_team\": \"Team Alpha\",\n    \"away_team\": \"Team Beta\",\n    \"competition\": \"Test League\",\n    \"kickoff\": \"2026-06-15T18:00:00Z\",\n    \"markets\": [\n      {\n        \"name\": \"Match Winner\",\n        \"options\": [\n          \"Home\",\n          \"Draw\",\n          \"Away\"\n        ]\n      },\n      {\n        \"name\": \"Over/Under 2.5\",\n        \"options\": [\n          \"Over\",\n          \"Unde",
+            "bytes_captured": 624,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "stderr": {
+            "summary": "",
+            "bytes_captured": 0,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "parsed_result": {
+            "status": "success",
+            "match_id": "test_match_011",
+            "timestamp": "2026-06-12T08:52:26.424836+00:00",
+            "data": {
+              "home_team": "Team Alpha",
+              "away_team": "Team Beta",
+              "competition": "Test League",
+              "kickoff": "2026-06-15T18:00:00Z",
+              "markets": [
+                {
+                  "name": "Match Winner",
+                  "options": [
+                    "Home",
+                    "Draw",
+                    "Away"
+                  ]
+                },
+                {
+                  "name": "Over/Under 2.5",
+                  "options": [
+                    "Over",
+                    "Under"
+                  ]
+                }
+              ]
+            },
+            "metadata": {
+              "fixture_version": "1.0.0",
+              "source": "deterministic_fixture"
+            }
+          },
+          "warnings": [],
+          "error": null
+        }
+      }
+    },
+    {
+      "test_id": "valid_exec_012",
+      "test_name": "Valid execution #13",
+      "category": "valid_execution",
+      "passed": true,
+      "expected": "status=success, exit_code=0, correct match_id",
+      "actual": "status=success, exit_code=0",
+      "duration_ms": 34,
+      "error": null,
+      "evidence": {
+        "match_id": "test_match_012",
+        "result": {
+          "schema_version": 1,
+          "status": "success",
+          "request_id": "req-ed90a439-43f6-492c-8670-6d2c0b7a987e",
+          "operation": "fixture_success",
+          "started_at": "2026-06-12T08:52:26.429037+00:00",
+          "duration_ms": 34,
+          "exit_code": 0,
+          "timed_out": false,
+          "cancelled": false,
+          "stdout": {
+            "summary": "{\n  \"status\": \"success\",\n  \"match_id\": \"test_match_012\",\n  \"timestamp\": \"2026-06-12T08:52:26.459957+00:00\",\n  \"data\": {\n    \"home_team\": \"Team Alpha\",\n    \"away_team\": \"Team Beta\",\n    \"competition\": \"Test League\",\n    \"kickoff\": \"2026-06-15T18:00:00Z\",\n    \"markets\": [\n      {\n        \"name\": \"Match Winner\",\n        \"options\": [\n          \"Home\",\n          \"Draw\",\n          \"Away\"\n        ]\n      },\n      {\n        \"name\": \"Over/Under 2.5\",\n        \"options\": [\n          \"Over\",\n          \"Unde",
+            "bytes_captured": 624,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "stderr": {
+            "summary": "",
+            "bytes_captured": 0,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "parsed_result": {
+            "status": "success",
+            "match_id": "test_match_012",
+            "timestamp": "2026-06-12T08:52:26.459957+00:00",
+            "data": {
+              "home_team": "Team Alpha",
+              "away_team": "Team Beta",
+              "competition": "Test League",
+              "kickoff": "2026-06-15T18:00:00Z",
+              "markets": [
+                {
+                  "name": "Match Winner",
+                  "options": [
+                    "Home",
+                    "Draw",
+                    "Away"
+                  ]
+                },
+                {
+                  "name": "Over/Under 2.5",
+                  "options": [
+                    "Over",
+                    "Under"
+                  ]
+                }
+              ]
+            },
+            "metadata": {
+              "fixture_version": "1.0.0",
+              "source": "deterministic_fixture"
+            }
+          },
+          "warnings": [],
+          "error": null
+        }
+      }
+    },
+    {
+      "test_id": "valid_exec_013",
+      "test_name": "Valid execution #14",
+      "category": "valid_execution",
+      "passed": true,
+      "expected": "status=success, exit_code=0, correct match_id",
+      "actual": "status=success, exit_code=0",
+      "duration_ms": 36,
+      "error": null,
+      "evidence": {
+        "match_id": "test_match_013",
+        "result": {
+          "schema_version": 1,
+          "status": "success",
+          "request_id": "req-38d4d37e-e728-43b1-b6c4-20c17ace278b",
+          "operation": "fixture_success",
+          "started_at": "2026-06-12T08:52:26.464160+00:00",
+          "duration_ms": 36,
+          "exit_code": 0,
+          "timed_out": false,
+          "cancelled": false,
+          "stdout": {
+            "summary": "{\n  \"status\": \"success\",\n  \"match_id\": \"test_match_013\",\n  \"timestamp\": \"2026-06-12T08:52:26.496680+00:00\",\n  \"data\": {\n    \"home_team\": \"Team Alpha\",\n    \"away_team\": \"Team Beta\",\n    \"competition\": \"Test League\",\n    \"kickoff\": \"2026-06-15T18:00:00Z\",\n    \"markets\": [\n      {\n        \"name\": \"Match Winner\",\n        \"options\": [\n          \"Home\",\n          \"Draw\",\n          \"Away\"\n        ]\n      },\n      {\n        \"name\": \"Over/Under 2.5\",\n        \"options\": [\n          \"Over\",\n          \"Unde",
+            "bytes_captured": 624,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "stderr": {
+            "summary": "",
+            "bytes_captured": 0,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "parsed_result": {
+            "status": "success",
+            "match_id": "test_match_013",
+            "timestamp": "2026-06-12T08:52:26.496680+00:00",
+            "data": {
+              "home_team": "Team Alpha",
+              "away_team": "Team Beta",
+              "competition": "Test League",
+              "kickoff": "2026-06-15T18:00:00Z",
+              "markets": [
+                {
+                  "name": "Match Winner",
+                  "options": [
+                    "Home",
+                    "Draw",
+                    "Away"
+                  ]
+                },
+                {
+                  "name": "Over/Under 2.5",
+                  "options": [
+                    "Over",
+                    "Under"
+                  ]
+                }
+              ]
+            },
+            "metadata": {
+              "fixture_version": "1.0.0",
+              "source": "deterministic_fixture"
+            }
+          },
+          "warnings": [],
+          "error": null
+        }
+      }
+    },
+    {
+      "test_id": "valid_exec_014",
+      "test_name": "Valid execution #15",
+      "category": "valid_execution",
+      "passed": true,
+      "expected": "status=success, exit_code=0, correct match_id",
+      "actual": "status=success, exit_code=0",
+      "duration_ms": 35,
+      "error": null,
+      "evidence": {
+        "match_id": "test_match_014",
+        "result": {
+          "schema_version": 1,
+          "status": "success",
+          "request_id": "req-75a0bbf9-c548-4867-9fbd-cc7a77f41fce",
+          "operation": "fixture_success",
+          "started_at": "2026-06-12T08:52:26.500665+00:00",
+          "duration_ms": 35,
+          "exit_code": 0,
+          "timed_out": false,
+          "cancelled": false,
+          "stdout": {
+            "summary": "{\n  \"status\": \"success\",\n  \"match_id\": \"test_match_014\",\n  \"timestamp\": \"2026-06-12T08:52:26.532515+00:00\",\n  \"data\": {\n    \"home_team\": \"Team Alpha\",\n    \"away_team\": \"Team Beta\",\n    \"competition\": \"Test League\",\n    \"kickoff\": \"2026-06-15T18:00:00Z\",\n    \"markets\": [\n      {\n        \"name\": \"Match Winner\",\n        \"options\": [\n          \"Home\",\n          \"Draw\",\n          \"Away\"\n        ]\n      },\n      {\n        \"name\": \"Over/Under 2.5\",\n        \"options\": [\n          \"Over\",\n          \"Unde",
+            "bytes_captured": 624,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "stderr": {
+            "summary": "",
+            "bytes_captured": 0,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "parsed_result": {
+            "status": "success",
+            "match_id": "test_match_014",
+            "timestamp": "2026-06-12T08:52:26.532515+00:00",
+            "data": {
+              "home_team": "Team Alpha",
+              "away_team": "Team Beta",
+              "competition": "Test League",
+              "kickoff": "2026-06-15T18:00:00Z",
+              "markets": [
+                {
+                  "name": "Match Winner",
+                  "options": [
+                    "Home",
+                    "Draw",
+                    "Away"
+                  ]
+                },
+                {
+                  "name": "Over/Under 2.5",
+                  "options": [
+                    "Over",
+                    "Under"
+                  ]
+                }
+              ]
+            },
+            "metadata": {
+              "fixture_version": "1.0.0",
+              "source": "deterministic_fixture"
+            }
+          },
+          "warnings": [],
+          "error": null
+        }
+      }
+    },
+    {
+      "test_id": "valid_exec_015",
+      "test_name": "Valid execution #16",
+      "category": "valid_execution",
+      "passed": true,
+      "expected": "status=success, exit_code=0, correct match_id",
+      "actual": "status=success, exit_code=0",
+      "duration_ms": 35,
+      "error": null,
+      "evidence": {
+        "match_id": "test_match_015",
+        "result": {
+          "schema_version": 1,
+          "status": "success",
+          "request_id": "req-329bbced-b47b-4cf0-abde-429da249e037",
+          "operation": "fixture_success",
+          "started_at": "2026-06-12T08:52:26.536453+00:00",
+          "duration_ms": 35,
+          "exit_code": 0,
+          "timed_out": false,
+          "cancelled": false,
+          "stdout": {
+            "summary": "{\n  \"status\": \"success\",\n  \"match_id\": \"test_match_015\",\n  \"timestamp\": \"2026-06-12T08:52:26.568240+00:00\",\n  \"data\": {\n    \"home_team\": \"Team Alpha\",\n    \"away_team\": \"Team Beta\",\n    \"competition\": \"Test League\",\n    \"kickoff\": \"2026-06-15T18:00:00Z\",\n    \"markets\": [\n      {\n        \"name\": \"Match Winner\",\n        \"options\": [\n          \"Home\",\n          \"Draw\",\n          \"Away\"\n        ]\n      },\n      {\n        \"name\": \"Over/Under 2.5\",\n        \"options\": [\n          \"Over\",\n          \"Unde",
+            "bytes_captured": 624,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "stderr": {
+            "summary": "",
+            "bytes_captured": 0,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "parsed_result": {
+            "status": "success",
+            "match_id": "test_match_015",
+            "timestamp": "2026-06-12T08:52:26.568240+00:00",
+            "data": {
+              "home_team": "Team Alpha",
+              "away_team": "Team Beta",
+              "competition": "Test League",
+              "kickoff": "2026-06-15T18:00:00Z",
+              "markets": [
+                {
+                  "name": "Match Winner",
+                  "options": [
+                    "Home",
+                    "Draw",
+                    "Away"
+                  ]
+                },
+                {
+                  "name": "Over/Under 2.5",
+                  "options": [
+                    "Over",
+                    "Under"
+                  ]
+                }
+              ]
+            },
+            "metadata": {
+              "fixture_version": "1.0.0",
+              "source": "deterministic_fixture"
+            }
+          },
+          "warnings": [],
+          "error": null
+        }
+      }
+    },
+    {
+      "test_id": "valid_exec_016",
+      "test_name": "Valid execution #17",
+      "category": "valid_execution",
+      "passed": true,
+      "expected": "status=success, exit_code=0, correct match_id",
+      "actual": "status=success, exit_code=0",
+      "duration_ms": 34,
+      "error": null,
+      "evidence": {
+        "match_id": "test_match_016",
+        "result": {
+          "schema_version": 1,
+          "status": "success",
+          "request_id": "req-b823c1a3-bbf0-4639-a095-651044456900",
+          "operation": "fixture_success",
+          "started_at": "2026-06-12T08:52:26.572228+00:00",
+          "duration_ms": 34,
+          "exit_code": 0,
+          "timed_out": false,
+          "cancelled": false,
+          "stdout": {
+            "summary": "{\n  \"status\": \"success\",\n  \"match_id\": \"test_match_016\",\n  \"timestamp\": \"2026-06-12T08:52:26.602845+00:00\",\n  \"data\": {\n    \"home_team\": \"Team Alpha\",\n    \"away_team\": \"Team Beta\",\n    \"competition\": \"Test League\",\n    \"kickoff\": \"2026-06-15T18:00:00Z\",\n    \"markets\": [\n      {\n        \"name\": \"Match Winner\",\n        \"options\": [\n          \"Home\",\n          \"Draw\",\n          \"Away\"\n        ]\n      },\n      {\n        \"name\": \"Over/Under 2.5\",\n        \"options\": [\n          \"Over\",\n          \"Unde",
+            "bytes_captured": 624,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "stderr": {
+            "summary": "",
+            "bytes_captured": 0,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "parsed_result": {
+            "status": "success",
+            "match_id": "test_match_016",
+            "timestamp": "2026-06-12T08:52:26.602845+00:00",
+            "data": {
+              "home_team": "Team Alpha",
+              "away_team": "Team Beta",
+              "competition": "Test League",
+              "kickoff": "2026-06-15T18:00:00Z",
+              "markets": [
+                {
+                  "name": "Match Winner",
+                  "options": [
+                    "Home",
+                    "Draw",
+                    "Away"
+                  ]
+                },
+                {
+                  "name": "Over/Under 2.5",
+                  "options": [
+                    "Over",
+                    "Under"
+                  ]
+                }
+              ]
+            },
+            "metadata": {
+              "fixture_version": "1.0.0",
+              "source": "deterministic_fixture"
+            }
+          },
+          "warnings": [],
+          "error": null
+        }
+      }
+    },
+    {
+      "test_id": "valid_exec_017",
+      "test_name": "Valid execution #18",
+      "category": "valid_execution",
+      "passed": true,
+      "expected": "status=success, exit_code=0, correct match_id",
+      "actual": "status=success, exit_code=0",
+      "duration_ms": 34,
+      "error": null,
+      "evidence": {
+        "match_id": "test_match_017",
+        "result": {
+          "schema_version": 1,
+          "status": "success",
+          "request_id": "req-bfe47bd4-7f80-420a-a63f-45ea1e71be81",
+          "operation": "fixture_success",
+          "started_at": "2026-06-12T08:52:26.606960+00:00",
+          "duration_ms": 34,
+          "exit_code": 0,
+          "timed_out": false,
+          "cancelled": false,
+          "stdout": {
+            "summary": "{\n  \"status\": \"success\",\n  \"match_id\": \"test_match_017\",\n  \"timestamp\": \"2026-06-12T08:52:26.637481+00:00\",\n  \"data\": {\n    \"home_team\": \"Team Alpha\",\n    \"away_team\": \"Team Beta\",\n    \"competition\": \"Test League\",\n    \"kickoff\": \"2026-06-15T18:00:00Z\",\n    \"markets\": [\n      {\n        \"name\": \"Match Winner\",\n        \"options\": [\n          \"Home\",\n          \"Draw\",\n          \"Away\"\n        ]\n      },\n      {\n        \"name\": \"Over/Under 2.5\",\n        \"options\": [\n          \"Over\",\n          \"Unde",
+            "bytes_captured": 624,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "stderr": {
+            "summary": "",
+            "bytes_captured": 0,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "parsed_result": {
+            "status": "success",
+            "match_id": "test_match_017",
+            "timestamp": "2026-06-12T08:52:26.637481+00:00",
+            "data": {
+              "home_team": "Team Alpha",
+              "away_team": "Team Beta",
+              "competition": "Test League",
+              "kickoff": "2026-06-15T18:00:00Z",
+              "markets": [
+                {
+                  "name": "Match Winner",
+                  "options": [
+                    "Home",
+                    "Draw",
+                    "Away"
+                  ]
+                },
+                {
+                  "name": "Over/Under 2.5",
+                  "options": [
+                    "Over",
+                    "Under"
+                  ]
+                }
+              ]
+            },
+            "metadata": {
+              "fixture_version": "1.0.0",
+              "source": "deterministic_fixture"
+            }
+          },
+          "warnings": [],
+          "error": null
+        }
+      }
+    },
+    {
+      "test_id": "valid_exec_018",
+      "test_name": "Valid execution #19",
+      "category": "valid_execution",
+      "passed": true,
+      "expected": "status=success, exit_code=0, correct match_id",
+      "actual": "status=success, exit_code=0",
+      "duration_ms": 34,
+      "error": null,
+      "evidence": {
+        "match_id": "test_match_018",
+        "result": {
+          "schema_version": 1,
+          "status": "success",
+          "request_id": "req-5299cdae-1049-4f56-b1ab-6c8b90d23513",
+          "operation": "fixture_success",
+          "started_at": "2026-06-12T08:52:26.641599+00:00",
+          "duration_ms": 34,
+          "exit_code": 0,
+          "timed_out": false,
+          "cancelled": false,
+          "stdout": {
+            "summary": "{\n  \"status\": \"success\",\n  \"match_id\": \"test_match_018\",\n  \"timestamp\": \"2026-06-12T08:52:26.672049+00:00\",\n  \"data\": {\n    \"home_team\": \"Team Alpha\",\n    \"away_team\": \"Team Beta\",\n    \"competition\": \"Test League\",\n    \"kickoff\": \"2026-06-15T18:00:00Z\",\n    \"markets\": [\n      {\n        \"name\": \"Match Winner\",\n        \"options\": [\n          \"Home\",\n          \"Draw\",\n          \"Away\"\n        ]\n      },\n      {\n        \"name\": \"Over/Under 2.5\",\n        \"options\": [\n          \"Over\",\n          \"Unde",
+            "bytes_captured": 624,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "stderr": {
+            "summary": "",
+            "bytes_captured": 0,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "parsed_result": {
+            "status": "success",
+            "match_id": "test_match_018",
+            "timestamp": "2026-06-12T08:52:26.672049+00:00",
+            "data": {
+              "home_team": "Team Alpha",
+              "away_team": "Team Beta",
+              "competition": "Test League",
+              "kickoff": "2026-06-15T18:00:00Z",
+              "markets": [
+                {
+                  "name": "Match Winner",
+                  "options": [
+                    "Home",
+                    "Draw",
+                    "Away"
+                  ]
+                },
+                {
+                  "name": "Over/Under 2.5",
+                  "options": [
+                    "Over",
+                    "Under"
+                  ]
+                }
+              ]
+            },
+            "metadata": {
+              "fixture_version": "1.0.0",
+              "source": "deterministic_fixture"
+            }
+          },
+          "warnings": [],
+          "error": null
+        }
+      }
+    },
+    {
+      "test_id": "valid_exec_019",
+      "test_name": "Valid execution #20",
+      "category": "valid_execution",
+      "passed": true,
+      "expected": "status=success, exit_code=0, correct match_id",
+      "actual": "status=success, exit_code=0",
+      "duration_ms": 33,
+      "error": null,
+      "evidence": {
+        "match_id": "test_match_019",
+        "result": {
+          "schema_version": 1,
+          "status": "success",
+          "request_id": "req-c5cdf152-3c0c-4d31-8016-959261694d93",
+          "operation": "fixture_success",
+          "started_at": "2026-06-12T08:52:26.675999+00:00",
+          "duration_ms": 33,
+          "exit_code": 0,
+          "timed_out": false,
+          "cancelled": false,
+          "stdout": {
+            "summary": "{\n  \"status\": \"success\",\n  \"match_id\": \"test_match_019\",\n  \"timestamp\": \"2026-06-12T08:52:26.705979+00:00\",\n  \"data\": {\n    \"home_team\": \"Team Alpha\",\n    \"away_team\": \"Team Beta\",\n    \"competition\": \"Test League\",\n    \"kickoff\": \"2026-06-15T18:00:00Z\",\n    \"markets\": [\n      {\n        \"name\": \"Match Winner\",\n        \"options\": [\n          \"Home\",\n          \"Draw\",\n          \"Away\"\n        ]\n      },\n      {\n        \"name\": \"Over/Under 2.5\",\n        \"options\": [\n          \"Over\",\n          \"Unde",
+            "bytes_captured": 624,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "stderr": {
+            "summary": "",
+            "bytes_captured": 0,
+            "truncated": false,
+            "artifact_path": null
+          },
+          "parsed_result": {
+            "status": "success",
+            "match_id": "test_match_019",
+            "timestamp": "2026-06-12T08:52:26.705979+00:00",
+            "data": {
+              "home_team": "Team Alpha",
+              "away_team": "Team Beta",
+              "competition": "Test League",
+              "kickoff": "2026-06-15T18:00:00Z",
+              "markets": [
+                {
+                  "name": "Match Winner",
+                  "options": [
+                    "Home",
+                    "Draw",
+                    "Away"
+                  ]
+                },
+                {
+                  "name": "Over/Under 2.5",
+                  "options": [
+                    "Over",
+                    "Under"
+                  ]
+                }
+              ]
+            },
+            "metadata": {
+              "fixture_version": "1.0.0",
+              "source": "deterministic_fixture"
+            }
+          },
+          "warnings": [],
+          "error": null
+        }
+      }
+    },
+    {
+      "test_id": "val_unknown_op",
+      "test_name": "Unknown operation rejected",
+      "category": "validation",
+      "passed": true,
+      "expected": "status=invalid_request",
+      "actual": "status=invalid_request",
+      "duration_ms": 0,
+      "error": "Unknown operation: unknown_operation",
+      "evidence": null
+    },
+    {
+      "test_id": "val_missing_arg",
+      "test_name": "Missing required argument rejected",
+      "category": "validation",
+      "passed": true,
+      "expected": "status=invalid_request",
+      "actual": "status=invalid_request",
+      "duration_ms": 0,
+      "error": "Invalid argument 'match_id': Required argument missing",
+      "evidence": null
+    },
+    {
+      "test_id": "val_unknown_arg",
+      "test_name": "Unknown argument rejected",
+      "category": "validation",
+      "passed": true,
+      "expected": "status=invalid_request",
+      "actual": "status=invalid_request",
+      "duration_ms": 0,
+      "error": "Unknown argument: unknown_arg",
+      "evidence": null
+    },
+    {
+      "test_id": "val_invalid_type",
+      "test_name": "Invalid type rejected",
+      "category": "validation",
+      "passed": true,
+      "expected": "status=invalid_request",
+      "actual": "status=invalid_request",
+      "duration_ms": 0,
+      "error": "Invalid argument 'error_code': Expected integer, got str",
+      "evidence": null
+    },
+    {
+      "test_id": "val_invalid_pattern",
+      "test_name": "Invalid pattern rejected",
+      "category": "validation",
+      "passed": true,
+      "expected": "status=invalid_request",
+      "actual": "status=invalid_request",
+      "duration_ms": 0,
+      "error": "Invalid argument 'match_id': Value does not match pattern ^[A-Za-z0-9_-]{1,64}$",
+      "evidence": null
+    },
+    {
+      "test_id": "val_oversized_arg",
+      "test_name": "Oversized argument rejected",
+      "category": "validation",
+      "passed": true,
+      "expected": "status=invalid_request",
+      "actual": "status=invalid_request",
+      "duration_ms": 0,
+      "error": "Invalid argument 'match_id': Value does not match pattern ^[A-Za-z0-9_-]{1,64}$",
+      "evidence": null
+    },
+    {
+      "test_id": "val_shell_meta",
+      "test_name": "Shell metacharacters rejected",
+      "category": "validation",
+      "passed": true,
+      "expected": "status=invalid_request",
+      "actual": "status=invalid_request",
+      "duration_ms": 0,
+      "error": "Invalid argument 'match_id': Value does not match pattern ^[A-Za-z0-9_-]{1,64}$",
+      "evidence": null
+    },
+    {
+      "test_id": "val_int_range",
+      "test_name": "Integer out of range rejected",
+      "category": "validation",
+      "passed": true,
+      "expected": "status=invalid_request",
+      "actual": "status=invalid_request",
+      "duration_ms": 0,
+      "error": "Invalid argument 'error_code': Value 300 above maximum 255",
+      "evidence": null
+    },
+    {
+      "test_id": "script_failure",
+      "test_name": "Script failure captured",
+      "category": "failure",
+      "passed": true,
+      "expected": "status=failed, exit_code=42",
+      "actual": "status=failed, exit_code=42",
+      "duration_ms": 34,
+      "error": null,
+      "evidence": {
+        "stderr": "{\"error\": \"Simulated failure\", \"error_code\": 42, \"message\": \"This is a deterministic test failure\", \"details\": {\"reason\": \"fixture_failure\", \"recoverable\": false}}\n"
+      }
+    },
+    {
+      "test_id": "timeout_enforced",
+      "test_name": "Timeout enforced",
+      "category": "timeout",
+      "passed": true,
+      "expected": "status=timeout, timed_out=true",
+      "actual": "status=timeout, timed_out=True",
+      "duration_ms": 1003,
+      "error": null,
+      "evidence": null
+    },
+    {
+      "test_id": "output_limit",
+      "test_name": "Output limit handling",
+      "category": "output_limit",
+      "passed": true,
+      "expected": "status=success or output_limit_exceeded",
+      "actual": "status=output_limit_exceeded",
+      "duration_ms": 47,
+      "error": null,
+      "evidence": {
+        "stdout_bytes": 65578
+      }
+    },
+    {
+      "test_id": "secret_redaction",
+      "test_name": "Secret redaction works",
+      "category": "redaction",
+      "passed": true,
+      "expected": "Secrets replaced with [REDACTED]",
+      "actual": "[REDACTED] [REDACTED] abc123xyz",
+      "duration_ms": 0,
+      "error": null,
+      "evidence": null
+    }
+  ],
+  "gates": {
+    "valid_executions": "20/20",
+    "validation_failures": "8/8",
+    "script_failure": "PASS",
+    "timeout": "PASS",
+    "output_limit": "PASS",
+    "secret_redaction": "PASS"
+  }
+}

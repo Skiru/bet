@@ -1,0 +1,104 @@
+{
+  "schema_version": "1.0.0",
+  "closure_id": "closure-20260612T075353Z",
+  "timestamp": "2026-06-12T07:53:53+02:00",
+  "status": "KILO_BASELINE_BLOCKED",
+  "block_reason": "MCP_ISOLATION_UNAVAILABLE",
+  "previous_result": {
+    "claimed_tests": 44,
+    "claimed_passed": 42,
+    "claimed_failed": 2,
+    "json_tests": 28,
+    "json_passed": 26,
+    "json_failed": 2,
+    "discrepancy": 16
+  },
+  "failed_tests": [
+    {
+      "test_id": "context_accumulation",
+      "group": "P2.7 Multi-Turn Stability",
+      "mandatory_or_diagnostic": "AMBIGUOUS",
+      "reason": "Model recalled 2/5 items instead of required 3+",
+      "classification": "Model behavior limitation"
+    },
+    {
+      "test_id": "thermal_status",
+      "group": "P2.9 Resource Observation",
+      "mandatory_or_diagnostic": "DIAGNOSTIC",
+      "reason": "Test harness false positive on thermal warning",
+      "classification": "Harness bug"
+    }
+  ],
+  "runtime_fingerprint": {
+    "pid": 54776,
+    "version": "0.7.1",
+    "model": "qwen3.6-35b-4bit",
+    "host": "127.0.0.1:8000",
+    "start_time": "Fri Jun 12 08:43:53 2026",
+    "elapsed": "01:11:32",
+    "rss_mb": 43,
+    "fingerprint_unchanged": true
+  },
+  "kilo_configuration": {
+    "version": "7.3.41",
+    "provider": "openai-compatible",
+    "model_id": "qwen36-local-35b",
+    "api_model": "default",
+    "base_url": "http://127.0.0.1:8000/v1",
+    "context_limit": 28672,
+    "input_limit": 24576,
+    "output_limit": 4096,
+    "tool_call": true,
+    "reasoning": true,
+    "configuration_valid": true
+  },
+  "mcp_status": {
+    "memory": {"source": "global", "status": "connected", "can_disable": false},
+    "brave-search": {"source": "project", "status": "connected", "can_disable": true},
+    "context7": {"source": "project", "status": "connected", "can_disable": true},
+    "playwright": {"source": "project", "status": "disabled", "can_disable": true},
+    "isolation_possible": false,
+    "block_reason": "Global memory MCP has no enabled field"
+  },
+  "forced_tool_choice": {
+    "finding": "HARNESS_LIMITATION",
+    "evidence": "Phase 1 passed pinned function, Phase 2 used auto",
+    "phase1_forced_tool_pass": true
+  },
+  "cache_finding": {
+    "classification": "LATENCY_IMPROVEMENT_ONLY",
+    "benefit_pct": 44.446,
+    "evidence": "Latency reduction without cache hit confirmation"
+  },
+  "resource_finding": {
+    "process_rss_mb": 43,
+    "reported_rss_mb": 258,
+    "growth_pct": -1.4,
+    "thermal_warning": false,
+    "oom": false,
+    "status": "ACCEPTABLE"
+  },
+  "acceptance_matrix": {
+    "pass": 9,
+    "fail": 0,
+    "blocked": 1,
+    "not_run": 9
+  },
+  "out_of_scope": {
+    "mcp_tests": "run-20260612T072856Z-mcp-test.json",
+    "mcp_test_count": 5,
+    "mcp_status": "OUT_OF_SCOPE_PRELIMINARY_MCP_EVIDENCE"
+  },
+  "evidence_paths": [
+    "reports/kilo-rapidmlx-baseline/closure-20260612T075353Z/TEST_RECONSTRUCTION.md",
+    "reports/kilo-rapidmlx-baseline/closure-20260612T075353Z/REPORT.md",
+    "reports/kilo-rapidmlx-baseline/closure-20260612T075353Z/KILO_BASELINE_ACCEPTANCE_MATRIX.md",
+    "reports/kilo-rapidmlx-baseline/closure-20260612T075353Z/results.json"
+  ],
+  "next_actions": [
+    "Request user decision on MCP isolation approach",
+    "Option A: Modify global Kilo configuration",
+    "Option B: Accept global MCP as part of baseline",
+    "Option C: Create separate minimal config file"
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "fixture_id": "F003_SCANNER_FEED",
+  "synthetic": true,
+  "disclaimer": "SYNTHETIC — NOT REAL BETTING DATA",
+  "generated": "2026-06-12T12:00:00Z",
+  "scenario": "bet-scanner fixture discovery from offline artifact",
+  "fixture_feed": {
+    "source_id": "SOURCE_SYNTH_A",
+    "source_class": "official",
+    "as_of": "2026-06-12T11:00:00Z",
+    "provenance": "synthetic_fixture_feed_v1",
+    "confidence": 1.0,
+    "fixtures": [
+      {
+        "match_id": "MATCH_SYNTH_003",
+        "competition": "COMP_SYNTH_ALPHA",
+        "home_team": "TEAM_ALPHA",
+        "away_team": "TEAM_BETA",
+        "kickoff": "2026-06-13T18:30:00Z",
+        "status": "scheduled"
+      },
+      {
+        "match_id": "MATCH_SYNTH_004",
+        "competition": "COMP_SYNTH_BETA",
+        "home_team": "TEAM_GAMMA",
+        "away_team": "TEAM_DELTA",
+        "kickoff": "2026-06-13T20:00:00Z",
+        "status": "scheduled"
+      },
+      {
+        "match_id": "MATCH_SYNTH_005",
+        "competition": "COMP_SYNTH_ALPHA",
+        "home_team": "TEAM_EPSILON",
+        "away_team": "TEAM_ZETA",
+        "kickoff": "2026-06-14T15:00:00Z",
+        "status": "scheduled"
+      }
+    ]
+  },
+  "coverage_window": {
+    "start": "2026-06-13T00:00:00Z",
+    "end": "2026-06-14T23:59:59Z"
+  },
+  "expected_result": {
+    "status": "PASS",
+    "decision": "FIXTURES_DISCOVERED",
+    "rationale": "bet-scanner can read offline artifacts and verify fixture identities"
+  },
+  "sha256": "PLACEHOLDER"
+}

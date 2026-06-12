@@ -1,0 +1,158 @@
+{
+  "schema_version": "1",
+  "created_at": "2026-06-12T16:00:00+02:00",
+  "sport": "football",
+  "capabilities": {
+    "discovery_status": {
+      "classification": "P0_REQUIRED",
+      "description": "Discover fixtures for a date range with status",
+      "providers": ["api-football", "espn"],
+      "evidence_required": true,
+      "temporal_scope": "date_range",
+      "notes": "Both providers support this. API-Football is primary."
+    },
+    "canonical_event_team_identity": {
+      "classification": "P0_REQUIRED",
+      "description": "Canonical fixture and team identity with crosswalk",
+      "providers": ["api-football", "espn"],
+      "evidence_required": true,
+      "temporal_scope": "fixture_scoped",
+      "notes": "Crosswalk required for multi-provider support"
+    },
+    "current_recent_form": {
+      "classification": "P0_REQUIRED",
+      "description": "Team form from last N finished fixtures",
+      "providers": ["api-football", "espn"],
+      "evidence_required": true,
+      "temporal_scope": "analysis_cutoff_at",
+      "notes": "Must be fixture-scoped with cutoff timestamp"
+    },
+    "h2h_head_to_head": {
+      "classification": "P0_REQUIRED",
+      "description": "Head-to-head history between two teams",
+      "providers": ["api-football", "espn"],
+      "evidence_required": true,
+      "temporal_scope": "analysis_cutoff_at",
+      "notes": "Both providers support team schedule filtering"
+    },
+    "standings_competition_context": {
+      "classification": "P0_REQUIRED",
+      "description": "League standings and competition context",
+      "providers": ["api-football"],
+      "evidence_required": true,
+      "temporal_scope": "season_scoped",
+      "notes": "API-Football has standings endpoint"
+    },
+    "fixture_team_statistics": {
+      "classification": "P0_REQUIRED",
+      "description": "Match statistics for a completed fixture",
+      "providers": ["api-football", "espn"],
+      "evidence_required": true,
+      "temporal_scope": "fixture_scoped",
+      "notes": "Both providers support. ESPN has richer stats."
+    },
+    "injuries_suspensions": {
+      "classification": "P1_ENHANCEMENT",
+      "description": "Player injuries and suspensions",
+      "providers": ["api-football"],
+      "evidence_required": true,
+      "temporal_scope": "fixture_scoped",
+      "notes": "API-Football has injuries endpoint. Plan-restricted on free tier."
+    },
+    "roster_availability": {
+      "classification": "P1_ENHANCEMENT",
+      "description": "Team roster and player availability",
+      "providers": ["api-football"],
+      "evidence_required": true,
+      "temporal_scope": "fixture_scoped",
+      "notes": "API-Football has squad endpoint"
+    },
+    "predicted_lineup": {
+      "classification": "P1_ENHANCEMENT",
+      "description": "Predicted starting lineup before match",
+      "providers": ["api-football"],
+      "evidence_required": true,
+      "temporal_scope": "fixture_scoped",
+      "notes": "API-Football has predictions endpoint"
+    },
+    "confirmed_lineup": {
+      "classification": "P1_ENHANCEMENT",
+      "description": "Confirmed starting lineup after publication",
+      "providers": ["api-football"],
+      "evidence_required": true,
+      "temporal_scope": "fixture_scoped",
+      "notes": "API-Football has lineups endpoint. Often NOT_PUBLISHED_YET before match."
+    },
+    "venue_context": {
+      "classification": "P1_ENHANCEMENT",
+      "description": "Venue information and context",
+      "providers": ["api-football", "espn"],
+      "evidence_required": false,
+      "temporal_scope": "fixture_scoped",
+      "notes": "Both providers include venue in fixture data"
+    },
+    "cross_provider_identity": {
+      "classification": "P0_REQUIRED",
+      "description": "Crosswalk between provider IDs for same entity",
+      "providers": ["api-football", "espn"],
+      "evidence_required": true,
+      "temporal_scope": "entity_scoped",
+      "notes": "Required for multi-provider fallback"
+    },
+    "odds": {
+      "classification": "SEPARATE_PIPELINE",
+      "description": "Betting odds from bookmakers",
+      "providers": ["api-football", "espn"],
+      "evidence_required": true,
+      "temporal_scope": "fixture_scoped",
+      "notes": "Odds pipeline is separate. Not part of enrichment vertical."
+    },
+    "weather": {
+      "classification": "SEPARATE_PIPELINE",
+      "description": "Weather conditions at venue",
+      "providers": [],
+      "evidence_required": false,
+      "temporal_scope": "fixture_scoped",
+      "notes": "Weather pipeline is separate. Not implemented yet."
+    },
+    "news": {
+      "classification": "SEPARATE_PIPELINE",
+      "description": "Team and player news",
+      "providers": [],
+      "evidence_required": false,
+      "temporal_scope": "fixture_scoped",
+      "notes": "News pipeline is separate. Not implemented yet."
+    },
+    "tipster_data": {
+      "classification": "SEPARATE_PIPELINE",
+      "description": "Tipster predictions and analysis",
+      "providers": [],
+      "evidence_required": false,
+      "temporal_scope": "fixture_scoped",
+      "notes": "Tipster pipeline is separate. Not part of enrichment vertical."
+    }
+  },
+  "p0_capabilities": [
+    "discovery_status",
+    "canonical_event_team_identity",
+    "current_recent_form",
+    "h2h_head_to_head",
+    "standings_competition_context",
+    "fixture_team_statistics",
+    "cross_provider_identity"
+  ],
+  "p1_capabilities": [
+    "injuries_suspensions",
+    "roster_availability",
+    "predicted_lineup",
+    "confirmed_lineup",
+    "venue_context"
+  ],
+  "separate_pipeline": [
+    "odds",
+    "weather",
+    "news",
+    "tipster_data"
+  ],
+  "out_of_scope": []
+}

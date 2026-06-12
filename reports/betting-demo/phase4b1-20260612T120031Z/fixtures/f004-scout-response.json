@@ -1,0 +1,44 @@
+STATUS: PASS
+
+DECISION: VALID_TIPS_REMAINING
+
+EVIDENCE:
+- Fixture: F004_SCOUT_TIPS (synthetic, generated 2026-06-12T12:00:00Z)
+- Total claims: 5 (TIP_SYNTH_001 through TIP_SYNTH_005)
+- Valid independent claims retained: 2 (TIP_SYNTH_001, TIP_SYNTH_002)
+- Rejected claims: 3 (TIP_SYNTH_003 dependent, TIP_SYNTH_004 stale, TIP_SYNTH_005 unsupported)
+
+Claim analysis:
+  TIP_SYNTH_001 — SOURCE_SYNTH_A (official), match MATCH_SYNTH_003, market MARKET_SYNTH_HOME, selection TEAM_ALPHA, confidence 0.75, independence: independent, as_of 2026-06-12T10:00:00Z. No rejection flags. → RETAIN
+  TIP_SYNTH_002 — SOURCE_SYNTH_B (aggregator), match MATCH_SYNTH_003, market MARKET_SYNTH_HOME, selection TEAM_ALPHA, confidence 0.70, independence: independent, as_of 2026-06-12T09:30:00Z. No rejection flags. → RETAIN
+  TIP_SYNTH_003 — SOURCE_SYNTH_C (affiliate), same match/market/selection as TIP_SYNTH_001, independence: dependent, dependency_note: "Duplicated from SOURCE_SYNTH_A". → REJECT (dependent/duplicate)
+  TIP_SYNTH_004 — SOURCE_SYNTH_D (social), match MATCH_SYNTH_004, market MARKET_SYNTH_OVER, selection over_2.5, confidence 0.60, stale: true, stale_reason: "as_of more than 24 hours old" (as_of 2026-06-10T08:00:00Z, >24h before fixture time). → REJECT (stale)
+  TIP_SYNTH_005 — SOURCE_SYNTH_E (unknown), match MATCH_SYNTH_005, market MARKET_SYNTH_DRAW, selection draw, confidence 0.90, independence: unknown, unsupported: true, unsupported_reason: "No supporting evidence provided". → REJECT (unsupported)
+
+CALCULATIONS:
+- Post-filter valid claims: 2 (TIP_SYNTH_001, TIP_SYNTH_002)
+- Both valid claims target the same match/market/selection: MATCH_SYNTH_003 / MARKET_SYNTH_HOME / TEAM_ALPHA
+- Sources are independent (official + aggregator), different provenance (synthetic_tipster_v1 vs synthetic_tipster_v2)
+- Consensus formed: TEAM_ALPHA for MATCH_SYNTH_003 / MARKET_SYNTH_HOME
+- Consensus confidence: mean(0.75, 0.70) = 0.725
+- Source grade: official (TIP_SYNTH_001) + aggregator (TIP_SYNTH_002) — mixed provenance, acceptable
+- Argument quality: TIP_SYNTH_001 cites home form (5-match unbeaten), TIP_SYNTH_002 cites head-to-head — distinct arguments, not circular
+- Rejection summary: 3/5 claims filtered (1 dependent, 1 stale, 1 unsupported)
+
+UNCERTAINTY:
+- All data is synthetic; no real odds, fixtures, or tipster sources exist
+- Source_class values (official, aggregator, affiliate, social, unknown) are labels without real-world validation
+- Confidence scores (0.60–0.90) are synthetic weights, not calibrated probabilities
+- Staleness threshold (24h) is applied correctly but the absolute as_of values are synthetic
+- SHA256 is PLACEHOLDER — fixture integrity cannot be cryptographically verified
+
+RISKS:
+- Synthetic fixture does not exercise real tipster API integration or network failure paths
+- No real-world stale data edge cases (e.g., borderline 23h59m claims)
+- Unknown independence classification (TIP_SYNTH_005) is not tested beyond the unsupported flag
+- Dependent claim (TIP_SYNTH_003) is explicitly marked; real-world cross-source deduplication logic is not exercised
+
+NEXT_ACTION:
+- Proceed to next phase (phase4b2) with the 2 retained valid tips forming consensus on TEAM_ALPHA for MATCH_SYNTH_003 / MARKET_SYNTH_HOME at consensus confidence 0.725
+- Validate that downstream phases correctly consume the filtered tip set and do not re-introduce rejected claims
+- When real data is available, re-run this fixture with actual tipster sources to verify staleness, dedup, and unsupported filtering against live data

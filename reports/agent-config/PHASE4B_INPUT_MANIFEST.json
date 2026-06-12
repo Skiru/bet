@@ -1,0 +1,59 @@
+{
+  "manifest_version": "1.0",
+  "generated": "2026-06-12T13:45:00Z",
+  "purpose": "Phase 4B unattended synthetic specialist demonstration input fingerprint",
+  "workspace": "/Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice",
+  "branch": "cherry-juice",
+  "phase4a_head": "3c8c2f3c49d3ec19772907f730b6e2c7c905f6c0",
+  "configuration": {
+    "kilo.jsonc": "6d64fc2cbebc76fc15794ce315ea622bca2632177b43929957bdb36f1362c8f5",
+    "AGENTS.md": "cc1eaa991b87017084405d7a22f7483766145365bf00f9626d134a9578ba5e42"
+  },
+  "agents": {
+    "bet-builder": "b9224f482cf3e8c42caa0d194734a18195473bd2166831152c280a593d71b1c0",
+    "bet-challenger": "2763a3677a1f0ee4336eee5e2c03dcdff6622671277988e0b877b858d2618b01",
+    "bet-db-analyst": "bc2d9dbe27079be611265c52778c259b55d1a7d608ad668182165bbaa47ae1c3",
+    "bet-engineer": "ce28210a0f1b26978b961c21ba348e9f9fa37ce56a68c033973c3b7077d2a5b1",
+    "bet-enricher": "93018e5ef4a547cc7ae8dc5efed2886770e7c092afd528456b723f72150a5cca",
+    "bet-orchestrator": "8fcaa7e5ff0750f5fcecf41528b51916f2f9256632cbe817fe7dbd711a95d475",
+    "bet-reconciler": "64a0d6715be9525413a119fc53a892218b3061073e07c2746f58122a1166f8be",
+    "bet-scanner": "740c035e755d7e9b8e0b0dbd05651b66040e7c3a9421a0713d971bd3b9fb3c14",
+    "bet-scout": "bd51b8647d6be1c905f9135fcf93ec9691845d24f7bc323b066ce5c76ecdd770",
+    "bet-settler": "1ce2e1e0ad34cbb15cdbcc7dbd33f059b37e545b70b480167dd505748ad2542d",
+    "bet-statistician": "9add8d27b4c48d2f50af0c15f5167621c1d7435acc9848bc78cf79dc0257f2d7",
+    "bet-test-engineer": "fc70df46c038a7449e57a75a2423393f03e0dea5a5ba70b2473bf976a4076f68",
+    "bet-valuator": "6f1d20d390fe15708c9321696eb1a674bcfc1225e03bd7cb0de0f8afe1dac7fa"
+  },
+  "skills": {
+    "betting-evidence-contract": "d6fd825854fce105f235764bca330dfac6f3f036dbe1f466a1d4d6ec7b42043f",
+    "betting-pipeline-contract": "f278d6d9ae62a2481c4a46f3e8b8c7463bdfc02b877fe465f1f1622e0a5f215c"
+  },
+  "tools": {
+    "bet_artifact_write": "a9ecaeda1dcebc29c05ee81fc97cae191fc69cbd421278358b0218fb5c127467",
+    "bet_script_run": "0f484b1c9f99c752744335362c9c1adf019a5ccfece27ba5622d75a6d26f1f78"
+  },
+  "fixture_operations": {
+    "bet-script-operations.json": "b58121b88d7a2491539ec2202a1f4d04601be99d5a3c75deb69889f42d236b5a"
+  },
+  "validators": {
+    "validate-bet-agent-config.py": "525b233ec6b511aa618fdeeb8c8dd874eb8252b8267ce0f4aec514cb16ccf212",
+    "validate-unattended-permissions.py": "051d9bac414f11f5d7de51ff3b099418450ab13724a0c40309d5f1abe1050b66"
+  },
+  "acceptance_matrix": {
+    "AGENT_CONFIG_ACCEPTANCE_MATRIX.md": "ed877f21a57f592193523681b20fc8746ed677ba228ecf56e7b06f28c4155107"
+  },
+  "deferred_capabilities": [
+    "bet_sqlite_query (database)",
+    "real_scripts (fixture-only mode)",
+    "web_search (MCP disabled)",
+    "brave_search (MCP disabled)",
+    "context7 (MCP disabled)",
+    "playwright (MCP disabled)"
+  ],
+  "validation_status": {
+    "kilo_config_check": "PASS",
+    "agent_validator": "PASS (13 agents, 2 skills)",
+    "unattended_validator": "PASS (183/183 gates)",
+    "git_diff_check": "PASS"
+  }
+}

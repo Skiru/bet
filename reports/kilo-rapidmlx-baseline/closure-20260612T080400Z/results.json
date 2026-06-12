@@ -1,0 +1,72 @@
+{
+  "timestamp": "2026-06-12T08:04:00Z",
+  "phase": "P2_closure",
+  "status": "KILO_BASELINE_PASS",
+  "configuration_fingerprint": "d4e59816d5cd0049",
+  "mcp_state": {
+    "memory": false,
+    "brave-search": false,
+    "context7": false,
+    "playwright": false
+  },
+  "global_config_modified": false,
+  "project_override": {
+    "memory": {"enabled": false},
+    "brave-search": {"enabled": false},
+    "context7": {"enabled": false},
+    "playwright": {"enabled": false}
+  },
+  "canonical_gates": {
+    "connectivity": {"status": "PASS", "count": 5, "total": 5},
+    "read": {"status": "PASS", "count": 5, "total": 5},
+    "glob": {"status": "PASS", "count": 5, "total": 5},
+    "grep": {"status": "PASS", "count": 5, "total": 5},
+    "bash": {"status": "PASS", "count": 5, "total": 5}
+  },
+  "same_session_continuation": {
+    "status": "PASS",
+    "sessions": 1,
+    "turns": 12,
+    "malformed_tool_calls": 0,
+    "duplicate_executions": 0,
+    "unexpected_tools": 0,
+    "mcp_calls": 0,
+    "context_overflow_error": 0,
+    "compaction_exhausted": 0,
+    "repetition_collapse": 0,
+    "rapid_mlx_restart": 0
+  },
+  "cache_classification": "INSUFFICIENT_EVIDENCE",
+  "memory_classification": "UNKNOWN",
+  "rapid_mlx_server": {
+    "pid": 54776,
+    "start_time": "Fri Jun 12 08:43:53 2026",
+    "version": "0.7.1",
+    "model": "mlx-community/Qwen3.6-35B-A3B-4bit",
+    "status": "running",
+    "oom": false,
+    "restart_detected": false
+  },
+  "previous_evidence_classification": "OUT_OF_SCOPE_PRELIMINARY_MCP_EVIDENCE",
+  "previous_evidence_paths": [
+    "reports/kilo-rapidmlx-baseline/closure-20260612T075353Z/results.json",
+    "reports/kilo-rapidmlx-baseline/closure-20260612T075353Z/KILO_BASELINE_ACCEPTANCE_MATRIX.md",
+    "reports/kilo-rapidmlx-baseline/closure-20260612T075353Z/REPORT.md",
+    "reports/kilo-rapidmlx-baseline/closure-20260612T075353Z/TEST_RECONSTRUCTION.md",
+    "reports/kilo-rapidmlx-baseline/run-20260612T072549Z-context-test.json",
+    "reports/kilo-rapidmlx-baseline/run-20260612T072856Z-mcp-test.json",
+    "reports/kilo-rapidmlx-baseline/run-20260612T073211Z-stability-test.json",
+    "reports/kilo-rapidmlx-baseline/run-20260612T073341Z-recovery-test.json",
+    "reports/kilo-rapidmlx-baseline/run-20260612T073702Z-resource-test.json"
+  ],
+  "evidence_paths": [
+    "reports/kilo-rapidmlx-baseline/closure-20260612T080400Z/results.json",
+    "reports/kilo-rapidmlx-baseline/closure-20260612T080400Z/KILO_BASELINE_ACCEPTANCE_MATRIX.md",
+    "reports/kilo-rapidmlx-baseline/closure-20260612T080400Z/REPORT.md"
+  ],
+  "known_limitations": [
+    "Cache classification requires direct server evidence which is not exposed",
+    "MLX unified-memory allocation is not exposed from the server process",
+    "Same-session continuation tested in single session, not two separate sessions"
+  ]
+}

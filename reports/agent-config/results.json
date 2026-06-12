@@ -1,0 +1,30 @@
+{
+  "stage": "Phase 4A scope correction — active agent configuration",
+  "status": "AGENT_CONFIG_PASS",
+  "previous_incorrect_blockers": [
+    "missing scripts/sqlite_readonly.py",
+    "no real betting database",
+    "fixture-only bet_script_run",
+    "betting agents with Bash denied"
+  ],
+  "active_broken_capabilities": [],
+  "deferred_capabilities": [
+    "bet_sqlite_query",
+    "real database",
+    "real script execution",
+    "web research",
+    "browser automation",
+    "MCP"
+  ],
+  "quarantined_files": [
+    "archive/deferred-kilo-tools/bet_sqlite_query.ts"
+  ],
+  "artifact_writer_report": "reports/agent-config/artifact-writer-qualification-20260612T111336Z.json",
+  "permission_validator_report": "reports/agent-config/diagnostics/phase4a-20260612T111336Z/phase4a-perms.txt",
+  "static_validator_report": "reports/agent-config/diagnostics/phase4a-20260612T111336Z/phase4a-static.txt",
+  "kilo_diagnostics": {
+    "config_check": "reports/agent-config/diagnostics/phase4a-20260612T111336Z/phase4a-config-check.txt",
+    "debug_paths": "reports/agent-config/diagnostics/phase4a-20260612T111336Z/phase4a-debug-paths.txt",
+    "mcp_list": "reports/agent-config/diagnostics/phase4a-20260612T111336Z/phase4a-mcp-list.txt"
+  }
+}

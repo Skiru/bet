@@ -1,0 +1,149 @@
+{
+  "generated": "2026-06-12T13:45:00Z",
+  "workspace": "/Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice",
+  "branch": "cherry-juice",
+  "head": "3c8c2f3c49d3ec19772907f730b6e2c7c905f6c0",
+  "staged_files": {
+    "ACTIVE_CONFIGURATION": [
+      ".kilo/agents/bet-builder.md",
+      ".kilo/agents/bet-challenger.md",
+      ".kilo/agents/bet-db-analyst.md",
+      ".kilo/agents/bet-engineer.md",
+      ".kilo/agents/bet-enricher.md",
+      ".kilo/agents/bet-orchestrator.md",
+      ".kilo/agents/bet-reconciler.md",
+      ".kilo/agents/bet-scanner.md",
+      ".kilo/agents/bet-scout.md",
+      ".kilo/agents/bet-settler.md",
+      ".kilo/agents/bet-statistician.md",
+      ".kilo/agents/bet-test-engineer.md",
+      ".kilo/agents/bet-valuator.md",
+      ".kilo/docs/phase-4b-unattended-gate.md",
+      ".kilo/skills/betting-evidence-contract/SKILL.md",
+      ".kilo/skills/betting-pipeline-contract/SKILL.md",
+      "AGENTS.md",
+      "kilo.jsonc"
+    ],
+    "ACTIVE_SOURCE": [
+      ".kilo/tool/bet_artifact_write.ts",
+      "scripts/test-bet-artifact-write-runner.ts",
+      "scripts/test-bet-artifact-write.py",
+      "scripts/validate-bet-agent-config.py",
+      "scripts/validate-unattended-permissions.py"
+    ],
+    "DURABLE_EVIDENCE": [
+      "reports/agent-config/ACTIVE_SURFACE_INVENTORY.md",
+      "reports/agent-config/AGENT_CONFIG_ACCEPTANCE_MATRIX.md",
+      "reports/agent-config/AGENT_TOPOLOGY.md",
+      "reports/agent-config/CAPABILITY_MATRIX.md",
+      "reports/agent-config/PERMISSION_MATRIX.md",
+      "reports/agent-config/REPORT.md",
+      "reports/agent-config/STATE.md",
+      "reports/agent-config/results.json"
+    ],
+    "DEFERRED_ARCHIVE": [
+      "archive/deferred-kilo-tools/bet_sqlite_query.ts"
+    ]
+  },
+  "deleted_files": {
+    ".kilo/tool/bet_sqlite_query.ts": "DEFERRED_ARCHIVE"
+  },
+  "untracked_files": {
+    "ACTIVE_SOURCE": [
+      ".kilo/tool/bet_script_run.ts",
+      "scripts/fixtures/bet-script-failure.py",
+      "scripts/fixtures/bet-script-injection.py",
+      "scripts/fixtures/bet-script-large-output.py",
+      "scripts/fixtures/bet-script-slow.py",
+      "scripts/fixtures/bet-script-success.py",
+      "scripts/generate-fingerprint.py",
+      "scripts/test-bet-script-executor.py",
+      "scripts/test-closure-cancellation.py",
+      "scripts/test-closure-continuation.py",
+      "scripts/test-closure-duplicate.py",
+      "scripts/test-closure-kilo-e2e.py",
+      "scripts/test-closure-redaction.py",
+      "scripts/test-closure-timeout-output.py",
+      "scripts/test-idempotency-duplicate-protection.py",
+      "scripts/test-kilo-context-prefix.py",
+      "scripts/test-kilo-mcp-integration.py",
+      "scripts/test-kilo-recovery.py",
+      "scripts/test-kilo-resource.py",
+      "scripts/test-kilo-stability.py",
+      "scripts/test-kilo-tool-qualification.py",
+      "scripts/test-p2-regression.py",
+      "scripts/test-prompt-injection-resistance.py"
+    ],
+    "ACTIVE_CONFIGURATION": [
+      "config/bet-script-operations.json"
+    ],
+    "DURABLE_EVIDENCE": [
+      "reports/bet-script-executor/",
+      "reports/kilo-rapidmlx-baseline/",
+      "reports/rapidmlx-baseline/"
+    ],
+    "SUPERSEDED_RETAINED": [
+      "kilo.jsonc.backup-20260612-090524",
+      "kilo.jsonc.phase1-backup"
+    ]
+  },
+  "ignored_files": {
+    "GENERATED_CACHE": [
+      ".kilo/node_modules/",
+      ".kilo/package.json",
+      ".kilo/package-lock.json",
+      ".kilocode/node_modules/",
+      ".kilocode/package.json",
+      ".kilocode/package-lock.json",
+      "scripts/__pycache__/"
+    ],
+    "EPHEMERAL_RUNTIME": [
+      ".kilo/logs/",
+      ".kilo/runtime/",
+      "var/"
+    ],
+    "UNRELATED_USER_CHANGE": [
+      ".env"
+    ]
+  },
+  "active_surfaces": {
+    "agents_count": 13,
+    "agents": [
+      "bet-builder",
+      "bet-challenger",
+      "bet-db-analyst",
+      "bet-engineer",
+      "bet-enricher",
+      "bet-orchestrator",
+      "bet-reconciler",
+      "bet-scanner",
+      "bet-scout",
+      "bet-settler",
+      "bet-statistician",
+      "bet-test-engineer",
+      "bet-valuator"
+    ],
+    "skills_count": 2,
+    "skills": [
+      "betting-evidence-contract",
+      "betting-pipeline-contract"
+    ],
+    "tools_count": 2,
+    "tools": [
+      "bet_artifact_write",
+      "bet_script_run"
+    ]
+  },
+  "mcp_status": {
+    "memory": "disabled",
+    "brave-search": "disabled",
+    "context7": "disabled",
+    "playwright": "disabled"
+  },
+  "validation": {
+    "kilo_config_check": "PASS",
+    "agent_validator": "PASS",
+    "unattended_validator": "PASS",
+    "git_diff_check": "PASS"
+  }
+}

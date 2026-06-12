@@ -1,0 +1,57 @@
+{
+  "fixture_id": "F006_STATISTICIAN_INPUT",
+  "synthetic": true,
+  "disclaimer": "SYNTHETIC — NOT REAL BETTING DATA",
+  "generated": "2026-06-12T12:00:00Z",
+  "scenario": "bet-statistician statistical analysis",
+  "statistical_input": {
+    "match_id": "MATCH_SYNTH_003",
+    "home_team": "TEAM_ALPHA",
+    "away_team": "TEAM_BETA",
+    "historical_data": {
+      "home_team": {
+        "matches_played": 38,
+        "wins": 25,
+        "draws": 8,
+        "losses": 5,
+        "goals_scored": 72,
+        "goals_conceded": 28,
+        "home_matches": 19,
+        "home_wins": 15,
+        "home_draws": 3,
+        "home_losses": 1
+      },
+      "away_team": {
+        "matches_played": 38,
+        "wins": 12,
+        "draws": 10,
+        "losses": 16,
+        "goals_scored": 45,
+        "goals_conceded": 52,
+        "away_matches": 19,
+        "away_wins": 4,
+        "away_draws": 5,
+        "away_losses": 10
+      },
+      "head_to_head": {
+        "total_meetings": 10,
+        "home_wins": 6,
+        "draws": 2,
+        "away_wins": 2,
+        "home_goals_avg": 1.8,
+        "away_goals_avg": 0.9
+      }
+    },
+    "assumptions": [
+      "Historical data is representative",
+      "No significant squad changes",
+      "Neutral refereeing"
+    ]
+  },
+  "expected_result": {
+    "status": "PASS",
+    "decision": "PROBABILITIES_COMPUTED",
+    "rationale": "bet-statistician should compute probabilities with explicit formulas"
+  },
+  "sha256": "PLACEHOLDER"
+}

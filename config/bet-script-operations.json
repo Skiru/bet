@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schema_version": 1,
+  "description": "Phase 3 — Safe betting script executor operation manifest. Only deterministic fixtures are allowlisted.",
+  "operations": {
+    "fixture_success": {
+      "description": "Return a deterministic successful result for testing",
+      "executable": "/opt/homebrew/bin/python3",
+      "script": "scripts/fixtures/bet-script-success.py",
+      "working_directory": ".",
+      "timeout_seconds": 10,
+      "max_stdout_bytes": 32768,
+      "max_stderr_bytes": 16384,
+      "allowed_arguments": {
+        "match_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,64}$",
+          "required": true,
+          "description": "Test match identifier"
+        }
+      },
+      "environment_allowlist": [],
+      "read_only": true,
+      "idempotent": true
+    },
+    "fixture_failure": {
+      "description": "Return a deterministic failure for testing",
+      "executable": "/opt/homebrew/bin/python3",
+      "script": "scripts/fixtures/bet-script-failure.py",
+      "working_directory": ".",
+      "timeout_seconds": 10,
+      "max_stdout_bytes": 32768,
+      "max_stderr_bytes": 16384,
+      "allowed_arguments": {
+        "error_code": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 255,
+          "required": false,
+          "default": 1,
+          "description": "Exit code to return"
+        }
+      },
+      "environment_allowlist": [],
+      "read_only": true,
+      "idempotent": true
+    },
+    "fixture_slow": {
+      "description": "Sleep beyond timeout for testing timeout handling",
+      "executable": "/opt/homebrew/bin/python3",
+      "script": "scripts/fixtures/bet-script-slow.py",
+      "working_directory": ".",
+      "timeout_seconds": 2,
+      "max_stdout_bytes": 32768,
+      "max_stderr_bytes": 16384,
+      "allowed_arguments": {
+        "sleep_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 60,
+          "required": false,
+          "default": 10,
+          "description": "Seconds to sleep"
+        }
+      },
+      "environment_allowlist": [],
+      "read_only": true,
+      "idempotent": true
+    },
+    "fixture_large_output": {
+      "description": "Generate large output to test output limits",
+      "executable": "/opt/homebrew/bin/python3",
+      "script": "scripts/fixtures/bet-script-large-output.py",
+      "working_directory": ".",
+      "timeout_seconds": 10,
+      "max_stdout_bytes": 1024,
+      "max_stderr_bytes": 512,
+      "allowed_arguments": {
+        "size_kb": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1024,
+          "required": false,
+          "default": 64,
+          "description": "Kilobytes of output to generate"
+        }
+      },
+      "environment_allowlist": [],
+      "read_only": true,
+      "idempotent": true
+    },
+    "fixture_injection": {
+      "description": "Emit prompt-injection patterns for testing containment",
+      "executable": "/opt/homebrew/bin/python3",
+      "script": "scripts/fixtures/bet-script-injection.py",
+      "working_directory": ".",
+      "timeout_seconds": 10,
+      "max_stdout_bytes": 32768,
+      "max_stderr_bytes": 16384,
+      "allowed_arguments": {
+        "match_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,64}$",
+          "required": true,
+          "description": "Test match identifier"
+        }
+      },
+      "environment_allowlist": [],
+      "read_only": true,
+      "idempotent": true
+    }
+  }
+}

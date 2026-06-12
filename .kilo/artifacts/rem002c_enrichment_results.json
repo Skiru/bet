@@ -1,0 +1,62 @@
+[
+  {
+    "source": "api-football",
+    "date": "2026-06-11",
+    "fixture_id": "1520718",
+    "fixture_status": "FT",
+    "fixtures_status": "SUCCESS",
+    "fixture_count": 98,
+    "stats_status": "SUCCESS",
+    "stats_bundle": "2b0ed4ba3c4a80b2ebff7670c1645d0d",
+    "stats_count": 1,
+    "team_fixtures_status": "SUCCESS",
+    "team_fixtures_bundle": "b01f22fbb05326dc37de3230fe1accac",
+    "team_fixtures_count": 5,
+    "team_fixtures_error": null
+  },
+  {
+    "source": "api-basketball",
+    "date": "2026-06-11",
+    "fixture_id": "493758",
+    "fixture_status": "FT",
+    "fixtures_status": "SUCCESS",
+    "fixture_count": 31,
+    "stats_status": "UPSTREAM_ERROR",
+    "stats_bundle": null,
+    "stats_count": 0,
+    "team_fixtures_status": "AUTHENTICATION_ERROR",
+    "team_fixtures_bundle": null,
+    "team_fixtures_count": 0,
+    "team_fixtures_error": "provider_plan_restricted"
+  },
+  {
+    "source": "api-volleyball",
+    "date": "2026-06-11",
+    "fixture_id": "200809",
+    "fixture_status": "Finished",
+    "fixtures_status": "SUCCESS",
+    "fixture_count": 6,
+    "stats_status": "UPSTREAM_ERROR",
+    "stats_bundle": null,
+    "stats_count": 0,
+    "team_fixtures_status": "SUCCESS",
+    "team_fixtures_bundle": "313905db9cedd8b18498bf672d81eb0d",
+    "team_fixtures_count": 5,
+    "team_fixtures_error": null
+  },
+  {
+    "source": "api-hockey",
+    "date": "2026-06-12",
+    "fixture_id": "427006",
+    "fixture_status": "FT",
+    "fixtures_status": "SUCCESS",
+    "fixture_count": 3,
+    "stats_status": "UPSTREAM_ERROR",
+    "stats_bundle": null,
+    "stats_count": 0,
+    "team_fixtures_status": "SUCCESS",
+    "team_fixtures_bundle": "fe4957684597b0b4b128b306b963924e",
+    "team_fixtures_count": 5,
+    "team_fixtures_error": null
+  }
+]

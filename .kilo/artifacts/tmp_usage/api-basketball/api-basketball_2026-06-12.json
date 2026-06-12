@@ -1,0 +1,12 @@
+{
+  "api_name": "api-basketball",
+  "date": "2026-06-12",
+  "count": 1,
+  "requests": [
+    {
+      "endpoint": "/games",
+      "cost": 1,
+      "timestamp": "2026-06-12T07:20:53.619890+00:00"
+    }
+  ]
+}

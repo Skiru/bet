@@ -1,0 +1,21 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.12.4, pytest-9.0.3, pluggy-1.6.0 -- /Users/mkoziol/projects/bet/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /Users/mkoziol/projects/bet
+configfile: pyproject.toml
+plugins: cov-7.1.0, asyncio-1.4.0, langsmith-0.8.11, anyio-4.13.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collecting ... collected 10 items
+
+tests/scrapers/test_espn_client.py::test_get_fixtures_replays_audited_path_without_fabricating_identity PASSED [ 10%]
+tests/scrapers/test_espn_client.py::test_get_fixtures_handles_empty_malformed_and_http_error[transport0-expected0] PASSED [ 20%]
+tests/scrapers/test_espn_client.py::test_get_fixtures_handles_empty_malformed_and_http_error[transport1-expected1] PASSED [ 30%]
+tests/scrapers/test_espn_client.py::test_get_fixtures_handles_empty_malformed_and_http_error[transport2-expected2] PASSED [ 40%]
+tests/scrapers/test_espn_client.py::test_get_fixture_stats_skips_missing_values_without_coercing_to_zero PASSED [ 50%]
+tests/scrapers/test_espn_client.py::test_resolve_team_id_fails_closed_on_ambiguous_contains_match PASSED [ 60%]
+tests/scrapers/test_espn_client.py::test_get_team_last_fixtures_applies_cutoff_and_event_exclusion PASSED [ 70%]
+tests/scrapers/test_espn_client.py::test_enrich_fixtures_espn_fallback_is_idempotent_and_preserves_missing_values PASSED [ 80%]
+tests/scrapers/test_espn_client.py::test_enrich_fixtures_espn_skips_neither_side_and_both_side_matches PASSED [ 90%]
+tests/scrapers/test_espn_client.py::test_enrich_fixtures_persists_source_event_ids_and_evidence_hash PASSED [100%]
+
+============================== 10 passed in 0.06s ==============================

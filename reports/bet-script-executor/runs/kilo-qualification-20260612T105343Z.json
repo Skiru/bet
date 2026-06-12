@@ -1,0 +1,38 @@
+{
+  "timestamp": "2026-06-12T08:53:43.656391+00:00",
+  "total": 5,
+  "passed": 5,
+  "failed": 0,
+  "results": [
+    {
+      "test": "permission_registered",
+      "passed": true,
+      "expected": "bet_script_run in permission list",
+      "actual": "bet_script_run: allow"
+    },
+    {
+      "test": "tool_file_exists",
+      "passed": true,
+      "expected": "/Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice/.kilo/tool/bet_script_run.ts exists",
+      "actual": "exists: True"
+    },
+    {
+      "test": "manifest_exists",
+      "passed": true,
+      "expected": "Manifest with operations",
+      "actual": "exists: True, operations: ['fixture_success', 'fixture_failure', 'fixture_slow', 'fixture_large_output', 'fixture_injection']"
+    },
+    {
+      "test": "fixtures_exist",
+      "passed": true,
+      "expected": "All fixture scripts exist",
+      "actual": "fixtures: 5/5"
+    },
+    {
+      "test": "mcp_disabled",
+      "passed": true,
+      "expected": "All MCP servers disabled",
+      "actual": "disabled: 4"
+    }
+  ]
+}

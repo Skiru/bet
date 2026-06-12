@@ -1,0 +1,2 @@
+
+[91m[1mError: [0mFile not found: Process the synthetic fixture in the attached file. Return your analysis following the required output schema with STATUS, DECISION, EVIDENCE, CALCULATIONS, UNCERTAINTY, RISKS, and NEXT_ACTION sections.

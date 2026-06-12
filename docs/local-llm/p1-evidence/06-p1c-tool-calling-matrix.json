@@ -1,0 +1,395 @@
+{
+  "schema_version": "1.0",
+  "test": "p1c_tool_calling_matrix",
+  "timestamp": "2026-06-11T12:43:39.349391+00:00",
+  "runtime_fingerprint": {
+    "executable": "/Users/mkoziol/.venvs/rapid-mlx-0.7.0/bin/rapid-mlx",
+    "version": "0.7.0",
+    "model_alias": "qwen3.6-35b-4bit",
+    "model_resolved": "mlx-community/Qwen3.6-35B-A3B-4bit",
+    "host": "127.0.0.1",
+    "port": 8000,
+    "max_tokens": 8192,
+    "prefill_step": 2048,
+    "gpu_memory_utilization": 0.7,
+    "prefix_cache": "enabled",
+    "multimodal": "disabled",
+    "telemetry": "disabled"
+  },
+  "startup_args": [
+    "/opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python",
+    "/Users/mkoziol/.venvs/rapid-mlx-0.7.0/bin/rapid-mlx",
+    "--no-telemetry",
+    "serve",
+    "qwen3.6-35b-4bit",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "8000",
+    "--max-tokens",
+    "8192",
+    "--prefill-step-size",
+    "2048",
+    "--gpu-memory-utilization",
+    "0.7",
+    "--enable-prefix-cache",
+    "--no-mllm"
+  ],
+  "parser_selection": "qwen3",
+  "readiness_duration_s": 12.078382968902588,
+  "tests": [
+    {
+      "test": "single_required_tool",
+      "http_status": 200,
+      "latency_s": 1.3951060771942139,
+      "error": "",
+      "pass": true,
+      "tool_call_emitted": true,
+      "tool_call_structured": true,
+      "tool_name": "add_numbers",
+      "arguments_valid": true,
+      "arguments": {
+        "a": 17,
+        "b": 25
+      },
+      "tool_call_id": "call_1e96f65f",
+      "tool_call_id_hash": "48da591a2528e184",
+      "mock_executed": true,
+      "mock_result": {
+        "sum": 42
+      },
+      "final_answer_contains_result": true,
+      "finish_reason": "tool_calls",
+      "raw_xml_leaked": false,
+      "execution_count": 1
+    },
+    {
+      "test": "sequential_three_tool_chain",
+      "pass": true,
+      "error": null,
+      "expected_order": [
+        "get_seed",
+        "multiply",
+        "format_result"
+      ],
+      "observed_order": [
+        "get_seed",
+        "multiply",
+        "format_result"
+      ],
+      "state_transitions": [
+        {
+          "state": 0,
+          "tool": "get_seed",
+          "args": {
+            "name": "alpha"
+          },
+          "result": {
+            "value": 7
+          },
+          "tc_id_hash": "b086fd73151ff91b"
+        },
+        {
+          "state": 1,
+          "tool": "multiply",
+          "args": {
+            "value": 7,
+            "factor": 3
+          },
+          "result": {
+            "value": 21
+          },
+          "tc_id_hash": "54a56575f7e8646f"
+        },
+        {
+          "state": 2,
+          "tool": "format_result",
+          "args": {
+            "value": 21,
+            "label": "VERIFIED"
+          },
+          "result": {
+            "formatted": "VERIFIED=21"
+          },
+          "tc_id_hash": "9d29e325a25486ee"
+        }
+      ],
+      "argument_propagation_correct": true,
+      "execution_counts": {
+        "get_seed": 1,
+        "multiply": 1,
+        "format_result": 1
+      },
+      "final_answer_correct": true,
+      "raw_xml_leaked": false,
+      "duplicate_calls_blocked": 0,
+      "wrong_order_blocked": 0
+    },
+    {
+      "test": "invalid_call_rejection",
+      "pass": true,
+      "cases": [
+        {
+          "name": "missing_required_arg",
+          "rejected": true,
+          "reason": "missing_required_b",
+          "executed": false
+        },
+        {
+          "name": "wrong_type_integer",
+          "rejected": true,
+          "reason": "wrong_type_a_expected_int_got_str",
+          "executed": false
+        },
+        {
+          "name": "unexpected_property",
+          "rejected": true,
+          "reason": "unexpected_property_c",
+          "executed": false
+        },
+        {
+          "name": "unknown_tool",
+          "rejected": true,
+          "reason": "unknown_tool_unknown_tool",
+          "executed": false
+        },
+        {
+          "name": "malformed_json",
+          "rejected": true,
+          "reason": "malformed_json_Expecting value: line 1 column 1 (char 0)",
+          "executed": false
+        },
+        {
+          "name": "args_not_object",
+          "rejected": true,
+          "reason": "args_not_object_list",
+          "executed": false
+        },
+        {
+          "name": "missing_id",
+          "rejected": true,
+          "reason": "missing_tool_call_id",
+          "executed": false
+        },
+        {
+          "name": "duplicate_id",
+          "rejected": true,
+          "reason": "duplicate_tool_call_id",
+          "executed": false
+        },
+        {
+          "name": "duplicate_idempotency",
+          "rejected": true,
+          "reason": "duplicate_tool_call_id",
+          "executed": false
+        },
+        {
+          "name": "truncated_args",
+          "rejected": true,
+          "reason": "malformed_json_Expecting property name enclosed in double quotes:",
+          "executed": false
+        },
+        {
+          "name": "valid_control",
+          "rejected": false,
+          "reason": "valid",
+          "executed": true,
+          "result": {
+            "sum": 30
+          }
+        }
+      ],
+      "total_cases": 11,
+      "rejected": 10,
+      "executed": 1,
+      "valid_control_executed": true
+    }
+  ],
+  "runtime_snapshots": {
+    "pre_start": {
+      "memory": {
+        "timestamp": "2026-06-11T12:43:39.349420+00:00",
+        "memory_total_mb": 49152.0,
+        "memory_available_mb": 24787.359375,
+        "memory_used_mb": 18135.921875,
+        "memory_percent": 49.6,
+        "swap_total_mb": 11264.0,
+        "swap_used_mb": 9919.625,
+        "swap_percent": 88.1
+      },
+      "process": {
+        "pid": null,
+        "alive": false,
+        "rss_mb": null,
+        "cmdline": null
+      }
+    },
+    "after_ready": {
+      "memory": {
+        "timestamp": "2026-06-11T12:43:51.446625+00:00",
+        "memory_total_mb": 49152.0,
+        "memory_available_mb": 8437.0,
+        "memory_used_mb": 30454.125,
+        "memory_percent": 82.8,
+        "swap_total_mb": 12288.0,
+        "swap_used_mb": 11262.75,
+        "swap_percent": 91.7
+      },
+      "process": {
+        "pid": 49103,
+        "alive": true,
+        "rss_mb": 1727.4375,
+        "cmdline": [
+          "/opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python",
+          "/Users/mkoziol/.venvs/rapid-mlx-0.7.0/bin/rapid-mlx",
+          "--no-telemetry",
+          "serve",
+          "qwen3.6-35b-4bit",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "8000",
+          "--max-tokens",
+          "8192",
+          "--prefill-step-size",
+          "2048",
+          "--gpu-memory-utilization",
+          "0.7",
+          "--enable-prefix-cache",
+          "--no-mllm"
+        ]
+      }
+    },
+    "after_single_tool": {
+      "memory": {
+        "timestamp": "2026-06-11T12:43:53.473584+00:00",
+        "memory_total_mb": 49152.0,
+        "memory_available_mb": 8378.296875,
+        "memory_used_mb": 30344.6875,
+        "memory_percent": 83.0,
+        "swap_total_mb": 12288.0,
+        "swap_used_mb": 11262.75,
+        "swap_percent": 91.7
+      },
+      "process": {
+        "pid": 49103,
+        "alive": true,
+        "rss_mb": 1727.625,
+        "cmdline": [
+          "/opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python",
+          "/Users/mkoziol/.venvs/rapid-mlx-0.7.0/bin/rapid-mlx",
+          "--no-telemetry",
+          "serve",
+          "qwen3.6-35b-4bit",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "8000",
+          "--max-tokens",
+          "8192",
+          "--prefill-step-size",
+          "2048",
+          "--gpu-memory-utilization",
+          "0.7",
+          "--enable-prefix-cache",
+          "--no-mllm"
+        ]
+      }
+    },
+    "after_chain": {
+      "memory": {
+        "timestamp": "2026-06-11T12:43:57.004933+00:00",
+        "memory_total_mb": 49152.0,
+        "memory_available_mb": 7885.25,
+        "memory_used_mb": 30712.078125,
+        "memory_percent": 84.0,
+        "swap_total_mb": 12288.0,
+        "swap_used_mb": 11262.75,
+        "swap_percent": 91.7
+      },
+      "process": {
+        "pid": 49103,
+        "alive": true,
+        "rss_mb": 1631.5,
+        "cmdline": [
+          "/opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python",
+          "/Users/mkoziol/.venvs/rapid-mlx-0.7.0/bin/rapid-mlx",
+          "--no-telemetry",
+          "serve",
+          "qwen3.6-35b-4bit",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "8000",
+          "--max-tokens",
+          "8192",
+          "--prefill-step-size",
+          "2048",
+          "--gpu-memory-utilization",
+          "0.7",
+          "--enable-prefix-cache",
+          "--no-mllm"
+        ]
+      }
+    },
+    "after_validation": {
+      "memory": {
+        "timestamp": "2026-06-11T12:43:57.005183+00:00",
+        "memory_total_mb": 49152.0,
+        "memory_available_mb": 7885.265625,
+        "memory_used_mb": 30712.140625,
+        "memory_percent": 84.0,
+        "swap_total_mb": 12288.0,
+        "swap_used_mb": 11262.75,
+        "swap_percent": 91.7
+      },
+      "process": {
+        "pid": 49103,
+        "alive": true,
+        "rss_mb": 1631.5,
+        "cmdline": [
+          "/opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python",
+          "/Users/mkoziol/.venvs/rapid-mlx-0.7.0/bin/rapid-mlx",
+          "--no-telemetry",
+          "serve",
+          "qwen3.6-35b-4bit",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "8000",
+          "--max-tokens",
+          "8192",
+          "--prefill-step-size",
+          "2048",
+          "--gpu-memory-utilization",
+          "0.7",
+          "--enable-prefix-cache",
+          "--no-mllm"
+        ]
+      }
+    },
+    "after_cleanup": {
+      "memory": {
+        "timestamp": "2026-06-11T12:44:00.731867+00:00",
+        "memory_total_mb": 49152.0,
+        "memory_available_mb": 28479.890625,
+        "memory_used_mb": 10194.71875,
+        "memory_percent": 42.1,
+        "swap_total_mb": 12288.0,
+        "swap_used_mb": 11262.75,
+        "swap_percent": 91.7
+      },
+      "process": {
+        "pid": null,
+        "alive": false,
+        "rss_mb": null,
+        "cmdline": null
+      }
+    }
+  },
+  "cleanup": {
+    "success": true,
+    "message": "Cleanup verified"
+  },
+  "overall_result": "PASS"
+}

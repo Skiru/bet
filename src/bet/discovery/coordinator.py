@@ -9,33 +9,41 @@ import re
 import time
 import unicodedata
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
-from sqlalchemy import select, text
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from .dedup import DeduplicationEngine
 from .models import (
     DiscoveredEvent,
     DiscoveryResult,
-    FixtureSourceModel,
     MergedFixture,
-    SourceRef,
     SourceRunStats,
 )
 from .repository import FixtureSourceRepo
 from .sources import SourceAdapter
+from .sources.api_basketball import APIBasketballAdapter
+from .sources.api_football import APIFootballAdapter
 from .sources.api_hockey import APIHockeyAdapter
 from .sources.api_volleyball import APIVolleyballAdapter
-from .sources.odds_api_io import OddsAPIioAdapter
 from .sources.odds_api import OddsAPIAdapter
-from .sources.api_football import APIFootballAdapter
+from .sources.odds_api_io import OddsAPIioAdapter
 
 logger = logging.getLogger(__name__)
 
 DATA_DIR = Path(__file__).parent.parent.parent.parent / "betting" / "data"
-SPORTS = ["football", "volleyball", "basketball", "tennis", "hockey", "cs2", "dota2", "valorant"]
+SPORTS = [
+    "football",
+    "volleyball",
+    "basketball",
+    "tennis",
+    "hockey",
+    "cs2",
+    "dota2",
+    "valorant",
+]
 CORE_SPORTS = ["football", "volleyball", "basketball", "tennis", "hockey"]
 
 
@@ -55,10 +63,12 @@ class EventDiscoveryCoordinator:
 
     @staticmethod
     def _default_sources() -> list[SourceAdapter]:
-        # Odds-API.io (primary) + APISports sport-specific expansion + bookmaker and football supplements.
+        # Odds-API.io (primary) + APISports sport-specific expansion +
+        # bookmaker and football supplements.
         # Disabled: SofaScore (permanent 403)
         return [
             OddsAPIioAdapter(),
+            APIBasketballAdapter(),
             APIVolleyballAdapter(),
             APIHockeyAdapter(),
             OddsAPIAdapter(),
@@ -106,9 +116,13 @@ class EventDiscoveryCoordinator:
             if stats.errors:
                 issues.extend(stats.errors)
 
-        source_health_issue = bool(issues) or any(not s.available for s in source_stats.values())
+        source_health_issue = bool(issues) or any(
+            not s.available for s in source_stats.values()
+        )
 
-        missing_requested = [sport for sport in target_sports if by_sport.get(sport, 0) == 0]
+        missing_requested = [
+            sport for sport in target_sports if by_sport.get(sport, 0) == 0
+        ]
         for sport in missing_requested:
             issues.append(f"No fixtures discovered for requested sport: {sport}")
 
@@ -139,7 +153,9 @@ class EventDiscoveryCoordinator:
         events_by_source: dict[str, list[DiscoveredEvent]] = {}
         source_stats: dict[str, SourceRunStats] = {}
 
-        def _fetch_source(source: SourceAdapter) -> tuple[str, list[DiscoveredEvent], SourceRunStats]:
+        def _fetch_source(
+            source: SourceAdapter,
+        ) -> tuple[str, list[DiscoveredEvent], SourceRunStats]:
             all_events: list[DiscoveredEvent] = []
             stats = SourceRunStats(
                 source=source.name,
@@ -166,8 +182,7 @@ class EventDiscoveryCoordinator:
 
         with ThreadPoolExecutor(max_workers=3) as pool:
             futures = {
-                pool.submit(_fetch_source, src): src.name
-                for src in self.sources
+                pool.submit(_fetch_source, src): src.name for src in self.sources
             }
             for future in as_completed(futures):
                 try:
@@ -178,7 +193,8 @@ class EventDiscoveryCoordinator:
                     src_name = futures[future]
                     logger.error("Source %s crashed: %s", src_name, e)
                     source_stats[src_name] = SourceRunStats(
-                        source=src_name, available=False,
+                        source=src_name,
+                        available=False,
                         errors=[str(e)],
                     )
 
@@ -190,8 +206,20 @@ class EventDiscoveryCoordinator:
         r = raw.strip().lower()
         if r in ("scheduled", "ns", "not started", "pending", "timed"):
             return "scheduled"
-        if r in ("ft", "ended", "finished", "aet", "ap", "pen", "aot", "awt",
-                 "awarded", "bt", "ot", "status_final"):
+        if r in (
+            "ft",
+            "ended",
+            "finished",
+            "aet",
+            "ap",
+            "pen",
+            "aot",
+            "awt",
+            "awarded",
+            "bt",
+            "ot",
+            "status_final",
+        ):
             return "completed"
         if r in ("canc", "canceled", "cancelled", "abd"):
             return "cancelled"
@@ -199,8 +227,18 @@ class EventDiscoveryCoordinator:
             return "postponed"
         if r in ("walkover", "retired", "status_retired", "wo"):
             return "walkover"
-        if r in ("live", "1h", "2h", "ht", "halftime", "1st set", "2nd set",
-                 "3rd set", "1st half", "2nd half"):
+        if r in (
+            "live",
+            "1h",
+            "2h",
+            "ht",
+            "halftime",
+            "1st set",
+            "2nd set",
+            "3rd set",
+            "1st half",
+            "2nd half",
+        ):
             return "live"
         return "scheduled"  # default for unknown
 
@@ -210,7 +248,7 @@ class EventDiscoveryCoordinator:
         Uses nested transactions (savepoints) per fixture so that a single
         failure does not roll back the entire batch.
         """
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         fs_repo = FixtureSourceRepo(self.session)
         count = 0
 
@@ -232,7 +270,10 @@ class EventDiscoveryCoordinator:
                 if not sport_row:
                     # Create sport
                     self.session.execute(
-                        text("INSERT OR IGNORE INTO sports (name, tier) VALUES (:name, 1)"),
+                        text(
+                            "INSERT OR IGNORE INTO sports (name, tier) "
+                            "VALUES (:name, 1)"
+                        ),
                         {"name": mf.sport},
                     )
                     sport_row = self.session.execute(
@@ -246,7 +287,9 @@ class EventDiscoveryCoordinator:
                 away_id = self._resolve_team(sport_id, mf.away_team)
 
                 # Resolve/create competition
-                comp_id = self._resolve_competition(sport_id, mf.competition, mf.country)
+                comp_id = self._resolve_competition(
+                    sport_id, mf.competition, mf.country
+                )
 
                 kickoff_str = mf.kickoff.isoformat()
 
@@ -257,7 +300,12 @@ class EventDiscoveryCoordinator:
                         "WHERE sport_id = :sid AND home_team_id = :hid "
                         "AND away_team_id = :aid AND kickoff = :ko"
                     ),
-                    {"sid": sport_id, "hid": home_id, "aid": away_id, "ko": kickoff_str},
+                    {
+                        "sid": sport_id,
+                        "hid": home_id,
+                        "aid": away_id,
+                        "ko": kickoff_str,
+                    },
                 ).fetchone()
 
                 if existing:
@@ -271,9 +319,12 @@ class EventDiscoveryCoordinator:
                             "VALUES (:sid, :cid, :hid, :aid, :ko, :st, :eid, :src, :fa)"
                         ),
                         {
-                            "sid": sport_id, "cid": comp_id,
-                            "hid": home_id, "aid": away_id,
-                            "ko": kickoff_str, "st": self._normalize_status(mf.status),
+                            "sid": sport_id,
+                            "cid": comp_id,
+                            "hid": home_id,
+                            "aid": away_id,
+                            "ko": kickoff_str,
+                            "st": self._normalize_status(mf.status),
                             "eid": mf.primary_external_id,
                             "src": mf.primary_source,
                             "fa": now,
@@ -288,7 +339,9 @@ class EventDiscoveryCoordinator:
                         source=src_ref.source,
                         external_id=src_ref.external_id,
                         confidence=src_ref.confidence,
-                        raw_data=src_ref.raw_data if isinstance(src_ref.raw_data, dict) else None,
+                        raw_data=src_ref.raw_data
+                        if isinstance(src_ref.raw_data, dict)
+                        else None,
                     )
 
                 # Write scan_result
@@ -304,16 +357,21 @@ class EventDiscoveryCoordinator:
                     text(
                         "INSERT OR IGNORE INTO scan_results "
                         "(betting_date, sport, source_domain, event_key, "
-                        "home_team, away_team, competition, kickoff, raw_data, scan_timestamp) "
+                        "home_team, away_team, competition, kickoff, raw_data, "
+                        "scan_timestamp) "
                         "VALUES (:bd, :sp, :sd, :ek, :ht, :at, :comp, :ko, :raw, :ts)"
                     ),
                     {
-                        "bd": date, "sp": mf.sport,
+                        "bd": date,
+                        "sp": mf.sport,
                         "sd": mf.primary_source,
                         "ek": f"{mf.home_team} vs {mf.away_team}",
-                        "ht": mf.home_team, "at": mf.away_team,
+                        "ht": mf.home_team,
+                        "at": mf.away_team,
                         "comp": mf.competition,
-                        "ko": kickoff_str, "raw": json.dumps(scan_payload), "ts": now,
+                        "ko": kickoff_str,
+                        "raw": json.dumps(scan_payload),
+                        "ts": now,
                     },
                 )
 
@@ -322,7 +380,9 @@ class EventDiscoveryCoordinator:
             except Exception as e:
                 logger.warning(
                     "Failed to persist %s vs %s: %s",
-                    mf.home_team, mf.away_team, e,
+                    mf.home_team,
+                    mf.away_team,
+                    e,
                 )
                 nested.rollback()
                 continue
@@ -335,11 +395,19 @@ class EventDiscoveryCoordinator:
         raw = (name or "").strip()
         if not raw:
             return True
-        return bool(re.search(r"\b(TBD|TBA|WINNER|LOSER|QUALIFIER|QUALIFIER\s*\d*|R\d+P\d+)\b", raw, re.IGNORECASE))
+        return bool(
+            re.search(
+                r"\b(TBD|TBA|WINNER|LOSER|QUALIFIER|QUALIFIER\s*\d*|R\d+P\d+)\b",
+                raw,
+                re.IGNORECASE,
+            )
+        )
 
     @classmethod
     def _has_placeholder_participant(cls, fixture: MergedFixture) -> bool:
-        return cls._is_placeholder_name(fixture.home_team) or cls._is_placeholder_name(fixture.away_team)
+        return cls._is_placeholder_name(fixture.home_team) or cls._is_placeholder_name(
+            fixture.away_team
+        )
 
     def _resolve_team(self, sport_id: int, name: str) -> int:
         """Find or create a team, return its ID.
@@ -387,7 +455,10 @@ class EventDiscoveryCoordinator:
         )
         suffix_stripped_input = normalize_team_name(name)
         # Guard: don't suffix-match if name has identity markers (reserves/youth/women)
-        _identity_re = re.compile(r"\b(U2[0-9]|U1[7-9]|II|III|IV|B|W|Reserves?|Youth|Women|Juniors?)\b", re.IGNORECASE)
+        _identity_re = re.compile(
+            r"\b(U2[0-9]|U1[7-9]|II|III|IV|B|W|Reserves?|Youth|Women|Juniors?)\b",
+            re.IGNORECASE,
+        )
         has_identity_marker = bool(_identity_re.search(name))
 
         if normalized_input and len(normalized_input) >= 3:
@@ -415,8 +486,13 @@ class EventDiscoveryCoordinator:
                     )
                     self._team_cache[cache_key] = r[0]
                     return r[0]
-                # Suffix-stripped comparison (FC, SC, United, etc.) — skip if identity markers differ
-                if suffix_stripped_input and len(suffix_stripped_input) >= 3 and not has_identity_marker:
+                # Suffix-stripped comparison (FC, SC, United, etc.) —
+                # skip if identity markers differ.
+                if (
+                    suffix_stripped_input
+                    and len(suffix_stripped_input) >= 3
+                    and not has_identity_marker
+                ):
                     candidate_has_marker = bool(_identity_re.search(r[1]))
                     if not candidate_has_marker:
                         canonical_suffix_stripped = normalize_team_name(r[1])
@@ -440,7 +516,9 @@ class EventDiscoveryCoordinator:
         self._team_cache[cache_key] = result.lastrowid
         return result.lastrowid
 
-    def _resolve_competition(self, sport_id: int, name: str, country: str = "") -> int | None:
+    def _resolve_competition(
+        self, sport_id: int, name: str, country: str = ""
+    ) -> int | None:
         """Find or create a competition, return its ID."""
         if not name:
             return None
@@ -483,22 +561,28 @@ class EventDiscoveryCoordinator:
         by_sport: dict[str, int] = {}
         for mf in fixtures:
             by_sport[mf.sport] = by_sport.get(mf.sport, 0) + 1
-            events.append({
-                "sport": mf.sport,
-                "competition": mf.competition,
-                "country": mf.country,
-                "home_team": mf.home_team,
-                "away_team": mf.away_team,
-                "kickoff": mf.kickoff.isoformat(),
-                "status": mf.status,
-                "source": mf.primary_source,
-                "external_id": mf.primary_external_id,
-                "source_count": mf.source_count,
-                "sources": [
-                    {"source": s.source, "external_id": s.external_id, "confidence": s.confidence}
-                    for s in mf.sources
-                ],
-            })
+            events.append(
+                {
+                    "sport": mf.sport,
+                    "competition": mf.competition,
+                    "country": mf.country,
+                    "home_team": mf.home_team,
+                    "away_team": mf.away_team,
+                    "kickoff": mf.kickoff.isoformat(),
+                    "status": mf.status,
+                    "source": mf.primary_source,
+                    "external_id": mf.primary_external_id,
+                    "source_count": mf.source_count,
+                    "sources": [
+                        {
+                            "source": s.source,
+                            "external_id": s.external_id,
+                            "confidence": s.confidence,
+                        }
+                        for s in mf.sources
+                    ],
+                }
+            )
 
         data = {
             "date": date,

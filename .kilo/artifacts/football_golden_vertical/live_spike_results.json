@@ -1,0 +1,175 @@
+{
+  "generated_at": "2026-06-12T15:00:00Z",
+  "spike_type": "LIVE_PROVIDER_PROBE",
+  "providers_tested": {
+    "thesportsdb": {
+      "base_url": "https://www.thesportsdb.com/api/v1/json/3",
+      "requests_made": 5,
+      "requests_limit": 5,
+      "results": {
+        "search_teams": {
+          "endpoint": "/searchteams.php",
+          "test_query": "Arsenal",
+          "http_status": 200,
+          "latency_seconds": 0.118,
+          "result": "SUCCESS",
+          "teams_found": 10,
+          "key_findings": {
+            "idESPN_field": "PRESENT (value: 359 for Arsenal)",
+            "idAPIfootball_field": "PRESENT (value: 42 for Arsenal)",
+            "cross_reference_capability": "VERIFIED"
+          }
+        },
+        "events_last": {
+          "endpoint": "/eventslast.php",
+          "test_query": "team_id=133604 (Arsenal)",
+          "http_status": 200,
+          "latency_seconds": 0.162,
+          "result": "SUCCESS",
+          "events_found": 1,
+          "key_findings": {
+            "current_season_events": "PRESENT",
+            "event_ids": "2267433",
+            "idAPIfootball_crosswalk": "PRESENT (1379329)"
+          }
+        },
+        "event_details": {
+          "endpoint": "/lookupevent.php",
+          "test_query": "id=2267433",
+          "http_status": 200,
+          "latency_seconds": 0.088,
+          "result": "SUCCESS",
+          "key_findings": {
+            "event_data": "PRESENT",
+            "status": "FT",
+            "scores": "PRESENT"
+          }
+        },
+        "event_lineup": {
+          "endpoint": "/lookuplineup.php",
+          "test_query": "id=2267433",
+          "http_status": 200,
+          "latency_seconds": 0.135,
+          "result": "SUCCESS",
+          "lineup_entries": 5,
+          "key_findings": {
+            "player_ids": "PRESENT",
+            "positions": "PRESENT",
+            "home_away_indicator": "PRESENT",
+            "substitute_indicator": "PRESENT"
+          }
+        },
+        "event_stats": {
+          "endpoint": "/lookupeventstats.php",
+          "test_query": "id=2267433",
+          "http_status": 200,
+          "latency_seconds": 0.091,
+          "result": "SUCCESS",
+          "stats_entries": 5,
+          "key_findings": {
+            "match_statistics": "PRESENT",
+            "home_away_values": "PRESENT",
+            "idApiFootball_crosswalk": "PRESENT"
+          }
+        }
+      },
+      "capability_assessment": {
+        "cross_reference": {
+          "status": "PASS",
+          "evidence": "idESPN and idAPIfootball fields present for Arsenal team",
+          "verified_teams": 1,
+          "verified_events": 1
+        },
+        "recent_form": {
+          "status": "PARTIAL",
+          "evidence": "eventslast returns only 1 event for Arsenal, not full schedule",
+          "concern": "Free tier may have limited historical data"
+        },
+        "lineups": {
+          "status": "PASS",
+          "evidence": "Lineup endpoint returns player data with positions"
+        },
+        "fixture_stats": {
+          "status": "PASS",
+          "evidence": "Event stats endpoint returns match statistics"
+        }
+      },
+      "overall_verdict": "PARTIAL_PASS - Cross-reference capability verified; enrichment data incomplete for full recent form"
+    },
+    "sportdb_dev": {
+      "base_url": "https://api.sportdb.dev",
+      "requests_made": 1,
+      "requests_limit": 6,
+      "results": {
+        "api_docs": {
+          "endpoint": "/docs",
+          "http_status": 200,
+          "result": "SUCCESS",
+          "key_findings": {
+            "api_type": "REST with Swagger UI",
+            "auth_required": true,
+            "endpoints": "flashscore/{full_path}, transfermarkt/{full_path} proxies"
+          }
+        },
+        "flashscore_test": {
+          "endpoint": "/api/flashscore/football",
+          "http_status": 401,
+          "result": "AUTH_REQUIRED",
+          "key_findings": {
+            "error": "Missing API key",
+            "auth_method": "API key required"
+          }
+        }
+      },
+      "capability_assessment": {
+        "status": "BLOCKED",
+        "reason": "API key required; no key configured in environment",
+        "action_required": "Configure SPORTDB_API_KEY before further testing"
+      },
+      "overall_verdict": "BLOCKED - Requires API key registration"
+    }
+  },
+  "retained_evidence": {
+    "espn_football": {
+      "source": "REM-002A artifacts",
+      "bundle_id": "32f075eb12a4a6aae53ca9e10c1e222359e45fa99a47a22b6115cb4843f3def0",
+      "status": "PRODUCTION_READY",
+      "capabilities": ["current_season_recent_form", "fixture_statistics", "lineups"]
+    },
+    "api_football": {
+      "source": "REM-002C artifacts",
+      "bundle_id": "de648d03aaffe6b3707f6804e5eeb9e73e1d9c95a92d0a084a0bc684d31f2bdd",
+      "status": "PRODUCTION_READY",
+      "capabilities": ["event_discovery", "historical_recent_form"],
+      "limitation": "PLAN_RESTRICTED for season 2026 (free tier limited to 2022-2024)"
+    }
+  },
+  "capability_gates": {
+    "current_season_recent_form": {
+      "espn": "PASS (PRODUCTION_READY)",
+      "api_football": "FAIL (PLAN_RESTRICTED for 2026)",
+      "thesportsdb": "PARTIAL (limited historical data)",
+      "sportdb_dev": "BLOCKED (no API key)"
+    },
+    "cross_reference": {
+      "thesportsdb": "PASS (idESPN and idAPIfootball fields verified)",
+      "internal": "PASS (fixture_sources table)"
+    },
+    "lineups": {
+      "espn": "PASS",
+      "thesportsdb": "PASS",
+      "api_football": "NOT_TESTED"
+    },
+    "fixture_stats": {
+      "espn": "PASS",
+      "api_football": "PASS (historical seasons)",
+      "thesportsdb": "PASS"
+    }
+  },
+  "recommendation": {
+    "selected_new_provider": "NONE",
+    "reason": "TheSportsDB cross-reference capability is useful but not required; ESPN and API-Football already cover all REQUIRED capabilities",
+    "thesportsdb_role": "CROSS_REFERENCE_ONLY",
+    "sportdb_dev_role": "BLOCKED - requires API key registration"
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "timestamp": "2026-06-12T09:01:29.271336+00:00",
+  "total": 6,
+  "passed": 6,
+  "failed": 0,
+  "gate": "6/6",
+  "results": [
+    {
+      "test": "connectivity_models",
+      "passed": true,
+      "expected": "At least one model",
+      "actual": "models: ['mlx-community/Qwen3.6-35B-A3B-4bit', 'qwen3.6-35b-4bit']"
+    },
+    {
+      "test": "connectivity_chat",
+      "passed": true,
+      "expected": "Chat completion with choices",
+      "actual": "choices: 1"
+    },
+    {
+      "test": "read_file",
+      "passed": true,
+      "expected": "kilo.jsonc exists",
+      "actual": "exists: True"
+    },
+    {
+      "test": "glob_files",
+      "passed": true,
+      "expected": "Python files in scripts/",
+      "actual": "files: 63"
+    },
+    {
+      "test": "mcp_disabled",
+      "passed": true,
+      "expected": "All MCP servers disabled",
+      "actual": "disabled: 4"
+    },
+    {
+      "test": "rapid_mlx_process",
+      "passed": true,
+      "expected": "Rapid-MLX process running",
+      "actual": "process found: True"
+    }
+  ]
+}

@@ -8,7 +8,8 @@ import json
 import logging
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .models import FixtureSourceModel
@@ -33,6 +34,17 @@ class FixtureSourceRepo:
         """Insert or update a fixture-source mapping. Returns the model instance."""
         now = datetime.now(timezone.utc).isoformat()
         raw_json = json.dumps(raw_data) if raw_data else None
+
+        fixture_exists = self.session.execute(
+            text("SELECT 1 FROM fixtures WHERE id = :fixture_id"),
+            {"fixture_id": fixture_id},
+        ).fetchone()
+        if fixture_exists is None:
+            raise IntegrityError(
+                statement="INSERT INTO fixture_sources(fixture_id, source, external_id)",
+                params={"fixture_id": fixture_id, "source": source, "external_id": external_id},
+                orig=ValueError(f"Missing parent fixture_id={fixture_id}"),
+            )
 
         existing = self.session.execute(
             select(FixtureSourceModel).where(

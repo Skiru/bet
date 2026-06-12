@@ -1,11 +1,11 @@
 """Tests for DeduplicationEngine."""
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime
 
 import pytest
 
 from bet.discovery.dedup import DeduplicationEngine
-from bet.discovery.models import DiscoveredEvent, MergedFixture
+from bet.discovery.models import DiscoveredEvent
 
 
 @pytest.fixture
@@ -51,8 +51,13 @@ class TestExactMatch:
         events = {
             "sofascore": [
                 _make_event(source="sofascore", sport="football", external_id="s1"),
-                _make_event(source="sofascore", sport="basketball", external_id="s2",
-                            home="FC Barcelona", away="Real Madrid"),
+                _make_event(
+                    source="sofascore",
+                    sport="basketball",
+                    external_id="s2",
+                    home="FC Barcelona",
+                    away="Real Madrid",
+                ),
             ],
         }
         merged = engine.merge(events)
@@ -61,10 +66,18 @@ class TestExactMatch:
     def test_different_teams_not_merged(self, engine):
         events = {
             "sofascore": [
-                _make_event(source="sofascore", external_id="s1",
-                            home="Real Madrid", away="Barcelona"),
-                _make_event(source="sofascore", external_id="s2",
-                            home="Real Sociedad", away="Athletic Bilbao"),
+                _make_event(
+                    source="sofascore",
+                    external_id="s1",
+                    home="Real Madrid",
+                    away="Barcelona",
+                ),
+                _make_event(
+                    source="sofascore",
+                    external_id="s2",
+                    home="Real Sociedad",
+                    away="Athletic Bilbao",
+                ),
             ],
         }
         merged = engine.merge(events)
@@ -76,8 +89,9 @@ class TestFuzzyMatch:
         """FC Barcelona vs Barcelona → merge."""
         events = {
             "sofascore": [_make_event(source="sofascore", home="FC Barcelona")],
-            "odds-api": [_make_event(source="odds-api", home="Barcelona",
-                                      external_id="o1")],
+            "odds-api": [
+                _make_event(source="odds-api", home="Barcelona", external_id="o1")
+            ],
         }
         merged = engine.merge(events)
         assert len(merged) == 1
@@ -86,10 +100,19 @@ class TestFuzzyMatch:
     def test_dynamo_kyiv_vs_kiev(self, engine):
         """Dynamo Kyiv vs Dynamo Kiev → fuzzy match."""
         events = {
-            "sofascore": [_make_event(source="sofascore", home="Dynamo Kyiv",
-                                      away="Shakhtar Donetsk")],
-            "odds-api": [_make_event(source="odds-api", home="Dynamo Kiev",
-                                      away="Shakhtar Donetsk", external_id="o1")],
+            "sofascore": [
+                _make_event(
+                    source="sofascore", home="Dynamo Kyiv", away="Shakhtar Donetsk"
+                )
+            ],
+            "odds-api": [
+                _make_event(
+                    source="odds-api",
+                    home="Dynamo Kiev",
+                    away="Shakhtar Donetsk",
+                    external_id="o1",
+                )
+            ],
         }
         merged = engine.merge(events)
         assert len(merged) == 1
@@ -99,11 +122,19 @@ class TestFuzzyMatch:
         """Real Madrid vs Real Sociedad → NOT merged."""
         events = {
             "sofascore": [
-                _make_event(source="sofascore", home="Real Madrid",
-                            away="Getafe", external_id="s1"),
-                _make_event(source="sofascore", home="Real Sociedad",
-                            away="Athletic Bilbao", external_id="s2",
-                            kickoff_str="2026-05-14T18:00:00+00:00"),
+                _make_event(
+                    source="sofascore",
+                    home="Real Madrid",
+                    away="Getafe",
+                    external_id="s1",
+                ),
+                _make_event(
+                    source="sofascore",
+                    home="Real Sociedad",
+                    away="Athletic Bilbao",
+                    external_id="s2",
+                    kickoff_str="2026-05-14T18:00:00+00:00",
+                ),
             ],
         }
         merged = engine.merge(events)
@@ -114,10 +145,16 @@ class TestTemporalMatch:
     def test_within_window_merges(self, engine):
         """Events 1h apart → merge."""
         events = {
-            "sofascore": [_make_event(source="sofascore",
-                                      kickoff_str="2026-05-14T20:00:00+00:00")],
-            "odds-api": [_make_event(source="odds-api", external_id="o1",
-                                      kickoff_str="2026-05-14T21:00:00+00:00")],
+            "sofascore": [
+                _make_event(source="sofascore", kickoff_str="2026-05-14T20:00:00+00:00")
+            ],
+            "odds-api": [
+                _make_event(
+                    source="odds-api",
+                    external_id="o1",
+                    kickoff_str="2026-05-14T21:00:00+00:00",
+                )
+            ],
         }
         merged = engine.merge(events)
         assert len(merged) == 1
@@ -125,10 +162,16 @@ class TestTemporalMatch:
     def test_outside_window_separate(self, engine):
         """Events 3h apart → separate (even if same teams)."""
         events = {
-            "sofascore": [_make_event(source="sofascore",
-                                      kickoff_str="2026-05-14T15:00:00+00:00")],
-            "odds-api": [_make_event(source="odds-api", external_id="o1",
-                                      kickoff_str="2026-05-14T20:00:00+00:00")],
+            "sofascore": [
+                _make_event(source="sofascore", kickoff_str="2026-05-14T15:00:00+00:00")
+            ],
+            "odds-api": [
+                _make_event(
+                    source="odds-api",
+                    external_id="o1",
+                    kickoff_str="2026-05-14T20:00:00+00:00",
+                )
+            ],
         }
         merged = engine.merge(events)
         assert len(merged) == 2
@@ -139,8 +182,9 @@ class TestThreeSourceMerge:
         """Same match from 3 sources → 1 fixture with 3 sources."""
         events = {
             "sofascore": [_make_event(source="sofascore", external_id="s1")],
-            "odds-api": [_make_event(source="odds-api", external_id="o1",
-                                      odds={"h2h": 1.5})],
+            "odds-api": [
+                _make_event(source="odds-api", external_id="o1", odds={"h2h": 1.5})
+            ],
             "api-football": [_make_event(source="api-football", external_id="af1")],
         }
         merged = engine.merge(events)
@@ -149,7 +193,7 @@ class TestThreeSourceMerge:
         assert merged[0].odds == {"h2h": 1.5}  # from odds-api
 
     def test_no_duplicate_sources(self, engine):
-        """Same source added twice → only 1 entry."""
+        """Same source with different external IDs must fail closed."""
         events = {
             "sofascore": [
                 _make_event(source="sofascore", external_id="s1"),
@@ -157,9 +201,8 @@ class TestThreeSourceMerge:
             ],
         }
         merged = engine.merge(events)
-        # Second event has same key → merges, but source already exists
-        assert len(merged) == 1
-        assert len(merged[0].sources) == 1
+        assert len(merged) == 2
+        assert all(len(item.sources) == 1 for item in merged)
 
 
 class TestEdgeCases:
@@ -171,8 +214,12 @@ class TestEdgeCases:
         events = {
             "sofascore": [
                 _make_event(source="sofascore", external_id="s1"),
-                _make_event(source="sofascore", external_id="s2",
-                            home="Liverpool", away="Chelsea"),
+                _make_event(
+                    source="sofascore",
+                    external_id="s2",
+                    home="Liverpool",
+                    away="Chelsea",
+                ),
             ],
         }
         merged = engine.merge(events)

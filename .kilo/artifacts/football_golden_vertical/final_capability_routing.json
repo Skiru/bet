@@ -1,0 +1,98 @@
+{
+  "generated_at": "2026-06-12T15:20:00Z",
+  "capability_routing": {
+    "event_discovery": {
+      "classification": "REQUIRED",
+      "routing": ["api-football"],
+      "api_football": "PRIMARY",
+      "notes": "PRODUCTION_READY per REM-002C"
+    },
+    "canonical_event_identity": {
+      "classification": "REQUIRED",
+      "routing": ["api-football"],
+      "api_football": "PRIMARY",
+      "notes": "Provider fixture IDs preserved in fixture_sources"
+    },
+    "canonical_team_identity": {
+      "classification": "REQUIRED",
+      "routing": ["api-football", "espn-football"],
+      "api_football": "PRIMARY for discovery",
+      "espn_football": "PRIMARY for enrichment",
+      "notes": "Team IDs from both providers"
+    },
+    "current_season_recent_form": {
+      "classification": "REQUIRED",
+      "routing": ["espn-football", "api-football"],
+      "espn_football": "PRIMARY",
+      "api_football": "FALLBACK (PLAN_RESTRICTED for 2026)",
+      "notes": "ESPN covers current season; API-Football for historical"
+    },
+    "fixture_statistics": {
+      "classification": "REQUIRED",
+      "routing": ["espn-football", "api-football"],
+      "espn_football": "PRIMARY",
+      "api_football": "FALLBACK",
+      "notes": "Both providers support fixture stats"
+    },
+    "cross_provider_id_mapping": {
+      "classification": "REQUIRED",
+      "routing": ["internal"],
+      "internal": "PRIMARY",
+      "thesportsdb": "CROSS_REFERENCE_ONLY",
+      "notes": "fixture_sources table; TheSportsDB optional enhancement"
+    },
+    "historical_recent_form": {
+      "classification": "OPTIONAL",
+      "routing": ["api-football"],
+      "api_football": "PRIMARY",
+      "notes": "Works for seasons 2022-2024"
+    },
+    "lineups": {
+      "classification": "OPTIONAL",
+      "routing": ["espn-football", "thesportsdb"],
+      "espn_football": "PRIMARY",
+      "thesportsdb": "FALLBACK",
+      "notes": "No production consumer yet"
+    },
+    "h2h": {
+      "classification": "OPTIONAL",
+      "routing": [],
+      "notes": "NOT_IMPLEMENTED"
+    },
+    "standings": {
+      "classification": "OPTIONAL",
+      "routing": [],
+      "notes": "NOT_IMPLEMENTED"
+    }
+  },
+  "provider_states": {
+    "espn-football": {
+      "state": "PRODUCTION_READY",
+      "role": "PRIMARY enrichment source for football",
+      "capabilities": ["current_season_recent_form", "fixture_statistics", "lineups"],
+      "evidence": "REM-002A bundle 32f075eb, replay passed, idempotent rerun verified"
+    },
+    "api-football": {
+      "state": "PRODUCTION_READY",
+      "role": "PRIMARY discovery source; FALLBACK enrichment for historical seasons",
+      "capabilities": ["event_discovery", "historical_recent_form", "fixture_statistics"],
+      "limitation": "PLAN_RESTRICTED for current season (2026) on free tier",
+      "evidence": "REM-002C bundle de648d03, enrichment bundles 2b0ed4ba/b01f22fb"
+    },
+    "thesportsdb": {
+      "state": "CROSS_REFERENCE_ONLY",
+      "role": "Optional ID crosswalk enhancement",
+      "capabilities": ["cross_reference", "lineups", "fixture_stats"],
+      "limitation": "REJECT_INCOMPLETE_DATA for recent form (limited historical data)",
+      "evidence": "Live spike verified idESPN/idAPIfootball fields"
+    },
+    "sportdb_dev": {
+      "state": "BLOCKED",
+      "role": "NOT_AVAILABLE",
+      "limitation": "Requires API key registration",
+      "action": "Configure SPORTDB_API_KEY if needed in future"
+    }
+  },
+  "selected_new_provider": "NONE",
+  "reason": "All REQUIRED capabilities covered by existing ESPN and API-Football providers. TheSportsDB verified for cross-reference but not required for production."
+}

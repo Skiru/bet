@@ -1,12 +1,10 @@
 from datetime import datetime
 from pydantic import BaseModel, Field
-from sqlalchemy import Column, Integer, Text, Float, UniqueConstraint
+from sqlalchemy import Column, Float, Integer, Text, UniqueConstraint
 from bet.scrapers.engine import Base
 
 class FixtureSourceModel(Base):
     __tablename__ = "fixture_sources"
-    # Note: FK enforced by raw SQL schema (schema.sql), not SA — because
-    # the `fixtures` table is not a SA model (managed by sqlite3 repos).
     id = Column(Integer, primary_key=True, autoincrement=True)
     fixture_id = Column(Integer, nullable=False)
     source = Column(Text, nullable=False)

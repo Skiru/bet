@@ -1,0 +1,69 @@
+{
+  "fixture_id": "F001_SETTLER_SELECTIONS",
+  "synthetic": true,
+  "disclaimer": "SYNTHETIC — NOT REAL BETTING DATA",
+  "generated": "2026-06-12T12:00:00Z",
+  "scenario": "bet-settler settlement reconciliation",
+  "selections": [
+    {
+      "selection_id": "SEL_SYNTH_001",
+      "match_id": "MATCH_SYNTH_001",
+      "market": "MARKET_SYNTH_HOME",
+      "selection_type": "home_win",
+      "odds_decimal": 2.15,
+      "stake": 10.00,
+      "currency": "EUR",
+      "placed_at": "2026-06-10T18:00:00Z",
+      "settled_at": "2026-06-10T20:30:00Z",
+      "result": "won",
+      "returns": 21.50,
+      "profit": 11.50
+    },
+    {
+      "selection_id": "SEL_SYNTH_002",
+      "match_id": "MATCH_SYNTH_002",
+      "market": "MARKET_SYNTH_OVER",
+      "selection_type": "over_2.5",
+      "odds_decimal": 1.85,
+      "stake": 15.00,
+      "currency": "EUR",
+      "placed_at": "2026-06-11T15:00:00Z",
+      "settled_at": "2026-06-11T17:15:00Z",
+      "result": "lost",
+      "returns": 0.00,
+      "profit": -15.00
+    }
+  ],
+  "outcomes": [
+    {
+      "match_id": "MATCH_SYNTH_001",
+      "home_team": "TEAM_ALPHA",
+      "away_team": "TEAM_BETA",
+      "home_score": 2,
+      "away_score": 1,
+      "kickoff": "2026-06-10T18:30:00Z",
+      "final_whistle": "2026-06-10T20:15:00Z",
+      "source": "SOURCE_SYNTH_A",
+      "as_of": "2026-06-10T20:30:00Z",
+      "confidence": 1.0
+    },
+    {
+      "match_id": "MATCH_SYNTH_002",
+      "home_team": "TEAM_GAMMA",
+      "away_team": "TEAM_DELTA",
+      "home_score": 0,
+      "away_score": 1,
+      "kickoff": "2026-06-11T15:30:00Z",
+      "final_whistle": "2026-06-11T17:00:00Z",
+      "source": "SOURCE_SYNTH_A",
+      "as_of": "2026-06-11T17:15:00Z",
+      "confidence": 1.0
+    }
+  ],
+  "expected_result": {
+    "status": "BLOCKED",
+    "decision": "CAPABILITY_UNAVAILABLE",
+    "rationale": "bet-settler requires bet_sqlite_query which is deferred"
+  },
+  "sha256": "PLACEHOLDER"
+}

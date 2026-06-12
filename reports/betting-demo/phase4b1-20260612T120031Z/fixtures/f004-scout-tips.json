@@ -1,0 +1,85 @@
+{
+  "fixture_id": "F004_SCOUT_TIPS",
+  "synthetic": true,
+  "disclaimer": "SYNTHETIC — NOT REAL BETTING DATA",
+  "generated": "2026-06-12T12:00:00Z",
+  "scenario": "bet-scout tipster aggregation from offline artifacts",
+  "tipster_claims": [
+    {
+      "claim_id": "TIP_SYNTH_001",
+      "source_id": "SOURCE_SYNTH_A",
+      "source_class": "official",
+      "match_id": "MATCH_SYNTH_003",
+      "market": "MARKET_SYNTH_HOME",
+      "selection": "TEAM_ALPHA",
+      "confidence": 0.75,
+      "argument": "Strong home form, TEAM_ALPHA unbeaten in last 5 home matches",
+      "as_of": "2026-06-12T10:00:00Z",
+      "provenance": "synthetic_tipster_v1",
+      "independence": "independent"
+    },
+    {
+      "claim_id": "TIP_SYNTH_002",
+      "source_id": "SOURCE_SYNTH_B",
+      "source_class": "aggregator",
+      "match_id": "MATCH_SYNTH_003",
+      "market": "MARKET_SYNTH_HOME",
+      "selection": "TEAM_ALPHA",
+      "confidence": 0.70,
+      "argument": "Historical head-to-head advantage for TEAM_ALPHA",
+      "as_of": "2026-06-12T09:30:00Z",
+      "provenance": "synthetic_tipster_v2",
+      "independence": "independent"
+    },
+    {
+      "claim_id": "TIP_SYNTH_003",
+      "source_id": "SOURCE_SYNTH_C",
+      "source_class": "affiliate",
+      "match_id": "MATCH_SYNTH_003",
+      "market": "MARKET_SYNTH_HOME",
+      "selection": "TEAM_ALPHA",
+      "confidence": 0.80,
+      "argument": "Same as TIP_SYNTH_001 - duplicated",
+      "as_of": "2026-06-12T10:05:00Z",
+      "provenance": "synthetic_tipster_v1",
+      "independence": "dependent",
+      "dependency_note": "Duplicated from SOURCE_SYNTH_A"
+    },
+    {
+      "claim_id": "TIP_SYNTH_004",
+      "source_id": "SOURCE_SYNTH_D",
+      "source_class": "social",
+      "match_id": "MATCH_SYNTH_004",
+      "market": "MARKET_SYNTH_OVER",
+      "selection": "over_2.5",
+      "confidence": 0.60,
+      "argument": "Outdated analysis",
+      "as_of": "2026-06-10T08:00:00Z",
+      "provenance": "synthetic_tipster_v3",
+      "independence": "independent",
+      "stale": true,
+      "stale_reason": "as_of more than 24 hours old"
+    },
+    {
+      "claim_id": "TIP_SYNTH_005",
+      "source_id": "SOURCE_SYNTH_E",
+      "source_class": "unknown",
+      "match_id": "MATCH_SYNTH_005",
+      "market": "MARKET_SYNTH_DRAW",
+      "selection": "draw",
+      "confidence": 0.90,
+      "argument": "Unsupported claim without evidence",
+      "as_of": "2026-06-12T11:00:00Z",
+      "provenance": "synthetic_tipster_v4",
+      "independence": "unknown",
+      "unsupported": true,
+      "unsupported_reason": "No supporting evidence provided"
+    }
+  ],
+  "expected_result": {
+    "status": "PASS",
+    "decision": "VALID_TIPS_REMAINING",
+    "rationale": "bet-scout should filter stale, dependent, and unsupported claims, keeping TIP_SYNTH_001 and TIP_SYNTH_002"
+  },
+  "sha256": "PLACEHOLDER"
+}
