@@ -525,6 +525,9 @@ CREATE TABLE IF NOT EXISTS team_form (
     trend TEXT,
     updated_at TEXT NOT NULL,
     source TEXT,
+    -- REM-001B: Evidence linkage for contract compliance
+    source_event_ids TEXT NOT NULL DEFAULT '[]',  -- JSON array of provider event IDs
+    evidence_hash TEXT NOT NULL DEFAULT '',       -- SHA-256 hash of evidence bundle
     UNIQUE(team_id, stat_key, h2h_opponent_id)
 );
 CREATE TABLE IF NOT EXISTS team_rosters (
@@ -538,6 +541,16 @@ CREATE TABLE IF NOT EXISTS team_rosters (
     season TEXT NOT NULL DEFAULT '',
     updated_at TEXT NOT NULL,
     UNIQUE(team_id, athlete_id, season)
+);
+CREATE TABLE IF NOT EXISTS team_form_evidence_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    team_id INTEGER NOT NULL REFERENCES teams(id),
+    stat_key TEXT NOT NULL,
+    h2h_opponent_id INTEGER REFERENCES teams(id),
+    source TEXT NOT NULL DEFAULT '',
+    source_event_ids TEXT NOT NULL DEFAULT '[]',
+    evidence_hash TEXT NOT NULL,
+    observed_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS teams (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -630,6 +643,10 @@ CREATE INDEX IF NOT EXISTS idx_market_matrix_date ON market_matrix_events(bettin
 CREATE INDEX IF NOT EXISTS idx_market_matrix_sport ON market_matrix_events(betting_date, sport);
 CREATE INDEX IF NOT EXISTS idx_market_matrix_tier ON market_matrix_events(betting_date, data_tier);
 CREATE INDEX IF NOT EXISTS idx_team_form_team_stat ON team_form(team_id, stat_key);
+CREATE INDEX IF NOT EXISTS idx_team_form_evidence_hash ON team_form(evidence_hash) WHERE evidence_hash != '';
+CREATE INDEX IF NOT EXISTS idx_team_form_evidence_history_lookup ON team_form_evidence_history(team_id, stat_key, observed_at);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_team_form_evidence_history_dedup
+    ON team_form_evidence_history(team_id, stat_key, COALESCE(h2h_opponent_id, 0), source, evidence_hash);
 CREATE INDEX IF NOT EXISTS idx_odds_history_fixture ON odds_history(fixture_id);
 CREATE INDEX IF NOT EXISTS idx_bets_coupon ON bets(coupon_id);
 CREATE INDEX IF NOT EXISTS idx_bets_status ON bets(status);
@@ -692,4 +709,52 @@ CREATE INDEX IF NOT EXISTS idx_betclic_comp_profiles_sport ON betclic_competitio
 CREATE INDEX IF NOT EXISTS idx_pipeline_candidates_date ON pipeline_candidates(betting_date);
 CREATE INDEX IF NOT EXISTS idx_pipeline_candidates_date_rank ON pipeline_candidates(betting_date, rank);
 CREATE INDEX IF NOT EXISTS idx_pipeline_candidates_sport ON pipeline_candidates(betting_date, sport);
+-- v16: Fixture-scoped observations for temporal isolation
+CREATE TABLE IF NOT EXISTS fixture_capability_observation (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    canonical_fixture_id INTEGER NOT NULL REFERENCES fixtures(id),
+    team_id INTEGER NOT NULL REFERENCES teams(id),
+    capability TEXT NOT NULL,
+    source TEXT NOT NULL,
+    request_identity TEXT NOT NULL,
+    evidence_bundle_id TEXT NOT NULL DEFAULT '',
+    native_fixture_id TEXT NOT NULL DEFAULT '',
+    native_team_id TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL,
+    http_status INTEGER,
+    error_code TEXT NOT NULL DEFAULT '',
+    retryable INTEGER NOT NULL DEFAULT 0,
+    parser_version TEXT NOT NULL DEFAULT '',
+    parser_diagnostics_json TEXT NOT NULL DEFAULT '{}',
+    observed_at TEXT NOT NULL,
+    valid_at TEXT NOT NULL,
+    payload_sha256 TEXT NOT NULL DEFAULT ''
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_fixture_capability_observation_identity
+    ON fixture_capability_observation(canonical_fixture_id, team_id, capability, source, valid_at);
+CREATE INDEX IF NOT EXISTS idx_fixture_capability_observation_fixture
+    ON fixture_capability_observation(canonical_fixture_id, capability);
+CREATE INDEX IF NOT EXISTS idx_fixture_capability_observation_team
+    ON fixture_capability_observation(team_id, capability, valid_at);
+CREATE INDEX IF NOT EXISTS idx_fixture_capability_observation_bundle
+    ON fixture_capability_observation(evidence_bundle_id);
+CREATE TABLE IF NOT EXISTS fixture_capability_projection (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    canonical_fixture_id INTEGER NOT NULL REFERENCES fixtures(id),
+    team_id INTEGER NOT NULL REFERENCES teams(id),
+    capability TEXT NOT NULL,
+    analysis_cutoff_at TEXT NOT NULL,
+    selected_source TEXT NOT NULL,
+    selected_status TEXT NOT NULL,
+    selected_observation_id INTEGER REFERENCES fixture_capability_observation(id),
+    primary_source TEXT NOT NULL DEFAULT '',
+    primary_status TEXT NOT NULL DEFAULT '',
+    fallback_reason TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_fixture_capability_projection_identity
+    ON fixture_capability_projection(canonical_fixture_id, team_id, capability, analysis_cutoff_at);
+CREATE INDEX IF NOT EXISTS idx_fixture_capability_projection_fixture
+    ON fixture_capability_projection(canonical_fixture_id);
 DELETE FROM "sqlite_sequence";

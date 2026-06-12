@@ -1,0 +1,75 @@
+{
+  "recovered_at": "2026-06-12T10:47:00Z",
+  "completed_tasks": [
+    "REM-002B typed discovery closure for all four API-Sports integrations",
+    "Live discovery proof with retained bundles for api-football (98 fixtures), api-basketball (31 fixtures), api-volleyball (6 fixtures), api-hockey (3 fixtures)",
+    "No-network replay verification for discovery",
+    "Duplicate-free persistence rerun for discovery",
+    "Test inventory reconciliation: 666 non-live tests collected (6 deselected live tests)",
+    "Multisport provider inventory: TheSportsDB client exists but DEPRECATED and NOT REGISTERED in CLIENT_REGISTRY; SportDB.dev ABSENT"
+  ],
+  "partially_completed_tasks": [
+    "Live retry script executed: api-hockey SUCCESS (3 fixtures), api-volleyball AUTHENTICATION_ERROR"
+  ],
+  "remaining_todos": [
+    "1. Verify api-volleyball authentication status and retry if key issue",
+    "2. Implement typed enrichment path proof (get_fixture_stats_result, get_team_last_fixtures_result) for CORE capabilities",
+    "3. Execute controlled live enrichment proof once per sport within budget",
+    "4. Run no-network replay for enrichment evidence",
+    "5. Run idempotent persistence rerun for enrichment"
+  ],
+  "modified_files": [
+    "src/bet/api_clients/api_football.py",
+    "src/bet/api_clients/api_basketball.py",
+    "src/bet/api_clients/api_volleyball.py",
+    "src/bet/api_clients/api_hockey.py",
+    "src/bet/api_clients/base_client.py",
+    "src/bet/stats/enrichment.py",
+    "tests/scrapers/test_api_sports_family.py",
+    "tests/scrapers/test_api_sports_live.py"
+  ],
+  "tests_executed": {
+    "focused": "28 passed, 5 skipped (API-Sports family suite)",
+    "full_non_live": "657 passed, 4 skipped, 6 deselected (REM-002B closure)",
+    "current_collection": "666 tests collected (6 deselected)"
+  },
+  "live_calls_executed": {
+    "discovery": {
+      "api-football": "98 fixtures on 2026-06-11, bundle de648d03...",
+      "api-basketball": "31 fixtures on 2026-06-11, bundle 67fd9aa5...",
+      "api-volleyball": "6 fixtures on 2026-06-11, bundle 15cb3a3a...",
+      "api-hockey": "3 fixtures on 2026-06-12, bundle 2f746c13..."
+    },
+    "enrichment": {
+      "api-volleyball_retry": "AUTHENTICATION_ERROR on 2026-06-10",
+      "api-hockey_retry": "SUCCESS, 3 fixtures on 2026-06-12"
+    }
+  },
+  "api_quota_blockers": {
+    "api-volleyball": "AUTHENTICATION_ERROR in retry script - needs key verification"
+  },
+  "evidence_bundles": {
+    "rem002b_discovery": ".kilo/artifacts/rem002b_api_sports_summary.json"
+  },
+  "next_exact_command": "Verify API_VOLLEYBALL_KEY environment variable and test authentication",
+  "multisport_provider_inventory": {
+    "thesportsdb": {
+      "client_class": "TheSportsDBClient in src/bet/api_clients/thesportsdb.py",
+      "registry_status": "NOT REGISTERED in CLIENT_REGISTRY",
+      "credential_configured": "THESPORTSDB_KEY listed in EVIDENCE_MANIFEST",
+      "production_wiring": "NONE - client marked DEPRECATED with 97.8% failure rate",
+      "tests": "NONE",
+      "live_proof": "NONE",
+      "state": "DEPRECATED_UNVERIFIED"
+    },
+    "sportdb.dev": {
+      "client_class": "ABSENT",
+      "registry_status": "NOT REGISTERED",
+      "credential_configured": "NO",
+      "production_wiring": "NONE",
+      "tests": "NONE",
+      "live_proof": "NONE",
+      "state": "ABSENT"
+    }
+  }
+}

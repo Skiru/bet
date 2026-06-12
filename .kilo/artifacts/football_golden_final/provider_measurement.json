@@ -1,0 +1,195 @@
+{
+  "schema_version": "1",
+  "created_at": "2026-06-12T16:05:00+02:00",
+  "phase": "PHASE_3",
+  "sport": "football",
+  "providers_measured": ["api-football", "espn"],
+  "p0_capability_coverage": {
+    "discovery_status": {
+      "api-football": {
+        "entry_point": "get_fixtures_result(date)",
+        "source_order": "primary",
+        "native_ids": "fixture.id, team.id, league.id",
+        "status": "SUCCESS",
+        "temporal_eligibility": "date-scoped",
+        "bundle": "de648d03",
+        "replay": "PASS",
+        "snapshot": "fixture table",
+        "missing_gate": null
+      },
+      "espn": {
+        "entry_point": "get_fixtures_result(date)",
+        "source_order": "fallback",
+        "native_ids": "event.id, competitor.id",
+        "status": "SUCCESS",
+        "temporal_eligibility": "date-scoped",
+        "bundle": "32f075eb",
+        "replay": "PASS",
+        "snapshot": "fixture table via crosswalk",
+        "missing_gate": null
+      }
+    },
+    "canonical_event_team_identity": {
+      "api-football": {
+        "entry_point": "get_event_fixture_result(event_id)",
+        "source_order": "primary",
+        "native_ids": "fixture.id, teams.home.id, teams.away.id",
+        "status": "SUCCESS",
+        "temporal_eligibility": "fixture-scoped",
+        "bundle": "evidence_bundle",
+        "replay": "PASS",
+        "snapshot": "fixture + team tables",
+        "missing_gate": null
+      },
+      "espn": {
+        "entry_point": "get_event_fixture_result(date, event_id)",
+        "source_order": "fallback",
+        "native_ids": "event.id, competitors[].id",
+        "status": "SUCCESS",
+        "temporal_eligibility": "fixture-scoped",
+        "bundle": "evidence_bundle",
+        "replay": "PASS",
+        "snapshot": "fixture table via crosswalk",
+        "missing_gate": "crosswalk required"
+      }
+    },
+    "current_recent_form": {
+      "api-football": {
+        "entry_point": "get_team_last_fixtures_result(team_id, cutoff)",
+        "source_order": "fallback",
+        "native_ids": "fixture.id, team.id",
+        "status": "PLAN_RESTRICTED for current season",
+        "temporal_eligibility": "analysis_cutoff_at",
+        "bundle": "evidence_bundle",
+        "replay": "PASS",
+        "snapshot": "team_form table",
+        "missing_gate": "plan restricts current season"
+      },
+      "espn": {
+        "entry_point": "get_team_last_fixtures_result(team_id, cutoff)",
+        "source_order": "primary",
+        "native_ids": "event.id, team.id",
+        "status": "SUCCESS",
+        "temporal_eligibility": "analysis_cutoff_at",
+        "bundle": "evidence_bundle",
+        "replay": "PASS",
+        "snapshot": "team_form table",
+        "missing_gate": null
+      }
+    },
+    "h2h_head_to_head": {
+      "api-football": {
+        "entry_point": "get_h2h(team1_id, team2_id)",
+        "source_order": "primary",
+        "native_ids": "fixture.id",
+        "status": "SUCCESS",
+        "temporal_eligibility": "not_implemented",
+        "bundle": null,
+        "replay": "NOT_TESTED",
+        "snapshot": "not_implemented",
+        "missing_gate": "needs typed result + evidence"
+      },
+      "espn": {
+        "entry_point": "get_h2h(team1_id, team2_id)",
+        "source_order": "fallback",
+        "native_ids": "event.id",
+        "status": "SUCCESS",
+        "temporal_eligibility": "not_implemented",
+        "bundle": null,
+        "replay": "NOT_TESTED",
+        "snapshot": "not_implemented",
+        "missing_gate": "needs typed result + evidence"
+      }
+    },
+    "standings_competition_context": {
+      "api-football": {
+        "entry_point": "not_implemented",
+        "source_order": "primary",
+        "native_ids": null,
+        "status": "NOT_IMPLEMENTED",
+        "temporal_eligibility": null,
+        "bundle": null,
+        "replay": null,
+        "snapshot": null,
+        "missing_gate": "standings endpoint not wired"
+      },
+      "espn": {
+        "entry_point": "not_implemented",
+        "source_order": "fallback",
+        "native_ids": null,
+        "status": "NOT_SUPPORTED",
+        "temporal_eligibility": null,
+        "bundle": null,
+        "replay": null,
+        "snapshot": null,
+        "missing_gate": "ESPN does not have standings endpoint"
+      }
+    },
+    "fixture_team_statistics": {
+      "api-football": {
+        "entry_point": "get_fixture_stats_result(fixture_id, home_id, away_id)",
+        "source_order": "fallback",
+        "native_ids": "fixture.id, team.id",
+        "status": "SUCCESS",
+        "temporal_eligibility": "fixture-scoped",
+        "bundle": "evidence_bundle",
+        "replay": "PASS",
+        "snapshot": "match_stats table",
+        "missing_gate": null
+      },
+      "espn": {
+        "entry_point": "get_fixture_stats_result(fixture_id)",
+        "source_order": "primary",
+        "native_ids": "event.id, competitor.id",
+        "status": "SUCCESS",
+        "temporal_eligibility": "fixture-scoped",
+        "bundle": "evidence_bundle",
+        "replay": "PASS",
+        "snapshot": "match_stats table",
+        "missing_gate": null
+      }
+    },
+    "cross_provider_identity": {
+      "api-football": {
+        "entry_point": "crosswalk table",
+        "source_order": "primary",
+        "native_ids": "api-football:fixture_id, espn:event_id",
+        "status": "PARTIAL",
+        "temporal_eligibility": "entity-scoped",
+        "bundle": null,
+        "replay": "NOT_TESTED",
+        "snapshot": "provider_mapping table",
+        "missing_gate": "crosswalk not fully implemented"
+      },
+      "espn": {
+        "entry_point": "crosswalk table",
+        "source_order": "fallback",
+        "native_ids": "espn:event_id, api-football:fixture_id",
+        "status": "PARTIAL",
+        "temporal_eligibility": "entity-scoped",
+        "bundle": null,
+        "replay": "NOT_TESTED",
+        "snapshot": "provider_mapping table",
+        "missing_gate": "crosswalk not fully implemented"
+      }
+    }
+  },
+  "gaps": [
+    {
+      "capability": "standings_competition_context",
+      "missing_semantics": "standings endpoint not wired to enrichment pipeline",
+      "required_proof": "live standings call with evidence capture"
+    },
+    {
+      "capability": "h2h_head_to_head",
+      "missing_semantics": "typed result with evidence capture not implemented",
+      "required_proof": "h2h_result method with bundle"
+    },
+    {
+      "capability": "cross_provider_identity",
+      "missing_semantics": "crosswalk table not populated for real events",
+      "required_proof": "real cross-provider mapping with kickoff/participant validation"
+    }
+  ],
+  "conclusion": "ESPN and API-Football close most P0 capabilities. Gaps: standings, h2h typed result, crosswalk population. No new provider needed."
+}

@@ -1,0 +1,46 @@
+ M .DS_Store
+ M docs/audits/sports-integrations/2026-06-11/EVIDENCE_MANIFEST.json
+ M docs/audits/sports-integrations/2026-06-11/INTEGRATION_MATRIX.md
+ M docs/audits/sports-integrations/2026-06-11/REMEDIATION_BACKLOG.md
+ M docs/audits/sports-integrations/2026-06-11/repairs/REM-001_ESPN_FOOTBALL.md
+ M kilo.jsonc
+ M pyproject.toml
+ M src/bet/api_clients/api_basketball.py
+ M src/bet/api_clients/api_football.py
+ M src/bet/api_clients/api_hockey.py
+ M src/bet/api_clients/api_volleyball.py
+ M src/bet/api_clients/base_client.py
+ M src/bet/api_clients/espn.py
+ M src/bet/db/models.py
+ M src/bet/db/repositories.py
+ M src/bet/db/schema.py
+ M src/bet/db/schema.sql
+ M src/bet/discovery/models.py
+ M src/bet/discovery/repository.py
+ M src/bet/stats/enrichment.py
+ M tests/scrapers/test_espn_client.py
+ M tests/scrapers/test_espn_football_live.py
+?? .kilo/artifacts/REM-001_FINAL_REVIEW_BUNDLE.zip
+?? .kilo/artifacts/REM-001_FINAL_REVIEW_BUNDLE/
+?? .kilo/artifacts/REM-001_REVIEW_BUNDLE/
+?? .kilo/artifacts/REM-002B_REVIEW_BUNDLE/
+?? .kilo/artifacts/rem001_bundle_zip.txt
+?? .kilo/artifacts/rem001_espn_football/
+?? .kilo/artifacts/rem001b_espn_football/
+?? .kilo/artifacts/rem002a_espn_football/
+?? "KILO_REM-001B_IDENTITY_TEMPORAL_PROMPT (1).md"
+?? KILO_REM-001B_IDENTITY_TEMPORAL_PROMPT.md
+?? KILO_REM-002A_LEAN_FOUNDATION_PROMPT_V2.md
+?? KILO_REM-002B_API_SPORTS_FAMILY_ROLLOUT.md
+?? REM-001_CODE_REVIEW_REPORT.md
+?? REM-001_FINAL_REVIEW_BUNDLE.zip
+?? REM-001_REVIEW_BUNDLE.zip
+?? SPORTS_INTEGRATION_LIVE_REVIEW_CONTRACT.md
+?? docs/audits/sports-integrations/2026-06-11/repairs/REM-001B_ESPN_IDENTITY_TEMPORAL.md
+?? docs/audits/sports-integrations/2026-06-11/repairs/REM-001_FINAL_RECERTIFICATION.md
+?? docs/audits/sports-integrations/2026-06-11/repairs/REM-002A_ESPN_FOUNDATION.md
+?? docs/audits/sports-integrations/2026-06-11/repairs/REM-002B_API_SPORTS_FAMILY.md
+?? src/bet/db/migrations/014_team_form_evidence.sql
+?? src/bet/integration/evidence.py
+?? tests/scrapers/test_api_sports_family.py
+?? tests/scrapers/test_api_sports_live.py

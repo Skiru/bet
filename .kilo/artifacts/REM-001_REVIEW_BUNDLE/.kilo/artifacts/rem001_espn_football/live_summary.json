@@ -1,0 +1,131 @@
+{
+  "competition": "2025-26-english-premier-league",
+  "kickoff": "2026-05-24T15:00Z",
+  "league": "eng.1",
+  "live_counts": {
+    "cached": 0,
+    "failed": 0,
+    "fetched": 2
+  },
+  "live_team_form_rows": 20,
+  "participants": [
+    "Crystal Palace",
+    "Arsenal"
+  ],
+  "recorded_requests": {
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/scoreboard?dates=20260524": {
+      "sha256": "b86db235acc74f3885c44337f3d8351918e01a4edf3e16c38c71b4cb59292478",
+      "status_code": 200
+    },
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740871": {
+      "sha256": "e01964eec22a711b62876cbdaa814dd31e82f9214a3c6c8d6ac8f40fc178ed12",
+      "status_code": 200
+    },
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740878": {
+      "sha256": "14a26b10c1216e2f8660be2387e721d216b206623be8bc3d97801d3ef91e724b",
+      "status_code": 200
+    },
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740885": {
+      "sha256": "31291d5f08dc7fa971f78acc65ce76e269f619c361a5229c40aa78949a156a44",
+      "status_code": 200
+    },
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740886": {
+      "sha256": "1933afdc2e8c5c9558d05e23c29a37cce41bc1e9dbafd555bc6fbca77422501e",
+      "status_code": 200
+    },
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740891": {
+      "sha256": "7ea50675aac0a5c1c232bc5a1177705b8b143265a8254c500353b9b8f9057a7a",
+      "status_code": 200
+    },
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740898": {
+      "sha256": "a41ff608bd4312d3fcb6078b1cb88743175198b12440bc2448bd1eb7790f43a7",
+      "status_code": 200
+    },
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740908": {
+      "sha256": "e39ab01eac5657f6348d8200aaf46071fd1db99ef8eef70eda50d79687e4c7d5",
+      "status_code": 200
+    },
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740911": {
+      "sha256": "0d49be9fee25820424c8a435ccb02cd7a5c4a0a570445b36d94c68caff4c4d2a",
+      "status_code": 200
+    },
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740916": {
+      "sha256": "25056cb279ca7b6f437118b9bfde79f1893afa5900d35a3702a91bbfef57d1e4",
+      "status_code": 200
+    },
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740925": {
+      "sha256": "d855c6e8f4d7c6225a321063cfdb594daa4914aff3b4871a5dfc3a72398187cb",
+      "status_code": 200
+    },
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740927": {
+      "sha256": "6827f746ff05883073ff0b448db368872cbad6ee893af4e3e20afe75036530cb",
+      "status_code": 200
+    },
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740931": {
+      "sha256": "17496f2c61422e3cb4679fdbbec6c226a844e09b64eadec14d04252d1cd2b3e7",
+      "status_code": 200
+    },
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740936": {
+      "sha256": "dbf6f1915382409e8ed50ca09515a682edf8a3aac03f20880b13de8f1da24097",
+      "status_code": 200
+    },
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740943": {
+      "sha256": "d12db2852d7b808eb16e9637f8b405d3d612b8abcb04aefb5120d67623b97321",
+      "status_code": 200
+    },
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740950": {
+      "sha256": "aa6b10e0b55ad134f768718fa583e288ee47ba0319c10458c57ea7c259a103e7",
+      "status_code": 200
+    },
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740955": {
+      "sha256": "e5ce94aaf7624fa33173f45f3ddd5cf34d1293f562652715ecad16cc82348d70",
+      "status_code": 200
+    },
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740956": {
+      "sha256": "9899ded9d03a3702b0c6591ca0e6821f3afb4ca8831b2332d05912b11a0d85de",
+      "status_code": 200
+    },
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740957": {
+      "sha256": "628d72b35c4fb4b4b6615538997fd1f1614c3d43f2333eed64aa59d530953fca",
+      "status_code": 200
+    },
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740968": {
+      "sha256": "bbca8c60e705d10c96d4cde4b8618446b202b8efe32aaa7ace8f8eca4930c5b6",
+      "status_code": 200
+    },
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740975": {
+      "sha256": "1810a513720f16d24316f85a854612b7ad2bfc713e4fb0582ff6911886bfd5f1",
+      "status_code": 200
+    },
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/teams": {
+      "sha256": "fbf75ac0612ea96c38d7576bf04c5b6e37d1ab8a70251a0f5c5e6a153103faa5",
+      "status_code": 200
+    },
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/teams/359/schedule": {
+      "sha256": "e9016a236b58a1440dcc4fe428fbbf260edf0c67e07dc892db437a6f764c9e2b",
+      "status_code": 200
+    },
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/teams/364/schedule": {
+      "sha256": "9ae43b2361cf59a9412a4e5cebe205be86598a4adc7b8451da94ed29ac3dceae",
+      "status_code": 200
+    }
+  },
+  "replay": {
+    "first_run_counts": {
+      "cached": 0,
+      "failed": 0,
+      "fetched": 2
+    },
+    "first_run_team_form_rows": 20,
+    "idempotent_second_run": true,
+    "second_run_counts": {
+      "cached": 0,
+      "failed": 0,
+      "fetched": 2
+    },
+    "second_run_team_form_rows": 20,
+    "semantic_match_live": true
+  },
+  "source_event_id": "740968",
+  "target_date": "2026-05-24"
+}

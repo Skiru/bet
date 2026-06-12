@@ -1,0 +1,18 @@
+Traceback (most recent call last):
+  File "<string>", line 86, in <module>
+TypeError: tuple indices must be integers or slices, not str
+=== MIGRATION TEST OUTPUT ===
+
+TEST 1: Fresh database creation at schema v14
+  Schema version: 14
+  Has source_event_ids: True
+  Has evidence_hash: True
+  Result: PASS
+
+TEST 2: Migration from v13 to v14
+  Has source_event_ids after migration: True
+  Legacy row readable: True
+  Legacy row source_event_ids: []
+  Result: PASS
+
+TEST 3: Migration idempotency (no reapplication on restart)

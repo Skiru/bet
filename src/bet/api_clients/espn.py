@@ -8,14 +8,55 @@ Provides per-game statistics for:
 Base URL: http://site.api.espn.com/apis/site/v2/sports/{sport}/{league}/
 """
 
+import json
 from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import TypeVar
 
 import requests
 
-from .base_client import BaseAPIClient, APIError, APINotFoundError, CACHE_DIR
-from .rate_limiter import RateLimiter
+from bet.integration.evidence import (
+    EvidenceRef,
+    load_evidence_object_bytes,
+    persist_response_evidence,
+)
+
 from .api_football import APIFixture, APIMatchStats
+from .base_client import (
+    APIError,
+    APINotFoundError,
+    BaseAPIClient,
+    SourceOperationResult,
+    SourceResultStatus,
+)
+from .rate_limiter import RateLimiter
+
+ESPN_PARSER_VERSION = "espn-client-rem002a-v1"
+T = TypeVar("T")
+
+# Re-export for backward compatibility
+__all__ = [
+    "SourceResultStatus",
+    "SourceOperationResult",
+    "ESPNClient",
+    "APIFixture",
+    "APIMatchStats",
+    "ESPN_PARSER_VERSION",
+    "COMPETITION_TO_ESPN_LEAGUE",
+    "get_espn_league_for_competition",
+]
+
+
+def _retry_after_seconds(headers: dict[str, str] | None) -> float | None:
+    if not headers:
+        return None
+    value = headers.get("Retry-After") or headers.get("retry-after")
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 # ESPN uses "soccer" not "football"
 ESPN_SPORT_MAP = {
@@ -160,12 +201,8 @@ COMPETITION_TO_ESPN_LEAGUE = {
     "chinese super league": "chn.1",
     "indian super league": "ind.1", "isl": "ind.1",
     # Second divisions and others
-    "championship": "eng.2",
     "league one": "eng.3",
     "segunda division": "esp.2", "la liga 2": "esp.2",
-    "serie b": "ita.2",
-    "2. bundesliga": "ger.2",
-    "ligue 2": "fra.2",
     "eerste divisie": "ned.2",
     "serie b brazil": "bra.2",
     "primera division chile": "chi.1",
@@ -304,6 +341,70 @@ def _get_stat_map(sport: str) -> dict[str, str]:
     return _SPORT_STAT_MAPS.get(sport, {})
 
 
+def _parse_espn_datetime(value: str) -> datetime | None:
+    if not value:
+        return None
+    try:
+        normalized = value.replace("Z", "+00:00") if value.endswith("Z") else value
+        parsed = datetime.fromisoformat(normalized)
+    except (TypeError, ValueError):
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
+
+
+def _extract_competitor_team_id(competitor: dict) -> str:
+    team = competitor.get("team", {})
+    return str(competitor.get("id") or team.get("id") or "").strip()
+
+
+def _extract_competitor_team_name(competitor: dict) -> str:
+    team = competitor.get("team", {})
+    return str(team.get("displayName", "")).strip()
+
+
+def _extract_two_sided_competitors(competitors: list[dict]) -> dict[str, tuple[str, str]] | None:
+    sides: dict[str, tuple[str, str]] = {}
+    for index, competitor in enumerate(competitors):
+        side = competitor.get("homeAway")
+        if side not in ("home", "away"):
+            if index == 0:
+                side = "home"
+            elif index == 1:
+                side = "away"
+            else:
+                continue
+        participant_id = _extract_competitor_team_id(competitor)
+        participant_name = _extract_competitor_team_name(competitor)
+        if not participant_id or not participant_name:
+            continue
+        sides[side] = (participant_id, participant_name)
+    if "home" not in sides or "away" not in sides:
+        return None
+    return {"home": sides["home"], "away": sides["away"]}
+
+
+def _extract_explicit_two_sided_competitors(competitors: list[dict]) -> dict[str, tuple[str, str]] | None:
+    sides: dict[str, tuple[str, str]] = {}
+    for competitor in competitors:
+        side = competitor.get("homeAway")
+        if side not in ("home", "away"):
+            return None
+        if side in sides:
+            return None
+        participant_id = _extract_competitor_team_id(competitor)
+        participant_name = _extract_competitor_team_name(competitor)
+        if not participant_id or not participant_name:
+            return None
+        sides[side] = (participant_id, participant_name)
+    if "home" not in sides or "away" not in sides:
+        return None
+    if sides["home"][0] == sides["away"][0]:
+        return None
+    return {"home": sides["home"], "away": sides["away"]}
+
+
 def _is_game_finished(event: dict) -> bool:
     """Determine if an ESPN event is finished.
 
@@ -330,8 +431,8 @@ def _is_game_finished(event: dict) -> bool:
     try:
         game_date = datetime.fromisoformat(
             event_date_str.rstrip("Z")
-        ).replace(tzinfo=timezone.utc)
-        is_past = game_date < datetime.now(timezone.utc)
+        ).replace(tzinfo=UTC)
+        is_past = game_date < datetime.now(UTC)
     except (ValueError, TypeError):
         return False
 
@@ -442,81 +543,339 @@ class ESPNClient(BaseAPIClient):
             f"[{self.api_name}] Failed after {self.MAX_RETRIES} attempts: {last_error}"
         )
 
-    def get_fixtures(self, date: str) -> list[APIFixture]:
-        """Get fixtures for a date (YYYY-MM-DD) via /scoreboard endpoint."""
-        date_compact = date.replace("-", "")
-
-        cache_key = f"espn/{self.sport}/{self.league}/fixtures/{date}"
-        cached = self._check_cache(cache_key, ttl_hours=6)
-        if cached:
-            return [
-                APIFixture(**f) for f in cached.get("fixtures", [])
-                if isinstance(f, dict) and "external_id" in f
-            ]
-
+    def _load_cached_payload_result(self, cache_key: str, ttl_hours: int) -> SourceOperationResult[dict] | None:
+        cached = self._check_cache(cache_key, ttl_hours=ttl_hours)
+        if not cached or not isinstance(cached, dict):
+            return None
+        payload = cached.get("payload")
+        evidence_entries = cached.get("evidence_refs")
+        if not isinstance(payload, dict) or not isinstance(evidence_entries, list):
+            return None
+        refs = [EvidenceRef.from_dict(entry) for entry in evidence_entries]
         try:
-            data = self._request("/scoreboard", params={"dates": date_compact})
-        except Exception as e:
-            print(f"[{self.api_name}] Error fetching fixtures for {date}: {e}")
-            return []
+            for ref in refs:
+                load_evidence_object_bytes(ref.object_sha256)
+        except (FileNotFoundError, ValueError):
+            return None
+        return SourceOperationResult(
+            status=SourceResultStatus.SUCCESS,
+            value=payload,
+            http_status=200,
+            evidence_refs=refs,
+        )
 
-        # Individual sports (tennis) have different structure
-        if self.sport == "tennis":
-            fixtures = self._get_individual_sport_fixtures(data, date)
-            self._save_cache(cache_key, {
-                "fixtures": [asdict(f) for f in fixtures],
-                "count": len(fixtures),
-            })
-            return fixtures
+    def _save_cached_payload_result(self, cache_key: str, payload: dict, evidence_refs: list[EvidenceRef]) -> None:
+        self._save_cache(
+            cache_key,
+            {
+                "payload": payload,
+                "evidence_refs": [ref.to_dict() for ref in evidence_refs],
+            },
+        )
 
-        fixtures = []
-        for event in data.get("events", []):
+    def _request_payload_result(
+        self,
+        *,
+        endpoint: str,
+        params: dict | None,
+        operation: str,
+        cache_key: str | None,
+        ttl_hours: int,
+        source_event_id: str | None = None,
+    ) -> SourceOperationResult[dict]:
+        from bet.integration.telemetry_wrapper import wrap_request
+
+        if cache_key:
+            cached = self._load_cached_payload_result(cache_key, ttl_hours)
+            if cached is not None:
+                return cached
+
+        url = f"{self.base_url}{endpoint}"
+        last_error_code = "transport_error"
+        last_retryable = False
+        for attempt in range(1, self.MAX_RETRIES + 1):
+            result = wrap_request(
+                provider=self.api_name,
+                request_fn=requests.get,
+                url=url,
+                params=params,
+                headers=self._build_headers(),
+                timeout=self.TIMEOUT,
+                scope_id=endpoint,
+            )
+            evidence_refs: list[EvidenceRef] = []
+            if result.status_code is not None:
+                evidence_refs.append(
+                    persist_response_evidence(
+                        operation=operation,
+                        url=url,
+                        params=params,
+                        response=result,
+                        source_event_id=source_event_id,
+                    )
+                )
+            if result.error and result.error.retryable and attempt < self.MAX_RETRIES:
+                import time
+
+                time.sleep(self.BACKOFF_BASE * (2 ** (attempt - 1)))
+                last_error_code = result.error.type or "transport_error"
+                last_retryable = True
+                continue
+            if result.error and result.status_code is None:
+                return SourceOperationResult(
+                    status=SourceResultStatus.TRANSPORT_ERROR,
+                    http_status=None,
+                    retryable=bool(result.error.retryable),
+                    error_code=result.error.type or "transport_error",
+                    evidence_refs=evidence_refs,
+                )
+
+            status_code = result.status_code or 0
+            retry_after = _retry_after_seconds(result.headers)
+            if status_code == 401:
+                return SourceOperationResult(SourceResultStatus.AUTHENTICATION_ERROR, http_status=401, error_code="http_401", evidence_refs=evidence_refs)
+            if status_code == 403:
+                return SourceOperationResult(SourceResultStatus.BLOCKED, http_status=403, error_code="http_403", evidence_refs=evidence_refs)
+            if status_code == 404:
+                return SourceOperationResult(SourceResultStatus.NOT_FOUND, http_status=404, error_code="http_404", evidence_refs=evidence_refs)
+            if status_code == 429:
+                return SourceOperationResult(
+                    SourceResultStatus.RATE_LIMITED,
+                    http_status=429,
+                    retryable=True,
+                    error_code="http_429",
+                    retry_after_seconds=retry_after,
+                    evidence_refs=evidence_refs,
+                )
+            if status_code >= 500:
+                return SourceOperationResult(
+                    SourceResultStatus.UPSTREAM_ERROR,
+                    http_status=status_code,
+                    retryable=True,
+                    error_code=f"http_{status_code}",
+                    evidence_refs=evidence_refs,
+                )
+            if status_code >= 400:
+                return SourceOperationResult(
+                    SourceResultStatus.UPSTREAM_ERROR,
+                    http_status=status_code,
+                    retryable=False,
+                    error_code=f"http_{status_code}",
+                    evidence_refs=evidence_refs,
+                )
+            try:
+                payload = json.loads(result.body.decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                return SourceOperationResult(
+                    SourceResultStatus.PARSE_ERROR,
+                    http_status=status_code,
+                    retryable=False,
+                    error_code="json_decode_error",
+                    evidence_refs=evidence_refs,
+                )
+            if not isinstance(payload, dict):
+                return SourceOperationResult(
+                    SourceResultStatus.SCHEMA_ERROR,
+                    http_status=status_code,
+                    retryable=False,
+                    error_code="payload_not_object",
+                    evidence_refs=evidence_refs,
+                )
+            if cache_key:
+                self._save_cached_payload_result(cache_key, payload, evidence_refs)
+            return SourceOperationResult(
+                SourceResultStatus.SUCCESS,
+                value=payload,
+                http_status=status_code,
+                evidence_refs=evidence_refs,
+            )
+
+        return SourceOperationResult(
+            SourceResultStatus.TRANSPORT_ERROR,
+            retryable=last_retryable,
+            error_code=last_error_code,
+        )
+
+    def get_event_fixture_result(self, date: str, event_id: str) -> SourceOperationResult[APIFixture]:
+        date_compact = date.replace("-", "")
+        payload_result = self._request_payload_result(
+            endpoint="/scoreboard",
+            params={"dates": date_compact},
+            operation="scoreboard",
+            cache_key=f"espn/{self.sport}/{self.league}/fixtures/{date}",
+            ttl_hours=6,
+            source_event_id=event_id,
+        )
+        if payload_result.status is not SourceResultStatus.SUCCESS or payload_result.value is None:
+            return SourceOperationResult(
+                status=payload_result.status,
+                http_status=payload_result.http_status,
+                retryable=payload_result.retryable,
+                error_code=payload_result.error_code,
+                retry_after_seconds=payload_result.retry_after_seconds,
+                evidence_refs=payload_result.evidence_refs,
+            )
+        events = payload_result.value.get("events")
+        if not isinstance(events, list):
+            return SourceOperationResult(
+                SourceResultStatus.SCHEMA_ERROR,
+                http_status=payload_result.http_status,
+                error_code="scoreboard_events_missing",
+                evidence_refs=payload_result.evidence_refs,
+            )
+        for event in events:
+            if str(event.get("id", "")).strip() != str(event_id).strip():
+                continue
             competitions = event.get("competitions", [])
             if not competitions:
-                continue
-
-            comp = competitions[0]
-            competitors = comp.get("competitors", [])
-            home_name = ""
-            away_name = ""
-            for c in competitors:
-                if c.get("homeAway") == "home":
-                    home_name = c.get("team", {}).get("displayName", "")
-                else:
-                    away_name = c.get("team", {}).get("displayName", "")
-
+                return SourceOperationResult(
+                    SourceResultStatus.SCHEMA_ERROR,
+                    http_status=payload_result.http_status,
+                    error_code="event_competitions_missing",
+                    evidence_refs=payload_result.evidence_refs,
+                )
+            sides = _extract_explicit_two_sided_competitors(competitions[0].get("competitors", []))
+            if not sides:
+                return SourceOperationResult(
+                    SourceResultStatus.SCHEMA_ERROR,
+                    http_status=payload_result.http_status,
+                    error_code="event_explicit_sides_missing",
+                    evidence_refs=payload_result.evidence_refs,
+                )
             status = event.get("status", {})
             status_name = "scheduled"
             if isinstance(status, dict):
                 type_info = status.get("type", {})
                 if isinstance(type_info, dict):
                     status_name = type_info.get("name", "scheduled")
-
             season = event.get("season", {})
             season_type = season.get("type", {})
-            if isinstance(season_type, dict):
+            league_info = competitions[0].get("league", {})
+            if isinstance(league_info, dict) and league_info.get("name"):
+                comp_name = league_info.get("name", self.league)
+            elif isinstance(season_type, dict):
                 comp_name = season_type.get("name", self.league)
             else:
                 comp_name = season.get("slug", self.league)
-
-            fixture = APIFixture(
-                external_id=str(event.get("id", "")),
-                source=self.api_name,
-                sport=self.sport,
-                competition_name=comp_name,
-                home_team_name=home_name,
-                away_team_name=away_name,
-                kickoff=event.get("date", ""),
-                status=status_name,
+            home_id, home_name = sides["home"]
+            away_id, away_name = sides["away"]
+            return SourceOperationResult(
+                SourceResultStatus.SUCCESS,
+                value=APIFixture(
+                    external_id=str(event_id).strip(),
+                    source=self.api_name,
+                    sport=self.sport,
+                    competition_name=comp_name,
+                    home_team_name=home_name,
+                    away_team_name=away_name,
+                    kickoff=event.get("date", ""),
+                    status=status_name,
+                    home_participant_id=home_id,
+                    away_participant_id=away_id,
+                ),
+                http_status=payload_result.http_status,
+                evidence_refs=payload_result.evidence_refs,
             )
-            fixtures.append(fixture)
+        return SourceOperationResult(
+            SourceResultStatus.NOT_FOUND,
+            http_status=payload_result.http_status,
+            error_code="event_not_present_on_scoreboard",
+            evidence_refs=payload_result.evidence_refs,
+        )
 
-        self._save_cache(cache_key, {
-            "fixtures": [asdict(f) for f in fixtures],
-            "count": len(fixtures),
-        })
+    def get_fixtures_result(self, date: str) -> SourceOperationResult[list[APIFixture]]:
+        date_compact = date.replace("-", "")
+        payload_result = self._request_payload_result(
+            endpoint="/scoreboard",
+            params={"dates": date_compact},
+            operation="scoreboard",
+            cache_key=f"espn/{self.sport}/{self.league}/fixtures/{date}",
+            ttl_hours=6,
+        )
+        if payload_result.status is not SourceResultStatus.SUCCESS or payload_result.value is None:
+            return SourceOperationResult(
+                status=payload_result.status,
+                http_status=payload_result.http_status,
+                retryable=payload_result.retryable,
+                error_code=payload_result.error_code,
+                retry_after_seconds=payload_result.retry_after_seconds,
+                evidence_refs=payload_result.evidence_refs,
+            )
 
-        return fixtures
+        data = payload_result.value
+        events = data.get("events")
+        if not isinstance(events, list):
+            return SourceOperationResult(
+                SourceResultStatus.SCHEMA_ERROR,
+                http_status=payload_result.http_status,
+                error_code="scoreboard_events_missing",
+                evidence_refs=payload_result.evidence_refs,
+            )
+
+        if self.sport == "tennis":
+            fixtures = self._get_individual_sport_fixtures(data, date)
+            return SourceOperationResult(
+                SourceResultStatus.SUCCESS,
+                value=fixtures,
+                http_status=payload_result.http_status,
+                evidence_refs=payload_result.evidence_refs,
+            )
+
+        fixtures = []
+        for event in events:
+            event_id = str(event.get("id", "")).strip()
+            if not event_id:
+                continue
+            competitions = event.get("competitions", [])
+            if not competitions:
+                continue
+            comp = competitions[0]
+            competitors = comp.get("competitors", [])
+            sides = _extract_two_sided_competitors(competitors)
+            if not sides:
+                continue
+            home_id, home_name = sides["home"]
+            away_id, away_name = sides["away"]
+            status = event.get("status", {})
+            status_name = "scheduled"
+            if isinstance(status, dict):
+                type_info = status.get("type", {})
+                if isinstance(type_info, dict):
+                    status_name = type_info.get("name", "scheduled")
+            season = event.get("season", {})
+            season_type = season.get("type", {})
+            league_info = comp.get("league", {})
+            if isinstance(league_info, dict) and league_info.get("name"):
+                comp_name = league_info.get("name", self.league)
+            elif isinstance(season_type, dict):
+                comp_name = season_type.get("name", self.league)
+            else:
+                comp_name = season.get("slug", self.league)
+            fixtures.append(
+                APIFixture(
+                    external_id=event_id,
+                    source=self.api_name,
+                    sport=self.sport,
+                    competition_name=comp_name,
+                    home_team_name=home_name,
+                    away_team_name=away_name,
+                    kickoff=event.get("date", ""),
+                    status=status_name,
+                    home_participant_id=home_id,
+                    away_participant_id=away_id,
+                )
+            )
+
+        return SourceOperationResult(
+            SourceResultStatus.SUCCESS,
+            value=fixtures,
+            http_status=payload_result.http_status,
+            evidence_refs=payload_result.evidence_refs,
+        )
+
+    def get_fixtures(self, date: str) -> list[APIFixture]:
+        """Get fixtures for a date (YYYY-MM-DD) via /scoreboard endpoint."""
+        return self.get_fixtures_result(date).value or []
 
     def _get_individual_sport_fixtures(self, data: dict, date: str) -> list[APIFixture]:
         """Parse fixtures for individual sports (tennis).
@@ -581,38 +940,73 @@ class ESPNClient(BaseAPIClient):
         )
 
     def get_fixture_stats(self, fixture_id: str) -> list[APIMatchStats]:
-        """Get match statistics via /summary endpoint.
+        return self.get_fixture_stats_result(fixture_id).value or []
 
-        Maps ESPN stat names to normalized keys using sport-specific maps.
-        Handles MLB's nested stat structure differently.
-        """
-        cache_key = f"espn/{self.sport}/{self.league}/fixture_stats/{fixture_id}"
-        cached = self._check_cache(cache_key, ttl_hours=168)
-        if cached:
-            return [APIMatchStats(**ms) for ms in cached.get("stats", [])]
-
-        # For tennis, we get stats from scoreboard linescores
+    def get_fixture_stats_result(self, fixture_id: str) -> SourceOperationResult[list[APIMatchStats]]:
         if self.sport == "tennis":
-            return self._get_tennis_match_stats(fixture_id)
+            return SourceOperationResult(SourceResultStatus.SUCCESS, value=self._get_tennis_match_stats(fixture_id))
+        if self.sport not in _SPORT_STAT_MAPS:
+            return SourceOperationResult(SourceResultStatus.NOT_SUPPORTED, error_code="sport_not_supported")
 
-        try:
-            data = self._request("/summary", params={"event": fixture_id})
-        except Exception as e:
-            print(f"[{self.api_name}] Error fetching stats for fixture {fixture_id}: {e}")
-            return []
+        payload_result = self._request_payload_result(
+            endpoint="/summary",
+            params={"event": fixture_id},
+            operation="summary",
+            cache_key=f"espn/{self.sport}/{self.league}/fixture_stats/{fixture_id}",
+            ttl_hours=168,
+            source_event_id=fixture_id,
+        )
+        if payload_result.status is not SourceResultStatus.SUCCESS or payload_result.value is None:
+            return SourceOperationResult(
+                status=payload_result.status,
+                http_status=payload_result.http_status,
+                retryable=payload_result.retryable,
+                error_code=payload_result.error_code,
+                retry_after_seconds=payload_result.retry_after_seconds,
+                evidence_refs=payload_result.evidence_refs,
+            )
 
-        boxscore = data.get("boxscore", {})
-        teams_data = boxscore.get("teams", [])
+        data = payload_result.value
+        boxscore = data.get("boxscore")
+        if not isinstance(boxscore, dict):
+            status = data.get("header", {}).get("competitions", [{}])[0].get("status", {})
+            state = status.get("type", {}).get("state") if isinstance(status, dict) else None
+            if state in {"pre", "in"}:
+                return SourceOperationResult(
+                    SourceResultStatus.NOT_PUBLISHED_YET,
+                    http_status=payload_result.http_status,
+                    error_code="summary_not_published_yet",
+                    evidence_refs=payload_result.evidence_refs,
+                )
+            return SourceOperationResult(
+                SourceResultStatus.SCHEMA_ERROR,
+                http_status=payload_result.http_status,
+                error_code="summary_boxscore_missing",
+                evidence_refs=payload_result.evidence_refs,
+            )
+        teams_data = boxscore.get("teams")
+        if not isinstance(teams_data, list):
+            return SourceOperationResult(
+                SourceResultStatus.SCHEMA_ERROR,
+                http_status=payload_result.http_status,
+                error_code="summary_teams_missing",
+                evidence_refs=payload_result.evidence_refs,
+            )
         if len(teams_data) < 2:
-            return []
+            return SourceOperationResult(
+                SourceResultStatus.SUCCESS,
+                value=[],
+                http_status=payload_result.http_status,
+                evidence_refs=payload_result.evidence_refs,
+            )
 
         stats: dict[str, dict[str, float]] = {}
         teams: dict[str, str] = {}
-
+        participant_ids: dict[str, str] = {}
         for i, team_data in enumerate(teams_data):
             team_info = team_data.get("team", {})
             team_name = team_info.get("displayName", "")
-            # Determine side from homeAway field or position
+            participant_id = str(team_data.get("id") or team_info.get("id") or "").strip()
             home_away = team_data.get("homeAway", "")
             if home_away == "home":
                 side = "home"
@@ -621,13 +1015,9 @@ class ESPNClient(BaseAPIClient):
             else:
                 side = "home" if i == 0 else "away"
             teams[side] = team_name
+            participant_ids[side] = participant_id
+            self._parse_flat_stats(team_data.get("statistics", []), side, stats)
 
-            team_stats_raw = team_data.get("statistics", [])
-
-            self._parse_flat_stats(team_stats_raw, side, stats)
-
-        # Extract goals/points from scores (not in boxscore stats)
-        # Soccer/Hockey → "goals", Basketball → "points"
         score_key = None
         if self.sport in ("football", "hockey"):
             score_key = "goals"
@@ -647,8 +1037,18 @@ class ESPNClient(BaseAPIClient):
                         except (ValueError, TypeError):
                             pass
 
-        if not teams.get("home") or not teams.get("away"):
-            return []
+        if (
+            not teams.get("home")
+            or not teams.get("away")
+            or not participant_ids.get("home")
+            or not participant_ids.get("away")
+        ):
+            return SourceOperationResult(
+                SourceResultStatus.SCHEMA_ERROR,
+                http_status=payload_result.http_status,
+                error_code="summary_participants_incomplete",
+                evidence_refs=payload_result.evidence_refs,
+            )
 
         result = [APIMatchStats(
             external_id=fixture_id,
@@ -657,10 +1057,15 @@ class ESPNClient(BaseAPIClient):
             home_team_name=teams["home"],
             away_team_name=teams["away"],
             stats=stats,
+            home_participant_id=participant_ids["home"],
+            away_participant_id=participant_ids["away"],
         )]
-
-        self._save_cache(cache_key, {"stats": [asdict(ms) for ms in result]})
-        return result
+        return SourceOperationResult(
+            SourceResultStatus.SUCCESS,
+            value=result,
+            http_status=payload_result.http_status,
+            evidence_refs=payload_result.evidence_refs,
+        )
 
     def _parse_flat_stats(
         self, team_stats_raw: list, side: str, stats: dict[str, dict[str, float]]
@@ -670,16 +1075,28 @@ class ESPNClient(BaseAPIClient):
 
         for stat_entry in team_stats_raw:
             espn_name = stat_entry.get("name", "")
-            display_value = stat_entry.get("displayValue", "0")
+            display_value = stat_entry.get("displayValue")
 
             normalized_key = stat_map.get(espn_name)
             if not normalized_key:
                 continue
 
+            if display_value is None:
+                continue
+
+            if isinstance(display_value, str):
+                cleaned = display_value.replace("%", "").strip()
+                if not cleaned:
+                    continue
+            else:
+                cleaned = str(display_value).strip()
+                if not cleaned:
+                    continue
+
             try:
-                value = float(display_value.replace("%", "").strip() or "0")
+                value = float(cleaned)
             except (ValueError, TypeError):
-                value = 0.0
+                continue
 
             if normalized_key not in stats:
                 stats[normalized_key] = {}
@@ -700,7 +1117,7 @@ class ESPNClient(BaseAPIClient):
 
         # Search across recent days to find this specific match
         # Daily resolution for recent week, then every 3 days for history
-        today = datetime.now(timezone.utc).date()
+        today = datetime.now(UTC).date()
         days = list(range(0, 7)) + list(range(9, 46, 3))
         dates_to_search = [today - timedelta(days=d) for d in days]
 
@@ -843,9 +1260,12 @@ class ESPNClient(BaseAPIClient):
                 t = team_entry.get("team", team_entry)
                 teams_list.append(t)
 
-        # Fuzzy match: exact → contains → abbreviation
+        # Fail-closed matching: exact/abbr first, then constrained contains/location.
         name_lower = team_name.lower()
-        best_match = None
+        exact_matches = []
+        abbreviation_matches = []
+        contains_matches = []
+        location_matches = []
 
         for t in teams_list:
             display = t.get("displayName", "").lower()
@@ -854,18 +1274,38 @@ class ESPNClient(BaseAPIClient):
             location = t.get("location", "").lower()
 
             if display == name_lower or short == name_lower:
-                best_match = t
-                break
-            if name_lower in display or display in name_lower:
-                best_match = t
-                break
-            if name_lower in location or location in name_lower:
-                best_match = t
-            if abbr == name_lower and not best_match:
-                best_match = t
+                exact_matches.append(t)
+                continue
+            if abbr == name_lower:
+                abbreviation_matches.append(t)
+                continue
+            if len(name_lower) >= 4 and (
+                name_lower in display
+                or display in name_lower
+                or name_lower in short
+                or short in name_lower
+            ):
+                contains_matches.append(t)
+                continue
+            if len(name_lower) >= 4 and (name_lower in location or location in name_lower):
+                location_matches.append(t)
 
-        if best_match:
-            tid = str(best_match.get("id", ""))
+        for bucket in (
+            exact_matches,
+            abbreviation_matches,
+            contains_matches,
+            location_matches,
+        ):
+            if not bucket:
+                continue
+            ids = {
+                str(match.get("id", "")).strip()
+                for match in bucket
+                if str(match.get("id", "")).strip()
+            }
+            if len(ids) != 1:
+                return None
+            tid = ids.pop()
             self._save_cache(cache_key, {"team_id": tid})
             return tid
 
@@ -939,7 +1379,6 @@ class ESPNClient(BaseAPIClient):
         best_match = None
         for a in athletes:
             display = a.get("displayName", "").lower()
-            short = a.get("shortName", "").lower()
             full = a.get("fullName", "").lower()
 
             if display == name_lower or full == name_lower:
@@ -959,25 +1398,79 @@ class ESPNClient(BaseAPIClient):
 
         return None
 
-    def get_team_last_fixtures(self, team_id: str, last_n: int = 10) -> list[dict]:
+    def get_team_last_fixtures(
+        self,
+        team_id: str,
+        last_n: int = 10,
+        analysis_cutoff_at: str | None = None,
+        exclude_event_ids: set[str] | None = None,
+    ) -> list[dict]:
+        return self.get_team_last_fixtures_result(
+            team_id,
+            last_n=last_n,
+            analysis_cutoff_at=analysis_cutoff_at,
+            exclude_event_ids=exclude_event_ids,
+        ).value or []
+
+    def get_team_last_fixtures_result(
+        self,
+        team_id: str,
+        last_n: int = 10,
+        analysis_cutoff_at: str | None = None,
+        exclude_event_ids: set[str] | None = None,
+    ) -> SourceOperationResult[list[dict]]:
         """Get last N completed fixtures for a team via /teams/{id}/schedule."""
-        cache_key = f"espn/{self.sport}/{self.league}/team_fixtures/{team_id}"
-        cached = self._check_cache(cache_key, ttl_hours=12)
-        if cached:
-            return cached.get("fixtures", [])
+        excluded_ids = {
+            str(event_id).strip() for event_id in (exclude_event_ids or set()) if str(event_id).strip()
+        }
+        cache_key = (
+            f"espn/{self.sport}/{self.league}/team_fixtures/{team_id}/"
+            f"{analysis_cutoff_at or 'none'}/{','.join(sorted(excluded_ids)) or 'none'}/{last_n}"
+        )
+        cutoff_dt = _parse_espn_datetime(analysis_cutoff_at) if analysis_cutoff_at else None
 
         # Individual sports: scan scoreboard for athlete matches
         if self.sport == "tennis":
-            return self._get_athlete_recent_matches(team_id, last_n)
+            return SourceOperationResult(SourceResultStatus.SUCCESS, value=self._get_athlete_recent_matches(team_id, last_n))
 
-        try:
-            data = self._request(f"/teams/{team_id}/schedule")
-        except Exception:
-            return []
+        payload_result = self._request_payload_result(
+            endpoint=f"/teams/{team_id}/schedule",
+            params=None,
+            operation="team_schedule",
+            cache_key=cache_key,
+            ttl_hours=12,
+        )
+        if payload_result.status is not SourceResultStatus.SUCCESS or payload_result.value is None:
+            return SourceOperationResult(
+                status=payload_result.status,
+                http_status=payload_result.http_status,
+                retryable=payload_result.retryable,
+                error_code=payload_result.error_code,
+                retry_after_seconds=payload_result.retry_after_seconds,
+                evidence_refs=payload_result.evidence_refs,
+            )
 
-        events = data.get("events", [])
+        events = payload_result.value.get("events")
+        if not isinstance(events, list):
+            return SourceOperationResult(
+                SourceResultStatus.SCHEMA_ERROR,
+                http_status=payload_result.http_status,
+                error_code="schedule_events_missing",
+                evidence_refs=payload_result.evidence_refs,
+            )
         finished = []
         for event in events:
+            event_id = str(event.get("id", "")).strip()
+            if not event_id or event_id in excluded_ids:
+                continue
+
+            event_date = str(event.get("date", "")).strip()
+            event_dt = _parse_espn_datetime(event_date)
+            if event_dt is None:
+                continue
+            if cutoff_dt is not None and not event_dt < cutoff_dt:
+                continue
+
             if not _is_game_finished(event):
                 continue
 
@@ -987,34 +1480,39 @@ class ESPNClient(BaseAPIClient):
 
             comp = competitions[0]
             competitors = comp.get("competitors", [])
-            home_name = ""
-            away_name = ""
-            score = ""
+            sides = _extract_explicit_two_sided_competitors(competitors) if self.sport == "football" else _extract_two_sided_competitors(competitors)
+            if not sides:
+                continue
+            home_id, home_name = sides["home"]
+            away_id, away_name = sides["away"]
+            home_score = ""
+            away_score = ""
             for c in competitors:
-                team_info = c.get("team", {})
-                c_name = team_info.get("displayName", "")
                 c_score = c.get("score", "0")
                 if c.get("homeAway") == "home":
-                    home_name = c_name
-                    score = f"{c_score}"
-                else:
-                    away_name = c_name
-                    score = f"{score}-{c_score}"
+                    home_score = str(c_score)
+                elif c.get("homeAway") == "away":
+                    away_score = str(c_score)
 
             finished.append({
-                "id": event.get("id"),
-                "date": event.get("date", ""),
+                "id": event_id,
+                "date": event_date,
                 "home_team": home_name,
                 "away_team": away_name,
-                "score": score,
+                "score": f"{home_score}-{away_score}" if home_score or away_score else "",
+                "home_participant_id": home_id,
+                "away_participant_id": away_id,
             })
 
         # Sort by date descending (most recent first)
         finished.sort(key=lambda f: f.get("date", ""), reverse=True)
         result = finished[:last_n]
-
-        self._save_cache(cache_key, {"fixtures": result})
-        return result
+        return SourceOperationResult(
+            SourceResultStatus.SUCCESS,
+            value=result,
+            http_status=payload_result.http_status,
+            evidence_refs=payload_result.evidence_refs,
+        )
 
     def get_injuries(self) -> list[dict]:
         """Get injury reports for the league."""
@@ -1161,7 +1659,7 @@ class ESPNClient(BaseAPIClient):
 
         matches = []
         seen_ids: set[str] = set()
-        today = datetime.now(timezone.utc).date()
+        today = datetime.now(UTC).date()
 
         # Scan recent 4 days daily + past 21 days every 4 days for history
         # Reduced from 20->9 dates per player to avoid ESPN budget bleed
@@ -1260,6 +1758,105 @@ class ESPNClient(BaseAPIClient):
 
         self._save_cache(cache_key, {"standings": standings})
         return standings
+
+    def get_standings_result(self) -> SourceOperationResult[list[dict]]:
+        """Get league standings with typed result for capability router.
+        
+        Returns SourceOperationResult with:
+        - status: SUCCESS, NOT_FOUND, etc.
+        - value: list of standings dicts
+        - evidence_refs: list of evidence references
+        """
+        from bet.integration.evidence import write_bundle_manifest
+        
+        cache_key = f"espn/{self.sport}/{self.league}/standings"
+        
+        try:
+            url = f"https://site.api.espn.com/apis/v2/sports/{self._espn_sport}/{self.league}/standings"
+            response = requests.get(url, headers=self._build_headers(), timeout=self.TIMEOUT)
+            
+            if response.status_code == 404:
+                return SourceOperationResult(
+                    SourceResultStatus.NOT_FOUND,
+                    http_status=404,
+                    error_code="standings_not_found",
+                )
+            
+            if response.status_code != 200:
+                return SourceOperationResult(
+                    SourceResultStatus.UPSTREAM_ERROR,
+                    http_status=response.status_code,
+                    error_code="standings_http_error",
+                )
+            
+            data = response.json()
+            
+            standings = []
+            for child in data.get("children", data.get("standings", [])):
+                if isinstance(child, dict):
+                    entries = child.get("standings", {}).get("entries", [])
+                    if not entries:
+                        entries = child.get("entries", [])
+                    for entry in entries:
+                        team = entry.get("team", {})
+                        stats_list = entry.get("stats", [])
+                        stat_dict = {}
+                        for s in stats_list:
+                            stat_dict[s.get("name", "")] = s.get("value", s.get("displayValue", ""))
+                        standings.append({
+                            "team_id": str(team.get("id", "")),
+                            "team_name": team.get("displayName", ""),
+                            "rank": stat_dict.get("rank", ""),
+                            "wins": stat_dict.get("wins", ""),
+                            "losses": stat_dict.get("losses", ""),
+                            "draws": stat_dict.get("ties", stat_dict.get("draws", "")),
+                            "points": stat_dict.get("points", ""),
+                            "gamesPlayed": stat_dict.get("gamesPlayed", ""),
+                        })
+            
+            if not standings:
+                return SourceOperationResult(
+                    SourceResultStatus.NOT_FOUND,
+                    error_code="standings_empty",
+                )
+            
+            # Write evidence bundle
+            evidence_refs = [{
+                "source": self.api_name,
+                "path": url,
+                "fetched_at": datetime.now(UTC).isoformat(),
+            }]
+            
+            _, bundle_id = write_bundle_manifest(
+                registered_source_key=self.api_name,
+                projection_name="standings",
+                canonical_fixture_id=0,  # Season-scoped, not fixture-scoped
+                parser_version=ESPN_PARSER_VERSION,
+                source_event_refs=[],
+                evidence_refs=evidence_refs,
+            )
+            
+            self._save_cache(cache_key, {"standings": standings})
+            
+            return SourceOperationResult(
+                SourceResultStatus.SUCCESS,
+                value=standings,
+                bundle_id=bundle_id,
+                evidence_refs=evidence_refs,
+            )
+            
+        except requests.Timeout:
+            return SourceOperationResult(
+                SourceResultStatus.TRANSPORT_ERROR,
+                retryable=True,
+                error_code="timeout",
+            )
+        except Exception as e:
+            logger.debug("ESPN standings error: %s", e)
+            return SourceOperationResult(
+                SourceResultStatus.UPSTREAM_ERROR,
+                error_code="standings_parse_error",
+            )
 
     @staticmethod
     def extract_odds_from_event(event: dict) -> dict | None:
@@ -1497,7 +2094,7 @@ class ESPNClient(BaseAPIClient):
             "win_pct": data.get("value", 0.0),
             "stats": stats_dict,
         }
-        
+
         self._save_cache(cache_key, {"record": record})
         return record
 
@@ -1624,21 +2221,25 @@ def get_espn_league_for_competition(competition_name: str) -> str | None:
     """
     if not competition_name:
         return None
-    name_lower = competition_name.lower().strip()
-    
+    import re
+
+    name_lower = competition_name.lower().strip().replace("_", " ").replace("-", " ")
+    name_lower = re.sub(r"\b\d{4}\s+\d{2}\b\s*", "", name_lower).strip()
+    name_lower = re.sub(r"\s+", " ", name_lower)
+
     # 1. Exact match
     if name_lower in COMPETITION_TO_ESPN_LEAGUE:
         return COMPETITION_TO_ESPN_LEAGUE[name_lower]
-        
+
     # 2 & 3. Substring match
     matches = []
     for key, code in COMPETITION_TO_ESPN_LEAGUE.items():
         if key in name_lower or name_lower in key:
             matches.append((key, code))
-            
+
     if matches:
         # Sort by length descending, pick the longest match
         matches.sort(key=lambda x: len(x[0]), reverse=True)
         return matches[0][1]
-        
+
     return None

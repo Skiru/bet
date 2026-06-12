@@ -1,0 +1,85 @@
+{
+  "generated_at": "2026-06-12T07:20:53.444640Z",
+  "sports": [
+    {
+      "source": "api-football",
+      "sport": "football",
+      "date": "2026-06-11",
+      "bundle_id": "de648d03aaffe6b3707f6804e5eeb9e73e1d9c95a92d0a084a0bc684d31f2bdd",
+      "request_identity": "GET https://v3.football.api-sports.io/fixtures?date=2026-06-11",
+      "object_count": 1,
+      "fixture_count": 98,
+      "sample_event_ids": [
+        "1520718",
+        "1524844",
+        "1524845"
+      ],
+      "replay_status": "SUCCESS",
+      "replay_bundle_id": "de648d03aaffe6b3707f6804e5eeb9e73e1d9c95a92d0a084a0bc684d31f2bdd",
+      "first_persisted": 98,
+      "second_persisted": 98,
+      "fixture_rows": 98,
+      "source_rows": 98
+    },
+    {
+      "source": "api-basketball",
+      "sport": "basketball",
+      "date": "2026-06-11",
+      "bundle_id": "67fd9aa52935ad62add8c4dc66dac96cea19a767c28da8ad3ddd0e142254ac80",
+      "request_identity": "GET https://v1.basketball.api-sports.io/games?date=2026-06-11",
+      "object_count": 1,
+      "fixture_count": 31,
+      "sample_event_ids": [
+        "493758",
+        "493759",
+        "500407"
+      ],
+      "replay_status": "SUCCESS",
+      "replay_bundle_id": "67fd9aa52935ad62add8c4dc66dac96cea19a767c28da8ad3ddd0e142254ac80",
+      "first_persisted": 31,
+      "second_persisted": 31,
+      "fixture_rows": 31,
+      "source_rows": 31
+    },
+    {
+      "source": "api-volleyball",
+      "sport": "volleyball",
+      "date": "2026-06-11",
+      "bundle_id": "15cb3a3aed1d119f5e29fbdcc8ee2e4951e747654b143a9325075c12d1cc194c",
+      "request_identity": "GET https://v1.volleyball.api-sports.io/games?date=2026-06-11",
+      "object_count": 1,
+      "fixture_count": 6,
+      "sample_event_ids": [
+        "200809",
+        "200810",
+        "200811"
+      ],
+      "replay_status": "SUCCESS",
+      "replay_bundle_id": "15cb3a3aed1d119f5e29fbdcc8ee2e4951e747654b143a9325075c12d1cc194c",
+      "first_persisted": 6,
+      "second_persisted": 6,
+      "fixture_rows": 6,
+      "source_rows": 6
+    },
+    {
+      "source": "api-hockey",
+      "sport": "hockey",
+      "date": "2026-06-12",
+      "bundle_id": "2f746c13aa9c91f880fe89a6911efddef5cf1949298558ddd39174b1fa9d1f53",
+      "request_identity": "GET https://v1.hockey.api-sports.io/games?date=2026-06-12",
+      "object_count": 1,
+      "fixture_count": 3,
+      "sample_event_ids": [
+        "427006",
+        "419816",
+        "426625"
+      ],
+      "replay_status": "SUCCESS",
+      "replay_bundle_id": "2f746c13aa9c91f880fe89a6911efddef5cf1949298558ddd39174b1fa9d1f53",
+      "first_persisted": 3,
+      "second_persisted": 3,
+      "fixture_rows": 3,
+      "source_rows": 3
+    }
+  ]
+}

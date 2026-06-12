@@ -1,0 +1,71 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.12.4, pytest-9.0.3, pluggy-1.6.0 -- /Users/mkoziol/projects/bet/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /Users/mkoziol/projects/bet
+configfile: pyproject.toml
+plugins: cov-7.1.0, asyncio-1.4.0, langsmith-0.8.11, anyio-4.13.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collecting ... collected 54 items
+
+tests/scrapers/test_api_sports_family.py::TestAuthWithoutSecretLogging::test_football_headers_no_key_in_string PASSED [  1%]
+tests/scrapers/test_api_sports_family.py::TestAuthWithoutSecretLogging::test_basketball_headers_no_key_in_string PASSED [  3%]
+tests/scrapers/test_api_sports_family.py::TestAuthWithoutSecretLogging::test_volleyball_headers_no_key_in_string PASSED [  5%]
+tests/scrapers/test_api_sports_family.py::TestAuthWithoutSecretLogging::test_hockey_headers_no_key_in_string PASSED [  7%]
+tests/scrapers/test_api_sports_family.py::TestTimeoutAndRetry::test_timeout_configured PASSED [  9%]
+tests/scrapers/test_api_sports_family.py::TestTimeoutAndRetry::test_backoff_base_configured PASSED [ 11%]
+tests/scrapers/test_api_sports_family.py::TestProviderErrorPayloadClassification::test_401_raises_api_error PASSED [ 12%]
+tests/scrapers/test_api_sports_family.py::TestProviderErrorPayloadClassification::test_403_raises_api_error PASSED [ 14%]
+tests/scrapers/test_api_sports_family.py::TestProviderErrorPayloadClassification::test_429_raises_rate_limit_error PASSED [ 16%]
+tests/scrapers/test_api_sports_family.py::TestProviderErrorPayloadClassification::test_404_raises_not_found_error PASSED [ 18%]
+tests/scrapers/test_api_sports_family.py::TestValidEmptyResponse::test_empty_response_list_returns_empty_list PASSED [ 20%]
+tests/scrapers/test_api_sports_family.py::TestValidEmptyResponse::test_basketball_empty_response PASSED [ 22%]
+tests/scrapers/test_api_sports_family.py::TestValidEmptyResponse::test_volleyball_empty_response PASSED [ 24%]
+tests/scrapers/test_api_sports_family.py::TestValidEmptyResponse::test_hockey_empty_response PASSED [ 25%]
+tests/scrapers/test_api_sports_family.py::TestMalformedJSONHandling::test_malformed_json_returns_empty PASSED [ 27%]
+tests/scrapers/test_api_sports_family.py::TestRateLimitHeaderCapture::test_rate_limiter_tracks_requests PASSED [ 29%]
+tests/scrapers/test_api_sports_family.py::TestRateLimitHeaderCapture::test_rate_limiter_blocks_when_exhausted PASSED [ 31%]
+tests/scrapers/test_api_sports_family.py::TestCacheKeyValidation::test_valid_cache_key_accepted PASSED [ 33%]
+tests/scrapers/test_api_sports_family.py::TestCacheKeyValidation::test_path_traversal_rejected PASSED [ 35%]
+tests/scrapers/test_api_sports_family.py::TestCacheKeyValidation::test_absolute_path_rejected PASSED [ 37%]
+tests/scrapers/test_api_sports_family.py::TestCacheRoundTrip::test_cache_save_and_load PASSED [ 38%]
+tests/scrapers/test_api_sports_family.py::TestSourceIdentity::test_football_source_name PASSED [ 40%]
+tests/scrapers/test_api_sports_family.py::TestSourceIdentity::test_basketball_source_name PASSED [ 42%]
+tests/scrapers/test_api_sports_family.py::TestSourceIdentity::test_volleyball_source_name PASSED [ 44%]
+tests/scrapers/test_api_sports_family.py::TestSourceIdentity::test_hockey_source_name PASSED [ 46%]
+tests/scrapers/test_api_sports_family.py::TestAPIFixtureIdentity::test_fixture_external_id_preserved PASSED [ 48%]
+tests/scrapers/test_api_sports_family.py::TestAPIFixtureIdentity::test_fixture_participant_ids_preserved PASSED [ 50%]
+tests/scrapers/test_api_sports_family.py::TestAPIMatchStatsIdentity::test_match_stats_external_id_preserved PASSED [ 51%]
+tests/scrapers/test_api_sports_family.py::TestFootballSpecific::test_stat_type_mapping PASSED [ 53%]
+tests/scrapers/test_api_sports_family.py::TestFootballSpecific::test_possession_parsing PASSED [ 55%]
+tests/scrapers/test_api_sports_family.py::TestBasketballSpecific::test_season_string_generation PASSED [ 57%]
+tests/scrapers/test_api_sports_family.py::TestVolleyballSpecific::test_stat_normalization PASSED [ 59%]
+tests/scrapers/test_api_sports_family.py::TestHockeySpecific::test_status_mapping PASSED [ 61%]
+tests/scrapers/test_api_sports_family.py::TestEvidenceCapture::test_evidence_ref_creation PASSED [ 62%]
+tests/scrapers/test_api_sports_family.py::TestEvidenceCapture::test_namespaced_source_refs PASSED [ 64%]
+tests/scrapers/test_api_sports_family.py::TestEvidenceCapture::test_canonical_json_bytes PASSED [ 66%]
+tests/scrapers/test_api_sports_family.py::TestEvidenceCapture::test_normalize_request_identity_removes_secrets PASSED [ 68%]
+tests/scrapers/test_api_sports_live.py::TestEvidenceCapturePrimitives::test_evidence_ref_round_trip PASSED [ 70%]
+tests/scrapers/test_api_sports_live.py::TestEvidenceCapturePrimitives::test_persist_response_evidence PASSED [ 72%]
+tests/scrapers/test_api_sports_live.py::TestEvidenceCapturePrimitives::test_normalize_request_identity_removes_secrets PASSED [ 74%]
+tests/scrapers/test_api_sports_live.py::TestSourceOperationResult::test_success_result PASSED [ 75%]
+tests/scrapers/test_api_sports_live.py::TestSourceOperationResult::test_error_result PASSED [ 77%]
+tests/scrapers/test_api_sports_live.py::TestGetFixturesResultMocked::test_football_success_with_evidence PASSED [ 79%]
+tests/scrapers/test_api_sports_live.py::TestGetFixturesResultMocked::test_basketball_success_with_evidence PASSED [ 81%]
+tests/scrapers/test_api_sports_live.py::TestGetFixturesResultMocked::test_volleyball_success_with_evidence PASSED [ 83%]
+tests/scrapers/test_api_sports_live.py::TestGetFixturesResultMocked::test_hockey_success_with_evidence PASSED [ 85%]
+tests/scrapers/test_api_sports_live.py::TestReplayTransport::test_replay_transport_returns_cached_response PASSED [ 87%]
+tests/scrapers/test_api_sports_live.py::TestErrorHandling::test_rate_limited_result PASSED [ 88%]
+tests/scrapers/test_api_sports_live.py::TestErrorHandling::test_authentication_error_result PASSED [ 90%]
+tests/scrapers/test_api_sports_live.py::TestErrorHandling::test_empty_response_result PASSED [ 92%]
+tests/scrapers/test_api_sports_live.py::TestLiveEvidenceCapture::test_football_live_evidence_capture PASSED [ 94%]
+tests/scrapers/test_api_sports_live.py::TestLiveEvidenceCapture::test_basketball_live_evidence_capture PASSED [ 96%]
+tests/scrapers/test_api_sports_live.py::TestLiveEvidenceCapture::test_volleyball_live_evidence_capture PASSED [ 98%]
+tests/scrapers/test_api_sports_live.py::TestLiveEvidenceCapture::test_hockey_live_evidence_capture PASSED [100%]
+
+=============================== warnings summary ===============================
+tests/scrapers/test_api_sports_live.py:516
+  /Users/mkoziol/projects/bet/tests/scrapers/test_api_sports_live.py:516: PytestUnknownMarkWarning: Unknown pytest.mark.live - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.live
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 54 passed, 1 warning in 1.18s =========================

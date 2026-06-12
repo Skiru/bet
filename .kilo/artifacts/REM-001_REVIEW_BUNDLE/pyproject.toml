@@ -1,0 +1,89 @@
+[project]
+name = "bet-pipeline"
+version = "2.0.0"
+description = "Betting pipeline with LangGraph orchestration"
+requires-python = ">=3.12,<3.14"
+readme = "README.md"
+license = { text = "Proprietary" }
+
+[project.optional-dependencies]
+langgraph-runtime = [
+    "langgraph==1.2.4",
+    "langgraph-checkpoint-sqlite==3.1.0",
+    "openai==2.41.0",
+    "pydantic>=2.11,<3",
+    "pydantic-settings>=2.8,<3",
+    "aiosqlite>=0.20,<1",
+    "httpx>=0.28,<1",
+    "orjson>=3.10,<4",
+    "structlog>=25,<26",
+    "typer>=0.16,<1",
+    "rich>=13.9,<15",
+    "tokenizers>=0.21,<1",
+    "psutil>=6,<8",
+    "pycryptodome>=3.22,<4",
+]
+
+langgraph-postgres = [
+    "langgraph-checkpoint-postgres==3.1.0",
+    "psycopg[binary,pool]>=3.2,<4",
+]
+
+langgraph-mcp = [
+    "langchain-mcp-adapters==0.3.0",
+]
+
+langgraph-langchain-adapter = [
+    "langchain-openai==1.3.0",
+]
+
+langgraph-devserver = [
+    "langgraph-cli[inmem]",
+]
+
+langgraph-dev = [
+    "pytest>=8.3,<10",
+    "pytest-asyncio>=0.25,<2",
+    "pytest-cov>=6,<8",
+    "ruff>=0.11,<1",
+    "mypy>=1.15,<2",
+    "pip-audit>=2.8,<3",
+]
+
+[project.scripts]
+bet-lg = "bet_langgraph.app.cli:app"
+
+[tool.black]
+line-length = 88
+
+[tool.isort]
+profile = "black"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = ["scripts/_archive", ".venv", ".kilo", ".kilocode"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "espn_live: live ESPN integration tests requiring network access and explicit opt-in",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_ignores = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/bet_langgraph"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

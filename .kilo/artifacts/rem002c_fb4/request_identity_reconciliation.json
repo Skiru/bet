@@ -1,0 +1,73 @@
+{
+  "fixture_stats": {
+    "classification": "STALE_EVIDENCE",
+    "corrective_action": "Historical direct-target stats bundle cannot satisfy current production recent-form chain; new aligned recent-fixture stats evidence would be required after a successful aligned team-fixtures request.",
+    "current_canonical_context": {
+      "league_id": "72",
+      "season_id": "2026",
+      "target_fixture_id": "1520718",
+      "target_kickoff": "2026-06-11T00:00:00+00:00",
+      "team_id": "123"
+    },
+    "current_generated_request_identity": "UNRESOLVED_UNTIL_TEAM_REQUEST_SUCCEEDS",
+    "expected_request_identity": "depends on first accepted recent fixture from current team request",
+    "operation": "get_fixture_stats",
+    "retained_bundle_id": "2b0ed4ba3c4a80b2ebff7670c1645d0dd89a8c9c8e887f71f9284bb71691a0af",
+    "retained_provider_fixture_id": "1520718",
+    "retained_request_identity": "GET https://v3.football.api-sports.io/fixtures/statistics?fixture=1520718"
+  },
+  "live_attempt": {
+    "error_code": "provider_plan_restricted",
+    "http_status": 200,
+    "local_quota_file_count": 100,
+    "local_quota_file_tail": [
+      {
+        "cost": 1,
+        "endpoint": "/test",
+        "timestamp": "2026-06-12T06:00:20.711610+00:00"
+      },
+      {
+        "cost": 1,
+        "endpoint": "/test",
+        "timestamp": "2026-06-12T06:00:20.712458+00:00"
+      },
+      {
+        "cost": 1,
+        "endpoint": "/test",
+        "timestamp": "2026-06-12T06:00:20.712867+00:00"
+      },
+      {
+        "cost": 1,
+        "endpoint": "/test",
+        "timestamp": "2026-06-12T06:00:20.713212+00:00"
+      },
+      {
+        "cost": 1,
+        "endpoint": "/test",
+        "timestamp": "2026-06-12T06:00:20.713576+00:00"
+      }
+    ],
+    "request_identity": "GET https://v3.football.api-sports.io/fixtures?league=72&season=2026&team=123",
+    "requests_used": 1,
+    "status": "AUTHENTICATION_ERROR"
+  },
+  "team_fixtures": {
+    "classification": "REQUEST_CONTRACT_CHANGED",
+    "corrective_action": "Keep the 2024 unscoped bundle as historical evidence only; current production contract scopes recent form by target league and season.",
+    "current_canonical_context": {
+      "league_id": "72",
+      "season_id": "2026",
+      "target_fixture_id": "1520718",
+      "target_kickoff": "2026-06-11T00:00:00+00:00",
+      "team_id": "123"
+    },
+    "current_generated_request_identity": "GET https://v3.football.api-sports.io/fixtures?league=72&season=2026&team=123",
+    "expected_request_identity": "GET https://v3.football.api-sports.io/fixtures?league=72&season=2026&team=123",
+    "operation": "get_team_last_fixtures",
+    "retained_bundle_id": "b01f22fbb05326dc37de3230fe1accacd83c54586f3c2d17bdceb6fb76359e16",
+    "retained_provider_league_id": null,
+    "retained_provider_season_id": "2024",
+    "retained_provider_team_id": "123",
+    "retained_request_identity": "GET https://v3.football.api-sports.io/fixtures?season=2024&team=123"
+  }
+}

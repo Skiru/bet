@@ -1,0 +1,13 @@
+ M docs/audits/sports-integrations/2026-06-11/EVIDENCE_MANIFEST.json
+ M docs/audits/sports-integrations/2026-06-11/INTEGRATION_MATRIX.md
+ M docs/audits/sports-integrations/2026-06-11/REMEDIATION_BACKLOG.md
+ M pyproject.toml
+ M src/bet/api_clients/espn.py
+ M src/bet/stats/enrichment.py
+?? .kilo/artifacts/REM-001_REVIEW_BUNDLE/
+?? .kilo/artifacts/rem001_espn_football/
+?? SPORTS_INTEGRATION_LIVE_REVIEW_CONTRACT.md
+?? docs/audits/sports-integrations/2026-06-11/AUDIT_RECONCILIATION.md
+?? docs/audits/sports-integrations/2026-06-11/repairs/
+?? tests/scrapers/test_espn_client.py
+?? tests/scrapers/test_espn_football_live.py

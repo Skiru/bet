@@ -1,0 +1,563 @@
+diff --git a/src/bet/api_clients/api_basketball.py b/src/bet/api_clients/api_basketball.py
+index f06a188..463fddf 100644
+--- a/src/bet/api_clients/api_basketball.py
++++ b/src/bet/api_clients/api_basketball.py
+@@ -3,15 +3,14 @@
+ Returns APIFixture and APIMatchStats objects.
+ """
+ 
+-from dataclasses import asdict
+-from datetime import datetime
+ import logging
+ import re
++from dataclasses import asdict
++from datetime import datetime
+ 
+-from .base_client import APISportsClient
+-from .rate_limiter import RateLimiter
+ from .api_football import APIFixture, APIMatchStats
+-
++from .base_client import APISportsClient, SourceOperationResult, SourceResultStatus
++from .rate_limiter import RateLimiter
+ 
+ logger = logging.getLogger(__name__)
+ 
+@@ -272,3 +271,53 @@ class APIBasketballClient(APISportsClient):
+             return result
+         except Exception:
+             return []
++
++    def get_fixtures_result(self, date: str) -> SourceOperationResult:
++        """GET /games?date=YYYY-MM-DD with evidence capture.
++
++        Returns SourceOperationResult containing list[APIFixture] on success.
++        """
++        if not self._check_api_key():
++            return SourceOperationResult(
++                status=SourceResultStatus.AUTHENTICATION_ERROR,
++                error_code="missing_api_key",
++            )
++
++        result = self._request_with_evidence(
++            endpoint="/games",
++            params={"date": date},
++            operation="get_fixtures",
++            source_event_id=None,
++        )
++
++        if result.status != SourceResultStatus.SUCCESS or result.value is None:
++            return result
++
++        fixtures = []
++        for item in result.value.get("response", []):
++            teams = item.get("teams", {})
++            league = item.get("league", {})
++            status_raw = item.get("status")
++            if isinstance(status_raw, dict):
++                status = status_raw.get("short", "NS")
++            else:
++                status = str(status_raw or "NS")
++
++            fixture = APIFixture(
++                external_id=str(item.get("id", "")),
++                source=self.api_name,
++                sport="basketball",
++                competition_name=league.get("name", ""),
++                home_team_name=teams.get("home", {}).get("name", ""),
++                away_team_name=teams.get("away", {}).get("name", ""),
++                kickoff=item.get("date", ""),
++                status=status,
++            )
++            fixtures.append(fixture)
++
++        return SourceOperationResult(
++            status=SourceResultStatus.SUCCESS,
++            value=fixtures,
++            http_status=result.http_status,
++            evidence_refs=result.evidence_refs,
++        )
+diff --git a/src/bet/api_clients/api_football.py b/src/bet/api_clients/api_football.py
+index 2bda3fa..edbd084 100644
+--- a/src/bet/api_clients/api_football.py
++++ b/src/bet/api_clients/api_football.py
+@@ -6,7 +6,11 @@ to convert into DB model objects).
+ 
+ from dataclasses import dataclass, field
+ 
+-from .base_client import APISportsClient, CACHE_DIR
++from .base_client import (
++    APISportsClient,
++    SourceOperationResult,
++    SourceResultStatus,
++)
+ from .rate_limiter import RateLimiter
+ 
+ # Map API-Football stat type names → normalized stat keys
+@@ -34,6 +38,8 @@ class APIFixture:
+     away_team_name: str
+     kickoff: str
+     status: str = "scheduled"
++    home_participant_id: str = ""
++    away_participant_id: str = ""
+ 
+ 
+ @dataclass
+@@ -45,6 +51,8 @@ class APIMatchStats:
+     home_team_name: str
+     away_team_name: str
+     stats: dict[str, dict[str, float]] = field(default_factory=dict)
++    home_participant_id: str = ""
++    away_participant_id: str = ""
+ 
+ 
+ class APIFootballClient(APISportsClient):
+@@ -227,3 +235,49 @@ class APIFootballClient(APISportsClient):
+             return result
+         except Exception:
+             return []
++
++    def get_fixtures_result(self, date: str) -> SourceOperationResult:
++        """GET /fixtures?date=YYYY-MM-DD with evidence capture.
++
++        Returns SourceOperationResult containing list[APIFixture] on success.
++        """
++        if not self._check_api_key():
++            return SourceOperationResult(
++                status=SourceResultStatus.AUTHENTICATION_ERROR,
++                error_code="missing_api_key",
++            )
++
++        result = self._request_with_evidence(
++            endpoint="/fixtures",
++            params={"date": date},
++            operation="get_fixtures",
++            source_event_id=None,
++        )
++
++        if result.status != SourceResultStatus.SUCCESS or result.value is None:
++            return result
++
++        fixtures = []
++        for item in result.value.get("response", []):
++            fix = item.get("fixture", {})
++            league = item.get("league", {})
++            teams = item.get("teams", {})
++
++            fixture = APIFixture(
++                external_id=str(fix.get("id", "")),
++                source=self.api_name,
++                sport="football",
++                competition_name=league.get("name", ""),
++                home_team_name=teams.get("home", {}).get("name", ""),
++                away_team_name=teams.get("away", {}).get("name", ""),
++                kickoff=fix.get("date", ""),
++                status=fix.get("status", {}).get("short", "NS"),
++            )
++            fixtures.append(fixture)
++
++        return SourceOperationResult(
++            status=SourceResultStatus.SUCCESS,
++            value=fixtures,
++            http_status=result.http_status,
++            evidence_refs=result.evidence_refs,
++        )
+diff --git a/src/bet/api_clients/api_hockey.py b/src/bet/api_clients/api_hockey.py
+index 924b40d..6847cd3 100644
+--- a/src/bet/api_clients/api_hockey.py
++++ b/src/bet/api_clients/api_hockey.py
+@@ -3,9 +3,9 @@
+ Returns APIFixture and APIMatchStats objects.
+ """
+ 
+-from .base_client import APISportsClient
+-from .rate_limiter import RateLimiter
+ from .api_football import APIFixture, APIMatchStats
++from .base_client import APISportsClient, SourceOperationResult, SourceResultStatus
++from .rate_limiter import RateLimiter
+ 
+ 
+ class APIHockeyClient(APISportsClient):
+@@ -216,3 +216,53 @@ class APIHockeyClient(APISportsClient):
+             return result
+         except Exception:
+             return []
++
++    def get_fixtures_result(self, date: str) -> SourceOperationResult:
++        """GET /games?date=YYYY-MM-DD with evidence capture.
++
++        Returns SourceOperationResult containing list[APIFixture] on success.
++        """
++        if not self._check_api_key():
++            return SourceOperationResult(
++                status=SourceResultStatus.AUTHENTICATION_ERROR,
++                error_code="missing_api_key",
++            )
++
++        result = self._request_with_evidence(
++            endpoint="/games",
++            params={"date": date},
++            operation="get_fixtures",
++            source_event_id=None,
++        )
++
++        if result.status != SourceResultStatus.SUCCESS or result.value is None:
++            return result
++
++        fixtures = []
++        for item in result.value.get("response", []):
++            teams = item.get("teams", {})
++            league = item.get("league", {})
++            status_raw = item.get("status")
++            if isinstance(status_raw, dict):
++                status = status_raw.get("short", "NS")
++            else:
++                status = str(status_raw or "NS")
++
++            fixture = APIFixture(
++                external_id=str(item.get("id", "")),
++                source=self.api_name,
++                sport="hockey",
++                competition_name=league.get("name", ""),
++                home_team_name=teams.get("home", {}).get("name", ""),
++                away_team_name=teams.get("away", {}).get("name", ""),
++                kickoff=item.get("date", ""),
++                status=status,
++            )
++            fixtures.append(fixture)
++
++        return SourceOperationResult(
++            status=SourceResultStatus.SUCCESS,
++            value=fixtures,
++            http_status=result.http_status,
++            evidence_refs=result.evidence_refs,
++        )
+diff --git a/src/bet/api_clients/api_volleyball.py b/src/bet/api_clients/api_volleyball.py
+index 71a7095..5a305c0 100644
+--- a/src/bet/api_clients/api_volleyball.py
++++ b/src/bet/api_clients/api_volleyball.py
+@@ -5,9 +5,9 @@ Returns APIFixture and APIMatchStats objects.
+ 
+ import re
+ 
+-from .base_client import APISportsClient
+-from .rate_limiter import RateLimiter
+ from .api_football import APIFixture, APIMatchStats
++from .base_client import APISportsClient, SourceOperationResult, SourceResultStatus
++from .rate_limiter import RateLimiter
+ 
+ STAT_TYPE_MAP = {
+     "points": "points",
+@@ -323,3 +323,56 @@ class APIVolleyballClient(APISportsClient):
+                 l10.setdefault(key, []).append(val)
+ 
+         return l10 if l10 else None
++
++    def get_fixtures_result(self, date: str) -> SourceOperationResult:
++        """GET /games?date=YYYY-MM-DD with evidence capture.
++
++        Returns SourceOperationResult containing list[APIFixture] on success.
++        """
++        if not self._check_api_key():
++            return SourceOperationResult(
++                status=SourceResultStatus.AUTHENTICATION_ERROR,
++                error_code="missing_api_key",
++            )
++
++        result = self._request_with_evidence(
++            endpoint="/games",
++            params={"date": date},
++            operation="get_fixtures",
++            source_event_id=None,
++        )
++
++        if result.status != SourceResultStatus.SUCCESS or result.value is None:
++            return result
++
++        fixtures = []
++        for game in result.value.get("response", []):
++            teams = game.get("teams", {})
++            home = teams.get("home", {})
++            away = teams.get("away", {})
++            league = game.get("league", {})
++
++            status_raw = game.get("status")
++            if isinstance(status_raw, dict):
++                status = status_raw.get("long", "scheduled")
++            else:
++                status = str(status_raw or "NS")
++
++            fixture = APIFixture(
++                external_id=str(game.get("id", "")),
++                source=self.api_name,
++                sport="volleyball",
++                competition_name=league.get("name", "Unknown"),
++                home_team_name=home.get("name", "Unknown"),
++                away_team_name=away.get("name", "Unknown"),
++                kickoff=game.get("date", ""),
++                status=status,
++            )
++            fixtures.append(fixture)
++
++        return SourceOperationResult(
++            status=SourceResultStatus.SUCCESS,
++            value=fixtures,
++            http_status=result.http_status,
++            evidence_refs=result.evidence_refs,
++        )
+diff --git a/src/bet/api_clients/base_client.py b/src/bet/api_clients/base_client.py
+index 1ace640..6b2ab0a 100644
+--- a/src/bet/api_clients/base_client.py
++++ b/src/bet/api_clients/base_client.py
+@@ -8,10 +8,13 @@ Adapted from scripts/api_clients/base_client.py for src/bet/ package layout.
+ 
+ import json
+ import os
+-import sys
+ import time
+ from abc import ABC, abstractmethod
++from dataclasses import dataclass, field
++from datetime import UTC
++from enum import Enum
+ from pathlib import Path
++from typing import Generic, TypeVar
+ 
+ import requests
+ 
+@@ -57,6 +60,37 @@ class APINotFoundError(APIError):
+     pass
+ 
+ 
++class SourceResultStatus(str, Enum):
++    """Typed result status for source operations."""
++    SUCCESS = "SUCCESS"
++    NOT_FOUND = "NOT_FOUND"
++    NOT_PUBLISHED_YET = "NOT_PUBLISHED_YET"
++    NOT_SUPPORTED = "NOT_SUPPORTED"
++    AMBIGUOUS = "AMBIGUOUS"
++    AUTHENTICATION_ERROR = "AUTHENTICATION_ERROR"
++    RATE_LIMITED = "RATE_LIMITED"
++    BLOCKED = "BLOCKED"
++    TRANSPORT_ERROR = "TRANSPORT_ERROR"
++    UPSTREAM_ERROR = "UPSTREAM_ERROR"
++    PARSE_ERROR = "PARSE_ERROR"
++    SCHEMA_ERROR = "SCHEMA_ERROR"
++
++
++T = TypeVar("T")
++
++
++@dataclass
++class SourceOperationResult(Generic[T]):
++    """Typed result container for source operations with evidence refs."""
++    status: SourceResultStatus
++    value: T | None = None
++    http_status: int | None = None
++    retryable: bool = False
++    error_code: str = ""
++    retry_after_seconds: float | None = None
++    evidence_refs: list = field(default_factory=list)
++
++
+ class BaseAPIClient(ABC):
+     """Abstract base class for sports data API clients."""
+ 
+@@ -195,7 +229,7 @@ class BaseAPIClient(ABC):
+ 
+     def _check_cache(self, cache_key: str, ttl_hours: int = 24) -> dict | None:
+         """Check stats_cache for a cached response."""
+-        from datetime import datetime, timezone
++        from datetime import datetime
+ 
+         self._validate_cache_key(cache_key)
+         cache_file = CACHE_DIR / f"{cache_key}.json"
+@@ -210,7 +244,7 @@ class BaseAPIClient(ABC):
+             if not last_updated:
+                 return None
+             updated_dt = datetime.fromisoformat(last_updated)
+-            age_hours = (datetime.now(timezone.utc) - updated_dt).total_seconds() / 3600
++            age_hours = (datetime.now(UTC) - updated_dt).total_seconds() / 3600
+             if age_hours < ttl_hours:
+                 return data
+         except (json.JSONDecodeError, ValueError, OSError):
+@@ -220,13 +254,13 @@ class BaseAPIClient(ABC):
+ 
+     def _save_cache(self, cache_key: str, data: dict) -> None:
+         """Save response data to stats_cache."""
+-        from datetime import datetime, timezone
++        from datetime import datetime
+ 
+         self._validate_cache_key(cache_key)
+         cache_file = CACHE_DIR / f"{cache_key}.json"
+         cache_file.parent.mkdir(parents=True, exist_ok=True)
+ 
+-        data["last_updated"] = datetime.now(timezone.utc).isoformat()
++        data["last_updated"] = datetime.now(UTC).isoformat()
+         cache_file.write_text(
+             json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
+         )
+@@ -271,3 +305,165 @@ class APISportsClient(BaseAPIClient):
+         if self.api_key:
+             headers["x-apisports-key"] = self.api_key
+         return headers
++
++    def _request_with_evidence(
++        self,
++        endpoint: str,
++        params: dict | None = None,
++        operation: str = "",
++        source_event_id: str | None = None,
++        cost: int = 1,
++    ) -> "SourceOperationResult[dict]":
++        """Make API request with evidence capture.
++
++        Returns SourceOperationResult with evidence_refs for audit trail.
++        """
++        from bet.integration.evidence import EvidenceRef, persist_response_evidence
++        from bet.integration.telemetry_wrapper import wrap_request
++
++        if not self.rate_limiter.can_request(self.api_name, cost):
++            return SourceOperationResult(
++                status=SourceResultStatus.RATE_LIMITED,
++                http_status=None,
++                retryable=True,
++                error_code="quota_exhausted",
++                retry_after_seconds=None,
++            )
++
++        url = f"{self.base_url}{endpoint}"
++        evidence_refs: list[EvidenceRef] = []
++        last_error_code = ""
++        last_retryable = False
++
++        for attempt in range(1, self.MAX_RETRIES + 1):
++            result = wrap_request(
++                provider=self.api_name,
++                request_fn=requests.get,
++                url=url,
++                params=params,
++                headers=self._build_headers(),
++                timeout=self.TIMEOUT,
++                scope_id=endpoint,
++            )
++
++            if result.status_code is not None:
++                try:
++                    evidence_refs.append(
++                        persist_response_evidence(
++                            operation=operation,
++                            url=url,
++                            params=params,
++                            response=result,
++                            source_event_id=source_event_id,
++                        )
++                    )
++                except Exception:
++                    pass  # Evidence capture failure is non-blocking
++
++            if result.error and result.error.retryable and attempt < self.MAX_RETRIES:
++                time.sleep(self.BACKOFF_BASE * (2 ** (attempt - 1)))
++                last_error_code = result.error.type or "transport_error"
++                last_retryable = True
++                continue
++
++            if result.error and result.status_code is None:
++                return SourceOperationResult(
++                    status=SourceResultStatus.TRANSPORT_ERROR,
++                    http_status=None,
++                    retryable=bool(result.error.retryable),
++                    error_code=result.error.type or "transport_error",
++                    evidence_refs=evidence_refs,
++                )
++
++            status_code = result.status_code or 0
++
++            if status_code == 401:
++                return SourceOperationResult(
++                    SourceResultStatus.AUTHENTICATION_ERROR,
++                    http_status=401,
++                    error_code="http_401",
++                    evidence_refs=evidence_refs,
++                )
++            if status_code == 403:
++                return SourceOperationResult(
++                    SourceResultStatus.BLOCKED,
++                    http_status=403,
++                    error_code="http_403",
++                    evidence_refs=evidence_refs,
++                )
++            if status_code == 404:
++                return SourceOperationResult(
++                    SourceResultStatus.NOT_FOUND,
++                    http_status=404,
++                    error_code="http_404",
++                    evidence_refs=evidence_refs,
++                )
++            if status_code == 429:
++                retry_after = None
++                if result.headers:
++                    val = result.headers.get("Retry-After") or result.headers.get("retry-after")
++                    if val:
++                        try:
++                            retry_after = float(val)
++                        except (TypeError, ValueError):
++                            pass
++                return SourceOperationResult(
++                    SourceResultStatus.RATE_LIMITED,
++                    http_status=429,
++                    retryable=True,
++                    error_code="http_429",
++                    retry_after_seconds=retry_after,
++                    evidence_refs=evidence_refs,
++                )
++            if status_code >= 500:
++                return SourceOperationResult(
++                    SourceResultStatus.UPSTREAM_ERROR,
++                    http_status=status_code,
++                    retryable=True,
++                    error_code=f"http_{status_code}",
++                    evidence_refs=evidence_refs,
++                )
++            if status_code >= 400:
++                return SourceOperationResult(
++                    SourceResultStatus.UPSTREAM_ERROR,
++                    http_status=status_code,
++                    retryable=False,
++                    error_code=f"http_{status_code}",
++                    evidence_refs=evidence_refs,
++                )
++
++            try:
++                payload = json.loads(result.body.decode("utf-8"))
++            except (UnicodeDecodeError, json.JSONDecodeError):
++                return SourceOperationResult(
++                    SourceResultStatus.PARSE_ERROR,
++                    http_status=status_code,
++                    retryable=False,
++                    error_code="json_decode_error",
++                    evidence_refs=evidence_refs,
++                )
++
++            if not isinstance(payload, dict):
++                return SourceOperationResult(
++                    SourceResultStatus.SCHEMA_ERROR,
++                    http_status=status_code,
++                    retryable=False,
++                    error_code="payload_not_object",
++                    evidence_refs=evidence_refs,
++                )
++
++            self.rate_limiter.record_request(self.api_name, endpoint, cost)
++            return SourceOperationResult(
++                SourceResultStatus.SUCCESS,
++                value=payload,
++                http_status=status_code,
++                evidence_refs=evidence_refs,
++            )
++
++        return SourceOperationResult(
++            SourceResultStatus.TRANSPORT_ERROR,
++            http_status=None,
++            retryable=last_retryable,
++            error_code=last_error_code or "max_retries_exceeded",
++            evidence_refs=evidence_refs,
++        )

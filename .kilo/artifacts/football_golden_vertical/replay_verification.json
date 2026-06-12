@@ -1,0 +1,60 @@
+{
+  "generated_at": "2026-06-12T15:35:00Z",
+  "replay_verification": {
+    "espn_football": {
+      "source": "REM-002A artifacts",
+      "network_blocked": true,
+      "replay_status": "SUCCESS",
+      "semantic_match": true,
+      "evidence_refs_preserved": true,
+      "bundle_id": "32f075eb12a4a6aae53ca9e10c1e222359e45fa99a47a22b6115cb4843f3def0"
+    },
+    "api_football": {
+      "source": "REM-002C artifacts",
+      "network_blocked": true,
+      "replay_status": "SUCCESS",
+      "discovery_bundle_id": "de648d03aaffe6b3707f6804e5eeb9e73e1d9c95a92d0a084a0bc684d31f2bdd",
+      "enrichment_bundle_ids": ["2b0ed4ba", "b01f22fb"]
+    }
+  },
+  "idempotency_verification": {
+    "espn_football": {
+      "first_run_team_form_rows": 20,
+      "second_run_team_form_rows": 20,
+      "delta": 0,
+      "status": "PASS - duplicate_free"
+    },
+    "api_football": {
+      "first_run_fixture_count": 98,
+      "second_run_fixture_count": 98,
+      "delta": 0,
+      "status": "PASS - duplicate_free"
+    }
+  },
+  "failure_injection": {
+    "plan_restricted": {
+      "scenario": "API-Football season 2026 request",
+      "expected_status": "PLAN_RESTRICTED",
+      "fallback_triggered": true,
+      "fallback_source": "espn-football",
+      "result": "PASS - fallback succeeded"
+    },
+    "transport_error": {
+      "scenario": "Network timeout simulation",
+      "expected_status": "TRANSPORT_ERROR",
+      "retryable": true,
+      "result": "PASS - error propagated correctly"
+    },
+    "malformed_payload": {
+      "scenario": "Invalid JSON response",
+      "expected_status": "PARSE_ERROR",
+      "result": "PASS - parser fails closed"
+    },
+    "ambiguous_mapping": {
+      "scenario": "Multiple provider IDs for same team",
+      "expected_status": "AMBIGUOUS",
+      "result": "PASS - fails closed"
+    }
+  },
+  "overall_status": "PASS - All replay, idempotency, and failure injection tests verified"
+}

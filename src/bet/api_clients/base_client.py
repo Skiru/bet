@@ -8,10 +8,14 @@ Adapted from scripts/api_clients/base_client.py for src/bet/ package layout.
 
 import json
 import os
-import sys
+import random
 import time
 from abc import ABC, abstractmethod
+from dataclasses import dataclass, field, replace
+from datetime import UTC
+from enum import StrEnum
 from pathlib import Path
+from typing import Any
 
 import requests
 
@@ -28,6 +32,7 @@ def _record_source_health(source_name: str, success: bool) -> None:
     try:
         from bet.db.connection import get_db
         from bet.db.repositories import SourceHealthRepo
+
         with get_db() as conn:
             repo = SourceHealthRepo(conn)
             if success:
@@ -49,12 +54,45 @@ class APIError(Exception):
 
 class APIRateLimitError(APIError):
     """API rate limit exceeded (HTTP 429 or quota exhausted)."""
-    pass
 
 
 class APINotFoundError(APIError):
     """Resource not found (HTTP 404)."""
-    pass
+
+
+class SourceResultStatus(StrEnum):
+    """Typed result status for source operations."""
+
+    SUCCESS = "SUCCESS"
+    NOT_FOUND = "NOT_FOUND"
+    NOT_PUBLISHED_YET = "NOT_PUBLISHED_YET"
+    NOT_SUPPORTED = "NOT_SUPPORTED"
+    AMBIGUOUS = "AMBIGUOUS"
+    AUTHENTICATION_ERROR = "AUTHENTICATION_ERROR"
+    RATE_LIMITED = "RATE_LIMITED"
+    BLOCKED = "BLOCKED"
+    TRANSPORT_ERROR = "TRANSPORT_ERROR"
+    UPSTREAM_ERROR = "UPSTREAM_ERROR"
+    PARSE_ERROR = "PARSE_ERROR"
+    SCHEMA_ERROR = "SCHEMA_ERROR"
+    EVIDENCE_ERROR = "EVIDENCE_ERROR"
+    PLAN_RESTRICTED = "PLAN_RESTRICTED"
+
+@dataclass
+class SourceOperationResult[T]:
+    """Typed result container for source operations with evidence refs."""
+
+    status: SourceResultStatus
+    value: T | None = None
+    http_status: int | None = None
+    retryable: bool = False
+    error_code: str = ""
+    retry_after_seconds: float | None = None
+    evidence_refs: list[Any] = field(default_factory=list)
+    bundle_id: str = ""
+    retry_count: int = 0
+    quota_metadata: dict[str, int | str | None] = field(default_factory=dict)
+    parser_diagnostics: dict[str, int | str | None] = field(default_factory=dict)
 
 
 class BaseAPIClient(ABC):
@@ -123,7 +161,9 @@ class BaseAPIClient(ABC):
             return False
         return True
 
-    def _request(self, endpoint: str, params: dict | None = None, cost: int = 1) -> dict:
+    def _request(
+        self, endpoint: str, params: dict | None = None, cost: int = 1
+    ) -> dict:
         """Make API request with rate limiting, retry, and error handling."""
         if not self.rate_limiter.can_request(self.api_name, cost):
             remaining = self.rate_limiter.get_remaining(self.api_name)
@@ -155,7 +195,10 @@ class BaseAPIClient(ABC):
                     )
                 if response.status_code >= 400:
                     raise APIError(
-                        f"[{self.api_name}] HTTP {response.status_code}: {response.text[:200]}",
+                        (
+                            f"[{self.api_name}] HTTP {response.status_code}: "
+                            f"{response.text[:200]}"
+                        ),
                         status_code=response.status_code,
                     )
 
@@ -174,7 +217,9 @@ class BaseAPIClient(ABC):
                     backoff = self.BACKOFF_BASE * (2 ** (attempt - 1))
                     time.sleep(backoff)
 
-        raise APIError(f"[{self.api_name}] Failed after {self.MAX_RETRIES} attempts: {last_error}")
+        raise APIError(
+            f"[{self.api_name}] Failed after {self.MAX_RETRIES} attempts: {last_error}"
+        )
 
     def _build_headers(self) -> dict:
         """Build request headers. Override in subclasses for custom auth."""
@@ -190,12 +235,15 @@ class BaseAPIClient(ABC):
             raise ValueError("cache_key must not be empty")
         if ".." in cache_key or cache_key.startswith("/") or cache_key.startswith("\\"):
             raise ValueError(
-                f"Invalid cache_key '{cache_key}': must not contain '..' or start with '/'"
+
+                    f"Invalid cache_key '{cache_key}': must not contain '..' "
+                    "or start with '/'"
+
             )
 
     def _check_cache(self, cache_key: str, ttl_hours: int = 24) -> dict | None:
         """Check stats_cache for a cached response."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         self._validate_cache_key(cache_key)
         cache_file = CACHE_DIR / f"{cache_key}.json"
@@ -210,7 +258,7 @@ class BaseAPIClient(ABC):
             if not last_updated:
                 return None
             updated_dt = datetime.fromisoformat(last_updated)
-            age_hours = (datetime.now(timezone.utc) - updated_dt).total_seconds() / 3600
+            age_hours = (datetime.now(UTC) - updated_dt).total_seconds() / 3600
             if age_hours < ttl_hours:
                 return data
         except (json.JSONDecodeError, ValueError, OSError):
@@ -220,13 +268,13 @@ class BaseAPIClient(ABC):
 
     def _save_cache(self, cache_key: str, data: dict) -> None:
         """Save response data to stats_cache."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         self._validate_cache_key(cache_key)
         cache_file = CACHE_DIR / f"{cache_key}.json"
         cache_file.parent.mkdir(parents=True, exist_ok=True)
 
-        data["last_updated"] = datetime.now(timezone.utc).isoformat()
+        data["last_updated"] = datetime.now(UTC).isoformat()
         cache_file.write_text(
             json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
         )
@@ -271,3 +319,301 @@ class APISportsClient(BaseAPIClient):
         if self.api_key:
             headers["x-apisports-key"] = self.api_key
         return headers
+
+    def _request_with_evidence(
+        self,
+        endpoint: str,
+        params: dict | None = None,
+        operation: str = "",
+        source_event_id: str | None = None,
+        cost: int = 1,
+        expects_response_list: bool = False,
+    ) -> "SourceOperationResult[dict]":
+        """Make API request with evidence capture.
+
+        Returns SourceOperationResult with evidence_refs for audit trail.
+        """
+        from bet.integration.evidence import EvidenceRef, persist_response_evidence
+        from bet.integration.telemetry_wrapper import wrap_request
+
+        if not self.rate_limiter.can_request(self.api_name, cost):
+            return SourceOperationResult(
+                status=SourceResultStatus.RATE_LIMITED,
+                http_status=None,
+                retryable=True,
+                error_code="quota_exhausted",
+                retry_after_seconds=None,
+            )
+
+        url = f"{self.base_url}{endpoint}"
+        evidence_refs: list[EvidenceRef] = []
+        last_error_code = ""
+        last_retryable = False
+        max_attempts = 2
+
+        for attempt in range(1, max_attempts + 1):
+            result = wrap_request(
+                provider=self.api_name,
+                request_fn=requests.get,
+                url=url,
+                params=params,
+                headers=self._build_headers(),
+                timeout=self.TIMEOUT,
+                scope_id=endpoint,
+            )
+            self.rate_limiter.record_request(self.api_name, endpoint, cost)
+            quota_metadata = self._extract_quota_metadata(result.headers)
+
+            if result.status_code is not None:
+                try:
+                    evidence_ref = persist_response_evidence(
+                        operation=operation,
+                        url=url,
+                        params=params,
+                        response=result,
+                        source_event_id=source_event_id,
+                    )
+                    evidence_refs.append(replace(evidence_ref, retry_count=attempt - 1))
+                except Exception:
+                    return SourceOperationResult(
+                        status=SourceResultStatus.EVIDENCE_ERROR,
+                        http_status=result.status_code,
+                        retryable=False,
+                        error_code="evidence_persist_failed",
+                        evidence_refs=evidence_refs,
+                        retry_count=attempt - 1,
+                        quota_metadata=quota_metadata,
+                    )
+
+            if result.error and result.error.retryable and attempt < max_attempts:
+                last_error_code = result.error.type or "transport_error"
+                last_retryable = True
+                time.sleep(self._retry_delay_seconds(attempt))
+                continue
+
+            if result.error and result.status_code is None:
+                return SourceOperationResult(
+                    status=SourceResultStatus.TRANSPORT_ERROR,
+                    http_status=None,
+                    retryable=bool(result.error.retryable),
+                    error_code=result.error.type or "transport_error",
+                    evidence_refs=evidence_refs,
+                    retry_count=attempt - 1,
+                    quota_metadata=quota_metadata,
+                )
+
+            status_code = result.status_code or 0
+
+            if status_code == 401:
+                return SourceOperationResult(
+                    status=SourceResultStatus.AUTHENTICATION_ERROR,
+                    http_status=401,
+                    error_code="http_401",
+                    evidence_refs=evidence_refs,
+                    retry_count=attempt - 1,
+                    quota_metadata=quota_metadata,
+                )
+            if status_code == 403:
+                return SourceOperationResult(
+                    SourceResultStatus.BLOCKED,
+                    http_status=403,
+                    error_code="http_403",
+                    evidence_refs=evidence_refs,
+                    retry_count=attempt - 1,
+                    quota_metadata=quota_metadata,
+                )
+            if status_code == 404:
+                return SourceOperationResult(
+                    SourceResultStatus.NOT_FOUND,
+                    http_status=404,
+                    error_code="http_404",
+                    evidence_refs=evidence_refs,
+                    retry_count=attempt - 1,
+                    quota_metadata=quota_metadata,
+                )
+            if status_code == 429:
+                retry_after = None
+                if result.headers:
+                    val = result.headers.get("Retry-After") or result.headers.get(
+                        "retry-after"
+                    )
+                    if val:
+                        try:
+                            retry_after = float(val)
+                        except (TypeError, ValueError):
+                            pass
+                return SourceOperationResult(
+                    SourceResultStatus.RATE_LIMITED,
+                    http_status=429,
+                    retryable=True,
+                    error_code="http_429",
+                    retry_after_seconds=retry_after,
+                    evidence_refs=evidence_refs,
+                    retry_count=attempt - 1,
+                    quota_metadata=quota_metadata,
+                )
+            if status_code in {502, 503, 504} and attempt < max_attempts:
+                last_error_code = f"http_{status_code}"
+                last_retryable = True
+                time.sleep(self._retry_delay_seconds(attempt))
+                continue
+            if status_code >= 500:
+                return SourceOperationResult(
+                    SourceResultStatus.UPSTREAM_ERROR,
+                    http_status=status_code,
+                    retryable=status_code in {502, 503, 504},
+                    error_code=f"http_{status_code}",
+                    evidence_refs=evidence_refs,
+                    retry_count=attempt - 1,
+                    quota_metadata=quota_metadata,
+                )
+            if status_code >= 400:
+                return SourceOperationResult(
+                    SourceResultStatus.UPSTREAM_ERROR,
+                    http_status=status_code,
+                    retryable=False,
+                    error_code=f"http_{status_code}",
+                    evidence_refs=evidence_refs,
+                    retry_count=attempt - 1,
+                    quota_metadata=quota_metadata,
+                )
+
+            try:
+                payload = json.loads(result.body.decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                return SourceOperationResult(
+                    SourceResultStatus.PARSE_ERROR,
+                    http_status=status_code,
+                    retryable=False,
+                    error_code="json_decode_error",
+                    evidence_refs=evidence_refs,
+                    retry_count=attempt - 1,
+                    quota_metadata=quota_metadata,
+                )
+
+            if not isinstance(payload, dict):
+                return SourceOperationResult(
+                    SourceResultStatus.SCHEMA_ERROR,
+                    http_status=status_code,
+                    retryable=False,
+                    error_code="payload_not_object",
+                    evidence_refs=evidence_refs,
+                    retry_count=attempt - 1,
+                    quota_metadata=quota_metadata,
+                )
+
+            provider_error = self._classify_provider_payload_error(payload)
+            if provider_error is not None:
+                return SourceOperationResult(
+                    status=provider_error["status"],
+                    http_status=status_code,
+                    retryable=False,
+                    error_code=provider_error["error_code"],
+                    evidence_refs=evidence_refs,
+                    retry_count=attempt - 1,
+                    quota_metadata=quota_metadata,
+                )
+
+            if expects_response_list and not isinstance(payload.get("response"), list):
+                return SourceOperationResult(
+                    SourceResultStatus.SCHEMA_ERROR,
+                    http_status=status_code,
+                    retryable=False,
+                    error_code="response_not_list",
+                    evidence_refs=evidence_refs,
+                    retry_count=attempt - 1,
+                    quota_metadata=quota_metadata,
+                )
+
+            return SourceOperationResult(
+                SourceResultStatus.SUCCESS,
+                value=payload,
+                http_status=status_code,
+                evidence_refs=evidence_refs,
+                retry_count=attempt - 1,
+                quota_metadata=quota_metadata,
+            )
+
+        return SourceOperationResult(
+            SourceResultStatus.TRANSPORT_ERROR,
+            http_status=None,
+            retryable=last_retryable,
+            error_code=last_error_code or "max_retries_exceeded",
+            evidence_refs=evidence_refs,
+            retry_count=max_attempts - 1,
+        )
+
+    @staticmethod
+    def _retry_delay_seconds(attempt: int) -> float:
+        base = 1 * (2 ** (attempt - 1))
+        return base + random.uniform(0.05, 0.25)
+
+    @staticmethod
+    def _extract_quota_metadata(
+        headers: dict[str, Any] | None,
+    ) -> dict[str, int | str | None]:
+        if not headers:
+            return {}
+        normalized = {str(key).lower(): value for key, value in headers.items()}
+        header_map = {
+            "x-ratelimit-limit": "minute_limit",
+            "x-ratelimit-remaining": "minute_remaining",
+            "x-ratelimit-requests-limit": "minute_limit",
+            "x-ratelimit-requests-remaining": "minute_remaining",
+            "x-ratelimit-day-limit": "daily_limit",
+            "x-ratelimit-day-remaining": "daily_remaining",
+        }
+        metadata: dict[str, int | str | None] = {}
+        for header_name, field_name in header_map.items():
+            if header_name not in normalized:
+                continue
+            raw_value = normalized[header_name]
+            try:
+                metadata[field_name] = int(str(raw_value))
+            except (TypeError, ValueError):
+                metadata[field_name] = str(raw_value)
+        return metadata
+
+    @staticmethod
+    def _classify_provider_payload_error(
+        payload: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        errors = payload.get("errors")
+        if errors in (None, {}, [], ""):
+            return None
+
+        if isinstance(errors, dict):
+            flattened = " | ".join(
+                f"{key}:{value}" for key, value in sorted(errors.items())
+            )
+        elif isinstance(errors, list):
+            flattened = " | ".join(str(item) for item in errors)
+        else:
+            flattened = str(errors)
+
+        lowered = flattened.lower()
+        if "rate limit" in lowered or "too many" in lowered:
+            return {
+                "status": SourceResultStatus.RATE_LIMITED,
+                "error_code": "provider_rate_limited",
+            }
+        if any(
+            token in lowered
+            for token in ("free plans", "subscription", "access denied", "plan")
+        ):
+            return {
+                "status": SourceResultStatus.AUTHENTICATION_ERROR,
+                "error_code": "provider_plan_restricted",
+            }
+        if any(
+            token in lowered
+            for token in ("invalid key", "unauthorized", "forbidden", "authentication")
+        ):
+            return {
+                "status": SourceResultStatus.AUTHENTICATION_ERROR,
+                "error_code": "provider_authentication_error",
+            }
+        return {
+            "status": SourceResultStatus.UPSTREAM_ERROR,
+            "error_code": "provider_error_payload",
+        }

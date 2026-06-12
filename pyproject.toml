@@ -64,6 +64,11 @@ testpaths = ["tests"]
 norecursedirs = ["scripts/_archive", ".venv", ".kilo", ".kilocode"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+addopts = "--strict-markers"
+markers = [
+    "api_sports_live: live API-Sports certification tests requiring explicit opt-in",
+    "espn_live: live ESPN integration tests requiring network access and explicit opt-in",
+]
 
 [tool.ruff]
 line-length = 88

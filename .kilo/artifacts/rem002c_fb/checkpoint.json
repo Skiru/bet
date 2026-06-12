@@ -1,0 +1,59 @@
+{
+  "generated_at": "2026-06-12T11:30:00Z",
+  "integration_key": "api-football::football::EVENT_AND_ENRICHMENT::default",
+  "branch": "repair/rem-002b-closure",
+  "commit": "776fef6",
+  "target_fixtures": {
+    "primary": {
+      "api_football_id": "1520718",
+      "purpose": "discovery + enrichment proof",
+      "status": "FT",
+      "date": "2026-06-11"
+    }
+  },
+  "discovery_evidence": {
+    "bundle_id": "de648d03aaffe6b3707f6804e5eeb9e73e1d9c95a92d0a084a0bc684d31f2bdd",
+    "fixture_count": 98,
+    "date": "2026-06-11",
+    "object_sha256": "4fb952e89bfb4d53dd130b09f4cfe3f6882e17f412843d4dd63a2ded981a6e11",
+    "replay_status": "SUCCESS",
+    "rerun_status": "duplicate_free"
+  },
+  "enrichment_evidence": {
+    "fixture_stats": {
+      "bundle_id": "2b0ed4ba3c4a80b2ebff7670c1645d0dd89a8c9c8e887f71f9284bb71691a0af",
+      "object_sha256": "f2c1fa707af8aedb52ca2db7d0582b9beac096adeefbc326a726a282ee0ede48",
+      "status": "SUCCESS",
+      "fixture_id": "1520718"
+    },
+    "team_fixtures": {
+      "bundle_id": "b01f22fbb05326dc37de3230fe1accacd83c54586f3c2d17bdceb6fb76359e16",
+      "object_sha256": "56aa03afd84c62bbbff861cf5a8f19f5758cdd0c4d532b2332d15cc93ce4aed4",
+      "status": "SUCCESS",
+      "team_id": "123",
+      "fixture_count": 5
+    }
+  },
+  "core_capabilities": [
+    "get_fixtures_result",
+    "get_fixture_stats_result",
+    "get_team_last_fixtures_result",
+    "get_event_fixture_result"
+  ],
+  "live_requests": 0,
+  "tests": {
+    "focused": "16 passed",
+    "full_non_live": "662 passed, 4 skipped, 6 deselected",
+    "lint": "E501 pre-existing, not blocking"
+  },
+  "gates": {
+    "G1_runtime_reachable": "PASS",
+    "G4_core_capability_evidence": "PASS",
+    "G7_raw_evidence_replay": "PASS",
+    "G8_idempotent_persistence": "PASS",
+    "G10_deterministic_test_separation": "PASS",
+    "G12_access_secret_safety": "PASS"
+  },
+  "final_state": "PRODUCTION_READY",
+  "blocker": "NONE"
+}

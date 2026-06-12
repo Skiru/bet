@@ -1,0 +1,141 @@
+{
+  "generated_at": "2026-06-12T15:15:00Z",
+  "capability_gates": {
+    "event_discovery": {
+      "classification": "REQUIRED",
+      "api_football": {
+        "status": "PASS",
+        "evidence": "REM-002C checkpoint: 98 fixtures on 2026-06-11, bundle de648d03",
+        "stable_event_ids": true,
+        "stable_team_ids": true,
+        "provider_identity_preserved": true
+      },
+      "verdict": "PASS - API-Football discovery PRODUCTION_READY"
+    },
+    "canonical_event_identity": {
+      "classification": "REQUIRED",
+      "api_football": {
+        "status": "PASS",
+        "evidence": "fixture_sources table preserves provider fixture IDs"
+      },
+      "verdict": "PASS - Provider IDs preserved in fixture_sources"
+    },
+    "canonical_team_identity": {
+      "classification": "REQUIRED",
+      "api_football": {
+        "status": "PASS",
+        "evidence": "Team IDs from discovery preserved"
+      },
+      "espn": {
+        "status": "PASS",
+        "evidence": "ESPN team IDs from crosswalk (e.g., 359 for Arsenal)"
+      },
+      "verdict": "PASS - Team IDs preserved from both providers"
+    },
+    "current_season_recent_form": {
+      "classification": "REQUIRED",
+      "espn": {
+        "status": "PASS",
+        "evidence": "REM-002A: 20 team_form rows, bundle 32f075eb, replay passed",
+        "current_season_events": true,
+        "home_away_matches": true,
+        "stable_event_ids": true,
+        "target_exclusion": true,
+        "temporal_filtering": true,
+        "point_in_time_correct": true
+      },
+      "api_football": {
+        "status": "PLAN_RESTRICTED",
+        "evidence": "Free tier limited to seasons 2022-2024; 2026 fixtures blocked",
+        "fallback_eligible": true,
+        "retryable": false
+      },
+      "thesportsdb": {
+        "status": "REJECT_INCOMPLETE_DATA",
+        "evidence": "eventslast returns only 1 event for Arsenal, not full schedule",
+        "partial_usefulness": "Cross-reference only"
+      },
+      "verdict": "PASS - ESPN is PRIMARY; API-Football FALLBACK for historical"
+    },
+    "fixture_statistics": {
+      "classification": "REQUIRED",
+      "espn": {
+        "status": "PASS",
+        "evidence": "ESPN summary endpoint provides match statistics",
+        "side_attribution": true,
+        "metric_units": true
+      },
+      "api_football": {
+        "status": "PASS",
+        "evidence": "REM-002C: fixture stats bundle 2b0ed4ba",
+        "side_attribution": true,
+        "provider_team_ids": true
+      },
+      "thesportsdb": {
+        "status": "PASS",
+        "evidence": "lookupeventstats returns match statistics",
+        "side_attribution": true
+      },
+      "verdict": "PASS - ESPN PRIMARY; API-Football FALLBACK"
+    },
+    "cross_provider_id_mapping": {
+      "classification": "REQUIRED",
+      "internal": {
+        "status": "PASS",
+        "evidence": "fixture_sources table maps canonical fixtures to provider IDs"
+      },
+      "thesportsdb": {
+        "status": "PASS",
+        "evidence": "idESPN=359, idAPIfootball=42 verified for Arsenal",
+        "verified_teams": 1,
+        "verified_events": 1,
+        "one_to_many_conflicts": false
+      },
+      "verdict": "PASS - Internal crosswalk sufficient; TheSportsDB optional enhancement"
+    },
+    "historical_recent_form": {
+      "classification": "OPTIONAL",
+      "api_football": {
+        "status": "PASS",
+        "evidence": "Works for seasons 2022-2024"
+      },
+      "verdict": "PASS - API-Football covers historical seasons"
+    },
+    "lineups": {
+      "classification": "OPTIONAL",
+      "espn": {
+        "status": "PASS",
+        "evidence": "ESPN provides predicted lineups"
+      },
+      "thesportsdb": {
+        "status": "PASS",
+        "evidence": "lookuplineup returns player data with positions"
+      },
+      "verdict": "PASS - Available but not production consumer"
+    },
+    "h2h": {
+      "classification": "OPTIONAL",
+      "status": "NOT_IMPLEMENTED",
+      "verdict": "OUT_OF_SCOPE - No production consumer"
+    },
+    "standings": {
+      "classification": "OPTIONAL",
+      "status": "NOT_IMPLEMENTED",
+      "verdict": "OUT_OF_SCOPE - No production consumer"
+    },
+    "injuries_suspensions": {
+      "classification": "OPTIONAL",
+      "status": "NOT_IMPLEMENTED",
+      "verdict": "OUT_OF_SCOPE - No production consumer"
+    }
+  },
+  "gate_summary": {
+    "required_capabilities": 6,
+    "required_passed": 6,
+    "required_failed": 0,
+    "optional_capabilities": 5,
+    "optional_passed": 3,
+    "optional_not_implemented": 2
+  },
+  "overall_verdict": "PASS - All REQUIRED capabilities have verified routes"
+}

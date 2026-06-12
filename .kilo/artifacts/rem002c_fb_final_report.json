@@ -1,0 +1,121 @@
+{
+  "session": "REM-002C-FB Recovery + Provider Investigation",
+  "completed_at": "2026-06-12T14:35:00+02:00",
+  
+  "PHASE_1_RECOVERY": {
+    "status": "COMPLETED",
+    "findings": {
+      "api_football_discovery": "WORKING - 98 fixtures, bundle de648d03, replay/rerun verified",
+      "api_football_enrichment": "BLOCKED - Free plan restricted to seasons 2022-2024, production needs 2026",
+      "espn_enrichment": "PRODUCTION_READY - Primary source, bundle 32f075eb, 20 tests passed",
+      "schema_migrations": "v14/v15 implemented - team_form_evidence_history table",
+      "request_identity_tests": "5 passed - mismatch rejection verified",
+      "evidence_versioning_tests": "PASSED - history preservation verified"
+    }
+  },
+  
+  "PHASE_2_PROVIDER_INVESTIGATION": {
+    "thesportsdb": {
+      "status": "PARTIALLY_AVAILABLE",
+      "free_key": "123",
+      "v1_api": "WORKING",
+      "v2_api": "REQUIRES_PREMIUM ($9/month)",
+      "capabilities": {
+        "discovery": "eventsday.php, eventsnext.php, eventslast.php - WORKING",
+        "team_fixtures": "WORKING - limited to 1 result on free tier",
+        "event_statistics": "LIMITED - lookupeventstats.php exists but sparse data, no corners",
+        "cross_reference": "HAS idAPIfootball, idESPN - valuable for ID mapping"
+      },
+      "rate_limit": "30 req/min free, 100 req/min premium",
+      "recommendation": "Useful for discovery and ID cross-reference, not for enrichment"
+    },
+    "sportdb_dev": {
+      "status": "NOT_AVAILABLE",
+      "api_key": "5SAexFglkx02Mn8lI5LYpiALF9B5bteuxEpw5rqO",
+      "findings": "No public REST API found, frontend SPA only, endpoints return 404",
+      "recommendation": "Cannot be used, no API available"
+    }
+  },
+  
+  "ROOT_CAUSE_ANALYSIS": {
+    "fixture_stats_mismatch": {
+      "classification": "STALE_EVIDENCE",
+      "explanation": "Bundle 2b0ed4ba uses fixture=1520718 (season 2026), but free plan cannot access current season"
+    },
+    "team_fixtures_mismatch": {
+      "classification": "PLAN_LIMITATION",
+      "explanation": "Production derives season_id from source fixture (2026), free plan restricted to 2022-2024",
+      "api_response": "Free plans do not have access to this season, try from 2022 to 2024"
+    }
+  },
+  
+  "CURRENT_INTEGRATION_STATE": {
+    "espn-football": {
+      "role": "ENRICHMENT_ONLY",
+      "state": "PRODUCTION_READY",
+      "capabilities": ["fixture resolution", "team form", "statistics"],
+      "tests": "20 passed, replay/rerun verified"
+    },
+    "api-football": {
+      "role": "EVENT_AND_ENRICHMENT",
+      "state": "LIVE_PARTIAL",
+      "capabilities": {
+        "discovery": "WORKING - 98 fixtures",
+        "enrichment_current_season": "BLOCKED - plan limitation",
+        "enrichment_historical_season": "WORKING - season 2024"
+      },
+      "blocker": "Free plan cannot access season 2026"
+    },
+    "thesportsdb": {
+      "role": "EVENT_DISCOVERY",
+      "state": "IMPLEMENTED_UNVERIFIED",
+      "capabilities": {
+        "discovery": "WORKING - limited",
+        "cross_reference": "HAS idAPIfootball mapping"
+      },
+      "note": "Client exists but marked DEPRECATED with 97.8% failure rate - needs reassessment"
+    }
+  },
+  
+  "RECOMMENDED_ARCHITECTURE": {
+    "primary_discovery": "api-football (current season fixtures)",
+    "fallback_discovery": "thesportsdb (cross-reference, historical)",
+    "primary_enrichment": "espn-football (free, unlimited, PRODUCTION_READY)",
+    "fallback_enrichment": "api-football (historical seasons only, requires plan upgrade for current)",
+    "id_mapping": "thesportsdb cross-reference (idAPIfootball, idESPN)"
+  },
+  
+  "NEXT_STEPS_FOR_PRODUCTION_GRADE_FOOTBALL": {
+    "immediate": [
+      "1. Keep ESPN as primary enrichment - already PRODUCTION_READY",
+      "2. Document API-Football as discovery + historical enrichment only",
+      "3. Re-enable TheSportsDB client for discovery/cross-reference (remove DEPRECATED flag)",
+      "4. Add TheSportsDB to CLIENT_REGISTRY for discovery fallback"
+    ],
+    "optional_upgrade": [
+      "5. Upgrade API-Football plan ($9/month) for current season enrichment",
+      "6. Upgrade TheSportsDB plan ($9/month) for V2 API with better stats"
+    ],
+    "code_organization": [
+      "7. Create provider capability matrix in code (discovery vs enrichment)",
+      "8. Implement provider fallback chain in enrichment.py",
+      "9. Add cross-reference ID resolution layer",
+      "10. Template this architecture for other sports (basketball, hockey, volleyball)"
+    ]
+  },
+  
+  "TESTS_EXECUTED": {
+    "request_identity_alignment": "5 passed",
+    "api_sports_family": "16 passed",
+    "total_focused": "21 passed",
+    "ruff_check": "E501 fixed in api_football.py"
+  },
+  
+  "FILES_CHANGED": [
+    "src/bet/db/schema.py - v14/v15 migrations",
+    "src/bet/db/schema.sql - team_form_evidence_history table",
+    "src/bet/api_clients/api_football.py - E501 fixes",
+    "docs/audits/sports-integrations/2026-06-11/INTEGRATION_MATRIX.md - updated api-football state",
+    "docs/audits/sports-integrations/2026-06-11/EVIDENCE_MANIFEST.json - updated evidence grade"
+  ]
+}

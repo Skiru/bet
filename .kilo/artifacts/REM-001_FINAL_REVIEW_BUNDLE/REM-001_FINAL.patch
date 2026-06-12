@@ -1,0 +1,1100 @@
+diff --git a/src/bet/api_clients/espn.py b/src/bet/api_clients/espn.py
+index 0ad23f2..3825268 100644
+--- a/src/bet/api_clients/espn.py
++++ b/src/bet/api_clients/espn.py
+@@ -8,14 +8,15 @@ Provides per-game statistics for:
+ Base URL: http://site.api.espn.com/apis/site/v2/sports/{sport}/{league}/
+ """
+ 
++import json
+ from dataclasses import asdict
+-from datetime import datetime, timezone
++from datetime import UTC, datetime
+ 
+ import requests
+ 
+-from .base_client import BaseAPIClient, APIError, APINotFoundError, CACHE_DIR
+-from .rate_limiter import RateLimiter
+ from .api_football import APIFixture, APIMatchStats
++from .base_client import APIError, APINotFoundError, BaseAPIClient
++from .rate_limiter import RateLimiter
+ 
+ # ESPN uses "soccer" not "football"
+ ESPN_SPORT_MAP = {
+@@ -304,6 +305,50 @@ def _get_stat_map(sport: str) -> dict[str, str]:
+     return _SPORT_STAT_MAPS.get(sport, {})
+ 
+ 
++def _parse_espn_datetime(value: str) -> datetime | None:
++    if not value:
++        return None
++    try:
++        normalized = value.replace("Z", "+00:00") if value.endswith("Z") else value
++        parsed = datetime.fromisoformat(normalized)
++    except (TypeError, ValueError):
++        return None
++    if parsed.tzinfo is None:
++        parsed = parsed.replace(tzinfo=UTC)
++    return parsed.astimezone(UTC)
++
++
++def _extract_competitor_team_id(competitor: dict) -> str:
++    team = competitor.get("team", {})
++    return str(competitor.get("id") or team.get("id") or "").strip()
++
++
++def _extract_competitor_team_name(competitor: dict) -> str:
++    team = competitor.get("team", {})
++    return str(team.get("displayName", "")).strip()
++
++
++def _extract_two_sided_competitors(competitors: list[dict]) -> dict[str, tuple[str, str]] | None:
++    sides: dict[str, tuple[str, str]] = {}
++    for index, competitor in enumerate(competitors):
++        side = competitor.get("homeAway")
++        if side not in ("home", "away"):
++            if index == 0:
++                side = "home"
++            elif index == 1:
++                side = "away"
++            else:
++                continue
++        participant_id = _extract_competitor_team_id(competitor)
++        participant_name = _extract_competitor_team_name(competitor)
++        if not participant_id or not participant_name:
++            continue
++        sides[side] = (participant_id, participant_name)
++    if "home" not in sides or "away" not in sides:
++        return None
++    return {"home": sides["home"], "away": sides["away"]}
++
++
+ def _is_game_finished(event: dict) -> bool:
+     """Determine if an ESPN event is finished.
+ 
+@@ -330,8 +375,8 @@ def _is_game_finished(event: dict) -> bool:
+     try:
+         game_date = datetime.fromisoformat(
+             event_date_str.rstrip("Z")
+-        ).replace(tzinfo=timezone.utc)
+-        is_past = game_date < datetime.now(timezone.utc)
++        ).replace(tzinfo=UTC)
++        is_past = game_date < datetime.now(UTC)
+     except (ValueError, TypeError):
+         return False
+ 
+@@ -471,19 +516,21 @@ class ESPNClient(BaseAPIClient):
+ 
+         fixtures = []
+         for event in data.get("events", []):
++            event_id = str(event.get("id", "")).strip()
++            if not event_id:
++                continue
++
+             competitions = event.get("competitions", [])
+             if not competitions:
+                 continue
+ 
+             comp = competitions[0]
+             competitors = comp.get("competitors", [])
+-            home_name = ""
+-            away_name = ""
+-            for c in competitors:
+-                if c.get("homeAway") == "home":
+-                    home_name = c.get("team", {}).get("displayName", "")
+-                else:
+-                    away_name = c.get("team", {}).get("displayName", "")
++            sides = _extract_two_sided_competitors(competitors)
++            if not sides:
++                continue
++            home_id, home_name = sides["home"]
++            away_id, away_name = sides["away"]
+ 
+             status = event.get("status", {})
+             status_name = "scheduled"
+@@ -494,13 +541,16 @@ class ESPNClient(BaseAPIClient):
+ 
+             season = event.get("season", {})
+             season_type = season.get("type", {})
+-            if isinstance(season_type, dict):
++            league_info = comp.get("league", {})
++            if isinstance(league_info, dict) and league_info.get("name"):
++                comp_name = league_info.get("name", self.league)
++            elif isinstance(season_type, dict):
+                 comp_name = season_type.get("name", self.league)
+             else:
+                 comp_name = season.get("slug", self.league)
+ 
+             fixture = APIFixture(
+-                external_id=str(event.get("id", "")),
++                external_id=event_id,
+                 source=self.api_name,
+                 sport=self.sport,
+                 competition_name=comp_name,
+@@ -508,6 +558,8 @@ class ESPNClient(BaseAPIClient):
+                 away_team_name=away_name,
+                 kickoff=event.get("date", ""),
+                 status=status_name,
++                home_participant_id=home_id,
++                away_participant_id=away_id,
+             )
+             fixtures.append(fixture)
+ 
+@@ -608,10 +660,12 @@ class ESPNClient(BaseAPIClient):
+ 
+         stats: dict[str, dict[str, float]] = {}
+         teams: dict[str, str] = {}
++        participant_ids: dict[str, str] = {}
+ 
+         for i, team_data in enumerate(teams_data):
+             team_info = team_data.get("team", {})
+             team_name = team_info.get("displayName", "")
++            participant_id = str(team_data.get("id") or team_info.get("id") or "").strip()
+             # Determine side from homeAway field or position
+             home_away = team_data.get("homeAway", "")
+             if home_away == "home":
+@@ -621,6 +675,7 @@ class ESPNClient(BaseAPIClient):
+             else:
+                 side = "home" if i == 0 else "away"
+             teams[side] = team_name
++            participant_ids[side] = participant_id
+ 
+             team_stats_raw = team_data.get("statistics", [])
+ 
+@@ -647,7 +702,12 @@ class ESPNClient(BaseAPIClient):
+                         except (ValueError, TypeError):
+                             pass
+ 
+-        if not teams.get("home") or not teams.get("away"):
++        if (
++            not teams.get("home")
++            or not teams.get("away")
++            or not participant_ids.get("home")
++            or not participant_ids.get("away")
++        ):
+             return []
+ 
+         result = [APIMatchStats(
+@@ -657,6 +717,8 @@ class ESPNClient(BaseAPIClient):
+             home_team_name=teams["home"],
+             away_team_name=teams["away"],
+             stats=stats,
++            home_participant_id=participant_ids["home"],
++            away_participant_id=participant_ids["away"],
+         )]
+ 
+         self._save_cache(cache_key, {"stats": [asdict(ms) for ms in result]})
+@@ -670,16 +732,28 @@ class ESPNClient(BaseAPIClient):
+ 
+         for stat_entry in team_stats_raw:
+             espn_name = stat_entry.get("name", "")
+-            display_value = stat_entry.get("displayValue", "0")
++            display_value = stat_entry.get("displayValue")
+ 
+             normalized_key = stat_map.get(espn_name)
+             if not normalized_key:
+                 continue
+ 
++            if display_value is None:
++                continue
++
++            if isinstance(display_value, str):
++                cleaned = display_value.replace("%", "").strip()
++                if not cleaned:
++                    continue
++            else:
++                cleaned = str(display_value).strip()
++                if not cleaned:
++                    continue
++
+             try:
+-                value = float(display_value.replace("%", "").strip() or "0")
++                value = float(cleaned)
+             except (ValueError, TypeError):
+-                value = 0.0
++                continue
+ 
+             if normalized_key not in stats:
+                 stats[normalized_key] = {}
+@@ -700,7 +774,7 @@ class ESPNClient(BaseAPIClient):
+ 
+         # Search across recent days to find this specific match
+         # Daily resolution for recent week, then every 3 days for history
+-        today = datetime.now(timezone.utc).date()
++        today = datetime.now(UTC).date()
+         days = list(range(0, 7)) + list(range(9, 46, 3))
+         dates_to_search = [today - timedelta(days=d) for d in days]
+ 
+@@ -843,9 +917,12 @@ class ESPNClient(BaseAPIClient):
+                 t = team_entry.get("team", team_entry)
+                 teams_list.append(t)
+ 
+-        # Fuzzy match: exact → contains → abbreviation
++        # Fail-closed matching: exact/abbr first, then constrained contains/location.
+         name_lower = team_name.lower()
+-        best_match = None
++        exact_matches = []
++        abbreviation_matches = []
++        contains_matches = []
++        location_matches = []
+ 
+         for t in teams_list:
+             display = t.get("displayName", "").lower()
+@@ -854,18 +931,38 @@ class ESPNClient(BaseAPIClient):
+             location = t.get("location", "").lower()
+ 
+             if display == name_lower or short == name_lower:
+-                best_match = t
+-                break
+-            if name_lower in display or display in name_lower:
+-                best_match = t
+-                break
+-            if name_lower in location or location in name_lower:
+-                best_match = t
+-            if abbr == name_lower and not best_match:
+-                best_match = t
+-
+-        if best_match:
+-            tid = str(best_match.get("id", ""))
++                exact_matches.append(t)
++                continue
++            if abbr == name_lower:
++                abbreviation_matches.append(t)
++                continue
++            if len(name_lower) >= 4 and (
++                name_lower in display
++                or display in name_lower
++                or name_lower in short
++                or short in name_lower
++            ):
++                contains_matches.append(t)
++                continue
++            if len(name_lower) >= 4 and (name_lower in location or location in name_lower):
++                location_matches.append(t)
++
++        for bucket in (
++            exact_matches,
++            abbreviation_matches,
++            contains_matches,
++            location_matches,
++        ):
++            if not bucket:
++                continue
++            ids = {
++                str(match.get("id", "")).strip()
++                for match in bucket
++                if str(match.get("id", "")).strip()
++            }
++            if len(ids) != 1:
++                return None
++            tid = ids.pop()
+             self._save_cache(cache_key, {"team_id": tid})
+             return tid
+ 
+@@ -959,13 +1056,27 @@ class ESPNClient(BaseAPIClient):
+ 
+         return None
+ 
+-    def get_team_last_fixtures(self, team_id: str, last_n: int = 10) -> list[dict]:
++    def get_team_last_fixtures(
++        self,
++        team_id: str,
++        last_n: int = 10,
++        analysis_cutoff_at: str | None = None,
++        exclude_event_ids: set[str] | None = None,
++    ) -> list[dict]:
+         """Get last N completed fixtures for a team via /teams/{id}/schedule."""
+-        cache_key = f"espn/{self.sport}/{self.league}/team_fixtures/{team_id}"
++        excluded_ids = {
++            str(event_id).strip() for event_id in (exclude_event_ids or set()) if str(event_id).strip()
++        }
++        cache_key = (
++            f"espn/{self.sport}/{self.league}/team_fixtures/{team_id}/"
++            f"{analysis_cutoff_at or 'none'}/{','.join(sorted(excluded_ids)) or 'none'}/{last_n}"
++        )
+         cached = self._check_cache(cache_key, ttl_hours=12)
+         if cached:
+             return cached.get("fixtures", [])
+ 
++        cutoff_dt = _parse_espn_datetime(analysis_cutoff_at) if analysis_cutoff_at else None
++
+         # Individual sports: scan scoreboard for athlete matches
+         if self.sport == "tennis":
+             return self._get_athlete_recent_matches(team_id, last_n)
+@@ -978,6 +1089,17 @@ class ESPNClient(BaseAPIClient):
+         events = data.get("events", [])
+         finished = []
+         for event in events:
++            event_id = str(event.get("id", "")).strip()
++            if not event_id or event_id in excluded_ids:
++                continue
++
++            event_date = str(event.get("date", "")).strip()
++            event_dt = _parse_espn_datetime(event_date)
++            if event_dt is None:
++                continue
++            if cutoff_dt is not None and not event_dt < cutoff_dt:
++                continue
++
+             if not _is_game_finished(event):
+                 continue
+ 
+@@ -987,26 +1109,28 @@ class ESPNClient(BaseAPIClient):
+ 
+             comp = competitions[0]
+             competitors = comp.get("competitors", [])
+-            home_name = ""
+-            away_name = ""
+-            score = ""
++            sides = _extract_two_sided_competitors(competitors)
++            if not sides:
++                continue
++            home_id, home_name = sides["home"]
++            away_id, away_name = sides["away"]
++            home_score = ""
++            away_score = ""
+             for c in competitors:
+-                team_info = c.get("team", {})
+-                c_name = team_info.get("displayName", "")
+                 c_score = c.get("score", "0")
+                 if c.get("homeAway") == "home":
+-                    home_name = c_name
+-                    score = f"{c_score}"
+-                else:
+-                    away_name = c_name
+-                    score = f"{score}-{c_score}"
++                    home_score = str(c_score)
++                elif c.get("homeAway") == "away":
++                    away_score = str(c_score)
+ 
+             finished.append({
+-                "id": event.get("id"),
+-                "date": event.get("date", ""),
++                "id": event_id,
++                "date": event_date,
+                 "home_team": home_name,
+                 "away_team": away_name,
+-                "score": score,
++                "score": f"{home_score}-{away_score}" if home_score or away_score else "",
++                "home_participant_id": home_id,
++                "away_participant_id": away_id,
+             })
+ 
+         # Sort by date descending (most recent first)
+@@ -1161,7 +1285,7 @@ class ESPNClient(BaseAPIClient):
+ 
+         matches = []
+         seen_ids: set[str] = set()
+-        today = datetime.now(timezone.utc).date()
++        today = datetime.now(UTC).date()
+ 
+         # Scan recent 4 days daily + past 21 days every 4 days for history
+         # Reduced from 20->9 dates per player to avoid ESPN budget bleed
+@@ -1497,7 +1621,7 @@ class ESPNClient(BaseAPIClient):
+             "win_pct": data.get("value", 0.0),
+             "stats": stats_dict,
+         }
+-        
++
+         self._save_cache(cache_key, {"record": record})
+         return record
+ 
+@@ -1625,20 +1749,20 @@ def get_espn_league_for_competition(competition_name: str) -> str | None:
+     if not competition_name:
+         return None
+     name_lower = competition_name.lower().strip()
+-    
++
+     # 1. Exact match
+     if name_lower in COMPETITION_TO_ESPN_LEAGUE:
+         return COMPETITION_TO_ESPN_LEAGUE[name_lower]
+-        
++
+     # 2 & 3. Substring match
+     matches = []
+     for key, code in COMPETITION_TO_ESPN_LEAGUE.items():
+         if key in name_lower or name_lower in key:
+             matches.append((key, code))
+-            
++
+     if matches:
+         # Sort by length descending, pick the longest match
+         matches.sort(key=lambda x: len(x[0]), reverse=True)
+         return matches[0][1]
+-        
++
+     return None
+diff --git a/src/bet/db/models.py b/src/bet/db/models.py
+index 62276a6..e080ab9 100644
+--- a/src/bet/db/models.py
++++ b/src/bet/db/models.py
+@@ -102,6 +102,9 @@ class TeamForm:
+     trend: str = ""
+     updated_at: str = ""
+     source: str = ""
++    # REM-001B: Evidence linkage for contract compliance
++    source_event_ids: list[str] = field(default_factory=list)  # Provider event IDs used for L10
++    evidence_hash: str = ""  # SHA-256 hash of the evidence bundle
+ 
+ 
+ @dataclass
+diff --git a/src/bet/db/repositories.py b/src/bet/db/repositories.py
+index 0e89d7b..36908e3 100644
+--- a/src/bet/db/repositories.py
++++ b/src/bet/db/repositories.py
+@@ -817,8 +817,8 @@ class StatsRepo:
+             self.conn.execute(
+                 "INSERT INTO team_form "
+                 "(team_id, sport_id, stat_key, l10_values, l5_values, l10_avg, l5_avg, "
+-                "h2h_values, h2h_opponent_id, trend, updated_at, source) "
+-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
++                "h2h_values, h2h_opponent_id, trend, updated_at, source, source_event_ids, evidence_hash) "
++                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                 (
+                     form.team_id,
+                     form.sport_id,
+@@ -832,6 +832,8 @@ class StatsRepo:
+                     form.trend,
+                     form.updated_at or _now(),
+                     form.source,
++                    json.dumps(form.source_event_ids) if hasattr(form, 'source_event_ids') else "[]",
++                    form.evidence_hash if hasattr(form, 'evidence_hash') else "",
+                 ),
+             )
+             self.conn.execute("RELEASE save_form")
+diff --git a/src/bet/db/schema.py b/src/bet/db/schema.py
+index 92ec9c4..ef313e7 100644
+--- a/src/bet/db/schema.py
++++ b/src/bet/db/schema.py
+@@ -4,7 +4,7 @@ import sqlite3
+ from pathlib import Path
+ 
+ SCHEMA_SQL = Path(__file__).parent / "schema.sql"
+-SCHEMA_VERSION = 13
++SCHEMA_VERSION = 14
+ 
+ 
+ def init_db(conn: sqlite3.Connection) -> None:
+@@ -182,9 +182,23 @@ def migrate(conn: sqlite3.Connection, from_version: int, to_version: int) -> Non
+             conn.executescript(migration_path.read_text(encoding="utf-8"))
+ 
+     if from_version < 13:
+-        # v13: canonical market matrix tables
++        # v13: canonical market Matrix tables
+         migration_path = Path(__file__).parent / "migrations" / "013_market_matrix_tables.sql"
+         if migration_path.exists():
+             conn.executescript(migration_path.read_text(encoding="utf-8"))
+ 
++    if from_version < 14:
++        # v14: Add evidence linkage to team_form (REM-001B)
++        # Only run if team_form table exists (fresh DBs get columns from schema.sql)
++        try:
++            conn.execute("SELECT 1 FROM team_form LIMIT 1")
++            has_team_form = True
++        except sqlite3.OperationalError:
++            has_team_form = False
++
++        if has_team_form:
++            migration_path = Path(__file__).parent / "migrations" / "014_team_form_evidence.sql"
++            if migration_path.exists():
++                conn.executescript(migration_path.read_text(encoding="utf-8"))
++
+     conn.commit()
+diff --git a/src/bet/db/schema.sql b/src/bet/db/schema.sql
+index 532beac..4077733 100644
+--- a/src/bet/db/schema.sql
++++ b/src/bet/db/schema.sql
+@@ -525,6 +525,9 @@ CREATE TABLE IF NOT EXISTS team_form (
+     trend TEXT,
+     updated_at TEXT NOT NULL,
+     source TEXT,
++    -- REM-001B: Evidence linkage for contract compliance
++    source_event_ids TEXT NOT NULL DEFAULT '[]',  -- JSON array of provider event IDs
++    evidence_hash TEXT NOT NULL DEFAULT '',       -- SHA-256 hash of evidence bundle
+     UNIQUE(team_id, stat_key, h2h_opponent_id)
+ );
+ CREATE TABLE IF NOT EXISTS team_rosters (
+diff --git a/src/bet/stats/enrichment.py b/src/bet/stats/enrichment.py
+index 5e23bf2..7b869c8 100644
+--- a/src/bet/stats/enrichment.py
++++ b/src/bet/stats/enrichment.py
+@@ -4,9 +4,9 @@ API clients first, scraping fallback. Updates team_form table with
+ computed L10/L5 averages and trend.
+ """
+ 
+-import asyncio
++import hashlib
+ import logging
+-from datetime import datetime, timezone
++from datetime import UTC, datetime
+ 
+ from bet.db.models import Fixture, TeamForm
+ from bet.db.repositories import (
+@@ -14,6 +14,7 @@ from bet.db.repositories import (
+     SportRepo,
+     StatsRepo,
+     TeamRepo,
++    TeamSourceAliasRepo,
+ )
+ from bet.stats.market_ranking import SPORT_STAT_KEYS
+ 
+@@ -43,9 +44,22 @@ async def enrich_fixtures(
+ 
+     # Build unique set of (team_id, sport_id) pairs
+     team_sport_pairs: set[tuple[int, int]] = set()
++    team_contexts: dict[tuple[int, int], list[dict]] = {}
+     for fix in fixtures:
+-        team_sport_pairs.add((fix.home_team_id, fix.sport_id))
+-        team_sport_pairs.add((fix.away_team_id, fix.sport_id))
++        home_key = (fix.home_team_id, fix.sport_id)
++        away_key = (fix.away_team_id, fix.sport_id)
++        team_sport_pairs.add(home_key)
++        team_sport_pairs.add(away_key)
++        shared_context = {
++            "fixture_id": fix.id,
++            "fixture_external_id": fix.external_id,
++            "kickoff": fix.kickoff,
++            "competition_id": fix.competition_id,
++            "home_team_id": fix.home_team_id,
++            "away_team_id": fix.away_team_id,
++        }
++        team_contexts.setdefault(home_key, []).append({**shared_context, "team_side": "home"})
++        team_contexts.setdefault(away_key, []).append({**shared_context, "team_side": "away"})
+ 
+     # Check staleness and enrich
+     tasks = []
+@@ -73,7 +87,12 @@ async def enrich_fixtures(
+             continue
+ 
+         tasks.append(_enrich_team(
+-            team, sport_obj.name, stat_keys, db_conn, playwright_pool
++            team,
++            sport_obj.name,
++            stat_keys,
++            db_conn,
++            playwright_pool,
++            fixture_contexts=team_contexts.get((team.id, sport_id), []),
+         ))
+ 
+     if tasks:
+@@ -95,7 +114,7 @@ async def enrich_fixtures(
+ 
+ 
+ async def _enrich_team(
+-    team, sport: str, stat_keys: list[str], db_conn, pool
++    team, sport: str, stat_keys: list[str], db_conn, pool, fixture_contexts: list[dict] | None = None
+ ) -> bool:
+     """Fetch and store stats for a single team. Returns True if data was fetched."""
+     stats_repo = StatsRepo(db_conn)
+@@ -108,7 +127,7 @@ async def _enrich_team(
+ 
+     # Try API — run synchronously to avoid SQLite threading issues
+     # (sqlite3 connections cannot be shared across threads)
+-    api_fetched = _try_api_fetch(team, sport, stat_keys, db_conn)
++    api_fetched = _try_api_fetch(team, sport, stat_keys, db_conn, fixture_contexts=fixture_contexts)
+ 
+     if api_fetched:
+         fetched = True
+@@ -132,7 +151,7 @@ async def _enrich_team(
+             l10_avg=form["l10_avg"],
+             l5_avg=form["l5_avg"],
+             trend=form["trend"],
+-            updated_at=datetime.now(timezone.utc).isoformat(),
++            updated_at=datetime.now(UTC).isoformat(),
+             source="computed",
+         )
+         stats_repo.save_team_form(team_form)
+@@ -141,7 +160,13 @@ async def _enrich_team(
+     return fetched
+ 
+ 
+-def _try_api_fetch(team, sport: str, stat_keys: list[str], db_conn) -> bool:
++def _try_api_fetch(
++    team,
++    sport: str,
++    stat_keys: list[str],
++    db_conn,
++    fixture_contexts: list[dict] | None = None,
++) -> bool:
+     """Try to fetch stats from sport-specific API client.
+ 
+     Strategy: ESPN first (free, unlimited), then API-Sports as fallback.
+@@ -149,8 +174,18 @@ def _try_api_fetch(team, sport: str, stat_keys: list[str], db_conn) -> bool:
+     aggregates per-stat values, and saves directly to team_form.
+     Checks match_stats table first to avoid redundant API calls.
+     """
++    if sport == "football" and _has_multiple_fixture_contexts(fixture_contexts or []):
++        logger.debug("Skipping %s due to ambiguous multi-fixture cutoff context", team.name)
++        return False
++
+     # Try ESPN first (free, unlimited)
+-    espn_result = _try_espn_fetch(team, sport, stat_keys, db_conn)
++    espn_result = _try_espn_fetch(
++        team,
++        sport,
++        stat_keys,
++        db_conn,
++        fixture_contexts=fixture_contexts,
++    )
+     if espn_result:
+         return True
+ 
+@@ -158,31 +193,38 @@ def _try_api_fetch(team, sport: str, stat_keys: list[str], db_conn) -> bool:
+     return _try_api_sports_fetch(team, sport, stat_keys, db_conn)
+ 
+ 
+-def _try_espn_fetch(team, sport: str, stat_keys: list[str], db_conn) -> bool:
++def _try_espn_fetch(
++    team,
++    sport: str,
++    stat_keys: list[str],
++    db_conn,
++    fixture_contexts: list[dict] | None = None,
++) -> bool:
+     """Try ESPN as primary stat source. Returns True if successful."""
+     from bet.api_clients import API_ESPN
+-    from bet.api_clients.espn import ESPNClient, get_espn_league_for_competition, ESPN_LEAGUES
++    from bet.api_clients.espn import (
++        ESPN_LEAGUES,
++        ESPNClient,
++        get_espn_league_for_competition,
++    )
+ 
+     espn_client_name = API_ESPN.get(sport)
+     if not espn_client_name:
+         return False
+ 
+     try:
+-        from bet.api_clients import get_client, RateLimiter
++        from bet.api_clients import RateLimiter
+ 
+-        # For football, we need to determine the league
++        # For football, we need an exact fixture context for cutoff-safe identity.
+         league = None
++        fixture_identity = None
+         if sport == "football":
+-            # Try to get competition from team's fixtures
+-            row = db_conn.execute(
+-                "SELECT c.name FROM competitions c "
+-                "JOIN fixtures f ON f.competition_id = c.id "
+-                "WHERE (f.home_team_id = ? OR f.away_team_id = ?) "
+-                "ORDER BY f.kickoff DESC LIMIT 1",
+-                (team.id, team.id),
+-            ).fetchone()
++            fixture_context = _select_single_fixture_context(fixture_contexts or [])
++            if not fixture_context:
++                return False
++            row = _get_fixture_identity_row(db_conn, fixture_context.get("fixture_id"))
+             if row:
+-                league = get_espn_league_for_competition(row["name"] if isinstance(row, dict) else row[0])
++                league = get_espn_league_for_competition(row["competition_name"])
+             if not league:
+                 return False
+         else:
+@@ -197,22 +239,45 @@ def _try_espn_fetch(team, sport: str, stat_keys: list[str], db_conn) -> bool:
+         if not client.is_available():
+             return False
+ 
+-        api_team_id = client.resolve_team_id(team.name)
+-        if not api_team_id:
+-            return False
++        if sport == "football":
++            fixture_identity = _resolve_espn_fixture_identity(
++                client=client,
++                db_conn=db_conn,
++                fixture_context=fixture_context,
++            )
++            if not fixture_identity:
++                return False
++            api_team_id = fixture_identity["team_provider_ids"].get(team.id)
++            if not api_team_id:
++                return False
++            last_fixtures = client.get_team_last_fixtures(
++                api_team_id,
++                last_n=10,
++                analysis_cutoff_at=fixture_identity["target_start_at"],
++                exclude_event_ids={fixture_identity["target_source_event_id"]},
++            )
++        else:
++            api_team_id = client.resolve_team_id(team.name)
++            if not api_team_id:
++                return False
++            last_fixtures = client.get_team_last_fixtures(api_team_id, last_n=10)
+ 
+-        last_fixtures = client.get_team_last_fixtures(api_team_id, last_n=10)
+         if not last_fixtures:
+             return False
+ 
+         # Aggregate stat values per key from last fixtures
+         stat_values: dict[str, list[float]] = {k: [] for k in stat_keys}
++        # REM-001B: Track source event IDs for evidence linkage
++        source_event_ids: list[str] = []
+ 
+         for fix_data in last_fixtures:
+             fix_id = str(fix_data.get("id", ""))
+             if not fix_id:
+                 continue
+ 
++            # REM-001B: Track source event ID
++            source_event_ids.append(fix_id)
++
+             # Check if stats already exist in match_stats table
+             existing = db_conn.execute(
+                 "SELECT stat_key, stat_value FROM match_stats WHERE fixture_id = ("
+@@ -233,13 +298,30 @@ def _try_espn_fetch(team, sport: str, stat_keys: list[str], db_conn) -> bool:
+             if not fix_stats:
+                 continue
+             for ms in fix_stats:
++                team_side = None
++                if sport == "football":
++                    team_side = _select_espn_stat_side(str(api_team_id), ms)
++                    if team_side is None:
++                        logger.debug(
++                            "Skipping ESPN stat for %s fixture=%s due to provider-side mismatch home=%s away=%s requested=%s",
++                            team.name,
++                            fix_id,
++                            getattr(ms, "home_participant_id", ""),
++                            getattr(ms, "away_participant_id", ""),
++                            api_team_id,
++                        )
++                        continue
+                 for stat_key, sides in ms.stats.items():
+                     if stat_key not in stat_keys:
+                         continue
+-                    if _is_home_team(team.name, ms.home_team_name):
+-                        val = sides.get("home", 0)
++                    if team_side == "home":
++                        val = sides.get("home")
++                    elif team_side == "away":
++                        val = sides.get("away")
++                    elif _is_home_team(team.name, ms.home_team_name):
++                        val = sides.get("home")
+                     else:
+-                        val = sides.get("away", 0)
++                        val = sides.get("away")
+                     if isinstance(val, (int, float)):
+                         stat_values[stat_key].append(float(val))
+ 
+@@ -249,7 +331,12 @@ def _try_espn_fetch(team, sport: str, stat_keys: list[str], db_conn) -> bool:
+         stats_repo = StatsRepo(db_conn)
+         sport_repo = SportRepo(db_conn)
+         sport_obj = sport_repo.get_by_name(sport)
+-        now = datetime.now(timezone.utc).isoformat()
++        now = datetime.now(UTC).isoformat()
++
++        # REM-001B: Compute evidence hash from source event IDs
++        import json
++        evidence_data = json.dumps(sorted(source_event_ids), sort_keys=True)
++        evidence_hash = hashlib.sha256(evidence_data.encode()).hexdigest()[:16]
+ 
+         for stat_key, values in stat_values.items():
+             if not values:
+@@ -268,6 +355,8 @@ def _try_espn_fetch(team, sport: str, stat_keys: list[str], db_conn) -> bool:
+                 trend=form["trend"],
+                 updated_at=now,
+                 source=f"espn-{sport}",
++                source_event_ids=source_event_ids[:10],  # REM-001B: Link to source events
++                evidence_hash=evidence_hash,  # REM-001B: Evidence integrity
+             )
+             stats_repo.save_team_form(team_form)
+ 
+@@ -351,7 +440,7 @@ def _try_api_sports_fetch(team, sport: str, stat_keys: list[str], db_conn) -> bo
+         stats_repo = StatsRepo(db_conn)
+         sport_repo = SportRepo(db_conn)
+         sport_obj = sport_repo.get_by_name(sport)
+-        now = datetime.now(timezone.utc).isoformat()
++        now = datetime.now(UTC).isoformat()
+ 
+         for stat_key, values in stat_values.items():
+             if not values:
+@@ -426,6 +515,170 @@ def _sport_id_to_name(sport_id: int, sport_repo: SportRepo) -> str:
+     return ""
+ 
+ 
++def _has_multiple_fixture_contexts(fixture_contexts: list[dict]) -> bool:
++    if not fixture_contexts:
++        return False
++    unique_contexts = {
++        (
++            ctx.get("fixture_id"),
++            ctx.get("fixture_external_id") or "",
++            ctx.get("kickoff") or "",
++        )
++        for ctx in fixture_contexts
++        if ctx.get("fixture_id") is not None
++    }
++    return len(unique_contexts) > 1
++
++
++def _select_single_fixture_context(fixture_contexts: list[dict]) -> dict | None:
++    if not fixture_contexts or _has_multiple_fixture_contexts(fixture_contexts):
++        return None
++    return fixture_contexts[0]
++
++
++def _parse_snapshot_datetime(value: str) -> datetime | None:
++    if not value:
++        return None
++    try:
++        normalized = value.replace("Z", "+00:00") if value.endswith("Z") else value
++        parsed = datetime.fromisoformat(normalized)
++    except (TypeError, ValueError):
++        return None
++    if parsed.tzinfo is None:
++        parsed = parsed.replace(tzinfo=UTC)
++    return parsed.astimezone(UTC)
++
++
++def _get_fixture_identity_row(db_conn, fixture_id: int | None):
++    if fixture_id is None:
++        return None
++    return db_conn.execute(
++        "SELECT f.id AS fixture_id, f.external_id, f.kickoff, f.sport_id, "
++        "f.home_team_id, f.away_team_id, ht.name AS home_team_name, at.name AS away_team_name, "
++        "COALESCE(c.name, '') AS competition_name "
++        "FROM fixtures f "
++        "JOIN teams ht ON ht.id = f.home_team_id "
++        "JOIN teams at ON at.id = f.away_team_id "
++        "LEFT JOIN competitions c ON c.id = f.competition_id "
++        "WHERE f.id = ?",
++        (fixture_id,),
++    ).fetchone()
++
++
++def _team_name_matches_expected(team, source_name: str) -> bool:
++    from bet.utils import normalize_team_name
++
++    source = (source_name or "").strip()
++    if not source:
++        return False
++    source_norm = normalize_team_name(source)
++    for candidate in [team.name, *(team.aliases or [])]:
++        candidate_value = (candidate or "").strip()
++        if not candidate_value:
++            continue
++        if candidate_value.casefold() == source.casefold():
++            return True
++        if normalize_team_name(candidate_value) == source_norm:
++            return True
++    return False
++
++
++def _resolve_espn_fixture_identity(*, client, db_conn, fixture_context: dict) -> dict | None:
++    row = _get_fixture_identity_row(db_conn, fixture_context.get("fixture_id"))
++    if not row:
++        return None
++
++    target_source_event_id = str(row["external_id"] or "").strip()
++    target_start_at = str(row["kickoff"] or "").strip()
++    if not target_source_event_id or not target_start_at:
++        return None
++
++    target_start_dt = _parse_snapshot_datetime(target_start_at)
++    if target_start_dt is None:
++        return None
++
++    target_date = target_start_at[:10]
++    source_fixture = next(
++        (
++            fixture
++            for fixture in client.get_fixtures(target_date)
++            if fixture.external_id == target_source_event_id
++        ),
++        None,
++    )
++    if source_fixture is None:
++        return None
++
++    source_start_dt = _parse_snapshot_datetime(source_fixture.kickoff)
++    if source_start_dt is None or source_start_dt != target_start_dt:
++        return None
++    if not source_fixture.home_participant_id or not source_fixture.away_participant_id:
++        return None
++
++    team_repo = TeamRepo(db_conn)
++    home_team = team_repo.get_by_id(row["home_team_id"])
++    away_team = team_repo.get_by_id(row["away_team_id"])
++    if not home_team or not away_team:
++        return None
++
++    if not _team_name_matches_expected(home_team, source_fixture.home_team_name):
++        return None
++    if not _team_name_matches_expected(away_team, source_fixture.away_team_name):
++        return None
++
++    competition_hint = row["competition_name"] or ""
++    alias_repo = TeamSourceAliasRepo(db_conn)
++    cached_home_id = alias_repo.get_verified_provider_team_id(home_team.id, client.api_name, competition_hint)
++    cached_away_id = alias_repo.get_verified_provider_team_id(away_team.id, client.api_name, competition_hint)
++    if cached_home_id and cached_home_id != source_fixture.home_participant_id:
++        return None
++    if cached_away_id and cached_away_id != source_fixture.away_participant_id:
++        return None
++
++    alias_repo.upsert_alias(
++        team_id=home_team.id,
++        sport_id=row["sport_id"],
++        source=client.api_name,
++        provider_team_name=source_fixture.home_team_name,
++        provider_team_id=source_fixture.home_participant_id,
++        provider_competition_hint=competition_hint,
++        confidence=1.0,
++        status="verified",
++    )
++    alias_repo.upsert_alias(
++        team_id=away_team.id,
++        sport_id=row["sport_id"],
++        source=client.api_name,
++        provider_team_name=source_fixture.away_team_name,
++        provider_team_id=source_fixture.away_participant_id,
++        provider_competition_hint=competition_hint,
++        confidence=1.0,
++        status="verified",
++    )
++
++    return {
++        "target_source_event_id": target_source_event_id,
++        "target_start_at": source_fixture.kickoff,
++        "team_provider_ids": {
++            home_team.id: source_fixture.home_participant_id,
++            away_team.id: source_fixture.away_participant_id,
++        },
++    }
++
++
++def _select_espn_stat_side(provider_team_id: str, match_stats) -> str | None:
++    requested_id = str(provider_team_id or "").strip()
++    home_id = str(getattr(match_stats, "home_participant_id", "") or "").strip()
++    away_id = str(getattr(match_stats, "away_participant_id", "") or "").strip()
++    if not requested_id or not home_id or not away_id:
++        return None
++    home_match = requested_id == home_id
++    away_match = requested_id == away_id
++    if home_match == away_match:
++        return None
++    return "home" if home_match else "away"
++
++
+ def _is_home_team(team_name: str, home_team_name: str) -> bool:
+     """Check if team_name matches the home team, using equality first then containment."""
+     t = team_name.lower().strip()
+diff --git a/tests/scrapers/test_espn_client.py b/tests/scrapers/test_espn_client.py
+index 755910a..94be745 100644
+--- a/tests/scrapers/test_espn_client.py
++++ b/tests/scrapers/test_espn_client.py
+@@ -541,3 +541,115 @@ def test_enrich_fixtures_espn_skips_neither_side_and_both_side_matches(
+     assert result["fetched"] == 0
+     assert result["failed"] == 2
+     assert count == 0
++
++
++def test_enrich_fixtures_persists_source_event_ids_and_evidence_hash(
++    db_with_sports, monkeypatch, isolated_cache_dir,
++):
++    """REM-001B: Verify source_event_ids and evidence_hash are persisted."""
++    football = SportRepo(db_with_sports).get_by_name("football")
++    team_repo = TeamRepo(db_with_sports)
++    fixture_repo = FixtureRepo(db_with_sports)
++    competition_repo = CompetitionRepo(db_with_sports)
++
++    crystal_palace = team_repo.find_or_create("Crystal Palace", football.id)
++    arsenal = team_repo.find_or_create("Arsenal", football.id)
++    competition_id = competition_repo.find_or_create(
++        "Premier League", football.id, season="2026"
++    )
++    fixture = Fixture(
++        id=None,
++        sport_id=football.id,
++        competition_id=competition_id,
++        home_team_id=crystal_palace.id,
++        away_team_id=arsenal.id,
++        kickoff="2026-05-24T15:00:00+00:00",
++        status="scheduled",
++        external_id="740968",
++        source="espn-football",
++    )
++    fixture.id = fixture_repo.upsert(fixture)
++    db_with_sports.commit()
++
++    monkeypatch.setattr(
++        ESPNClient,
++        "get_fixtures",
++        lambda self, date: [
++            APIFixture(
++                external_id="740968",
++                source="espn-football",
++                sport="football",
++                competition_name="English Premier League",
++                home_team_name="Crystal Palace",
++                away_team_name="Arsenal",
++                kickoff="2026-05-24T15:00:00Z",
++                status="STATUS_SCHEDULED",
++                home_participant_id="384",
++                away_participant_id="359",
++            )
++        ],
++    )
++
++    def fake_last_fixtures_with_ids(
++        self, team_id, last_n=10, analysis_cutoff_at=None, exclude_event_ids=None
++    ):
++        # Return fixtures with IDs for evidence tracking
++        return [
++            {"id": "event-001", "date": "2026-05-17T15:00:00Z"},
++            {"id": "event-002", "date": "2026-05-10T15:00:00Z"},
++        ]
++
++    monkeypatch.setattr(ESPNClient, "get_team_last_fixtures", fake_last_fixtures_with_ids)
++
++    def fake_stats_with_ids(self, fixture_id: str):
++        return [
++            APIMatchStats(
++                external_id=fixture_id,
++                source="espn-football",
++                sport="football",
++                home_team_name="Home",
++                away_team_name="Away",
++                stats={"corners": {"home": 5.0, "away": 3.0}},
++                home_participant_id="384",
++                away_participant_id="359",
++            )
++        ]
++
++    monkeypatch.setattr(ESPNClient, "get_fixture_stats", fake_stats_with_ids)
++
++    # Mock API-Sports to not interfere
++    from bet.api_clients import api_football
++
++    monkeypatch.setattr(
++        api_football.APIFootballClient, "resolve_team_id", lambda self, name: None
++    )
++
++    result = asyncio.run(enrich_fixtures([fixture], db_with_sports, max_age_hours=0))
++
++    assert result["fetched"] == 2
++
++    # Verify source_event_ids and evidence_hash are persisted
++    row = db_with_sports.execute(
++        "SELECT source_event_ids, evidence_hash FROM team_form "
++        "WHERE team_id = ? AND stat_key = 'corners'",
++        (crystal_palace.id,),
++    ).fetchone()
++
++    assert row is not None
++    source_event_ids = json.loads(row[0])
++    evidence_hash = row[1]
++
++    # Verify source event IDs are tracked
++    assert len(source_event_ids) == 2
++    assert "event-001" in source_event_ids
++    assert "event-002" in source_event_ids
++
++    # Verify evidence hash is computed (non-empty)
++    assert len(evidence_hash) == 16
++    assert evidence_hash != ""
++
++    # Verify hash is deterministic (same inputs = same hash)
++    import hashlib
++    expected_data = json.dumps(sorted(["event-001", "event-002"]), sort_keys=True)
++    expected_hash = hashlib.sha256(expected_data.encode()).hexdigest()[:16]
++    assert evidence_hash == expected_hash

@@ -102,6 +102,8 @@ class TeamForm:
     trend: str = ""
     updated_at: str = ""
     source: str = ""
+    source_event_ids: list[str] = field(default_factory=list)  # Namespaced source event refs used by the projection
+    evidence_hash: str = ""  # Full SHA-256 of the replayable evidence bundle manifest
 
 
 @dataclass

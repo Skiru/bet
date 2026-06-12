@@ -1,0 +1,342 @@
+{
+  "all_recent_form_before_target": true,
+  "analysis_cutoff_at": "2026-05-24T15:00Z",
+  "bundle_id": "32f075eb12a4a6aae53ca9e10c1e222359e45fa99a47a22b6115cb4843f3def0",
+  "bundle_ids": [
+    "32f075eb12a4a6aae53ca9e10c1e222359e45fa99a47a22b6115cb4843f3def0",
+    "c814afd5d5a0d40355cd33a033d97c161284d03c36de7e395459f185568b8c3f"
+  ],
+  "canonical_external_id": "api-football-shadow-740968",
+  "canonical_fixture_id": 1,
+  "competition": "2025-26-english-premier-league",
+  "live_counts": {
+    "cached": 0,
+    "failed": 0,
+    "fetched": 2
+  },
+  "live_team_form_rows": 20,
+  "object_hashes": [
+    "0f85c3d9b07a9698e2fe2587eb84d909795a11bfdf41202a588bd0eb0351a7e9",
+    "25b5a2015c288a136837c02a99e0623566cb41c731e775e40925eb8e45753485",
+    "2f8c384cc0890276868cb24c8fe675c5a721bdb1c2180129e74124e6a2e87d7e",
+    "38bc4433701b0a335823c5038056f70225aa0860ecbc04ec87de1bc984064e26",
+    "45db2eae72edc5fef265912fd21ce07c3e0455112ff7e46b4b7d5a2e3413a69f",
+    "461a6f2f96a0d0cce3862cdaec48ea3a4c11379f87ab0b0c635799539b27f507",
+    "57ecbf37f59e697abb383a0de639d3764d787aca9b7e6980bf5706b8aab349e8",
+    "5d4162ffc5f0be22a67a4d862e9631cfee2741b093b39da5c117c654802d1cdf",
+    "81babb7efcd41433aef44e823d3d74a725a0ab8b5e9551a377c28494e5370e64",
+    "90c09812932a1744897260681c722dbaad2fc63cdd98051b0b66f247ba1a909d",
+    "9d026d3a0a4bf6cea7d3e7c0f31582a8634fa8edec1a9dd9305eb10a3f729db7",
+    "a11ed9e09f9256181d5eb573b2bd82b8d3a19a3dee97195bc886568a8d73219c",
+    "a5e33f5be6bbcbe8d4308279d6d3c73f27874c3a68d7dd4102fcf0365bae2b5f",
+    "aabd9e2c3804d510b906d6cb45eb3ffd5e0ce3aa12af309427974aa014a609d0",
+    "ad9aa55f2484d1b9125b28847993d54eaa0636e3bd2acc1a770971e017868b97",
+    "b5d0fd37e330a14bffdf1d2bfc29133fc7c51887c15c89c35ed1219fb8aa2def",
+    "bcd4a1e690566f3b2f5154b8614b62fc1a1347c81b1a1333f1419e69ee0464bb",
+    "c2f8bc8e640bf402bfac5071045f5711b4715b42209a3a6adaab404616fcb15f",
+    "daed5d882864328d8d0dd331b90ad087af0a30eaae06144c58cce66c50395dff",
+    "ddf9524a99e9f32564daf01adef37a09e7a5c463c8a38ff6ca1ec7eb3278dd38",
+    "e1065345e1394872ad76f484895674865a917fb0edb5e995005729109d3ebf5d",
+    "f8575a48717bfc752ba7af2670d7d747147425df904e1a3932016819d2938686",
+    "fa93d592caf95063f542e0a548c4af81e68aa19aa4691bd34b8c4ac5579df42b"
+  ],
+  "recent_form": {
+    "359": [
+      {
+        "event_id": "740956",
+        "reason": "accepted_pre_cutoff_finished",
+        "start_at": "2026-05-18T19:00Z"
+      },
+      {
+        "event_id": "740955",
+        "reason": "accepted_pre_cutoff_finished",
+        "start_at": "2026-05-10T15:30Z"
+      },
+      {
+        "event_id": "740936",
+        "reason": "accepted_pre_cutoff_finished",
+        "start_at": "2026-05-02T16:30Z"
+      },
+      {
+        "event_id": "740931",
+        "reason": "accepted_pre_cutoff_finished",
+        "start_at": "2026-04-25T16:30Z"
+      },
+      {
+        "event_id": "740916",
+        "reason": "accepted_pre_cutoff_finished",
+        "start_at": "2026-04-19T15:30Z"
+      },
+      {
+        "event_id": "740908",
+        "reason": "accepted_pre_cutoff_finished",
+        "start_at": "2026-04-11T11:30Z"
+      },
+      {
+        "event_id": "740886",
+        "reason": "accepted_pre_cutoff_finished",
+        "start_at": "2026-03-14T17:30Z"
+      },
+      {
+        "event_id": "740878",
+        "reason": "accepted_pre_cutoff_finished",
+        "start_at": "2026-03-04T19:30Z"
+      },
+      {
+        "event_id": "740871",
+        "reason": "accepted_pre_cutoff_finished",
+        "start_at": "2026-03-01T16:30Z"
+      },
+      {
+        "event_id": "740865",
+        "reason": "accepted_pre_cutoff_finished",
+        "start_at": "2026-02-22T16:30Z"
+      }
+    ],
+    "384": [
+      {
+        "event_id": "740959",
+        "reason": "accepted_pre_cutoff_finished",
+        "start_at": "2026-05-17T14:00Z"
+      },
+      {
+        "event_id": "740902",
+        "reason": "accepted_pre_cutoff_finished",
+        "start_at": "2026-05-13T19:00Z"
+      },
+      {
+        "event_id": "740948",
+        "reason": "accepted_pre_cutoff_finished",
+        "start_at": "2026-05-10T13:00Z"
+      },
+      {
+        "event_id": "740938",
+        "reason": "accepted_pre_cutoff_finished",
+        "start_at": "2026-05-03T13:00Z"
+      },
+      {
+        "event_id": "740927",
+        "reason": "accepted_pre_cutoff_finished",
+        "start_at": "2026-04-25T14:00Z"
+      },
+      {
+        "event_id": "740923",
+        "reason": "accepted_pre_cutoff_finished",
+        "start_at": "2026-04-20T19:00Z"
+      },
+      {
+        "event_id": "740910",
+        "reason": "accepted_pre_cutoff_finished",
+        "start_at": "2026-04-12T13:00Z"
+      },
+      {
+        "event_id": "740890",
+        "reason": "accepted_pre_cutoff_finished",
+        "start_at": "2026-03-15T14:00Z"
+      },
+      {
+        "event_id": "740884",
+        "reason": "accepted_pre_cutoff_finished",
+        "start_at": "2026-03-05T20:00Z"
+      },
+      {
+        "event_id": "740875",
+        "reason": "accepted_pre_cutoff_finished",
+        "start_at": "2026-03-01T14:00Z"
+      }
+    ]
+  },
+  "recent_form_rejections": [
+    {
+      "event_id": "740968",
+      "reason": "excluded_target_event"
+    }
+  ],
+  "recorded_requests": {
+    "GET https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/scoreboard?dates=20260524": {
+      "object_sha256": "9d026d3a0a4bf6cea7d3e7c0f31582a8634fa8edec1a9dd9305eb10a3f729db7",
+      "operation": "scoreboard",
+      "source_event_id": null,
+      "status_code": 200
+    },
+    "GET https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740865": {
+      "object_sha256": "ad9aa55f2484d1b9125b28847993d54eaa0636e3bd2acc1a770971e017868b97",
+      "operation": "summary",
+      "source_event_id": "740865",
+      "status_code": 200
+    },
+    "GET https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740871": {
+      "object_sha256": "fa93d592caf95063f542e0a548c4af81e68aa19aa4691bd34b8c4ac5579df42b",
+      "operation": "summary",
+      "source_event_id": "740871",
+      "status_code": 200
+    },
+    "GET https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740875": {
+      "object_sha256": "a11ed9e09f9256181d5eb573b2bd82b8d3a19a3dee97195bc886568a8d73219c",
+      "operation": "summary",
+      "source_event_id": "740875",
+      "status_code": 200
+    },
+    "GET https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740878": {
+      "object_sha256": "45db2eae72edc5fef265912fd21ce07c3e0455112ff7e46b4b7d5a2e3413a69f",
+      "operation": "summary",
+      "source_event_id": "740878",
+      "status_code": 200
+    },
+    "GET https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740884": {
+      "object_sha256": "daed5d882864328d8d0dd331b90ad087af0a30eaae06144c58cce66c50395dff",
+      "operation": "summary",
+      "source_event_id": "740884",
+      "status_code": 200
+    },
+    "GET https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740886": {
+      "object_sha256": "2f8c384cc0890276868cb24c8fe675c5a721bdb1c2180129e74124e6a2e87d7e",
+      "operation": "summary",
+      "source_event_id": "740886",
+      "status_code": 200
+    },
+    "GET https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740890": {
+      "object_sha256": "57ecbf37f59e697abb383a0de639d3764d787aca9b7e6980bf5706b8aab349e8",
+      "operation": "summary",
+      "source_event_id": "740890",
+      "status_code": 200
+    },
+    "GET https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740902": {
+      "object_sha256": "f8575a48717bfc752ba7af2670d7d747147425df904e1a3932016819d2938686",
+      "operation": "summary",
+      "source_event_id": "740902",
+      "status_code": 200
+    },
+    "GET https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740908": {
+      "object_sha256": "0f85c3d9b07a9698e2fe2587eb84d909795a11bfdf41202a588bd0eb0351a7e9",
+      "operation": "summary",
+      "source_event_id": "740908",
+      "status_code": 200
+    },
+    "GET https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740910": {
+      "object_sha256": "a5e33f5be6bbcbe8d4308279d6d3c73f27874c3a68d7dd4102fcf0365bae2b5f",
+      "operation": "summary",
+      "source_event_id": "740910",
+      "status_code": 200
+    },
+    "GET https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740916": {
+      "object_sha256": "25b5a2015c288a136837c02a99e0623566cb41c731e775e40925eb8e45753485",
+      "operation": "summary",
+      "source_event_id": "740916",
+      "status_code": 200
+    },
+    "GET https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740923": {
+      "object_sha256": "81babb7efcd41433aef44e823d3d74a725a0ab8b5e9551a377c28494e5370e64",
+      "operation": "summary",
+      "source_event_id": "740923",
+      "status_code": 200
+    },
+    "GET https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740927": {
+      "object_sha256": "b5d0fd37e330a14bffdf1d2bfc29133fc7c51887c15c89c35ed1219fb8aa2def",
+      "operation": "summary",
+      "source_event_id": "740927",
+      "status_code": 200
+    },
+    "GET https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740931": {
+      "object_sha256": "c2f8bc8e640bf402bfac5071045f5711b4715b42209a3a6adaab404616fcb15f",
+      "operation": "summary",
+      "source_event_id": "740931",
+      "status_code": 200
+    },
+    "GET https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740936": {
+      "object_sha256": "38bc4433701b0a335823c5038056f70225aa0860ecbc04ec87de1bc984064e26",
+      "operation": "summary",
+      "source_event_id": "740936",
+      "status_code": 200
+    },
+    "GET https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740938": {
+      "object_sha256": "bcd4a1e690566f3b2f5154b8614b62fc1a1347c81b1a1333f1419e69ee0464bb",
+      "operation": "summary",
+      "source_event_id": "740938",
+      "status_code": 200
+    },
+    "GET https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740948": {
+      "object_sha256": "e1065345e1394872ad76f484895674865a917fb0edb5e995005729109d3ebf5d",
+      "operation": "summary",
+      "source_event_id": "740948",
+      "status_code": 200
+    },
+    "GET https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740955": {
+      "object_sha256": "ddf9524a99e9f32564daf01adef37a09e7a5c463c8a38ff6ca1ec7eb3278dd38",
+      "operation": "summary",
+      "source_event_id": "740955",
+      "status_code": 200
+    },
+    "GET https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740956": {
+      "object_sha256": "5d4162ffc5f0be22a67a4d862e9631cfee2741b093b39da5c117c654802d1cdf",
+      "operation": "summary",
+      "source_event_id": "740956",
+      "status_code": 200
+    },
+    "GET https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=740959": {
+      "object_sha256": "aabd9e2c3804d510b906d6cb45eb3ffd5e0ce3aa12af309427974aa014a609d0",
+      "operation": "summary",
+      "source_event_id": "740959",
+      "status_code": 200
+    },
+    "GET https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/teams/359/schedule": {
+      "object_sha256": "461a6f2f96a0d0cce3862cdaec48ea3a4c11379f87ab0b0c635799539b27f507",
+      "operation": "team_schedule",
+      "source_event_id": null,
+      "status_code": 200
+    },
+    "GET https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/teams/384/schedule": {
+      "object_sha256": "90c09812932a1744897260681c722dbaad2fc63cdd98051b0b66f247ba1a909d",
+      "operation": "team_schedule",
+      "source_event_id": null,
+      "status_code": 200
+    }
+  },
+  "replay": {
+    "first_run_counts": {
+      "cached": 0,
+      "failed": 0,
+      "fetched": 2
+    },
+    "first_run_team_form_rows": 20,
+    "idempotent_second_run": true,
+    "second_run_counts": {
+      "cached": 0,
+      "failed": 0,
+      "fetched": 2
+    },
+    "second_run_team_form_rows": 20,
+    "semantic_match_live": true
+  },
+  "side_selection": [
+    {
+      "away_participant_id": "384",
+      "fixture_id": "740959",
+      "home_participant_id": "337",
+      "provider_team_id": "384",
+      "selected_side": "away",
+      "team_name": "Crystal Palace"
+    },
+    {
+      "away_participant_id": "379",
+      "fixture_id": "740956",
+      "home_participant_id": "359",
+      "provider_team_id": "359",
+      "selected_side": "home",
+      "team_name": "Arsenal"
+    }
+  ],
+  "target_event_absent_from_recent_form": true,
+  "target_participants": {
+    "away": {
+      "name": "Arsenal",
+      "provider_team_id": "359"
+    },
+    "home": {
+      "name": "Crystal Palace",
+      "provider_team_id": "384"
+    }
+  },
+  "target_source_event_id": "740968",
+  "target_start_at": "2026-05-24T15:00Z"
+}

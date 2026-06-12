@@ -46,6 +46,12 @@ from bet.db.models import (
     TipsterPick,
     Transaction,
 )
+from bet.db.observation_models import (
+    FixtureCapabilityObservation,
+    FixtureCapabilityProjection,
+    create_observation,
+    create_projection,
+)
 
 def _now() -> str:
     """Return current UTC time as ISO string."""
@@ -801,6 +807,24 @@ class StatsRepo:
 
         self.conn.execute("SAVEPOINT save_form")
         try:
+            observed_at = form.updated_at or _now()
+            if getattr(form, "evidence_hash", ""):
+                self.conn.execute(
+                    "INSERT OR IGNORE INTO team_form_evidence_history "
+                    "(team_id, stat_key, h2h_opponent_id, source, source_event_ids, evidence_hash, observed_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        form.team_id,
+                        form.stat_key,
+                        form.h2h_opponent_id,
+                        form.source,
+                        json.dumps(form.source_event_ids)
+                        if hasattr(form, "source_event_ids")
+                        else "[]",
+                        form.evidence_hash,
+                        observed_at,
+                    ),
+                )
             # Delete existing row (if any) matching the same logical key
             if form.h2h_opponent_id is None:
                 self.conn.execute(
@@ -817,8 +841,8 @@ class StatsRepo:
             self.conn.execute(
                 "INSERT INTO team_form "
                 "(team_id, sport_id, stat_key, l10_values, l5_values, l10_avg, l5_avg, "
-                "h2h_values, h2h_opponent_id, trend, updated_at, source) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "h2h_values, h2h_opponent_id, trend, updated_at, source, source_event_ids, evidence_hash) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     form.team_id,
                     form.sport_id,
@@ -830,8 +854,10 @@ class StatsRepo:
                     json.dumps(form.h2h_values),
                     form.h2h_opponent_id,
                     form.trend,
-                    form.updated_at or _now(),
+                    observed_at,
                     form.source,
+                    json.dumps(form.source_event_ids) if hasattr(form, 'source_event_ids') else "[]",
+                    form.evidence_hash if hasattr(form, 'evidence_hash') else "",
                 ),
             )
             self.conn.execute("RELEASE save_form")
@@ -979,6 +1005,8 @@ class StatsRepo:
             trend=row["trend"] or "",
             updated_at=row["updated_at"] or "",
             source=row["source"] or "",
+            source_event_ids=json.loads(row["source_event_ids"]) if "source_event_ids" in row.keys() and row["source_event_ids"] else [],
+            evidence_hash=row["evidence_hash"] or "" if "evidence_hash" in row.keys() else "",
         )
 
     @staticmethod
@@ -995,6 +1023,267 @@ class StatsRepo:
 
     # Public alias for external callers
     row_to_team_form = _row_to_team_form
+
+
+# ---------------------------------------------------------------------------
+# FixtureCapabilityRepo
+# ---------------------------------------------------------------------------
+
+class FixtureCapabilityRepo:
+    """Repository for fixture-scoped observations and projections."""
+    
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+    
+    def save_observation(self, obs: FixtureCapabilityObservation) -> int:
+        """Insert observation. Returns observation ID.
+        
+        Uses INSERT OR IGNORE to handle duplicates (same fixture+team+capability+source+valid_at).
+        """
+        cursor = self.conn.execute(
+            """INSERT OR IGNORE INTO fixture_capability_observation
+               (canonical_fixture_id, team_id, capability, source, request_identity,
+                evidence_bundle_id, native_fixture_id, native_team_id, status, http_status,
+                error_code, retryable, parser_version, parser_diagnostics_json, observed_at,
+                valid_at, payload_sha256)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                obs.canonical_fixture_id,
+                obs.team_id,
+                obs.capability,
+                obs.source,
+                obs.request_identity,
+                obs.evidence_bundle_id,
+                obs.native_fixture_id,
+                obs.native_team_id,
+                obs.status,
+                obs.http_status,
+                obs.error_code,
+                int(obs.retryable),
+                obs.parser_version,
+                json.dumps(obs.parser_diagnostics),
+                obs.observed_at,
+                obs.valid_at,
+                obs.payload_sha256,
+            ),
+        )
+        return cursor.lastrowid or 0
+    
+    def get_observation(
+        self,
+        canonical_fixture_id: int,
+        team_id: int,
+        capability: str,
+        source: str,
+        valid_at: str,
+    ) -> FixtureCapabilityObservation | None:
+        """Get observation by identity key."""
+        row = self.conn.execute(
+            """SELECT * FROM fixture_capability_observation
+               WHERE canonical_fixture_id = ? AND team_id = ? AND capability = ?
+               AND source = ? AND valid_at = ?""",
+            (canonical_fixture_id, team_id, capability, source, valid_at),
+        ).fetchone()
+        return self._row_to_observation(row) if row else None
+    
+    def get_observations_for_fixture(
+        self,
+        canonical_fixture_id: int,
+        capability: str | None = None,
+    ) -> list[FixtureCapabilityObservation]:
+        """Get all observations for a fixture, optionally filtered by capability."""
+        if capability:
+            rows = self.conn.execute(
+                """SELECT * FROM fixture_capability_observation
+                   WHERE canonical_fixture_id = ? AND capability = ?
+                   ORDER BY observed_at DESC""",
+                (canonical_fixture_id, capability),
+            ).fetchall()
+        else:
+            rows = self.conn.execute(
+                """SELECT * FROM fixture_capability_observation
+                   WHERE canonical_fixture_id = ?
+                   ORDER BY capability, observed_at DESC""",
+                (canonical_fixture_id,),
+            ).fetchall()
+        return [self._row_to_observation(r) for r in rows]
+    
+    def save_projection(self, proj: FixtureCapabilityProjection) -> int:
+        """Upsert projection. Returns projection ID.
+        
+        Uses DELETE+INSERT to handle upsert with expression-based unique index.
+        """
+        self.conn.execute("SAVEPOINT save_projection")
+        try:
+            # Delete existing
+            self.conn.execute(
+                """DELETE FROM fixture_capability_projection
+                   WHERE canonical_fixture_id = ? AND team_id = ?
+                   AND capability = ? AND analysis_cutoff_at = ?""",
+                (proj.canonical_fixture_id, proj.team_id, proj.capability, proj.analysis_cutoff_at),
+            )
+            # Insert new
+            cursor = self.conn.execute(
+                """INSERT INTO fixture_capability_projection
+                   (canonical_fixture_id, team_id, capability, analysis_cutoff_at,
+                    selected_source, selected_status, selected_observation_id,
+                    primary_source, primary_status, fallback_reason, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    proj.canonical_fixture_id,
+                    proj.team_id,
+                    proj.capability,
+                    proj.analysis_cutoff_at,
+                    proj.selected_source,
+                    proj.selected_status,
+                    proj.selected_observation_id,
+                    proj.primary_source,
+                    proj.primary_status,
+                    proj.fallback_reason,
+                    proj.created_at,
+                    proj.updated_at,
+                ),
+            )
+            self.conn.execute("RELEASE SAVEPOINT save_projection")
+            return cursor.lastrowid or 0
+        except Exception:
+            self.conn.execute("ROLLBACK TO SAVEPOINT save_projection")
+            self.conn.execute("RELEASE SAVEPOINT save_projection")
+            raise
+    
+    def get_projection(
+        self,
+        canonical_fixture_id: int,
+        team_id: int,
+        capability: str,
+        analysis_cutoff_at: str,
+    ) -> FixtureCapabilityProjection | None:
+        """Get projection by identity key."""
+        row = self.conn.execute(
+            """SELECT * FROM fixture_capability_projection
+               WHERE canonical_fixture_id = ? AND team_id = ? AND capability = ?
+               AND analysis_cutoff_at = ?""",
+            (canonical_fixture_id, team_id, capability, analysis_cutoff_at),
+        ).fetchone()
+        return self._row_to_projection(row) if row else None
+    
+    def get_projections_for_fixture(
+        self,
+        canonical_fixture_id: int,
+        analysis_cutoff_at: str | None = None,
+    ) -> list[FixtureCapabilityProjection]:
+        """Get all projections for a fixture, optionally filtered by cutoff."""
+        if analysis_cutoff_at:
+            rows = self.conn.execute(
+                """SELECT * FROM fixture_capability_projection
+                   WHERE canonical_fixture_id = ? AND analysis_cutoff_at = ?
+                   ORDER BY capability, team_id""",
+                (canonical_fixture_id, analysis_cutoff_at),
+            ).fetchall()
+        else:
+            rows = self.conn.execute(
+                """SELECT * FROM fixture_capability_projection
+                   WHERE canonical_fixture_id = ?
+                   ORDER BY analysis_cutoff_at DESC, capability, team_id""",
+                (canonical_fixture_id,),
+            ).fetchall()
+        return [self._row_to_projection(r) for r in rows]
+    
+    def get_snapshot_for_analysis(
+        self,
+        canonical_fixture_id: int,
+        team_id: int,
+        capability: str,
+        analysis_cutoff_at: str,
+    ) -> dict:
+        """Get fixture-scoped snapshot for downstream analysis.
+        
+        Returns dict with:
+        - status: selected_status
+        - source: selected_source
+        - observation_id: selected_observation_id
+        - evidence_bundle_id: from linked observation
+        - native_ids: from linked observation
+        - staleness: computed from observation timestamps
+        - value: UNKNOWN (downstream must resolve from evidence)
+        """
+        proj = self.get_projection(canonical_fixture_id, team_id, capability, analysis_cutoff_at)
+        if not proj:
+            return {
+                "status": "NOT_FOUND",
+                "source": "",
+                "observation_id": None,
+                "evidence_bundle_id": "",
+                "native_ids": {},
+                "staleness": True,
+                "value": "UNKNOWN",
+            }
+        
+        # Get linked observation for evidence details
+        obs = None
+        if proj.selected_observation_id:
+            row = self.conn.execute(
+                "SELECT * FROM fixture_capability_observation WHERE id = ?",
+                (proj.selected_observation_id,),
+            ).fetchone()
+            obs = self._row_to_observation(row) if row else None
+        
+        return {
+            "status": proj.selected_status,
+            "source": proj.selected_source,
+            "observation_id": proj.selected_observation_id,
+            "evidence_bundle_id": obs.evidence_bundle_id if obs else "",
+            "native_ids": {
+                "fixture_id": obs.native_fixture_id if obs else "",
+                "team_id": obs.native_team_id if obs else "",
+            },
+            "staleness": False,  # Projection is point-in-time, not stale
+            "value": "UNKNOWN",  # Downstream must resolve from evidence
+            "primary_source": proj.primary_source,
+            "primary_status": proj.primary_status,
+            "fallback_reason": proj.fallback_reason,
+        }
+    
+    @staticmethod
+    def _row_to_observation(row: sqlite3.Row) -> FixtureCapabilityObservation:
+        return FixtureCapabilityObservation(
+            id=row["id"],
+            canonical_fixture_id=row["canonical_fixture_id"],
+            team_id=row["team_id"],
+            capability=row["capability"],
+            source=row["source"],
+            request_identity=row["request_identity"],
+            evidence_bundle_id=row["evidence_bundle_id"] or "",
+            native_fixture_id=row["native_fixture_id"] or "",
+            native_team_id=row["native_team_id"] or "",
+            status=row["status"],
+            http_status=row["http_status"],
+            error_code=row["error_code"] or "",
+            retryable=bool(row["retryable"]),
+            parser_version=row["parser_version"] or "",
+            parser_diagnostics=json.loads(row["parser_diagnostics_json"] or "{}"),
+            observed_at=row["observed_at"],
+            valid_at=row["valid_at"],
+            payload_sha256=row["payload_sha256"] or "",
+        )
+    
+    @staticmethod
+    def _row_to_projection(row: sqlite3.Row) -> FixtureCapabilityProjection:
+        return FixtureCapabilityProjection(
+            id=row["id"],
+            canonical_fixture_id=row["canonical_fixture_id"],
+            team_id=row["team_id"],
+            capability=row["capability"],
+            analysis_cutoff_at=row["analysis_cutoff_at"],
+            selected_source=row["selected_source"],
+            selected_status=row["selected_status"],
+            selected_observation_id=row["selected_observation_id"],
+            primary_source=row["primary_source"] or "",
+            primary_status=row["primary_status"] or "",
+            fallback_reason=row["fallback_reason"] or "",
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -3241,7 +3530,7 @@ class KnownMissingRepo:
         ).fetchone()
         if not row:
             return False
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime, timezone
         try:
             marked = datetime.fromisoformat(row["marked_at"])
             if (datetime.now(timezone.utc) - marked).days > max_age_days:

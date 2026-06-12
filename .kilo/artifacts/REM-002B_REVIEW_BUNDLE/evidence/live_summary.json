@@ -1,0 +1,80 @@
+{
+  "bundle_id": "REM-002B_REVIEW_BUNDLE",
+  "created_at": "2026-06-12T07:58:00+02:00",
+  "base_commit": "776fef6d69bef4480a86076b0f8424dd663ae550",
+  "summary": {
+    "title": "REM-002B API-Sports Family Rollout - Evidence Capture Implementation",
+    "status": "IMPLEMENTATION_COMPLETE",
+    "test_results": {
+      "focused_suite": "54 passed",
+      "full_suite": "700 passed, 5 skipped"
+    }
+  },
+  "changes": {
+    "files_modified": [
+      "src/bet/api_clients/base_client.py",
+      "src/bet/api_clients/api_football.py",
+      "src/bet/api_clients/api_basketball.py",
+      "src/bet/api_clients/api_volleyball.py",
+      "src/bet/api_clients/api_hockey.py"
+    ],
+    "files_created": [
+      "tests/scrapers/test_api_sports_live.py"
+    ]
+  },
+  "implementation_details": {
+    "typed_results": {
+      "description": "Added SourceResultStatus enum and SourceOperationResult generic dataclass",
+      "status_codes": [
+        "SUCCESS",
+        "NOT_FOUND",
+        "NOT_PUBLISHED_YET",
+        "NOT_SUPPORTED",
+        "AMBIGUOUS",
+        "AUTHENTICATION_ERROR",
+        "RATE_LIMITED",
+        "BLOCKED",
+        "TRANSPORT_ERROR",
+        "UPSTREAM_ERROR",
+        "PARSE_ERROR",
+        "SCHEMA_ERROR"
+      ]
+    },
+    "evidence_capture": {
+      "description": "Added _request_with_evidence method to APISportsClient base class",
+      "features": [
+        "Wraps requests with telemetry",
+        "Captures evidence via persist_response_evidence",
+        "Returns SourceOperationResult with evidence_refs",
+        "Handles all HTTP status codes",
+        "Implements retry with exponential backoff"
+      ]
+    },
+    "get_fixtures_result": {
+      "description": "Added get_fixtures_result() method to all four API-Sports clients",
+      "clients": [
+        "APIFootballClient",
+        "APIBasketballClient",
+        "APIVolleyballClient",
+        "APIHockeyClient"
+      ]
+    }
+  },
+  "test_coverage": {
+    "test_file": "tests/scrapers/test_api_sports_live.py",
+    "test_count": 17,
+    "categories": [
+      "Evidence capture primitives",
+      "SourceOperationResult construction",
+      "Mocked success/error scenarios",
+      "Replay transport verification",
+      "Live tests (marked @pytest.mark.live)"
+    ]
+  },
+  "next_steps": [
+    "Wait for API-Football quota reset",
+    "Execute live proof for all four integrations",
+    "Implement idempotent persistence",
+    "Update final states from LIVE_PARTIAL to PRODUCTION_READY"
+  ]
+}
