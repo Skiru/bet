@@ -1,0 +1,78 @@
+{
+  "stage": "Repository cleanup and pre-demonstration checkpoint",
+  "status": "REPO_CLEANUP_PASS",
+  "generated": "2026-06-12T13:50:00Z",
+  "workspace": "/Users/mkoziol/projects/bet/.kilo/worktrees/cherry-juice",
+  "branch": "cherry-juice",
+  "previous_head": "3c8c2f3c49d3ec19772907f730b6e2c7c905f6c0",
+  "checkpoint_head": "20d7f62dde2452514e1ee9b2f62c20fe69ad1047",
+  "checkpoint_tag": "kilo-agent-config-pre-demo",
+  "commits": [
+    {
+      "sha": "104e124",
+      "message": "chore: finalize repo for synthetic agent demonstration"
+    },
+    {
+      "sha": "20d7f62",
+      "message": "chore: remove generated cache and stale runtime files"
+    }
+  ],
+  "files_retained": {
+    "active_source": 25,
+    "active_configuration": 18,
+    "durable_evidence": 60,
+    "deferred_archive": 1,
+    "superseded_retained": 2
+  },
+  "files_removed": [
+    "scripts/__pycache__/",
+    ".DS_Store",
+    ".implementation/.DS_Store",
+    ".implementation/kilo_rapidmlx_production_v2/.DS_Store",
+    ".kilocode/.DS_Store",
+    "betting/.DS_Store",
+    ".kilo/runtime/rapid-mlx.pid"
+  ],
+  "ignore_changes": "None required - existing .gitignore adequate",
+  "canonical_reports": [
+    "reports/PHASE_INDEX.md",
+    "reports/agent-config/REPORT.md",
+    "reports/agent-config/AGENT_CONFIG_ACCEPTANCE_MATRIX.md",
+    "reports/agent-config/PHASE4B_INPUT_MANIFEST.json",
+    "reports/bet-script-executor/REPORT.md",
+    "reports/kilo-rapidmlx-baseline/REPORT.md",
+    "reports/rapidmlx-baseline/REPORT.md"
+  ],
+  "validation_results": {
+    "kilo_config_check": "PASS",
+    "agent_validator": "PASS (13 agents, 2 skills)",
+    "unattended_validator": "PASS (183/183 gates)",
+    "git_diff_check": "PASS"
+  },
+  "rapidmlx_status": {
+    "running": false,
+    "model": "mlx-community/Qwen3.6-35B-A3B-4bit",
+    "port": 8000,
+    "binary": "/Users/mkoziol/.venvs/rapid-mlx-0.7.1/bin/rapid-mlx"
+  },
+  "git_status": "clean (only historical backup files untracked)",
+  "evidence_paths": [
+    "reports/repo-cleanup/INVENTORY.md",
+    "reports/repo-cleanup/inventory.json",
+    "reports/repo-cleanup/ACTIONS.md",
+    "reports/repo-cleanup/REPO_CLEANUP_ACCEPTANCE_MATRIX.md"
+  ],
+  "deferred_capabilities": [
+    "bet_sqlite_query (database)",
+    "real_scripts (fixture-only mode)",
+    "web_search (MCP disabled)",
+    "brave_search (MCP disabled)",
+    "context7 (MCP disabled)",
+    "playwright (MCP disabled)"
+  ],
+  "known_limitations": [
+    "Rapid-MLX server not running (expected for cleanup phase)",
+    "Historical test scripts have pre-existing trailing whitespace",
+    "code-simplifier.md present in .kilo/agents/ but not referenced in kilo.jsonc"
+  ]
+}
