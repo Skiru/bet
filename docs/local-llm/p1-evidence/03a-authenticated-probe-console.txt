@@ -1,2 +1,0 @@
-{"round": 1, "kind": "chat", "ok": false, "latency_s": 0.033, "error": "HTTPError: HTTP Error 400: Bad Request", "rss_mb": 2486.61, "swap_used_mb": 9578.31}
-Report: docs/local-llm/p1-evidence/03a-authenticated-probe.json
