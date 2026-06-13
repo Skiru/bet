@@ -1,3 +1,5 @@
+# ruff: noqa: E501, W291, W293
+
 """ESPN Hidden API client — free, no API key, no rate limits.
 
 Provides per-game statistics for:
@@ -19,6 +21,7 @@ from bet.integration.evidence import (
     EvidenceRef,
     load_evidence_object_bytes,
     persist_response_evidence,
+    write_source_operation_bundle,
 )
 
 from .api_football import APIFixture, APIMatchStats
@@ -1225,6 +1228,142 @@ class ESPNClient(BaseAPIClient):
         self._save_cache(cache_key, {"games": result})
         return result
 
+    def get_h2h_result(
+        self,
+        team1_id: str,
+        team2_id: str,
+        *,
+        analysis_cutoff_at: str | None = None,
+        exclude_event_ids: set[str] | None = None,
+        last_n: int = 10,
+    ) -> SourceOperationResult[dict]:
+        """Get typed H2H history with exact cutoff/exclusion and retained evidence."""
+        excluded_ids = {
+            str(event_id).strip()
+            for event_id in (exclude_event_ids or set())
+            if str(event_id).strip()
+        }
+        cache_key = (
+            f"espn/{self.sport}/{self.league}/h2h/{team1_id}_{team2_id}/"
+            f"{analysis_cutoff_at or 'none'}/{','.join(sorted(excluded_ids)) or 'none'}/{last_n}"
+        )
+        cutoff_dt = _parse_espn_datetime(analysis_cutoff_at) if analysis_cutoff_at else None
+        payload_result = self._request_payload_result(
+            endpoint=f"/teams/{team1_id}/schedule",
+            params=None,
+            operation="h2h_team_schedule",
+            cache_key=cache_key,
+            ttl_hours=12,
+        )
+        if payload_result.status is not SourceResultStatus.SUCCESS or payload_result.value is None:
+            return SourceOperationResult(
+                status=payload_result.status,
+                http_status=payload_result.http_status,
+                retryable=payload_result.retryable,
+                error_code=payload_result.error_code,
+                retry_after_seconds=payload_result.retry_after_seconds,
+                evidence_refs=payload_result.evidence_refs,
+            )
+
+        events = payload_result.value.get("events")
+        if not isinstance(events, list):
+            return SourceOperationResult(
+                SourceResultStatus.SCHEMA_ERROR,
+                http_status=payload_result.http_status,
+                error_code="schedule_events_missing",
+                evidence_refs=payload_result.evidence_refs,
+            )
+
+        requested_ids = {str(team1_id).strip(), str(team2_id).strip()}
+        meetings: list[dict] = []
+        for event in events:
+            event_id = str(event.get("id", "")).strip()
+            if not event_id or event_id in excluded_ids:
+                continue
+            event_date = str(event.get("date", "")).strip()
+            event_dt = _parse_espn_datetime(event_date)
+            if event_dt is None:
+                continue
+            if cutoff_dt is not None and not event_dt < cutoff_dt:
+                continue
+            if not _is_game_finished(event):
+                continue
+
+            competitions = event.get("competitions", [])
+            if not competitions:
+                continue
+            competitors = competitions[0].get("competitors", [])
+            sides = (
+                _extract_explicit_two_sided_competitors(competitors)
+                if self.sport == "football"
+                else _extract_two_sided_competitors(competitors)
+            )
+            if not sides:
+                continue
+            home_id, home_name = sides["home"]
+            away_id, away_name = sides["away"]
+            if {home_id, away_id} != requested_ids:
+                continue
+
+            home_score = ""
+            away_score = ""
+            for competitor in competitors:
+                score = str(competitor.get("score", "") or "")
+                if competitor.get("homeAway") == "home":
+                    home_score = score
+                elif competitor.get("homeAway") == "away":
+                    away_score = score
+            meetings.append(
+                {
+                    "event_id": event_id,
+                    "date": event_date,
+                    "home_team": home_name,
+                    "away_team": away_name,
+                    "home_participant_id": home_id,
+                    "away_participant_id": away_id,
+                    "score": f"{home_score}-{away_score}" if home_score or away_score else "",
+                }
+            )
+
+        meetings.sort(key=lambda item: item["date"], reverse=True)
+        selected = meetings[:last_n]
+        bundle_id = ""
+        if payload_result.evidence_refs:
+            try:
+                bundle_id, _ = write_source_operation_bundle(
+                    registered_source_key=self.api_name,
+                    operation_name="get_h2h",
+                    request_identity=payload_result.evidence_refs[0].request_identity,
+                    parser_version=ESPN_PARSER_VERSION,
+                    source_event_refs=[event["event_id"] for event in selected],
+                    evidence_refs=payload_result.evidence_refs,
+                )
+            except Exception:
+                return SourceOperationResult(
+                    status=SourceResultStatus.EVIDENCE_ERROR,
+                    http_status=payload_result.http_status,
+                    error_code="bundle_manifest_failed",
+                    evidence_refs=payload_result.evidence_refs,
+                )
+
+        return SourceOperationResult(
+            SourceResultStatus.SUCCESS,
+            value={
+                "team1_id": str(team1_id),
+                "team2_id": str(team2_id),
+                "meetings": selected,
+                "meeting_count": len(selected),
+            },
+            http_status=payload_result.http_status,
+            evidence_refs=payload_result.evidence_refs,
+            bundle_id=bundle_id,
+            parser_diagnostics={
+                "raw_count": len(events),
+                "accepted_count": len(selected),
+                "excluded_event_count": len(excluded_ids),
+            },
+        )
+
     def resolve_team_id(self, team_name: str) -> str | None:
         """Resolve team name to ESPN team ID via /teams endpoint.
 
@@ -1767,96 +1906,93 @@ class ESPNClient(BaseAPIClient):
         - value: list of standings dicts
         - evidence_refs: list of evidence references
         """
-        from bet.integration.evidence import write_bundle_manifest
-        
         cache_key = f"espn/{self.sport}/{self.league}/standings"
-        
-        try:
-            url = f"https://site.api.espn.com/apis/v2/sports/{self._espn_sport}/{self.league}/standings"
-            response = requests.get(url, headers=self._build_headers(), timeout=self.TIMEOUT)
-            
-            if response.status_code == 404:
-                return SourceOperationResult(
-                    SourceResultStatus.NOT_FOUND,
-                    http_status=404,
-                    error_code="standings_not_found",
-                )
-            
-            if response.status_code != 200:
-                return SourceOperationResult(
-                    SourceResultStatus.UPSTREAM_ERROR,
-                    http_status=response.status_code,
-                    error_code="standings_http_error",
-                )
-            
-            data = response.json()
-            
-            standings = []
-            for child in data.get("children", data.get("standings", [])):
-                if isinstance(child, dict):
-                    entries = child.get("standings", {}).get("entries", [])
-                    if not entries:
-                        entries = child.get("entries", [])
-                    for entry in entries:
-                        team = entry.get("team", {})
-                        stats_list = entry.get("stats", [])
-                        stat_dict = {}
-                        for s in stats_list:
-                            stat_dict[s.get("name", "")] = s.get("value", s.get("displayValue", ""))
-                        standings.append({
-                            "team_id": str(team.get("id", "")),
-                            "team_name": team.get("displayName", ""),
-                            "rank": stat_dict.get("rank", ""),
-                            "wins": stat_dict.get("wins", ""),
-                            "losses": stat_dict.get("losses", ""),
-                            "draws": stat_dict.get("ties", stat_dict.get("draws", "")),
-                            "points": stat_dict.get("points", ""),
-                            "gamesPlayed": stat_dict.get("gamesPlayed", ""),
-                        })
-            
-            if not standings:
-                return SourceOperationResult(
-                    SourceResultStatus.NOT_FOUND,
-                    error_code="standings_empty",
-                )
-            
-            # Write evidence bundle
-            evidence_refs = [{
-                "source": self.api_name,
-                "path": url,
-                "fetched_at": datetime.now(UTC).isoformat(),
-            }]
-            
-            _, bundle_id = write_bundle_manifest(
-                registered_source_key=self.api_name,
-                projection_name="standings",
-                canonical_fixture_id=0,  # Season-scoped, not fixture-scoped
-                parser_version=ESPN_PARSER_VERSION,
-                source_event_refs=[],
-                evidence_refs=evidence_refs,
-            )
-            
-            self._save_cache(cache_key, {"standings": standings})
-            
+        payload_result = self._request_payload_result(
+            endpoint="/standings",
+            params=None,
+            operation="standings",
+            cache_key=cache_key,
+            ttl_hours=12,
+        )
+        if payload_result.status is not SourceResultStatus.SUCCESS or payload_result.value is None:
             return SourceOperationResult(
-                SourceResultStatus.SUCCESS,
-                value=standings,
-                bundle_id=bundle_id,
-                evidence_refs=evidence_refs,
+                status=payload_result.status,
+                http_status=payload_result.http_status,
+                retryable=payload_result.retryable,
+                error_code=payload_result.error_code,
+                retry_after_seconds=payload_result.retry_after_seconds,
+                evidence_refs=payload_result.evidence_refs,
             )
-            
-        except requests.Timeout:
+
+        data = payload_result.value
+        standings = []
+        raw_children = data.get("children", data.get("standings", []))
+        for child in raw_children:
+            if not isinstance(child, dict):
+                continue
+            entries = child.get("standings", {}).get("entries", [])
+            if not entries:
+                entries = child.get("entries", [])
+            for entry in entries:
+                team = entry.get("team", {})
+                stats_list = entry.get("stats", [])
+                stat_dict = {}
+                for stat in stats_list:
+                    stat_dict[stat.get("name", "")] = stat.get(
+                        "value", stat.get("displayValue", "")
+                    )
+                standings.append(
+                    {
+                        "team_id": str(team.get("id", "")),
+                        "team_name": team.get("displayName", ""),
+                        "rank": stat_dict.get("rank", ""),
+                        "wins": stat_dict.get("wins", ""),
+                        "losses": stat_dict.get("losses", ""),
+                        "draws": stat_dict.get("ties", stat_dict.get("draws", "")),
+                        "points": stat_dict.get("points", ""),
+                        "gamesPlayed": stat_dict.get("gamesPlayed", ""),
+                    }
+                )
+
+        if not standings:
             return SourceOperationResult(
-                SourceResultStatus.TRANSPORT_ERROR,
-                retryable=True,
-                error_code="timeout",
+                SourceResultStatus.NOT_FOUND,
+                http_status=payload_result.http_status,
+                error_code="standings_empty",
+                evidence_refs=payload_result.evidence_refs,
             )
-        except Exception as e:
-            logger.debug("ESPN standings error: %s", e)
-            return SourceOperationResult(
-                SourceResultStatus.UPSTREAM_ERROR,
-                error_code="standings_parse_error",
-            )
+
+        bundle_id = ""
+        if payload_result.evidence_refs:
+            try:
+                bundle_id, _ = write_source_operation_bundle(
+                    registered_source_key=self.api_name,
+                    operation_name="get_standings",
+                    request_identity=payload_result.evidence_refs[0].request_identity,
+                    parser_version=ESPN_PARSER_VERSION,
+                    source_event_refs=[],
+                    evidence_refs=payload_result.evidence_refs,
+                )
+            except Exception:
+                return SourceOperationResult(
+                    status=SourceResultStatus.EVIDENCE_ERROR,
+                    http_status=payload_result.http_status,
+                    error_code="bundle_manifest_failed",
+                    evidence_refs=payload_result.evidence_refs,
+                )
+
+        self._save_cache(cache_key, {"standings": standings})
+        return SourceOperationResult(
+            SourceResultStatus.SUCCESS,
+            value=standings,
+            bundle_id=bundle_id,
+            evidence_refs=payload_result.evidence_refs,
+            http_status=payload_result.http_status,
+            parser_diagnostics={
+                "raw_child_count": len(raw_children) if isinstance(raw_children, list) else 0,
+                "accepted_count": len(standings),
+            },
+        )
 
     @staticmethod
     def extract_odds_from_event(event: dict) -> dict | None:

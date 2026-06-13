@@ -1,3 +1,5 @@
+# ruff: noqa: E501, I001, W291, W293
+
 """Incremental stat enrichment — fetch team stats only when stale/missing.
 
 API clients first, scraping fallback. Updates team_form table with
@@ -7,6 +9,8 @@ For football: reads from fixture-scoped projections when available,
 falls back to global team_form cache only for non-football sports.
 """
 
+import hashlib
+import json
 import logging
 from datetime import UTC, datetime
 
@@ -15,6 +19,7 @@ from bet.api_clients.espn import (
     ESPN_PARSER_VERSION,
     get_espn_league_for_competition,
 )
+from bet.db.observation_models import create_observation, create_projection
 from bet.db.models import Fixture, TeamForm
 from bet.db.repositories import (
     FixtureCapabilityRepo,
@@ -24,8 +29,13 @@ from bet.db.repositories import (
     TeamRepo,
     TeamSourceAliasRepo,
 )
-from bet.enrichment.capability_router import Capability
-from bet.integration.evidence import namespaced_source_refs, write_bundle_manifest
+from bet.enrichment.capability_router import (
+    Capability,
+    CapabilityResolution,
+    create_observation_from_result,
+    should_fallback,
+)
+from bet.integration.evidence import canonical_json_bytes, namespaced_source_refs, write_bundle_manifest
 from bet.stats.market_ranking import SPORT_STAT_KEYS
 
 logger = logging.getLogger(__name__)
@@ -74,10 +84,206 @@ def get_fixture_scoped_form_snapshot(
     
     if snapshot["status"] == "NOT_FOUND":
         return None
-    
-    # Return the full snapshot from get_snapshot_for_analysis
-    # This includes native_ids, observation_id, etc.
-    return snapshot
+
+    payload = snapshot.get("payload") or {}
+    stat_payload = ((payload.get("stats") or {}).get(stat_key)) if isinstance(payload, dict) else None
+    if not isinstance(stat_payload, dict):
+        return {
+            **snapshot,
+            "stat_key": stat_key,
+            "value": "UNKNOWN",
+            "l10_values": None,
+            "l5_values": None,
+            "l10_avg": None,
+            "l5_avg": None,
+            "trend": "UNKNOWN",
+        }
+
+    return {
+        **snapshot,
+        "stat_key": stat_key,
+        "value": stat_payload,
+        "l10_values": stat_payload.get("l10_values"),
+        "l5_values": stat_payload.get("l5_values"),
+        "l10_avg": stat_payload.get("l10_avg"),
+        "l5_avg": stat_payload.get("l5_avg"),
+        "trend": stat_payload.get("trend", "UNKNOWN"),
+    }
+
+
+def _payload_sha256(payload: dict | list | None) -> str:
+    if payload is None:
+        return ""
+    return hashlib.sha256(canonical_json_bytes(payload)).hexdigest()
+
+
+def _persist_capability_result(
+    *,
+    db_conn,
+    canonical_fixture_id: int,
+    team_id: int,
+    capability: Capability,
+    analysis_cutoff_at: str,
+    source: str,
+    result: SourceOperationResult,
+    normalized_value: dict | None,
+    native_ids: dict[str, str] | None,
+    parser_version: str,
+) -> int:
+    request_identity = ""
+    if result.evidence_refs:
+        request_identity = str(getattr(result.evidence_refs[0], "request_identity", "") or "")
+    if not request_identity:
+        request_identity = f"{source}:{capability.value}:{canonical_fixture_id}:{team_id}:{analysis_cutoff_at}"
+    obs = create_observation(
+        canonical_fixture_id=canonical_fixture_id,
+        team_id=team_id,
+        capability=capability.value,
+        source=source,
+        request_identity=request_identity,
+        status=result.status.value,
+        valid_at=analysis_cutoff_at,
+        evidence_bundle_id=result.bundle_id or "",
+        native_fixture_id=(native_ids or {}).get("fixture_id", ""),
+        native_team_id=(native_ids or {}).get("team_id", ""),
+        http_status=result.http_status,
+        error_code=result.error_code,
+        retryable=result.retryable,
+        parser_version=parser_version,
+        parser_diagnostics=result.parser_diagnostics,
+        payload_sha256=_payload_sha256(normalized_value),
+        payload_json=json.dumps(normalized_value, sort_keys=True) if normalized_value is not None else "",
+    )
+    repo = FixtureCapabilityRepo(db_conn)
+    return repo.save_observation(obs)
+
+
+def _resolve_football_recent_form(
+    *,
+    team,
+    stat_keys: list[str],
+    db_conn,
+    fixture_context: dict,
+) -> CapabilityResolution:
+    fixture_id = int(fixture_context["fixture_id"])
+    analysis_cutoff_at = str(fixture_context["kickoff"])
+    repo = FixtureCapabilityRepo(db_conn)
+    existing = repo.get_snapshot_for_analysis(
+        canonical_fixture_id=fixture_id,
+        team_id=team.id,
+        capability=Capability.CURRENT_RECENT_FORM.value,
+        analysis_cutoff_at=analysis_cutoff_at,
+    )
+    resolution = CapabilityResolution(
+        capability=Capability.CURRENT_RECENT_FORM,
+        canonical_fixture_id=fixture_id,
+        team_id=team.id,
+        analysis_cutoff_at=analysis_cutoff_at,
+    )
+    if existing["status"] == SourceResultStatus.SUCCESS.value and existing.get("payload"):
+        resolution.select_result(
+            source=existing["source"],
+            status=SourceResultStatus.SUCCESS,
+            value=existing["payload"],
+            bundle_id=existing["evidence_bundle_id"],
+        )
+        return resolution
+
+    primary = _try_espn_fetch(
+        team,
+        "football",
+        stat_keys,
+        db_conn,
+        fixture_contexts=[fixture_context],
+    )
+    primary_payload = primary.value.get("payload") if isinstance(primary.value, dict) else None
+    primary_ids = primary.value.get("native_ids") if isinstance(primary.value, dict) else None
+    resolution.add_observation(
+        create_observation_from_result(
+            "espn-football",
+            primary,
+            native_ids=primary_ids,
+            parser_version=ESPN_PARSER_VERSION,
+        )
+    )
+    primary_observation_id = _persist_capability_result(
+        db_conn=db_conn,
+        canonical_fixture_id=fixture_id,
+        team_id=team.id,
+        capability=Capability.CURRENT_RECENT_FORM,
+        analysis_cutoff_at=analysis_cutoff_at,
+        source="espn-football",
+        result=primary,
+        normalized_value=primary_payload,
+        native_ids=primary_ids,
+        parser_version=ESPN_PARSER_VERSION,
+    )
+    selected_source = "espn-football"
+    selected_status = primary.status
+    selected_payload = primary_payload
+    selected_bundle_id = primary.bundle_id or ""
+    selected_observation_id = primary_observation_id
+    fallback_reason = ""
+
+    if should_fallback(Capability.CURRENT_RECENT_FORM, primary.status):
+        fallback = _try_api_sports_fetch(
+            team,
+            "football",
+            stat_keys,
+            db_conn,
+            fixture_contexts=[fixture_context],
+        )
+        fallback_payload = fallback.value.get("payload") if isinstance(fallback.value, dict) else None
+        fallback_ids = fallback.value.get("native_ids") if isinstance(fallback.value, dict) else None
+        resolution.add_observation(
+            create_observation_from_result(
+                "api-football",
+                fallback,
+                native_ids=fallback_ids,
+                parser_version="api-football-team-form-v1",
+            )
+        )
+        fallback_observation_id = _persist_capability_result(
+            db_conn=db_conn,
+            canonical_fixture_id=fixture_id,
+            team_id=team.id,
+            capability=Capability.CURRENT_RECENT_FORM,
+            analysis_cutoff_at=analysis_cutoff_at,
+            source="api-football",
+            result=fallback,
+            normalized_value=fallback_payload,
+            native_ids=fallback_ids,
+            parser_version="api-football-team-form-v1",
+        )
+        if fallback.status is SourceResultStatus.SUCCESS and fallback_payload:
+            selected_source = "api-football"
+            selected_status = fallback.status
+            selected_payload = fallback_payload
+            selected_bundle_id = fallback.bundle_id or ""
+            selected_observation_id = fallback_observation_id
+            fallback_reason = f"primary_{primary.status.value.lower()}"
+
+    resolution.select_result(
+        source=selected_source,
+        status=selected_status,
+        value=selected_payload,
+        bundle_id=selected_bundle_id,
+        fallback_reason=fallback_reason,
+    )
+    projection = create_projection(
+        canonical_fixture_id=fixture_id,
+        team_id=team.id,
+        capability=Capability.CURRENT_RECENT_FORM.value,
+        analysis_cutoff_at=analysis_cutoff_at,
+        selected_source=selected_source,
+        selected_status=selected_status.value,
+        selected_observation_id=selected_observation_id,
+        primary_source="espn-football",
+        primary_status=primary.status.value,
+        fallback_reason=fallback_reason,
+    )
+    repo.save_projection(projection)
+    return resolution
 
 
 async def enrich_fixtures(
@@ -186,36 +392,24 @@ async def _enrich_team(
     if not sport_obj:
         return False
 
-    # For football, check if fixture-scoped projection already exists
+    fetched = False
+
     if sport == "football" and fixture_contexts:
         fixture_context = _select_single_fixture_context(fixture_contexts)
         if fixture_context:
-            fixture_id = fixture_context.get("fixture_id")
-            kickoff = fixture_context.get("kickoff")
-            if fixture_id and kickoff:
-                # Check if projection already exists
-                cap_repo = FixtureCapabilityRepo(db_conn)
-                existing_proj = cap_repo.get_projection(
-                    canonical_fixture_id=fixture_id,
-                    team_id=team.id,
-                    capability=Capability.CURRENT_RECENT_FORM.value,
-                    analysis_cutoff_at=kickoff,
-                )
-                if existing_proj and existing_proj.selected_status == "SUCCESS":
-                    logger.debug(
-                        "Using existing fixture-scoped projection for team %s fixture %s",
-                        team.name,
-                        fixture_id,
-                    )
-                    return False  # Already have data, no need to fetch
-
-    fetched = False
+            resolution = _resolve_football_recent_form(
+                team=team,
+                stat_keys=stat_keys,
+                db_conn=db_conn,
+                fixture_context=fixture_context,
+            )
+            return resolution.selected_status is SourceResultStatus.SUCCESS and bool(resolution.selected_value)
 
     # Try API — run synchronously to avoid SQLite threading issues
     # (sqlite3 connections cannot be shared across threads)
-    api_fetched = _try_api_fetch(team, sport, stat_keys, db_conn, fixture_contexts=fixture_contexts)
+    api_result = _try_api_fetch(team, sport, stat_keys, db_conn, fixture_contexts=fixture_contexts)
 
-    if api_fetched:
+    if api_result.status is SourceResultStatus.SUCCESS and api_result.value:
         fetched = True
 
     # Compute form from match_stats even if no new data fetched
@@ -252,7 +446,7 @@ def _try_api_fetch(
     stat_keys: list[str],
     db_conn,
     fixture_contexts: list[dict] | None = None,
-) -> bool:
+) -> SourceOperationResult[dict]:
     """Try to fetch stats from sport-specific API client.
 
     Strategy: ESPN first (free, unlimited), then API-Sports as fallback.
@@ -262,7 +456,7 @@ def _try_api_fetch(
     """
     if sport == "football" and _has_multiple_fixture_contexts(fixture_contexts or []):
         logger.debug("Skipping %s due to ambiguous multi-fixture cutoff context", team.name)
-        return False
+        return SourceOperationResult(SourceResultStatus.AMBIGUOUS, error_code="fixture_context_ambiguous")
 
     # Try ESPN first (free, unlimited)
     espn_result = _try_espn_fetch(
@@ -273,7 +467,7 @@ def _try_api_fetch(
         fixture_contexts=fixture_contexts,
     )
     if espn_result.status is SourceResultStatus.SUCCESS and espn_result.value:
-        return True
+        return espn_result
 
     if sport == "football" and espn_result.status in {
         SourceResultStatus.SUCCESS,
@@ -285,7 +479,7 @@ def _try_api_fetch(
         SourceResultStatus.SCHEMA_ERROR,
         SourceResultStatus.PLAN_RESTRICTED,
     }:
-        return False
+        return espn_result
 
     # Fall back to API-Sports
     api_sports_result = _try_api_sports_fetch(
@@ -295,7 +489,7 @@ def _try_api_fetch(
         db_conn,
         fixture_contexts=fixture_contexts,
     )
-    return api_sports_result.status is SourceResultStatus.SUCCESS and bool(api_sports_result.value)
+    return api_sports_result
 
 
 def _try_espn_fetch(
@@ -304,7 +498,7 @@ def _try_espn_fetch(
     stat_keys: list[str],
     db_conn,
     fixture_contexts: list[dict] | None = None,
-) -> SourceOperationResult[bool]:
+) -> SourceOperationResult[dict]:
     """Try ESPN as primary stat source. Returns typed success/failure result."""
     from bet.api_clients import API_ESPN
     from bet.api_clients.espn import (
@@ -391,7 +585,7 @@ def _try_espn_fetch(
 
         last_fixtures = last_fixtures_result.value or []
         if not last_fixtures:
-            return SourceOperationResult(SourceResultStatus.SUCCESS, value=False, evidence_refs=evidence_refs)
+            return SourceOperationResult(SourceResultStatus.SUCCESS, value={}, evidence_refs=evidence_refs)
 
         stat_values: dict[str, list[float]] = {k: [] for k in stat_keys}
         source_event_ids: list[str] = []
@@ -439,7 +633,7 @@ def _try_espn_fetch(
                         stat_values[stat_key].append(float(val))
 
         if not any(stat_values.values()):
-            return SourceOperationResult(SourceResultStatus.SUCCESS, value=False, evidence_refs=evidence_refs)
+            return SourceOperationResult(SourceResultStatus.SUCCESS, value={}, evidence_refs=evidence_refs)
 
         stats_repo = StatsRepo(db_conn)
         sport_repo = SportRepo(db_conn)
@@ -458,11 +652,19 @@ def _try_espn_fetch(
             evidence_refs=evidence_refs,
         )
 
+        normalized_stats = {}
         for stat_key, values in stat_values.items():
             if not values:
                 continue
             form = compute_form(values)
             l5_values = values[:5] if len(values) >= 5 else values
+            normalized_stats[stat_key] = {
+                "l10_values": values[:10],
+                "l5_values": l5_values,
+                "l10_avg": form["l10_avg"],
+                "l5_avg": form["l5_avg"],
+                "trend": form["trend"],
+            }
             team_form = TeamForm(
                 id=None,
                 team_id=team.id,
@@ -481,7 +683,23 @@ def _try_espn_fetch(
             stats_repo.save_team_form(team_form)
 
         _record_source_success(db_conn, f"espn-{sport}")
-        return SourceOperationResult(SourceResultStatus.SUCCESS, value=True, evidence_refs=evidence_refs)
+        return SourceOperationResult(
+            SourceResultStatus.SUCCESS,
+            value={
+                "payload": {
+                    "team_id": team.id,
+                    "source": client.api_name,
+                    "source_event_ids": source_refs,
+                    "stats": normalized_stats,
+                },
+                "native_ids": {
+                    "fixture_id": identity_value["target_source_event_id"],
+                    "team_id": str(api_team_id),
+                },
+            },
+            evidence_refs=evidence_refs,
+            bundle_id=evidence_hash,
+        )
 
     except Exception as exc:
         logger.debug("ESPN fetch failed for %s/%s: %s", sport, team.name, exc)
@@ -494,7 +712,7 @@ def _try_api_sports_fetch(
     stat_keys: list[str],
     db_conn,
     fixture_contexts: list[dict] | None = None,
-) -> SourceOperationResult[bool]:
+) -> SourceOperationResult[dict]:
     """Try API-Sports as fallback stat source using exact source crosswalks."""
     from bet.api_clients import API_SPORTS
 
@@ -556,7 +774,7 @@ def _try_api_sports_fetch(
 
         last_fixtures = last_fixtures_result.value or []
         if not last_fixtures:
-            return SourceOperationResult(SourceResultStatus.SUCCESS, value=False, evidence_refs=evidence_refs)
+            return SourceOperationResult(SourceResultStatus.SUCCESS, value={}, evidence_refs=evidence_refs)
 
         stat_values: dict[str, list[float]] = {k: [] for k in stat_keys}
         source_event_ids: list[str] = []
@@ -588,7 +806,7 @@ def _try_api_sports_fetch(
                         stat_values[stat_key].append(float(val))
 
         if not any(stat_values.values()):
-            return SourceOperationResult(SourceResultStatus.SUCCESS, value=False, evidence_refs=evidence_refs)
+            return SourceOperationResult(SourceResultStatus.SUCCESS, value={}, evidence_refs=evidence_refs)
 
         stats_repo = StatsRepo(db_conn)
         sport_repo = SportRepo(db_conn)
@@ -608,11 +826,19 @@ def _try_api_sports_fetch(
             evidence_refs=evidence_refs,
         )
 
+        normalized_stats = {}
         for stat_key, values in stat_values.items():
             if not values:
                 continue
             form = compute_form(values)
             l5_values = values[:5] if len(values) >= 5 else values
+            normalized_stats[stat_key] = {
+                "l10_values": values[:10],
+                "l5_values": l5_values,
+                "l10_avg": form["l10_avg"],
+                "l5_avg": form["l5_avg"],
+                "trend": form["trend"],
+            }
             team_form = TeamForm(
                 id=None,
                 team_id=team.id,
@@ -631,7 +857,23 @@ def _try_api_sports_fetch(
             stats_repo.save_team_form(team_form)
 
         _record_source_success(db_conn, client_name)
-        return SourceOperationResult(SourceResultStatus.SUCCESS, value=True, evidence_refs=evidence_refs)
+        return SourceOperationResult(
+            SourceResultStatus.SUCCESS,
+            value={
+                "payload": {
+                    "team_id": team.id,
+                    "source": client.api_name,
+                    "source_event_ids": source_refs,
+                    "stats": normalized_stats,
+                },
+                "native_ids": {
+                    "fixture_id": identity_value["target_source_event_id"],
+                    "team_id": str(api_team_id),
+                },
+            },
+            evidence_refs=evidence_refs,
+            bundle_id=evidence_hash,
+        )
 
     except Exception as exc:
         logger.debug("API fetch failed for %s/%s: %s", sport, team.name, exc)
@@ -1009,131 +1251,701 @@ def _record_source_success(db_conn, source: str) -> None:
         pass
 
 
-def enrich_standings(
+def _upsert_fixture_source_mapping(
     db_conn,
-    sport: str,
-    competition_name: str,
+    *,
+    fixture_id: int,
+    source: str,
+    external_id: str,
+    confidence: float,
+    raw_data: dict,
+) -> None:
+    db_conn.execute(
+        """INSERT INTO fixture_sources (fixture_id, source, external_id, confidence, raw_data, fetched_at)
+           VALUES (?, ?, ?, ?, ?, ?)
+           ON CONFLICT(fixture_id, source) DO UPDATE SET
+             external_id = excluded.external_id,
+             confidence = excluded.confidence,
+             raw_data = excluded.raw_data,
+             fetched_at = excluded.fetched_at""",
+        (
+            fixture_id,
+            source,
+            external_id,
+            confidence,
+            json.dumps(raw_data, sort_keys=True),
+            datetime.now(UTC).isoformat(),
+        ),
+    )
+
+
+def _match_cross_provider_candidate(db_conn, fixture_row, candidates: list) -> list:
+    from bet.utils import normalize_team_name
+
+    expected_competition = str(fixture_row["competition_name"] or "")
+    expected_league = get_espn_league_for_competition(expected_competition)
+    expected_names = {
+        normalize_team_name(str(fixture_row["home_team_name"] or "")),
+        normalize_team_name(str(fixture_row["away_team_name"] or "")),
+    }
+    target_dt = _parse_snapshot_datetime(str(fixture_row["kickoff"] or ""))
+    if target_dt is None:
+        return []
+
+    matched = []
+    for candidate in candidates:
+        candidate_league = get_espn_league_for_competition(candidate.competition_name or "")
+        if expected_league and candidate_league != expected_league:
+            continue
+        candidate_dt = _parse_snapshot_datetime(candidate.kickoff)
+        if candidate_dt is None:
+            continue
+        if abs((candidate_dt - target_dt).total_seconds()) > 600:
+            continue
+        candidate_names = {
+            normalize_team_name(candidate.home_team_name or ""),
+            normalize_team_name(candidate.away_team_name or ""),
+        }
+        if candidate_names != expected_names:
+            continue
+        matched.append(candidate)
+    return matched
+
+
+def _resolve_cross_provider_identity(
+    db_conn,
+    canonical_fixture_id: int,
     analysis_cutoff_at: str,
-) -> SourceOperationResult[dict]:
-    """Enrich standings for a competition.
-    
-    For football: uses ESPN standings endpoint.
-    Stores observation in fixture_capability_observation (season-scoped).
-    Returns standings data for downstream analysis.
-    
-    Args:
-        db_conn: Database connection
-        sport: Sport name (e.g., "football")
-        competition_name: Competition name for league mapping
-        analysis_cutoff_at: ISO timestamp for temporal scoping
-    
-    Returns:
-        SourceOperationResult with standings data or error status
-    """
-    from bet.api_clients import API_ESPN
-    from bet.api_clients.espn import ESPNClient, get_espn_league_for_competition, RateLimiter
-    from bet.db.observation_models import create_observation, create_projection
-    
-    if sport != "football":
-        return SourceOperationResult(
-            SourceResultStatus.NOT_SUPPORTED,
-            error_code="standings_not_supported_for_sport",
+) -> CapabilityResolution:
+    from bet.api_clients.espn import ESPNClient, RateLimiter
+
+    row = _get_fixture_identity_row(db_conn, canonical_fixture_id)
+    if not row:
+        resolution = CapabilityResolution(
+            capability=Capability.CROSS_PROVIDER_IDENTITY,
+            canonical_fixture_id=canonical_fixture_id,
+            analysis_cutoff_at=analysis_cutoff_at,
         )
-    
-    league = get_espn_league_for_competition(competition_name)
+        resolution.select_result("cross-provider", SourceResultStatus.NOT_FOUND)
+        return resolution
+
+    team_id = int(row["home_team_id"])
+    resolution = CapabilityResolution(
+        capability=Capability.CROSS_PROVIDER_IDENTITY,
+        canonical_fixture_id=canonical_fixture_id,
+        team_id=team_id,
+        analysis_cutoff_at=analysis_cutoff_at,
+    )
+    repo = FixtureCapabilityRepo(db_conn)
+    existing = repo.get_snapshot_for_analysis(
+        canonical_fixture_id=canonical_fixture_id,
+        team_id=team_id,
+        capability=Capability.CROSS_PROVIDER_IDENTITY.value,
+        analysis_cutoff_at=analysis_cutoff_at,
+    )
+    if existing["status"] == SourceResultStatus.SUCCESS.value and existing.get("payload"):
+        resolution.select_result(
+            source=existing["source"],
+            status=SourceResultStatus.SUCCESS,
+            value=existing["payload"],
+            bundle_id=existing["evidence_bundle_id"],
+        )
+        return resolution
+
+    api_source_row = db_conn.execute(
+        "SELECT external_id, raw_data FROM fixture_sources WHERE fixture_id = ? AND source = ?",
+        (canonical_fixture_id, "api-football"),
+    ).fetchone()
+    api_payload = json.loads(api_source_row["raw_data"] or "{}") if api_source_row else {}
+
+    league = get_espn_league_for_competition(str(row["competition_name"] or ""))
     if not league:
-        return SourceOperationResult(
+        result = SourceOperationResult(
             SourceResultStatus.NOT_SUPPORTED,
             error_code="competition_not_supported_by_espn",
         )
-    
-    espn_client_name = API_ESPN.get(sport)
-    if not espn_client_name:
-        return SourceOperationResult(
-            SourceResultStatus.NOT_SUPPORTED,
-            error_code="espn_client_not_registered",
-        )
-    
-    try:
-        rate_limiter = RateLimiter()
-        client = ESPNClient(sport=sport, league=league, rate_limiter=rate_limiter)
-        
-        if not client.is_available():
-            return SourceOperationResult(
-                SourceResultStatus.AUTHENTICATION_ERROR,
-                error_code="client_unavailable",
-            )
-        
-        result = client.get_standings_result()
-        
-        if result.status is not SourceResultStatus.SUCCESS:
-            return result
-        
-        standings = result.value or []
-        
-        # Store observation (season-scoped, fixture_id=0)
-        cap_repo = FixtureCapabilityRepo(db_conn)
-        obs = create_observation(
-            canonical_fixture_id=0,  # Season-scoped
-            team_id=0,  # Competition-level, not team-level
-            capability=Capability.STANDINGS_COMPETITION_CONTEXT.value,
-            source=client.api_name,
-            request_identity=f"GET https://site.api.espn.com/apis/v2/sports/{client._espn_sport}/{league}/standings",
-            status=result.status.value,
-            valid_at=analysis_cutoff_at,
-            evidence_bundle_id=result.bundle_id or "",
+        obs_id = _persist_capability_result(
+            db_conn=db_conn,
+            canonical_fixture_id=canonical_fixture_id,
+            team_id=team_id,
+            capability=Capability.CROSS_PROVIDER_IDENTITY,
+            analysis_cutoff_at=analysis_cutoff_at,
+            source="cross-provider",
+            result=result,
+            normalized_value=None,
+            native_ids=None,
             parser_version=ESPN_PARSER_VERSION,
         )
-        cap_repo.save_observation(obs)
-        
-        # Store projection
-        proj = create_projection(
-            canonical_fixture_id=0,
-            team_id=0,
+        repo.save_projection(
+            create_projection(
+                canonical_fixture_id=canonical_fixture_id,
+                team_id=team_id,
+                capability=Capability.CROSS_PROVIDER_IDENTITY.value,
+                analysis_cutoff_at=analysis_cutoff_at,
+                selected_source="cross-provider",
+                selected_status=result.status.value,
+                selected_observation_id=obs_id,
+                primary_source="espn-football",
+                primary_status=result.status.value,
+            )
+        )
+        resolution.select_result("cross-provider", result.status)
+        return resolution
+
+    client = ESPNClient(sport="football", league=league, rate_limiter=RateLimiter())
+    espn_result = client.get_fixtures_result(str(row["kickoff"] or "")[:10])
+    resolution.add_observation(
+        create_observation_from_result(
+            "espn-football",
+            espn_result,
+            parser_version=ESPN_PARSER_VERSION,
+        )
+    )
+    if espn_result.status is not SourceResultStatus.SUCCESS or not espn_result.value:
+        obs_id = _persist_capability_result(
+            db_conn=db_conn,
+            canonical_fixture_id=canonical_fixture_id,
+            team_id=team_id,
+            capability=Capability.CROSS_PROVIDER_IDENTITY,
+            analysis_cutoff_at=analysis_cutoff_at,
+            source="cross-provider",
+            result=espn_result,
+            normalized_value=None,
+            native_ids=None,
+            parser_version=ESPN_PARSER_VERSION,
+        )
+        repo.save_projection(
+            create_projection(
+                canonical_fixture_id=canonical_fixture_id,
+                team_id=team_id,
+                capability=Capability.CROSS_PROVIDER_IDENTITY.value,
+                analysis_cutoff_at=analysis_cutoff_at,
+                selected_source="cross-provider",
+                selected_status=espn_result.status.value,
+                selected_observation_id=obs_id,
+                primary_source="espn-football",
+                primary_status=espn_result.status.value,
+            )
+        )
+        resolution.select_result("cross-provider", espn_result.status)
+        return resolution
+
+    candidates = _match_cross_provider_candidate(db_conn, row, espn_result.value)
+    if len(candidates) != 1:
+        status = SourceResultStatus.AMBIGUOUS if len(candidates) > 1 else SourceResultStatus.NOT_FOUND
+        result = SourceOperationResult(
+            status,
+            http_status=espn_result.http_status,
+            error_code="cross_provider_candidate_ambiguous" if len(candidates) > 1 else "cross_provider_candidate_not_found",
+            evidence_refs=espn_result.evidence_refs,
+        )
+        obs_id = _persist_capability_result(
+            db_conn=db_conn,
+            canonical_fixture_id=canonical_fixture_id,
+            team_id=team_id,
+            capability=Capability.CROSS_PROVIDER_IDENTITY,
+            analysis_cutoff_at=analysis_cutoff_at,
+            source="cross-provider",
+            result=result,
+            normalized_value=None,
+            native_ids=None,
+            parser_version=ESPN_PARSER_VERSION,
+        )
+        repo.save_projection(
+            create_projection(
+                canonical_fixture_id=canonical_fixture_id,
+                team_id=team_id,
+                capability=Capability.CROSS_PROVIDER_IDENTITY.value,
+                analysis_cutoff_at=analysis_cutoff_at,
+                selected_source="cross-provider",
+                selected_status=result.status.value,
+                selected_observation_id=obs_id,
+                primary_source="espn-football",
+                primary_status=result.status.value,
+            )
+        )
+        resolution.select_result("cross-provider", result.status)
+        return resolution
+
+    candidate = candidates[0]
+    bundle_id, _ = write_bundle_manifest(
+        registered_source_key=client.api_name,
+        projection_name="cross_provider_identity",
+        canonical_fixture_id=canonical_fixture_id,
+        parser_version=ESPN_PARSER_VERSION,
+        source_event_refs=namespaced_source_refs(client.api_name, [candidate.external_id]),
+        evidence_refs=espn_result.evidence_refs,
+    )
+    raw_data = {
+        "provider_participant_ids": {
+            "home": candidate.home_participant_id,
+            "away": candidate.away_participant_id,
+        },
+        "competition_name": candidate.competition_name,
+        "kickoff": candidate.kickoff,
+        "evidence_bundle_id": bundle_id,
+    }
+    _upsert_fixture_source_mapping(
+        db_conn,
+        fixture_id=canonical_fixture_id,
+        source=client.api_name,
+        external_id=candidate.external_id,
+        confidence=1.0,
+        raw_data=raw_data,
+    )
+
+    alias_repo = TeamSourceAliasRepo(db_conn)
+    competition_hint = str(row["competition_name"] or "")
+    alias_repo.upsert_alias(
+        team_id=int(row["home_team_id"]),
+        sport_id=int(row["sport_id"]),
+        source=client.api_name,
+        provider_team_name=candidate.home_team_name,
+        provider_team_id=candidate.home_participant_id,
+        provider_competition_hint=competition_hint,
+        confidence=1.0,
+        status="verified",
+    )
+    alias_repo.upsert_alias(
+        team_id=int(row["away_team_id"]),
+        sport_id=int(row["sport_id"]),
+        source=client.api_name,
+        provider_team_name=candidate.away_team_name,
+        provider_team_id=candidate.away_participant_id,
+        provider_competition_hint=competition_hint,
+        confidence=1.0,
+        status="verified",
+    )
+
+    payload = {
+        "canonical": {
+            "fixture_id": canonical_fixture_id,
+            "competition_name": competition_hint,
+            "kickoff": str(row["kickoff"]),
+            "home_team_id": int(row["home_team_id"]),
+            "away_team_id": int(row["away_team_id"]),
+        },
+        "api_football": {
+            "fixture_id": api_source_row["external_id"] if api_source_row else "",
+            "team_ids": (api_payload.get("provider_participant_ids") or {}),
+            "evidence_bundle_id": api_payload.get("evidence_bundle_id", ""),
+        },
+        "espn": {
+            "fixture_id": candidate.external_id,
+            "team_ids": {
+                "home": candidate.home_participant_id,
+                "away": candidate.away_participant_id,
+            },
+            "evidence_bundle_id": bundle_id,
+            "kickoff": candidate.kickoff,
+        },
+    }
+    selected = SourceOperationResult(
+        SourceResultStatus.SUCCESS,
+        value=payload,
+        http_status=espn_result.http_status,
+        evidence_refs=espn_result.evidence_refs,
+        bundle_id=bundle_id,
+    )
+    obs_id = _persist_capability_result(
+        db_conn=db_conn,
+        canonical_fixture_id=canonical_fixture_id,
+        team_id=team_id,
+        capability=Capability.CROSS_PROVIDER_IDENTITY,
+        analysis_cutoff_at=analysis_cutoff_at,
+        source="cross-provider",
+        result=selected,
+        normalized_value=payload,
+        native_ids={"fixture_id": candidate.external_id, "team_id": candidate.home_participant_id},
+        parser_version=ESPN_PARSER_VERSION,
+    )
+    repo.save_projection(
+        create_projection(
+            canonical_fixture_id=canonical_fixture_id,
+            team_id=team_id,
+            capability=Capability.CROSS_PROVIDER_IDENTITY.value,
+            analysis_cutoff_at=analysis_cutoff_at,
+            selected_source="cross-provider",
+            selected_status=SourceResultStatus.SUCCESS.value,
+            selected_observation_id=obs_id,
+            primary_source="espn-football",
+            primary_status=SourceResultStatus.SUCCESS.value,
+        )
+    )
+    resolution.select_result(
+        source="cross-provider",
+        status=SourceResultStatus.SUCCESS,
+        value=payload,
+        bundle_id=bundle_id,
+    )
+    return resolution
+
+
+def _resolve_standings_for_fixture(
+    db_conn,
+    canonical_fixture_id: int,
+    team_id: int,
+    analysis_cutoff_at: str,
+) -> SourceOperationResult[dict]:
+    from bet.api_clients.espn import ESPNClient, RateLimiter
+
+    row = _get_fixture_identity_row(db_conn, canonical_fixture_id)
+    if not row:
+        return SourceOperationResult(SourceResultStatus.NOT_FOUND, error_code="fixture_identity_row_missing")
+    league = get_espn_league_for_competition(str(row["competition_name"] or ""))
+    if not league:
+        return SourceOperationResult(SourceResultStatus.NOT_SUPPORTED, error_code="competition_not_supported_by_espn")
+
+    client = ESPNClient(sport="football", league=league, rate_limiter=RateLimiter())
+    result = client.get_standings_result()
+    alias_repo = TeamSourceAliasRepo(db_conn)
+    source_event_ids = _get_fixture_source_event_ids(db_conn, canonical_fixture_id, client.api_name)
+    provider_team_id = alias_repo.get_verified_provider_team_id(team_id, client.api_name, str(row["competition_name"] or "")) or ""
+    standings = result.value or []
+    selected_row = next((entry for entry in standings if str(entry.get("team_id", "")) == str(provider_team_id)), None)
+    payload = {
+        "competition_name": str(row["competition_name"] or ""),
+        "league": league,
+        "canonical_fixture_id": canonical_fixture_id,
+        "team_id": team_id,
+        "provider_team_id": str(provider_team_id),
+        "selected_team": selected_row,
+        "standings": standings,
+    } if result.status is SourceResultStatus.SUCCESS else None
+
+    obs_id = _persist_capability_result(
+        db_conn=db_conn,
+        canonical_fixture_id=canonical_fixture_id,
+        team_id=team_id,
+        capability=Capability.STANDINGS_COMPETITION_CONTEXT,
+        analysis_cutoff_at=analysis_cutoff_at,
+        source=client.api_name,
+        result=result,
+        normalized_value=payload,
+        native_ids={"fixture_id": source_event_ids[0] if source_event_ids else "", "team_id": str(provider_team_id)},
+        parser_version=ESPN_PARSER_VERSION,
+    )
+    FixtureCapabilityRepo(db_conn).save_projection(
+        create_projection(
+            canonical_fixture_id=canonical_fixture_id,
+            team_id=team_id,
             capability=Capability.STANDINGS_COMPETITION_CONTEXT.value,
             analysis_cutoff_at=analysis_cutoff_at,
             selected_source=client.api_name,
             selected_status=result.status.value,
+            selected_observation_id=obs_id,
+            primary_source=client.api_name,
+            primary_status=result.status.value,
         )
-        cap_repo.save_projection(proj)
-        
-        _record_source_success(db_conn, client.api_name)
-        
-        return SourceOperationResult(
-            SourceResultStatus.SUCCESS,
-            value={"standings": standings, "league": league},
-            bundle_id=result.bundle_id,
-            evidence_refs=result.evidence_refs,
+    )
+    return SourceOperationResult(
+        result.status,
+        value=payload,
+        http_status=result.http_status,
+        evidence_refs=result.evidence_refs,
+        bundle_id=result.bundle_id,
+        error_code=result.error_code,
+    )
+
+
+def _resolve_h2h_for_fixture(
+    db_conn,
+    canonical_fixture_id: int,
+    analysis_cutoff_at: str,
+) -> SourceOperationResult[dict]:
+    from bet.api_clients.espn import ESPNClient, RateLimiter
+
+    row = _get_fixture_identity_row(db_conn, canonical_fixture_id)
+    if not row:
+        return SourceOperationResult(SourceResultStatus.NOT_FOUND, error_code="fixture_identity_row_missing")
+    league = get_espn_league_for_competition(str(row["competition_name"] or ""))
+    if not league:
+        return SourceOperationResult(SourceResultStatus.NOT_SUPPORTED, error_code="competition_not_supported_by_espn")
+    alias_repo = TeamSourceAliasRepo(db_conn)
+    competition_hint = str(row["competition_name"] or "")
+    home_provider_id = alias_repo.get_verified_provider_team_id(int(row["home_team_id"]), "espn-football", competition_hint)
+    away_provider_id = alias_repo.get_verified_provider_team_id(int(row["away_team_id"]), "espn-football", competition_hint)
+    event_ids: list[str] = _get_fixture_source_event_ids(db_conn, canonical_fixture_id, "espn-football")
+    if not home_provider_id or not away_provider_id or len(event_ids) != 1:
+        result = SourceOperationResult(SourceResultStatus.NOT_FOUND, error_code="cross_provider_identity_missing")
+    else:
+        client = ESPNClient(sport="football", league=league, rate_limiter=RateLimiter())
+        result = client.get_h2h_result(
+            str(home_provider_id),
+            str(away_provider_id),
+            analysis_cutoff_at=analysis_cutoff_at,
+            exclude_event_ids={event_ids[0]},
+            last_n=10,
         )
-        
-    except Exception as e:
-        logger.warning("Standings enrichment failed: %s", e, exc_info=True)
-        return SourceOperationResult(
-            SourceResultStatus.TRANSPORT_ERROR,
-            error_code="standings_enrichment_error",
+
+    payload = result.value if result.status is SourceResultStatus.SUCCESS else None
+    obs_id = _persist_capability_result(
+        db_conn=db_conn,
+        canonical_fixture_id=canonical_fixture_id,
+        team_id=int(row["home_team_id"]),
+        capability=Capability.H2H_HEAD_TO_HEAD,
+        analysis_cutoff_at=analysis_cutoff_at,
+        source="espn-football",
+        result=result,
+        normalized_value=payload,
+        native_ids={"fixture_id": event_ids[0] if event_ids else "", "team_id": str(home_provider_id or "")},
+        parser_version=ESPN_PARSER_VERSION,
+    )
+    FixtureCapabilityRepo(db_conn).save_projection(
+        create_projection(
+            canonical_fixture_id=canonical_fixture_id,
+            team_id=int(row["home_team_id"]),
+            capability=Capability.H2H_HEAD_TO_HEAD.value,
+            analysis_cutoff_at=analysis_cutoff_at,
+            selected_source="espn-football",
+            selected_status=result.status.value,
+            selected_observation_id=obs_id,
+            primary_source="espn-football",
+            primary_status=result.status.value,
         )
+    )
+    return result if result.status is not SourceResultStatus.SUCCESS else SourceOperationResult(
+        result.status,
+        value=payload,
+        http_status=result.http_status,
+        evidence_refs=result.evidence_refs,
+        bundle_id=result.bundle_id,
+        parser_diagnostics=getattr(result, "parser_diagnostics", {}),
+    )
+
+
+def _resolve_fixture_statistics_for_fixture(
+    db_conn,
+    canonical_fixture_id: int,
+    analysis_cutoff_at: str,
+) -> SourceOperationResult[dict]:
+    from bet.api_clients.espn import ESPNClient, RateLimiter
+
+    row = _get_fixture_identity_row(db_conn, canonical_fixture_id)
+    if not row:
+        return SourceOperationResult(SourceResultStatus.NOT_FOUND, error_code="fixture_identity_row_missing")
+    league = get_espn_league_for_competition(str(row["competition_name"] or ""))
+    event_ids: list[str] = _get_fixture_source_event_ids(db_conn, canonical_fixture_id, "espn-football")
+    if not league or len(event_ids) != 1:
+        result = SourceOperationResult(SourceResultStatus.NOT_FOUND, error_code="espn_fixture_mapping_missing")
+    else:
+        client = ESPNClient(sport="football", league=league, rate_limiter=RateLimiter())
+        result = client.get_fixture_stats_result(event_ids[0])
+        if result.status is SourceResultStatus.SUCCESS and not result.value:
+            result = SourceOperationResult(
+                SourceResultStatus.NOT_PUBLISHED_YET,
+                http_status=result.http_status,
+                error_code="fixture_stats_not_published",
+                evidence_refs=result.evidence_refs,
+                bundle_id=result.bundle_id,
+            )
+
+    payload = None
+    if result.status is SourceResultStatus.SUCCESS and result.value:
+        stats = result.value[0]
+        payload = {
+            "fixture_id": canonical_fixture_id,
+            "source_fixture_id": event_ids[0] if event_ids else "",
+            "home_team_name": stats.home_team_name,
+            "away_team_name": stats.away_team_name,
+            "stats": stats.stats,
+        }
+    obs_id = _persist_capability_result(
+        db_conn=db_conn,
+        canonical_fixture_id=canonical_fixture_id,
+        team_id=int(row["home_team_id"]),
+        capability=Capability.FIXTURE_TEAM_STATISTICS,
+        analysis_cutoff_at=analysis_cutoff_at,
+        source="espn-football",
+        result=result,
+        normalized_value=payload,
+        native_ids={"fixture_id": event_ids[0] if event_ids else "", "team_id": ""},
+        parser_version=ESPN_PARSER_VERSION,
+    )
+    FixtureCapabilityRepo(db_conn).save_projection(
+        create_projection(
+            canonical_fixture_id=canonical_fixture_id,
+            team_id=int(row["home_team_id"]),
+            capability=Capability.FIXTURE_TEAM_STATISTICS.value,
+            analysis_cutoff_at=analysis_cutoff_at,
+            selected_source="espn-football",
+            selected_status=result.status.value,
+            selected_observation_id=obs_id,
+            primary_source="espn-football",
+            primary_status=result.status.value,
+        )
+    )
+    return result if payload is None else SourceOperationResult(
+        result.status,
+        value=payload,
+        http_status=result.http_status,
+        evidence_refs=result.evidence_refs,
+        bundle_id=result.bundle_id,
+    )
+
+
+def enrich_standings(
+    db_conn,
+    analysis_cutoff_at: str,
+    canonical_fixture_id: int | None = None,
+    team_id: int | None = None,
+    sport: str | None = None,
+    competition_name: str | None = None,
+) -> SourceOperationResult[dict]:
+    """Resolve standings for a concrete fixture/team scope.
+
+    Accepts the new fixture/team contract and a narrow compatibility fallback for
+    older football callsites that still pass competition_name.
+    """
+    if canonical_fixture_id is None or team_id is None:
+        if sport not in {None, "football"} or not competition_name:
+            return SourceOperationResult(
+                SourceResultStatus.NOT_SUPPORTED,
+                error_code="standings_scope_missing",
+            )
+        row = db_conn.execute(
+            """SELECT f.id, f.home_team_id
+               FROM fixtures f
+               JOIN competitions c ON c.id = f.competition_id
+               WHERE c.name = ? AND f.kickoff = ?
+               ORDER BY f.id ASC
+               LIMIT 1""",
+            (competition_name, analysis_cutoff_at),
+        ).fetchone()
+        if not row:
+            return SourceOperationResult(
+                SourceResultStatus.NOT_FOUND,
+                error_code="standings_fixture_scope_not_found",
+            )
+        canonical_fixture_id = int(row["id"] if hasattr(row, "keys") else row[0])
+        team_id = int(row["home_team_id"] if hasattr(row, "keys") else row[1])
+    return _resolve_standings_for_fixture(
+        db_conn=db_conn,
+        canonical_fixture_id=canonical_fixture_id,
+        team_id=team_id,
+        analysis_cutoff_at=analysis_cutoff_at,
+    )
 
 
 def get_standings_snapshot(
     db_conn,
-    competition_name: str,
     analysis_cutoff_at: str,
+    canonical_fixture_id: int | None = None,
+    team_id: int | None = None,
+    competition_name: str | None = None,
 ) -> dict | None:
-    """Get standings snapshot for downstream analysis.
-    
-    Reads from fixture_capability_projection (season-scoped).
-    Returns None if no projection exists.
-    """
+    """Get standings snapshot for downstream analysis using fixture/team scope."""
+    if canonical_fixture_id is None or team_id is None:
+        if not competition_name:
+            return None
+        row = db_conn.execute(
+            """SELECT f.id, f.home_team_id
+               FROM fixtures f
+               JOIN competitions c ON c.id = f.competition_id
+               WHERE c.name = ? AND f.kickoff = ?
+               ORDER BY f.id ASC
+               LIMIT 1""",
+            (competition_name, analysis_cutoff_at),
+        ).fetchone()
+        if not row:
+            return None
+        canonical_fixture_id = int(row["id"] if hasattr(row, "keys") else row[0])
+        team_id = int(row["home_team_id"] if hasattr(row, "keys") else row[1])
     cap_repo = FixtureCapabilityRepo(db_conn)
-    
+
     snapshot = cap_repo.get_snapshot_for_analysis(
-        canonical_fixture_id=0,  # Season-scoped
-        team_id=0,  # Competition-level
+        canonical_fixture_id=canonical_fixture_id,
+        team_id=team_id,
         capability=Capability.STANDINGS_COMPETITION_CONTEXT.value,
         analysis_cutoff_at=analysis_cutoff_at,
     )
-    
+
     if snapshot["status"] == "NOT_FOUND":
         return None
-    
+
     return snapshot
+
+
+def build_football_fixture_snapshot(
+    db_conn,
+    canonical_fixture_id: int,
+    analysis_cutoff_at: str | None = None,
+) -> dict:
+    """Build the real football downstream snapshot through typed capability routing."""
+    row = _get_fixture_identity_row(db_conn, canonical_fixture_id)
+    if not row:
+        raise ValueError(f"Fixture {canonical_fixture_id} not found")
+    cutoff = analysis_cutoff_at or str(row["kickoff"])
+    fixture_context = {
+        "fixture_id": canonical_fixture_id,
+        "kickoff": cutoff,
+        "competition_name": row["competition_name"],
+    }
+    team_repo = TeamRepo(db_conn)
+    home_team = team_repo.get_by_id(int(row["home_team_id"]))
+    away_team = team_repo.get_by_id(int(row["away_team_id"]))
+    if not home_team or not away_team:
+        raise ValueError(f"Fixture {canonical_fixture_id} teams missing")
+
+    cross_provider = _resolve_cross_provider_identity(db_conn, canonical_fixture_id, cutoff)
+    stat_keys = SPORT_STAT_KEYS.get("football", [])
+    home_form = _resolve_football_recent_form(
+        team=home_team,
+        stat_keys=stat_keys,
+        db_conn=db_conn,
+        fixture_context=fixture_context,
+    )
+    away_form = _resolve_football_recent_form(
+        team=away_team,
+        stat_keys=stat_keys,
+        db_conn=db_conn,
+        fixture_context=fixture_context,
+    )
+    home_standings = _resolve_standings_for_fixture(db_conn, canonical_fixture_id, home_team.id, cutoff)
+    away_standings = _resolve_standings_for_fixture(db_conn, canonical_fixture_id, away_team.id, cutoff)
+    h2h = _resolve_h2h_for_fixture(db_conn, canonical_fixture_id, cutoff)
+    fixture_stats = _resolve_fixture_statistics_for_fixture(db_conn, canonical_fixture_id, cutoff)
+
+    repo = FixtureCapabilityRepo(db_conn)
+    home_form_snapshot = repo.get_snapshot_for_analysis(canonical_fixture_id, home_team.id, Capability.CURRENT_RECENT_FORM.value, cutoff)
+    away_form_snapshot = repo.get_snapshot_for_analysis(canonical_fixture_id, away_team.id, Capability.CURRENT_RECENT_FORM.value, cutoff)
+    home_standings_snapshot = repo.get_snapshot_for_analysis(canonical_fixture_id, home_team.id, Capability.STANDINGS_COMPETITION_CONTEXT.value, cutoff)
+    away_standings_snapshot = repo.get_snapshot_for_analysis(canonical_fixture_id, away_team.id, Capability.STANDINGS_COMPETITION_CONTEXT.value, cutoff)
+    h2h_snapshot = repo.get_snapshot_for_analysis(canonical_fixture_id, home_team.id, Capability.H2H_HEAD_TO_HEAD.value, cutoff)
+    fixture_stats_snapshot = repo.get_snapshot_for_analysis(canonical_fixture_id, home_team.id, Capability.FIXTURE_TEAM_STATISTICS.value, cutoff)
+    cross_provider_snapshot = repo.get_snapshot_for_analysis(canonical_fixture_id, home_team.id, Capability.CROSS_PROVIDER_IDENTITY.value, cutoff)
+
+    return {
+        "fixture_id": canonical_fixture_id,
+        "analysis_cutoff_at": cutoff,
+        "competition_name": str(row["competition_name"] or ""),
+        "cross_provider_identity": {
+            "resolution_status": cross_provider.selected_status.value,
+            "payload": cross_provider_snapshot.get("payload"),
+        },
+        "teams": {
+            "home": {
+                "team_id": home_team.id,
+                "name": home_team.name,
+                "recent_form": home_form_snapshot.get("payload"),
+                "standings": home_standings_snapshot.get("payload"),
+            },
+            "away": {
+                "team_id": away_team.id,
+                "name": away_team.name,
+                "recent_form": away_form_snapshot.get("payload"),
+                "standings": away_standings_snapshot.get("payload"),
+            },
+        },
+        "h2h": h2h_snapshot.get("payload"),
+        "fixture_statistics": fixture_stats_snapshot.get("payload"),
+        "capability_statuses": {
+            "cross_provider_identity": cross_provider.selected_status.value,
+            "current_recent_form_home": home_form.selected_status.value,
+            "current_recent_form_away": away_form.selected_status.value,
+            "standings_home": home_standings.status.value,
+            "standings_away": away_standings.status.value,
+            "h2h": h2h.status.value,
+            "fixture_statistics": fixture_stats.status.value,
+        },
+    }

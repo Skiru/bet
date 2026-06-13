@@ -1,0 +1,42 @@
+{
+  "generated_at": "2026-06-13T00:50:00+02:00",
+  "historical_cross_provider_proof": {
+    "espn_fixture": {
+      "external_id": "740968",
+      "home_team": "Crystal Palace",
+      "home_participant_id": "384",
+      "away_team": "Arsenal",
+      "away_participant_id": "359",
+      "kickoff": "2026-05-24T15:00Z",
+      "competition": "2025-26-english-premier-league",
+      "status": "STATUS_FULL_TIME"
+    },
+    "identity_verification": {
+      "participant_ids_stable": true,
+      "fixture_stats_match": true,
+      "temporal_correct": true,
+      "competition_mapped": true
+    },
+    "cross_provider_mapping": {
+      "espn": {
+        "fixture_id": "740968",
+        "home_team_id": "384",
+        "away_team_id": "359"
+      },
+      "api-football": {
+        "note": "Plan restricted for historical dates on free tier",
+        "status": "PLAN_RESTRICTED"
+      }
+    },
+    "tests_passed": [
+      "exact_participant_set",
+      "competition_mapping",
+      "kickoff_tolerance",
+      "zero_candidates_returns_not_found",
+      "multiple_candidates_returns_ambiguous",
+      "wrong_participant_rejected",
+      "wrong_kickoff_rejected"
+    ]
+  },
+  "notes": "ESPN provides stable participant IDs. API-Football historical access requires paid plan."
+}

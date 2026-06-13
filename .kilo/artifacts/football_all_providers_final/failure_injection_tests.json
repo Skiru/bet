@@ -1,0 +1,66 @@
+{
+  "generated_at": "2026-06-13T00:55:00+02:00",
+  "failure_injection_tests": {
+    "tests_passed": [
+      {
+        "name": "test_get_fixtures_handles_empty_malformed_and_http_error[transport0]",
+        "scenario": "empty_response",
+        "result": "PASSED"
+      },
+      {
+        "name": "test_get_fixtures_handles_empty_malformed_and_http_error[transport1]",
+        "scenario": "malformed_json",
+        "result": "PASSED"
+      },
+      {
+        "name": "test_get_fixtures_handles_empty_malformed_and_http_error[transport2]",
+        "scenario": "http_error",
+        "result": "PASSED"
+      },
+      {
+        "name": "test_get_fixture_stats_result_classifies_not_published_and_not_supported",
+        "scenario": "not_published_yet_and_not_supported",
+        "result": "PASSED"
+      },
+      {
+        "name": "test_replay_transport_fails_closed_on_missing_or_corrupted_objects",
+        "scenario": "corrupt_evidence",
+        "result": "PASSED"
+      }
+    ],
+    "scenarios_verified": {
+      "plan_restricted": "API-Football returns PLAN_RESTRICTED for historical dates",
+      "authentication_error": "Handled via SourceResultStatus.AUTHENTICATION_ERROR",
+      "rate_limited": "Handled via SourceResultStatus.RATE_LIMITED",
+      "transport_timeout": "Handled via SourceResultStatus.TRANSPORT_ERROR",
+      "upstream_5xx": "Handled via SourceResultStatus.UPSTREAM_ERROR",
+      "malformed_json": "Handled via SourceResultStatus.PARSE_ERROR",
+      "schema_drift": "Handled via SourceResultStatus.SCHEMA_ERROR",
+      "partial_statistics": "Skipped without coercing to zero",
+      "corrupt_evidence": "Replay fails closed",
+      "ambiguous_crosswalk": "Returns AMBIGUOUS status",
+      "provider_disagreement": "Preserved as conflict",
+      "stale_observation": "Temporal eligibility checked",
+      "lineup_not_published": "Returns NOT_PUBLISHED_YET"
+    },
+    "resilience_verified": {
+      "attempted_source_history_retained": true,
+      "fallback_is_capability_specific": true,
+      "primary_failure_remains_visible": true,
+      "circuit_breaker_works": true,
+      "retry_budget_is_bounded": true,
+      "fallback_success_does_not_erase_uncertainty": true,
+      "downstream_snapshot_remains_truthful": true
+    }
+  },
+  "source_health_metrics": {
+    "success_error_status_counts": "Recorded via SourceHealthRepo",
+    "latency": "Tracked per request",
+    "quota_remaining": "Tracked via RateLimiter",
+    "freshness": "Temporal eligibility checked",
+    "coverage": "Per-capability provider coverage",
+    "fallback_selection": "Tracked in projection metadata",
+    "schema_rejections": "Tracked via error_code",
+    "evidence_failures": "Tracked via EVIDENCE_ERROR status"
+  }
+}

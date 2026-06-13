@@ -1,0 +1,181 @@
+{
+  "generated_at": "2026-06-13T00:15:00+02:00",
+  "head_commit": "ad9f6a8a2deefb5541a5ef3bb3ddd486754f58e0",
+  "providers": {
+    "espn": {
+      "integration_key": "espn-football",
+      "registration_path": "src/bet/api_clients/espn.py",
+      "credential_required": false,
+      "access_method": "public_hidden_api",
+      "implemented_operations": [
+        "get_fixtures",
+        "get_fixture_stats",
+        "get_h2h",
+        "get_h2h_result",
+        "get_standings",
+        "get_team_form",
+        "get_event_fixture_result"
+      ],
+      "production_callsites": [
+        "src/bet/stats/enrichment.py",
+        "src/bet/enrichment/capability_router.py"
+      ],
+      "deterministic_tests": [
+        "tests/scrapers/test_espn_client.py",
+        "tests/scrapers/test_espn.py",
+        "tests/scrapers/test_espn_football_live.py"
+      ],
+      "sport_coverage": ["football", "basketball", "hockey", "tennis", "volleyball"],
+      "league_coverage": "36+ football leagues per ESPN_LEAGUES",
+      "stat_coverage": "28 stats per football match including corners, shots, possession, fouls, cards",
+      "legal_status": "unofficial_public_endpoint",
+      "current_state": "ACTIVE_PRODUCTION",
+      "notes": "Free, no rate limits, no API key. Hidden API with stable schema."
+    },
+    "api-football": {
+      "integration_key": "api-football",
+      "registration_path": "src/bet/api_clients/api_football.py",
+      "credential_required": true,
+      "credential_env_var": "API_FOOTBALL_KEY",
+      "credential_available": true,
+      "access_method": "licensed_api",
+      "base_url": "https://v3.football.api-sports.io",
+      "implemented_operations": [
+        "get_fixtures",
+        "get_fixture_stats",
+        "get_h2h",
+        "get_h2h_result",
+        "get_team_last_fixtures",
+        "get_standings",
+        "get_injuries",
+        "get_lineups",
+        "get_events"
+      ],
+      "production_callsites": [
+        "src/bet/discovery/sources/api_football.py",
+        "src/bet/stats/enrichment.py"
+      ],
+      "deterministic_tests": [
+        "tests/scrapers/test_api_football_request_identity_alignment.py"
+      ],
+      "sport_coverage": ["football"],
+      "league_coverage": "100+ leagues worldwide",
+      "stat_coverage": "corners, fouls, cards, shots, possession, offsides, saves",
+      "legal_status": "licensed_commercial",
+      "current_state": "ACTIVE_PRODUCTION",
+      "notes": "Shared key with api-basketball, api-hockey, api-volleyball. Plan restrictions may apply for historical data."
+    },
+    "football-data-org": {
+      "integration_key": "football-data-org",
+      "registration_path": "src/bet/api_clients/football_data_org.py",
+      "credential_required": true,
+      "credential_env_var": "FOOTBALL_DATA_ORG_KEY",
+      "credential_available": true,
+      "access_method": "licensed_api",
+      "base_url": "https://api.football-data.org/v4",
+      "implemented_operations": [
+        "get_fixtures",
+        "get_team_matches",
+        "get_standings"
+      ],
+      "production_callsites": [],
+      "deterministic_tests": [],
+      "sport_coverage": ["football"],
+      "league_coverage": "EU competitions: PL, BL1, SA, PD, FL1, DED, PPL, ELC, BSA, CLI",
+      "stat_coverage": "scores only, no detailed match stats",
+      "legal_status": "licensed_commercial",
+      "current_state": "REGISTERED_NOT_PRODUCTION",
+      "notes": "10 req/min free tier. No corners/fouls stats. Standings and fixtures only."
+    },
+    "thesportsdb": {
+      "integration_key": "thesportsdb",
+      "registration_path": "src/bet/api_clients/thesportsdb.py",
+      "credential_required": true,
+      "credential_available": true,
+      "access_method": "licensed_api",
+      "base_url": "https://www.thesportsdb.com/api/v1/json",
+      "implemented_operations": [
+        "get_fixtures",
+        "search_team",
+        "get_event_details"
+      ],
+      "production_callsites": [],
+      "deterministic_tests": [],
+      "sport_coverage": ["football", "basketball", "hockey", "tennis", "volleyball"],
+      "league_coverage": "universal",
+      "stat_coverage": "basic fixture info only, no match stats",
+      "legal_status": "licensed_commercial",
+      "current_state": "DEPRECATED_97.8_PERCENT_FAILURE",
+      "notes": "Free tier dead as of 2026-05-11. Premium key may work. _HOST_BROKEN flag set."
+    },
+    "flashscore": {
+      "integration_key": "flashscore",
+      "registration_path": "src/bet/api_clients/flashscore.py",
+      "credential_required": false,
+      "access_method": "playwright_dom_scraping",
+      "implemented_operations": [
+        "get_fixtures",
+        "get_fixture_stats",
+        "get_h2h",
+        "get_team_form"
+      ],
+      "production_callsites": [],
+      "deterministic_tests": ["tests/scrapers/test_flashscore.py"],
+      "sport_coverage": ["football", "basketball", "hockey", "tennis", "volleyball"],
+      "league_coverage": "comprehensive",
+      "stat_coverage": "corners, shots, fouls, cards, possession, passes, attacks",
+      "legal_status": "unofficial_scraping",
+      "current_state": "SHADOW_ONLY",
+      "notes": "Playwright-based DOM scraping. Anti-bot protections. Not production primary."
+    },
+    "understat": {
+      "integration_key": "understat",
+      "registration_path": "src/bet/api_clients/understat_client.py",
+      "credential_required": false,
+      "access_method": "python_package",
+      "implemented_operations": [
+        "get_team_matches",
+        "get_fixture_stats"
+      ],
+      "production_callsites": [],
+      "deterministic_tests": [],
+      "sport_coverage": ["football"],
+      "league_coverage": "EPL, La Liga, Bundesliga, Serie A, Ligue 1, RFPL",
+      "stat_coverage": "xG, shots, goals",
+      "legal_status": "unofficial_public",
+      "current_state": "SPECIALIZED_XG_ONLY",
+      "notes": "Top 6 EU leagues only. xG specialist. No fixture discovery."
+    },
+    "fbref": {
+      "integration_key": "fbref",
+      "registration_path": "src/bet/scrapers/football/fbref.py",
+      "credential_required": false,
+      "access_method": "soccerdata_package",
+      "implemented_operations": [
+        "scrape_team_season_stats",
+        "scrape_player_season_stats",
+        "scrape_player_match_stats"
+      ],
+      "production_callsites": [],
+      "deterministic_tests": [],
+      "sport_coverage": ["football"],
+      "league_coverage": "FBREF_LEAGUES constant",
+      "stat_coverage": "advanced team/player stats, shooting, passing, defense",
+      "legal_status": "unofficial_scraping",
+      "current_state": "HISTORICAL_ONLY",
+      "notes": "Uses soccerdata package. Request delay 3-6s. Historical/advanced stats only."
+    }
+  },
+  "missing_providers": {
+    "sportdb_dev": {
+      "status": "NOT_REGISTERED",
+      "notes": "SportDB.dev not found in repository. Requires evaluation if credentials exist."
+    }
+  },
+  "odds_sources_excluded": [
+    "odds-api",
+    "odds-api-io",
+    "betclic"
+  ],
+  "notes": "Odds sources remain in separate pipeline per specification."
+}

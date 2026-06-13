@@ -1,0 +1,194 @@
+{
+  "generated_at": "2026-06-13T00:18:00+02:00",
+  "metrics": {
+    "goals": {
+      "canonical_name": "goals",
+      "provider_sources": {
+        "espn": {"path": "boxscore.teams[].statistics[].name=goals", "field": "displayValue"},
+        "api-football": {"path": "response[].statistics[].type=Goals", "field": "value"}
+      },
+      "unit": "count",
+      "scale": "integer",
+      "granularity": "team_per_match",
+      "semantics": "total",
+      "null_vs_zero": "zero_means_zero",
+      "temporal_availability": "post_match",
+      "aggregation_rules": "sum across matches for team form",
+      "provider_coverage": ["espn", "api-football", "football-data-org"]
+    },
+    "corners": {
+      "canonical_name": "corners",
+      "provider_sources": {
+        "espn": {"path": "boxscore.teams[].statistics[].name=wonCorners", "field": "displayValue"},
+        "api-football": {"path": "response[].statistics[].type=Corner Kicks", "field": "value"}
+      },
+      "unit": "count",
+      "scale": "integer",
+      "granularity": "team_per_match",
+      "semantics": "total",
+      "null_vs_zero": "zero_means_zero",
+      "temporal_availability": "post_match",
+      "aggregation_rules": "sum across matches for team form",
+      "provider_coverage": ["espn", "api-football"],
+      "critical_for_betting": true
+    },
+    "shots": {
+      "canonical_name": "shots",
+      "provider_sources": {
+        "espn": {"path": "boxscore.teams[].statistics[].name=totalShots", "field": "displayValue"},
+        "api-football": {"path": "response[].statistics[].type=Total Shots", "field": "value"}
+      },
+      "unit": "count",
+      "scale": "integer",
+      "granularity": "team_per_match",
+      "semantics": "total",
+      "null_vs_zero": "zero_means_zero",
+      "temporal_availability": "post_match",
+      "aggregation_rules": "sum across matches for team form",
+      "provider_coverage": ["espn", "api-football"]
+    },
+    "shots_on_target": {
+      "canonical_name": "shots_on_target",
+      "provider_sources": {
+        "espn": {"path": "boxscore.teams[].statistics[].name=shotsOnTarget", "field": "displayValue"},
+        "api-football": {"path": "response[].statistics[].type=Shots on Goal", "field": "value"}
+      },
+      "unit": "count",
+      "scale": "integer",
+      "granularity": "team_per_match",
+      "semantics": "total",
+      "null_vs_zero": "zero_means_zero",
+      "temporal_availability": "post_match",
+      "aggregation_rules": "sum across matches for team form",
+      "provider_coverage": ["espn", "api-football"]
+    },
+    "possession": {
+      "canonical_name": "possession",
+      "provider_sources": {
+        "espn": {"path": "boxscore.teams[].statistics[].name=possessionPct", "field": "displayValue"},
+        "api-football": {"path": "response[].statistics[].type=Ball Possession", "field": "value"}
+      },
+      "unit": "percentage",
+      "scale": "0-100",
+      "granularity": "team_per_match",
+      "semantics": "percentage",
+      "null_vs_zero": "null_means_unknown",
+      "temporal_availability": "post_match",
+      "aggregation_rules": "average across matches",
+      "provider_coverage": ["espn", "api-football"],
+      "parsing_notes": "API-Football returns string with %, ESPN returns number"
+    },
+    "fouls": {
+      "canonical_name": "fouls",
+      "provider_sources": {
+        "espn": {"path": "boxscore.teams[].statistics[].name=foulsCommitted", "field": "displayValue"},
+        "api-football": {"path": "response[].statistics[].type=Fouls", "field": "value"}
+      },
+      "unit": "count",
+      "scale": "integer",
+      "granularity": "team_per_match",
+      "semantics": "total",
+      "null_vs_zero": "zero_means_zero",
+      "temporal_availability": "post_match",
+      "aggregation_rules": "sum across matches for team form",
+      "provider_coverage": ["espn", "api-football"]
+    },
+    "yellow_cards": {
+      "canonical_name": "yellow_cards",
+      "provider_sources": {
+        "espn": {"path": "boxscore.teams[].statistics[].name=yellowCards", "field": "displayValue"},
+        "api-football": {"path": "response[].statistics[].type=Yellow Cards", "field": "value"}
+      },
+      "unit": "count",
+      "scale": "integer",
+      "granularity": "team_per_match",
+      "semantics": "total",
+      "null_vs_zero": "zero_means_zero",
+      "temporal_availability": "post_match",
+      "aggregation_rules": "sum across matches for team form",
+      "provider_coverage": ["espn", "api-football"]
+    },
+    "red_cards": {
+      "canonical_name": "red_cards",
+      "provider_sources": {
+        "espn": {"path": "boxscore.teams[].statistics[].name=redCards", "field": "displayValue"},
+        "api-football": {"path": "response[].statistics[].type=Red Cards", "field": "value"}
+      },
+      "unit": "count",
+      "scale": "integer",
+      "granularity": "team_per_match",
+      "semantics": "total",
+      "null_vs_zero": "zero_means_zero",
+      "temporal_availability": "post_match",
+      "aggregation_rules": "sum across matches for team form",
+      "provider_coverage": ["espn", "api-football"]
+    },
+    "offsides": {
+      "canonical_name": "offsides",
+      "provider_sources": {
+        "espn": {"path": "boxscore.teams[].statistics[].name=offsides", "field": "displayValue"},
+        "api-football": {"path": "response[].statistics[].type=Offsides", "field": "value"}
+      },
+      "unit": "count",
+      "scale": "integer",
+      "granularity": "team_per_match",
+      "semantics": "total",
+      "null_vs_zero": "zero_means_zero",
+      "temporal_availability": "post_match",
+      "aggregation_rules": "sum across matches for team form",
+      "provider_coverage": ["espn", "api-football"]
+    },
+    "saves": {
+      "canonical_name": "saves",
+      "provider_sources": {
+        "espn": {"path": "boxscore.teams[].statistics[].name=saves", "field": "displayValue"},
+        "api-football": {"path": "response[].statistics[].type=Goalkeeper Saves", "field": "value"}
+      },
+      "unit": "count",
+      "scale": "integer",
+      "granularity": "team_per_match",
+      "semantics": "total",
+      "null_vs_zero": "zero_means_zero",
+      "temporal_availability": "post_match",
+      "aggregation_rules": "sum across matches for team form",
+      "provider_coverage": ["espn", "api-football"]
+    },
+    "expected_goals": {
+      "canonical_name": "xG",
+      "provider_sources": {
+        "understat": {"path": "match_shots response", "field": "xG aggregated from shots"}
+      },
+      "unit": "float",
+      "scale": "0.0-10.0 typical",
+      "granularity": "team_per_match",
+      "semantics": "expected_value",
+      "null_vs_zero": "null_means_unknown",
+      "temporal_availability": "post_match",
+      "aggregation_rules": "sum across matches for team form",
+      "provider_coverage": ["understat"],
+      "competition_restriction": "EPL, La Liga, Bundesliga, Serie A, Ligue 1, RFPL only"
+    }
+  },
+  "required_metrics_for_fixture_stats": [
+    "goals",
+    "corners",
+    "shots",
+    "shots_on_target",
+    "possession",
+    "fouls",
+    "yellow_cards",
+    "red_cards",
+    "offsides"
+  ],
+  "optional_metrics": [
+    "saves",
+    "total_passes",
+    "pass_accuracy",
+    "blocked_shots",
+    "tackles",
+    "interceptions",
+    "crosses",
+    "expected_goals"
+  ],
+  "notes": "A provider lacking corners cannot be sole primary for complete fixture-statistics capability."
+}

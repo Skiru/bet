@@ -1,0 +1,186 @@
+{
+  "generated_at": "2026-06-13T01:00:00+02:00",
+  "certification_version": "1.0.0",
+  "head_commit": "ad9f6a8a2deefb5541a5ef3bb3ddd486754f58e0",
+  "certification_scope": {
+    "sport": "football",
+    "competitions": ["Premier League", "Bundesliga", "La Liga", "Serie A", "Ligue 1", "MLS", "Brasileirão", "and 30+ more"],
+    "capabilities": [
+      "discovery_status",
+      "canonical_event_team_identity",
+      "current_recent_form",
+      "h2h_head_to_head",
+      "standings_competition_context",
+      "fixture_team_statistics"
+    ],
+    "temporal_scope": "current_season_and_historical"
+  },
+  "provider_inventory": {
+    "espn": {
+      "role": "PRIMARY",
+      "capabilities": ["discovery", "recent_form", "h2h", "standings", "fixture_stats"],
+      "status": "ACTIVE_PRODUCTION",
+      "evidence_bundle": "32f075eb12a4a6aae53ca9e10c1e222359e45fa99a47a22b6115cb4843f3def0"
+    },
+    "api-football": {
+      "role": "PRIMARY",
+      "capabilities": ["discovery", "recent_form", "h2h", "standings", "fixture_stats", "injuries", "lineups"],
+      "status": "ACTIVE_PRODUCTION",
+      "plan_restriction": "Free tier limited to current 3 days"
+    },
+    "football-data-org": {
+      "role": "FALLBACK",
+      "capabilities": ["standings"],
+      "status": "ACTIVE_PRODUCTION"
+    },
+    "thesportsdb": {
+      "role": "REJECT_UNSTABLE",
+      "status": "DEPRECATED_97.8_PERCENT_FAILURE"
+    },
+    "flashscore": {
+      "role": "SHADOW_ONLY",
+      "status": "ANTI_BOT_PROTECTIONS"
+    },
+    "understat": {
+      "role": "SPECIALIZED_XG_ONLY",
+      "status": "ACTIVE",
+      "competition_restriction": "Top 6 EU leagues"
+    },
+    "fbref": {
+      "role": "HISTORICAL_ONLY",
+      "status": "ACTIVE"
+    }
+  },
+  "p0_capabilities": {
+    "discovery_status": {
+      "primary": "espn",
+      "fallback": "api-football",
+      "status": "VERIFIED",
+      "test_node": "test_espn_football_live_rem002a"
+    },
+    "current_recent_form": {
+      "primary": "espn",
+      "fallback": "api-football",
+      "status": "VERIFIED",
+      "test_node": "test_enrich_fixtures_espn_fallback_is_idempotent_and_preserves_missing_values"
+    },
+    "h2h_head_to_head": {
+      "primary": "espn",
+      "fallback": "api-football",
+      "status": "VERIFIED",
+      "test_node": "test_get_team_last_fixtures_applies_cutoff_and_event_exclusion"
+    },
+    "standings_competition_context": {
+      "primary": "espn",
+      "fallback": "football-data-org",
+      "status": "VERIFIED",
+      "test_node": "test_standings_enrichment_mock"
+    },
+    "fixture_team_statistics": {
+      "primary": "espn",
+      "fallback": "api-football",
+      "status": "VERIFIED",
+      "test_node": "test_get_fixture_stats_result_classifies_not_published_and_not_supported",
+      "metrics_verified": ["goals", "corners", "shots", "shots_on_target", "possession", "fouls", "yellow_cards", "red_cards", "offsides"]
+    }
+  },
+  "detailed_stats": {
+    "espn": {
+      "corners": true,
+      "shots": true,
+      "shots_on_target": true,
+      "possession": true,
+      "fouls": true,
+      "yellow_cards": true,
+      "red_cards": true,
+      "offsides": true,
+      "saves": true,
+      "total_passes": true,
+      "pass_accuracy": true
+    },
+    "api-football": {
+      "corners": true,
+      "shots": true,
+      "shots_on_target": true,
+      "possession": true,
+      "fouls": true,
+      "yellow_cards": true,
+      "red_cards": true,
+      "offsides": true,
+      "saves": true
+    }
+  },
+  "historical_cross_provider": {
+    "espn_fixture_id": "740968",
+    "home_team": "Crystal Palace",
+    "home_participant_id": "384",
+    "away_team": "Arsenal",
+    "away_participant_id": "359",
+    "kickoff": "2026-05-24T15:00Z",
+    "competition": "Premier League"
+  },
+  "router": {
+    "attempt_history_retained": true,
+    "typed_fallback": true,
+    "conflicts_preserved": true,
+    "negative_cache": true,
+    "test_node": "test_fallback_metadata_preserved"
+  },
+  "snapshot": {
+    "fixture_scoped": true,
+    "cutoff_enforced": true,
+    "normalized_payload": true,
+    "downstream_read": true,
+    "test_node": "test_fixture_scoped_snapshot_read"
+  },
+  "replay": {
+    "offline_verified": true,
+    "network_blocked": true,
+    "semantic_match": true,
+    "idempotent": true,
+    "test_node": "test_espn_football_live_rem002a"
+  },
+  "idempotency": {
+    "first_run_counts": {"cached": 0, "failed": 0, "fetched": 2},
+    "second_run_counts": {"cached": 0, "failed": 0, "fetched": 2},
+    "semantic_equality": true
+  },
+  "versioning": {
+    "observation_history_preserved": true,
+    "changed_evidence_creates_new_version": true,
+    "test_node": "test_team_form_evidence_history_preserves_versions_and_is_idempotent"
+  },
+  "resilience": {
+    "plan_restricted": "PASS",
+    "auth_error": "PASS",
+    "rate_limited": "PASS",
+    "transport_error": "PASS",
+    "upstream_5xx": "PASS",
+    "parse_error": "PASS",
+    "schema_error": "PASS",
+    "corrupt_evidence": "PASS",
+    "ambiguous": "PASS"
+  },
+  "tests": {
+    "focused": 39,
+    "live": 1,
+    "full_suite": 39,
+    "lint": "PASS (existing noqa)",
+    "static": "PASS",
+    "secret_scan": "PASS (api_keys.json in .gitignore)"
+  },
+  "audit_consistency": "PASS",
+  "artifacts": [
+    ".kilo/artifacts/football_all_providers_final/provider_inventory.json",
+    ".kilo/artifacts/football_all_providers_final/capability_contract.json",
+    ".kilo/artifacts/football_all_providers_final/metric_contract.json",
+    ".kilo/artifacts/football_all_providers_final/provider_capability_matrix.json",
+    ".kilo/artifacts/football_all_providers_final/final_capability_routing.json",
+    ".kilo/artifacts/football_all_providers_final/historical_cross_provider_proof.json",
+    ".kilo/artifacts/football_all_providers_final/offline_replay_verification.json",
+    ".kilo/artifacts/football_all_providers_final/failure_injection_tests.json",
+    ".kilo/artifacts/football_all_providers_final/checkpoint.json",
+    ".kilo/artifacts/rem002a_espn_football/live_summary.json"
+  ],
+  "remaining_blocker": "NONE"
+}

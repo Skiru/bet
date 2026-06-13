@@ -4,6 +4,7 @@
 .kilocode/mcp.json
 .kilocode/node_modules/
 .env
+/KLUCZE API:
 betting/data/
 betting/data/betting.db
 scripts/playwright_storage/

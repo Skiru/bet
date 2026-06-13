@@ -1,0 +1,81 @@
+{
+  "phase": "P00",
+  "status": "PASS",
+  "baseline": {
+    "reviewed_public_baseline": "ad9f6a8",
+    "origin_main": "ad9f6a8a2deefb5541a5ef3bb3ddd486754f58e0",
+    "local_head": "c862ad267c614614292324e83c72bf148d00e462",
+    "worktree": "/Users/mkoziol/projects/bet"
+  },
+  "inventory": [
+    {
+      "path": ".env.example",
+      "providers": ["SPORTDB_API_KEY"],
+      "status": "safe_placeholder"
+    },
+    {
+      "path": "config/api_keys.example.json",
+      "providers": [
+        "api-football",
+        "api-basketball",
+        "api-hockey",
+        "football-data-org",
+        "thesportsdb",
+        "odds-api",
+        "brave_search"
+      ],
+      "status": "safe_placeholders"
+    },
+    {
+      "path": "KLUCZE API:",
+      "providers": ["sportdb.dev", "thesportsdb"],
+      "status": "removed_from_tracked_tree"
+    }
+  ],
+  "rotation_attestation": [
+    {
+      "provider": "sportdb.dev",
+      "rotation_status": "user_confirmed_invalidated_and_replaced",
+      "current_tree_remediation": "tracked note removed",
+      "historical_exposure_remains": true,
+      "timestamp": "2026-06-13T13:49:15+02:00"
+    },
+    {
+      "provider": "thesportsdb",
+      "rotation_status": "user_confirmed_invalidated_and_replaced",
+      "current_tree_remediation": "tracked note removed",
+      "historical_exposure_remains": true,
+      "timestamp": "2026-06-13T13:49:15+02:00"
+    }
+  ],
+  "changed_files": [
+    ".gitattributes",
+    ".gitignore",
+    "KLUCZE API:"
+  ],
+  "tests": {
+    "compileall": "PASS",
+    "ruff_baseline": "1884 existing findings preserved as baseline; not a P00 blocker",
+    "pytest_non_live": "PASS: 843 passed, 6 skipped, 6 deselected"
+  },
+  "live_calls": 0,
+  "quotas": {},
+  "bundle_ids": [],
+  "scans": {
+    "tracked_files": "PASS: no active private credential value remains in tracked tree; remaining credential-like placeholders are safe examples only",
+    "diff": "PASS: remediation diff is redacted for deleted credential note and contains no replacement credential value",
+    "untracked_task_artifacts": "PASS",
+    "generated_logs_and_patches": "PASS",
+    "certification_artifact_directory": "PASS"
+  },
+  "gate": "PASS",
+  "blocker": "NONE",
+  "next_phase": "P01",
+  "notes": [
+    "User attested that previously exposed private credentials were invalidated and replaced through ignored local environment configuration.",
+    "Minimal ignore rule added for the deleted local credential note path.",
+    "Exact-path diff suppression added so the secret-bearing deletion is not re-emitted by git diff during later phases.",
+    "Unrelated work preserved; baseline test results carried forward unchanged."
+  ],
+  "timestamp": "2026-06-13T13:49:15+02:00"
+}

@@ -58,7 +58,56 @@
         "qwen36-local-35b",
         "qwen36-orchestrator"
       ]
-    }
+    },
+    "bedrock-flex-ohio": {
+      "npm": "@ai-sdk/amazon-bedrock",
+      "name": "Amazon Bedrock GLM-5 Flex Ohio",
+
+      "options": {
+        "apiKey": "xxx",
+        "region": "us-east-2",
+        "timeout": 900000
+      },
+
+      "models": {
+        "glm-5-flex": {
+          "id": "zai.glm-5",
+          "name": "GLM-5 Flex (Ohio)",
+
+          "family": "glm",
+          "release_date": "2026-02-11",
+          "status": "active",
+
+          "attachment": false,
+          "tool_call": true,
+
+          "reasoning": false,
+
+          "temperature": true,
+
+          "modalities": {
+            "input": ["text"],
+            "output": ["text"]
+          },
+
+          "limit": {
+            "context": 200000,
+            "output": 32000
+          },
+
+          "cost": {
+            "input": 0.50,
+            "output": 1.60
+          },
+
+          "options": {
+            "serviceTier": "flex",
+            "additionalModelRequestFields": {
+              "reasoning_config": "high"
+            },
+          }
+        }
+    }}
   },
   "model": "openai-compatible/qwen36-local-35b",
   "instructions": [

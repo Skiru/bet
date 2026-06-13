@@ -1,0 +1,143 @@
+{
+  "generated_at": "2026-06-13T00:30:00+02:00",
+  "live_test_results": {
+    "espn": {
+      "discovery": {"status": "SUCCESS", "fixtures_found": 10, "test_date": "2026-05-24"},
+      "fixture_stats": {"status": "SUCCESS", "has_corners": true, "test_fixture": "740968"},
+      "recent_form": {"status": "SUCCESS", "test_fixture": "740968"},
+      "h2h": {"status": "SUCCESS"},
+      "standings": {"status": "SUCCESS"},
+      "identity_quality": {"participant_ids": true, "stable_ids": true},
+      "temporal_correctness": {"cutoff_enforced": true, "exclude_target": true},
+      "replay": {"status": "SUCCESS", "semantic_match": true, "idempotent": true}
+    },
+    "api-football": {
+      "discovery": {"status": "SUCCESS", "fixtures_found": 98, "test_date": "2026-06-11"},
+      "fixture_stats": {"status": "SUCCESS", "has_corners": true, "test_fixture": "1520718"},
+      "plan_restriction": {"historical_blocked": true, "current_available": true, "date_range": "2026-06-11 to 2026-06-13"},
+      "identity_quality": {"participant_ids": true, "stable_ids": true},
+      "temporal_correctness": {"cutoff_enforced": true}
+    },
+    "football-data-org": {
+      "discovery": {"status": "SUCCESS", "fixtures_found": 0, "note": "season ended"},
+      "standings": {"status": "SUCCESS", "teams": 20, "competition": "PL"},
+      "fixture_stats": {"status": "NOT_SUPPORTED", "note": "no detailed match stats"},
+      "identity_quality": {"participant_ids": true, "stable_ids": true}
+    },
+    "thesportsdb": {
+      "status": "DEPRECATED",
+      "failure_rate": "97.8%",
+      "host_broken": true,
+      "role": "REJECT_UNSTABLE"
+    },
+    "flashscore": {
+      "status": "SHADOW_ONLY",
+      "note": "Playwright-based DOM scraping, anti-bot protections"
+    },
+    "understat": {
+      "status": "SPECIALIZED_XG_ONLY",
+      "note": "Top 6 EU leagues only, no fixture discovery"
+    },
+    "fbref": {
+      "status": "HISTORICAL_ONLY",
+      "note": "soccerdata package, request delay 3-6s"
+    }
+  },
+  "provider_capability_matrix": {
+    "espn": {
+      "discovery_status": "PRIMARY",
+      "canonical_event_team_identity": "PRIMARY",
+      "current_recent_form": "PRIMARY",
+      "h2h_head_to_head": "PRIMARY",
+      "standings_competition_context": "PRIMARY",
+      "fixture_team_statistics": "PRIMARY",
+      "cross_provider_identity": "FALLBACK",
+      "injuries_suspensions": "NOT_SUPPORTED",
+      "lineups": "FALLBACK",
+      "expected_goals": "NOT_SUPPORTED",
+      "hard_gates_passed": true,
+      "score": 95
+    },
+    "api-football": {
+      "discovery_status": "PRIMARY",
+      "canonical_event_team_identity": "PRIMARY",
+      "current_recent_form": "PRIMARY",
+      "h2h_head_to_head": "PRIMARY",
+      "standings_competition_context": "PRIMARY",
+      "fixture_team_statistics": "PRIMARY",
+      "cross_provider_identity": "PRIMARY",
+      "injuries_suspensions": "PRIMARY",
+      "lineups": "PRIMARY",
+      "expected_goals": "NOT_SUPPORTED",
+      "hard_gates_passed": true,
+      "plan_restriction": "Free plan limited to current 3 days",
+      "score": 90
+    },
+    "football-data-org": {
+      "discovery_status": "FALLBACK",
+      "canonical_event_team_identity": "FALLBACK",
+      "current_recent_form": "FALLBACK",
+      "h2h_head_to_head": "NOT_SUPPORTED",
+      "standings_competition_context": "PRIMARY",
+      "fixture_team_statistics": "NOT_SUPPORTED",
+      "cross_provider_identity": "FALLBACK",
+      "injuries_suspensions": "NOT_SUPPORTED",
+      "lineups": "NOT_SUPPORTED",
+      "expected_goals": "NOT_SUPPORTED",
+      "hard_gates_passed": true,
+      "score": 50
+    },
+    "thesportsdb": {
+      "all_capabilities": "REJECT_UNSTABLE",
+      "hard_gates_passed": false,
+      "reason": "97.8% failure rate, free tier dead",
+      "score": 0
+    },
+    "flashscore": {
+      "all_capabilities": "SHADOW_ONLY",
+      "hard_gates_passed": false,
+      "reason": "Anti-bot protections, unstable access",
+      "score": 0
+    },
+    "understat": {
+      "discovery_status": "NOT_SUPPORTED",
+      "canonical_event_team_identity": "NOT_SUPPORTED",
+      "current_recent_form": "NOT_SUPPORTED",
+      "h2h_head_to_head": "NOT_SUPPORTED",
+      "standings_competition_context": "NOT_SUPPORTED",
+      "fixture_team_statistics": "FALLBACK",
+      "cross_provider_identity": "NOT_SUPPORTED",
+      "injuries_suspensions": "NOT_SUPPORTED",
+      "lineups": "NOT_SUPPORTED",
+      "expected_goals": "PRIMARY",
+      "hard_gates_passed": true,
+      "competition_restriction": "EPL, La Liga, Bundesliga, Serie A, Ligue 1, RFPL only",
+      "score": 40
+    },
+    "fbref": {
+      "discovery_status": "NOT_SUPPORTED",
+      "canonical_event_team_identity": "NOT_SUPPORTED",
+      "current_recent_form": "HISTORICAL_ONLY",
+      "h2h_head_to_head": "NOT_SUPPORTED",
+      "standings_competition_context": "NOT_SUPPORTED",
+      "fixture_team_statistics": "HISTORICAL_ONLY",
+      "cross_provider_identity": "NOT_SUPPORTED",
+      "injuries_suspensions": "NOT_SUPPORTED",
+      "lineups": "NOT_SUPPORTED",
+      "expected_goals": "FALLBACK",
+      "hard_gates_passed": true,
+      "score": 35
+    }
+  },
+  "live_request_counts": {
+    "espn": 4,
+    "api-football": 5,
+    "football-data-org": 2,
+    "thesportsdb": 0,
+    "flashscore": 0,
+    "understat": 0,
+    "fbref": 0,
+    "total": 11,
+    "remaining_budget": 39
+  }
+}

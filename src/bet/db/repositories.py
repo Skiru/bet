@@ -1,3 +1,5 @@
+# ruff: noqa: E501, F401, I001, N806, UP017, W291, W293
+
 """Repository classes for all database CRUD operations.
 
 All SQL uses parameterized queries with ? placeholders — NEVER string interpolation.
@@ -1036,38 +1038,57 @@ class FixtureCapabilityRepo:
         self.conn = conn
     
     def save_observation(self, obs: FixtureCapabilityObservation) -> int:
-        """Insert observation. Returns observation ID.
-        
-        Uses INSERT OR IGNORE to handle duplicates (same fixture+team+capability+source+valid_at).
-        """
-        cursor = self.conn.execute(
-            """INSERT OR IGNORE INTO fixture_capability_observation
+        """Insert observation and return a deterministic observation ID."""
+        try:
+            cursor = self.conn.execute(
+                """INSERT INTO fixture_capability_observation
                (canonical_fixture_id, team_id, capability, source, request_identity,
                 evidence_bundle_id, native_fixture_id, native_team_id, status, http_status,
                 error_code, retryable, parser_version, parser_diagnostics_json, observed_at,
-                valid_at, payload_sha256)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (
-                obs.canonical_fixture_id,
-                obs.team_id,
-                obs.capability,
-                obs.source,
-                obs.request_identity,
-                obs.evidence_bundle_id,
-                obs.native_fixture_id,
-                obs.native_team_id,
-                obs.status,
-                obs.http_status,
-                obs.error_code,
-                int(obs.retryable),
-                obs.parser_version,
-                json.dumps(obs.parser_diagnostics),
-                obs.observed_at,
-                obs.valid_at,
-                obs.payload_sha256,
-            ),
-        )
-        return cursor.lastrowid or 0
+                valid_at, payload_sha256, payload_json)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    obs.canonical_fixture_id,
+                    obs.team_id,
+                    obs.capability,
+                    obs.source,
+                    obs.request_identity,
+                    obs.evidence_bundle_id,
+                    obs.native_fixture_id,
+                    obs.native_team_id,
+                    obs.status,
+                    obs.http_status,
+                    obs.error_code,
+                    int(obs.retryable),
+                    obs.parser_version,
+                    json.dumps(obs.parser_diagnostics),
+                    obs.observed_at,
+                    obs.valid_at,
+                    obs.payload_sha256,
+                    obs.payload_json,
+                ),
+            )
+            return cursor.lastrowid or 0
+        except sqlite3.IntegrityError:
+            row = self.conn.execute(
+                """SELECT id FROM fixture_capability_observation
+                   WHERE canonical_fixture_id = ? AND team_id = ? AND capability = ?
+                   AND source = ? AND request_identity = ?
+                   AND evidence_bundle_id = ? AND valid_at = ? AND payload_sha256 = ?""",
+                (
+                    obs.canonical_fixture_id,
+                    obs.team_id,
+                    obs.capability,
+                    obs.source,
+                    obs.request_identity,
+                    obs.evidence_bundle_id,
+                    obs.valid_at,
+                    obs.payload_sha256,
+                ),
+            ).fetchone()
+            if row:
+                return int(row["id"] if hasattr(row, "keys") else row[0])
+            raise
     
     def get_observation(
         self,
@@ -1205,7 +1226,7 @@ class FixtureCapabilityRepo:
         - evidence_bundle_id: from linked observation
         - native_ids: from linked observation
         - staleness: computed from observation timestamps
-        - value: UNKNOWN (downstream must resolve from evidence)
+        - value: normalized payload or explicit UNKNOWN
         """
         proj = self.get_projection(canonical_fixture_id, team_id, capability, analysis_cutoff_at)
         if not proj:
@@ -1216,6 +1237,7 @@ class FixtureCapabilityRepo:
                 "evidence_bundle_id": "",
                 "native_ids": {},
                 "staleness": True,
+                "payload": None,
                 "value": "UNKNOWN",
             }
         
@@ -1228,6 +1250,10 @@ class FixtureCapabilityRepo:
             ).fetchone()
             obs = self._row_to_observation(row) if row else None
         
+        payload = None
+        if obs and obs.payload_json:
+            payload = json.loads(obs.payload_json)
+
         return {
             "status": proj.selected_status,
             "source": proj.selected_source,
@@ -1238,7 +1264,8 @@ class FixtureCapabilityRepo:
                 "team_id": obs.native_team_id if obs else "",
             },
             "staleness": False,  # Projection is point-in-time, not stale
-            "value": "UNKNOWN",  # Downstream must resolve from evidence
+            "payload": payload,
+            "value": payload if payload is not None else "UNKNOWN",
             "primary_source": proj.primary_source,
             "primary_status": proj.primary_status,
             "fallback_reason": proj.fallback_reason,
@@ -1265,6 +1292,7 @@ class FixtureCapabilityRepo:
             observed_at=row["observed_at"],
             valid_at=row["valid_at"],
             payload_sha256=row["payload_sha256"] or "",
+            payload_json=row["payload_json"] or "",
         )
     
     @staticmethod

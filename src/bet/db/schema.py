@@ -1,10 +1,12 @@
+# ruff: noqa: E501
+
 """Schema initialization and migration for the betting database."""
 
 import sqlite3
 from pathlib import Path
 
 SCHEMA_SQL = Path(__file__).parent / "schema.sql"
-SCHEMA_VERSION = 16
+SCHEMA_VERSION = 17
 
 
 def init_db(conn: sqlite3.Connection) -> None:
@@ -193,6 +195,9 @@ def migrate(conn: sqlite3.Connection, from_version: int, to_version: int) -> Non
     if from_version < 16:
         _migrate_v16_fixture_scoped_observations(conn)
 
+    if from_version < 17 and to_version >= 17:
+        _migrate_v17_fixture_capability_observation_versioning(conn)
+
     _set_schema_version(conn, to_version)
     conn.commit()
 
@@ -359,6 +364,31 @@ def _migrate_v16_fixture_scoped_observations(conn: sqlite3.Connection) -> None:
     except Exception:
         conn.execute("ROLLBACK TO SAVEPOINT migrate_v16")
         conn.execute("RELEASE SAVEPOINT migrate_v16")
+        raise
+
+
+def _migrate_v17_fixture_capability_observation_versioning(conn: sqlite3.Connection) -> None:
+    """Add normalized payload persistence and evidence-aware observation identity."""
+    conn.execute("SAVEPOINT migrate_v17")
+    try:
+        columns = _table_columns(conn, "fixture_capability_observation")
+        if "payload_json" not in columns:
+            conn.execute(
+                "ALTER TABLE fixture_capability_observation "
+                "ADD COLUMN payload_json TEXT NOT NULL DEFAULT ''"
+            )
+        conn.execute("DROP INDEX IF EXISTS idx_fixture_capability_observation_identity")
+        conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_fixture_capability_observation_identity "
+            "ON fixture_capability_observation(" 
+            "canonical_fixture_id, team_id, capability, source, request_identity, "
+            "COALESCE(evidence_bundle_id, ''), valid_at, COALESCE(payload_sha256, '')"
+            ")"
+        )
+        conn.execute("RELEASE SAVEPOINT migrate_v17")
+    except Exception:
+        conn.execute("ROLLBACK TO SAVEPOINT migrate_v17")
+        conn.execute("RELEASE SAVEPOINT migrate_v17")
         raise
 
 

@@ -1,3 +1,5 @@
+# ruff: noqa: E501
+
 """End-to-end football workflow test.
 
 Tests the complete production path:
@@ -270,8 +272,8 @@ class TestEndToEndFootballWorkflow:
         # Run enrichment
         result = enrich_standings(
             db_conn=db_conn,
-            sport="football",
-            competition_name="Premier League",
+            canonical_fixture_id=sample_fixture["fixture_id"],
+            team_id=sample_fixture["home_team_id"],
             analysis_cutoff_at=sample_fixture["kickoff"],
         )
 
@@ -286,39 +288,44 @@ class TestEndToEndFootballWorkflow:
 
         from bet.db.observation_models import create_observation, create_projection
 
-        # Create season-scoped observation (fixture_id=0, team_id=0)
+        # Create fixture/team-scoped standings observation
         obs = create_observation(
-            canonical_fixture_id=0,
-            team_id=0,
+            canonical_fixture_id=sample_fixture["fixture_id"],
+            team_id=sample_fixture["home_team_id"],
             capability=Capability.STANDINGS_COMPETITION_CONTEXT.value,
             source="espn",
             request_identity="GET https://site.api.espn.com/apis/v2/sports/soccer/eng.1/standings",
             status="SUCCESS",
             valid_at=sample_fixture["kickoff"],
             evidence_bundle_id="standings_bundle",
+            payload_sha256="standings_hash",
+            payload_json='{"competition_name":"Premier League","selected_team":{"rank":1},"standings":[{"team_id":"123","rank":1}]}',
         )
-        cap_repo.save_observation(obs)
+        obs_id = cap_repo.save_observation(obs)
 
         proj = create_projection(
-            canonical_fixture_id=0,
-            team_id=0,
+            canonical_fixture_id=sample_fixture["fixture_id"],
+            team_id=sample_fixture["home_team_id"],
             capability=Capability.STANDINGS_COMPETITION_CONTEXT.value,
             analysis_cutoff_at=sample_fixture["kickoff"],
             selected_source="espn",
             selected_status="SUCCESS",
+            selected_observation_id=obs_id,
         )
         cap_repo.save_projection(proj)
 
         # Read snapshot
         snapshot = get_standings_snapshot(
             db_conn=db_conn,
-            competition_name="Premier League",
+            canonical_fixture_id=sample_fixture["fixture_id"],
+            team_id=sample_fixture["home_team_id"],
             analysis_cutoff_at=sample_fixture["kickoff"],
         )
 
         assert snapshot is not None
         assert snapshot["status"] == "SUCCESS"
         assert snapshot["source"] == "espn"
+        assert snapshot["payload"]["selected_team"]["rank"] == 1
 
     def test_missing_capability_returns_none(self, db_conn, sample_fixture):
         """Test that missing capability returns None, not stale data."""

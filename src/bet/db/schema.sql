@@ -728,10 +728,20 @@ CREATE TABLE IF NOT EXISTS fixture_capability_observation (
     parser_diagnostics_json TEXT NOT NULL DEFAULT '{}',
     observed_at TEXT NOT NULL,
     valid_at TEXT NOT NULL,
-    payload_sha256 TEXT NOT NULL DEFAULT ''
+    payload_sha256 TEXT NOT NULL DEFAULT '',
+    payload_json TEXT NOT NULL DEFAULT ''
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_fixture_capability_observation_identity
-    ON fixture_capability_observation(canonical_fixture_id, team_id, capability, source, valid_at);
+    ON fixture_capability_observation(
+        canonical_fixture_id,
+        team_id,
+        capability,
+        source,
+        request_identity,
+        COALESCE(evidence_bundle_id, ''),
+        valid_at,
+        COALESCE(payload_sha256, '')
+    );
 CREATE INDEX IF NOT EXISTS idx_fixture_capability_observation_fixture
     ON fixture_capability_observation(canonical_fixture_id, capability);
 CREATE INDEX IF NOT EXISTS idx_fixture_capability_observation_team

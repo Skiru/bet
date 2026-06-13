@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 class FixtureCapabilityObservation:
     """Immutable observation of a capability from a source.
 
-    Identity: fixture + team + capability + source + cutoff
+    Identity: scope + capability + source + request + evidence + cutoff
     """
     id: int | None = None
     canonical_fixture_id: int = 0
@@ -40,6 +40,7 @@ class FixtureCapabilityObservation:
 
     # Payload hash
     payload_sha256: str = ""
+    payload_json: str = ""
 
 
 @dataclass
@@ -86,6 +87,7 @@ def create_observation(
     parser_version: str = "",
     parser_diagnostics: dict | None = None,
     payload_sha256: str = "",
+    payload_json: str = "",
 ) -> FixtureCapabilityObservation:
     """Create a new fixture-scoped observation."""
     return FixtureCapabilityObservation(
@@ -107,6 +109,7 @@ def create_observation(
         observed_at=datetime.now(UTC).isoformat(),
         valid_at=valid_at,
         payload_sha256=payload_sha256,
+        payload_json=payload_json,
     )
 
 
