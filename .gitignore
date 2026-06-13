@@ -36,3 +36,5 @@ var/local-llm/
 # Local LLM PID files (legacy location)
 /tmp/rapid-mlx.pid
 /tmp/rapid-mlx.log
+.DS_Store
+.kilo/artifacts/**/backup.patch

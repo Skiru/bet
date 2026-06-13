@@ -1,81 +1,74 @@
 {
-  "phase": "P00",
+  "phase": "P00-CORRECTION",
   "status": "PASS",
-  "baseline": {
-    "reviewed_public_baseline": "ad9f6a8",
-    "origin_main": "ad9f6a8a2deefb5541a5ef3bb3ddd486754f58e0",
-    "local_head": "c862ad267c614614292324e83c72bf148d00e462",
-    "worktree": "/Users/mkoziol/projects/bet"
-  },
-  "inventory": [
-    {
-      "path": ".env.example",
-      "providers": ["SPORTDB_API_KEY"],
-      "status": "safe_placeholder"
-    },
-    {
-      "path": "config/api_keys.example.json",
-      "providers": [
-        "api-football",
-        "api-basketball",
-        "api-hockey",
-        "football-data-org",
-        "thesportsdb",
-        "odds-api",
-        "brave_search"
-      ],
-      "status": "safe_placeholders"
-    },
-    {
-      "path": "KLUCZE API:",
-      "providers": ["sportdb.dev", "thesportsdb"],
-      "status": "removed_from_tracked_tree"
-    }
+  "reviewed_public_baseline": "ad9f6a8a2deefb5541a5ef3bb3ddd486754f58e0",
+  "preserved_legacy_snapshot": "b7bf898509c887613f1d86aa4ab754a282a84446",
+  "current_p00_correction_parent": "b7bf898509c887613f1d86aa4ab754a282a84446",
+  "current_branch": "main",
+  "changed_files": [
+    ".gitattributes",
+    ".gitignore",
+    ".DS_Store",
+    ".kilo/artball_all_providers_final/metric_contract.json",
+    ".kilo/artifacts/football_all_providers_final/CERTIFICATION_INDEX.json",
+    ".kilo/artifacts/football_all_providers_final/capability_contract.json",
+    ".kilo/artifacts/football_all_providers_final/checkpoint.json",
+    ".kilo/artifacts/football_all_providers_final/failure_injection_tests.json",
+    ".kilo/artifacts/football_all_providers_final/final_capability_routing.json",
+    ".kilo/artifacts/football_all_providers_final/historical_cross_provider_proof.json",
+    ".kilo/artifacts/football_all_providers_final/metric_contract.json",
+    ".kilo/artifacts/football_all_providers_final/offline_replay_verification.json",
+    ".kilo/artifacts/football_all_providers_final/provider_capability_matrix.json",
+    ".kilo/artifacts/football_all_providers_final/provider_inventory.json",
+    ".kilo/artifacts/football_golden_v3/backup.patch",
+    ".kilo/artifacts/football_golden_v3/checkpoint.json",
+    "FOOTBALL_GOLDEN_CERTIFICATION_BUNDLE_REVIEW.md",
+    "KILO_FOOTBALL_ALL_PROVIDERS_FINAL_PRODUCTION_CLOSURE.md",
+    "KILO_FOOTBALL_GOLDEN_TRUTHFUL_FINAL_CLOSURE.md",
+    "KILO_FOOTBALL_PROVIDER_DECOUPLED_FINAL_CLOSURE.md",
+    "SPORTS_ENRICHMENT_KERNEL_FOOTBALL_GOLDEN_VERTICAL_FINAL_CONTRACT_V3_1.md",
+    "SPORTS_ENRICHMENT_KERNEL_FOOTBALL_GOLDEN_VERTICAL_LAUNCHER_V3_1.md",
+    "docs/prompts/SPORTS_ENRICHMENT_KERNEL_FOOTBALL_GOLDEN_VERTICAL_FINAL_CONTRACT_V3_1.md",
+    "docs/prompts/SPORTS_ENRICHMENT_KERNEL_FOOTBALL_GOLDEN_VERTICAL_LAUNCHER_V3_1.md"
   ],
   "rotation_attestation": [
     {
       "provider": "sportdb.dev",
-      "rotation_status": "user_confirmed_invalidated_and_replaced",
-      "current_tree_remediation": "tracked note removed",
-      "historical_exposure_remains": true,
-      "timestamp": "2026-06-13T13:49:15+02:00"
+      "rotation_status": "user_attested_rotated",
+      "evidence_policy": "no values or value-derived hashes retained",
+      "historical_exposure_preserved_in_legacy_snapshot": true
     },
     {
       "provider": "thesportsdb",
-      "rotation_status": "user_confirmed_invalidated_and_replaced",
-      "current_tree_remediation": "tracked note removed",
-      "historical_exposure_remains": true,
-      "timestamp": "2026-06-13T13:49:15+02:00"
+      "rotation_status": "user_attested_rotated",
+      "evidence_policy": "no values or value-derived hashes retained",
+      "historical_exposure_preserved_in_legacy_snapshot": true
     }
   ],
-  "changed_files": [
-    ".gitattributes",
-    ".gitignore",
-    "KLUCZE API:"
-  ],
-  "tests": {
-    "compileall": "PASS",
-    "ruff_baseline": "1884 existing findings preserved as baseline; not a P00 blocker",
-    "pytest_non_live": "PASS: 843 passed, 6 skipped, 6 deselected"
+  "scan_results": {
+    "current_tree": "PASS: no active private credential value identified; deleted credential note remains absent; tracked backup patch and stale snapshot artifacts are staged for removal by this corrective commit",
+    "diff_and_artifacts": "PASS: no diff suppression rule remains in the corrective diff; no .DS_Store is staged for retention; exactly one active V3.1 contract path remains after the staged contract move"
   },
-  "live_calls": 0,
-  "quotas": {},
-  "bundle_ids": [],
-  "scans": {
-    "tracked_files": "PASS: no active private credential value remains in tracked tree; remaining credential-like placeholders are safe examples only",
-    "diff": "PASS: remediation diff is redacted for deleted credential note and contains no replacement credential value",
-    "untracked_task_artifacts": "PASS",
-    "generated_logs_and_patches": "PASS",
-    "certification_artifact_directory": "PASS"
+  "contract": {
+    "active_path": "docs/prompts/SPORTS_ENRICHMENT_KERNEL_FOOTBALL_GOLDEN_VERTICAL_FINAL_CONTRACT_V3_1.md",
+    "launcher_path": "docs/prompts/SPORTS_ENRICHMENT_KERNEL_FOOTBALL_GOLDEN_VERTICAL_LAUNCHER_V3_1.md",
+    "launcher_reference": "@/docs/prompts/SPORTS_ENRICHMENT_KERNEL_FOOTBALL_GOLDEN_VERTICAL_FINAL_CONTRACT_V3_1.md",
+    "active_contract_count": 1
   },
-  "gate": "PASS",
-  "blocker": "NONE",
-  "next_phase": "P01",
+  "artifact_hygiene": {
+    "tracked_ds_store": "deleted_in_corrective_commit",
+    "tracked_backup_patch": "deleted_in_corrective_commit",
+    "stale_certification_directories": [
+      ".kilo/artball_all_providers_final/",
+      ".kilo/artifacts/football_all_providers_final/"
+    ],
+    "superseded_root_documents_removed": true
+  },
   "notes": [
-    "User attested that previously exposed private credentials were invalidated and replaced through ignored local environment configuration.",
-    "Minimal ignore rule added for the deleted local credential note path.",
-    "Exact-path diff suppression added so the secret-bearing deletion is not re-emitted by git diff during later phases.",
-    "Unrelated work preserved; baseline test results carried forward unchanged."
+    "Commit b7bf898509c887613f1d86aa4ab754a282a84446 is preserved as a legacy worktree snapshot and is not recorded as an acceptable atomic P00 commit.",
+    "Production code already present in b7bf898509c887613f1d86aa4ab754a282a84446 is unreviewed baseline material and will be classified in P01.",
+    "This correction restores auditable textual diffs, removes superseded competing artifacts, and binds the active V3.1 contract at docs/prompts/."
   ],
-  "timestamp": "2026-06-13T13:49:15+02:00"
+  "next_phase": "P01_PENDING_EXTERNAL_REVIEW",
+  "timestamp": "2026-06-13T19:55:08+02:00"
 }
