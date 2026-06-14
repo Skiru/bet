@@ -10,6 +10,7 @@ import json
 import logging
 import re
 import sqlite3
+from typing import Any
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -1025,6 +1026,29 @@ class StatsRepo:
 
     # Public alias for external callers
     row_to_team_form = _row_to_team_form
+
+
+# ---------------------------------------------------------------------------
+# FootballSnapshotReader
+# ---------------------------------------------------------------------------
+
+class FootballSnapshotReader:
+    """Downstream repository/reader which returns only published COMPLETE snapshots and performs schema validation."""
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+
+    def get_snapshot(self, canonical_fixture_id: int) -> Any | None:
+        row = self.conn.execute(
+            """SELECT payload_json FROM analysis_snapshot
+               WHERE canonical_fixture_id = ? AND status = 'COMPLETE'
+               ORDER BY id DESC LIMIT 1""",
+            (canonical_fixture_id,),
+        ).fetchone()
+        if not row:
+            return None
+        payload = json.loads(row["payload_json"])
+        from bet.enrichment.football_snapshot import FootballEnrichmentSnapshot, from_dict
+        return from_dict(FootballEnrichmentSnapshot, payload)
 
 
 # ---------------------------------------------------------------------------

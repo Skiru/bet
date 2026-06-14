@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
-from bet.api_clients.base_client import PROJECT_ROOT
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
 from bet.integration.telemetry_wrapper import TransportResult
 from bet.resilience import atomic_write
 

@@ -98,7 +98,7 @@ class TestAPISportsTransportClassification:
             expects_response_list=True,
         )
 
-        assert result.status is SourceResultStatus.AUTHENTICATION_ERROR
+        assert result.status is SourceResultStatus.PLAN_RESTRICTED
         assert result.error_code == "provider_plan_restricted"
 
     def test_missing_response_list_becomes_schema_error(

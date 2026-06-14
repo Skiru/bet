@@ -1,8 +1,11 @@
+from __future__ import annotations
 from enum import StrEnum
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Mapping
-from bet.integration.evidence import EvidenceRef
+from typing import Any, Mapping, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from bet.integration.evidence import EvidenceRef
 
 class SourceResultStatus(StrEnum):
     SUCCESS = "SUCCESS"

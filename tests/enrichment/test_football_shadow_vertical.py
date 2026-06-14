@@ -100,7 +100,7 @@ def test_football_enrichment_mode_shadow(db_conn, monkeypatch):
     fixture_id = db_conn.execute("SELECT last_insert_rowid()").fetchone()[0]
     
     # Call build_safety_input
-    build_safety_input("football", "Arsenal", "Chelsea", "Premier League", fixture_id=fixture_id)
+    build_safety_input("football", "Arsenal", "Chelsea", "Premier League", fixture_id=fixture_id, analysis_cutoff_at=datetime.now(UTC))
     
     # Verify that a run was created in shadow mode
     runs = db_conn.execute("SELECT * FROM sports_enrichment_run WHERE canonical_event_id = ?", (fixture_id,)).fetchall()

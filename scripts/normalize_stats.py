@@ -781,42 +781,26 @@ def build_safety_input(
     competition: str,
     cache_dir: Path | None = None,
     fixture_id: int | None = None,
+    analysis_cutoff_at: datetime | None = None,
 ) -> dict | None:
     """DB-first wrapper with JSON cache fallback."""
-    import os
-    mode = os.environ.get("FOOTBALL_ENRICHMENT_MODE", "off").lower()
-    if mode in ("canary", "on"):
-        raise PermissionError("FOOTBALL_ENRICHMENT_MODE canary/on is explicitly unauthorized in this phase")
+    from bet.enrichment.football_service import parse_enrichment_mode
+    mode = parse_enrichment_mode()
     
     if mode == "shadow" and sport.lower() == "football":
-        resolved_fixture_id = fixture_id
-        if not resolved_fixture_id:
-            try:
-                from bet.db.connection import get_db
-                with get_db() as conn:
-                    cursor = conn.execute(
-                        """SELECT f.id FROM fixtures f
-                           JOIN teams h ON f.home_team_id = h.id
-                           JOIN teams a ON f.away_team_id = a.id
-                           WHERE h.name = ? AND a.name = ?""",
-                        (team_a, team_b)
-                    )
-                    row = cursor.fetchone()
-                    if row:
-                        resolved_fixture_id = row[0]
-            except Exception:
-                pass
-        
-        if resolved_fixture_id:
+        if not fixture_id or not analysis_cutoff_at:
+            print("[SHADOW] Skipping shadow enrichment run: fixture_id or analysis_cutoff_at is unavailable")
+        else:
             try:
                 from bet.enrichment.football_service import FootballEnrichmentService
-                from datetime import datetime, UTC
                 service = FootballEnrichmentService()
-                snapshot = service.enrich_fixture(resolved_fixture_id, datetime.now(UTC))
-                print(f"[SHADOW] FootballEnrichmentService run succeeded for fixture {resolved_fixture_id}")
+                snapshot = service.enrich_fixture(fixture_id, analysis_cutoff_at)
+                print(f"[SHADOW] FootballEnrichmentService run succeeded for fixture {fixture_id}")
                 print(f"[SHADOW] Snapshot ID: {snapshot.snapshot_id}, State: {snapshot.snapshot_state}")
             except Exception as e:
                 print(f"[SHADOW] FootballEnrichmentService run failed: {e}")
+                # Shadow failures must not break the legacy result, but they must produce a structured diagnostic or persisted failed run.
+                # We already record failed runs in the DB inside enrich_fixture.
 
     result = build_safety_input_from_db(sport, team_a, team_b, competition, fixture_id=fixture_id)
     if result and result.get("markets"):

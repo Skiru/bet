@@ -6,7 +6,7 @@ import sqlite3
 from pathlib import Path
 
 SCHEMA_SQL = Path(__file__).parent / "schema.sql"
-SCHEMA_VERSION = 18
+SCHEMA_VERSION = 19
 
 
 def init_db(conn: sqlite3.Connection) -> None:
@@ -200,6 +200,9 @@ def migrate(conn: sqlite3.Connection, from_version: int, to_version: int) -> Non
 
     if from_version < 18 and to_version >= 18:
         _migrate_v18_sports_enrichment_foundation(conn)
+
+    if from_version < 19 and to_version >= 19:
+        _migrate_v19_source_operation_attempt_enrichment(conn)
 
     _set_schema_version(conn, to_version)
     conn.commit()
@@ -401,7 +404,10 @@ def _migrate_v18_sports_enrichment_foundation(conn: sqlite3.Connection) -> None:
     try:
         migration_path = Path(__file__).parent / "migrations" / "017_sports_enrichment_foundation.sql"
         if migration_path.exists():
-            conn.executescript(migration_path.read_text(encoding="utf-8"))
+            sql_text = migration_path.read_text(encoding="utf-8")
+            statements = [s.strip() for s in sql_text.split(";") if s.strip()]
+            for stmt in statements:
+                conn.execute(stmt)
 
         # Add columns to fixture_capability_observation
         columns = _table_columns(conn, "fixture_capability_observation")
@@ -438,6 +444,38 @@ def _migrate_v18_sports_enrichment_foundation(conn: sqlite3.Connection) -> None:
     except Exception:
         conn.execute("ROLLBACK TO SAVEPOINT migrate_v18")
         conn.execute("RELEASE SAVEPOINT migrate_v18")
+        raise
+
+
+def _migrate_v19_source_operation_attempt_enrichment(conn: sqlite3.Connection) -> None:
+    """Add columns to source_operation_attempt to reconstruct full execution details."""
+    conn.execute("SAVEPOINT migrate_v19")
+    try:
+        columns = _table_columns(conn, "source_operation_attempt")
+        if "started_at" not in columns:
+            conn.execute("ALTER TABLE source_operation_attempt ADD COLUMN started_at TEXT")
+        if "completed_at" not in columns:
+            conn.execute("ALTER TABLE source_operation_attempt ADD COLUMN completed_at TEXT")
+        if "http_status" not in columns:
+            conn.execute("ALTER TABLE source_operation_attempt ADD COLUMN http_status INTEGER")
+        if "error_code" not in columns:
+            conn.execute("ALTER TABLE source_operation_attempt ADD COLUMN error_code TEXT")
+        if "retry_count" not in columns:
+            conn.execute("ALTER TABLE source_operation_attempt ADD COLUMN retry_count INTEGER")
+        if "parser_version" not in columns:
+            conn.execute("ALTER TABLE source_operation_attempt ADD COLUMN parser_version TEXT")
+        if "dto_version" not in columns:
+            conn.execute("ALTER TABLE source_operation_attempt ADD COLUMN dto_version TEXT")
+        if "evidence_bundle_id" not in columns:
+            conn.execute("ALTER TABLE source_operation_attempt ADD COLUMN evidence_bundle_id TEXT")
+        if "selectable" not in columns:
+            conn.execute("ALTER TABLE source_operation_attempt ADD COLUMN selectable INTEGER")
+        if "diagnostics" not in columns:
+            conn.execute("ALTER TABLE source_operation_attempt ADD COLUMN diagnostics TEXT")
+        conn.execute("RELEASE SAVEPOINT migrate_v19")
+    except Exception:
+        conn.execute("ROLLBACK TO SAVEPOINT migrate_v19")
+        conn.execute("RELEASE SAVEPOINT migrate_v19")
         raise
 
 

@@ -842,7 +842,17 @@ CREATE TABLE IF NOT EXISTS source_operation_attempt (
     request_identity TEXT NOT NULL,
     status TEXT NOT NULL,
     lease_owner TEXT,
-    lease_expires_at TEXT
+    lease_expires_at TEXT,
+    started_at TEXT,
+    completed_at TEXT,
+    http_status INTEGER,
+    error_code TEXT,
+    retry_count INTEGER,
+    parser_version TEXT,
+    dto_version TEXT,
+    evidence_bundle_id TEXT,
+    selectable INTEGER,
+    diagnostics TEXT
 );
 
 CREATE TABLE IF NOT EXISTS capability_selection_history (

@@ -10,23 +10,32 @@
     "downstream_snapshot_reader",
     "standings_endpoint_wired",
     "e2e_workflow_tests",
-    "143_tests_passed",
+    "863_tests_passed",
     "migration_tests_complete",
-    "new_files_lint_clean"
+    "new_files_lint_clean",
+    "truthful_enrichment_snapshots",
+    "offline_vertical_replay",
+    "probe_runner"
   ],
   "failed_gates": [],
   "changed_files": [
+    "src/bet/db/schema.py",
+    "src/bet/db/schema.sql",
+    "src/bet/enrichment/football_snapshot.py",
+    "src/bet/enrichment/football_service.py",
     "src/bet/db/repositories.py",
-    "src/bet/stats/enrichment.py",
-    "src/bet/api_clients/espn.py",
-    "tests/db/test_fixture_capability_repo.py",
-    "tests/e2e/test_football_e2e_workflow.py"
+    "src/bet/integration/source_result.py",
+    "src/bet/integration/evidence.py",
+    "scripts/normalize_stats.py",
+    "tests/scrapers/test_api_sports_family.py",
+    "tests/enrichment/test_football_shadow_vertical.py",
+    "tests/enrichment/test_football_truthful_enrichment.py"
   ],
-  "tests": "143 passed, 812 full suite passed",
+  "tests": "863 passed, 863 full suite passed",
   "live_call_count": 0,
   "live_call_quota": 11,
   "remaining_quota": 11,
   "blocker": "NONE",
-  "next_command": "Create certification bundle",
-  "timestamp": "2026-06-12T18:30:00+02:00"
+  "next_command": "P05 — bounded live provider qualification",
+  "timestamp": "2026-06-14T18:00:00+02:00"
 }
