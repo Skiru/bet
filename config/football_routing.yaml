@@ -1,0 +1,18 @@
+# Football routing precedence configuration
+routing:
+  current_discovery:
+    precedence: ["espn", "sportdb", "highlightly", "football-data"]
+  current_form:
+    precedence: ["espn", "sportdb", "highlightly", "football-data"]
+  historical_form_h2h:
+    precedence: ["api-football", "espn", "highlightly", "football-data"]
+  standings:
+    precedence: ["sportdb", "football-data", "highlightly", "espn", "api-football"]
+  detailed_metrics:
+    precedence: ["sportdb", "highlightly", "espn", "api-football"]
+  lineups:
+    precedence: ["sportdb", "highlightly", "api-football", "espn"]
+  injuries_roster:
+    precedence: ["api-football", "highlightly", "espn"]
+  advanced_xg:
+    precedence: ["understat"]

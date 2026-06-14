@@ -1,0 +1,59 @@
+# Football metrics ontology configuration
+metrics:
+  goals:
+    unit: "count"
+    valid_range: [0, 50]
+  corners:
+    unit: "count"
+    valid_range: [0, 100]
+  shots_total:
+    unit: "count"
+    valid_range: [0, 100]
+  shots_on_target:
+    unit: "count"
+    valid_range: [0, 100]
+  possession_pct:
+    unit: "percentage"
+    valid_range: [0, 100]
+  fouls:
+    unit: "count"
+    valid_range: [0, 100]
+  yellow_cards:
+    unit: "count"
+    valid_range: [0, 20]
+  red_cards:
+    unit: "count"
+    valid_range: [0, 10]
+  offsides:
+    unit: "count"
+    valid_range: [0, 30]
+  shots_off_target:
+    unit: "count"
+    valid_range: [0, 100]
+  shots_blocked:
+    unit: "count"
+    valid_range: [0, 100]
+  goalkeeper_saves:
+    unit: "count"
+    valid_range: [0, 50]
+  passes_total:
+    unit: "count"
+    valid_range: [0, 2000]
+  passes_accurate:
+    unit: "count"
+    valid_range: [0, 2000]
+  pass_accuracy_pct:
+    unit: "percentage"
+    valid_range: [0, 100]
+  expected_goals:
+    unit: "float"
+    valid_range: [0.0, 10.0]
+  big_chances:
+    unit: "count"
+    valid_range: [0, 20]
+  tackles:
+    unit: "count"
+    valid_range: [0, 100]
+  interceptions:
+    unit: "count"
+    valid_range: [0, 100]

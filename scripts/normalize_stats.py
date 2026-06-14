@@ -783,6 +783,41 @@ def build_safety_input(
     fixture_id: int | None = None,
 ) -> dict | None:
     """DB-first wrapper with JSON cache fallback."""
+    import os
+    mode = os.environ.get("FOOTBALL_ENRICHMENT_MODE", "off").lower()
+    if mode in ("canary", "on"):
+        raise PermissionError("FOOTBALL_ENRICHMENT_MODE canary/on is explicitly unauthorized in this phase")
+    
+    if mode == "shadow" and sport.lower() == "football":
+        resolved_fixture_id = fixture_id
+        if not resolved_fixture_id:
+            try:
+                from bet.db.connection import get_db
+                with get_db() as conn:
+                    cursor = conn.execute(
+                        """SELECT f.id FROM fixtures f
+                           JOIN teams h ON f.home_team_id = h.id
+                           JOIN teams a ON f.away_team_id = a.id
+                           WHERE h.name = ? AND a.name = ?""",
+                        (team_a, team_b)
+                    )
+                    row = cursor.fetchone()
+                    if row:
+                        resolved_fixture_id = row[0]
+            except Exception:
+                pass
+        
+        if resolved_fixture_id:
+            try:
+                from bet.enrichment.football_service import FootballEnrichmentService
+                from datetime import datetime, UTC
+                service = FootballEnrichmentService()
+                snapshot = service.enrich_fixture(resolved_fixture_id, datetime.now(UTC))
+                print(f"[SHADOW] FootballEnrichmentService run succeeded for fixture {resolved_fixture_id}")
+                print(f"[SHADOW] Snapshot ID: {snapshot.snapshot_id}, State: {snapshot.snapshot_state}")
+            except Exception as e:
+                print(f"[SHADOW] FootballEnrichmentService run failed: {e}")
+
     result = build_safety_input_from_db(sport, team_a, team_b, competition, fixture_id=fixture_id)
     if result and result.get("markets"):
         return result

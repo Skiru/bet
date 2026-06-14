@@ -1,0 +1,15 @@
+# Football freshness and negative cache policies
+freshness:
+  discovery_before_24h: 1800 # 30 minutes
+  discovery_within_24h: 300  # 5 minutes
+  discovery_within_2h: 120   # 2 minutes
+  live_status: 30            # 30 seconds
+  recent_form_h2h: 21600     # 6 hours
+  standings: 1800            # 30 minutes
+  injuries_roster: 1800      # 30 minutes
+  confirmed_lineup_within_2h: 300 # 5 minutes
+  not_published_yet_lineup: 300   # 5 minutes negative cache
+  final_match_stats_first: 600    # 10 minutes
+  final_match_stats_correction: 21600 # 6 hours
+  plan_restricted: 86400     # 24 hours
+  not_supported: 604800      # 7 days

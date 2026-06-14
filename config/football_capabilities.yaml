@@ -1,0 +1,35 @@
+# Football capabilities configuration
+capabilities:
+  discovery_status:
+    description: "Event discovery and status tracking"
+    p0: true
+  canonical_event_team_identity:
+    description: "Canonical event and team identity mapping"
+    p0: true
+  current_recent_form:
+    description: "Current recent form of teams"
+    p0: true
+  h2h_head_to_head:
+    description: "Head-to-head history between teams"
+    p0: true
+  standings_competition_context:
+    description: "Standings and competition context"
+    p0: true
+  fixture_team_statistics:
+    description: "Detailed match statistics"
+    p0: true
+  cross_provider_identity:
+    description: "Cross-provider identity mapping"
+    p0: true
+  confirmed_lineups:
+    description: "Confirmed lineups"
+    p0: false
+  injuries_suspensions:
+    description: "Injuries and suspensions"
+    p0: false
+  roster_availability:
+    description: "Roster availability"
+    p0: false
+  referee_official_assignment:
+    description: "Referee and official assignment"
+    p0: false

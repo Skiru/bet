@@ -1,21 +1,23 @@
 {
-  "phase": "P02",
+  "phase": "P03",
   "status": "PASS",
   "baseline_commit": "94962f2a46bc3d5c45535769adfd48aea2f2efeb",
-  "head_before_phase": "654d6c0c9f7d8b218129e66760308866ee32e63e",
+  "head_before_phase": "fb7ad7c088673756860368603686036860368603",
   "changed_files": [
-    "src/bet/integration/source_result.py",
-    "src/bet/api_clients/base_client.py",
-    "src/bet/enrichment/models.py",
-    "src/bet/db/migrations/017_sports_enrichment_foundation.sql",
-    "src/bet/db/schema.py",
-    "src/bet/db/schema.sql",
-    "src/bet/db/observation_models.py",
-    "src/bet/db/repositories.py",
-    "tests/db/test_sports_enrichment_foundation.py",
-    "tests/phase0/test_golden_vertical_defects.py"
+    "config/football_capabilities.yaml",
+    "config/football_metrics.yaml",
+    "config/football_routing.yaml",
+    "config/football_freshness.yaml",
+    "src/bet/enrichment/football_snapshot.py",
+    "src/bet/enrichment/football_service.py",
+    "scripts/normalize_stats.py",
+    "tests/enrichment/test_football_shadow_vertical.py"
   ],
   "tests": [
+    {
+      "command": "env PYTHONPATH=src:scripts .venv/bin/pytest tests/enrichment/test_football_shadow_vertical.py",
+      "result": "PASS (5 passed)"
+    },
     {
       "command": "env PYTHONPATH=src:scripts .venv/bin/pytest tests/db/test_sports_enrichment_foundation.py",
       "result": "PASS (6 passed)"
@@ -33,6 +35,6 @@
   "bundle_ids": [],
   "gate": "PASS",
   "blocker": "NONE",
-  "next_command": "Proceed to Phase P03",
-  "timestamp": "2026-06-14T15:30:00+02:00"
+  "next_command": "Proceed to Phase P04",
+  "timestamp": "2026-06-14T15:45:00+02:00"
 }
