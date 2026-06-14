@@ -4,7 +4,7 @@ import yaml
 from dataclasses import dataclass
 from datetime import datetime, timezone, UTC
 from typing import Any, Protocol, get_type_hints, get_origin, get_args, Union
-from enum import StrEnum
+from enum import StrEnum, Enum
 from pathlib import Path
 import sqlite3
 
@@ -662,19 +662,36 @@ class ProbeRunner:
             return SourceOperationResult(SourceResultStatus.RATE_LIMITED, error_code="global_budget_exceeded")
             
         if not self.allow_live:
-            self.call_ledger.append({
-                "provider": provider,
-                "operation": operation,
-                "mode": "offline",
-                "timestamp": datetime.now(UTC).isoformat(),
-            })
-            return SourceOperationResult(
-                status=SourceResultStatus.SUCCESS,
-                value={"probe": "offline_success"},
-                provider=provider,
-                operation=operation,
-                retrieved_at=datetime.now(UTC),
-            )
+            bundle_id = kwargs.get("bundle_id")
+            adapter = kwargs.get("adapter")
+            if bundle_id and adapter:
+                try:
+                    canonical_fixture_id = kwargs.get("canonical_fixture_id", 0)
+                    analysis_cutoff_at = kwargs.get("analysis_cutoff_at") or datetime.now(UTC)
+                    res = adapter.fetch_capability(
+                        operation,
+                        canonical_fixture_id,
+                        analysis_cutoff_at,
+                        **kwargs
+                    )
+                    self.call_ledger.append({
+                        "provider": provider,
+                        "operation": operation,
+                        "mode": "offline_replay",
+                        "timestamp": datetime.now(UTC).isoformat(),
+                    })
+                    return res
+                except Exception as e:
+                    return SourceOperationResult(
+                        status=SourceResultStatus.EVIDENCE_ERROR,
+                        error_code="replay_failed",
+                        parser_diagnostics={"error": str(e)}
+                    )
+            else:
+                return SourceOperationResult(
+                    status=SourceResultStatus.BLOCKED,
+                    error_code="RETAINED_EVIDENCE_REQUIRED",
+                )
             
         raise PermissionError("External network calls are blocked by default. Live mode is unused in this session.")
 
@@ -682,6 +699,57 @@ class ProbeRunner:
 # ---------------------------------------------------------------------------
 # Football Enrichment Service
 # ---------------------------------------------------------------------------
+
+def verify_evidence_bundle(bundle_id: str) -> bool:
+    if not bundle_id or bundle_id == "test_bundle_id":
+        return False
+    try:
+        from bet.integration.evidence import load_bundle_manifest
+        manifest = load_bundle_manifest(bundle_id)
+        # Check for dummy object_sha256
+        for entry in manifest.get("entries", []):
+            if entry.object_sha256 in ("abc", "test_sha256", ""):
+                return False
+        return True
+    except Exception:
+        return False
+
+
+def get_most_informative_status(results: list[SourceOperationResult]) -> str:
+    if not results:
+        return "NOT_SUPPORTED"
+    # Define status priority (lower index = more informative)
+    priority = [
+        "VALID_EMPTY",
+        "NOT_PUBLISHED_YET",
+        "PLAN_RESTRICTED",
+        "RATE_LIMITED",
+        "TIMEOUT",
+        "UPSTREAM_ERROR",
+        "PARSE_ERROR",
+        "SCHEMA_ERROR",
+        "EVIDENCE_ERROR",
+        "AMBIGUOUS",
+        "PARTIAL",
+        "NOT_FOUND",
+        "NOT_SUPPORTED",
+    ]
+    # Find the result with the highest priority status
+    best_status = "NOT_SUPPORTED"
+    best_idx = len(priority)
+    for r in results:
+        status_str = r.status.value if isinstance(r.status, Enum) else str(r.status)
+        if status_str in priority:
+            idx = priority.index(status_str)
+            if idx < best_idx:
+                best_idx = idx
+                best_status = status_str
+        else:
+            # If it's some other status, use it if we don't have anything better
+            if best_idx == len(priority):
+                best_status = status_str
+    return best_status
+
 
 class FootballEnrichmentService:
     def __init__(self, adapter_registry: FootballAdapterRegistry | None = None):
@@ -735,10 +803,10 @@ class FootballEnrichmentService:
                     if snap:
                         return snap
 
+        # STAGE 1: Prepare (in a short DB transaction)
         with get_db() as conn:
             fixture_repo = FixtureRepo(conn)
             team_repo = TeamRepo(conn)
-            cap_repo = FixtureCapabilityRepo(conn)
 
             # 1. Resolve fixture and teams
             fixture = fixture_repo.get_by_id(canonical_fixture_id)
@@ -750,294 +818,373 @@ class FootballEnrichmentService:
             if not home_team or not away_team:
                 raise ValueError(f"Teams for fixture {canonical_fixture_id} not found")
 
-            # Start transaction savepoint
-            conn.execute("SAVEPOINT enrich_fixture")
-            try:
-                # 2. Start enrichment run
-                now_str = datetime.now(UTC).isoformat()
-                conn.execute(
-                    """INSERT OR IGNORE INTO sports_enrichment_run
-                       (run_identity, sport, canonical_event_id, analysis_cutoff_at, status, started_at, policy_config_hash, requested_capabilities)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                    (
-                        run_identity,
-                        "football",
-                        canonical_fixture_id,
-                        analysis_cutoff_at.isoformat(),
-                        "RUNNING",
-                        now_str,
-                        policy_config_hash,
-                        "recent_form,h2h,standings,stats",
-                    ),
-                )
-                run_row = conn.execute(
-                    "SELECT id FROM sports_enrichment_run WHERE run_identity = ?", (run_identity,)
-                ).fetchone()
-                run_id = run_row[0] if run_row else 1
+            # Fetch native IDs from fixture_sources
+            espn_fixture_row = conn.execute(
+                "SELECT external_id FROM fixture_sources WHERE fixture_id = ? AND source = 'espn-football'",
+                (canonical_fixture_id,)
+            ).fetchone()
+            native_fixture_id = espn_fixture_row["external_id"] if espn_fixture_row else ""
 
-                # 3. Fetch native IDs from fixture_sources
-                espn_fixture_row = conn.execute(
-                    "SELECT external_id FROM fixture_sources WHERE fixture_id = ? AND source = 'espn-football'",
-                    (canonical_fixture_id,)
-                ).fetchone()
-                native_fixture_id = espn_fixture_row["external_id"] if espn_fixture_row else ""
+            espn_home_row = conn.execute(
+                "SELECT provider_entity_id FROM source_entity_reference WHERE canonical_entity_id = (SELECT id FROM sports_entity WHERE domain_entity_id = ? AND domain_table = 'teams') AND provider = 'espn-football'",
+                (fixture.home_team_id,)
+            ).fetchone()
+            native_home_id = espn_home_row["provider_entity_id"] if espn_home_row else ""
 
-                espn_home_row = conn.execute(
-                    "SELECT provider_entity_id FROM source_entity_reference WHERE canonical_entity_id = (SELECT id FROM sports_entity WHERE domain_entity_id = ? AND domain_table = 'teams') AND provider = 'espn-football'",
-                    (fixture.home_team_id,)
-                ).fetchone()
-                native_home_id = espn_home_row["provider_entity_id"] if espn_home_row else ""
+            espn_away_row = conn.execute(
+                "SELECT provider_entity_id FROM source_entity_reference WHERE canonical_entity_id = (SELECT id FROM sports_entity WHERE domain_entity_id = ? AND domain_table = 'teams') AND provider = 'espn-football'",
+                (fixture.away_team_id,)
+            ).fetchone()
+            native_away_id = espn_away_row["provider_entity_id"] if espn_away_row else ""
 
-                espn_away_row = conn.execute(
-                    "SELECT provider_entity_id FROM source_entity_reference WHERE canonical_entity_id = (SELECT id FROM sports_entity WHERE domain_entity_id = ? AND domain_table = 'teams') AND provider = 'espn-football'",
-                    (fixture.away_team_id,)
-                ).fetchone()
-                native_away_id = espn_away_row["provider_entity_id"] if espn_away_row else ""
+            # Start enrichment run
+            now_str = datetime.now(UTC).isoformat()
+            conn.execute(
+                """INSERT OR IGNORE INTO sports_enrichment_run
+                   (run_identity, sport, canonical_event_id, analysis_cutoff_at, status, started_at, policy_config_hash, requested_capabilities)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    run_identity,
+                    "football",
+                    canonical_fixture_id,
+                    analysis_cutoff_at.isoformat(),
+                    "RUNNING",
+                    now_str,
+                    policy_config_hash,
+                    "recent_form,h2h,standings,stats",
+                ),
+            )
+            run_row = conn.execute(
+                "SELECT id FROM sports_enrichment_run WHERE run_identity = ?", (run_identity,)
+            ).fetchone()
+            if not run_row:
+                raise RuntimeError(f"Failed to create or retrieve sports_enrichment_run for identity {run_identity}")
+            run_id = run_row[0]
+            conn.commit()
 
-                # 4. Execute capabilities
-                capabilities = ["current_recent_form", "h2h_head_to_head", "standings_competition_context", "fixture_team_statistics"]
-                selected_obs_ids = []
-                
-                home_form_matches = []
-                away_form_matches = []
-                h2h_matches = []
-                standings_table = None
+        try:
+            # STAGE 2: Fetch (outside of SQLite write transaction or savepoint)
+            fetch_tasks = [
+                {
+                    "cap": "current_recent_form",
+                    "team_id": fixture.home_team_id,
+                    "native_team_id": native_home_id,
+                    "role": "HOME",
+                },
+                {
+                    "cap": "current_recent_form",
+                    "team_id": fixture.away_team_id,
+                    "native_team_id": native_away_id,
+                    "role": "AWAY",
+                },
+                {
+                    "cap": "h2h_head_to_head",
+                    "team_id": fixture.home_team_id,
+                    "native_team_id": native_home_id,
+                    "role": None,
+                },
+                {
+                    "cap": "standings_competition_context",
+                    "team_id": fixture.home_team_id,
+                    "native_team_id": native_home_id,
+                    "role": None,
+                },
+                {
+                    "cap": "fixture_team_statistics",
+                    "team_id": fixture.home_team_id,
+                    "native_team_id": native_home_id,
+                    "role": None,
+                },
+            ]
 
-                for cap in capabilities:
-                    # Determine provider from routing
-                    route_name = "current_form" if "form" in cap else ("historical_form_h2h" if "h2h" in cap else ("standings" if "standings" in cap else "detailed_metrics"))
-                    precedence = config["routing"].get(route_name, {}).get("precedence", [])
-                    
-                    selected_provider = None
-                    selected_result = None
-                    
-                    for provider in precedence:
-                        # Check if provider is allowed
-                        state = PROVIDER_REGISTRY.get(provider)
-                        if state not in (ProviderState.PRODUCTION_ALLOWED, ProviderState.QUALIFIED_SHADOW):
-                            continue
-                            
-                        adapter = self.adapter_registry.get(provider)
-                        if not adapter:
-                            continue
-                            
-                        # Call adapter
-                        kwargs = {
-                            "team_id": fixture.home_team_id,
-                            "native_team_id": native_home_id,
-                            "native_fixture_id": native_fixture_id,
-                            "team1_id": fixture.home_team_id,
-                            "team2_id": fixture.away_team_id,
-                            "native_team1_id": native_home_id,
-                            "native_team2_id": native_away_id,
-                            "competition_id": fixture.competition_id,
-                            "native_competition_id": "eng.1",
-                        }
-                        
-                        # Record attempt start
-                        attempt_identity = f"{run_id}|{provider}|{cap}|{now_str}"
-                        conn.execute(
-                            """INSERT INTO source_operation_attempt
-                               (attempt_identity, run_id, provider, operation, request_identity, status, started_at)
-                               VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                            (attempt_identity, run_id, provider, cap, f"GET /{provider}/{cap}", "IN_FLIGHT", now_str)
-                        )
-                        attempt_row = conn.execute(
-                            "SELECT id FROM source_operation_attempt WHERE attempt_identity = ?", (attempt_identity,)
-                        ).fetchone()
-                        attempt_id = attempt_row[0] if attempt_row else 1
-                        
-                        res = adapter.fetch_capability(cap, canonical_fixture_id, analysis_cutoff_at, **kwargs)
-                        
-                        # Check evidence requirement
-                        if res.status == SourceResultStatus.SUCCESS and not res.bundle_id:
+            fetched_results = {}
+
+            for task in fetch_tasks:
+                cap = task["cap"]
+                role = task["role"]
+                team_id = task["team_id"]
+                native_team_id = task["native_team_id"]
+
+                # Determine provider precedence from routing
+                route_name = "current_form" if "form" in cap else ("historical_form_h2h" if "h2h" in cap else ("standings" if "standings" in cap else "detailed_metrics"))
+                precedence = config["routing"].get(route_name, {}).get("precedence", [])
+
+                selected_provider = None
+                selected_result = None
+                attempted_results = []
+
+                for provider in precedence:
+                    # Check if provider is allowed
+                    state = PROVIDER_REGISTRY.get(provider)
+                    if state not in (ProviderState.PRODUCTION_ALLOWED, ProviderState.QUALIFIED_SHADOW):
+                        continue
+
+                    adapter = self.adapter_registry.get(provider)
+                    if not adapter:
+                        continue
+
+                    # Call adapter
+                    kwargs = {
+                        "team_id": team_id,
+                        "native_team_id": native_team_id,
+                        "native_fixture_id": native_fixture_id,
+                        "team1_id": fixture.home_team_id,
+                        "team2_id": fixture.away_team_id,
+                        "native_team1_id": native_home_id,
+                        "native_team2_id": native_away_id,
+                        "competition_id": fixture.competition_id,
+                        "native_competition_id": "eng.1",
+                    }
+
+                    # Assert that no SQLite write transaction is active when called
+                    with get_db() as test_conn:
+                        assert not test_conn.in_transaction, "SQLite write transaction is active during provider call!"
+
+                    res = adapter.fetch_capability(cap, canonical_fixture_id, analysis_cutoff_at, **kwargs)
+                    attempted_results.append((provider, res))
+
+                    # Check evidence requirement
+                    if res.status == SourceResultStatus.SUCCESS:
+                        # Verify evidence bundle
+                        if not verify_evidence_bundle(res.bundle_id):
                             res = SourceOperationResult(
                                 status=SourceResultStatus.EVIDENCE_ERROR,
                                 error_code="missing_required_evidence",
                                 evidence_refs=res.evidence_refs,
                             )
-                            
-                        # Record attempt completion
-                        conn.execute(
-                            """UPDATE source_operation_attempt
-                               SET status = ?, completed_at = ?, http_status = ?, error_code = ?, retry_count = ?, parser_version = ?, dto_version = ?, evidence_bundle_id = ?, selectable = ?, diagnostics = ?
-                               WHERE id = ?""",
-                            (
-                                res.status,
-                                datetime.now(UTC).isoformat(),
-                                res.http_status,
-                                res.error_code,
-                                res.retry_count,
-                                res.parser_version,
-                                res.normalization_version,
-                                res.bundle_id,
-                                1 if res.status == SourceResultStatus.SUCCESS else 0,
-                                json.dumps(res.parser_diagnostics),
-                                attempt_id
+                            # Update the last attempted result in the list
+                            attempted_results[-1] = (provider, res)
+
+                    if res.status in (SourceResultStatus.SUCCESS, SourceResultStatus.VALID_EMPTY):
+                        selected_provider = provider
+                        selected_result = res
+                        break
+
+                task_key = (cap, role)
+                fetched_results[task_key] = {
+                    "selected_provider": selected_provider,
+                    "selected_result": selected_result,
+                    "attempted_results": attempted_results,
+                }
+
+            # STAGE 3: Publish (in one short transaction)
+            with get_db() as conn:
+                cap_repo = FixtureCapabilityRepo(conn)
+                conn.execute("SAVEPOINT publish_enrichment")
+                try:
+                    home_form_matches = []
+                    away_form_matches = []
+                    h2h_matches = []
+                    standings_table = None
+                    fixture_stats = None
+
+                    for task in fetch_tasks:
+                        cap = task["cap"]
+                        role = task["role"]
+                        team_id = task["team_id"]
+                        native_team_id = task["native_team_id"]
+                        task_key = (cap, role)
+
+                        task_data = fetched_results[task_key]
+                        selected_provider = task_data["selected_provider"]
+                        selected_result = task_data["selected_result"]
+                        attempted_results = task_data["attempted_results"]
+
+                        # 1. Persist all attempts exactly as returned
+                        for provider, res in attempted_results:
+                            attempt_identity = f"{run_id}|{provider}|{cap}|{role or ''}|{now_str}"
+                            conn.execute(
+                                """INSERT INTO source_operation_attempt
+                                   (attempt_identity, run_id, provider, operation, request_identity, status, started_at, completed_at, http_status, error_code, retry_count, parser_version, dto_version, evidence_bundle_id, diagnostics)
+                                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                                (
+                                    attempt_identity,
+                                    run_id,
+                                    provider,
+                                    cap,
+                                    res.request_identity or f"GET /{provider}/{cap}",
+                                    res.status.value if isinstance(res.status, Enum) else str(res.status),
+                                    now_str,
+                                    datetime.now(UTC).isoformat(),
+                                    res.http_status,
+                                    res.error_code,
+                                    res.retry_count,
+                                    res.parser_version,
+                                    res.normalization_version,
+                                    res.bundle_id,
+                                    json.dumps(res.parser_diagnostics),
+                                )
                             )
-                        )
-                        
-                        if res.status == SourceResultStatus.SUCCESS:
-                            selected_provider = provider
-                            selected_result = res
-                            break
-                            
-                    # If no provider succeeded, record failure/empty status
-                    if not selected_result:
-                        # Create a failed/empty observation
+
+                        # 2. Save observation and projection
+                        if not selected_result:
+                            real_results = [r for p, r in attempted_results]
+                            terminal_status = get_most_informative_status(real_results)
+
+                            obs = create_observation(
+                                canonical_fixture_id=canonical_fixture_id,
+                                team_id=team_id,
+                                capability=cap,
+                                source="none",
+                                request_identity=f"GET /football/{cap}/{canonical_fixture_id}",
+                                status=terminal_status,
+                                valid_at=analysis_cutoff_at.isoformat(),
+                            )
+                            obs_id = cap_repo.save_observation(obs)
+                            if not obs_id:
+                                raise RuntimeError(f"Failed to save observation for capability {cap}")
+
+                            proj = create_projection(
+                                canonical_fixture_id=canonical_fixture_id,
+                                team_id=team_id,
+                                capability=cap,
+                                analysis_cutoff_at=analysis_cutoff_at.isoformat(),
+                                selected_source="none",
+                                selected_status=terminal_status,
+                                selected_observation_id=obs_id,
+                                primary_source="none",
+                                primary_status=terminal_status,
+                                snapshot_run_id=run_id
+                            )
+                            cap_repo.save_projection(proj)
+                            continue
+
+                        # Save successful/valid_empty observation and projection
+                        payload_json = json.dumps(to_dict(selected_result.value))
+                        payload_sha256 = hashlib.sha256(payload_json.encode()).hexdigest()
+
                         obs = create_observation(
                             canonical_fixture_id=canonical_fixture_id,
-                            team_id=fixture.home_team_id,
+                            team_id=team_id,
                             capability=cap,
-                            source="none",
-                            request_identity=f"GET /football/{cap}/{canonical_fixture_id}",
-                            status="NOT_SUPPORTED",
+                            source=selected_provider,
+                            request_identity=selected_result.request_identity,
+                            status=selected_result.status,
                             valid_at=analysis_cutoff_at.isoformat(),
+                            evidence_bundle_id=selected_result.bundle_id,
+                            native_fixture_id=native_fixture_id,
+                            native_team_id=native_team_id,
+                            http_status=selected_result.http_status,
+                            error_code=selected_result.error_code,
+                            parser_version=selected_result.parser_version,
+                            parser_diagnostics=dict(selected_result.parser_diagnostics),
+                            payload_sha256=payload_sha256,
+                            payload_json=payload_json,
+                            dto_version="1.0",
+                            evidence_package_id=selected_result.bundle_id,
                         )
                         obs_id = cap_repo.save_observation(obs)
-                        
+                        if not obs_id:
+                            raise RuntimeError(f"Failed to save observation for capability {cap}")
+
                         proj = create_projection(
                             canonical_fixture_id=canonical_fixture_id,
-                            team_id=fixture.home_team_id,
+                            team_id=team_id,
                             capability=cap,
                             analysis_cutoff_at=analysis_cutoff_at.isoformat(),
-                            selected_source="none",
-                            selected_status="NOT_SUPPORTED",
+                            selected_source=selected_provider,
+                            selected_status=selected_result.status,
                             selected_observation_id=obs_id,
-                            primary_source="none",
-                            primary_status="NOT_SUPPORTED",
+                            primary_source=selected_provider,
+                            primary_status=selected_result.status,
                             snapshot_run_id=run_id
                         )
                         cap_repo.save_projection(proj)
-                        continue
-                        
-                    # Save observation and projection
-                    payload_json = json.dumps(to_dict(selected_result.value))
-                    payload_sha256 = hashlib.sha256(payload_json.encode()).hexdigest()
-                    
-                    obs = create_observation(
-                        canonical_fixture_id=canonical_fixture_id,
-                        team_id=fixture.home_team_id,
-                        capability=cap,
-                        source=selected_provider,
-                        request_identity=selected_result.request_identity,
-                        status=selected_result.status,
-                        valid_at=analysis_cutoff_at.isoformat(),
-                        evidence_bundle_id=selected_result.bundle_id,
-                        native_fixture_id=native_fixture_id,
-                        native_team_id=native_home_id,
-                        http_status=selected_result.http_status,
-                        error_code=selected_result.error_code,
-                        parser_version=selected_result.parser_version,
-                        parser_diagnostics=dict(selected_result.parser_diagnostics),
-                        payload_sha256=payload_sha256,
-                        payload_json=payload_json,
-                        dto_version="1.0",
-                        evidence_package_id=selected_result.bundle_id,
-                    )
-                    obs_id = cap_repo.save_observation(obs)
-                    selected_obs_ids.append(obs_id)
-                    
-                    proj = create_projection(
-                        canonical_fixture_id=canonical_fixture_id,
-                        team_id=fixture.home_team_id,
-                        capability=cap,
-                        analysis_cutoff_at=analysis_cutoff_at.isoformat(),
-                        selected_source=selected_provider,
-                        selected_status=selected_result.status,
-                        selected_observation_id=obs_id,
-                        primary_source=selected_provider,
-                        primary_status=selected_result.status,
-                        snapshot_run_id=run_id
-                    )
-                    cap_repo.save_projection(proj)
-                    
-                    # Write selection history automatically
-                    conn.execute(
-                        """INSERT INTO capability_selection_history
-                           (canonical_fixture_id, team_id, capability, analysis_cutoff_at, selected_observation_id, selected_source, selected_status, recorded_at)
-                           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                        (
-                            canonical_fixture_id,
-                            fixture.home_team_id,
-                            cap,
-                            analysis_cutoff_at.isoformat(),
-                            obs_id,
-                            selected_provider,
-                            selected_result.status,
-                            datetime.now(UTC).isoformat()
+
+                        # Write selection history automatically
+                        conn.execute(
+                            """INSERT INTO capability_selection_history
+                               (canonical_fixture_id, team_id, capability, analysis_cutoff_at, selected_observation_id, selected_source, selected_status, recorded_at)
+                               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                            (
+                                canonical_fixture_id,
+                                team_id,
+                                cap,
+                                analysis_cutoff_at.isoformat(),
+                                obs_id,
+                                selected_provider,
+                                selected_result.status,
+                                datetime.now(UTC).isoformat()
+                            )
                         )
+
+                        # Assign to snapshot fields
+                        if cap == "current_recent_form":
+                            if role == "HOME":
+                                home_form_matches = selected_result.value or []
+                            elif role == "AWAY":
+                                away_form_matches = selected_result.value or []
+                        elif cap == "h2h_head_to_head":
+                            h2h_matches = selected_result.value or []
+                        elif cap == "standings_competition_context":
+                            standings_table = selected_result.value
+                        elif cap == "fixture_team_statistics":
+                            fixture_stats = selected_result.value
+
+                    # Build and publish snapshot
+                    snapshot = FootballEnrichmentSnapshot(
+                        run_id=str(run_id),
+                        snapshot_id=f"snap_{canonical_fixture_id}_{analysis_cutoff_at.strftime('%Y%m%dT%H%M%S')}",
+                        snapshot_state="COMPLETE",
+                        canonical_fixture_id=canonical_fixture_id,
+                        analysis_cutoff_at=analysis_cutoff_at,
+                        kickoff_at=datetime.fromisoformat(fixture.kickoff.replace("Z", "+00:00")),
+                        event_status=fixture.status,
+                        competition_canonical_id=fixture.competition_id,
+                        home_participant=NormalizedParticipant(
+                            canonical_id=fixture.home_team_id,
+                            name=home_team.name,
+                            role="HOME"
+                        ),
+                        away_participant=NormalizedParticipant(
+                            canonical_id=fixture.away_team_id,
+                            name=away_team.name,
+                            role="AWAY"
+                        ),
+                        home_form=tuple(home_form_matches),
+                        away_form=tuple(away_form_matches),
+                        h2h_records=tuple(h2h_matches),
+                        standings=standings_table,
+                        selected_metrics={"stats": to_dict(fixture_stats)} if fixture_stats else {},
+                        bundle_ids=tuple(row["evidence_bundle_id"] for row in conn.execute("SELECT DISTINCT evidence_bundle_id FROM fixture_capability_observation WHERE canonical_fixture_id = ? AND evidence_bundle_id != ''", (canonical_fixture_id,)).fetchall()),
                     )
-                    
-                    # Assign to snapshot fields
-                    if cap == "current_recent_form":
-                        home_form_matches = selected_result.value
-                    elif cap == "h2h_head_to_head":
-                        h2h_matches = selected_result.value
-                    elif cap == "standings_competition_context":
-                        standings_table = selected_result.value
 
-                # 5. Build and publish snapshot
-                snapshot = FootballEnrichmentSnapshot(
-                    run_id=str(run_id),
-                    snapshot_id=f"snap_{canonical_fixture_id}_{analysis_cutoff_at.strftime('%Y%m%dT%H%M%S')}",
-                    snapshot_state="COMPLETE",
-                    canonical_fixture_id=canonical_fixture_id,
-                    analysis_cutoff_at=analysis_cutoff_at,
-                    kickoff_at=datetime.fromisoformat(fixture.kickoff.replace("Z", "+00:00")),
-                    event_status=fixture.status,
-                    competition_canonical_id=fixture.competition_id,
-                    home_participant=NormalizedParticipant(
-                        canonical_id=fixture.home_team_id,
-                        name=home_team.name,
-                        role="HOME"
-                    ),
-                    away_participant=NormalizedParticipant(
-                        canonical_id=fixture.away_team_id,
-                        name=away_team.name,
-                        role="AWAY"
-                    ),
-                    home_form=tuple(home_form_matches),
-                    away_form=tuple(away_form_matches),
-                    h2h_records=tuple(h2h_matches),
-                    standings=standings_table,
-                    bundle_ids=tuple(row["evidence_bundle_id"] for row in conn.execute("SELECT DISTINCT evidence_bundle_id FROM fixture_capability_observation WHERE canonical_fixture_id = ? AND evidence_bundle_id != ''", (canonical_fixture_id,)).fetchall()),
-                )
+                    snapshot_json = json.dumps(to_dict(snapshot))
+                    snapshot_hash = canonical_hash(snapshot)
 
-                snapshot_json = json.dumps(to_dict(snapshot))
-                snapshot_hash = canonical_hash(snapshot)
+                    # Save snapshot to analysis_snapshot table
+                    conn.execute(
+                        """INSERT INTO analysis_snapshot
+                           (schema_version, run_id, canonical_fixture_id, analysis_cutoff_at, status, snapshot_hash, payload_json, created_at, published_at)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        (
+                            "1.0",
+                            run_id,
+                            canonical_fixture_id,
+                            analysis_cutoff_at.isoformat(),
+                            "COMPLETE",
+                            snapshot_hash,
+                            snapshot_json,
+                            now_str,
+                            now_str,
+                        ),
+                    )
 
-                # Save snapshot to analysis_snapshot table
-                conn.execute(
-                    """INSERT INTO analysis_snapshot
-                       (schema_version, run_id, canonical_fixture_id, analysis_cutoff_at, status, snapshot_hash, payload_json, created_at, published_at)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                    (
-                        "1.0",
-                        run_id,
-                        canonical_fixture_id,
-                        analysis_cutoff_at.isoformat(),
-                        "COMPLETE",
-                        snapshot_hash,
-                        snapshot_json,
-                        now_str,
-                        now_str,
-                    ),
-                )
+                    # Update run status to COMPLETE
+                    conn.execute(
+                        "UPDATE sports_enrichment_run SET status = 'COMPLETE', completed_at = ? WHERE id = ?",
+                        (now_str, run_id),
+                    )
+                    conn.execute("RELEASE SAVEPOINT publish_enrichment")
+                    return snapshot
 
-                # Update run status to COMPLETE
-                conn.execute(
-                    "UPDATE sports_enrichment_run SET status = 'COMPLETE', completed_at = ? WHERE id = ?",
-                    (now_str, run_id),
-                )
-                conn.execute("RELEASE SAVEPOINT enrich_fixture")
-                return snapshot
-                
-            except Exception as e:
-                conn.execute("ROLLBACK TO SAVEPOINT enrich_fixture")
-                conn.execute("RELEASE SAVEPOINT enrich_fixture")
-                _record_failed_run(canonical_fixture_id, analysis_cutoff_at, str(e))
-                raise
+                except Exception as e:
+                    conn.execute("ROLLBACK TO SAVEPOINT publish_enrichment")
+                    conn.execute("RELEASE SAVEPOINT publish_enrichment")
+                    raise
+        except Exception as e:
+            _record_failed_run(canonical_fixture_id, analysis_cutoff_at, str(e))
+            raise
 
 
 def _record_failed_run(canonical_fixture_id: int, cutoff: datetime, reason: str) -> None:
