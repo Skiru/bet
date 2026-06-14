@@ -4,6 +4,16 @@
 {
   "$schema": "https://app.kilo.ai/config.json",
   "provider": {
+    "google-vertex": {
+      "npm": "@ai-sdk/google-vertex",
+      "name": "Google Vertex AI",
+
+      "options": {
+        "project": "project-6c8604ff-247d-46db-81a",
+        "location": "global",
+        "timeout": 300000
+      },
+    },
     "openai-compatible": {
       "options": {
         "apiKey": "{env:RAPID_MLX_API_KEY}",
