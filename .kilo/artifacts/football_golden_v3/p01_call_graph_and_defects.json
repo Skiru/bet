@@ -479,6 +479,82 @@
       "proof": "scripts/generate_market_matrix.py loads odds from load_espn_odds_snapshot/load_odds_api_snapshot/load_multi_source_odds separately from safety analysis; enrichment code never carries odds"
     }
   },
+  "feature_flags": {
+    "status": "NONE_FOUND",
+    "search_commands": [
+      "grep -rn 'FOOTBALL_ENRICHMENT_MODE' src/ scripts/ config/",
+      "grep -rn 'getenv' src/ scripts/ config/",
+      "grep -rn 'environ' src/ scripts/ config/",
+      "grep -rn '(?i)mode' src/ scripts/ config/",
+      "grep -rn '(?i)feature' src/ scripts/ config/"
+    ],
+    "searched_paths": [
+      "src/",
+      "scripts/",
+      "config/"
+    ],
+    "exclusions": [
+      "tests/",
+      ".kilo/artifacts/",
+      "reports/",
+      "*.md"
+    ],
+    "resulting_evidence": {
+      "FOOTBALL_ENRICHMENT_MODE": {
+        "presence": "absent_in_codebase",
+        "contract_reference": "docs/prompts/SPORTS_ENRICHMENT_KERNEL_FOOTBALL_GOLDEN_VERTICAL_FINAL_CONTRACT_V3_1.md:1351",
+        "status": "defined_in_contract_not_yet_implemented"
+      },
+      "environment_variables_found": [
+        {
+          "name": "BET_EVIDENCE_ROOT",
+          "path": "src/bet/integration/evidence.py",
+          "purpose": "evidence storage root directory"
+        },
+        {
+          "name": "API_FOOTBALL_KEY",
+          "path": "src/bet/api_clients/base_client.py",
+          "purpose": "API-Football API key"
+        },
+        {
+          "name": "ODDS_API_KEY",
+          "path": "src/bet/discovery/sources/odds_api.py",
+          "purpose": "Odds API key"
+        },
+        {
+          "name": "BET_DB_PATH",
+          "path": "src/bet/db/connection.py",
+          "purpose": "Database path"
+        },
+        {
+          "name": "DATABASE_URL",
+          "path": "src/bet/db/connection.py",
+          "purpose": "Database URL"
+        },
+        {
+          "name": "SERPAPI_KEY",
+          "path": "src/bet/api_clients/google_sports_client.py",
+          "purpose": "SerpAPI key"
+        },
+        {
+          "name": "RAPID_MLX_API_KEY",
+          "path": "scripts/test-kilo-stability.py",
+          "purpose": "Rapid-MLX API key"
+        },
+        {
+          "name": "RAPID_MLX_BASE_URL",
+          "path": "scripts/test-kilo-stability.py",
+          "purpose": "Rapid-MLX base URL"
+        },
+        {
+          "name": "NO_ENRICH",
+          "path": "scripts/deep_stats_report.py",
+          "purpose": "Disable enrichment in deep_stats_report.py"
+        }
+      ]
+    },
+    "limitations": "No dynamic feature flagging framework or runtime feature flag checks exist in the current codebase. All configuration is static or environment-driven."
+  },
   "schema_and_temporal": {
     "schema_version": 17,
     "relevant_migrations": [
