@@ -6,7 +6,7 @@ import sqlite3
 from pathlib import Path
 
 SCHEMA_SQL = Path(__file__).parent / "schema.sql"
-SCHEMA_VERSION = 17
+SCHEMA_VERSION = 18
 
 
 def init_db(conn: sqlite3.Connection) -> None:
@@ -197,6 +197,9 @@ def migrate(conn: sqlite3.Connection, from_version: int, to_version: int) -> Non
 
     if from_version < 17 and to_version >= 17:
         _migrate_v17_fixture_capability_observation_versioning(conn)
+
+    if from_version < 18 and to_version >= 18:
+        _migrate_v18_sports_enrichment_foundation(conn)
 
     _set_schema_version(conn, to_version)
     conn.commit()
@@ -389,6 +392,52 @@ def _migrate_v17_fixture_capability_observation_versioning(conn: sqlite3.Connect
     except Exception:
         conn.execute("ROLLBACK TO SAVEPOINT migrate_v17")
         conn.execute("RELEASE SAVEPOINT migrate_v17")
+        raise
+
+
+def _migrate_v18_sports_enrichment_foundation(conn: sqlite3.Connection) -> None:
+    """Add generic sports enrichment foundation tables and columns."""
+    conn.execute("SAVEPOINT migrate_v18")
+    try:
+        migration_path = Path(__file__).parent / "migrations" / "017_sports_enrichment_foundation.sql"
+        if migration_path.exists():
+            conn.executescript(migration_path.read_text(encoding="utf-8"))
+
+        # Add columns to fixture_capability_observation
+        columns = _table_columns(conn, "fixture_capability_observation")
+        if "dto_version" not in columns:
+            conn.execute(
+                "ALTER TABLE fixture_capability_observation "
+                "ADD COLUMN dto_version TEXT NOT NULL DEFAULT '1'"
+            )
+        if "evidence_package_id" not in columns:
+            conn.execute(
+                "ALTER TABLE fixture_capability_observation "
+                "ADD COLUMN evidence_package_id TEXT NOT NULL DEFAULT ''"
+            )
+
+        # Add columns to fixture_capability_projection
+        proj_columns = _table_columns(conn, "fixture_capability_projection")
+        if "snapshot_run_id" not in proj_columns:
+            conn.execute(
+                "ALTER TABLE fixture_capability_projection "
+                "ADD COLUMN snapshot_run_id INTEGER REFERENCES sports_enrichment_run(id)"
+            )
+
+        # Create indexes
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_fixture_capability_observation_package "
+            "ON fixture_capability_observation(evidence_package_id)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_fixture_capability_projection_run "
+            "ON fixture_capability_projection(snapshot_run_id)"
+        )
+
+        conn.execute("RELEASE SAVEPOINT migrate_v18")
+    except Exception:
+        conn.execute("ROLLBACK TO SAVEPOINT migrate_v18")
+        conn.execute("RELEASE SAVEPOINT migrate_v18")
         raise
 
 

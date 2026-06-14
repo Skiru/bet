@@ -1,52 +1,28 @@
 {
-  "phase": "P01",
+  "phase": "P02",
   "status": "PASS",
   "baseline_commit": "94962f2a46bc3d5c45535769adfd48aea2f2efeb",
-  "head_before_phase": "f62fe2acdb5d1c3684671d4291697b75cefb871c",
-  "commit_lineage": {
-    "earlier_p01_implementation_commit": "cf8105a96716125b5aa676184e923c1e3b4e2f81",
-    "later_p01_presentation_commit": "f303a4aee4a323f25fd961d201e40b75f57ed986",
-    "current_corrective_commit_parent": "f303a4aee4a323f25fd961d201e40b75f57ed986"
-  },
-  "external_review_correction": {
-    "findings_addressed": [
-      "Finding A: Substantive P01 reality map verified and confirmed complete.",
-      "Finding B: Added explicit feature_flags section to p01_call_graph_and_defects.json.",
-      "Finding C: Corrected checkpoint.json to accurately reflect files changed by the correction.",
-      "Finding D: Documented the real commit lineage (cf8105a and f303a4a) instead of claiming f303a4a was the sole atomic commit.",
-      "Finding E: Classified kilo.jsonc changes and other files introduced in cf8105a."
-    ],
-    "files_changed_by_correction": [
-      ".kilo/artifacts/football_golden_v3/p01_call_graph_and_defects.json",
-      ".kilo/artifacts/football_golden_v3/checkpoint.json"
-    ],
-    "validations_rerun": [
-      "JSON parse validation for p01_call_graph_and_defects.json",
-      "JSON parse validation for checkpoint.json",
-      "git diff --check"
-    ],
-    "previous_test_evidence_reused": [
-      "tests/phase0/test_golden_vertical_defects.py (17 passed, 1 skipped)",
-      "tests/football/test_truthful_closure_regressions.py (5 passed)",
-      "schema_inspection (schema_version=17)"
-    ]
-  },
+  "head_before_phase": "654d6c0c9f7d8b218129e66760308866ee32e63e",
   "changed_files": [
-    ".kilo/artifacts/football_golden_v3/p01_call_graph_and_defects.json",
-    ".kilo/artifacts/football_golden_v3/checkpoint.json"
+    "src/bet/integration/source_result.py",
+    "src/bet/api_clients/base_client.py",
+    "src/bet/enrichment/models.py",
+    "src/bet/db/migrations/017_sports_enrichment_foundation.sql",
+    "src/bet/db/schema.py",
+    "src/bet/db/schema.sql",
+    "src/bet/db/observation_models.py",
+    "src/bet/db/repositories.py",
+    "tests/db/test_sports_enrichment_foundation.py",
+    "tests/phase0/test_golden_vertical_defects.py"
   ],
   "tests": [
     {
-      "command": "env PYTHONPATH=src:scripts .venv/bin/python3 -m pytest tests/phase0/test_golden_vertical_defects.py -v --tb=short",
+      "command": "env PYTHONPATH=src:scripts .venv/bin/pytest tests/db/test_sports_enrichment_foundation.py",
+      "result": "PASS (6 passed)"
+    },
+    {
+      "command": "env PYTHONPATH=src:scripts .venv/bin/pytest tests/phase0/test_golden_vertical_defects.py",
       "result": "PASS (17 passed, 1 skipped)"
-    },
-    {
-      "command": "env PYTHONPATH=src:scripts .venv/bin/python3 -m pytest tests/football/test_truthful_closure_regressions.py -v --tb=short",
-      "result": "PASS (5 passed)"
-    },
-    {
-      "command": "env PYTHONPATH=src:scripts .venv/bin/python3 -c schema_inspection",
-      "result": "PASS (schema_version=17)"
     }
   ],
   "live_calls": 0,
@@ -55,14 +31,8 @@
     "provider_budget_consumed": 0
   },
   "bundle_ids": [],
-  "entrypoint": "scripts/discover_events.py -> src/bet/discovery/coordinator.py | scripts/generate_market_matrix.py -> scripts/normalize_stats.py",
-  "downstream_consumer": "scripts/generate_market_matrix.py:639-1244 generate_market_matrix",
-  "replay_blockers": [
-    "recent_form multi-response package completeness/revision is not explicit for ESPN/API-Football aggregation"
-  ],
   "gate": "PASS",
-  "blocker": "BLOCKED_PENDING_EXTERNAL_REVIEW",
-  "next_command": "External review of P01 corrective commit before any P02 work",
-  "p02_authorization": "PENDING_EXTERNAL_REVIEW",
-  "timestamp": "2026-06-14T15:10:32+02:00"
+  "blocker": "NONE",
+  "next_command": "Proceed to Phase P03",
+  "timestamp": "2026-06-14T15:30:00+02:00"
 }

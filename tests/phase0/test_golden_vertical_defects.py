@@ -40,6 +40,7 @@ class TestResultStatusCanonicalContract:
         """SourceResultStatus must have all required statuses."""
         required = {
             "SUCCESS",
+            "VALID_EMPTY",
             "NOT_FOUND",
             "NOT_PUBLISHED_YET",
             "NOT_SUPPORTED",

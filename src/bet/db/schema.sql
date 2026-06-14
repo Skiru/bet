@@ -1,4 +1,4 @@
--- Schema Version: v12 (DDL-only, idempotent, regenerated 2026-06-03)
+-- Schema Version: v18 (DDL-only, idempotent, regenerated 2026-06-14)
 CREATE TABLE IF NOT EXISTS analysis_raw_data (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     fixture_id INTEGER NOT NULL REFERENCES fixtures(id),
@@ -729,7 +729,9 @@ CREATE TABLE IF NOT EXISTS fixture_capability_observation (
     observed_at TEXT NOT NULL,
     valid_at TEXT NOT NULL,
     payload_sha256 TEXT NOT NULL DEFAULT '',
-    payload_json TEXT NOT NULL DEFAULT ''
+    payload_json TEXT NOT NULL DEFAULT '',
+    dto_version TEXT NOT NULL DEFAULT '1',
+    evidence_package_id TEXT NOT NULL DEFAULT ''
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_fixture_capability_observation_identity
     ON fixture_capability_observation(
@@ -748,6 +750,9 @@ CREATE INDEX IF NOT EXISTS idx_fixture_capability_observation_team
     ON fixture_capability_observation(team_id, capability, valid_at);
 CREATE INDEX IF NOT EXISTS idx_fixture_capability_observation_bundle
     ON fixture_capability_observation(evidence_bundle_id);
+CREATE INDEX IF NOT EXISTS idx_fixture_capability_observation_package
+    ON fixture_capability_observation(evidence_package_id);
+
 CREATE TABLE IF NOT EXISTS fixture_capability_projection (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     canonical_fixture_id INTEGER NOT NULL REFERENCES fixtures(id),
@@ -761,10 +766,107 @@ CREATE TABLE IF NOT EXISTS fixture_capability_projection (
     primary_status TEXT NOT NULL DEFAULT '',
     fallback_reason TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    updated_at TEXT NOT NULL,
+    snapshot_run_id INTEGER REFERENCES sports_enrichment_run(id)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_fixture_capability_projection_identity
     ON fixture_capability_projection(canonical_fixture_id, team_id, capability, analysis_cutoff_at);
 CREATE INDEX IF NOT EXISTS idx_fixture_capability_projection_fixture
     ON fixture_capability_projection(canonical_fixture_id);
+CREATE INDEX IF NOT EXISTS idx_fixture_capability_projection_run
+    ON fixture_capability_projection(snapshot_run_id);
+
+-- v18: Sports Enrichment Foundation
+CREATE TABLE IF NOT EXISTS sports_entity (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sport TEXT NOT NULL,
+    entity_type TEXT NOT NULL,
+    domain_table TEXT NOT NULL,
+    domain_entity_id INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    UNIQUE(sport, entity_type, domain_table, domain_entity_id)
+);
+
+CREATE TABLE IF NOT EXISTS source_entity_reference (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sport TEXT NOT NULL,
+    entity_type TEXT NOT NULL,
+    canonical_entity_id INTEGER NOT NULL REFERENCES sports_entity(id) ON DELETE CASCADE,
+    provider TEXT NOT NULL,
+    provider_entity_id TEXT NOT NULL,
+    valid_from TEXT NOT NULL,
+    valid_to TEXT,
+    verification_status TEXT NOT NULL,
+    verification_method TEXT NOT NULL,
+    evidence_bundle_id TEXT,
+    UNIQUE(sport, entity_type, canonical_entity_id, provider, provider_entity_id)
+);
+
+CREATE TABLE IF NOT EXISTS evidence_package_revision (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    package_id TEXT NOT NULL UNIQUE,
+    source_key TEXT NOT NULL,
+    operation_name TEXT NOT NULL,
+    request_identity TEXT NOT NULL,
+    parser_version TEXT NOT NULL,
+    dto_version TEXT NOT NULL,
+    revision_hash TEXT NOT NULL,
+    member_count INTEGER NOT NULL,
+    completeness_state TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS sports_enrichment_run (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_identity TEXT NOT NULL UNIQUE,
+    sport TEXT NOT NULL,
+    canonical_event_id INTEGER NOT NULL,
+    analysis_cutoff_at TEXT NOT NULL,
+    status TEXT NOT NULL,
+    started_at TEXT NOT NULL,
+    completed_at TEXT,
+    lease_owner TEXT,
+    lease_expires_at TEXT,
+    policy_config_hash TEXT NOT NULL,
+    requested_capabilities TEXT NOT NULL,
+    completion_summary TEXT,
+    failure_reason TEXT
+);
+
+CREATE TABLE IF NOT EXISTS source_operation_attempt (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    attempt_identity TEXT NOT NULL UNIQUE,
+    run_id INTEGER NOT NULL REFERENCES sports_enrichment_run(id) ON DELETE CASCADE,
+    provider TEXT NOT NULL,
+    operation TEXT NOT NULL,
+    request_identity TEXT NOT NULL,
+    status TEXT NOT NULL,
+    lease_owner TEXT,
+    lease_expires_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS capability_selection_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    canonical_fixture_id INTEGER NOT NULL,
+    team_id INTEGER,
+    capability TEXT NOT NULL,
+    analysis_cutoff_at TEXT NOT NULL,
+    selected_observation_id INTEGER,
+    selected_source TEXT NOT NULL,
+    selected_status TEXT NOT NULL,
+    recorded_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS analysis_snapshot (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    schema_version TEXT NOT NULL,
+    run_id INTEGER NOT NULL REFERENCES sports_enrichment_run(id) ON DELETE CASCADE,
+    canonical_fixture_id INTEGER NOT NULL,
+    analysis_cutoff_at TEXT NOT NULL,
+    status TEXT NOT NULL,
+    snapshot_hash TEXT NOT NULL,
+    payload_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    published_at TEXT
+);
 DELETE FROM "sqlite_sequence";

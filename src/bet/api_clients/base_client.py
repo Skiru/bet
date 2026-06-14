@@ -60,40 +60,7 @@ class APINotFoundError(APIError):
     """Resource not found (HTTP 404)."""
 
 
-class SourceResultStatus(StrEnum):
-    """Typed result status for source operations."""
-
-    SUCCESS = "SUCCESS"
-    NOT_FOUND = "NOT_FOUND"
-    NOT_PUBLISHED_YET = "NOT_PUBLISHED_YET"
-    NOT_SUPPORTED = "NOT_SUPPORTED"
-    AMBIGUOUS = "AMBIGUOUS"
-    AUTHENTICATION_ERROR = "AUTHENTICATION_ERROR"
-    RATE_LIMITED = "RATE_LIMITED"
-    BLOCKED = "BLOCKED"
-    TRANSPORT_ERROR = "TRANSPORT_ERROR"
-    UPSTREAM_ERROR = "UPSTREAM_ERROR"
-    PARSE_ERROR = "PARSE_ERROR"
-    SCHEMA_ERROR = "SCHEMA_ERROR"
-    EVIDENCE_ERROR = "EVIDENCE_ERROR"
-    PLAN_RESTRICTED = "PLAN_RESTRICTED"
-
-@dataclass
-class SourceOperationResult[T]:
-    """Typed result container for source operations with evidence refs."""
-
-    status: SourceResultStatus
-    value: T | None = None
-    http_status: int | None = None
-    retryable: bool = False
-    error_code: str = ""
-    retry_after_seconds: float | None = None
-    evidence_refs: list[Any] = field(default_factory=list)
-    bundle_id: str = ""
-    retry_count: int = 0
-    quota_metadata: dict[str, int | str | None] = field(default_factory=dict)
-    parser_diagnostics: dict[str, int | str | None] = field(default_factory=dict)
-
+from bet.integration.source_result import SourceResultStatus, SourceOperationResult
 
 class BaseAPIClient(ABC):
     """Abstract base class for sports data API clients."""
@@ -602,7 +569,7 @@ class APISportsClient(BaseAPIClient):
             for token in ("free plans", "subscription", "access denied", "plan")
         ):
             return {
-                "status": SourceResultStatus.AUTHENTICATION_ERROR,
+                "status": SourceResultStatus.PLAN_RESTRICTED,
                 "error_code": "provider_plan_restricted",
             }
         if any(

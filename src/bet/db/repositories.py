@@ -1045,8 +1045,8 @@ class FixtureCapabilityRepo:
                (canonical_fixture_id, team_id, capability, source, request_identity,
                 evidence_bundle_id, native_fixture_id, native_team_id, status, http_status,
                 error_code, retryable, parser_version, parser_diagnostics_json, observed_at,
-                valid_at, payload_sha256, payload_json)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                valid_at, payload_sha256, payload_json, dto_version, evidence_package_id)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     obs.canonical_fixture_id,
                     obs.team_id,
@@ -1066,6 +1066,8 @@ class FixtureCapabilityRepo:
                     obs.valid_at,
                     obs.payload_sha256,
                     obs.payload_json,
+                    obs.dto_version,
+                    obs.evidence_package_id,
                 ),
             )
             return cursor.lastrowid or 0
@@ -1148,8 +1150,8 @@ class FixtureCapabilityRepo:
                 """INSERT INTO fixture_capability_projection
                    (canonical_fixture_id, team_id, capability, analysis_cutoff_at,
                     selected_source, selected_status, selected_observation_id,
-                    primary_source, primary_status, fallback_reason, created_at, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    primary_source, primary_status, fallback_reason, created_at, updated_at, snapshot_run_id)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     proj.canonical_fixture_id,
                     proj.team_id,
@@ -1163,6 +1165,7 @@ class FixtureCapabilityRepo:
                     proj.fallback_reason,
                     proj.created_at,
                     proj.updated_at,
+                    proj.snapshot_run_id,
                 ),
             )
             self.conn.execute("RELEASE SAVEPOINT save_projection")
@@ -1293,6 +1296,8 @@ class FixtureCapabilityRepo:
             valid_at=row["valid_at"],
             payload_sha256=row["payload_sha256"] or "",
             payload_json=row["payload_json"] or "",
+            dto_version=row["dto_version"] if "dto_version" in row.keys() else "1",
+            evidence_package_id=row["evidence_package_id"] if "evidence_package_id" in row.keys() else "",
         )
     
     @staticmethod
@@ -1311,6 +1316,7 @@ class FixtureCapabilityRepo:
             fallback_reason=row["fallback_reason"] or "",
             created_at=row["created_at"],
             updated_at=row["updated_at"],
+            snapshot_run_id=row["snapshot_run_id"] if "snapshot_run_id" in row.keys() else None,
         )
 
 

@@ -42,6 +42,10 @@ class FixtureCapabilityObservation:
     payload_sha256: str = ""
     payload_json: str = ""
 
+    # Versioning and packaging
+    dto_version: str = "1"
+    evidence_package_id: str = ""
+
 
 @dataclass
 class FixtureCapabilityProjection:
@@ -69,6 +73,9 @@ class FixtureCapabilityProjection:
     created_at: str = ""
     updated_at: str = ""
 
+    # Run association
+    snapshot_run_id: int | None = None
+
 
 def create_observation(
     canonical_fixture_id: int,
@@ -88,6 +95,8 @@ def create_observation(
     parser_diagnostics: dict | None = None,
     payload_sha256: str = "",
     payload_json: str = "",
+    dto_version: str = "1",
+    evidence_package_id: str = "",
 ) -> FixtureCapabilityObservation:
     """Create a new fixture-scoped observation."""
     return FixtureCapabilityObservation(
@@ -110,6 +119,8 @@ def create_observation(
         valid_at=valid_at,
         payload_sha256=payload_sha256,
         payload_json=payload_json,
+        dto_version=dto_version,
+        evidence_package_id=evidence_package_id,
     )
 
 
@@ -124,6 +135,7 @@ def create_projection(
     primary_source: str = "",
     primary_status: str = "",
     fallback_reason: str = "",
+    snapshot_run_id: int | None = None,
 ) -> FixtureCapabilityProjection:
     """Create a new fixture-scoped projection."""
     now = datetime.now(UTC).isoformat()
@@ -141,4 +153,5 @@ def create_projection(
         fallback_reason=fallback_reason,
         created_at=now,
         updated_at=now,
+        snapshot_run_id=snapshot_run_id,
     )
