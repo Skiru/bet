@@ -792,8 +792,8 @@ def build_safety_input(
             print("[SHADOW] Skipping shadow enrichment run: fixture_id or analysis_cutoff_at is unavailable")
         else:
             try:
-                from bet.enrichment.football_service import create_football_enrichment_service
-                service = create_football_enrichment_service()
+                from bet.enrichment.football_service import FootballEnrichmentService
+                service = FootballEnrichmentService()
                 snapshot = service.enrich_fixture(fixture_id, analysis_cutoff_at)
                 print(f"[SHADOW] FootballEnrichmentService run succeeded for fixture {fixture_id}")
                 print(f"[SHADOW] Snapshot ID: {snapshot.snapshot_id}, State: {snapshot.snapshot_state}")
