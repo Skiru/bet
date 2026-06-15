@@ -16,7 +16,7 @@ def test_schema_resources():
     root = importlib.resources.files(schemas_package)
     schema_files = list(root.glob("*.schema.json"))
     assert len(schema_files) >= 8, f"Expected at least 8 schema files, found {len(schema_files)}"
-    
+
     for p in schema_files:
         content = p.read_text(encoding="utf-8")
         data = json.loads(content)
@@ -29,7 +29,7 @@ def test_config_resources():
     root = importlib.resources.files(config_package)
     config_files = list(root.glob("*.json"))
     assert len(config_files) >= 7, f"Expected at least 7 config files, found {len(config_files)}"
-    
+
     for p in config_files:
         content = p.read_text(encoding="utf-8")
         data = json.loads(content)
