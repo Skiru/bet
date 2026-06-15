@@ -1,0 +1,53 @@
+{
+  "$id": "urn:bet:v83:operator-key-registry",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "keys": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "algorithm": {
+            "const": "Ed25519"
+          },
+          "key_id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "public_key_b64": {
+            "minLength": 40,
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "ACTIVE",
+              "REVOKED"
+            ]
+          }
+        },
+        "required": [
+          "key_id",
+          "algorithm",
+          "public_key_b64",
+          "status"
+        ],
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "registry_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1"
+    }
+  },
+  "required": [
+    "schema_version",
+    "registry_hash",
+    "keys"
+  ],
+  "type": "object"
+}

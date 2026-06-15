@@ -1,0 +1,16 @@
+{
+  "schema_version": "1",
+  "seconds": {
+    "competition.standings": 21600,
+    "event.h2h_recent": 86400,
+    "fixture.core": 900,
+    "official.context": 21600,
+    "team.availability": 3600,
+    "team.lineup.confirmed": 300,
+    "team.lineup.predicted": 3600,
+    "team.metric_series": 21600,
+    "team.recent_matches": 21600,
+    "team.schedule_context": 21600,
+    "venue.weather": 1800
+  }
+}

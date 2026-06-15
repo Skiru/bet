@@ -1,0 +1,91 @@
+{
+  "records": {
+    "AvailabilityV1": [
+      "schema_version",
+      "team_entity_id",
+      "records",
+      "published_at"
+    ],
+    "FixtureCoreV1": [
+      "schema_version",
+      "fixture_entity_id",
+      "competition_entity_id",
+      "home_team_entity_id",
+      "away_team_entity_id",
+      "kickoff_at",
+      "status",
+      "regulation_score",
+      "extra_time_score",
+      "shootout_score"
+    ],
+    "H2HRecentMatchesV1": [
+      "schema_version",
+      "home_team_entity_id",
+      "away_team_entity_id",
+      "samples"
+    ],
+    "LineupV1": [
+      "schema_version",
+      "team_entity_id",
+      "lineup_kind",
+      "publication_state",
+      "players",
+      "published_at"
+    ],
+    "MatchSampleV1": [
+      "schema_version",
+      "event_entity_id",
+      "kickoff_at",
+      "competition_entity_id",
+      "venue_side",
+      "result",
+      "regulation_score_for",
+      "regulation_score_against",
+      "metrics"
+    ],
+    "OfficialContextV1": [
+      "schema_version",
+      "official_entity_id",
+      "sample_count",
+      "metrics"
+    ],
+    "RecentMatchesV1": [
+      "schema_version",
+      "team_entity_id",
+      "samples",
+      "candidate_scan_count",
+      "truncated"
+    ],
+    "ScheduleContextV1": [
+      "schema_version",
+      "team_entity_id",
+      "previous_event",
+      "next_event",
+      "rest_hours",
+      "travel_distance_km"
+    ],
+    "StandingsV1": [
+      "schema_version",
+      "competition_entity_id",
+      "season_entity_id",
+      "rows",
+      "as_of_at"
+    ],
+    "TeamMetricSeriesV1": [
+      "schema_version",
+      "team_entity_id",
+      "metric_key",
+      "points",
+      "sample_count"
+    ],
+    "VenueWeatherV1": [
+      "schema_version",
+      "venue_entity_id",
+      "forecast_at",
+      "temperature_c",
+      "precipitation_mm",
+      "wind_kph"
+    ]
+  },
+  "schema_version": "1"
+}

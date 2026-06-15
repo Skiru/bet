@@ -1,0 +1,82 @@
+{
+  "$id": "urn:bet:v83:provider-admission",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "capability_key": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "evidence_bundle_id": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "execution_mode": {
+      "enum": [
+        "SHADOW",
+        "CANARY",
+        "PRODUCTION"
+      ]
+    },
+    "governance_decision_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "metrics": {
+      "type": "object"
+    },
+    "provider": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1"
+    },
+    "sport": {
+      "const": "football"
+    },
+    "technical_status": {
+      "enum": [
+        "CANDIDATE",
+        "QUALIFIED",
+        "DEGRADED",
+        "REJECTED",
+        "EXPIRED"
+      ]
+    },
+    "transport_contract_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "valid_from": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "valid_to": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "schema_version",
+    "provider",
+    "sport",
+    "capability_key",
+    "execution_mode",
+    "technical_status",
+    "evidence_bundle_id",
+    "governance_decision_hash",
+    "transport_contract_hash",
+    "valid_from",
+    "valid_to",
+    "metrics"
+  ],
+  "type": "object"
+}

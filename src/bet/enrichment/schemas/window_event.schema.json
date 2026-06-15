@@ -1,0 +1,65 @@
+{
+  "$id": "urn:bet:v83:window-event",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "event_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "event_type": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "occurred_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "payload": {
+      "type": "object"
+    },
+    "previous_event_hash": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "runtime_code_digest": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "runtime_environment_digest": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1"
+    },
+    "sequence": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "window_id": {
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "window_id",
+    "sequence",
+    "previous_event_hash",
+    "event_hash",
+    "event_type",
+    "occurred_at",
+    "runtime_code_digest",
+    "runtime_environment_digest",
+    "payload"
+  ],
+  "type": "object"
+}

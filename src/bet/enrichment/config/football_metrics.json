@@ -1,0 +1,60 @@
+{
+  "metrics": [
+    {
+      "key": "football.goals_for",
+      "period": "REGULATION",
+      "unit": "count"
+    },
+    {
+      "key": "football.goals_against",
+      "period": "REGULATION",
+      "unit": "count"
+    },
+    {
+      "key": "football.shots.total",
+      "period": "REGULATION",
+      "unit": "count"
+    },
+    {
+      "key": "football.shots_on_target.total",
+      "period": "REGULATION",
+      "unit": "count"
+    },
+    {
+      "key": "football.corners.total",
+      "period": "REGULATION",
+      "unit": "count"
+    },
+    {
+      "key": "football.yellow_cards.total",
+      "period": "REGULATION",
+      "unit": "count"
+    },
+    {
+      "key": "football.red_cards.total",
+      "optional": true,
+      "period": "REGULATION",
+      "unit": "count"
+    },
+    {
+      "key": "football.fouls.total",
+      "optional": true,
+      "period": "REGULATION",
+      "unit": "count"
+    },
+    {
+      "key": "football.possession.pct",
+      "optional": true,
+      "period": "REGULATION",
+      "unit": "percent"
+    },
+    {
+      "key": "football.xg",
+      "optional": true,
+      "period": "REGULATION",
+      "proxy_forbidden": true,
+      "unit": "goals"
+    }
+  ],
+  "schema_version": "1"
+}

@@ -1,0 +1,83 @@
+{
+  "$id": "urn:bet:v83:production-authorization",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "authorization_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "certification_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "key_registry_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "public_key_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "rollback_policy_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "runtime_code_digest": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "runtime_environment_digest": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1"
+    },
+    "scope": {
+      "additionalProperties": false,
+      "properties": {
+        "maximum_exposure_pct": {
+          "maximum": 5,
+          "minimum": 0,
+          "type": "number"
+        },
+        "sport": {
+          "const": "football"
+        }
+      },
+      "required": [
+        "sport",
+        "maximum_exposure_pct"
+      ],
+      "type": "object"
+    },
+    "signature_b64": {
+      "minLength": 40,
+      "type": "string"
+    },
+    "valid_from": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "valid_to": {
+      "format": "date-time",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "authorization_hash",
+    "certification_hash",
+    "valid_from",
+    "valid_to",
+    "scope",
+    "runtime_code_digest",
+    "runtime_environment_digest",
+    "rollback_policy_hash",
+    "public_key_id",
+    "key_registry_hash",
+    "signature_b64"
+  ],
+  "type": "object"
+}

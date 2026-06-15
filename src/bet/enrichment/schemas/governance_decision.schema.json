@@ -1,0 +1,74 @@
+{
+  "$id": "urn:bet:v83:governance-decision",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "capability_key": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "decision_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "key_registry_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "maximum_mode": {
+      "enum": [
+        "SHADOW",
+        "CANARY",
+        "PRODUCTION",
+        "REJECTED"
+      ]
+    },
+    "provider": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "public_key_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1"
+    },
+    "signature_b64": {
+      "minLength": 40,
+      "type": "string"
+    },
+    "sport": {
+      "const": "football"
+    },
+    "valid_from": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "valid_to": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "schema_version",
+    "decision_hash",
+    "provider",
+    "sport",
+    "capability_key",
+    "maximum_mode",
+    "valid_from",
+    "valid_to",
+    "public_key_id",
+    "key_registry_hash",
+    "signature_b64"
+  ],
+  "type": "object"
+}

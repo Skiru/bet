@@ -1,0 +1,6 @@
+{
+  "generated": true,
+  "routes": [],
+  "rule": "Only active qualification revisions with valid signed governance may generate routes; empty is valid and fail-closed.",
+  "schema_version": "1"
+}

@@ -1,0 +1,82 @@
+{
+  "$id": "urn:bet:v83:evidence-manifest",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "dto_version": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "members": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "size_bytes": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "path",
+          "sha256",
+          "size_bytes"
+        ],
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "operation_name": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "package_id": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "parser_version": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "physical_http_attempts": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "request_identity": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1"
+    },
+    "source_key": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "transport_contract_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "package_id",
+    "source_key",
+    "operation_name",
+    "request_identity",
+    "transport_contract_hash",
+    "parser_version",
+    "dto_version",
+    "physical_http_attempts",
+    "members"
+  ],
+  "type": "object"
+}

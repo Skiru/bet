@@ -1,0 +1,142 @@
+{
+  "capabilities": [
+    {
+      "key": "fixture.core",
+      "required_profiles": [
+        "league_group",
+        "knockout",
+        "friendly"
+      ],
+      "subject_roles": [
+        "EVENT"
+      ]
+    },
+    {
+      "candidate_scan_limit": 50,
+      "key": "team.recent_matches",
+      "minimum_healthy": 5,
+      "minimum_usable": 1,
+      "required_profiles": [
+        "league_group",
+        "knockout",
+        "friendly"
+      ],
+      "subject_roles": [
+        "HOME",
+        "AWAY"
+      ],
+      "target_samples": 10
+    },
+    {
+      "key": "event.h2h_recent",
+      "optional_profiles": [
+        "league_group",
+        "knockout"
+      ],
+      "required_profiles": [],
+      "subject_roles": [
+        "EVENT"
+      ],
+      "target_samples": 10
+    },
+    {
+      "key": "competition.standings",
+      "not_applicable_profiles": [
+        "knockout",
+        "friendly"
+      ],
+      "required_profiles": [
+        "league_group"
+      ],
+      "subject_roles": [
+        "COMPETITION"
+      ]
+    },
+    {
+      "key": "team.metric_series",
+      "minimum_healthy": 5,
+      "minimum_usable": 1,
+      "required_profiles": [
+        "league_group",
+        "knockout",
+        "friendly"
+      ],
+      "subject_roles": [
+        "HOME",
+        "AWAY"
+      ],
+      "target_samples": 10
+    },
+    {
+      "key": "team.availability",
+      "optional_profiles": [
+        "league_group",
+        "knockout",
+        "friendly"
+      ],
+      "subject_roles": [
+        "HOME",
+        "AWAY"
+      ]
+    },
+    {
+      "key": "team.lineup.confirmed",
+      "optional_profiles": [
+        "league_group",
+        "knockout",
+        "friendly"
+      ],
+      "subject_roles": [
+        "HOME",
+        "AWAY"
+      ]
+    },
+    {
+      "key": "team.lineup.predicted",
+      "optional_profiles": [
+        "league_group",
+        "knockout",
+        "friendly"
+      ],
+      "subject_roles": [
+        "HOME",
+        "AWAY"
+      ]
+    },
+    {
+      "key": "team.schedule_context",
+      "optional_profiles": [
+        "league_group",
+        "knockout",
+        "friendly"
+      ],
+      "subject_roles": [
+        "HOME",
+        "AWAY"
+      ]
+    },
+    {
+      "key": "venue.weather",
+      "optional_profiles": [
+        "league_group",
+        "knockout",
+        "friendly"
+      ],
+      "subject_roles": [
+        "VENUE"
+      ]
+    },
+    {
+      "key": "official.context",
+      "optional_profiles": [
+        "league_group",
+        "knockout"
+      ],
+      "subject_roles": [
+        "OFFICIAL"
+      ]
+    }
+  ],
+  "schema_version": "1",
+  "sport": "football"
+}

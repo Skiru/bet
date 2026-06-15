@@ -1,0 +1,60 @@
+{
+  "profiles": {
+    "friendly": {
+      "not_applicable": [
+        "competition.standings",
+        "event.h2h_recent",
+        "official.context"
+      ],
+      "optional": [
+        "team.availability",
+        "team.lineup.confirmed",
+        "team.lineup.predicted",
+        "team.schedule_context",
+        "venue.weather"
+      ],
+      "required": [
+        "fixture.core",
+        "team.recent_matches",
+        "team.metric_series"
+      ]
+    },
+    "knockout": {
+      "not_applicable": [
+        "competition.standings"
+      ],
+      "optional": [
+        "event.h2h_recent",
+        "team.availability",
+        "team.lineup.confirmed",
+        "team.lineup.predicted",
+        "team.schedule_context",
+        "venue.weather",
+        "official.context"
+      ],
+      "required": [
+        "fixture.core",
+        "team.recent_matches",
+        "team.metric_series"
+      ]
+    },
+    "league_group": {
+      "optional": [
+        "event.h2h_recent",
+        "team.availability",
+        "team.lineup.confirmed",
+        "team.lineup.predicted",
+        "team.schedule_context",
+        "venue.weather",
+        "official.context"
+      ],
+      "required": [
+        "fixture.core",
+        "team.recent_matches",
+        "competition.standings",
+        "team.metric_series"
+      ]
+    }
+  },
+  "schema_version": "1"
+}

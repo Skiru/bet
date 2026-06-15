@@ -51,7 +51,6 @@ langgraph-dev = [
 ]
 
 [project.scripts]
-bet-lg = "bet_langgraph.app.cli:app"
 
 [tool.black]
 line-length = 88
@@ -84,7 +83,7 @@ warn_return_any = true
 warn_unused_ignores = true
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/bet_langgraph"]
+packages = ["src/bet"]
 
 [build-system]
 requires = ["hatchling"]
