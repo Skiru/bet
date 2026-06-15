@@ -1,8 +1,10 @@
 from __future__ import annotations
-from enum import StrEnum
+
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Mapping, TYPE_CHECKING
+from enum import StrEnum
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from bet.integration.evidence import EvidenceRef
@@ -26,6 +28,8 @@ class SourceResultStatus(StrEnum):
     EVIDENCE_ERROR = "EVIDENCE_ERROR"
     PARTIAL = "PARTIAL"
     TIMEOUT = "TIMEOUT"
+    STALE = "STALE"
+    TEMPORAL_UNSAFE = "TEMPORAL_UNSAFE"
     UNSUPPORTED = "UNSUPPORTED"
 
 @dataclass(frozen=True)
@@ -51,3 +55,16 @@ class SourceOperationResult[T]:
     parser_version: str = ""
     normalization_version: str = ""
     retryable: bool = False  # Keep for backward compatibility
+
+
+def normalize_source_result_status(
+    status: SourceResultStatus | str,
+) -> SourceResultStatus:
+    if status == SourceResultStatus.UNSUPPORTED or status == "UNSUPPORTED":
+        return SourceResultStatus.NOT_SUPPORTED
+    if isinstance(status, SourceResultStatus):
+        return status
+    try:
+        return SourceResultStatus(status)
+    except ValueError:
+        raise ValueError(f"Unknown SourceResultStatus value: {status}")
