@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from bet.integration.evidence import EvidenceRef
 
+
 class SourceResultStatus(StrEnum):
     SUCCESS = "SUCCESS"
     VALID_EMPTY = "VALID_EMPTY"
@@ -31,6 +32,7 @@ class SourceResultStatus(StrEnum):
     STALE = "STALE"
     TEMPORAL_UNSAFE = "TEMPORAL_UNSAFE"
     UNSUPPORTED = "UNSUPPORTED"
+
 
 @dataclass(frozen=True)
 class SourceOperationResult[T]:
