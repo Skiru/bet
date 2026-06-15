@@ -57,6 +57,8 @@ def to_primitive(value: object) -> object:
         raise TypeError(f"Unsupported type: {type(value)}")
     if isinstance(value, bool):
         return value
+    if isinstance(value, StrEnum):
+        return str(value.value)
     if value is None or isinstance(value, str):
         return value
     if isinstance(value, int):
@@ -331,8 +333,10 @@ def _from_primitive_impl(
 
         try:
             type_hints = get_type_hints(base_type)
-        except Exception:
-            type_hints = {f.name: f.type for f in fields(base_type)}
+        except Exception as exc:
+            raise TypeError(
+                f"Could not resolve type hints for dataclass {base_type.__name__}"
+            ) from exc
 
         processed_data = {}
         for field_info in fields(base_type):
@@ -340,6 +344,11 @@ def _from_primitive_impl(
             field_type = type_hints.get(field_name, field_info.type)
 
             if field_name not in value:
+                if field_name == "schema_version":
+                    raise ValueError(
+                        f"Missing required field 'schema_version' "
+                        f"for dataclass {base_type.__name__}"
+                    )
                 if (
                     field_info.default is MISSING
                     and field_info.default_factory is MISSING
