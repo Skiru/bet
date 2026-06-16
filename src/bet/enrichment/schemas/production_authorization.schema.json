@@ -1,83 +1,271 @@
 {
-  "$id": "urn:bet:v83:production-authorization",
+  "$id": "https://bet.local/v84/production_authorization.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
-    "authorization_hash": {
-      "pattern": "^[0-9a-f]{64}$",
-      "type": "string"
+    "document_type": {
+      "const": "production-authorization"
     },
-    "certification_hash": {
-      "pattern": "^[0-9a-f]{64}$",
-      "type": "string"
-    },
-    "key_registry_hash": {
-      "pattern": "^[0-9a-f]{64}$",
-      "type": "string"
-    },
-    "public_key_id": {
+    "key_id": {
       "minLength": 1,
       "type": "string"
     },
-    "rollback_policy_hash": {
-      "pattern": "^[0-9a-f]{64}$",
-      "type": "string"
-    },
-    "runtime_code_digest": {
-      "pattern": "^[0-9a-f]{64}$",
-      "type": "string"
-    },
-    "runtime_environment_digest": {
-      "pattern": "^[0-9a-f]{64}$",
-      "type": "string"
-    },
-    "schema_version": {
-      "const": "1"
-    },
-    "scope": {
+    "payload": {
       "additionalProperties": false,
       "properties": {
-        "maximum_exposure_pct": {
-          "maximum": 5,
-          "minimum": 0,
-          "type": "number"
+        "authorization_id": {
+          "minLength": 1,
+          "type": "string"
         },
-        "sport": {
-          "const": "football"
+        "certification_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "certification_outcome": {
+          "const": "PASS"
+        },
+        "digests": {
+          "additionalProperties": false,
+          "properties": {
+            "assignment_policy_hash": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "bundle_root_sha256": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "contract_hash": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "key_registry_hash": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "metric_contract_hash": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "plan_hash": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "policy_config_hash": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "rollback_policy_hash": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "runtime_code_digest": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "runtime_environment_digest": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "threshold_policy_hash": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "runtime_code_digest",
+            "runtime_environment_digest",
+            "plan_hash",
+            "contract_hash",
+            "metric_contract_hash",
+            "policy_config_hash",
+            "rollback_policy_hash",
+            "bundle_root_sha256",
+            "key_registry_hash",
+            "threshold_policy_hash",
+            "assignment_policy_hash"
+          ],
+          "type": "object"
+        },
+        "issued_at": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$",
+          "type": "string"
+        },
+        "kill_switch_id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "maximum_exposure_pct": {
+          "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+          "type": "string"
+        },
+        "operator_reason": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "scope": {
+          "additionalProperties": false,
+          "properties": {
+            "assignment_salt_hash": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "capabilities": {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array",
+              "uniqueItems": true
+            },
+            "competition_ids": {
+              "items": {
+                "minimum": 1,
+                "type": "integer"
+              },
+              "type": "array",
+              "uniqueItems": true
+            },
+            "consumer_version": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "environment": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "execution_mode": {
+              "enum": [
+                "SHADOW",
+                "CANARY",
+                "PRODUCTION"
+              ]
+            },
+            "providers": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "profile_key": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "provider": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "qualification_hash": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "transport_contract_hash": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "provider",
+                  "profile_key",
+                  "qualification_hash",
+                  "transport_contract_hash"
+                ],
+                "type": "object"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            "regions": {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": "array",
+              "uniqueItems": true
+            },
+            "routing_revision_hash": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "selection_algorithm_version": {
+              "const": "BET-CANARY-ASSIGNMENT-1"
+            },
+            "sport": {
+              "const": "football"
+            },
+            "tenant_ids": {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": "array",
+              "uniqueItems": true
+            }
+          },
+          "required": [
+            "environment",
+            "sport",
+            "execution_mode",
+            "providers",
+            "capabilities",
+            "competition_ids",
+            "tenant_ids",
+            "regions",
+            "routing_revision_hash",
+            "consumer_version",
+            "selection_algorithm_version",
+            "assignment_salt_hash"
+          ],
+          "type": "object"
+        },
+        "valid_from": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$",
+          "type": "string"
+        },
+        "valid_to": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$",
+          "type": "string"
         }
       },
       "required": [
-        "sport",
-        "maximum_exposure_pct"
+        "authorization_id",
+        "issued_at",
+        "valid_from",
+        "valid_to",
+        "certification_hash",
+        "certification_outcome",
+        "scope",
+        "digests",
+        "maximum_exposure_pct",
+        "kill_switch_id",
+        "operator_reason"
       ],
       "type": "object"
     },
+    "payload_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "profile": {
+      "const": "BET-SIGNED-DOC-1"
+    },
+    "schema_version": {
+      "minimum": 1,
+      "type": "integer"
+    },
     "signature_b64": {
-      "minLength": 40,
-      "type": "string"
-    },
-    "valid_from": {
-      "format": "date-time",
-      "type": "string"
-    },
-    "valid_to": {
-      "format": "date-time",
+      "pattern": "^[A-Za-z0-9+/]{86}==$",
       "type": "string"
     }
   },
   "required": [
+    "document_type",
     "schema_version",
-    "authorization_hash",
-    "certification_hash",
-    "valid_from",
-    "valid_to",
-    "scope",
-    "runtime_code_digest",
-    "runtime_environment_digest",
-    "rollback_policy_hash",
-    "public_key_id",
-    "key_registry_hash",
+    "profile",
+    "payload",
+    "payload_hash",
+    "key_id",
     "signature_b64"
   ],
+  "title": "production_authorization.schema.json",
   "type": "object"
 }

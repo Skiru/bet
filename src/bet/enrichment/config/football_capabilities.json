@@ -1,26 +1,34 @@
 {
   "capabilities": [
     {
+      "dependencies": [],
+      "dto": "FixtureCoreV1",
       "key": "fixture.core",
-      "required_profiles": [
-        "league_group",
-        "knockout",
-        "friendly"
-      ],
+      "profiles": {
+        "friendly": "REQUIRED",
+        "knockout": "REQUIRED",
+        "league_group": "REQUIRED"
+      },
+      "schema_version": 1,
+      "source_kind": "PROVIDER",
       "subject_roles": [
         "EVENT"
       ]
     },
     {
       "candidate_scan_limit": 50,
+      "dependencies": [],
+      "dto": "RecentMatchesV1",
       "key": "team.recent_matches",
       "minimum_healthy": 5,
       "minimum_usable": 1,
-      "required_profiles": [
-        "league_group",
-        "knockout",
-        "friendly"
-      ],
+      "profiles": {
+        "friendly": "REQUIRED",
+        "knockout": "REQUIRED",
+        "league_group": "REQUIRED"
+      },
+      "schema_version": 1,
+      "source_kind": "PROVIDER",
       "subject_roles": [
         "HOME",
         "AWAY"
@@ -28,39 +36,49 @@
       "target_samples": 10
     },
     {
+      "dependencies": [],
+      "dto": "H2HRecentMatchesV1",
       "key": "event.h2h_recent",
-      "optional_profiles": [
-        "league_group",
-        "knockout"
-      ],
-      "required_profiles": [],
+      "profiles": {
+        "friendly": "NOT_APPLICABLE",
+        "knockout": "OPTIONAL",
+        "league_group": "OPTIONAL"
+      },
+      "schema_version": 1,
+      "source_kind": "PROVIDER",
       "subject_roles": [
         "EVENT"
       ],
       "target_samples": 10
     },
     {
+      "dependencies": [],
+      "dto": "StandingsV1",
       "key": "competition.standings",
-      "not_applicable_profiles": [
-        "knockout",
-        "friendly"
-      ],
-      "required_profiles": [
-        "league_group"
-      ],
+      "profiles": {
+        "friendly": "NOT_APPLICABLE",
+        "knockout": "NOT_APPLICABLE",
+        "league_group": "REQUIRED"
+      },
+      "schema_version": 1,
+      "source_kind": "PROVIDER",
       "subject_roles": [
         "COMPETITION"
       ]
     },
     {
+      "dependencies": [],
+      "dto": "TeamMetricSeriesV1",
       "key": "team.metric_series",
       "minimum_healthy": 5,
       "minimum_usable": 1,
-      "required_profiles": [
-        "league_group",
-        "knockout",
-        "friendly"
-      ],
+      "profiles": {
+        "friendly": "REQUIRED",
+        "knockout": "REQUIRED",
+        "league_group": "REQUIRED"
+      },
+      "schema_version": 1,
+      "source_kind": "PROVIDER",
       "subject_roles": [
         "HOME",
         "AWAY"
@@ -68,75 +86,110 @@
       "target_samples": 10
     },
     {
+      "dependencies": [],
+      "dto": "AvailabilityV1",
       "key": "team.availability",
-      "optional_profiles": [
-        "league_group",
-        "knockout",
-        "friendly"
-      ],
+      "profiles": {
+        "friendly": "OPTIONAL",
+        "knockout": "OPTIONAL",
+        "league_group": "OPTIONAL"
+      },
+      "schema_version": 1,
+      "source_kind": "PROVIDER",
       "subject_roles": [
         "HOME",
         "AWAY"
       ]
     },
     {
+      "dependencies": [],
+      "dto": "LineupV1",
       "key": "team.lineup.confirmed",
-      "optional_profiles": [
-        "league_group",
-        "knockout",
-        "friendly"
-      ],
+      "profiles": {
+        "friendly": "OPTIONAL",
+        "knockout": "OPTIONAL",
+        "league_group": "OPTIONAL"
+      },
+      "schema_version": 1,
+      "source_kind": "PROVIDER",
       "subject_roles": [
         "HOME",
         "AWAY"
       ]
     },
     {
+      "dependencies": [],
+      "dto": "LineupV1",
       "key": "team.lineup.predicted",
-      "optional_profiles": [
-        "league_group",
-        "knockout",
-        "friendly"
-      ],
+      "profiles": {
+        "friendly": "OPTIONAL",
+        "knockout": "OPTIONAL",
+        "league_group": "OPTIONAL"
+      },
+      "schema_version": 1,
+      "source_kind": "PROVIDER",
       "subject_roles": [
         "HOME",
         "AWAY"
       ]
     },
     {
+      "dependencies": [
+        "fixture.core",
+        "team.recent_matches"
+      ],
+      "derivation_profile": "BET-FOOTBALL-SCHEDULE-CONTEXT-1",
+      "dto": "ScheduleContextV1",
       "key": "team.schedule_context",
-      "optional_profiles": [
-        "league_group",
-        "knockout",
-        "friendly"
-      ],
+      "profiles": {
+        "friendly": "OPTIONAL",
+        "knockout": "OPTIONAL",
+        "league_group": "OPTIONAL"
+      },
+      "schema_version": 1,
+      "source_kind": "DERIVED",
       "subject_roles": [
         "HOME",
         "AWAY"
       ]
     },
     {
+      "dependencies": [],
+      "dto": "VenueWeatherV1",
       "key": "venue.weather",
-      "optional_profiles": [
-        "league_group",
-        "knockout",
-        "friendly"
-      ],
+      "profiles": {
+        "friendly": "OPTIONAL",
+        "knockout": "OPTIONAL",
+        "league_group": "OPTIONAL"
+      },
+      "schema_version": 1,
+      "source_kind": "PROVIDER",
       "subject_roles": [
         "VENUE"
       ]
     },
     {
+      "dependencies": [],
+      "dto": "OfficialContextV1",
       "key": "official.context",
-      "optional_profiles": [
-        "league_group",
-        "knockout"
-      ],
+      "profiles": {
+        "friendly": "NOT_APPLICABLE",
+        "knockout": "OPTIONAL",
+        "league_group": "OPTIONAL"
+      },
+      "schema_version": 1,
+      "source_kind": "PROVIDER",
       "subject_roles": [
         "OFFICIAL"
       ]
     }
   ],
-  "schema_version": "1",
+  "contract_version": "8.4",
+  "profile_keys": [
+    "league_group",
+    "knockout",
+    "friendly"
+  ],
+  "schema_version": 2,
   "sport": "football"
 }

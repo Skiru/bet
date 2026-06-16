@@ -1,53 +1,128 @@
 {
-  "$id": "urn:bet:v83:operator-key-registry",
+  "$id": "https://bet.local/v84/operator_key_registry.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
-    "keys": {
-      "items": {
-        "additionalProperties": false,
-        "properties": {
-          "algorithm": {
-            "const": "Ed25519"
-          },
-          "key_id": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "public_key_b64": {
-            "minLength": 40,
-            "type": "string"
-          },
-          "status": {
-            "enum": [
-              "ACTIVE",
-              "REVOKED"
-            ]
-          }
-        },
-        "required": [
-          "key_id",
-          "algorithm",
-          "public_key_b64",
-          "status"
-        ],
-        "type": "object"
-      },
-      "minItems": 1,
-      "type": "array"
+    "document_type": {
+      "const": "operator-key-registry"
     },
-    "registry_hash": {
+    "key_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "payload": {
+      "additionalProperties": false,
+      "properties": {
+        "issued_at": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$",
+          "type": "string"
+        },
+        "keys": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "algorithm": {
+                "const": "Ed25519"
+              },
+              "key_id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "public_key_b64": {
+                "pattern": "^[A-Za-z0-9+/]{43}=$",
+                "type": "string"
+              },
+              "revoked": {
+                "type": "boolean"
+              },
+              "revoked_at": {
+                "oneOf": [
+                  {
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "valid_from": {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$",
+                "type": "string"
+              },
+              "valid_to": {
+                "oneOf": [
+                  {
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "key_id",
+              "algorithm",
+              "public_key_b64",
+              "valid_from",
+              "revoked"
+            ],
+            "type": "object"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "previous_registry_hash": {
+          "oneOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "registry_version": {
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "previous_registry_hash",
+        "registry_version",
+        "issued_at",
+        "keys"
+      ],
+      "type": "object"
+    },
+    "payload_hash": {
       "pattern": "^[0-9a-f]{64}$",
       "type": "string"
     },
+    "profile": {
+      "const": "BET-SIGNED-DOC-1"
+    },
     "schema_version": {
-      "const": "1"
+      "minimum": 1,
+      "type": "integer"
+    },
+    "signature_b64": {
+      "pattern": "^[A-Za-z0-9+/]{86}==$",
+      "type": "string"
     }
   },
   "required": [
+    "document_type",
     "schema_version",
-    "registry_hash",
-    "keys"
+    "profile",
+    "payload",
+    "payload_hash",
+    "key_id",
+    "signature_b64"
   ],
+  "title": "operator_key_registry.schema.json",
   "type": "object"
 }

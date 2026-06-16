@@ -1,4 +1,5 @@
 {
+  "contract_version": "8.4",
   "profiles": {
     "friendly": {
       "not_applicable": [
@@ -15,8 +16,8 @@
       ],
       "required": [
         "fixture.core",
-        "team.recent_matches",
-        "team.metric_series"
+        "team.metric_series",
+        "team.recent_matches"
       ]
     },
     "knockout": {
@@ -25,36 +26,37 @@
       ],
       "optional": [
         "event.h2h_recent",
+        "official.context",
         "team.availability",
         "team.lineup.confirmed",
         "team.lineup.predicted",
         "team.schedule_context",
-        "venue.weather",
-        "official.context"
+        "venue.weather"
       ],
       "required": [
         "fixture.core",
-        "team.recent_matches",
-        "team.metric_series"
+        "team.metric_series",
+        "team.recent_matches"
       ]
     },
     "league_group": {
+      "not_applicable": [],
       "optional": [
         "event.h2h_recent",
+        "official.context",
         "team.availability",
         "team.lineup.confirmed",
         "team.lineup.predicted",
         "team.schedule_context",
-        "venue.weather",
-        "official.context"
+        "venue.weather"
       ],
       "required": [
-        "fixture.core",
-        "team.recent_matches",
         "competition.standings",
-        "team.metric_series"
+        "fixture.core",
+        "team.metric_series",
+        "team.recent_matches"
       ]
     }
   },
-  "schema_version": "1"
+  "schema_version": 2
 }

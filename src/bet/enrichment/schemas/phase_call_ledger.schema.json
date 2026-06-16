@@ -1,0 +1,91 @@
+{
+  "$id": "https://bet.local/v84/phase_call_ledger.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "attempt_identity": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "attempt_index": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "event_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "finished_at": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$",
+      "type": "string"
+    },
+    "operation_identity": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "outcome": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "phase_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "physical_attempts": {
+      "const": 1
+    },
+    "previous_event_hash": {
+      "oneOf": [
+        {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "profile_key": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "provider": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "run_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "sequence": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "started_at": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "phase_id",
+    "run_id",
+    "sequence",
+    "provider",
+    "profile_key",
+    "operation_identity",
+    "attempt_identity",
+    "attempt_index",
+    "started_at",
+    "finished_at",
+    "outcome",
+    "physical_attempts",
+    "previous_event_hash",
+    "event_hash"
+  ],
+  "title": "phase_call_ledger.schema.json",
+  "type": "object"
+}

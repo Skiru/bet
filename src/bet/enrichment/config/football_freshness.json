@@ -1,5 +1,6 @@
 {
-  "schema_version": "1",
+  "contract_version": "8.4",
+  "schema_version": 2,
   "seconds": {
     "competition.standings": 21600,
     "event.h2h_recent": 86400,

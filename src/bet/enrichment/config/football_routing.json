@@ -1,6 +1,13 @@
 {
-  "generated": true,
+  "contract_version": "8.4",
+  "generated": false,
+  "kind": "ROUTING_TEMPLATE",
+  "materialization": {
+    "fail_closed": true,
+    "revision_hash_profile": "BET-CJSON-1",
+    "source": "DATABASE_ADMISSION_AND_GOVERNANCE"
+  },
   "routes": [],
-  "rule": "Only active qualification revisions with valid signed governance may generate routes; empty is valid and fail-closed.",
-  "schema_version": "1"
+  "rule": "Package contains no environment routes; runtime routes are DB-derived and immutable per revision.",
+  "schema_version": 2
 }

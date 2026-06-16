@@ -1,0 +1,87 @@
+{
+  "connect_timeout_ms": 5000,
+  "content_encodings": [
+    "identity",
+    "gzip",
+    "br"
+  ],
+  "content_types": [
+    "application/json",
+    "application/json; charset=utf-8"
+  ],
+  "contract_version": "8.4",
+  "empty_result": "EXPLICIT_EMPTY_NOT_RETRYABLE",
+  "http_200_provider_errors": "CLASSIFY_AS_PROVIDER_ERROR",
+  "identity_rule": "provider IDs only; no name repair",
+  "max_compressed_bytes": 1000000,
+  "max_decompressed_bytes": 4000000,
+  "max_decompression_ratio": "20",
+  "max_transport_attempts": 2,
+  "maximum_governance_mode": "PRODUCTION",
+  "operations": [
+    "venue.weather"
+  ],
+  "profiles": [
+    {
+      "allowed_modes": [
+        "SHADOW"
+      ],
+      "credential": null,
+      "license_scope": "NON_COMMERCIAL_ONLY",
+      "origins": [
+        "https://api.open-meteo.com"
+      ],
+      "profile_key": "free-noncommercial-shadow-v1"
+    },
+    {
+      "allowed_modes": [
+        "SHADOW",
+        "CANARY",
+        "PRODUCTION"
+      ],
+      "credential": {
+        "location": "query",
+        "name": "apikey",
+        "redacted_name": "OPEN_METEO_API_KEY"
+      },
+      "license_scope": "COMMERCIAL",
+      "origins": [
+        "https://customer-api.open-meteo.com"
+      ],
+      "profile_key": "customer-production-v1"
+    }
+  ],
+  "provider": "open-meteo",
+  "quota": {
+    "daily_limit_source": "profile_contract",
+    "minute_limit_source": "profile_contract",
+    "reserve_floor": 2,
+    "unknown_remaining": "FAIL_CLOSED"
+  },
+  "read_timeout_ms": 15000,
+  "redirects": false,
+  "retry": {
+    "base_delay_ms": 250,
+    "http_statuses": [
+      429,
+      500,
+      502,
+      503,
+      504
+    ],
+    "jitter": "FULL_INJECTED",
+    "max_delay_ms": 4000,
+    "retry_after": "HONOR_CAPPED_BY_TOTAL_DEADLINE",
+    "transport_errors": [
+      "CONNECT_TIMEOUT",
+      "READ_TIMEOUT",
+      "CONNECTION_RESET",
+      "DNS_TEMPORARY"
+    ]
+  },
+  "schema_version": 2,
+  "secret_redaction": "REQUIRED",
+  "tls_verify": true,
+  "total_deadline_ms": 25000,
+  "transport_contract_hash": "5e84584a4d12f6145a7d26e3319415a5b702d88269d6da4dd1c38610c800ca9a"
+}

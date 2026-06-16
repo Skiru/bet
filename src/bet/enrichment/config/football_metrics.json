@@ -1,60 +1,90 @@
 {
+  "contract_version": "8.4",
   "metrics": [
     {
       "key": "football.goals_for",
+      "minimum": "0",
       "period": "REGULATION",
-      "unit": "count"
+      "required": true,
+      "unit": "count",
+      "value_type": "integer"
     },
     {
       "key": "football.goals_against",
+      "minimum": "0",
       "period": "REGULATION",
-      "unit": "count"
+      "required": true,
+      "unit": "count",
+      "value_type": "integer"
     },
     {
       "key": "football.shots.total",
+      "minimum": "0",
       "period": "REGULATION",
-      "unit": "count"
+      "required": true,
+      "unit": "count",
+      "value_type": "integer"
     },
     {
       "key": "football.shots_on_target.total",
+      "minimum": "0",
       "period": "REGULATION",
-      "unit": "count"
+      "required": true,
+      "unit": "count",
+      "value_type": "integer"
     },
     {
       "key": "football.corners.total",
+      "minimum": "0",
       "period": "REGULATION",
-      "unit": "count"
+      "required": true,
+      "unit": "count",
+      "value_type": "integer"
     },
     {
       "key": "football.yellow_cards.total",
+      "minimum": "0",
       "period": "REGULATION",
-      "unit": "count"
+      "required": true,
+      "unit": "count",
+      "value_type": "integer"
     },
     {
       "key": "football.red_cards.total",
-      "optional": true,
+      "minimum": "0",
       "period": "REGULATION",
-      "unit": "count"
+      "required": false,
+      "unit": "count",
+      "value_type": "integer"
     },
     {
       "key": "football.fouls.total",
-      "optional": true,
+      "minimum": "0",
       "period": "REGULATION",
-      "unit": "count"
+      "required": false,
+      "unit": "count",
+      "value_type": "integer"
     },
     {
       "key": "football.possession.pct",
-      "optional": true,
+      "maximum": "100",
+      "minimum": "0",
       "period": "REGULATION",
-      "unit": "percent"
+      "required": false,
+      "scale": 3,
+      "unit": "percent",
+      "value_type": "decimal_string"
     },
     {
       "key": "football.xg",
-      "optional": true,
+      "minimum": "0",
       "period": "REGULATION",
       "proxy_forbidden": true,
-      "unit": "goals"
+      "required": false,
+      "scale": 3,
+      "unit": "goals",
+      "value_type": "decimal_string"
     }
   ],
-  "schema_version": "1"
+  "schema_version": 2
 }

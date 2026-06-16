@@ -1,91 +1,646 @@
 {
+  "capability_bindings": [
+    {
+      "capability_key": "fixture.core",
+      "record": "FixtureCoreV1",
+      "schema_version": 1
+    },
+    {
+      "capability_key": "team.recent_matches",
+      "record": "RecentMatchesV1",
+      "schema_version": 1
+    },
+    {
+      "capability_key": "event.h2h_recent",
+      "record": "H2HRecentMatchesV1",
+      "schema_version": 1
+    },
+    {
+      "capability_key": "competition.standings",
+      "record": "StandingsV1",
+      "schema_version": 1
+    },
+    {
+      "capability_key": "team.metric_series",
+      "record": "TeamMetricSeriesV1",
+      "schema_version": 1
+    },
+    {
+      "capability_key": "team.availability",
+      "record": "AvailabilityV1",
+      "schema_version": 1
+    },
+    {
+      "capability_key": "team.lineup.confirmed",
+      "record": "LineupV1",
+      "schema_version": 1
+    },
+    {
+      "capability_key": "team.lineup.predicted",
+      "record": "LineupV1",
+      "schema_version": 1
+    },
+    {
+      "capability_key": "team.schedule_context",
+      "record": "ScheduleContextV1",
+      "schema_version": 1
+    },
+    {
+      "capability_key": "venue.weather",
+      "record": "VenueWeatherV1",
+      "schema_version": 1
+    },
+    {
+      "capability_key": "official.context",
+      "record": "OfficialContextV1",
+      "schema_version": 1
+    }
+  ],
+  "contract_version": "8.4",
+  "descriptor_language": "BET-DTO-DESCRIPTOR-1",
+  "invariants": [
+    "field order normative",
+    "unknown fields rejected",
+    "nullable false required non-null",
+    "decimal_string BET-CJSON-1",
+    "datetime aware UTC"
+  ],
   "records": {
+    "AvailabilityRecordV1": [
+      {
+        "name": "player_entity_id",
+        "nullable": true,
+        "type": "integer"
+      },
+      {
+        "name": "provider_player_id",
+        "nullable": true,
+        "type": "string"
+      },
+      {
+        "enum": [
+          "AVAILABLE",
+          "DOUBTFUL",
+          "OUT",
+          "SUSPENDED",
+          "UNKNOWN"
+        ],
+        "name": "status",
+        "nullable": false,
+        "type": "enum"
+      },
+      {
+        "name": "reason",
+        "nullable": true,
+        "type": "string"
+      },
+      {
+        "name": "expected_return_at",
+        "nullable": true,
+        "type": "datetime"
+      }
+    ],
     "AvailabilityV1": [
-      "schema_version",
-      "team_entity_id",
-      "records",
-      "published_at"
+      {
+        "name": "schema_version",
+        "nullable": false,
+        "type": "integer"
+      },
+      {
+        "name": "team_entity_id",
+        "nullable": false,
+        "type": "integer"
+      },
+      {
+        "items": "AvailabilityRecordV1",
+        "name": "records",
+        "nullable": false,
+        "type": "list"
+      },
+      {
+        "name": "published_at",
+        "nullable": false,
+        "type": "datetime"
+      }
+    ],
+    "EventReferenceV1": [
+      {
+        "name": "event_entity_id",
+        "nullable": false,
+        "type": "integer"
+      },
+      {
+        "name": "kickoff_at",
+        "nullable": false,
+        "type": "datetime"
+      },
+      {
+        "name": "competition_entity_id",
+        "nullable": true,
+        "type": "integer"
+      },
+      {
+        "name": "venue_entity_id",
+        "nullable": true,
+        "type": "integer"
+      }
     ],
     "FixtureCoreV1": [
-      "schema_version",
-      "fixture_entity_id",
-      "competition_entity_id",
-      "home_team_entity_id",
-      "away_team_entity_id",
-      "kickoff_at",
-      "status",
-      "regulation_score",
-      "extra_time_score",
-      "shootout_score"
+      {
+        "name": "schema_version",
+        "nullable": false,
+        "type": "integer"
+      },
+      {
+        "name": "fixture_entity_id",
+        "nullable": false,
+        "type": "integer"
+      },
+      {
+        "name": "competition_entity_id",
+        "nullable": true,
+        "type": "integer"
+      },
+      {
+        "name": "home_team_entity_id",
+        "nullable": false,
+        "type": "integer"
+      },
+      {
+        "name": "away_team_entity_id",
+        "nullable": false,
+        "type": "integer"
+      },
+      {
+        "name": "kickoff_at",
+        "nullable": false,
+        "type": "datetime"
+      },
+      {
+        "enum": [
+          "SCHEDULED",
+          "LIVE",
+          "FINAL",
+          "POSTPONED",
+          "CANCELLED",
+          "ABANDONED",
+          "UNKNOWN"
+        ],
+        "name": "status",
+        "nullable": false,
+        "type": "enum"
+      },
+      {
+        "items": "ScoreV1",
+        "name": "regulation_score",
+        "nullable": true,
+        "type": "record"
+      },
+      {
+        "items": "ScoreV1",
+        "name": "extra_time_score",
+        "nullable": true,
+        "type": "record"
+      },
+      {
+        "items": "ScoreV1",
+        "name": "shootout_score",
+        "nullable": true,
+        "type": "record"
+      }
     ],
     "H2HRecentMatchesV1": [
-      "schema_version",
-      "home_team_entity_id",
-      "away_team_entity_id",
-      "samples"
+      {
+        "name": "schema_version",
+        "nullable": false,
+        "type": "integer"
+      },
+      {
+        "name": "home_team_entity_id",
+        "nullable": false,
+        "type": "integer"
+      },
+      {
+        "name": "away_team_entity_id",
+        "nullable": false,
+        "type": "integer"
+      },
+      {
+        "items": "MatchSampleV1",
+        "name": "samples",
+        "nullable": false,
+        "type": "list"
+      }
+    ],
+    "LineupPlayerV1": [
+      {
+        "name": "player_entity_id",
+        "nullable": true,
+        "type": "integer"
+      },
+      {
+        "name": "provider_player_id",
+        "nullable": true,
+        "type": "string"
+      },
+      {
+        "maximum": "99",
+        "minimum": "1",
+        "name": "shirt_number",
+        "nullable": true,
+        "type": "integer"
+      },
+      {
+        "name": "position",
+        "nullable": true,
+        "type": "string"
+      },
+      {
+        "name": "starter",
+        "nullable": false,
+        "type": "boolean"
+      },
+      {
+        "name": "captain",
+        "nullable": false,
+        "type": "boolean"
+      }
     ],
     "LineupV1": [
-      "schema_version",
-      "team_entity_id",
-      "lineup_kind",
-      "publication_state",
-      "players",
-      "published_at"
+      {
+        "name": "schema_version",
+        "nullable": false,
+        "type": "integer"
+      },
+      {
+        "name": "team_entity_id",
+        "nullable": false,
+        "type": "integer"
+      },
+      {
+        "enum": [
+          "CONFIRMED",
+          "PREDICTED"
+        ],
+        "name": "lineup_kind",
+        "nullable": false,
+        "type": "enum"
+      },
+      {
+        "enum": [
+          "PUBLISHED",
+          "NOT_PUBLISHED_YET",
+          "WITHDRAWN"
+        ],
+        "name": "publication_state",
+        "nullable": false,
+        "type": "enum"
+      },
+      {
+        "items": "LineupPlayerV1",
+        "name": "players",
+        "nullable": false,
+        "type": "list"
+      },
+      {
+        "name": "published_at",
+        "nullable": true,
+        "type": "datetime"
+      }
     ],
     "MatchSampleV1": [
-      "schema_version",
-      "event_entity_id",
-      "kickoff_at",
-      "competition_entity_id",
-      "venue_side",
-      "result",
-      "regulation_score_for",
-      "regulation_score_against",
-      "metrics"
+      {
+        "name": "schema_version",
+        "nullable": false,
+        "type": "integer"
+      },
+      {
+        "name": "event_entity_id",
+        "nullable": false,
+        "type": "integer"
+      },
+      {
+        "name": "kickoff_at",
+        "nullable": false,
+        "type": "datetime"
+      },
+      {
+        "name": "competition_entity_id",
+        "nullable": true,
+        "type": "integer"
+      },
+      {
+        "enum": [
+          "HOME",
+          "AWAY",
+          "NEUTRAL",
+          "UNKNOWN"
+        ],
+        "name": "venue_side",
+        "nullable": false,
+        "type": "enum"
+      },
+      {
+        "enum": [
+          "WIN",
+          "DRAW",
+          "LOSS",
+          "UNKNOWN"
+        ],
+        "name": "result",
+        "nullable": false,
+        "type": "enum"
+      },
+      {
+        "minimum": "0",
+        "name": "regulation_score_for",
+        "nullable": false,
+        "type": "integer"
+      },
+      {
+        "minimum": "0",
+        "name": "regulation_score_against",
+        "nullable": false,
+        "type": "integer"
+      },
+      {
+        "items": "MetricValueV1",
+        "name": "metrics",
+        "nullable": false,
+        "type": "list"
+      }
+    ],
+    "MetricPointV1": [
+      {
+        "name": "event_entity_id",
+        "nullable": false,
+        "type": "integer"
+      },
+      {
+        "name": "kickoff_at",
+        "nullable": false,
+        "type": "datetime"
+      },
+      {
+        "name": "value",
+        "nullable": false,
+        "type": "decimal_string"
+      }
+    ],
+    "MetricValueV1": [
+      {
+        "name": "metric_key",
+        "nullable": false,
+        "type": "string"
+      },
+      {
+        "name": "value",
+        "nullable": false,
+        "type": "decimal_string"
+      },
+      {
+        "name": "unit",
+        "nullable": false,
+        "type": "string"
+      },
+      {
+        "enum": [
+          "REGULATION"
+        ],
+        "name": "period",
+        "nullable": false,
+        "type": "enum"
+      }
     ],
     "OfficialContextV1": [
-      "schema_version",
-      "official_entity_id",
-      "sample_count",
-      "metrics"
+      {
+        "name": "schema_version",
+        "nullable": false,
+        "type": "integer"
+      },
+      {
+        "name": "official_entity_id",
+        "nullable": false,
+        "type": "integer"
+      },
+      {
+        "minimum": "0",
+        "name": "sample_count",
+        "nullable": false,
+        "type": "integer"
+      },
+      {
+        "items": "MetricValueV1",
+        "name": "metrics",
+        "nullable": false,
+        "type": "list"
+      }
     ],
     "RecentMatchesV1": [
-      "schema_version",
-      "team_entity_id",
-      "samples",
-      "candidate_scan_count",
-      "truncated"
+      {
+        "name": "schema_version",
+        "nullable": false,
+        "type": "integer"
+      },
+      {
+        "name": "team_entity_id",
+        "nullable": false,
+        "type": "integer"
+      },
+      {
+        "items": "MatchSampleV1",
+        "name": "samples",
+        "nullable": false,
+        "type": "list"
+      },
+      {
+        "maximum": "50",
+        "minimum": "0",
+        "name": "candidate_scan_count",
+        "nullable": false,
+        "type": "integer"
+      },
+      {
+        "name": "truncated",
+        "nullable": false,
+        "type": "boolean"
+      }
     ],
     "ScheduleContextV1": [
-      "schema_version",
-      "team_entity_id",
-      "previous_event",
-      "next_event",
-      "rest_hours",
-      "travel_distance_km"
+      {
+        "name": "schema_version",
+        "nullable": false,
+        "type": "integer"
+      },
+      {
+        "name": "team_entity_id",
+        "nullable": false,
+        "type": "integer"
+      },
+      {
+        "items": "EventReferenceV1",
+        "name": "previous_event",
+        "nullable": true,
+        "type": "record"
+      },
+      {
+        "items": "EventReferenceV1",
+        "name": "next_event",
+        "nullable": true,
+        "type": "record"
+      },
+      {
+        "minimum": "0",
+        "name": "rest_hours",
+        "nullable": true,
+        "scale": 3,
+        "type": "decimal_string"
+      },
+      {
+        "minimum": "0",
+        "name": "travel_distance_km",
+        "nullable": true,
+        "scale": 3,
+        "type": "decimal_string"
+      }
+    ],
+    "ScoreV1": [
+      {
+        "minimum": "0",
+        "name": "home",
+        "nullable": false,
+        "type": "integer"
+      },
+      {
+        "minimum": "0",
+        "name": "away",
+        "nullable": false,
+        "type": "integer"
+      }
+    ],
+    "StandingsRowV1": [
+      {
+        "name": "team_entity_id",
+        "nullable": false,
+        "type": "integer"
+      },
+      {
+        "minimum": "1",
+        "name": "rank",
+        "nullable": false,
+        "type": "integer"
+      },
+      {
+        "minimum": "0",
+        "name": "played",
+        "nullable": false,
+        "type": "integer"
+      },
+      {
+        "name": "points",
+        "nullable": false,
+        "type": "integer"
+      },
+      {
+        "name": "goal_difference",
+        "nullable": false,
+        "type": "integer"
+      }
     ],
     "StandingsV1": [
-      "schema_version",
-      "competition_entity_id",
-      "season_entity_id",
-      "rows",
-      "as_of_at"
+      {
+        "name": "schema_version",
+        "nullable": false,
+        "type": "integer"
+      },
+      {
+        "name": "competition_entity_id",
+        "nullable": false,
+        "type": "integer"
+      },
+      {
+        "name": "season_entity_id",
+        "nullable": false,
+        "type": "integer"
+      },
+      {
+        "items": "StandingsRowV1",
+        "name": "rows",
+        "nullable": false,
+        "type": "list"
+      },
+      {
+        "name": "as_of_at",
+        "nullable": false,
+        "type": "datetime"
+      }
     ],
     "TeamMetricSeriesV1": [
-      "schema_version",
-      "team_entity_id",
-      "metric_key",
-      "points",
-      "sample_count"
+      {
+        "name": "schema_version",
+        "nullable": false,
+        "type": "integer"
+      },
+      {
+        "name": "team_entity_id",
+        "nullable": false,
+        "type": "integer"
+      },
+      {
+        "name": "metric_key",
+        "nullable": false,
+        "type": "string"
+      },
+      {
+        "items": "MetricPointV1",
+        "name": "points",
+        "nullable": false,
+        "type": "list"
+      },
+      {
+        "minimum": "0",
+        "name": "sample_count",
+        "nullable": false,
+        "type": "integer"
+      }
     ],
     "VenueWeatherV1": [
-      "schema_version",
-      "venue_entity_id",
-      "forecast_at",
-      "temperature_c",
-      "precipitation_mm",
-      "wind_kph"
+      {
+        "name": "schema_version",
+        "nullable": false,
+        "type": "integer"
+      },
+      {
+        "name": "venue_entity_id",
+        "nullable": false,
+        "type": "integer"
+      },
+      {
+        "name": "forecast_at",
+        "nullable": false,
+        "type": "datetime"
+      },
+      {
+        "name": "temperature_c",
+        "nullable": true,
+        "scale": 3,
+        "type": "decimal_string"
+      },
+      {
+        "minimum": "0",
+        "name": "precipitation_mm",
+        "nullable": true,
+        "scale": 3,
+        "type": "decimal_string"
+      },
+      {
+        "minimum": "0",
+        "name": "wind_kph",
+        "nullable": true,
+        "scale": 3,
+        "type": "decimal_string"
+      }
     ]
   },
-  "schema_version": "1"
+  "schema_version": 2
 }

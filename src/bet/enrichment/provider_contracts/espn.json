@@ -1,0 +1,77 @@
+{
+  "connect_timeout_ms": 5000,
+  "content_encodings": [
+    "identity",
+    "gzip",
+    "br"
+  ],
+  "content_types": [
+    "application/json",
+    "application/json; charset=utf-8"
+  ],
+  "contract_version": "8.4",
+  "empty_result": "EXPLICIT_EMPTY_NOT_RETRYABLE",
+  "http_200_provider_errors": "CLASSIFY_AS_PROVIDER_ERROR",
+  "identity_rule": "provider IDs only; no name repair",
+  "max_compressed_bytes": 1000000,
+  "max_decompressed_bytes": 4000000,
+  "max_decompression_ratio": "20",
+  "max_transport_attempts": 2,
+  "maximum_governance_mode": "SHADOW",
+  "operations": [
+    "fixture.core",
+    "team.recent_matches",
+    "event.h2h_recent",
+    "competition.standings",
+    "team.metric_series",
+    "team.availability",
+    "team.lineup.confirmed",
+    "team.lineup.predicted",
+    "official.context"
+  ],
+  "profiles": [
+    {
+      "allowed_modes": [
+        "SHADOW"
+      ],
+      "credential": null,
+      "origins": [
+        "https://site.api.espn.com"
+      ],
+      "profile_key": "unofficial-shadow-v1"
+    }
+  ],
+  "provider": "espn",
+  "quota": {
+    "daily_limit_source": "UNKNOWN",
+    "minute_limit_source": "UNKNOWN",
+    "reserve_floor": 0,
+    "unknown_remaining": "BOUNDED_SHADOW_ONLY"
+  },
+  "read_timeout_ms": 15000,
+  "redirects": false,
+  "retry": {
+    "base_delay_ms": 250,
+    "http_statuses": [
+      429,
+      500,
+      502,
+      503,
+      504
+    ],
+    "jitter": "FULL_INJECTED",
+    "max_delay_ms": 4000,
+    "retry_after": "HONOR_CAPPED_BY_TOTAL_DEADLINE",
+    "transport_errors": [
+      "CONNECT_TIMEOUT",
+      "READ_TIMEOUT",
+      "CONNECTION_RESET",
+      "DNS_TEMPORARY"
+    ]
+  },
+  "schema_version": 2,
+  "secret_redaction": "REQUIRED",
+  "tls_verify": true,
+  "total_deadline_ms": 25000,
+  "transport_contract_hash": "418fa630a8baee450ebe71342805c74f6b15db051699bd411c9f890da0887ab8"
+}

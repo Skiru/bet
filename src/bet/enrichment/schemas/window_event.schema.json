@@ -1,5 +1,5 @@
 {
-  "$id": "urn:bet:v83:window-event",
+  "$id": "https://bet.local/v84/window_event.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
@@ -8,18 +8,49 @@
       "type": "string"
     },
     "event_type": {
-      "minLength": 1,
-      "type": "string"
+      "enum": [
+        "WINDOW_OPENED",
+        "SAMPLE_ACCEPTED",
+        "SAMPLE_EXCLUDED",
+        "MISMATCH_RECORDED",
+        "ROLLBACK_STARTED",
+        "ROLLBACK_COMPLETED",
+        "WINDOW_FINALIZED",
+        "WINDOW_ABORTED"
+      ]
     },
     "occurred_at": {
-      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$",
       "type": "string"
     },
     "payload": {
+      "additionalProperties": false,
+      "properties": {
+        "baseline_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "duration_ms": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "projection_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "reason_code": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "sample_id": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
       "type": "object"
     },
     "previous_event_hash": {
-      "anyOf": [
+      "oneOf": [
         {
           "pattern": "^[0-9a-f]{64}$",
           "type": "string"
@@ -29,16 +60,8 @@
         }
       ]
     },
-    "runtime_code_digest": {
-      "pattern": "^[0-9a-f]{64}$",
-      "type": "string"
-    },
-    "runtime_environment_digest": {
-      "pattern": "^[0-9a-f]{64}$",
-      "type": "string"
-    },
     "schema_version": {
-      "const": "1"
+      "const": 2
     },
     "sequence": {
       "minimum": 0,
@@ -53,13 +76,12 @@
     "schema_version",
     "window_id",
     "sequence",
-    "previous_event_hash",
-    "event_hash",
     "event_type",
     "occurred_at",
-    "runtime_code_digest",
-    "runtime_environment_digest",
-    "payload"
+    "previous_event_hash",
+    "payload",
+    "event_hash"
   ],
+  "title": "window_event.schema.json",
   "type": "object"
 }

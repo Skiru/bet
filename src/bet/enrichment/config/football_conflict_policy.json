@@ -1,33 +1,38 @@
 {
+  "contract_version": "8.4",
   "critical_capabilities": [
     "fixture.core"
   ],
   "rules": [
     {
+      "comparison": "EXACT",
       "critical": true,
-      "family": "score_identity",
-      "tolerance": "exact"
+      "family": "score_identity"
     },
     {
+      "comparison": "ABSOLUTE_SECONDS",
       "critical": true,
       "family": "kickoff",
-      "tolerance_seconds": 60
+      "tolerance": "60"
     },
     {
+      "comparison": "ABSOLUTE_DECIMAL",
       "critical": false,
       "family": "metric_count",
-      "tolerance_absolute": 0
+      "tolerance": "0"
     },
     {
+      "comparison": "ABSOLUTE_DECIMAL",
       "critical": false,
       "family": "possession_pct",
-      "tolerance_absolute": "0.5"
+      "tolerance": "0.5"
     },
     {
+      "comparison": "ABSOLUTE_DECIMAL",
       "critical": false,
       "family": "xg",
-      "tolerance_absolute": "0.10"
+      "tolerance": "0.10"
     }
   ],
-  "schema_version": "1"
+  "schema_version": 2
 }

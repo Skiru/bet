@@ -1,18 +1,135 @@
 {
-  "$id": "urn:bet:v83:evidence-manifest",
+  "$id": "https://bet.local/v84/evidence_manifest.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
-    "dto_version": {
+    "attempt_identity": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "availability_proof": {
+      "enum": [
+        "SOURCE_DECLARED",
+        "HTTP_DATE",
+        "OBSERVED_ONLY",
+        "UNKNOWN"
+      ]
+    },
+    "available_at": {
+      "oneOf": [
+        {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "call_ledger_event_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "capability_key": {
       "minLength": 1,
       "type": "string"
+    },
+    "captured_at": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$",
+      "type": "string"
+    },
+    "codec_version": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "http": {
+      "additionalProperties": false,
+      "properties": {
+        "compressed_size_bytes": {
+          "maximum": 16777216,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "content_encoding": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "content_type": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "decompressed_size_bytes": {
+          "maximum": 16777216,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "method": {
+          "enum": [
+            "GET",
+            "POST"
+          ]
+        },
+        "origin": {
+          "pattern": "^https://[A-Za-z0-9.-]+(?::[0-9]+)?$",
+          "type": "string"
+        },
+        "raw_content_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "redaction_profile": {
+          "const": "BET-EVIDENCE-REDACTION-1"
+        },
+        "redaction_version": {
+          "const": 1
+        },
+        "response_headers_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "status": {
+          "oneOf": [
+            {
+              "maximum": 599,
+              "minimum": 100,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "method",
+        "origin",
+        "status",
+        "content_type",
+        "content_encoding",
+        "response_headers_hash",
+        "raw_content_hash",
+        "compressed_size_bytes",
+        "decompressed_size_bytes",
+        "redaction_profile",
+        "redaction_version"
+      ],
+      "type": "object"
+    },
+    "member_count": {
+      "maximum": 128,
+      "minimum": 1,
+      "type": "integer"
     },
     "members": {
       "items": {
         "additionalProperties": false,
         "properties": {
-          "path": {
+          "media_type": {
             "minLength": 1,
+            "type": "string"
+          },
+          "path": {
+            "pattern": "^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$",
             "type": "string"
           },
           "sha256": {
@@ -27,12 +144,18 @@
         "required": [
           "path",
           "sha256",
-          "size_bytes"
+          "size_bytes",
+          "media_type"
         ],
         "type": "object"
       },
       "minItems": 1,
-      "type": "array"
+      "type": "array",
+      "uniqueItems": true
+    },
+    "observed_at": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$",
+      "type": "string"
     },
     "operation_name": {
       "minLength": 1,
@@ -46,20 +169,105 @@
       "minLength": 1,
       "type": "string"
     },
-    "physical_http_attempts": {
-      "minimum": 0,
+    "payload_schema_version": {
+      "minimum": 1,
       "type": "integer"
     },
-    "request_identity": {
+    "previous_manifest_hash": {
+      "oneOf": [
+        {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "profile": {
+      "const": "BET-EVIDENCE-1"
+    },
+    "provider_profile": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "received_at": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$",
+      "type": "string"
+    },
+    "request_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "result_status": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "retention": {
+      "additionalProperties": false,
+      "properties": {
+        "expires_at": {
+          "oneOf": [
+            {
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "legal_hold": {
+          "type": "boolean"
+        },
+        "license_classification": {
+          "enum": [
+            "OWNED",
+            "PUBLIC_NONCOMMERCIAL",
+            "COMMERCIAL_LICENSED",
+            "RESTRICTED"
+          ]
+        },
+        "retention_class": {
+          "enum": [
+            "REPLAY_FIXTURE",
+            "CERTIFICATION_EVIDENCE",
+            "LEGAL_HOLD",
+            "EPHEMERAL_RAW"
+          ]
+        }
+      },
+      "required": [
+        "license_classification",
+        "retention_class",
+        "legal_hold",
+        "expires_at"
+      ],
+      "type": "object"
+    },
+    "runtime_code_digest": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "runtime_environment_digest": {
       "pattern": "^[0-9a-f]{64}$",
       "type": "string"
     },
     "schema_version": {
-      "const": "1"
+      "const": 3
     },
     "source_key": {
       "minLength": 1,
       "type": "string"
+    },
+    "subject_role": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "total_size_bytes": {
+      "maximum": 16777216,
+      "minimum": 0,
+      "type": "integer"
     },
     "transport_contract_hash": {
       "pattern": "^[0-9a-f]{64}$",
@@ -68,15 +276,35 @@
   },
   "required": [
     "schema_version",
+    "profile",
     "package_id",
     "source_key",
+    "provider_profile",
     "operation_name",
-    "request_identity",
+    "attempt_identity",
     "transport_contract_hash",
+    "request_hash",
+    "result_status",
+    "observed_at",
+    "runtime_code_digest",
+    "runtime_environment_digest",
+    "previous_manifest_hash",
+    "members",
+    "captured_at",
+    "received_at",
+    "available_at",
+    "availability_proof",
+    "capability_key",
+    "subject_role",
+    "payload_schema_version",
     "parser_version",
-    "dto_version",
-    "physical_http_attempts",
-    "members"
+    "codec_version",
+    "call_ledger_event_hash",
+    "member_count",
+    "total_size_bytes",
+    "http",
+    "retention"
   ],
+  "title": "evidence_manifest.schema.json",
   "type": "object"
 }
