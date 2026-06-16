@@ -1,93 +1,100 @@
 # M0A_TRADITIONAL_SPORTS_PROVIDER_REALITY_MAP
 
-## 1. Documentation-Derived Support
-- **ESPN**: Free, undocumented REST API. Known to support football, basketball, hockey, tennis, and volleyball scoreboards and summaries.
-- **API-Sports**: Strict rate limits. Paginated historical data with `update` watermarks. Verified capability for football, basketball, hockey, and volleyball. Tennis is `NOT_OFFERED` in the current product suite. Some historic plan restrictions exist (e.g., standings require higher tiers).
-- **TheSportsDB**: Public free tier truncates responses heavily. Documented to use `123` for free discovery.
-- **SportDB.dev**: REST paths under `/api/flashscore/...` authenticated via `X-API-Key`. Provides MCP functionality (unconfigured locally). Live discovery, match details, and match stats proven for football. Discovery proven for basketball, hockey, tennis, and volleyball.
+This document outlines the final provider decisions, live-proven evidence, and capability matrix for our sports enrichment pipeline, correcting and clarifying all supplement evaluations.
 
-## 2. Live-Proven Capability
-*Capabilities explicitly proven by a physical HTTP response containing all mandatory fields.*
+---
 
-- **ESPN**:
-  - Scoreboard/Discovery (Football, Basketball, Hockey, Tennis, Volleyball)
-  - Completed Event Summary (Football, Basketball, Hockey, Tennis, Volleyball)
-  - Standings (Football, Basketball, Hockey, Tennis, Volleyball)
-- **TheSportsDB**:
-  - Entity Lookup (Football, Basketball, Hockey, Tennis, Volleyball)
-  - External-ID Crosswalk (Football ONLY - `idESPN` and `idAPIfootball` observed)
-- **API-Sports**:
-  - Discovery (Football, Basketball, Hockey, Volleyball)
-  - Completed Event (Football, Basketball, Hockey, Volleyball)
-  - Event Stats (Football)
-- **SportDB.dev**:
-  - Discovery (Football, Basketball, Hockey, Tennis, Volleyball)
-  - Completed Event (Football)
-  - Event Stats (Football)
+## 1. Core Definitions & Status Taxonomy
 
-## 3. Blocked Capability
-*Capabilities where access was physically prevented due to missing credentials, yielding no network attempt.*
+To preserve pipeline integrity, all provider capabilities are strictly classified using the following taxonomy:
 
-- **SportDB.dev**: MCP endpoints (`BLOCKED_BY_CONFIGURATION`)
+*   **Authenticated**: Access credentials have been verified and validated.
+*   **Discovered**: Basic event listing, lookup, or discovery operations have returned successful payloads.
+*   **Completed-Event Proven**: Payloads physically contain at least one completed event with non-null scores.
+*   **Detailed-Stats Proven**: Payloads physically contain granular field-level or team-level match statistics.
+*   **Documented but Untested**: Capability is referenced in public developer documentation but has not been verified in any supplement run.
+*   **Empty Result**: API returned a valid JSON envelope, but the payload list or stats field was empty or comprised only of `null` values.
+*   **Unproven**: Insufficient or no physical evidence exists to verify capability.
+*   **Candidate Role**: Potential future role pending canonical-event matching or higher-tier subscription certification.
+*   **Accepted Production Role**: Explicitly certified role for production implementation.
 
-## 4. Unproven Capability
-*Capabilities we theoretically support but lack evidence for due to blocks or missing evidence.*
+---
 
-- **TheSportsDB**: External-ID Crosswalk for Basketball, Hockey, Tennis, and Volleyball (no external IDs observed in responses yet)
-- **ESPN**: Reliable update watermarks (absent in payload)
+## 2. Corrected Provider Capability Decisions
 
-## 5. Rejected Capability
-*Capabilities that were proven unsuitable or are definitively not offered.*
+### 2.1 SportDB.database Decisions
+*   **Multisport Live Discovery**: **PROVEN**. (Active endpoints return event lists for football, basketball, hockey, tennis, and volleyball).
+*   **Football Basic Match Identity**: **PARTIALLY_PROVEN**. (Match details endpoint returns home/away identifiers, but relies on Flashscore IDs).
+*   **Football Match Statistics**: **UNPROVEN / EMPTY_RESULT**.
+    *   *Correction*: The committed `sportdb_football_stats.json` containing `[null]` does not represent valid statistics and is classified as `EMPTY_RESULT`.
+*   **Football Production Fallback**: **NOT_APPROVED**. (The `/api/flashscore/...` routes are classified as an undocumented bridge relative to the public REST contract and are not certified for core fallback).
+*   **Other-Sport Deep Statistics**: **UNPROVEN**.
+*   **Strategic Disposition**: **DEFERRED** (not marked as REJECTED). SportDB is retained as a future candidate for documented capabilities:
+    *   Player profile
+    *   Player statistics
+    *   Player transfer history
+    *   Club players
+    *   Lineups
+    *   Competition and tournament context
+    *   Agent research
 
-- **API-Sports**: Tennis data (`NOT_OFFERED` per documentation)
+### 2.2 API-Sports Decisions
+API-Sports is certified as highly predictable with structured JSON payloads, stable IDs, and pagination.
 
-## 6. Provider Decisions per Capability
+*   **Football**:
+    *   Discovery: **PROVEN / PRIMARY**
+    *   Completed-Event Facts: **PROVEN / PRIMARY**
+    *   Team Match Statistics: **PROVEN / PRIMARY**
+    *   Standings: **UNPROVEN** in this supplement (no standings request was performed; prior plan restriction claims are removed as unsupported).
+    *   Lineups: **UNPROVEN**
+    *   Player Fixture Statistics: **UNPROVEN**
+    *   Injuries: **UNPROVEN**
+    *   Transfers: **UNPROVEN**
+*   **Basketball**:
+    *   Discovery/Game Response: **PROVEN**
+    *   Completed Event: **PROVEN** (only when a completed status e.g., "FT" and non-null scores are present in the committed response).
+    *   Team/Player Deep Statistics: **UNPROVEN**
+    *   Standings: **UNPROVEN**
+*   **Hockey**:
+    *   Discovery/Game Response: **PROVEN**
+    *   Completed Event: **PROVEN** (only when a completed status and non-null scores are present, e.g., "AOT").
+    *   Team/Player Deep Statistics: **UNPROVEN**
+    *   Standings: **UNPROVEN**
+*   **Volleyball**:
+    *   Discovery/Upcoming Event Identity: **PROVEN**
+    *   Completed Event Facts: **UNPROVEN** (the committed event `api_sports_volleyball_fixture.json` is "Not Started" with null scores).
+    *   Deep Statistics: **UNPROVEN**
+*   **Tennis**:
+    *   **NOT_OFFERED** by API-Sports.
 
-### Football
-- **Discovery**: PRIMARY: `api-sports`, SHADOW: `espn`, FALLBACK: `sportdb`
-- **Completed Event**: PRIMARY: `api-sports`, SHADOW: `espn`, FALLBACK: `sportdb`
-- **Event Stats**: PRIMARY: `api-sports`, SHADOW: `espn`, FALLBACK: `sportdb`
-- **Entity Lookup**: PRIMARY: `thesportsdb`
-- **External-ID Crosswalk**: PRIMARY: `thesportsdb`
-- **Standings**: PRIMARY: `espn`, PLAN_RESTRICTED: `api-sports`
+### 2.3 ESPN Decisions
+*   **Football Classification**: **CANDIDATE_SHADOW**
+    *   *Constraint*: ESPN must not be upgraded to an operational SHADOW until a later same-canonical-event comparison proves compatible mappings across:
+        *   Event mapping
+        *   Team mapping
+        *   Kickoff compatibility
+        *   Home/Away compatibility
+        *   Result compatibility
+        *   Field-level statistics compatibility
 
-### Basketball
-- **Discovery**: PRIMARY: `api-sports`, SHADOW: `espn`, FALLBACK: `sportdb`
-- **Completed Event**: PRIMARY: `api-sports`, SHADOW: `espn`
-- **Event/Player Stats**: PRIMARY: `espn`
-- **Entity Lookup**: PRIMARY: `thesportsdb`
-- **External-ID Crosswalk**: UNPROVEN: `thesportsdb`
-- **Standings**: PRIMARY: `espn`
+### 2.4 TheSportsDB Decisions
+*   **Football Team Identity & External-ID Crosswalk**: **PROVEN** (cross-walk references observed).
+*   **Other-Sport External-ID Crosswalk**: **UNPROVEN**.
 
-### Hockey
-- **Discovery**: PRIMARY: `api-sports`, SHADOW: `espn`, FALLBACK: `sportdb`
-- **Completed Event**: PRIMARY: `api-sports`, SHADOW: `espn`
-- **Entity Lookup**: PRIMARY: `thesportsdb`
-- **External-ID Crosswalk**: UNPROVEN: `thesportsdb`
-- **Standings**: PRIMARY: `espn`
+---
 
-### Tennis
-- **Discovery**: PRIMARY: `espn`, FALLBACK: `sportdb`, NOT_OFFERED: `api-sports`
-- **Completed Event**: PRIMARY: `espn`, NOT_OFFERED: `api-sports`
-- **Event/Player Stats**: PRIMARY: `espn`, NOT_OFFERED: `api-sports`
-- **Entity Lookup**: PRIMARY: `thesportsdb`
-- **External-ID Crosswalk**: UNPROVEN: `thesportsdb`
-- **Standings/Ranking**: PRIMARY: `espn`
+## 3. Accepted Football Production Roles (First-Slice Decision)
 
-### Volleyball
-- **Discovery**: PRIMARY: `api-sports`, SHADOW: `espn`, FALLBACK: `sportdb`
-- **Completed Event**: PRIMARY: `api-sports`, SHADOW: `espn`
-- **Entity Lookup**: PRIMARY: `thesportsdb`
-- **External-ID Crosswalk**: UNPROVEN: `thesportsdb`
-- **Standings**: PRIMARY: `espn`
+1.  **API-Sports**: **PRIMARY** for completed team match facts.
+2.  **ESPN**: **CANDIDATE_SHADOW**, to be certified later against the same canonical events.
+3.  **TheSportsDB**: **IDENTITY_ONLY** for the proven football external-ID crosswalk.
+4.  **SportDB.dev**: **DEFERRED** for the first match-fact slice and retained as a high-value candidate for player, transfer, lineup, and tournament context.
 
-## 7. Report Counts
-- Previous declared physical attempts: 63
-- Supplement physical attempts (API-Sports + SportDB): 16
-- Final closure physical attempts: 79
+---
 
-## 8. Provider Decision (Football First Slice)
-**Option B: API-Sports primary, ESPN shadow.**
-- API-Sports provides robust, heavily structured, and predictable JSON with canonical IDs and pagination. It successfully proved capabilities for discovery, matches, and stats. Standings face a plan limitation but can rely on ESPN if needed.
-- SportDB provides good real-time coverage via the Flashscore bridge, making it a reliable fallback.
-- **SportDB.dev Roles**: SportDB.dev will be deferred for the first slice. It lacks structured historic standings in the immediate `/live` + details paths without deep navigation and has `EMPTY_RESULT` quirks on matches lacking events.
+## 4. Logical & Physical Summary Counts
+
+*   **Total Attempt Registry Count**: 38 logical attempts.
+*   **Total Physical REST Network Attempts in Supplement**: 16 (0 in this closure phase).
+*   **Total Physical MCP Network Attempts in Supplement**: 0.
+*   **Zero-Network Guard**: Verified that no external HTTP requests were performed during this integrity closure phase.

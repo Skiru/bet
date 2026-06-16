@@ -86,6 +86,218 @@ K_SPORTDB = "SPORTDB_API_" + "KEY"
 K_APISPORTS = "API_SPORTS_" + "KEY"
 K_THESPORTSDB = "THESPORTSDB_API_" + "KEY"
 
+
+def proves_completed_event_facts(data: Any, provider: str, sport: str) -> bool:
+    """
+    Checks if a response payload contains a completed event with non-null scores,
+    thereby proving completed-event facts capability.
+    """
+    if data is None:
+        return False
+
+    event_dicts = []
+
+    def find_events(node):
+        if isinstance(node, dict):
+            # Check if this dict represents an event/game
+            if ("status" in node and isinstance(node["status"], dict)) or "eventStage" in node or "competitions" in node:
+                event_dicts.append(node)
+            for v in node.values():
+                find_events(v)
+        elif isinstance(node, list):
+            for item in node:
+                find_events(item)
+
+    find_events(data)
+
+    for ev in event_dicts:
+        is_completed = False
+        has_scores = False
+
+        # API-Sports
+        if "status" in ev and isinstance(ev["status"], dict):
+            status_dict = ev["status"]
+            short_status = status_dict.get("short")
+            long_status = status_dict.get("long")
+            if short_status in ("FT", "AOT", "PEN") or (long_status and "finish" in long_status.lower()) or (short_status and short_status.lower() in ("ft", "aot", "pen")):
+                is_completed = True
+
+            # Check scores
+            if "scores" in ev and isinstance(ev["scores"], dict):
+                scores_dict = ev["scores"]
+                home_score = scores_dict.get("home")
+                away_score = scores_dict.get("away")
+                if isinstance(home_score, dict):
+                    h_tot = home_score.get("total")
+                    a_tot = scores_dict.get("away", {}).get("total") if isinstance(scores_dict.get("away"), dict) else None
+                    if h_tot is not None and a_tot is not None:
+                        has_scores = True
+                else:
+                    if home_score is not None and away_score is not None:
+                        has_scores = True
+            elif "goals" in ev and isinstance(ev["goals"], dict):
+                goals_dict = ev["goals"]
+                if goals_dict.get("home") is not None and goals_dict.get("away") is not None:
+                    has_scores = True
+
+        # ESPN
+        if "status" in ev and isinstance(ev["status"], dict):
+            status_dict = ev["status"]
+            type_dict = status_dict.get("type", {}) if isinstance(status_dict.get("type"), dict) else {}
+            state = type_dict.get("state")
+            if state in ("post", "completed"):
+                is_completed = True
+
+            competitions = ev.get("competitions", [])
+            if competitions and isinstance(competitions, list):
+                comp = competitions[0]
+                competitors = comp.get("competitors", [])
+                if len(competitors) >= 2:
+                    s1 = competitors[0].get("score")
+                    s2 = competitors[1].get("score")
+                    if s1 is not None and s2 is not None and s1 != "" and s2 != "":
+                        has_scores = True
+
+        # SportDB
+        if "eventStage" in ev:
+            stage = ev["eventStage"]
+            if stage in ("FINISHED", "FINISHED_AOT", "FINISHED_PEN"):
+                is_completed = True
+            if ev.get("homeScore") is not None and ev.get("awayScore") is not None:
+                has_scores = True
+
+        if is_completed and has_scores:
+            return True
+
+    return False
+
+def validate_semantic_response(data: Any, provider: str, sport: str, operation: str, expected_fields: list[str] | None) -> tuple[str, str | None, int]:
+    """
+    Performs comprehensive semantic response validation.
+    Returns (status, restriction_message, item_count)
+    """
+    # 1. Null root check
+    if data is None:
+        return "EMPTY_RESULT", "Response root is null", 0
+
+    # Determine capability proof requirement
+    is_capability_proof = operation not in ("status", "product_offering_check")
+    if is_capability_proof and expected_fields == []:
+        return "EMPTY_RESULT", f"Empty expected_fields for capability proof operation '{operation}'", 0
+
+    # 2. Check lists/arrays for empty, [null] or list of only nulls
+    if isinstance(data, list):
+        if len(data) == 0:
+            return "EMPTY_RESULT", "Response list is empty", 0
+        non_null_items = [x for x in data if x is not None]
+        if len(non_null_items) == 0:
+            return "EMPTY_RESULT", "Response list contains only null values", 0
+
+        # 4. Required record must be a mapping/object
+        for item in non_null_items:
+            if not isinstance(item, dict):
+                return "SCHEMA_MISMATCH", f"Expected list item to be a mapping/object, got {type(item).__name__}", 0
+
+            # 5. Required IDs must be non-null and non-empty
+            if is_capability_proof:
+                id_keys = [k for k in item.keys() if k.lower().endswith("id") or k.lower() in ("id", "idteam", "idevent", "idplayer", "eventid")]
+                if not id_keys:
+                    return "SCHEMA_MISMATCH", "Required ID key is missing or empty", 0
+                for k in id_keys:
+                    id_val = item[k]
+                    if id_val is None or id_val == "":
+                        return "SCHEMA_MISMATCH", f"Required ID key '{k}' is null or empty", 0
+
+        item_count = len(non_null_items)
+    else:
+        # It is a dictionary/object
+        if not isinstance(data, dict):
+            return "SCHEMA_MISMATCH", f"Required record must be a mapping/object, got primitive {type(data).__name__}", 0
+
+        item_count = 1
+
+    # Check mapping/object details and nested envelopes
+    if isinstance(data, dict):
+        # 5. Required IDs must be non-null and non-empty for the root if present
+        if is_capability_proof:
+            id_keys = [k for k in data.keys() if k.lower().endswith("id") or k.lower() in ("id", "idteam", "idevent", "idplayer", "eventid")]
+            if provider == "sportdb" and operation in ("match_details", "match_stats"):
+                if not id_keys and operation == "match_details":
+                    return "SCHEMA_MISMATCH", "Required ID key is missing or empty", 0
+                for k in id_keys:
+                    id_val = data[k]
+                    if id_val is None or id_val == "":
+                        return "SCHEMA_MISMATCH", f"Required ID key '{k}' is null or empty", 0
+
+        # Examine typical response envelopes (response, events, teams, players, children, standings)
+        envelope_keys = ["response", "events", "teams", "players", "children", "standings"]
+        has_envelope = False
+        for key in envelope_keys:
+            if key in data:
+                has_envelope = True
+                val = data[key]
+                if val is None:
+                    return "EMPTY_RESULT", f"Envelope key '{key}' is null", 0
+
+                # 6. Required arrays must contain at least one valid non-null record
+                if isinstance(val, list):
+                    if len(val) == 0:
+                        return "EMPTY_RESULT", f"Envelope array '{key}' is empty", 0
+                    non_null_envelope = [x for x in val if x is not None]
+                    if len(non_null_envelope) == 0:
+                        return "EMPTY_RESULT", f"Envelope array '{key}' contains only null values", 0
+
+                    # 4. Required record must be a mapping/object
+                    for item in non_null_envelope:
+                        if not isinstance(item, dict):
+                            return "SCHEMA_MISMATCH", f"Expected record inside envelope array '{key}' to be a mapping/object, got {type(item).__name__}", 0
+
+                        # 5. Required IDs must be non-null and non-empty
+                        if is_capability_proof:
+                            id_keys_inner = [k for k in item.keys() if k.lower().endswith("id") or k.lower() in ("id", "idteam", "idevent", "idplayer", "eventid")]
+                            for k in id_keys_inner:
+                                id_val = item[k]
+                                if id_val is None or id_val == "":
+                                    return "SCHEMA_MISMATCH", f"Required ID key '{k}' inside '{key}' is null or empty", 0
+
+                            if "fixture" in item and isinstance(item["fixture"], dict):
+                                f_id = item["fixture"].get("id")
+                                if f_id is None or f_id == "":
+                                    return "SCHEMA_MISMATCH", "Required ID key 'fixture.id' is null or empty", 0
+
+                    item_count = len(non_null_envelope)
+                elif isinstance(val, dict):
+                    # required record must be a mapping/object
+                    if is_capability_proof:
+                        id_keys_inner = [k for k in val.keys() if k.lower().endswith("id") or k.lower() in ("id", "idteam", "idevent", "idplayer", "eventid")]
+                        for k in id_keys_inner:
+                            id_val = val[k]
+                            if id_val is None or id_val == "":
+                                return "SCHEMA_MISMATCH", f"Required ID key '{k}' inside '{key}' is null or empty", 0
+                    item_count = 1
+                else:
+                    return "SCHEMA_MISMATCH", f"Expected envelope key '{key}' to be a mapping/object or list, got {type(val).__name__}", 0
+
+        # Special check for ESPN SUMMARY boxscore key
+        if not has_envelope and "boxscore" in data:
+            val = data["boxscore"]
+            if val is None:
+                return "EMPTY_RESULT", "boxscore is null", 0
+            if not isinstance(val, dict):
+                return "SCHEMA_MISMATCH", f"Expected boxscore to be a mapping/object, got {type(val).__name__}", 0
+            item_count = 1
+
+    # 7. Check for absent expected_fields
+    absent = []
+    if expected_fields:
+        for f in expected_fields:
+            if not has_field(data, f):
+                absent.append(f)
+        if absent:
+            return "INCOMPLETE_RESPONSE", f"Missing mandatory fields: {absent}", item_count
+
+    return "SUCCESS", None, item_count
+
 def get_timestamp() -> str:
     if os.environ.get("M0A_PROBE_DETERMINISTIC") == "1":
         return "2026-06-16T12:00:00+00:00"
@@ -339,64 +551,48 @@ class ProviderProbe:
                                 restriction = str(data)
 
                             if not provider_error:
-                                status = "SUCCESS"
-                                fingerprint = make_fingerprint(data)
+                                status, restriction, item_count = validate_semantic_response(data, provider, sport, operation, expected_fields)
+                                if status == "SUCCESS":
+                                    fingerprint = make_fingerprint(data)
 
-                                sport_mismatch = False
-                                if provider == "thesportsdb":
-                                    teams_list = data.get("teams") or []
-                                    players_list = data.get("players") or []
-                                    sport_vals = []
-                                    for t in teams_list:
-                                        if "strSport" in t: sport_vals.append(t["strSport"])
-                                    for p in players_list:
-                                        if "strSport" in p: sport_vals.append(p["strSport"])
+                                    sport_mismatch = False
+                                    if provider == "thesportsdb":
+                                        teams_list = data.get("teams") or []
+                                        players_list = data.get("players") or []
+                                        sport_vals = []
+                                        for t in teams_list:
+                                            if "strSport" in t: sport_vals.append(t["strSport"])
+                                        for p in players_list:
+                                            if "strSport" in p: sport_vals.append(p["strSport"])
 
-                                    sport_map_check = {
-                                        "football": ["Soccer", "Football"],
-                                        "basketball": ["Basketball"],
-                                        "hockey": ["Ice Hockey", "Hockey"],
-                                        "tennis": ["Tennis"],
-                                        "volleyball": ["Volleyball"]
-                                    }
-                                    if sport in sport_map_check and sport_vals:
-                                        if not any(v in sport_map_check[sport] for v in sport_vals):
-                                            sport_mismatch = True
-                                            status = "SPORT_MISMATCH"
-                                            restriction = f"Expected sport {sport}, got {sport_vals}"
+                                        sport_map_check = {
+                                            "football": ["Soccer", "Football"],
+                                            "basketball": ["Basketball"],
+                                            "hockey": ["Ice Hockey", "Hockey"],
+                                            "tennis": ["Tennis"],
+                                            "volleyball": ["Volleyball"]
+                                        }
+                                        if sport in sport_map_check and sport_vals:
+                                            if not any(v in sport_map_check[sport] for v in sport_vals):
+                                                sport_mismatch = True
+                                                status = "SPORT_MISMATCH"
+                                                restriction = f"Expected sport {sport}, got {sport_vals}"
 
-                                if not sport_mismatch:
-                                    if expected_fields:
-                                        for f in expected_fields:
-                                            if has_field(data, f):
-                                                present.append(f)
-                                            else:
-                                                absent.append(f)
+                                    if not sport_mismatch:
+                                        if expected_fields:
+                                            for f in expected_fields:
+                                                if has_field(data, f):
+                                                    present.append(f)
+                                                else:
+                                                    absent.append(f)
 
-                                    if isinstance(data, dict):
-                                        for key in ["response", "events", "teams", "sports", "countries"]:
-                                            if key in data and isinstance(data[key], list):
-                                                item_count = len(data[key])
-                                                break
-                                        if item_count == 0 and "boxscore" in data:
-                                            item_count = 1
-                                    elif isinstance(data, list):
-                                        item_count = len(data)
-
-                                    if absent:
-                                        status = "INCOMPLETE_RESPONSE"
-                                        restriction = f"Missing mandatory fields: {absent}"
-                                    elif item_count == 0 and operation not in ["status", "product_offering_check"]:
-                                        status = "EMPTY_RESULT"
-                                        restriction = "No records returned in required list"
-
-                                    pagination = "paging" in data or "pagination" in data or "paging" in str(data).lower()
-                                    ev_hash = self.save_raw_response(data)
-                                    if save_fixture:
-                                        self.save_sanitized_fixture(data, save_fixture)
-                                    stable_ids = extract_metadata(data, ["id", "idteam", "idevent", "idplayer"])
-                                    timestamps = extract_metadata(data, ["date", "time", "timestamp", "kickoff"])
-                                    watermarks = extract_metadata(data, ["update", "watermark", "last_update", "updated_at"])
+                                        pagination = "paging" in data or "pagination" in data or "paging" in str(data).lower()
+                                        ev_hash = self.save_raw_response(data)
+                                        if save_fixture:
+                                            self.save_sanitized_fixture(data, save_fixture)
+                                        stable_ids = extract_metadata(data, ["id", "idteam", "idevent", "idplayer"])
+                                        timestamps = extract_metadata(data, ["date", "time", "timestamp", "kickoff"])
+                                        watermarks = extract_metadata(data, ["update", "watermark", "last_update", "updated_at"])
 
                         except json.JSONDecodeError:
                             status = "PARSE_ERROR"

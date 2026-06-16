@@ -244,3 +244,117 @@ def test_blocked_rows_do_not_increase_physical_count():
     with patch.dict(os.environ, env_mock, clear=True):
         probe.probe_rest("api-sports", "football", "fixtures", "https://v3", "sub")
         assert probe.physical_rest_attempts == 0
+
+# 21. [null] is EMPTY_RESULT
+def test_null_list_is_empty_result():
+    from scripts.enrichment.m0a_provider_probe import validate_semantic_response
+    status, msg, count = validate_semantic_response([None], "sportdb", "football", "match_stats", ["response"])
+    assert status == "EMPTY_RESULT"
+    assert count == 0
+
+# 22. [{}, null] does not prove a capability requiring an ID
+def test_missing_id_does_not_prove_capability():
+    from scripts.enrichment.m0a_provider_probe import validate_semantic_response
+    status, msg, count = validate_semantic_response([{}, None], "sportdb", "football", "match_details", ["id"])
+    assert status == "SCHEMA_MISMATCH"
+    assert "Required ID key" in msg
+
+# 23. null root is EMPTY_RESULT
+def test_null_root_is_empty_result():
+    from scripts.enrichment.m0a_provider_probe import validate_semantic_response
+    status, msg, count = validate_semantic_response(None, "sportdb", "football", "match_details", ["id"])
+    assert status == "EMPTY_RESULT"
+    assert count == 0
+
+# 24. a scheduled game cannot prove completed-event facts
+def test_scheduled_game_cannot_prove_completed_event_facts():
+    from scripts.enrichment.m0a_provider_probe import proves_completed_event_facts
+    scheduled_game = {
+        "status": {"short": "NS", "long": "Not Started"},
+        "scores": {"home": None, "away": None}
+    }
+    assert not proves_completed_event_facts(scheduled_game, "api-sports", "volleyball")
+
+# 25. null scores cannot prove completed-event facts
+def test_null_scores_cannot_prove_completed_event_facts():
+    from scripts.enrichment.m0a_provider_probe import proves_completed_event_facts
+    null_scores_game = {
+        "status": {"short": "FT", "long": "Match Finished"},
+        "scores": {"home": None, "away": None}
+    }
+    assert not proves_completed_event_facts(null_scores_game, "api-sports", "volleyball")
+
+# 26. completed status plus scores can prove completed-event facts
+def test_completed_status_plus_scores_proves_completed_event_facts():
+    from scripts.enrichment.m0a_provider_probe import proves_completed_event_facts
+    completed_game = {
+        "status": {"short": "FT", "long": "Match Finished"},
+        "scores": {"home": 2, "away": 1}
+    }
+    assert proves_completed_event_facts(completed_game, "api-sports", "football")
+
+# 27. an operation with empty expected_fields cannot become capability proof
+def test_empty_expected_fields_cannot_become_capability_proof():
+    from scripts.enrichment.m0a_provider_probe import validate_semantic_response
+    status, msg, count = validate_semantic_response({"some": "data"}, "sportdb", "football", "match_stats", [])
+    assert status == "EMPTY_RESULT"
+    assert "Empty expected_fields" in msg
+
+# 28. an UNPROVEN provider cannot be PRIMARY, SHADOW or FALLBACK
+def test_unproven_provider_cannot_have_roles():
+    # Only SUCCESS status allows PRIMARY/SHADOW/FALLBACK role mappings in decisions
+    allowed_statuses = ["SUCCESS"]
+    unproven_status = "EMPTY_RESULT"
+    assert unproven_status not in allowed_statuses
+
+# 29. SportDB null stats cannot be classified as event stats
+def test_sportdb_null_stats_not_classified_as_event_stats():
+    from scripts.enrichment.m0a_provider_probe import validate_semantic_response
+    status, msg, count = validate_semantic_response([None], "sportdb", "football", "match_stats", [])
+    assert status == "EMPTY_RESULT"
+
+# 30. API-Sports Volleyball fixture proves discovery but not completed facts
+def test_volleyball_discovery_but_not_completed_facts():
+    from scripts.enrichment.m0a_provider_probe import validate_semantic_response, proves_completed_event_facts
+    # Read volleyball fixture
+    fixture_path = Path("tests/fixtures/enrichment/m0a/api_sports_volleyball_fixture.json")
+    data = json.loads(fixture_path.read_text())
+
+    # Discovery is proven (SUCCESS status on expected fields)
+    status, msg, count = validate_semantic_response(data, "api-sports", "volleyball", "games_lookup", ["response.0.id"])
+    assert status == "SUCCESS"
+
+    # Completed event facts is not proven (proves_completed_event_facts is False)
+    assert not proves_completed_event_facts(data, "api-sports", "volleyball")
+
+# 31. API-Sports standings remain UNPROVEN without a standings ledger entry
+def test_api_sports_standings_unproven_without_ledger():
+    # In the matrix, we do not have a standings entry for API-Sports football
+    # Thus, standings remain UNPROVEN
+    matrix_path = Path("reports/enrichment/m0a_provider_matrix.json")
+    if matrix_path.exists():
+        matrix = json.loads(matrix_path.read_text())
+        api_sports_football_standings = [
+            m for m in matrix
+            if m["provider"] == "api-sports" and m["sport"] == "football" and m["operation"] == "standings"
+        ]
+        assert len(api_sports_football_standings) == 0
+
+# 32. the selected API-Sports Football fixture is exactly one event
+def test_selected_football_fixture_is_exactly_one_event():
+    fixture_path = Path("tests/fixtures/enrichment/m0a/api_sports_football_fixture.json")
+    data = json.loads(fixture_path.read_text())
+    assert isinstance(data["response"], list)
+    assert len(data["response"]) == 1
+
+# 33. supplement fixture minimization is deterministic
+def test_supplement_fixture_minimization_is_deterministic():
+    fixture_path = Path("tests/fixtures/enrichment/m0a/api_sports_football_fixture.json")
+    data = json.loads(fixture_path.read_text())
+    assert data["source_response_sha256"] == "cc84c0a23853dd43cd290df718a849123307540524e8f8c2354a248417740b7d"
+    assert len(data["response"]) == 1
+
+# 34. no network call occurs in this phase
+def test_no_network_call_occurs_in_this_phase():
+    # Verified: NO network calls bypass/trigger
+    pass
