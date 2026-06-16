@@ -571,3 +571,72 @@ class PipelineCandidate:
     tipster_support_json: dict | None = None
     source: str = "build_shortlist"
     created_at: str = ""
+
+@dataclass
+class SportsSyncCursor:
+    id: int | None = None
+    provider: str = ""
+    sport: str = ""
+    operation: str = ""
+    scope_key: str = ""
+    cursor_version: int = 1
+    committed_through_date: str | None = None
+    correction_lookback_days: int = 3
+    coverage_json: str = "{}"
+    coverage_checked_at: str | None = None
+    lease_owner: str | None = None
+    lease_expires_at: str | None = None
+    lock_version: int = 0
+    last_success_at: str | None = None
+    created_at: str = ""
+    updated_at: str = ""
+
+@dataclass
+class SportsSyncRun:
+    id: int | None = None
+    run_identity: str = ""
+    cursor_id: int = 0
+    provider: str = ""
+    sport: str = ""
+    operation: str = ""
+    scope_key: str = ""
+    mode: str = ""
+    window_from: str = ""
+    window_to: str = ""
+    status: str = ""
+    started_at: str = ""
+    completed_at: str | None = None
+    cursor_before_json: str = ""
+    cursor_after_json: str | None = None
+    physical_http_attempts: int = 0
+    fallback_stats_calls: int = 0
+    discovered_count: int = 0
+    complete_count: int = 0
+    partial_count: int = 0
+    score_only_count: int = 0
+    permanently_unavailable_count: int = 0
+    transient_failed_count: int = 0
+    quota_json: str = "{}"
+    diagnostics_json: str = "{}"
+    error_code: str | None = None
+
+@dataclass
+class SportsSyncItem:
+    id: int | None = None
+    provider: str = ""
+    sport: str = ""
+    scope_key: str = ""
+    provider_fixture_id: str = ""
+    canonical_fixture_id: int | None = None
+    state: str = ""
+    normalized_payload_sha256: str | None = None
+    fixture_evidence_bundle_id: str | None = None
+    statistics_evidence_bundle_id: str | None = None
+    first_seen_at: str = ""
+    last_checked_at: str = ""
+    last_success_at: str | None = None
+    attempt_count: int = 0
+    last_error_code: str | None = None
+    last_sync_run_id: int | None = None
+    created_at: str = ""
+    updated_at: str = ""

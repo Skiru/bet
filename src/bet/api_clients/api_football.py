@@ -73,6 +73,40 @@ class APIFootballClient(APISportsClient):
             rate_limiter=rate_limiter,
         )
 
+    def get_leagues_coverage(self, league_id: str, season: int) -> "SourceOperationResult[dict]":
+        return self._request_with_evidence(
+            endpoint="/leagues",
+            params={"id": league_id, "season": str(season)},
+            operation="coverage",
+        )
+
+    def get_history_discovery(self, league_id: str, season: int, from_date: str, to_date: str) -> "SourceOperationResult[dict]":
+        return self._request_with_evidence(
+            endpoint="/fixtures",
+            params={"league": league_id, "season": str(season), "from": from_date, "to": to_date},
+            operation="history_discovery",
+        )
+
+    def get_history_details(self, fixture_ids: list[str]) -> "SourceOperationResult[dict]":
+        ids_str = "-".join(sorted(set(str(i).strip() for i in fixture_ids if str(i).strip())))
+        if not ids_str:
+            from bet.integration.source_result import SourceOperationResult, SourceResultStatus
+            return SourceOperationResult(status=SourceResultStatus.INVALID_REQUEST, retryable=False, error_code="empty_batch")
+        
+        return self._request_with_evidence(
+            endpoint="/fixtures",
+            params={"ids": ids_str},
+            operation="history_details",
+        )
+
+    def get_history_statistics(self, fixture_id: str) -> "SourceOperationResult[dict]":
+        return self._request_with_evidence(
+            endpoint="/fixtures/statistics",
+            params={"fixture": fixture_id},
+            operation="history_statistics",
+        )
+
+
     def get_fixtures(self, date: str) -> list[APIFixture]:
         """GET /fixtures?date=YYYY-MM-DD → list of APIFixture."""
         if not self._check_api_key():

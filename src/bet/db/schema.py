@@ -6,7 +6,7 @@ import sqlite3
 from pathlib import Path
 
 SCHEMA_SQL = Path(__file__).parent / "schema.sql"
-SCHEMA_VERSION = 19
+SCHEMA_VERSION = 20
 
 
 def init_db(conn: sqlite3.Connection) -> None:
@@ -77,12 +77,20 @@ def migrate(conn: sqlite3.Connection, from_version: int, to_version: int) -> Non
         migration_path = Path(__file__).parent / "migrations" / "003_decision_learning.sql"
         if migration_path.exists():
             conn.executescript(migration_path.read_text(encoding="utf-8"))
+        
+        columns = _table_columns(conn, "fixture_capability_observation")
+        if "logical_identity" not in columns:
+            conn.execute("ALTER TABLE fixture_capability_observation ADD COLUMN logical_identity TEXT")
 
     if from_version < 5:
         # v5: ESPN deep integration tables
         migration_path = Path(__file__).parent / "migrations" / "005_espn_deep_tables.sql"
         if migration_path.exists():
             conn.executescript(migration_path.read_text(encoding="utf-8"))
+        
+        columns = _table_columns(conn, "fixture_capability_observation")
+        if "logical_identity" not in columns:
+            conn.execute("ALTER TABLE fixture_capability_observation ADD COLUMN logical_identity TEXT")
 
     if from_version < 6:
         # v6: Composite indexes for common query patterns + schema_meta table
@@ -112,6 +120,10 @@ def migrate(conn: sqlite3.Connection, from_version: int, to_version: int) -> Non
         migration_path = Path(__file__).parent / "migrations" / "007_scraper_tables.sql"
         if migration_path.exists():
             conn.executescript(migration_path.read_text(encoding="utf-8"))
+        
+        columns = _table_columns(conn, "fixture_capability_observation")
+        if "logical_identity" not in columns:
+            conn.execute("ALTER TABLE fixture_capability_observation ADD COLUMN logical_identity TEXT")
 
     if from_version < 8:
         # v8: Multi-source fixture tables and backfill from fixtures.external_id
@@ -124,6 +136,10 @@ def migrate(conn: sqlite3.Connection, from_version: int, to_version: int) -> Non
         migration_path = Path(__file__).parent / "migrations" / "008_fixture_sources.sql"
         if migration_path.exists():
             conn.executescript(migration_path.read_text(encoding="utf-8"))
+        
+        columns = _table_columns(conn, "fixture_capability_observation")
+        if "logical_identity" not in columns:
+            conn.execute("ALTER TABLE fixture_capability_observation ADD COLUMN logical_identity TEXT")
         else:
             conn.execute(
                 """
@@ -167,24 +183,40 @@ def migrate(conn: sqlite3.Connection, from_version: int, to_version: int) -> Non
         migration_path = Path(__file__).parent / "migrations" / "010_betclic_markets.sql"
         if migration_path.exists():
             conn.executescript(migration_path.read_text(encoding="utf-8"))
+        
+        columns = _table_columns(conn, "fixture_capability_observation")
+        if "logical_identity" not in columns:
+            conn.execute("ALTER TABLE fixture_capability_observation ADD COLUMN logical_identity TEXT")
 
     if from_version < 11:
         # v11: scan_run_stats table
         migration_path = Path(__file__).parent / "migrations" / "011_scan_run_stats.sql"
         if migration_path.exists():
             conn.executescript(migration_path.read_text(encoding="utf-8"))
+        
+        columns = _table_columns(conn, "fixture_capability_observation")
+        if "logical_identity" not in columns:
+            conn.execute("ALTER TABLE fixture_capability_observation ADD COLUMN logical_identity TEXT")
 
     if from_version < 12:
         # v12: known_missing table
         migration_path = Path(__file__).parent / "migrations" / "012_known_missing.sql"
         if migration_path.exists():
             conn.executescript(migration_path.read_text(encoding="utf-8"))
+        
+        columns = _table_columns(conn, "fixture_capability_observation")
+        if "logical_identity" not in columns:
+            conn.execute("ALTER TABLE fixture_capability_observation ADD COLUMN logical_identity TEXT")
 
     if from_version < 13:
         # v13: canonical market Matrix tables
         migration_path = Path(__file__).parent / "migrations" / "013_market_matrix_tables.sql"
         if migration_path.exists():
             conn.executescript(migration_path.read_text(encoding="utf-8"))
+        
+        columns = _table_columns(conn, "fixture_capability_observation")
+        if "logical_identity" not in columns:
+            conn.execute("ALTER TABLE fixture_capability_observation ADD COLUMN logical_identity TEXT")
 
     if from_version < 14:
         _migrate_v14_team_form_evidence(conn)
@@ -203,6 +235,10 @@ def migrate(conn: sqlite3.Connection, from_version: int, to_version: int) -> Non
 
     if from_version < 19 and to_version >= 19:
         _migrate_v19_source_operation_attempt_enrichment(conn)
+
+    if from_version < 20 and to_version >= 20:
+        _migrate_v20_football_history_engine(conn)
+
 
     _set_schema_version(conn, to_version)
     conn.commit()
@@ -484,3 +520,32 @@ def run_migration(conn: sqlite3.Connection, target_version: int) -> None:
     current_version = get_schema_version(conn)
     if current_version < target_version:
         migrate(conn, current_version, target_version)
+
+
+def _migrate_v20_football_history_engine(conn: sqlite3.Connection) -> None:
+    migration_path = Path(__file__).parent / "migrations" / "019_football_history_engine.sql"
+    if migration_path.exists():
+        # Preflight duplication tests as requested.
+        duplicates = conn.execute(
+            "SELECT run_id FROM analysis_snapshot GROUP BY run_id HAVING COUNT(*) > 1"
+        ).fetchall()
+        if duplicates:
+            raise ValueError("Migration preflight failed: Duplicate run_id in analysis_snapshot")
+        
+        conflicts = conn.execute(
+            "SELECT sport, entity_type, provider, provider_entity_id FROM source_entity_reference WHERE provider = 'api-football' AND valid_to IS NULL GROUP BY sport, entity_type, provider, provider_entity_id HAVING COUNT(*) > 1"
+        ).fetchall()
+        if conflicts:
+            raise ValueError("Migration preflight failed: Duplicate active api-football mapping in source_entity_reference")
+        
+        fixture_conflicts = conn.execute(
+            "SELECT source, external_id FROM fixture_sources WHERE source = 'api-football' GROUP BY source, external_id HAVING COUNT(*) > 1"
+        ).fetchall()
+        if fixture_conflicts:
+            raise ValueError("Migration preflight failed: Duplicate fixture_sources mapping for api-football")
+
+        conn.executescript(migration_path.read_text(encoding="utf-8"))
+        
+        columns = _table_columns(conn, "fixture_capability_observation")
+        if "logical_identity" not in columns:
+            conn.execute("ALTER TABLE fixture_capability_observation ADD COLUMN logical_identity TEXT")

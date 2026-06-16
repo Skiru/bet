@@ -44,6 +44,7 @@ class FixtureCapabilityObservation:
 
     # Versioning and packaging
     dto_version: str = "1"
+    logical_identity: str | None = None
     evidence_package_id: str = ""
 
 
