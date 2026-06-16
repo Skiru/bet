@@ -167,12 +167,15 @@ class EnrichmentAdapter(Protocol):
 @dataclass(frozen=True, slots=True)
 class PlannedTransportCall:
     provider: str
+    provider_profile: str
     operation: str
     sanitized_request_identity: str
     worst_case_http_calls: int
+    transport_contract_hash: str
 
     def __post_init__(self):
         _validate_required_string("provider", self.provider)
+        _validate_required_string("provider_profile", self.provider_profile)
         _validate_required_string("operation", self.operation)
         _validate_required_string(
             "sanitized_request_identity", self.sanitized_request_identity
@@ -183,6 +186,7 @@ class PlannedTransportCall:
             or self.worst_case_http_calls < 0
         ):
             raise ValueError("worst_case_http_calls must be a non-negative integer")
+        _validate_required_string("transport_contract_hash", self.transport_contract_hash)
 
 
 class ProbeableEnrichmentAdapter(EnrichmentAdapter, Protocol):
@@ -467,3 +471,53 @@ class QualifiedIdentityResolver(Protocol):
         subjects: tuple[OperationSubject, ...],
         valid_at: datetime,
     ) -> ProviderIdentitySet: ...
+
+
+class RunLifecycle(StrEnum):
+    RUNNING = "RUNNING"
+    COMPLETE = "COMPLETE"
+    DEGRADED = "DEGRADED"
+    FAILED = "FAILED"
+    ABANDONED = "ABANDONED"
+
+
+class AttemptLifecycle(StrEnum):
+    PENDING = "PENDING"
+    IN_FLIGHT = "IN_FLIGHT"
+    SUCCEEDED = "SUCCEEDED"
+    FAILED = "FAILED"
+    ABANDONED = "ABANDONED"
+
+
+@dataclass(frozen=True, slots=True)
+class RunReservation:
+    semantic_base_identity: str
+    refresh_token: str
+    request_identity: str
+    sport: str
+    target_event_entity_id: int
+    analysis_cutoff_at: datetime
+    selection_epoch: int
+    plan_hash: str
+    contract_hash: str
+    metric_contract_hash: str
+    policy_config_hash: str
+    routing_revision_hash: str
+    execution_mode: str
+    runtime_code_digest: str
+    runtime_environment_digest: str
+    owner: str
+    lease_expires_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class ProjectionVersion:
+    analysis_cutoff_at: datetime
+    selection_epoch: int
+    contract_hash: str
+    metric_contract_hash: str
+    policy_config_hash: str
+    routing_revision_hash: str
+    semantic_base_identity: str
+    generation: int
+    item_semantic_hash: str

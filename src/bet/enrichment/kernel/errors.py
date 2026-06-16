@@ -1,0 +1,28 @@
+from __future__ import annotations
+from enum import StrEnum
+
+class ErrorCode(StrEnum):
+    SUCCESS = "SUCCESS"
+    EMPTY = "EMPTY"
+    NOT_APPLICABLE = "NOT_APPLICABLE"
+    NOT_SUPPORTED = "NOT_SUPPORTED"
+    AUTHENTICATION_ERROR = "AUTHENTICATION_ERROR"
+    AUTHORIZATION_ERROR = "AUTHORIZATION_ERROR"
+    QUOTA_EXHAUSTED = "QUOTA_EXHAUSTED"
+    RATE_LIMITED = "RATE_LIMITED"
+    TIMEOUT = "TIMEOUT"
+    NETWORK_ERROR = "NETWORK_ERROR"
+    PROVIDER_ERROR = "PROVIDER_ERROR"
+    CONTRACT_ERROR = "CONTRACT_ERROR"
+    PARSE_ERROR = "PARSE_ERROR"
+    SCHEMA_ERROR = "SCHEMA_ERROR"
+    EVIDENCE_ERROR = "EVIDENCE_ERROR"
+    CONFLICT = "CONFLICT"
+    CANCELLED = "CANCELLED"
+    INTERNAL_ERROR = "INTERNAL_ERROR"
+
+def normalize_error_code(value: str) -> ErrorCode:
+    try:
+        return ErrorCode(value)
+    except ValueError:
+        return ErrorCode.INTERNAL_ERROR

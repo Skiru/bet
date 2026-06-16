@@ -1,10 +1,11 @@
 # ruff: noqa: UP046, UP047
+from __future__ import annotations
 import collections.abc
 import json
 import types
 from collections.abc import Mapping
 from dataclasses import MISSING, fields, is_dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timezone
 from decimal import Decimal, InvalidOperation
 from enum import StrEnum
 from hashlib import sha256
@@ -12,6 +13,10 @@ from typing import Any, TypeVar, Union, get_args, get_origin
 
 T = TypeVar("T")
 
+class DuplicateKeyError(ValueError): pass
+class NonFiniteJsonNumberError(ValueError): pass
+class StrictJsonTypeError(TypeError): pass
+class CanonicalTypeError(TypeError): pass
 
 def _validate_aware_datetime(value: object) -> None:
     if not isinstance(value, datetime):
@@ -19,71 +24,57 @@ def _validate_aware_datetime(value: object) -> None:
     if value.tzinfo is None or value.utcoffset() is None:
         raise ValueError("datetime must be timezone-aware")
 
-
-def _decimal_to_plain_string(d: Decimal) -> str:
-    if d.is_nan() or d.is_infinite():
-        raise ValueError(f"Decimal NaN or Infinity are not supported: {d}")
-    if d.is_zero():
+def _dec(v: Decimal) -> str:
+    if not v.is_finite():
+        raise ValueError("Decimal NaN or Infinity are not supported")
+    if v.is_zero():
         return "0"
+    s = format(v, "f")
+    return s.rstrip("0").rstrip(".") if "." in s else s
 
-    sign, digits, exponent = d.as_tuple()
-    digits_str = "".join(map(str, digits))
-
-    if exponent >= 0:
-        result = digits_str + "0" * exponent
-    else:
-        abs_exp = abs(exponent)
-        if len(digits_str) > abs_exp:
-            insert_pos = len(digits_str) - abs_exp
-            result = digits_str[:insert_pos] + "." + digits_str[insert_pos:]
-        else:
-            result = "0." + "0" * (abs_exp - len(digits_str)) + digits_str
-
-    if "." in result:
-        result = result.rstrip("0")
-        if result.endswith("."):
-            result = result[:-1]
-
-    if sign == 1:
-        result = "-" + result
-
-    return result
-
-
-def to_primitive(value: object) -> object:
-    if isinstance(value, float):
-        raise TypeError(f"Float values are not supported: {value}")
-    if isinstance(value, (bytes, bytearray, set, frozenset)):
-        raise TypeError(f"Unsupported type: {type(value)}")
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, StrEnum):
-        return str(value.value)
-    if value is None or isinstance(value, str):
-        return value
-    if isinstance(value, int):
-        return value
-    if isinstance(value, Decimal):
-        return _decimal_to_plain_string(value)
-    if isinstance(value, datetime):
-        _validate_aware_datetime(value)
-        return value.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%S.%f") + "Z"
-    if isinstance(value, StrEnum):
-        return value.value
-    if is_dataclass(value):
-        return {
-            field.name: to_primitive(getattr(value, field.name))
-            for field in fields(value)
-        }
-    if isinstance(value, (list, tuple)):
-        return [to_primitive(item) for item in value]
-    if isinstance(value, Mapping):
-        for k in value.keys():
+def to_primitive(v: Any) -> Any:
+    if isinstance(v, type):
+        raise TypeError("cannot serialize class")
+    if isinstance(v, float):
+        raise TypeError(f"Float values are not supported: {v}")
+    if v is None:
+        return None
+    if type(v) is bool:
+        return v
+    if type(v) is int:
+        return v
+    if type(v) is str:
+        return v
+    if isinstance(v, StrEnum):
+        if not isinstance(v, type):
+            if type(v.value) is not str:
+                raise TypeError("StrEnum value must be exact str")
+            if v.value not in [e.value for e in type(v)]:
+                raise TypeError("invalid StrEnum value")
+            return v.value
+    if type(v) is Decimal:
+        return _dec(v)
+    if type(v) is datetime:
+        if v.tzinfo is None or v.utcoffset() is None:
+            raise ValueError("datetime must be timezone-aware")
+        return v.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    if is_dataclass(v):
+        p = getattr(type(v), "__dataclass_params__", None)
+        if p is None or not p.frozen:
+            raise TypeError("mutable dataclass is not supported")
+        return {f.name: to_primitive(getattr(v, f.name)) for f in fields(v)}
+    if type(v) in (list, tuple):
+        return [to_primitive(x) for x in v]
+    if isinstance(v, Mapping):
+        if type(v) is not dict and not isinstance(v, types.MappingProxyType):
+            raise TypeError("subclassed mapping is not supported")
+        out = {}
+        for k, x in v.items():
             if type(k) is not str:
-                raise TypeError(f"Mapping keys must be exactly str, got {type(k)}")
-        return {k: to_primitive(v) for k, v in sorted(value.items())}
-    raise TypeError(f"Unsupported type for serialization: {type(value)}")
-
+                raise TypeError("Mapping keys must be exactly str")
+            out[k] = to_primitive(x)
+        return out
+    raise TypeError(f"Unsupported type: {type(v)}")
 
 def canonical_json_bytes(value: object) -> bytes:
     primitive = to_primitive(value)
@@ -95,14 +86,58 @@ def canonical_json_bytes(value: object) -> bytes:
         allow_nan=False,
     ).encode("utf-8")
 
-
 def canonical_json_text(value: object) -> str:
     return canonical_json_bytes(value).decode("utf-8")
-
 
 def canonical_sha256(value: object) -> str:
     return sha256(canonical_json_bytes(value)).hexdigest()
 
+def _pairs(items):
+    out = {}
+    for key, value in items:
+        if type(key) is not str:
+            raise StrictJsonTypeError("object key must be exact str")
+        if key in out:
+            raise DuplicateKeyError(f"Duplicate key: {key}")
+        out[key] = value
+    return out
+
+def _constant(value):
+    raise NonFiniteJsonNumberError(f"Non-finite JSON number: {value}")
+
+def _validate_no_surrogates(v: Any) -> None:
+    if type(v) is str:
+        if any(0xD800 <= ord(c) <= 0xDFFF for c in v):
+            raise ValueError("Unpaired Unicode surrogate found")
+    elif type(v) is list:
+        for x in v:
+            _validate_no_surrogates(x)
+    elif type(v) is dict:
+        for k, x in v.items():
+            _validate_no_surrogates(k)
+            _validate_no_surrogates(x)
+
+def loads_strict(data: str | bytes) -> Any:
+    if isinstance(data, bytes):
+        try:
+            data = data.decode("utf-8", errors="strict")
+        except UnicodeDecodeError as exc:
+            raise ValueError("Invalid UTF-8 bytes") from exc
+    elif type(data) is not str:
+        raise StrictJsonTypeError(f"Expected str or bytes, got {type(data).__name__}")
+
+    if any(0xD800 <= ord(c) <= 0xDFFF for c in data):
+        raise ValueError("Unpaired Unicode surrogate found in string")
+
+    res = json.loads(
+        data,
+        object_pairs_hook=_pairs,
+        parse_float=Decimal,
+        parse_int=int,
+        parse_constant=_constant
+    )
+    _validate_no_surrogates(res)
+    return res
 
 def _validate_fail_closed_value(value: object) -> None:
     if isinstance(value, float):
@@ -138,7 +173,6 @@ def _validate_fail_closed_value(value: object) -> None:
             _validate_fail_closed_value(v)
         return
     raise TypeError(f"Unsupported object type in fail-closed decode: {type(value)}")
-
 
 def _from_primitive_impl(
     expected_type: type[T], value: object, type_map: dict = None
@@ -286,7 +320,7 @@ def _from_primitive_impl(
             try:
                 d = Decimal(value) if isinstance(value, str) else value
                 if d.is_nan() or d.is_infinite():
-                    raise TypeError(f"Cannot convert '{value}' to Decimal")
+                    raise TypeError(f"Cannot convert \x27{value}\x27 to Decimal")
                 return d
             except InvalidOperation:
                 raise TypeError(f"Cannot convert {value} to Decimal")
@@ -298,13 +332,13 @@ def _from_primitive_impl(
                 dt = datetime.fromisoformat(value)
                 if dt.tzinfo is None or dt.utcoffset() is None:
                     raise TypeError(
-                        f"Cannot convert '{value}' to timezone-aware datetime: "
+                        f"Cannot convert \x27{value}\x27 to timezone-aware datetime: "
                         "naive datetime is not allowed"
                     )
                 return dt.astimezone(UTC)
             except ValueError as e:
                 raise TypeError(
-                    f"Cannot convert '{value}' to timezone-aware datetime: {e}"
+                    f"Cannot convert \x27{value}\x27 to timezone-aware datetime: {e}"
                 )
         raise TypeError(f"Expected str for datetime, got {type(value)}")
 
@@ -314,7 +348,7 @@ def _from_primitive_impl(
                 return base_type(value)
             except ValueError:
                 raise TypeError(
-                    f"Unknown enum value '{value}' for {base_type.__name__}"
+                    f"Unknown enum value \x27{value}\x27 for {base_type.__name__}"
                 )
         raise TypeError(f"Expected str for StrEnum, got {type(value)}")
 
@@ -346,7 +380,7 @@ def _from_primitive_impl(
             if field_name not in value:
                 if field_name == "schema_version":
                     raise ValueError(
-                        f"Missing required field 'schema_version' "
+                        f"Missing required field \x27schema_version\x27 "
                         f"for dataclass {base_type.__name__}"
                     )
                 if (
@@ -354,7 +388,7 @@ def _from_primitive_impl(
                     and field_info.default_factory is MISSING
                 ):
                     raise ValueError(
-                        f"Missing required field '{field_name}' "
+                        f"Missing required field \x27{field_name}\x27 "
                         f"for dataclass {base_type.__name__}"
                     )
                 continue
@@ -368,7 +402,7 @@ def _from_primitive_impl(
                     if field_value != field_info.default:
                         raise ValueError(
                             f"schema_version mismatch: expected "
-                            f"'{field_info.default}', got '{field_value}'"
+                            f"\x27{field_info.default}\x27, got \x27{field_value}\x27"
                         )
 
             processed_data[field_name] = _from_primitive_impl(
@@ -384,7 +418,6 @@ def _from_primitive_impl(
         return base_type(**processed_data)
 
     raise TypeError(f"Unsupported expected type: {expected_type}")
-
 
 def from_primitive(expected_type: type[T], value: object) -> T:
     return _from_primitive_impl(expected_type, value)

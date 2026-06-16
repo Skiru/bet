@@ -266,24 +266,30 @@ def test_operation_request_empty_required_strings():
 def test_planned_transport_call_non_negative_worst_case_http_calls():
     PlannedTransportCall(
         provider="p",
+        provider_profile="test-profile",
         operation="op",
         sanitized_request_identity="id",
         worst_case_http_calls=0,
+        transport_contract_hash="0000000000000000000000000000000000000000000000000000000000000000",
     )
     PlannedTransportCall(
         provider="p",
+        provider_profile="test-profile",
         operation="op",
         sanitized_request_identity="id",
         worst_case_http_calls=5,
+        transport_contract_hash="0000000000000000000000000000000000000000000000000000000000000000",
     )
     with pytest.raises(
         ValueError, match="worst_case_http_calls must be a non-negative integer"
     ):
         PlannedTransportCall(
             provider="p",
+            provider_profile="test-profile",
             operation="op",
             sanitized_request_identity="id",
             worst_case_http_calls=-1,
+            transport_contract_hash="0000000000000000000000000000000000000000000000000000000000000000",
         )
 
 
@@ -293,9 +299,11 @@ def test_planned_transport_call_rejects_bool_as_worst_case_http_calls():
     ):
         PlannedTransportCall(
             provider="p",
+            provider_profile="test-profile",
             operation="op",
             sanitized_request_identity="id",
             worst_case_http_calls=True,
+            transport_contract_hash="0000000000000000000000000000000000000000000000000000000000000000",
         )
 
 

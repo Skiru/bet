@@ -31,7 +31,9 @@ class SourceResultStatus(StrEnum):
     TIMEOUT = "TIMEOUT"
     STALE = "STALE"
     TEMPORAL_UNSAFE = "TEMPORAL_UNSAFE"
-    UNSUPPORTED = "UNSUPPORTED"
+
+    # Symbolic alias compatibility
+    UNSUPPORTED = "NOT_SUPPORTED"
 
 
 @dataclass(frozen=True)
@@ -62,7 +64,7 @@ class SourceOperationResult[T]:
 def normalize_source_result_status(
     status: SourceResultStatus | str,
 ) -> SourceResultStatus:
-    if status == SourceResultStatus.UNSUPPORTED or status == "UNSUPPORTED":
+    if status == "UNSUPPORTED" or status == SourceResultStatus.UNSUPPORTED:
         return SourceResultStatus.NOT_SUPPORTED
     if isinstance(status, SourceResultStatus):
         return status
