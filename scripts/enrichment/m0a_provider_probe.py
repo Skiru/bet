@@ -100,7 +100,7 @@ def sanitize_and_sort_url(url: str) -> str:
             if part not in ("123", "3", ""):
                 path_parts[idx] = "REDACTED"
     path = "/".join(path_parts)
-    
+
     params = urllib.parse.parse_qsl(parsed.query, keep_blank_values=True)
     sanitized_params = []
     for k, v in params:
@@ -113,13 +113,13 @@ def sanitize_and_sort_url(url: str) -> str:
             if val and len(val) > 3 and val in v:
                 v = "REDACTED"
         sanitized_params.append((k, v))
-    
+
     sorted_params = sorted(sanitized_params, key=lambda x: (x[0], x[1]))
     new_query = urllib.parse.urlencode(sorted_params)
-    
+
     while "//" in path:
         path = path.replace("//", "/")
-        
+
     return urllib.parse.urlunparse((
         parsed.scheme,
         parsed.netloc,
@@ -212,13 +212,14 @@ class ProviderProbe:
         self.output_dir = output_dir
         self.attempts = []
         self.seq = 0
-        self.physical_attempts = 0
+        self.physical_rest_attempts = 0
+        self.physical_mcp_attempts = 0
         self.session = requests.Session()
         self.temp_dir = Path(tempfile.gettempdir()) / "m0a_provider_raw_responses"
         self.temp_dir.mkdir(parents=True, exist_ok=True)
-        
+
     def check_budget(self) -> bool:
-        if self.seq >= self.max_attempts:
+        if (self.physical_rest_attempts + self.physical_mcp_attempts) >= self.max_attempts:
             logger.warning(f"Shared attempt budget of {self.max_attempts} exhausted.")
             return False
         return True
@@ -250,23 +251,18 @@ class ProviderProbe:
         logger.info(f"Committed sanitized fixture saved to {filepath}")
 
     def register_ledger(self, ledger: AttemptLedger):
-        if not self.check_budget():
-            raise RuntimeError("Attempt budget exceeded.")
         self.seq += 1
         ledger.seq = self.seq
         self.attempts.append(ledger)
         return ledger
 
-    def probe_rest(self, provider: str, sport: str, operation: str, url: str, subject: str, headers: dict = None, expected_fields: list = None, params: dict = None) -> AttemptLedger:
-        if not self.check_budget():
-            raise RuntimeError("Attempt budget exceeded.")
-
+    def probe_rest(self, provider: str, sport: str, operation: str, url: str, subject: str, headers: dict = None, expected_fields: list = None, params: dict = None, save_fixture: str = None) -> AttemptLedger:
         env_key_map = {
             "sportdb": K_SPORTDB,
             "api-sports": K_APISPORTS,
             "thesportsdb": K_THESPORTSDB
         }
-        
+
         has_key = True
         missing_key_name = None
         if provider in env_key_map:
@@ -279,7 +275,7 @@ class ProviderProbe:
                     missing_key_name = key_name
 
         sanitized_req_id = sanitize_and_sort_url(url + ("?" + urllib.parse.urlencode(params) if params else ""))
-        
+
         redacted_headers = {}
         if headers:
             for k, v in headers.items():
@@ -309,7 +305,9 @@ class ProviderProbe:
                 status = "BLOCKED_BY_CONFIGURATION"
                 restriction = f"Missing environment variable {missing_key_name}"
             else:
-                self.physical_attempts += 1
+                if not self.check_budget():
+                    raise RuntimeError("Attempt budget exceeded.")
+                self.physical_rest_attempts += 1
                 start_t = time.time()
                 try:
                     actual_headers = dict(headers) if headers else {}
@@ -321,7 +319,7 @@ class ProviderProbe:
                     resp = self.session.get(url, headers=actual_headers, params=params, timeout=12)
                     latency = int((time.time() - start_t) * 1000)
                     http_status = resp.status_code
-                    
+
                     q_hdrs = {k: v for k, v in resp.headers.items() if "rate" in k.lower() or "limit" in k.lower() or "quota" in k.lower()}
                     if q_hdrs:
                         quota = json.dumps(q_hdrs)
@@ -329,7 +327,7 @@ class ProviderProbe:
                     if resp.status_code == 200:
                         try:
                             data = resp.json()
-                            
+
                             provider_error = False
                             if provider == "api-sports" and data.get("errors"):
                                 provider_error = True
@@ -339,11 +337,11 @@ class ProviderProbe:
                                 provider_error = True
                                 status = "PROVIDER_ERROR"
                                 restriction = str(data)
-                            
+
                             if not provider_error:
                                 status = "SUCCESS"
                                 fingerprint = make_fingerprint(data)
-                                
+
                                 sport_mismatch = False
                                 if provider == "thesportsdb":
                                     teams_list = data.get("teams") or []
@@ -353,7 +351,7 @@ class ProviderProbe:
                                         if "strSport" in t: sport_vals.append(t["strSport"])
                                     for p in players_list:
                                         if "strSport" in p: sport_vals.append(p["strSport"])
-                                        
+
                                     sport_map_check = {
                                         "football": ["Soccer", "Football"],
                                         "basketball": ["Basketball"],
@@ -366,7 +364,7 @@ class ProviderProbe:
                                             sport_mismatch = True
                                             status = "SPORT_MISMATCH"
                                             restriction = f"Expected sport {sport}, got {sport_vals}"
-                                
+
                                 if not sport_mismatch:
                                     if expected_fields:
                                         for f in expected_fields:
@@ -374,7 +372,7 @@ class ProviderProbe:
                                                 present.append(f)
                                             else:
                                                 absent.append(f)
-                                                
+
                                     if isinstance(data, dict):
                                         for key in ["response", "events", "teams", "sports", "countries"]:
                                             if key in data and isinstance(data[key], list):
@@ -384,13 +382,22 @@ class ProviderProbe:
                                             item_count = 1
                                     elif isinstance(data, list):
                                         item_count = len(data)
-                                        
+
+                                    if absent:
+                                        status = "INCOMPLETE_RESPONSE"
+                                        restriction = f"Missing mandatory fields: {absent}"
+                                    elif item_count == 0 and operation not in ["status", "product_offering_check"]:
+                                        status = "EMPTY_RESULT"
+                                        restriction = "No records returned in required list"
+
                                     pagination = "paging" in data or "pagination" in data or "paging" in str(data).lower()
                                     ev_hash = self.save_raw_response(data)
+                                    if save_fixture:
+                                        self.save_sanitized_fixture(data, save_fixture)
                                     stable_ids = extract_metadata(data, ["id", "idteam", "idevent", "idplayer"])
                                     timestamps = extract_metadata(data, ["date", "time", "timestamp", "kickoff"])
                                     watermarks = extract_metadata(data, ["update", "watermark", "last_update", "updated_at"])
-                        
+
                         except json.JSONDecodeError:
                             status = "PARSE_ERROR"
                             restriction = "Response not valid JSON"
@@ -408,7 +415,7 @@ class ProviderProbe:
                     latency = int((time.time() - start_t) * 1000)
                     status = "NETWORK_ERROR"
                     restriction = str(e)
-                    
+
             if self.is_live:
                 time.sleep(0.5)
 
@@ -439,17 +446,16 @@ class ProviderProbe:
         return self.register_ledger(ledger)
 
     def probe_mcp(self, provider: str, sport: str, operation: str, subject: str) -> AttemptLedger:
-        if not self.check_budget():
-            raise RuntimeError("Attempt budget exceeded.")
-            
         is_configured = self.check_mcp_configured(provider)
-        
+
         status = "NOT_CONFIGURED" if not is_configured else "UNAVAILABLE"
         restriction = "No MCP server configured" if not is_configured else "MCP Server not responding"
-        
+
         if is_configured and self.is_live:
-            self.physical_attempts += 1
-            
+            if not self.check_budget():
+                raise RuntimeError("Attempt budget exceeded.")
+            self.physical_mcp_attempts += 1
+
         ledger = AttemptLedger(
             seq=0,
             timestamp=get_timestamp(),
@@ -484,22 +490,16 @@ def run_probes(probe: ProviderProbe, target_provider: str = None, target_sport: 
         "tennis": ("tennis/atp", "atp"),
         "volleyball": ("volleyball/mens-college-volleyball", "ncaa.m")
     }
-    
+
     if not target_provider or target_provider == "espn":
         for sport, (path, league) in espn_sports.items():
             if target_sport and sport != target_sport:
                 continue
-            
+
             url = f"https://site.api.espn.com/apis/site/v2/sports/{path}/scoreboard"
-            expected_scoreboard_fields = ["events", "events.id", "events.status.type.state"]
-            sb_ledger = probe.probe_rest("espn", sport, "scoreboard", url, "recent_events", expected_fields=expected_scoreboard_fields)
-            
-            if sb_ledger.status == "SUCCESS" and sport == "football" and probe.is_live:
-                try:
-                    resp_data = requests.get(url, timeout=10).json()
-                    probe.save_sanitized_fixture(resp_data, "espn_football_completed.json")
-                except Exception:
-                    pass
+            expected_scoreboard_fields = ["events", "events.0.id", "events.0.status.type.state"]
+            fixture_name = "espn_football_scoreboard_completed.json" if sport == "football" else None
+            sb_ledger = probe.probe_rest("espn", sport, "scoreboard", url, "recent_events", expected_fields=expected_scoreboard_fields, save_fixture=fixture_name)
 
             event_id = None
             if sb_ledger.status == "SUCCESS" and sb_ledger.evidence_hash:
@@ -516,13 +516,15 @@ def run_probes(probe: ProviderProbe, target_provider: str = None, target_sport: 
                             event_id = str(data["events"][0].get("id"))
                 except Exception as e:
                     logger.warning(f"Failed to find live event ID from temp raw response: {e}")
-                    
-            if not event_id:
+
+            if not event_id and not probe.is_live:
                 event_id = "401547414" if sport == "football" else "401584000"
 
-            summary_url = f"https://site.api.espn.com/apis/site/v2/sports/{path}/summary"
-            probe.probe_rest("espn", sport, "summary", summary_url, f"event_{event_id}", params={"event": event_id}, expected_fields=["boxscore", "boxscore.teams", "boxscore.players"])
-            
+            if event_id:
+                summary_url = f"https://site.api.espn.com/apis/site/v2/sports/{path}/summary"
+                summary_fixture = "espn_football_summary_completed.json" if sport == "football" else None
+                probe.probe_rest("espn", sport, "summary", summary_url, f"event_{event_id}", params={"event": event_id}, expected_fields=["boxscore", "boxscore.teams", "boxscore.players"], save_fixture=summary_fixture)
+
             standings_url = f"https://site.api.espn.com/apis/v2/sports/{path.split('/')[0]}/{league}/standings"
             probe.probe_rest("espn", sport, "standings", standings_url, "league_table", expected_fields=["children", "standings"])
 
@@ -532,7 +534,7 @@ def run_probes(probe: ProviderProbe, target_provider: str = None, target_sport: 
         "hockey": "v1.hockey.api-sports.io",
         "volleyball": "v1.volleyball.api-sports.io"
     }
-    
+
     if not target_provider or target_provider == "api-sports":
         for sport, host in api_sports.items():
             if target_sport and sport != target_sport:
@@ -540,31 +542,51 @@ def run_probes(probe: ProviderProbe, target_provider: str = None, target_sport: 
             status_url = f"https://{host}/status"
             probe.probe_rest("api-sports", sport, "status", status_url, "auth_check")
 
-        if K_APISPORTS in os.environ or not probe.is_live:
-            if not target_sport or target_sport == "football":
+        for sport in ["football", "basketball", "hockey", "volleyball"]:
+            if target_sport and sport != target_sport:
+                continue
+
+            if sport == "football":
                 f_url = "https://v3.football.api-sports.io/fixtures"
-                probe.probe_rest("api-sports", "football", "fixtures_lookup", f_url, "date_2026-06-10", params={"date": "2026-06-10"}, expected_fields=["response", "response.fixture.id"])
-                s_url = "https://v3.football.api-sports.io/fixtures/statistics"
-                probe.probe_rest("api-sports", "football", "stats_lookup", s_url, "match_stats_854321", params={"fixture": "854321"}, expected_fields=["response", "response.statistics"])
+                f_ledger = probe.probe_rest("api-sports", "football", "fixtures_lookup", f_url, "date_2026-06-10", params={"date": "2026-06-10"}, expected_fields=["response", "response.0.fixture.id"])
 
-            if not target_sport or target_sport == "basketball":
+                fixture_id = "854321" if not probe.is_live else None
+                if f_ledger.status == "SUCCESS" and f_ledger.evidence_hash:
+                    raw_file = probe.temp_dir / f"m0a_response_{f_ledger.evidence_hash}.json"
+                    if raw_file.exists():
+                        data = json.loads(raw_file.read_text())
+                        resp = data.get("response", [])
+                        if resp and isinstance(resp, list) and len(resp) > 0:
+                            fixture_id = str(resp[0].get("fixture", {}).get("id", fixture_id))
+
+                if fixture_id:
+                    s_url = "https://v3.football.api-sports.io/fixtures/statistics"
+                    probe.probe_rest("api-sports", "football", "stats_lookup", s_url, f"match_stats_{fixture_id}", params={"fixture": fixture_id}, expected_fields=["response", "response.0.statistics"])
+
+            elif sport == "basketball":
                 f_url = "https://v1.basketball.api-sports.io/games"
-                probe.probe_rest("api-sports", "basketball", "games_lookup", f_url, "date_2026-06-10", params={"date": "2026-06-10"}, expected_fields=["response", "response.id"])
-                s_url = "https://v1.basketball.api-sports.io/games/statistics"
-                probe.probe_rest("api-sports", "basketball", "stats_lookup", s_url, "game_stats_12345", params={"id": "12345"}, expected_fields=["response", "response.statistics"])
+                g_ledger = probe.probe_rest("api-sports", "basketball", "games_lookup", f_url, "date_2026-06-10", params={"date": "2026-06-10"}, expected_fields=["response", "response.0.id"])
 
-            if not target_sport or target_sport == "hockey":
+                game_id = "12345" if not probe.is_live else None
+                if g_ledger.status == "SUCCESS" and g_ledger.evidence_hash:
+                    raw_file = probe.temp_dir / f"m0a_response_{g_ledger.evidence_hash}.json"
+                    if raw_file.exists():
+                        data = json.loads(raw_file.read_text())
+                        resp = data.get("response", [])
+                        if resp and isinstance(resp, list) and len(resp) > 0:
+                            game_id = str(resp[0].get("id", game_id))
+
+                if game_id:
+                    s_url = "https://v1.basketball.api-sports.io/games/statistics"
+                    probe.probe_rest("api-sports", "basketball", "stats_lookup", s_url, f"game_stats_{game_id}", params={"id": game_id}, expected_fields=["response", "response.0.statistics"])
+
+            elif sport == "hockey":
                 f_url = "https://v1.hockey.api-sports.io/games"
-                probe.probe_rest("api-sports", "hockey", "games_lookup", f_url, "date_2026-06-10", params={"date": "2026-06-10"}, expected_fields=["response", "response.id"])
+                probe.probe_rest("api-sports", "hockey", "games_lookup", f_url, "date_2026-06-10", params={"date": "2026-06-10"}, expected_fields=["response", "response.0.id"])
 
-            if not target_sport or target_sport == "volleyball":
+            elif sport == "volleyball":
                 f_url = "https://v1.volleyball.api-sports.io/games"
-                probe.probe_rest("api-sports", "volleyball", "games_lookup", f_url, "date_2026-06-10", params={"date": "2026-06-10"}, expected_fields=["response", "response.id"])
-        else:
-            for sport in ["football", "basketball", "hockey", "volleyball"]:
-                if target_sport and sport != target_sport: continue
-                dummy_url = f"https://{api_sports[sport]}/games" if sport != "football" else "https://v3.football.api-sports.io/fixtures"
-                probe.probe_rest("api-sports", sport, "data_lookup", dummy_url, "blocked_probe")
+                probe.probe_rest("api-sports", "volleyball", "games_lookup", f_url, "date_2026-06-10", params={"date": "2026-06-10"}, expected_fields=["response", "response.0.id"])
 
         if not target_sport or target_sport == "tennis":
             probe.attempts.append(AttemptLedger(
@@ -600,58 +622,25 @@ def run_probes(probe: ProviderProbe, target_provider: str = None, target_sport: 
         "tennis": ("searchplayers.php", "p", "Roger Federer"),
         "volleyball": ("searchteams.php", "t", "Sada Cruzeiro")
     }
-    
+
     key = os.environ.get(K_THESPORTSDB, "123")
     if not target_provider or target_provider == "thesportsdb":
         for sport, (endpoint, param_name, query_val) in tsdb_subjects.items():
             if target_sport and sport != target_sport:
                 continue
             url = f"https://www.thesportsdb.com/api/v1/json/{key}/{endpoint}"
-            expected_fields = ["teams", "teams.strSport"] if "teams" in endpoint else ["players", "players.strSport"]
-            tsdb_ledger = probe.probe_rest("thesportsdb", sport, "subject_search", url, query_val, params={param_name: query_val}, expected_fields=expected_fields)
-            
-            if tsdb_ledger.status == "SUCCESS" and sport == "football" and probe.is_live:
-                try:
-                    resp_data = requests.get(url, params={param_name: query_val}, timeout=10).json()
-                    probe.save_sanitized_fixture(resp_data, "thesportsdb_football.json")
-                except Exception:
-                    pass
+            expected_fields = ["teams", "teams.0.idTeam", "teams.0.strSport"] if "teams" in endpoint else ["players", "players.0.idPlayer", "players.0.strSport"]
+            fixture_name = "thesportsdb_football.json" if sport == "football" else None
+            probe.probe_rest("thesportsdb", sport, "subject_search", url, query_val, params={param_name: query_val}, expected_fields=expected_fields, save_fixture=fixture_name)
 
     if not target_provider or target_provider == "sportdb":
         for sport in ["football", "basketball", "hockey", "tennis", "volleyball"]:
             if target_sport and sport != target_sport:
                 continue
-            
-            if sport != "football":
-                probe.attempts.append(AttemptLedger(
-                    seq=probe.seq + 1,
-                    timestamp=get_timestamp(),
-                    provider="sportdb",
-                    sport=sport,
-                    operation="capability_check",
-                    request_identity=f"SportDB {sport} check",
-                    subject="unsupported_sport",
-                    transport="REST",
-                    status="NOT_SUPPORTED",
-                    http_status=None,
-                    latency=0,
-                    item_count=0,
-                    response_fingerprint="",
-                    pagination=False,
-                    quota_headers=None,
-                    fields_present=[],
-                    fields_absent=[],
-                    restriction=f"SportDB.dev does not offer support for {sport}",
-                    evidence_hash=None,
-                    stable_ids=[],
-                    provider_timestamps=[],
-                    update_watermarks=[]
-                ))
-                probe.seq += 1
-            else:
-                url = "https://api.sportdb.dev/api/football/countries"
-                expected_fields = ["countries", "countries.0.id"]
-                probe.probe_rest("sportdb", "football", "countries_discovery", url, "list_countries", expected_fields=expected_fields)
+
+            url = f"https://api.sportdb.dev/api/{sport}/countries"
+            expected_fields = ["countries", "countries.0.id"]
+            probe.probe_rest("sportdb", sport, "countries_discovery", url, "list_countries", expected_fields=expected_fields)
 
         if not target_sport or target_sport == "football":
             probe.probe_mcp("sportdb", "football", "mcp_explore", "mcp_support")
@@ -661,7 +650,7 @@ def main():
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--live", action="store_true", help="Perform live HTTP reconnaissance probes")
     group.add_argument("--dry-run", action="store_true", help="Perform offline dry-run logic with mock recording")
-    
+
     parser.add_argument("--provider", type=str, help="Filter probe execution by provider name")
     parser.add_argument("--sport", type=str, help="Filter probe execution by sport name")
     parser.add_argument("--max-attempts", type=int, default=40, help="Maximum combined attempt budget limit")
@@ -679,8 +668,11 @@ def main():
     with open(out_dir / "m0a_provider_matrix.json", "w") as f:
         json.dump(matrix, f, indent=2)
 
-    print(f"Recorded {len(matrix)} attempts to {out_dir}/m0a_provider_matrix.json")
-    print(f"Total physical network attempts executed: {probe.physical_attempts}")
+    total_physical = probe.physical_rest_attempts + probe.physical_mcp_attempts
+    print(f"Recorded {len(matrix)} logical attempts to {out_dir}/m0a_provider_matrix.json")
+    print(f"Total physical REST attempts executed: {probe.physical_rest_attempts}")
+    print(f"Total physical MCP attempts executed: {probe.physical_mcp_attempts}")
+    print(f"Total physical network attempts executed: {total_physical}")
 
 if __name__ == "__main__":
     main()
