@@ -57,6 +57,7 @@ from bet.enrichment.kernel.digests import (
     request_identity,
     operation_identity,
     attempt_identity,
+    selection_epoch_identity,
 )
 from bet.enrichment.kernel.errors import (
     ErrorCode,
@@ -114,6 +115,7 @@ __all__ = [
     "request_identity",
     "operation_identity",
     "attempt_identity",
+    "selection_epoch_identity",
     "ErrorCode",
     "normalize_error_code",
 ]

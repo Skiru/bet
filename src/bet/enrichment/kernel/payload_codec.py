@@ -1,4 +1,5 @@
 from __future__ import annotations
+import dataclasses
 from collections.abc import Mapping
 from types import MappingProxyType
 from typing import Any, Generic, Protocol, TypeVar
@@ -32,10 +33,26 @@ class PayloadCodecRegistry:
             raise CodecRegistryFrozenError("Registry is frozen")
         if type(codec.capability_key) is not str or not codec.capability_key:
             raise InvalidPayloadCodecError("capability_key must be a non-empty string")
-        if type(codec.schema_version) is not int or codec.schema_version < 1:
-            raise InvalidPayloadCodecError("schema_version must be an integer >= 1")
+        if type(codec.schema_version) is not int or isinstance(codec.schema_version, bool) or codec.schema_version < 1:
+            raise InvalidPayloadCodecError("schema_version must be a positive integer >= 1")
         if not isinstance(codec.dto_type, type):
             raise InvalidPayloadCodecError("dto_type must be a concrete type")
+
+        # Reject mutable dataclasses, unmarked arbitrary classes
+        if dataclasses.is_dataclass(codec.dto_type):
+            params = getattr(codec.dto_type, "__dataclass_params__", None)
+            if params is None or not params.frozen:
+                raise InvalidPayloadCodecError("mutable dataclass DTO is rejected")
+        else:
+            if not getattr(codec.dto_type, "__immutable__", False):
+                raise InvalidPayloadCodecError("non-dataclass DTO must have an explicit __immutable__ marker")
+
+        # Reject codecs whose metadata can change after registration (e.g. if they are properties with setters)
+        for attr_name in ("capability_key", "schema_version", "dto_type"):
+            attr = getattr(type(codec), attr_name, None)
+            if isinstance(attr, property) and attr.fset is not None:
+                raise InvalidPayloadCodecError(f"codec metadata {attr_name} must be immutable")
+
         identity = (codec.capability_key, codec.schema_version)
         if identity in self._codecs:
             raise DuplicateCodecRegistrationError(f"Duplicate registration: {identity}")
@@ -45,7 +62,7 @@ class PayloadCodecRegistry:
         self._frozen = True
 
     def get(self, key: str, version: int) -> PayloadCodec[Any]:
-        if type(key) is not str or type(version) is not int:
+        if type(key) is not str or type(version) is not int or isinstance(version, bool):
             raise UnknownPayloadCodecError((key, version))
         identity = (key, version)
         if identity not in self._codecs:
