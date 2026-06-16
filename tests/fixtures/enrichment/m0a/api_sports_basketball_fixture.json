@@ -1,0 +1,880 @@
+{
+  "get": "games",
+  "parameters": {
+    "date": "2026-06-16"
+  },
+  "errors": [],
+  "results": 15,
+  "response": [
+    {
+      "id": 493769,
+      "date": "2026-06-16T00:00:00+00:00",
+      "time": "00:00",
+      "timestamp": 1781568000,
+      "timezone": "UTC",
+      "stage": null,
+      "week": null,
+      "venue": "Coliseo Fernando Rube Hern\u00e1ndez",
+      "status": {
+        "long": "Game Finished",
+        "short": "FT",
+        "timer": null
+      },
+      "league": {
+        "id": 76,
+        "name": "BSN",
+        "type": "League",
+        "season": 2026,
+        "logo": "https://media.api-sports.io/basketball/leagues/76.png"
+      },
+      "country": {
+        "id": 36,
+        "name": "Puerto Rico",
+        "code": "PR",
+        "flag": "https://media.api-sports.io/flags/pr.svg"
+      },
+      "teams": {
+        "home": {
+          "id": 2239,
+          "name": "Mets de Guaynabo",
+          "logo": "https://media.api-sports.io/basketball/teams/2239.png"
+        },
+        "away": {
+          "id": 1644,
+          "name": "Cangrejeros",
+          "logo": "https://media.api-sports.io/basketball/teams/1644.png"
+        }
+      },
+      "scores": {
+        "home": {
+          "quarter_1": 22,
+          "quarter_2": 22,
+          "quarter_3": 27,
+          "quarter_4": 21,
+          "over_time": null,
+          "total": 92
+        },
+        "away": {
+          "quarter_1": 29,
+          "quarter_2": 28,
+          "quarter_3": 24,
+          "quarter_4": 18,
+          "over_time": null,
+          "total": 99
+        }
+      }
+    },
+    {
+      "id": 494876,
+      "date": "2026-06-16T00:00:00+00:00",
+      "time": "00:00",
+      "timestamp": 1781568000,
+      "timezone": "UTC",
+      "stage": null,
+      "week": null,
+      "venue": "College Park Center",
+      "status": {
+        "long": "Game Finished",
+        "short": "FT",
+        "timer": null
+      },
+      "league": {
+        "id": 13,
+        "name": "NBA W",
+        "type": "League",
+        "season": 2026,
+        "logo": "https://media.api-sports.io/basketball/leagues/13.png"
+      },
+      "country": {
+        "id": 5,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "teams": {
+        "home": {
+          "id": 165,
+          "name": "Dallas Wings W",
+          "logo": "https://media.api-sports.io/basketball/teams/165.png"
+        },
+        "away": {
+          "id": 167,
+          "name": "Las Vegas Aces W",
+          "logo": "https://media.api-sports.io/basketball/teams/167.png"
+        }
+      },
+      "scores": {
+        "home": {
+          "quarter_1": 29,
+          "quarter_2": 27,
+          "quarter_3": 18,
+          "quarter_4": 22,
+          "over_time": null,
+          "total": 96
+        },
+        "away": {
+          "quarter_1": 20,
+          "quarter_2": 17,
+          "quarter_3": 16,
+          "quarter_4": 13,
+          "over_time": null,
+          "total": 66
+        }
+      }
+    },
+    {
+      "id": 494877,
+      "date": "2026-06-16T00:00:00+00:00",
+      "time": "00:00",
+      "timestamp": 1781568000,
+      "timezone": "UTC",
+      "stage": null,
+      "week": null,
+      "venue": "Target Center",
+      "status": {
+        "long": "Game Finished",
+        "short": "FT",
+        "timer": null
+      },
+      "league": {
+        "id": 13,
+        "name": "NBA W",
+        "type": "League",
+        "season": 2026,
+        "logo": "https://media.api-sports.io/basketball/leagues/13.png"
+      },
+      "country": {
+        "id": 5,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "teams": {
+        "home": {
+          "id": 169,
+          "name": "Minnesota Lynx W",
+          "logo": "https://media.api-sports.io/basketball/teams/169.png"
+        },
+        "away": {
+          "id": 7100,
+          "name": "Portland Fire W",
+          "logo": "https://media.api-sports.io/basketball/teams/7100.png"
+        }
+      },
+      "scores": {
+        "home": {
+          "quarter_1": 35,
+          "quarter_2": 25,
+          "quarter_3": 25,
+          "quarter_4": 22,
+          "over_time": null,
+          "total": 107
+        },
+        "away": {
+          "quarter_1": 21,
+          "quarter_2": 19,
+          "quarter_3": 19,
+          "quarter_4": 15,
+          "over_time": null,
+          "total": 74
+        }
+      }
+    },
+    {
+      "id": 500414,
+      "date": "2026-06-16T00:00:00+00:00",
+      "time": "00:00",
+      "timestamp": 1781568000,
+      "timezone": "UTC",
+      "stage": null,
+      "week": null,
+      "venue": "Polideportivo San Cristobal",
+      "status": {
+        "long": "Game Finished",
+        "short": "FT",
+        "timer": null
+      },
+      "league": {
+        "id": 380,
+        "name": "LNB",
+        "type": "League",
+        "season": 2026,
+        "logo": "https://media.api-sports.io/basketball/leagues/380.png"
+      },
+      "country": {
+        "id": 73,
+        "name": "Dominican-Republic",
+        "code": "DO",
+        "flag": "https://media.api-sports.io/flags/do.svg"
+      },
+      "teams": {
+        "home": {
+          "id": 4982,
+          "name": "Titanes Del Licey",
+          "logo": "https://media.api-sports.io/basketball/teams/4982.png"
+        },
+        "away": {
+          "id": 4981,
+          "name": "Reales de la Vega",
+          "logo": "https://media.api-sports.io/basketball/teams/4981.png"
+        }
+      },
+      "scores": {
+        "home": {
+          "quarter_1": 21,
+          "quarter_2": 27,
+          "quarter_3": 20,
+          "quarter_4": 25,
+          "over_time": null,
+          "total": 93
+        },
+        "away": {
+          "quarter_1": 15,
+          "quarter_2": 21,
+          "quarter_3": 14,
+          "quarter_4": 24,
+          "over_time": null,
+          "total": 74
+        }
+      }
+    },
+    {
+      "id": 489845,
+      "date": "2026-06-16T01:30:00+00:00",
+      "time": "01:30",
+      "timestamp": 1781573400,
+      "timezone": "UTC",
+      "stage": null,
+      "week": null,
+      "venue": "SaskTel Centre",
+      "status": {
+        "long": "Game Finished",
+        "short": "FT",
+        "timer": null
+      },
+      "league": {
+        "id": 222,
+        "name": "CEBL",
+        "type": "League",
+        "season": 2026,
+        "logo": "https://media.api-sports.io/basketball/leagues/222.png"
+      },
+      "country": {
+        "id": 9,
+        "name": "Canada",
+        "code": "CA",
+        "flag": "https://media.api-sports.io/flags/ca.svg"
+      },
+      "teams": {
+        "home": {
+          "id": 3577,
+          "name": "Saskatoon Mamba",
+          "logo": "https://media.api-sports.io/basketball/teams/3577.png"
+        },
+        "away": {
+          "id": 3576,
+          "name": "Ottawa Blackjacks",
+          "logo": "https://media.api-sports.io/basketball/teams/3576.png"
+        }
+      },
+      "scores": {
+        "home": {
+          "quarter_1": 27,
+          "quarter_2": 22,
+          "quarter_3": 15,
+          "quarter_4": 32,
+          "over_time": null,
+          "total": 96
+        },
+        "away": {
+          "quarter_1": 22,
+          "quarter_2": 36,
+          "quarter_3": 18,
+          "quarter_4": 18,
+          "over_time": null,
+          "total": 94
+        }
+      }
+    },
+    {
+      "id": 489846,
+      "date": "2026-06-16T02:00:00+00:00",
+      "time": "02:00",
+      "timestamp": 1781575200,
+      "timezone": "UTC",
+      "stage": null,
+      "week": null,
+      "venue": "Langley Events Centre",
+      "status": {
+        "long": "Game Finished",
+        "short": "FT",
+        "timer": null
+      },
+      "league": {
+        "id": 222,
+        "name": "CEBL",
+        "type": "League",
+        "season": 2026,
+        "logo": "https://media.api-sports.io/basketball/leagues/222.png"
+      },
+      "country": {
+        "id": 9,
+        "name": "Canada",
+        "code": "CA",
+        "flag": "https://media.api-sports.io/flags/ca.svg"
+      },
+      "teams": {
+        "home": {
+          "id": 3571,
+          "name": "Vancouver Bandits",
+          "logo": "https://media.api-sports.io/basketball/teams/3571.png"
+        },
+        "away": {
+          "id": 3578,
+          "name": "Scarborough Shooting Stars",
+          "logo": "https://media.api-sports.io/basketball/teams/3578.png"
+        }
+      },
+      "scores": {
+        "home": {
+          "quarter_1": 24,
+          "quarter_2": 37,
+          "quarter_3": 21,
+          "quarter_4": 23,
+          "over_time": null,
+          "total": 105
+        },
+        "away": {
+          "quarter_1": 23,
+          "quarter_2": 42,
+          "quarter_3": 25,
+          "quarter_4": 18,
+          "over_time": null,
+          "total": 108
+        }
+      }
+    },
+    {
+      "id": 494878,
+      "date": "2026-06-16T02:00:00+00:00",
+      "time": "02:00",
+      "timestamp": 1781575200,
+      "timezone": "UTC",
+      "stage": null,
+      "week": null,
+      "venue": "Chase Center",
+      "status": {
+        "long": "Game Finished",
+        "short": "FT",
+        "timer": null
+      },
+      "league": {
+        "id": 13,
+        "name": "NBA W",
+        "type": "League",
+        "season": 2026,
+        "logo": "https://media.api-sports.io/basketball/leagues/13.png"
+      },
+      "country": {
+        "id": 5,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "teams": {
+        "home": {
+          "id": 7326,
+          "name": "Golden State Valkyries W",
+          "logo": "https://media.api-sports.io/basketball/teams/7326.png"
+        },
+        "away": {
+          "id": 168,
+          "name": "Los Angeles Sparks W",
+          "logo": "https://media.api-sports.io/basketball/teams/168.png"
+        }
+      },
+      "scores": {
+        "home": {
+          "quarter_1": 25,
+          "quarter_2": 20,
+          "quarter_3": 16,
+          "quarter_4": 17,
+          "over_time": null,
+          "total": 78
+        },
+        "away": {
+          "quarter_1": 10,
+          "quarter_2": 16,
+          "quarter_3": 21,
+          "quarter_4": 11,
+          "over_time": null,
+          "total": 58
+        }
+      }
+    },
+    {
+      "id": 499200,
+      "date": "2026-06-16T08:00:00+00:00",
+      "time": "08:00",
+      "timestamp": 1781596800,
+      "timezone": "UTC",
+      "stage": null,
+      "week": null,
+      "venue": null,
+      "status": {
+        "long": "Game Finished",
+        "short": "FT",
+        "timer": null
+      },
+      "league": {
+        "id": 426,
+        "name": "MPBL",
+        "type": "League",
+        "season": 2026,
+        "logo": "https://media.api-sports.io/basketball/leagues/426.png"
+      },
+      "country": {
+        "id": 60,
+        "name": "Philippines",
+        "code": "PH",
+        "flag": "https://media.api-sports.io/flags/ph.svg"
+      },
+      "teams": {
+        "home": {
+          "id": 7354,
+          "name": "Bulacan Kuyas",
+          "logo": "https://media.api-sports.io/basketball/teams/7354.png"
+        },
+        "away": {
+          "id": 7358,
+          "name": "Ilagan Isabela Cowboys",
+          "logo": "https://media.api-sports.io/basketball/teams/7358.png"
+        }
+      },
+      "scores": {
+        "home": {
+          "quarter_1": 17,
+          "quarter_2": 23,
+          "quarter_3": 23,
+          "quarter_4": 15,
+          "over_time": null,
+          "total": 78
+        },
+        "away": {
+          "quarter_1": 16,
+          "quarter_2": 23,
+          "quarter_3": 17,
+          "quarter_4": 26,
+          "over_time": null,
+          "total": 82
+        }
+      }
+    },
+    {
+      "id": 499201,
+      "date": "2026-06-16T10:00:00+00:00",
+      "time": "10:00",
+      "timestamp": 1781604000,
+      "timezone": "UTC",
+      "stage": null,
+      "week": null,
+      "venue": null,
+      "status": {
+        "long": "Game Finished",
+        "short": "FT",
+        "timer": null
+      },
+      "league": {
+        "id": 426,
+        "name": "MPBL",
+        "type": "League",
+        "season": 2026,
+        "logo": "https://media.api-sports.io/basketball/leagues/426.png"
+      },
+      "country": {
+        "id": 60,
+        "name": "Philippines",
+        "code": "PH",
+        "flag": "https://media.api-sports.io/flags/ph.svg"
+      },
+      "teams": {
+        "home": {
+          "id": 7360,
+          "name": "Manila Batang Quiapo",
+          "logo": "https://media.api-sports.io/basketball/teams/7360.png"
+        },
+        "away": {
+          "id": 7367,
+          "name": "Paranaque Patriots",
+          "logo": "https://media.api-sports.io/basketball/teams/7367.png"
+        }
+      },
+      "scores": {
+        "home": {
+          "quarter_1": 22,
+          "quarter_2": 36,
+          "quarter_3": 21,
+          "quarter_4": 27,
+          "over_time": null,
+          "total": 106
+        },
+        "away": {
+          "quarter_1": 20,
+          "quarter_2": 22,
+          "quarter_3": 39,
+          "quarter_4": 19,
+          "over_time": null,
+          "total": 100
+        }
+      }
+    },
+    {
+      "id": 501344,
+      "date": "2026-06-16T11:00:00+00:00",
+      "time": "11:00",
+      "timestamp": 1781607600,
+      "timezone": "UTC",
+      "stage": null,
+      "week": "P. League+ - Final",
+      "venue": "Taipei Heping Basketball Gymnasium",
+      "status": {
+        "long": "Game Finished",
+        "short": "FT",
+        "timer": null
+      },
+      "league": {
+        "id": 403,
+        "name": "P. League+",
+        "type": "League",
+        "season": "2025-2026",
+        "logo": "https://media.api-sports.io/basketball/leagues/403.png"
+      },
+      "country": {
+        "id": 68,
+        "name": "Taiwan",
+        "code": "TW",
+        "flag": "https://media.api-sports.io/flags/tw.svg"
+      },
+      "teams": {
+        "home": {
+          "id": 73,
+          "name": "Fubon Braves",
+          "logo": "https://media.api-sports.io/basketball/teams/73.png"
+        },
+        "away": {
+          "id": 6026,
+          "name": "Taoyuan Pauian Pilots",
+          "logo": "https://media.api-sports.io/basketball/teams/6026.png"
+        }
+      },
+      "scores": {
+        "home": {
+          "quarter_1": 25,
+          "quarter_2": 15,
+          "quarter_3": 19,
+          "quarter_4": 10,
+          "over_time": null,
+          "total": 69
+        },
+        "away": {
+          "quarter_1": 19,
+          "quarter_2": 20,
+          "quarter_3": 15,
+          "quarter_4": 18,
+          "over_time": null,
+          "total": 72
+        }
+      }
+    },
+    {
+      "id": 499202,
+      "date": "2026-06-16T12:00:00+00:00",
+      "time": "12:00",
+      "timestamp": 1781611200,
+      "timezone": "UTC",
+      "stage": null,
+      "week": null,
+      "venue": null,
+      "status": {
+        "long": "Game Finished",
+        "short": "FT",
+        "timer": null
+      },
+      "league": {
+        "id": 426,
+        "name": "MPBL",
+        "type": "League",
+        "season": 2026,
+        "logo": "https://media.api-sports.io/basketball/leagues/426.png"
+      },
+      "country": {
+        "id": 60,
+        "name": "Philippines",
+        "code": "PH",
+        "flag": "https://media.api-sports.io/flags/ph.svg"
+      },
+      "teams": {
+        "home": {
+          "id": 7368,
+          "name": "Pasay Voyagers",
+          "logo": "https://media.api-sports.io/basketball/teams/7368.png"
+        },
+        "away": {
+          "id": 7888,
+          "name": "Cebu Greats",
+          "logo": "https://media.api-sports.io/basketball/teams/7888.png"
+        }
+      },
+      "scores": {
+        "home": {
+          "quarter_1": 18,
+          "quarter_2": 16,
+          "quarter_3": 28,
+          "quarter_4": 10,
+          "over_time": null,
+          "total": 72
+        },
+        "away": {
+          "quarter_1": 25,
+          "quarter_2": 29,
+          "quarter_3": 19,
+          "quarter_4": 9,
+          "over_time": null,
+          "total": 82
+        }
+      }
+    },
+    {
+      "id": 501361,
+      "date": "2026-06-16T17:50:00+00:00",
+      "time": "17:50",
+      "timestamp": 1781632200,
+      "timezone": "UTC",
+      "stage": null,
+      "week": "Super League - Final",
+      "venue": "Menora Mivtachim Arena",
+      "status": {
+        "long": "Not Started",
+        "short": "NS",
+        "timer": null
+      },
+      "league": {
+        "id": 51,
+        "name": "Super League",
+        "type": "League",
+        "season": "2025-2026",
+        "logo": "https://media.api-sports.io/basketball/leagues/51.png"
+      },
+      "country": {
+        "id": 22,
+        "name": "Israel",
+        "code": "IL",
+        "flag": "https://media.api-sports.io/flags/il.svg"
+      },
+      "teams": {
+        "home": {
+          "id": 687,
+          "name": "Maccabi Tel Aviv",
+          "logo": "https://media.api-sports.io/basketball/teams/687.png"
+        },
+        "away": {
+          "id": 682,
+          "name": "Hapoel Tel Aviv",
+          "logo": "https://media.api-sports.io/basketball/teams/682.png"
+        }
+      },
+      "scores": {
+        "home": {
+          "quarter_1": null,
+          "quarter_2": null,
+          "quarter_3": null,
+          "quarter_4": null,
+          "over_time": null,
+          "total": null
+        },
+        "away": {
+          "quarter_1": null,
+          "quarter_2": null,
+          "quarter_3": null,
+          "quarter_4": null,
+          "over_time": null,
+          "total": null
+        }
+      }
+    },
+    {
+      "id": 500972,
+      "date": "2026-06-16T18:00:00+00:00",
+      "time": "18:00",
+      "timestamp": 1781632800,
+      "timezone": "UTC",
+      "stage": null,
+      "week": "Lega A - Final",
+      "venue": "Palasport Giuseppe Taliercio",
+      "status": {
+        "long": "Not Started",
+        "short": "NS",
+        "timer": null
+      },
+      "league": {
+        "id": 52,
+        "name": "Lega A",
+        "type": "League",
+        "season": "2025-2026",
+        "logo": "https://media.api-sports.io/basketball/leagues/52.png"
+      },
+      "country": {
+        "id": 23,
+        "name": "Italy",
+        "code": "IT",
+        "flag": "https://media.api-sports.io/flags/it.svg"
+      },
+      "teams": {
+        "home": {
+          "id": 731,
+          "name": "Venezia",
+          "logo": "https://media.api-sports.io/basketball/teams/731.png"
+        },
+        "away": {
+          "id": 722,
+          "name": "Olimpia Milano",
+          "logo": "https://media.api-sports.io/basketball/teams/722.png"
+        }
+      },
+      "scores": {
+        "home": {
+          "quarter_1": null,
+          "quarter_2": null,
+          "quarter_3": null,
+          "quarter_4": null,
+          "over_time": null,
+          "total": null
+        },
+        "away": {
+          "quarter_1": null,
+          "quarter_2": null,
+          "quarter_3": null,
+          "quarter_4": null,
+          "over_time": null,
+          "total": null
+        }
+      }
+    },
+    {
+      "id": 494879,
+      "date": "2026-06-16T23:00:00+00:00",
+      "time": "23:00",
+      "timestamp": 1781650800,
+      "timezone": "UTC",
+      "stage": null,
+      "week": null,
+      "venue": "Gainbridge Fieldhouse",
+      "status": {
+        "long": "Not Started",
+        "short": "NS",
+        "timer": null
+      },
+      "league": {
+        "id": 13,
+        "name": "NBA W",
+        "type": "League",
+        "season": 2026,
+        "logo": "https://media.api-sports.io/basketball/leagues/13.png"
+      },
+      "country": {
+        "id": 5,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "teams": {
+        "home": {
+          "id": 166,
+          "name": "Indiana Fever W",
+          "logo": "https://media.api-sports.io/basketball/teams/166.png"
+        },
+        "away": {
+          "id": 7870,
+          "name": "Toronto Tempo W",
+          "logo": "https://media.api-sports.io/basketball/teams/7870.png"
+        }
+      },
+      "scores": {
+        "home": {
+          "quarter_1": null,
+          "quarter_2": null,
+          "quarter_3": null,
+          "quarter_4": null,
+          "over_time": null,
+          "total": null
+        },
+        "away": {
+          "quarter_1": null,
+          "quarter_2": null,
+          "quarter_3": null,
+          "quarter_4": null,
+          "over_time": null,
+          "total": null
+        }
+      }
+    },
+    {
+      "id": 501016,
+      "date": "2026-06-16T23:00:00+00:00",
+      "time": "23:00",
+      "timestamp": 1781650800,
+      "timezone": "UTC",
+      "stage": null,
+      "week": "Superliga - Final",
+      "venue": "Gimnasio Luis Ramos",
+      "status": {
+        "long": "Not Started",
+        "short": "NS",
+        "timer": null
+      },
+      "league": {
+        "id": 275,
+        "name": "Superliga",
+        "type": "League",
+        "season": 2026,
+        "logo": "https://media.api-sports.io/basketball/leagues/275.png"
+      },
+      "country": {
+        "id": 61,
+        "name": "Venezuela",
+        "code": "VE",
+        "flag": "https://media.api-sports.io/flags/ve.svg"
+      },
+      "teams": {
+        "home": {
+          "id": 1562,
+          "name": "Marinos",
+          "logo": "https://media.api-sports.io/basketball/teams/1562.png"
+        },
+        "away": {
+          "id": 1559,
+          "name": "Guaiqueries",
+          "logo": "https://media.api-sports.io/basketball/teams/1559.png"
+        }
+      },
+      "scores": {
+        "home": {
+          "quarter_1": null,
+          "quarter_2": null,
+          "quarter_3": null,
+          "quarter_4": null,
+          "over_time": null,
+          "total": null
+        },
+        "away": {
+          "quarter_1": null,
+          "quarter_2": null,
+          "quarter_3": null,
+          "quarter_4": null,
+          "over_time": null,
+          "total": null
+        }
+      }
+    }
+  ]
+}

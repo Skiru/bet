@@ -1,0 +1,73 @@
+{
+  "get": "games",
+  "parameters": {
+    "date": "2026-06-16"
+  },
+  "errors": [],
+  "results": 1,
+  "response": [
+    {
+      "id": 206107,
+      "date": "2026-06-16T16:00:00+00:00",
+      "time": "16:00",
+      "timestamp": 1781625600,
+      "timezone": "UTC",
+      "week": "Semi-finals",
+      "status": {
+        "long": "Not Started",
+        "short": "NS"
+      },
+      "country": {
+        "id": 29,
+        "name": "Lebanon",
+        "code": "LB",
+        "flag": "https://media.api-sports.io/flags/lb.svg"
+      },
+      "league": {
+        "id": 104,
+        "name": "1st Division",
+        "type": "League",
+        "logo": "https://media.api-sports.io/volley/leagues/104.png",
+        "season": 2025
+      },
+      "teams": {
+        "home": {
+          "id": 3707,
+          "name": "Chabeb Batroun",
+          "logo": "https://media.api-sports.io/volley/teams/3707.png"
+        },
+        "away": {
+          "id": 818,
+          "name": "Knat",
+          "logo": "https://media.api-sports.io/volley/teams/818.png"
+        }
+      },
+      "scores": {
+        "home": null,
+        "away": null
+      },
+      "periods": {
+        "first": {
+          "home": null,
+          "away": null
+        },
+        "second": {
+          "home": null,
+          "away": null
+        },
+        "third": {
+          "home": null,
+          "away": null
+        },
+        "fourth": {
+          "home": null,
+          "away": null
+        },
+        "fifth": {
+          "home": null,
+          "away": null
+        }
+      }
+    }
+  ]
+}

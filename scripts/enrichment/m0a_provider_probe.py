@@ -548,9 +548,9 @@ def run_probes(probe: ProviderProbe, target_provider: str = None, target_sport: 
 
             if sport == "football":
                 f_url = "https://v3.football.api-sports.io/fixtures"
-                f_ledger = probe.probe_rest("api-sports", "football", "fixtures_lookup", f_url, "date_2026-06-10", params={"date": "2026-06-10"}, expected_fields=["response", "response.0.fixture.id"])
+                f_ledger = probe.probe_rest("api-sports", "football", "fixtures_lookup", f_url, "date_2026-06-16", params={"date": "2026-06-16"}, expected_fields=["response", "response.0.fixture.id"], save_fixture="api_sports_football_fixture.json")
 
-                fixture_id = "854321" if not probe.is_live else None
+                fixture_id = "1264491" if not probe.is_live else None
                 if f_ledger.status == "SUCCESS" and f_ledger.evidence_hash:
                     raw_file = probe.temp_dir / f"m0a_response_{f_ledger.evidence_hash}.json"
                     if raw_file.exists():
@@ -561,11 +561,11 @@ def run_probes(probe: ProviderProbe, target_provider: str = None, target_sport: 
 
                 if fixture_id:
                     s_url = "https://v3.football.api-sports.io/fixtures/statistics"
-                    probe.probe_rest("api-sports", "football", "stats_lookup", s_url, f"match_stats_{fixture_id}", params={"fixture": fixture_id}, expected_fields=["response", "response.0.statistics"])
+                    probe.probe_rest("api-sports", "football", "stats_lookup", s_url, f"match_stats_{fixture_id}", params={"fixture": fixture_id}, expected_fields=["response", "response.0.statistics"], save_fixture="api_sports_football_statistics.json")
 
             elif sport == "basketball":
                 f_url = "https://v1.basketball.api-sports.io/games"
-                g_ledger = probe.probe_rest("api-sports", "basketball", "games_lookup", f_url, "date_2026-06-10", params={"date": "2026-06-10"}, expected_fields=["response", "response.0.id"])
+                g_ledger = probe.probe_rest("api-sports", "basketball", "games_lookup", f_url, "date_2026-06-16", params={"date": "2026-06-16"}, expected_fields=["response", "response.0.id"], save_fixture="api_sports_basketball_fixture.json")
 
                 game_id = "12345" if not probe.is_live else None
                 if g_ledger.status == "SUCCESS" and g_ledger.evidence_hash:
@@ -576,17 +576,13 @@ def run_probes(probe: ProviderProbe, target_provider: str = None, target_sport: 
                         if resp and isinstance(resp, list) and len(resp) > 0:
                             game_id = str(resp[0].get("id", game_id))
 
-                if game_id:
-                    s_url = "https://v1.basketball.api-sports.io/games/statistics"
-                    probe.probe_rest("api-sports", "basketball", "stats_lookup", s_url, f"game_stats_{game_id}", params={"id": game_id}, expected_fields=["response", "response.0.statistics"])
-
             elif sport == "hockey":
                 f_url = "https://v1.hockey.api-sports.io/games"
-                probe.probe_rest("api-sports", "hockey", "games_lookup", f_url, "date_2026-06-10", params={"date": "2026-06-10"}, expected_fields=["response", "response.0.id"])
+                probe.probe_rest("api-sports", "hockey", "games_lookup", f_url, "date_2026-06-16", params={"date": "2026-06-16"}, expected_fields=["response", "response.0.id"], save_fixture="api_sports_hockey_fixture.json")
 
             elif sport == "volleyball":
                 f_url = "https://v1.volleyball.api-sports.io/games"
-                probe.probe_rest("api-sports", "volleyball", "games_lookup", f_url, "date_2026-06-10", params={"date": "2026-06-10"}, expected_fields=["response", "response.0.id"])
+                probe.probe_rest("api-sports", "volleyball", "games_lookup", f_url, "date_2026-06-16", params={"date": "2026-06-16"}, expected_fields=["response", "response.0.id"], save_fixture="api_sports_volleyball_fixture.json")
 
         if not target_sport or target_sport == "tennis":
             probe.attempts.append(AttemptLedger(
@@ -633,14 +629,35 @@ def run_probes(probe: ProviderProbe, target_provider: str = None, target_sport: 
             fixture_name = "thesportsdb_football.json" if sport == "football" else None
             probe.probe_rest("thesportsdb", sport, "subject_search", url, query_val, params={param_name: query_val}, expected_fields=expected_fields, save_fixture=fixture_name)
 
+
     if not target_provider or target_provider == "sportdb":
         for sport in ["football", "basketball", "hockey", "tennis", "volleyball"]:
             if target_sport and sport != target_sport:
                 continue
 
-            url = f"https://api.sportdb.dev/api/{sport}/countries"
-            expected_fields = ["countries", "countries.0.id"]
-            probe.probe_rest("sportdb", sport, "countries_discovery", url, "list_countries", expected_fields=expected_fields)
+            live_url = f"https://api.sportdb.dev/api/flashscore/{sport}/live"
+            fixture_name = f"sportdb_{sport}_discovery.json" if sport == "football" else None
+            ledger = probe.probe_rest("sportdb", sport, "live_discovery", live_url, "list_live", expected_fields=["0.eventId", "0.homeName"], save_fixture=fixture_name)
+
+            event_id = "12345" if not probe.is_live else None
+            if ledger.status == "SUCCESS" and ledger.evidence_hash:
+                raw_file = probe.temp_dir / f"m0a_response_{ledger.evidence_hash}.json"
+                if raw_file.exists():
+                    data = json.loads(raw_file.read_text())
+                    if data and isinstance(data, list) and len(data) > 0:
+                        for ev in data:
+                            if ev.get("eventStage") == "FINISHED":
+                                event_id = ev.get("eventId")
+                                break
+                        if not event_id:
+                            event_id = data[0].get("eventId")
+
+            if sport == "football" and event_id:
+                details_url = f"https://api.sportdb.dev/api/flashscore/match/{event_id}/details"
+                probe.probe_rest("sportdb", sport, "match_details", details_url, f"details_{event_id}", expected_fields=["homeId", "awayId"], save_fixture="sportdb_football_match.json")
+
+                stats_url = f"https://api.sportdb.dev/api/flashscore/match/{event_id}/stats"
+                probe.probe_rest("sportdb", sport, "match_stats", stats_url, f"stats_{event_id}", expected_fields=[], save_fixture="sportdb_football_stats.json")
 
         if not target_sport or target_sport == "football":
             probe.probe_mcp("sportdb", "football", "mcp_explore", "mcp_support")
@@ -665,8 +682,29 @@ def main():
 
     matrix = [asdict(a) for a in probe.attempts]
 
-    with open(out_dir / "m0a_provider_matrix.json", "w") as f:
-        json.dump(matrix, f, indent=2)
+
+    import os
+    matrix_path = out_dir / "m0a_provider_matrix.json"
+    existing_matrix = []
+    if matrix_path.exists():
+        with open(matrix_path, "r") as f:
+            existing_matrix = json.load(f)
+
+    # filter out the ones we just probed
+    probed_providers = {a.provider for a in probe.attempts}
+    final_matrix = [m for m in existing_matrix if m["provider"] not in probed_providers]
+
+    # append new ones
+    for a in probe.attempts:
+        final_matrix.append(asdict(a))
+
+    # re-sequence
+    for i, m in enumerate(final_matrix):
+        m["seq"] = i + 1
+
+    with open(matrix_path, "w") as f:
+        json.dump(final_matrix, f, indent=2)
+
 
     total_physical = probe.physical_rest_attempts + probe.physical_mcp_attempts
     print(f"Recorded {len(matrix)} logical attempts to {out_dir}/m0a_provider_matrix.json")

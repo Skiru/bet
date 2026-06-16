@@ -1,0 +1,110 @@
+{
+  "get": "games",
+  "parameters": {
+    "date": "2026-06-16"
+  },
+  "errors": [],
+  "results": 2,
+  "response": [
+    {
+      "id": 428750,
+      "date": "2026-06-16T00:05:00+00:00",
+      "time": "00:05",
+      "timestamp": 1781568300,
+      "timezone": "UTC",
+      "week": "Final",
+      "timer": null,
+      "status": {
+        "long": "After Over Time",
+        "short": "AOT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 59,
+        "name": "ECHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/59.png",
+        "season": 2025
+      },
+      "teams": {
+        "home": {
+          "id": 646,
+          "name": "Kansas City",
+          "logo": "https://media.api-sports.io/hockey/teams/646.png"
+        },
+        "away": {
+          "id": 639,
+          "name": "Florida Everblades",
+          "logo": "https://media.api-sports.io/hockey/teams/639.png"
+        }
+      },
+      "scores": {
+        "home": 4,
+        "away": 5
+      },
+      "periods": {
+        "first": "1-1",
+        "second": "3-0",
+        "third": "0-3",
+        "overtime": "0-1",
+        "penalties": null
+      },
+      "events": true
+    },
+    {
+      "id": 428352,
+      "date": "2026-06-16T23:00:00+00:00",
+      "time": "23:00",
+      "timestamp": 1781650800,
+      "timezone": "UTC",
+      "week": "Final",
+      "timer": null,
+      "status": {
+        "long": "Not Started",
+        "short": "NS"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 58,
+        "name": "AHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/58.png",
+        "season": 2025
+      },
+      "teams": {
+        "home": {
+          "id": 630,
+          "name": "Toronto Marlies",
+          "logo": "https://media.api-sports.io/hockey/teams/630.png"
+        },
+        "away": {
+          "id": 608,
+          "name": "Chicago Wolves",
+          "logo": "https://media.api-sports.io/hockey/teams/608.png"
+        }
+      },
+      "scores": {
+        "home": null,
+        "away": null
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    }
+  ]
+}
