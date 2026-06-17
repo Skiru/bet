@@ -7,13 +7,12 @@ from datetime import UTC, datetime
 
 from bet.enrichment.football.contracts import (
     AcquiredFixture,
-    FootballCompletedMatchFacts,
     PersistFixtureResult,
     serialize_team_match_facts,
 )
 from bet.enrichment.football.parser import merge_completed_match_facts
 from bet.enrichment.football.time import format_utc
-from bet.integration.evidence import load_bundle_manifest, write_bundle_manifest
+from bet.integration.evidence import write_bundle_manifest
 
 logger = logging.getLogger(__name__)
 
@@ -199,135 +198,6 @@ class CanonicalPersistence:
 
         return fix_id, sports_ent_id
 
-    def persist_completed_facts(self, facts: FootballCompletedMatchFacts, fetched_at: str, run_id: int) -> dict:
-        def do_persist():
-            comp_id, _ = self._resolve_or_create_competition(
-                facts.fixture.provider_competition_id,
-                facts.fixture.competition_name,
-                facts.fixture.country,
-                facts.fixture.season
-            )
-            home_id, _ = self._resolve_or_create_team(facts.fixture.home_provider_team_id, facts.fixture.home_team_name)
-            away_id, _ = self._resolve_or_create_team(facts.fixture.away_provider_team_id, facts.fixture.away_team_name)
-
-            kickoff_str = format_utc(facts.fixture.kickoff_at)
-            fix_id, _ = self._resolve_or_create_fixture(
-                facts.fixture.provider_fixture_id, comp_id, home_id, away_id, kickoff_str,
-                facts.fixture.canonical_status, facts.fixture.home_score, facts.fixture.away_score, fetched_at
-            )
-
-            max_captured_at = None
-            bundle_ids = [facts.fixture_evidence_bundle_id, facts.statistics_evidence_bundle_id]
-            for b_id in bundle_ids:
-                if b_id:
-                    try:
-                        manifest = load_bundle_manifest(b_id)
-                        for entry in manifest.get("entries", []):
-                            if entry.captured_at:
-                                if max_captured_at is None or entry.captured_at > max_captured_at:
-                                    max_captured_at = entry.captured_at
-                    except Exception:
-                        pass
-            observed_at_str = max_captured_at or fetched_at
-
-            reused = 0
-            inserted = 0
-
-            for team_facts in (facts.home, facts.away):
-                local_team_id = home_id if team_facts.provider_team_id == facts.fixture.home_provider_team_id else away_id
-
-                payload_dict = serialize_team_match_facts(team_facts)
-                payload_json = json.dumps(payload_dict, separators=(',', ':'), sort_keys=True)
-                payload_sha256 = hashlib.sha256(payload_json.encode('utf-8')).hexdigest().lower()
-
-                raw_identity_str = chr(0).join(["v1", "TEAM_MATCH_FACTS", "api-football", facts.fixture.provider_fixture_id, team_facts.provider_team_id, payload_sha256])
-                logical_identity = hashlib.sha256(raw_identity_str.encode('utf-8')).hexdigest().lower()
-
-
-                obs_row = self.conn.execute(
-                    "SELECT id FROM fixture_capability_observation WHERE logical_identity = ?",
-                    (logical_identity,)
-                ).fetchone()
-
-                if obs_row:
-                    reused += 1
-                else:
-                    self.conn.execute(
-                        """INSERT INTO fixture_capability_observation
-                        (canonical_fixture_id, team_id, capability, source, request_identity, evidence_bundle_id, native_fixture_id, native_team_id, status, observed_at, valid_at, payload_sha256, payload_json, logical_identity)
-                        VALUES (?, ?, 'TEAM_MATCH_FACTS', 'api-football', ?, ?, ?, ?, 'SUCCESS', ?, ?, ?, ?, ?)
-                        """,
-                        (
-                            fix_id, local_team_id,
-                            f"api-football/fixture/{facts.fixture.provider_fixture_id}",
-                            facts.statistics_evidence_bundle_id or facts.fixture_evidence_bundle_id,
-                            facts.fixture.provider_fixture_id, team_facts.provider_team_id,
-                            observed_at_str, kickoff_str, payload_sha256, payload_json, logical_identity
-                        )
-                    )
-                    inserted += 1
-
-                metrics = {
-                    "goals": team_facts.goals,
-                    "shots": team_facts.shots,
-                    "shots_on_target": team_facts.shots_on_target,
-                    "possession": team_facts.possession_pct,
-                    "fouls": team_facts.fouls,
-                    "yellow_cards": team_facts.yellow_cards,
-                    "red_cards": team_facts.red_cards,
-                    "offsides": team_facts.offsides,
-                    "corners": team_facts.corners,
-                    "saves": team_facts.goalkeeper_saves,
-                }
-
-                for k, v in metrics.items():
-                    if v is not None:
-                        self.conn.execute(
-                            """INSERT INTO match_stats (fixture_id, team_id, stat_key, stat_value, source, fetched_at)
-                               VALUES (?, ?, ?, ?, 'api-football', ?)
-                               ON CONFLICT(fixture_id, team_id, stat_key, source) DO UPDATE SET
-                               stat_value=excluded.stat_value,
-                               fetched_at=excluded.fetched_at,
-                               source=excluded.source
-                            """,
-                            (fix_id, local_team_id, k, v, fetched_at)
-                        )
-
-            sync_state = "INGESTED_COMPLETE" if facts.home.completeness.value == "COMPLETE" and facts.away.completeness.value == "COMPLETE" else "INGESTED_PARTIAL"
-            if facts.home.completeness.value == "SCORE_ONLY" and facts.away.completeness.value == "SCORE_ONLY":
-                sync_state = "INGESTED_SCORE_ONLY"
-
-            self.conn.execute(
-                """UPDATE sports_sync_item
-                   SET canonical_fixture_id = ?, state = ?, fixture_evidence_bundle_id = ?, statistics_evidence_bundle_id = ?, last_success_at = ?, last_sync_run_id = ?, updated_at = ?
-                   WHERE provider = 'api-football' AND sport = 'football' AND provider_fixture_id = ?
-                """,
-                (fix_id, sync_state, facts.fixture_evidence_bundle_id, facts.statistics_evidence_bundle_id, fetched_at, run_id, fetched_at, facts.fixture.provider_fixture_id)
-            )
-            return {"inserted": inserted, "reused": reused, "sync_state": sync_state}
-
-        sp_name = f"football_fixture_{facts.fixture.provider_fixture_id}"
-        in_txn = self.conn.in_transaction
-        if in_txn:
-            self.conn.execute(f"SAVEPOINT {sp_name}")
-            try:
-                res_dict = do_persist()
-                self.conn.execute(f"RELEASE SAVEPOINT {sp_name}")
-                return res_dict
-            except Exception as e:
-                self.conn.execute(f"ROLLBACK TO SAVEPOINT {sp_name}")
-                self.conn.execute(f"RELEASE SAVEPOINT {sp_name}")
-                raise e
-        else:
-            self.conn.execute("BEGIN TRANSACTION")
-            try:
-                res_dict = do_persist()
-                self.conn.commit()
-                return res_dict
-            except Exception as e:
-                self.conn.rollback()
-                raise e
-
     def persist_acquired_fixture(
         self,
         *,
@@ -339,6 +209,30 @@ class CanonicalPersistence:
         self.conn.execute(f"SAVEPOINT {sp_name}")
 
         try:
+            if acquired_fixture.acquisition_mode in ("TRANSIENT_FAILED", "RATE_LIMITED"):
+                sync_state = acquired_fixture.acquisition_mode.value
+                observed_at_str = format_utc(acquired_fixture.observed_at)
+                self.conn.execute(
+                    """UPDATE sports_sync_item
+                       SET state = ?, last_sync_run_id = ?, updated_at = ?
+                       WHERE provider = 'api-football' AND sport = 'football' AND scope_key = ? AND provider_fixture_id = ?
+                    """,
+                    (sync_state, sync_run_id, observed_at_str, scope_key, acquired_fixture.fixture.provider_fixture_id)
+                )
+                self.conn.execute(f"RELEASE SAVEPOINT {sp_name}")
+                return PersistFixtureResult(
+                    canonical_fixture_id=0,
+                    canonical_event_entity_id=0,
+                    canonical_home_team_id=0,
+                    canonical_away_team_id=0,
+                    observations_inserted=0,
+                    observations_reused=0,
+                    corrections_appended=0,
+                    projections_updated=0,
+                    sync_item_state=sync_state,
+                    fixture_bundle_id=""
+                )
+
             comp_id, comp_sports_ent_id = self._resolve_or_create_competition(
                 acquired_fixture.fixture.provider_competition_id,
                 acquired_fixture.fixture.competition_name,

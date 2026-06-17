@@ -1,8 +1,10 @@
+from collections.abc import Mapping
+
 # ruff: noqa: E501
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
-from typing import Any, Literal
+from typing import Any, Literal, Protocol
 
 
 class FootballSide(StrEnum):
@@ -197,7 +199,7 @@ class FootballFeatureSnapshotPayload:
     metric_windows: tuple[FootballMetricWindow, ...]
     source_provider_fixture_ids: tuple[str, ...]
     observation_logical_identities: tuple[str, ...]
-    evidence_bundle_ids: tuple[str, ...]
+    evidence_fingerprint_hashes: tuple[str, ...]
     missingness: tuple[str, ...]
     data_as_of_at: datetime | None = None
 
@@ -260,7 +262,7 @@ def round_float_six(v):
     import math
     if isinstance(v, float):
         if math.isnan(v) or math.isinf(v):
-            return None
+            raise ValueError("NaN and Infinity are not allowed in snapshot payload")
         if v == 0.0 or v == -0.0:
             return 0.0
         return round(v, 6)
@@ -312,7 +314,7 @@ def serialize_snapshot_payload(payload: FootballFeatureSnapshotPayload) -> dict:
         ],
         "source_provider_fixture_ids": sorted(list(payload.source_provider_fixture_ids)),
         "observation_logical_identities": sorted(list(payload.observation_logical_identities)),
-        "evidence_bundle_ids": sorted(list(payload.evidence_bundle_ids)),
+        "evidence_fingerprint_hashes": sorted(list(payload.evidence_fingerprint_hashes)),
         "missingness": sorted(list(payload.missingness)),
         "data_as_of_at": format_utc(payload.data_as_of_at) if payload.data_as_of_at else None,
     }
@@ -334,6 +336,8 @@ class AcquisitionMode(StrEnum):
     BATCH_IDS = "BATCH_IDS"
     PER_FIXTURE_STATS = "PER_FIXTURE_STATS"
     REPLAY = "REPLAY"
+    TRANSIENT_FAILED = "TRANSIENT_FAILED"
+    RATE_LIMITED = "RATE_LIMITED"
 
 @dataclass(frozen=True, slots=True)
 class BootstrapCommand:
@@ -449,38 +453,80 @@ class InspectResult:
     actual_data: FixtureInspectData | TeamInspectData | None = None
 
 
-class Clock:
+class Clock(Protocol):
     def now_utc(self) -> datetime:
-        raise NotImplementedError()
-    def today_utc(self) -> date:
-        raise NotImplementedError()
+        ...
+    def today_utc(self) -> datetime.date:
+        ...
 
 
-class SystemClock(Clock):
+class SystemClock:
     def now_utc(self) -> datetime:
         from datetime import UTC
         return datetime.now(UTC)
-    def today_utc(self) -> date:
+    def today_utc(self) -> datetime.date:
         from datetime import UTC
         return datetime.now(UTC).date()
 
 
-class FrozenClock(Clock):
-    def __init__(self, frozen_time):
-        from bet.enrichment.football.time import parse_canonical_or_offset_datetime
-        self.frozen_time = parse_canonical_or_offset_datetime(frozen_time)
-    def now_utc(self) -> datetime:
-        return self.frozen_time
-    def today_utc(self) -> date:
-        return self.frozen_time.date()
+@dataclass(frozen=True, slots=True)
+class DiscoveredFixtureRecord:
+    fixture: FootballFixtureIdentity | None
+    provider_fixture_id: str | None
+    state: Literal["VALID", "INVALID"]
+    error_code: str | None
+    evidence_refs: tuple[EvidenceRef, ...]
 
 
 @dataclass(frozen=True, slots=True)
 class DiscoveryResult:
-    completed_fixtures: tuple[FootballFixtureIdentity, ...]
+    valid_fixtures: tuple[FootballFixtureIdentity, ...]
+    invalid_records: tuple[DiscoveredFixtureRecord, ...]
     discovery_evidence_refs: tuple[EvidenceRef, ...]
     paging_completed: bool
     physical_attempts: int
     retry_attempts: int
     quota_metadata: dict[str, Any]
     terminal_status: str
+
+    @property
+    def completed_fixtures(self) -> tuple[FootballFixtureIdentity, ...]:
+        return self.valid_fixtures
+
+
+class NoReplayableFixturesError(ValueError):
+    """Raised when replay has zero parsed fixtures."""
+    pass
+
+
+FootballTeamStatistics = dict[str, Any]
+
+def compute_normalized_match_payload_hash(
+    fixture: FootballFixtureIdentity,
+    statistics_by_provider_team_id: Mapping[str, FootballTeamStatistics],
+) -> str:
+    import hashlib
+    import json
+
+    from bet.enrichment.football.parser import merge_completed_match_facts
+
+    completed_facts = merge_completed_match_facts(
+        fixture,
+        dict(statistics_by_provider_team_id),
+        "",
+        ""
+    )
+    sorted_facts = sorted([completed_facts.home, completed_facts.away], key=lambda f: str(f.provider_team_id))
+    facts_list = [serialize_team_match_facts(f) for f in sorted_facts]
+    normalized_payload_json = json.dumps(facts_list, separators=(",", ":"), sort_keys=True)
+    return hashlib.sha256(normalized_payload_json.encode("utf-8")).hexdigest().lower()
+
+
+class ProvenanceIntegrityError(ValueError):
+    """Raised when snapshot provenance fails closed."""
+    pass
+
+
+class CursorCorruptionError(ValueError):
+    """Raised when coverage_json is corrupted."""
+    pass

@@ -1,7 +1,6 @@
 # ruff: noqa: E501
 import json
 import logging
-from datetime import UTC, datetime
 
 from bet.enrichment.football.contracts import (
     AcquiredFixture,
@@ -13,7 +12,7 @@ from bet.enrichment.football.parser import (
     parse_api_football_fixture_envelope,
     parse_api_football_statistics_envelope,
 )
-from bet.enrichment.football.time import format_utc, parse_canonical_or_offset_datetime
+from bet.enrichment.football.time import parse_canonical_or_offset_datetime
 from bet.integration.evidence import (
     load_bundle_manifest,
     load_evidence_object_bytes,
@@ -118,7 +117,10 @@ class EvidenceReplayAcquirer:
                     if max_captured is None or ref.captured_at > max_captured:
                         max_captured = ref.captured_at
 
-            observed_at_dt = parse_canonical_or_offset_datetime(max_captured or format_utc(datetime.now(UTC)))
+            if not max_captured:
+                raise ValueError("MISSING_EVIDENCE_TIMESTAMP")
+
+            observed_at_dt = parse_canonical_or_offset_datetime(max_captured)
 
             acquired = AcquiredFixture(
                 fixture=fixture_id_obj,

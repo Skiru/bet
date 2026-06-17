@@ -2,7 +2,7 @@
 import hashlib
 import json
 import logging
-from datetime import timedelta
+from datetime import date, timedelta
 from uuid import uuid4
 
 from bet.enrichment.football.contracts import (
@@ -18,7 +18,6 @@ from bet.enrichment.football.contracts import (
     SyncResult,
     SystemClock,
 )
-from bet.enrichment.football.parser import merge_completed_match_facts
 from bet.enrichment.football.persistence import CanonicalPersistence
 from bet.enrichment.football.provider import (
     LiveAPIFootballAcquirer,
@@ -52,6 +51,9 @@ class FootballHistoryService:
         self.provider = provider
         self.sync_engine = sync_engine
         self.repository = repository
+        if feature_builder is None:
+            from bet.enrichment.football.features import FootballFeatureBuilder
+            feature_builder = FootballFeatureBuilder(["goals", "shots", "shots_on_target", "possession_pct", "fouls", "yellow_cards", "red_cards", "offsides", "corners", "goalkeeper_saves"])
         self.feature_builder = feature_builder
         self.persistence = CanonicalPersistence(conn)
         self.snapshot_service = SnapshotService(conn)
@@ -84,17 +86,23 @@ class FootballHistoryService:
                 if coverage_str:
                     try:
                         coverage = json.loads(coverage_str)
-                    except Exception:
-                        pass
+                    except Exception as ex:
+                        from bet.enrichment.football.contracts import (
+                            CursorCorruptionError,
+                        )
+                        raise CursorCorruptionError("CURSOR_CORRUPTION") from ex
             else:
-                c_res = self.conn.execute(
-                    """INSERT INTO sports_sync_cursor
-                       (provider, sport, operation, scope_key, created_at, updated_at)
-                       VALUES ('api-football', 'football', 'completed-fixture-history', ?, ?, ?)
-                    """,
-                    (scope_key, now_str, now_str)
-                )
-                cursor_id = c_res.lastrowid
+                # Use immediate transaction to create cursor safely
+                def create_cursor_callback():
+                    c_res = self.conn.execute(
+                        """INSERT INTO sports_sync_cursor
+                           (provider, sport, operation, scope_key, created_at, updated_at)
+                           VALUES ('api-football', 'football', 'completed-fixture-history', ?, ?, ?)
+                        """,
+                        (scope_key, now_str, now_str)
+                    )
+                    return c_res.lastrowid
+                cursor_id = self.sync_engine.run_in_immediate_transaction(create_cursor_callback)
                 comm_date = None
 
             cursor_before_json = json.dumps({"committed_through_date": comm_date})
@@ -136,7 +144,7 @@ class FootballHistoryService:
             )
 
             if disc_res.terminal_status != "COMPLETE":
-                self.conn.commit()
+                # Deriving status and counters for incomplete discovery
                 self.sync_engine.complete_run(run_id, disc_res.terminal_status, cursor_before_json, {
                     "physical_http_attempts": disc_res.physical_attempts,
                     "fallback_stats_calls": 0,
@@ -179,7 +187,7 @@ class FootballHistoryService:
                 )
             self.conn.commit()
 
-            # Selection rules
+            # Selection rules (Bootstrap Rerun Selection)
             provider_fixture_ids_to_enrich = []
             for f in disc_res.completed_fixtures:
                 item_row = self.conn.execute(
@@ -192,11 +200,10 @@ class FootballHistoryService:
                 needs_enrich = True
                 if item_row:
                     state = item_row[0]
-                    kickoff_date = f.kickoff_at.date()
-                    is_inside_correction = (cmd.from_date <= kickoff_date <= cmd.to_date)
-                    if state in ("INGESTED_COMPLETE", "INGESTED_SCORE_ONLY", "INGESTED_PARTIAL"):
-                        if not is_inside_correction:
-                            needs_enrich = False
+                    if state in ("INGESTED_COMPLETE", "INGESTED_SCORE_ONLY", "INGESTED_PARTIAL", "PERMANENTLY_UNAVAILABLE"):
+                        needs_enrich = False
+                    elif state in ("TRANSIENT_FAILED", "RATE_LIMITED"):
+                        needs_enrich = True
 
                 if needs_enrich:
                     provider_fixture_ids_to_enrich.append(f.provider_fixture_id)
@@ -211,34 +218,13 @@ class FootballHistoryService:
             )
 
             # 4. Persist and resolve transitions
-            counters = {
-                "physical_http_attempts": disc_res.physical_attempts + acq_res.physical_attempts,
-                "fallback_stats_calls": acq_res.statistics_calls,
-                "discovered_count": len(disc_res.completed_fixtures),
-                "complete_count": len(disc_res.completed_fixtures) - len(acq_res.fixtures), # unchanged items treated as complete
-                "partial_count": 0,
-                "score_only_count": 0,
-                "permanently_unavailable_count": 0,
-                "transient_failed_count": 0,
-            }
-
             for acq_fixture in acq_res.fixtures:
-                p_res = self.persistence.persist_acquired_fixture(
+                self.persistence.persist_acquired_fixture(
                     acquired_fixture=acq_fixture,
                     scope_key=scope_key,
                     sync_run_id=run_id,
                 )
-                state = p_res.sync_item_state
-                if state == "INGESTED_COMPLETE":
-                    counters["complete_count"] += 1
-                elif state == "INGESTED_PARTIAL":
-                    counters["partial_count"] += 1
-                elif state == "INGESTED_SCORE_ONLY":
-                    counters["score_only_count"] += 1
-                elif state == "PERMANENTLY_UNAVAILABLE":
-                    counters["permanently_unavailable_count"] += 1
-                elif state == "TRANSIENT_FAILED":
-                    counters["transient_failed_count"] += 1
+            self.conn.commit()
 
             # Update cache state if we checked
             if acq_res.ids_capability != ids_capability:
@@ -264,21 +250,70 @@ class FootballHistoryService:
                     (json.dumps(coverage, separators=(',', ':')), format_utc(self.clock.now_utc()), cursor_id)
                 )
 
-            # 5. Cursor advancement decision
-            final_status = acq_res.terminal_status
+            # Count actual states from sports_sync_item
+            rows = self.conn.execute(
+                """SELECT provider_fixture_id, state FROM sports_sync_item
+                   WHERE provider='api-football' AND sport='football' AND scope_key=?
+                """,
+                (scope_key,)
+            ).fetchall()
+
+            discovered_ids = {f.provider_fixture_id for f in disc_res.completed_fixtures}
+            item_states = {row[0]: row[1] for row in rows if row[0] in discovered_ids}
+
+            # Reset counters
+            counters = {
+                "physical_http_attempts": disc_res.physical_attempts + acq_res.physical_attempts,
+                "fallback_stats_calls": acq_res.statistics_calls,
+                "discovered_count": len(discovered_ids),
+                "complete_count": 0,
+                "partial_count": 0,
+                "score_only_count": 0,
+                "permanently_unavailable_count": 0,
+                "transient_failed_count": 0,
+            }
+
+            for state in item_states.values():
+                if state == "INGESTED_COMPLETE":
+                    counters["complete_count"] += 1
+                elif state == "INGESTED_PARTIAL":
+                    counters["partial_count"] += 1
+                elif state == "INGESTED_SCORE_ONLY":
+                    counters["score_only_count"] += 1
+                elif state == "PERMANENTLY_UNAVAILABLE":
+                    counters["permanently_unavailable_count"] += 1
+                elif state in ("TRANSIENT_FAILED", "RATE_LIMITED"):
+                    counters["transient_failed_count"] += 1
+
+            # 5. Cursor advancement decision (closed-day rule)
+            has_rate_limit = any(state == "RATE_LIMITED" for state in item_states.values()) or acq_res.terminal_status == "RATE_LIMITED" or disc_res.terminal_status == "RATE_LIMITED"
+            has_transient_fail = any(state in ("TRANSIENT_FAILED", "FAILED") for state in item_states.values()) or acq_res.terminal_status == "TRANSIENT_FAILED" or disc_res.terminal_status == "FAILED"
+
+            if has_rate_limit:
+                final_status = "RATE_LIMITED"
+            elif has_transient_fail:
+                final_status = "FAILED"
+            elif counters["complete_count"] == len(discovered_ids):
+                final_status = "COMPLETE"
+            elif (counters["complete_count"] + counters["partial_count"] + counters["score_only_count"] + counters["permanently_unavailable_count"]) == len(discovered_ids):
+                final_status = "DEGRADED"
+            else:
+                final_status = "COMPLETE"
+
             cursor_after_json = cursor_before_json
 
-            if counters["transient_failed_count"] == 0 and final_status == "COMPLETE":
-                cursor_after_json = json.dumps({"committed_through_date": cmd.to_date.isoformat()})
-                self.conn.execute(
-                    """UPDATE sports_sync_cursor
-                       SET committed_through_date = ?, last_success_at = ?, updated_at = ?
-                       WHERE id = ?
-                    """,
-                    (cmd.to_date.isoformat(), now_str, now_str, cursor_id)
-                )
+            today_utc = self.clock.today_utc()
+            effective_closed_through = min(cmd.to_date, today_utc - timedelta(days=1))
 
-            self.conn.commit()
+            if self.conn.in_transaction:
+                self.conn.commit()
+
+            if counters["transient_failed_count"] == 0 and final_status in ("COMPLETE", "DEGRADED"):
+                cursor_after_json = json.dumps({"committed_through_date": effective_closed_through.isoformat()})
+                self.sync_engine.transition_cursor(cursor_id, effective_closed_through.isoformat(), now_str)
+
+            if self.conn.in_transaction:
+                self.conn.commit()
 
             # Complete sync run
             self.sync_engine.complete_run(run_id, final_status, cursor_after_json, counters)
@@ -330,12 +365,19 @@ class FootballHistoryService:
             if coverage_str:
                 try:
                     coverage = json.loads(coverage_str)
-                except Exception:
-                    pass
+                except Exception as ex:
+                    from bet.enrichment.football.contracts import CursorCorruptionError
+                    raise CursorCorruptionError("CURSOR_CORRUPTION") from ex
 
             # Bounded lookback window
             comm_date = parse_canonical_or_offset_datetime(comm_date_str).date()
-            from_date = comm_date - timedelta(days=cmd.correction_lookback_days)
+
+            # Incremental forward window logic
+            season_start = date(cmd.season, 1, 1)
+            forward_from = comm_date + timedelta(days=1)
+            correction_from = max(season_start, comm_date - timedelta(days=cmd.correction_lookback_days) + timedelta(days=1))
+            discovery_from = min(forward_from, correction_from)
+            from_date = discovery_from
             to_date = self.clock.today_utc()
 
             # Start sync run
@@ -399,7 +441,7 @@ class FootballHistoryService:
             )
 
             if disc_res.terminal_status != "COMPLETE":
-                self.conn.commit()
+                # Complete sync run with discovery failure
                 self.sync_engine.complete_run(run_id, disc_res.terminal_status, cursor_before_json, {
                     "physical_http_attempts": disc_res.physical_attempts,
                     "fallback_stats_calls": 0,
@@ -456,7 +498,7 @@ class FootballHistoryService:
                 if item_row:
                     state = item_row[0]
                     kickoff_date = f.kickoff_at.date()
-                    is_inside_correction = (from_date <= kickoff_date <= to_date)
+                    is_inside_correction = (from_date <= kickoff_date <= comm_date)
                     if state in ("INGESTED_COMPLETE", "INGESTED_SCORE_ONLY", "INGESTED_PARTIAL"):
                         if not is_inside_correction:
                             needs_enrich = False
@@ -474,57 +516,13 @@ class FootballHistoryService:
             )
 
             # 4. Persist and evaluate transitions
-            counters = {
-                "physical_http_attempts": disc_res.physical_attempts + acq_res.physical_attempts,
-                "fallback_stats_calls": acq_res.statistics_calls,
-                "discovered_count": len(disc_res.completed_fixtures),
-                "complete_count": len(disc_res.completed_fixtures) - len(acq_res.fixtures),
-                "partial_count": 0,
-                "score_only_count": 0,
-                "permanently_unavailable_count": 0,
-                "transient_failed_count": 0,
-            }
-
             for acq_fixture in acq_res.fixtures:
-                completed_facts = merge_completed_match_facts(
-                    acq_fixture.fixture,
-                    acq_fixture.statistics_by_provider_team_id,
-                    "dummy_b",
-                    "dummy_b"
-                )
-                from bet.enrichment.football.contracts import serialize_team_match_facts
-                sorted_facts = sorted([completed_facts.home, completed_facts.away], key=lambda f: str(f.provider_team_id))
-                facts_list = [serialize_team_match_facts(f) for f in sorted_facts]
-                normalized_payload_json = json.dumps(facts_list, separators=(',', ':'), sort_keys=True)
-                new_hash = hashlib.sha256(normalized_payload_json.encode('utf-8')).hexdigest().lower()
-
-                row = self.conn.execute(
-                    """SELECT normalized_payload_sha256 FROM sports_sync_item
-                       WHERE provider='api-football' AND sport='football' AND scope_key=? AND provider_fixture_id=?
-                    """,
-                    (scope_key, acq_fixture.fixture.provider_fixture_id)
-                ).fetchone()
-
-                if row and row[0] == new_hash:
-                    counters["complete_count"] += 1
-                    continue
-
-                p_res = self.persistence.persist_acquired_fixture(
+                self.persistence.persist_acquired_fixture(
                     acquired_fixture=acq_fixture,
                     scope_key=scope_key,
                     sync_run_id=run_id,
                 )
-                state = p_res.sync_item_state
-                if state == "INGESTED_COMPLETE":
-                    counters["complete_count"] += 1
-                elif state == "INGESTED_PARTIAL":
-                    counters["partial_count"] += 1
-                elif state == "INGESTED_SCORE_ONLY":
-                    counters["score_only_count"] += 1
-                elif state == "PERMANENTLY_UNAVAILABLE":
-                    counters["permanently_unavailable_count"] += 1
-                elif state == "TRANSIENT_FAILED":
-                    counters["transient_failed_count"] += 1
+            self.conn.commit()
 
             # Update cache state if we checked
             if acq_res.ids_capability != ids_capability:
@@ -550,24 +548,71 @@ class FootballHistoryService:
                     (json.dumps(coverage, separators=(',', ':')), format_utc(self.clock.now_utc()), cursor_id)
                 )
 
-            # 5. Cursor advancement
-            final_status = acq_res.terminal_status
+            # Count actual states from sports_sync_item
+            rows = self.conn.execute(
+                """SELECT provider_fixture_id, state FROM sports_sync_item
+                   WHERE provider='api-football' AND sport='football' AND scope_key=?
+                """,
+                (scope_key,)
+            ).fetchall()
+
+            discovered_ids = {f.provider_fixture_id for f in disc_res.completed_fixtures}
+            item_states = {row[0]: row[1] for row in rows if row[0] in discovered_ids}
+
+            # Reset counters
+            counters = {
+                "physical_http_attempts": disc_res.physical_attempts + acq_res.physical_attempts,
+                "fallback_stats_calls": acq_res.statistics_calls,
+                "discovered_count": len(discovered_ids),
+                "complete_count": 0,
+                "partial_count": 0,
+                "score_only_count": 0,
+                "permanently_unavailable_count": 0,
+                "transient_failed_count": 0,
+            }
+
+            for state in item_states.values():
+                if state == "INGESTED_COMPLETE":
+                    counters["complete_count"] += 1
+                elif state == "INGESTED_PARTIAL":
+                    counters["partial_count"] += 1
+                elif state == "INGESTED_SCORE_ONLY":
+                    counters["score_only_count"] += 1
+                elif state == "PERMANENTLY_UNAVAILABLE":
+                    counters["permanently_unavailable_count"] += 1
+                elif state in ("TRANSIENT_FAILED", "RATE_LIMITED"):
+                    counters["transient_failed_count"] += 1
+
+            # 5. Cursor advancement (closed-day rule)
+            has_rate_limit = any(state == "RATE_LIMITED" for state in item_states.values()) or acq_res.terminal_status == "RATE_LIMITED" or disc_res.terminal_status == "RATE_LIMITED"
+            has_transient_fail = any(state in ("TRANSIENT_FAILED", "FAILED") for state in item_states.values()) or acq_res.terminal_status == "TRANSIENT_FAILED" or disc_res.terminal_status == "FAILED"
+
+            if has_rate_limit:
+                final_status = "RATE_LIMITED"
+            elif has_transient_fail:
+                final_status = "FAILED"
+            elif counters["complete_count"] == len(discovered_ids):
+                final_status = "COMPLETE"
+            elif (counters["complete_count"] + counters["partial_count"] + counters["score_only_count"] + counters["permanently_unavailable_count"]) == len(discovered_ids):
+                final_status = "DEGRADED"
+            else:
+                final_status = "COMPLETE"
+
             cursor_after_json = cursor_before_json
 
             # Incremental committed through date can advance up to clock.today_utc() - 1 day
             max_comm_date = to_date - timedelta(days=1)
-            if counters["transient_failed_count"] == 0 and final_status == "COMPLETE":
+
+            if self.conn.in_transaction:
+                self.conn.commit()
+
+            if counters["transient_failed_count"] == 0 and final_status in ("COMPLETE", "DEGRADED"):
                 if max_comm_date >= from_date:
                     cursor_after_json = json.dumps({"committed_through_date": max_comm_date.isoformat()})
-                    self.conn.execute(
-                        """UPDATE sports_sync_cursor
-                           SET committed_through_date = ?, last_success_at = ?, updated_at = ?
-                           WHERE id = ?
-                        """,
-                        (max_comm_date.isoformat(), now_str, now_str, cursor_id)
-                    )
+                    self.sync_engine.transition_cursor(cursor_id, max_comm_date.isoformat(), now_str)
 
-            self.conn.commit()
+            if self.conn.in_transaction:
+                self.conn.commit()
 
             # Complete sync run
             self.sync_engine.complete_run(run_id, final_status, cursor_after_json, counters)
@@ -601,11 +646,12 @@ class FootballHistoryService:
             ids_capability=BatchIdsCapability.UNKNOWN,
         )
 
-        if acq_res.fixtures:
-            first_fixture = acq_res.fixtures[0].fixture
-            scope_key = compute_scope_key(first_fixture.provider_competition_id, first_fixture.season)
-        else:
-            scope_key = "replay_scope_key"
+        if not acq_res.fixtures:
+            from bet.enrichment.football.contracts import NoReplayableFixturesError
+            raise NoReplayableFixturesError("No replayable fixtures found in evidence")
+
+        first_fixture = acq_res.fixtures[0].fixture
+        scope_key = compute_scope_key(first_fixture.provider_competition_id, first_fixture.season)
 
         cursor_row = self.conn.execute(
             """SELECT id FROM sports_sync_cursor
@@ -627,6 +673,8 @@ class FootballHistoryService:
             cursor_id = c_res.lastrowid
 
         run_identity = f"run_api-football_football_completed-fixture-history_replay_{uuid4().hex}_{now_str}"
+        if self.conn.in_transaction:
+            self.conn.commit()
         run_id = self.sync_engine.start_run(
             cursor_id, run_identity, "api-football", "football", "completed-fixture-history",
             scope_key, "REPLAY", "", "", "{}"
@@ -668,6 +716,8 @@ class FootballHistoryService:
                 counters["score_only_count"] += 1
 
         self.conn.commit()
+        if self.conn.in_transaction:
+            self.conn.commit()
         self.sync_engine.complete_run(run_id, "COMPLETE", "{}", counters)
 
         return SyncResult(
@@ -845,9 +895,8 @@ class FootballHistoryService:
         h_samples = samples_by_team.get(h_id, [])
         a_samples = samples_by_team.get(a_t_id, [])
 
-        # 3. Build features using FootballFeatureBuilder
-        from bet.enrichment.football.features import FootballFeatureBuilder
-        builder = FootballFeatureBuilder(metrics_list)
+        # 3. Build features using injected FootballFeatureBuilder
+        builder = self.feature_builder
         metric_windows = builder.build_windows(h_samples, a_samples, h_prov_id, a_prov_id)
 
         src_fixture_ids = set()
@@ -861,29 +910,44 @@ class FootballHistoryService:
                 src_fixture_ids.add(s.provider_fixture_id)
                 logical_ids.add(s.observation_logical_identity)
 
-        # Collect stable evidence fingerprint hashes belonging to selected observations
+        # Collect stable evidence fingerprint hashes belonging to selected observations with fail-closed provenance
+        from bet.enrichment.football.contracts import ProvenanceIntegrityError
         stable_hashes = set()
         for logical_id in logical_ids:
             manifest_row = self.conn.execute(
                 "SELECT evidence_bundle_id FROM fixture_capability_observation WHERE logical_identity = ?",
                 (logical_id,)
             ).fetchone()
-            if manifest_row and manifest_row[0]:
-                bundle_id = manifest_row[0]
-                try:
-                    manifest_dict = load_bundle_manifest(bundle_id)
-                    for entry in manifest_dict.get("entries", []):
-                        fingerprint = {
-                            "operation": entry.operation,
-                            "request_identity": entry.request_identity,
-                            "source_event_id": entry.source_event_id,
-                            "object_sha256": entry.object_sha256,
-                            "byte_size": entry.byte_size,
-                        }
-                        canonical_bytes = json.dumps(fingerprint, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode("utf-8")
-                        stable_hashes.add(hashlib.sha256(canonical_bytes).hexdigest())
-                except Exception:
-                    pass
+            if not manifest_row or not manifest_row[0]:
+                raise ProvenanceIntegrityError(f"Missing evidence_bundle_id for observation {logical_id}")
+
+            bundle_id = manifest_row[0]
+            try:
+                manifest_dict = load_bundle_manifest(bundle_id)
+            except Exception as ex:
+                raise ProvenanceIntegrityError(f"Failed to load bundle manifest {bundle_id}: {ex}") from ex
+
+            entries = manifest_dict.get("entries", [])
+            if not entries:
+                raise ProvenanceIntegrityError(f"Manifest {bundle_id} has zero evidence entries")
+
+            for entry in entries:
+                # Check for required fields in entry attributes
+                if (not getattr(entry, "operation", None) or
+                    not getattr(entry, "request_identity", None) or
+                    not getattr(entry, "object_sha256", None) or
+                    getattr(entry, "byte_size", None) is None):
+                    raise ProvenanceIntegrityError(f"Manifest entry missing required fields in {bundle_id}")
+
+                fingerprint = {
+                    "operation": entry.operation,
+                    "request_identity": entry.request_identity,
+                    "source_event_id": getattr(entry, "source_event_id", None),
+                    "object_sha256": entry.object_sha256,
+                    "byte_size": entry.byte_size,
+                }
+                canonical_bytes = json.dumps(fingerprint, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode("utf-8")
+                stable_hashes.add(hashlib.sha256(canonical_bytes).hexdigest())
 
         policy_config = {
             "provider": "api-football",
@@ -901,7 +965,7 @@ class FootballHistoryService:
         data_as_of_at = max(selected_observed_ats) if selected_observed_ats else None
 
         payload = FootballFeatureSnapshotPayload(
-            schema_version="football-feature-snapshot-v1",
+            schema_version="football-feature-snapshot-v2",
             sport="football",
             primary_provider="api-football",
             target_provider_fixture_id=ext_id,
@@ -913,7 +977,7 @@ class FootballHistoryService:
             metric_windows=metric_windows,
             source_provider_fixture_ids=tuple(sorted(src_fixture_ids)),
             observation_logical_identities=tuple(sorted(logical_ids)),
-            evidence_bundle_ids=tuple(sorted(stable_hashes)), # Populate with stable fingerprint hashes!
+            evidence_fingerprint_hashes=tuple(sorted(stable_hashes)),
             missingness=tuple(sorted(missingness)),
             data_as_of_at=data_as_of_at
         )

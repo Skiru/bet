@@ -18,6 +18,7 @@ from bet.enrichment.football.contracts import (
     IncrementalCommand,
     InspectCommand,
     ReplayCommand,
+    SystemClock,
 )
 from bet.enrichment.football.features import FootballFeatureBuilder
 from bet.enrichment.football.persistence import CanonicalPersistence
@@ -29,23 +30,7 @@ from bet.enrichment.football.sync import FootballSyncEngine
 from bet.enrichment.football.time import parse_canonical_or_offset_datetime
 
 
-class Clock:
-    def now_utc(self):
-        raise NotImplementedError()
-    def today_utc(self):
-        raise NotImplementedError()
-
-
-class SystemClock(Clock):
-    def now_utc(self):
-        import datetime
-        return datetime.datetime.now(datetime.UTC)
-    def today_utc(self):
-        import datetime
-        return datetime.datetime.now(datetime.UTC).date()
-
-
-class FrozenClock(Clock):
+class FrozenClock:
     def __init__(self, frozen_time):
         self.frozen_time = parse_canonical_or_offset_datetime(frozen_time)
     def now_utc(self):

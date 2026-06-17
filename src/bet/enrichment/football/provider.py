@@ -1,7 +1,6 @@
 # ruff: noqa: E501
 import logging
-from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import date
 from typing import Any
 
 from bet.api_clients.api_football import APIFootballClient
@@ -11,14 +10,16 @@ from bet.enrichment.football.contracts import (
     AcquisitionMode,
     AcquisitionResult,
     BatchIdsCapability,
+    DiscoveredFixtureRecord,
     DiscoveryResult,
     FootballFixtureIdentity,
 )
 from bet.enrichment.football.parser import (
+    FootballParserError,
     parse_api_football_fixture_envelope,
     parse_api_football_statistics_envelope,
 )
-from bet.enrichment.football.time import format_utc, parse_canonical_or_offset_datetime
+from bet.enrichment.football.time import parse_canonical_or_offset_datetime
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +64,7 @@ class LiveAPIFootballAcquirer:
         quota_metadata = {}
 
         if attempt_budget.remaining < 2:
-            return DiscoveryResult((), (), False, 0, 0, {}, "RATE_LIMITED")
+            return DiscoveryResult((), (), (), False, 0, 0, {}, "RATE_LIMITED")
 
         res_id = attempt_budget.reserve(2)
         disc_res = self.client.get_history_discovery(
@@ -77,36 +78,61 @@ class LiveAPIFootballAcquirer:
         if disc_res.quota_metadata:
             quota_metadata.update(disc_res.quota_metadata)
 
-
         if disc_res.status != SourceResultStatus.SUCCESS or not disc_res.value:
             term_status = "FAILED"
             if disc_res.status == SourceResultStatus.RATE_LIMITED:
                 term_status = "RATE_LIMITED"
-            return DiscoveryResult((), (), False, physical_attempts, retry_attempts, quota_metadata, term_status)
+            return DiscoveryResult((), (), (), False, physical_attempts, retry_attempts, quota_metadata, term_status)
 
         raw_items = disc_res.value.get("response", [])
         completed_fixtures = []
+        invalid_records = []
         for item in raw_items:
             status_short = item.get("fixture", {}).get("status", {}).get("short", "")
             if status_short in ("FT", "AET", "PEN"):
                 fix_id = str(item.get("fixture", {}).get("id", ""))
-                if fix_id:
-                    try:
-                        fixture_obj = parse_api_football_fixture_envelope(item, fix_id)
-                        completed_fixtures.append(fixture_obj)
-                    except Exception as e:
-                        logger.warning(f"Failed to parse discovery fixture {fix_id}: {e}")
+                try:
+                    if not fix_id:
+                        raise ValueError("Missing provider_fixture_id in discovery item")
+
+                    fixture_obj = parse_api_football_fixture_envelope(item, fix_id)
+
+                    # Validate that identity, kickoff time and score are fully present/valid
+                    if (not fixture_obj.provider_fixture_id or
+                        not fixture_obj.home_provider_team_id or
+                        not fixture_obj.away_provider_team_id or
+                        fixture_obj.kickoff_at is None or
+                        fixture_obj.home_score is None or
+                        fixture_obj.away_score is None):
+                        raise ValueError("Malformed completed fixture identity, kickoff, or score")
+
+                    completed_fixtures.append(fixture_obj)
+                except Exception as e:
+                    logger.warning(f"Failed to parse discovery fixture {fix_id}: {e}")
+                    rec = DiscoveredFixtureRecord(
+                        fixture=None,
+                        provider_fixture_id=fix_id or None,
+                        state="INVALID",
+                        error_code=f"PARSING_ERROR: {str(e)}",
+                        evidence_refs=disc_res.evidence_refs
+                    )
+                    invalid_records.append(rec)
 
         completed_fixtures = completed_fixtures[:max_fixtures]
 
+        term_status = "COMPLETE"
+        if invalid_records:
+            term_status = "DEGRADED"
+
         return DiscoveryResult(
-            completed_fixtures=tuple(completed_fixtures),
+            valid_fixtures=tuple(completed_fixtures),
+            invalid_records=tuple(invalid_records),
             discovery_evidence_refs=disc_res.evidence_refs,
             paging_completed=True,
             physical_attempts=physical_attempts,
             retry_attempts=retry_attempts,
             quota_metadata=quota_metadata,
-            terminal_status="COMPLETE",
+            terminal_status=term_status,
         )
 
     def acquire_fixture_facts(
@@ -129,6 +155,8 @@ class LiveAPIFootballAcquirer:
 
         stats_by_fixture = {}
         fixture_provenance = {}
+        fixture_errors = {}
+        fixture_diagnostics = {}
 
         if ids_capability in (BatchIdsCapability.UNKNOWN, BatchIdsCapability.SUPPORTED) and provider_fixture_ids_to_enrich:
             chunks = [provider_fixture_ids_to_enrich[i:i+20] for i in range(0, len(provider_fixture_ids_to_enrich), 20)]
@@ -151,6 +179,17 @@ class LiveAPIFootballAcquirer:
                     ids_capability = BatchIdsCapability.UNSUPPORTED
                     break
 
+                if details_res.status == SourceResultStatus.RATE_LIMITED:
+                    for fid in chunk:
+                        fixture_errors[fid] = "RATE_LIMITED"
+                    ids_capability = BatchIdsCapability.UNSUPPORTED
+                    break
+                elif details_res.status in (SourceResultStatus.TIMEOUT, SourceResultStatus.TRANSPORT_ERROR, SourceResultStatus.UPSTREAM_ERROR):
+                    for fid in chunk:
+                        fixture_errors[fid] = "TRANSIENT_FAILED"
+                    ids_capability = BatchIdsCapability.UNSUPPORTED
+                    break
+
                 if details_res.status == SourceResultStatus.SUCCESS and details_res.value:
                     ids_capability = BatchIdsCapability.SUPPORTED
                     resp_items = details_res.value.get("response", [])
@@ -166,11 +205,15 @@ class LiveAPIFootballAcquirer:
                                         stats_list, fix_obj.home_provider_team_id, fix_obj.away_provider_team_id
                                     )
                                     stats_by_fixture[fix_id] = (parsed_stats, details_res.evidence_refs)
+                                except FootballParserError as e:
+                                    logger.error(f"Failed to parse embedded stats for {fix_id}: {e}")
+                                    fixture_errors[fix_id] = "TRANSIENT_FAILED"
                                 except Exception as e:
-                                    logger.warning(f"Failed to parse embedded stats for {fix_id}: {e}")
+                                    logger.error(f"Unexpected error parsing embedded stats for {fix_id}: {e}")
+                                    fixture_errors[fix_id] = "TRANSIENT_FAILED"
 
         for fix_id in provider_fixture_ids_to_enrich:
-            if fix_id in fixtures_map and fix_id not in stats_by_fixture:
+            if fix_id in fixtures_map and fix_id not in stats_by_fixture and fix_id not in fixture_errors:
                 if statistics_calls >= max_fallback_stats_calls:
                     continue
                 if attempt_budget.remaining < 2:
@@ -188,14 +231,33 @@ class LiveAPIFootballAcquirer:
 
                 if stats_res.status == SourceResultStatus.SUCCESS and stats_res.value:
                     resp_stats = stats_res.value.get("response", [])
-                    try:
-                        fix_obj = fixtures_map[fix_id]
-                        parsed_stats = parse_api_football_statistics_envelope(
-                            resp_stats, fix_obj.home_provider_team_id, fix_obj.away_provider_team_id
-                        )
-                        stats_by_fixture[fix_id] = (parsed_stats, stats_res.evidence_refs)
-                    except Exception as e:
-                        logger.warning(f"Failed to parse fallback stats for {fix_id}: {e}")
+                    if isinstance(resp_stats, list) and not resp_stats:
+                        # VALID EMPTY RESPONSE
+                        stats_by_fixture[fix_id] = ({}, stats_res.evidence_refs)
+                    else:
+                        try:
+                            fix_obj = fixtures_map[fix_id]
+                            parsed_stats = parse_api_football_statistics_envelope(
+                                resp_stats, fix_obj.home_provider_team_id, fix_obj.away_provider_team_id
+                            )
+                            stats_by_fixture[fix_id] = (parsed_stats, stats_res.evidence_refs)
+                        except FootballParserError as e:
+                            logger.error(f"Failed to parse fallback stats for {fix_id}: {e}")
+                            fixture_errors[fix_id] = "TRANSIENT_FAILED"
+                        except Exception as e:
+                            logger.error(f"Unexpected error parsing fallback stats for {fix_id}: {e}")
+                            fixture_errors[fix_id] = "TRANSIENT_FAILED"
+                elif stats_res.status in (SourceResultStatus.PLAN_RESTRICTED, SourceResultStatus.NOT_SUPPORTED, SourceResultStatus.UNSUPPORTED):
+                    stats_by_fixture[fix_id] = ({}, stats_res.evidence_refs)
+                    fixture_diagnostics[fix_id] = "PLAN_RESTRICTED"
+                elif stats_res.status == SourceResultStatus.VALID_EMPTY:
+                    stats_by_fixture[fix_id] = ({}, stats_res.evidence_refs)
+                elif stats_res.status == SourceResultStatus.RATE_LIMITED:
+                    fixture_errors[fix_id] = "RATE_LIMITED"
+                elif stats_res.status in (SourceResultStatus.TIMEOUT, SourceResultStatus.TRANSPORT_ERROR, SourceResultStatus.UPSTREAM_ERROR):
+                    fixture_errors[fix_id] = "TRANSIENT_FAILED"
+                else:
+                    fixture_errors[fix_id] = "TRANSIENT_FAILED"
 
         acquired_fixtures = []
         for fix_id in provider_fixture_ids_to_enrich:
@@ -212,21 +274,29 @@ class LiveAPIFootballAcquirer:
                 combined_refs = list(discovery_evidence_refs) + list(details_refs) + list(stats_refs)
                 max_captured = None
                 for ref in combined_refs:
-                    if ref.captured_at:
+                    if getattr(ref, "captured_at", None):
                         if max_captured is None or ref.captured_at > max_captured:
                             max_captured = ref.captured_at
 
-                observed_at_dt = parse_canonical_or_offset_datetime(max_captured or format_utc(datetime.now(UTC)))
+                if not max_captured:
+                    raise ValueError("MISSING_EVIDENCE_TIMESTAMP")
 
-                if stats_refs:
+                observed_at_dt = parse_canonical_or_offset_datetime(max_captured)
+
+                if fix_id in fixture_errors:
+                    mode = AcquisitionMode(fixture_errors[fix_id])
+                    warnings = [f"Acquisition failed: {fixture_errors[fix_id]}"]
+                elif stats_refs:
                     mode = AcquisitionMode.PER_FIXTURE_STATS
+                    warnings = []
                 elif details_refs:
                     mode = AcquisitionMode.BATCH_IDS
+                    warnings = []
                 else:
                     mode = AcquisitionMode.DISCOVERY_ENVELOPE
+                    warnings = []
 
-                warnings = []
-                if not stats_by_team:
+                if not stats_by_team and fix_id not in fixture_errors:
                     warnings.append("No statistics available")
 
                 acquired = AcquiredFixture(
@@ -240,9 +310,13 @@ class LiveAPIFootballAcquirer:
                 )
                 acquired_fixtures.append(acquired)
 
-        term_status = "COMPLETE" if len(acquired_fixtures) == len(provider_fixture_ids_to_enrich) else "DEGRADED"
-        if not acquired_fixtures and provider_fixture_ids_to_enrich:
-            term_status = "FAILED"
+        term_status = "COMPLETE"
+        if any(v == "RATE_LIMITED" for v in fixture_errors.values()):
+            term_status = "RATE_LIMITED"
+        elif any(v == "TRANSIENT_FAILED" for v in fixture_errors.values()):
+            term_status = "TRANSIENT_FAILED"
+        elif len(acquired_fixtures) < len(provider_fixture_ids_to_enrich):
+            term_status = "DEGRADED"
 
         return AcquisitionResult(
             fixtures=tuple(acquired_fixtures),
@@ -310,135 +384,4 @@ class LiveAPIFootballAcquirer:
             quota_metadata={**disc_res.quota_metadata, **acq_res.quota_metadata},
             ids_capability=acq_res.ids_capability,
             terminal_status=acq_res.terminal_status,
-        )
-
-
-@dataclass
-class ProviderQuota:
-    requests_limit: int | None
-    requests_remaining: int | None
-
-@dataclass
-class OrchestratedBatchResult:
-    fixtures: list[FootballFixtureIdentity]
-    stats: dict[str, dict[str, dict[str, int | float | None]]]
-    physical_http_attempts: int
-    fallback_stats_calls: int
-    quota: ProviderQuota
-    evidence_bundle_ids: list[str]
-
-class APIFootballOrchestrator:
-    def __init__(self, client: APIFootballClient, quota_reserve: int = 10):
-        self.client = client
-        self.quota_reserve = quota_reserve
-
-    def get_coverage(self, league_id: str, season: int) -> bool:
-        res = self.client.get_leagues_coverage(league_id, season)
-        if res.status != SourceResultStatus.SUCCESS or not res.value:
-            return False
-        try:
-            leagues = res.value.get("response", [])
-            if not leagues:
-                return False
-            coverage = leagues[0].get("seasons", [{}])[0].get("coverage", {})
-            return bool(coverage.get("fixtures", {}).get("statistics_fixtures", False))
-        except Exception:
-            return False
-
-    def discover_completed_fixtures(self, league_id: str, season: int, from_date: str, to_date: str) -> list[str]:
-        res = self.client.get_history_discovery(league_id, season, from_date, to_date)
-        if res.status != SourceResultStatus.SUCCESS or not res.value:
-            return []
-        fixtures = []
-        for item in res.value.get("response", []):
-            status = item.get("fixture", {}).get("status", {}).get("short", "")
-            if status in ("FT", "AET", "PEN"):
-                fix_id = str(item.get("fixture", {}).get("id", ""))
-                if fix_id:
-                    fixtures.append(fix_id)
-        return fixtures
-
-    def get_fixtures_and_stats(self, fixture_ids: list[str], require_stats: bool = True, max_fallback_calls: int = 100) -> OrchestratedBatchResult:
-        all_fixtures = []
-        all_stats = {}
-        all_bundles = []
-        http_attempts = 0
-        fallback_calls = 0
-
-        clean_ids = sorted(list(set(str(i).strip() for i in fixture_ids if str(i).strip())))
-        chunks = [clean_ids[i:i + 20] for i in range(0, len(clean_ids), 20)]
-        quota = ProviderQuota(None, None)
-
-        for chunk in chunks:
-            if quota.requests_remaining is not None and quota.requests_remaining <= self.quota_reserve:
-                break
-
-            res = self.client.get_history_details(chunk)
-            http_attempts += res.retry_count + 1
-
-            if res.quota_metadata:
-                quota.requests_limit = res.quota_metadata.get("requests_limit")
-                quota.requests_remaining = res.quota_metadata.get("requests_remaining")
-
-            if res.bundle_id:
-                all_bundles.append(res.bundle_id)
-
-            if res.status != SourceResultStatus.SUCCESS or not res.value:
-                continue
-
-            response_items = res.value.get("response", [])
-            for item in response_items:
-                fix_id = str(item.get("fixture", {}).get("id", ""))
-                if not fix_id:
-                    continue
-                try:
-                    fixture = parse_api_football_fixture_envelope(item, fix_id)
-                except Exception as e:
-                    logger.error(f"Failed to parse fixture {fix_id}: {e}")
-                    continue
-                all_fixtures.append(fixture)
-
-                has_embedded_stats = False
-                stats_list = item.get("statistics", [])
-                if isinstance(stats_list, list) and len(stats_list) > 0:
-                    try:
-                        parsed_stats = parse_api_football_statistics_envelope(stats_list, fixture.home_provider_team_id, fixture.away_provider_team_id)
-                        if any(parsed_stats.values()):
-                            has_embedded_stats = True
-                            all_stats[fix_id] = parsed_stats
-                    except Exception as e:
-                        logger.error(f"Failed to parse embedded stats for {fix_id}: {e}")
-
-                if require_stats and not has_embedded_stats:
-                    if fallback_calls >= max_fallback_calls:
-                        continue
-                    if quota.requests_remaining is not None and quota.requests_remaining <= self.quota_reserve:
-                        continue
-
-                    fallback_res = self.client.get_history_statistics(fix_id)
-                    http_attempts += fallback_res.retry_count + 1
-                    fallback_calls += 1
-
-                    if fallback_res.quota_metadata:
-                        quota.requests_limit = fallback_res.quota_metadata.get("requests_limit")
-                        quota.requests_remaining = fallback_res.quota_metadata.get("requests_remaining")
-
-                    if fallback_res.bundle_id:
-                        all_bundles.append(fallback_res.bundle_id)
-
-                    if fallback_res.status == SourceResultStatus.SUCCESS and fallback_res.value:
-                        fallback_stats_list = fallback_res.value.get("response", [])
-                        try:
-                            parsed_fallback = parse_api_football_statistics_envelope(fallback_stats_list, fixture.home_provider_team_id, fixture.away_provider_team_id)
-                            all_stats[fix_id] = parsed_fallback
-                        except Exception as e:
-                            logger.error(f"Failed to parse fallback stats for {fix_id}: {e}")
-
-        return OrchestratedBatchResult(
-            fixtures=all_fixtures,
-            stats=all_stats,
-            physical_http_attempts=http_attempts,
-            fallback_stats_calls=fallback_calls,
-            quota=quota,
-            evidence_bundle_ids=all_bundles
         )

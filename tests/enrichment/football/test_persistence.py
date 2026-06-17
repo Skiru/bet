@@ -99,6 +99,76 @@ def make_dummy_completed_facts(fix_id="123", home_score=2, away_score=1, shots_h
         normalization_version="2.0"
     )
 
+
+# Monkeypatch legacy persist_completed_facts onto CanonicalPersistence for test compatibility
+from bet.enrichment.football.persistence import CanonicalPersistence
+
+def _test_persist_completed_facts(self, facts, fetched_at, run_id):
+    from bet.enrichment.football.contracts import AcquiredFixture, AcquisitionMode, EvidenceRef
+    from bet.enrichment.football.time import parse_canonical_or_offset_datetime
+
+    stats_dict = {}
+    if facts.home.shots is not None or facts.away.shots is not None:
+        stats_dict = {
+            facts.home.provider_team_id: {
+                "Total Shots": facts.home.shots,
+                "Shots on Goal": facts.home.shots_on_target,
+                "Ball Possession": facts.home.possession_pct,
+                "Fouls": facts.home.fouls,
+                "Yellow Cards": facts.home.yellow_cards,
+                "Red Cards": facts.home.red_cards,
+                "Offsides": facts.home.offsides,
+                "Corner Kicks": facts.home.corners,
+                "Goalkeeper Saves": facts.home.goalkeeper_saves,
+            },
+            facts.away.provider_team_id: {
+                "Total Shots": facts.away.shots,
+                "Shots on Goal": facts.away.shots_on_target,
+                "Ball Possession": facts.away.possession_pct,
+                "Fouls": facts.away.fouls,
+                "Yellow Cards": facts.away.yellow_cards,
+                "Red Cards": facts.away.red_cards,
+                "Offsides": facts.away.offsides,
+                "Corner Kicks": facts.away.corners,
+                "Goalkeeper Saves": facts.away.goalkeeper_saves,
+            }
+        }
+
+    ref = EvidenceRef(
+        operation="history_discovery",
+        request_identity="api-football/fixture/123",
+        media_type="application/json",
+        byte_size=100,
+        object_sha256="a"*64,
+        source_event_id="evt_1",
+        http_status=200,
+        captured_at=fetched_at
+    )
+
+    acq = AcquiredFixture(
+        fixture=facts.fixture,
+        statistics_by_provider_team_id=stats_dict,
+        fixture_evidence_refs=(ref,),
+        statistics_evidence_refs=(),
+        observed_at=parse_canonical_or_offset_datetime(fetched_at),
+        acquisition_mode=AcquisitionMode.DISCOVERY_ENVELOPE,
+        warnings=()
+    )
+
+    res = self.persist_acquired_fixture(
+        acquired_fixture=acq,
+        scope_key="scope_1",
+        sync_run_id=run_id
+    )
+    return {
+        "inserted": res.observations_inserted + res.corrections_appended,
+        "reused": res.observations_reused,
+        "corrections": res.corrections_appended,
+        "sync_state": res.sync_item_state
+    }
+
+CanonicalPersistence.persist_completed_facts = _test_persist_completed_facts
+
 def test_sports_entity_id_different_from_domain_id(db_conn):
     # Artificially insert unrelated rows so domains do not start at 1
     db_conn.execute("INSERT INTO sports (name) VALUES ('tennis')")
