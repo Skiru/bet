@@ -1,4 +1,7 @@
-from datetime import UTC, datetime
+# ruff: noqa: E501
+import math
+from datetime import timezone
+from enum import Enum
 from typing import Any
 
 from bet.enrichment.football.contracts import (
@@ -9,73 +12,121 @@ from bet.enrichment.football.contracts import (
     FootballSide,
     FootballTeamMatchFacts,
 )
+from bet.enrichment.football.time import parse_canonical_or_offset_datetime
 
+class FootballParserErrorCode(str, Enum):
+    RECORD_NOT_FOUND = "RECORD_NOT_FOUND"
+    NOT_COMPLETED = "NOT_COMPLETED"
+    SCHEMA_MISMATCH = "SCHEMA_MISMATCH"
+    INVALID_IDENTITY = "INVALID_IDENTITY"
+    INVALID_SCORE = "INVALID_SCORE"
+    INVALID_TIMESTAMP = "INVALID_TIMESTAMP"
+    INVALID_METRIC = "INVALID_METRIC"
+    CONFLICTING_DUPLICATE_METRIC = "CONFLICTING_DUPLICATE_METRIC"
+    UNEXPECTED_PARTICIPANT = "UNEXPECTED_PARTICIPANT"
+    STATISTICS_UNAVAILABLE = "STATISTICS_UNAVAILABLE"
+
+class FootballParserError(Exception):
+    def __init__(self, error_code: FootballParserErrorCode, message: str) -> None:
+        super().__init__(f"[{error_code.value}] {message}")
+        self.error_code = error_code
+        self.message = message
 
 def parse_api_football_fixture_envelope(
     raw_fixture: dict[str, Any], requested_provider_fixture_id: str
-) -> FootballFixtureIdentity | None:
-    fix = raw_fixture.get("fixture", {})
-    league = raw_fixture.get("league", {})
-    teams = raw_fixture.get("teams", {})
-    goals = raw_fixture.get("goals", {})
-    score = raw_fixture.get("score", {})
+) -> FootballFixtureIdentity:
+    if not isinstance(raw_fixture, dict):
+        raise FootballParserError(FootballParserErrorCode.SCHEMA_MISMATCH, "raw_fixture must be a dict")
+
+    fix = raw_fixture.get("fixture")
+    if not isinstance(fix, dict):
+        raise FootballParserError(FootballParserErrorCode.SCHEMA_MISMATCH, "missing or invalid 'fixture' key in envelope")
+
+    league = raw_fixture.get("league")
+    if not isinstance(league, dict):
+        raise FootballParserError(FootballParserErrorCode.SCHEMA_MISMATCH, "missing or invalid 'league' key in envelope")
+
+    teams = raw_fixture.get("teams")
+    if not isinstance(teams, dict):
+        raise FootballParserError(FootballParserErrorCode.SCHEMA_MISMATCH, "missing or invalid 'teams' key in envelope")
+
+    goals = raw_fixture.get("goals")
+    if not isinstance(goals, dict):
+        raise FootballParserError(FootballParserErrorCode.SCHEMA_MISMATCH, "missing or invalid 'goals' key in envelope")
+
+    score = raw_fixture.get("score")
+    if not isinstance(score, dict):
+        raise FootballParserError(FootballParserErrorCode.SCHEMA_MISMATCH, "missing or invalid 'score' key in envelope")
 
     fix_id = str(fix.get("id", ""))
+    if not fix_id:
+        raise FootballParserError(FootballParserErrorCode.INVALID_IDENTITY, "fixture id is missing or empty")
     if fix_id != requested_provider_fixture_id:
-        return None
+        raise FootballParserError(FootballParserErrorCode.RECORD_NOT_FOUND, f"fixture id {fix_id} does not match requested {requested_provider_fixture_id}")
 
-    status_short = fix.get("status", {}).get("short", "")
+    status_dict = fix.get("status")
+    if not isinstance(status_dict, dict):
+        raise FootballParserError(FootballParserErrorCode.SCHEMA_MISMATCH, "invalid 'status' structure")
+    status_short = status_dict.get("short", "")
     if status_short not in ("FT", "AET", "PEN"):
-        return None
+        raise FootballParserError(FootballParserErrorCode.NOT_COMPLETED, f"fixture status '{status_short}' is not FT, AET, or PEN")
 
-    home_team = teams.get("home", {})
-    away_team = teams.get("away", {})
-
-    if not home_team or not away_team:
-        return None
+    home_team = teams.get("home")
+    away_team = teams.get("away")
+    if not isinstance(home_team, dict) or not isinstance(away_team, dict):
+        raise FootballParserError(FootballParserErrorCode.SCHEMA_MISMATCH, "missing home or away team in envelope")
 
     home_id = str(home_team.get("id", ""))
     away_id = str(away_team.get("id", ""))
-    if not home_id or not away_id or home_id == away_id:
-        return None
+    if not home_id or not away_id:
+        raise FootballParserError(FootballParserErrorCode.INVALID_IDENTITY, "missing team provider id")
+    if home_id == away_id:
+        raise FootballParserError(FootballParserErrorCode.INVALID_IDENTITY, "home and away team ids must be distinct")
 
     home_name = str(home_team.get("name", ""))
     away_name = str(away_team.get("name", ""))
     if not home_name or not away_name:
-        return None
+        raise FootballParserError(FootballParserErrorCode.INVALID_IDENTITY, "missing team names")
 
     try:
-        home_goals = int(goals.get("home"))
-        away_goals = int(goals.get("away"))
-    except (TypeError, ValueError):
-        return None
+        raw_home_goals = goals.get("home")
+        raw_away_goals = goals.get("away")
+        if raw_home_goals is None or raw_away_goals is None:
+            raise FootballParserError(FootballParserErrorCode.SCHEMA_MISMATCH, "missing goals fields")
+        home_goals = int(raw_home_goals)
+        away_goals = int(raw_away_goals)
+    except (TypeError, ValueError) as e:
+        if isinstance(e, FootballParserError):
+            raise e
+        raise FootballParserError(FootballParserErrorCode.INVALID_SCORE, "goals are not valid integers") from e
 
     if home_goals < 0 or away_goals < 0:
-        return None
+        raise FootballParserError(FootballParserErrorCode.INVALID_SCORE, "goals cannot be negative")
 
     # Penalty separation
     home_pen = None
     away_pen = None
     if status_short == "PEN":
+        pen = score.get("penalty")
+        if not isinstance(pen, dict):
+            raise FootballParserError(FootballParserErrorCode.SCHEMA_MISMATCH, "missing or invalid penalty score structure for PEN fixture")
+        h_pen = pen.get("home")
+        a_pen = pen.get("away")
+        if h_pen is None or a_pen is None:
+            raise FootballParserError(FootballParserErrorCode.INVALID_SCORE, "missing penalty scores for PEN status")
         try:
-            pen = score.get("penalty", {})
-            h_pen = pen.get("home")
-            a_pen = pen.get("away")
-            if h_pen is not None and a_pen is not None:
-                home_pen = int(h_pen)
-                away_pen = int(a_pen)
-                if home_pen < 0 or away_pen < 0:
-                    home_pen = None
-                    away_pen = None
-        except (TypeError, ValueError):
-            pass
+            home_pen = int(h_pen)
+            away_pen = int(a_pen)
+        except (TypeError, ValueError) as e:
+            raise FootballParserError(FootballParserErrorCode.INVALID_SCORE, "penalty scores must be valid integers") from e
+        if home_pen < 0 or away_pen < 0:
+            raise FootballParserError(FootballParserErrorCode.INVALID_SCORE, "penalty scores cannot be negative")
 
     date_str = fix.get("date", "")
     try:
-        # Expected format YYYY-MM-DDTHH:MM:SS+00:00
-        kickoff = datetime.fromisoformat(date_str).astimezone(UTC)
-    except (ValueError, TypeError):
-        return None
+        kickoff = parse_canonical_or_offset_datetime(date_str)
+    except Exception as e:
+        raise FootballParserError(FootballParserErrorCode.INVALID_TIMESTAMP, f"invalid kickoff timestamp: {date_str}") from e
 
     return FootballFixtureIdentity(
         provider_fixture_id=fix_id,
@@ -95,69 +146,95 @@ def parse_api_football_fixture_envelope(
         away_score=away_goals,
         home_penalty_score=home_pen,
         away_penalty_score=away_pen,
-        parser_version="1.0",
+        parser_version="2.0",
         schema_version="1"
     )
 
-def _parse_metric(val: Any) -> float | None:
+def _parse_metric(val: Any, metric_type: str) -> float | None:
     if val is None:
         return None
+
+    f_val = None
     if isinstance(val, str):
-        if val.endswith("%"):
+        cleaned = val.strip()
+        if cleaned.endswith("%"):
             try:
-                val = float(val[:-1])
-            except ValueError:
-                return None
+                f_val = float(cleaned[:-1])
+            except ValueError as e:
+                raise FootballParserError(FootballParserErrorCode.INVALID_METRIC, f"Malformed percentage metric {metric_type}: {val}") from e
         else:
             try:
-                val = float(val)
-            except ValueError:
-                return None
-    try:
-        val = float(val)
-    except (TypeError, ValueError):
-        return None
-    import math
-    if math.isnan(val) or math.isinf(val):
-        return None
-    return val
+                f_val = float(cleaned)
+            except ValueError as e:
+                raise FootballParserError(FootballParserErrorCode.INVALID_METRIC, f"Malformed metric {metric_type}: {val}") from e
+    elif isinstance(val, (int, float)):
+        f_val = float(val)
+    else:
+        raise FootballParserError(FootballParserErrorCode.INVALID_METRIC, f"Unsupported metric type for {metric_type}: {val}")
+
+    if math.isnan(f_val) or math.isinf(f_val):
+        raise FootballParserError(FootballParserErrorCode.INVALID_METRIC, f"Metric {metric_type} is NaN or Inf: {val}")
+
+    if f_val < 0:
+        raise FootballParserError(FootballParserErrorCode.INVALID_METRIC, f"Metric {metric_type} is negative: {val}")
+
+    if metric_type == "Ball Possession":
+        if not (0.0 <= f_val <= 100.0):
+            raise FootballParserError(FootballParserErrorCode.INVALID_METRIC, f"Ball Possession percentage out of range: {val}")
+
+    return f_val
 
 def parse_api_football_statistics_envelope(
     raw_stats: list[dict[str, Any]], expected_home_id: str, expected_away_id: str
 ) -> dict[str, dict[str, int | float | None]]:
     result = {expected_home_id: {}, expected_away_id: {}}
-    if not isinstance(raw_stats, list):
+    if not raw_stats:
         return result
 
-    for team_stats in raw_stats:
-        team_id = str(team_stats.get("team", {}).get("id", ""))
-        if team_id not in result:
-            # reject unexpected team ID
-            return {expected_home_id: {}, expected_away_id: {}}
+    if not isinstance(raw_stats, list):
+        raise FootballParserError(FootballParserErrorCode.SCHEMA_MISMATCH, "raw_stats must be a list")
 
-        stats = team_stats.get("statistics", [])
-        if not isinstance(stats, list):
+    for team_stats in raw_stats:
+        if not isinstance(team_stats, dict):
+            raise FootballParserError(FootballParserErrorCode.SCHEMA_MISMATCH, "team_stats must be a dict")
+
+        team_dict = team_stats.get("team")
+        if not isinstance(team_dict, dict):
+            raise FootballParserError(FootballParserErrorCode.SCHEMA_MISMATCH, "missing or invalid team in statistics")
+
+        team_id = str(team_dict.get("id", ""))
+        if not team_id:
+            raise FootballParserError(FootballParserErrorCode.INVALID_IDENTITY, "team id is missing in statistics")
+
+        if team_id not in (expected_home_id, expected_away_id):
+            raise FootballParserError(FootballParserErrorCode.UNEXPECTED_PARTICIPANT, f"Unexpected team ID in statistics: {team_id}")
+
+        stats_list = team_stats.get("statistics")
+        if stats_list is None:
             continue
+        if not isinstance(stats_list, list):
+            raise FootballParserError(FootballParserErrorCode.SCHEMA_MISMATCH, "statistics must be a list")
 
         parsed = {}
-        for stat in stats:
+        for stat in stats_list:
+            if not isinstance(stat, dict):
+                raise FootballParserError(FootballParserErrorCode.SCHEMA_MISMATCH, "each statistic must be a dict")
             typ = stat.get("type")
-            val = _parse_metric(stat.get("value"))
-            if val is not None and val < 0:
-                val = None
-            if typ == "Ball Possession" and val is not None:
-                if val < 0 or val > 100:
-                    val = None
+            if not typ:
+                raise FootballParserError(FootballParserErrorCode.SCHEMA_MISMATCH, "statistic type is missing")
 
-            if typ and val is not None:
-                if typ in parsed and parsed[typ] != val:
-                    # duplicate conflicting
-                    parsed[typ] = None # invalid
-                else:
-                    parsed[typ] = val
+            raw_val = stat.get("value")
+            val = _parse_metric(raw_val, typ)
 
-        # filter out invalidated
-        parsed = {k: v for k, v in parsed.items() if v is not None}
+            if val is not None:
+                if typ in parsed:
+                    if parsed[typ] != val:
+                        raise FootballParserError(
+                            FootballParserErrorCode.CONFLICTING_DUPLICATE_METRIC,
+                            f"Conflicting duplicate metric for {typ}: {parsed[typ]} vs {val}"
+                        )
+                parsed[typ] = val
+
         result[team_id] = parsed
 
     return result
@@ -169,7 +246,7 @@ def merge_completed_match_facts(
     stats_bundle_id: str | None
 ) -> FootballCompletedMatchFacts:
 
-    def build_team_facts(team_id: str, side: FootballSide, goals: int) -> FootballTeamMatchFacts:
+    def build_team_facts(team_id: str, opponent_id: str, side: FootballSide, goals: int) -> FootballTeamMatchFacts:
         stats = parsed_stats.get(team_id, {})
 
         def get_int(k: str) -> int | None:
@@ -177,7 +254,8 @@ def merge_completed_match_facts(
             return int(v) if v is not None else None
 
         def get_float(k: str) -> float | None:
-            return stats.get(k)
+            v = stats.get(k)
+            return float(v) if v is not None else None
 
         shots = get_int("Total Shots")
         shots_on_target = get_int("Shots on Goal")
@@ -214,6 +292,7 @@ def merge_completed_match_facts(
         return FootballTeamMatchFacts(
             provider_fixture_id=fixture.provider_fixture_id,
             provider_team_id=team_id,
+            provider_opponent_team_id=opponent_id,
             side=side,
             goals=goals,
             shots=shots,
@@ -230,8 +309,18 @@ def merge_completed_match_facts(
             completeness=comp
         )
 
-    home_facts = build_team_facts(fixture.home_provider_team_id, FootballSide.HOME, fixture.home_score)
-    away_facts = build_team_facts(fixture.away_provider_team_id, FootballSide.AWAY, fixture.away_score)
+    home_facts = build_team_facts(
+        fixture.home_provider_team_id,
+        fixture.away_provider_team_id,
+        FootballSide.HOME,
+        fixture.home_score
+    )
+    away_facts = build_team_facts(
+        fixture.away_provider_team_id,
+        fixture.home_provider_team_id,
+        FootballSide.AWAY,
+        fixture.away_score
+    )
 
     return FootballCompletedMatchFacts(
         fixture=fixture,
@@ -239,5 +328,5 @@ def merge_completed_match_facts(
         away=away_facts,
         fixture_evidence_bundle_id=fixture_bundle_id,
         statistics_evidence_bundle_id=stats_bundle_id,
-        normalization_version="1.0"
+        normalization_version="2.0"
     )

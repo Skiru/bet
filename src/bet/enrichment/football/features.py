@@ -7,10 +7,32 @@ from bet.enrichment.football.contracts import (
     FootballSide,
 )
 
+def _normalize_float(val: float) -> float:
+    rounded = round(float(val), 6)
+    if rounded == -0.0:
+        return 0.0
+    return rounded
 
 class FootballFeatureBuilder:
     def __init__(self, metrics: list[str]):
         self.metrics = metrics
+
+    def _prepare_samples(self, samples: list[FootballMetricSample]) -> list[FootballMetricSample]:
+        # Sort deterministically
+        sorted_samples = sorted(
+            samples,
+            key=lambda s: (s.kickoff_at.isoformat(), s.provider_fixture_id, s.observation_logical_identity),
+            reverse=True
+        )
+
+        # Deduplicate by fixture ID
+        seen = set()
+        deduped = []
+        for s in sorted_samples:
+            if s.provider_fixture_id not in seen:
+                seen.add(s.provider_fixture_id)
+                deduped.append(s)
+        return deduped
 
     def build_windows(
         self,
@@ -24,12 +46,12 @@ class FootballFeatureBuilder:
 
         for metric in self.metrics:
             # HOME overall L5, L10
-            h_metric_samples = [s for s in home_samples if s.metric == metric]
+            h_metric_samples = self._prepare_samples([s for s in home_samples if s.metric == metric])
             windows.append(self._create_window(metric, "home_overall_l5", 5, h_metric_samples[:5]))
             windows.append(self._create_window(metric, "home_overall_l10", 10, h_metric_samples[:10]))
 
             # AWAY overall L5, L10
-            a_metric_samples = [s for s in away_samples if s.metric == metric]
+            a_metric_samples = self._prepare_samples([s for s in away_samples if s.metric == metric])
             windows.append(self._create_window(metric, "away_overall_l5", 5, a_metric_samples[:5]))
             windows.append(self._create_window(metric, "away_overall_l10", 10, a_metric_samples[:10]))
 
@@ -68,9 +90,8 @@ class FootballFeatureBuilder:
             )
 
         vals = [s.value for s in samples]
-        # "derived floats rounded to six decimals" -> we should do this maybe later, or here.
-        m_mean = round(float(mean(vals)), 6)
-        m_med = round(float(median(vals)), 6)
+        m_mean = _normalize_float(mean(vals))
+        m_med = _normalize_float(median(vals))
 
         return FootballMetricWindow(
             metric=metric,

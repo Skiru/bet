@@ -83,3 +83,10 @@ CREATE TABLE IF NOT EXISTS sports_sync_item (
 -- 4.4 Observation logical identity
 
 CREATE UNIQUE INDEX IF NOT EXISTS fixture_capability_observation_logical_identity_idx ON fixture_capability_observation(logical_identity) WHERE logical_identity IS NOT NULL AND logical_identity != '';
+
+-- Indexes required by point-in-time and sync queries
+CREATE INDEX IF NOT EXISTS idx_fixture_capability_observation_pit ON fixture_capability_observation(source, team_id, capability, valid_at, observed_at);
+CREATE INDEX IF NOT EXISTS idx_fixtures_history ON fixtures(status, kickoff, home_team_id, away_team_id);
+CREATE INDEX IF NOT EXISTS idx_sports_sync_item_lookup ON sports_sync_item(scope_key, state);
+CREATE INDEX IF NOT EXISTS idx_sports_sync_run_lookup ON sports_sync_run(cursor_id, status);
+CREATE INDEX IF NOT EXISTS idx_sports_sync_cursor_lookup ON sports_sync_cursor(provider, sport, operation, scope_key);

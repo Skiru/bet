@@ -3,6 +3,14 @@ import json
 import sqlite3
 import sys
 
+from bet.api_clients.api_football import APIFootballClient
+from bet.api_clients.rate_limiter import RateLimiter
+from bet.enrichment.football.features import FootballFeatureBuilder
+from bet.enrichment.football.provider import APIFootballOrchestrator
+from bet.enrichment.football.repository import FootballHistoryRepository
+from bet.enrichment.football.service import FootballHistoryService
+from bet.enrichment.football.sync import FootballSyncEngine
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -50,42 +58,59 @@ def main():
         sys.exit(1)
 
     conn = sqlite3.connect(args.db)
-    # The tests might run this file. Let's output valid JSON matching requirements.
-    res = {
-        "mode": args.command.upper(),
-        "scope": {"competition_provider_id": getattr(args, "competition_id", None), "season": getattr(args, "season", None)},
-        "sync_run_id": 1,
-        "lease_result": "ACQUIRED",
-        "window": {"from": getattr(args, "from_date", None), "to": getattr(args, "to_date", None)},
-        "cursor_before": None,
-        "cursor_after": None,
-        "discovery_calls": 0,
-        "batch_calls": 0,
-        "fallback_calls": 0,
-        "total_physical_attempts": 0,
-        "quota": {"daily": 100},
-        "fixtures_discovered": 0,
-        "complete_count": 0,
-        "partial_count": 0,
-        "score_only_count": 0,
-        "failure_count": 0,
-        "fixtures_inserted": 0,
-        "fixtures_reused": 0,
-        "teams_inserted": 0,
-        "teams_reused": 0,
-        "observations_inserted": 0,
-        "observations_reused": 0,
-        "corrections_appended": 0,
-        "projections_updated": 0,
-        "evidence_bundles": [],
-        "snapshot_id": 1,
-        "snapshot_hash": "hash",
-        "warnings": [],
-        "status": "COMPLETE"
-    }
+    # Enable WAL and foreign keys
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA foreign_keys=ON")
 
-    print(json.dumps(res, indent=2))
-    conn.close()
+    rate_limiter = RateLimiter()
+    client = APIFootballClient(rate_limiter=rate_limiter)
+    orchestrator = APIFootballOrchestrator(client)
+    sync_engine = FootballSyncEngine(conn)
+    repository = FootballHistoryRepository(conn)
+    feature_builder = FootballFeatureBuilder(
+        metrics=["shots", "shots_on_target", "possession_pct", "fouls", "yellow_cards", "red_cards", "offsides", "corners", "goalkeeper_saves"]
+    )
+
+    service = FootballHistoryService(conn, orchestrator, sync_engine, repository, feature_builder)
+
+    try:
+        if args.command == "bootstrap":
+            res = service.bootstrap(
+                args.competition_id, args.season, args.from_date, args.to_date,
+                args.max_fixtures, args.max_http_attempts, args.max_fallback_stats_calls
+            )
+            print(json.dumps(res, indent=2))
+            if res.get("status") in ("BLOCKED", "FAILED", "RATE_LIMITED"):
+                sys.exit(1)
+        elif args.command == "incremental-sync":
+            res = service.incremental_sync(
+                args.competition_id, args.season, args.correction_lookback_days,
+                args.max_fixtures, args.max_http_attempts, args.daily_quota_reserve, args.minute_quota_reserve
+            )
+            print(json.dumps(res, indent=2))
+            if res.get("status") in ("BLOCKED", "FAILED", "RATE_LIMITED"):
+                sys.exit(1)
+        elif args.command == "replay":
+            res = service.replay(args.evidence_bundle)
+            print(json.dumps(res, indent=2))
+            if res.get("status") != "COMPLETE":
+                sys.exit(1)
+        elif args.command == "build-snapshot":
+            res = service.build_snapshot(
+                args.canonical_target_fixture_id, args.analysis_cutoff_at, args.policy_version
+            )
+            print(json.dumps(res, indent=2))
+            if res.get("status") != "COMPLETE":
+                sys.exit(1)
+        elif args.command == "inspect":
+            res = service.inspect(args.fixture_id, args.team_id)
+            print(json.dumps(res, indent=2))
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+    finally:
+        conn.close()
 
 if __name__ == "__main__":
     main()

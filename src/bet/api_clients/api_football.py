@@ -88,11 +88,15 @@ class APIFootballClient(APISportsClient):
         )
 
     def get_history_details(self, fixture_ids: list[str]) -> "SourceOperationResult[dict]":
-        ids_str = "-".join(sorted(set(str(i).strip() for i in fixture_ids if str(i).strip())))
-        if not ids_str:
-            from bet.integration.source_result import SourceOperationResult, SourceResultStatus
+        clean_ids = sorted(list(set(str(i).strip() for i in fixture_ids if str(i).strip())))
+        if not clean_ids:
+            from bet.integration.base_client import SourceOperationResult, SourceResultStatus
             return SourceOperationResult(status=SourceResultStatus.INVALID_REQUEST, retryable=False, error_code="empty_batch")
+        if len(clean_ids) > 20:
+            from bet.integration.base_client import SourceOperationResult, SourceResultStatus
+            return SourceOperationResult(status=SourceResultStatus.INVALID_REQUEST, retryable=False, error_code="too_many_ids")
         
+        ids_str = "-".join(clean_ids)
         return self._request_with_evidence(
             endpoint="/fixtures",
             params={"ids": ids_str},

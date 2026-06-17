@@ -523,29 +523,70 @@ def run_migration(conn: sqlite3.Connection, target_version: int) -> None:
 
 
 def _migrate_v20_football_history_engine(conn: sqlite3.Connection) -> None:
-    migration_path = Path(__file__).parent / "migrations" / "019_football_history_engine.sql"
-    if migration_path.exists():
-        # Preflight duplication tests as requested.
-        duplicates = conn.execute(
-            "SELECT run_id FROM analysis_snapshot GROUP BY run_id HAVING COUNT(*) > 1"
-        ).fetchall()
-        if duplicates:
-            raise ValueError("Migration preflight failed: Duplicate run_id in analysis_snapshot")
-        
-        conflicts = conn.execute(
-            "SELECT sport, entity_type, provider, provider_entity_id FROM source_entity_reference WHERE provider = 'api-football' AND valid_to IS NULL GROUP BY sport, entity_type, provider, provider_entity_id HAVING COUNT(*) > 1"
-        ).fetchall()
-        if conflicts:
-            raise ValueError("Migration preflight failed: Duplicate active api-football mapping in source_entity_reference")
-        
-        fixture_conflicts = conn.execute(
-            "SELECT source, external_id FROM fixture_sources WHERE source = 'api-football' GROUP BY source, external_id HAVING COUNT(*) > 1"
-        ).fetchall()
-        if fixture_conflicts:
-            raise ValueError("Migration preflight failed: Duplicate fixture_sources mapping for api-football")
+    conn.execute("SAVEPOINT migrate_v20")
+    try:
+        # Check table existence before querying to prevent operational errors
+        has_analysis_snapshot = False
+        try:
+            conn.execute("SELECT 1 FROM analysis_snapshot LIMIT 1")
+            has_analysis_snapshot = True
+        except sqlite3.OperationalError:
+            pass
 
-        conn.executescript(migration_path.read_text(encoding="utf-8"))
-        
+        has_source_entity_ref = False
+        try:
+            conn.execute("SELECT 1 FROM source_entity_reference LIMIT 1")
+            has_source_entity_ref = True
+        except sqlite3.OperationalError:
+            pass
+
+        has_fixture_sources = False
+        try:
+            conn.execute("SELECT 1 FROM fixture_sources LIMIT 1")
+            has_fixture_sources = True
+        except sqlite3.OperationalError:
+            pass
+
+        # 1. preflight duplicate analysis_snapshot.run_id detection
+        if has_analysis_snapshot:
+            duplicates = conn.execute(
+                "SELECT run_id, COUNT(*) FROM analysis_snapshot GROUP BY run_id HAVING COUNT(*) > 1"
+            ).fetchall()
+            if duplicates:
+                run_id = duplicates[0][0]
+                raise ValueError(f"Migration preflight failed: Duplicate run_id {run_id} in analysis_snapshot")
+
+        # 2. preflight duplicate active api-football source mapping detection
+        if has_source_entity_ref:
+            conflicts = conn.execute(
+                "SELECT sport, entity_type, provider, provider_entity_id, COUNT(*) FROM source_entity_reference "
+                "WHERE provider = 'api-football' AND valid_to IS NULL "
+                "GROUP BY sport, entity_type, provider, provider_entity_id HAVING COUNT(*) > 1"
+            ).fetchall()
+            if conflicts:
+                sport, etype, prov, pid = conflicts[0][0], conflicts[0][1], conflicts[0][2], conflicts[0][3]
+                raise ValueError(f"Migration preflight failed: Duplicate active api-football mapping in source_entity_reference for sport={sport}, entity_type={etype}, provider={prov}, provider_entity_id={pid}")
+
+        # 3. preflight duplicate api-football fixture source detection
+        if has_fixture_sources:
+            fixture_conflicts = conn.execute(
+                "SELECT source, external_id, COUNT(*) FROM fixture_sources WHERE source = 'api-football' "
+                "GROUP BY source, external_id HAVING COUNT(*) > 1"
+            ).fetchall()
+            if fixture_conflicts:
+                src, ext_id = fixture_conflicts[0][0], fixture_conflicts[0][1]
+                raise ValueError(f"Migration preflight failed: Duplicate fixture_sources mapping for source={src}, external_id={ext_id}")
+
+        migration_path = Path(__file__).parent / "migrations" / "019_football_history_engine.sql"
+        if migration_path.exists():
+            conn.executescript(migration_path.read_text(encoding="utf-8"))
+
         columns = _table_columns(conn, "fixture_capability_observation")
         if "logical_identity" not in columns:
             conn.execute("ALTER TABLE fixture_capability_observation ADD COLUMN logical_identity TEXT")
+
+        conn.execute("RELEASE SAVEPOINT migrate_v20")
+    except Exception as e:
+        conn.execute("ROLLBACK TO SAVEPOINT migrate_v20")
+        conn.execute("RELEASE SAVEPOINT migrate_v20")
+        raise e
