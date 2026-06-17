@@ -1,15 +1,20 @@
 # ruff: noqa: E501
 import logging
 import sqlite3
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 from bet.enrichment.football.time import format_utc, parse_canonical_or_offset_datetime
 
 logger = logging.getLogger(__name__)
 
 class FootballSyncEngine:
-    def __init__(self, conn: sqlite3.Connection):
+    def __init__(self, conn: sqlite3.Connection, clock=None):
         self.conn = conn
+        if clock is not None:
+            self.clock = clock
+        else:
+            from bet.enrichment.football.contracts import SystemClock
+            self.clock = SystemClock()
 
     def acquire_lease(self, provider: str, sport: str, operation: str, scope_key: str, lease_owner: str, ttl_minutes: int = 15) -> bool:
         cursor = self.conn.cursor()
@@ -23,7 +28,7 @@ class FootballSyncEngine:
                 (provider, sport, operation, scope_key)
             ).fetchone()
 
-            now = datetime.now(UTC)
+            now = self.clock.now_utc()
             expires = now + timedelta(minutes=ttl_minutes)
             expires_str = format_utc(expires)
             now_str = format_utc(now)
@@ -83,7 +88,7 @@ class FootballSyncEngine:
                 return False
 
             lock_ver = row[0]
-            now = datetime.now(UTC)
+            now = self.clock.now_utc()
             expires = now + timedelta(minutes=ttl_minutes)
             expires_str = format_utc(expires)
             now_str = format_utc(now)
@@ -122,7 +127,7 @@ class FootballSyncEngine:
 
             if row:
                 lock_ver = row[0]
-                now_str = format_utc(datetime.now(UTC))
+                now_str = format_utc(self.clock.now_utc())
                 cursor.execute(
                     """UPDATE sports_sync_cursor
                        SET lease_owner = NULL, lease_expires_at = NULL, lock_version = lock_version + 1, updated_at = ?
@@ -139,7 +144,7 @@ class FootballSyncEngine:
             raise e
 
     def start_run(self, cursor_id: int, run_identity: str, provider: str, sport: str, operation: str, scope_key: str, mode: str, window_from: str, window_to: str, cursor_before_json: str) -> int:
-        now_str = format_utc(datetime.now(UTC))
+        now_str = format_utc(self.clock.now_utc())
         res = self.conn.execute(
             """INSERT INTO sports_sync_run
                (run_identity, cursor_id, provider, sport, operation, scope_key, mode, window_from, window_to, status, started_at, cursor_before_json)
@@ -150,7 +155,7 @@ class FootballSyncEngine:
         return res.lastrowid
 
     def complete_run(self, run_id: int, status: str, cursor_after_json: str, metrics: dict, error_code: str | None = None) -> None:
-        now_str = format_utc(datetime.now(UTC))
+        now_str = format_utc(self.clock.now_utc())
 
         updates = ["status = ?", "completed_at = ?"]
         params = [status, now_str]
@@ -159,7 +164,6 @@ class FootballSyncEngine:
             updates.append("cursor_after_json = ?")
             params.append(cursor_after_json)
 
-        # Fixed writable column allowlist to protect against injection/arbitrary keys
         ALLOWLIST = {
             "physical_http_attempts",
             "fallback_stats_calls",

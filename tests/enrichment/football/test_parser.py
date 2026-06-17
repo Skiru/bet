@@ -1,13 +1,14 @@
 from datetime import UTC, datetime
 
-from bet.enrichment.football.contracts import FootballFactCompleteness
 import pytest
+
+from bet.enrichment.football.contracts import FootballFactCompleteness
 from bet.enrichment.football.parser import (
+    FootballParserError,
+    FootballParserErrorCode,
     merge_completed_match_facts,
     parse_api_football_fixture_envelope,
     parse_api_football_statistics_envelope,
-    FootballParserError,
-    FootballParserErrorCode,
 )
 
 

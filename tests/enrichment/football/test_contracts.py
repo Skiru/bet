@@ -1,12 +1,12 @@
 # ruff: noqa: E501
 import pytest
+
 from bet.enrichment.football.contracts import (
-    FootballSide,
     FootballFactCompleteness,
+    FootballSide,
     FootballTeamMatchFacts,
-    FootballFixtureIdentity,
-    FootballProviderStatus,
 )
+
 
 def test_team_match_facts_valid():
     facts = FootballTeamMatchFacts(

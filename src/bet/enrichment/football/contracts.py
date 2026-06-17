@@ -199,7 +199,7 @@ class FootballFeatureSnapshotPayload:
     observation_logical_identities: tuple[str, ...]
     evidence_bundle_ids: tuple[str, ...]
     missingness: tuple[str, ...]
-    data_as_of_at: datetime
+    data_as_of_at: datetime | None = None
 
 @dataclass(frozen=True, slots=True)
 class FootballSnapshotRecord:
@@ -256,9 +256,25 @@ def serialize_team_match_facts(facts: FootballTeamMatchFacts) -> dict:
         "completeness": facts.completeness.value,
     }
 
+def round_float_six(v):
+    import math
+    if isinstance(v, float):
+        if math.isnan(v) or math.isinf(v):
+            return None
+        if v == 0.0 or v == -0.0:
+            return 0.0
+        return round(v, 6)
+    if isinstance(v, dict):
+        return {k: round_float_six(val) for k, val in v.items()}
+    if isinstance(v, list):
+        return [round_float_six(val) for val in v]
+    if isinstance(v, tuple):
+        return tuple(round_float_six(val) for val in v)
+    return v
+
 def serialize_snapshot_payload(payload: FootballFeatureSnapshotPayload) -> dict:
     from bet.enrichment.football.time import format_utc
-    return {
+    d = {
         "schema_version": payload.schema_version,
         "sport": payload.sport,
         "primary_provider": payload.primary_provider,
@@ -298,8 +314,9 @@ def serialize_snapshot_payload(payload: FootballFeatureSnapshotPayload) -> dict:
         "observation_logical_identities": sorted(list(payload.observation_logical_identities)),
         "evidence_bundle_ids": sorted(list(payload.evidence_bundle_ids)),
         "missingness": sorted(list(payload.missingness)),
-        "data_as_of_at": format_utc(payload.data_as_of_at),
+        "data_as_of_at": format_utc(payload.data_as_of_at) if payload.data_as_of_at else None,
     }
+    return round_float_six(d)
 
 # CP3 additions
 from datetime import date
@@ -363,6 +380,7 @@ class AcquiredFixture:
     observed_at: datetime
     acquisition_mode: AcquisitionMode
     warnings: tuple[str, ...]
+    originating_bundle_id: str | None = None
 
 @dataclass(frozen=True, slots=True)
 class AcquisitionResult:
@@ -409,6 +427,60 @@ class SnapshotResult:
     deterministic_drift: bool
 
 @dataclass(frozen=True, slots=True)
+class FixtureInspectData:
+    id: int
+    provider_id: str | None
+    status: str
+    score: dict[str, Any]
+    kickoff: str
+    observations: tuple[dict[str, Any], ...]
+    projections: tuple[dict[str, Any], ...]
+
+@dataclass(frozen=True, slots=True)
+class TeamInspectData:
+    id: int
+    name: str
+    completed_fixtures_count: int
+    latest_observations: tuple[dict[str, Any], ...]
+
+@dataclass(frozen=True, slots=True)
 class InspectResult:
     status: str
-    actual_data: dict[str, Any]
+    actual_data: FixtureInspectData | TeamInspectData | None = None
+
+
+class Clock:
+    def now_utc(self) -> datetime:
+        raise NotImplementedError()
+    def today_utc(self) -> date:
+        raise NotImplementedError()
+
+
+class SystemClock(Clock):
+    def now_utc(self) -> datetime:
+        from datetime import UTC
+        return datetime.now(UTC)
+    def today_utc(self) -> date:
+        from datetime import UTC
+        return datetime.now(UTC).date()
+
+
+class FrozenClock(Clock):
+    def __init__(self, frozen_time):
+        from bet.enrichment.football.time import parse_canonical_or_offset_datetime
+        self.frozen_time = parse_canonical_or_offset_datetime(frozen_time)
+    def now_utc(self) -> datetime:
+        return self.frozen_time
+    def today_utc(self) -> date:
+        return self.frozen_time.date()
+
+
+@dataclass(frozen=True, slots=True)
+class DiscoveryResult:
+    completed_fixtures: tuple[FootballFixtureIdentity, ...]
+    discovery_evidence_refs: tuple[EvidenceRef, ...]
+    paging_completed: bool
+    physical_attempts: int
+    retry_attempts: int
+    quota_metadata: dict[str, Any]
+    terminal_status: str

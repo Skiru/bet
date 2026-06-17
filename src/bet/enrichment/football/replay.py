@@ -83,7 +83,6 @@ class EvidenceReplayAcquirer:
                     matched_item = item
                     break
             if not matched_item:
-                # If not matched directly inside response list, maybe the response is a dict representing the item itself
                 if isinstance(fixture_envelope.get("response"), dict) and str(fixture_envelope["response"].get("fixture", {}).get("id", "")) == prov_fix_id:
                     matched_item = fixture_envelope["response"]
 
@@ -102,6 +101,15 @@ class EvidenceReplayAcquirer:
                     fixture_id_obj.home_provider_team_id,
                     fixture_id_obj.away_provider_team_id,
                 )
+            else:
+                # Check for embedded statistics in matched_item of fixture_envelope
+                stats_list = matched_item.get("statistics", [])
+                if isinstance(stats_list, list) and stats_list:
+                    stats_by_team = parse_api_football_statistics_envelope(
+                        stats_list,
+                        fixture_id_obj.home_provider_team_id,
+                        fixture_id_obj.away_provider_team_id,
+                    )
 
             # Set observed_at to max original EvidenceRef.captured_at
             max_captured = None
@@ -120,8 +128,16 @@ class EvidenceReplayAcquirer:
                 observed_at=observed_at_dt,
                 acquisition_mode=AcquisitionMode.REPLAY,
                 warnings=(),
+                originating_bundle_id=b_id,
             )
             acquired_list.append(acquired)
+
+        # Reject a ReplayCommand containing mixed scope identities
+        scopes = set()
+        for acq in acquired_list:
+            scopes.add((acq.fixture.provider_competition_id, acq.fixture.season))
+        if len(scopes) > 1:
+            raise ValueError("ReplayCommand contains mixed scope identities")
 
         return AcquisitionResult(
             fixtures=tuple(acquired_list),
