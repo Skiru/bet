@@ -1,10 +1,13 @@
 from datetime import UTC, datetime
 
 from bet.enrichment.football.contracts import FootballFactCompleteness
+import pytest
 from bet.enrichment.football.parser import (
     merge_completed_match_facts,
     parse_api_football_fixture_envelope,
     parse_api_football_statistics_envelope,
+    FootballParserError,
+    FootballParserErrorCode,
 )
 
 
@@ -54,16 +57,17 @@ def test_parse_stats_unexpected_participant():
     raw = [
         {"team": {"id": 3}, "statistics": [{"type": "Total Shots", "value": 10}]}
     ]
-    parsed = parse_api_football_statistics_envelope(raw, "1", "2")
-    # should return empty dicts for both teams
-    assert parsed == {"1": {}, "2": {}}
+    with pytest.raises(FootballParserError) as exc_info:
+        parse_api_football_statistics_envelope(raw, "1", "2")
+    assert exc_info.value.error_code == FootballParserErrorCode.UNEXPECTED_PARTICIPANT
 
 def test_parse_stats_duplicate_conflict():
     raw = [
         {"team": {"id": 1}, "statistics": [{"type": "Total Shots", "value": 10}, {"type": "Total Shots", "value": 11}]}
     ]
-    parsed = parse_api_football_statistics_envelope(raw, "1", "2")
-    assert "Total Shots" not in parsed["1"]
+    with pytest.raises(FootballParserError) as exc_info:
+        parse_api_football_statistics_envelope(raw, "1", "2")
+    assert exc_info.value.error_code == FootballParserErrorCode.CONFLICTING_DUPLICATE_METRIC
 
 def test_merge_match_facts():
     raw_fixture = {

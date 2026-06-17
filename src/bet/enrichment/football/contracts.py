@@ -1,19 +1,20 @@
 # ruff: noqa: E501
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from enum import Enum
-from typing import Literal
+from datetime import datetime
+from enum import StrEnum
+from typing import Any, Literal
 
-class FootballSide(str, Enum):
+
+class FootballSide(StrEnum):
     HOME = "HOME"
     AWAY = "AWAY"
 
-class FootballProviderStatus(str, Enum):
+class FootballProviderStatus(StrEnum):
     FT = "FT"
     AET = "AET"
     PEN = "PEN"
 
-class FootballFactCompleteness(str, Enum):
+class FootballFactCompleteness(StrEnum):
     COMPLETE = "COMPLETE"
     PARTIAL = "PARTIAL"
     SCORE_ONLY = "SCORE_ONLY"
@@ -299,3 +300,115 @@ def serialize_snapshot_payload(payload: FootballFeatureSnapshotPayload) -> dict:
         "missingness": sorted(list(payload.missingness)),
         "data_as_of_at": format_utc(payload.data_as_of_at),
     }
+
+# CP3 additions
+from datetime import date
+
+from bet.integration.evidence import EvidenceRef
+
+
+class BatchIdsCapability(StrEnum):
+    UNKNOWN = "UNKNOWN"
+    SUPPORTED = "SUPPORTED"
+    UNSUPPORTED = "UNSUPPORTED"
+
+class AcquisitionMode(StrEnum):
+    DISCOVERY_ENVELOPE = "DISCOVERY_ENVELOPE"
+    BATCH_IDS = "BATCH_IDS"
+    PER_FIXTURE_STATS = "PER_FIXTURE_STATS"
+    REPLAY = "REPLAY"
+
+@dataclass(frozen=True, slots=True)
+class BootstrapCommand:
+    competition_provider_id: str
+    season: int
+    from_date: date
+    to_date: date
+    max_fixtures: int
+    max_http_attempts: int
+    max_fallback_stats_calls: int
+
+@dataclass(frozen=True, slots=True)
+class IncrementalCommand:
+    competition_provider_id: str
+    season: int
+    correction_lookback_days: int
+    max_fixtures: int
+    max_http_attempts: int
+    max_fallback_stats_calls: int
+    daily_quota_reserve: int
+    minute_quota_reserve: int
+
+@dataclass(frozen=True, slots=True)
+class ReplayCommand:
+    evidence_bundle_ids: tuple[str, ...]
+
+@dataclass(frozen=True, slots=True)
+class BuildSnapshotCommand:
+    canonical_target_fixture_id: int
+    analysis_cutoff_at: datetime
+    policy_version: str
+
+@dataclass(frozen=True, slots=True)
+class InspectCommand:
+    fixture_id: int | None
+    team_id: int | None
+
+@dataclass(frozen=True, slots=True)
+class AcquiredFixture:
+    fixture: FootballFixtureIdentity
+    statistics_by_provider_team_id: dict[str, dict[str, Any]]
+    fixture_evidence_refs: tuple[EvidenceRef, ...]
+    statistics_evidence_refs: tuple[EvidenceRef, ...]
+    observed_at: datetime
+    acquisition_mode: AcquisitionMode
+    warnings: tuple[str, ...]
+
+@dataclass(frozen=True, slots=True)
+class AcquisitionResult:
+    fixtures: tuple[AcquiredFixture, ...]
+    physical_attempts: int
+    retry_attempts: int
+    discovery_calls: int
+    ids_calls: int
+    statistics_calls: int
+    quota_metadata: dict[str, Any]
+    ids_capability: BatchIdsCapability
+    terminal_status: str
+
+@dataclass(frozen=True, slots=True)
+class PersistFixtureResult:
+    canonical_fixture_id: int
+    canonical_event_entity_id: int
+    canonical_home_team_id: int
+    canonical_away_team_id: int
+    observations_inserted: int
+    observations_reused: int
+    corrections_appended: int
+    projections_updated: int
+    sync_item_state: str
+    fixture_bundle_id: str
+
+@dataclass(frozen=True, slots=True)
+class SyncResult:
+    sync_run_id: int
+    scope_key: str
+    cursor_before: dict[str, Any] | None
+    cursor_after: dict[str, Any] | None
+    actual_counters: dict[str, int]
+    acquisition_result: AcquisitionResult | None
+    final_status: str
+    warnings: tuple[str, ...]
+
+@dataclass(frozen=True, slots=True)
+class SnapshotResult:
+    run_id: int
+    snapshot_id: int
+    snapshot_hash: str
+    created_or_reused: str
+    deterministic_drift: bool
+
+@dataclass(frozen=True, slots=True)
+class InspectResult:
+    status: str
+    actual_data: dict[str, Any]

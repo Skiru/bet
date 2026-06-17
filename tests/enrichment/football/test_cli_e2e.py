@@ -14,7 +14,7 @@ def test_cli_e2e(tmp_path):
         "--season", "2023",
         "--from", "2023-01-01",
         "--to", "2023-01-02"
-    ], capture_output=True, text=True, env={"PYTHONPATH": "src"})
+    ], capture_output=True, text=True, env={"PYTHONPATH": "src", "MOCK_CLI_ACQUISITION": "1"})
 
     assert res.returncode == 0
     data = json.loads(res.stdout)
@@ -28,7 +28,7 @@ def test_cli_e2e(tmp_path):
         "--db", str(db_path),
         "--competition-id", "39",
         "--season", "2023"
-    ], capture_output=True, text=True, env={"PYTHONPATH": "src"})
+    ], capture_output=True, text=True, env={"PYTHONPATH": "src", "MOCK_CLI_ACQUISITION": "1"})
     assert res2.returncode == 0
 
     # Run replay
@@ -37,7 +37,7 @@ def test_cli_e2e(tmp_path):
         "replay",
         "--db", str(db_path),
         "--evidence-bundle", "b1"
-    ], capture_output=True, text=True, env={"PYTHONPATH": "src"})
+    ], capture_output=True, text=True, env={"PYTHONPATH": "src", "MOCK_CLI_ACQUISITION": "1"})
     assert res3.returncode == 0
 
     # Run snapshot
@@ -48,7 +48,7 @@ def test_cli_e2e(tmp_path):
         "--canonical-target-fixture-id", "1",
         "--analysis-cutoff-at", "2023-01-01T00:00:00Z",
         "--policy-version", "1"
-    ], capture_output=True, text=True, env={"PYTHONPATH": "src"})
+    ], capture_output=True, text=True, env={"PYTHONPATH": "src", "MOCK_CLI_ACQUISITION": "1"})
     assert res4.returncode == 0
 
     # Run inspect
@@ -57,6 +57,6 @@ def test_cli_e2e(tmp_path):
         "inspect",
         "--db", str(db_path),
         "--fixture-id", "1"
-    ], capture_output=True, text=True, env={"PYTHONPATH": "src"})
+    ], capture_output=True, text=True, env={"PYTHONPATH": "src", "MOCK_CLI_ACQUISITION": "1"})
     assert res5.returncode == 0
 

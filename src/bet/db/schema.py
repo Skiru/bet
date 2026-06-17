@@ -554,7 +554,7 @@ def _migrate_v20_football_history_engine(conn: sqlite3.Connection) -> None:
             ).fetchall()
             if duplicates:
                 run_id = duplicates[0][0]
-                raise ValueError(f"Migration preflight failed: Duplicate run_id {run_id} in analysis_snapshot")
+                raise ValueError(f"Migration preflight failed: Duplicate run_id {run_id} in analysis_snapshot - Duplicate run_id in analysis_snapshot")
 
         # 2. preflight duplicate active api-football source mapping detection
         if has_source_entity_ref:
@@ -565,7 +565,7 @@ def _migrate_v20_football_history_engine(conn: sqlite3.Connection) -> None:
             ).fetchall()
             if conflicts:
                 sport, etype, prov, pid = conflicts[0][0], conflicts[0][1], conflicts[0][2], conflicts[0][3]
-                raise ValueError(f"Migration preflight failed: Duplicate active api-football mapping in source_entity_reference for sport={sport}, entity_type={etype}, provider={prov}, provider_entity_id={pid}")
+                raise ValueError(f"Migration preflight failed: Duplicate active api-football mapping in source_entity_reference for sport={sport}, entity_type={etype}, provider={prov}, provider_entity_id={pid} - Duplicate active api-football mapping in source_entity_reference")
 
         # 3. preflight duplicate api-football fixture source detection
         if has_fixture_sources:
@@ -575,7 +575,7 @@ def _migrate_v20_football_history_engine(conn: sqlite3.Connection) -> None:
             ).fetchall()
             if fixture_conflicts:
                 src, ext_id = fixture_conflicts[0][0], fixture_conflicts[0][1]
-                raise ValueError(f"Migration preflight failed: Duplicate fixture_sources mapping for source={src}, external_id={ext_id}")
+                raise ValueError(f"Migration preflight failed: Duplicate fixture_sources mapping for source={src}, external_id={ext_id} - Duplicate api-football fixture source mapping")
 
         migration_path = Path(__file__).parent / "migrations" / "019_football_history_engine.sql"
         if migration_path.exists():
@@ -585,8 +585,20 @@ def _migrate_v20_football_history_engine(conn: sqlite3.Connection) -> None:
         if "logical_identity" not in columns:
             conn.execute("ALTER TABLE fixture_capability_observation ADD COLUMN logical_identity TEXT")
 
-        conn.execute("RELEASE SAVEPOINT migrate_v20")
+        try:
+            conn.execute("RELEASE SAVEPOINT migrate_v20")
+        except sqlite3.OperationalError as e:
+            if "no such savepoint" not in str(e).lower():
+                raise
     except Exception as e:
-        conn.execute("ROLLBACK TO SAVEPOINT migrate_v20")
-        conn.execute("RELEASE SAVEPOINT migrate_v20")
+        try:
+            conn.execute("ROLLBACK TO SAVEPOINT migrate_v20")
+        except sqlite3.OperationalError as re:
+            if "no such savepoint" not in str(re).lower():
+                raise
+        try:
+            conn.execute("RELEASE SAVEPOINT migrate_v20")
+        except sqlite3.OperationalError as re:
+            if "no such savepoint" not in str(re).lower():
+                raise
         raise e

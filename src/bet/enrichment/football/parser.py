@@ -1,7 +1,6 @@
 # ruff: noqa: E501
 import math
-from datetime import timezone
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from bet.enrichment.football.contracts import (
@@ -14,7 +13,8 @@ from bet.enrichment.football.contracts import (
 )
 from bet.enrichment.football.time import parse_canonical_or_offset_datetime
 
-class FootballParserErrorCode(str, Enum):
+
+class FootballParserErrorCode(StrEnum):
     RECORD_NOT_FOUND = "RECORD_NOT_FOUND"
     NOT_COMPLETED = "NOT_COMPLETED"
     SCHEMA_MISMATCH = "SCHEMA_MISMATCH"
@@ -55,8 +55,8 @@ def parse_api_football_fixture_envelope(
         raise FootballParserError(FootballParserErrorCode.SCHEMA_MISMATCH, "missing or invalid 'goals' key in envelope")
 
     score = raw_fixture.get("score")
-    if not isinstance(score, dict):
-        raise FootballParserError(FootballParserErrorCode.SCHEMA_MISMATCH, "missing or invalid 'score' key in envelope")
+    if score is not None and not isinstance(score, dict):
+        raise FootballParserError(FootballParserErrorCode.SCHEMA_MISMATCH, "invalid 'score' key in envelope")
 
     fix_id = str(fix.get("id", ""))
     if not fix_id:

@@ -7,6 +7,7 @@ from bet.enrichment.football.contracts import (
     FootballSide,
 )
 
+
 def _normalize_float(val: float) -> float:
     rounded = round(float(val), 6)
     if rounded == -0.0:
@@ -18,12 +19,9 @@ class FootballFeatureBuilder:
         self.metrics = metrics
 
     def _prepare_samples(self, samples: list[FootballMetricSample]) -> list[FootballMetricSample]:
-        # Sort deterministically
-        sorted_samples = sorted(
-            samples,
-            key=lambda s: (s.kickoff_at.isoformat(), s.provider_fixture_id, s.observation_logical_identity),
-            reverse=True
-        )
+        # Sort ascending by tie-breaks first, then descending by kickoff (stable sort)
+        samples_sorted = sorted(samples, key=lambda s: (s.provider_fixture_id, s.observation_logical_identity))
+        sorted_samples = sorted(samples_sorted, key=lambda s: s.kickoff_at, reverse=True)
 
         # Deduplicate by fixture ID
         seen = set()

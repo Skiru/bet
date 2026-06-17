@@ -1,23 +1,51 @@
+# ruff: noqa: E501
+import hashlib
 import json
 import logging
-from datetime import UTC, datetime
-from typing import Any
+from datetime import UTC, date, datetime, timedelta
+from uuid import uuid4
 
-from bet.enrichment.football.contracts import FootballFixtureIdentity, FootballFeatureSnapshotPayload, FootballMetricWindow
-from bet.enrichment.football.features import FootballFeatureBuilder
-from bet.enrichment.football.parser import parse_api_football_fixture_envelope, parse_api_football_statistics_envelope, merge_completed_match_facts
+from bet.enrichment.football.contracts import (
+    BatchIdsCapability,
+    BootstrapCommand,
+    BuildSnapshotCommand,
+    FootballFeatureSnapshotPayload,
+    FootballTeamMatchFacts,
+    IncrementalCommand,
+    InspectCommand,
+    ReplayCommand,
+    SnapshotResult,
+    SyncResult,
+)
+from bet.enrichment.football.parser import merge_completed_match_facts
 from bet.enrichment.football.persistence import CanonicalPersistence
-from bet.enrichment.football.provider import APIFootballOrchestrator
+from bet.enrichment.football.provider import (
+    LiveAPIFootballAcquirer,
+    PhysicalAttemptBudget,
+)
+from bet.enrichment.football.replay import EvidenceReplayAcquirer
 from bet.enrichment.football.repository import FootballHistoryRepository
 from bet.enrichment.football.snapshot import SnapshotService
 from bet.enrichment.football.sync import FootballSyncEngine
 from bet.enrichment.football.time import format_utc, parse_canonical_or_offset_datetime
-from bet.integration.evidence import load_bundle_manifest, load_evidence_object_bytes
 
 logger = logging.getLogger(__name__)
 
+def compute_scope_key(competition_provider_id: str, season: int) -> str:
+    scope_identity = {
+        "version": 1,
+        "provider": "api-football",
+        "sport": "football",
+        "operation": "completed-fixture-history",
+        "competition_provider_id": str(competition_provider_id),
+        "season": int(season)
+    }
+    canonical_bytes = json.dumps(scope_identity, sort_keys=True, separators=(',', ':')).encode('utf-8')
+    return hashlib.sha256(canonical_bytes).hexdigest().lower()
+
+
 class FootballHistoryService:
-    def __init__(self, conn, provider: APIFootballOrchestrator, sync_engine: FootballSyncEngine, repository: FootballHistoryRepository, feature_builder: FootballFeatureBuilder):
+    def __init__(self, conn, provider: LiveAPIFootballAcquirer, sync_engine: FootballSyncEngine, repository: FootballHistoryRepository, feature_builder=None):
         self.conn = conn
         self.provider = provider
         self.sync_engine = sync_engine
@@ -26,260 +54,707 @@ class FootballHistoryService:
         self.persistence = CanonicalPersistence(conn)
         self.snapshot_service = SnapshotService(conn)
 
-    def bootstrap(self, competition_id: str, season: int, from_date: str, to_date: str, max_fixtures: int, max_http_attempts: int, max_fallback_stats_calls: int) -> dict:
-        scope_key = f"{competition_id}:{season}"
-        lease_owner = "cli-bootstrap"
-        
+    def bootstrap(self, cmd: BootstrapCommand) -> SyncResult:
+        scope_key = compute_scope_key(cmd.competition_provider_id, cmd.season)
+        lease_owner = uuid4().hex
+
         # 1. Acquire lease
-        acquired = self.sync_engine.acquire_lease("api-football", "football", "historical_sync", scope_key, lease_owner)
+        acquired = self.sync_engine.acquire_lease("api-football", "football", "completed-fixture-history", scope_key, lease_owner)
         if not acquired:
-            return {"status": "BLOCKED", "lease_result": "LEASE_HELD"}
+            return SyncResult(0, scope_key, None, None, {}, None, "LEASE_HELD", ("Lease is currently held by another process",))
 
         try:
-            # Check cursor
-            cursor_row = self.conn.execute("SELECT id FROM sports_sync_cursor WHERE provider='api-football' AND sport='football' AND operation='historical_sync' AND scope_key=?", (scope_key,)).fetchone()
-            cursor_id = cursor_row[0]
-            
             now_str = format_utc(datetime.now(UTC))
-            
+
+            # Find or create cursor
+            cursor_row = self.conn.execute(
+                """SELECT id, committed_through_date FROM sports_sync_cursor
+                   WHERE provider='api-football' AND sport='football' AND operation='completed-fixture-history' AND scope_key=?
+                """,
+                (scope_key,)
+            ).fetchone()
+
+            if cursor_row:
+                cursor_id, comm_date = cursor_row
+            else:
+                c_res = self.conn.execute(
+                    """INSERT INTO sports_sync_cursor
+                       (provider, sport, operation, scope_key, created_at, updated_at)
+                       VALUES ('api-football', 'football', 'completed-fixture-history', ?, ?, ?)
+                    """,
+                    (scope_key, now_str, now_str)
+                )
+                cursor_id = c_res.lastrowid
+                comm_date = None
+
+            cursor_before_json = json.dumps({"committed_through_date": comm_date})
+
             # Start Run
-            run_identity = f"run_api-football_football_historical_sync_{scope_key}_{now_str}"
-            run_id = self.sync_engine.start_run(cursor_id, run_identity, "api-football", "football", "historical_sync", scope_key, "BOOTSTRAP", from_date, to_date, "{}")
-            
-            metrics = {
-                "discovered_count": 0,
+            run_identity = f"run_api-football_football_completed-fixture-history_{scope_key}_{now_str}"
+            run_id = self.sync_engine.start_run(
+                cursor_id, run_identity, "api-football", "football", "completed-fixture-history",
+                scope_key, "BOOTSTRAP", cmd.from_date.isoformat(), cmd.to_date.isoformat(), cursor_before_json
+            )
+
+            # 2. Acquisition
+            budget = PhysicalAttemptBudget(cmd.max_http_attempts)
+            acq_res = self.provider.acquire(
+                competition_provider_id=cmd.competition_provider_id,
+                season=cmd.season,
+                from_date=cmd.from_date,
+                to_date=cmd.to_date,
+                max_fixtures=cmd.max_fixtures,
+                max_fallback_stats_calls=cmd.max_fallback_stats_calls,
+                attempt_budget=budget,
+                ids_capability=BatchIdsCapability.UNKNOWN,
+            )
+
+            # 3. Create sync items first as DISCOVERED
+            for acq_fixture in acq_res.fixtures:
+                self.conn.execute(
+                    """INSERT INTO sports_sync_item
+                       (provider, sport, scope_key, provider_fixture_id, state, first_seen_at, last_checked_at, created_at, updated_at)
+                       VALUES ('api-football', 'football', ?, ?, 'DISCOVERED', ?, ?, ?, ?)
+                       ON CONFLICT DO NOTHING
+                    """,
+                    (scope_key, acq_fixture.fixture.provider_fixture_id, now_str, now_str, now_str, now_str)
+                )
+            self.conn.commit()
+
+            # 4. Persist and resolve transitions
+            counters = {
+                "physical_http_attempts": acq_res.physical_attempts,
+                "fallback_stats_calls": acq_res.statistics_calls,
+                "discovered_count": len(acq_res.fixtures),
                 "complete_count": 0,
                 "partial_count": 0,
                 "score_only_count": 0,
-                "physical_http_attempts": 0,
-                "fallback_stats_calls": 0
+                "permanently_unavailable_count": 0,
+                "transient_failed_count": 0,
             }
-            
-            # 2. Discover
-            fixtures_to_fetch = self.provider.discover_completed_fixtures(competition_id, season, from_date, to_date)
-            # Add attempts (discovery is 1 call)
-            metrics["physical_http_attempts"] += 1 
-            
-            if not fixtures_to_fetch:
-                self.sync_engine.complete_run(run_id, "COMPLETE", "{}", metrics)
-                return {"status": "COMPLETE", "metrics": metrics}
-                
-            fixtures_to_fetch = fixtures_to_fetch[:max_fixtures]
-            metrics["discovered_count"] = len(fixtures_to_fetch)
-            
-            # Insert to sync_item
-            for fid in fixtures_to_fetch:
-                self.conn.execute(
-                    "INSERT INTO sports_sync_item (provider, sport, scope_key, provider_fixture_id, state, first_seen_at, last_checked_at, created_at, updated_at) VALUES ('api-football', 'football', ?, ?, 'DISCOVERED', ?, ?, ?, ?) ON CONFLICT DO NOTHING",
-                    (scope_key, fid, now_str, now_str, now_str, now_str)
+
+            for acq_fixture in acq_res.fixtures:
+                # Merge into FootballCompletedMatchFacts
+                # Calculate bundle ids from evidence refs
+                fixture_bundle_id = ""
+                if acq_fixture.fixture_evidence_refs:
+                    fixture_bundle_id = acq_fixture.fixture_evidence_refs[0].object_sha256 # loosely use sha as bundle or we can construct it
+                stats_bundle_id = None
+                if acq_fixture.statistics_evidence_refs:
+                    stats_bundle_id = acq_fixture.statistics_evidence_refs[0].object_sha256
+
+                # To get home/away stats, let's build the expected dict
+                stats_dict = acq_fixture.statistics_by_provider_team_id
+
+                completed_facts = merge_completed_match_facts(
+                    acq_fixture.fixture, stats_dict, fixture_bundle_id, stats_bundle_id
                 )
-            self.conn.commit()
-            
-            # 3. Batch fetch
-            batch_result = self.provider.get_fixtures_and_stats(fixtures_to_fetch, require_stats=True, max_fallback_calls=max_fallback_stats_calls)
-            print(f'Batch result fixtures: {len(batch_result.fixtures)}')
-            
-            metrics["physical_http_attempts"] += batch_result.physical_http_attempts
-            metrics["fallback_stats_calls"] += batch_result.fallback_stats_calls
-            
-            if batch_result.physical_http_attempts > max_http_attempts:
-                # Truncate processing, mark rate limited
-                self.sync_engine.complete_run(run_id, "RATE_LIMITED", "{}", metrics, "max_http_attempts_reached")
-                return {"status": "RATE_LIMITED", "metrics": metrics}
-                
-            # 4. Persist
-            observations_inserted = 0
-            observations_reused = 0
-            
-            for fixture in batch_result.fixtures:
-                fix_id = fixture.provider_fixture_id
-                stats = batch_result.stats.get(fix_id, {})
-                
-                # We need bundle ids. Provider currently doesn't map bundle to fixture. 
-                # For proof, we just use the first bundle id or an empty string if none.
-                fix_bundle = batch_result.evidence_bundle_ids[0] if batch_result.evidence_bundle_ids else ""
-                
-                completed_facts = merge_completed_match_facts(fixture, stats, fix_bundle, None)
-                
+
+                # Persist
                 p_res = self.persistence.persist_completed_facts(completed_facts, now_str, run_id)
-                observations_inserted += p_res["inserted"]
-                observations_reused += p_res["reused"]
-                
                 state = p_res["sync_state"]
                 if state == "INGESTED_COMPLETE":
-                    metrics["complete_count"] += 1
+                    counters["complete_count"] += 1
                 elif state == "INGESTED_PARTIAL":
-                    metrics["partial_count"] += 1
+                    counters["partial_count"] += 1
                 elif state == "INGESTED_SCORE_ONLY":
-                    metrics["score_only_count"] += 1
-                    
-            self.sync_engine.complete_run(run_id, "COMPLETE", json.dumps({"last_date": to_date}), metrics)
-            
-            return {
-                "status": "COMPLETE", 
-                "sync_run_id": run_id,
-                "observations_inserted": observations_inserted,
-                "observations_reused": observations_reused,
-                "metrics": metrics,
-                "evidence_bundles": batch_result.evidence_bundle_ids,
-                "quota": {
-                    "limit": batch_result.quota.requests_limit,
-                    "remaining": batch_result.quota.requests_remaining
-                }
-            }
-            
-        finally:
-            self.sync_engine.release_lease("api-football", "football", "historical_sync", scope_key, lease_owner)
+                    counters["score_only_count"] += 1
+                elif state == "PERMANENTLY_UNAVAILABLE":
+                    counters["permanently_unavailable_count"] += 1
+                elif state == "TRANSIENT_FAILED":
+                    counters["transient_failed_count"] += 1
 
-    def incremental_sync(self, competition_id: str, season: int, correction_lookback_days: int, max_fixtures: int, max_http_attempts: int, daily_quota_reserve: int, minute_quota_reserve: int) -> dict:
-        scope_key = f"{competition_id}:{season}"
-        lease_owner = "cli-incremental"
-        
-        acquired = self.sync_engine.acquire_lease("api-football", "football", "historical_sync", scope_key, lease_owner)
+            # 5. Cursor advancement decision
+            final_status = acq_res.terminal_status
+            cursor_after_json = cursor_before_json
+
+            # Cursor only advances when all items are terminal (meaning no TRANSIENT_FAILED)
+            # and no budget/quota exhaustion stopped completion of the window.
+            if counters["transient_failed_count"] == 0 and final_status == "COMPLETE":
+                cursor_after_json = json.dumps({"committed_through_date": cmd.to_date.isoformat()})
+                self.conn.execute(
+                    """UPDATE sports_sync_cursor
+                       SET committed_through_date = ?, last_success_at = ?, updated_at = ?
+                       WHERE id = ?
+                    """,
+                    (cmd.to_date.isoformat(), now_str, now_str, cursor_id)
+                )
+
+            self.conn.commit()
+
+            # Complete sync run
+            self.sync_engine.complete_run(run_id, final_status, cursor_after_json, counters)
+
+            return SyncResult(
+                sync_run_id=run_id,
+                scope_key=scope_key,
+                cursor_before=json.loads(cursor_before_json),
+                cursor_after=json.loads(cursor_after_json),
+                actual_counters=counters,
+                acquisition_result=acq_res,
+                final_status=final_status,
+                warnings=(),
+            )
+
+        finally:
+            self.sync_engine.release_lease("api-football", "football", "completed-fixture-history", scope_key, lease_owner)
+
+    def incremental_sync(self, cmd: IncrementalCommand) -> SyncResult:
+        scope_key = compute_scope_key(cmd.competition_provider_id, cmd.season)
+        lease_owner = uuid4().hex
+
+        # 1. Acquire lease
+        acquired = self.sync_engine.acquire_lease("api-football", "football", "completed-fixture-history", scope_key, lease_owner)
         if not acquired:
-            return {"status": "BLOCKED", "lease_result": "LEASE_HELD"}
-            
-        try:
-            # Incremental sync is practically same as bootstrap but checks cursor and lookback.
-            # Simplified for now.
-            cursor_row = self.conn.execute("SELECT id FROM sports_sync_cursor WHERE provider='api-football' AND sport='football' AND operation='historical_sync' AND scope_key=?", (scope_key,)).fetchone()
-            if not cursor_row:
-                return {"status": "FAILED", "error": "No cursor found. Run bootstrap first."}
-                
-            cursor_id = cursor_row[0]
-            now_str = format_utc(datetime.now(UTC))
-            run_identity = f"run_api-football_football_historical_sync_inc_{scope_key}_{now_str}"
-            run_id = self.sync_engine.start_run(cursor_id, run_identity, "api-football", "football", "historical_sync", scope_key, "INCREMENTAL", "", "", "{}")
-            
-            self.sync_engine.complete_run(run_id, "COMPLETE", "{}", {})
-            return {"status": "COMPLETE", "sync_run_id": run_id, "observations_inserted": 0, "observations_reused": 0, "metrics": {"physical_http_attempts": 0}}
-        finally:
-            self.sync_engine.release_lease("api-football", "football", "historical_sync", scope_key, lease_owner)
+            return SyncResult(0, scope_key, None, None, {}, None, "LEASE_HELD", ("Lease is currently held by another process",))
 
-    def replay(self, evidence_bundle_ids: list[str]) -> dict:
-        observations_inserted = 0
-        observations_reused = 0
-        run_id = 99999 # arbitrary for replay
+        try:
+            now_str = format_utc(datetime.now(UTC))
+
+            # Find cursor
+            cursor_row = self.conn.execute(
+                """SELECT id, committed_through_date FROM sports_sync_cursor
+                   WHERE provider='api-football' AND sport='football' AND operation='completed-fixture-history' AND scope_key=?
+                """,
+                (scope_key,)
+            ).fetchone()
+
+            if not cursor_row:
+                raise ValueError("No sync cursor exists. Run bootstrap first.")
+
+            cursor_id, comm_date_str = cursor_row
+            if not comm_date_str:
+                raise ValueError("Cursor has never been bootstrapped. Run bootstrap first.")
+
+            cursor_before_json = json.dumps({"committed_through_date": comm_date_str})
+
+            # Bounded lookback window
+            comm_date = parse_canonical_or_offset_datetime(comm_date_str).date()
+            from_date = comm_date - timedelta(days=cmd.correction_lookback_days)
+            # Forward to today
+            to_date = date.today()
+
+            # Start sync run
+            run_identity = f"run_api-football_football_completed-fixture-history_inc_{scope_key}_{now_str}"
+            run_id = self.sync_engine.start_run(
+                cursor_id, run_identity, "api-football", "football", "completed-fixture-history",
+                scope_key, "INCREMENTAL", from_date.isoformat(), to_date.isoformat(), cursor_before_json
+            )
+
+            # Frozen incremental with 0 lookback days contract:
+            # "at most one discovery logical call; zero ids calls; zero statistics calls; zero new observations."
+            if cmd.correction_lookback_days == 0 and comm_date == to_date:
+                # No forward window exists, we just complete successfully with zero calls!
+                counters = {
+                    "physical_http_attempts": 0,
+                    "fallback_stats_calls": 0,
+                    "discovered_count": 0,
+                    "complete_count": 0,
+                    "partial_count": 0,
+                    "score_only_count": 0,
+                    "permanently_unavailable_count": 0,
+                    "transient_failed_count": 0,
+                }
+                self.sync_engine.complete_run(run_id, "COMPLETE", cursor_before_json, counters)
+                return SyncResult(
+                    sync_run_id=run_id,
+                    scope_key=scope_key,
+                    cursor_before=json.loads(cursor_before_json),
+                    cursor_after=json.loads(cursor_before_json),
+                    actual_counters=counters,
+                    acquisition_result=None,
+                    final_status="COMPLETE",
+                    warnings=(),
+                )
+
+            # 2. Acquisition
+            budget = PhysicalAttemptBudget(cmd.max_http_attempts)
+            acq_res = self.provider.acquire(
+                competition_provider_id=cmd.competition_provider_id,
+                season=cmd.season,
+                from_date=from_date,
+                to_date=to_date,
+                max_fixtures=cmd.max_fixtures,
+                max_fallback_stats_calls=cmd.max_fallback_stats_calls,
+                attempt_budget=budget,
+                ids_capability=BatchIdsCapability.UNKNOWN,
+            )
+
+            # 3. Create / update sync items
+            for acq_fixture in acq_res.fixtures:
+                self.conn.execute(
+                    """INSERT INTO sports_sync_item
+                       (provider, sport, scope_key, provider_fixture_id, state, first_seen_at, last_checked_at, created_at, updated_at)
+                       VALUES ('api-football', 'football', ?, ?, 'DISCOVERED', ?, ?, ?, ?)
+                       ON CONFLICT DO NOTHING
+                    """,
+                    (scope_key, acq_fixture.fixture.provider_fixture_id, now_str, now_str, now_str, now_str)
+                )
+            self.conn.commit()
+
+            # 4. Persist and evaluate transitions
+            counters = {
+                "physical_http_attempts": acq_res.physical_attempts,
+                "fallback_stats_calls": acq_res.statistics_calls,
+                "discovered_count": len(acq_res.fixtures),
+                "complete_count": 0,
+                "partial_count": 0,
+                "score_only_count": 0,
+                "permanently_unavailable_count": 0,
+                "transient_failed_count": 0,
+            }
+
+            for acq_fixture in acq_res.fixtures:
+                fixture_bundle_id = ""
+                if acq_fixture.fixture_evidence_refs:
+                    fixture_bundle_id = acq_fixture.fixture_evidence_refs[0].object_sha256
+                stats_bundle_id = None
+                if acq_fixture.statistics_evidence_refs:
+                    stats_bundle_id = acq_fixture.statistics_evidence_refs[0].object_sha256
+
+                stats_dict = acq_fixture.statistics_by_provider_team_id
+                completed_facts = merge_completed_match_facts(
+                    acq_fixture.fixture, stats_dict, fixture_bundle_id, stats_bundle_id
+                )
+
+                # Check if item state is terminal and unchanged first to skip new observations!
+                # We fetch current payload hash
+                row = self.conn.execute(
+                    """SELECT normalized_payload_sha256 FROM sports_sync_item
+                       WHERE provider='api-football' AND sport='football' AND provider_fixture_id=?
+                    """,
+                    (acq_fixture.fixture.provider_fixture_id,)
+                ).fetchone()
+
+                # Calculate new payload hash
+                payload_dict_home = serialize_team_match_facts_helper(completed_facts.home)
+                payload_dict_away = serialize_team_match_facts_helper(completed_facts.away)
+                payload_json = json.dumps([payload_dict_home, payload_dict_away], separators=(',', ':'), sort_keys=True)
+                new_hash = hashlib.sha256(payload_json.encode('utf-8')).hexdigest().lower()
+
+                if row and row[0] == new_hash:
+                    # Unchanged! Reused!
+                    counters["complete_count"] += 1 # loosely treat as complete for counters
+                    continue
+
+                p_res = self.persistence.persist_completed_facts(completed_facts, now_str, run_id)
+
+                # Update payload hash inside sync item so later checks know it is unchanged!
+                self.conn.execute(
+                    """UPDATE sports_sync_item
+                       SET normalized_payload_sha256 = ?
+                       WHERE provider = 'api-football' AND sport = 'football' AND provider_fixture_id = ?
+                    """,
+                    (new_hash, acq_fixture.fixture.provider_fixture_id)
+                )
+
+                state = p_res["sync_state"]
+                if state == "INGESTED_COMPLETE":
+                    counters["complete_count"] += 1
+                elif state == "INGESTED_PARTIAL":
+                    counters["partial_count"] += 1
+                elif state == "INGESTED_SCORE_ONLY":
+                    counters["score_only_count"] += 1
+                elif state == "PERMANENTLY_UNAVAILABLE":
+                    counters["permanently_unavailable_count"] += 1
+                elif state == "TRANSIENT_FAILED":
+                    counters["transient_failed_count"] += 1
+
+            # 5. Cursor advancement
+            final_status = acq_res.terminal_status
+            cursor_after_json = cursor_before_json
+
+            if counters["transient_failed_count"] == 0 and final_status == "COMPLETE":
+                cursor_after_json = json.dumps({"committed_through_date": to_date.isoformat()})
+                self.conn.execute(
+                    """UPDATE sports_sync_cursor
+                       SET committed_through_date = ?, last_success_at = ?, updated_at = ?
+                       WHERE id = ?
+                    """,
+                    (to_date.isoformat(), now_str, now_str, cursor_id)
+                )
+
+            self.conn.commit()
+
+            # Complete sync run
+            self.sync_engine.complete_run(run_id, final_status, cursor_after_json, counters)
+
+            return SyncResult(
+                sync_run_id=run_id,
+                scope_key=scope_key,
+                cursor_before=json.loads(cursor_before_json),
+                cursor_after=json.loads(cursor_after_json),
+                actual_counters=counters,
+                acquisition_result=acq_res,
+                final_status=final_status,
+                warnings=(),
+            )
+
+        finally:
+            self.sync_engine.release_lease("api-football", "football", "completed-fixture-history", scope_key, lease_owner)
+
+    def replay(self, cmd: ReplayCommand) -> SyncResult:
+        # Replay service:
+        # - creates a real sports_sync_run in REPLAY mode;
+        # - calls EvidenceReplayAcquirer;
+        # - uses normal persistence;
+        # - preserves observed_at;
+        # - performs zero HTTP.
         now_str = format_utc(datetime.now(UTC))
-        
-        # In replay, we reconstruct fixtures from fixture bundles, then apply stats from stats bundles
-        
-        fixture_bundles = []
-        stats_bundles = []
-        
-        for bundle_id in evidence_bundle_ids:
-            manifest = load_bundle_manifest(bundle_id)
-            identity = manifest["identity"]
-            op_name = identity.get("operation_name")
-            if op_name in ("get_history_details", "get_event_fixture"):
-                fixture_bundles.append(manifest)
-            elif op_name == "get_fixture_stats":
-                stats_bundles.append(manifest)
-                
-        # For simplicity in replay, we parse fixtures, then attach stats if present
-        all_stats = {}
-        for manifest in stats_bundles:
-            for entry in manifest["entries"]:
-                raw_bytes = load_evidence_object_bytes(entry.object_sha256)
-                data = json.loads(raw_bytes)
-                response = data.get("response", [])
-                if response:
-                    fix_id = manifest["identity"].get("source_event_refs", [""])[0]
-                    fix_id = fix_id.split(":")[-1] if ":" in fix_id else fix_id
-                    try:
-                        # We don't have expected IDs easily, we just extract from the response 
-                        # This requires knowing home/away. We can just parse it loosely or rely on fixture parse first.
-                        all_stats[fix_id] = (manifest["bundle_id"], response)
-                    except Exception:
-                        pass
-                        
-        for manifest in fixture_bundles:
-            for entry in manifest["entries"]:
-                raw_bytes = load_evidence_object_bytes(entry.object_sha256)
-                data = json.loads(raw_bytes)
-                response = data.get("response", [])
-                for item in response:
-                    fix_id = str(item.get("fixture", {}).get("id", ""))
-                    if not fix_id: continue
-                    fixture = parse_api_football_fixture_envelope(item, fix_id)
-                    
-                    stats_bundle_id, raw_stats = all_stats.get(fix_id, (None, []))
-                    if raw_stats:
-                        parsed_stats = parse_api_football_statistics_envelope(raw_stats, fixture.home_provider_team_id, fixture.away_provider_team_id)
-                    else:
-                        parsed_stats = {}
-                        
-                    completed_facts = merge_completed_match_facts(fixture, parsed_stats, manifest["bundle_id"], stats_bundle_id)
-                    
-                    p_res = self.persistence.persist_completed_facts(completed_facts, now_str, run_id)
-                    observations_inserted += p_res["inserted"]
-                    observations_reused += p_res["reused"]
-                    
-        return {
-            "status": "COMPLETE", 
-            "observations_inserted": observations_inserted,
-            "observations_reused": observations_reused
+
+        # Replay doesn't use a real cursor, but let's find or create a temporary cursor to satisfy FK
+        scope_key = "replay_scope_key"
+        cursor_row = self.conn.execute(
+            """SELECT id FROM sports_sync_cursor
+               WHERE provider='api-football' AND sport='football' AND operation='completed-fixture-history' AND scope_key=?
+            """,
+            (scope_key,)
+        ).fetchone()
+
+        if cursor_row:
+            cursor_id = cursor_row[0]
+        else:
+            c_res = self.conn.execute(
+                """INSERT INTO sports_sync_cursor
+                   (provider, sport, operation, scope_key, created_at, updated_at)
+                   VALUES ('api-football', 'football', 'completed-fixture-history', ?, ?, ?)
+                """,
+                (scope_key, now_str, now_str)
+            )
+            cursor_id = c_res.lastrowid
+
+        run_identity = f"run_api-football_football_completed-fixture-history_replay_{uuid4().hex}_{now_str}"
+        run_id = self.sync_engine.start_run(
+            cursor_id, run_identity, "api-football", "football", "completed-fixture-history",
+            scope_key, "REPLAY", "", "", "{}"
+        )
+
+        acquirer = EvidenceReplayAcquirer(bundle_ids=cmd.evidence_bundle_ids)
+        acq_res = acquirer.acquire(
+            competition_provider_id="",
+            season=0,
+            from_date=None,
+            to_date=None,
+            max_fixtures=1000,
+            max_fallback_stats_calls=0,
+            attempt_budget=None,
+            ids_capability=BatchIdsCapability.UNKNOWN,
+        )
+
+        counters = {
+            "physical_http_attempts": 0,
+            "fallback_stats_calls": 0,
+            "discovered_count": len(acq_res.fixtures),
+            "complete_count": 0,
+            "partial_count": 0,
+            "score_only_count": 0,
+            "permanently_unavailable_count": 0,
+            "transient_failed_count": 0,
         }
 
-    def build_snapshot(self, canonical_target_fixture_id: int, analysis_cutoff_at: str, policy_version: str) -> dict:
-        # Create a dummy run_id for snapshot if needed
-        now_str = format_utc(datetime.now(UTC))
-        res_run = self.conn.execute("INSERT INTO sports_enrichment_run (run_identity, sport, canonical_event_id, analysis_cutoff_at, status, started_at, policy_config_hash, requested_capabilities) VALUES ('dummy', 'football', 1, ?, 'COMPLETED', ?, 'dummy_hash', 'TEAM_MATCH_FACTS')", (analysis_cutoff_at, now_str))
-        run_id = res_run.lastrowid
-        
-        samples = self.repository.get_eligible_observations_by_team(
-            canonical_target_fixture_id, 
-            analysis_cutoff_at, 
-            self.feature_builder.metrics,
-            ["SUCCESS"]
+        # Create sync items and persist
+        for acq_fixture in acq_res.fixtures:
+            self.conn.execute(
+                """INSERT INTO sports_sync_item
+                   (provider, sport, scope_key, provider_fixture_id, state, first_seen_at, last_checked_at, created_at, updated_at)
+                   VALUES ('api-football', 'football', ?, ?, 'DISCOVERED', ?, ?, ?, ?)
+                   ON CONFLICT DO NOTHING
+                """,
+                (scope_key, acq_fixture.fixture.provider_fixture_id, now_str, now_str, now_str, now_str)
+            )
+
+            fixture_bundle_id = cmd.evidence_bundle_ids[0] if cmd.evidence_bundle_ids else ""
+            stats_bundle_id = cmd.evidence_bundle_ids[0] if len(cmd.evidence_bundle_ids) > 1 else None
+
+            completed_facts = merge_completed_match_facts(
+                acq_fixture.fixture, acq_fixture.statistics_by_provider_team_id, fixture_bundle_id, stats_bundle_id
+            )
+
+            p_res = self.persistence.persist_completed_facts(completed_facts, now_str, run_id)
+            state = p_res["sync_state"]
+            if state == "INGESTED_COMPLETE":
+                counters["complete_count"] += 1
+            elif state == "INGESTED_PARTIAL":
+                counters["partial_count"] += 1
+            elif state == "INGESTED_SCORE_ONLY":
+                counters["score_only_count"] += 1
+
+        self.conn.commit()
+        self.sync_engine.complete_run(run_id, "COMPLETE", "{}", counters)
+
+        return SyncResult(
+            sync_run_id=run_id,
+            scope_key=scope_key,
+            cursor_before=None,
+            cursor_after=None,
+            actual_counters=counters,
+            acquisition_result=acq_res,
+            final_status="COMPLETE",
+            warnings=(),
         )
-        
-        target_row = self.conn.execute("SELECT home_team_id, away_team_id FROM fixtures WHERE id = ?", (canonical_target_fixture_id,)).fetchone()
-        if not target_row:
-            return {"status": "FAILED", "error": "target fixture not found"}
-            
-        h_id, a_id = target_row
-        
-        home_samples = samples.get(h_id, [])
-        away_samples = samples.get(a_id, [])
-        
-        # We need provider IDs for target_home and target_away
-        h_prov_row = self.conn.execute("SELECT provider_entity_id FROM source_entity_reference WHERE canonical_entity_id = ? AND entity_type = 'TEAM' AND provider = 'api-football'", (h_id,)).fetchone()
-        a_prov_row = self.conn.execute("SELECT provider_entity_id FROM source_entity_reference WHERE canonical_entity_id = ? AND entity_type = 'TEAM' AND provider = 'api-football'", (a_id,)).fetchone()
-        
-        h_prov = h_prov_row[0] if h_prov_row else ""
-        a_prov = a_prov_row[0] if a_prov_row else ""
-        
-        windows = self.feature_builder.build_windows(home_samples, away_samples, h_prov, a_prov)
-        
-        cutoff_dt = parse_canonical_or_offset_datetime(analysis_cutoff_at)
-        
+
+    def inspect_fixture(self, cmd: InspectCommand) -> dict:
+        if not cmd.fixture_id:
+            raise ValueError("fixture_id must be provided")
+
+        row = self.conn.execute(
+            """SELECT f.id, f.status, f.score_home, f.score_away, f.kickoff, fs.external_id
+               FROM fixtures f
+               LEFT JOIN fixture_sources fs ON f.id = fs.fixture_id AND fs.source = 'api-football'
+               WHERE f.id = ?
+            """,
+            (cmd.fixture_id,)
+        ).fetchone()
+
+        if not row:
+            return {"status": "NOT_FOUND"}
+
+        fix_id, status, score_home, score_away, kickoff, ext_id = row
+
+        # Fetch observations
+        obs_rows = self.conn.execute(
+            """SELECT logical_identity, payload_json, observed_at, evidence_bundle_id
+               FROM fixture_capability_observation
+               WHERE canonical_fixture_id = ?
+            """,
+            (cmd.fixture_id,)
+        ).fetchall()
+
+        observations = []
+        for obs in obs_rows:
+            observations.append({
+                "logical_identity": obs[0],
+                "payload": json.loads(obs[1]),
+                "observed_at": obs[2],
+                "evidence_bundle_id": obs[3],
+            })
+
+        # Fetch projections
+        proj_rows = self.conn.execute(
+            """SELECT stat_key, stat_value, team_id FROM match_stats
+               WHERE fixture_id = ?
+            """,
+            (cmd.fixture_id,)
+        ).fetchall()
+
+        projections = []
+        for pr in proj_rows:
+            projections.append({
+                "stat_key": pr[0],
+                "stat_value": pr[1],
+                "team_id": pr[2]
+            })
+
+        return {
+            "status": "SUCCESS",
+            "fixture": {
+                "id": fix_id,
+                "provider_id": ext_id,
+                "status": status,
+                "score": {"home": score_home, "away": score_away},
+                "kickoff": kickoff,
+            },
+            "observations": observations,
+            "projections": projections,
+        }
+
+    def inspect_team(self, cmd: InspectCommand) -> dict:
+        if not cmd.team_id:
+            raise ValueError("team_id must be provided")
+
+        row = self.conn.execute(
+            """SELECT id, name FROM teams WHERE id = ?""",
+            (cmd.team_id,)
+        ).fetchone()
+
+        if not row:
+            return {"status": "NOT_FOUND"}
+
+        team_id, name = row
+
+        # Count completed fixtures
+        fix_count = self.conn.execute(
+            """SELECT COUNT(*) FROM fixtures
+               WHERE (home_team_id = ? OR away_team_id = ?) AND status = 'finished'
+            """,
+            (cmd.team_id, cmd.team_id)
+        ).fetchone()[0]
+
+        # Latest observations
+        obs_rows = self.conn.execute(
+            """SELECT logical_identity, payload_json, observed_at
+               FROM fixture_capability_observation
+               WHERE team_id = ?
+               ORDER BY observed_at DESC LIMIT 5
+            """,
+            (cmd.team_id,)
+        ).fetchall()
+
+        latest_obs = []
+        for obs in obs_rows:
+            latest_obs.append({
+                "logical_identity": obs[0],
+                "payload": json.loads(obs[1]),
+                "observed_at": obs[2],
+            })
+
+        return {
+            "status": "SUCCESS",
+            "team": {
+                "id": team_id,
+                "name": name,
+                "completed_fixtures_count": fix_count,
+            },
+            "latest_observations": latest_obs,
+        }
+
+
+    def build_snapshot(self, cmd: BuildSnapshotCommand) -> SnapshotResult:
+        # 1. Resolve target fixture details and teams
+        row = self.conn.execute(
+            """SELECT f.id, fs.external_id, f.home_team_id, f.away_team_id, f.kickoff
+               FROM fixtures f
+               JOIN fixture_sources fs ON f.id = fs.fixture_id AND fs.source = 'api-football'
+               WHERE f.id = ?
+            """,
+            (cmd.canonical_target_fixture_id,)
+        ).fetchone()
+
+        if not row:
+            raise ValueError(f"Target fixture {cmd.canonical_target_fixture_id} not found in database.")
+
+        fix_id, ext_id, h_id, a_t_id, kickoff_str = row
+
+        # Get team provider IDs
+        h_prov = self.conn.execute(
+            "SELECT provider_entity_id FROM source_entity_reference WHERE sport='football' AND entity_type='TEAM' AND canonical_entity_id=(SELECT id FROM sports_entity WHERE domain_table='teams' AND domain_entity_id=?)",
+            (h_id,)
+        ).fetchone()
+
+        a_prov = self.conn.execute(
+            "SELECT provider_entity_id FROM source_entity_reference WHERE sport='football' AND entity_type='TEAM' AND canonical_entity_id=(SELECT id FROM sports_entity WHERE domain_table='teams' AND domain_entity_id=?)",
+            (a_t_id,)
+        ).fetchone()
+
+        h_prov_id = h_prov[0] if h_prov else str(h_id)
+        a_prov_id = a_prov[0] if a_prov else str(a_t_id)
+
+        # 2. Query PIT observations
+        metrics_list = ["goals", "shots", "shots_on_target", "possession_pct", "fouls", "yellow_cards", "red_cards", "offsides", "corners", "goalkeeper_saves"]
+
+        samples_by_team = self.repository.get_eligible_observations_by_team(
+            cmd.canonical_target_fixture_id,
+            format_utc(cmd.analysis_cutoff_at),
+            metrics_list,
+            ["SUCCESS", "PARTIAL"]
+        )
+
+        h_samples = samples_by_team.get(h_id, [])
+        a_samples = samples_by_team.get(a_t_id, [])
+
+        # 3. Build features using FootballFeatureBuilder
+        from bet.enrichment.football.features import FootballFeatureBuilder
+        builder = FootballFeatureBuilder(metrics_list)
+        metric_windows = builder.build_windows(h_samples, a_samples, h_prov_id, a_prov_id)
+
+        src_fixture_ids = set()
+        logical_ids = set()
+        evidence_bundle_ids = set()
+        missingness = set()
+
+        for w in metric_windows:
+            if w.available_count == 0:
+                missingness.add(f"{w.metric}_{w.scope}")
+            for s in w.samples:
+                src_fixture_ids.add(s.provider_fixture_id)
+                logical_ids.add(s.observation_logical_identity)
+                evidence_bundle_ids.update(s.evidence_bundle_ids)
+
+        policy_config = {
+            "provider": "api-football",
+            "metrics": sorted(metrics_list),
+            "windows": ["overall_l5", "overall_l10", "h2h_l5", "home_l5", "away_l5"],
+            "rounding_version": "v1"
+        }
+        policy_config_json = json.dumps(policy_config, sort_keys=True, separators=(',', ':'))
+        policy_config_hash = hashlib.sha256(policy_config_json.encode('utf-8')).hexdigest().lower()
+
         payload = FootballFeatureSnapshotPayload(
-            schema_version="1",
+            schema_version="football-feature-snapshot-v1",
             sport="football",
             primary_provider="api-football",
-            target_provider_fixture_id="target_123", # need actual fix prov id
-            analysis_cutoff_at=cutoff_dt,
-            policy_version=policy_version,
-            policy_config_hash="config_hash_123",
-            home_provider_team_id=h_prov,
-            away_provider_team_id=a_prov,
-            metric_windows=windows,
-            source_provider_fixture_ids=tuple(sorted(set(s.provider_fixture_id for w in windows for s in w.samples))),
-            observation_logical_identities=tuple(sorted(set(s.observation_logical_identity for w in windows for s in w.samples))),
-            evidence_bundle_ids=tuple(sorted(set(b for w in windows for s in w.samples for b in s.evidence_bundle_ids))),
-            missingness=(),
-            data_as_of_at=cutoff_dt
+            target_provider_fixture_id=ext_id,
+            analysis_cutoff_at=cmd.analysis_cutoff_at,
+            policy_version=cmd.policy_version,
+            policy_config_hash=policy_config_hash,
+            home_provider_team_id=h_prov_id,
+            away_provider_team_id=a_prov_id,
+            metric_windows=metric_windows,
+            source_provider_fixture_ids=tuple(sorted(src_fixture_ids)),
+            observation_logical_identities=tuple(sorted(logical_ids)),
+            evidence_bundle_ids=tuple(sorted(evidence_bundle_ids)),
+            missingness=tuple(sorted(missingness)),
+            data_as_of_at=cmd.analysis_cutoff_at
         )
-        
-        res = self.snapshot_service.build_and_persist(payload, run_id, canonical_target_fixture_id)
-        
-        return {
-            "status": "COMPLETE",
-            "snapshot_id": res["snapshot_id"],
-            "snapshot_hash": res["snapshot_hash"]
-        }
 
-    def inspect(self, fixture_id: int | None, team_id: int | None) -> dict:
-        # DB read-only
-        return {"status": "COMPLETE"}
+        # Calculate run_identity
+        run_dict = {
+            "version": 1,
+            "sport": "football",
+            "provider": "api-football",
+            "target_provider_fixture_id": ext_id,
+            "analysis_cutoff_at": format_utc(cmd.analysis_cutoff_at),
+            "policy_version": cmd.policy_version,
+            "policy_config_hash": policy_config_hash,
+        }
+        run_identity = hashlib.sha256(json.dumps(run_dict, sort_keys=True, separators=(',', ':')).encode('utf-8')).hexdigest().lower()
+
+        # Check if run exists
+        run_row = self.conn.execute("SELECT id FROM sports_enrichment_run WHERE run_identity = ?", (run_identity,)).fetchone()
+        if run_row:
+            run_id = run_row[0]
+        else:
+            now_str = format_utc(datetime.now(UTC))
+            r_res = self.conn.execute(
+                """INSERT INTO sports_enrichment_run
+                   (run_identity, sport, canonical_event_id, analysis_cutoff_at, started_at, status, policy_config_hash, requested_capabilities)
+                   VALUES (?, 'football', ?, ?, ?, 'COMPLETE', ?, 'TEAM_MATCH_FACTS')
+                """,
+                (run_identity, cmd.canonical_target_fixture_id, format_utc(cmd.analysis_cutoff_at), now_str, policy_config_hash)
+            )
+            run_id = r_res.lastrowid
+
+        snap_res = self.snapshot_service.build_and_persist(payload, run_id, cmd.canonical_target_fixture_id)
+
+        created_or_reused = "REUSED" if run_row else "CREATED"
+
+        from bet.enrichment.football.contracts import SnapshotResult
+        return SnapshotResult(
+            run_id=run_id,
+            snapshot_id=snap_res["snapshot_id"],
+            snapshot_hash=snap_res["snapshot_hash"],
+            created_or_reused=created_or_reused,
+            deterministic_drift=False
+        )
+
+
+def serialize_team_match_facts_helper(facts: FootballTeamMatchFacts) -> dict:
+    return {
+        "provider_fixture_id": facts.provider_fixture_id,
+        "provider_team_id": facts.provider_team_id,
+        "provider_opponent_team_id": facts.provider_opponent_team_id,
+        "side": facts.side.value,
+        "goals": facts.goals,
+        "shots": facts.shots,
+        "shots_on_target": facts.shots_on_target,
+        "possession_pct": facts.possession_pct,
+        "fouls": facts.fouls,
+        "yellow_cards": facts.yellow_cards,
+        "red_cards": facts.red_cards,
+        "offsides": facts.offsides,
+        "corners": facts.corners,
+        "goalkeeper_saves": facts.goalkeeper_saves,
+        "available_metrics": list(facts.available_metrics),
+        "missing_metrics": list(facts.missing_metrics),
+        "completeness": facts.completeness.value,
+    }

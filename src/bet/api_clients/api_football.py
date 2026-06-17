@@ -78,6 +78,7 @@ class APIFootballClient(APISportsClient):
             endpoint="/leagues",
             params={"id": league_id, "season": str(season)},
             operation="coverage",
+            expects_response_list=True,
         )
 
     def get_history_discovery(self, league_id: str, season: int, from_date: str, to_date: str) -> "SourceOperationResult[dict]":
@@ -85,22 +86,25 @@ class APIFootballClient(APISportsClient):
             endpoint="/fixtures",
             params={"league": league_id, "season": str(season), "from": from_date, "to": to_date},
             operation="history_discovery",
+            expects_response_list=True,
         )
 
     def get_history_details(self, fixture_ids: list[str]) -> "SourceOperationResult[dict]":
-        clean_ids = sorted(list(set(str(i).strip() for i in fixture_ids if str(i).strip())))
+        try:
+            clean_ids = sorted(list(set(str(i).strip() for i in fixture_ids if str(i).strip())), key=int)
+        except ValueError:
+            clean_ids = sorted(list(set(str(i).strip() for i in fixture_ids if str(i).strip())))
         if not clean_ids:
-            from bet.integration.base_client import SourceOperationResult, SourceResultStatus
-            return SourceOperationResult(status=SourceResultStatus.INVALID_REQUEST, retryable=False, error_code="empty_batch")
+            return SourceOperationResult(status=SourceResultStatus.UNSUPPORTED, retryable=False, error_code="empty_batch")
         if len(clean_ids) > 20:
-            from bet.integration.base_client import SourceOperationResult, SourceResultStatus
-            return SourceOperationResult(status=SourceResultStatus.INVALID_REQUEST, retryable=False, error_code="too_many_ids")
+            return SourceOperationResult(status=SourceResultStatus.UNSUPPORTED, retryable=False, error_code="too_many_ids")
         
         ids_str = "-".join(clean_ids)
         return self._request_with_evidence(
             endpoint="/fixtures",
             params={"ids": ids_str},
             operation="history_details",
+            expects_response_list=True,
         )
 
     def get_history_statistics(self, fixture_id: str) -> "SourceOperationResult[dict]":
@@ -108,6 +112,8 @@ class APIFootballClient(APISportsClient):
             endpoint="/fixtures/statistics",
             params={"fixture": fixture_id},
             operation="history_statistics",
+            expects_response_list=True,
+            source_event_id=fixture_id,
         )
 
 

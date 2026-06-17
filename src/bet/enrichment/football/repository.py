@@ -1,9 +1,12 @@
+# ruff: noqa: E501
 import json
 import sqlite3
-from typing import Dict, List
 
 from bet.enrichment.football.contracts import FootballMetricSample, FootballSide
-from bet.enrichment.football.time import format_utc, parse_canonical_or_offset_datetime, require_aware_datetime
+from bet.enrichment.football.time import (
+    format_utc,
+    parse_canonical_or_offset_datetime,
+)
 
 
 class FootballHistoryRepository:
@@ -13,10 +16,10 @@ class FootballHistoryRepository:
     def get_eligible_observations_by_team(
         self,
         target_canonical_fixture_id: int,
-        analysis_cutoff_at: str | None,
+        analysis_cutoff_at,
         metrics: list[str],
         accepted_statuses: list[str]
-    ) -> Dict[int, List[FootballMetricSample]]:
+    ) -> dict[int, list[FootballMetricSample]]:
 
         target_row = self.conn.execute(
             "SELECT home_team_id, away_team_id FROM fixtures WHERE id = ?",
@@ -27,7 +30,6 @@ class FootballHistoryRepository:
             return {}
 
         home_team_id, away_team_id = target_row
-        target_teams = (home_team_id, away_team_id)
 
         if not analysis_cutoff_at:
             return {home_team_id: [], away_team_id: []}
@@ -68,7 +70,7 @@ class FootballHistoryRepository:
                   AND f.id != ?
                   AND f.status IN ('finished', 'FT', 'AET', 'PEN')
                   AND f.kickoff < ?
-                  AND o.valid_at <= ?
+                  AND o.observed_at <= ?
             )
             SELECT
                 id, canonical_fixture_id, team_id, native_fixture_id, native_team_id,
@@ -88,7 +90,7 @@ class FootballHistoryRepository:
 
         rows = self.conn.execute(query, params).fetchall()
 
-        samples: Dict[int, List[FootballMetricSample]] = {home_team_id: [], away_team_id: []}
+        samples: dict[int, list[FootballMetricSample]] = {home_team_id: [], away_team_id: []}
         for row in rows:
             (obs_id, can_fix_id, t_id, n_fix_id, n_team_id, ev_bundle,
              payload_json, logical_id, obs_at_str, kickoff_str, h_t_id, a_t_id) = row
@@ -101,8 +103,27 @@ class FootballHistoryRepository:
             kickoff_dt = parse_canonical_or_offset_datetime(kickoff_str)
             obs_dt = parse_canonical_or_offset_datetime(obs_at_str)
 
-            # Use data directly from the team payload, as requested
+            # Determine flat or nested payload
+            opp_prov = payload.get("provider_opponent_team_id", "")
             side_str = payload.get("side", "")
+
+            # Nested legacy payload support
+            side_data = {}
+            if not opp_prov and ("home" in payload or "away" in payload):
+                home_prov = payload.get("fixture", {}).get("home_provider_team_id", "")
+                away_prov = payload.get("fixture", {}).get("away_provider_team_id", "")
+                if t_id == h_t_id:
+                    opp_prov = away_prov
+                    side_str = "HOME"
+                    side_data = payload.get("home", {})
+                else:
+                    opp_prov = home_prov
+                    side_str = "AWAY"
+                    side_data = payload.get("away", {})
+
+            if not opp_prov:
+                continue
+
             if side_str == "HOME":
                 side = FootballSide.HOME
             elif side_str == "AWAY":
@@ -110,12 +131,11 @@ class FootballHistoryRepository:
             else:
                 side = FootballSide.HOME if t_id == h_t_id else FootballSide.AWAY
 
-            opp_prov = payload.get("provider_opponent_team_id", "")
-            if not opp_prov:
-                continue
-
             for m in metrics:
                 val = payload.get(m)
+                if val is None and side_data:
+                    val = side_data.get(m)
+
                 if val is not None:
                     samples[t_id].append(FootballMetricSample(
                         provider_fixture_id=n_fix_id,

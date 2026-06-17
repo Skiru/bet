@@ -1,6 +1,7 @@
 # ruff: noqa: E501
 import datetime
-from datetime import datetime as dt_class, timezone
+from datetime import datetime as dt_class
+
 
 def require_aware_datetime(dt: dt_class) -> None:
     if not isinstance(dt, dt_class):
@@ -10,20 +11,28 @@ def require_aware_datetime(dt: dt_class) -> None:
 
 def to_utc(dt: dt_class) -> dt_class:
     require_aware_datetime(dt)
-    return dt.astimezone(timezone.utc)
+    return dt.astimezone(datetime.UTC)
 
 def format_utc(dt: dt_class) -> str:
     dt_utc = to_utc(dt)
-    return dt_utc.strftime('%Y-%m-%dT%H:%M:%S.%f') + 'Z'
+    # Serialize exactly YYYY-MM-DDTHH:MM:SS.ffffffZ
+    return dt_utc.strftime("%Y-%m-%dT%H:%M:%S.%f") + "Z"
 
-def parse_canonical_or_offset_datetime(s: str) -> dt_class:
-    if not s:
-        raise ValueError("Empty datetime string")
-    # Clean string
+def parse_canonical_or_offset_datetime(s: str | dt_class) -> dt_class:
+    if s is None:
+        raise ValueError("Datetime value is None")
+    if isinstance(s, dt_class):
+        require_aware_datetime(s)
+        return to_utc(s)
+    if not isinstance(s, str):
+        raise TypeError("Expected string or datetime object")
     s_clean = s.strip()
-    # Handle Zulu suffix manually or let fromisoformat do it if Python 3.11+
-    if s_clean.endswith('Z'):
-        s_clean = s_clean[:-1] + '+00:00'
+    if not s_clean:
+        raise ValueError("Empty datetime string")
+    if len(s_clean) == 10 and s_clean[4] == "-" and s_clean[7] == "-":
+        s_clean += "T00:00:00Z"
+    if s_clean.endswith("Z"):
+        s_clean = s_clean[:-1] + "+00:00"
     try:
         parsed = dt_class.fromisoformat(s_clean)
     except Exception as e:

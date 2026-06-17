@@ -381,10 +381,25 @@ class APISportsClient(BaseAPIClient):
                     quota_metadata=quota_metadata,
                 )
             if status_code == 403:
+                error_status = SourceResultStatus.BLOCKED
+                error_code = "http_403"
+                if result.body:
+                    try:
+                        err_payload = json.loads(result.body.decode("utf-8", errors="ignore"))
+                        parsed_err = self._classify_provider_payload_error(err_payload)
+                        if parsed_err:
+                            if parsed_err["status"] == SourceResultStatus.PLAN_RESTRICTED:
+                                error_status = SourceResultStatus.PLAN_RESTRICTED
+                                error_code = parsed_err["error_code"]
+                            elif parsed_err["status"] == SourceResultStatus.AUTHENTICATION_ERROR:
+                                error_status = SourceResultStatus.AUTHENTICATION_ERROR
+                                error_code = parsed_err["error_code"]
+                    except Exception:
+                        pass
                 return SourceOperationResult(
-                    SourceResultStatus.BLOCKED,
+                    status=error_status,
                     http_status=403,
-                    error_code="http_403",
+                    error_code=error_code,
                     evidence_refs=evidence_refs,
                     retry_count=attempt - 1,
                     quota_metadata=quota_metadata,

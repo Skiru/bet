@@ -1,8 +1,11 @@
+# ruff: noqa: E501
+import logging
 import sqlite3
-import time
 from datetime import UTC, datetime, timedelta
 
-from bet.enrichment.football.time import format_utc
+from bet.enrichment.football.time import format_utc, parse_canonical_or_offset_datetime
+
+logger = logging.getLogger(__name__)
 
 class FootballSyncEngine:
     def __init__(self, conn: sqlite3.Connection):
@@ -13,7 +16,10 @@ class FootballSyncEngine:
         if not self.conn.in_transaction: cursor.execute("BEGIN IMMEDIATE")
         try:
             row = cursor.execute(
-                "SELECT lease_owner, lease_expires_at, lock_version FROM sports_sync_cursor WHERE provider = ? AND sport = ? AND operation = ? AND scope_key = ?",
+                """SELECT lease_owner, lease_expires_at, lock_version
+                   FROM sports_sync_cursor
+                   WHERE provider = ? AND sport = ? AND operation = ? AND scope_key = ?
+                """,
                 (provider, sport, operation, scope_key)
             ).fetchone()
 
@@ -24,7 +30,10 @@ class FootballSyncEngine:
 
             if not row:
                 cursor.execute(
-                    "INSERT INTO sports_sync_cursor (provider, sport, operation, scope_key, lease_owner, lease_expires_at, lock_version, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)",
+                    """INSERT INTO sports_sync_cursor
+                       (provider, sport, operation, scope_key, lease_owner, lease_expires_at, lock_version, created_at, updated_at)
+                       VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
+                    """,
                     (provider, sport, operation, scope_key, lease_owner, expires_str, now_str, now_str)
                 )
                 self.conn.commit()
@@ -32,13 +41,16 @@ class FootballSyncEngine:
 
             owner, exp_str, lock_ver = row
             if owner and exp_str:
-                exp_dt = datetime.fromisoformat(exp_str.replace('Z', '+00:00'))
+                exp_dt = parse_canonical_or_offset_datetime(exp_str)
                 if exp_dt > now and owner != lease_owner:
                     cursor.execute("ROLLBACK")
                     return False
 
             res = cursor.execute(
-                "UPDATE sports_sync_cursor SET lease_owner = ?, lease_expires_at = ?, lock_version = lock_version + 1, updated_at = ? WHERE provider = ? AND sport = ? AND operation = ? AND scope_key = ? AND lock_version = ?",
+                """UPDATE sports_sync_cursor
+                   SET lease_owner = ?, lease_expires_at = ?, lock_version = lock_version + 1, updated_at = ?
+                   WHERE provider = ? AND sport = ? AND operation = ? AND scope_key = ? AND lock_version = ?
+                """,
                 (lease_owner, expires_str, now_str, provider, sport, operation, scope_key, lock_ver)
             )
 
@@ -48,16 +60,21 @@ class FootballSyncEngine:
             else:
                 cursor.execute("ROLLBACK")
                 return False
-        except Exception:
-            cursor.execute("ROLLBACK")
-            raise
+        except Exception as e:
+            try:
+                cursor.execute("ROLLBACK")
+            except Exception:
+                pass
+            raise e
 
     def renew_lease(self, provider: str, sport: str, operation: str, scope_key: str, lease_owner: str, ttl_minutes: int = 15) -> bool:
         cursor = self.conn.cursor()
         if not self.conn.in_transaction: cursor.execute("BEGIN IMMEDIATE")
         try:
             row = cursor.execute(
-                "SELECT lock_version FROM sports_sync_cursor WHERE provider = ? AND sport = ? AND operation = ? AND scope_key = ? AND lease_owner = ?",
+                """SELECT lock_version FROM sports_sync_cursor
+                   WHERE provider = ? AND sport = ? AND operation = ? AND scope_key = ? AND lease_owner = ?
+                """,
                 (provider, sport, operation, scope_key, lease_owner)
             ).fetchone()
 
@@ -72,7 +89,10 @@ class FootballSyncEngine:
             now_str = format_utc(now)
 
             res = cursor.execute(
-                "UPDATE sports_sync_cursor SET lease_expires_at = ?, lock_version = lock_version + 1, updated_at = ? WHERE provider = ? AND sport = ? AND operation = ? AND scope_key = ? AND lock_version = ?",
+                """UPDATE sports_sync_cursor
+                   SET lease_expires_at = ?, lock_version = lock_version + 1, updated_at = ?
+                   WHERE provider = ? AND sport = ? AND operation = ? AND scope_key = ? AND lock_version = ?
+                """,
                 (expires_str, now_str, provider, sport, operation, scope_key, lock_ver)
             )
 
@@ -82,16 +102,21 @@ class FootballSyncEngine:
             else:
                 cursor.execute("ROLLBACK")
                 return False
-        except Exception:
-            cursor.execute("ROLLBACK")
-            raise
+        except Exception as e:
+            try:
+                cursor.execute("ROLLBACK")
+            except Exception:
+                pass
+            raise e
 
     def release_lease(self, provider: str, sport: str, operation: str, scope_key: str, lease_owner: str) -> None:
         cursor = self.conn.cursor()
         if not self.conn.in_transaction: cursor.execute("BEGIN IMMEDIATE")
         try:
             row = cursor.execute(
-                "SELECT lock_version FROM sports_sync_cursor WHERE provider = ? AND sport = ? AND operation = ? AND scope_key = ? AND lease_owner = ?",
+                """SELECT lock_version FROM sports_sync_cursor
+                   WHERE provider = ? AND sport = ? AND operation = ? AND scope_key = ? AND lease_owner = ?
+                """,
                 (provider, sport, operation, scope_key, lease_owner)
             ).fetchone()
 
@@ -99,18 +124,27 @@ class FootballSyncEngine:
                 lock_ver = row[0]
                 now_str = format_utc(datetime.now(UTC))
                 cursor.execute(
-                    "UPDATE sports_sync_cursor SET lease_owner = NULL, lease_expires_at = NULL, lock_version = lock_version + 1, updated_at = ? WHERE provider = ? AND sport = ? AND operation = ? AND scope_key = ? AND lock_version = ?",
+                    """UPDATE sports_sync_cursor
+                       SET lease_owner = NULL, lease_expires_at = NULL, lock_version = lock_version + 1, updated_at = ?
+                       WHERE provider = ? AND sport = ? AND operation = ? AND scope_key = ? AND lock_version = ?
+                    """,
                     (now_str, provider, sport, operation, scope_key, lock_ver)
                 )
             self.conn.commit()
-        except Exception:
-            cursor.execute("ROLLBACK")
-            raise
+        except Exception as e:
+            try:
+                cursor.execute("ROLLBACK")
+            except Exception:
+                pass
+            raise e
 
     def start_run(self, cursor_id: int, run_identity: str, provider: str, sport: str, operation: str, scope_key: str, mode: str, window_from: str, window_to: str, cursor_before_json: str) -> int:
         now_str = format_utc(datetime.now(UTC))
         res = self.conn.execute(
-            "INSERT INTO sports_sync_run (run_identity, cursor_id, provider, sport, operation, scope_key, mode, window_from, window_to, status, started_at, cursor_before_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'RUNNING', ?, ?)",
+            """INSERT INTO sports_sync_run
+               (run_identity, cursor_id, provider, sport, operation, scope_key, mode, window_from, window_to, status, started_at, cursor_before_json)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'RUNNING', ?, ?)
+            """,
             (run_identity, cursor_id, provider, sport, operation, scope_key, mode, window_from, window_to, now_str, cursor_before_json)
         )
         return res.lastrowid
@@ -125,9 +159,22 @@ class FootballSyncEngine:
             updates.append("cursor_after_json = ?")
             params.append(cursor_after_json)
 
+        # Fixed writable column allowlist to protect against injection/arbitrary keys
+        ALLOWLIST = {
+            "physical_http_attempts",
+            "fallback_stats_calls",
+            "discovered_count",
+            "complete_count",
+            "partial_count",
+            "score_only_count",
+            "permanently_unavailable_count",
+            "transient_failed_count",
+        }
+
         for k, v in metrics.items():
-            updates.append(f"{k} = ?")
-            params.append(v)
+            if k in ALLOWLIST:
+                updates.append(f"{k} = ?")
+                params.append(v)
 
         if error_code:
             updates.append("error_code = ?")
