@@ -145,18 +145,24 @@ class LiveAPIFootballAcquirer:
         max_fallback_stats_calls: int,
         discovery_evidence_refs: tuple[Any, ...] = (),
     ) -> AcquisitionResult:
+        from bet.enrichment.football.contracts import (
+            FixtureWorkDisposition,
+            FixtureWorkOutcome,
+        )
+
         physical_attempts = 0
         retry_attempts = 0
         ids_calls = 0
         statistics_calls = 0
         quota_metadata = {}
+        physical_budget_exhausted = False
+        acquisition_rate_limited = False
 
         fixtures_map = {f.provider_fixture_id: f for f in discovered_fixtures}
 
         stats_by_fixture = {}
         fixture_provenance = {}
-        fixture_errors = {}
-        fixture_diagnostics = {}
+        details_attempted = set()
 
         if ids_capability in (BatchIdsCapability.UNKNOWN, BatchIdsCapability.SUPPORTED) and provider_fixture_ids_to_enrich:
             chunks = [provider_fixture_ids_to_enrich[i:i+20] for i in range(0, len(provider_fixture_ids_to_enrich), 20)]
@@ -167,28 +173,27 @@ class LiveAPIFootballAcquirer:
 
                 res_id = attempt_budget.reserve(2)
                 details_res = self.client.get_history_details(chunk)
-                actual_att = details_res.retry_count + 1
+                retry_cnt = getattr(details_res, "retry_count", 0) or 0
+                actual_att = retry_cnt + 1
                 attempt_budget.commit(res_id, actual_att)
                 physical_attempts += actual_att
-                retry_attempts += details_res.retry_count
+                retry_attempts += retry_cnt
                 ids_calls += 1
                 if details_res.quota_metadata:
                     quota_metadata.update(details_res.quota_metadata)
 
+                for fid in chunk:
+                    details_attempted.add(fid)
+
                 if details_res.status == SourceResultStatus.PLAN_RESTRICTED:
                     ids_capability = BatchIdsCapability.UNSUPPORTED
                     break
-
-                if details_res.status == SourceResultStatus.RATE_LIMITED:
-                    for fid in chunk:
-                        fixture_errors[fid] = "RATE_LIMITED"
-                    ids_capability = BatchIdsCapability.UNSUPPORTED
+                elif details_res.status == SourceResultStatus.RATE_LIMITED:
+                    acquisition_rate_limited = True
                     break
                 elif details_res.status in (SourceResultStatus.TIMEOUT, SourceResultStatus.TRANSPORT_ERROR, SourceResultStatus.UPSTREAM_ERROR):
-                    for fid in chunk:
-                        fixture_errors[fid] = "TRANSIENT_FAILED"
-                    ids_capability = BatchIdsCapability.UNSUPPORTED
-                    break
+                    # Keep incoming ids_capability
+                    pass
 
                 if details_res.status == SourceResultStatus.SUCCESS and details_res.value:
                     ids_capability = BatchIdsCapability.SUPPORTED
@@ -207,115 +212,250 @@ class LiveAPIFootballAcquirer:
                                     stats_by_fixture[fix_id] = (parsed_stats, details_res.evidence_refs)
                                 except FootballParserError as e:
                                     logger.error(f"Failed to parse embedded stats for {fix_id}: {e}")
-                                    fixture_errors[fix_id] = "TRANSIENT_FAILED"
                                 except Exception as e:
                                     logger.error(f"Unexpected error parsing embedded stats for {fix_id}: {e}")
-                                    fixture_errors[fix_id] = "TRANSIENT_FAILED"
-
-        for fix_id in provider_fixture_ids_to_enrich:
-            if fix_id in fixtures_map and fix_id not in stats_by_fixture and fix_id not in fixture_errors:
-                if statistics_calls >= max_fallback_stats_calls:
-                    continue
-                if attempt_budget.remaining < 2:
-                    break
-
-                res_id = attempt_budget.reserve(2)
-                stats_res = self.client.get_history_statistics(fix_id)
-                actual_att = stats_res.retry_count + 1
-                attempt_budget.commit(res_id, actual_att)
-                physical_attempts += actual_att
-                retry_attempts += stats_res.retry_count
-                statistics_calls += 1
-                if stats_res.quota_metadata:
-                    quota_metadata.update(stats_res.quota_metadata)
-
-                if stats_res.status == SourceResultStatus.SUCCESS and stats_res.value:
-                    resp_stats = stats_res.value.get("response", [])
-                    if isinstance(resp_stats, list) and not resp_stats:
-                        # VALID EMPTY RESPONSE
-                        stats_by_fixture[fix_id] = ({}, stats_res.evidence_refs)
-                    else:
-                        try:
-                            fix_obj = fixtures_map[fix_id]
-                            parsed_stats = parse_api_football_statistics_envelope(
-                                resp_stats, fix_obj.home_provider_team_id, fix_obj.away_provider_team_id
-                            )
-                            stats_by_fixture[fix_id] = (parsed_stats, stats_res.evidence_refs)
-                        except FootballParserError as e:
-                            logger.error(f"Failed to parse fallback stats for {fix_id}: {e}")
-                            fixture_errors[fix_id] = "TRANSIENT_FAILED"
-                        except Exception as e:
-                            logger.error(f"Unexpected error parsing fallback stats for {fix_id}: {e}")
-                            fixture_errors[fix_id] = "TRANSIENT_FAILED"
-                elif stats_res.status in (SourceResultStatus.PLAN_RESTRICTED, SourceResultStatus.NOT_SUPPORTED, SourceResultStatus.UNSUPPORTED):
-                    stats_by_fixture[fix_id] = ({}, stats_res.evidence_refs)
-                    fixture_diagnostics[fix_id] = "PLAN_RESTRICTED"
-                elif stats_res.status == SourceResultStatus.VALID_EMPTY:
-                    stats_by_fixture[fix_id] = ({}, stats_res.evidence_refs)
-                elif stats_res.status == SourceResultStatus.RATE_LIMITED:
-                    fixture_errors[fix_id] = "RATE_LIMITED"
-                elif stats_res.status in (SourceResultStatus.TIMEOUT, SourceResultStatus.TRANSPORT_ERROR, SourceResultStatus.UPSTREAM_ERROR):
-                    fixture_errors[fix_id] = "TRANSIENT_FAILED"
-                else:
-                    fixture_errors[fix_id] = "TRANSIENT_FAILED"
 
         acquired_fixtures = []
+        outcomes_list = []
+
         for fix_id in provider_fixture_ids_to_enrich:
-            if fix_id in fixtures_map:
-                fix_obj = fixtures_map[fix_id]
-                details_refs = fixture_provenance.get(fix_id, ())
-                stats_tuple = stats_by_fixture.get(fix_id)
+            if fix_id not in fixtures_map:
+                continue
 
-                stats_by_team = {}
-                stats_refs = ()
-                if stats_tuple:
-                    stats_by_team, stats_refs = stats_tuple
+            fix_obj = fixtures_map[fix_id]
+            stats_tuple = stats_by_fixture.get(fix_id)
+            details_refs = fixture_provenance.get(fix_id, ())
 
-                combined_refs = list(discovery_evidence_refs) + list(details_refs) + list(stats_refs)
+            attempted_ops = []
+            if fix_id in details_attempted:
+                attempted_ops.append("history_details")
+
+            def get_observed_at(stats_refs_local):
+                combined_refs = list(discovery_evidence_refs) + list(details_refs) + list(stats_refs_local)
                 max_captured = None
                 for ref in combined_refs:
                     if getattr(ref, "captured_at", None):
                         if max_captured is None or ref.captured_at > max_captured:
                             max_captured = ref.captured_at
-
                 if not max_captured:
                     raise ValueError("MISSING_EVIDENCE_TIMESTAMP")
+                return parse_canonical_or_offset_datetime(max_captured)
 
-                observed_at_dt = parse_canonical_or_offset_datetime(max_captured)
-
-                if fix_id in fixture_errors:
-                    mode = AcquisitionMode(fixture_errors[fix_id])
-                    warnings = [f"Acquisition failed: {fixture_errors[fix_id]}"]
-                elif stats_refs:
-                    mode = AcquisitionMode.PER_FIXTURE_STATS
-                    warnings = []
-                elif details_refs:
-                    mode = AcquisitionMode.BATCH_IDS
-                    warnings = []
-                else:
-                    mode = AcquisitionMode.DISCOVERY_ENVELOPE
-                    warnings = []
-
-                if not stats_by_team and fix_id not in fixture_errors:
-                    warnings.append("No statistics available")
-
+            if stats_tuple:
+                stats_by_team, stats_refs = stats_tuple
+                observed_at_dt = get_observed_at(stats_refs)
                 acquired = AcquiredFixture(
                     fixture=fix_obj,
                     statistics_by_provider_team_id=stats_by_team,
                     fixture_evidence_refs=tuple(discovery_evidence_refs) + tuple(details_refs),
                     statistics_evidence_refs=tuple(stats_refs),
                     observed_at=observed_at_dt,
-                    acquisition_mode=mode,
-                    warnings=tuple(warnings),
+                    acquisition_mode=AcquisitionMode.BATCH_IDS,
+                    warnings=() if stats_by_team else ("No statistics available",),
                 )
                 acquired_fixtures.append(acquired)
+                outcomes_list.append(FixtureWorkOutcome(
+                    provider_fixture_id=fix_id,
+                    disposition=FixtureWorkDisposition.ACQUIRED,
+                    acquired_fixture=acquired,
+                    error_code=None,
+                    attempted_operations=tuple(attempted_ops),
+                    physical_attempts=0,
+                    retry_attempts=0,
+                ))
+
+            else:
+                if statistics_calls >= max_fallback_stats_calls:
+                    observed_at_dt = get_observed_at(())
+                    acquired = AcquiredFixture(
+                        fixture=fix_obj,
+                        statistics_by_provider_team_id={},
+                        fixture_evidence_refs=tuple(discovery_evidence_refs) + tuple(details_refs),
+                        statistics_evidence_refs=(),
+                        observed_at=observed_at_dt,
+                        acquisition_mode=AcquisitionMode.DISCOVERY_ENVELOPE,
+                        warnings=("No statistics available", "FALLBACK_STATISTICS_POLICY_LIMIT"),
+                    )
+                    acquired_fixtures.append(acquired)
+                    outcomes_list.append(FixtureWorkOutcome(
+                        provider_fixture_id=fix_id,
+                        disposition=FixtureWorkDisposition.POLICY_SCORE_ONLY,
+                        acquired_fixture=acquired,
+                        error_code="FALLBACK_STATISTICS_POLICY_LIMIT",
+                        attempted_operations=tuple(attempted_ops),
+                        physical_attempts=0,
+                        retry_attempts=0,
+                    ))
+
+                elif attempt_budget.remaining < 2:
+                    physical_budget_exhausted = True
+                    observed_at_dt = get_observed_at(())
+                    acquired = AcquiredFixture(
+                        fixture=fix_obj,
+                        statistics_by_provider_team_id={},
+                        fixture_evidence_refs=tuple(discovery_evidence_refs) + tuple(details_refs),
+                        statistics_evidence_refs=(),
+                        observed_at=observed_at_dt,
+                        acquisition_mode=AcquisitionMode.DISCOVERY_ENVELOPE,
+                        warnings=("No statistics available",),
+                    )
+                    acquired_fixtures.append(acquired)
+                    outcomes_list.append(FixtureWorkOutcome(
+                        provider_fixture_id=fix_id,
+                        disposition=FixtureWorkDisposition.TRANSIENT_FAILED,
+                        acquired_fixture=acquired,
+                        error_code="HTTP_ATTEMPT_BUDGET_EXHAUSTED",
+                        attempted_operations=tuple(attempted_ops),
+                        physical_attempts=0,
+                        retry_attempts=0,
+                    ))
+
+                else:
+                    attempted_ops.append("history_statistics")
+                    statistics_calls += 1
+                    res_id = attempt_budget.reserve(2)
+                    stats_res = self.client.get_history_statistics(fix_id)
+                    retry_cnt = getattr(stats_res, "retry_count", 0) or 0
+                    actual_att = retry_cnt + 1
+                    attempt_budget.commit(res_id, actual_att)
+                    physical_attempts += actual_att
+                    retry_attempts += retry_cnt
+                    if stats_res.quota_metadata:
+                        quota_metadata.update(stats_res.quota_metadata)
+
+                    if stats_res.status == SourceResultStatus.SUCCESS and stats_res.value:
+                        resp_stats = stats_res.value.get("response", [])
+                        stats_by_team = {}
+                        parse_failed = False
+                        if isinstance(resp_stats, list) and not resp_stats:
+                            stats_by_team = {}
+                        else:
+                            try:
+                                stats_by_team = parse_api_football_statistics_envelope(
+                                    resp_stats, fix_obj.home_provider_team_id, fix_obj.away_provider_team_id
+                                )
+                            except Exception as e:
+                                logger.error(f"Error parsing statistics for {fix_id}: {e}")
+                                parse_failed = True
+
+                        if parse_failed:
+                            observed_at_dt = get_observed_at(stats_res.evidence_refs)
+                            acquired = AcquiredFixture(
+                                fixture=fix_obj,
+                                statistics_by_provider_team_id={},
+                                fixture_evidence_refs=tuple(discovery_evidence_refs) + tuple(details_refs),
+                                statistics_evidence_refs=tuple(stats_res.evidence_refs) if stats_res.evidence_refs else (),
+                                observed_at=observed_at_dt,
+                                acquisition_mode=AcquisitionMode.DISCOVERY_ENVELOPE,
+                                warnings=("No statistics available",),
+                            )
+                            acquired_fixtures.append(acquired)
+                            outcomes_list.append(FixtureWorkOutcome(
+                                provider_fixture_id=fix_id,
+                                disposition=FixtureWorkDisposition.TRANSIENT_FAILED,
+                                error_code="TRANSIENT_FAILED",
+                                acquired_fixture=acquired,
+                                attempted_operations=tuple(attempted_ops),
+                                physical_attempts=actual_att,
+                                retry_attempts=retry_cnt,
+                            ))
+                        else:
+                            observed_at_dt = get_observed_at(stats_res.evidence_refs)
+                            acquired = AcquiredFixture(
+                                fixture=fix_obj,
+                                statistics_by_provider_team_id=stats_by_team,
+                                fixture_evidence_refs=tuple(discovery_evidence_refs) + tuple(details_refs),
+                                statistics_evidence_refs=tuple(stats_res.evidence_refs),
+                                observed_at=observed_at_dt,
+                                acquisition_mode=AcquisitionMode.PER_FIXTURE_STATS,
+                                warnings=() if stats_by_team else ("No statistics available",),
+                            )
+                            acquired_fixtures.append(acquired)
+                            outcomes_list.append(FixtureWorkOutcome(
+                                provider_fixture_id=fix_id,
+                                disposition=FixtureWorkDisposition.ACQUIRED,
+                                acquired_fixture=acquired,
+                                error_code=None,
+                                attempted_operations=tuple(attempted_ops),
+                                physical_attempts=actual_att,
+                                retry_attempts=retry_cnt,
+                            ))
+
+                    elif stats_res.status in (SourceResultStatus.PLAN_RESTRICTED, SourceResultStatus.NOT_SUPPORTED, SourceResultStatus.UNSUPPORTED, SourceResultStatus.VALID_EMPTY):
+                        observed_at_dt = get_observed_at(stats_res.evidence_refs)
+                        acquired = AcquiredFixture(
+                            fixture=fix_obj,
+                            statistics_by_provider_team_id={},
+                            fixture_evidence_refs=tuple(discovery_evidence_refs) + tuple(details_refs),
+                            statistics_evidence_refs=tuple(stats_res.evidence_refs) if stats_res.evidence_refs else (),
+                            observed_at=observed_at_dt,
+                            acquisition_mode=AcquisitionMode.DISCOVERY_ENVELOPE,
+                            warnings=("No statistics available",),
+                        )
+                        acquired_fixtures.append(acquired)
+                        outcomes_list.append(FixtureWorkOutcome(
+                            provider_fixture_id=fix_id,
+                            disposition=FixtureWorkDisposition.ACQUIRED,
+                            acquired_fixture=acquired,
+                            error_code=None,
+                            attempted_operations=tuple(attempted_ops),
+                            physical_attempts=actual_att,
+                            retry_attempts=retry_cnt,
+                        ))
+
+                    elif stats_res.status == SourceResultStatus.RATE_LIMITED:
+                        acquisition_rate_limited = True
+                        observed_at_dt = get_observed_at(stats_res.evidence_refs)
+                        acquired = AcquiredFixture(
+                            fixture=fix_obj,
+                            statistics_by_provider_team_id={},
+                            fixture_evidence_refs=tuple(discovery_evidence_refs) + tuple(details_refs),
+                            statistics_evidence_refs=tuple(stats_res.evidence_refs) if stats_res.evidence_refs else (),
+                            observed_at=observed_at_dt,
+                            acquisition_mode=AcquisitionMode.DISCOVERY_ENVELOPE,
+                            warnings=("No statistics available",),
+                        )
+                        acquired_fixtures.append(acquired)
+                        outcomes_list.append(FixtureWorkOutcome(
+                            provider_fixture_id=fix_id,
+                            disposition=FixtureWorkDisposition.TRANSIENT_FAILED,
+                            acquired_fixture=acquired,
+                            error_code="RATE_LIMITED",
+                            attempted_operations=tuple(attempted_ops),
+                            physical_attempts=actual_att,
+                            retry_attempts=retry_cnt,
+                        ))
+
+                    else:
+                        observed_at_dt = get_observed_at(stats_res.evidence_refs)
+                        acquired = AcquiredFixture(
+                            fixture=fix_obj,
+                            statistics_by_provider_team_id={},
+                            fixture_evidence_refs=tuple(discovery_evidence_refs) + tuple(details_refs),
+                            statistics_evidence_refs=tuple(stats_res.evidence_refs) if stats_res.evidence_refs else (),
+                            observed_at=observed_at_dt,
+                            acquisition_mode=AcquisitionMode.DISCOVERY_ENVELOPE,
+                            warnings=("No statistics available",),
+                        )
+                        acquired_fixtures.append(acquired)
+                        outcomes_list.append(FixtureWorkOutcome(
+                            provider_fixture_id=fix_id,
+                            disposition=FixtureWorkDisposition.TRANSIENT_FAILED,
+                            error_code="TRANSIENT_FAILED",
+                            acquired_fixture=acquired,
+                            attempted_operations=tuple(attempted_ops),
+                            physical_attempts=actual_att,
+                            retry_attempts=retry_cnt,
+                        ))
 
         term_status = "COMPLETE"
-        if any(v == "RATE_LIMITED" for v in fixture_errors.values()):
+        if acquisition_rate_limited:
             term_status = "RATE_LIMITED"
-        elif any(v == "TRANSIENT_FAILED" for v in fixture_errors.values()):
+        elif physical_budget_exhausted:
             term_status = "TRANSIENT_FAILED"
-        elif len(acquired_fixtures) < len(provider_fixture_ids_to_enrich):
+        elif any(o.disposition == FixtureWorkDisposition.TRANSIENT_FAILED for o in outcomes_list):
+            term_status = "TRANSIENT_FAILED"
+        elif any(o.disposition == FixtureWorkDisposition.POLICY_SCORE_ONLY for o in outcomes_list):
             term_status = "DEGRADED"
 
         return AcquisitionResult(
@@ -328,6 +468,9 @@ class LiveAPIFootballAcquirer:
             quota_metadata=quota_metadata,
             ids_capability=ids_capability,
             terminal_status=term_status,
+            physical_budget_exhausted=physical_budget_exhausted,
+            acquisition_rate_limited=acquisition_rate_limited,
+            outcomes=tuple(outcomes_list),
         )
 
     def acquire(
@@ -384,4 +527,7 @@ class LiveAPIFootballAcquirer:
             quota_metadata={**disc_res.quota_metadata, **acq_res.quota_metadata},
             ids_capability=acq_res.ids_capability,
             terminal_status=acq_res.terminal_status,
+            physical_budget_exhausted=acq_res.physical_budget_exhausted,
+            acquisition_rate_limited=acq_res.acquisition_rate_limited,
+            outcomes=acq_res.outcomes,
         )

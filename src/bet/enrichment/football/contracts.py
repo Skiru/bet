@@ -336,8 +336,6 @@ class AcquisitionMode(StrEnum):
     BATCH_IDS = "BATCH_IDS"
     PER_FIXTURE_STATS = "PER_FIXTURE_STATS"
     REPLAY = "REPLAY"
-    TRANSIENT_FAILED = "TRANSIENT_FAILED"
-    RATE_LIMITED = "RATE_LIMITED"
 
 @dataclass(frozen=True, slots=True)
 class BootstrapCommand:
@@ -386,6 +384,24 @@ class AcquiredFixture:
     warnings: tuple[str, ...]
     originating_bundle_id: str | None = None
 
+
+class FixtureWorkDisposition(StrEnum):
+    ACQUIRED = "ACQUIRED"
+    POLICY_SCORE_ONLY = "POLICY_SCORE_ONLY"
+    PERMANENTLY_UNAVAILABLE = "PERMANENTLY_UNAVAILABLE"
+    TRANSIENT_FAILED = "TRANSIENT_FAILED"
+
+
+@dataclass(frozen=True, slots=True)
+class FixtureWorkOutcome:
+    provider_fixture_id: str
+    disposition: FixtureWorkDisposition
+    acquired_fixture: AcquiredFixture | None
+    error_code: str | None
+    attempted_operations: tuple[str, ...]
+    physical_attempts: int
+    retry_attempts: int
+
 @dataclass(frozen=True, slots=True)
 class AcquisitionResult:
     fixtures: tuple[AcquiredFixture, ...]
@@ -397,6 +413,9 @@ class AcquisitionResult:
     quota_metadata: dict[str, Any]
     ids_capability: BatchIdsCapability
     terminal_status: str
+    physical_budget_exhausted: bool = False
+    acquisition_rate_limited: bool = False
+    outcomes: tuple[FixtureWorkOutcome, ...] = ()
 
 @dataclass(frozen=True, slots=True)
 class PersistFixtureResult:
@@ -530,3 +549,110 @@ class ProvenanceIntegrityError(ValueError):
 class CursorCorruptionError(ValueError):
     """Raised when coverage_json is corrupted."""
     pass
+
+
+@dataclass(frozen=True, slots=True)
+class RunOutcome:
+    status: Literal['COMPLETE', 'DEGRADED', 'RATE_LIMITED', 'FAILED']
+    cursor_may_advance: bool
+    error_code: str | None
+    discovered_count: int
+    complete_count: int
+    partial_count: int
+    score_only_count: int
+    permanently_unavailable_count: int
+    transient_failed_count: int
+
+
+def derive_run_outcome(
+    *,
+    discovery_status: str,
+    discovery_paging_completed: bool,
+    invalid_discovery_count: int,
+    expected_fixture_ids: frozenset[str],
+    item_states: Mapping[str, str],
+    acquisition_rate_limited: bool,
+    physical_budget_exhausted: bool,
+) -> RunOutcome:
+    complete_count = 0
+    partial_count = 0
+    score_only_count = 0
+    permanently_unavailable_count = 0
+    transient_failed_count = invalid_discovery_count
+
+    for state in item_states.values():
+        if state == "INGESTED_COMPLETE":
+            complete_count += 1
+        elif state == "INGESTED_PARTIAL":
+            partial_count += 1
+        elif state == "INGESTED_SCORE_ONLY":
+            score_only_count += 1
+        elif state == "PERMANENTLY_UNAVAILABLE":
+            permanently_unavailable_count += 1
+        elif state == "TRANSIENT_FAILED":
+            transient_failed_count += 1
+
+    discovered_count = len(expected_fixture_ids) + invalid_discovery_count
+
+    def make_outcome(status: Literal['COMPLETE', 'DEGRADED', 'RATE_LIMITED', 'FAILED'], cursor_may_advance: bool, error_code: str | None) -> RunOutcome:
+        return RunOutcome(
+            status=status,
+            cursor_may_advance=cursor_may_advance,
+            error_code=error_code,
+            discovered_count=discovered_count,
+            complete_count=complete_count,
+            partial_count=partial_count,
+            score_only_count=score_only_count,
+            permanently_unavailable_count=permanently_unavailable_count,
+            transient_failed_count=transient_failed_count,
+        )
+
+    # 1. If discovery_status == RATE_LIMITED
+    if discovery_status == "RATE_LIMITED":
+        return make_outcome("RATE_LIMITED", False, "DISCOVERY_RATE_LIMITED")
+
+    # 2. If discovery_paging_completed is false
+    if not discovery_paging_completed:
+        status = "RATE_LIMITED" if (physical_budget_exhausted or acquisition_rate_limited) else "FAILED"
+        return make_outcome(status, False, "DISCOVERY_INCOMPLETE_PAGING")
+
+    # 3. If invalid_discovery_count > 0
+    if invalid_discovery_count > 0:
+        return make_outcome("FAILED", False, "DISCOVERY_SCHEMA_MISMATCH")
+
+    # 4. If physical_budget_exhausted
+    if physical_budget_exhausted:
+        return make_outcome("RATE_LIMITED", False, "HTTP_ATTEMPT_BUDGET_EXHAUSTED")
+
+    # 5. If acquisition_rate_limited
+    if acquisition_rate_limited:
+        return make_outcome("RATE_LIMITED", False, "ACQUISITION_RATE_LIMITED")
+
+    # 6. item_states keys must equal expected_fixture_ids
+    if frozenset(item_states.keys()) != expected_fixture_ids:
+        return make_outcome("FAILED", False, "INCOMPLETE_ITEM_STATE_SET")
+
+    # 7. Unknown item state
+    allowed_states = {"DISCOVERED", "INGESTED_COMPLETE", "INGESTED_PARTIAL", "INGESTED_SCORE_ONLY", "PERMANENTLY_UNAVAILABLE", "TRANSIENT_FAILED"}
+    for state in item_states.values():
+        if state not in allowed_states:
+            return make_outcome("FAILED", False, "UNKNOWN_SYNC_ITEM_STATE")
+
+    # 8. Any TRANSIENT_FAILED item
+    if any(state == "TRANSIENT_FAILED" for state in item_states.values()):
+        return make_outcome("FAILED", False, "TRANSIENT_FIXTURE_FAILURE")
+
+    # 9. Empty expected_fixture_ids, successful completed discovery and complete paging
+    if not expected_fixture_ids:
+        return make_outcome("COMPLETE", True, "NO_COMPLETED_FIXTURES")
+
+    # 10. All items INGESTED_COMPLETE
+    if all(state == "INGESTED_COMPLETE" for state in item_states.values()):
+        return make_outcome("COMPLETE", True, None)
+
+    # 11. All items terminal and at least one item is PARTIAL, SCORE_ONLY, PERMANENTLY_UNAVAILABLE
+    terminal_states = {"INGESTED_COMPLETE", "INGESTED_PARTIAL", "INGESTED_SCORE_ONLY", "PERMANENTLY_UNAVAILABLE"}
+    if all(state in terminal_states for state in item_states.values()) and any(state in {"INGESTED_PARTIAL", "INGESTED_SCORE_ONLY", "PERMANENTLY_UNAVAILABLE"} for state in item_states.values()):
+        return make_outcome("DEGRADED", True, "PARTIAL_COVERAGE")
+
+    raise ValueError("No matching run outcome branch found")

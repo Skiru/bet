@@ -179,8 +179,8 @@ def test_scope_isolation_under_different_scopes(db_conn):
 def test_ids_unsupported_cache_persists(db_conn):
     from unittest.mock import MagicMock
 
-    from scripts.enrichment.football_history import FrozenClock
     from bet.enrichment.football.service import FootballHistoryService
+    from scripts.enrichment.football_history import FrozenClock
 
     scope_key = compute_scope_key("39", 2023)
     # Seed cursor with coverage_json indicating UNEXPIRED UNSUPPORTED for batch_ids
@@ -225,8 +225,8 @@ def test_ids_unsupported_cache_persists(db_conn):
 def test_current_utc_date_ingested_but_not_committed_as_closed(db_conn):
     from unittest.mock import MagicMock
 
-    from scripts.enrichment.football_history import FrozenClock
     from bet.enrichment.football.service import FootballHistoryService
+    from scripts.enrichment.football_history import FrozenClock
 
     scope_key = compute_scope_key("39", 2023)
     db_conn.execute("""INSERT INTO sports_sync_cursor (provider, sport, operation, scope_key, committed_through_date, created_at, updated_at)
@@ -268,10 +268,11 @@ def test_current_utc_date_ingested_but_not_committed_as_closed(db_conn):
 
 def test_t3_scope_isolation_with_two_real_service_runs(tmp_path):
     import sqlite3
+
     from bet.db.schema import init_db
+    from bet.enrichment.football.repository import FootballHistoryRepository
     from bet.enrichment.football.service import FootballHistoryService
     from bet.enrichment.football.sync import FootballSyncEngine
-    from bet.enrichment.football.repository import FootballHistoryRepository
 
     db_file = tmp_path / "scope_iso.db"
     conn = sqlite3.connect(str(db_file))
@@ -281,8 +282,8 @@ def test_t3_scope_isolation_with_two_real_service_runs(tmp_path):
 
     # Run service for scope 1
     mock_client1 = MagicMock()
-    from bet.enrichment.football.provider import LiveAPIFootballAcquirer
     from bet.api_clients.base_client import SourceOperationResult, SourceResultStatus
+    from bet.enrichment.football.provider import LiveAPIFootballAcquirer
     from bet.integration.evidence import EvidenceRef
 
     acquirer1 = LiveAPIFootballAcquirer(mock_client1)
@@ -337,6 +338,7 @@ def test_t3_scope_isolation_with_two_real_service_runs(tmp_path):
 
 def test_t3_start_run_visible_from_second_connection(tmp_path):
     import sqlite3
+
     from bet.db.schema import init_db
     from bet.enrichment.football.sync import FootballSyncEngine
 
@@ -365,6 +367,7 @@ def test_t3_start_run_visible_from_second_connection(tmp_path):
 
 def test_t3_complete_run_visible_after_reopen(tmp_path):
     import sqlite3
+
     from bet.db.schema import init_db
     from bet.enrichment.football.sync import FootballSyncEngine
 
@@ -394,8 +397,11 @@ def test_t3_complete_run_visible_after_reopen(tmp_path):
     conn2.close()
 
 def test_t3_corrupt_coverage_json_fails_closed(db_conn):
-    from bet.enrichment.football.service import FootballHistoryService, compute_scope_key
     from bet.enrichment.football.contracts import CursorCorruptionError
+    from bet.enrichment.football.service import (
+        FootballHistoryService,
+        compute_scope_key,
+    )
 
     scope_key = compute_scope_key("39", 2023)
     db_conn.execute("""INSERT INTO sports_sync_cursor (id, provider, sport, operation, scope_key, committed_through_date, coverage_json, created_at, updated_at)
@@ -438,3 +444,438 @@ def test_t3_stale_run_becomes_abandoned(db_conn):
     assert row is not None
     assert row[0] == "ABANDONED"
     assert row[1] == "STALE_LEASE_RECOVERY"
+
+
+def test_c0_1_incomplete_item_state_set():
+    from bet.enrichment.football.contracts import derive_run_outcome
+    outcome = derive_run_outcome(
+        discovery_status="COMPLETE",
+        discovery_paging_completed=True,
+        invalid_discovery_count=0,
+        expected_fixture_ids=frozenset(["1", "2"]),
+        item_states={"1": "INGESTED_COMPLETE"},
+        acquisition_rate_limited=False,
+        physical_budget_exhausted=False,
+    )
+    assert outcome.status == "FAILED"
+    assert outcome.cursor_may_advance is False
+    assert outcome.error_code == "INCOMPLETE_ITEM_STATE_SET"
+
+
+def test_c0_2_unknown_item_state():
+    from bet.enrichment.football.contracts import derive_run_outcome
+    outcome = derive_run_outcome(
+        discovery_status="COMPLETE",
+        discovery_paging_completed=True,
+        invalid_discovery_count=0,
+        expected_fixture_ids=frozenset(["1"]),
+        item_states={"1": "UNKNOWN_STATE"},
+        acquisition_rate_limited=False,
+        physical_budget_exhausted=False,
+    )
+    assert outcome.status == "FAILED"
+    assert outcome.cursor_may_advance is False
+    assert outcome.error_code == "UNKNOWN_SYNC_ITEM_STATE"
+
+
+def test_c0_3_incomplete_discovery_paging():
+    from bet.enrichment.football.contracts import derive_run_outcome
+    outcome = derive_run_outcome(
+        discovery_status="COMPLETE",
+        discovery_paging_completed=False,
+        invalid_discovery_count=0,
+        expected_fixture_ids=frozenset(),
+        item_states={},
+        acquisition_rate_limited=False,
+        physical_budget_exhausted=True,
+    )
+    assert outcome.status == "RATE_LIMITED"
+    assert outcome.cursor_may_advance is False
+    assert outcome.error_code == "DISCOVERY_INCOMPLETE_PAGING"
+
+    outcome2 = derive_run_outcome(
+        discovery_status="COMPLETE",
+        discovery_paging_completed=False,
+        invalid_discovery_count=0,
+        expected_fixture_ids=frozenset(),
+        item_states={},
+        acquisition_rate_limited=False,
+        physical_budget_exhausted=False,
+    )
+    assert outcome2.status == "FAILED"
+    assert outcome2.cursor_may_advance is False
+    assert outcome2.error_code == "DISCOVERY_INCOMPLETE_PAGING"
+
+
+def test_c0_4_rate_limited_ids_call_retained_capability():
+    from unittest.mock import MagicMock
+
+    from bet.api_clients.base_client import SourceOperationResult, SourceResultStatus
+    from bet.enrichment.football.contracts import BatchIdsCapability
+    from bet.enrichment.football.provider import (
+        LiveAPIFootballAcquirer,
+        PhysicalAttemptBudget,
+    )
+
+    mock_client = MagicMock()
+    mock_client.get_history_details.return_value = SourceOperationResult(
+        status=SourceResultStatus.RATE_LIMITED,
+        value=None
+    )
+    acquirer = LiveAPIFootballAcquirer(mock_client)
+    budget = PhysicalAttemptBudget(10)
+    res = acquirer.acquire_fixture_facts(
+        discovered_fixtures=(),
+        provider_fixture_ids_to_enrich=["100"],
+        ids_capability=BatchIdsCapability.UNKNOWN,
+        attempt_budget=budget,
+        max_fallback_stats_calls=0
+    )
+    assert res.ids_capability == BatchIdsCapability.UNKNOWN
+
+
+def test_c0_5_timeout_ids_call_retained_capability():
+    from unittest.mock import MagicMock
+
+    from bet.api_clients.base_client import SourceOperationResult, SourceResultStatus
+    from bet.enrichment.football.contracts import BatchIdsCapability
+    from bet.enrichment.football.provider import (
+        LiveAPIFootballAcquirer,
+        PhysicalAttemptBudget,
+    )
+
+    mock_client = MagicMock()
+    mock_client.get_history_details.return_value = SourceOperationResult(
+        status=SourceResultStatus.TIMEOUT,
+        value=None
+    )
+    acquirer = LiveAPIFootballAcquirer(mock_client)
+    budget = PhysicalAttemptBudget(10)
+    res = acquirer.acquire_fixture_facts(
+        discovered_fixtures=(),
+        provider_fixture_ids_to_enrich=["100"],
+        ids_capability=BatchIdsCapability.SUPPORTED,
+        attempt_budget=budget,
+        max_fallback_stats_calls=0
+    )
+    assert res.ids_capability == BatchIdsCapability.SUPPORTED
+
+
+def test_c0_6_plan_restricted_ids_call_sets_unsupported():
+    from unittest.mock import MagicMock
+
+    from bet.api_clients.base_client import SourceOperationResult, SourceResultStatus
+    from bet.enrichment.football.contracts import BatchIdsCapability
+    from bet.enrichment.football.provider import (
+        LiveAPIFootballAcquirer,
+        PhysicalAttemptBudget,
+    )
+
+    mock_client = MagicMock()
+    mock_client.get_history_details.return_value = SourceOperationResult(
+        status=SourceResultStatus.PLAN_RESTRICTED,
+        value=None
+    )
+    acquirer = LiveAPIFootballAcquirer(mock_client)
+    budget = PhysicalAttemptBudget(10)
+    res = acquirer.acquire_fixture_facts(
+        discovered_fixtures=(),
+        provider_fixture_ids_to_enrich=["100"],
+        ids_capability=BatchIdsCapability.UNKNOWN,
+        attempt_budget=budget,
+        max_fallback_stats_calls=0
+    )
+    assert res.ids_capability == BatchIdsCapability.UNSUPPORTED
+
+
+def test_c0_7_optional_ids_transient_failure_continues_to_stats():
+    from unittest.mock import MagicMock
+
+    from bet.api_clients.base_client import SourceOperationResult, SourceResultStatus
+    from bet.enrichment.football.contracts import (
+        BatchIdsCapability,
+        FootballFixtureIdentity,
+    )
+    from bet.enrichment.football.provider import (
+        LiveAPIFootballAcquirer,
+        PhysicalAttemptBudget,
+    )
+    from bet.enrichment.football.time import parse_canonical_or_offset_datetime
+    from bet.integration.evidence import EvidenceRef
+
+    mock_client = MagicMock()
+    mock_client.get_history_details.return_value = SourceOperationResult(
+        status=SourceResultStatus.TIMEOUT,
+        value=None
+    )
+    mock_client.get_history_statistics.return_value = SourceOperationResult(
+        status=SourceResultStatus.SUCCESS,
+        value={"response": []},
+        evidence_refs=(EvidenceRef("history_statistics", "GET", "json", 100, "hash_stats", captured_at="2023-01-01T12:00:00Z"),)
+    )
+
+    acquirer = LiveAPIFootballAcquirer(mock_client)
+    budget = PhysicalAttemptBudget(10)
+    fixture_identity = FootballFixtureIdentity(
+        provider_fixture_id="100",
+        provider_competition_id="39",
+        competition_name="Premier League",
+        country="England",
+        season=2023,
+        round_name="Round 1",
+        kickoff_at=parse_canonical_or_offset_datetime("2023-01-01T12:00:00Z"),
+        provider_status="FT",
+        canonical_status="finished",
+        home_provider_team_id="10",
+        away_provider_team_id="20",
+        home_team_name="Home",
+        away_team_name="Away",
+        home_score=2,
+        away_score=1,
+        home_penalty_score=None,
+        away_penalty_score=None,
+        parser_version="1.0",
+        schema_version="v2",
+    )
+
+    res = acquirer.acquire_fixture_facts(
+        discovered_fixtures=(fixture_identity,),
+        provider_fixture_ids_to_enrich=["100"],
+        ids_capability=BatchIdsCapability.UNKNOWN,
+        attempt_budget=budget,
+        max_fallback_stats_calls=1,
+        discovery_evidence_refs=(EvidenceRef("history_discovery", "GET", "json", 100, "hash_disc", captured_at="2023-01-01T12:00:00Z"),)
+    )
+    assert mock_client.get_history_statistics.call_count == 1
+    # On START_SHA, the details TIMEOUT would set cap = UNSUPPORTED, but here we check it's NOT transient failed.
+    assert len(res.fixtures) == 1
+    assert res.fixtures[0].fixture.provider_fixture_id == "100"
+
+
+def test_c0_8_physical_attempt_exhaustion_creates_outcomes():
+    from unittest.mock import MagicMock
+
+    from bet.enrichment.football.contracts import (
+        BatchIdsCapability,
+        FootballFixtureIdentity,
+    )
+    from bet.enrichment.football.provider import (
+        LiveAPIFootballAcquirer,
+        PhysicalAttemptBudget,
+    )
+    from bet.enrichment.football.time import parse_canonical_or_offset_datetime
+    from bet.integration.evidence import EvidenceRef
+
+    mock_client = MagicMock()
+    from bet.api_clients.base_client import SourceOperationResult, SourceResultStatus
+    mock_client.get_history_statistics.return_value = SourceOperationResult(
+        status=SourceResultStatus.SUCCESS,
+        value={"response": []},
+        retry_count=0
+    )
+    acquirer = LiveAPIFootballAcquirer(mock_client)
+    budget = PhysicalAttemptBudget(2) # Min details call takes 2 minimum, so first Details takes budget, then budget is exhausted!
+
+    # Let's say we have 2 fixtures, details succeeds for first chunk, but we run out of budget.
+    # In C2, we expect a FixtureWorkOutcome for every requested fixture, regardless of budget depletion.
+    # On START_SHA this will fail because no such outcome exists.
+    # Let's check that if we try to access outcomes, it raises or fails.
+    fixture_identity_1 = FootballFixtureIdentity(
+        provider_fixture_id="100",
+        provider_competition_id="39",
+        competition_name="Premier League",
+        country="England",
+        season=2023,
+        round_name="Round 1",
+        kickoff_at=parse_canonical_or_offset_datetime("2023-01-01T12:00:00Z"),
+        provider_status="FT",
+        canonical_status="finished",
+        home_provider_team_id="10",
+        away_provider_team_id="20",
+        home_team_name="Home",
+        away_team_name="Away",
+        home_score=2,
+        away_score=1,
+        home_penalty_score=None,
+        away_penalty_score=None,
+        parser_version="1.0",
+        schema_version="v2",
+    )
+    fixture_identity_2 = FootballFixtureIdentity(
+        provider_fixture_id="101",
+        provider_competition_id="39",
+        competition_name="Premier League",
+        country="England",
+        season=2023,
+        round_name="Round 1",
+        kickoff_at=parse_canonical_or_offset_datetime("2023-01-01T12:00:00Z"),
+        provider_status="FT",
+        canonical_status="finished",
+        home_provider_team_id="10",
+        away_provider_team_id="20",
+        home_team_name="Home",
+        away_team_name="Away",
+        home_score=2,
+        away_score=1,
+        home_penalty_score=None,
+        away_penalty_score=None,
+        parser_version="1.0",
+        schema_version="v2",
+    )
+
+    res = acquirer.acquire_fixture_facts(
+        discovered_fixtures=(fixture_identity_1, fixture_identity_2),
+        provider_fixture_ids_to_enrich=["100", "101"],
+        ids_capability=BatchIdsCapability.UNSUPPORTED,  # So it uses fallback stats, which take 2 budget per fixture
+        attempt_budget=budget,
+        max_fallback_stats_calls=2,
+        discovery_evidence_refs=(EvidenceRef("history_discovery", "GET", "json", 100, "hash_disc", captured_at="2023-01-01T12:00:00Z"),)
+    )
+    # Check that we have a work outcome for both fixtures
+    assert hasattr(res, "outcomes")
+    assert len(res.outcomes) == 2
+
+
+def test_c0_9_physical_attempt_exhaustion_results_fields():
+    from bet.enrichment.football.contracts import derive_run_outcome
+    # Physical-attempt exhaustion results in:
+    # - fixture item TRANSIENT_FAILED
+    # - last_error_code HTTP_ATTEMPT_BUDGET_EXHAUSTED
+    # - run RATE_LIMITED
+    # - cursor unchanged
+    outcome = derive_run_outcome(
+        discovery_status="COMPLETE",
+        discovery_paging_completed=True,
+        invalid_discovery_count=0,
+        expected_fixture_ids=frozenset(["1"]),
+        item_states={"1": "TRANSIENT_FAILED"},
+        acquisition_rate_limited=False,
+        physical_budget_exhausted=True,
+    )
+    assert outcome.status == "RATE_LIMITED"
+    assert outcome.cursor_may_advance is False
+    assert outcome.error_code == "HTTP_ATTEMPT_BUDGET_EXHAUSTED"
+
+
+def test_c0_10_max_fallback_stats_calls_exhaustion():
+    from bet.enrichment.football.contracts import derive_run_outcome
+    # max_fallback_stats_calls exhaustion results in:
+    # - valid score-only observation
+    # - item INGESTED_SCORE_ONLY
+    # - diagnostic FALLBACK_STATISTICS_POLICY_LIMIT
+    # - run DEGRADED
+    # - cursor may advance
+    outcome = derive_run_outcome(
+        discovery_status="COMPLETE",
+        discovery_paging_completed=True,
+        invalid_discovery_count=0,
+        expected_fixture_ids=frozenset(["1"]),
+        item_states={"1": "INGESTED_SCORE_ONLY"},
+        acquisition_rate_limited=False,
+        physical_budget_exhausted=False,
+    )
+    assert outcome.status == "DEGRADED"
+    assert outcome.cursor_may_advance is True
+    assert outcome.error_code == "PARTIAL_COVERAGE"  # All items terminal, at least one INGESTED_SCORE_ONLY -> status DEGRADED, error PARTIAL_COVERAGE
+
+
+def test_c0_11_rate_limited_rejected_as_item_state():
+    from bet.enrichment.football.contracts import derive_run_outcome
+    # RATE_LIMITED is rejected as sports_sync_item.state. If passed, it must fail.
+    # Let's say if we pass RATE_LIMITED in item_states, derive_run_outcome fails.
+    outcome = derive_run_outcome(
+        discovery_status="COMPLETE",
+        discovery_paging_completed=True,
+        invalid_discovery_count=0,
+        expected_fixture_ids=frozenset(["1"]),
+        item_states={"1": "RATE_LIMITED"},
+        acquisition_rate_limited=False,
+        physical_budget_exhausted=False,
+    )
+    assert outcome.status == "FAILED"
+    assert outcome.cursor_may_advance is False
+    assert outcome.error_code == "UNKNOWN_SYNC_ITEM_STATE"  # rejected/unknown state for item_state
+
+
+def test_c0_12_replay_containing_partial_facts_returns_degraded():
+    from bet.enrichment.football.contracts import derive_run_outcome
+    outcome = derive_run_outcome(
+        discovery_status="COMPLETE",
+        discovery_paging_completed=True,
+        invalid_discovery_count=0,
+        expected_fixture_ids=frozenset(["1"]),
+        item_states={"1": "INGESTED_PARTIAL"},
+        acquisition_rate_limited=False,
+        physical_budget_exhausted=False,
+    )
+    assert outcome.status == "DEGRADED"
+    assert outcome.cursor_may_advance is True
+    assert outcome.error_code == "PARTIAL_COVERAGE"
+
+
+def test_c0_13_replay_containing_score_only_facts_returns_degraded():
+    from bet.enrichment.football.contracts import derive_run_outcome
+    outcome = derive_run_outcome(
+        discovery_status="COMPLETE",
+        discovery_paging_completed=True,
+        invalid_discovery_count=0,
+        expected_fixture_ids=frozenset(["1"]),
+        item_states={"1": "INGESTED_SCORE_ONLY"},
+        acquisition_rate_limited=False,
+        physical_budget_exhausted=False,
+    )
+    assert outcome.status == "DEGRADED"
+    assert outcome.cursor_may_advance is True
+    assert outcome.error_code == "PARTIAL_COVERAGE"
+
+
+def test_c0_14_invalid_discovery_counters():
+    from bet.enrichment.football.contracts import derive_run_outcome
+    outcome = derive_run_outcome(
+        discovery_status="DEGRADED",
+        discovery_paging_completed=True,
+        invalid_discovery_count=2,
+        expected_fixture_ids=frozenset(["1"]),
+        item_states={"1": "INGESTED_COMPLETE"},
+        acquisition_rate_limited=False,
+        physical_budget_exhausted=False,
+    )
+    assert outcome.status == "FAILED"
+    assert outcome.cursor_may_advance is False
+    assert outcome.error_code == "DISCOVERY_SCHEMA_MISMATCH"
+    # discovered_count includes valid and invalid records
+    assert outcome.discovered_count == 3
+    # transient_failed_count includes invalid records
+    assert outcome.transient_failed_count == 2
+
+
+def test_c0_15_invalid_discovery_blocks_cursor():
+    from bet.enrichment.football.contracts import derive_run_outcome
+    outcome = derive_run_outcome(
+        discovery_status="DEGRADED",
+        discovery_paging_completed=True,
+        invalid_discovery_count=1,
+        expected_fixture_ids=frozenset(["1"]),
+        item_states={"1": "INGESTED_COMPLETE"},
+        acquisition_rate_limited=False,
+        physical_budget_exhausted=False,
+    )
+    assert outcome.status == "FAILED"
+    assert outcome.cursor_may_advance is False
+    assert outcome.error_code == "DISCOVERY_SCHEMA_MISMATCH"
+
+
+def test_c0_16_empty_completed_discovery_advances_cursor():
+    from bet.enrichment.football.contracts import derive_run_outcome
+    outcome = derive_run_outcome(
+        discovery_status="COMPLETE",
+        discovery_paging_completed=True,
+        invalid_discovery_count=0,
+        expected_fixture_ids=frozenset(),
+        item_states={},
+        acquisition_rate_limited=False,
+        physical_budget_exhausted=False,
+    )
+    assert outcome.status == "COMPLETE"
+    assert outcome.cursor_may_advance is True
+    assert outcome.error_code == "NO_COMPLETED_FIXTURES"

@@ -246,7 +246,12 @@ def test_t2_malformed_stats_become_transient_failed(mock_client):
 
     assert res.terminal_status == "TRANSIENT_FAILED"
     assert len(res.fixtures) == 1
-    assert res.fixtures[0].acquisition_mode == "TRANSIENT_FAILED"
+    from bet.enrichment.football.contracts import (
+        AcquisitionMode,
+        FixtureWorkDisposition,
+    )
+    assert res.outcomes[0].disposition == FixtureWorkDisposition.TRANSIENT_FAILED
+    assert res.fixtures[0].acquisition_mode == AcquisitionMode.DISCOVERY_ENVELOPE
 
 def test_t2_participant_mismatch_becomes_transient_failed(mock_client):
     acquirer = LiveAPIFootballAcquirer(mock_client)
@@ -289,7 +294,12 @@ def test_t2_participant_mismatch_becomes_transient_failed(mock_client):
 
     assert res.terminal_status == "TRANSIENT_FAILED"
     assert len(res.fixtures) == 1
-    assert res.fixtures[0].acquisition_mode == "TRANSIENT_FAILED"
+    from bet.enrichment.football.contracts import (
+        AcquisitionMode,
+        FixtureWorkDisposition,
+    )
+    assert res.outcomes[0].disposition == FixtureWorkDisposition.TRANSIENT_FAILED
+    assert res.fixtures[0].acquisition_mode == AcquisitionMode.DISCOVERY_ENVELOPE
 
 def test_t2_missing_evidence_timestamp_raises_value_error(mock_client):
     acquirer = LiveAPIFootballAcquirer(mock_client)

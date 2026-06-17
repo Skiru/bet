@@ -218,11 +218,29 @@ class FootballHistoryService:
             )
 
             # 4. Persist and resolve transitions
+            outcomes_map = {o.provider_fixture_id: o for o in acq_res.outcomes}
             for acq_fixture in acq_res.fixtures:
+                outcome = outcomes_map.get(acq_fixture.fixture.provider_fixture_id)
+                target_state = None
+                error_code = None
+                if outcome:
+                    from bet.enrichment.football.contracts import FixtureWorkDisposition
+                    if outcome.disposition == FixtureWorkDisposition.TRANSIENT_FAILED:
+                        target_state = "TRANSIENT_FAILED"
+                        error_code = outcome.error_code
+                    elif outcome.disposition == FixtureWorkDisposition.POLICY_SCORE_ONLY:
+                        target_state = "INGESTED_SCORE_ONLY"
+                        error_code = outcome.error_code
+                    elif outcome.disposition == FixtureWorkDisposition.PERMANENTLY_UNAVAILABLE:
+                        target_state = "PERMANENTLY_UNAVAILABLE"
+                        error_code = outcome.error_code
+
                 self.persistence.persist_acquired_fixture(
                     acquired_fixture=acq_fixture,
                     scope_key=scope_key,
                     sync_run_id=run_id,
+                    target_state=target_state,
+                    error_code=error_code,
                 )
             self.conn.commit()
 
@@ -261,45 +279,30 @@ class FootballHistoryService:
             discovered_ids = {f.provider_fixture_id for f in disc_res.completed_fixtures}
             item_states = {row[0]: row[1] for row in rows if row[0] in discovered_ids}
 
+            from bet.enrichment.football.contracts import derive_run_outcome
+            run_outcome = derive_run_outcome(
+                discovery_status=disc_res.terminal_status,
+                discovery_paging_completed=disc_res.paging_completed,
+                invalid_discovery_count=len(disc_res.invalid_records),
+                expected_fixture_ids=frozenset(discovered_ids),
+                item_states=item_states,
+                acquisition_rate_limited=acq_res.acquisition_rate_limited,
+                physical_budget_exhausted=acq_res.physical_budget_exhausted,
+            )
+
             # Reset counters
             counters = {
                 "physical_http_attempts": disc_res.physical_attempts + acq_res.physical_attempts,
                 "fallback_stats_calls": acq_res.statistics_calls,
-                "discovered_count": len(discovered_ids),
-                "complete_count": 0,
-                "partial_count": 0,
-                "score_only_count": 0,
-                "permanently_unavailable_count": 0,
-                "transient_failed_count": 0,
+                "discovered_count": run_outcome.discovered_count,
+                "complete_count": run_outcome.complete_count,
+                "partial_count": run_outcome.partial_count,
+                "score_only_count": run_outcome.score_only_count,
+                "permanently_unavailable_count": run_outcome.permanently_unavailable_count,
+                "transient_failed_count": run_outcome.transient_failed_count,
             }
 
-            for state in item_states.values():
-                if state == "INGESTED_COMPLETE":
-                    counters["complete_count"] += 1
-                elif state == "INGESTED_PARTIAL":
-                    counters["partial_count"] += 1
-                elif state == "INGESTED_SCORE_ONLY":
-                    counters["score_only_count"] += 1
-                elif state == "PERMANENTLY_UNAVAILABLE":
-                    counters["permanently_unavailable_count"] += 1
-                elif state in ("TRANSIENT_FAILED", "RATE_LIMITED"):
-                    counters["transient_failed_count"] += 1
-
-            # 5. Cursor advancement decision (closed-day rule)
-            has_rate_limit = any(state == "RATE_LIMITED" for state in item_states.values()) or acq_res.terminal_status == "RATE_LIMITED" or disc_res.terminal_status == "RATE_LIMITED"
-            has_transient_fail = any(state in ("TRANSIENT_FAILED", "FAILED") for state in item_states.values()) or acq_res.terminal_status == "TRANSIENT_FAILED" or disc_res.terminal_status == "FAILED"
-
-            if has_rate_limit:
-                final_status = "RATE_LIMITED"
-            elif has_transient_fail:
-                final_status = "FAILED"
-            elif counters["complete_count"] == len(discovered_ids):
-                final_status = "COMPLETE"
-            elif (counters["complete_count"] + counters["partial_count"] + counters["score_only_count"] + counters["permanently_unavailable_count"]) == len(discovered_ids):
-                final_status = "DEGRADED"
-            else:
-                final_status = "COMPLETE"
-
+            final_status = run_outcome.status
             cursor_after_json = cursor_before_json
 
             today_utc = self.clock.today_utc()
@@ -308,7 +311,7 @@ class FootballHistoryService:
             if self.conn.in_transaction:
                 self.conn.commit()
 
-            if counters["transient_failed_count"] == 0 and final_status in ("COMPLETE", "DEGRADED"):
+            if run_outcome.cursor_may_advance:
                 cursor_after_json = json.dumps({"committed_through_date": effective_closed_through.isoformat()})
                 self.sync_engine.transition_cursor(cursor_id, effective_closed_through.isoformat(), now_str)
 
@@ -316,7 +319,7 @@ class FootballHistoryService:
                 self.conn.commit()
 
             # Complete sync run
-            self.sync_engine.complete_run(run_id, final_status, cursor_after_json, counters)
+            self.sync_engine.complete_run(run_id, final_status, cursor_after_json, counters, error_code=run_outcome.error_code)
 
             return SyncResult(
                 sync_run_id=run_id,
@@ -516,11 +519,29 @@ class FootballHistoryService:
             )
 
             # 4. Persist and evaluate transitions
+            outcomes_map = {o.provider_fixture_id: o for o in acq_res.outcomes}
             for acq_fixture in acq_res.fixtures:
+                outcome = outcomes_map.get(acq_fixture.fixture.provider_fixture_id)
+                target_state = None
+                error_code = None
+                if outcome:
+                    from bet.enrichment.football.contracts import FixtureWorkDisposition
+                    if outcome.disposition == FixtureWorkDisposition.TRANSIENT_FAILED:
+                        target_state = "TRANSIENT_FAILED"
+                        error_code = outcome.error_code
+                    elif outcome.disposition == FixtureWorkDisposition.POLICY_SCORE_ONLY:
+                        target_state = "INGESTED_SCORE_ONLY"
+                        error_code = outcome.error_code
+                    elif outcome.disposition == FixtureWorkDisposition.PERMANENTLY_UNAVAILABLE:
+                        target_state = "PERMANENTLY_UNAVAILABLE"
+                        error_code = outcome.error_code
+
                 self.persistence.persist_acquired_fixture(
                     acquired_fixture=acq_fixture,
                     scope_key=scope_key,
                     sync_run_id=run_id,
+                    target_state=target_state,
+                    error_code=error_code,
                 )
             self.conn.commit()
 
@@ -559,45 +580,30 @@ class FootballHistoryService:
             discovered_ids = {f.provider_fixture_id for f in disc_res.completed_fixtures}
             item_states = {row[0]: row[1] for row in rows if row[0] in discovered_ids}
 
+            from bet.enrichment.football.contracts import derive_run_outcome
+            run_outcome = derive_run_outcome(
+                discovery_status=disc_res.terminal_status,
+                discovery_paging_completed=disc_res.paging_completed,
+                invalid_discovery_count=len(disc_res.invalid_records),
+                expected_fixture_ids=frozenset(discovered_ids),
+                item_states=item_states,
+                acquisition_rate_limited=acq_res.acquisition_rate_limited,
+                physical_budget_exhausted=acq_res.physical_budget_exhausted,
+            )
+
             # Reset counters
             counters = {
                 "physical_http_attempts": disc_res.physical_attempts + acq_res.physical_attempts,
                 "fallback_stats_calls": acq_res.statistics_calls,
-                "discovered_count": len(discovered_ids),
-                "complete_count": 0,
-                "partial_count": 0,
-                "score_only_count": 0,
-                "permanently_unavailable_count": 0,
-                "transient_failed_count": 0,
+                "discovered_count": run_outcome.discovered_count,
+                "complete_count": run_outcome.complete_count,
+                "partial_count": run_outcome.partial_count,
+                "score_only_count": run_outcome.score_only_count,
+                "permanently_unavailable_count": run_outcome.permanently_unavailable_count,
+                "transient_failed_count": run_outcome.transient_failed_count,
             }
 
-            for state in item_states.values():
-                if state == "INGESTED_COMPLETE":
-                    counters["complete_count"] += 1
-                elif state == "INGESTED_PARTIAL":
-                    counters["partial_count"] += 1
-                elif state == "INGESTED_SCORE_ONLY":
-                    counters["score_only_count"] += 1
-                elif state == "PERMANENTLY_UNAVAILABLE":
-                    counters["permanently_unavailable_count"] += 1
-                elif state in ("TRANSIENT_FAILED", "RATE_LIMITED"):
-                    counters["transient_failed_count"] += 1
-
-            # 5. Cursor advancement (closed-day rule)
-            has_rate_limit = any(state == "RATE_LIMITED" for state in item_states.values()) or acq_res.terminal_status == "RATE_LIMITED" or disc_res.terminal_status == "RATE_LIMITED"
-            has_transient_fail = any(state in ("TRANSIENT_FAILED", "FAILED") for state in item_states.values()) or acq_res.terminal_status == "TRANSIENT_FAILED" or disc_res.terminal_status == "FAILED"
-
-            if has_rate_limit:
-                final_status = "RATE_LIMITED"
-            elif has_transient_fail:
-                final_status = "FAILED"
-            elif counters["complete_count"] == len(discovered_ids):
-                final_status = "COMPLETE"
-            elif (counters["complete_count"] + counters["partial_count"] + counters["score_only_count"] + counters["permanently_unavailable_count"]) == len(discovered_ids):
-                final_status = "DEGRADED"
-            else:
-                final_status = "COMPLETE"
-
+            final_status = run_outcome.status
             cursor_after_json = cursor_before_json
 
             # Incremental committed through date can advance up to clock.today_utc() - 1 day
@@ -606,7 +612,7 @@ class FootballHistoryService:
             if self.conn.in_transaction:
                 self.conn.commit()
 
-            if counters["transient_failed_count"] == 0 and final_status in ("COMPLETE", "DEGRADED"):
+            if run_outcome.cursor_may_advance:
                 if max_comm_date >= from_date:
                     cursor_after_json = json.dumps({"committed_through_date": max_comm_date.isoformat()})
                     self.sync_engine.transition_cursor(cursor_id, max_comm_date.isoformat(), now_str)
@@ -615,7 +621,7 @@ class FootballHistoryService:
                 self.conn.commit()
 
             # Complete sync run
-            self.sync_engine.complete_run(run_id, final_status, cursor_after_json, counters)
+            self.sync_engine.complete_run(run_id, final_status, cursor_after_json, counters, error_code=run_outcome.error_code)
 
             return SyncResult(
                 sync_run_id=run_id,
@@ -680,16 +686,7 @@ class FootballHistoryService:
             scope_key, "REPLAY", "", "", "{}"
         )
 
-        counters = {
-            "physical_http_attempts": 0,
-            "fallback_stats_calls": 0,
-            "discovered_count": len(acq_res.fixtures),
-            "complete_count": 0,
-            "partial_count": 0,
-            "score_only_count": 0,
-            "permanently_unavailable_count": 0,
-            "transient_failed_count": 0,
-        }
+        item_states = {}
 
         # Create sync items and persist
         for acq_fixture in acq_res.fixtures:
@@ -707,18 +704,34 @@ class FootballHistoryService:
                 scope_key=scope_key,
                 sync_run_id=run_id,
             )
-            state = p_res.sync_item_state
-            if state == "INGESTED_COMPLETE":
-                counters["complete_count"] += 1
-            elif state == "INGESTED_PARTIAL":
-                counters["partial_count"] += 1
-            elif state == "INGESTED_SCORE_ONLY":
-                counters["score_only_count"] += 1
+            item_states[acq_fixture.fixture.provider_fixture_id] = p_res.sync_item_state
+
+        from bet.enrichment.football.contracts import derive_run_outcome
+        run_outcome = derive_run_outcome(
+            discovery_status="COMPLETE",
+            discovery_paging_completed=True,
+            invalid_discovery_count=0,
+            expected_fixture_ids=frozenset(item_states.keys()),
+            item_states=item_states,
+            acquisition_rate_limited=False,
+            physical_budget_exhausted=False,
+        )
+
+        counters = {
+            "physical_http_attempts": 0,
+            "fallback_stats_calls": 0,
+            "discovered_count": run_outcome.discovered_count,
+            "complete_count": run_outcome.complete_count,
+            "partial_count": run_outcome.partial_count,
+            "score_only_count": run_outcome.score_only_count,
+            "permanently_unavailable_count": run_outcome.permanently_unavailable_count,
+            "transient_failed_count": run_outcome.transient_failed_count,
+        }
 
         self.conn.commit()
         if self.conn.in_transaction:
             self.conn.commit()
-        self.sync_engine.complete_run(run_id, "COMPLETE", "{}", counters)
+        self.sync_engine.complete_run(run_id, run_outcome.status, "{}", counters, error_code=run_outcome.error_code)
 
         return SyncResult(
             sync_run_id=run_id,
@@ -727,7 +740,7 @@ class FootballHistoryService:
             cursor_after=None,
             actual_counters=counters,
             acquisition_result=acq_res,
-            final_status="COMPLETE",
+            final_status=run_outcome.status,
             warnings=(),
         )
 

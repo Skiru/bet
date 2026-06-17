@@ -204,34 +204,13 @@ class CanonicalPersistence:
         acquired_fixture: "AcquiredFixture",
         scope_key: str,
         sync_run_id: int,
+        target_state: str | None = None,
+        error_code: str | None = None,
     ) -> "PersistFixtureResult":
         sp_name = f"persist_fixture_{acquired_fixture.fixture.provider_fixture_id}"
         self.conn.execute(f"SAVEPOINT {sp_name}")
 
         try:
-            if acquired_fixture.acquisition_mode in ("TRANSIENT_FAILED", "RATE_LIMITED"):
-                sync_state = acquired_fixture.acquisition_mode.value
-                observed_at_str = format_utc(acquired_fixture.observed_at)
-                self.conn.execute(
-                    """UPDATE sports_sync_item
-                       SET state = ?, last_sync_run_id = ?, updated_at = ?
-                       WHERE provider = 'api-football' AND sport = 'football' AND scope_key = ? AND provider_fixture_id = ?
-                    """,
-                    (sync_state, sync_run_id, observed_at_str, scope_key, acquired_fixture.fixture.provider_fixture_id)
-                )
-                self.conn.execute(f"RELEASE SAVEPOINT {sp_name}")
-                return PersistFixtureResult(
-                    canonical_fixture_id=0,
-                    canonical_event_entity_id=0,
-                    canonical_home_team_id=0,
-                    canonical_away_team_id=0,
-                    observations_inserted=0,
-                    observations_reused=0,
-                    corrections_appended=0,
-                    projections_updated=0,
-                    sync_item_state=sync_state,
-                    fixture_bundle_id=""
-                )
 
             comp_id, comp_sports_ent_id = self._resolve_or_create_competition(
                 acquired_fixture.fixture.provider_competition_id,
@@ -372,7 +351,9 @@ class CanonicalPersistence:
 
             home_comp = completed_facts.home.completeness.value
             away_comp = completed_facts.away.completeness.value
-            if home_comp == "COMPLETE" and away_comp == "COMPLETE":
+            if target_state is not None:
+                sync_state = target_state
+            elif home_comp == "COMPLETE" and away_comp == "COMPLETE":
                 sync_state = "INGESTED_COMPLETE"
             elif home_comp == "SCORE_ONLY" and away_comp == "SCORE_ONLY":
                 sync_state = "INGESTED_SCORE_ONLY"
@@ -381,10 +362,10 @@ class CanonicalPersistence:
 
             self.conn.execute(
                 """UPDATE sports_sync_item
-                   SET canonical_fixture_id = ?, state = ?, fixture_evidence_bundle_id = ?, statistics_evidence_bundle_id = ?, normalized_payload_sha256 = ?, last_success_at = ?, last_sync_run_id = ?, updated_at = ?
+                   SET canonical_fixture_id = ?, state = ?, fixture_evidence_bundle_id = ?, statistics_evidence_bundle_id = ?, normalized_payload_sha256 = ?, last_success_at = ?, last_error_code = ?, last_sync_run_id = ?, updated_at = ?
                    WHERE provider = 'api-football' AND sport = 'football' AND scope_key = ? AND provider_fixture_id = ?
                 """,
-                (fix_id, sync_state, local_bundle_id, local_bundle_id, normalized_payload_sha256, observed_at_str, sync_run_id, observed_at_str, scope_key, acquired_fixture.fixture.provider_fixture_id)
+                (fix_id, sync_state, local_bundle_id, local_bundle_id, normalized_payload_sha256, observed_at_str, error_code, sync_run_id, observed_at_str, scope_key, acquired_fixture.fixture.provider_fixture_id)
             )
 
             self.conn.execute(f"RELEASE SAVEPOINT {sp_name}")
