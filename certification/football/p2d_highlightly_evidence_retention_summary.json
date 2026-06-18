@@ -1,0 +1,135 @@
+{
+  "phase_id": "P2D_A6_HIGHLIGHTLY_CERTIFIABLE_STATS_INDEX",
+  "previous_accepted_sha": "122e7952e334955042cdae69bc58c6b6a5436a6f",
+  "input_summary_sha": "3c0d204989057bea5679e96e5c5324741e33ae9a",
+  "evidence_level": "TRACKED_CERTIFIABLE_SUMMARY_FROM_LOCAL_REPORTS_OR_RECAPTURE",
+  "provider": "highlightly",
+  "scope": "football:eng.1/current-season-completed/shadow",
+  "provider_native_ids": {
+    "league_id": "33973",
+    "match_id": "1028343227",
+    "team_ids": [
+      "30569",
+      "39930"
+    ]
+  },
+  "evidence_inventory": [
+    {
+      "path": "reports/football_p2d_targeted_reprobe_report.json",
+      "sha256": "a96c4bc0baa7468f1b0c71f4ac99ed411eb335f8a9bea11542c7c0089ad58283",
+      "git_state": "untracked",
+      "secret_safe": true,
+      "operations_supported": [
+        "league_discovery",
+        "match_discovery",
+        "home_form",
+        "away_form",
+        "head_to_head",
+        "statistics"
+      ],
+      "notes": "Retains target provider-native IDs, six raw response hashes, and the exact statistics raw_stat_field_names array."
+    },
+    {
+      "path": ".kilo/artifacts/highlightly_source_strategy_recapture_20260618.json",
+      "sha256": "9dc5a116e1c1f87b7b68bbe9613722c63cc2509730dbbf41083da26cc7bbbde7",
+      "git_state": "untracked",
+      "secret_safe": true,
+      "operations_supported": [
+        "league_discovery",
+        "match_discovery",
+        "home_form",
+        "away_form",
+        "head_to_head",
+        "statistics"
+      ],
+      "notes": "Retains per-operation request_path, request_params, and corroborating raw_response_sha256 values for four of six operations; recapture match_discovery/statistics hashes differ from the targeted reprobe report."
+    }
+  ],
+  "operations": {
+    "league_discovery": {
+      "evidence_path": "reports/football_p2d_targeted_reprobe_report.json#/highlightly/evidence/0",
+      "raw_response_sha256": "e0a24294fc9d1e6b268eec831480aed035fd4e6f767667b678c626930fa79618",
+      "request_path_without_secret": "/leagues?leagueName=Premier+League&countryName=England&season=2025",
+      "status": "SUPPORTED_BY_UNTRACKED_LOCAL_REPORT_AND_RECAPTURE_ARTIFACT",
+      "local_evidence_path": true,
+      "evidence_git_state": "untracked"
+    },
+    "match_discovery": {
+      "evidence_path": "reports/football_p2d_targeted_reprobe_report.json#/highlightly/evidence/1",
+      "raw_response_sha256": "e8921b1b10ed73852732b965273aa738b3ecf82781abb389f4b2f55ae9358e5d",
+      "request_path_without_secret": "/matches?leagueId=33973&season=2025&limit=20",
+      "status": "SUPPORTED_BY_UNTRACKED_TARGETED_REPROBE_REPORT_FOR_TARGET_MATCH_ID_1028343227",
+      "local_evidence_path": true,
+      "evidence_git_state": "untracked"
+    },
+    "home_form": {
+      "evidence_path": "reports/football_p2d_targeted_reprobe_report.json#/highlightly/evidence/2",
+      "raw_response_sha256": "162a2f97fc7d7bfdffb8e558d0165235437fae3754cf60c528035a018ecc96e6",
+      "request_path_without_secret": "/last-five-games?teamId=30569",
+      "status": "SUPPORTED_BY_UNTRACKED_LOCAL_REPORT_AND_RECAPTURE_ARTIFACT",
+      "local_evidence_path": true,
+      "evidence_git_state": "untracked"
+    },
+    "away_form": {
+      "evidence_path": "reports/football_p2d_targeted_reprobe_report.json#/highlightly/evidence/3",
+      "raw_response_sha256": "f60ed5236b7a7ac4149f10c07b2c53fcaa09e6c8a80ef3b2843dc215a988416a",
+      "request_path_without_secret": "/last-five-games?teamId=39930",
+      "status": "SUPPORTED_BY_UNTRACKED_LOCAL_REPORT_AND_RECAPTURE_ARTIFACT",
+      "local_evidence_path": true,
+      "evidence_git_state": "untracked"
+    },
+    "head_to_head": {
+      "evidence_path": "reports/football_p2d_targeted_reprobe_report.json#/highlightly/evidence/4",
+      "raw_response_sha256": "b14e9f8af3bf9d0461335a19da042d8ae64f700a24cc40d23cf3e02a4de00e91",
+      "request_path_without_secret": "/head-2-head?teamIdOne=30569&teamIdTwo=39930",
+      "status": "SUPPORTED_BY_UNTRACKED_LOCAL_REPORT_AND_RECAPTURE_ARTIFACT",
+      "local_evidence_path": true,
+      "evidence_git_state": "untracked"
+    },
+    "statistics": {
+      "evidence_path": "reports/football_p2d_targeted_reprobe_report.json#/highlightly/raw_stat_field_names",
+      "raw_response_sha256": "f616fd4ed98c9d11768101a66fe7a149efc60d084759730595719a8352de0b9d",
+      "request_path_without_secret": "/statistics/1028343227",
+      "status": "SUPPORTED_BY_UNTRACKED_TARGETED_REPROBE_REPORT_WITH_EXACT_RAW_STAT_FIELD_NAMES_FOR_MATCH_ID_1028343227",
+      "local_evidence_path": true,
+      "evidence_git_state": "untracked",
+      "raw_stat_field_names": [
+        "Expected Goals",
+        "Big Chances Created",
+        "Free Kicks",
+        "Throw-Ins",
+        "Goal Kicks",
+        "Shots accuracy",
+        "Shots on target",
+        "Shots off target",
+        "Blocked shots",
+        "Shots within penalty area",
+        "Shots outside penalty area",
+        "Fouls",
+        "Corners",
+        "Offsides",
+        "Possession",
+        "Yellow cards",
+        "Goalkeeper saves",
+        "Total passes",
+        "Successful passes",
+        "Failed passes"
+      ],
+      "raw_stat_fields_count": 20,
+      "missing_target_metrics": [
+        "Red cards"
+      ],
+      "unknown_metrics": []
+    }
+  },
+  "certification_readiness": "HIGHLIGHTLY_CERTIFICATION_READY",
+  "primary_blocker": null,
+  "secret_safe": true,
+  "sportdb_strategy": {
+    "status": "strategic_p2e_not_rejected",
+    "next_phase": "P2E_SPORTDB_MULTISPORT_MAPPING_WITH_RATE_LIMIT_GUARD"
+  },
+  "api_football_strategy": {
+    "status": "historical_fallback_only"
+  }
+}
