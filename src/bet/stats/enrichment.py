@@ -14,7 +14,7 @@ import json
 import logging
 from datetime import UTC, datetime
 
-from bet.api_clients.base_client import SourceOperationResult, SourceResultStatus
+from bet.integration.source_result import SourceOperationResult, SourceResultStatus
 from bet.api_clients.espn import (
     ESPN_PARSER_VERSION,
     get_espn_league_for_competition,
@@ -286,7 +286,38 @@ def _resolve_football_recent_form(
     return resolution
 
 
+def _fixtures_are_all_football(fixtures: list[Fixture], db_conn) -> bool:
+    if not fixtures:
+        return False
+    sport_repo = SportRepo(db_conn)
+    football = sport_repo.get_by_name("football")
+    return football is not None and all(fix.sport_id == football.id for fix in fixtures)
+
+
 async def enrich_fixtures(
+    fixtures: list[Fixture],
+    db_conn,
+    playwright_pool=None,
+    max_age_hours: int = 12,
+) -> dict[str, int]:
+    if _fixtures_are_all_football(fixtures, db_conn):
+        from bet.enrichment.football_vertical import get_football_golden_vertical_executor
+
+        return await get_football_golden_vertical_executor().enrich_fixtures(
+            fixtures,
+            db_conn,
+            playwright_pool=playwright_pool,
+            max_age_hours=max_age_hours,
+        )
+    return await _enrich_fixtures_impl(
+        fixtures,
+        db_conn,
+        playwright_pool=playwright_pool,
+        max_age_hours=max_age_hours,
+    )
+
+
+async def _enrich_fixtures_impl(
     fixtures: list[Fixture],
     db_conn,
     playwright_pool=None,
@@ -337,8 +368,8 @@ async def enrich_fixtures(
         if not stat_keys:
             continue
 
-        # Check if ANY stat key is stale
-        needs_fetch = any(
+        is_football = sport_obj.name == "football"
+        needs_fetch = is_football or any(
             stats_repo.is_stale(team_id, sk, max_age_hours)
             for sk in stat_keys[:3]  # Check first 3 keys as proxy
         )
@@ -1867,6 +1898,20 @@ def get_standings_snapshot(
 
 
 def build_football_fixture_snapshot(
+    db_conn,
+    canonical_fixture_id: int,
+    analysis_cutoff_at: str | None = None,
+) -> dict:
+    from bet.enrichment.football_vertical import get_football_golden_vertical_executor
+
+    return get_football_golden_vertical_executor().build_fixture_snapshot(
+        db_conn,
+        canonical_fixture_id,
+        analysis_cutoff_at=analysis_cutoff_at,
+    )
+
+
+def _build_football_fixture_snapshot_impl(
     db_conn,
     canonical_fixture_id: int,
     analysis_cutoff_at: str | None = None,

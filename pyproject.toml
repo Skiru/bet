@@ -5,6 +5,9 @@ description = "Betting pipeline with LangGraph orchestration"
 requires-python = ">=3.12,<3.14"
 readme = "README.md"
 license = { text = "Proprietary" }
+dependencies = [
+    "PyYAML>=6.0,<7",
+]
 
 [project.optional-dependencies]
 langgraph-runtime = [

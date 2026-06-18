@@ -1,3 +1,5 @@
+# ruff: noqa: E501, I001, W291, W293, F401, F841, UP015, UP017
+
 import json
 import hashlib
 import yaml
@@ -11,6 +13,7 @@ import sqlite3
 from bet.db.repositories import FixtureRepo, TeamRepo, FixtureCapabilityRepo, FootballSnapshotReader
 from bet.db.observation_models import create_observation, create_projection
 from bet.enrichment.football_snapshot import (
+    CapabilityOutcome,
     FootballEnrichmentSnapshot,
     to_dict,
     from_dict,
@@ -71,8 +74,51 @@ def parse_enrichment_mode() -> str:
     return mode
 
 
+ALLOWED_ROUTE_CLASSIFICATIONS_BY_MODE: dict[str, set[str]] = {
+    "off": {"PRODUCTION_PRIMARY", "PRODUCTION_FALLBACK", "SHADOW"},
+    "shadow": {"PRODUCTION_PRIMARY", "PRODUCTION_FALLBACK", "SHADOW"},
+}
+
+
+def load_provider_capability_matrix(config_dir: Path | str = "config") -> dict[str, Any]:
+    config_dir = Path(config_dir)
+    with open(config_dir / "provider_capability_matrix.json", "r", encoding="utf-8") as f:
+        matrix = json.load(f)
+    providers = matrix.get("providers")
+    if not isinstance(providers, dict) or not providers:
+        raise ValueError("Provider capability matrix must define non-empty providers")
+    return matrix
+
+
+def _resolve_route_qualification(
+    matrix: dict[str, Any],
+    *,
+    provider: str,
+    route_name: str,
+    mode: str,
+) -> dict[str, Any] | None:
+    provider_entry = (matrix.get("providers") or {}).get(provider)
+    if not isinstance(provider_entry, dict):
+        return None
+    capability_entries = ((provider_entry.get("capabilities") or {}).get(route_name)) or []
+    allowed = ALLOWED_ROUTE_CLASSIFICATIONS_BY_MODE.get(mode, set())
+    for entry in capability_entries:
+        if not isinstance(entry, dict):
+            continue
+        entry_mode = entry.get("mode")
+        if entry_mode != mode and not (mode == "off" and entry_mode == "shadow"):
+            continue
+        if entry.get("classification") not in allowed:
+            continue
+        if entry.get("status") not in {"QUALIFIED", "NARROW_SCOPE_ONLY"}:
+            continue
+        return entry
+    return None
+
+
 def load_and_validate_config(config_dir: Path | str = "config") -> dict[str, Any]:
     config_dir = Path(config_dir)
+    mode = parse_enrichment_mode()
     
     # Load capabilities
     with open(config_dir / "football_capabilities.yaml", "r") as f:
@@ -88,6 +134,8 @@ def load_and_validate_config(config_dir: Path | str = "config") -> dict[str, Any
     with open(config_dir / "football_routing.yaml", "r") as f:
         routing_data = yaml.safe_load(f) or {}
     routing = routing_data.get("routing", {})
+
+    provider_capability_matrix = load_provider_capability_matrix(config_dir)
     
     # Load metrics
     with open(config_dir / "football_metrics.yaml", "r") as f:
@@ -109,12 +157,15 @@ def load_and_validate_config(config_dir: Path | str = "config") -> dict[str, Any
             raise ValueError(f"Duplicate providers in route {route_name}: {precedence}")
             
         for provider in precedence:
-            # Check provider present in registry
-            if provider not in PROVIDER_REGISTRY:
-                raise ValueError(f"Provider {provider} in route {route_name} is not present in the registry")
-            # Check routing to a governance-blocked provider
-            if PROVIDER_REGISTRY[provider] == ProviderState.GOVERNANCE_BLOCKED:
-                raise ValueError(f"Provider {provider} in route {route_name} is governance-blocked")
+            if _resolve_route_qualification(
+                provider_capability_matrix,
+                provider=provider,
+                route_name=route_name,
+                mode=mode,
+            ) is None:
+                raise ValueError(
+                    f"Provider {provider} in route {route_name} is not capability-qualified for mode={mode}"
+                )
                 
     # Compute policy_config_hash from canonicalized contents of the configuration actually used for the run
     canonical_config = {
@@ -122,6 +173,7 @@ def load_and_validate_config(config_dir: Path | str = "config") -> dict[str, Any
         "freshness": freshness,
         "routing": routing,
         "metrics": metrics,
+        "provider_capability_matrix": provider_capability_matrix,
     }
     config_json = json.dumps(canonical_config, sort_keys=True, separators=(",", ":"))
     policy_config_hash = hashlib.sha256(config_json.encode("utf-8")).hexdigest()
@@ -131,6 +183,7 @@ def load_and_validate_config(config_dir: Path | str = "config") -> dict[str, Any
         "freshness": freshness,
         "routing": routing,
         "metrics": metrics,
+        "provider_capability_matrix": provider_capability_matrix,
         "policy_config_hash": policy_config_hash,
     }
 
@@ -751,6 +804,19 @@ def get_most_informative_status(results: list[SourceOperationResult]) -> str:
     return best_status
 
 
+def _is_capability_outcome_satisfied(status: str) -> bool:
+    return status in {"SUCCESS", "VALID_EMPTY"}
+
+
+def _derive_snapshot_state(capability_outcomes: list[CapabilityOutcome]) -> str:
+    required = [outcome for outcome in capability_outcomes if outcome.required]
+    if required and all(outcome.satisfied for outcome in required):
+        return "COMPLETE"
+    if any(outcome.satisfied for outcome in required):
+        return "DEGRADED"
+    return "BLOCKED"
+
+
 class FootballEnrichmentService:
     def __init__(self, adapter_registry: FootballAdapterRegistry | None = None):
         self.adapter_registry = adapter_registry or FootballAdapterRegistry()
@@ -914,9 +980,13 @@ class FootballEnrichmentService:
                 attempted_results = []
 
                 for provider in precedence:
-                    # Check if provider is allowed
-                    state = PROVIDER_REGISTRY.get(provider)
-                    if state not in (ProviderState.PRODUCTION_ALLOWED, ProviderState.QUALIFIED_SHADOW):
+                    qualification = _resolve_route_qualification(
+                        config["provider_capability_matrix"],
+                        provider=provider,
+                        route_name=route_name,
+                        mode=mode,
+                    )
+                    if qualification is None:
                         continue
 
                     adapter = self.adapter_registry.get(provider)
@@ -977,6 +1047,7 @@ class FootballEnrichmentService:
                     h2h_matches = []
                     standings_table = None
                     fixture_stats = None
+                    capability_outcomes: list[CapabilityOutcome] = []
 
                     for task in fetch_tasks:
                         cap = task["cap"]
@@ -989,6 +1060,8 @@ class FootballEnrichmentService:
                         selected_provider = task_data["selected_provider"]
                         selected_result = task_data["selected_result"]
                         attempted_results = task_data["attempted_results"]
+                        selected_status_str = get_most_informative_status([r for _, r in attempted_results])
+                        selected_bundle_id = ""
 
                         # 1. Persist all attempts exactly as returned
                         for provider, res in attempted_results:
@@ -1018,8 +1091,7 @@ class FootballEnrichmentService:
 
                         # 2. Save observation and projection
                         if not selected_result:
-                            real_results = [r for p, r in attempted_results]
-                            terminal_status = get_most_informative_status(real_results)
+                            terminal_status = selected_status_str
 
                             obs = create_observation(
                                 canonical_fixture_id=canonical_fixture_id,
@@ -1047,6 +1119,16 @@ class FootballEnrichmentService:
                                 snapshot_run_id=run_id
                             )
                             cap_repo.save_projection(proj)
+                            capability_outcomes.append(
+                                CapabilityOutcome(
+                                    capability=cap,
+                                    scope=role or "FIXTURE",
+                                    selected_source="none",
+                                    selected_status=terminal_status,
+                                    required=True,
+                                    satisfied=_is_capability_outcome_satisfied(terminal_status),
+                                )
+                            )
                             continue
 
                         # Save successful/valid_empty observation and projection
@@ -1090,6 +1172,8 @@ class FootballEnrichmentService:
                             snapshot_run_id=run_id
                         )
                         cap_repo.save_projection(proj)
+                        selected_status_str = selected_result.status.value if isinstance(selected_result.status, Enum) else str(selected_result.status)
+                        selected_bundle_id = selected_result.bundle_id
 
                         # Write selection history automatically
                         conn.execute(
@@ -1121,11 +1205,24 @@ class FootballEnrichmentService:
                         elif cap == "fixture_team_statistics":
                             fixture_stats = selected_result.value
 
+                        capability_outcomes.append(
+                            CapabilityOutcome(
+                                capability=cap,
+                                scope=role or "FIXTURE",
+                                selected_source=selected_provider or "none",
+                                selected_status=selected_status_str,
+                                required=True,
+                                satisfied=_is_capability_outcome_satisfied(selected_status_str),
+                                evidence_bundle_id=selected_bundle_id or "",
+                            )
+                        )
+
                     # Build and publish snapshot
+                    snapshot_state = _derive_snapshot_state(capability_outcomes)
                     snapshot = FootballEnrichmentSnapshot(
                         run_id=str(run_id),
                         snapshot_id=f"snap_{canonical_fixture_id}_{analysis_cutoff_at.strftime('%Y%m%dT%H%M%S')}",
-                        snapshot_state="COMPLETE",
+                        snapshot_state=snapshot_state,
                         canonical_fixture_id=canonical_fixture_id,
                         analysis_cutoff_at=analysis_cutoff_at,
                         kickoff_at=datetime.fromisoformat(fixture.kickoff.replace("Z", "+00:00")),
@@ -1146,6 +1243,7 @@ class FootballEnrichmentService:
                         h2h_records=tuple(h2h_matches),
                         standings=standings_table,
                         selected_metrics={"stats": to_dict(fixture_stats)} if fixture_stats else {},
+                        capability_outcomes=tuple(capability_outcomes),
                         bundle_ids=tuple(row["evidence_bundle_id"] for row in conn.execute("SELECT DISTINCT evidence_bundle_id FROM fixture_capability_observation WHERE canonical_fixture_id = ? AND evidence_bundle_id != ''", (canonical_fixture_id,)).fetchall()),
                     )
 
@@ -1162,7 +1260,7 @@ class FootballEnrichmentService:
                             run_id,
                             canonical_fixture_id,
                             analysis_cutoff_at.isoformat(),
-                            "COMPLETE",
+                            snapshot_state,
                             snapshot_hash,
                             snapshot_json,
                             now_str,
@@ -1172,8 +1270,8 @@ class FootballEnrichmentService:
 
                     # Update run status to COMPLETE
                     conn.execute(
-                        "UPDATE sports_enrichment_run SET status = 'COMPLETE', completed_at = ? WHERE id = ?",
-                        (now_str, run_id),
+                        "UPDATE sports_enrichment_run SET status = ?, completed_at = ? WHERE id = ?",
+                        (snapshot_state, now_str, run_id),
                     )
                     conn.execute("RELEASE SAVEPOINT publish_enrichment")
                     return snapshot

@@ -1,0 +1,212 @@
+{
+  "schema_version": "1.0",
+  "generated_for": "football_golden_vertical",
+  "providers": {
+    "api-football": {
+      "classification": "PRODUCTION_FALLBACK",
+      "provenance_family": "api-football",
+      "capabilities": {
+        "current_discovery": [
+          {
+            "classification": "PRODUCTION_PRIMARY",
+            "competition_scope": "football:*",
+            "season_scope": "current",
+            "mode": "shadow",
+            "evidence_replay": true,
+            "status": "QUALIFIED"
+          }
+        ],
+        "current_form": [
+          {
+            "classification": "PRODUCTION_FALLBACK",
+            "competition_scope": "football:*",
+            "season_scope": "current",
+            "mode": "shadow",
+            "evidence_replay": true,
+            "status": "QUALIFIED"
+          }
+        ]
+      },
+      "risks": [
+        "PLAN_RESTRICTED on some paid capabilities; no qualified standings, h2h or fixture statistics adapter in current production path"
+      ]
+    },
+    "betexplorer": {
+      "classification": "RESEARCH_ONLY",
+      "provenance_family": "betexplorer",
+      "capabilities": {},
+      "risks": [
+        "governance and replay gates unsolved"
+      ]
+    },
+    "espn": {
+      "classification": "PRODUCTION_PRIMARY",
+      "provenance_family": "espn-football",
+      "capabilities": {
+        "current_discovery": [
+          {
+            "classification": "PRODUCTION_FALLBACK",
+            "competition_scope": "football:*",
+            "season_scope": "current",
+            "mode": "shadow",
+            "evidence_replay": true,
+            "status": "QUALIFIED"
+          }
+        ],
+        "current_form": [
+          {
+            "classification": "PRODUCTION_PRIMARY",
+            "competition_scope": "football:*",
+            "season_scope": "current",
+            "mode": "shadow",
+            "evidence_replay": true,
+            "status": "QUALIFIED"
+          }
+        ],
+        "detailed_metrics": [
+          {
+            "classification": "PRODUCTION_PRIMARY",
+            "competition_scope": "football:*",
+            "season_scope": "current",
+            "mode": "shadow",
+            "evidence_replay": true,
+            "status": "QUALIFIED",
+            "risk": "SINGLE_SOURCE_RISK"
+          }
+        ],
+        "historical_form_h2h": [
+          {
+            "classification": "PRODUCTION_PRIMARY",
+            "competition_scope": "football:*",
+            "season_scope": "current",
+            "mode": "shadow",
+            "evidence_replay": true,
+            "status": "QUALIFIED",
+            "risk": "SINGLE_SOURCE_RISK"
+          }
+        ],
+        "standings": [
+          {
+            "classification": "PRODUCTION_PRIMARY",
+            "competition_scope": "football:*",
+            "season_scope": "current",
+            "mode": "shadow",
+            "evidence_replay": true,
+            "status": "QUALIFIED",
+            "risk": "SINGLE_SOURCE_RISK"
+          }
+        ]
+      },
+      "risks": [
+        "single-source risk remains for standings, h2h and fixture statistics"
+      ]
+    },
+    "fbref-soccerdata": {
+      "classification": "SHADOW",
+      "provenance_family": "fbref-soccerdata",
+      "capabilities": {},
+      "risks": [
+        "separate ingestion path required"
+      ]
+    },
+    "flashscore": {
+      "classification": "RESEARCH_ONLY",
+      "provenance_family": "flashscore",
+      "capabilities": {},
+      "risks": [
+        "governance, transport and replay gates unsolved"
+      ]
+    },
+    "football-data": {
+      "classification": "RESEARCH_ONLY",
+      "provenance_family": "football-data-org",
+      "capabilities": {},
+      "risks": [
+        "implementation not qualified in this vertical"
+      ]
+    },
+    "highlightly": {
+      "classification": "RESEARCH_ONLY",
+      "provenance_family": "highlightly",
+      "capabilities": {},
+      "risks": [
+        "no qualified production capability"
+      ]
+    },
+    "oddsportal": {
+      "classification": "RESEARCH_ONLY",
+      "provenance_family": "oddsportal",
+      "capabilities": {},
+      "risks": [
+        "governance and replay gates unsolved"
+      ]
+    },
+    "scores24": {
+      "classification": "RESEARCH_ONLY",
+      "provenance_family": "scores24",
+      "capabilities": {},
+      "risks": [
+        "governance and replay gates unsolved"
+      ]
+    },
+    "soccerway": {
+      "classification": "RESEARCH_ONLY",
+      "provenance_family": "soccerway",
+      "capabilities": {},
+      "risks": [
+        "governance and replay gates unsolved"
+      ]
+    },
+    "sofascore": {
+      "classification": "RESEARCH_ONLY",
+      "provenance_family": "sofascore",
+      "capabilities": {},
+      "risks": [
+        "governance, transport and replay gates unsolved"
+      ]
+    },
+    "sportdb": {
+      "classification": "SHADOW",
+      "provenance_family": "sportdb.dev",
+      "capabilities": {},
+      "risks": [
+        "provider-native identity qualification is still required before promotion"
+      ]
+    },
+    "thesportsdb": {
+      "classification": "SHADOW",
+      "provenance_family": "thesportsdb",
+      "capabilities": {},
+      "risks": [
+        "raw evidence and replay gates incomplete"
+      ]
+    },
+    "totalcorner": {
+      "classification": "RESEARCH_ONLY",
+      "provenance_family": "totalcorner",
+      "capabilities": {},
+      "risks": [
+        "governance and replay gates unsolved"
+      ]
+    },
+    "understat": {
+      "classification": "SHADOW",
+      "provenance_family": "understat",
+      "capabilities": {
+        "advanced_xg": [
+          {
+            "classification": "SHADOW",
+            "competition_scope": "football:advanced_xg",
+            "season_scope": "current",
+            "mode": "shadow",
+            "evidence_replay": false,
+            "status": "NARROW_SCOPE_ONLY"
+          }
+        ]
+      },
+      "risks": [
+        "shadow only until supported scope is proven"
+      ]
+    }
+  }
+}

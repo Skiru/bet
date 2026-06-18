@@ -30,7 +30,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
-from bet.api_clients.base_client import SourceOperationResult, SourceResultStatus
+from bet.integration.source_result import SourceOperationResult, SourceResultStatus
 
 
 class Capability(StrEnum):
@@ -124,122 +124,50 @@ class CapabilityResolution:
                 self.fallback_succeeded = status == SourceResultStatus.SUCCESS
 
 
+DEFAULT_FALLBACK_POLICY_MATRIX: dict[SourceResultStatus, FallbackPolicy] = {
+    SourceResultStatus.SUCCESS: FallbackPolicy.STOP_ON_SUCCESS,
+    SourceResultStatus.NOT_FOUND: FallbackPolicy.FALLBACK_ELIGIBLE,
+    SourceResultStatus.NOT_PUBLISHED_YET: FallbackPolicy.FAIL_CLOSED,
+    SourceResultStatus.NOT_SUPPORTED: FallbackPolicy.FALLBACK_ELIGIBLE,
+    SourceResultStatus.PLAN_RESTRICTED: FallbackPolicy.FALLBACK_ELIGIBLE,
+    SourceResultStatus.AMBIGUOUS: FallbackPolicy.FAIL_CLOSED,
+    SourceResultStatus.AUTHENTICATION_ERROR: FallbackPolicy.PROPAGATE_ERROR,
+    SourceResultStatus.RATE_LIMITED: FallbackPolicy.PROPAGATE_ERROR,
+    SourceResultStatus.TRANSPORT_ERROR: FallbackPolicy.PROPAGATE_ERROR,
+    SourceResultStatus.UPSTREAM_ERROR: FallbackPolicy.PROPAGATE_ERROR,
+    SourceResultStatus.PARSE_ERROR: FallbackPolicy.PROPAGATE_ERROR,
+    SourceResultStatus.SCHEMA_ERROR: FallbackPolicy.PROPAGATE_ERROR,
+    SourceResultStatus.EVIDENCE_ERROR: FallbackPolicy.PROPAGATE_ERROR,
+    SourceResultStatus.BLOCKED: FallbackPolicy.PROPAGATE_ERROR,
+}
+
+FAIL_CLOSED_POLICY_OVERRIDES: dict[SourceResultStatus, FallbackPolicy] = {
+    SourceResultStatus.NOT_FOUND: FallbackPolicy.FAIL_CLOSED,
+    SourceResultStatus.NOT_SUPPORTED: FallbackPolicy.FAIL_CLOSED,
+    SourceResultStatus.PLAN_RESTRICTED: FallbackPolicy.FAIL_CLOSED,
+}
+
+
+def _policy_matrix(
+    *, fail_closed: bool = False
+) -> dict[SourceResultStatus, FallbackPolicy]:
+    matrix = dict(DEFAULT_FALLBACK_POLICY_MATRIX)
+    if fail_closed:
+        matrix.update(FAIL_CLOSED_POLICY_OVERRIDES)
+    return matrix
+
+
 # Per-capability fallback policies
 CAPABILITY_FALLBACK_POLICIES: dict[
     Capability, dict[SourceResultStatus, FallbackPolicy]
 ] = {
-    Capability.DISCOVERY_STATUS: {
-        SourceResultStatus.SUCCESS: FallbackPolicy.STOP_ON_SUCCESS,
-        SourceResultStatus.NOT_FOUND: FallbackPolicy.FALLBACK_ELIGIBLE,
-        SourceResultStatus.NOT_PUBLISHED_YET: FallbackPolicy.FAIL_CLOSED,
-        SourceResultStatus.NOT_SUPPORTED: FallbackPolicy.FALLBACK_ELIGIBLE,
-        SourceResultStatus.PLAN_RESTRICTED: FallbackPolicy.FALLBACK_ELIGIBLE,
-        SourceResultStatus.AMBIGUOUS: FallbackPolicy.FAIL_CLOSED,
-        SourceResultStatus.AUTHENTICATION_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.RATE_LIMITED: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.TRANSPORT_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.UPSTREAM_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.PARSE_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.SCHEMA_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.EVIDENCE_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.BLOCKED: FallbackPolicy.PROPAGATE_ERROR,
-    },
-    Capability.CURRENT_RECENT_FORM: {
-        SourceResultStatus.SUCCESS: FallbackPolicy.STOP_ON_SUCCESS,
-        SourceResultStatus.NOT_FOUND: FallbackPolicy.FALLBACK_ELIGIBLE,
-        SourceResultStatus.NOT_PUBLISHED_YET: FallbackPolicy.FAIL_CLOSED,
-        SourceResultStatus.NOT_SUPPORTED: FallbackPolicy.FALLBACK_ELIGIBLE,
-        SourceResultStatus.PLAN_RESTRICTED: FallbackPolicy.FALLBACK_ELIGIBLE,
-        SourceResultStatus.AMBIGUOUS: FallbackPolicy.FAIL_CLOSED,
-        SourceResultStatus.AUTHENTICATION_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.RATE_LIMITED: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.TRANSPORT_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.UPSTREAM_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.PARSE_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.SCHEMA_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.EVIDENCE_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.BLOCKED: FallbackPolicy.PROPAGATE_ERROR,
-    },
-    Capability.FIXTURE_TEAM_STATISTICS: {
-        SourceResultStatus.SUCCESS: FallbackPolicy.STOP_ON_SUCCESS,
-        SourceResultStatus.NOT_FOUND: FallbackPolicy.FALLBACK_ELIGIBLE,
-        SourceResultStatus.NOT_PUBLISHED_YET: FallbackPolicy.FAIL_CLOSED,
-        SourceResultStatus.NOT_SUPPORTED: FallbackPolicy.FALLBACK_ELIGIBLE,
-        SourceResultStatus.PLAN_RESTRICTED: FallbackPolicy.FALLBACK_ELIGIBLE,
-        SourceResultStatus.AMBIGUOUS: FallbackPolicy.FAIL_CLOSED,
-        SourceResultStatus.AUTHENTICATION_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.RATE_LIMITED: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.TRANSPORT_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.UPSTREAM_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.PARSE_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.SCHEMA_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.EVIDENCE_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.BLOCKED: FallbackPolicy.PROPAGATE_ERROR,
-    },
-    Capability.CANONICAL_EVENT_TEAM_IDENTITY: {
-        SourceResultStatus.SUCCESS: FallbackPolicy.STOP_ON_SUCCESS,
-        SourceResultStatus.NOT_FOUND: FallbackPolicy.FALLBACK_ELIGIBLE,
-        SourceResultStatus.NOT_PUBLISHED_YET: FallbackPolicy.FAIL_CLOSED,
-        SourceResultStatus.NOT_SUPPORTED: FallbackPolicy.FALLBACK_ELIGIBLE,
-        SourceResultStatus.PLAN_RESTRICTED: FallbackPolicy.FALLBACK_ELIGIBLE,
-        SourceResultStatus.AMBIGUOUS: FallbackPolicy.FAIL_CLOSED,
-        SourceResultStatus.AUTHENTICATION_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.RATE_LIMITED: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.TRANSPORT_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.UPSTREAM_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.PARSE_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.SCHEMA_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.EVIDENCE_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.BLOCKED: FallbackPolicy.PROPAGATE_ERROR,
-    },
-    Capability.H2H_HEAD_TO_HEAD: {
-        SourceResultStatus.SUCCESS: FallbackPolicy.STOP_ON_SUCCESS,
-        SourceResultStatus.NOT_FOUND: FallbackPolicy.FALLBACK_ELIGIBLE,
-        SourceResultStatus.NOT_PUBLISHED_YET: FallbackPolicy.FAIL_CLOSED,
-        SourceResultStatus.NOT_SUPPORTED: FallbackPolicy.FALLBACK_ELIGIBLE,
-        SourceResultStatus.PLAN_RESTRICTED: FallbackPolicy.FALLBACK_ELIGIBLE,
-        SourceResultStatus.AMBIGUOUS: FallbackPolicy.FAIL_CLOSED,
-        SourceResultStatus.AUTHENTICATION_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.RATE_LIMITED: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.TRANSPORT_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.UPSTREAM_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.PARSE_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.SCHEMA_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.EVIDENCE_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.BLOCKED: FallbackPolicy.PROPAGATE_ERROR,
-    },
-    Capability.STANDINGS_COMPETITION_CONTEXT: {
-        SourceResultStatus.SUCCESS: FallbackPolicy.STOP_ON_SUCCESS,
-        SourceResultStatus.NOT_FOUND: FallbackPolicy.FAIL_CLOSED,
-        SourceResultStatus.NOT_PUBLISHED_YET: FallbackPolicy.FAIL_CLOSED,
-        SourceResultStatus.NOT_SUPPORTED: FallbackPolicy.FAIL_CLOSED,
-        SourceResultStatus.PLAN_RESTRICTED: FallbackPolicy.FAIL_CLOSED,
-        SourceResultStatus.AMBIGUOUS: FallbackPolicy.FAIL_CLOSED,
-        SourceResultStatus.AUTHENTICATION_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.RATE_LIMITED: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.TRANSPORT_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.UPSTREAM_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.PARSE_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.SCHEMA_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.EVIDENCE_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.BLOCKED: FallbackPolicy.PROPAGATE_ERROR,
-    },
-    Capability.CROSS_PROVIDER_IDENTITY: {
-        SourceResultStatus.SUCCESS: FallbackPolicy.STOP_ON_SUCCESS,
-        SourceResultStatus.NOT_FOUND: FallbackPolicy.FAIL_CLOSED,
-        SourceResultStatus.NOT_PUBLISHED_YET: FallbackPolicy.FAIL_CLOSED,
-        SourceResultStatus.NOT_SUPPORTED: FallbackPolicy.FAIL_CLOSED,
-        SourceResultStatus.PLAN_RESTRICTED: FallbackPolicy.FAIL_CLOSED,
-        SourceResultStatus.AMBIGUOUS: FallbackPolicy.FAIL_CLOSED,
-        SourceResultStatus.AUTHENTICATION_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.RATE_LIMITED: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.TRANSPORT_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.UPSTREAM_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.PARSE_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.SCHEMA_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.EVIDENCE_ERROR: FallbackPolicy.PROPAGATE_ERROR,
-        SourceResultStatus.BLOCKED: FallbackPolicy.PROPAGATE_ERROR,
-    },
+    Capability.DISCOVERY_STATUS: _policy_matrix(),
+    Capability.CURRENT_RECENT_FORM: _policy_matrix(),
+    Capability.FIXTURE_TEAM_STATISTICS: _policy_matrix(),
+    Capability.CANONICAL_EVENT_TEAM_IDENTITY: _policy_matrix(),
+    Capability.H2H_HEAD_TO_HEAD: _policy_matrix(),
+    Capability.STANDINGS_COMPETITION_CONTEXT: _policy_matrix(fail_closed=True),
+    Capability.CROSS_PROVIDER_IDENTITY: _policy_matrix(fail_closed=True),
 }
 
 

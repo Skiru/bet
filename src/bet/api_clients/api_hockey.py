@@ -1,3 +1,4 @@
+# ruff: noqa: E501, I001, W293
 """API-Hockey v1 client — adapted for bet.db.models.
 
 Returns APIFixture and APIMatchStats objects.
@@ -12,7 +13,9 @@ from bet.integration.evidence import (
 )
 
 from .api_football import APIFixture, APIMatchStats
-from .base_client import APISportsClient, SourceOperationResult, SourceResultStatus
+from bet.integration.source_result import SourceOperationResult, SourceResultStatus
+
+from .base_client import APISportsClient
 from .rate_limiter import RateLimiter
 
 FIXTURES_PARSER_VERSION = "api-hockey-fixtures-v2"

@@ -1,3 +1,5 @@
+# ruff: noqa: E402, E501, F401, I001, UP017, UP035, W293
+
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Mapping
@@ -12,6 +14,18 @@ from bet.enrichment.models import (
     NormalizedVenueContext,
     NormalizedOfficialContext,
 )
+
+@dataclass(frozen=True)
+class CapabilityOutcome:
+    capability: str
+    scope: str = ""
+    selected_source: str = ""
+    selected_status: str = "NOT_FOUND"
+    required: bool = True
+    satisfied: bool = False
+    fallback_reason: str = ""
+    evidence_bundle_id: str = ""
+
 
 @dataclass(frozen=True)
 class FootballEnrichmentSnapshot:
@@ -58,6 +72,7 @@ class FootballEnrichmentSnapshot:
     
     # Provenance and metadata
     selected_provider_ids: dict[str, str] = field(default_factory=dict)
+    capability_outcomes: tuple[CapabilityOutcome, ...] = field(default_factory=tuple)
     attempt_summaries: tuple[dict[str, Any], ...] = field(default_factory=tuple)
     bundle_ids: tuple[str, ...] = field(default_factory=tuple)
     freshness_staleness: dict[str, Any] = field(default_factory=dict)

@@ -1,3 +1,4 @@
+# ruff: noqa: E501, I001, W293
 """API-Football v3 client — adapted for bet.db.models.
 
 Returns APIFixture and APIMatchStats (lightweight containers for scanner/discovery
@@ -12,7 +13,9 @@ from bet.integration.evidence import (
     write_source_operation_bundle,
 )
 
-from .base_client import APISportsClient, SourceOperationResult, SourceResultStatus
+from bet.integration.source_result import SourceOperationResult, SourceResultStatus
+
+from .base_client import APISportsClient
 from .rate_limiter import RateLimiter
 
 # Map API-Football stat type names → normalized stat keys

@@ -18,6 +18,7 @@ from bet.api_clients import base_client
 from bet.db.schema import init_db
 from bet.discovery.coordinator import EventDiscoveryCoordinator
 from bet.discovery.sources.api_football import APIFootballAdapter
+from bet.discovery.sources.espn import ESPNDiscoveryAdapter
 from bet.integration import telemetry_wrapper
 from bet.integration.evidence import build_replay_transport
 from bet.scrapers.engine import Base
@@ -154,18 +155,26 @@ def test_real_football_vertical_live_replay_and_idempotency(tmp_path, monkeypatc
     monkeypatch.setattr(coordinator_module, "DATA_DIR", tmp_path / "discovery_data")
 
     engine, live_session = _build_session()
-    coordinator = EventDiscoveryCoordinator(session=live_session, sources=[APIFootballAdapter()])
+    coordinator = EventDiscoveryCoordinator(
+        session=live_session,
+        sources=[APIFootballAdapter(), ESPNDiscoveryAdapter()],
+    )
     discovery = coordinator.discover("2026-05-24", sports=["football"])
     assert discovery.total_discovered > 0
+    # Prove API-Football plan restriction is captured and not hidden
+    assert "api-football" in discovery.source_stats
+    assert any("PLAN_RESTRICTED" in err for err in discovery.source_stats["api-football"].errors)
 
     fixture_id = _select_target_fixture(live_session)
-    live_snapshot_1 = build_football_fixture_snapshot(live_session.connection(), fixture_id)
+    live_conn = live_session.connection().connection.dbapi_connection
+    live_conn.row_factory = sqlite3.Row
+    live_snapshot_1 = build_football_fixture_snapshot(live_conn, fixture_id)
     state_1 = _domain_state(live_session)
-    build_football_fixture_snapshot(live_session.connection(), fixture_id)
+    build_football_fixture_snapshot(live_conn, fixture_id)
     state_2 = _domain_state(live_session)
 
     assert live_snapshot_1["cross_provider_identity"]["payload"]["espn"]["fixture_id"] == "740968"
-    assert live_snapshot_1["cross_provider_identity"]["payload"]["api_football"]["fixture_id"]
+    assert live_snapshot_1["cross_provider_identity"]["payload"]["api_football"]["fixture_id"] == ""
     assert state_1 == state_2
 
     bundle_ids = _bundle_ids(live_session)
@@ -186,14 +195,19 @@ def test_real_football_vertical_live_replay_and_idempotency(tmp_path, monkeypatc
     _block_network(monkeypatch)
 
     _, replay_session = _build_session()
-    replay_coordinator = EventDiscoveryCoordinator(session=replay_session, sources=[APIFootballAdapter()])
+    replay_coordinator = EventDiscoveryCoordinator(
+        session=replay_session,
+        sources=[ESPNDiscoveryAdapter()],
+    )
     replay_discovery = replay_coordinator.discover("2026-05-24", sports=["football"])
     assert replay_discovery.total_discovered > 0
 
     replay_fixture_id = _select_target_fixture(replay_session)
-    replay_snapshot_1 = build_football_fixture_snapshot(replay_session.connection(), replay_fixture_id)
+    replay_conn = replay_session.connection().connection.dbapi_connection
+    replay_conn.row_factory = sqlite3.Row
+    replay_snapshot_1 = build_football_fixture_snapshot(replay_conn, replay_fixture_id)
     replay_state_1 = _domain_state(replay_session)
-    replay_snapshot_2 = build_football_fixture_snapshot(replay_session.connection(), replay_fixture_id)
+    replay_snapshot_2 = build_football_fixture_snapshot(replay_conn, replay_fixture_id)
     replay_state_2 = _domain_state(replay_session)
 
     assert replay_snapshot_1 == live_snapshot_1

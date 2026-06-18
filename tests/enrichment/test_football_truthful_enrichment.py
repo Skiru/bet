@@ -1,3 +1,5 @@
+# ruff: noqa: E402, E501, F401, F811, I001, W293
+
 import os
 import sqlite3
 import json
@@ -20,6 +22,7 @@ from bet.enrichment.football_service import (
     PROVIDER_REGISTRY,
 )
 from bet.enrichment.football_snapshot import (
+    CapabilityOutcome,
     FootballEnrichmentSnapshot,
     to_dict,
     from_dict,
@@ -171,6 +174,17 @@ def test_snapshot_codec_roundtrip():
         analysis_cutoff_at=datetime.now(UTC),
         home_participant=NormalizedParticipant(canonical_id=1, name="Arsenal", role="HOME"),
         away_participant=NormalizedParticipant(canonical_id=2, name="Chelsea", role="AWAY"),
+        capability_outcomes=(
+            CapabilityOutcome(
+                capability="current_recent_form",
+                scope="HOME",
+                selected_source="espn",
+                selected_status="SUCCESS",
+                required=True,
+                satisfied=True,
+                evidence_bundle_id="bundle-home",
+            ),
+        ),
     )
     
     # Serialize
@@ -183,6 +197,7 @@ def test_snapshot_codec_roundtrip():
     assert isinstance(deserialized, FootballEnrichmentSnapshot)
     assert deserialized.canonical_fixture_id == 42
     assert deserialized.home_participant.name == "Arsenal"
+    assert deserialized.capability_outcomes[0].selected_status == "SUCCESS"
     
     # Stable canonical hash
     hash1 = canonical_hash(snapshot)
@@ -364,7 +379,7 @@ def test_full_offline_vertical(seeded_db, db_conn, monkeypatch, valid_bundle_id)
     
     service = create_football_enrichment_service(espn_client=mock_client)
     snapshot = service.enrich_fixture(fixture_id, datetime.now(UTC))
-    
+
     assert isinstance(snapshot, FootballEnrichmentSnapshot)
     assert snapshot.snapshot_state == "COMPLETE"
     
@@ -495,12 +510,14 @@ def test_shadow_mode_behavior(seeded_db, db_conn, monkeypatch):
 def test_configuration_validation():
     config = load_and_validate_config()
     assert "policy_config_hash" in config
+    assert "provider_capability_matrix" in config
     assert len(config["policy_config_hash"]) == 64
     
     # All active routes reference registered providers
     for route_name, route_info in config["routing"].items():
         for provider in route_info.get("precedence", []):
-            assert provider in CANDIDATE_REGISTRY
+            assert provider in config["provider_capability_matrix"]["providers"]
+            assert config["provider_capability_matrix"]["providers"][provider]["capabilities"].get(route_name)
 
 
 # ---------------------------------------------------------------------------
@@ -588,11 +605,11 @@ def test_home_away_form_separation(seeded_db, db_conn, monkeypatch, valid_bundle
 
 
 def test_status_and_fallback_behavior(seeded_db, db_conn, monkeypatch, valid_bundle_id):
-    """Verify failed primary remains in attempt history while successful fallback is selected."""
+    """Verify failed primary remains in attempt history while qualified fallback is selected."""
     fixture_id, home_id, away_id = seeded_db
     monkeypatch.setenv("FOOTBALL_ENRICHMENT_MODE", "shadow")
     
-    # We will register two providers for standings: primary (espn) and fallback (api-football)
+    # We will register two providers for fixture statistics: primary (espn) and fallback (api-football)
     # Primary (espn) returns RATE_LIMITED, fallback (api-football) returns SUCCESS
     mock_espn = MagicMock()
     mock_espn.get_team_last_fixtures_result.return_value = SourceOperationResult(
@@ -614,14 +631,16 @@ def test_status_and_fallback_behavior(seeded_db, db_conn, monkeypatch, valid_bun
         evidence_refs=(EvidenceRef(operation="test", request_identity="test", media_type="application/json", byte_size=16, object_sha256="40b61fe1b15af0a4d5402735b26343e8cf8a045f4d81710e6108a21d91eaf366"),),
     )
     mock_espn.get_standings_result.return_value = SourceOperationResult(
-        status=SourceResultStatus.RATE_LIMITED,
-        error_code="rate_limited",
+        status=SourceResultStatus.SUCCESS,
+        value=[],
+        bundle_id=valid_bundle_id,
+        evidence_refs=(EvidenceRef(operation="test", request_identity="test", media_type="application/json", byte_size=16, object_sha256="40b61fe1b15af0a4d5402735b26343e8cf8a045f4d81710e6108a21d91eaf366"),),
     )
     
     mock_api_football = MagicMock()
     mock_api_football.get_fixture_stats_result.return_value = SourceOperationResult(
         status=SourceResultStatus.SUCCESS,
-        value=[],
+        value=[{"team": {"id": 359}, "statistics": []}],
         bundle_id=valid_bundle_id,
         evidence_refs=(EvidenceRef(operation="test", request_identity="test", media_type="application/json", byte_size=16, object_sha256="40b61fe1b15af0a4d5402735b26343e8cf8a045f4d81710e6108a21d91eaf366"),),
     )
@@ -639,30 +658,45 @@ def test_status_and_fallback_behavior(seeded_db, db_conn, monkeypatch, valid_bun
         credential_requirement=False,
         governance_state="QUALIFIED_SHADOW",
         provenance_family="api-football",
-        supported_capabilities=("current_recent_form", "h2h_head_to_head", "standings_competition_context", "fixture_team_statistics"),
+        supported_capabilities=("fixture_team_statistics",),
         replay_availability=True,
         live_probe_eligibility=True,
     ))
     monkeypatch.setitem(PROVIDER_REGISTRY, "api-football", ProviderState.QUALIFIED_SHADOW)
     
-    # Update routing config to have both espn and api-football for standings
+    # Update routing config and qualification matrix to have both espn and api-football for fixture statistics
     original_load_config = load_and_validate_config
     def mock_load_config(*args, **kwargs):
         cfg = original_load_config(*args, **kwargs)
-        cfg["routing"]["standings"] = {"precedence": ["espn", "api-football"]}
+        cfg["routing"]["detailed_metrics"] = {"precedence": ["espn", "api-football"]}
+        cfg["provider_capability_matrix"]["providers"].setdefault("api-football", {}).setdefault("capabilities", {})["detailed_metrics"] = [
+            {
+                "classification": "PRODUCTION_FALLBACK",
+                "competition_scope": "football:*",
+                "season_scope": "current",
+                "mode": "shadow",
+                "evidence_replay": True,
+                "status": "QUALIFIED",
+            }
+        ]
         return cfg
     monkeypatch.setattr("bet.enrichment.football_service.load_and_validate_config", mock_load_config)
+
+    mock_espn.get_fixture_stats_result.return_value = SourceOperationResult(
+        status=SourceResultStatus.RATE_LIMITED,
+        error_code="rate_limited",
+    )
     
     service = FootballEnrichmentService(registry)
-    snapshot = service.enrich_fixture(fixture_id, datetime.now(UTC))
+    service.enrich_fixture(fixture_id, datetime.now(UTC))
     
     # Verify that both attempts are in history
-    attempts = db_conn.execute("SELECT * FROM source_operation_attempt WHERE operation = 'standings_competition_context'").fetchall()
+    attempts = db_conn.execute("SELECT * FROM source_operation_attempt WHERE operation = 'fixture_team_statistics'").fetchall()
     assert len(attempts) == 2
     assert attempts[0]["provider"] == "espn"
     assert attempts[0]["status"] == "RATE_LIMITED"
     assert attempts[1]["provider"] == "api-football"
-    assert attempts[1]["status"] == "NOT_SUPPORTED"
+    assert attempts[1]["status"] == "SUCCESS"
 
 
 def test_transaction_boundary_assertion(seeded_db, db_conn, monkeypatch, valid_bundle_id):

@@ -28,6 +28,7 @@ from .sources.api_basketball import APIBasketballAdapter
 from .sources.api_football import APIFootballAdapter
 from .sources.api_hockey import APIHockeyAdapter
 from .sources.api_volleyball import APIVolleyballAdapter
+from .sources.espn import ESPNDiscoveryAdapter
 from .sources.odds_api import OddsAPIAdapter
 from .sources.odds_api_io import OddsAPIioAdapter
 
@@ -73,6 +74,7 @@ class EventDiscoveryCoordinator:
             APIHockeyAdapter(),
             OddsAPIAdapter(),
             APIFootballAdapter(),
+            ESPNDiscoveryAdapter(),
         ]
 
     def discover(

@@ -55,6 +55,9 @@ wheels = [
 name = "bet-pipeline"
 version = "2.0.0"
 source = { editable = "." }
+dependencies = [
+    { name = "pyyaml" },
+]
 
 [package.optional-dependencies]
 langgraph-dev = [
@@ -117,6 +120,7 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'langgraph-dev'", specifier = ">=8.3,<10" },
     { name = "pytest-asyncio", marker = "extra == 'langgraph-dev'", specifier = ">=0.25,<2" },
     { name = "pytest-cov", marker = "extra == 'langgraph-dev'", specifier = ">=6,<8" },
+    { name = "pyyaml", specifier = ">=6.0,<7" },
     { name = "rich", marker = "extra == 'langgraph-runtime'", specifier = ">=13.9,<15" },
     { name = "ruff", marker = "extra == 'langgraph-dev'", specifier = ">=0.11,<1" },
     { name = "structlog", marker = "extra == 'langgraph-runtime'", specifier = ">=25,<26" },

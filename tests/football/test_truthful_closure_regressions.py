@@ -9,9 +9,9 @@ from datetime import UTC, datetime
 import pytest
 
 from bet.api_clients.base_client import SourceOperationResult, SourceResultStatus
-from bet.db.models import Fixture
+from bet.db.models import Fixture, TeamForm
 from bet.db.observation_models import create_observation, create_projection
-from bet.db.repositories import FixtureCapabilityRepo, SportRepo
+from bet.db.repositories import FixtureCapabilityRepo, SportRepo, StatsRepo
 from bet.db.schema import init_db
 from bet.enrichment.capability_router import Capability
 from bet.stats import enrichment
@@ -192,6 +192,60 @@ def test_enrich_fixtures_wires_capability_router_into_production_path(db_conn, m
     assert snapshot["payload"]["stats"]["corners"]["l10_avg"] == 7.0
 
 
+def test_enrich_fixtures_does_not_use_global_team_form_as_football_truth(db_conn, monkeypatch):
+    football = db_conn.execute("SELECT id FROM sports WHERE name = 'football'").fetchone()[0]
+    stats_repo = StatsRepo(db_conn)
+    now = datetime.now(UTC).isoformat()
+    for team_id in (1, 2):
+        stats_repo.save_team_form(
+            TeamForm(
+                id=None,
+                team_id=team_id,
+                sport_id=football,
+                stat_key="corners",
+                l10_values=[1.0] * 10,
+                l5_values=[1.0] * 5,
+                l10_avg=1.0,
+                l5_avg=1.0,
+                trend="stable",
+                updated_at=now,
+                source="computed",
+            )
+        )
+
+    calls: list[int] = []
+
+    def fake_resolution(team, **kwargs):
+        calls.append(team.id)
+        return type(
+            "Resolution",
+            (),
+            {
+                "selected_status": SourceResultStatus.SUCCESS,
+                "selected_value": {"stats": {"corners": {"l10_avg": float(team.id)}}},
+            },
+        )()
+
+    monkeypatch.setattr(enrichment, "_resolve_football_recent_form", fake_resolution)
+    fixture = Fixture(
+        id=1,
+        sport_id=football,
+        competition_id=1,
+        home_team_id=1,
+        away_team_id=2,
+        kickoff="2026-05-24T15:00:00+00:00",
+        status="scheduled",
+        external_id="api-1001",
+        source="api-football",
+        fetched_at=now,
+    )
+
+    result = asyncio.run(enrich_fixtures([fixture], db_conn, max_age_hours=999))
+
+    assert calls == [1, 2]
+    assert result["fetched"] == 2
+
+
 def test_standings_snapshot_uses_fixture_team_scope_and_linked_observation(db_conn):
     repo = FixtureCapabilityRepo(db_conn)
     obs = create_observation(
@@ -297,3 +351,22 @@ def test_build_football_fixture_snapshot_reads_normalized_downstream_payloads(db
     assert snapshot["teams"]["home"]["recent_form"]["stats"]["corners"]["l10_avg"] == 1.0
     assert snapshot["teams"]["away"]["standings"]["selected_team"]["rank"] == 2
     assert snapshot["cross_provider_identity"]["payload"]["espn"]["fixture_id"] == "740968"
+
+
+def test_build_football_fixture_snapshot_uses_executor(db_conn, monkeypatch):
+    stub_snapshot = {"fixture_id": 1, "analysis_cutoff_at": "2026-05-24T15:00:00+00:00"}
+
+    class StubExecutor:
+        def build_fixture_snapshot(self, db_conn, canonical_fixture_id, analysis_cutoff_at=None):
+            assert canonical_fixture_id == 1
+            assert analysis_cutoff_at == "2026-05-24T15:00:00+00:00"
+            return stub_snapshot
+
+    monkeypatch.setattr(
+        "bet.enrichment.football_vertical.get_football_golden_vertical_executor",
+        lambda: StubExecutor(),
+    )
+
+    snapshot = build_football_fixture_snapshot(db_conn, 1, "2026-05-24T15:00:00+00:00")
+
+    assert snapshot is stub_snapshot
