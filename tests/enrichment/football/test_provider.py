@@ -339,3 +339,324 @@ def test_t2_no_datetime_now_for_observed_at():
 
     assert "datetime.now(UTC)" not in prov_content
     assert "datetime.now(UTC)" not in replay_content
+
+
+def test_u2_corrupt_embedded_followed_by_valid_dedicated_fallback_succeeds(mock_client):
+    acquirer = LiveAPIFootballAcquirer(mock_client)
+    budget = PhysicalAttemptBudget(10)
+
+    from bet.enrichment.football.contracts import (
+        BatchIdsCapability,
+        FixtureWorkDisposition,
+        FootballFixtureIdentity,
+    )
+    from bet.enrichment.football.time import parse_canonical_or_offset_datetime
+
+    fixture = FootballFixtureIdentity(
+        provider_fixture_id="100", provider_competition_id="39", competition_name="P", country="E", season=2023,
+        round_name="R1", kickoff_at=parse_canonical_or_offset_datetime("2023-01-01T12:00:00Z"), provider_status="FT",
+        canonical_status="finished", home_provider_team_id="10", away_provider_team_id="20", home_team_name="H",
+        away_team_name="A", home_score=2, away_score=1, home_penalty_score=None, away_penalty_score=None,
+        parser_version="1.0", schema_version="v2"
+    )
+
+    mock_client.get_history_details.return_value = SourceOperationResult(
+        status=SourceResultStatus.SUCCESS,
+        value={"response": [{"fixture": {"id": 100}, "statistics": "corrupt_data"}]},
+        evidence_refs=(EvidenceRef("history_details", "GET", "json", 100, "hash_details", captured_at="2023-01-01T12:05:00Z"),)
+    )
+    mock_client.get_history_statistics.return_value = SourceOperationResult(
+        status=SourceResultStatus.SUCCESS,
+        value={"response": [
+            {"team": {"id": 10}, "statistics": []},
+            {"team": {"id": 20}, "statistics": []}
+        ]},
+        evidence_refs=(EvidenceRef("history_statistics", "GET", "json", 100, "hash_stats", captured_at="2023-01-01T12:10:00Z"),)
+    )
+
+    res = acquirer.acquire_fixture_facts(
+        discovered_fixtures=(fixture,),
+        provider_fixture_ids_to_enrich=["100"],
+        ids_capability=BatchIdsCapability.UNKNOWN,
+        attempt_budget=budget,
+        max_fallback_stats_calls=2,
+        discovery_evidence_refs=(EvidenceRef("history_discovery", "GET", "json", 100, "hash_disc", captured_at="2023-01-01T12:00:00Z"),)
+    )
+
+    assert res.outcomes[0].disposition == FixtureWorkDisposition.ACQUIRED
+    assert mock_client.get_history_statistics.call_count == 1
+
+
+def test_u2_corrupt_embedded_plus_zero_fallback_budget_is_transient_failed(mock_client):
+    acquirer = LiveAPIFootballAcquirer(mock_client)
+    budget = PhysicalAttemptBudget(2) # only 2 attempts limit
+
+    from bet.enrichment.football.contracts import (
+        BatchIdsCapability,
+        FixtureWorkDisposition,
+        FootballFixtureIdentity,
+    )
+    from bet.enrichment.football.time import parse_canonical_or_offset_datetime
+
+    fixture = FootballFixtureIdentity(
+        provider_fixture_id="100", provider_competition_id="39", competition_name="P", country="E", season=2023,
+        round_name="R1", kickoff_at=parse_canonical_or_offset_datetime("2023-01-01T12:00:00Z"), provider_status="FT",
+        canonical_status="finished", home_provider_team_id="10", away_provider_team_id="20", home_team_name="H",
+        away_team_name="A", home_score=2, away_score=1, home_penalty_score=None, away_penalty_score=None,
+        parser_version="1.0", schema_version="v2"
+    )
+
+    # details call consumes budget
+    mock_client.get_history_details.return_value = SourceOperationResult(
+        status=SourceResultStatus.SUCCESS,
+        value={"response": [{"fixture": {"id": 100}, "statistics": "corrupt_data"}]},
+        evidence_refs=(EvidenceRef("history_details", "GET", "json", 100, "hash_details", captured_at="2023-01-01T12:05:00Z"),)
+    )
+
+    res = acquirer.acquire_fixture_facts(
+        discovered_fixtures=(fixture,),
+        provider_fixture_ids_to_enrich=["100"],
+        ids_capability=BatchIdsCapability.UNKNOWN,
+        attempt_budget=budget,
+        max_fallback_stats_calls=2,
+        discovery_evidence_refs=(EvidenceRef("history_discovery", "GET", "json", 100, "hash_disc", captured_at="2023-01-01T12:00:00Z"),)
+    )
+
+    assert res.outcomes[0].disposition == FixtureWorkDisposition.TRANSIENT_FAILED
+    assert res.outcomes[0].error_code == "EMBEDDED_STATISTICS_SCHEMA_MISMATCH"
+    assert mock_client.get_history_statistics.call_count == 0
+
+
+def test_u2_corrupt_embedded_plus_malformed_fallback_is_transient_failed(mock_client):
+    acquirer = LiveAPIFootballAcquirer(mock_client)
+    budget = PhysicalAttemptBudget(10)
+
+    from bet.enrichment.football.contracts import (
+        BatchIdsCapability,
+        FixtureWorkDisposition,
+        FootballFixtureIdentity,
+    )
+    from bet.enrichment.football.time import parse_canonical_or_offset_datetime
+
+    fixture = FootballFixtureIdentity(
+        provider_fixture_id="100", provider_competition_id="39", competition_name="P", country="E", season=2023,
+        round_name="R1", kickoff_at=parse_canonical_or_offset_datetime("2023-01-01T12:00:00Z"), provider_status="FT",
+        canonical_status="finished", home_provider_team_id="10", away_provider_team_id="20", home_team_name="H",
+        away_team_name="A", home_score=2, away_score=1, home_penalty_score=None, away_penalty_score=None,
+        parser_version="1.0", schema_version="v2"
+    )
+
+    mock_client.get_history_details.return_value = SourceOperationResult(
+        status=SourceResultStatus.SUCCESS,
+        value={"response": [{"fixture": {"id": 100}, "statistics": "corrupt"}]},
+        evidence_refs=(EvidenceRef("history_details", "GET", "json", 100, "hash_details", captured_at="2023-01-01T12:05:00Z"),)
+    )
+    mock_client.get_history_statistics.return_value = SourceOperationResult(
+        status=SourceResultStatus.SUCCESS,
+        value={"response": {"not": "list"}}, # malformed
+        evidence_refs=(EvidenceRef("history_statistics", "GET", "json", 100, "hash_stats", captured_at="2023-01-01T12:10:00Z"),)
+    )
+
+    res = acquirer.acquire_fixture_facts(
+        discovered_fixtures=(fixture,),
+        provider_fixture_ids_to_enrich=["100"],
+        ids_capability=BatchIdsCapability.UNKNOWN,
+        attempt_budget=budget,
+        max_fallback_stats_calls=2,
+        discovery_evidence_refs=(EvidenceRef("history_discovery", "GET", "json", 100, "hash_disc", captured_at="2023-01-01T12:00:00Z"),)
+    )
+
+    assert res.outcomes[0].disposition == FixtureWorkDisposition.TRANSIENT_FAILED
+    assert res.outcomes[0].error_code == "DEDICATED_STATISTICS_SCHEMA_MISMATCH"
+
+
+def test_u2_ids_rate_limited_causes_zero_subsequent_calls(mock_client):
+    acquirer = LiveAPIFootballAcquirer(mock_client)
+    budget = PhysicalAttemptBudget(10)
+
+    from bet.enrichment.football.contracts import (
+        BatchIdsCapability,
+        FixtureWorkDisposition,
+        FootballFixtureIdentity,
+    )
+    from bet.enrichment.football.time import parse_canonical_or_offset_datetime
+
+    fixture = FootballFixtureIdentity(
+        provider_fixture_id="100", provider_competition_id="39", competition_name="P", country="E", season=2023,
+        round_name="R1", kickoff_at=parse_canonical_or_offset_datetime("2023-01-01T12:00:00Z"), provider_status="FT",
+        canonical_status="finished", home_provider_team_id="10", away_provider_team_id="20", home_team_name="H",
+        away_team_name="A", home_score=2, away_score=1, home_penalty_score=None, away_penalty_score=None,
+        parser_version="1.0", schema_version="v2"
+    )
+
+    mock_client.get_history_details.return_value = SourceOperationResult(
+        status=SourceResultStatus.RATE_LIMITED,
+        value=None
+    )
+
+    res = acquirer.acquire_fixture_facts(
+        discovered_fixtures=(fixture,),
+        provider_fixture_ids_to_enrich=["100"],
+        ids_capability=BatchIdsCapability.SUPPORTED,
+        attempt_budget=budget,
+        max_fallback_stats_calls=2,
+        discovery_evidence_refs=(EvidenceRef("history_discovery", "GET", "json", 100, "hash_disc", captured_at="2023-01-01T12:00:00Z"),)
+    )
+
+    assert res.outcomes[0].disposition == FixtureWorkDisposition.TRANSIENT_FAILED
+    assert res.outcomes[0].error_code == "RATE_LIMITED"
+    assert mock_client.get_history_statistics.call_count == 0
+
+
+def test_u2_ids_timeout_permits_dedicated_fallback(mock_client):
+    acquirer = LiveAPIFootballAcquirer(mock_client)
+    budget = PhysicalAttemptBudget(10)
+
+    from bet.enrichment.football.contracts import (
+        BatchIdsCapability,
+        FootballFixtureIdentity,
+    )
+    from bet.enrichment.football.time import parse_canonical_or_offset_datetime
+
+    fixture = FootballFixtureIdentity(
+        provider_fixture_id="100", provider_competition_id="39", competition_name="P", country="E", season=2023,
+        round_name="R1", kickoff_at=parse_canonical_or_offset_datetime("2023-01-01T12:00:00Z"), provider_status="FT",
+        canonical_status="finished", home_provider_team_id="10", away_provider_team_id="20", home_team_name="H",
+        away_team_name="A", home_score=2, away_score=1, home_penalty_score=None, away_penalty_score=None,
+        parser_version="1.0", schema_version="v2"
+    )
+
+    mock_client.get_history_details.return_value = SourceOperationResult(
+        status=SourceResultStatus.TIMEOUT,
+        value=None
+    )
+    mock_client.get_history_statistics.return_value = SourceOperationResult(
+        status=SourceResultStatus.SUCCESS,
+        value={"response": []},
+        evidence_refs=(EvidenceRef("history_statistics", "GET", "json", 100, "hash_stats", captured_at="2023-01-01T12:10:00Z"),)
+    )
+
+    res = acquirer.acquire_fixture_facts(
+        discovered_fixtures=(fixture,),
+        provider_fixture_ids_to_enrich=["100"],
+        ids_capability=BatchIdsCapability.SUPPORTED,
+        attempt_budget=budget,
+        max_fallback_stats_calls=2,
+        discovery_evidence_refs=(EvidenceRef("history_discovery", "GET", "json", 100, "hash_disc", captured_at="2023-01-01T12:00:00Z"),)
+    )
+
+    assert mock_client.get_history_statistics.call_count == 1
+
+
+def test_u2_every_requested_fixture_receives_exactly_one_outcome(mock_client):
+    acquirer = LiveAPIFootballAcquirer(mock_client)
+    budget = PhysicalAttemptBudget(10)
+
+    from bet.enrichment.football.contracts import (
+        BatchIdsCapability,
+        FootballFixtureIdentity,
+    )
+    from bet.enrichment.football.time import parse_canonical_or_offset_datetime
+
+    fix1 = FootballFixtureIdentity(
+        provider_fixture_id="100", provider_competition_id="39", competition_name="P", country="E", season=2023,
+        round_name="R1", kickoff_at=parse_canonical_or_offset_datetime("2023-01-01T12:00:00Z"), provider_status="FT",
+        canonical_status="finished", home_provider_team_id="10", away_provider_team_id="20", home_team_name="H",
+        away_team_name="A", home_score=2, away_score=1, home_penalty_score=None, away_penalty_score=None,
+        parser_version="1.0", schema_version="v2"
+    )
+    fix2 = FootballFixtureIdentity(
+        provider_fixture_id="200", provider_competition_id="39", competition_name="P", country="E", season=2023,
+        round_name="R1", kickoff_at=parse_canonical_or_offset_datetime("2023-01-01T12:00:00Z"), provider_status="FT",
+        canonical_status="finished", home_provider_team_id="10", away_provider_team_id="20", home_team_name="H",
+        away_team_name="A", home_score=2, away_score=1, home_penalty_score=None, away_penalty_score=None,
+        parser_version="1.0", schema_version="v2"
+    )
+
+    mock_client.get_history_details.return_value = SourceOperationResult(
+        status=SourceResultStatus.SUCCESS,
+        value={"response": []},
+        evidence_refs=(EvidenceRef("history_details", "GET", "json", 100, "hash_details", captured_at="2023-01-01T12:05:00Z"),)
+    )
+
+    res = acquirer.acquire_fixture_facts(
+        discovered_fixtures=(fix1, fix2),
+        provider_fixture_ids_to_enrich=["100", "200"],
+        ids_capability=BatchIdsCapability.SUPPORTED,
+        attempt_budget=budget,
+        max_fallback_stats_calls=0,
+        discovery_evidence_refs=(EvidenceRef("history_discovery", "GET", "json", 100, "hash_disc", captured_at="2023-01-01T12:00:00Z"),)
+    )
+
+    assert len(res.outcomes) == 2
+
+
+def test_u2_missing_discovery_fixture_causes_zero_http(mock_client):
+    acquirer = LiveAPIFootballAcquirer(mock_client)
+    budget = PhysicalAttemptBudget(10)
+
+    from bet.enrichment.football.contracts import (
+        AcquisitionPlanError,
+        BatchIdsCapability,
+    )
+
+    with pytest.raises(AcquisitionPlanError, match="MISSING_DISCOVERY_FIXTURE"):
+        acquirer.acquire_fixture_facts(
+            discovered_fixtures=(),
+            provider_fixture_ids_to_enrich=["999"],
+            ids_capability=BatchIdsCapability.UNKNOWN,
+            attempt_budget=budget,
+            max_fallback_stats_calls=2
+        )
+
+    assert mock_client.get_history_details.call_count == 0
+    assert mock_client.get_history_statistics.call_count == 0
+
+
+def test_u2_physical_budget_exhaustion_covers_every_unfinished_fixture(mock_client):
+    acquirer = LiveAPIFootballAcquirer(mock_client)
+    budget = PhysicalAttemptBudget(2) # limit of 2
+
+    from bet.enrichment.football.contracts import (
+        BatchIdsCapability,
+        FixtureWorkDisposition,
+        FootballFixtureIdentity,
+    )
+    from bet.enrichment.football.time import parse_canonical_or_offset_datetime
+
+    fix1 = FootballFixtureIdentity(
+        provider_fixture_id="100", provider_competition_id="39", competition_name="P", country="E", season=2023,
+        round_name="R1", kickoff_at=parse_canonical_or_offset_datetime("2023-01-01T12:00:00Z"), provider_status="FT",
+        canonical_status="finished", home_provider_team_id="10", away_provider_team_id="20", home_team_name="H",
+        away_team_name="A", home_score=2, away_score=1, home_penalty_score=None, away_penalty_score=None,
+        parser_version="1.0", schema_version="v2"
+    )
+    fix2 = FootballFixtureIdentity(
+        provider_fixture_id="200", provider_competition_id="39", competition_name="P", country="E", season=2023,
+        round_name="R1", kickoff_at=parse_canonical_or_offset_datetime("2023-01-01T12:00:00Z"), provider_status="FT",
+        canonical_status="finished", home_provider_team_id="10", away_provider_team_id="20", home_team_name="H",
+        away_team_name="A", home_score=2, away_score=1, home_penalty_score=None, away_penalty_score=None,
+        parser_version="1.0", schema_version="v2"
+    )
+
+    mock_client.get_history_details.return_value = SourceOperationResult(
+        status=SourceResultStatus.SUCCESS,
+        value={"response": []},
+        evidence_refs=(EvidenceRef("history_details", "GET", "json", 100, "hash_details", captured_at="2023-01-01T12:05:00Z"),)
+    )
+
+    res = acquirer.acquire_fixture_facts(
+        discovered_fixtures=(fix1, fix2),
+        provider_fixture_ids_to_enrich=["100", "200"],
+        ids_capability=BatchIdsCapability.SUPPORTED,
+        attempt_budget=budget,
+        max_fallback_stats_calls=2,
+        discovery_evidence_refs=(EvidenceRef("history_discovery", "GET", "json", 100, "hash_disc", captured_at="2023-01-01T12:00:00Z"),)
+    )
+
+    # First is TRANSIENT_FAILED due to budget limit for fallback (remaining was < 2)
+    assert res.outcomes[0].disposition == FixtureWorkDisposition.TRANSIENT_FAILED
+    assert res.outcomes[0].error_code == "HTTP_ATTEMPT_BUDGET_EXHAUSTED"
+    # Second is also TRANSIENT_FAILED due to budget exhaustion
+    assert res.outcomes[1].disposition == FixtureWorkDisposition.TRANSIENT_FAILED
+    assert res.outcomes[1].error_code == "HTTP_ATTEMPT_BUDGET_EXHAUSTED"

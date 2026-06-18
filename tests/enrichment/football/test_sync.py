@@ -516,6 +516,7 @@ def test_c0_4_rate_limited_ids_call_retained_capability():
         LiveAPIFootballAcquirer,
         PhysicalAttemptBudget,
     )
+    from bet.integration.evidence import EvidenceRef
 
     mock_client = MagicMock()
     mock_client.get_history_details.return_value = SourceOperationResult(
@@ -524,12 +525,16 @@ def test_c0_4_rate_limited_ids_call_retained_capability():
     )
     acquirer = LiveAPIFootballAcquirer(mock_client)
     budget = PhysicalAttemptBudget(10)
+    dummy_fixture = MagicMock()
+    dummy_fixture.provider_fixture_id = "100"
+    ref = EvidenceRef("history_discovery", "GET", "json", 100, "hash_disc", captured_at="2023-01-01T12:00:00Z")
     res = acquirer.acquire_fixture_facts(
-        discovered_fixtures=(),
+        discovered_fixtures=(dummy_fixture,),
         provider_fixture_ids_to_enrich=["100"],
         ids_capability=BatchIdsCapability.UNKNOWN,
         attempt_budget=budget,
-        max_fallback_stats_calls=0
+        max_fallback_stats_calls=0,
+        discovery_evidence_refs=(ref,)
     )
     assert res.ids_capability == BatchIdsCapability.UNKNOWN
 
@@ -543,6 +548,7 @@ def test_c0_5_timeout_ids_call_retained_capability():
         LiveAPIFootballAcquirer,
         PhysicalAttemptBudget,
     )
+    from bet.integration.evidence import EvidenceRef
 
     mock_client = MagicMock()
     mock_client.get_history_details.return_value = SourceOperationResult(
@@ -551,12 +557,16 @@ def test_c0_5_timeout_ids_call_retained_capability():
     )
     acquirer = LiveAPIFootballAcquirer(mock_client)
     budget = PhysicalAttemptBudget(10)
+    dummy_fixture = MagicMock()
+    dummy_fixture.provider_fixture_id = "100"
+    ref = EvidenceRef("history_discovery", "GET", "json", 100, "hash_disc", captured_at="2023-01-01T12:00:00Z")
     res = acquirer.acquire_fixture_facts(
-        discovered_fixtures=(),
+        discovered_fixtures=(dummy_fixture,),
         provider_fixture_ids_to_enrich=["100"],
         ids_capability=BatchIdsCapability.SUPPORTED,
         attempt_budget=budget,
-        max_fallback_stats_calls=0
+        max_fallback_stats_calls=0,
+        discovery_evidence_refs=(ref,)
     )
     assert res.ids_capability == BatchIdsCapability.SUPPORTED
 
@@ -570,6 +580,7 @@ def test_c0_6_plan_restricted_ids_call_sets_unsupported():
         LiveAPIFootballAcquirer,
         PhysicalAttemptBudget,
     )
+    from bet.integration.evidence import EvidenceRef
 
     mock_client = MagicMock()
     mock_client.get_history_details.return_value = SourceOperationResult(
@@ -578,12 +589,16 @@ def test_c0_6_plan_restricted_ids_call_sets_unsupported():
     )
     acquirer = LiveAPIFootballAcquirer(mock_client)
     budget = PhysicalAttemptBudget(10)
+    dummy_fixture = MagicMock()
+    dummy_fixture.provider_fixture_id = "100"
+    ref = EvidenceRef("history_discovery", "GET", "json", 100, "hash_disc", captured_at="2023-01-01T12:00:00Z")
     res = acquirer.acquire_fixture_facts(
-        discovered_fixtures=(),
+        discovered_fixtures=(dummy_fixture,),
         provider_fixture_ids_to_enrich=["100"],
         ids_capability=BatchIdsCapability.UNKNOWN,
         attempt_budget=budget,
-        max_fallback_stats_calls=0
+        max_fallback_stats_calls=0,
+        discovery_evidence_refs=(ref,)
     )
     assert res.ids_capability == BatchIdsCapability.UNSUPPORTED
 
@@ -879,3 +894,537 @@ def test_c0_16_empty_completed_discovery_advances_cursor():
     assert outcome.status == "COMPLETE"
     assert outcome.cursor_may_advance is True
     assert outcome.error_code == "NO_COMPLETED_FIXTURES"
+
+
+def test_c0_17_discovery_failure_accounting():
+    from bet.enrichment.football.contracts import derive_run_outcome
+    outcome = derive_run_outcome(
+        discovery_status="FAILED",
+        discovery_paging_completed=True,
+        invalid_discovery_count=0,
+        expected_fixture_ids=frozenset(),
+        item_states={},
+        acquisition_rate_limited=False,
+        physical_budget_exhausted=False,
+    )
+    assert outcome.status == "FAILED"
+    assert outcome.cursor_may_advance is False
+    assert outcome.error_code == "DISCOVERY_FAILED"
+
+
+def test_c0_18_persistence_transient_failure_semantics(db_conn):
+    from bet.enrichment.football.contracts import (
+        AcquiredFixture,
+        AcquisitionMode,
+        FootballFixtureIdentity,
+    )
+    from bet.enrichment.football.persistence import CanonicalPersistence
+    from bet.enrichment.football.time import parse_canonical_or_offset_datetime
+
+    # Setup cursor and run
+    db_conn.execute(
+        """INSERT INTO sports_sync_cursor (id, provider, sport, operation, scope_key, created_at, updated_at)
+           VALUES (1, 'api-football', 'football', 'completed-fixture-history', '39_2023', '2023-01-01', '2023-01-01')
+        """
+    )
+    db_conn.execute(
+        """INSERT INTO sports_sync_run (id, run_identity, cursor_id, provider, sport, operation, scope_key, mode, window_from, window_to, status, started_at, cursor_before_json)
+           VALUES (5, 'run_5', 1, 'api-football', 'football', 'completed-fixture-history', '39_2023', 'bootstrap', '2023-01-01', '2023-01-01', 'RUNNING', '2023-01-01', '{}')
+        """
+    )
+    # Setup sync item
+    db_conn.execute(
+        """INSERT INTO sports_sync_item
+           (provider, sport, scope_key, provider_fixture_id, state, first_seen_at, last_checked_at, created_at, updated_at)
+           VALUES ('api-football', 'football', '39_2023', '100', 'DISCOVERED', '2023-01-01', '2023-01-01', '2023-01-01', '2023-01-01')
+        """
+    )
+    db_conn.commit()
+
+    persistence = CanonicalPersistence(db_conn)
+    fixture_id = FootballFixtureIdentity(
+        provider_fixture_id="100",
+        provider_competition_id="39",
+        competition_name="Premier League",
+        country="England",
+        season=2023,
+        round_name="Round 1",
+        kickoff_at=parse_canonical_or_offset_datetime("2023-01-01T12:00:00Z"),
+        provider_status="FT",
+        canonical_status="finished",
+        home_provider_team_id="10",
+        away_provider_team_id="20",
+        home_team_name="Home",
+        away_team_name="Away",
+        home_score=2,
+        away_score=1,
+        home_penalty_score=None,
+        away_penalty_score=None,
+        parser_version="1.0",
+        schema_version="v2",
+    )
+    acquired = AcquiredFixture(
+        fixture=fixture_id,
+        statistics_by_provider_team_id={},
+        fixture_evidence_refs=(),
+        statistics_evidence_refs=(),
+        observed_at=parse_canonical_or_offset_datetime("2023-01-01T12:00:00Z"),
+        acquisition_mode=AcquisitionMode.DISCOVERY_ENVELOPE,
+        warnings=(),
+    )
+
+    res = persistence.persist_acquired_fixture(
+        acquired_fixture=acquired,
+        scope_key="39_2023",
+        sync_run_id=5,
+        target_state="TRANSIENT_FAILED",
+        error_code="RATE_LIMITED",
+    )
+
+    assert res.sync_item_state == "TRANSIENT_FAILED"
+
+    # Check sync item updated correctly
+    row = db_conn.execute("SELECT state, last_error_code, last_sync_run_id FROM sports_sync_item WHERE provider_fixture_id = '100'").fetchone()
+    assert row is not None
+    assert row[0] == "TRANSIENT_FAILED"
+    assert row[1] == "RATE_LIMITED"
+    assert row[2] == 5
+
+    # VERIFY OBSERVATIONS WERE INSERTED (since transient optional-stats failure persists score-only facts)
+    import json
+    obs_rows = db_conn.execute("SELECT status, parser_diagnostics_json FROM fixture_capability_observation").fetchall()
+    assert len(obs_rows) == 2
+    for row in obs_rows:
+        assert row[0] == "PARTIAL"
+        diag = json.loads(row[1])
+        assert diag.get("completeness") == "SCORE_ONLY"
+        assert diag.get("reason") == "OPTIONAL_STATISTICS_PENDING"
+
+    # VERIFY GOAL STATS WERE INSERTED
+    stats = db_conn.execute("SELECT stat_key, stat_value FROM match_stats").fetchall()
+    assert len(stats) == 2
+    for key, val in stats:
+        assert key == "goals"
+
+
+def test_c0_19_cursor_monotonicity_prevention(db_conn):
+    from bet.enrichment.football.sync import FootballSyncEngine
+
+    engine = FootballSyncEngine(db_conn)
+    db_conn.execute(
+        """INSERT INTO sports_sync_cursor (provider, sport, operation, scope_key, committed_through_date, created_at, updated_at)
+           VALUES ('api-football', 'football', 'completed-fixture-history', '39_2023', '2023-01-10', '2023-01-10', '2023-01-10')
+        """
+    )
+    cursor_id = db_conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    db_conn.commit()
+
+    # Transition to older date (backward)
+    engine.transition_cursor(cursor_id, "2023-01-05", "2023-01-11")
+
+    # Verify date remained 2023-01-10
+    row = db_conn.execute("SELECT committed_through_date FROM sports_sync_cursor WHERE id = ?", (cursor_id,)).fetchone()
+    assert row[0] == "2023-01-10"
+
+    # Transition to same date (no-op)
+    engine.transition_cursor(cursor_id, "2023-01-10", "2023-01-12")
+    row = db_conn.execute("SELECT committed_through_date FROM sports_sync_cursor WHERE id = ?", (cursor_id,)).fetchone()
+    assert row[0] == "2023-01-10"
+
+    # Transition to newer date (forward)
+    engine.transition_cursor(cursor_id, "2023-01-15", "2023-01-13")
+    row = db_conn.execute("SELECT committed_through_date FROM sports_sync_cursor WHERE id = ?", (cursor_id,)).fetchone()
+    assert row[0] == "2023-01-15"
+
+
+def test_c0_20_rate_limit_circuit_breaker():
+    from unittest.mock import MagicMock
+
+    from bet.api_clients.base_client import SourceOperationResult, SourceResultStatus
+    from bet.enrichment.football.contracts import (
+        BatchIdsCapability,
+        FixtureWorkDisposition,
+        FootballFixtureIdentity,
+    )
+    from bet.enrichment.football.provider import (
+        LiveAPIFootballAcquirer,
+        PhysicalAttemptBudget,
+    )
+    from bet.enrichment.football.time import parse_canonical_or_offset_datetime
+    from bet.integration.evidence import EvidenceRef
+
+    mock_client = MagicMock()
+    # Details call returns RATE_LIMITED
+    mock_client.get_history_details.return_value = SourceOperationResult(
+        status=SourceResultStatus.RATE_LIMITED,
+        value=None
+    )
+
+    acquirer = LiveAPIFootballAcquirer(mock_client)
+    budget = PhysicalAttemptBudget(10)
+
+    fixture1 = FootballFixtureIdentity(
+        provider_fixture_id="100", provider_competition_id="39", competition_name="P", country="E", season=2023,
+        round_name="R1", kickoff_at=parse_canonical_or_offset_datetime("2023-01-01T12:00:00Z"), provider_status="FT",
+        canonical_status="finished", home_provider_team_id="10", away_provider_team_id="20", home_team_name="H",
+        away_team_name="A", home_score=2, away_score=1, home_penalty_score=None, away_penalty_score=None,
+        parser_version="1.0", schema_version="v2"
+    )
+    fixture2 = FootballFixtureIdentity(
+        provider_fixture_id="101", provider_competition_id="39", competition_name="P", country="E", season=2023,
+        round_name="R1", kickoff_at=parse_canonical_or_offset_datetime("2023-01-01T12:00:00Z"), provider_status="FT",
+        canonical_status="finished", home_provider_team_id="10", away_provider_team_id="20", home_team_name="H",
+        away_team_name="A", home_score=2, away_score=1, home_penalty_score=None, away_penalty_score=None,
+        parser_version="1.0", schema_version="v2"
+    )
+
+    res = acquirer.acquire_fixture_facts(
+        discovered_fixtures=(fixture1, fixture2),
+        provider_fixture_ids_to_enrich=["100", "101"],
+        ids_capability=BatchIdsCapability.UNKNOWN,
+        attempt_budget=budget,
+        max_fallback_stats_calls=1,
+        discovery_evidence_refs=(EvidenceRef("history_discovery", "GET", "json", 100, "hash_disc", captured_at="2023-01-01T12:00:00Z"),)
+    )
+
+    # First details call failed with RATE_LIMITED. Circuit is open!
+    # Subsequent calls must NOT call client.get_history_statistics!
+    assert mock_client.get_history_statistics.call_count == 0
+    assert len(res.outcomes) == 2
+    assert res.outcomes[0].disposition == FixtureWorkDisposition.TRANSIENT_FAILED
+    assert res.outcomes[0].error_code == "RATE_LIMITED"
+    assert res.outcomes[1].disposition == FixtureWorkDisposition.TRANSIENT_FAILED
+    assert res.outcomes[1].error_code == "RATE_LIMITED"
+
+
+def test_c0_21_embedded_stats_corruption():
+    from unittest.mock import MagicMock
+
+    from bet.api_clients.base_client import SourceOperationResult, SourceResultStatus
+    from bet.enrichment.football.contracts import (
+        BatchIdsCapability,
+        FixtureWorkDisposition,
+        FootballFixtureIdentity,
+    )
+    from bet.enrichment.football.provider import (
+        LiveAPIFootballAcquirer,
+        PhysicalAttemptBudget,
+    )
+    from bet.enrichment.football.time import parse_canonical_or_offset_datetime
+    from bet.integration.evidence import EvidenceRef
+
+    mock_client = MagicMock()
+    # Details call returns corrupted response with "statistics": "not_a_list" (should be list of dicts)
+    mock_client.get_history_details.return_value = SourceOperationResult(
+        status=SourceResultStatus.SUCCESS,
+        value={"response": [
+            {
+                "fixture": {"id": 100},
+                "statistics": "corrupted_non_list_value"
+            }
+        ]}
+    )
+
+    acquirer = LiveAPIFootballAcquirer(mock_client)
+    budget = PhysicalAttemptBudget(10)
+
+    fixture = FootballFixtureIdentity(
+        provider_fixture_id="100", provider_competition_id="39", competition_name="P", country="E", season=2023,
+        round_name="R1", kickoff_at=parse_canonical_or_offset_datetime("2023-01-01T12:00:00Z"), provider_status="FT",
+        canonical_status="finished", home_provider_team_id="10", away_provider_team_id="20", home_team_name="H",
+        away_team_name="A", home_score=2, away_score=1, home_penalty_score=None, away_penalty_score=None,
+        parser_version="1.0", schema_version="v2"
+    )
+
+    res = acquirer.acquire_fixture_facts(
+        discovered_fixtures=(fixture,),
+        provider_fixture_ids_to_enrich=["100"],
+        ids_capability=BatchIdsCapability.UNKNOWN,
+        attempt_budget=budget,
+        max_fallback_stats_calls=2,
+        discovery_evidence_refs=(EvidenceRef("history_discovery", "GET", "json", 100, "hash_disc", captured_at="2023-01-01T12:00:00Z"),)
+    )
+
+    # Parsing corrupted embedded stats should put fixture in corrupt_embedded_fixtures.
+    # Under U2, it MUST fall back to calling client.get_history_statistics when policy and budget allow!
+    assert mock_client.get_history_statistics.call_count == 1
+    assert len(res.outcomes) == 1
+    assert res.outcomes[0].disposition == FixtureWorkDisposition.TRANSIENT_FAILED
+    assert res.outcomes[0].error_code == "TRANSIENT_FAILED"
+    assert "EMBEDDED_STATISTICS_SCHEMA_MISMATCH" in res.fixtures[0].warnings
+
+
+def test_u3_older_bootstrap_does_not_reduce_committed_date(db_conn):
+    from bet.enrichment.football.sync import FootballSyncEngine
+    engine = FootballSyncEngine(db_conn)
+    db_conn.execute(
+        """INSERT INTO sports_sync_cursor (provider, sport, operation, scope_key, committed_through_date, created_at, updated_at)
+           VALUES ('api-football', 'football', 'completed-fixture-history', '39_2023', '2023-01-10', '2023-01-10', '2023-01-10')
+        """
+    )
+    cursor_id = db_conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    db_conn.commit()
+
+    engine.transition_cursor(cursor_id, "2023-01-05", "2023-01-15")
+    row = db_conn.execute("SELECT committed_through_date FROM sports_sync_cursor WHERE id = ?", (cursor_id,)).fetchone()
+    assert row[0] == "2023-01-10" # Kept the larger date
+
+
+def test_u3_same_date_transition_still_updates_metadata(db_conn):
+    from bet.enrichment.football.sync import FootballSyncEngine
+    engine = FootballSyncEngine(db_conn)
+    db_conn.execute(
+        """INSERT INTO sports_sync_cursor (provider, sport, operation, scope_key, committed_through_date, lock_version, created_at, updated_at)
+           VALUES ('api-football', 'football', 'completed-fixture-history', '39_2023', '2023-01-10', 1, '2023-01-10', '2023-01-10')
+        """
+    )
+    cursor_id = db_conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    db_conn.commit()
+
+    engine.transition_cursor(cursor_id, "2023-01-10", "2023-01-15")
+    row = db_conn.execute("SELECT committed_through_date, last_success_at, updated_at, lock_version FROM sports_sync_cursor WHERE id = ?", (cursor_id,)).fetchone()
+    assert row[0] == "2023-01-10"
+    assert row[1] == "2023-01-15"
+    assert row[2] == "2023-01-15"
+    assert row[3] == 2 # lock_version incremented
+
+
+def test_u3_invalid_discovery_produces_truthful_counters(db_conn):
+    from datetime import date
+    from unittest.mock import MagicMock
+
+    from bet.api_clients.base_client import SourceOperationResult, SourceResultStatus
+    from bet.enrichment.football.contracts import BootstrapCommand
+    from bet.enrichment.football.provider import LiveAPIFootballAcquirer
+    from bet.enrichment.football.repository import FootballHistoryRepository
+    from bet.enrichment.football.service import FootballHistoryService
+    from bet.enrichment.football.sync import FootballSyncEngine
+    from bet.integration.evidence import EvidenceRef
+
+    mock_client = MagicMock()
+    # Discovery returns 1 valid fixture and 1 invalid record
+    mock_client.get_history_discovery.return_value = SourceOperationResult(
+        status=SourceResultStatus.SUCCESS,
+        value={"response": [
+            {
+                "fixture": {"id": 1, "status": {"short": "FT"}, "date": "2023-01-01T12:00:00Z"},
+                "league": {"id": 39, "name": "L", "season": 2023},
+                "teams": {"home": {"id": 10, "name": "H"}, "away": {"id": 20, "name": "A"}},
+                "goals": {"home": 2, "away": 1},
+                "score": {"penalty": {"home": None, "away": None}}
+            },
+            {
+                # Missing kickoff date and teams -> invalid!
+                "fixture": {"id": 2, "status": {"short": "FT"}},
+                "league": {"id": 39, "season": 2023},
+                "goals": {"home": 2, "away": 1}
+            }
+        ]},
+        evidence_refs=(EvidenceRef("history_discovery", "GET", "json", 100, "hash_disc", captured_at="2023-01-01T12:00:00Z"),)
+    )
+
+    acquirer = LiveAPIFootballAcquirer(mock_client)
+    sync_engine = FootballSyncEngine(db_conn)
+    repo = FootballHistoryRepository(db_conn)
+    service = FootballHistoryService(db_conn, acquirer, sync_engine, repo)
+
+    cmd = BootstrapCommand("39", 2023, date(2023, 1, 1), date(2023, 1, 2), 10, 10, 5)
+    res = service.bootstrap(cmd)
+
+    # Validation
+    assert res.final_status == "FAILED" # degraded discovery with invalid records causes run failure
+    assert res.actual_counters["discovered_count"] == 2 # 1 valid + 1 invalid
+    assert res.actual_counters["transient_failed_count"] >= 1 # includes invalid!
+
+
+def test_u3_transient_score_only_facts_exist_while_cursor_unchanged(db_conn):
+    from datetime import date
+    from unittest.mock import MagicMock
+
+    from bet.api_clients.base_client import SourceOperationResult, SourceResultStatus
+    from bet.enrichment.football.contracts import BootstrapCommand
+    from bet.enrichment.football.provider import LiveAPIFootballAcquirer
+    from bet.enrichment.football.repository import FootballHistoryRepository
+    from bet.enrichment.football.service import FootballHistoryService
+    from bet.enrichment.football.sync import FootballSyncEngine
+    from bet.integration.evidence import EvidenceRef
+
+    mock_client = MagicMock()
+    mock_client.get_history_discovery.return_value = SourceOperationResult(
+        status=SourceResultStatus.SUCCESS,
+        value={"response": [
+            {
+                "fixture": {"id": 100, "status": {"short": "FT"}, "date": "2023-01-01T12:00:00Z"},
+                "league": {"id": 39, "name": "L", "season": 2023},
+                "teams": {"home": {"id": 10, "name": "H"}, "away": {"id": 20, "name": "A"}},
+                "goals": {"home": 2, "away": 1},
+                "score": {"penalty": {"home": None, "away": None}}
+            }
+        ]},
+        evidence_refs=(EvidenceRef("history_discovery", "GET", "json", 100, "hash_disc", captured_at="2023-01-01T12:00:00Z"),)
+    )
+    # details returns success but statistics is missing (simulating transient fallback statistics issue or similar)
+    mock_client.get_history_details.return_value = SourceOperationResult(
+        status=SourceResultStatus.SUCCESS,
+        value={"response": [{"fixture": {"id": 100}, "statistics": []}]},
+        evidence_refs=(EvidenceRef("history_details", "GET", "json", 100, "hash_details", captured_at="2023-01-01T12:05:00Z"),)
+    )
+    # stats fails transiently (RATE_LIMITED)
+    mock_client.get_history_statistics.return_value = SourceOperationResult(
+        status=SourceResultStatus.RATE_LIMITED,
+        value=None,
+        evidence_refs=()
+    )
+
+    acquirer = LiveAPIFootballAcquirer(mock_client)
+    sync_engine = FootballSyncEngine(db_conn)
+    repo = FootballHistoryRepository(db_conn)
+    service = FootballHistoryService(db_conn, acquirer, sync_engine, repo)
+
+    cmd = BootstrapCommand("39", 2023, date(2023, 1, 1), date(2023, 1, 2), 10, 10, 5)
+    res = service.bootstrap(cmd)
+
+    assert res.final_status == "RATE_LIMITED" # RATE_LIMITED stats fallback causes TRANSIENT_FAILED sync item and run failure
+
+    # Cursor remained unchanged (none/NULL)
+    cursor_row = db_conn.execute("SELECT committed_through_date FROM sports_sync_cursor WHERE scope_key = ?", (res.scope_key,)).fetchone()
+    assert cursor_row[0] is None
+
+    # Observations STILL exist (score-only facts are persisted!)
+    obs_count = db_conn.execute("SELECT COUNT(*) FROM fixture_capability_observation").fetchone()[0]
+    assert obs_count == 2
+
+    row = db_conn.execute("SELECT state FROM sports_sync_item WHERE provider_fixture_id = '100'").fetchone()
+    assert row[0] == "TRANSIENT_FAILED"
+
+
+def test_u3_later_successful_retry_appends_facts_and_allows_cursor_progression(db_conn):
+    from datetime import date
+    from unittest.mock import MagicMock
+
+    from bet.api_clients.base_client import SourceOperationResult, SourceResultStatus
+    from bet.enrichment.football.contracts import BootstrapCommand
+    from bet.enrichment.football.provider import LiveAPIFootballAcquirer
+    from bet.enrichment.football.repository import FootballHistoryRepository
+    from bet.enrichment.football.service import FootballHistoryService
+    from bet.enrichment.football.sync import FootballSyncEngine
+    from bet.integration.evidence import EvidenceRef
+
+    mock_client = MagicMock()
+    mock_client.get_history_discovery.return_value = SourceOperationResult(
+        status=SourceResultStatus.SUCCESS,
+        value={"response": [
+            {
+                "fixture": {"id": 100, "status": {"short": "FT"}, "date": "2023-01-01T12:00:00Z"},
+                "league": {"id": 39, "name": "L", "season": 2023},
+                "teams": {"home": {"id": 10, "name": "H"}, "away": {"id": 20, "name": "A"}},
+                "goals": {"home": 2, "away": 1},
+                "score": {"penalty": {"home": None, "away": None}}
+            }
+        ]},
+        evidence_refs=(EvidenceRef("history_discovery", "GET", "json", 100, "hash_disc", captured_at="2023-01-01T12:00:00Z"),)
+    )
+    mock_client.get_history_details.return_value = SourceOperationResult(
+        status=SourceResultStatus.SUCCESS,
+        value={"response": [{"fixture": {"id": 100}, "statistics": []}]},
+        evidence_refs=(EvidenceRef("history_details", "GET", "json", 100, "hash_details", captured_at="2023-01-01T12:05:00Z"),)
+    )
+    # first statistics fails RATE_LIMITED
+    mock_client.get_history_statistics.return_value = SourceOperationResult(
+        status=SourceResultStatus.RATE_LIMITED,
+        value=None
+    )
+
+    acquirer = LiveAPIFootballAcquirer(mock_client)
+    sync_engine = FootballSyncEngine(db_conn)
+    repo = FootballHistoryRepository(db_conn)
+    service = FootballHistoryService(db_conn, acquirer, sync_engine, repo)
+
+    cmd = BootstrapCommand("39", 2023, date(2023, 1, 1), date(2023, 1, 2), 10, 10, 5)
+    res1 = service.bootstrap(cmd)
+    assert res1.final_status == "RATE_LIMITED"
+
+    obs_count1 = db_conn.execute("SELECT COUNT(*) FROM fixture_capability_observation").fetchone()[0]
+    assert obs_count1 == 2 # SCORE_ONLY facts
+
+    # second call to stats succeeds
+    mock_client.get_history_statistics.return_value = SourceOperationResult(
+        status=SourceResultStatus.SUCCESS,
+        value={"response": [
+            {"team": {"id": 10}, "statistics": [{"type": "Total Shots", "value": 12}]},
+            {"team": {"id": 20}, "statistics": [{"type": "Total Shots", "value": 9}]}
+        ]},
+        evidence_refs=(EvidenceRef("history_statistics", "GET", "json", 100, "hash_stats", captured_at="2023-01-01T12:10:00Z"),)
+    )
+
+    res2 = service.bootstrap(cmd)
+    assert res2.final_status == "DEGRADED"
+
+    # Check observations are updated and count is increased (new success revision appended, or some are reused and some corrections added)
+    obs_count2 = db_conn.execute("SELECT COUNT(*) FROM fixture_capability_observation").fetchone()[0]
+    # Replaced the 2 SCORE_ONLY observations with 2 COMPLETE ones (which are new revisions). So total count should be 4!
+    assert obs_count2 == 4
+
+    # Verify cursor date advanced successfully!
+    cursor_row = db_conn.execute("SELECT committed_through_date FROM sports_sync_cursor WHERE scope_key = ?", (res2.scope_key,)).fetchone()
+    assert cursor_row[0] == "2023-01-02"
+
+
+def test_u3_second_terminal_rerun_creates_no_duplicate_observations(db_conn):
+    from datetime import date
+    from unittest.mock import MagicMock
+
+    from bet.api_clients.base_client import SourceOperationResult, SourceResultStatus
+    from bet.enrichment.football.contracts import BootstrapCommand
+    from bet.enrichment.football.provider import LiveAPIFootballAcquirer
+    from bet.enrichment.football.repository import FootballHistoryRepository
+    from bet.enrichment.football.service import FootballHistoryService
+    from bet.enrichment.football.sync import FootballSyncEngine
+    from bet.integration.evidence import EvidenceRef
+
+    mock_client = MagicMock()
+    mock_client.get_history_discovery.return_value = SourceOperationResult(
+        status=SourceResultStatus.SUCCESS,
+        value={"response": [
+            {
+                "fixture": {"id": 100, "status": {"short": "FT"}, "date": "2023-01-01T12:00:00Z"},
+                "league": {"id": 39, "name": "L", "season": 2023},
+                "teams": {"home": {"id": 10, "name": "H"}, "away": {"id": 20, "name": "A"}},
+                "goals": {"home": 2, "away": 1},
+                "score": {"penalty": {"home": None, "away": None}}
+            }
+        ]},
+        evidence_refs=(EvidenceRef("history_discovery", "GET", "json", 100, "hash_disc", captured_at="2023-01-01T12:00:00Z"),)
+    )
+    mock_client.get_history_details.return_value = SourceOperationResult(
+        status=SourceResultStatus.SUCCESS,
+        value={"response": [
+            {
+                "fixture": {"id": 100},
+                "statistics": [
+                    {"team": {"id": 10}, "statistics": [{"type": "Total Shots", "value": 12}]},
+                    {"team": {"id": 20}, "statistics": [{"type": "Total Shots", "value": 9}]}
+                ]
+            }
+        ]},
+        evidence_refs=(EvidenceRef("history_details", "GET", "json", 100, "hash_details", captured_at="2023-01-01T12:05:00Z"),)
+    )
+
+    acquirer = LiveAPIFootballAcquirer(mock_client)
+    sync_engine = FootballSyncEngine(db_conn)
+    repo = FootballHistoryRepository(db_conn)
+    service = FootballHistoryService(db_conn, acquirer, sync_engine, repo)
+
+    cmd = BootstrapCommand("39", 2023, date(2023, 1, 1), date(2023, 1, 2), 10, 10, 5)
+
+    res1 = service.bootstrap(cmd)
+    assert res1.final_status == "DEGRADED"
+    obs_count1 = db_conn.execute("SELECT COUNT(*) FROM fixture_capability_observation").fetchone()[0]
+    assert obs_count1 == 2
+
+    # rerun exactly identical
+    res2 = service.bootstrap(cmd)
+    assert res2.final_status == "DEGRADED"
+    obs_count2 = db_conn.execute("SELECT COUNT(*) FROM fixture_capability_observation").fetchone()[0]
+    assert obs_count2 == 2 # still 2, reused and no duplicate observations!
+

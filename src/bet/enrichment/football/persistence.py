@@ -206,11 +206,100 @@ class CanonicalPersistence:
         sync_run_id: int,
         target_state: str | None = None,
         error_code: str | None = None,
+        physical_attempts: int = 0,
     ) -> "PersistFixtureResult":
+        # 1. Validate target state before opening SAVEPOINT or doing any DB mutation
+        allowed_states = {
+            "DISCOVERED",
+            "INGESTED_COMPLETE",
+            "INGESTED_PARTIAL",
+            "INGESTED_SCORE_ONLY",
+            "PERMANENTLY_UNAVAILABLE",
+            "TRANSIENT_FAILED",
+        }
+        if target_state is not None and target_state not in allowed_states:
+            raise ValueError(f"Invalid target state: {target_state}")
+
+        # 2. Check fixture validity
+        fixture_is_valid = True
+        try:
+            fixture = acquired_fixture.fixture
+            if fixture is None:
+                fixture_is_valid = False
+            else:
+                if (not fixture.provider_fixture_id or
+                    not fixture.provider_competition_id or
+                    not fixture.home_provider_team_id or
+                    not fixture.away_provider_team_id or
+                    not fixture.home_team_name or
+                    not fixture.away_team_name or
+                    fixture.kickoff_at is None or
+                    fixture.home_score is None or fixture.home_score < 0 or
+                    fixture.away_score is None or fixture.away_score < 0):
+                    fixture_is_valid = False
+        except Exception:
+            fixture_is_valid = False
+
+        if not fixture_is_valid:
+            prov_fixture_id = getattr(acquired_fixture.fixture, "provider_fixture_id", None) if (acquired_fixture and acquired_fixture.fixture) else None
+            if prov_fixture_id:
+                row = self.conn.execute(
+                    """SELECT attempt_count, last_success_at
+                       FROM sports_sync_item
+                       WHERE provider = 'api-football' AND sport = 'football' AND scope_key = ? AND provider_fixture_id = ?
+                    """,
+                    (scope_key, prov_fixture_id)
+                ).fetchone()
+                if row:
+                    existing_attempts, existing_last_success = row
+                    new_attempts = (existing_attempts or 0) + max(1, physical_attempts)
+                    now_str = format_utc(datetime.now(UTC))
+                    invalid_state = target_state if target_state else "TRANSIENT_FAILED"
+                    self.conn.execute(
+                        """UPDATE sports_sync_item
+                           SET state = ?,
+                               last_checked_at = ?,
+                               last_success_at = ?,
+                               last_error_code = ?,
+                               last_sync_run_id = ?,
+                               attempt_count = ?,
+                               updated_at = ?
+                           WHERE provider = 'api-football' AND sport = 'football' AND scope_key = ? AND provider_fixture_id = ?
+                        """,
+                        (
+                            invalid_state,
+                            now_str,
+                            existing_last_success,
+                            error_code or "INVALID_FIXTURE",
+                            sync_run_id,
+                            new_attempts,
+                            now_str,
+                            scope_key,
+                            prov_fixture_id
+                        )
+                    )
+            return PersistFixtureResult(
+                canonical_fixture_id=0,
+                canonical_event_entity_id=0,
+                canonical_home_team_id=0,
+                canonical_away_team_id=0,
+                observations_inserted=0,
+                observations_reused=0,
+                corrections_appended=0,
+                projections_updated=0,
+                sync_item_state=target_state or "TRANSIENT_FAILED",
+                fixture_bundle_id=""
+            )
+
+        # 3. Open SAVEPOINT
         sp_name = f"persist_fixture_{acquired_fixture.fixture.provider_fixture_id}"
         self.conn.execute(f"SAVEPOINT {sp_name}")
 
         try:
+            # Check if we should use empty statistics to persist score-only facts
+            use_score_only = False
+            if target_state in ("TRANSIENT_FAILED", "PERMANENTLY_UNAVAILABLE", "INGESTED_SCORE_ONLY") or error_code == "FALLBACK_STATISTICS_POLICY_LIMIT":
+                use_score_only = True
 
             comp_id, comp_sports_ent_id = self._resolve_or_create_competition(
                 acquired_fixture.fixture.provider_competition_id,
@@ -243,7 +332,10 @@ class CanonicalPersistence:
                 observed_at_str
             )
 
-            evidence_refs = list(acquired_fixture.fixture_evidence_refs) + list(acquired_fixture.statistics_evidence_refs)
+            stats_to_use = {} if use_score_only else acquired_fixture.statistics_by_provider_team_id
+            stats_evidence_refs = () if use_score_only else acquired_fixture.statistics_evidence_refs
+
+            evidence_refs = list(acquired_fixture.fixture_evidence_refs) + list(stats_evidence_refs)
 
             local_bundle_id, _ = write_bundle_manifest(
                 registered_source_key="api-football",
@@ -256,9 +348,9 @@ class CanonicalPersistence:
 
             completed_facts = merge_completed_match_facts(
                 acquired_fixture.fixture,
-                acquired_fixture.statistics_by_provider_team_id,
+                stats_to_use,
                 local_bundle_id,
-                local_bundle_id
+                local_bundle_id if stats_to_use else None
             )
 
             observations_inserted = 0
@@ -274,7 +366,6 @@ class CanonicalPersistence:
 
                 raw_identity_str = chr(0).join(["v1", "TEAM_MATCH_FACTS", "api-football", acquired_fixture.fixture.provider_fixture_id, team_facts.provider_team_id, payload_sha256])
                 logical_identity = hashlib.sha256(raw_identity_str.encode('utf-8')).hexdigest().lower()
-
 
                 obs_row = self.conn.execute(
                     "SELECT id FROM fixture_capability_observation WHERE logical_identity = ?",
@@ -300,6 +391,14 @@ class CanonicalPersistence:
                     elif team_facts.completeness == "SCORE_ONLY":
                         obs_status = "PARTIAL"
                         parser_diagnostics = {"completeness": "SCORE_ONLY"}
+
+                    # Apply diagnostics based on matrix rules
+                    if target_state == "INGESTED_SCORE_ONLY" or error_code == "FALLBACK_STATISTICS_POLICY_LIMIT":
+                        parser_diagnostics["reason"] = "FALLBACK_STATISTICS_POLICY_LIMIT"
+                    elif target_state == "PERMANENTLY_UNAVAILABLE":
+                        parser_diagnostics["reason"] = error_code or "PERMANENTLY_UNAVAILABLE"
+                    elif target_state == "TRANSIENT_FAILED":
+                        parser_diagnostics["reason"] = "OPTIONAL_STATISTICS_PENDING"
 
                     parser_diagnostics_json = json.dumps(parser_diagnostics, separators=(',', ':'))
 
@@ -360,12 +459,61 @@ class CanonicalPersistence:
             else:
                 sync_state = "INGESTED_PARTIAL"
 
-            self.conn.execute(
-                """UPDATE sports_sync_item
-                   SET canonical_fixture_id = ?, state = ?, fixture_evidence_bundle_id = ?, statistics_evidence_bundle_id = ?, normalized_payload_sha256 = ?, last_success_at = ?, last_error_code = ?, last_sync_run_id = ?, updated_at = ?
+            # Query existing attempt_count and last_success_at
+            row = self.conn.execute(
+                """SELECT attempt_count, last_success_at
+                   FROM sports_sync_item
                    WHERE provider = 'api-football' AND sport = 'football' AND scope_key = ? AND provider_fixture_id = ?
                 """,
-                (fix_id, sync_state, local_bundle_id, local_bundle_id, normalized_payload_sha256, observed_at_str, error_code, sync_run_id, observed_at_str, scope_key, acquired_fixture.fixture.provider_fixture_id)
+                (scope_key, acquired_fixture.fixture.provider_fixture_id)
+            ).fetchone()
+            existing_attempts = row[0] if row else 0
+            existing_last_success = row[1] if row else None
+
+            # Calculate attempt count
+            new_attempts = (existing_attempts or 0) + max(1, physical_attempts)
+
+            # Determine last_success_at and last_error_code
+            if sync_state == "TRANSIENT_FAILED":
+                last_success_at_val = existing_last_success
+                last_error_code_val = error_code or "TRANSIENT_FAILED"
+            elif sync_state == "PERMANENTLY_UNAVAILABLE":
+                last_success_at_val = observed_at_str
+                last_error_code_val = error_code or "PERMANENTLY_UNAVAILABLE"
+            else:
+                last_success_at_val = observed_at_str
+                last_error_code_val = None
+
+            self.conn.execute(
+                """UPDATE sports_sync_item
+                   SET canonical_fixture_id = ?,
+                       state = ?,
+                       fixture_evidence_bundle_id = ?,
+                       statistics_evidence_bundle_id = ?,
+                       normalized_payload_sha256 = ?,
+                       last_checked_at = ?,
+                       last_success_at = ?,
+                       last_error_code = ?,
+                       last_sync_run_id = ?,
+                       attempt_count = ?,
+                       updated_at = ?
+                   WHERE provider = 'api-football' AND sport = 'football' AND scope_key = ? AND provider_fixture_id = ?
+                """,
+                (
+                    fix_id,
+                    sync_state,
+                    local_bundle_id,
+                    local_bundle_id,
+                    normalized_payload_sha256,
+                    observed_at_str,
+                    last_success_at_val,
+                    last_error_code_val,
+                    sync_run_id,
+                    new_attempts,
+                    observed_at_str,
+                    scope_key,
+                    acquired_fixture.fixture.provider_fixture_id
+                )
             )
 
             self.conn.execute(f"RELEASE SAVEPOINT {sp_name}")

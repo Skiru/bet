@@ -611,6 +611,9 @@ def derive_run_outcome(
     if discovery_status == "RATE_LIMITED":
         return make_outcome("RATE_LIMITED", False, "DISCOVERY_RATE_LIMITED")
 
+    if discovery_status == "FAILED":
+        return make_outcome("FAILED", False, "DISCOVERY_FAILED")
+
     # 2. If discovery_paging_completed is false
     if not discovery_paging_completed:
         status = "RATE_LIMITED" if (physical_budget_exhausted or acquisition_rate_limited) else "FAILED"
@@ -656,3 +659,10 @@ def derive_run_outcome(
         return make_outcome("DEGRADED", True, "PARTIAL_COVERAGE")
 
     raise ValueError("No matching run outcome branch found")
+
+
+class AcquisitionPlanError(ValueError):
+    def __init__(self, code: str, fixture_ids: tuple[str, ...]):
+        super().__init__(f"AcquisitionPlanError: {code} for {fixture_ids}")
+        self.code = code
+        self.fixture_ids = fixture_ids

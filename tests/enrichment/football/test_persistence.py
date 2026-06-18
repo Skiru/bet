@@ -101,10 +101,13 @@ def make_dummy_completed_facts(fix_id="123", home_score=2, away_score=1, shots_h
 
 
 # Monkeypatch legacy persist_completed_facts onto CanonicalPersistence for test compatibility
-from bet.enrichment.football.persistence import CanonicalPersistence
 
 def _test_persist_completed_facts(self, facts, fetched_at, run_id):
-    from bet.enrichment.football.contracts import AcquiredFixture, AcquisitionMode, EvidenceRef
+    from bet.enrichment.football.contracts import (
+        AcquiredFixture,
+        AcquisitionMode,
+        EvidenceRef,
+    )
     from bet.enrichment.football.time import parse_canonical_or_offset_datetime
 
     stats_dict = {}
@@ -323,3 +326,285 @@ def test_no_half_fixture_after_rollback_on_injected_failure(db_conn):
     # No match_stats should have been written!
     count_stats = db_conn.execute("SELECT COUNT(*) FROM match_stats").fetchone()[0]
     assert count_stats == 0
+
+
+def test_u1_transient_optional_stats_failure_persists_score_only(db_conn):
+    import json
+    pers = CanonicalPersistence(db_conn)
+    db_conn.execute("""INSERT INTO sports_sync_item (provider, sport, scope_key, provider_fixture_id, first_seen_at, last_checked_at, state, created_at, updated_at)
+                       VALUES ('api-football', 'football', 'scope_1', '123', '2023', '2023', 'DISCOVERED', '2023', '2023')""")
+    facts = make_dummy_completed_facts()
+
+    from bet.enrichment.football.contracts import AcquiredFixture, AcquisitionMode
+    from bet.enrichment.football.time import parse_canonical_or_offset_datetime
+
+    acq = AcquiredFixture(
+        fixture=facts.fixture,
+        statistics_by_provider_team_id={},
+        fixture_evidence_refs=(),
+        statistics_evidence_refs=(),
+        observed_at=parse_canonical_or_offset_datetime("2023-01-01T12:00:00Z"),
+        acquisition_mode=AcquisitionMode.DISCOVERY_ENVELOPE,
+        warnings=()
+    )
+
+    res = pers.persist_acquired_fixture(
+        acquired_fixture=acq,
+        scope_key="scope_1",
+        sync_run_id=1,
+        target_state="TRANSIENT_FAILED",
+        error_code="RATE_LIMITED"
+    )
+
+    assert res.sync_item_state == "TRANSIENT_FAILED"
+
+    # Verify 2 observations were inserted, completeness SCORE_ONLY, status PARTIAL, diagnostic OPTIONAL_STATISTICS_PENDING
+    obs = db_conn.execute("SELECT status, parser_diagnostics_json FROM fixture_capability_observation").fetchall()
+    assert len(obs) == 2
+    for status, diag_str in obs:
+        assert status == "PARTIAL"
+        diag = json.loads(diag_str)
+        assert diag.get("completeness") == "SCORE_ONLY"
+        assert diag.get("reason") == "OPTIONAL_STATISTICS_PENDING"
+
+    # Verify goals in match_stats, but no other stats
+    stats = db_conn.execute("SELECT stat_key FROM match_stats").fetchall()
+    assert len(stats) == 2
+    for (key,) in stats:
+        assert key == "goals"
+
+
+def test_u1_transient_failure_preserves_previous_last_success_at(db_conn):
+    pers = CanonicalPersistence(db_conn)
+    db_conn.execute("""INSERT INTO sports_sync_item (provider, sport, scope_key, provider_fixture_id, first_seen_at, last_checked_at, last_success_at, state, created_at, updated_at)
+                       VALUES ('api-football', 'football', 'scope_1', '123', '2023', '2023', '2023-01-01T10:00:00Z', 'DISCOVERED', '2023', '2023')""")
+    facts = make_dummy_completed_facts()
+
+    from bet.enrichment.football.contracts import AcquiredFixture, AcquisitionMode
+    from bet.enrichment.football.time import parse_canonical_or_offset_datetime
+
+    acq = AcquiredFixture(
+        fixture=facts.fixture,
+        statistics_by_provider_team_id={},
+        fixture_evidence_refs=(),
+        statistics_evidence_refs=(),
+        observed_at=parse_canonical_or_offset_datetime("2023-01-01T12:00:00Z"),
+        acquisition_mode=AcquisitionMode.DISCOVERY_ENVELOPE,
+        warnings=()
+    )
+
+    pers.persist_acquired_fixture(
+        acquired_fixture=acq,
+        scope_key="scope_1",
+        sync_run_id=1,
+        target_state="TRANSIENT_FAILED",
+        error_code="RATE_LIMITED"
+    )
+
+    row = db_conn.execute("SELECT last_success_at FROM sports_sync_item WHERE provider_fixture_id = '123'").fetchone()
+    assert row[0] == "2023-01-01T10:00:00Z"
+
+
+def test_u1_permanent_unavailable_persists_score_only(db_conn):
+    import json
+    pers = CanonicalPersistence(db_conn)
+    db_conn.execute("""INSERT INTO sports_sync_item (provider, sport, scope_key, provider_fixture_id, first_seen_at, last_checked_at, state, created_at, updated_at)
+                       VALUES ('api-football', 'football', 'scope_1', '123', '2023', '2023', 'DISCOVERED', '2023', '2023')""")
+    facts = make_dummy_completed_facts()
+
+    from bet.enrichment.football.contracts import AcquiredFixture, AcquisitionMode
+    from bet.enrichment.football.time import parse_canonical_or_offset_datetime
+
+    acq = AcquiredFixture(
+        fixture=facts.fixture,
+        statistics_by_provider_team_id={},
+        fixture_evidence_refs=(),
+        statistics_evidence_refs=(),
+        observed_at=parse_canonical_or_offset_datetime("2023-01-01T12:00:00Z"),
+        acquisition_mode=AcquisitionMode.DISCOVERY_ENVELOPE,
+        warnings=()
+    )
+
+    res = pers.persist_acquired_fixture(
+        acquired_fixture=acq,
+        scope_key="scope_1",
+        sync_run_id=1,
+        target_state="PERMANENTLY_UNAVAILABLE",
+        error_code="STATISTICS_PLAN_RESTRICTED"
+    )
+
+    assert res.sync_item_state == "PERMANENTLY_UNAVAILABLE"
+
+    obs = db_conn.execute("SELECT status, parser_diagnostics_json FROM fixture_capability_observation").fetchall()
+    assert len(obs) == 2
+    for status, diag_str in obs:
+        assert status == "PARTIAL"
+        diag = json.loads(diag_str)
+        assert diag.get("completeness") == "SCORE_ONLY"
+        assert diag.get("reason") == "STATISTICS_PLAN_RESTRICTED"
+
+
+def test_u1_invalid_identity_persists_no_facts(db_conn):
+    pers = CanonicalPersistence(db_conn)
+    db_conn.execute("""INSERT INTO sports_sync_item (provider, sport, scope_key, provider_fixture_id, first_seen_at, last_checked_at, state, created_at, updated_at)
+                       VALUES ('api-football', 'football', 'scope_1', '123', '2023', '2023', 'DISCOVERED', '2023', '2023')""")
+    facts = make_dummy_completed_facts()
+
+    # Invalid fixture - e.g. home_score is negative using MagicMock!
+    from unittest.mock import MagicMock
+
+    from bet.enrichment.football.contracts import (
+        AcquiredFixture,
+        AcquisitionMode,
+    )
+    from bet.enrichment.football.time import parse_canonical_or_offset_datetime
+    invalid_fixture = MagicMock()
+    invalid_fixture.provider_fixture_id = "123"
+    invalid_fixture.provider_competition_id = "39"
+    invalid_fixture.competition_name = "Premier League"
+    invalid_fixture.home_provider_team_id = "10"
+    invalid_fixture.away_provider_team_id = "20"
+    invalid_fixture.home_team_name = "Home Team"
+    invalid_fixture.away_team_name = "Away Team"
+    invalid_fixture.kickoff_at = parse_canonical_or_offset_datetime("2023-01-01T12:00:00Z")
+    invalid_fixture.home_score = -5 # Invalid!
+    invalid_fixture.away_score = 1
+    invalid_fixture.canonical_status = "finished"
+
+    acq = AcquiredFixture(
+        fixture=invalid_fixture,
+        statistics_by_provider_team_id={},
+        fixture_evidence_refs=(),
+        statistics_evidence_refs=(),
+        observed_at=parse_canonical_or_offset_datetime("2023-01-01T12:00:00Z"),
+        acquisition_mode=AcquisitionMode.DISCOVERY_ENVELOPE,
+        warnings=()
+    )
+
+    res = pers.persist_acquired_fixture(
+        acquired_fixture=acq,
+        scope_key="scope_1",
+        sync_run_id=1,
+        target_state="TRANSIENT_FAILED",
+        error_code="INVALID_SCORE"
+    )
+
+    assert res.canonical_fixture_id == 0
+    obs_count = db_conn.execute("SELECT COUNT(*) FROM fixture_capability_observation").fetchone()[0]
+    assert obs_count == 0
+
+
+def test_u1_invalid_target_state_makes_zero_db_changes(db_conn):
+    pers = CanonicalPersistence(db_conn)
+    facts = make_dummy_completed_facts()
+
+    from bet.enrichment.football.contracts import AcquiredFixture, AcquisitionMode
+    from bet.enrichment.football.time import parse_canonical_or_offset_datetime
+
+    acq = AcquiredFixture(
+        fixture=facts.fixture,
+        statistics_by_provider_team_id={},
+        fixture_evidence_refs=(),
+        statistics_evidence_refs=(),
+        observed_at=parse_canonical_or_offset_datetime("2023-01-01T12:00:00Z"),
+        acquisition_mode=AcquisitionMode.DISCOVERY_ENVELOPE,
+        warnings=()
+    )
+
+    with pytest.raises(ValueError, match="Invalid target state"):
+        pers.persist_acquired_fixture(
+            acquired_fixture=acq,
+            scope_key="scope_1",
+            sync_run_id=1,
+            target_state="INVALID_STATE"
+        )
+
+
+def test_u1_later_success_clears_error_and_appends_revision(db_conn):
+    pers = CanonicalPersistence(db_conn)
+    db_conn.execute("""INSERT INTO sports_sync_item (provider, sport, scope_key, provider_fixture_id, first_seen_at, last_checked_at, state, created_at, updated_at)
+                       VALUES ('api-football', 'football', 'scope_1', '123', '2023', '2023', 'DISCOVERED', '2023', '2023')""")
+    facts = make_dummy_completed_facts()
+
+    from bet.enrichment.football.contracts import AcquiredFixture, AcquisitionMode
+    from bet.enrichment.football.time import parse_canonical_or_offset_datetime
+
+    acq_fail = AcquiredFixture(
+        fixture=facts.fixture,
+        statistics_by_provider_team_id={},
+        fixture_evidence_refs=(),
+        statistics_evidence_refs=(),
+        observed_at=parse_canonical_or_offset_datetime("2023-01-01T12:00:00Z"),
+        acquisition_mode=AcquisitionMode.DISCOVERY_ENVELOPE,
+        warnings=()
+    )
+
+    pers.persist_acquired_fixture(
+        acquired_fixture=acq_fail,
+        scope_key="scope_1",
+        sync_run_id=1,
+        target_state="TRANSIENT_FAILED",
+        error_code="RATE_LIMITED"
+    )
+
+    row = db_conn.execute("SELECT state, last_error_code FROM sports_sync_item WHERE provider_fixture_id = '123'").fetchone()
+    assert row[0] == "TRANSIENT_FAILED"
+    assert row[1] == "RATE_LIMITED"
+
+    # Later successful sync with statistics
+    stats_dict = {
+        "10": {"Total Shots": 10, "Shots on Goal": 5, "Ball Possession": 50.0, "Fouls": 10, "Yellow Cards": 1, "Red Cards": 0, "Offsides": 2, "Corner Kicks": 4, "Goalkeeper Saves": 3},
+        "20": {"Total Shots": 8, "Shots on Goal": 4, "Ball Possession": 50.0, "Fouls": 8, "Yellow Cards": 0, "Red Cards": 0, "Offsides": 1, "Corner Kicks": 3, "Goalkeeper Saves": 4}
+    }
+
+    acq_success = AcquiredFixture(
+        fixture=facts.fixture,
+        statistics_by_provider_team_id=stats_dict,
+        fixture_evidence_refs=(),
+        statistics_evidence_refs=(),
+        observed_at=parse_canonical_or_offset_datetime("2023-01-01T13:00:00Z"),
+        acquisition_mode=AcquisitionMode.PER_FIXTURE_STATS,
+        warnings=()
+    )
+
+    pers.persist_acquired_fixture(
+        acquired_fixture=acq_success,
+        scope_key="scope_1",
+        sync_run_id=1,
+        target_state=None
+    )
+
+    row2 = db_conn.execute("SELECT state, last_error_code FROM sports_sync_item WHERE provider_fixture_id = '123'").fetchone()
+    assert row2[0] == "INGESTED_COMPLETE"
+    assert row2[1] is None
+
+
+def test_u1_attempt_count_uses_actual_outcome_attempts(db_conn):
+    pers = CanonicalPersistence(db_conn)
+    db_conn.execute("""INSERT INTO sports_sync_item (provider, sport, scope_key, provider_fixture_id, first_seen_at, last_checked_at, attempt_count, state, created_at, updated_at)
+                       VALUES ('api-football', 'football', 'scope_1', '123', '2023', '2023', 2, 'DISCOVERED', '2023', '2023')""")
+    facts = make_dummy_completed_facts()
+
+    from bet.enrichment.football.contracts import AcquiredFixture, AcquisitionMode
+    from bet.enrichment.football.time import parse_canonical_or_offset_datetime
+
+    acq = AcquiredFixture(
+        fixture=facts.fixture,
+        statistics_by_provider_team_id={},
+        fixture_evidence_refs=(),
+        statistics_evidence_refs=(),
+        observed_at=parse_canonical_or_offset_datetime("2023-01-01T12:00:00Z"),
+        acquisition_mode=AcquisitionMode.DISCOVERY_ENVELOPE,
+        warnings=()
+    )
+
+    pers.persist_acquired_fixture(
+        acquired_fixture=acq,
+        scope_key="scope_1",
+        sync_run_id=1,
+        physical_attempts=4
+    )
+
+    row = db_conn.execute("SELECT attempt_count FROM sports_sync_item WHERE provider_fixture_id = '123'").fetchone()
+    # 2 (existing) + max(1, 4) = 6
+    assert row[0] == 6

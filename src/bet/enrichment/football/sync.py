@@ -194,11 +194,32 @@ class FootballSyncEngine:
 
     def transition_cursor(self, cursor_id: int, committed_through_date: str, last_success_at: str) -> None:
         def callback():
+            row = self.conn.execute(
+                "SELECT committed_through_date FROM sports_sync_cursor WHERE id = ?",
+                (cursor_id,)
+            ).fetchone()
+
+            existing_comm_date = row[0] if row else None
+
+            from datetime import date as dt_date
+            new_date = committed_through_date
+            if existing_comm_date:
+                try:
+                    c_date = dt_date.fromisoformat(committed_through_date)
+                    e_date = dt_date.fromisoformat(existing_comm_date)
+                    if e_date > c_date:
+                        new_date = existing_comm_date
+                except ValueError:
+                    pass
+
             self.conn.execute(
                 """UPDATE sports_sync_cursor
-                   SET committed_through_date = ?, last_success_at = ?, updated_at = ?
+                   SET committed_through_date = ?,
+                       last_success_at = ?,
+                       updated_at = ?,
+                       lock_version = lock_version + 1
                    WHERE id = ?
                 """,
-                (committed_through_date, last_success_at, last_success_at, cursor_id)
+                (new_date, last_success_at, last_success_at, cursor_id)
             )
         self.run_in_immediate_transaction(callback)

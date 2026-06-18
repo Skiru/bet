@@ -143,35 +143,36 @@ class FootballHistoryService:
                 attempt_budget=budget,
             )
 
-            if disc_res.terminal_status != "COMPLETE":
-                # Deriving status and counters for incomplete discovery
-                self.sync_engine.complete_run(run_id, disc_res.terminal_status, cursor_before_json, {
+            if disc_res.terminal_status in ("FAILED", "RATE_LIMITED"):
+                from bet.enrichment.football.contracts import derive_run_outcome
+                run_outcome = derive_run_outcome(
+                    discovery_status=disc_res.terminal_status,
+                    discovery_paging_completed=disc_res.paging_completed,
+                    invalid_discovery_count=len(disc_res.invalid_records),
+                    expected_fixture_ids=frozenset(),
+                    item_states={},
+                    acquisition_rate_limited=False,
+                    physical_budget_exhausted=False,
+                )
+                counters = {
                     "physical_http_attempts": disc_res.physical_attempts,
                     "fallback_stats_calls": 0,
-                    "discovered_count": 0,
-                    "complete_count": 0,
-                    "partial_count": 0,
-                    "score_only_count": 0,
-                    "permanently_unavailable_count": 0,
-                    "transient_failed_count": 0,
-                })
+                    "discovered_count": run_outcome.discovered_count,
+                    "complete_count": run_outcome.complete_count,
+                    "partial_count": run_outcome.partial_count,
+                    "score_only_count": run_outcome.score_only_count,
+                    "permanently_unavailable_count": run_outcome.permanently_unavailable_count,
+                    "transient_failed_count": run_outcome.transient_failed_count,
+                }
+                self.sync_engine.complete_run(run_id, run_outcome.status, cursor_before_json, counters, error_code=run_outcome.error_code)
                 return SyncResult(
                     sync_run_id=run_id,
                     scope_key=scope_key,
                     cursor_before=json.loads(cursor_before_json),
                     cursor_after=json.loads(cursor_before_json),
-                    actual_counters={
-                        "physical_http_attempts": disc_res.physical_attempts,
-                        "fallback_stats_calls": 0,
-                        "discovered_count": 0,
-                        "complete_count": 0,
-                        "partial_count": 0,
-                        "score_only_count": 0,
-                        "permanently_unavailable_count": 0,
-                        "transient_failed_count": 0,
-                    },
+                    actual_counters=counters,
                     acquisition_result=None,
-                    final_status=disc_res.terminal_status,
+                    final_status=run_outcome.status,
                     warnings=(),
                 )
 
@@ -241,6 +242,7 @@ class FootballHistoryService:
                     sync_run_id=run_id,
                     target_state=target_state,
                     error_code=error_code,
+                    physical_attempts=outcome.physical_attempts if outcome else 0,
                 )
             self.conn.commit()
 
@@ -312,8 +314,14 @@ class FootballHistoryService:
                 self.conn.commit()
 
             if run_outcome.cursor_may_advance:
-                cursor_after_json = json.dumps({"committed_through_date": effective_closed_through.isoformat()})
-                self.sync_engine.transition_cursor(cursor_id, effective_closed_through.isoformat(), now_str)
+                final_comm_date = effective_closed_through
+                if comm_date:
+                    from datetime import date as dt_date
+                    existing_date = dt_date.fromisoformat(comm_date)
+                    if existing_date > final_comm_date:
+                        final_comm_date = existing_date
+                cursor_after_json = json.dumps({"committed_through_date": final_comm_date.isoformat()})
+                self.sync_engine.transition_cursor(cursor_id, final_comm_date.isoformat(), now_str)
 
             if self.conn.in_transaction:
                 self.conn.commit()
@@ -443,35 +451,36 @@ class FootballHistoryService:
                 attempt_budget=budget,
             )
 
-            if disc_res.terminal_status != "COMPLETE":
-                # Complete sync run with discovery failure
-                self.sync_engine.complete_run(run_id, disc_res.terminal_status, cursor_before_json, {
+            if disc_res.terminal_status in ("FAILED", "RATE_LIMITED"):
+                from bet.enrichment.football.contracts import derive_run_outcome
+                run_outcome = derive_run_outcome(
+                    discovery_status=disc_res.terminal_status,
+                    discovery_paging_completed=disc_res.paging_completed,
+                    invalid_discovery_count=len(disc_res.invalid_records),
+                    expected_fixture_ids=frozenset(),
+                    item_states={},
+                    acquisition_rate_limited=False,
+                    physical_budget_exhausted=False,
+                )
+                counters = {
                     "physical_http_attempts": disc_res.physical_attempts,
                     "fallback_stats_calls": 0,
-                    "discovered_count": 0,
-                    "complete_count": 0,
-                    "partial_count": 0,
-                    "score_only_count": 0,
-                    "permanently_unavailable_count": 0,
-                    "transient_failed_count": 0,
-                })
+                    "discovered_count": run_outcome.discovered_count,
+                    "complete_count": run_outcome.complete_count,
+                    "partial_count": run_outcome.partial_count,
+                    "score_only_count": run_outcome.score_only_count,
+                    "permanently_unavailable_count": run_outcome.permanently_unavailable_count,
+                    "transient_failed_count": run_outcome.transient_failed_count,
+                }
+                self.sync_engine.complete_run(run_id, run_outcome.status, cursor_before_json, counters, error_code=run_outcome.error_code)
                 return SyncResult(
                     sync_run_id=run_id,
                     scope_key=scope_key,
                     cursor_before=json.loads(cursor_before_json),
                     cursor_after=json.loads(cursor_before_json),
-                    actual_counters={
-                        "physical_http_attempts": disc_res.physical_attempts,
-                        "fallback_stats_calls": 0,
-                        "discovered_count": 0,
-                        "complete_count": 0,
-                        "partial_count": 0,
-                        "score_only_count": 0,
-                        "permanently_unavailable_count": 0,
-                        "transient_failed_count": 0,
-                    },
+                    actual_counters=counters,
                     acquisition_result=None,
-                    final_status=disc_res.terminal_status,
+                    final_status=run_outcome.status,
                     warnings=(),
                 )
 
@@ -542,6 +551,7 @@ class FootballHistoryService:
                     sync_run_id=run_id,
                     target_state=target_state,
                     error_code=error_code,
+                    physical_attempts=outcome.physical_attempts if outcome else 0,
                 )
             self.conn.commit()
 
@@ -614,8 +624,14 @@ class FootballHistoryService:
 
             if run_outcome.cursor_may_advance:
                 if max_comm_date >= from_date:
-                    cursor_after_json = json.dumps({"committed_through_date": max_comm_date.isoformat()})
-                    self.sync_engine.transition_cursor(cursor_id, max_comm_date.isoformat(), now_str)
+                    final_comm_date = max_comm_date
+                    if comm_date_str:
+                        from datetime import date as dt_date
+                        existing_date = dt_date.fromisoformat(comm_date_str)
+                        if existing_date > final_comm_date:
+                            final_comm_date = existing_date
+                    cursor_after_json = json.dumps({"committed_through_date": final_comm_date.isoformat()})
+                    self.sync_engine.transition_cursor(cursor_id, final_comm_date.isoformat(), now_str)
 
             if self.conn.in_transaction:
                 self.conn.commit()
