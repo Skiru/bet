@@ -135,18 +135,23 @@ def _scope_specificity(scope: str) -> int:
 def _is_selectable_matrix_entry(entry: dict[str, Any]) -> bool:
     selectable = entry.get("selectable_as_projection")
     if isinstance(selectable, bool):
-        return selectable and entry.get("status") == "CERTIFIED_SELECTABLE"
+        return (
+            selectable is True
+            and entry.get("evidence_replay") is True
+            and entry.get("status") == "CERTIFIED_SELECTABLE"
+        )
     return (
         entry.get("classification") in LEGACY_SELECTABLE_CLASSIFICATIONS
         and entry.get("status") in LEGACY_SELECTABLE_STATUSES
+        and entry.get("evidence_replay") is True
     )
 
 
 def _normalize_route_entries(route_info: dict[str, Any]) -> list[dict[str, Any]]:
-    routes = route_info.get("routes")
-    if isinstance(routes, list):
-        normalized_routes: list[dict[str, Any]] = []
-        for route in routes:
+    normalized_routes: list[dict[str, Any]] = []
+
+    def parse_bucket_list(routes_list: list[Any], bucket_name: str) -> None:
+        for route in routes_list:
             if not isinstance(route, dict) or not route.get("provider"):
                 continue
             normalized_routes.append(
@@ -156,24 +161,38 @@ def _normalize_route_entries(route_info: dict[str, Any]) -> list[dict[str, Any]]
                     "season_scope": str(route.get("season_scope") or "current"),
                     "mode": str(route.get("mode") or "shadow"),
                     "selectable_status": str(route.get("selectable_status") or ""),
+                    "bucket": bucket_name,
                 }
             )
-        return normalized_routes
 
-    precedence = route_info.get("precedence", [])
-    if not isinstance(precedence, list):
-        return []
-    return [
-        {
-            "provider": provider,
-            "competition_scope": "football:*",
-            "season_scope": "current",
-            "mode": "shadow",
-            "selectable_status": "",
-        }
-        for provider in precedence
-        if isinstance(provider, str) and provider
-    ]
+    # 1. Check explicit buckets
+    if "production_routes" in route_info and isinstance(route_info["production_routes"], list):
+        parse_bucket_list(route_info["production_routes"], "production")
+    if "candidate_routes" in route_info and isinstance(route_info["candidate_routes"], list):
+        parse_bucket_list(route_info["candidate_routes"], "candidate")
+    if "shadow_routes" in route_info and isinstance(route_info["shadow_routes"], list):
+        parse_bucket_list(route_info["shadow_routes"], "shadow")
+
+    # 2. Check legacy routes list (treated as production-compatible)
+    if not normalized_routes and "routes" in route_info and isinstance(route_info["routes"], list):
+        parse_bucket_list(route_info["routes"], "production")
+
+    # 3. Check legacy precedence list (treated as production-compatible)
+    if not normalized_routes and "precedence" in route_info and isinstance(route_info["precedence"], list):
+        for provider in route_info["precedence"]:
+            if isinstance(provider, str) and provider:
+                normalized_routes.append(
+                    {
+                        "provider": provider,
+                        "competition_scope": "football:*",
+                        "season_scope": "current",
+                        "mode": "shadow",
+                        "selectable_status": "",
+                        "bucket": "production",
+                    }
+                )
+
+    return normalized_routes
 
 
 def _find_matching_matrix_entry(
@@ -314,6 +333,8 @@ def get_route_candidates(
     matrix = config.get("provider_capability_matrix") or {}
     candidates: list[dict[str, Any]] = []
     for route_entry in _normalize_route_entries(route_info):
+        if selectable_only and route_entry.get("bucket") != "production":
+            continue
         route_scope = str(route_entry.get("competition_scope") or "football:*")
         if not _scope_covers(route_scope, requested_competition_scope):
             continue
@@ -424,30 +445,42 @@ def load_and_validate_config(config_dir: Path | str = "config") -> dict[str, Any
             competition_scope = route_entry["competition_scope"]
             season_scope = route_entry["season_scope"]
             route_mode = route_entry["mode"]
-            qualification = _resolve_route_qualification(
-                provider_capability_matrix,
-                provider=provider,
-                route_name=route_name,
-                mode=route_mode,
-                competition_scope=competition_scope,
-                season_scope=season_scope,
-                require_selectable=False,
-            )
-            if qualification is None:
+
+            # Find exact match in matrix
+            provider_entry = provider_capability_matrix["providers"][provider]
+            capability_entries = (provider_entry.get("capabilities") or {}).get(route_name) or []
+
+            exact_match = None
+            for entry in capability_entries:
+                if (
+                    str(entry.get("competition_scope") or "football:*") == competition_scope
+                    and str(entry.get("season_scope") or "current") == season_scope
+                    and str(entry.get("mode") or "shadow") == route_mode
+                ):
+                    exact_match = entry
+                    break
+
+            if exact_match is None:
                 raise ValueError(
-                    f"Provider {provider} in route {route_name} is not capability-qualified for scope={competition_scope} season={season_scope} mode={route_mode}"
+                    f"Route {route_name}/{provider} has no exact matrix tuple for scope={competition_scope} season={season_scope} mode={route_mode}"
                 )
 
             selectable_status = route_entry.get("selectable_status")
-            if selectable_status and selectable_status != str(qualification.get("status") or ""):
+            matrix_status = str(exact_match.get("status") or "")
+            if selectable_status and selectable_status != matrix_status:
                 raise ValueError(
-                    f"Route {route_name}/{provider} selectable_status={selectable_status} disagrees with matrix status={qualification.get('status')}"
+                    f"Route {route_name}/{provider} selectable_status={selectable_status} disagrees with matrix status={matrix_status}"
                 )
 
-            if selectable_status == "CERTIFIED_SELECTABLE" and not _is_selectable_matrix_entry(qualification):
-                raise ValueError(
-                    f"Route {route_name}/{provider} claims CERTIFIED_SELECTABLE but matrix does not allow production selection"
-                )
+            if route_entry.get("bucket") == "production":
+                if (
+                    matrix_status != "CERTIFIED_SELECTABLE"
+                    or exact_match.get("selectable_as_projection") is not True
+                    or exact_match.get("evidence_replay") is not True
+                ):
+                    raise ValueError(
+                        f"Production route {route_name}/{provider} exact matrix tuple is not CERTIFIED_SELECTABLE with selectable_as_projection=true and evidence_replay=true"
+                    )
                 
     # Compute policy_config_hash from canonicalized contents of the configuration actually used for the run
     canonical_config = {
@@ -965,13 +998,19 @@ class FootballAdapterRegistry:
 
 @dataclass(frozen=True)
 class CandidateRecord:
+    """
+    Inventory and probe metadata only.
+    This record is strictly for tracking candidate capabilities and probe eligibility.
+    It has absolutely no production routing or selection implication.
+    Production routing is governed solely by the provider capability matrix and routing configuration.
+    """
     provider_key: str
     implementation_state: str
     credential_requirement: bool
     governance_state: str
     provenance_family: str
     supported_capabilities: tuple[str, ...]
-    replay_availability: bool
+    replay_capabilities: tuple[str, ...]
     live_probe_eligibility: bool
     reason_when_blocked: str = ""
 
@@ -984,7 +1023,7 @@ CANDIDATE_REGISTRY: dict[str, CandidateRecord] = {
         governance_state="QUALIFIED_SHADOW",
         provenance_family="espn-football",
         supported_capabilities=("current_recent_form", "h2h_head_to_head", "standings_competition_context", "fixture_team_statistics"),
-        replay_availability=True,
+        replay_capabilities=("current_recent_form", "h2h_head_to_head", "standings_competition_context", "fixture_team_statistics"),
         live_probe_eligibility=True,
     ),
     "api-football": CandidateRecord(
@@ -994,7 +1033,7 @@ CANDIDATE_REGISTRY: dict[str, CandidateRecord] = {
         governance_state="CANDIDATE",
         provenance_family="api-football",
         supported_capabilities=("current_recent_form", "h2h_head_to_head", "standings_competition_context", "fixture_team_statistics"),
-        replay_availability=True,
+        replay_capabilities=("current_recent_form", "h2h_head_to_head", "standings_competition_context", "fixture_team_statistics"),
         live_probe_eligibility=True,
     ),
     "football-data": CandidateRecord(
@@ -1003,8 +1042,8 @@ CANDIDATE_REGISTRY: dict[str, CandidateRecord] = {
         credential_requirement=True,
         governance_state="CANDIDATE",
         provenance_family="football-data-org",
-        supported_capabilities=("current_recent_form", "h2h_head_to_head", "standings_competition_context"),
-        replay_availability=False,
+        supported_capabilities=("current_discovery", "standings_competition_context"),
+        replay_capabilities=(),
         live_probe_eligibility=False,
         reason_when_blocked="unverified_implementation",
     ),
@@ -1015,7 +1054,7 @@ CANDIDATE_REGISTRY: dict[str, CandidateRecord] = {
         governance_state="CANDIDATE",
         provenance_family="thesportsdb",
         supported_capabilities=("current_recent_form", "h2h_head_to_head"),
-        replay_availability=False,
+        replay_capabilities=(),
         live_probe_eligibility=False,
         reason_when_blocked="unverified_implementation",
     ),
@@ -1026,7 +1065,7 @@ CANDIDATE_REGISTRY: dict[str, CandidateRecord] = {
         governance_state="REJECTED",
         provenance_family="sportdb",
         supported_capabilities=(),
-        replay_availability=False,
+        replay_capabilities=(),
         live_probe_eligibility=False,
         reason_when_blocked="no_implementation",
     ),
@@ -1037,7 +1076,7 @@ CANDIDATE_REGISTRY: dict[str, CandidateRecord] = {
         governance_state="REJECTED",
         provenance_family="highlightly",
         supported_capabilities=(),
-        replay_availability=False,
+        replay_capabilities=(),
         live_probe_eligibility=False,
         reason_when_blocked="no_implementation",
     ),
@@ -1048,7 +1087,7 @@ CANDIDATE_REGISTRY: dict[str, CandidateRecord] = {
         governance_state="CANDIDATE",
         provenance_family="understat",
         supported_capabilities=("advanced_xg",),
-        replay_availability=False,
+        replay_capabilities=(),
         live_probe_eligibility=False,
         reason_when_blocked="narrow_scope",
     ),
@@ -1078,13 +1117,30 @@ class ProbeRunner:
             
         record = CANDIDATE_REGISTRY[provider]
         
-        if not record.live_probe_eligibility and not self.allow_live:
+        # 1. if operation is not in record.supported_capabilities, block as not supported
+        if operation not in record.supported_capabilities:
             return SourceOperationResult(
-                status=SourceResultStatus.BLOCKED,
-                error_code="probe_blocked",
-                parser_diagnostics={"reason": record.reason_when_blocked or "not_eligible"}
+                status=SourceResultStatus.NOT_SUPPORTED,
+                error_code="capability_not_supported",
             )
             
+        # 2. live_probe_eligibility must gate only live probing, not offline replay
+        if self.allow_live:
+            if not record.live_probe_eligibility:
+                return SourceOperationResult(
+                    status=SourceResultStatus.BLOCKED,
+                    error_code="probe_blocked",
+                    parser_diagnostics={"reason": record.reason_when_blocked or "not_eligible"}
+                )
+        else:
+            # 3. when allow_live=False, enforce capability-scoped replay via record.replay_capabilities and retained evidence requirements
+            if operation not in record.replay_capabilities:
+                return SourceOperationResult(
+                    status=SourceResultStatus.BLOCKED,
+                    error_code="probe_blocked",
+                    parser_diagnostics={"reason": record.reason_when_blocked or "not_eligible"}
+                )
+
         provider_calls = len([c for c in self.call_ledger if c["provider"] == provider])
         if provider_calls >= self.provider_budgets.get(provider, 0):
             return SourceOperationResult(SourceResultStatus.RATE_LIMITED, error_code="provider_budget_exceeded")

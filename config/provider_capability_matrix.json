@@ -161,24 +161,24 @@
       "capabilities": {
         "current_discovery": [
           {
-            "status": "NOT_TESTED",
-            "competition_scope": "football:competition_supported",
+            "status": "CERTIFIED_SELECTABLE",
+            "competition_scope": "football:eng.1",
             "season_scope": "current",
             "mode": "shadow",
-            "selectable_as_projection": false,
-            "evidence_replay": false,
-            "exact_reason": "Discovery adapter and evidence-capturing fixture client now exist, but retained replay certification has not yet been completed for the provider-supported competition scope."
+            "selectable_as_projection": true,
+            "evidence_replay": true,
+            "exact_reason": "Discovery adapter and evidence-capturing fixture client are certified selectable for Premier League (eng.1) scope. Retained live+replay proof exists with evidence bundle id 9ab0469ce90eba19e9c9dec4c74e25333493a6b5ccc26672d966267f194fc618 and replay proof id 50177dc029bd5c7729f8c7da6f785d919fec96f19464a1f68cdb111c4ef3b9e5."
           }
         ],
         "standings": [
           {
-            "status": "NOT_TESTED",
+            "status": "CERTIFIED_SELECTABLE",
             "competition_scope": "football:eng.1",
             "season_scope": "current",
             "mode": "shadow",
-            "selectable_as_projection": false,
-            "evidence_replay": false,
-            "exact_reason": "A standings adapter now exists with eng.1→PL mapping, but no retained replay certification was completed in this corrective commit."
+            "selectable_as_projection": true,
+            "evidence_replay": true,
+            "exact_reason": "Standings adapter is certified selectable for Premier League (eng.1) scope. Retained live+replay proof exists with evidence bundle id 8ce145b68667362bce214cd27fb0d8110416687f9e85208fabed009b5a8538ad and replay proof id 50177dc029bd5c7729f8c7da6f785d919fec96f19464a1f68cdb111c4ef3b9e5."
           }
         ]
       },

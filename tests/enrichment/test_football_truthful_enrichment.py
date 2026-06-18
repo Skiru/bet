@@ -659,7 +659,7 @@ def test_status_and_fallback_behavior(seeded_db, db_conn, monkeypatch, valid_bun
         governance_state="QUALIFIED_SHADOW",
         provenance_family="api-football",
         supported_capabilities=("fixture_team_statistics",),
-        replay_availability=True,
+        replay_capabilities=("fixture_team_statistics",),
         live_probe_eligibility=True,
     ))
     monkeypatch.setitem(PROVIDER_REGISTRY, "api-football", ProviderState.QUALIFIED_SHADOW)

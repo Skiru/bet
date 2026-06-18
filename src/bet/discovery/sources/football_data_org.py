@@ -17,16 +17,17 @@ class FootballDataOrgDiscoveryAdapter(AbstractSourceAdapter):
     priority = 2
     supported_sports = ["football"]
 
-    def __init__(self, rate_limiter: RateLimiter | None = None):
+    def __init__(self, competition: str | None = "PL", rate_limiter: RateLimiter | None = None):
         self._limiter = rate_limiter or RateLimiter()
         self._client = FootballDataOrgClient(rate_limiter=self._limiter)
+        self.competition = competition
         super().__init__()
 
     def is_available(self) -> bool:
         return self._client.is_available()
 
     def _fetch_events_impl(self, date: str, sport: str) -> list[DiscoveredEvent]:
-        result = self._client.get_fixtures_result(date)
+        result = self._client.get_fixtures_result(date, competition=self.competition)
         if result.status is not SourceResultStatus.SUCCESS:
             self._record_error(
                 f"status={result.status.value} code={result.error_code} "

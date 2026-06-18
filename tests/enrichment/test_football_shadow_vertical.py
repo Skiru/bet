@@ -1,13 +1,14 @@
-import os
 import sqlite3
-from datetime import datetime, UTC
+from datetime import UTC, datetime
+
 import pytest
 
+from bet.db.repositories import SportRepo, TeamRepo
 from bet.db.schema import init_db
-from bet.db.repositories import SportRepo, TeamRepo, FixtureCapabilityRepo
 from bet.enrichment.football_service import FootballEnrichmentService
 from bet.enrichment.football_snapshot import FootballEnrichmentSnapshot
 from scripts.normalize_stats import build_safety_input
+
 
 @pytest.fixture
 def db_conn(monkeypatch):
@@ -15,17 +16,68 @@ def db_conn(monkeypatch):
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     init_db(conn)
-    
+
     # Mock get_db to return our in-memory connection as a context manager
-    import bet.db.connection
     from contextlib import contextmanager
-    
+
+    import bet.db.connection
+
     @contextmanager
     def mock_get_db(db_path=None):
         yield conn
-        
+
     monkeypatch.setattr(bet.db.connection, "get_db", mock_get_db)
-    
+
+    # Mock create_football_enrichment_service to return a service with mocked adapters
+    from unittest.mock import MagicMock
+
+    from bet.enrichment.football_service import (
+        FootballAdapterRegistry,
+        FootballEnrichmentService,
+    )
+    from bet.enrichment.models import NormalizedStandingRow, NormalizedStandingTable
+    from bet.integration.source_result import SourceOperationResult, SourceResultStatus
+
+    def mock_create_service(*args, **kwargs):
+        registry = FootballAdapterRegistry()
+        for provider in ["espn", "api-football", "football-data"]:
+            adapter = MagicMock()
+            adapter.provider = provider
+
+            # Return a valid standings table for standings capability
+            standings_table = NormalizedStandingTable(
+                competition_canonical_id=1,
+                competition_native_id="PL",
+                provider=provider,
+                rows=(
+                    NormalizedStandingRow(
+                        team_canonical_id=1,
+                        team_native_id="57",
+                        rank=1,
+                        points=86,
+                    ),
+                ),
+            )
+
+            def mock_fetch(capability, *args, **kwargs):
+                if capability == "standings_competition_context":
+                    val = standings_table
+                else:
+                    val = []
+                return SourceOperationResult(
+                    status=SourceResultStatus.SUCCESS,
+                    value=val,
+                    bundle_id="b" * 64,
+                )
+
+            adapter.fetch_capability.side_effect = mock_fetch
+            registry.register(provider, adapter)
+        return FootballEnrichmentService(adapter_registry=registry)
+
+    import bet.enrichment.football_service
+    monkeypatch.setattr(bet.enrichment.football_service, "create_football_enrichment_service", mock_create_service)
+    monkeypatch.setattr(bet.enrichment.football_service, "verify_evidence_bundle", lambda bundle_id: True)
+
     yield conn
     conn.close()
 
@@ -40,32 +92,33 @@ def test_football_service_enrichment_flow(db_conn):
     sport_repo = SportRepo(db_conn)
     sport_repo.seed_defaults()
     football = sport_repo.get_by_name("football")
-    
+
     team_repo = TeamRepo(db_conn)
     home = team_repo.find_or_create("Arsenal", football.id)
     away = team_repo.find_or_create("Chelsea", football.id)
-    
+
     # Create a fixture
     db_conn.execute(
         "INSERT INTO fixtures (sport_id, home_team_id, away_team_id, kickoff, status, fetched_at) VALUES (?, ?, ?, ?, ?, ?)",
         (football.id, home.id, away.id, "2026-06-14T18:00:00+00:00", "scheduled", datetime.now(UTC).isoformat())
     )
     fixture_id = db_conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    
-    service = FootballEnrichmentService()
+
+    from bet.enrichment.football_service import create_football_enrichment_service
+    service = create_football_enrichment_service()
     snapshot = service.enrich_fixture(fixture_id, datetime.now(UTC))
-    
+
     assert isinstance(snapshot, FootballEnrichmentSnapshot)
     assert snapshot.canonical_fixture_id == fixture_id
     assert snapshot.snapshot_state == "COMPLETE"
     assert snapshot.home_participant.canonical_id == home.id
     assert snapshot.away_participant.canonical_id == away.id
-    
+
     # Verify run and snapshot are persisted
     run = db_conn.execute("SELECT * FROM sports_enrichment_run WHERE canonical_event_id = ?", (fixture_id,)).fetchone()
     assert run is not None
     assert run["status"] == "COMPLETE"
-    
+
     snap_row = db_conn.execute("SELECT * FROM analysis_snapshot WHERE canonical_fixture_id = ?", (fixture_id,)).fetchone()
     assert snap_row is not None
     assert snap_row["status"] == "COMPLETE"
@@ -73,35 +126,35 @@ def test_football_service_enrichment_flow(db_conn):
 def test_football_enrichment_mode_off(db_conn, monkeypatch):
     """Verify that off mode performs no new enrichment work."""
     monkeypatch.setenv("FOOTBALL_ENRICHMENT_MODE", "off")
-    
+
     # If we call build_safety_input, it should not call FootballEnrichmentService
     # We can verify this by checking that no runs are created in the DB
     build_safety_input("football", "Arsenal", "Chelsea", "Premier League")
-    
+
     runs = db_conn.execute("SELECT * FROM sports_enrichment_run").fetchall()
     assert len(runs) == 0
 
 def test_football_enrichment_mode_shadow(db_conn, monkeypatch):
     """Verify that shadow mode executes the service but does not change legacy output."""
     monkeypatch.setenv("FOOTBALL_ENRICHMENT_MODE", "shadow")
-    
+
     sport_repo = SportRepo(db_conn)
     sport_repo.seed_defaults()
     football = sport_repo.get_by_name("football")
-    
+
     team_repo = TeamRepo(db_conn)
     home = team_repo.find_or_create("Arsenal", football.id)
     away = team_repo.find_or_create("Chelsea", football.id)
-    
+
     db_conn.execute(
         "INSERT INTO fixtures (sport_id, home_team_id, away_team_id, kickoff, status, fetched_at) VALUES (?, ?, ?, ?, ?, ?)",
         (football.id, home.id, away.id, "2026-06-14T18:00:00+00:00", "scheduled", datetime.now(UTC).isoformat())
     )
     fixture_id = db_conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    
+
     # Call build_safety_input
     build_safety_input("football", "Arsenal", "Chelsea", "Premier League", fixture_id=fixture_id, analysis_cutoff_at=datetime.now(UTC))
-    
+
     # Verify that a run was created in shadow mode
     runs = db_conn.execute("SELECT * FROM sports_enrichment_run WHERE canonical_event_id = ?", (fixture_id,)).fetchall()
     assert len(runs) == 1

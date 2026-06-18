@@ -194,7 +194,7 @@ class FootballDataOrgClient(BaseAPIClient):
         )
 
     def get_fixtures_result(
-        self, date: str
+        self, date: str, competition: str | None = None
     ) -> SourceOperationResult[list[NormalizedFixture]]:
         """GET /matches?dateFrom={date}&dateTo={date} with evidence capture."""
         if not self._check_api_key():
@@ -203,9 +203,16 @@ class FootballDataOrgClient(BaseAPIClient):
                 error_code="missing_api_key",
             )
 
+        if competition:
+            endpoint = f"/competitions/{competition}/matches"
+            params = {"dateFrom": date, "dateTo": date}
+        else:
+            endpoint = "/matches"
+            params = {"dateFrom": date, "dateTo": date}
+
         result = self._request_with_evidence(
-            endpoint="/matches",
-            params={"dateFrom": date, "dateTo": date},
+            endpoint=endpoint,
+            params=params,
             operation="get_fixtures",
             expects_response_list=False,
         )

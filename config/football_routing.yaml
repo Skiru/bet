@@ -1,38 +1,39 @@
 # Football routing precedence configuration
 routing:
   current_discovery:
-    routes:
+    production_routes:
       - provider: espn
         competition_scope: football:eng.1
         season_scope: current
         mode: shadow
         selectable_status: CERTIFIED_SELECTABLE
       - provider: football-data
-        competition_scope: football:competition_supported
+        competition_scope: football:eng.1
         season_scope: current
         mode: shadow
-        selectable_status: NOT_TESTED
+        selectable_status: CERTIFIED_SELECTABLE
+    candidate_routes:
       - provider: api-football
         competition_scope: football:*
         season_scope: current
         mode: shadow
         selectable_status: PLAN_RESTRICTED_CURRENT
   current_form:
-    routes:
+    production_routes:
       - provider: espn
         competition_scope: football:eng.1
         season_scope: current
         mode: shadow
         selectable_status: CERTIFIED_SELECTABLE
   historical_form_h2h:
-    routes:
+    production_routes:
       - provider: espn
         competition_scope: football:eng.1
         season_scope: current
         mode: shadow
         selectable_status: CERTIFIED_SELECTABLE
   standings:
-    routes:
+    production_routes:
       - provider: espn
         competition_scope: football:eng.1
         season_scope: current
@@ -42,16 +43,17 @@ routing:
         competition_scope: football:eng.1
         season_scope: current
         mode: shadow
-        selectable_status: NOT_TESTED
+        selectable_status: CERTIFIED_SELECTABLE
+    candidate_routes: []
   detailed_metrics:
-    routes:
+    production_routes:
       - provider: espn
         competition_scope: football:eng.1
         season_scope: current
         mode: shadow
         selectable_status: CERTIFIED_SELECTABLE
   advanced_xg:
-    routes:
+    shadow_routes:
       - provider: understat
         competition_scope: football:Premier League|La Liga|Bundesliga|Serie A|Ligue 1|RFPL
         season_scope: current

@@ -1,0 +1,41 @@
+{
+  "previous_sha": "ff1c0aa050d12fd2ee19a84de6cab7712b802c1e",
+  "end_sha": "NOT_CREATED",
+  "verdict": "PRODUCTION_READY_SINGLE_SOURCE_RISK_SCOPE_LIMITED",
+  "certified_scope": "football:eng.1/current/shadow",
+  "live_env": {
+    "football-data-org": {
+      "present": true,
+      "source": "dot_env",
+      "sha256_prefix": "1dc511be"
+    }
+  },
+  "certified_selectable_routes": [
+    "espn/current_discovery/football:eng.1/current/shadow",
+    "football-data/current_discovery/football:eng.1/current/shadow",
+    "espn/current_form/football:eng.1/current/shadow",
+    "espn/historical_form_h2h/football:eng.1/current/shadow",
+    "espn/standings/football:eng.1/current/shadow",
+    "football-data/standings/football:eng.1/current/shadow",
+    "espn/detailed_metrics/football:eng.1/current/shadow"
+  ],
+  "remaining_single_source_p0": [
+    "current_form/espn/football:eng.1/current/shadow",
+    "historical_form_h2h/espn/football:eng.1/current/shadow",
+    "detailed_metrics/espn/football:eng.1/current/shadow"
+  ],
+  "non_production_sources": [
+    "api-football",
+    "understat",
+    "thesportsdb",
+    "sportdb",
+    "highlightly",
+    "betexplorer",
+    "oddsportal",
+    "scores24",
+    "soccerway",
+    "flashscore",
+    "fbref-soccerdata"
+  ],
+  "primary_blocker": null
+}
