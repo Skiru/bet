@@ -2,9 +2,11 @@ from collections.abc import Mapping
 
 # ruff: noqa: E501
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from enum import StrEnum
 from typing import Any, Literal, Protocol
+
+from bet.integration.evidence import EvidenceRef
 
 
 class FootballSide(StrEnum):
@@ -319,12 +321,6 @@ def serialize_snapshot_payload(payload: FootballFeatureSnapshotPayload) -> dict:
         "data_as_of_at": format_utc(payload.data_as_of_at) if payload.data_as_of_at else None,
     }
     return round_float_six(d)
-
-# CP3 additions
-from datetime import date
-
-from bet.integration.evidence import EvidenceRef
-
 
 class BatchIdsCapability(StrEnum):
     UNKNOWN = "UNKNOWN"
@@ -644,6 +640,10 @@ def derive_run_outcome(
     # 8. Any TRANSIENT_FAILED item
     if any(state == "TRANSIENT_FAILED" for state in item_states.values()):
         return make_outcome("FAILED", False, "TRANSIENT_FIXTURE_FAILURE")
+
+    # 8b. Any declared non-terminal DISCOVERED item
+    if any(state == "DISCOVERED" for state in item_states.values()):
+        return make_outcome("FAILED", False, "NON_TERMINAL_SYNC_ITEM_STATE")
 
     # 9. Empty expected_fixture_ids, successful completed discovery and complete paging
     if not expected_fixture_ids:

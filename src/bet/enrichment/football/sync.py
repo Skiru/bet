@@ -1,8 +1,10 @@
 # ruff: noqa: E501
 import logging
 import sqlite3
+from datetime import date as dt_date
 from datetime import timedelta
 
+from bet.enrichment.football.contracts import CursorCorruptionError
 from bet.enrichment.football.time import format_utc, parse_canonical_or_offset_datetime
 
 logger = logging.getLogger(__name__)
@@ -170,7 +172,7 @@ class FootballSyncEngine:
             if cursor_after_json:
                 updates.append("cursor_after_json = ?")
                 params.append(cursor_after_json)
-            ALLOWLIST = {
+            allowlist = {
                 "physical_http_attempts",
                 "fallback_stats_calls",
                 "discovered_count",
@@ -181,7 +183,7 @@ class FootballSyncEngine:
                 "transient_failed_count",
             }
             for k, v in metrics.items():
-                if k in ALLOWLIST:
+                if k in allowlist:
                     updates.append(f"{k} = ?")
                     params.append(v)
             if error_code:
@@ -201,16 +203,22 @@ class FootballSyncEngine:
 
             existing_comm_date = row[0] if row else None
 
-            from datetime import date as dt_date
-            new_date = committed_through_date
+            try:
+                candidate_date = dt_date.fromisoformat(committed_through_date)
+            except ValueError as ex:
+                raise CursorCorruptionError("CURSOR_CORRUPTION") from ex
+
+            existing_date = None
             if existing_comm_date:
                 try:
-                    c_date = dt_date.fromisoformat(committed_through_date)
-                    e_date = dt_date.fromisoformat(existing_comm_date)
-                    if e_date > c_date:
-                        new_date = existing_comm_date
-                except ValueError:
-                    pass
+                    existing_date = dt_date.fromisoformat(existing_comm_date)
+                except ValueError as ex:
+                    raise CursorCorruptionError("CURSOR_CORRUPTION") from ex
+
+            if existing_date and existing_date > candidate_date:
+                new_date = existing_date.isoformat()
+            else:
+                new_date = candidate_date.isoformat()
 
             self.conn.execute(
                 """UPDATE sports_sync_cursor

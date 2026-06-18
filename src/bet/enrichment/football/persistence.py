@@ -333,7 +333,7 @@ class CanonicalPersistence:
             )
 
             stats_to_use = {} if use_score_only else acquired_fixture.statistics_by_provider_team_id
-            stats_evidence_refs = () if use_score_only else acquired_fixture.statistics_evidence_refs
+            stats_evidence_refs = acquired_fixture.statistics_evidence_refs
 
             evidence_refs = list(acquired_fixture.fixture_evidence_refs) + list(stats_evidence_refs)
 
@@ -346,11 +346,13 @@ class CanonicalPersistence:
                 evidence_refs=evidence_refs
             )
 
+            statistics_bundle_id = local_bundle_id if stats_evidence_refs else None
+
             completed_facts = merge_completed_match_facts(
                 acquired_fixture.fixture,
                 stats_to_use,
                 local_bundle_id,
-                local_bundle_id if stats_to_use else None
+                statistics_bundle_id
             )
 
             observations_inserted = 0
@@ -393,12 +395,12 @@ class CanonicalPersistence:
                         parser_diagnostics = {"completeness": "SCORE_ONLY"}
 
                     # Apply diagnostics based on matrix rules
-                    if target_state == "INGESTED_SCORE_ONLY" or error_code == "FALLBACK_STATISTICS_POLICY_LIMIT":
-                        parser_diagnostics["reason"] = "FALLBACK_STATISTICS_POLICY_LIMIT"
+                    if target_state == "TRANSIENT_FAILED":
+                        parser_diagnostics["reason"] = "OPTIONAL_STATISTICS_PENDING"
+                    elif team_facts.completeness.value == "SCORE_ONLY":
+                        parser_diagnostics["reason"] = error_code or "STATISTICS_UNAVAILABLE"
                     elif target_state == "PERMANENTLY_UNAVAILABLE":
                         parser_diagnostics["reason"] = error_code or "PERMANENTLY_UNAVAILABLE"
-                    elif target_state == "TRANSIENT_FAILED":
-                        parser_diagnostics["reason"] = "OPTIONAL_STATISTICS_PENDING"
 
                     parser_diagnostics_json = json.dumps(parser_diagnostics, separators=(',', ':'))
 
@@ -503,7 +505,7 @@ class CanonicalPersistence:
                     fix_id,
                     sync_state,
                     local_bundle_id,
-                    local_bundle_id,
+                    statistics_bundle_id,
                     normalized_payload_sha256,
                     observed_at_str,
                     last_success_at_val,

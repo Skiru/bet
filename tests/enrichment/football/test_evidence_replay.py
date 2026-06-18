@@ -339,7 +339,7 @@ def test_persistence_order_manifests_observations_and_replay_scenarios(temp_evid
 
         item = db_conn.execute("SELECT fixture_evidence_bundle_id, statistics_evidence_bundle_id, state FROM sports_sync_item").fetchone()
         assert item[0] == local_bundle_id
-        assert item[1] == local_bundle_id
+        assert item[1] is None
         assert item[2] == "INGESTED_SCORE_ONLY"
 
         db_conn2 = sqlite3.connect(":memory:")
