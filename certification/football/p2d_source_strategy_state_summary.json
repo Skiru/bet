@@ -1,0 +1,42 @@
+{
+  "phase_id": "P2D_STATE_SYNC_TRACKED_SUMMARY",
+  "previous_accepted_sha": "122e7952e334955042cdae69bc58c6b6a5436a6f",
+  "local_head": "111272c634e751c2b06c49c455aa837a3726355e",
+  "evidence_level": "TRACKED_SUMMARY_FROM_LOCAL_REPORTS",
+  "source_strategy": {
+    "espn": "baseline_current_fallback",
+    "football_data": "current_discovery_and_standings_only",
+    "api_football": "historical_fallback_and_benchmark",
+    "highlightly": "p2d_candidate_blocked_on_certifiable_stat_retention",
+    "sportdb": "strategic_p2e_multisport_rate_limited_or_route_unproven"
+  },
+  "highlightly": {
+    "classification": "HIGHLIGHTLY_RECAPTURE_NEEDED",
+    "scope": "football:eng.1/current-season-completed/shadow",
+    "provider_native_ids": {
+      "league_id": "33973",
+      "match_id": "1028343227",
+      "team_ids": ["30569", "39930"]
+    },
+    "evidence_paths_count": 6,
+    "raw_hashes_count": 6,
+    "raw_stat_fields_count": 20,
+    "primary_blocker": "explicit_recap_statistics_summary_did_not_retain_raw_stat_field_names_even_though_targeted_report_lists_rich_metrics"
+  },
+  "sportdb": {
+    "classification": "strategic_p2e_not_rejected",
+    "latest_observation": "dashboard shows 66/1000 usage; previous fixtures calls returned 429x2",
+    "interpretation": "rate_limit_or_pacing_or_route_unproven_not_quota_exhausted",
+    "next_step": "rate-aware P2E mapping with cooldown and max one fixtures call"
+  },
+  "api_football": {
+    "classification": "historical_fallback",
+    "current_scope": "not_certified_current"
+  },
+  "next_decision": {
+    "p2d_b_target": "highlightly_after_evidence_retention_fix",
+    "p2e_target": "sportdb"
+  },
+  "secrets_check": "passed",
+  "final_review": "BLOCKED"
+}
