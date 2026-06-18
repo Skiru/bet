@@ -6,37 +6,62 @@ import os
 import sys
 
 PROVIDER_KEYS = {
-    'football-data-org': {'canonical': 'FOOTBALL_DATA_ORG_KEY', 'aliases': ['FOOTBALL_DATA_ORG_KEY']},
-    'api-football': {'canonical': 'API_FOOTBALL_KEY', 'aliases': ['API_FOOTBALL_KEY', 'API_SPORTS_KEY']},
-    'sportdb': {'canonical': 'SPORTDB_API_KEY', 'aliases': ['SPORTDB_API_KEY', 'SPORTDB_KEY']},
-    'highlightly': {'canonical': 'HIGHLIGHTLY_API_KEY', 'aliases': ['HIGHLIGHTLY_API_KEY', 'RAPIDAPI_KEY']}
+    "football-data-org": {
+        "canonical": "FOOTBALL_DATA_ORG_KEY",
+        "aliases": ["FOOTBALL_DATA_ORG_KEY"],
+    },
+    "api-football": {
+        "canonical": "API_FOOTBALL_KEY",
+        "aliases": ["API_FOOTBALL_KEY", "API_SPORTS_KEY"],
+    },
+    "sportdb": {
+        "canonical": "SPORTDB_API_KEY",
+        "aliases": ["SPORTDB_API_KEY", "SPORTDB_KEY"],
+    },
+    "highlightly": {
+        "canonical": "HIGHLIGHTLY_API_KEY",
+        "aliases": ["HIGHLIGHTLY_API_KEY", "HIGHLIGHTY_API_KEY", "RAPIDAPI_KEY"],
+    },
 }
+
 
 def parse_dot_env(file_path):
     env_dict = {}
     if not os.path.exists(file_path):
         return env_dict
     try:
-        with open(file_path, encoding='utf-8') as f:
+        with open(file_path, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
-                if not line or line.startswith('#'):
+                if not line or line.startswith("#"):
                     continue
-                if '=' in line:
-                    key, val = line.split('=', 1)
+                if "=" in line:
+                    key, val = line.split("=", 1)
                     key = key.strip()
                     val = val.strip()
-                    if len(val) >= 2 and ((val[0] == '"' and val[-1] == '"') or (val[0] == "'" and val[-1] == "'")):
+                    if len(val) >= 2 and (
+                        (val[0] == '"' and val[-1] == '"')
+                        or (val[0] == "'" and val[-1] == "'")
+                    ):
                         val = val[1:-1]
                     env_dict[key] = val
     except Exception:
         pass
     return env_dict
 
+
 def main():
-    parser = argparse.ArgumentParser(description="Preflight check for live environment provider keys.")
-    parser.add_argument('--provider', required=True, help="Provider name (e.g., football-data-org)")
-    parser.add_argument('--required', action='store_true', help="Exit with non-zero code if key is missing")
+    parser = argparse.ArgumentParser(
+        description="Preflight check for live environment provider keys."
+    )
+    parser.add_argument(
+        "--provider", required=True, help="Provider name (e.g., football-data-org)"
+    )
+    parser.add_argument(
+        "--required",
+        action="store_true",
+        help="Exit with non-zero code if key is missing",
+    )
     args = parser.parse_args()
 
     provider = args.provider
@@ -45,8 +70,8 @@ def main():
         sys.exit(1)
 
     provider_info = PROVIDER_KEYS[provider]
-    canonical_key = provider_info['canonical']
-    aliases = provider_info['aliases']
+    canonical_key = provider_info["canonical"]
+    aliases = provider_info["aliases"]
 
     val = ""
     source = "missing"
@@ -65,7 +90,7 @@ def main():
 
     # Check .env
     if not present:
-        dot_env_path = os.path.join(os.getcwd(), '.env')
+        dot_env_path = os.path.join(os.getcwd(), ".env")
         dot_env_dict = parse_dot_env(dot_env_path)
         for alias in aliases:
             dot_env_val = dot_env_dict.get(alias, "")
@@ -79,7 +104,7 @@ def main():
     length = len(val)
     sha256_prefix = ""
     if present:
-        sha256_prefix = hashlib.sha256(val.encode('utf-8')).hexdigest()[:8]
+        sha256_prefix = hashlib.sha256(val.encode("utf-8")).hexdigest()[:8]
 
     result = {
         "provider": provider,
@@ -88,7 +113,7 @@ def main():
         "present": present,
         "source": source,
         "length": length,
-        "sha256_prefix": sha256_prefix
+        "sha256_prefix": sha256_prefix,
     }
 
     # Output only a compact JSON object
@@ -99,5 +124,6 @@ def main():
     else:
         sys.exit(0)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

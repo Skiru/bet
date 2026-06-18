@@ -1,0 +1,400 @@
+{
+  "previous_sha": "122e7952e334955042cdae69bc58c6b6a5436a6f",
+  "phase": "P2D-A2_MANDATORY_ALL_CANDIDATES_DEEP_PROBE",
+  "system_certified_scope": "football:eng.1/current/shadow",
+  "probe_scopes_used": [
+    "football:eng.1/current/shadow",
+    "football:eng.1/current-season-completed/shadow",
+    "football:eng.1/historical/shadow"
+  ],
+  "target_capabilities": [
+    "current_form",
+    "historical_form_h2h",
+    "detailed_metrics"
+  ],
+  "existing_certification_preserved": {
+    "football_data_current_discovery": true,
+    "football_data_standings": true
+  },
+  "previous_report_summary": {
+    "api_football_historical_success": true,
+    "sportdb_status": "NOT_PROBED",
+    "highlightly_status": "NOT_PROBED",
+    "sportdb_key_present": true,
+    "highlightly_previously_reported_missing": true
+  },
+  "env_preflight": {
+    "api-football": {
+      "provider": "api-football",
+      "canonical_key": "API_FOOTBALL_KEY",
+      "found_key": "API_FOOTBALL_KEY",
+      "present": true,
+      "source": "dot_env",
+      "length": 32,
+      "sha256_prefix": "8536c01d"
+    },
+    "sportdb": {
+      "provider": "sportdb",
+      "canonical_key": "SPORTDB_API_KEY",
+      "found_key": "SPORTDB_API_KEY",
+      "present": true,
+      "source": "dot_env",
+      "length": 40,
+      "sha256_prefix": "7a5fd4b7"
+    },
+    "highlightly": {
+      "provider": "highlightly",
+      "canonical_key": "HIGHLIGHTLY_API_KEY",
+      "found_key": "HIGHLIGHTLY_API_KEY",
+      "present": true,
+      "source": "dot_env",
+      "length": 36,
+      "sha256_prefix": "75db507e"
+    }
+  },
+  "providers": {
+    "api-football": {
+      "status": "PROBE_SUCCESS_HISTORICAL",
+      "scope_proven": "football:eng.1/historical/shadow",
+      "capability_results": {
+        "current_form": "PROBE_SUCCESS_HISTORICAL",
+        "historical_form_h2h": "PROBE_SUCCESS_HISTORICAL",
+        "detailed_metrics": "PROBE_SUCCESS_HISTORICAL"
+      },
+      "evidence": [
+        {
+          "type": "current_restriction",
+          "status": "PLAN_RESTRICTED_CURRENT",
+          "source": "reports/football_p2d_provider_probe_report.json"
+        },
+        {
+          "type": "fixture_list",
+          "fixture_id": 1208021,
+          "results": 380
+        },
+        {
+          "type": "fixture_details",
+          "fixture_id": 1208021,
+          "has_events": true,
+          "has_lineups": true,
+          "has_statistics": true
+        },
+        {
+          "type": "headtohead",
+          "teams": [
+            33,
+            36
+          ],
+          "results": 23
+        },
+        {
+          "type": "team_form_proxy",
+          "home_team_rows": 38,
+          "away_team_rows": 38
+        }
+      ],
+      "replay_readiness": "existing_repository_client_with_evidence_capture_and_offline_replay",
+      "blockers": [
+        "current season fixture discovery remains plan-restricted on free plan"
+      ],
+      "score": 7,
+      "static_audit": {
+        "implementation_exists": true,
+        "client_modules": [
+          "src/bet/api_clients/api_football.py"
+        ],
+        "client_class_names": [
+          "APIFootballClient"
+        ],
+        "base_url": "https://v3.football.api-sports.io",
+        "auth_env_aliases": [
+          "API_FOOTBALL_KEY",
+          "API_SPORTS_KEY"
+        ],
+        "auth_header_style": "x-apisports-key",
+        "provider_native_discovery_support": true,
+        "form_recent_results_support": true,
+        "h2h_support": true,
+        "fixture_statistics_support": true,
+        "team_statistics_support": true,
+        "lineups_injuries_support": true,
+        "evidence_capture_support": true,
+        "offline_replay_support": true,
+        "current_scope_support": "PLAN_RESTRICTED_CURRENT",
+        "historical_scope_support": "PROBE_SUCCESS_HISTORICAL",
+        "known_blockers": [
+          "current fixture discovery is plan-restricted on the observed free-plan path"
+        ]
+      },
+      "live_probe": {
+        "fixtures_2024": {
+          "status_code": 200,
+          "url": "https://v3.football.api-sports.io/fixtures?league=39&season=2024&status=FT-AET-PEN",
+          "results": 380,
+          "fixture_id": 1208021
+        },
+        "fixture_details": {
+          "status_code": 200,
+          "url": "https://v3.football.api-sports.io/fixtures?id=1208021",
+          "has_events": true,
+          "has_lineups": true,
+          "has_statistics": true
+        },
+        "headtohead": {
+          "status_code": 200,
+          "url": "https://v3.football.api-sports.io/fixtures/headtohead?h2h=33-36",
+          "results": 23
+        },
+        "home_fixtures": {
+          "status_code": 200,
+          "url": "https://v3.football.api-sports.io/fixtures?team=33&league=39&season=2024",
+          "results": 38
+        },
+        "away_fixtures": {
+          "status_code": 200,
+          "url": "https://v3.football.api-sports.io/fixtures?team=36&league=39&season=2024",
+          "results": 38
+        }
+      }
+    },
+    "sportdb": {
+      "status": "SPORTDB_PARTIAL_CANDIDATE",
+      "scope_proven": "football general live details only; eng.1 league metadata partial",
+      "capability_results": {
+        "current_form": "EMPTY_UNEXPECTED",
+        "historical_form_h2h": "NOT_SUPPORTED",
+        "detailed_metrics": "PROBE_SUCCESS_GENERAL_ONLY"
+      },
+      "evidence": [
+        {
+          "type": "docs_endpoint",
+          "endpoint": "/api/football/countries",
+          "status_code": 404,
+          "classification": "WRONG_ENDPOINT"
+        },
+        {
+          "type": "corrected_endpoint",
+          "endpoint": "/api/flashscore/football/england/premier-league",
+          "season_count": 114
+        },
+        {
+          "type": "eng1_current_fixtures",
+          "row_count": 0
+        },
+        {
+          "type": "general_live_match",
+          "event_id": "ClOfQxnK",
+          "details_home_id": "pxj8vDHr",
+          "stats_rows": 2
+        }
+      ],
+      "replay_readiness": "no_repository_client_no_offline_replay",
+      "blockers": [
+        "documented SportDB football endpoints returned 404 and required flashscore namespace correction",
+        "eng.1 season fixture/results route did not yield a reliable historical H2H path during bounded probe",
+        "detailed metrics were proven only on general live football, not on eng.1 provider-native season discovery",
+        "repository has no SportDB provider implementation"
+      ],
+      "score": 1,
+      "static_audit": {
+        "implementation_exists": false,
+        "client_modules": [],
+        "client_class_names": [],
+        "base_url": "https://api.sportdb.dev",
+        "auth_env_aliases": [
+          "SPORTDB_API_KEY",
+          "SPORTDB_KEY"
+        ],
+        "auth_header_style": "X-API-Key",
+        "provider_native_discovery_support": "PARTIAL_FLASHSCORE_NAMESPACE_ONLY",
+        "form_recent_results_support": "UNVERIFIED",
+        "h2h_support": "NOT_DOCUMENTED_LIVE",
+        "fixture_statistics_support": "GENERAL_MATCH_STATS_ONLY",
+        "team_statistics_support": false,
+        "lineups_injuries_support": false,
+        "evidence_capture_support": false,
+        "offline_replay_support": false,
+        "current_scope_support": "UNVERIFIED",
+        "historical_scope_support": "EMPTY_UNEXPECTED",
+        "known_blockers": [
+          "documented /api/football routes returned 404",
+          "league season fixtures/results did not yield usable eng.1 fixture rows",
+          "repository has no native SportDB client or replay infra"
+        ]
+      },
+      "live_probe": {
+        "docs_countries": {
+          "status_code": 404,
+          "url": "https://api.sportdb.dev/api/football/countries",
+          "error": {
+            "detail": "Not Found"
+          }
+        },
+        "league_meta": {
+          "status_code": 200,
+          "url": "https://api.sportdb.dev/api/flashscore/football/england/premier-league",
+          "season_count": 114
+        },
+        "current_fixtures": {
+          "status_code": 200,
+          "url": "https://api.sportdb.dev/api/flashscore/football/england/premier-league/2025-2026/fixtures?page=1",
+          "row_count": 0
+        },
+        "general_live": {
+          "status_code": 200,
+          "url": "https://api.sportdb.dev/api/flashscore/football/live",
+          "row_count": 145,
+          "event_id": "ClOfQxnK"
+        },
+        "match_details": {
+          "status_code": 200,
+          "url": "https://api.sportdb.dev/api/flashscore/match/ClOfQxnK/details",
+          "homeId": "pxj8vDHr",
+          "awayId": "biHkWPpo",
+          "events_count": 3
+        },
+        "match_stats": {
+          "status_code": 200,
+          "url": "https://api.sportdb.dev/api/flashscore/match/ClOfQxnK/stats",
+          "row_count": 2,
+          "has_non_null_stats": true
+        }
+      }
+    },
+    "highlightly": {
+      "status": "HIGHLIGHTLY_STRONG_CANDIDATE",
+      "scope_proven": "football:eng.1/current-season-completed/shadow",
+      "used_key_alias": "HIGHLIGHTLY_API_KEY",
+      "capability_results": {
+        "current_form": "PROBE_SUCCESS_CURRENT_SEASON_COMPLETED",
+        "historical_form_h2h": "PROBE_SUCCESS_HISTORICAL",
+        "detailed_metrics": "PROBE_SUCCESS_CURRENT_SEASON_COMPLETED"
+      },
+      "evidence": [
+        {
+          "type": "league_discovery",
+          "league_id": 33973,
+          "plan": {
+            "tier": "BASIC",
+            "message": "All data available with current plan."
+          }
+        },
+        {
+          "type": "match_discovery",
+          "match_id": 1173819124,
+          "home_team_id": 38228,
+          "away_team_id": 33973
+        },
+        {
+          "type": "home_form",
+          "row_count": 5,
+          "sample_match_id": 1173819124
+        },
+        {
+          "type": "away_form",
+          "row_count": 5,
+          "sample_match_id": 1173819124
+        },
+        {
+          "type": "head_to_head",
+          "row_count": 10,
+          "sample_match_id": 1173819124
+        },
+        {
+          "type": "statistics",
+          "row_count": 2,
+          "team_ids": [
+            38228,
+            33973
+          ]
+        }
+      ],
+      "replay_readiness": "live_payloads_reconstructable_from_report_but_no_repository_replay_infra",
+      "blockers": [
+        "repository has no Highlightly client/evidence bundle writer yet"
+      ],
+      "score": 7,
+      "static_audit": {
+        "implementation_exists": false,
+        "client_modules": [],
+        "client_class_names": [],
+        "base_url": "https://soccer.highlightly.net",
+        "rapidapi_base_url": "https://football-highlights-api.p.rapidapi.com",
+        "auth_env_aliases": [
+          "HIGHLIGHTLY_API_KEY",
+          "HIGHLIGHTY_API_KEY",
+          "RAPIDAPI_KEY"
+        ],
+        "auth_header_style": "x-rapidapi-key; x-rapidapi-host only for RapidAPI host",
+        "provider_native_discovery_support": true,
+        "form_recent_results_support": true,
+        "h2h_support": true,
+        "fixture_statistics_support": true,
+        "team_statistics_support": false,
+        "lineups_injuries_support": false,
+        "evidence_capture_support": false,
+        "offline_replay_support": false,
+        "current_scope_support": "PROBE_SUCCESS_CURRENT_SEASON_COMPLETED",
+        "historical_scope_support": "PROBE_SUCCESS_HISTORICAL_H2H",
+        "known_blockers": [
+          "repository has no Highlightly client or replay infra yet"
+        ]
+      },
+      "live_probe": {
+        "leagues": {
+          "status_code": 200,
+          "url": "https://soccer.highlightly.net/leagues?leagueName=Premier+League&countryName=England&season=2025",
+          "league_id": 33973,
+          "plan": {
+            "tier": "BASIC",
+            "message": "All data available with current plan."
+          }
+        },
+        "matches": {
+          "status_code": 200,
+          "url": "https://soccer.highlightly.net/matches?leagueId=33973&season=2025&limit=20",
+          "row_count": 20,
+          "match_id": 1173819124,
+          "home_team_id": 38228,
+          "away_team_id": 33973
+        },
+        "home_form": {
+          "status_code": 200,
+          "url": "https://soccer.highlightly.net/last-five-games?teamId=38228",
+          "row_count": 5
+        },
+        "away_form": {
+          "status_code": 200,
+          "url": "https://soccer.highlightly.net/last-five-games?teamId=33973",
+          "row_count": 5
+        },
+        "head_to_head": {
+          "status_code": 200,
+          "url": "https://soccer.highlightly.net/head-2-head?teamIdOne=38228&teamIdTwo=33973",
+          "row_count": 10
+        },
+        "statistics": {
+          "status_code": 200,
+          "url": "https://soccer.highlightly.net/statistics/1173819124",
+          "row_count": 2
+        }
+      }
+    }
+  },
+  "comparative_decision": {
+    "recommended_winner": "highlightly",
+    "reason": "Highlightly was the only candidate live-proven with current-season-completed current_form, historical H2H, and detailed match statistics on Premier League scope. API-Football remains replay-ready but only historical on the observed free plan. SportDB required a flashscore namespace correction and did not produce a reliable eng.1 season path within the bounded probe.",
+    "deferred_candidates": [
+      {
+        "provider": "api-football",
+        "reason": "existing client and replay support remain valuable, but current scope is still plan-restricted"
+      },
+      {
+        "provider": "sportdb",
+        "reason": "partial/general live stats proof only; no reliable eng.1 season/H2H path and no repository client"
+      }
+    ],
+    "implementation_target_for_p2d_b": "highlightly"
+  },
+  "next_phase": "P2D-B_IMPLEMENT_AND_CERTIFY_WINNER"
+}
