@@ -1,0 +1,160 @@
+{
+  "previous_sha": "122e7952e334955042cdae69bc58c6b6a5436a6f",
+  "phase": "P2D-A_PROVIDER_CAPABILITY_PROBE_ONLY_DOCS_GUIDED",
+  "system_certified_scope": "football:eng.1/current/shadow",
+  "probe_scopes_used": [
+    "football:eng.1/historical/shadow"
+  ],
+  "target_capabilities": [
+    "current_form",
+    "historical_form_h2h",
+    "detailed_metrics"
+  ],
+  "existing_certification_preserved": {
+    "football_data_current_discovery": true,
+    "football_data_standings": true
+  },
+  "env_preflight": {
+    "api-football": {
+      "present": true,
+      "source": "dot_env",
+      "length": 32,
+      "sha256_prefix": "8536c01d"
+    },
+    "sportdb": {
+      "present": true,
+      "source": "dot_env",
+      "length": 40,
+      "sha256_prefix": "7a5fd4b7"
+    },
+    "highlightly": {
+      "present": false,
+      "source": "missing",
+      "length": 0,
+      "sha256_prefix": ""
+    }
+  },
+  "providers": {
+    "api-football": {
+      "static_audit": {
+        "implementation_exists": true,
+        "client_name": "APIFootballClient",
+        "base_url": "https://v3.football.api-sports.io",
+        "auth_env_names": [
+          "API_FOOTBALL_KEY",
+          "API_SPORTS_KEY"
+        ],
+        "auth_header_style": "x-apisports-key",
+        "provider_native_discovery_support": true,
+        "form_support": true,
+        "h2h_support": true,
+        "fixture_statistics_support": true,
+        "team_statistics_support": false,
+        "evidence_capture_support": true,
+        "offline_replay_support": true,
+        "current_scope_support": "PLAN_RESTRICTED_CURRENT",
+        "historical_scope_support": "HISTORICAL_ONLY",
+        "minimum_live_calls_needed": 5,
+        "known_blockers": [
+          "current fixture discovery is plan-restricted on the observed free-plan path"
+        ]
+      },
+      "docs_plan": {
+        "call_1": "GET /fixtures?league=39&season=2025&status=FT-AET-PEN",
+        "call_2": "GET /fixtures?ids=<fixture_id>",
+        "call_3": "GET /fixtures/headtohead?h2h=<home_team_id>-<away_team_id>",
+        "call_4": "GET /fixtures?team=<home_team_id>&league=39&season=2025&last=10",
+        "call_5": "GET /fixtures?team=<away_team_id>&league=39&season=2025&last=10"
+      },
+      "live_probe": {
+        "call_1": {
+          "endpoint": "/fixtures?league=39&season=2025&status=FT-AET-PEN",
+          "status": "PLAN_RESTRICTED_CURRENT",
+          "error": "Free plans do not have access to this season, try from 2022 to 2024."
+        },
+        "call_1_fallback": {
+          "endpoint": "/fixtures?league=39&season=2024&status=FT-AET-PEN",
+          "status": "PROBE_SUCCESS_HISTORICAL",
+          "results_count": 380
+        },
+        "call_2": {
+          "endpoint": "/fixtures?id=1208021",
+          "status": "PROBE_SUCCESS_HISTORICAL",
+          "has_statistics": true,
+          "has_events": true,
+          "has_lineups": true
+        },
+        "call_3": {
+          "endpoint": "/fixtures/headtohead?h2h=33-36",
+          "status": "PROBE_SUCCESS_HISTORICAL",
+          "results_count": 23
+        },
+        "call_4": {
+          "endpoint": "/fixtures?team=33&league=39&season=2024",
+          "status": "PROBE_SUCCESS_HISTORICAL",
+          "results_count": 38,
+          "recovered_last_10": true
+        },
+        "call_5": {
+          "endpoint": "/fixtures?team=36&league=39&season=2024",
+          "status": "PROBE_SUCCESS_HISTORICAL",
+          "results_count": 38,
+          "recovered_last_10": true
+        }
+      },
+      "capability_results": {
+        "current_form": "PROBE_SUCCESS_HISTORICAL",
+        "historical_form_h2h": "PROBE_SUCCESS_HISTORICAL",
+        "detailed_metrics": "PROBE_SUCCESS_HISTORICAL"
+      },
+      "evidence": [
+        "Fixture 1208021 payload contains statistics, events, and lineups.",
+        "H2H endpoint returns 23 historical matches for teams 33 and 36.",
+        "Form proxy recovery successfully fetches 38 matches for a team in a season, allowing slicing of the last 10."
+      ],
+      "replay": [
+        "APIFootballClient implements write_source_operation_bundle for get_event_fixture, get_team_last_fixtures, and get_fixture_stats."
+      ],
+      "blockers": [],
+      "score": 9
+    },
+    "sportdb": {
+      "static_audit": {
+        "implementation_exists": false,
+        "known_blockers": [
+          "no provider-native implementation present"
+        ]
+      },
+      "docs_plan": {},
+      "live_probe": {},
+      "capability_results": {},
+      "evidence": [],
+      "replay": [],
+      "blockers": [],
+      "score": 0
+    },
+    "highlightly": {
+      "static_audit": {
+        "implementation_exists": false,
+        "known_blockers": [
+          "no repository implementation"
+        ]
+      },
+      "docs_plan": {},
+      "live_probe": {},
+      "capability_results": {},
+      "evidence": [],
+      "replay": [],
+      "blockers": [],
+      "score": 0
+    }
+  },
+  "recommended_winner": "api-football",
+  "recommended_next_phase": "P2D-B_IMPLEMENT_AND_CERTIFY_WINNER",
+  "implementation_plan_summary": [
+    "Implement API-Football as the secondary provider for current_form, historical_form_h2h, and detailed_metrics.",
+    "Use the fallback logic for current_form (fetch all fixtures for the season and slice the last 10) to bypass the free plan restriction on the 'last' parameter.",
+    "Ensure the implementation uses the existing APIFootballClient methods which already support evidence capture and offline replay."
+  ],
+  "do_not_implement_reasons": []
+}

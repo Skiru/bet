@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-import os
-import sys
-import json
 import argparse
 import hashlib
+import json
+import os
+import sys
 
 PROVIDER_KEYS = {
-    'football-data-org': 'FOOTBALL_DATA_ORG_KEY'
+    'football-data-org': {'canonical': 'FOOTBALL_DATA_ORG_KEY', 'aliases': ['FOOTBALL_DATA_ORG_KEY']},
+    'api-football': {'canonical': 'API_FOOTBALL_KEY', 'aliases': ['API_FOOTBALL_KEY', 'API_SPORTS_KEY']},
+    'sportdb': {'canonical': 'SPORTDB_API_KEY', 'aliases': ['SPORTDB_API_KEY', 'SPORTDB_KEY']},
+    'highlightly': {'canonical': 'HIGHLIGHTLY_API_KEY', 'aliases': ['HIGHLIGHTLY_API_KEY', 'RAPIDAPI_KEY']}
 }
 
 def parse_dot_env(file_path):
@@ -14,7 +17,7 @@ def parse_dot_env(file_path):
     if not os.path.exists(file_path):
         return env_dict
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, encoding='utf-8') as f:
             for line in f:
                 line = line.strip()
                 if not line or line.startswith('#'):
@@ -41,28 +44,37 @@ def main():
         sys.stderr.write(f"Error: Unknown provider '{provider}'\n")
         sys.exit(1)
 
-    key_name = PROVIDER_KEYS[provider]
-    
-    # Check environment
-    env_val = os.environ.get(key_name, "")
-    
-    # Check .env
-    dot_env_path = os.path.join(os.getcwd(), '.env')
-    dot_env_dict = parse_dot_env(dot_env_path)
-    dot_env_val = dot_env_dict.get(key_name, "")
+    provider_info = PROVIDER_KEYS[provider]
+    canonical_key = provider_info['canonical']
+    aliases = provider_info['aliases']
 
     val = ""
     source = "missing"
     present = False
+    found_key = canonical_key
 
-    if env_val:
-        val = env_val
-        source = "environment"
-        present = True
-    elif dot_env_val:
-        val = dot_env_val
-        source = "dot_env"
-        present = True
+    # Check environment
+    for alias in aliases:
+        env_val = os.environ.get(alias, "")
+        if env_val:
+            val = env_val
+            source = "environment"
+            present = True
+            found_key = alias
+            break
+
+    # Check .env
+    if not present:
+        dot_env_path = os.path.join(os.getcwd(), '.env')
+        dot_env_dict = parse_dot_env(dot_env_path)
+        for alias in aliases:
+            dot_env_val = dot_env_dict.get(alias, "")
+            if dot_env_val:
+                val = dot_env_val
+                source = "dot_env"
+                present = True
+                found_key = alias
+                break
 
     length = len(val)
     sha256_prefix = ""
@@ -70,7 +82,9 @@ def main():
         sha256_prefix = hashlib.sha256(val.encode('utf-8')).hexdigest()[:8]
 
     result = {
-        "key_name": key_name,
+        "provider": provider,
+        "canonical_key": canonical_key,
+        "found_key": found_key,
         "present": present,
         "source": source,
         "length": length,
