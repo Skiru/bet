@@ -1,211 +1,386 @@
 {
-  "schema_version": "1.0",
-  "generated_for": "football_golden_vertical",
+  "schema_version": "2.0",
+  "generated_for": "football_source_qualification_and_routing_correction",
   "providers": {
     "api-football": {
-      "classification": "PRODUCTION_FALLBACK",
+      "classification": "MIXED",
       "provenance_family": "api-football",
+      "transport_type": "official_api",
       "capabilities": {
         "current_discovery": [
           {
-            "classification": "PRODUCTION_PRIMARY",
+            "status": "PLAN_RESTRICTED_CURRENT",
             "competition_scope": "football:*",
             "season_scope": "current",
             "mode": "shadow",
+            "selectable_as_projection": false,
             "evidence_replay": true,
-            "status": "QUALIFIED"
-          }
-        ],
-        "current_form": [
-          {
-            "classification": "PRODUCTION_FALLBACK",
-            "competition_scope": "football:*",
-            "season_scope": "current",
-            "mode": "shadow",
-            "evidence_replay": true,
-            "status": "QUALIFIED"
-          }
-        ]
-      },
-      "risks": [
-        "PLAN_RESTRICTED on some paid capabilities; no qualified standings, h2h or fixture statistics adapter in current production path"
-      ]
-    },
-    "betexplorer": {
-      "classification": "RESEARCH_ONLY",
-      "provenance_family": "betexplorer",
-      "capabilities": {},
-      "risks": [
-        "governance and replay gates unsolved"
-      ]
-    },
-    "espn": {
-      "classification": "PRODUCTION_PRIMARY",
-      "provenance_family": "espn-football",
-      "capabilities": {
-        "current_discovery": [
-          {
-            "classification": "PRODUCTION_FALLBACK",
-            "competition_scope": "football:*",
-            "season_scope": "current",
-            "mode": "shadow",
-            "evidence_replay": true,
-            "status": "QUALIFIED"
-          }
-        ],
-        "current_form": [
-          {
-            "classification": "PRODUCTION_PRIMARY",
-            "competition_scope": "football:*",
-            "season_scope": "current",
-            "mode": "shadow",
-            "evidence_replay": true,
-            "status": "QUALIFIED"
+            "exact_reason": "APIFootballAdapter current discovery returns PLAN_RESTRICTED in the truthful live proof, so the current tuple remains observable but not production-selectable."
           }
         ],
         "detailed_metrics": [
           {
-            "classification": "PRODUCTION_PRIMARY",
+            "status": "HISTORICAL_ONLY",
             "competition_scope": "football:*",
-            "season_scope": "current",
+            "season_scope": "historical",
             "mode": "shadow",
+            "selectable_as_projection": false,
             "evidence_replay": true,
-            "status": "QUALIFIED",
-            "risk": "SINGLE_SOURCE_RISK"
-          }
-        ],
-        "historical_form_h2h": [
-          {
-            "classification": "PRODUCTION_PRIMARY",
-            "competition_scope": "football:*",
-            "season_scope": "current",
-            "mode": "shadow",
-            "evidence_replay": true,
-            "status": "QUALIFIED",
-            "risk": "SINGLE_SOURCE_RISK"
-          }
-        ],
-        "standings": [
-          {
-            "classification": "PRODUCTION_PRIMARY",
-            "competition_scope": "football:*",
-            "season_scope": "current",
-            "mode": "shadow",
-            "evidence_replay": true,
-            "status": "QUALIFIED",
-            "risk": "SINGLE_SOURCE_RISK"
+            "exact_reason": "Historical API-Football fixture-stat evidence replay exists, but current-season production projection is not certified in this corrective scope."
           }
         ]
       },
       "risks": [
-        "single-source risk remains for standings, h2h and fixture statistics"
+        "current fixture discovery is plan-restricted on the observed free-plan path",
+        "current-season standings and recent-form projections are not certified selectable in this correction"
+      ]
+    },
+    "betexplorer": {
+      "classification": "SEPARATE_PIPELINE",
+      "provenance_family": "betexplorer",
+      "transport_type": "odds_source",
+      "capabilities": {
+        "historical_form_h2h": [
+          {
+            "status": "SEPARATE_PIPELINE",
+            "competition_scope": "football:*",
+            "season_scope": "current",
+            "mode": "shadow",
+            "selectable_as_projection": false,
+            "evidence_replay": false,
+            "exact_reason": "BetExplorer is an odds and market-context source in this repository, not a certified canonical football enrichment fact source."
+          }
+        ]
+      },
+      "risks": [
+        "odds-context source only",
+        "no canonical evidence replay qualification for football fact projections"
+      ]
+    },
+    "espn": {
+      "classification": "SINGLE_SOURCE_SCOPE_LIMITED",
+      "provenance_family": "espn-football",
+      "transport_type": "unofficial_api",
+      "capabilities": {
+        "current_discovery": [
+          {
+            "status": "CERTIFIED_SELECTABLE",
+            "competition_scope": "football:eng.1",
+            "season_scope": "current",
+            "mode": "shadow",
+            "selectable_as_projection": true,
+            "evidence_replay": true,
+            "exact_reason": "ESPNDiscoveryAdapter is hardcoded to league=eng.1 and retained live+replay proof exists for that exact scope."
+          }
+        ],
+        "current_form": [
+          {
+            "status": "CERTIFIED_SELECTABLE",
+            "competition_scope": "football:eng.1",
+            "season_scope": "current",
+            "mode": "shadow",
+            "selectable_as_projection": true,
+            "evidence_replay": true,
+            "exact_reason": "The truthful football vertical has retained replay coverage for ESPN recent-form enrichment on the hardcoded eng.1 scope."
+          }
+        ],
+        "detailed_metrics": [
+          {
+            "status": "CERTIFIED_SELECTABLE",
+            "competition_scope": "football:eng.1",
+            "season_scope": "current",
+            "mode": "shadow",
+            "selectable_as_projection": true,
+            "evidence_replay": true,
+            "exact_reason": "Fixture statistics are replay-backed through the truthful football vertical for the ESPN eng.1 scope."
+          }
+        ],
+        "historical_form_h2h": [
+          {
+            "status": "CERTIFIED_SELECTABLE",
+            "competition_scope": "football:eng.1",
+            "season_scope": "current",
+            "mode": "shadow",
+            "selectable_as_projection": true,
+            "evidence_replay": true,
+            "exact_reason": "Head-to-head enrichment is implemented and replay-backed only for the ESPN eng.1 scope."
+          }
+        ],
+        "standings": [
+          {
+            "status": "CERTIFIED_SELECTABLE",
+            "competition_scope": "football:eng.1",
+            "season_scope": "current",
+            "mode": "shadow",
+            "selectable_as_projection": true,
+            "evidence_replay": true,
+            "exact_reason": "Standings enrichment is only qualified on the ESPN eng.1 route and must not be widened beyond that exact scope."
+          }
+        ]
+      },
+      "risks": [
+        "single-source risk remains across the proven football eng.1 scope",
+        "adapter is hardcoded to eng.1 and must not be treated as football:*"
       ]
     },
     "fbref-soccerdata": {
-      "classification": "SHADOW",
+      "classification": "REFERENCE_ONLY",
       "provenance_family": "fbref-soccerdata",
+      "transport_type": "metadata_api",
       "capabilities": {},
       "risks": [
-        "separate ingestion path required"
+        "season and player-stat ingestion path exists, but no canonical football enrichment routing integration is certified"
       ]
     },
     "flashscore": {
       "classification": "RESEARCH_ONLY",
       "provenance_family": "flashscore",
-      "capabilities": {},
+      "transport_type": "dom_scraper",
+      "capabilities": {
+        "current_discovery": [
+          {
+            "status": "RESEARCH_ONLY",
+            "competition_scope": "football:*",
+            "season_scope": "current",
+            "mode": "shadow",
+            "selectable_as_projection": false,
+            "evidence_replay": false,
+            "exact_reason": "Flashscore access in this repository depends on DOM scraping and does not satisfy production replay and governance gates."
+          }
+        ]
+      },
       "risks": [
-        "governance, transport and replay gates unsolved"
+        "DOM-scraper transport",
+        "no production replay/governance certification"
       ]
     },
     "football-data": {
-      "classification": "RESEARCH_ONLY",
+      "classification": "CERTIFICATION_CANDIDATE",
       "provenance_family": "football-data-org",
-      "capabilities": {},
+      "transport_type": "official_api",
+      "capabilities": {
+        "current_discovery": [
+          {
+            "status": "NOT_TESTED",
+            "competition_scope": "football:competition_supported",
+            "season_scope": "current",
+            "mode": "shadow",
+            "selectable_as_projection": false,
+            "evidence_replay": false,
+            "exact_reason": "Discovery adapter and evidence-capturing fixture client now exist, but retained replay certification has not yet been completed for the provider-supported competition scope."
+          }
+        ],
+        "standings": [
+          {
+            "status": "NOT_TESTED",
+            "competition_scope": "football:eng.1",
+            "season_scope": "current",
+            "mode": "shadow",
+            "selectable_as_projection": false,
+            "evidence_replay": false,
+            "exact_reason": "A standings adapter now exists with eng.1→PL mapping, but no retained replay certification was completed in this corrective commit."
+          }
+        ]
+      },
       "risks": [
-        "implementation not qualified in this vertical"
+        "no per-match detailed statistics endpoint in current client",
+        "recent-form helper is not yet normalized for truthful production routing",
+        "retained replay certification remains outstanding"
       ]
     },
     "highlightly": {
-      "classification": "RESEARCH_ONLY",
+      "classification": "NOT_IMPLEMENTED",
       "provenance_family": "highlightly",
-      "capabilities": {},
+      "transport_type": "editorial_source",
+      "capabilities": {
+        "current_discovery": [
+          {
+            "status": "NOT_IMPLEMENTED",
+            "competition_scope": "football:*",
+            "season_scope": "current",
+            "mode": "shadow",
+            "selectable_as_projection": false,
+            "evidence_replay": false,
+            "exact_reason": "No Highlightly implementation exists in the repository; defer to a later bounded provider-specific change."
+          }
+        ]
+      },
       "risks": [
-        "no qualified production capability"
+        "no repository implementation"
       ]
     },
     "oddsportal": {
-      "classification": "RESEARCH_ONLY",
+      "classification": "SEPARATE_PIPELINE",
       "provenance_family": "oddsportal",
-      "capabilities": {},
+      "transport_type": "odds_source",
+      "capabilities": {
+        "historical_form_h2h": [
+          {
+            "status": "SEPARATE_PIPELINE",
+            "competition_scope": "football:*",
+            "season_scope": "current",
+            "mode": "shadow",
+            "selectable_as_projection": false,
+            "evidence_replay": false,
+            "exact_reason": "OddsPortal is an odds and bookmaker-comparison source and must remain outside canonical football enrichment fact routing."
+          }
+        ]
+      },
       "risks": [
-        "governance and replay gates unsolved"
+        "odds market source only"
       ]
     },
     "scores24": {
-      "classification": "RESEARCH_ONLY",
+      "classification": "SEPARATE_PIPELINE",
       "provenance_family": "scores24",
-      "capabilities": {},
+      "transport_type": "editorial_source",
+      "capabilities": {
+        "historical_form_h2h": [
+          {
+            "status": "SEPARATE_PIPELINE",
+            "competition_scope": "football:*",
+            "season_scope": "current",
+            "mode": "shadow",
+            "selectable_as_projection": false,
+            "evidence_replay": false,
+            "exact_reason": "Scores24 is used for deep context and trends, not as a certified canonical football enrichment source."
+          }
+        ]
+      },
       "risks": [
-        "governance and replay gates unsolved"
+        "context/trends source only",
+        "playwright extraction path is outside certified canonical routing"
       ]
     },
     "soccerway": {
       "classification": "RESEARCH_ONLY",
       "provenance_family": "soccerway",
-      "capabilities": {},
+      "transport_type": "browser_scraper",
+      "capabilities": {
+        "current_discovery": [
+          {
+            "status": "RESEARCH_ONLY",
+            "competition_scope": "football:*",
+            "season_scope": "current",
+            "mode": "shadow",
+            "selectable_as_projection": false,
+            "evidence_replay": false,
+            "exact_reason": "Soccerway access is Playwright SPA scraping without the replay/governance certification required for production routing."
+          }
+        ]
+      },
       "risks": [
-        "governance and replay gates unsolved"
+        "browser automation transport",
+        "no selector-drift or governance qualification"
       ]
     },
     "sofascore": {
       "classification": "RESEARCH_ONLY",
       "provenance_family": "sofascore",
-      "capabilities": {},
-      "risks": [
-        "governance, transport and replay gates unsolved"
-      ]
-    },
-    "sportdb": {
-      "classification": "SHADOW",
-      "provenance_family": "sportdb.dev",
-      "capabilities": {},
-      "risks": [
-        "provider-native identity qualification is still required before promotion"
-      ]
-    },
-    "thesportsdb": {
-      "classification": "SHADOW",
-      "provenance_family": "thesportsdb",
-      "capabilities": {},
-      "risks": [
-        "raw evidence and replay gates incomplete"
-      ]
-    },
-    "totalcorner": {
-      "classification": "RESEARCH_ONLY",
-      "provenance_family": "totalcorner",
-      "capabilities": {},
-      "risks": [
-        "governance and replay gates unsolved"
-      ]
-    },
-    "understat": {
-      "classification": "SHADOW",
-      "provenance_family": "understat",
+      "transport_type": "browser_scraper",
       "capabilities": {
-        "advanced_xg": [
+        "current_discovery": [
           {
-            "classification": "SHADOW",
-            "competition_scope": "football:advanced_xg",
+            "status": "RESEARCH_ONLY",
+            "competition_scope": "football:*",
             "season_scope": "current",
             "mode": "shadow",
+            "selectable_as_projection": false,
             "evidence_replay": false,
-            "status": "NARROW_SCOPE_ONLY"
+            "exact_reason": "Sofascore uses blocked unofficial endpoints with stealth Playwright fallback and is not eligible for production routing in this repository state."
           }
         ]
       },
       "risks": [
-        "shadow only until supported scope is proven"
+        "stealth browser fallback",
+        "no production governance/replay gates"
+      ]
+    },
+    "sportdb": {
+      "classification": "NOT_IMPLEMENTED",
+      "provenance_family": "sportdb.dev",
+      "transport_type": "metadata_api",
+      "capabilities": {
+        "current_discovery": [
+          {
+            "status": "NOT_IMPLEMENTED",
+            "competition_scope": "football:*",
+            "season_scope": "current",
+            "mode": "shadow",
+            "selectable_as_projection": false,
+            "evidence_replay": false,
+            "exact_reason": "No SportDB.dev provider implementation exists in the repository yet, so it remains a future bounded candidate only."
+          }
+        ]
+      },
+      "risks": [
+        "no provider-native implementation present"
+      ]
+    },
+    "thesportsdb": {
+      "classification": "REFERENCE_ONLY",
+      "provenance_family": "thesportsdb",
+      "transport_type": "metadata_api",
+      "capabilities": {
+        "current_discovery": [
+          {
+            "status": "REFERENCE_ONLY",
+            "competition_scope": "football:*",
+            "season_scope": "current",
+            "mode": "shadow",
+            "selectable_as_projection": false,
+            "evidence_replay": false,
+            "exact_reason": "TheSportsDB client is explicitly deprecated with a documented 97.8% failure rate and can only remain as reference metadata."
+          }
+        ]
+      },
+      "risks": [
+        "deprecated client",
+        "no qualified production capability"
+      ]
+    },
+    "totalcorner": {
+      "classification": "SEPARATE_PIPELINE",
+      "provenance_family": "totalcorner",
+      "transport_type": "browser_scraper",
+      "capabilities": {
+        "detailed_metrics": [
+          {
+            "status": "SEPARATE_PIPELINE",
+            "competition_scope": "football:*",
+            "season_scope": "current",
+            "mode": "shadow",
+            "selectable_as_projection": false,
+            "evidence_replay": false,
+            "exact_reason": "TotalCorner is a corners and dangerous-attacks specialist and must remain outside canonical football enrichment projections."
+          }
+        ]
+      },
+      "risks": [
+        "corners-only specialization",
+        "browser automation transport"
+      ]
+    },
+    "understat": {
+      "classification": "CERTIFIED_SHADOW",
+      "provenance_family": "understat",
+      "transport_type": "unofficial_api",
+      "capabilities": {
+        "advanced_xg": [
+          {
+            "status": "CERTIFIED_SHADOW",
+            "competition_scope": "football:Premier League|La Liga|Bundesliga|Serie A|Ligue 1|RFPL",
+            "season_scope": "current",
+            "mode": "shadow",
+            "selectable_as_projection": false,
+            "evidence_replay": false,
+            "exact_reason": "Understat implementation is limited to xG-oriented league scopes and is not certified selectable for production routing in this commit."
+          }
+        ]
+      },
+      "risks": [
+        "advanced xG only",
+        "no retained replay certification in this correction"
       ]
     }
   }

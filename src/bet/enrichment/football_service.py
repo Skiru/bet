@@ -32,6 +32,7 @@ from bet.integration.source_result import SourceOperationResult, SourceResultSta
 from bet.integration.evidence import namespaced_source_refs, write_source_operation_bundle
 from bet.api_clients.espn import ESPNClient
 from bet.api_clients.api_football import APIFootballClient
+from bet.api_clients.football_data_org import FootballDataOrgClient
 from bet.api_clients.rate_limiter import RateLimiter
 
 
@@ -74,10 +75,138 @@ def parse_enrichment_mode() -> str:
     return mode
 
 
-ALLOWED_ROUTE_CLASSIFICATIONS_BY_MODE: dict[str, set[str]] = {
-    "off": {"PRODUCTION_PRIMARY", "PRODUCTION_FALLBACK", "SHADOW"},
-    "shadow": {"PRODUCTION_PRIMARY", "PRODUCTION_FALLBACK", "SHADOW"},
+VALID_PROVIDER_CAPABILITY_STATUSES: set[str] = {
+    "CERTIFIED_SELECTABLE",
+    "CERTIFIED_SHADOW",
+    "PLAN_RESTRICTED_CURRENT",
+    "HISTORICAL_ONLY",
+    "REFERENCE_ONLY",
+    "SEPARATE_PIPELINE",
+    "RESEARCH_ONLY",
+    "REJECTED_WITH_REASON",
+    "NOT_IMPLEMENTED",
+    "NOT_TESTED",
 }
+
+LEGACY_SELECTABLE_CLASSIFICATIONS: set[str] = {
+    "PRODUCTION_PRIMARY",
+    "PRODUCTION_FALLBACK",
+    "SHADOW",
+}
+LEGACY_SELECTABLE_STATUSES: set[str] = {"QUALIFIED", "NARROW_SCOPE_ONLY"}
+BROWSER_TRANSPORT_TYPES: set[str] = {"browser_scraper", "dom_scraper"}
+ROUTE_NAME_FROM_CAPABILITY: dict[str, str] = {
+    "current_recent_form": "current_form",
+    "h2h_head_to_head": "historical_form_h2h",
+    "standings_competition_context": "standings",
+    "fixture_team_statistics": "detailed_metrics",
+}
+ESPN_TO_FOOTBALL_DATA_COMPETITION: dict[str, str] = {
+    "eng.1": "PL",
+}
+
+
+def _mode_matches(entry_mode: Any, requested_mode: str) -> bool:
+    normalized = str(entry_mode or "shadow")
+    if requested_mode == "off":
+        return normalized in {"off", "shadow"}
+    return normalized == requested_mode
+
+
+def _season_matches(entry_season: Any, requested_season: str) -> bool:
+    normalized = str(entry_season or requested_season or "current")
+    return normalized in {requested_season, "*"}
+
+
+def _scope_covers(proven_scope: str, requested_scope: str) -> bool:
+    if not proven_scope or not requested_scope:
+        return False
+    if proven_scope == requested_scope:
+        return True
+    if proven_scope == "football:*" and requested_scope.startswith("football:"):
+        return True
+    return False
+
+
+def _scope_specificity(scope: str) -> int:
+    return 0 if scope == "football:*" else 1
+
+
+def _is_selectable_matrix_entry(entry: dict[str, Any]) -> bool:
+    selectable = entry.get("selectable_as_projection")
+    if isinstance(selectable, bool):
+        return selectable and entry.get("status") == "CERTIFIED_SELECTABLE"
+    return (
+        entry.get("classification") in LEGACY_SELECTABLE_CLASSIFICATIONS
+        and entry.get("status") in LEGACY_SELECTABLE_STATUSES
+    )
+
+
+def _normalize_route_entries(route_info: dict[str, Any]) -> list[dict[str, Any]]:
+    routes = route_info.get("routes")
+    if isinstance(routes, list):
+        normalized_routes: list[dict[str, Any]] = []
+        for route in routes:
+            if not isinstance(route, dict) or not route.get("provider"):
+                continue
+            normalized_routes.append(
+                {
+                    "provider": route["provider"],
+                    "competition_scope": str(route.get("competition_scope") or "football:*"),
+                    "season_scope": str(route.get("season_scope") or "current"),
+                    "mode": str(route.get("mode") or "shadow"),
+                    "selectable_status": str(route.get("selectable_status") or ""),
+                }
+            )
+        return normalized_routes
+
+    precedence = route_info.get("precedence", [])
+    if not isinstance(precedence, list):
+        return []
+    return [
+        {
+            "provider": provider,
+            "competition_scope": "football:*",
+            "season_scope": "current",
+            "mode": "shadow",
+            "selectable_status": "",
+        }
+        for provider in precedence
+        if isinstance(provider, str) and provider
+    ]
+
+
+def _find_matching_matrix_entry(
+    matrix: dict[str, Any],
+    *,
+    provider: str,
+    route_name: str,
+    competition_scope: str,
+    season_scope: str,
+    mode: str,
+) -> dict[str, Any] | None:
+    provider_entry = (matrix.get("providers") or {}).get(provider)
+    if not isinstance(provider_entry, dict):
+        return None
+
+    capability_entries = ((provider_entry.get("capabilities") or {}).get(route_name)) or []
+    best_match: dict[str, Any] | None = None
+    best_score: tuple[int, int] = (-1, -1)
+    for entry in capability_entries:
+        if not isinstance(entry, dict):
+            continue
+        if not _mode_matches(entry.get("mode"), mode):
+            continue
+        if not _season_matches(entry.get("season_scope"), season_scope):
+            continue
+        entry_scope = str(entry.get("competition_scope") or "football:*")
+        if not _scope_covers(entry_scope, competition_scope):
+            continue
+        score = (1 if entry_scope == competition_scope else 0, _scope_specificity(entry_scope))
+        if best_match is None or score > best_score:
+            best_match = entry
+            best_score = score
+    return best_match
 
 
 def load_provider_capability_matrix(config_dir: Path | str = "config") -> dict[str, Any]:
@@ -87,6 +216,57 @@ def load_provider_capability_matrix(config_dir: Path | str = "config") -> dict[s
     providers = matrix.get("providers")
     if not isinstance(providers, dict) or not providers:
         raise ValueError("Provider capability matrix must define non-empty providers")
+
+    for provider_name, provider_entry in providers.items():
+        if not isinstance(provider_entry, dict):
+            raise ValueError(f"Provider entry must be an object: {provider_name}")
+        transport_type = str(provider_entry.get("transport_type") or "unknown")
+        capabilities = provider_entry.get("capabilities") or {}
+        if not isinstance(capabilities, dict):
+            raise ValueError(f"Provider capabilities must be a mapping: {provider_name}")
+        seen_tuples: set[tuple[str, str, str, str]] = set()
+        for capability_name, capability_entries in capabilities.items():
+            if not isinstance(capability_entries, list):
+                raise ValueError(f"Capability entries must be a list: {provider_name}/{capability_name}")
+            for entry in capability_entries:
+                if not isinstance(entry, dict):
+                    raise ValueError(f"Capability entry must be an object: {provider_name}/{capability_name}")
+                status = str(entry.get("status") or "")
+                selectable = entry.get("selectable_as_projection")
+                if status and status not in VALID_PROVIDER_CAPABILITY_STATUSES and status not in LEGACY_SELECTABLE_STATUSES:
+                    raise ValueError(f"Unsupported status for {provider_name}/{capability_name}: {status}")
+                if selectable is None:
+                    if status in VALID_PROVIDER_CAPABILITY_STATUSES:
+                        raise ValueError(
+                            f"Capability entry missing selectable_as_projection: {provider_name}/{capability_name}"
+                        )
+                elif not isinstance(selectable, bool):
+                    raise ValueError(
+                        f"selectable_as_projection must be boolean: {provider_name}/{capability_name}"
+                    )
+                if selectable is True and status != "CERTIFIED_SELECTABLE":
+                    raise ValueError(
+                        f"Only CERTIFIED_SELECTABLE entries may be selectable: {provider_name}/{capability_name}"
+                    )
+                if selectable is True and not bool(entry.get("evidence_replay")):
+                    raise ValueError(
+                        f"Selectable entry requires evidence_replay=true: {provider_name}/{capability_name}"
+                    )
+                if selectable is True and transport_type in BROWSER_TRANSPORT_TYPES:
+                    raise ValueError(
+                        f"Browser/DOM transport cannot be production-selectable: {provider_name}/{capability_name}"
+                    )
+                tuple_key = (
+                    capability_name,
+                    str(entry.get("competition_scope") or "football:*"),
+                    str(entry.get("season_scope") or "current"),
+                    str(entry.get("mode") or "shadow"),
+                )
+                if tuple_key in seen_tuples:
+                    raise ValueError(
+                        f"Duplicate capability scope tuple in matrix: {provider_name}/{capability_name}/{tuple_key[1]}/{tuple_key[2]}/{tuple_key[3]}"
+                    )
+                seen_tuples.add(tuple_key)
     return matrix
 
 
@@ -96,24 +276,104 @@ def _resolve_route_qualification(
     provider: str,
     route_name: str,
     mode: str,
+    competition_scope: str = "football:*",
+    season_scope: str = "current",
+    require_selectable: bool = False,
 ) -> dict[str, Any] | None:
-    provider_entry = (matrix.get("providers") or {}).get(provider)
-    if not isinstance(provider_entry, dict):
+    entry = _find_matching_matrix_entry(
+        matrix,
+        provider=provider,
+        route_name=route_name,
+        competition_scope=competition_scope,
+        season_scope=season_scope,
+        mode=mode,
+    )
+    if entry is None:
         return None
-    capability_entries = ((provider_entry.get("capabilities") or {}).get(route_name)) or []
-    allowed = ALLOWED_ROUTE_CLASSIFICATIONS_BY_MODE.get(mode, set())
-    for entry in capability_entries:
-        if not isinstance(entry, dict):
+    if require_selectable:
+        provider_entry = (matrix.get("providers") or {}).get(provider) or {}
+        transport_type = str(provider_entry.get("transport_type") or "unknown")
+        if not _is_selectable_matrix_entry(entry):
+            return None
+        if transport_type in BROWSER_TRANSPORT_TYPES:
+            return None
+    return entry
+
+
+def get_route_candidates(
+    config: dict[str, Any],
+    route_name: str,
+    requested_competition_scope: str,
+    *,
+    season_scope: str = "current",
+    mode: str | None = None,
+    selectable_only: bool = False,
+) -> list[dict[str, Any]]:
+    requested_mode = mode or parse_enrichment_mode()
+    route_info = (config.get("routing") or {}).get(route_name) or {}
+    matrix = config.get("provider_capability_matrix") or {}
+    candidates: list[dict[str, Any]] = []
+    for route_entry in _normalize_route_entries(route_info):
+        route_scope = str(route_entry.get("competition_scope") or "football:*")
+        if not _scope_covers(route_scope, requested_competition_scope):
             continue
-        entry_mode = entry.get("mode")
-        if entry_mode != mode and not (mode == "off" and entry_mode == "shadow"):
+        entry_mode = str(route_entry.get("mode") or requested_mode)
+        entry = _resolve_route_qualification(
+            matrix,
+            provider=route_entry["provider"],
+            route_name=route_name,
+            mode=entry_mode,
+            competition_scope=requested_competition_scope,
+            season_scope=season_scope,
+            require_selectable=selectable_only,
+        )
+        if entry is None:
             continue
-        if entry.get("classification") not in allowed:
+        if selectable_only and not _is_selectable_matrix_entry(entry):
             continue
-        if entry.get("status") not in {"QUALIFIED", "NARROW_SCOPE_ONLY"}:
-            continue
-        return entry
-    return None
+        candidates.append({**route_entry, "matrix_entry": entry})
+    return candidates
+
+
+def select_route_provider(
+    config: dict[str, Any],
+    route_name: str,
+    requested_competition_scope: str,
+    *,
+    season_scope: str = "current",
+    mode: str | None = None,
+) -> dict[str, Any] | None:
+    candidates = get_route_candidates(
+        config,
+        route_name,
+        requested_competition_scope,
+        season_scope=season_scope,
+        mode=mode,
+        selectable_only=True,
+    )
+    return candidates[0] if candidates else None
+
+
+def require_production_route(
+    config: dict[str, Any],
+    route_name: str,
+    requested_competition_scope: str,
+    *,
+    season_scope: str = "current",
+    mode: str | None = None,
+) -> dict[str, Any]:
+    route = select_route_provider(
+        config,
+        route_name,
+        requested_competition_scope,
+        season_scope=season_scope,
+        mode=mode,
+    )
+    if route is None:
+        raise ValueError(
+            f"No CERTIFIED_SELECTABLE route for {route_name} scope={requested_competition_scope} season={season_scope}"
+        )
+    return route
 
 
 def load_and_validate_config(config_dir: Path | str = "config") -> dict[str, Any]:
@@ -151,20 +411,42 @@ def load_and_validate_config(config_dir: Path | str = "config") -> dict[str, Any
             
     # 3. Validate routing
     for route_name, route_info in routing.items():
-        precedence = route_info.get("precedence", [])
-        # Check for duplicate routes/providers in precedence
-        if len(precedence) != len(set(precedence)):
-            raise ValueError(f"Duplicate providers in route {route_name}: {precedence}")
-            
-        for provider in precedence:
-            if _resolve_route_qualification(
+        normalized_routes = _normalize_route_entries(route_info or {})
+        providers = [route["provider"] for route in normalized_routes]
+        if len(providers) != len(set(providers)):
+            raise ValueError(f"Duplicate providers in route {route_name}: {providers}")
+
+        for route_entry in normalized_routes:
+            provider = route_entry["provider"]
+            if provider not in provider_capability_matrix["providers"]:
+                raise ValueError(f"Unknown provider in route {route_name}: {provider}")
+
+            competition_scope = route_entry["competition_scope"]
+            season_scope = route_entry["season_scope"]
+            route_mode = route_entry["mode"]
+            qualification = _resolve_route_qualification(
                 provider_capability_matrix,
                 provider=provider,
                 route_name=route_name,
-                mode=mode,
-            ) is None:
+                mode=route_mode,
+                competition_scope=competition_scope,
+                season_scope=season_scope,
+                require_selectable=False,
+            )
+            if qualification is None:
                 raise ValueError(
-                    f"Provider {provider} in route {route_name} is not capability-qualified for mode={mode}"
+                    f"Provider {provider} in route {route_name} is not capability-qualified for scope={competition_scope} season={season_scope} mode={route_mode}"
+                )
+
+            selectable_status = route_entry.get("selectable_status")
+            if selectable_status and selectable_status != str(qualification.get("status") or ""):
+                raise ValueError(
+                    f"Route {route_name}/{provider} selectable_status={selectable_status} disagrees with matrix status={qualification.get('status')}"
+                )
+
+            if selectable_status == "CERTIFIED_SELECTABLE" and not _is_selectable_matrix_entry(qualification):
+                raise ValueError(
+                    f"Route {route_name}/{provider} claims CERTIFIED_SELECTABLE but matrix does not allow production selection"
                 )
                 
     # Compute policy_config_hash from canonicalized contents of the configuration actually used for the run
@@ -570,6 +852,102 @@ class APIFootballCandidateAdapter:
         return SourceOperationResult(SourceResultStatus.NOT_SUPPORTED, error_code="capability_not_supported")
 
 
+class FootballDataStandingsAdapter:
+    def __init__(self, client: FootballDataOrgClient):
+        self.client = client
+        self.provider_name = "football-data"
+
+    @property
+    def provider(self) -> str:
+        return self.provider_name
+
+    def fetch_capability(
+        self,
+        capability: str,
+        canonical_fixture_id: int,
+        analysis_cutoff_at: datetime,
+        **kwargs,
+    ) -> SourceOperationResult[Any]:
+        if capability != "standings_competition_context":
+            return SourceOperationResult(SourceResultStatus.NOT_SUPPORTED, error_code="capability_not_supported")
+
+        competition_id = kwargs.get("competition_id")
+        native_competition_id = str(kwargs.get("native_competition_id") or "").strip()
+        provider_competition_id = ESPN_TO_FOOTBALL_DATA_COMPETITION.get(
+            native_competition_id,
+            native_competition_id,
+        )
+        if not provider_competition_id:
+            return SourceOperationResult(SourceResultStatus.NOT_FOUND, error_code="native_competition_id_missing")
+
+        standings_res = self.client.get_standings_result(provider_competition_id)
+        if standings_res.status is not SourceResultStatus.SUCCESS:
+            return SourceOperationResult(
+                status=standings_res.status,
+                http_status=standings_res.http_status,
+                error_code=standings_res.error_code,
+                evidence_refs=standings_res.evidence_refs,
+                bundle_id=standings_res.bundle_id,
+            )
+
+        raw_tables = standings_res.value or []
+        if not raw_tables:
+            return SourceOperationResult(
+                status=SourceResultStatus.VALID_EMPTY,
+                value=None,
+                evidence_refs=standings_res.evidence_refs,
+                bundle_id=standings_res.bundle_id,
+            )
+
+        first_table = raw_tables[0] if isinstance(raw_tables[0], dict) else {}
+        raw_rows = first_table.get("table", []) if isinstance(first_table, dict) else []
+        if not raw_rows:
+            return SourceOperationResult(
+                status=SourceResultStatus.VALID_EMPTY,
+                value=None,
+                evidence_refs=standings_res.evidence_refs,
+                bundle_id=standings_res.bundle_id,
+            )
+
+        rows: list[NormalizedStandingRow] = []
+        for row in raw_rows:
+            team = row.get("team", {}) if isinstance(row, dict) else {}
+            rows.append(
+                NormalizedStandingRow(
+                    team_canonical_id=None,
+                    team_native_id=str(team.get("id", "")),
+                    rank=int(row.get("position") or 0),
+                    points=int(row.get("points") or 0),
+                    played=int(row.get("playedGames") or 0),
+                    wins=int(row.get("won") or 0),
+                    draws=int(row.get("draw") or 0),
+                    losses=int(row.get("lost") or 0),
+                    goals_for=int(row.get("goalsFor") or 0),
+                    goals_against=int(row.get("goalsAgainst") or 0),
+                    goal_diff=int(row.get("goalDifference") or 0),
+                    form=str(row.get("form") or ""),
+                )
+            )
+
+        table = NormalizedStandingTable(
+            competition_canonical_id=competition_id,
+            competition_native_id=provider_competition_id,
+            provider="football-data",
+            source_timestamp=analysis_cutoff_at,
+            rows=tuple(rows),
+        )
+        return SourceOperationResult(
+            status=SourceResultStatus.SUCCESS,
+            value=table,
+            provider="football-data",
+            operation="standings_competition_context",
+            request_identity=f"GET /competitions/{provider_competition_id}/standings",
+            evidence_refs=standings_res.evidence_refs,
+            bundle_id=standings_res.bundle_id,
+            retrieved_at=datetime.now(timezone.utc),
+        )
+
+
 class FootballAdapterRegistry:
     def __init__(self):
         self._adapters = {}
@@ -971,23 +1349,26 @@ class FootballEnrichmentService:
                 team_id = task["team_id"]
                 native_team_id = task["native_team_id"]
 
-                # Determine provider precedence from routing
-                route_name = "current_form" if "form" in cap else ("historical_form_h2h" if "h2h" in cap else ("standings" if "standings" in cap else "detailed_metrics"))
-                precedence = config["routing"].get(route_name, {}).get("precedence", [])
+                # Current football enrichment execution is only proven for ESPN eng.1.
+                # Route selection therefore uses exact scope and refuses broader claims.
+                route_name = ROUTE_NAME_FROM_CAPABILITY.get(cap, "detailed_metrics")
+                requested_competition_scope = "football:eng.1"
 
                 selected_provider = None
                 selected_result = None
                 attempted_results = []
 
-                for provider in precedence:
-                    qualification = _resolve_route_qualification(
-                        config["provider_capability_matrix"],
-                        provider=provider,
-                        route_name=route_name,
-                        mode=mode,
-                    )
-                    if qualification is None:
-                        continue
+                route_candidates = get_route_candidates(
+                    config,
+                    route_name,
+                    requested_competition_scope,
+                    season_scope="current",
+                    mode=mode,
+                    selectable_only=True,
+                )
+
+                for route_candidate in route_candidates:
+                    provider = route_candidate["provider"]
 
                     adapter = self.adapter_registry.get(provider)
                     if not adapter:
@@ -1315,6 +1696,7 @@ def _record_failed_run(canonical_fixture_id: int, cutoff: datetime, reason: str)
 def create_football_enrichment_service(
     espn_client: ESPNClient | None = None,
     api_football_client: APIFootballClient | None = None,
+    football_data_client: FootballDataOrgClient | None = None,
 ) -> FootballEnrichmentService:
     registry = FootballAdapterRegistry()
     
@@ -1325,5 +1707,9 @@ def create_football_enrichment_service(
     if not api_football_client:
         api_football_client = APIFootballClient(rate_limiter=RateLimiter())
     registry.register("api-football", APIFootballCandidateAdapter(api_football_client))
+
+    if not football_data_client:
+        football_data_client = FootballDataOrgClient(rate_limiter=RateLimiter())
+    registry.register("football-data", FootballDataStandingsAdapter(football_data_client))
     
     return FootballEnrichmentService(registry)
