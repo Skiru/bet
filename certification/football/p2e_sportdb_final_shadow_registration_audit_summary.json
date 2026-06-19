@@ -1,0 +1,61 @@
+{
+  "a10_sha": "a54bbf1fee0942821dc4ebe03f3ac3a65fd79543",
+  "a11_sha": "e873dfde0211cf051f6c5f0e8cc1d554dd4e1f7b",
+  "audit": {
+    "a11_changed_paths_errors": [],
+    "a11_changed_paths_valid": true,
+    "a11_commit_identity_errors": [],
+    "a11_commit_identity_valid": true,
+    "a11_matrix_diff_errors": [],
+    "a11_matrix_diff_valid": true,
+    "a11_routing_diff_errors": [],
+    "a11_routing_diff_valid": true,
+    "accepted_provider_drift_detected": false,
+    "certified_selectable_added": false,
+    "current_live_scope_added": false,
+    "evidence_chain_complete": true,
+    "forbidden_promotion_detected": false,
+    "matrix_state_valid": true,
+    "metric_scope_valid": true,
+    "production_route_added": false,
+    "required_input_errors": [],
+    "required_inputs_valid": true,
+    "routing_state_valid": true,
+    "selectable_as_projection": false
+  },
+  "audited_diff": "a54bbf1fee0942821dc4ebe03f3ac3a65fd79543..e873dfde0211cf051f6c5f0e8cc1d554dd4e1f7b",
+  "blockers": [],
+  "certification": {
+    "certified_routes": [],
+    "production_routing_changed": false,
+    "selectable_status_changed": false,
+    "verdict": "NOT_CERTIFIED_FINAL_SHADOW_REGISTRATION_AUDIT_ONLY"
+  },
+  "classification": "SPORTDB_P2E_SHADOW_REGISTRATION_FINAL_AUDIT_PASS",
+  "final_review": "PASS",
+  "final_verdict": "SPORTDB_P2E_CLOSED_AS_SCOPE_LIMITED_DETAILED_METRICS_SHADOW",
+  "mode": "final_audit_no_config_changes_no_live_calls",
+  "next_step": "NO_FURTHER_SPORTDB_P2E_ACTION_REQUIRED_UNLESS_USER_REQUESTS_PROMOTION_OR_ADDITIONAL_SCOPE",
+  "phase_id": "P2E_A12_FINAL_SPORTDB_SHADOW_REGISTRATION_AUDIT",
+  "previous_accepted_sha": "e873dfde0211cf051f6c5f0e8cc1d554dd4e1f7b",
+  "prompt_version": "v1_copy_safe_final_shadow_audit_hardened",
+  "protected_worktree": "/Users/mkoziol/projects/bet-multisport-enrichment-v1",
+  "provider": "sportdb",
+  "registered_scope": {
+    "certifiable_metric_scope": [
+      "corners",
+      "fouls",
+      "offsides",
+      "shots",
+      "shots_on_target"
+    ],
+    "excluded_metric_scope": [
+      "successful_passes",
+      "total_passes"
+    ],
+    "mode": "shadow",
+    "route": "detailed_metrics/sportdb/football:eng.1/current-season-completed/shadow",
+    "status": "CERTIFIED_SHADOW"
+  },
+  "secret_safe": true
+}
