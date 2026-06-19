@@ -1,0 +1,57 @@
+{
+  "accepted_provider_baseline": {
+    "accepted_provider_evidence_files": [
+      "certification/football/p2d_highlightly_certification_summary.json",
+      "reports/football_p2d_all_candidates_probe_report.json",
+      "src/bet/api_clients/highlightly.py",
+      "src/bet/api_clients/api_football.py"
+    ],
+    "api_football_remains_historical_fallback": true,
+    "highlightly_remains_accepted": true
+  },
+  "blockers": [],
+  "certification": {
+    "certified_routes": [],
+    "production_routing_changed": false,
+    "selectable_status_changed": false,
+    "verdict": "NOT_CERTIFIED_REPLAY_COMPARISON_DECISION_ONLY"
+  },
+  "classification": "SPORTDB_SHADOW_ONLY_NOT_REPLAY_EQUIVALENT_TO_ACCEPTED_PROVIDERS",
+  "decision": {
+    "certification_rerun_allowed": false,
+    "promotion_allowed": false,
+    "reason": "SportDB shadow evidence is live, but SportDB does not yet emit replayable evidence bundles or SourceOperationResult-backed certification artifacts."
+  },
+  "evidence_level": "TRACKED_REPLAY_COMPARISON_DECISION_SUMMARY",
+  "final_review": "PASS",
+  "impact_on_p2d": "none_highlightly_remains_accepted",
+  "mode": "decision_summary_only_no_live_provider_calls",
+  "next_step": "P2E_A6_SPORTDB_EVIDENCE_BUNDLE_AND_REPLAY_CONTRACT",
+  "phase_id": "P2E_A5_SPORTDB_REPLAY_COMPARISON_AGAINST_ACCEPTED_PROVIDERS",
+  "previous_accepted_sha": "c5d0bd0ea7208e1042075060d3479ea2304648cb",
+  "prompt_version": "v2_masterpiece_decision_summary_with_repo_hygiene_lifecycle",
+  "provider": "sportdb",
+  "replay_contract_assessment": {
+    "blocking_gaps": [
+      "sportdb_candidate_record_not_implemented_in_football_service",
+      "sportdb_source_operation_result_artifacts_missing",
+      "sportdb_evidence_bundle_writer_missing"
+    ],
+    "evidence_bundle_writer_detected_for_sportdb": false,
+    "source_operation_result_artifacts_detected": false,
+    "sportdb_replay_contract_status": "missing"
+  },
+  "secret_safe": true,
+  "sportdb_shadow_adapter": {
+    "classification": "SPORTDB_SHADOW_ADAPTER_READY_FOR_REPLAY_COMPARISON",
+    "events_available": true,
+    "lineups_available": true,
+    "mcp_session_calls_made": 0,
+    "mcp_tool_calls_made": 5,
+    "rest_calls_made": 0,
+    "standings_available": true,
+    "stats_available": true,
+    "summary_path": "certification/football/p2e_sportdb_shadow_adapter_summary.json",
+    "valid": true
+  }
+}
