@@ -1,0 +1,573 @@
+{
+  "accepted_provider_capture": {
+    "bundle_files": [
+      "betting/data/evidence/highlightly/football/p2e_a8/9e6d8baa8f94ddeed95e2366bdbcce4472d14e1eff22c012896563c34b1dc8d4/request.json",
+      "betting/data/evidence/highlightly/football/p2e_a8/9e6d8baa8f94ddeed95e2366bdbcce4472d14e1eff22c012896563c34b1dc8d4/response.sha256.txt",
+      "betting/data/evidence/highlightly/football/p2e_a8/9e6d8baa8f94ddeed95e2366bdbcce4472d14e1eff22c012896563c34b1dc8d4/normalized.json",
+      "betting/data/evidence/highlightly/football/p2e_a8/9e6d8baa8f94ddeed95e2366bdbcce4472d14e1eff22c012896563c34b1dc8d4/manifest.json",
+      "betting/data/evidence/highlightly/football/p2e_a8/9e6d8baa8f94ddeed95e2366bdbcce4472d14e1eff22c012896563c34b1dc8d4/response.safe_preview.json"
+    ],
+    "bundle_id": "9e6d8baa8f94ddeed95e2366bdbcce4472d14e1eff22c012896563c34b1dc8d4",
+    "metric_names": [
+      "expected_goals",
+      "big_chances_created",
+      "free_kicks",
+      "throw_ins",
+      "goal_kicks",
+      "shots_accuracy",
+      "failed_passes",
+      "possession",
+      "shots_on_goal",
+      "corners",
+      "offsides",
+      "successful_passes",
+      "shots_off_target",
+      "blocked_shots",
+      "shots_within_penalty_area",
+      "total_passes",
+      "goalkeeper_saves",
+      "fouls",
+      "yellow_cards",
+      "shots_outside_penalty_area",
+      "expected_goals",
+      "big_chances_created",
+      "free_kicks",
+      "throw_ins",
+      "goal_kicks",
+      "shots_accuracy",
+      "failed_passes",
+      "possession",
+      "shots_on_goal",
+      "corners",
+      "offsides",
+      "successful_passes",
+      "shots_off_target",
+      "blocked_shots",
+      "shots_within_penalty_area",
+      "total_passes",
+      "goalkeeper_saves",
+      "fouls",
+      "yellow_cards",
+      "shots_outside_penalty_area"
+    ],
+    "metrics_available": true,
+    "normalized_sha256": "e713247fed61779b51bbb7aee3e0d27468bb041078c9a895bea5e6c0bb7f9c5b",
+    "performed": true,
+    "provider": "highlightly",
+    "provider_match_id": "1173818273",
+    "response_sha256": "5e0f00c777c2662efb207ec71512898d03c8d22868512abae4034599c694a4b5",
+    "unknown_metrics": [
+      "Expected Assists",
+      "Successful Crosses",
+      "Crosses",
+      "Passes Own Half",
+      "Passes Opposition Half",
+      "Successful Long Passes",
+      "Long Passes",
+      "Key Passes",
+      "Passes Into Final Third",
+      "Backward Passes",
+      "Interceptions",
+      "Successful Tackles",
+      "Tackles",
+      "Clearances",
+      "Successful Aerial Duels",
+      "Aerial Duels",
+      "Successful Dribbles",
+      "Dribbles",
+      "Red cards"
+    ]
+  },
+  "blockers": [],
+  "certification": {
+    "certified_routes": [],
+    "production_routing_changed": false,
+    "selectable_status_changed": false,
+    "verdict": "NOT_CERTIFIED_ACCEPTED_PROVIDER_SAME_MATCH_CAPTURE_ONLY"
+  },
+  "classification": "ACCEPTED_PROVIDER_SAME_MATCH_CAPTURE_READY_FOR_VALUE_REPLAY",
+  "evidence_level": "TRACKED_ACCEPTED_PROVIDER_SAME_MATCH_CAPTURE_SUMMARY",
+  "final_review": "PASS",
+  "highlightly_search": {
+    "auth_configured": true,
+    "calls_made": 2,
+    "candidate_count": 20,
+    "candidate_summaries": [
+      {
+        "away_team": "Wolves",
+        "competition": "ENGLAND: Premier League",
+        "exact_same_match": false,
+        "home_team": "Burnley",
+        "kickoff_or_match_date": "2026-05-24T15:00:00.000Z",
+        "missing_basis": [
+          "home_team_normalized",
+          "away_team_normalized",
+          "score_or_status"
+        ],
+        "proof_basis": [
+          "competition",
+          "season",
+          "kickoff_or_match_date"
+        ],
+        "provider_match_id": "1173819124",
+        "score": "1 - 1",
+        "season": "2025-2026",
+        "status": "Finished"
+      },
+      {
+        "away_team": "Bournemouth",
+        "competition": "ENGLAND: Premier League",
+        "exact_same_match": false,
+        "home_team": "Nottingham Forest",
+        "kickoff_or_match_date": "2026-05-24T15:00:00.000Z",
+        "missing_basis": [
+          "home_team_normalized",
+          "away_team_normalized",
+          "score_or_status"
+        ],
+        "proof_basis": [
+          "competition",
+          "season",
+          "kickoff_or_match_date"
+        ],
+        "provider_match_id": "1173823379",
+        "score": "1 - 1",
+        "season": "2025-2026",
+        "status": "Finished"
+      },
+      {
+        "away_team": "Aston Villa",
+        "competition": "ENGLAND: Premier League",
+        "exact_same_match": false,
+        "home_team": "Manchester City",
+        "kickoff_or_match_date": "2026-05-24T15:00:00.000Z",
+        "missing_basis": [
+          "home_team_normalized",
+          "away_team_normalized",
+          "score_or_status"
+        ],
+        "proof_basis": [
+          "competition",
+          "season",
+          "kickoff_or_match_date"
+        ],
+        "provider_match_id": "1173822528",
+        "score": "1 - 2",
+        "season": "2025-2026",
+        "status": "Finished"
+      },
+      {
+        "away_team": "Everton",
+        "competition": "ENGLAND: Premier League",
+        "exact_same_match": false,
+        "home_team": "Tottenham",
+        "kickoff_or_match_date": "2026-05-24T15:00:00.000Z",
+        "missing_basis": [
+          "home_team_normalized",
+          "away_team_normalized",
+          "score_or_status"
+        ],
+        "proof_basis": [
+          "competition",
+          "season",
+          "kickoff_or_match_date"
+        ],
+        "provider_match_id": "1173825081",
+        "score": "1 - 0",
+        "season": "2025-2026",
+        "status": "Finished"
+      },
+      {
+        "away_team": "Leeds",
+        "competition": "ENGLAND: Premier League",
+        "exact_same_match": false,
+        "home_team": "West Ham",
+        "kickoff_or_match_date": "2026-05-24T15:00:00.000Z",
+        "missing_basis": [
+          "home_team_normalized",
+          "away_team_normalized",
+          "score_or_status"
+        ],
+        "proof_basis": [
+          "competition",
+          "season",
+          "kickoff_or_match_date"
+        ],
+        "provider_match_id": "1173825932",
+        "score": "3 - 0",
+        "season": "2025-2026",
+        "status": "Finished"
+      },
+      {
+        "away_team": "Arsenal",
+        "competition": "ENGLAND: Premier League",
+        "exact_same_match": false,
+        "home_team": "Crystal Palace",
+        "kickoff_or_match_date": "2026-05-24T15:00:00.000Z",
+        "missing_basis": [
+          "home_team_normalized",
+          "away_team_normalized",
+          "score_or_status"
+        ],
+        "proof_basis": [
+          "competition",
+          "season",
+          "kickoff_or_match_date"
+        ],
+        "provider_match_id": "1173819975",
+        "score": "1 - 2",
+        "season": "2025-2026",
+        "status": "Finished"
+      },
+      {
+        "away_team": "Chelsea",
+        "competition": "ENGLAND: Premier League",
+        "exact_same_match": false,
+        "home_team": "Sunderland",
+        "kickoff_or_match_date": "2026-05-24T15:00:00.000Z",
+        "missing_basis": [
+          "home_team_normalized",
+          "away_team_normalized",
+          "score_or_status"
+        ],
+        "proof_basis": [
+          "competition",
+          "season",
+          "kickoff_or_match_date"
+        ],
+        "provider_match_id": "1173824230",
+        "score": "2 - 1",
+        "season": "2025-2026",
+        "status": "Finished"
+      },
+      {
+        "away_team": "Brentford",
+        "competition": "ENGLAND: Premier League",
+        "exact_same_match": false,
+        "home_team": "Liverpool",
+        "kickoff_or_match_date": "2026-05-24T15:00:00.000Z",
+        "missing_basis": [
+          "home_team_normalized",
+          "away_team_normalized",
+          "score_or_status"
+        ],
+        "proof_basis": [
+          "competition",
+          "season",
+          "kickoff_or_match_date"
+        ],
+        "provider_match_id": "1173821677",
+        "score": "1 - 1",
+        "season": "2025-2026",
+        "status": "Finished"
+      },
+      {
+        "away_team": "Newcastle United",
+        "competition": "ENGLAND: Premier League",
+        "exact_same_match": false,
+        "home_team": "Fulham",
+        "kickoff_or_match_date": "2026-05-24T15:00:00.000Z",
+        "missing_basis": [
+          "home_team_normalized",
+          "away_team_normalized",
+          "score_or_status"
+        ],
+        "proof_basis": [
+          "competition",
+          "season",
+          "kickoff_or_match_date"
+        ],
+        "provider_match_id": "1173820826",
+        "score": "2 - 0",
+        "season": "2025-2026",
+        "status": "Finished"
+      },
+      {
+        "away_team": "Manchester United",
+        "competition": "ENGLAND: Premier League",
+        "exact_same_match": true,
+        "home_team": "Brighton",
+        "kickoff_or_match_date": "2026-05-24T15:00:00.000Z",
+        "missing_basis": [],
+        "proof_basis": [
+          "competition",
+          "season",
+          "kickoff_or_match_date",
+          "home_team_normalized",
+          "away_team_normalized",
+          "score_or_status"
+        ],
+        "provider_match_id": "1173818273",
+        "score": "0 - 3",
+        "season": "2025-2026",
+        "status": "Finished"
+      },
+      {
+        "away_team": "Tottenham",
+        "competition": "ENGLAND: Premier League",
+        "exact_same_match": false,
+        "home_team": "Chelsea",
+        "kickoff_or_match_date": "2026-05-19T19:15:00.000Z",
+        "missing_basis": [
+          "kickoff_or_match_date",
+          "home_team_normalized",
+          "away_team_normalized",
+          "score_or_status"
+        ],
+        "proof_basis": [
+          "competition",
+          "season"
+        ],
+        "provider_match_id": "1173813167",
+        "score": "2 - 1",
+        "season": "2025-2026",
+        "status": "Finished"
+      },
+      {
+        "away_team": "Manchester City",
+        "competition": "ENGLAND: Premier League",
+        "exact_same_match": false,
+        "home_team": "Bournemouth",
+        "kickoff_or_match_date": "2026-05-19T18:30:00.000Z",
+        "missing_basis": [
+          "kickoff_or_match_date",
+          "home_team_normalized",
+          "away_team_normalized",
+          "score_or_status"
+        ],
+        "proof_basis": [
+          "competition",
+          "season"
+        ],
+        "provider_match_id": "1173811465",
+        "score": "1 - 1",
+        "season": "2025-2026",
+        "status": "Finished"
+      },
+      {
+        "away_team": "Burnley",
+        "competition": "ENGLAND: Premier League",
+        "exact_same_match": false,
+        "home_team": "Arsenal",
+        "kickoff_or_match_date": "2026-05-18T19:00:00.000Z",
+        "missing_basis": [
+          "kickoff_or_match_date",
+          "home_team_normalized",
+          "away_team_normalized",
+          "score_or_status"
+        ],
+        "proof_basis": [
+          "competition",
+          "season"
+        ],
+        "provider_match_id": "1173809763",
+        "score": "1 - 0",
+        "season": "2025-2026",
+        "status": "Finished"
+      },
+      {
+        "away_team": "West Ham",
+        "competition": "ENGLAND: Premier League",
+        "exact_same_match": false,
+        "home_team": "Newcastle United",
+        "kickoff_or_match_date": "2026-05-17T16:30:00.000Z",
+        "missing_basis": [
+          "kickoff_or_match_date",
+          "home_team_normalized",
+          "away_team_normalized",
+          "score_or_status"
+        ],
+        "proof_basis": [
+          "competition",
+          "season"
+        ],
+        "provider_match_id": "1173816571",
+        "score": "3 - 1",
+        "season": "2025-2026",
+        "status": "Finished"
+      },
+      {
+        "away_team": "Sunderland",
+        "competition": "ENGLAND: Premier League",
+        "exact_same_match": false,
+        "home_team": "Everton",
+        "kickoff_or_match_date": "2026-05-17T14:00:00.000Z",
+        "missing_basis": [
+          "kickoff_or_match_date",
+          "home_team_normalized",
+          "away_team_normalized",
+          "score_or_status"
+        ],
+        "proof_basis": [
+          "competition",
+          "season"
+        ],
+        "provider_match_id": "1173814018",
+        "score": "1 - 3",
+        "season": "2025-2026",
+        "status": "Finished"
+      },
+      {
+        "away_team": "Crystal Palace",
+        "competition": "ENGLAND: Premier League",
+        "exact_same_match": false,
+        "home_team": "Brentford",
+        "kickoff_or_match_date": "2026-05-17T14:00:00.000Z",
+        "missing_basis": [
+          "kickoff_or_match_date",
+          "home_team_normalized",
+          "away_team_normalized",
+          "score_or_status"
+        ],
+        "proof_basis": [
+          "competition",
+          "season"
+        ],
+        "provider_match_id": "1173812316",
+        "score": "2 - 2",
+        "season": "2025-2026",
+        "status": "Finished"
+      },
+      {
+        "away_team": "Brighton",
+        "competition": "ENGLAND: Premier League",
+        "exact_same_match": false,
+        "home_team": "Leeds",
+        "kickoff_or_match_date": "2026-05-17T14:00:00.000Z",
+        "missing_basis": [
+          "kickoff_or_match_date",
+          "home_team_normalized",
+          "away_team_normalized",
+          "score_or_status"
+        ],
+        "proof_basis": [
+          "competition",
+          "season"
+        ],
+        "provider_match_id": "1173814869",
+        "score": "1 - 0",
+        "season": "2025-2026",
+        "status": "Finished"
+      },
+      {
+        "away_team": "Fulham",
+        "competition": "ENGLAND: Premier League",
+        "exact_same_match": false,
+        "home_team": "Wolves",
+        "kickoff_or_match_date": "2026-05-17T14:00:00.000Z",
+        "missing_basis": [
+          "kickoff_or_match_date",
+          "home_team_normalized",
+          "away_team_normalized",
+          "score_or_status"
+        ],
+        "proof_basis": [
+          "competition",
+          "season"
+        ],
+        "provider_match_id": "1173817422",
+        "score": "1 - 1",
+        "season": "2025-2026",
+        "status": "Finished"
+      },
+      {
+        "away_team": "Nottingham Forest",
+        "competition": "ENGLAND: Premier League",
+        "exact_same_match": false,
+        "home_team": "Manchester United",
+        "kickoff_or_match_date": "2026-05-17T11:30:00.000Z",
+        "missing_basis": [
+          "kickoff_or_match_date",
+          "home_team_normalized",
+          "away_team_normalized",
+          "score_or_status"
+        ],
+        "proof_basis": [
+          "competition",
+          "season"
+        ],
+        "provider_match_id": "1173815720",
+        "score": "3 - 2",
+        "season": "2025-2026",
+        "status": "Finished"
+      },
+      {
+        "away_team": "Liverpool",
+        "competition": "ENGLAND: Premier League",
+        "exact_same_match": false,
+        "home_team": "Aston Villa",
+        "kickoff_or_match_date": "2026-05-15T19:00:00.000Z",
+        "missing_basis": [
+          "kickoff_or_match_date",
+          "home_team_normalized",
+          "away_team_normalized",
+          "score_or_status"
+        ],
+        "proof_basis": [
+          "competition",
+          "season"
+        ],
+        "provider_match_id": "1173810614",
+        "score": "4 - 2",
+        "season": "2025-2026",
+        "status": "Finished"
+      }
+    ],
+    "performed": true,
+    "rate_limited": false
+  },
+  "impact_on_p2d": "none_highlightly_remains_accepted",
+  "mode": "bounded_live_accepted_provider_capture",
+  "next_step": "P2E_A9_SPORTDB_VALUE_REPLAY_AGAINST_ACCEPTED_PROVIDER",
+  "phase_id": "P2E_A8_ACCEPTED_PROVIDER_SAME_MATCH_REPLAY_CAPTURE",
+  "previous_accepted_sha": "0838adfb058f6d820432ef9c677ebd33f165bfbd",
+  "prompt_version": "v1_masterpiece_highlightly_same_match_capture",
+  "protected_worktree": "/Users/mkoziol/projects/bet-multisport-enrichment-v1",
+  "same_match_selection": {
+    "ambiguous_exact_matches": false,
+    "blocking_gaps": [],
+    "proof_basis": [
+      "competition",
+      "season",
+      "kickoff_or_match_date",
+      "home_team_normalized",
+      "away_team_normalized",
+      "score_or_status"
+    ],
+    "proof_type": "deterministic_fixture_identity_match",
+    "same_match_found": true,
+    "selected_provider_match_id": "1173818273"
+  },
+  "secret_safe": true,
+  "source_inputs": {
+    "highlightly_certification_summary": "certification/football/p2d_highlightly_certification_summary.json",
+    "sportdb_evidence_bundle_summary": "certification/football/p2e_sportdb_evidence_bundle_summary.json",
+    "sportdb_identity_bridge_summary": "certification/football/p2e_sportdb_identity_bridge_value_replay_summary.json"
+  },
+  "sportdb_target_identity": {
+    "away_team": "Manchester Utd",
+    "away_team_normalized": "manchester united",
+    "competition": "ENGLAND: Premier League",
+    "home_team": "Brighton",
+    "home_team_normalized": "brighton",
+    "identity_fields_available": [
+      "match_id",
+      "competition",
+      "season",
+      "kickoff_or_match_date",
+      "home_team",
+      "away_team",
+      "home_team_normalized",
+      "away_team_normalized",
+      "score",
+      "status"
+    ],
+    "kickoff_or_match_date": "2026-05-24T15:00:00.000Z",
+    "match_id": "xQXUa3UG",
+    "provider_family": "flashscore",
+    "score": "0-3",
+    "season": "2025-2026",
+    "status": "FINISHED"
+  },
+  "target_provider": "highlightly"
+}
