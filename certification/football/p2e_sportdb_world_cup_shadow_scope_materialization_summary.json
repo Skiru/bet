@@ -1,0 +1,37 @@
+{
+  "certifiable_metric_scope": [
+    "blocked_shots",
+    "corners",
+    "expected_goals",
+    "fouls",
+    "goalkeeper_saves",
+    "offsides",
+    "possession",
+    "shots_off_target",
+    "shots_on_goal",
+    "yellow_cards"
+  ],
+  "certified_selectable_added": false,
+  "classification": "SPORTDB_WORLD_CUP_SHADOW_SCOPE_MATERIALIZED",
+  "evidence_level": "TRACKED_CONFIG_MATERIALIZATION_SUMMARY",
+  "excluded_metric_scope": [
+    "successful_passes",
+    "total_passes"
+  ],
+  "existing_epl_shadow_preserved": true,
+  "final_review": "PASS",
+  "final_verdict": "SPORTDB_PRESERVED_AS_PRODUCTION_GRADE_NON_SELECTABLE_WORLD_CUP_SHADOW",
+  "global_production_ready_added": false,
+  "materialized_route": "detailed_metrics/sportdb/football:world:8/world-championship:lvUBR5F8/2026/shadow",
+  "mode": "bounded_config_materialization_no_live_calls",
+  "phase_id": "P2E_A14_MATERIALIZE_SPORTDB_WORLD_CUP_SHADOW_SCOPE",
+  "previous_accepted_sha": "cd9bd51f075582bb0de17af133e6fc0417c307d9",
+  "production_route_added": false,
+  "prompt_version": "v1_materialize_verified_world_cup_shadow_only",
+  "provider": "sportdb",
+  "secret_safe": true,
+  "selectable_as_projection": false,
+  "source_summary": "certification/football/p2e_sportdb_one_shot_production_qualification_summary.json",
+  "status": "CERTIFIED_SHADOW",
+  "world_cup_shadow_materialized": true
+}

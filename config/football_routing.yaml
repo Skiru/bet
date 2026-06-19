@@ -73,6 +73,13 @@ routing:
         season_scope: current-season-completed
         mode: shadow
         selectable_status: CERTIFIED_SHADOW
+      - provider: sportdb
+        competition_scope: football:world:8/world-championship:lvUBR5F8
+        season_scope: "2026"
+        mode: shadow
+        selectable_status: CERTIFIED_SHADOW
+        selectable_as_projection: false
+        evidence_source: p2e_sportdb_one_shot_production_qualification_summary.json
   advanced_xg:
     shadow_routes:
       - provider: understat

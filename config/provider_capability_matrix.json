@@ -398,6 +398,32 @@
               "certification/football/p2d_highlightly_certification_summary.json"
             ],
             "registration_phase": "P2E_A11_SPORTDB_SCOPE_LIMITED_SHADOW_REGISTRATION"
+          },
+          {
+            "status": "CERTIFIED_SHADOW",
+            "competition_scope": "football:world:8/world-championship:lvUBR5F8",
+            "season_scope": "2026",
+            "mode": "shadow",
+            "selectable_as_projection": false,
+            "evidence_replay": true,
+            "evidence_source": "p2e_sportdb_one_shot_production_qualification_summary.json",
+            "certifiable_metric_scope": [
+              "blocked_shots",
+              "corners",
+              "expected_goals",
+              "fouls",
+              "goalkeeper_saves",
+              "offsides",
+              "possession",
+              "shots_off_target",
+              "shots_on_goal",
+              "yellow_cards"
+            ],
+            "excluded_metric_scope": [
+              "successful_passes",
+              "total_passes"
+            ],
+            "exact_reason": "World Cup one-shot qualification reached expanded shadow, not production. 6 fixtures, 4 completed fixtures, 12 teams, 3 detailed metrics fixtures, 6 events, 6 lineups, standings validated, 0 hard mismatches; semantic gaps remain, so non-selectable shadow only."
           }
         ]
       },
