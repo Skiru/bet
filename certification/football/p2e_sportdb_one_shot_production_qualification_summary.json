@@ -1,0 +1,248 @@
+{
+  "baseline_preservation": {
+    "existing_accepted_providers_preserved": true,
+    "existing_epl_shadow_registration_preserved": true,
+    "production_route_preexisting_absent": true
+  },
+  "blockers": [],
+  "classification": "SPORTDB_ONE_SHOT_READY_FOR_EXPANDED_WORLD_CUP_SHADOW",
+  "config_decision": {
+    "certified_selectable_added": false,
+    "config_changed": false,
+    "existing_shadow_preserved": true,
+    "matrix_changed": false,
+    "production_route_added": false,
+    "proposed_config_patch": {
+      "matrix_patch": {
+        "detailed_metrics": [
+          {
+            "certifiable_metric_scope": [
+              "blocked_shots",
+              "corners",
+              "expected_goals",
+              "fouls",
+              "goalkeeper_saves",
+              "offsides",
+              "possession",
+              "shots_off_target",
+              "shots_on_goal",
+              "yellow_cards"
+            ],
+            "competition_scope": "football:world:8/world-championship:lvUBR5F8",
+            "evidence_replay": true,
+            "excluded_metric_scope": [
+              "successful_passes",
+              "total_passes"
+            ],
+            "mode": "shadow",
+            "season_scope": "2026",
+            "selectable_as_projection": false,
+            "status": "CERTIFIED_SHADOW"
+          }
+        ]
+      },
+      "routing_patch": {
+        "detailed_metrics": {
+          "shadow_routes": [
+            {
+              "competition_scope": "football:world:8/world-championship:lvUBR5F8",
+              "mode": "shadow",
+              "provider": "sportdb",
+              "season_scope": "2026",
+              "selectable_status": "CERTIFIED_SHADOW"
+            }
+          ]
+        }
+      }
+    },
+    "registered_or_updated_routes": [],
+    "routing_changed": false,
+    "selectable_as_projection_added": false
+  },
+  "cross_validation": {
+    "baseline_gaps": [
+      "metrics_comparison_missing_espn_fixture:On5HOkVj"
+    ],
+    "detailed_metrics_validated_fixture_count": 3,
+    "events_structurally_validated_count": 6,
+    "fixture_identity_validated_count": 6,
+    "hard_identity_mismatches": [],
+    "hard_metric_mismatches": [],
+    "hard_result_mismatches": [],
+    "lineups_structurally_validated_count": 6,
+    "result_status_validated_count": 3,
+    "semantic_gaps": [
+      "expected_goals_missing_in_one_source",
+      "shots_off_target_missing_in_one_source",
+      "expected_goals_missing_in_one_source",
+      "shots_off_target_missing_in_one_source",
+      "blocked_shots_missing_in_one_source",
+      "corners_missing_in_one_source",
+      "expected_goals_missing_in_one_source",
+      "fouls_missing_in_one_source",
+      "goalkeeper_saves_missing_in_one_source",
+      "offsides_missing_in_one_source",
+      "possession_missing_in_one_source",
+      "shots_off_target_missing_in_one_source",
+      "shots_on_goal_missing_in_one_source",
+      "yellow_cards_missing_in_one_source"
+    ],
+    "standings_validated": true,
+    "tournament_identity_valid": true,
+    "web_confirmation_gaps": []
+  },
+  "evidence_level": "TRACKED_ONE_SHOT_MULTISOURCE_PRODUCTION_QUALIFICATION_SUMMARY",
+  "final_review": "PASS",
+  "final_verdict": "SPORTDB_WORLD_CUP_QUALIFICATION_READY_FOR_EXPANDED_WORLD_CUP_SHADOW",
+  "mode": "one_phase_live_multisource_production_qualification",
+  "next_step": "NO_FURTHER_AUTOMATIC_PHASE_REQUIRED_DECISION_RECORDED",
+  "phase_id": "P2E_A13_SPORTDB_ONE_SHOT_PRODUCTION_QUALIFICATION_SPRINT",
+  "previous_accepted_sha": "c3fb483a544cac2ac728fae06a2a1d5c7a7a3571",
+  "prompt_version": "v2_one_phase_world_cup_multisource_production_gate_hardened",
+  "protected_worktree": "/Users/mkoziol/projects/bet-multisport-enrichment-v1",
+  "provider": "sportdb",
+  "recommended_usage": "shadow_monitoring",
+  "route_family_readiness": {
+    "current_form": "NOT_ELIGIBLE",
+    "current_live": "NOT_ELIGIBLE",
+    "detailed_metrics": "ELIGIBLE_FOR_SHADOW",
+    "events": "ELIGIBLE_FOR_SHADOW",
+    "historical_form_h2h": "NOT_ELIGIBLE",
+    "lineups": "ELIGIBLE_FOR_SHADOW",
+    "standings": "ELIGIBLE_FOR_SHADOW"
+  },
+  "secret_safe": true,
+  "source_layers": {
+    "accepted_providers": {
+      "baseline_gaps": [
+        "metrics_comparison_missing_espn_fixture:On5HOkVj"
+      ],
+      "providers_used": [
+        "espn"
+      ],
+      "used": true
+    },
+    "sportdb": {
+      "auth_ok": true,
+      "called_tool_names": [
+        "flashscore_search",
+        "flashscore_list_competition_seasons",
+        "flashscore_get_competition_fixtures",
+        "flashscore_get_competition_results",
+        "flashscore_get_competition_standings",
+        "flashscore_get_match_stats",
+        "flashscore_get_match_events",
+        "flashscore_get_match_lineups",
+        "flashscore_get_match_stats",
+        "flashscore_get_match_events",
+        "flashscore_get_match_lineups",
+        "flashscore_get_match_stats",
+        "flashscore_get_match_events",
+        "flashscore_get_match_lineups",
+        "flashscore_get_match_stats",
+        "flashscore_get_match_events",
+        "flashscore_get_match_lineups",
+        "flashscore_get_match_events",
+        "flashscore_get_match_lineups",
+        "flashscore_get_match_events",
+        "flashscore_get_match_lineups"
+      ],
+      "mcp_tool_calls_made": 21,
+      "rate_limited": false,
+      "rest_calls_made": 0,
+      "server_errors": []
+    },
+    "web_confirmation": {
+      "official_sources_used": [
+        "BBC Sport"
+      ],
+      "secondary_sources_used": [
+        "ESPN"
+      ],
+      "used": true,
+      "web_gaps": []
+    }
+  },
+  "test_set": {
+    "completed_fixture_count": 4,
+    "date_count": 2,
+    "distinct_team_count": 12,
+    "fixture_count": 6,
+    "selected_fixtures": [
+      {
+        "awayName": "South Korea",
+        "eventId": "On5HOkVj",
+        "eventStage": "FINISHED",
+        "homeName": "Mexico",
+        "score": "1-0",
+        "startTime": "1781830800"
+      },
+      {
+        "awayName": "Qatar",
+        "eventId": "67vLrBMM",
+        "eventStage": "FINISHED",
+        "homeName": "Canada",
+        "score": "6-0",
+        "startTime": "1781820000"
+      },
+      {
+        "awayName": "Bosnia & Herzegovina",
+        "eventId": "djmY6NcJ",
+        "eventStage": "FINISHED",
+        "homeName": "Switzerland",
+        "score": "4-1",
+        "startTime": "1781809200"
+      },
+      {
+        "awayName": "South Africa",
+        "eventId": "8nrACRTs",
+        "eventStage": "FINISHED",
+        "homeName": "Czech Republic",
+        "score": "1-1",
+        "startTime": "1781798400"
+      },
+      {
+        "awayName": "Australia",
+        "eventId": "S0aAVubs",
+        "eventStage": "SCHEDULED",
+        "homeName": "USA",
+        "score": null,
+        "startTime": "1781895600"
+      },
+      {
+        "awayName": "Morocco",
+        "eventId": "nRafcAyG",
+        "eventStage": "SCHEDULED",
+        "homeName": "Scotland",
+        "score": null,
+        "startTime": "1781906400"
+      }
+    ]
+  },
+  "world_cup_discovery": {
+    "candidate_competitions": [
+      {
+        "id": "lvUBR5F8",
+        "link": "/api/flashscore/football/world:8/world-championship:lvUBR5F8",
+        "name": "World Championship",
+        "slug": "world-championship"
+      }
+    ],
+    "confidence": "HIGH",
+    "discovered": true,
+    "discovery_path": [
+      "search:FIFA World Cup 2026",
+      "list_competition_seasons:lvUBR5F8"
+    ],
+    "performed": true,
+    "sportdb_competition_identity": {
+      "competition_id": "lvUBR5F8",
+      "competition_name": "World Championship",
+      "competition_slug": "world-championship",
+      "country_id": 8,
+      "country_slug": "world",
+      "season": "2026",
+      "sport": "football"
+    }
+  }
+}
