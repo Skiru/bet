@@ -16,6 +16,7 @@
     "evidence_chain_complete": true,
     "forbidden_promotion_detected": false,
     "matrix_state_valid": true,
+    "metric_scope_errors": [],
     "metric_scope_valid": true,
     "production_route_added": false,
     "required_input_errors": [],
@@ -43,11 +44,16 @@
   "provider": "sportdb",
   "registered_scope": {
     "certifiable_metric_scope": [
+      "blocked_shots",
       "corners",
+      "expected_goals",
       "fouls",
+      "goalkeeper_saves",
       "offsides",
-      "shots",
-      "shots_on_target"
+      "possession",
+      "shots_off_target",
+      "shots_on_goal",
+      "yellow_cards"
     ],
     "excluded_metric_scope": [
       "successful_passes",

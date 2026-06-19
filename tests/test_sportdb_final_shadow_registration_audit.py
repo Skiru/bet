@@ -24,6 +24,54 @@ def _load_routing_at(revision: str) -> str:
     return MODULE.load_text_at_revision(REPO_ROOT, revision, MODULE.ROUTING_PATH)
 
 
+def _metric_scope_jsons(
+    certifiable: list[str],
+    *,
+    excluded: list[str] | None = None,
+    a10_certifiable: list[str] | None = None,
+    a11_certifiable: list[str] | None = None,
+) -> dict[str, dict]:
+    excluded = excluded or list(MODULE.EXPECTED_EXCLUDED_METRICS)
+    return {
+        MODULE.A10_SUMMARY_PATH: {
+            "certification_plan": {
+                "certifiable_metric_scope": list(a10_certifiable or MODULE.EXPECTED_CERTIFIABLE_METRICS),
+                "excluded_metric_scope": list(excluded),
+            }
+        },
+        MODULE.A11_SUMMARY_PATH: {
+            "metric_scope": {
+                "certifiable_metric_scope": list(a11_certifiable or MODULE.EXPECTED_CERTIFIABLE_METRICS),
+                "excluded_metric_scope": list(excluded),
+            }
+        },
+        MODULE.MATRIX_PATH: {
+            "providers": {
+                "sportdb": {
+                    "capabilities": {
+                        "detailed_metrics": [
+                            {
+                                "status": "CERTIFIED_SHADOW",
+                                "mode": "shadow",
+                                "certifiable_metric_scope": list(certifiable),
+                                "excluded_metric_scope": list(excluded),
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+    }
+
+
+def _patch_metric_scope_sources(monkeypatch, payloads: dict[str, dict]) -> None:
+    def fake_load_json(path: Path) -> dict:
+        relative = path.relative_to(REPO_ROOT).as_posix()
+        return payloads[relative]
+
+    monkeypatch.setattr(MODULE, "load_json", fake_load_json)
+
+
 def test_validate_a11_commit_identity_accepts_current_repo() -> None:
     assert MODULE.validate_a11_commit_identity(REPO_ROOT) == []
 
@@ -136,6 +184,134 @@ def test_accepts_matrix_diff_only_for_shadow_non_selectable_eng1_completed_scope
     assert MODULE.validate_a11_matrix_diff_no_accepted_provider_drift(REPO_ROOT) == []
 
 
+def test_rejects_final_audit_if_certifiable_metric_scope_has_only_five_metrics(monkeypatch) -> None:
+    payloads = _metric_scope_jsons(["corners", "fouls", "offsides", "shots", "shots_on_target"])
+    _patch_metric_scope_sources(monkeypatch, payloads)
+
+    registered_scope, errors = MODULE.validate_metric_scope(REPO_ROOT)
+
+    assert registered_scope["certifiable_metric_scope"] == sorted(
+        ["corners", "fouls", "offsides", "shots", "shots_on_target"]
+    )
+    assert any(error.startswith("matrix_certifiable_metric_scope_mismatch:") for error in errors)
+    assert "certifiable_metric_scope_cross_source_mismatch" in errors
+    assert "matrix_certifiable_metric_scope_too_small:count=5" in errors
+
+
+def test_rejects_generic_collapsed_metrics_that_replace_canonical_names(monkeypatch) -> None:
+    collapsed = [
+        "blocked_shots",
+        "corners",
+        "expected_goals",
+        "fouls",
+        "goalkeeper_saves",
+        "offsides",
+        "possession",
+        "shots",
+        "shots_on_target",
+        "yellow_cards",
+    ]
+    payloads = _metric_scope_jsons(collapsed)
+    _patch_metric_scope_sources(monkeypatch, payloads)
+
+    _, errors = MODULE.validate_metric_scope(REPO_ROOT)
+
+    assert any(error.startswith("matrix_certifiable_metric_scope_mismatch:") for error in errors)
+
+
+def test_rejects_missing_required_canonical_metrics(monkeypatch) -> None:
+    certifiable = [
+        "corners",
+        "fouls",
+        "offsides",
+        "shots",
+        "shots_on_target",
+        "total_passes",
+        "successful_passes",
+    ]
+    payloads = _metric_scope_jsons(certifiable)
+    _patch_metric_scope_sources(monkeypatch, payloads)
+
+    _, errors = MODULE.validate_metric_scope(REPO_ROOT)
+
+    assert any(error.startswith("matrix_certifiable_metric_scope_mismatch:") for error in errors)
+    assert "excluded_metric_present_in_certifiable:total_passes" in errors
+    assert "excluded_metric_present_in_certifiable:successful_passes" in errors
+    for metric in [
+        "blocked_shots",
+        "expected_goals",
+        "goalkeeper_saves",
+        "possession",
+        "shots_off_target",
+        "shots_on_goal",
+        "yellow_cards",
+    ]:
+        assert metric not in certifiable
+
+
+def test_accepts_exact_a10_a11_ten_metric_set(monkeypatch) -> None:
+    payloads = _metric_scope_jsons(list(MODULE.EXPECTED_CERTIFIABLE_METRICS))
+    _patch_metric_scope_sources(monkeypatch, payloads)
+
+    registered_scope, errors = MODULE.validate_metric_scope(REPO_ROOT)
+
+    assert errors == []
+    assert registered_scope["certifiable_metric_scope"] == sorted(MODULE.EXPECTED_CERTIFIABLE_METRICS)
+    assert len(registered_scope["certifiable_metric_scope"]) == 10
+
+
+def test_rejects_cross_source_mismatch_even_if_matrix_has_ten_metrics(monkeypatch) -> None:
+    payloads = _metric_scope_jsons(
+        list(MODULE.EXPECTED_CERTIFIABLE_METRICS),
+        a11_certifiable=[
+            "blocked_shots",
+            "corners",
+            "expected_goals",
+            "fouls",
+            "goalkeeper_saves",
+            "offsides",
+            "possession",
+            "shots",
+            "shots_on_target",
+            "yellow_cards",
+        ],
+    )
+    _patch_metric_scope_sources(monkeypatch, payloads)
+
+    _, errors = MODULE.validate_metric_scope(REPO_ROOT)
+
+    assert any(error.startswith("a11_certifiable_metric_scope_mismatch:") for error in errors)
+    assert "certifiable_metric_scope_cross_source_mismatch" in errors
+
+
+def test_summary_registered_scope_has_exactly_ten_metrics() -> None:
+    summary = MODULE.audit_repository(REPO_ROOT)
+    assert summary["registered_scope"]["certifiable_metric_scope"] == sorted(
+        MODULE.EXPECTED_CERTIFIABLE_METRICS
+    )
+    assert len(summary["registered_scope"]["certifiable_metric_scope"]) == 10
+
+
+def test_metric_scope_valid_cannot_be_true_when_metric_count_below_eight(monkeypatch) -> None:
+    payloads = _metric_scope_jsons(
+        [
+            "blocked_shots",
+            "corners",
+            "expected_goals",
+            "fouls",
+            "goalkeeper_saves",
+            "offsides",
+            "possession",
+        ]
+    )
+    _patch_metric_scope_sources(monkeypatch, payloads)
+
+    summary = MODULE.audit_repository(REPO_ROOT)
+
+    assert summary["audit"]["metric_scope_valid"] is False
+    assert summary["classification"] == "SPORTDB_P2E_FINAL_AUDIT_BLOCKED_METRIC_SCOPE_INVALID"
+
+
 def test_summary_verdict_passes_with_hardened_a11_diff_checks() -> None:
     summary = MODULE.audit_repository(REPO_ROOT)
     audit = summary["audit"]
@@ -145,6 +321,10 @@ def test_summary_verdict_passes_with_hardened_a11_diff_checks() -> None:
     assert summary["registered_scope"]["route"] == MODULE.REGISTERED_ROUTE
     assert summary["registered_scope"]["status"] == "CERTIFIED_SHADOW"
     assert summary["registered_scope"]["mode"] == "shadow"
+    assert summary["registered_scope"]["certifiable_metric_scope"] == sorted(
+        MODULE.EXPECTED_CERTIFIABLE_METRICS
+    )
+    assert len(summary["registered_scope"]["certifiable_metric_scope"]) == 10
     assert "total_passes" not in summary["registered_scope"]["certifiable_metric_scope"]
     assert "successful_passes" not in summary["registered_scope"]["certifiable_metric_scope"]
     assert "total_passes" in summary["registered_scope"]["excluded_metric_scope"]
@@ -157,6 +337,7 @@ def test_summary_verdict_passes_with_hardened_a11_diff_checks() -> None:
     assert audit["matrix_state_valid"] is True
     assert audit["routing_state_valid"] is True
     assert audit["metric_scope_valid"] is True
+    assert audit["metric_scope_errors"] == []
     assert audit["accepted_provider_drift_detected"] is False
     assert audit["forbidden_promotion_detected"] is False
     assert audit["production_route_added"] is False

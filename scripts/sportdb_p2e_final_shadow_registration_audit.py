@@ -22,6 +22,8 @@ DEFAULT_A11_SHA = "e873dfde0211cf051f6c5f0e8cc1d554dd4e1f7b"
 EXPECTED_A11_SUBJECT = "chore(football): register sportdb scope-limited shadow route"
 MATRIX_PATH = "config/provider_capability_matrix.json"
 ROUTING_PATH = "config/football_routing.yaml"
+A10_SUMMARY_PATH = "certification/football/p2e_sportdb_semantic_gap_review_certification_plan_summary.json"
+A11_SUMMARY_PATH = "certification/football/p2e_sportdb_scope_limited_shadow_registration_summary.json"
 EXPECTED_A11_CHANGED_PATHS = [
     "certification/football/p2e_sportdb_scope_limited_shadow_registration_summary.json",
     "config/football_routing.yaml",
@@ -30,9 +32,21 @@ EXPECTED_A11_CHANGED_PATHS = [
     "tests/test_sportdb_scope_limited_shadow_registration.py",
 ]
 EXPECTED_EXCLUDED_METRICS = ["successful_passes", "total_passes"]
+EXPECTED_CERTIFIABLE_METRICS = [
+    "blocked_shots",
+    "corners",
+    "expected_goals",
+    "fouls",
+    "goalkeeper_saves",
+    "offsides",
+    "possession",
+    "shots_off_target",
+    "shots_on_goal",
+    "yellow_cards",
+]
 REQUIRED_INPUT_PATHS = [
-    "certification/football/p2e_sportdb_semantic_gap_review_certification_plan_summary.json",
-    "certification/football/p2e_sportdb_scope_limited_shadow_registration_summary.json",
+    A10_SUMMARY_PATH,
+    A11_SUMMARY_PATH,
     MATRIX_PATH,
     ROUTING_PATH,
     "scripts/sportdb_p2e_scope_limited_shadow_registration_validate.py",
@@ -48,7 +62,7 @@ REGISTERED_SCOPE = {
     "route": REGISTERED_ROUTE,
     "status": "CERTIFIED_SHADOW",
     "mode": "shadow",
-    "certifiable_metric_scope": ["corners", "fouls", "offsides", "shots", "shots_on_target"],
+    "certifiable_metric_scope": EXPECTED_CERTIFIABLE_METRICS,
     "excluded_metric_scope": EXPECTED_EXCLUDED_METRICS,
 }
 
@@ -66,6 +80,22 @@ def load_json(path: Path) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise ValueError(f"JSON root must be an object: {path}")
     return data
+
+
+def _sorted_metrics(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return sorted(item for item in value if isinstance(item, str))
+
+
+def _matrix_detailed_metrics_entry(matrix: dict[str, Any]) -> dict[str, Any]:
+    providers = matrix.get("providers") if isinstance(matrix.get("providers"), dict) else {}
+    sportdb = providers.get("sportdb") if isinstance(providers.get("sportdb"), dict) else {}
+    capabilities = sportdb.get("capabilities") if isinstance(sportdb.get("capabilities"), dict) else {}
+    detailed_metrics = (
+        capabilities.get("detailed_metrics") if isinstance(capabilities.get("detailed_metrics"), list) else []
+    )
+    return detailed_metrics[0] if len(detailed_metrics) == 1 and isinstance(detailed_metrics[0], dict) else {}
 
 
 def git_text(repo_root: Path, *args: str) -> str:
@@ -230,11 +260,10 @@ def validate_a11_matrix_diff_no_accepted_provider_drift(repo_root: Path) -> list
     if set(capabilities.keys()) != {"detailed_metrics"}:
         errors.append("a11_matrix_capability_family_mismatch")
 
-    entries = capabilities.get("detailed_metrics") if isinstance(capabilities.get("detailed_metrics"), list) else []
-    if len(entries) != 1 or not isinstance(entries[0], dict):
+    entry = _matrix_detailed_metrics_entry(after)
+    if not entry:
         errors.append("a11_matrix_detailed_metrics_entry_invalid")
         return errors
-    entry = entries[0]
 
     if entry.get("status") != "CERTIFIED_SHADOW":
         errors.append("a11_matrix_status_mismatch")
@@ -261,6 +290,75 @@ def validate_a11_matrix_diff_no_accepted_provider_drift(repo_root: Path) -> list
             errors.append(f"a11_matrix_pass_metric_certifiable:{metric}")
 
     return errors
+
+
+def validate_metric_scope(repo_root: Path) -> tuple[dict[str, Any], list[str]]:
+    errors: list[str] = []
+
+    a10_summary = load_json(repo_root / A10_SUMMARY_PATH)
+    a11_summary = load_json(repo_root / A11_SUMMARY_PATH)
+    matrix = load_json(repo_root / MATRIX_PATH)
+
+    expected_certifiable = sorted(EXPECTED_CERTIFIABLE_METRICS)
+    expected_excluded = sorted(EXPECTED_EXCLUDED_METRICS)
+    a10_certifiable = _sorted_metrics(
+        a10_summary.get("certification_plan", {}).get("certifiable_metric_scope")
+        if isinstance(a10_summary.get("certification_plan"), dict)
+        else None
+    )
+    a11_certifiable = _sorted_metrics(
+        a11_summary.get("metric_scope", {}).get("certifiable_metric_scope")
+        if isinstance(a11_summary.get("metric_scope"), dict)
+        else None
+    )
+    matrix_entry = _matrix_detailed_metrics_entry(matrix)
+    matrix_certifiable = _sorted_metrics(matrix_entry.get("certifiable_metric_scope"))
+    matrix_excluded = _sorted_metrics(matrix_entry.get("excluded_metric_scope"))
+
+    if a10_certifiable != expected_certifiable:
+        errors.append(
+            "a10_certifiable_metric_scope_mismatch:expected="
+            + ",".join(expected_certifiable)
+            + ":actual="
+            + ",".join(a10_certifiable)
+        )
+    if a11_certifiable != expected_certifiable:
+        errors.append(
+            "a11_certifiable_metric_scope_mismatch:expected="
+            + ",".join(expected_certifiable)
+            + ":actual="
+            + ",".join(a11_certifiable)
+        )
+    if matrix_certifiable != expected_certifiable:
+        errors.append(
+            "matrix_certifiable_metric_scope_mismatch:expected="
+            + ",".join(expected_certifiable)
+            + ":actual="
+            + ",".join(matrix_certifiable)
+        )
+    if len(matrix_certifiable) < 8:
+        errors.append(f"matrix_certifiable_metric_scope_too_small:count={len(matrix_certifiable)}")
+    if not (a10_certifiable == a11_certifiable == matrix_certifiable):
+        errors.append("certifiable_metric_scope_cross_source_mismatch")
+    if matrix_excluded != expected_excluded:
+        errors.append(
+            "matrix_excluded_metric_scope_mismatch:expected="
+            + ",".join(expected_excluded)
+            + ":actual="
+            + ",".join(matrix_excluded)
+        )
+    for metric in EXPECTED_EXCLUDED_METRICS:
+        if metric in matrix_certifiable:
+            errors.append(f"excluded_metric_present_in_certifiable:{metric}")
+
+    registered_scope = {
+        "route": REGISTERED_ROUTE,
+        "status": matrix_entry.get("status") if isinstance(matrix_entry.get("status"), str) else "CERTIFIED_SHADOW",
+        "mode": matrix_entry.get("mode") if isinstance(matrix_entry.get("mode"), str) else "shadow",
+        "certifiable_metric_scope": matrix_certifiable,
+        "excluded_metric_scope": matrix_excluded,
+    }
+    return registered_scope, errors
 
 
 def _sportdb_locations(routing: dict[str, dict[str, list[dict[str, Any]]]]) -> list[tuple[str, str, dict[str, Any]]]:
@@ -343,6 +441,8 @@ def build_summary(
     changed_paths_errors: list[str],
     matrix_diff_errors: list[str],
     routing_diff_errors: list[str],
+    metric_scope_errors: list[str],
+    registered_scope: dict[str, Any],
 ) -> dict[str, Any]:
     evidence_chain_complete = not (
         required_input_errors
@@ -350,6 +450,7 @@ def build_summary(
         or changed_paths_errors
         or matrix_diff_errors
         or routing_diff_errors
+        or metric_scope_errors
     )
     accepted_provider_drift_detected = any(
         "drift" in error or "changed_providers" in error for error in matrix_diff_errors
@@ -362,7 +463,7 @@ def build_summary(
         "evidence_chain_complete": evidence_chain_complete,
         "matrix_state_valid": not matrix_diff_errors,
         "routing_state_valid": not routing_diff_errors,
-        "metric_scope_valid": not matrix_diff_errors,
+        "metric_scope_valid": not metric_scope_errors,
         "accepted_provider_drift_detected": accepted_provider_drift_detected,
         "forbidden_promotion_detected": forbidden_promotion_detected,
         "production_route_added": any("production_route" in error for error in routing_diff_errors),
@@ -374,6 +475,7 @@ def build_summary(
         "a11_changed_paths_valid": not changed_paths_errors,
         "a11_matrix_diff_valid": not matrix_diff_errors,
         "a11_routing_diff_valid": not routing_diff_errors,
+        "metric_scope_errors": metric_scope_errors,
         "required_input_errors": required_input_errors,
         "a11_commit_identity_errors": commit_identity_errors,
         "a11_changed_paths_errors": changed_paths_errors,
@@ -386,6 +488,7 @@ def build_summary(
         *changed_paths_errors,
         *matrix_diff_errors,
         *routing_diff_errors,
+        *metric_scope_errors,
     ]
     summary = {
         "phase_id": PHASE_ID,
@@ -400,7 +503,7 @@ def build_summary(
         "audit": audit,
         "classification": "UNKNOWN",
         "final_verdict": "BLOCKED",
-        "registered_scope": REGISTERED_SCOPE,
+        "registered_scope": registered_scope,
         "certification": {
             "verdict": "BLOCKED_FINAL_SHADOW_REGISTRATION_AUDIT",
             "certified_routes": [],
@@ -433,6 +536,8 @@ def classify_summary(summary: dict[str, Any]) -> str:
         return "SPORTDB_P2E_FINAL_AUDIT_BLOCKED_A11_MATRIX_DIFF_INVALID"
     if audit.get("a11_routing_diff_valid") is not True:
         return "SPORTDB_P2E_FINAL_AUDIT_BLOCKED_A11_ROUTING_DIFF_INVALID"
+    if audit.get("metric_scope_valid") is not True:
+        return "SPORTDB_P2E_FINAL_AUDIT_BLOCKED_METRIC_SCOPE_INVALID"
     return PASS_CLASSIFICATION
 
 
@@ -442,12 +547,15 @@ def write_summary(path: Path, summary: dict[str, Any]) -> None:
 
 
 def audit_repository(repo_root: Path) -> dict[str, Any]:
+    registered_scope, metric_scope_errors = validate_metric_scope(repo_root)
     return build_summary(
         required_input_errors=validate_required_inputs(repo_root),
         commit_identity_errors=validate_a11_commit_identity(repo_root),
         changed_paths_errors=validate_a11_changed_paths(repo_root),
         matrix_diff_errors=validate_a11_matrix_diff_no_accepted_provider_drift(repo_root),
         routing_diff_errors=validate_a11_routing_diff_no_production_promotion(repo_root),
+        metric_scope_errors=metric_scope_errors,
+        registered_scope=registered_scope,
     )
 
 
@@ -469,6 +577,8 @@ def main() -> int:
             changed_paths_errors=[],
             matrix_diff_errors=[],
             routing_diff_errors=[],
+            metric_scope_errors=[],
+            registered_scope=REGISTERED_SCOPE,
         )
     out_path = args.out if args.out.is_absolute() else repo_root / args.out
     write_summary(out_path, summary)
