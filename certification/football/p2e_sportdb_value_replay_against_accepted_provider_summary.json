@@ -1,0 +1,182 @@
+{
+  "blockers": [],
+  "certification": {
+    "certified_routes": [],
+    "production_routing_changed": false,
+    "selectable_status_changed": false,
+    "verdict": "NOT_CERTIFIED_VALUE_REPLAY_ONLY"
+  },
+  "classification": "SPORTDB_VALUE_REPLAY_READY_WITH_SEMANTIC_GAPS_FOR_REVIEW",
+  "evidence_level": "TRACKED_VALUE_REPLAY_AGAINST_ACCEPTED_PROVIDER_SUMMARY",
+  "final_review": "PASS",
+  "fixture_identity": {
+    "away_team": "Manchester United",
+    "competition": "ENGLAND: Premier League",
+    "home_team": "Brighton",
+    "kickoff_or_match_date": "2026-05-24T15:00:00.000Z",
+    "score": "0-3",
+    "season": "2025-2026"
+  },
+  "impact_on_p2d": "none_highlightly_remains_accepted",
+  "local_evidence": {
+    "highlightly_bundle_id": "9e6d8baa8f94ddeed95e2366bdbcce4472d14e1eff22c012896563c34b1dc8d4",
+    "highlightly_bundle_verified": true,
+    "highlightly_normalized_path": "betting/data/evidence/highlightly/football/p2e_a8/9e6d8baa8f94ddeed95e2366bdbcce4472d14e1eff22c012896563c34b1dc8d4/normalized.json",
+    "sportdb_bundle_ids": [
+      "ad13fa9937cae27cc1eff1d27a13faa2909ae05038ccbc379a0d505ff54afdeb",
+      "1caafba4849e3229eb2b971d95c1b68345b7dbe4c04666e7af39443a7bb84797",
+      "d35f40743357e6529cbac0102888e476068a3ed1084623ddad11d1cb926b58cf",
+      "e6a5989b16ebcd34babe506b90bdb73c5aa44f007fdc54a2cf6e7259d78dc29f",
+      "d8c7fcef93e6d70b8aa61621f828fc785343fbb5126e99fb6b5d2a85d8557970"
+    ],
+    "sportdb_bundles_verified": true,
+    "sportdb_normalized_paths": [
+      "betting/data/evidence/sportdb/football/p2e_a6/competition_results/ad13fa9937cae27cc1eff1d27a13faa2909ae05038ccbc379a0d505ff54afdeb/normalized.json",
+      "betting/data/evidence/sportdb/football/p2e_a6/competition_standings/1caafba4849e3229eb2b971d95c1b68345b7dbe4c04666e7af39443a7bb84797/normalized.json",
+      "betting/data/evidence/sportdb/football/p2e_a6/match_events/d35f40743357e6529cbac0102888e476068a3ed1084623ddad11d1cb926b58cf/normalized.json",
+      "betting/data/evidence/sportdb/football/p2e_a6/match_lineups/e6a5989b16ebcd34babe506b90bdb73c5aa44f007fdc54a2cf6e7259d78dc29f/normalized.json",
+      "betting/data/evidence/sportdb/football/p2e_a6/match_stats/d8c7fcef93e6d70b8aa61621f828fc785343fbb5126e99fb6b5d2a85d8557970/normalized.json"
+    ]
+  },
+  "metric_replay": {
+    "canonical_metrics_compared": [
+      "blocked_shots",
+      "corners",
+      "expected_goals",
+      "fouls",
+      "goalkeeper_saves",
+      "offsides",
+      "possession",
+      "shots_off_target",
+      "shots_on_goal",
+      "yellow_cards"
+    ],
+    "matched_metrics": [
+      "blocked_shots",
+      "corners",
+      "fouls",
+      "goalkeeper_saves",
+      "offsides",
+      "possession",
+      "shots_off_target",
+      "shots_on_goal",
+      "yellow_cards"
+    ],
+    "mismatched_metrics": [],
+    "missing_in_accepted_provider": [
+      "total_shots"
+    ],
+    "missing_in_sportdb": [],
+    "performed": true,
+    "provider_extra_metrics": [
+      "big_chances_created",
+      "failed_passes",
+      "free_kicks",
+      "goal_kicks",
+      "shots_accuracy",
+      "shots_outside_penalty_area",
+      "shots_within_penalty_area",
+      "throw_ins"
+    ],
+    "semantic_gaps": [
+      {
+        "accepted_provider": {
+          "away": 372,
+          "home": 415
+        },
+        "metric": "successful_passes",
+        "reason": "sportdb_successful_passes_rate_vs_highlightly_successful_passes_count",
+        "sportdb": {
+          "away": 83,
+          "home": 86
+        }
+      },
+      {
+        "accepted_provider": {
+          "away": 450,
+          "home": 484
+        },
+        "metric": "total_passes",
+        "reason": "sportdb_total_passes_aligns_to_highlightly_successful_passes_not_total_passes",
+        "sportdb": {
+          "away": 372,
+          "home": 415
+        }
+      }
+    ],
+    "team_side_gaps": [],
+    "tolerance_matched_metrics": [
+      "expected_goals"
+    ],
+    "unknown_metrics_preserved": [
+      "Accurate through passes",
+      "Aerial Duels",
+      "Backward Passes",
+      "Big chances",
+      "Clearances",
+      "Crosses",
+      "Dribbles",
+      "Duels won",
+      "Errors leading to goal",
+      "Errors leading to shot",
+      "Expected Assists",
+      "Expected assists (xA)",
+      "Free kicks",
+      "Goals prevented",
+      "Headed goals",
+      "Hit the woodwork",
+      "Interceptions",
+      "Key Passes",
+      "Long Passes",
+      "Long passes",
+      "Passes Into Final Third",
+      "Passes Opposition Half",
+      "Passes Own Half",
+      "Passes in final third",
+      "Red cards",
+      "Shots inside the box",
+      "Shots outside the box",
+      "Successful Aerial Duels",
+      "Successful Crosses",
+      "Successful Dribbles",
+      "Successful Long Passes",
+      "Successful Tackles",
+      "Tackles",
+      "Throw ins",
+      "Touches in opposition box",
+      "xG on target (xGOT)",
+      "xGOT faced"
+    ]
+  },
+  "mode": "replay_only_no_live_provider_calls",
+  "next_step": "P2E_A10_SEMANTIC_GAP_REVIEW_BEFORE_CERTIFICATION_PLAN",
+  "phase_id": "P2E_A9_SPORTDB_VALUE_REPLAY_AGAINST_ACCEPTED_PROVIDER",
+  "previous_accepted_sha": "304087c6991c51c5125cfbe4ab0f6bda99046ba7",
+  "prompt_version": "v1_masterpiece_value_replay_locked",
+  "protected_worktree": "/Users/mkoziol/projects/bet-multisport-enrichment-v1",
+  "providers": {
+    "accepted_provider": "highlightly",
+    "candidate": "sportdb"
+  },
+  "same_match_proof": {
+    "highlightly_provider_match_id": "1173818273",
+    "proof_basis": [
+      "competition",
+      "season",
+      "kickoff_or_match_date",
+      "home_team_normalized",
+      "away_team_normalized",
+      "score_or_status"
+    ],
+    "proof_type": "deterministic_fixture_identity_match",
+    "sportdb_flashscore_match_id": "xQXUa3UG",
+    "valid": true
+  },
+  "secret_safe": true,
+  "team_side_alignment": {
+    "away_team_normalized": "manchester united",
+    "blocking_gaps": [],
+    "home_team_normalized": "brighton",
+    "valid": true
+  }
+}
