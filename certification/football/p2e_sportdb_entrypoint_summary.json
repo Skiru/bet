@@ -1,0 +1,83 @@
+{
+  "phase_id": "P2E_A1_SPORTDB_TRANSPORT_AND_API_ENTRYPOINT_LOCK",
+  "previous_accepted_sha": "cb18d83f31742ae6c2991e960c4b860ae5be8630",
+  "evidence_level": "TRACKED_ENTRYPOINT_SUMMARY",
+  "provider": "sportdb",
+  "probe_script_status": "OK",
+  "auth": {
+    "key_name_used": "SPORTDB_API_KEY",
+    "secret_safe": true
+  },
+  "transport_contract": {
+    "rest_base_candidates": [
+      "https://api.sportdb.dev",
+      "https://sportdb.dev"
+    ],
+    "rest_documented_endpoints": [
+      "/api/football/countries",
+      "/api/football/live"
+    ],
+    "mcp_endpoint": "https://api.sportdb.dev/mcp/",
+    "mcp_required_accept": "application/json, text/event-stream",
+    "auth_header": "X-API-Key"
+  },
+  "rest": {
+    "classification": "REST_DOCS_OR_BASE_URL_MISMATCH",
+    "calls": [
+      {
+        "url": "https://api.sportdb.dev/api/football/countries",
+        "method": "GET",
+        "status": 404
+      },
+      {
+        "url": "https://sportdb.dev/api/football/countries",
+        "method": "GET",
+        "status": 404
+      },
+      {
+        "url": "https://api.sportdb.dev/api/football/live",
+        "method": "GET",
+        "status": 404
+      }
+    ],
+    "selected_working_base_url": null,
+    "selected_working_countries_endpoint": null
+  },
+  "mcp": {
+    "classification": "MCP_TOOLS_LIST_OK",
+    "calls": [
+      {
+        "status": 200,
+        "content_type": "text/event-stream"
+      }
+    ],
+    "selected_working_handshake": "tools/list",
+    "tool_names": [
+      "flashscore_list_sports",
+      "flashscore_get_live",
+      "flashscore_get_live_odds",
+      "flashscore_list_countries",
+      "flashscore_list_competitions",
+      "flashscore_list_competition_seasons",
+      "flashscore_get_competition_fixtures",
+      "flashscore_get_competition_results",
+      "flashscore_get_competition_standings",
+      "flashscore_get_match_stats",
+      "flashscore_get_match_events",
+      "flashscore_get_match_lineups",
+      "flashscore_get_team_details",
+      "flashscore_get_player_details",
+      "flashscore_search"
+    ],
+    "requires_real_mcp_client": false
+  },
+  "rate_limit": {
+    "hit_429": false,
+    "headers": {}
+  },
+  "classification": "SPORTDB_MCP_READY_FOR_MAPPING",
+  "next_step": "sportdb_mcp_mapping",
+  "impact_on_p2d": "none_highlightly_remains_accepted",
+  "secret_safe": true,
+  "final_review": "PASS"
+}
