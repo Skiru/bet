@@ -78,7 +78,7 @@ class SportDBMCPParserError(SportDBMCPError):
     pass
 
 
-class RequiredPayloadFieldUnknownError(ValueError):
+class RequiredPayloadFieldUnknownError(RuntimeError):
     """Error raised when a required tool payload field cannot be resolved."""
     pass
 
@@ -92,6 +92,22 @@ class SportDBMCPClient:
         self.session_id: str | None = None
         self.mcp_tool_calls_made = 0
         self.mcp_session_calls_made = 0
+        self.called_tool_names: list[str] = []
+
+    def _record_successful_rpc_call(
+        self,
+        rpc_method: str,
+        provider_tool_name: str | None = None,
+    ) -> None:
+        """Record only successful JSON-RPC calls for audit accounting."""
+        if rpc_method == "tools/call":
+            self.mcp_tool_calls_made += 1
+            if provider_tool_name:
+                self.called_tool_names.append(provider_tool_name)
+            return
+
+        if rpc_method == "initialize" or rpc_method.startswith("session"):
+            self.mcp_session_calls_made += 1
 
     def _resolve_api_key(self) -> str:
         """Resolve API key from environment first, then .env file."""
@@ -279,12 +295,6 @@ class SportDBMCPClient:
         except Exception as exc:
             raise SportDBMCPError(f"Transport/network failure: {exc}")
 
-        # Track call metrics
-        if tool_name == "tools/call":
-            self.mcp_tool_calls_made += 1
-        else:
-            self.mcp_session_calls_made += 1
-
         # Check response content-type
         is_sse = "text/event-stream" in content_type.lower()
         raw_text = raw_bytes.decode("utf-8", errors="replace")
@@ -312,6 +322,7 @@ class SportDBMCPClient:
             elif src_code == 406:
                 raise SportDBMCPNotAcceptableError("Embedded format not acceptable")
 
+        self._record_successful_rpc_call(body["method"], tool_name)
         return result_payload
 
 
@@ -345,15 +356,15 @@ class SportDBMCPShadowAdapter:
         required_fields = tool_schema.get("required_fields", [])
         optional_fields = tool_schema.get("optional_fields", [])
 
-        sport_val = self.mapping_summary.get("sport", {}).get("selected_sport_key") or "football"
+        sport_val = self.mapping_summary.get("sport", {}).get("selected_sport_key")
         country_slug_val = self.mapping_summary.get("country", {}).get("selected_country_slug")
         country_id_val = self.mapping_summary.get("country", {}).get("selected_country_id")
         competition_slug_val = self.mapping_summary.get("competition", {}).get("selected_competition_slug")
         competition_id_val = self.mapping_summary.get("competition", {}).get("selected_competition_id")
         season_val = self.mapping_summary.get("season", {}).get("selected_season")
 
-        default_match_id = self.mapping_summary.get("finished_match_probe", {}).get("selected_match_id") or "xQXUa3UG"
-        match_id_val = custom_match_id or default_match_id
+        default_match_id = self.mapping_summary.get("finished_match_probe", {}).get("selected_match_id")
+        match_id_val = custom_match_id if custom_match_id not in (None, "") else default_match_id
 
         known = {
             "sport": sport_val,
@@ -370,7 +381,9 @@ class SportDBMCPShadowAdapter:
             if field in known and known[field] not in (None, ""):
                 payload[field] = known[field]
             else:
-                raise RequiredPayloadFieldUnknownError(field)
+                raise RequiredPayloadFieldUnknownError(
+                    f"Required payload field is unknown: {field}"
+                )
 
         for field in optional_fields:
             if field in known and known[field] not in (None, ""):

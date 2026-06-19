@@ -11,6 +11,7 @@ import hashlib
 import json
 import os
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +28,9 @@ from bet.api_clients.sportdb_mcp import (
     RequiredPayloadFieldUnknownError,
     SportDBMCPError,
 )
+
+
+PROBE_CALL_DELAY_SECONDS = 0.4
 
 
 def parse_dot_env(file_path: Path) -> dict[str, str]:
@@ -188,6 +192,8 @@ def main() -> int:
             "rest_calls_made": 0,
             "stopped_on_429": False,
         },
+        "mcp_tool_calls": [],
+        "called_tool_names": [],
         "classification": "UNKNOWN",
         "certification": {
             "certified_routes": [],
@@ -278,6 +284,7 @@ def main() -> int:
 
     # Probe B: Match Stats
     if not blocker_found:
+        time.sleep(PROBE_CALL_DELAY_SECONDS)
         summary["stats_probe"]["performed"] = True
         try:
             stat_res = adapter.get_match_stats_shadow()
@@ -312,6 +319,7 @@ def main() -> int:
 
     # Probe C: Match Events
     if not blocker_found:
+        time.sleep(PROBE_CALL_DELAY_SECONDS)
         summary["events_probe"]["performed"] = True
         try:
             evt_res = adapter.get_match_events_shadow()
@@ -344,6 +352,7 @@ def main() -> int:
 
     # Probe D: Match Lineups
     if not blocker_found:
+        time.sleep(PROBE_CALL_DELAY_SECONDS)
         summary["lineups_probe"]["performed"] = True
         try:
             lin_res = adapter.get_match_lineups_shadow()
@@ -374,6 +383,7 @@ def main() -> int:
 
     # Probe E: Competition Standings
     if not blocker_found:
+        time.sleep(PROBE_CALL_DELAY_SECONDS)
         summary["standings_probe"]["performed"] = True
         try:
             std_res = adapter.get_competition_standings_shadow()
@@ -405,6 +415,8 @@ def main() -> int:
     # Update call budgets
     summary["call_budget"]["mcp_tool_calls_made"] = adapter.client.mcp_tool_calls_made
     summary["call_budget"]["mcp_session_calls_made"] = adapter.client.mcp_session_calls_made
+    summary["mcp_tool_calls"] = list(adapter.client.called_tool_names)
+    summary["called_tool_names"] = list(adapter.client.called_tool_names)
 
     # Step 3: Determine Classification & Verdict & Next Step
     if blocker_found:

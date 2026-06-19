@@ -9,11 +9,18 @@
   "blockers": [],
   "call_budget": {
     "max_mcp_tool_calls": 5,
-    "mcp_session_calls_made": 5,
-    "mcp_tool_calls_made": 0,
+    "mcp_session_calls_made": 0,
+    "mcp_tool_calls_made": 5,
     "rest_calls_made": 0,
     "stopped_on_429": false
   },
+  "called_tool_names": [
+    "flashscore_get_competition_results",
+    "flashscore_get_match_stats",
+    "flashscore_get_match_events",
+    "flashscore_get_match_lineups",
+    "flashscore_get_competition_standings"
+  ],
   "certification": {
     "certified_routes": [],
     "production_routing_changed": false,
@@ -67,6 +74,13 @@
     "selected_season": "2025-2026",
     "selected_sport_key": "football"
   },
+  "mcp_tool_calls": [
+    "flashscore_get_competition_results",
+    "flashscore_get_match_stats",
+    "flashscore_get_match_events",
+    "flashscore_get_match_lineups",
+    "flashscore_get_competition_standings"
+  ],
   "next_step": "P2E_A5_SPORTDB_REPLAY_COMPARISON_AGAINST_ACCEPTED_PROVIDERS",
   "phase_id": "P2E_A4_SPORTDB_SHADOW_ADAPTER_MINIMAL",
   "previous_accepted_sha": "25db7518569384858969b545d82b46e10eb87206",
