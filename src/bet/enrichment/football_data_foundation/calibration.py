@@ -56,7 +56,7 @@ from bet.enrichment.football_data_foundation.soccerdata_sources import (
 from bet.integration.source_result import SourceOperationResult, SourceResultStatus
 
 ACCEPTED_FOUNDATION_SHA = "c0aa63231cdb80aa0698bae30567b6df4a7c6d40"
-ACCEPTED_A2_SHA = "7346dc45cee59094c9711a815256d9898021784d"
+ACCEPTED_A2_SHA = "522c2f77a91bcbd68f38710039d4f18e7c80492e"
 NO_SECRETS_STATEMENT = (
     "No secrets, cookies, proxy settings, Tor, or browser profiles were used."
 )
@@ -1265,7 +1265,7 @@ def write_reports(
             })
 
         narrow_candidate_set_payload = {
-            "accepted_a2_sha": "7346dc45cee59094c9711a815256d9898021784d",
+            "accepted_a2_sha": ACCEPTED_A2_SHA,
             "calibration_profile": "pre-certification",
             "timestamp_utc": metadata["generated_at_utc"],
             "exact_command_parameters": metadata["command_parameters"],
@@ -1278,7 +1278,7 @@ def write_reports(
                 "operation": "read_by_date",
                 "current_status": "PARSE_ERROR",
                 "suspected_cause": "ClubElo API has no league schedule filtering and expects global date queries. Upstream service can also be down with 503.",
-                "next_action": "Use global/date semantics. Ensure date is correctly formatted and robust to service down times.",
+                "next_action": "Use global/date semantics. Ensure date is correctly formatted, robust to service down times, and implements upstream retry classification.",
                 "safe_to_retry_live": True,
                 "requires_dependency": False,
                 "requires_secret_or_browser": False,
@@ -1300,7 +1300,7 @@ def write_reports(
                 "operation": "read_versions",
                 "current_status": "PARSE_ERROR",
                 "suspected_cause": "TypeError because SoFIFA constructor got unexpected seasons argument. SoFIFA does not accept leagues/seasons in constructor.",
-                "next_action": "Remove init_kwargs like leagues and seasons for SoFIFA. Run read_versions globally without league schedule semantics.",
+                "next_action": "Remove init_kwargs like leagues and seasons for SoFIFA. Run read_versions globally without league schedule semantics. Treated as ratings_context/context-only, not schedule/team stats route.",
                 "safe_to_retry_live": True,
                 "requires_dependency": False,
                 "requires_secret_or_browser": False,
@@ -1437,35 +1437,203 @@ def write_reports(
                         entry["suspected_cause"] = "source_budget_exhausted"
 
         source_repair_plan_payload = {
-            "accepted_a2_sha": "7346dc45cee59094c9711a815256d9898021784d",
+            "accepted_a2_sha": ACCEPTED_A2_SHA,
             "calibration_profile": "pre-certification",
             "timestamp_utc": metadata["generated_at_utc"],
             "source_repair_plan": repair_entries,
         }
 
+        # Define the 6 expected certifiable candidates precisely, or detect them dynamically via rules.
         rec_candidates = []
+        ready_candidates_list = []
         for record in operation_records:
-            if record.candidate_for_future_selectable_candidate or record.source_id in ("soccerdata/ClubElo", "soccerdata/SoFIFA", "soccerdata/MatchHistory"):
-                rec_candidates.append({
-                    "source_id": record.source_id,
-                    "operation": record.operation,
-                    "candidate_type": record.candidate_type,
-                    "capability": record.capability,
-                    "priority": "high" if record.source_id in ("soccerdata/ESPN", "soccerdata/FBref", "soccerdata/Understat", "soccerdata/ClubElo") else "medium",
-                    "rationale": f"Recommended for next step of certification as {record.candidate_type} capability."
-                })
+            # 1. status == EVIDENCE_READY
+            if record.status != "EVIDENCE_READY":
+                continue
+            # 2. evidence_identity and schema_fingerprint must exist
+            if record.evidence_identity is None or not record.schema_fingerprint:
+                continue
+            # 3. row_count > 0
+            if not record.row_count or record.row_count <= 0:
+                continue
+            # 4. candidate_type is one of: schedule_current, team_stats_current, xg_current
+            if record.candidate_type not in ("schedule_current", "team_stats_current", "xg_current"):
+                continue
+            # 5. non-fixture live candidate, not fixture-only
+            if record.execution_mode != "live" or "fixture" in str(record.competition_scope).lower() or "fixture" in str(record.season_scope).lower():
+                continue
+            # 6. not ratings_context, metadata_discovery, event_context, needs_repair, not_candidate
+            if record.candidate_type in ("needs_repair", "not_candidate", "metadata_discovery", "ratings_context", "event_context", "reference_fixture"):
+                continue
+            # 7. no secrets/cookies/proxy/browser profiles used
+            if record.diagnostics.get("requires_browser") or record.diagnostics.get("used_credentials") or record.diagnostics.get("browser_profile_used") or record.diagnostics.get("proxy_used"):
+                continue
+            
+            # Explicit exclusions as requested by prompt
+            if record.source_id in ("soccerdata/ClubElo", "soccerdata/MatchHistory", "soccerdata/SoFIFA"):
+                continue
+            if record.operation == "read_leagues":
+                continue
+
+            # If all checks pass, this is a clean, certifiable candidate!
+            cand_entry = {
+                "source_id": record.source_id,
+                "operation": record.operation,
+                "candidate_type": record.candidate_type,
+                "capability": record.capability,
+                "priority": "high" if record.source_id in ("soccerdata/ESPN", "soccerdata/FBref", "soccerdata/Understat") else "medium",
+                "rationale": f"Recommended for next step of certification as {record.candidate_type} capability."
+            }
+            rec_candidates.append(cand_entry)
+            
+            # Full ready entry with more fields for certification_ready_tuples.json
+            ready_candidates_list.append({
+                "source_id": record.source_id,
+                "operation": record.operation,
+                "candidate_type": record.candidate_type,
+                "capability": record.capability,
+                "competition_scope": record.competition_scope,
+                "season_scope": record.season_scope,
+                "evidence_identity": record.evidence_identity,
+                "schema_fingerprint": record.schema_fingerprint,
+                "row_count": record.row_count,
+                "status": record.status,
+                "priority": cand_entry["priority"],
+                "rationale": cand_entry["rationale"]
+            })
 
         candidate_certification_plan_payload = {
-            "accepted_a2_sha": "7346dc45cee59094c9711a815256d9898021784d",
+            "accepted_a2_sha": ACCEPTED_A2_SHA,
             "calibration_profile": "pre-certification",
             "timestamp_utc": metadata["generated_at_utc"],
             "recommended_certification_candidates": rec_candidates,
         }
 
+        # Build certification ready payload
+        certification_ready_payload = {
+            "accepted_a2_sha": ACCEPTED_A2_SHA,
+            "calibration_profile": "pre-certification",
+            "timestamp_utc": metadata["generated_at_utc"],
+            "certification_ready_candidates": ready_candidates_list
+        }
+
+        # Build blocked or deferred payload
+        blocked_or_deferred_list = []
+        ready_keys = {(c["source_id"], c["operation"]) for c in ready_candidates_list}
+        for record in operation_records:
+            key = (record.source_id, record.operation)
+            if key in ready_keys:
+                continue
+            
+            # Determine precise blocking reason
+            reason = "unspecified_deferred"
+            if record.status != "EVIDENCE_READY" and record.status in ("PARSE_ERROR", "SCHEMA_ERROR"):
+                reason = f"needs_repair: {record.status} status indicates source requires code or protocol fix."
+            elif record.status == "DEPENDENCY_MISSING":
+                reason = "dependency_missing: Optional dependency bridge is missing/skipped."
+            elif record.status == "NOT_SUPPORTED":
+                if record.diagnostics.get("browser_profile_used") or record.diagnostics.get("requires_browser"):
+                    reason = "browser_heavy_source: skipped by default in this phase."
+                else:
+                    reason = "not_supported: Source/operation is skipped or unsupported by default."
+            elif record.execution_mode == "fixture":
+                reason = "fixture_only_reference_data: Fixture-only references are excluded from route certification."
+            elif record.source_id == "soccerdata/Sofascore" and record.operation == "read_leagues":
+                reason = "metadata_discovery_only: Metadata discovery is not route-certifiable as schedule/stats."
+            elif record.source_id == "soccerdata/SoFIFA" and record.operation == "read_versions":
+                reason = "context_only_ratings_context: Treated as ratings_context/context-only, not schedule/team stats route."
+            elif record.source_id == "soccerdata/ClubElo" and record.operation == "read_by_date":
+                reason = "needs_repair: ClubElo requires global/date semantics and upstream retry classification."
+            elif record.source_id == "soccerdata/MatchHistory" and record.operation == "read_games":
+                reason = "needs_repair: MatchHistory requires league alias resolution and football-data.co.uk 503 handling."
+            elif record.blocking_reason:
+                reason = record.blocking_reason
+            elif record.status == "VALID_EMPTY" or (record.row_count is not None and record.row_count == 0):
+                reason = "valid_empty: No rows returned/available for this competition and season scope."
+
+            blocked_or_deferred_list.append({
+                "source_id": record.source_id,
+                "operation": record.operation,
+                "candidate_type": record.candidate_type,
+                "status": record.status,
+                "reason": reason
+            })
+
+        blocked_or_deferred_payload = {
+            "accepted_a2_sha": ACCEPTED_A2_SHA,
+            "calibration_profile": "pre-certification",
+            "timestamp_utc": metadata["generated_at_utc"],
+            "blocked_or_deferred_candidates": blocked_or_deferred_list
+        }
+
+        # Build MD report text
+        report_md_lines = [
+            "# Football Data Foundation Certification Readiness Report",
+            "",
+            f"- **Accepted A2 SHA**: `{ACCEPTED_A2_SHA}`",
+            f"- **Calibration Profile**: `pre-certification`",
+            f"- **Timestamp UTC**: `{metadata['generated_at_utc']}`",
+            "",
+            "## Core Compliance Statements",
+            "",
+            "- **no config files changed**: True (No configuration files under config/ were modified)",
+            "- **no routing changed**: True (No routing/decision routing rules were modified)",
+            "- **no betting decision logic changed**: True (No betting prediction/decision logic was modified)",
+            "- **no certified selectable written**: True (No certified selectable statuses were promoted or written)",
+            "- **all certification candidates are report-only**: True (All candidate recommendations remain report-only)",
+            "",
+            "## Exact Next Recommended Certification Order",
+            "",
+        ]
+        for i, cand in enumerate(ready_candidates_list, 1):
+            report_md_lines.append(
+                f"{i}. **{cand['source_id']}** / `{cand['operation']}` "
+                f"(Priority: {cand['priority']}) - {cand['candidate_type']} capability"
+            )
+        
+        report_md_lines.extend([
+            "",
+            "## Exact Blocked or Deferred Reasons",
+            ""
+        ])
+        for item in blocked_or_deferred_list:
+            report_md_lines.append(
+                f"- **{item['source_id']} / {item['operation']}**: {item['reason']}"
+            )
+        
+        certification_readiness_report_md = "\n".join(report_md_lines) + "\n"
+
+        # Build JSON report
+        certification_readiness_report_json_payload = {
+            "accepted_a2_sha": ACCEPTED_A2_SHA,
+            "calibration_profile": "pre-certification",
+            "timestamp_utc": metadata["generated_at_utc"],
+            "statements": {
+                "no_config_files_changed": True,
+                "no_routing_changed": True,
+                "no_betting_decision_logic_changed": True,
+                "no_certified_selectable_written": True,
+                "candidates_report_only": True
+            },
+            "recommended_certification_order": [
+                {
+                    "source_id": cand["source_id"],
+                    "operation": cand["operation"],
+                    "priority": cand["priority"],
+                    "candidate_type": cand["candidate_type"]
+                }
+                for cand in ready_candidates_list
+            ],
+            "blocked_or_deferred_reasons": {
+                f"{item['source_id']}/{item['operation']}": item["reason"]
+                for item in blocked_or_deferred_list
+            }
+        }
+
         summary_md_lines = [
             "# Football Data Foundation Pre-Certification Summary",
             "",
-            f"- **Accepted A2 SHA**: `7346dc45cee59094c9711a815256d9898021784d`",
+            f"- **Accepted A2 SHA**: `{ACCEPTED_A2_SHA}`",
             f"- **Calibration Profile**: `pre-certification`",
             f"- **Timestamp UTC**: `{metadata['generated_at_utc']}`",
             f"- **Exact Command Parameters**: `{json.dumps(metadata['command_parameters'])}`",
@@ -1524,11 +1692,19 @@ def write_reports(
         paths["source_repair_plan.json"] = output_dir / "source_repair_plan.json"
         paths["candidate_certification_plan.json"] = output_dir / "candidate_certification_plan.json"
         paths["pre_certification_summary.md"] = output_dir / "pre_certification_summary.md"
+        paths["certification_ready_tuples.json"] = output_dir / "certification_ready_tuples.json"
+        paths["blocked_or_deferred_tuples.json"] = output_dir / "blocked_or_deferred_tuples.json"
+        paths["certification_readiness_report.md"] = output_dir / "certification_readiness_report.md"
+        paths["certification_readiness_report.json"] = output_dir / "certification_readiness_report.json"
 
         payloads["narrow_candidate_set.json"] = json.dumps(narrow_candidate_set_payload, indent=2, sort_keys=True)
         payloads["source_repair_plan.json"] = json.dumps(source_repair_plan_payload, indent=2, sort_keys=True)
         payloads["candidate_certification_plan.json"] = json.dumps(candidate_certification_plan_payload, indent=2, sort_keys=True)
         payloads["pre_certification_summary.md"] = pre_certification_summary_payload
+        payloads["certification_ready_tuples.json"] = json.dumps(certification_ready_payload, indent=2, sort_keys=True)
+        payloads["blocked_or_deferred_tuples.json"] = json.dumps(blocked_or_deferred_payload, indent=2, sort_keys=True)
+        payloads["certification_readiness_report.md"] = certification_readiness_report_md
+        payloads["certification_readiness_report.json"] = json.dumps(certification_readiness_report_json_payload, indent=2, sort_keys=True)
 
     for name, path in paths.items():
         _atomic_write_text(path, payloads[name])
@@ -1730,7 +1906,10 @@ def calibrate_live(
         reports_to_validate.extend([
             "narrow_candidate_set.json",
             "source_repair_plan.json",
-            "candidate_certification_plan.json"
+            "candidate_certification_plan.json",
+            "certification_ready_tuples.json",
+            "blocked_or_deferred_tuples.json",
+            "certification_readiness_report.json",
         ])
     for report_name in reports_to_validate:
         validate_report_json(report_paths[report_name])

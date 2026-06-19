@@ -1,10 +1,10 @@
 {
-  "accepted_a2_sha": "7346dc45cee59094c9711a815256d9898021784d",
+  "accepted_a2_sha": "522c2f77a91bcbd68f38710039d4f18e7c80492e",
   "calibration_profile": "pre-certification",
   "source_repair_plan": [
     {
       "current_status": "PARSE_ERROR",
-      "next_action": "Use global/date semantics. Ensure date is correctly formatted and robust to service down times.",
+      "next_action": "Use global/date semantics. Ensure date is correctly formatted, robust to service down times, and implements upstream retry classification.",
       "operation": "read_by_date",
       "priority": "high",
       "requires_dependency": false,
@@ -26,7 +26,7 @@
     },
     {
       "current_status": "EVIDENCE_READY",
-      "next_action": "Remove init_kwargs like leagues and seasons for SoFIFA. Run read_versions globally without league schedule semantics.",
+      "next_action": "Remove init_kwargs like leagues and seasons for SoFIFA. Run read_versions globally without league schedule semantics. Treated as ratings_context/context-only, not schedule/team stats route.",
       "operation": "read_versions",
       "priority": "high",
       "requires_dependency": false,
@@ -157,5 +157,5 @@
       "suspected_cause": "Optional dependency mplsoccer is missing or skipped as import smoke"
     }
   ],
-  "timestamp_utc": "2026-06-19T16:55:31.605897+00:00"
+  "timestamp_utc": "2026-06-19T17:27:13.199708+00:00"
 }

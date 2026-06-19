@@ -1,0 +1,74 @@
+{
+  "accepted_a2_sha": "522c2f77a91bcbd68f38710039d4f18e7c80492e",
+  "blocked_or_deferred_reasons": {
+    "event_model/floodlight_bridge/load_events": "dependency_missing: Optional dependency bridge is missing/skipped.",
+    "event_model/kloppy_bridge/load_tracking_data": "dependency_missing: Optional dependency bridge is missing/skipped.",
+    "event_model/mplsoccer_bridge/draw_pitch": "dependency_missing: Optional dependency bridge is missing/skipped.",
+    "event_model/socceraction_bridge/convert_events": "dependency_missing: Optional dependency bridge is missing/skipped.",
+    "open_reference/FootballDataOrg/get_fixtures_result": "not_supported: Source/operation is skipped or unsupported by default.",
+    "open_reference/KaggleEuropeanSoccer/read_matches": "fixture_only_reference_data: Fixture-only references are excluded from route certification.",
+    "open_reference/OpenFootball/read_matches": "fixture_only_reference_data: Fixture-only references are excluded from route certification.",
+    "open_reference/StatsBombOpenData/read_matches": "fixture_only_reference_data: Fixture-only references are excluded from route certification.",
+    "open_reference/StatsBombPy/competitions": "dependency_missing: Optional dependency bridge is missing/skipped.",
+    "rich_unofficial/FotMobProbe/probe_matches": "fixture_only_reference_data: Fixture-only references are excluded from route certification.",
+    "rich_unofficial/ScraperFCSofascore/read_match_stats": "browser_heavy_source: skipped by default in this phase.",
+    "rich_unofficial/SofaScoreRichProbe/probe_stats": "fixture_only_reference_data: Fixture-only references are excluded from route certification.",
+    "soccerdata/ClubElo/read_by_date": "needs_repair: PARSE_ERROR status indicates source requires code or protocol fix.",
+    "soccerdata/FBref/read_team_match_stats": "budget_exhausted",
+    "soccerdata/FiveThirtyEight/availability_probe": "not_supported: Source/operation is skipped or unsupported by default.",
+    "soccerdata/MatchHistory/read_games": "needs_repair: PARSE_ERROR status indicates source requires code or protocol fix.",
+    "soccerdata/SoFIFA/read_versions": "context_only_ratings_context: Treated as ratings_context/context-only, not schedule/team stats route.",
+    "soccerdata/Sofascore/read_leagues": "metadata_discovery_only: Metadata discovery is not route-certifiable as schedule/stats.",
+    "soccerdata/Understat/read_shot_events": "not_supported: Source/operation is skipped or unsupported by default.",
+    "soccerdata/WhoScored/read_events": "browser_heavy_source: skipped by default in this phase.",
+    "soccerdata/WhoScored/read_missing_players": "browser_heavy_source: skipped by default in this phase.",
+    "soccerdata/WhoScored/read_schedule": "browser_heavy_source: skipped by default in this phase."
+  },
+  "calibration_profile": "pre-certification",
+  "recommended_certification_order": [
+    {
+      "candidate_type": "schedule_current",
+      "operation": "read_schedule",
+      "priority": "high",
+      "source_id": "soccerdata/ESPN"
+    },
+    {
+      "candidate_type": "schedule_current",
+      "operation": "read_schedule",
+      "priority": "high",
+      "source_id": "soccerdata/FBref"
+    },
+    {
+      "candidate_type": "team_stats_current",
+      "operation": "read_team_season_stats",
+      "priority": "high",
+      "source_id": "soccerdata/FBref"
+    },
+    {
+      "candidate_type": "schedule_current",
+      "operation": "read_schedule",
+      "priority": "medium",
+      "source_id": "soccerdata/Sofascore"
+    },
+    {
+      "candidate_type": "schedule_current",
+      "operation": "read_schedule",
+      "priority": "high",
+      "source_id": "soccerdata/Understat"
+    },
+    {
+      "candidate_type": "xg_current",
+      "operation": "read_team_match_stats",
+      "priority": "high",
+      "source_id": "soccerdata/Understat"
+    }
+  ],
+  "statements": {
+    "candidates_report_only": true,
+    "no_betting_decision_logic_changed": true,
+    "no_certified_selectable_written": true,
+    "no_config_files_changed": true,
+    "no_routing_changed": true
+  },
+  "timestamp_utc": "2026-06-19T17:27:13.199708+00:00"
+}

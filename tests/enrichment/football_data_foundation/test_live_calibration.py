@@ -478,6 +478,16 @@ def test_candidate_type_taxonomy_and_pre_certification_policies(tmp_path: Path, 
     # 13. no unit test performs real network calls.
     # 14. reports include no config/routing/prediction logic changed statement.
 
+    # Mock soccerdata.MatchHistory to be completely offline and fail on init
+    class OfflineMatchHistorySD:
+        def __init__(self, *args, **kwargs):
+            raise RuntimeError("Network calls are disabled in tests.")
+        @staticmethod
+        def available_leagues():
+            return ["ENG-Premier League", "ESP-La Liga", "FRA-Ligue 1", "GER-Bundesliga", "ITA-Serie A"]
+
+    monkeypatch.setattr("soccerdata.MatchHistory", OfflineMatchHistorySD)
+
     # Mock MatchHistory Connector Execute to verify alias resolution
     from bet.enrichment.football_data_foundation.soccerdata_sources.matchhistory import MatchHistoryConnector
     mh = MatchHistoryConnector()
@@ -579,11 +589,15 @@ def test_candidate_type_taxonomy_and_pre_certification_policies(tmp_path: Path, 
 
     result = calibrate_live(opts, connectors=[connector_espn, connector_sofascore, connector_clubelo])
     
-    # 10. Pre-certification profile writes all four report files.
+    # 10. Pre-certification profile writes all report files.
     assert (opts.output_dir / "narrow_candidate_set.json").exists()
     assert (opts.output_dir / "source_repair_plan.json").exists()
     assert (opts.output_dir / "candidate_certification_plan.json").exists()
     assert (opts.output_dir / "pre_certification_summary.md").exists()
+    assert (opts.output_dir / "certification_ready_tuples.json").exists()
+    assert (opts.output_dir / "blocked_or_deferred_tuples.json").exists()
+    assert (opts.output_dir / "certification_readiness_report.md").exists()
+    assert (opts.output_dir / "certification_readiness_report.json").exists()
 
     # 11. No CERTIFIED_SELECTABLE appears anywhere in certification planning reports.
     for report_file in opts.output_dir.iterdir():
@@ -593,6 +607,10 @@ def test_candidate_type_taxonomy_and_pre_certification_policies(tmp_path: Path, 
     # 14. Reports include no config/routing/prediction logic changed statement.
     summary_content = (opts.output_dir / "pre_certification_summary.md").read_text(encoding="utf-8")
     assert "No config, routing, or betting prediction/decision logic was changed" in summary_content
+    readiness_md = (opts.output_dir / "certification_readiness_report.md").read_text(encoding="utf-8")
+    assert "no config files changed" in readiness_md
+    assert "no routing changed" in readiness_md
+    assert "no betting decision logic changed" in readiness_md
 
     # 2. Sofascore read_leagues cannot be schedule_current/team_stats_current.
     # 8. narrow_candidate_set excludes metadata_discovery from live route candidates.
@@ -617,3 +635,39 @@ def test_candidate_type_taxonomy_and_pre_certification_policies(tmp_path: Path, 
     # ESPN and ClubElo should be present
     assert any(c["source_id"] == "soccerdata/ESPN" for c in narrow_candidates)
     assert any(c["source_id"] == "soccerdata/ClubElo" for c in narrow_candidates)
+
+    # MANDATORY FIX 4 Checks:
+    # 1. candidate_certification_plan.json contains no needs_repair entries.
+    cert_plan_data = json.loads((opts.output_dir / "candidate_certification_plan.json").read_text(encoding="utf-8"))
+    recs = cert_plan_data["recommended_certification_candidates"]
+    assert not any(c["candidate_type"] == "needs_repair" for c in recs)
+    # 2. candidate_certification_plan.json contains no not_candidate entries.
+    assert not any(c["candidate_type"] == "not_candidate" for c in recs)
+    # 3. candidate_certification_plan.json contains no metadata_discovery-only entries.
+    assert not any(c["candidate_type"] == "metadata_discovery" for c in recs)
+    # 4. candidate_certification_plan.json contains no fixture-only reference entries.
+    assert not any(c["candidate_type"] == "reference_fixture" for c in recs)
+
+    # 5. certification_ready_tuples.json contains only EVIDENCE_READY entries.
+    ready_data = json.loads((opts.output_dir / "certification_ready_tuples.json").read_text(encoding="utf-8"))
+    ready_tuples = ready_data["certification_ready_candidates"]
+    for t in ready_tuples:
+        assert t["status"] == "EVIDENCE_READY"
+        # 6. certification_ready_tuples.json requires evidence_identity and schema_fingerprint.
+        assert "evidence_identity" in t and t["evidence_identity"] is not None
+        assert "schema_fingerprint" in t and t["schema_fingerprint"]
+
+    # 7. certification_ready_tuples.json excludes ClubElo/read_by_date while needs_repair.
+    assert not any(t["source_id"] == "soccerdata/ClubElo" for t in ready_tuples)
+    # 8. certification_ready_tuples.json excludes MatchHistory/read_games while needs_repair.
+    assert not any(t["source_id"] == "soccerdata/MatchHistory" for t in ready_tuples)
+    # 9. certification_ready_tuples.json excludes Sofascore/read_leagues.
+    assert not any(t["source_id"] == "soccerdata/Sofascore" and t["operation"] == "read_leagues" for t in ready_tuples)
+    # 10. SoFIFA/read_versions is context-only and excluded from route certification readiness unless explicitly marked non-route.
+    assert not any(t["source_id"] == "soccerdata/SoFIFA" for t in ready_tuples)
+
+    # 11. blocked_or_deferred_tuples.json includes all excluded/deferred sources with reasons.
+    blocked_data = json.loads((opts.output_dir / "blocked_or_deferred_tuples.json").read_text(encoding="utf-8"))
+    blocked_tuples = blocked_data["blocked_or_deferred_candidates"]
+    assert any(b["source_id"] == "soccerdata/ClubElo" for b in blocked_tuples)
+    assert any(b["source_id"] == "soccerdata/Sofascore" and b["operation"] == "read_leagues" for b in blocked_tuples)

@@ -1,15 +1,7 @@
 {
-  "accepted_a2_sha": "7346dc45cee59094c9711a815256d9898021784d",
+  "accepted_a2_sha": "522c2f77a91bcbd68f38710039d4f18e7c80492e",
   "calibration_profile": "pre-certification",
   "recommended_certification_candidates": [
-    {
-      "candidate_type": "needs_repair",
-      "capability": "current_recent_form",
-      "operation": "read_by_date",
-      "priority": "high",
-      "rationale": "Recommended for next step of certification as needs_repair capability.",
-      "source_id": "soccerdata/ClubElo"
-    },
     {
       "candidate_type": "schedule_current",
       "capability": "current_discovery",
@@ -35,28 +27,12 @@
       "source_id": "soccerdata/FBref"
     },
     {
-      "candidate_type": "needs_repair",
-      "capability": "h2h_head_to_head",
-      "operation": "read_games",
-      "priority": "medium",
-      "rationale": "Recommended for next step of certification as needs_repair capability.",
-      "source_id": "soccerdata/MatchHistory"
-    },
-    {
       "candidate_type": "schedule_current",
       "capability": "current_discovery",
       "operation": "read_schedule",
       "priority": "medium",
       "rationale": "Recommended for next step of certification as schedule_current capability.",
       "source_id": "soccerdata/Sofascore"
-    },
-    {
-      "candidate_type": "ratings_context",
-      "capability": "current_recent_form",
-      "operation": "read_versions",
-      "priority": "medium",
-      "rationale": "Recommended for next step of certification as ratings_context capability.",
-      "source_id": "soccerdata/SoFIFA"
     },
     {
       "candidate_type": "schedule_current",
@@ -75,5 +51,5 @@
       "source_id": "soccerdata/Understat"
     }
   ],
-  "timestamp_utc": "2026-06-19T16:55:31.605897+00:00"
+  "timestamp_utc": "2026-06-19T17:27:13.199708+00:00"
 }

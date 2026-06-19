@@ -1,8 +1,8 @@
 # Football Data Foundation Pre-Certification Summary
 
-- **Accepted A2 SHA**: `7346dc45cee59094c9711a815256d9898021784d`
+- **Accepted A2 SHA**: `522c2f77a91bcbd68f38710039d4f18e7c80492e`
 - **Calibration Profile**: `pre-certification`
-- **Timestamp UTC**: `2026-06-19T16:55:31.605897+00:00`
+- **Timestamp UTC**: `2026-06-19T17:27:13.199708+00:00`
 - **Exact Command Parameters**: `{"league": "ENG-Premier League", "season": 2024, "max_rows": 5, "output_dir": "reports/football_data_foundation/certification_planning", "source_budget": 2, "operation_timeout_seconds": 90, "include_browser_sources": false, "include_heavy_sources": false, "offline_fixture_baseline": true, "write_samples": false, "sample_row_limit": 3, "invoked_command": "calibrate-live", "calibration_profile": "pre-certification"}`
 - **No config, routing, or betting prediction/decision logic was changed.**
 - **No secrets, cookies, proxy settings, Tor, or browser profiles were used.**
@@ -45,9 +45,9 @@
 
 | Source ID | Operation | Suspected Cause | Recommended Next Action | Priority |
 |-----------|-----------|-----------------|-------------------------|----------|
-| `soccerdata/ClubElo` | `read_by_date` | ClubElo API has no league schedule filtering and expects global date queries. Upstream service can also be down with 503. | Use global/date semantics. Ensure date is correctly formatted and robust to service down times. | `high` |
+| `soccerdata/ClubElo` | `read_by_date` | ClubElo API has no league schedule filtering and expects global date queries. Upstream service can also be down with 503. | Use global/date semantics. Ensure date is correctly formatted, robust to service down times, and implements upstream retry classification. | `high` |
 | `soccerdata/MatchHistory` | `read_games` | Upstream football-data.co.uk service was offline returning 503, or league/season human label was passed raw instead of using explicit alias resolution mapping. | Implement robust league alias resolution mapping. Gracefully handle HTTP 503 / ConnectionError from football-data.co.uk. | `high` |
-| `soccerdata/SoFIFA` | `read_versions` | TypeError because SoFIFA constructor got unexpected seasons argument. SoFIFA does not accept leagues/seasons in constructor. | Remove init_kwargs like leagues and seasons for SoFIFA. Run read_versions globally without league schedule semantics. | `high` |
+| `soccerdata/SoFIFA` | `read_versions` | TypeError because SoFIFA constructor got unexpected seasons argument. SoFIFA does not accept leagues/seasons in constructor. | Remove init_kwargs like leagues and seasons for SoFIFA. Run read_versions globally without league schedule semantics. Treated as ratings_context/context-only, not schedule/team stats route. | `high` |
 | `soccerdata/FBref` | `read_team_match_stats` | source_budget_exhausted | Increase source_budget parameter to 3 or run with specific rich stats selection under pre-certification profile. | `medium` |
 | `soccerdata/Understat` | `read_team_match_stats` | source_budget_exhausted | Increase source_budget parameter to 2 or run with specific rich stats selection. | `medium` |
 | `soccerdata/WhoScored` | `read_schedule` | browser_source_disabled | Ensure browser-heavy scrapers are correctly skipped by default. Enable only when headless Playwright is pre-certified and safe. | `low` |
@@ -64,12 +64,9 @@
 
 The following exact tuples are recommended for the next phase of candidate certification:
 
-- **Tuple**: (`"soccerdata/ClubElo"`, `"read_by_date"`, `"needs_repair"`, `"current_recent_form"`) - Priority: high
 - **Tuple**: (`"soccerdata/ESPN"`, `"read_schedule"`, `"schedule_current"`, `"current_discovery"`) - Priority: high
 - **Tuple**: (`"soccerdata/FBref"`, `"read_schedule"`, `"schedule_current"`, `"current_discovery"`) - Priority: high
 - **Tuple**: (`"soccerdata/FBref"`, `"read_team_season_stats"`, `"team_stats_current"`, `"fixture_team_statistics"`) - Priority: high
-- **Tuple**: (`"soccerdata/MatchHistory"`, `"read_games"`, `"needs_repair"`, `"h2h_head_to_head"`) - Priority: medium
 - **Tuple**: (`"soccerdata/Sofascore"`, `"read_schedule"`, `"schedule_current"`, `"current_discovery"`) - Priority: medium
-- **Tuple**: (`"soccerdata/SoFIFA"`, `"read_versions"`, `"ratings_context"`, `"current_recent_form"`) - Priority: medium
 - **Tuple**: (`"soccerdata/Understat"`, `"read_schedule"`, `"schedule_current"`, `"current_discovery"`) - Priority: high
 - **Tuple**: (`"soccerdata/Understat"`, `"read_team_match_stats"`, `"xg_current"`, `"fixture_team_statistics"`) - Priority: high

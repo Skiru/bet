@@ -1,24 +1,10 @@
 {
   "accepted_a2_sha": "522c2f77a91bcbd68f38710039d4f18e7c80492e",
   "calibration_profile": "pre-certification",
-  "exact_command_parameters": {
-    "calibration_profile": "pre-certification",
-    "include_browser_sources": false,
-    "include_heavy_sources": false,
-    "invoked_command": "calibrate-live",
-    "league": "ENG-Premier League",
-    "max_rows": 5,
-    "offline_fixture_baseline": true,
-    "operation_timeout_seconds": 90,
-    "output_dir": "reports/football_data_foundation/certification_planning",
-    "sample_row_limit": 3,
-    "season": 2024,
-    "source_budget": 2,
-    "write_samples": false
-  },
-  "narrow_candidate_set": [
+  "certification_ready_candidates": [
     {
       "candidate_type": "schedule_current",
+      "capability": "current_discovery",
       "competition_scope": "ENG-Premier League",
       "evidence_identity": {
         "capability": "current_discovery",
@@ -38,6 +24,8 @@
         "source_family": "soccerdata"
       },
       "operation": "read_schedule",
+      "priority": "high",
+      "rationale": "Recommended for next step of certification as schedule_current capability.",
       "row_count": 380,
       "schema_fingerprint": "70a866de63099cda38dde49378d128285f99404ab17e6507e8b9a05f8919f137",
       "season_scope": "2024",
@@ -46,6 +34,7 @@
     },
     {
       "candidate_type": "schedule_current",
+      "capability": "current_discovery",
       "competition_scope": "ENG-Premier League",
       "evidence_identity": {
         "capability": "current_discovery",
@@ -65,6 +54,8 @@
         "source_family": "soccerdata"
       },
       "operation": "read_schedule",
+      "priority": "high",
+      "rationale": "Recommended for next step of certification as schedule_current capability.",
       "row_count": 380,
       "schema_fingerprint": "3c0357042bd132ba148cf065d69349fde512f0069145eaf6606fe54afa5ce546",
       "season_scope": "2024",
@@ -73,6 +64,7 @@
     },
     {
       "candidate_type": "team_stats_current",
+      "capability": "fixture_team_statistics",
       "competition_scope": "ENG-Premier League",
       "evidence_identity": {
         "capability": "fixture_team_statistics",
@@ -92,6 +84,8 @@
         "source_family": "soccerdata"
       },
       "operation": "read_team_season_stats",
+      "priority": "high",
+      "rationale": "Recommended for next step of certification as team_stats_current capability.",
       "row_count": 20,
       "schema_fingerprint": "fb731f6a95abe9ce7c6e590f6fb3ed962f414983877cdf6be5b79588bd7c8556",
       "season_scope": "2024",
@@ -100,6 +94,7 @@
     },
     {
       "candidate_type": "schedule_current",
+      "capability": "current_discovery",
       "competition_scope": "ENG-Premier League",
       "evidence_identity": {
         "capability": "current_discovery",
@@ -119,6 +114,8 @@
         "source_family": "soccerdata"
       },
       "operation": "read_schedule",
+      "priority": "medium",
+      "rationale": "Recommended for next step of certification as schedule_current capability.",
       "row_count": 380,
       "schema_fingerprint": "74f18ad007208167495609ecb08faac2bbce6ee126c6a6e550664a068486becf",
       "season_scope": "2024",
@@ -126,34 +123,8 @@
       "status": "EVIDENCE_READY"
     },
     {
-      "candidate_type": "ratings_context",
-      "competition_scope": "global",
-      "evidence_identity": {
-        "capability": "current_recent_form",
-        "competition_scope": "global",
-        "data_fingerprint": "fb3f4a924f3b5c74833dbc4b2290221969a662f1459cc73d37f744dcdbca5abb",
-        "diagnostics_hash": "7a38fc937d95f7a36621b2825f209a11b894780c8ff5edb378eb1d6e5ede4585",
-        "normalization_version": "football_foundation_v2",
-        "operation": "read_versions",
-        "parser_version": "football_foundation_v2",
-        "provider": "soccerdata",
-        "request_identity": "soccerdata.SoFIFA.read_versions",
-        "retrieved_at": "2026-06-19T17:27:20.494116+00:00",
-        "row_count": 855,
-        "schema_fingerprint": "4b3da288300931b1309e673fd5aade99465433042a6da74797f64f9846350338",
-        "season_scope": "global",
-        "source_class": "SoFIFA",
-        "source_family": "soccerdata"
-      },
-      "operation": "read_versions",
-      "row_count": 855,
-      "schema_fingerprint": "4b3da288300931b1309e673fd5aade99465433042a6da74797f64f9846350338",
-      "season_scope": "global",
-      "source_id": "soccerdata/SoFIFA",
-      "status": "EVIDENCE_READY"
-    },
-    {
       "candidate_type": "schedule_current",
+      "capability": "current_discovery",
       "competition_scope": "ENG-Premier League",
       "evidence_identity": {
         "capability": "current_discovery",
@@ -173,6 +144,8 @@
         "source_family": "soccerdata"
       },
       "operation": "read_schedule",
+      "priority": "high",
+      "rationale": "Recommended for next step of certification as schedule_current capability.",
       "row_count": 380,
       "schema_fingerprint": "c6daae5c86becfdac06c0d8e68d024f112c7e47527fcd7c90a1c2474452e3b23",
       "season_scope": "2024",
@@ -181,6 +154,7 @@
     },
     {
       "candidate_type": "xg_current",
+      "capability": "fixture_team_statistics",
       "competition_scope": "ENG-Premier League",
       "evidence_identity": {
         "capability": "fixture_team_statistics",
@@ -200,64 +174,12 @@
         "source_family": "soccerdata"
       },
       "operation": "read_team_match_stats",
+      "priority": "high",
+      "rationale": "Recommended for next step of certification as xg_current capability.",
       "row_count": 380,
       "schema_fingerprint": "856d18345d446c8df108ac15c5e9ef01f8ae28ec11a6f5ba0c28d5ccdc503b33",
       "season_scope": "2024",
       "source_id": "soccerdata/Understat",
-      "status": "EVIDENCE_READY"
-    },
-    {
-      "candidate_type": "historical_backtest",
-      "competition_scope": "kaggle_european_soccer",
-      "evidence_identity": {
-        "capability": "h2h_head_to_head",
-        "competition_scope": "kaggle_european_soccer",
-        "data_fingerprint": "77e2c70822cd8bd517702b5a08a73cc61ef757b2e6c1ccac1717fe81c3778bd3",
-        "diagnostics_hash": "be3f33d75435d00599ed98271f12af9a4f770ce75316a2f18fa467975992f20f",
-        "normalization_version": "football_foundation_v2",
-        "operation": "read_matches",
-        "parser_version": "football_foundation_v2",
-        "provider": "kaggle",
-        "request_identity": "KaggleEuropeanSoccer.read_matches:/Users/mkoziol/projects/bet-multisport-enrichment-v1/tests/fixtures/football_data_foundation/kaggle_european_soccer/matches.csv",
-        "retrieved_at": "2026-06-19T17:27:21.767017+00:00",
-        "row_count": 2,
-        "schema_fingerprint": "0535e7dde198d763dbedc511fe7aeed0961671b896d166608a8a9fbb2d40b3d1",
-        "season_scope": "fixture",
-        "source_class": "KaggleEuropeanSoccer",
-        "source_family": "open_reference"
-      },
-      "operation": "read_matches",
-      "row_count": 2,
-      "schema_fingerprint": "0535e7dde198d763dbedc511fe7aeed0961671b896d166608a8a9fbb2d40b3d1",
-      "season_scope": "fixture",
-      "source_id": "open_reference/KaggleEuropeanSoccer",
-      "status": "EVIDENCE_READY"
-    },
-    {
-      "candidate_type": "historical_backtest",
-      "competition_scope": "openfootball",
-      "evidence_identity": {
-        "capability": "current_recent_form",
-        "competition_scope": "openfootball",
-        "data_fingerprint": "1a2eb070fe5d615343bec31e0f7cf0dba849d9525c7c13ce080344d9d3c149a5",
-        "diagnostics_hash": "c2934c09d7f5c3020e4abc1476422ec59dddc99819d24990df17c0969ef389b7",
-        "normalization_version": "football_foundation_v2",
-        "operation": "read_matches",
-        "parser_version": "football_foundation_v2",
-        "provider": "openfootball",
-        "request_identity": "OpenFootball.read_matches:/Users/mkoziol/projects/bet-multisport-enrichment-v1/tests/fixtures/football_data_foundation/openfootball/world_cup_2022.json",
-        "retrieved_at": "2026-06-19T17:27:21.767555+00:00",
-        "row_count": 1,
-        "schema_fingerprint": "3f104200be0dda133e77482273c6551f3fc7313db5df431583d1d5db2883323f",
-        "season_scope": "fixture",
-        "source_class": "OpenFootball",
-        "source_family": "open_reference"
-      },
-      "operation": "read_matches",
-      "row_count": 1,
-      "schema_fingerprint": "3f104200be0dda133e77482273c6551f3fc7313db5df431583d1d5db2883323f",
-      "season_scope": "fixture",
-      "source_id": "open_reference/OpenFootball",
       "status": "EVIDENCE_READY"
     }
   ],

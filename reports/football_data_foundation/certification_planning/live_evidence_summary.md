@@ -1,10 +1,10 @@
 # Football Data Foundation Live Calibration
 
 - Accepted foundation SHA: `c0aa63231cdb80aa0698bae30567b6df4a7c6d40`
-- Current head before commit: `7346dc45cee59094c9711a815256d9898021784d`
+- Current head before commit: `522c2f77a91bcbd68f38710039d4f18e7c80492e`
 - Branch: `feat/multisport-enrichment-v1`
 - Upstream: `origin/feat/multisport-enrichment-v1`
-- Generated at UTC: `2026-06-19T16:55:31.605897+00:00`
+- Generated at UTC: `2026-06-19T17:27:13.199708+00:00`
 - No secrets, cookies, proxy settings, Tor, or browser profiles were used.
 - Unit tests remain offline and do not perform network calls.
 - Betting decision logic and production route selection are unchanged.

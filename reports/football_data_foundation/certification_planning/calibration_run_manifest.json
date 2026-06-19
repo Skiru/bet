@@ -16,8 +16,8 @@
     "source_budget": 2,
     "write_samples": false
   },
-  "current_head_before_commit": "7346dc45cee59094c9711a815256d9898021784d",
-  "generated_at_utc": "2026-06-19T16:55:31.605897+00:00",
+  "current_head_before_commit": "522c2f77a91bcbd68f38710039d4f18e7c80492e",
+  "generated_at_utc": "2026-06-19T17:27:13.199708+00:00",
   "report_paths": {
     "calibration_run_manifest.json": "reports/football_data_foundation/certification_planning/calibration_run_manifest.json",
     "candidate_recommendations.json": "reports/football_data_foundation/certification_planning/candidate_recommendations.json",
