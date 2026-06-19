@@ -56,6 +56,7 @@ from bet.enrichment.football_data_foundation.soccerdata_sources import (
 from bet.integration.source_result import SourceOperationResult, SourceResultStatus
 
 ACCEPTED_FOUNDATION_SHA = "c0aa63231cdb80aa0698bae30567b6df4a7c6d40"
+ACCEPTED_A2_SHA = "7346dc45cee59094c9711a815256d9898021784d"
 NO_SECRETS_STATEMENT = (
     "No secrets, cookies, proxy settings, Tor, or browser profiles were used."
 )
@@ -107,6 +108,7 @@ class CalibrationOptions:
     write_samples: bool = False
     sample_row_limit: int = 3
     invoked_command: str = "calibrate-live"
+    calibration_profile: str = "default"
 
 
 @dataclass(frozen=True)
@@ -150,6 +152,7 @@ class OperationRecord:
     candidate_for_future_selectable_candidate: bool = False
     blocking_reason: str = ""
     sample_rows: list[dict[str, Any]] | None = None
+    candidate_type: str = "not_candidate"
 
     def to_dict(self) -> dict[str, Any]:
         payload = asdict(self)
@@ -302,12 +305,12 @@ def operation_plan_for_connector(
             CalibrationOperationSpec(
                 operation="read_by_date",
                 capability="current_recent_form",
-                competition_scope=live_competition_scope,
-                season_scope=live_season_scope,
+                competition_scope="global",
+                season_scope=f"date:{_season_context_date(options.season)}",
                 execution_mode="live",
                 args_factory=lambda _opts: {
                     "date": _season_context_date(options.season),
-                    "scope": "league-season",
+                    "scope": "global",
                 },
             ),
         ],
@@ -416,12 +419,12 @@ def operation_plan_for_connector(
             CalibrationOperationSpec(
                 operation="read_versions",
                 capability="current_recent_form",
-                competition_scope=live_competition_scope,
-                season_scope=live_season_scope,
+                competition_scope="global",
+                season_scope="global",
                 execution_mode="live",
                 args_factory=lambda _opts: {
-                    "init_kwargs": dict(default_init_kwargs),
-                    "scope": "league-season",
+                    "init_kwargs": {},
+                    "scope": "global",
                 },
             ),
         ],
@@ -974,13 +977,78 @@ def build_import_smoke_record(
     )
 
 
+def determine_candidate_type(record: OperationRecord) -> str:
+    if record.source_id == "soccerdata/MatchHistory":
+        if record.error_code == "unresolved_league_alias" or (record.status == "NOT_SUPPORTED" and "unresolved" in str(record.error_code)):
+            return "needs_repair"
+        return "historical_backtest"
+
+    if record.source_id == "soccerdata/ClubElo":
+        return "ratings_context"
+
+    if record.source_id == "soccerdata/SoFIFA":
+        return "ratings_context"
+
+    if record.operation == "read_schedule":
+        if record.source_id in ("soccerdata/ESPN", "soccerdata/FBref", "soccerdata/Understat", "soccerdata/Sofascore"):
+            if record.status in ("EVIDENCE_READY", "PARTIAL") and record.row_count and record.row_count > 0:
+                return "schedule_current"
+            else:
+                return "not_candidate"
+
+    if record.source_id == "soccerdata/Sofascore" and record.operation == "read_leagues":
+        return "metadata_discovery"
+
+    if record.source_id == "soccerdata/FBref" and record.operation in ("read_team_season_stats", "read_team_match_stats"):
+        if record.status in ("EVIDENCE_READY", "PARTIAL") and record.row_count and record.row_count > 0:
+            return "team_stats_current"
+        return "not_candidate"
+
+    if record.source_id == "soccerdata/Understat" and record.operation == "read_team_match_stats":
+        if record.status in ("EVIDENCE_READY", "PARTIAL") and record.row_count and record.row_count > 0:
+            return "xg_current"
+        return "not_candidate"
+
+    if record.execution_mode == "fixture" and record.source_id in (
+        "open_reference/StatsBombOpenData",
+        "open_reference/KaggleEuropeanSoccer",
+        "open_reference/OpenFootball",
+        "rich_unofficial/FotMobProbe",
+        "rich_unofficial/SofaScoreRichProbe"
+    ):
+        if record.source_id in ("open_reference/StatsBombOpenData", "rich_unofficial/FotMobProbe", "rich_unofficial/SofaScoreRichProbe"):
+            return "reference_fixture"
+        return "historical_backtest"
+
+    if record.source_id in ("soccerdata/WhoScored", "rich_unofficial/ScraperFCSofascore"):
+        return "event_context"
+
+    if record.status in ("PARSE_ERROR", "SCHEMA_ERROR"):
+        return "needs_repair"
+
+    return "not_candidate"
+
+
 def apply_candidate_policy(records: list[OperationRecord]) -> None:
-    additive_only = {"additive_schema_drift", "fixture-baseline", "league-season"}
+    additive_only = {"additive_schema_drift", "fixture-baseline", "league-season", "global"}
     for record in records:
+        record.candidate_type = determine_candidate_type(record)
+
+        if record.diagnostics.get("classification_reason") == "source_budget_exhausted":
+            record.candidate_for_future_selectable_candidate = False
+            record.blocking_reason = "budget_exhausted"
+            record.candidate_type = "not_candidate"
+            continue
+
         if record.status not in {"EVIDENCE_READY", "PARTIAL"}:
             record.candidate_for_future_selectable_candidate = False
-            record.blocking_reason = "operation_has_no_live_evidence"
+            if record.status in ("PARSE_ERROR", "SCHEMA_ERROR") or record.error_code == "unresolved_league_alias":
+                record.blocking_reason = "needs_repair"
+                record.candidate_type = "needs_repair"
+            else:
+                record.blocking_reason = "operation_has_no_live_evidence"
             continue
+
         if record.evidence_identity is None or not record.schema_fingerprint:
             record.candidate_for_future_selectable_candidate = False
             record.blocking_reason = "evidence_identity_or_schema_missing"
@@ -1016,6 +1084,12 @@ def apply_candidate_policy(records: list[OperationRecord]) -> None:
             record.candidate_for_future_selectable_candidate = False
             record.blocking_reason = "partial_result_requires_manual_review"
             continue
+
+        if record.candidate_type == "metadata_discovery":
+            record.candidate_for_future_selectable_candidate = False
+            record.blocking_reason = "metadata_discovery_only"
+            continue
+
         record.candidate_for_future_selectable_candidate = True
         record.blocking_reason = ""
 
@@ -1046,6 +1120,7 @@ def write_reports(
             "operation": record.operation,
             "competition_scope": record.competition_scope,
             "season_scope": record.season_scope,
+            "candidate_type": record.candidate_type,
             "candidate_for_future_selectable_candidate": (
                 record.candidate_for_future_selectable_candidate
             ),
@@ -1154,6 +1229,307 @@ def write_reports(
             manifest, indent=2, sort_keys=True
         ),
     }
+
+    if getattr(options, "calibration_profile", "default") == "pre-certification":
+        narrow_set = []
+        allowed_candidate_types_for_narrow = {
+            "schedule_current",
+            "team_stats_current",
+            "xg_current",
+            "ratings_context",
+            "historical_backtest",
+        }
+        for record in operation_records:
+            if record.evidence_identity is None or not record.schema_fingerprint:
+                continue
+            if record.candidate_type not in allowed_candidate_types_for_narrow:
+                continue
+            if record.execution_mode == "fixture":
+                if record.candidate_type not in ("reference_fixture", "historical_backtest"):
+                    continue
+            if record.diagnostics.get("requires_browser") or record.diagnostics.get("used_credentials"):
+                continue
+            if not (record.row_count and record.row_count > 0) and not (record.status == "PARTIAL"):
+                continue
+
+            narrow_set.append({
+                "source_id": record.source_id,
+                "operation": record.operation,
+                "competition_scope": record.competition_scope,
+                "season_scope": record.season_scope,
+                "candidate_type": record.candidate_type,
+                "evidence_identity": record.evidence_identity,
+                "schema_fingerprint": record.schema_fingerprint,
+                "row_count": record.row_count,
+                "status": record.status,
+            })
+
+        narrow_candidate_set_payload = {
+            "accepted_a2_sha": "7346dc45cee59094c9711a815256d9898021784d",
+            "calibration_profile": "pre-certification",
+            "timestamp_utc": metadata["generated_at_utc"],
+            "exact_command_parameters": metadata["command_parameters"],
+            "narrow_candidate_set": narrow_set,
+        }
+
+        repair_entries = [
+            {
+                "source_id": "soccerdata/ClubElo",
+                "operation": "read_by_date",
+                "current_status": "PARSE_ERROR",
+                "suspected_cause": "ClubElo API has no league schedule filtering and expects global date queries. Upstream service can also be down with 503.",
+                "next_action": "Use global/date semantics. Ensure date is correctly formatted and robust to service down times.",
+                "safe_to_retry_live": True,
+                "requires_dependency": False,
+                "requires_secret_or_browser": False,
+                "priority": "high",
+            },
+            {
+                "source_id": "soccerdata/MatchHistory",
+                "operation": "read_games",
+                "current_status": "PARSE_ERROR",
+                "suspected_cause": "Upstream football-data.co.uk service was offline returning 503, or league/season human label was passed raw instead of using explicit alias resolution mapping.",
+                "next_action": "Implement robust league alias resolution mapping. Gracefully handle HTTP 503 / ConnectionError from football-data.co.uk.",
+                "safe_to_retry_live": True,
+                "requires_dependency": False,
+                "requires_secret_or_browser": False,
+                "priority": "high",
+            },
+            {
+                "source_id": "soccerdata/SoFIFA",
+                "operation": "read_versions",
+                "current_status": "PARSE_ERROR",
+                "suspected_cause": "TypeError because SoFIFA constructor got unexpected seasons argument. SoFIFA does not accept leagues/seasons in constructor.",
+                "next_action": "Remove init_kwargs like leagues and seasons for SoFIFA. Run read_versions globally without league schedule semantics.",
+                "safe_to_retry_live": True,
+                "requires_dependency": False,
+                "requires_secret_or_browser": False,
+                "priority": "high",
+            },
+            {
+                "source_id": "soccerdata/FBref",
+                "operation": "read_team_match_stats",
+                "current_status": "IMPLEMENTED_ACTIVE",
+                "suspected_cause": "source_budget_exhausted",
+                "next_action": "Increase source_budget parameter to 3 or run with specific rich stats selection under pre-certification profile.",
+                "safe_to_retry_live": True,
+                "requires_dependency": False,
+                "requires_secret_or_browser": False,
+                "priority": "medium",
+            },
+            {
+                "source_id": "soccerdata/Understat",
+                "operation": "read_team_match_stats",
+                "current_status": "IMPLEMENTED_ACTIVE",
+                "suspected_cause": "source_budget_exhausted",
+                "next_action": "Increase source_budget parameter to 2 or run with specific rich stats selection.",
+                "safe_to_retry_live": True,
+                "requires_dependency": False,
+                "requires_secret_or_browser": False,
+                "priority": "medium",
+            },
+            {
+                "source_id": "soccerdata/WhoScored",
+                "operation": "read_schedule",
+                "current_status": "NOT_SUPPORTED",
+                "suspected_cause": "browser_source_disabled",
+                "next_action": "Ensure browser-heavy scrapers are correctly skipped by default. Enable only when headless Playwright is pre-certified and safe.",
+                "safe_to_retry_live": False,
+                "requires_dependency": True,
+                "requires_secret_or_browser": True,
+                "priority": "low",
+            },
+            {
+                "source_id": "soccerdata/WhoScored",
+                "operation": "read_missing_players",
+                "current_status": "NOT_SUPPORTED",
+                "suspected_cause": "browser_source_disabled",
+                "next_action": "Skip by default. Playwright headless browser setup required.",
+                "safe_to_retry_live": False,
+                "requires_dependency": True,
+                "requires_secret_or_browser": True,
+                "priority": "low",
+            },
+            {
+                "source_id": "soccerdata/WhoScored",
+                "operation": "read_events",
+                "current_status": "NOT_SUPPORTED",
+                "suspected_cause": "browser_source_disabled",
+                "next_action": "Skip by default. Requires headless browser and high source budget/time.",
+                "safe_to_retry_live": False,
+                "requires_dependency": True,
+                "requires_secret_or_browser": True,
+                "priority": "low",
+            },
+            {
+                "source_id": "rich_unofficial/ScraperFCSofascore",
+                "operation": "read_match_stats",
+                "current_status": "NOT_SUPPORTED",
+                "suspected_cause": "browser_source_disabled or optional dependency ScraperFC missing",
+                "next_action": "Keep as optional smoke import bridge only. Playwright required.",
+                "safe_to_retry_live": False,
+                "requires_dependency": True,
+                "requires_secret_or_browser": True,
+                "priority": "low",
+            },
+            {
+                "source_id": "open_reference/StatsBombPy",
+                "operation": "competitions",
+                "current_status": "IMPLEMENTED_ACTIVE",
+                "suspected_cause": "Optional dependency statsbombpy is missing or skipped as import smoke",
+                "next_action": "Ensure statsbombpy optional bridge works offline via import checks.",
+                "safe_to_retry_live": False,
+                "requires_dependency": True,
+                "requires_secret_or_browser": False,
+                "priority": "low",
+            },
+            {
+                "source_id": "event_model/socceraction_bridge",
+                "operation": "convert_events",
+                "current_status": "IMPLEMENTED_ACTIVE",
+                "suspected_cause": "Optional dependency socceraction is missing or skipped as import smoke",
+                "next_action": "Check offline import bridge.",
+                "safe_to_retry_live": False,
+                "requires_dependency": True,
+                "requires_secret_or_browser": False,
+                "priority": "low",
+            },
+            {
+                "source_id": "event_model/kloppy_bridge",
+                "operation": "load_tracking_data",
+                "current_status": "IMPLEMENTED_ACTIVE",
+                "suspected_cause": "Optional dependency kloppy is missing or skipped as import smoke",
+                "next_action": "Check offline import bridge.",
+                "safe_to_retry_live": False,
+                "requires_dependency": True,
+                "requires_secret_or_browser": False,
+                "priority": "low",
+            },
+            {
+                "source_id": "event_model/floodlight_bridge",
+                "operation": "load_events",
+                "current_status": "IMPLEMENTED_ACTIVE",
+                "suspected_cause": "Optional dependency floodlight is missing or skipped as import smoke",
+                "next_action": "Check offline import bridge.",
+                "safe_to_retry_live": False,
+                "requires_dependency": True,
+                "requires_secret_or_browser": False,
+                "priority": "low",
+            },
+            {
+                "source_id": "event_model/mplsoccer_bridge",
+                "operation": "draw_pitch",
+                "current_status": "IMPLEMENTED_ACTIVE",
+                "suspected_cause": "Optional dependency mplsoccer is missing or skipped as import smoke",
+                "next_action": "Check offline import bridge.",
+                "safe_to_retry_live": False,
+                "requires_dependency": True,
+                "requires_secret_or_browser": False,
+                "priority": "low",
+            }
+        ]
+
+        for entry in repair_entries:
+            for rec in operation_records:
+                if rec.source_id == entry["source_id"] and rec.operation == entry["operation"]:
+                    entry["current_status"] = rec.status
+                    if rec.status == "IMPLEMENTED_ACTIVE" and rec.diagnostics.get("classification_reason") == "source_budget_exhausted":
+                        entry["suspected_cause"] = "source_budget_exhausted"
+
+        source_repair_plan_payload = {
+            "accepted_a2_sha": "7346dc45cee59094c9711a815256d9898021784d",
+            "calibration_profile": "pre-certification",
+            "timestamp_utc": metadata["generated_at_utc"],
+            "source_repair_plan": repair_entries,
+        }
+
+        rec_candidates = []
+        for record in operation_records:
+            if record.candidate_for_future_selectable_candidate or record.source_id in ("soccerdata/ClubElo", "soccerdata/SoFIFA", "soccerdata/MatchHistory"):
+                rec_candidates.append({
+                    "source_id": record.source_id,
+                    "operation": record.operation,
+                    "candidate_type": record.candidate_type,
+                    "capability": record.capability,
+                    "priority": "high" if record.source_id in ("soccerdata/ESPN", "soccerdata/FBref", "soccerdata/Understat", "soccerdata/ClubElo") else "medium",
+                    "rationale": f"Recommended for next step of certification as {record.candidate_type} capability."
+                })
+
+        candidate_certification_plan_payload = {
+            "accepted_a2_sha": "7346dc45cee59094c9711a815256d9898021784d",
+            "calibration_profile": "pre-certification",
+            "timestamp_utc": metadata["generated_at_utc"],
+            "recommended_certification_candidates": rec_candidates,
+        }
+
+        summary_md_lines = [
+            "# Football Data Foundation Pre-Certification Summary",
+            "",
+            f"- **Accepted A2 SHA**: `7346dc45cee59094c9711a815256d9898021784d`",
+            f"- **Calibration Profile**: `pre-certification`",
+            f"- **Timestamp UTC**: `{metadata['generated_at_utc']}`",
+            f"- **Exact Command Parameters**: `{json.dumps(metadata['command_parameters'])}`",
+            f"- **No config, routing, or betting prediction/decision logic was changed.**",
+            f"- **{NO_SECRETS_STATEMENT}**",
+            f"- **{NO_NETWORK_TEST_STATEMENT}**",
+            "",
+            "## Source Operations, Candidate Types, and Statuses",
+            "",
+            "| Source ID | Operation | Scope | Status | Candidate Type | Row Count | Evidence Identity | Blocking Reason |",
+            "|-----------|-----------|-------|--------|----------------|-----------|-------------------|-----------------|"
+        ]
+        for record in operation_records:
+            ev_id = "N/A"
+            if record.evidence_identity:
+                ev_id = f"`{record.evidence_identity['schema_fingerprint'][:12]}`"
+            
+            row_count_str = str(record.row_count) if record.row_count is not None else "N/A"
+            blocking_str = record.blocking_reason if record.blocking_reason else "N/A"
+            
+            summary_md_lines.append(
+                f"| `{record.source_id}` | `{record.operation}` | "
+                f"`{record.competition_scope}/{record.season_scope}` | "
+                f"`{record.status}` | `{record.candidate_type}` | "
+                f"{row_count_str} | {ev_id} | {blocking_str} |"
+            )
+            
+        summary_md_lines.extend([
+            "",
+            "## Source Repair Plan Action Items",
+            "",
+            "| Source ID | Operation | Suspected Cause | Recommended Next Action | Priority |",
+            "|-----------|-----------|-----------------|-------------------------|----------|"
+        ])
+        for entry in repair_entries:
+            summary_md_lines.append(
+                f"| `{entry['source_id']}` | `{entry['operation']}` | "
+                f"{entry['suspected_cause']} | {entry['next_action']} | `{entry['priority']}` |"
+            )
+
+        summary_md_lines.extend([
+            "",
+            "## Next Certification Recommendations",
+            "",
+            "The following exact tuples are recommended for the next phase of candidate certification:",
+            ""
+        ])
+        for cand in rec_candidates:
+            summary_md_lines.append(
+                f"- **Tuple**: (`\"{cand['source_id']}\"`, `\"{cand['operation']}\"`, `\"{cand['candidate_type']}\"`, `\"{cand['capability']}\"`) - Priority: {cand['priority']}"
+            )
+        
+        pre_certification_summary_payload = "\n".join(summary_md_lines) + "\n"
+
+        paths["narrow_candidate_set.json"] = output_dir / "narrow_candidate_set.json"
+        paths["source_repair_plan.json"] = output_dir / "source_repair_plan.json"
+        paths["candidate_certification_plan.json"] = output_dir / "candidate_certification_plan.json"
+        paths["pre_certification_summary.md"] = output_dir / "pre_certification_summary.md"
+
+        payloads["narrow_candidate_set.json"] = json.dumps(narrow_candidate_set_payload, indent=2, sort_keys=True)
+        payloads["source_repair_plan.json"] = json.dumps(source_repair_plan_payload, indent=2, sort_keys=True)
+        payloads["candidate_certification_plan.json"] = json.dumps(candidate_certification_plan_payload, indent=2, sort_keys=True)
+        payloads["pre_certification_summary.md"] = pre_certification_summary_payload
+
     for name, path in paths.items():
         _atomic_write_text(path, payloads[name])
     return paths
@@ -1228,6 +1604,7 @@ def calibrate_live(
             "write_samples": options.write_samples,
             "sample_row_limit": options.sample_row_limit,
             "invoked_command": options.invoked_command,
+            "calibration_profile": getattr(options, "calibration_profile", "default"),
         },
         "source_library_versions": library_versions(),
     }
@@ -1343,12 +1720,19 @@ def calibrate_live(
         metadata=metadata,
         guard=guard,
     )
-    for report_name in (
+    reports_to_validate = [
         "live_evidence_summary.json",
         "source_operation_results.json",
         "candidate_recommendations.json",
         "calibration_run_manifest.json",
-    ):
+    ]
+    if getattr(options, "calibration_profile", "default") == "pre-certification":
+        reports_to_validate.extend([
+            "narrow_candidate_set.json",
+            "source_repair_plan.json",
+            "candidate_certification_plan.json"
+        ])
+    for report_name in reports_to_validate:
         validate_report_json(report_paths[report_name])
     if guard["status"] != "PASS":
         raise SystemicCalibrationError(guard["reason"])
@@ -1383,6 +1767,7 @@ def build_parser() -> argparse.ArgumentParser:
         )
         target.add_argument("--write-samples", action="store_true")
         target.add_argument("--sample-row-limit", type=int, default=3)
+        target.add_argument("--calibration-profile", default="default")
 
     add_calibration_arguments(
         subparsers.add_parser(
@@ -1416,4 +1801,5 @@ def options_from_args(args: argparse.Namespace) -> CalibrationOptions:
         write_samples=args.write_samples,
         sample_row_limit=args.sample_row_limit,
         invoked_command=args.command,
+        calibration_profile=getattr(args, "calibration_profile", "default"),
     )

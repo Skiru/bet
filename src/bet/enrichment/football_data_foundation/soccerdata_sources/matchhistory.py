@@ -55,7 +55,42 @@ class MatchHistoryConnector(BaseConnector):
             else:
                 import soccerdata as sd
 
-                source = sd.MatchHistory(**dict(kwargs.get("init_kwargs", {})))
+                init_kwargs = dict(kwargs.get("init_kwargs", {}))
+                leagues = init_kwargs.get("leagues")
+                if leagues:
+                    # Explicit alias mapping dictionary
+                    mapping = {
+                        "ENG-Premier League": "ENG-Premier League",
+                        "Premier League": "ENG-Premier League",
+                        "EPL": "ENG-Premier League",
+                        "ENG-Premier": "ENG-Premier League",
+                        "ESP-La Liga": "ESP-La Liga",
+                        "La Liga": "ESP-La Liga",
+                        "FRA-Ligue 1": "FRA-Ligue 1",
+                        "Ligue 1": "FRA-Ligue 1",
+                        "GER-Bundesliga": "GER-Bundesliga",
+                        "Bundesliga": "GER-Bundesliga",
+                        "ITA-Serie A": "ITA-Serie A",
+                        "Serie A": "ITA-Serie A",
+                    }
+                    if isinstance(leagues, str):
+                        mapped = mapping.get(leagues) or mapping.get(leagues.strip())
+                        if mapped:
+                            init_kwargs["leagues"] = mapped
+                        else:
+                            try:
+                                avail = sd.MatchHistory.available_leagues()
+                            except Exception:
+                                avail = ["ENG-Premier League", "ESP-La Liga", "FRA-Ligue 1", "GER-Bundesliga", "ITA-Serie A"]
+                            if leagues not in avail:
+                                return build_status_result(
+                                    self,
+                                    operation,
+                                    SourceResultStatus.NOT_SUPPORTED,
+                                    "unresolved_league_alias",
+                                    {"error": f"League alias '{leagues}' cannot be resolved safely.", "available_leagues": avail},
+                                )
+                source = sd.MatchHistory(**init_kwargs)
 
             method = getattr(source, operation, None)
             if method is None:

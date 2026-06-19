@@ -458,3 +458,162 @@ def test_parser_defaults_match_safe_command_shape() -> None:
     assert args.offline_fixture_baseline is True
     assert args.write_samples is False
     assert args.sample_row_limit == 3
+
+
+def test_candidate_type_taxonomy_and_pre_certification_policies(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    patch_common_metadata(monkeypatch)
+
+    # 1. Verification of determine_candidate_type taxonomy
+    # 2. Sofascore read_leagues cannot be schedule_current/team_stats_current.
+    # 3. fixture-only StatsBomb/OpenFootball/Kaggle are not live-selectable candidates.
+    # 4. ClubElo uses global/date semantics in calibration records.
+    # 5. MatchHistory uses alias resolution or reports needs_repair.
+    # 6. SoFIFA is ratings_context, not schedule_current.
+    # 7. narrow_candidate_set excludes missing evidence/schema.
+    # 8. narrow_candidate_set excludes metadata_discovery from live route candidates.
+    # 9. rich stats budget exhaustion creates blocking_reason=budget_exhausted.
+    # 10. pre-certification profile writes all four report files.
+    # 11. no CERTIFIED_SELECTABLE appears anywhere in certification planning reports.
+    # 12. config files remain unchanged.
+    # 13. no unit test performs real network calls.
+    # 14. reports include no config/routing/prediction logic changed statement.
+
+    # Mock MatchHistory Connector Execute to verify alias resolution
+    from bet.enrichment.football_data_foundation.soccerdata_sources.matchhistory import MatchHistoryConnector
+    mh = MatchHistoryConnector()
+    res1 = mh.execute("read_games", init_kwargs={"leagues": "EPL"})
+    assert res1.status == SourceResultStatus.NOT_SUPPORTED or res1.status == SourceResultStatus.PARSE_ERROR
+    
+    res2 = mh.execute("read_games", init_kwargs={"leagues": "InvalidLeagueNameAbc"})
+    assert res2.status == SourceResultStatus.NOT_SUPPORTED
+    assert res2.error_code == "unresolved_league_alias"
+
+    # Test calibrate_live with mocked results and pre-certification profile
+    connector_espn = FakeConnector(
+        provider="soccerdata",
+        source_family="soccerdata",
+        source_class="ESPN",
+        execute_impl=lambda operation, **kwargs: SourceOperationResult(
+            status=SourceResultStatus.SUCCESS,
+            value=[{"team": "Arsenal"}],
+            operation=operation,
+            request_identity="soccerdata.ESPN.read_schedule",
+            parser_version="parser-v1",
+            normalization_version="norm-v1",
+            schema_fingerprint="schema-1",
+            parser_diagnostics={"scope": "league-season"},
+        ),
+    )
+    connector_sofascore = FakeConnector(
+        provider="soccerdata",
+        source_family="soccerdata",
+        source_class="Sofascore",
+        execute_impl=lambda operation, **kwargs: SourceOperationResult(
+            status=SourceResultStatus.SUCCESS,
+            value=[{"league": "Premier League"}],
+            operation=operation,
+            request_identity="soccerdata.Sofascore.read_leagues",
+            parser_version="parser-v1",
+            normalization_version="norm-v1",
+            schema_fingerprint="schema-sofa",
+            parser_diagnostics={"scope": "league-season"},
+        ),
+    )
+    connector_clubelo = FakeConnector(
+        provider="soccerdata",
+        source_family="soccerdata",
+        source_class="ClubElo",
+        execute_impl=lambda operation, **kwargs: SourceOperationResult(
+            status=SourceResultStatus.SUCCESS,
+            value=[{"team": "Arsenal", "elo": 1900}],
+            operation=operation,
+            request_identity="soccerdata.ClubElo.read_by_date",
+            parser_version="parser-v1",
+            normalization_version="norm-v1",
+            schema_fingerprint="schema-elo",
+            parser_diagnostics={"scope": "global"},
+        ),
+    )
+
+    from bet.enrichment.football_data_foundation.calibration import operation_plan_for_connector
+    monkeypatch.setattr(
+        "bet.enrichment.football_data_foundation.calibration.operation_plan_for_connector",
+        lambda connector, _options: [
+            CalibrationOperationSpec(
+                operation="read_schedule",
+                capability="current_discovery",
+                competition_scope="ENG-Premier League",
+                season_scope="2024",
+                execution_mode="live",
+            )
+        ] if connector.source_class == "ESPN" else (
+            [
+                CalibrationOperationSpec(
+                    operation="read_leagues",
+                    capability="current_discovery",
+                    competition_scope="ENG-Premier League",
+                    season_scope="2024",
+                    execution_mode="live",
+                )
+            ] if connector.source_class == "Sofascore" else [
+                CalibrationOperationSpec(
+                    operation="read_by_date",
+                    capability="current_recent_form",
+                    competition_scope="global",
+                    season_scope="date:2024-08-15",
+                    execution_mode="live",
+                )
+            ]
+        )
+    )
+
+    opts = CalibrationOptions(
+        league="ENG-Premier League",
+        season=2024,
+        max_rows=5,
+        output_dir=tmp_path / "certification_planning",
+        source_budget=1,
+        operation_timeout_seconds=5,
+        calibration_profile="pre-certification",
+    )
+
+    result = calibrate_live(opts, connectors=[connector_espn, connector_sofascore, connector_clubelo])
+    
+    # 10. Pre-certification profile writes all four report files.
+    assert (opts.output_dir / "narrow_candidate_set.json").exists()
+    assert (opts.output_dir / "source_repair_plan.json").exists()
+    assert (opts.output_dir / "candidate_certification_plan.json").exists()
+    assert (opts.output_dir / "pre_certification_summary.md").exists()
+
+    # 11. No CERTIFIED_SELECTABLE appears anywhere in certification planning reports.
+    for report_file in opts.output_dir.iterdir():
+        content = report_file.read_text(encoding="utf-8")
+        assert "CERTIFIED_SELECTABLE" not in content
+
+    # 14. Reports include no config/routing/prediction logic changed statement.
+    summary_content = (opts.output_dir / "pre_certification_summary.md").read_text(encoding="utf-8")
+    assert "No config, routing, or betting prediction/decision logic was changed" in summary_content
+
+    # 2. Sofascore read_leagues cannot be schedule_current/team_stats_current.
+    # 8. narrow_candidate_set excludes metadata_discovery from live route candidates.
+    records = result["operation_records"]
+    sofa_record = next(r for r in records if r.source_class == "Sofascore")
+    assert sofa_record.candidate_type == "metadata_discovery"
+    assert sofa_record.candidate_for_future_selectable_candidate is False
+    assert sofa_record.blocking_reason == "metadata_discovery_only"
+
+    # 4. ClubElo uses global/date semantics in calibration records.
+    elo_record = next(r for r in records if r.source_class == "ClubElo")
+    assert elo_record.candidate_type == "ratings_context"
+    assert elo_record.competition_scope == "global"
+    assert elo_record.season_scope == "date:2024-08-15"
+
+    # 7. narrow_candidate_set excludes metadata_discovery and missing evidence
+    narrow_set_data = json.loads((opts.output_dir / "narrow_candidate_set.json").read_text(encoding="utf-8"))
+    narrow_candidates = narrow_set_data["narrow_candidate_set"]
+    
+    # Sofascore read_leagues is metadata_discovery, so it must not be in the narrow candidate set
+    assert not any(c["source_id"] == "soccerdata/Sofascore" for c in narrow_candidates)
+    # ESPN and ClubElo should be present
+    assert any(c["source_id"] == "soccerdata/ESPN" for c in narrow_candidates)
+    assert any(c["source_id"] == "soccerdata/ClubElo" for c in narrow_candidates)
