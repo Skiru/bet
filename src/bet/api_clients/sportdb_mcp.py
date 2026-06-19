@@ -14,8 +14,12 @@ import re
 import time
 import urllib.error
 import urllib.request
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
+
+from bet.integration.source_result import SourceOperationResult, SourceResultStatus
+from bet.integration.evidence import EvidenceRef
 
 SPORTDB_MCP_ENDPOINT = "https://api.sportdb.dev/mcp/"
 SPORTDB_MCP_ACCEPT = "application/json, text/event-stream"
@@ -46,6 +50,139 @@ ALLOWED_STAT_MAP = {
     "Passes": "total_passes",
     "Successful Passes": "successful_passes",
 }
+
+
+class SportDBEvidenceBundleWriter:
+    """Writes SportDB evidence bundle files according to the P2E_A6 contract."""
+
+    def __init__(self, evidence_root: Path | str | None = None) -> None:
+        if evidence_root is None:
+            self.evidence_root = Path("/Users/mkoziol/projects/bet-multisport-enrichment-v1/betting/data/evidence")
+        else:
+            self.evidence_root = Path(evidence_root)
+
+    def write_bundle(
+        self,
+        *,
+        operation: str,
+        arguments: dict[str, Any],
+        raw_response: Any,
+        normalized_value: Any,
+        mcp_tool_name: str,
+        request_identity: str,
+    ) -> tuple[str, list[str], str, str, str]:
+        """Writes the bundle directory and files. Returns (bundle_id, bundle_files_paths, response_sha256, normalized_sha256, schema_fingerprint)."""
+        try:
+            # 1. Compute response hash
+            response_bytes = json.dumps(raw_response, sort_keys=True).encode("utf-8")
+            response_sha256 = hashlib.sha256(response_bytes).hexdigest()
+
+            # 2. Compute normalized hash
+            normalized_bytes = json.dumps(normalized_value, sort_keys=True).encode("utf-8")
+            normalized_sha256 = hashlib.sha256(normalized_bytes).hexdigest()
+
+            # 3. Generate schema fingerprint
+            if isinstance(raw_response, dict):
+                fingerprint_keys = sorted(list(raw_response.keys()))
+            elif isinstance(raw_response, list) and raw_response:
+                if isinstance(raw_response[0], dict):
+                    fingerprint_keys = sorted(list(raw_response[0].keys()))
+                else:
+                    fingerprint_keys = ["list_of_non_dict"]
+            else:
+                fingerprint_keys = ["empty_or_unknown"]
+            schema_fingerprint = hashlib.sha256(json.dumps(fingerprint_keys).encode("utf-8")).hexdigest()
+
+            # 4. Generate stable deterministic bundle_id
+            bundle_input = {
+                "provider": "sportdb",
+                "operation": operation,
+                "request_identity": request_identity,
+                "mcp_tool_name": mcp_tool_name,
+                "response_sha256": response_sha256,
+                "normalized_sha256": normalized_sha256,
+            }
+            bundle_id = hashlib.sha256(json.dumps(bundle_input, sort_keys=True).encode("utf-8")).hexdigest()
+
+            # 5. Build bundle directory path
+            bundle_dir = self.evidence_root / "sportdb" / "football" / "p2e_a6" / operation / bundle_id
+            bundle_dir.mkdir(parents=True, exist_ok=True)
+
+            # 6. Prepare manifest
+            created_at = datetime.now(UTC).isoformat()
+            manifest = {
+                "provider": "sportdb",
+                "operation": operation,
+                "bundle_id": bundle_id,
+                "request_identity": request_identity,
+                "created_at": created_at,
+                "mcp_tool_name": mcp_tool_name,
+                "response_sha256": response_sha256,
+                "normalized_sha256": normalized_sha256,
+                "parser_version": SPORTDB_MCP_PARSER_VERSION,
+                "schema_fingerprint": schema_fingerprint,
+                "source_summary_inputs": [
+                    "certification/football/p2e_sportdb_mcp_schema_summary.json",
+                    "certification/football/p2e_sportdb_mcp_football_mapping_summary.json",
+                    "certification/football/p2e_sportdb_shadow_adapter_summary.json",
+                    "certification/football/p2e_sportdb_replay_comparison_summary.json"
+                ],
+                "secret_safe": True,
+            }
+
+            # 7. Write files
+            request_data = {
+                "provider": "sportdb",
+                "tool_name": mcp_tool_name,
+                "arguments": arguments,
+            }
+
+            response_preview = {}
+            if isinstance(raw_response, dict):
+                preview_keys = list(raw_response.keys())[:10]
+                response_preview = {k: raw_response[k] for k in preview_keys}
+            elif isinstance(raw_response, list):
+                response_preview = raw_response[:5]
+
+            request_path = bundle_dir / "request.json"
+            response_sha_path = bundle_dir / "response.sha256.txt"
+            normalized_path = bundle_dir / "normalized.json"
+            manifest_path = bundle_dir / "manifest.json"
+            preview_path = bundle_dir / "response.safe_preview.json"
+
+            try:
+                from bet.resilience import atomic_write
+                atomic_write(request_path, json.dumps(request_data, indent=2, sort_keys=True).encode("utf-8"))
+                atomic_write(response_sha_path, (response_sha256 + "\n").encode("utf-8"))
+                atomic_write(normalized_path, json.dumps(normalized_value, indent=2, sort_keys=True).encode("utf-8"))
+                atomic_write(manifest_path, json.dumps(manifest, indent=2, sort_keys=True).encode("utf-8"))
+                atomic_write(preview_path, json.dumps(response_preview, indent=2, sort_keys=True).encode("utf-8"))
+            except ImportError:
+                request_path.write_text(json.dumps(request_data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+                response_sha_path.write_text(response_sha256 + "\n", encoding="utf-8")
+                normalized_path.write_text(json.dumps(normalized_value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+                manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+                preview_path.write_text(json.dumps(response_preview, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+            project_root = Path("/Users/mkoziol/projects/bet-multisport-enrichment-v1")
+            
+            def safe_rel(p: Path) -> str:
+                try:
+                    return str(p.relative_to(project_root))
+                except ValueError:
+                    return str(p.relative_to(self.evidence_root))
+
+            written_files = [
+                safe_rel(request_path),
+                safe_rel(response_sha_path),
+                safe_rel(normalized_path),
+                safe_rel(manifest_path),
+                safe_rel(preview_path),
+            ]
+
+            return bundle_id, written_files, response_sha256, normalized_sha256, schema_fingerprint
+        except Exception as exc:
+            raise RuntimeError(f"Failed to write evidence bundle: {exc}") from exc
 
 
 class SportDBMCPError(RuntimeError):
@@ -346,6 +483,7 @@ class SportDBMCPShadowAdapter:
         self.mapping_summary = json.loads(self.mapping_path.read_text(encoding="utf-8"))
 
         self.client = SportDBMCPClient()
+        self.writer = SportDBEvidenceBundleWriter()
 
     def _build_payload(self, tool_name: str, custom_match_id: str | None = None) -> dict[str, Any]:
         """Build argument payloads using tool schemas and observed mapping values."""
@@ -625,3 +763,823 @@ class SportDBMCPShadowAdapter:
             "top_level_keys": top_level_keys,
             "raw_result": raw_result,
         }
+
+    def get_competition_results_with_evidence(self) -> SourceOperationResult[Any]:
+        """Fetch competition results, normalize them, and write the evidence bundle."""
+        tool_name = "flashscore_get_competition_results"
+        operation = "competition_results"
+        retrieved_at = datetime.now(UTC)
+
+        try:
+            payload = self._build_payload(tool_name)
+        except RequiredPayloadFieldUnknownError:
+            return SourceOperationResult(
+                status=SourceResultStatus.SCHEMA_ERROR,
+                provider="sportdb",
+                operation=operation,
+                error_code="missing_required_fields",
+                parser_version=SPORTDB_MCP_PARSER_VERSION,
+                retrieved_at=retrieved_at,
+            )
+
+        sport_val = self.mapping_summary.get("sport", {}).get("selected_sport_key") or "football"
+        country_slug_val = self.mapping_summary.get("country", {}).get("selected_country_slug") or "england"
+        competition_slug_val = self.mapping_summary.get("competition", {}).get("selected_competition_slug") or "premier-league"
+        season_val = self.mapping_summary.get("season", {}).get("selected_season") or "2025-2026"
+        request_identity = f"sportdb:{operation}:{sport_val}:{country_slug_val}:{competition_slug_val}:{season_val}"
+
+        try:
+            raw_result = self.client.call_tool(tool_name, payload)
+        except SportDBMCPAuthError:
+            return SourceOperationResult(
+                status=SourceResultStatus.AUTHENTICATION_ERROR,
+                provider="sportdb",
+                operation=operation,
+                request_identity=request_identity,
+                error_code="auth_error",
+                parser_version=SPORTDB_MCP_PARSER_VERSION,
+                retrieved_at=retrieved_at,
+            )
+        except SportDBMCPRateLimitError:
+            return SourceOperationResult(
+                status=SourceResultStatus.RATE_LIMITED,
+                provider="sportdb",
+                operation=operation,
+                request_identity=request_identity,
+                error_code="rate_limited",
+                parser_version=SPORTDB_MCP_PARSER_VERSION,
+                retrieved_at=retrieved_at,
+            )
+        except SportDBMCPParserError:
+            return SourceOperationResult(
+                status=SourceResultStatus.PARSE_ERROR,
+                provider="sportdb",
+                operation=operation,
+                request_identity=request_identity,
+                error_code="parser_error",
+                parser_version=SPORTDB_MCP_PARSER_VERSION,
+                retrieved_at=retrieved_at,
+            )
+        except (SportDBMCPError, Exception) as exc:
+            return SourceOperationResult(
+                status=SourceResultStatus.TRANSPORT_ERROR,
+                provider="sportdb",
+                operation=operation,
+                request_identity=request_identity,
+                error_code=type(exc).__name__,
+                parser_version=SPORTDB_MCP_PARSER_VERSION,
+                retrieved_at=retrieved_at,
+            )
+
+        try:
+            items = []
+            if isinstance(raw_result, list):
+                items = raw_result
+            elif isinstance(raw_result, dict):
+                for key in ("data", "results", "matches", "items"):
+                    val = raw_result.get(key)
+                    if isinstance(val, list):
+                        items = val
+                        break
+                else:
+                    items = [raw_result]
+
+            normalized = []
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                match_id = item.get("eventId") or item.get("match_id") or item.get("id") or item.get("matchId")
+                home_name = item.get("homeName") or item.get("homeFirstName") or item.get("home_team", {}).get("name") if isinstance(item.get("home_team"), dict) else item.get("home_team")
+                away_name = item.get("awayName") or item.get("awayFirstName") or item.get("away_team", {}).get("name") if isinstance(item.get("away_team"), dict) else item.get("away_team")
+                status = item.get("eventStage") or item.get("status") or item.get("state")
+                
+                home_score = item.get("homeScore") or item.get("homeFullTimeScore") or item.get("home_score")
+                away_score = item.get("awayScore") or item.get("awayFullTimeScore") or item.get("away_score")
+                score = item.get("score")
+                if not score and home_score is not None and away_score is not None:
+                    score = f"{home_score}-{away_score}"
+
+                normalized.append({
+                    "provider_match_id": match_id,
+                    "home_name": home_name,
+                    "away_name": away_name,
+                    "status": status,
+                    "score": score,
+                    "parser_version": SPORTDB_MCP_PARSER_VERSION,
+                })
+        except Exception as exc:
+            return SourceOperationResult(
+                status=SourceResultStatus.PARSE_ERROR,
+                provider="sportdb",
+                operation=operation,
+                request_identity=request_identity,
+                error_code="normalization_error",
+                parser_version=SPORTDB_MCP_PARSER_VERSION,
+                retrieved_at=retrieved_at,
+            )
+
+        status_code = SourceResultStatus.SUCCESS
+        if not normalized:
+            status_code = SourceResultStatus.VALID_EMPTY
+
+        try:
+            bundle_id, bundle_files, response_sha256, normalized_sha256, schema_fingerprint = self.writer.write_bundle(
+                operation=operation,
+                arguments=payload,
+                raw_response=raw_result,
+                normalized_value=normalized,
+                mcp_tool_name=tool_name,
+                request_identity=request_identity,
+            )
+        except Exception as exc:
+            return SourceOperationResult(
+                status=SourceResultStatus.EVIDENCE_ERROR,
+                provider="sportdb",
+                operation=operation,
+                request_identity=request_identity,
+                error_code="evidence_write_error",
+                parser_version=SPORTDB_MCP_PARSER_VERSION,
+                retrieved_at=retrieved_at,
+            )
+
+        evidence_ref = EvidenceRef(
+            operation=operation,
+            request_identity=request_identity,
+            media_type="application/json",
+            byte_size=len(json.dumps(raw_result).encode("utf-8")),
+            object_sha256=response_sha256,
+            captured_at=retrieved_at.isoformat(),
+        )
+
+        return SourceOperationResult(
+            status=status_code,
+            value=normalized,
+            provider="sportdb",
+            operation=operation,
+            request_identity=request_identity,
+            evidence_refs=(evidence_ref,),
+            bundle_id=bundle_id,
+            retrieved_at=retrieved_at,
+            parser_version=SPORTDB_MCP_PARSER_VERSION,
+            schema_fingerprint=schema_fingerprint,
+        )
+
+    def get_match_stats_with_evidence(self, match_id: str | None = None) -> SourceOperationResult[Any]:
+        """Fetch match stats, normalize them, and write the evidence bundle."""
+        tool_name = "flashscore_get_match_stats"
+        operation = "match_stats"
+        retrieved_at = datetime.now(UTC)
+
+        try:
+            payload = self._build_payload(tool_name, custom_match_id=match_id)
+        except RequiredPayloadFieldUnknownError:
+            return SourceOperationResult(
+                status=SourceResultStatus.SCHEMA_ERROR,
+                provider="sportdb",
+                operation=operation,
+                error_code="missing_required_fields",
+                parser_version=SPORTDB_MCP_PARSER_VERSION,
+                retrieved_at=retrieved_at,
+            )
+
+        sport_val = self.mapping_summary.get("sport", {}).get("selected_sport_key") or "football"
+        country_slug_val = self.mapping_summary.get("country", {}).get("selected_country_slug") or "england"
+        competition_slug_val = self.mapping_summary.get("competition", {}).get("selected_competition_slug") or "premier-league"
+        season_val = self.mapping_summary.get("season", {}).get("selected_season") or "2025-2026"
+        target_match_id = payload.get("match_id") or ""
+        request_identity = f"sportdb:{operation}:{sport_val}:{country_slug_val}:{competition_slug_val}:{season_val}:{target_match_id}"
+
+        try:
+            raw_result = self.client.call_tool(tool_name, payload)
+        except SportDBMCPAuthError:
+            return SourceOperationResult(
+                status=SourceResultStatus.AUTHENTICATION_ERROR,
+                provider="sportdb",
+                operation=operation,
+                request_identity=request_identity,
+                error_code="auth_error",
+                parser_version=SPORTDB_MCP_PARSER_VERSION,
+                retrieved_at=retrieved_at,
+            )
+        except SportDBMCPRateLimitError:
+            return SourceOperationResult(
+                status=SourceResultStatus.RATE_LIMITED,
+                provider="sportdb",
+                operation=operation,
+                request_identity=request_identity,
+                error_code="rate_limited",
+                parser_version=SPORTDB_MCP_PARSER_VERSION,
+                retrieved_at=retrieved_at,
+            )
+        except SportDBMCPParserError:
+            return SourceOperationResult(
+                status=SourceResultStatus.PARSE_ERROR,
+                provider="sportdb",
+                operation=operation,
+                request_identity=request_identity,
+                error_code="parser_error",
+                parser_version=SPORTDB_MCP_PARSER_VERSION,
+                retrieved_at=retrieved_at,
+            )
+        except (SportDBMCPError, Exception) as exc:
+            return SourceOperationResult(
+                status=SourceResultStatus.TRANSPORT_ERROR,
+                provider="sportdb",
+                operation=operation,
+                request_identity=request_identity,
+                error_code=type(exc).__name__,
+                parser_version=SPORTDB_MCP_PARSER_VERSION,
+                retrieved_at=retrieved_at,
+            )
+
+        try:
+            top_level_keys = sorted(list(raw_result.keys())) if isinstance(raw_result, dict) else []
+            raw_stat_field_names = set()
+            raw_stat_group_names = set()
+            normalized_metric_names = set()
+            unknown_metrics = set()
+            team_side_detection = "UNKNOWN"
+
+            periods = []
+            if isinstance(raw_result, dict):
+                periods = raw_result.get("data") or []
+                if not isinstance(periods, list):
+                    periods = []
+            elif isinstance(raw_result, list):
+                periods = raw_result
+
+            for p in periods:
+                if not isinstance(p, dict):
+                    continue
+                group_name = p.get("period") or p.get("group")
+                if group_name:
+                    raw_stat_group_names.add(str(group_name))
+
+                stats_list = p.get("stats") or p.get("items") or []
+                if isinstance(stats_list, list):
+                    for stat in stats_list:
+                        if not isinstance(stat, dict):
+                            continue
+                        name = stat.get("statName") or stat.get("name") or stat.get("label")
+                        if name:
+                            name_str = str(name).strip()
+                            raw_stat_field_names.add(name_str)
+                            norm = ALLOWED_STAT_MAP.get(name_str)
+                            if norm:
+                                normalized_metric_names.add(norm)
+                            else:
+                                unknown_metrics.add(name_str)
+
+                        if "homeValue" in stat or "awayValue" in stat or "home_value" in stat or "away_value" in stat:
+                            team_side_detection = "DETECTED_HOME_AWAY"
+
+            normalized = {
+                "provider_match_id": target_match_id,
+                "top_level_keys": top_level_keys,
+                "raw_stat_field_names": sorted(list(raw_stat_field_names)),
+                "raw_stat_group_names": sorted(list(raw_stat_group_names)),
+                "normalized_metric_names": sorted(list(normalized_metric_names)),
+                "unknown_metrics": sorted(list(unknown_metrics)),
+                "team_side_detection": team_side_detection,
+                "raw_result": raw_result,
+            }
+        except Exception as exc:
+            return SourceOperationResult(
+                status=SourceResultStatus.PARSE_ERROR,
+                provider="sportdb",
+                operation=operation,
+                request_identity=request_identity,
+                error_code="normalization_error",
+                parser_version=SPORTDB_MCP_PARSER_VERSION,
+                retrieved_at=retrieved_at,
+            )
+
+        status_code = SourceResultStatus.SUCCESS
+        if not raw_result:
+            status_code = SourceResultStatus.VALID_EMPTY
+
+        try:
+            bundle_id, bundle_files, response_sha256, normalized_sha256, schema_fingerprint = self.writer.write_bundle(
+                operation=operation,
+                arguments=payload,
+                raw_response=raw_result,
+                normalized_value=normalized,
+                mcp_tool_name=tool_name,
+                request_identity=request_identity,
+            )
+        except Exception as exc:
+            return SourceOperationResult(
+                status=SourceResultStatus.EVIDENCE_ERROR,
+                provider="sportdb",
+                operation=operation,
+                request_identity=request_identity,
+                error_code="evidence_write_error",
+                parser_version=SPORTDB_MCP_PARSER_VERSION,
+                retrieved_at=retrieved_at,
+            )
+
+        evidence_ref = EvidenceRef(
+            operation=operation,
+            request_identity=request_identity,
+            media_type="application/json",
+            byte_size=len(json.dumps(raw_result).encode("utf-8")),
+            object_sha256=response_sha256,
+            captured_at=retrieved_at.isoformat(),
+        )
+
+        return SourceOperationResult(
+            status=status_code,
+            value=normalized,
+            provider="sportdb",
+            operation=operation,
+            request_identity=request_identity,
+            evidence_refs=(evidence_ref,),
+            bundle_id=bundle_id,
+            retrieved_at=retrieved_at,
+            parser_version=SPORTDB_MCP_PARSER_VERSION,
+            schema_fingerprint=schema_fingerprint,
+        )
+
+    def get_match_events_with_evidence(self, match_id: str | None = None) -> SourceOperationResult[Any]:
+        """Fetch match events, normalize them, and write the evidence bundle."""
+        tool_name = "flashscore_get_match_events"
+        operation = "match_events"
+        retrieved_at = datetime.now(UTC)
+
+        try:
+            payload = self._build_payload(tool_name, custom_match_id=match_id)
+        except RequiredPayloadFieldUnknownError:
+            return SourceOperationResult(
+                status=SourceResultStatus.SCHEMA_ERROR,
+                provider="sportdb",
+                operation=operation,
+                error_code="missing_required_fields",
+                parser_version=SPORTDB_MCP_PARSER_VERSION,
+                retrieved_at=retrieved_at,
+            )
+
+        sport_val = self.mapping_summary.get("sport", {}).get("selected_sport_key") or "football"
+        country_slug_val = self.mapping_summary.get("country", {}).get("selected_country_slug") or "england"
+        competition_slug_val = self.mapping_summary.get("competition", {}).get("selected_competition_slug") or "premier-league"
+        season_val = self.mapping_summary.get("season", {}).get("selected_season") or "2025-2026"
+        target_match_id = payload.get("match_id") or ""
+        request_identity = f"sportdb:{operation}:{sport_val}:{country_slug_val}:{competition_slug_val}:{season_val}:{target_match_id}"
+
+        try:
+            raw_result = self.client.call_tool(tool_name, payload)
+        except SportDBMCPAuthError:
+            return SourceOperationResult(
+                status=SourceResultStatus.AUTHENTICATION_ERROR,
+                provider="sportdb",
+                operation=operation,
+                request_identity=request_identity,
+                error_code="auth_error",
+                parser_version=SPORTDB_MCP_PARSER_VERSION,
+                retrieved_at=retrieved_at,
+            )
+        except SportDBMCPRateLimitError:
+            return SourceOperationResult(
+                status=SourceResultStatus.RATE_LIMITED,
+                provider="sportdb",
+                operation=operation,
+                request_identity=request_identity,
+                error_code="rate_limited",
+                parser_version=SPORTDB_MCP_PARSER_VERSION,
+                retrieved_at=retrieved_at,
+            )
+        except SportDBMCPParserError:
+            return SourceOperationResult(
+                status=SourceResultStatus.PARSE_ERROR,
+                provider="sportdb",
+                operation=operation,
+                request_identity=request_identity,
+                error_code="parser_error",
+                parser_version=SPORTDB_MCP_PARSER_VERSION,
+                retrieved_at=retrieved_at,
+            )
+        except (SportDBMCPError, Exception) as exc:
+            return SourceOperationResult(
+                status=SourceResultStatus.TRANSPORT_ERROR,
+                provider="sportdb",
+                operation=operation,
+                request_identity=request_identity,
+                error_code=type(exc).__name__,
+                parser_version=SPORTDB_MCP_PARSER_VERSION,
+                retrieved_at=retrieved_at,
+            )
+
+        try:
+            events_list = []
+            if isinstance(raw_result, dict):
+                data = raw_result.get("data")
+                if isinstance(data, dict):
+                    events_list = data.get("events") or []
+                elif isinstance(data, list):
+                    events_list = data
+                else:
+                    events_list = raw_result.get("events") or []
+            elif isinstance(raw_result, list):
+                events_list = raw_result
+
+            event_count = len(events_list)
+            event_type_names = set()
+            goal_count = 0
+            card_count = 0
+
+            for ev in events_list:
+                if not isinstance(ev, dict):
+                    continue
+                type_name = ev.get("incidentTypeName") or ev.get("incidentType") or ev.get("type")
+                if type_name:
+                    if isinstance(type_name, list):
+                        for t in type_name:
+                            event_type_names.add(str(t))
+                    else:
+                        event_type_names.add(str(type_name))
+
+                type_str = ""
+                if isinstance(type_name, list):
+                    type_str = " ".join([str(t).lower() for t in type_name])
+                elif type_name:
+                    type_str = str(type_name).lower()
+
+                if "goal" in type_str:
+                    goal_count += 1
+                if "card" in type_str or "yellow" in type_str or "red" in type_str:
+                    card_count += 1
+
+            normalized = {
+                "provider_match_id": target_match_id,
+                "event_count": event_count,
+                "event_type_names": sorted(list(event_type_names)),
+                "goal_count": goal_count,
+                "card_count": card_count,
+                "raw_result": raw_result,
+            }
+        except Exception as exc:
+            return SourceOperationResult(
+                status=SourceResultStatus.PARSE_ERROR,
+                provider="sportdb",
+                operation=operation,
+                request_identity=request_identity,
+                error_code="normalization_error",
+                parser_version=SPORTDB_MCP_PARSER_VERSION,
+                retrieved_at=retrieved_at,
+            )
+
+        status_code = SourceResultStatus.SUCCESS
+        if not raw_result:
+            status_code = SourceResultStatus.VALID_EMPTY
+
+        try:
+            bundle_id, bundle_files, response_sha256, normalized_sha256, schema_fingerprint = self.writer.write_bundle(
+                operation=operation,
+                arguments=payload,
+                raw_response=raw_result,
+                normalized_value=normalized,
+                mcp_tool_name=tool_name,
+                request_identity=request_identity,
+            )
+        except Exception as exc:
+            return SourceOperationResult(
+                status=SourceResultStatus.EVIDENCE_ERROR,
+                provider="sportdb",
+                operation=operation,
+                request_identity=request_identity,
+                error_code="evidence_write_error",
+                parser_version=SPORTDB_MCP_PARSER_VERSION,
+                retrieved_at=retrieved_at,
+            )
+
+        evidence_ref = EvidenceRef(
+            operation=operation,
+            request_identity=request_identity,
+            media_type="application/json",
+            byte_size=len(json.dumps(raw_result).encode("utf-8")),
+            object_sha256=response_sha256,
+            captured_at=retrieved_at.isoformat(),
+        )
+
+        return SourceOperationResult(
+            status=status_code,
+            value=normalized,
+            provider="sportdb",
+            operation=operation,
+            request_identity=request_identity,
+            evidence_refs=(evidence_ref,),
+            bundle_id=bundle_id,
+            retrieved_at=retrieved_at,
+            parser_version=SPORTDB_MCP_PARSER_VERSION,
+            schema_fingerprint=schema_fingerprint,
+        )
+
+    def get_match_lineups_with_evidence(self, match_id: str | None = None) -> SourceOperationResult[Any]:
+        """Fetch match lineups, normalize them, and write the evidence bundle."""
+        tool_name = "flashscore_get_match_lineups"
+        operation = "match_lineups"
+        retrieved_at = datetime.now(UTC)
+
+        try:
+            payload = self._build_payload(tool_name, custom_match_id=match_id)
+        except RequiredPayloadFieldUnknownError:
+            return SourceOperationResult(
+                status=SourceResultStatus.SCHEMA_ERROR,
+                provider="sportdb",
+                operation=operation,
+                error_code="missing_required_fields",
+                parser_version=SPORTDB_MCP_PARSER_VERSION,
+                retrieved_at=retrieved_at,
+            )
+
+        sport_val = self.mapping_summary.get("sport", {}).get("selected_sport_key") or "football"
+        country_slug_val = self.mapping_summary.get("country", {}).get("selected_country_slug") or "england"
+        competition_slug_val = self.mapping_summary.get("competition", {}).get("selected_competition_slug") or "premier-league"
+        season_val = self.mapping_summary.get("season", {}).get("selected_season") or "2025-2026"
+        target_match_id = payload.get("match_id") or ""
+        request_identity = f"sportdb:{operation}:{sport_val}:{country_slug_val}:{competition_slug_val}:{season_val}:{target_match_id}"
+
+        try:
+            raw_result = self.client.call_tool(tool_name, payload)
+        except SportDBMCPAuthError:
+            return SourceOperationResult(
+                status=SourceResultStatus.AUTHENTICATION_ERROR,
+                provider="sportdb",
+                operation=operation,
+                request_identity=request_identity,
+                error_code="auth_error",
+                parser_version=SPORTDB_MCP_PARSER_VERSION,
+                retrieved_at=retrieved_at,
+            )
+        except SportDBMCPRateLimitError:
+            return SourceOperationResult(
+                status=SourceResultStatus.RATE_LIMITED,
+                provider="sportdb",
+                operation=operation,
+                request_identity=request_identity,
+                error_code="rate_limited",
+                parser_version=SPORTDB_MCP_PARSER_VERSION,
+                retrieved_at=retrieved_at,
+            )
+        except SportDBMCPParserError:
+            return SourceOperationResult(
+                status=SourceResultStatus.PARSE_ERROR,
+                provider="sportdb",
+                operation=operation,
+                request_identity=request_identity,
+                error_code="parser_error",
+                parser_version=SPORTDB_MCP_PARSER_VERSION,
+                retrieved_at=retrieved_at,
+            )
+        except (SportDBMCPError, Exception) as exc:
+            return SourceOperationResult(
+                status=SourceResultStatus.TRANSPORT_ERROR,
+                provider="sportdb",
+                operation=operation,
+                request_identity=request_identity,
+                error_code=type(exc).__name__,
+                parser_version=SPORTDB_MCP_PARSER_VERSION,
+                retrieved_at=retrieved_at,
+            )
+
+        try:
+            formation_values = set()
+            player_count = 0
+
+            teams_data = []
+            if isinstance(raw_result, dict):
+                teams_data = raw_result.get("data") or []
+                if not isinstance(teams_data, list):
+                    teams_data = [raw_result]
+            elif isinstance(raw_result, list):
+                teams_data = raw_result
+
+            for team_item in teams_data:
+                if not isinstance(team_item, dict):
+                    continue
+                for side in ("home", "away", "players", "starters", "substitutes"):
+                    players_list = team_item.get(side)
+                    if isinstance(players_list, list):
+                        player_count += len(players_list)
+                        for player in players_list:
+                            if isinstance(player, dict):
+                                form = player.get("formation")
+                                if form:
+                                    formation_values.add(str(form))
+
+                team_formation = team_item.get("formation")
+                if team_formation:
+                    formation_values.add(str(team_formation))
+
+            normalized = {
+                "provider_match_id": target_match_id,
+                "formation_values": sorted(list(formation_values)),
+                "player_count": player_count,
+                "raw_result": raw_result,
+            }
+        except Exception as exc:
+            return SourceOperationResult(
+                status=SourceResultStatus.PARSE_ERROR,
+                provider="sportdb",
+                operation=operation,
+                request_identity=request_identity,
+                error_code="normalization_error",
+                parser_version=SPORTDB_MCP_PARSER_VERSION,
+                retrieved_at=retrieved_at,
+            )
+
+        status_code = SourceResultStatus.SUCCESS
+        if not raw_result:
+            status_code = SourceResultStatus.VALID_EMPTY
+
+        try:
+            bundle_id, bundle_files, response_sha256, normalized_sha256, schema_fingerprint = self.writer.write_bundle(
+                operation=operation,
+                arguments=payload,
+                raw_response=raw_result,
+                normalized_value=normalized,
+                mcp_tool_name=tool_name,
+                request_identity=request_identity,
+            )
+        except Exception as exc:
+            return SourceOperationResult(
+                status=SourceResultStatus.EVIDENCE_ERROR,
+                provider="sportdb",
+                operation=operation,
+                request_identity=request_identity,
+                error_code="evidence_write_error",
+                parser_version=SPORTDB_MCP_PARSER_VERSION,
+                retrieved_at=retrieved_at,
+            )
+
+        evidence_ref = EvidenceRef(
+            operation=operation,
+            request_identity=request_identity,
+            media_type="application/json",
+            byte_size=len(json.dumps(raw_result).encode("utf-8")),
+            object_sha256=response_sha256,
+            captured_at=retrieved_at.isoformat(),
+        )
+
+        return SourceOperationResult(
+            status=status_code,
+            value=normalized,
+            provider="sportdb",
+            operation=operation,
+            request_identity=request_identity,
+            evidence_refs=(evidence_ref,),
+            bundle_id=bundle_id,
+            retrieved_at=retrieved_at,
+            parser_version=SPORTDB_MCP_PARSER_VERSION,
+            schema_fingerprint=schema_fingerprint,
+        )
+
+    def get_competition_standings_with_evidence(self) -> SourceOperationResult[Any]:
+        """Fetch competition standings, normalize them, and write the evidence bundle."""
+        tool_name = "flashscore_get_competition_standings"
+        operation = "competition_standings"
+        retrieved_at = datetime.now(UTC)
+
+        try:
+            payload = self._build_payload(tool_name)
+        except RequiredPayloadFieldUnknownError:
+            return SourceOperationResult(
+                status=SourceResultStatus.SCHEMA_ERROR,
+                provider="sportdb",
+                operation=operation,
+                error_code="missing_required_fields",
+                parser_version=SPORTDB_MCP_PARSER_VERSION,
+                retrieved_at=retrieved_at,
+            )
+
+        sport_val = self.mapping_summary.get("sport", {}).get("selected_sport_key") or "football"
+        country_slug_val = self.mapping_summary.get("country", {}).get("selected_country_slug") or "england"
+        competition_slug_val = self.mapping_summary.get("competition", {}).get("selected_competition_slug") or "premier-league"
+        season_val = self.mapping_summary.get("season", {}).get("selected_season") or "2025-2026"
+        request_identity = f"sportdb:{operation}:{sport_val}:{country_slug_val}:{competition_slug_val}:{season_val}"
+
+        try:
+            raw_result = self.client.call_tool(tool_name, payload)
+        except SportDBMCPAuthError:
+            return SourceOperationResult(
+                status=SourceResultStatus.AUTHENTICATION_ERROR,
+                provider="sportdb",
+                operation=operation,
+                request_identity=request_identity,
+                error_code="auth_error",
+                parser_version=SPORTDB_MCP_PARSER_VERSION,
+                retrieved_at=retrieved_at,
+            )
+        except SportDBMCPRateLimitError:
+            return SourceOperationResult(
+                status=SourceResultStatus.RATE_LIMITED,
+                provider="sportdb",
+                operation=operation,
+                request_identity=request_identity,
+                error_code="rate_limited",
+                parser_version=SPORTDB_MCP_PARSER_VERSION,
+                retrieved_at=retrieved_at,
+            )
+        except SportDBMCPParserError:
+            return SourceOperationResult(
+                status=SourceResultStatus.PARSE_ERROR,
+                provider="sportdb",
+                operation=operation,
+                request_identity=request_identity,
+                error_code="parser_error",
+                parser_version=SPORTDB_MCP_PARSER_VERSION,
+                retrieved_at=retrieved_at,
+            )
+        except (SportDBMCPError, Exception) as exc:
+            return SourceOperationResult(
+                status=SourceResultStatus.TRANSPORT_ERROR,
+                provider="sportdb",
+                operation=operation,
+                request_identity=request_identity,
+                error_code=type(exc).__name__,
+                parser_version=SPORTDB_MCP_PARSER_VERSION,
+                retrieved_at=retrieved_at,
+            )
+
+        try:
+            top_level_keys = sorted(list(raw_result.keys())) if isinstance(raw_result, dict) else []
+            rows = []
+            if isinstance(raw_result, dict):
+                rows = raw_result.get("data") or []
+                if not isinstance(rows, list):
+                    rows = []
+            elif isinstance(raw_result, list):
+                rows = raw_result
+
+            row_count = len(rows)
+            team_names = set()
+            for r in rows:
+                if not isinstance(r, dict):
+                    continue
+                team_name = r.get("teamName") or r.get("team_name") or r.get("team", {}).get("name") if isinstance(r.get("team"), dict) else r.get("team")
+                if not team_name:
+                    team_name = r.get("participantName") or r.get("name")
+                if team_name:
+                    team_names.add(str(team_name))
+
+            normalized = {
+                "row_count": row_count,
+                "team_names": sorted(list(team_names)),
+                "top_level_keys": top_level_keys,
+                "raw_result": raw_result,
+            }
+        except Exception as exc:
+            return SourceOperationResult(
+                status=SourceResultStatus.PARSE_ERROR,
+                provider="sportdb",
+                operation=operation,
+                request_identity=request_identity,
+                error_code="normalization_error",
+                parser_version=SPORTDB_MCP_PARSER_VERSION,
+                retrieved_at=retrieved_at,
+            )
+
+        status_code = SourceResultStatus.SUCCESS
+        if not raw_result:
+            status_code = SourceResultStatus.VALID_EMPTY
+
+        try:
+            bundle_id, bundle_files, response_sha256, normalized_sha256, schema_fingerprint = self.writer.write_bundle(
+                operation=operation,
+                arguments=payload,
+                raw_response=raw_result,
+                normalized_value=normalized,
+                mcp_tool_name=tool_name,
+                request_identity=request_identity,
+            )
+        except Exception as exc:
+            return SourceOperationResult(
+                status=SourceResultStatus.EVIDENCE_ERROR,
+                provider="sportdb",
+                operation=operation,
+                request_identity=request_identity,
+                error_code="evidence_write_error",
+                parser_version=SPORTDB_MCP_PARSER_VERSION,
+                retrieved_at=retrieved_at,
+            )
+
+        evidence_ref = EvidenceRef(
+            operation=operation,
+            request_identity=request_identity,
+            media_type="application/json",
+            byte_size=len(json.dumps(raw_result).encode("utf-8")),
+            object_sha256=response_sha256,
+            captured_at=retrieved_at.isoformat(),
+        )
+
+        return SourceOperationResult(
+            status=status_code,
+            value=normalized,
+            provider="sportdb",
+            operation=operation,
+            request_identity=request_identity,
+            evidence_refs=(evidence_ref,),
+            bundle_id=bundle_id,
+            retrieved_at=retrieved_at,
+            parser_version=SPORTDB_MCP_PARSER_VERSION,
+            schema_fingerprint=schema_fingerprint,
+        )

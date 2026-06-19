@@ -1,0 +1,183 @@
+{
+  "blockers": [],
+  "call_budget": {
+    "max_mcp_tool_calls": 5,
+    "mcp_session_calls_made": 0,
+    "mcp_tool_calls_made": 5,
+    "rest_calls_made": 0,
+    "stopped_on_429": false
+  },
+  "certification": {
+    "certified_routes": [],
+    "production_routing_changed": false,
+    "selectable_status_changed": false,
+    "verdict": "NOT_CERTIFIED_EVIDENCE_BUNDLE_CONTRACT_ONLY"
+  },
+  "classification": "SPORTDB_EVIDENCE_BUNDLE_CONTRACT_READY_FOR_IDENTITY_BRIDGE",
+  "contract": {
+    "all_bundle_files_verified": true,
+    "all_success_results_have_evidence": true,
+    "bundle_ids_attached": true,
+    "evidence_refs_attached": true,
+    "secret_safe": true,
+    "source_operation_result_used": true
+  },
+  "evidence_level": "TRACKED_EVIDENCE_BUNDLE_CONTRACT_SUMMARY",
+  "final_review": "PASS",
+  "impact_on_p2d": "none_highlightly_remains_accepted",
+  "mode": "live_mcp_evidence_bundle_contract_probe",
+  "next_step": "P2E_A7_SPORTDB_IDENTITY_BRIDGE_AND_VALUE_REPLAY",
+  "operations": {
+    "competition_results": {
+      "bundle_files": [
+        "betting/data/evidence/sportdb/football/p2e_a6/competition_results/ad13fa9937cae27cc1eff1d27a13faa2909ae05038ccbc379a0d505ff54afdeb/request.json",
+        "betting/data/evidence/sportdb/football/p2e_a6/competition_results/ad13fa9937cae27cc1eff1d27a13faa2909ae05038ccbc379a0d505ff54afdeb/response.sha256.txt",
+        "betting/data/evidence/sportdb/football/p2e_a6/competition_results/ad13fa9937cae27cc1eff1d27a13faa2909ae05038ccbc379a0d505ff54afdeb/normalized.json",
+        "betting/data/evidence/sportdb/football/p2e_a6/competition_results/ad13fa9937cae27cc1eff1d27a13faa2909ae05038ccbc379a0d505ff54afdeb/manifest.json",
+        "betting/data/evidence/sportdb/football/p2e_a6/competition_results/ad13fa9937cae27cc1eff1d27a13faa2909ae05038ccbc379a0d505ff54afdeb/response.safe_preview.json"
+      ],
+      "bundle_id": "ad13fa9937cae27cc1eff1d27a13faa2909ae05038ccbc379a0d505ff54afdeb",
+      "evidence_refs": [
+        {
+          "byte_size": 209555,
+          "cache_hit": false,
+          "captured_at": "2026-06-19T09:00:57.948529+00:00",
+          "http_status": null,
+          "media_type": "application/json",
+          "object_sha256": "3c41b97cd60d29f80b34cde75f262009ba984603fbe5a8bee61ee1cb5c175ec5",
+          "operation": "competition_results",
+          "request_identity": "sportdb:competition_results:football:england:premier-league:2025-2026",
+          "retry_count": 0,
+          "source_event_id": null
+        }
+      ],
+      "normalized_sha256": "c17f57e46854614da32b7ab8d19f14d2baf3c5e224c7155aa94b89cb96f67650",
+      "request_identity": "sportdb:competition_results:football:england:premier-league:2025-2026",
+      "response_sha256": "3c41b97cd60d29f80b34cde75f262009ba984603fbe5a8bee61ee1cb5c175ec5",
+      "status": "SUCCESS"
+    },
+    "competition_standings": {
+      "bundle_files": [
+        "betting/data/evidence/sportdb/football/p2e_a6/competition_standings/1caafba4849e3229eb2b971d95c1b68345b7dbe4c04666e7af39443a7bb84797/request.json",
+        "betting/data/evidence/sportdb/football/p2e_a6/competition_standings/1caafba4849e3229eb2b971d95c1b68345b7dbe4c04666e7af39443a7bb84797/response.sha256.txt",
+        "betting/data/evidence/sportdb/football/p2e_a6/competition_standings/1caafba4849e3229eb2b971d95c1b68345b7dbe4c04666e7af39443a7bb84797/normalized.json",
+        "betting/data/evidence/sportdb/football/p2e_a6/competition_standings/1caafba4849e3229eb2b971d95c1b68345b7dbe4c04666e7af39443a7bb84797/manifest.json",
+        "betting/data/evidence/sportdb/football/p2e_a6/competition_standings/1caafba4849e3229eb2b971d95c1b68345b7dbe4c04666e7af39443a7bb84797/response.safe_preview.json"
+      ],
+      "bundle_id": "1caafba4849e3229eb2b971d95c1b68345b7dbe4c04666e7af39443a7bb84797",
+      "evidence_refs": [
+        {
+          "byte_size": 53230,
+          "cache_hit": false,
+          "captured_at": "2026-06-19T09:00:58.936292+00:00",
+          "http_status": null,
+          "media_type": "application/json",
+          "object_sha256": "496bfd346561f195fb73f0043b617b0305b1a8f78abf6de43a213c935a79b168",
+          "operation": "competition_standings",
+          "request_identity": "sportdb:competition_standings:football:england:premier-league:2025-2026",
+          "retry_count": 0,
+          "source_event_id": null
+        }
+      ],
+      "normalized_sha256": "df5cec57947fadbb70b1dbf59f131029433efcf4b0930922f25390c0b178519d",
+      "request_identity": "sportdb:competition_standings:football:england:premier-league:2025-2026",
+      "response_sha256": "496bfd346561f195fb73f0043b617b0305b1a8f78abf6de43a213c935a79b168",
+      "status": "SUCCESS"
+    },
+    "match_events": {
+      "bundle_files": [
+        "betting/data/evidence/sportdb/football/p2e_a6/match_events/d35f40743357e6529cbac0102888e476068a3ed1084623ddad11d1cb926b58cf/request.json",
+        "betting/data/evidence/sportdb/football/p2e_a6/match_events/d35f40743357e6529cbac0102888e476068a3ed1084623ddad11d1cb926b58cf/response.sha256.txt",
+        "betting/data/evidence/sportdb/football/p2e_a6/match_events/d35f40743357e6529cbac0102888e476068a3ed1084623ddad11d1cb926b58cf/normalized.json",
+        "betting/data/evidence/sportdb/football/p2e_a6/match_events/d35f40743357e6529cbac0102888e476068a3ed1084623ddad11d1cb926b58cf/manifest.json",
+        "betting/data/evidence/sportdb/football/p2e_a6/match_events/d35f40743357e6529cbac0102888e476068a3ed1084623ddad11d1cb926b58cf/response.safe_preview.json"
+      ],
+      "bundle_id": "d35f40743357e6529cbac0102888e476068a3ed1084623ddad11d1cb926b58cf",
+      "evidence_refs": [
+        {
+          "byte_size": 7904,
+          "cache_hit": false,
+          "captured_at": "2026-06-19T09:00:58.688740+00:00",
+          "http_status": null,
+          "media_type": "application/json",
+          "object_sha256": "e924e7c75567a12bc85359bfed80e79b2cf8d4ee63b2fcad3c34ce5b8475e720",
+          "operation": "match_events",
+          "request_identity": "sportdb:match_events:football:england:premier-league:2025-2026:xQXUa3UG",
+          "retry_count": 0,
+          "source_event_id": null
+        }
+      ],
+      "normalized_sha256": "cfc3ed7b7dccbd9c7a4b54791db8de4ccfdf823a442c3ff16193f1617d3ba2cb",
+      "request_identity": "sportdb:match_events:football:england:premier-league:2025-2026:xQXUa3UG",
+      "response_sha256": "e924e7c75567a12bc85359bfed80e79b2cf8d4ee63b2fcad3c34ce5b8475e720",
+      "status": "SUCCESS"
+    },
+    "match_lineups": {
+      "bundle_files": [
+        "betting/data/evidence/sportdb/football/p2e_a6/match_lineups/e6a5989b16ebcd34babe506b90bdb73c5aa44f007fdc54a2cf6e7259d78dc29f/request.json",
+        "betting/data/evidence/sportdb/football/p2e_a6/match_lineups/e6a5989b16ebcd34babe506b90bdb73c5aa44f007fdc54a2cf6e7259d78dc29f/response.sha256.txt",
+        "betting/data/evidence/sportdb/football/p2e_a6/match_lineups/e6a5989b16ebcd34babe506b90bdb73c5aa44f007fdc54a2cf6e7259d78dc29f/normalized.json",
+        "betting/data/evidence/sportdb/football/p2e_a6/match_lineups/e6a5989b16ebcd34babe506b90bdb73c5aa44f007fdc54a2cf6e7259d78dc29f/manifest.json",
+        "betting/data/evidence/sportdb/football/p2e_a6/match_lineups/e6a5989b16ebcd34babe506b90bdb73c5aa44f007fdc54a2cf6e7259d78dc29f/response.safe_preview.json"
+      ],
+      "bundle_id": "e6a5989b16ebcd34babe506b90bdb73c5aa44f007fdc54a2cf6e7259d78dc29f",
+      "evidence_refs": [
+        {
+          "byte_size": 141,
+          "cache_hit": false,
+          "captured_at": "2026-06-19T09:00:58.824422+00:00",
+          "http_status": null,
+          "media_type": "application/json",
+          "object_sha256": "d8cca1e95849c960d845cd0f919029877919371da000d448778977cdf296aac3",
+          "operation": "match_lineups",
+          "request_identity": "sportdb:match_lineups:football:england:premier-league:2025-2026:xQXUa3UG",
+          "retry_count": 0,
+          "source_event_id": null
+        }
+      ],
+      "normalized_sha256": "4971529b6110c3fa185a7bf7d58fb166bfd4fde75b7fcb1580221b6217b802f9",
+      "request_identity": "sportdb:match_lineups:football:england:premier-league:2025-2026:xQXUa3UG",
+      "response_sha256": "d8cca1e95849c960d845cd0f919029877919371da000d448778977cdf296aac3",
+      "status": "SUCCESS"
+    },
+    "match_stats": {
+      "bundle_files": [
+        "betting/data/evidence/sportdb/football/p2e_a6/match_stats/d8c7fcef93e6d70b8aa61621f828fc785343fbb5126e99fb6b5d2a85d8557970/request.json",
+        "betting/data/evidence/sportdb/football/p2e_a6/match_stats/d8c7fcef93e6d70b8aa61621f828fc785343fbb5126e99fb6b5d2a85d8557970/response.sha256.txt",
+        "betting/data/evidence/sportdb/football/p2e_a6/match_stats/d8c7fcef93e6d70b8aa61621f828fc785343fbb5126e99fb6b5d2a85d8557970/normalized.json",
+        "betting/data/evidence/sportdb/football/p2e_a6/match_stats/d8c7fcef93e6d70b8aa61621f828fc785343fbb5126e99fb6b5d2a85d8557970/manifest.json",
+        "betting/data/evidence/sportdb/football/p2e_a6/match_stats/d8c7fcef93e6d70b8aa61621f828fc785343fbb5126e99fb6b5d2a85d8557970/response.safe_preview.json"
+      ],
+      "bundle_id": "d8c7fcef93e6d70b8aa61621f828fc785343fbb5126e99fb6b5d2a85d8557970",
+      "evidence_refs": [
+        {
+          "byte_size": 10686,
+          "cache_hit": false,
+          "captured_at": "2026-06-19T09:00:58.498121+00:00",
+          "http_status": null,
+          "media_type": "application/json",
+          "object_sha256": "0b541d8ed8910a7978c95c8f0401c62641fc8b2ea0065b3cbaa26982b30a7efc",
+          "operation": "match_stats",
+          "request_identity": "sportdb:match_stats:football:england:premier-league:2025-2026:xQXUa3UG",
+          "retry_count": 0,
+          "source_event_id": null
+        }
+      ],
+      "normalized_sha256": "8290e806089d6ece01e787d4a8ded5a045004e0e0e26d7a8186616d3165c35ac",
+      "request_identity": "sportdb:match_stats:football:england:premier-league:2025-2026:xQXUa3UG",
+      "response_sha256": "0b541d8ed8910a7978c95c8f0401c62641fc8b2ea0065b3cbaa26982b30a7efc",
+      "status": "SUCCESS"
+    }
+  },
+  "phase_id": "P2E_A6_SPORTDB_EVIDENCE_BUNDLE_AND_REPLAY_CONTRACT",
+  "previous_accepted_sha": "7141d4512555cb5dad362ab3642000c412446c7a",
+  "prompt_version": "v1_masterpiece_evidence_bundle_contract",
+  "provider": "sportdb",
+  "secret_safe": true,
+  "source_inputs": {
+    "football_mapping_summary": "certification/football/p2e_sportdb_mcp_football_mapping_summary.json",
+    "replay_comparison_summary": "certification/football/p2e_sportdb_replay_comparison_summary.json",
+    "schema_summary": "certification/football/p2e_sportdb_mcp_schema_summary.json",
+    "shadow_adapter_summary": "certification/football/p2e_sportdb_shadow_adapter_summary.json"
+  }
+}
